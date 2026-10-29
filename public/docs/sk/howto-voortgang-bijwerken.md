@@ -14,7 +14,8 @@ Dátum kontroly stavu je deň, ku ktorému zhodnotíte stav. Nastavte ho skôr, 
 
 1. Prejdite na *Plán › Smerné plány a postup › Dátum kontroly stavu*.
 2. Zadajte dátum do troch polí pre deň, mesiac a rok (v poradí, v akom píšete dátumy), napríklad 28, 06 a 2027, a stlačte Enter. Aplikácia prejde do ďalšieho poľa sama.
-3. Malým krížikom vedľa poľa vymažete dátum kontroly stavu.
+3. Má projektový kalendár bloky pracovného času (blok *Pracovná doba* v okne *Kalendáre*)? Potom aplikácia počíta v hodinách a vpravo sa zobrazí pole času, napríklad 17:00. Zadajte iný čas, napríklad 12:00, a stlačte Enter. Ak pole času vyprázdníte, zostane len dátum. Ak zmeníte len dátum, čas zostane. Čas sa riadi vaším zápisom času (24 alebo 12 hodín). Bez blokov pracovného času aplikácia počíta v celých dňoch. Potom pole času nie je a riadok dátumu kontroly stavu je na začiatku dňa.
+4. Malým krížikom vedľa poľa vymažete dátum kontroly stavu.
 
 Ak stav kontrolujete v piatok po skončení pracovnej doby, nastavte dátum kontroly stavu na najbližší pracovný deň, na pondelok. Aplikácia naplánuje zostávajúcu prácu od začiatku dátumu kontroly stavu.
 
@@ -43,7 +44,7 @@ Medzník má jedno pole, *Skutočný dátum*.
 2. Dvakrát kliknite na bunku, zadajte hodnotu a stlačte Enter. Percento zadajte ako `50` alebo `50%`, dátum ako `25-06-2027` a zostávajúce trvanie ako `1`.
 3. V stĺpci *Stav* po dvojitom kliknutí stlačte Enter a vyberte *Nezačaté*, *Prebieha* alebo *Dokončené*.
 
-Ak zadáte zostávajúce trvanie, aplikácia spätne vypočíta percento: pri úlohe s trvaním 2 pracovné dni zvyšok 1 znamená 50%. Zvyšok 0 úlohu dokončí. Ak v stĺpci *Stav* vyberiete *Nezačaté*, percento klesne na 0% a skutočné dátumy zmiznú.
+Ak zadáte zostávajúce trvanie, aplikácia spätne vypočíta percento: pri úlohe s trvaním 2 pracovné dni zvyšok 1 znamená 50%. Zvyšok 0 úlohu dokončí. Stĺpec *Skutočné trvanie* (tiež v kategórii *Postup*) funguje opačne: zadajte, koľko práce je už hotovej, a aplikácia vypočíta percento. Pri úlohe so 4 pracovnými dňami dáva skutočné trvanie 1 hodnotu 25%. Ak v stĺpci *Stav* vyberiete *Nezačaté*, percento klesne na 0% a skutočné dátumy zmiznú.
 
 **Všetko o jednej úlohe v okne úpravy úlohy.** Kliknite pravým tlačidlom na úlohu a vyberte *Upraviť...*. Polia postupu sú tam tiež. Platia až po kliknutí na *Uložiť*.
 
@@ -51,7 +52,7 @@ Ak zadáte zostávajúce trvanie, aplikácia spätne vypočíta percento: pri ú
 
 ### 3. Prepočítajte plán
 
-Každá zmena postupu alebo dátumu kontroly stavu urobí plán zastaralým: stavový riadok ukáže *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Ak je *Automatický prepočet* zapnutý (v *Nastavenia › Projekt › Nastavenia*, karta *Plán*), aplikácia to urobí sama.
+Každá zmena postupu alebo dátumu kontroly stavu urobí plán zastaralým: stavový riadok ukáže *Zastaralé — prepočítajte (F5)*. Stlačte **Prepočítať** (F5), napríklad cez *Plán › Plán › Prepočítať*. Ak je *Automatický prepočet* zapnutý (v *Nastavenia › Projekt › Nastavenia aplikácie*, karta *Plán*), aplikácia to urobí sama.
 
 ## Kontrola výsledku
 

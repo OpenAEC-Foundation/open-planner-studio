@@ -9,7 +9,7 @@ Scop: alegeți ce coloane vedeți în tabelul de activități, în ce ordine și
 Există două tabele de activități, fiecare cu propriile coloane:
 
 - **Tabelul de activități lângă diagrama Gantt** se află în stânga liniei de timp, pe filele, printre altele, *Acasă*, *Planificare* și *Vizualizare*. Implicit are *WBS*, *Nume activitate* și *Durată*, ca să rămână loc pentru linia de timp.
-- **Tabelul de pe fila** *Tabel* are întreg spațiul de lucru. Implicit are *WBS*, *Nume activitate*, *Durată*, *Început*, *Sfârșit*, *Tip de activitate*, *Critic*, *Marjă totală* și *Progres*, plus o coloană pentru fiecare cod de activitate și câmp particularizat al proiectului.
+- **Tabelul de pe fila** *Tabel* are întreg spațiul de lucru. Implicit are *WBS*, *Nume activitate*, *Durată*, *Început*, *Sfârșit*, *Categorie de lucrări*, *Critic*, *Marjă totală* și *Progres*, plus o coloană pentru fiecare cod de activitate și câmp particularizat al proiectului.
 
 O modificare la un tabel nu modifică celălalt.
 

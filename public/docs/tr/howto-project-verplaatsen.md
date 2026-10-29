@@ -52,10 +52,10 @@ Kaydırılmayanlar:
 
 **Tarih geçmişte.** Bu izinlidir, ama önizleme bunu belirtir: *Yeni başlangıç tarihi geçmişte.*
 
-**Proje bilgisinde proje başlangıcını değiştirmek başka bir şeydir.** *Ayarlar › Proje › Proje bilgisi* bölümünde başlangıç tarihini değiştirip *Uygula* seçerseniz planlama taşınmaz. Yalnızca öncülü veya kısıtlaması olmayan ve yeni başlangıçtan önce kalacak görevler o tarihe kayar. Uygulama kaç görevin kaydığını size söyler. Her şeyi kaydırmak istiyorsanız *Projeyi taşı…* kullanın.
+**Proje ayarlarında proje başlangıcını değiştirmek başka bir şeydir.** *Ayarlar › Proje › Proje ayarları* bölümünde başlangıç tarihini değiştirip *Uygula* seçerseniz planlama taşınmaz. Yalnızca öncülü veya kısıtlaması olmayan ve yeni başlangıçtan önce kalacak görevler o tarihe kayar. Uygulama kaç görevin kaydığını size söyler. Her şeyi kaydırmak istiyorsanız *Projeyi taşı…* kullanın.
 
 ## Ayrıca bakın
 
 - [Kritik yol ve bolluk](docs://uitleg-kritiek-pad): planlamanın nasıl hesaplandığı ve bitişin neden kaydığı.
 - [İlişki oluşturmak](docs://howto-relaties-leggen): ilişkiler taşıdığınızda basitçe yerinde kalır.
-- [Yeni proje ve Proje bilgisi](docs://ref-projectinfo): Proje bilgisindeki başlangıç tarihinin ne yaptığı.
+- [Yeni proje ve Proje ayarları](docs://ref-projectinfo): Proje ayarlarındaki başlangıç tarihinin ne yaptığı.

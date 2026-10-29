@@ -2,7 +2,7 @@ import type { Task } from '@/types/task';
 import type { Sequence, LagUnit } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import { addCalendarDays, MS_PER_DAY } from '@/utils/dateUtils';
-import { isElapsedTask, isZeroDurationMilestone } from './duration';
+import { elapsedMilliseconds, isElapsedTask, isZeroDurationMilestone } from './duration';
 
 /**
  * Relatie-wiskunde (FS/SS/FF/SF) voor `CPMSolver.ts`, forward/backward × dag-/uur-modus.
@@ -153,6 +153,9 @@ export interface RelationDeps {
   snapStrictAfter(eng: CalendarEngine, d: Date): Date;
   snapStrictBefore(eng: CalendarEngine, d: Date): Date;
   startOfDay(d: Date): Date;
+  /** Alleen uren §3.14: telt deze taak in de dagenmaat (de hulpfunctie `taskCountsInWorkdays` met de
+   *  effectieve conventie `workdayDurationMeasure`)? */
+  countsInWorkdays(task: Task): boolean;
 }
 
 /**
@@ -521,6 +524,64 @@ function backwardDay(
 //  lag-engine uit `deps.lagEngine` (`schedulingOptions.lagCalendar`, default de voorganger).
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** `d` ligt binnen werktijd van `eng` en is daar zowel een geldig eind (`(start,end]`) als een geldig
+ *  begin (`[start,end)`): dus geen blokbegin, geen blokeinde en geen pauze. */
+function isInsideBlock(eng: CalendarEngine, d: Date): boolean {
+  const t = d.getTime();
+  return eng.prevWorkInstant(d).getTime() === t && eng.nextWorkInstant(d).getTime() === t;
+}
+
+/**
+ * Een taak die in de dagenmaat telt (alleen uren §3.14) op een kalender met werkblokken: geen
+ * urenmaat, geen 0-duurmijlpaal, geen ELAPSEDTIME, en de conventie `workdayDurationMeasure` aan
+ * (`deps.countsInWorkdays`). Een dagenmaat-taak in een profiel zonder dagenmaat (P6, MSP) telt als
+ * urenmaat en valt hier dus buiten. De grensregels hieronder (knownbugs 142, T8) houden een eindmoment
+ * op een blokbegin bij de dag ervoor; de dagenmaat-lopers lezen dat moment op dezelfde plek.
+ */
+function isDayTaskOnBands(deps: RelationDeps, task: Task, eng: CalendarEngine): boolean {
+  return eng.isHourMode && !isZeroDurationMilestone(task) && !isElapsedTask(task)
+    && deps.countsInWorkdays(task);
+}
+
+/**
+ * Knownbugs 142: een eindmoment `moment` op een blokbegin van `lagEng` als het vorige blokeinde,
+ * maar ALLEEN als dat voor de dagtaak die het leest (`readerEng`) werkelijk dezelfde grens is: daar
+ * een geldig eindmoment (`(start,end]`) en geen werktijd tussen beide. Anders blijft `moment`
+ * staan (het gedrag van vóór de fix). Voorbeeld waar het NIET mag: de opvolger heeft op dat
+ * blokeinde een vrije dag; dan zou ze vóór haar voorganger eindigen.
+ * `floor` (optioneel): een eis die niet vóór dit rauwe moment lag, niet tot vóór dit moment terugzetten
+ * — de rauwe voorgangerfinish bij een FF-ondergrens, die voor een ELAPSEDTIME- of werkelijke finish
+ * buiten werktijd kan liggen (A eindigt di 08:00 ⇒ B niet ma 16:00). Een lead ligt al vóór de finish
+ * en valt hier niet onder.
+ */
+function previousBlockEndIfSame(
+  deps: RelationDeps,
+  lagEng: CalendarEngine,
+  readerEng: CalendarEngine,
+  moment: Date,
+  floor?: Date,
+): Date {
+  const back = deps.snapOnOrBefore(lagEng, moment);
+  if (back.getTime() === moment.getTime()) return moment;
+  if (floor && moment.getTime() >= floor.getTime() && back.getTime() < floor.getTime()) return moment;
+  if (readerEng.prevWorkInstant(back).getTime() !== back.getTime()) return moment;
+  if (readerEng.workMinutesBetween(back, moment) !== 0) return moment;
+  return back;
+}
+
+/**
+ * Alleen uren §3.14: een dagenmaat-opvolger mag over FF niet vóór de geëiste finish `rawRequired` klaar
+ * zijn. De dagenmaat leest een eindmoment op een blokbegin als het einde van de werkdag ervoor. Ligt dat
+ * vorige blokeinde vóór `rawRequired` (de opvolger werkt daar niet, of de voorganger eindigt rauw buiten
+ * zijn werktijd), dan moet de opvolger op de volgende werkdag nog werken. De geëiste finish wordt dan het
+ * einde van die werkdag, zoals F2 een hele dag telde (`bg142-*` in `cases-hours-blokgrenzen.json`,
+ * `lagadv-ff-lead-ed`). Een finish die de opvolger al als eindmoment kan halen, blijft staan.
+ */
+function workdayFinishNotBefore(se: CalendarEngine, reqFinish: Date, rawRequired: Date): Date {
+  if (se.prevWorkInstant(reqFinish).getTime() >= rawRequired.getTime()) return reqFinish;
+  return se.measuredWorkdayEnd(se.nextWorkInstant(reqFinish));
+}
+
 /**
  * Landing van een rauwe voorganger-instant op de opvolger, gedeeld door `forwardHour` en
  * `sfReqFinishHour`: de rauwe instant is een uur-precisie `Date` uit de
@@ -552,8 +613,11 @@ function forwardHour(
 ): Date {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
-  const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const { predEndsBeginOfDay, predStartsNextDay, succIsStartMs } = flags;
+  // Zonder soort volgt een nulduurmijlpaal de bindende eindrelatie (N1).
+  const succIsFinishMs = flags.succIsFinishMs || (isZeroDurationMilestone(successor)
+    && !successor.milestoneKind && (seq.type === 'FINISH_FINISH' || seq.type === 'START_FINISH'));
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   // Zie forwardDay se `succElapsed` — dezelfde definitie, hier voor de uurtak. Een
   // ELAPSEDTIME-opvolger heeft dezelfde behoefte als een EINDmijlpaal-opvolger (geen
   // werk-instant-normalisatie op zijn geëiste finish, want 24/7), dus de kortsluitingen hieronder
@@ -581,13 +645,8 @@ function forwardHour(
         const raw = new Date(base.getTime() + elapsedMin());
         return succElapsed ? raw : deps.snapOnOrAfter(se, raw);
       }
-      // BEKENDE BEPERKING (niet gefixt): `deps.shiftLagPred` normaliseert bij lag=0 zelf óók via
-      // `nextWorkInstant(base)`, in de VOORGANGER-engine — vóór de `succElapsed`-check hieronder.
-      // Is `predTask` zelf ELAPSEDTIME met een rauwe `base` buiten elke band, dan snapt deze regel
-      // `base` alsnog naar een werk-instant van de voorganger. FF/SF ontsnappen hieraan via hun
-      // `lagIsZero`-mechanisme (`landRawInstant`); SS heeft dat niet. `shiftLagPred` is een gedeeld
-      // pad met 9 aanroepplekken, dus een blinde aanpassing raakt FF/SF mee; het gat is smal
-      // (ELAPSEDTIME-voorganger volledig buiten de banden) en gepind in msp-pariteit.
+      // SS + 0 naar kalendertijd bewaart het rauwe startmoment, ook buiten werkblokken.
+      if (succElapsed && deps.resolveEffectiveLagDays(seq, predTask, lagEng) === 0) return base;
       const lagged = deps.shiftLagPred(lagEng, base, seq, predTask, 1);
       return succElapsed ? lagged : deps.snapOnOrAfter(se, lagged);
     }
@@ -598,20 +657,48 @@ function forwardHour(
       // hieronder, hier tegen `predResult.ef` (de FF-relatie ankert al op de finish, geen aparte
       // dagrand-normalisatie nodig zoals FS se `predDone`).
       let reqFinish: Date;
+      // De rauwe geëiste finish, vóór de normalisatie naar een werkmoment (dagenmaat-opvolger hieronder).
+      let rawRequired: Date;
       if (elapsed) {
-        reqFinish = succElapsed
-          ? new Date(predResult.ef.getTime() + elapsedMin())
-          : deps.snapOnOrAfter(se, new Date(predResult.ef.getTime() + elapsedMin()));
+        const raw = new Date(predResult.ef.getTime() + elapsedMin());
+        rawRequired = raw;
+        reqFinish = succElapsed ? raw : deps.snapOnOrAfter(se, raw);
+        if (isDayTaskOnBands(deps, successor, se)) {
+          reqFinish = deps.snapOnOrBefore(se, raw).getTime() === raw.getTime() ? raw : reqFinish;
+        }
       } else {
         const lagged = deps.shiftLagPred(lagEng, predResult.ef, seq, predTask, 1);
-        if ((succIsFinishMs || succElapsed) && pe.isHourMode
-          && lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime()) {
+        const lagIsZero = lagged.getTime() === deps.snapOnOrAfter(lagEng, predResult.ef).getTime();
+        // Met lag is `lagged` een moment op de lagkalender; als eindmoment telt het vorige blokeinde
+        // daar (een lead landt op een blokbegin, en dat is het einde van de werkdag ervoor).
+        rawRequired = lagIsZero || !lagEng.isHourMode ? predResult.ef : lagEng.prevWorkInstant(lagged);
+        if ((succIsFinishMs || (succIsStartMs && isDayTaskOnBands(deps, predTask, pe)) || succElapsed) && pe.isHourMode
+          && lagIsZero) {
           reqFinish = landRawInstant(deps, se, predResult.ef, succElapsed);
+        } else if (pe.isHourMode && lagEng.isHourMode && !predEndsBeginOfDay
+          && isDayTaskOnBands(deps, successor, se)) {
+          // Knownbugs 142 van het ontwerp "alleen uren": `shiftLagPred` normaliseert vooruit, dus een
+          // geëiste finish op een blokeinde (vr 16:00) wordt bij lag 0 het volgende blokbegin
+          // (ma 07:00), en een lead kan op een blokbegin landen. `startFromFinish` leest die finish
+          // voor een dagtaak als kalenderdag (`utcDayStart`): één werkdag te laat. Als eindmoment
+          // hoort een blokbegin bij het vorige blokeinde, mits dat voor de opvolger dezelfde grens is
+          // en niet vóór de rauwe voorgangerfinish ligt (`previousBlockEndIfSame`). Een urentaak
+          // trekt zelf al achteruit af (`subtractWorkMinutes`), dus alleen de dagtaak.
+          // `bg142-*` in `cases-hours-blokgrenzen.json`.
+          reqFinish = previousBlockEndIfSame(deps, lagEng, se, lagged, predResult.ef);
         } else {
           reqFinish = lagged;
         }
       }
-      if (succIsStartMs && !predEndsBeginOfDay) return deps.snapStrictAfter(se, reqFinish);
+      if (isDayTaskOnBands(deps, successor, se)) reqFinish = workdayFinishNotBefore(se, reqFinish, rawRequired);
+      if (succIsStartMs && !predEndsBeginOfDay) {
+        // F3c: een dagenmaat-voorganger kan midden in een blok eindigen (0,375 d ⇒ ma 10:00). De
+        // startmijlpaal staat dan op dat moment, niet op het volgende blokbegin (ma 13:00); een
+        // finish op een blokeinde geeft zoals voorheen het volgende blokbegin. Het urenpad houdt
+        // "strikt na" (F1b: de bredere correctie schendt de C7-poort, zie de spec bij F1b).
+        if (!elapsed && isDayTaskOnBands(deps, predTask, pe) && isInsideBlock(se, reqFinish)) return reqFinish;
+        return deps.snapStrictAfter(se, reqFinish);
+      }
       return deps.startFromFinish(se, reqFinish, successor);
     }
     case 'START_FINISH': {
@@ -621,7 +708,10 @@ function forwardHour(
       // `reqFinish` (de geëiste finish zelf) wordt gedeeld met `sfReqFinishHour`
       // (`forwardFinishFloor`) — één bron.
       const reqFinish = sfReqFinishHour(deps, predResult, predTask, seq, successor, pe, se, flags);
-      return deps.startFromFinish(se, reqFinish, successor);
+      // T8: SF bindt aan een exclusieve startgrens. Een hele dagtaak telt de dag die
+      // op dat blokbegin begint niet mee in haar terugtelling; de finishvloer blijft rauw.
+      const durationFinish = isDayTaskOnBands(deps, successor, se) ? se.prevWorkInstant(reqFinish) : reqFinish;
+      return deps.startFromFinish(se, durationFinish, successor);
     }
     case 'FINISH_START':
     default: {
@@ -633,12 +723,18 @@ function forwardHour(
         // MSP-pariteit: een ELAPSEDTIME-lag van exact 0 klok-minuten is dezelfde "geen échte
         // lag"-situatie als de WORKTIME-tak hieronder, zodat een elapsed-FS-eindmijlpaal op de rauwe
         // instant landt. Geen `lagIsZero`-vergelijking nodig: 0 klok-minuten is geen verschuiving.
-        // Anker is `predResult.ef` RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
+        // Anker is het voorgangereinde RECHTSTREEKS, NIET `predDone`: die dag-boundary-+1 is een
         // WORKTIME-concept en schuift een dag-pred-scenario een dag op (`elapsed-day-to-hour` in
         // cases-hours.json).
         const target = new Date(predResult.ef.getTime() + elapsedMin());
         if (succIsFinishMs && pe.isHourMode && elapsedMin() === 0) {
           return landRawInstant(deps, se, target);
+        }
+        if (succIsFinishMs && pe.isHourMode && se.isHourMode) {
+          const back = deps.snapOnOrBefore(se, target);
+          // Kalendertijd bewaart de kloktijdgrens: nul werkminuten maakt ma 16:00 en di 08:00
+          // niet gelijk. Een geldig eindmoment blijft staan, een later blokbegin gaat niet terug.
+          if (back.getTime() === target.getTime()) return back;
         }
         return se.availableStart(target);
       }
@@ -710,6 +806,13 @@ function forwardHour(
       // zou de aanroep crashen op de non-null assertion. Die combinatie loopt correct via de
       // dag-lag-tak van `shiftLagPred` + `availableStart`.
       if (succIsFinishMs && lagIsZero) return landRawInstant(deps, se, predDone);
+      if (succIsFinishMs && pe.isHourMode && se.isHourMode) {
+        const back = deps.snapOnOrBefore(se, lagged);
+        // Beide kalenders moeten dit als dezelfde grens lezen, ook bij een lead en feestdagen.
+        if (back.getTime() === lagged.getTime()
+          || (se.nextWorkInstant(back).getTime() === lagged.getTime()
+            && lagEng.workMinutesBetween(back, lagged) === 0)) return back;
+      }
       return se.availableStart(lagged);
     }
   }
@@ -731,17 +834,19 @@ function sfReqFinishHour(
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
   const { predStartsNextDay, succIsFinishMs } = flags;
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   const succElapsed = isElapsedTask(successor);
 
-  const startMoment = predStartsNextDay ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
+  // T8: een dagtaak bindt aan het echte startmoment, ook bij een eindmijlpaal.
+  const daySuccessor = isDayTaskOnBands(deps, successor, se);
+  const startMoment = predStartsNextDay && !daySuccessor ? deps.snapStrictAfter(pe, predResult.es) : predResult.es;
   if (elapsed) {
     return succElapsed
       ? new Date(startMoment.getTime() + elapsedMin())
       : deps.snapOnOrAfter(se, new Date(startMoment.getTime() + elapsedMin()));
   }
   const lagged = deps.shiftLagPred(lagEng, startMoment, seq, predTask, 1);
-  if ((succIsFinishMs || succElapsed) && pe.isHourMode
+  if ((succIsFinishMs || succElapsed || daySuccessor) && pe.isHourMode
     && lagged.getTime() === deps.snapOnOrAfter(lagEng, startMoment).getTime()) {
     return landRawInstant(deps, se, startMoment, succElapsed);
   }
@@ -760,7 +865,7 @@ function backwardHour(
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   const lagEng = deps.lagEngine(pe, se);
   const { predEndsBeginOfDay, predStartsNextDay, succIsFinishMs, succIsStartMs } = flags;
-  const elapsedMin = () => deps.resolveElapsedMinutes(seq, predTask) * MS_PER_MIN;
+  const elapsedMin = () => elapsedMilliseconds(deps.resolveElapsedMinutes(seq, predTask));
   // Zie backwardDay se `predElapsed` — dezelfde definitie en status, hier voor de uur-FS-tak
   // (`prevWorkInstant` hieronder is de uur-tegenhanger van `prevWorkDayBefore`, met dezelfde
   // over-knijp-fout voor een ELAPSEDTIME-voorganger).
@@ -776,11 +881,22 @@ function backwardHour(
       return deps.finishFromStart(pe, predStart, predTask);
     }
     case 'FINISH_FINISH': {
-      const succLf = (succIsStartMs && !predEndsBeginOfDay) ? deps.snapStrictBefore(se, succResult.lf) : succResult.lf;
+      // Spiegel van de forward-FF: een startmijlpaal midden in een blok bindt een dagenmaat-voorganger
+      // op dat moment zelf; anders de werkgrens ervóór (dagbegin-anker, C7 uit).
+      const succLf = !(succIsStartMs && !predEndsBeginOfDay) ? succResult.lf
+        : !elapsed && isDayTaskOnBands(deps, predTask, pe) && isInsideBlock(se, succResult.lf) ? succResult.lf
+          : deps.snapStrictBefore(se, succResult.lf);
       if (elapsed) {
         return deps.snapOnOrBefore(pe, new Date(succLf.getTime() - elapsedMin()));
       }
-      return deps.shiftLagPred(lagEng, succLf, seq, predTask, -1);       // pred.LF
+      const predLf = deps.shiftLagPred(lagEng, succLf, seq, predTask, -1);       // pred.LF
+      // Spiegel van de forward-FF hierboven (knownbugs 142): een late finish op een blokbegin leest
+      // een dagtaak-voorganger in `subDuration` als de dag erna. Alleen een dagtaak op werkblokken;
+      // een urentaak houdt het bestaande gedrag (bij P6 regelt `p6BackwardLagFinishBoundary` dit).
+      if (se.isHourMode && lagEng.isHourMode && isDayTaskOnBands(deps, predTask, pe)) {
+        return previousBlockEndIfSame(deps, lagEng, pe, predLf);
+      }
+      return predLf;
     }
     case 'START_FINISH': {
       const shifted = elapsed

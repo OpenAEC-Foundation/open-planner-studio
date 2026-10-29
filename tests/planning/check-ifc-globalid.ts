@@ -13,6 +13,7 @@ import { useAppStore } from '@/state/appStore';
 import { writeIFC, ifcGuid, ifcGuid128, ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { createSnapshot, documentDataChanged, migrateSnapshot } from '@/state/snapshot';
 
 const S = () => useAppStore.getState();
 let checks = 0;
@@ -196,6 +197,96 @@ function fixture() {
   const again = writeIFC(readIFC(foreign));
   eq('werkplan houdt zijn GlobalId', guidsOfType(again, /^IFCWORKPLAN$/), [foreignWp]);
   eq('werkschema houdt zijn GlobalId', guidsOfType(again, /^IFCWORKSCHEDULE$/), [foreignWs]);
+}
+
+// 12. IFC-editor: alleen het IFCTASK-GlobalId wijzigen, met dezelfde OPS_TaskIdentity. Undo/redo
+//     moet de GUID-kaart herstellen én het juiste GlobalId terugschrijven in de opslagtekst.
+{
+  S().newProject();
+  const taskId = S().addTask({ name: 'GUID-proef' });
+  const key = ifcObjectSeed('task', taskId);
+  const originalGuid = ifcGuid128('editor-task-original');
+  const editedGuid = ifcGuid128('editor-task-edited');
+  const source = writeIFC({ ...buildWriteIFCInput(S()), ifcGlobalIds: { [key]: originalGuid } });
+  S().applyLoadedProject(readIFC(source), { recompute: true });
+  const savedBefore = writeIFC(buildWriteIFCInput(S()));
+  eq('editor: opslag vóór bewerking bewaart het ingelezen taak-GUID', taskGuidsByName(savedBefore)['GUID-proef'], originalGuid);
+  const editedText = savedBefore.replace(`=IFCTASK('${originalGuid}'`, `=IFCTASK('${editedGuid}'`);
+  eq('editor: IFCTASK-GlobalId werkelijk gewijzigd in de tekst', taskGuidsByName(editedText)['GUID-proef'], editedGuid);
+  const parsedEdit = readIFC(editedText);
+  eq('editor: OPS_TaskIdentity blijft gelijk ondanks gewijzigd GlobalId', parsedEdit.tasks.map(task => task.id), [taskId]);
+  const before = createSnapshot(S());
+  eq('editor: alleen een GUID-wijziging telt als projectdata', documentDataChanged(before, {
+    ...before, ifcGlobalIds: { ...before.ifcGlobalIds, [key]: editedGuid },
+  }), true);
+  // Oude in-memory snapshots zonder het nieuwe veld houden een veilige null-default.
+  eq('snapshot-migratie: ontbrekende GUID-kaart wordt null',
+    migrateSnapshot({ ...before, ifcGlobalIds: undefined } as unknown as typeof before).ifcGlobalIds, null);
+
+  S().applyProjectEdit(parsedEdit);
+  eq('editor apply: GUID-kaart gewijzigd', S().ifcGlobalIds?.[key], editedGuid);
+  eq('editor apply: opslag schrijft gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], editedGuid);
+  S().undo();
+  eq('editor undo: GUID-kaart hersteld', S().ifcGlobalIds?.[key], originalGuid);
+  eq('editor undo: opslag schrijft oorspronkelijk taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], originalGuid);
+  S().redo();
+  eq('editor redo: GUID-kaart opnieuw gewijzigd', S().ifcGlobalIds?.[key], editedGuid);
+  eq('editor redo: opslag schrijft opnieuw gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S())))['GUID-proef'], editedGuid);
+}
+
+// 13. InternalProjectId A → B in de IFC-TEKST, vóór readIFC: de sessie blijft project A. De
+//     project-, werkplan- en werkschema-GUIDs moeten daarom van sleutel B naar A verhuizen.
+{
+  S().newProject();
+  const projectA = 'editor-project-a';
+  const projectB = 'editor-project-b';
+  S().setProject({ id: projectA, name: 'Projectidentiteit' });
+  S().addTask({ name: 'Ankertaak' });
+  const anchors = [['proj', 'IFCPROJECT'], ['wp', 'IFCWORKPLAN'], ['ws', 'IFCWORKSCHEDULE']] as const;
+  // Afwijkende bron-GUIDs bewijzen dat de writer werkelijk bewaart, niet op dezelfde hash terugvalt.
+  const originalGuids = Object.fromEntries(anchors.map(([kind]) =>
+    [ifcObjectSeed(kind, projectA), ifcGuid128(`editor-${kind}-original`)]));
+  const source = writeIFC({ ...buildWriteIFCInput(S()), ifcGlobalIds: originalGuids });
+  S().applyLoadedProject(readIFC(source), { recompute: true });
+  const savedBefore = writeIFC(buildWriteIFCInput(S()));
+  const originalTaskGuids = taskGuidsByName(savedBefore);
+  let editedText = savedBefore.replace(
+    `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT('${projectA}')`,
+    `IFCPROPERTYSINGLEVALUE('InternalProjectId',$,IFCTEXT('${projectB}')`);
+  for (const [kind, entity] of anchors) {
+    editedText = editedText.replace(`=${entity}('${originalGuids[ifcObjectSeed(kind, projectA)]}'`,
+      `=${entity}('${ifcGuid128(`editor-${kind}-edited`)}'`);
+    eq(`editor ${kind}: vóór bewerking oorspronkelijk bron-GUID`,
+      guidsOfType(savedBefore, new RegExp(`^${entity}$`)), [originalGuids[ifcObjectSeed(kind, projectA)]]);
+    eq(`editor ${kind}: anker-GUID werkelijk gewijzigd in de tekst`,
+      guidsOfType(editedText, new RegExp(`^${entity}$`)), [ifcGuid128(`editor-${kind}-edited`)]);
+  }
+  const parsedEdit = readIFC(editedText);
+  eq('editor: InternalProjectId werkelijk als B geparsed', parsedEdit.project.id, projectB);
+  for (const [kind] of anchors) {
+    eq(`editor ${kind}: reader sleutelt GUID op B`, parsedEdit.ifcGlobalIds?.[ifcObjectSeed(kind, projectB)], ifcGuid128(`editor-${kind}-edited`));
+  }
+  S().applyProjectEdit(parsedEdit);
+  eq('editor: sessie houdt project-id A', S().project.id, projectA);
+  for (const [kind] of anchors) {
+    eq(`editor ${kind}: bewaard GUID nu onder A`, S().ifcGlobalIds?.[ifcObjectSeed(kind, projectA)], ifcGuid128(`editor-${kind}-edited`));
+    eq(`editor ${kind}: oude sleutel B verwijderd`, S().ifcGlobalIds?.[ifcObjectSeed(kind, projectB)], undefined);
+    eq(`editor ${kind}: geparste invoer niet gemuteerd`, parsedEdit.ifcGlobalIds?.[ifcObjectSeed(kind, projectB)], ifcGuid128(`editor-${kind}-edited`));
+  }
+  const checkSavedAnchors = (label: string, edited: boolean) => {
+    const saved = writeIFC(buildWriteIFCInput(S()));
+    eq(`${label}: project-id A in de opslagtekst`, readIFC(saved).project.id, projectA);
+    eq(`${label}: taak-GUIDs ongemoeid`, taskGuidsByName(saved), originalTaskGuids);
+    for (const [kind, entity] of anchors) {
+      eq(`${label}: ${entity}.GlobalId in de opslagtekst`, guidsOfType(saved, new RegExp(`^${entity}$`)),
+        [edited ? ifcGuid128(`editor-${kind}-edited`) : originalGuids[ifcObjectSeed(kind, projectA)]]);
+    }
+  };
+  checkSavedAnchors('editor apply', true);
+  S().undo();
+  checkSavedAnchors('editor undo', false);
+  S().redo();
+  checkSavedAnchors('editor redo', true);
 }
 
 if (fails.length) {

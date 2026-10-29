@@ -48,19 +48,21 @@ oplopend versienummer (`poolVersion`) en een tijdstempel (`modifiedAt`). De `id`
 kalender/resource **in** de pool is diens stabiele identiteit — herkomststempels
 (`libraryOrigin.libraryItemId`) wijzen daarnaar.
 
-## Resources-tab: twee weergaven, drie soorten rijen
+## Resources-tab: drie weergaven, drie soorten rijen
 
-De Resources-tab heeft, zodra het project aan een resourcebibliotheek gekoppeld is, twee weergaven
-naast elkaar (een schuifknop rechtsboven in het paneel, "Bibliotheek"/"Project"). Beide weergaven
-delen dezelfde volledige inline-tabel-editor; alleen de rolverdeling verschilt:
+De Resources-tab heeft, zodra het project aan een resourcebibliotheek gekoppeld is, drie weergaven
+(een schuifknop rechtsboven in het paneel, "Bibliotheek"/"Project"/"Bezetting"). De eerste twee
+delen dezelfde volledige inline-tabel-editor; Bezetting is een leesvenster (zie *Bekende beperkingen*,
+punt 2). De rolverdeling van de eerste twee:
 
 - **Bibliotheekweergave** — de bron beheren. Toont de pool van de gekoppelde resourcebibliotheek als
   een volledige editor: alles is hier bewerkbaar (naam, type, beschrijving, tarief/uur, eenheid,
   bibliotheekkalenders), inclusief nieuwe poolitems aanmaken en poolitems verwijderen. Wijzigingen
   gelden **meteen voor alle projecten** die uit deze bibliotheek putten, en vallen buiten ongedaan
   maken (Ctrl+Z) — pools zijn app-globaal, geen projectdata. Vanuit hier gebeurt ook **"Toewijzen aan
-  project"** (zie hieronder). Default-weergave zodra de pool inhoud heeft; een lege pool of een los
-  (ongekoppeld) project toont in plaats daarvan de Projectweergave.
+  project"** (zie hieronder). Het paneel opent in de Projectweergave, ook als de pool inhoud heeft.
+  Bij een andere bibliotheekkoppeling keert het terug naar Project. Een handmatig gekozen weergave
+  blijft bij gewone hertekeningen staan; een los (ongekoppeld) project heeft alleen Project.
 - **Projectweergave** — wat dit project gebruikt, over de gewone projecttabel. Hier bestaan drie
   soorten rijen:
 

@@ -27,7 +27,7 @@ Je hebt drie manieren.
 
 - **Met het toetsenbord.** Alt+↑ en Alt+↓ wisselen de taak met haar buur op hetzelfde niveau. Een samenvattingstaak neemt haar subtaken mee. Bovenaan of onderaan het niveau gebeurt er niets. Bij een meervoudige selectie verplaatst alleen de eerst aangeklikte taak.
 - **Slepen in de takenlijst.** Druk op een rij en sleep verticaal. Het bovenste kwart van een rij betekent *ervoor*, het onderste kwart *erachter*. Het midden van een samenvattingstaak hangt de taak als laatste subtaak eronder. Het midden van een gewone taak telt als de dichtstbijzijnde rand. Sleep je een rij die bij een meervoudige selectie hoort, dan verhuist de hele selectie.
-- **Slepen in de Gantt.** Sleep de balk verticaal naar een andere rij. Dat werkt hetzelfde als slepen in de lijst en verandert geen datums. Sleep je horizontaal, dan verschuif je juist de datums.
+- **Slepen in de Gantt.** Sleep de balk verticaal naar een andere rij. De plekken voor vóór, na of onder een taak werken hetzelfde als in de lijst, maar de balk verplaatst alleen de gesleepte taak, ook bij een meervoudige selectie. De datums veranderen niet. Sleep je horizontaal, dan verschuif je juist de datums.
 
 Elke verplaatsing is één stap voor *Ongedaan* (Ctrl+Z).
 
@@ -48,9 +48,19 @@ Alt+↑ en Alt+↓ werken in zo'n weergave wél, zonder melding. Bij alleen een 
 
 **WBS auto staat uit.** Dat gebeurt bij een bestand met eigen codes, of bij een bestand dat de instelling *uit* bewaart. Een nieuwe taak krijgt de code die bij zijn plek in de boom past, ook als een andere taak die code al heeft. Zo kunnen er dubbele nummers ontstaan. Ook na inspringen kloppen de codes niet meer met de boom. *Hernummer WBS* lost beide op.
 
-**Een mijlpaal krijgt subtaken.** Een mijlpaal is een moment en heeft geen subtaken. De app haalt de mijlpaalmarkering eraf en meldt dat.
+**Een mijlpaal krijgt subtaken.** Een mijlpaal is een moment en heeft geen subtaken. De app haalt de mijlpaalmarkering eraf en meldt dat. Bij één taak noemt de melding de naam; bij meer taken toont ze hoeveel taken hun mijlpaalmarkering verliezen.
 
-**Een taak met resource-toewijzingen krijgt subtaken.** Een samenvattingstaak draagt zelf geen toewijzingen. De app verhuist ze naar de eerste nieuwe subtaak die ze mag dragen en meldt dat. Is er zo'n subtaak niet, of heeft die dezelfde resource al, dan gebeurt er niets en zegt de melding waarom.
+**Een taak met resource-toewijzingen krijgt subtaken.** Een samenvattingstaak draagt zelf geen toewijzingen. Daarom vraagt de app eerst wat ermee moet, in het venster *Taak wordt een samenvattingstaak*. Dat gebeurt bij inspringen, *Subtaak toevoegen*, *Mijlpaal toevoegen* op een taak, een sjabloon invoegen, en in *Taak bewerken* bij een nieuwe *Bovenliggende taak*: voor een bestaande taak en voor een nieuwe taak. In *Taak bewerken* komt de vraag vóór het opslaan. Kies je daar *Annuleren*, dan blijft *Taak bewerken* open met je wijzigingen. Je kiest:
+
+- *Annuleren*: er verandert niets, ook de structuur niet.
+- *Toewijzing verwijderen*: de taak krijgt haar subtaken en haar toewijzingen gaan weg. Het verrichte werk van die toewijzingen gaat ook weg.
+- *Verplaatsen naar '…'*: de toewijzingen gaan naar de eerste nieuwe subtaak die ze mag dragen, met hun verrichte werk. Een mijlpaal of een samenvattingstaak draagt geen toewijzingen.
+
+Heeft die subtaak dezelfde resource al, of is er geen geschikte subtaak, dan is *Verplaatsen* uitgeschakeld. Een oranje blok in het venster zegt waarom.
+
+Staat er op een toewijzing al verricht werk, dan noemt het oranje blok per resource hoeveel uur, bijvoorbeeld *Op de toewijzing van Metselaar staat al 8 uur verricht werk. Verwijderen gooit dat weg.* De knop *Annuleren* is dan de standaardknop: Enter verandert niets. Wil je de toewijzing toch verwijderen, klik dan zelf op *Toewijzing verwijderen*.
+
+Zolang het venster open is, werkt geen enkele sneltoets buiten het venster, ook *Ongedaan*, *Plakken*, Delete, F5 en Ctrl+S niet. Maakt één handeling meer samenvattingstaken tegelijk, dan toont het venster per taak de resources, en je keuze geldt voor allemaal. Eén keer *Ongedaan* (Ctrl+Z) draait de hele handeling terug.
 
 **Een relatie zou een kring maken.** De relaties van een samenvattingstaak gelden ook voor haar subtaken. Zou een verplaatsing daardoor een kring maken, dan weigert de app hem, met de melding *Deze verplaatsing zou een kring in de planning maken (…)*. Er verandert dan niets.
 

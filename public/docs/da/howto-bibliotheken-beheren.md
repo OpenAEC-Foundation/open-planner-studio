@@ -47,7 +47,7 @@ Under knapperne står der *Eksport er også din backup. Gem filen et sikkert ste
 Du har to valg:
 
 - *Tilføj som nyt ressourcebibliotek*: filen bliver et separat bibliotek ved siden af dine eksisterende. Nedenfor står der under hvilket navn, for eksempel *Tilføjes som “Mijn resourcebibliotheek (2)”.* Intet går tabt, og dit aktive projekt forbliver koblet til sit eget bibliotek.
-- *Erstat et eksisterende ressourcebibliotek*: hele indholdet af det valgte bibliotek erstattes af indholdet fra filen. Der står også: *Import erstatter HELE poolen i det valgte ressourcebibliotek*. Har du to eller flere biblioteker, vælger du, hvilket under *Importer til ressourcebibliotek*. Er dit bibliotek nyere end filen, advarer appen: *Dit lokale bibliotek er nyere. Import kan overskrive dine ændringer*.
+- *Erstat et eksisterende ressourcebibliotek*: hele indholdet af det valgte bibliotek erstattes af indholdet fra filen. Der står også *Import erstatter HELE poolen i det valgte ressourcebibliotek*. Har du to eller flere biblioteker, vælger du, hvilket under *Importer til ressourcebibliotek*. Er dit bibliotek nyere end filen, advarer appen: *Dit lokale bibliotek er nyere. Import kan overskrive dine ændringer*.
 
 Appen foreslår selv et valg. Hvis filen indeholdt standardbiblioteket, er *Tilføj som nyt ressourcebibliotek* forvalgt. Findes biblioteket fra filen allerede på din computer, og er det ikke standardbiblioteket, så er *Erstat et eksisterende ressourcebibliotek* forvalgt, med netop dét bibliotek valgt. Er du i tvivl, så vælg *Tilføj*. Det overskriver ikke noget.
 
@@ -64,7 +64,7 @@ En projektfil indeholder sine egne kopier af ressourcerne. Vil du også overdrag
 
 1. Åbn et projekt, der er koblet til et bibliotek, og vælg *Fil › Eksporter*.
 2. Sæt flueben i *Gem biblioteksfilen ved siden af*. Afkrydsningsfeltet vises kun for et koblet projekt.
-3. Vælg kortet *IFC 4x3*, og gem filen. Appen spørger så også efter en anden fil. Den har samme navn som projektet med `-bibliotheek` efter, og den indeholder biblioteket.
+3. Vælg kortet *IFC*, og gem filen. Appen spørger så også efter en anden fil. Den har samme navn som projektet med `-bibliotheek` efter, og den indeholder biblioteket.
 
 Afkrydsningsfeltet virker kun for IFC-eksporten, ikke for de andre eksportformater. Din kollega importerer den anden fil, som beskrevet ovenfor.
 
@@ -72,9 +72,9 @@ Afkrydsningsfeltet virker kun for IFC-eksporten, ikke for de andre eksportformat
 
 **To planlæggere, to biblioteker.** Appen synkroniserer ikke biblioteker mellem computere. Importvinduet viser altid en advarsel om det: *Bemærk: biblioteker synkroniseres ikke mellem maskiner. Hvis to planlæggere arbejder med samme ressourcebibliotek, kan bibliotekerne komme til at afvige fra hinanden. Hvis din organisation deler hold på tværs af driftsselskaber, vælg da bevidst ét fælles bibliotek.*
 
-**Erstatning overskriver alt.** Alt, du havde i det valgte bibliotek, er væk, og en ændring af et bibliotek kan ikke fortrydes med *Fortryd*. Eksportér først, hvis du er i tvivl.
+**Erstatning overskriver alt.** Alt, du havde i det valgte bibliotek, er væk, og en ændring af et bibliotek kan ikke fortrydes med *Fortryd*. Eksportér først, hvis du er i tvivl. Dine projekter beholder deres kopier. Appen opdaterer kopier, der stadig findes i den nye fil. Kopier, der ikke længere er i den, får markeringen *ikke længere i biblioteket* og fungerer stadig. Hvis en kopi er forskellig, åbner vinduet *Sammenkæd ressourcebibliotek* (se [Brug af ressourcebiblioteket](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Sletning af en kalender på listen sker med det samme.** Appen spørger ikke om bekræftelse, hvorimod det gør ved sletning af en ressource. Det ligner en mangel. Ændringer i biblioteket kan ikke fortrydes med *Fortryd*.
+**Sletning af en kalender på listen sker med det samme.** Appen spørger ikke om bekræftelse, men det gør den, når du sletter en ressource. Det ligner en mangel. Ændringer i biblioteket kan ikke fortrydes med *Fortryd*.
 
 ## Se også
 

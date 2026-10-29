@@ -20,6 +20,7 @@ import {
   type GridEditorInputProps,
 } from './GridEditorHost';
 import { controlKeyDown, RelationCellEditor } from './RelationCellEditor';
+import { formatReportNumber } from '@/utils/reportNumber';
 
 export interface CommitTaskCellEditorValueInput {
   adapter: TaskGridAdapter;
@@ -27,6 +28,12 @@ export interface CommitTaskCellEditorValueInput {
   text: string;
   directValue?: unknown;
   messageForError: (messageKey: string, error: CellValidationError) => string;
+}
+
+/** Komma of punt als decimaalteken, zoals de tekstparsers van de kolommen; leeg ⇒ NaN (geen stille 0). */
+function decimalFromText(text: string): number {
+  const trimmed = text.trim();
+  return trimmed === '' ? NaN : Number(trimmed.replace(',', '.'));
 }
 
 function errorId(cell: GridCellAddress): string {
@@ -180,6 +187,16 @@ export function TaskCellEditor({
   const editsAssignmentMembership = assignmentColumnId === 'assignment.resources';
   const editsAssignmentUnits = assignmentColumnId === 'assignment.unitsPerDay';
   const editsAssignmentCurve = assignmentColumnId === 'assignment.curve';
+  const editsAssignmentWork = assignmentColumnId === 'assignment.remainingWork';
+  // Inzet en werk staan in de getalnotatie van de taal (nl "1,71", en "1.71"; hoogstens twee
+  // decimalen). Het veld is daarom tekst, geen `type="number"`. Een concepttekst per toewijzing;
+  // zolang die gelijk is aan de getoonde tekst blijft de EXACTE opgeslagen waarde staan, zodat
+  // openen en bevestigen zonder wijziging niets schrijft (geen afronding naar 1,71).
+  const numberLocale = adapter.context.numberLocale;
+  const [numberDrafts, setNumberDrafts] = useState<Readonly<Record<string, string>>>({});
+  const initialTokenByKey = new Map((Array.isArray(initialCell?.value)
+    ? initialCell.value as TaskAssignmentToken[]
+    : []).map(token => [token.assignmentId ?? token.resourceId, token] as const));
   const resourceOptions = descriptor?.editorOptions ?? [];
   const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
   // Nog niet toegewezen resources die bij de zoekterm passen — voor de lijst én voor Enter.
@@ -295,6 +312,7 @@ export function TaskCellEditor({
                 const option = resourceOptionById.get(token.resourceId);
                 const resourceLabel = option?.label
                   ?? labelForOption(option?.labelKey ?? token.resourceId, token.resourceId);
+                const tokenKey = token.assignmentId ?? token.resourceId;
                 return (
                   <div
                     key={token.assignmentId ?? token.resourceId}
@@ -307,15 +325,46 @@ export function TaskCellEditor({
                       ref={index === 0 ? node => { inputRef.current = node; } : undefined}
                       aria-invalid={inputProps['aria-invalid']}
                       aria-describedby={inputProps['aria-describedby']}
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={Number.isFinite(token.unitsPerDay) ? token.unitsPerDay : ''}
+                      type="text"
+                      inputMode="decimal"
+                      data-assignment-number="units"
+                      value={numberDrafts[tokenKey]
+                        ?? (Number.isFinite(token.unitsPerDay) ? formatReportNumber(token.unitsPerDay, numberLocale) : '')}
                       aria-label={`${resourceLabel} — ${labelForOption('properties.assignments.unitsPerDay', 'units')}`}
                       onChange={event => {
-                        const unitsPerDay = event.currentTarget.valueAsNumber;
+                        const typed = event.currentTarget.value;
+                        const original = initialTokenByKey.get(tokenKey)?.unitsPerDay;
+                        const unitsPerDay = original !== undefined && typed.trim() === formatReportNumber(original, numberLocale)
+                          ? original
+                          : decimalFromText(typed);
+                        setNumberDrafts(current => ({ ...current, [tokenKey]: typed }));
                         setAssignmentTokens(current => current.map((item, itemIndex) => (
                           itemIndex === index ? { ...item, unitsPerDay } : item
+                        )));
+                      }}
+                    />}
+                    {editsAssignmentWork && <input
+                      ref={index === 0 ? node => { inputRef.current = node; } : undefined}
+                      aria-invalid={inputProps['aria-invalid']}
+                      aria-describedby={inputProps['aria-describedby']}
+                      type="text"
+                      inputMode="decimal"
+                      data-assignment-number="work"
+                      value={numberDrafts[tokenKey]
+                        ?? (token.remainingWorkMinutes !== undefined && Number.isFinite(token.remainingWorkMinutes)
+                          ? formatReportNumber(token.remainingWorkMinutes / 60, numberLocale)
+                          : '')}
+                      aria-label={`${resourceLabel} — ${labelForOption('properties.assignments.work', 'work')}`}
+                      onChange={event => {
+                        const typed = event.currentTarget.value;
+                        const original = initialTokenByKey.get(tokenKey)?.remainingWorkMinutes;
+                        const hours = decimalFromText(typed);
+                        const remainingWorkMinutes = original !== undefined && typed.trim() === formatReportNumber(original / 60, numberLocale)
+                          ? original
+                          : Number.isFinite(hours) ? Math.round(hours * 60) : NaN;
+                        setNumberDrafts(current => ({ ...current, [tokenKey]: typed }));
+                        setAssignmentTokens(current => current.map((item, itemIndex) => (
+                          itemIndex === index ? { ...item, remainingWorkMinutes } : item
                         )));
                       }}
                     />}

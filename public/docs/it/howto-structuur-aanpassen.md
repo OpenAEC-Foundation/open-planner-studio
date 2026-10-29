@@ -35,22 +35,32 @@ Ogni spostamento è un solo passo per *Annulla* (Ctrl+Z).
 
 Guarda il pulsante *WBS auto* in *Pianificazione › Struttura*.
 
-- **Attivo (il predefinito in un nuovo progetto).** L'app rinumera tutto l'albero a ogni aggiunta, eliminazione e spostamento. Il codice WBS è allora non modificabile: non puoi digitarlo nella tabella attività né nel pannello *Proprietà*. *Rinumera WBS* è disattivato.
-- **Disattivo.** I codici restano come sono, anche dopo spostamenti e rientri. Li digiti tu stesso, nella colonna *WBS* o nel campo *Codice WBS* in *Proprietà*, oppure li fai rinumerare una volta con *Rinumera WBS*. Così si sovrascrivono anche i codici che hai digitato tu.
+- **Attivo (il predefinito in un nuovo progetto).** Viene attivato anche dopo che apri un file senza questa impostazione, se tutti i codici WBS corrispondono già alla numerazione dell'albero (1, 1.1, 1.2 …). I codici non cambiano. Anche un file vuoto senza questa impostazione diventa *sì*, proprio come un nuovo progetto. L'app rinumera tutto l'albero a ogni aggiunta, eliminazione e spostamento. Il codice WBS è allora non modificabile: non puoi digitarlo nella tabella attività né nel pannello *Proprietà*. *Rinumera WBS* è disattivato.
+- **Disattivo.** Il predefinito in un file con codici propri, come *A1000*, oppure con un codice che differisce dall'albero. I codici restano come sono, anche dopo spostamenti e rientri. Li digiti tu stesso, nella colonna *WBS* o nel campo *Codice WBS* in *Proprietà*, oppure li fai rinumerare una volta con *Rinumera WBS*. Così si sovrascrivono anche i codici che hai digitato tu.
 
 Se attivi *WBS auto*, l'app numera subito l'albero. Sia *WBS auto* sia *Rinumera WBS* si possono annullare con *Annulla*.
 
 ## Trappole e cosa fa l'app
 
-**Il filtro, il raggruppamento o l'ordinamento è attivo.** L'ordine che vedi non è allora l'ordine della pianificazione, quindi l'app blocca la struttura. *Applica rientro* e *Riduci rientro* sono disattivati, con il suggerimento *Non disponibile durante filtro/raggruppamento/ordinamento*. Alt+→ e il trascinamento mostrano lo stesso testo in una striscia, con il pulsante *Cancella*. Così si tolgono in un colpo solo filtro, raggruppamento e ordinamento, e Ctrl+Z non li ripristina. *Rientra* e *Rimuovi rientro* mancano allora nel menu del clic destro.
+**Il filtro, il raggruppamento o l'ordinamento è attivo.** L'ordine che vedi non è allora l'ordine della pianificazione, quindi l'app blocca la struttura. *Applica rientro* e *Riduci rientro* sono disattivati, con il suggerimento *Non disponibile durante filtro/raggruppamento/ordinamento*. Alt+→ e il trascinamento mostrano lo stesso testo in una striscia rossa, con il pulsante *Cancella*. Così si tolgono in un colpo solo filtro, raggruppamento e ordinamento, e Ctrl+Z non li ripristina. La striscia resta visibile finché non clicchi la crocetta, non usi Ctrl+Z o Ctrl+Y, oppure non passi a un altro documento. *Rientra* e *Rimuovi rientro* mancano allora nel menu del clic destro.
 
 Alt+↑ e Alt+↓ funzionano comunque in una vista così, senza messaggio. Con solo un filtro vedi subito il nuovo ordine. Con un ordinamento l'ordine nella pianificazione cambia davvero, ma lo vedi solo dopo *Cancella*.
 
-**WBS auto è disattivo.** Una nuova attività riceve il codice che corrisponde al suo posto nell'albero, anche se un'altra attività ha già quel codice. Così possono comparire numeri doppi. Anche dopo un rientro i codici non corrispondono più all'albero. *Rinumera WBS* risolve entrambi i problemi.
+**WBS auto è disattivo.** Succede con un file che ha codici propri, o con un file che salva l'impostazione come *no*. Una nuova attività riceve il codice che corrisponde al suo posto nell'albero, anche se un'altra attività ha già quel codice. Così possono comparire numeri doppi. Anche dopo un rientro i codici non corrispondono più all'albero. *Rinumera WBS* risolve entrambi i problemi.
 
 **Un'attività cardine riceve sottoattività.** Un'attività cardine è un momento e non ha sottoattività. L'app toglie il contrassegno di cardine e ti avvisa.
 
-**Un'attività con assegnazioni di risorse riceve sottoattività.** Un'attività di riepilogo non ha assegnazioni proprie. L'app le sposta alla prima nuova sottoattività che può portarle e ti avvisa. Se non esiste una sottoattività così, o se ha già la stessa risorsa, non succede nulla e il messaggio spiega perché.
+**Un'attività con assegnazioni di risorse riceve sottoattività.** Un'attività di riepilogo non ha assegnazioni proprie. Quindi l'app chiede prima che cosa fare con quelle assegnazioni, nella finestra *L'attività diventa un'attività di riepilogo*. Questo succede quando fai un rientro, usi *Aggiungi sottoattività* o *Aggiungi cardine* su un'attività, inserisci un modello, e in *Modifica attività* quando scegli una nuova *Attività padre*: per un'attività esistente e per una nuova attività. In *Modifica attività* la domanda arriva prima del salvataggio. Se scegli *Annulla* lì, *Modifica attività* resta aperta con le tue modifiche. Scegli:
+
+- *Annulla*: non cambia nulla, anche la struttura resta com'era.
+- *Rimuovi assegnazione*: l'attività riceve le sue sottoattività e le sue assegnazioni vengono rimosse. Anche il lavoro effettivo di quelle assegnazioni viene rimosso.
+- *Sposta a «…»*: le assegnazioni passano alla prima nuova sottoattività che può portarle, con il loro lavoro effettivo. Un cardine o un'attività di riepilogo non porta assegnazioni.
+
+Se quella sottoattività ha già la stessa risorsa, o se non c'è una sottoattività adatta, *Sposta* è disattivato. Un blocco arancione nella finestra ti dice perché.
+
+Se un'assegnazione ha già lavoro effettivo, il blocco arancione ti dice quante ore per risorsa, per esempio *L'assegnazione di Metselaar ha già 8 ore di lavoro effettivo. Rimuovendola, quel lavoro va perso.* *Annulla* è allora il pulsante predefinito: Invio non cambia nulla. Se vuoi comunque rimuovere l'assegnazione, clicca tu stesso su *Rimuovi assegnazione*.
+
+Mentre la finestra è aperta, nessuna scorciatoia fuori dalla finestra funziona, anche *Annulla*, *Incolla*, Canc, F5 e Ctrl+S. Se un'azione crea più attività di riepilogo in una volta, la finestra mostra le risorse per attività, e la tua scelta vale per tutte. Un solo *Annulla* (Ctrl+Z) annulla l'intera azione.
 
 **Una relazione creerebbe un ciclo.** Le relazioni di un'attività di riepilogo valgono anche per le sue sottoattività. Se uno spostamento creerebbe per questo un ciclo, l'app lo rifiuta con il messaggio *This move would create a cycle in the schedule (…)*. Non cambia nulla.
 

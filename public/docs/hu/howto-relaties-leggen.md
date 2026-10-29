@@ -64,19 +64,19 @@ Amit beír, az egész cellát felülírja. Ha már vannak benne elődök, írja 
 
 ### Késleltetés beállítása vagy módosítása
 
-A késleltetést a típus melletti mezőbe írhatja be, a fent felsorolt módok mindegyikével. Meglévő késleltetést a *Kapcsolatok* részben lehet módosítani. Kattintson a késleltetés mezőbe, írja be az új értéket, és nyomja meg az Enter billentyűt.
+A késleltetést a típus melletti mezőbe írhatja be, a fent felsorolt módok mindegyikével. Meglévő késleltetést a *Kapcsolatok* részben lehet módosítani. Kattintson a késleltetés mezőjébe, írja be az új értéket, és nyomja meg az Enter billentyűt.
 
 - `3` vagy `3d`: 3 munkanap. A hétvége nem számít bele. Az alkalmazás `+3d` alakban jeleníti meg.
 - `3ed`: 3 naptári nap. A hétvége beleszámít, ahogy a beton is szombaton és vasárnap szilárdul.
 - `-1`: negatív késleltetés (átfedés). Az utód egy nappal korábban kezdődhet, így a tevékenységek átfedésbe kerülnek.
-- `4h`: 4 munkaóra; az alkalmazás ezt `+4u` alakban jeleníti meg. Ha az előd napalapú tevékenység, és a naptárnak nincsenek saját idősávjai, például a standard naptárnak, az alkalmazás ezt egész munkanapokra váltja át, a legközelebbi egész napra kerekítve: a `4h` ekkor 1 napként, a `2h` 0 napként számít. Ha a naptárnak vannak saját idősávjai, vagy ha az előd óraalapú tevékenység, a késleltetés pontosan órában számít.
+- `4h`: 4 munkaóra; az alkalmazás ezt `+4h` alakban jeleníti meg. Ha az előd napalapú tevékenység, és a naptárnak nincsenek saját idősávjai, például a standard naptárnak, az alkalmazás ezt egész munkanapokra váltja át, a legközelebbi egész napra kerekítve: a `4h` ekkor 1 napként, a `2h` 0 napként számít. Ha a naptárnak vannak saját idősávjai, vagy ha az előd óraalapú tevékenység, a késleltetés pontosan órában számít.
 - `50%`: az előd időtartamának a fele.
 
 Példa: az alapozóbetonnak meg kell szilárdulnia, mielőtt a falazó rajta dolgozhat. Ezért a *Pour foundation → Foundation brickwork* kapcsolat FS típusú, `3` késleltetéssel. Ha az öntés 2027. június 18., pénteken van, a falazás a **Számítás** után, június 24., csütörtökön kezdődik: hétfőtől szerdáig várakozási idő van. Ha `3ed` értéket ír be, a hétvége beleszámít, és a falazás kedden, június 22-én kezdődik.
 
 ### Végül: újraszámítás
 
-Egy új kapcsolat még nem mozgat egyetlen sávot sem. Az állapotsor ezt írja: *Elavult — újraszámítsa (F5)*. Nyomja meg a **Számítás** gombot (F5), például a *Kezdőlap › Ütemezés › Számítás* lehetőségnél. Csak ezután kapják meg az utódok az új dátumukat. Ha azt szeretné, hogy az alkalmazás ezt automatikusan végezze, kapcsolja be az *Automatikus ütemezés-számítás* beállítást a *Beállítások › Projekt › Beállítások* alatt, az *Ütemezés* lapon.
+Egy új kapcsolat még nem mozgat egyetlen sávot sem. Az állapotsor ezt írja: *Elavult — újraszámítsa (F5)*. Nyomja meg a **Számítás** gombot (F5), például a *Kezdőlap › Ütemezés › Számítás* lehetőséggel. Csak ezután kapják meg az utódok az új dátumukat. Ha azt szeretné, hogy az alkalmazás ezt automatikusan végezze, kapcsolja be az *Automatikus ütemezés-számítás* beállítást a *Beállítások › Projekt › Beállítások* alatt, az *Ütemezés* lapon.
 
 ## Buktatók és az alkalmazás viselkedése
 

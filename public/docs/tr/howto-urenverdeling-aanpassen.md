@@ -13,8 +13,8 @@ Hedef: standart bir eğri kullanmak yerine, bir atama için kaynağın görevin 
 Örnek, dış boşluklu duvar yaprağıdır: 6 iş günü, bir duvarcı, 48 saat.
 
 1. Görevi seçin. *Özellikler* paneli sağdadır. Bu paneli görmüyorsanız, *Görünüm › Paneller › Özellikler* ile açın.
-2. *Atamalar* bölümünde duvarcının yanındaki çubuk grafik simgesi olan *Saat dağılımı…* öğesine tıklayın. *Aşamalara göre saat dağılımı* penceresi açılır. Uygulamanın şu an ayırdığı değerlerle başlarsınız: bu dış boşluklu duvar yaprağı için 6 günlük, birimi 1 olan tek bir aşama.
-3. Gerekirse, *Şekil uygula:* alanından bir başlangıç noktası seçin. *Çan eğrisi* seçilirse uygulama beş aşama oluşturur: ilk ve son günde 0,18 birim, ikinci ve beşinci günde 0,84 birim ve iki ortadaki günde 1,98 birim. Toplam 48 saat kalır.
+2. *Atamalar* bölümünde duvarcının adına tıklayın. Adın altında *Eğri* açılır listesi ve *Saat dağılımı…* düğmesi görünür. *Saat dağılımı…* öğesine tıklayın. *Aşamalara göre saat dağılımı* penceresi açılır. Uygulamanın şu an ayırdığı değerlerle başlarsınız: bu dış boşluklu duvar yaprağı için 6 günlük, birimi 1 olan tek bir aşama.
+3. Gerekirse, *Şekil uygula:* alanından bir başlangıç noktası seçin. *Çan eğrisi* seçilirse uygulama beş aşama oluşturur: ilk ve son günde 0,18 birim, ikinci ve beşinci günde 0,84 birim ve ortadaki iki günde 1,98 birim. Toplam 48 saat kalır.
 
 ### Aşamaları ayarlamak
 
@@ -31,21 +31,21 @@ Tabloda veya onun üstündeki şeritte çalışabilirsiniz.
 
 Bir örnek. *Böl* öğesini seçersiniz. İlk aşamanın *Gün* değerini 2 olarak ve bu aşamanın eforunu 0,5 olarak ayarlarsınız. İkinci aşama bu durumda 4 gün sürer, efor 1 olur. Toplam 2 × 0,5 × 8 + 4 × 1 × 8 = 40 saattir.
 
-*Uygula* öğesinden sonra atamanın eğrisi *Kontur* olarak ayarlanır ve devre dışı kalır. *Birim/gün* eski hâlinde kalır. Histogram ve aşırı atanmışlık hemen yeni dağılıma göre güncellenir. Yeniden hesaplama gerekmez, çünkü hiçbir tarih değişmez.
+*Uygula* öğesinden sonra atamanın eğrisi *Kontur* olarak ayarlanır ve devre dışı kalır. *Birim* eski hâlinde kalır. Atama daraltılmış olsa da adının yanında artık bir çubuk grafik simgesi görünür. Histogram ve aşırı atanmışlık hemen yeni dağılıma göre güncellenir. Yeniden hesaplama gerekmez, çünkü hiçbir tarih değişmez.
 
 ### Dağılımı kaldırmak
 
-Atamanın kendi dağılımı varsa pencerede ayrıca *Dağılımı kaldır* bulunur. Bu, kendi dağılımınızı kaldırır. Uygulama o zaman *Birim/gün* ve eğriye geri döner. Eğriyi değiştirmek istiyorsanız da bunu seçin, çünkü kendi dağılımı olduğu sürece *Eğri* açılır listesi devre dışıdır.
+Atamanın kendi dağılımı varsa pencerede ayrıca *Dağılımı kaldır* bulunur. Bu, kendi dağılımınızı kaldırır. Uygulama o zaman *Birim* ve eğriye geri döner. Eğriyi değiştirmek istiyorsanız da bunu seçin, çünkü kendi dağılımı olduğu sürece *Eğri* açılır listesi devre dışıdır.
 
 ## Dikkat edilecek noktalar ve uygulamanın o durumda yaptıkları
 
-**Toplam de değişir.** Saatleri bölmezsiniz, onlara kendiniz karar verirsiniz. Bir aşamayı 0,18 yerine 0,5 olarak ayarlarsanız toplam büyür. Saat cinsinden toplam pencerenin altındadır. Bu yüzden *Uygula* öğesine tıklamadan önce kontrol edin.
+**Toplam da değişir.** Saatleri bölmezsiniz, onlara kendiniz karar verirsiniz. Bir aşamayı 0,18 yerine 0,5 olarak ayarlarsanız toplam büyür. Saat cinsinden toplam pencerenin altındadır. Bu yüzden *Uygula* öğesini seçmeden önce kontrol edin.
 
-**Birimler sonrasında ne yapar, iş kuralına bağlıdır.** *Sabit süre ve birimler* ile diğer *Birim/gün* değerleri dağılımı hiçbir şekilde değiştirmez. *Sabit süre ve iş* ile uygulama, yeni birimlerle birlikte günlük saatleri ölçekler: birimler 1 yerine 2 olduğunda her gün iki katına çıkar ve toplam da (32 saatten 64 saate) iki katına çıkar; süre aynı kalır. *Sabit iş* ile birimler görevin süresini değiştirir: dağılım o zaman yeni süreye sıkıştırılır veya uzatılır, toplam aynı kalır. *Sabit birimler* ile birimler süreyi de değiştirir; sonrasında pencerenin altındaki toplamı kontrol edin.
+**Birimlerin sonrasında ne yaptığı görev türüne bağlıdır.** *Sabit süre ve birimler* ile diğer *Birim* değerleri dağılımı hiçbir şekilde değiştirmez. *Sabit süre ve iş* ile uygulama, yeni birimlerle birlikte günlük saatleri ölçekler: birimler 1 yerine 2 olduğunda her gün iki katına çıkar ve toplam da (32 saatten 64 saate) iki katına çıkar; süre aynı kalır. *Sabit iş* ile birimler görevin süresini değiştirir: dağılım o zaman yeni süreye sıkıştırılır veya uzatılır, toplam aynı kalır. *Sabit birimler* ile birimler süreyi de değiştirir; sonrasında pencerenin altındaki toplamı kontrol edin.
 
 **Görevin süresini değiştirirseniz, dağılım onunla birlikte uzar.** Şekil aynı kalır. *Sabit süre ve birimler* ve *Sabit birimler* ile toplam süreyle orantılı olarak artar: kendi dağılımı olan bir görevin süresi 4 iş gününden 8 iş gününe çıkarsa, toplam da 32 saatten 64 saate iki katına çıkar. *Sabit süre ve iş* ve *Sabit iş* ile toplam aynı kalır (32 saat yine 32 saattir) ve birimler düşer.
 
-**İş dağılımı izler.** *İş (kalan)* sizin aşamalarınızın toplamı olur, *Sabit iş* ile de. Görevin süresi bundan dolayı değişmez.
+**İş dağılımı izler.** *İş (sa)* sizin aşamalarınızın toplamı olur, *Sabit iş* ile de. Görevin süresi bu yüzden değişmez.
 
 **Geçersiz birim değerleri.** Boş veya negatif bir efor kırmızı bir kenarlık alır ve *Uygula* o zaman devre dışı kalır. Efor 0 olan bir aşamaya izin verilir. Böyle bir aşama görevin süresi içinde kalır.
 

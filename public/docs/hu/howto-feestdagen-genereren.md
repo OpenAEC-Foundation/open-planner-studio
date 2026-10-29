@@ -22,11 +22,11 @@ Az **építőipari szabadság** (*bouwvak*) a holland építőiparban általáno
 
 Hollandia esetén az alkalmazás minden évben az alábbi ünnepnapokat teszi a listába: Nieuwjaar (újév), Goede Vrijdag (nagypéntek), Pasen (húsvét, két nap), Koningsdag (királynap), Hemelvaart (mennybemenetel), Pinksteren (pünkösd, két nap) és Kerst (karácsony, december 25. és 26.). Ha a Koningsdag (királynap) vasárnapra esik, április 26-án van. A Bevrijdingsdag (felszabadulás napja) csak a lustrumévekben kerül a listába, például 2025-ben és 2030-ban.
 
-Az évek a projekt időszakát követik: a kezdődátumot megelőző évtől a befejezési dátumot követő évig. Ha a projektnek nincs befejezési dátuma, a kezdés évétől számított három évig terjed. A kezdő- és a befejezési dátumot a *Beállítások › Projekt › Projektinfó* alatt módosíthatja.
+Az évek a projektidőszakát követik: a kezdődátumot megelőző évtől a befejezési dátumot követő évig. Ha a projektnek nincs befejezési dátuma, a kezdés évétől számított három évig terjed. A kezdő- és a befejezési dátumot a *Beállítások › Projekt › Projektbeállítások* alatt módosíthatja.
 
 ### Újragenerálás új projektidőszak után
 
-Ha a projekt eltolódik, vagy későbbi befejezési dátumot kap, az ünnepnapok már nem fedik le az új éveket. Az alkalmazás ezt a *Naptárak* ablakban jelzi, például így: *Az ünnepnapok a(z) 2025–2028 időszakot fedik le; a projekt 2030-ig tart. Újragenerálja?* Ekkor kattintson az *Újragenerálás* gombra. Az alkalmazás az előző alkalommal használt választásokat (ország, régió, építőipari szabadság) alkalmazza a projekt éveire. Ezután kattintson az *Alkalmazás* gombra. Ez az üzenet csak olyan naptárnál jelenik meg, amelynek ünnepnapjait korábban generálták.
+Ha a projekt eltolódik, vagy későbbi befejezési dátumot kap, az ünnepnapok már nem fedik le az új éveket. Az alkalmazás ezt a *Naptárak* ablakban jelzi, például így: *Az ünnepnapok a(z) 2025–2028 időszakot fedik le; újragenerálja 2030-ig?* Ekkor kattintson az *Újragenerálás* gombra. Az alkalmazás az előző alkalommal használt választásokat (ország, régió, építőipari szabadság) alkalmazza a projekt éveire. Ezután kattintson az *Alkalmazás* gombra. Ez az üzenet csak olyan naptárnál jelenik meg, amelynek ünnepnapjait korábban generálták.
 
 ### Saját nem munkanap vagy időszak hozzáadása
 
@@ -58,5 +58,5 @@ Válassza a *Nincs ünnepnap* lehetőséget az *Ország* alatt, és kattintson a
 - [Naptárak és munkanapok](docs://uitleg-kalenders): hogyan veszi figyelembe az alkalmazás az ünnepnapokat és az építőipari szabadságot a munkanapok számításánál.
 - [Naptár létrehozása és hozzárendelése](docs://howto-kalender-maken-en-toewijzen): saját naptár készítése, amelybe az ünnepnapokat felveheti.
 - [Naptárablakok](docs://ref-kalenders): a naptárablakok összes mezője.
-- [Új projekt és Projektinfó](docs://ref-projectinfo): az ünnepnaplista egy új projekthez.
+- [Új projekt és Projektbeállítások](docs://ref-projectinfo): az ünnepnaplista egy új projekthez.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): az ünnepnapok mellett a projektnaptárban van egy nem munkaidős időszak is: *Frost delay, foundations*.

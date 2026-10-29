@@ -21,10 +21,10 @@ Riippuvuuden voi lisätä neljällä tavalla. Kaikki luovat saman riippuvuuden. 
 Hyödyllinen, kun työskennellään tehtävätaulukossa.
 
 1. Napsauta tehtävätaulukossa ensimmäistä tehtävää, eli edeltäjää.
-2. Pidä Ctrl-näppäin alhaalla (macOS:ssä ⌘) ja napsauta seuraavaa tehtävää, eli seuraajaa.
+2. Pidä Ctrl-näppäintä alhaalla (macOS:ssä ⌘) ja napsauta seuraavaa tehtävää, eli seuraajaa.
 3. Valitse *Aloitus › Tehtävät › Riippuvuus ▾ › Linkitä valitut tehtävät*. Sama painike on myös kohdassa *Aikataulu › Riippuvuudet*.
 
-Sovellus luo FS-riippuvuuden (lopusta alkuun) ilman viivettä. Se näkyy nuolena Gantt-kaaviossa ja sarakkeessa *Edeltäjät*; ilmoitus näkyy vain, jos sovellus hylkää riippuvuuden. Painike toimii vain, kun valittuna on täsmälleen kaksi tehtävää.
+Sovellus luo lopusta alkuun -riippuvuuden (FS) ilman viivettä. Se näkyy nuolena Gantt-kaaviossa ja sarakkeessa *Edeltäjät*. Ilmoitus näkyy vain, jos sovellus hylkää riippuvuuden. Painike toimii vain, kun valittuna on täsmälleen kaksi tehtävää.
 
 ### Riippuvuuden piirtäminen Gantt-kaaviossa
 
@@ -57,7 +57,7 @@ Hyödyllinen, kun työskennellään nopeasti näppäimistöllä ja WBS-numerot o
 
 1. Napsauta tehtävätaulukon otsikkorivin oikealla puolella olevaa **+**-painiketta (*Lisää sarake*). Valitse kohdasta *Riippuvuudet* sarake *Edeltäjät*. Sarake *Seuraajat* toimii samalla tavalla.
 2. Napsauta sarakkeessa *Edeltäjät* seuraajan solua.
-3. Kirjoita edeltäjän WBS-numero, väli ja tyyppi, esimerkiksi `2.6 FS`. Kirjoita viive heti perään: `2.6 FS+1d`. Erota useat edeltäjät puolipisteellä tai pilkulla: `3.1 FS; 3.2 SS+2d`.
+3. Kirjoita edeltäjän WBS-numero, välilyönti ja tyyppi, esimerkiksi `2.6 FS`. Kirjoita viive heti perään: `2.6 FS+1d`. Erota useat edeltäjät puolipisteellä tai pilkulla: `3.1 FS; 3.2 SS+2d`.
 4. Paina Enter.
 
 Kirjoitettu teksti korvaa koko solun. Jos solussa on jo edeltäjiä, kirjoita nekin (katso kohta Sudenkuopat). Jos solussa painetaan Enter tai F2 kirjoittamisen sijaan, avautuu kenttä, joka säilyttää nykyiset riippuvuudet. Tehtävä haetaan WBS-numerolla tai nimellä, ja jokaiselle riippuvuudelle valitaan tyyppi ja viive.
@@ -66,10 +66,10 @@ Kirjoitettu teksti korvaa koko solun. Jos solussa on jo edeltäjiä, kirjoita ne
 
 Viive kirjoitetaan tyypin viereiseen kenttään, kaikilla yllä kuvatuilla tavoilla. Olemassa oleva viive muutetaan osiossa *Riippuvuudet*. Napsauta viivekenttää, kirjoita uusi arvo ja paina Enter.
 
-- `3` tai `3d`: 3 työpäivää. Viikonloppu ei lasketa. Sovellus näyttää `+3d`.
+- `3` tai `3d`: 3 työpäivää. Viikonloppua ei lasketa. Sovellus näyttää `+3d`.
 - `3ed`: 3 kalenteripäivää. Viikonloppu lasketaan mukaan, kuten betoni, joka kovettuu myös lauantaina ja sunnuntaina.
 - `-1`: limitys. Seuraaja voi alkaa päivää aiemmin, joten tehtävät menevät päällekkäin.
-- `4h`: 4 työtuntia; sovellus näyttää sen muodossa `+4u`. Jos edeltäjä on päivätehtävä ja kalenterissa ei ole omia työaikalohkoja, kuten vakiokalenterissa, sovellus muuntaa viiveen kokonaisiksi työpäiviksi ja pyöristää lähimpään kokonaiseen päivään: `4h` vastaa silloin 1 päivä, `2h` 0 päivää. Kalenterilla, jolla on omia työaikalohkoja, tai tuntitehtävän jälkeen viive lasketaan tarkasti tunteina.
+- `4h`: 4 työtuntia; sovellus näyttää sen muodossa `+4h`. Jos edeltäjä on päivätehtävä ja kalenterissa ei ole omia työaikalohkoja, kuten vakiokalenterissa, sovellus muuntaa viiveen kokonaisiksi työpäiviksi ja pyöristää lähimpään kokonaiseen päivään: `4h` vastaa silloin 1 päivä, `2h` 0 päivää. Kalenterilla, jolla on omia työaikalohkoja, tai tuntitehtävän jälkeen viive lasketaan tarkasti tunteina.
 - `50%`: puolet edeltäjän kestosta.
 
 Esimerkiksi perustusbetonin pitää kovettua, ennen kuin muurari voi työskennellä sen päällä. Siksi *Pour foundation → Foundation brickwork* saa FS-riippuvuuden viiveellä `3`. Jos valu on perjantaina 18. kesäkuuta 2027, muuraus alkaa torstaina 24. kesäkuuta **Laske**-komennon jälkeen. Maanantaista keskiviikkoon on odotusaikaa. Kun käytetään `3ed`, viikonloppu lasketaan mukaan ja muuraus alkaa tiistaina 22. kesäkuuta.

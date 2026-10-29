@@ -2,6 +2,8 @@
 
 Je opent een planning uit Primavera of MS Project, en de datums zijn anders dan je in dat pakket zag. Is de import mislukt? Meestal niet. In dit artikel lees je waarom de app zelf doorrekent, wanneer ze de datums uit het bestand laat zien, wat er dan leeg blijft en hoe je terugkeert naar de eigen berekening. Het voorbeeld aan het eind volgt twee taken door de hele cyclus.
 
+Een bestand uit een oudere versie van Open Planner Studio wordt bij het openen opnieuw berekend. Verschuiven taken, dan meldt de app hoeveel taken een ander begin of einde krijgen en wat de grootste verschuiving is. Met Ctrl+Z zie je de opgeslagen datums terug. Die blijven staan tot je Bereken kiest of een planningsbewerking doet, ook als Automatisch berekenen aan staat. Alleen een naam wijzigen laat de opgeslagen datums staan, ook via de MCP-client.
+
 ## Het begrip
 
 Een planningsbestand bevat twee soorten gegevens. Ten eerste de logica: taken, duren, relaties, kalenders en constraints. Ten tweede de datums die het pakket daar zelf uit uitrekende. Open Planner Studio gebruikt bij het openen de logica en rekent zelf door. De datums uit het bestand zijn dus geen invoer.
@@ -41,7 +43,7 @@ Een taak die klaar is, staat op de dagen waarop hij echt gebeurde: van de werkel
 
 Het bestand legt voor zo'n taak vaak andere vroege datums vast. Primavera zet de vroege start van een taak die bezig of klaar is op de statusdatum. Die datums zie je in de kolommen *Vroegste start* en *Vroegste einde*, niet in *Start* en *Einde*. Een taak die klaar is, telt daarom nooit mee als afwijking. Een taak die bezig is, telt alleen mee als het einde verschilt.
 
-Van een taak die gestart is, kun je de start niet meer intypen. In het taakraster, in het paneel *Eigenschappen* en in *Taak bewerken* is de start dan alleen-lezen. Bij een taak die klaar is, geldt dat ook voor het einde in het taakraster. Pas in plaats daarvan de *Werkelijke start* of het *Werkelijke einde* aan, bij de voortgang. In de Gantt verschuift de balk van zo'n taak niet; je krijgt dan een melding.
+Van een taak die gestart is, kun je de start niet meer intypen. In het taakraster, in het paneel *Eigenschappen* en in *Taak bewerken* is de start dan alleen-lezen. Bij een taak die klaar is, geldt dat ook voor het einde in het taakraster. Pas in plaats daarvan de *Werkelijke start* of het *Werkelijk einde* aan, bij de voortgang. In de Gantt verschuift de balk van zo'n taak niet; je krijgt dan een melding.
 
 ### Wat er in deze weergave leeg blijft
 
@@ -54,7 +56,7 @@ Legt het bestand van een taak niet alles vast, dan krijgt het oranje blok in het
 Je verlaat de weergave op twee manieren:
 
 - Klik in de strook op *Herberekenen*, of kies *Bereken* (F5). De app rekent door met haar eigen regels.
-- Wijzig iets waardoor de datums kunnen veranderen, zoals de duur van een taak of een nieuwe taak. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat. Een naam, omschrijving, taaktype of werkregel wijzigen doet dat niet: dan blijft de weergave aan.
+- Wijzig iets waardoor de datums kunnen veranderen, zoals de duur van een taak of een nieuwe taak. De app verlaat de weergave en rekent meteen door, ook als *Automatisch berekenen* uit staat. Een naam, omschrijving, werksoort of taaktype wijzigen doet dat niet: dan blijft de weergave aan.
 
 Een kalenderwijziging uit de resourcebibliotheek laat de weergave aan en de datums uit het bestand staan, maar werkt het getal in de strook bij.
 

@@ -51,7 +51,7 @@ Haga clic con el botón derecho en la tarea y elija *Añadir subtarea*. La nueva
 Los tres tipos se diferencian así:
 
 - Un *Hito de comienzo* va al inicio del día, un *Hito de fin* al final del día. En el Gantt, el rombo queda a la izquierda o a la derecha de la columna del día, respectivamente. También importa para el sucesor. Suponga que un hito cae el martes 29 de septiembre de 2026 y una tarea lo sigue con una relación fin-comienzo: después de un hito de comienzo, esa tarea empieza el mismo martes; después de un hito de fin, el miércoles 30 de septiembre.
-- Un *Punto de inspección (obligatorio)* es un hito de fin con el tipo de tarea *Inspección* y la casilla *Obligatorio (contractual)* marcada.
+- Un *Punto de inspección (obligatorio)* es un hito de fin con la categoría de trabajo *Inspección* y la casilla *Obligatorio (contractual)* marcada.
 
 ### Convertir una tarea existente en hito
 
@@ -62,6 +62,7 @@ Si lo desactiva de nuevo, sigue siendo una tarea normal con duración 0. Introdu
 ### Otras formas
 
 - Ctrl+M (⌘+M en un Mac) pone un hito nuevo al final de la lista, aunque haya una tarea seleccionada. El panel *Propiedades* no se abre.
+- Un hito que cree con Ctrl+M o con el menú contextual recibe la categoría de trabajo *Inspección*. Un *Hito de comienzo* o un *Hito de fin* desde *Hito ▾* recibe *Otro*. Cambie la categoría de trabajo en *Propiedades* si lo necesita.
 - *Añadir hito* en el menú contextual de una tarea hace del hito una subtarea de esa tarea, no una tarea del mismo nivel.
 
 ### Copiar una tarea o una rama completa
@@ -72,7 +73,7 @@ Si lo desactiva de nuevo, sigue siendo una tarea normal con duración 0. Introdu
 
 La copia tiene el mismo nombre, las mismas fechas y el mismo avance. Entra como tarea del mismo nivel que la tarea seleccionada (con varias: la primera en la que hizo clic), al final entre esas tareas del mismo nivel. Si no hay nada seleccionado, va al final de la lista. Después, las tareas copiadas quedan seleccionadas, los códigos WBS (el número de cada tarea en el árbol, como 1.2; véase [Ajustar la estructura](docs://howto-structuur-aanpassen)) se determinan de nuevo y la planificación deja de estar actualizada.
 
-El portapapeles es común a toda la aplicación, así que también puede pegar en otro documento. Lo que allí no existe, como un calendario de tarea, un tipo de tarea personalizado, un código de actividad o un campo personalizado, la aplicación lo borra y se lo indica.
+El portapapeles es común a toda la aplicación, así que también puede pegar en otro documento. Lo que allí no existe, como un calendario de tarea, una categoría de trabajo personalizada, un código de actividad o un campo personalizado, la aplicación lo borra y se lo indica.
 
 ### Después
 
@@ -82,7 +83,7 @@ Una tarea nueva todavía no cambia las demás fechas. La barra de estado dice *D
 
 **Cada tarea nueva empieza en la fecha de inicio del proyecto.** Sin relaciones, una tarea no espera a nada. Añada relaciones; véase [Añadir relaciones](docs://howto-relaties-leggen).
 
-**El filtrado, la agrupación o la ordenación están activados.** El orden que ve entonces no es el orden de la planificación. Con una tarea seleccionada, *Tarea* e *Hito ▾* añaden la nueva tarea al final, y aparece la franja *No disponible mientras se filtra/agrupa/ordena*. *Insertar arriba* e *Insertar debajo* se rechazan, con la misma franja. El botón *Limpiar* de la franja quita el filtro, la agrupación y la ordenación de una vez. Eso no forma parte de *Deshacer*: Ctrl+Z no los recupera.
+**El filtrado, la agrupación o la ordenación están activados.** El orden que ve entonces no es el orden de la planificación. Con una tarea seleccionada, *Tarea* e *Hito ▾* añaden la nueva tarea al final. Aparece una notificación roja que dice *La nueva tarea se ha añadido al final. Durante el filtrado, la agrupación o la ordenación, la aplicación no puede colocarla debajo de su selección*. *Insertar arriba* e *Insertar debajo* se rechazan, con la franja *No disponible mientras se filtra/agrupa/ordena*. El botón *Limpiar* de la notificación o de la franja quita el filtro, la agrupación y la ordenación de una vez. Eso no forma parte de *Deshacer*: Ctrl+Z no los recupera.
 
 **Una subtarea debajo de una tarea con asignaciones de recursos.** La tarea se convierte en tarea de resumen, y una tarea de resumen no lleva asignaciones por sí misma. La aplicación traslada las asignaciones a la nueva subtarea y se lo indica. Si no es posible, por ejemplo porque eligió *Añadir hito* y un hito no puede llevar asignaciones, la aplicación no añade nada y explica por qué.
 

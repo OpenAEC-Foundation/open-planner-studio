@@ -41,13 +41,13 @@ Med *Egendefinert* blir *Fra* og *Til* to datofelt. De starter med datoene fra v
 
 ### 5. Les perioden i rapporten
 
-For Look-ahead, Ressursbelastning og Ressurstilordninger står perioden under tittelen, for eksempel *Periode: 20-05-2027 – 19-06-2027*. Hvis du velger *Hele prosjektet*, legges *Hele prosjektet* til etter datoene. Fremdriftsrapport viser perioden i oppsummeringen under *Periode*. Ressursdiagram lar tidsaksen gå nøyaktig over perioden.
+For Look-ahead, Ressursbelastning og Ressurstilordninger står perioden under tittelen, for eksempel *Periode: 20-05-2027 – 19-06-2027*. Hvis du velger *Hele prosjektet*, legges *Hele prosjektet* til etter datoene. Fremdriftsrapport viser perioden i oppsummeringen under *Periode*. Ressursdiagram lar tidsaksen dekke perioden nøyaktig.
 
 ### Hva perioden gjør per rapport
 
 Perioden fungerer ikke likt i alle rapporter.
 
-- **Look-ahead** tar med de uferdige aktivitetene som berører perioden, også hvis de strekker seg over hele perioden. Forsinkede aktiviteter fra før referansedagen tas også med, så lenge slutten av perioden ikke ligger før referansedagen. En egendefinert periode helt i fortiden er et tilbakeblikk: den viser bare det som pågikk da og ikke var ferdig, uten dagens etterslep.
+- **Look-ahead** tar med de uferdige aktivitetene som berører perioden, også hvis de strekker seg over hele perioden. Forsinkede aktiviteter fra før referansedagen tas også med, så lenge slutten av perioden ikke ligger før referansedagen. En egendefinert periode helt i fortiden er et tilbakeblikk: den viser bare det som pågikk da og ennå ikke var ferdig, uten dagens etterslep.
 - **Fremdriftsrapport** bruker perioden for *Fullført i den forrige perioden*. Avsnittet *Starter i den neste perioden* ser fremover fra statusdatoen, til datoen ved *Look-ahead t.o.m* i oppsummeringen. Hvis du velger et valg med *Forrige*, ser rapporten like langt fremover som den ser bakover: med *Forrige 2 uker* og statusdato 20. mai står det *Look-ahead t.o.m* 3. juni. En egendefinert periode eller *Hele prosjektet* som ligger helt i fortiden, speiles ikke.
 - **Ressursbelastning** viser hver uke eller måned som berører perioden, i sin helhet. Hvis perioden din går fra onsdag til onsdag, ser du derfor hele uker, så en rad viser alltid samme tall som histogrammet.
 - **Ressurstilordninger** viser tilordningene til aktiviteter som berører perioden. Med *Hele prosjektet* filtreres det ikke på dato.

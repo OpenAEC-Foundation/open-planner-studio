@@ -14,6 +14,8 @@ The app does not send a report to a printer itself. The end point is always a PD
 
 Choose *Report* in the ribbon, or press Ctrl+P. Ctrl+P takes you to this tab. If you are typing in a field, a dialog is open or presentation mode is on, Ctrl+P does not work. In the browser the print dialog of the browser then opens, and that prints the screen, not the report.
 
+From the file menu, choose *File › Print › Open print preview*. The file menu closes and the Report tab opens. Then choose your report and settings.
+
 On the left is the *Report* column with the *Report type* list, a summary and the settings. On the right is the preview.
 
 ### 2. Choose the report type
@@ -57,7 +59,7 @@ The other reports are shown on screen as a table. What you see is what ends up i
 
 ### 6. Export to PDF
 
-At the bottom of the left column, click **Export PDF**. The suggested file name is the project name followed by the kind of report, for the Gantt chart for example *Extension house-planning.pdf*.
+Click **Print** in the ribbon, or **Export PDF** at the bottom of the left column. Both buttons export the selected report with your current settings to PDF. The suggested file name is the project name followed by the kind of report, for the Gantt chart for example *Extension house-schedule.pdf*. The report part follows the interface language: a progress report gets `-progress.pdf` in English and `-voortgang.pdf` in Dutch. The project name stays the same; previously saved files are not renamed.
 
 - In the desktop app, and in a browser that has a save dialog for files, you choose where the PDF goes. If you close that dialog without saving, nothing happens.
 - In a browser without such a dialog, the browser puts the PDF in your downloads folder.
@@ -68,7 +70,7 @@ Open the PDF in your PDF reader and print it there. If you print an A3 PDF on an
 
 ## Pitfalls and what the app does
 
-**The Print button and Ctrl+P do not print.** The *Print* button in the *Report* group is on the Report tab itself and does nothing extra. Ctrl+P takes you to this tab. There is no separate print command in the app: the way to paper goes through the PDF. If Ctrl+P does not work (see step 1), the print dialog of the browser opens in the browser, and that prints the screen, not the report.
+**Print exports; Ctrl+P opens Report.** The *Print* button in the *Report* group exports the configured report to PDF, just like *Export PDF*. Ctrl+P takes you to the Report tab; it does not start an export. There is no separate print command in the app: the way to paper goes through the PDF. If Ctrl+P does not work (see step 1), the print dialog of the browser opens in the browser, and that prints the screen, not the report.
 
 **Company: overtyping is not kept.** The *Company:* field of the Gantt chart starts with the company from the project settings. What you type over it is not kept. You cannot type in *Author:* here. You change both with *Settings › Project › Project settings*, in the fields *Client/organization* and *Author*, and confirm with *Apply*.
 

@@ -50,8 +50,8 @@ Klikněte na úkol pravým tlačítkem a zvolte *Přidat dílčí úkol*. Nový 
 
 Tři druhy se liší takto:
 
-- *Počáteční milník* patří na začátek dne, *Milník dokončení* na závěr dne. V diagramu Gantt sedí kosočtverec vlevo, respektive vpravo od sloupce dne. Záleží na tom i u následníka. Řekněme, že milník je v úterý 29. září 2026 a za ním je navázán úkol se závislostí dokončení-zahájení: po počátečním milníku začíná tento úkol ve stejné úterý, po milníku dokončení ve středu 30. září.
-- *Kontrolní milník (povinný)* je milník dokončení s typem úkolu *Kontrola/inspekce* a zaškrtnutým polem *Povinný (smluvní)*.
+- *Počáteční milník* patří na začátek dne, *Milník dokončení* na závěr dne. V diagramu Gantt sedí kosočtverec vlevo, respektive vpravo od sloupce dne. Záleží na tom i u následníka. Řekněme, že milník je v úterý 29. září 2026 a za ním je navázán úkol se závislostí dokončení-zahájení: po počátečním milníku začíná tento úkol ve stejném úterý, po milníku dokončení ve středu 30. září.
+- *Kontrolní milník (povinný)* je milník dokončení s druhem práce *Kontrola/inspekce* a zaškrtnutým polem *Povinný (smluvní)*.
 
 ### Změna existujícího úkolu na milník
 
@@ -62,6 +62,7 @@ Pokud to zase vypnete, zůstane běžný úkol s dobou trvání 0: dobu trvání
 ### Další způsoby
 
 - Ctrl+M (na Macu ⌘+M) přidá nový milník dole v seznamu, i když je vybraný úkol. Panel *Vlastnosti* se neotevře.
+- Milník, který vytvoříte pomocí Ctrl+M nebo v nabídce pravého tlačítka, dostane druh práce *Kontrola/inspekce*. *Počáteční milník* nebo *Milník dokončení* z *Milník ▾* dostane *Ostatní*. Pokud potřebujete, změňte druh práce v panelu *Vlastnosti*.
 - *Přidat milník* v nabídce pravého tlačítka u úkolu udělá z milníku dílčí úkol tohoto úkolu, ne sourozence.
 
 ### Kopírování úkolu nebo celé větve
@@ -72,7 +73,7 @@ Pokud to zase vypnete, zůstane běžný úkol s dobou trvání 0: dobu trvání
 
 Kopie má stejný název, stejná data a stejný průběh. Vloží se jako sourozenec vybraného úkolu (u více úkolů ten, na který jste klikli jako první), dole mezi těmito sourozenci. Pokud nic není vybráno, přijde dole v seznamu. Zkopírované úkoly jsou potom vybrané, kódy WBS (číslo každého úkolu ve stromu, například 1.2; viz [Úprava struktury](docs://howto-structuur-aanpassen)) se určí znovu a plán je zastaralý.
 
-Schránka je sdílená v celé aplikaci, takže můžete vložit i do jiného dokumentu. Co tam neexistuje, například kalendář úkolu, vlastní typ úkolu, kód aktivity nebo vlastní pole, aplikace vymaže a oznámí vám to.
+Schránka je sdílená v celé aplikaci, takže můžete vložit i do jiného dokumentu. Co tam neexistuje, například kalendář úkolu, vlastní druh práce, kód aktivity nebo vlastní pole, aplikace vymaže a oznámí vám to.
 
 ### Potom
 
@@ -82,7 +83,7 @@ Nový úkol zatím nemění ostatní data. Stavový řádek ukazuje *Zastaralé 
 
 **Každý nový úkol začíná v den zahájení projektu.** Bez závislostí na nic nečeká. Přidejte závislosti, viz [Přidání závislostí](docs://howto-relaties-leggen).
 
-**Filtrování, seskupování nebo řazení je zapnuté.** Pořadí, které vidíte, pak není pořadím plánu. Pokud je vybraný úkol, přidají tlačítka *Úkol* a *Milník ▾* nový úkol dole v seznamu a objeví se proužek *Není k dispozici při filtrování, seskupování nebo řazení*. *Vložit nad* a *Vložit pod* se odmítnou se stejným proužkem. Tlačítko *Vymazat* v proužku odstraní filtr, seskupení i řazení najednou. To není součástí *Zpět*: Ctrl+Z je nevrátí.
+**Filtrování, seskupování nebo řazení je zapnuté.** Pořadí, které vidíte, pak není pořadím plánu. Pokud je vybraný úkol, přidají tlačítka *Úkol* a *Milník ▾* nový úkol dole v seznamu. Potom se objeví červené oznámení: *Nový úkol byl přidán na konec. Při filtrování, seskupování nebo řazení jej nelze umístit pod výběr.* *Vložit nad* a *Vložit pod* se odmítnou s proužkem *Není k dispozici při filtrování, seskupování nebo řazení*. Tlačítko *Vymazat* v oznámení nebo v proužku odstraní filtr, seskupení i řazení najednou. To není součástí *Zpět*: Ctrl+Z je nevrátí.
 
 **Dílčí úkol pod úkolem s přiřazeními zdrojů.** Úkol se změní na souhrnný úkol a souhrnný úkol nemá přiřazení sám. Aplikace přesune přiřazení na nový dílčí úkol a oznámí vám to. Pokud to není možné, například protože jste zvolili *Přidat milník* a milník nemůže mít přiřazení, aplikace nepřidá nic a řekne proč.
 

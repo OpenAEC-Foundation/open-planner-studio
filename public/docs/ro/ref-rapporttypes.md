@@ -12,13 +12,13 @@ Deschideți fila *Raport* (sau apăsați Ctrl+P). În stânga este coloana *Rapo
 
 **Reținute.** Aplicația păstrează toate opțiunile de raport pe acest dispozitiv, pentru toate proiectele dumneavoastră. Ele nu fac parte din fișierul proiectului. Doar câmpul *Companie:* din Diagrama Gantt nu se păstrează.
 
-**Planificarea curentă.** Rapoartele folosesc ultimul calcul. Dacă planificarea s-a modificat de atunci, rapoartele tabelare afișează în partea de sus *Planificarea s-a modificat de la ultimul calcul — apăsați Calculare (F5) pentru valori curente.* Dacă nu s-a calculat niciodată, apare *Încă necalculat — apăsați Calculare (F5) pentru date și marjă.* Dacă proiectul este în vizualizarea *Date cum au fost înregistrate*, rapoartele afișează datele din fișierul sursă, iar o bandă o spune.
+**Planificarea curentă.** Rapoartele folosesc ultimul calcul. Dacă planificarea s-a modificat de atunci, rapoartele tabelare afișează în partea de sus *Planificarea s-a modificat de la ultimul calcul — apăsați Calculare (F5) pentru valori curente.* Dacă nu s-a calculat niciodată, apare *Încă necalculat — apăsați Calculare (F5) pentru date și marjă.* Dacă proiectul este în vizualizarea *Date cum au fost înregistrate*, rapoartele afișează datele din fișierul sursă, iar un avertisment o spune.
 
 **Abrevieri.** *zl* înseamnă zile lucrătoare. *TF* înseamnă marjă totală, *FF* înseamnă marjă liberă.
 
 ## Hârtie și orientare
 
-**Hârtie:** — dimensiunea hârtiei PDF-ului. Alegeți din A4, A3, A2 și A1. Implicit: A3. Efect: paginile sunt aranjate pentru această dimensiune. Există o singură alegere pentru toate rapoartele: ce alegeți pentru un raport se aplică și celorlalte. Pe A4 vertical, un tabel larg devine mic, deoarece tabelul este scalat la lățimea paginii. Unde: *Setări* (Diagramă Gantt și Diagramă resurse) sau *Opțiuni de raport* (cele șapte rapoarte tabelare). Prezentare jaloane și varianța nu au alegeri proprii.
+**Hârtie:** — dimensiunea hârtiei PDF-ului. Alegeți din A4, A3, A2 și A1. Implicit: A3. Efect: paginile sunt aranjate pentru această dimensiune. Există o singură alegere pentru toate rapoartele: ce alegeți pentru un raport se aplică și celorlalte. Pe A4 vertical, un tabel larg devine mic, deoarece tabelul este scalat la lățimea paginii. Unde: *Setări* (Diagramă Gantt și Diagramă resurse) sau *Opțiuni de raport* (cele șapte rapoarte tabelare). Prezentarea jaloanelor și varianța nu au alegeri proprii.
 
 **Orientare:** — orizontală sau verticală. Alegeți din *Orizontal* și *Vertical*. Implicit: *Orizontal*. Efect: ca la *Hârtie:*. Unde: același loc ca *Hârtie:*.
 
@@ -26,13 +26,13 @@ Deschideți fila *Raport* (sau apăsați Ctrl+P). În stânga este coloana *Rapo
 
 Planificarea ca diagramă cu bare, cu un tabel în stânga și o axă de timp în dreapta, pe mai multe pagini dacă este nevoie. Previzualizarea arată pagina cu antet, tabel, axă de timp și legendă. Blocul *Rezumat* numără *Activități:*, *Activități frunză:*, *Critic:* și *Dependențe:*. Toate opțiunile se află sub *Setări*.
 
-**Companie:** — compania din antetul paginii. Implicit: compania din informațiile proiectului. Efect: doar antetul raportului; ce introduceți aici nu se păstrează. Schimbați compania în *Setări › Proiect › Informații proiect*, în câmpul *Beneficiar/organizație*, și confirmați cu *Aplicare*.
+**Companie:** — compania din antetul paginii. Implicit: compania din setările proiectului. Efect: doar antetul raportului; ce introduceți aici nu se păstrează. Schimbați compania în *Setări › Proiect › Setări proiect*, în câmpul *Beneficiar/organizație*, și confirmați cu *Aplicare*.
 
-**Autor:** — autorul din antetul paginii. Doar în citire: aplicația îl preia din informațiile proiectului.
+**Autor:** — autorul din antetul paginii. Doar în citire: aplicația îl preia din setările proiectului.
 
 **Dimensiune font:** — dimensiunea textului și a tabelului din raport. Alegeți din 90%, 100%, 110% și 125%. Implicit: 100%. Efect: cu un font mai mare, textul, rândurile și tabelul cresc, iar axa de timp pierde din lățime. Independent de *Dimensiune text* din setări.
 
-**Culori bare:** — de ce depinde culoarea unei bare. Alegeți din *Drum critic*, *Per activitate — automat* și *Pe categorie*, cu o listă derulantă *Câmp de categorie* pentru *Pe categorie*. Implicit: *Drum critic*. Efect: este aceeași alegere ca *Culori bare* din fila *Vizualizare*: dacă o schimbați aici, Gantt de pe ecran se schimbă la fel. Dacă câmpul ales nu există în acest proiect, apare *Acest câmp nu există în acest proiect. Se folosește temporar tipul de activitate.*
+**Culori bare:** — de ce depinde culoarea unei bare. Alegeți din *Drum critic*, *Per activitate — automat* și *Pe categorie*, cu o listă derulantă *Câmp de categorie* pentru *Pe categorie*. Implicit: *Drum critic*. Efect: este aceeași alegere ca *Culori bare* din fila *Vizualizare*: dacă o schimbați aici, Diagrama Gantt de pe ecran se schimbă la fel. Dacă câmpul ales nu există în acest proiect, apare *Acest câmp nu există în acest proiect. Se folosește temporar categoria de lucrări.*
 
 **Linie de stare:** — o linie la data raportului de stare. Alegeți din *Niciuna*, *Linia datei raportului de stare* și *Linia de progres*. Implicit: *Niciuna*. Efect: *Linia datei raportului de stare* desenează o linie la data raportului de stare; *Linia de progres* desenează linia în zigzag care se umflă până la progresul fiecărei activități. Dacă proiectul nu are data raportului de stare, apare *Setați mai întâi data raportului de stare*, iar raportul nu desenează nimic.
 
@@ -74,7 +74,7 @@ Planificarea ca diagramă cu bare, cu un tabel în stânga și o axă de timp î
 
 ## Diagramă resurse
 
-Aceleași bare ca la Diagrama Gantt, grupate pe resursă: cine face ce și când. Blocul *Rezumat* numără *Resurse:*, *Atribuiri:* și *Fără resursă:* (cu o perioadă și *În afara perioadei:*). Diagrama are toate opțiunile Diagramei Gantt, cu excepția *Urmărire vizualizare (filtru, grupare, sortare)*, *Drum critic* și *Dependențe*: rândurile nu vin de pe ecran, o activitate poate apărea sub mai multe resurse, iar dependențele nu sunt desenate aici. Caseta *Drum critic* este ascunsă și activată. Acestea vin cu opțiunile Diagramei Gantt din *Setări*, cu aceste patru casete și perioada:
+Aceleași bare ca la Diagrama Gantt, grupate pe resursă: cine face ce și când. Blocul *Rezumat* numără *Resurse:*, *Atribuiri:* și *Fără resursă:* (cu o perioadă și *În afara perioadei:*). Diagrama are toate opțiunile Diagramei Gantt, cu excepția *Urmărire vizualizare (filtru, grupare, sortare)*, *Drum critic* și *Dependențe*: rândurile nu vin de pe ecran, o activitate poate apărea sub mai multe resurse, iar dependențele nu sunt desenate aici. Caseta *Drum critic* este ascunsă și activată. Diagrama vine cu opțiunile Diagramei Gantt din *Setări*, cu aceste patru casete și perioada:
 
 **Fiecare resursă pe pagină nouă** — Implicit: dezactivat. Efect: fiecare resursă începe pe o pagină nouă, ca să puteți înmâna câte o fișă pentru fiecare echipă sau angajat. Dezactivat, rezultă un singur document continuu.
 
@@ -120,7 +120,7 @@ Unde se află proiectul la data raportului de stare. Opțiuni sub *Opțiuni de r
 
 **Aproape critic ≤ (zl):** — Implicit: 5. Ca la Previziune.
 
-Blocul *Rezumat* afișează *Data raportului de stare*, *Perioadă*, *Previziune până la*, *Sfârșit referință*, *Sfârșit prognozat*, *Δ sfârșit (zl)*, *Planificat* (cu *(referință)* sau *(planificarea curentă)*), *Real* și numărătorile *Finalizat*, *În curs*, *Nepornită*, *Întârziate* și *Critic*. Planificatul și realul sunt ponderați după durata activităților. Planificatul se măsoară față de referință, dacă există o referință activă, altfel față de planificarea curentă. Secțiunile sunt *Finalizate în perioada trecută*, *În curs*, *Încep în perioada următoare*, *Întârziate* și *Activități critice deschise*; o activitate poate fi în mai multe secțiuni.
+Blocul *Rezumat* afișează *Data raportului de stare*, *Perioadă*, *Previziune până la*, *Sfârșit referință*, *Sfârșit prognozat*, *Δ sfârșit (zl)*, *Planificat* (cu *(referință)* sau *(planificarea curentă)*), *Real* și numărătorile *Finalizat*, *În curs*, *Nepornită*, *Întârziate* și *Critic*. Planificatul și realul sunt ponderați după durata activităților. Planificatul se măsoară față de referință, dacă există o referință activă, altfel față de planificarea curentă. Secțiunile sunt *Finalizate în perioada trecută*, *În curs*, *Încep în perioada următoare*, *Întârziate* și *Activități critice deschise*; o activitate poate fi în mai multe secțiuni. Fiecare secțiune are aceleași coloane: *WBS*, *Nume*, *Sfârșit referință*, *Sfârșit prognozat*, *Proc. fin*, *Rest (zl)*, *TF (zl)*, *Critic* și *Stare*. Starea din fiecare rând este *Finalizat*, *În curs*, *Nepornită*, *Ar fi trebuit să înceapă* sau *Ar fi trebuit să se termine*.
 
 ## Sănătatea planificării
 
@@ -149,7 +149,7 @@ Se numără activitățile frunză neterminate, fără jaloane și hamacuri, și
 - *Date invalide*: un început efectiv sau un sfârșit efectiv după data raportului de stare, sau un început prognozat ori un sfârșit prognozat înainte de data raportului de stare. Prag: niciunul. Necesită o dată a raportului de stare.
 - *Resurse*: activități fără resursă. Prag: niciunul. Numai dacă proiectul folosește resurse; altfel N/A.
 - *Activități restante*: din activitățile care, conform referinței, ar trebui să fie finalizate până la data raportului de stare inclusiv, ponderea celor care se termină mai târziu sau au un sfârșit prognozat mai târziu. Prag: cel mult 5%. Necesită o dată a raportului de stare și o referință activă.
-- *Test drum critic*: aplicația prelungește o activitate critică cu 100 de zile lucrătoare și recalculează, pe o copie, fără a modifica proiectul. Testul trece dacă ultima activitate a proiectului nu se termină atunci înaintea acelei activități. Testează activitatea critică neterminată cu începutul cel mai devreme; în detalii sunt numite activitatea și numărul de zile lucrătoare cu care s-a mutat sfârșitul.
+- *Test drum critic*: aplicația prelungește o activitate critică cu 100 de zile lucrătoare și recalculează, pe o copie, fără a modifica proiectul. Testul trece dacă ultima activitate a proiectului nu se termină atunci înaintea acelei activități. Testează activitatea critică neterminată cu începutul cel mai devreme; în detalii sunt numite activitatea și numărul de zile lucrătoare cu care s-a mutat sfârșitul. În vizualizarea *Date înregistrate* acest test este N/A (*necalculat*): testul calculează, iar raportul arată apoi datele din fișierul sursă. Apăsați *Calculare* (F5), după care testul rulează din nou.
 - *CPLI*: (lungimea drumului critic + marjă) / lungimea drumului critic. Lungimea numără zilele lucrătoare de la data raportului de stare până la sfârșitul ultimei activități; marja este diferența față de sfârșitul de referință al acelei activități, sau marja calculată dacă activitatea nu este în referință. Prag: cel puțin 0,95. Necesită o dată a raportului de stare.
 - *BEI*: numărul de activități finalizate la data raportului de stare, împărțit la numărul de activități care, conform referinței, ar trebui să fie finalizate până atunci, plus activitățile fără referință. Prag: cel puțin 0,95. Necesită o dată a raportului de stare și o referință activă.
 
@@ -177,7 +177,7 @@ Pentru fiecare resursă, activitățile la care este atribuită: ce face aceast�
 
 **Include activitățile finalizate** — Implicit: dezactivat. Efect: activat include și atribuirile activităților finalizate.
 
-Rândurile sunt pe resursă și, în cadrul unei resurse, după început. Blocul *Rezumat* numără *Resurse*, *Atribuiri* și *Activități fără resursă*. Coloanele includ resursa, activitatea, începutul și sfârșitul, *Rest (zl)*, *Unit./zi*, *Proc. fin*, *Critic* și *Stare*.
+Rândurile sunt pe resursă și, în cadrul unei resurse, după început. Blocul *Rezumat* numără *Resurse*, *Atribuiri* și *Activități fără resursă*. Coloanele sunt *Resursă*, *Tip*, *WBS*, *Nume*, *Început*, *Sfârșit*, *Rest (zl)*, *Unit./zi*, *Proc. fin*, *Critic* și *Stare*. *Resursă* și *Tip* apar numai pe primul rând al unei resurse. Starea de pe fiecare rând este aceeași ca în raportul de progres: *Finalizat*, *În curs*, *Nepornită*, *Ar fi trebuit să înceapă* sau *Ar fi trebuit să se termine*.
 
 ## Rezumat WBS
 

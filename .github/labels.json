@@ -12,6 +12,11 @@
       "description": "New feature or request"
     },
     {
+      "name": "feedback",
+      "color": "c5def5",
+      "description": "Vraag of opmerking uit de feedbackknop (via Open Feedback Studio)"
+    },
+    {
       "name": "area:reporting",
       "color": "1d76db",
       "description": "rapporten, printen, PDF-export, papierformaten, legenda, rapportageperiodes"

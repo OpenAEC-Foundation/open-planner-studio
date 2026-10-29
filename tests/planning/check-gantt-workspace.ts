@@ -4,6 +4,7 @@ import {
   clampTaskGridWidth,
   effectiveTaskGridMax,
 } from '../../src/components/canvas/ganttSplitter';
+import { TASK_GRID_CHOOSER_STRIP } from '../../src/engine/taskGrid/scrollExtent';
 
 const root = process.cwd();
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'utf8');
@@ -80,8 +81,12 @@ ok('De paneelsplitter blijft tijdens hover, focus en resizen neutraal',
   splitterInteractionRule.includes('background: transparent')
     && !splitterInteractionRule.includes('var(--theme-accent)'));
 
-ok('De verticale taakgrid-scrollbaan begint pas onder de kolomkop',
-  /\.task-grid-core::\-webkit-scrollbar-track:vertical\s*\{[^}]*margin-block-start:\s*var\(--task-grid-header-height\)/s.test(styles));
+// Zwevende balken (eigenaarsbesluit 2026-10-15): het raster toont geen native balken. Waar de
+// verticale overlay begint (onder de kolomkop) is gedrag, geen brontekst: dat meet
+// tests/browser/task-grid-overlay-scrollbars.spec.ts in de echte browser (ltr, ar en Tabel).
+ok('De taakgrid verbergt zijn native balken en reserveert geen strook',
+  /\.task-grid-core\s*\{[^}]*scrollbar-width:\s*none/s.test(styles)
+    && /\.task-grid-core::-webkit-scrollbar\s*\{[^}]*display:\s*none/s.test(styles));
 
 ok('Taaknamen benutten de cel tot vlak voor de rechter kolomgrens',
   /\.task-grid-cell:has\(\.full-task-grid-name\)\s*\{[^}]*padding-inline-end:\s*1px/s.test(styles));
@@ -92,7 +97,8 @@ const addColumnRule = cssRule(/\.task-grid-add-column\s*\{([^}]*)\}/);
 // is nu knop (20px) plus zes pixels lucht aan weerszijden, en de knop zelf heeft een vast vierkant
 // met een pas bij hover/focus zichtbare rand — géén permanent gevuld vlak.
 ok('De kolomkiezer reserveert een strook met lucht rond de plusknop',
-  /--task-grid-chooser-strip:\s*32px/.test(styles)
+  TASK_GRID_CHOOSER_STRIP === 32
+    && /'--task-grid-chooser-strip':\s*`\$\{TASK_GRID_CHOOSER_STRIP\}px`/.test(read('src/components/task-grid/TaskGrid.tsx'))
     && chooserAnchorRule.includes('padding-inline: 6px'));
 ok('De kiezerstrook volgt de scrollende header en inhoud in plaats van de scrollcontainer te versmallen',
   !cssRule(/\.task-grid-core\s*\{([^}]*)\}/).includes('padding-inline-end')

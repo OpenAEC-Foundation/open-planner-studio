@@ -2,7 +2,9 @@ import type { Task, TaskTimeComputed, TaskTimeInput } from '@/types/task';
 import { rollupSummaryTasks } from './applyCpmResult';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import type { WorkCalendar } from '@/types/calendar';
-import type { CPMResult, CPMTaskResult } from './CPMSolver';
+import { engineForTaskCalendar, type CPMResult, type CPMTaskResult } from './CPMSolver';
+import { deadlineBound } from './deadlineBound';
+import { resolveCalendar } from './resolveCalendar';
 import { writeSummaryProgress, type SummaryProgress } from './summaryProgress';
 import { CalendarEngine } from './CalendarEngine';
 import { parseInstant } from '@/utils/dateUtils';
@@ -34,6 +36,13 @@ export interface RecordedTime {
   lateFinish?: string;
   totalFloat?: number;
   freeFloat?: number;
+  /** De speling in werkminuten (alleen uren §3.4), zoals het bestand haar naast `totalFloat` gaf
+   *  (`OPS_Analysis.ExactFloat`). Hoort bij de as `totalFloat`: zonder vastgelegde speling ook geen
+   *  minuten. Afwezig ⇒ de modus wist de minuten van de verworpen solve (`applyRecordedTimesToTasks`),
+   *  anders spreken dagen en minuten elkaar tegen en schrijft opslaan die combinatie weg. */
+  totalFloatMinutes?: number;
+  /** Idem voor `freeFloat`. */
+  freeFloatMinutes?: number;
   isCritical?: boolean;
   /** Alleen op een VERZAMELTAAK: haar opgeslagen voortgang, status en werkelijke datums. Buiten de
    *  modus leidt de rollup (`applyCpmResult`) die af uit de bladen; ín de modus toont de fase — net
@@ -185,6 +194,12 @@ export interface RecordedDatesState extends RecordedDates {
  * welke laag voor start/finish werd gekozen. Binnen laag 0 draagt `RecordedTime` deze vijf al kant-
  * en-klaar (aanwezig of `undefined`, door de aanroepende lezer bepaald).
  *
+ * De spelingminuten (`totalFloatMinutes`/`freeFloatMinutes`) volgen hun dagen-as: alleen als het
+ * slot aanwezig is én de lezer er minuten bij las (`OPS_Analysis.ExactFloat`, `applyTaskTimeRecords`
+ * in `ifcReader.ts`). De lezer leidt geen minuten af, dus een gelezen waarde komt echt uit het bestand.
+ * Laag 0 levert geen minuten (de bronlezers vullen ze niet): de modus wist daar de minuten van de
+ * verworpen solve.
+ *
  * `recordedFields` komt uit `ImportResult.recordedFields` (`src/services/ifc/ifcTaskSlots.ts`,
  * `RECORDED_SLOT_KEYS` + `RECORDED_INPUT_SLOT_KEYS`) — de engine mag niet uit de services-laag
  * importeren, dus dit neemt bewust het structurele unietype via `@/types/task`
@@ -242,6 +257,8 @@ export function captureRecordedDates(
       lateFinish: has.has('lateFinish') ? t.lateFinish : undefined,
       totalFloat: has.has('totalFloat') ? t.totalFloat : undefined,
       freeFloat: has.has('freeFloat') ? t.freeFloat : undefined,
+      ...(has.has('totalFloat') && t.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.totalFloatMinutes } : {}),
+      ...(has.has('freeFloat') && t.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.freeFloatMinutes } : {}),
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
       ...(isSummaryTask(task)
         ? {
@@ -344,18 +361,12 @@ export function shiftedTaskIds(tasks: Task[], times: Record<string, RecordedTime
  * bestand) en hier bewust niet gedicht — dichten vraagt een derde presence-registratie
  * (`scheduleDuration`) die deze module niet heeft.
  *
- * ÉÉN SCHERP AFGEBAKENDE AFWIJKING van `scheduleAnalysis.ts`: `missedDeadlineTaskIds` vergelijkt hier met simpele stringvergelijking
- * (`rec.finish > task.deadline`); de solver rekent i.p.v. daarvan met instants en met
- * `cal.prevWorkDay(deadline)`, over de KALENDER VAN DIE TAAK (`calendarFor(task)`). Met ÉÉN kalender
- * (de enige die deze functie kent — haar `calendar`-parameter) lopen de twee BEWIJSBAAR NOOIT uiteen:
- * `prevWorkDay(dl) ≤ dl`, en er bestaat op diezelfde kalender geen werkdag strikt tussen
- * `prevWorkDay(dl)` en `dl`. Divergentie vereist dus een taak op een ANDERE kalender dan de
- * meegegeven kalender (`task.calendarId` wijst naar een resource-/bibliotheekkalender) — een geval
- * dat deze pure reconstructiefunctie sowieso niet kan zien, want ze krijgt maar één kalender mee.
- * Dichttrekken vraagt per-taak-kalenders die ze bewust niet heeft (ze reconstrueert — ze solvet niet).
- * Er is wél één echte extra divergentie die BINNEN één kalender kan optreden: uur-modus met
- * `rec.finish` exact op `'…T00:00'` van de deadline-dag — de stringvergelijking hier meldt "gemist",
- * de solver niet (middernacht hoort bij de vorige werkdag, `prevWorkDay`-semantiek).
+ * `missedDeadlineTaskIds` gebruikt dezelfde deadlinegrens als de solver (`deadlineBound.ts`), op de
+ * engine die de solver voor die taak kiest: eerst de taakkalender (`resolveCalendar` op
+ * `task.calendarId` en de kalenderregistratie `calendars`, terugval de projectkalender), dan de
+ * uur-/dagregel (`engineForTaskCalendar`) — zoals `CPMSolver.calendarFor`. Zo spreken de melding na
+ * een berekening en de melding in de opgeslagen-datumsmodus elkaar niet tegen, ook niet voor een taak
+ * op een eigen kalender (review PR #402 ronde 2).
  *
  * `projectStart`/`projectEnd` worden hieronder met stringvergelijking
  * (`<`/`>`) bepaald. Bij GEMENGDE dag/uur-formaten binnen dezelfde taakset (bv. `'2026-03-09T17:00'`
@@ -369,10 +380,12 @@ export function cpmResultFromRecorded(
   times: Record<string, RecordedTime>,
   tasks: Task[],
   calendar: WorkCalendar,
+  calendars: WorkCalendar[],
 ): CPMResult {
   const out = new Map<string, CPMTaskResult>();
   const criticalPath: string[] = [];
   const missedDeadlineTaskIds: string[] = [];
+  const engines = new Map<string, CalendarEngine>();
   let projectEnd = '';
   let projectStart = '';
 
@@ -391,10 +404,18 @@ export function cpmResultFromRecorded(
       lateFinish: rec.lateFinish ?? rec.finish,
       totalFloat: rec.totalFloat ?? 0,
       freeFloat: rec.freeFloat ?? 0,
+      // Minuten alleen als het bestand ze gaf; geen terugval (zie `applyRecordedTimesToTasks`).
+      ...(rec.totalFloatMinutes !== undefined ? { totalFloatMinutes: rec.totalFloatMinutes } : {}),
+      ...(rec.freeFloatMinutes !== undefined ? { freeFloatMinutes: rec.freeFloatMinutes } : {}),
       isCritical: rec.isCritical ?? false,
     });
     if (rec.isCritical) criticalPath.push(task.id);
-    if (task.deadline && rec.finish > task.deadline) missedDeadlineTaskIds.push(task.id);
+    if (task.deadline) {
+      const eng = engineForTaskCalendar(engines, resolveCalendar(task.calendarId, calendars, calendar));
+      const bound = deadlineBound(task.deadline, eng);
+      const finish = parseInstant(rec.finish);
+      if (bound && !isNaN(finish.getTime()) && finish > bound) missedDeadlineTaskIds.push(task.id);
+    }
     if (!projectStart || rec.start < projectStart) projectStart = rec.start;
     if (rec.finish > projectEnd) projectEnd = rec.finish;
   }
@@ -424,6 +445,8 @@ export function cpmResultFromRecorded(
       lateFinish: summary.time.lateFinish,
       totalFloat: summary.time.totalFloat,
       freeFloat: summary.time.freeFloat,
+      ...(summary.time.totalFloatMinutes !== undefined ? { totalFloatMinutes: summary.time.totalFloatMinutes } : {}),
+      ...(summary.time.freeFloatMinutes !== undefined ? { freeFloatMinutes: summary.time.freeFloatMinutes } : {}),
       isCritical: summary.time.isCritical,
     });
   }
@@ -434,12 +457,13 @@ export function cpmResultFromRecorded(
   // hem als UTC leest (zie `parseInstant`-docstring in dateUtils.ts) — bij een positieve offset (bv.
   // Pacific/Auckland, UTC+12/13) verschuift de dag-index en telt `workDaysBetween` een werkdag te
   // weinig of te veel (4 i.p.v. 5 onder TZ=Pacific/Auckland). `parseInstant` deelt de UTC-aanname met
-  // de rest van de engine (date-only delegeert intern gewoon aan `parseDate`).
+  // de rest van de engine. `projectDurationOf` krijgt de ruwe tekst en leest hem zelf met `parseInstant`;
+  // zo blijft een datum zonder tijd die werkdag zelf (D2) en schuift hij niet naar de vorige dag.
   let projectDuration = 0;
   if (projectStart && projectEnd) {
     // CalendarEngine neemt precies één kalender (zie zijn constructor) — de projectkalender.
     const engine = new CalendarEngine(calendar);
-    projectDuration = projectDurationOf(engine, parseInstant(projectStart), parseInstant(projectEnd), recorded);
+    projectDuration = projectDurationOf(engine, projectStart, projectEnd, recorded);
   }
 
   return {
@@ -466,7 +490,7 @@ export function cpmResultFromRecorded(
  * Schrijf de vastlegging in de taken en lever het gereconstrueerde `CPMResult` — ÉÉN implementatie
  * voor de laadroute (`enterRecordedDatesMode` in `documentActivation.ts`). Muteert `tasks` IN-PLACE (een Immer-draft óf een
  * payload-kloon — de aanroeper bepaalt welke) en geeft daarna hetzelfde `CPMResult` terug als
- * `cpmResultFromRecorded(times, tasks, calendar)` op diezelfde, nu-bijgewerkte taken zou geven.
+ * `cpmResultFromRecorded(times, tasks, calendar, calendars)` op diezelfde, nu-bijgewerkte taken zou geven.
  *
  * DE TERUGVALLEN BINNEN DEZE KERN ZIJN BEWUST: `TaskTime.lateStart` is een
  * verplichte `string`, `totalFloat`/`freeFloat` verplichte `number`s (`TaskTimeComputed`,
@@ -475,7 +499,8 @@ export function cpmResultFromRecorded(
  * `?? rec.start`/`?? rec.finish`/`?? 0`/`?? false`-terugvallen hier als VELDWAARDE staan; "niet
  * vastgelegd" leeft uitsluitend in `times[id].lateStart === undefined` enz. (al bestaande,
  * gepersisteerde documentstate) en wordt pas in de UI als weergave afgedwongen — een bewust
- * compromis.
+ * compromis. De spelingminuten (`totalFloatMinutes`/`freeFloatMinutes`) zijn wél optioneel en
+ * krijgen dus GEEN terugval: de waarde uit het bestand, of afwezig.
  *
  * Wist daarnaast per geraakte taak `interferingFloat`/`isNearCritical`/`floatPath`: die drie
  * analyse-afgeleiden komen uit de zojuist weggegooide solve en zouden een planning beschrijven die
@@ -487,6 +512,7 @@ export function applyRecordedTimesToTasks(
   tasks: Task[],
   times: Record<string, RecordedTime>,
   calendar: WorkCalendar,
+  calendars: WorkCalendar[],
 ): CPMResult {
   for (const task of tasks) {
     const rec = times[task.id];
@@ -497,6 +523,12 @@ export function applyRecordedTimesToTasks(
     task.time.lateFinish = rec.lateFinish ?? rec.finish;
     task.time.totalFloat = rec.totalFloat ?? 0;
     task.time.freeFloat = rec.freeFloat ?? 0;
+    // De minuten uit het bestand, of GEEN minuten: de solve die deze modus verwerpt schreef eigen
+    // minuten, en die naast de dagen uit het bestand laten staan geeft een tegenstrijdige speling
+    // die opslaan als `ExactFloat` vastlegt (aanval na #600, a05). Geen terugval op 0: een
+    // ontbrekende as is "niet vastgelegd", en zonder minuten valt de writer terug op de dagen.
+    task.time.totalFloatMinutes = rec.totalFloatMinutes;
+    task.time.freeFloatMinutes = rec.freeFloatMinutes;
     task.time.isCritical = rec.isCritical ?? false;
     // Een verzameltaak toont in de modus ook haar opgeslagen voortgang: de solve bij het laden
     // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
@@ -524,5 +556,5 @@ export function applyRecordedTimesToTasks(
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;
   }
-  return cpmResultFromRecorded(times, tasks, calendar);
+  return cpmResultFromRecorded(times, tasks, calendar, calendars);
 }

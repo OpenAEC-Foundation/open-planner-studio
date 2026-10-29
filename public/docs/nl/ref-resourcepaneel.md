@@ -83,4 +83,4 @@ Waar je het ziet:
 - **Histogram** — de rode delen van de staven en het rode bolletje in de kiezer.
 - **Dock** — het driehoekje *Overbelast*.
 
-Nivelleren kan overbezetting oplossen door taken binnen hun speling te verschuiven; het lost een resource niet op die op een vrije dag moet werken. Zie [Nivelleren](docs://uitleg-nivelleren).
+Nivelleren kan overbezetting oplossen door taken later te laten beginnen. Standaard mag de einddatum van het project daarbij opschuiven; met *smoothing* blijft het binnen de speling. Nivelleren lost een resource niet op die op een vrije dag moet werken. Zie [Nivelleren](docs://uitleg-nivelleren).

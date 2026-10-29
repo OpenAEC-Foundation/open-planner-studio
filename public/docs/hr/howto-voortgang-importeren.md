@@ -28,8 +28,8 @@ Excel list je zaštićen bez lozinke: može se uređivati samo tri stupca za uno
 
 Za svaki zadatak voditelj gradilišta upisuje:
 
-- `Completion (%)`: od 0 do uključivo 100. U Excel listu dopušteni su decimalni brojevi (na primjer 33,3). U CSV-u uputa traži cijele brojeve.
-- `Actual Start` i `Actual Finish`: u Excelu kao datum u vašoj regionalnoj postavci; u CSV-u kao dd-mm-yyyy.
+- `Completion (%)`: od 0 do uključivo 100. Aplikacija čita i decimalne brojeve, sa zarezom ili točkom (na primjer 33,3 ili 33.3). Uputa u CSV-u i dalje traži cijele brojeve: tablični program s drugom regionalnom postavkom može pročitati 8,38 kao 838.
+- `Actual Start` i `Actual Finish`: u Excelu kao datum u vašoj regionalnoj postavci; u CSV-u kao dd-mm-yyyy ili kao yyyy-mm-dd.
 
 Što god ostane prazno, ne mijenja se. Prazna ćelija zato ne briše ni postojeći napredak; to se može učiniti samo u aplikaciji. Zadatak koji nije započeo ostavlja potpuno prazan.
 

@@ -1,5 +1,10 @@
+import { constraintDateField, DayClockCache, normalizeTaskDateInput, normalizeTaskDates, taskDateContext, type TaskDateField } from './migrations/minuteModel';
+import { workdayBoundaryLabel } from '@/engine/calendar/workdayRules';
+import { normalizeActualDate } from '@/engine/taskMutationRules';
+import { isElapsedTask } from '@/engine/scheduler/duration';
 import { produce } from 'immer';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { resourceLoadInputsUnchanged } from './resourceLoadReuse';
 import { deriveViewRows } from './slices/viewSlice';
 import { buildTaskRelationIndex, type TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
@@ -28,8 +33,9 @@ import { markDateMutation, snapshotsEqual } from './transaction';
 import {
   captureCalendarChange, captureTriangle, remainingMinutesOf, settleAssignmentPlan, settleCalendarChange,
   settleDurationAftermath, settleDurationEdit, settleRuleChange, settleWorkEdit, type AssignmentSettleOp,
-  captureProgressWork, settleProgressWork,
+  captureProgressWork, settleProgressWork, type RecomputedRemainingWork,
 } from '@/engine/work/workRuleApply';
+import { remainingWorkRecomputedNotice } from './remainingWorkNotice';
 import { contourKeepsWork, taskCalendarHoursPerDay, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import { generateId } from '@/utils/id';
 import { sameValue } from '@/utils/sameValue';
@@ -518,9 +524,10 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     calendarIds: new Set([state.calendar.id, ...state.calendars.map(calendar => calendar.id)]),
     effectiveHoursPerDay: effHoursPerDay(effectiveCalendar),
     hourMode: isHourModeCalendar(effectiveCalendar) === true,
+    workdayDurationMeasure: effectiveSchedulingOptions(state.project).workdayDurationMeasure === true,
     effectiveCalendar,
     calendarFor: (calendarId) => resolveCalendar(calendarId, state.calendars, state.calendar),
-    enableHourPlanning: state.ui.enableHourPlanning,
+
     customTaskTypeIds: new Set(state.customTaskTypes.map(type => type.id)),
     activityCodeTypes: state.activityCodeTypes,
     customFieldDefs: state.customFieldDefs,
@@ -528,6 +535,8 @@ export function buildTaskEditPlanEnvironment(state: AppState, task: Task): TaskE
     // bouwer, zodat óók de voortgangsimport en de
     // store-`planTaskCellEdits`-paden hem krijgen — niet alleen de rastercelbewerking.
     contourKeepsWork: contourKeepsWork(task, state.project.defaultWorkRule),
+    // B1a: de effectieve werkregel (vast werk ⇒ urenmaat) ziet ook de projectstandaard.
+    defaultWorkRule: state.project.defaultWorkRule,
   };
 }
 
@@ -561,6 +570,8 @@ function applyCellEdits(
   timephasedGuidanceLost: boolean;
   skippedReadOnlyCount: number;
   startNotice?: StartEditNotice;
+  /** Bewaard, afwijkend restwerk dat een duurcel opnieuw uitrekende (`settleDurationEdit`). */
+  recomputedWork?: readonly RecomputedRemainingWork[];
 }, readonly CellValidationError[]> {
   const first = edits[0];
   if (!first) return { ok: true, value: { timephasedGuidanceLost: false, skippedReadOnlyCount: 0 } };
@@ -568,6 +579,9 @@ function applyCellEdits(
   const task = taskIndex >= 0 ? state.tasks[taskIndex] : undefined;
   if (!task) return { ok: false, errors: [validationError('taskNotFound', first, first.value)] };
   const validatedEdits: CellEditIntent[] = [];
+  const calendarWrite = edits.find(edit => String(edit.columnId) === 'task.calendarId');
+  const dateTask = calendarWrite ? { ...task, calendarId: calendarWrite.value as string | undefined } : task;
+  const dateContext = taskDateContext(dateTask, new DayClockCache(state.calendar, state.calendars));
   let skippedReadOnlyCount = 0;
   for (const edit of edits) {
     const descriptor = runtime.descriptors.get(String(edit.columnId));
@@ -583,6 +597,28 @@ function applyCellEdits(
       return { ok: false, errors: [validationError('readOnly', edit, edit.value)] };
     }
     let value = edit.value;
+    // Dezelfde datum heeft vóór validatie en de no-op-vergelijking dezelfde vorm als
+    // de opgeslagen taak (D1/D2/D7). Een ongewijzigde start mag geen nieuwe SNET maken.
+    // Een einde zonder tijd is het einde van die dag zoals de tabel het toont (B4), ook bij
+    // kalendertijd (`normalizeTaskDateInput`); D3-exclusief geldt alleen op de laadgrens.
+    if (typeof value === 'string') {
+      const column = String(edit.columnId);
+      let field: TaskDateField | null = null;
+      if (column === 'task.time.start') field = 'earlyStart';
+      else if (column === 'task.time.finish') field = 'earlyFinish';
+      else if (/^task\.time\.(scheduleStart|scheduleFinish|actualStart|actualFinish|resume|stop)$/.test(column)) {
+        field = column.slice('task.time.'.length) as TaskDateField;
+      } else if (column === 'task.deadline') field = 'deadline';
+      else if (column === 'task.constraint.date' || column === 'task.constraint2.date') {
+        const key = column === 'task.constraint.date' ? 'constraint' : 'constraint2';
+        const type = edits.find(candidate => String(candidate.columnId) === `task.${key}.type`)?.value ?? task[key]?.type;
+        if (typeof type === 'string') field = constraintDateField(type);
+      }
+      if (field === 'actualStart' || field === 'actualFinish') {
+        value = normalizeActualDate(dateTask, field, value, state.project.statusDate,
+          effectiveCalendarOf(dateTask, state.calendar, state.calendars)) ?? value;
+      } else if (field) value = normalizeTaskDateInput(value, field, dateContext) ?? value;
+    }
     if (descriptor.validate) {
       const validated = descriptor.validate(value, task, runtime.context);
       if (!validated.ok) {
@@ -757,6 +793,7 @@ function applyCellEdits(
   let changed = false;
   let timephasedGuidanceLost = false;
   let scheduleStale = false;
+  let recomputedWork: readonly RecomputedRemainingWork[] = [];
   const calendarEdits = finalEdits.filter(edit => String(edit.columnId) === 'task.calendarId');
   if (calendarEdits.length > 0) {
     const before = captureCalendarChange(task, assignmentsForTask, state);
@@ -789,12 +826,16 @@ function applyCellEdits(
     timephasedGuidanceLost ||= planned.value.timephasedGuidanceLost;
     scheduleStale ||= planned.value.scheduleStale;
     state.tasks[taskIndex] = planned.value.task;
-    settleDurationEdit(state.tasks[taskIndex], state.assignments, triangle);
+    recomputedWork = settleDurationEdit(state.tasks[taskIndex], triangle).recomputedWork;
     settleProgressWork(state.tasks[taskIndex], state.assignments, progressWork);
     // Een typewissel in het raster legt — net als
     // `setTaskWorkRule` — onder een werkbeschermende regel het huidige restwerk vast.
     if (state.tasks[taskIndex].workRule !== workRuleBefore) {
-      settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule);
+      // Een maatwijziging (B1a: vast werk maakt een dagenmaat-taak urenmaat) is planning: de modus
+      // "datums zoals opgeslagen" gaat uit en de planning wordt verouderd (spec §5.2, geval 11c).
+      if (settleRuleChange(state.tasks[taskIndex], state.assignments, state, state.tasks[taskIndex].workRule).durationUnitChanged) {
+        scheduleStale = true;
+      }
       state.taskTypesVisible = true;
     }
   }
@@ -803,13 +844,16 @@ function applyCellEdits(
   // constraint tegenhield — die laat de taak juist ongemoeid, dus daar geldt `changed` niet.
   const snet = planned.value.task.constraint;
   const startNotice: StartEditNotice | undefined = planned.value.startBlocked
-    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id }
+    ? { kind: 'blocked', name: planned.value.task.name, constraint: planned.value.startBlocked, taskId: planned.value.task.id,
+      dateLabel: planned.value.startBlocked.date ? workdayBoundaryLabel(dateContext.clock, planned.value.startBlocked.date,
+        constraintDateField(planned.value.startBlocked.type) === 'constraintFinish' ? 'end' : 'start') : undefined }
     : planned.value.changed && planned.value.startConstraint && snet?.date
-      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint }
+      ? { kind: 'snet', name: planned.value.task.name, date: snet.date, change: planned.value.startConstraint,
+        dateLabel: workdayBoundaryLabel(dateContext.clock, snet.date, 'start') }
       : undefined;
   return {
     ok: true,
-    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice },
+    value: { timephasedGuidanceLost, skippedReadOnlyCount, startNotice, recomputedWork },
   };
 }
 
@@ -866,6 +910,8 @@ export function prepareGridMutation(
     if (intent.kind === 'paste') for (const id of intent.skippedReadOnlyTaskIds ?? []) skippedReadOnlyTaskIds.add(id);
   }
   const startNotices: StartEditNotice[] = [];
+  // Herschreven afwijkend restwerk over ALLE taken van deze transactie (plakken/doorvullen): één melding.
+  const recomputedWork: RecomputedRemainingWork[] = [];
   const isolated = produce(state as AppState, draft => {
     // Welke taken hebben een voorganger (getypte start ⇒ SNET)? Lui: alleen een getypte
     // start vraagt ernaar, en dan één keer per transactie. Cellen verzetten geen relaties of
@@ -922,6 +968,7 @@ export function prepareGridMutation(
           if (applied.value.skippedReadOnlyCount > 0) skippedReadOnlyTaskIds.add(write.taskId);
           if (taskWrites.length > applied.value.skippedReadOnlyCount) wroteTaskIds.add(write.taskId);
           if (applied.value.startNotice) startNotices.push(applied.value.startNotice);
+          if (applied.value.recomputedWork) recomputedWork.push(...applied.value.recomputedWork);
         }
         if (taskWrites.some(item => String(item.columnId) === 'task.isMilestone')) {
           assignmentValidationTaskIds.add(write.taskId);
@@ -964,6 +1011,13 @@ export function prepareGridMutation(
       });
       if (!finalGraph.ok) errors.push(...relationCellErrors(finalGraph.errors));
     }
+    // T17 geldt voor elke invoerroute, ook één gewone datumcel of een plakactie.
+    if (errors.length === 0) {
+      for (const taskId of wroteTaskIds) {
+        const task = draftTasksById.get(taskId);
+        if (task) Object.assign(task, normalizeTaskDates(task, draft));
+      }
+    }
     if (errors.length === 0 && appliedRelationWrites.length > 1) {
       const finalRelationIndex = buildTaskRelationIndex(draft.tasks, draft.sequences, draft.cpmResult);
       for (const write of appliedRelationWrites) {
@@ -999,7 +1053,7 @@ export function prepareGridMutation(
         const question = actualStartQuestionFor(before, after, entryStatusDate, {
           actualStart: wrote('task.time.actualStart'),
           actualFinish: wrote('task.time.actualFinish'),
-        });
+        }, isElapsedTask(after) ? undefined : resolveCalendar(after.calendarId, draft.calendars, draft.calendar));
         if (question) {
           errors.push(validationError('actualStartRequired', { taskId }, {
             statusDate: question.statusDate, latest: question.latest,
@@ -1042,6 +1096,8 @@ export function prepareGridMutation(
     }
   });
   if (errors.length > 0) return { ok: false, errors };
+  const workNotice = remainingWorkRecomputedNotice(recomputedWork);
+  if (workNotice) notifications.push(workNotice);
 
   const after = createSnapshot(isolated);
   let viewRows: readonly ViewRow[];
@@ -1059,6 +1115,7 @@ export function prepareGridMutation(
       isolated.tasks,
       isolated.calendar,
       isolated.calendars,
+      effectiveSchedulingOptions(isolated.project),
     );
   } catch (error) {
     return { ok: false, errors: [validationError('derivedCalculation', undefined, String(error))] };

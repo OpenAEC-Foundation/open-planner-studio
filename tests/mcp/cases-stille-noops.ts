@@ -345,7 +345,7 @@ test('move_project: niet-bestaande of vervuilde datum ⇒ VALIDATION, niets vers
 /** Herstel-achtige toestand: een geladen project ZONDER doorrekenen ⇒ cpmResult null + niet-stale. */
 function neverCalculatedProject(): void {
   const gen = generateBenchmarkProject(30);
-  S().applyLoadedProject(gen, { filePath: null, recompute: false });
+  S().applyLoadedProject({ ...gen, timeModel: 'MINUTES-1' }, { filePath: null, recompute: false });
 }
 
 test('H9: nooit-berekend document (cpmResult null, niet-stale) ⇒ ensureFreshSchedule REKENT', () => {
@@ -552,7 +552,10 @@ test('H6/L4: de beschrijvingen benoemen de naamdrift lezen↔schrijven', () => {
   const ov = getTool('planner_get_project_overview')!.description;
   assert(/\bid\b/.test(ov), 'overview-description moet de id-velden benoemen');
   const gt = getTool('planner_get_task')!.description;
-  assert(/wbsCode/.test(gt) || /wbsCode/.test(ov), '`wbs` ↔ `wbsCode` moet ergens expliciet zijn');
+  for (const description of [ov, gt]) {
+    assert(/wbs.*read-only.*derived/i.test(description), 'WBS is afgeleid en alleen-lezen, geen schrijfalias');
+    assert(/wbsCode.*not a writable field/i.test(description), 'wbsCode mag niet als schrijfveld worden aangeboden');
+  }
 });
 
 // =================================================================================================

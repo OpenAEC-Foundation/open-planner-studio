@@ -33,8 +33,8 @@ release note of the fix.
 
 ## Supported versions
 
-Only the latest release gets fixes. Versions are CalVer (`YYYY.M.patch`); the
-desktop version updates itself via the built-in updater, except on a Snap
+Only the latest release gets fixes. Versions use `YYYY.W.N` (ISO week-year, ISO week without a leading zero,
+sequence starting at 0); the desktop version updates itself via the built-in updater, except on a Snap
 installation — that is updated by snapd itself. The browser
 version at `open-planner-studio.open-aec.com` always runs the latest `main`.
 

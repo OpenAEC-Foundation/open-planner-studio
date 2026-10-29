@@ -14,7 +14,8 @@ Das Statusdatum ist der Tag, an dem Sie den Stand feststellen. Setzen Sie es, be
 
 1. Gehen Sie zu *Planung › Baselines & Fortschritt › Statusdatum*.
 2. Geben Sie das Datum in die drei Felder für Tag, Monat und Jahr ein (in der Reihenfolge Ihrer Datumsschreibweise), zum Beispiel 28, 06 und 2027, und drücken Sie die Eingabetaste. Die App springt selbst zum nächsten Feld.
-3. Mit dem kleinen Kreuz neben dem Feld leeren Sie das Statusdatum wieder.
+3. Hat der Projektkalender Bänder für die Arbeitszeit (der Eintrag *Arbeitszeiten* im Fenster *Kalender*)? Dann rechnet die App in Stunden, und rechts erscheint ein Uhrzeitfeld, zum Beispiel 17:00. Geben Sie eine andere Uhrzeit ein, zum Beispiel 12:00, und drücken Sie die Eingabetaste. Leeren Sie das Uhrzeitfeld, bleibt nur das Datum übrig. Ändern Sie nur das Datum, bleibt die Uhrzeit erhalten. Die Uhrzeit folgt Ihrer Zeitschreibweise (24 oder 12 Stunden). Ohne Bänder rechnet die App in ganzen Tagen. Dann gibt es kein Uhrzeitfeld, und die Statuslinie steht am Tagesanfang.
+4. Mit dem kleinen Kreuz neben dem Feld leeren Sie das Statusdatum wieder.
 
 Wenn Sie am Freitag nach Feierabend den Stand feststellen, setzen Sie das Statusdatum auf den nächsten Arbeitstag, Montag. Die App plant die Restarbeit ab dem Anfang des Statusdatums.
 
@@ -43,7 +44,7 @@ Ein Meilenstein hat ein einziges Feld, *Ist-Datum*.
 2. Doppelklicken Sie auf eine Zelle, geben Sie den Wert ein und drücken Sie die Eingabetaste. Einen Prozentwert geben Sie als `50` oder `50%` ein, ein Datum als `25-06-2027` und eine Restdauer als `1`.
 3. Drücken Sie bei *Status* nach einem Doppelklick die Eingabetaste und wählen Sie *Nicht begonnen*, *In Bearbeitung* oder *Abgeschlossen*.
 
-Wenn Sie eine Restdauer eingeben, rechnet die App den Prozentwert zurück: Bei einem Vorgang von 2 Arbeitstagen ergibt ein Rest von 1 einen Prozentwert von 50. Ein Rest von 0 schließt den Vorgang ab. Wählen Sie bei *Status* *Nicht begonnen*, dann geht der Prozentwert auf 0 und die Ist-Werte verschwinden.
+Wenn Sie eine Restdauer eingeben, rechnet die App den Prozentwert zurück: Bei einem Vorgang von 2 Arbeitstagen ergibt ein Rest von 1 einen Prozentwert von 50. Ein Rest von 0 schließt den Vorgang ab. Die Spalte *Ist-Dauer* (ebenfalls in der Kategorie *Fortschritt*) funktioniert umgekehrt: Geben Sie ein, wie viel Arbeit schon erledigt ist, dann berechnet die App den Prozentwert. Bei einem Vorgang von 4 Arbeitstagen ergibt eine Ist-Dauer von 1 einen Prozentwert von 25. Wählen Sie bei *Status* *Nicht begonnen*, dann geht der Prozentwert auf 0 und die Ist-Werte verschwinden.
 
 **Alles zu einem Vorgang im Fenster Vorgang bearbeiten.** Klicken Sie mit der rechten Maustaste auf den Vorgang und wählen Sie *Bearbeiten...*. Die Felder für den Fortschritt stehen dort auch. Sie gelten erst, wenn Sie auf *Speichern* klicken.
 
@@ -51,7 +52,7 @@ Wenn Sie eine Restdauer eingeben, rechnet die App den Prozentwert zurück: Bei e
 
 ### 3. Den Terminplan neu berechnen
 
-Jede Änderung am Fortschritt oder am Statusdatum macht den Terminplan veraltet: Die Statusleiste meldet *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Planung › Terminplanung › Berechnen*. Ist *Automatisch berechnen* eingeschaltet (unter *Einstellungen › Projekt › Einstellungen*, Registerkarte *Planung*), dann macht die App das selbst.
+Jede Änderung am Fortschritt oder am Statusdatum macht den Terminplan veraltet: Die Statusleiste meldet *Veraltet — neu berechnen (F5)*. Drücken Sie **Berechnen** (F5), zum Beispiel über *Planung › Terminplanung › Berechnen*. Ist *Automatisch berechnen* eingeschaltet (unter *Einstellungen › Projekt › App-Einstellungen*, Registerkarte *Planung*), dann macht die App das selbst.
 
 ## Das Ergebnis prüfen
 

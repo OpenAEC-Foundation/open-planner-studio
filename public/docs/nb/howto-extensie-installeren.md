@@ -14,12 +14,14 @@ Tenk deg godt om før du installerer en. En utvidelse er programkode som kjører
 
 1. Velg *Fil › Utvidelser*.
 2. Velg fanen *Bla gjennom*. Appen henter katalogen mens den viser *Laster katalog...*. Hva som finnes i katalogen, bestemmes av OpenAEC Foundation, som vedlikeholder den. Det kan endre seg.
-3. Søk etter en utvidelse i feltet *Søk etter utvidelser...*. Det søkes i navn, beskrivelse, forfatter og etiketter.
+3. Søk etter en utvidelse i feltet *Søk etter utvidelser...*. Feltet søker i navn, beskrivelse, forfatter og etiketter.
 4. Hvert kort viser navn, versjon, kategori, beskrivelse og forfatter. Klikk *Installer*.
-5. Vinduet *Installer utvidelse?* åpnes. Les det og se neste steg.
+5. Vinduet *Installer utvidelse?* åpnes. Les det, og se neste steg.
 6. Klikk *Installer* for å fortsette. Med *Ikke installer* skjer ingenting. Esc eller et klikk ved siden av vinduet betyr også at du sier nei, og appen viser da ingen feilmelding.
 
-Etter installasjonen er utvidelsen med en gang aktivert. På kortet under *Bla gjennom* står det nå *Installert*. Det utvidelsen legger til, ser du i selve appen: en ny knapp i båndet, eller et importformat under *Fil › Importer*. Noen utvidelser viser også en melding. Du kjenner den igjen på forstavelsen *Utvidelse* etterfulgt av navnet på utvidelsen.
+Etter installasjonen er utvidelsen aktivert med en gang. På kortet under *Bla gjennom* står det nå *Installert*. Hva utvidelsen legger til, ser du i selve appen: en ny knapp i båndet, eller et importformat under *Fil › Importer*. Noen utvidelser viser også en melding. Du kjenner den igjen på forstavelsen *Utvidelse* etterfulgt av navnet på utvidelsen.
+
+**Opplæringer.** Opplæringene er en utvidelse. Hvis du ser knappen *Installer opplæringer* under *Opplæringer* i *Hjelp*, åpner den *Fil › Utvidelser* på fanen *Bla gjennom*. Spørsmålet etter den første rundturen installerer også denne utvidelsen. Begge veiene viser samme tillatelsesspørsmål. Du kan si nei til det.
 
 ### Installer en utvidelse fra en fil
 
@@ -29,26 +31,18 @@ Hvis du har fått en utvidelse som fil, installerer du den slik.
 2. Øverst til høyre klikker du *ZIP* for en ZIP-fil, eller *JS* for en separat JavaScript-fil.
 3. Velg filen. Vinduet *Installer utvidelse?* åpnes, som ovenfor.
 
-En ZIP-fil må inneholde en `manifest.json` og hovedfilen til utvidelsen. Hvis du installerer en utvidelse som allerede er installert, erstatter den nye versjonen den gamle. Hvis appen ikke kan installere filen, for eksempel fordi en ZIP-fil er skadet, skjer ingenting: appen viser ingen feilmelding for ZIP og JS, og utvidelsen vises ikke i listen. Årsaken står likevel i feilsøkingsterminalen. Slå den på under *Innstillinger › Prosjekt › Innstillinger*, fanen *Avansert*, *Slå på feilsøkingsterminal*, og åpne den med knappen *Vis feilsøkingsterminal* i statuslinjen. Der står det for eksempel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (appen skriver denne tekniske teksten på nederlandsk).
+En ZIP-fil må inneholde en `manifest.json` og hovedfilen til utvidelsen. Hvis du installerer en utvidelse som allerede er installert, erstatter den nye versjonen den gamle. Hvis appen ikke kan installere filen, for eksempel fordi en ZIP-fil er skadet, skjer ingenting: appen viser ingen feilmelding for ZIP og JS, og utvidelsen vises ikke i listen. Årsaken står likevel i feilsøkingsterminalen. Slå den på med *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Avansert*, *Slå på feilsøkingsterminal*, og åpne den med knappen *Vis feilsøkingsterminal* i statuslinjen. Der står det for eksempel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (appen skriver denne tekniske teksten på nederlandsk).
 
 ### Les tillatelsesspørsmålet
 
 Spørsmålet viser hva du må avgjøre.
 
 - *Forfatter* og *Repositorium* viser hvem som har laget utvidelsen, og hvor kildekoden ligger.
-- *Opprinnelse* viser hvor filen kommer fra: *Fra den nettbaserte utvidelseskatalogen*, *Fra en ZIP-fil på denne datamaskinen* eller *Fra en JavaScript-fil på denne datamaskinen*. Under det står det om filen er kontrollert. For katalogen står det *Nedlastingen er bekreftet med sjekksummen fra katalogen.* Hvis katalogen ikke har en sjekksum, står det med rød tekst *Katalogen gir ingen sjekksum; denne nedlastingen er ikke bekreftet.* For en fil du selv har valgt, står det *Du valgte denne filen selv; det finnes ingen ekstern kilde å bekrefte den mot.*
-- *Hva du sier ja til* sier: *En utvidelse er programkode som kjører med samme rettigheter som Open Planner Studio selv. Ingenting begrenser den. Installer bare utvidelser der du stoler på utvikleren.* Under det står det hva dette betyr på plattformen din. I desktopappen står det *I desktopappen betyr det blant annet: lese og skrive filer hvor som helst i brukermappen din, pluss tilgang til prosjektene, innstillingene og utklippstavlen.* I nettleseren står det *I nettleseren betyr det: tilgang til lagrede prosjekter og innstillinger, til filene du ga tilgang til, og til nettverket.*
-- *Det denne utvidelsen sier at den bruker* viser tillatelsene som utvikleren har oppgitt, som små etiketter. Det er en erklæring fra utvikleren, ikke en begrensning: *Dette er utviklerens erklæring, ikke en begrensning — koden kan uansett gjøre mer.* Hvis det ikke finnes noen etikett, står det *Ingenting oppgitt.* Det betyr ikke at utvidelsen ikke kan gjøre noe: selv uten etiketter kan en utvidelse lese og endre data i tidsplanen din og vise meldinger.
+- *Opprinnelse* viser hvor filen kommer fra, og om den er kontrollert. Hvis det står med rød tekst at nedlastingen ikke er bekreftet, installer den bare hvis du kjenner kilden.
+- *Hva du sier ja til* gjentar at en utvidelse er programkode som kjører med samme rettigheter som appen selv, og hva det betyr på plattformen din. Installer bare utvidelser der du stoler på utvikleren.
+- *Det denne utvidelsen sier at den bruker* viser tillatelsene som utvikleren har oppgitt, som små etiketter. Det er en erklæring, ikke en begrensning. Hvis det står *Ingenting oppgitt.*, kan utvidelsen likevel lese og endre dataene i tidsplanen din.
 
-Etikettene betyr dette:
-
-- *ribbon*: utvidelsen legger knapper i båndet.
-- *events*: utvidelsen lytter til hendelser i appen.
-- *backstage*: utvidelsen legger til importformater under *Fil › Importer*.
-- *pdf-fonts*: utvidelsen leverer en skrift for PDF-eksporten.
-- *importSource*: utvidelsen kan lese alle de opprinnelige byte i hver fil du importerer, for eksempel en rå Primavera-fil, inkludert felt som ikke havner i prosjektet ditt. Vinduet forklarer dette også selv.
-- *help*: utvidelsen kan legge til hjelpeartikler, åpne medfølgende prosjekter som et nytt dokument og vise en veiledning som peker på deler av appen. Vinduet forklarer dette også selv.
-- *filesystem* og *network*: dette er bare en indikasjon på hva utvikleren har tenkt seg. Appen har ingen funksjon for dem.
+Hva hver etikett betyr, og de nøyaktige tekstene i vinduet, står i [Utvidelsestillatelser](docs://ref-extensiepermissies).
 
 ### Deaktiver, aktiver på nytt eller fjern en utvidelse
 

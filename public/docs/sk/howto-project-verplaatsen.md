@@ -52,10 +52,10 @@ Posunie sa: začiatok a dokončenie každej úlohy, skutočný začiatok a skuto
 
 **Dátum je v minulosti.** To je povolené, ale náhľad to uvedie: *Nový začiatok projektu je v minulosti.*
 
-**Zmena začiatku projektu v info o projekte je niečo iné.** Ak zmeníte dátum začiatku v *Nastavenia › Projekt › Info o projekte* a zvolíte *Použiť*, plán sa nepresunie. Posunú sa len úlohy bez predchádzajúcej úlohy alebo obmedzenia, ktoré by inak ležali pred novým začiatkom, na tento dátum. Aplikácia vám oznámi, koľko ich je. Ak chcete posunúť všetko, použite *Presunúť projekt…*.
+**Zmena začiatku projektu v nastaveniach projektu je niečo iné.** Ak zmeníte dátum začiatku v *Nastavenia › Projekt › Nastavenia projektu* a zvolíte *Použiť*, plán sa nepresunie. Posunú sa len úlohy bez predchádzajúcej úlohy alebo obmedzenia, ktoré by inak ležali pred novým začiatkom, na tento dátum. Aplikácia vám oznámi, koľko ich je. Ak chcete posunúť všetko, použite *Presunúť projekt…*.
 
 ## Pozri aj
 
 - [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad): ako plán vypočítava a prečo sa dokončenie posúva.
-- [Pridávanie závislostí](docs://howto-relaties-leggen): závislosti pri presune jednoducho zostanú na mieste.
-- [Nový projekt a info o projekte](docs://ref-projectinfo): čo robí dátum začiatku v info o projekte.
+- [Pridávanie závislostí](docs://howto-relaties-leggen): závislosti pri presune jednoducho zostanú zachované.
+- [Nový projekt a nastavenia projektu](docs://ref-projectinfo): čo robí dátum začiatku v nastaveniach projektu.

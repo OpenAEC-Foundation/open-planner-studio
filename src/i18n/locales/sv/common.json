@@ -11,11 +11,14 @@
   },
   "notifications": {
     "dismiss": "Stänga meddelandet",
-    "taskEditRevertBlocked": "En ändring från AI-assistenten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
+    "taskEditRevertBlocked": "En ändring från MCP-klienten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
     "openFailed": "Det gick inte att öppna filen",
+    "csvInvalidDate": "CSV:n öppnades inte: oläsbart datum ”{{value}}” på CSV-rad {{row}}, kolumn ”{{column}}”. Använd åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Ett steg från tillägget {{name}} gav ett fel. Guiden fortsätter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} från tillägget {{name}} kunde inte öppnas.",
+    "extImportFailed": "Importen med {{name}} misslyckades.",
     "extensionMessage": "Tillägg {{name}}: {{message}}",
+    "extensionInstallFailed": "Tillägget kunde inte installeras. Kontrollera filen och försök igen.",
     "xerInvalidInput": "XER-import kräver de ursprungliga filbytena.",
     "xerInvalidFile": "Den här filen är ingen giltig eller stödd XER-fil.",
     "xerInvalidEncoding": "Den här XER-filens teckenkodning är ogiltig eller avklippt.",
@@ -55,6 +58,8 @@
     "xerImportNumberIssues_other": "{{count}} problem med talformat.",
     "xerImportEnumFallbacks_one": "{{count}} uppräkningsreserv.",
     "xerImportEnumFallbacks_other": "{{count}} uppräkningsreserver.",
+    "xerImportMissingPlannedStarts_one": "{{count}} uppgift hade ingen planerad start och börjar nu på rapportdatumet eller projektstarten i filen.",
+    "xerImportMissingPlannedStarts_other": "{{count}} uppgifter hade ingen planerad start och börjar nu på rapportdatumet eller projektstarten i filen.",
     "xerImportUnsupportedSemantics_one": "{{count}} P6-tidsplaninställning med säker reservlösning.",
     "xerImportUnsupportedSemantics_other": "{{count}} P6-tidsplaninställningar med säker reservlösning.",
     "xerImportDatesAsRecorded_one": "{{count}} uppgift visar datumen så som Primavera sparade dem (inte beräknas om).",
@@ -65,12 +70,15 @@
     "mppLegacy": "Den här .mpp-filen använder ett äldre format (Project 2007 eller äldre). Exportera den från MS Project som XML (Arkiv → Spara som → XML) och öppna den filen.",
     "mppEncrypted": "Den här .mpp-filen är lösenordsskyddad. Exportera den från MS Project som XML (Arkiv → Spara som → XML) och öppna den filen.",
     "saveFailed": "Kunde inte spara",
+    "ambiguousThousands": "”{{text}}” är tvetydigt: menar du ett decimaltal eller tusental? Skriv decimaler med ”{{separator}}” (1{{separator}}5) och tusental utan skiljetecken (1500). Värdet har inte ändrats.",
     "siteSaveConflict": "Inte sparat: ”{{name}}” har ändrats på webbplatsen av någon annan under tiden. Dina ändringar finns fortfarande i appen. Välj Spara som för att spara dem som en ny fil.",
     "siteFileGone": "”{{name}}” finns inte längre på webbplatsen. Filen har tagits bort från Senaste.",
     "savedViaDownload": "Sparad som nedladdning: '{{name}}' finns nu i din nedladdningsmapp. Den här miljön tillåter inte att appen skriver direkt till platsen du valde.",
     "browserCannotOverwrite": "Den här webbläsaren tillåter inte att appen skriver tillbaka till '{{name}}'. Därför frågar appen varje gång du sparar var filen ska sparas. I Chrome, Edge eller skrivbordsappen händer detta inte.",
     "browserSavesAsDownload": "Sparad som nedladdning: '{{name}}' finns i din nedladdningsmapp. Den här webbläsaren tillåter inte att appen skriver till en egen plats, så varje gång du sparar skapas en ny nedladdning. I Chrome, Edge eller skrivbordsappen uppdaterar Spara samma fil helt enkelt.",
     "autoSaveFailed": "Automatisk sparning misslyckades",
+    "recoveryManifestBlocked": "Återställningsdata har en okänd version eller ogiltig struktur. Den här appen lämnar den orörd och kan inte läsa eller uppdatera den här återställningsuppsättningen. Försök med appversionen som skapade kopiorna eller en nyare version. Spara nytt arbete själv.",
+    "recoveryStorageBlocked": "Återställningslagringen är tillfälligt blockerad av en annan öppen anslutning. Befintliga kopior finns kvar; den här sidan skapar inga nya återställningskopior. Spara ditt arbete själv, stäng andra flikar med den här appen och ladda sidan om för att försöka återställa igen.",
     "recoveryReadFailed": "Den återställda filen kunde inte läsas",
     "recoveryRestoreFailed": "Kunde inte återställa",
     "recoveryDocumentsSkipped_one": "{{count}} återställningsfil kunde inte läsas in och hoppades över.",
@@ -92,16 +100,18 @@
     "mppSourceScheduleNotes_other": "Den här MS Project-filen innehåller {{count}} uppgifter med avbrott, utjämnad eller resursstyrd tidsplan. De läses in och visas så.",
     "exportSplitsLost_one": "{{count}} uppgift med avbrott exporterades utan avbrotten: MS Project och P6 känner bara till avbrott som en arbetsfördelning.",
     "exportSplitsLost_other": "{{count}} uppgifter med avbrott exporterades utan sina avbrott: MS Project och P6 känner bara till avbrott som en arbetsfördelning.",
+    "exportP6Truncated_one": "{{count}} namn eller kod har förkortats till den längd som P6 tillåter.",
+    "exportP6Truncated_other": "{{count}} namn eller koder har förkortats till den längd som P6 tillåter.",
     "projectStartAnchorsClamped_one": "{{count}} uppgift flyttades med projektstarten.",
     "projectStartAnchorsClamped_other": "{{count}} uppgifter flyttades med projektstarten.",
     "mppTimephasedSteeringLost_one": "Datumfönstret från MS Project styr inte längre {{count}} uppgift efter den här ändringen; timfördelningen gäller fortfarande och finns kvar i filen.",
     "mppTimephasedSteeringLost_other": "Datumfönstret från MS Project styr inte längre {{count}} uppgifter efter den här ändringen; timfördelningen gäller fortfarande och finns kvar i filen.",
     "readMore": "Läs mer",
-    "taskTypesUnlocked": "Den här filen innehåller sparat arbete eller egna arbetsregler; arbetsregeln och återstående arbete visas för det här projektet.",
-    "taskTypesUnlockedDetail": "Den här filen innehåller sparat arbete eller egna arbetsregler; arbetsregeln och återstående arbete visas för det här projektet.",
-    "workRulesReadMore": "Arbetsregler förklarade",
-    "workRuleDurationsChanged_one": "Efter kalenderändringen justerade arbetsregeln varaktigheten för {{count}} uppgift (arbetet blir kvar, timmar per dag ändrades).",
-    "workRuleDurationsChanged_other": "Efter kalenderändringen justerade arbetsregeln varaktigheten för {{count}} uppgifter (arbetet blir kvar, timmar per dag ändrades).",
+    "taskTypesUnlocked": "Den här filen innehåller sparat arbete eller uppgiftstyper; uppgiftstypen och återstående arbete visas för det här projektet.",
+    "taskTypesUnlockedDetail": "Den här filen innehåller sparat arbete eller uppgiftstyper; uppgiftstypen och återstående arbete visas för det här projektet.",
+    "workRulesReadMore": "Uppgiftstyper förklarade",
+    "workRuleDurationsChanged_one": "Uppgiftstypen justerade varaktigheten för {{count}} uppgift efter kalenderändringen (arbetet står kvar, timmar per dag ändrades).",
+    "workRuleDurationsChanged_other": "Uppgiftstypen justerade varaktigheten för {{count}} uppgifter efter kalenderändringen (arbetet står kvar, timmar per dag ändrades).",
     "pasteSkippedReadOnly_one": "{{count}} cell hoppades över: den är skrivskyddad (till exempel en automatiskt numrerad WBS-kod eller en beräknad kolumn).",
     "pasteSkippedReadOnly_other": "{{count}} celler hoppades över: de är skrivskyddade (till exempel automatiskt numrerade WBS-koder eller beräknade kolumner).",
     "librarySaveFailed": "Biblioteket kunde inte sparas",
@@ -115,21 +125,31 @@
     "startBlockedByConstraintNoDate": "Den nya starten för '{{name}}' har inte tillämpats: uppgiften har en föregående uppgift och restriktionen $t(task:constraintType.{{type}}), och de bestämmer starten. Ändra den restriktionen för att flytta starten.",
     "startBlockedByConstraintMany_one": "Den nya starten för {{count}} uppgift har inte tillämpats: uppgiften har ett föregående och en annan restriktion än Starta tidigast (SNET). Ändra den restriktionen för att flytta starten.",
     "startBlockedByConstraintMany_other": "De nya starterna för {{count}} uppgifter har inte tillämpats: uppgifterna har ett föregående och en annan restriktion än Starta tidigast (SNET). Ändra restriktionerna för att flytta starterna.",
-    "referencesClearedOnPaste_one": "{{count}} referens fanns inte i det här dokumentet och har tagits bort (en uppgiftskalender, egen uppgiftstyp, aktivitetskod eller eget fält från källdokumentet).",
-    "referencesClearedOnPaste_other": "{{count}} referenser fanns inte i det här dokumentet och har tagits bort (uppgiftskalendrar, egna uppgiftstyper, aktivitetskoder eller egna fält från källdokumentet).",
-    "milestoneRefusedAssignments_one": "'{{task}}' har resurstilldelningar och kan inte bli en milstolpe. Ta först bort tilldelningarna.",
-    "milestoneRefusedAssignments_other": "{{count}} uppgifter har resurstilldelningar och kan inte bli milstolpar. Ta först bort tilldelningarna.",
-    "milestoneRefusedSummary_one": "'{{task}}' är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
-    "milestoneRefusedSummary_other": "{{count}} uppgifter är sammanfattningsuppgifter med underuppgifter och kan inte bli milstolpar.",
+    "dragStartIsActual": "”{{name}}” har startat: starten är den verkliga starten och flyttas inte. Ändra den via framdriften.",
+    "dragDatesAreActual": "”{{name}}” är klar: början och slut är de verkliga datumen och flyttas inte. Ändra dem via framdriften.",
+    "referencesClearedOnPaste_one": "{{count}} referens fanns inte i det här dokumentet och har tagits bort (en uppgiftskalender, egen arbetskategori, uppgiftskod eller eget fält från källdokumentet).",
+    "referencesClearedOnPaste_other": "{{count}} referenser fanns inte i det här dokumentet och har tagits bort (uppgiftskalendrar, egna arbetskategorier, uppgiftskoder eller egna fält från källdokumentet).",
+    "milestoneRefusedAssignments": "”{{task}}” har tilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
+    "milestoneRefusedAssignmentsMany_one": "{{count}} uppgift har resurstilldelningar och kan inte bli en milstolpe. Ta bort tilldelningarna först.",
+    "milestoneRefusedAssignmentsMany_other": "{{count}} uppgifter har resurstilldelningar och kan inte bli milstolpar. Ta bort tilldelningarna först.",
+    "milestoneRefusedSummary": "”{{task}}” är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
+    "milestoneRefusedSummaryMany_one": "{{count}} uppgift är en sammanfattningsuppgift med underuppgifter och kan inte bli en milstolpe.",
+    "milestoneRefusedSummaryMany_other": "{{count}} uppgifter är sammanfattningsuppgifter med underuppgifter och kan inte bli milstolpar.",
     "assignmentsMovedToSubtask_one": "Tilldelningen flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtask_other": "{{count}} tilldelningar flyttades till underuppgiften '{{child}}'.",
     "assignmentsMovedToSubtasks_one": "Tilldelningarna för {{count}} uppgift flyttades till en underuppgift.",
     "assignmentsMovedToSubtasks_other": "Tilldelningarna för {{count}} uppgifter flyttades till underuppgifter.",
-    "milestoneClearedOnPhase_one": "'{{phase}}' är inte längre en milstolpe.",
-    "milestoneClearedOnPhase_other": "{{count}} uppgifter är inte längre milstolpar.",
+    "milestoneClearedOnPhase": "”{{phase}}” är inte längre en milstolpe.",
+    "milestoneClearedOnPhaseMany_one": "{{count}} uppgift är inte längre en milstolpe.",
+    "milestoneClearedOnPhaseMany_other": "{{count}} uppgifter är inte längre milstolpar.",
     "phaseRefusedNoAssignableChild": "'{{phase}}' kan inte bli en sammanfattningsuppgift. Dess tilldelningar har ingenstans att ta vägen: ingen av de nya underuppgifterna kan ha tilldelningar (milstolpe eller sammanfattningsuppgift). Inget har ändrats.",
     "phaseRefusedDuplicateResource": "'{{phase}}' kan inte bli en sammanfattningsuppgift. Tilldelningen av {{resource}} kan inte flyttas till den nya underuppgiften '{{child}}', eftersom den redan har {{resource}}. Inget har ändrats.",
-    "schedulingProfileApplied": "Det här projektet beräknas enligt {{profile}}. Ändra det via Arkiv → Projektinfo → Beräkningsprofil och beräkningsalternativ.",
+    "phaseQuestionOutdated": "Uppgifterna eller tilldelningarna har ändrats medan frågan var öppen. Ingenting har ändrats. Försök igen.",
+    "schedulingProfileApplied": "Det här projektet beräknas enligt {{profile}}. Ändra det via ”Arkiv” → ”Projektinfo” → ”Beräkningsprofil och beräkningsalternativ”.",
+    "schedulingTemplateSaved": "Mallen ”{{name}}” sparad.",
+    "schedulingTemplateLimit": "Mallen är inte sparad: det finns redan {{max}} mallar. Ta bort en mall först.",
+    "schedulingTemplateStorageFailed": "Mallen är inte sparad: appens lagring är full eller inte tillgänglig.",
+    "schedulingTemplateDeleteFailed": "Mallen är inte borttagen: appens lagring är full eller inte tillgänglig.",
     "schedulingProfileShifted_one": "Efter tillämpning har {{count}} uppgift flyttats.",
     "schedulingProfileShifted_other": "Efter tillämpning har {{count}} uppgifter flyttats.",
     "actions": {
@@ -138,7 +158,7 @@
     },
     "xerArchiveUnusable": "XER-källarkivet i den här filen är oanvändbart och har utelämnats. Projektet självt öppnades helt.",
     "xerArchiveUnusableLine": "XER-källarkivet i den här filen var oanvändbart och har utelämnats.",
-    "xerArchiveUnusableConsequence": "Tidsplanen, beräkningsprofilen och all projektdata från IFC är kompletta. Det som saknas är de datum som Primavera sparade och källans ursprung för AI och tillägg. Om du sparar skrivs filen utan arkivet. Importera den ursprungliga .xer-filen igen för att få tillbaka arkivet.",
+    "xerArchiveUnusableConsequence": "Tidsplanen, beräkningsprofilen och all projektdata från IFC är kompletta. Det som saknas är de datum som Primavera sparade och källans ursprung för MCP-klienter och tillägg. Om du sparar skrivs filen utan arkivet. Importera den ursprungliga .xer-filen igen för att få tillbaka arkivet.",
     "xerArchiveReasonSchemaVersion": "Orsak: arkivet har en okänd schemaversion eller layout (en nyare eller annan skrivare).",
     "xerArchiveReasonHashMismatch": "Orsak: kontrollsumman stämmer inte med källbytena. Arkivet är skadat.",
     "xerArchiveReasonTruncated": "Orsak: arkivet är avkortat. En del av källbytena saknas.",
@@ -147,8 +167,64 @@
     "xerArchiveReasonStructure": "Orsak: arkivets uppbyggnad i IFC-filen stämmer inte (dubbel, omordnad eller fel kopplad).",
     "statusDateSetToday": "Rapportdatum satt till idag ({{date}}).",
     "durationBelowDoneWork": "'{{name}}' är redan {{percent}} % klar. En varaktighet kortare än det redan utförda arbetet är inte möjlig. Varaktigheten har inte ändrats.",
+    "refusedTaskNames": "Inte ändrat: {{names}}.",
+    "refusedTaskNamesMore_one": "Inte ändrat: {{names}} och ytterligare {{count}} uppgift.",
+    "refusedTaskNamesMore_other": "Inte ändrat: {{names}} och ytterligare {{count}} uppgifter.",
+    "notAppliedTaskNames": "Inte tillämpat för: {{names}}.",
+    "notAppliedTaskNamesMore_one": "Inte tillämpat för: {{names}} och ytterligare {{count}} uppgift.",
+    "notAppliedTaskNamesMore_other": "Inte tillämpat för: {{names}} och ytterligare {{count}} uppgifter.",
+    "refusedRelationNames": "Inte skapat: {{names}}.",
+    "refusedRelationNamesMore_one": "Inte skapat: {{names}} och ytterligare {{count}} samband.",
+    "refusedRelationNamesMore_other": "Inte skapat: {{names}} och ytterligare {{count}} samband.",
+    "remainingWorkRecomputed": "Återstående arbete för ”{{name}}” beräknades om: {{before}} h → {{after}} h (värdet kom från filen). Ctrl+Z återställer det.",
+    "remainingWorkRecomputedMany_one": "Återstående arbete för {{count}} uppgift beräknades om (värdet kom från filen). Ctrl+Z återställer det.",
+    "remainingWorkRecomputedMany_other": "Återstående arbete för {{count}} uppgifter beräknades om (värdena kom från filen). Ctrl+Z återställer dem.",
     "tutorialOfferLater": "Du hittar självstudierna alltid under Hjälp › Självstudier.",
-    "tutorialOfferUnavailable": "Självstudierna kunde inte installeras eller startas just nu. Du kan försöka igen senare under Hjälp › Självstudier."
+    "tutorialOfferUnavailable": "Självstudierna kunde inte installeras eller startas just nu. Du kan försöka igen senare under Hjälp › Självstudier.",
+    "taskAddedAtEnd": "Den nya uppgiften lades till sist. Under filtrering, gruppering eller sortering kan appen inte placera den under din markering.",
+    "p6xmlImportEmpty": "Den här filen innehåller inga uppgifter som appen kan läsa.",
+    "p6xmlImportEmptyNoObjectIds": "Uppgifterna har inget ObjectId. Därför kan appen inte länka dem. Det här är inte vanlig Primavera P6 XML.",
+    "p6xmlImportEmptyXerColumns": "Filen använder XER-kolumnnamn (till exempel task_code) i stället för P6 XML-fält. Öppna .xer-filen själv.",
+    "p6xmlImportOpened_one": "P6 XML-fil öppnad: {{count}} projektdokument.",
+    "p6xmlImportOpened_other": "P6 XML-fil öppnad: {{count}} projektdokument.",
+    "p6xmlImportCrossProjectRelations_one": "{{count}} samband mellan projekt har inte tagits över som samband.",
+    "p6xmlImportCrossProjectRelations_other": "{{count}} samband mellan projekt har inte tagits över som samband.",
+    "p6xmlImportUnassignedActivities_one": "{{count}} uppgift utan projekt har inte lästs in.",
+    "p6xmlImportUnassignedActivities_other": "{{count}} uppgifter utan projekt har inte lästs in.",
+    "msProjectImportLoss": "Inte allt i den här MS Project-filen har tagits över.",
+    "msProjectLostSubprojects_one": "{{count}} infogat projekt lästes in som en vanlig uppgift, utan länken till den andra filen.",
+    "msProjectLostSubprojects_other": "{{count}} infogade projekt lästes in som vanliga uppgifter, utan länken till den andra filen.",
+    "msProjectLostExternalTasks_one": "{{count}} extern uppgift från ett annat projekt lästes in som en vanlig uppgift.",
+    "msProjectLostExternalTasks_other": "{{count}} externa uppgifter från ett annat projekt lästes in som vanliga uppgifter.",
+    "msProjectLostInactiveTasks_one": "{{count}} inaktiv uppgift lästes in som aktiv uppgift och räknas med i beräkningen.",
+    "msProjectLostInactiveTasks_other": "{{count}} inaktiva uppgifter lästes in som aktiva uppgifter och räknas med i beräkningen.",
+    "msProjectLostManualTasks_one": "{{count}} manuellt schemalagd uppgift lästes in som automatiskt schemalagd uppgift.",
+    "msProjectLostManualTasks_other": "{{count}} manuellt schemalagda uppgifter lästes in som automatiskt schemalagda uppgifter.",
+    "msProjectLostLevelingDelays_one": "Förskjutningen pga utjämning för {{count}} uppgift har inte tagits över.",
+    "msProjectLostLevelingDelays_other": "Förskjutningen pga utjämning för {{count}} uppgifter har inte tagits över.",
+    "msProjectLostCriticalSlack_one": "Det kritiska tröskelvärdet från filen (slack upp till {{count}} arbetsdag) har inte tagits över. Appen använder tröskelvärde 0.",
+    "msProjectLostCriticalSlack_other": "Det kritiska tröskelvärdet från filen (slack upp till {{count}} arbetsdagar) har inte tagits över. Appen använder tröskelvärde 0.",
+    "msProjectLostBaselines_one": "{{count}} baslinje har inte tagits över.",
+    "msProjectLostBaselines_other": "{{count}} baslinjer har inte tagits över.",
+    "msProjectLostExtraBaselines_one": "{{count}} baslinje (Baslinje 1–10) har inte tagits över.",
+    "msProjectLostExtraBaselines_other": "{{count}} baslinjer (Baslinje 1–10) har inte tagits över.",
+    "msProjectLostBaselineWorkCost_one": "För {{count}} uppgift, resurs eller tilldelning har arbete eller kostnad från Baslinje 0 inte tagits över.",
+    "msProjectLostBaselineWorkCost_other": "För {{count}} uppgifter, resurser eller tilldelningar har arbete eller kostnad från Baslinje 0 inte tagits över.",
+    "msProjectLostAssignmentBaselineDates_one": "För {{count}} tilldelning avviker baslinjen från uppgiften; den avvikelsen har inte tagits över.",
+    "msProjectLostAssignmentBaselineDates_other": "För {{count}} tilldelningar avviker baslinjen från uppgiften; de avvikelserna har inte tagits över.",
+    "msProjectLostCustomFields_one": "{{count}} eget fält med värden (eget fält eller översiktskod) har inte tagits över.",
+    "msProjectLostCustomFields_other": "{{count}} egna fält med värden (egna fält och översiktskoder) har inte tagits över.",
+    "msProjectLostNotes_one": "{{count}} anteckning har inte tagits över.",
+    "msProjectLostNotes_other": "{{count}} anteckningar har inte tagits över.",
+    "msProjectLostHyperlinks_one": "{{count}} hyperlänk har inte tagits över.",
+    "msProjectLostHyperlinks_other": "{{count}} hyperlänkar har inte tagits över.",
+    "msProjectLostFixedCosts_one": "Den fasta kostnaden för {{count}} uppgift har inte tagits över.",
+    "msProjectLostFixedCosts_other": "De fasta kostnaderna för {{count}} uppgifter har inte tagits över.",
+    "msProjectLostResourceRates_one": "Standardkostnaden för {{count}} resurs har inte tagits över.",
+    "msProjectLostResourceRates_other": "Standardkostnaderna för {{count}} resurser har inte tagits över.",
+    "minuteModelConverted_one": "{{document}}: {{count}} uppgift har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
+    "minuteModelConverted_other": "{{document}}: {{count}} uppgifter har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
+    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -162,6 +238,8 @@
   "no": "Nej",
   "days": "d",
   "daysLong": "dagar",
+  "dayUnitLong_one": "dag",
+  "dayUnitLong_other": "dagar",
   "ok": "OK",
   "apply": "Tillämpa",
   "create": "Skapa",
@@ -213,7 +291,7 @@
     "collapseAll": "Fäll ihop alla"
   },
   "settings": {
-    "title": "Inställningar",
+    "title": "Appinställningar",
     "appearanceTab": "Utseende",
     "planningTab": "Tidsplan",
     "advancedTab": "Avancerat",
@@ -247,6 +325,11 @@
     "languageHint": "Appens visningsspråk. Ändras direkt.",
     "version": "Version",
     "versionHint": "Appens aktuella versionsnummer.",
+    "experimentalSection": "Experimentellt",
+    "experimentalEmpty": "Det finns just nu inga experimentella funktioner.",
+    "experimentalHide": "Dölj",
+    "demoTopbarAnimation": "Demo: animation i övre fältet",
+    "demoTopbarAnimationHint": "En lugn orange glansvåg över det övre fältet. Visar hur en experimentell brytare fungerar.",
     "tourHint": "Gå igenom appens introduktionsrundtur igen.",
     "theme": "Tema",
     "themeHint": "Gränssnittets färgschema.",
@@ -255,21 +338,22 @@
     "themeHighContrast": "Hög kontrast",
     "themeFollowSystem": "Följ systemtema",
     "themeSystemHint": "Följer färgschemat i ditt system (nu: {{theme}}).",
-    "hourPlanningSection": "Timplanering",
-    "enableHourPlanning": "Aktivera timplanering",
-    "enableHourPlanningHint": "Slår på tidsplanering per timme och minut. Du får en tidsskala per timme, skift med arbetstidsband och uppgiftsbalkar exakt per timme. Av ⇒ appen är helt dagsbaserad, som förut.",
-    "showTaskTypes": "Visa arbetsregler och arbete",
-    "showTaskTypesHint": "Filer från MS Project eller Primavera P6 visar alltid detta. Av: varaktighet och tilldelningsenhet står kvar och arbetet följer.",
+    "showTaskTypes": "Använd uppgiftstyper",
+    "showTaskTypesHint": "Välj per uppgift vad som ändras när varaktighet, tilldelningsenhet eller arbete ändras, som Task Type i MS Project och Duration Type i P6. Av: varaktighet och tilldelningsenhet står kvar. En fil med uppgiftstyper eller sparat arbete visar dem även när detta är av.",
     "allowMixedDayHour": "Tillåt blandad dag/timplanering",
     "defaultTaskDurationUnit": "Standardenhet för nya uppgifter",
-    "defaultTaskDurationUnitHint": "Avgör om nya uppgifter börjar i arbetsdagar eller arbetstimmar. Befintliga uppgifter ändras inte.",
+    "defaultTaskDurationUnitHint": "Dagsenhet: en varaktighet räknas i kalenderns arbetsdagar. Timenhet: en varaktighet räknas i arbetstimmar. Befintliga uppgifter ändras inte. En uppgift med fast arbete använder alltid timenheten.",
+    "defaultTaskDurationUnitDays": "Dagmått",
+    "defaultTaskDurationUnitHours": "Timmått",
+    "defaultTaskDurationUnitLocked": "Profilen {{profile}} räknar en varaktighet i timmar. Nya uppgifter får därför timmått.",
     "durationDisplay": "Visning av varaktighet",
     "durationDisplayHint": "Styr hur uppgiftens varaktighet visas, oberoende av enheten som uppgiften själv är registrerad i.",
+    "durationDisplayOpsHint": "I OPS-profilen visar varje uppgift sitt eget mått.",
     "durationDisplayAuto": "Automatiskt (egen enhet per uppgift)",
     "durationDisplayDays": "Alltid dagar",
     "durationDisplayHours": "Alltid timmar",
     "barSplitMode": "Uppgiftsbalkar vid avbrott",
-    "barSplitModeHint": "Om en uppgiftsbalk visuellt delas upp runt lediga dagar.",
+    "barSplitModeHint": "Gäller endast timuppgifter: dela balkarna runt rast och ledig tid. Riktiga avbrott i uppgifter syns alltid, oavsett den här inställningen.",
     "barSplitNever": "Dela aldrig upp",
     "barSplitSelection": "Dela upp vid val",
     "barSplitAlways": "Dela alltid upp",
@@ -320,6 +404,10 @@
     "dateNotationDmy": "dd-mm-åååå",
     "dateNotationMdy": "mm-dd-åååå",
     "dateNotationYmd": "åååå-mm-dd",
+    "timeNotation": "Tidsformat",
+    "timeNotationHint": "Anger hur klockslag visas och matas in: i kalenderfönstret, för uppgifter i timmar i tabellen, på timskalan i Gantt och i meddelanden. Filer och beräkningar ändras inte (24-timmarsformat).",
+    "timeNotation24h": "24 timmar (13:00)",
+    "timeNotation12h": "12 timmar (1:00 PM)",
     "fontFamilyLabel": "Typsnitt",
     "fontScaleLabel": "Textstorlek",
     "fontScaleHint": "Skalar gränssnittets text och layout.",
@@ -328,11 +416,11 @@
     "fontFamilySerif": "Med serifer",
     "fontFamilyMono": "Monospace",
     "fontHint": "Webbappar följer inte automatiskt systemets typsnittsinställning. Välj typsnitt och storlek för hela gränssnittet här.",
-    "aiModeSection": "AI-läge",
-    "aiMode": "Aktivera AI-läge",
-    "aiModeHint": "Visar AI-fliken med MCP-bryggan, så att AI-assistenter kan arbeta med din tidsplan via Model Context Protocol. Om du stänger av det stoppas bryggan.",
+    "aiModeSection": "MCP-koppling",
+    "aiMode": "Tillåt MCP-koppling",
+    "aiModeHint": "Visar fliken MCP. Där startar du MCP-bryggan, så att en MCP-klient kan arbeta med din tidsplan via Model Context Protocol. Stäng av det för att stoppa bryggan.",
     "aiAutostart": "Starta bryggan automatiskt",
-    "aiAutostartHint": "Gör MCP-bryggan aktiv direkt när appen startar, så att en AI-klient kan koppla upp sig utan att du först öppnar AI-fliken. Endast i desktopappen.",
+    "aiAutostartHint": "Gör MCP-bryggan aktiv direkt när appen startar, så att en MCP-klient kan koppla upp sig utan att du först öppnar MCP-fliken. Gäller endast desktopappen.",
     "legacySection": "Äldre funktioner",
     "classicViewControls": "Visa klassiska vyknappar",
     "classicViewControlsHint": "Sätter tillbaka de separata knapparna Kolumner, Filter, Gruppera och Sortera på fliken Vy. Du väljer nu kolumner med plustecknet i tabellrubriken eller via Tabell → Kolumner…. Filtrering, gruppering och sortering finns i layoutknapparna och layoutdialogen."
@@ -364,9 +452,9 @@
     "configSnippetHint": "Klistra in detta i MCP-konfigurationen för din klient.",
     "tokenWarning": "Den här token ger åtkomst till den öppna planen. Dela den inte med andra.",
     "connectPrompt": "Anslutningsprompt",
-    "connectPromptHint": "Klistra in detta i din AI-agent. Den ansluter sig själv.",
+    "connectPromptHint": "Klistra in detta i din MCP-klient. Den ansluter sig själv.",
     "connectPromptText": "Anslut till en MCP-server som körs på min dator: namn {{name}}, transport streamable HTTP, URL {{url}}, med headern Authorization: Bearer {{token}}. Lägg till den i din MCP-konfiguration (till exempel som ett mcpServers-block) och anslut. Lista sedan verktygen som kontroll: du bör se ungefär {{count}} verktyg med prefixet {{prefix}}. Sammanfatta kort vad du kan göra med den här servern. Läs först tidsplansguiden via verktyget planner_get_planning_guide, innan du ändrar något.",
-    "statusDot": "AI-bryggan: {{status}}"
+    "statusDot": "MCP-bryggan: {{status}}"
   },
   "aiSafety": {
     "pause": "Stoppa tillfälligt",
@@ -376,7 +464,7 @@
     "readOnlyHint": "Alla verktyg som ändrar något nekas så länge detta är på.",
     "autoBackupOn": "Auto-backup: på",
     "autoBackupOff": "Auto-backup: av",
-    "autoBackupHint": "Skapar automatiskt en IFC-backup före den första AI-ändringen i varje dokument.",
+    "autoBackupHint": "Skapar automatiskt en IFC-backup före den första MCP-ändringen i varje dokument.",
     "backupNow": "Gör backup nu",
     "openFolder": "Öppna backupmapp",
     "backupOk": "Backup skapad: {{name}}",
@@ -384,10 +472,10 @@
     "openErr": "Det gick inte att öppna mappen: {{error}}"
   },
   "aiActivity": {
-    "title": "AI-uppgifter",
+    "title": "MCP-aktivitet",
     "panelButton": "Uppgiftspanel",
     "clear": "Rensa",
-    "empty": "Ingen AI-uppgift ännu. Anrop till bryggan visas här.",
+    "empty": "Ingen MCP-aktivitet ännu. Anrop till bryggan visas här.",
     "args": "Argument",
     "result": "Svar"
   },
@@ -403,7 +491,10 @@
     "taskCount_one": "{{count}} uppgift",
     "taskCount_other": "{{count}} uppgifter",
     "restore": "Återställ",
-    "dontRestore": "Återställ inte"
+    "dontRestore": "Återställ inte",
+    "unreadableOnlyExplanation": "Ingen av återställningskopiorna kan läsas. Spara dem för ett senare återställningsförsök, eller ta bort dem bara om du inte längre behöver dem. Borttagning kan inte ångras.",
+    "keepCopies": "Behåll kopior",
+    "deleteCopies": "Ta bort kopior"
   },
   "window": {
     "minimize": "Minimera",
@@ -422,7 +513,8 @@
   "project": {
     "untitled": "Ny tidsplan",
     "imported": "Importerat projekt",
-    "unassignedResource": "Inte tilldelad"
+    "unassignedResource": "Inte tilldelad",
+    "ifcBuildingModelUnsupported": "Den här IFC-filen innehåller objekt från byggmodellen. Öppnandet är blockerat eftersom sparande skulle ta bort dem. Redigera den separata tidsplansfilen och sammanfoga den med byggmodellen efteråt."
   },
   "documents": {
     "overviewTitle": "Öppnade projekt",
@@ -433,6 +525,8 @@
     "newProject": "Nytt projekt",
     "openExistingProject": "Öppna befintligt projekt",
     "allProjects": "Alla projekt",
+    "scrollTabsStart": "Rulla flikarna mot början",
+    "scrollTabsEnd": "Rulla flikarna mot slutet",
     "active": "Aktiv",
     "tasksWord": "uppgifter",
     "criticalWord": "kritiska",
@@ -444,19 +538,45 @@
   "feedback": {
     "buttonTooltip": "Ge feedback",
     "title": "Ge feedback",
-    "typeBug": "Bugg",
-    "typeFeature": "Funktionsförfrågan",
+    "typeBug": "Något fungerar inte",
+    "typeFeature": "Idé",
+    "typeGeneral": "Fråga eller kommentar",
     "fieldTitle": "Titel",
+    "titlePlaceholder": "T.ex. Kritisk linje hoppar efter sparning",
     "fieldDescription": "Beskrivning",
+    "descriptionPlaceholder": "Vad gjorde du, vad förväntade du dig och vad hände?",
     "attachScreenshot": "Bifoga skärmbild",
+    "screenshotPreview": "Förhandsvisning",
+    "retake": "Ta om",
+    "removeScreenshot": "Ta bort",
     "capturing": "Skapar skärmbild…",
     "captureFailed": "Det gick inte att skapa en skärmbild. Du kan fortfarande skicka feedbacken utan skärmbild.",
-    "submit": "Skicka till GitHub",
+    "submit": "Skicka",
+    "sending": "Skickar…",
+    "fieldEmail": "E-postadress (valfritt, för ett svar)",
+    "emailInvalid": "Den här e-postadressen är inte giltig. Rätta den eller lämna fältet tomt.",
+    "titleRequired": "Fyll i en titel.",
+    "tooShort": "Skriv minst 10 tecken i titeln och beskrivningen tillsammans.",
+    "privacy": "Din anmälan och skärmbilden skickas till Open Feedback Studio av OpenAEC och kan visas som ett offentligt ärende på GitHub. Lägg inte in något du inte vill dela.",
+    "sentWith": "Medskickat: v{{version}} · {{os}} · {{language}}",
+    "sentTitle": "Tack, din anmälan har skickats.",
+    "alreadyIn": "Den här anmälan har redan kommit in till oss. Vill du lägga till något? Ändra då texten och skicka igen.",
+    "sentScreenshotDropped": "Skärmbilden var för stor och skickades inte med.",
+    "viewOnGithub": "Visa på GitHub",
+    "errorValidation": "Anmälan godtogs inte. Kontrollera texten (inte bara länkar) och e-postadressen och försök igen.",
+    "errorRateLimited": "Du har skickat många anmälningar på kort tid. Försök igen om en timme.",
+    "errorFailed": "Det gick inte att skicka. Kontrollera din internetanslutning och försök igen, eller öppna anmälan på GitHub.",
+    "errorUncertain": "Vi vet inte säkert om din anmälan har kommit fram. Vänta en minut och skicka den sedan igen; om den redan finns där ser vi det automatiskt.",
+    "fallbackGithub": "Öppna på GitHub",
     "cancel": "Avbryt",
+    "clearDraft": "Rensa",
+    "clearDraftTitle": "Rensa alla fält och skärmbilden",
     "close": "Stäng",
+    "saveAndClose": "Spara och stäng",
     "tools": {
       "arrow": "Pil",
       "rectangle": "Rektangel",
+      "mask": "Dölj",
       "pen": "Penna",
       "text": "Text",
       "color": "Färg",
@@ -473,6 +593,7 @@
     "openGithub": "OK, gå till GitHub",
     "annotate": "Annotera",
     "editorDone": "Klar",
+    "annotationSaveFailed": "Dina ändringar kunde inte sparas. Försök igen. Din skärmbild har inte ändrats och skickas inte från den här redigeraren.",
     "rotateFeedback": "Ge feedback",
     "rotateBug": "Rapportera en bugg",
     "rotateFeature": "Lägg till en ny funktion"
@@ -488,12 +609,14 @@
     "releaseNotes": "Vad är nytt",
     "downloadInstall": "Ladda ner och installera",
     "downloading": "Laddar ner…",
+    "preparingInstall": "Förbereder installationen…",
     "installing": "Installerar…",
     "restarting": "Startar om…",
     "retry": "Försök igen",
     "error": "Något gick fel vid uppdateringen",
     "checking": "Söker…",
     "snapNotice": "Den här versionen uppdateras automatiskt via Snap Store. Du behöver inte göra något.",
+    "packageManagerNotice": "Uppdatera via din pakethanterare (till exempel yay -Syu).",
     "debExplanation": "Uppdatera manuellt genom att köra det här kommandot i en terminal, eller ladda ner det senaste paketet.",
     "debCommandLabel": "Installationskommando",
     "copyCommand": "Kopiera kommando",
@@ -590,6 +713,7 @@
     "companies": "Bibliotek",
     "addCompany": "Lägg till bibliotek",
     "newCompany": "Nytt bibliotek",
+    "defaultCompany": "Mitt resursbibliotek",
     "companyName": "Bibliotekets namn",
     "removeCompany": "Ta bort bibliotek",
     "cannotRemoveLast": "Det sista biblioteket kan inte tas bort.",
@@ -603,7 +727,7 @@
     "calendars": "Kalendrar",
     "noCalendars": "Inga kalendrar i biblioteket ännu.",
     "noResources": "Inga resurser i biblioteket ännu.",
-    "promoteHint": "Lägg till en projektkalender eller projektresurs i biblioteket med knappen ”+ Från projekt” ovan.",
+    "promoteHint": "Lägg till en projektkalender i biblioteket med knappen ”+ Från projekt” ovan.",
     "promoteFromProject": "Från projekt",
     "alreadyLinked": "redan kopplad",
     "editItem": "Redigera",
@@ -738,7 +862,7 @@
       "projectEndUnchanged": "Projektslutdatum: oförändrat ({{date}})",
       "projectEndChanged": "Projektslutdatum: {{before}} → {{after}}",
       "remainingConflicts": "Kvarvarande konflikter",
-      "remainingConflictsHint": "Dessa uppgifter ryms inte inom sin slack — ofta för att en resurs inte arbetar de dagarna eller har för lite kapacitet.",
+      "remainingConflictsHint": "Resurskonflikter kvarstår för dessa uppgifter. Läs förklaringen nedan.",
       "intrinsicOverrun": "{{resource}} kräver {{peak}} tilldelningsenheter/dag vid toppen, kapaciteten är {{capacity}} — går inte att lösa genom att flytta.",
       "noChanges": "Inga uppgifter behöver flyttas — tidsplanen är redan konfliktfri.",
       "notCalculated": "Klicka på Beräkna för att skapa ett utjämningsförslag.",
@@ -819,7 +943,7 @@
       "cancel": "Avbryt"
     },
     "regen": {
-      "hint": "Helgdagar täcker {{from}}–{{to}}; projektet löper till {{year}}. Generera om?",
+      "hint": "Helgdagar täcker {{from}}–{{to}}. Generera om till och med {{year}}?",
       "button": "Generera om"
     },
     "countryName": {
@@ -854,7 +978,7 @@
       "decreaseBreakDuration": "Minska rastens varaktighet med 15 minuter",
       "start": "Rasten börjar",
       "duration": "Rastens varaktighet (minuter)",
-      "hint": "Ange en raststart och en varaktighet; nettotimmar och arbetstidsband härleds automatiskt. Sätt varaktigheten till 0 för en oavbruten arbetsdag.",
+      "hint": "Ange rastens start och varaktighet. Standardarbetsdagen och arbetstidsband härleds automatiskt. Sätt varaktigheten till 0 för en oavbruten arbetsdag.",
       "errors": {
         "invalidDuration": "Rastens varaktighet måste vara ett heltal minuter, 0 eller mer.",
         "outsideWorkingDay": "Rasten måste helt ligga inom den inställda arbetsdagen.",
@@ -878,9 +1002,13 @@
       "copyToAll": "Kopiera till alla arbetsdagar",
       "noBands": "Ej arbetstid",
       "nextDay": "nästa dag",
+      "bandStart": "Början av bandet",
+      "bandEnd": "Slutet av bandet",
       "shiftPreset": "Skift",
       "breakHint": "Ett glapp mellan två band är en rast — justera tiderna vid behov."
-    }
+    },
+    "defaultConstructionName": "Byggkalender NL",
+    "defaultStandardName": "Standardkalender"
   },
   "view": {
     "structureLockedHint": "Inte tillgänglig vid filtrering/gruppering/sortering",
@@ -992,10 +1120,6 @@
     "month": "månad",
     "year": "år"
   },
-  "hourData": {
-    "notice": "Den här filen innehåller timplanering.",
-    "enable": "Aktivera timplanering"
-  },
   "recordedDates": {
     "activeCount_one": "Du ser tidsplanen så som Primavera sparade den; när du beräknar om skulle {{count}} uppgift flyttas.",
     "activeCount_other": "Du ser tidsplanen så som Primavera sparade den; när du beräknar om skulle {{count}} uppgifter flyttas.",
@@ -1040,7 +1164,7 @@
     "nav": {
       "reportTab": "Gå till menyfliken Rapport",
       "switchDocument": "Byta dokument",
-      "scrollToToday": "Hoppa till idag",
+      "scrollToToday": "Hoppa till rapportdatum eller idag",
       "help": "Öppna hjälp"
     },
     "grid": {
@@ -1119,7 +1243,7 @@
     "warnPast": "Det nya startdatumet ligger i det förflutna.",
     "noTasks": "Projektet har ännu inga uppgifter; bara projektdatumen förskjuts.",
     "invalidDate": "Välj ett giltigt datum.",
-    "invalidCurrentStart": "Projektet har inget giltigt startdatum; ange det först under Projektinfo.",
+    "invalidCurrentStart": "Projektet har inget giltigt startdatum; ange det först under ”Projektinfo”.",
     "apply": "Flytta",
     "calcError": "Tidsplanen kunde inte beräknas: {{error}}"
   },
@@ -1195,7 +1319,7 @@
   "progressImport": {
     "title": "Uppdatera framdrift från ett kalkylblad",
     "chooseFile": "Välj fil…",
-    "intro": "Välj ett tillbaka skickat CSV-blad. Appen läser bara slutförandegrad, verklig start och verkligt slut. Resten av din tidsplan förblir oförändrad.",
+    "intro": "Välj ett tillbaka skickat CSV- eller XLSX-blad. Appen läser bara slutförandegrad, verklig start och verkligt slut. Resten av din tidsplan förblir oförändrad.",
     "summaryApplied": "Tillämpat: {{applied}}",
     "summaryNoop": "Oförändrat: {{noop}}",
     "summaryNeedsLink": "Väntar på länk: {{needsLink}}",
@@ -1212,6 +1336,7 @@
     "overrideDropped": "Länken för rad {{row}} pekar på en uppgift som inte längre finns och ignorerades.",
     "moreRows": "…och {{more}} till",
     "sheetRowHint": "rad {{row}} i kalkylbladet",
+    "sheetTaskId": "OPS-uppgifts-ID: {{id}}",
     "dateOrderTitle": "Dag eller månad först?",
     "dateOrderQuestion": "“{{sample}}” — vilket datum är det?",
     "dateOrderOptionA": "{{date}}",
@@ -1253,7 +1378,7 @@
   "conventions": {
     "preserveActualDatesInBackwardPass": {
       "label": "Behåll verkliga datum i den bakåtriktade beräkningen",
-      "help": "En påbörjad eller slutförd uppgift behåller sina registrerade datum också på den sena sidan. En slutförd efterföljande uppgift drar inte en öppen föregående uppgift tillbaka i det förflutna."
+      "help": "Med ett rapportdatum behåller en slutförd uppgift sina verkliga datum på den sena sidan, och en slutförd efterföljande uppgift drar inte en öppen föregående uppgift tillbaka i det förflutna. En pågående uppgift behåller sin verkliga start som senaste start, om inte ”Pågående uppgift: tidigaste start = början av återstående arbete” är på. En slutförd uppgift på en rapportdatumpunkt eller i ett rapportdatumfönster kan ändå föra vidare tryck via samband."
     },
     "clampNegativeFreeFloat": {
       "label": "Fritt slack är aldrig negativt",
@@ -1261,103 +1386,111 @@
     },
     "p6ZeroDurationUsesPlannedBoundary": {
       "label": "Milstolpen följer den planerade kalendergränsen",
-      "help": "En milstolpe utan varaktighet stannar på den kalendergräns som filen planerade. En dagstart förblir en startmilstolpe, ett bandslut får hamna på föregående uppgifts slut."
+      "help": "Gäller endast timplanering. En milstolpe utan varaktighet följer den planerade kalendergränsen: en dagsstart förblir en startmilstolpe, och ett bandslut får landa på föregående uppgifts slut. Även en vanlig uppgift med varaktighet 0 kan få ett gränspar, men endast med XER-ursprung som Task Dependent eller Resource Dependent och ett planerat slut före planerad start."
     },
     "p6UseTaskPlannedStartFloor": {
       "label": "Planerad start som extra undre gräns",
-      "help": "Den planerade starten i filen gäller som undre gräns när både start och slut ligger mer än en kalenderdag senare än nätverket tillåter."
+      "help": "Den planerade starten räknas som undre gräns när både start och slut ligger mer än en kalenderdag senare än nätverket tillåter. Vid en slutmilstolpe med planerat slut före planerad start räcker en senare planerad start. Gäller inte för en pågående uppgift när ”Planerad start är ingen undre gräns för en pågående uppgift” är på, och inte heller för en ej startad ALAP-uppgift som placeras från sina efterföljande uppgifter. Kräver inte XER-ursprung."
     },
     "p6FinishMilestoneBoundaryWindow": {
       "label": "Slutmilstolpe som gränsfönster",
-      "help": "En slutmilstolpe får ligga på två intilliggande kalendergränser: tidigaste start i början av ett band, tidigaste slut i slutet av föregående band."
+      "help": "En slutmilstolpe utan varaktighet får bara ett gränsfönster om dess planerade slut ligger före dess planerade start och den beräknade starten ännu är lika med den planerade starten. En slutmilstolpe med föregående uppgifter och utan efterföljande uppgift får även sina tidigaste datum som senaste datum, om inte ”Beräkna slack till projektslut” är på. Gäller endast P3-utdata; är av i varje inbyggd beräkningsprofil."
     },
     "p6PreserveActualInstants": {
       "label": "Behåll verkliga datum exakt",
-      "help": "Registrerade verkliga start- och slutdatum flyttas inte till ett arbetstidsband."
+      "help": "Gäller endast uppgifter med sparat ursprung från en .xer-fil. Registrerade verkliga start- och slutdatum flyttas inte till kanten av ett band."
     },
     "p6UseRemainingStartForProgress": {
       "label": "Pågående uppgift: tidigaste start = början av återstående arbete",
-      "help": "Den tidigaste och senaste starten av en pågående uppgift beskriver var det återstående arbetet börjar, inte den historiska verkliga starten. Vid bakåtberäkning över ett start-till-start-samband räknas bara den återstående varaktigheten."
+      "help": "Tidigaste och senaste start för en pågående uppgift anger var det återstående arbetet börjar. Bakåt över ett start-till-start-samband räknas bara återstående varaktighet, men endast vid timplanering, med verklig start och framdrift mellan 0 och 100 %, en känd återstående varaktighet som är kortare än den planerade varaktigheten, och utan förfluten tid eller avbrott i tidsplanen. Den extra regeln för återstående varaktighet gäller inte för start-till-slut-samband."
     },
     "p6PreserveZeroDurationConstraintInstants": {
       "label": "Restriktionens tidpunkt på en milstolpe exakt",
-      "help": "En datum-och-tid-restriktion på en milstolpe utan varaktighet är en exakt punkt, även i början av ett arbetsband."
+      "help": "Gäller endast timplanering, på den sena sidan, för en restriktion med datum och tid av typen SNLT, MSO, FNLT eller MFO på en milstolpe utan varaktighet. Restriktionens tidpunkt förblir exakt, även i början av ett band. Framåt är ett sådant ögonblick redan exakt i varje beräkningsprofil."
     },
     "resumeFromActualElapsed": {
       "label": "Återstående arbete återupptas efter den förflutna tiden",
-      "help": "En pågående uppgift återupptar sitt återstående arbete vid verklig start plus den förflutna tiden, inte vid rapportdatumet."
+      "help": "En pågående uppgift återupptar sitt återstående arbete tidigast vid verklig start plus redan förfluten tid. Rapportdatumet och gränsen för föregående uppgift är också undre gränser; den senaste av de tre gäller. Inte vid Progress Override, utan återstående arbete, eller om appen använder ett giltigt återupptagningsdatum från filen (vid högst en tilldelning)."
     },
     "unstartedIgnoresStatusDate": {
       "label": "Ej påbörjade uppgifter flyttas inte till rapportdatumet",
-      "help": "En uppgift som ännu inte har börjat flyttas inte automatiskt till rapportdatumet eller senare."
+      "help": "Gäller endast med ett rapportdatum, för en uppgift utan framdrift. Den uppgiften flyttas inte automatiskt till rapportdatumet eller senare."
     },
     "p6RelationFinishBoundary": {
       "label": "Efterföljande uppgift startar på slutgränsen",
-      "help": "Vid ett slut-till-start-samband utan fördröjning på en gemensam bandgräns startar den efterföljande uppgiften vid föregående uppgifts slut (endast samband som filen markerar så). Vid bakåtberäkning visar den efterföljande uppgiften sin senaste start helt enkelt som början av ett arbetsband."
+      "help": "Gäller endast vid timplanering på den föregående uppgiftens kalender och för ett samband som appen känner igen när en .xer-fil öppnas. Vid ett slut-till-start-samband utan fördröjning, där den efterföljande uppgiften i filen startar precis vid den föregående uppgiftens bandslut, startar den efterföljande uppgiften vid det slutet. Ett samband som du själv lägger till omfattas inte. Vid bakåtberäkning förblir den efterföljande uppgiftens senaste start en bandstart."
     },
     "p6BackwardLagFinishBoundary": {
       "label": "Fördröjning bakåt från en slutgräns",
-      "help": "Drar bakåtberäkningen av en arbetstidsfördröjning från en slutgräns och hamnar den exakt på en bandstart, då hamnar den på föregående slutgräns. Även vid ett slut-till-slut-samband utan fördröjning stannar det senaste slutet på ett bandslut kvar på den slutgränsen."
+      "help": "Gäller endast timplanering på kalendern där fördröjningen räknas. Om den bakåtriktade beräkningen drar av en positiv fördröjning i arbetstid från en exakt slutgräns och hamnar på den första bandstarten på en dag, hamnar den på föregående slutgräns. Även vid ett slut-till-slut-samband utan fördröjning stannar ett senaste slut i slutet av ett band kvar på den gränsen. Gäller inte fördröjning i förfluten tid."
     },
     "p6CompletedDataDateWindow": {
       "label": "Slutförd uppgift i rapportdatumfönstret",
-      "help": "En slutförd uppgift får tidiga datum i rapportdatumets fönster, och dess slut räknas med i projektslutet (endast uppgifter med P6-ursprung)."
+      "help": "Gäller endast med ett rapportdatum, för slutförda uppgifter utan underuppgifter från en .xer-fil, med sparat målfönster, framdriftstyp varaktighet och P6-typ Task Dependent eller Resource Dependent med Fixed Duration & Units; inga milstolpar med varaktighet 0. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”. Avbrott och återupptagning tillåts endast vid Task Dependent med ett giltigt par, verkligt slut mellan planerat slut och rapportdatum, återupptagning senast vid verkligt slut och ”Behåll verkliga datum i den bakåtriktade beräkningen” på. Uppgiften får tidigaste datum i rapportdatumfönstret, och dess slut räknas med i projektslutet."
     },
     "p6CompletedLoeActualFinish": {
       "label": "Slutförd LOE via det verkliga slutet",
-      "help": "En slutförd level-of-effort-uppgift med endast ett start-till-start-samband följer vägen via det verkliga slutet (endast uppgifter med P6-ursprung)."
+      "help": "Gäller endast med ett rapportdatum, för en slutförd LOE från en .xer-fil med positiv varaktighet, framdriftstyp varaktighet och P6-typ Fixed Duration & Units/Time, ett komplett målfönster och verkligt slut mellan planerat slut och rapportdatum. Endast ingångar av typen start-till-start, minst en, utan efterföljande uppgift och utan avbrott eller återupptagning. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”, ”Behåll verkliga datum i den bakåtriktade beräkningen” och ”Behåll verkliga datum exakt”. LOE:n följer sitt verkliga slut i stället för hängmattevägen."
     },
     "p6OpenLoeTargetSpan": {
       "label": "Ej påbörjad LOE använder målfönstret",
-      "help": "En level-of-effort-uppgift som ännu inte har börjat använder sitt målfönster som varaktighet (endast uppgifter med P6-ursprung)."
+      "help": "Gäller endast timplanering, för en ej startad LOE eller hängmatta från en .xer-fil med 0 % framdrift, positiv varaktighet, framdriftstyp varaktighet och P6-typ Fixed Duration & Units; utan verkliga datum eller avbrott eller återupptagning. Kräver ett helt positivt målfönster vars start är lika med sambandsgränsen och vars arbetstid skiljer sig högst en arbetsdag från varaktigheten, minst en ingång av typen start-till-start, en utgång av typen slut-till-slut, endast dessa samband och utan fördröjning. LOE:n använder då målfönstret som sin längd. Svagt underlag: en fil."
     },
     "p6CompletedPredecessorAtDataDate": {
       "label": "Slutförd föregående uppgift håller inte efter rapportdatumet",
-      "help": "Slutar en slutförd föregående uppgift enligt sitt verkliga datum efter rapportdatumet, då får dess efterföljande uppgifter ändå börja på rapportdatumet."
+      "help": "Gäller endast vid timplanering och med ett rapportdatum, för en slutförd föregående uppgift med verkligt slut. Slut-till-start- och slut-till-slut-samband räknar högst från arbetsgränsen precis före rapportdatumet; ett senare verkligt slut håller inte kvar den efterföljande uppgiften. Start-till-start- och start-till-slut-samband förblir på den verkliga starten. En slutförd uppgift med en egen rapportdatumpunkt eller ett förskjutet rapportdatumfönster följer den egna gränsen."
     },
     "p6FreeFloatOnOwnCalendar": {
       "label": "Fritt slack i den egna kalendern",
-      "help": "Fritt slack för en ej påbörjad uppgift räknas per samband i uppgiftens egna kalender, inte i den efterföljandes: vid slut-till-start, start-till-start och slut-till-slut, även med en arbetstidsfördröjning i föregående uppgifts kalender. En påbörjad uppgift räknas endast vid slut-till-start utan fördröjning."
+      "help": "Endast vid timplanering, för icke avslutade uppgifter och samband med beräknat fritt slack. För en ej påbörjad uppgift räknas fritt slack i dess egna kalender vid slut-till-start, start-till-start och slut-till-slut, utan fördröjning i förfluten tid eller procentuell fördröjning. En fördröjning som inte är noll kräver fördröjningskalendern för föregående uppgift. För en påbörjad uppgift gäller endast slut-till-start utan fördröjning. Sambandets eget fritt slack och markering som drivande samband ändras inte."
     },
     "p6CompletedRemainingLag": {
       "label": "Förfluten fördröjning från en slutförd föregående uppgift räknas inte",
-      "help": "På den sena sidan räknas av fördröjningen efter en slutförd föregående uppgift bara den del som ännu inte har förflutit vid rapportdatumet."
+      "help": "Endast vid timplanering på fördröjningskalendern och med rapportdatum, för slutförda föregående uppgifter från en .xer-fil med verkligt slut före rapportdatumet och en rapportdatumpunkt eller ett rapportdatumfönster. Av en positiv fördröjning i arbetstid räknas endast den del som ännu inte har förflutit. Gäller på den sena sidan och framåt från en rapportdatumpunkt eller ett förskjutet nollrestfönster. En uppgift på sina vanliga verkliga datum behåller hela fördröjningen. Gäller inte fördröjning i förfluten klocktid."
     },
     "p6CompletedOutOfSequenceWindow": {
       "label": "Slutförd uppgift i fel ordning väntar på sina föregående uppgifter",
-      "help": "En slutförd uppgift vars föregående uppgift inte är klar än får sitt nollfönster efter den föregående uppgiften, i stället för på rapportdatumet (P6: Retained Logic)."
+      "help": "Endast vid timplanering och med rapportdatum, på XER-vägen för ”Slutförd uppgift i rapportdatumfönstret”. Den beräkningsregeln och ”Pågående uppgift: tidigaste start = början av återstående arbete” måste vara på. Inte vid ”Progress Override”. Via slut-till-start- eller start-till-start-samband får uppgiften den senare av rapportdatumgränsen och gränsen från en ej avslutad föregående uppgift eller en föregående uppgift med förskjutet rapportdatumfönster. Vanliga slutförda föregående uppgifter räknas inte."
     },
     "p6CompletedPhysicalAtDataDate": {
       "label": "Slutförd uppgift med fysisk framdrift ligger på rapportdatumet",
-      "help": "En slutförd uppgift med fysisk procent färdig visas som en enda punkt på rapportdatumet, eller senare om en föregående uppgift kräver det, i stället för på sina verkliga datum. Endast uppmätt för fysisk procent färdig. För andra typer av procent färdig (P6-standard: varaktighet) är detta beteende inte uppmätt och förblir avstängt."
+      "help": "Endast vid timplanering och med rapportdatum, för slutförda lövuppgifter och milstolpen med noll varaktighet från en .xer-fil av P6-typen Task Dependent, Start Milestone eller Finish Milestone. Kravet är ett bevarat måldatumfönster, procent färdig av typen fysisk, verkligt slut på eller före rapportdatumet och inget avbrott eller återupptagning. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”. Uppgiften står som en punkt på rapportdatumet, eller senare om en föregående uppgift kräver det. För andra typer av procent färdig, inklusive varaktighet, är detta inte uppmätt och förblir avstängt."
     },
     "p6InProgressStartLagElapsed": {
       "label": "Förfluten SS-fördröjning från en pågående föregående uppgift räknas inte",
-      "help": "Vid ett start-till-start-samband från en redan påbörjad uppgift räknas av fördröjningen bara den del som sedan dess verkliga start ännu inte har förflutit vid rapportdatumet."
+      "help": "Endast vid timplanering på fördröjningskalendern och med rapportdatum, för ett start-till-start-samband med positiv fördröjning i arbetstid från en ej avslutad föregående uppgift med verklig start före rapportdatumet. Kräver ”Pågående uppgift: tidigaste start = början av återstående arbete”. Endast den del av fördröjningen som ännu inte har förflutit räknas. Alternativet ”Beräkna SS-fördröjning från pågående föregående” väljer startpunkten. Inte för fördröjning i förfluten klocktid."
     },
     "p6FinishFinishStartMilestoneLateFinish": {
       "label": "Slut-till-slut-samband till en startmilstolpe binds till milstolpen själv",
-      "help": "Ett slut-till-slut-samband till en startmilstolpe räknas till milstolpen själv, inte till början av milstolpens dag: föregående uppgifts senaste slut får löpa till milstolpens senaste slut."
+      "help": "Endast vid timplanering på båda sidor av ett slut-till-slut-samband till en startmilstolpe med noll varaktighet. Sambandet binder till milstolpen själv: föregående uppgiftens senaste slut får löpa till milstolpens senaste slut. Även fritt slack kan ändras; milstolpens tidigaste start står kvar. Gäller inte slutmilstolpar eller den bakåtriktade vägen med noll återstående varaktighet."
     },
     "p6StartedTaskIgnoresPlannedStartFloor": {
       "label": "Planerad start är ingen undre gräns för en pågående uppgift",
-      "help": "Det återstående arbetet för en påbörjad uppgift börjar på rapportdatumet och direkt efter dess föregående uppgifter, även om dess planerade start ligger senare."
+      "help": "Endast för en uppgift med verklig start och mindre än 100 procent färdig, när ”Planerad start som extra undre gräns” är på. Dess planerade start ger ingen extra gräns för återstående arbete. Rapportdatumet och dess föregående uppgifter gäller fortfarande."
     },
     "p6LateFinishOnOwnCalendar": {
-      "label": "Senaste slutet i den egna kalendern",
-      "help": "Ligger det senaste slutet som en efterföljande uppgift kräver utanför uppgiftens arbetstid, då blir det slutet av föregående arbetsperiod i den egna kalendern."
+      "label": "Senaste slutet i uppgiftens egna kalender",
+      "help": "Endast vid timplanering, när en gräns för efterföljande uppgift bestämmer senaste slut och ingen strängare restriktion eller måldatum ersätter den gränsen. Ligger den gränsen utanför uppgiftens egen arbetstid, blir senaste slut slutet på föregående arbetsperiod i den egna kalendern. Gäller inte ett senaste slut som bestäms av projektslutet."
     },
     "p6ProgressOverrideIgnoresStartedSuccessor": {
       "label": "Progress Override negeras även för en påbörjad efterföljande uppgift bakåt",
-      "help": "Under Progress Override räknas samband till en efterföljande uppgift som redan har börjat inte med i de senaste datumen och i fritt slack för en föregående uppgift som inte är klar."
+      "help": "Endast vid ”Progress Override”, för en ej avslutad föregående uppgift och en påbörjad men ej avslutad efterföljande uppgift (verklig start eller framdrift). Deras samband räknas inte in i föregående uppgifts senaste datum och fritt slack."
     },
     "p6FinishNotBeforeFinishFinishBound": {
       "label": "Tidigaste slut inte före en slut-till-slut-gräns",
-      "help": "Vid ett slut-till-slut-samband ligger den efterföljande uppgiftens tidigaste slut aldrig före gränsen som den föregående uppgiften sätter, i klocktid. Faller den gränsen i den efterföljande uppgiftens ledig tid, då blir slutet början av nästa arbetsperiod."
+      "help": "Datumkorrigering: vid ett slut-till-slut-samband med fördröjning i arbetstid, utan hängmattor och med timplanering på den efterföljande uppgiftens kalender (för återstående arbete: dess framdriftskalender) och på fördröjningskalendern. Ligger sambandets gräns senare än tidigaste slut, utan arbetstid mellan dem, flyttas endast slutet till första arbetsgränsen på eller efter den gränsen. Gäller för automatiskt schemalagda efterföljande uppgifter som ännu inte har startat och för pågående uppgifter. För ej påbörjade uppgifter går en hård slutspärr före. Fritt slack: separat räknas en ej avslutad föregående uppgift vid slut-till-slut utan fördröjning och utan procentuell fördröjning, med befintligt fritt slack för samband och en beräknad tidigaste slut för efterföljande uppgift. Det räknas från dess egna tidigaste slut till den efterföljande uppgiftens tidigaste slut, i dess egen timkalender. Detta gäller också vid noll fördröjning i förfluten klocktid, utan extra villkor för timplanering på efterföljande uppgift eller fördröjningskalendern. Hängmattor och manuellt schemalagda uppgifter behåller slutligen fritt slack 0."
     },
     "p6AlapPositionedFromSuccessors": {
       "label": "ALAP-uppgifter så sent som efterföljande uppgifter tillåter",
-      "help": "En ej påbörjad uppgift med restriktionen 'så sent som möjligt' slutar vid den minut då dess efterföljande uppgifter behöver den, efterföljande först, så att en kedja sluter sig. Dess egen planerade start räknas inte. En uppgift utan föregående uppgift startar då inte tidigare än rapportdatumet. Gäller endast för en timkalender."
+      "help": "Endast vid timplanering, för en ej påbörjad uppgift som inte är manuellt schemalagd och har restriktionen ”så sent som möjligt” (ALAP). Tidigaste datum för dess efterföljande uppgifter bestämmer dess placering, till minuten; efterföljande uppgifter går först. Dess egen planerade start räknas inte. Föregående uppgifter, rapportdatum och en andra restriktion gäller fortfarande. Utan efterföljande uppgift används dess senaste slut. Det vanliga steget ALAP finns kvar i alla profiler."
+    },
+    "milestoneWithoutPredecessorAtDayEnd": {
+      "label": "Fristående milstolpar vid arbetsdagens slut",
+      "help": "En fristående milstolpe eller en slutmilstolpe utan föregående uppgift placeras i slutet av sin arbetsdag."
+    },
+    "workdayDurationMeasure": {
+      "label": "Varaktighet i arbetsdagar",
+      "help": "En varaktighet, fördröjning eller återstående varaktighet i dagar räknas i arbetsdagar: varje arbetsdag räknas som 1, hur lång dagen än är. Av: en dag räknas som antalet arbetstimmar per dag i kalendern. En fördröjning i procent följer måttet för föregående uppgift. Förfluten tid räknas aldrig i arbetsdagar."
     }
   },
   "profiles": {
@@ -1372,13 +1505,22 @@
   "schedulingProfile": {
     "title": "Beräkningsprofil och beräkningsalternativ",
     "profile": "Beräkningsprofil",
+    "newProfile": "Ny beräkningsprofil",
+    "newProfileTitle": "Ny beräkningsprofil",
+    "newProfileIntro": "Den nya profilen får alla beräkningsregler från ”{{name}}”, även avvikelserna. Därefter kan du själv aktivera eller inaktivera varje beräkningsregel. Först efter ”Tillämpa” räknar projektet med den nya profilen.",
+    "newProfileName": "Namn på den nya profilen",
+    "newProfileCreate": "Skapa",
+    "bareBaseHint": "”{{name}}” är den rena basen, utan avvikelserna i det här projektet. Vill du behålla dem väljer du ”{{modified}}”.",
     "conventionsTitle": "Beräkningsregler i den här profilen",
+    "builtInReadOnly": "{{name}} är en inbyggd profil. Beräkningsreglerna visas här som information och kan inte ändras. Vill du ha andra beräkningsregler väljer du {{button}}.",
+    "builtInDeviations": "Det här projektet kommer från en äldre fil. De orange beräkningsreglerna avviker från basen för {{name}} och används så som de visas. Vill du ändra dem väljer du {{button}}.",
     "optionsTitle": "Beräkningsalternativ för det här projektet",
     "customName": "Namn på den här egna profilen",
     "saveAsTemplate": "Spara som mall",
     "updateTemplate": "Uppdatera mall från det här projektet",
     "applyTemplate": "Uppdatera från mall",
     "deleteTemplate": "Ta bort mall",
+    "deleteTemplateConfirm": "Ta bort mallen ”{{name}}”? Projekt med den här profilen behåller sin egen kopia.",
     "templateDeviates": "Den här profilen skiljer sig från mallen ”{{name}}”.",
     "themes": {
       "completedWork": "Framdrift och slutfört arbete",
@@ -1387,22 +1529,41 @@
       "float": "Slack och senaste datum",
       "instants": "Datum och tidpunkter från filen",
       "msproject": "Framdrift som i Microsoft Project",
+      "durations": "Varaktighet och mått",
       "ownProfilesOnly": "Endast egna profiler"
     },
-    "ownProfilesOnlyNote": "Dessa beräkningsregler är av i varje inbyggd profil, även i Primavera P6. Slår du på en blir den en egen profil.",
+    "ownProfilesOnlyNote": "Dessa beräkningsregler är av i varje inbyggd beräkningsprofil, även i ”Primavera P6”. Bara en egen profil kan slå på dem: välj ”Ny beräkningsprofil” för det.",
     "deviatingCount": "avvikande: {{n}}",
     "baseValue": "bas: {{value}}",
     "on": "på",
     "off": "av",
     "resetToBase": "tillbaka till bas",
+    "storeChangedUnderDraft": "Beräkningsprofilen för projektet har ändrats under tiden, till exempel med ”Ångra”. Ditt eget val står fortfarande nedan. Med {{apply}} lägger du tillbaka valet i projektet.",
     "showHelp": "Förklaring av ”{{name}}”",
     "sourceOptions": {
       "title": "Inställningar från källfilen",
-      "intro": "Dessa beräkningsalternativ kommer från en Primavera P6-fil (.xer). De används i beräkningen men kan inte ändras här.",
+      "intro": "Dessa är skrivskyddade beräkningsalternativ som är lagrade i projektet. Vid import från en Primavera P6-fil (.xer) tar appen över dem från källfilen. De gäller bara när deras villkor är uppfyllda.",
       "useExpectedFinishDates": "Använd förväntade slutdatum (P6: Use Expected Finish Dates)",
       "useProjectEndDateForFloat": "Beräkna slack till projektslut",
       "p6CompletedLateFromRemainingWindow": "Slutförd uppgift: senaste datum från rapportdatumet",
       "needsConvention": "Fungerar bara tillsammans med beräkningsregeln ”{{convention}}”, som nu är av."
+    },
+    "requires": {
+      "xerOrigin": "endast .xer-uppgifter",
+      "hourPlanning": "endast vid timplanering",
+      "hourPlanningTitle": "Fungerar endast vid timplanering på kalendern som regeln använder: en kalender med band eller en uppgiftsvaraktighet i timmar. För fördröjning kan också 24-timmarskalendern för fördröjning gälla."
+    },
+    "optionsDeviate": {
+      "line": "{{field}}: {{current}} (standard: {{standard}})",
+      "intro": "Dessa beräkningsalternativ avviker från standarden för {{name}}. Det är ofta med avsikt, till exempel för att de kommer från den öppnade filen.",
+      "introNeutral": "Dessa beräkningsalternativ avviker från standarden för {{name}}. Det kan vara ett medvetet val.",
+      "useDefaults": "Använd standardinställningarna för {{name}}",
+      "totalFloatAtMost": "totalt slack ≤ {{amount}}",
+      "hours_one": "{{count}} timme",
+      "hours_other": "{{count}} timmar",
+      "days_one": "{{count}} arbetsdag",
+      "days_other": "{{count}} arbetsdagar",
+      "tfAuto": "Automatisk"
     }
   },
   "dialogHelp": {
@@ -1460,5 +1621,71 @@
     "saveHint": "Projektet sparas på webbplatsen som en ny IFC-fil. Därefter sparar Spara (Ctrl+S) en ny version där.",
     "saveToSite": "Spara på webbplatsen",
     "toThisPc": "Till den här datorn…"
+  },
+  "formatNotice": {
+    "title": "{{format}} öppnad",
+    "readMore": "Läs mer",
+    "dontShowAgain": "Visa inte igen för {{format}}",
+    "close": "Förstått",
+    "settingsSection": "Visa förklaring efter öppning av",
+    "formats": {
+      "xer": {
+        "name": "Primavera-fil (.xer)",
+        "kept": "Appen tog över WBS och uppgifterna, med samband, kalendrar, resurser, framdrift, uppgiftskoder och egna fält. Ett baslinjeprojekt blir baslinjen för projektet som hänvisar till det.",
+        "limited": "Ett samband mellan två projekt blir inte ett samband i din tidsplan. Om beräkningen avviker ser du först datumen så som Primavera sparade dem.",
+        "save": "Spara skriver en ny IFC-fil, med den ursprungliga .xer-filen inuti. Det går inte att skriva tillbaka till .xer: din .xer ändras aldrig."
+      },
+      "mpp": {
+        "name": "MS Project-fil (.mpp)",
+        "kept": "Appen tog över uppgifter med struktur, varaktighet och restriktioner, samt samband, kalendrar, resurser, tilldelningar och framdrift.",
+        "limited": "Baslinjer, kostnader och standardkostnader, anteckningar och MS Projects egna fält följer inte med. Om beräkningarna avviker ser du först datumen så som MS Project sparade dem.",
+        "save": "Spara skriver en ny IFC-fil: din .mpp ändras aldrig. Det går inte att skriva tillbaka till .mpp. Att exportera till ”MS Project XML” går däremot."
+      },
+      "mspdi": {
+        "name": "MS Project XML",
+        "kept": "Appen tog över uppgifter med struktur, samt samband, restriktioner, kalendrar, resurser, tilldelningar, framdrift, rapportdatumet och baslinje 0.",
+        "limited": "Anteckningar, uppgiftskoder och egna fält följer inte med. Projektet beräknar med profilen ”Open Planner Studio”, inte som ”Microsoft Project”.",
+        "save": "Spara skriver en ny IFC-fil: din XML-fil ändras inte. Du kan skriva tillbaka med Exportera › ”MS Project XML”."
+      },
+      "p6xml": {
+        "name": "Primavera P6 XML",
+        "kept": "Appen tog över WBS och uppgifterna, med samband, restriktioner, kalendrar, resurser, tilldelningar, framdrift och rapportdatumet. Ett baslinjeprojekt blir en baslinje för projektet som det hör till.",
+        "limited": "Måldatum, uppgiftskoder, egna fält och anteckningar följer inte med. Projektet beräknar med profilen ”Open Planner Studio”, inte som ”Primavera P6”.",
+        "save": "Spara skriver en ny IFC-fil: din XML-fil ändras inte. Du kan skriva tillbaka med Exportera › ”Primavera P6 XML”."
+      },
+      "csv": {
+        "name": "CSV-fil",
+        "kept": "Appen läste en uppgift per rad: namn, WBS-kod, varaktighet, datum, föregående och framdrift.",
+        "limited": "En CSV-fil innehåller inga resurser, kalendrar, restriktioner, måldatum eller baslinjer. Projektet heter CSV Import.",
+        "save": "Spara skriver en ny IFC-fil: din CSV-fil ändras inte. Du kan skriva tillbaka med Exportera › ”CSV (semikolonseparerad)”."
+      }
+    }
+  },
+  "ifcSchemaQuestion": {
+    "title": "I vilket IFC-schema vill du spara?",
+    "body": "Den här filen är sparad som {{schema}}. Appen sparar som standard i IFC 4.3 ADD2, schemat som IfcOpenShell och Bonsai använder. Vill du behålla den här filen som {{schema}}? Du kan ändra det senare under ”Projektinformation”.",
+    "bodyUnwritable": "Den här filen är sparad som {{schema}}. Appen kan inte skriva det schemat. Välj det schema som appen sparar i. Du kan ändra det senare under ”Projektinformation”.",
+    "keep": "Behåll {{schema}}",
+    "toDefault": "Spara som IFC 4.3 ADD2"
+  },
+  "phaseAssignmentQuestion": {
+    "title": "Uppgift blir en sammanfattningsuppgift",
+    "intro_one": "”{{phase}}” får underuppgiften ”{{child}}” och blir en sammanfattningsuppgift.",
+    "intro_other": "”{{phase}}” får {{count}} underuppgifter och blir en sammanfattningsuppgift.",
+    "introMany_one": "Den här åtgärden gör {{count}} uppgift till en sammanfattningsuppgift.",
+    "introMany_other": "Den här åtgärden gör {{count}} uppgifter till sammanfattningsuppgifter.",
+    "noOwnAssignments": "En sammanfattningsuppgift har inga egna tilldelningar.",
+    "question_one": "Vad vill du göra med tilldelningen för {{resources}}?",
+    "question_other": "Vad vill du göra med tilldelningarna för {{resources}}?",
+    "questionMany": "Vad vill du göra med deras tilldelningar?",
+    "row": "”{{phase}}”: {{resources}}",
+    "remove_one": "Ta bort tilldelning",
+    "remove_other": "Ta bort tilldelningar",
+    "moveTo": "Flytta till ”{{child}}”",
+    "moveToSubtasks": "Flytta till underuppgifterna",
+    "blockedDuplicate": "Det går inte att flytta: ”{{child}}” har redan {{resources}}.",
+    "blockedNoChild": "Det går inte att flytta: ”{{phase}}” får ingen underuppgift som kan bära en tilldelning, bara milstolpar eller sammanfattningsuppgifter.",
+    "actualWorkLost_one": "Tilldelningen för {{resource}} har redan {{hours}} timme verkligt arbete. Om du tar bort den försvinner arbetet.",
+    "actualWorkLost_other": "Tilldelningen för {{resource}} har redan {{hours}} timmar verkligt arbete. Om du tar bort den försvinner arbetet."
   }
 }

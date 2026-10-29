@@ -1,8 +1,15 @@
 /**
  * ScreenshotAnnotator — annotatie-editor voor FeedbackDialog.
  *
- * Toont een thumbnail van de screenshot met een "Annoteren"-knop.
- * Bij klikken opent een bijna-schermvullende overlay (~92vw × ~90vh).
+ * Toont een klein voorbeeld van de screenshot in een licht kader, met de knoppen *Annoteren*,
+ * *Opnieuw maken* en *Weghalen*. *Annoteren* opent een bijna-schermvullende overlay (~92vw × ~90vh).
+ *
+ * De vormen leven bij de ouder (het bewaarde feedbackconcept): de editor start met `shapes` en
+ * meldt bij *Klaar* de nieuwe vormen plus de geflattende PNG. *Annuleren* (en Esc) gooit de
+ * wijzigingen van deze bewerkronde weg: terug naar de vormen bij het openen van de editor.
+ *
+ * Afdekken (`mask`) tekent een dicht zwart vlak. Het flatten tekent dat ondoorzichtig over de
+ * screenshot, dus de pixels eronder zitten niet meer in de verstuurde afbeelding.
  *
  * Coördinaten-strategie:
  *  - canvas.width/height = natieve pixeldimensies van de screenshot
@@ -12,24 +19,24 @@
  *  - Inline tekst-invoer: <input> absoluut op de klikpositie t.o.v. het canvas
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, Square, Pen, Type, Undo2, Trash2, Pencil } from 'lucide-react';
+import { ArrowUpRight, Square, Pen, Type, Undo2, Trash2, Pencil, EyeOff, RefreshCw, X } from 'lucide-react';
+import type { AnnotationShape, AnnotationPoint, AnnotationText } from '@/services/feedback/feedbackDraft';
 import './ScreenshotAnnotator.css';
 
 // ─── Annotatie-types ──────────────────────────────────────────────────────────
 
-type AnnotationTool = 'arrow' | 'rectangle' | 'pen' | 'text';
+type AnnotationTool = 'arrow' | 'rectangle' | 'mask' | 'pen' | 'text';
 type Color = string;
+type Point = AnnotationPoint;
+type Shape = AnnotationShape;
+type ShapeText = AnnotationText;
 
-interface Point { x: number; y: number; }
-
-interface ShapeArrow { kind: 'arrow'; from: Point; to: Point; color: Color; }
-interface ShapeRect  { kind: 'rect';  from: Point; to: Point; color: Color; }
-interface ShapePen   { kind: 'pen';   points: Point[]; color: Color; }
-interface ShapeText  { kind: 'text';  pos: Point; text: string; color: Color; }
-
-type Shape = ShapeArrow | ShapeRect | ShapePen | ShapeText;
+/** Kleur van het afdekvlak: dicht zwart, zonder transparantie. */
+const MASK_COLOR = '#000000';
 
 const PALETTE: Color[] = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#ffffff', '#000000'];
 
@@ -59,6 +66,18 @@ function drawRect(ctx: CanvasRenderingContext2D, from: Point, to: Point, color: 
   ctx.strokeRect(from.x, from.y, to.x - from.x, to.y - from.y);
 }
 
+function drawMask(ctx: CanvasRenderingContext2D, from: Point, to: Point) {
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = MASK_COLOR;
+  ctx.fillRect(
+    Math.min(from.x, to.x), Math.min(from.y, to.y),
+    Math.abs(to.x - from.x), Math.abs(to.y - from.y),
+  );
+  ctx.restore();
+}
+
 function drawPen(ctx: CanvasRenderingContext2D, points: Point[], color: Color) {
   if (points.length < 2) return;
   ctx.strokeStyle = color;
@@ -83,6 +102,7 @@ function redrawAll(ctx: CanvasRenderingContext2D, shapes: Shape[], active?: Shap
   for (const s of all) {
     if (s.kind === 'arrow') drawArrow(ctx, s.from, s.to, s.color);
     else if (s.kind === 'rect') drawRect(ctx, s.from, s.to, s.color);
+    else if (s.kind === 'mask') drawMask(ctx, s.from, s.to);
     else if (s.kind === 'pen') drawPen(ctx, s.points, s.color);
     else if (s.kind === 'text') drawText(ctx, s.pos, s.text, s.color);
   }
@@ -106,14 +126,21 @@ function flattenToPng(screenshotDataUrl: string, annotationCanvas: HTMLCanvasEle
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const out = document.createElement('canvas');
-      out.width = annotationCanvas.width;
-      out.height = annotationCanvas.height;
-      const ctx = out.getContext('2d');
-      if (!ctx) { reject(new Error('No 2D context')); return; }
-      ctx.drawImage(img, 0, 0, out.width, out.height);
-      ctx.drawImage(annotationCanvas, 0, 0);
-      resolve(out.toDataURL('image/png'));
+      // Fouten in deze asynchrone callback moeten de Promise afwijzen, niet laten hangen.
+      try {
+        const out = document.createElement('canvas');
+        out.width = annotationCanvas.width;
+        out.height = annotationCanvas.height;
+        const ctx = out.getContext('2d');
+        if (!ctx) throw new Error('No 2D context');
+        ctx.drawImage(img, 0, 0, out.width, out.height);
+        ctx.drawImage(annotationCanvas, 0, 0);
+        const png = out.toDataURL('image/png');
+        if (!png.startsWith('data:image/png;')) throw new Error('Invalid PNG');
+        resolve(png);
+      } catch (error) {
+        reject(error);
+      }
     };
     img.onerror = reject;
     img.src = screenshotDataUrl;
@@ -138,18 +165,72 @@ interface TextInputState {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ScreenshotAnnotatorProps {
+  /** Het rauwe screenshot (zonder annotaties). */
   screenshotDataUrl: string;
-  /** Wordt aangeroepen als de editor sluit, met de geflattende PNG-dataURL. */
-  onChange: (flattenedDataUrl: string) => void;
+  /** Wat het voorbeeld toont: de geflattende PNG, of null (dan het rauwe screenshot). */
+  previewDataUrl: string | null;
+  /** De huidige vormen (uit het concept). */
+  shapes: readonly Shape[];
+  /** Na *Klaar*: de nieuwe vormen en de geflattende PNG-dataURL. */
+  onChange: (flattenedDataUrl: string, shapes: Shape[]) => void;
+  /** *Opnieuw maken*: de ouder maakt een nieuw screenshot en wist de vormen. */
+  onRetake: () => void;
+  /** *Weghalen*: de ouder zet het screenshot-vinkje uit. */
+  onRemove: () => void;
+  /** Knoppen uit (tijdens versturen). */
+  disabled?: boolean;
+  /** Meldt of de editor openstaat (ook tijdens het flattenen na *Klaar*). Zolang hij openstaat,
+   *  maakt de ouder de rest van het venster `inert` en kan er niet verstuurd worden. */
+  onEditorOpenChange?: (open: boolean) => void;
+}
+
+/** Het editorpaneel met een eigen focus-trap: Tab blijft in de editor zolang die openstaat. */
+function EditorPanel({ label, children }: { label: string; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef);
+  // `useFocusTrap` luistert op het paneel. Na tekenen op het canvas (niet focusbaar) staat de focus
+  // op `body`; Tab zou dan naar de app erachter gaan. Daarom ook op document: Tab buiten het paneel
+  // zet de focus terug op het eerste focusbare element van de editor.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const panel = panelRef.current;
+      if (e.key !== 'Tab' || !panel || panel.contains(document.activeElement)) return;
+      e.preventDefault();
+      const items = Array.from(panel.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'))
+        .filter(el => el.getClientRects().length > 0);
+      (e.shiftKey ? items[items.length - 1] : items[0])?.focus();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, []);
+  return (
+    <div
+      ref={panelRef}
+      className="annotator-editor"
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      onClick={e => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotAnnotatorProps) {
+export function ScreenshotAnnotator({
+  screenshotDataUrl, previewDataUrl, shapes: committedShapes, onChange, onRetake, onRemove, disabled = false,
+  onEditorOpenChange,
+}: ScreenshotAnnotatorProps) {
   const { t } = useTranslation('common');
 
   const [editorOpen, setEditorOpen] = useState(false);
-  const [shapes, setShapes] = useState<Shape[]>([]);
+  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  // Werkkopie tijdens een bewerkronde; bij openen gevuld uit `committedShapes`.
+  const [shapes, setShapes] = useState<Shape[]>(() => [...committedShapes]);
   const [activeTool, setActiveTool] = useState<AnnotationTool>('arrow');
   const [activeColor, setActiveColor] = useState<Color>('#ef4444');
 
@@ -164,14 +245,13 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
   const shapesRef = useRef(shapes);
   shapesRef.current = shapes;
 
-  // Thumbnail: bijgewerkt na sluiten van de editor
-  const [thumbnailUrl, setThumbnailUrl] = useState<string>(screenshotDataUrl);
+  const thumbnailUrl = previewDataUrl ?? screenshotDataUrl;
 
-  // Reset bij nieuw screenshot
+  // De ouder volgt of de editor openstaat (versturen blokkeren, de rest van het venster inert).
   useEffect(() => {
-    setThumbnailUrl(screenshotDataUrl);
-    setShapes([]);
-  }, [screenshotDataUrl]);
+    onEditorOpenChange?.(editorOpen);
+  }, [editorOpen, onEditorOpenChange]);
+  useEffect(() => () => onEditorOpenChange?.(false), [onEditorOpenChange]);
 
   // ── Canvas: afmetingen synchroniseren met screenshot bij openen ───────────
   useEffect(() => {
@@ -198,31 +278,54 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
 
   // ── Editor openen/sluiten ─────────────────────────────────────────────────
 
-  const openEditor = () => setEditorOpen(true);
+  const openEditor = () => {
+    // Elke bewerkronde begint bij de vastgelegde vormen; *Annuleren* keert daarheen terug.
+    setShapes([...committedShapes]);
+    setSaveError(false);
+    setEditorOpen(true);
+  };
 
+  /** *Klaar*: flatten en de nieuwe vormen aan de ouder geven. */
   const closeEditor = useCallback(async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error('No annotation canvas');
+      const flat = await flattenToPng(screenshotDataUrl, canvas);
+      onChange(flat, shapesRef.current);
+      setEditorOpen(false);
+      setTextInput(null);
+      setTextValue('');
+    } catch {
+      // Fail closed: nooit het origineel vastleggen als afdekken niet gelukt is.
+      // De editor blijft open, dus de ouder blijft inert en Versturen geblokkeerd.
+      setSaveError(true);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }, [screenshotDataUrl, onChange]);
+
+  /** *Annuleren* (en Esc): de wijzigingen van deze bewerkronde weggooien. */
+  const cancelEditor = useCallback(() => {
+    if (savingRef.current) return;
+    drawing.current = false;
+    currentShape.current = null;
+    setShapes([...committedShapes]);
     setEditorOpen(false);
     setTextInput(null);
     setTextValue('');
-    if (canvasRef.current) {
-      try {
-        const flat = await flattenToPng(screenshotDataUrl, canvasRef.current);
-        setThumbnailUrl(flat);
-        onChange(flat);
-      } catch {
-        onChange(screenshotDataUrl);
-      }
-    } else {
-      onChange(screenshotDataUrl);
-    }
-  }, [screenshotDataUrl, onChange]);
+  }, [committedShapes]);
 
   // Escape-handler voor de grote editor.
   // CAPTURE-fase + stopPropagation: anders vangt FeedbackDialog's eigen
   // Escape-handler (op document, bubble) het óók op en sluit de HELE dialoog
   // i.p.v. alleen de editor — waarmee de ingetypte titel/omschrijving verloren
   // gaat. Capture-listeners op document vuren vóór bubble-listeners, ongeacht
-  // registratievolgorde, dus deze wint.
+  // registratievolgorde, dus deze wint. Esc in de editor = *Annuleren*.
   useEffect(() => {
     if (!editorOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -233,12 +336,12 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
         setTextInput(null);
         setTextValue('');
       } else {
-        void closeEditor();
+        cancelEditor();
       }
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [editorOpen, textInput, closeEditor]);
+  }, [editorOpen, textInput, cancelEditor]);
 
   // ── Annotatie-muisgebeurtenissen ──────────────────────────────────────────
 
@@ -277,6 +380,8 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
       currentShape.current = { kind: 'arrow', from: pos, to: pos, color: activeColor };
     } else if (activeTool === 'rectangle') {
       currentShape.current = { kind: 'rect', from: pos, to: pos, color: activeColor };
+    } else if (activeTool === 'mask') {
+      currentShape.current = { kind: 'mask', from: pos, to: pos };
     } else if (activeTool === 'pen') {
       currentShape.current = { kind: 'pen', points: [pos], color: activeColor };
     }
@@ -287,8 +392,7 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
     const pos = canvasPos(canvasRef.current, e);
     const s = currentShape.current;
 
-    if (s.kind === 'arrow') s.to = pos;
-    else if (s.kind === 'rect') s.to = pos;
+    if (s.kind === 'arrow' || s.kind === 'rect' || s.kind === 'mask') s.to = pos;
     else if (s.kind === 'pen') s.points.push(pos);
 
     const ctx = canvasRef.current.getContext('2d');
@@ -338,36 +442,42 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
 
   return (
     <>
-      {/* Thumbnail met zweef-overlay "Annoteren" */}
-      <div className="screenshot-annotator-thumbnail">
-        <img
-          src={thumbnailUrl}
-          className="screenshot-annotator-thumb-img"
-          alt=""
-          draggable={false}
-        />
-        <button
-          className="screenshot-annotator-open-btn"
-          onClick={openEditor}
-          title={t('feedback.annotate')}
-        >
-          <Pencil size={16} />
-          <span>{t('feedback.annotate')}</span>
-        </button>
+      {/* Klein voorbeeld in een licht kader, met de drie knoppen ernaast */}
+      <div className="screenshot-annotator-preview">
+        <div className="screenshot-annotator-thumbnail">
+          <img
+            src={thumbnailUrl}
+            className="screenshot-annotator-thumb-img"
+            alt={t('feedback.screenshotPreview')}
+            draggable={false}
+          />
+        </div>
+        <div className="screenshot-annotator-actions">
+          <button type="button" className="screenshot-annotator-action" onClick={openEditor} disabled={disabled} data-annotate-button>
+            <Pencil size={14} aria-hidden />
+            <span>{t('feedback.annotate')}</span>
+          </button>
+          <button type="button" className="screenshot-annotator-action" onClick={onRetake} disabled={disabled}>
+            <RefreshCw size={14} aria-hidden />
+            <span>{t('feedback.retake')}</span>
+          </button>
+          <button type="button" className="screenshot-annotator-action" onClick={onRemove} disabled={disabled}>
+            <X size={14} aria-hidden />
+            <span>{t('feedback.removeScreenshot')}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Bijna-schermvullende editor-overlay */}
-      {editorOpen && (
+      {/* Bijna-schermvullende editor-overlay. Via een portal buiten het feedbackvenster, zodat de
+          ouder dat venster `inert` kan maken: de focus kan dan niet naar *Versturen* erachter. */}
+      {editorOpen && createPortal(
         <div
           className="annotator-editor-backdrop"
           onClick={() => void closeEditor()}
         >
-          <div
-            className="annotator-editor"
-            onClick={e => e.stopPropagation()}
-          >
+          <EditorPanel label={t('feedback.annotate')}>
             {/* Toolbar */}
-            <div className="annotator-editor-toolbar">
+            <div className="annotator-editor-toolbar" inert={saving}>
               <button
                 className={`feedback-ann-btn${activeTool === 'arrow' ? ' active' : ''}`}
                 title={t('feedback.tools.arrow')}
@@ -381,6 +491,15 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
                 onClick={() => setActiveTool('rectangle')}
               >
                 <Square size={16} />
+              </button>
+              <button
+                className={`feedback-ann-btn${activeTool === 'mask' ? ' active' : ''}`}
+                title={t('feedback.tools.mask')}
+                aria-label={t('feedback.tools.mask')}
+                aria-pressed={activeTool === 'mask'}
+                onClick={() => setActiveTool('mask')}
+              >
+                <EyeOff size={16} />
               </button>
               <button
                 className={`feedback-ann-btn${activeTool === 'pen' ? ' active' : ''}`}
@@ -432,6 +551,12 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
               <div className="annotator-toolbar-spacer" />
 
               <button
+                className="annotator-cancel-btn"
+                onClick={cancelEditor}
+              >
+                {t('feedback.cancel')}
+              </button>
+              <button
                 className="btn btn--sm btn--primary"
                 onClick={() => void closeEditor()}
               >
@@ -439,8 +564,14 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
               </button>
             </div>
 
+            {saveError && (
+              <p role="alert" className="text-body" style={{ padding: '0.5rem 1rem' }}>
+                {t('feedback.annotationSaveFailed')}
+              </p>
+            )}
+
             {/* Canvas-ruimte */}
-            <div className="annotator-canvas-area">
+            <div className="annotator-canvas-area" inert={saving}>
               {/*
                 annotator-canvas-inner heeft position:relative zodat:
                   1. De img zijn eigen aspect-ratio bepaalt (width 100%, height auto)
@@ -484,8 +615,9 @@ export function ScreenshotAnnotator({ screenshotDataUrl, onChange }: ScreenshotA
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </EditorPanel>
+        </div>,
+        document.body,
       )}
     </>
   );

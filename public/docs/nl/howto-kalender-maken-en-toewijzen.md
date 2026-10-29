@@ -59,7 +59,7 @@ Alleen de taken zonder eigen kalender gaan mee.
 
 **Dezelfde kalender, twee keuzes.** In de keuzelijst staat de projectkalender twee keer: als *Projectkalender: naam* en als gewone kalender met die naam. Kies je de tweede, dan is dat een eigen keuze van die taak. De taak verhuist dan niet mee als je later een andere projectkalender kiest.
 
-**Andere uren per dag.** Verander je de werktijden of de pauze zo dat de *Standaard werkdag* van een kalender verandert, dan telt een taak in dagen nog steeds hetzelfde aantal dagen. Bij een taak met resources en de werkregel *Vast werk* of *Vaste inzet* verandert de duur wel mee, omdat het werk gelijk blijft. Veertig uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag. De app meldt hoeveel taken een andere duur kregen.
+**Andere uren per dag.** Verander je de werktijden of de pauze zo dat de *Standaard werkdag* van een kalender verandert, dan telt een taak in dagen nog steeds hetzelfde aantal dagen. Bij een taak met resources en het taaktype *Vast werk* of *Vaste inzet* verandert de duur wel mee, omdat het werk gelijk blijft. Veertig uur werk is 5 dagen bij 8 uur per dag en 7 dagen bij 6 uur per dag. De app meldt hoeveel taken een andere duur kregen.
 
 ## Zie ook
 

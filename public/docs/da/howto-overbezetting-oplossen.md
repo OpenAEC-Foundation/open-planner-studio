@@ -14,7 +14,7 @@ Først finder du overallokeringen. Derefter vælger du en løsning. **Udjævning
 
 1. Kig i båndet under *Ressourcer › Overallokering*. Der står *Ingen*, eller med rødt antallet af overallokerede ressourcer, for eksempel *1 ressource*. Efter en beregning står der også i statuslinjen *⚠ 1 ressource(r) overallokeret*.
 2. Klik på meddelelsen i statuslinjen. Panelet *Advarsler* åbner sig til højre, med en linje for hver ressource, for eksempel *Bricklayer* med *Overallokeret på 5 dag(e) (29-06-2027 – 05-07-2027)*.
-3. Klik på linjen. Appen slår histogrammet til, vælger ressourcen og markerer alle opgaver, ressourcen er på.
+3. Klik på linjen. Appen slår histogrammet til, vælger ressourcen og markerer alle opgaver, som ressourcen er tildelt.
 4. Kig på histogrammet under Gantt. Røde søjler er overallokerede dage. Hvis du fører musen hen over en dag, ser du, hvilke opgaver der bidrager, for eksempel *2 opgaver bidrager på 2027-06-30* med navnene nedenunder.
 
 Du kan også selv slå histogrammet til med *Ressourcer › Histogram › Histogram*. Vælg en ressource i listen til venstre, eller gå gennem ressourcerne med *Forrige* og *Næste*. En rød prik i listen betyder, at ressourcen er overallokeret. Rækken *Alle ressourcer* lægger ressourcerne sammen, uden materiale.
@@ -24,7 +24,7 @@ Er en opgave markeret, viser histogrammet kun belastningen fra den opgave og kun
 ### 2. Vælg en løsning
 
 - **Mere kapacitet.** Hvis der virkelig kommer en anden murer, så sæt *Maksimalt antal enheder* til 2 (se [Administration af ressourcer](docs://howto-resources-beheren)). Overallokeringen er så væk.
-- **Færre tildelingsenheder pr. dag.** Sæt *Enh./dag* lavere, eller vælg en anden kurve for tildelingen (se [Tildeling af ressourcer med en kurve](docs://howto-resource-toewijzen)).
+- **Færre tildelingsenheder pr. dag.** Sæt *Tildelingsenheder* lavere, eller vælg en anden kurve for tildelingen (se [Tildeling af ressourcer med en kurve](docs://howto-resource-toewijzen)).
 - **Sæt opgaverne efter hinanden.** Tilføj en afhængighed mellem de to opgaver, så den anden først starter, når den første er færdig (se [Tilføj afhængigheder](docs://howto-relaties-leggen)).
 - **Udjævning.** Appen får en opgave til at starte senere.
 

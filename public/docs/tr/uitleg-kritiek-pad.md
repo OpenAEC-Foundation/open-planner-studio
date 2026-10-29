@@ -16,7 +16,7 @@ Hesaplama yöntemine **CPM** (Critical Path Method) denir. Bu yüzden *Özellikl
 
 ## Uygulama nasıl hesaplar
 
-Uygulama planlamayı kendiliğinden yeniden hesaplamaz. Hesaplama **Hesapla** (F5) ile başlar, örneğin *Ana sayfa › Zamanlama › Hesapla* yolunu izleyerek. Son hesaplamadan sonra bir şey değiştiyse, durum çubuğu *Güncel değil — yeniden hesaplayın (F5)* gösterir. *Otomatik hesapla* açıksa (*Ayarlar › Proje › Ayarlar* altında, *Planlama* sekmesinde, *Hesaplama* başlığında), uygulama bunu kendisi yapar.
+Uygulama planlamayı kendiliğinden yeniden hesaplamaz. Hesaplama **Hesapla** (F5) ile başlar, örneğin *Ana sayfa › Zamanlama › Hesapla* yolunu izleyerek. Son hesaplamadan sonra bir şey değiştiyse, durum çubuğu *Güncel değil — yeniden hesaplayın (F5)* gösterir. *Otomatik hesapla* açıksa (*Ayarlar › Proje › Uygulama ayarları* altında, *Planlama* sekmesinde, *Hesaplama* başlığında), uygulama bunu kendisi yapar.
 
 Bir hesaplama, ağ üzerinden iki geçiş yapar.
 
@@ -38,16 +38,17 @@ Toplam bolluk paylaşılabilir. İki kritik olmayan görev birbirini izlerse, ay
 
 ### Negatif bolluk
 
-Bolluk negatif de olabilir. Bu, bir görevin son tarihi veya en geç bir tarih koyan bir kısıtlaması varsa ve bu tarih, uygulamanın o görev için hesapladığı tarihten önce kalıyorsa olur. Plana göre görev zaten gecikmiştir; görev ve ondan önceki zincir kritik olur.
+Bolluk negatif de olabilir. Bu, bir görevin son tarihi veya en geç bir tarih koyan bir kısıtlaması varsa ve bu tarih, uygulamanın o görev için hesapladığı tarihten önce kalıyorsa olur. Plana göre görev zaten geç kalmıştır; görev ve ondan önceki zincir kritik olur.
 
 ### Bir görev ne zaman kritiktir?
 
-Varsayılan olarak bir görev, toplam bolluğu 0 veya daha az olduğunda kritiktir. Bu, *Ayarlar › Proje › Proje bilgisi* altında, *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* bölümünde değiştirilebilir. *Uygula* tıkladığınızda uygulama planlamayı hemen yeniden hesaplar. Seçenekler uygulamaya değil, proje dosyasına aittir.
+Varsayılan olarak bir görev, toplam bolluğu 0 veya daha az olduğunda kritiktir. Bu, *Ayarlar › Proje › Proje ayarları* altında, *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* bölümünde değiştirilebilir. *Uygula* tıkladığınızda uygulama planlamayı hemen yeniden hesaplar. Seçenekler uygulamaya değil, proje dosyasına aittir.
 
-- **Kritik tanımı** ile *Toplam bolluk ≤ eşik* ve *Eşik (iş günü)* alanı. Eşik varsayılan olarak 0'dır. Bir tampon korumak için bunu 2 yapın. Örneğin: 2 iş günü veya daha az bolluğu olan her görev kritik sayılır ve kırmızıya döner.
+- **Kritik tanımı** ile *Toplam bolluk ≤ eşik* ve *Eşik (iş günü)* alanı. Eşik varsayılan olarak 0'dır. Bir tampon korumak için bunu 2 yapın. Örneğin: 2 iş günü veya daha az bolluğu olan her görev kritik sayılır ve kırmızıya döner. *En uzun yol* seçerseniz, bir görev son bitişe giden en uzun zincirin üzerinde olduğunda kritik olur. Bolluğu o zaman önemli değildir.
+- **Birden çok bolluk yolu** zincirleri *Bolluk yolu* sütununda bolluklarına göre numaralandırır. Yol 1 kritik yoldur. Bkz. [Hesaplama seçenekleri ve kurallar](docs://ref-rekenopties-en-conventies).
 - **Kritiğe yakın olarak işaretle** ile kendi *Eşik* değeri, varsayılan 2 iş günü. 0'dan büyük ama en fazla bu kadar bolluğu olan bir görev turuncu çubuk alır. Bu, hangi görevlerin neredeyse pay bırakmadığını gösterir, onlara kritik demeden.
 - **Açık uçlu görevler kritik**: ardılı olmayan ve henüz bitmemiş bir görev kritik sayılır. Unutulmuş ilişkilere karşı bir güvenlik ağı olarak kullanışlıdır (aşağıdaki yanlış anlamalara bakın).
-- **Bolluk hesabı**, toplam bolluğun görevin başlangıcında mı, bitişinde mi yoksa ikisinin küçüğü olarak mı ölçüleceğini belirler. Yeni projelerde *Otomatik (varsayılan)* ayarlıdır. Primavera P6'nın hesaplama yöntemini izliyorsanız, *Bu profilin varsayılan seçeneklerini uygula* bu seçimi *Bitiş bolluğu* olarak ayarlar. MS Project için aynı düğme bunu *Otomatik (varsayılan)* olarak geri ayarlar: bir durum tarihiyle MS Project kendisi o şekilde hesaplar.
+- **Bolluk hesabı**, toplam bolluğun görevin başında mı, sonunda mı yoksa ikisinin küçüğü olarak mı ölçüleceğini belirler. Yeni projeler *Otomatik (varsayılan)* olarak ayarlanır. Primavera P6 profilini kullanıyorsanız ve bu seçim *Bitiş bolluğu* değilse, Proje ayarları içinde turuncu bir blok bunu belirtir. Bloğun düğmesi seçimi *Bitiş bolluğu* olarak ayarlar. MS Project için aynı düğme seçimi *Otomatik (varsayılan)* olarak geri ayarlar: bir durum tarihiyle MS Project kendisi o şekilde hesaplar.
 
 ### Nerede görürsünüz
 

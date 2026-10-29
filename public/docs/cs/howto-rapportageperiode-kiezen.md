@@ -12,7 +12,7 @@ Období není vázané na kalendářní měsíc, ale na **referenční den**: da
 
 ### 1. Nastavte datum stavu
 
-Pokud pracujete s relativní volbou, například *Příští 4 týdny* nebo *Uplynulý měsíc*, nastavte nejdřív datum stavu. Na kartě *Plán* zvolte *Směrné plány a průběh* a vyplňte pole *Datum stavu*. Křížkem vedle něj (*Vymazat datum stavu*) datum opět odstraníte. Pokud pracujete s pevným obdobím (krok 4), toto nepotřebujete.
+Pokud pracujete s relativní volbou, například *Příští 4 týdny* nebo *Uplynulý měsíc*, nastavte nejdřív datum stavu. Na kartě zvolte *Plán › Směrné plány a průběh* a vyplňte pole *Datum stavu*. Křížkem vedle něj (*Vymazat datum stavu*) datum opět odstraníte. Pokud pracujete s pevným obdobím (krok 4), toto nepotřebujete.
 
 ### 2. Zvolte sestavu s obdobím
 
@@ -47,8 +47,8 @@ U sestav *Look-ahead*, *Vytížení zdrojů* a *Přiřazení zdrojů* je období
 
 Období nefunguje ve všech sestavách stejně.
 
-- **Look-ahead** zahrne nedokončené úkoly, které se období dotýkají, i když období celé překrývají. Zahrnuty jsou i zpožděné úkoly z doby před referenčním dnem, pokud období nekončí před referenčním dnem. Vlastní období zcela v minulosti je pohled zpět: ukáže jen to, co tehdy běželo a ještě není dokončeno, bez dnešního zaostání.
-- **Sestava průběhu** použije období pro sekci *Dokončeno v uplynulém období*. Sekce *Začíná v příštím období* hledí dopředu od data stavu, až do data u položky *Výhled do* v souhrnu. Když zvolíte uplynulé období, sestava hledí dopředu stejně daleko, jak hledí zpět: s volbou *Uplynulé 2 týdny* a datem stavu 20. května ukáže *Výhled do* 3. června. Vlastní období nebo *Celý projekt*, které leží zcela v minulosti, se nezrcadlí.
+- **Look-ahead** zahrne nedokončené úkoly, které se období dotýkají, a to i tehdy, když období celé překrývají. Zahrnuty jsou i zpožděné úkoly z doby před referenčním dnem, pokud období nekončí před referenčním dnem. Vlastní období zcela v minulosti je pohled zpět: ukáže jen to, co tehdy běželo a ještě není dokončeno, bez dnešního zaostání.
+- **Sestava průběhu** použije období pro sekci *Dokončeno v uplynulém období*. Sekce *Začíná v příštím období* hledí dopředu od data stavu, až do data u položky *Výhled do* v souhrnu. Když zvolíte uplynulé období, sestava hledí dopředu stejně daleko, jako hledí zpět: s volbou *Uplynulé 2 týdny* a datem stavu 20. května ukáže *Výhled do* 3. června. Vlastní období nebo *Celý projekt*, které leží zcela v minulosti, se nezrcadlí.
 - **Vytížení zdrojů** ukazuje každý týden nebo měsíc, který se období dotýká, celý. Když vaše období běží od středy do středy, vidíte proto celé týdny, takže řádek vždy ukazuje stejné číslo jako histogram.
 - **Přiřazení zdrojů** ukazuje přiřazení úkolů, které se období dotýkají. Při volbě *Celý projekt* se nefiltruje podle data.
 - **Diagram zdrojů** ukazuje jen úkoly, které se období dotýkají. V souhrnu *Mimo období:* počítá, kolik úkolů se vynechalo.

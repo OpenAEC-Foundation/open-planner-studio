@@ -10,7 +10,7 @@ Je begint de dag met het project van gisteren, je krijgt een bestand van een col
 
 ### Een bestand openen
 
-1. Kies *Start › Bestand › Openen*, of *Bestand › Openen*, of druk op Ctrl+O (⌘+O op een Mac). *Openen* staat ook in de balk helemaal bovenaan. De groep *Bestand* staat ook op het tabblad *Tabel*.
+1. Kies *Start › Bestand › Openen*, of *Bestand › Openen*, of druk op Ctrl+O (⌘+O op een Mac). De groep *Bestand* staat ook op het tabblad *Tabel*.
 2. Kies het bestand. Je opent één bestand per keer. Op de desktop en in browsers met bestandstoegang, zoals Chrome en Edge, toont het venster een lijst met bestandstypen: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* en *Primavera XER Files*.
 3. Het project opent in een nieuw tabblad. Was het huidige tabblad nog leeg en ongewijzigd, dan opent het project daarin.
 4. Was het bestand geen IFC, dan verschijnt een venster met een korte uitleg over dat formaat. Een groen blok zegt wat de app overnam, een amber blok wat niet of maar deels meekwam, en een blauw blok hoe opslaan en terugschrijven werken. *Lees meer* opent de gids over dat formaat. Klik op *Begrepen* om het venster te sluiten. Vink eerst *Niet meer tonen voor …* aan als je deze uitleg voor dat formaat niet meer wilt zien. Je zet hem weer aan in [App-instellingen](docs://ref-instellingen), op het tabblad *Geavanceerd*.
@@ -33,10 +33,10 @@ Kies *Bestand › Voorbeelden* en klik op een voorbeeldproject. Het opent in een
 
 Kies *Start › Bestand › Opslaan* of *Bestand › Opslaan*, of druk op Ctrl+S. Wat er dan gebeurt, hangt van je project af:
 
-1. Heeft het project al een bestand, omdat je een IFC-bestand opende of het eerder opsloeg, dan schrijft de app naar dat bestand. Er verschijnt geen venster.
+1. Heeft het project al een bestand, omdat je een IFC-bestand opende of het eerder opsloeg, dan schrijft de app naar dat bestand. Er verschijnt geen venster, behalve bij het eerste opslaan van een bestand met een ander IFC-schema dan IFC 4.3 ADD2. Dan vraagt de app eerst *In welk IFC-schema opslaan?* Zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen).
 2. Heeft het project nog geen bestand, dan vraagt de app waar het moet komen. Ze stelt de projectnaam met `.ifc` voor. Daarna is dat bestand het bestand van het project.
 3. Bewaart je browser alleen via een download (zoals Firefox), dan komt het bestand in je downloadmap, en elke keer opslaan maakt een nieuwe download. De eerste keer in een sessie zie je de melding *Opgeslagen als download: 'naam.ifc' staat in je downloadmap. Deze browser laat de app niet naar een eigen plek schrijven, dus elke keer opslaan maakt een nieuwe download. In Chrome, Edge of de desktop-app werkt Opslaan hetzelfde bestand gewoon bij.*
-4. Kan je browser niet terugschrijven naar het bestand van het project, dan vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. Dat lijkt op *Opslaan als*, maar het is een grens van de browser. De eerste keer in een sessie legt de melding *Deze browser laat de app niet terugschrijven naar 'naam.ifc'.* dat uit, met een link naar [Bestanden](docs://uitleg-bestanden).
+4. Kan je browser door beperkte bestandstoegang niet terugschrijven naar het bestand van het project, dan vraagt de app bij elke keer opslaan opnieuw waar het bestand moet komen. Dat lijkt op *Opslaan als*, maar het is een grens van de browser. De eerste keer in een sessie legt de melding *Deze browser laat de app niet terugschrijven naar 'naam.ifc'.* dat uit, met een link naar [Bestanden](docs://uitleg-bestanden).
 
 Na het opslaan verdwijnt de markering *Niet opgeslagen*: de stip op het tabblad, de asterisk voor de projectnaam bovenaan en de tekst *Niet opgeslagen* rechtsonder in de statusbalk.
 
@@ -58,12 +58,15 @@ Klik op het kruisje van het tabblad, of kies *Bestand › Sluit project*. Heeft 
 
 **Chrome en Edge vragen om toestemming.** Bij het eerste *Opslaan* van een bestand dat je opende, vraagt de browser of de app erin mag schrijven. Weiger je dat, dan opent de app een venster waarin je een nieuw bestand kiest. Dat venster krijg je in Chrome en Edge ook als schrijven naar het bestaande bestand niet lukt, bijvoorbeeld omdat het bestand verdween of vergrendeld is.
 
-**Opslaan kan mislukken.** Geeft het opslaan zelf een fout, dan meldt de app *Opslaan mislukt*, met de reden erbij. Je project blijft open en staat nog als *Niet opgeslagen* gemarkeerd.
+**Een melding over dubbele id's of relaties die niet meetellen.** Na het openen kan een melding blijven staan. Staat er *Objecten met een dubbel id in dit bestand*, dan kreeg elk dubbel object een eigen id en wijzen verwijzingen naar het eerste exemplaar. Controleer dan relaties en toewijzingen. Staat er *relatie(s) konden niet worden meegerekend*, dan ging het om een relatie die op een samenvattingstaak lag en geen effect heeft, bijvoorbeeld een taak gekoppeld aan zijn eigen samenvatting. Het bestand zelf blijft ongewijzigd. Zie [Relaties](docs://uitleg-relaties) voor wat een relatie op een samenvattingstaak doet.
+
+**Opslaan kan mislukken.** Geeft het opslaan zelf een fout, dan meldt de app *Opslaan mislukt*, met de reden erbij. In Chrome en Edge verschijnt deze foutmelding vóór het venster waarin je een ander bestand kunt kiezen. Annuleer je dat venster, dan blijft je project open en als *Niet opgeslagen* gemarkeerd. Lukt het opslaan naar het andere bestand, dan verdwijnt die markering en werkt je project voortaan met dat bestand. Wijzigingen die je tijdens het opslaan nog deed, blijven als *Niet opgeslagen* gemarkeerd. De foutmelding over de eerdere poging blijft staan tot je haar sluit. Mislukt ook de tweede poging, dan toont dezelfde melding de laatste reden.
 
 ## Zie ook
 
 - [Bestanden en formaten](docs://uitleg-bestanden): wat er in een IFC-bestand zit en hoe de app formaten behandelt.
 - [Automatisch opslaan aanzetten](docs://howto-automatisch-opslaan): de app zelf je bestand laten bijwerken.
+- [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen): wat de vraag *In welk IFC-schema opslaan?* betekent.
 - [Exporteren](docs://howto-exporteren): een kopie in een ander formaat maken.
 - [Herstellen na een crash](docs://howto-herstellen-na-een-crash): wat je doet als de app niet netjes sloot.
 - [Import- en exportformaten](docs://ref-import-exportformaten): per formaat wat meegaat en wat niet.

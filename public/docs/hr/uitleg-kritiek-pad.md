@@ -16,9 +16,9 @@ Metoda izračuna zove se **CPM** (Critical Path Method). Zato se odjeljak s rezu
 
 ## Kako aplikacija izračunava
 
-Aplikacija raspored sama ponovno ne izračunava. Izračun pokrećete naredbom **Izračunaj** (F5), na primjer preko *Početna › Raspored › Izračunaj*. Ako se nešto promijenilo od posljednjeg izračuna, traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Ako je *Automatsko izračunavanje* uključeno (pod *Postavke › Projekt › Postavke*, na kartici *Raspored*, pod naslovom *Izračunavanje*), aplikacija to radi sama.
+Aplikacija sama ne izračunava raspored ponovno. Izračun pokrećete naredbom **Izračunaj** (F5), na primjer preko *Početna › Raspored › Izračunaj*. Ako se nešto promijenilo od posljednjeg izračuna, traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Ako je *Automatsko izračunavanje* uključeno (pod *Postavke › Projekt › Postavke aplikacije*, na kartici *Raspored*, pod naslovom *Izračunavanje*), aplikacija to radi sama.
 
-Izračun ima dva prolaza kroz mrežu.
+Izračun prolazi kroz mrežu u dva prolaza.
 
 ### Prolaz unaprijed
 
@@ -26,11 +26,11 @@ Aplikacija počinje na datumu početka projekta i slijedi ovisnosti od prethodni
 
 ### Prolaz unatrag
 
-Zatim aplikacija ide unatrag, od tog datuma završetka do početka. Sada aplikacija za svaki zadatak pronalazi zadnji dan do kojeg zadatak mora završiti, a da se datum završetka projekta ne pomakne. Ako zadatak ima više nasljednika, mjerodavan je onaj koji mora prvi početi. Tako se dobiju **kasni početak** i **kasni završetak**.
+Zatim aplikacija ide unatrag, od tog datuma završetka do početka. Sada aplikacija za svaki zadatak pronalazi zadnji dan do kojeg zadatak mora završiti, a da se datum završetka projekta ne pomakne. Ako zadatak ima više nasljednika, mjerodavan je onaj koji mora prvi početi. Tako se dobivaju **kasni početak** i **kasni završetak**.
 
 ### Ukupan slobodni hod i slobodni hod
 
-Razlika između kasnog i najranijeg datuma zadatka je njegov **ukupan slobodni hod**: broj radnih dana za koji zadatak može kasniti ili kasnije početi, a da se datum završetka projekta ne pomakne. Aplikacija broji radne dane kalendara zadatka. Vikend ili praznik se ne računa.
+Razlika između kasnih i najranijih datuma zadatka je njegov **ukupan slobodni hod**: broj radnih dana za koji zadatak može kasniti ili kasnije početi, a da se datum završetka projekta ne pomakne. Aplikacija računa radne dane prema kalendaru zadatka. Vikend ili državni praznik se ne računa.
 
 **Slobodni hod** je strožiji pojam. To je prostor koji zadatak ima prije nego jedan od njegovih nasljednika mora kasnije početi. Taj prostor možete iskoristiti, a da to nijedan drugi zadatak ne primijeti.
 
@@ -42,12 +42,13 @@ Vremenska rezerva može postati i negativna. To se događa kad zadatak ima rok z
 
 ### Kada je zadatak kritičan?
 
-Zadano je da je zadatak kritičan kad je njegov ukupan slobodni hod 0 ili manji. To se može promijeniti pod *Postavke › Projekt › Podaci o projektu*, u odjeljku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*. Kada kliknete *Primijeni*, aplikacija odmah ponovno izračunava raspored. Opcije pripadaju datoteci projekta, ne aplikaciji.
+Zadano je da je zadatak kritičan kad je njegov ukupan slobodni hod 0 ili manji. To se može promijeniti pod *Postavke › Projekt › Postavke projekta*, u odjeljku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*. Kad kliknete *Primijeni*, aplikacija odmah ponovno izračunava raspored. Opcije pripadaju datoteci projekta, a ne aplikaciji.
 
-- **Definicija kritičnosti** s opcijom *Ukupan slobodni hod ≤ prag* i poljem *Prag (radni dani)*. Prag je zadano 0. Ako želite zaštitni prostor, postavite ga na 2, na primjer: svaki zadatak s 2 radna dana vremenske rezerve ili manje tada se računa kao kritičan i postaje crven.
-- **Označi gotovo kritične** s vlastitom postavkom *Prag*, zadano 2 radna dana. Zadatak s više od 0, ali najviše toliko vremenske rezerve, dobiva narančastu traku. To pokazuje koji zadaci gotovo nemaju vremenske rezerve, a da se ne nazivaju kritičnima.
-- **Zadaci s otvorenim završetkom su kritični**: zadatak bez nasljednika koji još nije završen računa se kao kritičan. Korisno kao sigurnosna mreža protiv zaboravljenih ovisnosti (vidi pogrešne predodžbe u nastavku).
-- **Izračun vremenske rezerve** određuje hoće li se ukupna vremenska rezerva mjeriti na početku zadatka, na njegovom završetku ili kao manja od ta dva. Novi projekti postavljeni su na *Automatski (standardno)*. Ako slijedite način izračuna programa Primavera P6, *Primijeni standardne opcije ovog profila* postavlja taj izbor na *Vremenska rezerva završetka*. Za MS Project isti gumb ga vraća na *Automatski (standardno)*: kad je postavljen datum stanja, MS Project sam tako izračunava.
+- **Definicija kritičnosti** s opcijom *Ukupan slobodni hod ≤ prag* i poljem *Prag (radni dani)*. Prag je zadano 0. Ako želite zaštitni prostor, postavite ga na 2, na primjer: svaki zadatak s 2 radna dana vremenske rezerve ili manje tada se računa kao kritičan i postaje crven. Ako odaberete *Najdulji put*, zadatak je kritičan kad leži na najduljem putu do posljednjeg završetka. Tada vremenska rezerva nije važna.
+- **Više putova vremenske rezerve** numerira lance prema njihovoj vremenskoj rezervi u stupcu *Put vremenske rezerve*. Put 1 je kritični put. Pogledajte [Opcije izračuna i pravila izračuna](docs://ref-rekenopties-en-conventies).
+- **Označite gotovo kritične** s vlastitom postavkom *Prag*, zadano 2 radna dana. Zadatak s više od 0, ali najviše toliko vremenske rezerve, dobiva narančastu traku. To pokazuje koji zadaci gotovo nemaju vremenske rezerve, a da se ne nazivaju kritičnima.
+- **Zadaci s otvorenim završetkom su kritični**: zadatak bez nasljednika koji još nije završen računa se kao kritičan. Korisno je kao sigurnosna mreža protiv zaboravljenih ovisnosti (pogledajte pogrešne predodžbe u nastavku).
+- **Izračun vremenske rezerve** određuje hoće li se ukupan slobodni hod mjeriti na početku zadatka, na njegovu završetku ili kao manja od ta dva. Novi projekti postavljeni su na *Automatski (standardno)*. Ako projekt koristi profil Primavera P6, a taj izbor nije *Vremenska rezerva završetka*, narančasta poruka u postavkama projekta to kaže; njezin gumb postavlja izbor na *Vremenska rezerva završetka*. Za MS Project isti gumb ga vraća na *Automatski (standardno)*: kad je postavljen datum stanja, MS Project sam tako izračunava.
 
 ### Gdje to vidite
 

@@ -24,7 +24,7 @@ Användbart när du arbetar i uppgiftstabellen.
 2. Håll ned Ctrl (⌘ på Mac) och klicka på den uppgift som kommer härnäst: den efterföljande uppgiften.
 3. Välj *Start › Uppgifter › Länka ▾ › Länka valda uppgifter*. Samma knapp finns också under *Tidsplan › Samband*.
 
-Appen skapar ett samband av typen slut-till-start utan fördröjning. Du ser det som en pil i Gantt och i kolumnen *Föregående*; en notis visas bara om appen avvisar sambandet. Knappen fungerar bara med exakt två valda uppgifter.
+Appen skapar ett samband av typen slut-till-start utan fördröjning. Du ser det som en pil i Gantt och i kolumnen *Föregående*. En notis visas bara om appen avvisar sambandet. Knappen fungerar bara med exakt två valda uppgifter.
 
 ### Rita ett samband i Gantt-diagrammet
 
@@ -60,7 +60,7 @@ Användbart när du arbetar snabbt med tangentbordet och känner till WBS-numren
 3. Skriv WBS-numret för den föregående uppgiften, ett mellanslag och typen, till exempel `2.6 FS`. Skriv fördröjningen direkt efter: `2.6 FS+1d`. Skilj flera föregående uppgifter åt med semikolon eller komma: `3.1 FS; 3.2 SS+2d`.
 4. Tryck på Enter.
 
-Det du skriver ersätter hela cellen. Finns det redan föregående uppgifter i cellen skriver du dem också. Se fallgroparna. Trycker du på Enter eller F2 i cellen i stället för att skriva, öppnas ett fält som behåller de befintliga sambanden. Du söker efter en uppgift på WBS-nummer eller namn och väljer typ och fördröjning för varje samband.
+Det du skriver ersätter hela cellen. Finns det redan föregående uppgifter i cellen skriver du dem också (se fallgroparna). Trycker du på Enter eller F2 i cellen i stället för att skriva öppnas ett fält som behåller de befintliga sambanden. Du söker efter en uppgift på WBS-nummer eller namn och väljer typ och fördröjning för varje samband.
 
 ### Ange eller ändra en fördröjning
 
@@ -69,14 +69,14 @@ Du skriver en fördröjning i rutan bredvid typen, på alla sätten ovan. Du än
 - `3` eller `3d`: 3 arbetsdagar. En helg räknas inte. Appen visar `+3d`.
 - `3ed`: 3 kalenderdagar. Helgen räknas med, som när betong även härdar på lördag och söndag.
 - `-1`: ett överlapp. Den efterföljande uppgiften kan starta en dag tidigare, så uppgifterna överlappar.
-- `4h`: 4 timmar arbetstid. Appen visar det som `+4u`. Är den föregående uppgiften en daguppgift i en kalender utan egna band för arbetstid, till exempel standardkalendern, omvandlar appen detta till hela arbetsdagar. Det avrundas till närmaste hela dag: `4h` blir då 1 dag, `2h` blir 0. I en kalender med egna band för arbetstid, eller efter en timuppgift, räknas fördröjningen exakt i timmar.
+- `4h`: 4 timmar arbetstid. Appen visar det som `+4h`. Är den föregående uppgiften en daguppgift i en kalender utan egna band för arbetstid, till exempel standardkalendern, omvandlar appen detta till hela arbetsdagar. Det avrundas till närmaste hela dag: `4h` blir då 1 dag, `2h` blir 0. I en kalender med egna band för arbetstid, eller efter en timuppgift, räknas fördröjningen exakt i timmar.
 - `50%`: hälften av den föregående uppgiftens varaktighet.
 
 Exempel: fundamentbetongen måste härda innan murarna kan arbeta på den. Därför får *Pour foundation → Foundation brickwork* ett FS-samband med fördröjning `3`. Om gjutningen är fredag 18 juni 2027 startar murverket efter **Beräkna** på torsdag 24 juni. Måndag till onsdag är väntetid. Med `3ed` räknas helgen med och murverket startar tisdag 22 juni.
 
 ### Till sist: beräkna om
 
-Ett nytt samband flyttar inga balkar ännu. Statusfältet visar *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Start › Tidsplan › Beräkna*. Först då får de efterföljande uppgifterna sina nya datum. Vill du att appen gör detta åt dig, slå på *Beräkna automatiskt* under *Inställningar › Projekt › Inställningar*, fliken *Tidsplan*.
+Ett nytt samband flyttar inga balkar ännu. Statusfältet visar *Inaktuell — beräkna om (F5)*. Tryck på **Beräkna** (F5), till exempel via *Start › Tidsplan › Beräkna*. Först då får de efterföljande uppgifterna sina nya datum. Vill du att appen gör detta åt dig, slå på *Beräkna automatiskt* under *Inställningar › Projekt › Appinställningar*, fliken *Tidsplan*.
 
 ## Fallgropar och vad appen gör
 

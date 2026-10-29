@@ -18,7 +18,7 @@ Appen visar *Gren sparad som mall 'Foundation'*. Appen frågar inte efter ett na
 ### Infoga en mall
 
 1. Markera uppgiften som mallen ska ligga under, eller markera ingenting.
-2. Välj *Tidsplan › Struktur › Mallar*. Listan visar namnet på varje mall och, till exempel, *4 uppgifter, 2 samband*.
+2. Välj *Tidsplan › Struktur › Mallar*. Listan visar namnet på varje mall och till exempel *4 uppgifter, 2 samband*.
 3. Klicka på mallen.
 
 Om en uppgift är markerad läggs mallen in som sista underuppgift under den uppgiften. Den uppgiften blir då en sammanfattningsuppgift. Om flera uppgifter är markerade gäller den uppgift du klickade på först. Om ingenting är markerat läggs grenen längst ner i listan, på översta nivån. Den infogade grenen är markerad efteråt.
@@ -31,9 +31,9 @@ Alla infogade uppgifter hamnar på projektstarten och tidsplanen är inte längr
 
 ### Vad som ingår i en mall
 
-För varje uppgift sparar en mall namnet, beskrivningen, uppgiftstypen, om den är en milstolpe och varaktigheten i dagar. Av sambanden sparar den bara dem mellan två uppgifter inom grenen, med typ och fördröjning.
+För varje uppgift sparar en mall namnet, beskrivningen, arbetskategorin, om den är en milstolpe och varaktigheten i dagar. Av sambanden sparar den bara dem mellan två uppgifter inom grenen, med typ och fördröjning. En fördröjning i timmar (`4h`) sparas inte och blir 0. En fördröjning i arbetsdagar, kalenderdagar eller procent sparas.
 
-Allt annat sparas inte: datum, framdrift och verkliga datum, resurstilldelningar, koder och egna fält (se [Koder och egna fält](docs://howto-codes-en-velden)), kalendern, restriktioner och måldatum, prioritet, en egen uppgiftstyp, och för en milstolpe dess typ och bockmarkeringen *Obligatorisk (avtalsenlig)*. Samband med uppgifter utanför grenen sparas inte heller. Efter infogningen fyller du i dem igen: tilldelningar, koder, kalender och restriktioner är tomma, och alla uppgifter börjar på projektstarten.
+Allt annat sparas inte: datum, framdrift och verkliga datum, resurstilldelningar, koder och egna fält (se [Koder och egna fält](docs://howto-codes-en-velden)), kalendern, restriktioner och måldatum, prioritet, en egen arbetskategori, för en milstolpe typen och bockmarkeringen *Obligatorisk (avtalsenlig)*, och samband med uppgifter utanför grenen. Efter infogningen fyller du i dem igen: tilldelningar, koder, kalender och restriktioner är tomma, och alla uppgifter startar vid projektstarten.
 
 En uppgift som var i timmar kommer tillbaka som en daguppgift. Dess varaktighet räknas om till en del av en arbetsdag. En uppgift på 5 timmar med en arbetsdag på 8 timmar blir 0,625 dagar.
 

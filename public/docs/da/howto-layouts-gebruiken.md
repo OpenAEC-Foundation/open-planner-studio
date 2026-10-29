@@ -39,7 +39,7 @@ Hvilke operatorer du får, afhænger af feltets type:
 - Tekst (*Opgavenavn*, *WBS*): *er lig med*, *er forskellig fra*, *indeholder*, *begynder med* og *er tom*.
 - Tal og dato (*Samlet slæk*, *Start*, *Fremdrift*): *er lig med*, *er forskellig fra*, *mindre end*, *mindre end eller lig med*, *større end*, *større end eller lig med*, *mellem* og *er tom*. Ved *mellem* er der to felter. For et tal står *Fra* og *Til* som hjælpetekst. For en dato er der ingen hjælpetekst: den første dato er start, den anden er slut.
 - Ja/nej (*Kritisk*, *Milepæl*, *Næsten kritisk*): *er lig med* og *er forskellig fra*, med værdien *Ja* eller *Nej*.
-- Valg (*Type*, en opgavekode): *er lig med*, *er forskellig fra*, *er en af* (med afkrydsningsfelter som værdier) og *er tom*.
+- Valg (*Arbejdskategori*, en opgavekode): *er lig med*, *er forskellig fra*, *er en af* (med afkrydsningsfelter som værdier) og *er tom*.
 - *Ressourcer*: *er en af* og *er tom*.
 - *I gang*: kun *mellem*, med to datoer (fra og til).
 
@@ -81,7 +81,7 @@ Layouts, der ikke gemmer de samme dele, kan være aktive samtidig. Har du et lay
 
 **Layouts står på din enhed, ikke i projektet.** Appen gemmer dine layouts og kolonnerne for alle dine projekter på denne enhed. Overlejringerne fra et layout (oprindelig plan, fremdriftslinje og resten) gælder for alle dine projekter. Filteret, grupperingen og sorteringen, der er aktive nu, hører til det åbne projekt, men de gemmes ikke i projektfilen: efter at du har gemt og åbnet projektet igen, er visningen igen uden filter, gruppering og sortering. De gør heller ikke projektet "ændret".
 
-**De aparte knapper er skjult.** *Kolonner…*, *Filtrér…*, *Gruppér…* og *Sortér…* som aparte knapper på fanen *Visning* er en ældre opsætning. Du henter dem frem igen med *Vis klassiske visningsknapper* under *Ældre funktioner* på fanen *Avanceret* i indstillingsvinduet (⚙ i titellinjen). Brug hellere layouts.
+**De aparte knapper er skjult.** *Kolonner…*, *Filtrér…*, *Gruppér…* og *Sortér…* som aparte knapper på fanen *Visning* er en ældre opsætning. Du henter dem frem igen med *Vis klassiske visningsknapper* under *Ældre funktioner* på fanen *Avanceret* i vinduet *App-indstillinger* (⚙ i titellinjen). Brug hellere layouts.
 
 ## Se også
 

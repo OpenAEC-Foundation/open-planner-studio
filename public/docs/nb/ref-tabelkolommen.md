@@ -4,16 +4,16 @@ Aktivitetstabellen har 86 faste kolonner, pluss én kolonne per aktivitetskode o
 
 ## Hvor du velger kolonner
 
-Aktivitetstabellen ved siden av Gantt-diagrammet og tabellen på fanen *Tabell* har hver sitt eget kolonnevalg. Plusstegnet til høyre i overskriften åpner kolonnevelgeren (vindutittel *Velg kolonne*). På *Tabell* kan du også bruke *Tabell › Kolonner › Kolonner…*. Velgeren viser kolonnene per kategori: *Aktivitet*, *Tidsplan*, *Begrensninger*, *Avhengigheter*, *Ressurser*, *Fremdrift*, *Beregnet*, *Grunnlinje*, *Egendefinert* og *Teknisk*. Du søker på navn, og *Sist brukt* står øverst. *Gjenopprett standard* herstiller standardkolonnene.
+Aktivitetstabellen ved siden av Gantt-diagrammet og tabellen på fanen *Tabell* har hver sitt eget kolonnevalg. Plusstegnet til høyre i overskriften åpner kolonnevelgeren (vindutittel *Velg kolonne*). På *Tabell* kan du også bruke *Tabell › Kolonner › Kolonner…*. Velgeren viser kolonnene per kategori: *Aktivitet*, *Tidsplan*, *Begrensninger*, *Avhengigheter*, *Ressurser*, *Fremdrift*, *Beregnet*, *Grunnlinje*, *Egendefinert* og *Teknisk*. Du søker på navn, og *Sist brukt* står øverst. *Gjenopprett standard* gjenoppretter standardkolonnene.
 
-Som standard viser aktivitetstabellen ved siden av Gantt-diagrammet *WBS*, *Aktivitetsnavn* og *Varighet*. Tabellen på fanen *Tabell* viser *WBS*, *Aktivitetsnavn*, *Varighet*, *Start*, *Slutt*, *Aktivitetstype*, *Kritisk*, *Totalslakk* og *Fremdrift*, pluss én kolonne per aktivitetskode og egendefinert felt i prosjektet.
+Som standard viser aktivitetstabellen ved siden av Gantt-diagrammet *WBS*, *Aktivitetsnavn* og *Varighet*. Tabellen på fanen *Tabell* viser *WBS*, *Aktivitetsnavn*, *Varighet*, *Start*, *Slutt*, *Arbeidskategori*, *Kritisk*, *Totalslakk* og *Fremdrift*, pluss én kolonne per aktivitetskode og egendefinert felt i prosjektet.
 
 ## Hvordan verdier leses og redigeres
 
 - **Beregnede kolonner** — kolonnene i kategorien *Beregnet* og en del andre er skrivebeskyttede: de kommer fra beregningen. Prøver du å redigere en skrivebeskyttet celle, sier appen *Denne beregnede kolonnen kan ikke redigeres.* Den teksten gjelder for alle skrivebeskyttede celler, også når kolonnen ikke er beregnet. Er de utdaterte fordi du har endret noe, står *utdatert* ved siden av dem til du trykker på *Beregn*.
-- **Datoer** — vises i notasjonen du valgte under *Innstillinger*, fanen *Visning*, overskriften *Datoformat*.
+- **Datoer** — vises i notasjonen du valgte under *Appinnstillinger*, fanen *Utseende*, overskriften *Datoformat*.
 - **Varigheter og slakk** — en varighet vises i enheten for aktiviteten (`5d`, `12h`), eller etter *Varighetsvisning* på samme fane (*Automatisk (egen enhet per aktivitet)*, *Alltid dager* eller *Alltid timer*). Slakk vises i arbeidsdager med to desimaler og desimalskilletegnet for språket ditt.
-- **Ja/nei** — en ja/nei-verdi vises som *Ja* eller *Nei*; en tom verdi vises som en strek (—).
+- **Ja/nei** — en ja/nei-verdi vises som *Ja* eller *Nei*. En tom verdi vises som en strek (—).
 - **Redigering** — skriv inn eller velg en verdi. En ugyldig verdi blir avvist med en begrunnelse under cellen, for eksempel *Skriv inn en gyldig varighet, for eksempel 5d eller 8t.* eller *Skriv inn en prosentverdi mellom 0 og 100.* Liming av flere celler skjer celle for celle. Skrivebeskyttede celler hoppes over, og appen melder hvor mange.
 
 ## Aktivitet
@@ -21,10 +21,10 @@ Som standard viser aktivitetstabellen ved siden av Gantt-diagrammet *WBS*, *Akti
 - **Aktivitetsnavn** — navnet på aktiviteten. Kan redigeres; må fylles ut. En hovedaktivitet vises med fet skrift og en lys bakgrunnstone i navnecellen. En milepæl vises med fet skrift i milepælfargen (samme fargefamilie som milepælen i Gantt-diagrammet). En vanlig aktivitet forblir uendret. Det er bare formatering: velge, dra og redigere fungerer likt.
 - **Beskrivelse** — beskrivelsen. Kan redigeres; fri tekst.
 - **WBS** — WBS-koden. Kan redigeres og må fylles ut, men er skrivebeskyttet mens *WBS auto* er på.
-- **Aktivitetstype** — aktivitetstypen (*Bygg*, *Installasjon*, *Riving*, *Logistikk*, *Kontroll/inspeksjon*, *Flytting*, *Renovering*, *Vedlikehold* eller *Annet*). Kan redigeres med en liste.
-- **Egendefinert aktivitetstype** — den egendefinerte aktivitetstypen fra prosjektet, eller en strek. Kan redigeres med en liste over prosjektets egendefinerte typer.
+- **Arbeidskategori** — arbeidskategorien (*Bygg*, *Installasjon*, *Riving*, *Logistikk*, *Kontroll/inspeksjon*, *Flytting*, *Renovering*, *Vedlikehold* eller *Annet*). Kan redigeres med en liste.
+- **Egendefinert arbeidskategori** — den egendefinerte arbeidskategorien fra prosjektet, eller en strek. Kan redigeres med en liste over prosjektets egendefinerte arbeidskategorier.
 - **Farge** — den lagrede fargen til aktiviteten, som en fargekode, for eksempel `#1a73e8`. Kan redigeres med en fargevelger. Den lagres i IFC-filen, men ingen stolpe eller rapport bruker den. Du stiller inn stolpefarger under *Visning › Grunnlinjer og fremdrift › Stolpefarger*.
-- **Notater** — notatene som `✓ text; ○ text`. Kan redigeres så lenge det er høyst ett notat (du redigerer da teksten); med flere notater er de skrivebeskyttede.
+- **Notater** — notatene som `✓ text; ○ text`. Kan redigeres så lenge det er høyst ett notat (du redigerer da teksten). Med flere notater er de skrivebeskyttede.
 
 ## Tidsplan
 
@@ -33,16 +33,16 @@ Som standard viser aktivitetstabellen ved siden av Gantt-diagrammet *WBS*, *Akti
 - **Obligatorisk milepæl** — flagget *Obligatorisk (kontraktuelt)*. Kan bare redigeres på en milepæl.
 - **Prioritet for utjevning** — et heltall fra 0 til 1000, standard 500. Kan redigeres. 1000 låser aktiviteten for utjevning.
 - **Delingshull** — antall avbrudd, som `Split gaps: 2`, eller en strek. Skrivebeskyttet; du redigerer dem i panelet *Egenskaper*.
-- **Arbeidsregel** — arbeidsregelen for aktiviteten; tom betyr prosjektstandarden. Kan redigeres med en liste, men er tom og skrivebeskyttet på en milepæl, hovedaktivitet eller hengekøye. Den vises bare i velgeren når arbeidsreglene er synlige (*Vis arbeidsregler og arbeid*, eller filen har arbeidsregler).
+- **Aktivitetstype** — aktivitetstypen for aktiviteten; tom betyr prosjektstandarden. Kan redigeres med en liste, men er tom og skrivebeskyttet på en milepæl, hovedaktivitet eller hengekøye. Den vises bare i velgeren når aktivitetstypene er synlige (*Bruk aktivitetstyper*, eller filen har aktivitetstyper).
 - **Hengekøye (utledet varighet)** — om aktiviteten er en hengekøye. Kan redigeres, unntatt på en milepæl eller hovedaktivitet.
-- **Kalender** — ID-en til kalenderen for aktiviteten; tom (—) betyr prosjektkalenderen. Du skriver inn eller velger en ID fra forslagene; en ukjent ID blir avvist. Merk: cellen viser for øyeblikket den interne ID-en i stedet for navnet. Velg helst en kalender i panelet *Egenskaper*.
+- **Kalender** — ID-en til aktivitetens egen kalender; tom (—) betyr prosjektkalenderen. Du skriver inn eller velger en ID fra forslagene; en ukjent ID blir avvist. Merk: cellen viser for øyeblikket den interne ID-en i stedet for navnet. Velg helst en kalender i panelet *Egenskaper*.
 - **Varighetstype** — *Arbeidstid* (varigheten telles i arbeidsdager eller arbeidstimer i kalenderen) eller *Forløpt tid* (varigheten telles i sammenhengende klokketid, uten kalender). Kan redigeres.
 - **Varighetsenhet** — *Dager* eller *Timer*. Kan redigeres, unntatt på en hovedaktivitet, hengekøye eller milepæl. Skifte fungerer bare hvis omregningen er eksakt og *Slå på timeplanlegging* er på.
-- **Varighet** — varigheten til aktiviteten, i enheten for aktiviteten eller etter *Varighetsvisning*. Kan redigeres: skriv inn `5d`, `12h` eller `1h 30m`; også et tall i enheten for aktiviteten. Skrivebeskyttet på en hovedaktivitet, en hengekøye og en milepæl med varighet 0.
-- **Start** — den viste starten, samme dato som stolpen i Gantt-diagrammet. Kan redigeres. Gir du en aktivitet med en forgjenger en ny start, får den begrensningen *Start ikke tidligere enn (SNET)* på den datoen. Skrivebeskyttet på en hovedaktivitet eller hengekøye, med mindre den er manuelt planlagt.
-- **Slutt** — den viste sluttdatoen. Kan redigeres: en ny slutt blir en ny varighet. Appen avviser det for en fullført aktivitet, en milepæl, en aktivitet i forløpt tid og en aktivitet med avbrudd, og for en slutt før starten (*Slutten ligger før starten.*). Skrivebeskyttet på en hovedaktivitet eller hengekøye, med mindre den er manuelt planlagt.
+- **Varighet** — varigheten til aktiviteten, i enheten for aktiviteten eller etter *Varighetsvisning*. Kan redigeres: skriv inn `5d`, `12h` eller `1h 30m`, eller et tall i enheten for aktiviteten. Skrivebeskyttet på en hovedaktivitet, en hengekøye og en milepæl med varighet 0.
+- **Start** — den viste starten, samme dato som stolpen i Gantt-diagrammet. For en aktivitet som er startet, er det den faktiske starten. Kan redigeres. En aktivitet med en forgjenger som du gir en ny start, får begrensningen *Start ikke tidligere enn (SNET)* på den datoen. Skrivebeskyttet på en hovedaktivitet eller hengekøye, med mindre den er manuelt planlagt, og på en aktivitet som er startet (*Denne aktiviteten er startet; starten er den faktiske starten. Endre den via fremdriften.*).
+- **Slutt** — den viste sluttdatoen. For en ferdig aktivitet er det den faktiske slutten. Kan redigeres: en ny slutt blir en ny varighet. Appen avviser det for en milepæl, en aktivitet i forløpt tid og en aktivitet med avbrudd, og for en slutt før starten (*Slutten ligger før starten.*). Skrivebeskyttet på en hovedaktivitet eller hengekøye, med mindre den er manuelt planlagt, og på en ferdig aktivitet (*Denne aktiviteten er ferdig; slutten er den faktiske slutten. Endre den via fremdriften.*).
 - **Planlagt start** — ankerpunktet for planleggingen som beregningen starter fra (ikke nødvendigvis den viste starten). Kan redigeres; samme effekt som å skrive inn i *Start*.
-- **Planlagt slutt** — den angitte sluttdatoen. Kan bare redigeres på en manuelt planlagt aktivitet; ellers sier appen *Planlagt slutt gjelder bare for en manuelt planlagt aktivitet. Endre slutt i kolonnen Slutt eller i varigheten.*
+- **Planlagt slutt** — den angitte sluttdatoen. Kan bare redigeres på en manuelt planlagt aktivitet. Ellers sier appen *Planlagt slutt gjelder bare for en manuelt planlagt aktivitet. Endre slutt i kolonnen Slutt eller i varigheten.*
 
 ## Begrensninger
 
@@ -63,12 +63,13 @@ Som standard viser aktivitetstabellen ved siden av Gantt-diagrammet *WBS*, *Akti
 
 ## Ressurser
 
-- **Tilordnede ressurser** — navnene på de tilordnede ressursene, adskilt med komma. Kan redigeres: legger du til et navn, tilordnes ressursen med 1 enhet per dag; fjerner du et navn, fjernes tilordningen. Skrivebeskyttet på en milepæl eller hovedaktivitet.
-- **Tildelingsenheter per dag** — enhetene per ressurs, som `Name: 1; Name: 0.5`. Kan redigeres på en aktivitet med tilordninger.
+- **Tilordnede ressurser** — navnene på de tilordnede ressursene, adskilt med komma. Kan redigeres: legger du til et navn, tilordnes ressursen med 1 tildelingsenhet per dag. Fjerner du et navn, fjernes tilordningen. Skrivebeskyttet på en milepæl eller hovedaktivitet.
+- **Tildelingsenheter per dag** — tildelingsenhetene per ressurs, som `Name: 1; Name: 0.5`, med høyst to desimaler. Den lagrede verdien forblir eksakt. Kan redigeres på en aktivitet med tilordninger.
+- **Planlagte tildelingsenheter per dag** — de planlagte tildelingsenhetene per ressurs, som `Name: 1.11`, med høyst to desimaler, likt som *Tildelingsenheter per dag*. Bare for en tilordning fra Primavera P6 med en annen gjenstående tildeling. *Tildelingsenheter per dag* viser da den gjenstående tildelingen. Skrivebeskyttet.
 - **Tilordningskurve** — kurven per ressurs, som `Name: Uniform`. Kan redigeres på en aktivitet med tilordninger.
 - **Start for arbeidsvindu** og **Slutt for arbeidsvindu** — arbeidsvinduet per ressurs, fra en importert fil, som `Name: date`. Skrivebeskyttet.
-- **Planlagt arbeid (timer)** og **Faktisk arbeid (timer)** — det planlagte og faktiske arbeidet per ressurs i timer, som `Name: 12`, fra en importert fil. Skrivebeskyttet.
-- **Gjenstående arbeid (timer)** — det gjenstående arbeidet per ressurs i timer, som `Name: 6`: det lagrede arbeidet, ellers gjenstående varighet × enheter. Kan redigeres på en aktivitet med tilordninger der en arbeidsregel gjelder. Vises bare i velgeren når arbeidsreglene er synlige.
+- **Planlagt arbeid (timer)** og **Faktisk arbeid (timer)** — det planlagte og faktiske arbeidet per ressurs i timer, som `Name: 617.14`, med høyst to desimaler, fra en importert fil. Skrivebeskyttet.
+- **Gjenstående arbeid (timer)** — det gjenstående arbeidet per ressurs i timer, som `Name: 6` eller `Name: 26.67`: det lagrede arbeidet, ellers gjenstående varighet × tildelingsenheter. Kan redigeres på en aktivitet med tilordninger der en aktivitetstype gjelder, med komma eller punktum som desimaltegn. Vises bare i velgeren når aktivitetstypene er synlige. Et gult ⚠ i cellen betyr at det lagrede arbeidet avviker fra tildelingsenheter × gjenstående varighet, som ⚠ ved *Arbeid (gjenst.)* i aktivitetspanelet.
 
 ## Fremdrift
 
@@ -86,16 +87,16 @@ Kolonnene for fremdrift følger appens fremdriftsregler: en faktisk dato etter s
 
 Alle kolonner i denne kategorien er skrivebeskyttede.
 
-- **Utjevningsforsinkelse** — hvor mange arbeidsdager utjevning forsinket aktiviteten; en strek hvis det ikke er gjort noen utjevning.
-- **Tidligste start** og **Tidligste slutt** — de tidligste datoene fra beregningen.
+- **Utjevningsforsinkelse** — hvor mange arbeidsdager utjevning forsinket aktiviteten. En strek hvis det ikke er brukt utjevning.
+- **Tidligste start** og **Tidligste slutt** — de tidligste datoene fra beregningen. For en aktivitet som er startet, kan de avvike fra *Start* og *Slutt*: beregningsprofilen *Primavera P6* setter den tidligste starten for en aktivitet som pågår eller er ferdig, på statusdatoen.
 - **Seneste start** og **Seneste slutt** — de seneste datoene aktiviteten fortsatt kan starte eller slutte på, uten å forsinke prosjektet.
 - **Fri slakk** — antall arbeidsdager aktiviteten kan skli uten å forsinke en etterfølger.
 - **Totalslakk** — antall arbeidsdager aktiviteten kan skli uten å forsinke prosjektslutten. Negativ hvis en begrensning eller tidsfrist ikke kan nås.
 - **Kritisk** — *Ja* hvis aktiviteten ligger på den kritiske linjen.
 - **Interfererende slakk** — totalslakk minus fri slakk.
-- **Nesten kritisk** — *Ja* for en nesten kritisk aktivitet. Fylles bare ut hvis *Marker nesten kritisk* er på (*Prosjektinfo*, blokken *Beregningsprofil og beregningsalternativer*); ellers en strek.
-- **Slakksti** — nummeret på slakkstien, 1 for den mest kritiske. Fylles bare ut hvis *Flere slakkstier* er på; ellers en strek.
-- **Kilde for registrerte datoer** — for en fil med registrerte datoer: *Avviker* eller *Delvis ikke registrert*. Vises bare i velgeren for en slik fil. På en tidsakse uten registrering vises *Ikke registrert* i kolonnene for seneste datoer og slakk.
+- **Nesten kritisk** — *Ja* for en nesten kritisk aktivitet. Fylles bare ut hvis *Marker nesten kritisk* er på (*Prosjektinnstillinger*, blokken *Beregningsprofil og beregningsalternativer*). Ellers en strek.
+- **Slakksti** — nummeret på slakkstien, 1 for den mest kritiske. Fylles bare ut hvis *Flere slakkstier* er på. Ellers en strek.
+- **Kilde for registrerte datoer** — så lenge appen viser datoene fra filen: *Delvis ikke registrert* på en aktivitet som filen ikke har alle opplysninger om. Vises bare i velgeren i den visningen. På en tidsakse uten registrering vises *Ikke registrert* i kolonnene for seneste datoer og slakk.
 
 Se [Kritisk linje og slakk](docs://uitleg-kritiek-pad).
 

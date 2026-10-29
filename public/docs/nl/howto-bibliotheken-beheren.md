@@ -72,7 +72,7 @@ Het vinkje werkt alleen voor de IFC-export, niet voor de andere exportformaten. 
 
 **Twee planners, twee bibliotheken.** De app synchroniseert bibliotheken niet tussen computers. In het importvenster staat daar altijd een waarschuwing over: *Let op: bibliotheken worden niet gesynchroniseerd tussen machines. Werken twee planners met dezelfde resourcebibliotheek, dan kunnen de bibliotheken uiteenlopen. Deelt jullie organisatie ploegen over werkmaatschappijen heen, kies dan bewust één gezamenlijke pool.*
 
-**Vervangen overschrijft alles.** Alles wat je in de gekozen bibliotheek had, is weg, en een bibliotheekwijziging valt buiten *Ongedaan*. Exporteer eerst als je twijfelt.
+**Vervangen overschrijft alles.** Alles wat je in de gekozen bibliotheek had, is weg, en een bibliotheekwijziging valt buiten *Ongedaan*. Exporteer eerst als je twijfelt. Je projecten houden hun kopieën. Kopieën die in het nieuwe bestand nog bestaan, werkt de app bij. Kopieën die er niet meer in staan, krijgen de markering *niet meer in de bibliotheek* en blijven werken. Wijkt een kopie af, dan opent het venster *Resourcebibliotheek koppelen* (zie [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Een kalender uit de lijst verwijderen gebeurt direct.** De app vraagt niet om bevestiging, terwijl een resource verwijderen dat wel doet. Dat lijkt een tekortkoming. Bibliotheekwijzigingen vallen buiten *Ongedaan*.
 

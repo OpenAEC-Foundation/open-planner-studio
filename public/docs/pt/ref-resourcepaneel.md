@@ -16,13 +16,13 @@ O painel de recursos é onde gere os recursos: quem e o quê está disponível, 
 
 ## A vista Projeto
 
-A tabela do que este projeto usa. Cada linha é um recurso. As alterações ao texto e à tarifa entram em vigor quando sai do campo e contam como um passo em *Desfazer*.
+A tabela do que este projeto usa. Cada linha é um recurso. As alterações ao texto e à tarifa entram em vigor ao sair do campo e contam como um passo em *Desfazer*.
 
 - **Cor** — um seletor de cor. Padrão: a primeira cor livre da paleta. Efeito: a cor do *Acento de recurso* sob as barras do Gantt (*Visualização › Linhas de base e progresso › Acento de recurso*) e da amostra no dock.
 - **Nome** — o nome do recurso. Um nome vazio não é guardado; o campo volta ao nome anterior.
 - **Tipo** — *Mão de obra*, *Equipamento*, *Material*, *Subempreiteiro* ou *Equipa*. Padrão para um novo recurso: *Mão de obra*. Efeito: *Material* tem uma *Unidade* e não conta na soma *Todos os recursos* do histograma; o nivelamento ignora o material. *Equipa* pode ser escolhida como *Equipa* de outros recursos. Os outros tipos calculam da mesma forma.
 - **Unidades máx** — quanto do recurso está disponível por dia, um número acima de 0 (são permitidas frações). Padrão: 1. Efeito: a capacidade por dia. Se a carga for mais alta, o recurso fica sobrealocado. A seta ao lado desdobra a *Capacidade faseada no tempo*; o número ao lado da seta é o número de etapas.
-- **Capacidade faseada no tempo** — etapas com *A partir de* (uma data) e *Unidades máx*. *Adicionar etapa* acrescenta uma etapa com a data de hoje e 1. Sem etapas, aparece *Sem etapas — aplica-se sempre o máximo de unidades fixo.* Efeito: a partir da data de uma etapa, aplica-se o seu valor de *Unidades máx* em vez do valor fixo. Vence a última etapa com uma data igual ou anterior a um dia.
+- **Capacidade faseada no tempo** — etapas com *A partir de* (uma data) e *Unidades máx*. *Adicionar etapa* acrescenta uma etapa com a data de hoje e 1. Sem etapas, aparece *Sem etapas — aplica-se sempre o máximo de unidades fixo.* Efeito: a partir da data de uma etapa, aplica-se o seu valor de *Unidades máx* em vez do valor fixo. Vence a última etapa com uma data igual ou anterior a esse dia.
 - **Calendário** — uma lista com *Calendário do projeto* (padrão), os calendários do projeto e *+ Calendário do recurso* para um novo. O lápis (*Editar…*) abre o calendário escolhido e fica desativado para *Calendário do projeto*. Efeito: os dias em que o recurso trabalha. Num dia de folga a capacidade é 0. Se houver trabalho planeado nesse dia, o recurso fica sobrealocado com o motivo *Não trabalha neste dia segundo o calendário "…"*. O calendário do recurso não altera as datas de uma tarefa. Veja [Janelas do calendário](docs://ref-kalenders).
 - **Tarifa/hora** — o custo por hora. Vazio = sem tarifa; um número inválido volta ao valor anterior. Efeito: não influencia o planeamento nem a carga. A tarifa determina a coluna *Total*, fica guardada no ficheiro IFC e é escrita também ao exportar para o MS Project (tarifa padrão) e para XML do Primavera P6 (preço por unidade).
 - **Total** — só leitura: as horas carregadas × a tarifa, com duas casas decimais; *—* sem tarifa ou sem carga. No fim, uma linha *Total* soma todos os recursos. As horas vêm do último cálculo e contam unidades × horas por dia do calendário da tarefa. Desatualizado? Prima *Calcular*.
@@ -81,6 +81,6 @@ Onde o vê:
 - **Barra de estado** — *N recurso(s) sobrealocado(s)*; um clique abre o painel *Avisos*.
 - **Avisos** — uma linha por recurso: *Sobrealocado durante N dia(s) (primeiro – último)*, com *o recurso não trabalha estes dias segundo o seu calendário* acrescentado se todos os dias forem de folga, ou *dos quais N dia(s) o recurso não trabalha segundo o seu calendário* para uma mistura. Veja [Notificações e avisos](docs://ref-meldingen).
 - **Histograma** — as partes vermelhas das barras e o ponto vermelho no seletor.
-- **Dock de recursos** — o triângulo *Sobrealocado*.
+- **Dock** — o triângulo *Sobrealocado*.
 
-O nivelamento pode resolver a sobrealocação movendo tarefas dentro da sua folga. Não resolve um recurso que tem de trabalhar num dia de folga. Veja [Nivelamento](docs://uitleg-nivelleren).
+O nivelamento pode resolver a sobrealocação ao deixar as tarefas começar mais tarde. Por padrão, a data de fim do projeto pode mover-se; com suavização, fica dentro da folga. O nivelamento não resolve um recurso que tem de trabalhar num dia de folga. Veja [Nivelamento](docs://uitleg-nivelleren).

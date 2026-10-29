@@ -4,7 +4,7 @@ Každé nastavení aplikace: co dělá, jaká je jeho výchozí hodnota, co se z
 
 ## Kde je najdete a jak fungují
 
-Panel nastavení je na třech místech. Všude je stejný panel: ozubené kolečko nahoře v okně, na kartě *Nastavení › Projekt › Nastavení* a na kartě *Soubor › Nastavení*. Panel má tři karty: *Zobrazení*, *Plán* a *Pokročilé*. Každé nastavení níže uvádí jen kartu, na které je.
+Panel nastavení je na třech místech. Všude je stejný panel: ozubené kolečko nahoře v okně, na kartě *Nastavení › Projekt › Nastavení aplikace* a na kartě *Soubor › Nastavení aplikace*. Panel má tři karty: *Zobrazení*, *Plán* a *Pokročilé*. Každé nastavení níže uvádí jen kartu, na které je.
 
 Změna se projeví hned. Tlačítko *Použít* tu není. Tlačítko *Zrušit* také ne.
 
@@ -16,13 +16,15 @@ Změna se projeví hned. Tlačítko *Použít* tu není. Tlačítko *Zrušit* ta
 
 **Sledovat motiv systému** — nechá barevné schéma určit operačním systémem. Výchozí: vypnuto. Účinek: aplikace použije motiv *Světlý* nebo *Tmavý*, podle systému; tři karty motivů jsou pak nedostupné. *Vysoký kontrast* systém nesleduje, zvolíte si ho sami. Když to vypnete, zůstane motiv, který je právě na obrazovce. Kde: *Zobrazení*, pod *Motiv*.
 
-**Jazyk** — jazyk rozhraní. Výchozí: jazyk vašeho prohlížeče nebo systému, pokud ho aplikace zná. Jinak angličtina. Účinek: všechny texty v aplikaci. Čtrnáct jazyků je seřazeno podle krátkého kódu. Arabština a perština zrcadlí rozhraní zprava doleva. Jazyk nápovědy nastavíte zvlášť na kartě *Soubor › Nápověda*, pod položkou *Jazyk dokumentace*. Kde: *Zobrazení*.
+**Jazyk** — jazyk rozhraní. Výchozí: jazyk vašeho prohlížeče nebo systému, pokud ho aplikace zná. Jinak angličtina. Účinek: všechny texty v aplikaci. Jazyky jsou seřazeny podle krátkého kódu. Arabština a perština zrcadlí rozhraní zprava doleva. Jazyk nápovědy nastavíte zvlášť na kartě *Soubor › Nápověda*, pod položkou *Jazyk dokumentace*. Kde: *Zobrazení*.
 
 **Písmo** — písmo celého rozhraní. Vyberte ze seznamu *Výchozí*, *Systémové*, *Patkové* a *Monospace*. Výchozí: *Výchozí*. Účinek: nadpisy a text v okně, text v diagramu Gantt a v histogramu. Webová aplikace sama nesleduje systémové písmo. Proto ho zvolíte tady. Kde: *Zobrazení*.
 
 **Velikost textu** — měřítko rozhraní. Vyberte ze seznamu 90%, 100%, 110% a 125%. Výchozí: 100%. Účinek: text a rozvržení pásu karet, panelů a dialogů se zvětší nebo zmenší. Výška řádků v tabulce a v diagramu Gantt se mění také. Nad 125% žádná volba není, protože by se popisky tlačítek v pásu karet zalamovaly do více řádků. Kde: *Zobrazení*.
 
 **Formát data** — způsob zobrazení dat v aplikaci. Vyberte ze seznamu *dd-mm-rrrr*, *mm-dd-rrrr* a *rrrr-mm-dd*. Výchozí: *dd-mm-rrrr*. Účinek: data v tabulce, v dialozích, v každé sestavě a při tisku. Soubory a výpočty se nemění, mění se jen zobrazení. Kde: *Zobrazení*.
+
+**Formát času** — způsob zobrazení časů v aplikaci. Vyberte ze seznamu *24 hodin (13:00)* a *12 hodin (1:00 PM)*. Výchozí: *24 hodin (13:00)*. Účinek: časy v okně *Kalendáře*, datum a čas úkolů v hodinách (tabulka, rozdělení, zprávy) a časová osa *Hodina* v diagramu Gantt. V poli pro čas můžete napsat kteroukoli z obou podob: *13:00*, *1300*, *13*, *1:00 PM* nebo *1 pm*. Půlnoc jako konec dne je *24:00* nebo *12:00 AM*. Soubory a výpočty se nemění: zůstávají na 24 hodin. Kde: *Zobrazení*.
 
 **Zobrazení doby trvání** — v jaké jednotce se zobrazí doba trvání úkolu. Vyberte ze seznamu *Automaticky (vlastní jednotka každého úkolu)*, *Vždy dny* a *Vždy hodiny*. Výchozí: *Automaticky (vlastní jednotka každého úkolu)*. Účinek: tabulka úkolů, popisky pruhů v diagramu Gantt, nápověda po najetí myší, tisk a každá sestava. Při nastavení *Automaticky* se u úkolu ve dnech zobrazí dny a u hodinového úkolu hodiny. Při nastavení *Vždy dny* nebo *Vždy hodiny* aplikace převede hodnoty podle počtu hodin na den v kalendáři úkolu. Má-li úkol jinou jednotku, připojí za hodnotu jeho vlastní jednotku v závorce, například `2.25d(18h)`. Mění se jen zobrazení; úkol si zachová svou jednotku. Kde: *Zobrazení*.
 
@@ -44,19 +46,21 @@ Změna se projeví hned. Tlačítko *Použít* tu není. Tlačítko *Zrušit* ta
 
 ## Karta Plán
 
-**Zapnout režim stavby** — výchozí hodnoty pro nové projekty zaměřené na stavbu. Výchozí: zapnuto. Účinek: při zapnutí dostane nový projekt kalendář *Bouwkalender NL* s nizozemskými státními svátky. Můžete vybrat stavební svátek při generování svátků. Nabídnou se šablony etapizace *Bytová výstavba* a *Nebytová výstavba / rekonstrukce*. Nové úkoly dostanou typ úkolu *Stavba*. Při vypnutí dostane projekt kalendář *Standaardkalender* bez svátků, jen šablonu *Prázdný* a typ úkolu *Ostatní*. Nový úkol pod nadřazeným úkolem, který má typ úkolu, nejdřív převezme ten typ. Teprve potom se použije *Stavba* nebo *Ostatní*. Stávající úkoly a kalendáře se nemění. Kde: *Plán*.
+**Zapnout režim stavby** — výchozí hodnoty pro nové projekty zaměřené na stavbu. Výchozí: zapnuto. Účinek: při zapnutí dostane nový projekt kalendář *Bouwkalender NL* s nizozemskými státními svátky. Můžete vybrat stavební svátek při generování svátků. Nabídnou se šablony etapizace *Bytová výstavba* a *Nebytová výstavba / rekonstrukce*. Nové úkoly dostanou druh práce *Stavba*. Při vypnutí dostane projekt kalendář *Standaardkalender* bez svátků, jen šablonu *Prázdný* a druh práce *Ostatní*. Nový úkol pod nadřazeným úkolem, který má druh práce, nejdřív převezme ten druh. Teprve potom se použije *Stavba* nebo *Ostatní*. Stávající úkoly a kalendáře se nemění. Kde: *Plán*.
 
-**Zapnout plánování v hodinách** — plánování v pracovních hodinách vedle pracovních dnů. Výchozí: vypnuto. Účinek: na kartě *Zobrazení › Časová osa* se objeví stupnice *Hodina*. V okně *Kalendáře* přibude blok *Pracovní hodiny*. V okně *Nový projekt* přibudou volby *Směna* a *Výchozí jednotka pro nové úkoly*. *Info o projektu* dostane také volbu *Výchozí jednotka pro nové úkoly*. Když je vypnuto, pracuje aplikace po celých dnech. Úkoly, které už jsou v hodinách, zůstanou a vstoupí do výpočtu. Dobu trvání těchto úkolů můžete upravit teprve, až zapnete plánování v hodinách. Kde: *Plán*, pod *Plánování v hodinách*. Viz [Zapnutí plánování v hodinách](docs://howto-urenplanning-aanzetten).
+**Zapnout plánování v hodinách** — plánování v pracovních hodinách vedle pracovních dnů. Výchozí: vypnuto. Účinek: na kartě *Zobrazení › Časová osa* se objeví stupnice *Hodina*. V okně *Kalendáře* může běžný kalendář dostat blok *Pracovní hodiny*; kalendář, který už bloky má, ten blok vždy zobrazí. V okně *Nový projekt* přibudou volby *Směna* a *Výchozí jednotka pro nové úkoly*. *Nastavení projektu* dostane také volbu *Výchozí jednotka pro nové úkoly*. Když je vypnuto, pracuje aplikace po celých dnech. Úkoly, které už jsou v hodinách, zůstanou a vstoupí do výpočtu. Dobu trvání těchto úkolů můžete upravit teprve, až zapnete plánování v hodinách. Kde: *Plán*, pod *Plánování v hodinách*. Viz [Zapnutí plánování v hodinách](docs://howto-urenplanning-aanzetten).
 
 **Povolit smíšené plánování po dnech a hodinách** — zda si jednotku volíte pro každý úkol. Vidíte jen tehdy, když je zapnuto *Zapnout plánování v hodinách*. Výchozí: zapnuto. Účinek: při zapnutí se u doby trvání každého úkolu zobrazí rozbalovací seznam *Jednotka doby trvání*. Při vypnutí se seznam skryje. Kde: *Plán*, pod *Plánování v hodinách*. Viz [Dny a hodiny](docs://uitleg-dagen-en-uren).
 
 **Začátek týdne** — první den týdne. Vyberte ze seznamu *Pondělí* a *Neděle*. Výchozí: *Pondělí*. Účinek: rozvržení týdnů a čísla týdnů na časové ose v diagramu Gantt a v každé sestavě (u tisku diagramu Gantt) a pořadí dnů v okně *Kalendáře*. Kde: *Plán*.
 
-**Automaticky přepočítat** — přepočítá plán hned, jakmile přestane být aktuální. Výchozí: vypnuto. Účinek: při vypnutí stisknete *Přepočítat* (F5) sami. Při zapnutí aplikace přepočítá plán během zlomku sekundy po změně úkolů, závislostí nebo kalendáře. Během tažení nebo psaní do pole počká a přepočítá jednou, až skončíte. Po neúspěšném přepočtu přepočítá znovu teprve, až něco změníte. Kde: *Plán*, pod *Přepočítání*.
+**Automaticky přepočítat** — přepočítá plán hned, jakmile přestane být aktuální. Výchozí: vypnuto. Účinek: při vypnutí stisknete *Přepočítat* (F5) sami. Při zapnutí aplikace přepočítá plán během zlomku sekundy po změně úkolů, závislostí nebo kalendáře. Během tažení nebo psaní do pole počká a vypočítá jednou, až skončíte. Po neúspěšném výpočtu přepočítá znovu teprve, až něco změníte. Kde: *Plán*, pod *Přepočítání*.
 
-**Zobrazit pravidla pevné veličiny a práci** — pole pravidla pevné veličiny a práce v aplikaci. Výchozí: vypnuto. Účinek: při zapnutí se u úkolu zobrazí pole *Pravidlo pevné veličiny* a u přiřazení sloupec práce. Zpřístupní se také sloupec tabulky *Pravidlo pevné veličiny*. Při vypnutí se tato pole skryjí. Doba trvání a jednotky přiřazení zůstanou a práce se podle nich přizpůsobí. Projekt, který už obsahuje pravidla pevné veličiny nebo práci, například ze souboru `.mpp` nebo `.xer`, je vždy zobrazí, i když je nastavení vypnuté. Kde: *Plán*, pod *Přepočítání*. Viz [Pravidla pevné veličiny: doba trvání, jednotky přiřazení a práce](docs://uitleg-werkregels).
+**Používat typy úkolů** — pole typu úkolu a práce v aplikaci. Výchozí: vypnuto. Účinek: při zapnutí se u úkolu zobrazí pole *Typ úkolu* a u přiřazení sloupec práce. Zpřístupní se také sloupec tabulky *Typ úkolu*. Při vypnutí se tato pole skryjí. Doba trvání a jednotky přiřazení zůstanou a práce se podle nich přizpůsobí. Projekt, který už obsahuje data o typu úkolu nebo o práci, například ze souboru `.mpp` nebo `.xer`, je vždy zobrazí, i když je nastavení vypnuté. Kde: *Plán*, pod *Přepočítání*. Viz [Typy úkolů: doba trvání, jednotky přiřazení a práce](docs://uitleg-werkregels).
 
 ## Karta Pokročilé
+
+**Zobrazit vysvětlení po otevření souboru** — jedno zaškrtávací políčko pro každý formát: *Soubor Primavera (.xer)*, *Soubor MS Project (.mpp)*, *MS Project XML*, *Primavera P6 XML* a *Soubor CSV*. Výchozí: všechna zapnutá. Účinek: při zapnutí se po otevření takového souboru zobrazí okno s krátkým vysvětlením formátu: co aplikace převzala, co ne a jak funguje ukládání a zpětný zápis. *Znovu nezobrazovat pro …* v tomto okně zaškrtávací políčko zde vypne; tady ho zase zapnete. Soubor IFC, příklad a projekt, který otevře AI asistent nebo rozšíření, toto vysvětlení nikdy nedostanou. Kde: *Pokročilé*, pod *Zobrazit vysvětlení po otevření souboru*. Viz [Otevření a uložení souboru](docs://howto-bestand-openen-en-opslaan).
 
 **Zapnout režim AI** — umožní, aby AI asistent pracoval s vaším plánem. Výchozí: vypnuto. Účinek: při zapnutí se zobrazí karta *AI* s mostem MCP. AI asistent pak může pracovat s vaším plánem přes Model Context Protocol. Při vypnutí se karta skryje a most se zastaví. Kde: *Pokročilé*, pod *Režim AI*. Viz [Připojení AI asistenta (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -72,7 +76,7 @@ Změna se projeví hned. Tlačítko *Použít* tu není. Tlačítko *Zrušit* ta
 - *Podle vydání* — stejná stažení podle verze, s datem. Nejdřív se ukáže šest nejnovějších. Pro zbytek slouží *Zobrazit všech … vydání*.
 - *Zdroj* — datum čísel (GitHub Releases, každý týden aktualizováno) a tlačítko *Obnovit nyní*. Aplikace si stažená čísla drží půl hodiny. Když stahování selže, okno to napíše. Instalace přes Snap Store nevedou přes GitHub, a proto v číslech chybí.
 
-**Spustit prohlídku** — úvodní prohlídku znovu. Účinek: zavře okno nastavení a spustí prohlídku od prvního kroku. Kde: *Pokročilé*, pod *Prohlídka*.
+**Spustit prohlídku** — úvodní prohlídku znovu. Účinek: zavře okno *Nastavení aplikace* a spustí prohlídku od prvního kroku. Kde: *Pokročilé*, pod *Prohlídka*.
 
 **Verze** — číslo verze aplikace, se dvěma tlačítky. *Zkontrolovat aktualizace* otevře okno aktualizací. *Co je nového* ukáže novinky aktuální verze. Kde: *Pokročilé*, pod *Verze*.
 
@@ -113,5 +117,5 @@ Aplikace si tyto volby také uchovává na tomto zařízení. Nastavíte je ale 
 - [Možnosti výpočtu a konvence](docs://ref-rekenopties-en-conventies): možnosti, které patří k projektu.
 - [Zapnutí plánování v hodinách](docs://howto-urenplanning-aanzetten): postup pro přepínač *Zapnout plánování v hodinách*.
 - [Dny a hodiny](docs://uitleg-dagen-en-uren): jak aplikace počítá dny a hodiny.
-- [Pravidla pevné veličiny: doba trvání, jednotky přiřazení a práce](docs://uitleg-werkregels): co zobrazí *Zobrazit pravidla pevné veličiny a práci*.
+- [Typy úkolů: doba trvání, jednotky přiřazení a práce](docs://uitleg-werkregels): co zobrazí *Používat typy úkolů*.
 - [Klávesové zkratky](docs://ref-sneltoetsen): všechny klávesy aplikace, včetně kláves pro přibližování a posouvání.

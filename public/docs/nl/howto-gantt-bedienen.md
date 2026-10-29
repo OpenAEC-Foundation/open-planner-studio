@@ -25,7 +25,7 @@ Sleep je overwegend omhoog of omlaag in plaats van opzij, dan verplaats je de ta
 
 De linkerrand verplaatst de start en laat het einde staan, dus de taak wordt korter of langer aan de voorkant. Daarvoor geldt dezelfde SNET-regel als bij het verplaatsen. Bij het slepen van het midden van de balk verschijnt het pilletje niet: de duur verandert dan niet.
 
-De duur telt werkdagen van de kalender van de taak. Weekenden en vrije dagen tellen niet mee, en een taak in dagen kan niet korter worden dan één werkdag. Bij een taak in uren rondt de app af op het stapje van de tijdlijn onder je muis: minstens een uur, of een kwartier als je ver genoeg inzoomt en *Kwartieren tonen bij ver inzoomen* aan staat.
+De duur telt werkdagen van de kalender van de taak. Weekenden en vrije dagen tellen niet mee. Bij een taak in dagen hangt de stap af van de zoom. Zie je dagen, dan gaat de duur per werkdag, en wordt de taak niet korter dan één werkdag. Zie je uren, dan gaat de duur per uur, of per kwartier als *Kwartieren tonen bij ver inzoomen* aan staat. Een dagtaak kan dan ook een deel van een dag duren: een taak van 2 dagen wordt bijvoorbeeld 0,5 dag, van maandag 07:00 tot 11:00. De kortste duur is één stap: 0,125 dag (07:00–08:00) per uur, of 0,03125 dag (07:00–07:15) per kwartier. Bij een taak in uren rondt de app af op het stapje van de tijdlijn onder je muis: minstens een uur, of een kwartier als je ver genoeg inzoomt en *Kwartieren tonen bij ver inzoomen* aan staat.
 
 Eén sleepbeweging is één stap in *Ongedaan*, hoe lang je ook sleept. Op een gesplitste balk werken de randen anders; zie [Een taak splitsen](docs://howto-taak-splitsen).
 
@@ -57,6 +57,10 @@ Meer over selecteren staat in [Taken selecteren, verwijderen en ongedaan maken](
 Hoe verder je uitzoomt, hoe minder rasterlijnen er staan. Bij 8 pixels per dag of meer staat er een lijn voor elke dag, met een dikkere lijn op de weekgrens. Tussen 2 en 8 pixels per dag blijft alleen de weekgrens over. Onder 2 pixels per dag, op jaarniveau, zijn het alleen nog de maandgrenzen. Anders zou het canvas een egaal streeppatroon worden waarin de balken verdwijnen. De grijze weekenden en vrije dagen, en de weekbanden die om en om getint zijn, blijven op elk niveau staan; zij dragen de weekstructuur als de lijnen wegvallen. In de tijdlijnkop verschijnen de weeknummers en dagnummers pas als er ruimte voor is, en vanaf 40 pixels per dag staat er ook de weekdag voor het dagnummer.
 
 De taaknaam staat in de balk als hij er helemaal in past. Past hij niet, bijvoorbeeld als je uitzoomt, dan staat de volledige naam rechts achter de balk.
+
+### Details van een taak bekijken
+
+Houd de muis stil op een balk. Er verschijnt een kaartje met de naam van de taak, *WBS*, *Duur*, *Start*, *Einde*, *Status*, *Kritiek* en *Totale speling*. Tijdens slepen, pannen, een selectiekader of een rechtsklikmenu is het kaartje weg.
 
 ## Valkuilen en wat de app dan doet
 

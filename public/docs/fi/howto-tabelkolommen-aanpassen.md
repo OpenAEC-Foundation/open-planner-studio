@@ -9,7 +9,7 @@ Kokouksessa halutaan nähdä tavoitepäivä ja kokonaispelivara jokaisen tehtäv
 On kaksi tehtävätaulukkoa. Kummassakin on omat sarakkeet:
 
 - **Gantt-kaavion vieressä oleva tehtävätaulukko** näkyy muun muassa välilehdillä *Aloitus*, *Aikataulu* ja *Näkymä*, aikajanan vasemmalla puolella. Oletuksena siinä ovat *WBS*, *Tehtävän nimi* ja *Kesto*, jotta aikajanalle jää tilaa.
-- **Taulukko-välilehden taulukko** käyttää koko työtilaa. Oletuksena siinä ovat *WBS*, *Tehtävän nimi*, *Kesto*, *Alku*, *Loppu*, *Tehtävätyyppi*, *Kriittinen*, *Kokonaispelivara* ja *Edistyminen*, sekä sarakkeet jokaiselle projektin tehtäväkoodille ja mukautetulle kentälle.
+- **Taulukko-välilehden taulukko** käyttää koko työtilaa. Oletuksena siinä ovat *WBS*, *Tehtävän nimi*, *Kesto*, *Alku*, *Loppu*, *Työlaji*, *Kriittinen*, *Kokonaispelivara* ja *Edistyminen*, sekä sarakkeet jokaiselle projektin tehtäväkoodille ja mukautetulle kentälle.
 
 Muutos yhteen taulukkoon ei muuta toista.
 

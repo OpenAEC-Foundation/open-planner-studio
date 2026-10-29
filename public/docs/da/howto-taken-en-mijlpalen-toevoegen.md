@@ -50,8 +50,8 @@ Højreklik på opgaven, og vælg *Tilføj underopgave*. Den nye opgave kommer ne
 
 De tre typer adskiller sig sådan her:
 
-- En *Startmilepæl* hører til dagens begyndelse, en *Slutmilepæl* til dagens slutning. I Gantt sidder romben til venstre eller højre for dagkolonnen. Det har også betydning for den efterfølgende opgave. Antag, at en milepæl ligger tirsdag den 29. september 2026, og at en opgave følger med en afhængighed af typen slut til start. Efter en startmilepæl starter den opgave samme tirsdag. Efter en slutmilepæl starter den onsdag den 30. september.
-- Et *Kontrolpunkt (obligatorisk)* er en slutmilepæl med opgavetypen *Kontrol/inspektion* og afkrydsningen *Obligatorisk (kontraktuel)*.
+- En *Startmilepæl* hører til dagens begyndelse, en *Slutmilepæl* til dagens slutning. I Gantt sidder romben til venstre for dagkolonnen ved en startmilepæl og til højre ved en slutmilepæl. Det har også betydning for den efterfølgende opgave. Antag, at en milepæl ligger tirsdag den 29. september 2026, og at en opgave følger med en afhængighed af typen slut til start. Efter en startmilepæl starter den opgave samme tirsdag. Efter en slutmilepæl starter den onsdag den 30. september.
+- Et *Kontrolpunkt (obligatorisk)* er en slutmilepæl med arbejdskategorien *Kontrol/inspektion* og afkrydsningen *Obligatorisk (kontraktuel)*.
 
 ### Gør en eksisterende opgave til en milepæl
 
@@ -62,6 +62,7 @@ Slår du det fra igen, bliver det en almindelig opgave med varighed 0. Skriv sel
 ### Andre måder
 
 - Ctrl+M (⌘+M på en Mac) sætter en ny milepæl nederst på listen, også når en opgave er valgt. Panelet *Egenskaber* åbnes ikke.
+- En milepæl, du laver med Ctrl+M eller via højreklikmenuen, får arbejdskategorien *Kontrol/inspektion*. En *Startmilepæl* eller *Slutmilepæl* fra *Milepæl ▾* får *Andet*. Skift arbejdskategorien i panelet *Egenskaber*, hvis du har brug for det.
 - *Tilføj milepæl* i højreklikmenuen på en opgave gør milepælen til en underopgave af den opgave, ikke til en opgave på samme niveau.
 
 ### Kopiér en opgave eller en hel gren
@@ -72,7 +73,7 @@ Slår du det fra igen, bliver det en almindelig opgave med varighed 0. Skriv sel
 
 Kopien har samme navn, samme datoer og samme fremdrift. Den kommer på samme niveau som den valgte opgave (ved flere: den du klikkede først), nederst blandt de opgaver på det niveau. Hvis intet er valgt, kommer den nederst på listen. De kopierede opgaver er bagefter valgt, WBS-koderne (hver opgaves nummer i træet, fx 1.2; se [Justering af strukturen](docs://howto-structuur-aanpassen)) bestemmes igen, og tidsplanen er forældet.
 
-Udklipsholderen deles af hele appen, så du kan også indsætte i et andet dokument. Det, der ikke findes dér, fx en kalender på opgaven, en egen opgavetype, en opgavekode eller et brugerdefineret felt, fjerner appen, og den giver dig besked.
+Udklipsholderen deles af hele appen, så du kan også indsætte i et andet dokument. Det, der ikke findes dér, fx en kalender på opgaven, en egen arbejdskategori, en opgavekode eller et brugerdefineret felt, fjerner appen, og den giver dig besked.
 
 ### Bagefter
 
@@ -82,9 +83,9 @@ En ny opgave ændrer endnu ikke de andre datoer. Statuslinjen viser *Forældet �
 
 **Hver ny opgave starter på projektstartdatoen.** Uden afhængigheder venter en opgave ikke på noget. Tilføj afhængigheder, se [Tilføjelse af afhængigheder](docs://howto-relaties-leggen).
 
-**Filtrering, gruppering eller sortering er aktiv.** Rækkefølgen du ser, er da ikke tidsplanens rækkefølge. Med en opgave valgt tilføjer *Opgave* og *Milepæl ▾* den nye opgave nederst, og stripen *Ikke tilgængelig under filtrering/gruppering/sortering* vises. *Indsæt over* og *Indsæt under* afvises, med samme strip. Knappen *Ryd* i stripen fjerner filter, gruppering og sortering på én gang. Det er ikke en del af *Fortryd*: Ctrl+Z henter dem ikke tilbage.
+**Filtrering, gruppering eller sortering er aktiv.** Rækkefølgen du ser, er da ikke tidsplanens rækkefølge. Med en opgave valgt tilføjer *Opgave* og *Milepæl ▾* den nye opgave nederst. Så vises en rød meddelelse: *Den nye opgave står bagerst. Under filtrering, gruppering eller sortering kan appen ikke sætte den under din markering.* *Indsæt over* og *Indsæt under* afvises, med stripen *Ikke tilgængelig under filtrering/gruppering/sortering*. Knappen *Ryd* i meddelelsen eller i stripen fjerner filter, gruppering og sortering på én gang. Det er ikke en del af *Fortryd*: Ctrl+Z henter dem ikke tilbage.
 
-**En underopgave under en opgave med ressourcetildelinger.** Opgaven bliver en hovedopgave, og en hovedopgave har selv ingen tildelinger. Appen flytter tildelingerne til den nye underopgave og giver besked. Kan det ikke, fx fordi du valgte *Tilføj milepæl*, og en milepæl ikke kan have tildelinger, tilføjer appen intet og siger hvorfor.
+**En underopgave under en opgave med ressourcetildelinger.** Opgaven bliver en hovedopgave, og en hovedopgave har selv ingen tildelinger. Appen flytter tildelingerne til den nye underopgave og giver besked. Hvis det ikke kan lade sig gøre, fx fordi du valgte *Tilføj milepæl*, og en milepæl ikke kan have tildelinger, tilføjer appen intet og siger hvorfor.
 
 **En underopgave under en milepæl.** Milepælen bliver en hovedopgave, og appen fjerner milepælsflaget og giver besked.
 

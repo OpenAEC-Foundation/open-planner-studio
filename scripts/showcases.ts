@@ -21,42 +21,41 @@ import type { ProjectSpec, TaskSpec, LinkSpec } from './spec';
 // "kitchen sink". Eén comfortabele deadline (géén conflict) — bewust contrast met MIDDEL, die wél
 // een deadline-conflict (negatieve float) toont.
 //
-// RESOURCES (B1c, "Verdelen over projecten"): KLEIN had bewust géén resources, maar dat maakte de
-// showcase-set ongeschikt om het bezettingsoverzicht en "Verdelen…" te demonstreren — het conflict
-// dat `demoLibraryShowcase.ts` letterlijk belooft ("dezelfde ploeg in twee projecten") kon nergens
-// ontstaan, want KLEIN boekte niets. KLEIN draagt nu een MINIMALE set met exact de namen uit de
-// demo-resourcebibliotheek (`src/services/library/demoLibrary.ts`), zodat het openen van de
+// RESOURCES (B1c, bezetting over projecten): KLEIN draagt een MINIMALE set met exact de namen
+// uit de demo-resourcebibliotheek (`src/services/library/demoLibrary.ts`), zodat het openen van de
 // showcase ze ondubbelzinnig koppelt. Bewust entry-level: zes resources, één ploeg-hiërarchie,
 // UITSLUITEND UNIFORM-curves (curve-variatie is showcase-materiaal van MIDDEL/GROOT — zie de
 // CURVE_VARIATION_REQUIRED/FORBIDDEN-indeling in verify-examples.ts) en GEEN eigen overallocatie.
+// Het bezettingsoverzicht toont de gezamenlijke dagbelasting van geopende projecten die aan
+// dezelfde bibliotheek gekoppeld zijn, tegenover de bibliotheekcapaciteit: piek, conflictdagen,
+// bijdragen per project en een gestapeld histogram. Het is een leesvenster. Handmatig kan een taak
+// in een project verschoven worden of minder eenheden per dag krijgen; daarna F5. Alleen bij echt
+// extra beschikbare capaciteit hoort de bibliotheekcapaciteit omhoog. Zie de bestaande NL/EN-gids
+// `public/docs/{nl,en}/howto-bezettingsoverzicht-gebruiken.md`. Nivelleren in het lint kijkt alleen
+// binnen het actieve project en lost deze kruis-project-dubbelbezetting niet op.
 //
-// ANKERSCHUIF (`anchorShiftDays`): de enige spec-wijziging die het bedoelde KRUIS-project-conflict
-// oplevert. Alle voorbeelden ankeren normaal op dezelfde datum; KLEIN's metselwerk viel daardoor
-// nét vóór de eerste metselweek van MIDDEL en de twee raakten elkaar nooit. Met de schuif valt
-// "Build masonry walls" in dezelfde week als "Ground floor masonry — House 6" van MIDDEL: beide
-// boeken de Masonry crew (bedrijfscapaciteit 1), beide liggen ná MIDDEL's statusdatum en zijn dus
-// écht verschuifbaar — een conflict dat "Verdeel automatisch" met een paar werkdagen oplost.
+// ANKERSCHUIF (`anchorShiftDays`): de schuif van 66 kalenderdagen laat "Build masonry walls" in
+// dezelfde week vallen als "Ground floor masonry — House 6" van MIDDEL. Beide boeken de
+// Masonry crew (bibliotheekcapaciteit 1) en liggen ná MIDDEL's statusdatum. Het overzicht maakt
+// zo zichtbaar dat dezelfde ploeg tegelijk in twee projecten gevraagd wordt.
 // Verhaal: deze verbouwing loopt náást de rijwoningen, niet ervoor.
 //
-// WAAROM 66 EN NIET 63 (2026-09-14, "onderbrekingen toestaan moet verschil maken"). De schakelaar
-// **Onderbrekingen toestaan** in de verdeeldialoog is in de nivelleerder géén tweede zoekstrategie
-// maar een TERUGVAL: `ResourceLeveler.findSlot` scant eerst naar een AANEENGESLOTEN venster en komt
-// pas bij `scatterSlot` (de pauzedagen) als díé scan binnen het venster faalt. Zonder venster
-// (`constrainToFloat: false` + geen "maximale uitloop") is er geen bovengrens, vindt de
-// aaneengesloten scan altijd iets, en is de schakelaar per constructie een no-op — precies wat het
-// prijskaartje meldde ("zou niets besparen"). Hij doet dus alleen iets in combinatie met een
-// PLAFOND, en het bruikbare plafondbereik is exact zo breed als het aantal VRIJE werkdagen dat de
-// wijkende taak vóór de blokkade heeft:
+// WAAROM 66 EN NIET 63 (2026-09-14): deze waarde bewaart ook de technische onderbouwing van de
+// bestaande kerncheck in `tests/library/check-showcase-occupancy.ts`. Die roept `computeDistribution`
+// rechtstreeks aan met `allowSplits` en `ceilingWorkdays`; dat zijn kernopties, geen bediening in
+// het bezettingsoverzicht. `ResourceLeveler.findSlot` zoekt eerst een AANEENGESLOTEN venster en
+// valt pas terug op `scatterSlot` (pauzedagen) als die scan binnen het zoekvenster faalt. Zonder
+// floatgrens (`constrainToFloat: false`) of uitloopplafond vindt de aaneengesloten scan bij deze
+// voorbeelden een plek; `allowSplits` maakt dan geen verschil. Met een bindend plafond kan de
+// onderbroken plaatsing de vrije werkdagen vóór de blokkade benutten:
 //   - bij 63 begon KLEIN's metselwerk op 2027-05-31 en had MIDDEL's "Ground floor masonry —
 //     House 6" (2027-05-28…06-04) precies ÉÉN vrije dag ervóór ⇒ alleen plafond 14 gaf verschil;
-//     één getal breed, dus in de praktijk onvindbaar voor wie het niet toevallig intikt.
 //   - bij 66 begint KLEIN's metselwerk op 2027-06-03 en heeft House 6 er VIER vrije dagen vóór
-//     (05-28, 05-31, 06-01, 06-02) ⇒ elk plafond van 14 t/m 17 werkdagen laat het verschil zien,
-//     met het ronde "15 werkdagen (drie weken)" in het midden. Zie de bewijsassert in
-//     tests/library/check-showcase-occupancy.ts en de gids `gids-verdelen-restcapaciteit.md`.
-// De prijs van de schuif: de Masonry crew-conflictstrook wordt korter (2 dagen i.p.v. 5) en de
-// Plasterers-kruisdagen verschuiven mee — beide kruisconflicten blijven bestaan (de exacte-set-poort
-// in check-showcase-occupancy.ts bewaakt dat).
+//     (05-28, 05-31, 06-01, 06-02) ⇒ plafonds van 14 t/m 17 werkdagen geven in de kerncheck
+//     zonder onderbrekingen een tekort en met onderbrekingen geen tekort; 15 ligt in het midden.
+// De Masonry crew-conflictstrook is bij 66 korter (2 dagen i.p.v. 5) en de Plasterers-kruisdagen
+// schuiven mee. Beide kruisconflicten blijven bestaan; de exacte-set-poort in
+// `check-showcase-occupancy.ts` bewaakt dat alleen Masonry crew en Plasterers rood staan.
 const KLEIN: ProjectSpec = {
   slug: 'showcase-verbouwing-eengezinswoning',
   name: 'Refurbishment & Extension of a Family Home',
@@ -70,8 +69,7 @@ const KLEIN: ProjectSpec = {
     'SNET permit constraint, a start milestone and a mandatory handover milestone, a comfortable deadline ' +
     '(no conflict) and one baseline taken right after set-up. A small crew set from the shared demo ' +
     'resource library, without any overallocation of its own — the masonry crew is booked in the same ' +
-    'week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict ' +
-    'that "Distribute" can resolve.',
+    'week as the terraced houses showcase, so the occupancy overview shows a cross-project conflict.',
   tags: ['residential', 'small', 'entry-level', 'milestones', 'constraints', 'baseline', 'resources'],
   anchorShiftDays: 66,
   tasks: [
@@ -124,8 +122,8 @@ const KLEIN: ProjectSpec = {
   // De ploeg-hiërarchie (Bricklayers onder Masonry crew) spiegelt die van MIDDEL: dezelfde ploeg,
   // hier op de uitbouw.
   // Aantallen bewust klein — de projectinzet blijft binnen de bedrijfscapaciteit van elk poolitem,
-  // dus KLEIN zelf toont NOOIT overallocatie; de enige rode rij die een gebruiker te zien krijgt is
-  // de bedrijfsbrede Masonry crew-rij, en die ontstaat pas samen met MIDDEL.
+  // dus KLEIN zelf toont GEEN overallocatie. De kruisconflicten met MIDDEL worden zichtbaar in
+  // het bezettingsoverzicht, waar de dagbelasting van de projecten wordt opgeteld.
   resources: [
     { name: 'Masonry crew', type: 'CREW', maxUnits: 1,
       description: 'The same masonry crew as on the terraced houses — it comes over for the extension walls' },
@@ -220,9 +218,14 @@ middelTasks.push({ key: 'P3', name: '3. Structural works per house', taskType: '
 // blijft gelijk, dus de onderlinge volgorde/afstand — incl. de doorschuivende metselploeg tussen
 // woningen — blijft exact intact).
 const RUWBOUW_PROGRESS: Record<number, { mg?: [number, number]; vl?: [number, number] | number; mv?: [number, number]; kap?: [number, number] }> = {
+  // F3c (spec §3.11, §4.2 D1/D2): de belasting van een voltooide taak volgt haar actualspanne op
+  // minuten; een einddatum zonder tijd is het einde van die werkdag, een startdatum het begin. Een
+  // ploeg die op de einddag van woning i aan woning i+1 begint, staat die dag dus twee keer geboekt,
+  // op VOLTOOID werk (voor de nivelleerder onoplosbaar), net als hieronder bij woning 4. Daarom start
+  // het metselwerk van woning 2 en 3 één dag later; de einddagen en de rest van de keten blijven gelijk.
   1: { mg: [27, 33], vl: [33, 37], mv: [37, 43], kap: [43, 48] },
-  2: { mg: [33, 39], vl: [39, 43], mv: [43, 49], kap: [49, 54] },
-  3: { mg: [39, 45], vl: [45, 49], mv: [49, 55], kap: [55, 58] },
+  2: { mg: [34, 39], vl: [39, 43], mv: [43, 49], kap: [49, 54] },
+  3: { mg: [40, 45], vl: [45, 49], mv: [49, 55], kap: [55, 58] },
   // B1c: mg van woning 4 start op dag 46 i.p.v. 45. De dag-offsets in deze tabel worden met
   // `addBusinessDays` (alleen weekenden) naar datums vertaald, terwijl de resourcebelasting op de
   // PROJECTkalender (weekenden + feestdagen) valt. Het metselwerk van woning 3 loopt over

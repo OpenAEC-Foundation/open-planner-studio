@@ -15,7 +15,7 @@ Zuerst prüfen Sie die Überlastung. Dann wählen Sie eine Lösung. **Kapazität
 1. Schauen Sie im Menüband bei *Ressourcen › Überlastung*. Dort steht *Keine* oder, in Rot, die Anzahl überlasteter Ressourcen, zum Beispiel *1 Ressource*. Nach einer Berechnung steht in der Statusleiste auch *⚠ 1 Ressource(n) überlastet*.
 2. Klicken Sie auf diese Meldung in der Statusleiste. Der Bereich *Warnungen* öffnet sich rechts, mit einer Zeile für jede Ressource, zum Beispiel *Bricklayer* mit *Überlastet an 5 Tag(en) (29-06-2027 – 05-07-2027)*.
 3. Klicken Sie auf diese Zeile. Die App schaltet das Histogramm ein, wählt die Ressource aus und markiert alle Vorgänge, auf denen die Ressource arbeitet.
-4. Schauen Sie unter das Gantt-Diagramm auf das Histogramm. Rote Balken sind überlastete Tage. Wenn Sie mit der Maus über einen Tag fahren, sehen Sie, welche Vorgänge dazu beitragen, zum Beispiel *2 Vorgänge tragen bei am 2027-06-30* mit den Namen darunter.
+4. Schauen Sie auf das Histogramm unter dem Gantt-Diagramm. Rote Balken sind überlastete Tage. Wenn Sie mit der Maus über einen Tag fahren, sehen Sie, welche Vorgänge dazu beitragen, zum Beispiel *2 Vorgänge tragen bei am 2027-06-30* mit den Namen darunter.
 
 Sie können das Histogramm auch selbst einschalten, über *Ressourcen › Histogramm › Histogramm*. Wählen Sie eine Ressource in der Liste links, oder blättern Sie mit *Zurück* und *Weiter* durch die Ressourcen. Ein roter Punkt in der Liste bedeutet, dass die Ressource überlastet ist. Die Zeile *Alle Ressourcen* addiert die Ressourcen zusammen, ohne Material.
 
@@ -24,7 +24,7 @@ Wenn ein Vorgang ausgewählt ist, zeigt das Histogramm nur die Belastung dieses 
 ### 2. Eine Lösung wählen
 
 - **Mehr Kapazität.** Kommt wirklich ein zweiter Maurer, setzen Sie *Max. Einheiten* auf 2 (siehe [Ressourcen verwalten](docs://howto-resources-beheren)). Die Überlastung ist dann weg.
-- **Weniger Einheiten pro Tag.** Senken Sie *Einh./Tag* oder wählen Sie eine andere Kurve für die Zuweisung (siehe [Ressourcen mit einer Kurve zuweisen](docs://howto-resource-toewijzen)).
+- **Weniger Einheiten pro Tag.** Senken Sie *Einheiten* oder wählen Sie eine andere Kurve für die Zuweisung (siehe [Ressourcen mit einer Kurve zuweisen](docs://howto-resource-toewijzen)).
 - **Vorgänge nacheinander legen.** Fügen Sie eine Beziehung zwischen den beiden Vorgängen hinzu, sodass der zweite erst startet, wenn der erste beendet ist (siehe [Beziehungen hinzufügen](docs://howto-relaties-leggen)).
 - **Kapazitätsabgleich.** Die App lässt einen Vorgang später starten.
 

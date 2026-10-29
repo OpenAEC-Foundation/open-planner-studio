@@ -64,7 +64,7 @@ Projektitiedosto sisältää omat kopiot resursseista. Jos halutaan luovuttaa my
 
 1. Avaa projekti, joka on liitetty kirjastoon, ja valitse *Tiedosto › Vienti*.
 2. Valitse valintaruutu *Tallenna kirjastotiedosto rinnalle*. Ruutu näkyy vain liitetylle projektille.
-3. Valitse kortti *IFC 4x3* ja tallenna tiedosto. Sovellus pyytää sen jälkeen myös toisen tiedoston. Sen nimi on sama kuin projektin, ja perään tulee `-bibliotheek`. Se sisältää kirjaston.
+3. Valitse kortti *IFC* ja tallenna tiedosto. Sovellus pyytää sen jälkeen myös toisen tiedoston. Sen nimi on sama kuin projektin, ja perään tulee `-bibliotheek`. Se sisältää kirjaston.
 
 Valintaruutu toimii vain IFC-viennissä, ei muissa vientimuodoissa. Kollega tuo toisen tiedoston yllä kuvatulla tavalla.
 
@@ -72,9 +72,9 @@ Valintaruutu toimii vain IFC-viennissä, ei muissa vientimuodoissa. Kollega tuo 
 
 **Kaksi suunnittelijaa, kaksi kirjastoa.** Sovellus ei synkronoi kirjastoja tietokoneiden välillä. Tuontiikkuna näyttää siitä aina varoituksen: *Huomautus: kirjastoja ei synkronoida koneiden välillä. Jos kaksi suunnittelijaa käyttää samaa kirjastoa, kirjastot voivat erkaantua. Jos organisaatio jakaa miehistöt toimintayhtiöiden kesken, valitse tietoisesti yksi yhteinen kirjasto.*
 
-**Korvaaminen ylikirjoittaa kaiken.** Valitun kirjaston kaikki sisältö katoaa, eikä kirjaston muutos kuulu toimintoon *Kumoa*. Jos tilanne on epäselvä, vie kirjasto ensin.
+**Korvaaminen ylikirjoittaa kaiken.** Valitun kirjaston kaikki sisältö katoaa, eikä kirjaston muutos kuulu toimintoon *Kumoa*. Jos tilanne on epäselvä, vie kirjasto ensin. Projektit säilyttävät omat kopionsa. Sovellus päivittää kopiot, jotka ovat yhä uudessa tiedostossa. Kopiot, joita ei enää ole uudessa tiedostossa, saavat merkinnän *ei enää kirjastossa* ja toimivat edelleen. Jos kopio poikkeaa, avautuu ikkuna *Linkitä kirjasto* (katso [Kirjaston käyttäminen](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Kalenterin poisto luettelosta tapahtuu heti.** Sovellus ei kysy vahvistusta, toisin kuin resurssin poistossa. Tämä voi näyttää puutteelta. Kirjastomuutokset eivät kuulu toimintoon *Kumoa*.
+**Kalenterin poisto luettelosta tapahtuu heti.** Sovellus ei kysy vahvistusta, toisin kuin resurssin poistossa. Tämä näyttää puutteelta. Kirjastomuutokset eivät kuulu toimintoon *Kumoa*.
 
 ## Katso myös
 

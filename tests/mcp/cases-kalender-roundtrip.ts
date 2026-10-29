@@ -312,7 +312,7 @@ test('los hoursPerDay dat niet klopt met werkdag − pauze ⇒ zachte weigering 
   for (const field of ['hoursPerDay', 'workStartHour', 'workEndHour', 'simpleBreakDurationMinutes']) {
     assert(rej[0].reason.includes(`\`${field}\``), `de reden noemt \`${field}\`: ${rej[0].reason}`);
   }
-  assert(/\b8\b/.test(rej[0].reason), `de reden noemt de afgeleide 8 u: ${rej[0].reason}`);
+  assert(/= 8h net\./.test(rej[0].reason), `de reden noemt de afgeleide 8h net: ${rej[0].reason}`);
   assertEq(JSON.stringify(calById(projId)), before, 'kalender onaangeroerd');
   assertEq(undoDepth(), depth, 'geen undo-stap');
   assertEq({ veld: calById(projId).hoursPerDay, engine: engineHoursPerDay(calById(projId)) }, { veld: 8, engine: 8 },

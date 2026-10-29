@@ -31,11 +31,11 @@ Nyissa meg az *Ütemezés › Struktúra › Sablonok* menüpontot, és kattints
 
 ### Mi van a sablonban
 
-Egy sablon minden tevékenységnél megőrzi a nevet, a leírást, a tevékenységtípust, azt, hogy mérföldkő-e, és az időtartamot napokban. A kapcsolatok közül csak azokat tartja meg, amelyek az ágon belül két tevékenység között vannak, a típussal és a késleltetéssel együtt.
+Egy sablon minden tevékenységnél megőrzi a nevet, a leírást, a munkanemet, azt, hogy mérföldkő-e, és az időtartamot napokban. A kapcsolatok közül csak azokat tartja meg, amelyek az ágon belül két tevékenység között vannak, a típussal és a késleltetéssel együtt. Az órában megadott késleltetés (`4h`) nem marad meg, és 0 lesz. A munkanapban, naptári napban vagy százalékban megadott késleltetés megmarad.
 
-Minden más nem kerül át: a dátumok, az előrehaladás és a tényleges dátumok, az erőforrás-hozzárendelések, a kódok és az egyéni mezők (lásd [Kódok és egyéni mezők](docs://howto-codes-en-velden)), a naptár, a korlátozások és a határidők, a prioritás, az egyéni tevékenységtípus, mérföldkő esetén a típus és a *Kötelező (szerződéses)* jelölőnégyzet, valamint az ágon kívüli tevékenységekkel meglévő kapcsolatok. A beszúrás után ezeket újra meg kell adnia: az erőforrás-hozzárendelések, a kódok, a naptár és a korlátozások üresek, és minden tevékenység a projektkezdés dátumán indul.
+Minden más nem kerül át: a dátumok, az előrehaladás és a tényleges dátumok, az erőforrás-hozzárendelések, a kódok és az egyéni mezők (lásd [Kódok és egyéni mezők](docs://howto-codes-en-velden)), a naptár, a korlátozások és a határidők, a prioritás, az egyéni munkanem, mérföldkő esetén a típus és a *Kötelező (szerződéses)* jelölőnégyzet, valamint az ágon kívüli tevékenységekkel meglévő kapcsolatok. A beszúrás után ezeket újra meg kell adnia: az erőforrás-hozzárendelések, a kódok, a naptár és a korlátozások üresek, és minden tevékenység a projektkezdés dátumán indul.
 
-A tevékenység, amely órában volt, napalapú tevékenységként tér vissza, az időtartama a munkanap törtrészére átszámítva. Egy 5 órás tevékenység 8 órás munkanappal 0,625 napos lesz.
+A tevékenység, amely órában volt, napalapú tevékenységként tér vissza, az időtartama a munkanap törtrészére átszámítva. Egy 5 órás tevékenység 8 órás munkanap esetén 0,625 nap lesz.
 
 ## Buktatók és az alkalmazás viselkedése
 

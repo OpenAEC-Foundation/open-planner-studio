@@ -1553,6 +1553,10 @@
       "tipo de tarea",
       "tipos de tarea"
     ],
+    "avoid": [
+      "regla de trabajo",
+      "reglas de trabajo"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1687,20 +1691,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "categoría de trabajo",
+    "forms": [
+      "categoría de trabajo",
+      "categorías de trabajo"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "horarios de trabajo",
     "forms": [
       "horario de trabajo",
       "horarios de trabajo"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "regla de trabajo",
-    "forms": [
-      "regla de trabajo",
-      "reglas de trabajo"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

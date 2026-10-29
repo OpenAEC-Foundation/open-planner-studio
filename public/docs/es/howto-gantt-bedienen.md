@@ -58,6 +58,10 @@ Cuanto más aleja la vista, menos líneas de cuadrícula hay. A partir de 8 píx
 
 El nombre de la tarea se muestra en la barra si cabe completo. Si no cabe, por ejemplo al alejar la vista, el nombre completo aparece a la derecha de la barra.
 
+### Ver los detalles de una tarea
+
+Mantenga el ratón quieto sobre una barra. Aparece una pequeña tarjeta con el nombre de la tarea, *WBS*, *Duración*, *Inicio*, *Fin*, *Estado*, *Crítica* y *Holgura total*. Mientras arrastra, desplaza la vista, usa un recuadro de selección o abre un menú contextual, la tarjeta desaparece.
+
 ## Problemas frecuentes y qué hace entonces la aplicación
 
 **El inicio no se mueve.** Si la tarea tiene un predecesor y una restricción distinta de SNET, por ejemplo *Lo más tarde posible (ALAP)*, la aplicación no aplica el inicio arrastrado. Al soltar, la aplicación indica qué restricción retiene el inicio. Cambie esa restricción para mover el inicio. El borde derecho sí funciona, porque solo cambia la duración.

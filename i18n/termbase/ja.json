@@ -1314,7 +1314,8 @@
     ],
     "avoid": [
       "タスクタイプ",
-      "タスク種別"
+      "タスク種別",
+      "作業ルール"
     ],
     "source": "model",
     "status": "arbitrated"
@@ -1439,18 +1440,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "作業区分",
+    "forms": [
+      "作業区分"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "稼働時間",
     "forms": [
       "稼働時間"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "作業ルール",
-    "forms": [
-      "作業ルール"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

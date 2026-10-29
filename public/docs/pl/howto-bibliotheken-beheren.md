@@ -64,17 +64,17 @@ Plik projektu zawiera własne kopie zasobów. Jeśli chcesz przekazać także ca
 
 1. Otwórz projekt, który jest powiązany z biblioteką, i wybierz *Plik › Eksportuj*.
 2. Zaznacz *Zapisz również plik biblioteki*. Pole wyboru pojawia się tylko przy powiązanym projekcie.
-3. Wybierz kartę *IFC 4x3* i zapisz plik. Aplikacja wtedy prosi również o drugi plik. Nazywa się tak jak projekt, z dopiskiem `-bibliotheek` na końcu, i zawiera bibliotekę.
+3. Wybierz kartę *IFC* i zapisz plik. Aplikacja wtedy prosi również o drugi plik. Nazywa się tak jak projekt, z dopiskiem `-bibliotheek` na końcu, i zawiera bibliotekę.
 
 Pole wyboru działa tylko przy eksporcie IFC, nie przy innych formatach eksportu. Twój kolega importuje drugi plik zgodnie z opisem powyżej.
 
 ## Pułapki i co wtedy robi aplikacja
 
-**Dwóch planistów, dwie biblioteki.** Aplikacja nie synchronizuje bibliotek między komputerami. Okno importu zawsze pokazuje na ten temat ostrzeżenie: *Uwaga: biblioteki nie są synchronizowane między komputerami. Jeśli dwóch planistów pracuje z tą samą biblioteką zasobów, biblioteki mogą się rozbiec. Jeśli Twoja organizacja dzieli ekipy między firmy operacyjne, wybierz świadomie jedną wspólną pulę.*
+**Dwóch planistów, dwie biblioteki.** Aplikacja nie synchronizuje bibliotek między komputerami. Okno importu zawsze pokazuje na ten temat ostrzeżenie: *Uwaga: biblioteki nie są synchronizowane między komputerami. Jeśli dwóch planistów pracuje z tą samą biblioteką zasobów, biblioteki mogą się rozbiec. Jeśli Twoja organizacja dzieli ekipy między firmy operacyjne, wybierz świadomie jedną wspólną bibliotekę zasobów.*
 
-**Zastąpienie nadpisuje wszystko.** Wszystko, co było w wybranej bibliotece, znika. Zmiany w bibliotece nie da się cofnąć przyciskiem *Cofnij*. Jeśli nie masz pewności, najpierw wyeksportuj.
+**Zastąpienie nadpisuje wszystko.** Wszystko, co było w wybranej bibliotece, znika. Zmiany w bibliotece nie da się cofnąć przyciskiem *Cofnij*. Jeśli nie masz pewności, najpierw wyeksportuj. Twoje projekty zachowują swoje kopie. Aplikacja aktualizuje kopie, które nadal istnieją w nowym pliku. Kopie, których w nim nie ma, dostają oznaczenie *nie ma już w bibliotece* i dalej działają. Jeśli kopia się różni, otwiera się okno *Połącz bibliotekę zasobów* (zob. [Korzystanie z biblioteki zasobów](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Kalendarz usuwa się z listy od razu.** Aplikacja nie pyta o potwierdzenie, w przeciwieństwie do usuwania zasobu. To wygląda na brak. Zmiany w bibliotece nie da się cofnąć przyciskiem *Cofnij*.
+**Kalendarz usuwa się z listy od razu.** Aplikacja nie pyta o potwierdzenie, w przeciwieństwie do usuwania zasobu. To wygląda na wadę. Zmiany w bibliotece nie da się cofnąć przyciskiem *Cofnij*.
 
 ## Zobacz także
 

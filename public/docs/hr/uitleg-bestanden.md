@@ -4,7 +4,7 @@
 
 ## Pojam
 
-Open Planner Studio ima jedan vlastiti format datoteke: **IFC**, otvoreni format za razmjenu građevinskih podataka iz buildingSMART-a. Aplikacija zapisuje IFC 4.3. U popisu za izvoz zove se *IFC 4x3*. Nema druge, vlasničke datoteke projekta. *Spremi* zapisuje cijeli vaš projekt kao IFC datoteku (`.ifc`), a *Otvori* čita takvu datoteku natrag. Želite li vidjeti što ide u datoteku? Kartica *IFC* prikazuje IFC tekst vašeg projekta, a *Generiraj IFC* osvježava taj tekst.
+Open Planner Studio ima jedan vlastiti format datoteke: **IFC**, otvoreni format za razmjenu građevinskih podataka iz buildingSMART-a. Aplikacija zapisuje IFC shemu projekta, zadano IFC 4.3 ADD2 (vidi [Odabir IFC sheme](docs://howto-ifc-schema-kiezen)); u popisu za izvoz zove se *IFC*. Nema druge, vlasničke datoteke projekta. *Spremi* zapisuje cijeli vaš projekt kao IFC datoteku (`.ifc`), a *Otvori* čita takvu datoteku natrag. Želite li vidjeti što ide u datoteku? Kartica *IFC* je uređivač koji prikazuje IFC tekst vašeg projekta; *Generiraj IFC* osvježava taj tekst, a *Kopiraj* ga stavlja na međuspremnik. Ako promijenite tekst, *Primijeni* ga učitava kao vaš projekt. Time se projekt u toj kartici potpuno zamjenjuje.
 
 Svi ostali formati su **adapteri**: prevoditelji između modela drugog programa i modela aplikacije. Aplikacija čita CSV, MS Project XML, Primavera P6 XML, datoteke MS Project (`.mpp`) i datoteke Primavera (`.xer`). Zapisuje CSV, MS Project XML, Primavera P6 XML i dvije tablice napretka. Izvoz u `.mpp` ili `.xer` nije moguć.
 
@@ -14,7 +14,7 @@ Zašto je ta razlika važna? Prevoditelj može prenijeti samo ono što obje stra
 
 ### Što čini otvaranje
 
-Aplikacija bira čitač prema nastavku datoteke: `.ifc`, `.csv`, `.xml`, `.mpp` ili `.xer`. Kod datoteke `.xml` aplikacija gleda u sadržaj da vidi je li to MS Project XML ili Primavera P6 XML. Nepoznat nastavak aplikacija tretira kao IFC. Ako datoteka nije IFC, aplikacija prikazuje poruku *Otvaranje datoteke nije uspjelo*, s razlogom.
+Aplikacija bira čitač prema nastavku datoteke: `.ifc`, `.csv`, `.xml`, `.mpp` ili `.xer`. Kod datoteke `.xml` aplikacija gleda u sadržaj da vidi je li to MS Project XML ili Primavera P6 XML. Nepoznat nastavak aplikacija tretira kao IFC. Ako datoteka nije IFC, aplikacija prikazuje poruku *Otvaranje datoteke nije uspjelo* i razlog.
 
 Svaka datoteka se otvara u vlastitoj kartici. Iznimka je kartica koja je još prazna i nepromijenjena: ta kartica preuzima datoteku. Jedna datoteka Primavera može stvoriti više kartica, po jednu za svaki projekt s zadacima.
 
@@ -46,9 +46,9 @@ Svaki adapter prenosi ono što njegov format zna.
 
 **Primavera P6 XML** prenosi: zadaci, ovisnosti, kalendari, resursi, dodjele, ograničenja i datum stanja. Temeljni planovi i rokovi za dovršetak ne idu, kao ni šifre zadatka, prilagođena polja, bilješke i međuzavisnosti projekata. I ovdje hamak postaje obični zadatak. P6 nema vrijeme odgode u postocima: aplikacija takvo vrijeme odgode pretvara u fiksni broj dana. Vrijeme odgode u kalendarskim danima postaje vrijeme odgode u radnim danima.
 
-**CSV** je tablica zadataka. U datoteci su za svaki zadatak ovi stupci: task id, WBS, level, name, duration, start, finish, predecessors, type, id prilagođene vrste zadatka (`OPS Custom Task Type ID`), status, completion, actual start i actual finish, critical, total float i description. Resursi, dodjele, kalendari, ograničenja, rokovi za dovršetak, temeljni planovi i datum stanja u njoj nisu. Naslovi stupaca su uvijek na engleskom.
+**CSV** je tablica zadataka. U datoteci su za svaki zadatak ovi stupci: task id, WBS, level, name, duration, start, finish, predecessors, work category, id prilagođene kategorije radova (`OPS Custom Task Type ID`), status, completion, actual start i actual finish, critical, total float i description. Resursi, dodjele, kalendari, ograničenja, rokovi za dovršetak, temeljni planovi i datum stanja u njoj nisu. Naslovi stupaca su uvijek na engleskom.
 
-**Samo IFC nosi profil izračuna i opcije izračuna.** Ako izvezete u CSV, MS Project XML ili Primavera P6 XML, profila nema u datoteci. Od opcija izračuna MS Project XML zapisuje najviše kritični prag. Takva se datoteka ponovno otvara kao *Open Planner Studio*. Ako je vaš projekt računan s *Primavera P6* ili *Microsoft Project*, na primjer jer dolazi iz `.xer` ili `.mpp`, datumi se zbog toga mogu pomaknuti. Što je profil izračuna, objašnjeno je u [Profili izračuna i pravila izračuna](docs://uitleg-rekenprofielen).
+**Samo IFC nosi profil izračuna i opcije izračuna.** Ako izvezete u CSV, MS Project XML ili Primavera P6 XML, profila nema u datoteci. Od opcija izračuna MS Project XML zapisuje samo kritični prag. Takva se datoteka ponovno otvara kao *Open Planner Studio*. Ako je vaš projekt računan s *Primavera P6* ili *Microsoft Project*, na primjer jer dolazi iz `.xer` ili `.mpp`, datumi se zbog toga mogu pomaknuti. Što je profil izračuna, objašnjeno je u [Profili izračuna i pravila izračuna](docs://uitleg-rekenprofielen).
 
 Ako vaš projekt dolazi iz datoteke Primavera (`.xer`), čak i ako ste ga u međuvremenu spremili kao IFC, aplikacija nakon izvoza u CSV, MS Project XML ili P6 XML prikazuje: *Izvoz u CSV gubi informacije o izvoru XER-a.* Za MS Project XML piše *MSPDI*, a ne *CSV*, a za P6 XML piše *P6*. Za IFC ta poruka ne dolazi: IFC datoteka zadržava izvornu datoteku Primavere. Pogledajte [Otvaranje datoteke Primavera P6 (.xer)](docs://howto-xer-openen).
 

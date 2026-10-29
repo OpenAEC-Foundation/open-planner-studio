@@ -36,7 +36,7 @@ Para el color de las barras, elija *Vista › Líneas base y progreso › Colore
 
 ## Trampas y lo que hace la aplicación
 
-**Eliminar borra los valores de las tareas.** Si elimina con la papelera un tipo de código, un valor o un campo, la aplicación no pide confirmación. Con ello desaparecen también los valores de todas las tareas. También se pierde una agrupación o una ordenación por ese tipo de código o campo. *Deshacer* (Ctrl+Z) restaura el tipo de código, el valor o el campo y los valores introducidos, pero no la agrupación ni la ordenación: debe configurarlas de nuevo.
+**Eliminar borra los valores de las tareas.** Si elimina con la papelera un tipo de código, un valor o un campo, la aplicación no pide confirmación. Con ello desaparecen las asignaciones de todas las tareas. También se pierde una agrupación o una ordenación por ese tipo de código o campo. *Deshacer* (Ctrl+Z, cierre primero la ventana) restaura el tipo de código, el valor o el campo y los valores introducidos, pero no la agrupación ni la ordenación: debe configurarlas de nuevo.
 
 **Dos valores con el mismo código.** *Añadir valor* continúa la numeración a partir del número de valores que hay. Si elimina uno y añade otro, un código puede aparecer dos veces. Si escribe ese código en una celda de columna, la aplicación lo rechaza con *Este valor de código de actividad aparece varias veces. Elíjalo de la lista*. Dé a cada valor su propio código.
 

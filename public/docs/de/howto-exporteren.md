@@ -9,8 +9,8 @@ Der Berater arbeitet mit MS Project, der Auftraggeber mit Primavera, der Subunte
 ## Schritte
 
 1. Wählen Sie *Start › Datei › Exportieren* und ein Format aus der Liste, oder wählen Sie *Datei › Exportieren*. Dort ist jedes Format eine Karte mit einer kurzen Beschreibung.
-2. Im Fenster wählen Sie einen Namen und einen Ort. Die App schlägt den Projektnamen mit der passenden Endung für das Format vor. Die Fortschrittsblätter heißen *projectname-voortgang* und öffnen sich, wenn möglich, in Ihrem Download-Ordner.
-3. Bestätigen Sie. Es erscheint keine Meldung, wenn der Export gelingt, außer den Meldungen unten. Danach kehren Sie bei *Datei › Exportieren* zur Registerkarte *Start* zurück, auch wenn Sie das Fenster abbrechen. Wenn Sie das Fenster bei einem Export aus der Liste auf der Registerkarte *Start* abbrechen, geschieht nichts.
+2. Im Fenster wählen Sie einen Namen und einen Ort. Die App schlägt den Projektnamen mit der Endung des Formats vor. Die Fortschrittsblätter heißen *projectname-voortgang* und öffnen sich, wenn möglich, in Ihrem Download-Ordner.
+3. Bestätigen Sie. Es erscheint keine Meldung, wenn der Export gelingt, außer den Meldungen unten. Danach kehren Sie von *Datei › Exportieren* zur Registerkarte *Start* zurück, auch wenn Sie das Fenster abbrechen. Wenn Sie das Fenster bei einem Export aus der Liste auf der Registerkarte *Start* abbrechen, geschieht nichts.
 
 Wenn Ihr Browser nur über einen Download speichert (zum Beispiel Firefox), liegt die Datei direkt nach Schritt 1 in Ihrem Download-Ordner. Sie sehen die Meldung *Als Download gespeichert: 'name.xml' liegt jetzt in Ihrem Download-Ordner. Diese Umgebung erlaubt der App nicht, direkt an den gewählten Ort zu schreiben.*
 
@@ -19,14 +19,14 @@ Wenn Ihr Browser nur über einen Download speichert (zum Beispiel Firefox), lieg
 Die Liste auf der Registerkarte *Start* und die Karten unter *Datei › Exportieren* bieten dieselben Formate an:
 
 - *Fortschritt (Excel)* und *Fortschritt (CSV)*, auf den Karten *Fortschrittsblatt (Excel)* und *Fortschrittsblatt (CSV)*: ein schlankes Blatt mit ID, PSP, Name, Terminen und Fertigstellung, zum Verteilen an alle, die den Fortschritt eintragen.
-- *CSV (;)*, auf der Karte *CSV (semikolon-getrennt)*: eine Vorgangsliste, die Sie in einer Tabellenkalkulation öffnen.
-- *MS Project XML*: kann in Microsoft Project geöffnet werden.
+- *CSV (;)*, auf der Karte *CSV (semikolon-getrennt)*: eine Vorgangstabelle, die Sie in einer Tabellenkalkulation öffnen.
+- *MS Project XML*: lässt sich in Microsoft Project öffnen.
 - *Primavera P6 XML*: für Oracle Primavera P6.
-- *IFC 4x3*: das eigene Format der App, mit allen Daten darin.
+- *IFC*: das eigene Format der App, mit allen Daten darin, im IFC-Schema des Projekts (standardmäßig IFC 4.3 ADD2).
 
 ### Ein IFC-Export mit einer Bibliotheksdatei
 
-Wenn Ihr Projekt mit einer Ressourcenbibliothek verknüpft ist, steht das Kontrollkästchen *Bibliotheksdatei zusätzlich speichern* unter den Karten unter *Datei › Exportieren*. Wenn Sie es ankreuzen und *IFC 4x3* wählen, fragt die App zweimal nach einem Ort: zuerst für das Projekt, dann für *projectname-bibliotheek.ifc*. Dieses Kontrollkästchen steht nur unter *Datei › Exportieren*, nicht in der Liste auf der Registerkarte *Start*.
+Wenn Ihr Projekt mit einer Ressourcenbibliothek verknüpft ist, finden Sie das Kontrollkästchen *Bibliotheksdatei zusätzlich speichern* unterhalb der Karten in *Datei › Exportieren*. Wenn Sie es ankreuzen und *IFC* wählen, fragt die App zweimal nach einem Ort: zuerst für das Projekt, dann für *projectname-bibliotheek.ifc*. Dieses Kontrollkästchen steht nur in *Datei › Exportieren*, nicht in der Liste auf der Registerkarte *Start*.
 
 ### Ein Fortschrittsblatt wieder einlesen
 

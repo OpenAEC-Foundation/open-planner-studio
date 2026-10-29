@@ -10,9 +10,9 @@ Konsultant pracuje w MS Project, klient w Primaverze, podwykonawca chce zadania 
 
 1. Wybierz *Start › Plik › Eksportuj* i wybierz format z listy, albo wybierz *Plik › Eksportuj*. Tam każdy format to karta z krótkim opisem.
 2. W oknie wybierz nazwę i miejsce. Aplikacja podpowiada nazwę projektu z rozszerzeniem pliku danego formatu. Arkusze postępu nazywają się *projectname-voortgang* i otwierają się w folderze pobierania, jeśli to możliwe.
-3. Potwierdź. Gdy eksport się powiedzie, nie pojawia się żaden komunikat, poza komunikatami poniżej. Z *Plik › Eksportuj* wracasz potem na kartę *Start*, nawet jeśli anulujesz okno. Jeśli anulujesz okno przy eksporcie z listy na karcie *Start*, nic się nie dzieje.
+3. Potwierdź. Jeśli eksport się powiedzie, nie pojawia się żaden komunikat, poza komunikatami poniżej. Z *Plik › Eksportuj* wracasz potem na kartę *Start*, nawet jeśli anulujesz okno. Jeśli anulujesz okno przy eksporcie z listy na karcie *Start*, nic się nie dzieje.
 
-Jeśli Twoja przeglądarka zapisuje tylko przez pobieranie (jak Firefox), plik jest w folderze pobierania zaraz po kroku 1. Widzisz komunikat *Zapisano jako pobrany plik: 'name.xml' znajduje się teraz w folderze pobierania. To środowisko nie pozwala aplikacji zapisywać bezpośrednio w wybranej lokalizacji.*
+Jeśli Twoja przeglądarka zapisuje tylko przez pobieranie (na przykład Firefox), plik jest w folderze pobierania zaraz po kroku 1. Widzisz komunikat *Zapisano jako pobrany plik: 'name.xml' znajduje się teraz w folderze pobierania. To środowisko nie pozwala aplikacji zapisywać bezpośrednio w wybranej lokalizacji.*
 
 ### Który format wybierasz?
 
@@ -22,13 +22,13 @@ Lista na karcie *Start* i karty w *Plik › Eksportuj* oferują te same formaty:
 - *CSV (;)*, na karcie *CSV (rozdzielany średnikiem)*: lista zadań, którą otwierasz w arkuszu kalkulacyjnym.
 - *MS Project XML*: można go otworzyć w Microsoft Project.
 - *Primavera P6 XML*: dla Oracle Primavera P6.
-- *IFC 4x3*: własny format aplikacji, ze wszystkim, co w nim jest.
+- *IFC*: własny format aplikacji, ze wszystkim, co w nim jest, w schemacie IFC projektu (domyślnie IFC 4.3 ADD2).
 
 ### Eksport IFC z plikiem biblioteki
 
-Jeśli projekt jest połączony z biblioteką zasobów, pole wyboru *Zapisz również plik biblioteki* znajduje się pod kartami w *Plik › Eksportuj*. Jeśli je zaznaczysz i wybierzesz *IFC 4x3*, aplikacja dwa razy pyta o miejsce: najpierw dla projektu, potem dla *projectname-bibliotheek.ifc*. To pole wyboru jest tylko w *Plik › Eksportuj*, nie na liście na karcie *Start*.
+Jeśli Twój projekt jest połączony z biblioteką zasobów, pole wyboru *Zapisz również plik biblioteki* znajduje się pod kartami w *Plik › Eksportuj*. Jeśli je zaznaczysz i wybierzesz *IFC*, aplikacja dwa razy pyta o miejsce: najpierw dla projektu, potem dla *projectname-bibliotheek.ifc*. To pole wyboru jest tylko w *Plik › Eksportuj*, nie na liście na karcie *Start*.
 
-### Wczytywanie arkusza postępu z powrotem
+### Wczytywanie wypełnionego arkusza postępu
 
 Uzupełniony arkusz postępu wczytujesz przez *Plik › Importuj*. Zobacz [Importowanie postępu z arkusza kalkulacyjnego](docs://howto-voortgang-importeren).
 

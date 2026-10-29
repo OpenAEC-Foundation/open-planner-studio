@@ -41,7 +41,7 @@ Een nieuwe stap begint met de datum van vandaag en 1 eenheid. Pas beide aan, wan
 1. Klik op de prullenbak in de rij.
 2. Heeft de resource toewijzingen, dan vraagt de app om bevestiging, bijvoorbeeld *'Metselaar' heeft 4 toewijzing(en) — verwijderen?* Klik op het vinkje om te verwijderen of op het kruisje om te annuleren. Zonder toewijzingen verdwijnt de resource meteen.
 
-Met de resource verdwijnen ook haar toewijzingen. Heeft een taak waar de resource op stond een andere werkregel dan *Vaste duur en inzet*, dan verdeelt de app het werk van de verdwenen resource over de resources die blijven. Afhankelijk van de regel verandert daardoor hun inzet of de duur van de taak. Verandert de duur, dan is de planning verouderd.
+Met de resource verdwijnen ook haar toewijzingen. Heeft een taak waar de resource op stond een ander taaktype dan *Vaste duur en inzet*, dan verdeelt de app het werk van de verdwenen resource over de resources die blijven. Afhankelijk van het taaktype verandert daardoor hun inzet of de duur van de taak. Verandert de duur, dan is de planning verouderd.
 
 Aanmaken, aanpassen en verwijderen kun je allemaal terugdraaien met *Ongedaan* (Ctrl+Z).
 

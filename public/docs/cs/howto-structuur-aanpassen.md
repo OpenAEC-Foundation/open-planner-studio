@@ -26,7 +26,7 @@ Zvolte *Plán › Struktura › Zmenšit odsazení*, stiskněte Alt+← (nebo Al
 Máte tři způsoby.
 
 - **Klávesnicí.** Alt+↑ a Alt+↓ vymění úkol se sousedem na stejné úrovni. Souhrnný úkol vezme své dílčí úkoly s sebou. Na začátku nebo na konci úrovně se nic nestane. Když je vybraných více úkolů, přesune se jen úkol, na který jste klikli jako první.
-- **Přetažením v tabulce úkolů.** Stiskněte myší řádek a táhněte svisle. Horní čtvrtina řádku znamená *před*, spodní čtvrtina *po*. Střed souhrnného úkolu zavěsí úkol pod něj jako jeho poslední dílčí úkol. Střed běžného úkolu se počítá jako nejbližší okraj. Když přetáhnete řádek, který je součástí vícenásobného výběru, přesune se celý výběr.
+- **Přetažením v tabulce úkolů.** Stiskněte tlačítko myši na řádku a táhněte svisle. Horní čtvrtina řádku znamená *před*, spodní čtvrtina *po*. Střed souhrnného úkolu zavěsí úkol pod něj jako jeho poslední dílčí úkol. Střed běžného úkolu se počítá jako nejbližší okraj. Když přetáhnete řádek, který je součástí vícenásobného výběru, přesune se celý výběr.
 - **Přetažením v Gantt diagramu.** Přetáhněte pruh svisle na jiný řádek. Funguje to stejně jako přetažení v tabulce a nemění to žádná data. Když táhnete vodorovně, posunete místo toho data.
 
 Každý přesun je jeden krok pro *Vrátit zpět* (Ctrl+Z).
@@ -35,26 +35,36 @@ Každý přesun je jeden krok pro *Vrátit zpět* (Ctrl+Z).
 
 Podívejte se na tlačítko *WBS auto* na kartě *Plán › Struktura*.
 
-- **Zapnuto (výchozí v novém projektu).** Aplikace přečísluje celý strom při každém přidání, smazání a přesunu. Kód WBS je pak jen pro čtení: nemůžete ho zapsat v tabulce úkolů ani v panelu *Vlastnosti*. Tlačítko *Přečíslovat WBS* je nedostupné.
-- **Vypnuto.** Kódy zůstanou beze změny, i po přesunu a odsazení. Kódy zadáte sami ve sloupci *WBS* nebo v poli *Kód WBS* v panelu *Vlastnosti*. Případně je jednou nechte přečíslovat příkazem *Přečíslovat WBS*. Přečíslování přepíše i kódy, které jste zadali sami.
+- **Zapnuto (výchozí v novém projektu).** Zapnuto je i u souboru bez tohoto nastavení, pokud všechny kódy WBS už odpovídají číslování stromu (1, 1.1, 1.2 …). Kódy se nezmění. Prázdný soubor bez tohoto nastavení dostane také *zapnuto*, stejně jako nový projekt. Aplikace přečísluje celý strom při každém přidání, smazání a přesunu. Kód WBS je pak jen pro čtení: nemůžete ho zapsat v tabulce úkolů ani v panelu *Vlastnosti*. Tlačítko *Přečíslovat WBS* je nedostupné.
+- **Vypnuto.** Výchozí v souboru s vlastními kódy, například *A1000*, nebo s jedním kódem, který se liší od stromu. Kódy zůstanou beze změny, i po přesunu a odsazení. Kódy zadáte sami ve sloupci *WBS* nebo v poli *Kód WBS* v panelu *Vlastnosti*. Případně je jednou nechte přečíslovat příkazem *Přečíslovat WBS*. Přečíslování přepíše i kódy, které jste zadali sami.
 
 Když zapnete *WBS auto*, aplikace strom hned přečísluje. Obě akce, *WBS auto* i *Přečíslovat WBS*, můžete vrátit příkazem *Vrátit zpět*.
 
 ## Úskalí a co aplikace dělá
 
-**Filtrování, seskupování nebo řazení je zapnuté.** Pořadí, které vidíte, pak neodpovídá pořadí plánu. Aplikace proto strukturu zamkne. *Zvětšit odsazení* a *Zmenšit odsazení* jsou nedostupné a nápověda říká *Není k dispozici při filtrování, seskupování nebo řazení*. Alt+→ a přetažení ukazují stejný text v liště s tlačítkem *Vymazat*. Tím se odstraní filtr, seskupení i řazení najednou, a Ctrl+Z je nevrátí. Potom chybí *Zvětšit odsazení* a *Zmenšit odsazení* i v kontextové nabídce.
+**Filtrování, seskupování nebo řazení je zapnuté.** Pořadí, které vidíte, pak neodpovídá pořadí plánu. Aplikace proto strukturu zamkne. *Zvětšit odsazení* a *Zmenšit odsazení* jsou nedostupné a nápověda říká *Není k dispozici při filtrování, seskupování nebo řazení*. Alt+→ a přetažení ukazují stejný text v červené liště s tlačítkem *Vymazat*. Tím se odstraní filtr, seskupení i řazení najednou, a Ctrl+Z je nevrátí. Lišta zůstane, dokud nekliknete na křížek, nepoužijete Ctrl+Z nebo Ctrl+Y, nebo nepřejdete na jiný dokument. Potom chybí *Zvětšit odsazení* a *Zmenšit odsazení* i v kontextové nabídce.
 
 Alt+↑ a Alt+↓ fungují v takovém zobrazení bez hlášení. Když je zapnutý jen filtr, uvidíte nové pořadí hned. Při řazení se pořadí v plánu změní, ale uvidíte ho až po kliknutí na tlačítko *Vymazat*.
 
-**WBS auto je vypnuté.** Nový úkol dostane kód, který odpovídá jeho místu ve stromu, i když ho už má jiný úkol. Takto se mohou objevit duplicitní čísla. Po odsazení kódy také přestanou odpovídat stromu. *Přečíslovat WBS* opraví obojí.
+**WBS auto je vypnuté.** K tomu dojde u souboru s vlastními kódy nebo u souboru, který ukládá nastavení jako *vypnuto*. Nový úkol dostane kód, který odpovídá jeho místu ve stromu, i když ho už má jiný úkol. Takto se mohou objevit duplicitní čísla. Po odsazení kódy také přestanou odpovídat stromu. *Přečíslovat WBS* opraví obojí.
 
 **Milník dostane dílčí úkoly.** Milník je okamžik a žádné dílčí úkoly nemá. Aplikace odstraní příznak milníku a zobrazí hlášení.
 
-**Úkol s přiřazeními zdrojů dostane dílčí úkoly.** Souhrnný úkol nenese přiřazení sám. Aplikace je přesune na první nový dílčí úkol, který je může unést, a zobrazí hlášení. Pokud takový dílčí úkol není, nebo už má stejný zdroj, nic se nestane a hlášení uvede proč.
+**Úkol s přiřazeními zdrojů dostane dílčí úkoly.** Souhrnný úkol nenese přiřazení sám. Aplikace se proto nejdřív zeptá v okně *Úkol se stane souhrnným úkolem*, co s nimi má udělat. K tomu dojde, když zvětšíte odsazení, na úkolu použijete *Přidat dílčí úkol* nebo *Přidat milník*, vložíte šablonu, nebo v okně *Upravit úkol* zvolíte nový *Nadřazený úkol*. Platí to pro existující úkol i pro nový úkol. V okně *Upravit úkol* se otázka objeví před uložením. Když tam zvolíte *Zrušit*, okno *Upravit úkol* zůstane otevřené se změnami, které jste zadali. Vyberete jednu z těchto možností:
+
+- *Zrušit*: nic se nezmění a struktura zůstane také beze změny.
+- *Odstranit přiřazení*: úkol dostane dílčí úkoly a jeho přiřazení se odstraní. Odstraní se i skutečná práce těchto přiřazení.
+- *Přesunout do „…“*: přiřazení přejdou na první nový dílčí úkol, který je může unést, i se svou skutečnou prací. Milník a souhrnný úkol přiřazení neunesou.
+
+Pokud ten dílčí úkol už má stejný zdroj, nebo pokud žádný vhodný dílčí úkol není, je tlačítko *Přesunout* nedostupné. Oranžové upozornění v okně vysvětlí proč.
+
+U přiřazení, které už má skutečnou práci, oranžové upozornění uvede počet hodin u každého zdroje, například: *U přiřazení „Metselaar“ je už zapsáno 8 hodin skutečné práce. Odstraněním se tato práce zahodí.* *Zrušit* je pak výchozí tlačítko: Enter nic nezmění. Pokud chcete přiřazení přesto odstranit, klikněte sami na *Odstranit přiřazení*.
+
+Dokud je okno otevřené, nefunguje žádná zkratka mimo okno, včetně *Vrátit zpět*, *Vložit*, Delete, F5 a Ctrl+S. Když jedna akce vytvoří více souhrnných úkolů najednou, okno ukáže zdroje u každého úkolu. Zvolená možnost pak platí pro všechny. Jedno *Vrátit zpět* (Ctrl+Z) vrátí celou akci.
 
 **Závislost by vytvořila cyklus.** Závislosti souhrnného úkolu platí i pro jeho dílčí úkoly. Pokud by přesun kvůli nim vytvořil cyklus, aplikace ho odmítne. Zobrazí hlášení *Tento přesun by v plánu vytvořil cyklus (…)*. Nic se nezmění.
 
-**Závislost mezi úkolem a jeho vlastní fází.** Když dáte úkol pod fázi, s kterou už má závislost, ta závislost zůstane. Do výpočtu se ale nepočítá. Aplikace vás na to upozorní. Více o závislostech u souhrnných úkolů si přečtete v [Závislosti a prodleva](docs://uitleg-relaties).
+**Závislost mezi úkolem a jeho vlastní fází.** Když dáte úkol pod fázi, s kterou už má závislost, ta závislost zůstane. Do výpočtu se ale už nepočítá. Aplikace vás na to upozorní. Více o závislostech u souhrnných úkolů si přečtete v [Závislosti a prodleva](docs://uitleg-relaties).
 
 **Plán není aktuální.** Přesun do jiné fáze může změnit data. Stiskněte **Přepočítat** (F5). Pouhé prohození pořadí ve stejné fázi data nemění.
 

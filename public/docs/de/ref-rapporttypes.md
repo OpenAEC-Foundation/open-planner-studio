@@ -26,13 +26,13 @@ Jeder Bericht auf dem Tab *Bericht* mit den dazugehörigen Optionen: was sie tun
 
 Der Terminplan als Balkendiagramm, mit einer Tabelle links und einer Zeitachse rechts, bei Bedarf über mehrere Seiten. Die Vorschau zeigt das Papier mit Seitenkopf, Tabelle, Zeitachse und Legende. Der Block *Übersicht* zählt *Vorgänge:*, *Blattvorgänge:*, *Kritisch:* und *Beziehungen:*. Alle Optionen stehen unter *Einstellungen*.
 
-**Unternehmen:** — das Unternehmen im Seitenkopf. Standard: das Unternehmen aus den Projektinformationen. Wirkung: nur der Kopf dieses Berichts; was Sie hier eintragen, wird nicht gespeichert. Ändern Sie das Unternehmen unter *Einstellungen › Projekt › Projektinfo* im Feld *Auftraggeber/Organisation* und bestätigen Sie mit *Anwenden*.
+**Unternehmen:** — das Unternehmen im Seitenkopf. Standard: das Unternehmen aus den Projekteinstellungen. Wirkung: nur der Kopf dieses Berichts; was Sie hier eintragen, wird nicht gespeichert. Ändern Sie das Unternehmen unter *Einstellungen › Projekt › Projekteinstellungen* im Feld *Auftraggeber/Organisation* und bestätigen Sie mit *Anwenden*.
 
-**Autor:** — der Autor im Seitenkopf. Nur lesbar: Die App übernimmt ihn aus den Projektinformationen.
+**Autor:** — der Autor im Seitenkopf. Nur lesbar: Die App übernimmt ihn aus den Projekteinstellungen.
 
 **Schriftgröße:** — Größe von Text und Tabelle im Bericht. Wählen Sie aus 90%, 100%, 110% und 125%. Standard: 100%. Wirkung: Bei größerer Schrift werden Text, Zeilen und Tabelle größer, und die Zeitachse verliert an Breite. Unabhängig von *Textgröße* in den Einstellungen.
 
-**Balkenfarben:** — wovon die Farbe eines Balkens abhängt. Wählen Sie aus *Kritischer Pfad*, *Pro Vorgang — automatisch* und *Nach Kategorie*, mit einer Auswahlliste *Kategoriefeld* für *Nach Kategorie*. Standard: *Kritischer Pfad*. Wirkung: Das ist dieselbe Auswahl wie *Balkenfarben* auf dem Tab *Ansicht*. Ändern Sie sie hier, dann ändert sich das Gantt-Diagramm auf dem Bildschirm mit. Existiert das gewählte Feld in diesem Projekt nicht, steht dort *Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird die Vorgangsart verwendet.*
+**Balkenfarben:** — wovon die Farbe eines Balkens abhängt. Wählen Sie aus *Kritischer Pfad*, *Pro Vorgang — automatisch* und *Nach Kategorie*, mit einer Auswahlliste *Kategoriefeld* für *Nach Kategorie*. Standard: *Kritischer Pfad*. Wirkung: Das ist dieselbe Auswahl wie *Balkenfarben* auf dem Tab *Ansicht*. Ändern Sie sie hier, dann ändert sich das Gantt-Diagramm auf dem Bildschirm mit. Existiert das gewählte Feld in diesem Projekt nicht, steht dort *Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird die Arbeitskategorie verwendet.*
 
 **Statuslinie:** — eine Linie am Statusdatum. Wählen Sie aus *Keine*, *Statusdatumslinie* und *Fortschrittslinie*. Standard: *Keine*. Wirkung: *Statusdatumslinie* zeichnet eine Linie am Statusdatum; *Fortschrittslinie* zeichnet die Zickzacklinie, die zum Fortschritt jedes Vorgangs ausschlägt. Hat das Projekt kein Statusdatum, steht dort *Legen Sie zuerst ein Statusdatum fest*, und der Bericht zeichnet nichts.
 
@@ -62,7 +62,7 @@ Der Terminplan als Balkendiagramm, mit einer Tabelle links und einer Zeitachse r
 
 **Puffer anzeigen** — Standard: ein. Wirkung: der Puffer als Streifen hinter nicht kritischen Balken.
 
-**Beziehungen** — die Beziehungslinien. Standard: ein. Wirkung: zeichnet Pfeile zwischen den Balken.
+**Abhängigkeiten** — die Beziehungslinien. Standard: ein. Wirkung: zeichnet Pfeile zwischen den Balken.
 
 **Nur Arbeitstage anzeigen** — komprimiert die Zeitachse in diesem Bericht. Standard: aus. Wirkung: Wochenenden und Feiertage werden übersprungen, und Wochenstreifen ersetzen dann die Wochenendschattierung. Unabhängig von derselben Einstellung für das Gantt-Diagramm auf dem Bildschirm.
 
@@ -120,7 +120,7 @@ Wo das Projekt am Statusdatum steht. Optionen unter *Berichtsoptionen*.
 
 **Fast kritisch ≤ (AT):** — Standard: 5. Wie bei der Vorschau.
 
-Der Block *Übersicht* zeigt *Statusdatum*, *Zeitraum*, *Vorschau bis*, *Baseline-Ende*, *Prognose-Ende*, *Δ Ende (AT)*, *Geplant* (mit *(Basisplan)* oder *(aktueller Plan)*), *Ist* und die Zählungen *Abgeschlossen*, *In Bearbeitung*, *Nicht begonnen*, *Überfällig* und *Kritisch*. Geplant und Ist werden nach der Dauer der Vorgänge gewichtet. Geplant wird gegen die Baseline gemessen, wenn eine aktive Baseline besteht, sonst gegen den aktuellen Terminplan. Die Abschnitte sind *Im vergangenen Zeitraum abgeschlossen*, *In Bearbeitung*, *Beginn im kommenden Zeitraum*, *Überfällig* und *Offene kritische Vorgänge*; ein Vorgang kann in mehr als einem Abschnitt stehen.
+Der Block *Übersicht* zeigt *Statusdatum*, *Zeitraum*, *Vorschau bis*, *Baseline-Ende*, *Prognose-Ende*, *Δ Ende (AT)*, *Geplant* (mit *(Basisplan)* oder *(aktueller Plan)*), *Ist* und die Zählungen *Abgeschlossen*, *In Bearbeitung*, *Nicht begonnen*, *Überfällig* und *Kritisch*. Geplant und Ist werden nach der Dauer der Vorgänge gewichtet. Geplant wird gegen die Baseline gemessen, wenn eine aktive Baseline besteht, sonst gegen den aktuellen Terminplan. Die Abschnitte sind *Im vergangenen Zeitraum abgeschlossen*, *In Bearbeitung*, *Beginn im kommenden Zeitraum*, *Überfällig* und *Offene kritische Vorgänge*; ein Vorgang kann in mehr als einem Abschnitt stehen. Jeder Abschnitt hat dieselben Spalten: *PSP*, *Name*, *Baseline-Ende*, *Prognose-Ende*, *Fertigst*, *Rest (AT)*, *GP (AT)* (TF), *Kritisch* und *Status*. Der Status pro Zeile ist *Abgeschlossen*, *In Bearbeitung*, *Nicht begonnen*, *Hätte starten müssen* oder *Hätte enden müssen*.
 
 ## Zustand des Terminplans
 
@@ -149,7 +149,7 @@ Er zählt nicht abgeschlossene Blattvorgänge, ohne Meilensteine und Hammocks, u
 - *Ungültige Daten*: ein Ist-Anfang oder Ist-Ende nach dem Statusdatum, oder ein Prognose-Anfang oder Prognose-Ende vor dem Statusdatum. Schwelle: keine. Setzt ein Statusdatum voraus.
 - *Ressourcen*: Vorgänge ohne Ressource. Schwelle: keine. Nur wenn das Projekt Ressourcen verwendet; sonst *entfällt*.
 - *Verpasste Vorgänge*: von den Vorgängen, die laut Baseline bis zum Statusdatum oder früher fertig sein sollten, der Anteil, der später endet oder später prognostiziert wird. Schwelle: höchstens 5%. Setzt ein Statusdatum und eine aktive Baseline voraus.
-- *Test des kritischen Pfads*: Die App verlängert einen kritischen Vorgang um 100 Arbeitstage. Auf einer Kopie wird der Terminplan neu berechnet, ohne das Projekt zu ändern. Der Test ist erfüllt, wenn der letzte Vorgang des Projekts dann nicht vor diesem Vorgang endet. Geprüft wird der kritische, nicht abgeschlossene Vorgang mit dem frühesten Anfang; das Detail nennt den Vorgang und um wie viele Arbeitstage sich das Ende verschoben hat.
+- *Test des kritischen Pfads*: Die App verlängert einen kritischen Vorgang um 100 Arbeitstage. Auf einer Kopie wird der Terminplan neu berechnet, ohne das Projekt zu ändern. Der Test ist erfüllt, wenn der letzte Vorgang des Projekts dann nicht vor diesem Vorgang endet. Geprüft wird der kritische, nicht abgeschlossene Vorgang mit dem frühesten Anfang; das Detail nennt den Vorgang und um wie viele Arbeitstage sich das Ende verschoben hat. In der Ansicht *Daten wie erfasst* hat dieser Test das Ergebnis *entfällt* (*nicht berechnet*): Der Test rechnet, und der Bericht zeigt dann die Daten aus der Quelldatei. Drücken Sie den Befehl berechnen (F5), dann läuft der Test erneut.
 - *CPLI*: (Länge des kritischen Pfads + Puffer) / Länge des kritischen Pfads. Die Länge zählt die Arbeitstage vom Statusdatum bis zum Ende des letzten Vorgangs; der Puffer ist die Differenz zum Baseline-Ende dieses Vorgangs, oder der berechnete Puffer, wenn der Vorgang nicht in der Baseline steht. Schwelle: mindestens 0,95. Setzt ein Statusdatum voraus.
 - *Basisplan-Ausführungsindex (BEI)*: die Anzahl der Vorgänge, die am Statusdatum fertig sind, geteilt durch die Anzahl, die die Baseline bis dahin als fertig vorsieht, plus die Vorgänge ohne Baseline. Schwelle: mindestens 0,95. Setzt ein Statusdatum und eine aktive Baseline voraus.
 
@@ -161,7 +161,7 @@ Die Prüfungen stehen in dieser Reihenfolge, mit ihrem Schweregrad. Fehler: *Neg
 
 Pro Ressource, pro Woche oder Monat, der Bedarf im Vergleich zur Verfügbarkeit. Optionen unter *Berichtsoptionen*.
 
-**Berichtszeitraum:** — Standard: *Gesamtes Projekt*. Wirkung: Jede Woche oder jeder Monat, die den Zeitraum berühren, ist vollständig enthalten. So zeigt eine Zeile dieselbe Zahl wie das Histogramm.
+**Berichtszeitraum:** — Standard: *Gesamtes Projekt*. Wirkung: Jede Woche oder jeder Monat, der den Zeitraum berührt, ist vollständig enthalten. So zeigt eine Zeile dieselbe Zahl wie das Histogramm.
 
 **Gruppierung:** — Wählen Sie *Wöchentlich* oder *Monatlich*. Standard: *Wöchentlich*. Wirkung: eine Zeile pro Kalenderwoche (Spalte *Woche ab*, mit dem Montag) oder pro Kalendermonat (Spalte *Monat*).
 
@@ -177,7 +177,7 @@ Pro Ressource die Vorgänge, denen sie zugewiesen ist: Was macht dieses Team ode
 
 **Abgeschlossene Vorgänge einbeziehen** — Standard: aus. Wirkung: an schließt auch die Zuweisungen abgeschlossener Vorgänge ein.
 
-Die Zeilen sind pro Ressource gegliedert, und innerhalb einer Ressource nach Anfang. Der Block *Zusammenfassung* zählt *Ressourcen*, *Zuweisungen* und *Vorgänge ohne Ressource*. Die Spalten umfassen die Ressource, den Vorgang, Anfang und Ende, *Rest (AT)*, *Einh./Tag*, *Fertigst*, *Kritisch* und *Status*.
+Die Zeilen sind pro Ressource gegliedert, und innerhalb einer Ressource nach Anfang. Der Block *Zusammenfassung* zählt *Ressourcen*, *Zuweisungen* und *Vorgänge ohne Ressource*. Die Spalten sind *Ressource*, *Typ*, *PSP*, *Name*, *Anfang*, *Ende*, *Rest (AT)*, *Einh./Tag*, *Fertigst*, *Kritisch* und *Status*. *Ressource* und *Typ* erscheinen nur in der ersten Zeile einer Ressource. Der Status je Zeile ist derselbe wie im Fortschrittsbericht: *Abgeschlossen*, *In Bearbeitung*, *Nicht begonnen*, *Hätte starten müssen* oder *Hätte enden müssen*.
 
 ## PSP-Übersicht
 

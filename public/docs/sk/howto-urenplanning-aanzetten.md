@@ -4,33 +4,33 @@ Cieľ: plánovať úlohy v pracovnej dobe spolu s úlohami v dňoch.
 
 ## Kedy to potrebujete
 
-Žeriav si prenajímate po hodinách, nie po dňoch. Betónovanie v trvaní šesť hodín sa nevojde do celého pracovného dňa. Nočná čata pracuje v iných časoch ako denná čata. Pri takej práci chcete trvanie v hodinách a začiatok a dokončenie s časom dňa. Zapnete to aj vtedy, ak otvoríte súbor a aplikácia zobrazí *Tento súbor obsahuje plánovanie v hodinách*. Prečo aplikácia počíta dni a hodiny inak, si môžete prečítať v článku [Dni a hodiny](docs://uitleg-dagen-en-uren).
+Žeriav si prenajímate po hodinách, nie po dňoch. Betónovanie v trvaní šesť hodín sa nevojde do celého pracovného dňa. Nočná čata pracuje v iných časoch ako denná čata. Pri takej práci chcete trvanie v hodinách a začiatok a dokončenie s presným časom. Zapnete to aj vtedy, ak otvoríte súbor a aplikácia zobrazí *Tento súbor obsahuje plánovanie v hodinách*. Prečo aplikácia počíta dni a hodiny inak, si môžete prečítať v článku [Dni a hodiny](docs://uitleg-dagen-en-uren).
 
 ## Postup
 
 ### Povolenie plánovania v hodinách
 
-1. Vyberte *Nastavenia › Projekt › Nastavenia* a otvorte kartu *Plán*.
+1. Vyberte *Nastavenia › Projekt › Nastavenia aplikácie* a otvorte kartu *Plán*.
 2. Pod položkou *Plánovanie v hodinách* zaškrtnite *Zapnúť plánovanie v hodinách*. Funguje to hneď. V hlásení *Tento súbor obsahuje plánovanie v hodinách* robí to isté tlačidlo *Zapnúť plánovanie v hodinách*.
 3. Pod ňou je *Povoliť zmiešané plánovanie dní/hodín*, predvolene zapnuté. S týmto nastavením vyberiete pri každej úlohe, či sa počíta v dňoch alebo v hodinách. Ak ho vypnete, zoznam *Jednotka trvania* zmizne. Trvanie s jednotkou, napríklad `12h`, môžete zadať aj potom.
 
-Zapnutie mení viac než trvanie úlohy. Na karte *Zobrazenie* môžete v zozname *Časová škála* zvoliť mierku *Hodina*. Okno *Kalendáre* dostane blok *Pracovná doba* a okno *Nový projekt* dostane možnosti *Pracovná zmena* a *Predvolená jednotka pre nové úlohy*.
+Zapnutie mení viac než trvanie úlohy. Na karte *Zobrazenie* v zozname *Časová škála* môžete zvoliť mierku *Hodina*. V okne *Kalendáre* môže bežný kalendár dostať bloky pracovného času (blok *Pracovná doba*; kalendár, ktorý bloky už má, blok vždy zobrazuje). Okno *Nový projekt* dostane možnosti *Pracovná zmena* a *Predvolená jednotka pre nové úlohy*.
 
 ### Plánovanie úlohy v hodinách
 
 1. Vyberte úlohu. V paneli *Vlastnosti* pozrite pod nadpisom *Čas* na pole *Trvanie*.
-2. Zadajte trvanie s jednotkou a stlačte Enter: `12h` (`12u`, holandská skratka, funguje tiež) na dvanásť hodín, `1h 30m` na hodinu a pol. Funguje aj `1.5h`. Číslo bez jednotky sa počíta v jednotke, ktorú úloha už má.
+2. Zadajte trvanie s jednotkou a stlačte Enter: `12h` (`12u`, nizozemská skratka, funguje tiež) na dvanásť hodín, `1h 30m` na hodinu a pol. Funguje aj `1.5h`. Číslo bez jednotky sa počíta v jednotke, ktorú úloha už má.
 3. Ak chcete previesť existujúcu úlohu, vyberte jednotku *Hodiny* v zozname *Jednotka trvania*. Aplikácia trvanie hneď prevedie, napríklad z `2` dní na `16` hodín. Ak sa chcete vrátiť, použite *Vrátiť späť*.
 4. Späť na dni môžete prejsť zadaním `2d` alebo jednotkou *Dni*.
-5. Stlačte **Prepočítať** (F5), napríklad cez *Domov › Plán › Prepočítať*. Úloha má teraz začiatok a dokončenie s časom dňa.
+5. Stlačte **Prepočítať** (F5), napríklad cez *Domov › Plán › Prepočítať*. Úloha má teraz začiatok a dokončenie s presným časom.
 6. Ak chcete vidieť hodiny v Gantt diagrame, vyberte mierku *Hodina* v zozname *Časová škála* na karte *Zobrazenie*.
 
 ### Nové úlohy predvolene v hodinách
 
-1. Vyberte *Nastavenia › Projekt › Info o projekte*.
+1. Vyberte *Nastavenia › Projekt › Nastavenia projektu*.
 2. V zozname *Predvolená jednotka pre nové úlohy* vyberte jednotku *Hodiny* a kliknite na *Použiť*.
 
-Nová úloha potom začína s 5 hodinami namiesto 5 dní. Existujúce úlohy sa nemenia. Pri novom projekte je rovnaká voľba v okne *Nový projekt*. Ak tam vyberiete *Denná pracovná zmena* v zozname *Pracovná zmena*, *Hodiny* sa nedajú vybrať. Vyberte inú pracovnú zmenu alebo nastavte predvolenú jednotku až po vytvorení projektu v *Info o projekte*.
+Nová úloha potom začína s 5 hodinami namiesto 5 dní. Existujúce úlohy sa nemenia. Pri novom projekte je rovnaká voľba v okne *Nový projekt*. Ak tam vyberiete *Denná pracovná zmena* v zozname *Pracovná zmena*, *Hodiny* sa nedajú vybrať. Vyberte inú pracovnú zmenu alebo nastavte predvolenú jednotku až po vytvorení projektu v okne *Nastavenia projektu*.
 
 ## Úskalia a čo aplikácia vtedy robí
 
@@ -38,7 +38,7 @@ Nová úloha potom začína s 5 hodinami namiesto 5 dní. Existujúce úlohy sa 
 
 **Pri dňoch nie sú desatinné čísla.** Trvanie v dňoch je celé číslo. `1.5d` zobrazí hlásenie *Zadajte celé číslo dní alebo hodín, napríklad 2d alebo 12h*. Ak chcete jeden a pol dňa, počítajte v hodinách.
 
-**Prevod, ktorý nemôže byť presný.** Dvanásť hodín sa nevojde do celých dní po 8 hodinách. Aplikácia potom zobrazí hlásenie *Toto trvanie sa na aktuálnom kalendári nedá presne previesť na celé dni. Existujúca jednotka sa zachová; zadajte novú platnú hodnotu sami* a jednotku ponechá.
+**Prevod, ktorý nemôže byť presný.** Dvanásť hodín sa nevojde do celých dní po 8 hodinách. V paneli *Vlastnosti* aj v okne *Upraviť úlohu* aplikácia potom zobrazí žlté hlásenie *12h v tomto kalendári nevychádza na celé dni. Jednotka sa nezmenila* a jednotku ponechá. Tabuľka úloh zobrazí kratšie hlásenie: *Toto trvanie sa nedá presne previesť na druhú jednotku*.
 
 **Pole je neaktívne.** Ak je úloha fáza, hamak alebo medzník s nulovým trvaním, trvanie vyplýva z niečoho iného a ručne ho nemôžete zadať.
 
@@ -49,5 +49,5 @@ Nová úloha potom začína s 5 hodinami namiesto 5 dní. Existujúce úlohy sa 
 - [Dni a hodiny](docs://uitleg-dagen-en-uren): ako aplikácia počíta hodiny, čo sa stane, keď sa dni a hodiny stretnú, a kde zaokrúhľuje.
 - [Nastavenie pracovných časov](docs://howto-werktijden-instellen): časy kalendára podľa dňa v týždni.
 - [Pridávanie závislostí](docs://howto-relaties-leggen): oneskorenie v hodinách medzi dvoma úlohami.
-- [Nastavenia](docs://ref-instellingen): nastavenie Zapnúť plánovanie v hodinách a čo ďalšie mení.
+- [Nastavenia aplikácie](docs://ref-instellingen): nastavenie Zapnúť plánovanie v hodinách a čo ďalšie mení.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): obsahuje úlohy v hodinách (armovanie a betónovanie) s vlastným hodinovým kalendárom, *Hourly calendar, rebar fixing & pouring*.

@@ -39,7 +39,7 @@ Welche Operatoren Sie bekommen, hängt von der Art des Feldes ab:
 - Text (*Vorgangsname*, *PSP*): *gleich*, *ungleich*, *enthält*, *beginnt mit* und *ist leer*.
 - Zahl und Datum (*Gesamtpuffer*, *Start*, *Fortschritt*): *gleich*, *ungleich*, *kleiner als*, *kleiner oder gleich*, *größer als*, *größer oder gleich*, *zwischen* und *ist leer*. Bei *zwischen* gibt es zwei Felder: bei einer Zahl mit *Von* und *Bis* als Hinweis, bei einem Datum ohne Hinweis (das erste Datum ist der Anfang, das zweite das Ende).
 - Ja/Nein (*Kritisch*, *Meilenstein*, *Fast kritisch*): *gleich* und *ungleich*, mit dem Wert *Ja* oder *Nein*.
-- Auswahl (*Typ*, ein Aktivitätscode): *gleich*, *ungleich*, *ist eines von* (mit Kontrollkästchen-Werten) und *ist leer*.
+- Auswahl (*Arbeitskategorie*, ein Aktivitätscode): *gleich*, *ungleich*, *ist eines von* (mit Kontrollkästchen-Werten) und *ist leer*.
 - *Ressourcen*: *ist eines von* und *ist leer*.
 - *In Bearbeitung*: nur *zwischen*, mit zwei Daten (von und bis).
 
@@ -81,7 +81,7 @@ Layouts, die nicht dieselben Teile speichern, können gleichzeitig eingeschaltet
 
 **Layouts liegen auf Ihrem Gerät, nicht im Projekt.** Die App speichert Ihre Layouts und die Spalten für alle Ihre Projekte auf diesem Gerät. Die Überlagerungen eines Layouts (Baseline, Fortschrittslinie und die übrigen) gelten für alle Ihre Projekte. Der Filter, die Gruppierung und die Sortierung, die gerade aktiv sind, gehören zum geöffneten Projekt, gehen aber nicht in die Projektdatei: Nach dem Speichern und erneuten Öffnen ist die Ansicht wieder sauber. Außerdem markieren Filter, Gruppierung und Sortierung das Projekt nicht als „geändert“.
 
-**Die einzelnen Schaltflächen sind ausgeblendet.** Die einzelnen Schaltflächen *Spalten…*, *Filter…*, *Gruppieren…* und *Sortieren…* auf der Registerkarte *Ansicht* gehören zur alten Ansicht. Sie holen sie mit *Klassische Ansichtsschaltflächen anzeigen* unter *Legacy-Funktionen* auf der Registerkarte *Erweitert* im Einstellungsfenster (⚙ in der Titelleiste) zurück. Verwenden Sie lieber Layouts.
+**Die einzelnen Schaltflächen sind ausgeblendet.** Die einzelnen Schaltflächen *Spalten…*, *Filter…*, *Gruppieren…* und *Sortieren…* auf der Registerkarte *Ansicht* gehören zur alten Ansicht. Sie holen sie mit *Klassische Ansichtsschaltflächen anzeigen* unter *Legacy-Funktionen* auf der Registerkarte *Erweitert* im Fenster *App-Einstellungen* (⚙ in der Titelleiste) zurück. Verwenden Sie lieber Layouts.
 
 ## Siehe auch
 

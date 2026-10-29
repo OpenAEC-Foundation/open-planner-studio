@@ -8,11 +8,11 @@ Otevřete kartu *Sestava* (nebo stiskněte Ctrl+P). Vlevo je sloupec *Sestava* s
 
 **Typ sestavy** — která sestava se zobrazí. Zvolte jednu z jedenácti sestav. Výchozí: *Gantt-diagram*. Kde: *Sestava*, nahoře ve sloupci *Sestava*.
 
-**Exportovat PDF** — vytvoří PDF. Účinek: výsledkem je jen PDF. Aplikace nic neposílá na tiskárnu. Pokud je plán zastaralý, aplikace nejdřív vypočítá. Když přepočet vrátí chybu, například kvůli smyčce v závislostech, tlačítko soubor nevytvoří a chybu zobrazí. Kde: *Sestava*, dole ve sloupci *Sestava*.
+**Exportovat PDF** — vytvoří PDF. Účinek: výsledkem je jen PDF. Aplikace nic neposílá na tiskárnu. Pokud je plán zastaralý, aplikace nejdřív vypočítá. Když přepočet vrátí chybu, například kvůli smyčce v závislostech, tlačítko nevytvoří soubor a chybu zobrazí. Kde: *Sestava*, dole ve sloupci *Sestava*.
 
 **Zapamatováno.** Aplikace uchovává všechny možnosti sestav na tomto zařízení, pro všechny vaše projekty. Nepatří do souboru projektu. Jen pole *Společnost:* v Gantt-diagramu se neukládá.
 
-**Aktuální plán.** Sestavy používají poslední přepočet. Pokud se plán od té doby změnil, ukazují tabulkové sestavy nahoře *Plán se od posledního přepočtu změnil — stiskněte Přepočítat (F5) pro aktuální hodnoty.* Pokud nikdy nebylo nic vypočítáno, zobrazí se *Ještě nepřepočítáno — stiskněte Přepočítat (F5) pro data a časovou rezervu.* Pokud je projekt v zobrazení *Data podle záznamu*, sestavy zobrazují data ze zdrojového souboru a upozornění to uvádí.
+**Současný plán.** Sestavy používají poslední přepočet. Pokud se plán od té doby změnil, ukazují tabulkové sestavy nahoře *Plán se od posledního přepočtu změnil — stiskněte Přepočítat (F5) pro aktuální hodnoty.* Pokud nikdy nebylo nic vypočítáno, zobrazí se *Ještě nepřepočítáno — stiskněte Přepočítat (F5) pro data a časovou rezervu.* Pokud je projekt v zobrazení *Data podle záznamu*, sestavy zobrazují data ze zdrojového souboru a upozornění to uvádí.
 
 **Zkratky.** *pd* znamená pracovní dny. *TF* je celková časová rezerva, *FF* je volná časová rezerva.
 
@@ -24,21 +24,21 @@ Otevřete kartu *Sestava* (nebo stiskněte Ctrl+P). Vlevo je sloupec *Sestava* s
 
 ## Gantt-diagram
 
-Plán jako pruhový graf, s tabulkou vlevo a časovou osou vpravo, případně přes více stránek. Náhled ukazuje papír se záhlavím stránky, tabulkou, časovou osou a legendou. Panel *Přehled* počítá *Úkoly:*, *Koncové úkoly:*, *Kritické:* a *Závislosti:*. Všechny možnosti najdete na kartě *Nastavení*.
+Plán jako pruhový graf, s tabulkou vlevo a časovou osou vpravo, případně přes více stránek. Náhled ukazuje papír se záhlavím stránky, tabulkou, časovou osou a legendou. Blok *Přehled* počítá *Úkoly:*, *Koncové úkoly:*, *Kritické:* a *Závislosti:*. Všechny možnosti najdete na kartě *Nastavení*.
 
-**Společnost:** — společnost v záhlaví stránky. Výchozí: společnost z informací o projektu. Účinek: jen záhlaví sestavy. Co zde napíšete, se neukládá. Změňte společnost na kartě *Nastavení › Projekt › Info o projektu*, v poli *Objednatel/organizace*, a potvrďte tlačítkem *Použít*.
+**Společnost:** — společnost v záhlaví stránky. Výchozí: společnost z nastavení projektu. Účinek: jen záhlaví sestavy. Co zde napíšete, se neukládá. Změňte společnost na kartě *Nastavení › Projekt › Nastavení projektu*, v poli *Objednatel/organizace*, a potvrďte tlačítkem *Použít*.
 
-**Autor:** — autor v záhlaví stránky. Jen pro čtení: aplikace ho bere z informací o projektu.
+**Autor:** — autor v záhlaví stránky. Jen pro čtení: aplikace ho bere z nastavení projektu.
 
 **Velikost písma:** — velikost textu a tabulky v sestavě. Zvolte z 90 %, 100 %, 110 % a 125 %. Výchozí: 100 %. Účinek: s větším písmem rostou text, řádky a tabulka a časová osa ztrácí šířku. Nezávisí na *Velikost textu* v nastavení.
 
-**Barvy pruhů:** — podle čeho se barva pruhu řídí. Zvolte z *Kritická cesta*, *Podle úkolu — automaticky* a *Podle kategorie*, s rozbalovacím seznamem *Pole kategorie* pro *Podle kategorie*. Výchozí: *Kritická cesta*. Účinek: je to stejná volba jako *Barvy pruhů* na kartě *Zobrazení*. Když ji změníte tady, změní se i Gantt na obrazovce. Pokud zvolené pole v tomto projektu neexistuje, zobrazí se *Toto pole v tomto projektu neexistuje. Dočasně se použije typ úkolu.*
+**Barvy pruhů:** — podle čeho se barva pruhu řídí. Zvolte z *Kritická cesta*, *Podle úkolu — automaticky* a *Podle kategorie*, s rozbalovacím seznamem *Pole kategorie* pro *Podle kategorie*. Výchozí: *Kritická cesta*. Účinek: je to stejná volba jako *Barvy pruhů* na kartě *Zobrazení*. Když ji změníte tady, změní se i Gantt na obrazovce. Pokud zvolené pole v tomto projektu neexistuje, zobrazí se *Toto pole v tomto projektu neexistuje. Dočasně se použije druh práce.*
 
 **Stavová čára:** — čára u data stavu. Zvolte z *Žádná*, *Čára datumu stavu* a *Čára průběhu*. Výchozí: *Žádná*. Účinek: *Čára datumu stavu* kreslí čáru u data stavu. *Čára průběhu* kreslí klikatou čáru, která se vyklene k průběhu každého úkolu. Pokud projekt nemá datum stavu, zobrazí se *Nejprve nastavte datum stavu* a sestava nic nekreslí.
 
 **Sledovat zobrazení (filtr, seskupení, řazení)** — jen pro Gantt-diagram. Výchozí: vypnuto. Účinek: vypnuto vytiskne celý strom úkolů. Zapnuto vykreslí přesně řádky na obrazovce, s vaším filtrem, seskupením, řazením a sbalenými fázemi.
 
-**Automaticky přizpůsobit papíru** — přizpůsobí měřítko časové osy šířce stránky. Výchozí: zapnuto. Účinek: zapnuto přizpůsobí časovou osu šířce stránky. Počet stran se řídí výškou. Vypnuto použije pevné měřítko (*Zoom:*) a dělí se také přes šířku, což rychle dá hodně stran.
+**Automaticky přizpůsobit papíru** — přizpůsobí měřítko časové osy šířce stránky. Výchozí: zapnuto. Účinek: zapnuto přizpůsobí časovou osu šířce stránky; počet stran se řídí výškou. Vypnuto použije pevné měřítko (*Zoom:*) a dělí se také přes šířku, což rychle dá hodně stran.
 
 **Zoom:** — pevné měřítko časové osy. Vidět jen, když je *Automaticky přizpůsobit papíru* vypnuto. Posuvník od 1 do 40. Výchozí: 22. Účinek: větší hodnota dělá časovou osu širší, takže přes stránky vedle sebe bude víc stránek.
 
@@ -74,7 +74,7 @@ Plán jako pruhový graf, s tabulkou vlevo a časovou osou vpravo, případně p
 
 ## Diagram zdrojů
 
-Stejné pruhy jako Gantt-diagram, seskupené podle zdroje: kdo dělá co a kdy. Blok *Přehled* počítá *Zdroje:*, *Přiřazení:* a *Bez zdroje:* (s obdobím také *Mimo období:*). Diagram sdílí všechny možnosti Gantt-diagramu kromě *Sledovat zobrazení (filtr, seskupení, řazení)*, *Kritická cesta* a *Závislosti*. Řádky nepřicházejí z obrazovky, úkol se může objevit u několika zdrojů a závislosti se tu nekreslí. Zaškrtávací pole *Kritická cesta* je skryté a zapnuté. K tomu patří možnosti Gantt-diagramu v části *Nastavení*, s těmito čtyřmi zaškrtávacími poli a obdobím:
+Stejné pruhy jako Gantt-diagram, seskupené podle zdroje: kdo dělá co a kdy. Blok *Přehled* počítá *Zdroje:*, *Přiřazení:* a *Bez zdroje:* (s obdobím také *Mimo období:*). Diagram sdílí všechny možnosti Gantt-diagramu kromě *Sledovat zobrazení (filtr, seskupení, řazení)*, *Kritická cesta* a *Závislosti*. Řádky nepřicházejí z obrazovky, úkol se může objevit u několika zdrojů a závislosti se tu nekreslí. Zaškrtávací pole *Kritická cesta* je skryté a zapnuté. K tomu patří možnosti Gantt-diagramu na kartě *Nastavení*, s těmito čtyřmi zaškrtávacími poli a obdobím:
 
 **Každý zdroj na nové stránce** — Výchozí: vypnuto. Účinek: každý zdroj začne na nové stránce, takže můžete rozdat list pro každou partu nebo zaměstnance. Vypnuto dá jeden souvislý dokument.
 
@@ -116,11 +116,11 @@ Sestava obsahuje nedokončené úkoly, které jsou kritické (podle řešiče a 
 
 Kde projekt stojí k datu stavu. Možnosti jsou pod *Možnosti sestavy*.
 
-**Období sestavy:** — Výchozí: *Uplynulý měsíc*. Účinek: *Dokončeno v uplynulém období* počítá v rámci období. *Začíná v příštím období* se dívá dopředu od data stavu, až do *Výhled do*. U *Uplynulý měsíc* jde tak daleko dopředu, jak daleko období sahá zpět.
+**Období sestavy:** — Výchozí: *Uplynulý měsíc*. Účinek: *Dokončeno v uplynulém období* počítá v rámci období. *Začíná v příštím období* se dívá dopředu od data stavu, až do *Výhled do*. U *Uplynulý měsíc* jde výhled tak daleko dopředu, jak daleko období sahá zpět.
 
 **Téměř kritický ≤ (pd):** — Výchozí: 5. Jako u Výhledu.
 
-Blok *Přehled* ukazuje *Datum stavu*, *Období*, *Výhled do*, *Dokončení směrného plánu*, *Předpokládané dokončení*, *Δ dokončení (pd)*, *Plánovaný* (s *(směrný plán)* nebo *(současný plán)*), *Skutečný* a počty *Dokončeno*, *Probíhá*, *Nezahájeno*, *Opožděné* a *Kritické*. Plánovaný a skutečný jsou váženy dobou trvání úkolů. Plánovaný se měří proti směrnému plánu, pokud je aktivní. Jinak se měří proti současnému plánu. Sekce jsou *Dokončeno v uplynulém období*, *Probíhá*, *Začíná v příštím období*, *Opožděné* a *Otevřené kritické úkoly*. Úkol může být v více sekcích.
+Blok *Přehled* ukazuje *Datum stavu*, *Období*, *Výhled do*, *Dokončení směrného plánu*, *Předpokládané dokončení*, *Δ dokončení (pd)*, *Plánovaný* (s *(směrný plán)* nebo *(současný plán)*), *Skutečný* a počty *Dokončeno*, *Probíhá*, *Nezahájeno*, *Opožděné* a *Kritické*. Plánovaný a skutečný jsou váženy dobou trvání úkolů. Plánovaný se měří proti směrnému plánu, pokud je aktivní. Jinak se měří proti současnému plánu. Sekce jsou *Dokončeno v uplynulém období*, *Probíhá*, *Začíná v příštím období*, *Opožděné* a *Otevřené kritické úkoly*. Úkol může být v více sekcích. Každá sekce má stejné sloupce: *WBS*, *Název*, *Dokončení směrného plánu*, *Předpokládané dokončení*, *Dokonč*, *Zbývá (pd)*, *TF (prac. dny)*, *Kritický* a *Stav*. Stav na řádku je *Dokončeno*, *Probíhá*, *Nezahájeno*, *Mělo začít* nebo *Mělo být dokončeno*.
 
 ## Stav plánu
 
@@ -149,7 +149,7 @@ Na začátku je část *14bodové posouzení DCMA*. Vychází ze čtrnácti kont
 - *Neplatná data*: skutečné zahájení nebo skutečné dokončení je po datu stavu, nebo předpokládané zahájení či předpokládané dokončení je před datem stavu. Prahová hodnota: žádná. Vyžaduje datum stavu.
 - *Zdroje*: úkoly bez zdroje. Prahová hodnota: žádná. Pouze pokud projekt používá zdroje; jinak *n/a*.
 - *Opožděné úkoly*: z úkolů, které mají podle směrného plánu být dokončeny nejpozději k datu stavu, podíl těch, které se dokončí později, nebo jejichž předpokládané dokončení je později. Prahová hodnota: nejvýše 5 %. Vyžaduje datum stavu a aktivní směrný plán.
-- *Test kritické cesty*: aplikace prodlouží kritický úkol o 100 pracovních dnů a přepočítá plán na kopii, aniž se změní projekt. Test vyhoví, pokud poslední úkol projektu pak nedokončí dříve než tento úkol. Testuje kritický nedokončený úkol s nejdřívějším zahájením. V podrobnostech je uveden úkol a počet pracovních dnů, o který se dokončení posunulo.
+- *Test kritické cesty*: aplikace prodlouží kritický úkol o 100 pracovních dnů a přepočítá plán na kopii, aniž se změní projekt. Test vyhoví, pokud poslední úkol projektu pak nedokončí dříve než tento úkol. Testuje kritický nedokončený úkol s nejdřívějším zahájením. V podrobnostech je uveden úkol a počet pracovních dnů, o který se dokončení posunulo. V zobrazení *Data podle záznamu* je tento test n/a (*Nevypočteno*): test vypočítá, a sestava pak ukazuje data ze zdrojového souboru. Stiskněte tlačítko Přepočítat (F5) a test se spustí znovu.
 - *CPLI*: (délka kritické cesty + časová rezerva) / délka kritické cesty. Délka je počet pracovních dnů od data stavu do dokončení posledního úkolu. Časová rezerva je rozdíl od dokončení toho úkolu ve směrném plánu, nebo vypočtená časová rezerva, pokud úkol ve směrném plánu není. Prahová hodnota: nejméně 0,95. Vyžaduje datum stavu.
 - *BEI*: počet úkolů dokončených k datu stavu, vydělený počtem úkolů, které podle směrného plánu měly být k tomu datu dokončeny, plus úkoly bez směrného plánu. Prahová hodnota: nejméně 0,95. Vyžaduje datum stavu a aktivní směrný plán.
 
@@ -177,7 +177,7 @@ U každého zdroje úkoly, ke kterým je přiřazen: co dělá tato parta nebo j
 
 **Zahrnout dokončené úkoly** — Výchozí: vypnuto. Účinek: zapnuto zahrne i přiřazení dokončených úkolů.
 
-Řádky jsou po zdrojích a v rámci zdroje podle zahájení. Blok *Přehled* počítá *Zdroje*, *Přiřazení* a *Úkoly bez zdroje*. Sloupce zahrnují zdroj, úkol, zahájení a dokončení, *Zbývá (pd)*, *Jedn./den*, *Dokonč.*, *Kritický* a *Stav*.
+Řádky jsou po zdrojích a v rámci zdroje podle zahájení. Blok *Přehled* počítá *Zdroje*, *Přiřazení* a *Úkoly bez zdroje*. Sloupce jsou *Zdroj*, *Typ*, *WBS*, *Název*, *Zahájení*, *Dokončení*, *Zbývá (pd)*, *Jedn./den*, *Dokonč*, *Kritický* a *Stav*. *Zdroj* a *Typ* se zobrazí jen na prvním řádku zdroje. Stav každého řádku je stejný jako v sestavě o průběhu: *Dokončeno*, *Probíhá*, *Nezahájeno*, *Mělo začít* nebo *Mělo být dokončeno*.
 
 ## Souhrn WBS
 

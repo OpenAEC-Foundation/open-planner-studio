@@ -16,13 +16,13 @@ Beregningsmetoden kaldes **CPM** (Critical Path Method). Derfor kaldes blokken m
 
 ## Sådan beregner appen
 
-Appen genberegner ikke tidsplanen af sig selv. Beregningen starter med **Beregn** (F5), for eksempel via *Start › Tidsplan › Beregn*. Hvis noget er ændret siden den sidste beregning, viser statuslinjen *Forældet — genberegn (F5)*. Hvis *Beregn automatisk* er slået til (under *Indstillinger › Projekt › Indstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gør appen det selv.
+Appen genberegner ikke tidsplanen af sig selv. Beregningen starter med **Beregn** (F5), for eksempel via *Start › Tidsplan › Beregn*. Hvis noget er ændret siden den sidste beregning, viser statuslinjen *Forældet — genberegn (F5)*. Hvis *Beregn automatisk* er slået til (under *Indstillinger › Projekt › App-indstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gør appen det selv.
 
 En beregning gennemgår nettet to gange.
 
 ### Fremadgående gennemgang
 
-Appen starter ved projektstartdatoen og følger afhængighederne fra foregående opgave til efterfølgende opgave. For hver opgave finder appen den tidligste dag, opgaven kan starte. Hvis en opgave har flere foregående opgaver, venter opgaven, til den sidste er færdig. Det giver hver opgave sin **tidligste startdato** og **tidligste slutdato**. Den seneste tidligste slutdato af alle opgaver er projektslutdatoen.
+Appen starter ved projektstartdatoen og følger afhængighederne fra foregående opgave til efterfølgende opgave. For hver opgave finder appen den tidligste dag, opgaven kan starte. Hvis en opgave har flere foregående opgaver, venter opgaven, til den sidste er færdig. Det giver hver opgave dens **tidligste startdato** og **tidligste slutdato**. Den seneste tidligste slutdato af alle opgaver er projektslutdatoen.
 
 ### Baglæns gennemgang
 
@@ -42,12 +42,13 @@ Slæk kan også blive negativ. Det sker, når en opgave har en deadline, eller e
 
 ### Hvornår er en opgave kritisk?
 
-Som standard er en opgave kritisk, når dens samlede slæk er 0 eller mindre. Det kan du ændre under *Indstillinger › Projekt › Projektinfo*, i blokken *Beregningsprofil og beregningsindstillinger*, under *Beregningsindstillinger for dette projekt*. Når du klikker på *Anvend*, genberegner appen tidsplanen med det samme. Indstillingerne hører til projektets fil, ikke til appen.
+Som standard er en opgave kritisk, når dens samlede slæk er 0 eller mindre. Det kan du ændre under *Indstillinger › Projekt › Projektindstillinger*, i blokken *Beregningsprofil og beregningsindstillinger*, under *Beregningsindstillinger for dette projekt*. Når du klikker på *Anvend*, genberegner appen tidsplanen med det samme. Indstillingerne hører til projektfilen, ikke til appen.
 
-- **Definitionen af kritisk** med *Samlet slæk ≤ grænseværdi* og feltet *Grænseværdi (arbejdsdage)*. Grænseværdien er som standard 0. For at beskytte en buffer, sæt den til 2, for eksempel: hver opgave med 2 arbejdsdage slæk eller mindre tæller dermed som kritisk og bliver rød.
-- **Markér næsten kritisk** med sin egen *Grænseværdi*, som standard 2 arbejdsdage. En opgave med mere end 0, men højst så meget slæk, får en gul bjælke. Så ser du, hvilke opgaver næsten ingen margen har tilbage, uden at de kaldes kritiske.
+- **Definitionen af kritisk** med *Samlet slæk ≤ grænseværdi* og feltet *Grænseværdi (arbejdsdage)*. Grænseværdien er som standard 0. For at beskytte en buffer, sæt den til 2, for eksempel: hver opgave med 2 arbejdsdage slæk eller mindre tæller dermed som kritisk og bliver rød. Hvis du vælger *Længste sti*, er en opgave kritisk, når den ligger på den længste kæde til den sidste slutdato. Dens slæk har da ingen betydning.
+- **Flere slækstier** nummererer kæderne efter deres slæk i kolonnen *Slækssti*. Sti 1 er den kritiske vej. Se [Beregningsindstillinger og konventioner](docs://ref-rekenopties-en-conventies).
+- **Markér næsten kritisk** med sin egen *Grænseværdi*, som standard 2 arbejdsdage. En opgave med mere end 0, men højst så meget slæk, får en gul bjælke. Så ser du, hvilke opgaver der næsten ingen margen har tilbage, uden at de kaldes kritiske.
 - **Opgaver med åben ende er kritiske**: en opgave uden efterfølgende opgave, som endnu ikke er færdig, tæller som kritisk. Nyttigt som sikkerhedsnet mod glemte afhængigheder (se misforståelserne nedenfor).
-- **Slækberegning** bestemmer, om samlet slæk måles ved opgavens start, ved dens slutning, eller som den mindste af de to. Nye projekter er indstillet til *Automatisk (standard)*. Hvis du følger beregningsmåden i Primavera P6, sætter *Anvend denne profils standardindstillinger* dette valg til *Slutslæk*. Ved MS Project sætter samme knap det tilbage til *Automatisk (standard)*: med en statusdato beregner MS Project selv på den måde.
+- **Slækberegning** bestemmer, om samlet slæk måles ved opgavens start, ved dens slutning, eller som den mindste af de to. Nye projekter er indstillet til *Automatisk (standard)*. Hvis projektet bruger Primavera P6-profilen, og valget ikke er *Slutslæk*, viser en orange blok under *Projektindstillinger*, at det ikke er sat. Dens knap sætter valget til *Slutslæk*. For MS Project sætter den samme knap det tilbage til *Automatisk (standard)*: med en statusdato beregner MS Project selv på den måde.
 
 ### Hvor du ser det
 
@@ -55,7 +56,7 @@ Kritiske opgaver har en rød bjælke i Gantt-diagrammet. Bag en ikke-kritisk bj�
 
 For en valgt opgave viser panelet *Egenskaber* alt under *CPM-resultat*: tidligste og seneste start og slut, samlet, tilladt og forstyrrende slæk, og om opgaven ligger på den kritiske vej. Slækken for alle opgaver ved siden af hinanden står i kolonnerne under *Beregnet* (**+** til højre i tabelhovedet), fx *Samlet slæk*, *Tilladt slæk*, *Kritisk* og *Næsten kritisk*.
 
-Statuslinjen nederst tæller de kritiske opgaver, fx *Kritisk vej: 21 opgaver, 45 arbejdsdage*.
+Statuslinjen nederst tæller de kritiske opgaver, for eksempel *Kritisk vej: 21 opgaver, 45 arbejdsdage*.
 
 ## Gennemregnet eksempel: House extension
 

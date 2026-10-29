@@ -9,7 +9,7 @@ Na poradě chcete vidět konečný termín a celkovou časovou rezervu u každé
 Existují dvě tabulky úkolů. Každá má vlastní sloupce:
 
 - **Tabulka úkolů vedle Gantt** je vlevo od časové osy na kartách mimo jiné *Domů*, *Plán* a *Zobrazení*. Ve výchozím nastavení má sloupce *WBS*, *Název úkolu* a *Doba trvání*, aby zbylo místo pro časovou osu.
-- **Tabulka na kartě Tabulka** zabírá celý pracovní prostor. Ve výchozím nastavení má sloupce *WBS*, *Název úkolu*, *Doba trvání*, *Zahájení*, *Dokončení*, *Typ úkolu*, *Kritický*, *Celková časová rezerva* a *Průběh*, a navíc sloupec pro každý kód aktivity a vlastní pole projektu.
+- **Tabulka na kartě Tabulka** zabírá celý pracovní prostor. Ve výchozím nastavení má sloupce *WBS*, *Název úkolu*, *Doba trvání*, *Zahájení*, *Dokončení*, *Druh práce*, *Kritický*, *Celková časová rezerva* a *Průběh*, a navíc sloupec pro každý kód aktivity a vlastní pole projektu.
 
 Změna v jedné tabulce nezmění druhou.
 

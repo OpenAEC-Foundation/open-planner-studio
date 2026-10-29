@@ -18,7 +18,7 @@ Zvolte *Soubor › Knihovna*. Vlevo je seznam *Knihovny zdrojů*. Vpravo jsou po
 
 1. Klikněte na plus nad seznamem (*Přidat knihovnu zdrojů*). Přidá se knihovna *Nová knihovna zdrojů* a hned se vybere.
 2. Napište nový název do pole pro název nahoře v pravé části a stiskněte Enter. Nebo klikněte mimo pole. Aplikace nepřijme prázdný název.
-3. Klikněte na *Nastavit jako výchozí*. U nových projektů se pak tato knihovna předvybere. Výchozí knihovna má v seznamu hvězdičku.
+3. Klikněte na *Nastavit jako výchozí*. Od této chvíle se u nových projektů předvybere tato knihovna. Výchozí knihovna má v seznamu hvězdičku.
 
 ### Vložte kalendář do knihovny zdrojů
 
@@ -64,7 +64,7 @@ Soubor projektu obsahuje vlastní kopie zdrojů. Chcete-li také předat celou k
 
 1. Otevřete projekt, který je propojen s knihovnou, a zvolte *Soubor › Export*.
 2. Zaškrtněte *Uložit soubor knihovny zdrojů vedle*. Zaškrtávací pole je tu jen pro propojený projekt.
-3. Zvolte dlaždici *IFC 4x3* a soubor uložte. Aplikace potom ještě žádá druhý soubor. Jmenuje se stejně jako projekt, za jménem má `-bibliotheek` a obsahuje knihovnu.
+3. Zvolte dlaždici *IFC* a soubor uložte. Aplikace potom ještě žádá druhý soubor. Jmenuje se stejně jako projekt, za jménem má `-bibliotheek` a obsahuje knihovnu.
 
 Zaškrtávací pole funguje jen pro export IFC, ne pro ostatní formáty exportu. Váš kolega importuje druhý soubor, jak je popsáno výše.
 
@@ -72,7 +72,7 @@ Zaškrtávací pole funguje jen pro export IFC, ne pro ostatní formáty exportu
 
 **Dva plánovači, dvě knihovny.** Aplikace nesynchronizuje knihovny mezi počítači. Okno importu o tom vždy zobrazí varování: *Poznámka: knihovny se mezi počítači nesynchronizují. Pokud dva plánovači pracují se stejnou knihovnou zdrojů, mohou se jejich knihovny rozejít. Pokud vaše organizace sdílí čety mezi provoznými společnostmi, zvolte záměrně jednu sdílenou knihovnu zdrojů.*
 
-**Nahrazení přepíše všechno.** Vše, co jste měli ve zvolené knihovně, je pryč. Změna knihovny nespadá pod *Vrátit zpět*. Nejste-li si jistí, nejprve knihovnu exportujte.
+**Nahrazení přepíše všechno.** Vše, co jste měli ve zvolené knihovně, je pryč. Změna knihovny nespadá pod *Vrátit zpět*. Nejste-li si jistí, nejprve knihovnu exportujte. Vaše projekty si zachovají své kopie. Aplikace aktualizuje kopie, které v novém souboru ještě existují. Kopie, které v něm už nejsou, dostanou označení *už není v knihovně* a dál fungují. Pokud se kopie liší, otevře se okno *Propojit knihovnu zdrojů* (viz [Používání knihovny zdrojů](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Odstranění kalendáře ze seznamu proběhne okamžitě.** Aplikace nežádá o potvrzení, kdežto při odstranění zdroje ano. To vypadá jako nedostatek. Změny knihovny nespadají pod *Vrátit zpět*.
 

@@ -33,7 +33,7 @@ import type { AppState } from '@/state/appStore';
 import { syncProjectCalendar } from '@/state/syncProjectCalendar';
 import { validate } from '@/state/mcpValidation';
 import { resolveCalendarHolidays } from '../calendarGenerate';
-import { ensureFreshSchedule } from '../staleGuard';
+import { ensureFreshSchedule } from '../freshness';
 import { createNewCalendar } from '@/engine/calendar/defaultCalendar';
 import { computeMoveDelta } from '@/engine/moveProject';
 import { diffDays } from '@/utils/dateUtils';
@@ -48,6 +48,7 @@ import { isFiniteNumber } from '@/utils/guards';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { markDocumentEdited } from '@/state/documentEdited';
+import type { ClearableProjectKey } from '@/state/projectPatch';
 import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
 import {
   calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
@@ -579,13 +580,16 @@ function classifyCalendars(s: StoreState, items: CalendarItem[]): { plans: Calen
   return { plans, rejections };
 }
 
-/** Spanne voor `computeGenerateSpan` (via resolveCalendarHolidays). Bij AANMAAK geven we bewust een
+/** Spanne voor `computeGenerateSpan` (via resolveCalendarHolidays). Bij wijzigen telt het latere van
+ *  het ingevoerde en het berekende projecteinde. Bij AANMAAK geven we bewust een
  *  LEEG projecteinde door: dan geldt de create-spanne (startjaar−1 t/m startjaar+3) i.p.v. een
  *  spanne rond een einddatum die nog niets met deze nieuwe kalender te maken heeft. */
 function calendarSpan(s: StoreState, forCreate: boolean): { projectStart: string; projectEnd: string } {
+  const endDate = s.project.endDate || '';
+  const calculatedEnd = s.cpmResult?.projectEnd || '';
   return {
     projectStart: s.project.startDate,
-    projectEnd: forCreate ? '' : (s.project.endDate || s.cpmResult?.projectEnd || ''),
+    projectEnd: forCreate ? '' : (endDate > calculatedEnd ? endDate : calculatedEnd),
   };
 }
 
@@ -679,9 +683,9 @@ function netHoursReason(item: CalendarItem, existing: CalendarBase): string | nu
   return `\`hoursPerDay\` ${hoursLabel(item.hoursPerDay)} does not match this calendar: with a break the net ` +
     'hours are DERIVED from working day minus break, like the non-editable "Standard workday" in the ' +
     `calendar dialog — here ${clockLabel(start)}–${clockLabel(end)} with ${pause} min break = ` +
-    `${hoursLabel(net)} h net. Leave \`hoursPerDay\` out, or change the working day ` +
+    `${hoursLabel(net)}h net. Leave \`hoursPerDay\` out, or change the working day ` +
     '(`workStartHour`/`workEndHour`, in HOURS) or the break duration (`simpleBreakDurationMinutes`, in ' +
-    `MINUTES) so that working day minus break becomes ${hoursLabel(item.hoursPerDay)} h` +
+    `MINUTES) so that working day minus break becomes ${hoursLabel(item.hoursPerDay)}h` +
     `${(examples.length > 0 ? ` (e.g. ${examples.join(' or ')})` : '')}`;
 }
 
@@ -1070,9 +1074,9 @@ const updateCalendar: BatchStepTool = {
     'bands. `hoursPerDay` follows the new bands only if it was equal to the modal day sum of the bands ' +
     'before the change; a deliberate deviation (P6 `day_hr_cnt`, e.g. bands 14:00–24:00 with 8 hours per day) stays. A ' +
     '`hoursPerDay` you pass in the same item always wins. The working days are read from the ' +
-    'bands, so a calendar where they disagreed is repaired. KEEPING IN THE FILE (IFC): a newly created ' +
-    'calendar to which NO task and no resource is attached does NOT survive save+reload — so attach tasks to ' +
-    'it right away with `update_tasks.calendarId`. Hour bands survive IFC, also when they DIFFER PER ' +
+    'bands, so a calendar where they disagreed is repaired. KEEPING IN THE FILE (IFC): unused calendars survive IFC save+reload ' +
+    'even without task or resource assignments. There is no need to attach a task just to retain a calendar. ' +
+    'Hour bands survive IFC, also when they DIFFER PER ' +
     'WEEKDAY (for example a short Friday). A calendar in which tasks no longer fit (e.g. a long holiday block) gives no ' +
     'error but a prominent warning with `cappedTaskIds`. If, on the other hand, NO working time at all is ' +
     'left (empty `workDays`, or `workTime` bands on no day at all), the recalculation fails and the whole ' +
@@ -1143,7 +1147,9 @@ const updateCalendar: BatchStepTool = {
             },
             generate: {
               type: 'object',
-              description: 'Generator basis for holidays; the year span is derived from the project.',
+              description: 'Generator basis for holidays. Updating covers the year before the project start ' +
+                'through the year after the later of the entered and calculated project ends; without ' +
+                'either end, through start year + 3. Creating always uses start year - 1 through start year + 3.',
               required: ['country'],
               properties: {
                 country: {
@@ -1262,17 +1268,6 @@ const updateCalendar: BatchStepTool = {
           `${switched.map((r) => `${r.id}: ${r.modeChangedFrom} → ${r.mode}`).join(', ')}. The chosen unit ` +
           'and native quantity of every task are preserved. Only the schedule can shift; hour tasks require ' +
           'concrete work blocks to be calculated.',
-        );
-      }
-      // De schakelaar Urenplanning is puur UI (de solver rekent sowieso uur-native): meld het. Het
-      // kalendervenster toont de werkblokken van een uurkalender altijd (besluit eigenaar 2026-10-13,
-      // optie 2), maar de rest van de app (duur in uren, tijdschaal Uur) toont geen uren.
-      if (rows.some((r) => r.mode === 'hour') && !ctx.app.store.getState().ui.enableHourPlanning) {
-        warnings.push(
-          'There is now an HOUR calendar in this document while the app setting "Enable hour planning" is ' +
-          'OFF. The schedule is calculated hour-native. The Calendars dialog shows and edits the work ' +
-          'blocks of this calendar, but the rest of the app (durations in hours, the Hour time scale) shows ' +
-          'no hours until the user turns that setting on (App settings → Planning → Enable hour planning).',
         );
       }
       return { calendars: rows, warnings, projectEnd, ...(cappedTaskIds ? { cappedTaskIds } : {}) };
@@ -1502,7 +1497,7 @@ const manageAssignments: BatchStepTool = {
     '`remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, `curve` and/or ' +
     '`remainingWorkMinutes`), `move` (`assignmentId` to another `taskId`) or `remove` (`assignmentId`). The ' +
     'ids and field names are exactly those of the read tools (get_task/list_resources), so you can put them ' +
-    'straight back. WORK RULE (task type, `workRule` on the task — see planner_update_tasks): work = ' +
+    'straight back. TASK TYPE (`workRule` on the task — see planner_update_tasks): work = ' +
     'remaining duration × units, and the rule determines which corner moves along. Under ' +
     'FIXED_WORK/FIXED_RATE a `unitsPerDay` change or adding/removing a resource therefore changes the TASK ' +
     'DURATION; `remainingWorkMinutes` (remaining work in work minutes, > 0) lengthens/shortens the task ' +
@@ -1542,7 +1537,7 @@ const manageAssignments: BatchStepTool = {
               exclusiveMinimum: 0,
               description:
                 'For `add` or `update`: REMAINING work of this assignment in WORK minutes (8 hours = 480). ' +
-                'The work rule of the task determines what moves along: the duration (FIXED_WORK/FIXED_RATE) ' +
+                'The task type of the task (`workRule`) determines what moves along: the duration (FIXED_WORK/FIXED_RATE) ' +
                 'or the units (FIXED_DURATION_*). Only on an ordinary leaf task on working time; material ' +
                 'does not count towards the duration.',
             },
@@ -1860,7 +1855,7 @@ const PROJECT_REFUSED: Record<string, string> = {
   schedulingProfile:
     'the calculation profile (P6 / MS Project / OPS / custom) is NOT settable via the bridge: a switch ' +
     'shifts dates of the whole document. Choose it in the app under File → Project settings → Calculation ' +
-    'profile; `planner_get_project_info` shows the active profile with its twenty-seven resolved conventions.',
+    'profile; `planner_get_project_info` shows the active profile with its twenty-nine resolved conventions.',
   leveling:
     '`leveling` belongs in `project.schedulingOptions`: the leveling settings from the source file (P6 ' +
     'SCHEDOPTIONS/RSRCLEVELLIST) are read and kept, but NOT applied yet and not settable via the bridge. ' +
@@ -1871,7 +1866,7 @@ const PROJECT_REFUSED: Record<string, string> = {
     '`pathsMode` which setting applies.',
   calendarId:
     'WHICH calendar is the project default cannot be switched via the bridge — you do that in the app ' +
-    '(calendar library → set as project calendar). If you want to change the CONTENT of the project calendar ' +
+    '(calendar library → Set as project default). If you want to change the CONTENT of the project calendar ' +
     '(or align it with that of another document), write with `planner_update_calendar` to the id from ' +
     '`planner_get_calendars.projectDefaultId`; attaching a task to another calendar is done with ' +
     '`update_tasks.calendarId`. Calendar ids are per document.',
@@ -1989,22 +1984,21 @@ function updateProjectCore(
   // `draft.setProject` levert het aantal wortel-ankers dat het klemde (zelfde
   // bewerkbescherming als de UI, `projectSlice.setProject`) — meegeven in `data` zodat óók het
   // `planner_batch`-pad (dat rechtstreeks `updateProjectCore` gebruikt, zonder `enrichOk`) dit ziet.
-  const anchorsClamped = ctx.transactions.draft.setProject(p.updates);
-  if (p.clearStatusDate || p.clearProgressMode || p.clearDefaultWorkRule) {
-    ctx.app.store.setState((s) => {
-      // `delete` i.p.v. `= undefined`: de IFC-serialisatie en de solver-defaults lezen op
-      // sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`).
-      if (p.clearStatusDate) delete s.project.statusDate;
-      if (p.clearProgressMode) delete s.project.progressMode;
-      if (p.clearDefaultWorkRule) delete s.project.defaultWorkRule;
-      s.project.modifiedAt = new Date().toISOString();
-      markDocumentEdited(s);
-    });
-  }
+  // `delete` i.p.v. `= undefined` voor een gewist veld: de IFC-serialisatie en de solver-defaults
+  // lezen op sleutel-AANWEZIGHEID (zelfde conventie als de store-actie `setStatusDate`). Het wissen
+  // gaat door dezelfde patch, zodat ook een gewiste projectstandaard de taken omzet die hem erven.
+  const clear: ClearableProjectKey[] = [
+    ...(p.clearStatusDate ? ['statusDate' as const] : []),
+    ...(p.clearProgressMode ? ['progressMode' as const] : []),
+    ...(p.clearDefaultWorkRule ? ['defaultWorkRule' as const] : []),
+  ];
+  const { clampedAnchors: anchorsClamped, measureChangedTaskIds } = ctx.transactions.draft.setProject(p.updates, clear);
   return {
     data: {
       updated: p.touched,
       ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+      // B1a: een nieuwe standaard *Vast werk* zette deze taken (zonder eigen `workRule`) om naar de urenmaat.
+      ...(measureChangedTaskIds.length > 0 ? { hourMeasureTaskIds: measureChangedTaskIds } : {}),
       ...(p.updates.statusDate ? { statusDateNote: STATUS_DATE_NOTE } : {}),
     },
   };
@@ -2015,14 +2009,14 @@ const updateProject: BatchStepTool = {
   description:
     'Change project details: `name`, `description`, `author`, `company`, `statusDate` (the reporting date on ' +
     'which progress is recorded — WITHOUT this date the progress path of update_tasks refuses), `endDate` ' +
-    '(the contractual/desired end date — pure metadata, it enforces NOTHING in the schedule; an empty string ' +
-    'clears it), `defaultWorkRule` (project default task type for tasks without their own `workRule`; null = ' +
+    '(the contractual/desired end date — pure metadata, it enforces NOTHING in the schedule; it does steer the span of ' +
+    'holidays generated by planner_update_calendar `generate`; an empty string clears it), `defaultWorkRule` (project default task type for tasks without their own `workRule`; null = ' +
     'FIXED_DURATION_RATE), `progressMode` (RETAINED_LOGIC or PROGRESS_OVERRIDE — how the solver handles ' +
     'out-of-sequence work; null = back to the default RETAINED_LOGIC) and `startDate`. An UNKNOWN field is ' +
     'refused with the allowed list — nothing is ever silently thrown away. IMPORTANT about `startDate`: it ' +
     'is the anchor for tasks still to be CREATED and does not shift the REST of the existing schedule — no ' +
     'task FINISH moves along, except the finish of the clamped anchors themselves, which moves along ' +
-    'preserving duration. Since T7b there IS one targeted exception (edit protection, not a Δ shift): a ' +
+    'preserving duration. There is one targeted exception (edit protection, not a Δ shift): a ' +
     'LATER `startDate` clamps existing task anchors that have no predecessor and no constraint and lie ' +
     'before the new start date forward TO that date (the response reports `anchorsClamped`) — so a root task ' +
     'does not silently stay hanging before the official project start after moving the start. A task with a ' +
@@ -2066,9 +2060,12 @@ const updateProject: BatchStepTool = {
         type: ['string', 'null'],
         enum: [...WORK_RULES, null],
         description:
-          'Project default work rule (task type) for tasks without their own `workRule` — see ' +
+          'Project default task type (`workRule`) for tasks without their own `workRule` — see ' +
           'planner_update_tasks `fields.workRule` for the four values. null = the default ' +
-          'FIXED_DURATION_RATE. Switching changes no number.',
+          'FIXED_DURATION_RATE. A FIXED_WORK task always has the hour measure: switching the default to ' +
+          'FIXED_WORK converts every task without its own `workRule` from the day measure to the hour measure ' +
+          '(days × working time per day; listed in `hourMeasureTaskIds`) and recalculates. Switching back ' +
+          'keeps the hour measure. Any other switch changes no number.',
       },
     },
     additionalProperties: false,
@@ -2098,6 +2095,10 @@ const updateProject: BatchStepTool = {
       res.ok && res.data && typeof res.data === 'object' && 'anchorsClamped' in res.data
         ? (res.data as { anchorsClamped: number }).anchorsClamped
         : 0;
+    const hourMeasureTaskIds =
+      res.ok && res.data && typeof res.data === 'object' && 'hourMeasureTaskIds' in res.data
+        ? (res.data as { hourMeasureTaskIds: string[] }).hourMeasureTaskIds
+        : [];
     return enrichOk(res, () => {
       const state = ctx.app.store.getState();
       const p = state.project;
@@ -2117,6 +2118,7 @@ const updateProject: BatchStepTool = {
           'predecessor/constraint that lie before the new date move along TO that date — see ' +
           '`anchorsClamped`. Use planner_move_project to shift the WHOLE existing schedule (every anchor).',
         ...(anchorsClamped > 0 ? { anchorsClamped } : {}),
+        ...(hourMeasureTaskIds.length > 0 ? { hourMeasureTaskIds } : {}),
         ...(statusDateTouched
           ? {
               statusDateEffect: {

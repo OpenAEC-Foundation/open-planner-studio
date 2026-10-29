@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
 import type { Company, CompanyPool, LibraryOrigin } from '@/types/library';
@@ -448,6 +449,19 @@ export function matchByName<T extends { name: string }>(name: string, candidates
   return hits.length === 1 ? hits[0] : null;
 }
 
+/** Bouw voor één herkenningsronde dezelfde uniek-of-null-matcher met één poolscan.
+ *  Elke positie telt mee: ook hetzelfde object of dezelfde id tweemaal maakt een naam ambigu.
+ *  De aanroeper bouwt een verse matcher zodra de pool opnieuw wordt bekeken. */
+export function createNameMatcher<T extends { name: string }>(candidates: T[]): (name: string) => T | null {
+  const byName = new Map<string, T | null>();
+  for (const candidate of candidates) {
+    const name = normalizeName(candidate.name);
+    if (!name) continue;
+    byName.set(name, byName.has(name) ? null : candidate);
+  }
+  return (name) => byName.get(normalizeName(name)) ?? null;
+}
+
 /**
  * Los een naamsbotsing op voor een NIEUW bedrijf ("Toevoegen als nieuwe resourcebibliotheek" in
  * `PoolImportDialog`): bestaat `rawName` al onder de gegeven bestaande namen
@@ -456,11 +470,13 @@ export function matchByName<T extends { name: string }>(name: string, candidates
  * — net zo lang tot de naam vrij is. Een lege/pure-witruimte/uitsluitend-onzichtbare-tekens-naam valt
  * terug op een standaardlabel (spiegelt `addCompany`) — de leeg-CHECK gebruikt bewust `normalizeName`
  * (`rawName.trim()` stript alleen ASCII-witruimte, geen U+200B/U+FEFF e.d.; zo'n naam gaf anders een
- * ogenschijnlijk lege rij in Backstage). Puur — geschikt voor losse unit-tests, en gedeeld door
+ * ogenschijnlijk lege rij in Backstage). Het standaardlabel volgt de UI-taal bij aanmaak. Gedeeld door
  * zowel de store-actie (`importPoolAsNewCompany`) als de dialoog-preview (geen dubbele/afwijkende logica).
  */
 export function resolveUniqueCompanyName(rawName: string, existingNames: string[]): string {
-  const base = normalizeName(rawName) ? rawName.trim() : 'Nieuwe resourcebibliotheek';
+  const base = normalizeName(rawName) ? rawName.trim() : (i18next.isInitialized
+    ? i18next.t('companyLibrary.newCompany', { ns: 'common' })
+    : 'Nieuwe resourcebibliotheek');
   const existing = new Set(existingNames.map(normalizeName));
   if (!existing.has(normalizeName(base))) return base;
   let n = 2;

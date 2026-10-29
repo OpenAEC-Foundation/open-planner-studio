@@ -27,7 +27,7 @@ Masz trzy sposoby.
 
 - **Z klawiaturą.** Alt+↑ i Alt+↓ zamieniają zadanie z sąsiednim zadaniem na tym samym poziomie. Zadanie sumaryczne zabiera swoje podzadania ze sobą. Na początku lub na końcu poziomu nic się nie dzieje. Przy zaznaczeniu kilku zadań przesuwa się tylko zadanie, które kliknąłeś jako pierwsze.
 - **Przeciąganie w tabeli zadań.** Naciśnij wiersz i przeciągnij go pionowo. Górna ćwiartka wiersza oznacza *przed*, dolna ćwiartka *po*. Środek zadania sumarycznego podpina przeciągnięte zadanie pod nim jako jego ostatnie podzadanie. Środek zwykłego zadania liczy się jako najbliższa krawędź. Jeśli przeciągniesz wiersz, który jest częścią zaznaczenia, przesuwa się całe zaznaczenie.
-- **Przeciąganie w widoku Gantt.** Przeciągnij pasek pionowo do innego wiersza. Działa to tak samo jak przeciąganie w tabeli zadań i nie zmienia dat. Jeśli przeciągniesz poziomo, przesuniesz daty.
+- **Przeciąganie w widoku Gantt.** Przeciągnij pasek pionowo do innego wiersza. Działa to tak samo jak przeciąganie w tabeli zadań i nie zmienia dat. Jeśli przeciągniesz poziomo, przesuniesz zamiast tego daty.
 
 Każde przeniesienie to jeden krok dla *Cofnij* (Ctrl+Z).
 
@@ -35,24 +35,34 @@ Każde przeniesienie to jeden krok dla *Cofnij* (Ctrl+Z).
 
 Spójrz na przycisk *WBS auto* w *Planowanie › Struktura*.
 
-- **Włączone (domyślnie w nowym projekcie).** Aplikacja przenumerowuje całe drzewo przy każdym dodaniu, usunięciu i przeniesieniu. Kod WBS jest wtedy tylko do odczytu: nie możesz go wpisać w tabeli zadań ani w panelu *Właściwości*. *Przenumeruj WBS* jest wyłączone.
-- **Wyłączone.** Kody zostają takie, jakie są, także po przeniesieniu i zmianie wcięcia. Wpisujesz je sam w kolumnie *WBS* albo w polu *Kod WBS* w panelu *Właściwości*. Możesz je też raz przenumerować poleceniem *Przenumeruj WBS*. To nadpisuje też kody, które sam wpisałeś.
+- **Włączone (domyślnie w nowym projekcie).** Także włączone po otwarciu pliku bez tego ustawienia, jeśli wszystkie kody WBS już pasują do numeracji drzewa (1, 1.1, 1.2 …). Kody się nie zmieniają. Pusty plik bez tego ustawienia dostaje też *wł*, tak samo jak nowy projekt. Aplikacja przenumerowuje całe drzewo przy każdym dodaniu, usunięciu i przeniesieniu. Kod WBS jest wtedy tylko do odczytu: nie możesz go wpisać w tabeli zadań ani w panelu *Właściwości*. *Przenumeruj WBS* jest wyłączone.
+- **Wyłączone.** Domyślnie w pliku z własnymi kodami, na przykład *A1000*, albo z jednym kodem, który różni się od drzewa. Kody zostają takie, jakie są, także po przeniesieniu i zmianie wcięcia. Wpisujesz je sam w kolumnie *WBS* albo w polu *Kod WBS* w panelu *Właściwości*. Możesz je też raz przenumerować poleceniem *Przenumeruj WBS*. To nadpisuje także kody, które sam wpisałeś.
 
 Jeśli włączysz *WBS auto*, aplikacja od razu numeruje drzewo. Zarówno *WBS auto*, jak i *Przenumeruj WBS* można cofnąć poleceniem *Cofnij*.
 
 ## Pułapki i co robi aplikacja
 
-**Filtrowanie, grupowanie lub sortowanie jest włączone.** Kolejność, którą widzisz, nie jest wtedy kolejnością harmonogramu, dlatego aplikacja blokuje strukturę. *Zwiększ wcięcie* i *Zmniejsz wcięcie* są wyłączone. Podpowiedź brzmi *Niedostępne podczas filtrowania/grupowania/sortowania*. Alt+→ i przeciąganie pokazują ten sam tekst w komunikacie z przyciskiem *Wyczyść*. Ten przycisk usuwa naraz filtr, grupowanie i sortowanie, a Ctrl+Z ich nie przywraca. Wtedy w menu kontekstowym brakuje poleceń *Wcięcie* i *Usuń wcięcie*.
+**Filtrowanie, grupowanie lub sortowanie jest włączone.** Kolejność, którą widzisz, nie jest wtedy kolejnością harmonogramu, dlatego aplikacja blokuje strukturę. *Zwiększ wcięcie* i *Zmniejsz wcięcie* są wyłączone. Podpowiedź brzmi *Niedostępne podczas filtrowania/grupowania/sortowania*. Alt+→ i przeciąganie pokazują ten sam tekst w czerwonym pasku z przyciskiem *Wyczyść*. Ten przycisk usuwa naraz filtr, grupowanie i sortowanie, a Ctrl+Z ich nie przywraca. Pasek zostaje, dopóki nie klikniesz krzyżyka, nie użyjesz Ctrl+Z lub Ctrl+Y albo nie przejdziesz do innego dokumentu. Wtedy w menu kontekstowym brakuje poleceń *Wcięcie* i *Usuń wcięcie*.
 
-Alt+↑ i Alt+↓ w takim widoku działają, bez komunikatu. Przy samym filtrze widzisz nową kolejność od razu. Przy sortowaniu kolejność w harmonogramie się zmienia, ale widzisz to dopiero po *Wyczyść*.
+Alt+↑ i Alt+↓ w takim widoku działają, bez komunikatu. Przy samym filtrze widzisz nową kolejność od razu. Przy sortowaniu kolejność w harmonogramie się zmienia, ale zobaczysz to dopiero po *Wyczyść*.
 
-**WBS auto jest wyłączone.** Nowe zadanie dostaje kod, który pasuje do jego miejsca w drzewie, nawet jeśli inne zadanie ma już ten kod. W ten sposób mogą pojawić się zduplikowane numery. Również po zmianie wcięcia kody przestają pasować do drzewa. *Przenumeruj WBS* naprawia oba problemy.
+**WBS auto jest wyłączone.** Tak bywa w pliku z własnymi kodami albo w pliku, który zapisuje to ustawienie jako *wył*. Nowe zadanie dostaje kod, który pasuje do jego miejsca w drzewie, nawet jeśli inne zadanie ma już ten kod. W ten sposób mogą się pojawić zduplikowane numery. Także po zmianie wcięcia kody przestają pasować do drzewa. *Przenumeruj WBS* naprawia oba problemy.
 
 **Kamień milowy dostaje podzadania.** Kamień milowy to chwila i nie ma podzadań. Aplikacja usuwa znacznik kamienia milowego i informuje cię o tym.
 
-**Zadanie z przydziałami zasobów dostaje podzadania.** Zadanie sumaryczne nie ma własnych przydziałów. Aplikacja przenosi je do pierwszego nowego podzadania, które może je przyjąć, i informuje cię o tym. Jeśli takiego podzadania nie ma albo ma już ten sam zasób, nic się nie dzieje, a komunikat wyjaśnia dlaczego.
+**Zadanie z przydziałami zasobów dostaje podzadania.** Zadanie sumaryczne nie ma własnych przydziałów. Dlatego aplikacja najpierw pyta, co z nimi zrobić, w oknie *Zadanie staje się zadaniem sumarycznym*. Dzieje się tak, gdy zwiększysz wcięcie zadania, użyjesz *Dodaj podzadanie* lub *Dodaj kamień milowy* przy zadaniu, wstawisz szablon albo w *Edytuj zadanie* wybierzesz nowe *Zadanie nadrzędne*: dla istniejącego zadania i dla nowego. W *Edytuj zadanie* pytanie pojawia się przed zapisaniem. Jeśli tam wybierzesz *Anuluj*, okno *Edytuj zadanie* zostaje otwarte z Twoimi zmianami. Wybierasz jedną z opcji:
 
-**Relacja utworzyłaby cykl.** Relacje zadania sumarycznego dotyczą też jego podzadań. Jeśli przeniesienie przez to utworzyłoby cykl, aplikacja odmawia i pokazuje komunikat *To przeniesienie utworzyłoby cykl w harmonogramie (…)*. Nic się nie zmienia.
+- *Anuluj*: nic się nie zmienia, także struktura zostaje taka, jaka była.
+- *Usuń przydział*: zadanie dostaje podzadania, a jego przydziały zostają usunięte. Usunięta zostaje także praca rzeczywista tych przydziałów.
+- *Przesuń do „…”*: przydziały przechodzą do pierwszego nowego podzadania, które może je przyjąć, razem z pracą rzeczywistą. Kamień milowy i zadanie sumaryczne nie mogą przyjąć przydziałów.
+
+Jeśli to podzadanie ma już ten sam zasób albo nie ma odpowiedniego podzadania, opcja *Przesuń* jest wyłączona. Pomarańczowy blok w oknie podaje powód.
+
+Jeśli przydział ma już pracę rzeczywistą, pomarańczowy blok podaje liczbę godzin na zasób, na przykład *W przydziale dla Metselaar jest już 8 godzin pracy rzeczywistej. Usunięcie odrzuci tę pracę.* *Anuluj* jest wtedy przyciskiem domyślnym: Enter nic nie zmienia. Jeśli mimo to chcesz usunąć przydział, kliknij sam *Usuń przydział*.
+
+Dopóki okno jest otwarte, żaden skrót poza oknem nie działa, także *Cofnij*, *Wklej*, Delete, F5 i Ctrl+S. Jeśli jedna akcja tworzy naraz więcej zadań sumarycznych, okno pokazuje zasoby dla każdego zadania, a Twój wybór dotyczy wszystkich. Jedno *Cofnij* (Ctrl+Z) cofa całą akcję.
+
+**Relacja utworzyłaby cykl.** Relacje zadania sumarycznego dotyczą też jego podzadań. Jeśli przeniesienie przez to utworzyłoby cykl, aplikacja je odrzuca i pokazuje komunikat *To przeniesienie utworzyłoby cykl w harmonogramie (…)*. Nic się nie zmienia.
 
 **Relacja między zadaniem a jego fazą.** Jeśli podepniesz zadanie pod fazę, z którą ma już relację, ta relacja zostaje, ale przestaje wchodzić do obliczeń. Aplikacja informuje cię o tym. Więcej o relacjach zadań sumarycznych przeczytasz w [Relacje i opóźnienia](docs://uitleg-relaties).
 

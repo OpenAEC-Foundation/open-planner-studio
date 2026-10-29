@@ -33,7 +33,7 @@ En obra, la ejecución suele ir por delante de la lógica. El pintor ya empieza 
 
 **Un archivo P6.** Si abre un archivo de Primavera P6 (.xer), la aplicación toma el modo del archivo. Además de Retained Logic y Progress Override, P6 también tiene Actual Dates. La aplicación no conoce ese tercer modo; un archivo así se calcula como Retained Logic. El mensaje de importación cuenta eso como *1 ajuste de planificación P6 usó una alternativa segura.*
 
-**El perfil de cálculo.** En el perfil de Primavera P6, Progress Override también actúa hacia atrás, en las fechas tardías y en la holgura libre del predecesor (convención *Progress Override ignora también hacia atrás un sucesor iniciado*). En los perfiles de Open Planner Studio y de Microsoft Project, eso no es así. Las convenciones están en *Configuración › Proyecto › Info del proyecto*, en el bloque *Perfil de cálculo y opciones*. En el ejemplo de la explicación no se ve ese efecto hacia atrás.
+**El perfil de cálculo.** En el perfil de Primavera P6, Progress Override también actúa hacia atrás, en las fechas tardías y en la holgura libre del predecesor (convención *Progress Override ignora también hacia atrás un sucesor iniciado*). En los perfiles de Open Planner Studio y de Microsoft Project, eso no es así. Las convenciones están en *Configuración › Proyecto › Ajustes del proyecto*, en el bloque *Perfil de cálculo y opciones*. En el ejemplo de la explicación no se ve ese efecto hacia atrás.
 
 ## Véase también
 

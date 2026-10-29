@@ -10,7 +10,7 @@
 // Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
-  type ReportContext, type ReportingPeriod,
+  type ReportContext, type ReportingPeriod, type SolvedReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
@@ -22,10 +22,11 @@ import {
   isValidReportingPeriod, periodDays, projectSpan, resolveReportingPeriod, weeksToPreset,
 } from '@/engine/reports';
 import { addCalendarMonths, formatDate, parseDate } from '@/utils/dateUtils';
-import { makeMonthLabeler } from '@/utils/monthLabel';
+import { gregorianDateFormat, makeMonthLabeler } from '@/utils/monthLabel';
 import { DEFAULT_TABLE_REPORT_OPTIONS, parseReportingPeriod, parseTableReportOptions } from '@/utils/reportSettings';
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
+import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -40,7 +41,7 @@ const ok = (label: string, cond: boolean, info = '') => {
 };
 const near = (label: string, got: number | undefined, want: number, tol = 0.05) => {
   checks++;
-  if (got === undefined || Math.abs(got - want) > tol) diffs.push(`${label}: verwacht ≈${want}, kreeg ${got}`);
+  if (got === undefined || !(Math.abs(got - want) <= tol)) diffs.push(`${label}: verwacht ≈${want}, kreeg ${got}`);
 };
 
 // ── Scenario ─────────────────────────────────────────────────────────────────────────────────────
@@ -98,6 +99,9 @@ const ctxFromStore = (): ReportContext => {
   };
 };
 const ctx = ctxFromStore();
+/** Het belastingrapport leest de maatconventie van het profiel: dezelfde solve-opties als de weergave
+ *  (`useReportContext` → `solveOptionsFor(project)`). */
+const withSolve = (c: ReportContext): SolvedReportContext => ({ ...c, solveOptions: solveOptionsFor(S().project) });
 const byId = (id: string) => ctx.tasks.find(t => t.id === id)!;
 ok('scenario: planning is berekend zonder fout', !!ctx.cpmResult && !ctx.cpmResult.error);
 eq('scenario: A is voltooid', progressState(byId(A)), 'complete');
@@ -324,7 +328,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
 // ── Resourcebelasting ────────────────────────────────────────────────────────────────────────────
 {
   const weekly = { period: { preset: 'project' } as ReportingPeriod, bucket: 'week' as const };
-  const r = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: false });
+  const r = computeResourceLoading(withSolve(ctx), { ...weekly, onlyOverloaded: false });
   ok('resourceLoading: rijen voor Ploeg 1', r.rows.length > 0 && r.rows.every(x => x.resourceName === 'Ploeg 1'));
   ok('resourceLoading: weken chronologisch', r.rows.every((x, i) => i === 0 || x.bucketStart > r.rows[i - 1].bucketStart));
   ok('resourceLoading: variance = beschikbaar − gevraagd', r.rows.every(x => Math.abs(x.variance - (x.available - x.required)) < 0.001));
@@ -332,18 +336,18 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   eq('resourceLoading: A (7–11 sep), B (14–25 sep, rest ná de statusdatum) en D ⇒ 3 weken', r.rows.length, 3);
   ok('resourceLoading: B en D overlappen ⇒ overbelaste week', r.rows.some(x => x.overloaded));
   eq('resourceLoading: aantal resources = resources in de tabel (zelfde telling als toewijzingen)', r.counts.resources, 1);
-  eq('resourceLoading: een resource zonder rijen telt niet mee', computeResourceLoading({ ...ctx, resources: [...ctx.resources, { ...ctx.resources[0], id: 'leeg', name: 'Leeg' }] }, { ...weekly, onlyOverloaded: false }).counts.resources, 1);
+  eq('resourceLoading: een resource zonder rijen telt niet mee', computeResourceLoading(withSolve({ ...ctx, resources: [...ctx.resources, { ...ctx.resources[0], id: 'leeg', name: 'Leeg' }] }), { ...weekly, onlyOverloaded: false }).counts.resources, 1);
   eq('resourceLoading: weken = rijen zonder filter', r.counts.buckets, r.rows.length);
-  const r2 = computeResourceLoading(ctx, { ...weekly, onlyOverloaded: true });
+  const r2 = computeResourceLoading(withSolve(ctx), { ...weekly, onlyOverloaded: true });
   ok('resourceLoading: filter houdt alleen overbelaste weken', r2.rows.every(x => x.overloaded));
   eq('resourceLoading: tellingen gaan over de tabel — met filter tellen alleen overbelaste buckets', r2.counts.buckets, r2.rows.length);
   eq('resourceLoading: … en overbelaste buckets blijven gelijk', r2.counts.overloadedBuckets, r.counts.overloadedBuckets);
   ok('resourceLoading: overbelaste rijen zijn een deelverzameling', r2.rows.length <= r.rows.length);
   eq('resourceLoading: project-periode = projectspanne', [r.from, r.to], [projectSpan(ctx.tasks)!.from, projectSpan(ctx.tasks)!.to]);
-  eq('resourceLoading: project-periode meldt geen ontbrekende statusdatum', computeResourceLoading({ ...ctx, statusDate: undefined }, { ...weekly, onlyOverloaded: false }).statusDateMissing, false);
+  eq('resourceLoading: project-periode meldt geen ontbrekende statusdatum', computeResourceLoading(withSolve({ ...ctx, statusDate: undefined }), { ...weekly, onlyOverloaded: false }).statusDateMissing, false);
 
   // Issue #119: maandaggregatie — één bucket voor september die de drie weken samenneemt.
-  const m = computeResourceLoading(ctx, { period: { preset: 'project' }, bucket: 'month', onlyOverloaded: false });
+  const m = computeResourceLoading(withSolve(ctx), { period: { preset: 'project' }, bucket: 'month', onlyOverloaded: false });
   eq('resourceLoading: maandbucket ⇒ één rij (alles in september)', m.rows.map(x => [x.bucketStart, x.bucketEnd]), [['2026-09-01', '2026-09-30']]);
   near('resourceLoading: maandsom = som van de weken', m.rows[0].required, r.rows.reduce((n, x) => n + x.required, 0), 0.11);
   ok('resourceLoading: maand-capaciteit ≥ som van de weekcapaciteiten binnen de maand', m.rows[0].available >= r.rows.reduce((n, x) => n + x.available, 0) - 0.01);
@@ -351,13 +355,13 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('resourceLoading: piekdag van de maand = hoogste weekpiek', Math.abs(m.rows[0].peakDayLoad - Math.max(...r.rows.map(x => x.peakDayLoad))) < 0.01);
 
   // Issue #120: een rapportageperiode beperkt de buckets tot de weken die de periode raken.
-  const w = computeResourceLoading(ctx, { period: { preset: 'nextWeek' }, bucket: 'week', onlyOverloaded: false });
+  const w = computeResourceLoading(withSolve(ctx), { period: { preset: 'nextWeek' }, bucket: 'week', onlyOverloaded: false });
   eq('resourceLoading: "volgende week" vanaf vr 18 sep ⇒ [18 sep, 24 sep]', [w.from, w.to], ['2026-09-18', '2026-09-24']);
   eq('resourceLoading: … raakt de weken van 14 en 21 sep', w.rows.map(x => x.bucketStart), ['2026-09-14', '2026-09-21']);
   eq('resourceLoading: de weekrij is dezelfde hele kalenderweek als zonder periode', w.rows[0].required, r.rows.find(x => x.bucketStart === '2026-09-14')!.required);
-  const c = computeResourceLoading(ctx, { period: { preset: 'custom', from: '2026-09-07', to: '2026-09-11' }, bucket: 'week', onlyOverloaded: false });
+  const c = computeResourceLoading(withSolve(ctx), { period: { preset: 'custom', from: '2026-09-07', to: '2026-09-11' }, bucket: 'week', onlyOverloaded: false });
   eq('resourceLoading: aangepaste periode ⇒ alleen de week van 7 sep', c.rows.map(x => x.bucketStart), ['2026-09-07']);
-  eq('resourceLoading: zonder statusdatum meldt een relatieve periode dat wél', computeResourceLoading({ ...ctx, statusDate: undefined }, { period: { preset: 'lastWeek' }, bucket: 'week', onlyOverloaded: false }).statusDateMissing, true);
+  eq('resourceLoading: zonder statusdatum meldt een relatieve periode dat wél', computeResourceLoading(withSolve({ ...ctx, statusDate: undefined }), { period: { preset: 'lastWeek' }, bucket: 'week', onlyOverloaded: false }).statusDateMissing, true);
 }
 
 // ── Resourcetoewijzingen ─────────────────────────────────────────────────────────────────────────
@@ -461,6 +465,19 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     }
     ok('monthLabel: fa is niet de Solar-Hijri-kalender', !makeMonthLabeler('fa')('2026-09-01').includes('1405'));
     eq('monthLabel: onbekende locale valt terug op Engels', makeMonthLabeler('xx-YY')('2026-09-01'), 'Sep 2026');
+    for (const loc of ['xx-YY', 'zz', 'xx-YY-u-ca-persian-nu-arab', 'nl_NL', '']) {
+      const options = gregorianDateFormat(loc, { month: 'short', year: 'numeric' }).resolvedOptions();
+      eq(`monthLabel: ${loc || '(leeg)'} heeft expliciet Engelse terugval`, options.locale.split('-')[0], 'en');
+      eq(`monthLabel: ${loc || '(leeg)'} terugval houdt kalender, cijfers en tijdzone`,
+        [options.calendar, options.numberingSystem, options.timeZone], ['gregory', 'latn', 'UTC']);
+      eq(`monthLabel: ${loc || '(leeg)'} heeft een Engels label`, makeMonthLabeler(loc)('2026-09-01'), 'Sep 2026');
+    }
+    for (const loc of ['nl-NL', 'de-DE', 'fa-u-ca-persian-nu-arab']) {
+      const options = gregorianDateFormat(loc, { month: 'short', year: 'numeric' }).resolvedOptions();
+      eq(`monthLabel: ondersteunde ${loc} houdt haar taal`, options.locale.split('-')[0], loc.split('-')[0]);
+      eq(`monthLabel: ondersteunde ${loc} houdt Gregoriaans, Latijns en UTC`,
+        [options.calendar, options.numberingSystem, options.timeZone], ['gregory', 'latn', 'UTC']);
+    }
   }
 }
 

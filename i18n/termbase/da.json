@@ -1806,7 +1806,11 @@
       "opgavetyper"
     ],
     "avoid": [
-      "taaktype"
+      "taaktype",
+      "arbejdsregel",
+      "arbejdsreglen",
+      "arbejdsregler",
+      "arbejdsreglerne"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -1985,6 +1989,17 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbejdskategori",
+    "forms": [
+      "arbejdskategori",
+      "arbejdskategorien",
+      "arbejdskategorier",
+      "arbejdskategorierne"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbejdstimer",
     "forms": [
@@ -1994,20 +2009,6 @@
     ],
     "avoid": [
       "werktijden"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "arbejdsregel",
-    "forms": [
-      "arbejdsregel",
-      "arbejdsreglen",
-      "arbejdsregler",
-      "arbejdsreglerne"
-    ],
-    "avoid": [
-      "werkregel"
     ],
     "source": "model",
     "status": "model"

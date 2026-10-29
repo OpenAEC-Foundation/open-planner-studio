@@ -10,9 +10,10 @@ Du börjar dagen med gårdagens projekt, du får en fil från en kollega eller f
 
 ### Öppna en fil
 
-1. Välj *Start › Fil › Öppna*, eller *Fil › Öppna*, eller tryck på Ctrl+O (⌘+O på en Mac). *Öppna* finns också i raden högst upp. Gruppen *Fil* finns också på fliken *Tabell*.
+1. Välj *Start › Fil › Öppna*, eller *Fil › Öppna*, eller tryck på Ctrl+O (⌘+O på en Mac). Gruppen *Fil* finns också på fliken *Tabell*.
 2. Välj filen. Du öppnar en fil i taget. På datorn och i webbläsare med filåtkomst, som Chrome och Edge, visar fönstret en lista med filtyper: *Alla som stöds*, *IFC-filer*, *CSV-filer*, *XML-filer*, *MS Project-filer* och *Primavera XER-filer*.
 3. Projektet öppnas i en ny flik. Om den aktuella fliken fortfarande var tom och oförändrad öppnas projektet i den.
+4. Om filen inte var IFC visas ett fönster med en kort förklaring av det formatet. Ett grönt block säger vad appen tog med, ett gult block vad som inte togs med eller bara delvis, och ett blått block hur sparande och tillbakaskrivning fungerar. *Läs mer* öppnar guiden för det formatet. Klicka på *Förstått* för att stänga fönstret. Bocka först i *Visa inte igen för …* om du inte vill se den här förklaringen för det formatet längre. Du slår på den igen i [Appinställningar](docs://ref-instellingen), på fliken *Avancerat*.
 
 En IFC-fil ger sitt filnamn till fliken. Ett projekt från ett annat format får sitt projektnamn.
 
@@ -20,7 +21,7 @@ Appen öppnar `.ifc`, `.csv`, `.xml` (MS Project XML eller Primavera P6 XML), `.
 
 ### Öppna ett nyligen använt projekt
 
-Välj *Start › Fil › Senaste* och klicka på en fil i listan, eller välj *Fil › Senaste*. Listan behåller de tio senaste filerna som du öppnade, sparade eller exporterade. Skrivbordsappen visar sökvägen för varje fil, en webbläsare visar bara namnet.
+Välj *Start › Fil › Senaste* och klicka på en fil i listan, eller välj *Fil › Senaste*. Listan behåller de tio senaste filerna som du öppnade, sparade eller exporterade. Även här visas förklaringen av formatet för en fil som inte är IFC. Skrivbordsappen visar sökvägen för varje fil, en webbläsare visar bara namnet.
 
 Om appen inte längre kan läsa en fil i listan, till exempel för att du flyttade den, försvinner den från listan utan meddelande. I webbläsare utan filåtkomst, som Firefox, förblir *Senaste* tom.
 
@@ -32,10 +33,10 @@ Välj *Fil › Exempel* och klicka på ett exempelprojekt. Det öppnas i en flik
 
 Välj *Start › Fil › Spara* eller *Fil › Spara*, eller tryck på Ctrl+S. Vad som händer beror då på ditt projekt:
 
-1. Om projektet redan har en fil, för att du öppnade en IFC-fil eller sparade den tidigare, skriver appen till den filen. Inget fönster visas.
+1. Om projektet redan har en fil, för att du öppnade en IFC-fil eller sparade den tidigare, skriver appen till den filen. Inget fönster visas, utom vid första sparningen av en fil med ett annat IFC-schema än IFC 4.3 ADD2. Då frågar appen först *Vilket IFC-schema ska sparas i?* Se [Val av IFC-schema](docs://howto-ifc-schema-kiezen).
 2. Om projektet ännu inte har en fil frågar appen var den ska ligga. Den föreslår projektnamnet med `.ifc`. Därefter är den filen projektets fil.
 3. Om din webbläsare bara sparar via en nedladdning (som Firefox) hamnar filen i din mapp för nedladdningar, och varje sparning skapar en ny nedladdning. Första gången i en session ser du meddelandet *Sparad som nedladdning: ”name.ifc” finns i din mapp för nedladdningar. Den här webbläsaren tillåter inte att appen skriver till en egen plats, så varje sparning skapar en ny nedladdning. I Chrome, Edge eller skrivbordsappen uppdaterar* *Spara* *bara samma fil.*
-4. Om din webbläsare inte kan skriva tillbaka till projektets fil, frågar appen varje gång du sparar var filen ska ligga. Det ser ut som *Spara som*, men det är en begränsning i webbläsaren. Första gången i en session förklarar meddelandet *Den här webbläsaren tillåter inte att appen skriver tillbaka till ”name.ifc”.* Mer om detta finns i [Filer](docs://uitleg-bestanden).
+4. Om din webbläsare inte kan skriva tillbaka till projektets fil frågar appen varje gång du sparar var filen ska ligga. Det ser ut som *Spara som*, men det är en begränsning i webbläsaren. Första gången i en session förklarar meddelandet detta: *Den här webbläsaren tillåter inte att appen skriver tillbaka till ”name.ifc”.* Meddelandet länkar till [Filer](docs://uitleg-bestanden).
 
 Efter sparandet försvinner markeringen *Ej sparad*: pricken på fliken, asterisken före projektnamnet överst och texten *Ej sparad* längst ned till höger i statusfältet.
 
@@ -45,7 +46,7 @@ Välj *Start › Fil › Spara som* eller *Fil › Spara som*, eller tryck på C
 
 ### Stänga ett projekt
 
-Klicka på krysset på fliken, eller välj *Fil › Stänga projekt*. Om projektet har ändringar som du inte sparade frågar appen: *Osparade ändringar: ”name” har ändringar som ännu inte har sparats.* Du väljer *Avbryt* (projektet förblir öppet), *Spara inte* (projektet stängs och dina ändringar är borta) eller *Spara* (spara först och stäng sedan). Om du stänger hela appen på datorn (med stängknappen, Alt+F4 eller ditt operativsystems meny) frågar den detta för varje projekt med ändringar. *Avbryt*, eller ett sparande som misslyckas, stoppar stängningen. Efter en vanlig stängning rensar appen återställningskopiorna för den sessionen, så återställningsfönstret visas bara efter en riktig krasch. Om ett projekt har ändringar och du stänger webbläsarfliken eller -fönstret, frågar webbläsaren om bekräftelse.
+Klicka på krysset på fliken, eller välj *Fil › Stänga projekt*. Om projektet har ändringar som du inte sparade frågar appen: *Osparade ändringar: ”name” har ändringar som ännu inte har sparats.* Du väljer *Avbryt* (projektet förblir öppet), *Spara inte* (projektet stängs och dina ändringar är borta) eller *Spara* (spara först och stäng sedan). Om du stänger hela appen på datorn (med stängknappen, Alt+F4 eller ditt operativsystems meny) frågar appen detta för varje projekt med ändringar. *Avbryt*, eller ett sparande som misslyckas, stoppar stängningen. Efter en vanlig stängning rensar appen återställningskopiorna för den sessionen, så återställningsfönstret visas bara efter en riktig krasch. Om ett projekt har ändringar och du stänger webbläsarfliken eller webbläsarfönstret frågar webbläsaren om bekräftelse.
 
 ## Fallgropar och vad appen gör då
 
@@ -55,7 +56,9 @@ Klicka på krysset på fliken, eller välj *Fil › Stänga projekt*. Om projekt
 
 **I Firefox skapar varje sparning en ny fil.** Appen kan inte skriva i din fil där. Den laddar ner en ny fil varje gång, med projektnamnet som filnamn och inte namnet på filen du öppnade.
 
-**Chrome och Edge frågar om tillstånd.** Vid det första *Spara* av en fil du öppnade frågar webbläsaren om appen får skriva till den. Om du nekar öppnar appen ett fönster där du väljer en ny fil. I Chrome och Edge får du det fönstret också om skrivningen till den befintliga filen misslyckas, till exempel för att filen försvann eller är låst.
+**Chrome och Edge frågar om tillstånd.** Vid första *Spara* av en fil du öppnade frågar webbläsaren om appen får skriva till den. Om du nekar öppnar appen ett fönster där du väljer en ny fil. I Chrome och Edge får du det fönstret också om skrivningen till den befintliga filen misslyckas, till exempel för att filen försvann eller är låst.
+
+**Ett meddelande om dubbla id:n eller samband som inte räknas.** Efter öppnandet kan ett meddelande finnas kvar på skärmen. Om det står *Objekt med ett dubbelt id i den här filen* fick varje dubblerat objekt ett eget id, och referenserna pekar på den första förekomsten. Kontrollera då samband och tilldelningar. Om det står *samband kunde inte tas med i beräkningen* låg sambandet på en sammanfattningsuppgift och har ingen effekt, till exempel en uppgift som är länkad till sin egen sammanfattningsuppgift. Filen i sig förblir oförändrad. Se [Samband](docs://uitleg-relaties) för vad ett samband på en sammanfattningsuppgift gör.
 
 **Sparandet kan misslyckas.** Om själva sparandet ger ett fel visar appen *Kunde inte spara*, med orsaken. Ditt projekt förblir öppet och är fortfarande markerat som *Ej sparad*.
 
@@ -63,6 +66,7 @@ Klicka på krysset på fliken, eller välj *Fil › Stänga projekt*. Om projekt
 
 - [Filer och format](docs://uitleg-bestanden): vad som finns i en IFC-fil och hur appen behandlar format.
 - [Slå på automatisk sparning](docs://howto-automatisch-opslaan): att låta appen uppdatera din fil själv.
+- [Val av IFC-schema](docs://howto-ifc-schema-kiezen): vad frågan *Vilket IFC-schema ska sparas i?* betyder.
 - [Exportera](docs://howto-exporteren): att göra en kopia i ett annat format.
 - [Återställa efter en krasch](docs://howto-herstellen-na-een-crash): vad du gör om appen inte stängdes på rätt sätt.
 - [Import- och exportformat](docs://ref-import-exportformaten): per format vad som följer med och vad som inte gör det.

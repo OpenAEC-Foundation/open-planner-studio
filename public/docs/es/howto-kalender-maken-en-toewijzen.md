@@ -10,11 +10,11 @@ Un subcontratista también trabaja los sábados. Una cuadrilla trabaja solo de l
 
 ### Crear un calendario
 
-1. Elija *Planificación › Calendario › Calendario*. El mismo botón está en *Configuración › Calendario › Calendario*. Se abre la ventana *Calendarios*; a la izquierda están los calendarios del proyecto; el calendario del proyecto tiene una estrella.
+1. Elija *Planificación › Calendario › Calendario*. El mismo botón está en *Configuración › Calendario › Calendario*. Se abre la ventana *Calendarios*. A la izquierda están los calendarios del proyecto; el calendario del proyecto tiene una estrella.
 2. Debajo de la lista, haga clic en el botón con el signo más (*Nuevo calendario*). El calendario nuevo es una copia del estándar: de lunes a viernes, de 07:00 a 16:00 con una hora de pausa y, si *Modo construcción* está activado, los días festivos nacionales de los Países Bajos. Si quiere usar un calendario existente como base, selecciónelo en la lista y haga clic en el botón con las dos hojas debajo de la lista (*Duplicar*).
 3. Dé un nombre al calendario en *Nombre* que indique quién lo usa, por ejemplo *Six-day week*.
-4. En *Días laborables*, haga clic en los días de la semana para activarlos o desactivarlos. *Lun–vie* restablece la semana estándar, de 07:00 a 16:00. *Continuo (24/7)* activa los siete días, de 00:00 a 24:00.
-5. Ajuste los horarios laborales si hace falta: *Inicio (hora)*, *Fin (hora)*, *Inicio de la pausa* y *Duración de la pausa (minutos)*. Escriba las horas como HH:MM; con las flechas las sube o baja un cuarto de hora. Si pone la duración de la pausa en 0, el calendario funciona sin pausa. *Horas netas por día* lo calcula la propia aplicación. Si la planificación por horas está activada y el calendario tiene bandas de horario laboral por día de la semana, no ve estos campos; vea [Definir los horarios laborales](docs://howto-werktijden-instellen).
+4. En *Días laborables*, haga clic en los días de la semana para activarlos o desactivarlos. *Lun–vie* restablece la semana estándar, de 07:00 a 16:00. Si el calendario tiene bandas de horario laboral, *Lun–vie* solo activa de lunes a viernes y cada día conserva sus bandas. *Continuo (24/7)* activa los siete días, de 00:00 a 24:00.
+5. Ajuste los horarios laborales si hace falta: *Inicio (hora)*, *Fin (hora)*, *Inicio de la pausa* y *Duración de la pausa (minutos)*. Escriba las horas como HH:MM; con las flechas las sube o baja un cuarto de hora. Si pone la duración de la pausa en 0, el calendario funciona sin pausa. La aplicación calcula el *Día laborable estándar* por sí misma. Si el calendario tiene bandas de horario laboral por día de la semana (por ejemplo de MS Project), no ve estos campos, sino el bloque *Horarios de trabajo*, también con la planificación por horas desactivada; vea [Definir los horarios laborales](docs://howto-werktijden-instellen).
 6. Ajuste los festivos si hace falta. Cómo funciona se explica en [Generar los festivos y las vacaciones de construcción](docs://howto-feestdagen-genereren).
 7. Haga clic en *Aplicar*. La aplicación recalcula la planificación al momento y cierra la ventana. Con *Cancelar* descarta los cambios. Al pulsar Intro en un campo de entrada se guardan los cambios intermedios y también se recalcula, sin cerrar la ventana; *Cancelar* entonces solo deshace lo que cambió después de eso.
 
@@ -59,11 +59,11 @@ Solo se mueven las tareas sin calendario propio.
 
 **El mismo calendario, dos opciones.** En la lista, el calendario del proyecto aparece dos veces: como *Calendario del proyecto: nombre* y como un calendario normal con ese nombre. Si elige la segunda, es una elección propia para esa tarea. Entonces la tarea no se mueve con el calendario del proyecto cuando después elija otro calendario de proyecto.
 
-**Horas distintas por día.** Si cambia los horarios laborales o la pausa de modo que cambien las *Horas netas por día* de un calendario, una tarea en días sigue contando el mismo número de días. Para una tarea con recursos y con la regla de trabajo *Trabajo fijo* o *Unidades fijas*, la duración sí cambia con ello, porque el trabajo sigue igual. Cuarenta horas de trabajo son 5 días a 8 horas por día y 7 días a 6 horas por día. La aplicación informa de cuántas tareas han recibido una duración distinta.
+**Horas distintas por día.** Si cambia los horarios laborales o la pausa de modo que cambie el *Día laborable estándar* de un calendario, una tarea en días sigue contando el mismo número de días. Para una tarea con recursos y con el tipo de tarea *Trabajo fijo* o *Unidades fijas*, la duración sí cambia con ello, porque el trabajo sigue igual. Cuarenta horas de trabajo son 5 días a 8 horas por día y 7 días a 6 horas por día. La aplicación informa de cuántas tareas han recibido una duración distinta.
 
 ## Véase también
 
 - [Calendarios y días laborables](docs://uitleg-kalenders): cómo cuenta la aplicación los días laborables y qué calendario gana.
-- [Días y horas](docs://uitleg-dagen-en-uren): lo que hacen las horas netas por día.
+- [Días y horas](docs://uitleg-dagen-en-uren): lo que hace el día laborable estándar.
 - [Configurar un calendario de recurso](docs://howto-resourcekalender-instellen): un calendario para un recurso en lugar de una tarea.
 - [Ventanas de calendario](docs://ref-kalenders): todos los campos de las ventanas de calendario.

@@ -4,7 +4,7 @@ Mi van valójában abban a fájlban, amelyet ment? És mi történik az ütemez�
 
 ## Az alapelv
 
-Az Open Planner Studiónak egy saját fájlformátuma van: az **IFC**, a buildingSMART nyílt cseréformátuma építési információkhoz. Az alkalmazás IFC 4.3 verziót ír. Az exportlistában ez *IFC 4x3* néven szerepel. Nincs második, saját projektfájl. A *Mentés* a teljes projektet IFC-fájlként (`.ifc`) írja ki, a *Megnyitás* pedig ilyen fájlt olvas be. Szeretné látni, mi kerül a fájlba? Az *IFC* lap mutatja a projekt IFC-szövegét. Az *IFC-generálás* frissíti ezt a szöveget.
+Az Open Planner Studiónak egy saját fájlformátuma van: az **IFC**, a buildingSMART nyílt cseréformátuma építési információkhoz. Az alkalmazás a projekt IFC-sémáját írja, alapértelmezés szerint IFC 4.3 ADD2 verzióban (lásd: [Az IFC-séma kiválasztása](docs://howto-ifc-schema-kiezen)). Az exportlistában *IFC* néven szerepel. Nincs második, saját projektfájl. A *Mentés* a teljes projektet IFC-fájlként (`.ifc`) írja ki, a *Megnyitás* pedig ilyen fájlt olvas be. Szeretné látni, mi kerül a fájlba? Az *IFC* lap egy szerkesztő, amely a projekt IFC-szövegét mutatja. Az *IFC-generálás* frissíti ezt a szöveget, a *Másolás* a vágólapra teszi. Ha módosítja a szöveget, az *Alkalmazás* betölti projektként. Ez teljesen lecseréli a projektet abban a lapon.
 
 Minden más formátum **adapter**: átalakító az egyik program modellje és az alkalmazás modellje között. Az alkalmazás olvassa a CSV-t, az MS Project XML-t, a Primavera P6 XML-t, az MS Project-fájlokat (`.mpp`) és a Primavera-fájlokat (`.xer`). Írja a CSV-t, az MS Project XML-t, a Primavera P6 XML-t és két táblázatot az előrehaladásról. Nem exportálhat `.mpp`- vagy `.xer`-formátumba.
 
@@ -46,13 +46,13 @@ Minden átalakító azt viszi át, amit a formátuma ismer.
 
 **Primavera P6 XML** átviszi a tevékenységeket, kapcsolatokat, naptárakat, erőforrásokat, hozzárendeléseket, korlátozásokat és az állapotdátumot. Az alaptervek és a határidők nem mennek át, és nem mennek át a tevékenységkódok, az egyéni mezők, a megjegyzések és a projektközi kapcsolatok sem. A hangmat itt is szokásos tevékenységgé válik. A P6-ban nincs százalékos késleltetés: az alkalmazás az ilyen késleltetést fix számú napra alakítja át. A naptári napokban megadott késleltetés munkanapok szerinti késleltetéssé válik.
 
-**CSV** egy tevékenységlista. A fájlban minden tevékenységhez ezek az oszlopok tartoznak: tevékenység-azonosító, WBS, szint, név, időtartam, kezdés, befejezés, elődök, típus, az egyéni tevékenységtípus azonosítója (`OPS Custom Task Type ID`), státusz, elkészültség, tényleges kezdés és befejezés, kritikus, teljes tartalékidő és leírás. Erőforrások, hozzárendelések, naptárak, korlátozások, határidők, alaptervek és az állapotdátum nincs benne. Az oszlopfejlécek mindig angolul vannak.
+**CSV** egy tevékenységlista. A fájlban minden tevékenységhez ezek az oszlopok tartoznak: tevékenység-azonosító, WBS, szint, név, időtartam, kezdés, befejezés, elődök, munkanem, az egyéni munkanem azonosítója (`OPS Custom Task Type ID`), státusz, elkészültség, tényleges kezdés és befejezés, kritikus, teljes tartalékidő és leírás. Erőforrások, hozzárendelések, naptárak, korlátozások, határidők, alaptervek és az állapotdátum nincs benne. Az oszlopfejlécek mindig angolul vannak.
 
-**Csak az IFC hordozza a számítási profilt és a számítási beállításokat.** Ha CSV-be, MS Project XML-be vagy Primavera P6 XML-be exportál, a profil nincs benne a fájlban. A számítási beállítások közül az MS Project XML legfeljebb a kritikus küszöbértéket írja. Egy ilyen fájl újranyitása *Open Planner Studio* néven nyílik meg. Ha a projekt *Primavera P6* vagy *Microsoft Project* számítással készült, például mert egy `.xer`- vagy `.mpp`-fájlból származik, a dátumok emiatt eltolódhatnak. Hogy mi a számítási profil, azt a [Számítási profilok és ütemezési szabályok](docs://uitleg-rekenprofielen) cikk írja le.
+**Csak az IFC hordozza a számítási profilt és a számítási beállításokat.** Ha CSV-be, MS Project XML-be vagy Primavera P6 XML-be exportál, a profil nincs benne a fájlban. A számítási beállítások közül az MS Project XML legfeljebb a kritikus küszöbértéket írja. Egy ilyen fájl újranyitása *Open Planner Studio* néven nyílik meg. Ha a projektet *Primavera P6* vagy *Microsoft Project* számította ki, például mert egy `.xer`- vagy `.mpp`-fájlból származik, a dátumok emiatt eltolódhatnak. Hogy mi a számítási profil, azt a [Számítási profilok és ütemezési szabályok](docs://uitleg-rekenprofielen) cikk írja le.
 
 Ha a projekt Primavera-fájlból (`.xer`) származik, akkor is, ha közben IFC-ként mentette, az alkalmazás CSV-, MS Project XML- vagy P6 XML-exportálás után ezt az üzenetet jeleníti meg: *A(z) CSV formátumba történő exportáláskor elvesznek a XER-forrásadatok.* MS Project XML esetén az üzenetben *MSPDI* áll a *CSV* helyett. P6 XML esetén *P6* áll. IFC esetén nem kap ilyen üzenetet, mert az IFC-fájl viszi tovább a Primavera forrásfájlját. Lásd: [Primavera P6-fájl (.xer) megnyitása](docs://howto-xer-openen).
 
-Két további dolgot csinál az alkalmazás exportnál. Ha az ütemezés nem naprakész, az alkalmazás előbb újraszámít, és csak utána exportál. Körkörös kapcsolatot tartalmazó ütemezést nem exportál. Ilyenkor a hurkot megnevező üzenetet kap, például: *Körkörös kapcsolat a tevékenységek között: Set up site → Demolish existing extension → Set up site.*
+Két további dolgot csinál az alkalmazás exportnál. Ha az ütemezés nem naprakész, az alkalmazás előbb újraszámít, és csak utána exportál. Körkörös kapcsolatot tartalmazó ütemezést nem exportál. Ilyenkor a hurkot megnevező üzenetet kap, például: *Körkörös kapcsolat a tevékenységek között: Set up site → Demolish existing extension → Set up site*.
 
 ### Mentés, automatikus mentés és visszaállás összeomlás után
 
@@ -60,13 +60,13 @@ Ez három külön dolog. Hasonlítanak egymásra, de máshová írnak.
 
 **Mentés** egy művelet, amelyet Ön végez. Az alkalmazás a projektet a fájlba írja, és eltávolítja a *Nincs mentve* jelölést.
 
-**Automatikus mentés** alapértelmezés szerint ki van kapcsolva. Projektenként Ön kapcsolja be. Az alkalmazás ilyenkor ablak nélkül, ugyanabba a fájlba ír, ha van változás, legfeljebb tíz másodpercenként. Ez csak akkor működik, ha a projektnek már van fájlja. Lásd: [Az automatikus mentés bekapcsolása](docs://howto-automatisch-opslaan).
+**Automatikus mentés** alapértelmezés szerint ki van kapcsolva. Projektenként Ön maga kapcsolja be. Az alkalmazás ilyenkor ablak nélkül, ugyanabba a fájlba ír, ha van változás, legfeljebb tíz másodpercenként. Ez csak akkor működik, ha a projektnek már van fájlja. Lásd: [Az automatikus mentés bekapcsolása](docs://howto-automatisch-opslaan).
 
-**Visszaállás összeomlás után** mindig be van kapcsolva. Amint bármiben változás történik, az alkalmazás legfeljebb tíz másodpercenként visszaállítási másolatot tart fenn az összes megnyitott projektről. Ez azokat is magában foglalja, amelyeket Ön nem módosított. A másolat nincs a projektfájlban. Az asztali alkalmazásban az alkalmazás adatmappájában van, a böngészőben a böngésző tárolójában. Az alkalmazás a következő induláskor felajánlja ezt a másolatot. Erről a [Visszaállás összeomlás után](docs://howto-herstellen-na-een-crash) cikkben olvashat. A visszaállás összeomlás után soha nem ír a projektfájlba.
+**Visszaállás összeomlás után** mindig be van kapcsolva. Amint bármiben változás történik, az alkalmazás is legfeljebb tíz másodpercenként visszaállítási másolatot tart fenn az összes megnyitott projektről. Ez azokat is magában foglalja, amelyeket Ön nem módosított. A másolat nincs a projektfájlban. Az asztali alkalmazásban az alkalmazás adatmappájában van, a böngészőben a böngésző tárolójában. Az alkalmazás a következő induláskor felajánlja ezt a másolatot. Erről a [Visszaállás összeomlás után](docs://howto-herstellen-na-een-crash) cikkben olvashat. A visszaállás összeomlás után soha nem ír a projektfájlba.
 
 Mivel a másolat legfeljebb tíz másodpercenként készül, összeomláskor az utolsó néhány másodperc munkája elveszhet.
 
-### Asztali gép és böngésző
+### Asztali alkalmazás és böngésző
 
 Az asztali alkalmazás és a böngészőben futó változat ugyanúgy kezeli a projektet, de másképp írja a fájlokat.
 

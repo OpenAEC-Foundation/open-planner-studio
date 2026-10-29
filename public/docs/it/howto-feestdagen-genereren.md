@@ -22,11 +22,11 @@ Le ferie edili sono le ferie collettive del settore edile olandese, tre settiman
 
 Per i Paesi Bassi l'app inserisce ogni anno nell'elenco Nieuwjaar, Goede Vrijdag, Pasen (due giorni), Koningsdag, Hemelvaart, Pinksteren (due giorni) e Kerst (25 e 26 dicembre) (Capodanno, Venerdì Santo, Pasqua, Giorno del Re, Ascensione, Pentecoste e Natale). Se Koningsdag cade di domenica, è il 26 aprile. Bevrijdingsdag (Giorno della Liberazione) è nell'elenco solo negli anni di lustro, come 2025 e 2030.
 
-Gli anni seguono il periodo del progetto: dall'anno prima della data di inizio fino all'anno dopo la data di fine. Se il progetto non ha una data di fine, fino a tre anni dopo l'anno di inizio. Modifichi inizio e fine in *Impostazioni › Progetto › Info progetto*.
+Gli anni seguono il periodo del progetto: dall'anno prima della data di inizio fino all'anno dopo la data di fine. Se il progetto non ha una data di fine, fino a tre anni dopo l'anno di inizio. Modifichi inizio e fine in *Impostazioni › Progetto › Impostazioni progetto*.
 
 ### Rigenerare dopo un nuovo periodo di progetto
 
-Se il tuo progetto viene spostato, o ottiene una data di fine successiva, le festività non coprono più i nuovi anni. L'app lo segnala nella finestra *Calendari*, per esempio *Le festività coprono 2025–2028; il progetto arriva fino al 2030. Rigenerare?* Clicca poi su *Rigenera*. L'app usa le stesse scelte di prima (paese, regione, ferie edili) per gli anni del progetto. Clicca poi su *Applica*. Questo messaggio compare solo per un calendario le cui festività sono state generate in precedenza.
+Se il tuo progetto viene spostato, o ottiene una data di fine successiva, le festività non coprono più i nuovi anni. L'app lo segnala nella finestra *Calendari*, per esempio *Le festività coprono 2025–2028; vuoi rigenerarle fino al 2030 compreso?* Clicca poi su *Rigenera*. L'app usa le stesse scelte di prima (paese, regione, ferie edili) per gli anni del progetto. Clicca poi su *Applica*. Questo messaggio compare solo per un calendario le cui festività sono state generate in precedenza.
 
 ### Aggiungere un giorno o un periodo libero di tua scelta
 
@@ -35,7 +35,7 @@ Se il tuo progetto viene spostato, o ottiene una data di fine successiva, le fes
 3. Regola *Da*. Lascia *A* vuoto per un solo giorno, oppure inserisci l'ultimo giorno di ferie per un periodo, per esempio per una vacanza invernale.
 4. Clicca su *Applica*.
 
-Con il cestino dietro una riga elimini una festività.
+Con il cestino alla fine di una riga elimini una festività.
 
 ### Rimuovere tutte le festività
 
@@ -58,5 +58,5 @@ Scegli *Nessuna festività* sotto *Paese* e clicca su *Genera*. L'elenco resta q
 - [Calendari e giorni lavorativi](docs://uitleg-kalenders): come l'app tiene conto di festività e ferie edili nel conteggio dei giorni lavorativi.
 - [Creare e assegnare un calendario](docs://howto-kalender-maken-en-toewijzen): creare un calendario tuo in cui inserire festività.
 - [Finestre dei calendari](docs://ref-kalenders): tutti i campi delle finestre dei calendari.
-- [Nuovo progetto e Info progetto](docs://ref-projectinfo): il set di festività per un nuovo progetto.
+- [Nuovo progetto e Impostazioni progetto](docs://ref-projectinfo): il set di festività per un nuovo progetto.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): oltre alle festività, il calendario del progetto ha un periodo libero *Frost delay, foundations*.

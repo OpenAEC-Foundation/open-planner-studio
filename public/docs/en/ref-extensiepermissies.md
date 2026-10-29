@@ -18,6 +18,8 @@ What needs no permission is the basis of the extension interface: reading the pr
 
 **The manifest.** The permissions are in the manifest as a list. An extension that you install now, with a permission that this app version does not know, is refused. For an already stored older extension, the app drops unknown permissions and reports it in the log.
 
+Since extension contract 1.5.0, an extension can also read the selected task IDs with `data.getSelectedTaskIds()`. This does not change the selection or add write access; it belongs to the ordinary project data without an extra permission.
+
 ## How the app asks
 
 On installing, from the catalogue (*File › Extensions › Browse › Install*) or from a file (*ZIP* or *JS*), the app shows the window *Install extension?*. The question comes once, at install time: not every time you switch the extension on.
@@ -32,7 +34,7 @@ With *Install* you agree. *Don't install*, Esc and clicking outside the window r
 
 **ribbon** — place a button in the ribbon. Effect: the extension may add a button to a group on a ribbon tab. An extension without this permission gets an error when it tries. The buttons appear at the end of the chosen tab, under a group label of the extension, and disappear when you switch the extension off or remove it. Default: not granted; only what is in the manifest. Enforcement: hard. Where: on the tab the extension chose.
 
-**events** — follow the events of the app and send events itself. Effect: the extension may subscribe to and unsubscribe from events and send events itself. The app itself sends three: a project is loaded (after importing, opening or loading by an extension), an empty project is created and the schedule is (re)calculated. Default: not granted; only what is in the manifest. Enforcement: hard. Where: nowhere; the extension reacts to the event.
+**events** — follow the events of the app and send events itself. Effect: the extension may subscribe to and unsubscribe from events and send events itself. The app itself sends four: a project is loaded (after importing, opening or loading by an extension), an empty project is created, the schedule is (re)calculated and the user asked for a tutorial. That last one only goes to the tutorial extension. Default: not granted; only what is in the manifest. Enforcement: hard. Where: nowhere; the extension reacts to the event.
 
 **backstage** — offer an import format. Effect: the extension may register an importer; it appears in *File › Import*, where you click a format and pick a file. The built-in formats are separate from this (see [Import and export formats](docs://ref-import-exportformaten)). Default: not granted; only what is in the manifest. Enforcement: warning. If the permission is missing, registering still works, with a warning in the log. That is a transitional arrangement, because existing extensions do not always list the permission. Where: *File › Import*.
 

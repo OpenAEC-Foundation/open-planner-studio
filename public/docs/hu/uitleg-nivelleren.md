@@ -49,7 +49,7 @@ A *Számítás* gomb javaslatot készít: a tevékenységek listáját, amelyek 
 
 ## Kidolgozott példa: a kőműves két falon
 
-A példa a *House extension* gyakorlati projekt, abban az állapotban, ahogy az 5. oktatóanyag kiegyenlítése előtt áll. Az 5. oktatóanyagban ezt Ön maga végzi el, és ellenőrzi a számokat. Ebben a példában a vakolás *Rögzített munka* típusú, a vakolómunkás hozzárendelt mennyisége pedig 2, ahogy azt a [Munkaszabályok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels) leírja.
+A példa a *House extension* gyakorlati projekt, abban az állapotban, ahogy az 5. oktatóanyag kiegyenlítése előtt áll. Az 5. oktatóanyagban ezt Ön maga végzi el, és ellenőrzi a számokat. Ebben a példában a vakolás *Rögzített munka* típusú, a vakolómunkás hozzárendelt mennyisége pedig 2, ahogy azt a [Tevékenységtípusok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels) leírja.
 
 Miután az üreges padló június 28-án, hétfőn elkészül, a belső falréteg (5 munkanap) és a külső falréteg (6 munkanap) is június 29-én, kedden kezdődik. Mindkettő a kőművesnek van hozzárendelve, 1 hozzárendelt mennyiséggel. A kőműves *Maximális mennyiség* értéke 1. A belső falréteg után következnek a tetőelemek (6 órás darus munka) és a tetőfedés (2 munkanap). A keretek a tetőfedésre és a külső falrétegre várnak. Az átadás augusztus 30., hétfőn lesz.
 
@@ -71,8 +71,8 @@ Az eltolódás 5 munkanapja pontosan a külső falréteg tartalékideje. Ezért 
 
 E korlátozás nélkül a keretek július 9-én, pénteken kezdődhetnek, és az átadás augusztus 25., szerdán lesz. A külső falrétegnek ekkor csak 2 munkanap tartalékideje van.
 
-- Ha a jelölőnégyzet nincs bejelölve, a külső falréteg akkor is 5 munkanappal tolódik. A keretek ekkor várnak: július 14-én kezdődnek, 3 munkanappal később. Minden, ami utánuk következik, együtt mozog, és az átadás augusztus 25-ről augusztus 30-ra tolódik, szintén 3 munkanappal később.
-- Ha a jelölőnégyzet be van jelölve, semmi sem tolódik el. A külső falréteg nem fér bele a 2 munkanap tartalékidejébe. Az ablak a *Build outer cavity leaf* ütközést mutatja, 5 nap, az indokkal: *Nincs elég szabad kapacitás a tartalékidőn belül az ütközés megoldásához.*
+- *Kiegyenlítés* nélkül a külső falréteg akkor is 5 munkanappal tolódik. A keretek ekkor várnak: július 14-én kezdődnek, 3 munkanappal később. Minden, ami utánuk következik, együtt mozog, és az átadás augusztus 25-ről augusztus 30-ra tolódik, szintén 3 munkanappal később.
+- *Kiegyenlítéssel* semmi sem tolódik el. A külső falréteg nem fér bele a 2 munkanap tartalékidejébe. Az ablak a *Build outer cavity leaf* ütközést mutatja, 5 nap, az indokkal: *Nincs elég szabad kapacitás a tartalékidőn belül az ütközés megoldásához.*
 
 ### Mi történik, ha a külső falréteg prioritást kap
 
@@ -100,5 +100,5 @@ Ha a kőműves *Maximális mennyiség* értékét 2-re állítja, már nincs tú
 
 - [A túlterhelés megoldása](docs://howto-overbezetting-oplossen): a lépések a túlterhelés megtalálásához és kiegyenlítéséhez.
 - [A kritikus út és a tartalékidő](docs://uitleg-kritiek-pad): mi a tartalékidő, és miért válik egy tevékenység kritikussá.
-- [Munkaszabályok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels): hogyan változik egy tevékenység időtartama a mennyiségekkel együtt.
+- [Tevékenységtípusok: időtartam, hozzárendelt mennyiség és munka](docs://uitleg-werkregels): hogyan változik egy tevékenység időtartama a mennyiségekkel együtt.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): három torony, amelyek ugyanazokat a munkacsapatokat és a toronydarut igénylik, és hogy mit tesz ezzel a kiegyenlítés.

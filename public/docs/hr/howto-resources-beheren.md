@@ -22,7 +22,7 @@ Redak postaje resurs tek kada ima naziv. Pritiskom na Esc ili klikom izvan retka
 
 ### Uređivanje resursa
 
-Uredite polja u retku. Aplikacija sprema naziv, tarifu i jedinicu kada napustite polje, a ostala polja odmah.
+Uredite polja u retku. Aplikacija sprema naziv, standardnu tarifu i jedinicu kada napustite polje, a ostala polja odmah.
 
 - Aplikacija prihvaća *Maksimalan postotak jedinica* samo ako je vrijednost veća od 0. Kod 0 ili manje polje dobije crveni okvir i vraća se na prethodnu vrijednost.
 - *Kalendar* određuje na koje dane resurs radi. Odaberite *Kalendar projekta* ili vlastiti kalendar. Pomoću *+ Kalendar resursa* stvarate novi, a olovka (*Uredi…*) otvara odabrani kalendar. Ako zadatak radi na dan kada resurs prema svom kalendaru ne radi, taj se dan računa kao preopterećenje resursa. Kako stvoriti kalendar resursa, opisano je u [Postavljanje kalendara resursa](docs://howto-resourcekalender-instellen).
@@ -32,7 +32,7 @@ Uredite polja u retku. Aplikacija sprema naziv, tarifu i jedinicu kada napustite
 
 ### Kapacitet koji se mijenja tijekom vremena
 
-Dolazi li vaš drugi zidar tek 19. srpnja? Kliknite strelicu uz *Maksimalan postotak jedinica*. Pod *Kapacitet po vremenskim fazama* odaberite *Dodaj korak*. Svaki korak ima datum (*Od*) i broj (*Maksimalan postotak jedinica*). Od tog datuma vrijedi taj broj. Bez koraka uvijek vrijedi stalna vrijednost, dakle ista vrijednost za cijelo razdoblje.
+Dolazi li vaš drugi zidar tek 19. srpnja? Kliknite strelicu uz *Maksimalan postotak jedinica*. Pod *Kapacitet po vremenskim fazama* odaberite *Dodaj korak*. Svaki korak ima datum (*Od*) i broj (*Maksimalan postotak jedinica*). Od tog datuma vrijedi taj broj. Bez koraka uvijek vrijedi stalna vrijednost.
 
 Novi korak počinje s današnjim datumom i 1 jedinicom. Promijenite oboje, jer se inače kapacitet 1 primjenjuje od danas.
 
@@ -41,7 +41,7 @@ Novi korak počinje s današnjim datumom i 1 jedinicom. Promijenite oboje, jer s
 1. Kliknite kantu za smeće u retku.
 2. Ako resurs ima dodjele, aplikacija traži potvrdu, na primjer *'Bricklayer' ima dodjele (ukupno: 4). Izbrisati?* Kliknite kvačicu za brisanje ili križić za odustajanje. Bez dodjela resurs odmah nestaje.
 
-Aplikacija briše i dodjele tog resursa. Ako zadatak ima pravilo rada osim *Fiksno trajanje i fiksne jedinice*, aplikacija rad uklonjenog resursa raspodjeljuje među resursima koji ostaju. Ovisno o pravilu, to mijenja njihove jedinice ili trajanje zadatka. Ako se trajanje promijeni, raspored više nije ažuran.
+Aplikacija briše i dodjele tog resursa. Ako zadatak ima vrstu zadatka osim *Fiksno trajanje i fiksne jedinice*, aplikacija rad uklonjenog resursa raspodjeljuje među resursima koji ostaju. Ovisno o vrsti zadatka, to mijenja njihove jedinice dodjele ili trajanje zadatka. Ako se trajanje promijeni, raspored više nije ažuran.
 
 Stvaranje, uređivanje i brisanje možete poništiti pomoću *Poništi* (Ctrl+Z).
 

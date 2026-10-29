@@ -24,6 +24,8 @@ A projekt a saját lapján jelenik meg, és azonnal aktív lesz. A menüszalagon
 
 Minden lapon van egy színes pont, amely a projekthez tartozik. Az a lap, amelynek a neve mellett kis pont látszik, nem mentett módosításokat tartalmaz.
 
+Ha a lapok nem férnek el a szélességben, két nyíl jelenik meg a lapok és a plusz jel között (*Lapfülek görgetése az elejére* és *Lapfülek görgetése a végére*). Minden kattintás két lappal mozgatja a lapokat. A nyíl szürke, ha már az elején vagy a végén van. A lapok fölött az egérgörgővel is görgethet. Az Ön által kiválasztott lap mindig automatikusan a látótérbe kerül.
+
 ### Projekt bezárása
 
 Kattintson a lapon a név melletti kereszt jelre (*Bezárás*), vagy az áttekintésben lévő kártya keresztjére. A módosítás nélküli projekt azonnal bezáródik. Ha vannak nem mentett módosításai, az alkalmazás a *Nem mentett módosítások* ablakban három lehetőséget kínál:
@@ -38,7 +40,7 @@ Ha bezárja az utolsó projektet, egy *Új ütemezés* nevű üres ütemezés ma
 
 ### A váltási stílus kiválasztása
 
-A lapok megjelenése választható. Nyissa meg a beállítások ablakot a címsorban lévő fogaskerékkel, lépjen a *Megjelenés* lapra, és a *Dokumentumátkapcsolás stílusa* beállításnál válasszon:
+A lapok megjelenése választható. Nyissa meg az *Alkalmazásbeállítások* ablakot a címsorban lévő fogaskerékkel, lépjen a *Megjelenés* lapra, és a *Dokumentumátkapcsolás stílusa* beállításnál válasszon:
 
 - *Vízszintes lapok*: az alapértelmezett. Egy sor lap a menüszalag alatt.
 - *Függőleges lapok*: keskeny oldalsáv a bal oldalon, projektenként egy gombbal (a név első betűivel) és egy plusz jellel. Ha a gomb fölé viszi az egeret, megjelenik a név, a fájlnév, a tevékenységek száma, a kritikus tevékenységek száma és a befejezési dátum. A tetején lévő gomb megnyitja az áttekintést.
@@ -50,7 +52,7 @@ Mindhárom stílus ugyanazt az áttekintést nyitja meg, és a Ctrl+1 és Ctrl+9
 
 **Mi tartozik a projekthez, és mi közös.** Minden projektnek saját nézete van: nagyítás és pozíció, az aktív elrendezés szűréssel, csoportosítással vagy rendezéssel, az osztott nézet, a kapcsolatvonalak és az összecsukott fázisok. Ha másik projektre vált, ott annak a saját nézetét látja. Minden projektben közös: a menüszalagon kiválasztott lap, a mini-térkép, az átfedések (alapterv-átfedés, előrehaladási vonal és a többi), az oszlopválasztása, az elrendezései és a jelentésbeállításai.
 
-**Amíg párbeszédablak van nyitva, nem lehet váltani.** Amíg párbeszédablak van nyitva, például a beállítások ablak vagy egy tevékenység ablaka, a Ctrl+1 és Ctrl+9 billentyűk nem tesznek semmit az alkalmazásban. A böngészőben ilyenkor a böngésző lapjai között váltanak. Zárja be előbb a párbeszédablakot. A Backstage *Projektadatok* nézetében lévő, még nem alkalmazott módosítás szintén blokkolja a váltást.
+**Amíg párbeszédablak van nyitva, nem lehet váltani.** Amíg párbeszédablak van nyitva, például az *Alkalmazásbeállítások* ablak vagy egy tevékenység ablaka, a Ctrl+1 és Ctrl+9 billentyűk nem tesznek semmit az alkalmazásban. A böngészőben ilyenkor a böngésző lapjai között váltanak. Zárja be előbb a párbeszédablakot. A Backstage *Projektbeállítások* nézetében lévő, még nem alkalmazott módosítás szintén blokkolja a váltást.
 
 **A Ctrl+1 és Ctrl+9 sorrend szerint számolnak.** A billentyűkombináció a sorban az adott helyen álló projekthez ugrik. Ha bezár egy projektet, a többi projekt egy hellyel előrébb kerül. Ha kilencnél több projekt van nyitva, a többihez csak a lapokon vagy az áttekintésen keresztül jut el.
 

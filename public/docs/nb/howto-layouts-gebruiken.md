@@ -39,7 +39,7 @@ Hvilke operatorer du får, avhenger av feltets type:
 - Tekst (*Aktivitetsnavn*, *WBS*): *er lik*, *er ikke lik*, *inneholder*, *begynner med* og *er tom*.
 - Tall og dato (*Totalslakk*, *Start*, *Fremdrift*): *er lik*, *er ikke lik*, *mindre enn*, *mindre enn eller lik*, *større enn*, *større enn eller lik*, *mellom* og *er tom*. Med *mellom* er det to felt: for et tall med *Fra* og *Til* som hjelpetekst, for en dato uten hjelpetekst (den første datoen er start, den andre er slutt).
 - Ja/nei (*Kritisk*, *Milepæl*, *Nesten kritisk*): *er lik* og *er ikke lik*, med verdien *Ja* eller *Nei*.
-- Valg (*Type*, en aktivitetskode): *er lik*, *er ikke lik*, *er en av* (med avkrysningsbare verdier) og *er tom*.
+- Valg (*Arbeidskategori*, en aktivitetskode): *er lik*, *er ikke lik*, *er en av* (med avkrysningsbare verdier) og *er tom*.
 - *Ressurser*: *er en av* og *er tom*.
 - *Pågår*: bare *mellom*, med to datoer (fra og til).
 
@@ -81,7 +81,7 @@ Oppsett som ikke lagrer de samme delene, kan være på samtidig. Har du et oppse
 
 **Oppsett ligger på enheten din, ikke i prosjektet.** Appen lagrer oppsettene og kolonnene dine for alle prosjektene dine på denne enheten. Overleggene fra et oppsett (grunnlinje, fremdriftslinje og resten) gjelder for alle prosjektene dine. Filteret, grupperingen og sorteringen som er på nå, hører til det åpne prosjektet. Men de havner ikke i prosjektfilen: etter lagring og ny åpning er visningen ren igjen. De gjør heller ikke prosjektet «endret».
 
-**De separate knappene er skjult.** *Kolonner…*, *Filter…*, *Grupper…* og *Sorter…* som egne knapper på fanen *Visning* hører til en eldre visning. Du viser dem igjen med *Vis klassiske visningsknapper* under *Eldre funksjoner* på fanen *Avansert* i innstillingsvinduet (⚙ i tittellinjen). Bruk helst oppsett.
+**De separate knappene er skjult.** *Kolonner…*, *Filter…*, *Grupper…* og *Sorter…* som egne knapper på fanen *Visning* hører til en eldre visning. Du viser dem igjen med *Vis klassiske visningsknapper* under *Eldre funksjoner* på fanen *Avansert* i vinduet *Appinnstillinger* (⚙ i tittellinjen). Bruk helst oppsett.
 
 ## Se også
 

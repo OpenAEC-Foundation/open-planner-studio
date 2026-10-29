@@ -4,7 +4,7 @@
 
 ## 基本概念
 
-Open Planner Studio 有一种自有的文件格式：**IFC**，这是 buildingSMART 提出的建筑信息开放交换格式。应用写入 IFC 4.3，在导出列表中它名为*IFC 4x3*。没有第二种专有项目文件。*保存*会把整个项目写入一个 IFC 文件（`.ifc`），*打开*则会读回此类文件。想查看文件里有什么？*IFC* 选项卡会显示项目的 IFC 文本；*生成 IFC* 会刷新该文本。
+Open Planner Studio 有一种自有的文件格式：**IFC**，这是 buildingSMART 提出的建筑信息开放交换格式。应用会写入项目的 IFC 模式，默认为 IFC 4.3 ADD2（参见[选择 IFC 模式](docs://howto-ifc-schema-kiezen)）。在导出列表中，它名为*IFC*。没有第二种专有项目文件。*保存*会把整个项目写入一个 IFC 文件（`.ifc`），*打开*则会读回此类文件。想查看文件里有什么？*IFC* 选项卡是一个编辑器，显示你项目的 IFC 文本；*生成 IFC* 会刷新该文本，*复制*会将其放到剪贴板上。如果你更改该文本，*应用*会将其作为你的项目加载。这会完全替换该标签页中的项目。
 
 所有其他格式都是**适配器**：它们在另一个程序的模型和应用的模型之间转换。应用读取 CSV、MS Project XML、Primavera P6 XML、MS Project 文件（`.mpp`）和 Primavera 文件（`.xer`）。它写入 CSV、MS Project XML、Primavera P6 XML 和两种进度表。你无法导出为 `.mpp` 或 `.xer`。
 
@@ -46,7 +46,7 @@ Open Planner Studio 有一种自有的文件格式：**IFC**，这是 buildingSM
 
 **Primavera P6 XML** 会保留任务、关系、日历、资源、分配、约束和状态日期。基线和截止日期不会保留，活动代码、自定义字段、备注和外部关系也不会。吊床任务在这里同样会变成普通任务。P6 没有百分比形式的延隔：应用会把这种延隔转换为固定的天数。以日历日计的延隔会变为以工作日计的延隔。
 
-**CSV** 是任务列表。每个任务在文件中有这些列：task id、WBS、level、name、duration、start、finish、predecessors、type、自定义任务类型的 id（`OPS Custom Task Type ID`）、status、completion、actual start and finish、critical、total float 和 description。资源、分配、日历、约束、截止日期、基线和状态日期都不在其中。列标题始终为英文。
+**CSV** 是任务列表。每个任务在文件中有这些列：task id、WBS、level、name、duration、start、finish、predecessors、work category、自定义工作类别的 id（`OPS Custom Task Type ID`）、status、completion、actual start and finish、critical、total float 和 description。资源、分配、日历、约束、截止日期、基线和状态日期都不在其中。列标题始终为英文。
 
 **只有 IFC 会保存计算配置文件和计算选项。** 如果你导出为 CSV、MS Project XML 或 Primavera P6 XML，文件中就不会有计算配置文件；在计算选项中，MS Project XML 最多只会写入关键阈值。这种文件会以 *Open Planner Studio* 重新打开。如果你的项目使用 *Primavera P6* 或 *Microsoft Project* 计算，例如项目来自 `.xer` 或 `.mpp`，日期可能因此变化。计算配置文件是什么，在[计算配置文件和约定](docs://uitleg-rekenprofielen)中说明。
 

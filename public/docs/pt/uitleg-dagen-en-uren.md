@@ -16,11 +16,11 @@ O **planeamento por horas** está desativado por padrão. Enquanto estiver desat
 
 ## Como a aplicação calcula
 
-### Horários de trabalho e horas líquidas
+### Tempos de trabalho e dia útil padrão
 
 Cada calendário tem **faixas** de tempo de trabalho para cada dia útil (na aplicação, *faixas*). O calendário padrão tem das 07:00 às 12:00 e das 13:00 às 16:00. O intervalo entre elas é a pausa. A aplicação deriva essas faixas do *Início (hora)* e do *Fim (hora)* do calendário, e da pausa; não tem de definir nada para isso. Se definir faixas próprias por dia da semana, essas têm prioridade.
 
-As **horas líquidas por dia** são a soma das faixas de um dia útil. Se os dias úteis tiverem durações diferentes, aplica-se o total diário mais frequente; em caso de empate, o mais alto. Com quatro dias de 8 horas e uma sexta-feira de 5 horas, as horas líquidas por dia são, portanto, 8.
+O **dia útil padrão** é o dia útil que ocorre com mais frequência; a sua duração é a soma das respetivas faixas. Não é, portanto, uma média: se segunda-feira tiver 16 horas e de terça-feira a sexta-feira 10 horas, o dia útil padrão tem 10 horas. Se os dias úteis tiverem durações diferentes, aplica-se o total diário mais frequente; em caso de empate, o mais alto. Com quatro dias de 8 horas e uma sexta-feira de 5 horas, o dia útil padrão tem, portanto, 8 horas. Um calendário com horas por dia próprias (por exemplo, do Primavera P6) também calcula com este total diário, e a janela do calendário mostra-o. O valor próprio fica guardado para a exportação. Se for diferente, a janela do calendário mostra um bloco laranja abaixo de *Dia útil padrão*. Uma tarefa de 1870 horas, em faixas de 10 horas por dia, dura, portanto, 187 dias, mesmo que o valor próprio seja de 8 horas por dia.
 
 ### Tarefa horária
 
@@ -32,9 +32,9 @@ A aplicação conta dias úteis completos. As horas por dia não desempenham qua
 
 ### Converter dias e horas
 
-Um dia é igual às horas líquidas por dia do calendário da tarefa. A aplicação usa esse valor em três situações:
+Um dia é igual ao dia útil padrão do calendário da tarefa. A aplicação usa esse valor em três situações:
 
-- Para a *Exibição da duração*. Em *Definições › Projeto › Definições*, no separador *Aparência*, escolhe *Automática (unidade própria por tarefa)*, *Sempre dias* ou *Sempre horas*. Uma tarefa de 18 horas aparece em *Sempre dias* como `2.25d(18h)`: a unidade própria fica entre parênteses.
+- Para a *Exibição da duração*. Em *Definições › Projeto › Definições da aplicação*, no separador *Aparência*, escolha *Automática (unidade própria por tarefa)*, *Sempre dias* ou *Sempre horas*. Uma tarefa de 18 horas aparece em *Sempre dias* como `2.25d(18h)`: a unidade própria fica entre parênteses.
 - Para um desfasamento em horas depois de uma tarefa em dias (veja *Arredondamento*).
 - Ao alterar a unidade de uma tarefa. A aplicação conta então os dias a partir do início da tarefa, cada dia com as suas próprias horas, e converte a duração de imediato se o resultado for exato. Dois dias passam a `16h`. Num calendário em que a sexta-feira tem 5 horas, 5 dias a partir de segunda-feira passam a `37h`. Doze horas não podem ser convertidas em dias completos num calendário com dias de 8 horas: a aplicação deixa então a unidade como está.
 
@@ -51,17 +51,17 @@ As regras abaixo aplicam-se a uma relação fim-início num calendário sem faix
 A aplicação arredonda, ou recusa, em quatro situações:
 
 - **Uma tarefa em dias depois de uma tarefa horária** começa no dia útil seguinte. A tarefa horária é, por assim dizer, arredondada para dias completos.
-- **Um desfasamento em horas** conta no calendário do desfasamento, por padrão o da predecessora. Se a predecessora for uma tarefa em dias num calendário sem faixas próprias, como o calendário padrão, a aplicação converte o desfasamento em dias úteis completos: o desfasamento dividido pelas horas líquidas por dia, arredondado a um número inteiro; meio dia arredonda para cima. Com 8 horas por dia, 1 hora conta como 0 dias, 4 horas como 1 dia e 12 horas como 2 dias. Isto também se aplica se a sucessora for uma tarefa horária. Se a predecessora for uma tarefa horária, ou se o respetivo calendário tiver faixas próprias, o desfasamento conta exatamente em horas de trabalho e a pausa não conta.
+- **Um desfasamento em horas** conta no calendário do desfasamento, por padrão o da predecessora. Se a predecessora for uma tarefa em dias num calendário sem faixas próprias, como o calendário padrão, a aplicação converte o desfasamento em dias úteis completos: o desfasamento dividido pelas horas do dia útil padrão, arredondado a um número inteiro; meio dia arredonda para cima. Com 8 horas por dia, 1 hora conta como 0 dias, 4 horas como 1 dia e 12 horas como 2 dias. Isto também se aplica se a sucessora for uma tarefa horária. Se a predecessora for uma tarefa horária, ou se o respetivo calendário tiver faixas próprias, o desfasamento conta exatamente no horário de trabalho e a pausa não conta.
 - **Uma duração em dias** é sempre um número inteiro. Se escrever `1.5d`, a aplicação mostra *Introduza um número inteiro de dias ou horas, por exemplo 2d ou 12h.* Uma duração em horas pode ser `1.5h` ou `1h 30m`.
 - **Alterar a unidade** só acontece se o resultado for exato (veja acima).
 
 ## Exemplo prático: a grua
 
-O calendário é de segunda-feira a sexta-feira, das 07:00 às 12:00 e das 13:00 às 16:00: 8 horas líquidas por dia. O projeto começa na segunda-feira, 7 de junho de 2027.
+O calendário é de segunda-feira a sexta-feira, das 07:00 às 12:00 e das 13:00 às 16:00: um dia útil padrão de 8 horas. O projeto começa na segunda-feira, 7 de junho de 2027.
 
 ### Duas tarefas horárias e uma em dias
 
-*Place crane* dura 12 horas. Segunda-feira tem 8 horas de trabalho (5 até às 12:00 e 3 depois da pausa) e terça-feira as últimas 4 horas. A tarefa decorre de segunda-feira, às 07:00, até **terça-feira, 8 de junho, às 11:00**.
+*Place crane* dura 12 horas. Segunda-feira tem um horário de trabalho de 8 horas (5 até às 12:00 e 3 depois da pausa) e terça-feira as últimas 4 horas. A tarefa decorre de segunda-feira, às 07:00, até **terça-feira, 8 de junho, às 11:00**.
 
 *Adjust elements* dura 8 horas e segue com uma relação fim-início. Começa logo na terça-feira, às 11:00: isso é 1 hora até à pausa e 3 horas depois dela. As últimas 4 horas são na quarta-feira, das 07:00 às 11:00. O fim é **quarta-feira, 9 de junho, às 11:00**.
 
@@ -69,7 +69,7 @@ O calendário é de segunda-feira a sexta-feira, das 07:00 às 12:00 e das 13:00
 
 ### Arredondamento na transição
 
-Se omitir *Adjust elements* e ligar *Finishing* diretamente a *Place crane*, *Finishing* começa na quarta-feira, 9 de junho, e termina na quinta-feira, 10 de junho. O resto da terça-feira (4 horas de trabalho) não pode ser usado. Essas 4 horas voltam a aparecer como folga total de *Place crane*: meio dia útil.
+Se omitir *Adjust elements* e ligar *Finishing* diretamente a *Place crane*, *Finishing* começa na quarta-feira, 9 de junho, e termina na quinta-feira, 10 de junho. O resto do horário de trabalho de terça-feira (4 horas) não pode ser usado. Essas 4 horas voltam a aparecer como folga total de *Place crane*: meio dia útil.
 
 Se inverter a ordem, é mais simples. *Pour foundation* dura 2 dias, de segunda-feira, 7, a terça-feira, 8 de junho. *Place crane* passa a durar 4 horas e segue. Começa na **quarta-feira, 9 de junho, às 07:00**, e termina às 11:00.
 
@@ -81,9 +81,9 @@ Depois de uma tarefa em dias, um desfasamento funciona de outra forma. *Pour fou
 
 ### Uma sexta-feira com tarde livre
 
-Agora a sexta-feira tem só uma faixa, das 07:00 às 12:00: 5 horas. Os outros dias mantêm-se nas 8 horas. As horas líquidas por dia mantêm-se em 8, porque é o total diário mais frequente. Uma semana tem agora 37 horas de trabalho.
+Agora a sexta-feira tem só uma faixa, das 07:00 às 12:00: 5 horas. Os outros dias mantêm-se nas 8 horas. O dia útil padrão mantém-se em 8 horas, porque é o total diário mais frequente. Uma semana tem agora um horário de trabalho de 37 horas.
 
-Uma tarefa de 40 horas, a partir de segunda-feira, 7 de junho, às 07:00, usa de segunda-feira a quinta-feira (32 horas) e a sexta-feira (5 horas). As últimas 3 horas caem na segunda-feira seguinte, das 07:00 às 10:00. O fim é **segunda-feira, 14 de junho, às 10:00**. Uma tarefa de 5 dias ocuparia 37 horas a partir de segunda-feira, e é isso que a aplicação propõe se alterar a unidade de 5 dias para horas.
+Uma tarefa de 40 horas, a partir de segunda-feira, 7 de junho, às 07:00, usa de segunda-feira a quinta-feira (32 horas) e a sexta-feira (5 horas). As últimas 3 horas caem na segunda-feira seguinte, das 07:00 às 10:00. O fim é **segunda-feira, 14 de junho, às 10:00**. Uma tarefa de 5 dias ocuparia 37 horas a partir de segunda-feira. É isso que a aplicação propõe se alterar a unidade de 5 dias para horas.
 
 No tutorial 4, sobre planeamento por horas, planeia pessoalmente uma obra com grua em horas.
 
@@ -91,11 +91,11 @@ No tutorial 4, sobre planeamento por horas, planeia pessoalmente uma obra com gr
 
 **«8 horas são 1 dia.»** Só se o calendário tiver dias de 8 horas. No calendário com a tarde livre de sexta-feira, 5 dias são 37 horas, não 40.
 
-**«Se eu definir mais horas por dia, a minha tarefa em dias termina mais cedo.»** Não. Uma tarefa em dias conta dias úteis completos. As horas por dia só mudam o valor de um dia em horas, por exemplo na exibição e para um desfasamento em horas. Só numa tarefa com recursos e com a regra de trabalho *Trabalho fixo* ou *Unidades fixas* é que a duração muda com isso, porque o trabalho se mantém: 40 horas de trabalho são 5 dias com 8 horas por dia e 7 dias com 6 horas por dia.
+**«Se eu definir mais horas por dia, a minha tarefa em dias termina mais cedo.»** Não. Uma tarefa em dias conta dias úteis completos. As horas por dia só mudam o valor de um dia em horas, por exemplo na exibição e para um desfasamento em horas. Só numa tarefa com recursos e com o tipo de tarefa *Trabalho fixo* ou *Unidades fixas* é que a duração muda com isso, porque o trabalho se mantém: 40 horas de trabalho são 5 dias com 8 horas por dia e 7 dias com 6 horas por dia.
 
 **«Uma tarefa de 8 horas dura um dia.»** Só se começar no início do dia. Se começar mais tarde, como *Adjust elements* na terça-feira às 11:00, continua no dia seguinte.
 
-**Um calendário com faixas próprias** comporta-se de forma diferente do calendário padrão. Obtém um calendário destes ao definir horários de trabalho por dia da semana ou ao escolher uma predefinição de turnos (*2 turnos*, *3 turnos*, *Turno noturno* ou *24/7*). Num calendário destes, um desfasamento em horas conta exatamente em horas de trabalho, também depois de uma tarefa em dias.
+**Um calendário com faixas próprias** comporta-se de forma diferente do calendário padrão. Obtém um calendário destes ao definir tempos de trabalho por dia da semana ou ao escolher uma predefinição de turnos (*2 turnos*, *3 turnos*, *Turno noturno* ou *24/7*). Num calendário destes, um desfasamento em horas conta exatamente no horário de trabalho, também depois de uma tarefa em dias.
 
 **Desativar o planeamento por horas** não remove nada. As tarefas horárias mantêm-se e continuam a ser calculadas, mas não as pode editar até voltar a ativar o planeamento por horas.
 

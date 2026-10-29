@@ -62,6 +62,63 @@ export function partition(scripts) {
   return parts;
 }
 
+/**
+ * De matrixrecords uit ci.yml: elk `- part: …` begint een record; `shard:` (en de andere sleutels) horen
+ * bij het record zolang ze dieper ingesprongen staan dan dat streepje. Zo hoort een shard altijd bij zijn
+ * eigen `part` (review PR #399: een losse regex over `shard:`-regels zag niet dat een record met `4/4`
+ * naar een ander deel was verhuisd). Een `shard:` buiten een record is ook een record, met part `null`.
+ */
+export function matrixRecords(yaml) {
+  const records = [];
+  let current = null;
+  for (const line of yaml.split('\n')) {
+    const start = /^(\s*)-\s*part:\s*['"]?([\w-]+)['"]?\s*$/.exec(line);
+    if (start) {
+      current = { indent: start[1].length, part: start[2], shard: null };
+      records.push(current);
+      continue;
+    }
+    const indent = /^(\s*)/.exec(line)[1].length;
+    if (current && line.trim() !== '' && indent <= current.indent) current = null;
+    const shard = /^\s*shard:\s*['"]?([^'"\s]+)['"]?\s*$/.exec(line);
+    if (shard) {
+      if (current) current.shard = shard[1];
+      else records.push({ indent, part: null, shard: shard[1] });
+    }
+  }
+  return records;
+}
+
+/** Problemen met de browsershards: alleen browserrecords hebben een shard, en samen zijn ze 1/n … n/n. */
+export function shardProblemsOf(records) {
+  const problems = [];
+  for (const r of records) {
+    if (r.shard && r.part !== 'browser') problems.push(`shard ${r.shard} hoort bij ${r.part ? `deel "${r.part}"` : 'geen matrixrecord'}, niet bij browser`);
+  }
+  const browser = records.filter(r => r.part === 'browser');
+  const sharded = browser.filter(r => r.shard);
+  if (sharded.length === 0) {
+    if (browser.length > 1) problems.push(`${browser.length} browserrecords zonder shard draaien elk de hele suite`);
+    return problems;
+  }
+  if (sharded.length !== browser.length) problems.push('een browserrecord zonder shard naast gesharde browserrecords');
+  const parsed = sharded.map(r => /^(\d+)\/(\d+)$/.exec(r.shard));
+  if (parsed.some(m => !m)) {
+    problems.push(`ongeldige shard(s): ${sharded.filter((_, i) => !parsed[i]).map(r => r.shard).join(', ')}`);
+    return problems;
+  }
+  const totals = [...new Set(parsed.map(m => Number(m[2])))];
+  if (totals.length !== 1) {
+    problems.push(`verschillende totalen (${totals.join(', ')})`);
+  } else {
+    const ks = parsed.map(m => Number(m[1])).sort((a, b) => a - b).join(',');
+    if (ks !== Array.from({ length: totals[0] }, (_, i) => i + 1).join(',')) {
+      problems.push(`browsershards ${sharded.map(r => r.shard).join(', ')} zijn niet precies 1/${totals[0]} … ${totals[0]}/${totals[0]}`);
+    }
+  }
+  return problems;
+}
+
 function readScripts() {
   return JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts;
 }
@@ -78,15 +135,20 @@ function main(argv) {
   if (argv[0] === '--check-ci') {
     const file = argv[1] ?? join(ROOT, '.github/workflows/ci.yml');
     const yaml = readFileSync(file, 'utf8');
-    const inCi = new Set([...yaml.matchAll(/^\s*-?\s*part:\s*['"]?([\w-]+)['"]?\s*$/gm)].map(m => m[1]));
+    const records = matrixRecords(yaml);
+    const inCi = new Set(records.map(r => r.part));
     const missing = Object.keys(parts).filter(p => !inCi.has(p));
     const extra = [...inCi].filter(p => !(p in parts));
-    if (missing.length || extra.length) {
+    const shardProblems = shardProblemsOf(records);
+    if (missing.length || extra.length || shardProblems.length) {
       if (missing.length) console.log(`XX  ci.yml draait deel/delen niet: ${missing.join(', ')} — voeg een matrixregel \`part: <naam>\` toe`);
       if (extra.length) console.log(`XX  ci.yml noemt onbekende delen: ${extra.join(', ')} (zie --list)`);
+      for (const problem of shardProblems) console.log(`XX  ci.yml browsershards: ${problem}`);
       return 1;
     }
-    console.log(`OK  verify-parts: ci.yml draait alle ${Object.keys(parts).length} delen (${Object.keys(parts).join(', ')})`);
+    const browserShards = records.filter(r => r.part === 'browser' && r.shard).length;
+    console.log(`OK  verify-parts: ci.yml draait alle ${Object.keys(parts).length} delen (${Object.keys(parts).join(', ')})`
+      + `${browserShards ? `, browser in ${browserShards} shards` : ''}`);
     return 0;
   }
 

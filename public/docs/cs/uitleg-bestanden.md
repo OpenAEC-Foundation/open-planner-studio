@@ -4,7 +4,7 @@ Co je ve skutečnosti v souboru, který uložíte? A co se stane s vaším plán
 
 ## Princip
 
-Open Planner Studio má jeden vlastní formát souboru: **IFC**, otevřený výměnný formát pro stavební informace od buildingSMART. Aplikace zapisuje IFC 4.3. V seznamu exportu se jmenuje *IFC 4x3*. Druhý vlastnický soubor projektu neexistuje. Příkaz *Uložit* zapíše celý projekt jako soubor IFC (`.ifc`). Příkaz *Otevřít* takový soubor načte zpět. Chcete vidět, co je v souboru? Karta *IFC* ukazuje IFC text vašeho projektu. Příkaz *Generovat IFC* ten text obnoví.
+Open Planner Studio má jeden vlastní formát souboru: **IFC**, otevřený výměnný formát pro stavební informace od buildingSMART. Aplikace zapisuje schéma IFC projektu, ve výchozím stavu IFC 4.3 ADD2 (viz [Výběr schématu IFC](docs://howto-ifc-schema-kiezen)). V seznamu exportu se jmenuje *IFC*. Druhý vlastnický soubor projektu neexistuje. Příkaz *Uložit* zapíše celý projekt jako soubor IFC (`.ifc`). Příkaz *Otevřít* takový soubor načte zpět. Chcete vidět, co je v souboru? Karta *IFC* je editor, který ukazuje IFC text vašeho projektu. Příkaz *Generovat IFC* text obnoví a příkaz *Kopírovat* ho zkopíruje do schránky. Když text změníte, příkaz *Použít* ho načte jako váš projekt. Ten zcela nahradí projekt na této kartě.
 
 Všechny ostatní formáty jsou **adaptéry**: překladače mezi modelem jiného programu a modelem aplikace. Aplikace čte CSV, MS Project XML, Primavera P6 XML, soubory MS Project (`.mpp`) a soubory Primavera (`.xer`). Zapisuje CSV, MS Project XML, Primavera P6 XML a dva přehledy průběhu. Export do `.mpp` nebo `.xer` není možný.
 

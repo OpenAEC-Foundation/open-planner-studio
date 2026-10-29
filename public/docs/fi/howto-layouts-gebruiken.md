@@ -15,7 +15,7 @@ Suodatus, ryhmittely ja lajittelu tehdään asettelulla. Erilliset painikkeet *S
 ### Olemassa olevan asettelun käyttö
 
 1. Valitse välilehti *Näkymä*. Ryhmässä *Asettelu* on yksi painike kullekin asettelulle. Oletuksena se on *Resurssikaavio*.
-2. Napsauta asettelupainiketta. *Resurssikaavio* ryhmittelee tehtävät resurssin mukaan, lajittelee kunkin ryhmän sisällä alun mukaan ja kytkee riippuvuusviivat pois. Tehtävä, jolla on kaksi resurssia, näkyy molempien alla.
+2. Napsauta sitä. *Resurssikaavio* ryhmittelee tehtävät resurssin mukaan, lajittelee kunkin ryhmän sisällä alun mukaan ja kytkee riippuvuusviivat pois. Tehtävä, jolla on kaksi resurssia, näkyy molempien alla.
 3. Kytke asettelu pois napsauttamalla uudelleen. Ruudulla näkyy taas sama kuin ennen napsautusta.
 
 Jokainen napsautus on yksi vaihe, joka kumotaan kerralla painikkeella *Kumoa* (Ctrl+Z). Tämä pätee sekä kytkemiseen päälle että pois.
@@ -39,7 +39,7 @@ Saatavilla olevat operaattorit riippuvat kentän tyypistä:
 - Teksti (*Tehtävän nimi*, *WBS*): *on yhtä suuri kuin*, *on eri kuin*, *sisältää*, *alkaa* ja *on tyhjä*.
 - Numero ja päivämäärä (*Kokonaispelivara*, *Alku*, *Edistyminen*): *on yhtä suuri kuin*, *on eri kuin*, *pienempi kuin*, *pienempi tai yhtä suuri kuin*, *suurempi kuin*, *suurempi tai yhtä suuri kuin*, *välillä* ja *on tyhjä*. Kun valitaan *välillä*, näkyy kaksi kenttää: numerolle vihjeinä *Alkaen* ja *Asti*, päivämäärälle ilman vihjettä (ensimmäinen päivämäärä on alku, toinen loppu).
 - Kyllä/ei (*Kriittinen*, *Välitavoite*, *Lähes kriittinen*): *on yhtä suuri kuin* ja *on eri kuin*, arvona *Kyllä* tai *Ei*.
-- Valinta (*Tyyppi*, tehtäväkoodi): *on yhtä suuri kuin*, *on eri kuin*, *on jokin näistä* (valintaruuduilla valittavin arvoin) ja *on tyhjä*.
+- Valinta (*Työlaji*, tehtäväkoodi): *on yhtä suuri kuin*, *on eri kuin*, *on jokin näistä* (valintaruuduilla valittavin arvoin) ja *on tyhjä*.
 - *Resurssit*: *on jokin näistä* ja *on tyhjä*.
 - *Käynnissä*: vain *välillä*, kahdella päivämäärällä (alkaen ja asti).
 
@@ -79,9 +79,9 @@ Asetteluja, jotka eivät tallenna samoja osia, voi olla päällä yhtä aikaa. J
 
 **Sisentäminen ja ulontaminen eivät ole käytössä.** Niin kauan kuin suodatus, ryhmittely tai lajittelu on päällä, näytetty järjestys ei ole aikataulun järjestys. *Sisennä* ja *Ulonna* ovat silloin pois käytöstä, ja ohjetekstissä lukee *Ei käytettävissä suodatuksen, ryhmittelyn tai lajittelun aikana*. Kytke asettelu pois, jotta rakennetta voi taas muokata, kuten kohdassa [Rakenteen muokkaaminen](docs://howto-structuur-aanpassen) kerrotaan.
 
-**Asettelut ovat laitteessasi, eivät projektissa.** Sovellus tallentaa asettelut ja sarakkeet kaikille projekteille tällä laitteella. Asettelun peitekerrokset (perustaso, edistymisviiva ja muut) koskevat kaikkia projekteja. Suodatus, ryhmittely ja lajittelu, jotka ovat juuri nyt päällä, kuuluvat avoinna olevaan projektiin, mutta eivät ole tallessa projektin tiedostossa: tallentamisen ja uudelleen avaamisen jälkeen näkymä on taas puhdas. Ne eivät myöskään merkitse projektia tilaan "muokattu".
+**Asettelut ovat tällä laitteella, eivät projektissa.** Sovellus tallentaa asettelut ja sarakkeet kaikille projekteille tällä laitteella. Asettelun peitekerrokset (perustaso, edistymisviiva ja muut) koskevat kaikkia projekteja. Suodatus, ryhmittely ja lajittelu, jotka ovat juuri nyt päällä, kuuluvat avoinna olevaan projektiin, mutta eivät ole tallessa projektin tiedostossa: tallentamisen ja uudelleen avaamisen jälkeen näkymä on taas puhdas. Ne eivät myöskään merkitse projektia tilaan "muokattu".
 
-**Erilliset painikkeet ovat piilossa.** Erilliset painikkeet *Sarakkeet…*, *Suodata…*, *Ryhmitä…* ja *Lajittele…* välilehdellä *Näkymä* ovat vanhaa tapaa. Ne saa takaisin valitsemalla asetusikkunasta (⚙ otsikkopalkissa) välilehdeltä *Lisäasetukset* kohdan *Vanhat toiminnot* alta valinnan *Näytä klassiset näkymäpainikkeet*. Suosi asetteluja.
+**Erilliset painikkeet ovat piilossa.** Erilliset painikkeet *Sarakkeet…*, *Suodata…*, *Ryhmitä…* ja *Lajittele…* välilehdellä *Näkymä* ovat vanhaa tapaa. Ne saa takaisin avaamalla *Sovelluksen asetukset* -ikkunan (⚙ otsikkopalkissa), valitsemalla välilehden *Lisäasetukset* ja kohdan *Vanhat toiminnot* alta valinnan *Näytä klassiset näkymäpainikkeet*. Suosi asetteluja.
 
 ## Katso myös
 

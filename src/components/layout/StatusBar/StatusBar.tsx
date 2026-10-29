@@ -6,6 +6,7 @@ import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
+import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -24,10 +25,11 @@ export function StatusBar() {
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiServerStatus = useAppStore(s => s.ui.aiServerStatus);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
   const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
   const setUI = useAppStore(s => s.setUI);
   const dd = useDisplayDate();
+  const projectCalendar = useAppStore(s => s.calendar);
 
   const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
   const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
@@ -68,7 +70,8 @@ export function StatusBar() {
           <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
           {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
               kale "Einde:"-label zonder waarde. */}
-          {cpmResult.projectEnd && <span>{t('status.end')} {dd.date(cpmResult.projectEnd)}</span>}
+          {/* B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt. */}
+          {cpmResult.projectEnd && <span>{t('status.end')} {dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}</span>}
           {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
             'missedDeadlines',
             tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
@@ -99,7 +102,7 @@ export function StatusBar() {
       )}
       <div className="flex-1" />
       {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom, enableHourPlanning)}`)}</span>
+      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
       <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
       {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
       {aiMode && (
@@ -109,7 +112,7 @@ export function StatusBar() {
           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
         >
           <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
-          <span>AI</span>
+          <span>MCP</span>
         </button>
       )}
       {debugTerminalEnabled && (

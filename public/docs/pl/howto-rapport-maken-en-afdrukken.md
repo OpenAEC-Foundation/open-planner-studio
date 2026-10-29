@@ -12,7 +12,7 @@ Aplikacja nie wysyła raportu do drukarki sama. Końcowym wynikiem jest zawsze p
 
 ### 1. Otwórz kartę Raport
 
-Wybierz *Raport* na wstążce albo naciśnij Ctrl+P. Ctrl+P przenosi Cię na tę kartę. Jeśli wpisujesz w polu, jest otwarte okno dialogowe albo włączony tryb prezentacji, Ctrl+P nie działa. W przeglądarce otworzy się wtedy okno drukowania przeglądarki. Ono wydrukuje ekran, a nie raport.
+Wybierz *Raport* na wstążce albo naciśnij Ctrl+P. Ctrl+P przenosi Cię na tę kartę. Jeśli wpisujesz w polu, masz otwarte okno dialogowe albo włączony tryb prezentacji, Ctrl+P nie działa. W przeglądarce otworzy się wtedy okno drukowania przeglądarki. Ono wydrukuje ekran, a nie raport.
 
 Po lewej stronie jest panel *Raport* z listą *Typ raportu*, podsumowaniem i ustawieniami. Po prawej stronie jest podgląd.
 
@@ -21,7 +21,7 @@ Po lewej stronie jest panel *Raport* z listą *Typ raportu*, podsumowaniem i ust
 Lista *Typ raportu* ma jedenaście raportów. Wybierz ten, który pasuje do Twojego pytania.
 
 - *Wykres Gantta*: harmonogram w postaci wykresu z paskami, zwykły harmonogram do rozdania.
-- *Diagram zasobów*: te same paski, ale z osobnym pasem na każdy zasób. Dla pytania „co robi ekipa X?”, jeśli chcesz, z arkuszem na każdą ekipę.
+- *Diagram zasobów*: te same paski, ale z osobnym pasmem na każdy zasób. Dla pytania „co robi ekipa X?”, jeśli chcesz, z arkuszem na każdą ekipę.
 - *Przegląd punktów kontrolnych*: wszystkie kamienie milowe z datą i statusem.
 - *Variance*: bieżący harmonogram obok aktywnego planu bazowego. Dla pytania „o ile jesteśmy opóźnieni?”.
 - *Prognoza (look-ahead)*: co trwa lub zaczyna się w nadchodzącym okresie. Lista na cotygodniową naradę.
@@ -45,7 +45,7 @@ W sekcji *Ustawienia* są wybory dla wykresu Gantt i diagramu zasobów. Prognoza
 - *Papier:* i *Orientacja:* określają arkusz. Domyślnie jest to A3 poziomo, co jest wygodne dla harmonogramu budowy, ale nie każda drukarka drukuje A3. Jeśli masz drukarkę A4, wybierz teraz A4: aplikacja rozplanuje strony pod A4, a Ty nie musisz ich później zmniejszać.
 - Przy diagramie zasobów pole wyboru *Każdy zasób na nowej stronie* daje arkusz na każdą ekipę.
 - *Rozmiar czcionki:* (od 90% do 125%) powiększa albo zmniejsza tekst i tabelę. Większa czcionka zostawia mniej miejsca na oś czasu.
-- *Podążaj za widokiem (filtr, grupowanie, sortowanie)* pojawia się tylko dla wykresu Gantt. Domyślnie na papier idzie całe drzewo zadań. Przy tym polu raport rysuje dokładnie te wiersze, które widzisz na ekranie, także zwinięte fazy, na przykład tylko zadania krytyczne z układu. Jak taki widok zrobić, jest w [Tworzenie i używanie układu](docs://howto-layouts-gebruiken).
+- *Podążaj za widokiem (filtr, grupowanie, sortowanie)* pojawia się tylko dla wykresu Gantt. Domyślnie na papier idzie całe drzewo zadań. Przy tym polu raport rysuje dokładnie te wiersze, które widzisz na ekranie, także zwinięte fazy, na przykład tylko zadania krytyczne z układu. Jak zrobić taki widok, znajdziesz w [Tworzenie i używanie układu](docs://howto-layouts-gebruiken).
 - *Pokaż nakładkę planu bazowego* pokazuje aktywny plan bazowy obok bieżących pasków. Przy *Linia statusu:* wybierasz *Linia daty statusu* albo *Linia postępu*.
 - *Dopasuj do papieru* jest domyślnie włączone: oś czasu wtedy skaluje się do szerokości strony, a liczba stron wynika z wysokości. Gdy to wyłączysz, raport używa stałej skali i dzieli też oś czasu na kafelki w szerokości, co szybko daje dużo stron. Przy *Oś czasu na:* rozkładasz oś czasu na od 2 do 8 stron szerokości, przy dopasowaniu, dla długiego harmonogramu, który chcesz wydrukować w czytelnym rozmiarze.
 
@@ -70,7 +70,7 @@ Otwórz PDF w czytniku PDF i wydrukuj go tam. Jeśli drukujesz PDF w A3 na druka
 
 **Przycisk Drukuj i Ctrl+P nic nie drukują.** Przycisk *Drukuj* w grupie *Raport* jest na samej karcie Raport i nie robi nic dodatkowego. Ctrl+P przenosi Cię na tę kartę. W aplikacji nie ma osobnego polecenia drukowania: droga na papier prowadzi przez PDF. Jeśli Ctrl+P nie działa (zob. krok 1), w przeglądarce otworzy się okno drukowania przeglądarki. Ono drukuje ekran, a nie raport.
 
-**Firma: nadpisany tekst nie zostaje zachowany.** Pole *Firma:* na wykresie Gantt zaczyna się od firmy z informacji o projekcie. To, co wpiszesz nad nim, nie zostaje zachowane. Tutaj nie możesz wpisywać w polu *Autor:*. Obie wartości zmienisz w *Ustawienia › Projekt › Info o projekcie*, w polach *Zleceniodawca/organizacja* i *Autor*, i potwierdzisz przyciskiem *Zastosuj*.
+**Firma: nadpisany tekst nie zostaje zachowany.** Pole *Firma:* na wykresie Gantt zaczyna się od firmy z ustawień projektu. To, co nadpiszesz, nie zostaje zachowane. Tutaj nie możesz wpisywać w polu *Autor:*. Obie wartości zmienisz w *Ustawienia › Projekt › Ustawienia projektu*, w polach *Zleceniodawca/organizacja* i *Autor*, i potwierdzisz przyciskiem *Zastosuj*.
 
 **Kolory słupków: dotyczy też ekranu.** Wybór *Kolory słupków:* w raporcie jest tym samym wyborem co *Kolory słupków* na karcie Widok. Jeśli zmienisz go w raporcie, Twój wykres Gantt na ekranie zmieni się razem z nim.
 

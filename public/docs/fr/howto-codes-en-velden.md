@@ -36,7 +36,7 @@ Pour la couleur des barres, choisissez *Affichage › Références et avancement
 
 ## Pièges et ce que fait l'application
 
-**La suppression efface les valeurs sur les tâches.** Si vous supprimez un type de code, une valeur ou un champ avec la corbeille, l'application ne demande pas de confirmation, et les affectations sur toutes les tâches disparaissent en même temps. Un regroupement ou un tri sur ce type de code ou ce champ n'est plus appliqué non plus. *Annuler* (Ctrl+Z) rétablit le type de code, la valeur ou le champ et les valeurs saisies, mais pas le regroupement ni le tri : vous les reconfigurez.
+**La suppression efface les valeurs sur les tâches.** Si vous supprimez un type de code, une valeur ou un champ avec la corbeille, l'application ne demande pas de confirmation, et les affectations sur toutes les tâches disparaissent en même temps. Un regroupement ou un tri sur ce type de code ou ce champ n'est plus appliqué non plus. *Annuler* (Ctrl+Z, fermez d'abord la fenêtre) rétablit le type de code, la valeur ou le champ et les valeurs saisies, mais pas le regroupement ni le tri : vous les reconfigurez.
 
 **Deux valeurs avec le même code.** *Ajouter une valeur* numérote à partir du nombre de valeurs existantes. Si vous en supprimez une et en ajoutez une, un code peut donc apparaître deux fois. Si vous tapez ce code dans une cellule de colonne, l'application refuse avec *Cette valeur de code d'activité apparaît plusieurs fois. Choisissez-la dans la liste.* Donnez à chaque valeur son propre code.
 

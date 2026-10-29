@@ -291,7 +291,7 @@ function classifyResources(
         const hint = calId === s.calendar.id
           ? ' — this IS the PROJECT calendar, but it is not yet in the library of this document; use `null` ' +
             '(that already means "the project calendar") or promote it first with planner_update_calendar'
-          : '; get valid ids with planner_list_calendars, or create one with planner_update_calendar (`create: true`)';
+          : '; get valid ids with planner_get_calendars, or create one with planner_update_calendar (`create: true`)';
         return `calendar '${calId}' does not exist in this document${hint}`;
       }
     }
@@ -625,7 +625,7 @@ const manageResources: BatchStepTool = {
             },
             calendarId: {
               type: ['string', 'null'],
-              description: 'Existing library calendar (planner_list_calendars); `null` = the project calendar.',
+              description: 'Existing library calendar (planner_get_calendars); `null` = the project calendar.',
             },
             parentId: {
               type: ['string', 'null'],

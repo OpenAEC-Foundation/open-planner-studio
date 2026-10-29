@@ -8,13 +8,13 @@ Všechny klávesové kombinace aplikace, seskupené stejně jako v okně *Kláve
 
 **Přesná kombinace.** Aplikace porovnává Ctrl, Shift a Alt přesně. Ctrl+Alt+S proto nedělá nic. Klávesy se musí shodovat přesně podle seznamu.
 
-**Otevření okna.** Stiskněte Ctrl+/ nebo zvolte na kartě *Nastavení › Klávesové zkratky › Klávesové zkratky*. Ctrl+/ okno také zavře. Okno je jen pro čtení. Nezobrazuje všechny klávesy z tohoto článku: z klávesů tabulky jen prvních šest položek a klávesy dialogů na konci tohoto článku nezobrazuje.
+**Otevření okna.** Stiskněte Ctrl+/ nebo zvolte na kartě *Nastavení › Klávesové zkratky › Klávesové zkratky*. Ctrl+/ okno také zavře. Okno je jen pro čtení. Nezobrazuje všechny klávesy uvedené v tomto článku: z kláves tabulky jen prvních šest položek a klávesy dialogů na konci tohoto článku nezobrazuje.
 
 **Když klávesa nefunguje.** Každá položka uvádí svá omezení. Téměř všude platí tři pravidla:
 
-- Ve vstupním poli, rozbalovacím seznamu nebo textovém poli aplikace klávesy nezachytává, takže můžete jednoduše psát. Výjimky: F5, Ctrl+S, F11 a Esc během prezentace fungují i v poli. V hotové verzi aplikace (počítačová verze a webová verze na stránkách) to platí i pro Ctrl+Shift+S, Ctrl+O a Ctrl+N.
-- Dokud je otevřený dialog nebo jiné okno, nefungují klávesy označené níže *Ne v dialogu*. Totéž platí pro režim prezentace, prohlídku, uvítací dialog a dotazy, na které se čeká, například souhlas při instalaci rozšíření.
-- Přepínání dokumentů (Ctrl+1 až 9, Ctrl+N, Ctrl+O) také nefunguje, dokud *Soubor › Info o projektu* obsahuje změny, které jste ještě nepotvrdili tlačítkem *Použít*. Nejprve je zahoďte, nebo je použijte.
+- Ve vstupním poli, rozbalovacím seznamu nebo textovém poli aplikace klávesy nezachytává, takže můžete jednoduše psát. Výjimky: F5, Ctrl+S, F11 a Esc během prezentace fungují i v poli. Pokud je fokus na zavřeném rozbalovacím seznamu, fungují i klávesy s Ctrl, například Ctrl+Z po výběru (ne Ctrl+Delete a Ctrl+Backspace). V otevřeném seznamu ani v dialogu to neplatí. V hotové verzi aplikace (počítačová verze a webová verze na stránkách) to platí i pro Ctrl+Shift+S, Ctrl+O a Ctrl+N.
+- Dokud je otevřený dialog nebo jiné okno, nefungují klávesy označené níže *Ne v dialogu*. Totéž platí pro prohlídku, uvítací dialog a dotazy, na které se čeká, například dotaz, zda uložit změny, a souhlas při instalaci rozšíření. Většina těchto kláves nefunguje ani v režimu prezentace. Výjimka: klávesy pro úpravy Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y a Delete/Backspace fungují během prezentace.
+- Přepínání dokumentů (Ctrl+1 až 9, Ctrl+N, Ctrl+O) také nefunguje, dokud *Soubor › Nastavení projektu* obsahuje změny, které jste ještě nepotvrdili tlačítkem *Použít*. Nejdřív je zahoďte, nebo je použijte.
 
 ## Soubor
 
@@ -24,23 +24,23 @@ Všechny klávesové kombinace aplikace, seskupené stejně jako v okně *Kláve
 
 **Ctrl+Shift+S** — *Uložit jako*: zeptá se, kam se má soubor uložit. Ve vývojové verzi nefunguje ve vstupním poli.
 
-**Ctrl+O** — *Otevřít*: otevře soubor, obvykle na nové kartě. *Ne v dialogu* a ne, když *Info o projektu* obsahuje změny, které jste nepotvrdili tlačítkem *Použít*.
+**Ctrl+O** — *Otevřít*: otevře soubor, obvykle na nové kartě. *Ne v dialogu* a ne, když nastavení projektu obsahuje nepotvrzené změny.
 
-**Ctrl+N** — *Nový projekt*: otevře okno *Nový projekt*. *Ne v dialogu* a ne, když *Info o projektu* obsahuje nepotvrzené změny.
+**Ctrl+N** — *Nový projekt*: otevře okno *Nový projekt*. *Ne v dialogu* a ne, když nastavení projektu obsahuje nepotvrzené změny.
 
-Verze aplikace pro počítač a webová verze na stránkách také blokují několik kláves prohlížeče, aby nepřekážely: Ctrl+R a Ctrl+Shift+R (znovu načíst), F12, Ctrl+Shift+I a Ctrl+Shift+J (nástroje pro vývojáře), Ctrl+U (zobrazit zdroj) a Ctrl+G, Ctrl+F a Ctrl+L (hledání a adresní řádek). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N a F5 patří přímo aplikaci.
+Hotová verze aplikace (počítačová verze a webová verze na stránkách) také blokuje několik kláves prohlížeče, aby nepřekážely: Ctrl+R a Ctrl+Shift+R (znovu načíst), F12, Ctrl+Shift+I a Ctrl+Shift+J (nástroje pro vývojáře), Ctrl+U (zobrazit zdroj) a Ctrl+G, Ctrl+F a Ctrl+L (hledání a adresní řádek). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N a F5 patří přímo aplikaci.
 
 ## Úpravy
 
-**Ctrl+C** — *Kopírovat*: zkopíruje vybrané úkoly. Jen při výběru. V tabulce úkolů Ctrl+C zkopíruje vybrané buňky. Tabulka úkolů to zpracuje sama.
+**Ctrl+C** — *Kopírovat*: zkopíruje vybrané úkoly. Jen při výběru. Ne v dialogu. Ne na kartě *Soubor*, ne na kartách *Sestava* a *IFC* a ne, když je otevřený celý panel zdrojů. V tabulce úkolů Ctrl+C zkopíruje vybrané buňky. Tabulka úkolů to zpracuje sama.
 
-**Ctrl+V** — *Vložit*: vloží zkopírované úkoly. V tabulce úkolů vloží buňky.
+**Ctrl+V** — *Vložit*: vloží zkopírované úkoly. Ne v dialogu. Ne na kartě *Soubor*, ne na kartách *Sestava* a *IFC* a ne, když je otevřený celý panel zdrojů, protože tam tabulka úkolů není vidět. V tabulce úkolů vloží buňky.
 
-**Ctrl+Z** — *Vrátit zpět*.
+**Ctrl+Z** — *Vrátit zpět*. Ne v dialogu: nejdřív zavřete okno.
 
-**Ctrl+Y** nebo **Ctrl+Shift+Z** — *Znovu*: zopakuje to, co jste vrátili zpět.
+**Ctrl+Y** nebo **Ctrl+Shift+Z** — *Znovu*: zopakuje to, co jste vrátili zpět. Ne v dialogu.
 
-**Delete** nebo **Backspace** — *Odstranit*: odstraní vybrané úkoly. Jen při výběru. V buňce tabulky úkolů Delete a Backspace jen vymažou obsah buňky (viz *Tabulka*).
+**Delete** nebo **Backspace** — *Odstranit*: odstraní vybrané úkoly. Jen při výběru. Ne v dialogu. Ne na kartě *Soubor*, ne na kartách *Sestava* a *IFC* a ne, když je otevřený celý panel zdrojů, protože tabulka úkolů tam není vidět. V buňce tabulky úkolů Delete a Backspace jen vymažou obsah buňky (viz *Tabulka*).
 
 **F2** — *Upravit...*: otevře dialog úkolu pro první vybraný úkol. Jen při výběru. Ne v dialogu. V buňce tabulky úkolů F2 spustí úpravu buňky.
 
@@ -68,7 +68,7 @@ Zvětšit odsazení, zmenšit odsazení a vložení nad nebo pod vybraný úkol 
 
 ## Zobrazení
 
-**F11** — *Prezentace*: zapne nebo vypne režim prezentace. Aplikace také požádá prohlížeč nebo okno o celou obrazovku. Funguje i ve vstupním poli.
+**F11** — *Prezentace*: zapne nebo vypne režim prezentace. Aplikace také požádá okno o celou obrazovku. Funguje i ve vstupním poli. V prohlížeči F11 prezentaci nespustí: prohlížeč přepne okno na celou obrazovku sám a aplikace zůstane beze změny. V prohlížeči F11 běžící prezentaci zastaví.
 
 **Esc** (během prezentace) — *Ukončit prezentaci*. Funguje i ve vstupním poli. Má přednost před *Zrušit výběr*.
 
@@ -96,7 +96,7 @@ Zvětšit odsazení, zmenšit odsazení a vložení nad nebo pod vybraný úkol 
 
 **F1** — *Otevřít nápovědu*: otevře *Soubor › Nápověda*. Ne ve vstupním poli a ne v dialogu. V okně použijte otazník vpravo nahoře: otevře nápovědu k článku o tomto okně (viz [Pás karet, karta po kartě](docs://ref-lint), pod nadpisem *Nápověda*).
 
-**Ctrl+1** až **Ctrl+9** — *Přepnout dokument*: přejde na první až devátý otevřený dokument. Pokud dokument neexistuje, nestane se nic. Ne v dialogu a ne, když *Info o projektu* obsahuje nepotvrzené změny.
+**Ctrl+1** až **Ctrl+9** — *Přepnout dokument*: přejde na první až devátý otevřený dokument. Pokud dokument neexistuje, nestane se nic. Ne v dialogu a ne, když nastavení projektu obsahuje nepotvrzené změny.
 
 **Ctrl+Home** — *Přejít na dnešek*: posune časovou osu tak, aby bylo datum vlevo v zobrazení. Je to datum stavu, pokud jste ho nastavili, jinak dnešek. Popisek proto říká „dnešek“, i když časová osa přeskočí na datum stavu. Zoom a začátek časové osy zůstanou stejné. Pokud má fokus buňka tabulky úkolů, Ctrl+Home místo toho přejde na první buňku tabulky (viz *Tabulka*).
 

@@ -700,6 +700,27 @@ function verseVier(): { a: string; b: string; c: string; d: string } {
   }, appBefore);
 }
 
+// Gewone Ctrl+M-mijlpalen volgen dezelfde invoeg-/focusroute als de lintkeuze Eindmijlpaal.
+{
+  const { a, b, c, d } = verseVier();
+  S().selectTasks([b], false);
+  S().setUI({ showPropertiesPanel: false, pendingTaskNameFocusId: null });
+  const beforeIds = new Set(S().tasks.map(t => t.id));
+  const undoBefore = historyDepthsForActiveScope(S()).undoDepth;
+  SHORTCUTS.find(entry => entry.id === 'structure.addMilestone')!.run(S());
+  const created = S().tasks.find(t => !beforeIds.has(t.id))!;
+  eq('Ctrl+M maakt een gewone eindmijlpaal, geen keuring',
+    [created.isMilestone, created.taskType, created.milestoneKind, created.mandatory ?? false],
+    [true, 'USERDEFINED', 'FINISH', false]);
+  eq('Ctrl+M voegt direct onder de selectie in', S().tasks.map(t => t.id), [a, b, created.id, c, d]);
+  eq('Ctrl+M selecteert de nieuwe mijlpaal', S().selectedTaskIds, [created.id]);
+  eq('Ctrl+M opent het paneel en zet naamfocus klaar',
+    [S().ui.showPropertiesPanel, S().ui.pendingTaskNameFocusId], [true, created.id]);
+  eq('Ctrl+M kost één undo-stap', historyDepthsForActiveScope(S()).undoDepth, undoBefore + 1);
+  S().undo();
+  eq('Ctrl+M terugdraaien herstelt de oorspronkelijke taken', S().tasks.map(t => t.id), [a, b, c, d]);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  context-menu-scope-check: alle checks groen (${checks})`);

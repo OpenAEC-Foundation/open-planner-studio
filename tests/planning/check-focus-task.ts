@@ -17,6 +17,7 @@ import {
   setGanttScrollBounds, clampGanttScroll,
   FOCUS_TASK_MIN_ZOOM, FOCUS_TASK_MAX_ZOOM,
 } from '@/utils/ganttViewport';
+import { OVERLAY_SCROLLBAR_SIZE, taskListScrollContentHeight } from '@/engine/taskGrid/scrollExtent';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -30,7 +31,7 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const close = (label: string, got: number, want: number, eps = 0.001) => {
   checks++;
-  if (Math.abs(got - want) > eps) {
+  if (!(Math.abs(got - want) <= eps)) {
     diffs.push(`${label}: verwacht ≈${want}, kreeg ${got}`);
   }
 };
@@ -99,15 +100,22 @@ eq('00b beide taskgrids bedraden lokale relaties naar dezelfde focusOnTask-actie
 // ── 6) computeGanttScrollBounds: de gedeelde formule achter `drawPrimary` én "spring naar
 //      taak" (deel 3 hieronder). ──────────────────────────────────────────────
 {
-  const b1 = computeGanttScrollBounds(/* contentWidth */ 5000, /* rows */ 20, /* rowHeight */ 28,
+  const b1 = computeGanttScrollBounds(/* contentWidth */ 5000, /* contentHeight = rijen·rowHeight */ 20 * 28,
     /* headerHeight */ 40, /* canvasWidth */ 900, /* canvasHeight */ 600);
   eq('08 maxScrollX = contentWidth - canvasWidth', b1.maxScrollX, 5000 - 900);
   eq('09 maxScrollY = rijen·rowHeight - (canvasHeight - headerHeight)', b1.maxScrollY, 20 * 28 - (600 - 40));
 
   // Content/rijen die ruim in de viewport passen: beide grenzen klemmen op 0, niet negatief.
-  const b2 = computeGanttScrollBounds(400, 2, 28, 40, 900, 600);
+  const b2 = computeGanttScrollBounds(400, 2 * 28, 40, 900, 600);
   eq('10 maxScrollX klemt op 0 als de content past', b2.maxScrollX, 0);
   eq('11 maxScrollY klemt op 0 als alle rijen passen', b2.maxScrollY, 0);
+
+  // De Gantt schuift even ver als de takenlijst: rijen + spookregel + eindstrook (PR #362).
+  const shared = taskListScrollContentHeight(20, 28, true);
+  eq('11b gedeelde schuifhoogte = (rijen + spookregel)·rowHeight + eindstrook',
+    shared, 21 * 28 + OVERLAY_SCROLLBAR_SIZE);
+  eq('11c zonder spookregel (filter/groep/sortering) telt hij niet mee',
+    taskListScrollContentHeight(20, 28, false), 20 * 28 + OVERLAY_SCROLLBAR_SIZE);
 }
 
 // ── 7) Regressie: springen naar een taak na een zoomwijziging mag niet klemmen tegen de
@@ -117,7 +125,7 @@ eq('00b beide taskgrids bedraden lokale relaties naar dezelfde focusOnTask-actie
 //      oude, kleinere zoom nog niet had bijgewerkt). ───────────────────────────
 {
   // Stap 1: een render bij lage zoom (bv. net na een fit-to-project) registreert KRAPPE grenzen.
-  setGanttScrollBounds(computeGanttScrollBounds(700, 1, 28, 40, 900, 600));
+  setGanttScrollBounds(computeGanttScrollBounds(700, 1 * 28, 40, 900, 600));
   const { x: staleX } = clampGanttScroll(14950, 0);
   eq('12 karakterisering: ZONDER verse grenzen klemt de sprong fout (het gat dat de bug was)',
     staleX < 14950, true);
@@ -125,7 +133,7 @@ eq('00b beide taskgrids bedraden lokale relaties naar dezelfde focusOnTask-actie
   // Stap 2: de fix — vóór `setScroll` de grenzen VOORUIT herberekenen met de NIEUWE zoom/
   // rijtelling (zoals GanttCanvas.tsx's "spring naar taak"-effect nu doet), niet de oude lezen.
   // contentWidth/rijen ruim genoeg gekozen dat de gewenste (14950, 1414) er nu wél binnen valt.
-  setGanttScrollBounds(computeGanttScrollBounds(16000, 71, 28, 40, 900, 600));
+  setGanttScrollBounds(computeGanttScrollBounds(16000, 71 * 28, 40, 900, 600));
   const { x: freshX, y: freshY } = clampGanttScroll(14950, 1414);
   eq('13 MET verse grenzen landt de sprong wél op de bedoelde positie (horizontaal)', freshX, 14950);
   eq('14 MET verse grenzen landt de sprong wél op de bedoelde positie (verticaal)', freshY, 1414);

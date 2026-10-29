@@ -22,13 +22,14 @@
 // `readOnlyHint:true` verdedigbaar (readOnlyHint staat op ALLE leestools).
 
 import type { AppState } from '@/state/appStore';
-import { flattenOrder } from '@/utils/wbs';
-import type { ReadFreshResult } from '../staleGuard';
+import { ancestorIds, flattenOrder } from '@/utils/wbs';
+import type { ReadFreshResult } from '../freshness';
 import { McpStepError, runReadTool } from './runtime';
 import { lagLabel, seqAbbrev } from './sequenceFields';
 import type { McpContext, McpToolDef } from '../contracts';
 import type { Task } from '@/types/task';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import { shownSpanOverlapsDays } from '@/utils/taskDates';
 import { booleanArgReason, READ_ANNOTATIONS, unknownArgsReason } from './helpers';
@@ -50,7 +51,7 @@ import { interruptionsOf, type Interruption } from './splitFields';
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { unrecordedExportGate } from '@/state/recordedDatesSelectors';
-import { resolveConventions } from '@/engine/scheduler/conventions/registry';
+import { effectiveSchedulingOptions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 
 /** De leesbare onderbrekingen van één taak (zie `splitFields.ts`). Leeg object bij een
  *  taak zonder onderbrekingen, zodat de detailrespons van gewone taken ongewijzigd blijft. */
@@ -366,7 +367,6 @@ function listTasks(s: AppState, args: ListTasksArgs) {
   requireIsoDate(args.tot, 'tot');
   requirePageArgs(args);
 
-  const inSeq = idsInAnySequence(s.sequences);
   let filtered = s.tasks;
 
   // Onbekende kritiekas (modus "datums zoals opgeslagen"): hoort bij
@@ -387,10 +387,18 @@ function listTasks(s: AppState, args: ListTasksArgs) {
     const tot = typeof args.tot === 'string' ? args.tot : '9999-12-31';
     filtered = filtered.filter((t) => shownSpanOverlapsDays(t, van, tot));
   }
-  // Wees-detectie: alléén LEAF-taken die in geen enkele relatie voorkomen. Verzameltaken hebben per
-  // definitie geen relaties en zijn dus geen "wezen" — die worden hier bewust uitgesloten.
+  // Wees-detectie telt ook relaties op voorouders: die verbinden hun bladtaken met het netwerk.
+  // Een relatie op een kind verbindt niet automatisch zijn ouder of zustertakken.
   if (args.zonder_relaties === true) {
-    filtered = filtered.filter((t) => isLeafTask(t) && !inSeq.has(t.id));
+    const inSeq = idsInAnySequence(s.sequences);
+    const parentOf = new Map(s.tasks.map((t) => [t.id, t.parentId]));
+    filtered = filtered.filter((t) => {
+      if (!isLeafTask(t) || inSeq.has(t.id)) return false;
+      for (const id of ancestorIds(t.id, (id) => parentOf.get(id))) {
+        if (inSeq.has(id)) return false;
+      }
+      return true;
+    });
   }
 
   const paged = paginate(filtered, args);
@@ -606,7 +614,7 @@ function getCriticalPath(s: AppState) {
         'circular dependency); every mutating tool that changes something recalculates the schedule at the ' +
         'end.',
       criticalTasks: [],
-      drivingRelations: [],
+      drivingRelations: null,
     };
   }
   const taskById = new Map(s.tasks.map((t) => [t.id, t]));
@@ -632,8 +640,8 @@ function getCriticalPath(s: AppState) {
 
   // Driving-relaties GEFILTERD op paren waarvan BEIDE eindpunten kritiek zijn.
   const seqById = new Map(s.sequences.map((seq) => [seq.id, seq]));
-  const drivingRelations = cpm.drivingSequenceIds
-    .map((id) => seqById.get(id))
+  const drivingIds = knownDrivingSequenceIds(cpm);
+  const drivingRelations = drivingIds?.map((id) => seqById.get(id))
     .filter((seq): seq is Sequence => !!seq && critSet.has(seq.predecessorId) && critSet.has(seq.successorId))
     .map((seq) => ({
       seqId: seq.id,
@@ -643,7 +651,7 @@ function getCriticalPath(s: AppState) {
       succWbs: wbsOf(taskById, seq.successorId),
       type: seqAbbrev(seq.type),
       lag: lagLabel(seq),
-    }));
+    })) ?? null;
 
   // Gescheiden parallelle ketens (`criticalPaths`) bestaan ALLEEN bij floatPaths.enabled mét
   // FREE_FLOAT; in elk ander geval is criticalPaths === [criticalPath] (één samengevoegd array).
@@ -656,6 +664,10 @@ function getCriticalPath(s: AppState) {
     projectEnd: cpm.projectEnd,
     criticalTasks,
     drivingRelations,
+    ...(drivingRelations === null ? {
+      note: 'Driving relationships are unknown in Dates as recorded mode. Recalculate explicitly to determine them; ' +
+        'null does not mean that no relationships are driving.',
+    } : {}),
     pathsMode: parallelAvailable ? ('parallel' as const) : ('merged' as const),
   };
   if (parallelAvailable) {
@@ -809,6 +821,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
       calendars: s.calendars,
       cpmResult: s.cpmResult,
       bucket: 'dag',
+      schedulingOptions: effectiveSchedulingOptions(s.project),
     });
     const round2 = (v: number) => Math.round(v * 100) / 100;
     const resources = dayReport.resources.map((r) => {
@@ -874,6 +887,7 @@ function getResourceHistogram(ctx: McpContext, args: HistogramArgs, freshen: () 
     from,
     to,
     bucket,
+    schedulingOptions: effectiveSchedulingOptions(s.project),
   });
   const resources = report.resources.map((r) => ({
     resourceId: r.resourceId,
@@ -1053,7 +1067,7 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_project_overview',
     description:
       'Complete WBS tree, compact: per task `id` (the stable Task.id — exactly what every mutating tool ' +
-      'needs), wbs, name, dur (working days), start/end (early dates), prog (0-100), crit, ms (milestone), ' +
+      'needs), wbs, name, dur (in the task\'s own unit) with durUnit (`days` | `hours`), start/end (early dates), prog (0-100), crit, ms (milestone), ' +
       'and on nested rows depth (2+; root = 1), parent (wbs), parentId (stable; use this and not `parent` to ' +
       'reconstruct the tree — WBS codes can be free text or duplicated) and outgoing relationships in short ' +
       'notation "→2.3 FS+2d #seq-7", where the part after `#` is the SEQUENCE ID (pass that straight to ' +
@@ -1061,8 +1075,8 @@ export const readTools: McpToolDef[] = [
       'it). Type and lag appear here in exactly the notation those tools ACCEPT (FS/SS/FF/SF, "+2d", ' +
       '"+50%"). DELIBERATELY UNLIMITED: the complete relationship graph is guaranteed to be in this ONE ' +
       'response (every relationship appears once, at its predecessor), so one call is enough for structure ' +
-      'AND network WORK — you do not need a second call for ids. NAME DRIFT READ↔WRITE: the field is called ' +
-      '`wbs` here and `wbsCode` when writing (add_tasks/update_tasks); `id` is called `taskId` there. Hefty ' +
+      'AND network WORK — you do not need a second call for ids. IDENTIFIERS: `wbs` is read-only and derived ' +
+      'from the task hierarchy; `wbsCode` is not a writable field. Use stable task IDs with mutating tools. Hefty ' +
       'for large projects; use list_tasks if you want pagination.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
@@ -1079,7 +1093,7 @@ export const readTools: McpToolDef[] = [
       'get_project_info), `status` (NOT_STARTED|STARTED|COMPLETED), `van`/`tot` (from/to; ISO date window: ' +
       'tasks overlapping [van,tot], per day and with both bounds inclusive — also an hour task that starts ' +
       'on the `tot` day), `zonder_relaties` (without relationships; bool — orphan detection: ONLY LEAF tasks ' +
-      'that appear in no relationship at all; summary tasks are excluded). Pagination: `limit` (integer ' +
+      'without relationships on themselves or any ancestor summary task; summary tasks are excluded). Pagination: `limit` (integer ' +
       '1..1000, default 50), `offset` (≥ 0); returns `total`, `has_more`, `next_offset`. Every filter is ' +
       'validated STRICTLY: a wrongly typed or out-of-domain value gives a clean error listing the allowed ' +
       'values — never silently a different set.' + FRESH_NOTE,
@@ -1092,7 +1106,7 @@ export const readTools: McpToolDef[] = [
         status: { type: 'string', enum: ['NOT_STARTED', 'STARTED', 'COMPLETED'] },
         van: { type: 'string', description: 'ISO date lower bound of the window' },
         tot: { type: 'string', description: 'ISO date upper bound of the window' },
-        zonder_relaties: { type: 'boolean', description: 'Only leaf tasks without any relationship (orphans)' },
+        zonder_relaties: { type: 'boolean', description: 'Only leaf tasks without relationships on themselves or any ancestor summary task (orphans)' },
         limit: { type: 'number', description: 'Number per page (default 50)' },
         offset: { type: 'number', description: 'Start index (default 0)' },
       },
@@ -1118,8 +1132,8 @@ export const readTools: McpToolDef[] = [
       '`p6DurationType`, `p6ActivityType`, `p6ProjectId`, `p6TaskId`, `p6ExplicitTargetWindow` (also false), ' +
       '`p6CompletePctType`, `p6ExpectedFinish` and `p6SuspendResume` are visible as well. Relationship ' +
       'objects additionally show `p6StartAtPredecessorFinishBoundary`, if present. Unknown id ⇒ clean ' +
-      'NOT_FOUND. NAME DRIFT READ↔WRITE: `wbs` is called `wbsCode` when writing, and `calendar.effectiveId` ' +
-      'is called `calendarId` there (note: `effectiveId` can be the PROJECT calendar — then the task has no ' +
+      'NOT_FOUND. IDENTIFIERS: `wbs` is read-only and derived from the task hierarchy; `wbsCode` is not a writable field. ' +
+      '`calendar.effectiveId` is called `calendarId` when writing (note: `effectiveId` can be the PROJECT calendar — then the task has no ' +
       'own `calendarId`, see `calendar.isProjectDefault`). TWO DATES THAT LOOK WRONG BUT ARE NOT: (1) with ' +
       'NEGATIVE `totalFloat` the late dates lie before the early ones by definition — with tf −33 that is 33 ' +
       'working days back, before the project start if need be; that is the measure of the deadline overrun, ' +
@@ -1144,7 +1158,9 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_critical_path',
     description:
       'Flattened critical task set (topological order) with total float per task, plus the driving ' +
-      'relationships FILTERED to pairs whose BOTH end points are critical. Reconstructing the chain from ' +
+      'relationships FILTERED to pairs whose BOTH end points are critical. `drivingRelations` is null when ' +
+      'driving information is unavailable (Dates as recorded or no valid calculation); [] means a valid ' +
+      'calculation found no driving relationships between critical tasks. Reconstructing the chain from ' +
       'these tasks+relationships is client work. `pathsMode` reports the situation: "merged" (one merged ' +
       'critical path — the normal case) or "parallel". Separate parallel chains (`criticalPaths`) are ONLY ' +
       'included when floatPaths with method FREE_FLOAT is active; otherwise there is by definition one ' +

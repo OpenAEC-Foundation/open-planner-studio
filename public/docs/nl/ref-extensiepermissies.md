@@ -18,6 +18,8 @@ Wat geen permissie nodig heeft, is de basis van de extensie-interface: het proje
 
 **Het manifest.** De permissies staan in het manifest als lijst. Een extensie die je nu installeert, met een permissie die deze app-versie niet kent, wordt geweigerd. Bij een al opgeslagen oudere extensie laat de app onbekende permissies vallen en meldt dat in het log.
 
+Sinds extensiecontract 1.5.0 kan een extensie ook de geselecteerde taak-ID’s lezen via `data.getSelectedTaskIds()`. Dit verandert de selectie niet en geeft geen schrijfrecht erbij; het hoort bij de gewone projectgegevens zonder extra permissie.
+
 ## Hoe de app erom vraagt
 
 Bij het installeren, uit de catalogus (*Bestand › Extensies › Bladeren › Installeren*) of vanuit een bestand (*ZIP* of *JS*), toont de app het venster *Extensie installeren?*. De vraag komt één keer, bij het installeren: niet bij elke keer dat je de extensie aanzet.
@@ -32,7 +34,7 @@ Met *Installeren* ga je akkoord. *Niet installeren*, Esc en klikken naast het ve
 
 **ribbon** — een knop in het lint plaatsen. Effect: de extensie mag een knop toevoegen aan een groep op een tabblad van het lint. Een extensie zonder deze permissie krijgt een fout als ze het probeert. De knoppen staan achteraan het gekozen tabblad, onder een groepslabel van de extensie, en verdwijnen als je de extensie uitzet of verwijdert. Standaard: niet toegekend; alleen wat in het manifest staat. Afdwinging: hard. Waar: op het tabblad dat de extensie koos.
 
-**events** — de gebeurtenissen van de app volgen en zelf gebeurtenissen uitsturen. Effect: de extensie mag zich aanmelden voor en afmelden van gebeurtenissen en zelf gebeurtenissen uitsturen. De app zelf stuurt er drie: een project is geladen (na importeren, openen of laden door een extensie), een leeg project is aangemaakt en de planning is (opnieuw) berekend. Standaard: niet toegekend; alleen wat in het manifest staat. Afdwinging: hard. Waar: nergens; de extensie reageert op de gebeurtenis.
+**events** — de gebeurtenissen van de app volgen en zelf gebeurtenissen uitsturen. Effect: de extensie mag zich aanmelden voor en afmelden van gebeurtenissen en zelf gebeurtenissen uitsturen. De app zelf stuurt er vier: een project is geladen (na importeren, openen of laden door een extensie), een leeg project is aangemaakt, de planning is (opnieuw) berekend en de gebruiker vroeg om een tutorial. Die laatste gaat alleen naar de tutorialextensie. Standaard: niet toegekend; alleen wat in het manifest staat. Afdwinging: hard. Waar: nergens; de extensie reageert op de gebeurtenis.
 
 **backstage** — een importformaat aanbieden. Effect: de extensie mag een importer registreren; die verschijnt in *Bestand › Importeren*, waar je een formaat klikt en een bestand kiest. De ingebouwde formaten staan los hiervan (zie [Import- en exportformaten](docs://ref-import-exportformaten)). Standaard: niet toegekend; alleen wat in het manifest staat. Afdwinging: waarschuwing. Ontbreekt de permissie, dan werkt het registreren nog, met een waarschuwing in het log. Dat is een overgangsregime, omdat bestaande extensies de permissie niet altijd opgeven. Waar: *Bestand › Importeren*.
 

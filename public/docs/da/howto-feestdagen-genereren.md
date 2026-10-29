@@ -14,7 +14,7 @@ Uden helligdage regner appen simpelthen med arbejde på juledag eller Koningsdag
 
 1. Vælg *Tidsplan › Kalender › Kalender*, og vælg til venstre den kalender, helligdagene skal indgå i.
 2. Klik på *Generer helligdage…*. Under knappen åbnes et felt med valgmulighederne.
-3. Vælg *Land*: Nederlandene, Tyskland, Belgien, Frankrig, Storbritannien, Østrig, Schweiz eller *Ingen helligdage*. For en række lande vises ogsÃ¥ feltet *Region*, for eksempel en delstat i Tyskland. *Landsdækkende* beholder kun de helligdage, der gælder overalt.
+3. Vælg *Land*: Nederlandene, Tyskland, Belgien, Frankrig, Storbritannien, Østrig, Schweiz eller *Ingen helligdage*. For en række lande vises også feltet *Region*, for eksempel en delstat i Tyskland. *Landsdækkende* beholder kun de helligdage, der gælder overalt.
 4. For Nederlandene vælger du *Byggeferie*: *Ingen* (standard), *Nord*, *Midt* eller *Syd*. Byggeferien vises som én periode på listen, for eksempel *Bouwvak (Noord)*, tre uger fra mandag til fredag. Du ser kun dette valg, hvis *Byggetilstand* er slået til.
 5. Under valgene står en opsummering, for eksempel *21 helligdage, 2026–2028*. Klik på den for at se datoerne.
 6. Klik på *Generér*. Listen *Helligdage* er nu udfyldt.
@@ -22,11 +22,11 @@ Uden helligdage regner appen simpelthen med arbejde på juledag eller Koningsdag
 
 For Nederlandene lægger appen hvert år Nieuwjaar, Goede Vrijdag, Pasen (to dage), Koningsdag, Hemelvaart, Pinksteren (to dage) og Kerst (25. og 26. december) på listen (nytårsdag, langfredag, påskedag, kongedag, Kristi himmelfartsdag, pinse og jul). Hvis Koningsdag falder på en søndag, er den 26. april. Bevrijdingsdag (befrielsesdag) står kun på listen i femårsår, for eksempel 2025 og 2030.
 
-Årene følger projektperioden: fra året før startdatoen til året efter slutdatoen. Har projektet ingen slutdato, går det op til tre år efter startåret. Du justerer start og slut under *Indstillinger › Projekt › Projektinfo*.
+Årene følger projektperioden: fra året før startdatoen til året efter slutdatoen. Har projektet ingen slutdato, går det op til tre år efter startåret. Du justerer start og slut under *Indstillinger › Projekt › Projektindstillinger*.
 
 ### Generering igen efter en ny projektperiode
 
-Hvis dit projekt forskydes, eller får en senere slutdato, dækker helligdagene ikke længere de nye år. Appen siger det i vinduet *Kalendere*, for eksempel *Helligdage dækker 2025–2028; projektet løber til 2030. Generér igen?* Klik derefter på *Generér igen*. Appen bruger de samme valg som sidst (land, region, byggeferie) for projektets år. Klik derefter på *Anvend*. Du ser kun denne besked for en kalender, hvis helligdage tidligere er genereret.
+Hvis dit projekt forskydes, eller får en senere slutdato, dækker helligdagene ikke længere de nye år. Appen siger det i vinduet *Kalendere*, for eksempel *Helligdage dækker 2025–2028; generér igen til og med 2030?* Klik derefter på *Generér igen*. Appen bruger de samme valg som sidst (land, region, byggeferie) for projektets år. Klik derefter på *Anvend*. Du ser kun denne besked for en kalender, hvis helligdage tidligere er genereret.
 
 ### Tilføj selv en dag eller periode fri
 
@@ -58,5 +58,5 @@ Vælg *Ingen helligdage* under *Land*, og klik på *Generér*. Listen er så tom
 - [Kalendere og arbejdsdage](docs://uitleg-kalenders): hvordan appen tager helligdage og byggeferie med i tællingen af arbejdsdage.
 - [Oprette og tildele en kalender](docs://howto-kalender-maken-en-toewijzen): at lave en egen kalender, som helligdagene kan lægges i.
 - [Kalendervinduerne](docs://ref-kalenders): alle felter i kalendervinduerne.
-- [Opret nyt projekt og Projektinfo](docs://ref-projectinfo): helligdagssættet for et nyt projekt.
+- [Nyt projekt og Projektindstillinger](docs://ref-projectinfo): helligdagssættet for et nyt projekt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): ud over helligdagene har projektkalenderen en periode fri *Frost delay, foundations*.

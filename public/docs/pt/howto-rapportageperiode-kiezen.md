@@ -47,10 +47,10 @@ Para a Previsão (look-ahead), a Carga de recursos e as Atribuições de recurso
 
 O período não funciona da mesma forma em todos os relatórios.
 
-- **Previsão (look-ahead)** inclui as atividades não concluídas que se sobrepõem ao período, também se abrangerem o período inteiro. As atividades atrasadas, anteriores ao dia de referência, também são incluídas, desde que o fim do período não seja anterior ao dia de referência. Um período personalizado totalmente no passado é uma retrospetiva: mostra apenas o que estava a decorrer nessa altura e ainda não estava concluído, sem o atraso acumulado de hoje.
+- **Previsão (look-ahead)** inclui as tarefas não concluídas que se sobrepõem ao período, também se abrangerem o período inteiro. As tarefas atrasadas, anteriores ao dia de referência, também são incluídas, desde que o fim do período não seja anterior ao dia de referência. Um período personalizado totalmente no passado é uma retrospetiva: mostra apenas o que estava a decorrer nessa altura e ainda não estava concluído, sem o atraso acumulado de hoje.
 - **Relatório de progresso** usa o período para *Concluídas no período anterior*. A secção *Começam no próximo período* olha em frente a partir da data de estado, até à data em *Previsão até* no resumo. Se escolher uma opção com *Último* ou *Últimas*, como *Último mês* ou *Últimas 2 semanas*, o relatório olha em frente tanto como olha para trás: com *Últimas 2 semanas* e data de estado 20 de maio, mostra *Previsão até* 3 de junho. Um período personalizado ou *Projeto inteiro* que esteja totalmente no passado não é refletido.
 - **Carga de recursos** mostra, por inteiro, cada semana ou mês que se sobrepõe ao período. Se o seu período for de quarta-feira a quarta-feira, vê assim semanas completas, por isso uma linha mostra sempre o mesmo número que o histograma.
-- **Atribuições de recursos** mostra as atribuições das atividades que se sobrepõem ao período. Com *Projeto inteiro* não há filtro por data.
+- **Atribuições de recursos** mostra as atribuições das tarefas que se sobrepõem ao período. Com *Projeto inteiro* não há filtro por data.
 - **Diagrama de recursos** mostra apenas as tarefas que se sobrepõem ao período. No resumo, *Fora do período:* conta quantas tarefas ficaram de fora.
 
 ## Erros comuns e o que a aplicação faz

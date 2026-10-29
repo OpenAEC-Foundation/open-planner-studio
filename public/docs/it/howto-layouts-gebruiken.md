@@ -39,7 +39,7 @@ Gli operatori disponibili dipendono dal tipo di campo:
 - Testo (*Nome attività*, *WBS*): *uguale a*, *diverso da*, *contiene*, *inizia con* e *è vuoto*.
 - Numero e data (*Margine totale*, *Inizio*, *Avanzamento*): *uguale a*, *diverso da*, *minore di*, *minore o uguale a*, *maggiore di*, *maggiore o uguale a*, *tra* e *è vuoto*. Con *tra* ci sono due campi: per un numero con *Da* e *A* come suggerimento, per una data senza suggerimento (la prima data è l'inizio, la seconda la fine).
 - Sì/no (*Critica*, *Cardine*, *Quasi critica*): *uguale a* e *diverso da*, con il valore *Sì* o *No*.
-- Scelta (*Tipo*, un codice attività): *uguale a*, *diverso da*, *è uno tra* (con valori a casella di controllo) e *è vuoto*.
+- Scelta (*Categoria di lavoro*, un codice attività): *uguale a*, *diverso da*, *è uno tra* (con valori a casella di controllo) e *è vuoto*.
 - *Risorse*: *è uno tra* e *è vuoto*.
 - *In corso*: solo *tra*, con due date (da e a).
 
@@ -75,13 +75,13 @@ Layout che non memorizzano le stesse parti possono essere attivi insieme. Se hai
 
 **Le colonne valgono per la tabella attività accanto al Gantt.** La parte *Colonne* memorizza le colonne della tabella a sinistra della linea temporale. La tabella nella scheda *Tabella* mantiene le proprie colonne. Come scegli le colonne è spiegato in [Regolare le colonne della tabella](docs://howto-tabelkolommen-aanpassen).
 
-**Rientra e riduci rientro sono disattivati.** Finché un filtro, un raggruppamento o un ordinamento è attivo, l'ordine visualizzato non è l'ordine della pianificazione. *Rientra* e *Riduci rientro* sono allora disattivati, con il suggerimento *Non disponibile durante filtro/raggruppamento/ordinamento*. Disattiva il layout per regolare di nuovo la struttura, come descritto in [Regolare la struttura](docs://howto-structuur-aanpassen).
+**I comandi Rientra e Riduci rientro sono disattivati.** Finché un filtro, un raggruppamento o un ordinamento è attivo, l'ordine visualizzato non è l'ordine della pianificazione. *Rientra* e *Riduci rientro* sono allora disattivati, con il suggerimento *Non disponibile durante filtro/raggruppamento/ordinamento*. Disattiva il layout per regolare di nuovo la struttura, come descritto in [Regolare la struttura](docs://howto-structuur-aanpassen).
 
 **La barra di stato non tiene conto del filtro.** *Attività:* nella barra di stato mostra il numero di attività dell'intero progetto, anche se un filtro ne mostra solo una parte.
 
 **I layout sono sul tuo dispositivo, non nel progetto.** L'app conserva i tuoi layout e le colonne per tutti i tuoi progetti su questo dispositivo. Le sovrapposizioni di un layout (baseline, linea di avanzamento e le altre) valgono per tutti i tuoi progetti. Il filtro, il raggruppamento e l'ordinamento attivi in questo momento appartengono al progetto aperto, ma non entrano nel file del progetto: dopo il salvataggio e la riapertura la vista è di nuovo pulita. Inoltre non rendono il progetto «modificato».
 
-**I pulsanti separati sono nascosti.** *Colonne…*, *Filtro…*, *Raggruppa…* e *Ordina…* come pulsanti separati sulla scheda *Vista* sono una vista classica. Li riporti con *Mostra i pulsanti di vista classici* sotto *Funzioni legacy* nella scheda *Avanzate* della finestra delle impostazioni (⚙ nella barra del titolo). Preferisci i layout.
+**I pulsanti separati sono nascosti.** *Colonne…*, *Filtro…*, *Raggruppa…* e *Ordina…* come pulsanti separati sulla scheda *Vista* sono una vista classica. Li riporti con *Mostra i pulsanti di vista classici* sotto *Funzioni legacy* nella scheda *Avanzate* della finestra *Impostazioni app* (⚙ nella barra del titolo). Preferisci i layout.
 
 ## Vedi anche
 

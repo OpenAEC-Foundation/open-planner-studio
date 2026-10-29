@@ -28,7 +28,7 @@ I appen laver du selv tidsplanen: du ændrer noget og trykker derefter på *Bere
 
 ### Et script er ét trin
 
-En assistent kan indsende en række trin som ét hele med `planner_batch`, et script på højst 100 trin. Det giver dig ét fortrydelsestrin, én genberegning og én backup. Mislykkes ét trin strukturelt, fx et ukendt værktøj eller en cirkulær reference, ruller appen hele scriptet tilbage. Du får aldrig en halvfærdig tidsplan. En afvisning af ét element i et bulktrin, fx én ugyldig fremdriftsindtastning ud af tyve, er mildere: elementet bliver udenfor, og resten udføres. Afvisningerne står øverst i svaret.
+En assistent kan indsende en række trin som ét hele med `planner_batch`, et script på højst 100 trin. Det giver dig ét fortrydelsestrin, én genberegning og én backup. Mislykkes ét trin strukturelt, fx et ukendt værktøj eller en cirkulær reference, ruller appen hele scriptet tilbage. Du får aldrig en halvfærdig tidsplan. En afvisning af ét element i et bulktrin, fx én ugyldig fremdriftsindtastning ud af tyve, er mildere: elementet springes over, og resten udføres. Afvisningerne står øverst i svaret.
 
 ### Dine grænser
 
@@ -45,7 +45,7 @@ Dertil kommer den almindelige funktion *Fortryd* (Ctrl+Z). Assistenten deler den
 
 Broen er bevidst smallere end appen. Det, assistenten ikke kan, har som regel én af tre grunde.
 
-**Den rækker længere end projektet.** En assistent kan ikke ændre biblioteket. Et bibliotek deles af alle dine projekter og ligger uden for fortrydelseshistorikken; én ændring af standardsatsen ville så få virkning i projekter, der slet ikke er åbne. For en ressource fra et bibliotek er navn, type, beskrivelse, standardsats pr. time og enhed faste, ligesom i ressourcepanelet. Det projektet bestemmer, ligger hos assistenten: maksimalt antal enheder, tilgængelighed over tid, kalender og mandskab. Den kan heller ikke vælge, hvilken kalender der er projektkalender. Den kan læse beregningsprofilen og beregningsindstillingerne, men ikke ændre dem; den kan kun sætte fremdriftsmetoden og projektets standard for arbejdsreglen. Der findes ingen værktøjer til indstillinger, tema, sprog, udvidelser eller opdateringer.
+**Den rækker længere end projektet.** En assistent kan ikke ændre biblioteket. Et bibliotek deles af alle dine projekter og ligger uden for fortrydelseshistorikken; én ændring af standardsatsen ville så få virkning i projekter, der slet ikke er åbne. For en ressource fra et bibliotek er navn, type, beskrivelse, standardsats pr. time og enhed faste, ligesom i ressourcepanelet. Det projektet bestemmer, ligger hos assistenten: maksimalt antal enheder, tilgængelighed over tid, kalender og mandskab. Den kan heller ikke vælge, hvilken kalender der er projektkalender. Den kan læse beregningsprofilen og beregningsindstillingerne, men ikke ændre dem; den kan kun sætte fremdriftsmetoden og projektets standard for opgavetypen. Der findes ingen værktøjer til indstillinger, tema, sprog, udvidelser eller opdateringer.
 
 **Det kan ikke kontrolleres pålideligt.** En assistent kan ikke oprette en hængekøje, sætte datoerne for en opgave manuelt, sætte en ekstra begrænsning, udfylde noter, farver, opgavekoder, brugerdefinerede felter eller eksterne afhængigheder, og den kan ikke sætte en udjævningsforskydning manuelt. Den vælger heller ikke en WBS-kode; appen udleder den selv.
 
@@ -53,7 +53,7 @@ Broen er bevidst smallere end appen. Det, assistenten ikke kan, har som regel é
 
 ### Hvordan assistenten ved, hvordan en tidsplan opbygges
 
-En assistent, der kender værktøjerne, kan stadig opbygge en tidsplan, som ingen erfaren projektleder har nytte af: opgaver uden afhængigheder, en fast dato på hver opgave eller en opdeling, der er alt for fin. Derfor giver appen den tre ting.
+En assistent, der kender værktøjerne, kan stadig opbygge en tidsplan, som ingen erfaren projektleder har nytte af: opgaver uden afhængigheder, en fast dato på hver opgave eller en opdeling, der er alt for fin. Derfor giver appen de tre ting.
 
 **De centrale regler i håndtrykket.** Når der oprettes forbindelse, sender broen en kort tekst i feltet `instructions` i MCP-håndtrykket. Mange klienter lægger den tekst i deres systemprompt; om din gør, afhænger af klienten. Reglerne: start ved milepælene og leveringsdatoen, lav opgaver på cirka en dag til to uger, styr tidsplanen med afhængigheder i stedet for faste datoer, brug begrænsninger kun til hårde eksterne datoer, ret først en mislykket beregning, brug `planner_batch` for en sammenhængende række, registrer fremdrift kun med din statusdato og de faktiske datoer, du selv oplyser, og sig til sidst, hvad du antog, og hvad du bevidst lod være.
 

@@ -32,6 +32,7 @@ import {
   parseTaskFields,
   PROGRESS_FIELD_NAMES,
   TASK_FIELDS_DOC,
+  SUMMARY_DURATION_READ_ONLY,
   TASK_FIELD_NAMES,
   TASK_FIELD_SCHEMA_PROPERTIES,
   type ProgressPatch,
@@ -176,6 +177,14 @@ function parseAddTasks(args: unknown, state: AppState): ParsedAddItem[] | string
       patch: res.patch,
     });
   }
+  // Een ouder kan vóór of na zijn kinderen staan. Pas na vormvalidatie is de hele
+  // nieuwe boom bekend; weiger een expliciete ouderduur vóór de transactie.
+  const parentIds = new Set(parsed.map(item => item.parentId));
+  for (const item of parsed) {
+    if (parentIds.has(item.tempId) && item.patch.time?.scheduleDuration !== undefined) {
+      return `task '${item.tempId}': ${SUMMARY_DURATION_READ_ONLY}`;
+    }
+  }
   return parsed;
 }
 
@@ -237,7 +246,9 @@ const addTasks: BatchStepTool = {
     '`planner_batch` steps recognize their references; the schema now enforces that form everywhere, so the ' +
     'same call works inside and outside a batch. `position` is the insertion index within the parent and is ' +
     'silently clamped to [0, number of siblings]. Give the DURATION directly with `duration` and optionally ' +
-    '`durationUnit` (`days`/`hours`; without a duration a task gets the default of 5 working days). A ' +
+    '`durationUnit` (`days` = day measure, `hours` = hour measure). Without a duration a task gets the ' +
+    "project's default measure for new tasks: 5 working days in the day measure, 5 hours if the project " +
+    'chose the hour measure, and 5 working days in the hour measure in the P6 and MS Project profiles. A ' +
     'milestone (`isMilestone`) has duration 0 by definition — `duration` > 0 is an error there. ' +
     `${TASK_FIELDS_DOC} For add_tasks an unknown key is a HARD error (the whole call fails), not a per-item ` +
     `refusal. ${PHASE_TRANSITION_DOC} Returns the complete tempId→realId map, the recalculated ` +
@@ -466,7 +477,11 @@ const updateTasks: BatchStepTool = {
     'completed) keeps the work done the same, like MS Project: remaining duration = new duration − work done ' +
     'and the percentage adjusts (10 d at 40% → 12 d ⇒ 8 d left, 33%); the result reports those tasks in ' +
     '`progressAdjusted` (completion in percent, remaining in the task\'s own unit). A duration shorter than ' +
-    'the work done is softly refused per item. Lever tip: hypothetical overrun = duration or SNET constraint ' +
+    'the work done is softly refused per item. On every duration change (started or not) the remaining ' +
+    'duration follows and the assignments follow the task type (`workRule`), like P6: under a task type where work follows ' +
+    'the duration, remaining work = units × new remaining duration, also when the stored remaining work came ' +
+    'from the file and differed; such overwritten values are listed in the envelope field ' +
+    '`remainingWorkRecomputed` (hours before/after) — report them to the user. Lever tip: hypothetical overrun = duration or SNET constraint ' +
     '(via `fields`); recorded progress = actuals with a status date (via `progress`). Note: one task id can ' +
     'appear in both `updated` and the refusals at the same time (e.g. `fields` refused but `progress` ' +
     'applied) — deliberate granularity.',

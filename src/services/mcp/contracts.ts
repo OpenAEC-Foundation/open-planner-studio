@@ -3,6 +3,17 @@
 import type { AppStoreContext } from '@/state/appStore';
 import type { McpTransactions } from '@/state/runtime/createMcpTransactions';
 
+/** Eén herschreven restwerk in `McpEnvelope.remainingWorkRecomputed`. */
+export interface McpRecomputedRemainingWork {
+  taskId: string;
+  taskName: string;
+  assignmentId: string;
+  resourceId: string;
+  /** Restwerk vóór en ná de duurwijziging, in uren (op twee decimalen). */
+  beforeHours: number;
+  afterHours: number;
+}
+
 /** Envelop op elke tool-respons. */
 export interface McpEnvelope {
   activeDocumentId: string;
@@ -20,6 +31,12 @@ export interface McpEnvelope {
    *  eenmalige-melding-gate te hangen — een tweede mutatie die opnieuw sturing loslaat (geen nieuwe
    *  toast meer, zie `timephasedLossNotice.ts`) draagt dit veld dus gewoon opnieuw. */
   timephasedGuidanceLost?: number;
+  /** Additieve contractuitbreiding: alleen gezet, en niet leeg, op de call waarin een DUURwijziging
+   *  een bewaard restwerk opnieuw uitrekende dat afweek van inzet × restduur (bv. P6 `remain_qty`
+   *  uit het bestand; eigenaarsbesluit 2026-10-19). Per toewijzing het oude en het nieuwe restwerk in
+   *  uren, zodat een agent het kan rapporteren; de app meldt het ook zelf. Geen vraag vooraf: de
+   *  taakregel beslist, zoals in P6. Ctrl+Z (of `planner_undo`) zet het terug. */
+  remainingWorkRecomputed?: McpRecomputedRemainingWork[];
   /** Additieve contractuitbreiding: alleen gezet (en dan `true`) op de LEESTOOL-call die een
    *  verouderde of nooit berekende planning eerst zelf doorrekende (`ensureFreshScheduleForRead`).
    *  Dezelfde herrekening als F5: geen undo-stap, geen `isDirty`; wel zichtbaar in de app. */
@@ -132,6 +149,9 @@ export interface ActivityEntry {
   ts: number;
   tool: string;
   summary: string;
+  /** Vaste UI-markering; de technische samenvatting blijft beschikbaar zonder i18n. */
+  summaryKind?: 'unparseableRequest';
+  errorKind?: 'unparseableResponse' | 'error';
   durationMs: number;
   ok: boolean;
   error?: string;

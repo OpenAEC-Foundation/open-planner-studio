@@ -16,7 +16,7 @@ Panel zdrojů je místo, kde spravujete zdroje: kdo a co je k dispozici, s jakou
 
 ## Zobrazení Projekt
 
-Tabulka toho, co tento projekt používá. Každý řádek je jeden zdroj. Změny textu a sazby platí, jakmile opustíte pole, a počítají se jako jeden krok pod *Vrátit zpět*.
+Tabulka toho, co tento projekt používá. Každý řádek je jeden zdroj. Změny textu a sazby se projeví, jakmile opustíte pole, a počítají se jako jeden krok pod *Vrátit zpět*.
 
 - **Barva** — výběr barvy. Výchozí: první volná barva z palety. Účinek: barva zvýraznění zdrojů pod pruhy v diagramu Gantt (*Zobrazení › Směrné plány a průběh › Zvýraznění zdrojů*) a barva čtverečku v panelu Ukotvit zdroje.
 - **Název** — název zdroje. Prázdný název se neuloží; pole se vrátí ke starému názvu.
@@ -25,10 +25,10 @@ Tabulka toho, co tento projekt používá. Každý řádek je jeden zdroj. Změn
 - **Kapacita podle období** — kroky s polem *Od* (datum) a *Maximální počet jednotek*. Tlačítko *Přidat krok* přidá krok s dnešním datem a hodnotou 1. Bez kroků se zobrazí *Žádné kroky — platí vždy plochý maximální počet jednotek*. Účinek: od data kroku platí jeho *Maximální počet jednotek* místo ploché hodnoty. Rozhoduje poslední krok s datem na tento den nebo dříve.
 - **Kalendář** — seznam s položkami *Kalendář projektu* (výchozí), kalendáři projektu a *+ Kalendář zdroje* pro nový. Tužka (*Upravit*…) otevře zvolený kalendář a je neaktivní u položky *Kalendář projektu*. Účinek: dny, kdy zdroj pracuje. V den volna je kapacita 0. Je-li tehdy plánovaná práce, je zdroj přetížen s důvodem *Podle kalendáře „…“ v tento den nepracuje*. Kalendář zdroje nemění data úkolu. Viz [Okna kalendářů](docs://ref-kalenders).
 - **Standardní sazba/hod** — náklady za hodinu. Prázdné pole znamená žádnou sazbu. Neplatné číslo se vrátí k předchozí hodnotě. Účinek: žádný vliv na plán ani na zátěž. Sazba určuje sloupec *Celkem*, je uložena v souboru IFC a při exportu se zapíše do MS Project (standardní sazba) a do Primavera P6 XML (náklady na jednotku).
-- **Celkem** — jen pro čtení: hodiny zátěže × sazba, se dvěma desetinnými místy; *—* bez sazby nebo zátěže. Dole řádek *Celkem* sečte všechny zdroje. Hodiny pocházejí z posledního výpočtu a počítají jednotky × hodiny za den podle kalendáře úkolu. Jsou-li zastaralé, stiskněte tlačítko *Přepočítat*.
+- **Celkem** — jen pro čtení: hodiny zátěže × sazba, se dvěma desetinnými místy; *—* bez sazby nebo zátěže. Dole řádek *Celkem* sečte všechny zdroje. Hodiny pocházejí z posledního výpočtu a počítají jednotky přiřazení × hodiny za den podle kalendáře úkolu. Jsou-li zastaralé, stiskněte tlačítko *Přepočítat*.
 - **Jednotka** — měrná jednotka materiálu, například `m³`. Lze ji vyplnit jen u typu *Materiál* (nápověda *Vyplňte pouze u zdrojů typu Materiál*.). Účinek: popisek; nic se nepočítá.
 - **Parta** — parta, ke které zdroj patří. Vybírá se ze zdrojů typu *Parta*. Výchozí: *Žádná*. Účinek: jen seskupení. Kapacita a zátěž party se nerovnají součtu jejích členů.
-- **Odstranit** (koš) — odstraní zdroj. Má-li zdroj přiřazení, aplikace se nejdřív zeptá *'…' má … přiřazení — odstranit?* Potvrdíte zaškrtnutím, zrušíte křížkem.
+- **Odstranit** (koš) — odstraní zdroj. Má-li zdroj přiřazení, aplikace se nejdřív zeptá *„…“ má … přiřazení — odstranit?* Potvrdíte zaškrtnutím, zrušíte křížkem.
 - **Do knihovny** — jen pokud projekt patří ke knihovně zdrojů, a jen u zdroje, jehož název dosud nepochází z knihovny. Uloží zdroj do knihovny, nebo ho propojí s existující položkou se stejným názvem, a oznámí, co se stalo: *Přidáno*, *Již existovalo v knihovně zdrojů — nyní propojeno* nebo *Propojeno s existující položkou knihovny zdrojů — hodnoty se liší, viz označení*.
 - **Odpojit od knihovny** — ikona odpojení u zdroje, který pochází z knihovny. Odstraní propojení s knihovnou. Potom jsou všechna pole zase volná.
 
@@ -83,4 +83,4 @@ Kde to uvidíte:
 - **Histogram** — červené části sloupců a červená tečka ve výběru.
 - **Ukotvit zdroje** — trojúhelník *Přetížen*.
 
-Vyrovnání může přetížení vyřešit posunutím úkolů v jejich časové rezervě. Nevyřeší zdroj, který musí pracovat ve dni volna. Viz [Vyrovnání](docs://uitleg-nivelleren).
+Vyrovnání může přetížení vyřešit tím, že úkoly začnou později. Ve výchozím nastavení se může datum dokončení projektu posunout. Při *vyrovnání* s časovou rezervou zůstanou úkoly v jejich časové rezervě. Vyrovnání nevyřeší zdroj, který musí pracovat ve dni volna. Viz [Vyrovnání](docs://uitleg-nivelleren).

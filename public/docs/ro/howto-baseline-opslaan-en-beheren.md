@@ -28,7 +28,7 @@ Schimbați numele din listă. Modificarea se aplică imediat; nu trebuie să fac
 
 ### Ștergerea unei referințe
 
-Faceți clic pe coșul mic de gunoi de lângă referința din listă. Dacă ștergeți referința activă, aplicația întreabă *Ștergeți referința activă?*. Apoi cea mai nouă referință rămasă devine cea activă. Dacă nu există alta, nu mai există nicio referință activă, iar suprapunerea dispare. Cu Ctrl+Z readuceți o referință ștearsă.
+Faceți clic pe coșul mic de gunoi de lângă referința din listă. Dacă ștergeți referința activă, aplicația întreabă *Ștergeți referința activă?*. Apoi cea mai nouă referință rămasă devine cea activă. Dacă nu există alta, nu mai există nicio referință activă, iar suprapunerea dispare. Cu Ctrl+Z readuceți o referință ștearsă. Închideți mai întâi fereastra; Ctrl+Z nu funcționează în interiorul unei ferestre.
 
 ### Varianțele din tabelul de activități
 
@@ -41,6 +41,8 @@ Fiecare referință are șase coloane în tabelul de activități. Faceți clic 
 **O referință cu progres.** Dacă salvați o referință după ce ați introdus progresul, ea înregistrează starea cu datele reale. Varianța este atunci zero și nu mai spune nimic despre execuție. Înregistrați referința înainte de începerea lucrărilor.
 
 **O referință nu poate fi actualizată.** Dacă doriți să revizuiți acordul, salvați o referință nouă și ștergeți-o pe cea veche, dacă este necesar.
+
+**Un ⚠ la Durată sau la Varianță de durată.** Pentru o activitate în ore, o zi este timpul de lucru al calendarului ei. Dacă un calendar are propriile ore pe zi (de exemplu 8, cu intervale de 10 ore, din Primavera P6), o versiune mai veche a aplicației număra zilele altfel. O referință din acea versiune păstrează vechiul număr: o activitate de 1870 de ore are 233,75 zile în referință și 187 de zile acum. Aplicația nu convertește o astfel de referință. Coloanele *Durată* și *Varianță de durată* ale acelei referințe afișează atunci un ⚠; treceți cu mouse-ul peste el pentru explicație. Datele referinței sunt corecte. Salvați o referință nouă și ștergeți-o pe cea veche, dacă este necesar.
 
 **Doar activități fără subactivități.** O fază nu se află în referință: nu are bară de referință și nu are varianță. Faza rezultă din activitățile de sub ea.
 

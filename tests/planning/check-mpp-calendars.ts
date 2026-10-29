@@ -52,6 +52,7 @@ import type { RawException } from '@/services/calendarRecurrence';
 import { readMPP, openMppProject } from '@/services/mpp/mppReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { installDOMParser } from './xmldom-shim';
+import { resolveMppCrawlScopes } from './mppCorpus';
 import { formatDate } from '@/utils/dateUtils';
 // B2 (eindreview T16c): het echte "readMPP → solveProject → writeIFC → readIFC → solveProject"-pad
 // voor de "0-feestdagen-blijft-0-feestdagen"-end-to-end-case — dezelfde rekenkern als
@@ -1427,9 +1428,9 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
 // van de CfbFile/assertReadable/detectApplicationVersion/Props-preambule — voorheen hield deze
 // sectie zo'n kopie apart aan, met het risico dat de twee stilzwijgend uit elkaar liepen.
 {
-  const CRAWL = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl/crawl-mpp';
+  const CRAWL = resolveMppCrawlScopes(process.env).smoke;
   if (!existsSync(CRAWL)) {
-    console.log('OK  mpp-calendars: T6-crawl niet aanwezig (OPS_MPP_CRAWL) — crawlsectie overgeslagen');
+    console.log('OK  mpp-calendars: T6-crawl niet aanwezig (OPS_MPP_CRAWL_SMOKE of OPS_MPP_CRAWL/crawl-mpp) — crawlsectie overgeslagen');
   } else {
     function listMppFilesRecursive(dir: string): string[] {
       const out: string[] = [];

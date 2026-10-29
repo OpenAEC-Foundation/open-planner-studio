@@ -5,6 +5,8 @@
 > voor IFC of CPM (Rust is een dunne schil met drie commands; IFC-lezer/-schrijver en solver zijn
 > TypeScript), geen Python-MCP-server (de MCP-laag zit in TypeScript, `src/services/mcp/`), geen
 > web-ifc, geen Vitest, geen pnpm (npm), en undo/redo werkt met snapshots, niet met Immer patches.
+> Ook §5.2 (toollijst), §8, §9 (feature-matrix en positionering: **v** = beoogd, niet gebouwd) en §10
+> zijn ontwerpfase-tekst.
 > De afvinkvakjes in de roadmap (§6) zijn evenmin bijgehouden. Voor de actuele structuur:
 > [`AGENTS.md`](AGENTS.md); voor openstaand werk:
 > [`docs/TODO.md`](docs/TODO.md). §4 draagt daarnaast zijn eigen vervalmelding.
@@ -1008,7 +1010,11 @@ interface TaskTime {
 - [ ] AI duurschatting op basis van historische data
 - [ ] Conversational planning (chat-interface in app)
 
-#### 5.2 MCP Server — Beschikbare Tools
+#### 5.2 MCP-tools — ontwerpfase-lijst (niet de huidige set)
+
+De huidige 41 `planner_*`-tools staan in `src/services/mcp/tools/` (zie `AGENTS.md`). De namen in de tabel
+hieronder bestaan zo niet. Uit deze lijst bestaan nog niet: `get_ppc`, `add_constraint` (belemmering),
+`run_monte_carlo` en `suggest_optimization`. Er is ook geen `run_cpm`: elke mutatie rekent zelf door.
 
 | Tool | Beschrijving |
 |------|-------------|
@@ -1277,6 +1283,9 @@ Het venster volgt de Office/AutoCAD-stijl van Open 2D Studio:
 
 ## 9. Referentie-analyse: Uitgebreide Vergelijking
 
+> Doelbeeld uit de ontwerpfase. **v** in de kolom OPS = beoogd, niet gebouwd (bijvoorbeeld Monte Carlo,
+> Line of Balance, Last Planner, ERPNext en 4D/5D zijn er niet).
+
 ### 9.1 Feature-matrix vs. Concurrenten
 
 | Feature | P6 | MSP | Asta | Synchro | TILOS | VPlanner | **OPS** |
@@ -1306,9 +1315,9 @@ Het venster volgt de Office/AutoCAD-stijl van Open 2D Studio:
 | Cross-platform (Win/Mac/Linux) | - | - | - | - | - | v | **v** |
 | Prijs | ~€4K | ~€600 | ~€1.5K | ~€4K | ~€3K | ~€1K | **Gratis** |
 
-### 9.2 Unieke Positionering Open Planner Studio
+### 9.2 Beoogde positionering Open Planner Studio
 
-Open Planner Studio onderscheidt zich op 8 gebieden waar **geen enkele concurrent** een oplossing biedt:
+Open Planner Studio wil zich onderscheiden op 8 gebieden waar **geen enkele concurrent** een oplossing biedt:
 
 1. **IFC-native**: Enige tool die IFC 4.3 als native bestandsformaat gebruikt — directe BIM-interoperabiliteit zonder conversie
 2. **Lean + CPM in 1 tool**: Geen enkele tool combineert volwaardig CPM-scheduling met Last Planner System
@@ -1323,52 +1332,20 @@ Open Planner Studio onderscheidt zich op 8 gebieden waar **geen enkele concurren
 
 ## 10. Bouw- & Ontwikkelomgeving
 
-### 10.1 Vereisten
+### 10.1 Vereisten en 10.2 Installatie
 
-```
-Node.js >= 20.0
-Rust >= 1.70 (stable)
-Python >= 3.10
-pnpm (pakketbeheer)
-```
-
-### 10.2 Installatie & ontwikkeling
-
-```bash
-# Clone
-git clone https://github.com/OpenAEC-Foundation/Open-Planner-Studio.git
-cd Open-Planner-Studio
-
-# Frontend dependencies
-pnpm install
-
-# Development mode
-pnpm dev            # Vite dev server
-pnpm tauri dev      # Volledige Tauri app
-
-# Build
-pnpm build          # Frontend build
-pnpm tauri build    # Volledige desktop build
-
-# MCP Server
-cd mcp-server
-pip install -r requirements.txt
-python server.py
-```
+Zie `AGENTS.md` → Commands (`npm run dev`, `npm run tauri:dev`, `npm run build`, `npm run verify`).
+Node 22; Rust stable alleen voor de `tauri:*`-commando's. Er is geen `mcp-server/`-map en geen Python.
 
 ### 10.3 CI/CD (GitHub Actions)
 
-- **Poort**: `npm run verify` — TypeScript-check over `src/` én `scripts/`+`tests/`,
-  de vier gedragssuites, de voorbeeldprojecten, de in-app documentatie en de
-  vertaalsleutels. Eén definitie in `package.json`; `ci.yml`, de release-gate en
-  de deploy-gate draaien alle drie precies die regel.
-  (Er is **geen** Vitest — deze sectie claimde dat, maar het zit niet in
-  `package.json`. De suites draaien headless op Node via esbuild plus `node:test`.)
+- **Poorten en workflows**: zie `AGENTS.md` → Commands (`npm run verify`, `ci.yml` in parallelle delen,
+  `live.yml` na een groene CI-run op `main`).
 - **Build**: Tauri build voor Linux, Windows, macOS
 - **Release**: gesigneerde binaries bij een `v*`-tag, achter dezelfde poort plus
   een controle dat de tag overeenkomt met `package.json`/`tauri.conf.json`
-- **Deploy**: elke push naar `main` deployt de browserbuild naar
-  `open-planner-studio.open-aec.com` — achter dezelfde poort
+- **Deploy**: `main` deployt de browserbuild naar `open-planner-studio.open-aec.com`, pas na een groene
+  CI-run op `main` (`live.yml`, `workflow_run`)
 
 ---
 

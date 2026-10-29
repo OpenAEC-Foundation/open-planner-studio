@@ -16,8 +16,7 @@ import type { Resource, ResourceType } from '@/types/resource';
 import { generateId } from '@/utils/id';
 
 /** Vast, herkenbaar id — nooit dubbel aangemaakt (idempotente seed). Net als
- *  `DEFAULT_COMPANY_ID` in `@/types/library` is dit géén i18n-string: de bibliotheeknaam is
- *  opgeslagen data, geen UI-tekst. */
+ *  `DEFAULT_COMPANY_ID` in `@/types/library` is dit onafhankelijk van de bibliotheeknaam. */
 export const DEMO_COMPANY_ID = 'demo-resourcebibliotheek';
 
 /**
@@ -28,7 +27,7 @@ export const DEMO_COMPANY_ID = 'demo-resourcebibliotheek';
  */
 export const DEMO_LIBRARY_SEED_VERSION = 2;
 
-/** Vaste naam-literal (net als `createDefaultCompany()` in `@/types/library`) — bewust GEEN `t(...)`. */
+/** Vaste naam van de gedeelde demo-inhoud — bewust GEEN `t(...)`. */
 const DEMO_COMPANY_NAME = 'Demo resource library';
 
 const BOUWKALENDER_NL_NAAM = 'Construction calendar NL';
@@ -81,7 +80,7 @@ interface DemoResourceSpec {
  * het overzicht gebruikt, met marge naar boven), met exact twee uitzonderingen:
  *
  *  • **Masonry crew** (1) — dezelfde ploeg die in KLEIN én MIDDEL tegelijk gevraagd wordt. Dat is
- *    HET kruis-project-conflict waar "Verdeel automatisch" op gedemonstreerd wordt.
+ *    het kruis-project-conflict dat het bezettingsoverzicht zichtbaar maakt.
  *  • **Plasterers** (3) — één stukadoorsploeg die in alle drie de showcases meedoet. MIDDEL en
  *    GROOT hebben daarbij ook nog hun eigen, bedoelde interne
  *    stukadoors-overallocatie; het overzicht laat zien hoe die drie samenkomen.

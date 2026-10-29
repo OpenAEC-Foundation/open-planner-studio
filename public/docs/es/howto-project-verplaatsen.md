@@ -52,10 +52,10 @@ No se desplaza:
 
 **La fecha está en el pasado.** Eso está permitido, pero la vista previa lo menciona: *La nueva fecha de inicio está en el pasado.*
 
-**Cambiar el inicio del proyecto en la info del proyecto es otra cosa.** Si cambia la fecha de inicio en *Configuración › Proyecto › Info del proyecto* y elija *Aplicar*, la planificación no se desplaza. Solo las tareas sin predecesor ni restricción que quedarían antes del nuevo inicio se desplazan a esa fecha, y la aplicación indica cuántas son. Si quiere desplazar todo, use *Mover proyecto…*.
+**Cambiar el inicio del proyecto en los ajustes del proyecto es otra cosa.** Si cambia la fecha de inicio en *Configuración › Proyecto › Ajustes del proyecto* y elija *Aplicar*, la planificación no se desplaza. Solo las tareas sin predecesor ni restricción que quedarían antes del nuevo inicio se desplazan a esa fecha, y la aplicación indica cuántas son. Si quiere desplazar todo, use *Mover proyecto…*.
 
 ## Véase también
 
 - [Ruta crítica y holgura](docs://uitleg-kritiek-pad): cómo calcula la planificación y por qué se desplaza el fin.
 - [Añadir relaciones](docs://howto-relaties-leggen): las relaciones simplemente se quedan donde están al desplazar el proyecto.
-- [Nuevo proyecto e info del proyecto](docs://ref-projectinfo): qué hace la fecha de inicio en la info del proyecto.
+- [Nuevo proyecto e info del proyecto](docs://ref-projectinfo): qué hace la fecha de inicio en los ajustes del proyecto.

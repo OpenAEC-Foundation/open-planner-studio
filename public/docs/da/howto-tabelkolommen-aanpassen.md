@@ -9,7 +9,7 @@ På mødet vil du se deadline og samlet slæk ved siden af hver opgave. Pladsled
 Der er to opgavetabeller. Hver har sine egne kolonner:
 
 - **Opgavetabellen ved siden af Gantt-diagrammet** står til venstre for tidslinjen på bl.a. fanerne *Start*, *Tidsplan* og *Visning*. Som standard viser den *WBS*, *Opgavenavn* og *Varighed*, så der er plads tilbage til tidslinjen.
-- **Tabellen på fanen Tabel** har hele arbejdsområdet. Som standard har den *WBS*, *Opgavenavn*, *Varighed*, *Start*, *Slutdato*, *Opgavetype*, *Kritisk*, *Samlet slæk* og *Fremdrift*, plus en kolonne for hver opgavekode og hvert brugerdefineret felt i projektet.
+- **Tabellen på fanen Tabel** har hele arbejdsområdet. Som standard har den *WBS*, *Opgavenavn*, *Varighed*, *Start*, *Slutdato*, *Arbejdskategori*, *Kritisk*, *Samlet slæk* og *Fremdrift*, plus en kolonne for hver opgavekode og hvert brugerdefineret felt i projektet.
 
 En ændring i den ene tabel ændrer ikke den anden.
 

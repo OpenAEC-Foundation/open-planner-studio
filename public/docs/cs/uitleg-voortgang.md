@@ -14,9 +14,9 @@ Plán je předpověď. Jakmile práce probíhá, chcete vědět, co je hotové, 
 
 ## Jak aplikace počítá
 
-Příklad níže používá profil výpočtu *Open Planner Studio*, se kterým nový projekt počítá. Dále se dočtete, co se liší v profilech Primavera P6 a Microsoft Project.
+Příklad níže používá profil výpočtu *Open Planner Studio*, se kterým počítá nový projekt. Dále se dočtete, co se liší v profilech Primavera P6 a Microsoft Project.
 
-Aplikace sama nepřepočítává. Po každé změně průběhu nebo data stavu zobrazí stavový řádek *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například přes *Plán › Plán › Přepočítat*. Je-li zapnutá volba *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení*, na kartě *Plán*, v nadpisu *Přepočítání*), aplikace to udělá sama.
+Aplikace sama nepřepočítává. Po každé změně průběhu nebo data stavu zobrazí stavový řádek *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například přes *Plán › Plán › Přepočítat*. Je-li zapnutá volba *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení aplikace*, na kartě *Plán*, v nadpisu *Přepočítání*), aplikace to udělá sama.
 
 ### Datum stavu
 
@@ -24,24 +24,24 @@ Datum stavu má tři účinky.
 
 Za prvé, aplikace odmítne skutečné datum, které je po datu stavu. Datum přesně na datu stavu je v pořádku.
 
-Za druhé, práce, která ještě nezačala, nemůže ležet v minulosti. Je-li takový úkol naplánovaný před datem stavu, aplikace jej přesune na datum stavu. Stejně se posunou i úkoly po něm, které se hýbou podle svých závislostí. Účinek vidíte v příkladu níže. V profilu Microsoft Project aplikace toto nedělá.
+Za druhé, práce, která ještě nezačala, nemůže ležet v minulosti. Je-li takový úkol naplánovaný před datem stavu, aplikace jej přesune na datum stavu. Stejně se posunou i úkoly po něm, které se hýbou podle svých závislostí. Účinek uvidíte v příkladu níže. V profilu Microsoft Project aplikace toto nedělá.
 
-Za třetí, zbývající práce úkolu, který už běží, začíná přesně na datu stavu. Aplikace bere datum stavu jako začátek toho dne. Zhodnotíte-li stav v pátek po pracovní době, nastavte datum stavu na pondělí. Nastavíte-li pátek, aplikace zbývající práci plánuje stále na ten pátek.
+Za třetí, zbývající práce úkolu, který už běží, začíná přesně na datu stavu. Aplikace bere datum stavu jako začátek toho dne. Zhodnotíte-li stav v pátek po skončení pracovních hodin, nastavte tedy datum stavu na pondělí. Nastavíte-li ho na pátek, aplikace zbývající práci plánuje stále na ten pátek.
 
 Nemáte-li zatím datum stavu a zadáte průběh, aplikace nastaví datum stavu na dnešek a upozorní vás na to. Jiné datum nastavíte na kartě *Plán › Směrné plány a průběh › Datum stavu*. Bez data stavu aplikace počítá běžící úkol dopředu se zbývající dobou trvání, ale dozadu s plnou dobou trvání. Časová rezerva pak vyjde záporně a úkol vypadá kriticky bez důvodu.
 
-### Procento, skutečná data a zbývající doba trvání
+### Procento, skutečné údaje a zbývající doba trvání
 
 Pole na sobě závisí. Vyplníte-li jedno, aplikace doplní ostatní.
 
 - Procento větší než 0 znamená, že úkol začal. Nezadáte-li skutečné zahájení, aplikace použije plánované zahájení. Je-li úkol naplánován na zahájení po datu stavu, aplikace se nejdřív zeptá, kdy skutečně začal.
 - Procento 100 znamená dokončeno. Nezadáte-li skutečné dokončení, stane se jím datum stavu, i když práce byla ve skutečnosti hotová dříve.
 - Skutečné dokončení udělá z úkolu 100 %. Vrátíte-li dokončený úkol pod 100 %, skutečné dokončení se zruší. Vymažete-li skutečné dokončení, procento se vrátí na 0 a úkol zůstane *Probíhá*, dokud nevymažete také skutečné zahájení.
-- **Zbývající doba trvání** je doba trvání násobená tím, co ještě zbývá, zaokrouhlená na celé pracovní dny. U úkolu o 2 pracovních dnech dávají 0 % i 25 % zbývající práci 2 pracovní dny a 50 % i 75 % dávají 1. Při 90 % aplikace zaokrouhlí na 0: zbývající práce je pak hotová na datu stavu. Úkol v hodinách se počítá v celých minutách. Úkol s 5 hodinami při 40 % má 3 hodiny zbývající práce.
+- **Zbývající doba trvání** je doba trvání násobená tím, co ještě zbývá, zaokrouhlená na celé pracovní dny. U úkolu na 2 pracovní dny dávají 0 % i 25 % zbývající práci 2 pracovní dny a 50 % i 75 % dávají 1. Při 90 % aplikace zaokrouhlí na 0: zbývající práce je pak hotová na datu stavu. Úkol v hodinách se počítá v celých minutách. Úkol na 5 hodin při 40 % má 3 hodiny zbývající práce.
 - Milník má jen jedno skutečné datum.
-- Fáze (souhrnný úkol) nemá vlastní průběh. Po vypočtení jeho procento vyplyne z úkolů pod ním: vážený průměr jejich procent, kde váhou je doba trvání v pracovních dnech. Milník má váhu 0.
+- Fáze (souhrnný úkol) nemá vlastní průběh. Po výpočtu jeho procento vyplyne z úkolů pod ním: vážený průměr jejich procent, kde váhou je doba trvání v pracovních dnech. Milník má váhu 0.
 
-Změníte-li dobu trvání úkolu, který už běží, hotová práce zůstane hotová. Procento se upraví. Úkol s 5 pracovními dny, hotový z 60 %, který nastavíte na 10 pracovních dnů, skončí na 30 %. Aplikace odmítne dobu trvání kratší, než je práce, která už je hotová.
+Změníte-li dobu trvání úkolu, který už běží, hotová práce zůstane hotová. Procento se upraví. Úkol na 5 pracovních dnů, hotový na 60 %, který nastavíte na 10 pracovních dnů, skončí na 30 %. Aplikace odmítne dobu trvání kratší, než je práce, která už je hotová.
 
 ### Dokončené a běžící úkoly
 
@@ -62,17 +62,17 @@ V tomto profilu je rozdíl jen ve zbývající práci úkolů, které už začal
 
 ### Směrné plány a odchylky
 
-Při uložení aplikace zaznamená u každého úkolu bez dílčích úkolů nejdřívější zahájení, nejdřívější dokončení, dobu trvání a typ milníku. Souhrnné úkoly v tom nejsou. Co změníte později, směrný plán nezmění. Můžete mít více směrných plánů, ale přesně jeden je **aktivní**. Gantt, sestava odchylek a sestava průběhu používají aktivní směrný plán.
+Při uložení aplikace zaznamená u každého úkolu bez dílčích úkolů nejdřívější zahájení, nejdřívější dokončení, dobu trvání a typ milníku. Souhrnné úkoly v něm nejsou. Co změníte později, směrný plán nezmění. Můžete mít více směrných plánů, ale přesně jeden je **aktivní**. Gantt, sestava odchylek a sestava průběhu používají aktivní směrný plán.
 
 **Odchylka** je rozdíl v pracovních dnech mezi směrným plánem a aktuálním plánem. Plus znamená později, minus dříve. Aplikace počítá v kalendáři projektu. Sestava odchylek dává odchylku začátku a dokončení pro každý úkol. Stav vyplývá jen z dokončení: *Opožděno* při plusu, *Dříve* při minusu, jinak *V plánu*. Úkol přidaný po směrném plánu se nazývá *Nový*. Úkol, který už neexistuje, je *Vypuštěno*.
 
-Dvě poznámky. Odchylka doby trvání je v tabulce úkolů (sloupec *Odchylka doby trvání*), ne v sestavě odchylek. Porovnává plánovanou dobu trvání úkolu nyní s tou ve směrném plánu. Průběh tuto plánovanou dobu nemění: úkol naplánovaný na dva dny, který trval tři, má proto odchylku dokončení +1, ale odchylku doby trvání 0. A uložíte-li směrný plán poté, co zadáte průběh, zaznamená stav s těmi skutečnými daty. Odchylka je pak nula.
+Dvě poznámky. Odchylka doby trvání je v tabulce úkolů (sloupec *Odchylka doby trvání*), ne v sestavě odchylek. Porovnává plánovanou dobu trvání úkolu nyní s tou ve směrném plánu. Průběh tuto plánovanou dobu nemění: úkol naplánovaný na dva dny, který trval tři, má proto odchylku dokončení +1, ale odchylku doby trvání 0. A uložíte-li směrný plán až poté, co zadáte průběh, zaznamená se stav s těmi skutečnými daty. Odchylka je pak nula.
 
 Sestava průběhu staví plánovaný průběh vedle skutečného. Obojí je váženo pracovními dny. *Plánovaný* je podíl každého úkolu, který měl být podle směrného plánu hotový k datu stavu. *Skutečný* je procento, které bylo zadáno.
 
 ### Kde to vidíte
 
-V diagramu Gantt označuje čárkovaná čára datum stavu, datum je v záhlaví. U každého běžícího úkolu se čára vyboulí do bodu na pruhu, který odpovídá procentu. To je **čára průběhu**. Vypnete-li čáru průběhu a necháte čáru datumu stavu zapnutou, zůstane rovná čára. Vypnete-li obě, zmizí čára i popisek. Tlačítka *Překryv směrného plánu*, *Čára průběhu* a *Čára datumu stavu* najdete na kartě *Zobrazení › Směrné plány a průběh*. Nic z nich nemění výpočet. Směrný plán se zobrazí jako tenký pruh pod každým pruhem úkolu. Tabulka úkolů má sloupce pro průběh a pro každý směrný plán odchylku. Na kartě *Sestava* najdete typy sestav *Odchylka* a *Sestava průběhu*.
+V diagramu Gantt označuje čárkovaná čára datum stavu, datum je v záhlaví. U každého běžícího úkolu se čára vyboulí do bodu na pruhu, který odpovídá procentu. To je **čára průběhu**. Vypnete-li čáru průběhu a necháte čáru datumu stavu zapnutou, zůstane rovná čára. Vypnete-li obě, zmizí čára i popisek. Tlačítka *Překryv směrného plánu*, *Čára průběhu* a *Čára datumu stavu* najdete na kartě *Zobrazení › Směrné plány a průběh*. Nic z nich nemění výpočet. Směrný plán se zobrazí jako tenký pruh pod každým pruhem úkolu. Tabulka úkolů má sloupce pro průběh a pro každý směrný plán sloupec odchylky. Na kartě *Sestava* najdete typy sestav *Odchylka* a *Sestava průběhu*.
 
 ## Příklad: přístavba po třech týdnech
 
@@ -131,25 +131,25 @@ Bez průběhu měl *Plastering* plánované termíny od úterý 20. do pátku 23
 *Plastering* má 4 × (1 − 0.25) = 3 pracovní dny zbývající práce: 21., 22. a 23. července. *Painting* má 3 × (1 − 0.33) = 2 pracovní dny zbývající práce.
 
 - Při **Retained Logic** může zbývající práce začít až po dokončení *Plastering*. To je pátek 23. července. *Painting* proto začne v pondělí 26. července a skončí v úterý 27. července. Pruh vede od skutečného zahájení 21. července do 27. července. Celková časová rezerva je 7 pracovních dnů.
-- Při **Progress Override** začne zbývající práce v datu stavu. *Painting* skončí ve čtvrtek 22. července, dřív než je úkol *Plastering* hotový. Celková časová rezerva je 10 pracovních dnů.
+- Při **Progress Override** začne zbývající práce na datu stavu. *Painting* skončí ve čtvrtek 22. července, dříve než je úkol *Plastering* hotový. Celková časová rezerva je 10 pracovních dnů.
 
-Předání zůstává v obou případech na pátek 6. srpna, protože úkol *Painting* měl tak jako tak časovou rezervu.
+Předání zůstává v obou případech na pátek 6. srpna, protože úkol *Painting* měl tak či onak časovou rezervu.
 
 ### Další profily výpočtu
 
-U profilů Primavera P6 a Microsoft Project skončí malování v tomto příkladu ve stejných dnech (27. a 22. července). Liší se v těchto bodech. Jsou to konvence profilu. Najdete je na kartě *Nastavení › Projekt › Info o projektu*, v části *Profil výpočtu a možnosti výpočtu*.
+U profilů Primavera P6 a Microsoft Project skončí malování v tomto příkladu ve stejných dnech (27. a 22. července). Liší se v těchto bodech. Jde o konvence profilu. Najdete je na kartě *Nastavení › Projekt › Nastavení projektu*, v bloku *Profil výpočtu a možnosti výpočtu*.
 
 - V profilu Microsoft Project se práce, která ještě nezačala, nepřesune na datum stavu (konvence *Nezahájené úkoly nepřesouvat na datum stavu*). Pokud v příkladu výše nastavíte jen datum stavu a nic nezadáte, předání v tomto profilu zůstane na pátek 6. srpna.
-- V profilu Microsoft Project zbývající práce také nezačne dřív než skutečné zahájení plus uplynulá doba trvání (konvence *Zbývající práce pokračuje po uplynulé době trvání*). Je to další dolní mez vedle data stavu: platí pozdější z obou. Vezměte úkol *Build inner cavity leaf* (5 pracovních dnů). Začal v úterý 29. června a ve středu 30. června, což je datum stavu, je na 40 %. Dvě party zedníků zdí současně, takže 40 % je už po jednom dni hotovo. Vše před ním je hotovo podle plánu. Open Planner Studio a Primavera P6 nechají úkol skončit v pátek 2. července. Microsoft Project ho nechá skončit v pondělí 5. července, protože úterý 29. června plus 2 uplynulé pracovní dny je čtvrtek 1. července, tedy po datu stavu.
-- Primavera P6 zobrazuje jako nejdřívější zahájení běžícího úkolu začátek zbývající práce, ne skutečné zahájení (v příkladu s *Build inner cavity leaf* středa 30. června).
-- V profilu Primavera P6 se při Progress Override závislost na následníkovi, který už začal, nepočítá ani pro předchůdce. Taková závislost už neomezuje jeho pozdní termíny ani volnou časovou rezervu (konvence *Progress Override ignoruje zahájeného následníka i při výpočtu zpět*). V příkladu s *Plastering* a *Painting* to nevidíte. Úkol *Plastering* je stejně kritický kvůli potěru podlahy, takže jeho pozdní termíny a volná časová rezerva jsou stejné při Retained Logic i při Progress Override.
+- V profilu Microsoft Project zbývající práce také nezačne dříve než skutečné zahájení plus uplynulá doba trvání (konvence *Zbývající práce pokračuje po uplynulé době trvání*). Je to další dolní mez vedle data stavu: platí pozdější z obou. Vezměte úkol *Build inner cavity leaf* (5 pracovních dnů). Začal v úterý 29. června a při datu stavu ve středu 30. června je na 40 %. Dvě party zedníků zdí současně, takže 40 % je už po jednom dni hotovo. Vše před ním je hotovo podle plánu. Open Planner Studio a Primavera P6 nechají úkol skončit v pátek 2. července. Microsoft Project ho nechá skončit v pondělí 5. července, protože úterý 29. června plus 2 uplynulé pracovní dny je čtvrtek 1. července, tedy po datu stavu.
+- Primavera P6 zobrazuje jako nejdřívější zahájení běžícího úkolu začátek zbývající práce, ne skutečné zahájení (v příkladu s *Build inner cavity leaf* středa 30. června). Sloupec *Zahájení* a pruh ukazují ve všech profilech skutečné zahájení.
+- V profilu Primavera P6 se při Progress Override závislost na následníkovi, který už začal, nepočítá ani pro předchůdce. Taková závislost už neomezuje jeho pozdní termíny ani volnou časovou rezervu (konvence *Progress Override ignoruje zahájeného následníka i při výpočtu zpět*). V příkladu s omítačem a malířem to nevidíte, protože omítání je stejně kritické kvůli potěru podlahy: jeho pozdní termíny a volná časová rezerva jsou stejné při Retained Logic i při Progress Override.
 - Když otevřete soubor .xer, aplikace převezme režim průběhu ze souboru. Režim Actual Dates, třetí režim P6, aplikace nezná. Takový soubor se počítá jako Retained Logic.
 
 ## Důsledky a nedorozumění
 
 **„Posunu jen datum stavu dál.“** Když ho posunete, zbývající práce běžících úkolů začne od nového data. Práce, která ještě nezačala, nemůže nikdy ležet před tímto datem. Posouvejte proto datum stavu jen spolu s aktualizací průběhu.
 
-**„Zadání 100 % zaznamená skutečné dokončení.“** Platí jen tehdy, když zadáte i skutečné dokončení. Pokud úkol nastavíte na 100 % bez skutečného dokončení, dokončení se stane datem stavu. Pokud byl ve skutečnosti hotový dřív, vyplňte skutečné dokončení.
+**„Zadání 100 % zaznamená skutečné dokončení.“** Platí jen tehdy, když zadáte i skutečné dokončení. Pokud úkol nastavíte na 100 % bez skutečného dokončení, dokončení se stane datem stavu. Pokud byl ve skutečnosti hotový dříve, vyplňte skutečné dokončení.
 
 **„0 % znamená, že úkol nezačal.“** Má-li úkol skutečné zahájení, počítá se jako začatý, i při 0 %. Zbývající práce je pak celá doba trvání a začne od datu stavu. Vymažte skutečné zahájení, aby se úkol znovu počítal jako nezačatý.
 
@@ -157,9 +157,9 @@ U profilů Primavera P6 a Microsoft Project skončí malování v tomto příkla
 
 **„Přestávka v rozděleném úkolu vypadne.“** Ne: přestávka v části, která ještě zbývá, zůstane ve zbývající práci. Vezměte úkol s dobou trvání 5 pracovních dnů, s 1-denní přestávkou po 2 dnech práce. Začal v úterý 29. června a při datu stavu ve středu 30. června je na 40 %. Zbývající práce, 3 pracovní dny, začne od datu stavu a běží přes přestávku. Dokončení je v pondělí 5. července. Bez přestávky by bylo v pátek 2. července.
 
-**Hodiny a datum stavu.** V pásu karet nelze zadat čas. Datum stavu vyplníte jako datum. Děláte-li přehled po skončení pracovních hodin, nastavte datum stavu na další pracovní den. Úkol v hodinách počítá zbývající práci od začátku data stavu. Vezměte *Lay hollow-core floor* v cvičném projektu po kurzu 4: 5 hodin, v pondělí 28. června, pracovní den od 07:00. Při datu stavu v pondělí 28. června a úkolu na 40 % má 3 hodiny zbývající práce, od 07:00 do 10:00, i když se ráno část práce už odvedla. Jak aplikace počítá hodiny, je vysvětleno v [Dny a hodiny](docs://uitleg-dagen-en-uren).
+**Hodiny a datum stavu.** V pásu karet nelze zadat čas. Datum stavu vyplníte jako datum. Děláte-li přehled po skončení pracovních hodin, nastavte datum stavu na další pracovní den. Úkol v hodinách počítá zbývající práci od začátku data stavu. Vezměte *Lay hollow-core floor* v cvičném projektu po kurzu 4 v okamžiku, kdy je vše před ním hotovo: 5 hodin, v pondělí 28. června, pracovní den od 07:00. Při datu stavu v pondělí 28. června a úkolu na 40 % má 3 hodiny zbývající práce, od 07:00 do 10:00, i když se ráno část práce už odvedla. Jak aplikace počítá hodiny, je vysvětleno v [Dny a hodiny](docs://uitleg-dagen-en-uren).
 
-**Aktualizace směrného plánu.** To není možné. Uložíte nový a starý odstraníte. Když projekt přesunete, skutečné termíny a datum stavu se posunou spolu s ním. Směrné plány se ve výchozím nastavení neposunou. Tak zůstane posun vidět jako odchylka. Viz [Přesun projektu](docs://howto-project-verplaatsen).
+**Aktualizace směrného plánu.** To není možné. Uložíte nový a starý odstraníte. Když projekt přesunete, skutečné zahájení a dokončení a datum stavu se posunou spolu s ním. Směrné plány se ve výchozím nastavení neposunou. Tak zůstane posun vidět jako odchylka. Viz [Přesun projektu](docs://howto-project-verplaatsen).
 
 ## Viz také
 

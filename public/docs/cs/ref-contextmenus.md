@@ -6,14 +6,14 @@ Které nabídky otevírá pravé tlačítko myši v diagramu Gantt a v tabulce �
 
 Existují čtyři nabídky. Která se otevře, závisí na tom, kam kliknete:
 
-- **Na pruhu úkolu v diagramu Gantt** — nabídka úkolu, nahoře s položkou *Začít závislost odsud*.
+- **Na bloku úkolu v diagramu Gantt** — nabídka úkolu, nahoře s položkou *Začít závislost odsud*.
 - **Na úkolu v tabulce úkolů** — stejná nabídka úkolu, bez té jedné položky nahoře. To platí pro tabulku úkolů vlevo od diagramu Gantt a pro kartu *Tabulka*.
 - **Na záhlaví skupiny v tabulce úkolů** — malá nabídka pro rozbalení a sbalení skupin. Záhlaví skupin se zobrazí jen tehdy, když seskupujete, například s rozložením *Diagram zdrojů*.
-- **Na prázdném místě** — v diagramu Gantt vedle pruhů nebo pod nimi a v tabulce úkolů pod posledním úkolem nebo na šedém řádku *Nový úkol*. Nabídka obsahuje *Nový úkol*, *Přidat milník* a *Vložit*; v diagramu Gantt také *Obnovit zoom* a *Přizpůsobit projektu*. Nový úkol nebo milník se přidá na konec seznamu. V diagramu Gantt začne na datu, na které jste klikli; v tabulce úkolů se hned otevře buňka názvu, abyste mohli psát.
+- **Na prázdném místě** — v diagramu Gantt vedle bloků nebo pod nimi a v tabulce úkolů pod posledním úkolem nebo na šedém řádku *Nový úkol*. Nabídka obsahuje *Nový úkol*, *Přidat milník* a *Vložit*; v diagramu Gantt také *Obnovit zoom* a *Přizpůsobit projektu*. Nový úkol nebo milník se přidá na konec seznamu. V diagramu Gantt začne na datu, na které jste klikli; v tabulce úkolů se hned otevře buňka názvu, abyste mohli psát.
 
-Na pruhu záhlaví skupiny v diagramu Gantt pravé tlačítko myši žádnou nabídku neotevře. Kliknutí pravým tlačítkem v záhlaví časové osy také nic neudělá. Záhlaví sloupců tabulky úkolů má vlastní nabídku, popsanou v [Úprava sloupců tabulky](docs://howto-tabelkolommen-aanpassen).
+Pravé tlačítko myši na pruhu záhlaví skupiny v diagramu Gantt otevře nabídku pro prázdné místo. Samotné záhlaví skupiny má nabídku jen v tabulce úkolů. Kliknutí pravým tlačítkem v záhlaví časové osy nic neudělá. Záhlaví sloupců tabulky úkolů má vlastní nabídku, popsanou v [Úprava sloupců tabulky](docs://howto-tabelkolommen-aanpassen).
 
-**Na které úkoly se položka vztahuje?** Kliknete na jeden úkol, ale výběr určuje rozsah. Pokud je úkol, na který kliknete, součástí výběru, položka se vztahuje na celý výběr. Pokud není, vztahuje se jen na tento jeden úkol. Při pravém kliknutí na pruh v diagramu Gantt nebo na řádek v tabulce úkolů nahradí tento úkol výběr, pokud do něj nepatřil. Každá položka, která něco mění, je jeden krok v příkazu *Vrátit zpět*, i pro celý výběr.
+**Na které úkoly se položka vztahuje?** Kliknete na jeden úkol, ale výběr určuje rozsah. Pokud je úkol, na který kliknete, součástí výběru, položka se vztahuje na celý výběr. Pokud není, vztahuje se jen na tento jeden úkol. Při pravém kliknutí na blok v diagramu Gantt nebo na řádek v tabulce úkolů nahradí tento úkol výběr, pokud do něj nepatřil. Každá položka, která něco mění, je jeden krok v příkazu *Vrátit zpět*, i pro celý výběr.
 
 ## Nabídka úkolu
 

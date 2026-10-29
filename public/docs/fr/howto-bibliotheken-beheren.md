@@ -64,7 +64,7 @@ Un fichier de projet contient ses propres copies des ressources. Si vous voulez 
 
 1. Ouvrez un projet lié à une bibliothèque et choisissez *Fichier › Exporter*.
 2. Cochez *Enregistrer aussi le fichier de bibliothèque*. La case n'apparaît que pour un projet lié.
-3. Choisissez la carte *IFC 4x3* et enregistrez le fichier. L'application demande alors aussi un second fichier. Il porte le nom du projet suivi de `-bibliotheek`, et contient la bibliothèque.
+3. Choisissez la carte *IFC* et enregistrez le fichier. L'application demande alors aussi un second fichier. Il porte le nom du projet suivi de `-bibliotheek`, et contient la bibliothèque.
 
 La case ne fonctionne que pour l'exportation IFC, pas pour les autres formats d'exportation. Votre collègue importe le second fichier comme décrit ci-dessus.
 
@@ -72,7 +72,7 @@ La case ne fonctionne que pour l'exportation IFC, pas pour les autres formats d'
 
 **Deux planificateurs, deux bibliothèques.** L'application ne synchronise pas les bibliothèques entre les ordinateurs. La fenêtre d'importation affiche toujours un avertissement à ce sujet : *Remarque : les bibliothèques ne sont pas synchronisées entre les machines. Si deux planificateurs travaillent avec la même bibliothèque de ressources, les bibliothèques peuvent diverger. Si votre organisation partage des équipes entre plusieurs sociétés d'exploitation, choisissez délibérément une bibliothèque de ressources partagée.*
 
-**Remplacer écrase tout.** Tout ce que vous aviez dans la bibliothèque choisie est perdu, et une modification de bibliothèque ne peut pas être annulée avec *Annuler*. Exportez d'abord si vous avez un doute.
+**Remplacer écrase tout.** Tout ce que vous aviez dans la bibliothèque choisie est perdu, et une modification de bibliothèque ne peut pas être annulée avec *Annuler*. Exportez d'abord si vous avez un doute. Vos projets gardent leurs copies. L'application met à jour les copies qui existent encore dans le nouveau fichier. Les copies qui n'y figurent plus reçoivent la mention *n'est plus dans la bibliothèque* et continuent de fonctionner. Si une copie diffère, la fenêtre *Lier la bibliothèque de ressources* s'ouvre (voir [Utiliser la bibliothèque de ressources](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Supprimer un calendrier de la liste se fait immédiatement.** L'application ne demande pas de confirmation, alors que supprimer une ressource en demande une. Cela ressemble à un défaut. Les modifications de bibliothèque ne peuvent pas être annulées avec *Annuler*.
 

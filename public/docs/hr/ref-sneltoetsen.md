@@ -12,9 +12,9 @@ Sve tipkovne kombinacije aplikacije, grupirane kao u prozoru *Tipkovnički preč
 
 **Kad tipka ne radi.** Svaki unos navodi svoja ograničenja. Tri pravila vrijede gotovo svuda:
 
-- U polju za unos, padajućem popisu ili tekstnom okviru aplikacija ne presreće tipke, pa jednostavno možete tipkati. Iznimke: F5, Ctrl+S, F11 i Esc tijekom prezentacije rade i u polju. U izgrađenoj aplikaciji (na računalu i u web-verziji na stranici) to vrijedi i za Ctrl+Shift+S, Ctrl+O i Ctrl+N.
-- Dok je otvoren dijalog ili drugi prozor, ne rade tipke označene s *Ne u dijalogu* u nastavku. To vrijedi i za način prezentacije, obilazak aplikacije, dijalog dobrodošlice i pitanja koja čekaju odgovor, kao što je pristanak pri instaliranju proširenja.
-- Prebacivanje dokumenta (Ctrl+1 do 9, Ctrl+N, Ctrl+O) također ne radi dok *Datoteka › Podaci o projektu* ima promjene koje još niste potvrdili gumbom *Primijeni*. Prvo ih odbacite ili primijenite.
+- U polju za unos, padajućem popisu ili tekstnom okviru aplikacija ne presreće tipke, pa jednostavno možete tipkati. Iznimke: F5, Ctrl+S, F11 i Esc tijekom prezentacije rade i u polju. Ako je fokus na zatvorenom padajućem popisu, tipke s Ctrl također rade, na primjer Ctrl+Z nakon odabira (ne Ctrl+Delete i Ctrl+Backspace). To ne vrijedi u otvorenom popisu ni u dijalogu. U izgrađenoj aplikaciji (na računalu i u web-verziji na stranici) to vrijedi i za Ctrl+Shift+S, Ctrl+O i Ctrl+N.
+- Dok je otvoren dijalog ili drugi prozor, ne rade tipke označene s *Ne u dijalogu* u nastavku. To vrijedi i za obilazak aplikacije, dijalog dobrodošlice i pitanja koja čekaju odgovor, kao što su pitanje želite li spremiti promjene i pristanak pri instaliranju proširenja. Većina tih tipki ne radi ni u načinu prezentacije. Iznimka: tipke za uređivanje Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y i Delete/Backspace rade tijekom prezentacije.
+- Prebacivanje dokumenta (Ctrl+1 do 9, Ctrl+N, Ctrl+O) također ne radi dok *Datoteka › Postavke projekta* ima promjene koje još niste potvrdili gumbom *Primijeni*. Prvo ih odbacite ili primijenite.
 
 ## Datoteka
 
@@ -24,23 +24,23 @@ Sve tipkovne kombinacije aplikacije, grupirane kao u prozoru *Tipkovnički preč
 
 **Ctrl+Shift+S** — *Spremi kao*: pita gdje treba spremiti datoteku. U razvojnoj verziji ne radi u polju za unos.
 
-**Ctrl+O** — *Otvori*: otvara datoteku, obično u novoj kartici. Ne u dijalogu i ne s nepotvrđenim podacima o projektu.
+**Ctrl+O** — *Otvori*: otvara datoteku, obično u novoj kartici. Ne u dijalogu i ne s nepotvrđenim postavkama projekta.
 
-**Ctrl+N** — *Novi projekt*: otvara prozor *Novi projekt*. Ne u dijalogu i ne s nepotvrđenim podacima o projektu.
+**Ctrl+N** — *Novi projekt*: otvara prozor *Novi projekt*. Ne u dijalogu i ne s nepotvrđenim postavkama projekta.
 
 Izgrađena aplikacija (na računalu i u web-verziji na stranici) također blokira niz tipki preglednika, da ne smetaju: Ctrl+R i Ctrl+Shift+R (ponovno učitavanje), F12, Ctrl+Shift+I i Ctrl+Shift+J (alati za razvojne programere), Ctrl+U (prikaz izvornog koda) te Ctrl+G, Ctrl+F i Ctrl+L (traženje i adresna traka). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N i F5 idu u samu aplikaciju.
 
 ## Uređivanje
 
-**Ctrl+C** — *Kopiraj*: kopira odabrane zadatke. Samo uz odabir. U tablici zadataka Ctrl+C kopira odabrane ćelije; tablica to obrađuje sama.
+**Ctrl+C** — *Kopiraj*: kopira odabrane zadatke. Samo uz odabir. Ne u dijalogu. Ne na kartici *Datoteka*, ne na karticama *Izvješće* i *IFC* i ne dok je otvoreno cijelo okno resursa. U tablici zadataka Ctrl+C kopira odabrane ćelije; tablica to obrađuje sama.
 
-**Ctrl+V** — *Zalijepi*: lijepi kopirane zadatke. U tablici zadataka lijepi ćelije.
+**Ctrl+V** — *Zalijepi*: lijepi kopirane zadatke. Ne u dijalogu. Ne na kartici *Datoteka*, ne na karticama *Izvješće* i *IFC* i ne dok je otvoreno cijelo okno resursa, jer tablica zadataka tamo nije u prikazu. U tablici zadataka lijepi ćelije.
 
-**Ctrl+Z** — *Poništi*.
+**Ctrl+Z** — *Poništi*. Ne u dijalogu: prvo zatvorite prozor.
 
-**Ctrl+Y** ili **Ctrl+Shift+Z** — *Ponovi*: ponavlja ono što ste poništili.
+**Ctrl+Y** ili **Ctrl+Shift+Z** — *Ponovi*: ponavlja ono što ste poništili. Ne u dijalogu.
 
-**Delete** ili **Backspace** — *Izbriši*: briše odabrane zadatke. Samo uz odabir. U ćeliji tablice zadataka Delete i Backspace samo brišu sadržaj ćelije (vidi *Tablica*).
+**Delete** ili **Backspace** — *Izbriši*: briše odabrane zadatke. Samo uz odabir. Ne u dijalogu. Ne na kartici *Datoteka*, ne na karticama *Izvješće* i *IFC* i ne dok je otvoreno cijelo okno resursa, jer tablica zadataka tamo nije u prikazu. U ćeliji tablice zadataka Delete i Backspace samo brišu sadržaj ćelije (vidi *Tablica*).
 
 **F2** — *Uredi...*: otvara dijalog zadatka za prvi odabrani zadatak. Samo uz odabir. Ne u dijalogu. U ćeliji tablice zadataka F2 pokreće uređivanje ćelije.
 
@@ -68,7 +68,7 @@ Uvlačenje, pomicanje na višu razinu i umetanje iznad ili ispod odabranog zadat
 
 ## Prikaz
 
-**F11** — *Prezentacija*: uključuje ili isključuje način prezentacije. Aplikacija također traži od preglednika ili prozora cijeli zaslon. Radi i u polju za unos.
+**F11** — *Prezentacija*: uključuje ili isključuje način prezentacije. Aplikacija također traži od preglednika ili prozora cijeli zaslon. Radi i u polju za unos. U pregledniku F11 ne pokreće prezentaciju: preglednik sam stavlja prozor na cijeli zaslon, a aplikacija ostaje kakva jest. F11 u pregledniku ipak zaustavlja pokrenutu prezentaciju.
 
 **Esc** (tijekom prezentacije) — *Napusti prezentaciju*. Radi i u polju za unos. Ima prednost pred naredbom *Poništi odabir*.
 
@@ -78,9 +78,9 @@ Uvlačenje, pomicanje na višu razinu i umetanje iznad ili ispod odabranog zadat
 
 **+** ili **=** — *Povećaj*: povećava za 10% oko sredine Gantt-područja. Ne u polju za unos, i samo kad je Gantt-vremenska os vidljiva (dakle ne na karticama *Tablica*, *IFC* i *Izvješće*).
 
-**-** — *Smanji*: smanjuje za 10%. Ista ograničenja.
+**-** — *Smanji*: smanjuje za 10%. Iste granice.
 
-**0** — *Vrati zoom*: vraća zoom na zadanu vrijednost i pomiče prikaz na početak. Ista ograničenja.
+**0** — *Vrati zoom*: vraća zumiranje na zadanu vrijednost i pomiče prikaz na početak. Ista ograničenja.
 
 **Ctrl+0** — *Prilagodi projektu*: zumira tako da cijeli projekt stane u prikaz. Ista ograničenja.
 
@@ -96,9 +96,9 @@ Uvlačenje, pomicanje na višu razinu i umetanje iznad ili ispod odabranog zadat
 
 **F1** — *Otvori pomoć*: otvara *Datoteka › Pomoć*. Ne u polju za unos i ne u dijalogu. U prozoru upotrijebite upitnik u gornjem desnom kutu: otvara pomoć o članku o tom prozoru (vidi [Vrpca, kartica po kartica](docs://ref-lint), u odjeljku *Pomoć*).
 
-**Ctrl+1** do **Ctrl+9** — *Prebaci dokument*: prebacuje na prvi do deveti otvoreni dokument. Ako taj dokument ne postoji, ništa se ne događa. Ne u dijalogu i ne s nepotvrđenim podacima o projektu.
+**Ctrl+1** do **Ctrl+9** — *Prebaci dokument*: prebacuje na prvi do deveti otvoreni dokument. Ako taj dokument ne postoji, ništa se ne događa. Ne u dijalogu i ne s nepotvrđenim postavkama projekta.
 
-**Ctrl+Home** — *Idi na danas*: pomiče vremensku os tako da je jedan datum na lijevoj strani prikaza. To je datum stanja ako ste ga postavili, inače danas. Zato oznaka kaže „danas“, čak i kad vremenska os skoči na datum stanja. Zoom i početak vremenske osi ostaju kakvi su bili. Ako ćelija tablice zadataka ima fokus, Ctrl+Home umjesto toga ide na prvu ćeliju tablice (vidi *Tablica*).
+**Ctrl+Home** — *Idi na danas*: pomiče vremensku os tako da je jedan datum na lijevoj strani prikaza. To je datum stanja ako ste ga postavili, inače danas. Zato oznaka kaže „danas“, čak i kad vremenska os skoči na datum stanja. Zumiranje i početak vremenske osi ostaju kakvi su bili. Ako ćelija tablice zadataka ima fokus, Ctrl+Home umjesto toga ide na prvu ćeliju tablice (vidi *Tablica*).
 
 ## Tablica
 

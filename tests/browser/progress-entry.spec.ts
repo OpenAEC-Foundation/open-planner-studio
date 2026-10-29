@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Voortgang INVULLEN via de UI (`engine/progressEntry.ts`), met echte events: klik op de balk,
 // het eigenschappenpaneel, het contextmenu, Ctrl+Z.
 //
@@ -8,7 +9,8 @@
 //
 // De brug zet alleen fixtures (taken, relaties, weergave) en leest state; de geteste handelingen
 // gaan via muis en toetsenbord. Headless tegenhanger: tests/planning/check-progress-entry.ts.
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { computeEffectiveViewStart } from '@/utils/ganttViewport';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
 /** Vandaag in de browser, zoals de gebruiker hem in het statusdatumveld typt (lokale kalenderdag). */
@@ -67,6 +69,100 @@ function shown(iso: string): string {
   return `${d}-${m}-${y}`;
 }
 
+/** Bestaande voltooide taak; levert pas een balkpunt als de nieuwe datums én tijdas getekend zijn. */
+async function seedActualDates(
+  page: Page,
+  taskId: string,
+  viewStartDate = '2026-09-01',
+  zoom = 18,
+): Promise<{ x: number; y: number }> {
+  const actualStart = '2026-09-10';
+  const actualFinish = '2026-09-20';
+  const fixture = await page.evaluate(({ id, start, finish, viewStart, requestedZoom }) => {
+    const { store, gantt } = window.__OPS__!;
+    const paints = gantt.paintCount('primary');
+    const s = store.getState();
+    s.setUI({ compressNonWorkdays: false });
+    s.setStatusDate('2026-10-01');
+    s.setActualStart(id, start);
+    s.setActualFinish(id, finish);
+    s.runCPM();
+    s.setViewStartDate(viewStart);
+    s.setZoom(requestedZoom);
+    s.setScroll(0, 0);
+    const current = store.getState();
+    return { paints, tasks: current.tasks, view: current.view };
+  }, { id: taskId, start: actualStart, finish: actualFinish, viewStart: viewStartDate, requestedZoom: zoom });
+
+  // Een niet-null barPoint kan nog bij de vorige paint horen (knownbug175). Alleen een hogere
+  // paintteller is ook niet genoeg: een al ingepland frame kan nog de oude invoer tekenen.
+  // Lees daarom de echte as en beide balkranden in dezelfde observatie. De oorsprong komt uit
+  // dezelfde pure afleiding als de app; de fixture gebruikt dagbalken met een inclusieve einddag.
+  const origin = computeEffectiveViewStart(fixture.tasks, fixture.view.viewStartDate);
+  let point: { x: number; y: number } | null = null;
+  await expect.poll(async () => {
+    const observed = await page.evaluate(({ id, start, finish, viewOrigin, nextDay, paints }) => {
+      const { gantt } = window.__OPS__!;
+      const bounds = document.querySelector<HTMLCanvasElement>('[data-testid="gantt-primary-canvas"]')!
+        .getBoundingClientRect();
+      const left = gantt.taskBarPoint(id, 'left');
+      const right = gantt.taskBarPoint(id, 'right');
+      const body = gantt.taskBarPoint(id);
+      // dateX observeert de kalenderdag; de native momenten liggen binnen die dag.
+      const instantX = (iso: string) => {
+        const x = gantt.dateX(iso.slice(0, 10));
+        const minutes = iso.includes('T') ? Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16)) : 0;
+        return x === null ? null : x + minutes / 1440 * window.__OPS__!.store.getState().view.zoom;
+      };
+      const startX = instantX(start);
+      const finishX = instantX(finish);
+      const originX = gantt.dateX(viewOrigin);
+      const nextX = gantt.dateX(nextDay);
+      return {
+        point: body,
+        painted: gantt.paintCount('primary') > paints,
+        originX,
+        dayWidth: originX !== null && nextX !== null ? nextX - originX : null,
+        startMatches: left !== null && startX !== null && Math.abs(left.x - bounds.left - startX) < 0.01,
+        finishMatches: right !== null && finishX !== null
+          && Math.abs(right.x - bounds.left - finishX) < 0.01,
+        visible: body !== null && body.x >= bounds.left && body.x < bounds.right
+          && body.y >= bounds.top && body.y < bounds.bottom,
+      };
+    }, {
+      id: taskId, start: fixture.tasks.find(task => task.id === taskId)!.time.actualStart!,
+      finish: fixture.tasks.find(task => task.id === taskId)!.time.actualFinish!, viewOrigin: origin,
+      nextDay: shiftDays(origin, 1), paints: fixture.paints, expectedZoom: fixture.view.zoom,
+    });
+    point = observed.point;
+    return observed;
+  }, { message: 'de Gantt tekent de werkelijke datums met de gewijzigde oorsprong en zoom' }).toMatchObject({
+    painted: true, originX: 0 - fixture.view.scrollX, dayWidth: fixture.view.zoom,
+    startMatches: true, finishMatches: true, visible: true,
+  });
+  return point!;
+}
+
+async function rejectReversedDates(page: Page, scope: Locator, taskId: string): Promise<void> {
+  const before = await readProgress(page, taskId);
+  const depth = (await state(page)).undoDepth;
+  for (const [label, day] of [
+    [/^(Actual start|Werkelijke start)$/i, '21'],
+    [/^(Actual finish|Werkelijk einde|Werkelijke einde)$/i, '09'],
+  ] as const) {
+    const field = scope.getByRole('group', { name: label }).getByRole('textbox').first();
+    await field.fill(day);
+    await scope.locator('[data-ops-progress-slider]').first().focus();
+    await expect(scope.getByText(/^(The actual start is after the actual finish\.|De werkelijke start ligt ná het werkelijke einde\.)$/)).toBeVisible();
+    expect(await readProgress(page, taskId)).toEqual(before);
+    expect((await state(page)).undoDepth).toBe(depth);
+  }
+  // Een geldige correctie blijft mogelijk na de weigering.
+  const start = scope.getByRole('group', { name: /^(Actual start|Werkelijke start)$/i }).getByRole('textbox').first();
+  await start.fill('11');
+  await scope.locator('[data-ops-progress-slider]').first().focus();
+}
+
 test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt dat, en is één Ctrl+Z', async ({ page, ops: _ops }) => {
   const today = await browserToday(page);
   const { B } = await seedChain(page, -28);
@@ -99,6 +195,10 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.mouse.click(point.x, point.y);
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
+  await seedActualDates(page, B);
+  await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
+  await rejectReversedDates(page, page.locator('body'), B);
+  expect((await readProgress(page, B)).actualStart).toBe("2026-09-11T07:00");
 });
 
 test('Regel 1, contextmenu: 50 % zonder statusdatum zet hem op vandaag', async ({ page, ops: _ops }) => {
@@ -140,8 +240,131 @@ async function fillQuestionDate(page: Page, taskName: string, iso: string): Prom
   await segments.nth(2).fill(y);
 }
 
+function titleHistoryButton(page: Page, kind: 'undo' | 'redo'): Locator {
+  return page.locator('.quick-access-toolbar').getByTitle(kind === 'undo'
+    ? /^(Undo|Ongedaan maken) \(Ctrl\+Z\)$/
+    : /^(Redo|Opnieuw) \(Ctrl\+Y\)$/);
+}
+
+/** Lees Help met een echte klik; terug via Enter mag de wachtende voortgang niet bevestigen. */
+async function visitActualStartHelp(page: Page, taskId: string, options: {
+  via?: 'click' | 'enter'; inspectNavigation?: boolean; inspectHistory?: boolean;
+} = {}): Promise<void> {
+  const question = page.locator('[data-ops-actual-start-dialog]');
+  const pendingState = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const { ui } = s;
+    return {
+      activeDocumentId: s.activeDocumentId,
+      documentIds: s.documents.map(document => document.id),
+      isDirty: s.isDirty,
+      tasks: s.tasks,
+      sequences: s.sequences,
+      history: s.historyEvents.map(event => ({ sequence: event.sequence, state: event.state })),
+      pendingCloseDocId: ui.pendingCloseDocId,
+      showNewProjectDialog: ui.showNewProjectDialog,
+      showProjectOverview: ui.showProjectOverview,
+      question: ui.pendingActualStartQuestion,
+      showTaskDialog: ui.showTaskDialog,
+      editingTaskId: ui.editingTaskId,
+    };
+  });
+  const pendingBefore = await pendingState();
+  const progressBefore = await readProgress(page, taskId);
+  const historyBefore = await state(page);
+  const undoBefore = historyBefore.undoDepth;
+  const help = question.getByRole('button', { name: /^(Help on this topic|Help bij dit onderdeel)$/ });
+  if (options.via === 'enter') {
+    await help.focus();
+    await page.keyboard.press('Enter');
+  } else {
+    await help.click();
+  }
+  await expect(question).toBeHidden();
+  await expect(page.locator('[data-ops-task-dialog]')).toBeHidden();
+  await expect(page.locator('[data-ops-help-leave-dialog]')).toHaveCount(0);
+  await expect(page.locator('.help-panel')).toBeVisible();
+  const article = page.locator('.help-article-body');
+  await expect(article).toHaveAttribute('data-help-current', 'howto-voortgang-bijwerken');
+  await expect(article.getByRole('heading', { level: 1, name: /^(Updating progress|Voortgang bijwerken)$/ })).toBeVisible();
+  expect(await pendingState()).toEqual(pendingBefore);
+  expect(await readProgress(page, taskId)).toEqual(progressBefore);
+  expect((await state(page)).undoDepth).toBe(undoBefore);
+  const sidebar = page.locator('.backstage-sidebar');
+  await expect(sidebar.getByRole('button', { name: /^(Close project|Sluit project)$/ })).toBeDisabled();
+
+  if (options.inspectNavigation) {
+    // Schoon document + taakconcept: Sluit project mag ook zonder dirty-sluitvraag niet vertrekken.
+    expect(pendingBefore.isDirty).toBe(false);
+    for (const name of [
+      /^(New|Nieuw)$/, /^(Open|Openen)$/, /^(Save|Opslaan)$/,
+      /^(Save As|Opslaan als)$/, /^(Start tour|Rondleiding starten)$/,
+    ]) await expect(sidebar.getByRole('button', { name })).toBeDisabled();
+    // force slaat Playwrights enabled-check over; de echte browserklik op disabled doet niets.
+    await sidebar.getByRole('button', { name: /^(Close project|Sluit project)$/ }).click({ force: true });
+    await page.locator('[data-ops-pill]').click({ force: true });
+    expect(await pendingState()).toEqual(pendingBefore);
+    await expect(page.locator('.help-panel')).toBeVisible();
+
+    // docs blijven leesbaar, maar examples:// en project:// zijn tijdelijk gewone tekst.
+    await page.locator('[data-help-article="tut-startvraag-vertrek"]').click();
+    await expect(article).toHaveAttribute('data-help-current', 'tut-startvraag-vertrek');
+    await expect(article).toContainText('Voorbeeld openen');
+    await expect(article).toContainText('Project openen');
+    await expect(article.locator('.help-link-example, .help-link-project')).toHaveCount(0);
+    await page.locator('[data-help-article="howto-voortgang-bijwerken"]').click();
+    await expect(article).toHaveAttribute('data-help-current', 'howto-voortgang-bijwerken');
+    expect(await pendingState()).toEqual(pendingBefore);
+  }
+
+  if (options.inspectHistory) {
+    // Beide richtingen zijn in de fixture beschikbaar; disabled komt van de vraag, niet van lege historie.
+    expect(historyBefore.undoDepth).toBeGreaterThan(0);
+    expect(historyBefore.redoDepth).toBeGreaterThan(0);
+    const undo = titleHistoryButton(page, 'undo');
+    const redo = titleHistoryButton(page, 'redo');
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+    for (const button of [undo, redo]) {
+      await button.click({ force: true });
+      expect(await pendingState()).toEqual(pendingBefore);
+    }
+    // Ook niet-documentaire ingangen naar mutaties (instellingen, AutoSave, feedback) wachten.
+    const title = page.locator('.title-bar');
+    await expect(title.locator('[data-ops-autosave]')).toBeDisabled();
+    await expect(title.getByTitle(/^(App settings|App-instellingen)$/)).toBeDisabled();
+    await expect(title.locator('[data-tour-anchor="feedback-button"]')).toBeDisabled();
+    for (const region of ['title', 'notices', 'status', 'overlays']) {
+      await expect(page.locator(`[data-ops-background-controls="${region}"]`)).toHaveJSProperty('inert', true);
+    }
+    // Geen tekstveld-focus: de app moet de historie blokkeren, niet de native tekst-undo.
+    await page.locator('[data-ops-backstage-back]').focus();
+    for (const key of ['Control+z', 'Control+y', 'Control+Shift+z', 'Meta+z', 'Meta+Shift+z']) {
+      await page.keyboard.press(key);
+      expect(await pendingState()).toEqual(pendingBefore);
+    }
+  }
+
+  // De dialoog luistert tijdens Help niet mee naar Enter; de echte Terug-knop krijgt die toets.
+  await page.locator('[data-ops-backstage-back]').focus();
+  await page.keyboard.press('Enter');
+  await expect(question).toBeVisible();
+  await expect(question.getByRole('textbox').first()).toBeFocused();
+  expect(await pendingState()).toEqual(pendingBefore);
+  expect(await readProgress(page, taskId)).toEqual(progressBefore);
+  expect((await state(page)).undoDepth).toBe(undoBefore);
+}
+
 test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert niets, bevestigen is één stap', async ({ page, ops: _ops }) => {
   const { B, statusDate } = await seedFutureChain(page);
+  // Fixture met beschikbare undo én redo: een echte Undo-klik zet de beschrijvingswijziging klaar.
+  const redoDescription = 'Nog niet opnieuw toegepast';
+  const description = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.description, B);
+  await page.evaluate(({ id, description }) => window.__OPS__!.store.getState().updateTask(id, { description }),
+    { id: B, description: redoDescription });
+  await titleHistoryButton(page, 'undo').click();
+  await expect.poll(() => state(page).then(snapshot => snapshot.redoDepth)).toBeGreaterThan(0);
+  await expect.poll(description).toBe('');
   const point = await barPoint(page, B);
   await page.mouse.click(point.x, point.y);
   const slider = page.locator('[data-ops-progress-slider]').first();
@@ -152,6 +375,7 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await page.keyboard.press('ArrowRight');
   const question = page.locator('[data-ops-actual-start-dialog]');
   await expect(question).toBeVisible();
+  await expect(question.getByRole('textbox').first()).toBeFocused();
   await expect(question).toContainText('Metselwerk');
   const [y, m, d] = statusDate.split('-');
   const segments = question.getByRole('group', { name: /Metselwerk/ }).getByRole('textbox');
@@ -160,17 +384,65 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(segments.nth(2)).toHaveValue(y);
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
 
+  // Help bewaart de nog niet bevestigde datum en de actie. Daarna blijft annuleren mogelijk.
+  const helpDate = shiftDays(statusDate, -1);
+  await fillQuestionDate(page, 'Metselwerk', helpDate);
+  await visitActualStartHelp(page, B, { inspectHistory: true });
+  const [helpYear, helpMonth, helpDay] = helpDate.split('-');
+  await expect(segments.nth(0)).toHaveValue(helpDay);
+  await expect(segments.nth(1)).toHaveValue(helpMonth);
+  await expect(segments.nth(2)).toHaveValue(helpYear);
+
+  // Onbestaande datum: DateTextInput bewaart zijn ruwe segmenten én foutstatus tijdens Help.
+  await fillQuestionDate(page, 'Metselwerk', `${Number(y) - 1}-02-21`);
+  await segments.nth(0).fill('31');
+  await question.getByRole('button', { name: /^(Help on this topic|Help bij dit onderdeel)$/ }).focus();
+  await expect(segments.nth(0)).toHaveAttribute('aria-invalid', 'true');
+  await visitActualStartHelp(page, B);
+  await expect(segments.nth(0)).toHaveValue('31');
+  await expect(segments.nth(1)).toHaveValue('02');
+  await expect(segments.nth(2)).toHaveValue(String(Number(y) - 1));
+  await expect(segments.nth(0)).toHaveAttribute('aria-invalid', 'true');
+  await expect(question.getByRole('alert')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(question).toBeVisible();
+  await question.locator('[data-ops-actual-start-confirm]').click();
+  await expect(question).toBeVisible();
+  await expect(segments.nth(0)).toBeFocused();
+  expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
+  await fillQuestionDate(page, 'Metselwerk', helpDate);
+  await expect(question.getByRole('alert')).toHaveCount(0);
+
   // Annuleren (Escape): niets veranderd, geen undo-stap.
   await page.keyboard.press('Escape');
   await expect(question).toBeHidden();
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
   expect((await state(page)).undoDepth).toBe(before.undoDepth);
 
+  // Vraag geannuleerd: de shell is weer bedienbaar en dezelfde historie kan echt redo/undo doen.
+  await expect(page.locator('[data-ops-background-controls="title"]')).toHaveJSProperty('inert', false);
+  await expect(titleHistoryButton(page, 'undo')).toBeEnabled();
+  await expect(titleHistoryButton(page, 'redo')).toBeEnabled();
+  await titleHistoryButton(page, 'redo').click();
+  await expect.poll(description).toBe(redoDescription);
+  await titleHistoryButton(page, 'undo').click();
+  await expect.poll(description).toBe('');
+  await page.keyboard.press('Control+y');
+  await expect.poll(description).toBe(redoDescription);
+  await page.keyboard.press('Control+z');
+  await expect.poll(description).toBe('');
+  expect((await state(page)).undoDepth).toBe(before.undoDepth);
+  expect((await state(page)).redoDepth).toBe(before.redoDepth);
+
   // Opnieuw; een datum ná de statusdatum bestaat niet: gemeld, Toepassen blijft uit.
   await slider.focus();
   await page.keyboard.press('ArrowRight');
   await expect(question).toBeVisible();
   await fillQuestionDate(page, 'Metselwerk', shiftDays(statusDate, 2));
+  await expect(question.getByRole('alert')).toBeVisible();
+  await expect(question.locator('[data-ops-actual-start-confirm]')).toBeDisabled();
+  await visitActualStartHelp(page, B);
   await expect(question.getByRole('alert')).toBeVisible();
   await expect(question.locator('[data-ops-actual-start-confirm]')).toBeDisabled();
 
@@ -180,7 +452,7 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(question.getByRole('alert')).toHaveCount(0);
   await question.locator('[data-ops-actual-start-confirm]').click();
   await expect(question).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.01, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.01, actualStart: `${actualStart}T07:00` });
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
 });
 
@@ -206,7 +478,7 @@ test('Regel 2, schuif slepen: de vraag komt pas bij het loslaten, met de gesleep
 
   await expect(question).toBeVisible();
   await question.locator('[data-ops-actual-start-confirm]').click();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: dragged / 100, actualStart: statusDate });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: dragged / 100, actualStart: `${statusDate}T07:00` });
 });
 
 test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de invoer mét die datum', async ({ page, ops: _ops }) => {
@@ -232,22 +504,46 @@ test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de inv
   // Enter bevestigt de vraag (en niets anders).
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart: `${actualStart}T07:00` });
 });
 
 test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt alleen de vraag', async ({ page, ops: _ops }) => {
   const { B, statusDate } = await seedFutureChain(page);
+  // Fixture: opgeslagen document, onopgeslagen taakconcept; de titelbalk toont de projectwisselaar.
+  const registered = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    window.__OPS__!.store.setState({ isDirty: false });
+    s.setUI({ documentChromeStyle: 'switcher' });
+    const body = '# Vertrek vanuit Help\n\n[Voorbeeld openen](examples://showcase-appartementencomplex.ifc)\n\n[Project openen](project://start.ifc)';
+    return window.__OPS__!.help.registerArticles('startvraag-vertrek', [{
+      id: 'tut-startvraag-vertrek', kind: 'tutorial', order: 1,
+      title: { nl: 'Vertrek vanuit Help', en: 'Vertrek vanuit Help' },
+      body: { nl: body, en: body },
+    }], { openProject: () => { throw new Error('De startvraag moet documentvertrek blokkeren'); } }).ok;
+  });
+  expect(registered).toBe(true);
   const point = await barPoint(page, B);
   await page.mouse.dblclick(point.x, point.y);
   const taskDialog = page.locator('[data-ops-task-dialog]');
   await expect(taskDialog).toBeVisible();
+  await taskDialog.locator('[data-ops-task-name]').fill('Metselwerk concept');
   await taskDialog.locator('[data-ops-progress-slider]').focus();
   await page.keyboard.press('End');
 
   const question = page.locator('[data-ops-actual-start-dialog]');
   await expect(question).toBeVisible();
+  await expect(question.getByRole('textbox').first()).toBeFocused();
   const actualStart = shiftDays(statusDate, -5);
   await fillQuestionDate(page, 'Metselwerk', actualStart);
+  await visitActualStartHelp(page, B, { inspectNavigation: true });
+  await visitActualStartHelp(page, B, { via: 'enter' });
+  await expect(taskDialog).toBeVisible();
+  await expect(taskDialog.locator('[data-ops-task-name]')).toHaveValue('Metselwerk concept');
+  const [year, month, day] = actualStart.split('-');
+  const segments = question.getByRole('textbox');
+  await expect(segments.nth(0)).toHaveValue(day);
+  await expect(segments.nth(1)).toHaveValue(month);
+  await expect(segments.nth(2)).toHaveValue(year);
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
   // De taakdialoog staat nog open: de voortgang staat op de concepttaak, nog niet in de store.
@@ -256,5 +552,26 @@ test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt
 
   await taskDialog.locator('[data-ops-task-save]').click();
   await expect(taskDialog).toBeHidden();
-  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 1, actualStart });
+  await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 1, actualStart: `${actualStart}T07:00` });
+  // Heropen dezelfde taak in twee zichtbare standen. Ook als de werkelijke datums al bekend
+  // zijn, moet de nieuwe tijdas klaar zijn; coördinaten uit de vorige stand missen de balk.
+  for (const [viewStart, zoom] of [['2026-09-01', 18], ['2026-09-05', 12]] as const) {
+    const reopened = await seedActualDates(page, B, viewStart, zoom);
+    await page.mouse.dblclick(reopened.x, reopened.y);
+    await expect(taskDialog).toBeVisible();
+    await rejectReversedDates(page, taskDialog, B);
+    expect((await readProgress(page, B)).actualStart).toBe("2026-09-10T07:00");
+    await taskDialog.locator('[data-ops-task-save]').click();
+    await expect(taskDialog).toBeHidden();
+    expect((await readProgress(page, B)).actualStart).toBe("2026-09-11T07:00");
+  }
+
+  // Vraag afgehandeld: de vertrekacties en de bestaande projectlinks zijn weer beschikbaar.
+  await page.locator('.ribbon-tab--file').click();
+  await page.locator('.backstage-sidebar').getByRole('button', { name: 'Help', exact: true }).click();
+  await page.locator('[data-help-article="tut-startvraag-vertrek"]').click();
+  const article = page.locator('.help-article-body');
+  await expect(article.locator('.help-link-example')).toHaveCount(1);
+  await expect(article.locator('.help-link-project')).toHaveCount(1);
+  await expect(page.locator('.backstage-sidebar').getByRole('button', { name: /^(Close project|Sluit project)$/ })).toBeEnabled();
 });

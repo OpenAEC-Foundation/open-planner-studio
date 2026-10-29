@@ -9,10 +9,10 @@ Planificarea se numără în **zile lucrătoare**, nu în zile calendaristice. �
 Ce zile sunt zile lucrătoare se notează într-un **calendar**. Un calendar fixează trei lucruri:
 
 - **Săptămâna de lucru**: zilele din săptămână în care se lucrează. Implicit, este de luni până vineri.
-- **Timpul de lucru**: începutul, sfârșitul și pauza. Ele dau **orele nete pe zi**. Implicit, este de la 07:00 la 16:00 cu o pauză de o oră, deci 8 ore.
+- **Timpul de lucru**: începutul, sfârșitul și pauza. Ele dau **ziua lucrătoare standard**. Implicit, este de la 07:00 la 16:00 cu o pauză de o oră, deci 8 ore.
 - **Sărbătorile**: zile izolate sau perioade întregi în care nu se lucrează, de exemplu Ziua Regelui, Crăciunul sau concediul colectiv din construcții.
 
-Un proiect are o bibliotecă de calendare. Unul dintre ele este **calendarul proiectului**. El se aplică fiecărei activități care nu are calendar propriu. Dumneavoastră dați unei activități individuale un alt calendar, de exemplu o săptămână de lucru de șase zile pentru un subcontractor care lucrează și sâmbăta. O resursă poate avea și ea un calendar propriu, dar acesta face altceva (vedeți mai jos).
+Un proiect are o bibliotecă de resurse, care conține calendare. Unul dintre ele este **calendarul proiectului**. El se aplică fiecărei activități care nu are calendar propriu. Dumneavoastră dați unei activități individuale un alt calendar, de exemplu o săptămână de lucru de șase zile pentru un subcontractor care lucrează și sâmbăta. O resursă poate avea și ea un calendar propriu, dar acesta face altceva (vedeți mai jos).
 
 ## Cum calculează aplicația
 
@@ -40,14 +40,14 @@ Calendarul unei **resurse** nu are niciun rol în date. Într-o planificare pe c
 Când două activități cu calendare diferite sunt legate, se aplică următoarele:
 
 - La o dependență sfârșit-început, succesorul începe în prima zi lucrătoare după sfârșitul predecesorului, numărată în calendarul **succesorului**. Dacă o activitate se încheie vineri, un succesor cu săptămână de lucru de șase zile începe sâmbătă.
-- Un **decalaj** se numără implicit în calendarul **predecesorului**. Puteți schimba acest lucru în *Setări › Proiect › Informații proiect*, în blocul *Profil de calcul și opțiuni de calcul*, sub *Opțiunile de calcul ale acestui proiect*, cu opțiunea *Calendar pentru decalaj*: *Predecesor* (implicit), *Succesor*, *24 de ore* sau *Calendarul proiectului*.
+- Un **decalaj** se numără implicit în calendarul **predecesorului**. Puteți schimba acest lucru în *Setări › Proiect › Setări proiect*, în blocul *Profil de calcul și opțiuni de calcul*, sub *Opțiunile de calcul ale acestui proiect*, cu opțiunea *Calendar pentru decalaj*: *Predecesor* (implicit), *Succesor*, *24 de ore* sau *Calendarul proiectului*.
 - **Marja totală** se numără în zile lucrătoare din calendarul activității înseși. În acest profil, **marja liberă** se numără în calendarul succesorului.
 
 Ce este exact un decalaj este descris în [Adăugarea dependențelor](docs://howto-relaties-leggen); ce este marja, în [Drumul critic și marja](docs://uitleg-kritiek-pad).
 
 ### În diagrama Gantt
 
-Fundalul gri din Gantt arată întotdeauna zilele nelucrătoare ale **calendarului proiectului**. O activitate cu calendar propriu poate trece deci peste o zi gri, de exemplu o activitate de șase zile peste sâmbătă. Un bloc de sărbători de trei zile sau mai mult își afișează numele, de exemplu *Bouwvak (Noord)*. Acest lucru nu se întâmplă când este activată opțiunea *Afișare doar pentru zilele lucrătoare*. Dacă nu doriți să vedeți deloc zilele gri, activați *Afișare doar pentru zilele lucrătoare* în *Setări › Proiect › Setări*, fila *Afișare*, secțiunea *Axa timpului*.
+Fundalul gri din Gantt arată întotdeauna zilele nelucrătoare ale **calendarului proiectului**. O activitate cu calendar propriu poate trece deci peste o zi gri, de exemplu o activitate de șase zile peste sâmbătă. Un bloc de sărbători de trei zile sau mai mult își afișează numele, de exemplu *Bouwvak (Noord)*. Acest lucru nu se întâmplă când este activată opțiunea *Afișare doar pentru zilele lucrătoare*. Dacă nu doriți să vedeți deloc zilele gri, activați *Afișare doar pentru zilele lucrătoare* în *Setări › Proiect › Setări aplicație*, fila *Afișare*, secțiunea *Axa timpului*.
 
 ## Exemplu lucrat: planificarea construcției
 
@@ -92,9 +92,9 @@ Datele *Brickwork* nu se schimbă. Dar vineri, 4 iunie, este roșu în histogram
 
 **„Dacă modificați calendarul proiectului, totul se mută.”** Se mută doar activitățile fără calendar propriu. O activitate căreia i-ați atribuit dumneavoastră un calendar din listă îl păstrează, chiar dacă acesta este întâmplător vechiul calendar al proiectului. Dacă ștergeți un calendar, activitățile și resursele care îl foloseau revin la calendarul proiectului.
 
-**„Sărbătorile sunt incluse, nu?”** Sărbătorile există doar pentru anii pentru care au fost create. O zi din afara acelor ani este pur și simplu o zi lucrătoare. În dialogul calendarului, aplicația spune acest lucru cu *Sărbătorile acoperă 2025–2028; proiectul merge până în 2030. Regenerați?*
+**„Sărbătorile sunt incluse, nu?”** Sărbătorile există doar pentru anii pentru care au fost create. O zi din afara acelor ani este pur și simplu o zi lucrătoare. În dialogul calendarului, aplicația spune acest lucru cu *Sărbătorile acoperă 2025–2028; regenerați până la 2030 inclusiv?*
 
-**„Mai multe ore pe zi îmi scurtează activitatea.”** Nu pentru o activitate pe zile: se numără zile lucrătoare întregi, indiferent dacă ziua are 6 sau 8 ore. Doar pentru o activitate cu resurse și regula de lucru *Muncă fixă* sau *Unități fixe* durata se schimbă odată cu acestea.
+**„Mai multe ore pe zi îmi scurtează activitatea.”** Nu pentru o activitate pe zile: se numără zile lucrătoare întregi, indiferent dacă ziua are 6 sau 8 ore. Doar pentru o activitate cu resurse și tipul de activitate *Muncă fixă* sau *Unități fixe* durata se schimbă odată cu acestea.
 
 **Un calendar fără zile lucrătoare** nu poate fi calculat de aplicație. Calculul afișează *Calendarul nu are zile lucrătoare setate*.
 

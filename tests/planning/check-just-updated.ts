@@ -48,6 +48,12 @@ check('detect: sprong → van/naar', JSON.stringify(detectJustUpdated('2026.7.12
 check('detect: upgrade mét lastVersion toont ook zonder welkomstvlag', JSON.stringify(detectJustUpdated('2026.7.12', '2026.7.13', false)) === JSON.stringify({ from: '2026.7.12', to: '2026.7.13' }));
 check('detect: downgrade telt ook', detectJustUpdated('2026.7.11', '2026.7.10', true) !== null);
 
+// De overgang naar ISO-weken en grote volgnummers blijven gewone versie-identiteiten.
+for (const [from, to] of [['2026.10.0', '2026.43.0'], ['2026.53.99', '2026.53.100'], ['2026.53.100', '2027.1.0']]) {
+  check(`detect: weekschema ${from} → ${to}`, JSON.stringify(detectJustUpdated(from, to, true)) === JSON.stringify({ from, to }));
+  check(`detect: herstart ${to}`, detectJustUpdated(to, to, true) === null);
+}
+
 // ── daysBetween ────────────────────────────────────────────────────
 check('days: 12 dagen', daysBetween('2026-07-01T00:00:00Z', '2026-07-13T00:00:00Z') === 12);
 check('days: zelfde dag = 0', daysBetween('2026-07-13T09:00:00Z', '2026-07-13T20:00:00Z') === 0);
@@ -78,6 +84,14 @@ const releases: GhRelease[] = [
 const found = findCurrentAndPrevious(releases, '2026.7.11');
 check('find: huidige op tag (met v-prefix tolerantie)', found.current?.tag_name === 'v2026.7.11');
 check('find: vorige slaat prerelease over', found.previous?.tag_name === 'v2026.7.10');
+
+const weekReleases: GhRelease[] = [
+  { ...releases[0]!, tag_name: 'v2026.53.100', published_at: '2027-01-01T12:00:00Z' },
+  { ...releases[2]!, tag_name: 'v2026.53.99', published_at: '2026-12-31T12:00:00Z' },
+];
+const weekFound = findCurrentAndPrevious(weekReleases, '2026.53.100');
+check('find: week 53 en groot volgnummer', weekFound.current?.tag_name === 'v2026.53.100' && weekFound.previous?.tag_name === 'v2026.53.99');
+check('compare: dagen komen uit publicatiedatum, niet uit het versienummer', computeComparison(weekFound.current!, weekFound.previous, 'native', 'windows').daysBetween === 1);
 
 const cmp = computeComparison(found.current!, found.previous, 'native', 'windows');
 check('compare: 12 dagen', cmp.daysBetween === 12);
@@ -120,6 +134,14 @@ const twoVersionCatalog = defineReleaseHighlightCatalog({
   '2099.1.1': nextBlock,
 });
 check('highlights: volgende versie overschrijft 2026.8.1-copy niet', getReleaseHighlightsFromCatalog(twoVersionCatalog, '2026.8.1', 'nl')?.primary.title === 'Importeer met de datums uit je planning' && getReleaseHighlightsFromCatalog(twoVersionCatalog, '2099.1.1', 'nl')?.primary.title === 'Denkbeeldige volgende release');
+
+for (const version of ['2026.43.0', '2026.53.100', '2027.1.0']) {
+  const weekBlock = RELEASE_HIGHLIGHT_CATALOG['2026.10.0']!;
+  const catalog = defineReleaseHighlightCatalog({ [version]: weekBlock });
+  check(`highlights: weekschema ${version}`, getReleaseHighlightsFromCatalog(catalog, `v${version}`, 'nl')?.primary.title === weekBlock.copy.nl[0].title);
+  check(`highlights: verifier accepteert ${version}`, validateReleaseHighlightCatalog(catalog, version).length === 0);
+  check(`highlights: stabiele weektag ${version}`, isStableReleaseTag(`v${version}`));
+}
 
 type MutableCatalog = Record<string, {
   [key: string]: unknown;

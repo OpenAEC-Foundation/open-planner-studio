@@ -30,10 +30,10 @@ Svi alati koje AI pomoćnik može pozvati preko mosta, po skupini, s opisom što
 ## Zadaci i struktura
 
 - `planner_add_tasks` (promjena, skupno) — stvara zadatke, uključujući ugniježđeni WBS u jednom pozivu. Svaki zadatak dobiva vlastiti privremeni naziv (`tmp-…`), da podzadatak može upućivati na nadređeni zadatak. Bez trajanja zadatak dobiva 5 radnih dana. Kontrolna točka ima trajanje 0. Svi zadaci jednog poziva uspijevaju zajedno ili propadaju zajedno.
-- `planner_update_tasks` (promjena, skupno) — mijenja polja postojećih zadataka: naziv, opis, trajanje s jedinicom (dani ili sati), vrstu trajanja, vrstu zadatka, kontrolnu točku, obavezno, prioritet, ograničenje, rok za dovršetak, kalendar i pravilo rada. Također napredak: postotak dovršenog, stvarni početak i stvarni završetak. Svako drugo polje se odbija s razlogom.
-- `planner_delete_tasks` (promjena) — briše zadatke, uključujući cijelo podstablo, ovisnosti i dodjele. Odgovor točno navodi što je otišlo zajedno s njima.
+- `planner_update_tasks` (promjena, skupno) — mijenja polja postojećih zadataka: naziv, opis, trajanje s jedinicom (dani ili sati), vrstu trajanja, kategoriju radova, kontrolnu točku, obavezno, prioritet, ograničenje, rok za dovršetak, kalendar i vrstu zadatka. Također napredak: postotak dovršenog, stvarni početak i stvarni završetak. Svako drugo polje se odbija s razlogom.
+- `planner_delete_tasks` (promjena) — briše zadatke, uključujući cijelo podstablo, ovisnosti i dodjele. Odgovor točno navodi što je obrisano zajedno s njima.
 - `planner_move_task` (promjena) — premješta zadatak pod drugi nadređeni zadatak, s položajem. Kružna referenca ili stavljanje zadatka pod samog sebe se odbija.
-- `planner_set_task_splits` (promjena) — postavlja prekide jednog zadatka: nakon koliko radnih dana (ili radnih sati) rada, i koliko radnih dana (ili radnih sati) traje prekid. Prazan popis uklanja sve prekide. Vidi [Dijeljenje zadatka](docs://howto-taak-splitsen).
+- `planner_set_task_splits` (promjena) — postavlja prekide jednog zadatka: nakon koliko radnih dana (ili radnih sati) rada i koliko radnih dana (ili radnih sati) traje prekid. Prazan popis uklanja sve prekide. Vidi [Dijeljenje zadatka](docs://howto-taak-splitsen).
 
 ## Ovisnosti
 
@@ -43,15 +43,15 @@ Svi alati koje AI pomoćnik može pozvati preko mosta, po skupini, s opisom što
 
 ## Projekt i kalendari
 
-- `planner_update_project` (promjena) — naziv, opis, autor, tvrtka, datum početka, datum završetka, datum stanja, način praćenja napretka i zadano pravilo rada za projekt. Datum početka je sidro za nove zadatke. Ako ga AI pomoćnik kasnije postavi, pomiču se samo slobodni zadaci (bez prethodnika i bez ograničenja koje postavlja donju granicu, kao *ne početi prije*). Odgovor navodi koliko ih je kao `anchorsClamped`. Ostatak rasporeda ostaje na mjestu, vidi [Novi projekt i Podaci o projektu](docs://ref-projectinfo). Datum stanja nije oznaka, nego referentni datum izračuna. Na rasporedu bez napretka sve se pomiče zajedno. Datum završetka je samo metapodatak.
+- `planner_update_project` (promjena) — mijenja naziv, opis, autora, tvrtku, datum početka, datum završetka, datum stanja, način praćenja napretka i zadanu vrstu zadatka za projekt. Datum početka je sidro za nove zadatke. Ako ga AI pomoćnik kasnije postavi, pomiču se samo slobodni zadaci (bez prethodnika i bez ograničenja koje postavlja donju granicu, kao *ne početi prije*). Odgovor navodi koliko ih je kao `anchorsClamped`. Ostatak rasporeda ostaje na mjestu, vidi [Novi projekt i Podaci o projektu](docs://ref-projectinfo). Datum stanja nije oznaka, nego referentni datum izračuna. Na rasporedu bez napretka sve se pomiče zajedno. Datum završetka je samo metapodatak.
 - `planner_move_project` (promjena) — pomiče cijeli postojeći raspored na novi datum početka. Kalendari se ne pomiču zajedno, pa se završetak može pomaknuti za drugačiji broj dana nego početak. Temeljni planovi ostaju, osim ako AI pomoćnik izričito zatraži da se pomaknu i oni. Vidi [Pomicanje projekta](docs://howto-project-verplaatsen).
-- `planner_update_calendar` (promjena, skupno) — mijenja ili stvara kalendare: radne dane, radne sate, pauzu, blokove radnog vremena, praznike (generira ih za državu i regiju ili navodi ručno) i iznimke radnih dana. Ne može promijeniti koji kalendar je kalendar projekta.
+- `planner_update_calendar` (promjena, skupno) — mijenja ili stvara kalendare: radne dane, radne sate, pauzu, blokove radnog vremena, praznike (generira ih za državu i regiju ili ih navodi ručno) i iznimke radnih dana. Ne može promijeniti koji kalendar je kalendar projekta.
 
-## Resursi i jedinice dodjele
+## Resursi i jedinice
 
 - `planner_manage_resources` (promjena, skupno) — stvara, mijenja ili briše resurse: naziv, vrstu (radna snaga, oprema, materijal, podizvođač ili ekipa), opis, maksimalan postotak jedinica, trošak po satu, jedinicu, kalendar, ekipu i raspoloživost kroz vrijeme. Odbija brisanje resursa koji ima dodjele, dok AI pomoćnik to izričito ne potvrdi. Za resurs iz biblioteke su naziv, vrsta, opis, standardna tarifa i jedinica zaključani.
-- `planner_manage_assignments` (promjena, skupno) — dodaje, mijenja, premješta ili uklanja dodjele: jedinice po radnom danu, krivulju i preostali posao. Samo na zadatku bez podzadataka, i isti resurs samo jednom po zadatku. Što promjena jedinica radi s trajanjem, ovisi o pravilu rada zadatka, kao u [Pravila rada: trajanje, jedinice i rad](docs://uitleg-werkregels).
-- `planner_level_resources` (promjena) — uravnoteživanje preopterećenja resursa. Zadano unutar vremenske rezerve, pa završetak ostaje. S `constrainToFloat: false` se završetak može pomaknuti. S probnim pokretanjem AI pomoćnik najprije dobiva pregled bez ikakvih promjena. Preskače materijal. Vidi [Uravnoteživanje resursa](docs://uitleg-nivelleren).
+- `planner_manage_assignments` (promjena, skupno) — dodaje, mijenja, premješta ili uklanja dodjele: jedinice po radnom danu, krivulju i preostali posao. Samo na zadatku bez podzadataka, i isti resurs samo jednom po zadatku. Što promjena jedinica radi s trajanjem, ovisi o vrsti zadatka, kao u [Vrsta zadatka: trajanje, jedinice i rad](docs://uitleg-werkregels).
+- `planner_level_resources` (promjena) — uravnoteživanje preopterećenja resursa. Zadano unutar vremenske rezerve, pa datum završetka ostaje. S `constrainToFloat: false` se završetak može pomaknuti. S probnim pokretanjem AI pomoćnik najprije dobiva pregled bez ikakvih promjena. Preskače materijal. Vidi [Uravnoteživanje resursa](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (promjena) — briše sva kašnjenja zbog uravnoteživanja.
 
 ## Upravljanje temeljnim planovima
@@ -69,15 +69,15 @@ Svi alati koje AI pomoćnik može pozvati preko mosta, po skupini, s opisom što
 
 - `planner_list_documents` (čitanje) — svi otvoreni dokumenti s naslovom, je li aktivan i je li izmijenjen, brojem zadataka, datumom početka projekta i izračunatim završetkom.
 - `planner_new_document` — novi, prazan dokument u vlastitoj kartici, bez prozora *Novi projekt*.
-- `planner_duplicate_document` — kopira aktivni dokument u novu karticu, za scenarij što ako ili varijantu ponude. Kopija je odvojena i nema putanju datoteke.
-- `planner_switch_document` — čini drugi dokument aktivnim. Također je način da potvrdite, nakon promjene kartice, na kojem dokumentu AI pomoćnik radi.
+- `planner_duplicate_document` — kopira aktivni dokument u novu karticu, za analizu mogućih scenarija ili za varijantu ponude. Kopija je odvojena i nema putanju datoteke.
+- `planner_switch_document` — čini drugi dokument aktivnim. Također je način da, nakon promjene kartice, potvrdite na kojem dokumentu AI pomoćnik radi.
 - `planner_import_schedule` — otvara datoteku s rasporedom s diska kao dokument: `.ifc`, `.xml` (Primavera P6 ili MS Project, prepoznaje se po sadržaju), `.csv`, `.xer` i `.mpp` (MS Project 2010 do 2021). Ništa se ne spaja s aktualnim planom. CSV nema kalendar, pa se datumi mogu pomaknuti. Samo unutar vaše korisničke mape. Nakon uvoza CSV, XML ili `.mpp` dokument nema datoteku u koju se može spremiti. Samo IFC preuzima njegovu putanju.
-- `planner_export_ifc` — zapisuje aktivni dokument kao IFC 4.3 datoteku. Samo unutar vaše korisničke mape, a postojeća datoteka se prepisuje samo na izričit zahtjev. Projekt ostaje nespremljen.
+- `planner_export_ifc` — zapisuje aktivni dokument kao IFC datoteku u IFC shemi projekta (zadano IFC 4.3 ADD2). Samo unutar vaše korisničke mape, a postojeća datoteka se prepisuje samo na izričit zahtjev. Ako je dokument otvoren u shemi koju aplikacija ne može zapisati (kao IFC2X3), alat sam odbija pisati preko te datoteke. Projekt ostaje nespremljen.
 
 ## Vodič i podrijetlo izvora
 
 - `planner_get_planning_guide` (čitanje) — engleski vodič za AI pomoćnike (načela iz [Dobro planiranje](docs://gids-goed-plannen), s alatima za svako načelo), dvije vještine *goed-plannen* (postavljanje rasporeda) i *progress-update* (ažuriranje napretka), ili sve. Izbor se radi s `part`: `guide`, `skill` (obje vještine) ili `both`. Zadano je `both`. Za svaku vještinu vraća mjesta gdje pripada i adrese za preuzimanje. Parametar `language` se još prihvaća za starije AI pomoćnike, ali tekst je uvijek engleski. Ne dira raspored.
-- `planner_inspect_xer_provenance` (čitanje) — pregledava zadržano značenje izvora otvorene Primavera P6 datoteke (`.xer`): što je datoteka sadržavala, s brojevima uvoza i dijagnostike. Slobodni tekst iz datoteke je zadano nevidljiv. AI pomoćnik ga mora izričito zatražiti. Ne može se koristiti u skripti.
+- `planner_inspect_xer_provenance` (čitanje) — pregledava zadržano značenje izvora otvorene Primavera P6 datoteke (`.xer`): što je datoteka sadržavala, s brojevima uvoza i dijagnostike. Slobodni tekst iz datoteke je zadano nevidljiv. AI pomoćnik ga mora izričito zatražiti. Imena resursa su također zadano skrivena, jer je resurs u P6 obično osoba. Šifre resursa ostaju vidljive. AI pomoćnik mora od vas zatražiti dopuštenje prije nego zatraži imena, jer ona tada odlaze davatelju AI usluge. Ne može se koristiti u skripti.
 
 ## Skripta
 

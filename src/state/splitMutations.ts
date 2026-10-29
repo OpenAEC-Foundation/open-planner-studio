@@ -27,7 +27,9 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isSummaryTask } from '@/engine/scheduler/relationRules';
 import { contourKeepsWork, invalidateForTimeBaseChange, rescaleTaskContours, taskWorkMinutesOf } from '@/utils/taskDefaults';
 import type { ResourceAssignment } from '@/types/resource';
-import { captureTriangle, settleDurationEdit, type WorkRuleDeps } from '@/engine/work/workRuleApply';
+import {
+  captureTriangle, settleDurationEdit, type RecomputedRemainingWork, type WorkRuleDeps,
+} from '@/engine/work/workRuleApply';
 
 /** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
  *  werkregelvelden (`WorkRuleDeps` + `assignments`) zijn voor de werkdriehoek. */
@@ -43,23 +45,33 @@ export function taskSplitRefusal(task: Task, pieces: SplitPiece[] | null, hoursP
   return pieces === null ? null : canSplitTask(task, hoursPerDay, isSummaryTask(task));
 }
 
+/** Wat een splitbewerking de aanroeper te melden geeft. */
+export interface SplitOutcome {
+  /** De taak verloor aantoonbaar MS Project-timephased-sturing (laag 3/4). */
+  timephasedLost: boolean;
+  /** Bewaard, afwijkend restwerk dat de duurwijziging opnieuw uitrekende (`settleDurationEdit`). */
+  recomputedWork: RecomputedRemainingWork[];
+}
+
 /**
  * Stappen (3)–(7) van de splitbewerking op één taak. Aanroepen NA `taskSplitRefusal` (en, in de
  * slice, na `beginUndoable`). `hoursPerDay` is die van de taakkalender (`taskCalendarHoursPerDay`).
- * Retourneert `true` als de taak aantoonbaar MS Project-timephased-sturing (laag 3/4) verloor.
+ * De meldingen gaan terug naar de aanroeper (`SplitOutcome`): de slice meldt zelf, de draft legt ze
+ * op de MCP-lease.
  */
 export function applyTaskSplits(
   s: SplitState,
   task: Task,
   pieces: SplitPiece[] | null,
   hoursPerDay: number,
-): boolean {
+): SplitOutcome {
   // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
   const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
   const slotMinutes = Math.max(1, hoursPerDay * 60);
   // Een splitbewerking die de werkduur verandert is een duurbewerking — de werkdriehoek volgt, net
   // als in `updateTask`.
   const triangle = captureTriangle(task, s.assignments, s);
+  let recomputedWork: RecomputedRemainingWork[] = [];
 
   // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is de adoptieregel: wat
   // de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan — "Nivellering wissen"
@@ -73,7 +85,7 @@ export function applyTaskSplits(
     // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
     // laten schalen zou dubbel zijn.
     rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, contourKeepsWork(task, s.project.defaultWorkRule), { keepGaps: true });
-    settleDurationEdit(task, s.assignments, triangle);
+    recomputedWork = settleDurationEdit(task, triangle).recomputedWork;
   }
 
   // (5) Contour meeverhuizen: dagslots lezen met de OUDE gaten (de as waarop het profiel nu
@@ -107,5 +119,5 @@ export function applyTaskSplits(
   // Het balkeinde vanaf waar de balk staat, niet vanaf het anker.
   task.time.earlyFinish = splitScheduleFinish(task, engine, task.time.earlyStart || task.time.scheduleStart);
 
-  return lostTimephasedGuidance;
+  return { timephasedLost: lostTimephasedGuidance, recomputedWork };
 }

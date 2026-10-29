@@ -18,26 +18,26 @@ A atualização só funciona na aplicação para computador. A versão para brow
 4. Clique em *Baixar e instalar*. Uma barra de progresso mostra *Baixando…*, e depois segue-se a instalação. Não pode fechar a janela enquanto estiver a baixar.
 5. Aguarde até a aplicação se reiniciar. Essa é a nova versão.
 
-Pouco antes de a atualização ser instalada, a aplicação também faz um instantâneo para a recuperação após falha do que tem aberto. Veja [Recuperação após uma falha](docs://howto-herstellen-na-een-crash).
+Pouco antes de a atualização ser instalada, a aplicação também faz um instantâneo do que tem aberto, para a recuperação após uma falha. Veja [Recuperação após uma falha](docs://howto-herstellen-na-een-crash).
 
 ### Verificar por si se há uma nova versão
 
-1. Escolha *Definições › Projeto › Definições*. Também pode escolher *Ficheiro › Definições*, ou a engrenagem no topo.
+1. Escolha *Definições › Projeto › Definições da aplicação*. Também pode escolher *Ficheiro › Definições da aplicação*, ou a engrenagem no topo.
 2. Escolha o separador *Avançado*. Em *Versão* está o número da versão atual.
 3. Clique em *Verificar atualizações*. Abre-se a janela *Atualização de software* e mostra *Verificando…*. Depois mostra *Você está usando a versão mais recente* ou a mensagem de que há uma nova versão, com o mesmo botão *Baixar e instalar*.
 
-No browser, este botão não faz nada de especial: a janela diz logo *Você está usando a versão mais recente*, sem que a aplicação verifique nada.
+No navegador, este botão não faz nada de especial: a janela diz logo *Você está usando a versão mais recente*, sem que a aplicação verifique nada.
 
 ### Ler o que há de novo
 
-1. Se iniciar a aplicação para computador pela primeira vez numa versão diferente da anterior, ou depois de uma instalação nova, abre-se uma janela sozinha. Na interface chama-se *Você está atualizado!*
-2. No topo está a passagem da versão anterior para a nova. Depois de uma instalação nova, só se mostra a nova versão.
+1. Se iniciar a aplicação para computador pela primeira vez numa versão diferente da anterior, abre-se uma janela sozinha. Na interface chama-se *Você está atualizado!* Depois de uma instalação nova, a janela não abre: a primeira execução não é uma atualização. Se ainda quiser vê-la, use o botão *Novidades* (veja abaixo).
+2. No topo está a passagem da versão anterior para a nova. Com o botão *Novidades* só se mostra a nova versão.
 3. Se a aplicação tiver um resumo integrado para esta versão, vê um ponto principal e quatro pontos menores. O ponto principal pode ter um botão *Ler o guia*. Caso contrário, vê apenas a passagem de versão e o que está em baixo.
 4. Com *Ver notas de versão completas* abre o registo de alterações no GitHub. Se isso não funcionar, aparece *Não foi possível abrir as notas de versão.*
 5. Em *Esta atualização em números* estão o número de dias desde a versão anterior, o número de commits e o número de linhas de código acrescentadas. Se a aplicação conseguir calcular a diferença de tamanho do pacote de instalação, também se mostra. Cada valor só aparece se estiver disponível.
 6. Clique em *Entendi* para fechar a janela.
 
-Se mais tarde quiser voltar a ver esta janela, escolha *Definições › Projeto › Definições*, separador *Avançado*, e em *Versão* o botão *Novidades*. A janela abre então para a versão atual, sem versão anterior.
+Se quiser voltar a ver esta janela mais tarde, escolha *Definições › Projeto › Definições da aplicação*, separador *Avançado*, e em *Versão* o botão *Novidades*. A janela abre então para a versão atual, sem versão anterior.
 
 ## Problemas e o que a aplicação faz então
 

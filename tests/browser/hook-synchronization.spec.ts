@@ -106,15 +106,19 @@ test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taa
   await description.fill('Nog niet opgeslagen omschrijving');
   await duration.fill('13d');
 
-  // In deze fixture zijn alleen de native constraint- en resourcekeuzevelden aanwezig; de
-  // resourcekeuze staat na de constraint en is daarmee het laatste native select-element.
-  const resourcePicker = dialog.locator('select').last();
-  await expect(resourcePicker).toHaveValue('');
-  await resourcePicker.selectOption(resourceId);
+  // De resourcekeuze is de eigen keuzelijst van het blok Toewijzingen (nooit native): openklikken,
+  // optie aanklikken.
+  const resourcePicker = dialog.locator('[data-ops-assignment-add] button');
+  await expect(resourcePicker).toHaveAttribute('data-value', '');
+  await resourcePicker.click();
+  await page.getByRole('listbox').locator(`[data-value="${resourceId}"]`).click();
+  await expect(dialog.locator('[data-ops-assignment-row]')).toHaveCount(1);
 
   await expect(name).toHaveValue('Nog niet opgeslagen naam');
   await expect(description).toHaveValue('Nog niet opgeslagen omschrijving');
-  await expect(duration).toHaveValue('13d');
+  // De echte klik op de keuzelijst haalt de focus uit het duurveld; dat schrijft "13d" bij blur als
+  // "13" met de eenheid dagen. De waarde zelf blijft staan (en is na Opslaan 13, zie hieronder).
+  await expect(duration).toHaveValue('13');
   await dialog.locator('[data-ops-task-save]').click();
 
   await expect.poll(() => page.evaluate((id) => {

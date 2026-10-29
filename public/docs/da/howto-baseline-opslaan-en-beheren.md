@@ -28,7 +28,7 @@ Under hver opgavebjælke i Gantt-diagrammet ligger nu en tynd bjælke med datoer
 
 ### Slet en oprindelig plan
 
-Klik på den lille papirkurv ved siden af den oprindelige plan på listen. Hvis du sletter den aktive oprindelige plan, spørger appen *Vil du slette den aktive oprindelige plan?*. Bagefter bliver den nyeste resterende oprindelige plan den aktive. Er der ingen anden, er der ikke længere en aktiv oprindelig plan, og overlayet forsvinder. Med Ctrl+Z henter du en slettet oprindelig plan tilbage.
+Klik på den lille papirkurv ved siden af den oprindelige plan på listen. Hvis du sletter den aktive oprindelige plan, spørger appen *Vil du slette den aktive oprindelige plan?*. Bagefter bliver den nyeste resterende oprindelige plan den aktive. Er der ingen anden, er der ikke længere en aktiv oprindelig plan, og overlayet forsvinder. Med Ctrl+Z henter du en slettet oprindelig plan tilbage. Luk vinduet først; Ctrl+Z virker ikke inde i et vindue.
 
 ### Afvigelser i opgavetabellen
 
@@ -41,6 +41,8 @@ Hver oprindelig plan har seks kolonner i opgavetabellen. Klik på **+** til høj
 **En oprindelig plan med fremdrift.** Gemmer du en oprindelig plan, efter at du har indtastet fremdrift, registrerer den tilstanden med de faktiske datoer. Afvigelsen er så nul, og den siger ikke længere noget om udførelsen. Gem den oprindelige plan, før arbejdet går i gang.
 
 **En oprindelig plan kan ikke opdateres.** Vil du revidere aftalen, gem en ny oprindelig plan, og slet den gamle, hvis det er nødvendigt.
+
+**En ⚠ ved Varighed eller Varighedsafvigelse.** For en opgave i timer er en dag den arbejdstid, som kalenderen har. Har kalenderen sine egne timer pr. dag (for eksempel 8 med tidsbånd på 10 timer, fra Primavera P6), talte en ældre version af appen dagene anderledes. En oprindelig plan fra den version beholder det gamle tal: en opgave på 1870 timer er 233,75 dage i den oprindelige plan og 187 dage nu. Appen konverterer ikke en sådan oprindelig plan. Kolonnerne *Varighed* og *Varighedsafvigelse* for den oprindelige plan viser så en ⚠; hold markøren over den for at se forklaringen. Datoerne i den oprindelige plan er korrekte. Gem en ny oprindelig plan, og slet den gamle, hvis det er nødvendigt.
 
 **Kun opgaver uden underopgaver.** En fase er ikke med i den oprindelige plan. Den har ingen bjælke for den oprindelige plan og ingen afvigelse. Fasen følger af de opgaver under den.
 

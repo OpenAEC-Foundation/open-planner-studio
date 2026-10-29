@@ -21,6 +21,8 @@ Denk goed na voordat je er een installeert. Een extensie is programmacode die dr
 
 Na de installatie is de extensie meteen ingeschakeld. Op de kaart in *Bladeren* staat nu *Geïnstalleerd*. Wat de extensie toevoegt, zie je in de app zelf: een nieuwe knop in het lint, of een importformaat in *Bestand › Importeren*. Sommige extensies tonen ook een melding. Die herken je aan het voorvoegsel *Extensie* met de naam van de extensie.
 
+**Tutorials.** De tutorials zijn een extensie. Zie je in *Help* onder *Tutorials* de knop *Tutorials installeren*, dan opent die *Bestand › Extensies* op *Bladeren*. Ook de vraag na de eerste rondleiding installeert deze extensie. Beide routes tonen dezelfde toestemmingsvraag; je kunt hem weigeren.
+
 ### Een extensie uit een bestand installeren
 
 Heb je een extensie als bestand gekregen, dan installeer je die zo.
@@ -29,26 +31,22 @@ Heb je een extensie als bestand gekregen, dan installeer je die zo.
 2. Klik rechtsboven op *ZIP* voor een ZIP-bestand, of op *JS* voor een los JavaScript-bestand.
 3. Kies het bestand. Het venster *Extensie installeren?* opent, zoals hierboven.
 
-Een ZIP-bestand moet een `manifest.json` en het hoofdbestand van de extensie bevatten. Installeer je een extensie die al geïnstalleerd is, dan vervangt de nieuwe versie de oude. Kan de app het bestand niet installeren, bijvoorbeeld omdat een ZIP-bestand beschadigd is, dan gebeurt er niets: de app toont bij ZIP en JS geen foutmelding en de extensie komt niet in de lijst. De reden staat wel in de debug-terminal. Zet die aan met *Instellingen › Project › App-instellingen*, tabblad *Geavanceerd*, *Debug-terminal inschakelen*, en open hem met de knop *Debug-terminal tonen* in de statusbalk. Daar staat dan bijvoorbeeld *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP*.
+Een ZIP-bestand moet een `manifest.json` en het hoofdbestand van de extensie bevatten. Installeer je een extensie die al geïnstalleerd is, dan vervangt de nieuwe versie de oude.
+
+Kan de app het ZIP- of JS-bestand niet installeren, bijvoorbeeld omdat een ZIP-bestand beschadigd is, dan toont de app de foutmelding *De extensie kon niet worden geïnstalleerd. Controleer het bestand en probeer opnieuw.* Annuleer je de bestandskeuze of weiger je de toestemmingsvraag, dan verschijnt er geen foutmelding.
+
+Aanvullende technische details staan in de debug-terminal. Zet die aan met *Instellingen › Project › App-instellingen*, tabblad *Geavanceerd*, *Debug-terminal inschakelen*, en open hem met de knop *Debug-terminal tonen* in de statusbalk. Daar staat dan bijvoorbeeld *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP*.
 
 ### De toestemmingsvraag lezen
 
 De vraag laat zien wat je nodig hebt om te beslissen.
 
 - *Auteur* en *Repository* zeggen wie de extensie maakte en waar de broncode staat.
-- *Herkomst* zegt waar het bestand vandaan komt: *Uit de online extensiecatalogus*, *Uit een ZIP-bestand op deze computer* of *Uit een JavaScript-bestand op deze computer*. Daaronder staat of het bestand gecontroleerd is. Bij de catalogus staat er *Download geverifieerd met de checksum uit de catalogus.* Heeft de catalogus geen checksum, dan staat er in het rood *De catalogus geeft geen checksum — deze download is niet geverifieerd.* Bij een bestand van jezelf staat er *Je koos dit bestand zelf; er is geen externe bron om tegen te verifiëren.*
-- *Waar je ja tegen zegt* zegt: *Een extensie is programmacode die draait met dezelfde rechten als Open Planner Studio zelf. Er is geen afscherming die dat inperkt. Installeer alleen extensies waarvan je de maker vertrouwt.* Daaronder staat wat dat op jouw platform betekent. In de desktop-app staat *In de desktop-app betekent dat onder meer: bestanden lezen en schrijven in je hele gebruikersmap, plus toegang tot je projecten, instellingen en klembord.* In de browser staat *In de browser betekent dat: toegang tot je opgeslagen projecten en instellingen, tot de bestanden waarvoor je toegang gaf, en tot het netwerk.*
-- *Wat deze extensie zegt te gebruiken* toont de toestemmingen die de maker opgaf, als kleine labels. Dat is een opgave van de maker en geen beperking: *Dit is de opgave van de maker, geen beperking — de code kan hoe dan ook meer.* Staat er geen label, dan staat er *Niets opgegeven.* Dat betekent niet dat de extensie niets kan: ook zonder labels kan een extensie de gegevens van je planning lezen en wijzigen en meldingen tonen.
+- *Herkomst* zegt waar het bestand vandaan komt en of het gecontroleerd is. Staat er in het rood dat de download niet is geverifieerd, installeer dan alleen als je de bron kent.
+- *Waar je ja tegen zegt* herhaalt dat een extensie programmacode is die met dezelfde rechten draait als de app zelf, en wat dat op jouw platform betekent. Installeer alleen extensies waarvan je de maker vertrouwt.
+- *Wat deze extensie zegt te gebruiken* toont de permissies die de maker opgaf, als kleine labels. Dat is een opgave en geen beperking. Staat er *Niets opgegeven.*, dan kan de extensie nog steeds de gegevens van je planning lezen en wijzigen.
 
-De labels betekenen dit:
-
-- *ribbon*: de extensie zet knoppen in het lint.
-- *events*: de extensie luistert mee met gebeurtenissen in de app.
-- *backstage*: de extensie voegt importformaten toe aan *Bestand › Importeren*.
-- *pdf-fonts*: de extensie levert een lettertype voor de pdf-export.
-- *importSource*: de extensie mag de volledige oorspronkelijke bytes lezen van elk bestand dat je importeert, bijvoorbeeld een ruw Primavera-bestand, ook velden die niet in je project terechtkomen. Het venster legt dit zelf ook uit.
-- *help*: de extensie mag Help-artikelen toevoegen, meegeleverde projecten als nieuw document openen en een begeleiding tonen die onderdelen van de app aanwijst. Het venster legt dit zelf ook uit.
-- *filesystem* en *network*: dit zijn alleen aanduidingen van wat de maker van plan is. De app heeft er geen functie voor.
+Wat elk label betekent en de letterlijke teksten van het venster staan in [Extensiepermissies](docs://ref-extensiepermissies).
 
 ### Een extensie uitschakelen, weer inschakelen of verwijderen
 

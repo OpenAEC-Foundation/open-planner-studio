@@ -1,6 +1,8 @@
 import type { Baseline, BaselineTask } from '@/types/baseline';
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
+import type { WorkCalendar } from '@/types/calendar';
+import type { WorkRule } from '@/types/workRule';
 import type { DurationDisplay, TimeNotation } from '@/types/view';
 import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 
@@ -143,9 +145,15 @@ export interface TaskColumnContext {
   /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
+  /** B4: de werkdaggrenzen voor datumweergave, ook op een scalaire kalender. */
+  effectiveCalendar?: (task: Task) => WorkCalendar;
   /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
-   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. */
+   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. In het OPS-profiel geeft het raster hier
+   *  altijd `'auto'` door (B9, `effectiveDurationDisplay`). */
   durationDisplay?: DurationDisplay;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Aan of
+   *  afwezig ⇒ "5d" is de dagenmaat; uit (P6, MSP) ⇒ "5d" is de urenmaat (B8, §3.12). */
+  workdayDurationMeasure?: boolean;
   /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
   /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
@@ -166,6 +174,10 @@ export interface TaskColumnContext {
   /** De werkregelkolommen bestaan alleen wanneer de weergave
    *  ontsloten is (instelling of documentontsluiting, `taskTypesUnlocked`). */
   taskTypesUnlocked?: boolean;
+  /** `Project.defaultWorkRule` — de regel van een taak zonder eigen regel. De uitleg bij het ⚠ in
+   *  *Resterend werk* kiest daarmee dezelfde slotzin als het paneel en als de duurbewerking zelf
+   *  (besluit V10). Ontbreekt ⇒ FIXED_DURATION_RATE, net als `effectiveWorkRule`. */
+  defaultWorkRule?: WorkRule;
   /** Instelling Tijdnotatie voor de weergave- en kopieertekst van datum-met-tijd; ontbreekt ⇒ `'24h'`.
    *  De parser accepteert beide notaties; de opgeslagen waarde blijft ISO. */
   timeNotation?: TimeNotation;
@@ -187,7 +199,9 @@ export type TaskColumnDescriptor = TaskColumnDescriptorFields & TaskColumnLabelS
 /** Een kleine ⚠ in een cel, met uitleg als tooltip. `kind` geeft de cel een vaste selector
  *  (`data-ops-<kind>`); `text` is de vertaalde uitleg. */
 export interface TaskCellWarning {
-  kind: 'baseline-old-day';
+  /** Wordt `data-ops-<kind>` op het ⚠ (`GridCell`). `remaining-work-deviates`: opgeslagen restwerk wijkt
+   *  af van inzet × restduur (kolom *Resterend werk*, zelfde toets als het paneel Toewijzingen). */
+  kind: 'baseline-old-day' | 'remaining-work-deviates';
   text: string;
 }
 

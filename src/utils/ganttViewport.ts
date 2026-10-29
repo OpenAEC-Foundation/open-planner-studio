@@ -211,7 +211,6 @@ export function computeFitToProject(
   tasks: Task[],
   timelineWidth: number,
   enableQuarterHourZoom: boolean,
-  enableHourPlanning = false,
   /** As-afstand (`axisDayDistance`); afwezig ⇒ kalenderdagen, ongewijzigd. */
   dayDistance: (from: Date, to: Date) => number = diffCalendarDays,
 ): FitToProject | null {
@@ -228,7 +227,7 @@ export function computeFitToProject(
   }
   if (!minStart || !maxFinish) return null;
   const span = Math.max(1, dayDistance(parseDate(minStart), parseDate(maxFinish)) + 1);
-  const max = maxGanttZoom(enableQuarterHourZoom, enableHourPlanning);
+  const max = maxGanttZoom(enableQuarterHourZoom);
   const zoom = Math.max(0.5, Math.min(max, timelineWidth / span));
   // Gebruik exact de effectieve oorsprong van de renderer en pan van daaruit naar de eerste taak
   // (dat is 14 × zoom).
@@ -349,21 +348,32 @@ let maxScrollY: number | null = null;
  */
 export function computeGanttScrollBounds(
   contentWidth: number,
-  viewRowCount: number,
-  rowHeight: number,
+  /** Schuifbare hoogte onder de kop: `taskListScrollContentHeight` (engine/taskGrid/scrollExtent),
+   *  dezelfde als die van de takenlijst. Dan is de maximale verticale stand voor beide gelijk. */
+  contentHeight: number,
   headerHeight: number,
   canvasWidth: number,
   canvasHeight: number,
 ): { maxScrollX: number; maxScrollY: number } {
   return {
     maxScrollX: Math.max(0, contentWidth - canvasWidth),
-    maxScrollY: Math.max(0, viewRowCount * rowHeight - (canvasHeight - headerHeight)),
+    maxScrollY: Math.max(0, contentHeight - (canvasHeight - headerHeight)),
   };
 }
 
 export function setGanttScrollBounds(bounds: { maxScrollX: number; maxScrollY: number }): void {
   maxScrollX = Number.isFinite(bounds.maxScrollX) ? Math.max(0, bounds.maxScrollX) : null;
   maxScrollY = Number.isFinite(bounds.maxScrollY) ? Math.max(0, bounds.maxScrollY) : null;
+}
+
+/**
+ * Vergeet de grenzen. De Gantt roept dit aan als hij uit beeld gaat (`useGanttViewportCoordinator`).
+ * Anders klemde de oude Gantt-grens de store in de Tabel-weergave, die een ander venster en dus een
+ * ander bereik heeft: de store bleef achter bij de DOM en het raster toonde lege rijen (review #362).
+ */
+export function clearGanttScrollBounds(): void {
+  maxScrollX = null;
+  maxScrollY = null;
 }
 
 export function clampGanttScroll(x: number, y: number): { x: number; y: number } {

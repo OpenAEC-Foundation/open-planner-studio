@@ -23,7 +23,7 @@ Appen viser *Gren lagret som mal 'Foundation'*. Appen spør ikke om et navn. Mal
 
 Hvis en aktivitet er valgt, legges malen inn som den siste delaktiviteten under den aktiviteten. Den aktiviteten blir dermed en hovedaktivitet. Hvis flere aktiviteter er valgt, gjelder den du klikket på først. Hvis ingenting er valgt, legges grenen nederst i listen, på øverste nivå. Etterpå er den innsatte grenen valgt.
 
-Alle innsatte aktiviteter får prosjektstarten som startdato, og tidsplanen er ikke lenger oppdatert. Trykk *Beregn* (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Da følger datoene av avhengighetene. Innsettingen er ett trinn: *Angre* angrer hele innsettingen. Lagring og sletting av en mal er ikke en del av det.
+Alle innsatte aktiviteter får prosjektstarten som startdato, og tidsplanen er ikke lenger oppdatert. Trykk **Beregn** (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Da følger datoene av avhengighetene. Med *Angre* angrer du hele innsettingen i ett trinn. Lagring og sletting av en mal er ikke en del av det.
 
 ### Slette en mal
 
@@ -31,9 +31,9 @@ Alle innsatte aktiviteter får prosjektstarten som startdato, og tidsplanen er i
 
 ### Hva som er med i en mal
 
-For hver aktivitet beholder en mal navnet, beskrivelsen, aktivitetstypen, om aktiviteten er en milepæl, og varigheten i dager. Av avhengighetene beholder den bare dem mellom to aktiviteter i grenen, med type og forsinkelse.
+For hver aktivitet beholder en mal navnet, beskrivelsen, arbeidskategorien, om aktiviteten er en milepæl, og varigheten i dager. Av avhengighetene beholder den bare dem mellom to aktiviteter i grenen, med type og forsinkelse. En forsinkelse i timer (`4h`) beholdes ikke og blir 0. En forsinkelse i arbeidsdager, kalenderdager eller prosent beholdes.
 
-Alt annet blir igjen. Det gjelder datoer, fremdrift og faktiske datoer, tilordninger til ressurser, koder og egendefinerte felt (se [Koder og egendefinerte felt](docs://howto-codes-en-velden)), kalenderen, begrensninger og tidsfrister, prioriteten, en egendefinert aktivitetstype, for en milepæl typen og avkrysningsboksen *Obligatorisk (kontraktuelt)*, og avhengigheter til aktiviteter utenfor grenen. Etter innsetting må du fylle dem inn igjen: tilordninger, koder, kalender og begrensninger er tomme, og alle aktiviteter får prosjektstarten som startdato.
+Alt annet blir igjen. Det gjelder datoer, fremdrift og faktiske datoer, tilordninger til ressurser, koder og egendefinerte felt (se [Koder og egendefinerte felt](docs://howto-codes-en-velden)), kalenderen, begrensninger og tidsfrister, prioriteten, en egendefinert arbeidskategori, for en milepæl typen og avkrysningsboksen *Obligatorisk (kontraktuelt)*, og avhengigheter til aktiviteter utenfor grenen. Etter innsetting må du fylle dem inn igjen: tilordninger, koder, kalender og begrensninger er tomme, og alle aktiviteter får prosjektstarten som startdato.
 
 En aktivitet som var målt i timer, kommer tilbake som en dagbasert aktivitet. Varigheten blir omregnet til en brøkdel av en arbeidsdag. En aktivitet på 5 timer med en arbeidsdag på 8 timer blir 0,625 dager.
 

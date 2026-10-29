@@ -14,29 +14,29 @@ Panel zasobów to miejsce, w którym zarządzasz zasobami: kto i co jest dostęp
 - **Nowy zasób w projekcie** (w widoku *Biblioteka* jako *Nowy zasób w bibliotece*) — przycisk w prawym górnym rogu. Otwiera wiersz roboczy na dole tabeli. Nic nie powstaje, dopóki nie wpiszesz nazwy i nie opuścisz wiersza (albo nie naciśniesz Enter). Jeśli klikniesz poza wiersz z pustą nazwą albo naciśniesz Esc, nic nie zostaje: ani zasób, ani krok pod *Cofnij*. Pola możesz wypełniać w dowolnej kolejności; wszystko trafia do aplikacji naraz. Enter lub strzałka w dół zatwierdza wiersz i otwiera nowy wiersz roboczy; Shift+Enter lub strzałka w górę zatwierdza wiersz i wraca do tabeli. Wiersz roboczy nie ma rozwijania zdolności, ołówka kalendarza ani kosza, ponieważ działają na zasobie, który jeszcze nie istnieje. Przycisk *Nowy zasób* w *Zasoby › Zarządzaj* działa tak samo.
 - **Nawigacja w tabeli** — w tabeli klawisze Enter i Shift+Enter oraz strzałki w górę i w dół przesuwają kursor między wierszami. Enter w ostatnim wierszu otwiera nowy wiersz roboczy.
 
-## Widok Projekt
+## Widok projektu
 
 Tabela tego, czego projekt używa. Każdy wiersz to zasób. Zmiany w polach tekstowych i stawce działają, gdy opuścisz pole, i liczą się jako jeden krok pod *Cofnij*.
 
-- **Kolor** — wybieranie koloru. Wartość domyślna: pierwszy wolny kolor z palety. Skutek: kolor akcentu zasobu pod paskami zadań w widoku Gantt (*Widok › Plan bazowy i postęp › Akcent zasobu*) i kolor próbki w doku.
+- **Kolor** — wybieranie koloru. Wartość domyślna: pierwszy wolny kolor z palety. Skutek: kolor akcentu zasobu pod paskami zadań na wykresie Gantt (*Widok › Plan bazowy i postęp › Akcent zasobu*) i kolor próbki w doku.
 - **Nazwa** — nazwa zasobu. Pusta nazwa nie jest zapisywana; pole wraca do poprzedniej nazwy.
 - **Typ** — *Robocizna*, *Sprzęt*, *Materiał*, *Podwykonawca* lub *Brygada*. Wartość domyślna dla nowego zasobu: *Robocizna*. Skutek: *Materiał* ma pole *Jednostka* i nie wlicza się do pozycji *Wszystkie zasoby* w histogramie; bilansowanie pomija materiał. Zasób typu *Brygada* można wybrać w polu *Brygada* innych zasobów. Pozostałe typy liczą tak samo.
 - **Maks. jednostki** — ile zasobu jest dostępne na dzień, liczba większa od 0 (ułamki są dozwolone). Wartość domyślna: 1. Skutek: zdolność na dzień. Gdy obciążenie jest wyższe, zasób jest przeciążony. Strzałka obok rozwija *Zdolność rozłożona w czasie*; liczba przy strzałce to liczba kroków.
 - **Zdolność rozłożona w czasie** — kroki z polem *Od* (data) i *Maks. jednostki*. *Dodaj krok* dodaje krok z dzisiejszą datą i wartością 1. Bez kroków pojawia się napis *Brak kroków — zawsze obowiązuje stałe maks. jednostek*. Skutek: od daty kroku obowiązuje jego *Maks. jednostki* zamiast wartości stałej; wygrywa ostatni krok z datą w tym dniu lub wcześniejszą.
-- **Kalendarz** — lista z *Kalendarz projektu* (domyślny), kalendarzami projektu i *+ Kalendarz zasobu* do dodania nowego. Ołówek (*Edytuj…*) otwiera wybrany kalendarz i jest wyłączony dla *Kalendarz projektu*. Skutek: dni, w których zasób pracuje. W dniu wolnym zdolność wynosi 0; jeśli wtedy zaplanowano pracę, zasób jest przeciążony z powodem *Nie pracuje w tym dniu według kalendarza „…”*. Kalendarz zasobu nie zmienia dat zadania. Zobacz [Okna kalendarza](docs://ref-kalenders).
+- **Kalendarz** — lista z *Kalendarz projektu* (domyślny), kalendarzami projektu i *+ Kalendarz zasobu* do dodania nowego. Ołówek (*Edytuj…*) otwiera wybrany kalendarz i jest wyłączony dla pozycji *Kalendarz projektu*. Skutek: dni, w których zasób pracuje. W dniu wolnym zdolność wynosi 0; jeśli wtedy jest planowana praca, zasób jest przeciążony z powodem *Nie pracuje w tym dniu według kalendarza „…”*. Kalendarz zasobu nie zmienia dat zadania. Zobacz [Okna kalendarza](docs://ref-kalenders).
 - **Stawka/godz** — koszt za godzinę. Puste = brak stawki; nieprawidłowa liczba zostaje odrzucona. Skutek: brak wpływu na harmonogram i obciążenie. Stawka określa kolumnę *Razem*, jest zapisywana w pliku IFC i przy eksporcie do MS Project (stawka standardowa) oraz do XML Primavera P6 (cena za jednostkę) jest przenoszona dalej.
 - **Razem** — tylko do odczytu: godziny obciążenia × stawka, z dwoma miejscami po przecinku; *—* bez stawki albo obciążenia. Na dole linia *Razem* sumuje wszystkie zasoby. Godziny pochodzą z ostatniego obliczenia i liczą jednostki × godziny dziennie wg kalendarza zadania. Nieaktualne? Naciśnij *Oblicz*.
 - **Jednostka** — jednostka miary materiału, na przykład `m³`. Wypełnić ją można tylko przy typie *Materiał* (podpowiedź: *Do wypełnienia tylko dla zasobów typu Materiał*). Skutek: etykieta; nic nie oblicza.
 - **Brygada** — brygada, do której zasób należy, wybierana spośród zasobów typu *Brygada*. Wartość domyślna: *Brak*. Skutek: tylko grupowanie; zdolność i obciążenie brygady nie są sumą jej członków.
 - **Usuń** (ikona kosza) — usuwa zasób. Gdy ma przydziały, aplikacja najpierw pyta *„…” ma przypisań: … — usunąć?* z ptaszkiem do potwierdzenia i krzyżykiem do anulowania.
-- **Do biblioteki** — tylko wtedy, gdy projekt należy do biblioteki zasobów, dla zasobu z nazwą, która jeszcze nie pochodzi z biblioteki. Zapisuje go w bibliotece albo łączy z istniejącym elementem o tej samej nazwie i podaje wynik (*Dodano*, *Już istniał w bibliotece — teraz połączony* albo *Połączono z istniejącym elementem biblioteki — wartości się różnią, zobacz oznaczenie*).
+- **Do biblioteki** — tylko wtedy, gdy projekt należy do biblioteki zasobów, dla zasobu z nazwą, która jeszcze nie pochodzi z biblioteki. Zapisuje go w bibliotece zasobów albo łączy z istniejącym elementem o tej samej nazwie i podaje wynik (*Dodano*, *Już istniał w bibliotece — teraz połączony* albo *Połączono z istniejącym elementem biblioteki — wartości się różnią, zobacz oznaczenie*).
 - **Odłącz od biblioteki** — ikona odłączenia przy zasobie z biblioteki. Usuwa pochodzenie; potem wszystkie pola są znowu wolne.
 
 Bez zasobów pojawia się napis *Brak zasobów. Dodaj jeden, aby zacząć*. Jeśli projekt należy do biblioteki, pojawia się napis *Ten projekt nie korzysta jeszcze z żadnych zasobów z biblioteki* z podpowiedzią.
 
 ### Zasoby z biblioteki
 
-Zasób z biblioteki ma małą ikonę biblioteki (*Z biblioteki*). Jego *Nazwa*, *Typ*, *Stawka/godz* i *Jednostka* są wtedy zwykłym tekstem (*Wartość z biblioteki — edytuj ją w widoku Biblioteka albo odłącz ten zasób od biblioteki*.), bo biblioteka decyduje, czym zasób jest. *Kolor*, *Maks. jednostki*, kroki zdolności, *Kalendarz* i *Brygada* pozostają edytowalne, bo projekt decyduje, ile i kiedy. Mogą pojawić się dwie odznaki: *różni się — zdecyduj* (kliknięcie otwiera okno *Połącz bibliotekę zasobów*) oraz *nie ma już w bibliotece* z przyciskiem *Usuń z projektu*.
+Zasób z biblioteki ma małą ikonę biblioteki (*Z biblioteki*). Jego *Nazwa*, *Typ*, *Stawka/godz* i *Jednostka* są wtedy zwykłym tekstem (*Wartość z biblioteki — edytuj ją w widoku Biblioteka albo odłącz ten zasób od biblioteki*.), bo biblioteka zasobów decyduje, czym zasób jest. *Kolor*, *Maks. jednostki*, kroki zdolności, *Kalendarz* i *Brygada* pozostają edytowalne, bo projekt decyduje, ile i kiedy. Mogą pojawić się dwie odznaki: *różni się — zdecyduj* (kliknięcie otwiera okno *Połącz bibliotekę zasobów*) oraz *nie ma już w bibliotece* z przyciskiem *Usuń z projektu*.
 
 ## Widok Biblioteka
 
@@ -83,4 +83,4 @@ Gdzie to widzisz:
 - **Histogram** — czerwone części słupków i czerwona kropka na liście wyboru.
 - **Dok zasobów** — czerwony trójkąt *Przeciążony*.
 
-Bilansowanie może rozwiązać przeciążenie, przesuwając zadania w ramach ich zapasu; nie rozwiąże zasobu, który musi pracować w dzień wolny. Zobacz [Bilansowanie](docs://uitleg-nivelleren).
+Bilansowanie może rozwiązać przeciążenie, doprowadzając do późniejszego startu zadań. Domyślnie koniec projektu może się przesunąć; przy *wygładzaniu* zostaje w zapasie. Bilansowanie nie rozwiązuje zasobu, który musi pracować w dzień wolny. Zobacz [Bilansowanie](docs://uitleg-nivelleren).

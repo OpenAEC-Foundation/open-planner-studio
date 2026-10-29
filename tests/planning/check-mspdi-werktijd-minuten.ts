@@ -145,9 +145,9 @@ const blocks = (c: WorkCalendar | undefined, wd: 1 | 2 | 3 | 4 | 5 | 6 | 7) =>
     [{ workDays: [1, 2, 3, 4, 5], start: 480, end: 1020, hoursPerDay: 8, uurkalender: true }, undefined]);
   same('§1 terugval: een oude eigen export `7.5:00:00` ⇒ 7,5 (was 7)', scalar(byName(cals, 'Oude export')),
     { workDays: [1, 2, 3, 4, 5], start: 450, end: 960, hoursPerDay: 8.5, uurkalender: false });
-  same('§1 de taken: 85 u is een dagtaak van 10 dagen, 90 u een urentaak',
+  same('§1 T15: 85 u en 90 u zijn urentaken, ook zonder subdagsignaal',
     r.tasks.map((t) => [t.name, t.time.durationUnit, t.time.scheduleDuration]),
-    [['Dagtaak halfuur', 'days', 10], ['Urentaak halfuur', 'hours', 90 / 8.5]]);
+    [['Dagtaak halfuur', 'hours', 10], ['Urentaak halfuur', 'hours', 90 / 8.5]]);
   same('§1 de geregistreerde blokken van "Weekend kort" zijn de bron (za/zo 8 minuten)',
     getCalendarBands(weekend)?.canonical.byWeekday[7], [{ start: 8, end: 16 }]);
 }
@@ -155,7 +155,7 @@ const blocks = (c: WorkCalendar | undefined, wd: 1 | 2 | 3 | 4 | 5 | 6 | 7) =>
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §2 + §3 De echte open- en exportroute voor het MSPDI-bestand hierboven
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openAndRecalc(parsed: OpenedImport): DocumentPayload {
   const store = createAppStoreContext().store;
   store.getState().applyOpenedImport(parsed, OPEN);
@@ -170,14 +170,15 @@ const exportMSPDI = (p: DocumentPayload) => quiet(() => writeMSPDI(p.project, p.
 const exportIFC = (p: DocumentPayload) => quiet(() => writeIFC(buildWriteIFCInput(p)));
 {
   const before = openAndRecalc(await parseOpenedFile({ name: 'werktijd-minuten.xml', text: XML }));
-  // §2: dagtaak 10 werkdagen (ma 19 t/m vr 30 oktober). Let op: MS Project zelf geeft voor deze taak
-  // maandag 2 november 08:00 (85 u vanaf 08:00 op een werkdag die om 07:30 begint). Het dag-anker 08:00
-  // telt in de lezer als "geen tijd", dus het is een dagtaak; dat komt niet door deze fix (VERVOLG).
+  // §2: T15 maakt ook de taak van 85 u een urentaak. Sinds F5b (I8) is 08:00 in een bestand zonder
+  // OPS-markering een echte tijd, ook op de scalaire kalender: de solve begint om 08:00 (de brontijd), niet
+  // om 07:30. 85 u: ma 19 okt 08:00–16:00 (8 u), di–vr 4 × 8,5 u, de week erna 5 × 8,5 u = 84,5 u; het
+  // laatste half uur op maandag 2 november van 07:30 tot 08:00.
   // Urentaak: ma 19 okt 08:00–16:00 (8 u), di–vr 4 × 8,5 u, de week erna 5 × 8,5 u = 84,5 u op vrijdag
   // 30 oktober 16:00; de laatste 5,5 u op maandag 2 november van 07:30 tot 13:00. Met 9 u per dag was het
   // een dagtaak die vrijdag 30 oktober eindigde.
   same('§2 F5 na MSPDI-import', dates(before), {
-    'Dagtaak halfuur': ['2026-10-19', '2026-10-30'],
+    'Dagtaak halfuur': ['2026-10-19T08:00', '2026-11-02T08:00'],
     'Urentaak halfuur': ['2026-10-19T08:00', '2026-11-02T13:00'],
   });
 
@@ -193,7 +194,9 @@ const exportIFC = (p: DocumentPayload) => quiet(() => writeIFC(buildWriteIFCInpu
   // uren per dag blijven gelijk. Met taken erop blijft hij een uurkalender (§4b).
   const wantAfter = calView(before);
   wantAfter['MS Project standaard'] = { ...wantAfter['MS Project standaard'], uurkalender: false };
-  same('§3 kalenders gelijk na opslaan als MSPDI en heropenen (behalve de modus van "MS Project standaard")',
+  // De nieuwe urentaak houdt na F5 haar echte 07:30/16:00; dat tijdsignaal promoveert de kalender.
+  wantAfter['Halfuur'] = { ...wantAfter['Halfuur'], uurkalender: true };
+  same('§3 kalenders gelijk; alleen de verklaarde moduswissels voor "MS Project standaard" en "Halfuur"',
     calView(after), wantAfter);
   same('§3 F5 ná de MSPDI-rondgang = F5 ervóór', dates(after), dates(before));
 }
@@ -298,11 +301,13 @@ for (const shape of SHAPES) {
     project: PROJECT, calendar: { ...createDefaultCalendar(), holidays: [] },
     tasks: [dayTask('a', 'Dagtaak 20 d', 20, lib.id)], sequences: [], resources: [], assignments: [], resourceCalendars: [lib],
   });
-  same('§4c voorwaarde — geen effectieve blokken', effectiveWorkTimeBands(original.calendars.find((c) => c.name === 'Bouwdag')!), undefined);
+  // T1 herstelt de oude onmogelijke spanne: 07:30 + 9 u = 16:30.
+  same('§4c T1: effectieve blokken na kalenderherstel',
+    blocks(original.calendars.find((c) => c.name === 'Bouwdag'), 1), ['450-990']);
   const xml = exportMSPDI(original);
   const bouwdag = xml.slice(xml.indexOf('<Name>Bouwdag</Name>'));
-  same('§4c schrijver: één blok 07:30:00–16:00:00 op maandag',
-    bouwdag.match(/<FromTime>([^<]*)<\/FromTime>\s*<ToTime>([^<]*)<\/ToTime>/)?.slice(1), ['07:30:00', '16:00:00']);
+  same('§4c schrijver: één hersteld blok 07:30:00–16:30:00 op maandag',
+    bouwdag.match(/<FromTime>([^<]*)<\/FromTime>\s*<ToTime>([^<]*)<\/ToTime>/)?.slice(1), ['07:30:00', '16:30:00']);
 }
 
 // §4d Een dagkalender met pauze waar een URENtaak op staat, wordt na MSPDI een uurkalender (signaal (c),

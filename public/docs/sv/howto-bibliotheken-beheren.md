@@ -32,14 +32,14 @@ Efter *Kalendrar* står ett versionsnummer, till exempel *v2*. Det går upp vid 
 
 1. Välj biblioteket i listan.
 2. Klicka på *Exportera*.
-3. I skrivbordsappen och i Chrome och Edge väljer du var filen sparas. I andra webbläsare hamnar filen direkt i mappen för hämtade filer, och appen visar det. Filen heter `bibliotheek-` följt av namnet på biblioteket, med tillägget `.ifc`.
+3. I skrivbordsappen och i Chrome och Edge väljer du var filen sparas. I andra webbläsare hamnar filen direkt i mappen för hämtade filer, och appen visar det. Filen heter `bibliotheek-` följt av namnet på biblioteket, med filändelsen `.ifc`.
 
 Under knapparna står *Exportera är även din säkerhetskopia. Spara filen på en säker plats.*
 
 ### Importera ett bibliotek
 
 1. Klicka på *Importera*. Fönstret *Importera bibliotek* öppnas för biblioteket som du valde i listan.
-2. Klicka på *Välj fil…* och välj en `.ifc`-fil från en export. Om filen inte innehåller något bibliotek, står det *Den här IFC-filen innehåller inget bibliotek.*
+2. Klicka på *Välj fil…* och välj en `.ifc`-fil från en export. Om filen inte innehåller något bibliotek står det *Den här IFC-filen innehåller inget bibliotek.*
 3. Appen visar vad filen innehåller, till exempel *2 kalendrar, 5 resurser (version 3).*
 4. Välj vad du vill göra med filen, se nedan.
 5. Klicka på *Lägg till* eller *Ersätt*, eller på *Avbryt* om du vill stoppa.
@@ -53,7 +53,7 @@ Appen föreslår själv ett val. Om filen innehöll biblioteket som är standard
 
 ### Ta bort ett bibliotek
 
-1. Välj biblioteket i listan och klicka på *Ta bort bibliotek*. Knappen är grå för det sista biblioteket, eftersom minst ett bibliotek alltid måste finnas kvar.
+1. Välj biblioteket i listan och klicka på *Ta bort bibliotek*. Knappen är grå för det sista biblioteket, eftersom det alltid finns kvar minst ett bibliotek.
 2. Bekräfta med *Ta bort*. Frågan är *Ta bort det här biblioteket?* Om öppna projekt är kopplade till det, står det *Det här biblioteket är kopplat till 1 öppet projekt. Om du tar bort det kopplas projektet loss. Vill du fortsätta?* För fler projekt står samma text, med antalet, till exempel *kopplat till 2 öppna projekt*.
 
 Biblioteket är då borta, med alla resurser och kalendrar i det. De öppna projekten som använde det kopplas loss. Deras resurser blir kvar som vanliga resurser i projektet. Exportera först om du vill behålla innehållet.
@@ -64,17 +64,17 @@ En projektfil innehåller egna kopior av resurserna. Vill du lämna över hela b
 
 1. Öppna ett projekt som är kopplat till ett bibliotek och välj *Fil › Exportera*.
 2. Markera *Spara biblioteksfilen bredvid*. Kryssrutan finns bara för ett kopplat projekt.
-3. Välj kortet *IFC 4x3* och spara filen. Appen frågar då också efter en andra fil. Den får samma namn som projektet, med `-bibliotheek` efter namnet, och innehåller biblioteket.
+3. Välj kortet *IFC* och spara filen. Appen frågar då också efter en andra fil. Den får samma namn som projektet, med `-bibliotheek` efter namnet, och innehåller biblioteket.
 
 Kryssrutan fungerar bara för IFC-exporten, inte för de andra exportformaten. Din kollega importerar den andra filen på det sätt som beskrivs ovan.
 
 ## Fallgropar och vad appen gör då
 
-**Två planerare, två bibliotek.** Appen synkroniserar inte bibliotek mellan datorer. Importfönstret visar alltid en varning om det: *Obs: bibliotek synkroniseras inte mellan datorer. Om två planerare arbetar med samma bibliotek, kan biblioteken glida isär. Om din organisation delar team över verksamhetsbolag, väljer du medvetet ett gemensamt bibliotek.*
+**Två planerare, två bibliotek.** Appen synkroniserar inte bibliotek mellan datorer. Importfönstret visar alltid en varning om det: *Obs: bibliotek synkroniseras inte mellan datorer. Om två planerare arbetar med samma bibliotek kan biblioteken glida isär. Om din organisation delar team över verksamhetsbolag väljer du medvetet ett gemensamt bibliotek.*
 
-**Att ersätta skriver över allt.** Allt som fanns i det valda biblioteket är borta. Ändringar i biblioteket omfattas inte av *Ångra*. Exportera först om du är osäker.
+**Att ersätta skriver över allt.** Allt som fanns i det valda biblioteket är borta, och en ändring i biblioteket omfattas inte av *Ångra*. Exportera först om du är osäker. Dina projekt behåller sina kopior. Appen uppdaterar kopior som finns kvar i den nya filen. Kopior som inte finns i den längre får markeringen *inte längre i biblioteket* och fungerar som vanligt. Om en kopia skiljer sig öppnas fönstret *Länka resursbibliotek* (se [Använda resursbiblioteket](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Att ta bort en kalender i listan sker direkt.** Appen frågar inte om bekräftelse, medan den gör det när du tar bort en resurs. Det kan se ut som en brist. Ändringar i biblioteket omfattas inte av *Ångra*.
+**Att ta bort en kalender i listan sker direkt.** Appen frågar inte om bekräftelse, medan den gör det när du tar bort en resurs. Det ser ut som en brist. Ändringar i biblioteket omfattas inte av *Ångra*.
 
 ## Se även
 

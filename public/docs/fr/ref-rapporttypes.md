@@ -26,19 +26,19 @@ Ouvrez l'onglet *Rapport* (ou appuyez sur Ctrl+P). À gauche se trouve la colonn
 
 Le planning sous forme de diagramme à barres, avec un tableau à gauche et une frise chronologique à droite, sur plusieurs pages si nécessaire. L'aperçu montre la feuille avec l'en-tête de page, le tableau, la frise chronologique et la légende. Le bloc *Résumé* compte *Tâches*, *Tâches feuilles*, *Critique* et *Relations*. Toutes les options se trouvent sous *Paramètres*.
 
-**Entreprise :** — l'entreprise dans l'en-tête de page. Par défaut : l'entreprise des informations du projet. Effet : seulement l'en-tête du rapport ; ce que vous saisissez ici n'est pas conservé. Modifiez l'entreprise dans *Paramètres › Projet › Info projet*, dans le champ *Client/organisation*, et confirmez avec *Appliquer*.
+**Entreprise :** — l'entreprise dans l'en-tête de page. Par défaut : l'entreprise des paramètres du projet. Effet : seulement l'en-tête du rapport ; ce que vous saisissez ici n'est pas conservé. Modifiez l'entreprise dans *Paramètres › Projet › Paramètres du projet*, dans le champ *Client/organisation*, et confirmez avec *Appliquer*.
 
-**Auteur :** — l'auteur dans l'en-tête de page. Lecture seule : l'application le prend dans les informations du projet.
+**Auteur :** — l'auteur dans l'en-tête de page. Lecture seule : l'application le prend dans les paramètres du projet.
 
 **Taille de la police :** — taille du texte et du tableau dans le rapport. Choisissez parmi 90%, 100%, 110% et 125%. Par défaut : 100%. Effet : avec une police plus grande, le texte, les lignes et le tableau grandissent, et la frise perd de la largeur. Indépendante de *Taille du texte* dans les paramètres.
 
-**Couleurs des barres :** — ce dont dépend la couleur d'une barre. Choisissez parmi *Chemin critique*, *Par tâche — automatique* et *Par catégorie*, avec une liste déroulante *Champ de catégorie* pour *Par catégorie*. Par défaut : *Chemin critique*. Effet : c'est le même choix que *Couleurs des barres* de l'onglet *Affichage* : si vous le changez ici, le diagramme de Gantt à l'écran change aussi. Si le champ choisi n'existe pas dans ce projet, il est écrit *Ce champ n’existe pas dans ce projet. Le type de tâche est utilisé temporairement.*
+**Couleurs des barres :** — ce dont dépend la couleur d'une barre. Choisissez parmi *Chemin critique*, *Par tâche — automatique* et *Par catégorie*, avec une liste déroulante *Champ de catégorie* pour *Par catégorie*. Par défaut : *Chemin critique*. Effet : c'est le même choix que *Couleurs des barres* de l'onglet *Affichage* : si vous le changez ici, le diagramme de Gantt à l'écran change aussi. Si le champ choisi n'existe pas dans ce projet, il est écrit *Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.*
 
 **Ligne d'état :** — une ligne à la date d’état. Choisissez parmi *Aucune*, *Ligne de date d’état* et *Ligne d’avancement*. Par défaut : *Aucune*. Effet : *Ligne de date d’état* trace une ligne à la date d’état ; *Ligne d’avancement* trace la ligne en zigzag qui se gonfle selon l'avancement de chaque tâche. Si le projet n'a pas de date d'état, il est écrit *Définissez d’abord une date d’état* et le rapport ne trace rien.
 
 **Suivre la vue (filtre, groupe, tri)** — seulement pour le diagramme de Gantt. Par défaut : désactivé. Effet : désactivé, l'arbre complet des tâches est imprimé. Activé, seules les lignes de l'écran sont imprimées, avec votre filtre, votre groupement, votre tri et les phases repliées.
 
-**Ajustement automatique au papier** — adapte la frise à la largeur de la page. Par défaut : activé. Effet : activé, la frise est adaptée à la largeur de la page ; le nombre de pages dépend de la hauteur. Désactivé, une échelle fixe est utilisée (*Zoom*) et la frise est aussi répartie sur la largeur, ce qui donne vite beaucoup de pages.
+**Ajustement automatique au papier** — adapte la frise à la largeur de la page. Par défaut : activé. Effet : activé, la frise est adaptée à la largeur de la page ; le nombre de pages dépend de la hauteur. Désactivé, une échelle fixe est utilisée (*Zoom :*) et la frise est aussi répartie sur la largeur, ce qui donne vite beaucoup de pages.
 
 **Zoom :** — l'échelle fixe de la frise. Visible seulement quand *Ajustement automatique au papier* est désactivé. Curseur de 1 à 40. Par défaut : 22. Effet : une valeur plus grande élargit la frise, donc davantage de pages en largeur.
 
@@ -118,9 +118,9 @@ Où en est le projet à la date d’état. Options sous *Options du rapport*.
 
 **Période de rapport :** — Par défaut : *Mois dernier*. Effet : *Terminé pendant la période écoulée* compte dans la période. *Démarre pendant la prochaine période* regarde vers l'avant à partir de la date d’état, jusqu'à *Anticipation jusqu'au* ; avec *Mois dernier*, aussi loin en avant que la période regarde en arrière.
 
-**Quasi critique ≤ (jo) :** — Par défaut : 5. Comme pour Anticipation.
+**Quasi critique ≤ (jo) :** — Par défaut : 5. Comme pour l'anticipation.
 
-Le bloc *Résumé* montre *Date d’état*, *Période*, *Anticipation jusqu'au*, *Fin de la référence*, *Fin prévue*, *Δ fin (jo)*, *Prévu* (avec *(référence)* ou *(planning actuel)*), *Réel*, et les compteurs *Terminé*, *En cours*, *Non démarrée*, *En retard* et *Critique*. Le prévu et le réel sont pondérés par la durée des tâches. Le prévu se mesure par rapport à la référence s'il existe une référence active, sinon par rapport au planning actuel. Les sections sont *Terminé pendant la période écoulée*, *En cours*, *Démarre pendant la prochaine période*, *En retard* et *Activités critiques ouvertes* ; une tâche peut figurer dans plus d'une section.
+Le bloc *Résumé* montre *Date d’état*, *Période*, *Anticipation jusqu'au*, *Fin de la référence*, *Fin prévue*, *Δ fin (jo)*, *Prévu* (avec *(référence)* ou *(planning actuel)*), *Réel*, et les compteurs *Terminé*, *En cours*, *Non démarrée*, *En retard* et *Critique*. Le prévu et le réel sont pondérés par la durée des tâches. Le prévu se mesure par rapport à la référence s'il existe une référence active, sinon par rapport au planning actuel. Les sections sont *Terminé pendant la période écoulée*, *En cours*, *Démarre pendant la prochaine période*, *En retard* et *Activités critiques ouvertes* ; une tâche peut figurer dans plus d'une section. Chaque section a les mêmes colonnes : *WBS*, *Nom*, *Fin de la référence*, *Fin prévue*, *Avanc*, *Reste (jo)*, *MT (jo)* (TF), *Critique* et *État*. L'état de chaque ligne est *Terminé*, *En cours*, *Non démarrée*, *Aurait dû démarrer* ou *Aurait dû se terminer*.
 
 ## Santé du planning
 
@@ -147,9 +147,9 @@ Il compte les tâches feuilles non terminées, sans jalons ni hamacs, et les rel
 - *Marge négative* : tâches avec une marge totale inférieure à 0. Seuil : aucun. Nécessite un calcul.
 - *Durée élevée* : tâches plus longues que 44 jours ouvrés. Compte la durée de référence si la tâche figure dans la référence active, sinon la durée actuelle. Seuil : au plus 5%.
 - *Dates invalides* : un début réel ou une fin réelle après la date d'état, ou un début prévu ou une fin prévue avant la date d'état. Seuil : aucun. Nécessite une date d'état.
-- *Ressources* : tâches sans ressource. Seuil : aucun. Seulement si le projet utilise des ressources ; sinon s.o.
+- *Ressources* : tâches sans ressource. Seuil : aucun. Seulement si le projet utilise des ressources ; sinon *s.o*.
 - *Tâches manquées* : parmi les tâches que la référence prévoit terminées au plus tard à la date d'état, la part qui finit plus tard ou dont la fin prévue est plus tardive. Seuil : au plus 5%. Nécessite une date d'état et une référence active.
-- *Test du chemin critique* : l'application allonge une tâche critique de 100 jours ouvrés et lance un recalcul, sur une copie, sans modifier le projet. Le test réussit si la dernière tâche du projet ne finit alors pas avant cette tâche. Il teste la tâche critique non terminée dont le début au plus tôt est le plus ancien ; le détail indique la tâche et le nombre de jours ouvrés dont la fin a été repoussée.
+- *Test du chemin critique* : l'application allonge une tâche critique de 100 jours ouvrés et lance un recalcul, sur une copie, sans modifier le projet. Le test réussit si la dernière tâche du projet ne finit alors pas avant cette tâche. Il teste la tâche critique non terminée dont le début au plus tôt est le plus ancien ; le détail indique la tâche et le nombre de jours ouvrés dont la fin a été repoussée. Dans la vue *Dates telles qu'enregistrées*, ce test est *s.o* (*non calculé*) : le test lance un calcul, et le rapport affiche alors les dates du fichier source. Appuyez sur Calculer (F5) et le test s'exécute de nouveau.
 - *CPLI* : (longueur du chemin critique + marge) / longueur du chemin critique. La longueur compte les jours ouvrés depuis la date d'état jusqu'à la fin de la dernière tâche ; la marge est la différence avec la fin de référence de cette tâche, ou la marge calculée si la tâche ne figure pas dans la référence. Seuil : au moins 0,95. Nécessite une date d'état.
 - *BEI* : le nombre de tâches terminées à la date d'état, divisé par le nombre que la référence prévoit terminées à cette date, plus les tâches sans référence. Seuil : au moins 0,95. Nécessite une date d'état et une référence active.
 
@@ -177,7 +177,7 @@ Par ressource, les tâches auxquelles elle est rattachée : que fait cette équi
 
 **Inclure les tâches terminées** — Par défaut : désactivé. Effet : activé inclut aussi les affectations des tâches terminées.
 
-Les lignes sont par ressource, et au sein d'une ressource par début. Le bloc *Résumé* compte les *Ressources*, les *Affectations* et les *Tâches sans ressource*. Les colonnes incluent la ressource, la tâche, le début et la fin, *Reste (jo)*, *Unités/jour*, *Av*, *Critique* et *État*.
+Les lignes sont classées par ressource, et au sein d'une ressource par début. Le bloc *Résumé* compte les *Ressources*, les *Affectations* et les *Tâches sans ressource*. Les colonnes sont *Ressource*, *Type*, *WBS*, *Nom*, *Début*, *Fin*, *Reste (jo)*, *Unités/jour*, *Av*, *Critique* et *État*. *Ressource* et *Type* n'apparaissent que sur la première ligne d'une ressource. L'état de chaque ligne est le même que dans le rapport d'avancement : *Terminé*, *En cours*, *Non démarrée*, *Aurait dû démarrer* ou *Aurait dû se terminer*.
 
 ## Résumé WBS
 

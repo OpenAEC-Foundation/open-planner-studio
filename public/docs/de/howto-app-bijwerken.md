@@ -22,7 +22,7 @@ Kurz bevor das Update installiert wird, legt die App außerdem eine Sicherungsko
 
 ### Selbst nach einer neuen Version suchen
 
-1. Wählen Sie *Einstellungen › Projekt › Einstellungen*. Sie können auch *Datei › Einstellungen* wählen oder das Zahnrad oben.
+1. Wählen Sie *Einstellungen › Projekt › App-Einstellungen*. Sie können auch *Datei › App-Einstellungen* wählen oder das Zahnrad oben.
 2. Wählen Sie die Registerkarte *Erweitert*. Unter *Version* steht die Nummer Ihrer aktuellen Version.
 3. Klicken Sie auf *Nach Updates suchen*. Das Fenster *Software-Update* öffnet sich und zeigt *Wird geprüft…*. Danach steht dort *Sie verwenden die neueste Version* oder die Meldung, dass eine neue Version vorhanden ist, mit derselben Schaltfläche *Herunterladen & installieren*.
 
@@ -30,14 +30,14 @@ Im Browser tut diese Schaltfläche nichts Besonderes. Das Fenster zeigt sofort *
 
 ### Lesen, was neu ist
 
-1. Starten Sie die Desktop-App zum ersten Mal in einer anderen Version als beim letzten Mal oder nach einer Neuinstallation, dann öffnet sich ein Fenster von selbst. Das Fenster heißt *Du bist auf dem neuesten Stand!*
-2. Oben steht der Sprung von der vorherigen zur neuen Version. Nach einer Neuinstallation wird nur die neue Version angezeigt.
-3. Hat die App für diese Version eine Zusammenfassung, sehen Sie einen Hauptpunkt und vier kleinere Punkte. Der Hauptpunkt kann die Schaltfläche *Anleitung lesen* haben. Sonst sehen Sie nur den Versionssprung und das, was darunter steht.
-4. Mit *Vollständige Versionshinweise* öffnen Sie das Änderungsprotokoll auf GitHub. Funktioniert das nicht, steht dort *Die Versionshinweise konnten nicht geöffnet werden.*
+1. Starten Sie die Desktop-App zum ersten Mal in einer anderen Version als beim letzten Mal, dann öffnet sich ein Fenster von selbst. Das Fenster heißt *Du bist auf dem neuesten Stand!* Nach einer Neuinstallation öffnet es sich nicht: Der erste Start ist kein Update. Wenn Sie es trotzdem sehen möchten, nutzen Sie die Schaltfläche *Neuerungen* (siehe unten).
+2. Oben steht der Sprung von der vorherigen zur neuen Version. Mit der Schaltfläche *Neuerungen* wird nur die neue Version angezeigt.
+3. Hat die App für diese Version eine Zusammenfassung eingebaut, sehen Sie einen Hauptpunkt und vier kleinere Punkte. Der Hauptpunkt kann die Schaltfläche *Anleitung lesen* haben. Sonst sehen Sie nur den Versionssprung und das, was darunter steht.
+4. Mit *Vollständige Versionshinweise* öffnen Sie das Änderungsprotokoll auf GitHub. Wenn das nicht funktioniert, steht dort *Die Versionshinweise konnten nicht geöffnet werden.*
 5. Unter *Dieses Update in Zahlen* stehen die Anzahl Tage seit der vorherigen Version, die Anzahl Commits und die Anzahl hinzugefügter Codezeilen. Kann die App die Größenänderung des Installationspakets ermitteln, wird auch diese angezeigt. Jede Zahl wird nur angezeigt, wenn sie verfügbar ist.
 6. Klicken Sie auf *Verstanden*, um das Fenster zu schließen.
 
-Wenn Sie dieses Fenster später noch einmal sehen möchten, wählen Sie *Einstellungen › Projekt › Einstellungen*, die Registerkarte *Erweitert* und unter *Version* die Schaltfläche *Neuerungen*. Das Fenster öffnet dann für Ihre aktuelle Version, ohne vorherige Version.
+Wenn Sie dieses Fenster später noch einmal sehen möchten, wählen Sie *Einstellungen › Projekt › App-Einstellungen*, die Registerkarte *Erweitert* und unter *Version* die Schaltfläche *Neuerungen*. Dann zeigt das Fenster Ihre aktuelle Version, ohne vorherige Version.
 
 ## Stolperfallen und was die App dann tut
 

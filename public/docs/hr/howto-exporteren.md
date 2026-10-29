@@ -12,21 +12,21 @@ Savjetnik radi u programu MS Project, klijent u Primaveri, podizvođač želi za
 2. U prozoru odaberite naziv i mjesto. Aplikacija predlaže naziv projekta, s nastavkom za taj format. Listovi napretka nazivaju se *projectname-voortgang* i otvaraju se u vašoj mapi za preuzimanja, ako je to moguće.
 3. Potvrdite. Ako izvoz uspije, ne pojavljuje se nikakva poruka, osim poruka u nastavku. Iz *Datoteka › Izvezi* nakon toga se vraćate na karticu *Početna*, čak i ako odustanete od prozora. Ako odustanete od prozora za izvoz s popisa na kartici *Početna*, ništa se ne događa.
 
-Ako vaš preglednik sprema samo kao preuzimanje (kao Firefox), datoteka je u vašoj mapi za preuzimanja odmah nakon koraka 1. Vidite poruku *Spremljeno kao preuzimanje: 'name.xml' sada je u vašoj mapi za preuzimanja. Ovo okruženje ne dopušta aplikaciji da izravno zapisuje na odabrano mjesto.*
+Ako vaš preglednik sprema samo kao preuzimanje (kao Firefox), datoteka je u vašoj mapi za preuzimanja odmah nakon koraka 1. Vidite poruku *Spremljeno kao preuzimanje: „name.xml“ sada je u vašoj mapi za preuzimanja. Ovo okruženje ne dopušta aplikaciji da izravno zapisuje na odabrano mjesto.*
 
 ### Koji format odabirete?
 
 Popis na kartici *Početna* i kartice u *Datoteka › Izvezi* nude iste formate:
 
 - *Napredak (Excel)* i *Napredak (CSV)*, na karticama *List napretka (Excel)* i *List napretka (CSV)*: sažet list s ID-om, WBS-om, nazivom, datumima i dovršenošću, koji se šalje onima koji unose napredak.
-- *CSV (;)*, na kartici *CSV (odvojeno točka-zarezom)*: popis zadataka koji otvarate u proračunskoj tablici.
+- *CSV (;)*, na kartici *CSV (odvojeno točka-zarezom)*: tablica zadataka koju otvarate u proračunskoj tablici.
 - *MS Project XML*: može se otvoriti u programu Microsoft Project.
 - *Primavera P6 XML*: za Oracle Primavera P6.
-- *IFC 4x3*: vlastiti format aplikacije, sa svim podacima.
+- *IFC*: vlastiti format aplikacije sa svim podacima, u IFC shemi projekta (zadano IFC 4.3 ADD2).
 
 ### Izvoz IFC-a s datotekom biblioteke
 
-Ako je vaš projekt povezan s bibliotekom resursa, potvrdni okvir *Spremi i datoteku biblioteke* nalazi se ispod kartica u *Datoteka › Izvezi*. Ako ga označite i odaberete *IFC 4x3*, aplikacija dvaput traži mjesto: prvo za projekt, zatim za *projectname-bibliotheek.ifc*. Ovaj potvrdni okvir postoji samo u *Datoteka › Izvezi*, a ne na popisu na kartici *Početna*.
+Ako je vaš projekt povezan s bibliotekom resursa, potvrdni okvir *Spremi i datoteku biblioteke* nalazi se ispod kartica u *Datoteka › Izvezi*. Ako ga označite i odaberete *IFC*, aplikacija dvaput traži mjesto: prvo za projekt, zatim za *projectname-bibliotheek.ifc*. Ovaj potvrdni okvir postoji samo u *Datoteka › Izvezi*, a ne na popisu na kartici *Početna*.
 
 ### Vraćanje lista napretka
 

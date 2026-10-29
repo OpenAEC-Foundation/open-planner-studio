@@ -2,8 +2,10 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, OctagonAlert, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import { useDisplayDate } from '@/hooks/displayDate';
+import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
+import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
 import { formatLagShort } from '@/utils/lagFormat';
+import { parseableHourSuffix } from '@/utils/durationFormat';
 import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
 import {
@@ -32,6 +34,7 @@ export function WarningsPanel() {
   const { t: tTask } = useTranslation('task');
   const { t: tMenu } = useTranslation('menu');
   const dd = useDisplayDate();
+  const taskDate = useTaskDateText();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const resources = useAppStore(s => s.resources);
@@ -70,10 +73,21 @@ export function WarningsPanel() {
     return task.wbsCode ? `${task.wbsCode} ${task.name}` : task.name;
   };
 
-  const constraintLabel = (facts: ScheduleWarningFacts): string => {
+  // B4: een datum van een taak toont een tijd alleen als het moment midden op de werkdag valt. Zonder
+  // taak (een verwijderde taak) blijft alleen de datum.
+  const dateOfTask = (taskId: string | undefined, value: string | undefined, side: 'start' | 'end', milestoneOwn: boolean): string => {
+    const task = taskId ? taskById.get(taskId) : undefined;
+    return task ? taskDate(task, value, side, { milestoneOwn }) : dd.date(value);
+  };
+
+  const warningTaskId = (w: ScheduleWarning): string | undefined => (w.target.type === 'task' ? w.target.taskId : undefined);
+
+  const constraintLabel = (facts: ScheduleWarningFacts, taskId: string | undefined): string => {
     if (!facts.constraintType) return '';
     const name = tTask(`constraintType.${facts.constraintType}`);
-    return facts.constraintDate ? `${name} ${dd.date(facts.constraintDate)}` : name;
+    const field = constraintDateField(facts.constraintType);
+    const side = field ? taskDateFieldSide(field) : 'start';
+    return facts.constraintDate ? `${name} ${dateOfTask(taskId, facts.constraintDate, side, false)}` : name;
   };
 
   const describe = (w: ScheduleWarning): string => {
@@ -82,8 +96,11 @@ export function WarningsPanel() {
       case 'scheduleError': return t('warnings.kind.scheduleError', {
         message: scheduleErrorText({ error: f.message, errorInfo: f.errorInfo }, t),
       });
-      case 'missedDeadline': return t('warnings.kind.missedDeadline', { deadline: dd.date(f.deadline), finish: dd.date(f.finish) });
-      case 'violatedConstraint': return t('warnings.kind.violatedConstraint', { constraint: constraintLabel(f) });
+      case 'missedDeadline': return t('warnings.kind.missedDeadline', {
+        deadline: dateOfTask(warningTaskId(w), f.deadline, 'end', false),
+        finish: dateOfTask(warningTaskId(w), f.finish, 'end', true),
+      });
+      case 'violatedConstraint': return t('warnings.kind.violatedConstraint', { constraint: constraintLabel(f, warningTaskId(w)) });
       case 'outOfSequence': return t('warnings.kind.outOfSequence');
       case 'truncatedLead': return t('warnings.kind.truncatedLead');
       case 'droppedSequence': return t('warnings.kind.droppedSequence');
@@ -115,7 +132,9 @@ export function WarningsPanel() {
         const seq = seqById.get(tg.sequenceId);
         const type = seq ? (SEQUENCE_TYPE_OPTIONS.find(o => o.value === seq.type)?.label ?? seq.type) : '';
         // Weergave-only: het decimaalteken van de app-taal, net als het gezondheidsrapport.
-        const lag = seq ? localizeDecimalPoint(formatLagShort(seq), i18n.language) : '';
+        const lag = seq
+          ? localizeDecimalPoint(formatLagShort(seq, parseableHourSuffix(t('duration.suffixHour'))), i18n.language)
+          : '';
         const relation = t('warnings.target.relation', {
           predecessor: taskLabel(tg.predecessorId), successor: taskLabel(tg.successorId),
         });

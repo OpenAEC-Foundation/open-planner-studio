@@ -22,11 +22,11 @@ Bez svátků aplikace naplánuje práci i na Vánoce nebo Královský den. Nový
 
 Pro Nizozemsko aplikace každý rok zapíše do seznamu tyto svátky: Nový rok, Velký pátek, Velikonoce (dva dny), Královský den, Nanebevstoupení Páně, Letnice (dva dny) a Vánoce (25. a 26. prosince). Pokud Královský den připadne na neděli, je 26. dubna. Den osvobození je v seznamu jen v lustrových letech, tedy v letech dělitelných pěti, například 2025 a 2030.
 
-Roky se řídí obdobím projektu: od roku před datem začátku do roku po datu konce. Pokud projekt nemá datum konce, platí nejvýše tři roky po roce začátku. Začátek a konec upravíte na kartě *Nastavení › Projekt › Info o projektu*.
+Roky se řídí obdobím projektu: od roku před datem začátku do roku po datu konce. Pokud projekt nemá datum konce, platí nejvýše tři roky po roce začátku. Začátek a konec upravíte na kartě *Nastavení › Projekt › Nastavení projektu*.
 
 ### Nové vygenerování po změně období projektu
 
-Pokud se váš projekt posune nebo dostane pozdější datum konce, svátky už nové roky nepokrývají. Aplikace to oznámí v okně *Kalendáře*, například: *Svátky pokrývají 2025–2028; projekt běží do 2030. Vygenerovat znovu?* Klikněte na *Vygenerovat znovu*. Aplikace použije stejné volby jako minule (země, region, letní stavební uzávěra) pro roky projektu. Potom klikněte na *Použít*. Tuto zprávu uvidíte jen u kalendáře, jehož svátky byly vygenerovány dříve.
+Pokud se váš projekt posune nebo dostane pozdější datum konce, svátky už nové roky nepokrývají. Aplikace to oznámí v okně *Kalendáře*, například: *Svátky pokrývají 2025–2028; vygenerovat znovu do 2030 včetně?* Klikněte na *Vygenerovat znovu*. Aplikace použije stejné volby jako minule (země, region, letní stavební uzávěra) pro roky projektu. Potom klikněte na *Použít*. Tuto zprávu uvidíte jen u kalendáře, jehož svátky byly vygenerovány dříve.
 
 ### Přidání vlastního dne nebo období volna
 
@@ -35,7 +35,7 @@ Pokud se váš projekt posune nebo dostane pozdější datum konce, svátky už 
 3. Upravte *Od*. Pro jeden den nechte *Do* prázdné, nebo pro období vyplňte poslední den volna, například pro zimní volno.
 4. Klikněte na *Použít*.
 
-Ikonou koše za řádkem svátek odstraníte.
+Ikonou koše za řádkem odstraníte svátek.
 
 ### Odstranění všech svátků
 
@@ -58,5 +58,5 @@ V poli *Země* zvolte *Žádné svátky* a klikněte na *Vygenerovat*. Seznam je
 - [Kalendáře a pracovní dny](docs://uitleg-kalenders): jak aplikace při počítání pracovních dnů zohledňuje svátky a letní stavební uzávěru.
 - [Vytvoření a přiřazení kalendáře](docs://howto-kalender-maken-en-toewijzen): vytvoření vlastního kalendáře, do kterého zapíšete svátky.
 - [Okna kalendářů](docs://ref-kalenders): všechna pole oken kalendářů.
-- [Nový projekt a Info o projektu](docs://ref-projectinfo): sada svátků pro nový projekt.
+- [Nový projekt a Nastavení projektu](docs://ref-projectinfo): sada svátků pro nový projekt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): kromě svátků má kalendář projektu období volna *Frost delay, foundations*.

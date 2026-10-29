@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <Name>Verslag</Name><StartDate>2026-03-02T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay>
+  <Tasks>
+    <Task><UID>1</UID><ID>1</ID><Name>Fundering</Name><OutlineLevel>1</OutlineLevel>
+      <Start>2026-03-02T08:00:00</Start><Finish>2026-03-03T17:00:00</Finish><Duration>PT16H0M0S</Duration>
+      <Baseline><Number>1</Number><Start>2026-03-02T08:00:00</Start><Finish>2026-03-03T17:00:00</Finish></Baseline>
+      <HyperlinkAddress>https://example.org/fundering.pdf</HyperlinkAddress></Task>
+  </Tasks>
+</Project>

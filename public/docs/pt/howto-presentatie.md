@@ -19,9 +19,9 @@ No modo de apresentação o friso desaparece, por isso prepare antes o que quer 
 
 ### Iniciar a apresentação
 
-Escolha *Visualização › Apresentação › Apresentação*, ou prima F11. O friso, os separadores, a barra de estado e o painel do lado direito desaparecem. Vê a tabela de tarefas, o Gantt e, se os tiver ativado, o histograma e o minimapa. Durante alguns segundos, na parte inferior, aparece a mensagem *Prima Esc ou F11 para sair do ecrã inteiro.*
+Escolha *Visualização › Apresentação › Apresentação*. Na aplicação para computador também pode premir F11. No navegador, F11 pertence ao próprio navegador: coloca a janela do navegador em ecrã inteiro e deixa a aplicação como está. O friso, os separadores, a barra de estado e o painel do lado direito desaparecem. Vê a tabela de tarefas, o Gantt e, se os tiver ativado, o histograma e o minimapa. Durante alguns segundos, na parte inferior, aparece a mensagem *Prima Esc ou F11 para sair do ecrã inteiro.*
 
-Pode iniciar a apresentação a partir de qualquer separador, também a partir de *Tabela* ou *Relatório*. Vê sempre o Gantt do projeto aberto, e quando parar volta ao separador onde começou.
+Na aplicação para computador pode iniciar a apresentação a partir de qualquer separador com F11, também a partir de *Tabela* ou *Relatório*. No navegador só a pode iniciar com *Visualização › Apresentação › Apresentação*. Vê sempre o Gantt do projeto aberto, e quando parar volta ao separador onde começou. No navegador, esse separador é, portanto, *Visualização*.
 
 ### Parar a apresentação
 
@@ -33,7 +33,7 @@ Prima Esc ou F11. O friso e os painéis voltam a aparecer no separador onde come
 
 **As notificações continuam visíveis.** Uma mensagem da aplicação, por exemplo um erro ao guardar, também aparece no modo de apresentação. Sem friso nem barra de estado, uma mensagem destas é o único sinal de que algo está errado.
 
-**Prepare antes a vista dividida, o minimapa e os layouts.** Para isso precisa do friso, e esse está oculto neste modo. O zoom funciona, com a roda do rato ou com Ctrl+= e Ctrl+-. + e - também funcionam, mas só quando o foco está no Gantt. Depois de F11 o foco fica muitas vezes na tabela de tarefas, por isso clique primeiro no Gantt.
+**Prepare antes a vista dividida, o minimapa e os layouts.** Para isso precisa do friso, e esse está oculto neste modo. O zoom funciona, com a roda do rato ou com Ctrl+= e Ctrl+-. + e - também funcionam, mas só quando o foco está no Gantt. Depois de iniciar a apresentação, o foco fica muitas vezes na tabela de tarefas, por isso clique primeiro no Gantt.
 
 **O ecrã inteiro não funciona.** Além de ocultar o friso, a aplicação também pede realmente o ecrã inteiro. Se o navegador ou a janela recusar, só desaparecem o friso e os painéis. A apresentação continua a funcionar. Se sair do ecrã inteiro de outra forma que não com Esc ou F11, por exemplo com uma tecla do sistema operativo, o modo de apresentação também termina.
 

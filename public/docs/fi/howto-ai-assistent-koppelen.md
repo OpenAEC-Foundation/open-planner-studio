@@ -32,11 +32,37 @@ Silta kuuntelee vain omalla tietokoneella, yhdessä portissa. Oletuksena portti 
 3. Token on piilotettu. Silmäkuvakkeella sen voi näyttää. Kopiointipainikkeet kopioivat aina todellisen arvon, vaikka näyttö piilottaisi tokenin.
 4. Pyydä avustajaa hakemaan työkalujen luettelo. Sama tarkistus on myös yhdistämiskehotteessa: avustajan pitää nähdä työkalut, joiden etuliite on `planner_`. Odotettu määrä on yhdistämiskehotteessa.
 
-Ikkuna tarjoaa kolme tapaa yhdistää:
+Ikkuna tarjoaa kolme tapaa kytkeytyä:
 
 - *Asetuskatkelma*: pieni asetusteksti, joka liitetään asiakkaan MCP-asetuksiin.
-- *Yhdistämiskehote*: teksti, joka liitetään tekoälyavustajaan. Sen jälkeen avustaja yhdistää itse.
-- *Päätepiste* ja *Todennus*: erilliset tiedot. Päätepiste on `http://localhost:3877/mcp` ja kuljetustapana *streamable HTTP*. Jokainen pyyntö tarvitsee otsakkeen `Authorization: Bearer`, jota seuraa token.
+- *Yhdistämiskehote*: teksti, joka liitetään tekoälyavustajaan. Sen jälkeen avustaja kytkeytyy itse.
+- *Päätepiste* ja *Todennus*: erilliset tiedot. Päätepiste on `http://localhost:3877/mcp` ja kuljetustapana *streamable HTTP*. Jokainen pyyntö tarvitsee otsakkeen `Authorization: Bearer`, jota seuraa token. Asiakkaan on myös tuettava MCP-istuntoja: yhdistettäessä silta antaa istuntokoodin otsakkeessa `Mcp-Session-Id`, ja se hylkää jokaisen myöhemmän pyynnön ilman tätä koodia. Claude Code ja `mcp-remote` hoitavat tämän itse.
+
+**Yhdistä uudelleen sovelluksen päivityksen jälkeen.** Jos tekoälyasiakas oli jo yhdistettynä sovelluksen vanhempaan versioon, se ei vielä lähetä istuntokoodia, ja silta hylkää jokaisen pyynnön. Yhdistä siksi päivityksen jälkeen uudelleen: aloita uusi istunto Claude Code -ohjelmassa ja sulje Claude Desktop kokonaan ja käynnistä se uudelleen.
+
+**Claude Code.** Asetuskatkelma sopii suoraan Claude Code -ohjelmaan. Anna tämä komento päätteessä ja korvaa `<token>` omalla tokenillasi:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Katkelman voi myös laittaa tiedostoon `.mcp.json` projektikansiossa. Tätä tiedostoa ei silloin tallenneta gitiin, koska token antaa pääsyn aikatauluun. Palvelin tiedostosta `.mcp.json` on hyväksyttävä Claude Code -ohjelmassa ensimmäisellä kerralla.
+
+**Claude Desktop.** Asetuskatkelma ei sovi suoraan Claude Desktop -ohjelmaan. Tiedostossa `claude_desktop_config.json` nimetään ohjelma, jonka Claude Desktop käynnistää itse, eikä osoite. Käytä siksi välissä ulkoista työkalua `mcp-remote`, joka vaatii Node.js:n. Valitse Claude Desktop -ohjelmassa *Asetukset › Kehittäjä › Muokkaa asetuksia*, lisää tiedostoon tämä (omalla tokenillasi) ja käynnistä Claude Desktop uudelleen:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Token on tarkoituksella kohdassa `env` eikä kohdassa `args`: Windowsissa Claude Desktop rikkoo argumentin, jossa on väli. *Mukautettu liitin* Claudessa (*Mukauta › Liittimet*) ei toimi sillan kanssa. Claude yhdistää silloin Anthropicin pilvestä, eikä se pääse sillalle omalla tietokoneellasi.
 
 Ryhmässä *Kytkentä* on myös kenttä *Token*. Se on pitkä, satunnainen koodi, jonka sovellus luo ja tallentaa tälle tietokoneelle. Ikkunassa lukee *Tämä token antaa pääsyn avoimeen aikatauluun. Älä jaa sitä muille.* Painikkeella *Luo uusi token* luodaan uusi token. Sovellus kysyy ensin *Uuden tokenin luominen katkaisee kaikki nykyiset yhteydet. Jatketaanko?* Jos silta on käynnissä, se käynnistyy uudelleen uudella tokenilla, eikä vanha token toimi enää.
 
@@ -55,22 +81,22 @@ Kohdassa *Turvallisuus* ovat painikkeet, joilla tekoälyä rajoitetaan:
 - *Keskeytä*: tekoäly ei saa tilapäisesti muuttaa mitään, lukeminen on yhä sallittu. Silta pysyy aktiivisena. Painikkeessa lukee *Jatka*.
 - *Vain luku*: kaikki työkalut, jotka muuttavat jotakin, estetään, kun tämä on päällä.
 - *Auto-varmuuskopio: päällä*: ennen tekoälyn ensimmäistä muutosta asiakirjassa sovellus kirjoittaa IFC-varmuuskopion. Tämä on oletuksena päällä. Painikkeella sen voi kytkeä pois, jolloin siinä lukee *Auto-varmuuskopio: pois*. Tämä tapahtuu kerran asiakirjaa kohden aina, kun silta käynnistetään.
-- *Varmuuskopioi nyt*: tekee heti varmuuskopion aktiivisesta asiakirjasta. Sen jälkeen lukee *Varmuuskopio luotu:* ja tiedoston nimi.
+- *Varmuuskopioi nyt*: tekee heti varmuuskopion aktiivisesta asiakirjasta. Sen jälkeen siinä lukee *Varmuuskopio luotu:* ja tiedoston nimi.
 - *Avaa varmuuskopiokansio*: avaa kansion, jossa varmuuskopiot ovat.
 
 Varmuuskopiot ovat kansiossa `ai-backups` sovelluksen datakansiossa. Sovellus säilyttää uusimmat varmuuskopiot ja karsii vanhempia. Tarkka tapa on kuvattu artikkelissa [AI-työkalut](docs://ref-ai-tools).
 
 ### 6. Varmista, että tekoälyavustaja suunnittelee hyvin
 
-Avustaja, joka tuntee työkalut, voi silti laatia aikataulun, jota suunnittelija ei voi käyttää: tehtäviä ilman riippuvuuksia, kiinteä päivämäärä jokaisessa tehtävässä tai liian hienojakoinen rakenne. Siksi avustaja saa suunnittelusäännöt kolmella tavalla. Ensimmäisten kahden kohdalla ei tarvitse tehdä mitään.
+Avustaja suunnittelee hyvin vain, jos se tuntee suunnittelusäännöt. Miksi se on tärkeää ja mitä säännöt sisältävät, kerrotaan artikkelissa [Miten AI-linkki toimii](docs://uitleg-ai-koppeling). Nämä vaiheet tehdään itse:
 
-1. **Ydinsäännöt tulevat mukaan itsestään.** Yhdistettäessä silta lähettää lyhyen tekstin ydinsäännöistä. Monet asiakkaat laittavat tekstin järjestelmäkehotteeseen. Tekeekö oma asiakas niin, riippuu asiakkaasta. Teksti sanoo muun muassa: aloita välitavoitteista, luo tehtäviä noin päivän ja kahden viikon välillä, ohjaa aikataulua riippuvuuksilla kiinteiden päivämäärien sijaan ja kerro lopuksi, mitä oletit.
-2. **Yhdistämiskehote osoittaa täyteen oppaaseen.** *Kytkentätiedot*-ikkunan yhdistämiskehote pyytää avustajaa lukemaan ensin suunnitteluoppaan työkalulla `planner_get_planning_guide`. Tämä palauttaa englanninkielisen oppaan avustajille: samat periaatteet kuin artikkelissa [Hyvä suunnittelu](docs://gids-goed-plannen), ja jokaisen periaatteen kohdalla työkalut, joita avustaja käyttää siihen. Oppaan voi lukea itse osoitteessa `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Jos kehotetta ei käytetä, pyydä avustajaa itse: *Lue suunnitteluopas työkalulla planner_get_planning_guide ennen kuin muutat mitään.*
-3. **Valinnainen: taidot.** Taito on pieni ohjetiedosto, jonka avustaja lukee jokaisessa istunnossa. Myöhemmässä keskustelussa se tietää siksi myös oikean työtavan. Taitoja on kaksi, molemmat englanniksi: *goed-plannen* aikataulun laatimiseen tai uudelleenrakentamiseen ja *progress-update* viikoittaiseen edistymispäivitykseen. Tämä toimii vain avustajalla, joka tukee taitoja. Taidot itse mainitsevat Claude Coden ja muut vastaavat avustajat. Jokainen taito on tiedosto `SKILL.md` omassa kansiossaan, joka on nimetty taidon mukaan: `.claude/skills/goed-plannen/SKILL.md` ja `.claude/skills/progress-update/SKILL.md` projektikansiossa, jossa avustaja työskentelee. Samat kansiot kohdassa `~/.claude/skills/` tekevät taidoista käytettävissä kaikissa projekteissa.
+1. **Ydinsäännöille ei tehdä mitään.** Ne tulevat mukaan yhdistettäessä. Se, laitetaanko ne asiakkaan järjestelmäkehotteeseen, riippuu asiakkaasta.
+2. **Pyydä avustajaa lukemaan suunnitteluopas.** Ikkunassa *Kytkentätiedot* oleva yhdistämiskehote pyytää avustajaa lukemaan oppaan työkalulla `planner_get_planning_guide`. Jos kehotetta ei käytetä, pyydä avustajaa itse: *Lue suunnitteluopas työkalulla planner_get_planning_guide ennen kuin muutat mitään.* Oppaan voi lukea myös itse osoitteessa `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Valinnainen: asenna taidot.** Tämä toimii vain avustajalla, joka tukee taitoja. Sijoita taitojen *goed-plannen* ja *progress-update* `SKILL.md` polkuihin `.claude/skills/goed-plannen/SKILL.md` ja `.claude/skills/progress-update/SKILL.md` projektikansiossa, jossa avustaja työskentelee. Vaihtoehtoisesti ne voi sijoittaa kansioon `~/.claude/skills/`, jolloin ne ovat käytössä kaikissa projekteissa.
 
-Tiedostot saadaan kahdella tavalla. Pyydä avustajaa kutsumaan työkalua `planner_get_planning_guide`, kun `part` on `skill`: vastaus sisältää molemmat tekstit ja jokaiselle taidolle paikan, johon se kuuluu. Ne voi myös ladata osoitteista `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` ja `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Jos *goed-plannen* on yhä tallella sovelluksen vanhemmasta versiosta, korvaa se: vanha teksti on hollanniksi ja viittaa ohjeartikkeliin eikä avustajien oppaaseen.
+Tiedostot saadaan kahdella tavalla. Pyydä avustajaa kutsumaan työkalua `planner_get_planning_guide`, kun `part` on `skill`: vastaus sisältää molemmat tekstit ja kummallekin taidolle paikan, johon se kuuluu. Tiedostot voi myös ladata osoitteista `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` ja `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Jos *goed-plannen* on yhä tallella sovelluksen vanhemmasta versiosta, korvaa se: vanha teksti on hollanniksi ja viittaa ohjeartikkeliin eikä avustajien oppaaseen.
 
-*AI-toiminta*-paneelista nähdään, onko avustaja todella lukenut oppaan: silloin siellä on kutsu työkalulle `planner_get_planning_guide`. Avustajan lopullisen vastauksen pitäisi sisältää luettelo tekemistään oletuksista: arvioidut kestot, valittu rakenne, riippuvuudet, jotka se loi itse, ja jokainen asettamansa rajoite. Jos luettelo puuttuu, pyydä sitä. Edistymispäivityksen jälkeen, kun *progress-update* on käytetty, vastauksessa pitäisi mainita raportointipäivä, uusi loppupäivä ja ero perustasoon verrattuna.
+Sen, onko avustaja todella lukenut oppaan, näkyy paneelissa *Toimintapaneeli*: silloin siellä on kutsu työkalulle `planner_get_planning_guide`. Avustajan lopullisen vastauksen pitäisi sisältää luettelo tekemistään oletuksista: arvioidut kestot, valittu rakenne, itse luodut riippuvuudet ja jokainen asettamansa rajoite. Jos luettelo puuttuu, pyydä sitä. Edistymispäivityksen jälkeen, kun *progress-update* on käytetty, vastauksessa pitäisi mainita raportointipäivä, uusi loppupäivä ja ero perustasoon verrattuna.
 
 ## Ongelmatilanteet ja mitä sovellus silloin tekee
 
@@ -94,8 +120,8 @@ Tiedostot saadaan kahdella tavalla. Pyydä avustajaa kutsumaan työkalua `planne
 
 ## Katso myös
 
-- [Palautteen antaminen](docs://howto-feedback-geven): jos linkki toimii eri tavalla kuin tässä kuvataan, ilmoita siitä.
+- [Palautteen antaminen](docs://howto-feedback-geven): jos yhteys toimii eri tavalla kuin tässä kuvataan, ilmoita siitä.
 - [Miten AI-linkki toimii](docs://uitleg-ai-koppeling): mitä linkki on, miksi avustaja työskentelee avoimessa projektissa ja mitä se ei saa tehdä.
-- [AI-työkalut](docs://ref-ai-tools): kaikki `planner_*`-työkalut ryhmittäin, virhekoodit ja se, kuinka kauan varmuuskopiot säilytetään.
+- [AI-työkalut](docs://ref-ai-tools): kaikki `planner_*`-työkalut ryhmittäin, virhekoodit ja se, kuinka kauan varmuuskopioita säilytetään.
 - [Hyvä suunnittelu](docs://gids-goed-plannen): suunnitteluperiaatteet. Avustaja saa ne englanninkielisenä versiona, johon on lisätty työkalut.
 - [Asetukset](docs://ref-instellingen): tekoälyn asetukset.

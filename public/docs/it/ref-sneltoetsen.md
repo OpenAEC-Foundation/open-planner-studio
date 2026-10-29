@@ -8,13 +8,13 @@ Tutte le combinazioni di tasti dell'app, raggruppate come nella finestra *Scorci
 
 **Combinazione esatta.** L'app confronta Ctrl, Shift e Alt in modo esatto. Ctrl+Alt+S quindi non fa nulla: i tasti devono corrispondere esattamente all'elenco.
 
-**Aprire la finestra.** Premi Ctrl+/ oppure scegli *Impostazioni › Scorciatoie da tastiera › Scorciatoie da tastiera*. Ctrl+/ chiude di nuovo la finestra. La finestra è di sola lettura. Non mostra tutti i tasti di questa guida: dei tasti della tabella mostra solo le prime sei voci, e non i tasti delle finestre di dialogo in fondo a questo articolo.
+**Aprire la finestra.** Premi Ctrl+/ oppure scegli *Impostazioni › Scorciatoie da tastiera › Scorciatoie da tastiera*. Anche Ctrl+/ chiude di nuovo la finestra. La finestra è di sola lettura. Non mostra tutti i tasti di questa guida: dei tasti della tabella mostra solo le prime sei voci, e non i tasti delle finestre di dialogo in fondo a questo articolo.
 
 **Quando un tasto non funziona.** Ogni voce indica le sue limitazioni. Tre regole valgono quasi sempre:
 
-- In un campo di input, un elenco a discesa o una casella di testo l'app non intercetta i tasti, quindi puoi semplicemente digitare. Eccezioni: F5, Ctrl+S, F11 ed Esc durante la presentazione funzionano anche in un campo. Nell'app compilata (desktop e la versione web sul sito) vale lo stesso per Ctrl+Shift+S, Ctrl+O e Ctrl+N.
-- Mentre una finestra di dialogo o un'altra finestra è aperta, i tasti contrassegnati sotto con *Non in una finestra di dialogo* non funzionano. Lo stesso vale per la modalità presentazione, il tour, la finestra di benvenuto e le domande che attendono una risposta, per esempio il consenso quando installi un'estensione.
-- Il cambio di documento (da Ctrl+1 a 9, Ctrl+N, Ctrl+O) non funziona nemmeno finché *File › Info progetto* contiene modifiche che non hai ancora confermato con *Applica*. Scarta o applica prima quelle modifiche.
+- In un campo di input, un elenco a discesa o una casella di testo l'app non intercetta i tasti, quindi puoi semplicemente digitare. Eccezioni: F5, Ctrl+S, F11 ed Esc durante la presentazione funzionano anche in un campo. Se il focus è su un elenco a discesa chiuso, funzionano anche i tasti con Ctrl, per esempio Ctrl+Z dopo una scelta (non Ctrl+Delete e Ctrl+Backspace). Questo non vale in un elenco aperto o in una finestra di dialogo. Nell'app compilata (desktop e la versione web sul sito) vale lo stesso per Ctrl+Shift+S, Ctrl+O e Ctrl+N.
+- Mentre una finestra di dialogo o un'altra finestra è aperta, i tasti contrassegnati sotto con *Non in una finestra di dialogo* non funzionano. Questo vale anche per il tour, la finestra di benvenuto e le domande in attesa di risposta, come la domanda se salvare le modifiche e il consenso all'installazione di un'estensione. La maggior parte di questi tasti non funziona nemmeno in modalità presentazione. Eccezione: i tasti di modifica Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y e Delete/Backspace funzionano durante la presentazione.
+- Il cambio di documento (Ctrl+1 fino a 9, Ctrl+N, Ctrl+O) non funziona nemmeno finché *File › Impostazioni progetto* contiene modifiche che non hai ancora confermato con *Applica*. Scarta o applica prima quelle modifiche.
 
 ## File
 
@@ -24,29 +24,29 @@ Tutte le combinazioni di tasti dell'app, raggruppate come nella finestra *Scorci
 
 **Ctrl+Shift+S** — *Salva come*: chiede dove deve essere salvato il file. In una versione di sviluppo non funziona in un campo di input.
 
-**Ctrl+O** — *Apri*: apre un file, di solito in una nuova scheda. Non in una finestra di dialogo e non con modifiche non applicate in Info progetto.
+**Ctrl+O** — *Apri*: apre un file, di solito in una nuova scheda. Non in una finestra di dialogo e non con modifiche non applicate in Impostazioni progetto.
 
-**Ctrl+N** — *Nuovo progetto*: apre la finestra *Nuovo progetto*. Non in una finestra di dialogo e non con modifiche non applicate in Info progetto.
+**Ctrl+N** — *Nuovo progetto*: apre la finestra *Nuovo progetto*. Non in una finestra di dialogo e non con modifiche non applicate in Impostazioni progetto.
 
 L'app compilata (desktop e la versione web sul sito) blocca anche alcuni tasti del browser, così non danno fastidio: Ctrl+R e Ctrl+Shift+R (ricarica), F12, Ctrl+Shift+I e Ctrl+Shift+J (strumenti per sviluppatori), Ctrl+U (visualizza sorgente) e Ctrl+G, Ctrl+F e Ctrl+L (trova e barra degli indirizzi). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N e F5 vanno all'app stessa.
 
 ## Modifica
 
-**Ctrl+C** — *Copia*: copia le attività selezionate. Solo con una selezione. Nella tabella attività Ctrl+C copia le celle selezionate; la tabella gestisce questo da sola.
+**Ctrl+C** — *Copia*: copia le attività selezionate. Solo con una selezione. Non in una finestra di dialogo. Non in *File*, non nelle schede *Rapporto* e *IFC* e non mentre il pannello risorse completo è aperto. Nella tabella attività Ctrl+C copia le celle selezionate; la tabella gestisce questo da sola.
 
-**Ctrl+V** — *Incolla*: incolla le attività copiate. Nella tabella attività incolla le celle.
+**Ctrl+V** — *Incolla*: incolla le attività copiate. Non in una finestra di dialogo. Non in *File*, non nelle schede *Rapporto* e *IFC* e non mentre il pannello risorse completo è aperto, perché lì la tabella attività non è visibile. Nella tabella attività incolla le celle.
 
-**Ctrl+Z** — *Annulla*.
+**Ctrl+Z** — *Annulla*. Non in una finestra di dialogo: chiudi prima la finestra.
 
-**Ctrl+Y** oppure **Ctrl+Shift+Z** — *Ripeti*: ripete ciò che hai annullato.
+**Ctrl+Y** oppure **Ctrl+Shift+Z** — *Ripeti*: ripete ciò che hai annullato. Non in una finestra di dialogo.
 
-**Delete** oppure **Backspace** — *Elimina*: elimina le attività selezionate. Solo con una selezione. In una cella della tabella attività, Delete e Backspace cancellano solo il contenuto della cella (vedi *Tabella*).
+**Delete** oppure **Backspace** — *Elimina*: elimina le attività selezionate. Solo con una selezione. Non in una finestra di dialogo. Non in *File*, non nelle schede *Rapporto* e *IFC* e non mentre il pannello risorse completo è aperto, perché lì la tabella attività non è visibile. In una cella della tabella attività, Delete e Backspace cancellano solo il contenuto della cella (vedi *Tabella*).
 
 **F2** — *Modifica...*: apre la finestra di dialogo dell'attività per la prima attività selezionata. Solo con una selezione. Non in una finestra di dialogo. In una cella della tabella attività, F2 avvia la modifica della cella.
 
 **Ctrl+A** — *Seleziona tutto*: seleziona tutte le attività. Non in una finestra di dialogo.
 
-**Esc** — *Deseleziona*: annulla la selezione e contemporaneamente disattiva la modalità relazione, la modalità divisione e il tracciamento percorso, e chiude la finestra di dialogo dell'attività e la panoramica del progetto. Durante la presentazione Esc chiude solo la presentazione (vedi *Visualizza*). In un campo di input Esc non fa nessuna di queste cose.
+**Esc** — *Deseleziona*: annulla la selezione e nello stesso tempo disattiva la modalità relazione, la modalità divisione e il tracciamento percorso. Chiude anche la finestra di dialogo dell'attività e la panoramica del progetto. Durante la presentazione Esc chiude solo la presentazione (vedi *Visualizza*). In un campo di input Esc non fa nessuna di queste cose.
 
 ## Struttura
 
@@ -68,7 +68,7 @@ Rientro, riduzione del rientro e inserimento sopra o sotto un'attività selezion
 
 ## Visualizza
 
-**F11** — *Presentazione*: attiva o disattiva la modalità presentazione. L'app chiede anche al browser o alla finestra di passare a schermo intero. Funziona anche in un campo di input.
+**F11** — *Presentazione*: attiva o disattiva la modalità presentazione. L'app chiede anche alla finestra di passare a schermo intero. Funziona anche in un campo di input. Nel browser F11 non avvia la presentazione: il browser mette la finestra a schermo intero da solo e l'app resta com'è. In un browser F11 ferma una presentazione in corso.
 
 **Esc** (durante la presentazione) — *Esci dalla presentazione*. Funziona anche in un campo di input. Questo ha la precedenza su *Deseleziona*.
 
@@ -96,7 +96,7 @@ Rientro, riduzione del rientro e inserimento sopra o sotto un'attività selezion
 
 **F1** — *Apri guida*: apre *File › Guida*. Non in un campo di input e non in una finestra di dialogo. In una finestra usa il punto interrogativo in alto a destra: apre la guida sull'articolo di quella finestra (vedi [La barra multifunzione, scheda per scheda](docs://ref-lint), alla voce *Guida*).
 
-**Ctrl+1** fino a **Ctrl+9** — *Cambia documento*: va dal primo al nono documento aperto. Se quel documento non esiste, non succede nulla. Non in una finestra di dialogo e non con modifiche non applicate in Info progetto.
+**Ctrl+1** fino a **Ctrl+9** — *Cambia documento*: va dal primo al nono documento aperto. Se quel documento non esiste, non succede nulla. Non in una finestra di dialogo e non con modifiche non applicate in Impostazioni progetto.
 
 **Ctrl+Home** — *Vai a oggi*: scorre la linea temporale in modo che una data sia a sinistra della vista. Si tratta della data di stato, se ne hai impostata una; altrimenti di oggi. Quindi l'etichetta dice «oggi», anche quando la linea temporale salta alla data di stato. Zoom e inizio della linea temporale restano invariati. Se una cella della tabella attività ha il focus, Ctrl+Home va invece alla prima cella della tabella (vedi *Tabella*).
 

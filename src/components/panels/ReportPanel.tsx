@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { buildPrintRows, curveCellFont, measureCurveColumnWidth, measurePrintReport, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont, NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, renderPrintCanvas, renderPrintPreviewPage, renderReport, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM, PrintOptions, TableColumnWidths, TableHeaderLabels } from '@/services/print/printPreview';
@@ -36,7 +37,7 @@ import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
 import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reports/reportFormPrimitives';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
-import { useDisplayDate } from '@/hooks/displayDate';
+import { useTaskIdDateText, type TaskIdDateText } from '@/hooks/displayDate';
 import { MilestoneReport, useMilestoneRows, STATUS_COLOR as MILESTONE_STATUS_COLOR, type MilestoneRow } from './MilestoneReport';
 import { VarianceReport, useVarianceResult, STATUS_COLOR as VARIANCE_STATUS_COLOR, fmtDelta } from './VarianceReport';
 import type { VarianceRow } from '@/engine/variance';
@@ -48,9 +49,6 @@ import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 
-/** Reactieve datum-formatters — zelfde vorm als `useDisplayDate()` (Hooks mogen hier niet in, dit
- * bouwt de kolomspec buiten React-render-tijd op in `handleExportPDF`). */
-type DisplayDate = ReturnType<typeof useDisplayDate>;
 
 /**
  * Beschrijf waarom de vector-export terugvalt op raster. Herkent de `VectorUnsupportedError`
@@ -72,13 +70,15 @@ function describeVectorFallback(err: unknown): string {
  * `MilestoneReport.tsx`: zelfde kolomvolgorde/headers (`t('milestoneReport.*')`), de `◆`-prefix bij
  * `mandatory`, float `< 0` rood+bold, en de `STATUS_COLOR`-badge (altijd bold, zoals de DOM-span).
  */
-function buildMilestoneColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTableColumn<MilestoneRow>[] {
+/** De kolomspec wordt buiten React-render-tijd opgebouwd (`handleExportPDF`); de datumformatter komt dus
+ *  als argument mee, gebonden aan de instellingen (`useTaskIdDateText`). */
+function buildMilestoneColumns(t: TFunction<'report'>, taskDate: TaskIdDateText): PdfTableColumn<MilestoneRow>[] {
   return [
     { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
     { header: t('milestoneReport.name'), width: 260, align: 'left', text: r => `${r.mandatory ? '◆ ' : ''}${r.name}` },
     { header: t('milestoneReport.kind'), width: 90, align: 'left', text: r => t(`milestoneReport.kind_${r.kind}`) },
-    { header: t('milestoneReport.date'), width: 100, align: 'left', text: r => dd.date(r.date) },
-    { header: t('milestoneReport.guardDate'), width: 130, align: 'left', text: r => dd.date(r.guardDate) || '—' },
+    { header: t('milestoneReport.date'), width: 100, align: 'left', text: r => taskDate(r.id, r.date, 'start') },
+    { header: t('milestoneReport.guardDate'), width: 130, align: 'left', text: r => taskDate(r.id, r.guardDate, r.guardSide, { milestoneOwn: false }) || '—' },
     {
       header: t('milestoneReport.float'), width: 70, align: 'right',
       text: r => (r.float === undefined ? '—' : String(r.float)),
@@ -100,14 +100,14 @@ function buildMilestoneColumns(t: TFunction<'report'>, dd: DisplayDate): PdfTabl
  * `VarianceReport.tsx`: zelfde `COLUMNS`-volgorde/headers, `fmtDelta`, deltaStart/deltaFinish `> 0`
  * rood+bold, en de `STATUS_COLOR`-badge (altijd bold).
  */
-function buildVarianceColumns(t: TFunction<'report'>, dd: DisplayDate, locale: string): PdfTableColumn<VarianceRow>[] {
+function buildVarianceColumns(t: TFunction<'report'>, taskDate: TaskIdDateText, locale: string): PdfTableColumn<VarianceRow>[] {
   return [
     { header: t('milestoneReport.wbs'), width: 70, align: 'left', text: r => r.wbs },
     { header: t('milestoneReport.name'), width: 220, align: 'left', text: r => r.name },
-    { header: t('variance.baselineStart'), width: 110, align: 'left', text: r => dd.date(r.baselineStart) || '—' },
-    { header: t('variance.baselineFinish'), width: 110, align: 'left', text: r => dd.date(r.baselineFinish) || '—' },
-    { header: t('variance.currentStart'), width: 110, align: 'left', text: r => dd.date(r.currentStart) || '—' },
-    { header: t('variance.currentFinish'), width: 110, align: 'left', text: r => dd.date(r.currentFinish) || '—' },
+    { header: t('variance.baselineStart'), width: 110, align: 'left', text: r => taskDate(r.taskId, r.baselineStart, 'start') || '—' },
+    { header: t('variance.baselineFinish'), width: 110, align: 'left', text: r => taskDate(r.taskId, r.baselineFinish, 'end') || '—' },
+    { header: t('variance.currentStart'), width: 110, align: 'left', text: r => taskDate(r.taskId, r.currentStart, 'start') || '—' },
+    { header: t('variance.currentFinish'), width: 110, align: 'left', text: r => taskDate(r.taskId, r.currentFinish, 'end') || '—' },
     {
       header: t('variance.deltaStart'), width: 90, align: 'right',
       text: r => fmtDelta(r.deltaStart, locale),
@@ -216,7 +216,8 @@ export function ReportPanel() {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
-  const dd = useDisplayDate();
+  // B4 in de PDF van mijlpalen en afwijkingen: een tijd alleen als het moment midden op de werkdag valt.
+  const taskDate = useTaskIdDateText();
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
@@ -236,7 +237,9 @@ export function ReportPanel() {
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   // Duur-kolom van de Gantt-afdruk: dezelfde tekst als taakraster en tooltip — Duurweergave, de
   // eigen taakeenheid en de uren per dag van de effectieve taakkalender.
-  const durationDisplay = useAppStore(s => s.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat toont elke taak haar eigen maat.
+  const durationDisplay = useEffectiveDurationDisplay();
+  const workdayDurationMeasure = useProfileCountsWorkdays();
   const calendars = useAppStore(s => s.calendars);
   const durationSuffixes = useMemo(() => durationSuffixesFrom(tCommon), [tCommon]);
   // De lijnstijl van de relaties in het rapport volgt de P6-conventie van het scherm
@@ -599,7 +602,7 @@ export function ReportPanel() {
       setColumnWidths(measureTableColumnWidths(
         rows,
         {
-          showCompletion, assignmentColumns, dateNotation, numberLocale: i18n.language, tableHeaders,
+          showCompletion, assignmentColumns, dateNotation, timeNotation, numberLocale: i18n.language, tableHeaders,
           labels: { daySuffix },
           // Precies wat de render in de Duur-cel tekent (zelfde velden als `options` hieronder).
           durationDisplay, durationSuffixes, calendar, calendars,
@@ -608,7 +611,7 @@ export function ReportPanel() {
       ));
     });
     return () => { cancelled = true; };
-  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, i18n.language, tableHeaders,
+  }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, timeNotation, i18n.language, tableHeaders,
     daySuffix, durationDisplay, durationSuffixes, calendar, calendars]);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
@@ -745,6 +748,7 @@ export function ReportPanel() {
     durationDisplay,
     durationSuffixes,
     calendars,
+    workdayDurationMeasure,
     barColorsLegendLabels: {
       criticalOutline: t('legend.criticalOutline', { defaultValue: 'Kritiek pad (rand)' }),
       categoriesMore: (n: number) => t('legend.categoriesMore', { count: n }),
@@ -756,7 +760,7 @@ export function ReportPanel() {
     reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language,
-    durationDisplay, durationSuffixes, calendars]);
+    durationDisplay, durationSuffixes, calendars, workdayDurationMeasure]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update
   // opnieuw kunnen worden aangemaakt zonder dat hun inhoud wijzigde. De rastertaak gebruikt deze
   // inhoudssignatuur als effectgrens: anders start `setPreviewPages` zelf opnieuw pagina 0 en 1.
@@ -1141,7 +1145,7 @@ export function ReportPanel() {
         console.warn('[ReportPanel] Vector-PDF-export mislukt, terugval op raster:', describeVectorFallback(err));
         pdfBytes = exportRaster();
       }
-      await writePdf(pdfBytes, `${fileBase}-${reportType === 'resourceGantt' ? 'resourcediagram' : 'planning'}.pdf`);
+      await writePdf(pdfBytes, `${fileBase}-${reportType === 'resourceGantt' ? t('fileSuffix.resourceGantt') : t('fileSuffix.gantt')}.pdf`);
       return;
     }
 
@@ -1150,7 +1154,7 @@ export function ReportPanel() {
     // gepagineerd door dezelfde paginateVectorToPdfBytes als de Gantt-tak hierboven. Bij een fout
     // valt de export terug op het BESTAANDE DOM-screenshot-pad (modern-screenshot), zodat de export
     // nooit stukloopt.
-    const suffix = tableSpec ? tableSpec.fileSuffix : reportType === 'milestones' ? 'mijlpalen' : 'afwijkingen';
+    const suffix = tableSpec ? tableSpec.fileSuffix : reportType === 'milestones' ? t('fileSuffix.milestones') : t('fileSuffix.variance');
 
     const exportTableRaster = async (): Promise<Uint8Array> => {
       const node = tableSpec ? tableReportRef.current : reportType === 'milestones' ? milestoneRef.current : varianceRef.current;
@@ -1218,7 +1222,7 @@ export function ReportPanel() {
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeTableRenderReport({
             title: t('milestoneReport.title'),
-            columns: buildMilestoneColumns(t, dd),
+            columns: buildMilestoneColumns(t, taskDate),
             rows: milestoneRows,
             emptyText: t('milestoneReport.empty'),
           }, measureHeader),
@@ -1230,7 +1234,7 @@ export function ReportPanel() {
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeTableRenderReport({
             title: t('variance.title'),
-            columns: buildVarianceColumns(t, dd, locale),
+            columns: buildVarianceColumns(t, taskDate, locale),
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
           }, measureHeader),
@@ -1246,7 +1250,7 @@ export function ReportPanel() {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, dd, locale, milestoneRows, varianceResult, tableSpec]);
+    autoFit, repeatHeader, repeatFooter, timelineColumns, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec]);
 
   // Guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
   // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
@@ -1673,10 +1677,15 @@ export function ReportPanel() {
           />
         )}
 
-        {/* Action buttons — alle rapporttypes exporteren naar PDF. */}
-        <div className="flex flex-col gap-2">
+        {/* Alleen de exportknoppen horen bij dit formulier: Enter in rapportinvoer exporteert niet.
+            Rapport › Afdruk dient hetzelfde formulier in, met de actuele paneelstate. */}
+        <form
+          id="report-pdf-export"
+          className="flex flex-col gap-2"
+          onSubmit={e => { e.preventDefault(); handleExportPDF(); }}
+        >
           <button
-            onClick={handleExportPDF}
+            type="submit"
             className="px-4 py-2 bg-accent text-accent-on rounded-lg hover:bg-accent-hover text-small leading-4 font-medium"
             style={{ boxShadow: 'var(--shadow-glow)' }}
           >
@@ -1687,7 +1696,7 @@ export function ReportPanel() {
               {scheduleErrorText(exportError, tCommon)}
             </div>
           )}
-        </div>
+        </form>
       </div>
 
       {/* Right: Live preview */}

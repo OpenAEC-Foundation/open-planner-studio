@@ -52,10 +52,10 @@ Neposune se:
 
 **Datum je v minulosti.** To je povoleno, ale náhled na to upozorní: *Nové datum zahájení je v minulosti.*
 
-**Změna zahájení projektu v Info o projektu je něco jiného.** Když změníte datum zahájení v *Nastavení › Projekt › Info o projektu* a zvolíte *Použít*, plán se nepřesune. Posunou se jen úkoly bez předchůdce nebo omezení, které by pak ležely před novým zahájením, a to na toto datum. Aplikace vám řekne, kolik jich je. Chcete-li posunout všechno, použijte *Přesunout projekt…*.
+**Změna zahájení projektu v Nastavení projektu je něco jiného.** Když změníte datum zahájení v nabídce *Nastavení › Projekt › Nastavení projektu* a zvolíte *Použít*, plán se nepřesune. Posunou se jen úkoly bez předchůdce nebo omezení, které by pak ležely před novým zahájením, a to na toto datum. Aplikace vám řekne, kolik jich je. Chcete-li posunout všechno, použijte *Přesunout projekt…*.
 
 ## Viz také
 
 - [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad): jak plán vypočítává data a proč se dokončení posouvá.
 - [Přidávání závislostí](docs://howto-relaties-leggen): závislosti při přesunu prostě zůstanou na místě.
-- [Nový projekt a Info o projektu](docs://ref-projectinfo): co dělá datum zahájení v Info o projektu.
+- [Nový projekt a Nastavení projektu](docs://ref-projectinfo): co dělá datum zahájení v Nastavení projektu.

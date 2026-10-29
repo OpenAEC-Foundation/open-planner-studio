@@ -250,7 +250,7 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await page.evaluate(() => {
     const store = window.__OPS__!.store.getState();
     const columns = store.taskGridSurfaces['full-task-grid'].columns;
-    const wanted = ['task.constraint.type', 'task.isMilestone'] as (typeof columns)[number]['id'][];
+    const wanted = ['task.constraint.type', 'task.isMilestone', 'task.calendarId'] as (typeof columns)[number]['id'][];
     const missing = wanted.filter(w => !columns.some(c => c.id === w));
     if (missing.length) {
       store.commitTaskGridColumns('full-task-grid', 'Keuzelijstkolommen voor browsertest', [
@@ -262,11 +262,11 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   });
   const taskOf = () => page.evaluate(taskId => {
     const t = window.__OPS__!.store.getState().tasks.find(x => x.id === taskId)!;
-    return { constraint: t.constraint?.type ?? 'ASAP', milestone: t.isMilestone };
+    return { constraint: t.constraint?.type ?? 'ASAP', milestone: t.isMilestone, calendar: t.calendarId };
   }, id);
   const before = await taskOf();
 
-  for (const [column, kind] of [['task.constraint.type', 'enum'], ['task.isMilestone', 'boolean']] as const) {
+  for (const [column, kind] of [['task.constraint.type', 'enum'], ['task.isMilestone', 'boolean'], ['task.calendarId', 'enum']] as const) {
     const cell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="${column}"]`);
     await cell.click();
     await page.keyboard.press('Enter');
@@ -280,6 +280,34 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
     await expect.poll(() => cell.evaluate(el => el.contains(document.activeElement))).toBe(true);
     expect(await taskOf()).toEqual(before);
   }
+  // Dezelfde kalendercel kiest op naam, maar bewaart het id. Leeg betekent de projectkalender.
+  const calendarFixture = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const { id: _id, ...base } = s.calendar;
+    const calendarId = s.addCalendar({ ...base, name: 'Ploeg met eigen kalender' });
+    return { calendarId, projectName: s.calendar.name };
+  });
+  const calendarCell = page.locator('[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="' + id + '"][data-grid-column-id="task.calendarId"]');
+  await expect(calendarCell).toContainText(calendarFixture.projectName);
+  await calendarCell.click();
+  await page.keyboard.press('Enter');
+  await menu(page).getByRole('option', { name: 'Ploeg met eigen kalender', exact: true }).click();
+  await expect(calendarCell).toHaveText('Ploeg met eigen kalender');
+  expect((await taskOf()).calendar).toBe(calendarFixture.calendarId);
+  await expect(menu(page)).toHaveCount(0);
+  await calendarCell.click();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(calendarCell).toContainText(calendarFixture.projectName);
+  expect((await taskOf()).calendar).toBeUndefined();
+  await page.keyboard.press('ControlOrMeta+y');
+  await expect(calendarCell).toHaveText('Ploeg met eigen kalender');
+  await calendarCell.click();
+  await page.keyboard.press('Enter');
+  await menu(page).getByRole('option').filter({ hasText: calendarFixture.projectName }).first().click();
+  await expect(calendarCell).toContainText(calendarFixture.projectName);
+  expect((await taskOf()).calendar).toBeUndefined();
+
 });
 
 test('Tabel: de al gekozen optie opnieuw kiezen (klik, Spatie, Enter) legt vast en sluit de editor', async ({ page, ops: _ops }) => {

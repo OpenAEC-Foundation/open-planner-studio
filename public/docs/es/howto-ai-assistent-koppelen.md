@@ -36,7 +36,33 @@ La ventana ofrece tres formas de conectar:
 
 - *Fragmento de configuración*: un fragmento de configuración que pega en la configuración MCP de su cliente.
 - *Indicación de conexión*: un texto que pega en su asistente de IA, tras lo cual se conecta por sí mismo.
-- *Punto de conexión* y *Autenticación*: los datos por separado. El punto de conexión es `http://localhost:3877/mcp` con transporte *streamable HTTP*. Cada solicitud necesita un encabezado `Authorization: Bearer` seguido de su token.
+- *Punto de conexión* y *Autenticación*: los datos por separado. El punto de conexión es `http://localhost:3877/mcp` con transporte *streamable HTTP*. Cada solicitud necesita un encabezado `Authorization: Bearer` seguido de su token. Su cliente también debe admitir sesiones de MCP: al conectarse, el puente entrega un código de sesión en el encabezado `Mcp-Session-Id`, y rechaza toda solicitud posterior sin ese código. Claude Code y `mcp-remote` lo hacen por sí solos.
+
+**Vuelva a conectar después de una actualización de la aplicación.** Si su cliente de IA ya estaba conectado a una versión anterior de la aplicación, todavía no envía un código de sesión, y el puente rechaza cada solicitud. Por eso, vuelva a conectar tras la actualización: inicie una sesión nueva en Claude Code, y cierre Claude Desktop por completo y vuelva a iniciarlo.
+
+**Claude Code.** El fragmento de configuración encaja directamente en Claude Code. Ejecute este comando en una terminal, con su propio token en lugar de `<token>`:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+También puede poner el fragmento en el archivo `.mcp.json` de la carpeta de su proyecto. En ese caso, no incluya ese archivo en git, porque el token da acceso a su plan. Un servidor de `.mcp.json` debe aprobarse la primera vez en Claude Code.
+
+**Claude Desktop.** El fragmento de configuración no encaja directamente en Claude Desktop. En el archivo `claude_desktop_config.json` se nombra un programa que Claude Desktop inicia por sí mismo, no una dirección. Por eso use en medio la herramienta externa `mcp-remote`; necesita Node.js. En Claude Desktop elija *Configuración › Desarrollador › Editar configuración*, ponga esto en el archivo (con su propio token) y vuelva a iniciar Claude Desktop:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+El token va en `env` y no en `args` a propósito: en Windows, Claude Desktop rompe un argumento que contiene un espacio. Un *conector personalizado* en Claude (*Personalizar › Conectores*) no funciona con el puente. Claude se conecta entonces desde la nube de Anthropic, y esa nube no puede llegar al puente en su propio equipo.
 
 En el grupo *Conexión* también está el campo *Token*. Es un código largo y aleatorio que la aplicación crea para usted y guarda en este equipo. En la ventana dice *Este token da acceso al plan abierto. No lo compartas con otras personas.* Con el icono *Nuevo token* crea un token nuevo. La aplicación primero pregunta *Generar un nuevo token rompe todas las conexiones existentes. ¿Continuar?* Si el puente está en marcha, se reinicia con el token nuevo y el anterior deja de funcionar.
 
@@ -62,11 +88,11 @@ Las copias de seguridad están en la carpeta `ai-backups` en la carpeta de datos
 
 ### 6. Haga que el asistente planifique bien
 
-Un asistente que conoce las herramientas aún puede crear una planificación que ningún planificador puede aprovechar: tareas sin relaciones, una fecha fija en cada tarea o un desglose demasiado fino. Por eso el asistente recibe las reglas de planificación de tres formas. Para las dos primeras, usted no tiene que hacer nada.
+Un asistente solo planifica bien si conoce las reglas de planificación. El artículo [Cómo funciona el enlace con la IA](docs://uitleg-ai-koppeling) explica por qué eso importa y qué contienen. Esto es lo que usted hace:
 
-1. **Las reglas básicas llegan solas.** Al conectar, el puente envía un texto breve con las reglas básicas. Muchos clientes ponen ese texto en sus instrucciones de sistema; si el suyo lo hace depende del cliente. Dice, entre otras cosas: empiece por los hitos, cree tareas de aproximadamente un día a dos semanas, deje que las relaciones, y no las fechas fijas, guíen la planificación, y al final indique qué supuestos ha hecho.
-2. **La indicación de conexión remite a la guía completa.** La indicación de conexión de la ventana *Detalles de conexión* pide al asistente que lea primero la guía de planificación, con la herramienta `planner_get_planning_guide`. Eso devuelve una guía en inglés para asistentes: los mismos principios que [Planificar bien](docs://gids-goed-plannen), y, para cada principio, las herramientas que el asistente usa para ello. Usted mismo puede leerla en `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Si no usa la indicación, pídale usted mismo al asistente: *Lea primero la guía de planificación con planner_get_planning_guide, antes de cambiar nada.*
-3. **Opcional: las skills.** Una skill es un archivo pequeño con instrucciones que un asistente lee en cada sesión, para que en una conversación posterior también sepa la forma correcta de trabajar. Hay dos, ambas en inglés: *goed-plannen* para crear o reestructurar una planificación, y *progress-update* para la actualización semanal del avance. Solo funciona con un asistente que admita skills; las propias skills mencionan Claude Code y asistentes similares. Cada skill es un archivo `SKILL.md` en su propia carpeta con el nombre de la skill: `.claude/skills/goed-plannen/SKILL.md` y `.claude/skills/progress-update/SKILL.md` en la carpeta del proyecto donde trabaja el asistente, o las mismas carpetas dentro de `~/.claude/skills/` para tenerlas en todos los proyectos.
+1. **No tiene que hacer nada por las reglas básicas.** Llegan al conectar. Si su cliente las incluye en sus instrucciones de sistema, depende del cliente.
+2. **Haga que el asistente lea la guía.** La indicación de conexión de la ventana *Detalles de conexión* pide al asistente que lea la guía con la herramienta `planner_get_planning_guide`. Si no usa la indicación, pídalo usted mismo: *Lea primero la guía de planificación con planner_get_planning_guide, antes de cambiar nada.* Usted mismo puede leer la guía en `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Opcional: instale las skills.** Esto solo funciona con un asistente que admita skills. Ponga el `SKILL.md` de *goed-plannen* y *progress-update* en `.claude/skills/goed-plannen/SKILL.md` y `.claude/skills/progress-update/SKILL.md` en la carpeta del proyecto donde trabaja el asistente, o en las mismas carpetas bajo `~/.claude/skills/` para todos los proyectos.
 
 Puede obtener los archivos de dos formas. Pida al asistente que llame a la herramienta `planner_get_planning_guide` con `part` igual a `skill`: la respuesta contiene ambos textos y, para cada skill, los lugares donde debe ir. O descárguelos desde `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` y `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Si *goed-plannen* sigue ahí de una versión anterior de la aplicación, sustitúyala: ese texto antiguo está en neerlandés y remite al artículo de ayuda en lugar de a la guía para asistentes.
 

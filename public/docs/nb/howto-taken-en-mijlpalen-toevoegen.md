@@ -15,7 +15,7 @@ En **aktivitet** er arbeid som tar tid. En ny aktivitet varer 5 arbeidsdager som
 1. Velg *Hjem › Aktiviteter › Aktivitet*. Den samme knappen finnes på fanen *Tabell*.
 2. Panelet *Egenskaper* åpnes, og feltet *Navn* er valgt. Skriv navnet og trykk Enter.
 
-Den nye aktiviteten heter først *Ny aktivitet* og starter på prosjektstarten.
+Den nye aktiviteten heter først *Ny aktivitet* og starter ved prosjektstarten.
 
 Hvis en aktivitet er valgt, plasseres den nye aktiviteten rett under den, på samme nivå. Hvis den valgte aktiviteten er en hovedaktivitet, plasseres den nye aktiviteten under hele fasen, altså etter delaktivitetene. Hvis ingenting er valgt, plasseres den nederst i listen. Verktøytipset for knappen viser hvilket av de to som skjer: *Ny aktivitet rett under valget* eller *Ny aktivitet nederst i listen*. Hvis du velger flere aktiviteter, lages én ny aktivitet under den nederste av valget, slik du ser det på skjermen.
 
@@ -51,7 +51,7 @@ Høyreklikk aktiviteten og velg *Legg til delaktivitet*. Den nye aktiviteten pla
 De tre typene skiller seg slik fra hverandre:
 
 - En *Startmilepæl* hører til ved begynnelsen av dagen, en *Sluttmilepæl* ved slutten av dagen. I Gantt-diagrammet står diamanten til venstre eller høyre for dagkolonnen. Det har også betydning for etterfølgeren. Si at en milepæl er tirsdag 29. september 2026, og at en aktivitet følger etter med en avhengighet av typen slutt-til-start: etter en startmilepæl starter aktiviteten samme tirsdag, etter en sluttmilepæl onsdag 30. september.
-- Et *Inspeksjonsmoment (påkrevd)* er en sluttmilepæl med aktivitetstypen *Kontroll/inspeksjon* og haken *Obligatorisk (kontraktuelt)*.
+- Et *Inspeksjonsmoment (påkrevd)* er en sluttmilepæl med arbeidskategorien *Kontroll/inspeksjon* og haken *Obligatorisk (kontraktuelt)*.
 
 ### Gjøre en eksisterende aktivitet til en milepæl
 
@@ -62,6 +62,7 @@ Hvis du slår den av igjen, forblir den en vanlig aktivitet med varighet 0: skri
 ### Andre måter
 
 - Ctrl+M (⌘+M på Mac) legger en ny milepæl nederst i listen, selv om en aktivitet er valgt. Panelet *Egenskaper* åpnes ikke.
+- En milepæl du lager med Ctrl+M eller via høyreklikkmenyen, får arbeidskategorien *Kontroll/inspeksjon*. En *Startmilepæl* eller *Sluttmilepæl* fra *Milepæl ▾* får *Annet*. Endre arbeidskategorien i *Egenskaper* hvis du trenger det.
 - *Legg til milepæl* i høyreklikkmenyen til en aktivitet gjør milepælen til en delaktivitet av den aktiviteten, ikke til en aktivitet på samme nivå.
 
 ### Kopiere en aktivitet eller en hel gren
@@ -72,7 +73,7 @@ Hvis du slår den av igjen, forblir den en vanlig aktivitet med varighet 0: skri
 
 Kopien har samme navn, samme datoer og samme fremdrift. Den plasseres som en aktivitet på samme nivå som den valgte aktiviteten (ved flere valgte aktiviteter: den du klikket først), nederst blant disse. Hvis ingenting er valgt, plasseres den nederst i listen. De kopierte aktivitetene er valgt etterpå. WBS-kodene (hver aktivitets nummer i treet, for eksempel 1.2; se [Justere strukturen](docs://howto-structuur-aanpassen)) fastsettes på nytt, og tidsplanen er ikke lenger oppdatert.
 
-Utklippstavlen deles av hele appen, så du kan også lime inn i et annet dokument. Det som ikke finnes der, for eksempel en aktivitetskalender, en egendefinert aktivitetstype, en aktivitetskode eller et egendefinert felt, tømmer appen og gir deg beskjed.
+Utklippstavlen deles av hele appen, så du kan også lime inn i et annet dokument. Det som ikke finnes der, for eksempel en aktivitetskalender, en egendefinert arbeidskategori, en aktivitetskode eller et egendefinert felt, tømmer appen og gir deg beskjed.
 
 ### Etterpå
 
@@ -80,9 +81,9 @@ En ny aktivitet endrer ikke de andre datoene ennå. Statuslinjen sier *Utdatert 
 
 ## Fallgruver og hva appen gjør
 
-**Hver ny aktivitet starter på prosjektstarten.** Uten avhengigheter venter ingen aktivitet på noe. Legg til avhengigheter, se [Legge til avhengigheter](docs://howto-relaties-leggen).
+**Hver ny aktivitet starter ved prosjektstarten.** Uten avhengigheter venter ingen aktivitet på noe. Legg til avhengigheter, se [Legge til avhengigheter](docs://howto-relaties-leggen).
 
-**Filtrering, gruppering eller sortering er på.** Rekkefølgen du ser, er da ikke rekkefølgen i tidsplanen. Når en aktivitet er valgt, legger *Aktivitet* og *Milepæl ▾* den nye aktiviteten nederst, og stripen *Ikke tilgjengelig under filtrering/gruppering/sortering* vises. *Sett inn over* og *Sett inn under* avvises, med samme strip. Knappen *Tøm* i stripen fjerner filtrering, gruppering og sortering i ett trekk. Dette er ikke en del av *Angre*: Ctrl+Z henter dem ikke tilbake.
+**Filtrering, gruppering eller sortering er på.** Rekkefølgen du ser, er da ikke rekkefølgen i tidsplanen. Når en aktivitet er valgt, legger *Aktivitet* og *Milepæl ▾* den nye aktiviteten nederst. En rød melding sier da *Den nye aktiviteten står bakerst. Mens du filtrerer, grupperer eller sorterer, kan appen ikke plassere den under utvalget ditt*. *Sett inn over* og *Sett inn under* avvises, med stripen *Ikke tilgjengelig under filtrering/gruppering/sortering*. Knappen *Tøm* i meldingen eller i stripen fjerner filtrering, gruppering og sortering i ett trekk. Dette er ikke en del av *Angre*: Ctrl+Z henter dem ikke tilbake.
 
 **En delaktivitet under en aktivitet med tilordninger.** Aktiviteten blir en hovedaktivitet, og en hovedaktivitet har selv ingen tilordninger. Appen flytter tilordningene til den nye delaktiviteten og gir deg beskjed. Hvis det ikke er mulig, for eksempel fordi du valgte *Legg til milepæl* og en milepæl ikke kan ha tilordninger, legger appen ikke til noe og forklarer hvorfor.
 

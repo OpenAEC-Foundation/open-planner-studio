@@ -59,6 +59,12 @@ export function writeCSV(
    * (`state/recordedDatesSelectors`); deze module blijft store-vrij en krijgt hem als parameter.
    */
   unrecordedExportFieldsOf?: (task: Task) => readonly UnrecordedExportField[],
+  /**
+   * Uurteken van een lag in de kolom Predecessors (eigenaarsbesluit 2026-10-20, optie 2): het teken
+   * van de app-taal, zoals de aanroeper het via `parseableHourSuffix` bepaalt. nl ⇒ `3FS+2u`,
+   * en ⇒ `3FS+2h`; een taal zonder leesbare afkorting (bijv. ru) ⇒ `u`. `readCSV` leest beide.
+   */
+  lagHourSuffix: 'u' | 'h' = 'u',
 ): string {
   // De "Duration (days)"-kolom kent geen elapsed-notatie (anders dan de relatie-lag, die "ed"/"e%"
   // al schrijft) — een taak met ELAPSEDTIME-duur (24/7-klokrekenen, bv. uit een `.mpp`-import)
@@ -91,10 +97,11 @@ export function writeCSV(
     if (!predTask) continue;
     const abbrev = sequenceTypeToAbbrev(seq.type);
     // De korte lag-notatie van de app (MS Project-stijl, symmetrisch met `parseLagInput`, waarmee
-    // `readCSV` hem terugleest): d = werkdagen, ed = kalenderdagen, u/eu = (elapsed) uren,
-    // % / e% = procent van de voorgangerduur. Via `lagMinutes`, anders verdwijnt elke uur-lag (en in
-    // een uurproject óók elke dag-lag, die daar in minuten staat) stil uit de export.
-    const lag = formatLagShort(seq);
+    // `readCSV` hem terugleest): d = werkdagen, ed = kalenderdagen, u/eu of h/eh = (elapsed) uren in
+    // het uurteken van de app-taal (`lagHourSuffix`), % / e% = procent van de voorgangerduur. Via
+    // `lagMinutes`, anders verdwijnt elke uur-lag (en in een uurproject óók elke dag-lag, die daar in
+    // minuten staat) stil uit de export.
+    const lag = formatLagShort(seq, lagHourSuffix);
     const predStr = `${predTask.wbsCode}${abbrev}${lag}`;
     if (!predMap.has(seq.successorId)) {
       predMap.set(seq.successorId, []);

@@ -9,7 +9,7 @@ Rådgiveren arbejder i MS Project, bygherren i Primavera, underentreprenøren vi
 ## Trin
 
 1. Vælg *Start › Fil › Eksportér* og vælg et format fra listen, eller vælg *Fil › Eksportér*. Her er hvert format et kort med en kort beskrivelse.
-2. Vælg et navn og en placering i vinduet. Appen foreslår projektnavnet med formatets filendelse. Fremdriftsarkene hedder *projektnavn-fremdrift* og åbnes i din downloadmappe, hvis det kan.
+2. I vinduet vælger du et navn og en placering. Appen foreslår projektnavnet med formatets filendelse. Fremdriftsarkene hedder *projektnavn-fremdrift* og åbnes i din downloadmappe, hvis det kan.
 3. Bekræft. Der vises ingen besked, hvis eksporten lykkes, undtagen de beskeder herunder. Fra *Fil › Eksportér* vender du bagefter tilbage til fanen *Start*, også hvis du annullerer vinduet. Hvis du annullerer vinduet ved en eksport fra listen på fanen *Start*, sker der ikke noget.
 
 Hvis din browser kun gemmer via en download (for eksempel Firefox), ligger filen i din downloadmappe straks efter trin 1. Du ser beskeden *Gemt som download: 'name.xml' ligger nu i din downloadmappe. Dette miljø tillader ikke, at appen skriver direkte til den valgte placering.*
@@ -19,14 +19,14 @@ Hvis din browser kun gemmer via en download (for eksempel Firefox), ligger filen
 Listen på fanen *Start* og kortene i *Fil › Eksportér* tilbyder de samme formater:
 
 - *Fremdrift (Excel)* og *Fremdrift (CSV)*, på kortene *Fremdriftsark (Excel)* og *Fremdriftsark (CSV)*: et smalt ark med id, WBS, navn, datoer og færdiggørelsesgrad, som du sender rundt til den, der udfylder fremdriften.
-- *CSV (;)*, på kortet *CSV (semikolonsepareret)*: en fil med opgaver, som du åbner i et regneark.
+- *CSV (;)*, på kortet *CSV (semikolonsepareret)*: en opgaveliste, som du åbner i et regneark.
 - *MS Project XML*: kan åbnes i Microsoft Project.
 - *Primavera P6 XML*: til Oracle Primavera P6.
-- *IFC 4x3*: appens eget format, med alt i det.
+- *IFC*: appens eget format, med alt i det, i IFC-skemaet for projektet (standard IFC 4.3 ADD2).
 
 ### En IFC-eksport med en biblioteksfil
 
-Hvis dit projekt er koblet til et bibliotek, står afkrydsningsfeltet *Gem biblioteksfilen ved siden af* under kortene i *Fil › Eksportér*. Hvis du sætter kryds i det og vælger *IFC 4x3*, spørger appen to gange om en placering: først for projektet, derefter for *projektnavn-bibliotek.ifc*. Dette afkrydsningsfelt findes kun i *Fil › Eksportér*, ikke i listen på fanen *Start*.
+Hvis dit projekt er koblet til et bibliotek, står afkrydsningsfeltet *Gem biblioteksfilen ved siden af* under kortene i *Fil › Eksportér*. Hvis du sætter kryds i det og vælger *IFC*, spørger appen to gange om en placering: først for projektet, derefter for *projektnavn-bibliotek.ifc*. Dette afkrydsningsfelt findes kun i *Fil › Eksportér*, ikke i listen på fanen *Start*.
 
 ### Gendannelse af et fremdriftsark
 

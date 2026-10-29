@@ -1,0 +1,369 @@
+openapi: 3.1.0
+info:
+  title: Open Planner Studio headless API
+  version: 2026.43.0
+  summary: Calculate an IFC construction schedule the same way the Open Planner Studio app does.
+  description: |
+    The API wraps the headless core `@openaec/open-planner-core`. Send an IFC file (IFC 4.3 or IFC4,
+    ISO-10303-21 text); the API opens it, calculates it like F5 in the app (critical path method with
+    the work rules and scheduling profile of the project) and returns a JSON summary or the
+    recalculated IFC file. The API stores nothing: every request stands alone.
+
+    Every path that is not listed answers 404 `NOT_FOUND`.
+
+    Errors always have the body `{"error": {"code": "...", "message": "..."}}`. `code` is fixed;
+    `message` is English text for people. Every response has an `X-Request-Id` header. Send your own
+    `X-Request-Id` (1–64 characters `A-Z a-z 0-9 . _ -`) to correlate with the server logs.
+
+    Documentation (Dutch): docs/headless-api.md in the repository.
+  license:
+    name: LGPL-3.0-or-later
+    identifier: LGPL-3.0-or-later
+  contact:
+    name: OpenAEC Foundation
+    url: https://github.com/OpenAEC-Foundation/open-planner-studio
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local server or container
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Health and version
+      description: No authentication. The load balancer health check uses this path.
+      security: []
+      responses:
+        '200':
+          description: The server runs.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /v1/schedule:
+    post:
+      operationId: scheduleIfc
+      summary: Calculate an IFC schedule
+      description: |
+        There is no queue. One calculation runs at a time. When a calculation runs, or when
+        `limits.maxUploads` request bodies are being received already, the API answers 503 `BUSY` at
+        once, before it reads the body. Retry after `Retry-After` seconds.
+
+        Time limits: the body must arrive within `limits.uploadTimeoutMs` (408 `UPLOAD_TIMEOUT`), and
+        the calculation must finish within `limits.timeoutMs` (503 `TIMEOUT`). Together they stay below
+        the 120 s idle timeout of the load balancer, so the API itself always answers.
+      parameters:
+        - name: output
+          in: query
+          required: false
+          description: '`summary` (default) gives the JSON summary; `ifc` gives the recalculated IFC file.'
+          schema:
+            type: string
+            enum: [summary, ifc]
+            default: summary
+        - name: X-Request-Id
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9._-]{1,64}$'
+      requestBody:
+        required: true
+        description: The IFC file as text (UTF-8). Maximum size is `limits.maxBodyBytes` from `/healthz` (default 20 MiB).
+        content:
+          application/x-step:
+            schema:
+              type: string
+          application/ifc:
+            schema:
+              type: string
+          model/ifc:
+            schema:
+              type: string
+          text/plain:
+            schema:
+              type: string
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: The schedule is calculated.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleSummary'
+            application/x-step:
+              schema:
+                type: string
+                description: The recalculated IFC file (when `output=ifc`).
+        '400':
+          description: '`INVALID_INPUT` (the body is not ISO-10303-21 text) or `BAD_REQUEST` (unknown `output`, or a request target that is not a valid URL).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: '`UNAUTHORIZED`: the bearer token is missing or wrong.'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+                const: Bearer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '408':
+          description: '`UPLOAD_TIMEOUT`: the body did not arrive within `limits.uploadTimeoutMs`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: '`PAYLOAD_TOO_LARGE`: the body is larger than the limit.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: '`UNSUPPORTED_MEDIA_TYPE`: send one of the request content types.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: |
+            The file is IFC but cannot be planned: `IFC_READ_FAILED`, `NO_TASKS`, or `SCHEDULE_FAILED`
+            (for example a loop in the relations; `details.taskIds` lists the tasks of the loop).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: '`IFC_WRITE_FAILED` or `INTERNAL`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: '`BUSY` (a calculation runs or too many uploads; decided before the body is read) or `TIMEOUT` (calculation stopped). Try again after `Retry-After` seconds.'
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'The token from `OPS_API_TOKEN` or `OPS_API_TOKEN_FILE` on the server (on AWS from Secrets Manager).'
+  headers:
+    RequestId:
+      description: The request id from the request header, or a new UUID.
+      schema:
+        type: string
+  responses:
+    MethodNotAllowed:
+      description: '`METHOD_NOT_ALLOWED`. The `Allow` header lists the allowed methods.'
+      headers:
+        Allow:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_INPUT
+                - BAD_REQUEST
+                - UNAUTHORIZED
+                - NOT_FOUND
+                - METHOD_NOT_ALLOWED
+                - UPLOAD_TIMEOUT
+                - PAYLOAD_TOO_LARGE
+                - UNSUPPORTED_MEDIA_TYPE
+                - IFC_READ_FAILED
+                - NO_TASKS
+                - SCHEDULE_FAILED
+                - IFC_WRITE_FAILED
+                - INTERNAL
+                - BUSY
+                - TIMEOUT
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    Health:
+      type: object
+      required: [status, version, limits, busy, uploads]
+      properties:
+        status:
+          type: string
+          const: ok
+        version:
+          type: string
+          description: Version of the core package (equal to the app version, ISO week-based JJJJ.W.N).
+          examples: ['2026.9.0']
+        limits:
+          type: object
+          required: [maxBodyBytes, timeoutMs, uploadTimeoutMs, maxUploads]
+          properties:
+            maxBodyBytes:
+              type: integer
+            timeoutMs:
+              type: integer
+              description: Maximum calculation time.
+            uploadTimeoutMs:
+              type: integer
+              description: Maximum time to receive the body.
+            maxUploads:
+              type: integer
+              description: Bodies received at the same time; more get 503 `BUSY`.
+        busy:
+          type: boolean
+          description: A calculation runs now; a new request gets 503 `BUSY`.
+        uploads:
+          type: integer
+          description: Request bodies being received now.
+    ScheduleSummary:
+      type: object
+      required: [formatVersion, project, counts, tasks, criticalPath, warnings]
+      properties:
+        formatVersion:
+          type: integer
+          const: 1
+        project:
+          type: object
+          required: [id, name, schedulingProfile, start, finish, durationWorkdays]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            schedulingProfile:
+              type: string
+              description: The scheduling profile, for example `ops`, `p6` or `msproject`.
+            start:
+              type: string
+              description: ISO 8601 date (or date-time with hour planning).
+            finish:
+              type: string
+              description: Calculated finish, ISO 8601.
+            durationWorkdays:
+              type: number
+        counts:
+          type: object
+          required: [tasks, summaryTasks, milestones, relations, resources, assignments, criticalTasks]
+          properties:
+            tasks:
+              type: integer
+            summaryTasks:
+              type: integer
+            milestones:
+              type: integer
+            relations:
+              type: integer
+            resources:
+              type: integer
+            assignments:
+              type: integer
+            criticalTasks:
+              type: integer
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskSummary'
+        criticalPath:
+          type: array
+          description: Task ids on the critical path, in path order.
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: object
+            required: [code, ids]
+            properties:
+              code:
+                type: string
+                enum:
+                  - CONSTRAINT_VIOLATED
+                  - DEADLINE_MISSED
+                  - OUT_OF_SEQUENCE
+                  - CALENDAR_CAPPED
+                  - RELATION_IGNORED
+                  - HAMMOCK_WITHOUT_FINISH_DRIVER
+                  - XER_ARCHIVE_DROPPED
+                  - MINUTE_MODEL_CONVERTED
+              ids:
+                type: array
+                items:
+                  type: string
+              detail:
+                type: string
+                description: Short fixed reason, only for codes that have one (`XER_ARCHIVE_DROPPED`).
+              maxShiftWorkdays:
+                type: number
+                description: |
+                  Only for `MINUTE_MODEL_CONVERTED`: the dates in the file were not calculated in minutes
+                  (an IFC from an older version of the app), so opening recalculated them; `ids` are the
+                  tasks with a different start or finish, and this is the largest shift in workdays (one
+                  decimal).
+    TaskSummary:
+      type: object
+      required: [id, name, wbs, parentId, summary, milestone, start, finish, lateStart, lateFinish, totalFloat, critical]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        wbs:
+          type: string
+        parentId:
+          type: [string, 'null']
+        summary:
+          type: boolean
+        milestone:
+          type: boolean
+        start:
+          type: string
+        finish:
+          type: string
+        lateStart:
+          type: string
+        lateFinish:
+          type: string
+        totalFloat:
+          type: number
+          description: Total float in workdays (fractional with hour planning).
+        critical:
+          type: boolean

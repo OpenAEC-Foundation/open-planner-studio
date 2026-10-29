@@ -9,7 +9,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
 
 ---
 
-## De vijf plekken
+## De vijf plekken (plus een zesde, als de tab publiek wordt)
 
 | plek | bestand | wat er misgaat als je hem vergeet |
 |---|---|---|
@@ -18,6 +18,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
 | 3. de tab-knop + label | `src/components/layout/Ribbon/Ribbon.tsx` (`tabs`-array + de `tMenu(...)`-lookup) | de tab bestaat, heeft inhoud, maar er verschijnt geen knop om hem te openen |
 | 4. de vertaling | `src/i18n/locales/*/menu.json` (`ribbon.<tab>`) | de tab-knop toont de kale i18next-sleutel of valt terug op Engels |
 | 5. de documentatie-bewering | `AGENTS.md` (*Facts that `verify:docs` guards here*) | `npm run verify:docs` (Poort 7a) faalt |
+| 6. (keuze) het extensiecontract | `ExtRibbonTab` in `src/extensions/extTypes.ts` + `RIBBON_TAB_MAP` in `src/extensions/extMappers.ts` | extensies kunnen geen knop op het tabblad zetten; de compiler dwingt dit niet af. Dit is publieke API: alleen bewust toevoegen |
 
 ## De stappen
 
@@ -52,8 +53,8 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
    Engelstalige sleutelnaam zijn. Wijkt jouw tab-identifier ook af van de gewenste sleutelnaam, voeg
    dan een derde `? :`-tak toe aan diezelfde regel.
 4. **Voeg de vertaalsleutel toe**: `ribbon.<tab>` (of de naam die je in stap 3 koos) in de `ribbon`-
-   sectie van `menu.json`, in **alle 28 locales** — zie `docs/recepten/i18n-sleutel.md` voor hoe
-   `verify:i18n` dat afdwingt (elke locale moet de sleutel hebben, niet alleen nl+en).
+   sectie van `menu.json`, in `nl` en `en` (`npm run i18n:add -- menu:ribbon.<tab> vertalingen.json`) — zie
+   `docs/recepten/i18n-sleutel.md`. De andere talen vult de vertaalstraat vóór een release.
 5. **Werk `AGENTS.md` bij**: de alinea *Facts that `verify:docs` guards here* somt `RibbonTab` op als backtick-identifiers
    (`` `file` ``, `` `start` ``, …). Poort 7a in `scripts/verify-docs.ts` leest de `RibbonTab`-union
    rechtstreeks uit `slices/types.ts` en eist dat elk lid als `` `lid` `` in `AGENTS.md` voorkomt —
@@ -69,7 +70,7 @@ tegenhouden staat erbij; loopt dit document ooit achter, dan heeft de code gelij
   onbereikbaar — geen test of poort merkt dit op.
 - Dat de vertaalsleutel in `menu.json` staat vóórdat je 'm gebruikt: een ontbrekende sleutel toont
   gewoon de kale sleutelnaam of het Engelse fallback, geen compileerfout, geen rode poort (behalve
-  `verify:i18n`, en alleen als de sleutel al in `nl` bestaat maar in een andere locale ontbreekt).
+  `verify:i18n`, en alleen als `en` de sleutel mist).
 
 ## Waar het echt staat
 

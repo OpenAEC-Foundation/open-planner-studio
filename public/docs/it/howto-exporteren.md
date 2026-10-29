@@ -22,15 +22,15 @@ L'elenco nella scheda *Home* e i riquadri in *File › Esporta* offrono gli stes
 - *CSV (;)*, sul riquadro *CSV (separato da punto e virgola)*: un elenco di attività che apri in un foglio di calcolo.
 - *MS Project XML*: si può aprire in Microsoft Project.
 - *Primavera P6 XML*: per Oracle Primavera P6.
-- *IFC 4x3*: il formato proprio dell'app, con tutto incluso.
+- *IFC*: il formato proprio dell'app, con tutto dentro, nello schema IFC del progetto (predefinito IFC 4.3 ADD2).
 
 ### Un'esportazione IFC con un file di libreria
 
-Se il tuo progetto è collegato a una libreria di risorse, la casella *Salva anche il file di libreria* si trova sotto i riquadri in *File › Esporta*. Se la spunti e scegli *IFC 4x3*, l'app chiede due volte una posizione: prima per il progetto, poi per *nomeprogetto-biblioteca.ifc*. Questa casella è solo in *File › Esporta*, non nell'elenco nella scheda *Home*.
+Se il tuo progetto è collegato a una libreria di risorse, la casella *Salva anche il file di libreria* si trova sotto i riquadri in *File › Esporta*. Se la spunti e scegli *IFC*, l'app chiede due volte una posizione: prima per il progetto, poi per *nomeprogetto-biblioteca.ifc*. Questa casella è solo in *File › Esporta*, non nell'elenco nella scheda *Home*.
 
 ### Ripristinare un foglio di avanzamento
 
-Leggi di nuovo un foglio di avanzamento compilato tramite *File › Importa*. Vedi [Importare l'avanzamento da un foglio di calcolo](docs://howto-voortgang-importeren).
+Importa un foglio di avanzamento compilato tramite *File › Importa*. Vedi [Importare l'avanzamento da un foglio di calcolo](docs://howto-voortgang-importeren).
 
 ## Insidie e che cosa fa l'app in quel caso
 

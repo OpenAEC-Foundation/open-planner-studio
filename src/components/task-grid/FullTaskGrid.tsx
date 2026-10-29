@@ -59,13 +59,16 @@ import {
   appendGhostRow,
   GHOST_ROW_KEY,
   GHOST_TASK_ID,
+  hasGhostRow,
   intentsTouchGhost,
   isGhostTaskId,
   lastTaskRow,
   retargetGhostIntents,
 } from '@/engine/taskGrid/ghostRow';
-import { buildNewTask, createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
+import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { saveBranchAsWbsTemplate } from '@/utils/wbsTemplates';
@@ -304,7 +307,9 @@ export function TaskGridSurface({
   const view = useAppStore(state => state.view);
   const dateNotation = useAppStore(state => state.ui.dateNotation);
   const timeNotation = useAppStore(state => state.ui.timeNotation);
-  const durationDisplay = useAppStore(state => state.ui.durationDisplay);
+  // B9: in een profiel met de dagenmaat telt Duurweergave niet; B8: daar is "d" de dagenmaat.
+  const durationDisplay = useEffectiveDurationDisplay();
+  const countsWorkdays = useProfileCountsWorkdays();
   const uiFontScale = useAppStore(state => state.ui.uiFontScale);
   const traceMode = useAppStore(state => state.ui.traceMode);
   const showColumnsDialog = useAppStore(state => state.ui.showColumnsDialog);
@@ -340,18 +345,24 @@ export function TaskGridSurface({
   const constructionMode = useAppStore(state => state.ui.constructionMode);
   // De spookregel onderaan (review 2026-10-06, punt 1; zie `engine/taskGrid/ghostRow.ts`). Alleen
   // in de boomweergave: daar is "onderaan" ook de plek waar de nieuwe taak landt.
-  const showGhostRow = isTreeMode(view);
+  const showGhostRow = hasGhostRow(view);
   const ghostTask = useMemo<Task>(() => {
     const last = lastTaskRow(viewRows);
     const parentId = last?.task.parentId ?? null;
-    return buildNewTask({ name: '' }, {
+    const task = buildNewTask({ name: '' }, {
       id: GHOST_TASK_ID,
       parentId,
       parentTask: parentId ? tasks.find(task => task.id === parentId) : undefined,
       constructionMode,
-      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, 'days', calendar),
+      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, newTaskTimeUnit(project), calendar),
     });
-  }, [calendar, constructionMode, project.startDate, tasks, viewRows]);
+    // Ook het editorsjabloon volgt profiel, eigen maatkeuze en vast werk, zoals de echte aanmaak.
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    return task;
+  }, [calendar, constructionMode, project, tasks, viewRows]);
   const gridRows = useMemo(
     () => (showGhostRow ? appendGhostRow(viewRows, ghostTask) : viewRows),
     [ghostTask, showGhostRow, viewRows],
@@ -405,9 +416,12 @@ export function TaskGridSurface({
   }, [activeDocumentId]);
 
   const calendarEngine = useMemo(() => new CalendarEngine(calendar), [calendar]);
-  const calendarOptions = useMemo(() => [calendar, ...calendars]
-    .filter((item, index, all) => all.findIndex(candidate => candidate.id === item.id) === index)
-    .map(item => ({ value: item.id, label: item.name })), [calendar, calendars]);
+  const calendarOptions = useMemo(() => [
+    { value: '', label: tTask('properties.calendarProject') + ': ' + calendar.name },
+    ...[calendar, ...calendars]
+      .filter((item, index, all) => all.findIndex(candidate => candidate.id === item.id) === index)
+      .map(item => ({ value: item.id, label: item.name })),
+  ], [calendar, calendars, tTask]);
   const trace = useMemo(
     () => buildTrace(traceMode, selectedTaskIds, sequences, cpmResult),
     [cpmResult, selectedTaskIds, sequences, traceMode],
@@ -432,8 +446,10 @@ export function TaskGridSurface({
     calendarOptions,
     // Duur-kolom en speling: dezelfde Duurweergave en hetzelfde decimaalteken als tooltip en afdruk.
     durationDisplay,
+    workdayDurationMeasure: countsWorkdays,
     numberLocale: taskI18n.language,
     effectiveHoursPerDay: task => effHoursPerDay(effectiveCalendarOf(task, calendar, calendars)),
+    effectiveCalendar: task => effectiveCalendarOf(task, calendar, calendars),
     signedWorkDaysBetween: (fromIso, toIso) => signedWorkDaysBetween(calendarEngine, fromIso, toIso),
     // ⚠ bij een baseline van een urentaak met de oude dagtelling (alleen weergave).
     baselineOldDay: createBaselineOldDayCheck(calendar, calendars),
@@ -443,6 +459,8 @@ export function TaskGridSurface({
     // vastgelegd"-tak hangt aan `datesAsRecorded`.
     ...recordedGridBinding(recordedDates, datesAsRecorded),
     taskTypesUnlocked: showTaskTypes || taskTypesVisible,
+    // Zelfde effectieve regel als het paneel en de duurbewerking (uitleg bij het ⚠, besluit V10).
+    defaultWorkRule: project.defaultWorkRule,
     labelForColumn: labelKey => resolveColumnLabel(
       labelKey,
       key => tTask(key, { defaultValue: key }),
@@ -458,8 +476,8 @@ export function TaskGridSurface({
     textDirection,
   }), [
     activityCodeTypes, assignments, baselines, calendar, calendarEngine, calendarOptions, calendars,
-    cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, timeNotation, durationDisplay, project.id,
-    project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
+    cpmResult, customFieldDefs, customTaskTypes, datesAsRecorded, dateNotation, timeNotation, durationDisplay, countsWorkdays, project.id,
+    project.defaultWorkRule, project.wbsAutoNumber, recordedDates, resources, scheduleStale, sequences, showTaskTypes,
     taskTypesVisible, tCommon, tTask, taskI18n.language, tasks, textDirection, showGhostRow, ghostTask,
   ]);
   // Vastleggen op de spookregel: maak de taak (onderaan, op het niveau van de laatste taak) en schrijf
@@ -602,8 +620,12 @@ export function TaskGridSurface({
         previousColumnsRef.current,
         visibleColumnIds,
       );
-      const samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length
-        && current.selectedTaskIds.every(id => selectedTaskIds.includes(id));
+      let samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length;
+      if (samePublishedSelection) {
+        // Alleen de opzoeking verandert: every behoudt ook bij dubbele ids zijn betekenis.
+        const publishedSelectionIds = new Set(selectedTaskIds);
+        samePublishedSelection = current.selectedTaskIds.every(id => publishedSelectionIds.has(id));
+      }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       if (samePublishedSelection && samePublishedActiveTask) return reconciled;
 
@@ -795,7 +817,7 @@ export function TaskGridSurface({
       name: milestone
         ? tTask('defaultMilestone', { defaultValue: 'Nieuwe mijlpaal' })
         : tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
-      ...(milestone ? { isMilestone: true, taskType: 'ATTENDANCE' as const } : {}),
+      ...(milestone ? { isMilestone: true, milestoneKind: 'FINISH' as const, taskType: 'USERDEFINED' as const } : {}),
       ...endOfListPosition(),
     });
     if (!id) return;
@@ -1309,7 +1331,8 @@ export function TaskGridSurface({
             addTask({
               name: tTask('defaultMilestone', { defaultValue: 'Nieuwe mijlpaal' }),
               isMilestone: true,
-              taskType: 'ATTENDANCE',
+              milestoneKind: 'FINISH',
+              taskType: 'USERDEFINED',
               parentId: contextMenu.task.id,
             });
           }}

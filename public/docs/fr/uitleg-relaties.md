@@ -25,8 +25,8 @@ Pour chaque relation, l'application calcule la date au plus tôt à laquelle le 
 
 - Avec FS, le successeur commence le premier jour ouvré après la fin du prédécesseur.
 - Avec SS, le successeur commence le même jour que le prédécesseur.
-- Avec FF, le successeur finit le même jour que le prédécesseur. Pour trouver le début, l'application remonte sur la durée du successeur. Un successeur de 3 jours ouvrés commence donc 2 jours ouvrés avant la fin du prédécesseur.
-- Avec SF, le successeur finit le jour où le prédécesseur commence. Là aussi, l'application remonte sur la durée du successeur.
+- Avec FF, le successeur finit le même jour que le prédécesseur. Pour trouver le début, l'application compte à rebours sur la durée du successeur. Un successeur de 3 jours ouvrés commence donc 2 jours ouvrés avant la fin du prédécesseur.
+- Avec SF, le successeur finit le jour où le prédécesseur commence. Là aussi, l'application compte à rebours sur la durée du successeur.
 
 Ce sont des limites inférieures. Un successeur commence plus tard si une autre relation ou une contrainte l'exige. Toutes les dates n'apparaissent qu'après **Calculer** (F5). Tant que la barre d'état affiche *Obsolète — recalculer (F5)*, les barres appartiennent au calcul précédent.
 
@@ -45,7 +45,7 @@ Une avance ne peut pas placer une tâche avant le début du projet. Si cela deva
 
 ### Dans quel calendrier le décalage compte
 
-Chaque tâche peut avoir son propre calendrier. Avec un décalage en jours ouvrés, il importe de savoir quel calendrier compte les jours ouvrés. Le réglage *Calendrier de décalage* décide cela, avec quatre choix : *Prédécesseur*, *Successeur*, *24 heures* et *Calendrier du projet*. Par défaut, le décalage compte dans le calendrier du **prédécesseur**. Vous trouvez ce réglage sous *Paramètres › Projet › Info projet*, dans le bloc *Profil de calcul et options*, à *Options de calcul de ce projet*. Le choix fait partie du fichier de projet et ne compte qu'après un clic sur *Appliquer* ; le planning est alors recalculé.
+Chaque tâche peut avoir son propre calendrier. Avec un décalage en jours ouvrés, il importe de savoir quel calendrier compte les jours ouvrés. Le réglage *Calendrier de décalage* décide cela, avec quatre choix : *Prédécesseur*, *Successeur*, *24 heures* et *Calendrier du projet*. Par défaut, le décalage compte dans le calendrier du **prédécesseur**. Vous trouvez ce réglage sous *Paramètres › Projet › Paramètres du projet*, dans le bloc *Profil de calcul et options*, à *Options de calcul de ce projet*. Le choix fait partie du fichier de projet et ne compte qu'après un clic sur *Appliquer* ; le planning est alors recalculé.
 
 Un décalage en jours calendaires (`3ed`) compte toujours tous les jours, quel que soit le *Calendrier de décalage* choisi.
 

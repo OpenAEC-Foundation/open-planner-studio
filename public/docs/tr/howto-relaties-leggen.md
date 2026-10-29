@@ -24,13 +24,13 @@ Bu yol, görev tablosunda çalışırken kullanışlıdır.
 2. Ctrl tuşunu basılı tutun (Mac'te ⌘) ve sonra gelen görevi tıklayın: ardıl görevi.
 3. *Ana sayfa › Görevler › Bağlantı ▾ › Seçili görevleri bağla* öğesini seçin. Aynı düğme *Planlama › İlişkiler* üzerinde de bulunur.
 
-Uygulama gecikmesiz bir Bitiş-Başlangıç ilişkisi oluşturur. Bunu Gantt'ta bir ok olarak ve *Öncüller* sütununda görürsünüz; bildirim yalnızca uygulama ilişkiyi reddederse görünür. Bu düğme yalnızca tam olarak iki seçili görevle çalışır.
+Uygulama gecikmesiz bir bitiş-başlangıç ilişkisi oluşturur. Bunu Gantt'ta bir ok olarak ve *Öncüller* sütununda görürsünüz; bildirim yalnızca uygulama ilişkiyi reddederse görünür. Bu düğme yalnızca tam olarak iki seçili görevle çalışır.
 
 ### Gantt'ta ilişki çizmek
 
 Bu yol, arka arkaya birçok ilişki eklediğinizde kullanışlıdır.
 
-1. *Ana sayfa › Görevler › Bağlantı ▾ › İlişki çiz* öğesini seçin. Gantt'ın üstünde şu bildirim görünür: *Bağlantı modu: Gantt'ta bir çubuktan diğerine sürükleyerek ilişki oluşturun. Durdurmak için Esc*.
+1. *Ana sayfa › Görevler › Bağlantı ▾ › İlişki çiz* öğesini seçin. Gantt'ın üstünde şu bildirim görünür: *Bağlantı modu: Gantt'ta bir çubuktan diğerine sürükleyerek ilişki oluşturun. Durdurmak için Esc.*
 2. Öncül görevin çubuğuna basılı tutun ve ardıl görevin çubuğuna sürükleyin. Kesikli, uçlu bir çizgi sizi takip eder.
 3. Bırakın. Küçük bir *İlişki türü* penceresi açılır. Pencerede tür (varsayılan olarak FS) ve gecikme için bir kutu görünür.
 4. Gerekirse türü veya gecikmeyi değiştirin ve Enter tuşuna basın ya da pencerenin dışına tıklayın. İlişki oluşturulur.
@@ -69,14 +69,14 @@ Yukarıdaki yolların her birinde, türün yanındaki kutuya bir gecikme yazars�
 - `3` veya `3d`: 3 iş günü. Hafta sonu sayılmaz. Uygulama `+3d` gösterir.
 - `3ed`: 3 takvim günü. Hafta sonu da sayılır; örneğin cumartesi ve pazar da kürlenen beton gibi.
 - `-1`: negatif bir gecikme (öne alma). Ardıl görev bir gün önce başlayabilir, böylece görevler örtüşür.
-- `4h`: 4 çalışma saati; uygulama bunu `+4u` olarak gösterir. Öncül görev, kendi çalışma saati bantları olmayan bir takvimde gün görevi ise (örneğin standart takvim), uygulama bunu tam iş günlerine çevirir ve en yakın tam güne yuvarlar. Dolayısıyla `4h` 1 gün, `2h` 0 gün gibi işler. Kendi çalışma saati bantları olan bir takvimde veya bir saat görevinden sonra gecikme tam olarak saat sayılır.
+- `4h`: 4 çalışma saati; uygulama bunu `+4h` olarak gösterir. Öncül görev, kendi çalışma saati bantları olmayan bir takvimde gün görevi ise (örneğin standart takvim), uygulama bunu tam iş günlerine çevirir ve en yakın tam güne yuvarlar. Dolayısıyla `4h` 1 gün, `2h` 0 gün gibi işler. Kendi çalışma saati bantları olan bir takvimde veya bir saat görevinden sonra gecikme tam olarak saat sayılır.
 - `50%`: öncül görevin süresinin yarısı.
 
 Örnek: temel betonunun, duvarcı üzerinde çalışmadan önce kürlenmesi gerekir. Bu yüzden *Pour foundation → Foundation brickwork* arasına gecikme `3` ile bir FS ilişkisi eklenir. Döküm 18 Haziran 2027 Cuma günü yapılırsa, duvar işi 24 Haziran Perşembe günü **Hesapla** komutundan sonra başlar: Pazartesi ile Çarşamba arası bekleme süresidir. `3ed` ile hafta sonu da sayılır ve duvar işi 22 Haziran Salı günü başlar.
 
 ### Son olarak: yeniden hesaplamak
 
-Yeni bir ilişki henüz hiçbir çubuğu taşımaz. Durum çubuğu şunu gösterir: *Güncel değil — yeniden hesaplayın (F5)*. **Hesapla** (F5) tuşuna basın, örneğin *Ana sayfa › Zamanlama › Hesapla* üzerinden. Ardıl görevler ancak o zaman yeni tarihlerini alır. Uygulamanın bunu sizin yerinize yapmasını istiyorsanız, *Ayarlar › Proje › Ayarlar* altında, *Planlama* sekmesinde *Otomatik hesapla* seçeneğini açın.
+Yeni bir ilişki henüz hiçbir çubuğu taşımaz. Durum çubuğu şunu gösterir: *Güncel değil — yeniden hesaplayın (F5)*. **Hesapla** (F5) tuşuna basın, örneğin *Ana sayfa › Zamanlama › Hesapla* üzerinden. Ardıl görevler ancak o zaman yeni tarihlerini alır. Uygulamanın bunu sizin yerinize yapmasını istiyorsanız, *Ayarlar › Proje › Uygulama ayarları* altında, *Planlama* sekmesinde *Otomatik hesapla* seçeneğini açın.
 
 ## Tuzaklar ve uygulamanın yaptıkları
 

@@ -12,7 +12,7 @@ Om appens egen beräkning hamnar på andra datum än filen anger vet du inte vil
 
 ### Vilken beräkningsprofil appen använder
 
-Appen beräknar med en **beräkningsprofil**: en uppsättning regler (beräkningsregler) som avgör till exempel hur den behandlar den planerade starten för en uppgift och restriktioner. Se [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen). Det finns tre inbyggda profiler: *Primavera P6*, *Microsoft Project* och *Open Planner Studio*. En `.xer` öppnas med *Primavera P6* och en `.mpp` med *Microsoft Project*. CSV, MS Project XML och Primavera P6 XML öppnas med *Open Planner Studio*. Projektets profil finns under *Fil › Projektinfo*, vid *Beräkningsprofil och beräkningsalternativ*. En IFC-fil från appen behåller sin profil.
+Appen beräknar med en **beräkningsprofil**: en uppsättning regler (beräkningsregler) som avgör hur den behandlar till exempel den planerade starten för en uppgift och restriktioner. Se [Beräkningsprofiler och beräkningsregler](docs://uitleg-rekenprofielen). Det finns tre inbyggda profiler: *Primavera P6*, *Microsoft Project* och *Open Planner Studio*. En `.xer` öppnas med *Primavera P6* och en `.mpp` med *Microsoft Project*. CSV, MS Project XML och Primavera P6 XML öppnas med *Open Planner Studio*. Projektets profil finns under *Fil › Projektinställningar*, vid *Beräkningsprofil och beräkningsalternativ*. En IFC-fil från appen behåller sin profil.
 
 ### När appen jämför
 
@@ -33,42 +33,48 @@ Med en Primavera-fil beräknar appen med beräkningsprofilen *Primavera P6*. Då
 
 Under menyfliksområdet finns ett fält. Där står: *Du ser datumen så som de står i filen; när du beräknar om skulle 4 uppgifter flyttas.* Med en Primavera-källa (en `.xer` eller Primavera P6 XML) står det: *Du ser tidsplanen så som Primavera sparade den; när du beräknar om skulle 1 uppgift flyttas.* Till höger i fältet finns knappen *Beräkna om*. Fältet har inget kryss.
 
-Det finns också ett meddelande: *4 uppgifter visar datumen så som de står i filen (inte beräknas om).* Bara med en `.xer` står det *1 uppgift visar datumen så som Primavera sparade dem (inte beräknas om).* Varje uppgift vars datum finns sparade i filen visar en markering i panelen *Egenskaper*: *Visar Primaveras egna sparade datum för den här uppgiften* vid en Primavera-källa, eller *Visar datumen så som de står i filen för den här uppgiften* vid en annan källa. Gantt-schemat, uppgiftstabellen och statusfältet visar datumen från filen.
+Det finns också ett meddelande: *12 uppgifter visar datumen så som de står i filen (inte beräknas om).* Bara med en `.xer` står det: *12 uppgifter visar datumen så som Primavera sparade dem (inte beräknas om).* Det talet räknar varje uppgift för vilken filen sparade datum, också de uppgifter som inte skiljer sig. Antalet uppgifter som skiljer sig efter omberäkningen står i fältet. Varje uppgift vars datum finns sparade i filen visar en orange markering i panelen *Egenskaper*, direkt ovanför *Start*: *Du ser de datumen som Primavera sparade, inte appens beräkning.* Vid en annan källa står det: *Du ser de datumen som fanns i filen, inte appens beräkning.* En andra rad säger vad som händer med uppgiften när du beräknar om: *När du beräknar om ändras den här uppgiften.* eller *När du beräknar om förblir den här uppgiften oförändrad.* Gantt-diagrammet, uppgiftstabellen och statusfältet visar datumen från filen.
+
+### Uppgifter som har startat eller är klara
+
+En uppgift som är klar ligger på de dagar då den verkligen skedde: från verklig start till verkligt slut. En uppgift som pågår startar den dag då den verkligen startade. Den slutar på det beräknade slutet. Detta gäller i den här vyn, efter en omberäkning och med alla beräkningsprofiler, precis som i Primavera och MS Project.
+
+För en sådan uppgift sparar filen ofta andra tidigaste datum. Primavera sätter den tidigaste starten för en uppgift som pågår eller är klar på rapportdatumet. Du ser de datumen i kolumnerna *Tidigaste start* och *Tidigaste slut*, inte i *Start* och *Slut*. En uppgift som är klar räknas därför aldrig som en skillnad. En uppgift som pågår räknas bara när dess slut skiljer sig.
+
+För en uppgift som har startat går startdatumet inte längre att skriva. I uppgiftstabellen, i panelen *Egenskaper* och i *Redigera uppgift* är starten då skrivskyddad. För en uppgift som är klar gäller det också slutet i uppgiftstabellen. Ändra i stället *Verklig start* eller *Verkligt slut* med framdriften. I Gantt-diagrammet flyttas inte bandet för en sådan uppgift; du får då ett meddelande.
 
 ### Vad som förblir tomt i den här vyn
 
 I den här vyn beräknar appen ingenting. Den visar bara det som filen sparade. Du ser därför slack och kritisk linje bara om filen innehåller dem. Om filen inte sparar några kritiska uppgifter visar statusfältet 0 kritiska uppgifter. Det säger inget om den kritiska linjen i programmet självt. Det som bara kommer fram vid en beräkning finns inte i den här vyn: vilka samband som styr tidsplanen, överträdda restriktioner, uppgifter som hamnar i fel ordning och nära kritiska uppgifter.
 
-Om filen inte sparar allt för en uppgift ser du markeringen *Lagringen är delvis ofullständig. Se kolumnerna senaste start/slack* i panelen *Egenskaper*. I en CSV-export förblir kolumnerna *Kritisk* och *Totalt slack* tomma för en sådan uppgift, i stället för en påhittad nolla.
+Om filen inte sparar allt för en uppgift får den orange markeringen i panelen *Egenskaper* en tredje rad, till exempel *Primavera sparade inte allt för den här uppgiften. Saknas: fritt slack.* Med en annan källa står det: *Filen innehåller inte allt för den här uppgiften.* De två första raderna står kvar: så ser du för en sådan uppgift också att datumen kommer från filen och om uppgiften ändras när du beräknar om. De saknade värdena har samma namn som kolumnerna i uppgiftstabellen. I en CSV-export förblir kolumnerna *Kritisk* och *Totalt slack* tomma för en sådan uppgift, i stället för en påhittad nolla.
 
 ### Lämna vyn
 
 Du lämnar vyn på två sätt:
 
 - Klicka på *Beräkna om* i fältet, eller välj *Beräkna* (F5). Appen beräknar med sina egna regler.
-- Ändra något som kan ändra datumen, till exempel varaktigheten för en uppgift eller en ny uppgift. Appen lämnar vyn och beräknar om direkt, även om *Beräkna automatiskt* är avstängt. Att ändra ett namn gör inte det: vyn står kvar.
+- Ändra något som kan ändra datumen, till exempel varaktigheten för en uppgift eller en ny uppgift. Appen lämnar vyn och beräknar om direkt, även om *Beräkna automatiskt* är avstängt. Att ändra ett namn, en beskrivning, en arbetskategori eller en uppgiftstyp gör inte det: vyn står kvar.
 
 En kalenderändring från resursbiblioteket låter vyn och datumen från filen stå kvar, men uppdaterar talet i fältet.
 
 Efter att du har lämnat vyn finns ingen knapp för att gå tillbaka till den. Ctrl+Z tar tillbaka den, direkt efter en omberäkning eller direkt efter en sådan ändring. Annars kan du öppna källfilen igen. Med en `.xer` slår också en IFC-fil som du sparade efter omberäkningen, men inte redigerade, på vyn igen.
 
-### Kraschskydd
+### Återställa efter en krasch
 
-Om du återställer ett projekt efter en krasch som var i vyn, står vyn kvar på. Det aktiva projektet visar samma fält som förut. Ett projekt på en annan flik visar fältet utan siffra: *Du ser datumen så som de står i filen. Ingen omberäkning har gjorts.* Se [Återställa efter en krasch](docs://howto-herstellen-na-een-crash).
+Om du återställer ett projekt efter en krasch som var i vyn, förblir vyn på. Om vyn var av glömmer appen datumen från filen. Det aktiva projektet visar samma fält som förut. Ett projekt på en annan flik visar fältet utan siffra: *Du ser datumen så som de står i filen. Ingen omberäkning har gjorts.* Se [Återställa efter en krasch](docs://howto-herstellen-na-een-crash).
 
 ### Spara och öppna igen
 
-Om du sparar medan du använder vyn skriver appen de visade datumen till IFC-filen, tillsammans med källformatet. Om du senare öppnar den IFC-filen igen och inte har redigerat den sedan importen, är vyn på igen, utan ett nytt meddelande.
+Om du sparar medan du använder vyn skriver appen de visade datumen till IFC-filen, tillsammans med källformatet. Om du senare öppnar den IFC-filen igen är vyn på igen, utan ett nytt meddelande. Det gäller också om du har ändrat något i vyn som inte påverkar datumen, till exempel ett namn. Appen öppnar filen så som du lämnade den.
 
-Om du har redigerat och sparat däremellan beror det på källan. Med en Primavera-fil sparar IFC-filen också den ursprungliga `.xer`-filen. Appen jämför då på nytt och erbjuder vyn: *Omberäkningen flyttade 1 uppgift av 2 jämfört med datumen i filen.* Tillsammans med det följer knappen *Visa sparade datum* och ett kryss. På varje avvikande uppgift visar panelen *Egenskaper* markeringen *Avviker från de sparade datumen*. *Visa sparade datum* slår på vyn; Ctrl+Z ångrar det. Krysset döljer erbjudandet.
-
-Med MS Project XML, `.mpp`, Primavera P6 XML eller en IFC-fil från ett annat program sparar IFC-filen inte källan. Om du redigerar och sparar ett sådant projekt jämför appen inte längre när du öppnar det igen.
+Om du sparar efter att du har lämnat vyn, genom en omberäkning eller genom en redigering som kan ändra datumen, innehåller filen appens egen beräkning. När du öppnar den igen ser du den beräkningen, utan fält och utan markering i panelen *Egenskaper*. Det finns ett undantag: en `.xer` som du bara har beräknat om och inte redigerat (se ovan). Din redigerade tidsplan är nu tidsplanen; de gamla datumen från källprogrammet hör inte längre till den. Om du ändå vill se dem öppnar du källfilen igen.
 
 ## Exempel: tillbyggnaden
 
-Anta att du öppnar en Primavera-fil *Uitbouw* (tillbyggnad) med två uppgifter, på en kalender utan helgdagar. År 2027 är 6 maj Kristi himmelsfärsdag och 17 maj är annandag pingst: med helgdagar i kalendern blir datumen annorlunda. *Fundering storten* (gjuta grund) tar 5 arbetsdagar, *Metselwerk* (murverk) 10 arbetsdagar, och Metselwerk följer på Fundering med ett samband av typen slut-till-start. Filen anger att Fundering går från måndag 3 maj till fredag 7 maj 2027 och Metselwerk från måndag 17 maj till fredag 28 maj 2027: en vecka efter den tidigaste start som sambandet tillåter. Den planerade starten för Metselwerk i filen är måndag 10 maj 2027.
+Anta att du öppnar en Primavera-fil *Uitbouw* (tillbyggnad) med två uppgifter, på en kalender utan helgdagar. År 2027 är 6 maj Kristi himmelsfärdsdag och 17 maj är annandag pingst: med helgdagar i kalendern blir datumen annorlunda. *Fundering storten* (gjuta grunden) tar 5 arbetsdagar, *Metselwerk* (murverk) 10 arbetsdagar, och Metselwerk följer på Fundering med ett samband av typen slut-till-start. Filen anger att Fundering går från måndag 3 maj till fredag 7 maj 2027 och Metselwerk från måndag 17 maj till fredag 28 maj 2027: en vecka efter den tidigaste start som sambandet tillåter. Den planerade starten för Metselwerk i filen är måndag 10 maj 2027.
 
-Direkt efter öppningen ser du datumen från filen. Statusfältet visar *Slut: 28-05-2027* och *Kritisk linje: 2 uppgifter, 20 arbetsdagar*. Fältet visar att 1 uppgift skiljer sig vid omberäkning, och båda uppgifterna visar *Visar Primaveras egna sparade datum för den här uppgiften*.
+Direkt efter öppningen ser du datumen från filen. Statusfältet visar *Slut: 28-05-2027* och *Kritisk linje: 2 uppgifter, 20 arbetsdagar*. Fältet visar att 1 uppgift skiljer sig vid omberäkning. Båda uppgifterna visar en orange markering: *Du ser de datumen som Primavera sparade, inte appens beräkning.* Under den säger Metselwerk *När du beräknar om ändras den här uppgiften.* och Fundering *När du beräknar om förblir den här uppgiften oförändrad.*
 
 När du väljer *Beräkna om* ligger Fundering kvar på 3 till 7 maj. Metselwerk börjar nu måndag 10 maj, den arbetsdag efter att Fundering slutar, och slutar fredag 21 maj. Tidsplanen slutar 21 maj 2027 och omfattar 15 arbetsdagar i stället för 20. Den kritiska linjen består av samma 2 uppgifter.
 
@@ -78,7 +84,9 @@ Vad händer om det är annorlunda?
 - Du lägger till en uppgift i vyn: samma omberäkning. Metselwerk flyttas till 10 till 21 maj.
 - Du sparar i vyn och öppnar IFC-filen igen, utan att redigera: Metselwerk är tillbaka på 17 till 28 maj.
 - Du beräknar om, sparar utan att redigera mer och öppnar IFC-filen igen: vyn är på igen och Metselwerk ligger på 17 till 28 maj.
-- Du redigerar, sparar och öppnar igen: appen erbjuder vyn med *Omberäkningen flyttade 1 uppgift av 2 jämfört med datumen i filen.* Metselwerk visar *Avviker från de sparade datumen*.
+- Du ändrar bara namnet på Metselwerk i vyn, sparar och öppnar igen: vyn är på igen och Metselwerk ligger på 17 till 28 maj.
+- Du lägger till en uppgift i vyn, sparar och öppnar igen: appen glömmer datumen från filen. Metselwerk ligger på 10 till 21 maj, utan fält och utan markering.
+- Fundering är redan klar i filen: den startade verkligen 3 maj och slutade verkligen 7 maj. Filen sparar rapportdatumet som dess tidigaste start. Bandet för Fundering ligger kvar på 3 till 7 maj, i vyn och efter omberäkningen. Fundering räknas inte som en skillnad.
 
 ## Konsekvenser och missförstånd
 
@@ -88,7 +96,7 @@ Vad händer om det är annorlunda?
 
 **Att spara i vyn behåller datumen från källprogrammet.** IFC-filen innehåller då vad källprogrammet angav, inte vad appen skulle beräkna.
 
-**Knappen *Visa sparade datum* visas inte vid varje import.** Med en nyss öppnad fil är vyn redan på. Knappen visas bara med en återöppnad IFC-fil med en Primavera-källa som du har redigerat sedan importen.
+**Efter en redigering som kan ändra datumen kommer datumen från filen inte tillbaka.** Om du har lämnat vyn genom en sådan redigering ser du först efter att du har sparat och öppnat igen appens egen beräkning. Att ändra ett namn räknas inte: då står vyn kvar (se *Spara och öppna igen*). Öppna källfilen igen om du vill se datumen från källprogrammet.
 
 ## Se också
 

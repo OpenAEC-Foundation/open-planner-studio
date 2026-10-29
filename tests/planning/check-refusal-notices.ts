@@ -27,6 +27,7 @@ import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { REFUSED_NAMES_SHOWN } from '@/state/refusalNotice';
 import { notifyRelationsSkipped } from '@/state/insertedBranch';
+import { remainingWorkRecomputedNotice } from '@/state/remainingWorkNotice';
 import type { NotifyInput } from '@/state/slices/types';
 
 const S = () => useAppStore.getState();
@@ -92,7 +93,7 @@ eq('1n geen overgeslagen relaties ⇒ geen melding', none.length, 0);
 eq('2a Many noemt de taken (niet toegepast bij)', many[0]?.detailLines,
   [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'B, C' } }]);
 const msMany = milestoneRefusalNotices([{ id: 'a', name: 'A', refusal: 'assignments' }, { id: 'b', name: 'B', refusal: 'assignments' }]);
-eq('2b mijlpaal _other noemt de taken (niet aangepast)', msMany[0]?.detailLines,
+eq('2b mijlpaalverzameling noemt de taken (niet aangepast)', msMany[0]?.detailLines,
   [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'A, B' } }]);
 const seven = Array.from({ length: REFUSED_NAMES_SHOWN + 2 }, (_, i) => blocked(`T${i}`));
 eq('2c meer dan vijf namen ⇒ "en nog N"', startEditNotifications(seven, 'dmy', '24h')[0]?.detailLines,
@@ -163,10 +164,13 @@ const REFUSAL_KEYS = [
   'durationBelowDoneWork', 'relationDuplicate', 'relationAncestorEndpoint', 'relationCycle', 'hierarchyCycle',
   'startBlockedByConstraint', 'startBlockedByConstraintNoDate', 'startBlockedByConstraintMany',
   'dragStartIsActual', 'dragDatesAreActual', 'milestoneRefusedAssignments', 'milestoneRefusedSummary',
+  'milestoneRefusedAssignmentsMany', 'milestoneRefusedSummaryMany',
   'phaseRefusedNoAssignableChild', 'phaseRefusedDuplicateResource', 'taskEditRevertBlocked', 'pasteSkippedReadOnly',
-  'relationsSkippedOnInsert', 'schedulingTemplateLimit',
+  'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
 ];
 const NOT_A_REFUSAL: Record<string, string> = {
+  mppInvalidContainer: 'echte importfout (ongeldige bestandsstructuur), geen documentgebonden bewerkingsweigering',
+  extensionInstallFailed: 'app-globale installatiefout (bijv. ongeldig bestand of opslag); geen documentgebonden weigering',
   extHelpProjectOpenFailed: 'storing (bestand niet te openen), echte fout',
   siteSaveConflict: 'opslaan geweigerd door de site: data staat op het spel, blijft een echte fout die nooit weggeduwd wordt',
   recoveryReadFailed: 'storing bij herstel', recoveryDocumentsSkipped: 'storing bij herstel',
@@ -176,10 +180,29 @@ const NOT_A_REFUSAL: Record<string, string> = {
   xerImportEmptyProjectsSkipped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   summaryRelationsDropped: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
   p6xmlImportUnassignedActivities: 'openingsmelding bij import (eigenaarsbesluit: niet rood)',
+  // Importverslag MS Project (#391): detailregels onder een openingsmelding, zoals P6 XML.
+  ...Object.fromEntries(['Baselines', 'ExtraBaselines', 'BaselineWorkCost', 'AssignmentBaselineDates', 'CustomFields', 'Notes', 'Hyperlinks', 'FixedCosts', 'ResourceRates',
+    'Subprojects', 'ExternalTasks', 'ManualTasks', 'LevelingDelays', 'InactiveTasks', 'CriticalSlack']
+    .map(c => [`msProjectLost${c}`, 'openingsmelding bij import (eigenaarsbesluit: niet rood)'])),
   notAppliedTaskNames: 'detailregel onder een weigering', notAppliedTaskNamesMore: 'detailregel onder een weigering',
   refusedRelationNames: 'detailregel onder een weigering', refusedRelationNamesMore: 'detailregel onder een weigering',
   refusedTaskNames: 'detailregel onder een weigering', refusedTaskNamesMore: 'detailregel onder een weigering',
+  remainingWorkRecomputed: 'geslaagde duurwijziging; het restwerk is echt herrekend',
+  remainingWorkRecomputedMany: 'geslaagde duurwijziging; het restwerk is echt herrekend',
 };
+// De twee restwerkmeldingen raken REFUSAL_SOUND nu niet; de uitzondering hierboven legt vast dat
+// dat zo hoort. Hier: ze blijven info, zonder weigeringsvlag (review #380).
+const work = (taskId: string, assignmentId: string) => ({
+  taskId, taskName: `Taak ${taskId}`, assignmentId, resourceId: 'r1', beforeMinutes: 19200, afterMinutes: 4800,
+});
+for (const [label, notice] of [
+  ['één taak', remainingWorkRecomputedNotice([work('a', 'a1')])],
+  ['meer taken', remainingWorkRecomputedNotice([work('a', 'a1'), work('b', 'b1')])],
+] as const) {
+  eq(`4c restwerkmelding (${label}) is info zonder refusal`,
+    { messageKey: notice?.messageKey, severity: notice?.severity, refusal: notice?.refusal },
+    { messageKey: label === 'één taak' ? 'notifications.remainingWorkRecomputed' : 'notifications.remainingWorkRecomputedMany', severity: 'info', refusal: undefined });
+}
 const REFUSAL_SOUND = /niet toegepast|niet aangemaakt|niet gewijzigd|niets gewijzigd|niets verplaatst|kan geen|kan niet|kunnen geen|niet toegestaan|bestaat al|overgeslagen|niet teruggedraaid|verschuift niet|verschuiven niet|niet opgeslagen|niet verwijderd|geweigerd|niet mogelijk|niet ingelezen|niet overgenomen|kon niet|konden niet|niet aangepast/i;
 const nlCommon = JSON.parse(readFileSync(fileURLToPath(new URL('../../src/i18n/locales/nl/common.json', import.meta.url)), 'utf8')) as { notifications: Record<string, unknown> };
 const soundsLike = new Set<string>();

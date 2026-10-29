@@ -5,7 +5,7 @@ import {
   countToken, containsTerm, escapeRe, nestings, placeholders, pluralCategories, textsOf, type UnitText,
 } from './common';
 import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
-import type { UiLabel, UiPackage } from './ui';
+import { uiFixedTextError, type UiLabel, type UiPackage } from './ui';
 import { sectionHash, splitSections, structureOf, subsetErrors, type DocSection } from '../lib/docs-structure';
 import {
   avoidWords, blocksOf, codesOf, hasStem, hasWord, italicsOf, normLabel, outSections, type Block, type DocsPackage,
@@ -81,6 +81,9 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
   for (const item of pkg.items) {
     const v = out[item.key];
     if (v === undefined) { errors.push(`${item.key}: ontbreekt`); continue; }
+    // De regel komt uit de straat zelf, niet uit bewerkbare pakketmetadata (ook oude pakketten).
+    const fixedError = uiFixedTextError(pkg.lang, pkg.namespace, item.key, v);
+    if (fixedError) errors.push(fixedError);
     const nl = textsOf(item.nl);
     const enText = (t: UnitText, cat?: string) => typeof t === 'string' ? t : (t[cat ?? 'other'] ?? t.other ?? '');
     if (!item.plural) {
@@ -100,7 +103,7 @@ export function checkUi(pkg: UiPackage, out: unknown): CheckResult {
         + `${missing.length ? ` — ontbreekt ${missing.join(', ')}` : ''}${extra.length ? ` — overbodig ${extra.join(', ')}` : ''}`);
     }
     // Elke vorm vergelijkt met de nl-vorm voor dezelfde getallen: `one` met nl `one`, de rest met nl `other`.
-    // Een familie mag per vorm andere invulplekken hebben ("'{{task}}' heeft…" tegenover "{{count}} taken…").
+    // Een vorm mag het getal uitschrijven (bijv. Arabisch); naam versus verzameling heeft eigen sleutels.
     const nlFor = (c: string): string[] => {
       if (typeof item.nl === 'string') return nl;
       const src = c === 'one' && item.nl.one !== undefined ? item.nl.one : item.nl.other;

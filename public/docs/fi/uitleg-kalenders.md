@@ -9,7 +9,7 @@ Aikataulu lasketaan **työpäivinä**, ei kalenteripäivinä. "Viisi päivää m
 Mitkä päivät ovat työpäiviä, tallennetaan **kalenteriin**. Kalenteri määrittää kolme asiaa:
 
 - **Työviikko**: viikonpäivät, joina työtä tehdään. Oletuksena se on maanantaista perjantaihin.
-- **Työajat**: alku, loppu ja tauko. Ne antavat **nettotunnit päivässä**. Oletuksena työajat ovat 07:00–16:00, tauko yhden tunnin, eli 8 tuntia.
+- **Työajat**: alku, loppu ja tauko. Ne antavat **vakiotyöpäivän**. Oletuksena työajat ovat 07:00–16:00, tauko yhden tunnin, eli 8 tuntia.
 - **Vapaapäivät**: yksittäiset päivät tai kokonaiset jaksot, joina työtä ei tehdä, kuten kuningaspäivä, joulu tai rakennusalan kesäloma.
 
 Projektissa on yksi kirjasto, jossa ovat kalenterit. Yksi niistä on **projektikalenteri**. Se koskee jokaista tehtävää, jolla ei ole omaa kalenteria. Tehtävälle voi antaa toisen kalenterin, esimerkiksi kuuden päivän työviikon aliurakoitsijalle, joka työskentelee myös lauantaisin. Resurssilla voi olla myös oma kalenteri, mutta se toimii eri tavalla (katso alla).
@@ -40,14 +40,14 @@ Yhteenvetotehtävä (vaihe) ei sisällä omaa työtä, eikä siksi omaa kalenter
 Kun kaksi tehtävää, joilla on eri kalenterit, linkitään, pätee seuraava:
 
 - Kun tehtävien välillä on riippuvuus lopusta alkuun, seuraaja alkaa ensimmäisenä työpäivänä edeltäjän lopun jälkeen. Päivät lasketaan **seuraajan** kalenterissa. Jos tehtävä päättyy perjantaina, seuraaja, jolla on kuuden päivän työviikko, alkaa lauantaina.
-- **Viive** lasketaan oletuksena **edeltäjän** kalenterissa. Sen voi muuttaa kohdassa *Asetukset › Projekti › Projektitiedot*, osiossa *Laskentaprofiili ja laskentavaihtoehdot*, kohdassa *Tämän projektin laskentavaihtoehdot*, valinnalla *Viiveen kalenteri*: *Edeltäjä* (oletus), *Seuraaja*, *24 tunnin* tai *Projektikalenteri*.
+- **Viive** lasketaan oletuksena **edeltäjän** kalenterissa. Sen voi muuttaa kohdassa *Asetukset › Projekti › Projektin asetukset*, osiossa *Laskentaprofiili ja laskentavaihtoehdot*, kohdassa *Tämän projektin laskentavaihtoehdot*, valinnalla *Viiveen kalenteri*: *Edeltäjä* (oletus), *Seuraaja*, *24 tunnin* tai *Projektikalenteri*.
 - **Kokonaispelivara** lasketaan tehtävän oman kalenterin työpäivinä. Tässä profiilissa **vapaa pelivara** lasketaan seuraajan kalenterissa.
 
 Mitä viive tarkalleen on, kerrotaan kohdassa [Riippuvuuden lisääminen](docs://howto-relaties-leggen). Mitä pelivara on, kerrotaan kohdassa [Kriittinen polku ja pelivara](docs://uitleg-kritiek-pad).
 
 ### Gantt-kaaviossa
 
-Harmaa tausta Gantt-kaaviossa näyttää aina projektikalenterin ei-työpäivät. Tehtävä, jolla on oma kalenteri, voi siis kulkea harmaan päivän yli, esimerkiksi kuuden päivän tehtävä lauantain yli. Vapaapäivien jakso, joka on vähintään kolme päivää leveä, saa nimensä näkyviin, esimerkiksi *Bouwvak (Noord)*. Näin ei tapahdu, kun *Näytä vain työpäivät* on käytössä. Jos harmaita päiviä ei halua nähdä lainkaan, ota käyttöön *Näytä vain työpäivät* kohdassa *Asetukset › Projekti › Asetukset*, välilehdellä *Ulkonäkö*, otsikossa *Aika-akseli*.
+Harmaa tausta Gantt-kaaviossa näyttää aina projektikalenterin ei-työpäivät. Tehtävä, jolla on oma kalenteri, voi siis kulkea harmaan päivän yli, esimerkiksi kuuden päivän tehtävä lauantain yli. Vapaapäivien jakso, joka on vähintään kolme päivää leveä, saa nimensä näkyviin, esimerkiksi *Bouwvak (Noord)*. Näin ei tapahdu, kun *Näytä vain työpäivät* on käytössä. Jos harmaita päiviä ei halua nähdä lainkaan, ota käyttöön *Näytä vain työpäivät* kohdassa *Asetukset › Projekti › Sovelluksen asetukset*, välilehdellä *Ulkonäkö*, otsikossa *Aika-akseli*.
 
 ## Esimerkki: rakennuksen aikataulu
 
@@ -88,15 +88,15 @@ Tehtävän päivämäärät eivät muutu. Perjantai 4. kesäkuuta on histogrammi
 
 ## Seuraukset ja väärinkäsitykset
 
-**"Resurssin kalenteri siirtää tehtäviäni."** Ei siirrä. Resurssin kalenteri ei muuta yhtäkään päivämäärää. Se tekee vain ylikuormituksen näkyväksi. Jos haluat, että tehtävä itse kulkee muina päivinä, anna tehtävälle oma kalenteri.
+**"Resurssin kalenteri siirtää tehtäviäni."** Ei siirrä. Resurssin kalenteri ei muuta yhtäkään päivämäärää. Se tekee vain ylikuormituksen näkyväksi. Jos halutaan, että tehtävä itse kulkee muina päivinä, tehtävälle annetaan oma kalenteri.
 
 **"Jos vaihdan projektikalenterin, kaikki siirtyy."** Vain tehtävät ilman omaa kalenteria siirtyvät mukana. Tehtävä, jolle on itse annettu kalenteri listasta, säilyttää sen, vaikka se olisi sattumalta vanha projektikalenteri. Jos kalenteri poistetaan, tehtävät ja resurssit, jotka sitä käyttivät, palaavat projektikalenteriin.
 
-**"Vapaapäivät ovat mukana, eikö?"** Vapaapäivät ovat olemassa vain niille vuosille, joille ne on luotu. Päivä niiden vuosien ulkopuolella on yksinkertaisesti työpäivä. Kalenterin valintaikkunassa sovellus kertoo tämän viestillä *Vapaapäivät kattavat 2025–2028; projekti kestää vuoteen 2030. Luodaanko uudelleen?*
+**"Vapaapäivät ovat mukana, eikö?"** Vapaapäivät ovat olemassa vain niille vuosille, joille ne on luotu. Päivä niiden vuosien ulkopuolella on yksinkertaisesti työpäivä. Kalenterin valintaikkunassa sovellus kertoo tästä viestillä *Vapaapäivät kattavat 2025–2028. Luodaanko uudelleen vuoteen 2030 saakka?*
 
-**"Enemmän tunteja päivässä lyhentää tehtävääni."** Ei päivissä mitattavan tehtävän kohdalla. Se lasketaan kokonaisina työpäivinä, olipa päivässä 6 tai 8 tuntia. Vain tehtävälle, jolla on resursseja ja työsääntö *Kiinteä työmäärä* tai *Kiinteä yksikkömäärä*, kesto muuttuu tuntien mukana.
+**"Enemmän tunteja päivässä lyhentää tehtävääni."** Ei päivissä mitattavan tehtävän kohdalla. Se lasketaan kokonaisina työpäivinä, olipa päivässä 6 tai 8 tuntia. Vain tehtävälle, jolla on resursseja ja tehtävätyyppi *Kiinteä työmäärä* tai *Kiinteä yksikkömäärä*, kesto muuttuu tuntien mukana.
 
-**Kalenteri ilman työpäiviä** sovellus ei voi laskea. Laskenta näyttää *Kalenterissa ei ole asetettu työpäiviä*.
+**Kalenteria ilman työpäiviä** sovellus ei voi laskea. Laskenta näyttää *Kalenterissa ei ole asetettu työpäiviä*.
 
 ## Katso myös
 

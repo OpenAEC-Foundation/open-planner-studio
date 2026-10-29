@@ -1,4 +1,9 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+
+/* Alleen runtimebronnen scannen, ook de extensie-UI en HTML-strings in src/.
+   Paden zijn relatief aan dit bestand; scripts, tests en docs horen niet in de app-CSS. */
+@source "../";
+@source "../../index.html";
 
 /* De gedeelde taakgrid is een dicht planninginstrument: één DOM-boom, vaste rijhoogte en één
    scherpe actieve-celrand. Alle kleurkeuzes blijven via de bestaande thematokens lopen. */
@@ -26,10 +31,36 @@
   padding-inline-end: var(--task-grid-chooser-strip, 16px);
 }
 
-/* De gridheader is sticky binnen dezelfde scroller als de gevirtualiseerde rijen. Laat de verticale
- * scrollbaan pas onder die header beginnen, zodat duim en track nooit door de kolomkop lopen. */
-.task-grid-core::-webkit-scrollbar-track:vertical {
-  margin-block-start: var(--task-grid-header-height);
+/* Zwevende balken (eigenaarsbesluit 2026-10-15): de scroller toont geen eigen balken en reserveert
+ * dus geen strook en geen hoekvlakje. DataGridCore legt twee dunne overlay-scrollers over de rand
+ * (`.task-grid-overlay-scrollbar`, zelfde stijl als de Gantt-balk). Beide regels zijn nodig:
+ * Chromium/Firefox volgen `scrollbar-width` (en Chromium negeert dan elke `::-webkit-scrollbar`-
+ * regel op dit element), oudere WebKitGTK-versies kennen alleen het pseudo-element. */
+.task-grid-core {
+  scrollbar-width: none;
+}
+.task-grid-core::-webkit-scrollbar {
+  display: none;
+}
+
+/* De overlays liggen in `.task-grid-shell` (position: relative) bovenop het raster. De verticale
+ * balk staat aan de logische eindkant: in ltr rechts, in ar/fa links — in beide gevallen aan de
+ * kant van de Gantt. De horizontale balk is fysiek ltr, net als het raster zelf. */
+.task-grid-overlay-scrollbar {
+  position: absolute;
+  z-index: var(--z-sticky);
+}
+.task-grid-overlay-scrollbar-x {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.task-grid-overlay-scrollbar-y {
+  inset-inline-end: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .task-grid-header-row {
@@ -606,9 +637,8 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  /* Eén bron voor de "kolom toevoegen"-strook: een 20px-knop met 6px lucht aan weerszijden, zodat
-   * hij vrijstaat van de laatste kolominhoud én van de rand van het kader (issue #89). */
-  --task-grid-chooser-strip: 32px;
+  /* `--task-grid-chooser-strip` (de "kolom toevoegen"-strook) zet TaskGrid inline vanuit
+   * `TASK_GRID_CHOOSER_STRIP` (DataGridCore.tsx): één bron voor CSS en scrollbereik (issue #89). */
 }
 
 .task-grid-column-header[data-grid-dragging="true"] {
@@ -1692,15 +1722,26 @@ body {
 /* Zwevende scrollbalken over de Gantt-kaart (issue #35). De balken van de Gantt zijn overlays
    BINNEN het pane in plaats van een eigen goot/rij eromheen, zodat de kaart en de takenlijst tot
    de rand doorlopen. Een dekkende track zou dat weer tenietdoen — die legt alsnog een 8px strook
-   over het canvas — dus alleen de duim is zichtbaar. De DIKTE blijft de 8px hierboven: die is
-   gelijk aan de SCROLLBAR_GUTTER in GanttCanvas.tsx, waarmee de overlay-strook precies één
-   scrollbalk breed/hoog is en er geen dode klikzone naast de balk ontstaat. */
-.gantt-overlay-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--theme-scrollbar-thumb) transparent;
-}
-.gantt-overlay-scrollbar::-webkit-scrollbar-track {
+   over het canvas — dus alleen de duim is zichtbaar. In Chromium en WebKitGTK komt de dikte uit de
+   8px-regel `::-webkit-scrollbar` hierboven. Die is gelijk aan `OVERLAY_SCROLLBAR_SIZE`
+   (engine/taskGrid/scrollExtent.ts): de overlay-strook is zo precies één balk breed/hoog, zonder
+   dode klikzone naast de balk. Firefox gebruikt `scrollbar-width: thin` (zie de @supports-regel).
+   De zwevende balken van de takenlijst (`.task-grid-overlay-scrollbar`) delen deze stijl, zodat
+   beide er hetzelfde uitzien. */
+.gantt-overlay-scrollbar::-webkit-scrollbar-track,
+.task-grid-overlay-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+/* De standaardeigenschappen gelden alleen voor Firefox, dat geen ::-webkit-scrollbar kent. In Chromium
+   (>= 121) en WebKitGTK zet `scrollbar-width`/`scrollbar-color` de ::-webkit-scrollbar-regels uit.
+   WebKitGTK tekent dan zijn eigen Adwaita-overlaybalk: 3 px dun, en bij aanwijzen afgeknipt in de
+   strook van 8 px (eigenaarscheck desktopapp 2026-10-20, PR #362). */
+@supports not selector(::-webkit-scrollbar) {
+  .gantt-overlay-scrollbar,
+  .task-grid-overlay-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-scrollbar-thumb) transparent;
+  }
 }
 
 /* Selection */
@@ -1864,6 +1905,60 @@ body {
   }
 }
 
+/* Toewijzingen in het taakpaneel: één regel per resource (naam, inzet, werk, verwijderen). De lijst is
+   één raster; kop en regels zijn er een subgrid van, zodat elke kolom precies onder zijn kop staat en zo
+   breed is als het breedste van kop en getal — niet breder. Curve, urenverdeling en verplaatsen staan
+   onder de uitklapknop op de naam (`grid-column: 1 / -1`). Op de smalste rail krijgt de naam een eigen
+   regel en lijnen de getallen eronder uit. */
+.assignment-list {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto 1rem;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  align-items: center;
+}
+
+.assignment-list--no-work { grid-template-columns: minmax(0, 1fr) auto 1rem; }
+
+.assignment-header,
+.assignment-row {
+  grid-column: 1 / -1;
+  display: grid;
+  /* Terugval voor een webview zonder subgrid: zelfde kolommen per regel (kan een paar px verschuiven). */
+  grid-template-columns: minmax(0, 1fr) auto auto 1rem;
+  grid-template-columns: subgrid;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  align-items: center;
+}
+
+.assignment-name { grid-column: 1; }
+.assignment-units { grid-column: 2; justify-self: end; }
+.assignment-work { grid-column: 3; justify-self: end; }
+.assignment-remove { grid-column: -2; justify-self: center; }
+.assignment-details { grid-column: 1 / -1; }
+
+/* Getalvelden: minstens vier tekens breed, en breder als het getoonde getal langer is ("306,5",
+   "1234,5"). `UnitsInput` zet `--ops-num-chars` op het aantal getoonde tekens; de cijfers zijn
+   tabelcijfers, dus één cijfer is precies 1ch. Daarbij: de padding (px-1), de rand, en bij de
+   waarschuwing in het werkveld de extra padding voor het icoon (`--ops-num-pad`). De kolom is `auto`,
+   dus hij groeit mee; de naamkolom (minmax(0, 1fr)) geeft de ruimte. Het zijn tekstvelden
+   (`UnitsInput` met `locale`), dus zonder spinknop. Hogere specificiteit dan `.input` (width: 100%),
+   dat verderop in dit bestand staat. */
+.assignment-list .assignment-number {
+  --ops-num-pad: 0px;
+  font-variant-numeric: tabular-nums;
+  width: max(4em, calc((var(--ops-num-chars, 4) + 0.5) * 1ch + 0.5rem + 2px + var(--ops-num-pad)));
+}
+
+.assignment-list .assignment-number--flag { --ops-num-pad: 0.75rem; }
+
+@container (max-width: 14rem) {
+  .assignment-row > .assignment-name { grid-column: 1 / -1; }
+  .assignment-header > .assignment-name { display: none; }
+}
+
 /* Het WBS-nummer is navigatie, geen kaal tekstlabel. De semantische tracekleur blijft als vaste
    rolmarkering zichtbaar; de tekst en focusring gebruiken de contrastrijke themakleur. De rol staat
    daarnaast uitgeschreven in de toegankelijke knopnaam, zodat kleur niet de enige informatiedrager
@@ -1881,16 +1976,25 @@ body {
   transition: background-color 120ms ease, text-decoration-thickness 120ms ease;
 }
 
+/* Rolmarkering: 1em groot (zo hoog als de tekst; was 6×10 px), zonder losse rand. Een
+   voorganger is een rondje, een opvolger een vierkantje — de vorm draagt de rol, niet alleen de kleur
+   (issue #65). Op donker en hoog contrast halen de tracekleuren zelf ≥ 4,7:1. Op licht halen ze dat
+   niet (goud 2,1:1, paars 2,6:1 tegen #FAFAFA); daar krijgt de vorm een rand in zijn eigen kleur,
+   30 % donkerder (≥ 4:1), zodat hij als één vorm leest en niet als een ring (eigenaar 2026-10-19:
+   "er zit nog steeds een wit rondje omheen"). */
 .dependency-wbs-link::before {
   content: '';
   display: inline-block;
   box-sizing: border-box;
-  width: 6px;
-  height: 10px;
-  margin-inline-end: 4px;
-  vertical-align: -1px;
+  width: 1em;
+  height: 1em;
+  margin-inline-end: 5px;
+  vertical-align: -0.15em;
   background: var(--dependency-role-color);
-  border: 1px solid var(--theme-text);
+}
+
+[data-theme="light"] .dependency-wbs-link::before {
+  border: 1px solid color-mix(in srgb, var(--dependency-role-color) 70%, #000);
 }
 
 .dependency-wbs-link[data-dependency-role="predecessor"]::before {
@@ -1898,7 +2002,7 @@ body {
 }
 
 .dependency-wbs-link[data-dependency-role="successor"]::before {
-  border-radius: 1px;
+  border-radius: 3px;
 }
 
 .dependency-wbs-link:hover {
@@ -2207,7 +2311,7 @@ body {
 .btn--secondary {
   background: transparent;
   color: var(--theme-text);
-  border: 2px solid var(--theme-text);
+  border: 1px solid var(--theme-control-border);
 }
 .btn--secondary:hover:not(:disabled) {
   background: var(--theme-text);
@@ -2466,17 +2570,18 @@ body {
 }
 
 /* ============================================================================
-   Uniforme checkboxes (2026-07-13) — ÉÉN stijl voor ALLE checkboxes in de app.
+   Uniforme checkboxes (2026-10-22) — ÉÉN stijl voor ALLE checkboxes in de app.
    `appearance: none` schakelt de native (blauwe, OS-afhankelijke) checkbox uit.
-   Aangevinkt = massief accent-oranje vlak ZONDER vinkje (er is bewust geen
-   ::after-content), zodat er nooit een scheef-gecentreerd vinkje kan ontstaan.
-   Het accent volgt het thema (oranje in dark/light, geel in high-contrast).
+   Vierkante vakjes met een gecentreerd vinkje zijn herkenbaar als meervoudige keuze.
+   Vlak en vinkje volgen het thema (oranje/wit in dark/light, geel/zwart in high-contrast).
    Vervangt de vroegere wildgroei: bare native (blauw), Tailwind `accent-accent`
    en losse `accent-color`-overrides renderen nu allemaal identiek.
    ============================================================================ */
 input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
+  display: inline-grid;
+  place-items: center;
   width: 15px;
   height: 15px;
   flex-shrink: 0;
@@ -2484,7 +2589,7 @@ input[type="checkbox"] {
   box-sizing: border-box;
   vertical-align: middle;
   border: 1.5px solid var(--theme-control-border);
-  border-radius: var(--radius-sm);
+  border-radius: 3px;
   background: var(--theme-surface);
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
@@ -2495,6 +2600,15 @@ input[type="checkbox"]:hover {
 input[type="checkbox"]:checked {
   background: var(--theme-accent);
   border-color: var(--theme-accent);
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  box-sizing: border-box;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--theme-accent-on);
+  border-bottom: 2px solid var(--theme-accent-on);
+  transform: translateY(-1px) rotate(-45deg);
 }
 input[type="checkbox"]:focus-visible {
   outline: none;

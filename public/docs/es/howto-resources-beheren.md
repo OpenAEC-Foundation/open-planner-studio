@@ -24,7 +24,7 @@ La fila solo se convierte en recurso cuando tiene nombre. Con Esc, o al hacer cl
 
 Edite los campos de la fila. La aplicación guarda el nombre, la tarifa y la unidad al salir del campo. Los demás campos los guarda enseguida.
 
-- *Unidades máx* solo es aceptado por la aplicación si el valor es mayor que 0. Con 0 o menos, el campo recibe un borde rojo y vuelve al valor anterior.
+- La aplicación solo acepta *Unidades máx* si el valor es mayor que 0. Con 0 o menos, el campo recibe un borde rojo y vuelve al valor anterior.
 - *Calendario* decide en qué días trabaja el recurso. Elija *Calendario del proyecto* o un calendario propio. Con *+ Calendario de recurso* crea uno nuevo, y el lápiz (*Editar…*) abre el calendario elegido. Si una tarea trabaja un día en que el recurso no trabaja según su calendario, ese día cuenta como sobreasignado. Cómo crear un calendario de recurso se describe en [Configurar un calendario de recursos](docs://howto-resourcekalender-instellen).
 - *Tarifa/hora* y *Total*: *Total* es el resultado de multiplicar las horas cargadas de ese recurso por la tarifa. Un yesero con 32 horas cargadas y una tarifa de 50 por hora suma 1.600,00. Al final de la tabla está la suma de todos los recursos.
 - *Cuadrilla* agrupa un recurso bajo un recurso del tipo *Cuadrilla*. Es solo una agrupación: la aplicación no suma la capacidad ni la carga de los miembros a la cuadrilla.
@@ -41,7 +41,7 @@ Un paso nuevo empieza con la fecha de hoy y 1 unidad. Cambie las dos cosas, porq
 1. Haga clic en la papelera de la fila.
 2. Si el recurso tiene asignaciones, la aplicación pide confirmación, por ejemplo *'Bricklayer' tiene 4 asignación(es) — ¿eliminar?* Haga clic en el icono de verificación para eliminar, o en el icono de cruz para cancelar. Sin asignaciones, el recurso desaparece al momento.
 
-Las asignaciones del recurso se eliminan junto con él. Si una tarea tiene una regla de trabajo distinta de *Duración y unidades fijas*, la aplicación reparte el trabajo del recurso eliminado entre los recursos que quedan. Según la regla, eso cambia sus unidades o la duración de la tarea. Si cambia la duración, la planificación deja de estar actualizada.
+Las asignaciones del recurso se eliminan junto con él. Si una tarea tiene un tipo de tarea distinto de *Duración y unidades fijas*, la aplicación reparte el trabajo del recurso eliminado entre los recursos que quedan. Según el tipo de tarea, eso cambia sus unidades o la duración de la tarea. Si cambia la duración, la planificación deja de estar actualizada.
 
 Puede deshacer la creación, la edición y la eliminación con *Deshacer* (Ctrl+Z).
 

@@ -240,16 +240,17 @@ explanation after `---`. Buttons: **Back**, **Show me** (with `prepare`), **Star
 
 The panel floats bottom-right (bottom-left in `ar`/`fa`) above the status bar rather than in the right
 rail, which does not exist in the full views (Table, IFC, Report, Resources) or in Backstage. If the
-highlighted element lies under the panel and the other side is free, the panel moves there.
+step's target lies under the panel and the other side is free, the panel moves there. Users can also
+drag the expanded panel by its header. Tutorial steps no longer draw a marking overlay.
 
-**Anchors.** `anchor` is the value of a `data-tour-anchor` attribute; the app outlines that element in
-the tour style, but **non-modally** — the user can click it. Available anchors:
+**Anchors.** `anchor` is the value of a `data-tour-anchor` attribute. The app measures that target
+when placing the guide panel so the panel can avoid it; it does not outline it. Available anchors:
 
 - `ribbon-tab:<tab>` — every ribbon tab, including `ribbon-tab:file`;
 - `ribbon-group:<tab>:<groupId>` — every ribbon group;
 - `ribbon:<tab>:<itemId>` — every ribbon button and widget, with the ids from
   `src/components/layout/Ribbon/ribbonConfig.tsx` (e.g. `ribbon:start:addTask`,
-  `ribbon:planning:calendar`). When the button is on another tab, the app outlines
+  `ribbon:planning:calendar`). When the button is on another tab, placement uses
   `ribbon-tab:<tab>` instead. Buttons added by extensions have no anchor (yet);
 - fixed anchors for the main panels: `ribbon-tabs`, `gantt-panel`, `properties-panel`,
   `rail:properties`, `rail:resources`, `rail:warnings`, `histogram-strip`, `report-panel`,
@@ -402,8 +403,8 @@ api.events.on(sdk.hostEvents.tutorialRequested, (d) => {
 
 ## Installing
 
-File → Extensions → **ZIP** or **JS** (a local file), or via the **Browse** tab (catalog:
-`OpenAEC-Foundation/open-planner-studio-extensions`).
+Backstage → Extensions: **Install from ZIP file** or **Install from JS file** (a local file) on the
+**Installed** tab, or the **Browse** tab (catalog: `OpenAEC-Foundation/open-planner-studio-extensions`).
 
 For a standalone `.js` file the manifest may be a comment block at the top:
 
@@ -411,9 +412,27 @@ For a standalone `.js` file the manifest may be a comment block at the top:
 /** @manifest { "id": "my-extension", "name": "My Extension", "version": "1.0.0", "minAppVersion": "0.0.0", "author": "Me", "description": "…", "category": "Utility", "main": "main.js", "permissions": [] } */
 ```
 
+### Installing and trust
+
+- **Consent.** Installing asks for confirmation once, showing name, version, author, origin (catalog or
+  local file, and whether the download was verified against a checksum) and the declared permissions as
+  *intended use*, not as a restriction. If you decline, nothing is stored; an installed earlier version
+  keeps running. If the app cannot ask, it does not install.
+- **Checksum.** A catalog entry with a `sha256` is verified; a mismatch (or an unreadable hash) refuses the
+  download. Without a `sha256` the app installs and logs that the download is unverified.
+- **Validation.** Manifest fields are parsed one by one with type and length limits; `id` is required, at
+  most 128 characters, lowercase letters, digits, dot, underscore and dash. Fresh input with an unknown
+  permission is invalid. Paths must be relative (no `..`, no backslashes).
+- **ZIP limits.** Unpacked entries are limited to 24 MiB per file and 48 MiB in total; Zip64 archives are
+  refused.
+- **Quarantine.** An installed record that fails validation at startup is not executed. Its card has no
+  on/off switch and can still be removed; it does not block other extensions.
+- **Raw host globals.** `__TAURI_INTERNALS__`, `__TAURI__` and `__OPS__` are shadowed as `undefined` inside
+  extension code.
+
 ## Limitations
 
-- The sandbox is light: extension code runs via `new Function(...)` and has access to `window`,
+- There is no JavaScript sandbox: extension code runs via `new Function(...)` and has access to `window`,
   `document` and `fetch`. Permissions are enforced hard (default-deny) for `ribbon`/`events`/
   `pdf-fonts`/`importSource`/`help`, in warn mode for `backstage`, and are purely informational for
   `filesystem`/`network`. Only install extensions you trust.

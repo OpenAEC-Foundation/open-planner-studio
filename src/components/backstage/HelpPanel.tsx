@@ -77,6 +77,7 @@ export function HelpPanel() {
   const { t: tCommon, i18n } = useTranslation('common');
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
   const setUI = useAppStore(s => s.setUI);
+  const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
   // "Lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
   // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
   const pendingHelpArticleId = useAppStore(s => s.ui.pendingHelpArticleId);
@@ -121,7 +122,9 @@ export function HelpPanel() {
   const navigate = useCallback((target: string) => {
     const { id, anchor } = splitHelpTarget(target);
     setSelection(prev => ({ id, anchor, nonce: prev.nonce + 1 }));
-  }, []);
+    // Een nieuwe artikelkeuze vervangt een nog wachtend verzoek om Tutorials in beeld te brengen.
+    setUI({ pendingHelpSection: null });
+  }, [setUI]);
 
   // Een "lees meer"-link zette `ui.pendingHelpArticleId`; selecteer dat
   // artikel en consumeer het verzoek meteen (net als `pendingNewResource` elders). Volgorde-veilig
@@ -318,11 +321,14 @@ export function HelpPanel() {
     if (!selectedContent) return null;
     return renderMiniMarkdown(selectedContent, {
       onNavigate: navigate,
-      onOpenExample: (f) => { void handleOpenExample(f); },
-      ...(openProject ? { onOpenProject: openProject } : {}),
+      // Lezen blijft mogelijk; voorbeeld-/tutorialprojecten zouden het actieve document verlaten.
+      ...(!startQuestionOpen ? {
+        onOpenExample: (f: string) => { void handleOpenExample(f); },
+        ...(openProject ? { onOpenProject: openProject } : {}),
+      } : {}),
       resolveImage,
     });
-  }, [selectedContent, navigate, handleOpenExample, resolveImage, openProject]);
+  }, [selectedContent, navigate, handleOpenExample, resolveImage, openProject, startQuestionOpen]);
 
   // Na een artikelwissel: naar het anker scrollen als de link er een had, anders naar boven. De
   // scrollcontainer is `.backstage-main` (de omringende Backstage-sectie), niet het paneel zelf.
@@ -340,16 +346,19 @@ export function HelpPanel() {
 
   const inSearch = (a: HelpArticleMeta) => !matchedIds || matchedIds.has(a.id);
 
-  // Verzoek "breng Help › Tutorials in beeld". Pas als het eerste artikel getekend is: inhoudsopgave
-  // en artikel delen de scrollcontainer, en de layout-effect hierboven zet die bij een nieuw artikel
-  // terug naar boven. Een effect loopt ná de layout-effects van dezelfde commit, dus dit wint.
+  // Wacht op de eerste artikellayout: die zet de gedeelde scrollcontainer hierboven nog naar
+  // boven. Ook een ontbrekend/mislukt/leeg artikel is klaar; wachten op renderedContent laat het
+  // verzoek dan eeuwig hangen. Een manifestfout beëindigt het verzoek zonder een sectie te tonen.
   useEffect(() => {
-    if (pendingHelpSection !== 'tutorials' || !manifest || !renderedContent) return;
-    const section = tocRef.current?.querySelector<HTMLElement>('[data-help-section="kind-tutorial"]');
-    section?.scrollIntoView({ block: 'center' });
-    section?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    if (pendingHelpSection !== 'tutorials') return;
+    if (!manifestError) {
+      if (!manifest || (selectedMeta && selectedContent === undefined && !selectedFailed)) return;
+      const section = tocRef.current?.querySelector<HTMLElement>('[data-help-section="kind-tutorial"]');
+      section?.scrollIntoView({ block: 'center' });
+      section?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
+    }
     setUI({ pendingHelpSection: null });
-  }, [pendingHelpSection, manifest, renderedContent, setUI]);
+  }, [pendingHelpSection, manifest, manifestError, selectedMeta, selectedContent, selectedFailed, setUI]);
 
   const openTutorialCatalog = () => {
     if (!EXTENSIONS_ENABLED) return;

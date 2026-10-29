@@ -1624,6 +1624,12 @@
       "aktivitetstyper",
       "aktivitetstypene"
     ],
+    "avoid": [
+      "arbeidsregel",
+      "arbeidsregelen",
+      "arbeidsregler",
+      "arbeidsreglene"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1780,6 +1786,17 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbeidskategori",
+    "forms": [
+      "arbeidskategori",
+      "arbeidskategorien",
+      "arbeidskategorier",
+      "arbeidskategoriene"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbeidstimer",
     "forms": [
@@ -1787,17 +1804,6 @@
       "arbeidstime",
       "arbeidstimen",
       "arbeidstimene"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "arbeidsregel",
-    "forms": [
-      "arbeidsregel",
-      "arbeidsregelen",
-      "arbeidsregler",
-      "arbeidsreglene"
     ],
     "source": "model",
     "status": "model"

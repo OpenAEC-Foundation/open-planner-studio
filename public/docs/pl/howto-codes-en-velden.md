@@ -36,7 +36,7 @@ Aby ustawić kolor paska, wybierz *Widok › Plan bazowy i postęp › Kolory s�
 
 ## Pułapki i co robi aplikacja
 
-**Usunięcie usuwa wartości w zadaniach.** Jeśli usuniesz za pomocą kosza typ kodu, wartość albo pole, aplikacja nie pyta o potwierdzenie. Wartości na wszystkich zadaniach znikają wraz z usuniętym elementem. Grupowanie lub sortowanie na tym typie kodu albo polu też przestaje działać. *Cofnij* (Ctrl+Z) przywraca typ kodu, wartość albo pole oraz wypełnione wartości, ale nie grupowanie ani sortowanie: ustawiasz je ponownie.
+**Usunięcie usuwa wartości w zadaniach.** Jeśli usuniesz za pomocą kosza typ kodu, wartość albo pole, aplikacja nie pyta o potwierdzenie. Przydziały na wszystkich zadaniach znikają razem z nim. Grupowanie lub sortowanie na tym typie kodu albo polu też przestaje działać. *Cofnij* (Ctrl+Z, najpierw zamknij okno) przywraca typ kodu, wartość albo pole oraz wypełnione wartości, ale nie grupowanie ani sortowanie: ustawiasz je ponownie.
 
 **Dwie wartości z tym samym kodem.** *Dodaj wartość* nadaje kolejny numer od liczby istniejących wartości. Jeśli usuniesz jedną i dodasz jedną, kod może więc wystąpić dwa razy. Jeśli wpiszesz ten kod w komórce kolumny, aplikacja odrzuca wpis komunikatem *Ta wartość kodu czynności występuje więcej niż raz. Wybierz ją z listy.* Nadaj każdej wartości własny kod.
 

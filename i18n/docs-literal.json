@@ -5,7 +5,6 @@
       "Aanbouw woning",
       "House extension",
       "Bouwkalender NL",
-      "Construction calendar NL",
       "Voorbereiding",
       "Preparation",
       "Fundering",
@@ -73,7 +72,6 @@
     ],
     "public/examples/03-kantoorgebouw-zuidas.ifc": [
       "Zuidas Office Building",
-      "Construction calendar NL",
       "1. Preparation",
       "Set up site",
       "Stakeholder management",
@@ -203,7 +201,6 @@
     ],
     "public/examples/08-zorgcentrum-de-linde.ifc": [
       "De Linde Care Centre",
-      "Construction calendar NL",
       "1. Preparation",
       "Set up site",
       "Additional soil investigation",
@@ -270,7 +267,6 @@
     ],
     "public/examples/10-villa-wassenaar.ifc": [
       "New-Build Villa, Wassenaar",
-      "Construction calendar NL",
       "1. Preparation",
       "Set up site",
       "Protect trees",
@@ -327,7 +323,6 @@
     ],
     "public/examples/15-datacentrum-agriport.ifc": [
       "Agriport A7 Data Centre",
-      "Construction calendar NL",
       "1. Preparation",
       "Prepare site for construction",
       "10 kV utility connections",
@@ -658,7 +653,6 @@
     ],
     "public/examples/showcase-rijwoningen-de-akkers.ifc": [
       "6 New Terraced Houses, De Akkers",
-      "Construction calendar NL",
       "Start of construction",
       "1. Site set-up",
       "Install site board & safety fencing",
@@ -758,7 +752,6 @@
     ],
     "public/examples/showcase-verbouwing-eengezinswoning.ifc": [
       "Refurbishment & Extension of a Family Home",
-      "Construction calendar NL",
       "Start of refurbishment",
       "1. Preparation",
       "Set up site",
@@ -803,8 +796,7 @@
   "display": {
     "howto-relaties-leggen": [
       "+3d",
-      "+4u",
-      "+2d"
+      "+4h"
     ],
     "ref-instellingen": [
       "2.25d(18h)"
@@ -822,7 +814,8 @@
       "Name: 1; Name: 0.5",
       "Name: Uniform",
       "Name: date",
-      "Name: 12",
+      "Name: 617.14",
+      "Name: 26.67",
       "Name: 6",
       "<baseline> — Scheduled start",
       "✓ text; ○ text",

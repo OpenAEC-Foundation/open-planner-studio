@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Sequence } from '@/types/sequence';
 import { formatLagShort, parseLagInput } from '@/utils/lagFormat';
+import { parseableHourSuffix } from '@/utils/durationFormat';
 
 /** Alleen deze vier velden bepalen de zichtbare lagtekst; type- of eindpuntupdates doen dat niet. */
 function lagSignature(seq: Sequence): string {
@@ -22,13 +24,16 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
   /** Optioneel voor lokale concepten: houd een geldige invoer actueel vóór de blur-commit. */
   onDraftChange?: (patch: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>) => void;
 }) {
-  const [val, setVal] = useState(formatLagShort(seq));
+  // Uren in de taal van de app: "2u" (nl), "2h" (en) — eigenaarsbesluit 2026-10-20.
+  const { t } = useTranslation('common');
+  const hourSuffix = parseableHourSuffix(t('duration.suffixHour'));
+  const [val, setVal] = useState(formatLagShort(seq, hourSuffix));
   const signature = lagSignature(seq);
-  const formattedLagRef = useRef(formatLagShort(seq));
-  formattedLagRef.current = formatLagShort(seq);
+  const formattedLagRef = useRef(formatLagShort(seq, hourSuffix));
+  formattedLagRef.current = formatLagShort(seq, hourSuffix);
   useEffect(() => {
     setVal(formattedLagRef.current);
-  }, [signature]);
+  }, [signature, hourSuffix]);
   // Live-afgeleid (zoals `UnitsInput`): rood ZODRA de huidige tekst niet parseerbaar is — dus al
   // tíjdens het typen, niet pas na een stille terugval bij blur (die zonder indicatie zou
   // verbergen dat de invoer geweigerd is).
@@ -37,11 +42,11 @@ export function SequenceLagInput({ seq, title, className, onCommit, onDraftChang
     const parsed = parseLagInput(val);
     if (parsed) {
       onCommit(parsed);
-      setVal(formatLagShort(parsed));
+      setVal(formatLagShort(parsed, hourSuffix));
     } else {
       // Onparseerbare invoer: terugvallen op de laatst geldige waarde (bestaand gedrag) — de rode
       // rand hierboven heeft de weigering al zichtbaar gemaakt vóórdat dit gebeurt.
-      setVal(formatLagShort(seq));
+      setVal(formatLagShort(seq, hourSuffix));
     }
   };
   return (

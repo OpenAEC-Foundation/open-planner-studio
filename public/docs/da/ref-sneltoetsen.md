@@ -12,9 +12,9 @@ Alle tastekombinationer i appen, grupperet som i vinduet *Tastaturgenveje*. Tast
 
 **Når en tast ikke virker.** Hver post nævner sine begrænsninger. Tre regler gælder næsten overalt:
 
-- I et inputfelt, en rullemenu eller et tekstfelt fanger appen ikke tasterne, så du kan bare skrive. Undtagelser: F5, Ctrl+S, F11 og Esc under præsentationen virker også i et felt. I den færdige app (desktop og webversionen på siden) gælder det også for Ctrl+Skift+S, Ctrl+O og Ctrl+N.
-- Så længe en dialog eller et andet vindue er åbent, virker de taster, der nedenfor er markeret *Ikke i en dialog*, ikke. Det gælder også præsentationstilstand, rundvisningen, velkomstdialogen og spørgsmål, der venter på svar, for eksempel samtykket ved installation af en udvidelse.
-- Skift af dokument (Ctrl+1 til 9, Ctrl+N, Ctrl+O) virker heller ikke, så længe *Fil › Projektinfo* har ændringer, som du endnu ikke har bekræftet med *Anvend*. Forkast eller anvend dem først.
+- I et inputfelt, en rullemenu eller et tekstfelt fanger appen ikke tasterne, så du kan bare skrive. Undtagelser: F5, Ctrl+S, F11 og Esc under præsentationen virker også i et felt. Hvis fokus står på en lukket rullemenu, virker tasterne med Ctrl også, for eksempel Ctrl+Z efter et valg (ikke Ctrl+Delete og Ctrl+Backspace). Det gælder ikke i en åben liste eller i en dialog. I den udgivne app (desktop og webversionen på siden) gælder det også for Ctrl+Skift+S, Ctrl+O og Ctrl+N.
+- Så længe en dialog eller et andet vindue er åbent, virker de taster, der nedenfor er markeret *Ikke i en dialog*, ikke. Det gælder også rundvisningen, velkomstdialogen og spørgsmål, der venter på svar, for eksempel spørgsmålet om at gemme dine ændringer og samtykket ved installation af en udvidelse. De fleste af disse taster virker heller ikke i præsentationstilstand. Undtagelse: redigeringstasterne Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y og Delete/Backspace virker under præsentationen.
+- Skift af dokument (Ctrl+1 til 9, Ctrl+N, Ctrl+O) virker heller ikke, så længe *Fil › Projektindstillinger* har ændringer, som du endnu ikke har bekræftet med *Anvend*. Forkast eller anvend dem først.
 
 ## Fil
 
@@ -24,23 +24,23 @@ Alle tastekombinationer i appen, grupperet som i vinduet *Tastaturgenveje*. Tast
 
 **Ctrl+Skift+S** — *Gem som*: spørger, hvor filen skal gemmes. I en udviklingsversion virker den ikke i et inputfelt.
 
-**Ctrl+O** — *Åbn*: åbner en fil, normalt i en ny fane. Ikke i en dialog og ikke med projektinfo med ændringer, som du ikke har anvendt.
+**Ctrl+O** — *Åbn*: åbner en fil, normalt i en ny fane. Ikke i en dialog og ikke med projektindstillinger, som du ikke har anvendt.
 
-**Ctrl+N** — *Nyt projekt*: åbner vinduet *Nyt projekt*. Ikke i en dialog og ikke med projektinfo med ændringer, som du ikke har anvendt.
+**Ctrl+N** — *Nyt projekt*: åbner vinduet *Nyt projekt*. Ikke i en dialog og ikke med projektindstillinger, som du ikke har anvendt.
 
-Den færdige app (desktop og webversionen på siden) blokerer også en række browsertaster, så de ikke er i vejen: Ctrl+R og Ctrl+Skift+R (genindlæs), F12, Ctrl+Skift+I og Ctrl+Skift+J (udviklerværktøjer), Ctrl+U (vis kilde) og Ctrl+G, Ctrl+F og Ctrl+L (søg og adresselinje). Ctrl+S, Ctrl+Skift+S, Ctrl+O, Ctrl+N og F5 går til appen selv.
+Den udgivne app (desktop og webversionen på siden) blokerer også en række browsertaster, så de ikke er i vejen: Ctrl+R og Ctrl+Skift+R (genindlæs), F12, Ctrl+Skift+I og Ctrl+Skift+J (udviklerværktøjer), Ctrl+U (vis kilde) og Ctrl+G, Ctrl+F og Ctrl+L (søg og adresselinje). Ctrl+S, Ctrl+Skift+S, Ctrl+O, Ctrl+N og F5 går til appen selv.
 
 ## Redigér
 
-**Ctrl+C** — *Kopiér*: kopierer de valgte opgaver. Kun med en markering. I opgavetabellen kopierer Ctrl+C de valgte celler. Tabellen klarer det selv.
+**Ctrl+C** — *Kopiér*: kopierer de valgte opgaver. Kun med en markering. Ikke i en dialog. Ikke i *Fil*, ikke på fanerne *Rapport* og *IFC* og ikke mens det fulde ressourcepanel er åbent. I opgavetabellen kopierer Ctrl+C de valgte celler. Tabellen klarer det selv.
 
-**Ctrl+V** — *Indsæt*: indsætter kopierede opgaver. I opgavetabellen indsætter den cellerne.
+**Ctrl+V** — *Indsæt*: indsætter kopierede opgaver. Ikke i en dialog. Ikke i *Fil*, ikke på fanerne *Rapport* og *IFC* og ikke mens det fulde ressourcepanel er åbent, fordi opgavetabellen ikke er synlig der. I opgavetabellen indsætter den cellerne.
 
-**Ctrl+Z** — *Fortryd*.
+**Ctrl+Z** — *Fortryd*. Ikke i en dialog: luk vinduet først.
 
-**Ctrl+Y** eller **Ctrl+Skift+Z** — *Gentag*: gentager det, du fortrød.
+**Ctrl+Y** eller **Ctrl+Skift+Z** — *Gentag*: gentager det, du fortrød. Ikke i en dialog.
 
-**Delete** eller **Backspace** — *Slet*: sletter de valgte opgaver. Kun med en markering. I en celle i opgavetabellen rydder Delete og Backspace kun cellens indhold (se *Tabel*).
+**Delete** eller **Backspace** — *Slet*: sletter de valgte opgaver. Kun med en markering. Ikke i en dialog. Ikke i *Fil*, ikke på fanerne *Rapport* og *IFC* og ikke mens det fulde ressourcepanel er åbent, fordi opgavetabellen ikke er synlig der. I en celle i opgavetabellen rydder Delete og Backspace kun cellens indhold (se *Tabel*).
 
 **F2** — *Redigér...*: åbner opgavedialogen for den første valgte opgave. Kun med en markering. Ikke i en dialog. I en celle i opgavetabellen starter F2 redigering af cellen.
 
@@ -68,7 +68,7 @@ Indryk, udryk og indsættelse over eller under en valgt opgave virker kun i den 
 
 ## Visning
 
-**F11** — *Præsentation*: slår præsentationstilstand til eller fra. Appen beder også browseren eller vinduet om fuld skærm. Virker også i et inputfelt.
+**F11** — *Præsentation*: slår præsentationstilstand til eller fra. Appen beder også browseren eller vinduet om fuld skærm. Virker også i et inputfelt. I browseren starter F11 ikke præsentationen: browseren sætter selv vinduet i fuld skærm, og appen forbliver, som den er. F11 stopper en kørende præsentation i browseren.
 
 **Esc** (under præsentationen) — *Afslut præsentation*. Virker også i et inputfelt. Dette går foran *Fjern markering*.
 
@@ -96,9 +96,9 @@ Indryk, udryk og indsættelse over eller under en valgt opgave virker kun i den 
 
 **F1** — *Åbn hjælp*: åbner *Fil › Hjælp*. Ikke i et inputfelt og ikke i en dialog. I et vindue bruger du spørgsmålstegnet øverst til højre: det åbner hjælp til artiklen om det vindue (se [Båndet, fane for fane](docs://ref-lint), under *Hjælp*).
 
-**Ctrl+1** til **Ctrl+9** — *Skift dokument*: går til det første til niende åbne dokument. Findes dokumentet ikke, sker der ingenting. Ikke i en dialog og ikke med projektinfo med ændringer, som du ikke har anvendt.
+**Ctrl+1** til **Ctrl+9** — *Skift dokument*: går til det første til niende åbne dokument. Findes dokumentet ikke, sker der ingenting. Ikke i en dialog og ikke med projektindstillinger, som du ikke har anvendt.
 
-**Ctrl+Home** — *Hop til i dag*: ruller tidslinjen, så en dato står til venstre i visningen. Det er statusdatoen, hvis du har sat en, ellers i dag. Derfor siger etiketten "i dag", selv når tidslinjen springer til statusdatoen. Zoom og tidslinjens start bliver, som de var. Har en celle i opgavetabellen fokus, går Ctrl+Home i stedet til første celle i opgavetabellen (se *Tabel*).
+**Ctrl+Home** — *Hop til i dag*: ruller tidslinjen, så en dato står til venstre i visningen. Det er statusdatoen, hvis du har sat en, ellers i dag. Derfor siger etiketten „i dag“, selv når tidslinjen springer til statusdatoen. Zoom og tidslinjens start bliver, som de var. Har en celle i opgavetabellen fokus, går Ctrl+Home i stedet til første celle i opgavetabellen (se *Tabel*).
 
 ## Tabel
 

@@ -15,7 +15,7 @@ Najprv zistite preťaženie. Potom vyberiete riešenie. **Vyvažovanie** je rie�
 1. Pozrite sa na pás s nástrojmi, na *Zdroje › Preťaženie*. Tam je buď *Žiadne*, alebo červeným písmom počet preťažených zdrojov, napríklad *1 zdroj*. Po prepočítaní stavový riadok zobrazí aj *⚠ Preťažené zdroje: 1*.
 2. Kliknite na toto hlásenie v stavovom riadku. Vpravo sa otvorí panel *Upozornenia* s riadkom pre každý zdroj, napríklad *Bricklayer* s hlásením *Preťaženie, počet dní: 5 (29-06-2027 – 05-07-2027)*.
 3. Kliknite na tento riadok. Aplikácia zapne histogram, vyberie zdroj a označí všetky úlohy, na ktorých zdroj pracuje.
-4. Pozrite sa na histogram pod diagramom Gantt. Červené stĺpce sú preťažené dni. Ak prejdete myšou po dni, uvidíte, ktoré úlohy sa na ňom podieľajú, napríklad *2 úlohy prispievajú na 2027-06-30* s názvami pod tým.
+4. Pozrite sa na histogram pod diagramom Gantt. Červené stĺpce sú preťažené dni. Ak prejdete myšou po dni, uvidíte, ktoré úlohy sa na ňom podieľajú, napríklad *2 úlohy prispievajú na 2027-06-30* s ich názvami nižšie.
 
 Histogram môžete zapnúť aj sami cez *Zdroje › Histogram › Histogram*. Vyberte zdroj v zozname vľavo, alebo prechádzajte zdroje tlačidlami *Predchádzajúci* a *Nasledujúci*. Červená bodka v zozname znamená, že zdroj je preťažený. Riadok *Všetky zdroje* sčíta zdroje dohromady, bez materiálu.
 
@@ -24,9 +24,9 @@ Ak je vybraná úloha, histogram zobrazí len zaťaženie tej úlohy a len zdroj
 ### 2. Vyberte riešenie
 
 - **Vyššia kapacita.** Ak naozaj príde druhý murár, nastavte *Maximálny počet jednotiek* na 2 (pozri [Správa zdrojov](docs://howto-resources-beheren)). Preťaženie potom zmizne.
-- **Menej jednotiek za deň.** Znížte *Jedn./deň* alebo vyberte pre priradenie inú krivku (pozri [Priradenie zdrojov s krivkou](docs://howto-resource-toewijzen)).
+- **Menej jednotiek za deň.** Znížte *Jednotky priradenia* alebo vyberte pre priradenie inú krivku (pozri [Priradenie zdrojov s krivkou](docs://howto-resource-toewijzen)).
 - **Úlohy za sebou.** Pridajte závislosť medzi dvoma úlohami, aby druhá začala až po dokončení prvej (pozri [Pridávanie závislostí](docs://howto-relaties-leggen)).
-- **Vyvažovanie.** Aplikácia nechá úlohu začať neskôr.
+- **Vyvažovanie.** Aplikácia posunie začiatok úlohy na neskôr.
 
 ### 3. Vyvažovanie
 
@@ -50,7 +50,7 @@ Ak chcete sami určiť, ktorá úloha ostane na mieste, dajte jej vyššiu prior
 ### Vrátenie späť a opakovanie
 
 - *Vrátiť späť* (Ctrl+Z) zruší *Použiť* v jednom kroku.
-- *Zdroje › Vyvažovanie › Zrušiť vyvažovanie* odstráni všetky vyvažovania z úloh. Tlačidlo je sivé, kým nie je žiadne vyvažovanie. Preťaženie, ktoré takto vrátite, sa jednoducho znova objaví.
+- *Zdroje › Vyvažovanie › Zrušiť vyvažovanie* odstráni všetky vyvažovania z úloh. Tlačidlo je sivé, kým nie je žiadne vyvažovanie. Preťaženie, ktoré takto dostanete späť, sa jednoducho znova objaví.
 - Ak ste odvtedy plán zmenili, jednoducho znova vyberte *Vyvažovať…*. Aplikácia potom začne od začiatku: staré odklady sa nepočítajú.
 
 ## Časté problémy a čo vtedy robí aplikácia

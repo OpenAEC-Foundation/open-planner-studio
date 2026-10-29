@@ -212,6 +212,8 @@ export const TaskFieldId = {
   FreeSlack: 21,
   StartSlack: 438,
   FinishSlack: 439,
+  /** Alleen voor verliesdetectie: `FIXED_COST` (CURRENCY), blok 0 offset 158. */
+  FixedCost: 8,
 } as const;
 
 /** Letterlijk uit `FieldMap14.getDefaultTaskData()` — alleen de entries voor `TaskFieldId`
@@ -254,6 +256,7 @@ const DEFAULT_TASK_FIELDS: Readonly<Record<number, FieldEntry>> = {
   [TaskFieldId.FinishSlack]: { location: 'fixed', fixedOffset: 32 },
   // Letterlijke offset uit `FieldMap14.getDefaultTaskData()`.
   [TaskFieldId.Type]: { location: 'fixed', fixedOffset: 94 },
+  [TaskFieldId.FixedCost]: { location: 'fixed', fixedOffset: 158 },
 };
 
 /** Poort van `FieldMap.createTaskFieldMap(Props)`. */
@@ -267,6 +270,10 @@ export const ResourceFieldId = {
   UniqueId: 27,
   Name: 1,
   MaxUnits: 4,
+  /** Alleen voor verliesdetectie: RATE/RATE/CURRENCY uit `getDefaultResourceData()`. */
+  StandardRate: 6,
+  OvertimeRate: 7,
+  CostPerUse: 18,
 } as const;
 
 /** Geëxporteerd zodat de fixtures in `check-mpp-relations.ts` deze tabel hergebruiken i.p.v. een
@@ -274,6 +281,9 @@ export const ResourceFieldId = {
 export const DEFAULT_RESOURCE_FIELDS: Readonly<Record<number, FieldEntry>> = {
   [ResourceFieldId.UniqueId]: { location: 'fixed', fixedOffset: 0 },
   [ResourceFieldId.MaxUnits]: { location: 'fixed', fixedOffset: 44 },
+  [ResourceFieldId.StandardRate]: { location: 'fixed', fixedOffset: 28 },
+  [ResourceFieldId.OvertimeRate]: { location: 'fixed', fixedOffset: 36 },
+  [ResourceFieldId.CostPerUse]: { location: 'fixed', fixedOffset: 84 },
   [ResourceFieldId.Name]: { location: 'var', varDataKey: ResourceFieldId.Name },
 };
 

@@ -67,7 +67,12 @@ async function openExample(page: Page, title: RegExp): Promise<void> {
   await page.locator('.ribbon-tab--file').first().click();
   await page.locator('button.backstage-nav-item[data-tour-anchor="backstage-examples"]').click();
   await page.locator('button.backstage-export-card').filter({ has: page.locator('h4', { hasText: title }) }).first().click();
-  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBeGreaterThan(5);
+  // Wacht tot het gekozen voorbeeld echt actief is. Alleen `tasks.length > 5` is bij een tweede
+  // voorbeeld al waar vóór de wissel (dan staat het vorige document nog open): race op de CI.
+  await expect.poll(() => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { name: s.project.name, tasks: s.tasks.length };
+  }).then(({ name, tasks }) => title.test(name) && tasks > 5)).toBe(true);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false }));
 }
 

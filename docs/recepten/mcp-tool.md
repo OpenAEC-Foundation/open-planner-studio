@@ -3,7 +3,7 @@
 De AI-assistent (zie *AI-assistent* in `.claude/rules/mcp.md`) stuurt de app aan via een vaste set
 `planner_*`-tools. Rust is daarbij een dom doorgeefluik (`src-tauri/src/mcp_bridge.rs`); de hele
 protocol- en toollaag zit in TypeScript, `src/services/mcp/`. Een tool toevoegen raakt altijd
-dezelfde vier plekken, en drie ervan geven — anders dan bij het IFC-recept — pas een falende
+dezelfde zes plekken (de stappen hieronder), en drie ervan geven — anders dan bij het IFC-recept — pas een falende
 **test** te zien, niet een compileerfout: `contracts.ts` legt alleen het *type* `McpToolDef` vast,
 niet de lijst tool-namen zelf.
 
@@ -57,6 +57,9 @@ document ooit achter, dan heeft de code gelijk.
    `cases-*.ts`-bestand vanzelf op, geen aparte registratie nodig). Roep de tool bij voorkeur via de
    ECHTE dispatch-weg aan (`handleMcpMessage`, zie `cases-schemavalidatie.ts`), niet rechtstreeks via
    `def.handler(...)` — anders test je de poorten niet mee.
+6. **Werk de documentatie bij.** Hoog het getal in `AGENTS.md` op (*Facts that `verify:docs` guards here*,
+   "The N `planner_*` tools"); anders faalt `verify:docs` (poort 7e). Werk ook de gebruikersdocumentatie
+   `public/docs/{nl,en}/ref-ai-tools.md` bij (nl en en samen).
 
 ## Context-aandachtspunten
 

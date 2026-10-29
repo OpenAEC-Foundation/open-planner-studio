@@ -1720,6 +1720,12 @@
       "uppgiftstyper",
       "uppgiftstyperna"
     ],
+    "avoid": [
+      "arbetsregel",
+      "arbetsregeln",
+      "arbetsregler",
+      "arbetsreglerna"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1865,22 +1871,23 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "arbetskategori",
+    "forms": [
+      "arbetskategori",
+      "arbetskategorin",
+      "arbetskategorier",
+      "arbetskategorierna",
+      "arbetskategorins"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "arbetstider",
     "forms": [
       "arbetstider",
       "arbetstiderna"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "arbetsregel",
-    "forms": [
-      "arbetsregel",
-      "arbetsregeln",
-      "arbetsregler",
-      "arbetsreglerna"
     ],
     "source": "model",
     "status": "model"

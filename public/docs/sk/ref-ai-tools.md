@@ -30,10 +30,10 @@ Všetky nástroje, ktoré môže AI asistent volať cez most, podľa skupín. Uv
 ## Úlohy a štruktúra
 
 - `planner_add_tasks` (zmena, hromadne) — vytvorí úlohy vrátane vnoreného WBS v jednom volaní. Každá úloha dostane vlastný dočasný názov (`tmp-…`), aby na nadradenú úlohu mohla odkazovať podriadená. Bez trvania dostane úloha 5 pracovných dní. Medzník má trvanie 0. Všetky úlohy jedného volania uspejú spolu alebo zlyhajú spolu.
-- `planner_update_tasks` (zmena, hromadne) — mení polia existujúcich úloh: názov, popis, trvanie s jednotkou (dni alebo hodiny), typ trvania, typ úlohy, medzník, povinnosť, prioritu, obmedzenie, termín, kalendár a pravidlo práce. Tiež polia postupu: percento dokončenia, skutočný začiatok a skutočné dokončenie. Každý iný kľúč je odmietnutý s dôvodom.
+- `planner_update_tasks` (zmena, hromadne) — mení polia existujúcich úloh: názov, popis, trvanie s jednotkou (dni alebo hodiny), typ trvania, druh prác, medzník, povinnosť, prioritu, obmedzenie, termín, kalendár a typ úlohy. Tiež polia postupu: percento dokončenia, skutočný začiatok a skutočné dokončenie. Každý iný kľúč je odmietnutý s dôvodom.
 - `planner_delete_tasks` (zmena) — odstráni úlohy vrátane celého podstromu, závislostí a priradení. Odpoveď presne uvedie, čo sa odstránilo spolu s nimi.
 - `planner_move_task` (zmena) — presunie úlohu pod inú nadradenú úlohu, na určenú pozíciu. Cyklus alebo úloha pod sebou samou je odmietnutá.
-- `planner_set_task_splits` (zmena) — nastaví prestávky jednej úlohy: počet pracovných dní (alebo pracovných hodín) práce pred prestávkou a počet pracovných dní (alebo hodín) trvania prestávky. Prázdny zoznam zruší všetky prestávky. Pozrite [Rozdelenie úlohy](docs://howto-taak-splitsen).
+- `planner_set_task_splits` (zmena) — nastaví prestávky jednej úlohy: počet pracovných dní (alebo pracovných dôb) práce pred prestávkou a počet pracovných dní (alebo pracovných dôb) trvania prestávky. Prázdny zoznam zruší všetky prestávky. Pozrite [Rozdelenie úlohy](docs://howto-taak-splitsen).
 
 ## Závislosti
 
@@ -43,14 +43,14 @@ Všetky nástroje, ktoré môže AI asistent volať cez most, podľa skupín. Uv
 
 ## Projekt a kalendáre
 
-- `planner_update_project` (zmena) — názov, popis, autor, firma, dátum začiatku, dátum dokončenia, dátum kontroly stavu, režim postupu a predvolené pravidlo práce pre projekt. Dátum začiatku je kotva pre nové úlohy. Ak ho asistent nastaví neskôr, posunú sa len voľné úlohy (bez predchádzajúcej úlohy a bez obmedzenia, ktoré nastavuje dolnú hranicu, napríklad *začiatok nie skôr ako*). Odpoveď uvedie počet takto ovplyvnených úloh ako `anchorsClamped`. Zvyšok plánu zostane na mieste. Pozrite [Nový projekt a info o projekte](docs://ref-projectinfo). Dátum kontroly stavu nie je štítok, ale referenčný dátum výpočtu: pri pláne bez postupu sa všetko posunie spolu s ním. Dátum dokončenia je len metaúdaj.
+- `planner_update_project` (zmena) — názov, popis, autor, firma, dátum začiatku, dátum dokončenia, dátum kontroly stavu, režim postupu a predvolený typ úlohy pre projekt. Dátum začiatku je kotva pre nové úlohy. Ak ho asistent nastaví neskôr, posunú sa len voľné úlohy (bez predchádzajúcej úlohy a bez obmedzenia, ktoré nastavuje dolnú hranicu, napríklad *začiatok nie skôr ako*). Odpoveď uvedie počet takto ovplyvnených úloh ako `anchorsClamped`. Zvyšok plánu zostane na mieste. Pozrite [Nový projekt a info o projekte](docs://ref-projectinfo). Dátum kontroly stavu nie je štítok, ale referenčný dátum výpočtu: pri pláne bez postupu sa všetko posunie spolu s ním. Dátum dokončenia je len metaúdaj.
 - `planner_move_project` (zmena) — presunie celý existujúci plán na nový dátum začiatku. Kalendáre sa spolu s plánom nepresúvajú, takže dokončenie môže skočiť o iný počet dní než začiatok. Pôvodné plány zostanú na mieste, pokiaľ asistent výslovne nepožiada aj o ich presun. Pozrite [Presun projektu](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (zmena, hromadne) — mení alebo vytvára kalendáre: pracovné dni, pracovnú dobu, prestávku, pracovné bloky, sviatky (generovanie pre krajinu a región alebo zadanie priamo) a výnimky pracovných dní. Nemôže zmeniť, ktorý kalendár je kalendárom projektu.
 
 ## Zdroje a jednotky
 
 - `planner_manage_resources` (zmena, hromadne) — vytvára, mení alebo maže zdroje: názov, typ (pracovná sila, zariadenie, materiál, subdodávateľ alebo posádka), popis, maximálny počet jednotiek, náklad na hodinu, jednotku, kalendár, posádku a dostupnosť v čase. Odmietne zmazať zdroj, ktorý má priradenia, kým asistent to výslovne nepotvrdí. Pri zdroji z knižnice sú názov, typ, popis, štandardná sadzba a jednotka pevné.
-- `planner_manage_assignments` (zmena, hromadne) — pridáva, mení, presúva alebo odstraňuje priradenia: jednotky priradenia na pracovný deň, krivku a zostávajúcu prácu. Len na koncovej úlohe a jeden zdroj len raz na úlohu. Čo zmena jednotiek priradenia urobí s trvaním, závisí od pravidla práce úlohy, ako v [Pravidlá práce: trvanie, jednotky a práca](docs://uitleg-werkregels).
+- `planner_manage_assignments` (zmena, hromadne) — pridáva, mení, presúva alebo odstraňuje priradenia: jednotky priradenia na pracovný deň, krivku a zostávajúcu prácu. Len na koncovej úlohe a jeden zdroj len raz na úlohu. Čo zmena jednotiek priradenia urobí s trvaním, závisí od typu úlohy, ako v [Typy úloh: trvanie, jednotky a práca](docs://uitleg-werkregels).
 - `planner_level_resources` (zmena) — vyváži preťaženie. Predvolene v rámci časovej rezervy, takže dátum dokončenia zostane. S `constrainToFloat: false` sa dokončenie môže posunúť. Pri skúšobnom behu asistent najskôr dostane náhľad bez zmeny. Preskakuje materiál. Pozrite [Vyvažovanie zdrojov](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (zmena) — zruší všetky oneskorenia pri vyvažovaní.
 
@@ -72,12 +72,12 @@ Všetky nástroje, ktoré môže AI asistent volať cez most, podľa skupín. Uv
 - `planner_duplicate_document` — skopíruje aktívny dokument na novú kartu, pre variant „čo ak“ alebo variant ponuky. Kópia je odpojená a nemá cestu k súboru.
 - `planner_switch_document` — aktivuje iný dokument. Je to aj spôsob, ako po prepnutí kariet potvrdiť, na ktorom dokumente asistent pracuje.
 - `planner_import_schedule` — otvorí súbor plánu z disku ako dokument: `.ifc`, `.xml` (Primavera P6 alebo MS Project, rozpoznané podľa obsahu), `.csv`, `.xer` a `.mpp` (MS Project 2010 až 2021). Nič sa nezlúči so súčasným plánom. CSV nemá kalendár, takže dátumy sa môžu posunúť. Len vo vašom používateľskom priečinku. Po importe CSV, XML alebo `.mpp` nemá dokument cieľ na uloženie. Len IFC prevezme jeho cestu.
-- `planner_export_ifc` — zapíše aktívny dokument ako súbor IFC 4.3. Len vo vašom používateľskom priečinku. Existujúci súbor sa prepíše len na výslovnú žiadosť. Projekt zostáva neuložený.
+- `planner_export_ifc` — zapíše aktívny dokument ako súbor IFC vo schéme projektu (predvolene IFC 4.3 ADD2). Len vo vašom používateľskom priečinku, a existujúci súbor sa prepíše len na výslovnú žiadosť. Ak bol dokument otvorený v schéme, ktorú aplikácia nevie zapísať (napríklad IFC2X3), nástroj ten súbor sám neprepíše. Projekt zostáva neuložený.
 
-## Sprievodca a pôvod zdrojov
+## Sprievodca a pôvod údajov
 
 - `planner_get_planning_guide` (čítanie) — anglický sprievodca pre asistentov (zásady [Dobré plánovanie](docs://gids-goed-plannen), s nástrojmi pre každú zásadu), dve zručnosti *goed-plannen* (vytvorenie plánu) a *progress-update* (aktualizácia postupu), alebo všetko. Vyberte pomocou `part`: `guide`, `skill` (obe zručnosti) alebo `both`. Predvolene `both`. Pre každú zručnosť vráti miesta, kde patrí, a adresy na stiahnutie. Parameter `language` sa stále prijíma kvôli starším asistentom, ale text je vždy v angličtine. Nemení plán.
-- `planner_inspect_xer_provenance` (čítanie) — kontroluje zachovaný význam zdroja otvoreného súboru Primavera P6 (`.xer`): čo súbor obsahoval, s počtami importu a diagnostiky. Voľné textové polia zo súboru sú predvolene neviditeľné. Asistent ich musí výslovne vyžiadať. Nedá sa použiť v skripte.
+- `planner_inspect_xer_provenance` (čítanie) — kontroluje zachovaný význam údajov z otvoreného súboru Primavera P6 (`.xer`): čo súbor obsahoval, s počtami importu a diagnostiky. Voľné textové polia zo súboru sú predvolene neviditeľné. Asistent ich musí výslovne vyžiadať. Názvy zdrojov sú predvolene skryté tiež, pretože zdroj v P6 je zvyčajne osoba; kódy zdrojov zostávajú viditeľné. Asistent musí pred vyžiadaním názvov požiadať vás o súhlas, pretože názvy potom odídu k poskytovateľovi AI. Nedá sa použiť v skripte.
 
 ## Skript
 

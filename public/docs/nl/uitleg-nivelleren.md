@@ -50,34 +50,34 @@ Met *smoothing* mag een taak niet later beginnen dan haar laatste start, dat is 
 
 ## Rekenvoorbeeld: de metselaar op twee muren
 
-Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* en de stukadoor werkt met inzet 2, zoals in [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
+Het voorbeeld is het oefenproject *Aanbouw woning* uit de tutorials, zoals het eruitziet vlak vóór het nivelleren in tutorial 5. In tutorial 5 doe je dit zelf en reken je het na. Het stucwerk staat in dit voorbeeld op *Vast werk* en de stukadoor werkt met inzet 2, zoals in [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
 
-Na de kanaalplaatvloer, klaar op maandag 28 juni, beginnen het binnenspouwblad (5 werkdagen) en het buitenspouwblad (6 werkdagen) allebei op dinsdag 29 juni. Ze staan beide op de metselaar, met een inzet van 1 en een *Max. eenheden* van 1. Na het binnenspouwblad volgen de dakelementen (een kraaninzet van 6 uur) en de dakbedekking (2 werkdagen). De kozijnen wachten op de dakbedekking én op het buitenspouwblad. De oplevering staat op maandag 30 augustus.
+Na de kanaalplaatvloer, klaar op maandag 28 juni om 10:00, beginnen het binnenspouwblad (5 werkdagen) en het buitenspouwblad (6 werkdagen) allebei op maandag 28 juni om 10:00. Ze staan beide op de metselaar, met een inzet van 1 en een *Max. eenheden* van 1. Na het binnenspouwblad volgen de dakelementen (een kraaninzet van 6 uur) en de dakbedekking (2 werkdagen). De kozijnen wachten op de dakbedekking én op het buitenspouwblad. De oplevering staat op maandag 30 augustus.
 
 ### De overbezetting
 
-Het binnenspouwblad loopt van 29 juni tot en met 5 juli, het buitenspouwblad van 29 juni tot en met 6 juli. Van 29 juni tot en met 5 juli, dat zijn 5 werkdagen, vraagt de planning 2 eenheden van een metselaar met capaciteit 1. De metselaar is op die 5 dagen overbezet.
+Het binnenspouwblad loopt van 28 juni 10:00 tot 5 juli 10:00, het buitenspouwblad van 28 juni 10:00 tot 6 juli 10:00. Een werkdag loopt van 07:00 tot 16:00 met een uur pauze, dus op 28 juni werken beide muren 5 van de 8 uur. Op die dag vraagt de planning 1,25 eenheden van een metselaar met capaciteit 1, van 29 juni tot en met 2 juli 2 eenheden, en op 5 juli 1,375. De metselaar is dus 6 werkdagen overbezet, van 28 juni tot en met 5 juli.
 
 ### De volgorde
 
-Beide taken hebben prioriteit 500. De kozijnen worden pas op 14 juli geleverd (in tutorial 3 zet je daarvoor een constraint *Start niet eerder dan (SNET)*). Daardoor heeft het binnenspouwblad 3 werkdagen speling en het buitenspouwblad 5. Het binnenspouwblad heeft de minste speling en komt dus eerst. Het blijft staan van 29 juni tot en met 5 juli.
+Beide taken hebben prioriteit 500. De kozijnen worden pas op 14 juli geleverd (in tutorial 3 zet je daarvoor een constraint *Start niet eerder dan (SNET)*). Daardoor heeft het binnenspouwblad 3,875 werkdagen speling (3 werkdagen en 7 uur) en het buitenspouwblad 5,625 (5 werkdagen en 5 uur). Het binnenspouwblad heeft de minste speling en komt dus eerst. Het blijft staan van 28 juni 10:00 tot 5 juli 10:00.
 
 ### De verschuiving
 
-Het buitenspouwblad kan niet op 29 juni beginnen. De eerste dag waarop de metselaar weer vrij is, is dinsdag 6 juli. Dat is 5 werkdagen later dan de vroegste start, dus de nivelleervertraging is 5. Het buitenspouwblad loopt nu van 6 juli tot en met 13 juli. De kozijnen beginnen toch pas op 14 juli, dus de oplevering blijft maandag 30 augustus. Het venster meldt *Projecteinddatum: ongewijzigd (30-08-2027)* en toont één regel: *Buitenspouwblad metselen*, oude start 29-06-2027, nieuwe start 06-07-2027, *5 d*.
+Het buitenspouwblad kan niet op 28 juni beginnen. De metselaar is weer vrij op maandag 5 juli om 10:00, als het binnenspouwblad klaar is. Dat is 5 werkdagen later dan de vroegste start, dus de nivelleervertraging is 5. Het buitenspouwblad loopt nu van 5 juli 10:00 tot 13 juli 10:00. De kozijnen beginnen toch pas op 14 juli, dus de oplevering blijft maandag 30 augustus. Het venster meldt *Projecteinddatum: ongewijzigd (30-08-2027)* en toont één regel: *Buitenspouwblad metselen*, oude start 28-06-2027 10:00, nieuwe start 05-07-2027 10:00, *5 d*.
 
-De 5 werkdagen verschuiving zijn precies de speling van het buitenspouwblad. Daarom geeft *smoothing* hier hetzelfde resultaat. Het buitenspouwblad heeft nu geen speling meer en is kritiek.
+De verschuiving van 5 werkdagen past binnen de speling van het buitenspouwblad. Daarom geeft *smoothing* hier hetzelfde resultaat. Het buitenspouwblad houdt nu nog 0,625 werkdag speling: 5 uur.
 
 ### Wat als de kozijnen niet op 14 juli komen
 
-Zonder die constraint kunnen de kozijnen op vrijdag 9 juli beginnen en staat de oplevering op woensdag 25 augustus. Het buitenspouwblad heeft dan maar 2 werkdagen speling.
+Zonder die constraint kunnen de kozijnen op donderdag 8 juli om 08:00 beginnen en staat de oplevering op woensdag 25 augustus om 08:00. Het buitenspouwblad heeft dan maar 1,75 werkdag speling (1 werkdag en 6 uur).
 
-- Zonder *smoothing* schuift het buitenspouwblad nog steeds 5 werkdagen. Nu moeten de kozijnen wachten: ze beginnen op 14 juli, 3 werkdagen later. Alles erna schuift mee en de oplevering gaat van 25 augustus naar 30 augustus, ook 3 werkdagen later.
-- Met *smoothing* verschuift er niets. Het buitenspouwblad past niet binnen zijn 2 werkdagen speling. Het venster toont het conflict *Buitenspouwblad metselen*, 5 dag(en), met de reden *Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.*
+- Zonder *smoothing* schuift het buitenspouwblad nog steeds 5 werkdagen. Nu moeten de kozijnen wachten: ze beginnen op dinsdag 13 juli om 10:00, 3 werkdagen later. Alles erna schuift mee en de oplevering gaat van woensdag 25 augustus 08:00 naar maandag 30 augustus 10:00.
+- Met *smoothing* verschuift er niets. Het buitenspouwblad past niet binnen zijn 1,75 werkdag speling. Het venster toont het conflict *Buitenspouwblad metselen*, 6 dag(en), met de reden *Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.*
 
 ### Wat als het buitenspouwblad voorrang krijgt
 
-Geef je het buitenspouwblad prioriteit *Hoog* (900), dan komt het eerst aan de beurt. Het blijft op 29 juni staan en nu wijkt het binnenspouwblad: 6 werkdagen later, van 7 juli tot en met 13 juli. Het binnenspouwblad heeft maar 3 werkdagen speling, dus 6 werkdagen verschuiven is 3 te veel. De dakelementen, de kozijnen en alles erna schuiven mee. De oplevering gaat van maandag 30 augustus naar donderdag 2 september. Dezelfde overbezetting geeft dus een andere einddatum, afhankelijk van welke taak blijft staan.
+Geef je het buitenspouwblad prioriteit *Hoog* (900), dan komt het eerst aan de beurt. Het blijft op 28 juni om 10:00 staan en nu wijkt het binnenspouwblad: 6 werkdagen later, van 6 juli 10:00 tot 13 juli 10:00. Het binnenspouwblad heeft maar 3,875 werkdagen speling, dus 6 werkdagen verschuiven is ruim 2 werkdagen te veel. De dakelementen, de kozijnen en alles erna schuiven mee. De oplevering gaat van maandag 30 augustus naar donderdag 2 september om 08:00. Dezelfde overbezetting geeft dus een andere einddatum, afhankelijk van welke taak blijft staan.
 
 ### Wat als er een tweede metselaar komt
 
@@ -87,7 +87,7 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 
 **"Nivelleren zoekt de kortste planning."** Nee. De app werkt taak voor taak volgens een vaste volgorde en zoekt niet naar de beste totaaloplossing. Zie het voorbeeld met de voorrang: een andere prioriteit geeft een andere einddatum.
 
-**"Een genivelleerde taak is veilig."** Nivelleren gebruikt speling. De verschoven taak heeft daarna minder of geen speling meer en kan kritiek worden, zoals het buitenspouwblad hierboven. Loopt het dan uit, dan schuift de oplevering.
+**"Een genivelleerde taak is veilig."** Nivelleren gebruikt speling. De verschoven taak heeft daarna minder of geen speling meer en kan kritiek worden. Het buitenspouwblad hierboven houdt maar 5 uur speling over. Loopt het dan uit, dan schuift de oplevering.
 
 **"Nivelleren volgt mijn latere wijzigingen."** Nee. De vertraging is een vast aantal werkdagen. Wordt het binnenspouwblad na het nivelleren korter, dan begint het buitenspouwblad nog steeds 5 werkdagen later, ook al hoeft dat niet meer. Nivelleer dan opnieuw. De app begint dan van voren af aan.
 
@@ -95,11 +95,11 @@ Zet je *Max. eenheden* van de metselaar op 2, dan is er geen overbezetting meer.
 
 **Materiaal wordt niet genivelleerd.** Vraagt materiaal op een dag meer dan zijn capaciteit, dan meldt de app dat als overbezetting, maar nivelleren laat het staan.
 
-**Vastgepinde taken.** Staan alle taken die botsen op prioriteit 1000, dan meldt het venster *Geen taken hoeven te verschuiven — de planning is al conflictvrij.*, terwijl de overbezetting blijft. Kijk na het toepassen dus naar de melding *Overallocatie* in het lint.
+**Vastgepinde taken.** Taken op prioriteit 1000 schuiven niet voor capaciteit. Hun resterende overboeking wordt wel per taak en conflictdag gemeld. Pas de prioriteit, inzet of capaciteit aan om dat conflict op te lossen. Controleer na het toepassen ook *Overallocatie* in het lint.
 
 ## Zie ook
 
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): de stappen om overbezetting te vinden en te nivelleren.
 - [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat speling is en waarom een taak kritiek wordt.
-- [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): hoe de duur van een taak meebeweegt met de inzet.
+- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): hoe de duur van een taak meebeweegt met de inzet.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): drie torens die dezelfde ploegen en de torenkraan nodig hebben, en wat nivelleren daarmee doet.

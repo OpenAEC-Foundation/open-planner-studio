@@ -255,6 +255,44 @@ bewerkte toewijzing de langere duur met afgeleid werk (§6.2, beslispunt 10 — 
 per-toewijzing-spanne kan OPS haar eigen werk én inzet niet tegelijk vasthouden), dus heen en terug op
 de ene blijft daar op de langere duur staan; gepind in `check-work-triangle.ts` (b).
 
+### 3.5 Genomen op 2026-10-19 (eigenaar, optie 2)
+
+**Een duurwijziging volgt de regel van de taak, zoals P6, zonder vraag — ook voor restwerk uit het
+bestand.**
+
+- Werk volgt de duur (FIXED_DURATION_RATE; ook FIXED_RATE en FIXED_DURATION_WORK met bewaard
+  `effortDriven: true`): restwerk = inzet × nieuwe restduur, óók als het bewaarde restwerk uit het
+  bestand kwam en afweek. Voorbeeld E-1010 (Harbour Point DCP-03, P6 *Fixed Duration & Units/Time*,
+  niet gestart, inzet 1, restwerk 320 h op 80 h): duur 80 → 72 h ⇒ restwerk 320 → 72 h.
+- Werkbeschermend (FIXED_WORK, FIXED_DURATION_WORK): het werk blijft, de inzet volgt (synchronisatie-
+  tabel §2.2, [P3]).
+- Dit geldt voor gestarte én niet-gestarte taken. Een niet-gestarte taak met een expliciet restveld
+  krijgt rest = nieuwe duur. Een gestarte taak krijgt rest = oude rest + duurverschil
+  (`carryRemainingThroughDurationEdit`).
+- **Uitzondering (stand 2026-10-19, ook op main):** een splitsbewerking op een GESTARTE taak
+  (`applyTaskSplits`, `src/state/splitMutations.ts`) roept die meeschuifstap niet aan. De rest blijft
+  daar staan en het restwerk volgt alleen als de rest verandert. Staat op de VERVOLG-lijst van #380.
+- Melding alleen als een bewaard `remainingWorkMinutes` dat afweek van inzet × restduur (hetzelfde
+  criterium als het waarschuwingsteken, `assignmentWorkDeviation`) door de bewerking verdwijnt. Eén
+  melding per transactie via het meldingenkanaal; Ctrl+Z zet de bewaarde waarde in één stap terug,
+  inclusief het waarschuwingsteken. Binnen één gecoalesceerde undo-stap (een balksleep, toetsaanslagen
+  in het paneel) wordt dezelfde melding bijgewerkt: hij toont het restwerk vóór de eerste stap en de
+  eindwaarde. MCP vraagt niets; de envelop noemt het herschreven restwerk
+  (`remainingWorkRecomputed`).
+- Nooit iets bij openen of herberekenen (3.1-5): alleen bij bewerkingen.
+
+**Waarom.** P6 doet het zonder vraag (synchronisatietabel §2.2). In de echte projecten Roads en
+rehab-2 komt afwijkend restwerk niet voor, dus de vraag zou vrijwel nooit nodig zijn. De melding en
+het waarschuwingsteken houden de planner op de hoogte; Ctrl+Z maakt de stap ongedaan.
+
+**Aanleiding.** Op main volgde de restduur van een niet-gestarte taak een duurbewerking niet:
+`settleDurationEdit` zag geen wijziging omdat de meeschuifregel alleen lopende taken behandelde.
+Gevolgen: *Resterend* ≠ duur, een spookdeel "verricht" in het histogram, een werkelijke start op 0 %
+die het restwerk alsnog liet springen (320 → 352 h) en een inzet die onder Vast werk niet volgde.
+De fix staat op één plek, `settleDurationEdit` (`src/engine/work/workRuleApply.ts`), voor paneel,
+dialoog, Gantt, extensies, raster, MCP en splitsen; bewaakt in
+`tests/planning/check-restwerk-duurwijziging.ts`.
+
 ## 4. Datamodel
 
 ### 4.1 De werkregel per taak

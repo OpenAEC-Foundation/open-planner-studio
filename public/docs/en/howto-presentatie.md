@@ -21,7 +21,7 @@ In presentation mode the ribbon is gone, so set up what you want to show beforeh
 
 Choose *View › Presentation › Presentation*. In the desktop app you can also press F11. In the browser F11 belongs to the browser itself: it puts the browser window in full screen and leaves the app as it is. The ribbon, the tabs, the status bar and the right-hand panel disappear. You see the task table, the Gantt and, if you turned them on, the histogram and the mini-map. For a few seconds at the bottom it says *Press Esc or F11 to exit full screen.*
 
-You can start the presentation from any tab, also from *Table* or *Report*. You always see the Gantt of the open project, and when you stop you are back on the tab where you began.
+In the desktop app you start the presentation from any tab with F11, also from *Table* or *Report*. In the browser you start it only with *View › Presentation › Presentation*. You always see the Gantt of the open project, and when you stop you are back on the tab where you began. In the browser that is therefore *View*.
 
 ### Stop the presentation
 

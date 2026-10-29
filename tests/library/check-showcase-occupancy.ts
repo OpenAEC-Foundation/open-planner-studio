@@ -1,13 +1,13 @@
-// B1c — "Verdelen over projecten" op de ECHTE showcase-voorbeelden.
+// B1c — Bezetting over projecten op de ECHTE showcase-voorbeelden.
 //
 // Waarom deze check bestaat: de drie showcase-IFC's zijn het materiaal waarmee een gebruiker (en
-// een demo) het bezettingsoverzicht en de knop "Verdelen…" leert kennen. Dat werkt alleen als er
-// in die bestanden ook echt een OPLOSBAAR kruis-project-conflict zit. Dat conflict is een
-// eigenschap van gegenereerde DATA (scripts/showcases.ts → public/examples/*.ifc), niet van code —
-// dus kan het bij elke spec-tweak stilzwijgend verdwijnen zonder dat één unit-test rood wordt.
+// een demo) het bezettingsoverzicht leert kennen. De gegevens moeten daarom een zichtbaar én in
+// de verdeelkern OPLOSBAAR kruis-project-conflict bevatten. Dat conflict is een eigenschap van
+// gegenereerde DATA (scripts/showcases.ts → public/examples/*.ifc), niet van code — dus kan het bij
+// elke spec-tweak stilzwijgend verdwijnen zonder dat één unit-test rood wordt.
 // Deze batterij leest daarom de bestanden zoals ze op schijf staan, doet exact wat de app doet bij
 // Backstage → Voorbeelden (`applyDemoLibraryToShowcaseProject`: demo-bibliotheek seeden, project
-// binden, ondubbelzinnige naam-matches koppelen) en toetst de belofte headless.
+// binden, ondubbelzinnige naam-matches koppelen) en toetst de bezetting en verdeelkern headless.
 //
 // Patroon: de ECHTE Zustand-store (zoals check-demo-library.ts / check-library-slice.ts) met drie
 // open documenten, daarna de pure kernen `computeLibraryOccupancy` en `computeDistribution` over
@@ -89,6 +89,7 @@ const inputs: OccupancyDocInput[] = payloads.map(({ docId, payload }) => ({
   tasks: payload.tasks,
   calendar: payload.calendar,
   calendars: payload.calendars,
+  loadOptions: solveOptionsFor(payload.project).schedulingOptions,
   solveInput: {
     tasks: payload.tasks,
     sequences: payload.sequences,
@@ -161,7 +162,7 @@ if (row) {
   }
 }
 
-// ═══ (b) "Verdeel automatisch" lost het op: geen blokkade, geen tekort, en er verschuift iets ═════
+// ═══ (b) De verdeelkern lost het op: geen blokkade, geen tekort, en er verschuift iets ═════════
 const distInputs: DistributionDocInput[] = inputs.map((input, i) => ({
   ...input,
   rank: i + 1,
@@ -222,9 +223,9 @@ if (poolItem) {
 //     "kleinere uitloop in beide standen, zonder tekort" is daarom niet alleen niet gehaald maar
 //     onbereikbaar: de twee standen kunnen per definitie alleen verschillen op het punt waar de
 //     uit-stand een tekort heeft.
-// De eerlijke, wél demonstreerbare belofte is dus deze: mét een plafond verandert de schakelaar een
-// ONOPLOSBAAR voorstel (tekort ⇒ Toepassen geblokkeerd) in een toepasbaar voorstel binnen datzelfde
-// plafond. Dat is het verschil dat de gids "Uitproberen met de voorbeelden" beschrijft.
+// Met een bindend plafond kan de verdeelkern een voorstel met tekorten veranderen in een
+// toepasbaar voorstel binnen hetzelfde plafond. Deze kerncheck bewaakt dat verschil;
+// het huidige bezettingsvenster biedt hiervoor geen Verdelen-bediening.
 {
   const CEILING = 15;        // werkdagen — het midden van het werkzame bereik 14 t/m 17 (zie hieronder)
   const AKKERS = 1;          // index van MIDDEL in SLUGS
@@ -272,13 +273,13 @@ if (poolItem) {
       'waarden, anders is het verschil in de demo niet te vinden. Vergroot het aantal vrije werkdagen vóór de ' +
       'blokkade via KLEIN\'s `anchorShiftDays` in scripts/showcases.ts.');
     assert(werkt.includes(15),
-      `het ronde plafond van 15 werkdagen (drie weken) — dat de gids noemt — zit niet in het werkzame bereik [${werkt.join(', ')}]`);
+      `het gekozen plafond van 15 werkdagen (drie weken) zit niet in het werkzame bereik [${werkt.join(', ')}]`);
   }
 }
 
 // ═══ (c) Geen intrinsieke overvraag: geen showcase-taak vraagt op één dag meer dan de poolcapaciteit ══
 // Zou één taak méér vragen dan het bedrijf heeft, dan is het conflict per definitie onoplosbaar en
-// levert "Verdeel automatisch" altijd een tekort — hoe de documenten ook geschoven worden.
+// levert de verdeelkern altijd een tekort — hoe de documenten ook geschoven worden.
 for (const { payload } of payloads) {
   const stamped = new Map(
     payload.resources

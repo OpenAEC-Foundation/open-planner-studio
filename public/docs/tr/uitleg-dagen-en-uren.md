@@ -16,11 +16,11 @@ Saatleri, tam günlere sığmayan işler için kullanırsınız: on iki saat iç
 
 ## Uygulama nasıl hesaplar
 
-### Çalışma saatleri ve net saatler
+### Çalışma saatleri ve standart iş günü
 
 Her takvimde her iş günü için **bantlar** vardır (uygulamada *bant* olarak adlandırılır). Standart takvimde 07:00 ile 12:00 arası ve 13:00 ile 16:00 arası vardır. Aradaki boşluk **mola**dır. Uygulama bu bantları takvimin *Başlangıç (saat)* ve *Bitiş (saat)* değerlerinden ve molasından türetir; bunun için bir şey ayarlamanız gerekmez. Haftanın gününe göre kendi bantlarınızı ayarlarsanız, bunlar öncelik kazanır.
 
-**Günlük net saatler**, bir iş gününün bantlarının toplamıdır. İş günleri uzunluk bakımından farklıysa en sık görülen günlük toplam geçerlidir; eşitlik olursa en yüksek olan. Dört gün 8 saat ve bir cuma 5 saat olduğunda günlük net saatler dolayısıyla 8 olur.
+**Standart iş günü**, en sık görülen iş günüdür; uzunluğu bantlarının toplamıdır. Yani bu bir ortalama değildir: pazartesi 16 saat, salıdan cumaya 10 saat olduğunda standart iş günü 10 saattir. İş günleri uzunluk bakımından farklıysa en sık görülen günlük toplam geçerlidir; eşitlik olursa en yüksek olan. Dört gün 8 saat ve bir cuma 5 saat olduğunda standart iş günü dolayısıyla 8 saat olur. Kendi günlük saatleri olan bir takvim (örneğin Primavera P6) da bu günlük toplamla hesaplar ve takvim penceresi bunu gösterir. Kendi değeri dışa aktarma için korunur. Farklıysa takvim penceresi *Standart iş günü* altında turuncu bir blok gösterir. 10 saatlik bantlarla 1870 saatlik bir görev 187 gün sürer, kendi değeri günde 8 saat olsa bile.
 
 ### Saat görevi
 
@@ -32,9 +32,9 @@ Uygulama tam iş günlerini sayar. Günlük saatler bir rol oynamaz. 5 günlük 
 
 ### Gün ve saatleri dönüştürme
 
-Bir gün, görevin takviminin günlük net saatidir. Uygulama bunu üç yerde kullanır:
+Bir gün, görevin takvimindeki standart iş günüdür. Uygulama bunu üç yerde kullanır:
 
-- *Süre gösterimi* için. *Ayarlar › Proje › Ayarlar* altında, *Görünüm* sekmesinde *Otomatik (göreve özgü birim)*, *Her zaman gün* veya *Her zaman saat* seçersiniz. 18 saatlik bir görev, *Her zaman gün* altında `2.25d(18h)` olarak görünür: özgün birim parantez içinde kalır.
+- Süre gösterimi için. *Ayarlar › Proje › Uygulama ayarları* altında, *Görünüm* sekmesinde *Otomatik (göreve özgü birim)*, *Her zaman gün* veya *Her zaman saat* seçersiniz. 18 saatlik bir görev, *Her zaman gün* altında `2.25d(18h)` olarak görünür: özgün birim parantez içinde kalır.
 - Gün görevinden sonra saat cinsinden bir gecikme için (bkz. *Yuvarlama*).
 - Bir görevin birimini değiştirdiğinizde. Uygulama o zaman görevin başlangıcından itibaren günleri sayar, her gün kendi saatleriyle, ve sonuç tam çıkarsa süreyi hemen dönüştürür. İki gün `16h` olur. Cuma günü 5 saat olan bir takvimde, pazartesiden başlayan 5 gün `37h` olur. On iki saat, 8 saatlik günlere sahip bir takvimde tam günlere çevrilemez: uygulama birimi o zaman olduğu gibi bırakır.
 
@@ -50,14 +50,14 @@ Aşağıdaki kurallar, kendi çalışma bantları olmayan bir takvimdeki bitiş-
 
 Uygulama dört yerde yuvarlar veya reddeder:
 
-- **Saat görevinden sonra gelen bir gün görevi** bir sonraki iş gününde başlar. Saat görevi, deyim yerindeyse, tam günlere yukarı yuvarlanmış.
-- **Saat cinsinden bir gecikme** gecikme takviminde sayılır; varsayılan olarak öncülün takvimindedir. Öncül, standart takvim gibi kendi çalışma bantları olmayan bir takvimde bir gün görevi ise, uygulama gecikmeyi tam iş günlerine çevirir: gecikme, günlük net saatlere bölünür ve tam sayıya yuvarlanır; yarım gün yukarı yuvarlanır. Günde 8 saatte 1 saat 0 gün, 4 saat 1 gün ve 12 saat 2 gün sayılır. Bu, ardıl bir saat görevi olsa bile geçerlidir. Öncül bir saat görevi ise veya takvimi kendi çalışma bantlarına sahipse, gecikme tam olarak çalışma saatleri olarak sayılır ve mola sayılmaz.
+- **Saat görevinden sonra gelen bir gün görevi** bir sonraki iş gününde başlar. Saat görevi, deyim yerindeyse, tam günlere yukarı yuvarlanmış sayılır.
+- **Saat cinsinden bir gecikme** gecikme takviminde sayılır; varsayılan olarak öncülün takvimindedir. Öncül, standart takvim gibi kendi çalışma bantları olmayan bir takvimde bir gün görevi ise, uygulama gecikmeyi tam iş günlerine çevirir: gecikme, standart iş gününün saatlerine bölünür ve tam sayıya yuvarlanır; yarım gün yukarı yuvarlanır. Günde 8 saatte 1 saat 0 gün, 4 saat 1 gün ve 12 saat 2 gün sayılır. Bu, ardıl bir saat görevi olsa bile geçerlidir. Öncül bir saat görevi ise veya takvimi kendi çalışma bantlarına sahipse, gecikme tam olarak çalışma saatleri olarak sayılır ve mola sayılmaz.
 - **Gün cinsinden bir süre** her zaman tam sayıdır. `1.5d` yazarsanız, uygulama *2d veya 12h gibi tam gün ya da saat sayısı girin.* uyarısını gösterir. Saat cinsinden bir süre `1.5h` veya `1h 30m` olabilir.
 - **Birimi değiştirmek** yalnızca sonuç tam çıkarsa gerçekleşir (bkz. yukarıda).
 
 ## Uygulamalı örnek: vinç
 
-Takvim pazartesiden cumaya, 07:00 ile 12:00 arası ve 13:00 ile 16:00 arasıdır: günde 8 net saat. Proje Pazartesi 7 Haziran 2027'de başlar.
+Takvim pazartesiden cumaya, 07:00 ile 12:00 arası ve 13:00 ile 16:00 arasıdır: standart iş günü 8 saat. Proje Pazartesi 7 Haziran 2027'de başlar.
 
 ### Saat, saat ve gün
 
@@ -81,7 +81,7 @@ Bir gün görevinden sonra gecikme farklı davranır. *Pour foundation* salı 8 
 
 ### Boş bir cuma öğleden sonrası
 
-Şimdi cumanın yalnızca bir bandı vardır, 07:00 ile 12:00 arası: 5 saat. Diğer günler 8 saatte kalır. Günlük net saatler 8 olarak kalır, çünkü en sık görülen günlük toplam budur. Bir hafta şimdi 37 çalışma saatine sahiptir.
+Şimdi cumanın yalnızca bir bandı vardır, 07:00 ile 12:00 arası: 5 saat. Diğer günler 8 saatte kalır. Standart iş günü 8 saat olarak kalır, çünkü en sık görülen günlük toplam budur. Bir hafta şimdi 37 çalışma saatine sahiptir.
 
 Pazartesi 7 Haziran 07:00'den başlayan 40 saatlik bir görev, pazartesiden perşembeye (32 saat) ve cumaya (5 saat) kadar sürer. Son 3 saat, ertesi pazartesi 07:00 ile 10:00 arasına düşer. Bitiş **pazartesi 14 Haziran 10:00**'dır. Pazartesiden başlayan 5 günlük bir görev 37 saat kaplardı ve 5 günü saate çevirmek için birimi değiştirirseniz uygulamanın önerdiği de budur.
 
@@ -91,7 +91,7 @@ Eğitim 4'te, saat planlaması üzerine, bir vinç görevini kendiniz saat olara
 
 **“8 saat 1 gündür.”** Yalnızca takvimde 8 saatlik günler varsa. Boş cuma öğleden sonrası olan takvimde 5 gün 37 saattir, 40 değil.
 
-**“Günde daha fazla saat ayarlarsam, gün görevim daha erken biter.”** Hayır. Bir gün görevi tam iş günlerini sayar. Günlük saatler yalnızca bir günün saat cinsinden değerini değiştirir, örneğin gösterimde ve saat cinsinden bir gecikme için. Yalnızca kaynakları olan ve *Sabit iş* veya *Sabit birimler* iş kuralı bulunan bir görevde süre bununla birlikte değişir, çünkü iş aynı kalır: 40 saatlik iş, günde 8 saatte 5 gün ve günde 6 saatte 7 gündür.
+**“Günde daha fazla saat ayarlarsam, gün görevim daha erken biter.”** Hayır. Bir gün görevi tam iş günlerini sayar. Günlük saatler yalnızca bir günün saat cinsinden değerini değiştirir, örneğin gösterimde ve saat cinsinden bir gecikme için. Yalnızca kaynakları olan ve *Sabit iş* veya *Sabit birimler* görev türüne sahip bir görevde süre bununla birlikte değişir, çünkü iş aynı kalır: 40 saatlik iş, günde 8 saatte 5 gün ve günde 6 saatte 7 gündür.
 
 **“8 saatlik bir görev bir gün sürer.”** Yalnızca günün başında başlarsa. Daha sonra başlarsa, örneğin salı 11:00'de *Adjust elements* gibi, ertesi güne uzanır.
 

@@ -6,7 +6,7 @@ Cieľ: priradiť zdroj k úlohe s jednotkami priradenia za deň a s krivkou, kto
 
 Ihneď, keď chcete vidieť, kto kde a kedy pracuje: murár na vonkajšej vrstve dutinovej steny, žeriav na dutinových stropných doskách. Bez priradenia nie je žiadne zaťaženie, a teda ani histogram ani preťaženie.
 
-Dva pojmy. **Jednotky priradenia** (v aplikácii *Jedn./deň*) určujú, koľko zo zdroja pracuje na úlohe za pracovný deň: 1 je jeden murár, 2 sú dvaja, 0,5 je pol dňa. **Krivka** určuje, ako sa celkový súčin, jednotky priradenia krát trvanie, rozloží na pracovné dni úlohy. Práca býva zriedka rovnomerná: pri stene je na začiatku pokojno, v strede rušno a na konci zase pokojno.
+Dva pojmy. **Jednotky priradenia** (v paneli stĺpec *Jednotky priradenia*, v okne *Priradiť* pole *Jedn./deň*) určujú, koľko zo zdroja pracuje na úlohe za pracovný deň: 1 je jeden murár, 2 sú dvaja, 0,5 je pol dňa. **Krivka** určuje, ako sa celkový súčin, jednotky priradenia krát trvanie, rozloží na pracovné dni úlohy. Práca býva zriedka rovnomerná: pri stene je na začiatku pokojno, v strede rušno a na konci zase pokojno.
 
 Vonkajšia vrstva dutinovej steny zaberie 6 pracovných dní. S jedným murárom a krivkou *Rovnomerný* je to 1 jednotka priradenia na každý zo 6 dní, spolu 6 jednotiek priradenia. S krivkou *Zvonový tvar* je to stále spolu 6 jednotiek priradenia, ale rozloženie práce je 0, 1, 2, 2, 1 a 0.
 
@@ -27,9 +27,9 @@ Pre druhý zdroj otvorte okno znova. Zdroje, ktoré sú na úlohe už priradené
 
 1. Vyberte úlohu. Panel *Vlastnosti* je vpravo; ak ho nevidíte, zapnite ho cez *Zobrazenie › Panely › Vlastnosti*.
 2. V časti *Priradenia* úplne dole vyberte zdroj v poli *Priradiť zdroj*. Priradenie začína s jednotkami priradenia 1 a krivkou *Rovnomerný*.
-3. Pri každom priradení zmeňte pole *Jedn./deň* a v poli *Krivka* vyberte inú krivku.
+3. Pri každom priradení zmeňte hodnotu v poli *Jednotky priradenia*. Kliknutím na názov zdroja zobrazte pole *Krivka* a vyberte tam inú krivku.
 
-Takto zmeníte aj existujúce priradenie. Ikonou koša (*Odstrániť*) vedľa názvu odstránite priradenie z úlohy. Samotný zdroj zostane. Pomocou *Presunúť na…* presuniete priradenie na inú úlohu.
+Takto zmeníte aj existujúce priradenie. Ikonou koša (*Odstrániť*) na konci riadka odstránite priradenie z úlohy. Samotný zdroj zostane. Pomocou *Presunúť na…* (zobrazí sa po kliknutí na názov) presuniete priradenie na inú úlohu.
 
 ### Krivky
 
@@ -56,7 +56,7 @@ Krivka mení len rozloženie práce. Trvanie, dátumy a celkový súčet zostáv
 
 **Materiál.** Pri materiálovom zdroji sú jednotky priradenia množstvo za deň, v mernej jednotke zdroja, napríklad m³. Materiál sa nezapočítava do trvania úlohy.
 
-**Pravidlo práce môže upraviť trvanie.** Ak má úloha typ *Pevná práca* alebo *Pevné jednotky priradenia*, druhý zdroj zmení trvanie úlohy. Plán je potom neaktuálny; stlačte **Prepočítať** (F5). Pozri [Pravidlá práce: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels).
+**Typ úlohy môže upraviť trvanie.** Ak má úloha typ *Pevná práca* alebo *Pevné jednotky priradenia*, druhý zdroj zmení trvanie úlohy. Plán je potom neaktuálny; stlačte **Prepočítať** (F5). Pozri [Typy úloh: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels).
 
 **Vlastné rozloženie práce.** Ak má priradenie už vlastné hodinové rozloženie, krivka je neaktívna a zobrazí *Rozvrh práce*. Najprv toto rozloženie uvoľnite cez *Upraviť rozloženie práce…*.
 
@@ -66,6 +66,6 @@ Krivka mení len rozloženie práce. Trvanie, dátumy a celkový súčet zostáv
 
 - [Úprava hodinového rozloženia práce](docs://howto-urenverdeling-aanpassen): ručné nastavenie hodín za deň.
 - [Riešenie preťaženia](docs://howto-overbezetting-oplossen): čo robiť, keď má zdroj v jeden deň príliš veľa práce.
-- [Pravidlá práce: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels): čo sa stane s trvaním, keď zmeníte jednotky priradenia.
+- [Typy úloh: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels): čo sa stane s trvaním, keď zmeníte jednotky priradenia.
 - [Panel zdrojov](docs://ref-resourcepaneel): všetky polia a tlačidlá v paneli zdrojov.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): všetkých päť typov zdrojov, všetkých šesť kriviek a vežový žeriav s krokom kapacity od 30. augusta 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): všetkých päť typov zdrojov, šesť z ôsmich kriviek a vežový žeriav s krokom kapacity od 30. augusta 2027.

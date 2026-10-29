@@ -36,8 +36,10 @@ A lag can be expressed in four ways:
 
 - In **work days** (`3` or `3d`): the app skips days off and weekends. This is the default.
 - In **calendar days** (`3ed`, the e stands for *elapsed* time): every day counts, including Saturday and Sunday. This is the unit for something that carries on without work being done, such as curing.
-- As a **percentage** of the predecessor's duration (`40%`): the app works this out again at every calculation and rounds to whole days (2.5 days becomes 3).
-- In **working hours** (`4h`): the app counts the lag in the lag calendar, by default that of the predecessor. If the predecessor is a day task on a calendar without working-time blocks of its own, such as the standard calendar, the app converts the hours to whole work days, rounded to the nearest whole day (half a day goes up). With a work day of 8 hours, `2h` and `3h` therefore give 0 days, `4h` up to and including `11h` give 1 day and `12h` gives 2 days. If that calendar has working-time blocks of its own, or the predecessor is an hour task, the lag counts exactly in working hours.
+- As a **percentage** of the predecessor's duration (`40%`): the app works this out again at every calculation, exactly to the minute. 2.5 days stays 2.5 days.
+- In **working hours** (`4h`): the app counts the lag exactly in working hours of the lag calendar, by default that of the predecessor. That also applies after a day task. Breaks, evenings and weekends do not count.
+
+A lag in work days may be a fraction: `1.5` is one and a half work days.
 
 The rule for a lag of N work days with FS: the N work days after the predecessor's finish are waiting time, and the successor starts on the work day after that. With SS and FF the lag is added to the predecessor's start and finish respectively. A negative lag counts back: a lead of 1 work day with FS lets the successor start on the day the predecessor finishes.
 
@@ -63,6 +65,8 @@ A relation between a task and the phase it sits under is not allowed.
 ### Driving relations
 
 If a successor has several predecessors, usually one relation determines its start date: the relation that keeps the successor from starting a single day earlier than it does now. Such a relation is called **driving**. With a tie there are several driving relations. You recognise a driving relation by the lightning-bolt symbol in the *Predecessors* and *Successors* columns of the table, by the *Driving* column (the **+** on the right of the table header, under *Relations*) and by the stronger tint when you trace a path. How to open that path is in [Tracing a path](docs://howto-pad-traceren).
+
+Without an available calculation, including in **Dates as recorded**, which relationships are driving is unknown. The table's *Driving* column then shows *Unknown* and internal relationships in *Predecessors* and *Successors* get a question mark with an explanation, just as in the task panel. After a successful calculation, `—` in *Driving* means the task has no driving relationships; a relationship without a lightning bolt is then not driving. External relationships do not get a driving indicator. **Calculate** (F5) determines this again and leaves *Dates as recorded*; the dates may change as a result.
 
 Driving says something about dates, not about duration. A short predecessor can be driving too, for example because of a long lag; you see that in the example below.
 
@@ -90,7 +94,8 @@ Only *Place roof elements* is on the critical path; the project is done on Wedne
 - With lag `3ed` (three calendar days) Saturday, Sunday and Monday count; the brickwork starts on Tuesday 22 June.
 - With lag `-1` (a lead of one work day) the brickwork starts on Friday 18 June, the day the pour is done.
 - With lag `40%` the lag is 40% of 5 work days, so 2 work days; the brickwork starts on Wednesday 23 June.
-- With lag `50%` the lag is 2.5 work days, rounded to 3 work days; the brickwork starts on Thursday 24 June.
+- With lag `50%` the lag is 2.5 work days; the brickwork starts on Wednesday 23 June at 11:00, halfway through the work day.
+- With lag `4h` the brickwork starts on Monday 21 June at 11:00. With lag `12h` (one and a half work days of 8 hours) it starts on Tuesday 22 June at 11:00.
 
 ### Which calendar counts the lag
 

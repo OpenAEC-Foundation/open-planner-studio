@@ -26,13 +26,13 @@ Nyissa meg a *Jelentés* lapot (vagy nyomja meg a Ctrl+P billentyűkombinációt
 
 Az ütemezés sáv-diagramként: balra egy táblázat, jobbra egy idővonal, szükség esetén több oldalon. Az előnézet a papírt mutatja, oldalfejléccel, táblázattal, idővonallal és jelmagyarázattal. Az *Áttekintés* blokk ezeket számolja: *Tevékenységek:*, *Alsó szintű tevékenységek:*, *Kritikus:* és *Kapcsolatok:*. Minden beállítás a *Beállítások* alatt található.
 
-**Cég:** — a cég az oldalfejlécben. Alapértelmezett: a cég a projektinfóból. Hatás: csak a jelentés fejlécét érinti; amit itt beír, nem marad meg. A céget a *Beállítások › Projekt › Projektinfó* menüpontban, a *Megrendelő/szervezet* mezőben módosítsa, majd az *Alkalmazás* gombbal erősítse meg.
+**Cég:** — a cég az oldalfejlécben. Alapértelmezett: a cég a projektbeállításokból. Hatás: csak a jelentés fejlécét érinti; amit itt beír, nem marad meg. A céget a *Beállítások › Projekt › Projektbeállítások* menüpontban, a *Megrendelő/szervezet* mezőben módosítsa, majd az *Alkalmazás* gombbal erősítse meg.
 
-**Szerző:** — a szerző az oldalfejlécben. Csak olvasható: az alkalmazás a projektinfóból veszi.
+**Szerző:** — a szerző az oldalfejlécben. Csak olvasható: az alkalmazás a projektbeállításokból veszi.
 
 **Betűméret:** — a szöveg és a táblázat mérete a jelentésben. Válasszon a 90%, 100%, 110% és 125% közül. Alapértelmezett: 100%. Hatás: nagyobb betűnél a szöveg, a sorok és a táblázat nőnek, az idővonal szélessége csökken. Nem függ a beállítások *Betűméret* értékétől.
 
-**Sávszínek:** — attól függ, mi határozza meg a sáv színét. Válasszon a *Kritikus út*, a *Tevékenységenként — automatikus* és a *Kategória szerint* közül; a *Kategória szerint* beállításhoz a *Kategóriamező* legördülő listában válasszon mezőt. Alapértelmezett: *Kritikus út*. Hatás: ez ugyanaz a választás, mint a *Nézet* lap *Sávszínek* beállítása: ha itt módosítja, a képernyőn látható Gantt is változik. Ha a kiválasztott mező nincs ebben a projektben, a következő üzenet jelenik meg: *Ez a mező nincs ebben a projektben. Ideiglenesen a tevékenységtípus használatos.*
+**Sávszínek:** — attól függ, mi határozza meg a sáv színét. Válasszon a *Kritikus út*, a *Tevékenységenként — automatikus* és a *Kategória szerint* közül; a *Kategória szerint* beállításhoz a *Kategóriamező* legördülő listában válasszon mezőt. Alapértelmezett: *Kritikus út*. Hatás: ez ugyanaz a választás, mint a *Nézet* lap *Sávszínek* beállítása: ha itt módosítja, a képernyőn látható Gantt is változik. Ha a kiválasztott mező nincs ebben a projektben, a következő üzenet jelenik meg: *Ez a mező nincs ebben a projektben. Ideiglenesen a munkanem használatos*.
 
 **Állapotvonal:** — egy vonal az állapotdátumnál. Válasszon a *Nincs*, az *Állapotdátum-vonal* és az *Előrehaladási vonal* közül. Alapértelmezett: *Nincs*. Hatás: az *Állapotdátum-vonal* egy vonalat húz az állapotdátumnál; az *Előrehaladási vonal* cikkcakkos vonalat rajzol, amely minden tevékenység előrehaladásának megfelelően kitér. Ha a projektnek nincs állapotdátuma, a következő üzenet jelenik meg: *Állítsa be először az állapotdátumot*, és a jelentés nem rajzol semmit.
 
@@ -84,7 +84,7 @@ Ugyanazok a sávok, mint a Gantt-nyomtatványnál, erőforrásonként csoportos�
 
 **Mennyiség/nap és eloszlásgörbe megjelenítése** — Alapértelmezett: be. Hatás: két oszlop a tevékenység neve után, az adott sáv erőforrásának napi hozzárendelt mennyiségével és eloszlásgörbéjével. Ha az idővonalnak túl kevés hely jut, a jelentés kihagyja az oszlopokat, és a következő üzenet jelenik meg: *A Mennyiség/nap és az eloszlásgörbe oszlopok kimaradtak: …* Több hely nagyobb papírméretből vagy fekvő tájolásból, kisebb betűméretből vagy keskenyebb táblázatból lesz.
 
-**Jelentési időszak:** — csak azok a tevékenységek, amelyek érintik az időszakot. Alapértelmezett: *Projekt időtartama*. Hatás: az időtengely pontosan az időszakon fut. Ha az időszakban nincs semmi, a következő üzenet jelenik meg: *Nincs tevékenység a jelentési időszakban. Válasszon másik időszakot vagy a Teljes projektet.* Lásd lent: *Jelentési időszak*.
+**Jelentési időszak:** — csak azok a tevékenységek, amelyek érintik az időszakot. Alapértelmezett: *Projekt időtartama*. Hatás: az időtengely pontosan az időszakon fut. Ha az időszakban nincs semmi, a következő üzenet jelenik meg: *Nincs tevékenység a jelentési időszakban. Válasszon másik időszakot vagy a Teljes projektet*. Lásd lent: *Jelentési időszak*.
 
 ## Mérföldkövek áttekintése
 
@@ -116,11 +116,11 @@ A jelentés tartalmazza a befejezetlen tevékenységeket, amelyek kritikusak (a 
 
 Hol tart a projekt az állapotdátumon. Beállítások a *Jelentésbeállítások* alatt.
 
-**Jelentési időszak:** — Alapértelmezett: *Elmúlt hónap*. Hatás: a *Befejezve a múltbeli időszakban* az időszakon belül számít. A *Kezdődik a következő időszakban* az állapotdátumtól előre néz, legfeljebb az *Előretekintés eddig* dátumig. *Elmúlt* időszaknál ugyanolyan messzire néz előre, mint amilyen messzire az időszak visszatekint.
+**Jelentési időszak:** — Alapértelmezett: *Elmúlt hónap*. Hatás: a *Befejezve a múltbeli időszakban* az időszakon belül számít. A *Kezdődik a következő időszakban* az állapotdátumtól előre néz, legfeljebb az *Előretekintés eddig* dátumig. Az *Elmúlt hónap* beállításnál ugyanolyan messzire néz előre, mint amilyen messzire az időszak visszatekint.
 
 **Közel kritikus ≤ (munkanap):** — Alapértelmezett: 5. Mint az Előretekintésnél.
 
-Az *Áttekintés* blokk ezeket mutatja: *Állapotdátum*, *Időszak*, *Előretekintés eddig*, *Alapterv befejezése*, *Előrejelzett befejezés*, *Δ befejezés (munkanap)*, *Tervezett* (*(alapterv)* vagy *(jelenlegi ütemezés)* jelzéssel), *Tényleges*, továbbá a darabszámok: *Befejezett*, *Folyamatban*, *Nem kezdődött el*, *Késésben* és *Kritikus*. A tervezett és a tényleges értéket a tevékenységek időtartama súlyozza. A *Tervezett* az alaptervhez mérten számít, ha van aktív alapterv; egyébként a jelenlegi ütemezéshez. A szakaszok: *Befejezve a múltbeli időszakban*, *Folyamatban*, *Kezdődik a következő időszakban*, *Késésben* és *Nyitott kritikus tevékenységek*. Egy tevékenység több szakaszban is szerepelhet.
+Az *Áttekintés* blokk ezeket mutatja: *Állapotdátum*, *Időszak*, *Előretekintés eddig*, *Alapterv befejezése*, *Előrejelzett befejezés*, *Δ befejezés (munkanap)*, *Tervezett* (*(alapterv)* vagy *(jelenlegi ütemezés)* jelzéssel), *Tényleges*, továbbá a darabszámok: *Befejezett*, *Folyamatban*, *Nem kezdődött el*, *Késésben* és *Kritikus*. A tervezett és a tényleges értéket a tevékenységek időtartama súlyozza. A *Tervezett* az alaptervhez mérten számít, ha van aktív alapterv; egyébként a jelenlegi ütemezéshez. A szakaszok: *Befejezve a múltbeli időszakban*, *Folyamatban*, *Kezdődik a következő időszakban*, *Késésben* és *Nyitott kritikus tevékenységek*. Egy tevékenység több szakaszban is szerepelhet. Minden szakasz ugyanazokat az oszlopokat használja: *WBS*, *Név*, *Alapterv befejezése*, *Előrejelzett befejezés*, *Elk*, *Hátr. (munkanap)*, *TF (munkanap)*, *Kritikus* és *Státusz*. A sor státusza: *Befejezett*, *Folyamatban*, *Nem kezdődött el*, *Már el kellett volna kezdeni* vagy *Már be kellett volna fejeződnie*.
 
 ## Ütemezés állapota
 
@@ -149,9 +149,9 @@ Ez a nem befejezett alsó szintű tevékenységeket számolja, a mérföldkövek
 - *Érvénytelen dátumok*: tényleges kezdés vagy tényleges befejezés az állapotdátum után, vagy előrejelzett kezdés vagy előrejelzett befejezés az állapotdátum előtt. Küszöbérték: nincs. Állapotdátumot igényel.
 - *Erőforrások*: erőforrás nélküli tevékenységek. Küszöbérték: nincs. Csak akkor, ha a projekt erőforrásokat használ; egyébként *n. é*.
 - *Lekésett tevékenységek*: az alapterv szerint az állapotdátumig vagy addig befejezendő tevékenységek közül azok aránya, amelyek később fejeződnek be, vagy amelyeknek az előrejelzett befejezése később van. Küszöbérték: legfeljebb 5%. Állapotdátumot és aktív alaptervet igényel.
-- *Kritikus út teszt*: az alkalmazás egy kritikus tevékenységet 100 munkanappal meghosszabbít, és egy másolaton újraszámít, a projektet nem változtatva meg. A teszt akkor sikeres, ha a projekt utolsó tevékenysége ezután nem fejeződik be az adott tevékenység előtt. A teszt a legkorábban kezdődő, kritikus, nem befejezett tevékenységet vizsgálja. A részletek megnevezik a tevékenységet, és azt, hogy a befejezés hány munkanappal tolódott el.
+- *Kritikus út teszt*: az alkalmazás egy kritikus tevékenységet 100 munkanappal meghosszabbít, és egy másolaton újraszámít, a projektet nem változtatva meg. A teszt akkor sikeres, ha a projekt utolsó tevékenysége ezután nem fejeződik be az adott tevékenység előtt. A teszt a legkorábban kezdődő, kritikus, nem befejezett tevékenységet vizsgálja. A részletek megnevezik a tevékenységet, és azt, hogy a befejezés hány munkanappal tolódott el. A *Rögzített dátumok* nézetben a teszt n. é (*nincs kiszámítva*): a teszt számítást végez, a jelentés pedig a forrásfájl dátumait mutatja. Nyomja meg az ütemezés-számítás parancsot (F5), és a teszt újra lefut.
 - *CPLI*: (kritikus út hossza + tartalékidő) / kritikus út hossza. A hossz az állapotdátumtól az utolsó tevékenység befejezéséig tartó munkanapokat számolja. A tartalékidő az adott tevékenység alapterv szerinti befejezésétől mért különbség, vagy a számított tartalékidő, ha a tevékenység nincs az alaptervben. Küszöbérték: legalább 0,95. Állapotdátumot igényel.
-- *BEI*: az állapotdátumra befejezett tevékenységek száma osztva ezzel az összeggel: az alapterv szerint addigra befejezendő tevékenységek száma plusz az alapterv nélküli tevékenységek száma. Küszöbérték: legalább 0,95. Állapotdátumot és aktív alaptervet igényel.
+- *BEI* (alapterv-végrehajtási index): az állapotdátumra befejezett tevékenységek száma osztva ezzel az összeggel: az alapterv szerint addigra befejezendő tevékenységek száma plusz az alapterv nélküli tevékenységek száma. Küszöbérték: legalább 0,95. Állapotdátumot és aktív alaptervet igényel.
 
 Két pont azért tér el a kiadványtól, mert az alkalmazásnak nincs meg ez a fogalom: a *Hosszú időtartam* minden nem befejezett tevékenységet számol, míg a kiadvány ezt a részletes tervezési időszakra (gördülő hullám) korlátozza. Az *Erőforrások* pedig csak a hozzárendelt erőforrásokat nézi, nem a költségeket. A kiadvány nem ad számot a kritikus út teszthez; a 100 munkanap az alkalmazás választása.
 
@@ -177,7 +177,7 @@ Erőforrásonként a hozzárendelt tevékenységek: mit csinál ez a csapat vagy
 
 **Befejezett tevékenységek is** — Alapértelmezett: ki. Hatás: bekapcsolva a befejezett tevékenységek hozzárendeléseit is tartalmazza.
 
-A sorok erőforrásonként vannak, és erőforrásonként a kezdés szerint rendezettek. Az *Áttekintés* blokk az *Erőforrások*, a *Hozzárendelések* és az *Erőforrás nélküli tevékenységek* számát adja meg. Az oszlopok között van az erőforrás, a tevékenység, a kezdés és a befejezés, a *Hátr. (munkanap)*, a *Hozzárendelt mennyiség/nap*, az *Elk*, a *Kritikus* és a *Státusz*.
+A sorok erőforrásonként vannak, és erőforrásonként a kezdés szerint rendezettek. Az *Áttekintés* blokk az *Erőforrások*, a *Hozzárendelések* és az *Erőforrás nélküli tevékenységek* számát adja meg. Az oszlopok: *Erőforrás*, *Típus*, *WBS*, *Név*, *Kezdés*, *Befejezés*, *Hátr. (munkanap)*, *Hozzárendelt mennyiség/nap*, *Elk*, *Kritikus* és *Státusz*. Az *Erőforrás* és a *Típus* csak az erőforrás első során jelenik meg. A sor státusza ugyanaz, mint az előrehaladási jelentésben: *Befejezett*, *Folyamatban*, *Nem kezdődött el*, *Már el kellett volna kezdeni* vagy *Már be kellett volna fejeződnie*.
 
 ## WBS-összefoglaló
 

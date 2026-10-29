@@ -41,7 +41,7 @@ Egy új lépés a mai dátummal és 1 értékkel indul. Mindkettőt módosítsa,
 1. Kattintson a sorban lévő kukára.
 2. Ha az erőforrásnak van hozzárendelése, az alkalmazás megerősítést kér, például: *„Bricklayer” 4 hozzárendeléssel rendelkezik. Törli?* Kattintson a pipára a törléshez, vagy a keresztre a megszakításhoz. Hozzárendelés nélkül az erőforrás azonnal eltűnik.
 
-Az erőforrás hozzárendelései vele együtt törlődnek. Ha egy tevékenység munkaszabálya nem a *Rögzített időtartam és egységek*, az alkalmazás a törölt erőforrás munkáját a megmaradt erőforrások között osztja el. A szabálytól függően ez megváltoztatja a hozzárendelt mennyiségüket vagy a tevékenység időtartamát. Ha az időtartam változik, az ütemezés már nem naprakész.
+Az erőforrás hozzárendelései vele együtt törlődnek. Ha egy tevékenység tevékenységtípusa nem a *Rögzített időtartam és egységek*, az alkalmazás a törölt erőforrás munkáját a megmaradt erőforrások között osztja el. A tevékenységtípustól függően ez megváltoztatja a hozzárendelt mennyiségüket vagy a tevékenység időtartamát. Ha az időtartam változik, az ütemezés már nem naprakész.
 
 Visszavonhatja a létrehozást, a szerkesztést és a törlést a *Visszavonás* (Ctrl+Z) paranccsal.
 

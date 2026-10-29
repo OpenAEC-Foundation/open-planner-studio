@@ -38,8 +38,8 @@ Koje operatore dobijete ovisi o vrsti polja:
 
 - Tekst (*Naziv zadatka*, *WBS*): *je jednako*, *nije jednako*, *sadrži*, *počinje s* i *je prazno*.
 - Broj i datum (*Ukupan slobodni hod*, *Početak*, *Napredak*): *je jednako*, *nije jednako*, *manje od*, *manje ili jednako*, *veće od*, *veće ili jednako*, *između* i *je prazno*. Uz *između* su dva polja: za broj s oznakama *Od* i *Do*, za datum bez oznaka (prvi datum je početak, drugi je završetak).
-- Da/ne (*Kritičan*, *Kontrolna točka*, *Gotovo kritičan*): *je jednako* i *nije jednako*, s vrijednosti *Da* ili *Ne*.
-- Izbor (*Vrsta*, šifra zadatka): *je jednako*, *nije jednako*, *je jedan od* (s vrijednostima uz potvrdne okvire) i *je prazno*.
+- Da/ne (*Kritičan*, *Kontrolna točka*, *Gotovo kritičan*): *je jednako* i *nije jednako*, s vrijednošću *Da* ili *Ne*.
+- Izbor (*Kategorija radova*, šifra zadatka): *je jednako*, *nije jednako*, *je jedan od* (s vrijednostima uz potvrdne okvire) i *je prazno*.
 - *Resursi*: *je jedan od* i *je prazno*.
 - *U tijeku*: samo *između*, s dva datuma (od i do).
 
@@ -47,7 +47,7 @@ S poljem *U tijeku*, operatorom *između* i dva datuma dobijete sve zadatke koji
 
 Više pravila kombinirate pomoću popisa na vrhu: *Sve u nastavku (I)* prikazuje zadatke koji ispunjavaju sva pravila, *Bilo što u nastavku (ILI)* zadatke koji ispunjavaju barem jedno pravilo. Pomoću *+ skupina* dodajete podskupinu sa svojim pravilima.
 
-Filtar gleda same zadatke. Faze (zadaci sažetka) kojima zadatak pripada ostaju vidljive sivo, pa vidite gdje zadatak pripada. Ako dodatno grupirate, te sive faze nestaju.
+Filtar se odnosi samo na same zadatke. Faze (zadaci sažetka) kojima zadatak pripada ostaju vidljive sivo, pa vidite gdje zadatak pripada. Ako dodatno grupirate, te sive faze nestaju.
 
 ### Grupiranje i sortiranje
 
@@ -81,7 +81,7 @@ Izgledi koji ne spremaju iste dijelove mogu biti uključeni zajedno. Ako imate i
 
 **Izgledi su na vašem uređaju, a ne u projektu.** Aplikacija čuva vaše izglede i stupce za sve vaše projekte na ovom uređaju. Preklopi iz izgleda (temeljni plan, linija napretka i ostali) vrijede za sve vaše projekte. Filtar, grupiranje i sortiranje koji su trenutačno uključeni pripadaju otvorenom projektu, ali ne ulaze u datoteku projekta: nakon spremanja i ponovnog otvaranja prikaz je ponovno čist. Ni oni ne označavaju projekt kao „izmijenjen“.
 
-**Zasebni gumbi su skriveni.** *Stupci…*, *Filtriraj…*, *Grupiraj…* i *Sortiraj…* kao zasebni gumbi na kartici *Prikaz* pripadaju staroj verziji prikaza. Vraćate ih pomoću *Prikaži klasične gumbe prikaza* u dijelu *Zastarjele funkcije* na kartici *Napredno* u prozoru postavki (⚙ u naslovnoj traci). Radije koristite izglede.
+**Zasebni gumbi su skriveni.** *Stupci…*, *Filtriraj…*, *Grupiraj…* i *Sortiraj…* kao zasebni gumbi na kartici *Prikaz* pripadaju staroj verziji prikaza. Vraćate ih pomoću *Prikaži klasične gumbe prikaza* u dijelu *Zastarjele funkcije* na kartici *Napredno* u prozoru *Postavke aplikacije* (⚙ u naslovnoj traci). Radije koristite izglede.
 
 ## Vidi također
 

@@ -7,9 +7,9 @@ import type { RefObject } from 'react';
  * loopt. Complement van {@link useDialogKeys} (Escape/Enter) — samen geven ze een dialoog het
  * volledige `role="dialog"`/`aria-modal`-toetsenbordgedrag.
  *
- * Werking (één effect, draait exact één keer per open — `panelRef` is stabiel):
+ * Werking (één effect per open — `panelRef` en een eventuele `initialFocus` zijn stabiel):
  *  - Bij mount: onthoud het actieve element als `trigger` (de knop die de dialoog opende) en zet de
- *    focus op het EERSTE focusbare element in het paneel; is er geen, krijgt het paneel zelf
+ *    focus op `initialFocus()` of het eerste focusbare element; is er geen, krijgt het paneel zelf
  *    `tabindex="-1"` en de focus.
  *  - De keydown-listener zit OP HET PANEEL, niet op `document`. Dat is bewust: bij gestapelde
  *    dialogen (bv. `ConfirmDialog` met `z-[60]` boven een andere `Dialog`) heeft alleen het paneel
@@ -34,7 +34,10 @@ function getFocusable(panel: HTMLElement): HTMLElement[] {
   );
 }
 
-export function useFocusTrap(panelRef: RefObject<HTMLElement | null>): void {
+export function useFocusTrap(
+  panelRef: RefObject<HTMLElement | null>,
+  initialFocus?: () => HTMLElement | null,
+): void {
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
@@ -42,10 +45,12 @@ export function useFocusTrap(panelRef: RefObject<HTMLElement | null>): void {
     // Onthoud wie de dialoog opende, zodat we de focus daar bij het sluiten weer terugleggen.
     const trigger = document.activeElement as HTMLElement | null;
 
-    // Eerste focusbare element focussen; is er niets, dan het paneel zelf.
-    const initial = getFocusable(panel);
-    if (initial.length > 0) {
-      initial[0].focus();
+    // Eén eigenaar van de beginfocus, ook als alleen het gedrag na een Help-pauze opnieuw mount.
+    const focusable = getFocusable(panel);
+    const preferred = initialFocus?.();
+    const initial = preferred && focusable.includes(preferred) ? preferred : focusable[0];
+    if (initial) {
+      initial.focus();
     } else {
       panel.setAttribute('tabindex', '-1');
       panel.focus();
@@ -98,5 +103,5 @@ export function useFocusTrap(panelRef: RefObject<HTMLElement | null>): void {
         trigger.focus();
       }
     };
-  }, [panelRef]);
+  }, [panelRef, initialFocus]);
 }

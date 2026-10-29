@@ -1,7 +1,7 @@
+// De dagenmaat (§3.14): einde di 31 aug 12:00, een werkdag na de basisplanning (minute-model-tutorial-f3.json).
 // Tutorial 7 — Rapporteren en delen (`tut-7-rapport`): Variance, Voortgangsrapport, papier, PDF en
 // Bestand › Exporteren. Het project verandert niet: de eindstand is `na-tut-7` (= `na-tut-6`).
 import { l, type Check, type Snap, type TutorialScript } from './dsl';
-import { enableHourPlanningFromNotice } from './tut-5';
 
 const statusBar = { anchor: 'status-bar' } as const;
 const report = { anchor: 'report-panel' } as const;
@@ -18,8 +18,8 @@ export const TUTORIAL_7: TutorialScript = {
   steps: [
     {
       id: 'startpunt',
-      do: [enableHourPlanningFromNotice],
-      expect: [notStale, status('Einde: 31-08-2027', 'End: 31-08-2027'), status('Kritiek pad: 10 taken, 47 werkdagen', 'Critical path: 10 tasks, 47 work days')],
+      do: [],
+      expect: [notStale, status('Einde: 31-08-2027', 'End: 31-08-2027'), status('Kritiek pad: 11 taken, 47 werkdagen', 'Critical path: 11 tasks, 47 work days')],
     },
     {
       id: 'rapport-openen',
@@ -38,7 +38,8 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'voortgangsrapport',
       do: [{ select: reportType, option: l('Voortgangsrapport', 'Progress report') }],
-      expect: [see('28-06-2027', '28-06-2027'), see('31-08-2027', '31-08-2027')],
+      // Statusdatum, einde van de basisplanning en het prognose-einde.
+      expect: [see('28-06-2027', '28-06-2027'), see('30-08-2027', '30-08-2027'), see('31-08-2027', '31-08-2027')],
       shots: [{ name: 'tut-7-voortgangsrapport', of: report, pad: 0, maxHeight: 600, viewport: { width: 1000, height: 1050 } }],
     },
     {
@@ -46,14 +47,14 @@ export const TUTORIAL_7: TutorialScript = {
       do: [{ select: { field: l('Papier:', 'Paper:'), within: report }, option: l('A4', 'A4') }],
       expect: [
         { see: { field: l('Papier:', 'Paper:'), within: report }, text: 'A4' },
-        { see: { field: l('Orientatie:', 'Orientation:'), within: report }, text: l('Liggend', 'Landscape') },
+        { see: { field: l('Oriëntatie:', 'Orientation:'), within: report }, text: l('Liggend', 'Landscape') },
       ],
     },
     {
       id: 'pdf',
       do: [{
         download: { click: { button: l('Exporteer PDF', 'Export PDF'), within: report } },
-        filename: l('Aanbouw woning-voortgang.pdf', 'House extension-voortgang.pdf'),
+        filename: l('Aanbouw woning-voortgang.pdf', 'House extension-progress.pdf'),
       }],
       expect: [],
     },

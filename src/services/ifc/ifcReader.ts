@@ -1,8 +1,11 @@
+import { milestoneWasAtDayEnd } from './ifcPsets';
+import { calendarExceptionKey } from './calendarExceptionKey';
 import { Task, TaskTime, TaskType, TASK_TYPES } from '@/types/task';
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import { normalizeCurveValues } from '@/engine/contour/contourEngine';
 import type { CustomTaskType } from '@/types/taskType';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment, AvailabilityStep, ResourceCurve, isResourceCurve } from '@/types/resource';
@@ -17,13 +20,20 @@ import { generateId } from '@/utils/id';
 import { formatInstant, localTodayIso } from '@/utils/dateUtils';
 import { ifcGuid, ifcGuid128, ifcObjectSeed } from './ifcWriter';
 import { IfcParseError } from './ifcErrors';
+import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
 } from './ifcConstants';
-import { OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readIfcDate } from './ifcPsets';
+import {
+  OPS_LEGACY_LITERAL_APP_VERSION, PSET, PER_TASK_PSET_BY_NAME, readDayMeasureDurations, readExactFloat, readExactMinutes, readIfcDate,
+} from './ifcPsets';
+import {
+  DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP, parseDayMeasureLags, taskMinutesPerDay,
+  wholeFloatDays, type DayMeasureRecord, type ExactMinutesRecord,
+} from './dayMeasureIo';
 import {
   IFC_TASKTIME_SLOTS, ALL_RECORDED_SLOT_KEYS, TASK_SLOT, TASKTIME_SLOT, IFC_TASK_STATUS_RUNNING,
   type RecordedFieldKey, type TaskTimeReadHelpers,
@@ -47,6 +57,7 @@ import {
 import { optionKeysOnly } from '@/services/ifc/schedulingProfileMigration';
 import { emptyMissingScheduleDates, importStatusDate, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
+import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { seedScalarBands } from '@/utils/effectiveWorkTime';
 import { hourRemainingDays } from '@/engine/taskMutationRules';
 import {
@@ -165,6 +176,13 @@ export function readIFC(
   // Eerst de integriteitspoort: liever een expliciete fout dan een stil half project.
   assertIfcIntegrity(content);
   const entities = parseSTEP(content);
+  // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
+  // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
+  // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
+  if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+    throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
+      'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
+  }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
   if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
@@ -222,14 +240,14 @@ export function readIFC(
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
-  const p6BoundarySequenceGuids = extractP6BoundarySequenceGuids(
+  const { boundaryGuids: p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags } = extractSequenceMeta(
     entities, entityMap, new Set(taskStepIdMap.keys()),
   );
   // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
   // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
   const guidLog: Record<string, string> = {};
   const sequences = extractSequences(
-    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, calendar.hoursPerDay, guidLog,
+    entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -274,6 +292,9 @@ export function readIFC(
   // en heeft de gebruiker nog niet gekozen, dan vraagt het eerste expliciete opslaan het eerst.
   const ifcSchemaUnconfirmed = ifcSchemaUnconfirmedOnRead(fileSchemaName, ifcSchemaMarkers);
   if (ifcSchemaUnconfirmed) project.ifcSchemaUnconfirmed = ifcSchemaUnconfirmed;
+  // De dagenmaat en de exacte speling (T21, T5): ná `extractStructure` (daar lezen de descriptors de
+  // records) en vóór alles wat duur of rest gebruikt (ontbrekende datums, voortgangsnormalisatie).
+  applyTaskTimeRecords(tasks, taskTimeEntities, calendar, resourceCalendars);
   for (const task of tasks) reconcileP6SuspendResume(task);
   const customTaskTypes = extractTaskTypeMeta(entities, entityMap, tasks, taskStepIdMap);
   // Kalenderwandelingen (`timephasedDurationWalks`), eigen pset (zie de functie zelf voor waarom dit
@@ -342,16 +363,32 @@ export function readIFC(
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
   if (!project.startDate && !projectStartRecorded.value) project.startDate = startAnchor;
 
-  // Voortgang-invarianten op de rauw ingelezen actuals — ná extractStructure zodat
+  // Alleen bladtaken volgen de voortgang-invarianten — ná extractStructure zodat
   // project.statusDate (uit OPS_ProjectSettings) beschikbaar is als default-actualFinish.
   // `runningStatusIds`: taken met `IfcTask.Status` = 'STARTED' — een lopende taak op 100 % blijft
   // dan lopend (eigenaarsbesluit 2026-10-14). Oude bestanden (`$`) lezen als voorheen.
-  normalizeImportedProgress(tasks, project.statusDate, runningStatusIds);
+  normalizeImportedProgress(tasks.filter(isLeafTask), project.statusDate, runningStatusIds);
+  // Fasen dragen bron- of rollupwaarden: 100 % kan zonder werkelijk einde voorkomen
+  // (bv. afgeronde voortgang of een niet-gestarte mijlpaal naast voltooid werk). Bewaar hun
+  // voortgang, actuals en restduur; een taakdefault zou ook "datums zoals opgeslagen" vervalsen.
+  // Status wordt niet apart opgeslagen voor fasen: leid hem af zonder datums te verzinnen.
+  for (const task of tasks) {
+    if (!isSummaryTask(task)) continue;
+    const t = task.time;
+    task.status = t.actualFinish ? 'COMPLETED'
+      : t.actualStart || t.completion > 0 ? 'STARTED' : 'NOT_STARTED';
+  }
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
 
+  const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === 'OPS_Project')
+    .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
+    .filter((e): e is StepEntity => !!e && stripQuotes(e.args[0] || '') === 'TimeModel')
+    .map(e => parseTypedValue(e.args[2] || '')).find((value): value is string => typeof value === 'string');
   return {
     project, calendar, tasks, sequences, resources, assignments,
+    ...(timeModel ? { timeModel } : {}),
+    milestonesAtDayEnd: new Set(tasks.filter(milestoneWasAtDayEnd).map(task => task.id)),
     activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars,
     baselines, activeBaselineId,
     libraryPool: libraryPoolOut.value,
@@ -1469,7 +1506,7 @@ function applyHourModeIFC(
     const effCal = effCalOf(t);
     // Een urentaak op een gemarkeerd-scalaire kalender draagt in het geheugen óók echte tijden en
     // minuten — lees hem dus zoals op een uurkalender. Dagtaken daarop blijven dag-precies.
-    const minutePrecise = !!effCal.workTime
+    const minutePrecise = literalTimeCalendars.has(effCal) || !!effCal.workTime
       || (declaredScalarCalendars.has(effCal) && t.time.durationUnit === 'hours');
     if (!minutePrecise) {
       // Dag-kalender, uur-taak (kale `PT{n}H` uit andermans bestand): de compatibiliteitsafgeleide
@@ -1497,7 +1534,14 @@ function applyHourModeIFC(
     }
     const toHour = (raw: string | undefined): string | undefined => {
       const q = stripQuotes(raw || '');
-      return q && q !== '$' ? formatInstant(parseImportedInstant(q), 'hour') : undefined;
+      if (!q || q === '$') return undefined;
+      // Een datum zonder tijd (een ander programma, of een slot dat met de hand is ingekort) draagt
+      // geen moment. Hij blijft een datum, zodat de normalisatie op de laadgrens hem per veld en
+      // kalender omzet (T17, D1–D7; `payloadFromImport`). Als 00:00 gelezen werd een werkelijk einde
+      // het begin van die dag, en de normalisatie liet dat moment staan (review ronde 1 van PR #559,
+      // deel B, punt 3).
+      if (isDateOnly(q)) return q;
+      return formatInstant(parseImportedInstant(q), 'hour');
     };
     const ss = toHour(e.args[TASKTIME_SLOT.scheduleStart]); if (ss) t.time.scheduleStart = ss;
     const sf = toHour(e.args[TASKTIME_SLOT.scheduleFinish]); if (sf) t.time.scheduleFinish = sf;
@@ -1508,6 +1552,103 @@ function applyHourModeIFC(
     const as = toHour(e.args[TASKTIME_SLOT.actualStart]); if (as) t.time.actualStart = as;
     const af = toHour(e.args[TASKTIME_SLOT.actualFinish]); if (af) t.time.actualFinish = af;
     readRemainingMinutes(t, e);
+  }
+}
+
+/**
+ * De dagenmaat en de exacte speling terug op de taak (alleen uren §3.3, §3.4, §3.10; T5 en T21).
+ *
+ * Duur, rest en werkelijke duur: een breuk in dagen staat als `PT…` met een record
+ * `[dagen, geschreven minuten]` in `OPS_WorkRule.DayMeasureDurations`. Het record telt alleen als het
+ * standaardveld nog precies die minuten draagt (op de hele minuut). Anders geldt het standaardveld:
+ *  - duur: de taak blijft in de urenmaat met de minuten uit het bestand, zoals elke `PT`-duur;
+ *  - rest van een taak in de dagenmaat, en de werkelijke duur: de minuten ÷ de minuten per dag van de
+ *    taak (werktijd per dag, of 1440 bij kalendertijd), zodat de gewijzigde lengte blijft staan;
+ *  - rest van een taak in de urenmaat: de minuten, zoals `readRemainingMinutes` ze al las. Een
+ *    rest-record telt daar alleen als de taak in de urenmaat geschreven was (geen duurrecord).
+ * Urenmaat met een breuk in minuten (T14): duur en rest staan als `PT…` op de hele minuut, met een record
+ * `[exacte minuten, geschreven minuten]` in `OPS_WorkRule.ExactMinutes`. Zelfde leesregel: draagt het slot
+ * nog de geschreven minuten, dan komt de exacte bron terug; anders geldt het slot.
+ * Speling: het slot draagt hele dagen; `OPS_Analysis.ExactFloat` de exacte dagen en de minuten. Het
+ * record telt alleen als het slot nog de afgeronde dagen van het record draagt. Zonder geldig record
+ * blijft de speling zoals het slot haar gaf, zonder minuten (de lezer leidt niets af).
+ */
+function applyTaskTimeRecords(
+  tasks: Task[],
+  taskTimeEntities: Map<string, StepEntity>,
+  projectCal: WorkCalendar,
+  resourceCalendars: WorkCalendar[],
+): void {
+  for (const task of tasks) {
+    const e = taskTimeEntities.get(task.id);
+    if (!e) continue;
+    const t = task.time;
+    const durations = readDayMeasureDurations(task);
+    const slotMinutes = (index: number) => isoDurationToMinutes(stripQuotes(e.args[index] || ''));
+    const effCal = resolveCalendar(task.calendarId, resourceCalendars, projectCal);
+    const minutesPerDay = taskMinutesPerDay(task, effHoursPerDay(effCal));
+
+    const durationRecord = durations?.ScheduleDuration;
+    if (durationRecord && !task.isMilestone && slotMinutes(TASKTIME_SLOT.scheduleDuration) === durationRecord[1]) {
+      t.durationUnit = 'days';
+      t.scheduleDuration = durationRecord[0];
+      delete t.durationMinutes;
+    }
+
+    const restMinutes = slotMinutes(TASKTIME_SLOT.remainingTime);
+    const restRecord = durations?.RemainingTime;
+    if (restMinutes !== null && t.durationUnit !== 'hours') {
+      if (restRecord && restRecord[1] === restMinutes) t.remainingTime = restRecord[0];
+      else if (minutesPerDay > 0) t.remainingTime = restMinutes / minutesPerDay;
+      delete t.remainingMinutes;
+    } else if (restMinutes !== null && restRecord && !durationRecord && restRecord[1] === restMinutes) {
+      // Urentaak zonder `remainingMinutes`, met een gebroken `remainingTime` als bron.
+      t.remainingTime = restRecord[0];
+      delete t.remainingMinutes;
+    }
+
+    // De exacte urenmaat. Alleen op een taak die na het bovenstaande in de urenmaat staat en waar het
+    // slot al minuten gaf (`applyHourModeIFC`); de afgeleide dagen volgen dezelfde vorm als daar.
+    const exactMinutes = readExactMinutes(task);
+    if (exactMinutes && t.durationUnit === 'hours') {
+      const dur = exactMinutes.ScheduleDuration;
+      if (dur && t.durationMinutes !== undefined && slotMinutes(TASKTIME_SLOT.scheduleDuration) === dur[1]) {
+        t.durationMinutes = dur[0];
+        if (effHoursPerDay(effCal) > 0) t.scheduleDuration = hourTaskScheduleDuration(dur[0], effCal);
+      }
+      const rest = exactMinutes.RemainingTime;
+      if (rest && t.remainingMinutes !== undefined && restMinutes === rest[1]) {
+        t.remainingMinutes = rest[0];
+        t.remainingTime = hourRemainingDays(t, rest[0]);
+      }
+    }
+
+    const actualMinutes = slotMinutes(TASKTIME_SLOT.actualDuration);
+    const actualRecord = durations?.ActualDuration;
+    if (actualMinutes !== null) {
+      if (actualRecord && actualRecord[1] === actualMinutes) t.actualDuration = actualRecord[0];
+      else if (minutesPerDay > 0) t.actualDuration = actualMinutes / minutesPerDay;
+    }
+
+    const floats = readExactFloat(task);
+    if (floats) {
+      const exact = (key: 'TotalFloat' | 'FreeFloat', slot: number, apply: (days: number, minutes: number | null) => void) => {
+        const record = floats[key];
+        const raw = e.args[slot];
+        if (!record || !raw || raw === '$') return;
+        apply(record[0], record[1]);
+      };
+      exact('TotalFloat', TASKTIME_SLOT.totalFloat, (days, minutes) => {
+        if (t.totalFloat !== wholeFloatDays(days)) return;
+        t.totalFloat = days;
+        if (minutes !== null) t.totalFloatMinutes = minutes;
+      });
+      exact('FreeFloat', TASKTIME_SLOT.freeFloat, (days, minutes) => {
+        if (t.freeFloat !== wholeFloatDays(days)) return;
+        t.freeFloat = days;
+        if (minutes !== null) t.freeFloatMinutes = minutes;
+      });
+    }
   }
 }
 
@@ -1556,11 +1697,7 @@ function extractTaskIdentityByStepId(
   entityMap: Map<string, StepEntity>,
 ): Map<string, string> {
   const out = new Map<string, string>();
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET'
-      || stripQuotes(pset.args[2] || '') !== PSET.TaskIdentity) continue;
+  for (const { pset, objectRefs } of propertySetRelations(entities, entityMap, PSET.TaskIdentity)) {
     let internalId: string | undefined;
     for (const propRef of parseRefs(pset.args[4] || '')) {
       const prop = entityMap.get(propRef);
@@ -1570,7 +1707,7 @@ function extractTaskIdentityByStepId(
       if (isValidPersistedIfcId(value)) internalId = value;
     }
     if (!internalId) continue;
-    for (const objectRef of parseRefs(rel.args[4] || '')) {
+    for (const objectRef of objectRefs) {
       if (entityMap.get(objectRef)?.type === 'IFCTASK') out.set(objectRef, internalId);
     }
   }
@@ -1823,6 +1960,8 @@ function extractSequences(
   entityMap: Map<string, StepEntity>,
   taskStepIdMap: Map<string, string>,
   p6BoundarySequenceGuids: ReadonlySet<string>,
+  dayMeasureLags: ReadonlyMap<string, DayMeasureRecord>,
+  exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
 ): Sequence[] {
@@ -1902,6 +2041,23 @@ function extractSequences(
         if (/ELAPSEDTIME/i.test(durType)) lagUnit = 'ELAPSEDTIME';
       }
     }
+    // De dagenmaat van de lag (T21, alleen uren §3.3): een lag in dagen met een breuk staat als `PT…`
+    // met een record `[dagen, geschreven minuten]` in `OPS_Sequences.DayMeasureLags`. De dagen tellen
+    // alleen als het standaardveld nog precies die minuten draagt (op de hele minuut). Anders heeft een
+    // ander programma de lengte gewijzigd en geldt het standaardveld, in de urenmaat (bij kalendertijd in
+    // kalenderminuten), zoals voor een relatie zonder record.
+    const dayRecord = dayMeasureLags.get(stripQuotes(se.args[0] || ''));
+    if (dayRecord && lagMinutes !== undefined && lagPercent === undefined && lagMinutes === dayRecord[1]) {
+      lagDays = dayRecord[0];
+      lagMinutes = undefined;
+    }
+    // Een minutenlag met een breuk (`.mpp` telt in tienden: 150,5 min) staat als `PT…` op de hele minuut, met
+    // het record `[exacte minuten, geschreven minuten]` in `OPS_Sequences.ExactMinuteLags`, zoals de duur van
+    // een urentaak (`ExactMinutes`, T14). Zelfde leesregel: alleen als het slot nog de geschreven minuten draagt.
+    const exactRecord = exactMinuteLags.get(stripQuotes(se.args[0] || ''));
+    if (exactRecord && lagMinutes !== undefined && lagPercent === undefined && lagMinutes === exactRecord[1]) {
+      lagMinutes = exactRecord[0];
+    }
 
     const seq: Sequence = {
       id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
@@ -1923,15 +2079,17 @@ function extractSequences(
 }
 
 /**
- * Lees de relationele P6-grensmetadata. De pset hangt schema-geldig op de IfcWorkSchedule;
- * de payload bevat daarom IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
- * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag.
+ * Lees de relationele metadata uit `OPS_Sequences`: de P6-grensrelaties, de records van de dagenmaat
+ * (`DayMeasureLags`, T21) en die van een minutenlag met een breuk (`ExactMinuteLags`). De pset hangt schema-geldig op de IfcWorkSchedule; de payload bevat daarom
+ * IfcRelSequence-GlobalIds in plaats van vluchtige OPS-relatie-id's.
+ * Corrupt/ongeldig metadata blijft inert: alleen een volledige string-array activeert een vlag, en alleen
+ * een JSON-object met geldige records `[dagen, hele minuten]` levert records.
  */
-function extractP6BoundarySequenceGuids(
+function extractSequenceMeta(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
   liveTaskStepIds: ReadonlySet<string>,
-): Set<string> {
+): { boundaryGuids: Set<string>; dayMeasureLags: Map<string, DayMeasureRecord>; exactMinuteLags: Map<string, ExactMinutesRecord> } {
   // Alleen een niet-baseline schema dat de daadwerkelijk ingelezen live taken bestuurt/nest,
   // is voor deze import het relevante IfcWorkSchedule. Een gelijknamige losse pset is geen bewijs.
   const relevantScheduleIds = new Set<string>();
@@ -1954,17 +2112,26 @@ function extractP6BoundarySequenceGuids(
   }
 
   const accepted: Set<string>[] = [];
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const owners = parseRefs(rel.args[4] || '');
+  const acceptedDayMeasure: Map<string, DayMeasureRecord>[] = [];
+  const acceptedExactMinutes: Map<string, ExactMinutesRecord>[] = [];
+  for (const { pset: entity, objectRefs: owners } of propertySetRelations(entities, entityMap, PSET.Sequences)) {
     if (owners.length !== 1 || !relevantScheduleIds.has(owners[0])) continue;
-    const entity = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!entity || entity.type !== 'IFCPROPERTYSET'
-      || stripQuotes(entity.args[2] || '') !== PSET.Sequences) continue;
     for (const propRef of parseRefs(entity.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
-      if (stripQuotes(prop.args[0] || '') !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
+      const propName = stripQuotes(prop.args[0] || '');
+      if (propName === DAY_MEASURE_LAGS_PROP) {
+        const records = parseDayMeasureLags(parseTypedValue(prop.args[2] || ''));
+        if (records) acceptedDayMeasure.push(records);
+        continue;
+      }
+      if (propName === EXACT_MINUTE_LAGS_PROP) {
+        // Zelfde vorm als `DayMeasureLags` (GlobalId → twee getallen), dus dezelfde parser.
+        const records = parseDayMeasureLags(parseTypedValue(prop.args[2] || ''));
+        if (records) acceptedExactMinutes.push(records);
+        continue;
+      }
+      if (propName !== 'P6StartAtPredecessorFinishBoundarySequenceGuids') continue;
       const raw = parseTypedValue(prop.args[2] || '');
       if (typeof raw !== 'string') continue;
       try {
@@ -1977,7 +2144,12 @@ function extractP6BoundarySequenceGuids(
   }
   // Meer dan één geldige bron voor dezelfde semantiek is ambigu en faalt gesloten. Een orphan of
   // pset op een ander schema telt niet mee en kan een latere geldige koppeling dus niet maskeren.
-  return accepted.length === 1 ? accepted[0] : new Set();
+  // Zonder geldig record leest elke relatie zoals voorheen.
+  return {
+    boundaryGuids: accepted.length === 1 ? accepted[0] : new Set(),
+    dayMeasureLags: acceptedDayMeasure.length === 1 ? acceptedDayMeasure[0] : new Map(),
+    exactMinuteLags: acceptedExactMinutes.length === 1 ? acceptedExactMinutes[0] : new Map(),
+  };
 }
 
 /** Parse een getypeerd NominalValue zoals IFCTEXT('x'), IFCREAL(1.5), IFCBOOLEAN(.T.),
@@ -2075,12 +2247,7 @@ function extractStructure(
   const taskById = new Map(tasks.map(t => [t.id, t]));
 
   // 3. Waarden per object via IFCRELDEFINESBYPROPERTIES.
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    const psetName = stripQuotes(pset.args[2] || '');
-    const objectRefs = parseRefs(rel.args[4] || '');
+  for (const { pset, name: psetName, objectRefs } of propertySetRelations(entities, entityMap)) {
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p);
@@ -2216,6 +2383,9 @@ function extractNesting(
   // Index tasks by id once: een tasks.find() per parent/child in de lus maakt nesting
   // O(nestings × children × tasks).
   const taskById = new Map<string, Task>(tasks.map(t => [t.id, t]));
+  // Eén lidmaatschapsindex per ouder, ook over meerdere IFCRELNESTS heen. De array blijft
+  // leidend voor de volgorde; includes per kind maakte een brede fase kwadratisch.
+  const childIdsByParent = new Map<Task, Set<string>>();
 
   for (const ne of nestEntities) {
     const parentRef = parseRef(ne.args[4] || '');
@@ -2225,6 +2395,11 @@ function extractNesting(
     const parent = taskById.get(parentId);
     if (!parent) continue;
 
+    let childIds = childIdsByParent.get(parent);
+    if (!childIds) {
+      childIds = new Set(parent.childIds);
+      childIdsByParent.set(parent, childIds);
+    }
     const childRefs = parseRefs(ne.args[5] || '');
     for (const childRef of childRefs) {
       const childId = taskStepIdMap.get(childRef);
@@ -2232,7 +2407,8 @@ function extractNesting(
       const child = taskById.get(childId);
       if (!child) continue;
       child.parentId = parentId;
-      if (!parent.childIds.includes(childId)) {
+      if (!childIds.has(childId)) {
+        childIds.add(childId);
         parent.childIds.push(childId);
       }
     }
@@ -2287,13 +2463,7 @@ function extractResourceMeta(
   resourceGuidMap: Map<string, string>,
 ): void {
   const resourceById = new Map(resources.map(r => [r.id, r]));
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    if (stripQuotes(pset.args[2] || '') !== PSET.Resource) continue;
-
-    const objectRefs = parseRefs(rel.args[4] || '');
+  for (const { pset, objectRefs } of propertySetRelations(entities, entityMap, PSET.Resource)) {
     const props = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
@@ -2388,28 +2558,59 @@ function parseIntList(s: string): number[] {
   return inner.split(',').map(x => parseInt(x.trim(), 10)).filter(Number.isFinite);
 }
 
+interface PropertySetRelation {
+  pset: StepEntity;
+  name: string;
+  objectRefs: readonly string[];
+}
+
+interface PropertySetIndex {
+  all: PropertySetRelation[];
+  byName: Map<string, PropertySetRelation[]>;
+  calendarsByTarget: Map<string, PropertySetRelation[]>;
+}
+
 /**
- * `IFCRELDEFINESBYPROPERTIES` per doel-STEP-id, in bestandsvolgorde; één keer per entiteitenlijst
- * opgebouwd. De kalender-psetlezers liepen per kalender (en per lezer, zes keer) álle entiteiten door
- * en parseerden daarbij elke relatie opnieuw: O(kalenders × entiteiten × 6) — met 13 kalenders op een
- * project van 8000 taken een derde van de leestijd. Een relatie die hetzelfde doel twee keer noemt,
- * staat er één keer in (zoals de oude `includes`-toets).
+ * Los property-relaties en hun psetnaam één keer op per gelezen bestand. De extractors lezen
+ * dezelfde koppelingen; telkens alle entiteiten scannen en dezelfde referentie/naam parsen kost
+ * bij grote plannen onnodig tijd. De lijsten behouden bestandsvolgorde en dubbele relaties.
+ * Alleen de kalenderindex dedupliceert een herhaald doel binnen één relatie (de oude `includes`-toets
+ * van de kalenderlezers); de andere extractors houden alle doelverwijzingen in hun eigen volgorde.
+ * De entiteiten zijn vóór de eerste aanroep al STEP-gedecodeerd; de WeakMap houdt geen bestand vast.
  */
-const relDefinesIndex = new WeakMap<StepEntity[], Map<string, StepEntity[]>>();
-function relDefinesByTarget(entities: StepEntity[]): Map<string, StepEntity[]> {
-  let index = relDefinesIndex.get(entities);
-  if (index) return index;
-  index = new Map();
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    for (const target of new Set(parseRefs(rel.args[4] || ''))) {
-      let list = index.get(target);
-      if (!list) { list = []; index.set(target, list); }
-      list.push(rel);
+const propertySetRelationIndex = new WeakMap<StepEntity[], PropertySetIndex>();
+function propertySets(entities: StepEntity[], entityMap: Map<string, StepEntity>): PropertySetIndex {
+  let index = propertySetRelationIndex.get(entities);
+  if (!index) {
+    index = { all: [], byName: new Map(), calendarsByTarget: new Map() };
+    for (const rel of entities) {
+      if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
+      const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
+      if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+      const entry = { pset, name: stripQuotes(pset.args[2] || ''), objectRefs: parseRefs(rel.args[4] || '') };
+      index.all.push(entry);
+      let named = index.byName.get(entry.name);
+      if (!named) { named = []; index.byName.set(entry.name, named); }
+      named.push(entry);
+      // Alleen kalenderlezers zoeken op doel; geen aparte doellijst voor elke taak alloceren.
+      if (entry.name === PSET.Calendar) {
+        for (const target of new Set(entry.objectRefs)) {
+          let targets = index.calendarsByTarget.get(target);
+          if (!targets) { targets = []; index.calendarsByTarget.set(target, targets); }
+          targets.push(entry);
+        }
+      }
     }
+    propertySetRelationIndex.set(entities, index);
   }
-  relDefinesIndex.set(entities, index);
   return index;
+}
+
+function propertySetRelations(
+  entities: StepEntity[], entityMap: Map<string, StepEntity>, name?: string,
+): readonly PropertySetRelation[] {
+  const index = propertySets(entities, entityMap);
+  return name === undefined ? index.all : index.byName.get(name) ?? [];
 }
 
 /**
@@ -2423,9 +2624,7 @@ function* opsCalendarPsetProps(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
 ): Generator<StepEntity[]> {
-  for (const rel of relDefinesByTarget(entities).get(calStepId) ?? []) {
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.Calendar) continue;
+  for (const { pset } of propertySets(entities, entityMap).calendarsByTarget.get(calStepId) ?? []) {
     yield parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
@@ -2560,13 +2759,14 @@ function extractCalendarHourMeta(
   calStepId: string,
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-): { hourMode?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> {
-  const result: { hourMode?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> = {};
+): { hourMode?: boolean; literalTimes?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> {
+  const result: { hourMode?: boolean; literalTimes?: boolean } & Partial<Pick<WorkCalendar, 'workStartHour' | 'workEndHour'>> = {};
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
       const value = parseTypedValue(prop.args[2] || '');
-      if (name === 'IsHourCalendar' && typeof value === 'boolean') result.hourMode = value;
+      if (name === 'LiteralTimes' && value === true) result.literalTimes = true;
+      else if (name === 'IsHourCalendar' && typeof value === 'boolean') result.hourMode = value;
       else if (name === 'WorkStartHour' && typeof value === 'number' && value >= 0 && value <= 24) {
         result.workStartHour = value;
       } else if (name === 'WorkEndHour' && typeof value === 'number' && value >= 0 && value <= 24) {
@@ -2620,17 +2820,18 @@ function legacyScalarFromEffectiveBands(
  * tussen twee `readIFC`-aanroepen. `applyHourModeIFC` promoveert deze kalenders nooit, en leest de
  * urentaken erop toch minuut-precies. */
 const declaredScalarCalendars = new WeakSet<WorkCalendar>();
+const literalTimeCalendars = new WeakSet<WorkCalendar>();
 
 /**
- * Het STEP-id-signaal
- * dat een `IFCWORKTIME` in `ExceptionTimes` een WERKENDE UITZONDERING is, i.p.v. een feestdag.
- * Spiegel van `writeCalendarGenerationMeta`'s `WorkingExceptionIds`-property in hetzelfde
+ * V1-inhoudssleutels (merge-bestendig), met legacy STEP-ids als terugval, markeren
+ * een IFCWORKTIME in ExceptionTimes als werkende uitzondering in plaats van feestdag.
+ * Spiegel van WorkingExceptionKeysV1/WorkingExceptionIds in hetzelfde
  * `OPS_Calendar`-pset als generation/libraryOrigin/hoursPerDay. BEWUST geen discriminator op
  * `IfcWorkTime.RecurrencePattern` (args[3]): IFC 4.3 reserveert die ref niet voor werkende
  * uitzonderingen — een spec-conforme externe tool kan een RECURRENTE FEESTDAG ("elke 25 december")
  * met exact zo'n gevulde ref schrijven, en die zou dan zonder deze pset-check als werkdag
- * ingelezen worden. Geen/corrupte property ⇒ `undefined` — de aanroeper valt dan terug op "alles
- * in ExceptionTimes is een feestdag", het conservatieve gedrag voor bestanden zonder deze markering.
+ * ingelezen worden. Geen of corrupte markering betekent conservatief: feestdag.
+ * Aanwezige V1-metadata heeft voorrang op legacy-ids, ook als de V1-inhoud ongeldig is.
  */
 function extractCalendarExceptionMetadata(
   calStepId: string,
@@ -2638,6 +2839,7 @@ function extractCalendarExceptionMetadata(
   entityMap: Map<string, StepEntity>,
 ): {
   workingExceptionIds?: Set<string>;
+  workingExceptionKeys?: Set<string>;
   p6Source?: 'XER';
   p6NonWorkPenaltyDates?: string[];
   p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
@@ -2645,6 +2847,7 @@ function extractCalendarExceptionMetadata(
   for (const props of opsCalendarPsetProps(calStepId, entities, entityMap)) {
     const result: {
       workingExceptionIds?: Set<string>;
+      workingExceptionKeys?: Set<string>;
       p6Source?: 'XER';
       p6NonWorkPenaltyDates?: string[];
       p6NonWorkPenaltyDatesState?: import('@/types/calendar').P6NonWorkPenaltyDatesState;
@@ -2655,8 +2858,10 @@ function extractCalendarExceptionMetadata(
     let candidatePenaltyDates: string[] | undefined;
     for (const prop of props) {
       const name = stripQuotes(prop.args[0] || '');
-      if (name !== 'WorkingExceptionIds' && name !== 'P6Source'
+      if (name !== 'WorkingExceptionIds' && name !== 'WorkingExceptionKeysV1' && name !== 'P6Source'
         && name !== 'P6NonWorkPenaltyDates' && name !== 'P6NonWorkPenaltyDatesState') continue;
+      // Aanwezige maar corrupte V1 mag niet terugvallen op mogelijk vernummerde legacy-ids.
+      if (name === 'WorkingExceptionKeysV1') result.workingExceptionKeys = new Set();
       const value = parseTypedValue(prop.args[2] || '');
       if (typeof value !== 'string' || !value) continue;
       if (name === 'P6NonWorkPenaltyDatesState') {
@@ -2669,7 +2874,10 @@ function extractCalendarExceptionMetadata(
       }
       try {
         const parsed = JSON.parse(value);
-        if (name === 'WorkingExceptionIds'
+        if (name === 'WorkingExceptionKeysV1'
+          && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
+          result.workingExceptionKeys = new Set(parsed);
+        } else if (name === 'WorkingExceptionIds'
           && Array.isArray(parsed) && parsed.every(x => typeof x === 'string')) {
           result.workingExceptionIds = new Set(parsed);
         } else if (name === 'P6NonWorkPenaltyDates' && Array.isArray(parsed)) {
@@ -2932,14 +3140,7 @@ function buildCalendarFromEntity(
     // verzint een feestdag op de leesdatum): één datum ⇒ die ene dag, geen datum ⇒ geen uitzondering.
     const range = workTimeDateRange(wt);
     if (!range) continue;
-    if (!workingExceptionIds?.has(ref)) {
-      holidays.push({
-        name: ifcSlotText(wt.args[0]) || 'Feestdag',
-        ...range,
-      });
-      continue;
-    }
-    // OPS-gemarkeerd als werkende uitzondering. De banden zitten — indien geschreven — nog steeds
+    // Lees de banden vóór de classificatie: V1 vergelijkt inhoud, geen STEP-nummers. De banden zitten — indien geschreven — nog steeds
     // in de RecurrencePattern-ref (args[3] → TimePeriods, args[7]); DayComponent is hier altijd
     // leeg. Canoniseren naar `end > start` (`WorkingException.bands`): een
     // wrap-band komt als tijd-van-de-dag terug (`e ≤ s`) en krijgt hier `+1440` terug, precies
@@ -2960,6 +3161,16 @@ function buildCalendarFromEntity(
           }
         }
       }
+    }
+    const stableKeys = calendarExceptionMetadata.workingExceptionKeys;
+    const recurrence = excRecRef ? entityMap.get(excRecRef) : undefined;
+    const isWorking = stableKeys !== undefined
+      ? recurrence?.type === 'IFCRECURRENCEPATTERN' && recurrence.args[0] === '.DAILY.'
+        && stableKeys.has(calendarExceptionKey({ name: ifcSlotText(wt.args[0]), ...range, bands }))
+      : workingExceptionIds?.has(ref);
+    if (!isWorking) {
+      holidays.push({ name: ifcSlotText(wt.args[0]) || 'Feestdag', ...range });
+      continue;
     }
     workingExceptions.push({
       name: ifcSlotText(wt.args[0]) || 'Werkende uitzondering',
@@ -2987,6 +3198,7 @@ function buildCalendarFromEntity(
   // per definitie gegenereerd) — een uit IFC gelezen kalender is dat NIET tenzij de OPS_Calendar-
   // pset het expliciet zegt. Eerst wissen, dan (evt.) invullen uit de pset.
   delete calendar.generation;
+  if (hourMeta.literalTimes) literalTimeCalendars.add(calendar);
   calendar.generation = extractCalendarGeneration(cal.id, entities, entityMap);
   calendar.libraryOrigin = extractCalendarLibraryOrigin(cal.id, entities, entityMap);
 
@@ -3168,11 +3380,7 @@ function extractAssignments(
   // van WindowMeta (zelfde `GUID#N`-volgnummer-conventie als de queues hierboven, maar dan uit
   // één JSON-blob-property ('Windows') i.p.v. losse IFCPROPERTYSINGLEVALUE's per assignment).
   const windowsByTask = new Map<string, Map<string, WindowMeta[]>>();
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
-    const psetName = stripQuotes(pset.args[2] || '');
+  for (const { pset, name: psetName, objectRefs } of propertySetRelations(entities, entityMap)) {
 
     if (psetName === PSET.Timephased) {
       const windowProp = parseRefs(pset.args[4] || '')
@@ -3208,7 +3416,7 @@ function extractAssignments(
         indexed.push({ guid: m[1], index: parseInt(m[2], 10), meta });
       }
       indexed.sort((a, b) => a.index - b.index);
-      for (const objRef of parseRefs(rel.args[4] || '')) {
+      for (const objRef of objectRefs) {
         let taskWindows = windowsByTask.get(objRef);
         if (!taskWindows) { taskWindows = new Map(); windowsByTask.set(objRef, taskWindows); }
         for (const { guid, meta } of indexed) {
@@ -3226,7 +3434,7 @@ function extractAssignments(
       .map(r => entityMap.get(r))
       .filter((p): p is StepEntity => !!p && p.type === 'IFCPROPERTYSINGLEVALUE');
 
-    for (const objRef of parseRefs(rel.args[4] || '')) {
+    for (const objRef of objectRefs) {
       let taskMeta = metaByTask.get(objRef);
       if (!taskMeta) {
         taskMeta = { queues: new Map(), legacy: new Map() };
@@ -3502,10 +3710,7 @@ function extractTimephasedDurationWalksMeta(
 ): void {
   const taskById = new Map(tasks.map(t => [t.id, t]));
 
-  for (const rel of entities) {
-    if (rel.type !== 'IFCRELDEFINESBYPROPERTIES') continue;
-    const pset = entityMap.get(parseRef(rel.args[5] || '') || '');
-    if (!pset || pset.type !== 'IFCPROPERTYSET' || stripQuotes(pset.args[2] || '') !== PSET.DurationWalks) continue;
+  for (const { pset, objectRefs } of propertySetRelations(entities, entityMap, PSET.DurationWalks)) {
     const prop = parseRefs(pset.args[4] || '')
       .map(r => entityMap.get(r))
       .find((p): p is StepEntity =>
@@ -3532,7 +3737,7 @@ function extractTimephasedDurationWalksMeta(
       }))
       .filter((w): w is { anchor: string; resourceCalendarId: string; workMinutes?: number } => w.resourceCalendarId !== undefined);
     if (walks.length === 0) continue;
-    for (const objRef of parseRefs(rel.args[4] || '')) {
+    for (const objRef of objectRefs) {
       const taskId = taskStepIdMap.get(objRef);
       const task = taskId ? taskById.get(taskId) : undefined;
       if (task) task.timephasedDurationWalks = walks;

@@ -184,6 +184,13 @@ export async function loadPlanningGuide(
   return out;
 }
 
+/**
+ * Injecteerbare bron voor gids en skills. Leeg in de app: daar haalt `fetchTextAsset` ze met `fetch` uit
+ * de eigen bundel. De headless MCP-server (`headless/mcp-server/`, issue #570) heeft geen webserver en
+ * zet hier een functie die de in de serverbundel ingebedde teksten teruggeeft.
+ */
+export const guideToolDeps: { fetchImpl?: TextAssetFetch } = {};
+
 export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
@@ -218,7 +225,7 @@ export const guideTools: McpToolDef[] = [
       const a = (args ?? {}) as { language?: GuideLanguage; part?: GuidePart };
       const part = a.part ?? 'both';
       const install = installInfo();
-      const texts = await loadPlanningGuide(part);
+      const texts = await loadPlanningGuide(part, guideToolDeps.fetchImpl);
       // Niets geladen ⇒ een nette NOT_FOUND mét de publieke URL's als alternatief. Een deel geladen ⇒
       // gewoon `ok`, met `missing` voor wat ontbrak.
       if (texts.guide === undefined && (texts.skills?.length ?? 0) === 0) {

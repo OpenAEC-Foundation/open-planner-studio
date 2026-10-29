@@ -10,9 +10,10 @@ Začínáte den s včerejším projektem, dostanete soubor od kolegy nebo z jin�
 
 ### Otevření souboru
 
-1. Zvolte *Domů › Soubor › Otevřít*, nebo *Soubor › Otevřít*, nebo stiskněte Ctrl+O (na Macu ⌘+O). *Otevřít* je také v liště úplně nahoře. Skupina *Soubor* je také na kartě *Tabulka*.
-2. Zvolte soubor. Najednou otevřete jen jeden soubor. Na počítači a v prohlížečích s přístupem k souborům, jako jsou Chrome a Edge, okno ukazuje seznam typů souborů: *Všechny podporované*, *Soubory IFC*, *Soubory CSV*, *Soubory XML*, *Soubory MS Project* a *Soubory Primavera XER*.
+1. Zvolte *Domů › Soubor › Otevřít*, nebo *Soubor › Otevřít*, nebo stiskněte Ctrl+O (na Macu ⌘+O). Skupina *Soubor* je také na kartě *Tabulka*.
+2. Zvolte soubor. Otevřete najednou jen jeden soubor. Na počítači a v prohlížečích s přístupem k souborům, jako jsou Chrome a Edge, okno ukazuje seznam typů souborů: *Všechny podporované*, *Soubory IFC*, *Soubory CSV*, *Soubory XML*, *Soubory MS Project* a *Soubory Primavera XER*.
 3. Projekt se otevře na nové kartě. Pokud byla aktuální karta ještě prázdná a beze změn, otevře se projekt v ní.
+4. Pokud soubor není IFC, otevře se okno s krátkým vysvětlením tohoto formátu. Zelený blok říká, co aplikace převzala. Oranžový blok říká, co není zahrnuto nebo jen zčásti. Modrý blok říká, jak funguje ukládání a zápis zpět. Při kliknutí na *Číst více* se otevře článek o tomto formátu. Klikněte na *Rozumím*, aby se okno zavřelo. Pokud už toto vysvětlení pro daný formát nechcete vidět, nejdřív zaškrtněte *Znovu nezobrazovat pro …*. Zapnete ho znovu v [Nastavení aplikace](docs://ref-instellingen) na kartě *Pokročilé*.
 
 Soubor IFC dá kartě svůj název souboru. Projekt z jiného formátu dostane svůj název projektu.
 
@@ -20,22 +21,22 @@ Aplikace otevře `.ifc`, `.csv`, `.xml` (MS Project XML nebo Primavera P6 XML), 
 
 ### Otevření nedávného projektu
 
-Zvolte *Domů › Soubor › Nedávné* a klikněte na soubor v seznamu, nebo zvolte *Soubor › Nedávné*. Seznam uchovává posledních deset souborů, které jste otevřeli, uložili nebo exportovali. Desktopová aplikace u každého souboru ukazuje cestu, prohlížeč jen název.
+Zvolte *Domů › Soubor › Nedávné* a klikněte na soubor v seznamu, nebo zvolte *Soubor › Nedávné*. Seznam uchovává posledních deset souborů, které jste otevřeli, uložili nebo exportovali. I tady se u souboru, který není IFC, po otevření zobrazí vysvětlení jeho formátu. Desktopová aplikace u každého souboru ukazuje cestu, prohlížeč jen název.
 
 Pokud aplikace soubor v seznamu už nedokáže přečíst, například proto, že jste ho přesunuli, zmizí ze seznamu bez upozornění. V prohlížečích bez přístupu k souborům, jako je Firefox, zůstane *Nedávné* prázdné.
 
 ### Otevření příkladu
 
-Zvolte *Soubor › Příklady* a klikněte na ukázkový projekt. Otevře se na kartě bez souboru, takže *Uložit* se proto zeptá, kde ho chcete uložit.
+Zvolte *Soubor › Příklady* a klikněte na ukázkový projekt. Otevře se na kartě bez souboru, takže *Uložit* se zeptá, kam ho chcete uložit.
 
 ### Ukládání
 
 Zvolte *Domů › Soubor › Uložit*, nebo *Soubor › Uložit*, nebo stiskněte Ctrl+S. Co se pak stane, závisí na vašem projektu:
 
-1. Pokud projekt už má soubor, protože jste otevřeli soubor IFC nebo jste ho dříve uložili, aplikace zapíše do tohoto souboru. Žádné okno se neobjeví.
-2. Pokud projekt zatím žádný soubor nemá, aplikace se zeptá, kam ho uložit. Navrhne název projektu s příponou `.ifc`. Potom se tento soubor stane souborem projektu.
-3. Pokud váš prohlížeč ukládá jen stažením (například Firefox), soubor skončí ve složce Stažené soubory a každé uložení vytvoří nové stažení. Poprvé v relaci uvidíte hlášení *Uloženo jako stažení: „name.ifc“ je ve složce Stažené soubory. Tento prohlížeč nedovoluje aplikaci zapisovat na vlastní místo, takže každé uložení vytvoří nové stažení. V Chrome, Edge nebo desktopové aplikaci Uložit jen aktualizuje stejný soubor.*
-4. Pokud prohlížeč nedokáže zapsat zpět do souboru projektu, aplikace se při každém uložení znovu zeptá, kam soubor uložit. Vypadá to jako *Uložit jako*, ale je to omezení prohlížeče. Poprvé v relaci to vysvětlí hlášení *Tento prohlížeč nedovoluje aplikaci zapsat zpět do „name.ifc“.*, které vede na článek [Soubory](docs://uitleg-bestanden).
+1. Pokud projekt už má soubor, protože jste otevřeli soubor IFC nebo jste ho dříve uložili, aplikace zapíše do tohoto souboru. Žádné okno se neobjeví. Výjimkou je první uložení souboru s jiným schématem IFC než IFC 4.3 ADD2. V tom případě se aplikace nejdřív zeptá *Ve kterém schématu IFC uložit?* Viz [Výběr schématu IFC](docs://howto-ifc-schema-kiezen).
+2. Pokud projekt zatím žádný soubor nemá, aplikace se zeptá, kam ho má uložit. Navrhne název projektu s příponou `.ifc`. Potom se tento soubor stane souborem projektu.
+3. Pokud váš prohlížeč ukládá jen stažením (například Firefox), soubor skončí ve složce Stažené soubory a každé uložení vytvoří nové stažení. Poprvé v relaci se zobrazí hlášení *Uloženo jako stažení: „name.ifc“ je ve složce Stažené soubory. Tento prohlížeč nedovoluje aplikaci zapisovat na vlastní místo, takže každé uložení vytvoří nové stažení. V Chrome, Edge nebo desktopové aplikaci Uložit jen aktualizuje stejný soubor.*
+4. Pokud prohlížeč nedokáže zapsat zpět do souboru projektu, aplikace se pokaždé znovu zeptá, kam soubor uložit. Vypadá to jako *Uložit jako*, ale je to omezení prohlížeče. Poprvé v relaci vysvětlí hlášení *Tento prohlížeč nedovoluje aplikaci zapsat zpět do „name.ifc“.* s odkazem na článek [Soubory](docs://uitleg-bestanden).
 
 Po uložení zmizí značka *Neuloženo*: tečka na kartě, hvězdička před názvem projektu nahoře a text *Neuloženo* vpravo dole ve stavovém řádku.
 
@@ -45,7 +46,7 @@ Zvolte *Domů › Soubor › Uložit jako*, nebo *Soubor › Uložit jako*, nebo
 
 ### Zavření projektu
 
-Klikněte na křížek na kartě, nebo zvolte *Soubor › Zavřít projekt*. Pokud má projekt změny, které jste neuložili, aplikace se zeptá: *Neuložené změny: „name“ obsahuje změny, které ještě nebyly uloženy.* Zvolíte *Zrušit* (projekt zůstane otevřený), *Neukládat* (projekt se zavře a vaše změny zmizí), nebo *Uložit* (nejdřív uložit, pak zavřít). Pokud zavřete celou aplikaci na počítači (tlačítkem zavřít, klávesou Alt+F4 nebo nabídkou operačního systému), zeptá se u každého projektu se změnami. *Zrušit* nebo neúspěšné uložení zastaví zavírání. Po běžném zavření aplikace smaže záložní kopie obnovy z této relace, takže se okno obnovy zobrazí jen po skutečném pádu. Pokud má projekt změny a zavřete kartu nebo okno prohlížeče, prohlížeč požádá o potvrzení.
+Klikněte na křížek na kartě, nebo zvolte *Soubor › Zavřít projekt*. Pokud má projekt změny, které jste neuložili, aplikace se zeptá: *Neuložené změny: „name“ obsahuje změny, které ještě nebyly uloženy.* Zvolíte *Zrušit* (projekt zůstane otevřený), *Neukládat* (projekt se zavře a vaše změny zmizí), nebo *Uložit* (nejdřív uložit, pak zavřít). Pokud zavřete celou aplikaci na počítači (tlačítkem zavřít, klávesou Alt+F4 nebo nabídkou operačního systému), zeptá se u každého projektu se změnami. *Zrušit* nebo neúspěšné uložení zavírání zastaví. Po běžném zavření aplikace smaže záložní kopie obnovy z této relace, takže se okno obnovy zobrazí jen po skutečném pádu. Pokud má projekt změny a zavřete kartu nebo okno prohlížeče, prohlížeč požádá o potvrzení.
 
 ## Úskalí a co aplikace potom udělá
 
@@ -55,14 +56,17 @@ Klikněte na křížek na kartě, nebo zvolte *Soubor › Zavřít projekt*. Pok
 
 **Ve Firefoxu vytvoří každé uložení nový soubor.** Aplikace tam nemůže zapisovat do vašeho souboru. Při každém uložení stáhne nový soubor s názvem projektu, ne s názvem souboru, který jste otevřeli.
 
-**Chrome a Edge žádají o povolení.** Při prvním použití příkazu *Uložit* u otevřeného souboru se prohlížeč zeptá, zda smí aplikace do něj zapisovat. Pokud odmítnete, aplikace otevře okno, ve kterém zvolíte nový soubor. V Chrome a Edge se toto okno objeví i tehdy, když zápis do existujícího souboru selže, například protože soubor zmizel nebo je zamčený.
+**Chrome a Edge žádají o povolení.** Při prvním kliknutí na *Uložit* se prohlížeč u otevřeného souboru zeptá, zda smí aplikace do něj zapisovat. Pokud odmítnete, aplikace otevře okno, ve kterém zvolíte nový soubor. V Chrome a Edge se toto okno objeví i tehdy, když zápis do existujícího souboru selže, například protože soubor zmizel nebo je zamčený.
 
-**Uložení může selhat.** Pokud samotné uložení vrátí chybu, aplikace nahlásí *Uložení se nezdařilo* a důvod. Váš projekt zůstane otevřený a dál bude označen jako *Neuloženo*.
+**Hlášení o duplicitních id nebo o závislostech, které se nepočítají.** Po otevření může na obrazovce zůstat hlášení. Pokud říká *Objekty s duplicitním id v tomto souboru*, každý duplicitní objekt dostal vlastní id a odkazy ukazují na první výskyt. Zkontrolujte pak závislosti a přiřazení. Pokud říká *závislost(i) nelze zahrnout do výpočtu*, závislost vede na souhrnném úkolu a nemá žádný účinek, například úkol propojený se svým vlastním souhrnným úkolem. Soubor sám zůstane beze změny. Co dělá závislost na souhrnném úkolu, je popsáno v článku [Závislosti](docs://uitleg-relaties).
+
+**Uložení může selhat.** Pokud samotné uložení vrátí chybu, aplikace nahlásí *Uložení se nezdařilo* a důvod. Váš projekt zůstane otevřený a stále označený jako *Neuloženo*.
 
 ## Viz také
 
 - [Soubory a formáty](docs://uitleg-bestanden): co je v souboru IFC a jak aplikace zachází s formáty.
 - [Zapnutí automatického ukládání](docs://howto-automatisch-opslaan): nechte aplikaci aktualizovat váš soubor sama.
+- [Výběr schématu IFC](docs://howto-ifc-schema-kiezen): co znamená otázka *Ve kterém schématu IFC uložit?*
 - [Export](docs://howto-exporteren): vytvoření kopie v jiném formátu.
 - [Obnovení po pádu](docs://howto-herstellen-na-een-crash): co uděláte, když se aplikace neukončila správně.
 - [Formáty pro import a export](docs://ref-import-exportformaten): u každého formátu, co se přenese a co ne.

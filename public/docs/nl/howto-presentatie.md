@@ -21,7 +21,7 @@ In de presentatiemodus is het lint weg, dus wat je wilt tonen zet je vooraf goed
 
 Kies *Beeld › Presentatie › Presentatie*. In de desktopapp kun je ook op F11 drukken. In de browser is F11 van de browser zelf: die zet het browservenster op volledig scherm en laat de app zoals ze is. Het lint, de tabbladen, de statusbalk en het rechterpaneel verdwijnen. Je ziet de takentabel, de Gantt en, als je ze aanzette, het histogram en de mini-map. Een paar seconden lang staat onderaan *Druk op Esc of F11 om volledig scherm te verlaten.*
 
-Je kunt de presentatie starten vanaf elk tabblad, ook vanaf *Tabel* of *Rapport*. Je ziet altijd de Gantt van het geopende project, en als je stopt, sta je weer op het tabblad waar je begon.
+In de desktopapp start je de presentatie vanaf elk tabblad met F11, ook vanaf *Tabel* of *Rapport*. In de browser start je hem alleen met *Beeld › Presentatie › Presentatie*. Je ziet altijd de Gantt van het geopende project, en als je stopt, sta je weer op het tabblad waar je begon. In de browser is dat dus *Beeld*.
 
 ### Stop de presentatie
 

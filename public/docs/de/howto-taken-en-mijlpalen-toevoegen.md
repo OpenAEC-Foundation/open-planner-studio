@@ -51,7 +51,7 @@ Klicken Sie mit der rechten Maustaste auf den Vorgang und wählen Sie *Teilvorga
 Die drei Arten unterscheiden sich so:
 
 - Ein *Anfangsmeilenstein* gehört an den Anfang des Tages, ein *Endmeilenstein* an das Ende des Tages. Im Gantt-Diagramm steht die Raute links bzw. rechts von der Tagesspalte. Das ist auch für den Nachfolger wichtig. Angenommen, ein Meilenstein liegt am Dienstag, 29. September 2026, und ein Vorgang folgt darauf mit einer Beziehung Ende-Anfang. Nach einem Anfangsmeilenstein beginnt dieser Vorgang am selben Dienstag. Nach einem Endmeilenstein beginnt er am Mittwoch, 30. September.
-- Ein *Prüfpunkt (verbindlich)* ist ein Endmeilenstein mit der Vorgangsart *Prüfung* und dem Häkchen *Verbindlich (vertraglich)*.
+- Ein *Prüfpunkt (verbindlich)* ist ein Endmeilenstein mit der Arbeitskategorie *Prüfung* und dem Häkchen *Verbindlich (vertraglich)*.
 
 ### Einen bestehenden Vorgang in einen Meilenstein umwandeln
 
@@ -62,6 +62,7 @@ Schalten Sie es wieder aus, dann bleibt er ein normaler Vorgang mit Dauer 0. Geb
 ### Andere Möglichkeiten
 
 - Strg+M (⌘+M auf dem Mac) setzt einen neuen Meilenstein ans Ende der Liste, auch wenn ein Vorgang ausgewählt ist. Der Bereich *Eigenschaften* öffnet sich nicht.
+- Ein Meilenstein, den Sie mit Strg+M oder über das Kontextmenü anlegen, bekommt die Arbeitskategorie *Prüfung*. Ein *Anfangsmeilenstein* oder *Endmeilenstein* aus *Meilenstein ▾* bekommt *Sonstiges*. Ändern Sie die Arbeitskategorie im Bereich *Eigenschaften*, wenn Sie das brauchen.
 - *Meilenstein hinzufügen* im Kontextmenü eines Vorgangs macht den Meilenstein zu einem Teilvorgang dieses Vorgangs, nicht zu einem Vorgang auf derselben Ebene.
 
 ### Einen Vorgang oder einen ganzen Zweig kopieren
@@ -70,9 +71,9 @@ Schalten Sie es wieder aus, dann bleibt er ein normaler Vorgang mit Dauer 0. Geb
 2. Drücken Sie Strg+C (⌘+C auf dem Mac). Die App kopiert den Vorgang mit allen seinen Teilvorgängen, den Beziehungen zwischen den kopierten Vorgängen und ihren Ressourcenzuweisungen.
 3. Klicken Sie gegebenenfalls auf den Balken des Vorgangs, neben dem die Kopie stehen soll, und drücken Sie Strg+V (⌘+V).
 
-Die Kopie hat denselben Namen, dieselben Termine und denselben Fortschritt. Sie kommt als Vorgang auf derselben Ebene neben dem ausgewählten Vorgang (bei mehreren neben dem, auf den Sie zuerst geklickt haben), unten unter diesen Vorgängen. Ist nichts ausgewählt, kommt sie ans Ende der Liste. Danach sind die kopierten Vorgänge ausgewählt. Die PSP-Codes (die Nummer jedes Vorgangs im Baum, etwa 1.2; siehe [Struktur anpassen](docs://howto-structuur-aanpassen)) werden neu bestimmt, und der Terminplan ist nicht mehr aktuell.
+Die Kopie hat denselben Namen, dieselben Termine und denselben Fortschritt. Sie kommt als Vorgang auf derselben Ebene neben dem ausgewählten Vorgang (bei mehreren neben dem, auf den Sie zuerst geklickt haben), unten unter diesen Vorgängen. Ist nichts ausgewählt, kommt sie ans Ende der Liste. Danach sind die kopierten Vorgänge ausgewählt. Die PSP-Nummern (die Nummer jedes Vorgangs im Baum, etwa 1.2; siehe [Struktur anpassen](docs://howto-structuur-aanpassen)) werden neu bestimmt, und der Terminplan ist nicht mehr aktuell.
 
-Die Zwischenablage gilt für die ganze App. Sie können also auch in ein anderes Dokument einfügen. Was dort nicht existiert, etwa ein Kalender des Vorgangs, eine benutzerdefinierte Vorgangsart, ein Aktivitätscode oder ein benutzerdefiniertes Feld, entfernt die App und meldet es Ihnen.
+Die Zwischenablage gilt für die ganze App. Sie können also auch in ein anderes Dokument einfügen. Was dort nicht existiert, etwa ein Kalender des Vorgangs, eine benutzerdefinierte Arbeitskategorie, ein Aktivitätscode oder ein benutzerdefiniertes Feld, entfernt die App und meldet es Ihnen.
 
 ### Danach
 
@@ -82,7 +83,7 @@ Ein neuer Vorgang ändert die anderen Termine noch nicht. Die Statusleiste zeigt
 
 **Jeder neue Vorgang beginnt am Projektstart.** Ohne Beziehungen wartet ein Vorgang auf nichts. Fügen Sie Beziehungen hinzu, siehe [Beziehungen hinzufügen](docs://howto-relaties-leggen).
 
-**Filtern, Gruppieren oder Sortieren ist aktiv.** Die Reihenfolge, die Sie sehen, ist dann nicht die Reihenfolge des Terminplans. Bei ausgewähltem Vorgang fügen *Vorgang* und *Meilenstein ▾* den neuen Vorgang unten ein, und es erscheint der Streifen *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*. *Oberhalb einfügen* und *Unterhalb einfügen* werden abgelehnt, mit demselben Streifen. Die Schaltfläche *Leeren* im Streifen entfernt Filter, Gruppierung und Sortierung auf einmal. Das gehört nicht zu *Rückgängig*: Strg+Z bringt sie nicht zurück.
+**Filtern, Gruppieren oder Sortieren ist aktiv.** Die Reihenfolge, die Sie sehen, ist dann nicht die Reihenfolge des Terminplans. Bei ausgewähltem Vorgang fügen *Vorgang* und *Meilenstein ▾* den neuen Vorgang unten ein. Dann erscheint eine rote Meldung: *Der neue Vorgang wurde am Ende hinzugefügt. Während Filtern, Gruppieren oder Sortieren kann die App ihn nicht unter Ihre Auswahl setzen.* *Oberhalb einfügen* und *Unterhalb einfügen* werden abgelehnt, mit dem Streifen *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*. Die Schaltfläche *Leeren* in der Meldung oder im Streifen entfernt Filter, Gruppierung und Sortierung auf einmal. Das gehört nicht zu *Rückgängig*: Strg+Z bringt sie nicht zurück.
 
 **Ein Teilvorgang unter einem Vorgang mit Ressourcenzuweisungen.** Der Vorgang wird ein Sammelvorgang, und ein Sammelvorgang trägt selbst keine Zuweisungen. Die App verschiebt die Zuweisungen auf den neuen Teilvorgang und meldet das. Ist das nicht möglich, zum Beispiel weil Sie *Meilenstein hinzufügen* gewählt haben und ein Meilenstein keine Zuweisungen tragen kann, fügt die App nichts hinzu und sagt, warum.
 
@@ -90,7 +91,7 @@ Ein neuer Vorgang ändert die anderen Termine noch nicht. Die Statusleiste zeigt
 
 **Meilenstein einschalten bei einem Sammelvorgang oder einem Vorgang mit Zuweisungen.** Die App lehnt ab und sagt, warum. Bei Zuweisungen entfernen Sie diese zuerst.
 
-**Kopieren in der Vorgangstabelle.** In der Vorgangstabelle (und auf der Registerkarte *Tabelle*) kopiert Strg+C nur die Werte der ausgewählten Zellen, wie in einer Tabellenkalkulation, und Strg+V fügt in Zellen ein. Vorgänge kopieren funktioniert daher nur im Gantt-Diagramm: Klicken Sie zuerst auf einen Balken.
+**Kopieren in der Vorgangstabelle.** In der Vorgangstabelle (und auf der Registerkarte *Tabelle*) kopiert Strg+C nur die Werte der ausgewählten Zellen, wie in einer Tabellenkalkulation, und Strg+V fügt in Zellen ein. Vorgänge lassen sich daher nur im Gantt-Diagramm kopieren: Klicken Sie zuerst auf einen Balken.
 
 ## Siehe auch
 

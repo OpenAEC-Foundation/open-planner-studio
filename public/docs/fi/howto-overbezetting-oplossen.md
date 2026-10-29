@@ -23,9 +23,9 @@ Kun tehtävä on valittuna, histogrammi näyttää vain tämän tehtävän kuorm
 
 ### 2. Valitse ratkaisu
 
-- **Enemmän kapasiteettia.** Jos toinen muurari todella tulee, aseta *Enimmäismäärä* arvoon 2 (katso [Resurssien hallinta](docs://howto-resources-beheren)). Ylikuormitus poistuu silloin.
-- **Vähemmän kuormitusastetta päivässä.** Pienennä arvoa *Kuorm./päivä* tai valitse resurssikohdistukselle toinen käyrä (katso [Resurssikohdistus käyrällä](docs://howto-resource-toewijzen)).
-- **Aseta tehtävät peräkkäin.** Lisää kahden tehtävän välille riippuvuus. Toinen tehtävä alkaa vasta, kun ensimmäinen tehtävä päättyy (katso [Riippuvuuksien lisääminen](docs://howto-relaties-leggen)).
+- **Enemmän kapasiteettia.** Jos toinen Bricklayer todella tulee, aseta *Enimmäismäärä* arvoon 2 (katso [Resurssien hallinta](docs://howto-resources-beheren)). Ylikuormitus poistuu silloin.
+- **Vähemmän kuormitusastetta päivässä.** Pienennä arvoa *Kuormitusaste* tai valitse resurssikohdistukselle toinen käyrä (katso [Resurssikohdistus käyrällä](docs://howto-resource-toewijzen)).
+- **Aseta tehtävät peräkkäin.** Lisää kahden tehtävän välille riippuvuus. Toinen tehtävä alkaa vasta ensimmäisen tehtävän lopun jälkeen (katso [Riippuvuuksien lisääminen](docs://howto-relaties-leggen)).
 - **Tasaaminen.** Sovellus siirtää tehtävän alkamaan myöhemmin.
 
 ### 3. Tasaaminen
@@ -36,12 +36,12 @@ Kun tehtävä on valittuna, histogrammi näyttää vain tämän tehtävän kuorm
 4. Kohdassa *Resurssit* on ne resurssit, jotka tasataan. Oletuksena kaikki resurssit on valittu, paitsi materiaalit. Poista valinta resurssilta, jonka haluat jättää ennalleen.
 5. Napsauta *Laske*. Laskennan aikana sovellus näyttää *Lasketaan…*, ja sen voi keskeyttää painikkeella *Lopeta*. Aikataulu ei vielä muutu: kyseessä on ehdotus.
 6. Lue ehdotus. Yllä on päättymispäivä, esimerkiksi *Projektin päättymispäivä: ennallaan (30-08-2027)* tai *Projektin päättymispäivä: 25-08-2027 → 30-08-2027*. Sen alla on taulukko. Siinä näkyy jokaisen tehtävän *Vanha alku*, *Uusi alku* ja *Siirretyt päivät*, esimerkiksi *Build outer cavity leaf*, 29-06-2027, 06-07-2027 ja *5 pv*.
-7. Valitse *Käytä*. Sovellus kirjoittaa viiveet tehtäviin ja laskee aikataulun uudelleen heti. F5-näppäintä ei tarvitse painaa. *Peruuta* sulkee ikkunan ilman muutosta.
+7. Valitse *Käytä*. Sovellus kirjoittaa siirrot tehtäviin ja laskee aikataulun uudelleen heti. F5-näppäintä ei tarvitse painaa. *Peruuta* sulkee ikkunan ilman muutosta.
 8. Tarkista *Resurssit › Ylikuormitus*. Siinä lukee nyt *Ei mitään*.
 
 Jos ikkunan asetusta muutetaan, kun *Laske*-painiketta on jo painettu, ehdotus katoaa. Paina sitten *Laske* uudelleen. Jos aikataulu muuttuu sovelluksen laskiessa, sovellus näyttää viestin *Aikataulua muutettiin laskennan aikana. Paina Laske-painiketta uudelleen*.
 
-### Mikä tehtävä pysyy paikallaan
+### Päättäminen, mikä tehtävä pysyy paikallaan
 
 Sovellus sijoittaa tehtävät yksi kerrallaan. Tehtävät, jotka tulevat ensin, pysyvät paikallaan. Ensin tulevat tehtävät, joilla on korkein prioriteetti. Jos prioriteetti on sama, ensin tulee tehtävä, jolla on vähiten pelivaraa.
 
@@ -50,8 +50,8 @@ Jos halutaan itse päättää, mikä tehtävä pysyy, sille annetaan korkeampi p
 ### Kumoaminen ja palauttaminen
 
 - *Kumoa* (Ctrl+Z) kumoaa *Käytä*-toiminnon yhdellä askeleella.
-- *Resurssit › Tasaaminen › Poista tasaaminen* poistaa kaikki tasaamiset tehtävistä. Painike on harmaa niin kauan kuin tasaamista ei ole. Ylikuormitus, joka näin palaa, on taas näkyvissä.
-- Jos aikataulua on muutettu sen jälkeen, valitse uudelleen *Tasaa…*. Sovellus aloittaa silloin alusta. Vanhoja viiveitä ei oteta huomioon.
+- *Resurssit › Tasaaminen › Poista tasaaminen* poistaa kaikki tasaamiset tehtävistä. Painike on harmaa niin kauan kuin tasaamista ei ole. Ylikuormitus, joka näin palaa, on yksinkertaisesti taas näkyvissä.
+- Jos aikataulua on muutettu sen jälkeen, valitse vain uudelleen *Tasaa…*. Sovellus aloittaa silloin alusta. Vanhoja siirtoja ei oteta huomioon.
 
 ## Ongelmatilanteet ja mitä sovellus silloin tekee
 

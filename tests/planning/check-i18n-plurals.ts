@@ -47,11 +47,13 @@ import sv_ from '@/i18n/locales/sv/common.json';
 import nb_ from '@/i18n/locales/nb/common.json';
 import da_ from '@/i18n/locales/da/common.json';
 import fi_ from '@/i18n/locales/fi/common.json';
+import lo_ from '@/i18n/locales/lo/common.json';
+import { LOCALES as UI_LOCALES } from '@/i18n/locales';
 
 const LOCALES: Record<string, Record<string, unknown>> = {
   nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa,
   ru: ru_, uk: uk_, cs: cs_, sk: sk_, sr: sr_, hr: hr_, bg: bg_,
-  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_,
+  hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_, lo: lo_,
 };
 
 /** Sleutels die met een `count` worden aangeroepen en dus per taal alle categorieën nodig hebben. */
@@ -84,6 +86,18 @@ const familyAbsent = (mp: Record<string, string>, key: string) =>
 const fail = (msg: string) => diffs.push(msg);
 const moveProjectOf = (loc: string) =>
   (LOCALES[loc].moveProject ?? {}) as Record<string, string>;
+
+// ── 0. Volledigheid: de lijst hierboven dekt exact de UI-talen van src/i18n/locales.ts ──────────
+// De imports zijn statisch (esbuild bundelt geen glob), dus deze lijst is handwerk. Een nieuwe UI-taal
+// die hier ontbreekt, viel voorheen stil buiten de check (`lo`, review C 2026-10-20).
+{
+  checks++;
+  const missing = UI_LOCALES.filter(l => !(l in LOCALES));
+  const extra = Object.keys(LOCALES).filter(l => !(UI_LOCALES as readonly string[]).includes(l));
+  if (missing.length > 0 || extra.length > 0) {
+    fail(`talenlijst wijkt af van src/i18n/locales.ts: ontbreekt [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+  }
+}
 
 // ── 1. Structuur: exact de categorieën die de taal volgens CLDR kent ──────────
 for (const loc of Object.keys(LOCALES)) {

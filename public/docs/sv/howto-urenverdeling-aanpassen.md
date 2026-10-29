@@ -13,7 +13,7 @@ Du arbetar med **faser**: på varandra följande arbetsdagar då resursen arbeta
 Exemplet är ytterbladet: 6 arbetsdagar, en murare, 48 timmar.
 
 1. Markera uppgiften. Panelen *Egenskaper* finns till höger. Om du inte ser den slår du på den med *Visa › Paneler › Egenskaper*.
-2. I avsnittet *Tilldelningar* klickar du på ikonen med staplar bredvid murararen, *Timfördelning…*. Fönstret *Timfördelning i faser* öppnas. Du startar från det som appen bokar nu: för ytterbladet är det en fas på 6 dagar med 1 tilldelningsenhet.
+2. I avsnittet *Tilldelningar* klickar du på namnet på murararen. *Kurva* och knappen *Timfördelning…* visas under det. Klicka på *Timfördelning…*. Fönstret *Timfördelning i faser* öppnas. Du startar från det som appen bokar nu: för ytterbladet är det en fas på 6 dagar med 1 tilldelningsenhet.
 3. Vid behov väljer du en startpunkt vid *Tillämpa form:*. Med *Klockformad* skapar appen fem faser: 0,18 tilldelningsenheter på första och sista dagen, 0,84 på andra och femte dagen och 1,98 på de två mellersta dagarna. Totalen förblir 48 timmar.
 
 ### Justera faserna
@@ -31,21 +31,21 @@ Välj *Tillämpa*. Med *Avbryt* stänger du fönstret utan ändringar.
 
 Ett exempel. Du väljer *Dela upp*, ställer in *Dagar* för den första fasen på 2 och antalet tilldelningsenheter per dag för den fasen på 0,5. Den andra fasen går sedan 4 dagar med 1 tilldelningsenhet per dag. Totalen är 2 × 0,5 × 8 + 4 × 1 × 8 = 40 timmar.
 
-Efter *Tillämpa* är kurvan för tilldelningen satt till *Profil*, och den är inaktiverad. *Enh./dag* ändras inte. Histogrammet och överbeläggningen följer den nya fördelningen direkt. Du behöver inte beräkna om, eftersom inget datum flyttas.
+Efter *Tillämpa* är tilldelningens kurva satt till *Profil*, och den är inaktiverad. Värdet i *Tilldelningsenhet* ändras inte. En ikon med staplar visas nu bredvid namnet, även när tilldelningen är ihopfälld. Histogrammet och överbeläggningen följer den nya fördelningen direkt. Du behöver inte beräkna om, eftersom inget datum flyttas.
 
 ### Släppa fördelningen
 
-Om tilldelningen har en egen fördelning har fönstret också *Släppa fördelningen*. Då tar du bort din egen fördelning, och appen går tillbaka till *Enh./dag* och kurvan. Välj också *Släppa fördelningen* om du vill ändra kurvan. Listrutan *Kurva* är inaktiverad så länge det finns en egen fördelning.
+Om tilldelningen har en egen fördelning har fönstret också *Släppa fördelningen*. Då tar du bort din egen fördelning, och appen går tillbaka till *Tilldelningsenhet* och kurvan. Välj också *Släppa fördelningen* om du vill ändra kurvan. Listrutan *Kurva* är inaktiverad så länge det finns en egen fördelning.
 
 ## Fallgropar och vad appen gör då
 
 **Totalen ändras också.** Du delar inte upp timmarna, du bestämmer dem. Om du ställer in en fas på 0,5 i stället för 0,18 blir totalen större. Totalen i timmar finns längst ner i fönstret. Kontrollera den innan du klickar på *Tillämpa*.
 
-**Vad enheterna gör efteråt beror på arbetsregeln.** Med *Fast varaktighet och fasta enheter* ändrar ett annat *Enh./dag* ingenting i fördelningen. Med *Fast varaktighet och fast arbete* skalar appen timmarna per dag med de nya enheterna. Vid 2 enheter i stället för 1 blir varje dag dubbelt så stor, och totalen också (från 32 till 64 timmar). Varaktigheten är densamma. Med *Fast arbete* ändrar enheterna uppgiftens varaktighet. Fördelningen pressas då ihop eller sträcks ut över den nya varaktigheten, med samma total. Med *Fasta enheter* ändrar enheterna också varaktigheten. Kontrollera totalen längst ner i fönstret efteråt.
+**Vad enheterna gör efteråt beror på uppgiftstypen.** Med *Fast varaktighet och fasta enheter* ändrar ett nytt värde i *Tilldelningsenhet* ingenting i fördelningen. Med *Fast varaktighet och fast arbete* skalar appen timmarna per dag med de nya enheterna. Vid 2 enheter i stället för 1 blir varje dag dubbelt så stor, och totalen också (från 32 till 64 timmar). Varaktigheten är densamma. Med *Fast arbete* ändrar enheterna uppgiftens varaktighet. Fördelningen pressas då ihop eller sträcks ut över den nya varaktigheten, med samma total. Med *Fasta enheter* ändrar enheterna också varaktigheten. Kontrollera totalen längst ner i fönstret efteråt.
 
 **Ändrar du uppgiftens varaktighet, sträcks fördelningen ut med den.** Formen är densamma. Med *Fast varaktighet och fasta enheter* och med *Fasta enheter* växer totalen i proportion till varaktigheten. Om varaktigheten för en uppgift med en egen fördelning fördubblas från 4 till 8 arbetsdagar, fördubblas även totalen, från 32 till 64 timmar. Med *Fast varaktighet och fast arbete* och med *Fast arbete* är totalen densamma (32 timmar förblir 32 timmar) och enheterna minskar.
 
-**Arbetet följer fördelningen.** *Arbete (kvar)* blir summan av dina faser, även under *Fast arbete*. Uppgiftens varaktighet ändras inte på grund av det.
+**Arbetet följer fördelningen.** *Arbete (h)* blir summan av dina faser, även under *Fast arbete*. Uppgiftens varaktighet ändras inte på grund av det.
 
 **Ogiltiga enheter.** Ett tomt eller negativt antal tilldelningsenheter får en röd kant, och *Tillämpa* blir då inaktiverad. En fas med 0 tilldelningsenheter är tillåten. En sådan fas stannar inom uppgiftens varaktighet.
 

@@ -60,19 +60,19 @@ Knižnica sa potom odstráni spolu so všetkými zdrojmi a kalendármi v nej. Ot
 
 ### Odovzdanie projektu spolu s knižnicou
 
-Súbor projektu obsahuje vlastné kópie zdrojov. Ak chcete odovzdať celú knižnicu, postupujte takto. Samotný export je opísaný aj v článku [Exportovanie](docs://howto-exporteren).
+Súbor projektu obsahuje vlastné kópie zdrojov. Ak chcete odovzdať aj celú knižnicu, postupujte takto. Samotný export je opísaný aj v článku [Exportovanie](docs://howto-exporteren).
 
-1. Otvorte projekt, ktorý je prepojený s knižnicou, a vyberte *Súbor › Export*.
+1. Otvorte projekt, ktorý je prepojený s knižnicou, a vyberte *Súbor › Exportovať*.
 2. Zaškrtnite *Uložiť súbor knižnice vedľa*. Políčko je k dispozícii iba pri prepojenom projekte.
-3. Vyberte kartu *IFC 4x3* a uložte súbor. Aplikácia potom vyžiada aj druhý súbor. Ten má názov ako projekt a za ním `-bibliotheek`, a obsahuje knižnicu.
+3. Vyberte kartu *IFC* a uložte súbor. Aplikácia potom vyžiada aj druhý súbor. Ten má názov ako projekt a za ním `-bibliotheek`, a obsahuje knižnicu.
 
 Políčko funguje iba pri exporte IFC, nie pri ostatných formátoch exportu. Váš kolega importuje druhý súbor, ako je opísané vyššie.
 
 ## Úskalia a čo vtedy aplikácia urobí
 
-**Dvaja plánovači, dve knižnice.** Aplikácia nesynchronizuje knižnice medzi počítačmi. Okno importu o tom vždy zobrazí upozornenie: *Poznámka: knižnice sa medzi počítačmi nesynchronizujú. Ak dvaja plánovači pracujú s rovnakou knižnicou zdrojov, knižnice sa môžu rozísť. Ak vaša organizácia zdieľa tímy medzi prevádzkovými spoločnosťami, zvoľte vedome jeden spoločný zoznam.*
+**Dvaja plánovači, dve knižnice.** Aplikácia nesynchronizuje knižnice medzi počítačmi. Okno importu o tom vždy zobrazí upozornenie: *Poznámka: knižnice sa medzi počítačmi nesynchronizujú. Ak dvaja plánovači pracujú s rovnakou knižnicou zdrojov, knižnice sa môžu rozísť. Ak vaša organizácia zdieľa tímy medzi prevádzkovými spoločnosťami, zvoľte vedome jednu spoločnú knižnicu.*
 
-**Nahradenie prepíše všetko.** Všetko, čo bolo vo vybranej knižnici, sa stratí. Zmenu knižnice nemožno vrátiť pomocou *Vrátiť späť*. Ak si nie ste istí, najskôr exportujte.
+**Nahradenie prepíše všetko.** Všetko, čo bolo vo vybranej knižnici, sa stratí. Zmenu knižnice nemožno vrátiť pomocou *Vrátiť späť*. Ak si nie ste istí, najskôr exportujte. Vaše projekty si ponechajú svoje kópie. Aplikácia aktualizuje kópie, ktoré sú ešte v novom súbore. Kópie, ktoré v ňom už nie sú, dostanú označenie *už nie je v knižnici* a naďalej fungujú. Ak sa kópia líši, otvorí sa okno *Prepojiť knižnicu zdrojov* (pozri [Používanie knižnice zdrojov](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Odstránenie kalendára zo zoznamu prebehne okamžite.** Aplikácia nežiada o potvrdenie, na rozdiel od odstránenia zdroja. To vyzerá ako nedostatok. Zmeny knižnice nemožno vrátiť pomocou *Vrátiť späť*.
 

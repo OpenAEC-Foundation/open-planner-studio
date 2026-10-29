@@ -27,7 +27,7 @@ You have three ways.
 
 - **With the keyboard.** Alt+↑ and Alt+↓ swap the task with its neighbour at the same level. A summary task takes its subtasks along. At the top or bottom of the level nothing happens. With several tasks selected, only the task you clicked first moves.
 - **Dragging in the task list.** Press on a row and drag vertically. The top quarter of a row means *before*, the bottom quarter *after*. The middle of a summary task hangs the task under it as its last subtask. The middle of an ordinary task counts as the nearest edge. If you drag a row that is part of a multiple selection, the whole selection moves.
-- **Dragging in the Gantt.** Drag the bar vertically to another row. That works the same as dragging in the list and changes no dates. If you drag horizontally, you shift the dates instead.
+- **Dragging in the Gantt.** Drag the bar vertically to another row. The positions for before, after or under a task work the same as in the list, but dragging a bar moves only that task, even with a multiple selection. The dates do not change. If you drag horizontally, you shift the dates instead.
 
 Each move is one step for *Undo* (Ctrl+Z).
 
@@ -48,9 +48,19 @@ Alt+↑ and Alt+↓ do work in such a view, without a message. With only a filte
 
 **WBS auto is off.** This happens with a file that has its own codes, or with a file that saves the setting as *off*. A new task gets the code that fits its place in the tree, even if another task already has that code. That way duplicate numbers can appear. After indenting, too, the codes no longer match the tree. *Renumber WBS* fixes both.
 
-**A milestone gets subtasks.** A milestone is a moment and has no subtasks. The app removes the milestone flag and tells you.
+**A milestone gets subtasks.** A milestone is a moment and has no subtasks. The app removes the milestone flag and tells you. For one task the notification gives its name; for several tasks it shows how many lose their milestone flag.
 
-**A task with resource assignments gets subtasks.** A summary task carries no assignments itself. The app moves them to the first new subtask that can carry them and tells you. If there is no such subtask, or it already has the same resource, nothing happens and the message says why.
+**A task with resource assignments gets subtasks.** A summary task carries no assignments itself. So the app first asks what to do with them, in the window *Task becomes a summary task*. This happens when you indent, use *Add subtask* or *Add milestone* on a task, insert a template, and in *Edit task* when you choose a new *Parent task*: for an existing task and for a new task. In *Edit task* the question comes before saving. If you choose *Cancel* there, *Edit task* stays open with your changes. You choose:
+
+- *Cancel*: nothing changes, the structure also stays as it was.
+- *Remove assignment*: the task gets its subtasks and its assignments are removed. The actual work of those assignments is removed too.
+- *Move to '…'*: the assignments go to the first new subtask that can carry them, with their actual work. A milestone or a summary task carries no assignments.
+
+If that subtask already has the same resource, or there is no suitable subtask, *Move* is disabled. An orange block in the window tells you why.
+
+If an assignment already has actual work, the orange block tells you how many hours per resource, for example *The assignment of Metselaar already has 8 hours of actual work. Removing it discards that work.* *Cancel* is then the default button: Enter changes nothing. If you still want to remove the assignment, click *Remove assignment* yourself.
+
+While the window is open, no shortcut outside the window works, including *Undo*, *Paste*, Delete, F5 and Ctrl+S. If one action creates more summary tasks at once, the window shows the resources per task, and your choice applies to all of them. One *Undo* (Ctrl+Z) reverts the whole action.
 
 **A relation would create a cycle.** The relations of a summary task also apply to its subtasks. If a move would create a cycle because of that, the app refuses it, with the message *This move would create a cycle in the schedule (…)*. Nothing changes.
 

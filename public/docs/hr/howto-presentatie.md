@@ -19,9 +19,9 @@ U načinu prezentacije vrpca nestaje, pa unaprijed postavite ono što želite pr
 
 ### Pokretanje prezentacije
 
-Odaberite *Prikaz › Prezentacija › Prezentacija*, ili pritisnite F11. Nestaju vrpca, kartice, traka stanja i desno okno. Vidite tablicu zadataka, Gantt-dijagram i, ako ste ih uključili, histogram i mini-kartu. Nekoliko sekundi pri dnu piše *Pritisnite Esc ili F11 za izlaz iz cijelog zaslona.*
+Odaberite *Prikaz › Prezentacija › Prezentacija*. U računalnoj aplikaciji možete pritisnuti i F11. U pregledniku F11 pripada samom pregledniku: on stavlja prozor preglednika na cijeli zaslon, a aplikacija ostaje kakva jest. Vrpca, kartice, traka stanja i desno okno nestaju. Vidite tablicu zadataka, Gantt-dijagram i, ako ste ih uključili, histogram i mini-kartu. Nekoliko sekundi pri dnu piše *Pritisnite Esc ili F11 za izlaz iz cijelog zaslona.*
 
-Prezentaciju možete pokrenuti s bilo koje kartice, također s kartice *Tablica* ili *Izvješće*. Uvijek vidite Gantt-dijagram otvorenog projekta. Kada zaustavite prezentaciju, vraćate se na karticu s koje ste počeli.
+U računalnoj aplikaciji prezentaciju pokrećete s bilo koje kartice tipkom F11, također s kartice *Tablica* ili *Izvješće*. U pregledniku je pokrećete samo s *Prikaz › Prezentacija › Prezentacija*. Uvijek vidite Gantt-dijagram otvorenog projekta, a kada zaustavite prezentaciju, vraćate se na karticu s koje ste počeli. U pregledniku je to dakle *Prikaz*.
 
 ### Zaustavljanje prezentacije
 
@@ -33,7 +33,7 @@ Pritisnite Esc ili F11. Vrpca i okna vraćaju se na kartici na kojoj ste počeli
 
 **Obavijesti ostaju vidljive.** Poruka aplikacije, na primjer pogreška pri spremanju, pojavljuje se i u načinu prezentacije. Inače nema vrpce ni trake stanja, pa je takva poruka jedini znak da nešto nije u redu.
 
-**Postavite unaprijed podijeljeni prikaz, mini-kartu i izglede.** Za to vam treba vrpca, a u ovom načinu nje nema. Zumiranje radi, mišem s kotačićem ili s Ctrl+= i Ctrl+-. Tipke + i - također rade, ali samo kada je fokus u Gantt-dijagramu. Nakon F11 fokus je često u tablici zadataka, pa prvo kliknite u Gantt-dijagram.
+**Postavite unaprijed podijeljeni prikaz, mini-kartu i izglede.** Za to vam treba vrpca, a u ovom načinu nje nema. Zumiranje radi, mišem s kotačićem ili s Ctrl+= i Ctrl+-. Tipke + i - također rade, ali samo kada je fokus u Gantt-dijagramu. Nakon pokretanja fokus je često u tablici zadataka, pa prvo kliknite u Gantt-dijagram.
 
 **Cijeli zaslon ne radi.** Osim što skriva vrpcu, aplikacija zaista traži cijeli zaslon. Ako preglednik ili prozor to odbije, nestaju samo vrpca i okna. Prezentacija i dalje radi. Ako izađete iz cijelog zaslona na drugi način, a ne s Esc ili F11, na primjer tipkom vašeg operacijskog sustava, i način prezentacije prestaje.
 

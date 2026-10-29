@@ -70,7 +70,7 @@ Klik på **Eksporter PDF** nederst i den venstre kolonne. Det foreslåede filnav
 
 **Knappen Udskriv og Ctrl+P udskriver ikke.** Knappen *Udskriv* i gruppen *Rapport* ligger på selve fanen Rapport og gør ikke mere. Ctrl+P åbner denne fane. Der er ingen særskilt udskriftskommando i appen: du får papir via PDF-filen. Virker Ctrl+P ikke (se trin 1), åbner browserens egen udskriftsdialog, og den udskriver skærmen, ikke rapporten.
 
-**Virksomhed: overskrivning bevares ikke.** Feltet *Virksomhed:* i Gantt-udskrift begynder med virksomheden fra projektinfo. Det du skriver over det, bevares ikke. Du kan ikke skrive i *Forfatter:* her. Du ændrer begge via *Indstillinger › Projekt › Projektinfo*, i felterne *Opdragsgiver/organisation* og *Forfatter*, og bekræfter med *Anvend*.
+**Virksomhed: overskrivning bevares ikke.** Feltet *Virksomhed:* i Gantt-udskrift begynder med virksomheden fra projektinfo. Det du skriver over det, bevares ikke. Du kan ikke skrive i *Forfatter:* her. Du ændrer begge via *Indstillinger › Projekt › Projektindstillinger*, i felterne *Opdragsgiver/organisation* og *Forfatter*, og bekræfter med *Anvend*.
 
 **Bjælkefarver: gælder også for din skærm.** Valget *Bjælkefarver:* i rapporten er det samme valg som *Bjælkefarver* på fanen Beeld. Ændrer du det i rapporten, ændrer Gantt-visningen på skærmen sig også.
 

@@ -22,11 +22,11 @@ The **construction holiday** (*bouwvak*) is the collective holiday in the Dutch 
 
 For the Netherlands the app puts Nieuwjaar, Goede Vrijdag, Pasen (two days), Koningsdag, Hemelvaart, Pinksteren (two days) and Kerst (25 and 26 December) in the list each year (New Year's Day, Good Friday, Easter, King's Day, Ascension Day, Whitsun and Christmas). If King's Day falls on a Sunday, it is on 26 April. Bevrijdingsdag (Liberation Day) is only in the list in lustrum years, such as 2025 and 2030.
 
-The years follow the project period: from the year before the start date to the year after the end date. If the project has no end date, up to three years after the year of the start. You adjust start and end under *Settings › Project › Project settings*.
+The years follow the project period: from the year before the start date through the year after the later of the entered end date and the last calculated project end. If both are missing, up to three years after the start year. This also applies to *Generate holidays…* and *Regenerate* in the *Resource calendar* window. If you have changed tasks, press **Calculate** (F5) first to use their new end. You adjust the start and entered end date under *Settings › Project › Project settings*.
 
 ### Regenerating after a new project period
 
-If your project shifts, or gets a later end date, the holidays no longer cover the new years. The app says so in the *Calendars* window, for example *Holidays cover 2025–2028; project runs to 2030. Regenerate?* Then click *Regenerate*. The app uses the same choices as last time (country, region, construction holiday) for the years of the project. Then click *Apply*. You only see this message for a calendar whose holidays were generated earlier.
+If your project shifts, or gets a later end date, the holidays no longer cover the new years. The app says so in the *Calendars* window, for example *Holidays cover 2025–2028; regenerate through 2030?* Then click *Regenerate*. The app uses the same choices as last time (country, region, construction holiday) for the years of the project. Then click *Apply*. You only see this message for a calendar whose holidays were generated earlier.
 
 ### Adding a day or period off of your own
 

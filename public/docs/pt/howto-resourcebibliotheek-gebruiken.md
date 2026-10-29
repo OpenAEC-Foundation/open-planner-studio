@@ -22,7 +22,7 @@ Para um projeto novo:
 
 Para um projeto existente:
 
-1. Escolha *Ficheiro › Info do projeto*.
+1. Escolha *Ficheiro › Definições do projeto*.
 2. Em *Biblioteca de recursos*, escolha a biblioteca.
 3. Clique em *Aplicar*. Até lá, a parte inferior indica *Alterações não aplicadas — clique em Aplicar para as manter.*
 
@@ -34,7 +34,7 @@ Se o projeto já tiver recursos com o mesmo nome de um item da biblioteca, abre-
 2. No canto superior direito, escolha *Biblioteca*. Acima da tabela indica *Isto edita a biblioteca e aplica-se a todos os projetos — fora do desfazer.*
 3. Clique em *Novo recurso na biblioteca*. Aparece uma linha vazia no fim da tabela.
 4. Escreva o nome, por exemplo *Bricklayer*, e prima Enter. O recurso fica agora na biblioteca, e abre-se logo uma linha vazia para o seguinte. Prima Esc quando terminar. Sem nome, a aplicação não cria nada.
-5. Preencha o resto da linha. *Tipo* é *Mão de obra* por padrão. Em *Unidades máx* indica quantos destes recursos existem no total, por exemplo 3 para três pedreiros. A vista de ocupação usa este número como capacidade. *Tarifa/hora* é opcional. Só pode preencher *Unidade* para o tipo *Material*. Em *Calendário* escolha um calendário da biblioteca, ou *+ Calendário de recurso* para criar um, veja [Configurar um calendário de recurso](docs://howto-resourcekalender-instellen). A aplicação guarda o nome, a tarifa e a unidade ao sair do campo, e os outros campos de imediato.
+5. Preencha o resto da linha. *Tipo* é *Mão de obra* por padrão. Em *Unidades máx*, indique quantos destes recursos existem no total, por exemplo 3 para três pedreiros. A vista de ocupação usa este número como capacidade. *Tarifa/hora* é opcional. Só pode preencher *Unidade* para o tipo *Material*. Em *Calendário* escolha um calendário da biblioteca, ou *+ Calendário de recurso* para criar um, veja [Configurar um calendário de recurso](docs://howto-resourcekalender-instellen). A aplicação guarda o nome, a tarifa e a unidade ao sair do campo, e os outros campos de imediato.
 
 Cada alteração na biblioteca passa de imediato para as cópias não editadas nos seus projetos abertos.
 

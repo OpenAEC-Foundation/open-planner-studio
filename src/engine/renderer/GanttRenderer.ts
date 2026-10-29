@@ -8,7 +8,7 @@ import { formatAxisClock } from '@/utils/displayTime';
 import { parseDate, parseInstant, addCalendarDays, diffCalendarDays, isoDayOfWeek, getWeekNumberFor, utcDayStart, localNowOnDayAxis, MS_PER_DAY } from '@/utils/dateUtils';
 import { holidayEndDate, isHourModeCalendar, WorkCalendar } from '@/types/calendar';
 import { calendarWithEffectiveWorkTime } from '@/utils/effectiveWorkTime';
-import { effHoursPerDay, formatTaskDurationDisplay, taskDurationMinutes } from '@/utils/taskDuration';
+import { durationHoursPerDay, effHoursPerDay, formatTaskDurationDisplay } from '@/utils/taskDuration';
 import { formatDuration, DEFAULT_DURATION_SUFFIXES, type DurationSuffixes } from '@/utils/durationFormat';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
@@ -25,13 +25,14 @@ import { readGanttPalette, barLabelColor, doneBarTones, type GanttPalette } from
 import { paintProgressBarPiece } from './barPaint';
 import { xToDayOffset, type GanttAxis } from './timeAxis';
 import { resolveGanttAxis, isCompressedEffective } from './workdayAxis';
-import { computeSplitSegments } from './splitBarGeometry';
+import { computeSplitSegments, splitEngineFor, taskSplitMeasure } from './splitBarGeometry';
+import { milestoneAnchorX, taskBarSpan } from './barSpan';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/engine/taskGrid/trace';
 import { ellipsize } from './textFit';
 import { barLayout, type BarLayout } from './rowGeometry';
 import { canvasFont, type TextRole } from './textRoles';
-import { shownStart, shownFinish, floatBandEnd, finishInstant } from '@/utils/taskDates';
+import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
  *  scrollframe opnieuw gebouwd en bouwde de map dan telkens over alle rijen. */
@@ -144,9 +145,11 @@ export interface GanttRenderOptions {
   /** Stand van "Taakbalken bij onderbrekingen". Default 'selection'. */
   barSplitMode?: BarSplitMode;
   /** Hoofdschakelaar Urenplanning. UIT ⇒ duurkolom in dagen (`Nd`). */
-  enableHourPlanning?: boolean;
   /** Duurweergave-instelling voor de duurkolom (auto/dagen/uren). */
   durationDisplay?: DurationDisplay;
+  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Kiest de maat
+   *  van de split-as (`taskSplitMeasure`). Afwezig ⇒ aan, zoals het OPS-profiel. */
+  workdayDurationMeasure?: boolean;
   /** Vertaalde eenheid-afkortingen voor de duurkolom-WEERGAVE. Afwezig ⇒ NL d/u/m. */
   durationSuffixes?: DurationSuffixes;
   /** Vertaald "verouderd"-badgelabel voor een externe ghost-balk met sourceMissing.
@@ -429,7 +432,6 @@ export class GanttRenderer {
       task,
       cal,
       this.opts.durationDisplay ?? 'auto',
-      this.opts.enableHourPlanning ?? false,
       this.opts.durationSuffixes,
     );
   }
@@ -447,55 +449,42 @@ export class GanttRenderer {
     return this.opts.headerHeight + rowIndex * this.opts.rowHeight - this.opts.view.scrollY;
   }
 
+  /** Kandidaten rond het zichtbare rijbereik. De bestaande afkapvoorwaarden per laag blijven
+   *  beslissen wat tekent; de marge bewaart rijranden en afrondingen zonder alle rijen te bezoeken.
+   *  Het raster geeft één extra rij mee voor de lijn onder de laatste taak. */
+  private visibleRowRange(rowCount = this.rows.length): { first: number; last: number } {
+    const { rowHeight, headerHeight, canvasHeight, view } = this.opts;
+    return {
+      first: Math.max(0, Math.ceil(view.scrollY / rowHeight) - 2),
+      last: Math.min(rowCount - 1, Math.ceil((canvasHeight - headerHeight + view.scrollY) / rowHeight) + 1),
+    };
+  }
+
   // ── Uur-bewuste balkgeometrie ──────────────────────────────────────────────
   // Discriminator: een taak is UUR-modus zodra zijn (early/schedule-)datumstring een tijdcomponent
   // ('T') draagt — precies wat `formatInstant('hour')` emitteert. Dag-taken (YYYY-MM-DD)
   // vallen dus ALTIJD op het dag-pad (`parseDate` + één dag breedte).
 
-  /** Balk-uiteinden voor een taak. Uur-taak: `[dateToX(start), dateToX(finish))` (geen +dag).
-   *  Dag-taak: `[dateToX(start), dateToX(finish)+zoom)` (inclusieve eind-dag). */
+  /** Balk-uiteinden voor een taak, met dezelfde regel als de afdruk (`taskBarSpan`). Met momenten:
+   *  `[dateToX(start), dateToX(finish))` (geen +dag). Alleen datums: `[dateToX(start), dateToX(finish)+zoom)`
+   *  (inclusieve einddag). */
   private barGeometry(task: Task): { x1: number; x2: number; hourMode: boolean; start: Date; end: Date } {
-    // Guard: een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een onvolledige import)
-    // zou hier per frame crashen op `undefined.includes(...)`. Terugval: de ontbrekende kant leent
-    // van de andere kant; ontbreken beide, dan één
-    // dag-cel op de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds
-    // weigert zulke taken).
-    const rawStart = shownStart(task) || '';
-    const rawEnd = shownFinish(task) || '';
-    const startStr = rawStart || rawEnd;
-    const endStr = rawEnd || rawStart;
-    if (!startStr) {
-      const d = this.viewStart;
-      const x = this.dateToX(d);
-      return { x1: x, x2: x + this.opts.view.zoom, hourMode: false, start: d, end: d };
-    }
-    const hourMode = startStr.includes('T') || endStr.includes('T');
-    const start = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    // Uur-balk: het einde als tijdstip met de rollupregel (`finishInstant`) — een einde ZONDER tijd
-    // (een fase met een uren-start en een dagkind als laatste) loopt tot het einde van die dag, niet
-    // tot middernacht aan het begin ervan. Voor een einde mét tijd
-    // is dat gewoon `parseInstant`.
-    const end = hourMode ? finishInstant(endStr) : parseDate(endStr);
-    const x1 = this.dateToX(start);
-    const x2 = hourMode ? this.dateToX(end) : this.dateToX(end) + this.opts.view.zoom;
-    return { x1, x2, hourMode, start, end };
+    const span = taskBarSpan(task, date => this.dateToX(date), this.opts.view.zoom);
+    if (span) return span;
+    // Een taak zonder énige datum (noch CPM- noch schedule-, bv. uit een onvolledige import): één dagcel op
+    // de viewstart (zichtbaar, maar zonder datums geen sleep/resize — getTaskBarBounds weigert zulke taken).
+    const d = this.viewStart;
+    const x = this.dateToX(d);
+    return { x1: x, x2: x + this.opts.view.zoom, hourMode: false, start: d, end: d };
   }
 
-  /** De effectieve `CalendarEngine` voor een taak, ONGEACHT dag-/uur-modus. Gedeelde cache
-   *  met `engineFor` (hieronder), dat bewust NULL teruggeeft in dag-modus omdat de kalender-
-   *  necking (`workIntervalsBetween`) daar toch niets oplevert. `Task.splitGaps` heeft echter
-   *  ALTIJD een engine nodig — ook een dag-modus-taak (`workTime` ontbreekt) — om de gat-offsets
-   *  naar schermcoördinaten te wandelen (`computeSplitSegments`, `splitBarGeometry.ts`). Een
-   *  dag-modus-`CalendarEngine` bouwen is goedkoop (de uur-modus-band-uitrol in de constructor
-   *  slaat over, zie `CalendarEngine`'s `mode`-branch), dus geen aparte null-guard nodig hier. */
-  private engineForAnyMode(task: Task): CalendarEngine {
-    const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-    let eng = this.engineCache.get(cal.id);
-    if (!eng) {
-      eng = new CalendarEngine(cal);
-      this.engineCache.set(cal.id, eng);
-    }
-    return eng;
+  /** De engine van de split-wandeling voor een taak: de werkblokken van haar effectieve kalender, ook
+   *  op een dagkalender (`splitEngineFor` → `calendarForEngine`), zoals de motor en de gedeelde plaatsing.
+   *  `Task.splitGaps` heeft altijd een engine nodig om de gat-offsets naar schermcoördinaten te wandelen
+   *  (`computeSplitSegments`, `splitBarGeometry.ts`). Voorheen kreeg een dagkalender hier een engine in
+   *  dag-modus; dan liep een dagenmaat-taak in hele werkdagen en een urentaak zonder werkblokken. */
+  private splitEngine(task: Task): CalendarEngine {
+    return splitEngineFor(this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar);
   }
 
   /** De effectieve `CalendarEngine` voor een taak (uur-modus), of null als de taak op een
@@ -661,7 +650,8 @@ export class GanttRenderer {
     }
 
     // Horizontal grid lines (per row)
-    for (let i = 0; i < this.rows.length + 1; i++) {
+    const { first, last } = this.visibleRowRange(this.rows.length + 1);
+    for (let i = first; i <= last; i++) {
       const y = this.rowToY(i);
       if (y < headerHeight || y > canvasHeight) continue;
       ctx.strokeStyle = this.colors.grid;
@@ -917,7 +907,8 @@ export class GanttRenderer {
     // balk (een `miter`-hoek stak bij een spitse uitstulping tot ~10 px door).
     ctx.beginPath();
 
-    for (let i = 0; i < this.rows.length; i++) {
+    const { first, last } = this.visibleRowRange();
+    for (let i = first; i <= last; i++) {
       const rowTop = this.rowToY(i);
       const rowBottom = rowTop + rowHeight;
       if (rowBottom < headerHeight || rowTop > canvasHeight) continue;
@@ -1017,7 +1008,7 @@ export class GanttRenderer {
     const enableQH = enableQuarterHourZoom ?? false;
     // De kopstrook volgt dezelfde tierkeuze als de uurinteractie, zodat “kwartieren tonen bij ver
     // inzoomen” ook de uren/kwartieren in de schermtijdlijn tekent, niet alleen de snapping.
-    const { major, mid, minor } = pickTiers(view.zoom, enableQH, this.opts.enableHourPlanning ?? false);
+    const { major, mid, minor } = pickTiers(view.zoom, enableQH);
 
     // Visible date range, via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. de
     // kalenderdag-aanname `scrollX/zoom` — die gaat ervan uit dat 1 kalenderdag = 1 zoom-kolom,
@@ -1229,7 +1220,8 @@ export class GanttRenderer {
     // De focus-taak behoudt z'n eigen kleur — de selectiering markeert hem al.
     const trace = this.opts.trace;
 
-    for (let i = 0; i < this.rows.length; i++) {
+    const { first, last } = this.visibleRowRange();
+    for (let i = first; i <= last; i++) {
       const row = this.rows[i];
       const y = this.rowToY(i) + barOffset;
       if (y + barHeight < this.opts.headerHeight || y > this.opts.canvasHeight) continue;
@@ -1413,8 +1405,12 @@ export class GanttRenderer {
     // raadpleegt `shouldSplit`/`barSplitMode` daarom NIET; die blijven uitsluitend voor de
     // hieronder-volgende `else`-tak (kalender-necking, puur weergave, uur-modus-only).
     if (task.splitGaps && task.splitGaps.length > 0) {
-      const eng = this.engineForAnyMode(task);
-      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, geo.hourMode, eng);
+      const eng = this.splitEngine(task);
+      // De maat van de taak kiest de wandeling (alleen uren §3.14): een taak in de dagenmaat in werkdagen
+      // met een breuk (dezelfde telling als de motor en de plaatsing), anders in werkminuten (een urentaak,
+      // of een dagtaak onder P6/MSP); een dagtaak met alleen datums in hele werkdagen.
+      const measure = geo.hourMode ? taskSplitMeasure(task, this.opts.workdayDurationMeasure ?? true) : false;
+      const segments = computeSplitSegments(task.splitGaps, geo.start, geo.end, measure, eng);
       if (segments.length > 1) {
         // Eerste/laatste grens hergebruikt de AL BEKENDE volle-extent `x1`/`x2` (dezelfde waarden
         // als de cull-test bovenaan deze functie): die dragen dag-modus' "+zoom voor de inclusieve
@@ -1743,17 +1739,10 @@ export class GanttRenderer {
    *  getekend wordt — `drawMilestone` heeft genoeg aan één van beide datums. Bewust géén
    *  `barGeometry`-hergebruik: die geeft een `[x1,x2)`-balkbreedte, geen enkel ruitmidden. */
   private milestoneAnchorX(task: Task): number | null {
-    const startStr = shownStart(task) || shownFinish(task);
-    if (!startStr) return null;
-    const hourMode = startStr.includes('T');
-    const date = hourMode ? parseInstant(startStr) : parseDate(startStr);
-    // Grens-model: een startmijlpaal ankert op het dagBEGIN (linkerrand van de
-    // dagcel), een eindmijlpaal op het dagEINDE (rechterrand); automatisch is
-    // dag-gecentreerd. Een UUR-mijlpaal draagt de exacte instant al,
-    // dus die ankert op de instant zelf (anchor 0) zonder dag-cel-verschuiving.
-    const zoom = this.opts.view.zoom;
-    const anchor = hourMode ? 0 : task.milestoneKind === 'START' ? 0 : task.milestoneKind === 'FINISH' ? zoom : zoom / 2;
-    return this.dateToX(date) + anchor;
+    // Grens-model, gedeeld met de afdruk (`milestoneAnchorX` in barSpan.ts): een startmijlpaal ankert op
+    // het dagBEGIN, een eindmijlpaal op het dagEINDE, automatisch dag-gecentreerd; een mijlpaal met een
+    // moment op dat moment zelf.
+    return milestoneAnchorX(task, date => this.dateToX(date), this.opts.view.zoom);
   }
 
   private drawMilestone(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -2005,8 +1994,13 @@ export class GanttRenderer {
     const hourMode = startStr.includes('T') || endStr.includes('T');
     if (hourMode) {
       const cal = this.opts.effectiveCalById?.get(task.id) ?? this.opts.calendar;
-      const minutes = task.time.durationMinutes ?? taskDurationMinutes(task, cal);
-      return formatDuration(minutes, effHoursPerDay(cal), this.opts.durationDisplay ?? 'auto', sfx);
+      // Een kalendertijddag telt 24 klokuren, ook op een kortere werkdag (zoals de duurkolom).
+      const hoursPerDay = durationHoursPerDay(task, effHoursPerDay(cal));
+      // Uit dagen afgeleide minuten afronden: een sleep slaat dagen op zes decimalen op
+      // (47 u = 1.958333 d), en zonder afronding wordt dat "46h 59.9995m".
+      const minutes = task.time.durationMinutes
+        ?? (taskDurationUnit(task) === 'hours' ? 0 : Math.round(task.time.scheduleDuration * hoursPerDay * 60));
+      return formatDuration(minutes, hoursPerDay, this.opts.durationDisplay ?? 'auto', sfx);
     }
     return this.durationText(task);
   }

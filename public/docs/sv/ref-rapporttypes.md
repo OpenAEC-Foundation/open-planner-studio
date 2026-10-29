@@ -26,13 +26,13 @@ Varje rapport på fliken *Rapport* har egna alternativ. För varje alternativ st
 
 Tidsplanen visas som ett diagram med balkar, med en tabell till vänster och en tidslinje till höger. Vid behov visas den över flera sidor. Förhandsvisningen visar papperet med sidhuvud, tabell, tidslinje och förklaring. Blocket *Översikt* räknar *Uppgifter:*, *Lövuppgifter:*, *Kritisk:* och *Samband:*. Alla alternativ står under *Inställningar*.
 
-**Företag:** — företaget i sidhuvudet. Standard: företaget från projektinfo. Effekt: bara sidhuvudet i rapporten. Det du skriver här sparas inte. Ändra företaget i *Inställningar › Projekt › Projektinfo*, i fältet *Beställare/organisation*, och bekräfta med *Tillämpa*.
+**Företag:** — företaget i sidhuvudet. Standard: företaget från projektinställningarna. Effekt: bara sidhuvudet i rapporten. Det du skriver här sparas inte. Ändra företaget i *Inställningar › Projekt › Projektinställningar*, i fältet *Beställare/organisation*, och bekräfta med *Tillämpa*.
 
-**Författare:** — författaren i sidhuvudet. Skrivskyddad: appen hämtar den från projektinfo.
+**Författare:** — författaren i sidhuvudet. Skrivskyddad: appen hämtar den från projektinställningarna.
 
 **Teckenstorlek:** — storleken på text och tabell i rapporten. Välj mellan 90%, 100%, 110% och 125%. Standard: 100%. Effekt: med en större teckenstorlek blir text, rader och tabell större, och tidslinjen blir smalare. Oberoende av *Textstorlek* i inställningarna.
 
-**Stapelfärger:** — vad färgen på en balk beror på. Välj mellan *Kritisk linje*, *Per uppgift — automatiskt* och *Efter kategori*, med en listruta *Kategorifält* för *Efter kategori*. Standard: *Kritisk linje*. Effekt: samma val som *Stapelfärger* på fliken *Visa*. Om du ändrar det här ändras också Gantt-diagrammet på skärmen. Finns det valda fältet inte i projektet, står det *Det här fältet finns inte i projektet. Uppgiftstyp används tillfälligt.*
+**Stapelfärger:** — vad färgen på en balk beror på. Välj mellan *Kritisk linje*, *Per uppgift — automatiskt* och *Efter kategori*, med en listruta *Kategorifält* för *Efter kategori*. Standard: *Kritisk linje*. Effekt: samma val som *Stapelfärger* på fliken *Visa*. Om du ändrar det här ändras också Gantt-diagrammet på skärmen. Finns det valda fältet inte i projektet, står det *Det här fältet finns inte i projektet. Arbetskategori används tillfälligt.*
 
 **Statuslinje:** — en linje vid rapportdatumet. Välj mellan *Ingen*, *Rapportdatumlinje* och *Framdriftslinje*. Standard: *Ingen*. Effekt: *Rapportdatumlinje* ritar en linje vid rapportdatumet. *Framdriftslinje* ritar den sicksackade linjen som bugtar mot framdriften för varje uppgift. Har projektet inget rapportdatum, står det *Ange först ett rapportdatum* och rapporten ritar ingenting.
 
@@ -116,11 +116,11 @@ Rapporten innehåller de ej slutförda uppgifter som är kritiska (enligt beräk
 
 Var projektet står på rapportdatumet. Alternativ under *Rapportalternativ*.
 
-**Rapportperiod:** — Standard: *Förra månaden*. Effekt: *Slutförda under förra perioden* räknar inom perioden. *Startar under nästa period* blickar framåt från rapportdatumet, upp till *Look-ahead t.o.m*. Med en *Förra*-period sträcker det sig lika långt framåt som perioden blickar bakåt.
+**Rapportperiod:** — Standard: *Förra månaden*. Effekt: *Slutförda under förra perioden* räknar inom perioden. *Startar under nästa period* blickar framåt från rapportdatumet, upp till *Look-ahead t.o.m*. Med en period som *Förra månaden* sträcker det sig lika långt framåt som perioden blickar bakåt.
 
 **Nära kritisk ≤ (ad):** — Standard: 5. Som vid Look-ahead.
 
-Blocket *Översikt* visar *Rapportdatum*, *Period*, *Look-ahead t.o.m*, *Baslinje slut*, *Prognostiserat slut*, *Δ slut (ad)*, *Planerat* (med *(baslinje)* eller *(aktuell tidsplan)*), *Verkligt*, och antalen *Slutförd*, *Pågår*, *Inte startad*, *Försenade* och *Kritisk*. Planerat och verkligt viktas efter uppgifternas varaktighet. Planerat mäts mot baslinjen om det finns en aktiv baslinje. Annars mäts det mot den aktuella tidsplanen. Avsnitten är *Slutförda under förra perioden*, *Pågår*, *Startar under nästa period*, *Försenade* och *Öppna kritiska uppgifter*. En uppgift kan finnas i mer än ett avsnitt.
+Blocket *Översikt* visar *Rapportdatum*, *Period*, *Look-ahead t.o.m*, *Baslinje slut*, *Prognostiserat slut*, *Δ slut (ad)*, *Planerat* (med *(baslinje)* eller *(aktuell tidsplan)*), *Verkligt*, och antalen *Slutförd*, *Pågår*, *Inte startad*, *Försenade* och *Kritisk*. Planerat och verkligt viktas efter uppgifternas varaktighet. Planerat mäts mot baslinjen om det finns en aktiv baslinje. Annars mäts det mot den aktuella tidsplanen. Avsnitten är *Slutförda under förra perioden*, *Pågår*, *Startar under nästa period*, *Försenade* och *Öppna kritiska uppgifter*. En uppgift kan finnas i mer än ett avsnitt. Varje avsnitt har samma kolumner: *WBS*, *Namn*, *Baslinje slut*, *Prognostiserat slut*, *Slutf*, *Kvar (ad)*, *TF (ad)*, *Kritisk* och *Status*. Status per rad är *Slutförd*, *Pågår*, *Inte startad*, *Skulle ha startat* eller *Skulle ha slutat*.
 
 ## Tidsplanens hälsa
 
@@ -149,7 +149,7 @@ Den räknar lövuppgifter som inte är klara, utan milstolpar och hängmattor, o
 - *Ogiltiga datum*: en verklig start eller ett verkligt slut efter rapportdatumet, eller en prognostiserad start eller ett prognostiserat slut före rapportdatumet. Norm: ingen. Kräver ett rapportdatum.
 - *Resurser*: uppgifter utan resurs. Norm: ingen. Bara om projektet använder resurser; annars *ej tillämplig*.
 - *Missade uppgifter*: av de uppgifter som baslinjen säger ska vara klara senast på rapportdatumet, andelen som blir klar senare eller prognostiseras senare. Norm: högst 5 %. Kräver ett rapportdatum och en aktiv baslinje.
-- *Test av kritisk linje*: appen förlänger en kritisk uppgift med 100 arbetsdagar och beräknar om på en kopia, utan att ändra projektet. Testet är godkänt om projektets sista uppgift då inte slutar före den uppgiften. Det testar den kritiska, ej klara uppgiften med den tidigaste starten; förklaringen anger uppgiften och hur många arbetsdagar slutet flyttades.
+- *Test av kritisk linje*: appen förlänger en kritisk uppgift med 100 arbetsdagar och beräknar om på en kopia, utan att ändra projektet. Testet är godkänt om projektets sista uppgift då inte slutar före den uppgiften. Det testar den kritiska, ej klara uppgiften med den tidigaste starten; förklaringen anger uppgiften och hur många arbetsdagar slutet flyttades. I vyn *Datum som registrerats* är testet *ej tillämplig* (*Inte beräknat*): testet räknar ut, och rapporten visar då datumen från källfilen. Tryck på *Beräkna* (F5) så körs testet igen.
 - *CPLI*: (den kritiska linjens längd + slack) / den kritiska linjens längd. Längden räknar arbetsdagarna från rapportdatumet till slutet av den sista uppgiften. Slacket är skillnaden med baslinjens slut för den uppgiften, eller det beräknade slacket om uppgiften inte finns i baslinjen. Norm: minst 0,95. Kräver ett rapportdatum.
 - *BEI*: antalet uppgifter som är klara på rapportdatumet, delat med antalet som baslinjen säger ska vara klara då, plus uppgifterna utan baslinje. Norm: minst 0,95. Kräver ett rapportdatum och en aktiv baslinje.
 
@@ -177,7 +177,7 @@ Per resurs, de uppgifter den är kopplad till: vad gör det här teamet eller de
 
 **Ta med klara uppgifter** — Standard: av. Effekt: på tar också med tilldelningarna för klara uppgifter.
 
-Raderna visas per resurs, och inom en resurs efter start. Blocket *Översikt* räknar *Resurser*, *Tilldelningar* och *Uppgifter utan resurs*. Kolumnerna innehåller resursen, uppgiften, start och slut, *Kvar (ad)*, *Enh./dag*, *Slutf*, *Kritisk* och *Status*.
+Raderna visas per resurs, och inom en resurs efter start. Blocket *Översikt* räknar *Resurser*, *Tilldelningar* och *Uppgifter utan resurs*. Kolumnerna är *Resurs*, *Typ*, *WBS*, *Namn*, *Start*, *Slut*, *Kvar (ad)*, *Enh./dag*, *Slutf*, *Kritisk* och *Status*. *Resurs* och *Typ* står bara på första raden för en resurs. Statusen per rad är samma som i rapporten *Framdrift*: *Slutförd*, *Pågår*, *Inte startad*, *Skulle ha startat* eller *Skulle ha slutat*.
 
 ## WBS-översikt
 

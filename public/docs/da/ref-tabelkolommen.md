@@ -6,12 +6,12 @@ Opgavetabellen har 86 faste kolonner, plus én kolonne pr. opgavekode og brugerd
 
 Opgavetabellen ved siden af Gantt-diagrammet og tabellen på fanen *Tabel* har hver sit eget kolonnevalg. Plustegnet til højre i overskriften åbner kolonnevælgeren (vinduetitel *Vælg kolonne*). På *Tabel* kan du også bruge *Tabel › Kolonner › Kolonner…*. Vælgeren viser kolonnerne pr. kategori: *Opgave*, *Tidsplan*, *Begrænsninger*, *Afhængigheder*, *Ressourcer*, *Fremdrift*, *Beregnet*, *Oprindelig plan*, *Brugerdefineret* og *Teknisk*. Du søger på navn, og *Senest brugt* står øverst. *Nulstil til standard* gendanner standardkolonnerne.
 
-Som standard viser tabellen ved siden af Gantt-diagrammet *WBS*, *Opgavenavn* og *Varighed*. Tabellen på fanen *Tabel* viser *WBS*, *Opgavenavn*, *Varighed*, *Start*, *Slutdato*, *Opgavetype*, *Kritisk*, *Samlet slæk* og *Fremdrift*, plus en kolonne pr. opgavekode og brugerdefineret felt i projektet.
+Som standard viser tabellen ved siden af Gantt-diagrammet *WBS*, *Opgavenavn* og *Varighed*. Tabellen på fanen *Tabel* viser *WBS*, *Opgavenavn*, *Varighed*, *Start*, *Slutdato*, *Arbejdskategori*, *Kritisk*, *Samlet slæk* og *Fremdrift*, plus en kolonne pr. opgavekode og brugerdefineret felt i projektet.
 
 ## Sådan læses og redigeres værdier
 
 - **Beregnede kolonner** — kolonnerne i kategorien *Beregnet* og en række andre er skrivebeskyttede: de kommer fra beregningen. Hvis du prøver at redigere en skrivebeskyttet celle, siger appen *Denne beregnede kolonne kan ikke redigeres*. Den tekst er den generelle besked for alle skrivebeskyttede celler, også når kolonnen ikke er beregnet. Hvis værdierne er forældede, fordi du har ændret noget, vises *forældet* ved siden af dem, indtil du trykker på *Beregn*.
-- **Datoer** — vises i den notation, du valgte under *Indstillinger*, fanen *Visning*, overskriften *Datoformat*.
+- **Datoer** — vises i den notation, du valgte under *App-indstillinger*, fanen *Udseende*, overskriften *Datoformat*.
 - **Varigheder og slæk** — en varighed vises i opgavens enhed (`5d`, `12h`), eller efter *Varighedsvisning* på samme fane (*Automatisk (egen enhed pr. opgave)*, *Altid dage* eller *Altid timer*). Slæk vises i arbejdsdage med to decimaler og decimaltegnet for dit sprog.
 - **Ja/nej** — en ja/nej-værdi vises som *Ja* eller *Nej*; en tom værdi vises som en tankestreg (—).
 - **Redigering** — skriv eller vælg en værdi. En ugyldig værdi afvises med en begrundelse under cellen, for eksempel *Indtast en gyldig varighed, for eksempel 5d eller 8t*, eller *Indtast en procentdel mellem 0 og 100*. Indsætter du en blok celler, sker det celle for celle. Skrivebeskyttede celler springes over, og appen oplyser, hvor mange.
@@ -21,8 +21,8 @@ Som standard viser tabellen ved siden af Gantt-diagrammet *WBS*, *Opgavenavn* og
 - **Opgavenavn** — navnet på opgaven. Kan redigeres; feltet er påkrævet. En hovedopgave vises med fed skrift og en lys baggrundstone i navnecellen. En milepæl vises med fed skrift i milepælsfarven (samme farvefamilie som milepælen i Gantt-diagrammet). En almindelig opgave forbliver, som den er. Det er kun formatering: markering, trækning og redigering virker på samme måde.
 - **Beskrivelse** — beskrivelsen. Kan redigeres; fri tekst.
 - **WBS** — WBS-koden. Kan redigeres og er påkrævet, men skrivebeskyttet, så længe *WBS auto* er slået til.
-- **Opgavetype** — opgavetypen (*Byggeri*, *Installation*, *Nedrivning*, *Logistik*, *Kontrol/inspektion*, *Flytning*, *Renovation*, *Vedligeholdelse* eller *Andet*). Kan redigeres med en liste.
-- **Brugerdefineret opgavetype** — den brugerdefinerede opgavetype fra projektet, eller en tankestreg. Kan redigeres med en liste over projektets brugerdefinerede typer.
+- **Arbejdskategori** — arbejdskategorien (*Byggeri*, *Installation*, *Nedrivning*, *Logistik*, *Kontrol/inspektion*, *Flytning*, *Renovation*, *Vedligeholdelse* eller *Andet*). Kan redigeres med en liste.
+- **Brugerdefineret arbejdskategori** — den brugerdefinerede arbejdskategori fra projektet, eller en tankestreg. Kan redigeres med en liste over projektets brugerdefinerede arbejdskategorier.
 - **Farve** — den gemte farve for opgaven, som en farvekode, for eksempel `#1a73e8`. Kan redigeres med en farvevælger. Den gemmes i IFC-filen, men ingen bjælke eller rapport bruger den. Bjælkefarver angiver du under *Visning › Oprindelige planer & fremdrift › Bjælkefarver*.
 - **Noter** — noterne som `✓ tekst; ○ tekst`. Kan redigeres, så længe der højst er én note (du redigerer så dens tekst). Med flere noter er feltet skrivebeskyttet.
 
@@ -33,14 +33,14 @@ Som standard viser tabellen ved siden af Gantt-diagrammet *WBS*, *Opgavenavn* og
 - **Obligatorisk milepæl** — markeringen *Obligatorisk (kontraktuel)*. Kan kun redigeres på en milepæl.
 - **Udjævningsprioritet** — et helt tal fra 0 til 1000, standard 500. Kan redigeres. 1000 fastlåser opgaven for udjævning.
 - **Splithuller** — antallet af huller, som `Splithuller: 2`, eller en tankestreg. Skrivebeskyttet; du redigerer dem i panelet *Egenskaber*.
-- **Arbejdsregel** — arbejdsreglen for opgaven. Et tomt felt betyder projektets standard. Kan redigeres med en liste, men er tom og skrivebeskyttet på en milepæl, hovedopgave eller hængekøje. Den vises kun i vælgeren, når arbejdsregler er synlige (*Vis arbejdsregler og arbejde*, eller når filen indeholder arbejdsregler).
+- **Opgavetype** — opgavetypen for opgaven. Et tomt felt betyder projektets standard. Kan redigeres med en liste, men er tom og skrivebeskyttet på en milepæl, hovedopgave eller hængekøje. Den vises kun i vælgeren, når opgavetyper er synlige (*Brug opgavetyper*, eller når filen indeholder opgavetyper).
 - **Hængekøje (afledt varighed)** — om opgaven er en hængekøje. Kan redigeres, undtagen på en milepæl eller hovedopgave.
 - **Kalender** — id'et for opgavens egen kalender. En tom værdi (—) betyder projektkalenderen. Du skriver eller vælger et id fra forslagene; et ukendt id afvises. Bemærk: cellen viser i øjeblikket det interne id i stedet for navnet. Vælg hellere en kalender i panelet *Egenskaber*.
 - **Varighedstype** — *Arbejdstid* (varigheden tæller i arbejdsdage eller arbejdstimer i kalenderen) eller *Forløbet varighed* (varigheden tæller i sammenhængende klokketid, uden kalender). Kan redigeres.
 - **Varighedsenhed** — *Dage* eller *Timer*. Kan redigeres, undtagen på en hovedopgave, hængekøje eller milepæl. Skiftet lykkes kun, hvis omregningen er præcis, og *Slå timeplanlægning til* er markeret.
 - **Varighed** — varigheden af opgaven, i opgavens enhed eller efter *Varighedsvisning*. Kan redigeres: skriv `5d`, `12h` eller `1h 30m`, eller et tal i opgavens enhed. Skrivebeskyttet på en hovedopgave, en hængekøje og en milepæl med varighed 0.
-- **Start** — den viste startdato, samme dato som Gantt-bjælken. Kan redigeres. Giver du en opgave med en foregående opgave en ny start, får opgaven begrænsningen *Start ikke tidligere end (SNET)* på den dato. Skrivebeskyttet på en hovedopgave eller hængekøje, medmindre opgaven er manuelt planlagt.
-- **Slutdato** — den viste slutdato. Kan redigeres: en ny slutdato giver en ny varighed. Appen afviser den for en fuldført opgave, en milepæl, en opgave i forløbet varighed og en opgave med pauser, og for en slutdato før startdatoen (*Slutdatoen ligger før startdatoen*). Skrivebeskyttet på en hovedopgave eller hængekøje, medmindre opgaven er manuelt planlagt.
+- **Start** — den viste startdato, samme dato som Gantt-bjælken. For en opgave, der er startet, er det den faktiske start. Kan redigeres. Giver du en opgave med en foregående opgave en ny start, får opgaven begrænsningen *Start ikke tidligere end (SNET)* på den dato. Skrivebeskyttet på en hovedopgave eller hængekøje, medmindre opgaven er manuelt planlagt, og på en opgave, der er startet (*Denne opgave er startet; startdatoen er en faktisk startdato. Ændr den via fremdriften*).
+- **Slutdato** — den viste slutdato. For en færdig opgave er det en faktisk slutdato. Kan redigeres: en ny slutdato giver en ny varighed. Appen afviser den for en milepæl, en opgave i forløbet varighed og en opgave med splithuller, og for en slutdato før startdatoen (*Slutdatoen ligger før startdatoen*). Skrivebeskyttet på en hovedopgave eller hængekøje, medmindre opgaven er manuelt planlagt, og på en færdig opgave (*Denne opgave er færdig, så slutdatoen er en faktisk slutdato. Ændr den via fremdriften*).
 - **Planlagt start** — ankerpunktet, som beregningen starter fra (ikke nødvendigvis den viste start). Kan redigeres; det har samme effekt som at skrive i *Start*.
 - **Planlagt slutdato** — den indtastede slutdato. Kan kun redigeres på en manuelt planlagt opgave. Ellers siger appen *Planlagt slutdato gælder kun for en manuelt planlagt opgave. Ændr slutdatoen via kolonnen Slutdato eller via varigheden*.
 
@@ -64,11 +64,12 @@ Som standard viser tabellen ved siden af Gantt-diagrammet *WBS*, *Opgavenavn* og
 ## Ressourcer
 
 - **Tildelte ressourcer** — navnene på de tildelte ressourcer, adskilt af komma. Kan redigeres: et navn tilføjes, og ressourcen tildeles med 1 tildelingsenhed pr. dag; et navn fjernes, og tildelingen fjernes. Skrivebeskyttet på en milepæl eller hovedopgave.
-- **Tildelingsenheder pr. dag** — enhederne pr. ressource, som `Navn: 1; Navn: 0.5`. Kan redigeres på en opgave med tildelinger.
+- **Tildelingsenheder pr. dag** — tildelingsenhederne pr. ressource, som `Navn: 1; Navn: 0.5`, med højst to decimaler. Den gemte værdi forbliver nøjagtig. Kan redigeres på en opgave med tildelinger.
+- **Planlagte tildelingsenheder pr. dag** — den planlagte sats pr. ressource, som `Name: 1.11`, med højst to decimaler, ligesom *Tildelingsenheder pr. dag*. Kun for en tildeling fra Primavera P6 med en anden resterende sats; *Tildelingsenheder pr. dag* viser da den resterende sats. Skrivebeskyttet.
 - **Tildelingskurve** — kurven pr. ressource, som `Navn: Uniform`. Kan redigeres på en opgave med tildelinger.
 - **Arbejdsvindue startdato** og **Arbejdsvindue slutdato** — arbejdsvinduet pr. ressource, fra en importeret fil, som `Navn: dato`. Skrivebeskyttet.
-- **Planlagt arbejde (timer)** og **Faktisk arbejde (timer)** — det planlagte og faktiske arbejde pr. ressource i timer, som `Navn: 12`, fra en importeret fil. Skrivebeskyttet.
-- **Resterende arbejde (timer)** — det resterende arbejde pr. ressource i timer, som `Navn: 6`: det gemte arbejde, ellers resterende varighed × tildelingsenheder. Kan redigeres på en opgave med tildelinger, hvor en arbejdsregel gælder. Den vises kun i vælgeren, når arbejdsregler er synlige.
+- **Planlagt arbejde (timer)** og **Faktisk arbejde (timer)** — det planlagte og faktiske arbejde pr. ressource i timer, som `Navn: 617.14`, med højst to decimaler, fra en importeret fil. Skrivebeskyttet.
+- **Resterende arbejde (timer)** — det resterende arbejde pr. ressource i timer, som `Navn: 6` eller `Navn: 26.67`: det gemte arbejde, ellers resterende varighed × tildelingsenheder. Kan redigeres på en opgave med tildelinger, hvor en opgavetype gælder, med komma eller punktum som decimaltegn. Den vises kun i vælgeren, når opgavetyperne er synlige. En gul ⚠ i cellen betyder, at det gemte arbejde afviger fra tildelingsenheder × resterende varighed, som ⚠ ved *Arbejde (rest.)* i opgavepanelet.
 
 ## Fremdrift
 
@@ -87,15 +88,15 @@ Fremdriftskolonnerne følger appens regler for fremdrift: en faktisk dato efter 
 Alle kolonner i denne kategori er skrivebeskyttede.
 
 - **Udjævningsforskydning** — hvor mange arbejdsdage udjævningen forsinkede opgaven. En tankestreg, hvis der ikke er anvendt udjævning.
-- **Tidligste startdato** og **Tidligste slutdato** — de tidligste datoer fra beregningen.
+- **Tidligste startdato** og **Tidligste slutdato** — de tidligste datoer fra beregningen. For en opgave, der er startet, kan de afvige fra *Start* og *Slutdato*: beregningsprofilen *Primavera P6* sætter den tidligste startdato for en opgave, der er i gang eller færdig, på statusdatoen.
 - **Seneste startdato** og **Seneste slutdato** — de seneste datoer, hvor opgaven stadig må begynde eller slutte uden at forsinke projektet.
 - **Tilladt slæk** — de arbejdsdage, opgaven må glide uden at forsinke en efterfølgende opgave.
 - **Samlet slæk** — de arbejdsdage, opgaven må glide uden at forsinke projektslutdatoen. Negativ, hvis en begrænsning eller deadline ikke kan overholdes.
 - **Kritisk** — *Ja*, hvis opgaven ligger på den kritiske vej.
 - **Interfererende slæk** — samlet slæk minus tilladt slæk.
-- **Næsten kritisk** — *Ja* for en næsten kritisk opgave. Feltet udfyldes kun, hvis *Markér næsten kritisk* er slået til (*Projektinfo*, blok *Beregningsprofil og beregningsindstillinger*). Ellers vises en tankestreg.
+- **Næsten kritisk** — *Ja* for en næsten kritisk opgave. Feltet udfyldes kun, hvis *Markér næsten kritisk* er slået til (*Projektindstillinger*, blok *Beregningsprofil og beregningsindstillinger*). Ellers vises en tankestreg.
 - **Slækssti** — nummeret på slækstien; 1 for den mest kritiske. Udfyldes kun, hvis *Flere slækstier* er slået til. Ellers vises en tankestreg.
-- **Kilde for registrerede datoer** — for en fil med registrerede datoer: *Afviger* eller *Delvist ikke registreret*. Vises kun i vælgeren for en sådan fil. På en ikke-registreret akse vises *Ikke registreret* i kolonnerne for seneste datoer og slæk.
+- **Kilde for registrerede datoer** — så længe appen viser datoerne fra filen: *Delvist ikke registreret* på en opgave, hvor filen ikke indeholder alt. Vises kun i vælgeren i den visning. På en ikke-registreret akse vises *Ikke registreret* i kolonnerne for seneste datoer og slæk.
 
 Se [Kritisk vej og slæk](docs://uitleg-kritiek-pad).
 

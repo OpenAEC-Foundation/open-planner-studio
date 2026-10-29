@@ -22,7 +22,7 @@ Tuż przed zainstalowaniem aktualizacji aplikacja tworzy też migawkę do odzysk
 
 ### Samodzielne sprawdzenie nowej wersji
 
-1. Wybierz *Ustawienia › Projekt › Ustawienia*. Możesz też wybrać *Plik › Ustawienia* albo ikonę koła zębatego u góry.
+1. Wybierz *Ustawienia › Projekt › Ustawienia aplikacji*. Możesz też wybrać *Plik › Ustawienia aplikacji* albo ikonę koła zębatego u góry.
 2. Wybierz zakładkę *Zaawansowane*. W sekcji *Wersja* jest numer Twojej bieżącej wersji.
 3. Kliknij *Sprawdź aktualizacje*. Otwiera się okno *Aktualizacja oprogramowania* i pokazuje *Sprawdzanie…*. Potem pokazuje *Korzystasz z najnowszej wersji* albo komunikat, że jest nowa wersja, z tym samym przyciskiem *Pobierz i zainstaluj*.
 
@@ -30,14 +30,14 @@ W przeglądarce ten przycisk nie robi nic szczególnego: okno od razu pokazuje *
 
 ### Przeczytanie, co się zmieniło
 
-1. Jeśli uruchamiasz aplikację desktopową po raz pierwszy w innej wersji niż ostatnio albo po świeżej instalacji, samo otwiera się okno. Okno ma tytuł *Masz najnowszą wersję!*.
-2. Na górze widać przejście z poprzedniej wersji do nowej. Po świeżej instalacji widać tylko nową wersję.
+1. Jeśli uruchamiasz aplikację desktopową po raz pierwszy w innej wersji niż ostatnio, samo otwiera się okno. Okno ma tytuł *Masz najnowszą wersję!* Po świeżej instalacji okno się nie otwiera: pierwsze uruchomienie nie jest aktualizacją. Jeśli chcesz je mimo to zobaczyć, użyj przycisku *Co nowego* (zob. poniżej).
+2. Na górze widać przejście z poprzedniej wersji do nowej. Przyciskiem *Co nowego* widać tylko nową wersję.
 3. Jeśli aplikacja ma wbudowane podsumowanie tej wersji, widzisz jeden główny punkt i cztery mniejsze. Główny punkt może mieć przycisk *Przeczytaj przewodnik*. Inaczej widzisz tylko przejście wersji i to, co jest poniżej.
 4. Przyciskiem *Pełne informacje o wydaniu* otwierasz dziennik zmian na GitHubie. Jeśli to nie działa, pokazuje się komunikat *Nie można otworzyć informacji o wydaniu.*
 5. W sekcji *Ta aktualizacja w liczbach* są: liczba dni od poprzedniego wydania, liczba commitów i liczba dodanych linii kodu. Jeśli aplikacja może sprawdzić, o ile zmienił się rozmiar pakietu instalacyjnego, pokazuje to także. Każda liczba pokazuje się tylko wtedy, gdy jest dostępna.
 6. Kliknij *Rozumiem*, aby zamknąć okno.
 
-Jeśli chcesz zobaczyć to okno jeszcze raz, wybierz *Ustawienia › Projekt › Ustawienia*, zakładkę *Zaawansowane* i w sekcji *Wersja* przycisk *Co nowego*. Okno otworzy się wtedy dla Twojej bieżącej wersji, bez poprzedniej wersji.
+Jeśli chcesz zobaczyć to okno później jeszcze raz, wybierz *Ustawienia › Projekt › Ustawienia aplikacji*, zakładkę *Zaawansowane* i w sekcji *Wersja* przycisk *Co nowego*. Okno otworzy się wtedy dla Twojej bieżącej wersji, bez poprzedniej wersji.
 
 ## Typowe problemy i co wtedy robi aplikacja
 

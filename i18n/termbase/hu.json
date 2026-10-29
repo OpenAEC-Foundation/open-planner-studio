@@ -1794,6 +1794,12 @@
       "tevékenységtípusok",
       "tevékenységtípusokat"
     ],
+    "avoid": [
+      "munkaszabály",
+      "munkaszabályt",
+      "munkaszabályok",
+      "munkaszabályokat"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1952,6 +1958,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "munkanem",
+    "forms": [
+      "munkanem",
+      "munkanemek",
+      "munkanemet",
+      "munkaneme",
+      "munkanemeket"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "munkaórák",
     "forms": [
@@ -1962,17 +1980,6 @@
     ],
     "avoid": [
       "munkarend"
-    ],
-    "source": "model",
-    "status": "arbitrated"
-  },
-  "work-rule": {
-    "term": "munkaszabály",
-    "forms": [
-      "munkaszabály",
-      "munkaszabályt",
-      "munkaszabályok",
-      "munkaszabályokat"
     ],
     "source": "model",
     "status": "arbitrated"

@@ -7,7 +7,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const diffs: string[] = [];
@@ -18,8 +18,24 @@ const ok = (label: string, condition: boolean, detail = '') => {
 };
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(root, 'scripts', 'verify-conventions.mjs');
-const run = (checkRoot: string, extra: string[] = []) =>
+/** De poort als CLI, in een eigen Node-proces: de echte route van `npm run verify:conventions`. */
+const runCli = (checkRoot: string, extra: string[] = []) =>
   spawnSync(process.execPath, [script, '--root', checkRoot, ...extra], { cwd: root, encoding: 'utf8' });
+// De fixtures draaien de poort in dit proces (`verifyConventions`, dezelfde functie als achter de CLI,
+// met dezelfde exitcode en uitvoer). Per fixture een nieuwe Node + TypeScript kostte het grootste deel
+// van de looptijd (testaudit 2026-10-20, rapport E). Twee CLI-proeven (01 en 03) houden de CLI-route zelf
+// bewaakt. Het pad is niet-letterlijk, zodat esbuild de poort niet in de bundel trekt: hij laadt uit de
+// repository, met zijn eigen `import.meta.url` (nodig voor de registerterugval van regel 5).
+type GateResult = { status: number; stdout: string; stderr: string };
+const gate = await import(pathToFileURL(script).href) as { verifyConventions: (args: string[]) => GateResult };
+const run = (checkRoot: string, extra: string[] = []): GateResult => {
+  try {
+    return gate.verifyConventions(['--root', checkRoot, ...extra]);
+  } catch (error) {
+    // Zoals een CLI-crash: rood, met de fout in stderr.
+    return { status: 1, stdout: '', stderr: error instanceof Error ? (error.stack ?? error.message) : String(error) };
+  }
+};
 function fixture(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'ops-conventions-'));
   for (const [rel, source] of Object.entries(files)) {
@@ -53,9 +69,13 @@ const CLEAN = [
 const LEAK = "export const leak = (o: { schedulingOptions: { p6Source?: string } }) => o.schedulingOptions.p6Source === 'XER';";
 
 // 1. De echte repository (pin gezet na C3, zonder allowlist).
-const real = run(root);
+const real = runCli(root);
 ok('01 actuele conventiegrens is groen', real.status === 0, `${real.stdout}${real.stderr}`.trim());
 ok('01a geen tijdelijke allowlist meer', !real.stdout.includes('tijdelijke allowlist'), real.stdout.trim());
+const realInProcess = run(root);
+ok('01-in-proces groene uitkomst is gelijk aan de CLI (exitcode, stdout, stderr)',
+  realInProcess.status === real.status && realInProcess.stdout === real.stdout && realInProcess.stderr === real.stderr,
+  `${realInProcess.stdout}${realInProcess.stderr}`.trim());
 
 // 2. Commentaar en strings zijn geen lek; één datagate-lezing binnen de pin.
 withFixture({ [ENGINE]: CLEAN, [PIN]: JSON.stringify({ p6ProjectId: 1 }) }, dir => {
@@ -65,9 +85,13 @@ withFixture({ [ENGINE]: CLEAN, [PIN]: JSON.stringify({ p6ProjectId: 1 }) }, dir 
 
 // 3. Een p6Source-lezing in de motor.
 withFixture({ [ENGINE]: LEAK, [PIN]: '{}' }, dir => {
-  const r = run(dir);
+  const r = runCli(dir);
   const out = `${r.stdout}${r.stderr}`;
   ok('03 p6Source-lezing ⇒ rood', r.status !== 0, out.trim());
+  const inProcess = run(dir);
+  ok('03-in-proces rode uitkomst is gelijk aan de CLI (exitcode, stdout, stderr)',
+    inProcess.status === r.status && inProcess.stdout === r.stdout && inProcess.stderr === r.stderr,
+    JSON.stringify({ cli: r.status, inProcess: inProcess.status }));
   ok('03a rapport noemt bestand en naam', out.includes('src/engine/scheduler/fixture.ts') && out.includes('p6Source'), out.trim());
 });
 

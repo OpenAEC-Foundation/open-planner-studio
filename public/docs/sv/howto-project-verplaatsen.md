@@ -42,20 +42,20 @@ Förskjuts inte:
 
 **Slutet flyttas med ett annat antal dagar.** Ser förhandsvisningen att slutet flyttas med fler eller färre kalenderdagar än starten, eller att projektets varaktighet i arbetsdagar ändras, visar den en röd varning med siffrorna. Du kan då fortfarande avbryta.
 
-**Baslinjerna blir kvar på sin plats.** En baslinje finns för att mäta avvikelser. Flyttar du projektet med kryssrutan avmarkerad ser du förskjutningen som avvikelse från baslinjen. Markerar du kryssrutan förskjuts baslinjerna med tidsplanen. Bara deras datum förskjuts. Datumet då baslinjen sparades förskjuts inte.
+**Baslinjerna står kvar där de är.** En baslinje finns för att mäta avvikelser. Flyttar du projektet med kryssrutan avmarkerad ser du förskjutningen som avvikelse från baslinjen. Markerar du kryssrutan förskjuts baslinjerna med tidsplanen. Bara deras datum förskjuts. Datumet då baslinjen sparades förskjuts inte.
 
 **Ett pågående projekt.** Verkliga datum förskjuts med. I ett projekt där du redan har angett framdrift är det inte alltid det du vill. Appen varnar: *Kontrollera om det är rätt för ett pågående projekt.*
 
-**Externa samband.** Ankaret i ditt eget projekt förskjuts med, källprojektet gör det inte. Uppdatera länkarna efter flytten med *Start › Uppgifter › Länka ▾ › Uppdatera alla externa samband*. Se [Externa samband till ett annat projekt](docs://howto-externe-relaties).
+**Externa samband.** Ankaret i ditt eget projekt förskjuts med, källprojektet gör det inte. Uppdatera länkarna efter flytten med *Start › Uppgifter › Samband ▾ › Uppdatera alla externa samband*. Se [Externa samband till ett annat projekt](docs://howto-externe-relaties).
 
-**Helgdagar som inte räcker tillräckligt långt.** En kalender med genererade helgdagar täcker ett antal år. Går den förskjutna tidsplanen längre än så, beräknar appen det året utan helgdagar. Förhandsvisningen varnar för det, till exempel: *De genererade helgdagarna i kalendern “Bouwkalender NL” täcker 2025–2029; den förskjutna tidsplanen sträcker sig till 2030. Generera helgdagarna igen.* Flytta projektet först. Öppna sedan *Tidsplan › Kalender › Kalender*: bredvid helgdagarna står nu *Generera om*. Bekräfta med *Tillämpa* och appen beräknar om. De nya helgdagarnas intervall följer projektdatumen, så det hjälper inte att generera om före flytten.
+**Helgdagar som inte räcker tillräckligt långt.** En kalender med genererade helgdagar täcker ett antal år. Går den förskjutna tidsplanen längre än så, beräknar appen det året utan helgdagar. Förhandsvisningen varnar för det, till exempel: *De genererade helgdagarna i kalendern ”Bouwkalender NL” täcker 2025–2029; den förskjutna tidsplanen sträcker sig till 2030. Generera helgdagarna igen.* Flytta projektet först. Öppna sedan *Tidsplan › Kalender › Kalender*: bredvid helgdagarna står nu *Generera om*. Bekräfta med *Tillämpa* och appen beräknar om. De nya helgdagarnas intervall följer projektdatumen, så det hjälper inte att generera om före flytten.
 
 **Datumet ligger i det förflutna.** Det är tillåtet, men förhandsvisningen nämner det: *Det nya startdatumet ligger i det förflutna.*
 
-**Att ändra projektstarten i Projektinfo är något annat.** Ändrar du startdatumet i *Inställningar › Projekt › Projektinfo* och väljer *Tillämpa*, flyttas inte tidsplanen. Bara uppgifter utan föregående uppgift eller restriktion som då skulle ligga före den nya starten flyttas till det datumet, och appen berättar hur många. Vill du förskjuta allt, använd *Flytta projekt…*.
+**Att ändra projektstarten i Projektinställningar är något annat.** Ändrar du startdatumet i *Inställningar › Projekt › Projektinställningar* och väljer *Tillämpa*, flyttas inte tidsplanen. Bara uppgifter utan föregående uppgift eller restriktion som då skulle ligga före den nya starten flyttas till det datumet, och appen berättar hur många. Vill du förskjuta allt, använd *Flytta projekt…*.
 
 ## Se också
 
 - [Kritisk linje och slack](docs://uitleg-kritiek-pad): hur tidsplanen beräknas och varför slutet flyttas.
-- [Lägga till samband](docs://howto-relaties-leggen): samband blir helt enkelt kvar på sin plats när du flyttar.
-- [Nytt projekt och Projektinfo](docs://ref-projectinfo): vad startdatumet i Projektinfo gör.
+- [Lägga till samband](docs://howto-relaties-leggen): samband står helt enkelt kvar där de är när du flyttar.
+- [Nytt projekt och Projektinställningar](docs://ref-projectinfo): vad startdatumet i Projektinställningar gör.

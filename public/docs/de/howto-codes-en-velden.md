@@ -36,9 +36,9 @@ Für die Balkenfarbe wählen Sie *Ansicht › Baselines & Fortschritt › Balken
 
 ## Fallstricke und was die App tut
 
-**Löschen entfernt die Werte an den Vorgängen.** Wenn Sie einen Codetyp, einen Wert oder ein Feld über das Papierkorbsymbol löschen, fragt die App nicht nach. Die Zuordnungen an allen Vorgängen verschwinden damit. Eine Gruppierung oder Sortierung nach diesem Codetyp oder Feld entfällt ebenfalls. *Rückgängig* (Strg+Z) bringt den Codetyp, den Wert oder das Feld und die ausgefüllten Werte zurück, aber nicht die Gruppierung oder Sortierung. Die richten Sie erneut ein.
+**Löschen entfernt die Werte an den Vorgängen.** Wenn Sie einen Codetyp, einen Wert oder ein Feld über das Papierkorbsymbol löschen, fragt die App nicht nach. Die Zuweisungen an allen Vorgängen verschwinden damit. Eine Gruppierung oder Sortierung nach diesem Codetyp oder Feld entfällt ebenfalls. *Rückgängig* (Strg+Z, schließen Sie zuerst das Fenster) bringt den Codetyp, den Wert oder das Feld und die ausgefüllten Werte zurück, aber nicht die Gruppierung oder Sortierung. Die richten Sie erneut ein.
 
-**Zwei Werte mit demselben Code.** *Wert hinzufügen* zählt ab der Anzahl der vorhandenen Werte weiter. Wenn Sie einen Wert löschen und einen hinzufügen, kann ein Code daher zweimal vorkommen. Tippen Sie diesen Code in eine Zelle der Spalte ein, lehnt die App ab mit *Dieser Aktivitätscode-Wert kommt mehrfach vor. Wählen Sie ihn aus der Liste.* Geben Sie jedem Wert einen eigenen Code.
+**Zwei Werte mit demselben Code.** *Wert hinzufügen* zählt ab der Anzahl der vorhandenen Werte weiter. Wenn Sie einen Wert löschen und einen hinzufügen, kann ein Code daher zweimal vorkommen. Wenn Sie diesen Code in eine Zelle der Spalte eintippen, lehnt die App ihn mit *Dieser Aktivitätscode-Wert kommt mehrfach vor. Wählen Sie ihn aus der Liste.* ab. Geben Sie jedem Wert einen eigenen Code.
 
 **Vorlagen übernehmen Codes und Felder nicht.** Siehe [Speichern und Einfügen von PSP-Vorlagen](docs://howto-wbs-sjablonen). Wenn Sie Vorgänge in ein anderes Dokument einfügen, entfernt die App Codes und Felder, die es dort nicht gibt, und meldet das.
 

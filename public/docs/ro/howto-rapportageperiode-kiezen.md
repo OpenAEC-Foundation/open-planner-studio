@@ -41,7 +41,7 @@ Cu *Personalizat*, *De la* și *Până la* devin două câmpuri de dată. Ele po
 
 ### 5. Citiți perioada în raport
 
-Pentru Look-ahead, Încărcarea resurselor și Atribuiri de resurse perioada se află sub titlu, de exemplu *Perioadă: 20-05-2027 – 19-06-2027*. Dacă alegeți *Durata proiectului*, în spatele datelor se adaugă *Durata proiectului*. Raportul de progres arată perioada în rezumat, la *Perioadă*. Diagrama resurselor lasă axa de timp să se întindă exact peste perioadă.
+Pentru Look-ahead, Încărcarea resurselor și Atribuiri de resurse perioada se află sub titlu, de exemplu *Perioadă: 20-05-2027 – 19-06-2027*. Dacă alegeți *Durata proiectului*, după date se adaugă *Durata proiectului*. Raportul de progres arată perioada în rezumat, la *Perioadă*. Diagrama resurselor lasă axa de timp să se întindă exact peste perioadă.
 
 ### Ce face perioada pentru fiecare raport
 

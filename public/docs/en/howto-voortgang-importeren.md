@@ -28,8 +28,8 @@ The Excel sheet is protected, without a password: only the three fill-in columns
 
 For each task the site manager fills in:
 
-- `Completion (%)`: 0 up to and including 100. In the Excel sheet decimals are allowed (for example 33.3); in the CSV the instruction asks for whole numbers.
-- `Actual Start` and `Actual Finish`: in Excel as a date in your own regional setting; in the CSV as dd-mm-yyyy.
+- `Completion (%)`: 0 up to and including 100. The app also reads decimals, with a comma or a point (for example 33,3 or 33.3). The instruction in the CSV still asks for whole numbers: a spreadsheet with a different regional setting can read 8,38 as 838.
+- `Actual Start` and `Actual Finish`: in Excel as a date in your own regional setting; in the CSV as dd-mm-yyyy or as yyyy-mm-dd.
 
 Whatever stays empty changes nothing. So an empty cell does not clear existing progress either; that can only be done in the app. A task that has not started, he leaves completely empty.
 
@@ -53,7 +53,7 @@ The app links every row to a task, first on `OPS Task ID` and otherwise on the W
 
 **Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* takes the row out of this list; it changes nothing about what is applied. *Change* lets you choose another task. With *Clear link* you remove a link you made yourself. Note: a sheet from another project with the same WBS numbers is linked after all, under *Link is uncertain*, and applied when you click *Apply*.
 
-**Waiting for a link.** If the app found no task, or several with the same WBS number, the row is under *Waiting for a link*. At *Choose a task…* choose the right task; you search by WBS number or name. If you do not link it, the row is refused.
+**Waiting for a link.** If the app found no task, or several with the same WBS number, the row is under *Waiting for a link*. The preview already explains why: *No task found for this row.* or *This WBS code occurs on multiple tasks — link the row by hand.* You also see the row number and, if supplied, the `OPS Task ID` from the sheet. If WBS and name are missing, that ID appears at the top of the row. At *Choose a task…* choose the right task; you search by WBS number or name. If you do not link it, the row is refused. A duplicate row appears separately with *Another row already claimed this task.*
 
 ## Pitfalls and what the app does
 

@@ -28,7 +28,7 @@ Změňte název v seznamu. Změna se použije ihned. Nemusíte klikat na *Uloži
 
 ### Odstranění směrného plánu
 
-Klikněte na malou ikonu koše vedle směrného plánu v seznamu. Pokud odstraníte aktivní směrný plán, aplikace se zeptá: *Smazat aktivní směrný plán?*. Poté se nejnovější zbývající směrný plán stane aktivním. Pokud žádný další není, žádný směrný plán už není aktivní a překryv zmizí. Pomocí Ctrl+Z obnovíte smazaný směrný plán.
+Klikněte na malou ikonu koše vedle směrného plánu v seznamu. Pokud odstraníte aktivní směrný plán, aplikace se zeptá: *Smazat aktivní směrný plán?*. Poté se nejnovější zbývající směrný plán stane aktivním. Pokud žádný další není, žádný směrný plán už není aktivní a překryv zmizí. Smazaný směrný plán obnovíte pomocí Ctrl+Z. Nejdřív okno zavřete; Ctrl+Z v okně nefunguje.
 
 ### Odchylky v tabulce úkolů
 
@@ -38,9 +38,11 @@ Každý směrný plán má v tabulce úkolů šest sloupců. Klikněte na **+** 
 
 **Zastaralý plán.** Pokud je plán zastaralý, okno zobrazí *Plán je zastaralý — nejdřív přepočítat (F5)*. Jde o varování; uložení zůstává možné. Uložíte pak ale stará data. Zavřete okno, stiskněte **Přepočítat** a teprve potom uložte.
 
-**Směrný plán s průběhem.** Pokud uložíte směrný plán poté, co zadáte průběh, zaznamená stav s těmito skutečnými daty. Odchylka je pak nulová a o provádění už nic neříká. Směrný plán uložte dříve, než začnou stavební práce.
+**Směrný plán s průběhem.** Pokud uložíte směrný plán poté, co zadáte průběh, zaznamená stav s těmito skutečnými daty. Odchylka je pak nulová a o provádění už nic neříká. Směrný plán uložte dříve, než začne provádění.
 
 **Směrný plán nejde upravit.** Pokud chcete dohodu změnit, uložte nový směrný plán a případně odstraňte starý.
+
+**Symbol ⚠ u doby trvání nebo odchylky doby trvání.** U úkolu v hodinách je den pracovní doba jeho kalendáře. Pokud kalendář má vlastní počet hodin na den (například 8 u bloků po 10 hodinách, z Primavera P6), starší verze aplikace počítala dny jinak. Směrný plán z té verze si zachová starý počet: úkol s dobou trvání 1870 hodin má ve směrném plánu 233,75 dne a nyní 187 dnů. Aplikace takový směrný plán nepřevádí. Sloupce *Doba trvání* a *Odchylka doby trvání* toho směrného plánu pak ukážou ⚠. Najeďte na něj myší pro vysvětlení. Data směrného plánu jsou správná. Uložte nový směrný plán a případně odstraňte starý.
 
 **Jen úkoly bez dílčích úkolů.** Fáze není součástí směrného plánu: nemá pruh směrného plánu ani odchylku. Fáze vychází z úkolů pod ní.
 

@@ -13,7 +13,7 @@ Ihr Terminplan ist eine Baumstruktur: Phasen (Sammelvorgänge) mit Teilvorgänge
 1. Wählen Sie den Vorgang aus. Sie können auch mehrere Vorgänge auswählen.
 2. Wählen Sie *Planung › Struktur › Tiefer stufen*. Sie können auch Alt+→ (oder Alt+Umschalt+→) verwenden oder *Einrücken* im Kontextmenü (rechte Maustaste).
 
-Der Vorgang wird der letzte Teilvorgang des vorherigen Vorgangs auf derselben Ebene. Dieser Vorgang wird dadurch zum Sammelvorgang. Wenn Sie einen zusammenhängenden Block auswählen, wird der Block als Ganzes tiefer gestuft. Gibt es vor dem Vorgang keinen Vorgang auf derselben Ebene, geschieht nichts. Es erscheint keine Meldung.
+Der Vorgang wird der letzte Teilvorgang des vorherigen Vorgangs auf derselben Ebene. Der vorherige Vorgang wird dadurch zum Sammelvorgang. Wenn Sie einen zusammenhängenden Block auswählen, wird der Block als Ganzes tiefer gestuft. Gibt es vor dem Vorgang keinen Vorgang auf derselben Ebene, geschieht nichts. Es erscheint keine Meldung.
 
 ### Einen Vorgang ausrücken
 
@@ -26,7 +26,7 @@ Der Vorgang wird zum Vorgang auf derselben Ebene, direkt nach der Phase, unter d
 Sie haben drei Möglichkeiten.
 
 - **Mit der Tastatur.** Alt+↑ und Alt+↓ tauschen den Vorgang mit seinem Nachbarn auf derselben Ebene. Ein Sammelvorgang nimmt seine Teilvorgänge mit. Am Anfang oder Ende der Ebene geschieht nichts. Bei mehreren ausgewählten Vorgängen verschiebt sich nur der Vorgang, den Sie zuerst angeklickt haben.
-- **Ziehen in der Vorgangstabelle.** Drücken Sie auf eine Zeile und ziehen Sie senkrecht. Das obere Viertel einer Zeile bedeutet *vor*, das untere Viertel *nach*. Die Mitte eines Sammelvorgangs hängt den Vorgang als letzten Teilvorgang darunter. Die Mitte eines normalen Vorgangs gilt als die nächstgelegene Kante. Ziehen Sie eine Zeile, die zu einer Mehrfachauswahl gehört, dann verschiebt sich die ganze Auswahl.
+- **Ziehen in der Vorgangstabelle.** Halten Sie die Maustaste auf einer Zeile gedrückt und ziehen Sie senkrecht. Das obere Viertel einer Zeile bedeutet *vor*, das untere Viertel *nach*. Die Mitte eines Sammelvorgangs hängt den Vorgang als letzten Teilvorgang darunter. Die Mitte eines normalen Vorgangs gilt als die nächstgelegene Kante. Ziehen Sie eine Zeile, die zu einer Mehrfachauswahl gehört, dann verschiebt sich die ganze Auswahl.
 - **Ziehen im Gantt-Diagramm.** Ziehen Sie den Balken senkrecht auf eine andere Zeile. Das wirkt wie Ziehen in der Vorgangstabelle und ändert keine Termine. Ziehen Sie waagerecht, dann verschieben Sie stattdessen die Termine.
 
 Jede Verschiebung zählt als ein Schritt für *Rückgängig* (Strg+Z).
@@ -35,22 +35,32 @@ Jede Verschiebung zählt als ein Schritt für *Rückgängig* (Strg+Z).
 
 Schauen Sie auf die Schaltfläche *PSP auto* in *Planung › Struktur*.
 
-- **Ein (der Standard in einem neuen Projekt).** Die App nummeriert den ganzen Baum bei jedem Hinzufügen, Löschen und Verschieben neu. Der PSP-Code ist dann schreibgeschützt: Sie können ihn nicht in der Vorgangstabelle oder im Bereich *Eigenschaften* eintippen. *PSP neu nummerieren* ist deaktiviert.
-- **Aus.** Die Codes bleiben gleich, auch nach dem Verschieben und Einrücken. Sie tippen sie selbst ein, in der Spalte *PSP* oder im Feld *PSP-Code* im Bereich *Eigenschaften*. Oder Sie lassen sie einmal mit *PSP neu nummerieren* neu nummerieren. Das überschreibt auch Codes, die Sie selbst eingetippt haben.
+- **Ein (der Standard in einem neuen Projekt).** Auch nach dem Öffnen einer Datei ohne diese Einstellung ist sie *an*, wenn alle PSP-Codes schon zur Nummerierung des Baums passen (1, 1.1, 1.2 …). Die Codes ändern sich nicht. Auch eine leere Datei ohne diese Einstellung erhält *an*, genau wie ein neues Projekt. Die App nummeriert den ganzen Baum bei jedem Hinzufügen, Löschen und Verschieben neu. Der PSP-Code ist dann schreibgeschützt: Sie können ihn nicht in der Vorgangstabelle oder im Bereich *Eigenschaften* eintippen. *PSP neu nummerieren* ist deaktiviert.
+- **Aus.** Der Standard in einer Datei mit eigenen Codes, etwa *A1000*, oder mit einem Code, der vom Baum abweicht. Die Codes bleiben gleich, auch nach dem Verschieben und Einrücken. Sie tippen sie selbst ein, in der Spalte *PSP* oder im Feld *PSP-Code* im Bereich *Eigenschaften*. Oder Sie lassen sie einmal mit *PSP neu nummerieren* neu nummerieren. Das überschreibt auch Codes, die Sie selbst eingetippt haben.
 
 Wenn Sie *PSP auto* einschalten, nummeriert die App den Baum sofort. Sowohl *PSP auto* als auch *PSP neu nummerieren* lassen sich mit *Rückgängig* zurücknehmen.
 
 ## Stolperfallen und was die App tut
 
-**Filtern, Gruppieren oder Sortieren ist aktiv.** Die Reihenfolge, die Sie sehen, ist dann nicht die Reihenfolge des Terminplans. Deshalb sperrt die App die Struktur. *Tiefer stufen* und *Höher stufen* sind deaktiviert, mit dem Hinweis *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*. Alt+→ und Ziehen zeigen denselben Text in einem Streifen mit der Schaltfläche *Leeren*. Damit entfernen Sie Filter, Gruppierung und Sortierung auf einmal. Strg+Z stellt sie nicht wieder her. *Einrücken* und *Ausrücken* fehlen dann im Kontextmenü.
+**Filtern, Gruppieren oder Sortieren ist aktiv.** Die Reihenfolge, die Sie sehen, ist dann nicht die Reihenfolge des Terminplans. Deshalb sperrt die App die Struktur. *Einrücken* und *Ausrücken* sind deaktiviert, mit dem Hinweis *Nicht verfügbar während des Filterns/Gruppierens/Sortierens*. Alt+→ und Ziehen zeigen denselben Text in einem roten Streifen mit der Schaltfläche *Leeren*. Damit entfernen Sie Filter, Gruppierung und Sortierung auf einmal. Strg+Z stellt sie nicht wieder her. Der Streifen bleibt, bis Sie auf das Kreuz klicken, Strg+Z oder Strg+Y verwenden oder zu einem anderen Dokument wechseln. *Einrücken* und *Ausrücken* fehlen dann im Kontextmenü.
 
 Alt+↑ und Alt+↓ funktionieren in einer solchen Ansicht trotzdem, ohne Meldung. Bei nur einem Filter sehen Sie die neue Reihenfolge sofort. Bei einer Sortierung ändert sich die Reihenfolge im Terminplan zwar, Sie sehen das aber erst nach *Leeren*.
 
-**PSP auto ist aus.** Ein neuer Vorgang erhält den Code, der zu seinem Platz im Baum passt, auch wenn ein anderer Vorgang diesen Code schon hat. So können doppelte Nummern entstehen. Auch nach dem Einrücken passen die Codes nicht mehr zum Baum. *PSP neu nummerieren* behebt beides.
+**PSP auto ist aus.** Das passiert bei einer Datei mit eigenen Codes oder bei einer Datei, die die Einstellung als *aus* speichert. Ein neuer Vorgang erhält den Code, der zu seinem Platz im Baum passt, auch wenn ein anderer Vorgang diesen Code schon hat. So können doppelte Nummern entstehen. Auch nach dem Einrücken passen die Codes nicht mehr zum Baum. *PSP neu nummerieren* behebt beides.
 
 **Ein Meilenstein erhält Teilvorgänge.** Ein Meilenstein ist ein Zeitpunkt und hat keine Teilvorgänge. Die App entfernt die Meilenstein-Markierung und meldet das.
 
-**Ein Vorgang mit Zuweisungen erhält Teilvorgänge.** Ein Sammelvorgang trägt selbst keine Zuweisungen. Die App verschiebt sie zum ersten neuen Teilvorgang, der sie tragen kann, und meldet das. Gibt es keinen solchen Teilvorgang, oder hat er schon dieselbe Ressource, dann geschieht nichts. Die Meldung sagt, warum.
+**Ein Vorgang mit Zuweisungen erhält Teilvorgänge.** Ein Sammelvorgang trägt selbst keine Zuweisungen. Die App fragt deshalb zuerst, was damit geschehen soll, im Fenster *Vorgang wird zum Sammelvorgang*. Das passiert, wenn Sie einen Vorgang einrücken, bei einem Vorgang *Teilvorgang hinzufügen* oder *Meilenstein hinzufügen* verwenden, eine Vorlage einfügen oder im Fenster *Vorgang bearbeiten* im Feld *Übergeordneter Vorgang* einen neuen Vorgang wählen: für einen vorhandenen Vorgang und für einen neuen Vorgang. Im Fenster *Vorgang bearbeiten* kommt die Frage vor dem Speichern. Wenn Sie dort *Abbrechen* wählen, bleibt *Vorgang bearbeiten* mit Ihren Änderungen geöffnet. Sie wählen:
+
+- *Abbrechen*: Nichts ändert sich, auch die Struktur bleibt wie sie war.
+- *Zuweisung entfernen*: Der Vorgang erhält Teilvorgänge, und seine Zuweisungen werden entfernt. Die Ist-Arbeit dieser Zuweisungen wird ebenfalls entfernt.
+- *Verschieben nach „…“*: Die Zuweisungen gehen mit ihrer Ist-Arbeit zum ersten neuen Teilvorgang, der sie tragen kann. Ein Meilenstein oder ein Sammelvorgang trägt keine Zuweisungen.
+
+Wenn dieser Teilvorgang schon dieselbe Ressource hat oder es keinen geeigneten Teilvorgang gibt, ist *Verschieben* deaktiviert. Ein oranger Block im Fenster sagt Ihnen, warum.
+
+Wenn eine Zuweisung schon Ist-Arbeit hat, zeigt der orange Block pro Ressource, wie viele Stunden es sind, zum Beispiel: *Auf der Zuweisung von Metselaar sind bereits 8 Stunden Ist-Arbeit erfasst. Beim Entfernen geht diese Arbeit verloren.* *Abbrechen* ist dann die Standardschaltfläche: Enter ändert nichts. Wenn Sie die Zuweisung trotzdem entfernen wollen, klicken Sie selbst auf *Zuweisung entfernen*.
+
+Solange das Fenster offen ist, funktioniert kein Tastenkürzel außerhalb des Fensters, auch nicht *Rückgängig*, *Einfügen*, Entf, F5 und Strg+S. Wenn eine Aktion auf einmal mehrere Sammelvorgänge erzeugt, zeigt das Fenster die Ressourcen pro Vorgang. Ihre Wahl gilt dann für alle. Mit *Rückgängig* (Strg+Z) machen Sie die ganze Aktion rückgängig.
 
 **Eine Beziehung würde einen Zyklus erzeugen.** Die Beziehungen eines Sammelvorgangs gelten auch für seine Teilvorgänge. Würde eine Verschiebung dadurch einen Zyklus erzeugen, lehnt die App sie ab. Die Meldung lautet *Diese Verschiebung würde einen Zyklus im Terminplan erzeugen (…)*. Nichts ändert sich.
 

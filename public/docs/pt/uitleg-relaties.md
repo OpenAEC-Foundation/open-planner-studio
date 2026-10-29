@@ -37,7 +37,7 @@ Um desfasamento pode ser indicado de quatro formas:
 - Em **dias úteis** (`3` ou `3d`): a aplicação salta os dias de folga e os fins de semana. Este é o padrão.
 - Em **dias de calendário** (`3ed`, o e vem de *elapsed*, que significa tempo decorrido): conta cada dia, incluindo sábado e domingo. Esta é a unidade para algo que continua sem que se faça trabalho, como a cura.
 - Como **percentagem** da duração da predecessora (`40%`): a aplicação volta a calcular isto em cada cálculo e arredonda para dias inteiros (2,5 dias passam a 3).
-- Em **horário de trabalho** (`4h`): a aplicação conta o desfasamento no calendário de atraso, por padrão o da predecessora. Se a predecessora for uma tarefa em dias num calendário sem faixas de tempo de trabalho próprias, como o calendário padrão, a aplicação converte as horas em dias úteis inteiros, arredondados para o dia inteiro mais próximo (meio dia sobe). Com um dia útil de 8 horas, `2h` e `3h` dão, portanto, 0 dias, `4h` até `11h` inclusive dão 1 dia e `12h` dá 2 dias. Se esse calendário tiver faixas de tempo de trabalho próprias, ou se a predecessora for uma tarefa horária, o desfasamento conta exatamente em horas de trabalho.
+- Em **horário de trabalho** (`4h`): a aplicação conta o desfasamento no calendário de atraso, por padrão o da predecessora. Se a predecessora for uma tarefa em dias num calendário sem faixas de tempo de trabalho próprias, como o calendário normal, a aplicação converte as horas em dias úteis inteiros, arredondados para o dia inteiro mais próximo (meio dia sobe). Com um dia útil de 8 horas, `2h` e `3h` dão, portanto, 0 dias, `4h` até `11h` inclusive dão 1 dia e `12h` dá 2 dias. Se esse calendário tiver faixas de tempo de trabalho próprias, ou se a predecessora for uma tarefa horária, o desfasamento conta exatamente em horas de trabalho.
 
 A regra para um desfasamento de N dias úteis com FS: os N dias úteis depois do fim da predecessora são tempo de espera, e a sucessora começa no dia útil seguinte. Com SS e FF, o desfasamento é somado ao início e ao fim da predecessora, respetivamente. Um desfasamento negativo conta para trás: um avanço de 1 dia útil com FS faz com que a sucessora comece no dia em que a predecessora termina.
 
@@ -45,9 +45,9 @@ Um avanço não pode pôr uma tarefa antes do início do projeto. Se isso aconte
 
 ### Em que calendário conta o desfasamento
 
-Cada tarefa pode ter o seu próprio calendário. Com um desfasamento em dias úteis, importa qual calendário conta os dias úteis. A definição *Calendário de atraso* decide isso, com quatro opções: *Predecessora*, *Sucessora*, *24 horas* e *Calendário do projeto*. Por padrão, o desfasamento conta no calendário da **predecessora**. Encontra a definição em *Definições › Projeto › Info do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*. A escolha pertence ao ficheiro do projeto e só conta depois de clicar em *Aplicar*; o planeamento é então recalculado.
+Cada tarefa pode ter o seu próprio calendário. Com um desfasamento em dias úteis, importa qual calendário conta os dias úteis. A definição *Calendário de atraso* decide isso, com quatro opções: *Predecessora*, *Sucessora*, *24 horas* e *Calendário do projeto*. Por padrão, o desfasamento conta no calendário da **predecessora**. Encontra-a em *Definições › Projeto › Definições do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*. A escolha pertence ao ficheiro do projeto e só conta depois de clicar em *Aplicar*; o planeamento é então recalculado.
 
-Um desfasamento em dias de calendário (`3ed`) conta sempre todos os dias, qualquer que seja o *Calendário de atraso* que escolher.
+Um desfasamento em dias de calendário (`3ed`) conta sempre todos os dias, qualquer que seja o *Calendário de atraso* escolhido.
 
 ### Relações em tarefas de resumo
 
@@ -62,7 +62,7 @@ Não é permitida uma relação entre uma tarefa e a fase em que está inserida.
 
 ### Relações determinantes
 
-Se uma sucessora tiver várias predecessoras, normalmente uma relação determina a sua data de início: a relação que impede a sucessora de começar um único dia mais cedo do que começa agora. Uma relação assim chama-se **relação determinante**. Em caso de empate, há várias relações determinantes. Reconhece uma relação determinante pelo símbolo de relâmpago nas colunas *Predecessoras* e *Sucessoras* da tabela, pela coluna *Determinante* (o **+** à direita do cabeçalho da tabela, em *Relações*) e pela tonalidade mais forte quando segue um caminho. Como abrir esse caminho está em [Traçar um caminho](docs://howto-pad-traceren).
+Se uma sucessora tiver várias predecessoras, normalmente uma relação determina a sua data de início: a relação que impede a sucessora de começar um único dia mais cedo do que começa agora. Uma relação assim chama-se **relação determinante**. Em caso de empate, há várias relações determinantes. Reconhece uma relação determinante pelo símbolo de relâmpago nas colunas *Predecessoras* e *Sucessoras* da tabela, pela coluna *Determinante* (o **+** à direita do cabeçalho da tabela, em *Relações*) e pela tonalidade mais forte quando traça um caminho. Como abrir esse caminho está em [Traçar um caminho](docs://howto-pad-traceren).
 
 A relação determinante diz algo sobre datas, não sobre duração. Uma predecessora curta também pode ser determinante, por exemplo por causa de um desfasamento longo; vê isso no exemplo abaixo.
 

@@ -254,8 +254,21 @@ export function calendarWithEffectiveWorkTime(calendar: WorkCalendar): WorkCalen
   return workTime ? { ...calendar, workTime } : undefined;
 }
 
-/** Kalenderweergave voor consumenten die een CalendarEngine bouwen: effectieve banden waar die
- * bestaan, anders de oorspronkelijke (bijvoorbeeld ongeldig of zuiver dag-granulair) kalender. */
+/** Afgeleide werkblokken blijven aan hun scalaire bron gekoppeld (T11). */
+const engineCalendars = new WeakMap<WorkCalendar, WorkCalendar>();
+const scalarEngineCalendars = new WeakSet<WorkCalendar>();
+
+export function calendarHasOwnWorkBlocks(calendar: WorkCalendar): boolean {
+  return calendar.workTime !== undefined && !scalarEngineCalendars.has(calendar);
+}
+
+/** Eén niet-muterende engineweergave per kalender, met gedeelde bandcache. */
 export function calendarForEngine(calendar: WorkCalendar): WorkCalendar {
-  return calendarWithEffectiveWorkTime(calendar) ?? calendar;
+  if (calendar.workTime) return calendar;
+  const cached = engineCalendars.get(calendar);
+  if (cached) return cached;
+  const effective = calendarWithEffectiveWorkTime(calendar) ?? calendar;
+  if (effective !== calendar) scalarEngineCalendars.add(effective);
+  engineCalendars.set(calendar, effective);
+  return effective;
 }

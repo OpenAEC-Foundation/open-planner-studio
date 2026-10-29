@@ -287,6 +287,32 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
     [['blad', false], ['kring-a', true], ['kring-b', true]]);
 }
 
+// 168: de boomwandeling volgt childIds (anders dan WBS-nummering), sorteert per siblinggroep
+// en bezoekt verborgen nakomelingen. Een dubbele verwijzing, kring en ontbrekend kind blijven veilig.
+{
+  const root = { ...task('wortel'), childIds: ['b', 'a', 'weg', 'b'] };
+  const a = { ...task('a'), parentId: root.id, childIds: ['klein', root.id] };
+  const b = { ...task('b'), parentId: root.id };
+  const small = { ...task('klein'), parentId: a.id };
+  const other = task('andere-wortel');
+  const orphan = { ...task('wees'), parentId: 'ontbreekt' };
+  const tasks = [root, a, b, small, other, orphan];
+  const before = JSON.stringify(tasks);
+  const shape = (options: ViewRowOpts) => visibleRows.computeViewRows(tasks, options, ctx)
+    .flatMap(row => row.kind === 'task' ? [[row.rowKey, row.depth]] : []);
+  eq('19 boomrijen volgen childIds met dezelfde diepte en wees-terugval', shape(opts()),
+    [['wortel', 0], ['b', 1], ['a', 1], ['klein', 2], ['andere-wortel', 0], ['wees', 0]]);
+  const sorted = opts();
+  sorted.sort = [{ field: { src: 'builtin', key: 'name' }, dir: 'asc' }];
+  eq('20 sortering blijft per siblinggroep', shape(sorted),
+    [['andere-wortel', 0], ['wortel', 0], ['a', 1], ['klein', 2], ['b', 1], ['wees', 0]]);
+  const collapsed = opts();
+  collapsed.collapsedTaskIds.add(root.id);
+  eq('21 verborgen nakomelingen verschijnen niet opnieuw via wees-terugval', shape(collapsed),
+    [['wortel', 0], ['andere-wortel', 0], ['wees', 0]]);
+  eq('22 rijafleiding verandert de bronboom niet', JSON.stringify(tasks), before);
+}
+
 if (diffs.length === 0) {
   console.log(`OK  view-row-key: alle checks groen (${checks})`);
   process.exit(0);

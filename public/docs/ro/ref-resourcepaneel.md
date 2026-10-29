@@ -29,7 +29,7 @@ Tabelul cu ceea ce folosește acest proiect. Fiecare rând este o resursă. Modi
 - **Unitate de măsură** — unitatea de măsură a materialului, de exemplu `m³`. Este de completat numai pentru tipul *Material* (text de ajutor: *Se completează numai pentru resursele de tip Material.*). Efect: doar o etichetă; nu face calcule.
 - **Echipă** — echipa din care face parte resursa, dintre resursele de tip *Echipă*. Implicit: *Niciuna*. Efect: doar grupare; capacitatea și încărcarea unei echipe nu sunt suma membrilor ei.
 - **Ștergere** (coșul de gunoi) — șterge resursa. Dacă are atribuiri, aplicația întreabă mai întâi *„…” are … atribuire(i) — ștergeți?* cu o bifă pentru confirmare și o cruce pentru anulare.
-- **Către bibliotecă** — doar când proiectul aparține unei biblioteci de resurse, pentru o resursă al cărei nume nu vine încă din bibliotecă. O pune în bibliotecă sau o leagă de un element existent cu același nume și arată ce s-a întâmplat (*Adăugat.*, *Exista deja în bibliotecă — acum este legat.* sau *Legat de elementul existent din bibliotecă — valorile diferă, vedeți marcajul.*).
+- **Către bibliotecă** — doar când proiectul aparține unei biblioteci de resurse, pentru o resursă a cărei nume nu vine încă din bibliotecă. O pune în bibliotecă sau o leagă de un element existent cu același nume și arată ce s-a întâmplat (*Adăugat.*, *Exista deja în bibliotecă — acum este legat.* sau *Legat de elementul existent din bibliotecă — valorile diferă, vedeți marcajul.*).
 - **Desprindere de bibliotecă** — pictograma de desprindere de pe o resursă care vine din bibliotecă. Elimină originea; după aceea toate câmpurile sunt din nou libere.
 
 Fără resurse, apare *Nicio resursă încă. Adăugați una pentru a începe.* Dacă proiectul aparține unei biblioteci, apare *Acest proiect nu folosește încă resurse din bibliotecă.* cu o sugestie.
@@ -83,4 +83,4 @@ Unde o vedeți:
 - **Histogramă** — părțile roșii ale barelor și punctul roșu din selector.
 - **Andocare** — triunghiul *Supraalocată*.
 
-Redistribuirea poate rezolva supraalocarea mutând activități în limitele marjei lor; nu rezolvă o resursă care trebuie să lucreze într-o zi liberă. Consultați [Redistribuire](docs://uitleg-nivelleren).
+Redistribuirea poate rezolva supraalocarea, lăsând activitățile să înceapă mai târziu. Implicit, sfârșitul proiectului se poate muta; cu *redistribuire* rămâne în limitele marjei. Redistribuirea nu rezolvă o resursă care trebuie să lucreze într-o zi liberă. Consultați [Redistribuire](docs://uitleg-nivelleren).

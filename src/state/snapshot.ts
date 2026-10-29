@@ -20,7 +20,8 @@ import { withFileIfcSchema } from './ifcSchemaChoice';
  *  IN ('data', muteerbare projectdata):
  *    project, calendar, tasks, sequences, resources, assignments, calendars, activityCodeTypes,
  *    customFieldDefs, customTaskTypes, baselines, activeBaselineId (door de gebruiker gekozen en in
- *    het bestand bewaard, dus projectdata; `documentDataChanged` moet hem zien)
+ *    het bestand bewaard, dus projectdata; `documentDataChanged` moet hem zien), ifcGlobalIds
+ *    (de IFC-editor kan GlobalIds wijzigen, ook zonder taakinhoud te veranderen)
  *  IN ('derived'; runCPM vervangt ze als geheel en muteert nooit in-place, dus delen is veilig).
  *      Undo moet exact de handmatig berekende toestand kunnen herstellen; samen met `tasks` draait
  *      één undo de opgeslagen datums én de modus terug:
@@ -42,7 +43,8 @@ export type Snapshot = Pick<
   DocumentPayload,
   | 'project' | 'calendar' | 'tasks' | 'sequences' | 'resources' | 'assignments' | 'calendars'
   | 'activityCodeTypes' | 'customFieldDefs' | 'customTaskTypes' | 'cpmResult'
-  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded'
+  | 'scheduleStale' | 'baselines' | 'activeBaselineId' | 'recordedDates' | 'datesAsRecorded' | 'minuteModelPending'
+  | 'ifcGlobalIds'
 >;
 
 // Compile-time koppeling tussen de Pick hierboven en de `snapshot`-rollen in DOCUMENT_FIELDS
@@ -138,6 +140,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     activityCodeTypes: raw.activityCodeTypes ?? [],
     customFieldDefs: raw.customFieldDefs ?? [],
     customTaskTypes: raw.customTaskTypes ?? [],
+    ifcGlobalIds: raw.ifcGlobalIds ?? null,
     cpmResult: raw.cpmResult ?? null,
     scheduleStale: raw.scheduleStale ?? false,
     baselines: raw.baselines ?? [],
@@ -148,6 +151,7 @@ export function migrateSnapshot(raw: Snapshot): Snapshot {
     // is legitiem, alleen een ontbrekend veld valt terug.
     recordedDates: raw.recordedDates !== undefined ? raw.recordedDates : null,
     datesAsRecorded: raw.datesAsRecorded ?? false,
+    minuteModelPending: raw.minuteModelPending ?? false,
     // Een project zonder `id` is een halve projectie (bv. alleen `{ wbsAutoNumber }`): vul die AAN
     // met een verse default; de aanwezige velden blijven leidend, inclusief een legitiem `undefined`
     // ("vrije tekst"). Puur defensief.

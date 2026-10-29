@@ -118,6 +118,32 @@ export function persistedRecoveryState(
 export class RecoveryDeltaTracker {
   private persisted: PersistedRecoveryState | null = null;
   private readonly serialized = new Map<string, { source: IFCSaveSource; ifc: string }>();
+  private tail: Promise<unknown> = Promise.resolve();
+
+  /** Houd delta, serialisatie, manifestcommit en persistentiebasis in dezelfde schrijfvolgorde. */
+  runExclusive<T>(action: () => Promise<T>): Promise<T> {
+    const run = this.tail.then(action, action);
+    this.tail = run.catch(() => undefined);
+    return run;
+  }
+
+  async prepareAsync(
+    activeDocumentId: string | null,
+    documents: readonly RecoverySourceDocument[],
+    serialize: (source: IFCSaveSource) => Promise<string>,
+  ): Promise<RecoverySaveInput | null> {
+    const delta = planRecoveryDelta(activeDocumentId, documents, this.persisted);
+    if (!delta.needsPersist) return null;
+    // Eén worker houdt het geheugengebruik begrensd; andere documenten wachten op hun beurt.
+    for (const document of delta.changedDocuments) {
+      const cached = this.serialized.get(document.id);
+      if (!cached || !sameIFCSource(cached.source, document.source)) {
+        const ifc = await serialize(document.source);
+        this.serialized.set(document.id, { source: document.source, ifc });
+      }
+    }
+    return this.prepare(activeDocumentId, documents, () => { throw new Error('Crashherstel-cache ontbreekt.'); });
+  }
 
   get hasPersistedSnapshot(): boolean {
     return this.persisted !== null;

@@ -22,7 +22,7 @@ Bu makale standart hesaplamayı açıklar: yeni bir projenin hesaplandığı *Op
 
 Bir görevin ilk iş günü 1. gün sayılır. Dolayısıyla 5 günlük bir görev beşinci iş gününde biter. Başlangıç bir çalışılmayan güne denk gelirse, görev bir sonraki iş gününde başlar. Bir görevin ortasındaki bir tatil veya inşaat tatili sayılmaz: görev o tatilin üzerinden geçer ve takvimde daha uzun sürer.
 
-Günlük saatler, gün cinsinden bir görevin tarihlerinde rol oynamaz. Yalnızca çalışma haftası ve tatiller sayılır. Çalışma saatleri yalnızca saat cinsinden bir görev için geçerli olur; bu, [Günler ve saatler](docs://uitleg-dagen-en-uren) makalesinde anlatılır.
+Günlük saatler, gün görevinin tarihlerinde rol oynamaz. Yalnızca çalışma haftası ve tatiller sayılır. Çalışma saatleri yalnızca saat cinsinden bir görev için geçerli olur; bu, [Günler ve saatler](docs://uitleg-dagen-en-uren) makalesinde anlatılır.
 
 ### Hangi takvim geçerlidir
 
@@ -33,21 +33,21 @@ Uygulama her görev için bir takvim seçer:
 
 Bir **özet görev** (bir aşama) kendi işi olmadığı için kendi takvimi de yoktur. Süresi, görevlerinin tarihlerinden çıkar; uygulama bunu proje takvimine göre sayar.
 
-Bir kaynağın takvimi tarihlerde rol oynamaz. Kendi kurduğunuz bir planlamada yalnızca kaynağın ne zaman müsait olduğunu belirler: histogramda, aşırı atamada ve dengelemede.
+Bir kaynağın takvimi tarihlerde rol oynamaz. Kendi kurduğunuz bir planlamada yalnızca kaynağın ne zaman müsait olduğunu belirler: histogramda, aşırı atanmışlıkta ve dengelemede.
 
 ### Farklı takvimlerdeki görevler
 
-Farklı takvimleri olan iki görev birbirine bağlandığında şu geçerlidir:
+Farklı takvimleri olan iki görev arasında ilişki oluşturulduğunda şu geçerlidir:
 
 - Bitiş-başlangıç ilişkisinde ardıl, öncülün bitişinden sonraki ilk iş gününde başlar; bu, **ardılın** takviminde sayılır. Bir görev cuma günü biterse, altı günlük çalışma haftası olan bir ardıl cumartesi günü başlar.
-- Bir **gecikme** varsayılan olarak **öncülün** takviminde sayılır. Bunu *Ayarlar › Proje › Proje bilgisi* yolunda değiştirebilirsiniz: *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* altında, *Gecikme takvimi* seçeneğiyle: *Öncül* (varsayılan), *Ardıl*, *24 saat* veya *Proje takvimi*.
+- Bir **gecikme** varsayılan olarak **öncülün** takviminde sayılır. Bunu *Ayarlar › Proje › Proje ayarları* yolunda değiştirebilirsiniz: *Hesaplama profili ve seçenekleri* bloğunda, *Bu projenin hesaplama seçenekleri* altında, *Gecikme takvimi* seçeneğiyle: *Öncül* (varsayılan), *Ardıl*, *24 saat* veya *Proje takvimi*.
 - **Toplam bolluk**, görevin kendi takvimindeki iş günleri olarak sayılır. Bu profilde **serbest bolluk** ardılın takviminde sayılır.
 
 Gecikmenin tam anlamı [İlişki ekleme](docs://howto-relaties-leggen) makalesinde anlatılır; bolluğun ne olduğu [Kritik yol ve bolluk](docs://uitleg-kritiek-pad) makalesinde.
 
 ### Gantt'ta
 
-Gantt'taki gri arka plan her zaman **proje takviminin** çalışılmayan günlerini gösterir. Kendi takvimi olan bir görev bu yüzden gri bir güne denk gelebilir; örneğin altı günlük bir görev cumartesi üzerinden geçer. Genişliği üç gün veya daha fazla olan bir tatil bloğunun adı gösterilir, örneğin *İnşaat tatili (Kuzey)*. *Yalnızca iş günlerini göster* açıkken bu olmaz. Gri günleri hiç görmek istemiyorsanız, *Ayarlar › Proje › Ayarlar* altında, sekme *Görünüm*, başlık *Zaman ekseni* içinde *Yalnızca iş günlerini göster* seçeneğini açın.
+Gantt'taki gri arka plan her zaman **proje takviminin** çalışılmayan günlerini gösterir. Kendi takvimi olan bir görev bu yüzden gri bir güne denk gelebilir; örneğin altı günlük bir görev cumartesi üzerinden geçer. Genişliği üç gün veya daha fazla olan bir tatil bloğunun adı gösterilir, örneğin *İnşaat tatili (Kuzey)*. *Yalnızca iş günlerini göster* açıkken bu olmaz. Gri günleri hiç görmek istemiyorsanız, *Ayarlar › Proje › Uygulama ayarları* altında, sekme *Görünüm*, başlık *Zaman ekseni* içinde *Yalnızca iş günlerini göster* seçeneğini açın.
 
 ## Uygulamalı örnek: inşaat planlaması
 
@@ -88,13 +88,13 @@ Başka bir örnek projede *Bricklaying crew* kaynağının *Crew Mon–Thu* takv
 
 ## Sonuçlar ve yanlış anlamalar
 
-**“Kaynağın takvimi görevlerimi kaydırır.”** Hayır. Bir kaynak takvimi hiçbir tarihi değiştirmez; yalnızca aşırı atamayı görünür yapar. Görevin kendisinin başka günlerde çalışmasını istiyorsanız, göreve kendi takvimini verin.
+**“Kaynağın takvimi görevlerimi kaydırır.”** Hayır. Bir kaynak takvimi hiçbir tarihi değiştirmez; yalnızca aşırı atanmışlığı görünür yapar. Görevin kendisinin başka günlerde çalışmasını istiyorsanız, göreve kendi takvimini verin.
 
 **“Proje takvimini değiştirirsem her şey kayar.”** Yalnızca kendi takvimi olmayan görevler birlikte kayar. Kendiniz listeden bir takvim verdiğiniz bir görev, eski proje takvimi bile olsa, onu korur. Bir takvimi silerseniz, onu kullanan görevler ve kaynaklar proje takvimine döner.
 
-**“Tatiller de orada, değil mi?”** Tatiller yalnızca oluşturuldukları yıllar için vardır. Bu yıllar dışındaki bir gün sadece bir iş günüdür. Takvim penceresinde uygulama bunu şöyle belirtir: *Tatiller 2025–2028 aralığını kapsıyor; proje 2030 yılına kadar sürüyor. Yeniden oluşturulsun mu?*
+**“Tatiller de orada, değil mi?”** Tatiller yalnızca oluşturuldukları yıllar için vardır. Bu yıllar dışındaki bir gün sadece bir iş günüdür. Takvim penceresinde uygulama bunu şöyle belirtir: *Tatiller 2025–2028 aralığını kapsıyor. 2030 yılına kadar yeniden oluşturulsun mu?*
 
-**“Günde daha fazla saat, görevimi kısaltır.”** Gün cinsindeki bir görev için değil: uygulama tam iş günlerini sayar; gün 6 saat de olsa 8 saat de olsa. Yalnızca kaynakları olan ve iş kuralı *Sabit iş* veya *Sabit birimler* olan bir görevde süre bununla değişir.
+**“Günde daha fazla saat, görevimi kısaltır.”** Gün görevi için değil: uygulama tam iş günlerini sayar; gün 6 saat de olsa 8 saat de olsa. Yalnızca kaynakları olan ve görev türü *Sabit iş* veya *Sabit birimler* olan bir görevde süre bununla değişir.
 
 **Bir takvim iş günü olmadan** uygulama onu hesaplayamaz. Hesaplama şunu bildirir: *Takvimde tanımlı iş günü yok*.
 

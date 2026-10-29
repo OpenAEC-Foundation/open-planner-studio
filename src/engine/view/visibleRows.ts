@@ -252,23 +252,29 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     return rows;
   }
 
-  // Stap 2' — boommodus: behoud de WBS-boom. Ingeklapte nakomelingen tellen
-  // als "gezien" (recursie gaat door, maar emit niet: de `hidden`-vlag), zodat het wees-vangnet ze
-  // niet oppikt.
+  // Stap 2' — boommodus: behoud de WBS-boom. Ook ingeklapte nakomelingen bezoeken,
+  // zodat het wees-vangnet ze niet oppikt. Een expliciete stack bewaart diepte en verborgenheid
+  // zonder één JavaScript-aanroep per WBS-niveau.
   const rows: ViewRow[] = [];
   const seen = new Set<string>();
-  const emit = (task: Task, depth: number, hidden: boolean) => {
-    if (seen.has(task.id)) return;
-    seen.add(task.id);
-    if (!hidden && visible.has(task.id)) {
-      rows.push({ kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false });
+  const emitBranch = (root: Task) => {
+    const stack = [{ task: root, depth: 0, hidden: false }];
+    while (stack.length > 0) {
+      const { task, depth, hidden } = stack.pop()!;
+      if (seen.has(task.id)) continue;
+      seen.add(task.id);
+      if (!hidden && visible.has(task.id)) {
+        rows.push({ kind: 'task', rowKey: task.id, task, depth, dimmed: dimmed.get(task.id) ?? false });
+      }
+      const hideChildren = hidden || collapsedTaskIds.has(task.id);
+      const kids = sortTasks(task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t), sort, ctx);
+      for (let i = kids.length - 1; i >= 0; i--) {
+        stack.push({ task: kids[i], depth: depth + 1, hidden: hideChildren });
+      }
     }
-    const hideChildren = hidden || collapsedTaskIds.has(task.id);
-    const kids = task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t);
-    for (const k of sortTasks(kids, sort, ctx)) emit(k, depth + 1, hideChildren);
   };
   const roots = tasks.filter(t => !t.parentId);
-  for (const r of sortTasks(roots, sort, ctx)) emit(r, 0, false);
+  for (const r of sortTasks(roots, sort, ctx)) emitBranch(r);
   // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {

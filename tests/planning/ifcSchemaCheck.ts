@@ -26,7 +26,7 @@ type V =
 interface StepEntity { id: number; type: string; args: V[] }
 
 /** Leest de DATA-sectie van een STEP-bestand. Gooit bij een syntaxfout (dat is zelf een bevinding). */
-function parseStep(text: string): StepEntity[] {
+export function parseStep(text: string): StepEntity[] {
   const start = text.indexOf('\nDATA;');
   const end = text.lastIndexOf('\nENDSEC;');
   if (start < 0 || end < start) throw new Error('geen DATA-sectie');

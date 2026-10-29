@@ -33,6 +33,22 @@ export const STICKY_OPEN_NOTICE_KEYS: ReadonlySet<string> = new Set<Notification
   // projecten en gekoppelde baselines veranderen niets en blijven dus buiten deze lijst (zoals bij XER).
   'notifications.p6xmlImportCrossProjectRelations',
   'notifications.p6xmlImportUnassignedActivities',
+  // MS Project (MSPDI en .mpp, `msProjectImportNotice`): elke regel noemt iets dat niet is overgenomen.
+  'notifications.msProjectLostBaselines',
+  'notifications.msProjectLostExtraBaselines',
+  'notifications.msProjectLostBaselineWorkCost',
+  'notifications.msProjectLostAssignmentBaselineDates',
+  'notifications.msProjectLostCustomFields',
+  'notifications.msProjectLostNotes',
+  'notifications.msProjectLostHyperlinks',
+  'notifications.msProjectLostFixedCosts',
+  'notifications.msProjectLostResourceRates',
+  'notifications.msProjectLostSubprojects',
+  'notifications.msProjectLostExternalTasks',
+  'notifications.msProjectLostManualTasks',
+  'notifications.msProjectLostLevelingDelays',
+  'notifications.msProjectLostInactiveTasks',
+  'notifications.msProjectLostCriticalSlack',
   // IFC: een onbruikbaar XER-bronarchief is weggelaten (als regel of als eigen melding).
   'notifications.xerArchiveUnusableLine',
   'notifications.xerArchiveUnusable',

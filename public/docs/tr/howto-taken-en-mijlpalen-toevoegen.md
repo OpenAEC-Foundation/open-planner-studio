@@ -51,7 +51,7 @@ Göreve sağ tıklayın ve *Alt görev ekle* öğesini seçin. Yeni görev, o g�
 Üç tür şöyle farklıdır:
 
 - Bir *Başlangıç kilometre taşı* günün başına, bir *Bitiş kilometre taşı* ise günün sonuna ait olur. Gantt'ta elmas, sırasıyla gün sütununun sol veya sağ tarafında durur. Bu, ardıl görev için de önemlidir. Diyelim ki bir kilometre taşı 29 Eylül 2026 Salı gününe denk gelir ve ona bağlı bir görev bitiş-başlangıç ilişkisiyle bağlıdır. Başlangıç kilometre taşından sonra o görev aynı Salı günü başlar. Bitiş kilometre taşından sonra ise 30 Eylül Çarşamba günü başlar.
-- Bir *Denetim noktası (zorunlu)*, *Denetim* görev türüne sahip ve *Zorunlu (sözleşmesel)* onay kutusu işaretli bir bitiş kilometre taşıdır.
+- Bir *Denetim noktası (zorunlu)*, iş kategorisi *Denetim* ve *Zorunlu (sözleşmesel)* onay kutusu işaretli bir bitiş kilometre taşıdır.
 
 ### Mevcut bir görevi kilometre taşına çevirmek
 
@@ -62,6 +62,7 @@ Bunu yeniden kapatırsanız, süresi 0 olan sıradan bir görev olarak kalır. S
 ### Diğer yollar
 
 - Ctrl+M (Mac'te ⌘+M) seçili bir görev olsa bile, listenin sonuna yeni bir kilometre taşı ekler. *Özellikler* paneli açılmaz.
+- Ctrl+M ile veya sağ tık menüsünden yaptığınız bir kilometre taşı, iş kategorisi *Denetim* alır. *Kilometre taşı ▾* menüsünden gelen bir *Başlangıç kilometre taşı* veya *Bitiş kilometre taşı* iş kategorisi *Diğer* alır. Gerekirse iş kategorisini *Özellikler* panelinde değiştirin.
 - Bir görevin sağ tık menüsündeki *Kilometre taşı ekle*, kilometre taşını o görevin alt görevi yapar, kardeşi değil.
 
 ### Bir görevi veya tüm bir dalı kopyalamak
@@ -72,7 +73,7 @@ Bunu yeniden kapatırsanız, süresi 0 olan sıradan bir görev olarak kalır. S
 
 Kopyanın adı, tarihleri ve ilerlemesi aynıdır. Kopya, seçili görevin kardeşi olarak yerleşir (birden çok seçimde: önce tıkladığınız görevin). Bu kardeşlerin en altına gelir. Hiçbir şey seçili değilse, listenin sonuna gelir. Kopya oluşturulduktan sonra kopyalanan görevler seçili olur. WBS kodları (her görevin ağaçtaki numarası, örneğin 1.2; bkz. [Yapıyı ayarlamak](docs://howto-structuur-aanpassen)) yeniden belirlenir ve planlama güncel değildir.
 
-Pano tüm uygulama için ortaktır, bu yüzden başka bir belgeye de yapıştırabilirsiniz. Orada bulunmayan öğeleri, örneğin görev takvimi, özel görev türü, etkinlik kodu veya özel alan, uygulama temizler ve bunu bildirir.
+Pano tüm uygulama için ortaktır, bu yüzden başka bir belgeye de yapıştırabilirsiniz. Orada bulunmayan öğeleri, örneğin görev takvimi, özel iş kategorisi, etkinlik kodu veya özel alan, uygulama temizler ve bunu bildirir.
 
 ### Daha sonra
 
@@ -82,7 +83,7 @@ Yeni bir görev, diğer tarihleri henüz değiştirmez. Durum çubuğunda *Günc
 
 **Her yeni görev proje başlangıcında başlar.** İlişki olmadan bir görev hiçbir şey beklemez. İlişki ekleyin; bkz. [İlişki eklemek](docs://howto-relaties-leggen).
 
-**Filtreleme, gruplama veya sıralama açıktır.** Gördüğünüz sıra o zaman planlamanın sırası değildir. Bir görev seçiliyken *Görev* ve *Kilometre taşı ▾* yeni görevi en alta ekler ve *Filtreleme/gruplama/sıralama sırasında kullanılamaz* şeridi görünür. *Üste ekle* ve *Alta ekle* reddedilir; aynı şerit görünür. Şeritteki *Temizle* düğmesi filtreyi, gruplamayı ve sıralamayı tek seferde kaldırır. Bu işlem *Geri al* kapsamında değildir: Ctrl+Z bunları geri getirmez.
+**Filtreleme, gruplama veya sıralama açıktır.** Gördüğünüz sıra o zaman planlamanın sırası değildir. Bir görev seçiliyken *Görev* ve *Kilometre taşı ▾* yeni görevi en alta ekler. Bu durumda kırmızı bir bildirim şunu söyler: *Yeni görev en sona eklendi. Filtreleme, gruplama veya sıralama sırasında uygulama onu seçiminizin altına yerleştiremez.* *Üste ekle* ve *Alta ekle* reddedilir; bunun için *Filtreleme/gruplama/sıralama sırasında kullanılamaz* şeridi görünür. Bildirimdeki veya şeritteki *Temizle* düğmesi filtreyi, gruplamayı ve sıralamayı tek seferde kaldırır. Bu işlem *Geri al* kapsamında değildir: Ctrl+Z bunları geri getirmez.
 
 **Kaynak atamaları olan bir göreve alt görev eklemek.** Görev bir özet görev olur. Özet görevin kendisi atama taşımaz. Uygulama atamaları yeni alt göreve taşır ve bunu bildirir. Bu mümkün değilse, örneğin *Kilometre taşı ekle* seçtiğiniz ve bir kilometre taşı atama taşıyamadığı için, uygulama hiçbir şey eklemez ve nedenini söyler.
 

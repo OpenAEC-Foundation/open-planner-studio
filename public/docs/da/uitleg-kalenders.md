@@ -40,14 +40,14 @@ Kalenderen for en **ressource** spiller ingen rolle for datoerne. I en tidsplan,
 Når to opgaver med forskellige kalendere er sammenkædet, gælder dette:
 
 - Med en afhængighed af typen slut til start begynder den efterfølgende opgave på den første arbejdsdag efter slutdatoen for den foregående opgave, talt i kalenderen for den **efterfølgende opgave**. Slutter en opgave på en fredag, begynder en efterfølgende opgave med en seksdages arbejdsuge på lørdag.
-- En **forsinkelse** tælles som standard i kalenderen for den **foregående opgave**. Det kan du ændre under *Indstillinger › Projekt › Projektinfo*, i blokken *Beregningsprofil og beregningsindstillinger*, under *Beregningsindstillinger for dette projekt*, med valget *Forsinkelseskalender*: *Foregående opgave* (standard), *Efterfølgende opgave*, *24-timers* eller *Projektkalender*.
+- En **forsinkelse** tælles som standard i kalenderen for den **foregående opgave**. Det kan du ændre under *Indstillinger › Projekt › Projektindstillinger*, i blokken *Beregningsprofil og beregningsindstillinger*, under *Beregningsindstillinger for dette projekt*, med valget *Forsinkelseskalender*: *Foregående opgave* (standard), *Efterfølgende opgave*, *24-timers* eller *Projektkalender*.
 - Den **samlede slæk** tælles i arbejdsdage i kalenderen for opgaven selv. I denne profil tælles den **tilladte slæk** i kalenderen for den efterfølgende opgave.
 
 Hvad en forsinkelse præcist er, står i [Tilføjelse af afhængigheder](docs://howto-relaties-leggen); hvad slæk er, i [Kritisk vej og slæk](docs://uitleg-kritiek-pad).
 
 ### I Gantt-diagrammet
 
-Den grå baggrund i Gantt viser altid de ikke-arbejdsdage i **projektkalenderen**. En opgave med sin egen kalender kan derfor løbe hen over en grå dag, fx en seksdages opgave hen over lørdagen. En række helligdage på tre dage eller mere får sit navn vist, fx *Bouwvak (Noord)*. Det sker ikke, når *Vis kun arbejdsdage* er slået til. Vil du slet ikke se de grå dage, så slå *Vis kun arbejdsdage* til under *Indstillinger › Projekt › Indstillinger*, fanen *Udseende*, overskriften *Tidsakse*.
+Den grå baggrund i Gantt viser altid de ikke-arbejdsdage i **projektkalenderen**. En opgave med sin egen kalender kan derfor løbe hen over en grå dag, fx en seksdages opgave hen over lørdagen. En række helligdage på tre dage eller mere får sit navn vist, fx *Bouwvak (Noord)*. Det sker ikke, når *Vis kun arbejdsdage* er slået til. Vil du slet ikke se de grå dage, så slå *Vis kun arbejdsdage* til under *Indstillinger › Projekt › App-indstillinger*, fanen *Udseende*, overskriften *Tidsakse*.
 
 ## Gennemregnet eksempel: tidsplanen for byggeriet
 
@@ -92,9 +92,9 @@ Datoerne for *Brickwork* ændres ikke. Men fredag den 4. juni er rød i histogra
 
 **"Hvis jeg skifter projektkalenderen, flytter alt sig."** Kun opgaver uden egen kalender flytter med. En opgave, du selv har givet en kalender fra listen, beholder den, også selv om det er den gamle projektkalender. Sletter du en kalender, falder de opgaver og ressourcer, der brugte den, tilbage på projektkalenderen.
 
-**"Helligdagene er da med, ikke?"** Helligdage findes kun for de år, de er oprettet for. En dag uden for de år er bare en arbejdsdag. I dialogboksen for kalenderen siger appen det med *Helligdage dækker 2025–2028; projektet løber til 2030. Generér igen?*
+**"Helligdagene er da med, ikke?"** Helligdage findes kun for de år, de er oprettet for. En dag uden for de år er bare en arbejdsdag. I dialogboksen for kalenderen siger appen det med *Helligdage dækker 2025–2028; generér igen til og med 2030?*
 
-**"Flere timer per dag gør min opgave kortere."** Ikke for en opgave i dage: den tæller hele arbejdsdage, uanset om dagen har 6 eller 8 timer. Kun for en opgave med ressourcer og arbejdsreglen *Fast arbejde* eller *Faste enheder* ændrer varigheden sig med det.
+**"Flere timer per dag gør min opgave kortere."** Ikke for en opgave i dage: den tæller hele arbejdsdage, uanset om dagen har 6 eller 8 timer. Kun for en opgave med ressourcer og opgavetypen *Fast arbejde* eller *Faste enheder* ændrer varigheden sig med det.
 
 **En kalender uden arbejdsdage** kan ikke beregnes af appen. Beregningen viser *Kalenderen har ingen arbejdsdage angivet*.
 

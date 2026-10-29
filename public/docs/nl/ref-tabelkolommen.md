@@ -6,13 +6,13 @@ De takentabel heeft 86 vaste kolommen, plus een kolom per activity code en eigen
 
 De takentabel naast de Gantt en de tabel op het tabblad *Tabel* hebben elk hun eigen kolomkeuze. Het plusje rechts in de kop opent de kolomkiezer (venstertitel *Kolom kiezen*); op *Tabel* kan het ook met *Tabel › Kolommen › Kolommen…*. In de kiezer staan de kolommen per categorie: *Taak*, *Planning*, *Beperkingen*, *Relaties*, *Resources*, *Voortgang*, *Berekend*, *Baseline*, *Aangepast* en *Technisch*. Je zoekt op naam, en bovenaan staat *Laatst gebruikt*. *Herstel standaard* zet de standaardkolommen terug.
 
-Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op het tabblad *Tabel* toont *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Taaktype*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activity code en eigen veld van het project.
+Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op het tabblad *Tabel* toont *WBS*, *Taaknaam*, *Duur*, *Start*, *Einde*, *Werksoort*, *Kritiek*, *Totale speling* en *Voortgang*, plus een kolom per activity code en eigen veld van het project.
 
 ## Hoe je waarden leest en bewerkt
 
 - **Berekende kolommen** — de kolommen in de categorie *Berekend* en een aantal andere zijn alleen-lezen: ze komen uit de berekening. Probeer je een alleen-lezen cel te bewerken, dan zegt de app *Deze berekende kolom kan niet worden bewerkt.* Die tekst is de algemene melding voor elke alleen-lezen cel, ook als de kolom niet berekend is. Zijn ze verouderd omdat je iets wijzigde, dan staat er *verouderd* bij tot je *Bereken* drukt.
 - **Datums** — staan in de notatie die je koos onder *App-instellingen*, tabblad *Weergave*, kop *Datumnotatie*.
-- **Duren en speling** — een duur staat in de eenheid van de taak (`5d`, `12h`), of volgens *Duurweergave* op hetzelfde tabblad (*Automatisch (eigen eenheid per taak)*, *Altijd dagen* of *Altijd uren*). Speling staat in werkdagen met twee decimalen en het decimaalteken van je taal.
+- **Duren en speling** — een duur staat in de eenheid van de taak (`5d`, `12u`), of volgens *Duurweergave* op hetzelfde tabblad (*Automatisch (eigen eenheid per taak)*, *Altijd dagen* of *Altijd uren*). Speling staat in werkdagen met twee decimalen en het decimaalteken van je taal.
 - **Ja/Nee** — een ja/nee-waarde staat als *Ja* of *Nee*; een lege waarde als een streepje (—).
 - **Bewerken** — typ of kies een waarde. Een ongeldige waarde wordt geweigerd met een reden onder de cel, bijvoorbeeld *Voer een geldige duur in, zoals 5d of 8u.* of *Voer een percentage tussen 0 en 100 in.* Plakken van een blok cellen werkt cel voor cel; alleen-lezen cellen worden overgeslagen en de app meldt hoeveel.
 
@@ -21,8 +21,8 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Taaknaam** — de naam van de taak. Bewerkbaar; verplicht. Een samenvattingstaak staat vet, met een lichte achtergrondtint op de naamcel; een mijlpaal staat vet in de mijlpaalkleur (dezelfde kleurfamilie als de mijlpaal in de Gantt). Een gewone taak blijft ongewijzigd. Dat is alleen opmaak: selecteren, slepen en bewerken werken hetzelfde.
 - **Beschrijving** — de beschrijving. Bewerkbaar; vrije tekst.
 - **WBS** — de WBS-code. Bewerkbaar en verplicht, maar alleen-lezen zolang *WBS auto* aan staat.
-- **Taaktype** — het taaktype (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
-- **Eigen taaktype** — het eigen taaktype uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen typen van het project.
+- **Werksoort** — de werksoort (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
+- **Eigen werksoort** — de eigen werksoort uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen werksoorten van het project.
 - **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. Hij wordt in het IFC-bestand bewaard, maar geen balk of rapport gebruikt hem; balkkleuren stel je in bij *Beeld › Baselines & voortgang › Balkkleuren*.
 - **Aantekeningen** — de aantekeningen als `✓ tekst; ○ tekst`. Bewerkbaar zolang er hoogstens één aantekening is (je bewerkt dan de tekst ervan); bij meer aantekeningen alleen-lezen.
 
@@ -33,12 +33,12 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Verplichte mijlpaal** — de vlag *Verplicht (contractueel)*. Alleen bij een mijlpaal te bewerken.
 - **Nivelleerprioriteit** — een geheel getal van 0 tot 1000, standaard 500. Bewerkbaar. 1000 zet de taak vast voor nivelleren.
 - **Onderbrekingen** — het aantal onderbrekingen, als `Onderbrekingen: 2`, of een streepje. Alleen-lezen; bewerken doe je in het paneel *Eigenschappen*.
-- **Werkregel** — de werkregel van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn (*Toon werkregels en werk*, of het bestand draagt werkregels).
+- **Taaktype** — het taaktype van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de taaktypes zichtbaar zijn (*Taaktypes gebruiken*, of het bestand draagt taaktypes).
 - **Hammock (afgeleide duur)** — of de taak een hammock is. Bewerkbaar, behalve bij een mijlpaal of samenvattingstaak.
-- **Kalender** — de id van de eigen kalender van de taak; leeg (—) is de projectkalender. Je typt of kiest een id uit de suggesties; een onbekende id wordt geweigerd. Let op: de cel toont nu de interne id in plaats van de naam; kies een kalender liever in het paneel *Eigenschappen*.
+- **Kalender** — de naam van de kalender van de taak. Zonder eigen kalender staat er *Projectkalender*, gevolgd door de naam. Open de cel en kies een kalender op naam; kies *Projectkalender* om weer de projectkalender te volgen. De opgeslagen waarde en kopiëren/plakken blijven het kalender-id gebruiken, zodat gelijke namen niet worden verwisseld. Een onbekend id blijft zichtbaar als terugval en kan door een geldige keuze worden vervangen.
 - **Duurtype** — *Werktijd* (de duur telt in werkdagen of werkuren van de kalender) of *Verstreken tijd* (de duur telt in doorlopende kloktijd, zonder kalender). Bewerkbaar.
-- **Duureenheid** — *Dagen* of *Uren*. Bewerkbaar behalve bij een samenvattingstaak, hammock of mijlpaal; wisselen kan alleen als de omrekening exact klopt en *Urenplanning inschakelen* aan staat.
-- **Duur** — de duur van de taak, in de eenheid van de taak of volgens *Duurweergave*. Bewerkbaar: typ `5d`, `12h` of `1h 30m`; ook een getal in de eenheid van de taak. Alleen-lezen bij een samenvattingstaak, hammock en mijlpaal met duur 0.
+- **Duureenheid** — *Dagen* of *Uren*. Bewerkbaar behalve bij een samenvattingstaak, hammock of mijlpaal; wisselen kan alleen als de omrekening exact klopt.
+- **Duur** — de duur van de taak, in de eenheid van de taak of volgens *Duurweergave*. Bewerkbaar: typ `5d`, `12u` of `1u 30m`; ook een getal in de eenheid van de taak. Alleen-lezen bij een samenvattingstaak, hammock en mijlpaal met duur 0.
 - **Start** — de getoonde start, dezelfde datum als de Gantt-balk. Bij een gestarte taak is dat de werkelijke start. Bewerkbaar. Een taak met voorganger die je een nieuwe start geeft, krijgt de constraint *Start niet eerder dan (SNET)* op die datum. Alleen-lezen bij een samenvattingstaak of hammock, tenzij handmatig gepland, en bij een gestarte taak (*Deze taak is gestart; de start is de werkelijke start. Wijzig die via de voortgang.*).
 - **Einde** — het getoonde einde. Bij een voltooide taak is dat het werkelijke einde. Bewerkbaar: een nieuw einde wordt een nieuwe duur. De app weigert het bij een mijlpaal, een taak in verstreken tijd en een taak met onderbrekingen, en een einde vóór de start (*Het einde ligt vóór de start.*). Alleen-lezen bij een samenvattingstaak of hammock, tenzij handmatig gepland, en bij een voltooide taak (*Deze taak is gereed; het einde is het werkelijke einde. Wijzig dat via de voortgang.*).
 - **Geplande start** — het planningsanker waar de berekening van uitgaat (niet noodzakelijk de getoonde start). Bewerkbaar; hetzelfde effect als typen in *Start*.
@@ -57,26 +57,26 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 
 - **Voorgangers** — de voorgangers, als `WBS type±lag`, gescheiden door `; `, bijvoorbeeld `1.2 FS+2d`. Bewerkbaar door dezelfde vorm te typen. Een externe relatie voeg je niet hier toe maar met *Planning › Relaties › Relatie › Externe relatie toevoegen…*.
 - **Opvolgers** — de opvolgers, in dezelfde vorm. Bewerkbaar.
-- **Bepalend** — de relaties die de datum van deze taak bepalen, als `← 1.2` (voorganger) of `→ 1.4` (opvolger). Alleen-lezen; verouderd tot *Bereken*.
+- **Bepalend** — de relaties die de datum van deze taak bepalen, als `← 1.2` (voorganger) of `→ 1.4` (opvolger). *Onbekend* betekent dat er geen beschikbare berekening is, ook in *Datums zoals opgeslagen*. Na een geslaagde berekening betekent `—` dat geen relatie van deze taak bepalend is. In *Voorgangers* en *Opvolgers* toont een vraagteken de onbekende status, een bliksem een bepalende relatie; zonder icoon is de interne relatie berekend en niet bepalend. Aanwijzen van de taakreferentie geeft uitleg. Alleen-lezen; na een wijziging blijven de vorige resultaten staan, verouderd tot *Bereken*.
 - **Vrije speling** (in de categorie *Relaties*) — de vrije speling per relatie, als `← 1.2: 3d`. Niet dezelfde kolom als *Vrije speling* onder *Berekend*, die de speling van de taak zelf toont. Alleen-lezen.
 - **Meldingen** — waarschuwingen per relatie, bijvoorbeeld *Buiten volgorde* of *Niet meegerekend bij de berekening*. Alleen-lezen. Zie [Meldingen en waarschuwingen](docs://ref-meldingen).
 
 ## Resources
 
 - **Toegewezen resources** — de namen van de toegewezen resources, gescheiden door komma's. Bewerkbaar: een naam erbij wijst de resource toe met 1 eenheid per dag, een naam weghalen haalt de toewijzing weg. Alleen-lezen bij een mijlpaal of samenvattingstaak.
-- **Toewijzingseenheden per dag** — de eenheden per resource, als `Naam: 1; Naam: 0.5`. Bewerkbaar bij een taak met toewijzingen.
-- **Begrote eenheden per dag** — het begrote tempo per resource, als `Naam: 1.11111111111111`, zonder afronding, net als *Toewijzingseenheden per dag*. Alleen bij een toewijzing uit Primavera P6 met een ander resterend tempo; *Toewijzingseenheden per dag* toont dan het resterende tempo. Alleen-lezen.
+- **Toewijzingseenheden per dag** — de eenheden per resource, als `Naam: 1; Naam: 0,5`, op hooguit twee decimalen. De opgeslagen waarde blijft exact. Bewerkbaar bij een taak met toewijzingen.
+- **Begrote eenheden per dag** — het begrote tempo per resource, als `Naam: 1,11`, op hooguit twee decimalen, net als *Toewijzingseenheden per dag*. Alleen bij een toewijzing uit Primavera P6 met een ander resterend tempo; *Toewijzingseenheden per dag* toont dan het resterende tempo. Alleen-lezen.
 - **Toewijzingscurve** — de curve per resource, als `Naam: Uniform`. Bewerkbaar bij een taak met toewijzingen.
 - **Start werkvenster** en **Einde werkvenster** — het werkvenster per resource, uit een geïmporteerd bestand, als `Naam: datum`. Alleen-lezen.
-- **Begroot werk (uren)** en **Verricht werk (uren)** — het begrote en verrichte werk per resource in uren, als `Naam: 12`, uit een geïmporteerd bestand. Alleen-lezen.
-- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een werkregel werkt. Alleen zichtbaar in de kiezer als de werkregels zichtbaar zijn.
+- **Begroot werk (uren)** en **Verricht werk (uren)** — het begrote en verrichte werk per resource in uren, als `Naam: 617,14`, met hoogstens twee decimalen, uit een geïmporteerd bestand. Alleen-lezen.
+- **Resterend werk (uren)** — het resterende werk per resource in uren, als `Naam: 6` of `Naam: 26,67`: het opgeslagen werk, anders restduur × inzet. Bewerkbaar bij een taak met toewijzingen waarop een taaktype werkt, met een komma of een punt als decimaalteken. Alleen zichtbaar in de kiezer als de taaktypes zichtbaar zijn. Een geel ⚠ in de cel betekent dat het opgeslagen werk afwijkt van inzet × restduur, net als het ⚠ bij *Werk (rest)* in het taakpaneel.
 
 ## Voortgang
 
 - **Status** — *Niet gestart*, *Bezig* of *Voltooid*. Bewerkbaar, behalve bij een samenvattingstaak.
 - **Voortgang** — het percentage, als `40%`. Bewerkbaar met een getal van 0 tot 100, behalve bij een samenvattingstaak.
 - **Werkelijke start** — de datum waarop de taak begon. Bewerkbaar, behalve bij een samenvattingstaak.
-- **Werkelijke einde** — de datum waarop de taak klaar was. Bewerkbaar, behalve bij een samenvattingstaak.
+- **Werkelijk einde** — de datum waarop de taak klaar was. Bewerkbaar, behalve bij een samenvattingstaak.
 - **Werkelijke duur** — de werkelijke duur, als getal. Bewerkbaar, behalve bij een samenvattingstaak.
 - **Resterend** — de restduur, in de eenheid van de taak. Bewerkbaar, behalve bij een samenvattingstaak.
 - **Hervattingsdatum** en **Stopdatum** — de hervatting en de stop van een lopende taak uit een MS Project- of Primavera-bestand. Alleen-lezen.

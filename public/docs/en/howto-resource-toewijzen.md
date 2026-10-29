@@ -6,7 +6,7 @@ Goal: put a resource on a task, with units per day and a curve that decides how 
 
 As soon as you want to see who works where and when: the bricklayer on the outer cavity leaf, the crane on the hollow-core floor slabs. Without an assignment there is no load and so no histogram or overallocation.
 
-Two terms. The **units** (in the app *Units/day*) are how much of the resource works on the task per work day: 1 is one bricklayer, 2 is two of them, 0.5 is half a day. The **curve** decides how the total, units times duration, is spread over the task's work days. Work is rarely even: on a wall the start is quiet, the middle busy and the end quiet again.
+Two terms. The **units** (in the panel the column *Units*, in the *Assign* window the field *Units/day*) are how much of the resource works on the task per work day: 1 is one bricklayer, 2 is two of them, 0.5 is half a day. The **curve** decides how the total, units times duration, is spread over the task's work days. Work is rarely even: on a wall the start is quiet, the middle busy and the end quiet again.
 
 The outer cavity leaf takes 6 work days. With one bricklayer and the curve *Uniform* that is 1 unit on each of the 6 days, 6 together. With the curve *Bell shaped* it is still 6 units together, but the distribution becomes 0, 1, 2, 2, 1 and 0.
 
@@ -27,9 +27,9 @@ For a second resource you open the window again. Resources that are already on t
 
 1. Select the task. The *Properties* panel is on the right; if you do not see it, turn it on with *View › Panels › Properties*.
 2. In the *Assignments* block, right at the bottom, choose the resource at *Assign resource*. The assignment starts with units of 1 and the curve *Uniform*.
-3. For each assignment, change the *Units/day* and choose another *Curve*.
+3. For each assignment, change the *Units*. Click the name of the resource to show *Curve*, and choose another curve there.
 
-That is also how you change an existing assignment. With the bin (*Remove*) next to the name you take the assignment off the task. The resource itself stays. With *Move to…* you move the assignment to another task.
+That is also how you change an existing assignment. With the bin (*Remove*) at the end of the line you take the assignment off the task. The resource itself stays. With *Move to…* (shown after a click on the name) you move the assignment to another task.
 
 ### The curves
 
@@ -56,7 +56,7 @@ The curve only changes the distribution. The duration, the dates and the total s
 
 **Material.** For a material resource the units are the quantity per day, in the resource's unit, for example m³. Material does not count towards the task's duration.
 
-**A work rule can adjust the duration.** If the task is on *Fixed work* or *Fixed units*, a second resource changes the task's duration. The schedule is then out of date; press **Calculate** (F5). See [Work rules: duration, units and work](docs://uitleg-werkregels).
+**A task type can adjust the duration.** If the task is on *Fixed work* or *Fixed units*, a second resource changes the task's duration. The schedule is then out of date; press **Calculate** (F5). See [Task types: duration, units and work](docs://uitleg-werkregels).
 
 **A distribution of its own.** If the assignment already has an hour distribution of its own, the curve is disabled and shows *Contour*. Release that distribution first via *Hour distribution…*.
 
@@ -66,6 +66,6 @@ The curve only changes the distribution. The duration, the dates and the total s
 
 - [Adjusting the hour distribution](docs://howto-urenverdeling-aanpassen): setting the hours per day yourself.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when a resource has too much to do on a day.
-- [Work rules: duration, units and work](docs://uitleg-werkregels): what happens to the duration when you change the units.
+- [Task types: duration, units and work](docs://uitleg-werkregels): what happens to the duration when you change the units.
 - [Resource panel](docs://ref-resourcepaneel): all fields and buttons of the resource panel.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): all five resource types, all six curves and a tower crane with a capacity step from 30 August 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): all five resource types, six of the eight curves and a tower crane with a capacity step from 30 August 2027.

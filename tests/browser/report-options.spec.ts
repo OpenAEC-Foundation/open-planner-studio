@@ -1,6 +1,9 @@
 // Rapportkarakterisering: de gebruiker wijzigt de kop en een concrete tekenoptie, waarna zowel de
 // levende preview als de echte PDF-export dezelfde actuele waarden moeten gebruiken.
+import { readFile } from 'node:fs/promises';
+import { PDFDocument } from 'pdf-lib';
 import { expect, seedProject, test } from './fixtures/ops';
+import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
 test('report options: preview en export gebruiken dezelfde actuele kop en legendaoptie', async ({ page, ops: _ops }) => {
   await seedProject(page, [
@@ -8,6 +11,8 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
     // dezelfde Canvas-tekengrens als de preview observeerbaar is zonder productcode te instrumenteren.
     { name: '施工 – rapporttaak', start: '2026-09-07', finish: '2026-10-16', durationDays: 30 },
   ], 'Rapportopties');
+  const downloads: string[] = [];
+  page.on('download', download => { downloads.push(download.suggestedFilename()); });
   await page.evaluate(() => {
     const original = CanvasRenderingContext2D.prototype.fillText;
     const drawnText: string[] = [];
@@ -38,6 +43,14 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
   await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
   const previewBefore = await preview.getAttribute('src');
 
+  // Afdruk moet het ingestelde vel gebruiken, niet opnieuw het standaardrapport openen.
+  const paper = page.getByLabel(/^(Paper:|Papier:)$/);
+  await paper.click();
+  await page.getByRole('option', { name: 'A4', exact: true }).click();
+  const orientation = page.getByLabel(/^(Orientation:|Oriëntatie:)$/);
+  await orientation.click();
+  await page.getByRole('option', { name: /^(Portrait|Staand)$/ }).click();
+
   const legend = page.getByLabel(/^(Legend|Legenda)$/);
   if (await legend.isChecked()) await legend.uncheck();
   await page.evaluate(() => {
@@ -45,7 +58,12 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
     drawn?.splice(0, drawn.length);
   });
   const companyName = `Actuele rapportkop ${Date.now()}`;
-  await page.getByPlaceholder(/^(Company name|Bedrijfsnaam)$/).fill(companyName);
+  const company = page.getByPlaceholder(/^(Company name|Bedrijfsnaam)$/);
+  await company.fill(companyName);
+  // Enter in de invoer blijft een gewone invoerhandeling: geen impliciete formulierexport.
+  await company.press('Enter');
+  await expect(company).toBeFocused();
+  expect(downloads).toHaveLength(0);
 
   await expect.poll(() => preview.getAttribute('src')).not.toBe(previewBefore);
   await expect.poll(() => page.evaluate((header) => (
@@ -63,9 +81,25 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
     drawn?.splice(0, drawn.length);
   });
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+  // Knownbug 21: de echte lintknop start dezelfde export als Exporteer PDF, zonder remount.
+  const print = page.locator('[data-tour-anchor="ribbon:report:printPreview"]');
+  await print.click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+  expect(download.suggestedFilename()).toBe('Rapportopties-schedule.pdf');
+  expect(downloads).toHaveLength(1);
+  await expect(print).toBeFocused();
+  await expect(company).toHaveValue(companyName);
+  await expect(paper).toContainText('A4');
+  await expect(orientation).toContainText(/^(Portrait|Staand)$/);
+  await expect(legend).not.toBeChecked();
+  const pdfPath = await download.path();
+  expect(pdfPath).not.toBeNull();
+  const pdf = await PDFDocument.load(await readFile(pdfPath!));
+  expect(pdf.getPageCount()).toBeGreaterThan(0);
+  for (const pdfPage of pdf.getPages()) {
+    expect(pdfPage.getWidth()).toBeCloseTo(595.28, 1);
+    expect(pdfPage.getHeight()).toBeCloseTo(841.89, 1);
+  }
 
   await expect.poll(() => page.evaluate((header) => (
     ((window as Window & { __opsReportDrawnText?: string[] }).__opsReportDrawnText ?? [])
@@ -76,6 +110,46 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
   ));
   expect(exportText).not.toContain('Critical path');
   expect(exportText).not.toContain('Kritieke pad');
+
+  // Ctrl+P blijft navigatie naar Rapport; de lokale rapportinvoer blijft staan.
+  await page.keyboard.press('Control+p');
+  await expect(company).toHaveValue(companyName);
+  expect(downloads).toHaveLength(1);
+  const panelDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+  expect((await panelDownloadPromise).suggestedFilename()).toBe('Rapportopties-schedule.pdf');
+  expect(downloads).toHaveLength(2);
+
+  // Knownbug 61: ook de drie rapporttypen zonder TableReportSpec gebruiken de gekozen taal.
+  // De bestaande kop-, papier-, focus- en rasterfallbackcontroles hierboven blijven intact.
+  const typePicker = page.getByLabel(/^(Report type|Rapporttype)$/).first();
+  const exports = [
+    { option: /^(Gantt chart|Gantt-afdruk)$/, nl: 'planning', en: 'schedule' },
+    { option: /^(Milestone overview|Mijlpalen-overzicht)$/, nl: 'mijlpalen', en: 'milestones' },
+    { option: /^Variance$/, nl: 'afwijkingen', en: 'variance' },
+  ];
+  for (const locale of [LOCALE_CASES[2], LOCALE_CASES[3]]) {
+    await chooseLocale(page, locale);
+    for (const reportExport of exports) {
+      await typePicker.click();
+      await page.getByRole('option', { name: reportExport.option }).click();
+      const nextDownload = page.waitForEvent('download');
+      await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+      expect((await nextDownload).suggestedFilename()).toBe(`Rapportopties-${reportExport[locale.code]}.pdf`);
+    }
+  }
+
+  // Alleen het rapportdeel wisselt van taal: de naamloze basis blijft in beide talen `project`.
+  await page.evaluate(() => window.__OPS__!.store.getState().setProject({ name: '   ' }));
+  for (const [locale, filename] of [
+    [LOCALE_CASES[3], 'project-variance.pdf'],
+    [LOCALE_CASES[2], 'project-afwijkingen.pdf'],
+  ] as const) {
+    await chooseLocale(page, locale);
+    const nextDownload = page.waitForEvent('download');
+    await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+    expect((await nextDownload).suggestedFilename()).toBe(filename);
+  }
 });
 
 // Naamkolom van de rapporttabel: de gebruiker zet "Taaknamen afkappen" uit en ziet de volledige

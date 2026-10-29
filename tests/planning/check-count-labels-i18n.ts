@@ -44,6 +44,7 @@ import svCommon from '@/i18n/locales/sv/common.json';
 import nbCommon from '@/i18n/locales/nb/common.json';
 import daCommon from '@/i18n/locales/da/common.json';
 import fiCommon from '@/i18n/locales/fi/common.json';
+import loCommon from '@/i18n/locales/lo/common.json';
 import arMenu from '@/i18n/locales/ar/menu.json';
 import deMenu from '@/i18n/locales/de/menu.json';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -71,6 +72,8 @@ import svMenu from '@/i18n/locales/sv/menu.json';
 import nbMenu from '@/i18n/locales/nb/menu.json';
 import daMenu from '@/i18n/locales/da/menu.json';
 import fiMenu from '@/i18n/locales/fi/menu.json';
+import loMenu from '@/i18n/locales/lo/menu.json';
+import { LOCALES as UI_LOCALES } from '@/i18n/locales';
 
 type Bundle = Record<string, unknown>;
 const LOCALES: Record<string, { common: Bundle; menu: Bundle }> = {
@@ -87,7 +90,7 @@ const LOCALES: Record<string, { common: Bundle; menu: Bundle }> = {
   bg: { common: bgCommon, menu: bgMenu }, hu: { common: huCommon, menu: huMenu },
   ro: { common: roCommon, menu: roMenu }, sv: { common: svCommon, menu: svMenu },
   nb: { common: nbCommon, menu: nbMenu }, da: { common: daCommon, menu: daMenu },
-  fi: { common: fiCommon, menu: fiMenu },
+  fi: { common: fiCommon, menu: fiMenu }, lo: { common: loCommon, menu: loMenu },
 };
 
 /** [namespace, pad] van elke teltekst; de parameters zijn die van de aanroeper. */
@@ -133,6 +136,18 @@ const parentOf = (bundle: Bundle, path: string): Record<string, unknown> => {
   for (const part of path.split('.').slice(0, -1)) node = (node as Record<string, unknown>)?.[part];
   return (node ?? {}) as Record<string, unknown>;
 };
+
+// ── 0. Volledigheid: de lijst hierboven dekt exact de UI-talen van src/i18n/locales.ts ──────────
+// De imports zijn statisch (esbuild bundelt geen glob), dus deze lijst is handwerk. Een nieuwe UI-taal
+// die hier ontbreekt, viel voorheen stil buiten de check (`lo`, review C 2026-10-20).
+{
+  checks++;
+  const missing = UI_LOCALES.filter(l => !(l in LOCALES));
+  const extra = Object.keys(LOCALES).filter(l => !(UI_LOCALES as readonly string[]).includes(l));
+  if (missing.length > 0 || extra.length > 0) {
+    fail(`talenlijst wijkt af van src/i18n/locales.ts: ontbreekt [${missing.join(', ')}], extra [${extra.join(', ')}]`);
+  }
+}
 
 // ── 1. Structuur ─────────────────────────────────────────────────────────────────────────────
 for (const [loc, bundles] of Object.entries(LOCALES)) {

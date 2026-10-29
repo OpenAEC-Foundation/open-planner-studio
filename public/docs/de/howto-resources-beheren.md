@@ -41,13 +41,13 @@ Ein neuer Schritt beginnt mit dem heutigen Datum und 1 Einheit. Ändern Sie beid
 1. Klicken Sie in der Zeile auf den Papierkorb.
 2. Hat die Ressource Zuweisungen, fragt die App nach einer Bestätigung, zum Beispiel *„Bricklayer“ hat 4 Zuweisung(en) — löschen?* Klicken Sie auf den Haken, um zu löschen, oder auf das Kreuz, um abzubrechen. Ohne Zuweisungen verschwindet die Ressource sofort.
 
-Die Zuweisungen der Ressource werden mit ihr gelöscht. Hat ein Vorgang eine andere Arbeitsregel als *Feste Dauer und Einheiten*, verteilt die App die Arbeit der entfernten Ressource auf die verbleibenden Ressourcen. Je nach Regel ändert das deren Einheiten oder die Dauer des Vorgangs. Wenn sich die Dauer ändert, ist der Terminplan nicht mehr aktuell.
+Die Zuweisungen der Ressource werden mit ihr gelöscht. Hat ein Vorgang eine andere Vorgangsart als *Feste Dauer und Einheiten*, verteilt die App die Arbeit der entfernten Ressource auf die verbleibenden Ressourcen. Je nach Vorgangsart ändert das deren Einheiten oder die Dauer des Vorgangs. Wenn sich die Dauer ändert, ist der Terminplan nicht mehr aktuell.
 
 Sie können das Erstellen, Bearbeiten und Löschen mit *Rückgängig* (Strg+Z) rückgängig machen.
 
 ### Die kleine Übersicht in der Seitenspalte
 
-*Ressourcen › Verwalten › Ressourcen-Dock* zeigt in der rechten Spalte neben *Eigenschaften* eine kompakte Übersicht. Dort sehen Sie den Namen und die Farbe jeder Ressource. Neben einer überlasteten Ressource steht ein Warnzeichen (*Überlastet*). Dort können Sie nur *Max. Einheiten* ändern. Wenn Sie einen oder mehrere Vorgänge auswählen, zeigt die Übersicht nur die Ressourcen dieser Vorgänge.
+*Ressourcen › Verwalten › Ressourcen-Dock* zeigt in der rechten Seitenspalte neben *Eigenschaften* eine kompakte Übersicht. Dort sehen Sie den Namen und die Farbe jeder Ressource. Neben einer überlasteten Ressource steht ein Warnzeichen (*Überlastet*). Dort können Sie nur *Max. Einheiten* ändern. Wenn Sie einen oder mehrere Vorgänge auswählen, zeigt die Übersicht nur die Ressourcen dieser Vorgänge.
 
 ## Fallstricke und was die App dann tut
 

@@ -26,13 +26,13 @@ Alle rapporter på fanen *Rapport*, med alternativene som hører til dem. Du ser
 
 Tidsplanen som stolpediagram, med en tabell til venstre og en tidslinje til høyre, over flere sider om nødvendig. Forhåndsvisningen viser papiret med sidehodet, tabellen, tidslinjen og forklaringen. Boksen *Oversikt* teller *Aktiviteter:*, *Bladaktiviteter:*, *Kritisk:* og *Avhengigheter:*. Alle alternativer står under *Innstillinger*.
 
-**Selskap:** — selskapet i sidehodet. Standard: selskapet fra prosjektinfoen. Effekt: bare sidehodet i rapporten. Det du skriver her, huskes ikke. Endre selskapet i *Innstillinger › Prosjekt › Prosjektinfo*, i feltet *Oppdragsgiver/organisasjon*, og bekreft med *Bruk*.
+**Selskap:** — selskapet i sidehodet. Standard: selskapet fra prosjektinnstillingene. Effekt: bare sidehodet i rapporten. Det du skriver her, huskes ikke. Endre selskapet i *Innstillinger › Prosjekt › Prosjektinnstillinger*, i feltet *Oppdragsgiver/organisasjon*, og bekreft med *Bruk*.
 
-**Forfatter:** — forfatteren i sidehodet. Kan ikke endres. Appen henter den fra prosjektinfoen.
+**Forfatter:** — forfatteren i sidehodet. Kan ikke endres. Appen henter den fra prosjektinnstillingene.
 
 **Skriftstørrelse:** — størrelsen på tekst og tabell i rapporten. Velg mellom 90%, 100%, 110% og 125%. Standard: 100%. Effekt: med større skrift vokser tekst, rader og tabell, og tidslinjen mister bredde. Uavhengig av *Tekststørrelse* i innstillingene.
 
-**Stolpefarger:** — hva fargen på en stolpe avhenger av. Velg mellom *Kritisk linje*, *Per aktivitet — automatisk* og *Etter kategori*, med en nedtrekksliste *Kategorifelt* for *Etter kategori*. Standard: *Kritisk linje*. Effekt: dette er samme valg som *Stolpefarger* på fanen *Visning*. Endrer du det her, endrer Gantt-diagrammet på skjermen seg også. Finnes det valgte feltet ikke i dette prosjektet, står det *Dette feltet finnes ikke i dette prosjektet. Aktivitetstype brukes midlertidig*.
+**Stolpefarger:** — hva fargen på en stolpe avhenger av. Velg mellom *Kritisk linje*, *Per aktivitet — automatisk* og *Etter kategori*, med en nedtrekksliste *Kategorifelt* for *Etter kategori*. Standard: *Kritisk linje*. Effekt: dette er samme valg som *Stolpefarger* på fanen *Visning*. Endrer du det her, endrer Gantt-diagrammet på skjermen seg også. Finnes det valgte feltet ikke i dette prosjektet, står det *Dette feltet finnes ikke i dette prosjektet. Arbeidskategori brukes midlertidig*.
 
 **Statuslinje:** — en linje ved statusdatoen. Velg mellom *Ingen*, *Statusdatolinje* og *Fremdriftslinje*. Standard: *Ingen*. Effekt: *Statusdatolinje* tegner en linje ved statusdatoen. *Fremdriftslinje* tegner zigzaglinjen som buler ut til fremdriften av hver aktivitet. Har prosjektet ingen statusdato, står det *Angi først en statusdato*, og rapporten tegner ingenting.
 
@@ -120,7 +120,7 @@ Hvor prosjektet står på statusdatoen. Alternativene står under *Rapportaltern
 
 **Nesten kritisk ≤ (ad):** — Standard: 5. Som ved Look-ahead.
 
-Boksen *Oversikt* viser *Statusdato*, *Periode*, *Look-ahead t.o.m*, *Grunnlinje slutt*, *Prognosert slutt*, *Δ slutt (ad)*, *Planlagt* (med *(grunnlinje)* eller *(gjeldende tidsplan)*), *Faktisk* og tallene *Fullført*, *Pågår*, *Ikke startet*, *Forsinket* og *Kritisk*. Planlagt og faktisk er vektet etter varigheten til aktivitetene. Planlagt måler mot grunnlinjen hvis det finnes en aktiv grunnlinje. Ellers måler den mot gjeldende tidsplan. Seksjonene er *Fullført i den forrige perioden*, *Pågår*, *Starter i den neste perioden*, *Forsinket* og *Åpne kritiske aktiviteter*. En aktivitet kan stå i mer enn én seksjon.
+Boksen *Oversikt* viser *Statusdato*, *Periode*, *Look-ahead t.o.m*, *Grunnlinje slutt*, *Prognosert slutt*, *Δ slutt (ad)*, *Planlagt* (med *(grunnlinje)* eller *(gjeldende tidsplan)*), *Faktisk* og tallene *Fullført*, *Pågår*, *Ikke startet*, *Forsinket* og *Kritisk*. Planlagt og faktisk er vektet etter varigheten til aktivitetene. Planlagt måler mot grunnlinjen hvis det finnes en aktiv grunnlinje. Ellers måler den mot gjeldende tidsplan. Seksjonene er *Fullført i den forrige perioden*, *Pågår*, *Starter i den neste perioden*, *Forsinket* og *Åpne kritiske aktiviteter*. En aktivitet kan stå i mer enn én seksjon. Hver seksjon har de samme kolonnene: *WBS*, *Navn*, *Grunnlinje slutt*, *Prognosert slutt*, *Fullf.*, *Rest (ad)*, *TF (wd)*, *Kritisk* og *Status*. Statusen per rad er *Fullført*, *Pågår*, *Ikke startet*, *Skulle ha startet* eller *Skulle ha vært ferdig*.
 
 ## Tidsplanhelse
 
@@ -134,7 +134,7 @@ En kontroll av tidsplanen selv på feil og uvanlige verdier, med DCMA 14-punktsv
 
 **Nesten kritisk ≤ (ad):** — Tall fra 0 til 60. Standard: 5. Effekt: bestemmer kontrollen *Nesten kritisk*.
 
-Avsnittet *DCMA 14-punktsvurdering* kommer først. Den følger de fjorten kontrollene fra det amerikanske Defense Contract Management Agency (DCMA), med formlene og normene fra deres *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, oktober 2012). Per punkt ser du *Antall*, *Av* (det totale antallet som ble telt), *Verdi*, *Norm*, *Resultat* og *Detalj*. Resultatet er *Godkjent*, *Markering* eller *n/a*. For n/a står årsaken i detaljen. En markering er ikke en feil. Pamfletet ser det som en grunn til å se nærmere. Normene under *Rapportalternativer* gjelder ikke for dette avsnittet. Det bruker alltid normene fra pamfletet.
+Avsnittet *DCMA 14-punktsvurdering* kommer først. Den følger de fjorten kontrollene fra det amerikanske Defense Contract Management Agency (DCMA), med formlene og normene fra deres *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, oktober 2012). Per punkt ser du *Antall*, *Av* (det totale antallet som ble telt), *Verdi*, *Norm*, *Resultat* og *Detalj*. Resultatet er *Godkjent*, *Markering* eller *n/a*. For n/a står årsaken i detaljen. En markering er ikke en feil. Pamfletet ser det som en grunn til å se nærmere. Terskelverdiene under *Rapportalternativer* gjelder ikke for dette avsnittet. Det bruker alltid normene fra pamfletet.
 
 Den teller ufullførte bladaktiviteter, uten milepæler og hengekøyer, og avhengighetene inn til slike aktiviteter. Merknaden over rapporten viser begge tallene. De fjorten punktene:
 
@@ -149,9 +149,9 @@ Den teller ufullførte bladaktiviteter, uten milepæler og hengekøyer, og avhen
 - *Ugyldige datoer*: en faktisk start eller faktisk slutt etter statusdatoen, eller en prognosert start eller prognosert slutt før statusdatoen. Norm: ingen. Krever en statusdato.
 - *Ressurser*: aktiviteter uten ressurs. Norm: ingen. Bare hvis prosjektet bruker ressurser; ellers n/a.
 - *Forsinkede aktiviteter*: av de aktivitetene grunnlinjen sier skal være ferdig på eller før statusdatoen, andelen som blir ferdig senere eller prognostiseres senere. Norm: høyst 5%. Krever en statusdato og en aktiv grunnlinje.
-- *Test for kritisk linje*: appen forlenger en kritisk aktivitet med 100 arbeidsdager og omberegner på en kopi, uten å endre prosjektet. Testen består hvis den siste aktiviteten i prosjektet da ikke blir ferdig tidligere enn denne aktiviteten. Den tester den kritiske, ufullførte aktiviteten med tidligst start. Detaljen nevner aktiviteten og hvor mange arbeidsdager sluttdatoen flyttet seg.
+- *Test for kritisk linje*: appen forlenger en kritisk aktivitet med 100 arbeidsdager og omberegner på en kopi, uten å endre prosjektet. Testen består hvis den siste aktiviteten i prosjektet da ikke blir ferdig tidligere enn denne aktiviteten. Den tester den kritiske, ufullførte aktiviteten med tidligste start. Detaljen nevner aktiviteten og hvor mange arbeidsdager sluttdatoen flyttet seg. I visningen *Datoer slik de er registrert* er denne testen n/a (*ikke beregnet*): testen beregner, og rapporten viser da datoene fra kildefilen. Trykk på Beregn (F5), så kjører testen igjen.
 - *CPLI*: (lengde på kritisk linje + slakk) / lengde på kritisk linje. Lengden telles i arbeidsdager fra statusdatoen til slutten av den siste aktiviteten. Slakken er differansen mot grunnlinjens slutt for den aktiviteten, eller den beregnede slakken hvis aktiviteten ikke står i grunnlinjen. Norm: minst 0,95. Krever en statusdato.
-- *BEI*: antallet aktiviteter som er ferdig på statusdatoen, delt på antallet grunnlinjen sier skal være ferdig da, pluss aktivitetene uten grunnlinje. Norm: minst 0,95. Krever en statusdato og en aktiv grunnlinje.
+- *BEI* (baseline-utførelsesindeks): antallet aktiviteter som er ferdig på statusdatoen, delt på antallet grunnlinjen sier skal være ferdig da, pluss aktivitetene uten grunnlinje. Norm: minst 0,95. Krever en statusdato og en aktiv grunnlinje.
 
 To punkter avviker fra pamfletet, fordi appen ikke har begrepet. *Høy varighet* teller alle ufullførte aktiviteter. Pamfletet begrenser det til detaljplaneringsperioden (rolling wave). *Ressurser* ser bare på tildelte ressurser, ikke på kostnader. Pamfletet gir ikke noe tall for testen for kritisk linje. De 100 arbeidsdagene er appens eget valg.
 
@@ -177,7 +177,7 @@ Per ressurs vises aktivitetene den er knyttet til: hva gjør dette mannskapet el
 
 **Ta med fullførte aktiviteter** — Standard: av. Effekt: på tar også med tilordningene for fullførte aktiviteter.
 
-Radene er per ressurs, og innen en ressurs etter start. Blokken *Oversikt* teller *Ressurser*, *Tilordninger* og *Aktiviteter uten ressurs*. Kolonnene omfatter ressursen, aktiviteten, start og slutt, *Rest (ad)*, *Enh./dag*, *Fullf*, *Kritisk* og *Status*.
+Radene er per ressurs, og innen en ressurs etter start. Blokken *Oversikt* teller *Ressurser*, *Tilordninger* og *Aktiviteter uten ressurs*. Kolonnene er *Ressurs*, *Type*, *WBS*, *Navn*, *Start*, *Slutt*, *Rest (ad)*, *Enh./dag*, *Fullf*, *Kritisk* og *Status*. *Ressurs* og *Type* vises bare på den første raden for en ressurs. Statusen per rad er den samme som i fremdriftsrapporten: *Fullført*, *Pågår*, *Ikke startet*, *Skulle ha startet* eller *Skulle ha vært ferdig*.
 
 ## WBS-oppsummering
 

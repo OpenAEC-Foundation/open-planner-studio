@@ -1,0 +1,269 @@
+{
+  "kind": "ops-measure-large-plans",
+  "schema": 1,
+  "conditions": {
+    "commit": "77c588d5373bc28313038c7d2fc5ba310907f26f",
+    "commitShort": "77c588d53",
+    "commitSubject": "Laat scrolltoetsen het nivelleervoorstel bedienen",
+    "branch": "t3/performance-optimizations",
+    "mainBase": "522589202727a4a519b25b94aed196d844dc6ab8",
+    "productCodeChangedSinceMain": [
+      "src/components/dialogs/LevelingDialog.tsx",
+      "src/components/dialogs/LevelingPreviewTable.tsx"
+    ],
+    "worktreeDirty": [],
+    "appVersion": "2026.10.0",
+    "date": "2026-10-22T14:51:21.961Z",
+    "cpuModel": "AMD Ryzen 7 3700U with Radeon Vega Mobile Gfx",
+    "logicalCores": 8,
+    "physicalCores": 4,
+    "cpuGovernor": "schedutil",
+    "ramGiB": 13.6,
+    "os": "Linux Mint 22.3",
+    "kernel": "7.0.0-38-generic",
+    "node": "v24.22.0",
+    "loadAvgAtStart": [
+      5.49,
+      19.42,
+      14.26
+    ],
+    "chromium": "151.0.7922.34",
+    "headless": true,
+    "viewport": "1600x1000",
+    "deviceScaleFactor": 1,
+    "locale": "nl-NL",
+    "build": "vite build (productie, React productiemodus) + VITE_OPS_BENCH_BRIDGE=1",
+    "repeats": 1
+  },
+  "seed": 24301,
+  "results": [
+    {
+      "size": 10000,
+      "dataset": {
+        "size": 10000,
+        "file": "plan-10000.ifc",
+        "ifcBytes": 9111485,
+        "contentSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880",
+        "generator": {
+          "function": "generateBenchmarkProject",
+          "seed": "0x5eed",
+          "resourceCount": 8
+        },
+        "tasks": 10000,
+        "leafWorkTasks": 8400,
+        "milestones": 600,
+        "summaryTasks": 1000,
+        "summaryLevels": 2,
+        "wbsDepth": 3,
+        "relations": 11700,
+        "relationsByType": {
+          "FINISH_START": 8237,
+          "FINISH_FINISH": 1390,
+          "START_START": 2073
+        },
+        "relationsWithLag": 1421,
+        "resources": 8,
+        "resourcesByType": {
+          "LABOR": 2,
+          "CREW": 2,
+          "EQUIPMENT": 2,
+          "SUBCONTRACTOR": 2
+        },
+        "assignments": 5718,
+        "tasksWithAssignment": 5078,
+        "calendars": [
+          {
+            "name": "Benchmark-kalender",
+            "workDays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "hours": "07:00-16:00",
+            "hoursPerDay": 8,
+            "holidayPeriods": 15
+          }
+        ],
+        "projectStart": "2026-01-05",
+        "computedFinish": "2053-05-07",
+        "criticalTasks": 849,
+        "node": {
+          "repeats": 1,
+          "cpmMs": {
+            "median": 361.6,
+            "min": 361.6,
+            "max": 361.6,
+            "samples": [
+              361.6
+            ]
+          },
+          "ifcWriteMs": {
+            "median": 631.4,
+            "min": 631.4,
+            "max": 631.4,
+            "samples": [
+              631.4
+            ]
+          },
+          "ifcReadMs": {
+            "median": 1210.9,
+            "min": 1210.9,
+            "max": 1210.9,
+            "samples": [
+              1210.9
+            ]
+          }
+        }
+      },
+      "summary": {
+        "open": {
+          "ms": {
+            "n": 1,
+            "median": 4408,
+            "min": 4408,
+            "max": 4408,
+            "samples": [
+              4408
+            ]
+          },
+          "storeMs": {
+            "n": 1,
+            "median": 4185.5,
+            "min": 4185.5,
+            "max": 4185.5,
+            "samples": [
+              4185.5
+            ]
+          },
+          "paintMs": {
+            "n": 1,
+            "median": 14.3,
+            "min": 14.3,
+            "max": 14.3,
+            "samples": [
+              14.3
+            ]
+          },
+          "longestTaskMs": {
+            "n": 1,
+            "median": 2197,
+            "min": 2197,
+            "max": 2197,
+            "samples": [
+              2197
+            ]
+          },
+          "documents": {
+            "n": 1,
+            "median": 2,
+            "min": 2,
+            "max": 2,
+            "samples": [
+              2
+            ]
+          },
+          "okRuns": 1
+        },
+        "levelCalculate": {
+          "ms": {
+            "n": 1,
+            "median": 79323,
+            "min": 79323,
+            "max": 79323,
+            "samples": [
+              79323
+            ]
+          },
+          "longestTaskMs": {
+            "n": 1,
+            "median": 3935,
+            "min": 3935,
+            "max": 3935,
+            "samples": [
+              3935
+            ]
+          },
+          "rows": {
+            "n": 1,
+            "median": 8920,
+            "min": 8920,
+            "max": 8920,
+            "samples": [
+              8920
+            ]
+          },
+          "okRuns": 1
+        },
+        "levelApply": {
+          "ms": {
+            "n": 1,
+            "median": 3728.9,
+            "min": 3728.9,
+            "max": 3728.9,
+            "samples": [
+              3728.9
+            ]
+          },
+          "storeMs": {
+            "n": 1,
+            "median": 345.8,
+            "min": 345.8,
+            "max": 345.8,
+            "samples": [
+              345.8
+            ]
+          },
+          "longestTaskMs": {
+            "n": 1,
+            "median": 3711,
+            "min": 3711,
+            "max": 3711,
+            "samples": [
+              3711
+            ]
+          },
+          "okRuns": 1
+        }
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "phases": {
+            "open": {
+              "ok": true,
+              "ms": 4408,
+              "storeMs": 4185.5,
+              "paintMs": 14.3,
+              "longestTaskMs": 2197,
+              "scheduleStale": false,
+              "datesAsRecorded": false,
+              "hasCpm": true,
+              "isDirty": false,
+              "documents": 2
+            },
+            "levelCalculate": {
+              "ok": true,
+              "ms": 79323,
+              "longestTaskMs": 3935,
+              "rows": 8920,
+              "problem": null
+            },
+            "levelApply": {
+              "ok": true,
+              "ms": 3728.9,
+              "storeMs": 345.8,
+              "longestTaskMs": 3711,
+              "isDirtyAfter": true
+            }
+          },
+          "notes": [],
+          "errors": [],
+          "bootToWelcomeMs": 964.2,
+          "heapMB": 239
+        }
+      ]
+    }
+  ]
+}

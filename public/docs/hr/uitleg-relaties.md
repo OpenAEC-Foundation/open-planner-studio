@@ -45,7 +45,7 @@ Vrijeme preklapanja ne može zadatak staviti prije datuma početka projekta. Ako
 
 ### U kojem kalendaru se vrijeme odgode broji
 
-Svaki zadatak može imati vlastiti kalendar. Uz vrijeme odgode u radnim danima važno je koji kalendar broji radne dane. To određuje postavka *Kalendar vremena odgode*, s četiri izbora: *Prethodnik*, *Nasljednik*, *24-satni* i *Kalendar projekta*. Zadano se vrijeme odgode broji u kalendaru **prethodnika**. Postavku nalazite pod *Postavke › Projekt › Podaci o projektu*, u bloku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*. Izbor pripada datoteci projekta i vrijedi tek nakon što kliknete *Primijeni*. Nakon toga slijedi ponovno izračunavanje rasporeda.
+Svaki zadatak može imati vlastiti kalendar. Uz vrijeme odgode u radnim danima važno je koji kalendar broji radne dane. To određuje postavka *Kalendar vremena odgode*, s četiri izbora: *Prethodnik*, *Nasljednik*, *24-satni* i *Kalendar projekta*. Zadano se vrijeme odgode broji u kalendaru **prethodnika**. Postavku nalazite pod *Postavke › Projekt › Postavke projekta*, u bloku *Profil izračuna i opcije izračuna*, pod *Opcije izračuna ovog projekta*. Izbor pripada datoteci projekta i vrijedi tek nakon što kliknete *Primijeni*. Nakon toga slijedi ponovno izračunavanje rasporeda.
 
 Vrijeme odgode u kalendarskim danima (`3ed`) uvijek broji sve dane, bez obzira na to koji izbor u *Kalendar vremena odgode* odaberete.
 

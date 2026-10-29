@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 // Uitleg na het openen van een ander formaat dan IFC (eigenaarsbesluit 2026-10-12, optie 1).
 // Echte gebruikersflow: bestanden via de ribbonknop Openen en de bestandskiezer, de dialoog en de
 // instelling met echte klikken. `window.__OPS__` zet alleen de beginstand (uitleg aan; de fixture
@@ -108,10 +109,11 @@ const P6XML_MULTI = readFileSync(join(process.cwd(), 'tests/planning/fixtures/p6
 const P6XML_EMPTY = Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V8.3/API/BusinessObjects"><Project><ObjectId>7</ObjectId><Name>Leeg</Name></Project></APIBusinessObjects>`);
 
-test('formaatuitleg: P6 XML met meerdere projecten geeft één uitleg; een mislukte P6 XML geen',
+test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven alleen een fout',
   async ({ page, ops }) => {
     // De mislukte import logt zijn fout (`Failed to open file`) naast de melding; die fout is hier verwacht.
     ops.acceptError(/Failed to open file: P6XmlImportError/);
+    ops.acceptError(/Failed to open file: CsvDateImportError/);
     await page.evaluate(() => {
       localStorage.setItem('ops-formatNoticeHidden', '[]');
       window.__OPS__!.store.getState().setUI({ formatNoticeHidden: [] });
@@ -127,6 +129,53 @@ test('formaatuitleg: P6 XML met meerdere projecten geeft één uitleg; een mislu
       });
     });
     const noticeSets = () => page.evaluate(() => (window as unknown as { __noticeSets: string[] }).__noticeSets);
+
+    // Knownbug 128: documentinhoud en undo/opslagdoel mogen bij een weigering niet veranderen.
+    // Alleen observeren; openen en wegklikken gaan via echte browserbediening.
+    const documentData = () => page.evaluate(() => {
+      const state = window.__OPS__!.store.getState();
+      return JSON.stringify({
+        active: state.activeDocumentId,
+        documents: state.getOpenDocumentPayloads().map(({ id, payload }) => ({
+          id, project: payload.project, tasks: payload.tasks, sequences: payload.sequences,
+          calendar: payload.calendar, resources: payload.resources, assignments: payload.assignments,
+          filePath: payload.filePath, isDirty: payload.isDirty,
+        })),
+        history: state.historyEvents, nextHistorySequence: state.nextHistorySequence,
+        recentFiles: state.recentFiles,
+      });
+    });
+    const rejectCsv = async (content: string, column: string, value: string) => {
+      const before = await documentData();
+      const ids = await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications.map(n => n.id));
+      const chooser = page.waitForEvent('filechooser');
+      await page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ }).click();
+      await (await chooser).setFiles({ name: 'onleesbaar.csv', mimeType: 'text/csv', buffer: Buffer.from(content) });
+      const error = page.locator('.ops-toast.toast-error', { hasText: value });
+      await expect(error).toHaveCount(1);
+      await expect(error).toContainText(/CSV (niet geopend|not opened)/);
+      await expect(error).toContainText(/(CSV-rij 3|CSV row 3)/);
+      await expect(error).toContainText(column);
+      await expect(error).toContainText(/(jjjj-mm-dd|yyyy-mm-dd)/);
+      expect(await page.evaluate(previous => window.__OPS__!.store.getState().ui.notifications
+        .filter(n => !previous.includes(n.id))
+        .map(n => ({ severity: n.severity, messageKey: n.messageKey, params: n.params })), ids)).toEqual([{
+        severity: 'error', messageKey: 'notifications.csvInvalidDate', params: { row: 3, column, value },
+      }]);
+      expect(await documentData()).toBe(before);
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.pendingFormatNotice)).toBeNull();
+      await expect(notice(page)).toHaveCount(0);
+      await error.locator('[data-ops-toast-close]').click();
+      await expect(error).toHaveCount(0);
+    };
+
+    // Leeg/pristine tabblad: ook geen gedeeltelijke commit van de eerste, geldige CSV-rij.
+    await rejectCsv([
+      'Naam;Duur;Startdatum;Einddatum;Werkelijke start',
+      'Geldig;1;2015-01-05;2015-01-05;',
+      'Onleesbaar;1;2015-01-06;2015-01-06;2 maart 2026',
+    ].join('\n'), 'Werkelijke start', '2 maart 2026');
+    expect(await noticeSets()).toEqual([]);
 
     // 1. Meerdere projecten ⇒ twee documenten (het lege tabblad wordt hergebruikt), één uitleg.
     const before = await documentCount(page);
@@ -154,4 +203,37 @@ test('formaatuitleg: P6 XML met meerdere projecten geeft één uitleg; een mislu
     expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.pendingFormatNotice)).toBeNull();
     await expect(notice(page)).toHaveCount(0);
     expect(await noticeSets()).toEqual(['p6xml']);
+
+    // Gevulde documentset: een onleesbaar gepland einde weigeren, alle documenten behouden.
+    const invalidCsv = [
+      'Name,Duration,Start,Finish',
+      'ISO,1,2015-01-05,2015-01-05',
+      'DMY,1,06-01-2015,Mon 3/2/26',
+      'Leeg,1,,',
+    ].join('\n');
+    await rejectCsv(invalidCsv, 'Finish', 'Mon 3/2/26');
+    expect(await noticeSets()).toEqual(['p6xml']);
+
+    // De gebruiker herstelt de cel en opent opnieuw: ISO/DMY/slash én lege datums importeren.
+    await openFile(page, 'hersteld.csv', Buffer.from(invalidCsv.replace('Mon 3/2/26', '06/01/2015')));
+    await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'csv');
+    expect(await noticeSets()).toEqual(['p6xml', 'csv']);
+    expect(await page.evaluate(() => {
+      const state = window.__OPS__!.store.getState();
+      return {
+        filePath: state.filePath,
+        tasks: state.tasks.map(t => ({
+          name: t.name, start: t.time.scheduleStart, finish: t.time.scheduleFinish,
+          actualStart: t.time.actualStart ?? null, actualFinish: t.time.actualFinish ?? null,
+        })),
+      };
+    })).toEqual({
+      filePath: null,
+      tasks: [
+        { name: 'ISO', start: "2015-01-05T07:00", finish: "2015-01-05T16:00", actualStart: null, actualFinish: null },
+        { name: 'DMY', start: "2015-01-06T07:00", finish: "2015-01-06T16:00", actualStart: null, actualFinish: null },
+        { name: 'Leeg', start: "2015-01-05T07:00", finish: "2015-01-05T16:00", actualStart: null, actualFinish: null },
+      ],
+    });
+    await notice(page).locator('[data-ops-format-notice-close]').click();
   });

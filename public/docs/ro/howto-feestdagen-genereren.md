@@ -16,17 +16,17 @@ Fără sărbători, aplicația planifică pur și simplu lucru și în ziua de C
 2. Faceți clic pe *Generare sărbători…*. Sub buton se deschide un bloc cu opțiunile.
 3. Alegeți *Țară*: Țările de Jos, Germania, Belgia, Franța, Regatul Unit, Austria, Elveția sau *Fără sărbători*. Pentru unele țări apare și o listă *Regiune*, de exemplu un land din Germania. *Național* păstrează doar sărbătorile care se aplică peste tot.
 4. Pentru Țările de Jos, alegeți *Concediu colectiv din construcții*: *Niciuna* (implicit), *Nord*, *Centru* sau *Sud*. Concediul colectiv din construcții apare ca o perioadă în listă, de exemplu *Bouwvak (Noord)*, trei săptămâni de luni până vineri. Vedeți această alegere doar dacă *Mod construcții* este activat.
-5. Sub opțiuni există un rezumat, de exemplu *21 sărbători, 2026–2028*. Faceți clic pe el ca să vedeți datele.
+5. Sub opțiuni există un rezumat, de exemplu *21 de sărbători, 2026–2028*. Faceți clic pe el ca să vedeți datele.
 6. Faceți clic pe *Generare*. Lista *Sărbători* este acum completată.
 7. Faceți clic pe *Aplicare*. Aplicația recalculează imediat planificarea.
 
 Pentru Țările de Jos, aplicația pune în listă în fiecare an Nieuwjaar, Goede Vrijdag, Pasen (două zile), Koningsdag, Hemelvaart, Pinksteren (două zile) și Kerst (25 și 26 decembrie) (Anul Nou, Vinerea Mare, Paștele, Ziua Regelui, Înălțarea Domnului, Rusaliile și Crăciunul). Dacă Ziua Regelui cade duminică, ea este pe 26 aprilie. Bevrijdingsdag (Ziua Eliberării) apare în listă doar în anii de lustru, de exemplu 2025 și 2030.
 
-Anii depind de perioada proiectului: de la anul dinaintea datei de început până la anul de după data de sfârșit. Dacă proiectul nu are dată de sfârșit, până la trei ani după anul datei de început. Modificați data de început și data de sfârșit în *Setări › Proiect › Informații proiect*.
+Anii depind de perioada proiectului: de la anul dinaintea datei de început până la anul de după data de sfârșit. Dacă proiectul nu are dată de sfârșit, până la trei ani după anul datei de început. Modificați data de început și data de sfârșit în *Setări › Proiect › Setări proiect*.
 
 ### Regenerarea după o nouă perioadă a proiectului
 
-Dacă perioada proiectului se schimbă sau primește o dată de sfârșit mai târzie, sărbătorile nu mai acoperă anii noi. Aplicația afișează asta în fereastra *Calendare*, de exemplu *Sărbătorile acoperă 2025–2028; proiectul merge până în 2030. Regenerați?* Apoi faceți clic pe *Regenerare*. Aplicația folosește pentru anii proiectului aceleași opțiuni ca data trecută (țara, regiunea, concediul colectiv din construcții). Apoi faceți clic pe *Aplicare*. Vedeți acest mesaj doar pentru un calendar pentru care sărbătorile au fost generate anterior.
+Dacă perioada proiectului se schimbă sau primește o dată de sfârșit mai târzie, sărbătorile nu mai acoperă anii noi. Aplicația afișează asta în fereastra *Calendare*, de exemplu *Sărbătorile acoperă 2025–2028; regenerați până la 2030 inclusiv?* Apoi faceți clic pe *Regenerare*. Aplicația folosește pentru anii proiectului aceleași opțiuni ca data trecută (țara, regiunea, concediul colectiv din construcții). Apoi faceți clic pe *Aplicare*. Vedeți acest mesaj doar pentru un calendar pentru care sărbătorile au fost generate anterior.
 
 ### Adăugarea unei zile sau a unei perioade libere proprii
 
@@ -58,5 +58,5 @@ Alegeți *Fără sărbători* sub *Țară* și faceți clic pe *Generare*. Lista
 - [Calendare și zile lucrătoare](docs://uitleg-kalenders): cum ține aplicația cont de sărbători și de concediul colectiv din construcții la numărarea zilelor lucrătoare.
 - [Crearea și atribuirea unui calendar](docs://howto-kalender-maken-en-toewijzen): cum creați un calendar propriu în care să introduceți sărbători.
 - [Ferestrele calendarului](docs://ref-kalenders): toate câmpurile ferestrelor de calendar.
-- [Proiect nou și Informații proiect](docs://ref-projectinfo): setul de sărbători pentru un proiect nou.
+- [Proiect nou și Setări proiect](docs://ref-projectinfo): setul de sărbători pentru un proiect nou.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): pe lângă sărbători, calendarul proiectului are o perioadă liberă *Frost delay, foundations*.

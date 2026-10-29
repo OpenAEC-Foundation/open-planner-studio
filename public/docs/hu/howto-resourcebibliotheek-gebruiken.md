@@ -22,7 +22,7 @@ Az erőforrástárral csak akkor dolgozhat, ha a projekt össze van kapcsolva ve
 
 Meglévő projekt esetén:
 
-1. Válassza a *Fájl › Projektinfó* lehetőséget.
+1. Válassza a *Fájl › Projektbeállítások* lehetőséget.
 2. Az *Erőforrástár* résznél válassza ki a kívánt erőforrástárat.
 3. Kattintson az *Alkalmazás* gombra. Addig az ablak alján ez áll: *A módosítások nincsenek alkalmazva — a megtartásukhoz kattintson erre: Alkalmazás.*
 
@@ -34,7 +34,7 @@ Ha a projektben már van olyan erőforrás, amelynek neve megegyezik egy erőfor
 2. Jobb felül válassza az *Erőforrástár* lehetőséget. A táblázat fölött ez áll: *Ez az erőforrástárat szerkeszti, és az összes projektre hat — ez nem vonható vissza.*
 3. Kattintson az *Új erőforrás az erőforrástárban* gombra. A táblázat alján egy üres sor jelenik meg.
 4. Írja be a nevet, például a *Bricklayer* nevet, majd nyomja meg az Enter billentyűt. Az erőforrás most már az erőforrástárban van, és azonnal megnyílik egy üres sor a következő erőforrásnak. Ha végzett, nyomja meg az Esc billentyűt. Név nélkül az alkalmazás nem hoz létre semmit.
-5. Töltse ki a sor többi mezőjét. A *Típus* alapértelmezés szerint *Munkaerő*. A *Maximális mennyiség* mezőben adja meg, hogy összesen hány ebből az erőforrásból van, például 3, ha három falazója van. A foglaltság-áttekintés ezt a számot használja kapacitásként. Az *Alapdíj/óra* mező nem kötelező. A *Mértékegység* mezőt csak *Anyag* típusnál tudja kitölteni. A *Naptár* mezőben a tárból választhat naptárat, vagy a *+ Erőforrásnaptár* lehetőséggel készíthet egyet, lásd: [Erőforrásnaptár beállítása](docs://howto-resourcekalender-instellen). Az alkalmazás a nevet, az alapdíjat és a mértékegységet akkor menti, amikor elhagyja a mezőt, a többi mezőt pedig azonnal menti.
+5. Töltse ki a sor többi mezőjét. A *Típus* alapértelmezés szerint *Munkaerő*. A *Maximális mennyiség* mezőben adja meg, hogy összesen hány ebből az erőforrásból van, például 3, ha három falazója van. A foglaltság-áttekintés ezt a számot használja kapacitásként. Az *Alapdíj/óra* mező nem kötelező. A *Mértékegység* mezőt csak *Anyag* típusnál tudja kitölteni. A *Naptár* mezőben az erőforrástárból választhat naptárat, vagy a *+ Erőforrásnaptár* lehetőséggel készíthet egyet, lásd: [Erőforrásnaptár beállítása](docs://howto-resourcekalender-instellen). Az alkalmazás a nevet, az alapdíjat és a mértékegységet akkor menti, amikor elhagyja a mezőt, a többi mezőt pedig azonnal menti.
 
 Az erőforrástár minden változása azonnal átvezetődik a megnyitott projektekben lévő, nem módosított másolatokba.
 
@@ -49,7 +49,7 @@ A *Hozzárendelés a projekthez* csak olyan projekt *Erőforrástár* nézetébe
 
 ### 4. Erőforrás felvétele a projektből az erőforrástárba
 
-Ezt olyan erőforrásnál teheti meg, amelyet a projektben hozott létre, és gyakrabban használja, például egy bérelt darunál.
+Ezt olyan erőforrásnál teheti meg, amelyet a projektben hozott létre, és gyakrabban használja, például egy bérelt darut.
 
 1. A *Projekt* nézetben válassza a *Felvétel az erőforrástárba* lehetőséget az erőforrásnál. A gomb csak olyan erőforrásnál jelenik meg, amelynek van neve, és amely még nem az erőforrástárból származik, összekapcsolt projektben.
 2. Olvassa el a táblázat fölötti üzenetet.

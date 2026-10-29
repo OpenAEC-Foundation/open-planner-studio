@@ -1,0 +1,510 @@
+{
+  "_readme": "F1: regressies bij blokgrenzen. De eerste 30 cases komen uit PR #402 (138–142); 18 nieuwe cases bewaken 145, 147, eindmijlpalen, zachte en harde eindgrenzen, splits, externe FF, hangmatten en N2 met dagen- en minutenwaarde. H8 = ma-vr 08–16; B2 = ma-vr 07–12 + 13–16. Verwachte momenten volgen uit die werkblokken. Statusregel en deadline uit opgeslagen datums: check-hours-f1-status.ts.",
+  "cases": [
+    {
+      "id": "bg138-deadline-zonder-tijd-gehaald",
+      "title": "knownbugs 138. Kalender ma-vr 08-16. A 8u vanaf ma 07-06 eindigt ma 16:00; deadline '2026-07-06' zonder tijd = einde van het laatste werkblok van die dag (ma 16:00). Late finish ma 16:00, speling 0, niet gemist. Vóór de fix: lf ma 00:00, speling -1, gemist. B 40u zorgt dat het projecteinde niet begrenst.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "deadline": "2026-07-06"},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-06T08:00", "ef": "2026-07-06T16:00", "lf": "2026-07-06T16:00", "tf": 0}
+        },
+        "missedDeadlinesSet": []
+      }
+    },
+    {
+      "id": "bg138-deadline-zonder-tijd-gemist",
+      "title": "knownbugs 138. A 16u eindigt di 16:00; deadline '2026-07-06' = ma 16:00. Echt gemist: lf ma 16:00, speling -1 (één werkdag), in de lijst gemiste deadlines. B 40u zorgt dat het projecteinde niet begrenst.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "16u", "deadline": "2026-07-06"},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"ef": "2026-07-07T16:00", "lf": "2026-07-06T16:00", "tf": -1}
+        },
+        "missedDeadlinesSet": ["A"]
+      }
+    },
+    {
+      "id": "bg138-deadline-zonder-tijd-weekend",
+      "title": "knownbugs 138. Deadline op za '2026-07-11' (geen werkblok): het laatste blokeinde ervóór, vr 07-10 16:00 (zoals de dagtaak prevWorkDay = vr leest). A 8u eindigt ma 16:00: speling 4. B 80u zorgt dat het projecteinde niet begrenst. Vóór de fix: lf vr 00:00, speling 3.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "deadline": "2026-07-11"},
+        {"name": "B", "dur": "80u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-10T16:00", "tf": 4}
+        },
+        "missedDeadlinesSet": []
+      }
+    },
+    {
+      "id": "bg138-deadline-met-tijd",
+      "title": "knownbugs 138. Een deadline MET tijd ('2026-07-06T12:00') is dat moment, niet het einde van de dag. A 8u eindigt ma 16:00: lf ma 12:00, speling -0,5 (4 van 8 u), gemist. B 40u zorgt dat het projecteinde niet begrenst.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "deadline": "2026-07-06T12:00"},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-06T12:00", "tf": -0.5}
+        },
+        "missedDeadlinesSet": ["A"]
+      }
+    },
+    {
+      "id": "bg139-zachte-mso-blokbegin",
+      "title": "knownbugs 139. Zachte MSO op di 08:00 (blokbegin). A 8u start op de beperking: niet geschonden. Vóór de fix vergeleek de analyse met het vorige blokeinde (ma 16:00).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "constraint": {"type": "MSO", "date": "2026-07-07T08:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "tf": 0}
+        },
+        "violatedConstraintsSet": []
+      }
+    },
+    {
+      "id": "bg139-zachte-snlt-blokbegin",
+      "title": "knownbugs 139. P 8u FS A 8u; A SNLT di 08:00. A start di 08:00 = de beperking: niet geschonden, speling 0.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "8u"},
+        {"name": "A", "dur": "8u", "constraint": {"type": "SNLT", "date": "2026-07-07T08:00"}}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T08:00", "ef": "2026-07-07T16:00", "tf": 0}
+        },
+        "violatedConstraintsSet": []
+      }
+    },
+    {
+      "id": "bg139-zachte-snlt-zonder-tijd",
+      "title": "knownbugs 139. Zelfde net, SNLT '2026-07-07' zonder tijd (00:00). A start di 08:00, op die datum: niet geschonden.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "8u"},
+        {"name": "A", "dur": "8u", "constraint": {"type": "SNLT", "date": "2026-07-07"}}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T08:00", "tf": 0}
+        },
+        "violatedConstraintsSet": []
+      }
+    },
+    {
+      "id": "bg139-zachte-mso-geschonden",
+      "title": "knownbugs 139, controle. P 12u FS A 4u; A MSO zacht di 08:00. De logica duwt A naar di 12:00: echt geschonden.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "12u"},
+        {"name": "A", "dur": "4u", "constraint": {"type": "MSO", "date": "2026-07-07T08:00"}}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T12:00"}
+        },
+        "violatedConstraintsSet": ["A"]
+      }
+    },
+    {
+      "id": "bg140-nivelleervertraging-blokeinde",
+      "title": "knownbugs 140. P 8u (ma) FS A 8u met nivelleervertraging 480 min. Logica-start di 08:00 + 8 werkuur landt op di 16:00 (blokeinde); een start op een blokeinde loopt vanaf het volgende blokbegin: A wo 08:00-16:00. Vóór de fix: es = ef = di 16:00 (duur nul).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "8u"},
+        {"name": "A", "dur": "8u", "levelingDelayMinutes": 480}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "P": {"lf": "2026-07-06T16:00", "tf": 0},
+          "A": {"es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T16:00", "tf": 0}
+        },
+        "projectEnd": "2026-07-08T16:00"
+      }
+    },
+    {
+      "id": "bg140-nivelleervertraging-binnen-blok",
+      "title": "knownbugs 140, controle. Vertraging 240 min: start di 12:00 (binnen een blok), einde wo 12:00.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "8u"},
+        {"name": "A", "dur": "8u", "levelingDelayMinutes": 240}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T12:00", "ef": "2026-07-08T12:00"}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-fs-blokbegin",
+      "title": "knownbugs 141. A 8u (ma) met externe FS-opvolger, anker wo 08:00, lag 0. Late finish = het vorige blokeinde di 16:00, speling 1. B 40u zorgt dat het projecteinde niet begrenst. Vóór de fix: lf wo 08:00.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "externalLinks": [{"direction": "successor", "relType": "FS", "anchorDate": "2026-07-08T08:00"}]},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-07T16:00", "ls": "2026-07-07T08:00", "tf": 1}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-fs-lag",
+      "title": "knownbugs 141. Zelfde, lag +480 min: A moet 8 werkuur vóór wo 08:00 klaar zijn = di 08:00 op de tijdas = ma 16:00 als eindmoment. lf ma 16:00, speling 0. Vóór de fix: lf di 08:00.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "externalLinks": [{"direction": "successor", "relType": "FS", "anchorDate": "2026-07-08T08:00", "lagMinutes": 480}]},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-06T16:00", "tf": 0}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-fs-lead",
+      "title": "knownbugs 141, controle. Lead 480 min (lag -480): A mag tot 8 werkuur ná het anker eindigen = wo 16:00 (blokeinde, al goed). Speling 2.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "externalLinks": [{"direction": "successor", "relType": "FS", "anchorDate": "2026-07-08T08:00", "lagMinutes": -480}]},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-08T16:00", "tf": 2}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-ff-blokbegin",
+      "title": "knownbugs 141. Externe FF-opvolger, anker wo 08:00: A's finish ≤ het anker, als eindmoment di 16:00. Speling 1.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "externalLinks": [{"direction": "successor", "relType": "FF", "anchorDate": "2026-07-08T08:00"}]},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-07T16:00", "tf": 1}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-dagtaak",
+      "title": "knownbugs 141 bij een dagtaak op een kalender met werkblokken: A 1 d (ma) met externe FS-opvolger, anker wo 08:00. lf di 16:00, ls di 08:00, speling 1 (dag-orakel: prevWorkDayBefore(wo) = di).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": 1, "externalLinks": [{"direction": "successor", "relType": "FS", "anchorDate": "2026-07-08T08:00"}]},
+        {"name": "B", "dur": 5}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"ls": "2026-07-07T08:00", "lf": "2026-07-07T16:00", "tf": 1}
+        }
+      }
+    },
+    {
+      "id": "bg142-ff-dagtaken-werkblokken",
+      "title": "knownbugs 142 (= rel-ff-lag0 op een kalender ma-vr 07-12 + 13-16). A 5 d ma-vr, B 2 d, FF lag 0: B do 07:00 - vr 16:00, A speling 0. Vóór de fix: B vr 07:00 - ma 16:00, A speling 1.",
+      "anchor": "2026-06-01",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": 5},
+        {"name": "B", "dur": 2}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 0}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-06-01T07:00", "ef": "2026-06-05T16:00", "ls": "2026-06-01T07:00", "lf": "2026-06-05T16:00", "tf": 0},
+          "B": {"es": "2026-06-04T07:00", "ef": "2026-06-05T16:00", "ls": "2026-06-04T07:00", "lf": "2026-06-05T16:00", "tf": 0}
+        },
+        "projectEnd": "2026-06-05T16:00"
+      }
+    },
+    {
+      "id": "bg142-ff-dagtaken-werkblokken-lead",
+      "title": "knownbugs 142 (= rel-ff-lagm2 op werkblokken). FF lag -2: B eindigt 2 werkdagen vóór A = wo 06-03, start di 06-02. B speling 2. Vóór de fix: B wo 07:00 - do 16:00 (de aftrek landt op het blokbegin do 07:00).",
+      "anchor": "2026-06-01",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": 5},
+        {"name": "B", "dur": 2}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": -2}],
+      "expect": {
+        "tasks": {
+          "A": {"tf": 0},
+          "B": {"es": "2026-06-02T07:00", "ef": "2026-06-03T16:00", "ls": "2026-06-04T07:00", "lf": "2026-06-05T16:00", "tf": 2}
+        },
+        "projectEnd": "2026-06-05T16:00"
+      }
+    },
+    {
+      "id": "bg142-ff-dagtaken-werkblokken-lag2",
+      "title": "knownbugs 142 (= rel-ff-lagp2 op werkblokken). FF lag +2: B ma 06-08 - di 06-09. Achterwaarts: A lf vr 16:00, ls ma 07:00 (speling 0). Vóór de fix: A lf ma 07:00 (blokbegin) en ls di.",
+      "anchor": "2026-06-01",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": 5},
+        {"name": "B", "dur": 2}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 2}],
+      "expect": {
+        "tasks": {
+          "A": {"ls": "2026-06-01T07:00", "lf": "2026-06-05T16:00", "tf": 0},
+          "B": {"es": "2026-06-08T07:00", "ef": "2026-06-09T16:00", "tf": 0}
+        },
+        "projectEnd": "2026-06-09T16:00"
+      }
+    },
+    {
+      "id": "bg142-fs-dagtaken-werkblokken",
+      "title": "knownbugs 142, controle: FS lag 0 tussen dezelfde dagtaken klopte al. B ma 06-08 - di 06-09.",
+      "anchor": "2026-06-01",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": 5},
+        {"name": "B", "dur": 2}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "B": {"es": "2026-06-08T07:00", "ef": "2026-06-09T16:00"}
+        }
+      }
+    },
+    {
+      "id": "bg142-ff-opvolger-eigen-kalender-vrije-dag",
+      "title": "Review #402 punt 1. A 6 d (dagtaak, projectkalender ma-vr 08-16) eindigt ma 07-13 16:00. B 1 d op een eigen kalender waarop ma 07-13 vrij is, FF lag 0. Het vorige blokeinde van A (ma 16:00) is voor B geen eindgrens: B eindigt di 07-14, niet vóór A (vr 07-10, zoals 04c34fa1e gaf). A speling 1 (gelijk aan main).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "calendars": [{"name": "Bvrij", "workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}, "holidays": [{"name": "vrij", "startDate": "2026-07-13", "endDate": "2026-07-13"}]}],
+      "tasks": [
+        {"name": "A", "dur": 6},
+        {"name": "B", "dur": 1, "calendar": "Bvrij"}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 0}],
+      "expect": {
+        "tasks": {
+          "A": {"ef": "2026-07-13T16:00", "tf": 1},
+          "B": {"es": "2026-07-14T08:00", "ef": "2026-07-14T16:00"}
+        }
+      }
+    },
+    {
+      "id": "bg142-ff-na-elapsed-voorganger",
+      "title": "Review #402 punt 1. A 24 klokuren ELAPSEDTIME vanaf ma 08:00 eindigt di 08:00 (rauw). Dagtaak B 1 d, FF lag 0: B mag niet vóór di 08:00 eindigen, dus di 08:00-16:00 (04c34fa1e: ma 08:00-16:00). Gelijk aan main.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "24u", "durationType": "ELAPSEDTIME", "start": "2026-07-06T08:00"},
+        {"name": "B", "dur": 1}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 0}],
+      "expect": {
+        "tasks": {
+          "A": {"ef": "2026-07-07T08:00"},
+          "B": {"es": "2026-07-07T08:00", "ef": "2026-07-07T16:00"}
+        }
+      }
+    },
+    {
+      "id": "bg142-ff-na-elapsed-voorganger-op-blokeinde",
+      "title": "Review #402 punt 1, controle. A 8 klokuren ELAPSEDTIME vanaf ma 08:00 eindigt precies op het blokeinde ma 16:00. Dagtaak B 1 d, FF lag 0: B ma 08:00-16:00 (main gaf di, de oude 142-fout).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "durationType": "ELAPSEDTIME", "start": "2026-07-06T08:00"},
+        {"name": "B", "dur": 1}
+      ],
+      "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 0}],
+      "expect": {
+        "tasks": {
+          "A": {"ef": "2026-07-06T16:00"},
+          "B": {"es": "2026-07-06T08:00", "ef": "2026-07-06T16:00"}
+        }
+      }
+    },
+    {
+      "id": "bg139-elapsed-snlt-buiten-werktijd",
+      "title": "Review #402 punt 2. A 4 klokuren ELAPSEDTIME start di 18:00 (buiten werktijd), SNLT di 16:00. Echt geschonden (late start di 16:00, speling -2/24). 04c34fa1e vergeleek met wo 08:00 en meldde niets.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "4u", "durationType": "ELAPSEDTIME", "start": "2026-07-07T18:00", "constraint": {"type": "SNLT", "date": "2026-07-07T16:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T18:00", "ls": "2026-07-07T16:00", "tf": -0.08333333333333333}
+        },
+        "violatedConstraintsSet": ["A"]
+      }
+    },
+    {
+      "id": "bg139-elapsed-snlt-in-pauze",
+      "title": "Review #402 punt 2, landing in de pauze. Kalender 07-12 + 13-16. A 4 klokuren ELAPSEDTIME start di 12:30 (pauze), SNLT di 12:00: geschonden. 04c34fa1e vergeleek met 13:00.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "4u", "durationType": "ELAPSEDTIME", "start": "2026-07-07T12:30", "constraint": {"type": "SNLT", "date": "2026-07-07T12:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T12:30", "ls": "2026-07-07T12:00"}
+        },
+        "violatedConstraintsSet": ["A"]
+      }
+    },
+    {
+      "id": "bg139-elapsed-snlt-na-blokeinde",
+      "title": "Review #402 punt 2. SNLT di 17:00 (na het blokeinde), A 4 klokuren ELAPSEDTIME start di 16:30. De solver zet de late start op di 16:00 (speling negatief), dus geschonden. Het letterlijke moment (17:00) zou de schending verbergen; daarom blijft ELAPSEDTIME bij snapOnOrBefore, zoals main.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "4u", "durationType": "ELAPSEDTIME", "start": "2026-07-07T16:30", "constraint": {"type": "SNLT", "date": "2026-07-07T17:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"ls": "2026-07-07T16:00", "tf": -0.020833333333333332}
+        },
+        "violatedConstraintsSet": ["A"]
+      }
+    },
+    {
+      "id": "bg139-mijlpaal-0u-snlt-buiten-werktijd-start",
+      "title": "Review #402 ronde 2, punt 2. START-mijlpaal 0u op di 18:00 (buiten werktijd), SNLT di 16:00. Echt geschonden, zoals main en zoals dezelfde mijlpaal met 0d. 3c2a0bd19 vergeleek met wo 08:00 en meldde niets; een nulduurmijlpaal blijft daarom bij snapOnOrBefore.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "M", "milestone": true, "milestoneKind": "START", "dur": "0u", "start": "2026-07-07T18:00", "constraint": {"type": "SNLT", "date": "2026-07-07T16:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "M": {"es": "2026-07-07T18:00", "ls": "2026-07-07T16:00", "tf": 0}
+        },
+        "violatedConstraintsSet": ["M"]
+      }
+    },
+    {
+      "id": "bg139-mijlpaal-0u-snlt-buiten-werktijd-finish",
+      "title": "Review #402 ronde 2, punt 2. FINISH-mijlpaal 0u op di 18:00 (buiten werktijd), SNLT di 16:00. Echt geschonden, zoals main en zoals dezelfde mijlpaal met 0d. 3c2a0bd19 vergeleek met wo 08:00 en meldde niets; een nulduurmijlpaal blijft daarom bij snapOnOrBefore.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "M", "milestone": true, "milestoneKind": "FINISH", "dur": "0u", "start": "2026-07-07T18:00", "constraint": {"type": "SNLT", "date": "2026-07-07T16:00"}}
+      ],
+      "expect": {
+        "tasks": {
+          "M": {"es": "2026-07-07T18:00", "ls": "2026-07-07T16:00", "tf": 0}
+        },
+        "violatedConstraintsSet": ["M"]
+      }
+    },
+    {
+      "id": "bg140-nivelleervertraging-voor-de-pauze",
+      "title": "Knownbugs 140, landing vóór de pauze. Kalender 07-12 + 13-16. P 8u (ma), A 8u met vertraging 300 min: di 07:00 + 5 werkuur = di 12:00 (blokeinde vóór de pauze). A start di 13:00 en eindigt wo 12:00 (main toonde start 12:00).",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "P", "dur": "8u"},
+        {"name": "A", "dur": "8u", "levelingDelayMinutes": 300}
+      ],
+      "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}],
+      "expect": {
+        "tasks": {
+          "A": {"es": "2026-07-07T13:00", "ef": "2026-07-08T12:00"}
+        }
+      }
+    },
+    {
+      "id": "bg141-externe-opvolger-na-de-pauze",
+      "title": "Knownbugs 141, anker op het blokbegin na de pauze. Kalender 07-12 + 13-16. A 8u (ma) met externe FS-opvolger, anker di 13:00: late finish di 12:00 (main: 13:00). B 40u.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}},
+      "tasks": [
+        {"name": "A", "dur": "8u", "externalLinks": [{"direction": "successor", "relType": "FS", "anchorDate": "2026-07-07T13:00"}]},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"lf": "2026-07-07T12:00"}
+        }
+      }
+    },
+    {
+      "id": "bg138-deadline-op-feestdag",
+      "title": "Knownbugs 138, feestdag. Wo 07-08 is vrij. A 16u (ma-di), deadline '2026-07-08': het laatste blokeinde vóór het einde van die datum = di 16:00. lf di 16:00, speling 0, niet gemist (main: di 00:00, speling -1, gemist). B 40u.",
+      "anchor": "2026-07-06",
+      "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}, "holidays": [{"name": "vrij", "startDate": "2026-07-08", "endDate": "2026-07-08"}]},
+      "tasks": [
+        {"name": "A", "dur": "16u", "deadline": "2026-07-08"},
+        {"name": "B", "dur": "40u"}
+      ],
+      "expect": {
+        "tasks": {
+          "A": {"ef": "2026-07-07T16:00", "lf": "2026-07-07T16:00", "tf": 0}
+        },
+        "missedDeadlinesSet": []
+      }
+    },
+    {"id": "f1-145-snlt", "title": "Dagtaak 1 d, startgrens di 08:00: late start di 08:00 en speling 0; vóór de fix ma 08:00 en -1.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "P", "dur": 1}, {"name": "A", "dur": 1, "constraint": {"type": "SNLT", "date": "2026-07-07T08:00"}}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T16:00", "tf": 0}}, "violatedConstraintsSet": []}, "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}]},
+    {"id": "f1-145-mso", "title": "Dagtaak 1 d, startgrens di 08:00: late start di 08:00 en speling 0; vóór de fix ma 08:00 en -1.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "P", "dur": 1}, {"name": "A", "dur": 1, "constraint": {"type": "MSO", "date": "2026-07-07T08:00"}}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ls": "2026-07-07T08:00", "lf": "2026-07-07T16:00", "tf": 0}}, "violatedConstraintsSet": []}, "links": [{"pred": "P", "succ": "A", "type": "FINISH_START"}]},
+    {"id": "f1-147-fnet", "title": "Eindbeperking zonder tijd op dinsdag betekent di 16:00, niet di 00:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u", "constraint": {"type": "FNET", "date": "2026-07-07"}}, {"name": "B", "dur": "40u"}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ef": "2026-07-07T16:00"}}, "violatedConstraintsSet": []}},
+    {"id": "f1-147-fnlt", "title": "Eindbeperking zonder tijd op dinsdag betekent di 16:00, niet di 00:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u", "constraint": {"type": "FNLT", "date": "2026-07-07"}}, {"name": "B", "dur": "40u"}], "expect": {"tasks": {"A": {"lf": "2026-07-07T16:00"}}, "violatedConstraintsSet": []}},
+    {"id": "f1-147-mfo", "title": "Eindbeperking zonder tijd op dinsdag betekent di 16:00, niet di 00:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u", "constraint": {"type": "MFO", "date": "2026-07-07"}}, {"name": "B", "dur": "40u"}], "expect": {"tasks": {"A": {"lf": "2026-07-07T16:00"}}, "violatedConstraintsSet": []}},
+    {"id": "f1-n1-eindmijlpaal-ff", "title": "F1, grensplek f1-n1-eindmijlpaal-ff: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u"}, {"name": "M", "milestone": true}], "expect": {"tasks": {"M": {"es": "2026-07-06T16:00", "ef": "2026-07-06T16:00"}}}, "links": [{"pred": "A", "succ": "M", "type": "FINISH_FINISH"}]},
+    {"id": "f1-n1-eindmijlpaal-fs-lag", "title": "F1, grensplek f1-n1-eindmijlpaal-fs-lag: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u"}, {"name": "M", "milestone": true, "milestoneKind": "FINISH"}], "expect": {"tasks": {"M": {"es": "2026-07-07T16:00", "ef": "2026-07-07T16:00"}}}, "links": [{"pred": "A", "succ": "M", "type": "FINISH_START", "lag": "8u"}]},
+    {"id": "f1-n1-eindmijlpaal-fs-elapsed", "title": "F1, grensplek f1-n1-eindmijlpaal-fs-elapsed: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u"}, {"name": "M", "milestone": true, "milestoneKind": "FINISH"}], "expect": {"tasks": {"M": {"es": "2026-07-09T16:00"}}}, "links": [{"pred": "A", "succ": "M", "type": "FINISH_START", "lag": 3, "lagUnit": "ELAPSEDTIME"}]},
+    {"id": "f1-n1-mijlpaal-eindbeperking", "title": "F1, grensplek f1-n1-mijlpaal-eindbeperking: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "M", "milestone": true, "constraint": {"type": "FNET", "date": "2026-07-08T16:00"}}], "expect": {"tasks": {"M": {"es": "2026-07-08T16:00", "ef": "2026-07-08T16:00"}}}},
+    {"id": "f1-mk05a-startmijlpaal", "title": "F1, grensplek f1-mk05a-startmijlpaal: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 4}, {"name": "M", "milestone": true, "milestoneKind": "START"}], "expect": {"tasks": {"A": {"lf": "2026-07-09T16:00", "tf": 0}, "M": {"es": "2026-07-10T08:00"}}}, "links": [{"pred": "A", "succ": "M", "type": "FINISH_FINISH"}]},
+    {"id": "f1-n1-ff-met-split", "title": "F1, grensplek f1-n1-ff-met-split: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 3}, {"name": "S", "dur": 2, "splitGaps": [{"afterMinutes": 480, "gapMinutes": 480}]}], "expect": {"tasks": {"S": {"es": "2026-07-06T08:00", "ef": "2026-07-08T16:00"}}}, "links": [{"pred": "A", "succ": "S", "type": "FINISH_FINISH"}]},
+    {"id": "f1-n1-externe-ff", "title": "F1, grensplek f1-n1-externe-ff: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 2, "externalLinks": [{"direction": "predecessor", "relType": "FF", "lag": 0, "anchorDate": "2026-07-08T16:00", "sourceMissing": false, "sourceProject": "P2", "sourceTask": "X"}]}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ef": "2026-07-08T16:00"}}}},
+    {"id": "f1-n1-ff-kalendertijdlag", "title": "F1, grensplek f1-n1-ff-kalendertijdlag: verwachte momenten met de hand uit de werkblokken afgeleid.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 5}, {"name": "B", "dur": 2}], "expect": {"tasks": {"B": {"es": "2026-07-10T08:00", "ef": "2026-07-13T16:00"}}}, "links": [{"pred": "A", "succ": "B", "type": "FINISH_FINISH", "lag": 3, "lagUnit": "ELAPSEDTIME"}]},
+    {"id": "f1-n2-dagen-en-minuten", "title": "N2: een dagenvertraging met minutenwaarde eindigt op di 16:00; de afgeleide start moet wo 08:00 zijn.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 1, "levelingDelayMinutes": 960}], "afterCPM": [{"setLevelingDelay": {"task": "A", "days": 2}}, {"runCPM": true}], "expect": {"tasks": {"A": {"es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "tf": 0}}}},
+    {"id": "f1-n1-dagtaak-fnet", "title": "F1: f1-n1-dagtaak-fnet. Verwachting volgt uit de werkblokken; de eindgrens blijft op woensdag 16:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 2, "constraint": {"type": "FNET", "date": "2026-07-08T16:00"}}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ef": "2026-07-08T16:00"}}}},
+    {"id": "f1-n1-hangmat", "title": "F1: f1-n1-hangmat. Verwachting volgt uit de werkblokken; de eindgrens blijft op woensdag 16:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 3}, {"name": "H", "dur": 1, "hammock": true}, {"name": "Z", "dur": 1}], "expect": {"tasks": {"H": {"es": "2026-07-06T08:00", "ef": "2026-07-08T16:00", "crit": false}, "Z": {"es": "2026-07-09T08:00"}}}, "links": [{"pred": "A", "succ": "H", "type": "START_START"}, {"pred": "A", "succ": "H", "type": "FINISH_FINISH"}, {"pred": "H", "succ": "Z", "type": "FINISH_START"}]},
+    {"id": "f1-147-harde-mfo-uren", "title": "F1: f1-147-harde-mfo-uren. Verwachting volgt uit de werkblokken; de eindgrens blijft op woensdag 16:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": "8u", "constraint": {"type": "MFO", "date": "2026-07-08", "hard": true}}], "expect": {"tasks": {"A": {"es": "2026-07-08T08:00", "ef": "2026-07-08T16:00", "ls": "2026-07-08T08:00", "lf": "2026-07-08T16:00", "tf": 0}}}},
+    {"id": "f1-n1-harde-mfo-dagenmaat", "title": "F1: f1-n1-harde-mfo-dagenmaat. Verwachting volgt uit de werkblokken; de eindgrens blijft op woensdag 16:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 480, "end": 960}], "2": [{"start": 480, "end": 960}], "3": [{"start": 480, "end": 960}], "4": [{"start": 480, "end": 960}], "5": [{"start": 480, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 2, "constraint": {"type": "MFO", "date": "2026-07-08T16:00", "hard": true}}], "expect": {"tasks": {"A": {"es": "2026-07-07T08:00", "ef": "2026-07-08T16:00", "ls": "2026-07-07T08:00", "lf": "2026-07-08T16:00", "tf": 0}}}},
+    {"id": "f3-startmijlpaal-ff-midden-in-blok", "title": "F3c (§3.14): een dagenmaat-voorganger van 0,375 d eindigt ma 10:00, midden in het ochtendblok. Een FF-startmijlpaal staat op ma 10:00, niet op het volgende blokbegin ma 13:00; achteruit bindt hij A op ma 10:00 (speling 0, niet 2 u).", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 0.375}, {"name": "M", "milestone": true, "milestoneKind": "START"}], "links": [{"pred": "A", "succ": "M", "type": "FINISH_FINISH"}], "expect": {"tasks": {"A": {"es": "2026-07-06T07:00", "ef": "2026-07-06T10:00", "ls": "2026-07-06T07:00", "lf": "2026-07-06T10:00", "tf": 0, "crit": true}, "M": {"es": "2026-07-06T10:00", "ef": "2026-07-06T10:00", "ls": "2026-07-06T10:00", "lf": "2026-07-06T10:00", "tf": 0}}}},
+    {"id": "f3-startmijlpaal-ff-blokeinde", "title": "F3c: dezelfde FF naar een startmijlpaal vanaf een hele dag (ma 16:00, een blokeinde) houdt het volgende blokbegin di 07:00; achteruit is dat ma 16:00 voor A.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 1}, {"name": "M", "milestone": true, "milestoneKind": "START"}], "links": [{"pred": "A", "succ": "M", "type": "FINISH_FINISH"}], "expect": {"tasks": {"A": {"ef": "2026-07-06T16:00", "lf": "2026-07-06T16:00", "tf": 0}, "M": {"es": "2026-07-07T07:00", "ls": "2026-07-07T07:00", "tf": 0}}}},
+    {"id": "f3-fs-uur-blokeinde-naar-dagenmaat", "title": "F3c punt 5 (review #562 r4): een urentaak eindigt ma 16:00; een FS-opvolger in de dagenmaat begint di 07:00 en telt vanaf daar. Geen tweede afronding naar woensdag: D (1 d) di 07:00–16:00, D2 (2,5 d) di 07:00 – do 11:00.", "anchor": "2026-07-06", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "6": [], "7": []}}}, "tasks": [{"name": "H", "dur": "8u"}, {"name": "D", "dur": 1}, {"name": "D2", "dur": 2.5}], "links": [{"pred": "H", "succ": "D", "type": "FINISH_START"}, {"pred": "H", "succ": "D2", "type": "FINISH_START"}], "expect": {"tasks": {"H": {"es": "2026-07-06T07:00", "ef": "2026-07-06T16:00"}, "D": {"es": "2026-07-07T07:00", "ef": "2026-07-07T16:00"}, "D2": {"es": "2026-07-07T07:00", "ef": "2026-07-09T11:00", "tf": 0}}, "projectEnd": "2026-07-09T11:00"}},
+    {"id": "f3-split-dagenmaat-breuk-middag", "title": "F3c (§3.14, knownbug 242): een dagenmaat-taak van 2,5 d start do 11:00 (midden op de dag) met een pauze van 1 d na 0,5 d. Ma–do 8 u, vr 6 u. Werk do 11:00–16:00, pauze vr (een hele werkdag van 6 u), werk ma en di: einde di 16:00. De Gantt tekent dezelfde stukken (check-split-walk).", "anchor": "2026-06-01", "calendar": {"workTime": {"byWeekday": {"1": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "2": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "3": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "4": [{"start": 420, "end": 720}, {"start": 780, "end": 960}], "5": [{"start": 420, "end": 720}, {"start": 780, "end": 840}], "6": [], "7": []}}}, "tasks": [{"name": "A", "dur": 2.5, "constraint": {"type": "SNET", "date": "2026-06-04T11:00"}, "splitGaps": [{"afterMinutes": 240, "gapMinutes": 480}]}], "expect": {"tasks": {"A": {"es": "2026-06-04T11:00", "ef": "2026-06-09T16:00"}}}}
+  ]
+}

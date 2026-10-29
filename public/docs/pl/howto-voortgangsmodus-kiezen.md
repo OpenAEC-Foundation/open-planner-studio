@@ -27,13 +27,13 @@ Jak wybrać?
 
 **Brak różnicy.** Tryb działa tylko na zadania, które już się rozpoczęły, a ich poprzednik jeszcze się nie zakończył. Bez takiego zadania nic się nie zmienia.
 
-**Komunikat pozostaje.** Progress Override nie usuwa komunikatu o relacjach poza kolejnością. Tryb decyduje, jak aplikacja liczy. Sprzeczność między relacją a postępem pozostaje. Jeśli relacja nie jest już właściwa, zmień ją ([Dodawanie relacji](docs://howto-relaties-leggen)).
+**Komunikat pozostaje.** Progress Override nie rozwiązuje komunikatu o postępie poza kolejnością. Tryb decyduje, jak aplikacja liczy. Sprzeczność między relacją a postępem pozostaje. Jeśli relacja nie jest już właściwa, zmień ją ([Dodawanie relacji](docs://howto-relaties-leggen)).
 
-**Należy do projektu.** Wybór zapisuje się w pliku projektu, obowiązuje dla całego projektu i można go cofnąć klawiszami Ctrl+Z. Nowy projekt jest ustawiony na Retained Logic.
+**Należy do projektu.** Wybór zapisuje się w pliku projektu, obowiązuje dla całego projektu i można go cofnąć skrótem Ctrl+Z. Nowy projekt jest ustawiony na Retained Logic.
 
-**Plik P6.** Jeśli otworzysz plik Primavera P6 (.xer), aplikacja pobiera tryb z pliku. Poza Retained Logic i Progress Override P6 ma także Actual Dates. Aplikacja nie zna tego trzeciego trybu. Taki plik liczy się jako Retained Logic. Komunikat importu liczy to jako *1 ustawienie planowania P6 użyło bezpiecznej wartości zastępczej.*
+**Plik P6.** Jeśli otworzysz plik Primavera P6 (.xer), aplikacja pobiera tryb z pliku. Oprócz Retained Logic i Progress Override P6 ma także Actual Dates. Aplikacja nie zna tego trzeciego trybu. Taki plik liczy się jako Retained Logic. Komunikat importu liczy to jako *1 ustawienie planowania P6 użyło bezpiecznej wartości zastępczej.*
 
-**Profil obliczeń.** W profilu Primavera P6 Progress Override działa także wstecz, w późnych terminach i w zapasie swobodnym poprzednika (konwencja *Progress Override pomija rozpoczętego następnika także wstecz*). W profilach Open Planner Studio i Microsoft Project tak nie jest. Konwencje znajdziesz w *Ustawienia › Projekt › Info o projekcie*, w bloku *Profil obliczeń i opcje*. W przykładzie z wyjaśnienia tego skutku wstecz nie widać.
+**Profil obliczeń.** W profilu Primavera P6 Progress Override działa także wstecz, w późnych terminach i w zapasie swobodnym poprzednika (konwencja *Progress Override pomija rozpoczętego następnika także wstecz*). W profilach Open Planner Studio i Microsoft Project tak nie jest. Konwencje znajdziesz w *Ustawienia › Projekt › Ustawienia projektu*, w bloku *Profil obliczeń i opcje*. W przykładzie z wyjaśnienia tego skutku wstecz nie widać.
 
 ## Zobacz też
 

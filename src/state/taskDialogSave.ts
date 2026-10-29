@@ -1,7 +1,9 @@
+import { isElapsedTask } from '@/engine/scheduler/duration';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate,
+  actualDateSide, applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -14,9 +16,11 @@ import { durationBelowDoneWorkNotice, statusDateSetTodayNotice } from '@/state/p
 import { durationEditRefusal } from '@/engine/work/workRuleApply';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 import { getPersonalTaskTypes } from '@/services/taskTypes/personalTaskTypes';
+import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
+import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
 
 /**
  * "Taak bewerken" (`TaskDialog.tsx`): de voortgangsbewerkingen op de concepttaak en het Opslaan.
@@ -60,10 +64,10 @@ import type { HistorySessionMark } from '@/state/slices/historySlice';
 const clampCompletion = (raw: number) => Math.max(0, Math.min(1, raw));
 
 /** Schuif "% voltooid" op de concept: dezelfde regel als `setTaskProgress`. */
-export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined): Task {
+export function draftWithProgress(draft: Task, raw: number, statusDate: string | undefined, calendar?: WorkCalendar): Task {
   const next: Task = { ...draft, time: { ...draft.time } };
-  applyCompletionEdit(next.time, clampCompletion(raw), statusDate);
-  applyProgressInvariants(next, statusDate);
+  applyCompletionEdit(next, clampCompletion(raw), statusDate, calendar);
+  applyProgressInvariants(next, statusDate, calendar);
   return next;
 }
 
@@ -72,22 +76,25 @@ function draftWithActualDate(
   field: 'actualStart' | 'actualFinish',
   date: string | undefined,
   statusDate: string | undefined,
+  calendar?: WorkCalendar,
 ): Task | null {
   // Zelfde weigering als de paneelsetters: actuals nooit ná de statusdatum.
-  if (date && statusDate && isActualPastStatusDate(date, statusDate)) return null;
+  date = normalizeActualDate(draft, field, date, statusDate, calendar);
+  if (date && statusDate && isActualPastStatusDate(date, statusDate, isElapsedTask(draft) ? undefined : calendar,
+    actualDateSide(draft, field))) return null;
   const next: Task = { ...draft, time: { ...draft.time } };
-  applyActualDateEdit(next, field, date, statusDate);
+  applyActualDateEdit(next, field, date, statusDate, calendar);
   return next;
 }
 
 /** Werkelijke start op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualStart`. */
-export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined): Task | null {
-  return draftWithActualDate(draft, 'actualStart', date, statusDate);
+export function draftWithActualStart(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
+  return draftWithActualDate(draft, 'actualStart', date, statusDate, calendar);
 }
 
 /** Werkelijk einde op de concept; `null` = geweigerd (ná de statusdatum), zoals `setActualFinish`. */
-export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined): Task | null {
-  return draftWithActualDate(draft, 'actualFinish', date, statusDate);
+export function draftWithActualFinish(draft: Task, date: string | undefined, statusDate: string | undefined, calendar?: WorkCalendar): Task | null {
+  return draftWithActualDate(draft, 'actualFinish', date, statusDate, calendar);
 }
 
 /** De duur van de taak bij het openen van de dialoog. */
@@ -110,6 +117,9 @@ export interface TaskDialogSaveInput {
   /** Vandaag (`localTodayIso`), meegegeven door de dialoog: de invoerregels van
    *  `engine/progressEntry.ts` gelden. Afwezig = vangnet zonder die regels. */
   today?: string;
+  /** Het antwoord op "Taak wordt een samenvattingstaak", als de dialoog het vóór het opslaan vroeg (de nieuwe
+   *  ouder draagt toewijzingen). Afwezig ⇒ de store vraagt zelf (`PhaseAssignmentOptions`). */
+  phaseAssignments?: PhaseAssignmentChoice;
 }
 
 const PROGRESS_KEYS = ['completion', 'actualStart', 'actualFinish'] as const;
@@ -169,9 +179,10 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
   const S = () => context.store.getState();
 
   const save = (
-    { editingTaskId, draft, startDate, initialDuration, today }: TaskDialogSaveInput,
+    { editingTaskId, draft, startDate, initialDuration, today, phaseAssignments }: TaskDialogSaveInput,
     notices: StartEditNotice[],
   ): void => {
+    const phaseOpts = phaseAssignments ? { phaseAssignments, answered: true } : undefined;
     if (draft.customTaskTypeId) {
       const definition = S().customTaskTypes.find(type => type.id === draft.customTaskTypeId)
         ?? getPersonalTaskTypes().find(type => type.id === draft.customTaskTypeId);
@@ -234,7 +245,9 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
           S().notify(statusDateSetTodayNotice(today, S().ui.dateNotation));
           statusDate = today;
         }
-        applyProgressInvariants(merged, statusDate);
+        // Met de kalender van de taak: het afgeleide einde wordt eerst een moment (D6), en pas dan
+        // vergeleken met de werkelijke start (zie `carryRemainingThroughDurationEdit`).
+        applyProgressInvariants(merged, statusDate, resolveCalendar(merged.calendarId, S().calendars, S().calendar));
         patch.status = merged.status;
       }
       S().updateTask(editingTask.id, patch);
@@ -242,7 +255,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
       // de nieuwe ouder en weigert cykels. `updateTask` is een kale Object.assign zonder die sync —
       // parentId meepatchen zou de boom stil corrumperen. Bij een geweigerde move doet `moveTask`
       // niets: parentId blijft dan ook ongewijzigd.
-      if (draft.parentId !== editingTask.parentId) S().moveTask(editingTask.id, draft.parentId);
+      if (draft.parentId !== editingTask.parentId) S().moveTask(editingTask.id, draft.parentId, undefined, phaseOpts);
       return;
     }
 
@@ -274,7 +287,7 @@ export function createTaskDialogSave(context: AppStoreContext): (input: TaskDial
         isCritical: false,
         completion: 0,
       },
-    });
+    }, phaseOpts);
   };
 
   return (input) => {

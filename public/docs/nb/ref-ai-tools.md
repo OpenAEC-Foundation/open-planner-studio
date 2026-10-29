@@ -30,10 +30,10 @@ Alle verktøy en KI-assistent kan kalle via broen, per gruppe, med hva de gjør 
 ## Aktiviteter og struktur
 
 - `planner_add_tasks` (endre, flere om gangen) — opprett aktiviteter, også en nøstet WBS i ett kall. Hver aktivitet får et eget midlertidig navn (`tmp-…`), så at et barn kan vise til forelderen. Uten varighet får en aktivitet 5 arbeidsdager. En milepæl har varighet 0. Alle aktiviteter i ett kall lykkes sammen, eller mislykkes sammen.
-- `planner_update_tasks` (endre, flere om gangen) — endre felt på bestående aktiviteter: navn, beskrivelse, varighet med enhet (dager eller timer), varighetstype, aktivitetstype, milepæl, obligatorisk, prioritet, begrensning, tidsfrist, kalender og arbeidsregel. Det finnes også en egen måte å endre fremdrift på: prosent fullført, faktisk start og faktisk slutt. Enhver annen nøkkel avvises med en grunn.
+- `planner_update_tasks` (endre, flere om gangen) — endre felt på bestående aktiviteter: navn, beskrivelse, varighet med enhet (dager eller timer), varighetstype, arbeidskategori, milepæl, obligatorisk, prioritet, begrensning, tidsfrist, kalender og aktivitetstype. Det finnes også en egen måte å endre fremdrift på: prosent fullført, faktisk start og faktisk slutt. Enhver annen nøkkel avvises med en grunn.
 - `planner_delete_tasks` (endre) — slett aktiviteter, inkludert hele undertreet, avhengigheter og tilordninger. Svaret nevner nøyaktig hva som ble slettet sammen med dem.
 - `planner_move_task` (endre) — flytt en aktivitet under en annen forelder, med en posisjon. En syklus (en sirkulær referanse), eller at en aktivitet legges under seg selv, avvises.
-- `planner_set_task_splits` (endre) — still inn avbruddene for én aktivitet: etter hvor mange arbeidsdager (eller arbeidstimer) arbeid, og hvor lenge hvert avbrudd varer, i arbeidsdager (eller arbeidstimer). En tom liste fjerner alle avbrudd. Se [Dele en aktivitet](docs://howto-taak-splitsen).
+- `planner_set_task_splits` (endre) — still inn avbruddene for én aktivitet: etter hvor mange arbeidsdager (eller arbeidstimer) det er arbeid, og hvor lenge hvert avbrudd varer, i arbeidsdager (eller arbeidstimer). En tom liste fjerner alle avbrudd. Se [Dele en aktivitet](docs://howto-taak-splitsen).
 
 ## Avhengigheter
 
@@ -43,14 +43,14 @@ Alle verktøy en KI-assistent kan kalle via broen, per gruppe, med hva de gjør 
 
 ## Prosjekt og kalendere
 
-- `planner_update_project` (endre) — navn, beskrivelse, forfatter, firma, startdato, sluttdato, statusdato, fremdriftsmodus og prosjektets standard for arbeidsregelen. Startdatoen er ankeret for nye aktiviteter. Endrer KI-assistenten den senere, flyttes bare løse aktiviteter med (de uten forgjenger og uten en begrensning som setter en nedre grense, som *Start ikke tidligere enn*). Svaret oppgir hvor mange som `anchorsClamped`. Resten av tidsplanen blir stående, se [Nytt prosjekt og prosjektinfo](docs://ref-projectinfo). Statusdatoen er ikke bare en merkelapp, men referansedatoen for beregningen: i en tidsplan uten fremdrift flytter alt med. Sluttdatoen er bare metadata.
+- `planner_update_project` (endre) — navn, beskrivelse, forfatter, firma, startdato, sluttdato, statusdato, fremdriftsmodus og prosjektets standard for aktivitetstype. Startdatoen er ankeret for nye aktiviteter. Endrer KI-assistenten den senere, flyttes bare løse aktiviteter med (de uten forgjenger og uten en begrensning som setter en nedre grense, som *Start ikke tidligere enn*). Svaret oppgir antallet i `anchorsClamped`. Resten av tidsplanen blir stående, se [Nytt prosjekt og prosjektinfo](docs://ref-projectinfo). Statusdatoen er ikke bare en merkelapp, men referansedatoen for beregningen: i en tidsplan uten fremdrift flytter alt med. Sluttdatoen er bare metadata.
 - `planner_move_project` (endre) — flytt hele den eksisterende tidsplanen til en ny startdato. Kalenderne flyttes ikke med, så slutten kan hoppe et annet antall dager enn starten. Grunnlinjer blir stående, med mindre KI-assistenten uttrykkelig ber om at de også flyttes. Se [Flytte et prosjekt](docs://howto-project-verplaatsen).
 - `planner_update_calendar` (endre, flere om gangen) — endre eller opprett kalendere: arbeidsdager, arbeidstimer, pause, tidsbånd, helligdager (generer for et land og en region, eller angi dem direkte) og arbeidsunntak. Den kan ikke endre hvilken kalender som er prosjektkalenderen.
 
 ## Ressurser og enheter
 
-- `planner_manage_resources` (endre, flere om gangen) — opprett, endre eller slett ressurser: navn, type (arbeidskraft, utstyr, materiale, underentreprenør eller mannskap), beskrivelse, maksimalt antall, kostnad per time, enhet, kalender, mannskap og tilgjengelighet over tid. Den avviser å slette en ressurs som har tilordninger, før KI-assistenten bekrefter det uttrykkelig. For en ressurs fra biblioteket er navn, type, beskrivelse, standardsats per time og enhet låst.
-- `planner_manage_assignments` (endre, flere om gangen) — legg til, endre, flytt eller fjern tilordninger: tildelingsenheter per arbeidsdag, kurve og gjenstående arbeid. Bare på en aktivitet uten underaktiviteter, og samme ressurs bare én gang per aktivitet. Hva en endring i tildelingsenheter gjør med varigheten, avhenger av arbeidsregelen for aktiviteten, som i [Arbeidsregler: varighet, enheter og arbeid](docs://uitleg-werkregels).
+- `planner_manage_resources` (endre, flere om gangen) — opprett, endre eller slett ressurser: navn, type (arbeidskraft, utstyr, materiale, underentreprenør eller mannskap), beskrivelse, maksimalt antall, kostnad per time, enhet, kalender, mannskap og tilgjengelighet over tid. Den avviser å slette en ressurs som har tilordninger, før KI-assistenten bekrefter det uttrykkelig. For en ressurs fra biblioteket er navn, type, beskrivelse, standardsats per time og enhet låste.
+- `planner_manage_assignments` (endre, flere om gangen) — legg til, endre, flytt eller fjern tilordninger: tildelingsenheter per arbeidsdag, kurve og gjenstående arbeid. Bare på en aktivitet uten underaktiviteter, og samme ressurs bare én gang per aktivitet. Hva en endring i tildelingsenheter gjør med varigheten, avhenger av aktivitetstypen for aktiviteten, som i [Aktivitetstyper: varighet, enheter og arbeid](docs://uitleg-werkregels).
 - `planner_level_resources` (endre) — jevn ut overallokeringen. Innenfor slakken som standard, så sluttdatoen blir stående. Med `constrainToFloat: false` kan slutten flytte seg. Med en tørrkjøring får KI-assistenten først en forhåndsvisning, uten at noe endres. Det hopper over materiale. Se [Utjevning av ressurser](docs://uitleg-nivelleren).
 - `planner_clear_leveling` (endre) — fjern alle utjevningsforsinkelser.
 
@@ -69,15 +69,15 @@ Alle verktøy en KI-assistent kan kalle via broen, per gruppe, med hva de gjør 
 
 - `planner_list_documents` (les) — alle åpne dokumenter med tittel, om de er aktive og endret, antall aktiviteter, prosjektstart og beregnet slutt.
 - `planner_new_document` — et nytt, tomt dokument i en egen fane, uten vinduet *Opprett nytt prosjekt*.
-- `planner_duplicate_document` — kopier det aktive dokumentet til en ny fane, for en hva-om-variant eller en anbudsvariant. Kopien er løsrevet og har ingen filsti.
+- `planner_duplicate_document` — kopier det aktive dokumentet til en ny fane, for en scenarievariant eller en anbudsvariant. Kopien er løsrevet og har ingen filsti.
 - `planner_switch_document` — gjør et annet dokument aktivt. Det er også måten å bekrefte, etter at du har byttet faner, hvilket dokument KI-assistenten jobber med.
 - `planner_import_schedule` — åpne en tidsplanfil fra disken som dokument: `.ifc`, `.xml` (Primavera P6 eller MS Project, gjenkjent på innholdet), `.csv`, `.xer` og `.mpp` (MS Project 2010 til 2021). Ingenting slås sammen med den gjeldende planen. En CSV har ingen kalender, så datoene kan forskyves. Bare i brukermappen din. Etter import av en CSV, XML eller `.mpp` har dokumentet ikke et lagringsmål. Bare en IFC overtar filstien.
-- `planner_export_ifc` — skriv det aktive dokumentet som en IFC 4.3-fil. Bare i brukermappen din, og en bestående fil overskrives bare på uttrykkelig forespørsel. Prosjektet forblir ulagret.
+- `planner_export_ifc` — skriv det aktive dokumentet som en IFC-fil i prosjektets IFC-skjema (standard IFC 4.3 ADD2). Bare i brukermappen din, og en bestående fil overskrives bare på uttrykkelig forespørsel. Hvis dokumentet er åpnet i et skjema appen ikke kan skrive (for eksempel IFC2X3), nekter verktøyet å skrive over den filen selv. Prosjektet forblir ulagret.
 
 ## Veiledning og opprinnelse av kildene
 
 - `planner_get_planning_guide` (les) — den engelske veiledningen for assistenter (prinsippene i [Planlegg godt](docs://gids-goed-plannen), med verktøyene for hvert prinsipp), de to ferdighetene *goed-plannen* (tidsplan opprettes) og *progress-update* (fremdrift oppdateres), eller alt. Velg med `part`: `guide`, `skill` (begge ferdighetene) eller `both`. `both` er standard. Svaret gir for hver ferdighet hvor den hører hjemme, og nedlastingsadressene. Parameteren `language` godtas fortsatt for eldre assistenter, men teksten er alltid på engelsk. Endrer ikke tidsplanen.
-- `planner_inspect_xer_provenance` (les) — undersøk de bevarte opplysningene fra kilden i en åpnet Primavera P6-fil (`.xer`): hva filen inneholdt, med tall for importen og diagnosene. Fritekstfelter fra filen er som standard usynlige. KI-assistenten må spørre uttrykkelig etter dem. Kan ikke brukes i et skript.
+- `planner_inspect_xer_provenance` (les) — undersøk de bevarte opplysningene fra kilden i en åpnet Primavera P6-fil (`.xer`): hva filen inneholdt, med tall for importen og diagnosene. Fritekstfelter fra filen er som standard usynlige. KI-assistenten må spørre uttrykkelig etter dem. Ressursnavn er også som standard skjult, fordi en P6-ressurs vanligvis er en person. Ressurskodene forblir synlige. KI-assistenten må be deg om tillatelse før den henter navnene, fordi de da går til KI-leverandøren. Kan ikke brukes i et skript.
 
 ## Skriptet
 

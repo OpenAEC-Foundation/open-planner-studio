@@ -25,7 +25,7 @@ Seznam *Typ sestavy* obsahuje jedenáct sestav. Zvolte tu, která odpovídá va�
 - *Přehled milníků*: všechny milníky s datem a stavem.
 - *Odchylka*: aktuální plán vedle aktivního směrného plánu. Pro otázku „O kolik jsme se zpozdili?“.
 - *Look-ahead*: co běží nebo začíná v následujícím období. Seznam pro týdenní schůzku.
-- *Kritické a téměř kritické*: úkoly bez časové rezervy nebo s velmi malou časovou rezervou.
+- *Kritické a téměř kritické*: úkoly bez časové rezervy nebo s téměř žádnou časovou rezervou.
 - *Sestava průběhu*: kde projekt stojí k datu stavu, tedy ke dni, ke kterému měříte průběh.
 - *Stav plánu*: kontrola samotného plánu na chyby a neobvyklé hodnoty.
 - *Vytížení zdrojů*: pro každý zdroj a každý týden nebo měsíc, co je potřeba a co je k dispozici.
@@ -70,13 +70,13 @@ Otevřete PDF ve čtečce PDF a vytiskněte ho tam. Pokud vytisknete PDF na form
 
 **Tlačítko Tisknout a Ctrl+P netisknou.** Tlačítko *Tisknout* ve skupině *Sestava* je přímo na kartě *Sestava* a nedělá nic navíc. Ctrl+P vás přenese na tuto kartu. Aplikace nemá žádný samostatný příkaz pro tisk: k papíru se dostanete přes PDF. Pokud Ctrl+P nefunguje (viz krok 1), otevře se tiskový dialog prohlížeče. Ten vytiskne obrazovku, ne sestavu.
 
-**Společnost: přepsaný text se neuchová.** Pole *Společnost* v Gantt-diagramu se předvyplní společností z informací o projektu. Co do něj přepíšete, se neuchová. Do pole *Autor* zde psát nemůžete. Obojí změníte v nabídce *Nastavení › Projekt › Info o projektu*, v polích *Objednatel/organizace* a *Autor*, a potvrdíte tlačítkem *Použít*.
+**Společnost: přepsaný text se neuchová.** Pole *Společnost* v Gantt-diagramu se předvyplní společností z nastavení projektu. Co do něj přepíšete, se neuchová. Do pole *Autor* zde psát nemůžete. Obojí změníte na kartě *Nastavení › Projekt › Nastavení projektu*, v polích *Objednatel/organizace* a *Autor*, a potvrdíte tlačítkem *Použít*.
 
 **Barvy pruhů: platí i pro obrazovku.** Volba *Barvy pruhů* v sestavě je stejná volba jako *Barvy pruhů* na kartě Zobrazení. Pokud ji změníte v sestavě, změní se i Gantt na obrazovce.
 
 **Odchylka bez směrného plánu.** Směrný plán je uložená kopie vašeho plánu, se kterou později porovnáváte. Jak ho uložit, je popsáno v článku [Uložení a správa směrného plánu](docs://howto-baseline-opslaan-en-beheren). Pokud nemáte aktivní směrný plán, místo porovnání se zobrazí *Žádný aktivní směrný plán — uložte směrný plán nebo některý nastavte jako aktivní*.
 
-**Čára stavu bez datumu stavu.** Pokud zvolíte *Čára stavu*: a projekt nemá datum stavu, sestava upozorní *Nejprve nastavte datum stavu* a nenakreslí nic. Datum stavu nastavíte v nabídce *Plán › Směrné plány a průběh › Datum stavu*.
+**Čára stavu bez datumu stavu.** Pokud zvolíte *Čára stavu*: a projekt nemá datum stavu, sestava upozorní *Nejprve nastavte datum stavu* a nenakreslí nic. Datum stavu nastavíte na kartě *Plán › Směrné plány a průběh › Datum stavu*.
 
 **Plán obsahuje smyčku.** Pokud plán obsahuje smyčku, *Exportovat PDF* soubor nevytvoří a zobrazí chybu.
 

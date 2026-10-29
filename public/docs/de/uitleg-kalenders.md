@@ -10,7 +10,7 @@ Welche Tage Arbeitstage sind, steht in einem **Kalender**. Ein Kalender legt dre
 
 - Die **Arbeitswoche**: die Wochentage, an denen gearbeitet wird. Standardmäßig ist das Montag bis Freitag.
 - Die **Arbeitszeiten**: Beginn, Ende und Pause. Sie ergeben die **Nettostunden pro Tag**. Standardmäßig ist das 07:00 bis 16:00 Uhr mit einer Stunde Pause, also 8 Stunden.
-- Die **Feiertage**: einzelne Tage oder ganze Zeiträume, an denen nicht gearbeitet wird, zum Beispiel Königstag, Weihnachten oder die Bauferien.
+- Die **Feiertage**: einzelne Tage oder ganze Zeitabschnitte, an denen nicht gearbeitet wird, zum Beispiel Königstag, Weihnachten oder die Bauferien.
 
 Ein Projekt hat eine Bibliothek mit Kalendern. Einer davon ist der **Projektkalender**. Er gilt für jeden Vorgang, der keinen eigenen Kalender hat. Sie geben einem einzelnen Vorgang einen anderen Kalender, zum Beispiel eine Sechs-Tage-Arbeitswoche für einen Subunternehmer, der auch samstags arbeitet. Eine Ressource kann ebenfalls einen eigenen Kalender haben, aber dieser wirkt anders (siehe unten).
 
@@ -40,14 +40,14 @@ Der Kalender einer **Ressource** spielt bei den Daten keine Rolle. In einem Term
 Sind zwei Vorgänge mit unterschiedlichen Kalendern verknüpft, gilt Folgendes:
 
 - Bei einer Ende-Anfang-Beziehung beginnt der Nachfolger am ersten Arbeitstag nach dem Ende des Vorgängers, gezählt im Kalender des **Nachfolgers**. Endet ein Vorgang an einem Freitag, beginnt ein Nachfolger mit einer Sechs-Tage-Arbeitswoche am Samstag.
-- Ein **Zeitabstand** zählt standardmäßig im Kalender des **Vorgängers**. Das können Sie unter *Einstellungen › Projekt › Projektinfo* ändern, im Block *Berechnungsprofil und Berechnungsoptionen*, unter *Berechnungsoptionen dieses Projekts*, mit der Auswahl *Abstandskalender*: *Vorgänger* (Standard), *Nachfolger*, *24-Stunden* oder *Projektkalender*.
+- Ein **Zeitabstand** zählt standardmäßig im Kalender des **Vorgängers**. Das können Sie unter *Einstellungen › Projekt › Projekteinstellungen* ändern, im Block *Berechnungsprofil und Berechnungsoptionen*, unter *Berechnungsoptionen dieses Projekts*, mit der Auswahl *Abstandskalender*: *Vorgänger* (Standard), *Nachfolger*, *24-Stunden* oder *Projektkalender*.
 - Der **Gesamtpuffer** zählt in Arbeitstagen des Kalenders des Vorgangs selbst. In diesem Profil zählt der **freie Puffer** im Kalender des Nachfolgers.
 
 Was ein Zeitabstand genau ist, steht in [Beziehungen hinzufügen](docs://howto-relaties-leggen). Was der Puffer ist, steht in [Kritischer Pfad und Puffer](docs://uitleg-kritiek-pad).
 
 ### Im Gantt-Diagramm
 
-Der graue Hintergrund im Gantt-Diagramm zeigt immer die arbeitsfreien Tage des **Projektkalenders**. Ein Vorgang mit eigenem Kalender kann deshalb über einen grauen Tag hinweglaufen, zum Beispiel ein Vorgang von sechs Tagen über den Samstag. Ein Feiertagszeitraum von drei Tagen oder mehr bekommt seinen Namen angezeigt, zum Beispiel *Bouwvak (Noord)*. Das geschieht nicht, wenn *Nur Arbeitstage anzeigen* aktiv ist. Wenn Sie die grauen Tage gar nicht sehen wollen, schalten Sie *Nur Arbeitstage anzeigen* ein unter *Einstellungen › Projekt › Einstellungen*, Registerkarte *Darstellung*, Abschnitt *Zeitachse*.
+Der graue Hintergrund im Gantt-Diagramm zeigt immer die arbeitsfreien Tage des **Projektkalenders**. Ein Vorgang mit eigenem Kalender kann deshalb über einen grauen Tag hinweglaufen, zum Beispiel ein Vorgang von sechs Tagen über den Samstag. Ein Feiertagszeitraum von drei Tagen oder mehr wird mit seinem Namen angezeigt, zum Beispiel *Bouwvak (Noord)*. Das geschieht nicht, wenn *Nur Arbeitstage anzeigen* aktiv ist. Wenn Sie die grauen Tage gar nicht sehen wollen, schalten Sie *Nur Arbeitstage anzeigen* ein unter *Einstellungen › Projekt › App-Einstellungen*, Registerkarte *Darstellung*, Abschnitt *Zeitachse*.
 
 ## Rechenbeispiel: der Terminplan für den Bau
 
@@ -92,9 +92,9 @@ Die Daten von *Brickwork* ändern sich nicht. Aber Freitag, 4. Juni ist im Histo
 
 **„Wenn ich den Projektkalender wechsle, verschiebt sich alles.“** Nur die Vorgänge ohne eigenen Kalender wandern mit. Ein Vorgang, dem Sie selbst einen Kalender aus der Liste gegeben haben, behält ihn, auch wenn es zufällig der alte Projektkalender ist. Wenn Sie einen Kalender löschen, werden die Vorgänge und Ressourcen, die ihn nutzten, auf den Projektkalender gesetzt.
 
-**„Die Feiertage sind doch drin, oder?“** Feiertage gibt es nur für die Jahre, für die sie erzeugt wurden. Ein Tag außerhalb dieser Jahre ist einfach ein Arbeitstag. Im Kalenderdialog sagt die App das mit *Feiertage decken 2025–2028 ab; Projekt läuft bis 2030. Neu generieren?*
+**„Die Feiertage sind doch drin, oder?“** Feiertage gibt es nur für die Jahre, für die sie erzeugt wurden. Ein Tag außerhalb dieser Jahre ist einfach ein Arbeitstag. Im Kalenderdialog sagt die App das mit *Feiertage decken 2025–2028 ab; bis 2030 neu generieren?*
 
-**„Mehr Stunden pro Tag machen meinen Vorgang kürzer.“** Bei einem Tagesvorgang nicht: Er zählt ganze Arbeitstage, ob der Tag 6 oder 8 Stunden hat. Nur bei einem Vorgang mit Ressourcen und der Arbeitsregel *Feste Arbeit* oder *Feste Einheiten* ändert sich die Dauer damit.
+**„Mehr Stunden pro Tag machen meinen Vorgang kürzer.“** Bei einem Tagesvorgang nicht: Er zählt ganze Arbeitstage, ob der Tag 6 oder 8 Stunden hat. Nur bei einem Vorgang mit Ressourcen und der Vorgangsart *Feste Arbeit* oder *Feste Einheiten* ändert sich die Dauer damit.
 
 **Ein Kalender ohne Arbeitstage** kann die App nicht berechnen. Die Berechnung meldet *Im Kalender sind keine Arbeitstage festgelegt*.
 

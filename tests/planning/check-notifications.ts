@@ -29,6 +29,9 @@ import type { PreparedGridMutation } from '@/state/gridTransaction';
 import type { Sequence } from '@/types/sequence';
 import type { ImportResult, MultiDocumentImport, XerImportMetadata, XerImportReport } from '@/services/importTypes';
 import { notificationDetailText } from '@/utils/notificationDetail';
+import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
+import { IndexedDbUpgradeBlockedError } from '@/utils/idb';
+import { RecoveryManifestError } from '@/services/recovery/recoveryManifest';
 import { isStickyOpenNotice, withOpenNoticeSticky } from '@/state/openNoticeSticky';
 
 const S = () => useAppStore.getState();
@@ -626,7 +629,7 @@ S().applyOpenedImport(x10Import(), {
   fileHandle: null,
   recompute: false,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 eq('111 XER met twaalf documenten toont precies één bestandsmelding', N().length, 1);
@@ -658,7 +661,7 @@ S().applyOpenedImport(x10Import(), {
   fileHandle: null,
   recompute: false,
   fit: false,
-  hourDataNotice: false,
+
   linkedOpen: true,
 });
 eq('117 twee afzonderlijke XER-imports tonen twee afzonderlijke meldingen', N().length, 2);
@@ -667,7 +670,7 @@ eq('118 ook de tweede melding is de samengestelde XER-melding', N()[1]?.messageK
 // B4 (gebruikstest rekenprofielen 24-09): heropenen uit eigen IFC — `readIFC` zet `xerOrigin:
 // 'xer-archive'` naast de archief-`xer` — meldt niets. MUTATIEBEWIJS: filter uit `xerImportNotice` ⇒ rood.
 S().applyOpenedImport({ ...x10Result(0), xerOrigin: 'xer-archive' }, {
-  filePath: null, fileHandle: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+  filePath: null, fileHandle: null, recompute: false, fit: false, linkedOpen: true,
 });
 eq('118c heropende IFC met XER-archief geeft geen extra melding', N().length, 2);
 
@@ -750,6 +753,39 @@ eq('125 uitgestelde gridmelding gebruikt het normale app-globale kanaal', N()[0]
   eq('S7 de blijvende melding blijft bij een volle stapel', N().some(n => n.sticky === true), true);
   eq('S8 de stapel blijft begrensd', N().length, MAX_NOTIFICATIONS);
 }
+
+// ── Herstelmanifestweigering: één blijvende melding per sessie, ook na wegklikken ──────────────
+clearAll();
+const beforeManifestNotice = S().getOpenDocumentPayloads();
+eq('M1 een andere fout blijft bij zijn bestaande foutafhandeling',
+  notifyRecoveryError(new Error('gewone opslagfout'), S().notify), false);
+eq('M2 geweigerd manifest wordt via het meldingenkanaal afgehandeld',
+  notifyRecoveryError(new RecoveryManifestError('unsupported-version'), S().notify), true);
+eq('M3 passende blijvende melding met herstelhulp',
+  N().map(n => [n.messageKey, n.severity, n.helpArticleId, n.count]),
+  [['notifications.recoveryManifestBlocked', 'error', 'howto-herstellen-na-een-crash', 1]]);
+notifyRecoveryError(new RecoveryManifestError('invalid-version'), S().notify);
+eq('M4 een volgende schrijfronde verhoogt ook de teller niet', N()[0]?.count, 1);
+eq('M5 melding verandert documentinhoud en opslagdoel niet', S().getOpenDocumentPayloads(), beforeManifestNotice);
+clearAll();
+S().newDocument();
+notifyRecoveryError(new RecoveryManifestError('invalid-shape'), S().notify);
+eq('M6 ook na wegklikken en documentwissel geen nieuwe melding', N().length, 0);
+
+// Een gezonde maar geblokkeerde v2-database krijgt géén melding over onbekende/ongeldige data.
+const beforeStorageNotice = S().getOpenDocumentPayloads();
+eq('B1 upgradeblokkade wordt expliciet afgehandeld',
+  notifyRecoveryError(new IndexedDbUpgradeBlockedError('ops-recovery', 3), S().notify), true);
+eq('B2 eigen blijvende opslagmelding met herstelhulp',
+  N().map(n => [n.messageKey, n.severity, n.helpArticleId, n.count]),
+  [['notifications.recoveryStorageBlocked', 'error', 'howto-herstellen-na-een-crash', 1]]);
+notifyRecoveryError(new IndexedDbUpgradeBlockedError('ops-recovery', 3), S().notify);
+eq('B3 herhaalde opslagpogingen verhogen de teller niet', N()[0]?.count, 1);
+eq('B4 melding behoudt documentinhoud en opslagdoel', S().getOpenDocumentPayloads(), beforeStorageNotice);
+clearAll();
+S().newDocument();
+notifyRecoveryError(new IndexedDbUpgradeBlockedError('ops-recovery', 3), S().notify);
+eq('B5 ook na wegklikken en documentwissel geen opslagmeldingsspam', N().length, 0);
 
 // ── Uitkomst ────────────────────────────────────────────────────────────────
 if (diffs.length) {

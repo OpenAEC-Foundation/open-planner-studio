@@ -16,11 +16,11 @@ Folosiți orele pentru lucrări care nu încap în zile întregi: o macara pe ca
 
 ## Cum calculează aplicația
 
-### Intervale de timp de lucru și ore nete
+### Intervale de timp de lucru și ziua lucrătoare standard
 
 Fiecare calendar are **intervale** pentru fiecare zi lucrătoare (în aplicație se numesc *bands*). Calendarul standard are intervalele de la 07:00 la 12:00 și de la 13:00 la 16:00. Spațiul dintre ele este pauza. Aplicația deduce aceste intervale din *Început (oră)*, *Sfârșit (oră)* și pauza din calendar. Pentru asta nu trebuie să setați nimic. Dacă setați intervale proprii pe zi a săptămânii, acestea au prioritate.
 
-**Orele nete pe zi** sunt suma intervalelor unei zile lucrătoare. Dacă zilele lucrătoare au lungimi diferite, se aplică totalul zilnic cel mai frecvent și, la egalitate, cel mai mare. Cu patru zile de 8 ore și o vineri de 5 ore, orele nete pe zi sunt deci 8.
+**Ziua lucrătoare standard** este ziua lucrătoare care apare cel mai des; lungimea ei este suma intervalelor sale. Deci nu este o medie: cu luni 16 ore și marți până vineri 10 ore, ziua lucrătoare standard are 10 ore. Dacă zilele lucrătoare au lungimi diferite, se aplică totalul zilnic cel mai frecvent și, la egalitate, cel mai mare. Cu patru zile de 8 ore și o vineri de 5 ore, ziua lucrătoare standard are deci 8 ore. Un calendar cu propriile ore pe zi (de exemplu din Primavera P6) calculează tot cu acest total zilnic, iar fereastra calendarului îl arată. Valoarea proprie se păstrează pentru export. Dacă diferă, fereastra calendarului arată un bloc portocaliu sub *Zi lucrătoare standard*. O activitate de 1870 de ore pe intervale de 10 ore durează deci 187 de zile, chiar dacă valoarea ei proprie este de 8 ore pe zi.
 
 ### O activitate pe ore
 
@@ -32,9 +32,9 @@ Aplicația numără zile lucrătoare întregi. Orele pe zi nu joacă niciun rol.
 
 ### Conversia zilelor și orelor
 
-O zi este orele nete pe zi din calendarul activității. Aplicația folosește această valoare în trei locuri:
+O zi este ziua lucrătoare standard din calendarul activității. Aplicația folosește această valoare în trei locuri:
 
-- Pentru *Afișare durată*. În *Setări › Proiect › Setări*, fila *Afișare*, alegeți *Automat (unitatea proprie a fiecărei activități)*, *Întotdeauna zile* sau *Întotdeauna ore*. O activitate de 18 ore apare sub *Întotdeauna zile* ca `2.25d(18h)`: unitatea proprie rămâne între paranteze.
+- Pentru *Afișare durată*. În *Setări › Proiect › Setări aplicație*, fila *Afișare*, alegeți *Automat (unitatea proprie a fiecărei activități)*, *Întotdeauna zile* sau *Întotdeauna ore*. O activitate de 18 ore apare sub *Întotdeauna zile* ca `2.25d(18h)`: unitatea proprie rămâne între paranteze.
 - Pentru un decalaj în ore după o activitate pe zile (vezi *Rotunjirea*).
 - Când modificați unitatea unei activități. Aplicația numără atunci zilele de la începutul activității, fiecare zi cu orele ei, și convertește durata imediat dacă rezultatul este exact. Două zile devin `16h`. Într-un calendar în care vinerea are 5 ore, 5 zile de la luni devin `37h`. Douăsprezece ore nu pot fi transformate în zile întregi într-un calendar cu zile de 8 ore: aplicația lasă atunci unitatea cum este.
 
@@ -51,13 +51,13 @@ Regulile de mai jos se aplică unei dependențe sfârșit-început într-un cale
 Aplicația rotunjește sau refuză în patru locuri:
 
 - **O activitate pe zile după o activitate pe ore** începe în următoarea zi lucrătoare. Activitatea pe ore este, ca să spunem așa, rotunjită în sus la zile întregi.
-- **Un decalaj în ore** se numără în calendarul decalajului, implicit cel al predecesorului. Dacă predecesorul este o activitate pe zile pe un calendar fără intervale de timp de lucru proprii, cum este calendarul standard, aplicația convertește decalajul în zile lucrătoare întregi: decalajul împărțit la orele nete pe zi, rotunjit la un număr întreg; jumătatea de zi se rotunjește în sus. La 8 ore pe zi, 1 oră înseamnă 0 zile, 4 ore înseamnă 1 zi și 12 ore înseamnă 2 zile. Acest lucru se aplică și dacă succesorul este o activitate pe ore. Dacă predecesorul este o activitate pe ore, sau dacă calendarul lui are intervale de timp de lucru proprii, decalajul se numără exact în ore de lucru, iar pauza nu se numără.
+- **Un decalaj în ore** se numără în calendarul decalajului, implicit cel al predecesorului. Dacă predecesorul este o activitate pe zile pe un calendar fără intervale de timp de lucru proprii, cum este calendarul standard, aplicația convertește decalajul în zile lucrătoare întregi: decalajul împărțit la orele zilei lucrătoare standard, rotunjit la un număr întreg; jumătatea de zi se rotunjește în sus. La 8 ore pe zi, 1 oră înseamnă 0 zile, 4 ore înseamnă 1 zi și 12 ore înseamnă 2 zile. Acest lucru se aplică și dacă succesorul este o activitate pe ore. Dacă predecesorul este o activitate pe ore, sau dacă calendarul lui are intervale de timp de lucru proprii, decalajul se numără exact în ore de lucru, iar pauza nu se numără.
 - **O durată în zile** este întotdeauna un număr întreg. Dacă scrieți `1.5d`, aplicația afișează *Introduceți un număr întreg de zile sau de ore, de exemplu 2d sau 12h.* O durată în ore poate fi `1.5h` sau `1h 30m`.
 - **Modificarea unității** are loc numai dacă rezultatul este exact (vezi mai sus).
 
 ## Exemplu lucrat: macaraua
 
-Calendarul este de luni până vineri, de la 07:00 la 12:00 și de la 13:00 la 16:00: 8 ore nete pe zi. Proiectul începe luni, 7 iunie 2027.
+Calendarul este de luni până vineri, de la 07:00 la 12:00 și de la 13:00 la 16:00: o zi lucrătoare standard de 8 ore. Proiectul începe luni, 7 iunie 2027.
 
 ### Oră, oră și zi
 
@@ -81,9 +81,9 @@ După o activitate pe zile, un decalaj funcționează altfel. *Pour foundation* 
 
 ### O după-amiază liberă de vineri
 
-Acum vinerea are un singur interval, de la 07:00 la 12:00: 5 ore. Celelalte zile rămân la 8 ore. Orele nete pe zi rămân 8, pentru că acesta este totalul zilnic cel mai frecvent. O săptămână are acum 37 de ore de lucru.
+Acum vinerea are un singur interval, de la 07:00 la 12:00: 5 ore. Celelalte zile rămân la 8 ore. Ziua lucrătoare standard rămâne 8 ore, pentru că acesta este totalul zilnic cel mai frecvent. O săptămână are acum 37 de ore de lucru.
 
-O activitate pe ore de 40 de ore de la luni, 7 iunie, la 07:00 folosește de luni până joi (32 de ore) și vinerea (5 ore). Ultimele 3 ore cad luni următoare, de la 07:00 la 10:00. Sfârșitul este **luni, 14 iunie, la 10:00**. O activitate pe zile de 5 zile ar ocupa 37 de ore începând de luni, iar aceasta este propunerea aplicației dacă modificați unitatea de la 5 zile la ore.
+O activitate de 40 de ore de la luni, 7 iunie, la 07:00 ocupă zilele de luni până joi (32 de ore) și vinerea (5 ore). Ultimele 3 ore cad luni următoare, de la 07:00 la 10:00. Sfârșitul este **luni, 14 iunie, la 10:00**. O activitate de 5 zile ar ocupa 37 de ore începând de luni, iar aceasta este propunerea aplicației dacă modificați unitatea de la 5 zile la ore.
 
 În tutorialul 4, despre planificarea pe ore, planificați singur o lucrare cu macara în ore.
 
@@ -91,11 +91,11 @@ O activitate pe ore de 40 de ore de la luni, 7 iunie, la 07:00 folosește de lun
 
 **"8 ore înseamnă 1 zi."** Doar dacă în calendar zilele au 8 ore. În calendarul cu vinerea liberă după-amiaza, 5 zile înseamnă 37 de ore, nu 40.
 
-**"Dacă setez mai multe ore pe zi, activitatea mea pe zile se încheie mai devreme."** Nu. O activitate pe zile numără zile lucrătoare întregi. Orele pe zi schimbă doar valoarea unei zile în ore, de exemplu în afișare și pentru un decalaj în ore. Doar pentru o activitate cu resurse și cu regula de lucru *Muncă fixă* sau *Unități fixe*, durata se modifică odată cu orele, pentru că lucrul rămâne același: 40 de ore de lucru înseamnă 5 zile la 8 ore pe zi și 7 zile la 6 ore pe zi.
+**"Dacă setez mai multe ore pe zi, activitatea mea pe zile se încheie mai devreme."** Nu. O activitate pe zile numără zile lucrătoare întregi. Orele pe zi schimbă doar valoarea unei zile în ore, de exemplu în afișare și pentru un decalaj în ore. Doar pentru o activitate cu resurse și cu tipul de activitate *Muncă fixă* sau *Unități fixe*, durata se modifică odată cu orele, pentru că lucrul rămâne același: 40 de ore de lucru înseamnă 5 zile la 8 ore pe zi și 7 zile la 6 ore pe zi.
 
-**"O activitate pe ore de 8 ore durează o zi."** Doar dacă începe la începutul zilei. Dacă începe mai târziu, ca *Adjust elements* marți la 11:00, continuă în ziua următoare.
+**"O activitate de 8 ore durează o zi."** Doar dacă începe la începutul zilei. Dacă începe mai târziu, ca *Adjust elements* marți la 11:00, continuă în ziua următoare.
 
-**Un calendar cu intervale de timp de lucru proprii** se comportă altfel decât calendarul standard. Un astfel de calendar îl obțineți dacă setați timpul de lucru pe zi a săptămânii sau dacă alegeți un model de ture (*2 ture*, *3 ture*, *Tură de noapte* sau *24/7*). Pe un astfel de calendar, un decalaj în ore se numără exact în ore de lucru, și după o activitate pe zile.
+**Un calendar cu intervale de timp de lucru proprii** se comportă altfel decât calendarul standard. Un astfel de calendar îl obțineți dacă setați timpul de lucru pe zi a săptămânii sau dacă alegeți un model de ture (*2 ture*, *3 ture*, *Tură de noapte* sau *24/7*). Pe un astfel de calendar, un decalaj în ore se numără exact în ore de lucru, chiar și după o activitate pe zile.
 
 **Dezactivarea planificării pe ore nu șterge nimic.** Activitățile pe ore rămân și sunt calculate în continuare, dar nu le puteți modifica până când activați din nou planificarea pe ore.
 

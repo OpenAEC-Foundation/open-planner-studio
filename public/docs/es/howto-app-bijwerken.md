@@ -30,8 +30,8 @@ En el navegador este botón no hace nada especial: la ventana dice de inmediato 
 
 ### Leer qué hay de nuevo
 
-1. Si inicia la aplicación de escritorio por primera vez en una versión distinta a la anterior, o después de una instalación nueva, se abre sola una ventana. En inglés se llama *You're up to date!*, en español *¡Ya estás actualizado!*.
-2. Arriba está el salto de la versión anterior a la nueva. Después de una instalación nueva solo se muestra la nueva versión.
+1. Si inicia la aplicación de escritorio por primera vez en una versión distinta a la anterior, se abre sola una ventana. En inglés se llama *You've been updated!*, en español *¡Ya estás actualizado!*. Después de una instalación nueva no se abre: el primer inicio no es una actualización. Si aun así quiere verla, use el botón *Novedades* (véase abajo).
+2. Arriba está el salto de la versión anterior a la nueva. Con el botón *Novedades* solo se muestra la nueva versión.
 3. Si la aplicación tiene un resumen integrado para esta versión, verá un punto principal y cuatro puntos más pequeños. El punto principal puede tener el botón *Leer la guía*. Si no, solo verá el salto de versión y lo que hay debajo.
 4. Con *Ver notas de versión completas* abre el registro de cambios en GitHub. Si eso no funciona, aparece *No se pudieron abrir las notas de versión.*
 5. Debajo de *Esta actualización en cifras* están el número de días desde la versión anterior, el número de commits y el número de líneas de código añadidas. Si la aplicación puede consultar la diferencia de tamaño del paquete de instalación, también se muestra. Cada cifra solo se muestra si está disponible.

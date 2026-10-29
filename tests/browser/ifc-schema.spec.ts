@@ -44,8 +44,8 @@ async function saveAndReadSchemaLine(page: Page): Promise<string> {
   return text.split('\n').find(line => line.startsWith('FILE_SCHEMA(')) ?? '(geen FILE_SCHEMA-regel)';
 }
 
-test('IFC-schema: kiezen in Projectinfo, toepassen, opslaan schrijft het in de kop; ongedaan maken verandert het niet',
-  async ({ page, ops: _ops }) => {
+test('IFC-schema: kiezen en opslaan, undo houdt het schema; schrijffout vóór terugval, annuleren en kopie opslaan',
+  async ({ page, ops }) => {
     // Beginstand: een nieuw project met één taak, nog op de standaard.
     await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
@@ -104,7 +104,73 @@ test('IFC-schema: kiezen in Projectinfo, toepassen, opslaan schrijft het in de k
     await pick(page, /^(IFC 4\.3 ADD2 \(default\)|IFC 4\.3 ADD2 \(standaard\))$/);
     await apply(page);
     await expect.poll(() => schemaOf(page)).toBe('IFC4X3_ADD2');
-    expect(await saveAndReadSchemaLine(page)).toBe("FILE_SCHEMA(('IFC4X3_ADD2'));");
+    // Het gekozen schema ook bewaren als het bestaande bestand vergrendeld is (knownbug163).
+    // Alleen de opslaggrens is een fixture: een geweigerde oude handle en een synthetische kiezer.
+    // De kopie is een echte, in IndexedDB bewaarbare OPFS-handle; Ctrl+S en de melding blijven echt.
+    ops.acceptError('Save failed:');
+    await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const copy = await root.getFileHandle('schemaproef-kopie.ifc', { create: true });
+      const store = window.__OPS__!.store;
+      store.getState().addTask({ name: 'Bewaar na fout' });
+      store.setState({
+        filePath: 'vergrendeld.ifc',
+        fileHandle: {
+          name: 'vergrendeld.ifc',
+          queryPermission: async () => 'granted',
+          createWritable: async () => { throw new DOMException('Bestand vergrendeld', 'NoModificationAllowedError'); },
+        },
+        ui: { ...store.getState().ui, notifications: [] },
+      } as never);
+      Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
+      Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: async () => [] });
+      let calls = 0;
+      Object.defineProperty(window, 'showSaveFilePicker', {
+        configurable: true,
+        value: () => {
+          sessionStorage.setItem('ops-test-save-picker-calls', String(++calls));
+          sessionStorage.setItem('ops-test-save-notices-before-picker', JSON.stringify(store.getState().ui.notifications.map(n => [n.severity, n.messageKey, n.detail])));
+          if (calls > 1) return Promise.resolve(copy);
+          // Laat de kiezer openstaan tot de test de zichtbare melding heeft gecontroleerd.
+          return new Promise<FileSystemFileHandle>((_resolve, reject) => {
+            window.addEventListener('ops-test-cancel-save-picker', () => reject(new DOMException('Geannuleerd', 'AbortError')), { once: true });
+          });
+        },
+      });
+    });
+    const pickerCalls = () => page.evaluate(() => Number(sessionStorage.getItem('ops-test-save-picker-calls')));
+    const saveErrors = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+      .filter(n => n.severity === 'error').map(n => [n.messageKey, n.detail, n.count]));
+    const toast = page.locator('.ops-toast.toast-error', { hasText: 'Failed to save' });
+    await page.keyboard.press('Control+s');
+    await expect.poll(pickerCalls).toBe(1);
+    expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('ops-test-save-notices-before-picker')!)))
+      .toEqual([['error', 'notifications.saveFailed', 'Bestand vergrendeld']]);
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('Bestand vergrendeld');
+    await page.evaluate(() => window.dispatchEvent(new Event('ops-test-cancel-save-picker')));
+    await expect.poll(saveErrors).toEqual([['notifications.saveFailed', 'Bestand vergrendeld', 1]]);
+    expect(await isDirty(page)).toBe(true);
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().filePath)).toBe('vergrendeld.ifc');
+
+    // Opnieuw Ctrl+S, nu naar de kopie. Geen dubbele fout of misleidende browserbeperking; de kopie
+    // bevat het gekozen schema en wordt het doel van de volgende Opslaan.
+    await toast.getByRole('button', { name: 'Close notification' }).click();
+    await page.keyboard.press('Control+s');
+    await expect.poll(pickerCalls).toBe(2);
+    await expect.poll(() => isDirty(page)).toBe(false);
+    await expect(toast).toHaveCount(1);
+    expect(await saveErrors()).toEqual([['notifications.saveFailed', 'Bestand vergrendeld', 1]]);
+    await expect.poll(() => page.evaluate(() => {
+      const s = window.__OPS__!.store.getState();
+      return [s.filePath, s.fileHandle?.name, s.recentFiles[0]?.name, s.ui.notifications.map(n => n.messageKey)];
+    })).toEqual(['schemaproef-kopie.ifc', 'schemaproef-kopie.ifc', 'schemaproef-kopie.ifc', ['notifications.saveFailed']]);
+    const copy = await page.evaluate(async () => {
+      const file = await window.__OPS__!.store.getState().fileHandle!.getFile();
+      return file.text();
+    });
+    expect(copy).toContain("FILE_SCHEMA(('IFC4X3_ADD2'));");
+    expect(copy).toContain('Bewaar na fout');
     // Een nieuw project kreeg nooit een schemavraag.
     await expect(page.locator('[data-ops-ifc-schema-question]')).toHaveCount(0);
   });

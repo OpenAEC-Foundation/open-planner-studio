@@ -39,13 +39,73 @@ test('Delete en Backspace in het kalendervenster verwijderen de taak niet', asyn
 
 test('Delete en Backspace op Cancel in Taak bewerken verwijderen de taak niet', async ({ page, ops: _ops }) => {
   const id = await seedAndSelect(page);
-  await page.evaluate((taskId) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: taskId }), id);
+  // Knownbug 120 / CI #534: de oude naamfocustimer (30 ms) stal een expliciete knopfocus.
+  // Zet de klok vóór openen stil, zoals in toast-open-sticky.spec.ts. Echte handelingen kunnen
+  // zo aantoonbaar vóór die timer vallen, ongeacht de belasting van de CI-runner.
+  await page.clock.install();
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(now + 500);
+  const open = () => page.evaluate((taskId) => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: taskId }), id);
+  await open();
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
+  const name = dialog.locator('[data-ops-task-name]');
+  const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
+  const save = dialog.locator('[data-ops-task-save]');
+  const help = dialog.getByRole('button', { name: 'Help on this topic', exact: true });
+  await expect(name).toHaveValue('Set up site');
 
-  await pressDeleteKeys(page, dialog.getByRole('button', { name: 'Cancel', exact: true }));
+  // Klokcontrole: precies dezelfde 30ms-timerroute staat stil en moet straks wél verlopen.
+  const timer = await page.evaluateHandle(() => {
+    const control = { fired: false };
+    window.setTimeout(() => { control.fired = true; }, 30);
+    return control;
+  });
+  await name.click();
+  await page.keyboard.press('Shift+Tab'); // sluiten
+  await page.keyboard.press('Shift+Tab'); // Help
+  await expect(help).toBeFocused();
+  await page.keyboard.press('Shift+Tab'); // wrap naar Opslaan
+  await expect(save).toBeFocused();
+  await page.keyboard.press('Shift+Tab'); // Annuleren, zonder de dialoog te sluiten
+  await expect(cancel).toBeFocused();
+  expect(await timer.evaluate(control => control.fired)).toBe(false);
+  await page.clock.runFor(30);
+  expect(await timer.evaluate(control => control.fired)).toBe(true);
+  await timer.dispose();
+  await expect(cancel).toBeFocused(); // Oude code faalt hier: de timer heeft de naam gefocust.
+
+  await pressDeleteKeys(page, cancel);
   expect(await taskCount(page)).toBe(3);
+  await expect(name).toHaveValue('Set up site');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.editingTaskId)).toBe(id);
+
+  // Ook vooruit blijft Tab binnen het venster; Escape sluit alleen de bewerksessie.
+  await page.keyboard.press('Tab');
+  await expect(save).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(help).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // Beginfocus selecteert de volledige, geïnitialiseerde naam, ook na heropenen en taakwissel.
+  const expectSelectedName = async (value: string) => {
+    await expect(name).toHaveValue(value);
+    await expect(name).toBeFocused();
+    expect(await name.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, value.length]);
+  };
+  await open();
+  await expectSelectedName('Set up site');
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ editingTaskId: s.tasks[1]!.id });
+  });
+  await expectSelectedName('Foundations');
+  await page.keyboard.type('Foundations edited');
+  await expect(name).toHaveValue('Foundations edited');
+  await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().tasks[1]!.name)).toBe('Foundations edited');
+  expect(await taskCount(page)).toBe(3);
 });
 
 test('Delete en Backspace in een tekstveld van Taak bewerken wissen gewoon tekens', async ({ page, ops: _ops }) => {

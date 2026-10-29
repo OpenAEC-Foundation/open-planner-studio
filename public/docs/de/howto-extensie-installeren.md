@@ -13,13 +13,15 @@ Denken Sie gut nach, bevor Sie eine Erweiterung installieren. Eine Erweiterung i
 ### Eine Erweiterung aus dem Katalog installieren
 
 1. Wählen Sie *Datei › Erweiterungen*.
-2. Wählen Sie die Registerkarte *Durchsuchen*. Die App lädt den Katalog, während sie *Katalog wird geladen...* anzeigt. Was im Katalog steht, entscheidet die OpenAEC Foundation, die ihn pflegt. Das kann sich ändern.
+2. Wählen Sie die Registerkarte *Durchsuchen*. Die App lädt den Katalog und zeigt dabei *Katalog wird geladen...* an. Was im Katalog steht, entscheidet die OpenAEC Foundation, die ihn pflegt. Das kann sich ändern.
 3. Suchen Sie mit dem Feld *Erweiterungen suchen...* nach einer Erweiterung. Die Suche läuft über Name, Beschreibung, Autor und Tags.
 4. Jede Karte zeigt Name, Version, Kategorie, Beschreibung und Autor. Klicken Sie auf *Installieren*.
 5. Das Fenster *Erweiterung installieren?* öffnet sich. Lesen Sie es, und gehen Sie dann zum nächsten Schritt.
 6. Klicken Sie auf *Installieren*, um fortzufahren. Mit *Nicht installieren* geschieht nichts. Esc oder ein Klick neben das Fenster gilt ebenfalls als Ablehnung. Die App zeigt dann keine Fehlermeldung.
 
 Nach der Installation ist die Erweiterung sofort aktiv. Auf der Karte in *Durchsuchen* steht jetzt *Installiert*. Was die Erweiterung hinzufügt, sehen Sie in der App selbst: eine neue Schaltfläche im Menüband oder ein Importformat in *Datei › Importieren*. Manche Erweiterungen zeigen auch eine Meldung. Sie erkennen sie am Präfix *Erweiterung*, gefolgt vom Namen der Erweiterung.
+
+**Tutorials.** Die Tutorials sind eine Erweiterung. Wenn Sie unter *Tutorials* in *Hilfe* die Schaltfläche *Tutorials installieren* sehen, öffnet sie *Datei › Erweiterungen* auf *Durchsuchen*. Die Frage nach dem ersten Rundgang installiert ebenfalls diese Erweiterung. Beide Wege zeigen dieselbe Berechtigungsfrage. Sie können sie ablehnen.
 
 ### Eine Erweiterung aus einer Datei installieren
 
@@ -29,32 +31,24 @@ Wenn Sie eine Erweiterung als Datei erhalten haben, installieren Sie sie so.
 2. Klicken Sie oben rechts auf *ZIP* für eine ZIP-Datei oder auf *JS* für eine separate JavaScript-Datei.
 3. Wählen Sie die Datei. Das Fenster *Erweiterung installieren?* öffnet sich, wie oben.
 
-Eine ZIP-Datei muss eine `manifest.json` und die Hauptdatei der Erweiterung enthalten. Wenn Sie eine Erweiterung installieren, die schon installiert ist, ersetzt die neue Version die alte. Kann die App die Datei nicht installieren, zum Beispiel weil eine ZIP-Datei beschädigt ist, geschieht nichts. Die App zeigt bei ZIP und JS keine Fehlermeldung, und die Erweiterung erscheint nicht in der Liste. Der Grund steht aber im Debug-Terminal. Schalten Sie es ein mit *Einstellungen › Projekt › Einstellungen*, Registerkarte *Erweitert*, *Debug-Terminal aktivieren*. Öffnen Sie es dann mit der Schaltfläche *Debug-Terminal anzeigen* in der Statusleiste. Dort steht zum Beispiel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (die App formuliert diesen technischen Text auf Niederländisch).
+Eine ZIP-Datei muss eine `manifest.json` und die Hauptdatei der Erweiterung enthalten. Wenn Sie eine Erweiterung installieren, die schon installiert ist, ersetzt die neue Version die alte. Kann die App die Datei nicht installieren, zum Beispiel weil eine ZIP-Datei beschädigt ist, geschieht nichts. Die App zeigt bei ZIP und JS keine Fehlermeldung, und die Erweiterung erscheint nicht in der Liste. Der Grund steht aber im Debug-Terminal. Schalten Sie es ein mit *Einstellungen › Projekt › App-Einstellungen*, Registerkarte *Erweitert*, *Debug-Terminal aktivieren*. Öffnen Sie es dann mit der Schaltfläche *Debug-Terminal anzeigen* in der Statusleiste. Dort steht zum Beispiel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (die App formuliert diesen technischen Text auf Niederländisch).
 
 ### Die Berechtigungsfrage lesen
 
-Die Frage zeigt, worüber Sie entscheiden müssen.
+Die Frage zeigt, was Sie entscheiden müssen.
 
 - *Autor* und *Repository* sagen, wer die Erweiterung gemacht hat und wo der Quellcode steht.
-- *Herkunft* sagt, woher die Datei kommt: *Aus dem Online-Erweiterungskatalog*, *Aus einer ZIP-Datei auf diesem Rechner* oder *Aus einer JavaScript-Datei auf diesem Rechner*. Darunter steht, ob die Datei geprüft wurde. Beim Katalog steht dort *Download anhand der Prüfsumme aus dem Katalog verifiziert.* Liefert der Katalog keine Prüfsumme, steht dort in Rot *Der Katalog liefert keine Prüfsumme — dieser Download wurde nicht verifiziert.* Bei einer eigenen Datei steht dort *Sie haben diese Datei selbst gewählt; es gibt keine externe Quelle zum Abgleich.*
-- *Wozu Sie Ja sagen* sagt: *Eine Erweiterung ist Programmcode, der mit denselben Rechten läuft wie Open Planner Studio selbst. Nichts grenzt ihn ein. Installieren Sie nur Erweiterungen, deren Autor Sie vertrauen.* Darunter steht, was das auf Ihrer Plattform bedeutet. In der Desktop-App steht dort *In der Desktop-App gehört dazu: Dateien überall in Ihrem Benutzerordner lesen und schreiben, dazu Zugriff auf Ihre Projekte, Einstellungen und die Zwischenablage.* Im Browser steht dort *Im Browser bedeutet das: Zugriff auf Ihre gespeicherten Projekte und Einstellungen, auf die Dateien, für die Sie Zugriff erteilt haben, und auf das Netzwerk.*
-- *Was diese Erweiterung zu nutzen angibt* zeigt die Berechtigungen, die der Autor angegeben hat, als kleine Etiketten. Das ist eine Angabe des Autors und keine Beschränkung: *Das ist die Angabe des Autors, keine Beschränkung — der Code kann ohnehin mehr.* Steht kein Etikett dort, steht da *Nichts angegeben.* Das heißt nicht, dass die Erweiterung nichts tun kann. Auch ohne Etiketten kann eine Erweiterung die Daten Ihres Terminplans lesen und ändern und Meldungen anzeigen.
+- *Herkunft* sagt, woher die Datei kommt und ob sie geprüft wurde. Steht dort in Rot, dass der Download nicht verifiziert ist, dann installieren Sie nur, wenn Sie die Quelle kennen.
+- *Wozu Sie Ja sagen* wiederholt, dass eine Erweiterung Programmcode ist, der mit denselben Rechten läuft wie Open Planner Studio selbst, und was das auf Ihrer Plattform bedeutet. Installieren Sie nur Erweiterungen von Autoren, denen Sie vertrauen.
+- *Was diese Erweiterung zu nutzen angibt* zeigt die Berechtigungen, die der Autor angegeben hat, als kleine Etiketten. Das ist eine Angabe und keine Beschränkung. Steht dort *Nichts angegeben.*, kann die Erweiterung trotzdem die Daten Ihres Terminplans lesen und ändern.
 
-Die Etiketten bedeuten Folgendes:
-
-- *ribbon*: Die Erweiterung setzt Schaltflächen ins Menüband.
-- *events*: Die Erweiterung hört auf Ereignisse in der App.
-- *backstage*: Die Erweiterung fügt Importformate zu *Datei › Importieren* hinzu.
-- *pdf-fonts*: Die Erweiterung liefert eine Schrift für den PDF-Export.
-- *importSource*: Die Erweiterung darf die vollständigen Originalbytes jeder Datei lesen, die Sie importieren, zum Beispiel eine rohe Primavera-Datei, auch Felder, die nicht in Ihrem Projekt landen. Das Fenster erklärt das selbst auch.
-- *help*: Die Erweiterung darf Hilfeartikel hinzufügen, gebündelte Projekte als neues Dokument öffnen und eine Anleitung zeigen, die auf Teile der App zeigt. Das Fenster erklärt das selbst auch.
-- *filesystem* und *network*: Das sind nur Hinweise darauf, was der Autor vorhat. Die App hat dafür keine Funktion.
+Was die Etiketten bedeuten und wie die Texte des Fensters genau lauten, steht in [Erweiterungsberechtigungen](docs://ref-extensiepermissies).
 
 ### Deaktivieren, wieder aktivieren oder entfernen
 
 1. Wählen Sie *Datei › Erweiterungen* und die Registerkarte *Installiert*. Jede Erweiterung hat eine Karte mit Name, Version, Kategorie, Beschreibung und Autor.
-2. Mit dem Schalter auf der Karte deaktivieren Sie die Erweiterung (*Deaktivieren*) oder aktivieren sie wieder (*Aktivieren*). Ist sie deaktiviert, verschwinden die Schaltflächen und Importformate, die die Erweiterung hinzugefügt hat. Die Erweiterung bleibt aber installiert. Sie bleibt auch nach einem Neustart der App aus. Eine aktivierte Erweiterung startet beim Start der App von selbst.
-3. Klicken Sie auf *Entfernen*. Die Schaltfläche wechselt zu *Bestätigen*, mit der Erklärung *Erneut klicken, um endgültig zu entfernen*. Klicken Sie noch einmal, um die Erweiterung zu entfernen. Die App räumt auch die Einstellungen auf, die die Erweiterung gespeichert hat.
+2. Mit dem Schalter auf der Karte deaktivieren Sie die Erweiterung (*Deaktivieren*) oder aktivieren sie wieder (*Aktivieren*). Bei einer deaktivierten Erweiterung verschwinden die Schaltflächen und Importformate, die sie hinzugefügt hat. Die Erweiterung bleibt aber installiert. Sie bleibt auch nach einem Neustart der App aus. Eine aktivierte Erweiterung startet beim Start der App von selbst.
+3. Klicken Sie auf *Entfernen*. Die Schaltfläche wechselt zu *Bestätigen*, mit dem Hinweis *Erneut klicken, um endgültig zu entfernen*. Klicken Sie noch einmal, um die Erweiterung zu entfernen. Die App räumt auch die Einstellungen auf, die die Erweiterung gespeichert hat.
 
 ## Probleme und was die App dann tut
 

@@ -6,7 +6,7 @@ Je metselploeg werkt niet voor één project. Vandaag staat ze op de woningen in
 
 Er zijn twee lagen.
 
-De **resourcebibliotheek** is de lijst met resources en kalenders die bij je organisatie horen: een metselaar, een kraan, een stukadoor, met hun type, tarief en het aantal dat je ervan hebt. De lijst zelf, in de app ook wel de **pool** genoemd, staat niet in je projectbestanden maar in de app: in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser. Wis je in de browser de sitegegevens, dan is de bibliotheek weg; exporteer hem dus als back-up. Er is altijd minstens één bibliotheek. De eerste heet *Mijn resourcebibliotheek* en die naam kun je wijzigen.
+De **resourcebibliotheek** is de lijst met resources en kalenders die bij je organisatie horen: een metselaar, een kraan, een stukadoor, met hun type, tarief en het aantal dat je ervan hebt. De lijst zelf, in de app ook wel de **pool** genoemd, staat niet in je projectbestanden maar in de app: in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser. Wis je in de browser de sitegegevens, dan is de bibliotheek weg; exporteer hem dus als back-up. Er is altijd minstens één bibliotheek. De eerste krijgt bij het aanmaken een naam in de huidige interfacetaal, bijvoorbeeld *Mijn resourcebibliotheek* in het Nederlands. Je kunt die naam wijzigen; een taalwissel verandert bestaande namen niet.
 
 Het **project** bepaalt hoeveel van een resource het gebruikt en wanneer. Een project is aan één bibliotheek gekoppeld of staat los. Een los project werkt gewoon, alleen zonder gedeelde lijst.
 

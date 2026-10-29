@@ -267,7 +267,7 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   // weigert, en die weigering rolt de HELE call terug (transactie-invariant). Dat is precies goed:
   // een kalender zonder werktijd komt er niet half in. De boodschap moet wel uitlegbaar zijn.
   assertEq(res.ok, false, 'de call faalt hard i.p.v. een onbruikbare kalender te committen');
-  assert(/geen werkdagen/i.test((res as any).error), `begrijpelijke fout: ${(res as any).error}`);
+  assertEq((res as any).error, 'Calendar has no working days configured', 'begrijpelijke Engelse kalenderfout');
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is volledig teruggerold');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoVoor, 'geen achtergebleven undo-stap');
 });
@@ -625,6 +625,10 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   const zonderGebruikers = readIFC(writeIFC(buildWriteIFCInput(S())));
   const ongebruikt = zonderGebruikers.resourceCalendars?.find((c) => c.name === 'Ongebruikte uurkalender');
   assert(!!ongebruikt, 'een bibliotheek-kalender ZONDER taak/resource komt sinds de A2-fix terug uit IFC');
+  assertEq(ongebruikt!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'ongebruikte kalender behoudt ook zijn uurbanden');
+  const description = toolDef('planner_update_calendar').description;
+  assert(/unused calendars survive IFC save\+reload/i.test(description), 'beschrijving noemt het huidige behoud van ongebruikte kalenders');
+  assert(!/does NOT survive save\+reload/.test(description), 'geen achterhaalde waarschuwing voor kalenderverlies');
 
   // MÉT een taak eraan overleeft hij volledig — inclusief de uurbanden.
   const t = addTask('Werk op de ploegenkalender', 2);

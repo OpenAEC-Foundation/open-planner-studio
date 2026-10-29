@@ -50,38 +50,38 @@ S možností *Vyrovnat jen v rámci časové rezervy — datum dokončení proje
 
 ## Příklad: zedník na dvou zdech
 
-Příklad je cvičný projekt kurzů *House extension* v tom stavu, v jakém je těsně před vyrovnáním v kurzu 5. V kurzu 5 to děláte sami a kontrolujete čísla. V tomto příkladu je omítání nastaveno jako *Pevná práce* a omítkář pracuje s jednotkami přiřazení 2, jak je popsáno v článku [Pravidla pevné veličiny: doba trvání, jednotky a práce](docs://uitleg-werkregels).
+Příklad je cvičný projekt kurzů *House extension* v tom stavu, v jakém je těsně před vyrovnáním v kurzu 5. V kurzu 5 to děláte sami a kontrolujete čísla. V tomto příkladu je omítání nastaveno jako *Pevná práce* a omítkář pracuje s jednotkami přiřazení 2, jak je popsáno v článku [Typy úkolů: doba trvání, jednotky a práce](docs://uitleg-werkregels).
 
-Po dutinovém stropu, který skončí v pondělí 28. června, začnou v úterý 29. června obě vrstvy: inner cavity leaf (5 pracovních dnů) a outer cavity leaf (6 pracovních dnů). Obě jsou přiřazeny zedníkovi, s jednotkami přiřazení 1 a hodnotou 1 v poli *Maximální počet jednotek*. Po inner leaf přijdou prvky střechy (práce jeřábu, 6 hodin) a krytina (2 pracovní dny). Rámy čekají na krytinu a na outer leaf. Předání je v pondělí 30. srpna.
+Po dutinovém stropu, který skončí v pondělí 28. června, začnou v úterý 29. června obě vrstvy: vnitřní vrstva zdi (5 pracovních dnů) a vnější vrstva zdi (6 pracovních dnů). Obě jsou přiřazeny zedníkovi, s jednotkami přiřazení 1 a hodnotou 1 v poli *Maximální počet jednotek*. Po vnitřní vrstvě přijdou prvky střechy (práce jeřábu, 6 hodin) a krytina (2 pracovní dny). Rámy čekají na krytinu a na vnější vrstvu. Předání je v pondělí 30. srpna.
 
 ### Přetížení
 
-Inner leaf běží od 29. června do 5. července včetně, outer leaf od 29. června do 6. července včetně. Od 29. června do 5. července včetně, tedy 5 pracovních dnů, plán žádá 2 jednotky od zedníka s kapacitou 1. Zedník je na těch 5 dnech přetížen.
+Vnitřní vrstva běží od 29. června do 5. července včetně, vnější vrstva od 29. června do 6. července včetně. Od 29. června do 5. července včetně, tedy 5 pracovních dnů, plán žádá 2 jednotky přiřazení od zedníka s kapacitou 1. Zedník je na těch 5 dnech přetížen.
 
 ### Pořadí
 
-Oba úkoly mají prioritu 500. Okenní rámy se dodají až 14. července (v kurzu 3 jste pro to nastavili omezení *Zahájit nejdříve (SNET)*). Inner leaf proto má 3 pracovní dny časové rezervy a outer leaf 5. Inner leaf má nejmenší časovou rezervu, proto jde první. Zůstane od 29. června do 5. července včetně.
+Oba úkoly mají prioritu 500. Okenní rámy se dodají až 14. července (v kurzu 3 jste pro to nastavili omezení *Zahájit nejdříve (SNET)*). Vnitřní vrstva proto má 3 pracovní dny časové rezervy a vnější vrstva 5. Vnitřní vrstva má nejmenší časovou rezervu, proto jde první. Zůstane od 29. června do 5. července včetně.
 
 ### Posun
 
-Outer leaf nemůže začít 29. června. První den, kdy je zedník zase volný, je úterý 6. července. To je o 5 pracovních dnů později než nejdřívější zahájení, takže zpoždění vyrovnání je 5. Outer leaf nyní běží od 6. do 13. července včetně. Rámy stejně začnou až 14. července, takže předání zůstane v pondělí 30. srpna. Okno hlásí *Datum dokončení projektu: beze změny (30-08-2027)* a ukazuje jeden řádek: *Build outer cavity leaf*, původní začátek 29-06-2027, nový začátek 06-07-2027, *5 d*.
+Vnější vrstva nemůže začít 29. června. První den, kdy je zedník zase volný, je úterý 6. července. To je o 5 pracovních dnů později než nejdřívější zahájení, takže zpoždění vyrovnání je 5. Vnější vrstva nyní běží od 6. do 13. července včetně. Rámy stejně začnou až 14. července, takže předání zůstane v pondělí 30. srpna. Okno hlásí *Datum dokončení projektu: beze změny (30-08-2027)* a ukazuje jeden řádek: *Build outer cavity leaf*, původní začátek 29-06-2027, nový začátek 06-07-2027, *5 d*.
 
-Těchto 5 pracovních dnů posunu je přesně časová rezerva outer leaf. Proto zde možnost *Vyrovnat jen v rámci časové rezervy — datum dokončení projektu zůstane pevné* dá stejný výsledek. Outer leaf nyní nemá žádnou časovou rezervu a je kritický.
+Těchto 5 pracovních dnů posunu je přesně časová rezerva vnější vrstvy. Proto zde *vyrovnání* dá stejný výsledek. Vnější vrstva nyní nemá žádnou časovou rezervu a je kritická.
 
 ### Co když rámy nepřijdou 14. července
 
-Bez tohoto omezení mohou rámy začít v pátek 9. července a předání je ve středu 25. srpna. Outer leaf pak má jen 2 pracovní dny časové rezervy.
+Bez tohoto omezení mohou rámy začít v pátek 9. července a předání je ve středu 25. srpna. Vnější vrstva pak má jen 2 pracovní dny časové rezervy.
 
-- Bez možnosti *Vyrovnat jen v rámci časové rezervy — datum dokončení projektu zůstane pevné* se outer leaf stejně posune o 5 pracovních dnů. Rámy teď musí čekat: začnou 14. července, o 3 pracovní dny později. Vše, co na ně navazuje, se posune také a předání se změní z 25. srpna na 30. srpna, také o 3 pracovní dny později.
-- S možností *Vyrovnat jen v rámci časové rezervy — datum dokončení projektu zůstane pevné* se nic neposune. Outer leaf se nevejde do svých 2 pracovních dnů časové rezervy. Okno ukazuje konflikt *Build outer cavity leaf*, 5 dní, s důvodem *V časové rezervě není dost volné kapacity, aby se tento konflikt vyřešil.*
+- Bez *vyrovnání* se vnější vrstva stejně posune o 5 pracovních dnů. Rámy teď musí čekat: začnou 14. července, o 3 pracovní dny později. Vše, co na ně navazuje, se posune také a předání se změní z 25. srpna na 30. srpna, také o 3 pracovní dny později.
+- S *vyrovnáním* se nic neposune. Vnější vrstva se nevejde do svých 2 pracovních dnů časové rezervy. Okno ukazuje konflikt *Build outer cavity leaf*, 5 dní, s důvodem *V časové rezervě není dost volné kapacity, aby se tento konflikt vyřešil.*
 
-### Co když má outer leaf přednost
+### Co když má vnější vrstva přednost
 
-Když nastavíte outer leaf prioritu *Vysoká* (900), přijde první. Zůstane od 29. června a inner leaf nyní ustoupí: o 6 pracovních dnů později, od 7. do 13. července včetně. Inner leaf má jen 3 pracovní dny časové rezervy, takže posun o 6 pracovních dnů je o 3 pracovní dny víc, než je jeho rezerva. Prvky střechy, rámy a vše za nimi se posunou také. Předání se změní z pondělí 30. srpna na čtvrtek 2. září. Stejné přetížení tedy dá jiné datum dokončení, podle toho, který úkol zůstane na místě.
+Když vnější vrstvě nastavíte prioritu *Vysoká* (900), přijde první. Zůstane na 29. června a vnitřní vrstva nyní ustoupí: o 6 pracovních dnů později, od 7. do 13. července včetně. Vnitřní vrstva má jen 3 pracovní dny časové rezervy, takže posun o 6 pracovních dnů je o 3 pracovní dny víc, než je její rezerva. Prvky střechy, rámy a vše za nimi se posunou také. Předání se změní z pondělí 30. srpna na čtvrtek 2. září. Stejné přetížení tedy dá jiné datum dokončení, podle toho, který úkol zůstane na místě.
 
 ### Co když přijde druhý zedník
 
-Když nastavíte *Maximální počet jednotek* zedníka na 2, přetížení už není. *Přepočítat* hlásí *Žádné úkoly se nemusí posunout — plán je už bez konfliktů.*
+Když v poli *Maximální počet jednotek* zedníka nastavíte 2, přetížení už není. *Přepočítat* hlásí *Žádné úkoly se nemusí posunout — plán je už bez konfliktů.*
 
 ## Důsledky a časté omyly
 
@@ -101,5 +101,5 @@ Když nastavíte *Maximální počet jednotek* zedníka na 2, přetížení už 
 
 - [Řešení přetížení](docs://howto-overbezetting-oplossen): kroky k nalezení přetížení a k jeho vyrovnání.
 - [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad): co je časová rezerva a proč se úkol stane kritickým.
-- [Pravidla pevné veličiny: doba trvání, jednotky a práce](docs://uitleg-werkregels): jak se doba trvání úkolu mění spolu s jednotkami přiřazení.
+- [Typy úkolů: doba trvání, jednotky a práce](docs://uitleg-werkregels): jak se doba trvání úkolu mění spolu s jednotkami přiřazení.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tři věže, které potřebují stejné čety a věžový jeřáb, a co s tím vyrovnání udělá.

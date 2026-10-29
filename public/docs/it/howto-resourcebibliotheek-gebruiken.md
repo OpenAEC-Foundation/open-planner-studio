@@ -22,7 +22,7 @@ Per un nuovo progetto:
 
 Per un progetto esistente:
 
-1. Scegli *File › Info progetto*.
+1. Scegli *File › Impostazioni progetto*.
 2. Sotto *Libreria di risorse*, scegli la libreria.
 3. Fai clic su *Applica*. Fino ad allora, in basso, c'è scritto *Modifiche non applicate: fai clic su Applica per conservarle.*
 

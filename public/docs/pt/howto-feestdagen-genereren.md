@@ -22,11 +22,11 @@ As **férias da construção** (*bouwvak*) são as férias coletivas da constru�
 
 Para os Países Baixos, a aplicação põe na lista, todos os anos, Nieuwjaar, Goede Vrijdag, Pasen (dois dias), Koningsdag, Hemelvaart, Pinksteren (dois dias) e Kerst (25 e 26 de dezembro) (Ano Novo, Sexta-feira Santa, Páscoa, Dia do Rei, Ascensão, Pentecostes e Natal). Se o Dia do Rei cair num domingo, fica a 26 de abril. O Dia da Libertação (Bevrijdingsdag) só está na lista em anos múltiplos de cinco, como 2025 e 2030.
 
-Os anos seguem o período do projeto: do ano antes da data de início até ao ano depois da data de fim. Se o projeto não tiver data de fim, vai até três anos depois do ano de início. Ajuste a data de início e a data de fim em *Definições › Projeto › Info do projeto*.
+Os anos seguem o período do projeto: do ano antes da data de início até ao ano depois da data de fim. Se o projeto não tiver data de fim, vai até três anos depois do ano de início. Ajuste a data de início e a data de fim em *Definições › Projeto › Definições do projeto*.
 
 ### Gerar novamente após alterar o período do projeto
 
-Se o seu projeto mudar, ou ficar com uma data de fim posterior, os feriados deixam de cobrir os anos novos. A aplicação indica-o na janela *Calendários*, por exemplo *Os feriados cobrem 2025–2028; o projeto vai até 2030. Gerar novamente?* Clique em *Gerar novamente*. A aplicação usa as mesmas opções da última vez (país, região, férias da construção) para os anos do projeto. Clique depois em *Aplicar*. Só vê esta mensagem num calendário cujos feriados foram gerados antes.
+Se o seu projeto mudar, ou ficar com uma data de fim posterior, os feriados deixam de cobrir os anos novos. A aplicação indica-o na janela *Calendários*, por exemplo *Os feriados cobrem 2025–2028; gerar novamente até 2030 inclusive?* Clique em *Gerar novamente*. A aplicação usa as mesmas opções da última vez (país, região, férias da construção) para os anos do projeto. Clique depois em *Aplicar*. Só vê esta mensagem num calendário cujos feriados foram gerados antes.
 
 ### Adicionar um dia ou um período de folga próprio
 
@@ -35,7 +35,7 @@ Se o seu projeto mudar, ou ficar com uma data de fim posterior, os feriados deix
 3. Ajuste o *De*. Deixe *Até* vazio para um só dia, ou preencha o último dia de folga para um período, por exemplo para umas férias de inverno.
 4. Clique em *Aplicar*.
 
-Com o caixote atrás de uma linha, remove-se um feriado.
+Com o caixote do lixo no fim de uma linha, remove-se um feriado.
 
 ### Remover todos os feriados
 
@@ -58,5 +58,5 @@ Escolha *Sem feriados* em *País* e clique em *Gerar*. A lista fica então vazia
 - [Calendários e dias úteis](docs://uitleg-kalenders): como a aplicação tem em conta os feriados e as férias da construção ao contar os dias úteis.
 - [Criar e atribuir um calendário](docs://howto-kalender-maken-en-toewijzen): criar um calendário próprio para nele colocar os feriados.
 - [Janelas de calendário](docs://ref-kalenders): todos os campos das janelas de calendário.
-- [Novo projeto e Info do projeto](docs://ref-projectinfo): o conjunto de feriados de um novo projeto.
+- [Novo projeto e Definições do projeto](docs://ref-projectinfo): o conjunto de feriados de um novo projeto.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): para além dos feriados, o calendário do projeto tem um período de folga *Frost delay, foundations*.

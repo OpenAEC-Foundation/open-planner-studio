@@ -24,8 +24,8 @@ Si hay una tarea seleccionada, el histograma muestra solo la carga de esa tarea 
 ### 2. Elija una solución
 
 - **Más capacidad.** Si de verdad llega un segundo albañil, ponga *Unidades máx* en 2 (véase [Gestionar recursos](docs://howto-resources-beheren)). Así desaparece la sobreasignación.
-- **Menos unidades por día.** Baje las *Uds./día* o elija otra curva para la asignación (véase [Asignar recursos con una curva](docs://howto-resource-toewijzen)).
-- **Tareas una detrás de otra.** Ponga las tareas una detrás de otra. Añada una relación entre las dos tareas, para que la segunda empiece solo cuando la primera termine (véase [Añadir relaciones](docs://howto-relaties-leggen)).
+- **Menos unidades por día.** Baje las *Unidades* o elija otra curva para la asignación (véase [Asignar recursos con una curva](docs://howto-resource-toewijzen)).
+- **Tareas una detrás de otra.** Añada una relación entre las dos tareas, para que la segunda empiece solo cuando la primera termine (véase [Añadir relaciones](docs://howto-relaties-leggen)).
 - **Nivelación.** La aplicación hace que una tarea empiece más tarde.
 
 ### 3. Nivelación
@@ -51,7 +51,7 @@ Si quiere decidir usted mismo qué tarea se queda donde está, dé a la tarea un
 
 - *Deshacer* (Ctrl+Z) anula *Aplicar* en un solo paso.
 - *Recursos › Nivelación › Borrar nivelación* quita toda la nivelación de las tareas. El botón está gris mientras no haya nivelación. La sobreasignación que reaparece de este modo vuelve a estar presente, sin más.
-- Si ha cambiado la planificación desde entonces, elija otra vez *Nivelar…*. La aplicación empieza entonces desde cero: los retrasos anteriores no cuentan.
+- Si ha cambiado la planificación desde entonces, basta con volver a elegir *Nivelar…*. La aplicación empieza entonces desde cero: los retrasos anteriores no cuentan.
 
 ## Problemas habituales y qué hace entonces la aplicación
 

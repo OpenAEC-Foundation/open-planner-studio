@@ -12,7 +12,7 @@ All key combinations of the app, grouped as in the *Keyboard Shortcuts* window. 
 
 **When a key does not work.** Every entry names its restrictions. Three rules apply almost everywhere:
 
-- In an input field, a drop-down list or a text box the app does not intercept keys, so you can simply type. Exceptions: F5, Ctrl+S, F11 and Esc during the presentation also work in a field. In the built app (desktop and the web version on the site) that also holds for Ctrl+Shift+S, Ctrl+O and Ctrl+N.
+- In an input field, a drop-down list or a text box the app does not intercept keys, so you can simply type. Exceptions: F5, Ctrl+S, F11 and Esc during the presentation also work in a field. If the focus is on a closed drop-down list, the keys with Ctrl also work, for example Ctrl+Z after a choice (not Ctrl+Delete and Ctrl+Backspace). That does not hold in an open list or in a dialog. In the built app (desktop and the web version on the site) that also holds for Ctrl+Shift+S, Ctrl+O and Ctrl+N.
 - While a dialog or another window is open, the keys marked *Not in a dialog* below do not work. That also holds for the tour, the welcome dialog and the questions that wait for an answer, such as the question whether to save your changes and the consent when installing an extension. Most of these keys do not work in presentation mode either. Exception: the edit keys Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y and Delete/Backspace do work during the presentation.
 - Document switches (Ctrl+1 to 9, Ctrl+N, Ctrl+O) also do not work while *File › Project settings* holds changes that you have not yet confirmed with *Apply*. Discard or apply them first.
 
@@ -98,7 +98,7 @@ Indent, outdent and inserting above or below a selected task only work in the pl
 
 **Ctrl+1** to **Ctrl+9** — *Switch document*: goes to the first to ninth open document. If that document does not exist, nothing happens. Not in a dialog and not with unapplied Project settings.
 
-**Ctrl+Home** — *Jump to today*: scrolls the timeline so that a date is at the left of the view. That is the status date if you have set one, otherwise today. So the label says "today", even when the timeline jumps to the status date. Zoom and the start of the timeline stay as they were. If a cell of the task grid has focus, Ctrl+Home instead goes to the first cell of the grid (see *Table*).
+**Ctrl+Home** — *Jump to status date or today*: scrolls the timeline so that a date is at the left of the view. That is the status date if you have set one, otherwise today. Zoom and the start of the timeline stay as they were. If a cell of the task grid has focus, Ctrl+Home instead goes to the first cell of the grid (see *Table*).
 
 ## Table
 

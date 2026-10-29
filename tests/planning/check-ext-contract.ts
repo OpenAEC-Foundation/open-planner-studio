@@ -24,6 +24,10 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
+import i18next from 'i18next';
+import nlMenu from '@/i18n/locales/nl/menu.json';
+import enMenu from '@/i18n/locales/en/menu.json';
+import { emitExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { IfcSchemaId, Project } from '@/types/project';
@@ -160,7 +164,8 @@ const NIET_PUBLIEK = {
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
-  taskTime: [] as readonly string[],
+  // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
+  taskTime: ['totalFloatMinutes', 'freeFloatMinutes'] as readonly string[],
   sequence: [] as readonly string[],
   // Het begrote tempo naast een P6-resttempo (resttempo-besluit 2026-10-15) is bronreferentie voor de
   // P6 XML-export, geen extensie-invoer. Het extensiecontract (apiVersion) blijft ongewijzigd. Een
@@ -206,6 +211,8 @@ const VOL_TIME = {
   lateFinish: '2026-06-08',
   freeFloat: 1,
   totalFloat: 2,
+  totalFloatMinutes: 960,
+  freeFloatMinutes: 480,
   isCritical: false,
   interferingFloat: 1,
   isNearCritical: true,
@@ -367,7 +374,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
   // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
   // (tests/planning/check-ext-help.ts).
-  eq('C8-04 contractversie 1.4.1 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.4.1');
+  eq('C8-04 contractversie 1.5.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
+  eq('C8 selectie-API vereist minor 1.5 op oudere host', checkApiCompatibility('1.5', '1.4.1').ok, false);
+  eq('C8 oudere extensie blijft compatibel', checkApiCompatibility('1.4', EXTENSION_API_VERSION).ok, true);
   // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
   // in 1.4.0, dat nog niet was uitgebracht — dus geen nieuwe contractversie. Een naam wijzigen of
   // weghalen breekt extensies: dan hoort hier (en in apiVersion.ts) een MAJOR bij.
@@ -378,9 +387,9 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     tutorialRequested: 'host:tutorial-requested',
   });
   const custom = toExtProject(VOL_PROJECT).schedulingProfile;
-  eq('C8-05 eigen profiel: id, basis, naam en de zevenentwintig opgeloste conventies',
+  eq('C8-05 eigen profiel: id, basis, naam en de negenentwintig opgeloste conventies (B6, dagenmaat)',
     [custom?.id, custom?.baseId, custom?.name, Object.keys(custom?.conventions ?? {}).length, custom?.conventions.clampNegativeFreeFloat],
-    ['eigen-1', 'msproject', 'Eigen', 27, true]);
+    ['eigen-1', 'msproject', 'Eigen', 29, true]);
 }
 
 {
@@ -586,7 +595,10 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     fromExtCalendar(toExtCalendar(VOL_CALENDAR)), stripNietPubliek(VOL_CALENDAR, [...NIET_PUBLIEK.calendar, ...LEES_ALLEEN_EXT.calendar]));
   eq('21 taak-readmodel reist alleen naar buiten; P6-herkomst komt generiek niet terug',
     fromExtTask(toExtTask(VOL_TASK)),
-    stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]));
+    {
+      ...stripNietPubliek(VOL_TASK, [...NIET_PUBLIEK.task, ...LEES_ALLEEN_EXT.task]),
+      time: stripNietPubliek(VOL_TIME, [...NIET_PUBLIEK.taskTime, ...LEES_ALLEEN_EXT.taskTime]),
+    });
   eq('22 relatie round-trip bewaart geen native-XER-solvervlag via generieke extensie-invoer',
     fromExtSequence(toExtSequence(VOL_SEQUENCE)),
     stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));
@@ -799,23 +811,36 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       app: appStoreContext,
       showNotification: () => {},
     });
-    const throwsWithout = (fn: () => unknown): boolean => {
-      try { fn(); return false; } catch (error) {
-        return error instanceof Error && /mist permissie: importSource/.test(error.message);
-      }
-    };
-    eq('P1 zonder permissies gooien alle drie de bronmethoden een permissiefout', [
-      throwsWithout(() => apiNoPerm.data.getImportSourceInfo()),
-      throwsWithout(() => apiNoPerm.data.getImportSourceChunk(0)),
-      throwsWithout(() => apiNoPerm.data.getImportSourceCatalogPage('taskSourceRows')),
-      throwsWithout(() => apiNoPerm.data.getImportSourceIssue()),
-    ], [true, true, true, true]);
-    eq('P1a een ONgerelateerde permissie (ribbon/events) geeft geen toegang tot importSource', [
-      throwsWithout(() => apiOtherPerm.data.getImportSourceInfo()),
-      throwsWithout(() => apiOtherPerm.data.getImportSourceChunk(0)),
-      throwsWithout(() => apiOtherPerm.data.getImportSourceCatalogPage('taskSourceRows')),
-      throwsWithout(() => apiOtherPerm.data.getImportSourceIssue()),
-    ], [true, true, true, true]);
+    // Dezelfde reeds opgebouwde API's blijven weigeren na een taalwissel, mét id en permissie.
+    // Echte bronmethoden tegen het document; geen losse vertaalsleuteltest.
+    await i18next.init({
+      lng: 'en', fallbackLng: 'en', ns: ['menu'],
+      resources: { nl: { menu: nlMenu }, en: { menu: enMenu } },
+      interpolation: { escapeValue: false },
+    });
+    for (const { lng, message } of [
+      { lng: 'nl', message: (id: string) => `Extensie "${id}" mist permissie: importSource` },
+      { lng: 'en', message: (id: string) => `Extension "${id}" is missing permission: importSource` },
+    ]) {
+      await i18next.changeLanguage(lng);
+      const throwsWithout = (fn: () => unknown, id: string): boolean => {
+        try { fn(); return false; } catch (error) {
+          return error instanceof Error && error.message === message(id);
+        }
+      };
+      eq(`P1 ${lng} zonder permissies gooien alle bronmethoden een concrete permissiefout`, [
+        throwsWithout(() => apiNoPerm.data.getImportSourceInfo(), 'xer-source-read-contract-no-perm'),
+        throwsWithout(() => apiNoPerm.data.getImportSourceChunk(0), 'xer-source-read-contract-no-perm'),
+        throwsWithout(() => apiNoPerm.data.getImportSourceCatalogPage('taskSourceRows'), 'xer-source-read-contract-no-perm'),
+        throwsWithout(() => apiNoPerm.data.getImportSourceIssue(), 'xer-source-read-contract-no-perm'),
+      ], [true, true, true, true]);
+      eq(`P1a ${lng} een ONgerelateerde permissie (ribbon/events) geeft geen toegang tot importSource`, [
+        throwsWithout(() => apiOtherPerm.data.getImportSourceInfo(), 'xer-source-read-contract-other-perm'),
+        throwsWithout(() => apiOtherPerm.data.getImportSourceChunk(0), 'xer-source-read-contract-other-perm'),
+        throwsWithout(() => apiOtherPerm.data.getImportSourceCatalogPage('taskSourceRows'), 'xer-source-read-contract-other-perm'),
+        throwsWithout(() => apiOtherPerm.data.getImportSourceIssue(), 'xer-source-read-contract-other-perm'),
+      ], [true, true, true, true]);
+    }
     apiNoPerm._cleanup();
     apiOtherPerm._cleanup();
   }
@@ -842,7 +867,7 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     api.data.getImportSourceChunk(0), api.data.getImportSourceCatalogPage('taskSourceRows'),
   ], [null, null]);
   const applied = useAppStore.getState().applyOpenedImport(opened, {
-    filePath: null, recompute: false, fit: false, hourDataNotice: false, linkedOpen: true,
+    filePath: null, recompute: false, fit: false, linkedOpen: true,
   });
   const p2DocumentId = applied.documentIds[1];
   if (p2DocumentId) useAppStore.getState().switchDocument(p2DocumentId);
@@ -1287,7 +1312,7 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       s.resources = [{ ...VOL_RESOURCE, parentId: undefined, libraryOrigin: undefined, calendarId: 'cal-ploeg' }];
       const taak = s.tasks.find((t) => t.id === taakId);
       if (taak) taak.calendarId = 'cal-ploeg';
-      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01', projectDuration: 20 }];
+      s.baselines = [{ id: 'bl-1', name: 'Start', createdAt: '2026-01-01T00:00:00Z', tasks: [], projectEnd: '2026-02-01T16:00', projectDuration: 20 }];
       s.activeBaselineId = 'bl-1';
       s.activityCodeTypes = [{ id: 'act-fase', name: 'Fase', values: [{ id: 'v-ruw', code: 'RUW' }] }];
       s.customFieldDefs = [{ id: 'cf-kosten', name: 'Kosten', type: 'cost' }];
@@ -1620,6 +1645,44 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     melding?.params, melding?.detail, naFout.activeDocumentId === voorFout.activeDocumentId,
     naFout.documents.length === voorFout.documents.length,
   ], [false, 1, 'error', 'notifications.extImportFailed', { name: 'Kapotte importer' }, 'Kolom "Start" ontbreekt', true, true]);
+}
+
+// Host-events mogen worden beluisterd, maar uitsluitend door de app worden uitgezonden.
+{
+  const host = { app: appStoreContext, showNotification: () => {} };
+  const api = createExtensionApi('host-event-isolatie', ['events'], undefined, appStoreContext, host);
+  const withoutPermission = createExtensionApi('zonder-events', [], undefined, appStoreContext, host);
+  const seen: unknown[] = [];
+  for (const event of [...Object.values(HOST_EVENTS), 'host:future-event', 'host:']) {
+    const unsubscribe = api.events.on(event, value => seen.push(value));
+    const before = seen.length;
+    let error = '';
+    try { api.events.emit(event, 'vervalst'); } catch (e) { error = String(e); }
+    eq(event + ': duidelijke weigering voor gereserveerde naam', error.includes('reserved'), true);
+    eq(event + ': geweigerde emissie bereikt geen luisteraar', seen.length, before);
+    emitExtensionEvent(event, 'echte host');
+    eq(event + ': echte host-emissie blijft werken', seen.slice(before), ['echte host']);
+    unsubscribe();
+    emitExtensionEvent(event, 'afgemeld');
+    eq(event + ': afmelden blijft werken', seen.length, before + 1);
+  }
+  const custom: unknown[] = [];
+  const listener = (value: unknown) => { custom.push(value); };
+  api.events.on('fixture:custom', listener);
+  api.events.emit('fixture:custom', { ok: true });
+  eq('eigen extensie-event blijft toegestaan', custom, [{ ok: true }]);
+  let denied = false;
+  try { withoutPermission.events.emit('fixture:custom', 'geen permissie'); } catch { denied = true; }
+  eq('events-permissie blijft verplicht', denied, true);
+  eq('geen permissie betekent geen verzending', custom.length, 1);
+  api.events.off('fixture:custom', listener);
+  api.events.emit('fixture:custom', 'afgemeld');
+  eq('off werkt voor eigen events', custom.length, 1);
+  api.events.on(HOST_EVENTS.projectNew, listener);
+  api._cleanup();
+  emitExtensionEvent(HOST_EVENTS.projectNew, 'na cleanup');
+  eq('cleanup verwijdert ook host-abonnementen', custom.length, 1);
+  withoutPermission._cleanup();
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

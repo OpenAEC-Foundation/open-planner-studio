@@ -8,7 +8,7 @@ Otvorte kartu *Zostava* (alebo stlačte Ctrl+P). Vľavo je stĺpec *Zostava* s r
 
 **Typ zostavy** — ktorú zostavu vidíte. Na výber sú jedenásť zostáv. Predvolené: *Gantt-zostava*. Kde: *Zostava*, hore v stĺpci *Zostava*.
 
-**Exportovať PDF** — vytvorí PDF. Účinok: výsledok je len PDF; aplikácia nič nepošle na tlačiareň. Ak je plán zastaraný, aplikácia ho najprv vypočíta. Ak výpočet zlyhá, napríklad kvôli slučke v závislostiach, tlačidlo nevytvorí žiadny súbor a zobrazí chybu. Kde: *Zostava*, dole v stĺpci *Zostava*.
+**Exportovať PDF** — vytvorí PDF. Účinok: výsledok je len PDF; aplikácia nič nepošle na tlačiareň. Ak je plán zastaraný, aplikácia ho najprv vypočíta. Ak výpočet vráti chybu, napríklad kvôli slučke v závislostiach, tlačidlo nevytvorí žiadny súbor. Zobrazí sa chyba. Kde: *Zostava*, dole v stĺpci *Zostava*.
 
 **Zapamätané.** Aplikácia uchováva všetky možnosti zostavy na tomto zariadení, pre všetky vaše projekty. Nepatria do súboru projektu. Iba pole *Spoločnosť:* v Gantt-zostave sa neukladá.
 
@@ -18,7 +18,7 @@ Otvorte kartu *Zostava* (alebo stlačte Ctrl+P). Vľavo je stĺpec *Zostava* s r
 
 ## Papier a orientácia
 
-**Papier:** — veľkosť papiera PDF. Na výber sú A4, A3, A2 a A1. Predvolené: A3. Účinok: strany sa rozložia pre túto veľkosť. Platí jedna voľba pre všetky zostavy: čo vyberiete pre jednu zostavu, platí aj pre ostatné. Na výške A4 sa široká tabuľka zmenší, lebo sa prispôsobí šírke strany. Kde: *Nastavenia* (Gantt-zostava a Diagram zdrojov) alebo *Možnosti zostavy* (sedem tabuľkových zostáv). Prehľad medzníkov a Odchýlka nemajú žiadne voľby.
+**Papier:** — veľkosť papiera PDF. Na výber sú A4, A3, A2 a A1. Predvolené: A3. Účinok: strany sa rozložia pre túto veľkosť. Platí jedna voľba pre všetky zostavy: čo vyberiete pre jednu zostavu, platí aj pre ostatné. Pri A4 na výšku sa široká tabuľka zmenší, lebo sa prispôsobí šírke strany. Kde: *Nastavenia* (Gantt-zostava a Diagram zdrojov) alebo *Možnosti zostavy* (sedem tabuľkových zostáv). Prehľad medzníkov a Odchýlka nemajú žiadne voľby.
 
 **Orientácia:** — na šírku alebo na výšku. Na výber sú *Na šírku* a *Na výšku*. Predvolené: *Na šírku*. Účinok: ako pri *Papier:*. Kde: na rovnakom mieste ako *Papier:*.
 
@@ -26,21 +26,21 @@ Otvorte kartu *Zostava* (alebo stlačte Ctrl+P). Vľavo je stĺpec *Zostava* s r
 
 Plán ako pruhový graf, s tabuľkou vľavo a časovou osou vpravo, podľa potreby cez viac strán. Náhľad ukazuje papier s hlavičkou strany, tabuľkou, časovou osou a legendou. Časť *Súhrn* počíta *Úlohy:*, *Listové úlohy:*, *Kritické:* a *Závislosti:*. Všetky možnosti sú na karte *Nastavenia*.
 
-**Spoločnosť:** — spoločnosť v hlavičke strany. Predvolené: spoločnosť z info o projekte. Účinok: iba hlavička zostavy; čo tu napíšete, sa neukladá. Zmeňte spoločnosť na karte *Nastavenia › Projekt › Info o projekte*, v poli *Objednávateľ/organizácia*, a potvrďte tlačidlom *Použiť*.
+**Spoločnosť:** — spoločnosť v hlavičke strany. Predvolené: spoločnosť z nastavení projektu. Účinok: iba hlavička zostavy; čo tu napíšete, sa neukladá. Zmeňte spoločnosť v *Nastavenia › Projekt › Nastavenia projektu*, v poli *Objednávateľ/organizácia*, a potvrďte tlačidlom *Použiť*.
 
-**Autor:** — autor v hlavičke strany. Iba na čítanie: aplikácia ho prevezme z info o projekte.
+**Autor:** — autor v hlavičke strany. Iba na čítanie: aplikácia ho prevezme z nastavení projektu.
 
-**Veľkosť písma:** — veľkosť textu a tabuľky v zostave. Na výber sú 90%, 100%, 110% a 125%. Predvolené: 100%. Účinok: pri väčšom písme rastú text, riadky a tabuľka a časová os stratí šírku. Nezávisí od voľby *Veľkosť textu* v nastaveniach.
+**Veľkosť písma:** — veľkosť textu a tabuľky v zostave. Na výber sú 90%, 100%, 110% a 125%. Predvolené: 100%. Účinok: pri väčšom písme rastú text, riadky a tabuľka a časová os stráca šírku. Nezávisí od voľby *Veľkosť textu* v nastaveniach.
 
-**Farby pruhov:** — od čoho závisí farba pruhu. Na výber sú *Kritická cesta*, *Podľa úlohy — automaticky* a *Podľa kategórie*, s rozbaľovacím zoznamom *Pole kategórie* pre voľbu *Podľa kategórie*. Predvolené: *Kritická cesta*. Účinok: je to rovnaká voľba ako *Farby pruhov* na karte *Zobrazenie*: ak ju tu zmeníte, zmení sa aj Gantt na obrazovke. Ak vybrané pole v tomto projekte neexistuje, zobrazí sa *Toto pole v tomto projekte neexistuje. Dočasne sa používa typ úlohy.*
+**Farby pruhov:** — od čoho závisí farba pruhu. Na výber sú *Kritická cesta*, *Podľa úlohy — automaticky* a *Podľa kategórie*, s rozbaľovacím zoznamom *Pole kategórie* pre voľbu *Podľa kategórie*. Predvolené: *Kritická cesta*. Účinok: je to rovnaká voľba ako *Farby pruhov* na karte *Zobrazenie*: ak ju tu zmeníte, zmení sa aj Gantt na obrazovke. Ak vybrané pole v tomto projekte neexistuje, zobrazí sa *Toto pole v tomto projekte neexistuje. Dočasne sa používa druh prác.*
 
 **Čiara stavu:** — čiara pri dátume kontroly stavu. Na výber sú *Žiadna*, *Čiara dátumu kontroly stavu* a *Čiara postupu*. Predvolené: *Žiadna*. Účinok: *Čiara dátumu kontroly stavu* nakreslí čiaru pri dátume kontroly stavu; *Čiara postupu* nakreslí klikatú čiaru, ktorá sa vychyľuje k postupu každej úlohy. Ak projekt nemá dátum kontroly stavu, zobrazí sa *Najprv nastavte dátum kontroly stavu* a zostava nenakreslí nič.
 
-**Sledovať zobrazenie (filter, zoskupenie, zoradenie)** — iba pre Gantt-zostavu. Predvolené: vypnuté. Účinok: vypnuté dá na papier celý strom úloh. Zapnuté nakreslí presne riadky na obrazovke: s vaším filtrom, zoskupením, zoradením a zbalenými fázami.
+**Sledovať zobrazenie (filter, zoskupenie, zoradenie)** — iba pre Gantt-zostavu. Predvolené: vypnuté. Účinok: vypnuté vytlačí celý strom úloh. Zapnuté vytlačí presne riadky, ktoré vidíte na obrazovke: s vaším filtrom, zoskupením, zoradením a zbalenými fázami.
 
 **Prispôsobiť papieru** — zmení mierku časovej osi na šírku strany. Predvolené: zapnuté. Účinok: zapnuté prispôsobí časovú os šírke strany; počet strán vyplynie z výšky. Vypnuté použije pevnú mierku (*Priblíženie:*) a časová os sa rozdelí aj cez šírku, čo rýchlo dá veľa strán.
 
-**Priblíženie:** — pevná mierka časovej osi. Viditeľné len, keď je *Prispôsobiť papieru* vypnuté. Posuvník od 1 do 40. Predvolené: 22. Účinok: väčšia hodnota urobí časovú os širšou, takže cez šírku bude viac strán.
+**Priblíženie:** — pevná mierka časovej osi. Viditeľné len vtedy, keď je *Prispôsobiť papieru* vypnuté. Posuvník od 1 do 40. Predvolené: 22. Účinok: väčšia hodnota urobí časovú os širšou, takže cez šírku bude viac strán.
 
 **Časová os cez:** — rozloží časovú os na viac šírok strany. Výber od 1 do 8 strán. Predvolené: 1 strana. Účinok: iba keď je zapnutá voľba *Prispôsobiť papieru*; inak je voľba vypnutá a zobrazí sa *Len pri auto-prispôsobení*. Hodí sa pre dlhý plán, ktorý chcete vytlačiť v čitateľnej veľkosti.
 
@@ -48,17 +48,17 @@ Plán ako pruhový graf, s tabuľkou vľavo a časovou osou vpravo, podľa potre
 
 **Opakovať pätičku na každej strane** — Predvolené: zapnuté. Účinok: zapnuté dá pätičku (názov projektu, dátum tlače a legendu) na každú stranu; vypnuté iba na poslednú. Podklad bez legendy sa nedá čítať, preto je to zapnuté.
 
-**Názvy úloh na pruhoch** — Predvolené: zapnuté. Účinok: názov úlohy na pruhu, kde je na to dosť miesta.
+**Názvy úloh na pruhoch** — Predvolené: zapnuté. Účinok: názov úlohy je na pruhu, kde je na to dosť miesta.
 
 **Zobraziť percento dokončenia** — Predvolené: zapnuté. Účinok: dokončená časť pruhu sa sfarbí na sivo, ako v Gantt-diagrame, a v tabuľke sa objaví stĺpec *Dok*. Dokončená úloha nemá pás časovej rezervy.
 
 **Skrátiť názvy úloh** — Predvolené: zapnuté. Účinok: zapnuté skráti názvy v tabuľke na šírku *Stĺpec názvov:*. Vypnuté nechá stĺpec rásť podľa najdlhšieho názvu; potom sa zobrazí *Stĺpec názvov sa prispôsobí najdlhšiemu názvu úlohy*.
 
-**Stĺpec názvov:** — šírka stĺpca názvov. Viditeľné len, keď je zapnuté *Skrátiť názvy úloh*. Posuvník od 60 do 400. Predvolené: 130.
+**Stĺpec názvov:** — šírka stĺpca názvov. Viditeľné len vtedy, keď je zapnuté *Skrátiť názvy úloh*. Posuvník od 60 do 400. Predvolené: 130.
 
 **Zobraziť prekrytie pôvodného plánu** — aktívny pôvodný plán vedľa pruhov. Predvolené: vypnuté. Účinok: tenký pruh vo farbe pôvodného plánu pod pruhom úlohy, iba pre úlohy, ktoré sú v pôvodnom pláne.
 
-**Kritická cesta** — Predvolené: zapnuté. Účinok: ovláda len červené čiary závislostí medzi dvoma kritickými úlohami a riadok v legende. Samotné pruhy sa riadia podľa *Farby pruhov:* bez ohľadu na toto políčko.
+**Kritická cesta** — Predvolené: zapnuté. Účinok: ovláda len červené čiary závislostí medzi dvoma kritickými úlohami a riadok v legende. Samotné pruhy sa riadia podľa *Farby pruhov:* bez ohľadu na toto začiarkavacie políčko.
 
 **Zobraziť časovú rezervu** — Predvolené: zapnuté. Účinok: časová rezerva ako pás za nekritickými pruhmi.
 
@@ -66,7 +66,7 @@ Plán ako pruhový graf, s tabuľkou vľavo a časovou osou vpravo, podľa potre
 
 **Zobraziť len pracovné dni** — zhustí časovú os v tejto zostave. Predvolené: vypnuté. Účinok: víkendy a sviatky sa preskočia a namiesto tieňovania víkendov sa zobrazia týždenné pásy. Nezávisí od rovnakého nastavenia pre Gantt na obrazovke.
 
-**Víkendy** — Predvolené: zapnuté. Účinok: vytieňuje víkendy a sviatky na časovej osi, pokiaľ mierka umožňuje rozlíšiť dni. Pri zhustenej osi (*Zobraziť len pracovné dni*) toto začiarkavacie políčko nemá účinok.
+**Víkendy** — Predvolené: zapnuté. Účinok: tieni víkendy a sviatky na časovej osi, pokiaľ mierka umožňuje rozlíšiť dni. Pri zhustenej osi (*Zobraziť len pracovné dni*) toto začiarkavacie políčko nemá účinok.
 
 **Legenda** — Predvolené: zapnuté. Účinok: legenda v pätičke.
 
@@ -76,11 +76,11 @@ Plán ako pruhový graf, s tabuľkou vľavo a časovou osou vpravo, podľa potre
 
 Rovnaké pruhy ako v Gantt-zostave, zoskupené podľa zdrojov: kto čo robí a kedy. Časť *Súhrn* počíta *Zdroje:*, *Priradenia:* a *Bez zdroja:* (pri období aj *Mimo obdobia:*). Diagram má všetky možnosti Gantt-zostavy okrem *Sledovať zobrazenie (filter, zoskupenie, zoradenie)*, *Kritická cesta* a *Závislosti*: riadky nepochádzajú z obrazovky, úloha sa môže objaviť pri viacerých zdrojoch a závislosti sa tu nekreslia. Začiarkavacie políčko *Kritická cesta* je skryté a zapnuté. K tomu patria možnosti Gantt-zostavy pod *Nastavenia*, s týmito štyrmi začiarkavacími políčkami a obdobím:
 
-**Každý zdroj na novej strane** — Predvolené: vypnuté. Účinok: každý zdroj začína na novej strane, takže môžete dať list pre každý tím alebo zamestnanca. Vypnuté dá jeden súvislý dokument.
+**Každý zdroj na novej strane** — Predvolené: vypnuté. Účinok: každý zdroj začína na novej strane, takže môžete dať list pre každý tím alebo zamestnanca. Vypnuté vytvorí jeden súvislý dokument.
 
-**Zahrnúť úlohy bez zdroja** — Predvolené: vypnuté. Účinok: úlohy bez zdroja sú ako posledný riadok v diagrame, aby ste videli, čo zatiaľ nikto nerobí.
+**Zahrnúť úlohy bez zdroja** — Predvolené: vypnuté. Účinok: úlohy bez zdroja sú v diagrame ako posledný riadok, aby ste videli, čo zatiaľ nikto nerobí.
 
-**Zoskupiť podľa typu zdroja** — Predvolené: vypnuté. Účinok: vrstva navrchu: najprv riadok pre každý typ zdroja (pracovníci, tím, subdodávateľ, zariadenie, materiál), v ňom podľa zdrojov.
+**Zoskupiť podľa typu zdroja** — Predvolené: vypnuté. Účinok: pridá vrstvu nad ostatné riadky: najprv riadok pre každý typ zdroja (pracovníci, tím, subdodávateľ, zariadenie, materiál), v ňom podľa zdrojov.
 
 **Zobraziť jednotky za deň a krivku** — Predvolené: zapnuté. Účinok: dva stĺpce za názvom úlohy s jednotkami priradenia za deň a krivkou rozloženia práce zdroja tohto riadku. Ak je na časovú os málo miesta, zostava stĺpce vynechá a zobrazí *Stĺpce Jedn./d a Krivka boli vynechané: …*; viac miesta dá väčší papier alebo na šírku, menšia veľkosť písma alebo užšia tabuľka.
 
@@ -114,25 +114,25 @@ Zostava obsahuje nedokončené úlohy, ktoré sú kritické (podľa výpočtu a 
 
 ## Zostava postupu
 
-Kde je projekt k dátumu kontroly stavu. Možnosti sú pod *Možnosti zostavy*.
+Kde projekt stojí k dátumu kontroly stavu. Možnosti sú pod *Možnosti zostavy*.
 
 **Obdobie zostavy:** — Predvolené: *Predchádzajúci mesiac*. Účinok: *Dokončené v predchádzajúcom období* sa počítajú v rámci obdobia. *Začínajú v nasledujúcom období* hľadí dopredu od dátumu kontroly stavu, až po *Výhľad do*; pri období *Predchádzajúci mesiac* hľadí dopredu rovnako ďaleko, ako obdobie hľadí dozadu.
 
 **Takmer kritická ≤ (pd):** — Predvolené: 5. Ako pri výhľade.
 
-Časť *Súhrn* ukazuje *Dátum kontroly stavu*, *Obdobie*, *Výhľad do*, *Pôvodný plán: dokončenie*, *Predpokladané dokončenie*, *Δ dokončenie (pd)*, *Plánované* (s *(pôvodný plán)* alebo *(súčasný plán)*), *Skutočné* a počty *Dokončená*, *Prebieha*, *Nezačaté*, *Oneskorené* a *Kritická*. Plánované a skutočné sa vážia podľa trvania úloh. Plánované sa meria voči pôvodnému plánu, ak je aktívny, inak voči súčasnému plánu. Sekcie sú *Dokončené v predchádzajúcom období*, *Prebieha*, *Začínajú v nasledujúcom období*, *Oneskorené* a *Otvorené kritické úlohy*; úloha môže byť vo viac ako jednej sekcii.
+Časť *Súhrn* ukazuje *Dátum kontroly stavu*, *Obdobie*, *Výhľad do*, *Pôvodný plán: dokončenie*, *Predpokladané dokončenie*, *Δ dokončenie (pd)*, *Plánované* (s *(pôvodný plán)* alebo *(súčasný plán)*), *Skutočné* a počty *Dokončená*, *Prebieha*, *Nezačaté*, *Oneskorené* a *Kritická*. Plánované a skutočné sa vážia podľa trvania úloh. Plánované sa meria voči pôvodnému plánu, ak je aktívny, inak voči súčasnému plánu. Sekcie sú *Dokončené v predchádzajúcom období*, *Prebieha*, *Začínajú v nasledujúcom období*, *Oneskorené* a *Otvorené kritické úlohy*; úloha môže byť vo viac ako jednej sekcii. Každá sekcia má rovnaké stĺpce: *WBS*, *Názov*, *Pôvodný plán: dokončenie*, *Predpokladané dokončenie*, *Dok*, *Zost. (pd)*, *TF (pd)*, *Kritická* a *Stav*. Stav v riadku je *Dokončená*, *Prebieha*, *Nezačaté*, *Malo sa začať* alebo *Malo sa dokončiť*.
 
 ## Zdravie plánu
 
 Kontrola samotného plánu na chyby a nezvyčajné hodnoty, s 14-bodovým hodnotením DCMA na začiatku. Možnosti nájdete v časti *Možnosti zostavy*.
 
-**Vysoká časová rezerva > (wd):** — Číslo od 1 do 365. Predvolené: 44. Účinok: nedokončená úloha s väčšou celkovou časovou rezervou, než je táto hodnota, patrí do kontroly *Vysoká časová rezerva*.
+**Vysoká časová rezerva > (pd):** — Číslo od 1 do 365. Predvolené: 44. Účinok: nedokončená úloha s väčšou celkovou časovou rezervou, než je táto hodnota, patrí do kontroly *Vysoká časová rezerva*.
 
-**Dlhé trvanie > (wd):** — Číslo od 1 do 365. Predvolené: 44. Účinok: nedokončená úloha, nie medzník, s dlhším trvaním patrí do kontroly *Dlhé trvanie*.
+**Dlhé trvanie > (pd):** — Číslo od 1 do 365. Predvolené: 44. Účinok: nedokončená úloha, nie medzník, s dlhším trvaním patrí do kontroly *Dlhé trvanie*.
 
-**Oneskorenie > (wd):** — Číslo od 0 do 365. Predvolené: 10. Účinok: závislosť s väčším oneskorením patrí do kontroly *Dlhé oneskorenie*. Predstih (negatívne oneskorenie) sa vždy uvádza.
+**Oneskorenie > (pd):** — Číslo od 0 do 365. Predvolené: 10. Účinok: závislosť s väčším oneskorením patrí do kontroly *Dlhé oneskorenie*. Predstih (negatívne oneskorenie) sa vždy uvádza.
 
-**Takmer kritická ≤ (wd):** — Číslo od 0 do 60. Predvolené: 5. Účinok: určuje kontrolu *Takmer kritická*.
+**Takmer kritická ≤ (pd):** — Číslo od 0 do 60. Predvolené: 5. Účinok: určuje kontrolu *Takmer kritická*.
 
 Ako prvá je časť *14-bodové hodnotenie DCMA*. Nasleduje štrnásť kontrol amerického Defense Contract Management Agency, so vzorcami a prahovými hodnotami z ich *EVMS Program Analysis Pamphlet* (DCMA-EA PAM 200.1, október 2012). Pri každom bode vidíte *Počet*, *Z* (celkový počet, nad ktorým sa počítalo), *Hodnota*, *Norma*, *Výsledok* a *Detail*. Výsledok je *Vyhovuje*, *Označené* alebo *n/a*; pri n/a je dôvod v podrobnostiach. Označenie nie je zlyhanie: pamflet ho označuje ako dôvod na ďalšiu kontrolu. Prahové hodnoty v časti *Možnosti zostavy* sa na túto časť nevzťahujú; tá vždy používa normy z pamfletu.
 
@@ -149,11 +149,11 @@ Počíta nedokončené listové úlohy bez medzníkov a hamakov a závislosti do
 - *Neplatné dátumy*: skutočný začiatok alebo skutočné dokončenie po dátume kontroly stavu, alebo predpokladaný začiatok či predpokladané dokončenie pred dátumom kontroly stavu. Norma: žiadna. Vyžaduje dátum kontroly stavu.
 - *Zdroje*: úlohy bez zdroja. Norma: žiadna. Len ak projekt používa zdroje; inak n/a.
 - *Zmeškané úlohy*: z úloh, ktoré mali podľa pôvodného plánu byť dokončené k dátumu kontroly stavu alebo skôr, podiel tých, ktoré skončia neskôr alebo sú predpokladané neskôr. Norma: najviac 5%. Vyžaduje dátum kontroly stavu a aktívny pôvodný plán.
-- *Test kritickej cesty*: aplikácia predĺži kritickú úlohu o 100 pracovných dní a prepočíta na kópii bez zmeny projektu. Test vyhovuje, ak potom posledná úloha projektu neskončí pred touto úlohou. Testuje kritickú, nedokončenú úlohu s najskorším skorým začiatkom; v podrobnostiach je názov úlohy a počet pracovných dní, o ktoré sa dokončenie posunulo.
+- *Test kritickej cesty*: aplikácia predĺži kritickú úlohu o 100 pracovných dní a plán na kópii počíta znova bez zmeny projektu. Test vyhovuje, ak potom posledná úloha projektu neskončí pred touto úlohou. Testuje kritickú, nedokončenú úlohu s najskorším skorým začiatkom; v podrobnostiach je názov úlohy a počet pracovných dní, o ktoré sa dokončenie posunulo. V zobrazení *Dátumy podľa záznamu* je tento test n/a (*Nevypočítané*): test počíta a zostava potom zobrazuje dátumy zo zdrojového súboru. Stlačte Prepočítať (F5) a test sa spustí znova.
 - *CPLI*: (dĺžka kritickej cesty + časová rezerva) / dĺžka kritickej cesty. Dĺžka sa počíta v pracovných dňoch od dátumu kontroly stavu po dokončenie poslednej úlohy; časová rezerva je rozdiel oproti dokončeniu tejto úlohy v pôvodnom pláne, alebo vypočítaná časová rezerva, ak úloha v pôvodnom pláne nie je. Norma: najmenej 0,95. Vyžaduje dátum kontroly stavu.
 - *BEI* (index plnenia pôvodného plánu): počet úloh dokončených k dátumu kontroly stavu, delený počtom úloh, ktoré pôvodný plán označuje ako dokončené do tohto dňa, plus úlohy bez pôvodného plánu. Norma: najmenej 0,95. Vyžaduje dátum kontroly stavu a aktívny pôvodný plán.
 
-Dva body sa od pamfletu líšia, lebo aplikácia tento pojem nemá: *Vysoké trvanie* počíta každú nedokončenú úlohu, kým pamflet ju obmedzuje na podrobné plánovacie obdobie (rolling wave), a *Zdroje* sledujú len priradené zdroje, nie náklady. Pamflet pre test kritickej cesty nedáva žiadne číslo; 100 pracovných dní je voľba aplikácie.
+Dva body sa od pamfletu líšia, lebo aplikácia tento pojem nemá: *Vysoké trvanie* počíta každú nedokončenú úlohu, kým pamflet túto kontrolu obmedzuje na podrobné plánovacie obdobie (postupné plánovanie, rolling wave), a *Zdroje* sledujú len priradené zdroje, nie náklady. Pamflet pre test kritickej cesty nedáva žiadne číslo; 100 pracovných dní je voľba aplikácie.
 
 Kontroly sú v tomto poradí, so svojou závažnosťou. Chyba: *Záporná časová rezerva*, *Zmeškaný termín*, *Porušené obmedzenie* a *Nekonzistentný postup* (skutočný začiatok alebo skutočné dokončenie po dátume kontroly stavu, predpokladaný začiatok alebo predpokladané dokončenie pred dátumom kontroly stavu, 100% bez skutočného dokončenia, skutočné dokončenie, ale nie 100%, postup bez skutočného začiatku). Upozornenie: *Bez predchádzajúcej úlohy (otvorený začiatok)* a *Bez nasledujúcej úlohy (otvorené dokončenie)* (nie medzníky), *Dlhé trvanie*, *Predstih (negatívne oneskorenie)*, *Pevné obmedzenie* (povinné obmedzenie alebo MSO, MFO, SNLT či FNLT), *Postup mimo poradia* a *Zmeškaná úloha (oproti pôvodnému plánu)*. Informácie: *Takmer kritická*, *Vysoká časová rezerva*, *Dlhé oneskorenie*, *Závislosť iná ako FS* a *Bez zdroja* (len ak projekt používa zdroje). Zostava sleduje len listové úlohy, ktoré nie sú hamaky. Blok *Súhrn* počíta *Označenia DCMA*, *Chyby*, *Upozornenia*, *Informácie*, *Listové úlohy* a *Závislosti*; pod časťou DCMA sú časť *Prehľad* (pri každej kontrole závažnosť a počet) a časť *Zistenia* (každá úloha alebo závislosť). Bez výpočtu chýbajú kontroly, ktoré vyžadujú časovú rezervu.
 
@@ -171,13 +171,13 @@ Stĺpce sú *Zdroj*, *Typ*, *Týždeň od* alebo *Mesiac*, *Požadované*, *Dost
 
 ## Priradenia zdrojov
 
-Pre každý zdroj úlohy, ku ktorým je priradený: čo táto partia alebo žeriav robí? Možnosti nájdete v časti *Možnosti zostavy*.
+Pre každý zdroj sa uvádzajú úlohy, ku ktorým je priradený: čo táto partia alebo žeriav robí? Možnosti nájdete v časti *Možnosti zostavy*.
 
 **Obdobie zostavy:** — Predvolené: *Celý projekt*. Účinok: s obdobím sa zahrnú len priradenia úloh, ktoré do obdobia zasahujú, plus omeškaná práca z obdobia pred referenčným dňom. *Celý projekt* nefiltruje podľa dátumu.
 
 **Zahrnúť dokončené úlohy** — Predvolené: vypnuté. Účinok: zapnuté zahrnie aj priradenia dokončených úloh.
 
-Riadky sú podľa zdroja a v rámci zdroja podľa začiatku. Blok *Súhrn* počíta *Zdroje*, *Priradenia* a *Úlohy bez zdroja*. Stĺpce zahŕňajú zdroj, úlohu, začiatok a dokončenie, *Zost. (pd)*, *Jedn./deň*, *Dok*, *Kritická* a *Stav*.
+Riadky sú podľa zdroja a v rámci zdroja podľa začiatku. Blok *Súhrn* počíta *Zdroje*, *Priradenia* a *Úlohy bez zdroja*. Stĺpce sú *Zdroj*, *Typ*, *WBS*, *Názov*, *Začiatok*, *Dokončenie*, *Zost. (pd)*, *Jedn./deň*, *Dok*, *Kritická* a *Stav*. *Zdroj* a *Typ* sa zobrazia len na prvom riadku zdroja. Stav každého riadku je rovnaký ako v zostave o postupe: *Dokončená*, *Prebieha*, *Nezačaté*, *Malo sa začať* alebo *Malo sa dokončiť*.
 
 ## Súhrn WBS
 

@@ -76,6 +76,10 @@ interface OpenAECHost {
   storage?: SiteStorage;
   /** Open dit bestand bij de start, als de tool nog een leeg document heeft. */
   initialFileId?: string;
+  /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
+  taal?: string;
+  /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
+  skipWelcome?: boolean;
 }
 
 interface SiteStorage {
@@ -97,6 +101,18 @@ Afspraken:
   nooit een site.
 - Zet de site de host pas na het laden en gebruikt ze `initialFileId`, stuur dan één keer het event
   `openaec-host-ready` op het venster waar de host staat (het eigen venster van de tool, of de pagina eromheen).
+- Ingebed (er staat een host, ook zonder de vier functies, of dit is de platformbouw) toont de tool bij de start
+  geen welkomstvenster, en dus geen taalvraag en geen rondleiding (#716). De gebruiker opent ze zelf via het lint,
+  de backstage of de instellingen; daar blijft ook de taalkeuze. `skipWelcome` is daarvoor niet meer nodig.
+  Zonder `localStorage` slaat de tool het venster ook buiten een host over (#706).
+- De taal komt van de host: eerst `taal` op de host (`nl`, `en`, `de`, `fr`, `es`, `tr`, of een andere taal van
+  de tool), dan de `lang` van een same-origin parentpagina (`<html lang="nl">`), dan `taal=` in de hash van de
+  url (`#taal=nl`). De eerste taal die de tool kent, wint, ook boven een eerder bewaarde keuze; `de-AT` wordt
+  `de`. Kent de tool geen enkele, dan kiest hij zoals buiten een host (bewaarde keuze, dan de browsertaal). De
+  tool bewaart de taal van de host niet.
+- Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt voor het
+  welkomstvenster bij de start en nog eens vlak voordat het zou openen. Een latere host verandert de taal niet
+  en sluit een venster dat al open staat niet.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het
@@ -125,7 +141,10 @@ Alleen als er een site is; zonder site verandert er niets.
   doel, en **Opslaan als**, tonen "Opslaan op de site" met een naamveld en een knop "Op deze pc…".
 - **Recente bestanden** tonen site-bestanden met het label "Op de site". Heropenen haalt de nieuwste versie.
 - **Crashherstel** werkt met een site-bestand: na herstel schrijft Ctrl+S weer naar dezelfde plek op de site,
-  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`).
+  met dezelfde basisversie (het herstelmanifest bewaart `siteFileId` en `siteFileVersion`). Crashherstel blijft
+  lokaal in de browser. Weigert de browser IndexedDB (bijv. in een sandbox-iframe zonder `allow-same-origin`,
+  zoals de SuperCloud-werkplek), dan gaat crashherstel stil uit voor die sessie: geen melding, één regel in de
+  console. Opslaan via de site werkt gewoon.
 - **Automatisch opslaan** staat uit voor een site-bestand: elke ronde zou een nieuwe versie op de site maken. De
   knop in de titelbalk is grijs en zegt waarom; crashherstel blijft actief.
 - Exporteren blijft altijd een download of bestandskiezer.

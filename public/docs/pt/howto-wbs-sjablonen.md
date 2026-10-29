@@ -31,9 +31,9 @@ Abra *Planeamento › Estrutura › Modelos* e clique no pequeno ícone de lixo 
 
 ### O que contém um modelo
 
-Para cada tarefa, um modelo guarda o nome, a descrição, o tipo de tarefa, se é um marco, e a duração em dias. Das relações, guarda apenas as que existem entre duas tarefas dentro do ramo, com tipo e desfasamento.
+Para cada tarefa, um modelo guarda o nome, a descrição, a categoria de trabalho, se é um marco, e a duração em dias. Das relações, guarda apenas as que existem entre duas tarefas dentro do ramo, com tipo e desfasamento. Um desfasamento em horas (`4h`) não é guardado e passa a 0. Um desfasamento em dias úteis, dias de calendário ou percentagem é guardado.
 
-Tudo o resto fica de fora: datas, progresso e datas reais, atribuições de recursos, códigos e campos personalizados (ver [Códigos e campos personalizados](docs://howto-codes-en-velden)), o calendário, as restrições e os prazos, a prioridade, um tipo de tarefa personalizado, para um marco o tipo e a caixa de verificação *Obrigatório (contratual)*, e as relações com tarefas fora do ramo. Depois de inserir, preencha esses dados outra vez: atribuições, códigos, calendário e restrições ficam vazios, e todas as tarefas começam no início do projeto.
+Tudo o resto fica de fora: datas, progresso e datas reais, atribuições de recursos, códigos e campos personalizados (ver [Códigos e campos personalizados](docs://howto-codes-en-velden)), o calendário, as restrições e os prazos, a prioridade, uma categoria de trabalho personalizada, para um marco o tipo e a caixa de verificação *Obrigatório (contratual)*, e as relações com tarefas fora do ramo. Depois de inserir, preencha esses dados outra vez: atribuições, códigos, calendário e restrições ficam vazios, e todas as tarefas começam no início do projeto.
 
 Uma tarefa em horas volta como tarefa em dias, com a duração convertida numa fração de um dia útil. Uma tarefa de 5 horas, com um dia útil de 8 horas, passa a 0,625 dia.
 

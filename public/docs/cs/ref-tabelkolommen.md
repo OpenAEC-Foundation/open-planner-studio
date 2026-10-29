@@ -6,23 +6,23 @@ Tabulka úkolů má 86 pevných sloupců, plus jeden sloupec na každý kód akt
 
 Tabulka úkolů vedle diagramu Gantt a tabulka na kartě *Tabulka* mají každá vlastní výběr sloupců. Znaménko plus vpravo v záhlaví otevře výběr sloupců (název okna *Vybrat sloupec*). Na kartě *Tabulka* můžete také použít *Tabulka › Sloupce › Sloupce…*. Výběr sloupců zobrazuje sloupce podle kategorií: *Úkol*, *Plánování*, *Omezení*, *Závislosti*, *Zdroje*, *Průběh*, *Vypočítané*, *Směrný plán*, *Vlastní* a *Technické*. Hledáte podle názvu a *Naposledy použité* je nahoře. *Obnovit výchozí* vrátí výchozí sloupce.
 
-Ve výchozím stavu tabulka vedle diagramu Gantt zobrazuje *WBS*, *Název úkolu* a *Doba trvání*. Tabulka na kartě *Tabulka* zobrazuje *WBS*, *Název úkolu*, *Doba trvání*, *Zahájení*, *Dokončení*, *Typ úkolu*, *Kritický*, *Celková časová rezerva* a *Průběh*, plus sloupec na každý kód aktivity a vlastní pole projektu.
+Ve výchozím stavu tabulka vedle diagramu Gantt zobrazuje *WBS*, *Název úkolu* a *Doba trvání*. Tabulka na kartě *Tabulka* zobrazuje *WBS*, *Název úkolu*, *Doba trvání*, *Zahájení*, *Dokončení*, *Druh práce*, *Kritický*, *Celková časová rezerva* a *Průběh*, plus sloupec na každý kód aktivity a vlastní pole projektu.
 
 ## Jak se hodnoty čtou a upravují
 
 - **Vypočítané sloupce** — sloupce v kategorii *Vypočítané* a několik dalších jsou jen pro čtení: pocházejí z výpočtu. Když se pokusíte upravit buňku jen pro čtení, aplikace napíše *Tento vypočítaný sloupec nelze upravit.* Tento text je obecný pro každou buňku jen pro čtení, i když sloupec není vypočítaný. Když jsou hodnoty zastaralé, protože jste něco změnili, vedle nich se zobrazí *zastaralé*, dokud nestisknete *Přepočítat*.
-- **Data** — zobrazí se v zápisu, který jste zvolili v *Nastavení* na kartě *Zobrazení* v části *Formát data*.
+- **Data** — zobrazí se v zápisu, který jste zvolili v *Nastavení aplikace* na kartě *Zobrazení* v části *Formát data*.
 - **Doby trvání a časové rezervy** — doba trvání se zobrazí v jednotce úkolu (`5d`, `12h`), nebo podle *Zobrazení doby trvání* na stejné kartě (*Automaticky (vlastní jednotka každého úkolu)*, *Vždy dny* nebo *Vždy hodiny*). Časová rezerva se zobrazí v pracovních dnech, se dvěma desetinnými místy a s desetinným oddělovačem vašeho jazyka.
 - **Ano/Ne** — hodnota ano/ne se zobrazí jako *Ano* nebo *Ne*; prázdná hodnota se zobrazí jako pomlčka (—).
-- **Úprava** — zadejte nebo vyberte hodnotu. Neplatná hodnota se odmítne s důvodem pod buňkou, například *Zadejte platnou dobu trvání, například 5d nebo 8h.* nebo *Zadejte procento mezi 0 a 100.* Vložení bloku buněk funguje po jednotlivých buňkách. Buňky jen pro čtení se přeskočí a aplikace oznámí, kolik jich bylo.
+- **Úprava** — zadejte nebo vyberte hodnotu. Neplatná hodnota se odmítne s důvodem pod buňkou, například *Zadejte platnou dobu trvání, například 5d nebo 8h.* nebo *Zadejte procento mezi 0 a 100.* Vložení oblasti buněk funguje po jednotlivých buňkách. Buňky jen pro čtení se přeskočí a aplikace oznámí, kolik jich bylo.
 
 ## Úkol
 
 - **Název úkolu** — název úkolu. Lze upravit, je povinný. Souhrnný úkol se zobrazí tučně se světle podbarveným názvem; milník se zobrazí tučně v barvě milníku (ve stejné barevné skupině jako milník v diagramu Gantt). Běžný úkol zůstává beze změny. Jde jen o formátování: výběr, přetahování a úprava fungují stejně.
 - **Popis** — popis. Lze upravit; volný text.
 - **WBS** — kód WBS. Lze upravit a je povinný, ale dokud je zapnuto *WBS auto*, je jen pro čtení.
-- **Typ úkolu** — typ úkolu (*Stavba*, *Instalace*, *Demolice*, *Logistika*, *Kontrola/inspekce*, *Přesun*, *Renovace*, *Údržba* nebo *Ostatní*). Lze upravit v seznamu.
-- **Vlastní typ úkolu** — vlastní typ úkolu z projektu, nebo pomlčka. Lze upravit v seznamu vlastních typů projektu.
+- **Druh práce** — druh práce (*Stavba*, *Instalace*, *Demolice*, *Logistika*, *Kontrola/inspekce*, *Přesun*, *Renovace*, *Údržba* nebo *Ostatní*). Lze upravit v seznamu.
+- **Vlastní druh práce** — vlastní druh práce z projektu, nebo pomlčka. Lze upravit v seznamu vlastních druhů práce projektu.
 - **Barva** — uložená barva úkolu, jako kód barvy, například `#1a73e8`. Lze upravit pomocí výběru barvy. Uloží se do souboru IFC, ale žádný pruh ani sestava ji nepoužívá. Barvy pruhů nastavíte na kartě *Zobrazení › Směrné plány a průběh › Barvy pruhů*.
 - **Poznámky** — poznámky ve tvaru `✓ text; ○ text`. Lze upravit, dokud je jen jedna poznámka; pak upravíte její text. Při více poznámkách jsou jen pro čtení.
 
@@ -33,14 +33,14 @@ Ve výchozím stavu tabulka vedle diagramu Gantt zobrazuje *WBS*, *Název úkolu
 - **Povinný milník** — příznak *Povinný (smluvní)*. Lze upravit jen u milníku.
 - **Priorita vyrovnání** — celé číslo od 0 do 1000, výchozí hodnota je 500. Lze upravit. Hodnota 1000 zafixuje úkol pro vyrovnání.
 - **Mezery v rozdělení** — počet mezer v rozdělení, jako `Split gaps: 2`, nebo pomlčka. Jen pro čtení; upravíte je v panelu *Vlastnosti*.
-- **Pravidlo pevné veličiny** — pravidlo pevné veličiny úkolu; prázdné pole znamená výchozí nastavení projektu. Lze upravit v seznamu, ale u milníku, souhrnného úkolu nebo překlenovacího úkolu je prázdné a jen pro čtení. Ve výběru sloupců se zobrazí jen tehdy, když jsou pravidla viditelná (*Zobrazit pravidla pevné veličiny a práci*, nebo když soubor pravidla obsahuje).
+- **Typ úkolu** — typ tohoto úkolu; prázdné pole znamená výchozí nastavení projektu. Lze upravit v seznamu, ale u milníku, souhrnného úkolu nebo překlenovacího úkolu je prázdné a jen pro čtení. Ve výběru sloupců se zobrazí jen tehdy, když jsou typy úkolů viditelné (*Používat typy úkolů*, nebo když soubor typy úkolů obsahuje).
 - **Překlenovací úkol (odvozená doba trvání)** — zda je úkol překlenovací. Lze upravit kromě milníku a souhrnného úkolu.
 - **Kalendář** — identifikátor vlastního kalendáře úkolu; prázdné pole (—) znamená kalendář projektu. Zadáte nebo vyberete identifikátor z návrhů; neznámý identifikátor se odmítne. Poznámka: buňka zatím zobrazuje interní identifikátor místo názvu; raději vyberte kalendář v panelu *Vlastnosti*.
 - **Typ doby trvání** — *Pracovní doba* (doba trvání se počítá v pracovních dnech nebo pracovních hodinách kalendáře) nebo *Uplynulá doba trvání* (doba trvání se počítá v nepřetržitém čase, bez kalendáře). Lze upravit.
 - **Jednotka doby trvání** — *Dny* nebo *Hodiny*. Lze upravit kromě souhrnného úkolu, překlenovacího úkolu a milníku. Přepnutí funguje jen tehdy, když je převod přesný a zapnuto *Zapnout plánování v hodinách*.
 - **Doba trvání** — doba trvání úkolu v jednotce úkolu nebo podle *Zobrazení doby trvání*. Lze upravit: zadejte `5d`, `12h` nebo `1h 30m`; také číslo v jednotce úkolu. Jen pro čtení u souhrnného úkolu, překlenovacího úkolu a milníku s dobou trvání 0.
-- **Zahájení** — zobrazené zahájení, stejné datum jako pruh v diagramu Gantt. Lze upravit. Úkol s předchůdcem, kterému dáte nové zahájení, dostane na tomto datu omezení *Zahájit nejdříve (SNET)*. Jen pro čtení u souhrnného úkolu nebo překlenovacího úkolu, pokud není ručně plánován.
-- **Dokončení** — zobrazené dokončení. Lze upravit: nové dokončení se stane novou dobou trvání. Aplikace to odmítne u dokončeného úkolu, milníku, úkolu v uplynulé době trvání a úkolu s mezerami v rozdělení. Odmítne také dokončení před zahájením (*Dokončení je před zahájením.*). Jen pro čtení u souhrnného úkolu nebo překlenovacího úkolu, pokud není ručně plánován.
+- **Zahájení** — zobrazené zahájení, stejné datum jako pruh v diagramu Gantt. Lze upravit. Úkol s předchůdcem, kterému dáte nové zahájení, dostane na tomto datu omezení *Zahájit nejdříve (SNET)*. Jen pro čtení u souhrnného úkolu nebo překlenovacího úkolu, pokud není ručně plánován, a u úkolu, který už začal (*Tento úkol byl zahájen; jeho začátek je skutečné zahájení. Změňte jej prostřednictvím průběhu.*).
+- **Dokončení** — zobrazené dokončení. Lze upravit: nové dokončení se stane novou dobou trvání. Aplikace to odmítne u milníku, úkolu v uplynulé době trvání a úkolu s mezerami v rozdělení. Odmítne také dokončení před zahájením (*Dokončení je před zahájením.*). Jen pro čtení u souhrnného úkolu nebo překlenovacího úkolu, pokud není ručně plánován, a u dokončeného úkolu (*Tento úkol je dokončen; dokončení je skutečné dokončení. Změňte to přes průběh.*).
 - **Plánované zahájení** — kotva plánování, ze které výpočet začíná (nemusí být totožná se zobrazeným zahájením). Lze upravit; účinek je stejný jako přímé zapsání hodnoty do sloupce *Zahájení*.
 - **Plánované dokončení** — zadané dokončení. Lze upravit jen u ručně plánovaného úkolu; jinak aplikace napíše *Plánované dokončení platí jen pro ručně plánovaný úkol. Změňte dokončení ve sloupci Dokončení nebo změňte dobu trvání.*
 
@@ -64,11 +64,12 @@ Ve výchozím stavu tabulka vedle diagramu Gantt zobrazuje *WBS*, *Název úkolu
 ## Zdroje
 
 - **Přiřazené zdroje** — názvy přiřazených zdrojů, oddělené čárkami. Lze upravit: přidáním názvu přiřadíte zdroj s 1 jednotkou za den, odebráním názvu se přiřazení zruší. Jen pro čtení u milníku nebo souhrnného úkolu.
-- **Jednotky přiřazení za den** — jednotky na zdroj, jako `Name: 1; Name: 0.5`. Lze upravit u úkolu s přiřazeními.
+- **Jednotky přiřazení za den** — jednotky na zdroj, jako `Name: 1; Name: 0.5`, s nejvýš dvěma desetinnými místy. Uložená hodnota zůstane přesná. Lze upravit u úkolu s přiřazeními.
+- **Plánované jednotky přiřazení za den** — plánovaná sazba na zdroj, jako `Name: 1.11`, s nejvýš dvěma desetinnými místy, stejně jako *Jednotky přiřazení za den*. Jen u přiřazení z Primavera P6 s jinou zbývající sazbou; *Jednotky přiřazení za den* pak ukazují zbývající sazbu. Jen pro čtení.
 - **Průběhová křivka přiřazení** — křivka na zdroj, jako `Name: Uniform`. Lze upravit u úkolu s přiřazeními.
-- **Začátek pracovního okna** a **Dokončení pracovního okna** — pracovní okno na zdroj ze importovaného souboru, jako `Name: date`. Jen pro čtení.
-- **Plánovaná práce (hodiny)** a **Skutečná práce (hodiny)** — plánovaná a skutečná práce na zdroj v hodinách, jako `Name: 12`, z importovaného souboru. Jen pro čtení.
-- **Zbývající práce (hodiny)** — zbývající práce na zdroj v hodinách, jako `Name: 6`: uložená práce, jinak zbývající doba trvání × jednotky. Lze upravit u úkolu s přiřazeními, na které se uplatňuje pravidlo pevné veličiny. Ve výběru sloupců se zobrazí jen tehdy, když jsou pravidla viditelná.
+- **Začátek pracovního okna** a **Dokončení pracovního okna** — pracovní okno na zdroj z importovaného souboru, jako `Name: date`. Jen pro čtení.
+- **Plánovaná práce (hodiny)** a **Skutečná práce (hodiny)** — plánovaná a skutečná práce na zdroj v hodinách, jako `Name: 617.14`, s nejvýš dvěma desetinnými místy, z importovaného souboru. Jen pro čtení.
+- **Zbývající práce (hodiny)** — zbývající práce na zdroj v hodinách, jako `Name: 6` nebo `Name: 26.67`: uložená práce, jinak zbývající doba trvání × jednotky. Lze upravit u úkolu s přiřazeními, na něž se vztahuje typ úkolu, s desetinnou čárkou nebo tečkou jako oddělovačem. Ve výběru sloupců se zobrazí jen tehdy, když jsou typy úkolů viditelné. Žlutý ⚠ v buňce znamená, že uložená práce se liší od jednotek × zbývající doba trvání, stejně jako ⚠ u pole *Práce (zbývá)* v panelu úkolu.
 
 ## Průběh
 
@@ -87,15 +88,15 @@ Sloupce průběhu se řídí pravidly průběhu v aplikaci: skutečné datum po 
 Všechny sloupce v této kategorii jsou jen pro čtení.
 
 - **Zpoždění vyrovnání** — o kolik pracovních dnů vyrovnání úkol zpozdilo; pomlčka, pokud se vyrovnání nepoužilo.
-- **Nejdřívější zahájení** a **Nejdřívější dokončení** — nejdřívější data z výpočtu.
+- **Nejdřívější zahájení** a **Nejdřívější dokončení** — nejdřívější data z výpočtu. U úkolu, který už začal, se mohou lišit od *Zahájení* a *Dokončení*: profil výpočtu *Primavera P6* umístí nejdřívější zahájení úkolu, který probíhá nebo je dokončen, na datum stavu.
 - **Pozdní zahájení** a **Pozdní dokončení** — nejpozdější data, kdy smí úkol ještě začít nebo skončit, aniž zpozdí projekt.
 - **Volná časová rezerva** — počet pracovních dnů, o které může úkol sklouznout, aniž zpozdí následníka.
 - **Celková časová rezerva** — počet pracovních dnů, o které může úkol sklouznout, aniž zpozdí dokončení projektu. Záporná, pokud nelze splnit omezení nebo konečný termín.
 - **Kritický** — *Ano*, pokud je úkol na kritické cestě.
 - **Rušivá časová rezerva** — celková časová rezerva minus volná časová rezerva.
-- **Téměř kritický** — *Ano* u téměř kritického úkolu. Vyplní se jen tehdy, když je zapnuto *Označit téměř kritické* (*Info o projektu*, část *Profil výpočtu a možnosti výpočtu*); jinak pomlčka.
+- **Téměř kritický** — *Ano* u téměř kritického úkolu. Vyplní se jen tehdy, když je zapnuto *Označit téměř kritické* (*Nastavení projektu*, část *Profil výpočtu a možnosti výpočtu*); jinak pomlčka.
 - **Cesta časové rezervy** — číslo cesty časové rezervy; 1 je nejkritičtější. Vyplní se jen tehdy, když je zapnuto *Více cest časové rezervy*; jinak pomlčka.
-- **Zdroj zaznamenaných dat** — u souboru se zaznamenanými daty: *Odchyluje se* nebo *Částečně nezaznamenáno*. Ve výběru sloupců se zobrazí jen u takového souboru. U nezaznamenané osy se ve sloupcích pozdních termínů a rezerv zobrazí *Nezaznamenáno*.
+- **Zdroj zaznamenaných dat** — dokud aplikace zobrazuje data ze souboru: *Částečně nezaznamenáno* u úkolu, pro který soubor neobsahuje všechno. Ve výběru sloupců se zobrazí jen v tomto zobrazení. U nezaznamenané osy se ve sloupcích pozdních termínů a rezerv zobrazí *Nezaznamenáno*.
 
 Viz [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad).
 

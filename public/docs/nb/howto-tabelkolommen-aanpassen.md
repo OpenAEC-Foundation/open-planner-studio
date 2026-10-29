@@ -9,7 +9,7 @@ I møtet vil du se tidsfristen og totalslakken ved siden av hver aktivitet. Bygg
 Det finnes to aktivitetstabeller. Hver har sine egne kolonner:
 
 - **Aktivitetstabellen ved siden av Gantt** ligger til venstre for tidslinjen, på blant andre fanene *Hjem*, *Tidsplan* og *Visning*. Som standard har den *WBS*, *Aktivitetsnavn* og *Varighet*, slik at det blir plass igjen til tidslinjen.
-- **Tabellen på fanen** *Tabell* tar hele arbeidsområdet. Som standard har den *WBS*, *Aktivitetsnavn*, *Varighet*, *Start*, *Slutt*, *Aktivitetstype*, *Kritisk*, *Totalslakk* og *Fremdrift*, pluss en kolonne per aktivitetskode og egendefinert felt i prosjektet.
+- **Tabellen på fanen** *Tabell* tar hele arbeidsområdet. Som standard har den *WBS*, *Aktivitetsnavn*, *Varighet*, *Start*, *Slutt*, *Arbeidskategori*, *Kritisk*, *Totalslakk* og *Fremdrift*, pluss en kolonne per aktivitetskode og egendefinert felt i prosjektet.
 
 En endring i den ene tabellen endrer ikke den andre.
 

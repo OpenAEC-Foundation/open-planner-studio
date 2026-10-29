@@ -64,7 +64,7 @@ Egy projektfájl tartalmazza az erőforrások saját másolatait. Ha az egész e
 
 1. Nyisson meg egy erőforrástárhoz kapcsolt projektet, és válassza a *Fájl › Exportálás* lehetőséget.
 2. Pipálja be az *Erőforrástár-fájl mentése mellé* jelölőnégyzetet. A jelölőnégyzet csak kapcsolt projekt esetén látszik.
-3. Válassza az *IFC 4x3* kártyát, és mentse a fájlt. Az alkalmazás ezután egy második fájlt is kér. Ennek neve a projekt nevére épül, utána `-bibliotheek` áll, és tartalmazza az erőforrástárat.
+3. Válassza az *IFC* kártyát, és mentse a fájlt. Az alkalmazás ezután egy második fájlt is kér. Ennek neve a projekt nevére épül, utána `-bibliotheek` áll, és tartalmazza az erőforrástárat.
 
 A jelölőnégyzet csak az IFC-exportnál működik, a többi exportformátumnál nem. Az Ön kollégája a második fájlt a fentebb leírt módon importálja.
 
@@ -72,7 +72,7 @@ A jelölőnégyzet csak az IFC-exportnál működik, a többi exportformátumná
 
 **Két tervező, két erőforrástár.** Az alkalmazás nem szinkronizálja az erőforrástárakat a számítógépek között. Az importálási ablak erről mindig figyelmeztet: *Megjegyzés: az erőforrástárak nincsenek szinkronizálva a gépek között. Ha két tervező ugyanazt az erőforrástárat használja, az erőforrástárak eltérhetnek egymástól. Ha a szervezete munkacsapatokat oszt meg üzemeltető társaságok között, szándékosan válasszon egy közös készletet.*
 
-**Csere mindent felülír.** A kiválasztott erőforrástárban lévő minden elvész, és az erőforrástár-módosítást nem lehet a *Visszavonás* paranccsal visszavonni. Ha bizonytalan, előbb exportáljon.
+**Csere mindent felülír.** Minden, ami a kiválasztott erőforrástárban volt, elvész, és az erőforrástár-módosítás kívül esik a *Visszavonás* funkción. Ha bizonytalan, előbb exportáljon. A projektek megtartják a saját másolataikat. Az alkalmazás frissíti azokat a másolatokat, amelyek az új fájlban még megvannak. Azok a másolatok, amelyek már nincsenek benne, megkapják a *már nincs az erőforrástárban* jelölést, és továbbra is működnek. Ha egy másolat eltér, megnyílik az *Erőforrástár összekapcsolása* ablak (lásd [Az erőforrástár használata](docs://howto-resourcebibliotheek-gebruiken)).
 
 **A naptár törlése a listából azonnal történik.** Az alkalmazás nem kér megerősítést, erőforrás törlésekor viszont igen. Ez hiányosságnak tűnhet. Az erőforrástár-módosításokat nem lehet a *Visszavonás* paranccsal visszavonni.
 

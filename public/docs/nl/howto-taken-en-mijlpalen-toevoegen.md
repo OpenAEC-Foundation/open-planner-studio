@@ -6,7 +6,7 @@ Doel: een nieuwe taak of mijlpaal in je planning zetten, op de plek waar hij hoo
 
 Je bouwt een planning op, er komt werk bij, of je wilt een moment vastleggen, zoals de oplevering of een keuring.
 
-Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (bij urenplanning kan de projectstandaard uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
+Een **taak** is werk dat tijd kost. Een nieuwe taak duurt standaard 5 werkdagen (de projectstandaard kan ook uren zijn). Een **mijlpaal** is een moment zonder duur: 0 dagen. Een taak met subtaken heet een **samenvattingstaak**, in de bouw vaak een fase. Haar duur en datums volgen uit haar subtaken, zodra je **Bereken** (F5) gebruikt.
 
 ## Stappen
 
@@ -51,7 +51,7 @@ Klik met de rechtermuisknop op de taak en kies *Subtaak toevoegen*. De nieuwe ta
 De drie soorten verschillen zo:
 
 - Een *Startmijlpaal* hoort bij het begin van de dag, een *Eindmijlpaal* bij het einde van de dag. In de Gantt staat de ruit links respectievelijk rechts in de dagkolom. Dat maakt ook verschil voor de opvolger. Staat een mijlpaal op dinsdag 29 september 2026 en volgt er een taak op met een Eind-Start-relatie, dan begint die taak na een startmijlpaal op diezelfde dinsdag en na een eindmijlpaal op woensdag 30 september.
-- Een *Inspectiemoment (verplicht)* is een eindmijlpaal met het taaktype *Keuring/Inspectie* en het vinkje *Verplicht (contractueel)*.
+- Een *Inspectiemoment (verplicht)* is een eindmijlpaal met de werksoort *Keuring/Inspectie* en het vinkje *Verplicht (contractueel)*.
 
 ### Een bestaande taak tot mijlpaal maken
 
@@ -61,7 +61,8 @@ Zet je het weer uit, dan blijft het een gewone taak met duur 0: vul zelf een duu
 
 ### Andere manieren
 
-- Ctrl+M (op een Mac ⌘+M) zet een nieuwe mijlpaal onderaan de lijst, ook als er een taak geselecteerd is. Het paneel *Eigenschappen* gaat daarbij niet open.
+- Ctrl+M (op een Mac ⌘+M) maakt een gewone eindmijlpaal via dezelfde invoegroute als het lint: onder de selectie in de boomweergave, anders onderaan. De nieuwe mijlpaal wordt geselecteerd en het paneel *Eigenschappen* opent met de naam klaar om te typen.
+- Gewone mijlpalen uit het lint, Ctrl+M of het rechtermuismenu krijgen de werksoort *Overig*. Ctrl+M en het rechtermuismenu maken een eindmijlpaal. Alleen de expliciete keuze voor een inspectiemoment maakt een verplichte mijlpaal met werksoort *Keuring/Inspectie*.
 - *Mijlpaal toevoegen* in het rechtermuismenu van een taak maakt de mijlpaal een subtaak van die taak, niet een zustertaak.
 
 ### Een taak of hele tak kopiëren
@@ -72,7 +73,7 @@ Zet je het weer uit, dan blijft het een gewone taak met duur 0: vul zelf een duu
 
 De kopie heeft dezelfde naam, dezelfde datums en dezelfde voortgang. Hij komt als zustertaak van de geselecteerde taak (bij meer taken: de eerst aangeklikte), onderaan bij die zusters. Is er niets geselecteerd, dan komt hij onderaan de lijst. De gekopieerde taken zijn daarna geselecteerd, de WBS-codes (het nummer van elke taak in de boom, zoals 1.2; zie [Structuur aanpassen](docs://howto-structuur-aanpassen)) worden opnieuw bepaald en de planning is verouderd.
 
-Het klembord geldt voor de hele app, dus je kunt ook in een ander document plakken. Wat daar niet bestaat, zoals een taakkalender, een eigen taaktype, een activity code of een eigen veld, maakt de app leeg en hij meldt dat.
+Het klembord geldt voor de hele app, dus je kunt ook in een ander document plakken. Wat daar niet bestaat, zoals een taakkalender, een eigen werksoort, een activity code of een eigen veld, maakt de app leeg en hij meldt dat.
 
 ### Daarna
 

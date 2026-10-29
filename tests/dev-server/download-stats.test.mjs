@@ -59,22 +59,43 @@ test('aggregate telt v2026.9.0 op zoals de API-cijfers van 2026-09-05', () => {
   assert.equal(userDownloads(stats.totals.linux), 19); // 8 deb + 9 AppImage + 2 rpm + 0 snap
   assert.equal(stats.totals.linux.both, 19);
   assert.equal(stats.polls, 73);
+  // Het README-badgecijfer: zonder latest.json, .sig en updater-pakketten.
+  assert.equal(stats.downloads, 43 + 2 + 19);
   assert.deepEqual(stats.unknown, []);
   assert.equal(stats.releases.length, 1);
   assert.equal(stats.schemaVersion, 1);
   assert.equal(stats.source, 'github-releases');
 });
 
-test('drafts worden overgeslagen, pre-releases gemarkeerd, onbekende assets gemeld maar niet geteld', () => {
+test('drafts worden overgeslagen, pre-releases gemarkeerd en niet in de totalen, onbekende assets gemeld maar niet geteld', () => {
   const stats = aggregate([
     release('v1', [['a.exe', 5]], { draft: true }),
-    release('v2', [['a.exe', 7], ['README.txt', 99]], { prerelease: true, published_at: '2026-08-01T00:00:00Z' }),
+    release('v2', [['a.exe', 7], ['a.nsis.zip', 3], ['a.dmg', 5], ['a.app.tar.gz', 2], ['a.deb', 6], ['README.txt', 99], ['latest.json', 4]], { prerelease: true, published_at: '2026-08-01T00:00:00Z' }),
     release('v3', [['a.exe', 1]], { published_at: '2026-09-01T00:00:00Z' }),
   ]);
   assert.equal(stats.releases.length, 2);
   assert.equal(stats.releases[0].tag, 'v3', 'nieuwste eerst');
   assert.equal(stats.releases[1].prerelease, true);
-  assert.equal(userDownloads(stats.totals.windows), 8);
+  // De pre-release heeft zijn eigen rij, maar telt niet mee in de totalen of de updater-checks.
+  assert.equal(userDownloads(stats.releases[1].os.windows), 7);
+  assert.equal(stats.releases[1].polls, 4);
+  assert.equal(userDownloads(stats.totals.windows), 1);
+  assert.equal(stats.polls, 0);
+  assert.equal(stats.downloads, 1, 'pre-releases tellen niet mee in het badgecijfer');
+  assert.equal(stats.releases[1].os.windows.update, 3);
+  assert.equal(userDownloads(stats.releases[1].os.macos), 5);
+  assert.equal(stats.releases[1].os.macos.update, 2);
+  assert.equal(userDownloads(stats.releases[1].os.linux), 6);
+  assert.equal(stats.totals.windows.update, 0);
+  assert.equal(userDownloads(stats.totals.macos), 0);
+  assert.equal(stats.totals.macos.update, 0);
+  assert.equal(userDownloads(stats.totals.linux), 0);
+  assert.deepEqual(stats.totals.windows.byKind, { exe: 1 });
+  assert.deepEqual(stats.totals.macos.byKind, {});
+  assert.deepEqual(stats.totals.linux.byKind, {});
+  assert.match(renderMarkdown(stats), /v2 \(pre\)/);
+  assert.match(renderMarkdown(stats), /Pre-releases tellen niet mee in de totalen/);
+  assert.match(renderText(stats), /pre-releases \(pre\) tellen niet mee in de totalen/);
   assert.deepEqual(stats.unknown, ['v2: README.txt']);
 });
 
@@ -112,4 +133,14 @@ test('fetchAllReleases faalt hard op een niet-2xx-antwoord', async () => {
   const { fetchAllReleases } = await import('../../scripts/download-stats.mjs');
   const fetchImpl = async () => ({ ok: false, status: 403, text: async () => 'rate limit' });
   await assert.rejects(fetchAllReleases('o/r', { token: undefined, fetchImpl }), /GitHub API 403/);
+});
+
+// Assetherkenning mag geen maandbereik of klein patchnummer veronderstellen.
+test('weekversies tellen dezelfde assets en sorteren op publicatiedatum', () => {
+  const versions = ['2026.43.0', '2026.53.100', '2027.1.0'];
+  const stats = aggregate(versions.map((version, i) => release(`v${version}`, V2026_9_0.map(([name, count]) => [name.replaceAll('2026.9.0', version), count]), { published_at: `2027-01-0${i + 1}T00:00:00Z` })));
+  assert.deepEqual(stats.releases.map(item => item.tag), ['v2027.1.0', 'v2026.53.100', 'v2026.43.0']);
+  assert.equal(userDownloads(stats.totals.windows), 3 * 43);
+  assert.equal(userDownloads(stats.totals.linux), 3 * 19);
+  assert.deepEqual(stats.unknown, []);
 });

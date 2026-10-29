@@ -23,6 +23,7 @@ import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt as clampedInt, parseEnum as parseEnumValue } from '@/utils/settingParsers';
 import { loadBarColorSelection } from '@/utils/barColorSettings';
 import { parseFormatNoticeHidden } from '@/services/formatNoticeKinds';
+import { parseFeatureFlagValues } from '@/utils/featureFlags';
 import type { UIState } from '@/state/slices/types';
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import {
@@ -81,6 +82,11 @@ function parseNumberChoice(allowed: readonly number[]) {
   return (raw: unknown): number | undefined => snapToChoice(allowed, raw);
 }
 
+/** Feedback-e-mailadres: alleen een tekst van max 254 tekens (de servergrens); leeg mag. */
+function parseFeedbackEmail(raw: unknown): string | undefined {
+  return typeof raw === 'string' && raw.length <= 254 ? raw : undefined;
+}
+
 const WHEEL_FUNCTIONS: WheelFunction[] = ['vertical', 'horizontal', 'zoom'];
 
 // Een ModifierMap is alleen geldig als hij een strikte bijectie over de drie wielfuncties is (elk
@@ -135,6 +141,10 @@ export const SETTINGS: SettingDescriptor[] = [
   // Debug-terminal
   setting({ key: 'debugTerminalEnabled', field: 'debugTerminalEnabled', parse: parseBoolean }),
 
+  // Verborgen experimentele functies: zichtbaarheid en keuzes staan los van elkaar.
+  setting({ key: 'experimentalSettingsVisible', field: 'experimentalSettingsVisible', parse: parseBoolean }),
+  setting({ key: 'featureFlags', field: 'featureFlags', parse: parseFeatureFlagValues }),
+
   // AI-modus (MCP-bridge) — persistente spiegel die de conditionele AI-ribbontab voedt.
   setting({ key: 'aiMode', field: 'aiMode', parse: parseBoolean }),
   // Bridge automatisch starten bij het opstarten van de app (alleen van kracht mét aiMode, Tauri-only).
@@ -185,7 +195,6 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'uiFontScale', field: 'uiFontScale', parse: parseNumberChoice(UI_FONT_SCALES) }),
 
   // Urenplanning
-  setting({ key: 'enableHourPlanning', field: 'enableHourPlanning', parse: parseBoolean }),
   setting({ key: 'showTaskTypes', field: 'showTaskTypes', parse: parseBoolean }),
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
@@ -202,6 +211,10 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Uitleg na het openen van een ander formaat dan IFC: de formaten waarvoor hij uit staat.
   setting({ key: 'formatNoticeHidden', field: 'formatNoticeHidden', parse: parseFormatNoticeHidden }),
+
+  // Feedbackdialoog: het optionele e-mailadres voor een reactie. Geen paneelinstelling; de dialoog
+  // vult het veld ermee in en bewaart het na een geslaagde melding (`saveFeedbackEmail`).
+  setting({ key: 'feedbackEmail', field: 'feedbackEmail', parse: parseFeedbackEmail }),
 ];
 
 /** Hydrateert álle opstart-instellingen uit localStorage tot één `setUI`-patch voor

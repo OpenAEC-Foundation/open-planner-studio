@@ -38,6 +38,9 @@ export const STRUCTURE_HELP_ARTICLE_ID = 'howto-structuur-aanpassen';
 /** MS Project-import: tijdgefaseerde gegevens (contouren) die niet meekwamen. */
 export const MPP_TIMEPHASED_HELP_ARTICLE_ID = 'howto-mpp-openen';
 
+/** MS Project (.mpp en MSPDI .xml): de openingsmelding over wat niet is overgenomen. */
+export const MS_PROJECT_IMPORT_HELP_ARTICLE_ID = 'howto-mpp-openen';
+
 /** Primavera P6 (.xer): openen, exportverlies, onbruikbaar bronarchief. */
 export const XER_IMPORT_HELP_ARTICLE_ID = 'howto-xer-openen';
 
@@ -115,6 +118,9 @@ export const LIBRARY_LINK_HELP_ARTICLE_ID = 'howto-resourcebibliotheek-gebruiken
 
 /** Bibliotheek importeren (beheerscherm van de resourcebibliotheken). */
 export const LIBRARY_IMPORT_HELP_ARTICLE_ID = 'howto-bibliotheken-beheren';
+
+/** De vraag naar de werkelijke start bij voortgang invoeren. */
+export const ACTUAL_START_HELP_ARTICLE_ID = 'howto-voortgang-bijwerken';
 
 /** Voortgang bijwerken uit een blad. */
 export const PROGRESS_IMPORT_HELP_ARTICLE_ID = 'howto-voortgang-importeren';

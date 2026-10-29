@@ -15,7 +15,7 @@ V Gantt vidíte, že zdivo musí začít o dva dny později, nebo že betonáž 
 
 Pokud úkol má předchůdce, aplikace uloží nový začátek jako omezení *Zahájit nejdříve (SNET)* a po uvolnění tlačítka myši to oznámí. Proč tomu tak je a co se stane s jiným omezením, je popsáno v [Omezení a konečné termíny](docs://uitleg-constraints). Když přetáhnete zpět na původní začátek, vrátí se i původní omezení.
 
-Když táhnete hlavně nahoru nebo dolů místo do strany, přesunete úkol na jiný řádek a data zůstanou. Směr, který zvolíte v prvních pixelech, platí pro celé tažení. Jedno gesto tak nikdy nemění data a strukturu současně. Viz [Úprava struktury](docs://howto-structuur-aanpassen).
+Když táhnete hlavně nahoru nebo dolů místo do strany, přesunete úkol na jiný řádek a data zůstanou. Směr, který zvolíte v prvních několika pixelech, platí pro celé tažení. Jedno gesto tak nikdy nemění data a strukturu současně. Viz [Úprava struktury](docs://howto-structuur-aanpassen).
 
 ### Úprava doby trvání
 
@@ -31,10 +31,10 @@ V příkazu *Vrátit zpět* je jedno tažení jeden krok, bez ohledu na délku t
 
 ### Posun časové osy
 
-Co udělá tažení po prázdném pozadí, závisí na režimu posouvání. Zvolíte ho v *Nastavení*, na kartě *Zobrazení*, v nabídce *Gantt › Posouvání a zoom*, v poli *Režim*:
+Co udělá tažení po prázdném pozadí, závisí na režimu posouvání. Zvolíte ho v *Nastavení aplikace*, na kartě *Zobrazení*, v nabídce *Gantt › Posouvání a zoom*, v poli *Režim*:
 
 - **Zoom + tažení** (výchozí): když táhnete po prázdném pozadí levým tlačítkem myši, časová osa se pohybuje s myší jako mapa. Kurzor má podobu ruky. Na pruhu tažení jednoduše spustí gesto s pruhem.
-- **Pozice** a **Klávesy**: stejné tažení vytvoří výběrový rámeček. Časovou osu posunete kolečkem (viz [Nastavení](docs://ref-instellingen)) nebo prostředním tlačítkem myši.
+- **Pozice** a **Klávesy**: stejné tažení vytvoří výběrový rámeček. Časovou osu posunete kolečkem (viz [Nastavení aplikace](docs://ref-instellingen)) nebo prostředním tlačítkem myši.
 
 **Prostřední tlačítko myši** (stisknuté kolečko) posouvá časovou osu v každém režimu, a to i když začnete na pruhu. Nefunguje, když probíhá jiné gesto, například tažení pruhu.
 
@@ -50,13 +50,17 @@ Více o výběru je v [Výběr, odstranění a vrácení úkolů](docs://howto-t
 
 ### Přiblížení a oddálení
 
-1. Použijte *Zoom +* a *Zoom -* (*Zahájení › Zoom*), nebo klávesy + a -. Kolečko přibližuje také; kdy to dělá, závisí na režimu posouvání (viz [Nastavení](docs://ref-instellingen)).
+1. Použijte *Zoom +* a *Zoom -* (*Zahájení › Zoom*), nebo klávesy + a -. Kolečko přibližuje také; kdy to dělá, závisí na režimu posouvání (viz [Nastavení aplikace](docs://ref-instellingen)).
 2. Pokud chcete vidět celý projekt, zvolte *Zobrazení › Časová osa › Přizpůsobit projektu* nebo stiskněte Ctrl+0. *Obnovit* (na kartě *Zobrazení*) nebo klávesa 0 nastaví přiblížení zpět na výchozí hodnotu.
 3. V pravém dolním rohu stavového řádku je přiblížení v pixelech na den, například *Přiblížení: 15 px/den*.
 
 Čím dále oddalujete, tím méně mřížkových čar je vidět. Při 8 pixelech na den nebo více je čára pro každý den, s tlustší čarou na hranici týdne. Mezi 2 a 8 pixely na den zůstane jen hranice týdne. Pod 2 pixely na den, na úrovni roku, zůstanou jen hranice měsíců. Jinak by plátno bylo jen rovnoměrný pruhovaný vzor, ve kterém by pruhy úkolů zmizely. Šedé víkendy a dny volna a střídavě podbarvené pásy týdnů zůstávají na každé úrovni; nesou strukturu týdnů, když čáry vypadnou. V záhlaví časové osy se čísla týdnů a čísla dnů zobrazí jen tehdy, je-li pro ně místo, a od 40 pixelů na den se před číslo dne zobrazuje i den v týdnu.
 
 Název úkolu se v pruhu zobrazí, pokud se celý vejde. Pokud se nevejde, například když oddalujete, zobrazí se celý název vpravo od pruhu.
+
+### Podrobnosti úkolu
+
+Podržte myš nehybně na pruhu. Objeví se malá karta s názvem úkolu, *WBS*, *Doba trvání*, *Zahájení*, *Dokončení*, *Stav*, *Kritický* a *Celková časová rezerva*. Během tažení, posouvání, výběru rámečkem nebo nabídky pravého tlačítka karta zmizí.
 
 ## Časté problémy a co aplikace potom dělá
 
@@ -72,5 +76,5 @@ Název úkolu se v pruhu zobrazí, pokud se celý vejde. Pokud se nevejde, např
 
 - [Nabídky pravého tlačítka](docs://ref-contextmenus): nabídky na pruhu, na řádku a na záhlaví skupiny.
 - [Klávesové zkratky](docs://ref-sneltoetsen): klávesy pro přiblížení a pro zrušení gesta.
-- [Nastavení](docs://ref-instellingen): režim posouvání a časová osa.
+- [Nastavení aplikace](docs://ref-instellingen): režim posouvání a časová osa.
 - [Omezení a konečné termíny](docs://uitleg-constraints): proč se přesunutý začátek stane omezením.

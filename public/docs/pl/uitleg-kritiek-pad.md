@@ -16,7 +16,7 @@ Metoda obliczeń nazywa się **CPM** (Critical Path Method). Dlatego blok z wyni
 
 ## Jak aplikacja oblicza
 
-Aplikacja sama nie przelicza harmonogramu. Obliczenie uruchamiasz poleceniem **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*. Jeśli coś się zmieniło od ostatniego obliczenia, pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Gdy *Oblicz automatycznie* jest włączone (w *Ustawienia › Projekt › Ustawienia*, zakładka *Planowanie*, nagłówek *Obliczanie*), aplikacja robi to sama.
+Aplikacja sama nie przelicza harmonogramu. Obliczenie zaczynasz poleceniem **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*. Jeśli coś się zmieniło od ostatniego obliczenia, pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Gdy *Oblicz automatycznie* jest włączone (w *Ustawienia › Projekt › Ustawienia aplikacji*, zakładka *Planowanie*, nagłówek *Obliczanie*), aplikacja robi to sama.
 
 Obliczenie przechodzi przez sieć dwa razy.
 
@@ -26,34 +26,35 @@ Aplikacja zaczyna od początku projektu i idzie po relacjach od poprzednika do n
 
 ### Przebieg wstecz
 
-Potem aplikacja wraca od końca projektu do początku. Dla każdego zadania znajduje ostatni dzień, do którego zadanie musi być zakończone, żeby koniec projektu się nie przesunął. Jeśli zadanie ma kilku następników, liczy się ten, który musi zacząć się najwcześniej. Tak każde zadanie dostaje **najpóźniejsze rozpoczęcie** i **najpóźniejsze zakończenie**.
+Potem aplikacja wraca od tej daty zakończenia do początku. Dla każdego zadania znajduje ostatni dzień, do którego zadanie musi być zakończone, żeby koniec projektu się nie przesunął. Jeśli zadanie ma kilku następników, liczy się ten, który musi zacząć się jako pierwszy. Tak każde zadanie dostaje **najpóźniejsze rozpoczęcie** i **najpóźniejsze zakończenie**.
 
 ### Zapas całkowity i zapas swobodny
 
 Różnica między najpóźniejszymi a najwcześniejszymi datami zadania to **zapas całkowity**. To liczba dni roboczych, o które zadanie może się opóźnić albo później zacząć, zanim koniec projektu się przesunie. Aplikacja liczy dni robocze z kalendarza zadania. Weekend i święto się nie liczą.
 
-**Zapas swobodny** jest ostrzejszy. To czas, o który zadanie może się opóźnić, zanim któryś z jego następników musi zacząć się później. Tego czasu możesz użyć, a żadne inne zadanie tego nie zauważy.
+**Zapas swobodny** jest ostrzejszy. To czas, o który zadanie może się opóźnić, zanim któryś z jego następników będzie musiał zacząć się później. Tego czasu możesz użyć, a żadne inne zadanie tego nie zauważy.
 
-Zapas całkowity można dzielić z innymi zadaniami. Jeśli dwa niekrytyczne zadania następują po sobie, dzielą ten sam zapas. Jeśli pierwsze go zużyje, drugie nie ma już nic. Pierwsze ma wtedy zapas całkowity, ale nie ma zapasu swobodnego. Część zapasu całkowitego, która nie jest swobodna, to **zapas kolidujący**: jeśli go użyjesz, przesuną się też zadania po nim. Przykład poniżej pokazuje to na liczbach.
+Zapas całkowity można dzielić z innymi zadaniami. Jeśli dwa niekrytyczne zadania następują po sobie, dzielą ten sam zapas. Jeśli pierwsze go zużyje, drugie nie ma już żadnego. Pierwsze ma wtedy zapas całkowity, ale nie ma zapasu swobodnego. Część zapasu całkowitego, która nie jest swobodna, to **zapas kolidujący**: jeśli go użyjesz, przesuną się też zadania po nim. Przykład poniżej pokazuje to na liczbach.
 
 ### Ujemny zapas
 
-Zapas może też być ujemny. Dzieje się tak, gdy zadanie ma termin ostateczny albo ograniczenie, które narzuca najpóźniejszą datę, wcześniejszą niż data obliczona przez aplikację. Na papierze zadanie jest już spóźnione. Zadanie i łańcuch przed nim stają się krytyczne.
+Zapas może też stać się ujemny. Dzieje się tak, gdy zadanie ma termin ostateczny albo ograniczenie, które narzuca najpóźniejszą datę, wcześniejszą niż data obliczona przez aplikację. Na papierze zadanie jest już spóźnione. Zadanie i łańcuch przed nim stają się krytyczne.
 
 ### Kiedy zadanie jest krytyczne?
 
-Domyślnie zadanie jest krytyczne, gdy jego zapas całkowity wynosi 0 lub mniej. Tę definicję zmienisz w *Ustawienia › Projekt › Info o projekcie*, w bloku *Profil obliczeń i opcje*, przy *Opcje obliczeń tego projektu*. Gdy klikniesz *Zastosuj*, aplikacja od razu przelicza harmonogram. Opcje należą do pliku projektu, nie do aplikacji.
+Domyślnie zadanie jest krytyczne, gdy jego zapas całkowity wynosi 0 lub mniej. Tę definicję możesz zmienić w *Ustawienia › Projekt › Ustawienia projektu*, w bloku *Profil obliczeń i opcje*, w sekcji *Opcje obliczeń tego projektu*. Gdy klikniesz *Zastosuj*, aplikacja od razu przelicza harmonogram. Opcje należą do pliku projektu, nie do aplikacji.
 
-- **Definicja krytyczności** z *Zapas całkowity ≤ próg* i polem *Próg (dni robocze)*. Próg wynosi domyślnie 0. Aby chronić bufor, ustaw go na 2, na przykład: każde zadanie z zapasem 2 dni roboczych lub mniejszym jest wtedy krytyczne i staje się czerwone.
+- **Definicja krytyczności** z *Zapas całkowity ≤ próg* i polem *Próg (dni robocze)*. Próg wynosi domyślnie 0. Aby chronić bufor, ustaw go na 2, na przykład: każde zadanie z zapasem 2 dni robocze lub mniejszym jest wtedy krytyczne i staje się czerwone. Jeśli wybierzesz opcję *Najdłuższa ścieżka*, zadanie jest krytyczne, gdy leży na najdłuższym łańcuchu do ostatniego zakończenia. Jego zapas nie ma wtedy znaczenia.
+- **Wiele ścieżek zapasu** numeruje łańcuchy według zapasu w kolumnie *Ścieżka zapasu*. Ścieżka 1 to ścieżka krytyczna. Zobacz [Opcje obliczeń i konwencje](docs://ref-rekenopties-en-conventies).
 - **Oznaczaj jako prawie krytyczne** z własnym polem *Próg*, domyślnie 2 dni robocze. Zadanie z zapasem większym niż 0, ale nie większym niż ten próg, dostaje bursztynowy pasek. Widać wtedy, które zadania prawie nie mają zapasu, bez nazywania ich krytycznymi.
 - **Zadania z otwartym końcem krytyczne**: zadanie bez następnika, które nie jest jeszcze skończone, liczy się jako krytyczne. Przydaje się jako siatka bezpieczeństwa przy zapomnianych relacjach (zobacz błędne przekonania poniżej).
-- **Sposób obliczania zapasu** określa, czy zapas całkowity mierzy się od początku zadania, od jego końca, czy jako mniejszą z tych dwóch wartości. Nowe projekty mają *Automatycznie (domyślnie)*. Jeśli chcesz liczyć tak jak Primavera P6, przycisk *Zastosuj domyślne opcje tego profilu* ustawia to na *Zapas końca*. Dla MS Project ten sam przycisk ustawia z powrotem *Automatycznie (domyślnie)*: przy dacie statusu liczy MS Project właśnie tak.
+- **Sposób obliczania zapasu** określa, czy zapas całkowity mierzy się od początku zadania, od jego końca, czy jako mniejszą z tych dwóch wartości. Nowe projekty mają ustawione *Automatycznie (domyślnie)*. Jeśli projekt używa profilu obliczeń Primavera P6 i wybór nie jest ustawiony na *Zapas końca*, pomarańczowy blok w ustawieniach projektu o tym informuje. Jego przycisk ustawia wybór na *Zapas końca*. Dla MS Project ten sam przycisk ustawia z powrotem *Automatycznie (domyślnie)*: przy dacie statusu liczy MS Project właśnie tak.
 
 ### Gdzie to widzisz
 
 Krytyczne zadania mają czerwony pasek w widoku Gantt. Za paskiem niekrytycznego zadania widać zielony pas do najpóźniejszego zakończenia zadania: to jest zapas. Pas włączasz albo wyłączasz w *Widok › Plan bazowy i postęp › Pas zapasu*.
 
-Dla wybranego zadania panel *Właściwości* pokazuje wszystko pod *Wynik CPM*: najwcześniejsze i najpóźniejsze rozpoczęcie oraz zakończenie, zapas całkowity, swobodny i kolidujący oraz to, czy zadanie leży na ścieżce krytycznej. Zapas wszystkich zadań obok siebie znajdziesz w kolumnach pod *Obliczone* (znak **+** z prawej strony nagłówka tabeli), na przykład *Zapas całkowity*, *Zapas swobodny*, *Krytyczne* i *Prawie krytyczne*.
+Dla wybranego zadania panel *Właściwości* pokazuje wszystko w bloku *Wynik CPM*: najwcześniejsze i najpóźniejsze rozpoczęcie oraz zakończenie, zapas całkowity, swobodny i kolidujący oraz to, czy zadanie leży na ścieżce krytycznej. Zapas wszystkich zadań obok siebie znajdziesz w kolumnach z grupy *Obliczone* (znak **+** z prawej strony nagłówka tabeli), na przykład *Zapas całkowity*, *Zapas swobodny*, *Krytyczne* i *Prawie krytyczne*.
 
 Pasek stanu na dole liczy krytyczne zadania, na przykład *Ścieżka krytyczna: 21 zadań, 45 dni roboczych*.
 

@@ -132,7 +132,11 @@ test('instelling uit en document zonder taaktypes: geen werkregel-UI; een gezett
   const { taskId } = await seedAssignedTask(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showTaskTypes: false }));
   await expect(page.locator('[data-ops-work-rule]')).toHaveCount(0);
-  await expect(page.locator('[data-ops-assignment-header]')).toHaveCount(0);
+  // De kop staat er wel (Resource, Inzet), maar zonder werkkolom en zonder slotjes.
+  await expect(page.locator('[data-ops-assignment-header]')).toBeVisible();
+  await expect(page.locator('[data-ops-assignment-work]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-assignment-lock-work]')).toHaveCount(0);
+  await expect(page.locator('[data-ops-assignment-lock-units]')).toHaveCount(0);
   // Documentontsluiting: een regel via de store zet `taskTypesVisible` ⇒ de UI verschijnt.
   await page.evaluate((id) => window.__OPS__!.store.getState().setTaskWorkRule(id, 'FIXED_RATE'), taskId);
   await expect(page.locator('[data-ops-work-rule]')).toBeVisible();
@@ -141,7 +145,9 @@ test('instelling uit en document zonder taaktypes: geen werkregel-UI; een gezett
 
 // Gebruikstest #170, G1: met de kolom "Werk (rest)" en een "Verplaats naar…"-keuzelijst (vanaf
 // twee resources en een tweede taak) werd de naamkolom 0 px breed en verdween het slotje op de
-// inzetkolom. De naam moet op 100 % én 125 % zichtbaar blijven, het slotje ook.
+// inzetkolom. De naam moet op 100 % én 125 % zichtbaar blijven, het slotje ook. Herbouw 2026-10-19
+// (eigenaar: "het staat nog steeds boven elkaar"): naam, inzet en werk staan op ÉÉN regel, elke kop
+// recht boven zijn kolom; curve en "Verplaats naar…" staan onder de uitklapknop op de naam.
 for (const scale of [100, 125]) {
   test(`toewijzingstabel: resourcenaam en slotje blijven zichtbaar met werkkolom bij ≥ 2 resources (${scale} %)`, async ({ page, ops: _ops }) => {
     const [taskId] = await seedProject(page, [
@@ -161,8 +167,24 @@ for (const scale of [100, 125]) {
 
     const rows = page.locator('[data-ops-assignment-row]');
     await expect(rows).toHaveCount(2);
-    await expect(rows.first().locator('[data-ops-assignment-move]')).toBeVisible();
     await expect(rows.first().locator('[data-ops-assignment-work] input')).toBeVisible();
+    // Dicht: geen curve of verplaats-keuzelijst in de regel. Open: allebei zichtbaar onder de naam.
+    await expect(rows.first().locator('[data-ops-assignment-move]')).toHaveCount(0);
+    await rows.first().locator('[data-ops-assignment-expand]').click();
+    await expect(rows.first().locator('[data-ops-assignment-expand]')).toHaveAttribute('aria-expanded', 'true');
+    await expect(rows.first().locator('[data-ops-assignment-move]')).toBeVisible();
+    await expect(rows.first().locator('[data-ops-assignment-curve]')).toBeVisible();
+    // Eén regel: naam, inzet, werk en verwijderen delen hun verticale midden.
+    const mid = async (sel: string) => { const b = (await rows.nth(1).locator(sel).first().boundingBox())!; return b.y + b.height / 2; };
+    const nameMid = await mid('[data-ops-assignment-name]');
+    for (const sel of ['input', '[data-ops-assignment-work] input', '[data-ops-assignment-remove]']) {
+      expect(Math.abs((await mid(sel)) - nameMid)).toBeLessThan(3);
+    }
+    // Elke kop staat recht boven zijn kolom: de rechterranden vallen samen.
+    const right = async (loc: Locator) => { const b = (await loc.boundingBox())!; return b.x + b.width; };
+    const header = page.locator('[data-ops-assignment-header]');
+    expect(Math.abs(await right(header.locator('[data-ops-assignment-lock-units]')) - await right(rows.nth(1).locator('input').first()))).toBeLessThan(1);
+    expect(Math.abs(await right(header.locator('[data-ops-assignment-lock-work]')) - await right(rows.nth(1).locator('[data-ops-assignment-work] input')))).toBeLessThan(1);
     for (const [i, name] of [[0, 'Metselploeg Noord'], [1, 'Opperman']] as const) {
       const nameCell = rows.nth(i).getByText(name, { exact: true });
       await expect(nameCell).toBeVisible();
@@ -183,8 +205,9 @@ for (const scale of [100, 125]) {
 }
 
 // Her-check #170, punt 3: op 125 % toonde het inzetveld "0.267" afgekapt. De kolom schaalt nu met
-// de tekstrol mee (breedte in `--text-small`), en de title draagt de volledige waarde.
-test('toewijzingstabel: inzet 0.267 past volledig in het veld op 125 % en staat in de title', async ({ page, ops: _ops }) => {
+// de tekstrol mee (breedte in `--text-small`), en de title draagt de volledige waarde. Sinds
+// 2026-10-15 toont het veld hooguit twee decimalen ("0.27"); de title houdt de exacte waarde.
+test('toewijzingstabel: inzet 0.267 toont 0.27, past volledig in het veld op 125 % en staat exact in de title', async ({ page, ops: _ops }) => {
   const [taskId] = await seedProject(page, [
     { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
   ]);
@@ -199,7 +222,7 @@ test('toewijzingstabel: inzet 0.267 past volledig in het veld op 125 % en staat 
     s.selectTask(id);
   }, taskId);
   const input = page.locator('[data-ops-assignment-row]').first().locator('input').first();
-  await expect(input).toHaveValue('0.267');
+  await expect(input).toHaveValue(/^0[.,]27$/);
   await expect(input).toHaveAttribute('title', /0\.267/);
   const fit = await input.evaluate((el: HTMLInputElement) => {
     const cs = getComputedStyle(el);
@@ -209,10 +232,8 @@ test('toewijzingstabel: inzet 0.267 past volledig in het veld op 125 % en staat 
     const content = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     return { text, content };
   });
-  // Chromium reserveert in een `type="number"` altijd ruimte voor de (onzichtbare) spinknop, ook
-  // zonder hover — gemeten ±15 px; dáárdoor viel de "7" weg terwijl de tekst zelf wel paste.
-  const SPIN_BUTTON_PX = 15;
-  expect(fit.text + SPIN_BUTTON_PX).toBeLessThanOrEqual(fit.content);
+  // Het veld is nu een tekstveld (`inputMode="decimal"`), zonder spinknop; de tekst past.
+  expect(fit.text).toBeLessThanOrEqual(fit.content);
 });
 
 // Gebruikstest #170, G3: de taaktypes-detailregel in de bestandsmelding (.mpp/XER) heeft een EIGEN
@@ -294,7 +315,7 @@ test('taakdialoog: Annuleren draait werkregel en werk terug, Opslaan is één un
   expect([st.workRule, st.units, st.work, name]).toEqual([undefined, 1, undefined, 'Metselwerk']);
 });
 
-// Gebruikstest #170, E5/G6: de instelling heet "Toon werkregels en werk", staat onder Berekenen
+// Gebruikstest #170, E5/G6: de instelling heet "Taaktypes gebruiken" (eigenaar 2026-10-17), staat onder Berekenen
 // (geen eigen sectiekop) en haar toelichting is één zin in een gekleurd blok (accentbalk), geen
 // los bijschrift. In het paneel staat sinds 2026-10-15 GEEN blok meer onder de werkregel: de uitleg
 // zit achter het i-icoon (zie de test hieronder).
@@ -310,7 +331,7 @@ test('instelling en paneel: geen blok onder de werkregel, instelling onder Berek
   await dlg.locator('.settings-tab').filter({ hasText: /^Planning$/ }).click();
   const box = dlg.locator('[data-ops-setting-show-task-types]');
   const row = box.locator('xpath=ancestor::label[1]');
-  await expect(row).toHaveText(/^(Show work rules and work|Toon werkregels en werk)$/);
+  await expect(row).toHaveText(/^(Use task types|Taaktypes gebruiken)$/);
   const section = row.locator('xpath=ancestor::div[contains(@class,"settings-section")][1]');
   await expect(section.locator('> h3')).toHaveText(/^(Calculation|Berekenen)$/);
   const settingNote = section.locator('[data-ops-setting-show-task-types-note]');
@@ -320,9 +341,10 @@ test('instelling en paneel: geen blok onder de werkregel, instelling onder Berek
   expect(await row.evaluate(el => el.nextElementSibling?.classList.contains('scrollzoom-hint') ?? false)).toBe(false);
 });
 
-// Gebruikstest #170, G2: "taaktype" betekende drie dingen. De werkregelkolom heet Werkregel en is
-// op die naam te vinden; de bewaarde MS Project-waarde heet "MS Project-taaktype (import)".
-test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet "(import)"', async ({ page, ops: _ops }) => {
+// Gebruikstest #170, G2: "taaktype" betekende drie dingen. Sinds de hernoeming (eigenaar 2026-10-17)
+// heet de werkregelkolom Taaktype en de IFC-soort Werksoort; beide zijn op die naam te vinden. De
+// bewaarde MS Project-waarde heet "MS Project-taaktype (import)".
+test('kolomkiezer: zoeken op taaktype vindt de kolom; werksoort apart; de MS Project-kolom heet "(import)"', async ({ page, ops: _ops }) => {
   await seedAssignedTask(page);
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const shell = page.locator('[data-task-grid-surface-id="full-task-grid"] .task-grid-shell');
@@ -331,10 +353,11 @@ test('kolomkiezer: zoeken op werkregel vindt de kolom; de MS Project-kolom heet 
   await expect(search).toBeVisible();
   const nl = (await page.evaluate(() => document.documentElement.lang)).startsWith('nl');
   const results = page.locator('section[aria-label]').filter({ has: page.locator('.task-grid-column-chooser-section-label') }).last();
-  await search.fill(nl ? 'werkregel' : 'work rule');
-  await expect(results.getByText(nl ? 'Werkregel' : 'Work rule', { exact: true })).toBeVisible();
   await search.fill(nl ? 'taaktype' : 'task type');
+  await expect(results.getByText(nl ? 'Taaktype' : 'Task type', { exact: true })).toBeVisible();
   await expect(results.getByText(nl ? 'MS Project-taaktype (import)' : 'MS Project task type (import)', { exact: true })).toBeVisible();
+  await search.fill(nl ? 'werksoort' : 'work category');
+  await expect(results.getByText(nl ? 'Werksoort' : 'Work category', { exact: true })).toBeVisible();
 });
 
 // E7 (orkestratorbesluit 25-09, gebruikstest #170 G4): opgeslagen werk dat afwijkt van inzet × resterende duur
@@ -450,8 +473,10 @@ test('werkregel: i-icoon per optie en naast het veld, met de uitleg van de regel
   await expect(tip).toBeVisible();
   await expect(tip.locator('strong')).toHaveText(nl ? 'De duur volgt uit het werk en de inzet.' : 'Duration follows from work and units.');
   await expect(tip).toContainText(nl ? 'Wijzig je de duur, dan past het werk zich aan.' : 'If you change the duration, the work adjusts.');
-  // Dagtaak: de rekenkern rondt af op hele werkdagen, dus de zin noemt dat (besluit eigenaar 2026-10-15).
-  await expect(tip).toContainText(nl ? 'Een extra resource maakt de taak korter, afgerond op hele dagen.' : 'An extra resource makes the task shorter, rounded to whole days.');
+  // B1 (spec "alleen uren" T14, F3a): de werkdriehoek rondt een dagtaak niet meer af op hele werkdagen.
+  // De zin "afgerond op hele dagen" (sleutel `resourceShorterWholeDays`) bestaat daarom niet meer; ook een
+  // dagtaak krijgt de korte zin.
+  await expect(tip.locator('.ops-tooltip__line').last()).toHaveText(nl ? 'Een extra resource maakt de taak korter.' : 'An extra resource makes the task shorter.');
 });
 
 // Besluit eigenaar 2026-10-15: "afgerond op hele dagen" alleen bij een dagtaak. Een urentaak rondt af op

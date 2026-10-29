@@ -27,7 +27,7 @@ Redigera fälten i raden. Appen sparar namnet, standardkostnaden och enheten nä
 - Appen godkänner *Max enheter* bara om värdet är större än 0. Med 0 eller lägre får fältet en röd kant och går tillbaka till föregående värde.
 - *Kalender* avgör vilka dagar resursen arbetar. Välj *Projektkalender* eller en egen kalender. Med *+ Resurskalender* skapar du en ny. Pennan (*Redigera…*) öppnar den valda kalendern. Om en uppgift arbetar en dag när resursen är ledig enligt sin kalender, räknas dagen som överbeläggning. Hur du skapar en resurskalender beskrivs i [Ställa in en resurskalender](docs://howto-resourcekalender-instellen).
 - *Standardkostnad/timme* och *Totalt*: *Totalt* är resursens belastade timmar gånger standardkostnaden. En putsare som är belastad i 32 timmar med en standardkostnad på 50 per timme blir 1 600,00. Längst ner i tabellen står summan av alla resurser.
-- *Arbetslag* grupperar en resurs under en resurs av typen *Arbetslag*. Det är bara en gruppering: appen lägger inte ihop kapaciteten eller belastningen för medlemmarna till besättningen.
+- *Arbetslag* grupperar en resurs under en resurs av typen *Arbetslag*. Det är bara en gruppering: appen lägger inte ihop kapaciteten eller belastningen för medlemmarna till arbetslaget.
 - Den färgade rutan till vänster är resursens färg. Den visas bara och påverkar inte tidsplanen.
 
 ### Kapacitet som ändras över tid
@@ -41,7 +41,7 @@ Ett nytt steg börjar med dagens datum och 1 enhet. Ändra båda, för annars g�
 1. Klicka på papperskorgen i raden.
 2. Om resursen har tilldelningar frågar appen efter bekräftelse, till exempel *'Bricklayer' har 4 tilldelning(ar) — ta bort?* Klicka på bocken för att ta bort eller krysset för att avbryta. Utan tilldelningar försvinner resursen direkt.
 
-Resursens tilldelningar försvinner med den. Om en uppgift har en arbetsregel som inte är *Fast varaktighet och fasta enheter*, fördelar appen arbetet från den borttagna resursen bland de resurser som finns kvar. Beroende på regeln ändras deras tilldelningsenheter eller uppgiftens varaktighet. Om varaktigheten ändras är tidsplanen inte längre aktuell.
+Resursens tilldelningar försvinner med den. Om en uppgift har en uppgiftstyp som inte är *Fast varaktighet och fasta enheter*, fördelar appen arbetet från den borttagna resursen bland de resurser som finns kvar. Beroende på uppgiftstypen ändras deras tilldelningsenheter eller uppgiftens varaktighet. Om varaktigheten ändras är tidsplanen inte längre aktuell.
 
 Du kan ångra att skapa, redigera och ta bort med *Ångra* (Ctrl+Z).
 

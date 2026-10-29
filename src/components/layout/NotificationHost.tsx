@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import type { AppNotification } from '@/state/slices/types';
+import { formatReportNumber } from '@/utils/reportNumber';
 import { notificationDetailText } from '@/utils/notificationDetail';
 import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
@@ -100,6 +101,17 @@ function placementStyle(p: ToastPlacement): CSSProperties | undefined {
  * het opslaan faalde. Herhalende fouten (bv. auto-save die elke 10 s opnieuw faalt) vouwen samen
  * tot één regel met een teller (`dedupeKey`), zie `notify` in uiSlice.
  */
+/** `numberParams` in de notatie van de app-taal, op het moment van tonen (zie `AppNotification`). */
+function localizedNumberParams(numbers: Record<string, number> | undefined, locale: string, conversion = false): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(numbers ?? {})) {
+    out[key] = conversion && key === 'days'
+      ? new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false, numberingSystem: 'latn' }).format(value)
+      : formatReportNumber(value, locale);
+  }
+  return out;
+}
+
 export function NotificationHost() {
   const notifications = useAppStore((s) => s.ui.notifications);
   const dismissNotification = useAppStore((s) => s.dismissNotification);
@@ -107,7 +119,7 @@ export function NotificationHost() {
   const setUI = useAppStore((s) => s.setUI);
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const placement = useToastPlacement(notifications.length > 0);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`
@@ -150,7 +162,7 @@ export function NotificationHost() {
             <X size={14} aria-hidden="true" />
           </button>
           <div className="ops-toast-message">
-            {t(n.messageKey, { ...n.params })}
+            {t(n.messageKey, { ...n.params, ...localizedNumberParams(n.numberParams, i18n.language, n.messageKey === 'notifications.minuteModelConverted') })}
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}
           </div>
           {/* Een vertaalbare reden (solverfout als code + parameters) gaat vóór de rauwe tekst. */}

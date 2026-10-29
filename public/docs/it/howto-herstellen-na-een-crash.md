@@ -9,7 +9,7 @@ Il portatile si è spento, l'app si è bloccata oppure la scheda del browser si 
 ## Passaggi
 
 1. Avvia di nuovo l'app. Nel browser ricarichi la stessa scheda: la copia di recupero appartiene a quella sola scheda.
-2. Se l'app ha trovato delle copie, appare la finestra *Ripristina lavoro non salvato*: *Open Planner Studio non si è chiuso normalmente. I seguenti documenti presentavano modifiche non salvate che possono essere ripristinate:* Per ogni progetto mostra il nome, il percorso del file se il progetto ha un file (nel browser solo il nome del file), il numero di attività e l'ora della copia, per esempio *21 attività* e *Salvato: 29 set 2026, 9:41*. La finestra può mostrare anche progetti che non hai modificato.
+2. Se l'app ha trovato delle copie, appare la finestra *Ripristina lavoro non salvato*: *Open Planner Studio non si è chiuso normalmente. I seguenti documenti presentavano modifiche non salvate che possono essere ripristinate:* Per ogni progetto mostra il nome, il percorso del file se il progetto ha un file (nel browser solo il nome del file), il numero di attività e l'ora della copia, per esempio *21 attività* e *Salvato: 29 set 2026, 9:41*. L'ora segue l'impostazione *Formato dell'ora*. La finestra può mostrare anche progetti che non hai modificato.
 3. Scegli *Ripristina*. L'app apre tutti i progetti nell'elenco, ciascuno in una scheda, con lo stato dell'ultima copia. Invio fa lo stesso.
 4. Controlla i progetti e salvali subito con Ctrl+S.
 

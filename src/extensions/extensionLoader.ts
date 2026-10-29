@@ -347,7 +347,7 @@ export async function enableExtension(
     const minVersion = stored.manifest.minAppVersion;
     if (minVersion && compareVersions(APP_VERSION, minVersion) < 0) {
       throw new Error(
-        `Vereist Open Planner Studio ≥ ${minVersion} (huidige versie: ${APP_VERSION})`,
+        i18next.t('extensions.minAppVersionRequired', { ns: 'menu', minVersion, appVersion: APP_VERSION }),
       );
     }
 
@@ -369,9 +369,10 @@ export async function enableExtension(
     installExtensionSdk();
 
     const plugin = executeExtensionCode(stored.mainCode);
-    // Filter permissies tot wat deze app-versie kent (onbekende → weglaten + warn). Centrale
-    // chokepoint: elke activatie (zip/js/catalogus/devBridge/DB-load) loopt hierlangs, dus dit
-    // dekt óók manifesten die al in IndexedDB staan met een permissie die deze versie niet kent.
+    // Extra defensieve normalisatie vóór de API-opbouw. Verse installaties met onbekende
+    // permissies zijn al geweigerd door de manifestparser; parseStoredExtension hierboven
+    // filtert onbekende permissies uit bestaande legacyrecords en levert de waarschuwingen.
+    // Deze helper maakt een ongeldig nieuw manifest dus niet alsnog installeerbaar.
     const permissions = sanitizeManifestPermissions(stored.manifest.permissions, id);
     api = createExtensionApi(
       id,

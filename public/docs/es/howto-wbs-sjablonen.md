@@ -13,7 +13,7 @@ Usted planifica siempre el mismo tipo de trabajo: cada casa tiene una cimentaci�
 1. Construya la rama como quiere reutilizarla: una tarea de resumen con subtareas y las relaciones entre ellas.
 2. Haga clic con el botón derecho en esa tarea de resumen y elija *Guardar rama como plantilla*. Esta opción de menú solo aparece en las tareas con subtareas.
 
-La aplicación muestra *Rama guardada como plantilla «Foundation»*. La aplicación no pide un nombre: la plantilla toma el nombre de la tarea superior de la rama.
+La aplicación muestra *Rama guardada como plantilla 'Foundation'*. La aplicación no pide un nombre: la plantilla toma el nombre de la tarea superior de la rama.
 
 ### Insertar una plantilla
 
@@ -31,9 +31,9 @@ Abra *Planificación › Estructura › Plantillas* y haga clic en el pequeño i
 
 ### Qué contiene una plantilla
 
-Por cada tarea, una plantilla guarda el nombre, la descripción, el tipo de tarea, si es un hito y la duración en días. De las relaciones, guarda solo las que van entre dos tareas de la rama, con tipo y desfase.
+Por cada tarea, una plantilla guarda el nombre, la descripción, la categoría de trabajo, si es un hito y la duración en días. De las relaciones, guarda solo las que van entre dos tareas de la rama, con tipo y desfase. Un desfase en horas (`4h`) no se guarda y pasa a ser 0. Un desfase en días laborables, días naturales o porcentaje sí se guarda.
 
-Todo lo demás queda fuera: fechas, avance y fechas reales, asignaciones de recursos, códigos y campos personalizados (véase [Códigos y campos personalizados](docs://howto-codes-en-velden)), el calendario, las restricciones y las fechas límite, la prioridad, un tipo de tarea personalizado, en el caso de un hito el tipo y la marca *Obligatorio (contractual)*, y las relaciones con tareas fuera de la rama. Después de insertar, usted las rellena de nuevo: las asignaciones, los códigos, el calendario y las restricciones quedan vacíos, y todas las tareas empiezan en la fecha de inicio del proyecto.
+Todo lo demás queda fuera: fechas, avance y fechas reales, asignaciones de recursos, códigos y campos personalizados (véase [Códigos y campos personalizados](docs://howto-codes-en-velden)), el calendario, las restricciones y las fechas límite, la prioridad, una categoría de trabajo personalizada, en el caso de un hito el tipo y la marca *Obligatorio (contractual)*, y las relaciones con tareas fuera de la rama. Después de insertar, usted las rellena de nuevo: las asignaciones, los códigos, el calendario y las restricciones quedan vacíos, y todas las tareas empiezan en la fecha de inicio del proyecto.
 
 Una tarea que estaba en horas vuelve como tarea en días, con su duración convertida en una fracción de día laborable. Una tarea de 5 horas, con un día laborable de 8 horas, pasa a ser 0,625 días.
 

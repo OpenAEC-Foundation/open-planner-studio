@@ -36,7 +36,7 @@ Pri farbe pruhov vyberte *Zobrazenie › Smerné plány a postup › Farby pruho
 
 ## Úskalia a čo robí aplikácia
 
-**Odstránenie odstráni hodnoty na úlohách.** Ak odstránite typ kódu, hodnotu alebo pole pomocou koša, aplikácia nepýta potvrdenie. Priradenia na všetkých úlohách zmiznú spolu s nimi. Zoskupenie alebo radenie podľa tohto typu kódu alebo poľa tiež prestane platiť. *Vrátiť späť* (Ctrl+Z) obnoví typ kódu, hodnotu alebo pole aj vyplnené hodnoty. Zoskupenie ani radenie neobnoví: tie nastavte znovu.
+**Odstránenie odstráni hodnoty na úlohách.** Ak odstránite typ kódu, hodnotu alebo pole pomocou koša, aplikácia nevyžaduje potvrdenie. Priradenia na všetkých úlohách zmiznú spolu s nimi. Zoskupenie alebo radenie podľa tohto typu kódu alebo poľa tiež prestane platiť. *Vrátiť späť* (Ctrl+Z, najprv zatvorte okno) obnoví typ kódu, hodnotu alebo pole aj vyplnené hodnoty. Zoskupenie ani radenie neobnoví: tie nastavte znovu.
 
 **Dve hodnoty s rovnakým kódom.** *Pridať hodnotu* pokračuje v číslovaní od počtu hodnôt, ktoré existujú. Ak jednu odstránite a potom pridáte novú, kód sa môže vyskytnúť dvakrát. Ak do bunky stĺpca zadáte tento kód, aplikácia to odmietne s hlásením *Táto hodnota kódu aktivity sa vyskytuje viackrát. Vyberte ju zo zoznamu.* Každej hodnote dajte vlastný kód.
 

@@ -10,11 +10,11 @@ Sie mieten einen Kran pro Stunde, nicht pro Tag. Eine Betonierung von sechs Stun
 
 ### Stundenplanung aktivieren
 
-1. Wählen Sie *Einstellungen › Projekt › Einstellungen* und öffnen Sie den Tab *Planung*.
+1. Wählen Sie *Einstellungen › Projekt › App-Einstellungen* und öffnen Sie den Tab *Planung*.
 2. Setzen Sie unter *Stundenplanung* ein Häkchen bei *Stundenplanung aktivieren*. Es wirkt sofort. In der Meldung *Diese Datei enthält stundenbasierte Planung.* tut die Schaltfläche *Stundenplanung aktivieren* dasselbe.
 3. Darunter steht *Gemischte Tages-/Stundenplanung zulassen*. Diese Einstellung ist standardmäßig an. Mit dieser Einstellung wählen Sie pro Vorgang, ob er in Tagen oder in Stunden zählt. Schalten Sie sie aus, dann verschwindet die Liste *Dauereinheit*. Sie können dann trotzdem eine Dauer mit einer Einheit eingeben, zum Beispiel `12h`.
 
-Die Einstellung ändert mehr als die Dauer eines Vorgangs. Unter *Ansicht › Zeitskala* können Sie die Skala *Stunde* wählen. Im Fenster *Kalender* gibt es dann den Block *Arbeitszeiten*. Im Fenster *Neues Projekt* erscheinen die Optionen *Schicht* und *Standardeinheit für neue Vorgänge*.
+Die Einstellung ändert mehr als die Dauer eines Vorgangs. Unter *Ansicht › Zeitskala* können Sie die Skala *Stunde* wählen. Im Fenster *Kalender* kann ein normaler Kalender Bänder für die Arbeitszeit erhalten (der Block *Arbeitszeiten*; ein Kalender, der schon Bänder hat, zeigt ihn immer). Im Fenster *Neues Projekt* erscheinen die Optionen *Schicht* und *Standardeinheit für neue Vorgänge*.
 
 ### Einen Vorgang in Stunden planen
 
@@ -27,10 +27,10 @@ Die Einstellung ändert mehr als die Dauer eines Vorgangs. Unter *Ansicht › Ze
 
 ### Neue Vorgänge standardmäßig in Stunden
 
-1. Wählen Sie *Einstellungen › Projekt › Projektinfo*.
+1. Wählen Sie *Einstellungen › Projekt › Projekteinstellungen*.
 2. Wählen Sie unter *Standardeinheit für neue Vorgänge* die Einheit *Stunden* und klicken Sie auf *Anwenden*.
 
-Ein neuer Vorgang startet dann mit 5 Stunden statt mit 5 Tagen. Bestehende Vorgänge ändern sich nicht. Bei einem neuen Projekt finden Sie dieselbe Auswahl im Fenster *Neues Projekt*. Wenn Sie dort unter *Schicht* die Option *Tagschicht* wählen, ist *Stunden* deaktiviert. Wählen Sie dann eine andere Schicht, oder stellen Sie die Standardeinheit nach dem Erstellen in *Projektinfo* ein.
+Ein neuer Vorgang startet dann mit 5 Stunden statt mit 5 Tagen. Bestehende Vorgänge ändern sich nicht. Bei einem neuen Projekt finden Sie dieselbe Auswahl im Fenster *Neues Projekt*. Wenn Sie dort unter *Schicht* die Option *Tagschicht* wählen, ist *Stunden* deaktiviert. Wählen Sie dann eine andere Schicht, oder stellen Sie die Standardeinheit nach dem Erstellen in *Projekteinstellungen* ein.
 
 ## Stolperfallen und was die App dann tut
 
@@ -38,7 +38,7 @@ Ein neuer Vorgang startet dann mit 5 Stunden statt mit 5 Tagen. Bestehende Vorg�
 
 **Keine Dezimalzahlen bei Tagen.** Eine Dauer in Tagen ist eine ganze Zahl. `1.5d` gibt die Meldung *Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h.* Wenn Sie eineinhalb Tage wollen, rechnen Sie in Stunden.
 
-**Eine Umrechnung, die nicht exakt möglich ist.** Zwölf Stunden passen nicht in ganze Tage zu 8 Stunden. Die App meldet dann *Diese Dauer lässt sich im aktuellen Kalender nicht exakt in ganze Tage umrechnen. Die vorhandene Einheit bleibt erhalten; geben Sie selbst einen neuen gültigen Wert ein.* und lässt die Einheit unverändert.
+**Eine Umrechnung, die nicht exakt möglich ist.** Zwölf Stunden passen nicht in ganze Tage zu 8 Stunden. Im Bereich *Eigenschaften* und im Fenster *Vorgang bearbeiten* zeigt die App dann einen gelben Block mit *12h ergibt in diesem Kalender keine ganzen Tage. Die Einheit wurde nicht geändert.* und lässt die Einheit unverändert. Die Vorgangstabelle gibt eine kürzere Meldung: *Diese Dauer lässt sich nicht exakt in die andere Einheit umrechnen.*
 
 **Das Feld ist deaktiviert.** Bei einer Phase, einem Hammock oder einem Meilenstein mit Dauer null folgt die Dauer aus etwas anderem. Sie können sie dann nicht eintippen.
 
@@ -49,5 +49,5 @@ Ein neuer Vorgang startet dann mit 5 Stunden statt mit 5 Tagen. Bestehende Vorg�
 - [Tage und Stunden](docs://uitleg-dagen-en-uren): wie die App Stunden zählt, was passiert, wenn Tage und Stunden zusammenkommen, und wo sie rundet.
 - [Arbeitszeiten festlegen](docs://howto-werktijden-instellen): die Zeiten eines Kalenders pro Wochentag.
 - [Beziehungen anlegen](docs://howto-relaties-leggen): ein Zeitabstand in Stunden zwischen zwei Vorgängen.
-- [Einstellungen](docs://ref-instellingen): die Einstellung Stundenplanung aktivieren und was sie sonst ändert.
+- [App-Einstellungen](docs://ref-instellingen): die Einstellung Stundenplanung aktivieren und was sie sonst ändert.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): enthält Vorgänge in Stunden (Bewehrung und Betonage) mit einem eigenen Stundenkalender, *Hourly calendar, rebar fixing & pouring*.

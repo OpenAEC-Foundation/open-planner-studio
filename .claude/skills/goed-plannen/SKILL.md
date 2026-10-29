@@ -43,19 +43,21 @@ Check names and schemas in `tools/list`; never guess them.
    working hours, public holidays, the construction holiday and foreseeable closures. Do this before
    step 3: every duration counts in that calendar.
 3. **WBS and tasks.** `planner_add_tasks` (milestones, phases and subtasks in one call, with `tempId`s
-   that start with `tmp-`), always with an explicit `duration`; `planner_update_tasks` for fields;
+   that start with `tmp-`), always with an explicit `duration` and its `durationUnit` (`days` or
+   `hours`); `planner_update_tasks` for fields. To change the duration of an existing task, send the
+   unit the task has (`durationUnit` from `planner_get_task`) with the new `duration`: without
+   `durationUnit` the number counts in days, so 40 for a task of 32 hours means 40 days, not 40 hours.
    `planner_move_task` for structure; `planner_delete_tasks` to clean up (it takes the whole subtree).
    Never give a summary task a duration. Work that is suspended and resumed later is one task with
    interruptions (`planner_set_task_splits`), not separate tasks.
 4. **Relationships.** `planner_add_dependencies`, `planner_update_dependencies`,
    `planner_remove_dependencies`. Every task gets at least one predecessor and one successor, except
    the first task and the final milestone. Check with `planner_list_tasks` `zonder_relaties: true`
-   and the `rels` per row in `planner_get_project_overview`. That filter ignores relationships on a
-   summary task, so it also lists leaf tasks tied in through their phase: check those before you add
-   anything.
+   and the `rels` per row in `planner_get_project_overview`. That filter counts relationships on the
+   leaf itself and on all ancestor summary tasks, so leaves tied in through their phase are excluded.
 5. **Constraints and deadlines.** Only for a hard external date the user gave you (see below).
 6. **Resources.** `planner_manage_resources`, `planner_manage_assignments`; read with
-   `planner_list_resources` and `planner_get_resource_histogram`. Under the work rule `FIXED_WORK` or
+   `planner_list_resources` and `planner_get_resource_histogram`. Under the task type `FIXED_WORK` or
    `FIXED_RATE` (`workRule` on the task, or `defaultWorkRule` on the project), adding or removing a
    resource or changing `unitsPerDay` changes the task duration. Level only once logic and durations
    are in place, and only on request: `planner_level_resources` with `dryRun: true` first, then for

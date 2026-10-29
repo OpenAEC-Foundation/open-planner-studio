@@ -8,6 +8,7 @@ import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
 import { Ribbon } from '@/components/layout/Ribbon/Ribbon';
@@ -24,6 +25,7 @@ import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDia
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
+import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
@@ -34,11 +36,11 @@ import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
 import { useRecoveryRestore } from '@/hooks/useRecoveryRestore';
 import { useUpdateCheck } from '@/hooks/useUpdateCheck';
 import { useAiAutostart } from '@/hooks/useAiAutostart';
+import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
-import { HourDataNotice } from '@/components/layout/HourDataNotice';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
 import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
@@ -70,6 +72,7 @@ const ExtensionConsentDialog = EXTENSIONS_ENABLED
   ? lazy(() => import('@/components/dialogs/ExtensionConsentDialog').then(m => ({ default: m.ExtensionConsentDialog })))
   : () => null;
 const ActualStartDialog = lazy(() => import('@/components/dialogs/ActualStartDialog').then(m => ({ default: m.ActualStartDialog })));
+const PhaseAssignmentDialog = lazy(() => import('@/components/dialogs/PhaseAssignmentDialog').then(m => ({ default: m.PhaseAssignmentDialog })));
 const SiteOpenDialog = lazy(() => import('@/components/dialogs/SiteOpenDialog').then(m => ({ default: m.SiteOpenDialog })));
 const FormatNoticeDialog = lazy(() => import('@/components/dialogs/FormatNoticeDialog').then(m => ({ default: m.FormatNoticeDialog })));
 const SiteSaveDialog = lazy(() => import('@/components/dialogs/SiteSaveDialog').then(m => ({ default: m.SiteSaveDialog })));
@@ -105,6 +108,7 @@ function AppContent() {
   const { t } = useTranslation('common');
 
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
+  const questionPending = useAppStore(s => isGlobalShortcutFrozen(s.ui));
   const showProjectInfoDialog = useAppStore(s => s.ui.showProjectInfoDialog);
   const showNewProjectDialog = useAppStore(s => s.ui.showNewProjectDialog);
   const showNewOrOpenProjectDialog = useAppStore(s => s.ui.showNewOrOpenProjectDialog);
@@ -174,6 +178,14 @@ function AppContent() {
   // Bestand van de host bij de start: na de herstelkeuze, alleen in een leeg document. Zonder site
   // gebeurt er niets.
   useSiteInitialFile(recoveryResolved, recovery);
+  // Dev-link `?open=<pad>` (alleen de browser op de dev-server, docs/dev-link.md): opent na de
+  // herstelkeuze een bestand uit de repo, bijv. `examples/…`, via de gewone openroute. Niet in Tauri-dev. Valt
+  // met de dynamische import uit elke productiebouw, net als de haken in main.tsx.
+  useEffect(() => {
+    if (import.meta.env.DEV && !isTauri() && recoveryResolved && recovery === null) {
+      void import('@/utils/devOpenLink').then(({ openDevLinkOnce }) => openDevLinkOnce());
+    }
+  }, [recoveryResolved, recovery]);
 
   // Bedrijfsbibliotheek laden bij opstarten: zet de opgeslagen bibliotheek in de store en
   // hijst `libraryLoaded`, zodat latere mutaties persisteren (vóór dit punt is persist een no-op).
@@ -269,6 +281,10 @@ function AppContent() {
   // wacht op de asynchrone instellingen-hydratatie en start hoogstens één keer per app-sessie).
   useAiAutostart();
 
+  // Register van open bestanden voor de MCP-plugin (`<appDataDir>/mcp/open-files.json`, Tauri-only,
+  // ook met de MCP-koppeling uit; zie docs/mcp-ontdekking.md).
+  useMcpDiscovery();
+
   // Determine if we should show the gantt canvas or a full-panel view.
   // Een GEDOCKT resource-paneel (`resourcePanelDocked`) sluit `showResourcePanel`
   // NIET in — de Gantt (incl. histogramstrook) blijft dan zichtbaar en de compacte
@@ -300,32 +316,33 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-surface text-text-primary">
-      {/* Custom Title Bar */}
-      <TitleBar />
+      {/* De Help-pauze heft de modaliteit van de vraag niet op. Scherm achtergrondbediening per
+          shellgebied af, inclusief toekomstige knoppen; Help en de vraag staan buiten deze grenzen. */}
+      <div className="contents" inert={questionPending} data-ops-background-controls="title">
+        <TitleBar />
+      </div>
 
       {/* Ribbon Toolbar */}
       <Ribbon />
 
-      {/* Uur-data-melding: niet-blokkerende strook onder het lint wanneer een geladen
-          bestand urenplanning bevat terwijl de hoofdschakelaar uit staat. */}
-      <HourDataNotice />
+      <div className="contents" inert={questionPending} data-ops-background-controls="notices">
+        {/* Structuur-vergrendeld-melding: verschijnt wanneer in-/uitspringen geweigerd
+            wordt omdat er gefilterd/gegroepeerd/gesorteerd wordt. */}
+        <StructureLockedNotice />
 
-      {/* Structuur-vergrendeld-melding: verschijnt wanneer in-/uitspringen geweigerd
-          wordt omdat er gefilterd/gegroepeerd/gesorteerd wordt. */}
-      <StructureLockedNotice />
+        {/* Relatiemodus-strook: zichtbaar zolang de Relatie-knop/het contextmenu de
+            "plakkende Shift" heeft aangezet — sleep dan in de Gantt van balk naar balk. */}
+        <DependencyModeNotice />
 
-      {/* Relatiemodus-strook: zichtbaar zolang de Relatie-knop/het contextmenu de
-          "plakkende Shift" heeft aangezet — sleep dan in de Gantt van balk naar balk. */}
-      <DependencyModeNotice />
+        {/* Splits-modus-strook: zichtbaar zolang de knop Taak splitsen aan staat — klik
+            dan op een balk waar de onderbreking begint en sleep naar rechts voor de lengte. */}
+        <SplitModeNotice />
 
-      {/* Splits-modus-strook: zichtbaar zolang de knop Taak splitsen aan staat — klik
-          dan op een balk waar de onderbreking begint en sleep naar rechts voor de lengte. */}
-      <SplitModeNotice />
-
-      {/* "Datums zoals opgeslagen"-strook: de modus zolang hij aan staat. Bewust BOVEN de
-          `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
-          zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
-      <RecordedDatesNotice />
+        {/* "Datums zoals opgeslagen"-strook: de modus zolang hij aan staat. Bewust BOVEN de
+            `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
+            zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
+        <RecordedDatesNotice />
+      </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
           Anders: gradient strip + main content. */}
@@ -361,7 +378,9 @@ function AppContent() {
             className="ui-card flex-1 flex overflow-hidden"
             {...(activeTab === 'report' ? { 'data-tour-anchor': 'report-panel' } : {})}
           >
-            {showResourcePanel && !resourcePanelDocked ? (
+            {/* Rapport heeft zijn eigen werkruimte, ook als het volledige resourcepaneel nog
+                openstaat: de rapportbediening moet bij het gemounte rapportformulier horen. */}
+            {activeTab !== 'report' && showResourcePanel && !resourcePanelDocked ? (
               <ResourcePanel />
             ) : (
               <Suspense fallback={null}>
@@ -391,11 +410,11 @@ function AppContent() {
         </>
       )}
 
-      {/* Status Bar */}
-      <StatusBar />
-
-      {/* Projectoverzicht-overlay (gedeeld door alle multi-document-stijlen) */}
-      <ProjectOverview />
+      <div className="contents" inert={questionPending} data-ops-background-controls="status">
+        <StatusBar />
+        {/* Projectoverzicht-overlay (gedeeld door alle multi-document-stijlen) */}
+        <ProjectOverview />
+      </div>
 
       {/* Sluit-bevestiging bij niet-opgeslagen wijzigingen (3-weg) */}
       <CloseDocumentDialog />
@@ -447,6 +466,9 @@ function AppContent() {
             zou beginnen). Rendert alleen bij `ui.pendingActualStartQuestion`; stapelt boven
             "Taak bewerken". */}
         <ActualStartDialog />
+        {/* "Taak wordt een samenvattingstaak": rendert alleen bij `ui.pendingPhaseAssignmentQuestion`; stapelt
+            boven "Taak bewerken". */}
+        <PhaseAssignmentDialog />
         {/* Opslag via de site: renderen alleen bij `ui.pendingSiteOpen` / `ui.pendingSiteSave`. */}
         <SiteOpenDialog />
         <SiteSaveDialog />
@@ -483,15 +505,17 @@ function AppContent() {
         </div>
       )}
 
-      {/* Begeleidingspaneel van een extensie (contract 1.4.0) — net als de meldingen buiten de
-          Backstage-vertakking, zodat een tutorial door alle weergaven heen zichtbaar blijft. */}
-      {guideActive && <Suspense fallback={null}><GuidePanel /></Suspense>}
+      <div className="contents" inert={questionPending} data-ops-background-controls="overlays">
+        {/* Begeleidingspaneel van een extensie (contract 1.4.0) — net als de meldingen buiten de
+            Backstage-vertakking, zodat een tutorial door alle weergaven heen zichtbaar blijft. */}
+        {guideActive && <Suspense fallback={null}><GuidePanel /></Suspense>}
 
-      {/* Gebruikersmeldingen — buiten de Backstage-vertakking gemount (ná het
-          Suspense-dialogenblok, als laatste kind van de buitenste div), zodat een opslaafout óók
-          zichtbaar is wanneer de File-tab (Backstage) de body overneemt. */}
-      <NotificationHost />
-      <TooltipHost />
+        {/* Gebruikersmeldingen — buiten de Backstage-vertakking gemount, ná het
+            Suspense-dialogenblok, zodat een opslaafout óók zichtbaar is wanneer de
+            File-tab (Backstage) de body overneemt. */}
+        <NotificationHost />
+        <TooltipHost />
+      </div>
     </div>
   );
 }

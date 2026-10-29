@@ -16,7 +16,7 @@ Beregningsmetoden heter **CPM** (Critical Path Method). Derfor kalles blokken me
 
 ## Slik beregner appen
 
-Appen omberegner ikke tidsplanen av seg selv. Beregningen starter med **Beregn** (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Hvis det er endret noe siden forrige beregning, viser statuslinjen *Utdatert — omberegn (F5)*. Hvis *Beregne automatisk* er på (under *Innstillinger › Prosjekt › Innstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gjør appen dette selv.
+Appen omberegner ikke tidsplanen av seg selv. Beregningen starter med **Beregn** (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Hvis noe er endret siden forrige beregning, viser statuslinjen *Utdatert — omberegn (F5)*. Hvis *Beregne automatisk* er på (under *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Tidsplan*, overskriften *Beregning*), gjør appen dette selv.
 
 En beregning går to ganger gjennom nettverket.
 
@@ -42,12 +42,13 @@ Slakk kan også bli negativ. Det skjer når en aktivitet har en tidsfrist, eller
 
 ### Når er en aktivitet kritisk?
 
-Som standard er en aktivitet kritisk når totalslakken er 0 eller mindre. Dette kan du endre under *Innstillinger › Prosjekt › Prosjektinfo*, i blokken *Beregningsprofil og beregningsalternativer*, ved *Beregningsalternativer for dette prosjektet*. Når du klikker på *Bruk*, omberegner appen tidsplanen med en gang. Alternativene hører til prosjektfilen, ikke til appen.
+Som standard er en aktivitet kritisk når totalslakken er 0 eller mindre. Dette kan du endre under *Innstillinger › Prosjekt › Prosjektinnstillinger*, i blokken *Beregningsprofil og beregningsalternativer*, ved *Beregningsalternativer for dette prosjektet*. Når du klikker på *Bruk*, omberegner appen tidsplanen med en gang. Alternativene hører til prosjektfilen, ikke til appen.
 
-- **Kritisk definisjon** med *Totalslakk ≤ terskelverdi* og feltet *Terskelverdi (arbeidsdager)*. Terskelverdien er 0 som standard. Sett den for eksempel til 2 om du vil beskytte en buffer: alle aktiviteter med 2 arbeidsdager slakk eller mindre blir kritiske og røde.
+- **Kritisk definisjon** med *Totalslakk ≤ terskelverdi* og feltet *Terskelverdi (arbeidsdager)*. Terskelverdien er 0 som standard. Sett den for eksempel til 2 om du vil beskytte en buffer: alle aktiviteter med 2 arbeidsdager slakk eller mindre blir kritiske og røde. Hvis du velger *Lengste sti*, er en aktivitet kritisk når den ligger på den lengste kjeden til siste slutt. Slakken har da ingen betydning.
+- **Flere slakkstier** nummererer kjedene etter slakken i kolonnen *Slakksti*. Sti 1 er den kritiske linjen. Se [Beregningsalternativer og beregningsregler](docs://ref-rekenopties-en-conventies).
 - **Marker nesten kritisk** med egen *Terskelverdi*, som standard 2 arbeidsdager. En aktivitet med mer enn 0 og høyst så mye slakk får en gul stolpe. Da ser du hvilke aktiviteter som nesten ikke har slakk igjen, uten at de kalles kritiske.
-- **Åpne-ende aktiviteter er kritiske**: en aktivitet uten etterfølger som ennå ikke er ferdig, regnes som kritisk. Nyttig som sikkerhetsnett mot glemte avhengigheter (se misforståelsene nedenfor).
-- **Slakkberegning** bestemmer om totalslakk måles ved starten av aktiviteten, ved slutten, eller som den minste av de to. Nye prosjekter er satt til *Automatisk (standard)*. Følger du Primavera P6 sin måte å beregne på, setter *Bruk standardinnstillingene i denne profilen* dette valget til *Sluttslakk*. For MS Project setter den samme knappen valget tilbake til *Automatisk (standard)*: med en statusdato beregner MS Project selv på den måten.
+- **Åpenende aktiviteter er kritiske**: en aktivitet uten etterfølger som ennå ikke er ferdig, regnes som kritisk. Nyttig som sikkerhetsnett mot glemte avhengigheter (se misforståelsene nedenfor).
+- **Slakkberegning** bestemmer om totalslakk måles ved starten av aktiviteten, ved slutten, eller som den minste av de to. Nye prosjekter er satt til *Automatisk (standard)*. Hvis prosjektet bruker beregningsprofilen Primavera P6 og dette valget ikke er *Sluttslakk*, viser en oransje blokk i prosjektinnstillingene det. Knappen i blokken setter valget til *Sluttslakk*. For MS Project setter den samme knappen valget tilbake til *Automatisk (standard)*: med en statusdato beregner MS Project selv på den måten.
 
 ### Hvor du ser det
 

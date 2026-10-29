@@ -26,13 +26,13 @@ Apri la scheda *Rapporto* (oppure premi Ctrl+P). A sinistra c'è la colonna *Rap
 
 La pianificazione come grafico a barre, con una tabella a sinistra e un asse temporale a destra, su più pagine se serve. L'anteprima mostra la carta con intestazione di pagina, tabella, asse temporale e legenda. Il blocco *Riepilogo* conta *Attività:*, *Attività foglia:*, *Critiche:* e *Relazioni:*. Tutte le opzioni sono sotto *Impostazioni*.
 
-**Azienda:** — l'azienda nell'intestazione di pagina. Predefinito: l'azienda presa dalle info progetto. Effetto: solo l'intestazione del report; ciò che scrivi qui non viene conservato. Cambia l'azienda in *Impostazioni › Progetto › Info progetto*, nel campo *Committente/organizzazione*, e conferma con *Applica*.
+**Azienda:** — l'azienda nell'intestazione di pagina. Predefinito: l'azienda presa dalle impostazioni progetto. Effetto: solo l'intestazione del report; ciò che scrivi qui non viene conservato. Cambia l'azienda in *Impostazioni › Progetto › Impostazioni progetto*, nel campo *Committente/organizzazione*, e conferma con *Applica*.
 
-**Autore:** — l'autore nell'intestazione di pagina. Sola lettura: l'app lo prende dalle info progetto.
+**Autore:** — l'autore nell'intestazione di pagina. Sola lettura: l'app lo prende dalle impostazioni progetto.
 
 **Dimensione carattere:** — dimensione del testo e della tabella nel report. Scegli tra 90%, 100%, 110% e 125%. Predefinito: 100%. Effetto: con un carattere più grande, testo, righe e tabella crescono e l'asse temporale perde larghezza. Indipendente da *Dimensione testo* nelle impostazioni.
 
-**Colori barre:** — da cosa dipende il colore di una barra. Scegli tra *Percorso critico*, *Per attività — automatico* e *Per categoria*, con un menu a discesa *Campo categoria* per *Per categoria*. Predefinito: *Percorso critico*. Effetto: è la stessa scelta di *Colori barre* nella scheda *Vista*: se la cambi qui, cambia anche il diagramma di Gantt a schermo. Se il campo scelto non esiste in questo progetto, compare *Questo campo non esiste nel progetto. Viene usato temporaneamente il tipo di attività.*
+**Colori barre:** — da cosa dipende il colore di una barra. Scegli tra *Percorso critico*, *Per attività — automatico* e *Per categoria*, con un menu a discesa *Campo categoria* per *Per categoria*. Predefinito: *Percorso critico*. Effetto: è la stessa scelta di *Colori barre* nella scheda *Vista*: se la cambi qui, cambia anche il diagramma di Gantt a schermo. Se il campo scelto non esiste in questo progetto, compare *Questo campo non esiste in questo progetto. Viene usata temporaneamente la categoria di lavoro.*
 
 **Linea di stato:** — una linea alla data di stato. Scegli tra *Nessuna*, *Linea data di stato* e *Linea di avanzamento*. Predefinito: *Nessuna*. Effetto: *Linea data di stato* disegna una linea alla data di stato; *Linea di avanzamento* disegna la linea a zigzag che sporge fino all'avanzamento di ogni attività. Se il progetto non ha una data di stato, compare *Imposta prima una data di stato* e il report non disegna nulla.
 
@@ -50,7 +50,7 @@ La pianificazione come grafico a barre, con una tabella a sinistra e un asse tem
 
 **Nomi delle attività sulle barre** — Predefinito: attivato. Effetto: il nome dell'attività sulla barra, dove c'è spazio.
 
-**Mostra completamento** — Predefinito: attivato. Effetto: la parte completata della barra diventa grigia, come nel diagramma di Gantt, e compare la colonna *Compl.* nella tabella. Un'attività completata non mostra la striscia del margine.
+**Mostra completamento** — Predefinito: attivato. Effetto: la parte completata della barra diventa grigia, come nel diagramma di Gantt, e compare la colonna *Compl* nella tabella. Un'attività completata non mostra la striscia del margine.
 
 **Tronca i nomi delle attività** — Predefinito: attivato. Effetto: attivato taglia i nomi nella tabella alla larghezza di *Colonna nome:*. Disattivato lascia crescere la colonna con il nome più lungo; compare *La colonna del nome si adatta al nome attività più lungo.*
 
@@ -62,7 +62,7 @@ La pianificazione come grafico a barre, con una tabella a sinistra e un asse tem
 
 **Mostra margine** — Predefinito: attivato. Effetto: il margine come striscia dietro le barre non critiche.
 
-**Relazioni** — le linee delle relazioni. Predefinito: attivato. Effetto: disegna frecce tra le barre.
+**Dipendenze** — le linee delle relazioni. Predefinito: attivato. Effetto: disegna frecce tra le barre.
 
 **Mostra solo i giorni lavorativi** — comprime l'asse temporale in questo report. Predefinito: disattivato. Effetto: fine settimana e festività vengono saltati, e poi strisce settimanali sostituiscono l'ombreggiatura dei fine settimana. Indipendente dalla stessa impostazione per il diagramma di Gantt a schermo.
 
@@ -120,7 +120,7 @@ Dove si trova il progetto alla data di stato. Le opzioni sono sotto *Opzioni del
 
 **Quasi critico ≤ (gl):** — Predefinito: 5. Come per Anteprima.
 
-Il blocco *Riepilogo* mostra *Data di stato*, *Periodo*, *Anteprima fino al*, *Fine baseline*, *Fine prevista*, *Δ fine (gl)*, *Pianificato* (con *(baseline)* o *(programma attuale)*), *Effettivo*, e i conteggi *Completata*, *In corso*, *Non iniziata*, *In ritardo* e *Critico*. Il valore pianificato e quello effettivo sono ponderati sulla durata delle attività. Il valore pianificato si misura rispetto alla baseline se c'è una baseline attiva, altrimenti rispetto alla pianificazione attuale. Le sezioni sono *Completate nel periodo passato*, *In corso*, *Iniziano nel prossimo periodo*, *In ritardo* e *Attività critiche aperte*; un'attività può stare in più di una sezione.
+Il blocco *Riepilogo* mostra *Data di stato*, *Periodo*, *Anteprima fino al*, *Fine baseline*, *Fine prevista*, *Δ fine (gl)*, *Pianificato* (con *(baseline)* o *(programma attuale)*), *Effettivo*, e i conteggi *Completata*, *In corso*, *Non iniziata*, *In ritardo* e *Critica*. Il valore pianificato e quello effettivo sono ponderati sulla durata delle attività. Il valore pianificato si misura rispetto alla baseline se c'è una baseline attiva, altrimenti rispetto alla pianificazione attuale. Le sezioni sono *Completate nel periodo passato*, *In corso*, *Iniziano nel prossimo periodo*, *In ritardo* e *Attività critiche aperte*; un'attività può stare in più di una sezione. Ogni sezione ha le stesse colonne: *WBS*, *Nome*, *Fine baseline*, *Fine prevista*, *Compl*, *Rest. (gl)*, *ST (gl)* (TF), *Critica* e *Stato*. Lo stato per riga è *Completata*, *In corso*, *Non iniziata*, *Doveva iniziare* o *Doveva finire*.
 
 ## Salute della pianificazione
 
@@ -149,7 +149,7 @@ Conta le attività foglia non completate, senza cardini e hammock, e le relazion
 - *Date non valide*: un inizio effettivo o una fine effettiva dopo la data di stato, oppure un inizio previsto o una fine prevista prima della data di stato. Soglia: nessuna. Richiede una data di stato.
 - *Risorse*: attività senza risorsa. Soglia: nessuna. Solo se il progetto usa risorse; altrimenti n/a.
 - *Attività mancate*: delle attività che la baseline indica come finite entro la data di stato, la quota che finisce più tardi o che è prevista più tardi. Soglia: al massimo 5%. Richiede una data di stato e una baseline attiva.
-- *Test del percorso critico*: l'app allunga un'attività critica di 100 giorni lavorativi e ricalcola, su una copia, senza modificare il progetto. Il test è superato se l'ultima attività del progetto non finisce prima di quell'attività. Il test riguarda l'attività critica non completata con l'inizio anticipato; il dettaglio indica il nome dell'attività e di quanti giorni lavorativi si è spostata la fine.
+- *Test del percorso critico*: l'app allunga un'attività critica di 100 giorni lavorativi e ricalcola, su una copia, senza modificare il progetto. Il test è superato se l'ultima attività del progetto non finisce prima di quell'attività. Il test riguarda l'attività critica non completata con l'inizio più anticipato; il dettaglio indica il nome dell'attività e di quanti giorni lavorativi si è spostata la fine. Nella vista *Date come registrate* il test è n/a (*non calcolato*): il test calcola, e il report mostra allora le date del file di origine. Premi Calcola (F5) e il test viene eseguito di nuovo.
 - *CPLI*: (lunghezza del percorso critico + margine) / lunghezza del percorso critico. La lunghezza conta i giorni lavorativi dalla data di stato alla fine dell'ultima attività; il margine è la differenza rispetto alla fine della baseline di quell'attività, oppure il margine calcolato se l'attività non è nella baseline. Soglia: almeno 0,95. Richiede una data di stato.
 - *BEI*: il numero di attività completate alla data di stato, diviso per il numero che la baseline prevede completato entro quella data, più le attività senza baseline. Soglia: almeno 0,95. Richiede una data di stato e una baseline attiva.
 
@@ -177,7 +177,7 @@ Per risorsa, le attività a cui è collegata: che cosa sta facendo questa squadr
 
 **Includi attività completate** — Predefinito: disattivato. Effetto: attivato include anche le assegnazioni delle attività completate.
 
-Le righe sono per risorsa e, dentro una risorsa, per inizio. Il blocco *Riepilogo* conta *Risorse*, *Assegnazioni* e *Attività senza risorsa*. Le colonne comprendono la risorsa, l'attività, inizio e fine, *Rest. (gl)*, *Unità/giorno*, *Avanz*, *Critica* e *Stato*.
+Le righe sono per risorsa e, dentro una risorsa, per inizio. Il blocco *Riepilogo* conta *Risorse*, *Assegnazioni* e *Attività senza risorsa*. Le colonne sono *Risorsa*, *Tipo*, *WBS*, *Nome*, *Inizio*, *Fine*, *Rest. (gl)*, *Unità/giorno*, *Avanz*, *Critica* e *Stato*. *Risorsa* e *Tipo* compaiono solo sulla prima riga di una risorsa. Lo stato per riga è lo stesso del report di avanzamento: *Completata*, *In corso*, *Non iniziata*, *Doveva iniziare* o *Doveva finire*.
 
 ## Riepilogo WBS
 

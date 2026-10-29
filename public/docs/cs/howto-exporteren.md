@@ -18,15 +18,15 @@ Pokud váš prohlížeč ukládá soubory jen jako stažení (například Firefo
 
 Seznam na kartě *Domů* a dlaždice na kartě *Soubor › Exportovat* nabízejí stejné formáty:
 
-- *Průběh (Excel)* a *Průběh (CSV)*, na dlaždicích *Tabulka průběhu (Excel)* a *Tabulka průběhu (CSV)*: štíhlý list s ID, WBS, názvem, daty a procentem dokončení, který rozešlete těm, kdo průběh vyplňují.
+- *Průběh (Excel)* a *Průběh (CSV)*, na dlaždicích *Tabulka průběhu (Excel)* a *Tabulka průběhu (CSV)*: jednoduchá tabulka s ID, WBS, názvem, daty a procentem dokončení, kterou rozešlete těm, kdo průběh vyplňují.
 - *CSV (;)*, na dlaždici *CSV (oddělené středníkem)*: seznam úkolů, který otevřete v tabulkovém procesoru.
 - *MS Project XML*: lze otevřít v programu Microsoft Project.
 - *Primavera P6 XML*: pro Oracle Primavera P6.
-- *IFC 4x3*: vlastní formát aplikace, se vším, co obsahuje.
+- *IFC*: vlastní formát aplikace, se vším, co obsahuje, ve schématu IFC daného projektu (výchozí IFC 4.3 ADD2).
 
 ### Export IFC se souborem knihovny zdrojů
 
-Je-li váš projekt propojen s knihovnou zdrojů, je zaškrtávací políčko *Uložit soubor knihovny zdrojů vedle* pod dlaždicemi na kartě *Soubor › Exportovat*. Pokud ho zaškrtnete a zvolíte *IFC 4x3*, aplikace se zeptá na místo dvakrát: nejdřív pro projekt, potom pro *projectname-bibliotheek.ifc*. Toto zaškrtávací políčko je jen na kartě *Soubor › Exportovat*, ne v seznamu na kartě *Domů*.
+Je-li váš projekt propojen s knihovnou zdrojů, je zaškrtávací políčko *Uložit soubor knihovny zdrojů vedle* pod dlaždicemi na kartě *Soubor › Exportovat*. Pokud ho zaškrtnete a zvolíte *IFC*, aplikace se zeptá na místo dvakrát: nejdřív pro projekt, potom pro *projectname-bibliotheek.ifc*. Toto zaškrtávací políčko je jen na kartě *Soubor › Exportovat*, ne v seznamu na kartě *Domů*.
 
 ### Obnovení tabulky průběhu
 

@@ -16,7 +16,7 @@ Aikataulu on ennuste. Kun työ on käynnissä, halutaan tietää, mikä on tehty
 
 Alla oleva esimerkki käyttää laskentaprofiilia *Open Planner Studio*. Uusi projekti lasketaan sen mukaan. Myöhemmin kerrotaan, mikä eroaa Primavera P6 -profiilissa ja Microsoft Project -profiilissa.
 
-Sovellus ei laske uudelleen itsestään. Jokaisen edistymistä tai raportointipäivää koskevan muutoksen jälkeen tilarivillä näkyy *Vanhentunut — laske uudelleen (F5)*. Paina *Laske* (F5), esimerkiksi valinnalla *Aikataulu › Aikataulu › Laske*. Jos *Laske automaattisesti* on päällä (kohdassa *Asetukset › Projekti › Asetukset*, välilehti *Aikataulu*, otsikko *Laskenta*), sovellus tekee tämän itse.
+Sovellus ei laske uudelleen itsestään. Jokaisen edistymistä tai raportointipäivää koskevan muutoksen jälkeen tilarivillä näkyy *Vanhentunut — laske uudelleen (F5)*. Paina *Laske* (F5), esimerkiksi valinnalla *Aikataulu › Aikataulu › Laske*. Jos *Laske automaattisesti* on päällä (kohdassa *Asetukset › Projekti › Sovelluksen asetukset*, välilehti *Aikataulu*, otsikko *Laskenta*), sovellus tekee tämän itse.
 
 ### Raportointipäivä
 
@@ -37,11 +37,11 @@ Kentät riippuvat toisistaan. Kun yksi kenttä täytetään, sovellus täyttää
 - Prosentti yli 0 tarkoittaa, että tehtävä on alkanut. Jos toteutunutta alkamispäivää ei anneta, sovellus käyttää suunniteltua alkamispäivää. Jos tehtävä on suunniteltu alkamaan raportointipäivän jälkeen, sovellus kysyy ensin, milloin se todella alkoi.
 - Prosentti 100 tarkoittaa tehtyä. Jos toteutunutta valmistumispäivää ei anneta, siitä tulee raportointipäivä, vaikka työ oli todellisuudessa tehty aiemmin.
 - Toteutunut valmistumispäivä tekee tehtävästä 100 %:n. Jos tehty tehtävä asetetaan takaisin alle 100 prosenttiin, toteutunut valmistumispäivä poistuu. Jos toteutunut valmistumispäivä tyhjennetään, prosentti palaa arvoon 0 ja tehtävä pysyy tilassa *Käynnissä*, kunnes toteutunut alkamispäivä tyhjennetään myös.
-- **Jäljellä oleva kesto** on kesto kerrottuna sillä, mitä on vielä tekemättä, pyöristettynä kokonaisiin työpäiviin. Tehtävässä, jonka kesto on 2 työpäivää, 0 % ja 25 % antavat molemmat 2 työpäivää jäljellä olevaa työtä. 50 % ja 75 % antavat molemmat 1 työpäivä. Kun valmiusaste on 90 %, sovellus pyöristää arvoon 0: jäljellä oleva työ päättyy silloin raportointipäivänä. Tuntiperusteinen tehtävä lasketaan kokonaisina minuutteina. Tehtävässä, jonka kesto on 5 tuntia ja valmiusaste 40 %, on jäljellä 3 tuntia työtä.
+- **Jäljellä oleva kesto** on kesto kerrottuna sillä, mitä on vielä tekemättä, pyöristettynä kokonaisiin työpäiviin. Tehtävässä, jonka kesto on 2 työpäivää, 0 % ja 25 % antavat molemmat 2 työpäivää jäljellä olevaa työtä. 50 % ja 75 % antavat molemmat 1 työpäivä. Kun prosentti on 90 %, sovellus pyöristää arvoon 0: jäljellä oleva työ päättyy silloin raportointipäivänä. Tuntiperusteinen tehtävä lasketaan kokonaisina minuutteina. Tehtävässä, jonka kesto on 5 tuntia ja prosentti 40 %, on jäljellä 3 tuntia työtä.
 - Välitavoitteella on vain yksi todellinen päivä.
 - Vaiheella (yhteenvetotehtävällä) ei ole omaa edistymistä. Laskennan jälkeen sen prosentti seuraa sen alla olevia tehtäviä: niiden prosenttien painotettu keskiarvo, jonka painona on kesto työpäivinä. Välitavoitteen paino on 0.
 
-Kun käynnissä olevan tehtävän kestoa muutetaan, tehty työ pysyy tehtynä. Prosentti mukautuu: tehtävä, jonka kesto on 5 työpäivää ja valmiusaste 60 %, päätyy 30 prosenttiin, kun kestoksi asetetaan 10 työpäivää. Sovellus ei hyväksy kestoa, joka on lyhyempi kuin jo tehty työ.
+Kun käynnissä olevan tehtävän kestoa muutetaan, tehty työ pysyy tehtynä. Prosentti mukautuu: tehtävä, jonka kesto on 5 työpäivää ja prosentti 60 %, päätyy 30 prosenttiin, kun kestoksi asetetaan 10 työpäivää. Sovellus ei hyväksy kestoa, joka on lyhyempi kuin jo tehty työ.
 
 ### Valmiit ja käynnissä olevat tehtävät
 
@@ -51,7 +51,7 @@ Käynnissä oleva tehtävä säilyttää toteutuneen alkamispäivänsä. Vain j�
 
 ### Retained Logic ja Progress Override
 
-Mitä sovellus tekee, jos tehtävä on jo alkanut, vaikka sen edeltäjä on vielä käynnissä? Tällaisesta tilanteesta käytetään nimitystä **järjestyksestä poikkeava edistyminen**: edistyminen on ristiriidassa järjestyksen kanssa. Ajatellaan maalaria, joka aloittaa jo huoneessa, joka on rapattu, vaikka rappari on vielä kiireinen muualla.
+Mitä sovellus tekee, jos tehtävä on jo alkanut, vaikka sen edeltäjä on vielä käynnissä? Tästä käytetään nimitystä **järjestyksestä poikkeava edistyminen**: edistyminen on ristiriidassa järjestyksen kanssa. Ajatellaan maalaria, joka aloittaa jo huoneessa, joka on rapattu, vaikka rappaaja on vielä kiireinen muualla.
 
 Kaksi edistymistapaa päättää, miten sovellus tämän laskee:
 
@@ -124,7 +124,7 @@ Jos raportointipäiväksi asetetaan vain maanantai 28. kesäkuuta eikä syötet�
 
 ## Esimerkki: rappaaja ja maalari
 
-Seuraavaksi esimerkki edistymistavasta. Sama lisärakennus, mutta eri vaihe: nyt on keskiviikko 21. heinäkuuta 2027. Kaikki tehtävät *Install building services* -tehtävään asti, sen mukaan lukien, ovat valmistuneet suunnitelman mukaan. *Plastering* (4 työpäivää) alkoi tiistaina 20. heinäkuuta, ja sen edistyminen on 25%. *Painting* (3 työpäivää) seuraa tehtävää *Plastering*, mutta maalari on aloittanut jo tänään, ja sen edistyminen on 33%.
+Seuraavaksi esimerkki edistymistavasta. Sama lisärakennus, mutta eri vaihe: nyt on keskiviikko 21. heinäkuuta 2027. Kaikki tehtävät *Install building services* -tehtävään asti, sen mukaan lukien, ovat valmistuneet suunnitelman mukaan. *Plastering* (4 työpäivää) alkoi tiistaina 20. heinäkuuta, ja sen edistyminen on 25 %. *Painting* (3 työpäivää) seuraa tehtävää *Plastering*, mutta maalari on aloittanut jo tänään, ja sen edistyminen on 33 %.
 
 Ilman edistymistä *Plastering* oli suunniteltu tiistaista 20. heinäkuuta perjantaihin 23. heinäkuuta ja *Painting* maanantaista 26. heinäkuuta keskiviikkoon 28. heinäkuuta. Tilarivillä näkyy nyt *Järjestyksestä poikkeavat riippuvuudet: 1*. *Painting* on alkanut, vaikka *Plastering* ei ole vielä valmistunut. Paneelissa *Varoitukset* lukee: *Järjestyksestä poikkeava edistyminen: seuraajan edistyminen on ristiriidassa riippuvuuden kanssa*.
 
@@ -137,11 +137,11 @@ Luovutus on molemmissa tapauksissa edelleen perjantaina 6. elokuuta, koska teht�
 
 ### Muut laskentaprofiilit
 
-Profiileissa Primavera P6 ja Microsoft Project tehtävä *Painting* päättyy tässä esimerkissä samoille päivämäärille (27. ja 22. heinäkuuta). Ne eroavat seuraavissa kohdissa. Ne ovat profiilin laskentasääntöjä. Ne löytyvät kohdasta *Asetukset › Projekti › Projektitiedot*, lohkosta *Laskentaprofiili ja laskentavaihtoehdot*.
+Profiileissa Primavera P6 ja Microsoft Project tehtävä *Painting* päättyy tässä esimerkissä samoille päivämäärille (27. ja 22. heinäkuuta). Ne eroavat seuraavissa kohdissa. Ne ovat profiilin laskentasääntöjä. Ne löytyvät kohdasta *Asetukset › Projekti › Projektin asetukset*, osasta *Laskentaprofiili ja laskentavaihtoehdot*.
 
 - Profiilissa Microsoft Project työtä, jota ei ole aloitettu, ei siirretä raportointipäivään (laskentasääntö *Aloittamattomia tehtäviä ei siirretä raportointipäivään*). Jos yllä olevassa esimerkissä asetetaan vain raportointipäivä eikä syötetä mitään, luovutus pysyy tässä profiilissa perjantaina 6. elokuuta.
-- Profiilissa Microsoft Project jäljellä oleva työ ei myöskään ala aikaisemmin kuin toteutunut alkamispäivä plus jo kulunut kesto (laskentasääntö *Jäljellä oleva työ jatkuu kuluneen ajan jälkeen*). Tämä on raportointipäivän lisäksi ylimääräinen alaraja: lasketaan myöhemmästä kahdesta. Otetaan *Build inner cavity leaf* (5 työpäivää). Se alkoi tiistaina 29. kesäkuuta. Raportointipäivänä, keskiviikkona 30. kesäkuuta, edistyminen on 40%. Kaksi työryhmää muuraa samaan aikaan, joten 40% on jo tehty yhdessä päivässä. Kaikki sitä edeltävä on valmistunut suunnitelman mukaan. Open Planner Studio ja Primavera P6 antavat tehtävän päättyä perjantaina 2. heinäkuuta. Microsoft Project antaa sen päättyä maanantaina 5. heinäkuuta, koska tiistai 29. kesäkuuta plus 2 kulunutta työpäivää on torstai 1. heinäkuuta, joka on raportointipäivän jälkeen.
-- Primavera P6 näyttää käynnissä olevan tehtävän varhaisimpana alkamispäivänä jäljellä olevan työn alun eikä toteutunutta alkamispäivää (esimerkissä *Build inner cavity leaf* keskiviikko 30. kesäkuuta).
+- Profiilissa Microsoft Project jäljellä oleva työ ei myöskään ala aikaisemmin kuin toteutunut alkamispäivä plus jo kulunut kesto (laskentasääntö *Jäljellä oleva työ jatkuu kuluneen ajan jälkeen*). Tämä on raportointipäivän lisäksi ylimääräinen alaraja: lasketaan myöhemmästä kahdesta. Otetaan *Build inner cavity leaf* (5 työpäivää). Se alkoi tiistaina 29. kesäkuuta. Raportointipäivänä, keskiviikkona 30. kesäkuuta, edistyminen on 40 %. Kaksi työryhmää muuraa samaan aikaan, joten 40 % on jo tehty yhdessä päivässä. Kaikki sitä edeltävä on valmistunut suunnitelman mukaan. Open Planner Studio ja Primavera P6 antavat tehtävän päättyä perjantaina 2. heinäkuuta. Microsoft Project antaa sen päättyä maanantaina 5. heinäkuuta, koska tiistai 29. kesäkuuta plus 2 kulunutta työpäivää on torstai 1. heinäkuuta, joka on raportointipäivän jälkeen.
+- Primavera P6 näyttää käynnissä olevan tehtävän varhaisimpana alkamispäivänä jäljellä olevan työn alun eikä toteutunutta alkamispäivää (esimerkissä *Build inner cavity leaf* keskiviikko 30. kesäkuuta). Sarakkeessa *Alku* ja palkissa näkyy kaikissa profiileissa toteutunut alkamispäivä.
 - Profiilissa Primavera P6 tilassa Progress Override riippuvuus seuraajaan, joka on jo alkanut, ei myöskään vaikuta edeltäjään. Se ei enää rajoita edeltäjän myöhäisiä päivämääriä eikä vapaata pelivaraa (laskentasääntö *Progress Override ohittaa aloitetun seuraajan myös takaperoin*). Rappaaja ja maalari -esimerkissä tätä ei näe, koska *Plastering* on joka tapauksessa kriittinen lattiatasoitteen kautta. Sen myöhäiset päivämäärät ja vapaa pelivara ovat samat tilassa Retained Logic ja tilassa Progress Override.
 - Kun .xer-tiedosto avataan, sovellus ottaa edistymistavan tiedostosta. Actual Dates, kolmas P6-tila, ei ole sovellukselle tuttu. Tällainen tiedosto lasketaan tilassa Retained Logic.
 
@@ -149,15 +149,15 @@ Profiileissa Primavera P6 ja Microsoft Project tehtävä *Painting* päättyy t�
 
 **"Siirrän vain raportointipäivää eteenpäin."** Jos raportointipäivää siirretään, käynnissä olevien tehtävien jäljellä oleva työ alkaa uudesta päivästä. Työ, jota ei ole vielä aloitettu, ei voi koskaan sijoittua sen päivän eteen. Raportointipäivää siirretään siis vain yhdessä edistymisen päivityksen kanssa.
 
-**"100% kirjaa todellisen valmistumisen."** Vain, jos myös toteutunut valmistumispäivä syötetään. Jos tehtävä asetetaan 100%:iin ilman toteutunutta valmistumispäivää, tehtävän loppupäivästä tulee raportointipäivä. Jos tehtävä oli oikeasti valmistunut aiemmin, täytetään toteutunut valmistumispäivä.
+**"Kun syötän 100 %, valmistuminen kirjataan."** Vain, jos myös toteutunut valmistumispäivä syötetään. Jos tehtävä asetetaan 100 %:iin ilman toteutunutta valmistumispäivää, toteutunut valmistumispäivä tulee raportointipäiväksi. Jos tehtävä oli oikeasti valmistunut aiemmin, täytetään toteutunut valmistumispäivä.
 
-**"0% tarkoittaa, ettei tehtävää ole aloitettu."** Jos tehtävällä on toteutunut alkamispäivä, se lasketaan aloitetuksi, vaikka edistyminen on 0%. Jäljellä oleva työ on silloin koko kesto ja alkaa raportointipäivänä. Toteutunut alkamispäivä tyhjennetään, jotta tehtävä lasketaan taas aloittamattomaksi.
+**"0 % tarkoittaa, ettei tehtävää ole aloitettu."** Jos tehtävällä on toteutunut alkamispäivä, se lasketaan aloitetuksi, vaikka edistyminen on 0 %. Jäljellä oleva työ on silloin koko kesto ja alkaa raportointipäivänä. Toteutunut alkamispäivä tyhjennetään, jotta tehtävä lasketaan taas aloittamattomaksi.
 
 **"Progress Override ratkaisee varoituksen."** Ilmoitus järjestyksestä poikkeavasta edistymisestä jää näkyviin. Edistymistapa määrittää vain, miten sovellus laskee. Jos riippuvuus ei ole enää oikein, riippuvuutta muutetaan.
 
-**"Jaetun tehtävän tauko katoaa."** Ei. Tauko, joka on vielä edessä, pysyy jäljellä olevassa työssä. Otetaan tehtävä, jonka kesto on 5 työpäivää ja jossa on 1 päivän tauko 2 työpäivän työn jälkeen. Se alkoi tiistaina 29. kesäkuuta. Raportointipäivänä, keskiviikkona 30. kesäkuuta, edistyminen on 40%. Jäljellä oleva työ, 3 työpäivää, alkaa raportointipäivänä ja kulkee tauon yli. Loppu on maanantaina 5. heinäkuuta. Ilman taukoa se oli perjantaina 2. heinäkuuta.
+**"Jaetun tehtävän tauko katoaa."** Ei. Tauko, joka on vielä edessä, pysyy jäljellä olevassa työssä. Otetaan tehtävä, jonka kesto on 5 työpäivää ja jossa on 1 päivän tauko 2 työpäivän työn jälkeen. Se alkoi tiistaina 29. kesäkuuta. Raportointipäivänä, keskiviikkona 30. kesäkuuta, edistyminen on 40 %. Jäljellä oleva työ, 3 työpäivää, alkaa raportointipäivänä ja kulkee tauon yli. Loppu on maanantaina 5. heinäkuuta. Ilman taukoa se oli perjantaina 2. heinäkuuta.
 
-**Tunnit ja raportointipäivä.** Aikaa ei voi syöttää valintanauhassa. Raportointipäivä täytetään päivämääränä. Jos edistymistä tarkistetaan työajan jälkeen, raportointipäiväksi asetetaan seuraava työpäivä. Tunneissa mitattava tehtävä laskee jäljellä olevan työn raportointipäivän alusta. Otetaan esimerkiksi *Lay hollow-core floor* harjoitusprojektista opetusohjelman 4 jälkeen: 5 tuntia, maanantaina 28. kesäkuuta, työpäivä alkaa klo 07:00. Kun raportointipäivä on maanantaina 28. kesäkuuta ja edistyminen 40%, tehtävässä on jäljellä 3 tuntia työtä, joka kulkee välillä 07:00–10:00, vaikka työtä olisi jo tehty kyseisenä aamuna. Miten sovellus laskee tunnit, selitetään kohdassa [Päivät ja tunnit](docs://uitleg-dagen-en-uren).
+**Tunnit ja raportointipäivä.** Aikaa ei voi syöttää valintanauhassa. Raportointipäivä täytetään päivämääränä. Jos edistymistä tarkistetaan työajan jälkeen, raportointipäiväksi asetetaan seuraava työpäivä. Tunneissa mitattava tehtävä laskee jäljellä olevan työn raportointipäivän alusta. Otetaan esimerkiksi *Lay hollow-core floor* harjoitusprojektista opetusohjelman 4 jälkeen, kun kaikki sitä edeltävä on valmistunut: 5 tuntia, maanantaina 28. kesäkuuta, työpäivä alkaa klo 07:00. Kun raportointipäivä on maanantaina 28. kesäkuuta ja prosentti 40 %, tehtävässä on jäljellä 3 tuntia työtä, joka kulkee välillä 07:00–10:00, vaikka työtä olisi jo tehty kyseisenä aamuna. Miten sovellus laskee tunnit, selitetään kohdassa [Päivät ja tunnit](docs://uitleg-dagen-en-uren).
 
 **Perustason päivittäminen.** Sitä ei voi tehdä. Uusi perustaso tallennetaan ja vanha poistetaan. Kun projekti siirretään, todelliset päivämäärät ja raportointipäivä siirtyvät mukana. Perustasot eivät oletuksena siirry. Näin siirtymä jää näkyviin erona. Katso [Projektin siirtäminen](docs://howto-project-verplaatsen).
 

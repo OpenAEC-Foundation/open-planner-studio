@@ -50,7 +50,7 @@ Con *suavizado*, una tarea no puede empezar más tarde que su inicio tardío. Es
 
 ## Ejemplo práctico: el albañil en dos muros
 
-El ejemplo es el proyecto de práctica de los tutoriales *House extension*, tal como está justo antes de la nivelación del tutorial 5. En el tutorial 5 usted lo hace solo y comprueba los números. En este ejemplo, el enlucido está en *Trabajo fijo* y el yesero trabaja con unidades de 2, como en [Reglas de trabajo: duración, unidades y trabajo](docs://uitleg-werkregels).
+El ejemplo es el proyecto de práctica de los tutoriales *House extension*, tal como está justo antes de la nivelación del tutorial 5. En el tutorial 5 usted lo hace solo y comprueba los números. En este ejemplo, el enlucido está en *Trabajo fijo* y el yesero trabaja con unidades de 2, como en [Tipos de tarea: duración, unidades y trabajo](docs://uitleg-werkregels).
 
 Después del forjado alveolar, terminado el lunes 28 de junio, la hoja interior de la cavidad (5 días laborables) y la hoja exterior de la cavidad (6 días laborables) empiezan ambas el martes 29 de junio. Las dos son del albañil, con unidades de 1 y *Unidades máx* de 1. Después de la hoja interior vienen los elementos de cubierta (un trabajo de grúa de 6 horas) y la cubierta (2 días laborables). Los marcos de ventana esperan a la cubierta y a la hoja exterior. La entrega es el lunes 30 de agosto.
 
@@ -66,22 +66,22 @@ Ambas tareas tienen prioridad 500. Los marcos de ventana solo se entregan el 14 
 
 La hoja exterior no puede empezar el 29 de junio. El primer día en que el albañil vuelve a estar libre es el martes 6 de julio. Eso son 5 días laborables después del inicio temprano, así que el retraso de nivelación es 5. La hoja exterior va ahora del 6 de julio al 13 de julio inclusive. Los marcos solo empiezan el 14 de julio de todos modos, así que la entrega sigue siendo el lunes 30 de agosto. La ventana muestra *Fecha de fin del proyecto: sin cambios (30-08-2027)* y una línea: *Build outer cavity leaf*, inicio anterior 29-06-2027, nuevo inicio 06-07-2027, *5 d*.
 
-Los 5 días laborables del desplazamiento son exactamente la holgura de la hoja exterior. Por eso *suavizado* da aquí el mismo resultado. La hoja exterior ya no tiene holgura y es crítica.
+Los 5 días laborables del desplazamiento son exactamente la holgura de la hoja exterior. Por eso la *nivelación* da aquí el mismo resultado. La hoja exterior ya no tiene holgura y es crítica.
 
 ### Y si los marcos no llegan el 14 de julio
 
 Sin esa restricción, los marcos pueden empezar el viernes 9 de julio y la entrega es el miércoles 25 de agosto. La hoja exterior tiene entonces solo 2 días laborables de holgura.
 
-- Sin *suavizado*, la hoja exterior se desplaza igual 5 días laborables. Ahora los marcos tienen que esperar: empiezan el 14 de julio, 3 días laborables después. Todo lo posterior se mueve con ellos y la entrega pasa del 25 de agosto al 30 de agosto, también 3 días laborables más tarde.
-- Con *suavizado*, nada se desplaza. La hoja exterior no cabe dentro de sus 2 días laborables de holgura. La ventana muestra el conflicto *Build outer cavity leaf*, 5 día(s), con el motivo *No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto*.
+- Sin *nivelación*, la hoja exterior se desplaza igual 5 días laborables. Ahora los marcos tienen que esperar: empiezan el 14 de julio, 3 días laborables después. Todo lo posterior se mueve con ellos y la entrega pasa del 25 de agosto al 30 de agosto, también 3 días laborables más tarde.
+- Con *nivelación*, nada se desplaza. La hoja exterior no cabe dentro de sus 2 días laborables de holgura. La ventana muestra el conflicto *Build outer cavity leaf*, 5 día(s), con el motivo *No hay suficiente capacidad libre dentro de la holgura para resolver este conflicto*.
 
 ### Y si la hoja exterior recibe prioridad
 
-Si da a la hoja exterior la prioridad *Alta* (900), va primero. Se queda el 29 de junio y ahora cede la hoja interior: se desplaza 6 días laborables, del 7 de julio al 13 de julio inclusive. La hoja interior solo tiene 3 días laborables de holgura, así que desplazarla 6 días laborables son 3 de más. Los elementos de cubierta, los marcos y todo lo posterior se mueven con ella. La entrega pasa del lunes 30 de agosto al jueves 2 de septiembre. La misma sobreasignación da, por tanto, otra fecha de fin, según qué tarea se queda en su sitio.
+Si usted da a la hoja exterior la prioridad *Alta* (900), va primero. Se queda el 29 de junio y ahora cede la hoja interior: se desplaza 6 días laborables, del 7 de julio al 13 de julio inclusive. La hoja interior solo tiene 3 días laborables de holgura, así que desplazarla 6 días laborables son 3 de más. Los elementos de cubierta, los marcos y todo lo posterior se mueven con ella. La entrega pasa del lunes 30 de agosto al jueves 2 de septiembre. La misma sobreasignación da, por tanto, otra fecha de fin, según qué tarea se queda en su sitio.
 
 ### Y si llega un segundo albañil
 
-Si pone las *Unidades máx* del albañil en 2, ya no hay sobreasignación. *Calcular* informa: *Ninguna tarea necesita moverse — la planificación ya está libre de conflictos*.
+Si usted pone las *Unidades máx* del albañil en 2, ya no hay sobreasignación. *Calcular* informa: *Ninguna tarea necesita moverse — la planificación ya está libre de conflictos*.
 
 ## Consecuencias y malentendidos
 
@@ -101,5 +101,5 @@ Si pone las *Unidades máx* del albañil en 2, ya no hay sobreasignación. *Calc
 
 - [Resolver la sobreasignación](docs://howto-overbezetting-oplossen): los pasos para encontrar la sobreasignación y nivelarla.
 - [Ruta crítica y holgura](docs://uitleg-kritiek-pad): qué es la holgura y por qué una tarea se vuelve crítica.
-- [Reglas de trabajo: duración, unidades y trabajo](docs://uitleg-werkregels): cómo la duración de una tarea se mueve con las unidades.
+- [Tipos de tarea: duración, unidades y trabajo](docs://uitleg-werkregels): cómo la duración de una tarea se mueve con las unidades.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tres torres que necesitan las mismas cuadrillas y la grúa torre, y lo que la nivelación hace con eso.

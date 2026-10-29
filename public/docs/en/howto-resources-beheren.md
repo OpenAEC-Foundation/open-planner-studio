@@ -41,7 +41,7 @@ A new step starts with today's date and 1 unit. Change both, because otherwise a
 1. Click the bin in the row.
 2. If the resource has assignments, the app asks for confirmation, for example *'Bricklayer' has 4 assignment(s) — delete?* Click the tick to delete or the cross to cancel. Without assignments the resource disappears at once.
 
-The resource's assignments go with it. If a task has a work rule other than *Fixed duration and units*, the app divides the work of the removed resource among the resources that remain. Depending on the rule, that changes their units or the task's duration. If the duration changes, the schedule is out of date.
+The resource's assignments go with it. If a task has a task type other than *Fixed duration and units*, the app divides the work of the removed resource among the resources that remain. Depending on the task type, that changes their units or the task's duration. If the duration changes, the schedule is out of date.
 
 You can undo creating, editing and deleting with *Undo* (Ctrl+Z).
 

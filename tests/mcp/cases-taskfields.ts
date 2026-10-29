@@ -19,6 +19,8 @@ import { readTools } from '@/services/mcp/tools/readTools';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { TASK_FIELD_SCHEMA_PROPERTIES } from '@/services/mcp/tools/taskFields';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
+import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { parseInstant } from '@/utils/dateUtils';
 
 const store = useAppStore;
 
@@ -230,6 +232,25 @@ test('X9: p6DurationType/p6ActivityType zijn via de echte MCP-update runtime rea
   assertEq(JSON.stringify(taskById(id)), before, 'beide geweigerde MCP-calls laten de taak byte-identiek');
 });
 
+test('knownbug 83: wbsCode schrijven wordt geweigerd, zoals de leestools uitleggen', async () => {
+  reset();
+  const id = seedTask('WBS blijft afgeleid', 5);
+  const before = JSON.stringify(taskById(id));
+  const res = await call('planner_update_tasks', { updates: [{ id, fields: { wbsCode: '9.9' } }] });
+  assertEq(rejections(res).length, 1, 'exact één weigering');
+  assert(/WBS code is derived/.test(rejections(res)[0].reason), 'weigering legt de afgeleide WBS uit');
+  assertEq(okData(res).updated, [], 'geen schijnsucces');
+  assertEq(JSON.stringify(taskById(id)), before, 'taak blijft byte-identiek');
+
+  const count = store.getState().tasks.length;
+  const added = await call('planner_add_tasks', { tasks: [{ tempId: 'ongeldige-wbs', name: 'Ongeldige WBS', wbsCode: '9.9' }] });
+  assertEq(added.ok, false, 'ook toevoegen accepteert geen wbsCode');
+  const addError = (added as McpToolErr).error;
+  assert(/unknown field 'wbsCode'.*WBS code is derived/.test(addError),
+    `toevoegen weigert specifiek de afgeleide WBS: ${addError}`);
+  assertEq(store.getState().tasks.length, count, 'geen taak aangemaakt bij ongeldige invoer');
+});
+
 test('update_tasks: fields.time wordt geweigerd en laat de hele time-tak intact', async () => {
   reset();
   withStatusDate();
@@ -276,7 +297,7 @@ test('update_tasks: een duur-wijziging WIST een achtergebleven durationMinutes (
   assertEq(t.time.durationMinutes, undefined, 'de minuten-bron is gewist (anders zou die de dag-duur stil overrulen)');
 });
 
-test('add/update/get_task: uren zijn een expliciete native eenheid en round-trippen via MCP', async () => {
+test('add/update/get_task/overview: dagen en uren blijven hun native eenheid via MCP', async () => {
   reset();
   store.setState((s) => {
     s.calendar.workTime = {
@@ -288,13 +309,23 @@ test('add/update/get_task: uren zijn een expliciete native eenheid en round-trip
     };
   });
   const created = okData(await call('planner_add_tasks', {
-    tasks: [{ tempId: 'tmp-hour', name: 'Uurtaak', duration: 12, durationUnit: 'hours' }],
+    tasks: [
+      { tempId: 'tmp-hour', name: 'Uurtaak', duration: 12, durationUnit: 'hours' },
+      { tempId: 'tmp-day', name: 'Dagtaak', duration: 2 },
+    ],
   }));
   const id = created.created['tmp-hour'];
   let task = taskById(id)!;
   assertEq(task.time.durationUnit, 'hours', 'aanmaak bewaart hours als native eenheid');
   assertEq(task.time.durationMinutes, 720, 'aanmaak bewaart exact 720 minuten');
   assertEq(task.time.scheduleDuration, 1.5, 'afgeleid dagequivalent volgt de 8-uurskalender');
+
+  // Eén overzicht mengt dagen en uren: de urenduur blijft 12, niet het dagequivalent 1,5.
+  const overview = okData(await call('planner_get_project_overview', {}));
+  const dayRow = overview.tasks.find((row: any) => row.id === created.created['tmp-day']);
+  const hourRow = overview.tasks.find((row: any) => row.id === id);
+  assertEq([dayRow.dur, dayRow.durUnit], [2, 'days'], 'overzicht: dagduur met eenheid');
+  assertEq([hourRow.dur, hourRow.durUnit], [12, 'hours'], 'overzicht: native uren, geen dagequivalent');
 
   okData(await call('planner_update_tasks', {
     updates: [{ id, fields: { duration: 10, durationUnit: 'hours' } }],
@@ -304,6 +335,9 @@ test('add/update/get_task: uren zijn een expliciete native eenheid en round-trip
   const read = okData(await call('planner_get_task', { taskId: id }));
   assertEq(read.duration, 10, 'get_task geeft de native uurwaarde terug');
   assertEq(read.durationUnit, 'hours', 'get_task benoemt de native eenheid');
+  const updated = okData(await call('planner_get_project_overview', {}));
+  const updatedHourRow = updated.tasks.find((row: any) => row.id === id);
+  assertEq([updatedHourRow.dur, updatedHourRow.durUnit], [10, 'hours'], 'overzicht houdt na update de native uurwaarde');
 });
 
 test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd zonder herinterpretatie', async () => {
@@ -335,10 +369,17 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
   const id = created.created['tmp-f'];
   assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
-  // De schemabeschrijving belooft "een WORKTIME-dagtaak beslaat in de datums hele werkdagen (2.5 ⇒ 3)".
+  // F3 (alleen uren §3.4/§3.14, B1): de dagenmaat telt het halve dagdeel mee. 2.5 dag begint op dezelfde
+  // dag als een taak van 3 en eindigt halverwege de derde werkdag, niet aan het einde ervan. De
+  // schemabeschrijving van `duration` belooft dat ook ("kept exactly", §3.13). Was in F3c-winkel een
+  // tussenstand (B2, "2,5 ⇒ 3"); met de motor erbij is het doel gehaald.
   const drie = taskById(created.created['tmp-3'])!.time;
-  assertEq([taskById(id)!.time.earlyStart, taskById(id)!.time.earlyFinish], [drie.earlyStart, drie.earlyFinish],
-    '2.5 dag beslaat in de datums dezelfde 3 werkdagen als een taak van 3');
+  const fractie = taskById(id)!.time;
+  assertEq(fractie.earlyStart, drie.earlyStart, '2.5 dag begint op dezelfde dag als een taak van 3');
+  assertEq(fractie.earlyFinish.slice(0, 10), drie.earlyFinish.slice(0, 10), '2.5 dag eindigt op de derde werkdag');
+  const eng = new CalendarEngine(store.getState().calendar);
+  assertEq(eng.workMinutesBetween(parseInstant(fractie.earlyFinish), parseInstant(drie.earlyFinish)), eng.hoursPerDay * 30,
+    '2.5 dag eindigt een halve werkdag vóór de taak van 3');
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { duration: 0.5 } }] }));
   assertEq(taskById(id)!.time.scheduleDuration, 0.5, 'update_tasks bewaart 0.5 dag exact');
 
@@ -362,8 +403,8 @@ test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet bli
   okData(await call('planner_update_tasks', {
     updates: [{ id, fields: { constraint: { type: 'SNET', date: '2026-05-04' }, deadline: '2026-06-01' } }],
   }));
-  assertEq(taskById(id)!.constraint, { type: 'SNET', date: '2026-05-04' }, 'de constraint landde');
-  assertEq(taskById(id)!.deadline, '2026-06-01', 'de deadline landde');
+  assertEq(taskById(id)!.constraint, { type: 'SNET', date: '2026-05-04T07:00' }, 'de constraint landde');
+  assertEq(taskById(id)!.deadline, '2026-06-01T16:00', 'de deadline landde');
 
   // Wissen met null.
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { constraint: null, deadline: null } }] }));
@@ -390,6 +431,77 @@ test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet bli
   // De projectkalender-id is wél een geldige taak-kalender.
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { calendarId: store.getState().calendar.id } }] }));
   assertEq(taskById(id)!.calendarId, store.getState().calendar.id, 'een bestaande kalender-id landt');
+});
+
+test('knownbug 82: duur op een fase wordt geweigerd zonder schijnsucces of deelwijziging', async () => {
+  reset();
+  const parent = store.getState().addTask({ name: 'Fase' });
+  const child = store.getState().addTask({ name: 'Kind', parentId: parent });
+  store.getState().runCPM();
+  const before = JSON.stringify(taskById(parent));
+  const history = store.getState().historyEvents.length;
+  for (const fields of [{ duration: 20, name: 'Mag niet landen' }, { duration: 0 }, { duration: 8, durationUnit: 'hours' }]) {
+    const res = await call('planner_update_tasks', { updates: [{ id: parent, fields }] });
+    assertEq(okData(res).updated, [], 'fase niet als bijgewerkt gerapporteerd');
+    assert(/summary.*duration.*derived|duration.*summary.*derived/i.test(rejections(res)[0]?.reason ?? ''), 'gerichte reden over afgeleide duur');
+    assertEq(JSON.stringify(taskById(parent)), before, 'het hele fields-blok blijft onaangeroerd');
+  }
+  assertEq(store.getState().historyEvents.length, history, 'alleen weigeren maakt geen undo-stap');
+  okData(await call('planner_update_tasks', { updates: [{ id: child, fields: { duration: 2 } }] }));
+  assertEq(taskById(child)!.time.scheduleDuration, 2, 'duur van bladtaak blijft schrijfbaar');
+
+  const empty = store.getState().addTask({ name: 'Lege geïmporteerde WBS' });
+  store.setState(st => { st.tasks.find(t => t.id === empty)!.isSummary = true; });
+  const res = await call('planner_update_tasks', { updates: [{ id: empty, fields: { duration: 20 } }] });
+  assertEq(okData(res).updated, [], 'ook expliciete lege samenvatting weigert duur');
+  assertEq(rejections(res).length, 1, 'expliciete fase krijgt één weigering');
+});
+
+test('knownbug 82: add_tasks weigert een expliciete duur op een nieuwe ouder, ongeacht volgorde', async () => {
+  for (const reverse of [false, true]) {
+    reset();
+    const items = [{ tempId: 'tmp-phase', name: 'Fase', duration: 20 }, { tempId: 'tmp-child', name: 'Kind', parentId: 'tmp-phase', duration: 2 }];
+    const before = JSON.stringify(store.getState().tasks);
+    const history = store.getState().historyEvents.length;
+    const res = await call('planner_add_tasks', { tasks: reverse ? items.reverse() : items });
+    assertEq(res.ok, false, 'de hele ongeldige aanmaak wordt geweigerd');
+    assertEq((res as McpToolErr).code, 'VALIDATION', 'duidelijke validatiefout');
+    assertEq(JSON.stringify(store.getState().tasks), before, 'geen halve taakboom');
+    assertEq(store.getState().historyEvents.length, history, 'geen lege undo-stap');
+  }
+  const valid = await call('planner_add_tasks', { tasks: [
+    { tempId: 'tmp-phase', name: 'Fase' }, { tempId: 'tmp-child', name: 'Kind', parentId: 'tmp-phase', duration: 2 },
+  ] });
+  okData(valid);
+  assertEq(byName('Fase').time.scheduleDuration, 2, 'zonder expliciete ouderduur wordt de fase correct afgeleid');
+
+  const beforeBatch = JSON.stringify(store.getState().tasks);
+  const failedBatch = await batchDef.handler({ steps: [
+    { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-earlier', name: 'Moet terugrollen', duration: 1 }] } },
+    { tool: 'planner_add_tasks', args: { tasks: [
+      { tempId: 'tmp-invalid-parent', name: 'Ongeldige fase', duration: 20 },
+      { tempId: 'tmp-new-child', name: 'Nieuw kind', parentId: 'tmp-invalid-parent', duration: 2 },
+    ] } },
+  ] }, makeCtx());
+  assertEq(failedBatch.ok, false, 'ongeldige ouderduur is ook in een batch een harde fout');
+  assertEq(JSON.stringify(store.getState().tasks), beforeBatch, 'ook de eerdere batchstap is volledig teruggerold');
+});
+
+test('knownbug 82: batch meldt de geweigerde faseduur en werkt geldige bladtaken wel bij', async () => {
+  reset();
+  const res = await batchDef.handler({ steps: [
+    { tool: 'planner_add_tasks', args: { tasks: [
+      { tempId: 'tmp-phase', name: 'Fase' }, { tempId: 'tmp-child', name: 'Kind', parentId: 'tmp-phase', duration: 2 },
+    ] } },
+    { tool: 'planner_update_tasks', args: { updates: [
+      { id: 'tmp-phase', fields: { duration: 20 } }, { id: 'tmp-child', fields: { duration: 3 } },
+    ] } },
+  ] }, makeCtx());
+  const data = okData(res);
+  assertEq(data.rejections.length, 1, 'weigering zichtbaar in batchrapport');
+  assert(/summary.*duration.*derived|duration.*summary.*derived/i.test(data.rejections[0].reason), 'gerichte batchreden');
+  assertEq(byName('Kind').time.scheduleDuration, 3, 'geldige bladtaak bijgewerkt');
+  assertEq(byName('Fase').time.scheduleDuration, 3, 'fase volgt het kind, niet de geweigerde 20');
 });
 
 test('update_tasks: isMilestone ⇒ duur 0; verzameltaak/taak-met-toewijzing wordt geweigerd', async () => {

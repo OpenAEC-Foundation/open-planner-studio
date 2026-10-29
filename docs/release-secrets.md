@@ -22,16 +22,25 @@ dat wordt per run door GitHub zelf uitgegeven.
 |---|---|---|---|
 | `TAURI_SIGNING_PRIVATE_KEY` | `release.yml` (build-linux-mac, build-windows) | Signeert de updater-artefacten en `latest.json` met minisign | **Onherstelbaar** — zie §2 |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | idem | Wachtwoord op die privésleutel | Idem: zonder wachtwoord is de sleutel onbruikbaar |
-| `AZURE_TENANT_ID` | `release.yml` (build-windows) | Azure Trusted Signing — Authenticode op de Windows-installer | Herstelbaar: nieuwe credentials aanvragen. Tot die tijd waarschuwt SmartScreen bij elke Windows-download |
+| `AZURE_TENANT_ID` | `release.yml` (build-windows), `windows-sign-check.yml` | Azure Artifact Signing (voorheen Trusted Signing) — Authenticode op het Windows-programma, de uninstaller en de installer, via `scripts/windows-sign.ps1` (Tauri `signCommand`). De drie ID/secret-waarden gaan als `EnvironmentCredential` naar de Microsoft-signeerclient; endpoint, account en profiel naar zijn `metadata.json` | Herstelbaar: nieuwe credentials aanvragen. Tot die tijd waarschuwt SmartScreen bij elke Windows-download |
 | `AZURE_CLIENT_ID` | idem | idem | idem |
 | `AZURE_CLIENT_SECRET` | idem | idem | idem — **en dit is er één met een vervaldatum**, zie §3 |
 | `AZURE_ENDPOINT` | idem | idem | idem |
 | `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME` | idem | idem | idem |
 | `AZURE_CERTIFICATE_PROFILE_NAME` | idem | idem | idem |
+| `APPLE_CERTIFICATE` | `release.yml` (build-linux-mac, alleen de macOS-leg), `macos-sign-check.yml` | Developer ID Application-certificaat (base64 `.p12`); `tauri-action` importeert het in een tijdelijke keychain en tekent de app | Herstelbaar: nieuw certificaat in het Apple Developer-account. Tot die tijd faalt `scripts/macos-verify-dmg.sh` en blijft de release draft |
+| `APPLE_CERTIFICATE_PASSWORD` | idem | Wachtwoord op die `.p12` | idem |
+| `APPLE_SIGNING_IDENTITY` | idem | Naam van de identiteit waarmee `codesign` tekent (`Developer ID Application: …`) | idem |
+| `APPLE_TEAM_ID` | idem | Apple Team-ID bij het tekenen en notariseren | idem |
+| `APPLE_API_ISSUER` | `release.yml` (macOS-build en de stap *Notarize and staple dmg*), `macos-sign-check.yml` | Issuer-ID van de App Store Connect API-key voor notarisatie | Herstelbaar: nieuwe API-key in App Store Connect. Zonder notarisatie weigert Gatekeeper de app |
+| `APPLE_API_KEY` | idem | Key-ID van die API-key | idem |
+| `APPLE_API_KEY_CONTENT` | `release.yml` (stap *Write App Store Connect API key*), `macos-sign-check.yml` | Inhoud van de `.p8`-privésleutel; de workflow schrijft hem naar `$RUNNER_TEMP/apple-api-key.p8` | idem |
 | `SNAPCRAFT_STORE_CREDENTIALS` | `snap.yml` (publish-stap) | Publiceren naar het `stable`-kanaal van de Snap Store | Herstelbaar: opnieuw exporteren. Verlopen credentials laten de publish-stap falen terwijl de rest van de release slaagt |
 | `DEPLOY_SSH_KEY` | `live.yml` (deploy-job) | `rsync` van `dist/` naar `open-planner-studio.open-aec.com` | Herstelbaar: nieuw sleutelpaar, publieke helft op de server |
 
-Van deze negen is er precies één die je niet opnieuw kunt maken.
+| `AUR_SSH_PRIVATE_KEY` | `aur.yml` (push-stap) | Pushen van `open-planner-studio-bin` naar `ssh://aur@aur.archlinux.org/open-planner-studio-bin.git` | Herstelbaar: nieuw sleutelpaar, publieke helft in het AUR-account. Ontbreekt hij, dan bouwt en test `aur.yml` het pakket wel, maar pusht niet |
+
+Van deze achttien is er precies één die je niet opnieuw kunt maken: de minisign-sleutel (twee secrets: sleutel en wachtwoord).
 
 ## 2. De minisign-sleutel — de enige echte SPOF
 
@@ -105,6 +114,7 @@ tijdens een release — het slechtst denkbare moment, want de tag is dan al gepu
 |---|---|---|---|
 | `AZURE_CLIENT_SECRET` | ⟨IN TE VULLEN⟩ | ⟨IN TE VULLEN — agenda-afspraak, één maand van tevoren⟩ | Nieuw client secret in Azure AD; secret in GitHub vervangen |
 | Azure-certificaatprofiel | ⟨IN TE VULLEN⟩ | ⟨IN TE VULLEN⟩ | Via Azure Trusted Signing |
+| Developer ID-certificaat (`APPLE_CERTIFICATE`) | ⟨IN TE VULLEN⟩ | ⟨IN TE VULLEN⟩ | Nieuw certificaat in het Apple Developer-account; `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` en zo nodig `APPLE_SIGNING_IDENTITY` vervangen |
 | `SNAPCRAFT_STORE_CREDENTIALS` | ⟨IN TE VULLEN⟩ | ⟨IN TE VULLEN⟩ | `snapcraft export-login` en het secret vervangen |
 
 Zet die herinneringen in een agenda die niet aan één persoon hangt. Een
@@ -117,16 +127,40 @@ Nuttig bij het lezen van een gefaalde release:
 - **Ontbrekende Tauri-signing-secrets** — `tauri-action` bouwt wel, maar
   produceert geen `.sig`-bestanden en geen bruikbare `latest.json`. De release
   slaagt ogenschijnlijk; de updater vindt niets. Stilste faalmodus van de keten.
-- **Ontbrekende of verlopen Azure-secrets** — de `azure/trusted-signing-action`
-  faalt hard in `build-windows`. Zichtbaar, en de release blijft draft. Dat is
-  het gewenste gedrag.
+- **Ontbrekende of verlopen Azure-secrets** — `scripts/windows-sign.ps1` faalt
+  hard in `build-windows`: bij `-Setup` als endpoint, account of profiel
+  ontbreekt, en tijdens de build als `signtool` niet kan inloggen of tekenen.
+  De poortstap *Verify Authenticode* vangt een ongetekend programma of
+  installer. Zichtbaar, en de release blijft draft. Dat is het gewenste gedrag.
+- **Ontbrekende Apple-secrets** — `tauri-action` bouwt dan een app zonder
+  Developer ID-handtekening (zo ging v2026.9.0 de deur uit). Sinds PR #390 vangt
+  `scripts/macos-verify-dmg.sh` dat in `release.yml`: de release blijft draft.
+  Achteraf zie je het in `release-verify.yml` (zie `docs/release-verificatie.md`).
 - **Ontbrekende Snap-credentials** — `snap.yml` bouwt de snap en hangt hem aan de
   release, maar slaat de publish-stap over (`if: … env.SNAPCRAFT_STORE_CREDENTIALS != ''`).
   Bewust: geen credentials betekent geen publicatie, geen fout.
 - **Ontbrekende deploy-sleutel** — `live.yml` faalt in de deploy-job. De site
   blijft op de vorige versie staan, wat veiliger is dan half deployen.
 
-## 5. Zie ook
+- **Ontbrekende AUR-sleutel** — `aur.yml` bouwt en test het pakket (artefact
+  `aur-package`) en slaat alleen de push over, met een melding in de job-samenvatting.
+  Bewust: geen sleutel betekent geen publicatie, geen fout.
+
+## 5. De AUR-sleutel instellen
+
+1. Maak een AUR-account voor de OpenAEC Foundation op `aur.archlinux.org`.
+2. Maak een eigen sleutelpaar, alleen hiervoor: `ssh-keygen -t ed25519 -C aur-open-planner-studio -f aur_ops`.
+3. Zet de publieke helft (`aur_ops.pub`) in het AUR-account (My Account → SSH Public Key).
+4. Zet de privéhelft (`aur_ops`, de hele tekst) als Actions-secret `AUR_SSH_PRIVATE_KEY`.
+5. Eerste publicatie: start `aur.yml` met de hand met de laatste stabiele tag en `publish` aan. De
+   eerste push maakt het pakket `open-planner-studio-bin` aan.
+
+| | |
+|---|---|
+| AUR-account | ⟨IN TE VULLEN⟩ |
+| Privésleutel bewaard in | ⟨IN TE VULLEN⟩ |
+
+## 6. Zie ook
 
 - [`SECURITY.md`](../SECURITY.md) — kwetsbaarheden melden.
 - `.claude/rules/ci-release.md` §*Auto-update & releases* — hoe de releaseketen in elkaar zit.

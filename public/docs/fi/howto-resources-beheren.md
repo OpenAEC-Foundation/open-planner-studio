@@ -26,7 +26,7 @@ Muokkaa rivin kenttiä. Sovellus tallentaa nimen, normaalihinnan ja mitan, kun k
 
 - *Enimmäismäärä* hyväksytään vain, jos arvo on suurempi kuin 0. Jos arvo on 0 tai pienempi, kentän reunus muuttuu punaiseksi ja arvo palaa edelliseen.
 - *Kalenteri* määrää, mihin päiviin resurssi on käytettävissä. Valitse *Projektikalenteri* tai oma kalenteri. Painikkeella *+ Resurssikalenteri* luodaan uusi kalenteri, ja kynä (*Muokkaa…*) avaa valitun kalenterin. Jos tehtävä on ajoitettu päivälle, jolloin resurssi ei ole kalenterinsa mukaan käytettävissä, kyseinen päivä lasketaan ylikuormitukseksi. Resurssikalenterin luominen on kuvattu ohjeessa [Resurssikalenterin asettaminen](docs://howto-resourcekalender-instellen).
-- *Normaalihinta/h* ja *Yhteensä*: *Yhteensä* on resurssin kuormitetut tunnit kerrottuna normaalihinnalla. Rappari, jonka kuormitus on 32 tuntia ja normaalihinta 50 per tunti, on yhteensä 1,600.00. Taulukon alareunassa on kaikkien resurssien summa.
+- *Normaalihinta/h* ja *Yhteensä*: *Yhteensä* on resurssin kuormitetut tunnit kerrottuna normaalihinnalla. Rappari, jonka kuormitus on 32 tuntia ja normaalihinta 50 per tunti, on yhteensä 1 600,00. Taulukon alareunassa on kaikkien resurssien summa.
 - *Työryhmä* ryhmittelee resurssin resurssin alle, jonka tyyppi on *Työryhmä*. Kyse on pelkästä ryhmittelystä: sovellus ei laske jäsenten kapasiteettia tai kuormitusta yhteen työryhmään.
 - Värillinen ruutu vasemmalla on resurssin väri. Se on pelkkä näyttö eikä vaikuta aikatauluun.
 
@@ -41,13 +41,13 @@ Uusi vaihe alkaa tämän päivän päivämäärästä ja arvosta 1. Muuta molemm
 1. Napsauta rivin roskakorikuvaketta.
 2. Jos resurssilla on resurssikohdistuksia, sovellus pyytää vahvistuksen, esimerkiksi *'Bricklayer' on käytössä 4 resurssikohdistuksessa — poistetaanko?* Poista napsauttamalla valintamerkkiä. Peruuta napsauttamalla ristiä. Ilman resurssikohdistuksia resurssi katoaa heti.
 
-Resurssin resurssikohdistukset poistuvat myös. Jos tehtävällä on muu työsääntö kuin *Kiinteä kesto ja kuormitusaste*, sovellus jakaa poistetun resurssin työn jäljelle jääville resursseille. Säännöstä riippuen tämä muuttaa niiden kuormitusastetta tai tehtävän kestoa. Jos kesto muuttuu, aikataulu ei ole enää ajan tasalla.
+Resurssin resurssikohdistukset poistuvat myös. Jos tehtävällä on muu tehtävätyyppi kuin *Kiinteä kesto ja kuormitusaste*, sovellus jakaa poistetun resurssin työn jäljelle jääville resursseille. Tehtävätyypistä riippuen tämä muuttaa niiden kuormitusastetta tai tehtävän kestoa. Jos kesto muuttuu, aikataulu ei ole enää ajan tasalla.
 
 Luomisen, muokkauksen ja poistamisen voi kumota painikkeella *Kumoa* (Ctrl+Z).
 
 ### Pieni yleiskatsaus sivupalkissa
 
-*Resurssit › Hallinta › Resurssitelakka* näyttää tiivistetyn yleiskatsauksen oikeanpuoleisessa sarakkeessa, *Ominaisuudet*-paneelin vieressä. Siellä näkyvät kunkin resurssin nimi ja väri. Ylikuormitetun resurssin vieressä on varoitusmerkki (*Ylikuormitettu*). Siellä voi muuttaa vain *Enimmäismäärä*-arvoa. Jos valitaan yksi tai useampi tehtävä, yleiskatsaus näyttää vain näiden tehtävien resurssit.
+*Resurssit › Hallinta › Resurssitelakka* näyttää tiivistetyn yleiskatsauksen oikeanpuoleisessa sivupalkissa, *Ominaisuudet*-paneelin vieressä. Siellä näkyvät kunkin resurssin nimi ja väri. Ylikuormitetun resurssin vieressä on varoitusmerkki (*Ylikuormitettu*). Siellä voi muuttaa vain *Enimmäismäärä*-arvoa. Jos valitaan yksi tai useampi tehtävä, yleiskatsaus näyttää vain näiden tehtävien resurssit.
 
 ## Sudenkuopat ja mitä sovellus silloin tekee
 

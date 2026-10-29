@@ -16,7 +16,7 @@ Uma **linha de base** é uma cópia do planeamento num determinado momento, norm
 
 O exemplo abaixo usa o perfil de cálculo *Open Planner Studio*, com o qual um projeto novo é calculado. Mais adiante pode ler o que muda nos perfis Primavera P6 e Microsoft Project.
 
-A aplicação não recalcula sozinha. Após cada alteração ao progresso ou à data de estado, a barra de estado mostra *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo através de *Planeamento › Agendamento › Calcular*. Se *Calcular automaticamente* estiver ativado (em *Definições › Projeto › Definições*, separador *Planeamento*, cabeçalho *Cálculo*), a aplicação faz isto sozinha.
+A aplicação não recalcula sozinha. Após cada alteração ao progresso ou à data de estado, a barra de estado mostra *Desatualizado — recalcule (F5)*. Prima **Calcular** (F5), por exemplo através de *Planeamento › Agendamento › Calcular*. Se *Calcular automaticamente* estiver ativado (em *Definições › Projeto › Definições da app*, separador *Planeamento*, cabeçalho *Cálculo*), a aplicação faz isto sozinha.
 
 ### A data de estado
 
@@ -51,7 +51,7 @@ Uma tarefa em curso mantém o seu início real. Só se move o trabalho restante.
 
 ### Retained Logic e Progress Override
 
-O que faz a aplicação se uma tarefa já tiver começado enquanto a sua predecessora ainda está em curso? Esta situação chama-se **progresso fora de sequência**: o progresso contradiz a ordem. Pense no pintor que já começa numa divisão que já foi estucada, enquanto o estucador ainda está ocupado noutro lado.
+O que faz a aplicação se uma tarefa já tiver começado enquanto a sua predecessora ainda está em curso? Esta relação chama-se **relação fora de sequência**: o progresso contradiz a ordem. Pense no pintor que já começa numa divisão que já foi estucada, enquanto o estucador ainda está ocupado noutro lado.
 
 Dois modos de progresso decidem como a aplicação calcula isso:
 
@@ -128,7 +128,7 @@ Agora um exemplo para o modo de progresso. A mesma ampliação, mas noutro estad
 
 Sem progresso, o plastering estava planeado de terça-feira, 20, a sexta-feira, 23 de julho, e a painting de segunda-feira, 26, a quarta-feira, 28 de julho. A barra de estado mostra agora *1 relação(ões) fora de sequência*: a painting começou enquanto o plastering ainda não está concluído. No painel *Avisos* aparece: *Fora de sequência: o progresso do sucessor contradiz a relação*.
 
-O plastering tem 4 × (1 − 0.25) = 3 dias úteis de trabalho restante: 21, 22 e 23 de julho. A painting tem 3 × (1 − 0.33) = 2 dias úteis de trabalho restante.
+O plastering tem 4 × (1 − 0,25) = 3 dias úteis de trabalho restante: 21, 22 e 23 de julho. A painting tem 3 × (1 − 0,33) = 2 dias úteis de trabalho restante.
 
 - Com **Retained Logic**, esse trabalho restante só pode começar quando o plastering estiver concluído. Isso é sexta-feira, 23 de julho; por isso a painting começa segunda-feira, 26 de julho, e termina terça-feira, 27 de julho. A barra vai do início real, a 21 de julho, até 27 de julho. A folga total é de 7 dias úteis.
 - Com **Progress Override**, o trabalho restante começa na data de estado. A painting termina quinta-feira, 22 de julho, antes de o plastering estar concluído. A folga total é de 10 dias úteis.
@@ -137,11 +137,11 @@ A entrega mantém-se sexta-feira, 6 de agosto, nos dois casos: a painting tinha 
 
 ### Outros perfis de cálculo
 
-Nos perfis Primavera P6 e Microsoft Project, a pintura deste exemplo termina nas mesmas datas (27 e 22 de julho). Diferem nos pontos seguintes. São convenções do perfil; encontra-as em *Definições › Projeto › Info do projeto*, no bloco *Perfil de cálculo e opções*.
+Nos perfis Primavera P6 e Microsoft Project, a painting deste exemplo termina nas mesmas datas (27 e 22 de julho). Diferem nos pontos seguintes. São convenções do perfil; encontra-as em *Definições › Projeto › Definições do projeto*, no bloco *Perfil de cálculo e opções*.
 
 - No perfil Microsoft Project, o trabalho que ainda não começou não passa para a data de estado (convenção *Não mover tarefas não iniciadas para a data de estado*). Se no exemplo acima só definir uma data de estado e não introduzir nada, a entrega nesse perfil mantém-se sexta-feira, 6 de agosto.
 - No perfil Microsoft Project, o trabalho restante também não começa antes do início real mais a duração já decorrida (convenção *O trabalho restante retoma após a duração decorrida*). É um limite inferior extra, a seguir à data de estado: conta o mais tardio dos dois. Considere *Build inner cavity leaf* (5 dias úteis), iniciada na terça-feira, 29 de junho e a 40% na quarta-feira, 30 de junho, a data de estado (duas equipas estão a fazer alvenaria ao mesmo tempo, por isso os 40% já estão feitos após um dia). Tudo o que vem antes está concluído conforme o planeado. O Open Planner Studio e o Primavera P6 deixam a tarefa terminar na sexta-feira, 2 de julho; o Microsoft Project na segunda-feira, 5 de julho, porque terça-feira, 29 de junho, mais 2 dias úteis de duração decorrida é quinta-feira, 1 de julho, depois da data de estado.
-- O Primavera P6 mostra como início antecipado de uma tarefa em curso o início do trabalho restante, e não o início real (no exemplo inner-leaf, quarta-feira, 30 de junho).
+- O Primavera P6 mostra como início antecipado de uma tarefa em curso o início do trabalho restante, e não o início real (no exemplo inner-leaf, quarta-feira, 30 de junho). A coluna *Início* e a barra mostram, porém, o início real em todos os perfis.
 - No perfil Primavera P6, com Progress Override, a relação com uma sucessora que já começou também não conta para a predecessora: deixa de limitar as suas datas mais tardias e a sua folga livre (convenção *Progress Override ignora também para trás um sucessor iniciado*). No exemplo do estucador e do pintor não se vê isso, porque o plastering é crítico de qualquer forma através da betonilha do piso: as suas datas mais tardias e a sua folga livre são iguais com Retained Logic e com Progress Override.
 - Quando abre um ficheiro .xer, a aplicação toma o modo de progresso do ficheiro. Actual Dates, o terceiro modo do P6, não é conhecido pela aplicação; esse ficheiro calcula como Retained Logic.
 
@@ -153,13 +153,13 @@ Nos perfis Primavera P6 e Microsoft Project, a pintura deste exemplo termina nas
 
 **«0% significa não iniciado.»** Se uma tarefa tiver um início real, conta como iniciada, mesmo a 0%. Nesse caso, o trabalho restante é a duração completa e começa na data de estado. Apague o início real para que volte a contar como não iniciada.
 
-**«Progress Override resolve o aviso.»** A mensagem de fora de sequência mantém-se. O modo só decide como a aplicação calcula. Se a relação deixar de estar correta, altere a relação.
+**«Progress Override resolve o aviso.»** A mensagem de progresso fora de sequência mantém-se. O modo só decide como a aplicação calcula. Se a relação deixar de estar correta, altere a relação.
 
 **«A pausa numa tarefa com divisão deixa de contar.»** Não: uma pausa na parte que ainda falta fazer mantém-se no trabalho restante. Considere uma tarefa de 5 dias úteis, com uma pausa de 1 dia após 2 dias de trabalho, iniciada na terça-feira, 29 de junho e, com a data de estado na quarta-feira, 30 de junho, a 40%. O trabalho restante de 3 dias úteis começa na data de estado e atravessa a pausa: o fim é segunda-feira, 5 de julho. Sem a pausa, era sexta-feira, 2 de julho.
 
-**Horas e a data de estado.** Não pode introduzir uma hora no friso: introduza a data de estado como uma data. Se fizer o balanço depois do horário de trabalho, defina a data de estado para o dia útil seguinte. Uma tarefa em horas calcula o trabalho restante a partir do início da data de estado. Considere *Lay hollow-core floor* no projeto de prática, após o tutorial 4: 5 horas, na segunda-feira, 28 de junho, dia útil a partir das 07:00. Com a data de estado na segunda-feira, 28 de junho, e a tarefa a 40%, a tarefa tem 3 horas de trabalho restante, de 07:00 a 10:00, mesmo que já se tenha feito trabalho nessa manhã. A forma como a aplicação conta as horas está explicada em [Dias e horas](docs://uitleg-dagen-en-uren).
+**Horas e a data de estado.** Não pode introduzir uma hora no friso: introduza a data de estado como uma data. Se fizer o balanço depois do horário de trabalho, defina a data de estado para o dia útil seguinte. Uma tarefa em horas calcula o trabalho restante a partir do início da data de estado. Considere *Lay hollow-core floor* no projeto de prática, após o tutorial 4, em que tudo o que vem antes já está concluído: 5 horas, na segunda-feira, 28 de junho, dia útil a partir das 07:00. Com a data de estado na segunda-feira, 28 de junho, e a tarefa a 40%, a tarefa tem 3 horas de trabalho restante, de 07:00 a 10:00, mesmo que já se tenha feito trabalho nessa manhã. A forma como a aplicação conta as horas está explicada em [Dias e horas](docs://uitleg-dagen-en-uren).
 
-**Atualizar a linha de base.** Não é possível. Guarde uma nova e apague a antiga. Se mover o projeto, as datas reais e a data de estado acompanham o projeto, mas as linhas de base, por padrão, não: assim, o desvio continua visível. Veja [Mover um projeto](docs://howto-project-verplaatsen).
+**Atualizar a linha de base.** Não é possível. Guarde uma nova e apague a antiga. Se mover o projeto, as datas reais e a data de estado acompanham o projeto, mas as linhas de base, por padrão, não: assim, a deslocação continua visível como desvio. Veja [Mover um projeto](docs://howto-project-verplaatsen).
 
 ## Veja também
 

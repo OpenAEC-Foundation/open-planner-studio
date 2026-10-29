@@ -5,7 +5,7 @@ import { blocksOf, mspdiWithBlocks, openMspdiAndCalendarDialog } from './fixture
 test('kalenderdialoog bewaart gewone enkelregelige velden bij Enter zonder te sluiten', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ showCalendarDialog: true, enableHourPlanning: true, weekStartDay: 'sunday' });
+    s.setUI({ showCalendarDialog: true, weekStartDay: 'sunday' });
   });
 
   const dialog = page.locator('[data-ops-calendar-dialog]');
@@ -35,7 +35,7 @@ test('kalenderdialoog bewaart gewone enkelregelige velden bij Enter zonder te sl
 test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste weekdag', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ showCalendarDialog: true, enableHourPlanning: true, weekStartDay: 'sunday' });
+    s.setUI({ showCalendarDialog: true, weekStartDay: 'sunday' });
   });
 
   const dialog = page.locator('[data-ops-calendar-dialog]');
@@ -67,7 +67,7 @@ test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste 
 
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ weekStartDay: 'monday' }));
   await expect(firstWeekday).toHaveText('Mon');
-  await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText('8.00 h');
+  await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText('8h');
   await expect(dialog.locator('[data-ops-worktime-editor]')).not.toContainText(/\d(?:\.\d+)?u\b/);
 
   await dialog.locator('[data-ops-cal-apply]').click();
@@ -95,7 +95,7 @@ test('kalenderdialoog rangschikt beide zichtbare weekdagrijen volgens de eerste 
 test('scalar HH:MM-bediening leidt netto uren af, stapt per kwartier en blokkeert ongeldige tijden', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ showCalendarDialog: true, enableHourPlanning: true });
+    s.setUI({ showCalendarDialog: true, });
   });
 
   const dialog = page.locator('[data-ops-calendar-dialog]');
@@ -131,29 +131,29 @@ test('scalar HH:MM-bediening leidt netto uren af, stapt per kwartier en blokkeer
   await expect(workStartUp).toHaveAttribute('title', 'Increase time by 15 minutes');
   await expect(workStartUp).toHaveAttribute('aria-label', 'Increase time by 15 minutes');
   expect(await dialog.locator('[data-ops-scalar-time-step]').evaluateAll(buttons => buttons.every(button => !/^(calendar|ribbon)\./.test(button.getAttribute('title') ?? '') && !/^(calendar|ribbon)\./.test(button.getAttribute('aria-label') ?? '')))).toBe(true);
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   await expect(netHours.locator('input')).toHaveCount(0);
   await expect(dialog.getByText('Standard workday', { exact: true })).toBeVisible();
   // Het label is gekoppeld aan het veld: een schermlezer noemt de naam bij het getal.
-  await expect(dialog.getByLabel('Standard workday', { exact: true })).toHaveText('8.00 h');
+  await expect(dialog.getByLabel('Standard workday', { exact: true })).toHaveText('8h');
   await expect(dialog).not.toContainText('ribbon.calendarDialog.standardWorkday');
 
   await dialog.locator('[data-ops-scalar-time-step="work-start-up"]').click();
   await expect(workStart).toHaveValue('07:15');
-  await expect(netHours).toHaveText('7.75 h');
+  await expect(netHours).toHaveText('7.75h');
   await workStart.press('ArrowDown');
   await expect(workStart).toHaveValue('07:00');
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
 
   await durationUp.click();
   await expect(pauseDuration).toHaveValue('75');
-  await expect(netHours).toHaveText('7.75 h');
+  await expect(netHours).toHaveText('7.75h');
   await pauseDuration.press('ArrowDown');
   await expect(pauseDuration).toHaveValue('60');
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   await pauseDuration.fill('0');
   await pauseDuration.press('Enter');
-  await expect(netHours).toHaveText('9.00 h');
+  await expect(netHours).toHaveText('9h');
   await pauseDuration.press('ArrowDown');
   await expect(pauseDuration).toHaveValue('0');
   await pauseDuration.fill('60');
@@ -164,7 +164,7 @@ test('scalar HH:MM-bediening leidt netto uren af, stapt per kwartier en blokkeer
   await expect(workEnd).toHaveValue('24:00');
   await workEnd.press('ArrowUp');
   await expect(workEnd).toHaveValue('24:00');
-  await expect(netHours).toHaveText('24.00 h');
+  await expect(netHours).toHaveText('24h');
   await dialog.getByRole('button', { name: 'Mon–Fri' }).click();
   await expect(workStart).toHaveValue('07:00');
   await expect(workEnd).toHaveValue('16:00');
@@ -177,13 +177,13 @@ test('scalar HH:MM-bediening leidt netto uren af, stapt per kwartier en blokkeer
   await pauseStart.press('Enter');
   await pauseDuration.fill('35');
   await pauseDuration.press('Enter');
-  await expect(netHours).toHaveText('8.17 h');
+  await expect(netHours).toHaveText('8.17h');
   await pauseDuration.fill('30');
   await pauseDuration.press('Enter');
-  await expect(netHours).toHaveText('8.25 h');
+  await expect(netHours).toHaveText('8.25h');
   await pauseDuration.fill('60');
   await pauseDuration.press('Enter');
-  await expect(netHours).toHaveText('7.75 h');
+  await expect(netHours).toHaveText('7.75h');
   await dialog.locator('[data-ops-cal-apply]').click();
   await expect(dialog).toBeHidden();
   await expect.poll(() => page.evaluate(() => {
@@ -226,20 +226,19 @@ test('scalar HH:MM-bediening leidt netto uren af, stapt per kwartier en blokkeer
   await dialog.locator('[data-ops-cal-cancel]').click();
 });
 
-test('netto-uren blijft in beide urenplanningstanden een afgeleide output', async ({ page, ops: _ops }) => {
+test('netto-uren blijft een afgeleide output', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    s.setUI({ showCalendarDialog: true, enableHourPlanning: false });
+    s.setUI({ showCalendarDialog: true, });
   });
   const dialog = page.locator('[data-ops-calendar-dialog]');
   const netHours = dialog.locator('[data-ops-simple-break-net-hours]');
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   await expect(netHours.locator('input')).toHaveCount(0);
   await expect(dialog.getByText('Standard workday', { exact: true })).toBeVisible();
   await expect(dialog.locator('input[type="number"][value="8"]')).toHaveCount(0);
 
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true }));
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   await expect(netHours.locator('input')).toHaveCount(0);
   await expect(dialog.locator('input[type="number"][value="8"]')).toHaveCount(0);
   await dialog.locator('[data-ops-cal-cancel]').click();
@@ -248,14 +247,14 @@ test('netto-uren blijft in beide urenplanningstanden een afgeleide output', asyn
 test('netto-uren toont een streepje als een eenvoudige kalender geen werkdag heeft', async ({ page, ops: _ops }) => {
   // De solver weigert een kalender zonder werkdagen (`noWorkingDays`); het veld toont dan geen getal, ook
   // niet de opgeslagen 8. Echte klikken op de dagknoppen; `__OPS__` opent alleen het venster en leest.
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, enableHourPlanning: false }));
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, }));
   const dialog = page.locator('[data-ops-calendar-dialog]');
   const netHours = dialog.locator('[data-ops-simple-break-net-hours]');
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) await dialog.getByRole('button', { name: day, exact: true }).click();
   await expect(netHours).toHaveText('—');
   await dialog.getByRole('button', { name: 'Mon', exact: true }).click();
-  await expect(netHours).toHaveText('8.00 h');
+  await expect(netHours).toHaveText('8h');
   await dialog.locator('[data-ops-cal-cancel]').click();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.hoursPerDay)).toBe(8);
 });
@@ -312,17 +311,16 @@ test('resourcekalender blokkeert lokaal ongeldige scalar-tijden zonder het model
 
 // Fix werkdag-einde (2026-10): een kalender met werkblokken (MS Project: 08:00–12:00 + 13:00–17:00) kwam
 // binnen als werkdag 08:00–12:00. Open een MSPDI via de knop Openen en de bestandskiezer. Besluit eigenaar
-// 2026-10-13 (optie 2): ook met urenplanning uit (standaard) toont het venster dan het blok Werktijden, en
+// 2026-10-13 (optie 2): ook (standaard) toont het venster dan het blok Werktijden, en
 // de gebruiker wijzigt de blokken daar direct. Begin, einde en pauze staan er dan niet. De MSPDI-fixture
 // staat in fixtures/mspdiBlocks.ts (gedeeld met time-notation.spec.ts).
-test('kalenderdialoog: kalender met werkblokken toont bij urenplanning uit het blok Werktijden',
+test('kalenderdialoog: kalender met werkblokken toont het blok Werktijden',
   async ({ page, ops: _ops }) => {
     const dialog = await openMspdiAndCalendarDialog(page, mspdiWithBlocks([['08:00', '12:00'], ['13:00', '17:00']]));
-    expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.enableHourPlanning)).toBe(false);
     await expect(dialog.locator('[data-ops-worktime-section]')).toBeVisible();
     await expect(dialog.locator('[data-ops-worktime-editor]')).toBeVisible();
     await expect.poll(() => blocksOf(dialog, 1)).toEqual(['08:00', '12:00', '13:00', '17:00']);
-    await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText(/^8[.,]00 h$/);
+    await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText(/^8h$/);
     // Geen gewone velden en geen infoblok uit #334: alleen het blok Werktijden telt.
     for (const sel of ['#ops-work-start', '#ops-work-end', '#ops-simple-break-start', '#ops-simple-break-duration',
       '[data-ops-calendar-blocks-notice]', '[data-ops-calendar-enable-hour-planning]']) {
@@ -333,8 +331,8 @@ test('kalenderdialoog: kalender met werkblokken toont bij urenplanning uit het b
     await dialog.locator('[data-ops-cal-cancel]').click();
   });
 
-test('kalenderdialoog: een eenvoudige kalender houdt bij urenplanning uit de gewone velden', async ({ page, ops: _ops }) => {
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, enableHourPlanning: false }));
+test('kalenderdialoog: een eenvoudige kalender houdt de gewone velden', async ({ page, ops: _ops }) => {
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true, }));
   const dialog = page.locator('[data-ops-calendar-dialog]');
   await expect(dialog).toBeVisible();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.workTime)).toBeUndefined();
@@ -342,7 +340,7 @@ test('kalenderdialoog: een eenvoudige kalender houdt bij urenplanning uit de gew
   await expect(dialog.locator('#ops-work-end')).toBeVisible();
   await expect(dialog.locator('#ops-simple-break-start')).toBeVisible();
   await expect(dialog.locator('#ops-simple-break-duration')).toBeVisible();
-  await expect(dialog.locator('[data-ops-worktime-section]')).toHaveCount(0);
+  await expect(dialog.locator('[data-ops-worktime-section]')).toBeVisible();
   await dialog.locator('[data-ops-cal-cancel]').click();
 });
 
@@ -355,7 +353,7 @@ const blocksState = (page: import('@playwright/test').Page) => page.evaluate(() 
 });
 const MSPDI_BLOCKS = { mon: [{ start: 480, end: 720 }, { start: 780, end: 1020 }], fri: [{ start: 480, end: 720 }, { start: 780, end: 1020 }] };
 
-test('kalenderdialoog: een blok wijzigen bij urenplanning uit telt in de planning', async ({ page, ops: _ops }) => {
+test('kalenderdialoog: een blok wijzigen telt in de planning', async ({ page, ops: _ops }) => {
   const dialog = await openMspdiAndCalendarDialog(page, mspdiWithBlocks([['08:00', '12:00'], ['13:00', '17:00']]));
   await expect.poll(() => blocksState(page)).toEqual({ ...MSPDI_BLOCKS, finish: '2026-01-09T17:00' });
 
@@ -373,7 +371,7 @@ test('kalenderdialoog: een blok wijzigen bij urenplanning uit telt in de plannin
 // voor alle werkdagen (de schrijver neemt de eerste werkdag), dus deze test wijzigt de middag op ALLE
 // werkdagen (ma 13:00–15:00, dan "Kopieer naar alle werkdagen"). 6 uur per dag: de taak van 40 uur
 // loopt dan door tot dinsdag 13 jan 12:00, ook na heropenen.
-test('kalenderdialoog: gewijzigde blokken bij urenplanning uit blijven na opslaan en heropenen', async ({ page, ops: _ops }) => {
+test('kalenderdialoog: gewijzigde blokken blijven na opslaan en heropenen', async ({ page, ops: _ops }) => {
   const dialog = await openMspdiAndCalendarDialog(page, mspdiWithBlocks([['08:00', '12:00'], ['13:00', '17:00']]));
   await expect.poll(() => blocksState(page)).toEqual({ ...MSPDI_BLOCKS, finish: '2026-01-09T17:00' });
 
@@ -395,7 +393,6 @@ test('kalenderdialoog: gewijzigde blokken bij urenplanning uit blijven na opslaa
   await openButton.click();
   await (await chooser).setFiles({ name: 'blokken-heropend.ifc', mimeType: 'application/x-step', buffer: ifc });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().filePath)).toBe('blokken-heropend.ifc');
-  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.enableHourPlanning)).toBe(false);
   await page.evaluate(() => window.__OPS__!.store.getState().runCPM());
   await expect.poll(() => blocksState(page)).toEqual(changed);
 
@@ -410,11 +407,10 @@ test('kalenderdialoog: gewijzigde blokken bij urenplanning uit blijven na opslaa
 // werkdagmasker als de blokken, dus vrijdag uit haalt ook de vrijdagblokken weg — met urenplanning uit
 // én aan. Een taak van 5 dagen (ma 5 – vr 9 jan) eindigt dan maandag 12 jan; vrijdag weer aan zet hem
 // terug op vrijdag 9 jan.
-for (const hourPlanning of [false, true]) {
-  test(`kalenderdialoog: werkdag uit en weer aan past de blokken mee aan (urenplanning ${hourPlanning ? 'aan' : 'uit'})`,
+for (const route of ['werkblokken']) {
+  test(`kalenderdialoog: werkdag uit en weer aan past de blokken mee aan (${route})`,
     async ({ page, ops: _ops }) => {
       const dialog = await openMspdiAndCalendarDialog(page, mspdiWithBlocks([['08:00', '12:00'], ['13:00', '17:00']]));
-      if (hourPlanning) await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableHourPlanning: true }));
       const friday = () => page.evaluate(() => {
         const s = window.__OPS__!.store.getState();
         return {
@@ -469,7 +465,7 @@ const calendarBlocks = (page: import('@playwright/test').Page) => page.evaluate(
 test('kalenderdialoog: Continu bij een kalender met blokken zet alle dagen 00:00–24:00 en 24 uur', async ({ page, ops: _ops }) => {
   const dialog = await openMspdiAndCalendarDialog(page, mspdiWithBlocks([['08:00', '12:00'], ['13:00', '17:00']]));
   await dialog.locator('[data-ops-calendar-preset-continuous]').click();
-  await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText(/^24[.,]00 h$/);
+  await expect(dialog.locator('[data-ops-simple-break-net-hours]')).toHaveText(/^24h$/);
   await dialog.locator('[data-ops-cal-apply]').click();
   const allDay = [{ start: 0, end: 1440 }];
   await expect.poll(() => calendarBlocks(page)).toEqual({
@@ -523,4 +519,127 @@ test('kalenderdialoog: na Continu krijgt een dag die weer aan gaat 00:00–24:00
   await expect.poll(() => calendarBlocks(page).then(c => [c.workDays, c.byWeekday?.[2], c.byWeekday?.[6], c.hpd])).toEqual([
     [1, 2, 3, 4, 5], allDay, [], 24,
   ]);
+});
+
+// Nieuwe route: eerder gegenereerde feestdagen uitbreiden na wijziging van de projectperiode.
+test('generatiehint noemt het doeljaar inclusief buffer, niet een verzonnen projecteinde', async ({ page, ops: _ops }) => {
+  for (const endDate of ['2029-12-31', '']) {
+    await page.evaluate(endDate => {
+      const s = window.__OPS__!.store.getState();
+      s.setProject({ startDate: '2026-01-01', endDate });
+      window.__OPS__!.store.setState({ cpmResult: null });
+      s.setCalendar({ ...s.calendar, generation: {
+        ruleSetId: 'NL', generatedFromYear: 2025, generatedToYear: 2028,
+      } });
+      s.setUI({ showCalendarDialog: true });
+    }, endDate);
+    const dialog = page.locator('[data-ops-calendar-dialog]');
+    const targetYear = endDate ? 2030 : 2029;
+    await expect(dialog.getByText(`Holidays cover 2025–2028; regenerate through ${targetYear}?`, { exact: true })).toBeVisible();
+    await expect(dialog).not.toContainText('project runs to');
+    await dialog.getByRole('button', { name: 'Regenerate', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Regenerate', exact: true })).toHaveCount(0);
+    await dialog.locator('[data-ops-cal-apply]').click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().calendar.generation?.generatedToYear)).toBe(targetYear);
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().project.endDate ?? '')).toBe(endDate);
+  }
+
+  // Bug 182: dezelfde bestaande generatieroute met een echt berekend einde ná de ingevulde datum.
+  // De matrix van einddatums blijft corpusvrij in cases-mutate-cal-res.ts; hier alleen de UI-koppeling.
+  const fixture = await page.evaluate(async () => {
+    const modulePath = '/src/engine/calendar/generateCalendarHolidays.ts';
+    const { materializeHolidays } = await import(/* @vite-ignore */ modulePath) as typeof import('@/engine/calendar/generateCalendarHolidays');
+    const store = window.__OPS__!.store;
+    const s = store.getState();
+    s.setUI({ autoCalcCPM: false, activeRibbonTab: 'planning' });
+    s.setProject({ startDate: '2027-06-07', endDate: '2027-12-31' });
+    s.setCalendar({ ...store.getState().calendar,
+      ...materializeHolidays({ country: 'NL', bouwvak: 'geen' }, 2026, 2030),
+      workingExceptions: [{ name: 'Werkzaterdag', startDate: '2027-06-12', endDate: '2027-06-12' }],
+    });
+    const { id: projectCalendarId, ...base } = structuredClone(store.getState().calendar);
+    const resourceCalendarId = s.addCalendar({ ...base, name: 'Ploegkalender generatie',
+      ...materializeHolidays({ country: 'DE', region: 'BY', bouwvak: 'geen' }, 2026, 2030),
+    });
+    const resourceId = s.addResource({
+      name: 'Ploeg generatie', type: 'LABOR', description: '', maxUnits: 1, calendarId: resourceCalendarId,
+    });
+    const taskId = s.addTask({ name: 'Werk in 2033', calendarId: projectCalendarId, manuallyScheduled: true });
+    const task = store.getState().tasks.find(t => t.id === taskId)!;
+    s.updateTask(taskId, { time: { ...task.time,
+      scheduleStart: '2033-06-06', scheduleFinish: '2033-06-10', scheduleDuration: 5,
+    } });
+    s.runCPM();
+    store.setState({ isDirty: false });
+    return { projectCalendarId, resourceCalendarId, resourceId, taskId };
+  });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().cpmResult?.projectEnd.slice(0, 4))).toBe('2033');
+
+  const readState = () => page.evaluate(({ projectCalendarId, resourceCalendarId, resourceId, taskId }) => {
+    const s = window.__OPS__!.store.getState();
+    const task = s.tasks.find(t => t.id === taskId)!;
+    return {
+      // Genereren wijzigt de feestdagen, geen id's, kalenderkoppelingen, werkende uitzonderingen of manual-datums.
+      domain: {
+        endDate: s.project.endDate, projectCalendarId: s.project.calendarId,
+        calendars: s.calendars.map(c => ({ id: c.id, workingExceptions: c.workingExceptions })),
+        resourceCalendarId: s.resources.find(r => r.id === resourceId)?.calendarId,
+        task: { id: task.id, calendarId: task.calendarId, manuallyScheduled: task.manuallyScheduled,
+          start: task.time.scheduleStart, finish: task.time.scheduleFinish },
+      },
+      project: s.calendars.find(c => c.id === projectCalendarId)!,
+      resource: s.calendars.find(c => c.id === resourceCalendarId)!,
+      cpmResult: s.cpmResult,
+      undo: s.historyEvents.filter(e => e.state === 'applied').length,
+      dirty: s.isDirty, stale: s.scheduleStale,
+    };
+  }, fixture);
+  const before = await readState();
+  await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
+  const projectDialog = page.locator('[data-ops-calendar-dialog]');
+  await expect(projectDialog.getByText('Holidays cover 2026–2030; regenerate through 2034?', { exact: true })).toBeVisible();
+  expect(await readState()).toEqual(before);
+  await projectDialog.getByRole('button', { name: 'Regenerate', exact: true }).click();
+  expect(await readState()).toEqual(before); // Alleen de lokale buffer, ook na de generatieklik.
+  await projectDialog.locator('[data-ops-cal-apply]').click();
+  await expect(projectDialog).toHaveCount(0);
+  const afterProject = await readState();
+  expect(afterProject.project.generation).toMatchObject({ ruleSetId: 'NL', generatedFromYear: 2026, generatedToYear: 2034 });
+  expect(afterProject.project.holidays.some(h => h.startDate === '2034-12-25')).toBe(true);
+  expect(afterProject.resource).toEqual(before.resource);
+  expect(afterProject.domain).toEqual(before.domain);
+  expect(afterProject).toMatchObject({ undo: before.undo + 1, dirty: true, stale: false });
+
+  // Dezelfde standaardspanne in het resourcevenster, nu via de gewone knop Genereren en de preview.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({
+    activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false, resourcesView: 'project',
+  }));
+  const row = page.getByRole('row', { name: /Ploeg generatie/ });
+  await row.getByRole('button', { name: 'Edit…' }).click();
+  const resourceDialog = page.getByRole('dialog');
+  await expect(resourceDialog.getByText('Holidays cover 2026–2030; regenerate through 2034?', { exact: true })).toBeVisible();
+  await resourceDialog.getByRole('button', { name: 'Generate holidays…', exact: true }).click();
+  await expect(resourceDialog.locator('[data-ops-calendar-generator]')).toContainText('2026–2034');
+  await resourceDialog.getByRole('button', { name: 'Generate', exact: true }).click();
+  expect(await readState()).toEqual(afterProject);
+  await resourceDialog.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(resourceDialog).toBeHidden();
+  const afterResource = await readState();
+  expect(afterResource.resource.generation).toMatchObject({ ruleSetId: 'DE', region: 'BY', generatedFromYear: 2026, generatedToYear: 2034 });
+  expect(afterResource.resource.holidays.some(h => h.startDate === '2034-12-25')).toBe(true);
+  expect(afterResource.project).toEqual(afterProject.project);
+  expect(afterResource.domain).toEqual(before.domain);
+  expect(afterResource.cpmResult).toEqual(afterProject.cpmResult); // Resource-Apply rekent niet stil door.
+  expect(afterResource).toMatchObject({ undo: afterProject.undo + 1, dirty: true, stale: true });
+
+  // Eén echte undo per Toepassen herstelt beide kalenders; de identiteiten blijven gelijk.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => readState().then(s => s.resource)).toEqual(before.resource);
+  await page.keyboard.press('ControlOrMeta+z');
+  const undone = await readState();
+  expect(undone.project).toEqual(before.project);
+  expect(undone.resource).toEqual(before.resource);
+  expect(undone.domain).toEqual(before.domain);
 });

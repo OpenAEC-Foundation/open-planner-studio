@@ -9,8 +9,8 @@ Dodávateľ, konzultant alebo klient vám pošle svoj plán ako súbor `.mpp`. C
 ## Kroky
 
 1. Vyberte *Domov › Súbor › Otvoriť* alebo stlačte Ctrl+O. Vyberte súbor `.mpp`.
-2. Projekt sa otvorí na novej karte, alebo na aktuálnej karte, ak bola ešte prázdna a nezmenená. Projekt nemá žiadny súbor: *Uložiť* neskôr zapíše nový súbor IFC.
-3. Prečítajte si hlásenie dole: *Tento projekt sa počíta ako Microsoft Project. Zmeniť ho môžete v ponuke Súbor → Informácie o projekte → Profil výpočtu a možnosti výpočtu.* Aplikácia počíta tento projekt podľa pravidiel výpočtu programu MS Project: profil výpočtu *Microsoft Project*. Pomocou *Otvoriť profil výpočtu* sa dostanete k nastaveniu. *Čítať viac* otvorí pomoc o profiloch výpočtu.
+2. Projekt sa otvorí na novej karte, alebo na aktuálnej karte, ak bola ešte prázdna a nezmenená. Projekt nemá žiadny súbor: *Uložiť* neskôr zapíše nový súbor IFC. Potom sa krátko zobrazí okno, ktoré vysvetlí, čo aplikácia prevzala zo súboru a ako funguje ukladanie; pozrite [Otvorenie a ukladanie súboru](docs://howto-bestand-openen-en-opslaan).
+3. Prečítajte si hlásenie dole: *Tento projekt sa počíta ako „Microsoft Project“. Zmeniť ho môžete v ponuke Súbor → Informácie o projekte → Profil výpočtu a možnosti výpočtu.* Aplikácia počíta tento projekt podľa pravidiel výpočtu programu MS Project: profil výpočtu *Microsoft Project*. Pomocou *Otvoriť profil výpočtu* sa dostanete k nastaveniu. *Čítať viac* otvorí pomoc o profiloch výpočtu.
 4. Skontrolujte, či sa pod pásom s nástrojmi nachádza hlásenie: *Zobrazujete dátumy tak, ako sú uložené v súbore; pri prepočítaní sa posunú 4 úlohy.* Pri týchto úlohách sa výsledok aplikácie líši od dátumov, ktoré MS Project uložil. Pod hlásením z kroku 3 je potom ešte jeden riadok: *4 úlohy zobrazujú dátumy tak, ako sú uvedené v súbore (bez prepočítania).* Čo to znamená a ako prepnete na vlastný výpočet aplikácie, je v článku [Dátumy tak, ako sú uložené](docs://uitleg-datums-zoals-opgeslagen).
 5. Ak sa zobrazí hlásenie *Tento súbor obsahuje plánovanie v hodinách.* s tlačidlom *Zapnúť plánovanie v hodinách*, súbor obsahuje údaje v hodinách. Pozrite [Zapnutie plánovania v hodinách](docs://howto-urenplanning-aanzetten).
 
@@ -18,19 +18,33 @@ Ak súbor obsahuje úlohy s prestávkami, vyvažovaním alebo plánom riadeným 
 
 ## Úskalia a čo vtedy robí aplikácia
 
-**Nie všetko sa prenesie.** Aplikácia neprevezme pôvodné plány, náklady a štandardné sadzby, poznámky ani vlastné polia z programu MS Project. Kód WBS, ktorý ste sami vyplnili v programe MS Project, sa prevezme. Inak aplikácia očísluje úlohy podľa štruktúry.
+**Nie všetko sa prenesie.** Po otvorení vám aplikácia v jednom hlásení povie, čo neprevzala: *Nie všetko z tohto súboru MS Project bolo prevzaté.* Pod ním je jeden riadok pre každú položku s počtom, napríklad *2 pôvodné plány neboli prevzaté.* Pri súbore `.mpp` je prvým riadkom tohto hlásenia veta o profile výpočtu z kroku 3. Hlásenie zostane, kým kliknete na krížik. Ak sa nič nestratí, toto hlásenie sa nezobrazí. Riadok sa môže týkať:
 
-**Súbor z programu MS Project 2007 alebo staršieho.** Aplikácia ho odmietne a zobrazí hlásenie: *Tento súbor .mpp používa starý formát (Project 2007 alebo starší). V programe MS Project ho exportujte ako XML (Súbor → Uložiť ako → XML) a otvorte tento súbor.* Pod hlásením sa aplikácia pridá technický dôvod v angličtine.
+- vložené projekty (podprojekty): aplikácia ich načíta ako bežnú úlohu, bez prepojenia na druhý súbor;
+- externé úlohy z iného projektu: aplikácia ich načíta ako bežnú úlohu;
+- pôvodné plány: zo súboru `.mpp` aplikácia neprevezme žiadny pôvodný plán; z XML programu MS Project len pôvodný plán 0 úloh, a z neho len dátumy a trvanie (pri úlohe v hodinách aj čas; nie prácu a náklady, a nie pôvodné plány zdrojov a priradení);
+- pri XML programu MS Project: priradenie, ktorého pôvodný plán má iné dátumy ako jeho úloha. Aplikácia zachová len pôvodný plán úlohy. Ak sú rovnaké, nič sa nestratí a aplikácia nič nehlási. Iný čas v ten istý deň sa tiež počíta ako rozdiel;
+- vlastné polia s hodnotami, napríklad vlastné polia, hodnoty z vyhľadávacej tabuľky a kódy osnovy (aplikácia nezohľadní polia áno/nie v súbore `.mpp`);
+- poznámky (aj poznámka len s obrázkom) k zdrojom a priradeniam, a zo súboru `.mpp` aj k úlohám (z XML programu MS Project sa poznámka úlohy prevezme ako jej popis);
+- hypertextové odkazy;
+- pevné náklady úloh;
+- sadzby zdrojov: zo súboru `.mpp` žiadna sadzba, z XML programu MS Project len štandardná sadzba;
+- len pri XML programu MS Project: manuálne plánované úlohy (aplikácia ich naplánuje automaticky), neaktívne úlohy (zahrnú sa do výpočtu) a oneskorenie pri vyvažovaní;
+- len pri súbore `.mpp`: kritická prahová hodnota z programu MS Project; aplikácia používa prahovú hodnotu 0.
 
-**Súbor s heslom.** Aplikácia zobrazí hlásenie: *Tento súbor .mpp je chránený heslom. V programe MS Project ho exportujte ako XML (Súbor → Uložiť ako → XML) a otvorte tento súbor.* Aj tu je k hláseniu pridaný technický dôvod v angličtine.
+Kód WBS, ktorý ste sami vyplnili v programe MS Project, sa prevezme. Inak aplikácia očísluje úlohy podľa štruktúry.
+
+**Súbor z programu MS Project 2007 alebo staršieho.** Aplikácia ho odmietne a zobrazí hlásenie: *Tento súbor .mpp používa starý formát (Project 2007 alebo starší). V programe MS Project ho exportujte ako XML (Súbor → Uložiť ako → XML) a otvorte tento súbor.* Pod hlásením aplikácia pridá technický dôvod v angličtine.
+
+**Súbor s heslom.** Aplikácia zobrazí hlásenie: *Tento súbor .mpp je chránený heslom. V programe MS Project ho exportujte ako XML (Súbor → Uložiť ako → XML) a otvorte tento súbor.* Aj k tomuto hláseniu je pridaný technický dôvod v angličtine.
 
 **Súbor, ktorý nie je `.mpp`.** Dostanete hlásenie *Otvorenie súboru zlyhalo* s technickým dôvodom.
 
-**Cesta cez XML počíta inak.** Ak otvoríte export XML z programu MS Project namiesto súboru `.mpp`, aplikácia počíta s profilom výpočtu *Open Planner Studio* a hlásenie o *Microsoft Project* sa nezobrazí. Dátumy potom môžu vyjsť inak ako pri súbore `.mpp`.
+**Cesta cez XML počíta inak.** Ak otvoríte export XML z programu MS Project namiesto súboru `.mpp`, aplikácia počíta s profilom výpočtu *Open Planner Studio* a hlásenie o *Microsoft Project* neuvidíte. Dátumy potom môžu vyjsť inak ako pri súbore `.mpp`. Aj pri exporte XML vám aplikácia povie, čo neprevezme; pozrite *Nie všetko sa prenesie*.
 
 **Úprava uvoľní riadenie z programu MS Project.** Ak upravíte úlohu, ktorej plán riadilo dátumové okno programu MS Project, aplikácia zobrazí hlásenie raz na projekt: *Dátumové okno z MS Project už po tejto úprave neriadi 2 úlohy; samotné rozloženie práce platí ďalej a zostáva uložené v súbore.* Pri jednej úlohe je text hlásenia v jednotnom čísle.
 
-**Uložením sa váš súbor `.mpp` nikdy neprepíše.** Projekt nemá súbor. Pri *Uložiť* sa aplikácia opýta, kam sa má nový súbor IFC uložiť.
+**Ukladanie nikdy neprepíše váš súbor `.mpp`.** Projekt nemá súbor. Pri *Uložiť* sa aplikácia opýta, kam sa má nový súbor IFC uložiť.
 
 ## Pozri tiež
 

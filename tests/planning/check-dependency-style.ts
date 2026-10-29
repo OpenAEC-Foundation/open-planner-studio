@@ -244,10 +244,10 @@ console.log('-- relatielijnen: ankerpunt en uitloop per relatietype --');
   if (!ss || !fs || !barT1) {
     fail('geometriecheck: relatielijnen of balk niet gevonden');
   } else {
-    if (Math.abs(ss.pts[0][0] - barT1.x) > 0.01) {
+    if (!(Math.abs(ss.pts[0][0] - barT1.x) <= 0.01)) {
       fail(`SS vertrekt op x=${ss.pts[0][0].toFixed(2)}, verwacht de LINKERrand van de voorgangerbalk (${barT1.x.toFixed(2)})`);
     } else ok('SS ankert op de linkerrand (start) van de voorgangerbalk');
-    if (Math.abs(fs.pts[0][0] - (barT1.x + barT1.w)) > 0.01) {
+    if (!(Math.abs(fs.pts[0][0] - (barT1.x + barT1.w)) <= 0.01)) {
       fail(`FS vertrekt op x=${fs.pts[0][0].toFixed(2)}, verwacht de RECHTERrand van de voorgangerbalk (${(barT1.x + barT1.w).toFixed(2)})`);
     } else ok('FS ankert op de rechterrand (finish) van de voorgangerbalk');
     if (!(ss.pts[1][0] < ss.pts[0][0])) fail('SS: de stub loopt niet naar links weg van de balk (loopt de balk ín)');
@@ -280,7 +280,7 @@ console.log('-- relatielijnen: streepjespatroon schaalt met de rapport-lettergro
     const gestreept = deps.find(d => d.dash.length > 0);
     if (!gestreept) { fail(`${pct}%: geen enkele gestreepte relatielijn`); continue; }
     const [a, b] = gestreept.dash;
-    if (Math.abs(a - 4 * k) > 1e-9 || Math.abs(b - 3 * k) > 1e-9) {
+    if (!(Math.abs(a - 4 * k) <= 1e-9) || !(Math.abs(b - 3 * k) <= 1e-9)) {
       fail(`${pct}%: dash=[${a},${b}], verwacht [${4 * k},${3 * k}]`);
     }
   }

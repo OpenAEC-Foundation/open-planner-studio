@@ -34,12 +34,12 @@ Düzen artık şeritte bir düğmedir, ama henüz uygulanmadı. Açmak için dü
 
 Bir filtreyi *Filtre* altında kurallarla oluşturursunuz. *+ kural* düğmesine tıklayın, bir *Alan*, bir *Operatör* ve bir değer seçin. Yalnızca kritik görevleri istiyorsanız: alan *Kritik*, operatör *eşittir*, değer *Evet*. Alanlar arasında *Görev adı*, *Başlangıç*, *Bitiş*, *Toplam bolluk*, *İlerleme* ve *Kilometre taşı* vardır, ayrıca kendi etkinlik kodlarınız ve alanlarınız ile *Kaynaklar*. Operatörler alanın türüne bağlıdır: metin için *içerir* seçebilirsiniz, sayı ve tarih için *arasında*.
 
-Hangi operatörleri alacağınız alanın türüne bağlıdır:
+Kullanabileceğiniz operatörler alanın türüne bağlıdır:
 
 - Metin (*Görev adı*, *WBS*): *eşittir*, *eşit değildir*, *içerir*, *ile başlar* ve *boş*.
 - Sayı ve tarih (*Toplam bolluk*, *Başlangıç*, *İlerleme*): *eşittir*, *eşit değildir*, *küçüktür*, *küçük veya eşittir*, *büyüktür*, *büyük veya eşittir*, *arasında* ve *boş*. *arasında* seçtiğinizde iki alan görünür. Sayıda bunlar *Başlangıç* ve *Bitiş* ipuçlarıdır; tarihte ipucu yoktur. İlk tarih başlangıç, ikinci tarih bitiştir.
 - Evet/hayır (*Kritik*, *Kilometre taşı*, *Kritiğe yakın*): *eşittir* ve *eşit değildir*, değer *Evet* veya *Hayır*.
-- Seçim (*Tür*, bir etkinlik kodu): *eşittir*, *eşit değildir*, *şunlardan biri* (onay kutusu değerleriyle) ve *boş*.
+- Seçim (*İş kategorisi*, bir etkinlik kodu): *eşittir*, *eşit değildir*, *şunlardan biri* (onay kutusu değerleriyle) ve *boş*.
 - *Kaynaklar*: *şunlardan biri* ve *boş*.
 - *Devam ediyor*: yalnızca *arasında*, iki tarihle (başlangıçtan bitişe).
 
@@ -81,7 +81,7 @@ Aynı bölümleri saklamayan düzenler birlikte açık olabilir. Yalnızca şu f
 
 **Düzenler cihazınızdadır, projede değil.** Uygulama düzenlerinizi ve sütunlarınızı, bu cihazdaki tüm projeleriniz için saklar. Bir düzenin kaplamaları (temel plan, ilerleme çizgisi ve diğerleri) tüm projelerinizde geçerlidir. Filtre, gruplama ve sıralama, o an açık olan projeye aittir, ama proje dosyasına girmez. Kaydedip yeniden açtığınızda görünüm yine temiz olur. Bunlar projeyi ayrıca değiştirilmiş olarak da işaretlemez.
 
-**Ayrı düğmeler gizlidir.** *Görünüm* sekmesindeki ayrı *Sütunlar…*, *Filtre…*, *Grupla…* ve *Sırala…* düğmeleri eski bir görünümdür. Bunları ayarlar penceresinde (başlık çubuğundaki ⚙) *Gelişmiş* sekmesinde, *Eski özellikler* altındaki *Klasik görünüm düğmelerini göster* ile geri getirirsiniz. Düzenleri tercih edin.
+**Ayrı düğmeler gizlidir.** *Görünüm* sekmesindeki ayrı *Sütunlar…*, *Filtre…*, *Grupla…* ve *Sırala…* düğmeleri eski bir görünümdür. Bunları *Uygulama ayarları* penceresinde (başlık çubuğundaki ⚙), *Gelişmiş* sekmesinde, *Eski özellikler* altındaki *Klasik görünüm düğmelerini göster* ile geri getirirsiniz. Düzenleri tercih edin.
 
 ## Ayrıca bkz.
 

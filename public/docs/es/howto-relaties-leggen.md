@@ -36,7 +36,7 @@ Es útil cuando añade muchas relaciones seguidas.
 4. Cambie el tipo o el desfase si es necesario y pulse Intro, o haga clic fuera de la ventana. Se crea la relación.
 5. Añada la siguiente en seguida: el modo sigue activo. Se detiene con Esc, con el botón *Detener* del aviso o eligiendo de nuevo *Dibujar relación*.
 
-Si pulsa Esc en la ventana *Tipo de relación*, no se registra nada. Para una sola relación no necesita activar el modo: mantenga pulsado Mayús mientras arrastra de barra a barra. *Iniciar relación desde aquí* en el menú contextual de una barra activa el modo enlace; el arrastre lo sigue haciendo usted. En la pestaña *Tabla*, sin Gantt, *Dibujar relación* está desactivado.
+Si pulsa Esc en la ventana *Tipo de relación*, no se registra nada. Para una sola relación no necesita activar el modo: mantenga pulsado Mayús mientras arrastra de barra a barra. *Iniciar relación desde aquí*, en el menú contextual de una barra, activa el modo enlace; el arrastre lo sigue haciendo usted. En la pestaña *Tabla*, sin Gantt, *Dibujar relación* está desactivado.
 
 ### Añadir una relación en el panel de propiedades
 
@@ -69,7 +69,7 @@ Escriba un desfase en el campo junto al tipo, en cada una de las formas anterior
 - `3` o `3d`: 3 días laborables. El fin de semana no cuenta. La aplicación muestra `+3d`.
 - `3ed`: 3 días naturales. El fin de semana sí cuenta, como ocurre con el hormigón, que también cura el sábado y el domingo.
 - `-1`: un desfase negativo (adelanto). El sucesor puede empezar un día antes, así que las tareas se solapan.
-- `4h`: 4 horas laborables; la aplicación lo muestra como `+4u`. Si el predecesor es una tarea en días en un calendario sin bandas de horario laboral propias, como el calendario estándar, la aplicación convierte esto en días laborables completos, redondeados al día completo más cercano: `4h` actúa entonces como 1 día y `2h` como 0. En un calendario con bandas de horario laboral propias, o después de una tarea horaria, el desfase cuenta exactamente en horas.
+- `4h`: 4 horas laborables; la aplicación lo muestra como `+4h`. Si el predecesor es una tarea en días en un calendario sin bandas de horario laboral propias, como el calendario estándar, la aplicación convierte esto en días laborables completos, redondeados al día completo más cercano: `4h` actúa entonces como 1 día y `2h` como 0. En un calendario con bandas de horario laboral propias, o después de una tarea horaria, el desfase cuenta exactamente en horas.
 - `50%`: la mitad de la duración del predecesor.
 
 Ejemplo: el hormigón de la cimentación tiene que curar antes de que el albañil pueda trabajar en ella, así que *Pour foundation → Foundation brickwork* recibe una relación FS con desfase `3`. Si el vertido es el viernes 18 de junio de 2027, la mampostería empieza tras **Calcular** el jueves 24 de junio: de lunes a miércoles es tiempo de espera. Con `3ed` el fin de semana cuenta y la mampostería empieza el martes 22 de junio.

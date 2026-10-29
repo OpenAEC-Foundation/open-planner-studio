@@ -1872,7 +1872,11 @@
       "typy úkolů"
     ],
     "avoid": [
-      "druh úkolu"
+      "druh úkolu",
+      "pravidlo pevné veličiny",
+      "pravidla pevné veličiny",
+      "pravidlu pevné veličiny",
+      "pravidlem pevné veličiny"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -2070,6 +2074,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "druh práce",
+    "forms": [
+      "druh práce",
+      "druhu práce",
+      "druhy práce",
+      "druhů práce",
+      "druhem práce"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "pracovní hodiny",
     "forms": [
@@ -2080,20 +2096,6 @@
     ],
     "source": "model",
     "status": "model"
-  },
-  "work-rule": {
-    "term": "pravidlo pevné veličiny",
-    "forms": [
-      "pravidlo pevné veličiny",
-      "pravidla pevné veličiny",
-      "pravidlu pevné veličiny",
-      "pravidlem pevné veličiny"
-    ],
-    "avoid": [
-      "pracovní pravidlo"
-    ],
-    "source": "model",
-    "status": "arbitrated"
   },
   "workday": {
     "term": "pracovní den",

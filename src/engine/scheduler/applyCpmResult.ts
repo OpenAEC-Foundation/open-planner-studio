@@ -9,6 +9,12 @@ import { descendantLeaves, summaryProgressOf, taskWorkDays, writeSummaryProgress
 import { finishInstant, latestFinish } from '@/utils/taskDates';
 import { minOf } from '@/utils/collections';
 
+/** `minOf` over velden die kunnen ontbreken: ontbreekt er één (of is de lijst leeg), dan `undefined`. */
+function minOfDefined(values: (number | undefined)[]): number | undefined {
+  if (values.length === 0 || values.some(v => v === undefined)) return undefined;
+  return minOf(values as number[]);
+}
+
 /**
  * Schrijf een CPM-resultaat terug op de taken: per blad de berekende velden, daarna de
  * verzameltaak-rollup.
@@ -64,7 +70,7 @@ function applyDerivedSummaryDuration(task: Task, engine: CalendarEngine): void {
   // `workDaysBetween` beide kalenderdagen inclusief, dus daar blijft het de dagstart.
   const ef = engine.isHourMode ? finishInstant(task.time.earlyFinish) : parseInstant(task.time.earlyFinish);
   if (Number.isNaN(es.getTime()) || Number.isNaN(ef.getTime())) return;
-  writeDerivedSpan(task, es, ef, engine);
+  writeDerivedSpan(task, es, ef, engine, true);
 }
 
 export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmCalendars): void {
@@ -77,6 +83,9 @@ export function applyCpmResult(tasks: Task[], result: CPMResult, cals: ApplyCpmC
     task.time.lateFinish = r.lateFinish;
     task.time.totalFloat = r.totalFloat;
     task.time.freeFloat = r.freeFloat;
+    // Alleen uren §3.4: de speling in minuten (bron); afwezig in het resultaat ⇒ het veld wissen.
+    task.time.totalFloatMinutes = r.totalFloatMinutes;
+    task.time.freeFloatMinutes = r.freeFloatMinutes;
     task.time.isCritical = r.isCritical;
     // Analyse-afleidingen. `interferingFloat` is ALTIJD aanwezig (tf−ff);
     // `isNearCritical`/`floatPath` alleen wanneer de bijbehorende optie draait — afwezig ⇒ het veld
@@ -166,12 +175,7 @@ export function rollupSummaryTasks(
     }
     return d;
   };
-  const updateSummary = (taskId: string): void => {
-    const task = byId.get(taskId);
-    if (!task || isLeafTask(task) || visited.has(taskId)) return;
-    visited.add(taskId);
-
-    for (const childId of task.childIds) updateSummary(childId);
+  const updateSummary = (task: Task): void => {
     if (options?.skip?.(task)) return;
 
     const children = task.childIds
@@ -211,6 +215,8 @@ export function rollupSummaryTasks(
       task.time.lateFinish = finish;
       task.time.totalFloat = 0;
       task.time.freeFloat = 0;
+      task.time.totalFloatMinutes = 0;
+      task.time.freeFloatMinutes = 0;
       task.time.interferingFloat = 0;
       task.time.isCritical = children.some(c => c.time.isCritical);
       return;
@@ -235,6 +241,9 @@ export function rollupSummaryTasks(
       // Een verzameltaak kan maar zo veel opschuiven als zijn krapste kind: min over de kinderen.
       task.time.totalFloat = minOf(children.map(c => c.time.totalFloat));
       task.time.freeFloat = minOf(children.map(c => c.time.freeFloat));
+      // Alleen uren §3.4: dezelfde rollup in minuten, alleen als elk kind minuten draagt.
+      task.time.totalFloatMinutes = minOfDefined(children.map(c => c.time.totalFloatMinutes));
+      task.time.freeFloatMinutes = minOfDefined(children.map(c => c.time.freeFloatMinutes));
       // Interfererende speling op de samenvatting = tf−ff — houdt de
       // invariant ook op verzameltaken en vult de kolom voor WBS-rijen.
       task.time.interferingFloat = task.time.totalFloat - task.time.freeFloat;
@@ -260,7 +269,24 @@ export function rollupSummaryTasks(
     }
   };
 
-  for (const task of tasks) {
-    if (!task.parentId) updateSummary(task.id);
+  for (const root of tasks) {
+    if (root.parentId) continue;
+    // Bezoekmarkering bij binnenkomst, rollup bij terugkeer: exact dezelfde volgorde als
+    // de recursieve wandeling, ook bij gedeelde kinderen of een corrupte childIds-kring.
+    const stack = [{ task: byId.get(root.id)!, returning: false }];
+    while (stack.length > 0) {
+      const { task, returning } = stack.pop()!;
+      if (returning) {
+        updateSummary(task);
+        continue;
+      }
+      if (isLeafTask(task) || visited.has(task.id)) continue;
+      visited.add(task.id);
+      stack.push({ task, returning: true });
+      for (let i = task.childIds.length - 1; i >= 0; i--) {
+        const child = byId.get(task.childIds[i]);
+        if (child) stack.push({ task: child, returning: false });
+      }
+    }
   }
 }

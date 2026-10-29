@@ -51,7 +51,7 @@ Under *Innstillinger* finner du valgene for Gantt-diagrammet og ressursdiagramme
 
 ### 5. Kontroller forhåndsvisningen
 
-For Gantt-diagrammet og ressursdiagrammet ser du papiret med sidehodet, tabellen, tidslinjen og forklaringen. Scroll for å se på sidene. *Forhåndsvisningskvalitet* bestemmer bare hvor skarp forhåndsvisningen er på skjermen. PDF-filen endres ikke av den. Står det under sidene *… og 1 side til — eksporter for hele dokumentet* (med flere sider *… og 2 sider til — eksporter for hele dokumentet*), er ikke alle sidene klare i forhåndsvisningen. PDF-filen inneholder dem alle.
+For Gantt-diagrammet og ressursdiagrammet ser du papiret med sidehodet, tabellen, tidslinjen og forklaringen. Bla gjennom sidene for å se på dem. *Forhåndsvisningskvalitet* bestemmer bare hvor skarp forhåndsvisningen er på skjermen. PDF-filen endres ikke av den. Står det under sidene *… og 1 side til — eksporter for hele dokumentet* (med flere sider *… og 2 sider til — eksporter for hele dokumentet*), er ikke alle sidene klare i forhåndsvisningen. PDF-filen inneholder dem alle.
 
 De andre rapportene vises på skjermen som tabell. Det du ser, er det som havner i PDF-filen.
 
@@ -68,9 +68,9 @@ Klikk nederst i venstre kolonne på **Eksporter PDF**. Det foreslåtte filnavnet
 
 ## Fallgruver og hva appen gjør
 
-**Knappen Skriv ut og Ctrl+P skriver ikke ut.** Knappen *Skriv ut* i gruppen *Rapport* ligger på selve fanen Rapport, og gjør ikke noe mer. Ctrl+P tar deg til denne fanen. Appen har ingen egen utskriftskommando: veien til papir går via PDF-filen. Fungerer Ctrl+P ikke (se trinn 1), åpnes utskriftsdialogen i nettleseren, og den skriver ut skjermbildet, ikke rapporten.
+**Knappen Skriv ut og Ctrl+P skriver ikke ut.** Knappen *Skriv ut* i gruppen *Rapport* ligger på selve fanen Rapport, og gjør ikke noe mer. Ctrl+P tar deg til denne fanen. Appen har ingen egen utskriftskommando: veien til papir går via PDF-filen. Fungerer Ctrl+P ikke (se trinn 1), åpnes utskriftsdialogen i nettleseren, og den skriver ut skjermen, ikke rapporten.
 
-**Selskap: overskriving blir ikke lagret.** Feltet *Selskap:* i Gantt-diagrammet begynner med selskapet fra prosjektinfoen. Det du skriver over det, blir ikke lagret. Du kan ikke skrive i *Forfatter:* her. Du endrer begge med *Innstillinger › Prosjekt › Prosjektinfo*, i feltene *Oppdragsgiver/organisasjon* og *Forfatter*, og bekrefter med *Bruk*.
+**Selskap: overskriving blir ikke lagret.** Feltet *Selskap:* i Gantt-diagrammet begynner med selskapet fra prosjektinnstillingene. Det du skriver over det, blir ikke lagret. Du kan ikke skrive i *Forfatter:* her. Du endrer begge med *Innstillinger › Prosjekt › Prosjektinnstillinger*, i feltene *Oppdragsgiver/organisasjon* og *Forfatter*, og bekrefter med *Bruk*.
 
 **Stolpefarger: gjelder også skjermen din.** Valget *Stolpefarger:* i rapporten er samme valg som *Stolpefarger* på fanen Vis. Endrer du det i rapporten, endrer Gantt-diagrammet på skjermen seg med det.
 

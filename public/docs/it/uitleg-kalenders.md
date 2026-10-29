@@ -40,14 +40,14 @@ Il calendario di una **risorsa** non influisce sulle date. In una pianificazione
 Quando due attività con calendari diversi sono collegate, vale quanto segue:
 
 - Con una relazione fine-inizio il successore inizia il primo giorno lavorativo dopo la fine del predecessore, contato nel calendario del **successore**. Se un'attività finisce di venerdì, un successore con una settimana lavorativa di sei giorni inizia il sabato.
-- Un **ritardo** conta nel calendario del **predecessore** per impostazione predefinita. Puoi cambiarlo sotto *Impostazioni › Progetto › Info progetto*, nel blocco *Profilo di calcolo e opzioni*, sotto *Opzioni di calcolo di questo progetto*, con la scelta *Calendario del ritardo*: *Predecessore* (predefinito), *Successore*, *24 ore* o *Calendario del progetto*.
+- Un **ritardo** conta nel calendario del **predecessore** per impostazione predefinita. Puoi cambiarlo sotto *Impostazioni › Progetto › Impostazioni progetto*, nel blocco *Profilo di calcolo e opzioni*, sotto *Opzioni di calcolo di questo progetto*, con la scelta *Calendario del ritardo*: *Predecessore* (predefinito), *Successore*, *24 ore* o *Calendario del progetto*.
 - Il **margine totale** conta in giorni lavorativi del calendario dell'attività stessa. In questo profilo il **margine libero** conta nel calendario del successore.
 
 Che cosa sia esattamente un ritardo è spiegato in [Aggiungere relazioni](docs://howto-relaties-leggen); che cosa sia il margine, in [Percorso critico e margine](docs://uitleg-kritiek-pad).
 
 ### Nel Gantt
 
-Lo sfondo grigio nel Gantt mostra sempre i giorni non lavorativi del **calendario del progetto**. Un'attività con un calendario proprio può quindi attraversare un giorno grigio, per esempio un'attività di sei giorni che passa per il sabato. Un periodo di festività largo tre giorni o più mostra il suo nome, per esempio *Ferie edili (Nord)*. Questo non accade quando *Mostra solo i giorni lavorativi* è attivo. Se non vuoi vedere affatto i giorni grigi, attiva *Mostra solo i giorni lavorativi* sotto *Impostazioni › Progetto › Impostazioni*, scheda *Aspetto*, titolo *Asse temporale*.
+Lo sfondo grigio nel Gantt mostra sempre i giorni non lavorativi del **calendario del progetto**. Un'attività con un calendario proprio può quindi attraversare un giorno grigio, per esempio un'attività di sei giorni che passa per il sabato. Un periodo di festività largo tre giorni o più mostra il suo nome, per esempio *Ferie edili (Nord)*. Questo non accade quando *Mostra solo i giorni lavorativi* è attivo. Se non vuoi vedere affatto i giorni grigi, attiva *Mostra solo i giorni lavorativi* sotto *Impostazioni › Progetto › Impostazioni app*, scheda *Aspetto*, titolo *Asse temporale*.
 
 ## Esempio svolto: la pianificazione del cantiere
 
@@ -92,9 +92,9 @@ Le date di *Brickwork* non cambiano. Ma venerdì 4 giugno è rosso nell'istogram
 
 **«Se cambio il calendario del progetto, tutto si sposta.»** Si spostano solo le attività senza un calendario proprio. Un'attività a cui hai assegnato tu stesso un calendario dalla lista lo mantiene, anche se per caso è il vecchio calendario del progetto. Se elimini un calendario, le attività e le risorse che lo usavano ricadono sul calendario del progetto.
 
-**«Le festività ci sono, vero?»** Le festività esistono solo per gli anni per cui sono state create. Un giorno al di fuori di quegli anni è semplicemente un giorno lavorativo. Nella finestra di dialogo del calendario l'app lo dice con *Le festività coprono 2025–2028; il progetto arriva fino al 2030. Rigenerare?*
+**«Le festività ci sono, vero?»** Le festività esistono solo per gli anni per cui sono state create. Un giorno al di fuori di quegli anni è semplicemente un giorno lavorativo. Nella finestra di dialogo del calendario l'app lo dice con *Le festività coprono 2025–2028; vuoi rigenerarle fino al 2030 compreso?*
 
-**«Più ore al giorno rendono la mia attività più corta.»** Non per un'attività in giorni: conta giorni lavorativi interi, che il giorno abbia 6 o 8 ore. Solo per un'attività con risorse e con la regola di lavoro *Lavoro fisso* o *Unità fisse*, la durata cambia con le ore.
+**«Più ore al giorno rendono la mia attività più corta.»** Non per un'attività in giorni: conta giorni lavorativi interi, che il giorno abbia 6 o 8 ore. Solo per un'attività con risorse e con il tipo di attività *Lavoro fisso* o *Unità fisse*, la durata cambia con le ore.
 
 **Un calendario senza giorni lavorativi** non può essere calcolato dall'app. Il calcolo segnala *Nel calendario non sono impostati giorni lavorativi*.
 

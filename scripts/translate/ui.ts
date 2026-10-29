@@ -22,6 +22,8 @@ export interface UiItem {
   stale?: true;
   /** Andere UI-teksten die letterlijk in `nl` staan (een knop, tab of blok): zie `labelsFor`. */
   labels?: UiLabel[];
+  /** Vaste doeltekst voor deze sleutel en taal: byte-gelijk overnemen, inclusief invulplek. */
+  fixedText?: string;
 }
 
 /**
@@ -53,6 +55,24 @@ export interface UiPackage {
 
 /** Per namespace: de nl-, en- en (eventueel lege) doeltekst. */
 export interface NsInput { ns: Namespace | string; nl: JsonObject; en: JsonObject; target: JsonObject }
+
+/**
+ * Vaste tekst per sleutel en taal, geen algemene eenheids- of termregel. Besluit eigenaar 2026-10-20
+ * (knownbug 172; calendar-file-hours-notice.spec.ts): ar/fa tonen "10h", zonder spatie, als één
+ * LTR-reeks. nl blijft "{{hours}}u"; bestaande vertalingen in andere talen blijven vrij.
+ */
+export function fixedUiText(lang: string, ns: string, key: string): string | undefined {
+  return (lang === 'ar' || lang === 'fa') && ns === 'menu' && key === 'ribbon.calendarDialog.hoursValue'
+    ? '{{hours}}h' : undefined;
+}
+
+/** Dezelfde harde controle voor pakketuitvoer en de gepubliceerde UI (releasepoort). */
+export function uiFixedTextError(lang: string, ns: string, key: string, text: unknown): string | undefined {
+  const fixed = fixedUiText(lang, ns, key);
+  return fixed !== undefined && text !== fixed
+    ? `${ns}:${key}: vaste tekst voor ${lang} moet byte-gelijk ${JSON.stringify(fixed)} zijn; kreeg ${JSON.stringify(text)}`
+    : undefined;
+}
 
 export type Selection = 'missing' | 'stale' | 'all';
 
@@ -185,8 +205,8 @@ const wordRe = (s: string, flags = 'u') => new RegExp(`(?<![\\p{L}\\p{N}])${esca
  * Alle mogelijke labels over alle namespaces. Een label is een gewone (geen meervouds)tekst zonder
  * invulplekken of `$t(…)`, die met een hoofdletter begint, van ten minste twee woorden of tien tekens. Eén los woord dat in meer dan
  * `LABEL_COMMON_WORD_MAX` andere nl-teksten staat ("Instellingen") telt niet: dat is gewone taal. De
- * doeltekst telt alleen als de eenheid vertaald is (`isTranslated`; in een nieuwe taal is tekst zonder
- * hash Engelse vulling) en geen avoid-variant uit de termbase bevat (`rules`).
+ * doeltekst telt alleen als de eenheid vertaald is, de bron-hash actueel is en de tekst geen
+ * avoid-variant uit de termbase bevat (`rules`). Een oude labeltekst mag de nieuwe vertaling niet vastzetten.
  */
 export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSources, rules: AvoidRule[] = []): LabelEntry[] {
   const byText = new Map<string, { keys: string[]; targets: string[] }>();
@@ -206,8 +226,9 @@ export function buildLabelIndex(inputs: NsInput[], lang: string, sources: UiSour
       byText.set(t, e);
       e.keys.push(`${input.ns}:${u.key}`);
       const tu = target.get(u.key);
-      // Een doeltekst met een avoid-variant verandert zelf nog (`--avoid`): die eisen we niet af.
-      if (isTranslated(tu, u, lang, hashes) && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
+      // Een verouderde of hashloze doeltekst en een avoid-variant veranderen zelf nog: die eisen we niet af.
+      if (isTranslated(tu, u, lang, hashes) && hashes[u.key] === hashUnit(u.text)
+        && typeof tu!.text === 'string' && !e.targets.includes(tu!.text)
         && avoidHitsIn(tu!.text, rules).hits.length === 0) e.targets.push(tu!.text);
     }
   }
@@ -317,6 +338,7 @@ export function buildUiPackages(opts: {
         : selectUnits(input, opts.lang, opts.mode, opts.sources);
     const all: UiItem[] = selected.map(({ unit, previous, avoidHits, stale }) => {
       const labels = labelsFor(unit.key, input.ns, unit.text, labelIndex);
+      const fixedText = fixedUiText(opts.lang, input.ns, unit.key);
       return {
         key: unit.key,
         ...(unit.plural ? { plural: true as const } : {}),
@@ -326,6 +348,7 @@ export function buildUiPackages(opts: {
         ...(avoidHits ? { avoidHits } : {}),
         ...(stale ? { stale } : {}),
         ...(labels.length ? { labels } : {}),
+        ...(fixedText !== undefined ? { fixedText } : {}),
       };
     });
     const groups: UiItem[][] = [];
@@ -465,11 +488,18 @@ export function uiStatus(lang: string, inputs: NsInput[], sources: UiSources): N
 }
 
 /** Eén gat voor de releasepoort: een UI-eenheid (en later een docssectie) die niet bij is. */
-export interface ReleaseGap { lang: string; where: string; state: Exclude<UnitState, 'current'> }
+export interface ReleaseGap { lang: string; where: string; state: Exclude<UnitState, 'current'> | 'fixed-text'; detail?: string }
 
 /** Alle UI-gaten van één taal voor de releasepoort (`translate status --strict`, besluit B5). */
 export function uiReleaseGaps(lang: string, inputs: NsInput[], sources: UiSources): ReleaseGap[] {
-  return inputs.flatMap(input => uiUnitStates(lang, input, sources)
-    .filter((u): u is { key: string; state: ReleaseGap['state'] } => u.state !== 'current')
-    .map(u => ({ lang, where: `${input.ns}:${u.key}`, state: u.state })));
+  return inputs.flatMap(input => {
+    const target = unitMap(input.target);
+    return uiUnitStates(lang, input, sources).flatMap((u): ReleaseGap[] => {
+      const where = `${input.ns}:${u.key}`;
+      if (u.state !== 'current') return [{ lang, where, state: u.state }];
+      // Een actuele nl-hash zegt niets over deze vaste doeltekst; ook handmatige edits toetsen.
+      const detail = uiFixedTextError(lang, input.ns, u.key, target.get(u.key)?.text);
+      return detail ? [{ lang, where, state: 'fixed-text', detail }] : [];
+    });
+  });
 }

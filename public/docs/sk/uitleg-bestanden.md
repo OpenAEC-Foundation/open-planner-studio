@@ -4,7 +4,7 @@
 
 ## Koncept
 
-Open Planner Studio má jeden vlastný formát súborov: **IFC**, otvorený výmenný formát pre stavebné informácie od buildingSMART. Aplikácia zapisuje IFC 4.3; v zozname exportu sa volá *IFC 4x3*. Žiadny druhý, vlastný projektový súbor neexistuje. *Uložiť* zapíše celý projekt ako súbor IFC (`.ifc`) a *Otvoriť* ho zase načíta. Chcete vidieť, čo je v súbore? Karta *IFC* zobrazuje IFC text vášho projektu. *Generovať IFC* tento text obnoví.
+Open Planner Studio má jeden vlastný formát súborov: **IFC**, otvorený výmenný formát pre stavebné informácie od buildingSMART. Aplikácia zapisuje schému IFC projektu, predvolene IFC 4.3 ADD2 (pozri [Voľba schémy IFC](docs://howto-ifc-schema-kiezen)); v zozname exportu sa volá *IFC*. Žiadny druhý, vlastný projektový súbor neexistuje. *Uložiť* zapíše celý projekt ako súbor IFC (`.ifc`) a *Otvoriť* ho zase načíta. Chcete vidieť, čo je v súbore? Karta *IFC* je editor, ktorý zobrazuje IFC text vášho projektu. *Generovať IFC* tento text obnoví a *Kopírovať* ho uloží do schránky. Ak text zmeníte, *Použiť* ho načíta ako váš projekt. Tým sa projekt na tejto karte úplne nahradí.
 
 Všetky ostatné formáty sú **prekladače**: prekladajú medzi modelom iného programu a modelom aplikácie. Aplikácia číta CSV, MS Project XML, Primavera P6 XML, súbory MS Project (`.mpp`) a súbory Primavera (`.xer`). Zapisuje CSV, MS Project XML, Primavera P6 XML a dva prehľady postupu. Do formátov `.mpp` a `.xer` exportovať nemôžete.
 
@@ -46,7 +46,7 @@ Každý prekladač prenesie to, čo jeho formát pozná.
 
 **Primavera P6 XML** prenesie úlohy, závislosti, kalendáre, zdroje, priradenia, obmedzenia a dátum kontroly stavu. Pôvodné plány a termíny sa neprenesú, rovnako ako kódy aktivít, vlastné polia, poznámky a prepojenia medzi projektmi. Aj tu sa hamak stane obyčajnou úlohou. P6 nepozná oneskorenie v percentách: aplikácia takéto oneskorenie prevedie na pevný počet dní. Oneskorenie v kalendárnych dňoch sa prevedie na pracovné dni.
 
-**CSV** je zoznam úloh. Súbor má pre každú úlohu tieto stĺpce: task id, WBS, level, name, duration, start, finish, predecessors, type, id vlastného typu úlohy (`OPS Custom Task Type ID`), status, completion, actual start a finish, critical, total float a description. Zdroje, priradenia, kalendáre, obmedzenia, termíny, pôvodné plány a dátum kontroly stavu v ňom nie sú. Nadpisy stĺpcov sú vždy v angličtine.
+**CSV** je zoznam úloh. Súbor má pre každú úlohu tieto stĺpce: task id, WBS, level, name, duration, start, finish, predecessors, work category, id vlastného druhu prác (`OPS Custom Task Type ID`), status, completion, actual start a finish, critical, total float a description. Zdroje, priradenia, kalendáre, obmedzenia, termíny, pôvodné plány a dátum kontroly stavu v ňom nie sú. Nadpisy stĺpcov sú vždy v angličtine.
 
 **Iba IFC obsahuje profil výpočtu aj možnosti výpočtu.** Ak exportujete do CSV, MS Project XML alebo Primavera P6 XML, profil nie je v súbore. Z možností výpočtu zapíše MS Project XML najviac prahovú hodnotu pre kritické úlohy. Taký súbor sa znovu otvorí ako *Open Planner Studio*. Ak váš projekt používal výpočet podľa *Primavera P6* alebo *Microsoft Project*, napríklad preto, že pochádzal zo súboru `.xer` alebo `.mpp`, dátumy sa kvôli tomu môžu posunúť. Čo je profil výpočtu, vysvetľuje článok [Profily výpočtu a pravidlá výpočtu](docs://uitleg-rekenprofielen).
 

@@ -50,7 +50,7 @@ S *vyhladzovaním* sa úloha nesmie začať neskôr ako jej neskorý začiatok. 
 
 ## Pracovný príklad: murár na dvoch stenách
 
-Príklad je cvičný projekt z návodov *House extension* v stave tesne pred vyvažovaním v návode 5. V návode 5 to urobíte sami a overíte si čísla. V tomto príklade má omietka typ *Pevná práca* a omietkár má jednotky priradenia 2, ako v článku [Pravidlá práce: trvanie, jednotky a práca](docs://uitleg-werkregels).
+Príklad je cvičný projekt z návodov *House extension* v stave tesne pred vyvažovaním v návode 5. V návode 5 to urobíte sami a overíte si čísla. V tomto príklade má omietka typ *Pevná práca* a omietkár má jednotky priradenia 2, ako v článku [Typy úloh: trvanie, jednotky a práca](docs://uitleg-werkregels).
 
 Po dutinovej podlahe, dokončenej v pondelok 28. júna, začnú vnútorná murovaná vrstva (5 pracovných dní) a vonkajšia murovaná vrstva (6 pracovných dní) v utorok 29. júna. Obe úlohy sú priradené murárovi: jednotky priradenia 1 a hodnota *Maximálny počet jednotiek* 1. Po vnútornej vrstve nasledujú strešné prvky (6-hodinová úloha žeriavu) a krytina (2 pracovné dni). Rámy čakajú na krytinu a na vonkajšiu vrstvu. Odovzdanie je v pondelok 30. augusta.
 
@@ -66,14 +66,14 @@ Obe úlohy majú prioritu 500. Okenné rámy sa dodajú až 14. júla. V návode
 
 Vonkajšia vrstva nemôže začať 29. júna. Prvý deň, keď je murár znovu voľný, je utorok 6. júla. To je o 5 pracovných dní neskôr ako skorý začiatok, takže oneskorenie pri vyvažovaní je 5. Vonkajšia vrstva teraz beží od 6. júla do 13. júla vrátane. Rámy sa aj tak začnú až 14. júla, takže odovzdanie zostane v pondelok 30. augusta. Okno hlási *Dátum dokončenia projektu: bez zmeny (30-08-2027)* a ukáže jeden riadok: *Build outer cavity leaf*, starý začiatok 29-06-2027, nový začiatok 06-07-2027, *5 d*.
 
-Posun o 5 pracovných dní je presne časová rezerva vonkajšej vrstvy. Preto dá *vyhladzovanie* tu rovnaký výsledok. Vonkajšia vrstva už nemá žiadnu časovú rezervu a je kritická.
+Posun o 5 pracovných dní je presne časová rezerva vonkajšej vrstvy. Preto dá *vyvažovanie* tu rovnaký výsledok. Vonkajšia vrstva už nemá žiadnu časovú rezervu a je kritická.
 
 ### Čo ak rámy neprídu 14. júla
 
 Bez tohto obmedzenia môžu rámy začať v piatok 9. júla a odovzdanie je v stredu 25. augusta. Vonkajšia vrstva potom má len 2 pracovné dni časovej rezervy.
 
-- Bez *vyhladzovania* sa vonkajšia vrstva aj tak posunie o 5 pracovných dní. Rámy teraz musia počkať: začnú 14. júla, o 3 pracovné dni neskôr. Všetko za nimi sa posunie a odovzdanie sa zmení z 25. augusta na 30. augusta, tiež o 3 pracovné dni neskôr.
-- S *vyhladzovaním* sa nič nepresunie. Vonkajšia vrstva sa nezmestí do svojich 2 pracovných dní časovej rezervy. Okno zobrazí konflikt *Build outer cavity leaf*, 5 dní, s dôvodom *V rámci časovej rezervy nie je dostatok voľnej kapacity na vyriešenie tohto konfliktu.*
+- Bez *vyvažovania* sa vonkajšia vrstva aj tak posunie o 5 pracovných dní. Rámy teraz musia počkať: začnú 14. júla, o 3 pracovné dni neskôr. Všetko za nimi sa posunie a odovzdanie sa zmení z 25. augusta na 30. augusta, tiež o 3 pracovné dni neskôr.
+- S *vyvažovaním* sa nič nepresunie. Vonkajšia vrstva sa nezmestí do svojich 2 pracovných dní časovej rezervy. Okno zobrazí konflikt *Build outer cavity leaf*, 5 dní, s dôvodom *V rámci časovej rezervy nie je dostatok voľnej kapacity na vyriešenie tohto konfliktu.*
 
 ### Čo ak dostane vonkajšia vrstva prioritu
 
@@ -101,5 +101,5 @@ Ak nastavíte hodnotu *Maximálny počet jednotiek* murára na 2, preťaženie u
 
 - [Riešenie preťaženia](docs://howto-overbezetting-oplossen): kroky na nájdenie preťaženia a jeho vyvažovanie.
 - [Kritická cesta a časová rezerva](docs://uitleg-kritiek-pad): čo je časová rezerva a prečo sa úloha stane kritickou.
-- [Pravidlá práce: trvanie, jednotky a práca](docs://uitleg-werkregels): ako sa trvanie úlohy mení spolu s jednotkami priradenia.
+- [Typy úloh: trvanie, jednotky a práca](docs://uitleg-werkregels): ako sa trvanie úlohy mení spolu s jednotkami priradenia.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tri veže, ktoré potrebujú tie isté tímy a vežový žeriav, a čo s nimi robí vyvažovanie.

@@ -22,7 +22,7 @@ whole app state back to IFC.
 
 ## Prerequisites
 
-- **Node.js** (with npm)
+- **Node.js 22** (with npm)
 - **Rust** plus the [Tauri 2 prerequisites](https://tauri.app/start/prerequisites/) for your OS — only
   needed for the desktop build; the browser build needs Node alone.
 
@@ -30,7 +30,7 @@ whole app state back to IFC.
 
 ```bash
 # Install dependencies
-npm install
+npm ci
 
 # Start the browser dev server — it prints which port it picked
 npm run dev
@@ -56,7 +56,9 @@ each other's port.
 `npm run verify` is the repository gate: it combines strict type checks, linting, all behavioural
 suites (including browser flows), examples, documentation, i18n and dependency-cycle checks.
 (`npm run verify:audit` is a separate command, deliberately not part of the gate.)
-Run it before submitting a change:
+Run the checks relevant to your change while developing. The full gate runs in GitHub CI on the
+pull request; a failed suite blocks deployment and release. On a development machine with enough
+resources, the full gate is also available as:
 
 ```bash
 npm run verify

@@ -8,6 +8,7 @@ import type { RecoveryEntry } from '@/components/dialogs/RecoveryDialog';
 import { recoveryInputFromParsed, type RecoveryDocInput } from '@/state/documentContract';
 import { loadRecovery, clearRecovery, holdRecoveryForLater } from '@/services/recovery/recoveryStore';
 import { buildImportLabels } from '@/i18n/importLabels';
+import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 
 // In-app herstel-dialoog (vervangt de native OS-`ask()`): de gedetecteerde
 // recovery-payload + de callbacks om te herstellen/verwerpen/uitstellen. Lokale
@@ -60,14 +61,21 @@ export function useRecoveryRestore(): RecoveryRestore {
       const finish = () => { autoSaveEnabled.current = true; setRecoveryResolved(true); };
       try {
         const loaded = await loadRecovery();
-        if (loaded.docs.length === 0) { finish(); return; }
+        const readFailures = loaded.readFailures ?? [];
+        if (loaded.docs.length === 0 && readFailures.length === 0) { finish(); return; }
+        for (const failure of readFailures) {
+          useAppStore.getState().notify({
+            severity: 'error', messageKey: 'notifications.recoveryReadFailed',
+            detail: failure.detail, dedupeKey: 'recovery-read',
+          });
+        }
 
         // Parse elke snapshot vooraf zodat de dialoog projectnaam + taakaantal kan tonen, en
         // hergebruik dat resultaat bij het daadwerkelijke herstellen.
         const restored: RecoveryDocInput[] = [];
         const entries: RecoveryEntry[] = [];
-        /** Hoeveel snapshots op het parsen stukliepen — bepaalt of we mogen opruimen (zie onder). */
-        let failed = 0;
+        /** Zowel I/O- als parsefouten verhinderen opruimen, ook bij gedeeltelijk gezond herstel. */
+        let failed = readFailures.length;
         for (const d of loaded.docs) {
           try {
             // Een snapshot met archiefVERWIJZING (eigenaarsbesluit plan (9)) haalt de bronbytes uit
@@ -114,15 +122,10 @@ export function useRecoveryRestore(): RecoveryRestore {
           }
         }
 
-        // Niets bruikbaars geparst → geen dialoog. Wél of niet opruimen hangt af van de RÉDEN:
-        // stond er domweg niets, dan is wissen correct. Liepen de snapshots stuk op het parsen,
-        // dan is dit de enige kopie van werk dat de gebruiker nooit heeft kunnen opslaan — die
-        // weggooien zonder iets te vragen wist het bewijs mét de data. De melding uit de catch
-        // hierboven blijft staan; de bestanden blijven op schijf, zodat een volgende versie (of
-        // een handmatige reparatie) er alsnog bij kan.
-        if (entries.length === 0) {
-          if (failed === 0) await clearRecovery();
-          else await holdRecoveryForLater();
+        // Ook uitsluitend onleesbare kopieën krijgen een expliciete keuze. Sluiten bewaart ze;
+        // alleen bewust verwerpen mag ze wissen. Zonder die keuze bleven ze onbeperkt terugkomen.
+        if (entries.length === 0 && failed === 0) {
+          await clearRecovery();
           finish();
           return;
         }
@@ -144,22 +147,20 @@ export function useRecoveryRestore(): RecoveryRestore {
                 // Dialoog meteen weg zodra het herstel zelf klaar is — de opruimactie eronder is
                 // bestands-I/O en mag de gebruiker niet laten wachten.
                 setRecovery(null);
-                // Alleen wissen als ALLES is meegenomen. Is er iets overgeslagen, dan blijft de
+                // Alleen wissen als ALLES is meegenomen: ook vooraf onleesbare snapshots tellen
+                // mee, niet alleen documenten die restoreDocuments oversloeg. Anders blijft de
                 // volledige snapshotset staan — er is geen selectieve delete in `recoveryStore`, en
                 // de enige kopie van een overgeslagen document wissen zou het bewijs met de data
                 // weggooien (zelfde afweging als de parse-fout hierboven in de detectiefase).
                 //
-                // Prijs daarvan: de dialoog komt bij de volgende start opnieuw met dezelfde set, en
-                // de melding hierboven dus ook. Dat is bewust geaccepteerd en géén doodlopende weg —
-                // "Verwerpen" in de dialoog blijft de uitweg, en die keuze hoort bij de gebruiker
-                // en niet bij een stille `clearRecovery()`. Het is ook geen regressie: vóór deze fix
-                // gooide `restoreDocuments` op zo'n snapshot, kwam `clearRecovery()` net zo min aan
-                // bod en herstelde bovendien géén enkel document. De herstelde documenten zelf zijn
-                // hierna gewoon open, dus de eerstvolgende auto-save-ronde schrijft hún snapshots
-                // vers weg; de overgeslagen snapshot blijft ernaast bestaan via de carry-over in
-                // `planRecoveryCleanup` (een manifest van een vorige sessie is `foreign`).
-                if (skipped.length === 0) await clearRecovery();
-                else await holdRecoveryForLater();
+                // Prijs: de volgende start kan dezelfde set en foutmelding opnieuw tonen.
+                // "Verwerpen" blijft de expliciete uitweg. De herstelde documenten blijven open;
+                // hun volgende auto-save krijgt verse snapshots; pas daarna mag desktop de vervangen
+                // gezonde generatie opruimen. De mislukte generatie
+                // blijft beschermd via holdRecoveryForLater (web: vastgehouden generatie; Tauri:
+                // overgenomen manifestregels die elke ronde meegaan, ook bij een v1-manifest).
+                if (failed === 0 && skipped.length === 0) await clearRecovery();
+                else await holdRecoveryForLater(restored.filter(doc => !skipped.includes(doc.id)).map(doc => doc.id));
               } catch (err) {
                 // Snapshots blijven staan. `finish()` gaat bewust wél door: de auto-save-poort
                 // dichthouden zou betekenen dat vanaf nu NIETS meer wordt weggeschreven — een
@@ -167,14 +168,14 @@ export function useRecoveryRestore(): RecoveryRestore {
                 // gebruikerszichtbaar via het meldingenkanaal; de debug-terminal houdt
                 // via appLog de volledige stack bij.
                 console.error('Recovery: herstellen mislukt — snapshots blijven staan:', err);
-                useAppStore.getState().notify({
+                if (!notifyRecoveryError(err, useAppStore.getState().notify)) useAppStore.getState().notify({
                   severity: 'error',
                   messageKey: 'notifications.recoveryRestoreFailed',
                   detail: (err as Error).message,
                 });
                 // "Blijven staan" vraagt op het web een expliciete hold: anders ruimt de eerste
                 // crashherstel-ronde onder hetzelfde sessie-id deze generatie op (review 2026-09-28).
-                // Op Tauri een no-op (carry-over).
+                // Op Tauri neemt hij de manifestregels over (zie `holdTauri`).
                 try {
                   await holdRecoveryForLater();
                 } catch (holdErr) {
@@ -186,19 +187,33 @@ export function useRecoveryRestore(): RecoveryRestore {
               }
             })();
           },
-          onDiscard: () => { void clearRecovery(); setRecovery(null); finish(); },
+          onDiscard: () => {
+            void clearRecovery().catch((err: unknown) => {
+              if (!notifyRecoveryError(err, useAppStore.getState().notify)) {
+                console.error('Recovery: verwerpen mislukt:', err);
+              }
+            });
+            setRecovery(null);
+            finish();
+          },
           // Uitstellen: snapshots laten staan, niet herstellen (zie RecoveryDialog). Eerst
           // vasthouden, dan pas de auto-save aan: anders overschrijft de eerste crashherstel-ronde
           // op het web de uitgestelde generatie (zelfde sessie-id na een herlaad).
           onClose: () => {
             setRecovery(null);
             void holdRecoveryForLater()
-              .catch((err) => { console.error('Recovery: uitstellen kon de snapshots niet vasthouden:', err); })
+              .catch((err: unknown) => {
+                if (!notifyRecoveryError(err, useAppStore.getState().notify)) {
+                  console.error('Recovery: uitstellen kon de snapshots niet vasthouden:', err);
+                }
+              })
               .finally(finish);
           },
         });
       } catch (err) {
-        console.error('Recovery check failed:', err);
+        if (!notifyRecoveryError(err, useAppStore.getState().notify)) {
+          console.error('Recovery check failed:', err);
+        }
         finish();
       }
     })();

@@ -24,7 +24,7 @@ Przydatne, gdy pracujesz w tabeli zadań.
 2. Przytrzymaj Ctrl (⌘ na Macu) i kliknij zadanie, które jest następne: następnik.
 3. Wybierz *Start › Zadania › Połącz ▾ › Połącz zaznaczone zadania*. Ten sam przycisk jest też w *Planowanie › Relacje*.
 
-Aplikacja tworzy relację FS bez opóźnienia. Widzisz ją jako strzałkę w widoku Gantt i w kolumnie *Poprzedniki*; powiadomienie pojawia się tylko wtedy, gdy aplikacja odrzuci relację. Przycisk działa tylko wtedy, gdy zaznaczone są dokładnie dwa zadania.
+Aplikacja tworzy relację zakończenie-rozpoczęcie bez opóźnienia. Widzisz ją jako strzałkę w widoku Gantt i w kolumnie *Poprzedniki*. Powiadomienie pojawia się tylko wtedy, gdy aplikacja odrzuci relację. Przycisk działa tylko wtedy, gdy zaznaczone są dokładnie dwa zadania.
 
 ### Rysowanie relacji w widoku Gantt
 
@@ -69,14 +69,14 @@ Opóźnienie wpisujesz w polu obok typu, przy każdej z opisanych wyżej metod. 
 - `3` albo `3d`: 3 dni robocze. Weekend się nie liczy. Aplikacja pokazuje `+3d`.
 - `3ed`: 3 dni kalendarzowe. Weekend się liczy, na przykład przy betonie, który dojrzewa także w sobotę i niedzielę.
 - `-1`: ujemne opóźnienie (wyprzedzenie). Następnik może zacząć się o dzień wcześniej, więc zadania nachodzą na siebie.
-- `4h`: 4 godziny pracy; aplikacja pokazuje to jako `+4u`. Jeśli poprzednik jest zadaniem w dniach w kalendarzu bez własnych pasm godzin pracy, na przykład w kalendarzu standardowym, aplikacja zamienia to na pełne dni robocze, zaokrąglone do najbliższego dnia: `4h` działa jak 1 dzień, `2h` jak 0. Przy kalendarzu z własnymi pasmami albo po zadaniu godzinowym opóźnienie liczy się dokładnie w godzinach.
+- `4h`: 4 godziny pracy; aplikacja pokazuje to jako `+4h`. Jeśli poprzednik jest zadaniem w dniach w kalendarzu bez własnych pasm godzin pracy, na przykład w kalendarzu standardowym, aplikacja zamienia to na pełne dni robocze, zaokrąglone do najbliższego dnia: `4h` działa jak 1 dzień, `2h` jak 0. Przy kalendarzu z własnymi pasmami albo po zadaniu godzinowym opóźnienie liczy się dokładnie w godzinach.
 - `50%`: połowa czasu trwania poprzednika.
 
 Przykład: beton fundamentu musi dojrzeć, zanim murarz może na nim pracować. Dlatego *Pour foundation → Foundation brickwork* dostaje relację FS z opóźnieniem `3`. Jeśli wylewanie fundamentu wypada w piątek 18 czerwca 2027 r., murowanie zaczyna się w czwartek 24 czerwca, po naciśnięciu **Oblicz**: od poniedziałku do środy to czas oczekiwania. Przy `3ed` wlicza się weekend i murowanie zaczyna się we wtorek 22 czerwca.
 
 ### Na koniec: przeliczenie
 
-Nowa relacja jeszcze nie przesuwa żadnych pasków. Pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*. Dopiero wtedy następniki dostają nowe daty. Chcesz, aby aplikacja robiła to sama? Włącz *Oblicz automatycznie* w oknie *Ustawienia › Projekt › Ustawienia*, karta *Planowanie*.
+Nowa relacja jeszcze nie przesuwa żadnych pasków. Pasek stanu pokazuje *Nieaktualne — przelicz (F5)*. Naciśnij **Oblicz** (F5), na przykład przez *Start › Harmonogram › Oblicz*. Dopiero wtedy następniki dostają nowe daty. Chcesz, aby aplikacja robiła to sama? Włącz *Oblicz automatycznie* pod *Ustawienia › Projekt › Ustawienia aplikacji*, karta *Planowanie*.
 
 ## Pułapki i co robi aplikacja
 

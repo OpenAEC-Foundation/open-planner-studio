@@ -67,8 +67,6 @@ async function ganttHourLabels(page: Page, zoom = 1000): Promise<string[]> {
   await page.locator('.ribbon-tab').filter({ hasText: /^(Home|Start)$/ }).click();
   await expect(page.locator('[data-task-grid-surface-id="full-task-grid"]')).toHaveCount(0);
   await page.evaluate((z) => {
-    const s = window.__OPS__!.store.getState();
-    s.setUI({ enableHourPlanning: true });
     window.__OPS__!.store.getState().setZoom(z);
     window.__OPS__!.store.getState().setViewStartDate('2026-01-06');
   }, zoom);
@@ -305,7 +303,7 @@ test('Tijdnotatie 12h: Gantt-uurschaal bij zoom 800 houdt middernacht en middag'
 
 // ── Blok doortrekken na middernacht (hercheck #347, punt 1 en 2) ────────────────────────────────
 // 22:00–24:00 met een getypt einde "02:00" of "2 am" wordt een nachtblok tot 02:00 de volgende dag
-// (1560, "volgende dag" aan, 4.00h), niet 22:00 terug naar 02:00 (−20 uur). En in het eindveld van
+// (1560, "volgende dag" aan, 4 h), niet 22:00 terug naar 02:00 (−20 uur). En in het eindveld van
 // een nachtblok is "24:00" middernacht (1440), net als "0:00" en "12 am".
 for (const n of NOTATIONS) {
   test(`Tijdnotatie ${n.notation}: een getypt einde vóór het begin loopt door naar de volgende dag`, async ({ page, ops: _ops }) => {
@@ -320,22 +318,22 @@ for (const n of NOTATIONS) {
     await typeTime(band(dialog, 1, 0, 'end'), n.notation === '24h' ? '02:00' : '2 am');
     await expect(band(dialog, 1, 0, 'end')).toHaveValue(twoAm);
     await expect(nextDay(1)).toBeChecked();
-    await expect(dayHeader(1)).toContainText('4.00h');
+    await expect(dayHeader(1)).toContainText('4h');
     // Di: eerst doortrekken naar 02:00, dan "24:00" in het eindveld van het nachtblok ⇒ weer middernacht.
     await typeTime(band(dialog, 2, 0, 'end'), '02:00');
     await expect(nextDay(2)).toBeChecked();
     await typeTime(band(dialog, 2, 0, 'end'), '24:00');
     await expect(band(dialog, 2, 0, 'end')).toHaveValue(n.midnight);
     await expect(nextDay(2)).not.toBeChecked();
-    await expect(dayHeader(2)).toContainText('2.00h');
+    await expect(dayHeader(2)).toContainText('2h');
     // Wo: eerst een nachtblok tot 06:00, dan "23:00" ⇒ 22:00–23:00 op dezelfde dag, nooit 25 uur.
     await typeTime(band(dialog, 3, 0, 'end'), '06:00');
     await expect(nextDay(3)).toBeChecked();
-    await expect(dayHeader(3)).toContainText('8.00h');
+    await expect(dayHeader(3)).toContainText('8h');
     await typeTime(band(dialog, 3, 0, 'end'), n.notation === '24h' ? '23:00' : '11 pm');
     await expect(band(dialog, 3, 0, 'end')).toHaveValue(n.notation === '24h' ? '23:00' : '11:00 PM');
     await expect(nextDay(3)).not.toBeChecked();
-    await expect(dayHeader(3)).toContainText('1.00h');
+    await expect(dayHeader(3)).toContainText('1h');
 
     await dialog.locator('[data-ops-cal-apply]').click();
     await expect(dialog).toHaveCount(0);
@@ -343,10 +341,10 @@ for (const n of NOTATIONS) {
     expect(blocks[0]).toEqual([{ start: 1320, end: 1560 }]);
     expect(blocks[1]).toEqual([{ start: 1320, end: 1440 }]);
     expect(blocks[2]).toEqual([{ start: 1320, end: 1380 }]);
-    // Na Toepassen en heropenen: ma toont 4.00h en "volgende dag".
+    // Na Toepassen en heropenen: ma toont 4h en "volgende dag".
     await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showCalendarDialog: true }));
     await expect(dialog).toBeVisible();
-    await expect(dayHeader(1)).toContainText('4.00h');
+    await expect(dayHeader(1)).toContainText('4h');
     await expect(nextDay(1)).toBeChecked();
     expect(await page.evaluate(() => window.__OPS__!.store.getState().calendar.hoursPerDay)).toBeGreaterThan(0);
   });

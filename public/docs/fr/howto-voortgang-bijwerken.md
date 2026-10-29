@@ -14,7 +14,8 @@ La date d’état est le jour où vous faites le point. Définissez-la avant de 
 
 1. Allez dans *Planification › Références et avancement › Date d’état*.
 2. Saisissez la date dans les trois cases pour le jour, le mois et l’année (dans l’ordre de votre notation de date), par exemple 28, 06 et 2027, puis appuyez sur Entrée. L’application passe seule à la case suivante.
-3. La petite croix à côté du champ efface à nouveau la date d’état.
+3. Le calendrier du projet a-t-il des plages horaires (le bloc *Horaires de travail* dans la fenêtre *Calendriers*) ? Dans ce cas, l’application calcule en heures et un champ d’heure apparaît à droite, par exemple 17:00. Saisissez une autre heure, par exemple 12:00, puis appuyez sur Entrée. Si vous videz le champ d’heure, seule la date reste. Si vous modifiez seulement la date, l’heure reste. L’heure suit votre notation de l’heure (24 ou 12 heures). Sans plages horaires, l’application calcule en jours entiers : il n’y a alors pas de champ d’heure, et la ligne de la date d’état se trouve au début du jour.
+4. Avec la petite croix à côté du champ, vous effacez à nouveau la date d’état.
 
 Si vous faites le point le vendredi après les horaires de travail, définissez la date d’état au jour ouvré suivant, le lundi. L’application planifie le travail restant à partir du début de la date d’état.
 
@@ -43,7 +44,7 @@ Un jalon n’a qu’un seul champ, *Date réelle*.
 2. Double-cliquez sur une cellule, saisissez la valeur et appuyez sur Entrée. Vous saisissez un pourcentage sous la forme `50` ou `50%`, une date sous la forme `25-06-2027`, une durée restante sous la forme `1`.
 3. Pour *État*, après un double-clic, appuyez sur Entrée et choisissez *Non démarrée*, *En cours* ou *Terminée*.
 
-Si vous saisissez une durée restante, l’application revient au pourcentage : pour une tâche de 2 jours ouvrés, un reste de 1 donne un avancement de 50 %. Un reste de 0 termine la tâche. Si vous choisissez *Non démarrée* dans la colonne *État*, l’avancement passe à 0 et les dates réelles disparaissent.
+Si vous saisissez une durée restante, l’application revient au pourcentage : pour une tâche de 2 jours ouvrés, un reste de 1 donne un avancement de 50 %. Un reste de 0 termine la tâche. La colonne *Durée réelle* (également dans la catégorie *Avancement*) fonctionne dans l’autre sens : saisissez la durée déjà effectuée, et l’application calcule le pourcentage. Pour une tâche de 4 jours ouvrés, une durée réelle de 1 donne 25 %. Si vous choisissez *Non démarrée* dans la colonne *État*, l’avancement passe à 0 et les dates réelles disparaissent.
 
 **Tout sur une tâche dans la fenêtre de modification.** Faites un clic droit sur la tâche et choisissez *Modifier...*. Les champs d’avancement y figurent aussi. Ils ne prennent effet qu’après un clic sur *Enregistrer*.
 
@@ -51,7 +52,7 @@ Si vous saisissez une durée restante, l’application revient au pourcentage : 
 
 ### 3. Recalculer le planning
 
-Chaque modification de l’avancement ou de la date d’état rend le planning obsolète : la barre d’état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres*, onglet *Planification*), l’application le fait elle-même.
+Chaque modification de l’avancement ou de la date d’état rend le planning obsolète : la barre d’état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres de l'app*, onglet *Planification*), l’application le fait elle-même.
 
 ## Vérifier le résultat
 

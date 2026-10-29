@@ -6,27 +6,27 @@ Panglica din partea de sus a ecranului are file. Fiecare filă are grupuri de bu
 
 - **Filele** — *Fișier* este în stânga, apoi *Acasă*, *Planificare*, *Resurse*, *Vizualizare*, *Setări*, *Tabel*, *IFC*, *Raport* și, doar cu modul AI activat, *AI*.
 - **Fereastră îngustă** — când panglica nu încape, butoanele se micșorează la o pictogramă, de la dreapta spre stânga. Numele apare atunci ca text de ajutor pe buton. Fiecare buton fără propriul text de ajutor arată numele său.
-- **Restrângerea panglicii** — săgeata mică din dreapta jos a panglicii o transformă într-o bară plată cu doar pictograme. Zona *Referințe și progres* și zona *Conexiune* din fila *AI* dispar atunci în spatele unui singur buton cu fereastră pop-up. Implicit: extinsă. Alegerea dumneavoastră este reținută.
-- **Butoane de extensie** — o extensie poate adăuga propria zonă la sfârșitul unei file. Un astfel de buton face ce i-a dat extensia.
+- **Restrângerea panglicii** — săgeata mică din dreapta jos a panglicii o transformă într-o fâșie plată cu doar pictograme. Grupul *Referințe și progres* și grupul *Conexiune* din fila *AI* dispar atunci în spatele unui singur buton cu fereastră pop-up. Implicit: extinsă. Alegerea dumneavoastră este reținută.
+- **Butoane de extensie** — o extensie poate adăuga propriul grup la sfârșitul unei file. Un astfel de buton face ce i-a dat extensia.
 
 ## Fișier
 
-Când faceți clic pe *Fișier*, un ecran propriu (Backstage) ocupă spațiul de lucru. Acest ecran nu are panglică. *Înapoi* închide ecranul. Dacă ați schimbat ceva la *Informații proiect* și nu ați aplicat, aplicația vă întreabă mai întâi ce să faceți cu modificarea.
+Când faceți clic pe *Fișier*, un ecran propriu (Backstage) preia spațiul de lucru. Acest ecran nu are panglică. *Înapoi* închide ecranul. Dacă ați modificat ceva la *Setări proiect* și nu ați aplicat, aplicația vă întreabă mai întâi ce să faceți cu modificarea.
 
-- **Nou** — deschide fereastra *Creare proiect nou* și închide Backstage. Câmpurile sunt în [Proiect nou și Informații proiect](docs://ref-projectinfo).
-- **Deschidere** — alegeți un fișier și îl deschideți ca document. Închide Backstage.
-- **Recente** — listă cu proiectele deschise recent; un clic deschide unul. Este vizibil doar când mediul poate redeschide fișiere: în aplicația desktop și în browsere cu acces la fișiere, de exemplu Chrome și Edge. În alte browsere butonul există, dar pagina rămâne goală.
+- **Nou** — deschide fereastra *Creare proiect nou* și închide Backstage. Câmpurile sunt descrise în [Proiect nou și Setări proiect](docs://ref-projectinfo).
+- **Deschidere** — alegeți un fișier și deschideți-l ca document. Închide Backstage.
+- **Recente** — listă cu proiectele deschise recent; un clic deschide unul. Este vizibilă doar când mediul poate redeschide fișiere: în aplicația desktop și în browserele cu acces la fișiere, de exemplu Chrome și Edge. În alte browsere butonul există, dar pagina rămâne goală.
 - **Exemple** — planificări de exemplu incluse în aplicație, împărțite în *Planificări complete de prezentare* (insigna *Toate funcțiile*) și *Exemple simple*. Un clic deschide una într-o filă nouă.
 - **Salvare** — scrie proiectul în fișierul acestui document. Dacă documentul nu are încă un fișier, alegeți mai întâi un nume și un loc. Un fișier deschis într-un alt format decât IFC nu se suprascrie niciodată. Atunci *Salvare* cere un nume și un loc pentru un fișier IFC.
 - **Salvare ca** — alegeți un nume nou sau un loc nou și salvați acolo ca IFC.
 - **Export** — carduri pentru fiecare format de export, cu o descriere. Un clic convertește proiectul și îl salvează, apoi vă duce înapoi la *Acasă*. Dacă planificarea are un ciclu, eroarea apare în Backstage și rămâneți acolo. Dacă proiectul este legat de o bibliotecă de resurse, sub listă apare caseta *Salvare fișier bibliotecă alături*. Ea funcționează doar pentru cardul IFC.
-- **Import** — sus cardul *Actualizare progres din foaie de calcul* (dezactivat fără activități), dedesubt importatorii pe care îi adaugă extensiile.
+- **Import** — sus cardul *Actualizare progres dintr-o foaie de calcul* (dezactivat fără activități), dedesubt importatorii pe care îi adaugă extensiile.
 - **Tipărire** — butonul *Deschidere previzualizare la imprimare* vă duce la fila *Raport*.
-- **Informații proiect** — metadatele și profilul de calcul al acestui proiect. Modificările au efect doar după *Aplicare*. Vezi [Proiect nou și Informații proiect](docs://ref-projectinfo) și [Profiluri de calcul și convenții de calcul](docs://uitleg-rekenprofielen).
-- **Setări** — aceleași setări ca în fereastra *Setări*.
+- **Setări proiect** — metadatele și profilul de calcul al acestui proiect. Modificările au efect doar după *Aplicare*. Vezi [Proiect nou și Setări proiect](docs://ref-projectinfo) și [Profiluri de calcul și convenții de calcul](docs://uitleg-rekenprofielen).
+- **Setări aplicație** — aceleași setări ca în fereastra *Setări aplicație*.
 - **Extensii** — administrarea și instalarea extensiilor; vezi [Instalarea și administrarea unei extensii](docs://howto-extensie-installeren).
 - **Bibliotecă** — administrarea bibliotecilor de resurse; vezi [Administrarea și partajarea bibliotecilor de resurse](docs://howto-bibliotheken-beheren).
-- **Ajutor** — documentația încorporată, și cu F1. Câmpul de căutare caută în titluri, în subtitluri și în textul propriu-zis. Articolele sunt în patru secțiuni: *Tutoriale*, *Ghiduri practice*, *Explicație* și *Referință*. Sub *Limba documentației* alegeți *Urmează limba aplicației*, *Nederlands* sau *English*. Ajutorul există doar în neerlandeză și engleză. Dacă aplicația are altă limbă, citiți versiunea engleză, cu o notă. Alegerea este păstrată pe acest dispozitiv, separat de limba aplicației. Puteți ajunge la Ajutor și dintr-o fereastră sau un panou. Multe ferestre și panourile *Proprietăți*, *Resurse* și *Avertismente* au un semn de întrebare în dreapta sus (*Ajutor pentru acest element*). Acesta deschide Ajutor la articolul despre fereastra sau panoul respectiv. Dacă ați introdus ceva în fereastră și nu este salvat încă, aplicația întreabă mai întâi *Salvare*, *Anulare* (renunțați la ce ați introdus) sau *Înapoi* (rămâneți în fereastră). Apoi fereastra se închide și se deschide Ajutorul. Câteva ferestre, cum ar fi *Editare activitate* și *Redistribuire resurse*, întreabă mereu. Fără date introduse, Ajutorul se deschide imediat.
+- **Ajutor** — documentația încorporată, și cu F1. Câmpul de căutare caută în titluri, în subtitluri și în textul propriu-zis. Articolele sunt în patru secțiuni: *Tutoriale*, *Ghiduri practice*, *Explicație* și *Referință*. Sub *Limba documentației* alegeți *Urmează limba aplicației* sau o limbă din listă. Neerlandeza și engleza sunt limbile sursă; celelalte limbi au articolele deja traduse. Dacă un articol lipsește în limba dumneavoastră, citiți versiunea engleză, cu o notă. Alegerea este păstrată pe acest dispozitiv, separat de limba aplicației. Puteți ajunge la Ajutor și dintr-o fereastră sau un panou. Multe ferestre și panourile *Proprietăți*, *Resurse* și *Avertismente* au un semn de întrebare în dreapta sus (*Ajutor pentru acest element*). Acesta deschide Ajutorul la articolul despre fereastra sau panoul respectiv. Dacă ați introdus ceva în fereastră și nu este salvat încă, aplicația întreabă mai întâi *Salvare*, *Anulare* (renunțați la ce ați introdus) sau *Înapoi* (rămâneți în fereastră). Apoi fereastra se închide și se deschide Ajutorul. Câteva ferestre, cum ar fi *Editare activitate* și *Redistribuire resurse*, întreabă mereu. Fără date introduse, Ajutorul se deschide imediat.
 - **Pornire tur ghidat** — închide Backstage și pornește turul de la pasul 1.
 - **Închidere proiect** — închide documentul activ. Dacă are modificări nesalvate, aplicația cere confirmare.
 
@@ -46,14 +46,14 @@ Când faceți clic pe *Fișier*, un ecran propriu (Backstage) ocupă spațiul de
 
 ### Acasă › Activități
 
-- **Activitate** — adaugă o activitate cu numele *Creare activitate*, cu o durată de 5 zile lucrătoare, care începe la începutul proiectului. (Dacă *Activare planificare pe ore* este activată și *Unitate implicită pentru activități noi* din *Informații proiect* este ore, durata este de 5 ore.) Dacă o activitate este selectată și vizualizarea este arborele simplu, noua activitate apare direct sub cea mai de jos activitate selectată (text de ajutor *Activitate nouă direct sub selecție*). Fără selecție, apare la sfârșitul listei (text de ajutor *Activitate nouă la sfârșitul listei*). Cu o selecție, dar în timpul filtrării, grupării sau sortării, apare tot la sfârșitul listei. Un rând de text spune atunci *Indisponibil la filtrare, grupare sau sortare*. Noua activitate devine singura selecție, diagrama Gantt se mută la ea, iar numele ei este gata de suprascris în panoul *Proprietăți*.
-- **Jalon ▾** — listă derulantă care pune un jalon (durată 0) în același loc ca *Activitate*. *Jalon de început* și *Jalon de sfârșit* stabilesc tipul jalonului. Noul jalon se numește *Jalon nou* și primește tipul de activitate *Altele*. *Moment de inspecție (obligatoriu)* creează un jalon de sfârșit cu tipul de activitate *Inspecție* și marcajul *Obligatoriu (prin contract)*, cu numele *Moment de inspecție nou*.
+- **Activitate** — adaugă o activitate cu numele *Creare activitate*, cu o durată de 5 zile lucrătoare, care începe la începutul proiectului. (Dacă *Activare planificare pe ore* este activată și *Unitate implicită pentru activități noi* din *Setări proiect* este ore, durata este de 5 ore.) Dacă o activitate este selectată și vizualizarea este arborele simplu, noua activitate apare direct sub cea mai de jos activitate selectată (text de ajutor *Activitate nouă direct sub selecție*). Fără selecție, apare la sfârșitul listei (text de ajutor *Activitate nouă la sfârșitul listei*). Cu o selecție, dar în timpul filtrării, grupării sau sortării, apare tot la sfârșitul listei. Apoi o notificare roșie spune că aplicația nu poate plasa activitatea sub selecția dumneavoastră, cu butonul *Golire*. Noua activitate devine singura selecție, diagrama Gantt se mută la ea, iar numele ei este gata de suprascris în panoul *Proprietăți*.
+- **Jalon ▾** — listă derulantă care pune un jalon (durată 0) în același loc ca *Activitate*. *Jalon de început* și *Jalon de sfârșit* stabilesc tipul jalonului. Noul jalon se numește *Jalon nou* și primește categoria de lucrări *Altele*. *Moment de inspecție (obligatoriu)* creează un jalon de sfârșit cu categoria de lucrări *Inspecție* și marcajul *Obligatoriu (prin contract)*, cu numele *Moment de inspecție nou*.
 - **Legare ▾** — listă derulantă cu patru acțiuni fixe. Butonul principal nu își schimbă niciodată sensul. Vezi *Planificare › Dependențe* pentru cele patru acțiuni.
-- **Scindare activitate** — pornește sau oprește modul de scindare. Pornit: un rând de text sub panglică explică să faceți clic pe o bară unde începe golul și să trageți spre dreapta pentru lungimea lui. Dezactivat când diagrama Gantt nu este vizibilă (în filele *Tabel*, *IFC* și *Raport* și sub panoul complet de resurse). Textul de ajutor spune atunci *Disponibil doar când diagrama Gantt este vizibilă*. Vezi [Scindarea unei activități](docs://howto-taak-splitsen).
+- **Scindare activitate** — pornește sau oprește modul de scindare. Pornit: un rând de text sub panglică explică să faceți clic pe o bară unde începe golul și să trageți spre dreapta pentru lungimea lui. Dezactivat când diagrama Gantt nu este vizibilă (în filele *Tabel*, *IFC* și *Raport* și sub panoul de resurse complet). Textul de ajutor spune atunci *Disponibil doar când diagrama Gantt este vizibilă*. Vezi [Scindarea unei activități](docs://howto-taak-splitsen).
 
 ### Acasă › Planificare
 
-- **Calculare** — calculează planificarea: date, marjă, drumul critic și încărcarea resurselor. Acest lucru nu se întâmplă niciodată singur, decât dacă activați *Calculare automată* (*Setări*, fila *Planificare*, rubrica *Calculare*). Cât timp planificarea este învechită, bara de stare scrie *Învechit — recalculați (F5)*.
+- **Calculare** — calculează planificarea: date, marjă, drumul critic și încărcarea resurselor. Acest lucru nu se întâmplă niciodată singur, decât dacă activați *Calculare automată* (*Setări aplicație*, fila *Planificare*, rubrica *Calcul*). Cât timp planificarea este învechită, bara de stare scrie *Învechit — recalculați (F5)*.
 
 ### Acasă › Zoom
 
@@ -66,19 +66,19 @@ Când faceți clic pe *Fișier*, un ecran propriu (Backstage) ocupă spațiul de
 
 Butonul *Calculare* este același ca în *Acasă*.
 
-- **Mutarea proiectului…** — deschide fereastra *Mutarea proiectului*. Dezactivat fără început proiect. Vezi [Mutarea unui proiect](docs://howto-project-verplaatsen).
+- **Mutarea proiectului…** — deschide fereastra *Mutarea proiectului*. Dezactivat fără dată de început a proiectului. Vezi [Mutarea unui proiect](docs://howto-project-verplaatsen).
 - **Avertismente** — afișează sau ascunde panoul *Avertismente* din coloana din dreapta. Butonul se aprinde cât timp vedeți panoul. Când îl activați, o coloană restrânsă se extinde. Ce apare în panou este descris în [Notificări și avertismente](docs://ref-meldingen).
 
 ### Planificare › Dependențe
 
-Zona are butonul *Legare ▾* cu patru acțiuni și butonul *Scindare activitate* (la fel ca în *Acasă*). Cele patru acțiuni:
+Grupul are butonul *Legare ▾* cu patru acțiuni și butonul *Scindare activitate* (la fel ca în *Acasă*). Cele patru acțiuni:
 
 - **Desenare dependență** — pornește sau oprește modul de legare. Când este pornit, apare un semn de bifare și butonul principal se aprinde. Pornit: trageți de la o bară la alta în diagrama Gantt ca să creați o dependență. Un rând de text sub panglică spune cum se oprește (*Oprire* sau Esc). Dezactivat când diagrama Gantt nu este vizibilă.
 - **Legare activități selectate** — creează o dependență sfârșit-început fără decalaj între două activități. Prima activitate selectată devine predecesorul. Disponibil doar cu exact două activități selectate (altfel *Selectați exact două activități*). O dependență duplicată sau un ciclu este refuzat, cu un mesaj.
 - **Adăugare legătură între proiecte…** — deschide o fereastră ca să adăugați un predecesor sau un succesor extern la activitatea selectată. Disponibil doar cu exact o activitate selectată (altfel *Selectați exact o activitate*).
-- **Reîmprospătare a tuturor legăturilor între proiecte** — reîmprospătează ancorele tuturor legăturilor între proiecte. În meniu arată câte au fost actualizate sau lipsesc. Disponibil doar când proiectul are legături între proiecte (altfel *Acest proiect nu conține legături între proiecte*).
+- **Reîmprospătare a tuturor legăturilor între proiecte** — reîmprospătează ancorele tuturor legăturilor între proiecte. În meniu apare câte au fost actualizate sau lipsesc. Disponibil doar când proiectul are legături între proiecte (altfel *Acest proiect nu conține legături între proiecte*).
 
-Pentru motivele din spatele dependențelor vezi [Crearea dependențelor](docs://howto-relaties-leggen) și [Dependențe și decalaj](docs://uitleg-relaties).
+Despre motivele dependențelor vezi [Crearea dependențelor](docs://howto-relaties-leggen) și [Dependențe și decalaj](docs://uitleg-relaties).
 
 ### Planificare › Urmărire traseu
 
@@ -94,26 +94,26 @@ Puteți avea ambele active în același timp. Un al doilea clic pe un buton opre
 ### Planificare › Structură
 
 - **Coduri și câmpuri** — deschide fereastra *Coduri și câmpuri* pentru codurile de activitate și câmpurile particularizate. Vezi [Coduri și câmpuri particularizate](docs://howto-codes-en-velden).
-- **WBS automat** — pornește sau oprește numerotarea automată a codurilor WBS. Implicit: dezactivat. Pornit: întreaga structură se renumerotează deodată. Codurile urmează apoi fiecare modificare a structurii. Câmpul *Cod WBS* din panou și din fereastră este dezactivat.
+- **WBS automat** — pornește sau oprește numerotarea automată a codurilor WBS. Implicit: activat în proiect nou. La un fișier deschis fără această setare: activat dacă fișierul este gol sau dacă toate codurile corespund deja numerotării arborelui, altfel dezactivat. Pornit: întreaga structură se renumerotează deodată. Codurile urmează apoi fiecare modificare a structurii. Câmpul *Cod WBS* din panou și din fereastră este dezactivat.
 - **Renumerotare WBS** — renumerotează o singură dată codurile WBS, după poziția din arbore (1.2.3). Dezactivat cât timp *WBS automat* este activat.
-- **Șabloane** — listă derulantă cu șabloane WBS salvate. Fiecare arată numărul său de activități și de dependențe. Un clic inserează șablonul sub activitatea selectată, sau la nivelul de sus fără selecție. Pictograma coșului de gunoi șterge un șablon. Fără șabloane scrie cum salvați unul (clic dreapta pe o activitate rezumat, *Salvare ramură ca șablon*). Vezi [Salvarea și inserarea șabloanelor WBS](docs://howto-wbs-sjablonen).
-- **Indenta** — face din activitățile selectate subactivități ale activității de dinaintea lor. Dezactivat fără selecție și de îndată ce filtrați, grupați sau sortați. Textul de ajutor spune atunci *Indisponibil la filtrare, grupare sau sortare*.
+- **Șabloane** — listă derulantă cu șabloane WBS salvate. Fiecare arată numărul său de activități și de dependențe. Un clic inserează șablonul sub activitatea selectată, sau la nivelul de sus fără selecție. Pictograma coșului de gunoi șterge un șablon. Fără șabloane, scrie cum salvați unul (clic dreapta pe o activitate rezumat, *Salvare ramură ca șablon*). Vezi [Salvarea și inserarea șabloanelor WBS](docs://howto-wbs-sjablonen).
+- **Indenta** — face din activitățile selectate subactivități ale activității de dinaintea lor. Dezactivat fără selecție și din clipa în care filtrați, grupați sau sortați. Textul de ajutor spune atunci *Indisponibil la filtrare, grupare sau sortare*.
 - **Indenta negativ** — mută activitățile selectate cu un nivel mai sus, direct după activitatea lor părinte actuală. Aceleași condiții ca *Indenta*.
 
 ### Planificare › Referințe și progres
 
 - **Gestionare referințe…** — deschide fereastra referințelor. Vezi [Salvarea și gestionarea unei referințe](docs://howto-baseline-opslaan-en-beheren).
-- **Data raportului de stare** — data până la care măsurați progresul. Scrieți o dată. Crucea (*Golire data raportului de stare*) o șterge. Efect: progresul se măsoară până la acea dată. Linia datei raportului de stare și linia de progres din diagrama Gantt se află pe ea. Vezi [Progres, data raportului de stare și referința](docs://uitleg-voortgang).
-- **Mod de progres** — o alegere între *Retained Logic* și *Progress Override*. Implicit: *Retained Logic*. Efect: cu *Retained Logic*, lucrul rămas al unei succesoare începute urmează dependența. Cu *Progress Override*, lucrul rămas începe la data raportului de stare, fără să aștepte predecesorul. Vezi [Alegerea modului de progres](docs://howto-voortgangsmodus-kiezen).
+- **Data raportului de stare** — data până la care măsurați progresul. Scrieți o dată. Crucea (*Golire data raportului de stare*) o șterge. Dacă proiectul are intervale în calendar, aplicația calculează în ore, iar lângă dată apare un câmp de oră (MS Project păstrează adesea 17:00). Ora contează atunci: 12:00 în loc de 17:00 dă o diferență de o jumătate de zi în lucrul rămas. Fără intervale, aplicația calculează în zile întregi și nu există câmp de oră. Efect: progresul se măsoară până la acea dată, iar linia datei raportului de stare și linia de progres din diagrama Gantt se află pe ea. Vezi [Progres, data raportului de stare și referința](docs://uitleg-voortgang).
+- **Mod de progres** — o alegere între *Retained Logic* și *Progress Override*. Implicit: *Retained Logic*. Efect: cu *Retained Logic*, lucrul rămas al unui succesor început urmează dependența. Cu *Progress Override*, lucrul rămas începe la data raportului de stare, fără să aștepte predecesorul. Vezi [Alegerea modului de progres](docs://howto-voortgangsmodus-kiezen).
 
 Când panglica este restrânsă, aceste trei se află în spatele unui singur buton cu steag, cu titlul *Referințe și progres*.
 
 ### Planificare › Progres
 
 - **Export foaie de progres** — creează o foaie `.xlsx` cu activitățile, ca să completați progresul în afara aplicației. Dezactivat fără activități.
-- **Actualizare progres din tabel de calcul** — deschide fereastra de import pentru o foaie returnată. Dezactivat fără activități. Vezi [Importul progresului dintr-un tabel de calcul](docs://howto-voortgang-importeren).
+- **Actualizare progres dintr-o foaie de calcul** — deschide fereastra de import pentru o foaie returnată. Dezactivat fără activități. Vezi [Importul progresului dintr-o foaie de calcul](docs://howto-voortgang-importeren).
 
-Zona aceasta se află și în filele *Tabel* și *Raport*.
+Grupul acesta se află și în filele *Tabel* și *Raport*.
 
 ## Resurse
 
@@ -152,7 +152,7 @@ Zona aceasta se află și în filele *Tabel* și *Raport*.
 
 ### Vizualizare › Afișare
 
-- **Coloane…**, **Filtrare…**, **Grupare…** și **Sortare…** — vizibile numai dacă *Afișare butoane clasice de vizualizare* este activată (*Setări*, fila *Avansat*, titlul *Funcții vechi*). Implicit: dezactivat. *Coloane…* vă duce la *Tabel* și deschide acolo selectorul de coloane. *Filtrare…* deschide imediat fereastra de filtrare, atât timp cât nu există un filtru salvat. Cu filtre salvate, deschide un meniu cu *Filtrare…*, *Ștergere* (numai când un filtru este activ) și filtrele salvate. *Grupare…* permite două niveluri. *Sortare…* permite mai multe niveluri. Un buton se evidențiază când această setare de vizualizare este activă. În panglica actuală faceți acest lucru cu butoanele de aspect; consultați [Crearea și utilizarea unui aspect](docs://howto-layouts-gebruiken).
+- **Coloane…**, **Filtrare…**, **Grupare…** și **Sortare…** — vizibile numai dacă *Afișare butoane clasice de vizualizare* este activată (*Setări aplicație*, fila *Avansat*, titlul *Funcții vechi*). Implicit: dezactivat. *Coloane…* vă duce la *Tabel* și deschide acolo selectorul de coloane. *Filtrare…* deschide imediat fereastra de filtrare, atât timp cât nu există un filtru salvat. Cu filtre salvate, deschide un meniu cu *Filtrare…*, *Ștergere* (numai când un filtru este activ) și filtrele salvate. *Grupare…* permite două niveluri. *Sortare…* permite mai multe niveluri. Un buton se evidențiază când această setare de vizualizare este activă. În panglica actuală faceți acest lucru cu butoanele de aspect; consultați [Crearea și utilizarea unui aspect](docs://howto-layouts-gebruiken).
 
 ### Vizualizare › Schiță
 
@@ -161,12 +161,12 @@ Zona aceasta se află și în filele *Tabel* și *Raport*.
 
 ### Vizualizare › Aspect
 
-- **Butoane de aspect** — fiecare aspect este un comutator cu o pictogramă și un nume. *Diagrama resurselor* este inclus. Un clic îl activează, un alt clic îl dezactivează și readuce vizualizarea de dinaintea clicului. Aspectele cu părți diferite pot fi active împreună. Faceți clic dreapta pe un aspect: *Editare…*, *Duplicare* și *Ștergere* (după confirmare). Un aspect inclus poate fi numai duplicat.
+- **Butoane de aspect** — fiecare aspect este un comutator cu o pictogramă și un nume. *Diagrama resurselor* este inclusă. Un clic îl activează, un alt clic îl dezactivează și readuce vizualizarea de dinaintea clicului. Aspectele cu părți diferite pot fi active împreună. Faceți clic dreapta pe un aspect: *Editare…*, *Duplicare* și *Ștergere* (după confirmare). Un aspect inclus poate fi numai duplicat.
 - **Creare aspect** — deschide fereastra de aspect pentru un aspect nou.
 
 ### Vizualizare › Prezentare
 
-- **Prezentare** — activează sau dezactivează modul prezentare (F11 sau Esc pentru oprire): numai diagrama Gantt ocupă ecranul. Consultați [Prezentarea pe un ecran mare](docs://howto-presentatie).
+- **Prezentare** — activează sau dezactivează modul prezentare (Esc pentru oprire, în aplicația desktop și F11): numai diagrama Gantt ocupă ecranul. Consultați [Prezentarea pe un ecran mare](docs://howto-presentatie).
 - **Vizualizare împărțită** — împarte diagrama Gantt în două ferestre de timp. Ambele încep cu zoom-ul și poziția curentă (împărțire 50 la sută), sau revin la o singură fereastră. Implicit: dezactivat. Consultați [Utilizarea vizualizării împărțite și a mini-hărții](docs://howto-split-view-en-mini-map).
 - **Mini-hartă** — afișează sau ascunde mini-harta. Implicit: dezactivat. Alegerea dumneavoastră se reține.
 
@@ -176,15 +176,23 @@ Zona aceasta se află și în filele *Tabel* și *Raport*.
 
 Butoanele *Resurse*, *Andocare resurse* și *Histogramă* sunt la fel ca la *Resurse*, iar *Avertismente* este la fel ca la *Planificare*.
 
+**Coloana din dreapta.** Coloana din dreapta diagramei Gantt apare imediat ce cel puțin unul dintre panourile *Proprietăți*, *Andocare resurse* sau *Avertismente* este activat. Dacă niciunul nu este activat, nu există nicio coloană. Dacă un panou complet preia spațiul de lucru, de exemplu panoul de resurse complet, coloana dispare. Numai în fila *Tabel* rămâne.
+
+- **Lățime** — trageți separatorul dintre spațiul de lucru și coloană. O singură lățime se aplică tuturor panourilor din coloană.
+- **Împărțire** — dacă sunt activate două panouri, trageți marginea dintre ele. Dacă este activat unul, acel panou ocupă toată coloana.
+- **Restrângere** — butonul *Restrângere coloană laterală* din antet ascunde coloana. O fâșie îngustă cu butonul *Extindere coloană laterală* o readuce, cu aceleași panouri ca înainte.
+- **Închidere** — fiecare panou are o cruce în antet. Este același comutator ca butonul din panglică.
+- **Panou complet** — în andocarea resurselor, butonul *Panou complet* deschide panoul de resurse în forma completă.
+
 ### Vizualizare › Referințe și progres
 
 Acest grup are același nume ca cel de la *Planificare*, dar conține opțiunile de desenare ale diagramei Gantt.
 
 - **Suprapunere referință** — afișează referința activă ca o bară subțire sub fiecare bară de activitate. Implicit: activat. Fără o referință activă nu este nimic de văzut.
 - **Linie de progres** — desenează o linie la data raportului de stare, care se bombează pentru fiecare activitate în funcție de progresul ei. Implicit: activat. Fără data raportului de stare nu este nimic de văzut. Când linia de progres este activată, această linie marchează și data raportului de stare.
-- **Linia datei raportului de stare** — desenează o linie punctată la data raportului de stare. Implicit: activat. O vedeți numai când linia de progres este dezactivată, pentru că altfel aceasta îi ia locul. Eticheta cu data din antet rămâne cât timp cel puțin una dintre cele două este activată.
-- **Culori bare** — alege cum se colorează barele: *Drum critic* (implicit), *Per activitate — automat* sau *Pe categorie*, cu o alegere de câmp. Dacă acest câmp nu există în proiect, meniul indică faptul că se folosește temporar *Tip de activitate*. Când nu este selectat *Drum critic*, un contur roșu marchează drumul critic. Alegerea se aplică și raportului.
-- **Accent resursă** — desenează o fâșie subțire în culoarea resursei sub fiecare bară de activitate fără subactivități, împărțită proporțional cu unitățile pe zi. Implicit: dezactivat.
+- **Linia datei raportului de stare** — desenează o linie punctată la data raportului de stare. Implicit: activat. O vedeți numai când linia de progres este dezactivată, pentru că altfel aceasta îi ia locul. Eticheta cu data din antet rămâne cât timp cel puțin una dintre cele două este activată. Eticheta urmează notația dumneavoastră pentru dată, de exemplu 20-09-2006. Dacă aplicația calculează pe ore, linia și eticheta se află la ora zilei, iar eticheta arată și ora, de exemplu 20-09-2006 17:00.
+- **Culori bare** — alege cum se colorează barele: *Drum critic* (implicit), *Per activitate — automat* sau *Pe categorie*, cu o alegere de câmp. Dacă acest câmp nu există în proiect, meniul indică faptul că se folosește temporar *Categorie de lucrări*. Când nu este selectat *Drum critic*, un contur roșu marchează drumul critic. Alegerea se aplică și raportului.
+- **Accent resursă** — desenează o fâșie subțire în culoarea resursei sub fiecare bară de activitate fără subactivități, împărțită proporțional cu unitățile de atribuire pe zi. Implicit: dezactivat.
 - **Zonă de marjă** — desenează zona verde după o bară necritică, până la sfârșitul târziu al activității. Implicit: activat.
 - **Linii de dependență** — afișează sau ascunde liniile de dependență dintre activități. Implicit: activat. Alegerea aparține documentului și aspectului.
 
@@ -192,8 +200,8 @@ Acest grup are același nume ca cel de la *Planificare*, dar conține opțiunile
 
 ### Setări › Proiect
 
-- **Informații proiect** — deschide fereastra *Informații proiect*: metadatele proiectului și, în secțiunea *Profil de calcul și opțiuni de calcul*, modul în care aplicația calculează. Consultați [Proiect nou și Informații proiect](docs://ref-projectinfo).
-- **Setări** — deschide fereastra *Setări* cu filele *Afișare*, *Planificare* și *Avansat*. Aceleași setări se găsesc la *Fișier › Setări*.
+- **Setări proiect** — deschide fereastra *Setări proiect*: metadatele proiectului și, în secțiunea *Profil de calcul și opțiuni de calcul*, modul în care aplicația calculează. Consultați [Proiect nou și Setări proiect](docs://ref-projectinfo).
+- **Setări aplicație** — deschide fereastra *Setări aplicație* cu filele *Afișare*, *Planificare* și *Avansat*. Aceleași setări se găsesc la *Fișier › Setări aplicație*.
 
 ### Setări › Calendar
 
@@ -213,7 +221,7 @@ Fila *Tabel* arată activitățile ca un tabel complet, în loc de diagrama Gant
 
 ## IFC
 
-Fila afișează panoul IFC în spațiul de lucru. Panglica nu are aici butoane, doar rândul de text *IFC 4x3 - Industry Foundation Classes*.
+Fila afișează panoul IFC în spațiul de lucru. Panglica nu are aici butoane, doar rândul de text *IFC - Industry Foundation Classes, în schema proiectului (implicit IFC 4.3 ADD2)*.
 
 ## Raport
 
@@ -223,7 +231,7 @@ Fila afișează panoul IFC în spațiul de lucru. Panglica nu are aici butoane, 
 
 ## AI
 
-Fila *AI* există numai când *Activare mod AI* este activată (*Setări*, fila *Avansat*, titlul *Mod AI*). Implicit: dezactivat. Dezactivarea elimină fila și oprește puntea. Un asistent de inteligență artificială lucrează cu planificarea dumneavoastră prin puntea MCP pe care o porniți aici. Consultați [Conectarea unui asistent de inteligență artificială (MCP)](docs://howto-ai-assistent-koppelen).
+Fila *AI* există numai când *Activare mod AI* este activată (*Setări aplicație*, fila *Avansat*, titlul *Mod AI*). Implicit: dezactivat. Dezactivarea elimină fila și oprește puntea. Un asistent de inteligență artificială lucrează cu planificarea dumneavoastră prin puntea MCP pe care o porniți aici. Consultați [Conectarea unui asistent de inteligență artificială (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 
@@ -233,7 +241,7 @@ Fila *AI* există numai când *Activare mod AI* este activată (*Setări*, fila 
 
 - **Port** — portul punții. Implicit: 3877. Poate fi modificat numai când starea este *Oprit* (text de ajutor: *Poate fi modificat doar când serverul este oprit.*).
 - **Token** — parola punții, afișată ascunsă. Butoane mici *Afișare token*/*Ascundere token*, *Copiere* și *Creare token nou*. *Creare token nou* cere mai întâi confirmare, pentru că un token nou întrerupe toate conexiunile existente. Dacă puntea rulează, se repornește cu noul token.
-- **Conectare** — afișează detaliile conexiunii: punctul final, tokenul, un fragment de configurare și un prompt de conexiune pe care îl lipiți în asistentul dumneavoastră de inteligență artificială.
+- **Conectare** — afișează detaliile conexiunii: punctul final, tokenul, un fragment de configurare și un prompt de conexiune pe care îl lipiți în agentul dumneavoastră de inteligență artificială.
 
 ### AI › Siguranță
 

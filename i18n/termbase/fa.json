@@ -1388,7 +1388,9 @@
     ],
     "avoid": [
       "نوع کار",
-      "نوع‌های کار"
+      "نوع‌های کار",
+      "قاعدهٔ کار",
+      "قواعد کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1519,20 +1521,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "دسته‌بندی کار",
+    "forms": [
+      "دسته‌بندی کار",
+      "دسته‌بندی‌های کار"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ساعات کاری",
     "forms": [
       "ساعات کاری",
       "ساعت کاری"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "قاعدهٔ کار",
-    "forms": [
-      "قاعدهٔ کار",
-      "قواعد کار"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

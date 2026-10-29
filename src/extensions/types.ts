@@ -241,6 +241,9 @@ export interface ExtensionApi {
     getProject(): ExtProject;
     getCalendar(): ExtCalendar;
     getTasks(): ExtTask[];
+    /** Verse kopie van de taakselectie in de gebonden documentcontext, in selectievolgorde.
+     *  Lezen verandert geen selectie, document of undo-historie. Sinds contract 1.5.0. */
+    getSelectedTaskIds(): string[];
     getSequences(): ExtSequence[];
     getResources(): ExtResource[];
     getAssignments(): ExtAssignment[];
@@ -323,6 +326,7 @@ export interface ExtensionApi {
   events: {
     on(event: string, listener: (data: unknown) => void): () => void;
     off(event: string, listener: (data: unknown) => void): void;
+    /** Eigen events uitzenden; namen met `host:` zijn voor de app gereserveerd en geven een fout. */
     emit(event: string, data?: unknown): void;
   };
 

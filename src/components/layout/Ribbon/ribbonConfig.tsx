@@ -72,6 +72,8 @@ export interface RibbonButtonSpec {
   labelKey: NsKey;
   primary?: boolean;
   danger?: boolean;
+  /** Bestaand formulier buiten het lint; de knop dient dat formulier in. */
+  form?: string;
   /** Hook: leest eigen store-state/acties en levert de dynamische props (optioneel = statisch). */
   use?: () => RibbonButtonBinding;
 }
@@ -175,7 +177,7 @@ const calendarButton: RibbonButtonSpec = {
   use: uiAction({ showCalendarDialog: true }),
 };
 
-/** Afdrukvoorbeeld-knop (beeld + report) — opent de Rapport-tab. */
+/** Afdrukvoorbeeld-knop — opent de Rapport-tab. */
 const printPreviewButton: RibbonButtonSpec = {
   kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
   use: uiAction({ activeRibbonTab: 'report' }),
@@ -886,7 +888,11 @@ const ifcTab: RibbonTabConfig = [
 ];
 
 const reportTab: RibbonTabConfig = [
-  { id: 'reporting', labelKey: 'menu:ribbon.reporting', items: [printPreviewButton] },
+  // Op Rapport zelf voert Afdruk dezelfde PDF-export uit als de knop in het paneel.
+  {
+    id: 'reporting', labelKey: 'menu:ribbon.reporting',
+    items: [{ ...printPreviewButton, form: 'report-pdf-export', use: undefined }],
+  },
   progressGroup,
 ];
 

@@ -28,7 +28,7 @@ Unter jedem Vorgangsbalken im Gantt-Diagramm liegt jetzt ein dünner Balken mit 
 
 ### Eine Baseline löschen
 
-Klicken Sie auf den kleinen Papierkorb neben der Baseline in der Liste. Wenn Sie die aktive Baseline löschen, fragt die App *Aktive Baseline löschen?*. Danach wird die neueste übrige Baseline die aktive. Gibt es keine andere, ist danach keine Baseline mehr aktiv und die Überlagerung verschwindet. Mit Strg+Z holen Sie eine gelöschte Baseline zurück.
+Klicken Sie auf den kleinen Papierkorb neben der Baseline in der Liste. Wenn Sie die aktive Baseline löschen, fragt die App *Aktive Baseline löschen?*. Danach wird die neueste übrige Baseline die aktive. Gibt es keine andere, ist danach keine Baseline mehr aktiv und die Überlagerung verschwindet. Mit Strg+Z holen Sie eine gelöschte Baseline zurück. Schließen Sie zuerst das Fenster. Innerhalb eines Fensters funktioniert Strg+Z nicht.
 
 ### Abweichungen in der Vorgangstabelle
 
@@ -42,7 +42,9 @@ Jede Baseline hat sechs Spalten in der Vorgangstabelle. Klicken Sie rechts in de
 
 **Eine Baseline lässt sich nicht aktualisieren.** Wenn Sie die Vereinbarung überarbeiten wollen, speichern Sie eine neue Baseline. Löschen Sie die alte bei Bedarf.
 
-**Nur Vorgänge ohne Teilvorgänge.** Ein Sammelvorgang steht nicht in der Baseline. (einheitlich 'Sammelvorgang', ggf. beim ersten Auftreten 'Phase (Sammelvorgang)') Sie hat keinen Baseline-Balken und keine Abweichung. Die Phase ergibt sich aus den Vorgängen darunter.
+**Ein ⚠ bei Dauer oder Abweichung Dauer.** Bei einem Vorgang in Stunden ist ein Tag die Arbeitszeit seines Kalenders. Hat der Kalender eigene Stunden pro Tag (zum Beispiel 8 bei Bändern von 10 Stunden, aus Primavera P6), dann zählte eine ältere Version der App die Tage anders. Eine Baseline aus dieser Version behält die alte Zahl. Ein Vorgang mit 1870 Stunden ist in dieser Baseline 233,75 Tage und jetzt 187 Tage. Die App rechnet eine solche Baseline nicht um. Die Spalten *Dauer* und *Abweichung Dauer* dieser Baseline zeigen dann ein ⚠. Zeigen Sie darauf für die Erklärung. Die Termine der Baseline sind korrekt. Speichern Sie eine neue Baseline und löschen Sie die alte bei Bedarf.
+
+**Nur Vorgänge ohne Teilvorgänge.** Ein Sammelvorgang steht nicht in der Baseline. Er hat keinen Baseline-Balken und keine Abweichung. Der Sammelvorgang ergibt sich aus den Vorgängen darunter.
 
 **Neue und gelöschte Vorgänge.** Ein Vorgang, den Sie nach dem Speichern hinzufügen, hat keinen Baseline-Balken. Im Variance-Bericht erscheint er als *Neu*. Ein Vorgang, den Sie löschen, erscheint als *Entfallen*.
 

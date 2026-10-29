@@ -1294,6 +1294,9 @@
     "forms": [
       "ປະເພດໜ້າວຽກ"
     ],
+    "avoid": [
+      "ກົດເກນວຽກ"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1428,18 +1431,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "ໝວດວຽກ",
+    "forms": [
+      "ໝວດວຽກ"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ຊົ່ວໂມງເຮັດວຽກ",
     "forms": [
       "ຊົ່ວໂມງເຮັດວຽກ"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "ກົດເກນວຽກ",
-    "forms": [
-      "ກົດເກນວຽກ"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

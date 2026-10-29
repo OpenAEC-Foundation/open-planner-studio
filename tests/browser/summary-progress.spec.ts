@@ -190,7 +190,7 @@ test('fase: werkelijke datums volgen de bladen na F5 en zijn alleen-lezen in Tab
   await expect(startSegments).toHaveCount(3);
   expect(await startSegments.evaluateAll(els => els.map(el => (el as HTMLInputElement).value).sort()))
     .toEqual(['08', '09', '2026'].sort());
-  const finishGroup = page.getByRole('group', { name: /^(Actual finish|Werkelijke einde)$/ });
+  const finishGroup = page.getByRole('group', { name: /^(Actual finish|Werkelijk einde)$/ });
   await expect(finishGroup).toHaveAttribute('aria-disabled', 'true');
   expect(await finishGroup.locator('input').evaluateAll(els => els.map(el => (el as HTMLInputElement).value).sort()))
     .toEqual(['09', '14', '2026'].sort());

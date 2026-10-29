@@ -22,7 +22,7 @@ Güncelleme kurulmadan hemen önce uygulama, açık çalışmanızın bir kurtar
 
 ### Yeni sürümü kendiniz denetleyin
 
-1. *Ayarlar › Proje › Ayarlar* öğesini seçin. Ayrıca *Dosya › Ayarlar* öğesini seçebilirsiniz veya üstteki dişli simgesini seçebilirsiniz.
+1. *Ayarlar › Proje › Uygulama ayarları* öğesini seçin. Ayrıca *Dosya › Uygulama ayarları* öğesini seçebilirsiniz veya üstteki dişli simgesini seçebilirsiniz.
 2. *Gelişmiş* sekmesini seçin. *Sürüm* altında mevcut sürümünüzün numarası bulunur.
 3. *Güncellemeleri denetle* düğmesini tıklayın. *Yazılım güncellemesi* penceresi açılır ve *Denetleniyor…* yazar. Daha sonra *En son sürümü kullanıyorsunuz* yazar. Ya da yeni bir sürümün olduğunu bildiren bir mesaj çıkar. Aynı *İndir ve kur* düğmesi de görünür.
 
@@ -30,14 +30,14 @@ Tarayıcıda bu düğmenin özel bir işlevi yoktur. Pencere hemen *En son sür�
 
 ### Yeniliklerin ne olduğunu okuyun
 
-1. Masaüstü uygulamasını önceki sürümden farklı bir sürümde ilk kez başlatırsanız ya da yeni kurulumdan sonra, pencere kendiliğinden açılır. Bu pencerenin adı *Güncelsiniz!* olur.
-2. Üstte önceki sürümden yeni sürüme geçiş yer alır. Yeni kurulumdan sonra yalnızca yeni sürüm gösterilir.
+1. Masaüstü uygulamasını önceki sürümden farklı bir sürümde ilk kez başlatırsanız pencere kendiliğinden açılır. Pencerenin adı *Güncelsiniz!* olur. Yeni kurulumdan sonra pencere açılmaz, çünkü ilk başlatma bir güncelleme değildir. Yine de görmek isterseniz *Yenilikler* düğmesini kullanın (aşağıya bakın).
+2. Üstte önceki sürümden yeni sürüme geçiş yer alır. *Yenilikler* düğmesiyle yalnızca yeni sürüm gösterilir.
 3. Bu sürüm için yerleşik bir özet varsa, bir ana madde ve dört küçük madde görürsünüz. Ana maddede *Kılavuzu oku* düğmesi bulunabilir. Yoksa yalnızca sürüm geçişini ve altındakileri görürsünüz.
 4. *Tüm sürüm notlarını gör* ile değişiklik günlüğünü GitHub'da açarsınız. Bu çalışmazsa *Sürüm notları açılamadı* yazar.
 5. *Bu güncelleme sayılarla* altında şunlar yer alır: önceki sürümden bu yana geçen gün sayısı, commit sayısı ve eklenen kod satırı sayısı. Uygulama kurulum paketinin boyut farkını bulabiliyorsa, bu da gösterilir. Her rakam yalnızca varsa gösterilir.
 6. Pencereyi kapatmak için *Anladım* düğmesini tıklayın.
 
-Bu pencereyi daha sonra tekrar görmek istiyorsanız *Ayarlar › Proje › Ayarlar* öğesini seçin, *Gelişmiş* sekmesini açın ve *Sürüm* altındaki *Yenilikler* düğmesini tıklayın. Pencere mevcut sürümünüz için açılır. Önceki sürüm gösterilmez.
+Bu pencereyi daha sonra tekrar görmek istiyorsanız *Ayarlar › Proje › Uygulama ayarları* öğesini seçin, *Gelişmiş* sekmesini açın ve *Sürüm* altındaki *Yenilikler* düğmesini tıklayın. Pencere mevcut sürümünüz için açılır. Önceki sürüm gösterilmez.
 
 ## Sorunlar ve uygulamanın o durumda yaptıkları
 

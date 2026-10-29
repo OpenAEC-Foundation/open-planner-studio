@@ -22,15 +22,15 @@ Bez praznika aplikacija jednostavno planira rad na Božić ili na Koningsdag (Kr
 
 Za Nizozemsku aplikacija svake godine na popis stavlja Nieuwjaar (Nova godina), Goede Vrijdag (Veliki petak), Pasen (Uskrs, dva dana), Koningsdag (Kraljev dan), Hemelvaart (Uzašašće), Pinksteren (Duhovi, dva dana) i Kerst (Božić, 25. i 26. prosinca). Ako Koningsdag padne u nedjelju, onda je 26. travnja. Bevrijdingsdag (Dan oslobođenja) je na popisu samo u lustrumskim godinama, na primjer 2025 i 2030.
 
-Godine prate trajanje projekta: od godine prije datuma početka do godine nakon datuma završetka. Ako projekt nema datum završetka, do tri godine nakon godine početka. Datume početka i završetka prilagodite u *Postavke › Projekt › Podaci o projektu*.
+Godine prate trajanje projekta: od godine prije datuma početka do godine nakon datuma završetka. Ako projekt nema datum završetka, do tri godine nakon godine početka. Datume početka i završetka prilagodite u *Postavke › Projekt › Postavke projekta*.
 
 ### Ponovno generiranje nakon promjene trajanja projekta
 
-Ako se vaš projekt pomakne ili dobije kasniji datum završetka, praznici više ne pokrivaju nove godine. Aplikacija to javlja u prozoru *Kalendari*, na primjer *Praznici pokrivaju 2025–2028; projekt traje do 2030. Želite li ponovno generirati?* Zatim kliknite *Ponovno generiraj*. Aplikacija koristi iste izbore kao zadnji put (država, regija, kolektivni godišnji odmor u građevinarstvu) za godine projekta. Zatim kliknite *Primijeni*. Ovu poruku vidite samo za kalendar čiji su praznici ranije generirani.
+Ako se vaš projekt pomakne ili dobije kasniji datum završetka, praznici više ne pokrivaju nove godine. Aplikacija to javlja u prozoru *Kalendari*, na primjer *Praznici pokrivaju 2025–2028; želite li ponovno generirati do uključivo 2030?* Zatim kliknite *Ponovno generiraj*. Aplikacija koristi iste izbore kao zadnji put (država, regija, kolektivni godišnji odmor u građevinarstvu) za godine projekta. Zatim kliknite *Primijeni*. Ovu poruku vidite samo za kalendar čiji su praznici ranije generirani.
 
 ### Dodavanje vlastitog slobodnog dana ili niza dana
 
-1. U prozoru *Kalendari* kliknite *Dodaj praznik*. Na dnu popisa pojavljuje se novi redak s današnjim datumom pod *Od*.
+1. U prozoru *Kalendari* kliknite *Dodaj praznik*. Na dnu popisa pojavljuje se novi redak s današnjim datumom u stupcu *Od*.
 2. Upišite *Opis*, na primjer *Izlet tvrtke*.
 3. Prilagodite *Od*. Ostavite *Do* prazno za jedan dan ili upišite posljednji slobodni dan za niz dana, na primjer za zimski odmor.
 4. Kliknite *Primijeni*.
@@ -39,7 +39,7 @@ Ikonom kante iza retka uklanjate praznik.
 
 ### Uklanjanje svih praznika
 
-Odaberite *Bez praznika* pod *Država* i kliknite *Generiraj*. Popis je tada prazan.
+Odaberite *Bez praznika* u polju *Država* i kliknite *Generiraj*. Popis je tada prazan.
 
 ## Zamke i što tada radi aplikacija
 
@@ -58,5 +58,5 @@ Odaberite *Bez praznika* pod *Država* i kliknite *Generiraj*. Popis je tada pra
 - [Kalendari i radni dani](docs://uitleg-kalenders): kako aplikacija uzima praznike i kolektivni godišnji odmor u građevinarstvu u obzir pri brojanju radnih dana.
 - [Stvaranje i dodjela kalendara](docs://howto-kalender-maken-en-toewijzen): stvaranje vlastitog kalendara u koji unosite praznike.
 - [Prozori kalendara](docs://ref-kalenders): sva polja prozora kalendara.
-- [Novi projekt i Podaci o projektu](docs://ref-projectinfo): skup praznika za novi projekt.
+- [Novi projekt i Postavke projekta](docs://ref-projectinfo): skup praznika za novi projekt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): uz praznike projektni kalendar ima i niz slobodnih dana *Frost delay, foundations*.

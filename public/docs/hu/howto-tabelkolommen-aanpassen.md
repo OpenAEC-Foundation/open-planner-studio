@@ -8,8 +8,8 @@ Az értekezleten minden tevékenység mellett látni szeretné a határidőt és
 
 Két tevékenységtáblázat van, és mindegyiknek saját oszlopai vannak:
 
-- A **Gantt melletti tevékenységtáblázat** az idővonal bal oldalán látható többek között a *Kezdőlap*, az *Ütemezés* és a *Nézet* lapon. Alapértelmezés szerint a *WBS*, a *Tevékenység neve* és az *Időtartam* oszlop látszik, így az idővonalnak is marad hely.
-- A **táblázat a Táblázat lapon** az egész munkaterületet kitölti. Alapértelmezés szerint a *WBS*, *Tevékenység neve*, *Időtartam*, *Kezdés*, *Befejezés*, *Tevékenységtípus*, *Kritikus*, *Teljes tartalékidő* és *Előrehaladás* oszlop van benne, plusz a projekt minden tevékenységkódjához és egyéni mezőjéhez egy-egy oszlop.
+- A **Gantt melletti tevékenységtáblázat** az idővonal bal oldalán látható többek között a *Kezdőlap*, az *Ütemezés* és a *Nézet* lapon. Alapértelmezés szerint a *WBS*, a *Tevékenység neve* és az *Időtartam* oszlop látszik, így az idővonalnak marad hely.
+- A **táblázat a Táblázat lapon** az egész munkaterületet kitölti. Alapértelmezés szerint a *WBS*, *Tevékenység neve*, *Időtartam*, *Kezdés*, *Befejezés*, *Munkanem*, *Kritikus*, *Teljes tartalékidő* és *Előrehaladás* oszlop van benne, plusz a projekt minden tevékenységkódjához és egyéni mezőjéhez egy-egy oszlop.
 
 Az egyik táblázat módosítása nem változtatja meg a másikat.
 

@@ -36,7 +36,7 @@ Til bjælkefarverne vælger du *Visning › Oprindelige planer & fremdrift › B
 
 ## Faldgruber og hvad appen gør
 
-**Sletning fjerner værdierne på opgaverne.** Hvis du sletter en kodetype, en værdi eller et felt med papirkurven, spørger appen ikke om bekræftelse, og værdierne på alle opgaver forsvinder med det. En gruppering eller sortering på den kodetype eller det felt bortfalder også. *Fortryd* (Ctrl+Z) gendanner kodetypen, værdien eller feltet og de udfyldte værdier, men ikke grupperingen eller sorteringen: dem stiller du igen ind.
+**Sletning fjerner værdierne på opgaverne.** Hvis du sletter en kodetype, en værdi eller et felt med papirkurven, spørger appen ikke om bekræftelse, og værdierne på alle opgaver forsvinder med det. En gruppering eller sortering på den kodetype eller det felt bortfalder også. *Fortryd* (Ctrl+Z, luk først vinduet) gendanner kodetypen, værdien eller feltet og de udfyldte værdier, men ikke grupperingen eller sorteringen: dem stiller du igen ind.
 
 **To værdier med samme kode.** *Tilføj værdi* tæller videre fra antallet af værdier, der findes. Hvis du sletter én og tilføjer én, kan en kode derfor forekomme to gange. Hvis du skriver den kode i en kolonnecelle, afviser appen det med *Denne værdi for opgavekoden forekommer flere gange. Vælg den fra listen.* Giv hver værdi sin egen kode.
 

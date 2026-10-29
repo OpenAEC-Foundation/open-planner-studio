@@ -1,7 +1,8 @@
 import type { Task, TaskTime, TaskTimeComputed, TaskTimeInput } from '@/types/task';
-import { ifcStr, ifcBool } from './ifcPsets';
+import { ifcStr, ifcBool, stepReal } from './ifcPsets';
 import { DEFAULT_PRIORITY } from './ifcConstants';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { wholeFloatDays } from './dayMeasureIo';
 
 /**
  * IFCTASK/IFCTASKTIME-slot-registry: de POSITIONELE slot-layout van de twee IFC-kern-entiteiten op
@@ -134,14 +135,17 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
     write: (w) => unlessWithheld(w, 'lateFinish', () => w.dt(w.task.time.lateFinish)),
     read: (t, arg, p) => { t.lateFinish = p.parseDate(arg); },
   },
+  // Speling als HELE dagen (alleen uren §3.4, technische keuze T5): v2026.9.0 leest een gebroken `P…D`
+  // verkeerd (`P0Y0M2.5D` ⇒ 5, I10). De exacte dagen en de minuten staan in `OPS_Analysis.ExactFloat`;
+  // de lezer zet ze terug zolang dit slot nog de afgeronde dagen draagt (`applyTaskTimeRecords`).
   {
     key: 'freeFloat',
-    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(w.task.time.freeFloat)),
+    write: (w) => unlessWithheld(w, 'freeFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.freeFloat))),
     read: (t, arg, p) => { t.freeFloat = p.parseDur(arg); },
   },
   {
     key: 'totalFloat',
-    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(w.task.time.totalFloat)),
+    write: (w) => unlessWithheld(w, 'totalFloat', () => w.ifcDuration(wholeFloatDays(w.task.time.totalFloat))),
     read: (t, arg, p) => { t.totalFloat = p.parseDur(arg); },
   },
   {
@@ -189,9 +193,9 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
 /**
  * `completion` als IFC-REAL: twee decimalen voor elke waarde die daarmee exact terugleest (hele
  * procenten), en anders de kortste decimale vorm
- * die exact terugleest (`String`), zodat opslaan + openen het percentage niet afrondt. Een STEP-REAL
- * vraagt een decimale punt zonder exponent; voor de (theoretische) waarden waar `String` een exponent
- * geeft, volstaat een vaste notatie met 20 decimalen.
+ * die exact terugleest (`stepReal`), zodat opslaan + openen het percentage niet afrondt. De gedeelde
+ * STEP-formatter bewaart ook kleine positieve waarden als `1.E-21`; een vaste notatie met 20
+ * decimalen zou die naar nul afronden, wat ongeldig is en voortgang wist.
  *
  * `IfcTaskTime.Completion` is een `IfcPositiveRatioMeasure` met de regel `WR1: SELF > 0`. Een taak
  * zonder voortgang (0) krijgt dus `$` (het attribuut is OPTIONAL), net als een niet-eindige of
@@ -201,9 +205,9 @@ export const IFC_TASKTIME_SLOTS: TaskTimeSlot[] = [
 export function ifcCompletionReal(value: number): string {
   if (!(value > 0) || !Number.isFinite(value)) return '$';
   const fixed = value.toFixed(2);
-  if (Number(fixed) === value) return fixed;
-  const shortest = String(value);
-  return /e/i.test(shortest) ? value.toFixed(20) : shortest;
+  // Vanaf 1e21 geeft ook toFixed een JS-exponent; die moet eveneens door de STEP-formatter.
+  if (Number(fixed) === value && !/e/i.test(fixed)) return fixed;
+  return stepReal(value)!; // De guard hierboven sluit niet-eindige waarden al uit.
 }
 
 // ── Aanwezigheidsregistratie ────────────────────────────────────────────────────────────────────

@@ -119,7 +119,7 @@ test('P6 XML: rapportkop en PDF-naam dragen "Naam (code)"', async ({ page, ops: 
 
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
-  expect((await download).suggestedFilename()).toBe('Project C (C-AFBOUW)-planning.pdf');
+  expect((await download).suggestedFilename()).toBe('Project C (C-AFBOUW)-schedule.pdf');
 });
 
 test('P6 XML: het bezettingsoverzicht noemt het document "Naam (code)"', async ({ page, ops: _ops }) => {
@@ -133,8 +133,11 @@ test('P6 XML: het bezettingsoverzicht noemt het document "Naam (code)"', async (
     s.bindProjectToCompany(companyId);
     const materialized = s.addLibraryResourceToProject(companyId, pool);
     if (!materialized.resourceId) throw new Error('poolresource kon niet worden gematerialiseerd');
-    // Toewijzen kan alleen op een gewone taak: geen samenvatting, geen mijlpaal.
-    const task = s.tasks.find(t => !t.isSummary && !t.isMilestone && !s.tasks.some(o => o.parentId === t.id));
+    // Toewijzen kan alleen op een gewone taak: geen samenvatting, geen mijlpaal. B1 (werkdriehoek
+    // F3a, review #562): een nieuwe resource op een gestarte of voltooide taak heeft geen verleden,
+    // dus op het voltooide Grondwerk geeft ze geen belasting en geen boeking. Daarom een ongestarte taak.
+    const task = s.tasks.find(t => !t.isSummary && !t.isMilestone && !s.tasks.some(o => o.parentId === t.id)
+      && (t.time.completion ?? 0) === 0 && !t.time.actualStart);
     if (!task) throw new Error('fixture: B heeft geen gewone taak');
     s.assignResource(task.id, materialized.resourceId, 1);
     if (!window.__OPS__!.store.getState().assignments.some(a => a.taskId === task.id)) throw new Error('fixture: toewijzing mislukt');

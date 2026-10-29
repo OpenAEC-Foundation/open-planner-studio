@@ -12,6 +12,7 @@ import {
   scrollbarScale,
   scrollbarRangeRatio,
   computeTimelineZoom,
+  clearGanttScrollBounds,
   computeEffectiveViewStart,
   computeFitToProject,
   computeFocusTaskHorizontal,
@@ -23,6 +24,8 @@ import {
   setGanttScrollBounds,
 } from '@/utils/ganttViewport';
 import { resolveWheelFunction } from '@/utils/ganttWheel';
+import { hasGhostRow } from '@/engine/taskGrid/ghostRow';
+import { taskListScrollContentHeight } from '@/engine/taskGrid/scrollExtent';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { finishInstant } from '@/utils/taskDates';
@@ -36,6 +39,20 @@ import type {
   GanttViewportCoordinatorOutput,
 } from './ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
+
+/** Verticale schuifhoogte van de Gantt: dezelfde als die van de takenlijst (rijen, spookregel en
+ * eindstrook, zie `scrollExtent.ts`). Anders kan de takenlijst verder schuiven dan de Gantt en
+ * lopen de rijen onderaan uit elkaar. */
+/** Breedte van het pane waar een zwevende horizontale balk in ligt (zijn ouder), = de kaartbreedte. */
+function hScrollViewportWidth(element: HTMLElement): number {
+  return element.parentElement?.clientWidth ?? element.clientWidth;
+}
+
+function ganttScrollContentHeight(
+  current: Pick<GanttViewportCoordinatorInput, 'rows' | 'rowHeight' | 'view'>,
+): number {
+  return taskListScrollContentHeight(current.rows.length, current.rowHeight, hasGhostRow(current.view));
+}
 
 /**
  * Bezit de volledige Gantt-viewport: afleidingen, DOM-scrollsync, wheel/zoom, fit/focus, minimaps
@@ -141,13 +158,15 @@ export function useGanttViewportCoordinator(
     setPrimaryChartWidth(previous => Math.abs(previous - chartWidth) > 1 ? chartWidth : previous);
     setGanttScrollBounds(computeGanttScrollBounds(
       primaryContentWidth,
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       width,
       height,
     ));
   }, [primaryContentWidth]);
+
+  // Gaat de Gantt uit beeld (bv. naar de Tabel-weergave), dan gelden zijn grenzen niet meer.
+  useEffect(() => clearGanttScrollBounds, []);
 
   const onSecondarySize = useCallback((width: number) => {
     setSecondaryChartWidth(previous => Math.abs(previous - width) > 1 ? width : previous);
@@ -172,8 +191,7 @@ export function useGanttViewportCoordinator(
     const rect = container.getBoundingClientRect();
     setGanttScrollBounds(computeGanttScrollBounds(
       contentWidthFor(zoom),
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       rect.width,
       rect.height,
@@ -199,7 +217,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width,
       current.enableQuarterHourZoom,
-      current.enableHourPlanning,
+
       dayDistance,
     );
     if (!fit) return;
@@ -213,7 +231,7 @@ export function useGanttViewportCoordinator(
     containerRef: primaryContainerRef,
     view: input.view,
     enableQuarterHourZoom: input.enableQuarterHourZoom,
-    enableHourPlanning: input.enableHourPlanning,
+
     scrollMode: input.scrollMode,
     positionDivision: input.positionDivision,
     modifierMap: input.modifierMap,
@@ -244,7 +262,7 @@ export function useGanttViewportCoordinator(
       current.tasks,
       rect.width,
       current.enableQuarterHourZoom,
-      current.enableHourPlanning,
+
       dayDistance,
     );
     current.clearPendingFit();
@@ -253,7 +271,7 @@ export function useGanttViewportCoordinator(
     current.setZoom(fit.zoom);
     current.setViewStartDate(fit.viewStartDate);
     current.setScroll(fit.scrollX, 0);
-  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.enableHourPlanning, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, dayDistance, registerBoundsForZoom]);
+  }, [input.view.pendingFit, input.tasks, input.enableQuarterHourZoom, input.clearPendingFit, input.setZoom, input.setViewStartDate, input.setScroll, dayDistance, registerBoundsForZoom]);
 
   useEffect(() => {
     const current = latest.current;
@@ -307,8 +325,7 @@ export function useGanttViewportCoordinator(
 
     setGanttScrollBounds(computeGanttScrollBounds(
       contentWidthFor(horizontal.zoom),
-      current.rows.length,
-      current.rowHeight,
+      ganttScrollContentHeight(current),
       current.headerHeight,
       rect.width,
       rect.height,
@@ -321,6 +338,9 @@ export function useGanttViewportCoordinator(
   // Scrollbalk ↔ scrollX via `scrollbarRangeRatio` (1 zolang de inhoud onder de elementgrens blijft):
   // de spacer is `inhoud × scrollbarScale` breed, de omrekening beeldt de scrollbare bereiken op
   // elkaar af zodat de duim precies tot het einde loopt.
+  // De balk kan smaller zijn dan zijn pane (hij begint pas na de splittergrijpzone, zie GanttCanvas)
+  // en zijn spacer is dan even veel smaller. Het venster in de omrekening is daarom de pane-breedte
+  // (de ouder van de balk), niet `clientWidth` van de balk zelf.
   const primaryScrollbarScale = scrollbarScale(primaryContentWidth);
   const secondaryScrollbarScale = scrollbarScale(secondaryContentWidth);
   const contentWidthsRef = useRef({ primary: primaryContentWidth, secondary: secondaryContentWidth });
@@ -328,7 +348,7 @@ export function useGanttViewportCoordinator(
   useEffect(() => {
     const element = primaryHScrollRef.current;
     if (!element) return;
-    const target = input.view.scrollX * scrollbarRangeRatio(primaryContentWidth, element.clientWidth);
+    const target = input.view.scrollX * scrollbarRangeRatio(primaryContentWidth, hScrollViewportWidth(element));
     if (Math.abs(element.scrollLeft - target) > 1) {
       element.scrollLeft = target;
     }
@@ -336,7 +356,7 @@ export function useGanttViewportCoordinator(
   useEffect(() => {
     const element = secondaryHScrollRef.current;
     if (!element || !splitView) return;
-    const target = splitView.secondaryScrollX * scrollbarRangeRatio(secondaryContentWidth, element.clientWidth);
+    const target = splitView.secondaryScrollX * scrollbarRangeRatio(secondaryContentWidth, hScrollViewportWidth(element));
     if (Math.abs(element.scrollLeft - target) > 1) {
       element.scrollLeft = target;
     }
@@ -344,7 +364,7 @@ export function useGanttViewportCoordinator(
   const onPrimaryHorizontalScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const current = latest.current;
     const el = event.currentTarget;
-    const ratio = scrollbarRangeRatio(contentWidthsRef.current.primary, el.clientWidth);
+    const ratio = scrollbarRangeRatio(contentWidthsRef.current.primary, hScrollViewportWidth(el));
     const scrollX = el.scrollLeft / ratio;
     // Geschaald: een scroll-event dat alleen onze eigen (afgeronde) terugschrijving weerkaatst, mag
     // de exacte scrollX niet overschrijven.
@@ -355,7 +375,7 @@ export function useGanttViewportCoordinator(
     const current = latest.current;
     const currentSplit = current.view.splitView;
     const el = event.currentTarget;
-    const ratio = scrollbarRangeRatio(contentWidthsRef.current.secondary, el.clientWidth);
+    const ratio = scrollbarRangeRatio(contentWidthsRef.current.secondary, hScrollViewportWidth(el));
     const scrollX = el.scrollLeft / ratio;
     if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) * ratio <= 1) return;
     current.setSplitView({ ...currentSplit, secondaryScrollX: Math.max(0, scrollX) });
@@ -395,7 +415,7 @@ export function useGanttViewportCoordinator(
           requestedZoom,
           currentSplit.secondaryScrollX,
           anchorX,
-          maxGanttZoom(current.enableQuarterHourZoom, current.enableHourPlanning),
+          maxGanttZoom(current.enableQuarterHourZoom),
         );
         if (next.zoom !== currentSplit.secondaryZoom) current.setSplitView({
           ...currentSplit,

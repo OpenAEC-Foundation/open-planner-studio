@@ -1,10 +1,10 @@
-# Nastavenia
+# Nastavenia aplikácie
 
 Každé nastavenie aplikácie: čo robí, jeho počiatočná hodnota, čo sa mení a kde ho nájdete. Pre možnosti výpočtu projektu (profil výpočtu, definícia kritickej úlohy) pozrite [Možnosti výpočtu a pravidlá výpočtu](docs://ref-rekenopties-en-conventies): tie patria do súboru projektu, nie do aplikácie.
 
 ## Kde ich nájdete a ako fungujú
 
-Panel nastavení je na troch miestach. Všade je to ten istý panel: ozubené koliesko v hornej časti okna, *Nastavenia › Projekt › Nastavenia* a *Súbor › Nastavenia*. Panel má tri karty: *Vzhľad*, *Plán* a *Rozšírené*. Každé nastavenie nižšie uvádza iba kartu.
+Panel nastavení je na troch miestach. Všade je to ten istý panel: ozubené koliesko v hornej časti okna, *Nastavenia › Projekt › Nastavenia aplikácie* a *Súbor › Nastavenia aplikácie*. Panel má tri karty: *Vzhľad*, *Plán* a *Rozšírené*. Každé nastavenie nižšie uvádza iba kartu.
 
 Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
@@ -14,9 +14,9 @@ Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
 **Motív** — farebná schéma rozhrania. Vyberte z možností *Tmavý*, *Svetlý* a *Vysoký kontrast*. Predvolené: *Tmavý*. Účinok: farby celého rozhrania, vrátane časovej osi Gantt a histogramu. Kde: v karte *Vzhľad*.
 
-**Sledovať systémový motív** — nechá rozhodnúť farebnú schému vášho operačného systému. Predvolené: vypnuté. Účinok: aplikácia je *Svetlý* alebo *Tmavý*, podľa vášho systému; tri karty motívov sa potom vypnú. *Vysoký kontrast* sa podľa systému nemení. Vyberte ho sami. Ak to vypnete, zostane motív, ktorý bol práve na obrazovke. Kde: v karte *Vzhľad*, v riadku *Motív*.
+**Sledovať systémový motív** — nechá rozhodnúť farebnú schému vášho operačného systému. Predvolené: vypnuté. Účinok: aplikácia používa motív *Svetlý* alebo *Tmavý*, podľa vášho systému. Tri karty motívov sa potom vypnú. *Vysoký kontrast* sa podľa systému nemení. Vyberte ho sami. Ak to vypnete, zostane motív, ktorý bol práve na obrazovke. Kde: v karte *Vzhľad*, v riadku *Motív*.
 
-**Jazyk** — jazyk rozhrania. Predvolené: jazyk vášho prehliadača alebo systému, ak ho aplikácia pozná, inak angličtina. Účinok: všetky texty v aplikácii. Štrnásť jazykov je zoradených podľa krátkeho kódu. Arabčina a perzština zrkadlia rozhranie sprava doľava. Jazyk článkov Pomocníka nastavíte osobitne. Nájdete ho v riadku *Jazyk dokumentácie* v *Súbor › Pomocník*. Kde: v karte *Vzhľad*.
+**Jazyk** — jazyk rozhrania. Predvolené: jazyk vášho prehliadača alebo systému, ak ho aplikácia pozná, inak angličtina. Účinok: všetky texty v aplikácii. Jazyky sú zoradené podľa krátkeho kódu. Arabčina a perzština zobrazujú rozhranie sprava doľava. Jazyk článkov Pomocníka nastavíte osobitne. Nájdete ho v riadku *Jazyk dokumentácie* v *Súbor › Pomocník*. Kde: v karte *Vzhľad*.
 
 **Písmo** — písmo celého rozhrania. Vyberte z možností *Predvolené*, *Systémové*, *Patkové* a *Monospace*. Predvolené: *Predvolené*. Účinok: nadpisy a text v okne a text v diagrame Gantt a v histograme. Webová aplikácia sama nepreberá systémové písmo. Preto ho vyberiete tu. Kde: v karte *Vzhľad*.
 
@@ -24,7 +24,9 @@ Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
 **Formát dátumu** — spôsob zobrazenia dátumov v aplikácii. Vyberte z možností *dd.mm.rrrr*, *mm-dd-rrrr* a *rrrr-mm-dd*. Predvolené: *dd.mm.rrrr*. Účinok: dátumy v tabuľke, v dialógoch, v zostavách a pri tlači. Súbory a výpočty sa nemenia, mení sa iba zobrazenie. Kde: v karte *Vzhľad*.
 
-**Zobrazenie trvania** — v akej jednotke sa zobrazí trvanie úlohy. Vyberte z možností *Automaticky (vlastná jednotka každej úlohy)*, *Vždy dni* a *Vždy hodiny*. Predvolené: *Automaticky (vlastná jednotka každej úlohy)*. Účinok: v tabuľke úloh, v popiskoch pruhov v diagrame Gantt, v popise pri kurzore, pri tlači a v zostavách. Pri nastavení *Automaticky* úloha v dňoch zobrazí dni a hodinová úloha zobrazí hodiny. Pri nastavení *Vždy dni* alebo *Vždy hodiny* aplikácia premení údaje podľa počtu hodín na deň v kalendári úlohy. Ak sa jednotka úlohy líši, pridá jej vlastnú jednotku v zátvorke, napríklad `2.25d(18h)`. Mení sa iba zobrazenie. Úloha si zachová svoju jednotku. Kde: v karte *Vzhľad*.
+**Formát času** — spôsob zobrazenia časov v aplikácii. Vyberte z možností *24 hodín (13:00)* a *12 hodín (1:00 PM)*. Predvolené: *24 hodín (13:00)*. Účinok: časy v okne kalendára, dátum a čas úloh v hodinách (tabuľka, rozdelenia, správy) a časová škála *Hodina* v diagrame Gantt. V poli pre čas môžete zadať ktorúkoľvek z týchto foriem: *13:00*, *1300*, *13*, *1:00 PM* alebo *1 pm*. Polnoc ako koniec dňa je *24:00* alebo *12:00 AM*. Súbory a výpočty sa nemenia: zostávajú v 24-hodinovom formáte. Kde: v karte *Vzhľad*.
+
+**Zobrazenie trvania** — v akej jednotke sa zobrazí trvanie úlohy. Vyberte z možností *Automaticky (vlastná jednotka každej úlohy)*, *Vždy dni* a *Vždy hodiny*. Predvolené: *Automaticky (vlastná jednotka každej úlohy)*. Účinok: v tabuľke úloh, v popiskoch pruhov v diagrame Gantt, v popise pri kurzore, pri tlači a v zostavách. Pri nastavení *Automaticky* úloha v dňoch zobrazí dni a hodinová úloha zobrazí hodiny. Pri nastavení *Vždy dni* alebo *Vždy hodiny* aplikácia údaje prevedie podľa počtu hodín na deň v kalendári úlohy. Ak sa jednotka úlohy líši, pridá za ňu vlastnú jednotku v zátvorke, napríklad `2.25d(18h)`. Mení sa iba zobrazenie. Úloha si zachová svoju jednotku. Kde: v karte *Vzhľad*.
 
 **Štýl prepínania projektov** — ako prepínate medzi otvorenými projektmi. Vyberte z možností *Horizontálne karty*, *Vertikálne karty* a *Pilulka*. Predvolené: *Horizontálne karty*. Účinok: *Horizontálne karty* umiestnia lištu kariet pod pás s nástrojmi. *Vertikálne karty* umiestnia projektovú lištu vľavo. *Pilulka* zobrazí malé tlačidlo projektu v paneli s názvom. Kde: v karte *Vzhľad*.
 
@@ -44,9 +46,9 @@ Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
 ## Karta Plán
 
-**Zapnúť režim stavby** — východiskové hodnoty pre nové projekty, zamerané na stavbu. Predvolené: zapnuté. Účinok: zapnuté dá novému projektu kalendár *Bouwkalender NL* s holandskými štátnymi sviatkami. Umožní vybrať stavebný sviatok pri generovaní sviatkov. Ponúkne šablóny fázovania *Bytová výstavba* a *Nebytová výstavba / rekonštrukcia* a novým úlohám dá typ úlohy *Stavba*. Vypnuté dá kalendár *Standaardkalender* bez sviatkov, iba šablónu *Prázdny* a typ úlohy *Iné*. Nová úloha pod nadradenou úlohou, ktorá má typ úlohy, najprv prevezme tento typ. Až potom sa použije *Stavba* alebo *Iné*. Existujúce úlohy a kalendáre sa nemenia. Kde: v karte *Plán*.
+**Zapnúť režim stavby** — začiatočné hodnoty pre nové projekty zamerané na stavbu. Predvolené: zapnuté. Účinok: zapnuté dá novému projektu kalendár *Bouwkalender NL* s holandskými štátnymi sviatkami, umožní vybrať stavebný sviatok pri generovaní sviatkov, ponúkne šablóny fázovania *Bytová výstavba* a *Nebytová výstavba / rekonštrukcia* a novým úlohám dá druh prác *Stavba*. Vypnuté dá kalendár *Standaardkalender* bez sviatkov, iba šablónu *Prázdny* a druh prác *Iné*. Nová úloha pod nadradenou úlohou, ktorá má druh prác, najprv prevezme tento druh prác. Až potom sa použije *Stavba* alebo *Iné*. Existujúce úlohy a kalendáre sa nemenia. Kde: v karte *Plán*.
 
-**Zapnúť plánovanie v hodinách** — plánovanie v pracovných hodinách popri pracovných dňoch. Predvolené: vypnuté. Účinok: v *Zobrazenie › Časová škála* pribudne časová škála *Hodina*. V okne *Kalendáre* pribudne blok *Pracovná doba*. V okne *Nový projekt* pribudnú voľby *Pracovná zmena* a *Predvolená jednotka pre nové úlohy*. *Info o projekte* dostane tiež voľbu *Predvolená jednotka pre nové úlohy*. Keď je vypnuté, aplikácia pracuje po dňoch. Úlohy, ktoré už sú v hodinách, zostanú a zahrnú sa do výpočtu. Ich trvanie môžete upraviť až po zapnutí plánovania v hodinách. Kde: v karte *Plán*, v časti *Plánovanie v hodinách*. Pozrite si [Zapnutie plánovania v hodinách](docs://howto-urenplanning-aanzetten).
+**Zapnúť plánovanie v hodinách** — plánovanie v pracovných hodinách popri pracovných dňoch. Predvolené: vypnuté. Účinok: v *Zobrazenie › Časová škála* pribudne možnosť *Hodina*. V okne *Kalendáre* môže bežný kalendár dostať pracovné bloky (blok *Pracovná doba*; kalendár, ktorý už bloky má, ho vždy zobrazí). V okne *Nový projekt* pribudnú voľby *Pracovná zmena* a *Predvolená jednotka pre nové úlohy*. *Nastavenia projektu* dostanú tiež voľbu *Predvolená jednotka pre nové úlohy*. Keď je vypnuté, aplikácia pracuje po dňoch. Úlohy, ktoré sú už v hodinách, zostanú a zahrnú sa do výpočtu. Ich trvanie môžete upraviť až po zapnutí plánovania v hodinách. Kde: v karte *Plán*, v časti *Plánovanie v hodinách*. Pozrite si [Zapnutie plánovania v hodinách](docs://howto-urenplanning-aanzetten).
 
 **Povoliť zmiešané plánovanie dní a hodín** — či môžete jednotku vybrať pre každú úlohu. Viditeľné iba vtedy, keď je zapnuté nastavenie *Zapnúť plánovanie v hodinách*. Predvolené: zapnuté. Účinok: zapnuté zobrazí pri trvaní každej úlohy rozbaľovací zoznam *Jednotka trvania*. Vypnuté ho skryje. Kde: v karte *Plán*, v časti *Plánovanie v hodinách*. Pozrite si [Dni a hodiny](docs://uitleg-dagen-en-uren).
 
@@ -54,9 +56,11 @@ Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
 **Automatický prepočet** — prepočíta plán hneď, ako nie je aktuálny. Predvolené: vypnuté. Účinok: vypnuté znamená, že *Prepočítať* (F5) stlačíte sami. Zapnuté spôsobí, že aplikácia prepočíta plán do zlomku sekundy po zmene úloh, závislostí alebo kalendára. Počas ťahania alebo písania do poľa aplikácia čaká a prepočíta raz, keď skončíte. Po neúspešnom prepočte sa znova prepočíta až vtedy, keď niečo zmeníte. Kde: v karte *Plán*, v časti *Prepočítanie*.
 
-**Zobraziť pravidlá práce a prácu** — polia pravidla práce a práce v aplikácii. Predvolené: vypnuté. Účinok: zapnuté zobrazí pole *Pravidlo práce* pri úlohe a stĺpec práce pri priradeniach. Zapnuté tiež sprístupní stĺpec tabuľky *Pravidlo práce*. Vypnuté ich skryje. Trvanie a jednotky priradenia zostanú a práca sa podľa nich prispôsobí. Projekt, ktorý už obsahuje údaje o pravidle práce alebo o práci, napríklad zo súboru `.mpp` alebo `.xer`, ich vždy zobrazí, aj keď je nastavenie vypnuté. Kde: v karte *Plán*, v časti *Prepočítanie*. Pozrite si [Pravidlá práce: trvanie, jednotky a práca](docs://uitleg-werkregels).
+**Používať typy úloh** — polia typu úlohy a práce v aplikácii. Predvolené: vypnuté. Účinok: zapnuté zobrazí pole *Typ úlohy* pri úlohe a stĺpec práce pri priradeniach. Zapnuté tiež sprístupní stĺpec tabuľky *Typ úlohy*. Vypnuté ich skryje. Trvanie a jednotky priradenia zostanú a práca sa podľa nich prispôsobí. Projekt, ktorý už obsahuje údaje o type úlohy alebo o práci, napríklad zo súboru `.mpp` alebo `.xer`, ich vždy zobrazí, aj keď je nastavenie vypnuté. Kde: v karte *Plán*, v časti *Prepočítanie*. Pozrite si [Typy úloh: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels).
 
 ## Karta Rozšírené
+
+**Zobraziť vysvetlenie po otvorení** — jedno začiarkavacie políčko pre každý formát: *Súbor Primavera (.xer)*, *Súbor MS Project (.mpp)*, *MS Project XML*, *Primavera P6 XML* a *Súbor CSV*. Predvolené: všetky zapnuté. Účinok: zapnuté zobrazí po otvorení takéhoto súboru okno s krátkym vysvetlením formátu: čo aplikácia prevzala, čo neprevzala a ako funguje ukladanie a zápis späť. *Už nezobrazovať pre …* v tomto okne zruší začiarknutie tu; tu ho znova zapnete. Súbor IFC, príklad a projekt, ktorý otvorí AI asistent alebo rozšírenie, toto vysvetlenie nikdy nedostanú. Kde: v karte *Rozšírené*, v časti *Zobraziť vysvetlenie po otvorení*. Pozrite si [Otvorenie a uloženie súboru](docs://howto-bestand-openen-en-opslaan).
 
 **Zapnúť režim AI** — umožní AI asistentovi pracovať s vaším plánom. Predvolené: vypnuté. Účinok: zapnuté zobrazí kartu *AI* s mostom MCP. AI asistent tak môže pracovať s vaším plánom cez Model Context Protocol. Vypnuté skryje kartu a zastaví most. Kde: v karte *Rozšírené*, v časti *Režim AI*. Pozrite si [Pripojenie AI asistenta (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -64,15 +68,15 @@ Zmena sa prejaví okamžite. Nie je tu tlačidlo *Použiť* ani *Zrušiť*.
 
 **Zapnúť ladiaci terminál** — panel protokolu na riešenie problémov. Predvolené: vypnuté. Účinok: zapnuté pridá do stavového riadku tlačidlo terminálu, ktoré zobrazí alebo skryje panel protokolu. Vypnuté panel zavrie. Kde: v karte *Rozšírené*, v časti *Ladiaci terminál*.
 
-**Benchmark…** — meria výkon plánovacieho motora. Účinok: otvorí okno. V ňom si nechajte vygenerovať testovací plán zvolenej veľkosti a zmerať hlavné fázy. Váš otvorený projekt zostane nedotknutý. Je to tlačidlo, nie nastavenie: nič sa neukladá. Kde: v karte *Rozšírené*, v časti *Benchmark*.
+**Benchmark…** — meria výkon plánovacieho motora. Účinok: otvorí okno, v ktorom si necháte vygenerovať testovací plán zvolenej veľkosti a zmerať hlavné fázy. Váš otvorený projekt zostane nedotknutý. Je to tlačidlo, nie nastavenie: nič sa neukladá. Kde: v karte *Rozšírené*, v časti *Benchmark*.
 
 **Otvoriť štatistiky…** — koľkokrát sa aplikácia stiahla. Účinok: otvorí okno *Štatistiky sťahovania* s verejnými číslami z GitHub Releases. Od vás sa nič nezbiera. Je to tlačidlo, nie nastavenie. Kde: v karte *Rozšírené*, v časti *Štatistiky*. V okne:
 
-- *Sťahovania podľa operačného systému* — pri každom systéme stĺpce *Sťahovania*, *Inštalátory* (to, čo človek stiahne) a *Aktualizácie* (to, čo stiahne aktualizátor v aplikácii), so súčtom *Celkom*. Na Linuxe sa tieto dva nedajú oddeliť. Aktualizátor stiahne ten istý súbor `.deb`, `.rpm` alebo `.AppImage`, ktorý ľudia sťahujú aj ručne. Preto sa tam ako inštalátor počíta iba súbor snap. Pod tým je *Kontroly aktualizácií z aplikácie*: koľkokrát aktualizátor v nainštalovanej aplikácii stiahol z GitHubu súbor s verziou, aby hľadal novú verziu. Sú to kontroly, nie inštalácie.
+- *Sťahovania podľa operačného systému* — pri každom systéme stĺpce *Sťahovania*, *Inštalátory* (to, čo človek stiahne) a *Aktualizácie* (to, čo stiahne aktualizátor v aplikácii), so súčtom *Celkom*. Na Linuxe sa tieto dva nedajú oddeliť: aktualizátor stiahne ten istý súbor `.deb`, `.rpm` alebo `.AppImage`, ktorý ľudia sťahujú aj ručne. Preto sa tam ako inštalátor počíta iba súbor snap. Pod tým je *Kontroly aktualizácií z aplikácie*: koľkokrát aktualizátor v nainštalovanej aplikácii stiahol z GitHubu súbor s verziou, aby hľadal novú verziu. Sú to kontroly, nie inštalácie.
 - *Podľa vydania* — tie isté sťahovania podľa verzie, s dátumom. Najprv šesť najnovších. Pre zvyšok použite *Zobraziť všetky vydania (…)*.
 - *Zdroj* — dátum údajov (GitHub Releases, aktualizované každý týždeň) a *Obnoviť teraz*. Aplikácia drží načítané údaje pol hodiny. Ak načítanie zlyhá, okno to oznámi. Inštalácie cez Snap Store nejdú cez GitHub, a preto v údajoch chýbajú.
 
-**Spustiť prehliadku** — úvodná prehliadka znova. Účinok: zavrie okno nastavení a spustí prehliadku od prvého kroku. Kde: v karte *Rozšírené*, v časti *Prehliadka*.
+**Spustiť prehliadku** — úvodná prehliadka znova. Účinok: zavrie okno *Nastavenia aplikácie* a spustí prehliadku od prvého kroku. Kde: v karte *Rozšírené*, v časti *Prehliadka*.
 
 **Verzia** — číslo verzie aplikácie, s dvoma tlačidlami. *Skontrolovať aktualizácie* otvorí okno aktualizácií. *Čo je nové* zobrazí novinky aktuálnej verzie. Kde: v karte *Rozšírené*, v časti *Verzia*.
 
@@ -113,5 +117,5 @@ Aplikácia tiež uchováva tieto voľby na tomto zariadení. Nastavíte ich vša
 - [Možnosti výpočtu a pravidlá výpočtu](docs://ref-rekenopties-en-conventies): možnosti, ktoré patria k projektu.
 - [Zapnutie plánovania v hodinách](docs://howto-urenplanning-aanzetten): kroky pre prepínač *Zapnúť plánovanie v hodinách*.
 - [Dni a hodiny](docs://uitleg-dagen-en-uren): ako aplikácia počíta dni a hodiny.
-- [Pravidlá práce: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels): čo zobrazuje možnosť *Zobraziť pravidla práce a prácu*.
+- [Typy úloh: trvanie, jednotky priradenia a práca](docs://uitleg-werkregels): čo zobrazuje možnosť *Používať typy úloh*.
 - [Klávesové skratky](docs://ref-sneltoetsen): všetky klávesy aplikácie, vrátane klávesov na priblíženie a posúvanie.

@@ -210,6 +210,8 @@ export interface ImportLabels {
    * `i18n/importLabels.ts`.
    */
   unassignedResource?: string;
+  /** Uitleg bij tijdelijk geweigerde IFC-bouwmodellen (knownbug 110). */
+  ifcBuildingModelUnsupported?: string;
 }
 
 /** Zie `ImportResult.recordedTimesOrigin`. */
@@ -218,6 +220,10 @@ export type RecordedTimesOrigin = 'xer' | 'xer-archive' | 'p6xml' | 'mspdi' | 'm
 export type RecordedSourceFormat = NonNullable<RecordedDatesState['sourceFormat']>;
 
 export interface ImportResult {
+  /** Markering van de opgeslagen rekenuitvoer; stuurt alleen de schemaovergang. */
+  timeModel?: string;
+  /** Tijdelijke leeshint D7, geen kalender- of taakdata in de store. */
+  milestonesAtDayEnd?: ReadonlySet<string>;
   // Kernvelden — door elk formaat geleverd.
   project: Project;
   calendar: WorkCalendar;
@@ -337,6 +343,9 @@ export interface ImportResult {
   xerMissingPlannedStarts?: number;
   /** Alleen een verse P6 XML-import: bestandsbreed verslag voor de openingsmelding (transient). */
   p6xmlReport?: P6XmlImportReport;
+  /** Alleen een verse MSPDI- of `.mpp`-import: wat niet is overgenomen, voor de openingsmelding
+   *  (transient). Afwezig als er niets verloren ging. */
+  msProjectReport?: MsProjectImportReport;
 }
 
 /**
@@ -398,6 +407,67 @@ export interface P6XmlImportReport {
   /** Platte activiteiten zonder `ProjectObjectId` in een bestand met meerdere projecten: bij geen
    *  project ingelezen. */
   unassignedActivities: number;
+}
+
+/**
+ * Bestandsbreed verslag van wat een verse MS Project-import (MSPDI `.xml` of `.mpp`) NIET overnam
+ * (transient, net als `P6XmlImportReport`; niet in DOCUMENT_FIELDS). Voedt de ene openingsmelding
+ * (`msProjectImportNotice`). Elke telling komt uit de lezer zelf: alleen wat de lezer aantoonbaar
+ * laat liggen, telt mee. 0 ⇒ geen regel; alles 0 ⇒ geen melding. Welke tellingen een formaat
+ * kan vullen, staat per veld; het andere formaat laat ze op 0.
+ */
+export interface MsProjectImportReport {
+  format: 'mspdi' | 'mpp';
+  /** Baselines die helemaal niet zijn overgenomen (aantal verschillende baselines met gegevens op een
+   *  taak, resource of toewijzing: datums, duur, werk of kosten). MSPDI: 1–10; `.mpp`: 0–10 (de lezer
+   *  leest geen baseline). */
+  baselines: number;
+  /** Alleen MSPDI: taken, resources en toewijzingen met werk of kosten in Baseline 0. De lezer neemt van
+   *  Baseline 0 alleen de taakdatums, de duur en de mijlpaalstatus over. (`.mpp` leest geen enkele
+   *  baseline; daar telt alles onder `baselines`.) */
+  baselineWorkCost: number;
+  /** Alleen MSPDI: toewijzingen waarvan een Baseline 0-datum afwijkt van die van hun taak. De lezer
+   *  bewaart alleen de taakbaseline, dus de afwijking gaat verloren. Gelijke datums tellen niet.
+   *  (`.mpp`: daar komt geen enkele baseline over; alles telt onder `baselines`.) */
+  assignmentBaselineDates: number;
+  /** Eigen velden (extended attributes, ook opzoekwaarden, en overzichtscodes) met minstens één waarde:
+   *  aantal verschillende velden over taken, resources en toewijzingen. De OPS-eigen transportvelden
+   *  tellen niet mee. `.mpp`: vlaggen (ja/nee-velden) zijn bitvelden en worden niet geteld. */
+  customFields: number;
+  /** Notities die niet zijn overgenomen. MSPDI: bij resources en toewijzingen (taaknotities komen mee
+   *  als omschrijving); `.mpp`: ook bij taken. */
+  notes: number;
+  /** Taken, resources en toewijzingen met een hyperlink. */
+  hyperlinks: number;
+  /** Taken met vaste kosten ≠ 0. */
+  fixedCosts: number;
+  /** Resources met een tarief dat niet is overgenomen. MSPDI: overwerktarief, kosten per gebruik,
+   *  tarieftabel B–E of een tariefwijziging in tabel A (het standaardtarief komt mee); `.mpp`: elk
+   *  tarief ≠ 0 (de lezer leest geen tarieven). */
+  resourceRates: number;
+  /** Ingevoegde projecten (subprojecten): de koppeling met het andere bestand is niet overgenomen. */
+  subprojects: number;
+  /** Externe taken (uit een ander project): ingelezen als gewone taak. */
+  externalTasks: number;
+  /** Alleen MSPDI: handmatig geplande taken, ingelezen als automatisch gepland. */
+  manualTasks: number;
+  /** Alleen MSPDI: taken met een nivelleringsvertraging, die niet is overgenomen. */
+  levelingDelays: number;
+  /** Alleen MSPDI: inactieve taken, ingelezen als actieve taak. */
+  inactiveTasks: number;
+}
+
+/** Een leeg verslag: alles 0. */
+export function emptyMsProjectImportReport(format: MsProjectImportReport['format']): MsProjectImportReport {
+  return {
+    format, baselines: 0, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 0, notes: 0, hyperlinks: 0, fixedCosts: 0, resourceRates: 0,
+    subprojects: 0, externalTasks: 0, manualTasks: 0, levelingDelays: 0, inactiveTasks: 0,
+  };
+}
+
+/** Ging er iets verloren? Eén telling > 0 is genoeg. */
+export function hasMsProjectImportLoss(report: MsProjectImportReport): boolean {
+  return Object.entries(report).some(([key, value]) => key !== 'format' && typeof value === 'number' && value > 0);
 }
 
 export interface MultiDocumentImport {

@@ -1,3 +1,4 @@
+// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -40,6 +41,8 @@ test('fasen-editor: splitsen, inzet typen, grens slepen, toepassen, undo en losl
 
   const row = page.locator('[data-ops-assignment-row]').first();
   await expect(row).toBeVisible();
+  // Curve en Urenverdeling… staan onder de uitklapknop op de resourcenaam.
+  await row.locator('[data-ops-assignment-expand]').click();
   const contourButton = row.locator('[data-ops-assignment-contour]');
   await expect(contourButton).toHaveAttribute('data-ops-assignment-contour', 'formula');
   await contourButton.click();
@@ -104,9 +107,9 @@ test('fasen-editor: splitsen, inzet typen, grens slepen, toepassen, undo en losl
   await expect.poll(() => page.evaluate((id) => {
     const t = window.__OPS__!.store.getState().tasks.find(x => x.id === id)!;
     return [t.time.earlyStart, t.time.earlyFinish, t.splitGaps ?? null];
-  }, taskId)).toEqual(['2026-09-07', '2026-09-11', null]);
+  }, taskId)).toEqual(["2026-09-07T07:00", "2026-09-11T16:00", null]);
   await expect(contourButton).toHaveAttribute('data-ops-assignment-contour', 'contoured');
-  await expect(row.locator('[data-ops-assignment-curve]')).toBeDisabled();
+  await expect(row.locator('[data-ops-assignment-curve] button')).toBeDisabled();
   await expect(page.locator('[data-ops-task-timephased]')).toHaveAttribute('data-ops-task-timephased', 'contoured');
 
   // Heropenen toont dezelfde twee fasen (run-length uit de opslagvorm); ongeldige invoer blokkeert
@@ -140,4 +143,36 @@ test('fasen-editor: splitsen, inzet typen, grens slepen, toepassen, undo en losl
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => contourMinutes(page, taskId)).toBeNull();
   await expect.poll(() => loadOf(page, resourceId)).toEqual([1, 1, 1, 1, 1]);
+});
+
+// F4b (spec "alleen uren" §3.11): de dialoog toont dezelfde dagen en delen als het histogram. Een
+// urentaak van 24 u die wo 11:00 begint, bezet wo en ma voor de helft: één fase met inzet 1, 24 uur, en na
+// Toepassen zonder wijziging boekt het histogram wo 0,5, do 1, vr 1, ma 0,5 (de probe van knownbugs 143).
+test('fasen-editor: een taak die midden op de dag begint, telt die dag naar rato', async ({ page, ops: _ops }) => {
+  const { taskId, resourceId } = await seedAssignedTask(page);
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    const t = s.tasks.find(x => x.id === id)!;
+    // `seedProject` plant handmatig; deze taak rekent haar einde zelf uit de urenmaat.
+    s.updateTask(id, { manuallyScheduled: false, time: { ...t.time, durationUnit: 'hours', durationMinutes: 1440, scheduleStart: '2026-09-09T11:00' } });
+    s.runCPM();
+  }, taskId);
+  await expect.poll(() => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(x => x.id === id)!.time.earlyStart, taskId))
+    .toBe('2026-09-09T11:00');
+  await expect.poll(() => loadOf(page, resourceId)).toEqual([0.5, 1, 1, 0.5]);
+
+  const row = page.locator('[data-ops-assignment-row]').first();
+  await row.locator('[data-ops-assignment-expand]').click();
+  await row.locator('[data-ops-assignment-contour]').click();
+  const dialog = page.locator('[data-ops-contour-dialog]');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-ops-contour-phase]')).toHaveCount(1);
+  await expect(dialog.locator('[data-ops-contour-units="0"]')).toHaveValue('1');
+  await expect(dialog.locator('[data-ops-contour-total]')).toHaveText('24');
+  await expect(dialog.locator('[data-ops-contour-partial-hint]')).toBeVisible();
+
+  await dialog.locator('[data-ops-contour-apply]').click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => contourMinutes(page, taskId)).toEqual([240, 480, 480, 240]);
+  await expect.poll(() => loadOf(page, resourceId)).toEqual([0.5, 1, 1, 0.5]);
 });

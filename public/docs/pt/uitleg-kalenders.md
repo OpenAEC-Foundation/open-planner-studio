@@ -4,7 +4,7 @@ Quantos dias úteis leva uma tarefa e em que data termina? Isso depende do calen
 
 ## O conceito
 
-Um planeamento conta em **dias úteis**, não em dias de calendário. "Cinco dias de assentamento de tijolo" significa cinco dias em que há trabalho. Um fim de semana ou um feriado não conta, por isso uma tarefa dessas ocupa mais de cinco dias na agenda.
+Um planeamento conta em **dias úteis**, não em dias de calendário. «Cinco dias de assentamento de tijolo» significa cinco dias em que há trabalho. Um fim de semana ou um feriado não conta, por isso uma tarefa dessas ocupa mais de cinco dias na agenda.
 
 Os dias úteis ficam registados num **calendário**. Um calendário fixa três coisas:
 
@@ -12,7 +12,7 @@ Os dias úteis ficam registados num **calendário**. Um calendário fixa três c
 - Os **tempos de trabalho**: início, fim e pausa. Dão as **horas líquidas por dia**. Por padrão, são das 07:00 às 16:00 com uma hora de pausa, ou seja, 8 horas.
 - Os **feriados**: dias isolados ou períodos inteiros em que não há trabalho, como o Dia do Rei, o Natal ou as férias da construção.
 
-Um projeto tem uma biblioteca de calendários. Um deles é o **calendário do projeto**. Aplica-se a cada tarefa que não tem calendário próprio. A uma tarefa individual pode dar outro calendário, por exemplo uma semana de trabalho de seis dias para um subempreiteiro que também trabalha aos sábados. Um recurso também pode ter o seu próprio calendário, mas isso faz outra coisa (ver abaixo).
+Um projeto tem uma biblioteca de recursos, com os seus calendários. Um deles é o **calendário do projeto**. Aplica-se a cada tarefa que não tem calendário próprio. A uma tarefa individual pode dar outro calendário, por exemplo uma semana de trabalho de seis dias para um subempreiteiro que também trabalha aos sábados. Um recurso também pode ter o seu próprio calendário, mas isso faz outra coisa (ver abaixo).
 
 ## Como a aplicação calcula
 
@@ -40,14 +40,14 @@ O calendário de um **recurso** não influencia as datas. Num planeamento que cr
 Quando duas tarefas com calendários diferentes estão vinculadas, aplica-se o seguinte:
 
 - Com uma relação fim-início, a sucessora começa no primeiro dia útil após o fim da predecessora, contado no calendário da **sucessora**. Se uma tarefa terminar numa sexta-feira, uma sucessora com semana de trabalho de seis dias começa no sábado.
-- Um **desfasamento** conta por padrão no calendário da **predecessora**. Pode alterar isso em *Definições › Projeto › Info do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*, com o campo *Calendário de atraso*: *Predecessora* (padrão), *Sucessora*, *24 horas* ou *Calendário do projeto*.
+- Um **desfasamento** conta por padrão no calendário da **predecessora**. Pode alterar isso em *Definições › Projeto › Definições do projeto*, no bloco *Perfil de cálculo e opções*, em *Opções de cálculo deste projeto*, com o campo *Calendário de atraso*: *Predecessora* (padrão), *Sucessora*, *24 horas* ou *Calendário do projeto*.
 - A **folga total** conta em dias úteis do calendário da própria tarefa. Neste perfil, a **folga livre** conta no calendário da sucessora.
 
 O que é exatamente um desfasamento está descrito em [Adicionar relações](docs://howto-relaties-leggen); o que é a folga, em [Caminho crítico e folga](docs://uitleg-kritiek-pad).
 
 ### No Gantt
 
-O fundo cinzento no Gantt mostra sempre os dias não úteis do **calendário do projeto**. Uma tarefa com calendário próprio pode, portanto, atravessar um dia cinzento, por exemplo uma tarefa de seis dias que atravessa o sábado. Um bloco de feriados com três dias ou mais de largura mostra o seu nome, por exemplo *Bouwvak (Noord)*. Isso não acontece quando *Mostrar apenas dias úteis* está ativado. Se não quiser ver de todo os dias cinzentos, ative *Mostrar apenas dias úteis* em *Definições › Projeto › Definições*, no separador *Aparência*, no cabeçalho *Eixo temporal*.
+O fundo cinzento no Gantt mostra sempre os dias não úteis do **calendário do projeto**. Uma tarefa com calendário próprio pode, portanto, atravessar um dia cinzento, por exemplo uma tarefa de seis dias que atravessa o sábado. Um bloco de feriados com três dias ou mais de largura mostra o seu nome, por exemplo *Bouwvak (Noord)*. Isso não acontece quando *Mostrar apenas dias úteis* está ativado. Se não quiser ver de todo os dias cinzentos, ative *Mostrar apenas dias úteis* em *Definições › Projeto › Definições da app*, no separador *Aparência*, no cabeçalho *Eixo temporal*.
 
 ## Exemplo resolvido: o planeamento da obra
 
@@ -92,9 +92,9 @@ As datas de *Brickwork* não mudam. Mas a sexta-feira, 4 de junho, fica a vermel
 
 **«Se eu mudar o calendário do projeto, tudo se desloca.»** Só se deslocam as tarefas sem calendário próprio. Uma tarefa a que atribuiu um calendário da lista mantém-no, mesmo que seja o antigo calendário do projeto. Se eliminar um calendário, as tarefas e os recursos que o usavam recorrem ao calendário do projeto.
 
-**«Os feriados estão lá, não estão?»** Os feriados só existem para os anos para os quais foram criados. Um dia fora desses anos é simplesmente um dia útil. Na caixa de diálogo do calendário, a aplicação indica isso com *Os feriados cobrem 2025–2028; o projeto vai até 2030. Gerar novamente?*
+**«Os feriados estão lá, não estão?»** Os feriados só existem para os anos para os quais foram criados. Um dia fora desses anos é simplesmente um dia útil. Na caixa de diálogo do calendário, a aplicação indica isso com *Os feriados cobrem 2025–2028; gerar novamente até 2030 inclusive?*
 
-**«Mais horas por dia tornam a minha tarefa mais curta.»** Não numa tarefa em dias: conta dias úteis inteiros, quer o dia tenha 6 ou 8 horas. Só numa tarefa com recursos e com a regra de trabalho *Trabalho fixo* ou *Unidades fixas* é que a duração muda com isso.
+**«Mais horas por dia tornam a minha tarefa mais curta.»** Não numa tarefa em dias: conta dias úteis inteiros, quer o dia tenha 6 ou 8 horas. Só numa tarefa com recursos e com o tipo de tarefa *Trabalho fixo* ou *Unidades fixas* é que a duração muda com isso.
 
 **Um calendário sem dias úteis** não pode ser calculado pela aplicação. O cálculo indica *O calendário não tem dias úteis definidos*.
 

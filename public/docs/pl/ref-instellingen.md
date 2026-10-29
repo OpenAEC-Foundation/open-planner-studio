@@ -1,10 +1,10 @@
-# Ustawienia
+# Ustawienia aplikacji
 
 Każde ustawienie aplikacji: co robi, jaka jest jego wartość początkowa, co się zmienia i gdzie je znajdziesz. Opcje obliczeń projektu (profil obliczeń, definicja zadania krytycznego) znajdziesz w [Opcje obliczeń i konwencje](docs://ref-rekenopties-en-conventies). Należą one do pliku projektu, a nie do aplikacji.
 
 ## Gdzie je znaleźć i jak działają
 
-Panel ustawień jest w trzech miejscach, a wszędzie to ten sam panel: koło zębate u góry okna, *Ustawienia › Projekt › Ustawienia* oraz *Plik › Ustawienia*. Panel ma trzy karty: *Wygląd*, *Planowanie* i *Zaawansowane*. Każde ustawienie poniżej podaje tylko kartę.
+Panel ustawień jest w trzech miejscach, a wszędzie to ten sam panel: koło zębate u góry okna, *Ustawienia › Projekt › Ustawienia aplikacji* oraz *Plik › Ustawienia aplikacji*. Panel ma trzy karty: *Wygląd*, *Planowanie* i *Zaawansowane*. Każde ustawienie poniżej podaje tylko kartę.
 
 Zmiana działa od razu. Nie ma przycisku *Zastosuj* ani *Anuluj*.
 
@@ -16,13 +16,15 @@ Zmiana działa od razu. Nie ma przycisku *Zastosuj* ani *Anuluj*.
 
 **Motyw zgodnie z systemem** — pozwala, aby o kolorystyce decydował system operacyjny. Domyślnie: wyłączone. Efekt: aplikacja używa motywu *Jasny* albo *Ciemny*, zależnie od systemu; trzy kafelki motywu są wtedy wyłączone. *Wysoki kontrast* nie podąża za systemem: wybierasz go sam. Gdy to wyłączysz, zostaje motyw, który był wtedy na ekranie. Gdzie: *Wygląd*, pod *Motyw*.
 
-**Język** — język interfejsu. Domyślnie: język przeglądarki lub systemu, jeśli aplikacja go zna, w przeciwnym razie angielski. Efekt: wszystkie teksty w aplikacji; czternaście języków jest uporządkowanych według krótkiego kodu. Arabski i perski odwracają interfejs od prawej do lewej. Język artykułów Pomocy ustawiasz osobno, pod *Język dokumentacji* w *Plik › Pomoc*. Gdzie: *Wygląd*.
+**Język** — język interfejsu. Domyślnie: język przeglądarki lub systemu, jeśli aplikacja go zna, w przeciwnym razie angielski. Efekt: wszystkie teksty w aplikacji; języki są uporządkowane według krótkiego kodu. Arabski i perski odwracają interfejs od prawej do lewej. Język artykułów Pomocy ustawiasz osobno, pod *Język dokumentacji* w *Plik › Pomoc*. Gdzie: *Wygląd*.
 
 **Czcionka** — czcionka całego interfejsu. Wybierz spośród *Domyślna*, *Systemowa*, *Szeryfowa* i *Monospace*. Domyślnie: *Domyślna*. Efekt: nagłówki i tekst w oknie oraz tekst w Gantt i histogramie. Aplikacja internetowa sama nie używa czcionki systemu, dlatego wybierasz ją tutaj. Gdzie: *Wygląd*.
 
 **Rozmiar tekstu** — skala interfejsu. Wybierz spośród 90%, 100%, 110% i 125%. Domyślnie: 100%. Efekt: tekst i układ wstążki, paneli oraz okien dialogowych stają się większe lub mniejsze, a wysokość wierszy w tabeli i w Gantt skaluje się razem z nimi. Nie ma wyboru powyżej 125%, bo etykiety przycisków we wstążce wtedy łamią się na kilka wierszy. Gdzie: *Wygląd*.
 
 **Format daty** — jak daty wyglądają w aplikacji. Wybierz spośród *dd-mm-rrrr*, *mm-dd-rrrr* i *rrrr-mm-dd*. Domyślnie: *dd-mm-rrrr*. Efekt: daty w tabeli, oknach dialogowych, raportach i na wydruku. Pliki i obliczenia się nie zmieniają: zmienia się tylko wyświetlanie. Gdzie: *Wygląd*.
+
+**Format czasu** — jak godziny wyglądają w aplikacji. Wybierz spośród *24-godzinny (13:00)* i *12-godzinny (1:00 PM)*. Domyślnie: *24-godzinny (13:00)*. Efekt: godziny w oknie kalendarza, data i godzina zadań godzinowych (tabela, podziały, komunikaty) oraz skala czasu *Godzina* w Gantt. W polu czasu możesz wpisać każdą z tych form: *13:00*, *1300*, *13*, *1:00 PM* albo *1 pm*. Północ jako koniec dnia to *24:00* albo *12:00 AM*. Pliki i obliczenia się nie zmieniają: zostają 24-godzinne. Gdzie: *Wygląd*.
 
 **Wyświetlanie czasu trwania** — w jakiej jednostce pokazuje się czas trwania zadania. Wybierz spośród *Automatycznie (własna jednostka dla zadania)*, *Zawsze w dniach* i *Zawsze w godzinach*. Domyślnie: *Automatycznie (własna jednostka dla zadania)*. Efekt: w tabeli zadań, w etykietach pasków w Gantt, w podpowiedzi, na wydruku i w raportach. Przy wyborze *Automatycznie* zadanie w dniach pokazuje dni, a zadanie godzinowe pokazuje godziny. Przy wyborze *Zawsze w dniach* lub *Zawsze w godzinach* aplikacja zamienia jednostki, używając godzin na dzień z kalendarza zadania. Gdy jednostka zadania jest inna, dodaje w nawiasie za wynikiem jednostkę zadania, na przykład `2.25d(18h)`. Zmienia się tylko wyświetlanie; zadanie zachowuje swoją jednostkę. Gdzie: *Wygląd*.
 
@@ -44,9 +46,9 @@ Zmiana działa od razu. Nie ma przycisku *Zastosuj* ani *Anuluj*.
 
 ## Karta Planowanie
 
-**Włącz tryb budowlany** — startowe wartości dla nowych projektów, nastawione na budownictwo. Domyślnie: włączone. Efekt: włączone daje nowemu projektowi kalendarz *Bouwkalender NL* z holenderskich świąt państwowych, pozwala wybrać święto budowlane przy generowaniu świąt, oferuje szablony faz *Budownictwo mieszkaniowe* i *Budownictwo użytkowe / remont* oraz nadaje nowym zadaniom typ zadania *Budowa*. Wyłączone daje kalendarz *Standaardkalender* bez świąt, tylko szablon *Pusty* i typ zadania *Inne*. Nowe zadanie pod zadaniem nadrzędnym, które ma typ zadania, najpierw przejmuje ten typ; *Budowa* albo *Inne* stosuje się dopiero potem. Istniejące zadania i kalendarze się nie zmieniają. Gdzie: *Planowanie*.
+**Włącz tryb budowlany** — startowe wartości dla nowych projektów, nastawione na budownictwo. Domyślnie: włączone. Efekt: włączone daje nowemu projektowi kalendarz *Bouwkalender NL* z holenderskich świąt państwowych, pozwala wybrać święto budowlane przy generowaniu świąt, oferuje szablony faz *Budownictwo mieszkaniowe* i *Budownictwo użytkowe / remont* oraz nadaje nowym zadaniom rodzaj robót *Budowa*. Wyłączone daje kalendarz *Standaardkalender* bez świąt, tylko szablon *Pusty* i rodzaj robót *Inne*. Nowe zadanie pod zadaniem nadrzędnym, które ma rodzaj robót, najpierw przejmuje ten rodzaj robót; *Budowa* albo *Inne* stosuje się dopiero potem. Istniejące zadania i kalendarze się nie zmieniają. Gdzie: *Planowanie*.
 
-**Włącz planowanie godzinowe** — planowanie według godzin pracy obok dni roboczych. Domyślnie: wyłączone. Efekt: skala czasu *Godzina* pojawia się pod *Widok › Skala czasu*, okno *Kalendarze* dostaje blok *Godziny pracy*, a okno *Nowy projekt* dostaje wybór *Zmiana* i *Domyślna jednostka nowych zadań*. *Info o projekcie* dostaje też wybór *Domyślna jednostka nowych zadań*. Wyłączone: aplikacja pracuje z dokładnością do dnia. Zadania, które są już w godzinach, zostają i są uwzględniane w obliczeniach. Czas trwania tych zadań możesz zmienić dopiero po włączeniu planowania godzinowego. Gdzie: *Planowanie*, pod *Planowanie godzinowe*. Zobacz [Włączanie planowania godzinowego](docs://howto-urenplanning-aanzetten).
+**Włącz planowanie godzinowe** — planowanie według godzin pracy obok dni roboczych. Domyślnie: wyłączone. Efekt: skala czasu *Godzina* pojawia się pod *Widok › Skala czasu*. W oknie *Kalendarze* zwykły kalendarz może dostać pasma czasu pracy (blok *Godziny pracy*; kalendarz, który już ma pasma, zawsze pokazuje ten blok). Okno *Nowy projekt* dostaje wybór *Zmiana* i *Domyślna jednostka nowych zadań*. *Ustawienia projektu* dostają też wybór *Domyślna jednostka nowych zadań*. Wyłączone: aplikacja pracuje z dokładnością do dnia. Zadania, które są już godzinowe, zostają i są uwzględniane w obliczeniach. Czas trwania tych zadań możesz zmienić dopiero po włączeniu planowania godzinowego. Gdzie: *Planowanie*, pod *Planowanie godzinowe*. Zobacz [Włączanie planowania godzinowego](docs://howto-urenplanning-aanzetten).
 
 **Mieszane planowanie dni i godzin** — czy jednostkę wybierasz dla każdego zadania osobno. Widoczne tylko, gdy *Włącz planowanie godzinowe* jest włączone. Domyślnie: włączone. Efekt: włączone pokazuje listę rozwijaną *Jednostka czasu trwania* przy czasie trwania każdego zadania. Wyłączone ukrywa tę listę. Gdzie: *Planowanie*, pod *Planowanie godzinowe*. Zobacz [Dni i godziny](docs://uitleg-dagen-en-uren).
 
@@ -54,9 +56,11 @@ Zmiana działa od razu. Nie ma przycisku *Zastosuj* ani *Anuluj*.
 
 **Oblicz automatycznie** — przelicza harmonogram, gdy tylko jest nieaktualny. Domyślnie: wyłączone. Efekt: wyłączone oznacza, że sam naciskasz *Oblicz* (F5). Włączone sprawia, że aplikacja przelicza harmonogram w ułamku sekundy po zmianie zadań, relacji lub kalendarza. Podczas przeciągania albo gdy wpisujesz wartość w polu, aplikacja czeka i oblicza raz, gdy skończysz. Po nieudanym obliczeniu aplikacja oblicza ponownie dopiero wtedy, gdy coś zmienisz. Gdzie: *Planowanie*, pod *Obliczanie*.
 
-**Pokazuj regułę pracy i pracę** — pola reguły pracy i pracy w aplikacji. Domyślnie: wyłączone. Efekt: włączone pokazuje pole *Reguła pracy* przy zadaniu i kolumnę pracy dla przydziałów, a także udostępnia kolumnę tabeli *Reguła pracy*. Wyłączone je ukrywa; czas trwania i jednostki zostają, a praca się do nich dostosowuje. Projekt, który już zawiera dane reguły pracy lub pracy, na przykład z pliku `.mpp` lub `.xer`, pokazuje je zawsze, także gdy ustawienie jest wyłączone. Gdzie: *Planowanie*, pod *Obliczanie*. Zobacz [Reguły pracy: czas trwania, jednostki i praca](docs://uitleg-werkregels).
+**Używaj typów zadań** — pola typu zadania i pracy w aplikacji. Domyślnie: wyłączone. Efekt: włączone pokazuje pole *Typ zadania* przy zadaniu i kolumnę pracy dla przydziałów, a także udostępnia kolumnę tabeli *Typ zadania*. Wyłączone je ukrywa; czas trwania i jednostki zostają, a praca się do nich dostosowuje. Projekt, który już zawiera dane typu zadania lub pracy, na przykład z pliku `.mpp` lub `.xer`, pokazuje je zawsze, także gdy ustawienie jest wyłączone. Gdzie: *Planowanie*, pod *Obliczanie*. Zobacz [Typy zadań: czas trwania, jednostki i praca](docs://uitleg-werkregels).
 
 ## Karta Zaawansowane
+
+**Pokaż wyjaśnienie po otwarciu** — jedno pole wyboru na format: *Plik Primavera (.xer)*, *Plik MS Project (.mpp)*, *MS Project XML*, *Primavera P6 XML* i *Plik CSV*. Domyślnie: wszystkie włączone. Efekt: włączone pokazuje okno z krótkim wyjaśnieniem formatu, gdy otworzysz taki plik: co aplikacja przejęła, czego nie przejęła i jak działają zapisywanie oraz zapis zwrotny. *Nie pokazuj ponownie dla …* w tym oknie czyści pole wyboru tutaj; tutaj znowu je włączysz. Plik IFC, przykład oraz projekt, który otwiera asystent AI lub rozszerzenie, nigdy nie dostają tego wyjaśnienia. Gdzie: *Zaawansowane*, pod *Pokaż wyjaśnienie po otwarciu*. Zobacz [Otwieranie i zapisywanie pliku](docs://howto-bestand-openen-en-opslaan).
 
 **Włącz tryb AI** — pozwala, aby asystent AI pracował z Twoim harmonogramem. Domyślnie: wyłączone. Efekt: włączone pokazuje kartę *AI* z mostkiem MCP, dzięki czemu asystent AI może pracować z Twoim harmonogramem przez Model Context Protocol. Wyłączone ukrywa kartę i zatrzymuje mostek. Gdzie: *Zaawansowane*, pod *Tryb AI*. Zobacz [Podłączanie asystenta AI (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -66,13 +70,13 @@ Zmiana działa od razu. Nie ma przycisku *Zastosuj* ani *Anuluj*.
 
 **Benchmark…** — mierzy wydajność silnika harmonogramu. Efekt: otwiera okno, w którym generujesz harmonogram testowy wybranego rozmiaru i mierzysz główne fazy. Twój otwarty projekt zostaje nietknięty. To przycisk, a nie ustawienie: nic nie trzeba zapamiętywać. Gdzie: *Zaawansowane*, pod *Benchmark*.
 
-**Statystyki…** — jak często aplikację pobrano. Efekt: otwiera okno *Statystyki pobrań* z publicznymi danymi z GitHub Releases. Od Ciebie nic nie jest zbierane. To przycisk, a nie ustawienie. Gdzie: *Zaawansowane*, pod *Statystyki*. W oknie:
+**Statystyki…** — jak często aplikację pobrano. Efekt: otwiera okno *Statystyki pobrań* z publicznymi danymi z GitHub Releases; od Ciebie nic nie jest zbierane. To przycisk, a nie ustawienie. Gdzie: *Zaawansowane*, pod *Statystyki*. W oknie:
 
-- *Pobrania według systemu operacyjnego* — dla każdego systemu kolumny *Pobrania*, *Instalatory* (co pobiera człowiek) i *Aktualizacje* (co pobiera aktualizator w aplikacji), z sumą *Razem*. W Linuksie obu nie da się rozdzielić: aktualizator pobiera ten sam plik `.deb`, `.rpm` lub `.AppImage`, który ludzie pobierają też ręcznie. Dlatego liczy się tam jako instalator tylko plik snap. Pod tym jest *Sprawdzenia aktualizacji z aplikacji*: jak często aktualizator w zainstalowanej aplikacji pobrał plik z wersją z GitHub, żeby szukać nowej wersji. To są sprawdzenia, nie instalacje.
+- *Pobrania według systemu operacyjnego* — dla każdego systemu kolumny *Pobrania*, *Instalatory* (co pobiera człowiek) i *Aktualizacje* (co pobiera aktualizator w aplikacji), z sumą *Razem*. W Linuksie obu nie da się rozdzielić: aktualizator pobiera ten sam plik `.deb`, `.rpm` lub `.AppImage`, który ludzie pobierają też ręcznie, więc liczy się tam jako instalator tylko plik snap. Pod tym jest *Sprawdzenia aktualizacji z aplikacji*: jak często aktualizator w zainstalowanej aplikacji pobrał plik z wersją z GitHub, żeby szukać nowej wersji. To są sprawdzenia, nie instalacje.
 - *Według wydania* — te same pobrania dla każdej wersji, z datą; najpierw sześć najnowszych, a dla reszty *Pokaż wszystkie wydania (…)*.
 - *Źródło* — data danych (GitHub Releases, aktualizowane co tydzień) oraz *Odśwież teraz*. Aplikacja trzyma pobrane dane przez pół godziny. Gdy pobieranie się nie uda, okno to pokazuje. Instalacje przez Snap Store nie przechodzą przez GitHub, więc ich brakuje.
 
-**Uruchom wycieczkę** — wprowadzająca wycieczka jeszcze raz. Efekt: zamyka okno ustawień i uruchamia wycieczkę od pierwszego kroku. Gdzie: *Zaawansowane*, pod *Wycieczka*.
+**Uruchom wycieczkę** — wprowadzająca wycieczka jeszcze raz. Efekt: zamyka okno *Ustawienia aplikacji* i uruchamia wycieczkę od pierwszego kroku. Gdzie: *Zaawansowane*, pod *Wycieczka*.
 
 **Wersja** — numer wersji aplikacji, z dwoma przyciskami. *Sprawdź aktualizacje* otwiera okno aktualizacji. *Co nowego* pokazuje nowości bieżącej wersji. Gdzie: *Zaawansowane*, pod *Wersja*.
 
@@ -113,5 +117,5 @@ Aplikacja zapisuje te wybory także na tym urządzeniu. Ustawiasz je jednak bezp
 - [Opcje obliczeń i konwencje](docs://ref-rekenopties-en-conventies): opcje, które należą do projektu.
 - [Włączanie planowania godzinowego](docs://howto-urenplanning-aanzetten): kroki dla przełącznika *Włącz planowanie godzinowe*.
 - [Dni i godziny](docs://uitleg-dagen-en-uren): jak aplikacja liczy dni i godziny.
-- [Reguły pracy: czas trwania, jednostki i praca](docs://uitleg-werkregels): co pokazuje *Pokaż reguły pracy i pracę*.
+- [Typy zadań: czas trwania, jednostki i praca](docs://uitleg-werkregels): co pokazuje *Używaj typów zadań*.
 - [Skróty klawiszowe](docs://ref-sneltoetsen): wszystkie klawisze aplikacji, także do powiększania i przewijania.

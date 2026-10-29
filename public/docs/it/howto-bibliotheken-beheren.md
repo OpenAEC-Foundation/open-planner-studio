@@ -16,7 +16,7 @@ Scegli *File › Libreria*. A sinistra c'è l'elenco *Librerie di risorse*. A de
 
 ### Crea, rinomina e scegli una libreria predefinita
 
-1. Clicca il più sopra l'elenco (*Aggiungi libreria di risorse*). Viene aggiunta una libreria *Nuova libreria di risorse*, e viene subito selezionata.
+1. Clicca il segno più sopra l'elenco (*Aggiungi libreria di risorse*). Viene aggiunta una libreria *Nuova libreria di risorse* e viene subito selezionata.
 2. Scrivi il nuovo nome nel campo del nome in alto, nella parte destra, e premi Invio, oppure clicca fuori dal campo. L'app non accetta un nome vuoto.
 3. Clicca *Imposta come predefinita* per far sì che questa libreria sia preselezionata per i nuovi progetti da ora in poi. La libreria predefinita ha una stella nell'elenco.
 
@@ -46,10 +46,10 @@ Sotto i pulsanti c'è scritto *Esportare funge anche da backup: conserva il file
 
 Hai due scelte:
 
-- *Aggiungi come nuova libreria di risorse*: il file diventa una libreria separata accanto alle tue librerie esistenti. Sotto c'è scritto con quale nome, per esempio *Verrà aggiunta come “Mijn resourcebibliotheek (2)”.* Non si perde niente, e il tuo progetto attivo resta collegato alla sua libreria.
+- *Aggiungi come nuova libreria di risorse*: il file diventa una libreria separata accanto alle tue librerie esistenti. Sotto c'è scritto con quale nome, per esempio *Verrà aggiunta come «Mijn resourcebibliotheek (2)».* Non si perde niente, e il tuo progetto attivo resta collegato alla sua libreria.
 - *Sostituisci una libreria di risorse esistente*: tutto il contenuto della libreria scelta viene sostituito con quello del file. Anche questo è scritto nell'app: *L'importazione sostituisce l'INTERO pool della libreria di risorse selezionata.* Se hai due o più librerie, scegli quale sotto *Importa nella libreria di risorse*. Se la tua libreria è più recente del file, l'app avvisa: *La tua libreria locale è più recente — importare potrebbe sovrascrivere le tue modifiche.*
 
-L'app propone automaticamente una scelta. Per un file che conteneva la libreria predefinita, è preselezionato *Aggiungi come nuova libreria di risorse*. Se la libreria del file esiste già sul tuo computer e non è la libreria predefinita, è preselezionato *Sostituisci una libreria di risorse esistente*, con proprio quella libreria già scelta. Nel dubbio, scegli di aggiungere: così non si sovrascrive niente.
+L'app propone automaticamente una scelta. Per un file che conteneva la libreria predefinita, è preselezionato *Aggiungi come nuova libreria di risorse*. Se la libreria del file esiste già sul tuo computer e non è la libreria predefinita, è preselezionato *Sostituisci una libreria di risorse esistente*, con quella libreria già scelta. Nel dubbio, scegli di aggiungere: così non si sovrascrive niente.
 
 ### Elimina una libreria
 
@@ -64,15 +64,15 @@ Un file di progetto contiene le proprie copie delle risorse. Se vuoi consegnare 
 
 1. Apri un progetto collegato a una libreria e scegli *File › Esporta*.
 2. Spunta *Salva anche il file di libreria*. La casella c'è solo per un progetto collegato.
-3. Scegli la scheda *IFC 4x3* e salva il file. L'app chiede poi anche un secondo file. Il suo nome è quello del progetto, seguito da `-bibliotheek`, e contiene la libreria.
+3. Scegli la scheda *IFC* e salva il file. L'app chiede poi anche un secondo file. Il suo nome è quello del progetto, seguito da `-bibliotheek`, e contiene la libreria.
 
 La casella funziona solo per l'esportazione IFC, non per gli altri formati di esportazione. Il tuo collega importa il secondo file come descritto sopra.
 
 ## Insidie e che cosa fa l'app in quel caso
 
-**Due pianificatori, due librerie.** L'app non sincronizza le librerie tra i computer. La finestra di importazione mostra sempre un avviso in merito: *Nota: le librerie non vengono sincronizzate tra i computer. Se due pianificatori lavorano con la stessa libreria di risorse, le librerie possono divergere. Se la tua organizzazione condivide squadre tra società operative, scegli deliberatamente un unico pool condiviso.*
+**Due pianificatori, due librerie.** L'app non sincronizza le librerie tra i computer. La finestra di importazione mostra sempre un avviso in merito: *Nota: le librerie non vengono sincronizzate tra i computer. Se due pianificatori lavorano con la stessa libreria di risorse, le librerie possono divergere. Se la tua organizzazione condivide squadre tra società operative, scegli deliberatamente un'unica libreria di risorse condivisa.*
 
-**Sostituire sovrascrive tutto.** Tutto ciò che avevi nella libreria scelta è sparito, e una modifica alla libreria non si può annullare con *Annulla*. Esporta prima se non sei sicuro.
+**Sostituire sovrascrive tutto.** Tutto ciò che avevi nella libreria scelta è sparito, e una modifica alla libreria non si può annullare con *Annulla*. Esporta prima se non sei sicuro. I tuoi progetti mantengono le loro copie. L'app aggiorna le copie che esistono ancora nel nuovo file. Le copie che non ci sono più ricevono la marcatura *non più nella libreria* e continuano a funzionare. Se una copia è diversa, si apre la finestra *Collega libreria di risorse* (vedi [Uso della libreria di risorse](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Eliminare un calendario dall'elenco avviene subito.** L'app non chiede conferma, mentre per eliminare una risorsa invece la chiede. Sembra una mancanza. Le modifiche alla libreria non si possono annullare con *Annulla*.
 

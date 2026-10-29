@@ -16,6 +16,15 @@ async function catalogUnavailable(page: Page): Promise<void> {
 
 const offer = tutorialOffer;
 const answered = (page: Page) => page.evaluate(() => localStorage.getItem('ops-tutorialOfferAnswered'));
+const pendingHelpSection = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.pendingHelpSection);
+
+/** Houd alleen de netwerkrespons tegen; openen, annuleren en artikelkeuzes blijven echte handelingen. */
+async function pauseHelpAsset(page: Page, url: string): Promise<() => void> {
+  let release!: () => void;
+  const ready = new Promise<void>(resolve => { release = resolve; });
+  await page.route(url, async route => { await ready; await route.continue(); });
+  return release;
+}
 
 test('voltooide rondleiding → tutorialvraag; Ja met een geïnstalleerde tutorials-extensie start tutorial 1', async ({ page, ops: _ops }) => {
   await catalogUnavailable(page);
@@ -48,6 +57,22 @@ test('voltooide rondleiding → tutorialvraag; Ja met een geïnstalleerde tutori
   await expect(offer(page)).toHaveCount(0);
   await expect(page.locator('[data-ops-guide-panel="tut-1-eerste-planning"]')).toBeVisible();
   expect(await answered(page)).toBe('true');
+
+  // Knownbug 66: lever de automatische update-uitkomst aan terwijl de echte begeleiding loopt.
+  // De gebruiker sluit daarna zelf de gids; pas dan mag de wachtende dialoog verschijnen.
+  await page.evaluate(async () => {
+    const updatePath = '/src/hooks/useUpdateCheck.ts';
+    const { openUpdateDialogWhenIdle } = await import(/* @vite-ignore */ updatePath);
+    openUpdateDialogWhenIdle();
+  });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.showUpdateDialog)).toBe(false);
+  const update = page.getByRole('dialog').filter({ hasText: /Software[- ]update/ });
+  await expect(update).toHaveCount(0);
+  await page.locator('[data-ops-guide-action="close"]').click();
+  await expect(page.locator('[data-ops-guide-panel]')).toHaveCount(0);
+  await expect(update).toBeVisible();
+  await update.getByRole('button', { name: /^(Close|Sluiten)$/ }).first().click();
+  await expect(update).toHaveCount(0);
 });
 
 test('Ja zonder extensie en zonder catalogus → Help › Tutorials met een melding', async ({ page, ops }) => {
@@ -59,12 +84,48 @@ test('Ja zonder extensie en zonder catalogus → Help › Tutorials met een meld
   await startTourFromWelcome(page);
   await completeTour(page);
 
-  await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
-  await expect(offer(page)).toHaveCount(0);
-  // Help opent op Tutorials: de sectie staat in beeld, met de weg naar de catalogus.
-  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
-  await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
-  expect(await answered(page)).toBe('true');
+  // Twee lege documenten als fixture; het wisselen hieronder gebeurt via de echte documenttab.
+  const firstDocument = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const first = s.activeDocumentId;
+    s.newDocument();
+    return first;
+  });
+  const releaseManifest = await pauseHelpAsset(page, '**/docs/manifest.json');
+  const releaseArticles = await pauseHelpAsset(page, '**/docs/*/*.md');
+  try {
+    await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
+    await expect(offer(page)).toHaveCount(0);
+    await expect(page.locator('.help-panel')).toBeVisible();
+    // Knownbug 67: het verzoek wacht terecht op het manifest, ook na een andere UI-update (melding).
+    await expect.poll(() => pendingHelpSection(page)).toBe('tutorials');
+    await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
+    expect(await answered(page)).toBe('true');
+
+    // Sluiten vóór de respons annuleert de oude intentie. Een documentwissel opent Help niet opnieuw.
+    await page.locator('[data-ops-backstage-back]').click();
+    await expect(page.locator('.help-panel')).toHaveCount(0);
+    expect(await pendingHelpSection(page)).toBeNull();
+    await page.locator(`[data-testid="document-tab"][data-ops-tab="${firstDocument}"]`).click();
+    await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(firstDocument);
+    await expect(page.locator('.help-panel')).toHaveCount(0);
+
+    // Een nieuw bezoek is een gewone Help-route: de oude intentie mag geen scroll/focus meer kapen.
+    await page.keyboard.press('F1');
+    await expect(page.locator('.help-panel')).toBeVisible();
+    releaseManifest();
+    const install = page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]');
+    await expect(install).toBeInViewport();
+    expect(await pendingHelpSection(page)).toBeNull();
+    releaseArticles();
+    await expect(page.locator('.help-article-body')).toHaveAttribute('data-help-current', 'howto-relaties-leggen');
+    await expect(page.locator('.help-article-body h1')).toHaveText('Adding relations');
+    await expect(install).not.toBeFocused();
+    expect(await pendingHelpSection(page)).toBeNull();
+  } finally {
+    releaseManifest();
+    releaseArticles();
+  }
 });
 
 test('Overslaan of Escape in de rondleiding → geen tutorialvraag', async ({ page, ops: _ops }) => {
@@ -168,6 +229,15 @@ for (const target of ['Nee', 'kruisje'] as const) {
 
 test('Enter zonder knopfocus = Ja (de standaardactie)', async ({ page, ops }) => {
   ops.acceptError('Failed to load resource: the server responded with a status of 404');
+  // Alleen het eerste artikel ontbreekt: Tutorials is wel beschikbaar. Dat is een afgehandelde
+  // laadfout, geen reden om het sectieverzoek voor een later Help-bezoek vast te houden (knownbug 67).
+  ops.acceptError('[Help] Artikel "howto-relaties-leggen"');
+  await page.route('**/docs/manifest.json', route => route.fulfill({ status: 200, json: {
+    version: 2,
+    articles: [{ id: 'howto-relaties-leggen', kind: 'howto', title: { nl: 'Relaties leggen', en: 'Adding relations' } }],
+  } }));
+  await page.route('**/docs/*/howto-relaties-leggen.md', route =>
+    route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
   const catalogRequests = await countCatalogRequests(page);
   await reachOffer(page);
   // Klik op de vraagtekst: daarna heeft geen knop de focus.
@@ -175,7 +245,11 @@ test('Enter zonder knopfocus = Ja (de standaardactie)', async ({ page, ops }) =>
   expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('BUTTON');
   await page.keyboard.press('Enter');
   await expect(offer(page)).toHaveCount(0);
-  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
+  const install = page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]');
+  await expect(install).toBeInViewport();
+  await expect(page.locator('.help-article .backstage-empty')).toHaveText('Article not found.');
+  await expect.poll(() => pendingHelpSection(page)).toBeNull();
+  await expect(install).toBeFocused();
   expect(catalogRequests()).toBe(1);
 });
 
@@ -187,6 +261,7 @@ test('catalogus antwoordt nooit → na de tijdslimiet Help › Tutorials met een
   const catalogRequested = new Promise<void>(r => { requested = r; });
   await page.route(CATALOG, () => { requested(); /* nooit beantwoorden */ });
   await reachOffer(page);
+  const releaseArticles = await pauseHelpAsset(page, '**/docs/*/*.md');
 
   await page.clock.install();
   await offer(page).getByRole('button', { name: /^(Yes|Ja)$/ }).click();
@@ -195,10 +270,24 @@ test('catalogus antwoordt nooit → na de tijdslimiet Help › Tutorials met een
   await page.clock.runFor(20_000);
 
   await expect(offer(page)).toHaveCount(0);
-  await expect(page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]')).toBeInViewport();
-  await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
-  expect(await page.evaluate(() => window.__OPS__!.store.getState().catalogError)).toMatch(/20 s/);
-  expect(await answered(page)).toBe('true');
+  const install = page.locator('[data-help-section="kind-tutorial"] [data-help-install-tutorials]');
+  try {
+    await expect(install).toBeInViewport();
+    await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().catalogError)).toMatch(/20 s/);
+    expect(await answered(page)).toBe('true');
+    // Het verzoek blijft tijdens het laden van het eerste artikel staan. Kiest de gebruiker zelf
+    // een andere gids, dan vervangt die keuze het verzoek; de late respons mag de focus niet kapen.
+    expect(await pendingHelpSection(page)).toBe('tutorials');
+    await page.locator('[data-help-article="howto-taken-en-mijlpalen-toevoegen"]').click();
+    await expect.poll(() => pendingHelpSection(page)).toBeNull();
+    releaseArticles();
+    await expect(page.locator('.help-article-body')).toHaveAttribute('data-help-current', 'howto-taken-en-mijlpalen-toevoegen');
+    await expect(page.locator('.help-article-body h1')).toHaveText('Adding tasks and milestones');
+    await expect(install).not.toBeFocused();
+  } finally {
+    releaseArticles();
+  }
 });
 
 // De ZIP heeft een STILTE-limiet (30 s zonder binnenkomend stuk); een trage maar gestage download is
@@ -228,6 +317,9 @@ test('extensie-ZIP antwoordt nooit → na de stiltelimiet Help › Tutorials met
   await expect(page.getByRole('status').filter({ hasText: /Help › Tutorials/ })).toBeVisible();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().installedExtensions.tutorials)).toBeUndefined();
   expect(await answered(page)).toBe('true');
+  // Ook de gewone, succesvolle Help-load consumeert het verzoek eenmalig.
+  await expect.poll(() => pendingHelpSection(page)).toBeNull();
+  await expect(page.locator('[data-help-install-tutorials]')).toBeFocused();
 });
 
 // knownbugs 54/80: de Backstage is lazy geladen. Laadt hij traag, dan sloeg de rondleiding stap 6

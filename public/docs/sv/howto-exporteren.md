@@ -9,7 +9,7 @@ Konsulten arbetar i MS Project. Kunden arbetar i Primavera. Underleverantören v
 ## Steg
 
 1. Välj *Start › Fil › Exportera* och välj sedan ett format i listan, eller välj *Fil › Exportera*. Där är varje format ett kort med en kort beskrivning.
-2. I fönstret väljer du ett namn och en plats. Appen föreslår projektnamnet, med filändelsen för formatet. Framdriftsbladen heter *projektnamn-framdrift* och öppnas i din nedladdningsmapp där det går.
+2. I fönstret väljer du ett namn och en plats. Appen föreslår projektnamnet, med filändelsen för formatet. Framdriftsbladen heter *projectname-voortgang* och öppnas i din nedladdningsmapp där det går.
 3. Bekräfta. Om exporten lyckas visas inget meddelande, utom de meddelanden nedan. Efteråt går du från *Fil › Exportera* tillbaka till fliken *Start*, även om du avbryter fönstret. Avbryter du fönstret för en export från listan på fliken *Start* händer ingenting.
 
 Om din webbläsare bara sparar via en nedladdning, till exempel Firefox, finns filen direkt efter steg 1 i din nedladdningsmapp. Du ser meddelandet *Sparad som nedladdning: 'name.xml' finns nu i din nedladdningsmapp. Den här miljön tillåter inte att appen skriver direkt till platsen du valde.*
@@ -22,11 +22,11 @@ Listan på fliken *Start* och korten i *Fil › Exportera* erbjuder samma format
 - *CSV (;)*, på kortet *CSV (semikolonseparerad)*: en uppgiftstabell som du öppnar i ett kalkylblad.
 - *MS Project XML*: kan öppnas i Microsoft Project.
 - *Primavera P6 XML*: för Oracle Primavera P6.
-- *IFC 4x3*: appens eget format, med allt i sig.
+- *IFC*: appens egna format, med allt i sig, i projektets IFC-schema (standard IFC 4.3 ADD2).
 
 ### En IFC-export med en biblioteksfil
 
-Är ditt projekt kopplat till ett bibliotek med resurser, står kryssrutan *Spara biblioteksfilen bredvid* under korten i *Fil › Exportera*. Markerar du den och väljer *IFC 4x3* frågar appen två gånger efter en plats: först för projektet, sedan för *projektnamn-bibliotek.ifc*. Kryssrutan finns bara i *Fil › Exportera*, inte i listan på fliken *Start*.
+Är ditt projekt kopplat till ett bibliotek med resurser, står kryssrutan *Spara biblioteksfilen bredvid* under korten i *Fil › Exportera*. Markerar du den och väljer *IFC*, frågar appen två gånger efter en plats: först för projektet, sedan för *projectname-bibliotheek.ifc*. Kryssrutan finns bara i *Fil › Exportera*, inte i listan på fliken *Start*.
 
 ### Läsa in ett framdriftsblad igen
 

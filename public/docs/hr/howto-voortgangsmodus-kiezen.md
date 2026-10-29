@@ -33,7 +33,7 @@ Kako birate?
 
 **Datoteka P6.** Ako otvorite datoteku Primavera P6 (.xer), aplikacija preuzima način iz datoteke. Osim Retained Logic i Progress Override, P6 ima i Actual Dates. Aplikacija ne poznaje taj treći način; takva se datoteka izračunava kao Retained Logic. Poruka o uvozu to broji kao *1 postavka rasporeda P6 upotrijebila je sigurno zamjensko rješenje.*
 
-**Profil izračuna.** U profilu Primavera P6 Progress Override također djeluje unatrag, u kasnim datumima i slobodnom hodu prethodnika (pravilo izračuna *Progress Override ignorira započetog nasljednika i unatrag*). U profilima Open Planner Studio i Microsoft Project to nije tako. Pravila pronalazite pod *Postavke › Projekt › Podaci o projektu*, u dijelu *Profil izračuna i opcije izračuna*. U primjeru iz objašnjenja taj učinak unatrag nije vidljiv.
+**Profil izračuna.** U profilu Primavera P6 Progress Override također djeluje unatrag, u kasnim datumima i slobodnom hodu prethodnika (pravilo izračuna *Progress Override ignorira započetog nasljednika i unatrag*). U profilima Open Planner Studio i Microsoft Project to nije tako. Pravila pronalazite pod *Postavke › Projekt › Postavke projekta*, u dijelu *Profil izračuna i opcije izračuna*. U primjeru iz objašnjenja taj učinak unatrag nije vidljiv.
 
 ## Vidi također
 

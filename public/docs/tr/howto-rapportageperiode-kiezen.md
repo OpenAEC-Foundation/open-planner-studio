@@ -47,7 +47,7 @@ Her iki gün de dahildir. Durum tarihi Perşembe 20 Mayıs ise, *Gelecek hafta* 
 
 Dönem her raporda aynı şekilde çalışmaz.
 
-- **İleriye bakış (look-ahead)** dönemle kesişen tamamlanmamış görevleri alır, dönemin tamamını kapsasalar bile. Referans gününden önce süresi geçmiş görevler de dahil edilir; dönemin sonu referans gününden önce olmadığı sürece. Tamamen geçmişte kalan bir *Özel* dönem geriye bakıştır: yalnızca o zaman çalışan ve henüz bitmemiş görevleri gösterir, bugünkü birikimi göstermez.
+- **İleriye bakış (look-ahead)** dönemle kesişen tamamlanmamış görevleri alır, dönemin tamamını kapsasalar bile. Referans gününden önce bitiş tarihi geçmiş görevler de dahil edilir; dönemin sonu referans gününden önce olmadığı sürece. Tamamen geçmişte kalan bir *Özel* dönem geriye bakıştır: yalnızca o zaman devam eden ve henüz bitmemiş görevleri gösterir, bugünkü birikimi göstermez.
 - **İlerleme raporu** dönemi *Geçen dönemde tamamlananlar* bölümünde kullanır. Bölüm *Gelecek dönemde başlayanlar* durum tarihinden itibaren ileriye bakar, özetteki *İleriye bakış bitişi* tarihine kadar. Geçmişe dönük bir dönem seçerseniz, rapor geriye baktığı kadar ileriye bakar: *Son 2 hafta* ve durum tarihi 20 Mayıs ise *İleriye bakış bitişi* 3 Haziran'ı gösterir. Tamamen geçmişte kalan bir *Özel* dönem veya *Tüm proje* yansıtılmaz.
 - **Kaynak yükü** dönemle kesişen her haftayı veya ayı tamamen gösterir. Dönem çarşambadan çarşambaya sürüyorsa tam haftalar görürsünüz; böylece bir satır her zaman histogramla aynı sayıyı gösterir.
 - **Kaynak atamaları** dönemle kesişen görevlerin atamalarını gösterir. *Tüm proje* ile tarihe göre filtreleme yapılmaz.

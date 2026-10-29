@@ -12,7 +12,7 @@ Hva biblioteket er, og hva et prosjekt overtar fra det, leser du i [Ressursbibli
 
 ### 1. Koble prosjektet til et bibliotek
 
-Du kan bare jobbe med biblioteket hvis prosjektet er koblet til det. Uten kobling viser ressurspanelet ikke bryteren *Bibliotek*, *Prosjekt* og *Belegg*.
+Du jobber bare med biblioteket hvis prosjektet er koblet til det. Uten kobling viser ressurspanelet ikke bryteren *Bibliotek*, *Prosjekt* og *Belegg*.
 
 For et nytt prosjekt:
 
@@ -22,11 +22,11 @@ For et nytt prosjekt:
 
 For et eksisterende prosjekt:
 
-1. Velg *Fil › Prosjektinfo*.
+1. Velg *Fil › Prosjektinnstillinger*.
 2. Under *Ressursbibliotek* velger du biblioteket.
 3. Klikk på *Bruk*. Til da står det nederst *Endringer er ikke tatt i bruk — klikk på Bruk for å beholde dem.*
 
-Hvis prosjektet allerede har ressurser med samme navn som et element i biblioteket, åpnes vinduet *Koble til ressursbiblioteket* med delen *Gjenkjent*. Hver ressurs med et treff viser *Forslag: Bricklayer*. Klikk på *Koble* for å koble den ene, eller på *Koble alle forslag* hvis det er mer enn ett forslag. Appen sammenligner navn uten å ta hensyn til store og små bokstaver eller dobbelte mellomrom. Når du kobler, overtar ressursen navn, type, standardsats og enhet fra bibliotekselementet. *Maksimalt antall* beholder den verdien du hadde i prosjektet. Vinduet viser også kalendere i prosjektet som har samme navn som en kalender i biblioteket. Med *Bestem senere* lukker du vinduet uten å koble.
+Hvis prosjektet allerede har ressurser med samme navn som et element i biblioteket, åpnes vinduet *Koble til ressursbiblioteket* med delen *Gjenkjent*. Hver ressurs med et treff viser *Forslag: Bricklayer*. Klikk på *Koble* for å koble den ene, eller på *Koble alle forslag* hvis det er mer enn ett forslag. Appen sammenligner navn uten å ta hensyn til store og små bokstaver eller dobbelte mellomrom. Når du kobler, overtar ressursen navn, type, standardsats, enhet og beskrivelse fra bibliotekselementet. *Maksimalt antall* beholder den verdien du hadde i prosjektet. Vinduet viser også kalendere i prosjektet som har samme navn som en kalender i biblioteket. Med *Bestem senere* lukker du vinduet uten å koble.
 
 ### 2. Legge en ressurs i biblioteket
 

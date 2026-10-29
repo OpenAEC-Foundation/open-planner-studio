@@ -16,7 +16,7 @@ Une **référence** est une copie du planning à un moment donné, en général 
 
 L'exemple ci-dessous utilise le profil de calcul *Open Planner Studio*, avec lequel un nouveau projet est calculé. Plus loin, vous pouvez lire ce qui diffère dans les profils de calcul Primavera P6 et Microsoft Project.
 
-L'application ne recalcule pas d'elle-même. Après chaque modification de l'avancement ou de la date d'état, la barre d'état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres*, onglet *Planification*, titre *Calcul*), l'application le fait elle-même.
+L'application ne recalcule pas d'elle-même. Après chaque modification de l'avancement ou de la date d'état, la barre d'état affiche *Obsolète — recalculer (F5)*. Appuyez sur **Calculer** (F5), par exemple via *Planification › Planification › Calculer*. Si *Calculer automatiquement* est activé (sous *Paramètres › Projet › Paramètres de l'app*, onglet *Planification*, titre *Calcul*), l'application le fait elle-même.
 
 ### La date d'état
 
@@ -26,7 +26,7 @@ Premièrement, l'application refuse une date réelle postérieure à la date d'�
 
 Deuxièmement, un travail qui n'a pas commencé ne peut pas se situer dans le passé. Si une telle tâche est planifiée avant la date d'état, l'application la déplace à la date d'état. Cela vaut aussi pour les tâches qui suivent : elles se déplacent à leur tour, selon leurs relations. Vous pouvez voir l'effet dans l'exemple ci-dessous. Dans le profil de calcul Microsoft Project, l'application ne le fait pas.
 
-Troisièmement, le travail restant d'une tâche déjà en cours commence le jour même de la date d'état. L'application traite la date d'état comme le début de ce jour. Si vous faites le point le vendredi après les heures de travail, vous réglez donc la date d'état sur le lundi. Si vous la réglez sur le vendredi, l'application planifie quand même le travail restant ce vendredi-là.
+Troisièmement, le travail restant d'une tâche déjà en cours commence le jour même de la date d'état. L'application traite la date d'état comme le début de ce jour. Si vous faites le point le vendredi après les horaires de travail, vous réglez donc la date d'état sur le lundi. Si vous la réglez sur le vendredi, l'application planifie quand même le travail restant ce vendredi-là.
 
 Si vous n'avez pas encore de date d'état et que vous saisissez un avancement, l'application règle la date d'état sur aujourd'hui et vous le signale. Vous fixez une autre date sous *Planification › Références et avancement › Date d’état*. Sans date d'état, l'application calcule une tâche en cours en avant avec sa durée restante, mais en arrière avec sa durée complète. La marge devient alors négative, et la tâche semble critique sans raison.
 
@@ -68,7 +68,7 @@ L'**écart** est la différence en jours ouvrés entre la référence et le plan
 
 Deux remarques. L'écart de durée se trouve dans le tableau des tâches (colonne *Écart de durée*), et non dans le rapport de variance. Il compare la durée planifiée actuelle de la tâche à celle de la référence. L'avancement ne modifie pas cette durée planifiée : une tâche planifiée sur deux jours qui en a pris trois a donc un écart de fin de +1, mais un écart de durée de 0. Et si vous enregistrez une référence après avoir saisi l'avancement, elle enregistre l'état avec ces dates réelles ; l'écart est alors égal à zéro.
 
-Le rapport d'avancement place l'avancement prévu à côté de l'avancement réel. Les deux sont pondérés en jours ouvrés. *Prévu* est la part de chaque tâche qui aurait dû être terminée à la date d'état selon la référence ; *Réel* est le pourcentage qui a été saisi.
+Le rapport d'avancement place l'avancement planifié à côté de l'avancement réel. Les deux sont pondérés en jours ouvrés. *Planifié* est la part de chaque tâche qui aurait dû être terminée à la date d'état selon la référence ; *Réel* est le pourcentage qui a été saisi.
 
 ### Où vous le voyez
 
@@ -137,11 +137,11 @@ La livraison reste le vendredi 6 août dans les deux cas : la peinture avait de 
 
 ### Autres profils de calcul
 
-Dans les profils Primavera P6 et Microsoft Project, la peinture de cet exemple se termine aux mêmes dates (27 et 22 juillet). Ils diffèrent sur les points suivants. Ce sont des conventions du profil : vous les trouvez sous *Paramètres › Projet › Info projet*, dans le bloc *Profil de calcul et options*.
+Dans les profils Primavera P6 et Microsoft Project, la peinture de cet exemple se termine aux mêmes dates (27 et 22 juillet). Ils diffèrent sur les points suivants. Ce sont des conventions du profil : vous les trouvez sous *Paramètres › Projet › Paramètres du projet*, dans le bloc *Profil de calcul et options*.
 
 - Dans le profil Microsoft Project, le travail qui n'a pas encore commencé ne se déplace pas vers la date d'état (convention *Ne pas déplacer les tâches non commencées à la date d’état*). Si dans l'exemple ci-dessus vous ne définissez qu'une date d'état et ne saisissez rien d'autre, la livraison reste dans ce profil le vendredi 6 août.
 - Dans le profil Microsoft Project, le travail restant ne commence pas non plus avant le début réel plus le temps déjà écoulé (convention *Le travail restant reprend après la durée écoulée*). C'est une limite inférieure supplémentaire, à côté de la date d'état : la plus tardive des deux compte. Prenez la tâche *Build inner cavity leaf* (5 jours ouvrés), commencée le mardi 29 juin et à 40 % le mercredi 30 juin, date d'état (deux équipes de maçons travaillent en même temps, donc 40 % est déjà fait après un jour). Tout ce qui précède est terminé selon le plan. Open Planner Studio et Primavera P6 laissent la tâche se terminer le vendredi 2 juillet ; Microsoft Project le fait le lundi 5 juillet, parce que le mardi 29 juin plus 2 jours ouvrés écoulés donne le jeudi 1 juillet, après la date d'état.
-- Primavera P6 affiche comme début au plus tôt d'une tâche en cours le début du travail restant, et non le début réel (dans l'exemple de la feuille intérieure, le mercredi 30 juin).
+- Primavera P6 affiche comme début au plus tôt d'une tâche en cours le début du travail restant, et non le début réel (dans l'exemple de Build inner cavity leaf, le mercredi 30 juin). La colonne *Début* et la barre affichent le début réel dans tous les profils.
 - Dans le profil Primavera P6, sous Progress Override, la relation vers un successeur déjà commencé ne compte pas non plus pour le prédécesseur : elle ne limite plus ses dates au plus tard ni sa marge libre (convention *Progress Override ignore aussi en arrière un successeur commencé*). Dans l'exemple du plâtrier et du peintre, vous ne le voyez pas, parce que le plâtrage est de toute façon critique à cause de la chape : ses dates au plus tard et sa marge libre sont les mêmes avec Retained Logic et avec Progress Override.
 - Quand vous ouvrez un fichier .xer, l'application reprend le mode d'avancement du fichier. Actual Dates, le troisième mode de P6, n'est pas connu de l'application ; un tel fichier se calcule comme Retained Logic.
 
@@ -157,7 +157,7 @@ Dans les profils Primavera P6 et Microsoft Project, la peinture de cet exemple s
 
 **« La pause dans une tâche avec fractionnement disparaît. »** Non : une pause dans la partie qui reste à faire reste dans le travail restant. Prenez une tâche de 5 jours ouvrés avec une pause de 1 jour après 2 jours de travail, commencée le mardi 29 juin et, avec la date d'état le mercredi 30 juin, à 40 %. Le travail restant, soit 3 jours ouvrés, commence à la date d'état et couvre la pause : la fin est le lundi 5 juillet. Sans la pause, c'était le vendredi 2 juillet.
 
-**Heures et date d'état.** Vous ne pouvez pas saisir une heure dans le ruban : vous saisissez la date d'état sous forme de date. Si vous faites le point après vos horaires de travail, réglez la date d'état sur le prochain jour ouvré. Une tâche exprimée en heures calcule le travail restant à partir du début de la date d'état. Prenez *Lay hollow-core floor* dans le projet d'entraînement, après le tutoriel 4 : 5 heures, le lundi 28 juin, jour ouvré à partir de 07:00. Avec la date d'état le lundi 28 juin et la tâche à 40 %, il reste 3 heures de travail restant, de 07:00 à 10:00, même si du travail a déjà été fait ce matin-là. Comment l'application compte les heures est expliqué dans [Jours et heures](docs://uitleg-dagen-en-uren).
+**Heures et date d'état.** Vous ne pouvez pas saisir une heure dans le ruban : vous saisissez la date d'état sous forme de date. Si vous faites le point après vos horaires de travail, réglez la date d'état sur le prochain jour ouvré. Une tâche exprimée en heures calcule le travail restant à partir du début de la date d'état. Prenez *Lay hollow-core floor* dans le projet d'entraînement, après le tutoriel 4, à ce moment-là tout ce qui précède est terminé : 5 heures, le lundi 28 juin, jour ouvré à partir de 07:00. Avec la date d'état le lundi 28 juin et la tâche à 40 %, il reste 3 heures de travail restant, de 07:00 à 10:00, même si du travail a déjà été fait ce matin-là. Comment l'application compte les heures est expliqué dans [Jours et heures](docs://uitleg-dagen-en-uren).
 
 **Mettre à jour une référence.** Ce n'est pas possible. Vous enregistrez une nouvelle référence et supprimez l'ancienne. Si vous déplacez le projet, les dates réelles et la date d'état suivent, mais les références ne suivent pas par défaut : ainsi, le déplacement reste visible comme écart. Voir [Déplacer un projet](docs://howto-project-verplaatsen).
 

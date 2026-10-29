@@ -21,6 +21,8 @@ Harkitse tarkkaan ennen asentamista. Laajennus on ohjelmakoodia, joka toimii sam
 
 Asennuksen jälkeen laajennus otetaan heti käyttöön. Kortissa välilehdellä *Selaa* lukee nyt *Asennettu*. Sen, mitä laajennus lisää, näkyy itse sovelluksessa: uusi painike valintanauhassa tai tuontimuoto valikossa *Tiedosto › Tuo*. Jotkin laajennukset näyttävät myös viestin. Tunnistat sen etuliitteestä *Laajennus* ja laajennuksen nimestä.
 
+**Opetusohjelmat.** Ne ovat laajennuksia. Jos näet osiossa *Ohje* kohdassa *Opetusohjelmat* painikkeen *Asenna opetusohjelmat*, se avaa *Tiedosto › Laajennukset* välilehdellä *Selaa*. Kysymys ensimmäisen kierroksen jälkeen asentaa tämän laajennuksen myös. Molemmat tavat näyttävät saman lupakysymyksen. Sen voi hylätä.
+
 ### Asenna laajennus tiedostosta
 
 Jos sait laajennuksen tiedostona, asenna se näin.
@@ -31,24 +33,16 @@ Jos sait laajennuksen tiedostona, asenna se näin.
 
 ZIP-tiedoston pitää sisältää tiedosto `manifest.json` ja laajennuksen pääasiallinen tiedosto. Jos asennat laajennuksen, joka on jo asennettu, uusi versio korvaa vanhan. Jos sovellus ei voi asentaa tiedostoa, esimerkiksi koska ZIP-tiedosto on vioittunut, mitään ei tapahdu. Sovellus ei näytä virheilmoitusta ZIP- tai JS-tiedoston asennuksesta, eikä laajennus ilmesty luetteloon. Syy näkyy kuitenkin debug-terminaalissa. Ota se käyttöön valitsemalla *Asetukset › Projekti › Asetukset*, välilehti *Lisäasetukset*, *Ota debug-terminaali käyttöön*. Avaa terminaali tilarivin painikkeella *Näytä debug-terminaali*. Siellä lukee esimerkiksi *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (sovellus kirjoittaa tämän teknisen tekstin hollanniksi).
 
-### Lue asennusikkunan kysymys
+### Lue lupakysymys
 
 Kysymyksessä näkyy, mistä päätös on tehtävä.
 
 - *Tekijä* ja *Repositorio* kertovat, kuka laajennuksen on tehnyt ja missä lähdekoodi on.
-- *Alkuperä* kertoo, mistä tiedosto tulee: *Verkon laajennusluettelosta*, *ZIP-tiedostosta tällä tietokoneella* tai *JavaScript-tiedostosta tällä tietokoneella*. Sen alla kerrotaan, onko tiedosto tarkistettu. Luettelon laajennuksille lukee *Lataus vahvistettu luettelon tarkistesummalla.* Jos luettelossa ei ole tarkistesummaa, punaisella lukee *Luettelo ei anna tarkistesummaa. Tätä latausta ei ole vahvistettu.* Omalle tiedostolle lukee *Tämän tiedoston valitsit itse; vahvistamiseen ei ole ulkoista lähdettä.*
-- *Mihin suostutaan* sanoo: *Laajennus on ohjelmakoodia, joka toimii samoilla oikeuksilla kuin Open Planner Studio itse. Mikään ei rajoita sitä. Asennetaan vain laajennuksia, joiden tekijään luotetaan.* Sen alla kerrotaan, mitä tämä tarkoittaa omalla alustallasi. Työpöytäsovelluksessa lukee *Työpöytäsovelluksessa tämä tarkoittaa muun muassa: tiedostojen lukemista ja kirjoittamista koko käyttäjäkansiossa sekä pääsyä projekteihin, asetuksiin ja leikepöydälle.* Selaimessa lukee *Selaimessa tämä tarkoittaa: pääsyä tallennettuihin projekteihin ja asetuksiin, tiedostoihin, joihin annettiin pääsy, sekä verkkoon.*
-- *Mitä laajennus sanoo käyttävänsä* näyttää tekijän ilmoittamat oikeudet pieninä merkkeinä. Tämä on tekijän ilmoitus, ei rajoitus: *Tämä on tekijän ilmoitus, ei rajoitus. Koodi voi silti tehdä enemmän.* Jos merkkejä ei ole, lukee *Ei ilmoitettu mitään.* Se ei tarkoita, että laajennus ei voi tehdä mitään. Ilman merkkejäkin laajennus voi lukea ja muuttaa aikataulun tietoja ja näyttää viestejä.
+- *Alkuperä* kertoo, mistä tiedosto tulee ja onko se tarkistettu. Jos siinä lukee punaisella, ettei latausta ole vahvistettu, asennetaan tiedosto vain, jos lähde tunnetaan.
+- *Mihin suostutaan* toistaa, että laajennus on ohjelmakoodia, joka toimii samoilla oikeuksilla kuin Open Planner Studio itse, ja mitä tämä tarkoittaa omalla alustallasi. Asennetaan vain laajennuksia, joiden tekijään luotetaan.
+- *Mitä laajennus sanoo käyttävänsä* näyttää tekijän ilmoittamat oikeudet pieninä merkkeinä. Tämä on tekijän ilmoitus, ei rajoitus. Jos siinä lukee *Ei ilmoitettu mitään.*, laajennus voi silti lukea ja muuttaa aikataulun tietoja.
 
-Merkkien merkitys:
-
-- *ribbon*: laajennus lisää painikkeita valintanauhaan.
-- *events*: laajennus kuuntelee sovelluksen tapahtumia.
-- *backstage*: laajennus lisää tuontimuotoja valikkoon *Tiedosto › Tuo*.
-- *pdf-fonts*: laajennus toimittaa fontin PDF-vientiä varten.
-- *importSource*: laajennus voi lukea jokaisen tuomasi tiedoston alkuperäiset tavut kokonaisuudessaan, esimerkiksi raa'an Primavera-tiedoston, myös kentät, jotka eivät päädy projektiisi. Ikkuna selittää tämän myös itse.
-- *help*: laajennus voi lisätä ohjeartikkeleita, avata mukana toimitettuja projekteja uutena asiakirjana ja näyttää oppaan, joka osoittaa sovelluksen osia. Ikkuna selittää tämän myös itse.
-- *filesystem* ja *network*: nämä ovat vain tekijän aikomuksia. Sovelluksessa ei ole toimintoa niille.
+Mitä kukin merkki tarkoittaa ja mitä ikkunan tekstit tarkalleen sanovat, kerrotaan artikkelissa [Laajennuksen oikeudet](docs://ref-extensiepermissies).
 
 ### Laajennuksen poistaminen käytöstä, uudelleen käyttöön ottaminen tai poistaminen
 

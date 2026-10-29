@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Frame, Page } from '@playwright/test';
-import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeCheck } from './fixtures/ops';
 
 const HOST_KEY = 'ops-test-site-host';
 const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -198,21 +198,20 @@ async function recoveryRecords(page: Page): Promise<number> {
 }
 
 /**
- * Na een herlaadbeurt: wacht op het herstelvenster of de welkomst (die komt pas na de herstelcontrole).
- * Een herstelvenster beantwoorden we met "niet herstellen"; daarna gaat de welkomst weg zoals in de
- * fixture.
+ * Na een herlaadbeurt: wacht op het herstelvenster of het einde van de welkomstcontrole (die komt pas
+ * na de herstelcontrole). Een herstelvenster beantwoorden we met "niet herstellen". Met een host draait
+ * de tool ingebed: geen welkomstvenster (#716).
  */
 async function settleAfterReload(page: Page): Promise<void> {
   await waitForOps(page);
   const recovery = page.locator('[data-ops-recovery-dialog]');
-  const welcome = page.locator('[data-ops-welcome-dialog]');
-  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  const welcomeChecked = () => page.evaluate(() => window.__OPS__!.log.snapshot().some((e) => e.channel === 'welkomst'));
+  await expect.poll(async () => await recovery.count() > 0 || await welcomeChecked(), { timeout: 15_000 }).toBe(true);
   if (await recovery.count() > 0) {
     await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
     await expect(recovery).toHaveCount(0);
   }
-  await waitForWelcomeDialog(page);
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  expect(await waitForWelcomeCheck(page)).toBe('welkomstcontrole: overgeslagen (ingebed)');
 }
 
 const openDialog = (tool: Tool) => tool.locator('[data-ops-site-open-dialog]');
@@ -353,7 +352,21 @@ siteTest('sluiten met Opslaan: de site-vraag ligt boven de sluitvraag en het tab
   await expect.poll(() => page.evaluate((id) => window.__OPS__!.store.getState().documents.some((d) => d.id === id), closing)).toBe(false);
 });
 
-siteTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de timer schrijft nooit naar de site', async ({ page, ops: _ops }) => {
+// AutoSave op de nepklok (testaudit 2026-10-20: dit kostte 13 s echte wachttijd). De klok gaat aan vóór het
+// laden van de app (deze fixture draait vóór `ops` navigeert), dus ook een al ingeplande AutoSave-ronde staat
+// op de nepklok; tot de test hem stilzet loopt hij gewoon mee met de echte tijd.
+const siteClockTest = siteTest.extend({
+  page: async ({ page }, use) => {
+    await page.clock.install();
+    await use(page);
+  },
+});
+
+/** isDirty van een (ook niet-actief) document. */
+const dirtyOf = (page: Page, id: string) => page.evaluate((docId) => window.__OPS__!.store.getState()
+  .getOpenDocumentPayloads().find((d) => d.id === docId)?.payload.isDirty, id);
+
+siteClockTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de timer schrijft nooit naar de site', async ({ page, ops: _ops }) => {
   const toggle = page.locator('[data-ops-autosave]');
   await openFromSiteDialog(page, 'p1');
   // Besluit #309: automatisch opslaan naar de site bestaat niet (elke ronde zou een nieuwe versie maken).
@@ -366,9 +379,38 @@ siteTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de timer sc
   // Ook met de vlag aan (alleen als fixture te zetten) schrijft de timer niets naar de site.
   await page.evaluate(() => window.__OPS__!.store.getState().setAutoSaveToFile(true));
   await makeDirty(page, 'Niet automatisch');
-  await page.waitForTimeout(13_000);
+  const siteDoc = (await doc(page)).activeDocumentId;
+
+  // Controle dat de AutoSave-ronde echt voorbijkomt: een tweede document met een (fixture-)FSA-handle en
+  // AutoSave aan. Dezelfde timer schrijft dat document wel weg (het wordt schoon); zonder die controle zou
+  // "geen site-save" ook groen zijn als de timer nooit liep.
+  const controlDoc = await page.evaluate(() => {
+    const store = window.__OPS__!.store;
+    const id = store.getState().newDocument();
+    store.setState({
+      filePath: 'klokcontrole.ifc',
+      fileHandle: {
+        queryPermission: async () => 'granted',
+        createWritable: async () => ({ write: async () => {}, close: async () => {} }),
+      },
+    } as never);
+    store.getState().setAutoSaveToFile(true);
+    store.getState().addTask({ name: 'Klokcontrole' });
+    return id;
+  });
+  await expect.poll(() => dirtyOf(page, controlDoc)).toBe(true);
+  await page.locator(`[data-testid="document-tab"][data-ops-tab="${siteDoc}"]`).click();
+  await expect.poll(() => doc(page).then((d) => d.activeDocumentId)).toBe(siteDoc);
+
+  // Klok stil (sprong van 500 ms; `pauseAt` mag niet naar het verleden), dan precies 13 s vooruit. Daarna
+  // laat de poll alleen de async schrijfronde afronden; de echte tijd zet geen timer meer verder (review PR #399).
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(now + 500);
+  await page.clock.runFor(13_000);
+  await expect.poll(() => dirtyOf(page, controlDoc)).toBe(false);
   expect(await saves(page)).toEqual([]);
   expect((await doc(page)).isDirty).toBe(true);
+  expect(await dirtyOf(page, siteDoc)).toBe(true);
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
 });
 
@@ -537,13 +579,40 @@ async function openToolInIframe(page: Page, options: { initialFileId?: string; l
   const frame = page.frames().find((f) => f !== page.mainFrame())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined), { timeout: 15_000 }).toBe(true);
   expect(await frame.evaluate(() => 'openaecHost' in window)).toBe(false);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  // De host op de parent maakt de tool ook ingebed: geen welkomstvenster (#716). Komt de host pas ná de
+  // welkomstcontrole (`lateMs`), dan staat het venster al open, zoals het contract zegt; sluit het dan.
+  const outcome = await waitForWelcomeCheck(frame);
+  if (options.lateMs === undefined) expect(outcome).toBe('welkomstcontrole: overgeslagen (ingebed)');
+  else await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
   return frame;
 }
 
+/**
+ * Zoals in de SuperCloud-werkplek (issue #582): daar draait de tool in een sandbox-iframe zonder
+ * `allow-same-origin`, en weigert de browser IndexedDB met een `SecurityError`. Alleen in de iframe;
+ * de host op de parent houdt zijn eigen opslag.
+ */
+async function refuseIndexedDbInIframe(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    if (window === window.top) return;
+    Object.defineProperty(IDBFactory.prototype, 'open', {
+      configurable: true,
+      value: () => { throw new DOMException('The user denied permission to access the database.', 'SecurityError'); },
+    });
+  });
+}
+
+/** Meldingen over crashherstel of auto-save in het meldingenkanaal van de tool. */
+const recoveryNotices = (tool: Tool) => tool.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+  .map((n) => n.messageKey).filter((key) => /recovery|autoSave/i.test(key)));
+
 for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000]] as const) {
   test(`iframe: host op de parent (${label}) — startbestand, openen en opslaan over twee vensters`, async ({ page }) => {
+    // De iframe weigert IndexedDB, zoals in de werkplek. Crashherstel gaat dan stil uit: één
+    // consoleregel, geen melding; openen en opslaan via de host werken gewoon.
+    const recoveryOff: string[] = [];
+    page.on('console', (message) => { if (message.text().includes('Crashherstel staat uit')) recoveryOff.push(message.text()); });
+    await refuseIndexedDbInIframe(page);
     const frame = await openToolInIframe(page, { initialFileId: 'p1', lateMs });
     // Het startbestand komt van de parent; de inhoud is een Blob uit het venster van de parent.
     await expect.poll(() => doc(frame).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
@@ -567,6 +636,15 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
       fn: 'save', id: 'p1', name: 'Planning.ifc', baseVersion: '2', type: 'application/x-step', realm: 'other',
     });
     await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
+
+    // De eerste crashherstelronde loopt meteen na de eerste wijziging; de site-opslag hierboven is
+    // pas daarna klaar. Nog een wijziging en nog een opslag: ook die ronde blijft stil.
+    await makeDirty(frame, 'Nog een wijziging');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
+    await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '4' });
+    expect(recoveryOff).toHaveLength(1);
+    expect(await recoveryNotices(frame)).toEqual([]);
   });
 }
 
@@ -575,8 +653,7 @@ async function readyToolFrame(page: Page, previous: Frame | null): Promise<Frame
   await expect.poll(() => page.frames().some((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())).toBe(true);
   const frame = page.frames().find((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined).catch(() => false), { timeout: 15_000 }).toBe(true);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  await waitForWelcomeCheck(frame);
   return frame;
 }
 
@@ -630,6 +707,28 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
 
 test('zonder site: Ctrl+O en Ctrl+S gaan als vanouds naar bestandskiezer en download', async ({ page, ops: _ops }) => {
   expect(await page.evaluate(() => 'openaecHost' in window)).toBe(false);
+
+  // Firefox/Safari-capabilityroute in Chromium: geen herbruikbare handles of site-host.
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window, 'showOpenFilePicker');
+    Reflect.deleteProperty(window, 'showSaveFilePicker');
+  });
+  expect(await page.evaluate(() => 'showOpenFilePicker' in window)).toBe(false);
+  for (const locale of ['nl', 'en']) {
+    await page.evaluate(async lang => {
+      const localePath = '/src/i18n/config.ts';
+      const { setLocale } = await import(/* @vite-ignore */ localePath);
+      await setLocale(lang);
+    }, locale);
+    await page.locator('.ribbon-tab--file').click();
+    await page.locator('.backstage-nav-item').filter({ hasText: /^Recent$/ }).click();
+    await expect(page.locator('.backstage-title')).toHaveText(locale === 'nl' ? 'Recente projecten' : 'Recent projects');
+    await expect(page.locator('[data-ops-recent-unavailable]')).toHaveText(locale === 'nl'
+      ? 'Deze browser kan eerder geopende lokale bestanden niet opnieuw openen vanuit Recent. Gebruik Openen om je projectbestand opnieuw te kiezen.'
+      : 'This browser cannot reopen local files from Recent. Use Open to choose your project file again.');
+    await expect(page.locator('.backstage-recent-item')).toHaveCount(0);
+    await page.locator('[data-ops-backstage-back]').click();
+  }
 
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Control+o');

@@ -9,7 +9,7 @@ Un planning compte en **jours ouvrés**, et non en jours calendaires. « Cinq jo
 Les jours ouvrés sont enregistrés dans un **calendrier**. Un calendrier fixe trois éléments :
 
 - La **semaine de travail** : les jours de la semaine pendant lesquels le travail a lieu. Par défaut, il s'agit du lundi au vendredi.
-- Les **horaires de travail** : le début, la fin et la pause. Ils donnent les **heures nettes par jour**. Par défaut, il s'agit de 07:00 à 16:00 avec une heure de pause, soit 8 heures.
+- Les **horaires de travail** : le début, la fin et la pause. Ils donnent la **journée de travail standard**. Par défaut, il s'agit de 07:00 à 16:00 avec une heure de pause, soit 8 heures.
 - Les **jours fériés** : des jours isolés ou des périodes entières sans travail, comme le jour du Roi, Noël ou les **congés du bâtiment**.
 
 Un projet a une seule bibliothèque de ressources, qui contient ses calendriers. L'un d'eux est le **calendrier du projet**. Il s'applique à chaque tâche qui n'a pas de calendrier propre. Vous attribuez un autre calendrier à une tâche donnée, par exemple une semaine de travail de six jours pour un sous-traitant qui travaille aussi le samedi. Une ressource peut aussi avoir son propre calendrier, mais cela a un autre effet (voir ci-dessous).
@@ -40,14 +40,14 @@ Le calendrier d'une **ressource** n'intervient pas dans les dates. Dans un plann
 Quand deux tâches avec des calendriers différents sont liées, cela s'applique :
 
 - Avec une relation fin-début, le successeur commence le premier jour ouvré après la fin du prédécesseur, compté dans le calendrier du **successeur**. Si une tâche se termine un vendredi, un successeur avec une semaine de travail de six jours commence le samedi.
-- Un **décalage** se compte par défaut dans le calendrier du **prédécesseur**. Vous pouvez le modifier dans *Paramètres › Projet › Info projet*, dans le bloc *Profil de calcul et options*, sous *Options de calcul de ce projet*, avec le choix *Calendrier de décalage* : *Prédécesseur* (par défaut), *Successeur*, *24 heures* ou *Calendrier du projet*.
+- Un **décalage** se compte par défaut dans le calendrier du **prédécesseur**. Vous pouvez le modifier dans *Paramètres › Projet › Paramètres du projet*, dans le bloc *Profil de calcul et options*, sous *Options de calcul de ce projet*, avec le choix *Calendrier de décalage* : *Prédécesseur* (par défaut), *Successeur*, *24 heures* ou *Calendrier du projet*.
 - La **marge totale** se compte en jours ouvrés du calendrier de la tâche elle-même. Dans ce profil, la **marge libre** se compte dans le calendrier du successeur.
 
 Ce qu'est exactement un décalage est expliqué dans [Ajouter des relations](docs://howto-relaties-leggen) ; ce qu'est une marge, dans [Chemin critique et marges](docs://uitleg-kritiek-pad).
 
 ### Dans le Gantt
 
-Le fond gris dans le Gantt montre toujours les jours non ouvrés du **calendrier du projet**. Une tâche sur un calendrier propre peut donc traverser un jour gris, par exemple une tâche de six jours qui traverse le samedi. Un bloc de jours fériés de trois jours ou plus affiche son nom, par exemple *Bouwvak (Noord)*. Ce n'est pas le cas quand *Afficher uniquement les jours ouvrables* est activé. Si vous ne voulez pas voir du tout les jours gris, activez *Afficher uniquement les jours ouvrables* sous *Paramètres › Projet › Paramètres*, onglet *Apparence*, titre *Axe temporel*.
+Le fond gris dans le Gantt montre toujours les jours non ouvrés du **calendrier du projet**. Une tâche sur un calendrier propre peut donc traverser un jour gris, par exemple une tâche de six jours qui traverse le samedi. Un bloc de jours fériés de trois jours ou plus affiche son nom, par exemple *Bouwvak (Noord)*. Ce n'est pas le cas quand *Afficher uniquement les jours ouvrables* est activé. Si vous ne voulez pas voir du tout les jours gris, activez *Afficher uniquement les jours ouvrables* sous *Paramètres › Projet › Paramètres de l'app*, onglet *Apparence*, titre *Axe temporel*.
 
 ## Exemple détaillé : le planning du bâtiment
 
@@ -92,9 +92,9 @@ Les dates de *Brickwork* ne changent pas. Mais le vendredi 4 juin est rouge dans
 
 **« Si je change de calendrier du projet, tout se décale. »** Seules les tâches sans calendrier propre suivent. Une tâche à laquelle vous avez vous-même attribué un calendrier de la liste le conserve, même si c'est l'ancien calendrier du projet. Si vous supprimez un calendrier, les tâches et les ressources qui l'utilisaient reviennent au calendrier du projet.
 
-**« Les jours fériés sont bien là, non ? »** Les jours fériés n'existent que pour les années pour lesquelles ils ont été créés. Un jour en dehors de ces années est simplement un jour ouvré. Dans la boîte de dialogue du calendrier, l'application le signale par *Les jours fériés couvrent 2025–2028 ; le projet va jusqu'à 2030. Régénérer ?*
+**« Les jours fériés sont bien là, non ? »** Les jours fériés n'existent que pour les années pour lesquelles ils ont été créés. Un jour en dehors de ces années est simplement un jour ouvré. Dans la boîte de dialogue du calendrier, l'application le signale par *Les jours fériés couvrent 2025–2028 ; régénérer jusqu'à 2030 inclus ?*
 
-**« Plus d'heures par jour rendent ma tâche plus courte. »** Pas pour une tâche en jours : elle compte des jours ouvrés entiers, que la journée ait 6 ou 8 heures. Seule une tâche avec des ressources et la règle de travail *Travail fixe* ou *Unités fixes* voit sa durée changer en conséquence.
+**« Plus d'heures par jour rendent ma tâche plus courte. »** Pas pour une tâche en jours : elle compte des jours ouvrés entiers, que la journée ait 6 ou 8 heures. Seule une tâche avec des ressources et le type de tâche *Travail fixe* ou *Unités fixes* voit sa durée changer en conséquence.
 
 **Un calendrier sans jours ouvrés** ne peut pas être calculé par l'application. Le calcul signale *Aucun jour ouvré n'est défini dans le calendrier*.
 

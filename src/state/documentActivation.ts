@@ -1,4 +1,6 @@
+import { normalizeRecordedTimes } from './minuteModelTransition';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import { solveInputFor } from '@/engine/scheduler/solveInput';
 import {
@@ -240,6 +242,7 @@ export function materializeLibraryBoundary(input: {
     refreshed.payload.tasks,
     refreshed.payload.calendar,
     refreshed.payload.calendars,
+    effectiveSchedulingOptions(refreshed.payload.project),
   );
   refreshed.payload.resourceLoadResult = resourceLoadResult;
   return {
@@ -359,10 +362,10 @@ export function recordedDatesSource(
 }
 
 /** Vastlegging via de poort: `undefined` als de bron niet toegelaten is of niets vastlegde. */
-function captureAllowed(tasks: Task[], parsed: RecordedSourceInput) {
+function captureAllowed(tasks: Task[], parsed: RecordedSourceInput, payload: Pick<DocumentPayload, 'calendar' | 'calendars'>) {
   const source = recordedDatesSource(parsed);
   if (!source) return undefined;
-  const recorded = captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes, { scheduleLayer: source.scheduleLayer });
+  const recorded = normalizeRecordedTimes({ ...payload, tasks }, captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes, { scheduleLayer: source.scheduleLayer }));
   return recorded.total > 0 ? { recorded, sourceFormat: source.sourceFormat } : undefined;
 }
 
@@ -372,7 +375,7 @@ export function applyRecordedDatesOnLoad(
   parsed: RecordedSourceInput,
   restoredMode?: boolean,
 ): void {
-  const allowed = captureAllowed(rawTasks, parsed);
+  const allowed = captureAllowed(rawTasks, parsed, prepared);
   if (!allowed) return;
   const { recorded, sourceFormat } = allowed;
   const shiftedIds = shiftedTaskIds(prepared.tasks, recorded.times);
@@ -398,6 +401,7 @@ export function applyRecordedDatesOnLoad(
     ...recorded, shifted: shiftedIds.length, shiftedTaskIds: shiftedIds, origin: parsed.recordedTimesOrigin, sourceFormat,
   };
   enterRecordedDatesMode(prepared, recorded.times);
+  prepared.minuteModelPending = false;
 }
 
 /**
@@ -407,7 +411,9 @@ export function applyRecordedDatesOnLoad(
  * betekent.
  */
 function enterRecordedDatesMode(payload: DocumentPayload, times: Record<string, RecordedTime>): void {
-  payload.cpmResult = applyRecordedTimesToTasks(payload.tasks, times, payload.calendar);
+  // De kalenderregistratie gaat mee: de deadlinegrens van een taak op een eigen kalender leest die
+  // kalender, net als na een berekening (review PR #402 ronde 2).
+  payload.cpmResult = applyRecordedTimesToTasks(payload.tasks, times, payload.calendar, payload.calendars);
   payload.datesAsRecorded = true;
   // `prepareLoadedPayload` zette hem bij een geslaagde solve al zo; expliciet houden — nooit een
   // rechtstreekse `= true` ELDERS, alleen deze bewuste `= false`.
@@ -437,7 +443,7 @@ export function applyRestoredRecordedMode(
   payload: DocumentPayload,
   parsed: RecordedSourceInput,
 ): void {
-  const allowed = captureAllowed(payload.tasks, parsed);
+  const allowed = captureAllowed(payload.tasks, parsed, payload);
   if (!allowed) return;
   const { recorded, sourceFormat } = allowed;
   // De vastlegging WEL zetten, alleen zonder (het optionele) `shifted`. Zonder `recordedDates`
@@ -461,4 +467,5 @@ export function applyRestoredRecordedMode(
     task.time.lateFinish = task.time.scheduleFinish;
   }
   enterRecordedDatesMode(payload, recorded.times);
+  payload.minuteModelPending = false;
 }

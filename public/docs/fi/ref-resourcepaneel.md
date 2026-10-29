@@ -16,14 +16,14 @@ Resurssipaneelissa hallitaan resursseja: mitkä resurssit ovat käytettävissä,
 
 ## Projekti-näkymä
 
-Taulukko näyttää, mitä tämä projekti käyttää. Jokainen rivi on resurssi. Muutokset nimeen ja normaalihintaan tulevat voimaan, kun kentästä poistutaan. Ne tallentuvat yhtenä askeleena, jonka voi kumota painikkeella *Kumoa*.
+Taulukko näyttää, mitä tämä projekti käyttää. Jokainen rivi on resurssi. Muutokset tekstiin ja normaalihintaan tulevat voimaan, kun kentästä poistutaan. Ne tallentuvat yhtenä askeleena, jonka voi kumota painikkeella *Kumoa*.
 
 - **Väri** — väripoimija. Oletus: palettin ensimmäinen vapaa väri. Vaikutus: väri näkyy resurssikorostuksena Gantt-palkkien alla (*Näkymä › Perustasot ja edistyminen › Resurssikorostus*) ja resurssitelakan värinäytteenä.
 - **Nimi** — resurssin nimi. Tyhjää nimeä ei tallenneta: kenttään palautuu vanha nimi.
-- **Tyyppi** — *Työvoima*, *Kalusto*, *Materiaali*, *Aliurakoitsija* tai *Työryhmä*. Oletus uudelle resurssille: *Työvoima*. Vaikutus: tyypillä *Materiaali* on kenttä *Mitta*, eikä sitä lasketa mukaan histogrammin kohtaan *Kaikki resurssit*. Tasaaminen ohittaa materiaalin. Resurssi, jonka tyyppi on *Työryhmä*, voi olla muiden resurssien työryhmä. Muut tyypit lasketaan samalla tavalla.
+- **Tyyppi** — *Työvoima*, *Kalusto*, *Materiaali*, *Aliurakoitsija* tai *Työryhmä*. Oletus uudelle resurssille: *Työvoima*. Vaikutus: tyypillä *Materiaali* on kenttä *Mitta*, eikä sitä lasketa histogrammin summaan *Kaikki resurssit*. Tasaaminen ohittaa materiaalin. Resurssi, jonka tyyppi on *Työryhmä*, voi olla muiden resurssien työryhmä. Muut tyypit lasketaan samalla tavalla.
 - **Enimmäismäärä** — kuinka suuri osa resurssista on käytettävissä päivässä. Arvo on luku, joka on suurempi kuin 0. Murtoluvut sallitaan. Oletus: 1. Vaikutus: päiväkohtainen kapasiteetti. Jos kuorma on suurempi, resurssi on ylikuormitettu. Nuoli sen vieressä avaa kentän *Vaiheistettu kapasiteetti*. Nuolen vieressä oleva luku kertoo vaiheiden määrän.
 - **Vaiheistettu kapasiteetti** — vaiheet, joissa on *Alkaen* (päivämäärä) ja *Enimmäismäärä*. *Lisää vaihe* lisää vaiheen, jonka päivä on tänään ja arvo 1. Ilman vaiheita näkyy: *Ei vaiheita — tasainen enimmäismäärä on aina voimassa.* Vaikutus: vaiheen päivästä alkaen sen *Enimmäismäärä* on voimassa tasaisen arvon sijaan. Voimassa on viimeinen vaihe, jonka päivä on sama tai aiempi kuin tarkasteltava päivä.
-- **Kalenteri** — luettelo, jossa on *Projektin kalenteri* (oletus), projektin kalenterit ja *+ Resurssikalenteri* uutta varten. Kynä (*Muokkaa…*) avaa valitun kalenterin. Kynä ei ole käytössä kohdassa *Projektikalenteri*. Vaikutus: päivät, joina resurssi työskentelee. Vapaapäivänä kapasiteetti on 0. Jos siihen on suunniteltu tehtäviä, resurssi on ylikuormitettu. Syy on *Ei työskentele tänä päivänä kalenterin "…" mukaan*. Resurssikalenteri ei muuta tehtävän päivämääriä. Katso [Kalenterin aikaikkunat](docs://ref-kalenders).
+- **Kalenteri** — luettelo, jossa on *Projektikalenteri* (oletus), projektin kalenterit ja *+ Resurssikalenteri* uutta varten. Kynä (*Muokkaa…*) avaa valitun kalenterin. Kynä ei ole käytössä kohdassa *Projektikalenteri*. Vaikutus: päivät, joina resurssi työskentelee. Vapaapäivänä kapasiteetti on 0. Jos siihen on suunniteltu tehtäviä, resurssi on ylikuormitettu. Syy on *Ei työskentele tänä päivänä kalenterin "…" mukaan*. Resurssikalenteri ei muuta tehtävän päivämääriä. Katso [Kalenterin aikaikkunat](docs://ref-kalenders).
 - **Normaalihinta/h** — kustannus tunnissa. Tyhjä arvo tarkoittaa, ettei hintaa ole. Virheellinen luku palautuu. Vaikutus: ei vaikutusta aikatauluun eikä kuormaan. Normaalihinta määrää sarakkeen *Yhteensä* arvon. Hinta tallentuu IFC-tiedostoon. Se kirjoitetaan mukaan vietäessä MS Projectiin (normaalihinta) ja Primavera P6 XML:ään (hinta yksikköä kohden).
 - **Yhteensä** — vain luku: kuormitetut tunnit kerrottuna normaalihinnalla, kahdella desimaalilla. Ilman hintaa tai kuormaa näkyy *—*. Alareunan rivi *Yhteensä* laskee kaikkien resurssien summan. Tunnit tulevat viimeisestä laskennasta. Ne lasketaan kuormitusasteen ja tehtävän kalenterin päivittäisten tuntien tulona. Onko luku vanhentunut? Paina *Laske*.
 - **Mitta** — materiaalin mittayksikkö, esimerkiksi `m³`. Kentän voi täyttää vain tyypillä *Materiaali* (ohje *Täytä vain resursseille, joiden tyyppi on Materiaali*.). Vaikutus: pelkkä teksti. Se ei laske mitään.
@@ -78,9 +78,9 @@ Resurssi on ylikuormitettu päivänä, jolloin sen kuorma on suurempi kuin sen k
 Se näkyy näissä kohdissa:
 
 - **Resurssit › Ylikuormitus** — ylikuormitettujen resurssien määrä tai *Ei mitään*.
-- **Tilarivi** — *Resurssien ylikuormitukset: N*. Napsautus avaa paneelin *Huomautukset*.
+- **Tilarivi** — *Resurssien ylikuormitukset: N*. Napsautus avaa paneelin *Varoitukset*.
 - **Varoitukset** — yksi rivi jokaiselle resurssille: *Ylikuormitus N pv (ensimmäinen – viimeinen)*. Jos kaikki päivät ovat vapaapäiviä, rivin loppuun lisätään *resurssi ei työskentele näinä päivinä kalenterinsa mukaan*. Sekatapauksessa lisätään *joista N päivänä resurssi ei työskentele kalenterinsa mukaan*. Katso [Ilmoitukset ja varoitukset](docs://ref-meldingen).
 - **Histogrammi** — palkkien punaiset osat ja valitsimen punainen piste.
 - **Resurssitelakka** — kolmio *Ylikuormitettu*.
 
-Tasaaminen voi ratkaista ylikuormituksen siirtämällä tehtäviä niiden pelivaran rajoissa. Se ei ratkaise resurssia, jonka pitää työskennellä vapaapäivänä. Katso [Tasaaminen](docs://uitleg-nivelleren).
+Tasaaminen voi ratkaista ylikuormituksen siirtämällä tehtäviä myöhemmäksi. Oletuksena projektin päättymispäivä voi siirtyä. Vaihtoehdolla *tasaaminen* projektin päättymispäivä pysyy pelivaran rajoissa. Se ei ratkaise resurssia, jonka pitää työskennellä vapaapäivänä. Katso [Tasaaminen](docs://uitleg-nivelleren).

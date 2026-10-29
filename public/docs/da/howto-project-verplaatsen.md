@@ -46,16 +46,16 @@ Disse ting forskydes ikke:
 
 **Et igangværende projekt.** Faktiske datoer følger med. I et projekt, hvor du allerede har indtastet fremdrift, er det ikke altid det, du vil. Appen advarer: *Kontroller, om det er korrekt for et igangværende projekt.*
 
-**Eksterne afhængigheder.** Ankerpunktet i dit eget projekt følger med, men kildeprojektet gør ikke. Opdater forbindelserne efter flytningen med *Start › Opgaver › Sammenkæd ▾ › Opdater alle eksterne afhængigheder*. Se [Eksterne afhængigheder til et andet projekt](docs://howto-externe-relaties).
+**Eksterne afhængigheder.** Ankerpunktet i dit eget projekt følger med, men kildeprojektet gør ikke. Opdater de eksterne afhængigheder efter flytningen med *Start › Opgaver › Sammenkæd ▾ › Opdater alle eksterne afhængigheder*. Se [Eksterne afhængigheder til et andet projekt](docs://howto-externe-relaties).
 
 **Helligdage, der ikke rækker langt nok.** En kalender med genererede helligdage dækker en række år. Løber den forskudte tidsplan ud over det, beregner appen det år uden helligdage. Forhåndsvisningen advarer om det, for eksempel: *De genererede helligdage i kalenderen “Bouwkalender NL” dækker 2025–2029. Den forskudte tidsplan løber til 2030. Generér helligdagene igen.* Flyt projektet først. Åbn derefter *Tidsplan › Kalender › Kalender*: ved siden af helligdagene står der nu *Generér igen*. Bekræft med *Anvend*, og appen genberegner. Området for de nye helligdage følger projektdatoerne, så det hjælper ikke at generere dem igen før flytningen.
 
 **Datoen ligger i fortiden.** Det er tilladt, men forhåndsvisningen nævner det: *Den nye startdato ligger i fortiden*.
 
-**Ændring af projektstart i Projektinfo er noget andet.** Ændrer du startdatoen i *Indstillinger › Projekt › Projektinfo* og vælger *Anvend*, forskyder tidsplanen sig ikke. Kun opgaver uden foregående opgave eller begrænsning, som så ville ligge før den nye start, forskydes til den dato, og appen fortæller dig, hvor mange. Vil du forskyde alt, bruger du *Flyt projekt…*.
+**Ændring af projektstartdato i Projektindstillinger er noget andet.** Ændrer du startdatoen i *Indstillinger › Projekt › Projektindstillinger* og vælger *Anvend*, forskyder tidsplanen sig ikke. Kun opgaver uden foregående opgave eller begrænsning, som så ville ligge før den nye start, forskydes til den dato, og appen fortæller dig, hvor mange. Vil du forskyde alt, bruger du *Flyt projekt…*.
 
 ## Se også
 
 - [Kritisk vej og slæk](docs://uitleg-kritiek-pad): hvordan tidsplanen beregnes, og hvorfor slutdatoen forskyder sig.
 - [Tilføj afhængigheder](docs://howto-relaties-leggen): afhængigheder bliver bare liggende, når du forskyder.
-- [Nyt projekt og Projektinfo](docs://ref-projectinfo): hvad startdatoen i Projektinfo gør.
+- [Nyt projekt og Projektindstillinger](docs://ref-projectinfo): hvad startdatoen i Projektindstillinger gør.

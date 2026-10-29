@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: Use when updating, regenerating, or publishing the Open Planner Studio GitHub wiki — including when dispatched as the docs/wiki subagent during a release. Explains how the wiki is built (single-source generator) and how to adapt it. NEVER edit the wiki directly. Treat `--push` as publishing: inside a release it is covered by the release approval gate; for a standalone wiki update, ask first.
+description: Use when updating, regenerating, or publishing the Open Planner Studio GitHub wiki — including when dispatched as the docs/wiki subagent during a release. Explains how the wiki is built (single-source generator) and how to adapt it. NEVER edit the wiki directly. Treat `--push` as publishing: inside an explicitly requested or scheduled release it is an automatic release step without a separate approval; for a standalone wiki update, ask first.
 ---
 
 # Wiki — Open Planner Studio
@@ -13,11 +13,10 @@ skill legt uit **hoe de wiki in elkaar zit** en **hoe je hem aanpast**.
 **Kernprincipe:** één bron, nooit de wiki zelf bewerken (die wordt overschreven), en **`--push` =
 publiceren van publieke content**. Alles daarvóór (bron bijwerken, dry-run, verifiëren) is omkeerbaar —
 bereid het compleet voor. De drempel voor de push hangt van de context af: **binnen een release** is de
-push gewoon een release-stap, al gedekt door de release-akkoord-poort; **bij een lósse wiki-update**
+push een automatische release-stap zonder aparte vraag (besluit eigenaar 2026-10-22); **bij een lósse wiki-update**
 vraag je eerst expliciet akkoord (zie §Verifiëren & publiceren).
 
-Deze skill is de **brief voor de docs/wiki-subagent** die de release-runbook (`release`-skill, stap 5)
-dispatcht, én voor elke losse wiki-update. Het **hoofdmandaat**: **alle documentatie dubbelchecken
+Deze skill beschrijft de documentatie-/wikistap van de `release`-skill en elke losse wiki-update. Het **hoofdmandaat**: **alle documentatie dubbelchecken
 tegen de commits van de nieuwe release en aanpassen waar de werkelijkheid afwijkt** (zie §Release-mandaat).
 
 ## Vaste feiten
@@ -105,13 +104,13 @@ rode vlag — fix 'm of meld 'm expliciet.
 1. `npm run verify:docs` → manifest ↔ bestanden ↔ geen wezen; moet **groen** (exitcode 0).
 2. `npm run publish:wiki` → dry-run in `.wiki-build/`; check dat de **warnings-regel leeg** is (alle
    `docs://` opgelost) en bekijk de gewijzigde pagina's.
-3. **Dode-link-check** (alle interne wiki-links resolven naar een bestaande pagina):
+3. **Dode-link-check** vanuit de repo-root (echte interne wiki-links resolven naar een bestaande pagina; inline code en codeblokken tellen niet mee). `dead: 0` geeft exit 0, een dode link exit 1:
    ```bash
-   cd .wiki-build && node -e 'const fs=require("fs");const p=new Set(fs.readdirSync(".").filter(f=>f.endsWith(".md")).map(f=>f.replace(/\.md$/,"")));let d=0;for(const f of fs.readdirSync(".").filter(f=>f.endsWith(".md"))){for(const m of fs.readFileSync(f,"utf8").matchAll(/\]\(([^)]+)\)/g)){let t=m[1].trim();if(/^(https?:|mailto:|#|<)/.test(t)||/\.(png|jpe?g|gif|svg)$/i.test(t))continue;t=t.split("#")[0];if(t&&!p.has(t)){d++;console.log("DEAD",f,"->",t)}}}console.log("dead:",d)'
+   node scripts/run-ts.mjs scripts/check-wiki-links.ts
    ```
 4. **Publiceren:** `npm run publish:wiki -- --push` = publiceren van publieke content.
-   - **Binnen een release:** gewoon een release-stap — de release-akkoord-poort dekt het publiceren al,
-     **géén aparte vraag**. Draai de push als onderdeel van uitgeven (Fase B).
+   - **Binnen een expliciet gevraagde of geplande release:** automatisch publiceren volgens de
+     `release`-skill, zonder aparte vraag of menselijk akkoord vóór de tag (besluit eigenaar 2026-10-22).
    - **Losse wiki-update** (buiten een release): vraag eerst expliciet akkoord vóór de push.
 5. **Live-verificatie:** fetch een paar wiki-URL's (Home + een gewijzigde pagina) en bevestig dat de
    wijziging live staat.
@@ -129,7 +128,7 @@ rode vlag — fix 'm of meld 'm expliciet.
 
 ## Rode vlaggen — stop
 - De wiki direct bewerken (web-UI of `.wiki-repo/`) i.p.v. de bron.
-- Een **losse** `-- --push` (buiten een release) draaien zonder expliciet user-akkoord. Binnen een release dekt de release-akkoord-poort het al.
+- Een **losse** `-- --push` (buiten een release) draaien zonder expliciet user-akkoord. Binnen een expliciet gevraagde of geplande release is dit een automatische stap.
 - Een doc-claim overnemen zonder 'm tegen de commit/code van de release te checken.
 - `verify:docs` of de dode-link-check rood en tóch pushen.
 - De dry-run-warnings negeren.

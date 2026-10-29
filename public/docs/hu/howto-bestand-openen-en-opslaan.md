@@ -10,9 +10,10 @@ Cél: projekt megnyitása fájlból, és a módosítások megőrzése.
 
 ### Fájl megnyitása
 
-1. Válassza a *Kezdőlap › Fájl › Megnyitás* lehetőséget, vagy a *Fájl › Megnyitás* lehetőséget, vagy nyomja meg a Ctrl+O billentyűkombinációt (Mac-en ⌘+O). A *Megnyitás* a legfelső sorban is megtalálható. A *Fájl* csoport a *Táblázat* lapon is megtalálható.
+1. Válassza a *Kezdőlap › Fájl › Megnyitás* lehetőséget, vagy a *Fájl › Megnyitás* lehetőséget, vagy nyomja meg a Ctrl+O billentyűkombinációt (Mac-en ⌘+O). A *Fájl* csoport a *Táblázat* lapon is megtalálható.
 2. Válassza ki a fájlt. Egyszerre egy fájlt nyithat meg. Az asztali alkalmazásban és a fájlhozzáférést támogató böngészőkben, például a Chrome-ban és az Edge-ben, az ablak fájltípusok listáját mutatja: *Minden támogatott*, *IFC-fájlok*, *CSV-fájlok*, *XML-fájlok*, *MS Project-fájlok* és *Primavera XER-fájlok*.
 3. A projekt új lapon nyílik meg. Ha az aktuális lap még üres és nem módosult, a projekt abban a lapon nyílik meg.
+4. Ha a fájl nem IFC volt, megjelenik egy ablak, amely röviden elmagyarázza ezt a formátumot. A zöld blokk azt mutatja, mit vett át az alkalmazás. A borostyánsárga blokk azt mutatja, ami kimaradt vagy csak részben került át. A kék blokk a mentés és a visszaírás működését mutatja. A *Bővebben* megnyitja a formátum útmutatóját. Az ablak bezárásához kattintson az *Értettem* gombra. Ha már nem szeretné látni ezt a magyarázatot az adott formátumhoz, előbb jelölje be a *Ne mutassa újra …* jelölőnégyzetet. Az [Alkalmazás beállításai](docs://ref-instellingen) részben, a *Speciális* lapon kapcsolhatja vissza.
 
 Egy IFC-fájl a fájlnevét adja a lapnak. Másik formátumú projekt a projekt nevét kapja.
 
@@ -20,7 +21,7 @@ Az alkalmazás megnyitja a `.ifc`, `.csv`, `.xml` (MS Project XML vagy Primavera
 
 ### Legutóbbi projekt megnyitása
 
-Válassza a *Kezdőlap › Fájl › Legutóbbi* lehetőséget, és kattintson a listában egy fájlra, vagy válassza a *Fájl › Legutóbbi* lehetőséget. A lista az utolsó tíz fájlt tartja meg, amelyeket megnyitott, mentett vagy exportált. Az asztali alkalmazás minden fájlhoz megjeleníti az elérési utat, a böngésző csak a nevet.
+Válassza a *Kezdőlap › Fájl › Legutóbbi* lehetőséget, és kattintson a listában egy fájlra, vagy válassza a *Fájl › Legutóbbi* lehetőséget. A lista az utolsó tíz fájlt tartja meg, amelyeket megnyitott, mentett vagy exportált. Itt is, ha a fájl nem IFC, ezután megjelenik a formátumának magyarázata. Az asztali alkalmazás minden fájlhoz megjeleníti az elérési utat, a böngésző csak a nevet.
 
 Ha az alkalmazás már nem tudja beolvasni a listában lévő fájlt, például mert áthelyezte, a fájl üzenet nélkül eltűnik a listából. A fájlhozzáférés nélküli böngészőkben, például a Firefoxban, a *Legutóbbi* üres marad.
 
@@ -32,7 +33,7 @@ Válassza a *Fájl › Példák* lehetőséget, és kattintson egy példaprojekt
 
 Válassza a *Kezdőlap › Fájl › Mentés* lehetőséget vagy a *Fájl › Mentés* lehetőséget, vagy nyomja meg a Ctrl+S billentyűkombinációt. Mi történik ezután, az a projekttől függ:
 
-1. Ha a projektnek már van fájlja, mert IFC-fájlt nyitott meg, vagy korábban mentette, az alkalmazás abba a fájlba ír. Nem jelenik meg ablak.
+1. Ha a projektnek már van fájlja, mert IFC-fájlt nyitott meg, vagy korábban mentette, az alkalmazás abba a fájlba ír. Nem jelenik meg ablak, kivéve az első mentésnél, ha a fájl az IFC 4.3 ADD2-től eltérő IFC-sémát használ. Ekkor az alkalmazás előbb megkérdezi: *Melyik IFC-sémában mentse?* Lásd: [IFC-séma kiválasztása](docs://howto-ifc-schema-kiezen).
 2. Ha a projektnek még nincs fájlja, az alkalmazás megkérdezi, hova kerüljön. A projekt nevét javasolja `.ifc` kiterjesztéssel. Ezután ez a fájl lesz a projekt fájlja.
 3. Ha a böngésző csak letöltéssel ment (például a Firefox), a fájl a letöltések mappájába kerül, és minden mentés új letöltést hoz létre. Egy munkamenetben először ez az üzenet jelenik meg: *Letöltésként mentve: „name.ifc” a letöltések mappájában van. Ez a böngésző nem engedi, hogy az alkalmazás saját helyre írjon, ezért minden mentés új letöltést hoz létre. Chrome-ban, Edge-ben vagy az asztali alkalmazásban a Mentés egyszerűen frissíti ugyanazt a fájlt.*
 4. Ha a böngésző nem tud visszaírni a projekt fájljába, az alkalmazás minden mentéskor újra megkérdezi, hova tegye a fájlt. Ez a *Mentés másként* lehetőséghez hasonlít, de ez a böngésző korlátja. Egy munkamenetben először ez az üzenet magyarázza ezt, a [Fájlok](docs://uitleg-bestanden) oldalra mutató hivatkozással: *Ez a böngésző nem engedi, hogy az alkalmazás visszaírjon a „name.ifc” fájlba.*
@@ -57,12 +58,15 @@ Kattintson a lap bezáró keresztjére, vagy válassza a *Fájl › Projekt bez�
 
 **A Chrome és az Edge engedélyt kér.** Amikor először ment egy megnyitott fájlt a *Mentés* lehetőséggel, a böngésző megkérdezi, hogy az alkalmazás írhat-e bele. Ha megtagadja, az alkalmazás egy ablakot nyit meg, amelyben új fájlt választhat. A Chrome-ban és az Edge-ben ez az ablak akkor is megjelenik, ha a meglévő fájlba írás nem sikerül, például mert a fájl eltűnt vagy zárolva van.
 
+**Üzenet az azonos azonosítókról, és a számításba nem kerülő kapcsolatokról.** Megnyitás után üzenet maradhat a képernyőn. Ha ez áll benne: *Azonos azonosítójú objektumok ebben a fájlban*, minden ismétlődő objektum saját azonosítót kapott, és a hivatkozások az első előfordulásra mutatnak. Ilyenkor ellenőrizze a kapcsolatokat és a hozzárendeléseket. Ha ez áll benne: *kapcsolat(ok) nem vehető(k) figyelembe a számításban*, a kapcsolat egy összefoglaló tevékenységen volt, és nincs hatása. Ilyen például egy tevékenység, amelyet összekapcsoltak a saját összefoglaló tevékenységével. A fájl maga változatlan marad. Lásd: [Kapcsolatok](docs://uitleg-relaties): mit csinál a kapcsolat összefoglaló tevékenységen.
+
 **A mentés sikertelen lehet.** Ha maga a mentés hibát ad, az alkalmazás a *Mentés sikertelen* üzenetet jeleníti meg az okkal együtt. A projekt nyitva marad, és továbbra is *Nincs mentve* jelöléssel van ellátva.
 
 ## Lásd még
 
 - [Fájlok és formátumok](docs://uitleg-bestanden): mit tartalmaz egy IFC-fájl, és hogyan kezeli az alkalmazás a formátumokat.
 - [Az automatikus mentés bekapcsolása](docs://howto-automatisch-opslaan): az alkalmazás magától frissíti a fájlt.
+- [IFC-séma kiválasztása](docs://howto-ifc-schema-kiezen): mit jelent a kérdés: *Melyik IFC-sémában mentse?*
 - [Exportálás](docs://howto-exporteren): másolat készítése másik formátumban.
-- [Helyreállítás összeomlás után](docs://howto-herstellen-na-een-crash): mit kell tennie, ha az alkalmazás nem zárult le rendesen.
+- [Helyreállítás összeomlás után](docs://howto-herstellen-na-een-crash): mit tesz, ha az alkalmazás nem zárult le rendesen.
 - [Import- és exportformátumok](docs://ref-import-exportformaten): formátumonként, hogy mi kerül át, és mi nem.

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { editableSplitPieces, useBarDrag } from './useBarDrag';
@@ -41,7 +41,8 @@ export function useGanttPointerCoordinator(
     splitMode,
     scrollMode,
     enableQuarterHourZoom,
-    enableHourPlanning,
+    workdayDurationMeasure,
+
     compressNonWorkdays,
     selectTask,
     selectTasks,
@@ -106,7 +107,7 @@ export function useGanttPointerCoordinator(
   const barDrag = useBarDrag({
     zoom: view.zoom,
     enableQuarterHourZoom,
-    enableHourPlanning,
+
     calendar,
     effectiveCalById: effectiveCalendarByTaskId,
     compressNonWorkdays,
@@ -121,6 +122,7 @@ export function useGanttPointerCoordinator(
     notify,
     dateNotation,
     timeNotation,
+    workdayDurationMeasure,
   });
   // Het splitsgebaar. Bewust ná `useDependencyDraw` gedeclareerd — beide tekenen op
   // hetzelfde overlay-canvas, en de twee modi sluiten elkaar uit, dus de laatst gemounte teken-
@@ -135,7 +137,8 @@ export function useGanttPointerCoordinator(
     effectiveCalById: effectiveCalendarByTaskId,
     zoom: view.zoom,
     enableQuarterHourZoom,
-    enableHourPlanning,
+    workdayDurationMeasure,
+
     getTask,
     setTaskSplits,
     undo,
@@ -433,10 +436,10 @@ export function useGanttPointerCoordinator(
         setHoverCursor(renderer.getSplitGapAt(x, y) ? 'not-allowed' : 'default');
         return;
       }
-      const splittable = splitRefusalFor(hit.task) === null;
+      const splittable = splitRefusalFor(hit.task) === null
+        && splitGesture.updateHover(event.clientX, event.clientY);
       setHoverCursor(splittable ? 'col-resize' : 'not-allowed');
-      if (splittable) splitGesture.updateHover(event.clientX, event.clientY);
-      else splitGesture.clearHover();
+      if (!splittable) splitGesture.clearHover();
       return;
     }
     if (hit) {
@@ -469,6 +472,11 @@ export function useGanttPointerCoordinator(
     setTooltip(null);
     splitGesture.clearHover();
   }, [splitGesture]);
+  // Een hit bevat de taak van de laatst getekende frame. Na F5 kan die achterlopen en een
+  // stilstaande muis levert geen nieuwe hit. Gebruik daarom live taakdata voor de tooltip (379).
+  const tooltipTaskId = tooltip?.task.id;
+  const tooltipTask = useMemo(() => tooltipTaskId ? tasks.find(task => task.id === tooltipTaskId) : undefined, [tasks, tooltipTaskId]);
+
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const closeRelationPopover = useCallback(() => setRelationPopover(null), []);
 
@@ -505,7 +513,7 @@ export function useGanttPointerCoordinator(
     },
     contextMenu,
     relationPopover,
-    tooltip,
+    tooltip: tooltip && tooltipTask ? { ...tooltip, task: tooltipTask } : null,
     closeContextMenu,
     closeRelationPopover,
   };

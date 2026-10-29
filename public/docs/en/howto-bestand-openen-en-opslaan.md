@@ -10,7 +10,7 @@ You start the day with yesterday's project, you get a file from a colleague or f
 
 ### Opening a file
 
-1. Choose *Home › File › Open*, or *File › Open*, or press Ctrl+O (⌘+O on a Mac). *Open* is also in the bar at the very top. The *File* group is also on the *Table* tab.
+1. Choose *Home › File › Open*, or *File › Open*, or press Ctrl+O (⌘+O on a Mac). The *File* group is also on the *Table* tab.
 2. Choose the file. You open one file at a time. On the desktop and in browsers with file access, such as Chrome and Edge, the window shows a list of file types: *All Supported*, *IFC Files*, *CSV Files*, *XML Files*, *MS Project Files* and *Primavera XER Files*.
 3. The project opens in a new tab. If the current tab was still empty and unchanged, the project opens in it.
 4. If the file was not IFC, a window appears with a short explanation of that format. A green block says what the app took over, an amber block what was not included or only partly, and a blue block how saving and writing back work. *Read more* opens the guide for that format. Click *Got it* to close the window. First tick *Don't show again for …* if you no longer want to see this explanation for that format. You turn it back on in [App settings](docs://ref-instellingen), on the *Advanced* tab.
@@ -33,10 +33,10 @@ Choose *File › Examples* and click an example project. It opens in a tab, with
 
 Choose *Home › File › Save* or *File › Save*, or press Ctrl+S. What happens then depends on your project:
 
-1. If the project already has a file, because you opened an IFC file or saved it before, the app writes to that file. No window appears.
+1. If the project already has a file, because you opened an IFC file or saved it before, the app writes to that file. No window appears, except at the first save of a file with an IFC schema other than IFC 4.3 ADD2. Then the app first asks *Which IFC schema to save in?* See [Choosing the IFC schema](docs://howto-ifc-schema-kiezen).
 2. If the project has no file yet, the app asks where it should go. It suggests the project name with `.ifc`. After that, that file is the project's file.
 3. If your browser only saves through a download (such as Firefox), the file lands in your downloads folder, and every save creates a new download. The first time in a session you see the message *Saved as a download: 'name.ifc' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.*
-4. If your browser cannot write back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
+4. If limited file access prevents your browser from writing back to the project's file, the app asks again where to put the file every time you save. That looks like *Save As*, but it is a limit of the browser. The first time in a session the message *This browser does not let the app write back to 'name.ifc'.* explains this, with a link to [Files](docs://uitleg-bestanden).
 
 After saving, the *Unsaved* marker disappears: the dot on the tab, the asterisk before the project name at the top and the text *Unsaved* at the bottom right of the status bar.
 
@@ -58,12 +58,15 @@ Click the cross on the tab, or choose *File › Close project*. If the project h
 
 **Chrome and Edge ask for permission.** At the first *Save* of a file you opened, the browser asks whether the app may write to it. If you refuse, the app opens a window in which you choose a new file. In Chrome and Edge you also get that window if writing to the existing file fails, for example because the file disappeared or is locked.
 
-**Saving can fail.** If the saving itself gives an error, the app reports *Failed to save*, with the reason. Your project stays open and is still marked *Unsaved*.
+**A message about duplicate ids or relations that do not count.** After opening, a message can stay on screen. If it says *Objects with a duplicate id in this file*, each duplicate object got its own id and references point to the first occurrence. Check relations and assignments then. If it says *relation(s) could not be included in the calculation*, the relation sat on a summary task and has no effect, for example a task linked to its own summary. The file itself stays unchanged. See [Relations](docs://uitleg-relaties) for what a relation on a summary task does.
+
+**Saving can fail.** If saving gives an error, the app reports *Failed to save*, with the reason. In Chrome and Edge this error notification appears before the window in which you can choose another file. If you cancel that window, your project stays open and marked *Unsaved*. If saving to the other file succeeds, that marker disappears and your project uses that file from then on. Changes you made while saving remain marked *Unsaved*. The error notification about the earlier attempt stays until you close it. If the second attempt also fails, the same notification shows the latest reason.
 
 ## See also
 
 - [Files and formats](docs://uitleg-bestanden): what is in an IFC file and how the app treats formats.
 - [Turning on AutoSave](docs://howto-automatisch-opslaan): letting the app update your file itself.
+- [Choosing the IFC schema](docs://howto-ifc-schema-kiezen): what the question *Which IFC schema to save in?* means.
 - [Exporting](docs://howto-exporteren): making a copy in another format.
 - [Recovering after a crash](docs://howto-herstellen-na-een-crash): what you do if the app did not close cleanly.
 - [Import and export formats](docs://ref-import-exportformaten): per format what is carried over and what is not.

@@ -1297,6 +1297,9 @@
     "forms": [
       "任务类型"
     ],
+    "avoid": [
+      "工作规则"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1417,18 +1420,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "工作类别",
+    "forms": [
+      "工作类别"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "工作时间",
     "forms": [
       "工作时间"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "工作规则",
-    "forms": [
-      "工作规则"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

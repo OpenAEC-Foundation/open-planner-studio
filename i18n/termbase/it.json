@@ -1444,6 +1444,11 @@
       "tipi di attività",
       "del tipo di attività"
     ],
+    "avoid": [
+      "regola di lavoro",
+      "regole di lavoro",
+      "della regola di lavoro"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1587,21 +1592,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "categoria di lavoro",
+    "forms": [
+      "categoria di lavoro",
+      "categorie di lavoro"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "orari di lavoro",
     "forms": [
       "orari di lavoro",
       "degli orari di lavoro"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "regola di lavoro",
-    "forms": [
-      "regola di lavoro",
-      "regole di lavoro",
-      "della regola di lavoro"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

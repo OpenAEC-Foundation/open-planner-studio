@@ -16,7 +16,7 @@ Die Berechnungsmethode heißt **CPM** (Critical Path Method). Daher trägt der T
 
 ## Wie die App berechnet
 
-Die App berechnet den Terminplan nicht von selbst neu. Die Berechnung startet mit **Berechnen** (F5), zum Beispiel über *Start › Terminplanung › Berechnen*. Hat sich seit der letzten Berechnung etwas geändert, zeigt die Statusleiste *Veraltet — neu berechnen (F5)*. Ist *Automatisch berechnen* eingeschaltet (unter *Einstellungen › Projekt › Einstellungen*, Registerkarte *Planung*, Überschrift *Berechnung*), dann führt die App die Berechnung selbst aus.
+Die App berechnet den Terminplan nicht von selbst neu. Die Berechnung startet mit **Berechnen** (F5), zum Beispiel über *Start › Terminplanung › Berechnen*. Hat sich seit der letzten Berechnung etwas geändert, zeigt die Statusleiste *Veraltet — neu berechnen (F5)*. Ist *Automatisch berechnen* eingeschaltet (unter *Einstellungen › Projekt › App-Einstellungen*, Registerkarte *Planung*, Überschrift *Berechnung*), dann führt die App die Berechnung selbst aus.
 
 Eine Berechnung durchläuft das Netz zweimal.
 
@@ -42,18 +42,19 @@ Auch ein Puffer kann negativ werden. Das passiert, wenn ein Vorgang einen Sticht
 
 ### Wann ist ein Vorgang kritisch?
 
-Standardmäßig ist ein Vorgang kritisch, wenn sein Gesamtpuffer 0 oder weniger beträgt. Sie können das unter *Einstellungen › Projekt › Projektinfo* ändern, im Abschnitt *Berechnungsprofil und Berechnungsoptionen*, bei *Berechnungsoptionen dieses Projekts*. Wenn Sie auf *Anwenden* klicken, berechnet die App den Terminplan sofort neu. Die Optionen gehören zur Projektdatei, nicht zur App.
+Standardmäßig ist ein Vorgang kritisch, wenn sein Gesamtpuffer 0 oder weniger beträgt. Das können Sie unter *Einstellungen › Projekt › Projekteinstellungen* ändern, im Block *Berechnungsprofil und Berechnungsoptionen*, bei *Berechnungsoptionen dieses Projekts*. Wenn Sie auf *Anwenden* klicken, berechnet die App den Terminplan sofort neu. Die Optionen gehören zur Projektdatei, nicht zur App.
 
-- **Definition von kritisch** mit *Gesamtpuffer ≤ Schwelle* und dem Feld *Schwelle (Arbeitstage)*. Die Schwelle ist standardmäßig 0. Um einen Puffer abzusichern, setzen Sie sie zum Beispiel auf 2: Jeder Vorgang mit 2 Arbeitstagen Puffer oder weniger gilt dann als kritisch und wird rot.
-- **Beinahe-kritisch markieren** mit einer eigenen *Schwelle*, standardmäßig 2 Arbeitstage. Ein Vorgang mit mehr als 0 und höchstens so viel Puffer bekommt einen bernsteinfarbenen Balken. So sehen Sie, welche Vorgänge kaum noch Spielraum haben, ohne sie kritisch zu nennen.
-- **Offene Vorgänge kritisch**: Ein Vorgang ohne Nachfolger, der noch nicht fertig ist, gilt als kritisch. Das ist ein nützliches Sicherheitsnetz gegen vergessene Beziehungen (siehe unten unter Folgen und Missverständnisse).
-- **Berechnung des Puffers** legt fest, ob der Gesamtpuffer am Anfang des Vorgangs, am Ende oder als der kleinere der beiden Werte gemessen wird. Neue Projekte sind auf *Automatisch (Standard)* eingestellt. Wenn Sie nach der Methode von Primavera P6 rechnen wollen, stellt *Standardoptionen dieses Profils anwenden* diese Auswahl auf *Endpuffer*. Bei MS Project stellt dieselbe Schaltfläche sie wieder auf *Automatisch (Standard)* zurück: Mit einem Statusdatum rechnet MS Project selbst so.
+- **Definition von kritisch** mit *Gesamtpuffer ≤ Schwelle* und dem Feld *Schwelle (Arbeitstage)*. Die Schwelle ist standardmäßig 0. Um einen Puffer abzusichern, setzen Sie sie zum Beispiel auf 2: Jeder Vorgang mit 2 Arbeitstagen Puffer oder weniger gilt dann als kritisch und wird rot. Wenn Sie *Längster Pfad* wählen, gilt ein Vorgang als kritisch, wenn er auf der längsten Kette bis zum letzten Ende liegt. Sein Puffer spielt dann keine Rolle.
+- **Mehrere Pufferpfade** nummeriert die Ketten nach ihrem Puffer in der Spalte *Pufferpfad*. Pfad 1 ist der kritische Pfad. Siehe [Berechnungsoptionen und Konventionen](docs://ref-rekenopties-en-conventies).
+- **Fast kritische Vorgänge markieren** mit einer eigenen *Schwelle*, standardmäßig 2 Arbeitstage. Ein Vorgang mit mehr als 0 und höchstens so viel Puffer bekommt einen bernsteinfarbenen Balken. So sehen Sie, welche Vorgänge kaum noch Spielraum haben, ohne sie kritisch zu nennen.
+- **Offene Vorgänge kritisch**: Ein Vorgang ohne Nachfolger, der noch nicht fertig ist, gilt als kritisch. Das ist ein nützliches Sicherheitsnetz gegen vergessene Beziehungen (siehe unten zu den Missverständnissen).
+- **Berechnung des Puffers** legt fest, ob der Gesamtpuffer am Anfang des Vorgangs, am Ende oder als der kleinere der beiden Werte gemessen wird. Neue Projekte sind auf *Automatisch (Standard)* eingestellt. Verwendet das Projekt das Berechnungsprofil Primavera P6 und ist diese Auswahl nicht *Endpuffer*, zeigt ein orangefarbener Block in *Projekteinstellungen* das an. Dessen Schaltfläche stellt die Auswahl auf *Endpuffer*. Bei MS Project stellt dieselbe Schaltfläche die Auswahl wieder auf *Automatisch (Standard)* zurück: Mit einem Statusdatum rechnet MS Project selbst so.
 
 ### Wo Sie es sehen
 
 Kritische Vorgänge haben einen roten Balken im Gantt-Diagramm. Hinter einem unkritischen Balken liegt ein grüner Streifen bis zum spätesten Ende des Vorgangs: Das ist der Puffer. Den Streifen schalten Sie mit *Ansicht › Baselines & Fortschritt › Pufferband* ein oder aus.
 
-Bei einem ausgewählten Vorgang listet der Bereich *Eigenschaften* alles unter *CPM-Ergebnis* auf: den frühesten und spätesten Anfang, das früheste und späteste Ende, Gesamtpuffer, freier und störender Puffer und ob der Vorgang auf dem kritischen Pfad liegt. Den Puffer aller Vorgänge nebeneinander finden Sie in den Spalten unter *Berechnet* (das **+** rechts in der Tabellenkopfzeile), zum Beispiel *Gesamtpuffer*, *Freier Puffer*, *Kritisch* und *Fast kritisch*.
+Bei einem ausgewählten Vorgang listet der Bereich *Eigenschaften* alles unter *CPM-Ergebnis* auf: den frühesten und spätesten Anfang, das früheste und späteste Ende, Gesamtpuffer, freien Puffer und störenden Puffer sowie ob der Vorgang auf dem kritischen Pfad liegt. Den Puffer aller Vorgänge nebeneinander finden Sie in den Spalten unter *Berechnet* (das **+** rechts in der Tabellenkopfzeile), zum Beispiel *Gesamtpuffer*, *Freier Puffer*, *Kritisch* und *Fast kritisch*.
 
 Die Statusleiste unten zählt die kritischen Vorgänge, zum Beispiel *Kritischer Pfad: 21 Vorgänge, 45 Arbeitstage*.
 

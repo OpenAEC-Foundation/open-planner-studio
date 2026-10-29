@@ -8,12 +8,16 @@
 //  1. WORDT MIJLPAAL — de regel staat bij de overgang zelf (`milestoneRefusal` in
 //     `engine/taskMilestoneTransition.ts`); deze module levert alleen de melding.
 //  2. WORDT FASE — een taak krijgt haar eerste kind(eren) via inspringen, verhangen, slepen, een
-//     subtaak toevoegen of een sjabloon invoegen. De toewijzingen
-//     VERHUIZEN naar de eerste nieuwe subtaak die ze mag dragen, in dezelfde undo-stap, met een
-//     melding. Kan dat niet schoon (geen geschikte subtaak, of die subtaak heeft dezelfde resource
-//     al — één resource per taak is een P6/MSP-invariant, zie `moveAssignment`), dan WEIGERT de hele
-//     structuurwijziging: nooit stil verlies. Een MIJLPAAL die kinderen krijgt verliest zijn
-//     mijlpaalvlag (anders tekent de Gantt de fase als ruit).
+//     subtaak toevoegen of een sjabloon invoegen. Eigenaarsbesluit 2026-10-17 ("altijd vragen"):
+//     draagt die taak toewijzingen, dan VRAAGT de app de planner wat ermee moet
+//     (`phaseAssignmentQuestion` → `PhaseAssignmentDialog`): verplaatsen naar de eerste nieuwe
+//     subtaak die ze mag dragen, of verwijderen. Annuleren wijzigt niets. Het antwoord wordt een
+//     `PhaseAssignmentChoice` voor `planPhaseTransitions`, en het hele resultaat is één undo-stap.
+//     Verplaatsen kan niet schoon (geen geschikte subtaak, of die subtaak heeft dezelfde resource al
+//     — één resource per taak is een P6/MSP-invariant, zie `moveAssignment`)? Dan biedt de vraag
+//     het niet aan, en weigert een aanroep met `'move'` (MCP, extensies) de hele structuurwijziging:
+//     nooit stil verlies. Een MIJLPAAL die kinderen krijgt verliest zijn mijlpaalvlag (anders
+//     tekent de Gantt de fase als ruit).
 //
 // VORM. `planPhaseTransitions` is PUUR en draait VÓÓR de mutatie, zodat een weigering geen halve
 // state of undo-stap achterlaat; `applyPhaseTransitions` voert het plan daarna op de Immer-draft
@@ -23,8 +27,8 @@
 import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import { taskMilestoneTransition, type MilestoneRefusal } from '@/engine/taskMilestoneTransition';
-import { relocateAssignment } from './assignmentMutations';
-import type { NotifyInput } from './slices/types';
+import { relocateAssignment, removeAssignment } from './assignmentMutations';
+import type { NotifyInput, PhaseAssignmentQuestion, PhaseAssignmentQuestionItem } from './slices/types';
 import { STRUCTURE_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { refusalNotice, refusedNamesLine, refusedSetKey } from './refusalNotice';
 
@@ -46,12 +50,20 @@ export interface PendingChild {
   hasChildren: boolean;
 }
 
+/** Wat er met de toewijzingen van een nieuwe fase gebeurt: het antwoord op de vraag, of de vaste
+ *  keuze van een aanroeper zonder venster (MCP en extensies: altijd `'move'`). */
+export type PhaseAssignmentChoice = 'move' | 'remove';
+/** `'ask'` = eerst de planner vragen (de standaard voor elke gebruikersroute in de store). */
+export type PhaseAssignmentMode = 'ask' | PhaseAssignmentChoice;
+
 export interface PhaseTransition {
   phaseId: string;
   /** Mijlpaal kreeg kinderen ⇒ de mijlpaalvlag gaat eraf (via `taskMilestoneTransition`). */
   clearMilestone: boolean;
-  /** Toewijzingen die naar `targetTaskId` verhuizen; leeg ⇒ er verhuist niets. */
+  /** Toewijzingen van de fase; leeg ⇒ er gebeurt niets mee. */
   assignmentIds: string[];
+  /** `'move'` ⇒ naar `targetTaskId`; `'remove'` ⇒ weg (`targetTaskId` is dan `null`). */
+  disposition: PhaseAssignmentChoice;
   targetTaskId: string | null;
 }
 
@@ -89,22 +101,50 @@ export function firstChildGains(
   return [...byParent].map(([phaseId, childIds]) => ({ phaseId, childIds }));
 }
 
-/**
- * Het plan per nieuwe fase. "Eerste nieuwe subtaak" = het eerste nieuwe kind dat toewijzingen mag
- * dragen: een bladtaak die geen mijlpaal is. Elke nieuwe fase apart (inspringen van een selectie).
- * `pending` beschrijft kinderen die nog niet in `s.tasks` staan.
- */
-export function planPhaseTransitions(
-  s: PlanState,
-  gains: readonly PhaseGain[],
-  pending?: ReadonlyMap<string, PendingChild>,
-): PhasePlan {
-  const shape = (id: string): { isMilestone: boolean; hasChildren: boolean } | undefined => {
+interface DescribeState {
+  tasks: readonly Task[];
+  resources: readonly Resource[];
+  assignments: readonly ResourceAssignment[];
+}
+
+// `pending` eerst: zo beschrijft de vraag een concept (de taakdialoog) met zijn concept-naam.
+const taskName = (s: DescribeState, id: string | null, pending?: ReadonlyMap<string, PendingChild>) =>
+  (id && (pending?.get(id)?.name ?? s.tasks.find(t => t.id === id)?.name)) || '?';
+const resourceName = (s: DescribeState, id: string) => s.resources.find(r => r.id === id)?.name ?? id;
+
+type ChildShape = (id: string) => { isMilestone: boolean; hasChildren: boolean } | undefined;
+
+function childShape(s: PlanState, pending?: ReadonlyMap<string, PendingChild>): ChildShape {
+  return (id) => {
     const fresh = pending?.get(id);
     if (fresh) return fresh;
     const task = s.tasks.find(t => t.id === id);
     return task ? { isMilestone: task.isMilestone, hasChildren: task.childIds.length > 0 } : undefined;
   };
+}
+
+/** "Eerste nieuwe subtaak" = het eerste nieuwe kind dat toewijzingen mag dragen: een bladtaak die
+ *  geen mijlpaal is. `null` ⇒ er is er geen. */
+function firstAssignableChild(gain: PhaseGain, shape: ChildShape): string | null {
+  return gain.childIds.find((id) => {
+    const child = shape(id);
+    return !!child && !child.isMilestone && !child.hasChildren;
+  }) ?? null;
+}
+
+/**
+ * Het plan per nieuwe fase, voor een vaste keuze (`choice`, standaard `'move'` = het gedrag van MCP
+ * en extensies). Elke nieuwe fase apart (inspringen van een selectie). `pending` beschrijft kinderen
+ * die nog niet in `s.tasks` staan. Bij `'move'` weigert het plan als een verhuizing niet schoon kan;
+ * bij `'remove'` weigert het nooit.
+ */
+export function planPhaseTransitions(
+  s: PlanState,
+  gains: readonly PhaseGain[],
+  pending?: ReadonlyMap<string, PendingChild>,
+  choice: PhaseAssignmentChoice = 'move',
+): PhasePlan {
+  const shape = childShape(s, pending);
   const transitions: PhaseTransition[] = [];
   for (const gain of gains) {
     const phase = s.tasks.find(t => t.id === gain.phaseId);
@@ -112,11 +152,8 @@ export function planPhaseTransitions(
     const assignments = s.assignments.filter(a => a.taskId === phase.id);
     if (!phase.isMilestone && assignments.length === 0) continue;
     let targetTaskId: string | null = null;
-    if (assignments.length > 0) {
-      targetTaskId = gain.childIds.find((id) => {
-        const child = shape(id);
-        return !!child && !child.isMilestone && !child.hasChildren;
-      }) ?? null;
+    if (assignments.length > 0 && choice === 'move') {
+      targetTaskId = firstAssignableChild(gain, shape);
       if (targetTaskId === null) return { ok: false, refusal: { kind: 'noAssignableChild', phaseId: phase.id } };
       for (const assignment of assignments) {
         if (s.assignments.some(a => a.taskId === targetTaskId && a.resourceId === assignment.resourceId)) {
@@ -131,6 +168,7 @@ export function planPhaseTransitions(
       phaseId: phase.id,
       clearMilestone: phase.isMilestone,
       assignmentIds: assignments.map(a => a.id),
+      disposition: choice,
       targetTaskId,
     });
   }
@@ -138,9 +176,50 @@ export function planPhaseTransitions(
 }
 
 /**
+ * De vraag aan de planner (eigenaarsbesluit 2026-10-17): welke nieuwe fases dragen toewijzingen, waar
+ * zouden ze heen verhuizen, en kan dat? `null` ⇒ geen enkele nieuwe fase draagt een toewijzing, er
+ * valt niets te vragen. PUUR; lees VÓÓR de mutatie.
+ */
+export function phaseAssignmentQuestion(
+  s: DescribeState,
+  gains: readonly PhaseGain[],
+  pending?: ReadonlyMap<string, PendingChild>,
+): PhaseAssignmentQuestion | null {
+  const shape = childShape(s, pending);
+  const items: PhaseAssignmentQuestionItem[] = [];
+  for (const gain of gains) {
+    const phase = s.tasks.find(t => t.id === gain.phaseId);
+    if (!phase) continue;
+    const assignments = s.assignments.filter(a => a.taskId === phase.id);
+    if (assignments.length === 0) continue;
+    const targetId = firstAssignableChild(gain, shape);
+    const duplicates = targetId === null ? [] : assignments
+      .filter(assignment => s.assignments.some(a => a.taskId === targetId && a.resourceId === assignment.resourceId))
+      .map(a => resourceName(s, a.resourceId));
+    items.push({
+      phaseId: phase.id,
+      phaseName: taskName(s, phase.id),
+      childCount: gain.childIds.length,
+      firstChildName: taskName(s, gain.childIds[0] ?? null, pending),
+      targetId,
+      targetName: targetId === null ? null : taskName(s, targetId, pending),
+      resourceNames: assignments.map(a => resourceName(s, a.resourceId)),
+      actualWork: assignments
+        .filter(a => (a.actualWorkMinutes ?? 0) > 0)
+        .map(a => ({ resourceName: resourceName(s, a.resourceId), minutes: a.actualWorkMinutes! })),
+      blocked: targetId === null
+        ? { kind: 'noAssignableChild' }
+        : duplicates.length > 0 ? { kind: 'duplicateResource', resourceNames: duplicates } : null,
+    });
+  }
+  return items.length > 0 ? { items } : null;
+}
+
+/**
  * Voert het plan uit op de draft, NA de structuurmutatie (het doelkind moet bestaan). Toewijzingen
- * verhuizen met behoud van al hun velden (eenheden, curve, …) via `relocateAssignment`, dezelfde
- * route als `moveAssignment`. Retourneert de taak-ids die daarbij MSP-sturing verloren.
+ * verhuizen met behoud van al hun velden (eenheden, curve, verricht werk, …) via
+ * `relocateAssignment`, dezelfde route als `moveAssignment`; bij `'remove'` gaan ze weg via
+ * `removeAssignment`, met al hun velden (ook verricht werk). Retourneert de taak-ids die daarbij MSP-sturing verloren.
  */
 export function applyPhaseTransitions(
   // De volledige toewijzingsstate van `relocateAssignment` (werkregel + kalenders).
@@ -152,6 +231,15 @@ export function applyPhaseTransitions(
     const phase = s.tasks.find(t => t.id === transition.phaseId);
     if (!phase) continue;
     if (transition.clearMilestone) Object.assign(phase, taskMilestoneTransition(phase, false));
+    if (transition.disposition === 'remove') {
+      // Verwijderen = dezelfde route als "toewijzing verwijderen" in het resourcepaneel
+      // (`unassignResource`): werkregel-nazorg, `resourceIds` en de invalidatie lopen mee.
+      for (const id of transition.assignmentIds) {
+        const assignment = s.assignments.find(a => a.id === id);
+        if (assignment) lost.push(...removeAssignment(s, assignment).lostTaskIds);
+      }
+      continue;
+    }
     const target = transition.targetTaskId ? s.tasks.find(t => t.id === transition.targetTaskId) : undefined;
     if (!target) continue;
     for (const id of transition.assignmentIds) {
@@ -162,15 +250,6 @@ export function applyPhaseTransitions(
   return [...new Set(lost)];
 }
 
-interface DescribeState {
-  tasks: readonly Task[];
-  resources: readonly Resource[];
-  assignments: readonly ResourceAssignment[];
-}
-
-const taskName = (s: DescribeState, id: string | null, pending?: ReadonlyMap<string, PendingChild>) =>
-  (id && (s.tasks.find(t => t.id === id)?.name ?? pending?.get(id)?.name)) || '?';
-const resourceName = (s: DescribeState, id: string) => s.resources.find(r => r.id === id)?.name ?? id;
 
 /** Wat er gebeurd is, per nieuwe fase — voor het MCP-tool-antwoord (lees NA `applyPhaseTransitions`). */
 export interface PhaseTransitionReport {
@@ -221,9 +300,17 @@ export function describePhaseRefusal(
 }
 
 /** De meldingen na een geslaagde overgang (lees NA `applyPhaseTransitions`, roep `notify` buiten de producer). */
-export function phaseTransitionNotices(s: DescribeState, transitions: readonly PhaseTransition[]): NotifyInput[] {
+// `announceMoves: false`: de planner koos net zelf "Verplaatsen" in het venster; een melding die dat
+// herhaalt is ruis. De melding blijft voor een aanroeper die niet vroeg (extensies).
+export function phaseTransitionNotices(
+  s: DescribeState,
+  transitions: readonly PhaseTransition[],
+  opts: { announceMoves?: boolean } = {},
+): NotifyInput[] {
   const notices: NotifyInput[] = [];
-  const moved = transitions.filter(t => t.targetTaskId && t.assignmentIds.length > 0);
+  const moved = opts.announceMoves === false
+    ? []
+    : transitions.filter(t => t.targetTaskId && t.assignmentIds.length > 0);
   if (moved.length === 1) {
     const [only] = moved;
     const resources = s.assignments.filter(a => only.assignmentIds.includes(a.id)).map(a => resourceName(s, a.resourceId));
@@ -250,8 +337,13 @@ export function phaseTransitionNotices(s: DescribeState, transitions: readonly P
   if (cleared.length > 0) {
     notices.push({
       severity: 'info',
-      messageKey: 'notifications.milestoneClearedOnPhase',
-      params: { count: cleared.length, phase: shortName(taskName(s, cleared[0].phaseId)) },
+      // Naam versus verzameling is een betekenisverschil, geen CLDR-meervoudsvorm.
+      messageKey: cleared.length === 1
+        ? 'notifications.milestoneClearedOnPhase'
+        : 'notifications.milestoneClearedOnPhaseMany',
+      params: cleared.length === 1
+        ? { phase: shortName(taskName(s, cleared[0].phaseId)) }
+        : { count: cleared.length },
       helpArticleId: STRUCTURE_HELP_ARTICLE_ID,
     });
   }
@@ -296,10 +388,10 @@ export function milestoneRefusalNotices(
     const group = refused.filter(r => r.refusal === reason);
     if (group.length === 0) continue;
     notices.push(refusalNotice({
-      messageKey: reason === 'assignments'
-        ? 'notifications.milestoneRefusedAssignments'
-        : 'notifications.milestoneRefusedSummary',
-      params: { count: group.length, task: shortName(group[0].name) },
+      messageKey: group.length === 1
+        ? (reason === 'assignments' ? 'notifications.milestoneRefusedAssignments' : 'notifications.milestoneRefusedSummary')
+        : (reason === 'assignments' ? 'notifications.milestoneRefusedAssignmentsMany' : 'notifications.milestoneRefusedSummaryMany'),
+      params: group.length === 1 ? { task: shortName(group[0].name) } : { count: group.length },
       // Meer taken (contextmenu op een tak): noem welke geen mijlpaal werden.
       // Een omzetting naar mijlpaal raakt verder niets aan die taak, dus "Niet aangepast" klopt.
       ...(group.length > 1 ? { detailLines: refusedNamesLine(group.map(r => shortName(r.name)), 'untouched') } : {}),

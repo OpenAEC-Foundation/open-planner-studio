@@ -1,7 +1,7 @@
 // UI-laag-helper: bouwt `ImportLabels` (`{ importedProject, unassignedResource }`, doorgegeven aan
 // `openFile`/`openRecentFile`/`parseExternalSource`/`refreshAllExternalAnchors`/
 // `refreshExternalAnchorsFrom` en enkele losse `readIFC`/`openExampleFromString`-aanroepen). Eén
-// plek — en de enige die een toekomstig DERDE label ooit hoeft bij te werken.
+// plek waar importlabels worden verzameld.
 //
 // `import type` (bewust, geen waarde-import): `ImportLabels` is puur een type uit `services/`, dus
 // dit blijft na type-erasure een bladmodule zonder runtime-afhankelijkheid op `services/`/`state/`
@@ -29,5 +29,6 @@ export function buildImportLabels(t: ImportLabelT): ImportLabels {
   return {
     importedProject: t('project.imported'),
     unassignedResource: t('project.unassignedResource'),
+    ifcBuildingModelUnsupported: t('project.ifcBuildingModelUnsupported'),
   };
 }

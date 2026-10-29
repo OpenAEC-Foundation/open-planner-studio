@@ -19,8 +19,8 @@ Ontwerp: `docs/superpowers/specs/2026-10-09-vertaalstraat-design.md`. Opdrachten
 `nl`/`en` aan. Alles gaat door de straat: pakket → Haiku-stations → poort → `apply`.
 
 ## Wanneer
-- Als stap in de release-skill (stap 6a). Werk dan op de releasebranch of een eigen branch die je vóór
-  stap 9 merget.
+- Bij elke expliciet gevraagde of geplande release (release-skill, stap 2), zonder aparte vraag.
+  Werk op de releasebranch en neem de vertalingen mee in de release-PR.
 - Los, als de user erom vraagt (bijvoorbeeld om `main` bij te werken). Werk dan op een eigen branch en
   open een PR.
 
@@ -55,20 +55,35 @@ npm run translate -- packages ui <dezelfde talen>     # JSON [[taal, pakket-id],
 pakketten voor een taal voordat je de vorige ronde hebt toegepast.
 
 ### 3. De stations draaien
-Start de workflow met de Workflow-tool (deze skill geeft daar toestemming voor):
+Gebruik dezelfde prompts, pakketbestanden en poort als `scripts/translate/workflows/stations.js`.
+Kies de route die de uitvoerder ondersteunt; de skill geeft toestemming voor deze Haiku-stations.
+`stations.js` draait niet los met Node: `args`, `pipeline` en `agent` komen uit de Workflow-runtime.
+
+**Claude met Workflow-tool:**
 - `scriptPath`: `<worktree>/scripts/translate/workflows/stations.js`
-- `args`: `{ "kind": "ui", "repo": "<worktree>", "node": "<pad naar node>", "items": <JSON uit stap 2> }`
+- `args`: `{ "kind": "ui", "repo": "<worktree>", "node": "<absoluut nodepad>", "items": <JSON uit stap 2> }`
 
-Per pakket draaien drie Haiku-agents na elkaar: vertalen (met eigen poort), nalezen, herstellen (alleen
-als de nalezer iets vond). Plak de JSON letterlijk in `items`, nooit een plekhouder.
-Bij meer dan ongeveer 60 pakketten: noem de user eerst het aantal agents.
+**Sol/Codex in T3:** volg [t3-stations.md](t3-stations.md). Start per pakket met `delegate_task`
+achtereenvolgens de vertaler, nalezer en zo nodig hersteller, met provider `claudeAgent` en model
+`claude-haiku-5-5`. Gebruik gedeelde isolatie: de pakketten staan buiten Git onder `build/translate/`.
+Geen Workflow-tool simuleren en `stations.js` niet via Node starten.
 
-Controleer na de run met `git status --short` dat alleen bestanden onder `build/translate/` veranderden
-(die map staat in `.gitignore`, dus `git status` hoort leeg te zijn). Veranderde een agent iets anders,
-zet dat terug en meld het.
+Per pakket: vertalen (met eigen poort) → nalezen → herstellen als de nalezer problemen vond.
+Pakketten mogen naast elkaar lopen; stations voor hetzelfde pakket nooit tegelijk.
+Bij meer dan ongeveer 60 pakketten: meld vooraf het aantal agents, zonder akkoordvraag.
+
+Vergelijk `git status --short` vóór en na de stations: alleen nieuwe uitvoer onder
+`build/translate/` is toegestaan (gitignored). Bestaande releasewijzigingen blijven staan.
+Schreef een agent buiten zijn pakketuitvoer of reviewbestand: stop en meld de afwijking.
 
 ### 4. Toepassen
+Blokkeer de hele apply-ronde zolang een vereist vertaal-, nalees- of herstelstation onafgerond is;
+een groene pakketcheck alleen volstaat niet. Onbekende stationstatus telt ook als onafgerond.
+Hervat eerst die stations met hun bestaande pakketten/taak-ID's; maak geen nieuwe `prepare`-ronde.
+Bepaal `OPEN_STATIONS` uit alle vereiste stations van alle pakketten die `apply` kan inlezen:
 ```bash
+: "${OPEN_STATIONS:?Controleer eerst alle vereiste stations}"
+test "$OPEN_STATIONS" -eq 0 || exit 1
 for l in <talen>; do npm run translate -- apply ui $l; done
 ```
 `apply` neemt alleen groene pakketten over. Een rood pakket blijft staan:
@@ -91,8 +106,9 @@ Herhaal stap 2 tot en met 4 met `--stale` voor de talen met `verouderd` of `zond
 geeft de agent de vorige vertaling mee, zodat hij alleen aanpast wat in de bron veranderde.
 
 Veranderde er een term in de termbase (een `avoid`-variant erbij)? Maak dan pakketten met
-`prepare ui <taal> --avoid` en start de stations met `"kind": "ui-termfix"`. Die vervangen alleen de
-oude term.
+`prepare ui <taal> --avoid`. Gebruik bij Workflow `"kind": "ui-termfix"`; bij T3 alleen voor het
+vertaalstation `ui-termfix.md` in plaats van `ui.md`. Nalezen/herstellen blijven `ui-review.md` en
+`ui-fix.md`. Die route vervangt alleen de oude term.
 
 ### 6. Poorten en commit
 ```bash

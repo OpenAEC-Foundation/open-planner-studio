@@ -50,13 +50,13 @@
 
 ## 工作示例：两面墙上的 bricklayer
 
-该示例是教程的练习项目 *House extension*，即教程 5 中资源平衡之前的状态。在教程 5 中，你自己操作并检查数字。在本示例中，plastering 任务使用 *固定工时*，plasterer 的单位为 2，见 [工作规则：工期、单位和工时](docs://uitleg-werkregels)。
+该示例是教程的练习项目 *House extension*，即教程 5 中资源平衡之前的状态。在教程 5 中，你自己操作并检查数字。在本示例中，plastering 任务使用 *固定工时*，plasterer 的单位为 2，见 [任务类型：工期、单位和工时](docs://uitleg-werkregels)。
 
 在 hollow-core floor 于 6月28日（星期一）完成后，inner cavity leaf（5 个工作日）和 outer cavity leaf（6 个工作日）都在 6月29日（星期二）开始。两者都由 bricklayer 负责，单位为 1，*最大单位数* 为 1。inner leaf 之后是 roof elements（一项 6 小时的起重机工作）和 roofing（2 个工作日）。frames 要等待 roofing 和 outer leaf。交付日期为 8月30日（星期一）。
 
 ### 过度分配
 
-inner leaf 安排在 6月29日 到 7月5日（含），outer leaf 安排在 6月29日 到 7月6日（含）。从 6月29日 到 7月5日（含）共 5 个工作日，计划要求 bricklayer 提供 2 个单位，而其产能为 1。在这 5 天里，bricklayer 过度分配。
+inner leaf 安排在 6月29日 到 7月5日（含），outer leaf 安排在 6月29日 到 7月6日（含）。从 6月29日 到 7月5日（含）共 5 个工作日，计划要求 bricklayer 提供 2 个单位，而其产能为 1。在这 5 天里，bricklayer 被过度分配。
 
 ### 顺序
 
@@ -66,14 +66,14 @@ inner leaf 安排在 6月29日 到 7月5日（含），outer leaf 安排在 6月
 
 outer leaf 不能在 6月29日开始。bricklayer 再次空闲的第一天是 7月6日（星期二）。这比最早开始晚 5 个工作日，所以资源平衡延迟为 5。outer leaf 现在安排在 7月6日 到 7月13日（含）。frames 本来就要到 7月14日才开始，所以交付日期仍是 8月30日（星期一）。窗口显示 *项目结束日期：不变（30-08-2027）*，并显示一行：*Build outer cavity leaf*，原开始 29-06-2027，新开始 06-07-2027，*5 d*。
 
-移动的 5 个工作日正好等于 outer leaf 的浮时。这就是为什么在此处*平滑*会得到相同结果。outer leaf 现在已没有浮时，成为关键任务。
+移动的 5 个工作日正好等于 outer leaf 的浮时。这就是为什么在此处*资源平衡*会得到相同结果。outer leaf 现在已没有浮时，成为关键任务。
 
 ### 如果 frames 不在 7月14日 到达
 
 没有该约束，frames 可以在 7月9日（星期五）开始，交付日期为 8月25日（星期三）。这时 outer leaf 只有 2 个工作日的浮时。
 
-- 不使用*平滑*时，outer leaf 仍然移动 5 个工作日。现在 frames 必须等待：它们在 7月14日开始，晚 3 个工作日。它们之后的所有任务随之移动，交付日期从 8月25日 变为 8月30日，同样晚 3 个工作日。
-- 使用*平滑*时，什么都不移动。outer leaf 的 2 个工作日浮时不足以容纳移动。窗口显示冲突 *Build outer cavity leaf*，5 day(s)，原因为 *浮时内的空闲产能不足，无法解决此冲突。*
+- 不使用*资源平衡*时，outer leaf 仍然移动 5 个工作日。现在 frames 必须等待：它们在 7月14日开始，晚 3 个工作日。它们之后的所有任务随之移动，交付日期从 8月25日 变为 8月30日，同样晚 3 个工作日。
+- 使用*资源平衡*时，什么都不移动。outer leaf 的 2 个工作日浮时不足以容纳移动。窗口显示冲突 *Build outer cavity leaf*，5 day(s)，原因为 *浮时内的空闲产能不足，无法解决此冲突。*
 
 ### 如果 outer leaf 获得更高优先级
 
@@ -101,5 +101,5 @@ outer leaf 不能在 6月29日开始。bricklayer 再次空闲的第一天是 7�
 
 - [解决过度分配](docs://howto-overbezetting-oplossen)：查找过度分配并对其做资源平衡的步骤。
 - [关键路径和浮时](docs://uitleg-kritiek-pad)：什么是浮时，以及任务为何会成为关键任务。
-- [工作规则：工期、单位和工时](docs://uitleg-werkregels)：任务的工期如何随单位一起移动。
+- [任务类型：工期、单位和工时](docs://uitleg-werkregels)：任务的工期如何随单位一起移动。
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc)：三座需要相同班组和塔式起重机的塔楼，以及资源平衡对它们的作用。

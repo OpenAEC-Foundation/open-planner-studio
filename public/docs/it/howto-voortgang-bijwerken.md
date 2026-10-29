@@ -14,9 +14,10 @@ La data di stato è il giorno in cui fai il punto della situazione. Impostala pr
 
 1. Vai a *Pianificazione › Baseline e progresso › Data di stato*.
 2. Scrivi la data nelle tre caselle per giorno, mese e anno (nell'ordine della tua notazione delle date), per esempio 28, 06 e 2027, e premi Invio. L'app passa da sola alla casella successiva.
-3. Con la piccola croce accanto al campo svuoti di nuovo la data di stato.
+3. Il calendario del progetto ha fasce orarie (il blocco *Orari di lavoro* nella finestra *Calendari*)? Allora l'app calcola in ore e a destra compare un campo dell'orario, per esempio 17:00. Scrivi un altro orario, per esempio 12:00, e premi Invio. Se svuoti il campo dell'orario, resta solo la data. Se cambi solo la data, l'orario resta invariato. L'orario segue il formato che usi (24 o 12 ore). Senza fasce orarie l'app calcola in giorni interi: allora non c'è un campo dell'orario e la data di stato cade all'inizio del giorno.
+4. Con la piccola croce accanto al campo svuoti di nuovo la data di stato.
 
-Se fai il punto della situazione il venerdì dopo l'orario di lavoro, imposta la data di stato sul giorno lavorativo successivo, lunedì. L'app pianifica il lavoro rimanente a partire dall'inizio della data di stato.
+Se fai il punto della situazione il venerdì dopo gli orari di lavoro, imposta la data di stato sul giorno lavorativo successivo, lunedì. L'app pianifica il lavoro rimanente a partire dall'inizio della data di stato.
 
 Se inserisci l'avanzamento mentre non c'è ancora una data di stato, l'app la imposta a oggi e segnala: *Data di stato impostata a oggi (…).* Quindi imposta tu prima la data di stato.
 
@@ -24,7 +25,7 @@ Se inserisci l'avanzamento mentre non c'è ancora una data di stato, l'app la im
 
 Scegli il modo che fa al caso tuo. Danno lo stesso risultato.
 
-**Un'attività nel pannello Proprietà.** Utile quando aggiorni una sola attività.
+**Un'attività nel pannello proprietà.** Utile quando aggiorni una sola attività.
 
 1. Fai clic sull'attività. Se non vedi il pannello *Proprietà*, attivalo con *Vista › Pannelli › Proprietà*.
 2. Trascina il cursore *Progresso (%)* fino alla percentuale completata.
@@ -43,7 +44,7 @@ Un cardine ha un solo campo, *Data effettiva*.
 2. Fai doppio clic su una cella, scrivi il valore e premi Invio. Scrivi una percentuale come `50` o `50%`, una data come `25-06-2027`, una durata rimanente come `1`.
 3. Per *Stato*, dopo un doppio clic premi Invio e scegli *Non iniziata*, *In corso* o *Completata*.
 
-Se scrivi una durata rimanente, l'app calcola a ritroso la percentuale: per un'attività di 2 giorni lavorativi, una durata rimanente di 1 dà una percentuale di 50. Un residuo di 0 completa l'attività. Se scegli *Non iniziata* in *Stato*, la percentuale va a 0 e le date effettive scompaiono.
+Se scrivi una durata rimanente, l'app calcola a ritroso la percentuale: per un'attività di 2 giorni lavorativi, una durata rimanente di 1 dà una percentuale di 50. Una durata rimanente di 0 completa l'attività. La colonna *Durata effettiva* (anche nella categoria *Avanzamento*) funziona al contrario: scrivi quanto lavoro è già stato fatto e l'app calcola la percentuale. Per un'attività di 4 giorni lavorativi, una durata effettiva di 1 dà il 25%. Se scegli *Non iniziata* in *Stato*, la percentuale va a 0 e le date effettive scompaiono.
 
 **Tutti i dati di un'attività nella finestra di modifica.** Fai clic destro sull'attività e scegli *Modifica...*. Anche i campi dell'avanzamento sono lì. Si applicano solo quando fai clic su *Salva*.
 
@@ -51,7 +52,7 @@ Se scrivi una durata rimanente, l'app calcola a ritroso la percentuale: per un'a
 
 ### 3. Ricalcola la pianificazione
 
-Ogni modifica dell'avanzamento o della data di stato rende la pianificazione non aggiornata: la barra di stato segnala *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), per esempio tramite *Pianificazione › Pianificazione › Calcola*. Se *Calcola automaticamente* è attivo (in *Impostazioni › Progetto › Impostazioni*, scheda *Pianificazione*), l'app lo fa da sola.
+Ogni modifica dell'avanzamento o della data di stato rende la pianificazione non aggiornata: la barra di stato segnala *Non aggiornato — ricalcola (F5)*. Premi **Calcola** (F5), per esempio tramite *Pianificazione › Pianificazione › Calcola*. Se *Calcola automaticamente* è attivo (in *Impostazioni › Progetto › Impostazioni app*, scheda *Pianificazione*), l'app lo fa da sola.
 
 ## Controlla il risultato
 

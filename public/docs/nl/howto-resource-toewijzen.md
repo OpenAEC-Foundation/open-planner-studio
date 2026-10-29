@@ -6,7 +6,7 @@ Doel: een resource op een taak zetten, met een inzet per dag en een curve die be
 
 Zodra je wilt zien wie wanneer waar werkt: de metselaar op het buitenspouwblad, de kraan op de kanaalplaten. Zonder toewijzing is er geen belasting en dus ook geen histogram of overbezetting.
 
-Twee vaktermen. De **inzet** (in de app *Eenh./dag*) is hoeveel van de resource er per werkdag aan de taak werkt: 1 is één metselaar, 2 zijn er twee, 0,5 is een halve dag. De **curve** bepaalt hoe het totaal, inzet maal duur, over de werkdagen van de taak wordt verdeeld. Werk is zelden gelijkmatig: bij een muur is het begin rustig, het midden druk en het einde weer rustig.
+Twee vaktermen. De **inzet** (in het paneel de kolom *Inzet*, in het venster *Toewijzen* het veld *Eenh./dag*) is hoeveel van de resource er per werkdag aan de taak werkt: 1 is één metselaar, 2 zijn er twee, 0,5 is een halve dag. De **curve** bepaalt hoe het totaal, inzet maal duur, over de werkdagen van de taak wordt verdeeld. Werk is zelden gelijkmatig: bij een muur is het begin rustig, het midden druk en het einde weer rustig.
 
 Het buitenspouwblad duurt 6 werkdagen. Met één metselaar en de curve *Uniform* is dat 1 eenheid op elk van de 6 dagen, samen 6. Met de curve *Klokvorm* blijven het samen 6 eenheden, maar de verdeling wordt 0, 1, 2, 2, 1 en 0.
 
@@ -27,9 +27,9 @@ Voor een tweede resource open je het venster opnieuw. Resources die al op de taa
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 2. Kies in het blok *Toewijzingen*, helemaal onderaan, bij *Resource toewijzen* de resource. De toewijzing begint met een inzet van 1 en de curve *Uniform*.
-3. Pas per toewijzing de *Eenh./dag* aan en kies bij *Curve* een andere curve.
+3. Pas per toewijzing de *Inzet* aan. Klik op de naam van de resource om *Curve* te tonen, en kies daar een andere curve.
 
-Zo wijzig je ook een bestaande toewijzing. Met de prullenbak (*Verwijderen*) naast de naam haal je de toewijzing van de taak. De resource zelf blijft bestaan. Met *Verplaats naar…* zet je de toewijzing over op een andere taak.
+Zo wijzig je ook een bestaande toewijzing. Met de prullenbak (*Verwijderen*) aan het eind van de regel haal je de toewijzing van de taak. De resource zelf blijft bestaan. Met *Verplaats naar…* (zichtbaar na een klik op de naam) zet je de toewijzing over op een andere taak.
 
 ### De curves
 
@@ -56,7 +56,7 @@ De curve verandert alleen de verdeling. De duur, de datums en het totaal blijven
 
 **Materiaal.** Bij een materiaalresource is de inzet de hoeveelheid per dag, in de eenheid van de resource, bijvoorbeeld m³. Materiaal telt niet mee voor de duur van de taak.
 
-**Een werkregel kan de duur aanpassen.** Staat de taak op *Vast werk* of *Vaste inzet*, dan verandert een tweede resource de duur van de taak. De planning is dan verouderd; druk op **Bereken** (F5). Zie [Werkregels: duur, inzet en werk](docs://uitleg-werkregels).
+**Een taaktype kan de duur aanpassen.** Staat de taak op *Vast werk* of *Vaste inzet*, dan verandert een tweede resource de duur van de taak. De planning is dan verouderd; druk op **Bereken** (F5). Zie [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
 
 **Een eigen verdeling.** Heeft de toewijzing al een eigen urenverdeling, dan staat de curve uitgeschakeld op *Contour*. Laat die verdeling eerst los via *Urenverdeling…*.
 
@@ -66,6 +66,6 @@ De curve verandert alleen de verdeling. De duur, de datums en het totaal blijven
 
 - [Urenverdeling aanpassen](docs://howto-urenverdeling-aanpassen): de uren per dag zelf bepalen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet als een resource op een dag te veel moet doen.
-- [Werkregels: duur, inzet en werk](docs://uitleg-werkregels): wat er gebeurt met de duur als je de inzet wijzigt.
+- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): wat er gebeurt met de duur als je de inzet wijzigt.
 - [Resourcepaneel](docs://ref-resourcepaneel): alle velden en knoppen van het resourcepaneel.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): alle vijf de resourcetypes, alle zes de curves en een torenkraan met een capaciteitsstap vanaf 30 augustus 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): alle vijf de resourcetypes, zes van de acht curves en een torenkraan met een capaciteitsstap vanaf 30 augustus 2027.

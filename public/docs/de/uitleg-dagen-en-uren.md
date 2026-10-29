@@ -16,11 +16,11 @@ Die **Stundenplanung** ist standardmäßig ausgeschaltet. Solange sie aus ist, a
 
 ## So berechnet die App
 
-### Arbeitszeiten und Nettostunden
+### Arbeitszeiten und der Standard-Arbeitstag
 
 Jeder Kalender hat für jeden Arbeitstag **Zeitbänder** (in der App *Bänder* genannt). Der Standardkalender hat von 07:00 bis 12:00 und von 13:00 bis 16:00. Die Lücke ist die Pause. Die App leitet diese Bänder aus dem *Beginn (Stunde)*, dem *Ende (Stunde)* und der Pause des Kalenders ab. Sie müssen dafür nichts einstellen. Wenn Sie eigene Bänder pro Wochentag festlegen, haben diese Vorrang.
 
-Die **Nettostunden pro Tag** sind die Summe der Bänder eines Arbeitstags. Wenn die Arbeitstage unterschiedlich lang sind, gilt die häufigste tägliche Summe. Bei Gleichstand gilt die höchste. Bei vier Tagen zu je 8 Stunden und einem Freitag mit 5 Stunden sind die Nettostunden pro Tag also 8.
+Der **Standard-Arbeitstag** ist der Arbeitstag, der am häufigsten vorkommt. Seine Länge ist die Summe seiner Bänder. Er ist also kein Durchschnitt: Wenn Montag 16 Stunden hat und Dienstag bis Freitag 10 Stunden, beträgt der *Standard-Arbeitstag* 10 Stunden. Wenn die Arbeitstage unterschiedlich lang sind, gilt die häufigste tägliche Summe. Bei Gleichstand gilt die höchste. Bei vier Tagen zu je 8 Stunden und einem Freitag mit 5 Stunden ist der Standard-Arbeitstag also 8 Stunden. Ein Kalender mit eigenen Stunden pro Tag (zum Beispiel aus Primavera P6) rechnet ebenfalls mit dieser täglichen Summe, und das Kalenderfenster zeigt sie an. Der eigene Wert bleibt für den Export erhalten. Weicht er ab, zeigt das Kalenderfenster unter *Standard-Arbeitstag* einen orangen Block. Ein Vorgang von 1870 Stunden auf Bändern von 10 Stunden dauert daher 187 Tage, auch wenn sein eigener Wert 8 Stunden pro Tag ist.
 
 ### Ein Vorgang in Stunden
 
@@ -32,9 +32,9 @@ Die App zählt ganze Arbeitstage. Die Stunden pro Tag spielen keine Rolle. Ein V
 
 ### Tage und Stunden umrechnen
 
-Ein Tag entspricht den Nettostunden pro Tag im Kalender des Vorgangs. Die App verwendet das an drei Stellen:
+Ein Tag entspricht dem Standard-Arbeitstag des Kalenders des Vorgangs. Die App verwendet das an drei Stellen:
 
-- Für die *Daueranzeige*. Unter *Einstellungen › Projekt › Einstellungen*, auf der Registerkarte *Darstellung*, wählen Sie *Automatisch (eigene Einheit je Vorgang)*, *Immer Tage* oder *Immer Stunden*. Ein Vorgang von 18 Stunden wird unter *Immer Tage* als `2.25d(18h)` angezeigt: Die eigene Einheit steht in Klammern.
+- Für die *Daueranzeige*. Unter *Einstellungen › Projekt › App-Einstellungen*, auf der Registerkarte *Darstellung*, wählen Sie *Automatisch (eigene Einheit je Vorgang)*, *Immer Tage* oder *Immer Stunden*. Ein Vorgang von 18 Stunden wird unter *Immer Tage* als `2.25d(18h)` angezeigt: Die eigene Einheit steht in Klammern.
 - Für einen Zeitabstand in Stunden nach einem Tagesvorgang (siehe *Rundung*).
 - Wenn Sie die Einheit eines Vorgangs wechseln. Die App zählt dann die Tage ab dem Beginn des Vorgangs, jeden Tag mit seinen eigenen Stunden, und rechnet die Dauer sofort um, wenn das Ergebnis genau ist. Zwei Tage werden `16h`. In einem Kalender, in dem der Freitag 5 Stunden hat, werden 5 Tage ab Montag `37h`. Zwölf Stunden lassen sich in einem Kalender mit Tagen zu 8 Stunden nicht in ganze Tage umrechnen. Die App lässt die Einheit dann unverändert.
 
@@ -51,13 +51,13 @@ Die folgenden Regeln gelten für eine Ende-Anfang-Beziehung in einem Kalender oh
 Die App rundet an vier Stellen oder lehnt Werte ab:
 
 - **Ein Tagesvorgang nach einem Stundenvorgang** beginnt am nächsten Arbeitstag. Der Stundenvorgang wird sozusagen auf ganze Tage aufgerundet.
-- **Ein Zeitabstand in Stunden** wird im Kalender des Zeitabstands gezählt, standardmäßig im Kalender des Vorgängers. Ist der Vorgänger ein Tagesvorgang in einem Kalender ohne eigene Zeitbänder, zum Beispiel dem Standardkalender, rechnet die App den Zeitabstand in ganze Arbeitstage um: Der Zeitabstand geteilt durch die Nettostunden pro Tag, auf eine ganze Zahl gerundet. Ein halber Tag wird aufgerundet. Bei 8 Stunden pro Tag zählt 1 Stunde als 0 Tage, 4 Stunden als 1 Tag und 12 Stunden als 2 Tage. Das gilt auch, wenn der Nachfolger ein Stundenvorgang ist. Ist der Vorgänger ein Stundenvorgang oder hat sein Kalender eigene Zeitbänder, zählt der Zeitabstand genau in Arbeitsstunden, und die Pause zählt nicht mit.
-- **Eine Dauer in Tagen** ist immer eine ganze Zahl. Wenn Sie `1.5d` eingeben, zeigt die App *Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h.* Eine Dauer in Stunden kann `1.5h` oder `1h 30m` sein.
+- **Ein Zeitabstand in Stunden** wird im Kalender des Zeitabstands gezählt, standardmäßig im Kalender des Vorgängers. Ist der Vorgänger ein Tagesvorgang in einem Kalender ohne eigene Zeitbänder, zum Beispiel dem Standardkalender, rechnet die App den Zeitabstand in ganze Arbeitstage um: Der Zeitabstand geteilt durch die Stunden des Standard-Arbeitstags, auf eine ganze Zahl gerundet. Ein halber Tag wird aufgerundet. Bei 8 Stunden pro Tag zählt 1 Stunde als 0 Tage, 4 Stunden als 1 Tag und 12 Stunden als 2 Tage. Das gilt auch, wenn der Nachfolger ein Stundenvorgang ist. Ist der Vorgänger ein Stundenvorgang oder hat sein Kalender eigene Zeitbänder, zählt der Zeitabstand genau in Arbeitsstunden, und die Pause zählt nicht mit.
+- **Eine Dauer in Tagen** ist immer eine ganze Zahl. Wenn Sie `1.5d` eingeben, zeigt die App *Geben Sie eine ganze Anzahl Tage oder Stunden ein, zum Beispiel 2d oder 12h*. Eine Dauer in Stunden kann `1.5h` oder `1h 30m` sein.
 - **Ein Wechsel der Einheit** erfolgt nur, wenn das Ergebnis genau ist (siehe oben).
 
 ## Rechenbeispiel: der Kran
 
-Der Kalender gilt von Montag bis Freitag von 07:00 bis 12:00 und von 13:00 bis 16:00: 8 Nettostunden pro Tag. Das Projekt beginnt am Montag, 7. Juni 2027.
+Der Kalender gilt von Montag bis Freitag von 07:00 bis 12:00 und von 13:00 bis 16:00: ein Standard-Arbeitstag von 8 Stunden. Das Projekt beginnt am Montag, 7. Juni 2027.
 
 ### Stunde, Stunde und Tag
 
@@ -81,7 +81,7 @@ Nach einem Tagesvorgang funktioniert ein Zeitabstand anders. *Pour foundation* e
 
 ### Ein freier Freitagnachmittag
 
-Jetzt hat der Freitag nur ein Band, von 07:00 bis 12:00: 5 Stunden. Die anderen Tage bleiben bei 8 Stunden. Die Nettostunden pro Tag bleiben 8, weil das die häufigste tägliche Summe ist. Eine Woche hat jetzt 37 Arbeitsstunden.
+Jetzt hat der Freitag nur ein Band, von 07:00 bis 12:00: 5 Stunden. Die anderen Tage bleiben bei 8 Stunden. Der Standard-Arbeitstag bleibt 8 Stunden, weil das die häufigste tägliche Summe ist. Eine Woche hat jetzt 37 Arbeitsstunden.
 
 Ein Vorgang von 40 Stunden ab Montag, 7. Juni, 07:00, belegt Montag bis Donnerstag (32 Stunden) und den Freitag (5 Stunden). Die letzten 3 Stunden fallen auf den folgenden Montag, von 07:00 bis 10:00. Das Ende ist **Montag, 14. Juni, 10:00**. Ein Vorgang von 5 Tagen würde ab Montag 37 Stunden belegen. Genau das schlägt die App vor, wenn Sie die Einheit von 5 Tagen auf Stunden umstellen.
 
@@ -91,7 +91,7 @@ Im Tutorial 4 zur Stundenplanung planen Sie einen Kranauftrag selbst in Stunden.
 
 **„8 Stunden sind 1 Tag.“** Nur wenn der Kalender Tage zu 8 Stunden hat. Im Kalender mit dem freien Freitagnachmittag sind 5 Tage 37 Stunden, nicht 40.
 
-**„Wenn ich mehr Stunden pro Tag einstelle, endet mein Tagesvorgang früher.“** Nein. Ein Tagesvorgang zählt ganze Arbeitstage. Die Stunden pro Tag ändern nur, was ein Tag in Stunden wert ist, zum Beispiel in der Anzeige und für einen Zeitabstand in Stunden. Nur bei einem Vorgang mit Ressourcen und der Arbeitsregel *Feste Arbeit* oder *Feste Einheiten* ändert sich die Dauer mit, weil die Arbeit gleich bleibt: 40 Stunden Arbeit sind 5 Tage zu 8 Stunden pro Tag und 7 Tage zu 6 Stunden pro Tag.
+**„Wenn ich mehr Stunden pro Tag einstelle, endet mein Tagesvorgang früher.“** Nein. Ein Tagesvorgang zählt ganze Arbeitstage. Die Stunden pro Tag ändern nur, was ein Tag in Stunden wert ist, zum Beispiel in der Anzeige und für einen Zeitabstand in Stunden. Nur bei einem Vorgang mit Ressourcen und der Vorgangsart *Feste Arbeit* oder *Feste Einheiten* ändert sich die Dauer mit, weil die Arbeit gleich bleibt: 40 Stunden Arbeit sind 5 Tage zu 8 Stunden pro Tag und 7 Tage zu 6 Stunden pro Tag.
 
 **„Ein Vorgang von 8 Stunden dauert einen Tag.“** Nur wenn er am Anfang des Tages beginnt. Beginnt er später, wie *Adjust elements* am Dienstag um 11:00, läuft er bis in den nächsten Tag hinein.
 

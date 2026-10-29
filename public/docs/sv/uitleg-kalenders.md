@@ -9,7 +9,7 @@ En tidsplan räknar i **arbetsdagar**, inte i kalenderdagar. ”Fem dagars murni
 Vilka dagar som är arbetsdagar anges i en **kalender**. En kalender bestämmer tre saker:
 
 - **Arbetsveckan**: de veckodagar då arbete utförs. Som standard är det måndag till fredag.
-- **Arbetstiderna**: start, slut och rast. De ger de **nettotimmarna per dag**. Som standard är det 07:00 till 16:00 med en timmes rast, alltså 8 timmar.
+- **Arbetstiderna**: start, slut och rast. De ger den **standardarbetsdagen**. Som standard är det 07:00 till 16:00 med en timmes rast, alltså 8 timmar.
 - **Helgdagarna**: enskilda dagar eller hela perioder då inget arbete utförs, till exempel Kungens dag, jul eller byggsemestern.
 
 Ett projekt har ett bibliotek med kalendrar. En av dem är **projektkalendern**. Den gäller för varje uppgift som inte har en egen kalender. Du ger en enskild uppgift en annan kalender, till exempel en sexdagarsvecka för en underentreprenör som också arbetar på lördagar. En resurs kan också ha en egen kalender, men den gör något annat (se nedan).
@@ -40,14 +40,14 @@ Kalendern för en **resurs** spelar ingen roll för datumen. I en tidsplan som d
 När två uppgifter med olika kalendrar är länkade gäller följande:
 
 - Med ett samband av typen slut-till-start börjar den efterföljande uppgiften på den första arbetsdagen efter slutet på den föregående uppgiften. Det räknas i kalendern för den **efterföljande** uppgiften. Slutar en uppgift på en fredag, då börjar en efterföljande uppgift med sexdagarsvecka på lördagen.
-- En **fördröjning** räknas som standard i kalendern för den **föregående** uppgiften. Det kan du ändra under *Inställningar › Projekt › Projektinfo*, i blocket *Beräkningsprofil och beräkningsalternativ*, under *Beräkningsalternativ för det här projektet*, med valet *Fördröjningskalender*: *Föregående* (standard), *Efterföljande*, *24-timmars* eller *Projektkalender*.
-- Det **totalt slack** räknas i arbetsdagar i kalendern för uppgiften självt. I den här profilen räknas det **fritt slack** i kalendern för den efterföljande uppgiften.
+- En **fördröjning** räknas som standard i kalendern för den **föregående** uppgiften. Det kan du ändra under *Inställningar › Projekt › Projektinställningar*, i blocket *Beräkningsprofil och beräkningsalternativ*, under *Beräkningsalternativ för det här projektet*, med valet *Fördröjningskalender*: *Föregående* (standard), *Efterföljande*, *24-timmars* eller *Projektkalender*.
+- **Totalt slack** räknas i arbetsdagar i kalendern för uppgiften självt. I den här profilen räknas **fritt slack** i kalendern för den efterföljande uppgiften.
 
 Vad en fördröjning exakt är beskrivs i [Lägga till samband](docs://howto-relaties-leggen). Vad slack är beskrivs i [Kritisk linje och slack](docs://uitleg-kritiek-pad).
 
 ### I Gantt-diagrammet
 
-Den grå bakgrunden i Gantt-diagrammet visar alltid de lediga dagarna i **projektkalendern**. En uppgift med en egen kalender kan därför löpa över en grå dag, till exempel en sexdagarsuppgift över lördagen. Ett block med helgdagar på tre dagar eller mer får sitt namn visat, till exempel *Bouwvak (Noord)*. Det händer inte när *Visa endast arbetsdagar* är på. Vill du inte se de grå dagarna alls, slå då på *Visa endast arbetsdagar* under *Inställningar › Projekt › Inställningar*, fliken *Utseende*, rubriken *Tidsaxel*.
+Den grå bakgrunden i Gantt-diagrammet visar alltid de lediga dagarna i **projektkalendern**. En uppgift med en egen kalender kan därför löpa över en grå dag, till exempel en sexdagarsuppgift över lördagen. Ett block med helgdagar på tre dagar eller mer får sitt namn visat, till exempel *Bouwvak (Noord)*. Det händer inte när *Visa endast arbetsdagar* är på. Vill du inte se de grå dagarna alls, slå då på *Visa endast arbetsdagar* under *Inställningar › Projekt › Appinställningar*, fliken *Utseende*, rubriken *Tidsaxel*.
 
 ## Exempel: tidsplanen för bygget
 
@@ -92,9 +92,9 @@ Datumen för *Brickwork* ändras inte. Men fredag 4 juni är röd i histogrammet
 
 **”Om jag byter projektkalender flyttas allt.”** Bara de uppgifter som saknar egen kalender flyttas med. En uppgift som du själv har gett en kalender från listan behåller den, även om det råkar vara den gamla projektkalendern. Tar du bort en kalender, då sätts de uppgifter och resurser som använde den till projektkalendern.
 
-**”Helgdagarna finns väl med?”** Helgdagar finns bara för de år för vilka de skapades. En dag utanför de åren är helt enkelt en arbetsdag. I kalenderdialogen säger appen det med *Helgdagar täcker 2025–2028; projektet löper till 2030. Generera om?*
+**”Helgdagarna finns väl med?”** Helgdagar finns bara för de år för vilka de skapades. En dag utanför de åren är helt enkelt en arbetsdag. I kalenderdialogen säger appen det med *Helgdagar täcker 2025–2028. Generera om till och med 2030?*
 
-**”Fler timmar per dag gör min uppgift kortare.”** Inte för en uppgift i dagar. Den räknar hela arbetsdagar, oavsett om dagen har 6 eller 8 timmar. Bara för en uppgift med resurser och arbetsregeln *Fast arbete* eller *Fasta enheter* ändras varaktigheten med det.
+**”Fler timmar per dag gör min uppgift kortare.”** Inte för en uppgift i dagar. Den räknar hela arbetsdagar, oavsett om dagen har 6 eller 8 timmar. Bara för en uppgift med resurser och uppgiftstypen *Fast arbete* eller *Fasta enheter* ändras varaktigheten med det.
 
 **En kalender utan arbetsdagar** kan appen inte beräkna. Beräkningen meddelar *Kalendern har inga arbetsdagar inställda*.
 

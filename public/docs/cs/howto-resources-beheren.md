@@ -12,7 +12,7 @@ Dva pojmy. **Maximální počet jednotek** je kapacita za pracovní den: 1 zname
 
 ### Vytvoření zdroje
 
-1. Zvolte *Zdroje › Správa › Nový zdroj*. Panel zdrojů převezme pracovní plochu a na konci tabulky se objeví prázdný řádek. Panel můžete otevřít také na kartě *Zdroje › Správa › Zdroje* a pak zvolte *Nový zdroj v projektu*.
+1. Zvolte *Zdroje › Správa › Nový zdroj*. Panel zdrojů převezme pracovní plochu a na konci tabulky se objeví prázdný řádek. Panel také můžete otevřít na kartě *Zdroje › Správa › Zdroje* a pak zvolit *Nový zdroj v projektu*.
 2. Zadejte název, například *Bricklayer*.
 3. Zvolte *Typ*: *Práce* (výchozí), *Vybavení*, *Materiál*, *Subdodavatel* nebo *Parta*.
 4. Vyplňte ostatní pole, pokud je potřebujete. Každé pole má výchozí hodnotu: *Maximální počet jednotek* je 1 a *Kalendář* je *Projektový kalendář*. *Standardní sazba/hod* je prázdná. Pole *Jednotka* lze vyplnit jen u typu *Materiál*, například m³.
@@ -25,8 +25,8 @@ Dva pojmy. **Maximální počet jednotek** je kapacita za pracovní den: 1 zname
 Upravte pole v řádku. Aplikace uloží název, standardní sazbu a jednotku, když opustíte pole, a ostatní pole hned.
 
 - *Maximální počet jednotek* aplikace přijme jen tehdy, když je hodnota větší než 0. Při 0 nebo méně dostane pole červený rámeček a vrátí se na předchozí hodnotu.
-- *Kalendář* určuje, v kterých dnech zdroj pracuje. Zvolte *Projektový kalendář* nebo vlastní kalendář. Tlačítkem *+ Kalendář zdroje* vytvoříte nový kalendář a tužka (*Upravit…*) otevře zvolený kalendář. Pokud úkol běží v den, kdy zdroj podle svého kalendáře nepracuje, počítá se ten den jako přetížení. Jak vytvořit kalendář zdroje, je popsáno v [Nastavení kalendáře zdroje](docs://howto-resourcekalender-instellen).
-- *Standardní sazba/hod* a *Celkem*: *Celkem* je počet vytížených hodin tohoto zdroje násobený sazbou. Omítkář, který je vytížen 32 hodin se sazbou 50 za hodinu, vyjde na 1,600.00. Na konci tabulky je součet všech zdrojů.
+- *Kalendář* určuje, v kterých dnech zdroj pracuje. Zvolte *Projektový kalendář* nebo vlastní kalendář. Tlačítkem *+ Kalendář zdroje* vytvoříte nový kalendář a tužka (*Upravit…*) otevře zvolený kalendář. Pokud úkol probíhá v den, kdy zdroj podle svého kalendáře nepracuje, počítá se ten den jako přetížení. Jak vytvořit kalendář zdroje, je popsáno v [Nastavení kalendáře zdroje](docs://howto-resourcekalender-instellen).
+- *Standardní sazba/hod* a *Celkem*: *Celkem* je počet vytížených hodin tohoto zdroje násobený sazbou. Omítkář, který je vytížen 32 hodin se sazbou 50 za hodinu, vyjde na 1 600,00. Na konci tabulky je součet všech zdrojů.
 - *Parta* seskupí zdroj pod zdroj typu *Parta*. Je to jen seskupení: aplikace nesčítá kapacitu ani vytížení členů do party.
 - Barevný čtvereček vlevo je barva zdroje. Slouží jen k zobrazení a na plán nemá žádný vliv.
 
@@ -41,7 +41,7 @@ Nový krok začíná dnešním datem a 1 jednotkou. Změňte obojí, jinak plat�
 1. Klikněte v řádku na koš.
 2. Pokud má zdroj přiřazení, aplikace požádá o potvrzení, například *'Bricklayer' má 4 přiřazení — odstranit?* Klikněte na fajfku pro odstranění nebo na křížek pro zrušení. Bez přiřazení zdroj hned zmizí.
 
-Přiřazení zdroje zmizí spolu s ním. Pokud má úkol pravidlo pevné veličiny jiné než *Pevné trvání a jednotky*, aplikace rozdělí práci odstraněného zdroje mezi zbývající zdroje. Podle pravidla se tím změní jejich jednotky přiřazení nebo doba trvání úkolu. Když se doba trvání změní, plán už není aktuální.
+Přiřazení zdroje zmizí spolu s ním. Pokud je typ úkolu jiný než *Pevné trvání a jednotky*, aplikace rozdělí práci odstraněného zdroje mezi zbývající zdroje. Podle typu úkolu se tím změní jejich jednotky přiřazení nebo doba trvání úkolu. Když se doba trvání změní, plán už není aktuální.
 
 Vytvoření, úpravu i odstranění zdroje můžete vrátit pomocí *Vrátit zpět* (Ctrl+Z).
 

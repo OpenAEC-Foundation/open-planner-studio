@@ -22,7 +22,7 @@ Para un proyecto nuevo:
 
 Para un proyecto existente:
 
-1. Elija *Archivo › Info del proyecto*.
+1. Elija *Archivo › Ajustes del proyecto*.
 2. En *Biblioteca de recursos*, elija la biblioteca.
 3. Haga clic en *Aplicar*. Hasta entonces, abajo aparece *Cambios no aplicados: haga clic en Aplicar para conservarlos.*
 

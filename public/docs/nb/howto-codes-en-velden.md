@@ -36,7 +36,7 @@ For stolpefargen velger du *Visning › Grunnlinjer og fremdrift › Stolpefarge
 
 ## Fallgruver og hva appen gjør
 
-**Sletting fjerner verdiene på aktivitetene.** Hvis du sletter en kodetype, en verdi eller et felt med slettknappen, ber ikke appen om bekreftelse. Verdiene på alle aktiviteter forsvinner sammen med den. En gruppering eller sortering på den kodetypen eller det feltet faller også bort. *Angre* (Ctrl+Z) henter tilbake kodetypen, verdien eller feltet og de utfylte verdiene, men ikke gruppering eller sortering: de må du stille inn på nytt.
+**Sletting fjerner verdiene på aktivitetene.** Hvis du sletter en kodetype, en verdi eller et felt med slettknappen, ber ikke appen om bekreftelse. Verdiene på alle aktiviteter forsvinner sammen med den. En gruppering eller sortering på den kodetypen eller det feltet faller også bort. *Angre* (Ctrl+Z, lukk vinduet først) henter tilbake kodetypen, verdien eller feltet og de utfylte verdiene, men ikke gruppering eller sortering: de må du stille inn på nytt.
 
 **To verdier med samme kode.** *Legg til verdi* nummererer videre fra antall verdier som finnes. Hvis du sletter én og legger til én, kan en kode derfor finnes to ganger. Skriver du den koden i en celle i kolonnen, avviser appen den med *Denne verdien for aktivitetskoden finnes flere ganger. Velg den fra listen.* Gi hver verdi sin egen kode.
 

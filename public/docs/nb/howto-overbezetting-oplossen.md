@@ -24,7 +24,7 @@ Hvis en aktivitet er valgt, viser histogrammet bare belastningen for den aktivit
 ### 2. Velg en løsning
 
 - **Mer kapasitet.** Hvis en annen murer virkelig kommer, sett *Maksimalt antall* til 2 (se [Administrere ressurser](docs://howto-resources-beheren)). Overallokeringen er da borte.
-- **Færre tildelingsenheter per dag.** Senk *Enh./dag*, eller velg en annen kurve for tilordningen (se [Tilordne ressurser med en kurve](docs://howto-resource-toewijzen)).
+- **Færre tildelingsenheter per dag.** Senk *Tildelingsenheter*, eller velg en annen kurve for tilordningen (se [Tilordne ressurser med en kurve](docs://howto-resource-toewijzen)).
 - **Sett aktivitetene etter hverandre.** Legg til en avhengighet mellom de to aktivitetene, slik at den andre bare starter når den første er ferdig (se [Legge til avhengigheter](docs://howto-relaties-leggen)).
 - **Utjevning.** Appen får en aktivitet til å starte senere.
 

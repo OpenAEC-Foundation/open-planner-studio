@@ -84,12 +84,15 @@ alleen de aantoonbaar door P6 doorgerekende bestanden (`xer-corpus-manifest.json
 rehab-2 = P3-uitvoer, de DCP-03-Baseline-kopieën = generatoruitvoer en de synthetische bestanden zijn
 `reader-only`). Binnen een orakelbestand kan een eigenaarsbesluit bovendien projecten of taken uit de
 meetlat halen (`excludeProjects`/`excludeTasks` met `decision`; sinds 2026-09-23: OZB project 9033
-(genivelleerd), Hotel project CR, 8 HarbourPointe-taken met verouderde P6-uitvoer; sinds 2026-09-24 ook
-HarbourPointe EC1420, dat zijn datums uit die verouderde EC1430 krijgt — 42 taken, hun
+(genivelleerd), Hotel project CR, 8 HarbourPointe-taken waarvan de P6-span korter is dan de opgeslagen restduur (het
+manifest zegt "verouderde uitvoer"; de oorzaak is open, het kan ook duur uit toewijzingen zijn, zie het
+XER-lezerplan bij C10); sinds 2026-09-24 ook HarbourPointe EC1420, dat zijn datums uit die uitgesloten
+EC1430 krijgt — 42 taken, hun
 afwijkingen staan als niet-stijgende pin `excludedHidden` in het cellenbestand). Het manifestveld
 `leveledProjects` (`tests/planning/xerManifestLeveling.ts`) is het meetmechanisme voor de toekomstige
 nivellering, zonder data en zonder invloed op de telling. Het nuldoel van plan §1
 is niet gehaald (76 zesassige afwijkingen over 8 geselecteerde entries en 18 projecten op 2026-09-24, na C14;
+cel voor cel bevestigd op 2026-10-27, na de urenomzetting;
 daarvoor 15.056 op het oude, bredere orakel); mét corpus staat de suite daarom by design rood op precies die drie
 nuldoelregels. Het cellenbestand (`xer-product-fidelity-cells.json`, versie 2) is een ratchet per cel
 op emmer én afwijkingsgrootte, met een eenmalige `ratchetDebt` (14 Roads-cellen, sinds X12 brok 6 op 0) die alleen mag dalen;

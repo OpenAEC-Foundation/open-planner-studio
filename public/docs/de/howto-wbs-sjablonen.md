@@ -31,9 +31,9 @@ Alle eingefügten Vorgänge liegen am Projektstart. Der Terminplan ist damit nic
 
 ### Was in einer Vorlage enthalten ist
 
-Für jeden Vorgang behält eine Vorlage den Namen, die Beschreibung, die Vorgangsart, die Angabe, ob er ein Meilenstein ist, und die Dauer in Tagen. Von den Beziehungen behält sie jene zwischen zwei Vorgängen im Zweig, mit Typ und Zeitabstand.
+Für jeden Vorgang behält eine Vorlage den Namen, die Beschreibung, die Arbeitskategorie, die Angabe, ob er ein Meilenstein ist, und die Dauer in Tagen. Von den Beziehungen behält sie jene zwischen zwei Vorgängen im Zweig, mit Typ und Zeitabstand. Ein Zeitabstand in Stunden (`4h`) wird nicht übernommen, sondern auf 0 gesetzt. Ein Zeitabstand in Arbeitstagen, Kalendertagen oder Prozent bleibt erhalten.
 
-Alles andere bleibt zurück: Termine, Fortschritt und Ist-Werte, Zuweisungen von Ressourcen, Codes und benutzerdefinierte Felder (siehe [Codes und benutzerdefinierte Felder](docs://howto-codes-en-velden)), der Kalender, Einschränkungen und Stichtage, die Priorität, eine benutzerdefinierte Vorgangsart, bei einem Meilenstein die Art und das Häkchen *Verbindlich (vertraglich)* sowie Beziehungen zu Vorgängen außerhalb des Zweigs. Nach dem Einfügen geben Sie diese Angaben erneut ein: Zuweisungen, Codes, Kalender und Einschränkungen sind leer, und alle Vorgänge beginnen mit dem Projektstart.
+Alles andere bleibt zurück: Termine, Fortschritt und Ist-Werte, Zuweisungen von Ressourcen, Codes und benutzerdefinierte Felder (siehe [Codes und benutzerdefinierte Felder](docs://howto-codes-en-velden)), der Kalender, Einschränkungen und Stichtage, die Priorität, eine benutzerdefinierte Arbeitskategorie, bei einem Meilenstein die Art und das Häkchen *Verbindlich (vertraglich)* sowie Beziehungen zu Vorgängen außerhalb des Zweigs. Nach dem Einfügen geben Sie diese Angaben erneut ein: Zuweisungen, Codes, Kalender und Einschränkungen sind leer, und alle Vorgänge beginnen mit dem Projektstart.
 
 Ein Vorgang in Stunden kommt als Tagesvorgang zurück. Seine Dauer wird in einen Bruchteil eines Arbeitstags umgerechnet. Ein Vorgang mit 5 Stunden und einem Arbeitstag von 8 Stunden wird 0,625 Tage.
 

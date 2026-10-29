@@ -1485,6 +1485,10 @@
       "نوع المهمة",
       "أنواع المهام"
     ],
+    "avoid": [
+      "قاعدة العمل",
+      "قواعد العمل"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1637,20 +1641,22 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "فئة العمل",
+    "forms": [
+      "فئة العمل",
+      "فئات العمل",
+      "لفئة العمل",
+      "بفئة العمل"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ساعات العمل",
     "forms": [
       "ساعات العمل",
       "ساعات عمل"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "قاعدة العمل",
-    "forms": [
-      "قاعدة العمل",
-      "قواعد العمل"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

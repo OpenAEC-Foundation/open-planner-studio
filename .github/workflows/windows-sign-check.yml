@@ -1,0 +1,116 @@
+name: Windows sign check
+
+# Bouwt een release-gelijke Windows-installer mét Authenticode (zelfde
+# signCommand-route als build-windows in release.yml) zonder release, upload of
+# publicatie, zodat de signing te testen is zonder tag (een tag publiceert
+# onomkeerbaar). Installeert daarna stil en controleert setup.exe, het
+# geïnstalleerde programma en de uninstaller (issue #429).
+# Draait op een PR die deze workflow, release.yml of het signeerscript raakt, en
+# handmatig.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/windows-sign-check.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/windows-sign.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-sign-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sign:
+    # Secrets bestaan niet voor PR's uit een fork; dan niets doen.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies (npm ci)
+        run: npm ci
+
+      - name: Setup .NET 8 (Artifact Signing-dlib)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Prepare Authenticode signing (Azure Artifact Signing)
+        shell: pwsh
+        env:
+          AZURE_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
+        run: pwsh -NoProfile -File scripts/windows-sign.ps1 -Setup
+
+      # Zelfde env als build-windows in release.yml; alleen de NSIS-bundel.
+      - name: Build signed installer
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          npm run tauri -- build --bundles nsis --config "$env:OPS_SIGN_CONFIG"
+          if ($LASTEXITCODE -ne 0) { throw "tauri build faalde (exit $LASTEXITCODE)" }
+
+      - name: Install and verify Authenticode (setup, program, uninstaller)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $rows = [System.Collections.Generic.List[string]]::new()
+          $script:fails = 0
+          function Check-File($label, $path) {
+            $sig = Get-AuthenticodeSignature -FilePath $path
+            $ts = $sig.TimeStamperCertificate
+            $out = & $env:OPS_SIGNTOOL verify /pa /v $path 2>&1 | Out-String
+            $st = $LASTEXITCODE
+            Write-Host "::group::signtool verify /pa /v $label"; Write-Host $out; Write-Host "::endgroup::"
+            # signtool toont het tijdstip van de RFC 3161-tijdstempel.
+            $when = ($out -split "`n" | Where-Object { $_ -match 'The signature is timestamped:' } | Select-Object -First 1)
+            $ok = ($sig.Status -eq 'Valid') -and ($null -ne $ts) -and ($st -eq 0)
+            if (-not $ok) { $script:fails++ }
+            $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject -replace ',.*$', '' } else { 'geen' }
+            $tsa = if ($ts) { $ts.Subject -replace ',.*$', '' } else { 'geen' }
+            $when = if ($when) { ($when -replace '.*timestamped:\s*', '').Trim() } else { '-' }
+            $rows.Add("| $label | $(if ($ok) { 'OK' } else { 'FOUT' }) | $($sig.Status) | $signer | $tsa | $when | $st |")
+          }
+
+          $setup = Get-ChildItem "$env:GITHUB_WORKSPACE/src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if ($null -eq $setup) { throw "geen *-setup.exe gebouwd" }
+          Check-File 'setup.exe (installer)' $setup.FullName
+
+          $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "stil installeren faalde (exit $($p.ExitCode))" }
+          $keys = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                    'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
+          $entry = Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Open Planner Studio*' } | Select-Object -First 1
+          if ($null -eq $entry) { throw "geen Uninstall-sleutel na installeren" }
+          $uninst = $entry.UninstallString.Trim('"')
+          $dir = Split-Path $uninst
+          Check-File 'open-planner-studio.exe (geïnstalleerd)' (Join-Path $dir 'open-planner-studio.exe')
+          Check-File "$(Split-Path $uninst -Leaf) (uninstaller)" $uninst
+
+          Start-Process -FilePath $uninst -ArgumentList '/S' -Wait
+
+          $md = @("## Windows sign check", "",
+                  "| bestand | uitkomst | status | ondertekenaar | tijdstempelautoriteit | tijdstempel | signtool exit |",
+                  "|---|---|---|---|---|---|---|") + $rows
+          $md -join "`n" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append | Write-Host
+          if ($script:fails -gt 0) { throw "$($script:fails) bestand(en) zonder geldige Authenticode-handtekening met tijdstempel" }

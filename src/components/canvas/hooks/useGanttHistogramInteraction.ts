@@ -96,6 +96,8 @@ export function useGanttHistogramInteraction(
   // De dag waarvoor een hover momenteel getoond wordt óf waarvoor de vertragingstimer loopt —
   // zodat een mousemove binnen dezelfde dag geen nieuwe vertraging start (alleen de positie volgt).
   const hoverDateRef = useRef<string | null>(null);
+  const taskIndex = useRef<{ source: Task[]; byId: Map<string, Task> } | null>(null);
+  const resourceIndex = useRef<{ source: Resource[]; byId: Map<string, Resource> } | null>(null);
 
   const clearHoverTimer = useCallback(() => {
     if (hoverTimer.current) {
@@ -133,19 +135,34 @@ export function useGanttHistogramInteraction(
   }, [tooltip, clearTooltip]);
 
   const contributingTaskNames = useCallback((isoDate: string): string[] => {
+    // Pas indexeren zodra de vertraagde hover echt namen opvraagt. Nieuwe invoerarrays vervangen
+    // de index bij de volgende tooltip; een ongebruikt histogram bouwt dus helemaal geen index.
+    // Bij dubbele ids wint de eerste, net als bij de oorspronkelijke `find`.
+    if (taskIndex.current?.source !== tasks) {
+      const byId = new Map<string, Task>();
+      for (const task of tasks) if (!byId.has(task.id)) byId.set(task.id, task);
+      taskIndex.current = { source: tasks, byId };
+    }
+    if (!selectedResourceId && resourceIndex.current?.source !== resources) {
+      const byId = new Map<string, Resource>();
+      for (const resource of resources) if (!byId.has(resource.id)) byId.set(resource.id, resource);
+      resourceIndex.current = { source: resources, byId };
+    }
     const names = new Set<string>();
     for (const assignment of assignments) {
       if (selectedResourceId && assignment.resourceId !== selectedResourceId) continue;
       if (!selectedResourceId) {
-        const resource = resources.find(candidate => candidate.id === assignment.resourceId);
+        const resource = resourceIndex.current!.byId.get(assignment.resourceId);
         if (!resource || resource.type === 'MATERIAL') continue;
       }
-      const task = tasks.find(candidate => candidate.id === assignment.taskId);
+      const task = taskIndex.current.byId.get(assignment.taskId);
       if (!task) continue;
       // Rekendatums, niet de getoonde: het histogram boekt vanaf `earlyStart`
       // (`ResourceLoad.taskWorkDayIsos`), dus de tooltip noemt de taken die dáár bijdragen.
-      const start = computedStart(task);
-      const finish = computedFinish(task);
+      // De plot is dag-granulair. Een urentaak met start 07:00 draagt ook op haar startdag
+      // bij: "2027-06-28" sorteert anders vóór "2027-06-28T07:00" en wordt ten onrechte gemist.
+      const start = computedStart(task)?.slice(0, 10);
+      const finish = computedFinish(task)?.slice(0, 10);
       if (start && finish && isoDate >= start && isoDate <= finish) names.add(task.name || task.id);
     }
     return [...names];

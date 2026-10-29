@@ -9,8 +9,8 @@ Danışman MS Project ile çalışır, müşteri Primavera ile, taşeron görevl
 ## Adımlar
 
 1. *Ana sayfa › Dosya › Dışa aktar* öğesini seçin ve listeden bir biçim seçin. Ya da *Dosya › Dışa aktar* öğesini seçin. Orada her biçim, kısa bir açıklamayla birlikte bir karttır.
-2. Pencerede bir ad ve bir konum seçin. Uygulama, biçimin uzantısıyla birlikte proje adını önerir. İlerleme sayfalarının adı *proje-adı-ilerleme* olur ve mümkünse indirmeler klasörünüzde açılır.
-3. Onaylayın. Dışa aktarma başarılı olursa, aşağıdaki mesajlar dışında hiçbir mesaj görünmez. *Dosya › Dışa aktar* kullanıyorsanız, pencereyi iptal etseniz bile sonra *Ana sayfa* sekmesine dönersiniz. *Ana sayfa* sekmesindeki listeden bir dışa aktarma için pencereyi iptal ederseniz, hiçbir şey olmaz.
+2. Pencerede bir ad ve bir konum seçin. Uygulama, biçimin dosya uzantısıyla birlikte proje adını önerir. İlerleme sayfalarının adı *proje-adı-ilerleme* olur ve mümkünse indirmeler klasörünüzde açılır.
+3. Onaylayın. Dışa aktarma başarılı olursa, aşağıdaki mesajlar dışında hiçbir mesaj görünmez. *Dosya › Dışa aktar* kullanıyorsanız, pencereyi iptal etseniz bile daha sonra *Ana sayfa* sekmesine dönersiniz. *Ana sayfa* sekmesindeki listeden bir dışa aktarma için pencereyi iptal ederseniz, hiçbir şey olmaz.
 
 Tarayıcınız yalnızca indirme yoluyla kaydediyorsa (Firefox gibi), dosya 1. adımdan hemen sonra indirmeler klasörünüzdedir. Şu mesajı görürsünüz: *İndirme olarak kaydedildi: 'name.xml' artık indirmeler klasörünüzde. Bu ortam uygulamanın seçtiğiniz konuma doğrudan yazmasına izin vermiyor.*
 
@@ -18,17 +18,17 @@ Tarayıcınız yalnızca indirme yoluyla kaydediyorsa (Firefox gibi), dosya 1. a
 
 *Ana sayfa* sekmesindeki liste ve *Dosya › Dışa aktar* ekranındaki kartlar aynı biçimleri sunar:
 
-- *İlerleme (Excel)* ve *İlerleme (CSV)* biçimleri, kartlarda *İlerleme sayfası (Excel)* ve *İlerleme sayfası (CSV)*: kimliği, WBS'yi, adı, tarihleri ve tamamlanmayı içeren ince bir sayfa. Bunu ilerlemeyi dolduracak kişilere gönderin.
-- *CSV (;)*, kartta *CSV (noktalı virgülle ayrılmış)*: bir hesap tablosunda açtığınız bir görev listesi.
+- *İlerleme (Excel)* ve *İlerleme (CSV)*, kartlarda *İlerleme sayfası (Excel)* ve *İlerleme sayfası (CSV)*: kimlik, WBS, ad, tarihler ve tamamlanma bilgisi içeren ince bir sayfa. Bunu ilerlemeyi dolduracak kişilere gönderin.
+- *CSV (;)*, kartta *CSV (noktalı virgülle ayrılmış)*: hesap tablosunda açtığınız bir görev tablosu.
 - *MS Project XML*: Microsoft Project'te açılabilir.
 - *Primavera P6 XML*: Oracle Primavera P6 içindir.
-- *IFC 4x3*: uygulamanın kendi biçimi. Her şeyi içerir.
+- *IFC*: uygulamanın kendi biçimi. Her şeyi içerir, projenin IFC şemasında (varsayılan IFC 4.3 ADD2).
 
-### Kitaplık dosyasıyla IFC dışa aktarma
+### Kitaplık dosyasıyla bir IFC dışa aktarma
 
-Projeniz bir kaynak kitaplığına bağlıysa, *Kitaplık dosyasını da kaydet* onay kutusu *Dosya › Dışa aktar* ekranındaki kartların altındadır. Bu onay kutusunu işaretleyip *IFC 4x3* seçerseniz, uygulama iki kez yer sorar: önce proje için, sonra *proje-adı-kitaplık.ifc* için. Bu onay kutusu yalnızca *Dosya › Dışa aktar* ekranında bulunur, *Ana sayfa* sekmesindeki listede değil.
+Projeniz bir kaynak kitaplığına bağlıysa, *Kitaplık dosyasını da kaydet* onay kutusu *Dosya › Dışa aktar* ekranındaki kartların altındadır. Bu onay kutusunu işaretleyip *IFC* seçerseniz, uygulama iki kez yer sorar: önce proje için, sonra *proje-adı-kitaplık.ifc* için. Bu onay kutusu yalnızca *Dosya › Dışa aktar* ekranında bulunur, *Ana sayfa* sekmesindeki listede değil.
 
-### İlerleme sayfasını geri okumak
+### Bir ilerleme sayfasını geri okumak
 
 Doldurulmuş bir ilerleme sayfasını *Dosya › İçe aktar* üzerinden geri okursunuz. Bkz. [Bir hesap tablosundan ilerleme içe aktarma](docs://howto-voortgang-importeren).
 

@@ -9,7 +9,7 @@ Prijenosno računalo se ugasilo, aplikacija se zamrznula ili se kartica pregledn
 ## Koraci
 
 1. Ponovno pokrenite aplikaciju. U pregledniku ponovno učitajte istu karticu: kopija za oporavak pripada toj jednoj kartici.
-2. Ako je aplikacija pronašla kopije, pojavljuje se prozor *Vraćanje nespremljenog rada*: *Aplikacija Open Planner Studio nije se ispravno zatvorila. Sljedeći dokumenti imali su nespremljene promjene koje se mogu vratiti:* Za svaki projekt prikazuje se naziv, putanja datoteke ako projekt ima datoteku (u pregledniku samo naziv datoteke), broj zadataka i vrijeme kopije, na primjer *21 zadatak* i *Spremljeno: 29. ruj 2026., 9:41*. Prozor može prikazivati i projekte koje niste mijenjali.
+2. Ako je aplikacija pronašla kopije, pojavljuje se prozor *Vraćanje nespremljenog rada*: *Aplikacija Open Planner Studio nije se ispravno zatvorila. Sljedeći dokumenti imali su nespremljene promjene koje se mogu vratiti:* Za svaki projekt prikazuje se naziv, putanja datoteke ako projekt ima datoteku (u pregledniku samo naziv datoteke), broj zadataka i vrijeme kopije, na primjer *21 zadatak* i *Spremljeno: 29. ruj 2026., 9:41*. Vrijeme slijedi postavku *Oblik vremena*. Prozor može prikazivati i projekte koje niste mijenjali.
 3. Odaberite *Vrati*. Aplikacija otvara sve projekte s popisa, svaki u svojoj kartici, sa stanjem zadnje kopije. Tipka Enter radi isto.
 4. Provjerite svoje projekte i odmah ih spremite pomoću Ctrl+S.
 

@@ -6,12 +6,12 @@ Tabelul de activități are 86 de coloane fixe, plus câte o coloană pentru fie
 
 Tabelul de activități de lângă Gantt și tabelul din fila *Tabel* au fiecare propria alegere de coloane. Semnul plus din dreapta antetului deschide selectorul de coloane (titlul ferestrei *Alegere coloană*). Pe *Tabel* puteți folosi și *Tabel › Coloane › Coloane…*. Selectorul listează coloanele pe categorii: *Activitate*, *Planificare*, *Restricții*, *Dependențe*, *Resurse*, *Progres*, *Calculat*, *Referință*, *Particularizat* și *Tehnic*. Căutați după nume. *Utilizate recent* este în partea de sus. *Restabilire implicită* readuce coloanele implicite.
 
-Implicit, tabelul de lângă Gantt arată *WBS*, *Nume activitate* și *Durată*. Tabelul din fila *Tabel* arată *WBS*, *Nume activitate*, *Durată*, *Început*, *Sfârșit*, *Tip de activitate*, *Critic*, *Marjă totală* și *Progres*, plus câte o coloană pentru fiecare cod de activitate și câmp particularizat al proiectului.
+Implicit, tabelul de lângă Gantt arată *WBS*, *Nume activitate* și *Durată*. Tabelul din fila *Tabel* arată *WBS*, *Nume activitate*, *Durată*, *Început*, *Sfârșit*, *Categorie de lucrări*, *Critic*, *Marjă totală* și *Progres*, plus câte o coloană pentru fiecare cod de activitate și câmp particularizat al proiectului.
 
 ## Cum se citesc și se editează valorile
 
 - **Coloane calculate** — coloanele din categoria *Calculat* și alte câteva sunt doar în citire: ele vin din calcul. Dacă încercați să editați o celulă doar în citire, aplicația afișează *Această coloană calculată nu poate fi editată.* Acesta este mesajul general pentru fiecare celulă doar în citire, și când coloana nu este calculată. Dacă sunt învechite, pentru că ați modificat ceva, lângă ele apare *învechit* până apăsați *Calculare*.
-- **Date** — apar în notația pe care ați ales-o la *Setări*, fila *Vizualizare*, sub titlul *Format dată*.
+- **Date** — apar în notația pe care ați ales-o la *Setări aplicație*, fila *Afișare*, la *Format dată*.
 - **Durate și marjă** — o durată apare în unitatea activității (`5d`, `12h`), sau conform *Afișare durată* din aceeași filă (*Automat (unitatea proprie a fiecărei activități)*, *Întotdeauna zile* sau *Întotdeauna ore*). Marja apare în zile lucrătoare, cu două zecimale și cu separatorul zecimal al limbii dumneavoastră.
 - **Da/Nu** — o valoare da/nu apare ca *Da* sau *Nu*. O valoare goală apare ca o liniuță (—).
 - **Editare** — tastați sau alegeți o valoare. O valoare nevalidă este refuzată, cu un motiv sub celulă, de exemplu *Introduceți o durată validă, de exemplu 5d sau 8h.* sau *Introduceți un procent între 0 și 100.* Lipirea unui bloc de celule funcționează celulă cu celulă. Celulele doar în citire sunt sărite, iar aplicația spune câte au fost.
@@ -21,10 +21,10 @@ Implicit, tabelul de lângă Gantt arată *WBS*, *Nume activitate* și *Durată*
 - **Nume activitate** — numele activității. Editabil; obligatoriu. O activitate rezumat apare cu caractere aldine și cu un fond ușor colorat în celula numelui. Un jalon apare cu caractere aldine, în culoarea jalonului (aceeași familie de culori ca jalonul din Gantt). O activitate obișnuită rămâne neschimbată. Este doar formatare: selectarea, trăgerea și editarea funcționează la fel.
 - **Descriere** — descrierea. Editabilă; text liber.
 - **WBS** — codul WBS. Editabil și obligatoriu, dar doar în citire cât timp *WBS automat* este activat.
-- **Tip de activitate** — tipul de activitate (*Construcție*, *Instalare*, *Demolare*, *Logistică*, *Inspecție*, *Relocare*, *Renovare*, *Întreținere* sau *Altele*). Editabil, cu o listă.
-- **Tip particularizat de activitate** — tipul particularizat de activitate din proiect, sau o liniuță. Editabil, cu o listă cu tipurile particularizate ale proiectului.
+- **Categorie de lucrări** — categoria de lucrări (*Construcție*, *Instalare*, *Demolare*, *Logistică*, *Inspecție*, *Relocare*, *Renovare*, *Întreținere* sau *Altele*). Editabilă, cu o listă.
+- **Categorie particularizată de lucrări** — categoria particularizată de lucrări din proiect, sau o liniuță. Editabilă, cu o listă cu categoriile particularizate de lucrări ale proiectului.
 - **Culoare** — culoarea salvată a activității, ca un cod de culoare, de exemplu `#1a73e8`. Editabilă, cu un selector de culori. Ea este salvată în fișierul IFC, dar nicio bară sau raport nu o folosește. Culorile barelor le setați la *Vizualizare › Referințe și progres › Culori bare*.
-- **Note** — notele, ca `✓ text; ○ text`. Editabile, cât timp există cel mult o notă (atunci editați textul ei). Cu mai multe note, sunt doar în citire.
+- **Note** — notele, ca `✓ text; ○ text`. Editabile cât timp există cel mult o notă (atunci editați textul ei). Cu mai multe note, sunt doar în citire.
 
 ## Planificare
 
@@ -33,14 +33,14 @@ Implicit, tabelul de lângă Gantt arată *WBS*, *Nume activitate* și *Durată*
 - **Jalon obligatoriu** — indicatorul *Obligatoriu (prin contract)*. Editabil doar la un jalon.
 - **Prioritate de redistribuire** — un număr întreg de la 0 la 1000, implicit 500. Editabil. 1000 fixează activitatea pentru redistribuire.
 - **Întreruperi** — numărul de întreruperi, ca `Split gaps: 2`, sau o liniuță. Doar în citire. Le editați în panoul *Proprietăți*.
-- **Regulă de lucru** — regula de lucru a activității. Gol înseamnă implicitul proiectului. Editabilă, cu o listă. Dar este goală și doar în citire la un jalon, o activitate rezumat sau un hamac. Apare în selector doar când regulile de lucru sunt vizibile (*Afișare reguli de lucru și lucru*, sau fișierul conține reguli de lucru).
+- **Tip de activitate** — tipul activității. Gol înseamnă implicitul proiectului. Editabil, cu o listă, dar gol și doar în citire la un jalon, o activitate rezumat sau un hamac. Apare în selector doar când tipurile de activitate sunt vizibile (*Tipuri de activitate*, sau fișierul conține tipuri de activitate).
 - **Hamac (durată derivată)** — dacă activitatea este un hamac. Editabil, cu excepția unui jalon sau a unei activități rezumat.
-- **Calendar** — identificatorul calendarului activității. Gol (—) înseamnă calendarul proiectului. Scrieți sau alegeți un identificator din sugestii. Un identificator necunoscut este refuzat. Notă: celula arată în prezent identificatorul intern, nu numele. Alegeți mai bine un calendar în panoul *Proprietăți*.
+- **Calendar** — identificatorul calendarului activității. Gol (—) înseamnă calendarul proiectului. Scrieți sau alegeți un identificator din sugestii. Un identificator necunoscut este refuzat. Notă: celula arată în prezent identificatorul intern, nu numele. Este mai bine să alegeți un calendar în panoul *Proprietăți*.
 - **Tip de durată** — *Timp de lucru* (durata se numără în zile lucrătoare sau ore de lucru din calendar) sau *Timp scurs* (durata se numără în timp continuu al ceasului, fără calendar). Editabil.
 - **Unitate de durată** — *Zile* sau *Ore*. Editabilă, cu excepția unei activități rezumat, a unui hamac sau a unui jalon. Schimbarea funcționează doar dacă conversia este exactă și *Activare planificare pe ore* este activat.
 - **Durată** — durata activității, în unitatea activității sau conform *Afișare durată*. Editabilă: tastați `5d`, `12h` sau `1h 30m`, sau un număr în unitatea activității. Doar în citire la o activitate rezumat, un hamac și un jalon cu durata 0.
-- **Început** — începutul afișat, aceeași dată ca bara din Gantt. Editabil. O activitate cu predecesor, căreia dați un nou început, primește restricția *Nu începe înainte de (SNET)* la această dată. Doar în citire la o activitate rezumat sau un hamac, dacă nu este planificată manual.
-- **Sfârșit** — sfârșitul afișat. Editabil: un sfârșit nou devine o durată nouă. Aplicația refuză acest lucru pentru o activitate finalizată, un jalon, o activitate în timp scurs și o activitate cu întreruperi. Refuză și un sfârșit înainte de început (*Sfârșitul este înainte de început.*). Doar în citire la o activitate rezumat sau un hamac, dacă nu este planificată manual.
+- **Început** — începutul afișat, aceeași dată ca bara din Gantt. Pentru o activitate începută, acesta este începutul efectiv. Editabil. O activitate cu predecesor, căreia dați un nou început, primește restricția *Nu începe înainte de (SNET)* la această dată. Doar în citire la o activitate rezumat sau un hamac, dacă nu este planificată manual, și la o activitate începută (*Această activitate a început; începutul ei este începutul efectiv. Modificați-l prin progres.*).
+- **Sfârșit** — sfârșitul afișat. Pentru o activitate finalizată, acesta este sfârșitul efectiv. Editabil: un sfârșit nou devine o durată nouă. Aplicația refuză acest lucru pentru un jalon, o activitate în timp scurs și o activitate cu întreruperi. Refuză și un sfârșit înainte de început (*Sfârșitul este înainte de început.*). Doar în citire la o activitate rezumat sau un hamac, dacă nu este planificată manual, și la o activitate finalizată (*Această activitate este finalizată; sfârșitul este sfârșitul efectiv. Modificați-l prin progres.*).
 - **Început planificat** — ancora de planificare de la care pornește calculul. Nu este neapărat începutul afișat. Editabilă; același efect ca scrierea în *Început*.
 - **Sfârșit planificat** — sfârșitul introdus. Editabil doar la o activitate planificată manual. În caz contrar, aplicația spune *Sfârșitul planificat se aplică doar unei activități planificate manual. Modificați sfârșitul în coloana Sfârșit sau prin durată.*
 
@@ -64,11 +64,12 @@ Implicit, tabelul de lângă Gantt arată *WBS*, *Nume activitate* și *Durată*
 ## Resurse
 
 - **Resurse atribuite** — numele resurselor atribuite, separate prin virgulă. Editabil: adăugarea unui nume atribuie resursa cu 1 unitate pe zi, iar eliminarea unui nume elimină atribuirea. Doar în citire la un jalon sau o activitate rezumat.
-- **Unități de atribuire pe zi** — unitățile pe resursă, ca `Name: 1; Name: 0.5`. Editabile la o activitate cu atribuiri.
+- **Unități de atribuire pe zi** — unitățile pe resursă, ca `Name: 1; Name: 0.5`, cu cel mult două zecimale. Valoarea salvată rămâne exactă. Editabile la o activitate cu atribuiri.
+- **Unități planificate pe zi** — unitățile planificate pe resursă, ca `Name: 1.11`, cu cel mult două zecimale, ca la *Unități de atribuire pe zi*. Doar pentru o atribuire din Primavera P6 cu alte unități rămase; *Unități de atribuire pe zi* arată atunci unitățile rămase. Doar în citire.
 - **Curbă de atribuire** — curba pe resursă, ca `Name: Uniform`. Editabilă la o activitate cu atribuiri.
 - **Început fereastră de lucru** și **Sfârșit fereastră de lucru** — fereastra de lucru pe resursă, dintr-un fișier importat, ca `Name: date`. Doar în citire.
-- **Lucru planificat (ore)** și **Lucru real (ore)** — lucrul planificat și lucrul real pe resursă, în ore, ca `Name: 12`, dintr-un fișier importat. Doar în citire.
-- **Lucru rămas (ore)** — lucrul rămas pe resursă, în ore, ca `Name: 6`: lucrul salvat, altfel durata rămasă × unități. Editabil la o activitate cu atribuiri la care se aplică o regulă de lucru. Apare în selector doar când regulile de lucru sunt vizibile.
+- **Lucru planificat (ore)** și **Lucru real (ore)** — lucrul planificat și lucrul real pe resursă, în ore, ca `Name: 617.14`, cu cel mult două zecimale, dintr-un fișier importat. Doar în citire.
+- **Lucru rămas (ore)** — lucrul rămas pe resursă, în ore, ca `Name: 6` sau `Name: 26.67`: lucrul salvat, altfel durata rămasă × unități. Editabil la o activitate cu atribuiri, la care se aplică un tip de activitate, cu virgulă sau punct ca separator zecimal. Apare în selector doar când tipurile de activitate sunt vizibile. Un ⚠ galben în celulă înseamnă că lucrul salvat diferă de unități × durata rămasă, ca ⚠-ul de la *Lucru (rămas)* din panoul activității.
 
 ## Progres
 
@@ -86,16 +87,16 @@ Coloanele de progres respectă regulile de progres ale aplicației: o dată real
 
 Toate coloanele din această categorie sunt doar în citire.
 
-- **Întârziere prin redistribuire** — câte zile lucrătoare a întârziat redistribuirea activitatea. O liniuță dacă nu s-a aplicat nicio redistribuire.
-- **Început cel mai devreme** și **Sfârșit cel mai devreme** — cele mai devreme date din calcul.
+- **Întârziere prin redistribuire** — cu câte zile lucrătoare redistribuirea a întârziat activitatea. O liniuță dacă nu s-a aplicat nicio redistribuire.
+- **Început cel mai devreme** și **Sfârșit cel mai devreme** — cele mai devreme date din calcul. Pentru o activitate care este în curs sau finalizată, ele pot diferi de *Început* și *Sfârșit*: profilul de calcul *Primavera P6* pune începutul cel mai devreme al unei activități în curs sau finalizate la data raportului de stare.
 - **Început târziu** și **Sfârșit târziu** — cele mai târzii date de început și de sfârșit ale activității, fără să întârzie proiectul.
-- **Marjă liberă** — zilele lucrătoare cu care activitatea poate aluneca, fără să întârzie o succesoare.
+- **Marjă liberă** — zilele lucrătoare cu care activitatea poate aluneca, fără să întârzie începutul niciunui succesor.
 - **Marjă totală** — zilele lucrătoare cu care activitatea poate aluneca, fără să întârzie sfârșitul proiectului. Negativă dacă o restricție sau un termen limită nu poate fi respectat.
 - **Critic** — *Da*, dacă activitatea se află pe drumul critic.
 - **Marjă de interferență** — marja totală minus marja liberă.
-- **Aproape critic** — *Da* pentru o activitate aproape critică. Este completată doar dacă *Marcare activități aproape critice* este activat (*Informații proiect*, blocul *Profil de calcul și opțiuni de calcul*). În caz contrar, o liniuță.
+- **Aproape critic** — *Da* pentru o activitate aproape critică. Este completată doar dacă *Marcare activități aproape critice* este activat (*Setări proiect*, blocul *Profil de calcul și opțiuni de calcul*). În caz contrar, o liniuță.
 - **Drum de marjă** — numărul drumului de marjă, 1 pentru cel mai critic. Este completat doar dacă *Mai multe drumuri de marjă* este activat. În caz contrar, o liniuță.
-- **Sursa datelor înregistrate** — pentru un fișier cu date înregistrate: *Abatere* sau *Parțial nenregistrat*. Este vizibilă în selector doar pentru un astfel de fișier. Pe o axă neînregistrată, *Nenregistrat* apare în coloanele de date târzii și de marjă.
+- **Sursa datelor înregistrate** — cât timp aplicația arată datele din fișier: *Parțial nenregistrat* pentru o activitate la care fișierul nu conține tot. Este vizibilă în selector doar în această vedere. Pe o axă nenregistrată, *Nenregistrat* apare în coloanele de date târzii și de marjă.
 
 Vedeți [Drumul critic și marja](docs://uitleg-kritiek-pad).
 

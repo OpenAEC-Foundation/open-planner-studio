@@ -1850,7 +1850,11 @@
     ],
     "avoid": [
       "tip de task",
-      "task type"
+      "task type",
+      "regulă de lucru",
+      "regula de lucru",
+      "reguli de lucru",
+      "regulile de lucru"
     ],
     "source": "tbx",
     "status": "tbx"
@@ -2051,6 +2055,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "categorie de lucrări",
+    "forms": [
+      "categorie de lucrări",
+      "categorii de lucrări",
+      "categoriei de lucrări",
+      "categoriile de lucrări",
+      "categoria de lucrări"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "ore de lucru",
     "forms": [
@@ -2064,20 +2080,6 @@
     ],
     "source": "model",
     "status": "model"
-  },
-  "work-rule": {
-    "term": "regulă de lucru",
-    "forms": [
-      "regulă de lucru",
-      "regula de lucru",
-      "reguli de lucru",
-      "regulile de lucru"
-    ],
-    "avoid": [
-      "regulă de muncă"
-    ],
-    "source": "model",
-    "status": "arbitrated"
   },
   "workday": {
     "term": "zi lucrătoare",

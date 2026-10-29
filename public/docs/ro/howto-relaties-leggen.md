@@ -69,14 +69,14 @@ Scrieți decalajul în câmpul de lângă tip, indiferent de modul de mai sus. M
 - `3` sau `3d`: 3 zile lucrătoare. Weekendul nu se numără. Aplicația afișează `+3d`.
 - `3ed`: 3 zile calendaristice. Weekendul se numără, ca la betonul care se întărește și sâmbăta și duminica.
 - `-1`: un decalaj negativ (devans). Succesorul poate începe cu o zi mai devreme, astfel încât activitățile se suprapun.
-- `4h`: 4 ore de lucru; aplicația îl afișează ca `+4u`. Dacă predecesorul este o activitate pe zile, pe un calendar fără intervale proprii de timp de lucru, cum este calendarul standard, aplicația convertește decalajul în zile lucrătoare întregi, rotunjit la cea mai apropiată zi: `4h` devine atunci 1 zi, `2h` devine 0. Pe un calendar cu intervale proprii de timp de lucru, sau după o activitate pe ore, decalajul se numără exact în ore.
+- `4h`: 4 ore de lucru; aplicația o afișează ca `+4h`. Dacă predecesorul este o activitate pe zile, pe un calendar fără intervale proprii de timp de lucru, cum este calendarul standard, aplicația convertește decalajul în zile lucrătoare întregi, rotunjit la cea mai apropiată zi: `4h` acționează atunci ca 1 zi, `2h` ca 0. Pe un calendar cu intervale proprii de timp de lucru, sau după o activitate pe ore, decalajul se numără exact în ore.
 - `50%`: jumătate din durata predecesorului.
 
 Exemplu: betonul fundației trebuie să se întărească înainte ca zidarul să poată lucra pe el, deci *Pour foundation → Foundation brickwork* primește o dependență FS cu decalajul `3`. Dacă turnarea este vineri, 18 iunie 2027, zidăria începe după **Calculare** joi, 24 iunie: de luni până miercuri este timp de așteptare. Cu `3ed`, weekendul se numără și zidăria începe marți, 22 iunie.
 
 ### La final: recalculați
 
-O dependență nouă nu mută încă nicio bară; bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Acasă › Planificare › Calculare*. Abia atunci succesorii primesc noile date. Dacă doriți ca aplicația să facă aceasta în locul dumneavoastră, activați *Calculare automată* din *Setări › Proiect › Setări*, fila *Planificare*.
+O dependență nouă nu mută încă nicio bară; bara de stare afișează *Învechit — recalculați (F5)*. Apăsați **Calculare** (F5), de exemplu prin *Acasă › Planificare › Calculare*. Abia atunci succesorii primesc noile date. Dacă doriți ca aplicația să facă aceasta în locul dumneavoastră, activați *Calculare automată* din *Setări › Proiect › Setări aplicație*, fila *Planificare*.
 
 ## Capcane și ce face aplicația
 

@@ -12,7 +12,7 @@ Perioden er ikke knyttet til en kalendermåned, men til en **referencedag**: sta
 
 ### 1. Angiv statusdatoen
 
-Hvis du arbejder med et relativt valg, for eksempel *Næste 4 uger* eller *Forrige måned*, angiv statusdatoen først. Vælg *Tidsplan › Oprindelige planer & fremdrift* og udfyld feltet *Statusdato*. Med krydset ved siden af (*Ryd statusdato*) fjerner du datoen igen. Hvis du arbejder med en fast periode (trin 4), har du ikke brug for dette.
+Hvis du arbejder med et relativt valg, for eksempel *Næste 4 uger* eller *Forrige måned*, skal du angive statusdatoen først. Vælg *Tidsplan › Oprindelige planer & fremdrift* og udfyld feltet *Statusdato*. Med krydset ved siden af (*Ryd statusdato*) fjerner du datoen igen. Hvis du arbejder med en fast periode (trin 4), har du ikke brug for dette.
 
 ### 2. Vælg en rapport med en periode
 

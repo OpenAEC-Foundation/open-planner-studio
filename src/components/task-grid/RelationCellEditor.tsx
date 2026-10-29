@@ -11,10 +11,11 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Zap } from 'lucide-react';
+import { AlertTriangle, CircleHelp, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
+import { parseableHourSuffix } from '@/utils/durationFormat';
 import { TaskTooltipContent, TooltipRow } from '@/components/canvas/TaskTooltipContent';
 import {
   externalAnchorSideIsCompatible,
@@ -75,7 +76,11 @@ function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
       {relationType && <TooltipRow label={t('relations.type')} value={relationType} />}
       {lag && <TooltipRow label={t('relations.lag')} value={lag} />}
       {item.freeFloat !== undefined && <TooltipRow label={t('relations.freeFloat')} value={`${item.freeFloat}d`} />}
-      {item.driving && <TooltipRow label={t('relations.driving')} colon={false} />}
+      {item.kind === 'internal' && <TooltipRow
+        label={item.driving === undefined ? t('properties.drivingUnknown')
+          : item.driving ? t('relations.driving') : t('relations.notDriving')}
+        colon={false}
+      />}
       {warnings.map(warning => <TooltipRow key={warning} label={t('relations.warnings')} value={warning} />)}
     </>
   );
@@ -165,6 +170,17 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                   <Zap size={10} aria-label={t('relations.driving')} />
                 </span>
               )}
+              {item.kind === 'internal' && item.driving === undefined && (
+                <span
+                  className="task-grid-relation-icon"
+                  role="img"
+                  title={t('properties.drivingUnknown')}
+                  aria-label={t('properties.drivingUnknown')}
+                  style={{ color: 'var(--theme-text-muted)' }}
+                >
+                  <CircleHelp size={10} aria-hidden />
+                </span>
+              )}
               {item.warnings.length > 0 && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--warning" title={relationWarningTexts(item, t).join(' · ')}>
                   <AlertTriangle size={10} aria-label={t('relations.warnings')} />
@@ -234,6 +250,7 @@ export function RelationCellEditor({
   onOpenExternal,
 }: RelationCellEditorProps) {
   const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
   const validationProps = {
     'aria-invalid': inputProps['aria-invalid'],
     'aria-describedby': inputProps['aria-describedby'],
@@ -265,7 +282,10 @@ export function RelationCellEditor({
     const values: Record<string, string> = {};
     for (const token of tokens) {
       if (token.kind === 'external') {
-        values[token.relationId ?? token.external.origin.linkId] = formatExternalLagShort(token.external.lag);
+        values[token.relationId ?? token.external.origin.linkId] = formatExternalLagShort(
+          token.external.lag,
+          parseableHourSuffix(tCommon('duration.suffixHour')),
+        );
       }
     }
     return values;

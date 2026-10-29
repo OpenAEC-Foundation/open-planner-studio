@@ -67,9 +67,40 @@ jobs:
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
+        timeout-minutes: 10
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # Bugs 184/191: ook bij een geslaagde update kunnen Azure-pakketdownloads te traag blijven.
+          # Kies vóór update én installatie rechtstreeks het officiële HTTPS-archief.
+          # De Jammy-runner gebruikt /etc/apt/sources.list met mirror+file: (Azure eerst).
+          # Vervang alleen de bron-URI; behoud suites, componenten, sleutelopties en externe bronnen.
+          # https://github.com/actions/runner-images/blob/ubuntu22/20261012.322/images/ubuntu/scripts/build/configure-apt-sources.sh
+          # https://manpages.ubuntu.com/manpages/jammy/man5/sources.list.5.html
+          if ! grep -Fq 'mirror+file:/etc/apt/apt-mirrors.txt' /etc/apt/sources.list; then
+            echo "::error::Onverwachte APT-bronnen: de Jammy-mirrorlijst ontbreekt; geen veilige automatische bronwissel."
+            exit 1
+          fi
+          sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list
+
+          # apt.conf(5): één retry per bestand, 15 s verbindings-/datatime-out voor beide transports.
+          # https://manpages.ubuntu.com/manpages/jammy/man5/apt.conf.5.html
+          apt_options=(-o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+
+          # --error-on=any weigert ook gedeeltelijk mislukte updates met oude indexen.
+          # timeout draait als root voor de hele procesgroep (TERM, na 10 s KILL; geen --foreground).
+          # APT-budget: 2 + 5 min + tweemaal 10 s afsluitruimte = 7 min 20 s; staplimiet 10 min.
+          # https://manpages.ubuntu.com/manpages/jammy/man8/apt-get.8.html
+          # https://www.gnu.org/software/coreutils/manual/html_node/timeout-invocation.html
+          if ! sudo timeout --verbose --kill-after=10s 2m apt-get "${apt_options[@]}" --error-on=any update; then
+            echo "::error::APT-update via het officiële Ubuntu-archief mislukt of overschrijdt 2 min."
+            exit 1
+          fi
+
+          # Eén installatiepoging: een timeout kan dpkg onderbreken; stop dan de job zonder herstel/retry.
+          if ! sudo timeout --verbose --kill-after=10s 5m apt-get "${apt_options[@]}" install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+            echo "::error::APT-installatie mislukt of overschrijdt 5 min; frontendinstallatie en build worden niet gestart."
+            exit 1
+          fi
 
       # Bevinding O2: `npm install` mag de lockfile bijwerken, dus CI valideerde
       # hem nooit — een out-of-sync lock glipte groen door en klapte pas op de
@@ -101,11 +132,12 @@ jobs:
             name: planning
           - part: suites
             name: suites
-          # De browsersuite is de langste stap (~7,5 min in één job, plus ~6 min voor de stapscripts
-          # van de tutorials, tutorial-steps.spec.ts); Playwright verdeelt de spec-bestanden (en de
-          # tests van die spec, die `parallel` staat) over vier runners (met twee was de langste shard
-          # 5 min 11 s; met drie liepen ze al 7–8 min vóór de tutorials). Elke shard start zijn eigen
-          # bewaakte Vite-server.
+          # De browsersuite is de langste stap (~31 min testtijd in één job). Vier runners, elk met een
+          # eigen bewaakte Vite-server. De verdeling is op gemeten duur per spec
+          # (`--duration-shard`, scripts/browser-shards.mjs + tests/browser/spec-durations.json), niet
+          # Playwrights `--shard`: die knipt op aantal tests in bestandsvolgorde, waardoor alle lange
+          # tutorialspecs in shard 4 vielen (436/402/454/566 s in run 39275828606). De shards samen
+          # dekken altijd alle specs (tests/dev-server/browser-shards.test.mjs).
           - part: browser
             name: browser 1-4
             shard: 1/4
@@ -140,7 +172,7 @@ jobs:
         run: node scripts/verify-parts.mjs --check-ci .github/workflows/ci.yml
 
       - name: Verify (${{ matrix.name }})
-        run: node scripts/verify-parts.mjs ${{ matrix.part }} ${{ matrix.shard && format('-- --shard={0}', matrix.shard) || '' }}
+        run: node scripts/verify-parts.mjs ${{ matrix.part }} ${{ matrix.shard && format('-- --duration-shard={0}', matrix.shard) || '' }}
 
       - name: Upload Playwright failure artifacts
         if: failure() && matrix.part == 'browser'

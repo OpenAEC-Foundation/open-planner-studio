@@ -70,7 +70,7 @@ Deschideți PDF-ul în cititorul dumneavoastră de PDF și imprimați-l de acolo
 
 **Butonul Imprimare și Ctrl+P nu imprimă.** Butonul *Imprimare* din grupul *Raport* se află chiar pe fila Raport și nu face nimic în plus. Ctrl+P vă duce la această filă. Aplicația nu are o comandă separată de imprimare: calea spre hârtie trece prin PDF. Dacă Ctrl+P nu funcționează (vedeți pasul 1), în browser se deschide fereastra de imprimare a browserului, care imprimă ecranul, nu raportul.
 
-**Companie: suprascrierea nu se păstrează.** Câmpul *Companie:* din diagrama Gantt începe cu compania din informațiile proiectului. Ce scrieți peste el nu se păstrează. Aici nu puteți scrie în câmpul *Autor:*. Schimbați ambele cu *Setări › Proiect › Informații proiect*, în câmpurile *Beneficiar/organizație* și *Autor*, și confirmați cu *Aplicare*.
+**Companie: suprascrierea nu se păstrează.** Câmpul *Companie:* din diagrama Gantt începe cu compania din setările proiectului. Ce scrieți peste el nu se păstrează. Aici nu puteți scrie în câmpul *Autor:*. Schimbați ambele cu *Setări › Proiect › Setări proiect*, în câmpurile *Beneficiar/organizație* și *Autor*, și confirmați cu *Aplicare*.
 
 **Culori bare: se aplică și pe ecranul dumneavoastră.** Alegerea *Culori bare:* din raport este aceeași alegere ca *Culori bare* din fila Vizualizare. Dacă o schimbați în raport, diagrama Gantt de pe ecran se schimbă și ea.
 

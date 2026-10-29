@@ -1776,6 +1776,12 @@
       "vrsti zadatka",
       "vrstom zadatka"
     ],
+    "avoid": [
+      "pravilo rada",
+      "pravila rada",
+      "pravilu rada",
+      "pravilima rada"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -1957,6 +1963,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "kategorija radova",
+    "forms": [
+      "kategorija radova",
+      "kategorije radova",
+      "kategoriju radova",
+      "kategorijom radova",
+      "kategorijama radova"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "radni sati",
     "forms": [
@@ -1968,17 +1986,6 @@
     ],
     "source": "model",
     "status": "model"
-  },
-  "work-rule": {
-    "term": "pravilo rada",
-    "forms": [
-      "pravilo rada",
-      "pravila rada",
-      "pravilu rada",
-      "pravilima rada"
-    ],
-    "source": "model",
-    "status": "arbitrated"
   },
   "workday": {
     "term": "radni dan",

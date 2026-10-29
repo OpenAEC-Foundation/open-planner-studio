@@ -12,7 +12,7 @@ Máte stálu partu murárov, žeriav a omietkára, ktorí sa objavujú vo viacer
 
 ### 1. Prepojte projekt s knižnicou
 
-S knižnicou môžete pracovať, iba ak je projekt k nej prepojený. Bez prepojenia panel *Zdroje* nezobrazuje prepínač *Knižnica*, *Projekt* a *Obsadenosť*.
+S knižnicou môžete pracovať, iba ak je projekt k nej prepojený. Bez prepojenia panel zdrojov nezobrazuje prepínač *Knižnica*, *Projekt* a *Obsadenosť*.
 
 Pre nový projekt:
 
@@ -22,7 +22,7 @@ Pre nový projekt:
 
 Pre existujúci projekt:
 
-1. Vyberte *Súbor › Info o projekte*.
+1. Vyberte *Súbor › Nastavenia projektu*.
 2. V poli *Knižnica zdrojov* vyberte knižnicu.
 3. Kliknite na tlačidlo *Použiť*. Dovtedy je dole text *Zmeny nie sú použité — kliknite na Použiť, aby ste ich uložili.*
 
@@ -65,7 +65,7 @@ Správa môže oznámiť tri veci:
 Ak chcete v jednom projekte použiť iné hodnoty než v knižnici, napríklad inú štandardnú sadzbu, kópiu odpojte.
 
 1. V zobrazení *Projekt* kliknite na ikonu *Odpojiť od knižnice* na konci riadka.
-2. Zdroj je teraz bežný zdroj projektu. Všetky polia sú upraviteľné a už nesleduje knižnicu. Kalendár, ktorý prišiel so zdrojom, sa tiež odpojí, pokiaľ ho nesleduje ešte iný zdroj v tomto projekte.
+2. Zdroj je teraz bežný zdroj projektu. Všetky polia sú upraviteľné a už nesleduje knižnicu. Kalendár, ktorý prišiel so zdrojom, sa tiež odpojí, ak ho v tomto projekte nesleduje žiadny iný zdroj.
 
 Tlačidlom *Vrátiť späť* (Ctrl+Z) odpojenie vrátite späť.
 

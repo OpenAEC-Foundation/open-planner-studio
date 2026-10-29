@@ -1,12 +1,15 @@
 // Headless store-batterij voor de bedrijfsbibliotheek (spec B1). Draait de ECHTE Zustand-store op
 // Node (patroon tests/planning/check-move-assignment.ts). Persistentie (saveLibrary) valt in Node
 // stil terug (geen IndexedDB/Tauri) — we asserten alleen de in-memory state. Exitcode = poort.
+import i18next from 'i18next';
+import nlCommon from '@/i18n/locales/nl/common.json';
+import enCommon from '@/i18n/locales/en/common.json';
 import { createAppStore, useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { normalizeLoadedLibrary, persistLibrary } from '@/state/slices/librarySlice';
-import { computeCalendarHash, computeResourceHash, diffCalendarVsPool, isResourceFieldLocked } from '@/services/library/libraryOps';
+import { computeCalendarHash, computeResourceHash, diffCalendarVsPool, isResourceFieldLocked, resolveUniqueCompanyName } from '@/services/library/libraryOps';
 import { PoolImportDialog } from '@/components/dialogs/PoolImportDialog';
 import { DEFAULT_COMPANY_ID, createDefaultLibrary } from '@/types/library';
 import { DEMO_COMPANY_ID } from '@/services/library/demoLibrary';
@@ -14,11 +17,75 @@ import { createSnapshot } from '@/state/snapshot';
 import { capturePayload, hydratePayload } from '@/state/documentContract';
 import { materializeLibraryBoundary } from '@/state/documentActivation';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { createRecognitionFixture, installRecognitionFixture, legacyRecognition } from './recognition-fixture';
 
 let checks = 0; let fails = 0;
 function assert(cond: boolean, msg: string): void {
   checks++;
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
+}
+
+// Knownbug 125: de naam volgt de UI-taal bij AANMAAK, ook via de echte initLibrary-route.
+// Gebruik de echte locale-JSON's en i18next-singleton, zonder de DOM-afhankelijke UI-config.
+{
+  await i18next.init({
+    lng: 'nl', fallbackLng: 'en', ns: ['common'], defaultNS: 'common',
+    resources: { nl: { common: nlCommon }, en: { common: enCommon } },
+    interpolation: { escapeValue: false },
+    initImmediate: false,
+  });
+  for (const [lng, defaultName, newName] of [
+    ['nl', 'Mijn resourcebibliotheek', 'Nieuwe resourcebibliotheek'],
+    ['en', 'My resource library', 'New resource library'],
+  ]) {
+    await i18next.changeLanguage(lng);
+    const isolated = createAppStore();
+    const S = () => isolated.getState();
+    assert(S().companies[0].name === defaultName, `${lng}: verse store gebruikt de vertaalde standaardnaam`);
+    assert(S().pools[DEFAULT_COMPANY_ID].companyName === defaultName, `${lng}: verse pool gebruikt dezelfde standaardnaam`);
+
+    // Node heeft geen IndexedDB: dit doorloopt loadLibrary's echte tak zonder opgeslagen data.
+    await S().initLibrary();
+    assert(S().libraryLoaded, `${lng}: initLibrary voltooit de echte laadroute`);
+    assert(S().companies[0].name === defaultName, `${lng}: initLibrary behoudt de vertaalde standaardnaam`);
+    assert(S().defaultCompanyId === DEFAULT_COMPANY_ID && S().pools[DEFAULT_COMPANY_ID].companyName === defaultName,
+      `${lng}: initialisatie behoudt de vaste identiteit en overeenkomende poolnaam`);
+    assert(normalizeLoadedLibrary({}).companies[0].name === defaultName, `${lng}: lege opgeslagen data krijgt dezelfde standaardnaam`);
+
+    const addedId = S().addCompany('   ');
+    assert(S().companies.find(c => c.id === addedId)?.name === newName, `${lng}: lege nieuwe naam krijgt het vertaalde label`);
+    assert(S().pools[addedId].companyName === newName, `${lng}: nieuwe pool neemt het vertaalde label over`);
+    assert(resolveUniqueCompanyName('   ', []) === newName, `${lng}: lege importnaam gebruikt hetzelfde vertaalde label`);
+    assert(resolveUniqueCompanyName('\u200B', [newName]) === `${newName} (2)`, `${lng}: onzichtbare importnaam behoudt de botsingsafhandeling`);
+    assert(resolveUniqueCompanyName(' Eigen naam ', []) === 'Eigen naam', `${lng}: opgegeven importnaam blijft behouden`);
+
+    await i18next.changeLanguage(lng === 'nl' ? 'en' : 'nl');
+    assert(S().companies[0].name === defaultName && S().pools[DEFAULT_COMPANY_ID].companyName === defaultName,
+      `${lng}: taalwissel hernoemt de aangemaakte standaardbibliotheek niet`);
+    S().renameCompany(DEFAULT_COMPANY_ID, 'Projectbureau Één');
+    const reloaded = normalizeLoadedLibrary({
+      companies: S().companies, defaultCompanyId: S().defaultCompanyId, pools: S().pools,
+    });
+    assert(reloaded.companies[0].name === 'Projectbureau Één' && reloaded.pools[DEFAULT_COMPANY_ID].companyName === 'Projectbureau Één',
+      `${lng}: laden behoudt de opgeslagen gebruikersnaam, ook bij het standaard-id`);
+  }
+
+  // Ook de oude Nederlandse standaardnaam is opgeslagen gebruikersdata: geen migratie naar Engels.
+  await i18next.changeLanguage('nl');
+  const legacy = createDefaultLibrary();
+  await i18next.changeLanguage('en');
+  const preserved = normalizeLoadedLibrary(legacy);
+  assert(preserved.companies[0].name === 'Mijn resourcebibliotheek'
+    && preserved.pools[DEFAULT_COMPANY_ID].companyName === 'Mijn resourcebibliotheek',
+    'en: bestaande Nederlandse standaardnaam wordt niet gemigreerd');
+
+  // Zoals bij opstarten: de store kan al bestaan voordat initLocale de UI-taal heeft gekozen.
+  const bootstrapped = createAppStore();
+  await i18next.changeLanguage('nl');
+  await bootstrapped.getState().initLibrary();
+  assert(bootstrapped.getState().companies[0].name === 'Mijn resourcebibliotheek',
+    'initLibrary gebruikt de inmiddels gekozen UI-taal, niet de taal bij store-aanmaak');
+  await i18next.changeLanguage('en');
 }
 
 // Issue #76: een mislukte achtergrondopslag van de bedrijfsbibliotheek mag niet
@@ -915,6 +982,114 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   const after = useAppStore.getState();
   assert(after.project.companyId === undefined, 'ontkoppelen wist de bedrijfsbinding');
   assert(after.resources.find(r => r.id === projResId)?.libraryOrigin === undefined, 'ontkoppelen stript de stempels');
+}
+
+// --- Volledige herkenningspariteit, verse poolnamen en de bestaande toepassen/undo-route ---
+{
+  const iso = createAppStore();
+  const fixture = createRecognitionFixture(64);
+  installRecognitionFixture(iso, fixture);
+  const before = iso.getState();
+  const expected = legacyRecognition(before);
+  const actual = before.computeRecognition();
+  assert(JSON.stringify(actual) === JSON.stringify(expected),
+    'herkenningsindex: volledige kandidaten inclusief ruwe namen, nulls en voorstelvolgorde gelijk aan oude scan');
+  assert(iso.getState() === before, 'herkenningsindex: berekenen muteert de store niet');
+  assert(actual[0].projectId === 'project-r-0' && actual[actual.length / 2].projectId === 'project-c-0',
+    'herkenningsindex: resources eerst, daarna kalenders, elk in projectvolgorde');
+  assert(!actual.some(c => c.projectId === 'project-r-33' || c.projectId === 'project-c-33'),
+    'herkenningsindex: ook vreemde herkomststempels blijven buiten de volledige kandidatenlijst');
+  assert(actual.find(c => c.projectId === 'project-r-7')?.suggestedPoolId === null
+    && actual.find(c => c.projectId === 'project-c-9')?.suggestedPoolId === null,
+    'herkenningsindex: herhaald object en herhaalde id blijven ambigu in de echte store');
+
+  const documentItems = () => JSON.stringify({
+    resources: iso.getState().resources, calendars: iso.getState().calendars, calendar: iso.getState().calendar,
+  });
+  const unlinked = documentItems();
+  const links = actual.flatMap(c => c.suggestedPoolId === null ? [] : [{
+    kind: c.kind, projectId: c.projectId, poolId: c.suggestedPoolId,
+  }]);
+  iso.getState().linkRecognizedItems(links);
+  assert(iso.getState().resources[0].libraryOrigin?.libraryItemId === 'pool-r-0'
+    && iso.getState().resources[0].maxUnits === 1 && iso.getState().resources[0].costPerHour === 50,
+    'herkenningsindex: toepassen stempelt en ververst resources met behoud van projectinzet');
+  assert(iso.getState().calendars[0].libraryOrigin?.libraryItemId === 'pool-c-0'
+    && iso.getState().calendars[0].workStartHour === 7 && iso.getState().scheduleStale,
+    'herkenningsindex: toepassen ververst kalenders en markeert de planning als verouderd');
+  assert(iso.getState().historyEvents.filter(e => e.state === 'applied').length === 1,
+    'herkenningsindex: de volledige bevestiging blijft één undo-stap');
+  iso.getState().undo();
+  assert(documentItems() === unlinked, 'herkenningsindex: undo herstelt alle resources, kalenders en kalendercache');
+  assert(JSON.stringify(iso.getState().computeRecognition()) === JSON.stringify(expected),
+    'herkenningsindex: na undo is het volledige voorstel identiek');
+
+  iso.setState(s => {
+    s.pools[fixture.pool.companyId].resources[0].name = 'Niet gevonden';
+    s.pools[fixture.pool.companyId].calendars[0].name = 'Niet gevonden';
+    s.pools[fixture.pool.companyId].resources[6].name = 'Nieuwe timmerman';
+  });
+  const changed = iso.getState().computeRecognition();
+  assert(JSON.stringify(changed) === JSON.stringify(legacyRecognition(iso.getState())),
+    'herkenningsindex: volgende aanroep leest alle gewijzigde poolnamen opnieuw');
+  assert(changed.find(c => c.projectId === 'project-r-0')?.suggestedPoolId === null
+    && changed.find(c => c.projectId === 'project-c-18')?.suggestedPoolId === 'pool-c-0'
+    && changed.find(c => c.projectId === 'project-r-5')?.suggestedPoolId === 'pool-r-5',
+    'herkenningsindex: oude match verdwijnt, nieuwe verschijnt en opgeheven ambiguïteit wordt uniek');
+
+  for (const guard of ['geen-binding', 'onbekend-bedrijf', 'geen-pool'] as const) {
+    installRecognitionFixture(iso, createRecognitionFixture(24));
+    iso.setState(s => {
+      if (guard === 'geen-binding') s.project.companyId = undefined;
+      if (guard === 'onbekend-bedrijf') s.companies = [];
+      if (guard === 'geen-pool') s.pools = {};
+    });
+    assert(JSON.stringify(iso.getState().computeRecognition()) === JSON.stringify(legacyRecognition(iso.getState())),
+      `herkenningsindex: bestaande guard ${guard} blijft gelijk`);
+  }
+}
+
+// De volledige store-route heeft een lineair lees-/normalisatiebudget, zonder timingpoort.
+for (const size of [1000, 5000]) {
+  const iso = createAppStore();
+  const fixture = createRecognitionFixture(size);
+  let reads = 0;
+  const counted = <T extends { name: string }>(items: T[]): T[] => items.map(item => {
+    const name = item.name;
+    return { ...item, get name() { reads++; return name; } };
+  });
+  fixture.pool.resources = counted(fixture.pool.resources);
+  fixture.pool.calendars = counted(fixture.pool.calendars);
+  installRecognitionFixture(iso, fixture);
+  reads = 0;
+  const originalNormalize = String.prototype.normalize;
+  let normalizations = 0;
+  let candidates: ReturnType<typeof legacyRecognition> = [];
+  try {
+    String.prototype.normalize = function (this: string, form?: string) {
+      normalizations++;
+      return originalNormalize.call(this, form);
+    };
+    candidates = iso.getState().computeRecognition();
+  } finally {
+    String.prototype.normalize = originalNormalize;
+  }
+  const poolCount = fixture.pool.resources.length + fixture.pool.calendars.length;
+  const matches = candidates.filter(c => c.suggestedPoolId !== null).length;
+  assert(reads === poolCount + matches,
+    `herkenning ${size}: één poolscan plus uitvoernamen (zag ${reads}, verwacht ${poolCount + matches})`);
+  assert(normalizations === poolCount + candidates.length,
+    `herkenning ${size}: m+n normalisaties (zag ${normalizations}, verwacht ${poolCount + candidates.length})`);
+
+  // Als alles gestempeld is, hoeft de pool helemaal niet gelezen te worden.
+  iso.setState(s => {
+    for (const items of [s.resources, s.calendars]) {
+      for (const item of items) item.libraryOrigin = { companyId: 'vreemd', libraryItemId: 'bestaand', poolVersion: 1 };
+    }
+  });
+  reads = 0;
+  assert(iso.getState().computeRecognition().length === 0 && reads === 0,
+    `herkenning ${size}: volledig gestempeld project bouwt geen poolindex`);
 }
 
 // --- Herkenning: ambigue naam-match ⇒ geen voorstel (uniek-of-null, spec §5.1) ---
@@ -2072,16 +2247,18 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
 // een kalender laat taken met een werkregel meebewegen in ÉLK gekoppeld document — het actieve én de
 // slapende (settle op hun eigen taken en toewijzingen) — buiten undo en isDirty, zoals de verversing
 // zelf. De melding ("N taken aangepast") staat bij het document waar ze over gaat: het actieve meteen,
-// een slapend document bij zijn activering. Eigen storecontext, zodat de rest van dit bestand niets merkt. ---
+// een slapend document bij zijn activering. Eigen storecontext, zodat de rest van dit bestand niets merkt.
+// Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten; de regel
+// verandert dan geen duur. De taken hier hebben daarom Vaste inzet, die de duur in dagen uit het werk haalt. ---
 {
   const ctx = createAppStore();
   const g = () => ctx.getState();
   const durKey = 'notifications.workRuleDurationsChanged';
   const durMsgs = () => g().ui.notifications.filter(n => n.messageKey === durKey).map(n => n.params?.count);
-  const fixedWorkTask = (name: string): string => {
+  const fixedRateTask = (name: string): string => {
     const t = g().addTask({ name, time: createDefaultTaskTime('2026-06-01', 4) });
     g().assignResource(t, g().addResource({ name: `ploeg ${name}`, type: 'LABOR', description: '', maxUnits: 1 }), 1);
-    g().setTaskWorkRule(t, 'FIXED_WORK'); // 4 d × 8 u = 32 u
+    g().setTaskWorkRule(t, 'FIXED_RATE'); // 4 d × 8 u = 32 u
     return t;
   };
   // Document A: projectkalender naar de bibliotheek gepromoveerd.
@@ -2090,7 +2267,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   const cid = g().addCompany('H6 Bouw BV');
   g().bindProjectToCompany(cid);
   const poolCalId = g().promoteCalendarToPool(cid, g().calendars.find(c => c.id === g().project.calendarId)!)!;
-  const tA = fixedWorkTask('A');
+  const tA = fixedRateTask('A');
   const docA = g().activeDocumentId;
   // Document B: dezelfde bibliotheekkalender als projectkalender.
   g().newDocument();
@@ -2098,7 +2275,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   g().bindProjectToCompany(cid);
   const copyId = g().addLibraryCalendarToProject(cid, poolCalId).calendarId!;
   g().setProjectCalendar(copyId);
-  const tB = fixedWorkTask('B');
+  const tB = fixedRateTask('B');
   const docB = g().activeDocumentId;
   g().switchDocument(docA);
   ctx.setState((st) => {
@@ -2112,8 +2289,8 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   g().updatePoolCalendar(cid, poolCalId, { ...structuredClone(poolCal), workEndHour: 13, hoursPerDay: 6 });
   const payloadB = g().documents.find(d => d.id === docB)!.payload!;
   const durB = payloadB.tasks.find(t => t.id === tB)!.time.scheduleDuration;
-  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 6, 'H6: actief document — Vast werk 32 u op 8→6 u/d ⇒ 6 d');
-  assert(durB === 6, `H6: slapend document — settle op zijn eigen taken ⇒ 6 d (kreeg ${durB})`);
+  assert(g().tasks.find(t => t.id === tA)!.time.scheduleDuration === 16 / 3, 'H6: actief document — Vaste inzet 32 u op 8→6 u/d ⇒ 16/3 d');
+  assert(durB === 16 / 3, `H6: slapend document — settle op zijn eigen taken ⇒ 16/3 d (kreeg ${durB})`);
   assert(payloadB.assignments.find(a => a.taskId === tB)!.remainingWorkMinutes === 32 * 60, 'H6: slapend document — werk blijft 32 u');
   assert(g().historyEvents.length === eventsBefore, 'H6: verversing + settle zijn niet-undoable (geen history-event)');
   assert(!g().isDirty && !payloadB.isDirty, 'H6: verversing + settle zetten geen isDirty (actief noch slapend)');
@@ -2134,7 +2311,7 @@ function commitOpenBoundaryForTest(): { refreshed: number; deviated: number; rem
   });
   const boundary = materializeLibraryBoundary({ payload: capturePayload(g()), companies: g().companies, pools: g().pools, mode: 'open-boundary' });
   assert(boundary.signals.refreshed === 1 && boundary.workRuleSettle?.changed === 1, `H6: de grens ververst de achterlopende kalender en meldt 1 aangepaste taak (kreeg ${JSON.stringify(boundary.signals)})`);
-  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 6, 'H6: de grens settelt de taak op de payload (6 d)');
+  assert(boundary.payload.tasks.find(t => t.id === tB)!.time.scheduleDuration === 16 / 3, 'H6: de grens settelt de taak op de payload (16/3 d)');
   assert(g().tasks.find(t => t.id === tB)!.time.scheduleDuration === 4, 'H6: de grens raakt de store niet aan (pure materialisatie)');
 }
 

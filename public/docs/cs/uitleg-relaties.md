@@ -45,7 +45,7 @@ Předstih nemůže posunout úkol před zahájení projektu. Kdyby k tomu mělo 
 
 ### V jakém kalendáři se prodleva počítá
 
-Každý úkol může mít vlastní kalendář. U prodlevy v pracovních dnech záleží na tom, který kalendář počítá pracovní dny. O tom rozhoduje volba *Kalendář prodlev* se čtyřmi možnostmi: *Předchůdce*, *Následník*, *24hodinový* a *Projektový kalendář*. Výchozí je, že se prodleva počítá v kalendáři **předchůdce**. Volbu najdete na kartě *Nastavení › Projekt › Info o projektu*, v bloku *Profil výpočtu a možnosti výpočtu*, v poli *Možnosti výpočtu tohoto projektu*. Volba patří do souboru projektu a platí až po kliknutí na *Použít*. Plán se pak přepočítá.
+Každý úkol může mít vlastní kalendář. U prodlevy v pracovních dnech záleží na tom, který kalendář počítá pracovní dny. O tom rozhoduje volba *Kalendář prodlev* se čtyřmi možnostmi: *Předchůdce*, *Následník*, *24hodinový* a *Projektový kalendář*. Výchozí je, že se prodleva počítá v kalendáři **předchůdce**. Volbu najdete na kartě *Nastavení › Projekt › Nastavení projektu*, v bloku *Profil výpočtu a možnosti výpočtu*, v poli *Možnosti výpočtu tohoto projektu*. Volba patří do souboru projektu a platí až po kliknutí na *Použít*. Plán se pak přepočítá.
 
 Prodleva v kalendářních dnech (`3ed`) počítá vždy všechny dny, ať zvolíte kteroukoli možnost volby *Kalendář prodlev*.
 
@@ -62,7 +62,7 @@ Závislost mezi úkolem a fází, do které patří, není povolena.
 
 ### Hnací vazby
 
-Pokud má následník více předchůdců, obvykle určuje jeho datum zahájení jedna závislost: ta, která brání tomu, aby následník začal o jediný den dříve, než začíná nyní. Taková závislost je **hnací vazba**. Při shodě existuje více hnacích vazeb. Hnací vazbu poznáte podle symbolu blesku ve sloupcích *Předchůdci* a *Následníci* v tabulce, podle sloupce *Hnací* (**+** napravo v záhlaví tabulky, pod *Závislosti*) a podle silnějšího odstínu, když sledujete cestu. Jak cestu otevřít, je popsáno v [Sledování cesty](docs://howto-pad-traceren).
+Pokud má následník více předchůdců, obvykle určuje jeho datum zahájení jedna závislost: ta, která brání tomu, aby následník začal o jediný den dříve, než začíná nyní. Taková závislost je **hnací vazba**. Při shodě existuje více hnacích vazeb. Hnací vazbu poznáte podle symbolu blesku ve sloupcích *Předchůdci* a *Následníci* v tabulce, podle sloupce *Hnací* (**+** napravo v záhlaví tabulky, pod nadpisem *Závislosti*) a podle silnějšího odstínu, když sledujete cestu. Jak cestu otevřít, je popsáno v [Sledování cesty](docs://howto-pad-traceren).
 
 Hnací vazba říká něco o datech, ne o době trvání. Krátký předchůdce může tvořit hnací vazbu také, například kvůli dlouhé prodlevě. Uvidíte to v příkladu níže.
 

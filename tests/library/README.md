@@ -37,6 +37,9 @@ argumenten draaien gewoon door.
 | `check-i18n-plurals.ts` | CLDR-pluralvormen in de bibliotheek-UI-teksten |
 | `check-occupancy.ts` | `computeLibraryOccupancy` — het bezettingsoverzicht (B1b) |
 | `check-distribute.ts` | hoeveelheidsverdeling over resource-toewijzingen |
+| `check-apply-distribution.ts` | het schrijfpad van "Verdelen…": toepassen in het actieve document en de slapers, en alles terugdraaien inclusief de doorrekening |
+| `check-library-calendar-fields.ts` | de bibliotheek volgt ook het pauzepatroon en de werkende uitzonderingen van een kalender (store, IFC-writer/-reader, open-pad) |
+| `check-showcase-occupancy.ts` | bezetting en een oplosbaar kruis-projectconflict in de showcase-voorbeelden |
 
 ## Een test toevoegen
 

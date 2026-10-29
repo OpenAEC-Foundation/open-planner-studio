@@ -18,7 +18,7 @@ Okno resursa služi za upravljanje resursima: tko i što je dostupno, s kojim ka
 
 Tablica onoga što ovaj projekt koristi. Svaki redak je jedan resurs. Promjene teksta i standardne tarife vrijede čim napustite polje i broje se kao jedan korak pod *Poništi*.
 
-- **Boja** — birač boja. Zadano: prva slobodna boja iz palete. Učinak: boja naglaska resursa ispod traka Gantt-a (*Prikaz › Temeljni planovi i napredak › Naglasak resursa*) i boja uzorka u usidrenju resursa.
+- **Boja** — birač boja. Zadano: prva slobodna boja iz palete. Učinak: boja naglaska resursa ispod traka Gantt-a (*Prikaz › Temeljni planovi i napredak › Naglasak resursa*) i boja uzorka u Doku.
 - **Naziv** — naziv resursa. Prazan naziv se ne čuva; polje vraća stari naziv.
 - **Vrsta** — *Radna snaga*, *Oprema*, *Materijal*, *Podizvođač* ili *Ekipa*. Zadano za novi resurs: *Radna snaga*. Učinak: *Materijal* ima polje *Jedinica mjere*, ne ubraja se u zbroj *Svi resursi* u histogramu, a uravnoteživanje ga preskače. Vrsta *Ekipa* može se odabrati za polje *Ekipa* drugih resursa. Ostale vrste računaju jednako.
 - **Maksimalan postotak jedinica** — koliki dio resursa je dostupan po danu. Broj veći od 0; razlomci su dopušteni. Zadano: 1. Učinak: kapacitet po danu. Ako je opterećenje veće, resurs ima preopterećenje resursa. Strelica pored njega otvara *Kapacitet po vremenskim fazama*; broj pored strelice je broj koraka.
@@ -83,4 +83,4 @@ Gdje to vidite:
 - **Histogram** — crveni dijelovi stupića i crvena točka u izborniku.
 - **Dok** — trokut *Preopterećenje resursa*.
 
-Uravnoteživanje može riješiti preopterećenje resursa tako da pomakne zadatke unutar njihove vremenske rezerve. Ne može riješiti resurs koji mora raditi na slobodan dan. Pogledajte [Uravnoteživanje](docs://uitleg-nivelleren).
+Uravnoteživanje može riješiti preopterećenje resursa tako da zadatke pokrene kasnije. Prema zadanim postavkama datum završetka projekta može se pomaknuti; uz *smoothing* ostaje unutar vremenske rezerve. Ne može riješiti resurs koji mora raditi na slobodan dan. Pogledajte [Uravnoteživanje](docs://uitleg-nivelleren).

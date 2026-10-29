@@ -4,7 +4,7 @@ Fiecare setare a aplicației: ce face, ce valoare de pornire are, ce schimbă ș
 
 ## Unde le găsiți și cum funcționează
 
-Panoul cu setări se află în trei locuri, iar peste tot este același panou: pictograma cu roată din partea de sus a ferestrei, *Setări › Proiect › Setări* și *Fișier › Setări*. Panoul are trei file: *Afișare*, *Planificare* și *Avansat*. Fiecare setare de mai jos indică doar fila.
+Panoul cu setări se află în trei locuri, iar peste tot este același panou: pictograma cu roată din partea de sus a ferestrei, *Setări › Proiect › Setări aplicație* și *Fișier › Setări aplicație*. Panoul are trei file: *Afișare*, *Planificare* și *Avansat*. Fiecare setare de mai jos indică doar fila.
 
 O modificare intră în vigoare imediat. Nu există buton *Aplicare*, nici *Anulare*.
 
@@ -16,13 +16,15 @@ O modificare intră în vigoare imediat. Nu există buton *Aplicare*, nici *Anul
 
 **Urmărire temă sistem** — permite ca tema sistemului dumneavoastră de operare să decidă. Implicit: dezactivat. Efect: aplicația este *Luminos* sau *Întunecat*, în funcție de sistem; cele trei carduri de temă sunt atunci dezactivate. *Contrast ridicat* nu urmărește sistemul: îl alegeți singur. Dacă dezactivați această opțiune, rămâne tema care era pe ecran în acel moment. Unde: *Afișare*, sub *Temă*.
 
-**Limbă** — limba interfeței. Implicit: limba browserului sau a sistemului dumneavoastră, dacă aplicația o cunoaște; altfel engleza. Efect: toate textele din aplicație. Cele paisprezece limbi sunt sortate după codul lor scurt. Araba și persana oglindesc interfața de la dreapta la stânga. Limba articolelor de ajutor o setați separat, sub *Limba documentației* în *Fișier › Ajutor*. Unde: *Afișare*.
+**Limbă** — limba interfeței. Implicit: limba browserului sau a sistemului dumneavoastră, dacă aplicația o cunoaște; altfel engleza. Efect: toate textele din aplicație. Limbile sunt sortate după codul lor scurt. Araba și persana oglindesc interfața de la dreapta la stânga. Limba articolelor de ajutor o setați separat, sub *Limba documentației* în *Fișier › Ajutor*. Unde: *Afișare*.
 
 **Font** — fontul întregii interfețe. Alegeți dintre *Implicit*, *Sistem*, *Cu serife* și *Monospațiat*. Implicit: *Implicit*. Efect: titlurile și textul din fereastră, precum și textul din Gantt și din histogramă. O aplicație web nu urmează singură fontul sistemului; de aceea îl alegeți aici. Unde: *Afișare*.
 
 **Dimensiune text** — scara interfeței. Alegeți dintre 90%, 100%, 110% și 125%. Implicit: 100%. Efect: textul și aspectul panglicii, panourilor și dialogurilor devin mai mari sau mai mici. Înălțimea rândurilor din tabel și din Gantt se modifică în același fel. Nu există o valoare peste 125%, deoarece etichetele butoanelor din panglică s-ar rupe atunci pe mai multe rânduri. Unde: *Afișare*.
 
 **Format dată** — modul în care apar datele în aplicație. Alegeți dintre *zz-ll-aaaa*, *ll-zz-aaaa* și *aaaa-ll-zz*. Implicit: *zz-ll-aaaa*. Efect: datele din tabel, din dialoguri, din rapoarte și de la tipărire. Fișierele și calculele nu se schimbă: se schimbă doar afișarea. Unde: *Afișare*.
+
+**Format oră** — modul în care apar orele în aplicație. Alegeți dintre *24 de ore (13:00)* și *12 ore (1:00 PM)*. Implicit: *24 de ore (13:00)*. Efect: orele din fereastra *Calendare*, data și ora activităților pe ore (tabel, întreruperi, mesaje) și scara de timp *Oră* din Gantt. Într-un câmp de oră puteți scrie oricare dintre forme: *13:00*, *1300*, *13*, *1:00 PM* sau *1 pm*. Miezul nopții ca sfârșit al zilei este *24:00* sau *12:00 AM*. Fișierele și calculele nu se schimbă: rămân pe 24 de ore. Unde: *Afișare*.
 
 **Afișare durată** — în ce unitate apare durata unei activități. Alegeți dintre *Automat (unitatea proprie a fiecărei activități)*, *Întotdeauna zile* și *Întotdeauna ore*. Implicit: *Automat (unitatea proprie a fiecărei activități)*. Efect: în tabelul de activități, în etichetele barelor din Gantt, în textul explicativ, la tipărire și în rapoarte. Cu *Automat* o activitate pe zile arată zile, iar o activitate pe ore arată ore. Cu *Întotdeauna zile* sau *Întotdeauna ore* aplicația convertește folosind orele pe zi din calendarul activității. Dacă unitatea activității este alta, aplicația adaugă propria unitate între paranteze, de exemplu `2.25d(18h)`. Se schimbă doar afișarea; activitatea își păstrează propria unitate. Unde: *Afișare*.
 
@@ -44,9 +46,9 @@ O modificare intră în vigoare imediat. Nu există buton *Aplicare*, nici *Anul
 
 ## Fila Planificare
 
-**Activare mod construcție** — valori de pornire orientate spre construcții, pentru proiecte noi. Implicit: activat. Efect: activat dă unui proiect nou calendarul *Bouwkalender NL* cu sărbătorile legale olandeze. Permite să alegeți o sărbătoare de șantier la generarea sărbătorilor și oferă șabloanele de etapizare *Construcție de locuințe* și *Clădiri nerezidențiale / renovare*. Activitățile noi primesc tipul de activitate *Construcție*. Dezactivat oferă calendarul *Standaardkalender* fără sărbători, doar șablonul *Gol* și tipul de activitate *Altele*. O activitate nouă sub o activitate părinte care are un tip de activitate preia mai întâi acel tip. Abia după aceea se aplică *Construcție* sau *Altele*. Activitățile și calendarele existente nu se schimbă. Unde: *Planificare*.
+**Activare mod construcție** — valori de pornire orientate spre construcții, pentru proiecte noi. Implicit: activat. Efect: activat dă unui proiect nou calendarul *Bouwkalender NL* cu sărbătorile legale olandeze. Permite să alegeți o sărbătoare de șantier la generarea sărbătorilor și oferă șabloanele de etapizare *Construcție de locuințe* și *Clădiri nerezidențiale / renovare*. Activitățile noi primesc categoria de lucrări *Construcție*. Dezactivat oferă calendarul *Standaardkalender* fără sărbători, doar șablonul *Gol* și categoria de lucrări *Altele*. O activitate nouă sub o activitate părinte care are o categorie de lucrări preia mai întâi acea categorie. Abia după aceea se aplică *Construcție* sau *Altele*. Activitățile și calendarele existente nu se schimbă. Unde: *Planificare*.
 
-**Activare planificare pe ore** — planificare în ore de lucru, pe lângă zilele de lucru. Implicit: dezactivat. Efect: scara de timp *Oră* apare sub *Vizualizare › Scară de timp*. Fereastra *Calendare* primește blocul *Ore de lucru*. Fereastra *Creare proiect nou* primește opțiunile *Tură* și *Unitate implicită pentru activități noi*. *Informații proiect* primește opțiunea *Unitate implicită pentru activități noi*. Dezactivat, aplicația lucrează pe zile. Activitățile care sunt deja în ore rămân așa și sunt incluse în calcul. Puteți modifica durata lor abia după ce activați planificarea pe ore. Unde: *Planificare*, sub *Planificare pe ore*. Consultați [Activarea planificării pe ore](docs://howto-urenplanning-aanzetten).
+**Activare planificare pe ore** — planificare în ore de lucru, pe lângă zilele lucrătoare. Implicit: dezactivat. Efect: scara de timp *Oră* apare sub *Vizualizare › Scară de timp*. Fereastra *Calendare* permite unui calendar obișnuit să primească intervale de timp de lucru (blocul *Ore de lucru*; un calendar care are deja intervale afișează întotdeauna acest bloc). Fereastra *Creare proiect nou* primește opțiunile *Tură* și *Unitate implicită pentru activități noi*. *Setări proiect* primește opțiunea *Unitate implicită pentru activități noi*. Dezactivat, aplicația lucrează pe zile. Activitățile care sunt deja în ore rămân așa și sunt incluse în calcul. Puteți modifica durata lor abia după ce activați planificarea pe ore. Unde: *Planificare*, sub *Planificare pe ore*. Consultați [Activarea planificării pe ore](docs://howto-urenplanning-aanzetten).
 
 **Permite planificare mixtă zile/ore** — dacă alegeți unitatea pentru fiecare activitate. Vizibil doar când *Activare planificare pe ore* este activată. Implicit: activat. Efect: activat afișează lista derulantă *Unitate de durată* lângă durata fiecărei activități. Dezactivat ascunde lista. Unde: *Planificare*, sub *Planificare pe ore*. Consultați [Zile și ore](docs://uitleg-dagen-en-uren).
 
@@ -54,9 +56,11 @@ O modificare intră în vigoare imediat. Nu există buton *Aplicare*, nici *Anul
 
 **Calculare automată** — recalculează planificarea imediat ce nu mai este actuală. Implicit: dezactivat. Efect: dezactivat înseamnă că apăsați singur *Calculare* (F5). Activat face ca aplicația să recalculeze planificarea într-o fracțiune de secundă după o modificare a activităților, dependențelor sau calendarului. În timpul unui gest de tragere sau cât scrieți într-un câmp, aplicația așteaptă și calculează o singură dată, când ați terminat. După un calcul nereușit, calculează din nou doar după ce ați schimbat ceva. Unde: *Planificare*, sub *Calcul*.
 
-**Afișare reguli de lucru și lucru** — câmpurile pentru regula de lucru și lucru din aplicație. Implicit: dezactivat. Efect: activat afișează câmpul *Regulă de lucru* la o activitate și coloana de lucru pentru atribuiri. De asemenea, face disponibilă coloana de tabel *Regulă de lucru*. Dezactivat le ascunde; durata și unitățile de atribuire rămân, iar lucrul urmează. Un proiect care conține deja date despre regulă de lucru sau lucru, de exemplu dintr-un fișier `.mpp` sau `.xer`, le afișează întotdeauna, chiar dacă setarea este dezactivată. Unde: *Planificare*, sub *Calcul*. Consultați [Reguli de lucru: durată, unități și lucru](docs://uitleg-werkregels).
+**Tipuri de activitate** — câmpurile pentru tipul de activitate și lucru din aplicație. Implicit: dezactivat. Efect: activat afișează câmpul *Tip de activitate* la o activitate și coloana de lucru pentru atribuiri, și face disponibilă coloana de tabel *Tip de activitate*. Dezactivat le ascunde; durata și unitățile rămân, iar lucrul urmează. Un proiect care conține deja date despre tipul de activitate sau despre lucru, de exemplu dintr-un fișier `.mpp` sau `.xer`, le afișează întotdeauna, chiar dacă setarea este dezactivată. Unde: *Planificare*, sub *Calcul*. Consultați [Tipuri de activitate: durată, unități de atribuire și lucru](docs://uitleg-werkregels).
 
 ## Fila Avansat
+
+**Afișare explicație după deschiderea** — câte o casetă de bifare pentru fiecare format: *Fișier Primavera (.xer)*, *Fișier MS Project (.mpp)*, *MS Project XML*, *Primavera P6 XML* și *Fișier CSV*. Implicit: toate activate. Efect: activat afișează o fereastră cu o scurtă explicație a formatului după ce deschideți un astfel de fișier: ce a preluat aplicația, ce nu a preluat și cum funcționează salvarea și scrierea înapoi. *Nu mai afișa pentru …* din acea fereastră șterge bifa de aici; aici o activați din nou. Un fișier IFC, un exemplu și un proiect pe care îl deschide un asistent de inteligență artificială sau o extensie nu primesc niciodată această explicație. Unde: *Avansat*, sub *Afișare explicație după deschiderea*. Consultați [Deschiderea și salvarea unui fișier](docs://howto-bestand-openen-en-opslaan).
 
 **Activare mod AI** — lasă un asistent de inteligență artificială să lucreze cu planificarea dumneavoastră. Implicit: dezactivat. Efect: activat afișează fila *AI* cu puntea MCP, astfel încât un asistent de inteligență artificială poate lucra cu planificarea prin Model Context Protocol. Dezactivat ascunde fila și oprește puntea. Unde: *Avansat*, sub *Mod AI*. Consultați [Conectarea unui asistent de inteligență artificială (MCP)](docs://howto-ai-assistent-koppelen).
 
@@ -72,7 +76,7 @@ O modificare intră în vigoare imediat. Nu există buton *Aplicare*, nici *Anul
 - *Pe versiune* — aceleași descărcări pe versiune, cu data. Întâi apar cele șase versiuni cele mai noi. Pentru restul folosiți *Afișare toate cele … versiuni*.
 - *Sursă* — data cifrelor (GitHub Releases, actualizat săptămânal) și *Reîmprospătare acum*. Aplicația păstrează cifrele preluate timp de o jumătate de oră. Dacă preluarea nu reușește, fereastra o spune. Instalările prin Snap Store nu trec prin GitHub și lipsesc.
 
-**Pornire tur** — turul de introducere, din nou. Efect: închide fereastra cu setări și pornește turul de la primul pas. Unde: *Avansat*, sub *Tur ghidat*.
+**Pornire tur** — turul de introducere, din nou. Efect: închide fereastra *Setări aplicație* și pornește turul de la primul pas. Unde: *Avansat*, sub *Tur ghidat*.
 
 **Versiune** — numărul de versiune al aplicației, cu două butoane. *Verificare actualizări* deschide fereastra de actualizare. *Ce este nou* arată noutățile versiunii actuale. Unde: *Avansat*, sub *Versiune*.
 
@@ -113,5 +117,5 @@ Aplicația păstrează și aceste alegeri pe acest dispozitiv, dar le setați di
 - [Opțiuni de calcul și convenții](docs://ref-rekenopties-en-conventies): opțiunile care aparțin unui proiect.
 - [Activarea planificării pe ore](docs://howto-urenplanning-aanzetten): pașii pentru comutatorul *Activare planificare pe ore*.
 - [Zile și ore](docs://uitleg-dagen-en-uren): cum numără aplicația zilele și orele.
-- [Reguli de lucru: durată, unități de atribuire și lucru](docs://uitleg-werkregels): ce face vizibil *Afișare reguli de lucru și lucru*.
+- [Tipuri de activitate: durată, unități de atribuire și lucru](docs://uitleg-werkregels): ce face vizibil *Tipuri de activitate*.
 - [Comenzi rapide de la tastatură](docs://ref-sneltoetsen): toate tastele aplicației, inclusiv cele pentru zoom și derulare.

@@ -39,7 +39,7 @@ Los operadores que obtiene dependen del tipo de campo:
 - Texto (*Nombre de tarea*, *WBS*): *es igual a*, *no es igual a*, *contiene*, *empieza por* y *está vacío*.
 - Número y fecha (*Holgura total*, *Inicio*, *Avance*): *es igual a*, *no es igual a*, *menor que*, *menor o igual que*, *mayor que*, *mayor o igual que*, *entre* y *está vacío*. Con *entre* hay dos campos: para un número, *Desde* y *Hasta* como texto de ayuda; para una fecha, sin texto de ayuda (la primera fecha es el inicio, la segunda el fin).
 - Sí/no (*Crítico*, *Hito*, *Casi crítica*): *es igual a* y *no es igual a*, con el valor *Sí* o *No*.
-- Lista de opciones (*Tipo*, un código de actividad): *es igual a*, *no es igual a*, *es uno de* (con valores de casilla) y *está vacío*.
+- Lista de opciones (*Categoría de trabajo*, un código de actividad): *es igual a*, *no es igual a*, *es uno de* (con valores de casilla) y *está vacío*.
 - *Recursos*: *es uno de* y *está vacío*.
 - *En curso*: solo *entre*, con dos fechas (desde y hasta).
 
@@ -79,9 +79,9 @@ Diseños que no guardan las mismas partes pueden estar activos a la vez. Si tien
 
 **La barra de estado no sigue el filtro.** *Tareas:* en la barra de estado muestra el número de tareas de todo el proyecto, aunque un filtro muestre solo una parte de ellas.
 
-**Los diseños están en su dispositivo, no en el proyecto.** La aplicación guarda sus diseños y las columnas de todos sus proyectos en este dispositivo. Las superposiciones de un diseño (línea base, línea de avance y las demás) se aplican a todos sus proyectos. El filtro, la agrupación y el orden que están activos ahora pertenecen al proyecto abierto, pero no se guardan en el archivo del proyecto: tras guardar y volver a abrirlo, la vista está limpia otra vez. Tampoco marcan el proyecto como modificado.
+**Los diseños están en su dispositivo, no en el proyecto.** La aplicación guarda sus diseños y las columnas de todos sus proyectos en este dispositivo. Las superposiciones de un diseño (línea base, línea de progreso y las demás) se aplican a todos sus proyectos. El filtro, la agrupación y el orden que están activos ahora pertenecen al proyecto abierto, pero no se guardan en el archivo del proyecto: tras guardar y volver a abrirlo, la vista está limpia otra vez. Tampoco marcan el proyecto como modificado.
 
-**Los botones separados están ocultos.** *Columnas…*, *Filtro…*, *Agrupar…* y *Ordenar…*, como botones separados en la pestaña *Vista*, son una vista antigua. Puede volver a mostrarlos con *Mostrar los botones de vista clásicos* en *Funciones heredadas* de la pestaña *Avanzado* de la ventana de configuración (⚙ en la barra de título). Prefiera los diseños.
+**Los botones separados están ocultos.** *Columnas…*, *Filtro…*, *Agrupar…* y *Ordenar…*, como botones separados en la pestaña *Vista*, son una vista antigua. Puede volver a mostrarlos con *Mostrar los botones de vista clásicos* en *Funciones heredadas* de la pestaña *Avanzado* de la ventana *Configuración* (⚙ en la barra de título). Prefiera los diseños.
 
 ## Véase también
 

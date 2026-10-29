@@ -1,0 +1,183 @@
+{
+  "evidenceStatus": "Verkenning: HEAD geregistreerd, maar geen volledige dirty-/bronhashregistratie. Daarom geen exact bronbewijs; zie de hermeting op schone 0b0714330.",
+  "date": "2026-10-22T15:03:43.655Z",
+  "commit": "7fa19fa7ed554ede9392143a9dbd0249d1c10ea3",
+  "browser": "151.0.7922.34",
+  "cpu": "AMD Ryzen 7 3700U with Radeon Vega Mobile Gfx",
+  "logicalCores": 8,
+  "ramGiB": 13.594429016113281,
+  "load": [
+    5.39,
+    5.4,
+    8.77
+  ],
+  "node": "v24.22.0",
+  "dataset": {
+    "seed": "0x5eed",
+    "tasks": 10000,
+    "sequences": 11700,
+    "assignments": 5718,
+    "resources": 8
+  },
+  "cold": {
+    "mode": "worker",
+    "totalTickMs": 1010.6999999992549,
+    "synchronousWriterMs": 0,
+    "senderCloneMs": 97.29999999701977,
+    "longestMainTaskMs": 99,
+    "longTaskCount": 2,
+    "maxFrameGapMs": 83.29999999999995,
+    "heartbeats": 171,
+    "ifcChars": 9111485,
+    "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+  },
+  "samples": [
+    {
+      "mode": "sync",
+      "totalTickMs": 756.3000000007451,
+      "synchronousWriterMs": 700.8999999985099,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 702,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 699.9000000000001,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 836.6000000014901,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 87.30000000074506,
+      "longestMainTaskMs": 87,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 66.70000000000027,
+      "heartbeats": 138,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 806.8000000007451,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 70.10000000149012,
+      "longestMainTaskMs": 70,
+      "longTaskCount": 1,
+      "maxFrameGapMs": 49.900000000000546,
+      "heartbeats": 136,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 848.0999999977648,
+      "synchronousWriterMs": 749.9000000022352,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 750,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 733.3000000000002,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 823.5,
+      "synchronousWriterMs": 764.8000000007451,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 765,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 750,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 925.6000000014901,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 114.09999999776483,
+      "longestMainTaskMs": 114,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 99.89999999999964,
+      "heartbeats": 149,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 594.3000000007451,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 72.29999999701977,
+      "longestMainTaskMs": 72,
+      "longTaskCount": 1,
+      "maxFrameGapMs": 50,
+      "heartbeats": 98,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 518.6999999992549,
+      "synchronousWriterMs": 459,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 459,
+      "longTaskCount": 2,
+      "maxFrameGapMs": 450,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "sync",
+      "totalTickMs": 452.19999999925494,
+      "synchronousWriterMs": 404.4000000022352,
+      "senderCloneMs": 0,
+      "longestMainTaskMs": 404,
+      "longTaskCount": 1,
+      "maxFrameGapMs": 400,
+      "heartbeats": 2,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    },
+    {
+      "mode": "worker",
+      "totalTickMs": 663,
+      "synchronousWriterMs": 0,
+      "senderCloneMs": 72.20000000298023,
+      "longestMainTaskMs": 72,
+      "longTaskCount": 1,
+      "maxFrameGapMs": 66.69999999999891,
+      "heartbeats": 109,
+      "ifcChars": 9111485,
+      "normalizedSha256": "a15b316a460e670d336598712d97c4fabe6d860c7cc221cc7cf67d4b2857f880"
+    }
+  ],
+  "cloneProbe": [
+    {
+      "prepareMs": 0.10000000149011612,
+      "structuredCloneMs": 114.79999999701977,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0,
+      "structuredCloneMs": 113.59999999776483,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0.09999999776482582,
+      "structuredCloneMs": 112,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0.09999999776482582,
+      "structuredCloneMs": 108.40000000223517,
+      "tasks": 10000
+    },
+    {
+      "prepareMs": 0,
+      "structuredCloneMs": 91.09999999776483,
+      "tasks": 10000
+    }
+  ]
+}

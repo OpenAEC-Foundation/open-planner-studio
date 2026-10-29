@@ -49,7 +49,7 @@ In practice: "3. Finishing" is a phase, "Finishing house 4" a work package, "Pla
 
 A duration is an estimate of how long the work takes, not of how fast it could go. Estimate for a normal day with the crew you will actually get, not for the best day with the best crew. Optimism compounds along the chain: a schedule in which every task assumes the best day almost never meets its handover date.
 
-Days or hours is a real choice, not formatting. Choose **days** for work that sets the pace on site — bricklaying, plastering, tiling: it takes five days, whether a day happens to be eight or nine hours. Choose **hours** when the hours themselves are the unit and the remainder of the day matters: a three-hour inspection, a fourteen-hour concrete pour spread over two days, shift work. The app stores that choice per task.
+Days or hours is a real choice, not formatting. Choose **days** for work that sets the pace on site — bricklaying, plastering, tiling: it takes five days, whether a day happens to be eight or nine hours. Choose **hours** when the hours themselves are the unit and the remainder of the day matters: a three-hour inspection, a fourteen-hour concrete pour spread over two days, shift work. The app stores that choice per task. See [Days and hours](docs://uitleg-dagen-en-uren).
 
 Do not hide risk inside individual durations. Adding a day everywhere buries the margin so that nobody can see or steer it any more — and where the margin was really needed, it turns out to be too small. Make reserve visible: an explicit buffer task before the handover date, or a separate weather allowance. Watch out for double counting: the roughly 180 workable working days a year that Dutch construction reckons with is a contractual annual figure (UAV) from which public holidays, the industry shutdown *and* lost days have already been deducted. If the holidays and the shutdown are already in your project calendar, only weather delay remains as a separate item. Frost and storm delay follow their own rules in the Onwerkbaar weer Bouw & Infra collective agreement. Put those expected lost days in the calendar or in a separate item, not hidden inside the duration of the brickwork.
 
@@ -161,5 +161,5 @@ If you want *Roofing* finished on Friday 18 June, put a deadline there. Nothing 
 - [Progress, status date and baseline](docs://uitleg-voortgang): what the status date does and how to read variance.
 - [Adding tasks and milestones](docs://howto-taken-en-mijlpalen-toevoegen): entering the milestones and tasks.
 - [Adding relations](docs://howto-relaties-leggen): linking tasks together.
-- [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen): an assistant that plans by these principles.
+- [Connecting an MCP client](docs://howto-ai-assistent-koppelen): an MCP client that plans by these principles.
 - [Notifications and warnings](docs://ref-meldingen): all warnings in one place.

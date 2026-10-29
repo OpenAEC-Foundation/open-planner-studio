@@ -17,7 +17,7 @@ Wählen Sie *Datei › Bibliothek*. Links steht die Liste *Ressourcenbibliotheke
 ### Anlegen, umbenennen und Standardbibliothek wählen
 
 1. Klicken Sie auf das Plus-Symbol über der Liste (*Ressourcenbibliothek hinzufügen*). Eine Ressourcenbibliothek mit dem Namen *Neue Ressourcenbibliothek* wird hinzugefügt. Sie ist sofort ausgewählt.
-2. Geben Sie den neuen Namen in das Namensfeld oben im rechten Bereich ein und drücken Sie Enter, oder klicken Sie außerhalb des Feldes. Die App akzeptiert keinen leeren Namen.
+2. Geben Sie den neuen Namen in das Namensfeld oben im rechten Bereich ein und drücken Sie die Eingabetaste, oder klicken Sie außerhalb des Feldes. Die App akzeptiert keinen leeren Namen.
 3. Klicken Sie auf *Als Standard festlegen*, damit diese Bibliothek ab jetzt für neue Projekte vorausgewählt ist. Die Standardbibliothek hat in der Liste einen Stern.
 
 ### Einen Kalender in die Bibliothek aufnehmen
@@ -49,7 +49,7 @@ Sie haben zwei Möglichkeiten:
 - *Als neue Ressourcenbibliothek hinzufügen*: Die Datei wird eine eigene Bibliothek neben Ihren bestehenden. Darunter steht, unter welchem Namen, zum Beispiel *Wird hinzugefügt als „Mijn resourcebibliotheek (2)“.* Nichts geht verloren. Ihr aktives Projekt bleibt mit seiner eigenen Bibliothek verknüpft.
 - *Eine bestehende Ressourcenbibliothek ersetzen*: Der gesamte Inhalt der gewählten Bibliothek wird durch den Inhalt der Datei ersetzt. Die App sagt das auch: *Der Import ersetzt den GESAMTEN Pool der gewählten Ressourcenbibliothek.* Wenn Sie zwei oder mehr Bibliotheken haben, wählen Sie unter *In Ressourcenbibliothek importieren*, welche. Ist Ihre Bibliothek neuer als die Datei, warnt die App: *Ihre lokale Bibliothek ist neuer — der Import kann Ihre Änderungen überschreiben.*
 
-Die App schlägt selbst eine Option vor. Bei einer Datei, die die Standardbibliothek enthielt, ist *Als neue Ressourcenbibliothek hinzufügen* vorausgewählt. Existiert die Bibliothek aus der Datei bereits auf Ihrem Computer und ist sie nicht die Standardbibliothek, ist *Eine bestehende Ressourcenbibliothek ersetzen* vorausgewählt, mit genau dieser Bibliothek. Wenn Sie unsicher sind, wählen Sie Hinzufügen. Dabei wird nichts überschrieben.
+Die App schlägt selbst eine Option vor. Bei einer Datei, die die Standardbibliothek enthielt, ist *Als neue Ressourcenbibliothek hinzufügen* vorausgewählt. Existiert die Bibliothek aus der Datei bereits auf Ihrem Computer und ist sie nicht die Standardbibliothek, ist *Eine bestehende Ressourcenbibliothek ersetzen* vorausgewählt, mit genau dieser Bibliothek. Wenn Sie unsicher sind, wählen Sie *Hinzufügen*. Dabei wird nichts überschrieben.
 
 ### Eine Bibliothek löschen
 
@@ -60,21 +60,21 @@ Die Bibliothek ist dann gelöscht, mit allen Ressourcen und Kalendern darin. Die
 
 ### Ein Projekt zusammen mit seiner Bibliothek weitergeben
 
-Eine Projektdatei enthält eigene Kopien der Ressourcen. Wenn Sie die ganze Bibliothek mitgeben möchten, gehen Sie so vor. Auch den Export selbst beschreibt [Exportieren](docs://howto-exporteren).
+Eine Projektdatei enthält eigene Kopien der Ressourcen. Wenn Sie auch die ganze Bibliothek mitgeben möchten, gehen Sie so vor. Auch den Export selbst beschreibt [Exportieren](docs://howto-exporteren).
 
 1. Öffnen Sie ein Projekt, das mit einer Bibliothek verknüpft ist, und wählen Sie *Datei › Exportieren*.
 2. Setzen Sie ein Häkchen bei *Bibliotheksdatei zusätzlich speichern*. Das Kästchen gibt es nur bei einem verknüpften Projekt.
-3. Wählen Sie die Karte *IFC 4x3* und speichern Sie die Datei. Die App fragt dann auch nach einer zweiten Datei. Sie trägt den Namen des Projekts, gefolgt von `-bibliotheek`, und enthält die Bibliothek.
+3. Wählen Sie die Karte *IFC* und speichern Sie die Datei. Die App fragt dann auch nach einer zweiten Datei. Sie trägt den Namen des Projekts, gefolgt von `-bibliotheek`, und enthält die Bibliothek.
 
 Das Kästchen funktioniert nur beim IFC-Export, nicht bei den anderen Exportformaten. Ihr Kollege importiert die zweite Datei, wie oben beschrieben.
 
 ## Fallstricke und was die App dann tut
 
-**Zwei Planer, zwei Bibliotheken.** Die App synchronisiert Bibliotheken nicht zwischen Computern. Das Importfenster zeigt dazu immer eine Warnung: *Hinweis: Bibliotheken werden nicht zwischen Rechnern synchronisiert. Arbeiten zwei Planer mit derselben Ressourcenbibliothek, können die Bibliotheken auseinanderlaufen. Teilt Ihre Organisation Kolonnen über Betriebsgesellschaften hinweg, wählen Sie bewusst einen gemeinsamen Pool.*
+**Zwei Planer, zwei Bibliotheken.** Die App synchronisiert Bibliotheken nicht zwischen Computern. Das Importfenster zeigt dazu immer eine Warnung: *Hinweis: Bibliotheken werden nicht zwischen Rechnern synchronisiert. Arbeiten zwei Planer mit derselben Ressourcenbibliothek, können die Bibliotheken auseinanderlaufen. Teilt Ihre Organisation Kolonnen über Betriebsgesellschaften hinweg, wählen Sie bewusst eine gemeinsame Ressourcenbibliothek.*
 
-**Ersetzen überschreibt alles.** Alles, was Sie in der gewählten Bibliothek hatten, ist verloren. Eine Änderung an der Bibliothek fällt nicht unter *Rückgängig*. Exportieren Sie zuerst, wenn Sie unsicher sind.
+**Ersetzen überschreibt alles.** Alles, was Sie in der gewählten Bibliothek hatten, ist verloren. Eine Änderung an der Bibliothek fällt nicht unter *Rückgängig*. Exportieren Sie zuerst, wenn Sie unsicher sind. Ihre Projekte behalten ihre Kopien. Die App aktualisiert Kopien, die es in der neuen Datei noch gibt. Kopien, die darin nicht mehr vorkommen, erhalten die Markierung *nicht mehr in der Bibliothek* und funktionieren weiter. Unterscheidet sich eine Kopie, öffnet sich das Fenster *Ressourcenbibliothek verknüpfen* (siehe [Die Ressourcenbibliothek verwenden](docs://howto-resourcebibliotheek-gebruiken)).
 
-**Einen Kalender aus der Liste löschen geschieht sofort.** Die App fragt nicht nach, bei einer Ressource dagegen schon. Das wirkt wie ein Mangel. Änderungen an der Bibliothek fallen nicht unter *Rückgängig*.
+**Einen Kalender aus der Liste löschen geschieht sofort.** Die App fragt nicht nach, bei einer Ressource dagegen schon. Das wirkt wie ein Mangel. Änderungen an Bibliotheken fallen nicht unter *Rückgängig*.
 
 ## Siehe auch
 

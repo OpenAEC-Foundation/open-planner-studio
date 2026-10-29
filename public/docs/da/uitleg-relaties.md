@@ -45,7 +45,7 @@ Et forskud kan ikke sætte en opgave før projektstartdatoen. Ville det ske, hol
 
 ### I hvilken kalender forsinkelsen tæller
 
-Hver opgave kan have sin egen kalender. Ved en forsinkelse i arbejdsdage betyder det noget, hvilken kalender der tæller arbejdsdagene. Indstillingen *Forsinkelseskalender* bestemmer det. Der er fire valg: *Foregående opgave*, *Efterfølgende opgave*, *24-timers* og *Projektkalender*. Som standard tæller forsinkelsen i kalenderen for den **foregående opgave**. Du finder indstillingen under *Indstillinger › Projekt › Projektinfo*, i blokken *Beregningsprofil og beregningsindstillinger*, ved *Beregningsindstillinger for dette projekt*. Valget hører til projektfilen. Det gælder kun, når du klikker på *Anvend*. Derefter genberegnes tidsplanen.
+Hver opgave kan have sin egen kalender. Ved en forsinkelse i arbejdsdage betyder det noget, hvilken kalender der tæller arbejdsdagene. Indstillingen *Forsinkelseskalender* bestemmer det. Der er fire valg: *Foregående opgave*, *Efterfølgende opgave*, *24-timers* og *Projektkalender*. Som standard tæller forsinkelsen i kalenderen for den **foregående opgave**. Du finder indstillingen under *Indstillinger › Projekt › Projektindstillinger*, i blokken *Beregningsprofil og beregningsindstillinger*, ved *Beregningsindstillinger for dette projekt*. Valget hører til projektfilen. Det gælder kun, når du klikker på *Anvend*. Derefter genberegnes tidsplanen.
 
 En forsinkelse i kalenderdage (`3ed`) tæller altid alle dage, uanset hvilken *Forsinkelseskalender* du vælger.
 
@@ -56,7 +56,7 @@ Du kan sætte en afhængighed på en fase (en hovedopgave) i stedet for på en o
 - En fase som **foregående opgave** med FS eller FF: den efterfølgende opgave venter, til den sidste opgave i fasen er færdig.
 - En fase som **efterfølgende opgave** med FS eller SS: hver opgave i fasen venter på den foregående opgave, uafhængigt af de andre opgaver i fasen.
 - En fase som **foregående opgave** med SS eller SF: den efterfølgende opgave venter på starten af den opgave i fasen, der starter **sidst**, og ikke på starten af fasen selv. Det er mere forsigtigt, end du måske forventer: den efterfølgende opgave starter aldrig for tidligt, men muligvis senere, end du mener. Vil du have, at den efterfølgende opgave følger starten af fasen, så sæt afhængigheden på den første opgave i fasen.
-- En fase som **efterfølgende opgave** med FF eller SF: hver opgave i fasen skal selv opfylde kravet om slut. Med FF skal den slutte på eller efter den foregående opgaves slutdato. Med SF skal den slutte på eller efter den foregående opgaves start. Det gælder også en opgave, der kunne være udført meget tidligere. Sæt hellere en sådan afhængighed på den sidste opgave i fasen.
+- En fase som **efterfølgende opgave** med FF eller SF: hver opgave i fasen skal selv opfylde kravet om slut. Med FF skal den slutte på eller efter den foregående opgaves slutdato. Med SF skal den slutte på eller efter den foregående opgaves start. Det gælder endda en opgave, der kunne være udført meget tidligere. Sæt hellere en sådan afhængighed på den sidste opgave i fasen.
 
 En afhængighed mellem en opgave og den fase, den ligger under, er ikke tilladt.
 

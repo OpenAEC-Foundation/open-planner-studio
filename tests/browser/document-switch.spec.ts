@@ -95,3 +95,87 @@ test('Gantt documenttabs herstellen beide paneviews en DOM-scrollbars', async ({
   await page.locator(`[data-testid="document-tab"][data-ops-tab="${bId}"]`).click();
   await expectDocument(page, bId, 'Document B', bIds[5], viewB);
 });
+
+// Andere beginstand en doel dan de Gantt-scrollroute hierboven: een gekoppeld, gewijzigd
+// document bewerken via de IFC-editor, daarna undo/redo, wisselen en veilig sluiten (knownbug 127).
+test('IFC toepassen behoudt documentbinding en sluitwaarschuwing, met één undo-stap', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    { name: 'Voor IFC-bewerking', start: '2026-09-07', finish: '2026-09-08', durationDays: 2 },
+  ], 'IFC-editorproject');
+  const otherId = await page.evaluate(() => {
+    const s = () => window.__OPS__!.store.getState();
+    const companyId = s().seedDemoLibrary();
+    s().bindProjectToCompany(companyId);
+    const pool = s().pools[companyId];
+    s().addLibraryResourceToProject(companyId, pool.resources[0].id);
+    const calendar = s().addLibraryCalendarToProject(companyId, pool.calendars[0].id);
+    s().setProjectCalendar(calendar.calendarId!);
+    s().setFilePath('editor.ifc');
+    // Alleen fixturedata: geen opslagactie. De versie moet de basis voor de volgende opslag blijven.
+    window.__OPS__!.store.setState({ siteFileId: 'site-editor', siteFileVersion: 'version-17' });
+    s().runCPM();
+    const sourceId = s().activeDocumentId;
+    const secondId = s().newDocument();
+    s().setProject({ name: 'Ander document' });
+    s().switchDocument(sourceId);
+    return secondId;
+  });
+  const identity = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return {
+      documentId: s.activeDocumentId,
+      documentCount: s.documents.length,
+      projectId: s.project.id,
+      companyId: s.project.companyId,
+      companyName: s.project.companyName,
+      resourceOrigin: s.resources[0].libraryOrigin,
+      calendarOrigin: s.calendar.libraryOrigin,
+      filePath: s.filePath,
+      siteFileId: s.siteFileId,
+      siteFileVersion: s.siteFileVersion,
+      isDirty: s.isDirty,
+    };
+  });
+  const before = await identity();
+  const undoBefore = (await state(page)).undoDepth;
+  expect(before.isDirty).toBe(true);
+  expect(before.resourceOrigin).toBeDefined();
+  expect(before.calendarOrigin).toBeDefined();
+
+  await page.locator('[data-ops-ribbon-tab="ifc"]').click();
+  const editor = page.locator('textarea:visible');
+  await expect(editor).toHaveValue(/Voor IFC-bewerking/);
+  const sourceText = await editor.inputValue();
+  const editedText = sourceText.replace(/(=IFCTASK\('[^']*',#\d+,)'Voor IFC-bewerking'/, "$1'Na IFC-bewerking'");
+  // De eerste losse naam staat in IFCTASKTIME; wijzig doelgericht het IFCTASK-naamslot.
+  expect(editedText.match(/^#\d+=IFCTASK\(.*$/gm)).toHaveLength(1);
+  expect(/=IFCTASK\('[^']*',#\d+,'([^']*)'/.exec(editedText)?.[1]).toBe('Na IFC-bewerking');
+  expect(editedText.match(/^#\d+=IFCTASKTIME\(.*$/gm)).toEqual(sourceText.match(/^#\d+=IFCTASKTIME\(.*$/gm));
+  await editor.fill(editedText);
+  await expect(editor).toHaveValue(editedText);
+  const apply = page.getByRole('button', { name: /^(Apply|Toepassen)$/ });
+  await apply.click();
+  await expect.poll(() => state(page).then(s => s.tasks[0]?.name)).toBe('Na IFC-bewerking');
+  await expect(apply).toBeDisabled();
+  expect(await identity()).toEqual(before);
+  expect((await state(page)).undoDepth).toBe(undoBefore + 1);
+
+  // Toetsen in de planning bedienen document-undo; in de teksteditor hebben ze hun native betekenis.
+  await page.locator('[data-ops-ribbon-tab="start"]').click();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(s => s.tasks[0]?.name)).toBe('Voor IFC-bewerking');
+  expect(await identity()).toEqual(before);
+  await page.keyboard.press('Control+y');
+  await expect.poll(() => state(page).then(s => s.tasks[0]?.name)).toBe('Na IFC-bewerking');
+
+  await page.locator(`[data-ops-tab="${otherId}"]`).click();
+  await page.locator(`[data-ops-tab="${before.documentId}"]`).click();
+  await expect.poll(identity).toEqual(before);
+  await page.locator(`[data-ops-tab="${before.documentId}"]`).locator('..')
+    .getByRole('button', { name: /^(Close|Sluiten) / }).click();
+  const closeDialog = page.locator('[data-ops-close-dialog]');
+  await expect(closeDialog).toBeVisible();
+  await closeDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+  await expect(closeDialog).toHaveCount(0);
+  expect(await identity()).toEqual(before);
+});

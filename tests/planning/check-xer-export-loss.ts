@@ -512,16 +512,19 @@ installXer(makeXerFixture());
 clearNotifications();
 const notifiedSuccess = await store().exportAs('csv');
 expect('succesvolle echte store-export geeft één centrale XER-lossmelding met Lees meer',
-  notifiedSuccess.ok
+  notifiedSuccess.ok && !notifiedSuccess.cancelled
   && xerLossNotifications().length === 1
   && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen');
 
 clearNotifications();
 failNextSave(new DOMException('geannuleerd', 'AbortError'));
 const cancelled = await store().exportAs('csv');
+const poolCancelled = await store().exportProjectWithPool();
 restoreDownloadSave();
 expect('cancel geeft aantoonbaar warnings=[] en geen in-app lossmelding',
-  cancelled.ok && cancelled.warnings.length === 0 && xerLossNotifications().length === 0);
+  cancelled.ok && cancelled.cancelled === true && cancelled.warnings.length === 0 && xerLossNotifications().length === 0);
+expect('annuleren van het eerste pool-exportbestand is ook expliciet',
+  poolCancelled.ok && poolCancelled.cancelled === true && poolCancelled.warnings.length === 0);
 
 clearNotifications();
 failNextSave(new Error('schrijffout'));

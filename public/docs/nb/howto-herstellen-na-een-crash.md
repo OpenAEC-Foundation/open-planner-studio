@@ -9,7 +9,7 @@ Laptopen døde, appen frøs eller nettleserfanen krasjet, og du hadde ennå ikke
 ## Steg
 
 1. Start appen igjen. I nettleseren laster du samme fane på nytt: gjenopprettingskopien tilhører den ene fanen.
-2. Hvis appen fant kopier, vises vinduet *Gjenopprett ulagret arbeid*. *Open Planner Studio ble ikke avsluttet normalt. Følgende dokumenter hadde ulagrede endringer som kan gjenopprettes:* For hvert prosjekt vises navnet, stien til filen hvis prosjektet har en fil (i nettleseren bare filnavnet), antall aktiviteter og tidspunktet for kopien, for eksempel *21 aktiviteter* og *Lagret: Sep 29, 2026, 9:41 AM*. Vinduet kan også vise prosjekter som du ikke har endret.
+2. Hvis appen fant kopier, vises vinduet *Gjenopprett ulagret arbeid*. *Open Planner Studio ble ikke avsluttet normalt. Følgende dokumenter hadde ulagrede endringer som kan gjenopprettes:* For hvert prosjekt vises navnet, stien til filen hvis prosjektet har en fil (i nettleseren bare filnavnet), antall aktiviteter og tidspunktet for kopien, for eksempel *21 aktiviteter* og *Lagret: Sep 29, 2026 9:41 AM*. Tidspunktet følger innstillingen din for *Tidsformat*. Vinduet kan også vise prosjekter som du ikke har endret.
 3. Velg *Gjenopprett*. Enter gjør det samme. Appen åpner alle prosjektene i listen, hver i en fane, med tilstanden fra den siste kopien.
 4. Kontroller prosjektene dine og lagre dem med en gang med Ctrl+S.
 

@@ -6,6 +6,7 @@ import {
   externalAnchorInputValue,
 } from '@/components/dialogs/ExternalLinkDialog';
 import type { ExternalLink } from '@/types/task';
+import { formatExternalLagShort, parseExternalLagInput } from '@/engine/taskGrid/relationFormat';
 
 const failures: string[] = [];
 let checks = 0;
@@ -47,6 +48,19 @@ eq('Onaangeraakte bestandsbron bewaart bronstatus, identiteit en canoniek anker'
   anchorDate: '2026-07-01T08:30',
   sourceRef: existing.sourceRef, sourceMissing: false,
 });
+// De nul-lag uit de solver moet ook na tonen en ongewijzigd opslaan nul blijven.
+const zeroMinutes: ExternalLink = { ...existing, lagMinutes: 0, lagDays: 9 };
+const parsedZero = parseExternalLagInput(formatExternalLagShort(zeroMinutes));
+eq('Nul minuten wordt ook in de dialoog nul lag', parsedZero, { lagDays: 0 });
+if (parsedZero) {
+  const savedZero = buildManualExternalLinkSubmission({
+    existing: zeroMinutes, direction: 'predecessor', relType: 'FS', lag: parsedZero,
+    projectId: 'west', taskId: 'bron-1', taskName: 'Fundering',
+    anchor: '2026-07-01', anchorTouched: false,
+  });
+  eq('Ongewijzigd opslaan laat het oude dagveld niet terugkomen',
+    [savedZero.lagDays, savedZero.lagMinutes], [0, undefined]);
+}
 const clearedName = buildManualExternalLinkSubmission({
   existing, direction: 'predecessor', relType: 'FS', lag: { lagDays: 2 },
   projectId: 'west', taskId: 'bron-1', taskName: '',

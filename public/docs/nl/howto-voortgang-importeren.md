@@ -28,8 +28,8 @@ Het Excel-blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zij
 
 De uitvoerder vult per taak in:
 
-- `Completion (%)`: 0 tot en met 100. In het Excel-blad mag met decimalen (bijvoorbeeld 33,3); in de CSV vraagt de instructie om hele getallen.
-- `Actual Start` en `Actual Finish`: in Excel als datum in de eigen landinstelling; in de CSV als dd-mm-jjjj.
+- `Completion (%)`: 0 tot en met 100. De app leest ook decimalen, met een komma of een punt (bijvoorbeeld 33,3 of 33.3). De instructie in de CSV vraagt toch om hele getallen: een spreadsheet met een andere landinstelling kan 8,38 als 838 lezen.
+- `Actual Start` en `Actual Finish`: in Excel als datum in de eigen landinstelling; in de CSV als dd-mm-jjjj of als jjjj-mm-dd.
 
 Wat leeg blijft, verandert niets. Met een leeg vak wis je dus ook geen bestaande voortgang; dat kan alleen in de app. Een taak die niet gestart is, laat hij helemaal leeg.
 
@@ -53,7 +53,7 @@ De app koppelt elke rij aan een taak, eerst op `OPS Task ID` en anders op het WB
 
 **Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* haalt de rij uit deze lijst; aan wat er wordt toegepast verandert het niets. *Wijzigen* laat je een andere taak kiezen. Met *Koppeling wissen* haal je een koppeling die je zelf legde weer weg. Let op: een blad van een ander project met dezelfde WBS-nummers wordt wél gekoppeld, onder *Koppeling betwijfeld*, en bij *Toepassen* doorgevoerd.
 
-**Wacht op koppeling.** Vond de app geen taak, of meerdere met hetzelfde WBS-nummer, dan staat de rij onder *Wacht op koppeling*. Kies bij *Kies een taak…* de juiste taak; je zoekt op WBS-nummer of naam. Koppel je hem niet, dan wordt de rij geweigerd.
+**Wacht op koppeling.** Vond de app geen taak, of meerdere met hetzelfde WBS-nummer, dan staat de rij onder *Wacht op koppeling*. In het voorbeeld staat al waarom: *Geen taak gevonden voor deze rij.* of *Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand.* Je ziet ook het rijnummer en, indien ingevuld, de `OPS Task ID` uit het blad. Ontbreken WBS en naam, dan staat die ID bovenaan de rij. Kies bij *Kies een taak…* de juiste taak; je zoekt op WBS-nummer of naam. Koppel je hem niet, dan wordt de rij geweigerd. Een dubbele rij staat apart met *Een andere rij claimde deze taak al.*
 
 ## Valkuilen en wat de app dan doet
 

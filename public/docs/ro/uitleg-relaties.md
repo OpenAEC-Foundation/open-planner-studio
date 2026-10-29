@@ -45,7 +45,7 @@ Un devans nu poate muta o activitate înainte de începutul proiectului. Dacă a
 
 ### În ce calendar se numără decalajul
 
-Fiecare activitate poate avea propriul calendar. Cu un decalaj în zile lucrătoare contează ce calendar numără zilele lucrătoare. Setarea *Calendar pentru decalaj* decide acest lucru, cu patru opțiuni: *Predecesor*, *Succesor*, *24 de ore* și *Calendar de proiect*. Implicit, decalajul se numără în calendarul **predecesorului**. Această setare o găsiți la *Setări › Proiect › Informații proiect*, în blocul *Profil de calcul și opțiuni de calcul*, la *Opțiunile de calcul ale acestui proiect*. Alegerea se salvează în fișierul proiectului și are efect abia după ce faceți clic pe *Aplicare*; planificarea se recalculează atunci.
+Fiecare activitate poate avea propriul calendar. Cu un decalaj în zile lucrătoare contează ce calendar numără zilele lucrătoare. Setarea *Calendar pentru decalaj* decide acest lucru, cu patru opțiuni: *Predecesor*, *Succesor*, *24 de ore* și *Calendar de proiect*. Implicit, decalajul se numără în calendarul **predecesorului**. Această setare o găsiți la *Setări › Proiect › Setări proiect*, în blocul *Profil de calcul și opțiuni de calcul*, la *Opțiunile de calcul ale acestui proiect*. Alegerea se salvează în fișierul proiectului și are efect abia după ce faceți clic pe *Aplicare*; planificarea se recalculează atunci.
 
 Un decalaj în zile calendaristice (`3ed`) numără întotdeauna toate zilele, indiferent de *Calendar pentru decalaj* pe care îl alegeți.
 
@@ -62,7 +62,7 @@ O dependență între o activitate și faza în care se află nu este permisă.
 
 ### Legături determinante
 
-Dacă un succesor are mai mulți predecesori, de obicei o singură dependență îi determină data de start: dependența care împiedică succesorul să înceapă cu o singură zi mai devreme decât începe acum. Această dependență se numește **determinantă**. La egalitate există mai multe legături determinante. Recunoașteți o legătură determinantă după simbolul cu fulger din coloanele *Predecesori* și *Succesori* ale tabelului, după coloana *Legătură determinantă* (semnul **+** din dreapta antetului tabelului, sub *Dependențe*) și după nuanța mai intensă când urmăriți un drum. Cum deschideți acel drum este descris în [Trasarea unui drum](docs://howto-pad-traceren).
+Dacă un succesor are mai mulți predecesori, de obicei o singură dependență îi determină data de start: dependența care împiedică succesorul să înceapă cu o singură zi mai devreme decât începe acum. Această dependență se numește **legătură determinantă**. La egalitate există mai multe legături determinante. Recunoașteți o legătură determinantă după simbolul cu fulger din coloanele *Predecesori* și *Succesori* ale tabelului, după coloana *Legătură determinantă* (semnul **+** din dreapta antetului tabelului, sub *Dependențe*) și după nuanța mai intensă când urmăriți un drum. Cum deschideți acel drum este descris în [Trasarea unui drum](docs://howto-pad-traceren).
 
 O legătură determinantă spune ceva despre date, nu despre durată. Un predecesor scurt poate fi și el determinant, de exemplu din cauza unui decalaj lung; vedeți acest lucru în exemplul de mai jos.
 

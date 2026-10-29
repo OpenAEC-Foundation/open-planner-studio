@@ -12,7 +12,7 @@ Wenn die eigene Berechnung zu anderen Terminen führt als in der Datei steht, wi
 
 ### Welches Berechnungsprofil die App verwendet
 
-Die App berechnet mit einem **Berechnungsprofil**: einer Gruppe von Berechnungsregeln (Konventionen), die zum Beispiel bestimmt, wie sie den geplanten Anfang eines Vorgangs und Einschränkungen behandelt. Siehe [Berechnungsprofile und Konventionen](docs://uitleg-rekenprofielen). Es gibt drei eingebaute Profile: *Primavera P6*, *Microsoft Project* und *Open Planner Studio*. Eine `.xer`-Datei öffnet sich mit *Primavera P6* und eine `.mpp`-Datei mit *Microsoft Project*. CSV, MS Project XML und Primavera P6 XML öffnen sich mit *Open Planner Studio*. Das Profil eines Projekts finden Sie unter *Datei › Projektinfo*, bei *Berechnungsprofil und Berechnungsoptionen*. Eine IFC-Datei aus der App behält ihr Profil.
+Die App berechnet mit einem **Berechnungsprofil**: einer Gruppe von Berechnungsregeln (Konventionen), die zum Beispiel bestimmt, wie sie den geplanten Anfang eines Vorgangs und Einschränkungen behandelt. Siehe [Berechnungsprofile und Konventionen](docs://uitleg-rekenprofielen). Es gibt drei eingebaute Profile: *Primavera P6*, *Microsoft Project* und *Open Planner Studio*. Eine `.xer`-Datei öffnet sich mit *Primavera P6* und eine `.mpp`-Datei mit *Microsoft Project*. CSV, MS Project XML und Primavera P6 XML öffnen sich mit *Open Planner Studio*. Das Profil eines Projekts finden Sie unter *Datei › Projekteinstellungen*, bei *Berechnungsprofil und Berechnungsoptionen*. Eine IFC-Datei aus der App behält ihr Profil.
 
 ### Wann die App vergleicht
 
@@ -27,26 +27,34 @@ Die App vergleicht nie eine CSV-Datei: Der Anfangstermin in einer CSV ist Eingab
 
 Wenn kein Vorgang abweicht, merken Sie nichts. Wenn mindestens ein Vorgang in einer Datei abweicht, die Sie gerade importieren, schaltet die App die Ansicht sofort ein.
 
-Bei einer Primavera-Datei rechnet die App mit dem Berechnungsprofil *Primavera P6*. Dadurch bleibt der geplante Anfang aus der Datei als frühester Anfang erhalten. Ein Vorgang, der in der Datei später liegt, als die Beziehungen verlangen, aber dort ebenfalls geplant ist, bleibt deshalb, wo er ist: Dann gibt es keinen Unterschied.
+Bei einer Primavera-Datei berechnet die App mit dem Berechnungsprofil *Primavera P6*. Dadurch bleibt der geplante Anfang aus der Datei als frühester Anfang erhalten. Ein Vorgang, der in der Datei später liegt, als die Beziehungen verlangen, aber dort ebenfalls geplant ist, bleibt deshalb, wo er ist: Dann gibt es keinen Unterschied.
 
 ### Was Sie sehen
 
 Unter dem Menüband steht eine Leiste: *Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind; eine Neuberechnung würde 4 Vorgänge verschieben.* Bei einer Primavera-Quelle (einer `.xer`-Datei oder Primavera P6 XML) steht dort *Sie sehen den Terminplan so, wie Primavera ihn gespeichert hat; eine Neuberechnung würde 1 Vorgang verschieben.* Rechts in der Leiste steht die Schaltfläche *Neu berechnen*. Die Leiste hat kein Kreuz.
 
-Außerdem erscheint eine Meldung: *4 Vorgänge zeigen die in der Datei gespeicherten Termine (nicht neu berechnet).* Nur bei einer `.xer`-Datei steht dort *1 Vorgang zeigt die von Primavera gespeicherten Termine (nicht neu berechnet).* Jeder Vorgang, für den die Datei Termine aufgezeichnet hat, zeigt im Bereich *Eigenschaften* eine Markierung: *Zeigt die von Primavera gespeicherten Termine für diesen Vorgang* bei einer Primavera-Quelle, oder *Zeigt die in der Datei gespeicherten Termine für diesen Vorgang* bei einer anderen Quelle. Das Gantt-Diagramm, die Vorgangstabelle und die Statusleiste zeigen die Termine aus der Datei.
+Außerdem erscheint eine Meldung: *12 Vorgänge zeigen die in der Datei gespeicherten Termine (nicht neu berechnet).* Nur bei einer `.xer`-Datei steht dort *12 Vorgänge zeigen die von Primavera gespeicherten Termine (nicht neu berechnet).* Diese Zahl zählt jeden Vorgang, für den die Datei Termine aufgezeichnet hat, auch die Vorgänge, die sich nicht unterscheiden. Die Zahl der Vorgänge, die sich nach dem Neuberechnen unterscheiden, steht in der Leiste. Jeder Vorgang, für den die Datei Termine aufgezeichnet hat, zeigt im Bereich *Eigenschaften* direkt über *Anfang* eine orangefarbene Markierung: *Sie sehen die Termine, die Primavera gespeichert hat, nicht die Berechnung der App.* Bei einer anderen Quelle steht dort *Sie sehen die Termine, die in der Datei standen, nicht die Berechnung der App.* Eine zweite Zeile sagt, was beim Neuberechnen mit diesem Vorgang passiert: *Wenn Sie neu berechnen, ändert sich dieser Vorgang.* oder *Wenn Sie neu berechnen, bleibt dieser Vorgang gleich.* Das Gantt-Diagramm, die Vorgangstabelle und die Statusleiste zeigen die Termine aus der Datei.
+
+### Vorgänge, die begonnen haben oder abgeschlossen sind
+
+Ein abgeschlossener Vorgang liegt auf den Tagen, an denen er wirklich stattgefunden hat: vom *Ist-Anfang* bis zum *Ist-Ende*. Ein laufender Vorgang beginnt an dem Tag, an dem er wirklich begonnen hat. Er endet am berechneten Ende. Das gilt in dieser Ansicht, nach dem Neuberechnen und bei jedem Berechnungsprofil, wie bei Primavera und MS Project.
+
+Für einen solchen Vorgang zeichnet die Datei oft andere frühe Termine auf. Primavera setzt den frühesten Anfang eines laufenden oder abgeschlossenen Vorgangs auf das Statusdatum. Diese Termine sehen Sie in den Spalten *Frühester Anfang* und *Frühestes Ende*, nicht in *Anfang* und *Ende*. Ein abgeschlossener Vorgang zählt daher nie als Abweichung. Ein laufender Vorgang zählt nur, wenn sein Ende abweicht.
+
+Bei einem Vorgang, der begonnen hat, können Sie den Anfang nicht mehr eintippen. In der Vorgangstabelle, im Bereich *Eigenschaften* und im Dialog *Vorgang bearbeiten* ist der Anfang dann schreibgeschützt. Bei einem abgeschlossenen Vorgang gilt das in der Vorgangstabelle auch für das Ende. Ändern Sie stattdessen den *Ist-Anfang* oder das *Ist-Ende* mit dem Fortschritt. Im Gantt-Diagramm bewegt sich der Balken eines solchen Vorgangs nicht; dann erhalten Sie eine Meldung.
 
 ### Was in dieser Ansicht leer bleibt
 
-In dieser Ansicht berechnet die App nichts. Sie zeigt nur, was die Datei aufgezeichnet hat. Puffer und kritischer Pfad sehen Sie daher nur, wenn die Datei sie enthält. Wenn die Datei keine kritischen Vorgänge aufzeichnet, meldet die Statusleiste 0 kritische Vorgänge. Das sagt nichts über den kritischen Pfad im anderen Programm selbst aus. Was nur aus einer Berechnung kommt, gibt es in dieser Ansicht nicht: welche Beziehungen den Terminplan steuern, verletzte Einschränkungen, Vorgänge, die außer Reihenfolge laufen, und fast kritische Vorgänge.
+In dieser Ansicht berechnet die App nichts. Sie zeigt nur, was die Datei aufgezeichnet hat. Puffer und kritischen Pfad sehen Sie daher nur, wenn die Datei sie enthält. Wenn die Datei keine kritischen Vorgänge aufzeichnet, meldet die Statusleiste 0 kritische Vorgänge. Das sagt nichts über den kritischen Pfad im Quellpaket selbst aus. Was nur aus einer Berechnung kommt, gibt es in dieser Ansicht nicht: welche Beziehungen den Terminplan steuern, verletzte Einschränkungen, Vorgänge, die außer Reihenfolge laufen, und fast kritische Vorgänge.
 
-Wenn die Datei nicht alles für einen Vorgang aufzeichnet, sehen Sie im Bereich *Eigenschaften* die Markierung *Erfassung teilweise unvollständig — siehe die Spalten für spätesten Termin/Puffer*. Bei einem CSV-Export bleiben für einen solchen Vorgang die Spalten *Kritisch* und *Gesamtpuffer* leer, statt einer erfundenen Null.
+Wenn die Datei nicht alles für einen Vorgang aufzeichnet, bekommt die orangefarbene Markierung im Bereich *Eigenschaften* eine dritte Zeile, zum Beispiel *Primavera hat für diesen Vorgang nicht alles gespeichert. Fehlt: freier Puffer.* Bei einer anderen Quelle steht dort *Die Datei enthält nicht alles für diesen Vorgang.* Die ersten beiden Zeilen bleiben stehen. So sehen Sie auch bei einem solchen Vorgang, dass die Termine aus der Datei stammen und ob sich der Vorgang beim Neuberechnen ändert. Die fehlenden Werte haben dieselben Namen wie die Spalten in der Vorgangstabelle. Bei einem CSV-Export bleiben bei einem solchen Vorgang die Spalten *Kritisch* und *Gesamtpuffer* leer, statt einer erfundenen Null.
 
 ### Die Ansicht verlassen
 
 Sie verlassen die Ansicht auf zwei Arten:
 
 - Klicken Sie in der Leiste auf *Neu berechnen* oder wählen Sie *Berechnen* (F5). Die App berechnet nach ihren eigenen Regeln.
-- Ändern Sie etwas, das die Termine ändern kann, zum Beispiel die Dauer eines Vorgangs oder einen neuen Vorgang. Die App verlässt die Ansicht und berechnet sofort neu, auch wenn *Automatisch berechnen* ausgeschaltet ist. Das Ändern eines Namens bewirkt das nicht: Die Ansicht bleibt eingeschaltet.
+- Ändern Sie etwas, das die Termine ändern kann, zum Beispiel die Dauer eines Vorgangs oder einen neuen Vorgang. Die App verlässt die Ansicht und berechnet sofort neu, auch wenn *Automatisch berechnen* ausgeschaltet ist. Einen Namen, eine Beschreibung, eine Arbeitskategorie oder eine Vorgangsart zu ändern, bewirkt das nicht: Die Ansicht bleibt eingeschaltet.
 
 Eine Kalenderänderung aus der Ressourcenbibliothek lässt die Ansicht eingeschaltet und die Termine aus der Datei stehen, aktualisiert aber die Zahl in der Leiste.
 
@@ -54,21 +62,19 @@ Nach dem Verlassen gibt es keine Schaltfläche, um zur Ansicht zurückzukehren. 
 
 ### Wiederherstellung nach einem Absturz
 
-Wenn Sie ein Projekt nach einem Absturz wiederherstellen, das in der Ansicht war, bleibt die Ansicht eingeschaltet. Das aktive Projekt zeigt dieselbe Leiste wie zuvor. Ein Projekt auf einem anderen Tab zeigt die Leiste ohne Zahl: *Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind. Es wurde nicht neu berechnet.* Siehe [Wiederherstellung nach einem Absturz](docs://howto-herstellen-na-een-crash).
+Wenn Sie ein Projekt nach einem Absturz wiederherstellen, das in der Ansicht war, bleibt die Ansicht eingeschaltet. War die Ansicht ausgeschaltet, vergisst die App die Termine aus der Datei. Das aktive Projekt zeigt dieselbe Leiste wie zuvor. Ein Projekt auf einer anderen Registerkarte zeigt die Leiste ohne Zahl: *Sie sehen die Termine so, wie sie in der Datei aufgezeichnet sind. Es wurde nicht neu berechnet.* Siehe [Wiederherstellung nach einem Absturz](docs://howto-herstellen-na-een-crash).
 
 ### Speichern und erneut öffnen
 
-Wenn Sie speichern, während Sie die Ansicht verwenden, schreibt die App die angezeigten Termine zusammen mit dem Quellformat in die IFC-Datei. Wenn Sie diese IFC-Datei später erneut öffnen und sie seit dem Import nicht bearbeitet haben, ist die Ansicht wieder eingeschaltet, ohne neue Meldung.
+Wenn Sie speichern, während Sie die Ansicht verwenden, schreibt die App die angezeigten Termine zusammen mit dem Quellformat in die IFC-Datei. Wenn Sie diese IFC-Datei später erneut öffnen, ist die Ansicht wieder eingeschaltet, ohne neue Meldung. Das gilt auch, wenn Sie in der Ansicht etwas geändert haben, das die Termine nicht beeinflusst, zum Beispiel einen Namen. Die App öffnet die Datei so, wie Sie sie verlassen haben.
 
-Wenn Sie dazwischen bearbeitet und gespeichert haben, hängt es von der Quelle ab. Bei einer Primavera-Datei nimmt die IFC-Datei die ursprüngliche `.xer`-Datei mit. Die App vergleicht dann erneut und bietet die Ansicht an: *Die Neuberechnung hat 1 von 2 Vorgängen gegenüber den Terminen in der Datei verschoben.* Dazu gehören die Schaltfläche *Aufgezeichnete Termine anzeigen* und ein Kreuz. Bei jedem abweichenden Vorgang zeigt der Bereich *Eigenschaften* die Markierung *Weicht von den gespeicherten Terminen ab*. *Aufgezeichnete Termine anzeigen* schaltet die Ansicht ein; Strg+Z macht das rückgängig. Das Kreuz blendet das Angebot aus.
-
-Bei MS Project XML, `.mpp`, Primavera P6 XML oder einer IFC-Datei aus einem anderen Programm behält die IFC-Datei die Quelle nicht. Wenn Sie ein solches Projekt bearbeiten und speichern, vergleicht die App beim erneuten Öffnen nicht mehr.
+Wenn Sie die Ansicht durch Neuberechnen oder durch eine Änderung verlassen, die die Termine ändern kann, und danach speichern, enthält die Datei die eigene Berechnung der App. Beim erneuten Öffnen sehen Sie diese Berechnung, ohne Leiste und ohne Markierung im Bereich *Eigenschaften*. Es gibt eine Ausnahme: eine `.xer`-Datei, die Sie nur neu berechnet und nicht bearbeitet haben (siehe oben). Ihr bearbeiteter Terminplan ist jetzt der Terminplan; die alten Termine aus dem Quellpaket gehören nicht mehr dazu. Wenn Sie sie trotzdem sehen wollen, öffnen Sie die Quelldatei erneut.
 
 ## Beispiel: der Anbau
 
 Angenommen, Sie öffnen eine Primavera-Datei *Uitbouw* (Anbau) mit zwei Vorgängen, in einem Kalender ohne Feiertage. Im Jahr 2027 sind der 6. Mai Christi Himmelfahrt und der 17. Mai Pfingstmontag: Mit Feiertagen im Kalender kämen die Termine anders heraus. *Fundering storten* (Fundament gießen) dauert 5 Arbeitstage, *Metselwerk* (Mauerwerk) 10 Arbeitstage, und Metselwerk folgt auf Fundering mit einer Ende-Anfang-Beziehung. Die Datei zeichnet auf, dass Fundering von Montag, 3. Mai, bis Freitag, 7. Mai 2027 läuft und Metselwerk von Montag, 17. Mai, bis Freitag, 28. Mai 2027: eine Woche nach dem frühesten Anfang, den die Beziehung erlaubt. Der geplante Anfang von Metselwerk in der Datei ist Montag, 10. Mai 2027.
 
-Direkt nach dem Öffnen sehen Sie die Termine aus der Datei. Die Statusleiste zeigt *Ende: 28.05.2027* und *Kritischer Pfad: 2 Vorgänge, 20 Arbeitstage*. Bei einer Neuberechnung weicht 1 Vorgang ab, und beide Vorgänge zeigen *Zeigt die von Primavera gespeicherten Termine für diesen Vorgang*.
+Direkt nach dem Öffnen sehen Sie die Termine aus der Datei. Die Statusleiste zeigt *Ende: 28.05.2027* und *Kritischer Pfad: 2 Vorgänge, 20 Arbeitstage*. Die Leiste meldet, dass 1 Vorgang beim Neuberechnen abweicht. Beide Vorgänge zeigen die orangefarbene Markierung *Sie sehen die Termine, die Primavera gespeichert hat, nicht die Berechnung der App.* Darunter steht bei Metselwerk *Wenn Sie neu berechnen, ändert sich dieser Vorgang.* und bei Fundering *Wenn Sie neu berechnen, bleibt dieser Vorgang gleich.*
 
 Nach einem Klick auf *Neu berechnen* bleibt Fundering am 3. bis 7. Mai. Metselwerk beginnt nun am Montag, 10. Mai, dem nächsten Arbeitstag nach dem Ende von Fundering, und endet am Freitag, 21. Mai. Der Terminplan endet am 21. Mai 2027 und umfasst 15 Arbeitstage statt 20. Der kritische Pfad besteht aus denselben 2 Vorgängen.
 
@@ -78,17 +84,19 @@ Und wenn es anders ist?
 - Sie fügen in der Ansicht einen Vorgang hinzu: dieselbe Neuberechnung. Metselwerk verschiebt sich auf den 10. bis 21. Mai.
 - Sie speichern in der Ansicht und öffnen die IFC-Datei erneut, ohne etwas zu bearbeiten: Metselwerk steht wieder auf dem 17. bis 28. Mai.
 - Sie berechnen neu, speichern ohne weitere Bearbeitung und öffnen die IFC-Datei erneut: Die Ansicht ist wieder eingeschaltet, und Metselwerk steht auf dem 17. bis 28. Mai.
-- Sie bearbeiten, speichern und öffnen erneut: Die App bietet die Ansicht an, mit *Die Neuberechnung hat 1 von 2 Vorgängen gegenüber den Terminen in der Datei verschoben.* Metselwerk zeigt *Weicht von den gespeicherten Terminen ab*.
+- Sie ändern in der Ansicht nur den Namen von Metselwerk, speichern und öffnen erneut: Die Ansicht ist wieder eingeschaltet, und Metselwerk steht auf dem 17. bis 28. Mai.
+- Sie fügen in der Ansicht einen Vorgang hinzu, speichern und öffnen erneut: Die App vergisst die Termine aus der Datei. Metselwerk steht auf dem 10. bis 21. Mai, ohne Leiste und ohne Markierung.
+- Fundering ist in der Datei schon abgeschlossen: Es hat tatsächlich am 3. Mai begonnen und am 7. Mai geendet. Die Datei zeichnet das Statusdatum als frühesten Anfang auf. Der Balken von Fundering bleibt auf dem 3. bis 7. Mai, in der Ansicht und nach dem Neuberechnen. Fundering zählt nicht als Abweichung.
 
 ## Folgen und Missverständnisse
 
-**Ein Unterschied ist kein Importfehler.** Die App berechnet nach ihren eigenen Regeln: bei einer `.xer`-Datei mit dem Berechnungsprofil *Primavera P6*, bei einer `.mpp`-Datei mit *Microsoft Project*, bei CSV, MS Project XML und Primavera P6 XML mit *Open Planner Studio*. Warum die Termine im Quellprogramm anders herauskamen, kann an der Datei oder am Programm liegen. Die Ansicht zeigt Ihnen, *dass* sie abweichen.
+**Ein Unterschied ist kein Importfehler.** Die App berechnet nach ihren eigenen Regeln: bei einer `.xer`-Datei mit dem Berechnungsprofil *Primavera P6*, bei einer `.mpp`-Datei mit *Microsoft Project*, bei CSV, MS Project XML und Primavera P6 XML mit *Open Planner Studio*. Warum die Termine im Quellpaket anders herauskamen, kann an der Datei oder am Paket liegen. Die Ansicht zeigt Ihnen, *dass* sie abweichen.
 
 **Die Ansicht ist kein Berechnungsergebnis.** Die App hat die Termine nicht berechnet. Übernehmen Sie sie nicht einfach als Ergebnis Ihres eigenen Terminplans.
 
-**Speichern in der Ansicht behält die Termine des Quellprogramms.** Die IFC-Datei enthält dann, was das Quellprogramm sagte, und nicht, was die App berechnen würde.
+**Speichern in der Ansicht behält die Termine des Quellpakets.** Die IFC-Datei enthält dann, was das Quellpaket sagte, und nicht, was die App berechnen würde.
 
-**Die Schaltfläche *Aufgezeichnete Termine anzeigen* erscheint nicht bei jedem Import.** Bei einer neu geöffneten Datei ist die Ansicht schon eingeschaltet. Die Schaltfläche erscheint nur bei einer erneut geöffneten IFC-Datei mit einer Primavera-Quelle, die Sie seit dem Import bearbeitet haben.
+**Nach einer Bearbeitung, die die Termine ändern kann, kommen die Termine aus der Datei nicht zurück.** Wenn Sie die Ansicht durch so eine Bearbeitung verlassen haben, sehen Sie nach dem Speichern und erneuten Öffnen nur die eigene Berechnung der App. Eine Namensänderung zählt nicht: Dann bleibt die Ansicht eingeschaltet (siehe *Speichern und erneut öffnen*). Öffnen Sie die Quelldatei erneut, wenn Sie die Termine aus dem Quellpaket sehen wollen.
 
 ## Siehe auch
 

@@ -31,9 +31,9 @@ Otvorte *Plán › Štruktúra › Šablóny* a kliknite na malý kôš vpravo o
 
 ### Čo je v šablóne
 
-Šablóna si pre každú úlohu ponechá názov, popis, typ úlohy, to, či je medzníkom, a trvanie v dňoch. Zo závislostí si ponechá len tie medzi dvomi úlohami vo vetve, spolu s typom a oneskorením.
+Šablóna si pre každú úlohu ponechá názov, popis, druh prác, to, či je medzníkom, a trvanie v dňoch. Zo závislostí si ponechá len tie medzi dvoma úlohami vo vetve, spolu s typom a oneskorením. Oneskorenie v hodinách (`4h`) sa neuloží a stane sa 0. Oneskorenie v pracovných dňoch, kalendárnych dňoch alebo percentách sa zachová.
 
-Všetko ostatné sa do šablóny neuloží: dátumy, postup a skutočné dátumy, priradenia zdrojov, kódy a vlastné polia (pozri [Kódy a vlastné polia](docs://howto-codes-en-velden)), kalendár, obmedzenia a termíny, priorita, vlastný typ úlohy, pri medzníku druh a zaškrtnutie *Povinný (zmluvný)*, a závislosti na úlohách mimo vetvy. Po vložení ich doplníte znova: priradenia, kódy, kalendár a obmedzenia sú prázdne a všetky úlohy začínajú dňom začiatku projektu.
+Všetko ostatné zostane mimo šablóny: dátumy, postup a skutočné dátumy, priradenia zdrojov, kódy a vlastné polia (pozri [Kódy a vlastné polia](docs://howto-codes-en-velden)), kalendár, obmedzenia a termíny, priorita, vlastný druh prác, pri medzníku druh a zaškrtnutie *Povinný (zmluvný)*, a závislosti na úlohách mimo vetvy. Po vložení ich doplníte znova: priradenia, kódy, kalendár a obmedzenia sú prázdne a všetky úlohy začínajú dňom začiatku projektu.
 
 Úloha, ktorá mala trvanie v hodinách, sa vráti ako úloha v dňoch a jej trvanie sa prevedie na zlomok pracovného dňa. Úloha s trvaním 5 hodín pri dĺžke pracovného dňa 8 hodín sa zmení na 0,625 dňa.
 

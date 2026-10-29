@@ -12,11 +12,11 @@ Aikajakso ei ole sidottu kalenterikuukauteen, vaan **viitepäivään**: projekti
 
 ### 1. Aseta raportointipäivä
 
-Jos käytät suhteellista valintaa, kuten *Seuraavat 4 viikkoa* tai *Edellinen kuukausi*, aseta ensin raportointipäivä. Valitse *Aikataulu › Perustasot ja edistyminen* ja täytä kenttä *Raportointipäivä*. Ruksilla sen vieressä (*Tyhjennä raportointipäivä*) poistat päivän uudelleen. Jos käytät kiinteää aikajaksoa (vaihe 4), tätä ei tarvita.
+Jos käytetään suhteellista valintaa, kuten *Seuraavat 4 viikkoa* tai *Edellinen kuukausi*, aseta ensin raportointipäivä. Valitse *Aikataulu › Perustasot ja edistyminen* ja täytä kenttä *Raportointipäivä*. Ruksilla sen vieressä (*Tyhjennä raportointipäivä*) päivä poistetaan uudelleen. Jos käytetään kiinteää aikajaksoa (vaihe 4), tätä ei tarvita.
 
 ### 2. Valitse raportti, jossa on aikajakso
 
-Avaa välilehti *Raportti* ja valitse yksi viidestä raportista kohdasta *Raporttityyppi*. Luettelo *Aikajakso:* on kohdassa *Raporttivalinnat*. Raportissa *Resurssikaavio* se on kohdassa *Asetukset*, neljän kyseisen raportin valintaruudun alla.
+Avaa *Raportti*-välilehti ja valitse yksi viidestä raportista kohdasta *Raporttityyppi*. Luettelo *Aikajakso:* on kohdassa *Raporttivalinnat*. Raportissa *Resurssikaavio* se on kohdassa *Asetukset*, neljän kyseisen raportin valintaruudun alla.
 
 Jokainen raportti muistaa oman aikajaksonsa. Nämä ovat alkuarvot:
 
@@ -26,7 +26,7 @@ Jokainen raportti muistaa oman aikajaksonsa. Nämä ovat alkuarvot:
 
 ### 3. Valitse aikajakso luettelosta
 
-Luettelossa ovat *Seuraava viikko*, *Seuraavat 2 viikkoa*, *Seuraavat 4 viikkoa*, *Seuraavat 6 viikkoa*, *Seuraavat 8 viikkoa*, *Seuraavat 12 viikkoa*, *Seuraava kuukausi*, samat seitsemän *edellisinä*, *Koko projekti* ja *Mukautettu*. Alla ovat *Alkaen* ja *Asti*, päivämäärät jotka valinta antaa. Niitä voi vain lukea täällä.
+Luettelossa ovat *Seuraava viikko*, *Seuraavat 2 viikkoa*, *Seuraavat 4 viikkoa*, *Seuraavat 6 viikkoa*, *Seuraavat 8 viikkoa*, *Seuraavat 12 viikkoa*, *Seuraava kuukausi*, samat seitsemän *edellisinä*, *Koko projekti* ja *Mukautettu*. Alla ovat *Alkaen* ja *Asti*, päivämäärät, jotka valinta antaa. Niitä voi vain lukea täällä.
 
 Molemmat päivät kuuluvat jaksoon. Jos raportointipäivä on torstai 20. toukokuuta, *Seuraava viikko* kestää 20.–26. toukokuuta mukaan lukien ja *Seuraavat 4 viikkoa* 20. toukokuuta – 16. kesäkuuta mukaan lukien (28 päivää). *Seuraava kuukausi* päättyy yhtä päivää ennen samaa päivää seuraavassa kuussa, tässä tapauksessa 19. kesäkuuta mukaan lukien. *Edelliset 2 viikkoa* kestää 7.–20. toukokuuta mukaan lukien.
 
@@ -34,22 +34,22 @@ Molemmat päivät kuuluvat jaksoon. Jos raportointipäivä on torstai 20. toukok
 
 ### 4. Tai valitse Mukautettu
 
-Kun valitset *Mukautettu*, *Alkaen* ja *Asti* muuttuvat kahdeksi päivämääräkentäksi. Ne alkavat päivämääristä, jotka juuri ennen tehty valinta antoi. Täytä molemmat, esimerkiksi 1. ja 14. kesäkuuta. Jos syöte ei ole oikein, raportti pysyy viimeisessä kelvollisessa aikajaksossa ja näyttää punaisella:
+Kun valitaan *Mukautettu*, *Alkaen* ja *Asti* muuttuvat kahdeksi päivämääräkentäksi. Ne alkavat päivämääristä, jotka juuri ennen tehty valinta antoi. Täytä molemmat, esimerkiksi 1. ja 14. kesäkuuta. Jos syöte ei ole oikein, raportti pysyy viimeisessä kelvollisessa aikajaksossa ja näyttää punaisella:
 
 - *Loppupäivä on ennen alkamispäivää.* jos *Asti* on aikaisempi kuin *Alkaen*.
 - *Täytä molemmat päivämäärät.* jos toinen kentistä on tyhjä.
 
 ### 5. Lue aikajakso raportista
 
-Raporteissa *Look-ahead*, *Resurssikuormitus* ja *Resurssikohdistukset* aikajakso näkyy otsikon alla, esimerkiksi *Aikajakso: 20-05-2027 – 19-06-2027*. Jos valitset *Koko projekti*, päivämäärien perään lisätään *Koko projekti*. *Edistymisraportti* näyttää aikajakson yhteenvedossa kohdassa *Aikajakso*. Raportissa *Resurssikaavio* aika-akseli kattaa tarkalleen aikajakson.
+Raporteissa *Look-ahead*, *Resurssikuormitus* ja *Resurssikohdistukset* aikajakso näkyy otsikon alla, esimerkiksi *Aikajakso: 20-05-2027 – 19-06-2027*. Jos valitaan *Koko projekti*, päivämäärien perään lisätään *Koko projekti*. *Edistymisraportti* näyttää aikajakson yhteenvedossa kohdassa *Aikajakso*. Raportissa *Resurssikaavio* aika-akseli kattaa tarkalleen aikajakson.
 
 ### Mitä aikajakso tekee kussakin raportissa
 
 Aikajakso ei toimi joka raportissa samalla tavalla.
 
-- **Look-ahead** ottaa mukaan keskeneräiset tehtävät, jotka osuvat aikajaksoon, myös jos ne kestävät koko aikajakson. Myös myöhässä olevat tehtävät ennen viitepäivää sisältyvät, kunhan aikajakson loppu ei ole ennen viitepäivää. Kokonaan menneisyydessä oleva mukautettu aikajakso on takaisin katsova: se näyttää vain sen, mikä oli silloin käynnissä ja on yhä kesken, ilman tähän päivään asti myöhässä olevia tehtäviä.
-- **Edistymisraportti** käyttää aikajaksoa kohdassa *Valmistunut edellisellä aikajaksolla*. Kohta *Alkaa seuraavalla aikajaksolla* katsoo eteenpäin raportointipäivästä alkaen, päivämäärään asti, joka on yhteenvedossa kohdassa *Ennakkonäkymä asti*. Jos valitset *edellisen* aikajakson, raportti katsoo eteenpäin yhtä pitkälle kuin taaksepäin: valinnalla *Edelliset 2 viikkoa* ja raportointipäivällä 20. toukokuuta se näyttää *Ennakkonäkymä asti* 3. kesäkuuta. Kokonaan menneisyydessä oleva mukautettu aikajakso tai *Koko projekti* ei peilaudu.
-- **Resurssikuormitus** näyttää kokonaisina jokaisen viikon tai kuukauden, joka osuu aikajaksoon. Jos aikajakso kulkee keskiviikosta keskiviikkoon, näet siis kokonaisia viikkoja. Rivi näyttää siten aina saman luvun kuin histogrammi.
+- **Look-ahead** ottaa mukaan keskeneräiset tehtävät, jotka osuvat aikajaksoon, myös jos ne kestävät koko aikajakson. Myös myöhässä olevat tehtävät ennen raportointipäivää sisältyvät, kunhan aikajakson loppu ei ole ennen raportointipäivää. Kokonaan menneisyydessä oleva mukautettu aikajakso katsoo taaksepäin: se näyttää vain sen, mikä oli silloin käynnissä ja on yhä kesken, ilman tähän päivään asti myöhässä olevia tehtäviä.
+- **Edistymisraportti** käyttää aikajaksoa kohdassa *Valmistunut edellisellä aikajaksolla*. Kohta *Alkaa seuraavalla aikajaksolla* katsoo eteenpäin raportointipäivästä alkaen, päivämäärään asti, joka on yhteenvedossa kohdassa *Ennakkonäkymä asti*. Jos valitaan *edellinen* aikajakso, raportti katsoo eteenpäin yhtä pitkälle kuin taaksepäin: valinnalla *Edelliset 2 viikkoa* ja raportointipäivällä 20. toukokuuta se näyttää *Ennakkonäkymä asti* 3. kesäkuuta. Kokonaan menneisyydessä oleva mukautettu aikajakso tai *Koko projekti* ei peilaudu.
+- **Resurssikuormitus** näyttää kokonaisina jokaisen viikon tai kuukauden, joka osuu aikajaksoon. Jos aikajakso kulkee keskiviikosta keskiviikkoon, nähdään siis kokonaisia viikkoja. Rivi näyttää siten aina saman luvun kuin histogrammi.
 - **Resurssikohdistukset** näyttää niiden tehtävien resurssikohdistukset, jotka osuvat aikajaksoon. Kun valitaan *Koko projekti*, päivämäärän mukaan ei suodateta.
 - **Resurssikaavio** näyttää vain tehtävät, jotka osuvat aikajaksoon. Yhteenvedossa *Aikajakson ulkopuolella:* lasketaan, kuinka monta tehtävää jätettiin pois.
 

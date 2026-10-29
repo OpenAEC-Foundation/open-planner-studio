@@ -21,6 +21,8 @@ Overvej nøje, før du installerer en. En udvidelse er programkode, der kører m
 
 Efter installationen er udvidelsen med det samme aktiveret. På kortet under *Gennemse* står der nu *Installeret*. Det, udvidelsen tilføjer, ser du i selve appen: en ny knap i båndet eller et importformat under *Fil › Importer*. Nogle udvidelser viser også en besked. Du kan genkende den på præfikset *Udvidelse* efterfulgt af udvidelsens navn.
 
+**Selvstudier.** Selvstudierne er en udvidelse. Ser du knappen *Installer selvstudier* under *Selvstudier* i *Hjælp*, åbner den *Fil › Udvidelser* på fanen *Gennemse*. Spørgsmålet efter den første rundvisning installerer også denne udvidelse. Begge veje viser det samme tilladelsesspørgsmål; du kan sige nej til det.
+
 ### Installér en udvidelse fra en fil
 
 Hvis du har fået en udvidelse som fil, installér den sådan her.
@@ -29,26 +31,18 @@ Hvis du har fået en udvidelse som fil, installér den sådan her.
 2. Klik øverst til højre på *ZIP* for en ZIP-fil eller på *JS* for en separat JavaScript-fil.
 3. Vælg filen. Vinduet *Installér udvidelse?* åbner sig, som ovenfor.
 
-En ZIP-fil skal indeholde `manifest.json` og udvidelsens hovedfil. Hvis du installerer en udvidelse, der allerede er installeret, erstatter den nye version den gamle. Hvis appen ikke kan installere filen, for eksempel fordi en ZIP-fil er beskadiget, sker der ikke noget: appen viser ingen fejlmeddelelse for ZIP og JS, og udvidelsen vises ikke på listen. Årsagen står dog i debugterminalen. Slå den til med *Indstillinger › Projekt › Indstillinger*, fanen *Avanceret*, *Slå debugterminal til*, og åbn den med knappen *Vis debugterminal* i statuslinjen. Der står for eksempel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (appen skriver denne tekniske tekst på nederlandsk).
+En ZIP-fil skal indeholde `manifest.json` og udvidelsens hovedfil. Hvis du installerer en udvidelse, der allerede er installeret, erstatter den nye version den gamle. Hvis appen ikke kan installere filen, for eksempel fordi en ZIP-fil er beskadiget, sker der ikke noget: appen viser ingen fejlmeddelelse for ZIP og JS, og udvidelsen vises ikke på listen. Årsagen står dog i debugterminalen. Slå den til med *Indstillinger › Projekt › App-indstillinger*, fanen *Avanceret*, *Slå debugterminal til*, og åbn den med knappen *Vis debugterminal* i statuslinjen. Der står for eksempel *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (appen skriver denne tekniske tekst på nederlandsk).
 
 ### Læs tilladelsesspørgsmålet
 
 Spørgsmålet viser, hvad du skal tage stilling til.
 
 - *Forfatter* og *Repository* viser, hvem der har lavet udvidelsen, og hvor kildekoden er.
-- *Oprindelse* viser, hvor filen kommer fra: *Fra det online udvidelseskatalog*, *Fra en ZIP-fil på denne computer* eller *Fra en JavaScript-fil på denne computer*. Nedenfor står der, om filen er kontrolleret. For kataloget står der *Download verificeret med checksummen fra kataloget.* Hvis kataloget ikke har en checksum, står der med rødt *Kataloget har ingen checksum. Denne download er ikke verificeret.* For en fil, du selv har valgt, står der *Du valgte denne fil selv. Der er ingen ekstern kilde at verificere den mod.*
-- *Hvad du siger ja til* står der: *En udvidelse er programkode, som kører med de samme rettigheder som Open Planner Studio selv. Intet begrænser den. Installer kun udvidelser, hvis forfatter du stoler på.* Nedenfor står der, hvad det betyder på din platform. I desktop-appen står der *I desktop-appen betyder det blandt andet: læse og skrive filer i hele din brugermappe, samt adgang til dine projekter, indstillinger og udklipsholder.* I browseren står der *I browseren betyder det: adgang til dine gemte projekter og indstillinger, til de filer du gav adgang til, og til netværket.*
-- *Hvad denne udvidelse siger at bruge* viser de tilladelser, som forfatteren har angivet, som små mærkater. Det er en angivelse fra forfatteren og ikke en begrænsning: *Dette er forfatterens angivelse, ikke en begrænsning. Koden kan alligevel gøre mere.* Er der ingen mærkat, står der *Intet angivet.* Det betyder ikke, at udvidelsen ikke kan gøre noget: selv uden mærkater kan en udvidelse læse og ændre data i din tidsplan og vise beskeder.
+- *Oprindelse* viser, hvor filen kommer fra, og om den er kontrolleret. Hvis der står med rødt, at downloaden ikke er verificeret, skal du kun installere, hvis du kender kilden.
+- *Hvad du siger ja til* gentager, at en udvidelse er programkode, som kører med de samme rettigheder som selve appen, og hvad det betyder på din platform. Installér kun udvidelser, hvis forfatter du stoler på.
+- *Hvad denne udvidelse siger at bruge* viser de tilladelser, som forfatteren har angivet, som små mærkater. Det er en angivelse og ikke en begrænsning. Står der *Intet angivet.*, kan udvidelsen stadig læse og ændre data i din tidsplan.
 
-Mærkaterne betyder dette:
-
-- *ribbon*: udvidelsen sætter knapper i båndet.
-- *events*: udvidelsen lytter med på hændelser i appen.
-- *backstage*: udvidelsen tilføjer importformater under *Fil › Importer*.
-- *pdf-fonts*: udvidelsen leverer en skrifttype til PDF-eksporten.
-- *importSource*: udvidelsen må læse de fulde, oprindelige bytes i hver fil, du importerer, for eksempel en rå Primavera-fil, inklusive felter, der ikke ender i dit projekt. Vinduet forklarer også selv dette.
-- *help*: udvidelsen må tilføje hjælpeartikler, åbne medfølgende projekter som nyt dokument og vise en vejledning, der peger på dele af appen. Vinduet forklarer også selv dette.
-- *filesystem* og *network*: det er kun angivelser af, hvad forfatteren har i sinde. Appen har ingen funktion til dem.
+Hvad hver mærkat betyder, og de præcise tekster i vinduet, står i [Udvidelsestilladelser](docs://ref-extensiepermissies).
 
 ### Deaktivér, aktivér igen eller fjern en udvidelse
 

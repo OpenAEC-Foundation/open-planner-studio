@@ -17,6 +17,8 @@ per plural category.
   translated normally.
 - `tokens`: copy them unchanged (relation codes like `FS`, duration input like `3ed`). `keep`: names
   that stay as they are (`IFC`, `MS Project`).
+- `fixedText` on an item is the complete required output: copy it byte for byte, including the
+  placeholder, letter and spacing. It is a key-specific contract, even if `nl` uses another unit.
 - `{{placeholders}}` and `$t(...)` nesting: copy byte for byte. Do not translate, rename, add or drop
   them. Only in a plural form you may write `{{count}}` out as a word (e.g. "one task").
 - Plural: give exactly the categories listed in the package's `plural` object, no more, no fewer. The

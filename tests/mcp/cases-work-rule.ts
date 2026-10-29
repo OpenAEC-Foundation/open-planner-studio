@@ -99,7 +99,10 @@ test('update_tasks: calendarId + duration in één call (review F2) — het verr
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * slot(), 'voorwaarde: restwerk 5 d × 8 u');
   okData(await call('planner_update_tasks', { updates: [{ id: t, fields: { calendarId: sixId, duration: 8 } }] }));
-  assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.remainingTime, task(t).time.completion], [sixId, 8, 3, 0.625], 'kalender 6 u, duur 8, rest 3 (5 d verricht), completion volgt: 5/8');
+  // Alleen uren B1a (spec §3.2, §3.12): vast werk is urenmaat. Verricht blijft 40 u; "8 d" op de
+  // 6-urenkalender is 48 u, dus rest 8 u = 4/3 d en completion 40/48.
+  assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.durationMinutes, task(t).time.remainingMinutes, task(t).time.remainingTime, task(t).time.completion],
+    [sixId, 8, 48 * 60, 8 * 60, 4 / 3, 5 / 6], 'kalender 6 u, duur 8 d = 48 u, rest 8 u (40 u verricht), completion volgt: 5/6');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * 480, 'werk 40 u blijft (Vast werk)');
 });
 
@@ -107,9 +110,12 @@ test('update_calendar: uren per dag wijzigen laat de werkregel per taak beslisse
   const { t, r } = seed(4);
   const six = store.getState().addCalendar({ ...store.getState().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
   const sixId = typeof six === 'string' ? six : 'cal-6h-b';
-  store.getState().setTaskWorkRule(t, 'FIXED_WORK');
+  // Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten; de
+  // regel verandert dan geen duur. K2 wordt daarom getoetst met Vaste inzet, die de duur in dagen uit het
+  // werk haalt. T14: 32 u op 6 u/dag is exact 16/3 d.
+  store.getState().setTaskWorkRule(t, 'FIXED_RATE');
   store.getState().setTaskCalendar(t, sixId);
-  assertEq(task(t).time.scheduleDuration, 6, 'voorwaarde: 32 u op 6 u/dag = 6 d');
+  assertEq(task(t).time.scheduleDuration, 16 / 3, 'voorwaarde: 32 u op 6 u/dag = 16/3 d');
   useAppStore.setState((s) => { s.ui.notifications = []; });
   okData(await call('planner_update_calendar', { calendars: [{ id: sixId, hoursPerDay: 4 }] }));
   assertEq([task(t).time.scheduleDuration, asg(t, r).remainingWorkMinutes], [8, 32 * 60], '4 u/dag ⇒ 8 d, werk 32 u blijft');

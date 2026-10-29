@@ -16,7 +16,7 @@ Registe uma linha de base quando o planeamento tiver sido aprovado e o trabalho 
 4. Clique em *Guardar*. A linha de base está agora na lista e fica imediatamente a linha de base ativa.
 5. Clique em *Fechar*.
 
-Por baixo de cada barra de tarefa no Gantt há agora uma barra fina com as datas da linha de base; um marco recebe um pequeno losango. Ativa ou desativa essa sobreposição com *Visualização › Linhas de base e progresso › Sobreposição da linha de base*.
+Por baixo de cada barra de tarefa no Gantt há agora uma barra fina com as datas da linha de base; um marco recebe um pequeno losango. Ative ou desative essa sobreposição com *Visualização › Linhas de base e progresso › Sobreposição da linha de base*.
 
 ### Escolher a linha de base ativa
 
@@ -28,7 +28,7 @@ Altere o nome na lista. A alteração aplica-se de imediato; não tem de clicar 
 
 ### Eliminar uma linha de base
 
-Clique no pequeno cesto do lixo ao lado da linha de base na lista. Se eliminar a linha de base ativa, a aplicação pergunta *Eliminar a linha de base ativa?*. Depois, a linha de base mais recente que restar passa a ser a ativa. Se não houver outra, deixa de haver linha de base ativa e a sobreposição desaparece. Com Ctrl+Z repõe uma linha de base eliminada.
+Clique no pequeno cesto do lixo ao lado da linha de base na lista. Se eliminar a linha de base ativa, a aplicação pergunta *Eliminar a linha de base ativa?*. Depois, a linha de base mais recente que restar passa a ser a ativa. Se não houver outra, deixa de haver linha de base ativa e a sobreposição desaparece. Com Ctrl+Z repõe uma linha de base eliminada. Feche primeiro a janela; o Ctrl+Z não funciona dentro de uma janela.
 
 ### Desvios na tabela de tarefas
 
@@ -36,17 +36,19 @@ Cada linha de base tem seis colunas na tabela de tarefas. Clique no **+** à dir
 
 ## Armadilhas e o que a aplicação faz
 
-**Um planeamento desatualizado.** Se o planeamento estiver desatualizado, a janela mostra *A planificação está desatualizada — recalcule primeiro (F5)*. Trata-se de um aviso; continua a ser possível guardar. Mas guarda então as datas antigas. Feche a janela, prima **Calcular** e só depois guarde.
+**Um planeamento desatualizado.** Se o planeamento estiver desatualizado, a janela mostra *A planificação está desatualizada — recalcule primeiro (F5)*. Trata-se de um aviso; continua a ser possível guardar. Mas, nesse caso, guarda as datas antigas. Feche a janela, prima **Calcular** e só depois guarde.
 
 **Uma linha de base com progresso.** Se guardar uma linha de base depois de ter introduzido o progresso, ela regista o estado com essas datas reais. O desvio fica então a zero e já não diz nada sobre a execução. Registe a linha de base antes de o trabalho começar.
 
 **Uma linha de base não pode ser atualizada.** Se quiser rever o acordo, guarde uma nova linha de base e elimine a antiga, se necessário.
 
+**Um ⚠ em Duração ou Desvio de duração.** Em tarefas em horas, um dia é o tempo de trabalho do respetivo calendário. Se o calendário tiver horas por dia próprias (por exemplo 8, com faixas de 10 horas, vindo do Primavera P6), uma versão anterior da aplicação contava os dias de outra forma. Uma linha de base dessa versão mantém o número antigo: uma tarefa de 1870 horas corresponde a 233,75 dias na linha de base e a 187 dias agora. A aplicação não converte essa linha de base. As colunas *Duração* e *Desvio de duração* dessa linha de base mostram então um ⚠; passe o cursor por cima dele para ver a explicação. As datas da linha de base estão corretas. Guarde uma nova linha de base e elimine a antiga, se necessário.
+
 **Só tarefas sem subtarefas.** Uma fase não está na linha de base: não tem barra de linha de base nem desvio. A fase resulta das tarefas que estão abaixo dela.
 
 **Tarefas novas e eliminadas.** Uma tarefa que acrescenta depois de guardar não tem barra de linha de base. No relatório de variance aparece como *Nova*. Uma tarefa que elimina aparece como *Eliminada*.
 
-**Mover projeto.** Na janela *Mover projeto…*, assim que existirem linhas de base, existe a caixa de verificação *Deslocar também as linhas de base*. Por padrão está desligada: as linhas de base mantêm-se onde estão, pelo que a deslocação aparece como desvio. Veja [Mover um projeto](docs://howto-project-verplaatsen).
+**Mover projeto.** Na janela *Mover projeto…*, assim que existirem linhas de base, aparece a caixa de verificação *Deslocar também as linhas de base*. Por padrão está desligada: as linhas de base mantêm-se onde estão, pelo que a deslocação aparece como desvio. Veja [Mover um projeto](docs://howto-project-verplaatsen).
 
 **Guardado no ficheiro do projeto.** As linhas de base e a escolha ativa são guardadas com o projeto e voltam quando abre o ficheiro.
 

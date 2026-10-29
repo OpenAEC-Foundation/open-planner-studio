@@ -2,9 +2,8 @@
 
 Lijst met dingen die we nog willen doen, afgeleid van de roadmap in
 [PLAN.md](../PLAN.md) (§6, "Functionaliteiten — Roadmap in 6 Fases").
-Hieronder staan **alleen items die nog niet in de code zitten** — wat al af is
-(zie Gantt/CPM-engine, IFC/CSV/MSP/P6 I/O, thema's, undo/redo, 14 talen) is
-weggelaten. Per fase gegroepeerd zodat het terug te koppelen is naar PLAN.md.
+Hieronder staan de items die nog niet (helemaal) in de code zitten, met bij sommige fases
+kort de context van wat al af is (Gantt/CPM-engine, IFC/CSV/MSP/P6 I/O, thema's, undo/redo, 28 talen). Per fase gegroepeerd zodat het terug te koppelen is naar PLAN.md.
 
 Werkwijze: voeg nieuwe items toe in de juiste fase. Afgeronde items worden uit
 deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
@@ -163,15 +162,9 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 ### IFC-kalenderbibliotheek — resterende punten (2026-07-27)
 
-> Gevonden tijdens het overzetbaar maken van uurkalenders via de MCP-bridge. Beide punten zijn
+> Gevonden tijdens het overzetbaar maken van uurkalenders via de MCP-bridge. Het punt hieronder is
 > **beschreven** in de tool-descriptions en met tests vastgepind, dus niets gebeurt stil.
 
-- [x] **Per weekdag verschillende uurbanden overleven een round-trip niet.** *Opgelost in #340
-      (B7, 2026-10-13):* elke groep weekdagen met dezelfde banden krijgt een eigen `IfcWorkTime`;
-      zie `docs/ifc-round-trip.md` "Kalenders: werkblokken per weekdag". Oorspronkelijke bevinding:
-      alle werkdagen kregen bij herladen de banden van de eerste werkdag — een korte vrijdag kwam
-      terug als kopie van maandag (`ifcWriter.ts` schreef alleen `workTime.byWeekday[firstDay]`;
-      H7/#239 loste de scalar-werktijd op, niet dit).
 - [ ] **Wélke kalender de projectdefault is, kan de bridge niet wisselen** (de inhoud ervan wel, via
       het id uit `projectDefaultId`). `update_project.calendarId` weigert nu met die uitleg. Beoordeel
       of dat een echte beperking moet blijven of gewoon nog gebouwd moet worden.
@@ -435,7 +428,7 @@ importgrens). Deze drie zijn bewust blijven liggen.
       (`edit.editTask`) bereikbaar; wat rest is één consistente labelset over beide oppervlakken.
 
 ### Klein — bulk-mutaties: tweede kwadratische factor (2026-07-29)
-- [ ] **`applyWbsNumbering` + `recomputeViewRows` draaien per mutatie.** `withTransaction`
+- [ ] **`applyWbsNumbering` draait per mutatie** (`recomputeViewRows` is sinds 5e6d65f95 uitgesteld tot het einde van de batch, `deferViewRows`). `withTransaction`
       (K-item 32) haalde de snapshot-kant eruit: bij 600 `addTask`-aanroepen ging het van
       4528 ms naar 1533 ms en van 100 naar 1 undo-stap. Maar de schaling bleef ~3,5× bij een
       verdubbeling van n, dus er is een tweede kwadratische factor: beide functies zijn O(n) en
@@ -586,8 +579,8 @@ daar is de bron-assert de enige bewaking. Dat staat ook zo in de kop van die bat
       leveler en dat moet zo blijven. Een goedkopere tussenstap die nog openstaat: de
       werkdagen-enumeratie per taak memoïseren binnen één aanroep (taken met twee toewijzingen
       rekenen hem nu twee keer).
-- [ ] **De bulk-paden.** Binnen een lopende `withTransaction` draaien de hernummering en de
-      rijen-/belastingherberekening nog steeds per mutatie. Uitstellen tot het einde van de batch
+- [ ] **De bulk-paden.** Binnen een lopende `withTransaction` draait de hernummering (en de
+      belastingherberekening) nog steeds per mutatie; de rijenherberekening is al uitgesteld. Uitstellen tot het einde van de batch
       maakt de opbouw lineair. LET OP: code BÍNNEN de batch ziet dan verouderde `wbsCode`/`viewRows`
       — dat is een gedragswijziging, geen pure optimalisatie, en hoort dus met een eigen test.
 - [ ] Daarna de aanroepers die nog buiten `withTransaction` bulk doen (import, plakken, sjabloon
@@ -641,18 +634,6 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
   zesassige meting, gepinde baseline, suite rood zolang niet nul. Beginnen met P6 XML (meeste
   materiaal, grootste overlap met XER); `.mpp` uitbreiden van twee naar zes assen. CSV krijgt
   geen meetlat (geen bronpakket dat het antwoord geeft).
-- [x] **XER: het bronarchief heeft geen bytegrens en gaat mee in élke auto-save-serialisatie**
-  (eindreview 2026-09-07, bevinding 1). *Opgelost 2026-10-07 (branch `claude/xer-archief-eenmalig`,
-  ontwerp `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`):* crashherstel schrijft het
-  archief één keer als content-adressed blob; snapshots verwijzen ernaar; budgetpoort in
-  `check-xer-archive-recovery-once.ts` en `check-xer-archive-recovery-corpus.ts`. rehab-2-bewerkingstick
-  60,5 MB → 35,7 MB (de rest is de planning zelf), OZB eerste tick 12 kopieën → 1 blob.
-  Oorspronkelijke bevinding: Gemeten op `rehab-2.xer` (17,7 MB): IFC 50 MB, volledige
-  herstelronde 73 s / 3,1 GB piek-RSS, ±3,6 s hoofdthread per 10-secondentick; bij twaalf documenten
-  uit één bestand 26× amplificatie (OZB). Geen cap, geen opt-out, geen worker. Eigenaarsbesluit
-  (plan §10.f): bytegrens waarboven het archief niet in de recovery-snapshot meegaat, óf het
-  immutabele archief één keer apart schrijven, plus een budgetpoort in
-  `check-xer-archive-recovery-corpus.ts`. De gids benoemt de prijs nu wel.
 - [ ] **XER: "niet vastgelegd" bestaat in tabel, CSV en MCP, maar niet in de rapporten, de PDF, het
   printvoorbeeld en de renderer** (eindreview bevinding 6). In de modus schrijft
   `applyRecordedTimesToTasks` `totalFloat ?? 0`/`isCritical ?? false` in `task.time`; de rapporten
@@ -679,9 +660,13 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
   zet onder A19 de vroege start op de statusdatum (de reststart, zoals P6's eigen Early Start), dus
   de vier cellen vergelijken twee verschillende velden; er is geen motorfout aangetoond. Sinds het
   eigenaarsbesluit van 2026-10-12 (optie 1) toont de app als Start óók de werkelijke start
-  (`shownStart`, `utils/taskDates.ts`); voor 08 A en 10 B is dat precies de " A"-datum. Open: de
-  meetlat in `check-p6-verified-cases-engine.ts` voor " A"-cellen tegen de getoonde start leggen in
-  plaats van tegen `earlyStart`, en daarna de pin `DEVIATING_CELLS_PIN` herzien.
+  (`shownStart`, `utils/taskDates.ts`); voor 08 A en 10 B is dat precies de " A"-datum.
+  **Meetlat bijgewerkt (2026-10-27, #690):** `check-p6-verified-cases-engine.ts` legt " A"-cellen
+  tegen de getoonde start/het getoonde einde; `DEVIATING_CELLS_PIN` is leeg, 160 van 160 (152
+  rekencellen plus 8 " A"-cellen). Let op: de " A"-waarde in ES én LS komt van het capturescript van
+  de bron (`db-read-capture.py` r. 188–190, commit `c279a5c4`), dat bij een gestarte taak de
+  werkelijke start in beide cellen zet. De ruwe P6-`LATE_START_DATE` staat niet in de meetset; over
+  P6's eigen Late Start zegt de meetset dus niets.
 
 - [ ] **Geen enkele poort raakt het Tauri-asset-protocol — een hele klasse desktopbugs is
   structureel onzichtbaar.** Aangetoond 2026-07-28: in de uitgeleverde `.deb` v2026.7.13 toonde
@@ -720,9 +705,8 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
   korte hik geven. De pijn is al fors verzacht door de throttle (eens/10 s) en de dirty-cache
   (alleen gewijzigde documenten her-serialiseren, `src/hooks/useAutoSave.ts`), dus dit is een
   *nice-to-have*, geen blokker. *Aanpak:* `ifcWriter` in een Web Worker draaien zodat het
-  serialiseren de UI nooit blokkeert. **Let op:** dit zou de eerste Web Worker in de app zijn —
-  nieuwe infrastructuur (berichtenverkeer, foutafhandeling), dus met een frisse aanloop bouwen,
-  niet er even tussendoor. Verificatie-eis: de worker moet **byte-identieke** IFC produceren
+  serialiseren de UI nooit blokkeert. **Let op:** er is al één worker (`src/services/leveling/backgroundLeveling.ts` →
+  `src/engine/scheduler/levelingWorker.ts`); gebruik dat patroon voor berichten, afbreken en fouten. Verificatie-eis: de worker moet **byte-identieke** IFC produceren
   t.o.v. de huidige synchrone `writeIFC` (git-archive-vergelijking, zoals bij A1/A2).
 - [ ] **C3 — canvas-heralloc / renderer-hergebruik (prestatie-audit, geparkeerd 2026-07-23).**
   Marginale winst nadat de pijl-culling (C1) al binnen is; in de browser-preview bovendien
@@ -1068,8 +1052,8 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
 ### Fase 5 — AI, Automatisering & Integratie (v3.0)
 
 #### 5.1 MCP-server (AI-integratie)
-- [ ] MCP-tools voor de nog niet gebouwde functies uit PLAN.md §5.2 (`get_ppc`, `run_monte_carlo`,
-  `suggest_optimization`); de rest van die lijst bestaat als de 42 `planner_*`-tools in `src/services/mcp/tools/`
+- [ ] MCP-tools voor de nog niet gebouwde functies uit PLAN.md §5.2 (`get_ppc`, `add_constraint` (belemmering), `run_monte_carlo`,
+  `suggest_optimization`); de rest van die lijst bestaat onder andere namen bij de 41 `planner_*`-tools in `src/services/mcp/tools/`
 - [ ] Natural language planning ("maak fundering in week 10, 3 dagen, 2 timmerlieden")
 - [ ] AI-gestuurde planning suggesties
 - [ ] AI risico-analyse

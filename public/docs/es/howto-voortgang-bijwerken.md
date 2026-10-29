@@ -14,7 +14,8 @@ La fecha de estado es el día en que hace balance. Establézcala antes de introd
 
 1. Vaya a *Planificación › Líneas base y progreso › Fecha de estado*.
 2. Escriba la fecha en las tres casillas de día, mes y año (en el orden de su notación de fechas), por ejemplo 28, 06 y 2027, y pulse Intro. La aplicación pasa sola a la casilla siguiente.
-3. Con la pequeña cruz junto al campo, puede borrar de nuevo la fecha de estado.
+3. ¿Tiene el calendario del proyecto bandas de horario laboral (la sección *Horarios de trabajo* de la ventana *Calendarios*)? Entonces la aplicación calcula en horas y aparece un campo de hora a la derecha, por ejemplo 17:00. Escriba otra hora, por ejemplo 12:00, y pulse Intro. Si vacía el campo de hora, solo queda la fecha. Si cambia solo la fecha, la hora se mantiene. La hora sigue su notación horaria (24 o 12 horas). Sin bandas de horario laboral, la aplicación calcula en días completos: entonces no hay campo de hora y la línea de fecha de estado empieza al inicio del día.
+4. Con la pequeña cruz junto al campo, vacía de nuevo la fecha de estado.
 
 Si hace balance el viernes fuera de los horarios de trabajo, establezca la fecha de estado en el siguiente día laborable, el lunes. La aplicación planifica el trabajo restante desde el inicio de la fecha de estado.
 
@@ -22,13 +23,13 @@ Si introduce avance mientras aún no hay fecha de estado, la aplicación la esta
 
 ### 2. Introduzca el avance
 
-Elija la forma que le convenga. Todas dan el mismo resultado.
+Elija la forma que le convenga a su situación. Todas dan el mismo resultado.
 
 **Una tarea en el panel de propiedades.** Útil cuando actualiza una sola tarea.
 
 1. Haga clic en la tarea. Si no ve el panel *Propiedades*, actívelo con *Vista › Paneles › Propiedades*.
 2. Arrastre el control deslizante *Progreso (%)* hasta el porcentaje que está hecho.
-3. Si hace falta, rellene *Inicio real* y *Fin real*, de la misma forma que la fecha de estado. La aplicación calcula el campo *Restante* por sí misma; aquí no lo puede cambiar.
+3. Si hace falta, rellene *Inicio real* y *Fin real*, igual que la fecha de estado. La aplicación calcula el campo *Restante* por sí misma; aquí no lo puede cambiar.
 
 Un hito tiene un solo campo, *Fecha real*.
 
@@ -40,10 +41,10 @@ Un hito tiene un solo campo, *Fecha real*.
 **Varias tareas en la tabla.** Útil cuando actualiza una lista completa.
 
 1. Haga clic en el **+** a la derecha del encabezado de la tabla de tareas (*Añadir columna*) y abra la categoría *Progreso*. Añada las columnas *Inicio real*, *Fin real*, *Restante* y *Estado*. La columna *Progreso* ya está en la pestaña *Tabla*.
-2. Haga doble clic en una celda, escriba el valor y pulse Intro. Puede escribir un porcentaje como `50` o `50%`, una fecha como `25-06-2027` y una duración restante como `1`.
+2. Haga doble clic en una celda, escriba el valor y pulse Intro. Escriba un porcentaje como `50` o `50%`, una fecha como `25-06-2027` y una duración restante como `1`.
 3. En la columna *Estado*, tras un doble clic, pulse Intro y elija *No iniciada*, *En curso* o *Completada*.
 
-Si escribe una duración restante, la aplicación deduce el porcentaje: para una tarea de 2 días laborables, un resto de 1 da un porcentaje de 50. Un resto de 0 completa la tarea. Si elige *No iniciada* en *Estado*, el porcentaje pasa a 0 y desaparecen las fechas reales.
+Si escribe una duración restante, la aplicación deduce el porcentaje: para una tarea de 2 días laborables, un resto de 1 da un porcentaje de 50. Un resto de 0 finaliza la tarea. La columna *Duración real* (también en la categoría *Progreso*) funciona al revés: escriba cuánto trabajo ya está hecho y la aplicación calcula el porcentaje. Para una tarea de 4 días laborables, una duración real de 1 da un 25 %. Si elige *No iniciada* en *Estado*, el porcentaje pasa a 0 y desaparecen las fechas reales.
 
 **Todos los datos de una tarea en la ventana de edición.** Haga clic con el botón derecho en la tarea y elija *Editar...*. Los campos de avance también están ahí. Solo se aplican cuando hace clic en *Guardar*.
 

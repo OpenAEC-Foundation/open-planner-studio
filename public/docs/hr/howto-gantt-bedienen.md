@@ -31,10 +31,10 @@ Jedno povlačenje je jedan korak za naredbu *Poništi*, bez obzira koliko dugo p
 
 ### Pomicanje vremenske linije
 
-Što čini povlačenje po praznoj pozadini, ovisi o načinu pomicanja. Odaberete ga u prozoru *Postavke*, na kartici *Prikaz*, u grupi *Gantt › Pomicanje i zumiranje*, u postavci *Način*:
+Što čini povlačenje po praznoj pozadini, ovisi o načinu pomicanja. Odaberete ga u prozoru *Postavke aplikacije*, na kartici *Prikaz*, u grupi *Gantt › Pomicanje i zumiranje*, u postavci *Način*:
 
 - **Zumiranje + povlačenje** (zadano): ako povlačite po praznoj pozadini lijevom tipkom miša, vremenska linija se pomiče zajedno s mišem, kao karta. Kursor je ruka. Na traci povlačenje samo pokreće gestu trake.
-- **Položaj** i **Tipke**: isto povlačenje stvara okvir za odabir. Vremensku liniju pomičete kotačićem (pogledajte [Postavke](docs://ref-instellingen)) ili srednjom tipkom miša.
+- **Položaj** i **Tipke**: isto povlačenje stvara okvir za odabir. Vremensku liniju pomičete kotačićem (pogledajte [Postavke aplikacije](docs://ref-instellingen)) ili srednjom tipkom miša.
 
 **Srednja tipka miša** (pritisnut kotačić) pomiče vremensku liniju u svakom načinu, i ako počnete na traci. Ne radi dok je druga gesta u tijeku, na primjer povlačenje trake.
 
@@ -50,13 +50,17 @@ Više o odabiru je u [Odabir, brisanje i poništavanje zadataka](docs://howto-ta
 
 ### Uvećavanje i umanjivanje
 
-1. Upotrijebite *Uvećaj +* i *Umanji -* (*Početak › Zumiranje*) ili tipke + i -. Kotačić također zumira. Kada se to događa, ovisi o načinu pomicanja (pogledajte [Postavke](docs://ref-instellingen)).
+1. Upotrijebite *Uvećaj +* i *Umanji -* (*Početak › Zumiranje*) ili tipke + i -. Kotačić također zumira. Kada se to događa, ovisi o načinu pomicanja (pogledajte [Postavke aplikacije](docs://ref-instellingen)).
 2. Ako želite cijeli projekt u prikazu, odaberite *Prikaz › Vremenska skala › Prilagodi projektu* ili pritisnite Ctrl+0. *Vrati zadano* (na kartici *Prikaz*) ili tipka 0 vraća zumiranje na zadanu vrijednost.
 3. Desno dolje u traci stanja je zumiranje u pikselima po danu, na primjer *Zumiranje: 15px/dan*.
 
 Što dalje umanjujete, to je manje linija mreže. Pri 8 piksela po danu ili više svaki dan ima liniju, a na granici tjedna deblju liniju. Između 2 i 8 piksela po danu ostaje samo granica tjedna. Ispod 2 piksela po danu, na razini godine, ostaju samo granice mjeseci. Inače bi platno postalo jednolika pruga u kojoj nestaju trake. Sivi vikendi i neradni dani te naizmjenično obojene trake tjedana ostaju na svakoj razini. One nose strukturu tjedna kad linije nestanu. U zaglavlju vremenske linije brojevi tjedana i dana pojavljuju se samo kad ima mjesta za njih. Od 40 piksela po danu prikazuje se i dan u tjednu ispred broja dana.
 
 Ime zadatka prikazuje se u traci ako cijelo stane. Ako ne stane, na primjer kad umanjujete, puno ime prikazuje se desno od trake.
+
+### Pregled pojedinosti zadatka
+
+Zadržite miš nepomično na traci. Pojavi se mala kartica s imenom zadatka, *WBS*, *Trajanje*, *Početak*, *Završetak*, *Status*, *Kritičan* i *Ukupan slobodni hod*. Tijekom povlačenja, pomicanja, okvira za odabir ili izbornika desnom tipkom miša kartica nestaje.
 
 ## Problemi i što aplikacija tada radi
 
@@ -72,5 +76,5 @@ Ime zadatka prikazuje se u traci ako cijelo stane. Ako ne stane, na primjer kad 
 
 - [Izbornici desnom tipkom miša](docs://ref-contextmenus): izbornici na traci, retku i zaglavlju grupe.
 - [Tipkovnički prečaci](docs://ref-sneltoetsen): tipke za zumiranje i za poništavanje geste.
-- [Postavke](docs://ref-instellingen): način pomicanja i vremenska skala.
+- [Postavke aplikacije](docs://ref-instellingen): način pomicanja i vremenska skala.
 - [Ograničenja i rokovi za dovršetak](docs://uitleg-constraints): zašto pomaknuti početak postaje ograničenje.

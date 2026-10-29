@@ -16,6 +16,9 @@ export interface AppQuitDocument {
 }
 
 export interface AppQuitDependencies {
+  /** Rond open veldinvoer af vóór de eerste dirty-controle (`pendingTextEdits.ts`, review #401):
+   *  een getypte waarde zonder blur maakt het document pas daarna gewijzigd. */
+  finishPendingInput: () => void;
   /** Alle open documenten, in tabvolgorde. */
   listDocuments: () => AppQuitDocument[];
   getPendingCloseDocId: () => string | null;
@@ -87,6 +90,7 @@ export function createAppQuitController(deps: AppQuitDependencies): AppQuitContr
   return {
     requestQuit: () => {
       if (finishing) return false;
+      deps.finishPendingInput();
       if (!active) {
         active = true;
         prompting = null;

@@ -15,24 +15,24 @@ Ilman vapaapäiviä sovellus suunnittelee työt yksinkertaisesti joulupäiville 
 1. Valitse *Aikataulu › Kalenteri › Kalenteri* ja valitse vasemmalta kalenteri, johon vapaapäivät pitää lisätä.
 2. Napsauta *Luo vapaapäivät…*. Painikkeen alle avautuu valintojen ruutu.
 3. Valitse *Maa*: Alankomaat, Saksa, Belgia, Ranska, Iso-Britannia, Itävalta, Sveitsi tai *Ei vapaapäiviä*. Joissakin maissa näkyy lisäksi luettelo *Alue*, esimerkiksi Saksan osavaltio. *Valtakunnallinen* jättää vain ne vapaapäivät, jotka pätevät kaikkialla.
-4. Alankomaiden kohdalla valitse *Rakennusalan kesäloma*: *Ei mitään* (oletus), *Pohjoinen*, *Keski* tai *Eteläinen*. Rakennusalan kesäloma näkyy luettelossa yhtenä jaksona, esimerkiksi *Bouwvak (Noord)*, kolme viikkoa maanantaista perjantaihin. Tämä valinta näkyy vain, jos *Rakennustila* on käytössä.
+4. Alankomaiden kohdalla valitse *Rakennusalan kesäloma*: *Ei mitään* (oletus), *Pohjoinen*, *Keski* tai *Eteläinen*. Rakennusalan kesäloma näkyy luettelossa yhtenä aikajaksona, esimerkiksi *Bouwvak (Noord)*, kolme viikkoa maanantaista perjantaihin. Tämä valinta näkyy vain, jos *Rakennustila* on käytössä.
 5. Valintojen alla on yhteenveto, esimerkiksi *21 vapaapäivä(ä), 2026–2028*. Napsauta sitä, niin päivämäärät näkyvät.
 6. Napsauta *Luo*. Luettelo *Vapaapäivät* on nyt täytetty.
 7. Napsauta *Käytä*. Aikataulu lasketaan uudelleen heti.
 
 Alankomaiden kohdalla sovellus lisää luetteloon joka vuosi nämä: Nieuwjaar (uudenvuodenpäivä), Goede Vrijdag (pitkäperjantai), Pasen (pääsiäinen, kaksi päivää), Koningsdag (kuningaspäivä), Hemelvaart (helatorstai), Pinksteren (helluntai, kaksi päivää) ja Kerst (joulu, 25. ja 26. joulukuuta). Jos kuningaspäivä on sunnuntaina, se on 26. huhtikuuta. Bevrijdingsdag (vapautuspäivä) on luettelossa vain lustrumvuosina, esimerkiksi 2025 ja 2030.
 
-Projektin vuodet seuraavat projektin aikaväliä: vuodesta ennen alkamispäivää vuoteen lopetuspäivän jälkeen. Jos projektilla ei ole loppupäivää, vuosia on enintään kolme alkamisvuoden jälkeen. Alkupäivää ja loppupäivää muutetaan kohdassa *Asetukset › Projekti › Projektitiedot*.
+Projektin vuodet seuraavat projektin aikaväliä: vuodesta ennen alkamispäivää vuoteen lopetuspäivän jälkeen. Jos projektilla ei ole loppupäivää, vuosia on enintään kolme alkamisvuoden jälkeen. Alkupäivää ja loppupäivää muutetaan kohdassa *Asetukset › Projekti › Projektin asetukset*.
 
-### Uudelleen luominen, kun projektin ajanjakso muuttuu
+### Uudelleen luominen, kun projektin aikaväli muuttuu
 
-Jos projekti siirtyy tai saa myöhemmän loppupäivän, vapaapäivät eivät enää kata uusia vuosia. Sovellus kertoo sen *Kalenterit*-ikkunassa, esimerkiksi: *Vapaapäivät kattavat 2025–2028; projekti kestää vuoteen 2030. Luodaanko uudelleen?* Napsauta sitten *Luo uudelleen*. Sovellus käyttää projektin vuosille samoja valintoja kuin viimeksi (maa, alue, rakennusalan kesäloma). Napsauta sitten *Käytä*. Tämä viesti näkyy vain kalenterille, jonka vapaapäivät on luotu aiemmin.
+Jos projekti siirtyy tai saa myöhemmän loppupäivän, vapaapäivät eivät enää kata uusia vuosia. Sovellus kertoo sen *Kalenterit*-ikkunassa, esimerkiksi: *Vapaapäivät kattavat 2025–2028. Luodaanko uudelleen vuoteen 2030 saakka?* Napsauta sitten *Luo uudelleen*. Sovellus käyttää projektin vuosille samoja valintoja kuin viimeksi (maa, alue, rakennusalan kesäloma). Napsauta sitten *Käytä*. Tämä viesti näkyy vain kalenterille, jonka vapaapäivät on luotu aiemmin.
 
 ### Oman vapaapäivän tai vapaajakson lisääminen
 
 1. *Kalenterit*-ikkunassa napsauta *Lisää vapaapäivä*. Luettelon alareunaan tulee uusi rivi, jonka *Alkaen*-kohdassa on tämän päivän päivämäärä.
 2. Täytä *Kuvaus*, esimerkiksi *Yrityksen virkistyspäivä*.
-3. Muuta päivämäärää kohdassa *Alkaen*. Jätä *Asti* tyhjäksi, jos kyseessä on yksi päivä. Jos kyseessä on jakso, täytä *Asti* jakson viimeisellä vapaapäivällä, esimerkiksi talvivapaata varten.
+3. Muuta päivämäärää kohdassa *Alkaen*. Jätä *Asti* tyhjäksi, jos kyseessä on yksi päivä. Jos kyseessä on aikajakso, täytä *Asti* aikajakson viimeisellä vapaapäivällä, esimerkiksi talvivapaata varten.
 4. Napsauta *Käytä*.
 
 Rivin takana olevalla roskakorikuvakkeella poistetaan vapaapäivä.
@@ -58,5 +58,5 @@ Valitse kohdasta *Maa* vaihtoehto *Ei vapaapäiviä* ja napsauta *Luo*. Luettelo
 - [Kalenterit ja työpäivät](docs://uitleg-kalenders): miten sovellus ottaa vapaapäivät ja rakennusalan kesälomän huomioon työpäivien laskennassa.
 - [Kalenterin luominen ja määrittäminen](docs://howto-kalender-maken-en-toewijzen): oman kalenterin luominen, johon vapaapäivät lisätään.
 - [Kalenteri-ikkunat](docs://ref-kalenders): kaikki kalenteri-ikkunien kentät.
-- [Uusi projekti ja Projektitiedot](docs://ref-projectinfo): uuden projektin vapaapäiväluettelo.
+- [Uusi projekti ja Projektin asetukset](docs://ref-projectinfo): uuden projektin vapaapäiväluettelo.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): vapaapäivien lisäksi projektikalenterissa on vapaajakso *Frost delay, foundations*.

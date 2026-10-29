@@ -21,6 +21,8 @@ Think carefully before you install one. An extension is program code that runs w
 
 After installation the extension is enabled straight away. On the card in *Browse* it now says *Installed*. What the extension adds, you see in the app itself: a new button in the ribbon, or an import format in *File › Import*. Some extensions also show a message. You recognize it by the prefix *Extension* followed by the name of the extension.
 
+**Tutorials.** The tutorials are an extension. If you see the button *Install tutorials* under *Tutorials* in *Help*, it opens *File › Extensions* on *Browse*. The question after the first tour also installs this extension. Both routes show the same permission question; you can decline it.
+
 ### Install an extension from a file
 
 If you received an extension as a file, install it like this.
@@ -29,26 +31,22 @@ If you received an extension as a file, install it like this.
 2. At the top right, click *ZIP* for a ZIP file, or *JS* for a separate JavaScript file.
 3. Choose the file. The window *Install extension?* opens, as above.
 
-A ZIP file must contain a `manifest.json` and the main file of the extension. If you install an extension that is already installed, the new version replaces the old one. If the app cannot install the file, for example because a ZIP file is damaged, nothing happens: the app shows no error message for ZIP and JS, and the extension does not appear in the list. The reason is in the debug terminal, though. Turn it on with *Settings › Project › App settings*, tab *Advanced*, *Enable debug terminal*, and open it with the button *Show debug terminal* in the status bar. There it says, for example, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (the app words this technical text in Dutch).
+A ZIP file must contain a `manifest.json` and the main file of the extension. If you install an extension that is already installed, the new version replaces the old one.
+
+If the app cannot install the ZIP or JS file, for example because a ZIP file is damaged, it shows the error message *The extension could not be installed. Check the file and try again.* If you cancel the file selection or decline the permission question, no error message appears.
+
+Additional technical details are in the debug terminal. Turn it on with *Settings › Project › App settings*, tab *Advanced*, *Enable debug terminal*, and open it with the button *Show debug terminal* in the status bar. There it says, for example, *[Extensies] ZIP-installatie mislukt: Error: Geen manifest.json gevonden in ZIP* (this technical log entry is in Dutch).
 
 ### Read the permission question
 
 The question shows what you need to decide.
 
 - *Author* and *Repository* say who made the extension and where the source code is.
-- *Origin* says where the file comes from: *From the online extension catalogue*, *From a ZIP file on this computer* or *From a JavaScript file on this computer*. Below it says whether the file has been checked. For the catalog it says *Download verified against the checksum from the catalogue.* If the catalog has no checksum, it says in red *The catalogue provides no checksum — this download has not been verified.* For a file of your own it says *You picked this file yourself; there is no external source to verify it against.*
-- *What you are agreeing to* says: *An extension is program code that runs with the same rights as Open Planner Studio itself. Nothing confines it. Only install extensions whose author you trust.* Below it says what that means on your platform. In the desktop app it says *In the desktop app that includes: reading and writing files anywhere in your user folder, plus access to your projects, settings and clipboard.* In the browser it says *In the browser that means: access to your stored projects and settings, to the files you granted access to, and to the network.*
-- *What this extension says it uses* shows the permissions that the author declared, as small labels. That is a declaration by the author and not a restriction: *This is the author's declaration, not a restriction — the code can do more regardless.* If there is no label, it says *Nothing declared.* That does not mean the extension can do nothing: even without labels an extension can read and change the data of your schedule and show messages.
+- *Origin* says where the file comes from and whether it has been checked. If it says in red that the download has not been verified, only install if you know the source.
+- *What you are agreeing to* repeats that an extension is program code that runs with the same rights as the app itself, and what that means on your platform. Only install extensions whose author you trust.
+- *What this extension says it uses* shows the permissions that the author declared, as small labels. That is a declaration and not a restriction. If it says *Nothing declared.*, the extension can still read and change the data of your schedule.
 
-The labels mean this:
-
-- *ribbon*: the extension puts buttons in the ribbon.
-- *events*: the extension listens along with events in the app.
-- *backstage*: the extension adds import formats to *File › Import*.
-- *pdf-fonts*: the extension supplies a font for the PDF export.
-- *importSource*: the extension may read the complete original bytes of every file you import, for example a raw Primavera file, including fields that do not end up in your project. The window explains this itself too.
-- *help*: the extension may add Help articles, open bundled projects as a new document and show a guide that points at parts of the app. The window explains this itself too.
-- *filesystem* and *network*: these are only indications of what the author intends. The app has no function for them.
+What each label means and the exact texts of the window are in [Extension permissions](docs://ref-extensiepermissies).
 
 ### Disable, re-enable or remove an extension
 

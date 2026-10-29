@@ -1,3 +1,4 @@
+// De dagenmaat (§3.14): de waarden zijn die van de urenreferentie (minute-model-tutorial-f3.json).
 // Tutorial 5 — Resources en nivelleren (`tut-5-resources`): vijf resources, twaalf toewijzingen, de werkregel
 // van het stucwerk, het histogram, overbezetting en nivelleren.
 import { l, same, type Action, type Check, type L, type Lang, type Snap, type TutorialScript } from './dsl';
@@ -13,8 +14,6 @@ const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouder
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
 const OVERALLOCATED = l('⚠ 1 resource(s) overbezet', '⚠ 1 resource(s) overallocated');
 
-/** De urenmelding bij het openen van een stand met urentaken (tutorial 5 stap 1 zegt erop te klikken). */
-export const enableHourPlanningFromNotice: Action = { click: { button: l('Urenplanning aanzetten', 'Enable hour planning') } };
 
 /** Eén resource in de conceptrij: naam, type, eventueel Max. eenheden en Eenheid, Enter. */
 const resource = (name: L, type: L, max?: string, unit?: string): Action[] => [
@@ -53,10 +52,9 @@ export const TUTORIAL_5: TutorialScript = {
   steps: [
     {
       id: 'startpunt',
-      do: [enableHourPlanningFromNotice],
+      do: [],
       expect: [
         notStale,
-        { state: s => (s.ui.enableHourPlanning ? [] : ['urenplanning staat uit']) },
         status('Einde: 01-09-2027', 'End: 01-09-2027'),
         status('Kritiek pad: 8 taken, 48 werkdagen', 'Critical path: 8 tasks, 48 work days'),
         { notSee: statusBar, text: l('overbezet', 'overallocated') },
@@ -119,11 +117,11 @@ export const TUTORIAL_5: TutorialScript = {
         { ribbon: 'instellingen:projectSettings', label: l('App-instellingen', 'App settings') },
         { waitFor: dialog },
         { click: { button: l('Planning', 'Planning'), within: dialog } },
-        { click: { text: l('Toon werkregels en werk', 'Show work rules and work'), within: dialog } },
+        { click: { text: l('Taaktypes gebruiken', 'Use task types'), within: dialog } },
         { check: { state: s => (s.ui.showTaskTypes ? [] : ['werkregels niet zichtbaar']) } },
         { click: { button: l('Sluiten', 'Close'), within: dialog } },
         { click: { taskName: T.plaster } },
-        { select: { field: l('Werkregel', 'Work rule'), within: props }, option: l('Vast werk', 'Fixed work') },
+        { select: { field: l('Taaktype', 'Task type'), within: props }, option: l('Vast werk', 'Fixed work') },
       ],
       expect: [
         { state: (s, lang) => {
@@ -131,23 +129,26 @@ export const TUTORIAL_5: TutorialScript = {
           return t?.workRule?.includes('FIXED_WORK') ? [] : [`werkregel ${t?.workRule}`];
         } },
         { see: props, text: l('Vast werk', 'Fixed work') },
-        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { days: 4 }), ...(s.stale ? ['verouderd'] : [])] },
+        // B1 (spec "alleen uren" §3.2 B1a, §5.2 geval 11c): vast werk is altijd urenmaat. Het stucwerk van
+        // 4 d wordt 4 × 8 u = 32 u, en die maatwissel is planning: de planning is verouderd.
+        { state: (s, lang) => [...taskIs(s, lang, T.plaster, { minutes: 32 * 60 }), ...(s.stale ? [] : ['niet verouderd'])] },
       ],
       shots: [{
         name: 'tut-5-werkregel',
-        of: [{ text: l('Werkregel', 'Work rule'), within: props }, { text: l('Vast werk', 'Fixed work'), within: props }],
+        of: [{ text: l('Taaktype', 'Task type'), within: props }, { text: l('Vast werk', 'Fixed work'), within: props }],
         pad: 10,
       }],
     },
     {
       id: 'tweede-stukadoor',
       do: [
-        { click: { role: 'spinbutton', name: l('Eenh./dag — Stukadoor', 'Units/day — Plasterer'), within: props }, double: true },
+        { click: { role: 'textbox', name: l('Eenh./dag — Stukadoor', 'Units/day — Plasterer'), within: props }, double: true },
         { type: '2' },
         { press: 'Enter' },
       ],
       expect: [
-        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { days: 2 })] },
+        // B1 (B1a): de urenmaat-taak van 32 u wordt met inzet 2 16 u (2 werkdagen van 8 u).
+        { state: (s, lang) => [...assignmentsPresent([has(T.plaster, R.plasterer, 2)])(s, lang), ...taskIs(s, lang, T.plaster, { minutes: 16 * 60 })] },
         status('Verouderd — herbereken (F5)', 'Out of date — recalculate (F5)'),
       ],
     },
@@ -182,7 +183,9 @@ export const TUTORIAL_5: TutorialScript = {
         { click: { text: R.bricklayer, within: { anchor: 'rail:warnings' }, exact: false } },
       ],
       expect: [
-        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 5 dag(en) (29-06-2027 – 05-07-2027)', 'Overallocated on 5 day(s) (29-06-2027 – 05-07-2027)') },
+        // F3c (§3.11, §3.14): de belasting per werkdag uit momenten op de dagenmaat-plaatsing. De metselaar
+        // is 6 werkdagen overbezet, van 28 juni t/m 5 juli (de plaatsingsreferentie).
+        { see: { anchor: 'rail:warnings' }, text: l('Overbezet op 6 dag(en) (28-06-2027 – 05-07-2027)', 'Overallocated on 6 day(s) (28-06-2027 – 05-07-2027)') },
         { state: (s, lang) => (s.ui.histogramResource === R.bricklayer[lang] ? [] : [`histogram toont ${s.ui.histogramResource}`]) },
       ],
       shots: [{ name: 'tut-5-overbezetting', of: [{ anchor: 'gantt-panel' }, { anchor: 'histogram-strip' }], pad: 0 }],
@@ -194,18 +197,21 @@ export const TUTORIAL_5: TutorialScript = {
         { waitFor: dialog },
         { click: { button: l('Berekenen', 'Calculate'), within: dialog } },
         { check: { see: dialog, text: l('Projecteinddatum: ongewijzigd (30-08-2027)', 'Project end date: unchanged (30-08-2027)') } },
-        { check: { see: dialog, text: same('06-07-2027') } },
+        // B4: de nieuwe start valt midden op de werkdag en staat met tijd; het projecteinde valt op het
+        // einde van de werkdag en staat zonder tijd (regel hierboven).
+        { check: { see: dialog, text: same('05-07-2027 10:00') } },
         { shot: { name: 'tut-5-nivelleren', of: dialog, pad: 0 } },
         { click: { button: l('Toepassen', 'Apply'), within: dialog } },
       ],
       expect: [
         { gone: dialog },
+        // F3c (§3.11, §3.14): de nivelleerder schuift alleen het buitenspouwblad, 5 werkdagen.
         { state: (s, lang) => [
-          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-06', earlyFinish: '2027-07-13', totalFloat: 0, critical: true }),
+          ...taskIs(s, lang, T.outerLeaf, { earlyStart: '2027-07-05T10:00', earlyFinish: '2027-07-13T10:00', totalFloat: 0.625, critical: false }),
           ...(s.overallocated.length === 0 ? [] : [`nog overbezet: ${s.overallocated.join(', ')}`]),
         ] },
         { notSee: statusBar, text: l('overbezet', 'overallocated') },
-        status('Kritiek pad: 17 taken, 46 werkdagen', 'Critical path: 17 tasks, 46 work days'),
+        status('Kritiek pad: 8 taken, 46 werkdagen', 'Critical path: 8 tasks, 46 work days'),
         { see: { anchor: 'ribbon-group:resources:overallocationIndicator' }, text: l('Geen', 'None') },
       ],
     },

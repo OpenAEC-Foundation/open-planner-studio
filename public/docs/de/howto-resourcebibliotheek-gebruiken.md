@@ -22,7 +22,7 @@ Bei einem neuen Projekt:
 
 Bei einem bestehenden Projekt:
 
-1. Wählen Sie *Datei › Projektinfo*.
+1. Wählen Sie *Datei › Projekteinstellungen*.
 2. Wählen Sie unter *Ressourcenbibliothek* die Bibliothek.
 3. Klicken Sie auf *Anwenden*. Bis dahin steht unten *Änderungen nicht angewendet — klicken Sie auf Anwenden, um sie zu behalten*.
 
@@ -80,7 +80,7 @@ Eine Kopie mit *weicht ab — entscheiden* weicht vom Bibliothekselement ab. Die
 Bei einer Abweichung haben Sie zwei Möglichkeiten:
 
 - *Bibliothekswerte verwenden*: Die Kopie bekommt die Daten aus der Bibliothek.
-- *Dateiwerte in die Bibliothek übernehmen*: Die Bibliothek bekommt die Daten aus Ihrer Kopie. Darunter steht *Achtung: Dies ändert die Bibliothek und gilt für alle Ihre Projekte*. Die Kopien in anderen geöffneten Projekten folgen dieser Änderung.
+- *Dateiwerte in die Bibliothek übernehmen*: Die Bibliothek bekommt die Daten aus Ihrer Kopie. Darunter steht *Achtung: Dies ändert die Bibliothek und gilt für alle Ihre Projekte.* Die Kopien in anderen geöffneten Projekten folgen dieser Änderung.
 
 ## Stolperfallen und was die App dann tut
 

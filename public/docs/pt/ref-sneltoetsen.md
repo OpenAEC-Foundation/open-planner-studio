@@ -12,9 +12,9 @@ Todas as combinações de teclas da aplicação, agrupadas como na janela *Atalh
 
 **Quando uma tecla não funciona.** Cada entrada indica as suas restrições. Três regras aplicam-se quase em todo o lado:
 
-- Num campo de entrada, numa lista pendente ou numa caixa de texto, a aplicação não intercepta as teclas, por isso pode simplesmente escrever. Exceções: F5, Ctrl+S, F11 e Esc durante a apresentação também funcionam num campo. Na versão final da aplicação (ambiente de trabalho e a versão web no site), isso também vale para Ctrl+Shift+S, Ctrl+O e Ctrl+N.
-- Enquanto um diálogo ou outra janela estiver aberta, as teclas marcadas abaixo com *Não num diálogo* não funcionam. Isso também vale para o modo de apresentação, a visita guiada, o diálogo de boas-vindas e as perguntas que esperam resposta, como a autorização ao instalar uma extensão.
-- A mudança de documento (Ctrl+1 a 9, Ctrl+N, Ctrl+O) também não funciona enquanto *Ficheiro › Info do projeto* tiver alterações que ainda não confirmou com *Aplicar*. Descarte-as ou aplique-as primeiro.
+- Num campo de entrada, numa lista pendente ou numa caixa de texto, a aplicação não intercepta as teclas, por isso pode simplesmente escrever. Exceções: F5, Ctrl+S, F11 e Esc durante a apresentação também funcionam num campo. Se o foco estiver numa lista pendente fechada, as teclas com Ctrl também funcionam, por exemplo Ctrl+Z depois de uma escolha (não Ctrl+Delete e Ctrl+Backspace). Isso não vale numa lista aberta nem num diálogo. Na versão final da aplicação (ambiente de trabalho e a versão web no site), isso também vale para Ctrl+Shift+S, Ctrl+O e Ctrl+N.
+- Enquanto um diálogo ou outra janela estiver aberta, as teclas marcadas abaixo com *Não num diálogo* não funcionam. Isso também vale para a visita guiada, o diálogo de boas-vindas e as perguntas que esperam resposta, como a pergunta se deve guardar as alterações e a autorização ao instalar uma extensão. A maioria destas teclas também não funciona no modo de apresentação. Exceção: as teclas de edição Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y e Delete/Backspace funcionam durante a apresentação.
+- A mudança de documento (Ctrl+1 a 9, Ctrl+N, Ctrl+O) também não funciona enquanto *Ficheiro › Definições do projeto* tiver alterações que ainda não confirmou com *Aplicar*. Descarte-as ou aplique-as primeiro.
 
 ## Ficheiro
 
@@ -24,23 +24,23 @@ Todas as combinações de teclas da aplicação, agrupadas como na janela *Atalh
 
 **Ctrl+Shift+S** — *Guardar como*: pede onde o ficheiro deve ser guardado. Numa versão de desenvolvimento não funciona num campo de entrada.
 
-**Ctrl+O** — *Abrir*: abre um ficheiro, normalmente num separador novo. Não num diálogo e não com alterações por aplicar na info do projeto.
+**Ctrl+O** — *Abrir*: abre um ficheiro, normalmente num separador novo. Não num diálogo e não com alterações por aplicar nas definições do projeto.
 
-**Ctrl+N** — *Novo projeto*: abre a janela *Novo projeto*. Não num diálogo e não com alterações por aplicar na info do projeto.
+**Ctrl+N** — *Novo projeto*: abre a janela *Novo projeto*. Não num diálogo e não com alterações por aplicar nas definições do projeto.
 
 A versão final da aplicação (ambiente de trabalho e a versão web no site) também bloqueia algumas teclas do navegador, para que não atrapalhem: Ctrl+R e Ctrl+Shift+R (recarregar), F12, Ctrl+Shift+I e Ctrl+Shift+J (ferramentas de programador), Ctrl+U (ver código-fonte) e Ctrl+G, Ctrl+F e Ctrl+L (procurar e barra de endereços). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N e F5 são enviadas para a própria aplicação.
 
 ## Editar
 
-**Ctrl+C** — *Copiar*: copia as tarefas selecionadas. Só com uma seleção. Na tabela de tarefas, Ctrl+C copia as células selecionadas; a própria tabela trata disso.
+**Ctrl+C** — *Copiar*: copia as tarefas selecionadas. Só com uma seleção. Não num diálogo. Não em *Ficheiro*, não nos separadores *Relatório* e *IFC* e não enquanto o painel de recursos completo estiver aberto. Na tabela de tarefas, Ctrl+C copia as células selecionadas; a própria tabela trata disso.
 
-**Ctrl+V** — *Colar*: cola as tarefas copiadas. Na tabela de tarefas cola as células.
+**Ctrl+V** — *Colar*: cola as tarefas copiadas. Não num diálogo. Não em *Ficheiro*, não nos separadores *Relatório* e *IFC* e não enquanto o painel de recursos completo estiver aberto, porque a tabela de tarefas não está visível aí. Na tabela de tarefas cola as células.
 
-**Ctrl+Z** — *Desfazer*.
+**Ctrl+Z** — *Desfazer*. Não num diálogo: feche primeiro a janela.
 
-**Ctrl+Y** ou **Ctrl+Shift+Z** — *Refazer*: repete o que desfez.
+**Ctrl+Y** ou **Ctrl+Shift+Z** — *Refazer*: repete o que desfez. Não num diálogo.
 
-**Delete** ou **Backspace** — *Eliminar*: elimina as tarefas selecionadas. Só com uma seleção. Numa célula da tabela de tarefas, Delete e Backspace só limpam o conteúdo da célula (veja *Tabela*).
+**Delete** ou **Backspace** — *Eliminar*: elimina as tarefas selecionadas. Só com uma seleção. Não num diálogo. Não em *Ficheiro*, não nos separadores *Relatório* e *IFC* e não enquanto o painel de recursos completo estiver aberto, porque a tabela de tarefas não está visível aí. Numa célula da tabela de tarefas, Delete e Backspace só limpam o conteúdo da célula (veja *Tabela*).
 
 **F2** — *Editar...*: abre o diálogo da tarefa para a primeira tarefa selecionada. Só com uma seleção. Não num diálogo. Numa célula da tabela de tarefas, F2 inicia a edição da célula.
 
@@ -68,7 +68,7 @@ Avançar, diminuir indentação e inserir acima ou abaixo de uma tarefa selecion
 
 ## Visualização
 
-**F11** — *Apresentação*: liga ou desliga o modo de apresentação. A aplicação também pede ao navegador ou à janela o ecrã inteiro. Também funciona num campo de entrada.
+**F11** — *Apresentação*: liga ou desliga o modo de apresentação. A aplicação também pede à janela que passe para ecrã inteiro. Também funciona num campo de entrada. No navegador, F11 não inicia a apresentação: o próprio navegador põe a janela em ecrã inteiro e a aplicação mantém-se como está. F11 interrompe, no entanto, uma apresentação em curso no navegador.
 
 **Esc** (durante a apresentação) — *Sair da apresentação*. Também funciona num campo de entrada. Isto tem prioridade sobre *Limpar seleção*.
 
@@ -96,7 +96,7 @@ Avançar, diminuir indentação e inserir acima ou abaixo de uma tarefa selecion
 
 **F1** — *Abrir ajuda*: abre *Ficheiro › Ajuda*. Não num campo de entrada e não num diálogo. Numa janela, use o ponto de interrogação no canto superior direito: abre a ajuda sobre o artigo dessa janela (veja [O friso, separador a separador](docs://ref-lint), em *Ajuda*).
 
-**Ctrl+1** a **Ctrl+9** — *Mudar de documento*: vai para o primeiro ao nono documento aberto. Se esse documento não existir, não acontece nada. Não num diálogo e não com alterações por aplicar na info do projeto.
+**Ctrl+1** a **Ctrl+9** — *Mudar de documento*: vai para o primeiro ao nono documento aberto. Se esse documento não existir, não acontece nada. Não num diálogo e não com alterações por aplicar nas definições do projeto.
 
 **Ctrl+Home** — *Saltar para hoje*: desloca a linha temporal para que uma data fique à esquerda da vista. Essa é a data de estado, se tiver definido uma; caso contrário, é hoje. Por isso, o nome diz «hoje», mesmo quando a linha temporal salta para a data de estado. O zoom e o início da linha temporal mantêm-se como estavam. Se uma célula da tabela de tarefas tiver o foco, Ctrl+Home vai, em vez disso, para a primeira célula da tabela (veja *Tabela*).
 

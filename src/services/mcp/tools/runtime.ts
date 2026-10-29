@@ -14,11 +14,11 @@
 // een JSON-RPC-transportfout.
 
 import type { AppState } from '@/state/appStore';
-import { hasBlockingDialogOpen } from '@/hooks/keyboard/shortcutRegistry';
+import { isBlockingDialogOpen } from '@/state/blockingDialogs';
 import type { DocumentInfo } from '@/state/slices/documentSlice';
 import type { UIState } from '@/state/slices/types';
 import { displayDocumentTitle } from '@/utils/documents';
-import { ensureFreshScheduleForRead, type ReadFreshResult } from '../staleGuard';
+import { ensureFreshScheduleForRead, type ReadFreshResult } from '../freshness';
 import type {
   McpContext,
   McpEnvelope,
@@ -130,10 +130,10 @@ export function buildEnvelope(ctx: McpContext): McpEnvelope {
 // --- Dialoog-guard ------------------------------------------------------------------------------
 
 /**
- * De ui-vlaggen die `hasBlockingDialogOpen()` (shortcutRegistry) als blokkerend beschouwt.
- * `hasBlockingDialogOpen()` is de gezaghebbende boolean-poort; deze lijst dient alleen om de fout te
+ * De ui-vlaggen die `isBlockingDialogOpen()` (`state/blockingDialogs.ts`) als blokkerend beschouwt.
+ * `isBlockingDialogOpen()` is de gezaghebbende boolean-poort; deze lijst dient alleen om de fout te
  * BENOEMEN met welke vlag open staat ("fout benoemt wélke dialoog/overlay"). De volgorde bepaalt
- * alleen welke naam wint als er meer tegelijk open staan; ze volgt die van `hasBlockingDialogOpen()`
+ * alleen welke naam wint als er meer tegelijk open staan; ze volgt die van `isBlockingDialogOpen()`
  * niet overal (`pendingCloseDocId` staat hier bovenaan, daar achteraan). Houd wel de INHOUD van beide
  * in sync — beide spiegelen de modale overlays van de app.
  */
@@ -145,7 +145,7 @@ const BLOCKING_UI_FLAGS = [
   'showStructureDialog', 'showLevelingDialog', 'showBaselineDialog', 'showColumnsDialog',
   'showFilterDialog', 'showLayoutsDialog', 'showProjectOverview', 'presentationMode',
   'showTourOverlay', 'showWelcomeDialog', 'showTutorialOffer', 'showProgressImportDialog', 'pendingActualStartQuestion',
-  'pendingSiteOpen', 'pendingSiteSave', 'pendingIfcSchemaQuestion',
+  'pendingPhaseAssignmentQuestion', 'pendingSiteOpen', 'pendingSiteSave', 'pendingIfcSchemaQuestion',
 ] as const;
 
 /** Naam van de eerste open blokkerende ui-vlag, of null wanneer er geen open staat. */
@@ -161,7 +161,7 @@ function blockingDialogName(ui: UIState): string | null {
  *  vlag, of `null`. `action` maakt de zin af ("… voordat de AI <action>."). */
 function dialogGuard(ctx: McpContext, action: string): McpToolErr | null {
   const ui = ctx.app.store.getState().ui;
-  if (!hasBlockingDialogOpen(ui)) return null;
+  if (!isBlockingDialogOpen(ui)) return null;
   const name = blockingDialogName(ui) ?? 'a dialog';
   return toolError(ctx, 'DIALOG_OPEN', `A dialog is open (${name}); close it first before the AI ${action}.`);
 }
@@ -373,7 +373,7 @@ export async function runMutateTool(
   const preErr = preBackupGuards(ctx);
   if (preErr) return preErr;
 
-  // (4) AI-backup: async, VÓÓR de drift-check en de synchrone transactie (die zelf nooit een async
+  // (4) MCP-backup: async, VÓÓR de drift-check en de synchrone transactie (die zelf nooit een async
   //     grens kent). De backup keyt op het doc-id ZOALS HET NU is (pre-await): een
   //     eventuele tabwissel gebeurt pas tijdens de await hieronder, en de drift-check daarna vangt
   //     dat af. Mislukt de backup ⇒ weigeren vóór er iets gemuteerd is (geen rollback nodig).
@@ -418,6 +418,14 @@ export async function runMutateTool(
   if (backupPath) envelope.backupCreated = backupPath;
   // Zie het docblok bij `McpEnvelope.timephasedGuidanceLost`.
   if (res.timephasedGuidanceLost > 0) envelope.timephasedGuidanceLost = res.timephasedGuidanceLost;
+  // Zie het docblok bij `McpEnvelope.remainingWorkRecomputed`.
+  if (res.remainingWorkRecomputed.length > 0) {
+    const hours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+    envelope.remainingWorkRecomputed = res.remainingWorkRecomputed.map((item) => ({
+      taskId: item.taskId, taskName: item.taskName, assignmentId: item.assignmentId, resourceId: item.resourceId,
+      beforeHours: hours(item.beforeMinutes), afterHours: hours(item.afterMinutes),
+    }));
+  }
   const outcome = res.value;
   const ok: McpToolResult = { ok: true, envelope, data: outcome.data };
   if (outcome.itemRejections && outcome.itemRejections.length > 0) {

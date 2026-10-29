@@ -16,11 +16,11 @@ Hodiny použijete pro práci, která se nevejde do celých dnů: jeřáb, který
 
 ## Jak aplikace vypočítává
 
-### Pracovní doby a čisté hodiny
+### Pracovní doby a standardní pracovní den
 
 Každý kalendář má pro každý pracovní den **bloky pracovní doby** (v aplikaci se nazývají *bands*). Standardní kalendář má 07:00 až 12:00 a 13:00 až 16:00. Mezera mezi nimi je přestávka. Aplikace tyto bloky odvodí z kalendáře, z hodnot *Začátek (hodina)*, *Dokončení (hodina)* a přestávky; nic pro to nemusíte nastavovat. Když nastavíte vlastní bloky pro jednotlivé dny v týdnu, mají přednost.
 
-**Čisté hodiny za den** jsou součtem bloků jednoho pracovního dne. Když se pracovní dny délkou liší, platí nejčastější denní součet. Při shodě platí nejvyšší. Při čtyřech dnech po 8 hodinách a pátku s 5 hodinami jsou čisté hodiny za den tedy 8.
+**Standardní pracovní den** je pracovní den, který se nejčastěji opakuje; jeho délka je součtem jeho bloků. Nejde tedy o průměr: když je pondělí na 16 hodin a úterý až pátek na 10 hodin, je standardní pracovní den 10 hodin. Když se pracovní dny délkou liší, platí nejčastější denní součet, a při shodě nejvyšší. Při čtyřech dnech po 8 hodinách a pátku s 5 hodinami je standardní pracovní den tedy 8 hodin. Kalendář s vlastními hodinami za den (například z Primavera P6) také počítá s tímto denním součtem a okno kalendáře ho ukazuje. Vlastní hodnota se zachová pro export. Když se liší, okno kalendáře ukáže pod popiskem *Standardní pracovní den* oranžový blok. Úkol s dobou trvání 1870 hodin na blocích po 10 hodinách tedy trvá 187 dnů, i když jeho vlastní hodnota je 8 hodin za den.
 
 ### Úkol v hodinách
 
@@ -32,9 +32,9 @@ Aplikace počítá celé pracovní dny. Hodiny za den nehrají roli. Úkol na 5 
 
 ### Převod dnů a hodin
 
-Den odpovídá čistým hodinám za den v kalendáři úkolu. Aplikace to používá na třech místech:
+Den odpovídá standardnímu pracovnímu dni kalendáře úkolu. Aplikace to používá na třech místech:
 
-- Pro *Zobrazení doby trvání*. V nabídce *Nastavení › Projekt › Nastavení*, na kartě *Zobrazení*, zvolíte *Automaticky (vlastní jednotka každého úkolu)*, *Vždy dny* nebo *Vždy hodiny*. Úkol na 18 hodin se při *Vždy dny* zobrazí jako `2.25d(18h)`: vlastní jednotka zůstane v závorce.
+- Pro *Zobrazení doby trvání*. V nabídce *Nastavení › Projekt › Nastavení aplikace*, na kartě *Zobrazení*, zvolíte *Automaticky (vlastní jednotka každého úkolu)*, *Vždy dny* nebo *Vždy hodiny*. Úkol na 18 hodin se při volbě *Vždy dny* zobrazí jako `2.25d(18h)`: vlastní jednotka zůstane v závorce.
 - Pro prodlevu v hodinách za úkolem ve dnech (viz *Zaokrouhlení*).
 - Když přepnete jednotku úkolu. Aplikace pak počítá dny od začátku úkolu, každý den s vlastními hodinami, a dobu trvání hned převede, když je výsledek přesný. Dva dny se změní na `16h`. V kalendáři, kde má pátek 5 hodin, se 5 dnů od pondělí změní na `37h`. Dvanáct hodin nejde převést na celé dny v kalendáři s dny po 8 hodinách: aplikace pak jednotku nechá beze změny.
 
@@ -50,14 +50,14 @@ Následující pravidla platí pro závislost dokončení-zahájení v kalendá�
 
 Aplikace zaokrouhluje nebo odmítá na čtyřech místech:
 
-- **Úkol ve dnech po hodinovém úkolu** začne další pracovní den. Hodinový úkol se tak jakoby zaokrouhlí nahoru na celé dny.
-- **Prodleva v hodinách** se počítá v kalendáři prodlevy; výchozí je kalendář předchůdce. Je-li předchůdce úkol ve dnech v kalendáři bez vlastních bloků pracovní doby, například ve standardním kalendáři, aplikace převede prodlevu na celé pracovní dny: prodleva vydělená čistými hodinami za den, zaokrouhlená na celé číslo; polovina dne se zaokrouhlí nahoru. Při 8 hodinách za den se 1 hodina počítá jako 0 dnů, 4 hodiny jako 1 den a 12 hodin jako 2 dny. To platí i tehdy, když je následník hodinový úkol. Je-li předchůdce hodinový úkol, nebo má jeho kalendář vlastní bloky pracovní doby, počítá se prodleva přesně v pracovních hodinách a přestávka se nepočítá.
+- **Úkol ve dnech po hodinovém úkolu** začne další pracovní den. Hodinový úkol se tak říkajíc zaokrouhlí nahoru na celé dny.
+- **Prodleva v hodinách** se počítá v kalendáři prodlevy; výchozí je kalendář předchůdce. Je-li předchůdce úkol ve dnech v kalendáři bez vlastních bloků pracovní doby, například ve standardním kalendáři, aplikace převede prodlevu na celé pracovní dny: prodleva vydělená hodinami standardního pracovního dne, zaokrouhlená na celé číslo; polovina dne se zaokrouhlí nahoru. Při 8 hodinách za den se 1 hodina počítá jako 0 dnů, 4 hodiny jako 1 den a 12 hodin jako 2 dny. To platí i tehdy, když je následník hodinový úkol. Je-li předchůdce hodinový úkol, nebo má jeho kalendář vlastní bloky pracovní doby, počítá se prodleva přesně v pracovních hodinách a přestávka se nepočítá.
 - **Doba trvání ve dnech** je vždy celé číslo. Když zadáte `1.5d`, aplikace zobrazí *Zadejte celé číslo dnů nebo hodin, například 2d nebo 12h.* Doba trvání v hodinách smí být `1.5h` nebo `1h 30m`.
 - **Přepnutí jednotky** proběhne jen tehdy, když je výsledek přesný (viz výše).
 
 ## Příklad: jeřáb
 
-Kalendář je od pondělí do pátku od 07:00 do 12:00 a od 13:00 do 16:00: 8 čistých hodin za den. Projekt začíná v pondělí 7. června 2027.
+Kalendář je od pondělí do pátku od 07:00 do 12:00 a od 13:00 do 16:00: standardní pracovní den má 8 hodin. Projekt začíná v pondělí 7. června 2027.
 
 ### Hodinový úkol, hodinový úkol a úkol ve dnech
 
@@ -81,7 +81,7 @@ Po úkolu ve dnech se prodleva chová jinak. *Pour foundation* se dokončí v ú
 
 ### Volné odpoledne v pátek
 
-Nyní má pátek jen jeden blok, od 07:00 do 12:00: 5 hodin. Ostatní dny zůstávají na 8 hodinách. Čisté hodiny za den zůstávají 8, protože je to nejčastější denní součet. Týden má nyní 37 pracovních hodin.
+Nyní má pátek jen jeden blok, od 07:00 do 12:00: 5 hodin. Ostatní dny zůstávají na 8 hodinách. Standardní pracovní den zůstává 8 hodin, protože je to nejčastější denní součet. Týden má nyní 37 pracovních hodin.
 
 Úkol na 40 hodin od pondělí 7. června v 07:00 zabere od pondělí do čtvrtka (32 hodin) a v pátek (5 hodin). Zbylé 3 hodiny připadnou na následující pondělí od 07:00 do 10:00. Dokončení je **pondělí 14. června 10:00**. Úkol na 5 dnů by od pondělí zabral 37 hodin, a to aplikace navrhne, když přepnete jednotku z 5 dnů na hodiny.
 
@@ -91,7 +91,7 @@ V kurzu 4 o plánování v hodinách naplánujete práci s jeřábem v hodinách
 
 **„8 hodin je 1 den.“** Platí jen tehdy, když má kalendář dny po 8 hodinách. V kalendáři s volným pátečním odpolednem je 5 dnů 37 hodin, ne 40.
 
-**„Když nastavíte více hodin za den, váš úkol ve dnech se dokončí dřív.“** Ne. Úkol ve dnech počítá celé pracovní dny. Hodiny za den mění jen to, kolik hodin má jeden den, například v zobrazení a u prodlevy v hodinách. Jen u úkolu, ke kterému jsou přiřazeny zdroje, a s pravidlem pevné veličiny *Pevná práce* nebo *Pevné jednotky* se doba trvání změní spolu s tím, protože práce zůstane stejná: 40 hodin práce je 5 dnů po 8 hodinách za den a 7 dnů po 6 hodinách za den.
+**„Když nastavíte více hodin za den, váš úkol ve dnech se dokončí dřív.“** Ne. Úkol ve dnech počítá celé pracovní dny. Hodiny za den mění jen to, kolik hodin má jeden den, například v zobrazení a u prodlevy v hodinách. Doba trvání se změní spolu s tím jen u úkolu, ke kterému jsou přiřazeny zdroje, a s typem úkolu *Pevná práce* nebo *Pevné jednotky*, protože práce zůstane stejná: 40 hodin práce je 5 dnů po 8 hodinách za den a 7 dnů po 6 hodinách za den.
 
 **„Úkol na 8 hodin trvá jeden den.“** Platí jen tehdy, když začne na začátku dne. Když začne později, jako *Adjust elements* v úterý v 11:00, běží dál do dalšího dne.
 

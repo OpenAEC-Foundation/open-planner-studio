@@ -1869,6 +1869,13 @@
       "typy zadań",
       "typów zadań"
     ],
+    "avoid": [
+      "reguła pracy",
+      "reguły pracy",
+      "regułę pracy",
+      "regułą pracy",
+      "reguł pracy"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -2041,6 +2048,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "rodzaj robót",
+    "forms": [
+      "rodzaj robót",
+      "rodzaju robót",
+      "rodzaje robót",
+      "rodzajów robót",
+      "rodzajem robót"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "godziny pracy",
     "forms": [
@@ -2049,18 +2068,6 @@
       "godzinom pracy",
       "godzinami pracy",
       "godzinach pracy"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "reguła pracy",
-    "forms": [
-      "reguła pracy",
-      "reguły pracy",
-      "regułę pracy",
-      "regułą pracy",
-      "reguł pracy"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

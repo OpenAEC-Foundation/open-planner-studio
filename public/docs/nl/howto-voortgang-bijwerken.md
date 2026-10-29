@@ -29,7 +29,7 @@ Kies de manier die bij je situatie past. Ze maken hetzelfde resultaat.
 
 1. Klik op de taak. Zie je het paneel *Eigenschappen* niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
 2. Sleep de schuif *Voortgang (%)* naar het percentage dat klaar is.
-3. Vul zo nodig *Werkelijke start* en *Werkelijke einde* in, op dezelfde manier als de statusdatum. Het veld *Resterend* rekent de app zelf uit; je kunt het hier niet wijzigen.
+3. Vul zo nodig *Werkelijke start* en *Werkelijk einde* in, op dezelfde manier als de statusdatum. Het veld *Resterend* rekent de app zelf uit; je kunt het hier niet wijzigen.
 
 Bij een mijlpaal staat er één veld, *Werkelijke datum*.
 
@@ -40,11 +40,11 @@ Bij een mijlpaal staat er één veld, *Werkelijke datum*.
 
 **Meerdere taken in de tabel.** Handig als je een hele lijst bijwerkt.
 
-1. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en open de categorie *Voortgang*. Voeg de kolommen *Werkelijke start*, *Werkelijke einde*, *Resterend* en *Status* toe. De kolom *Voortgang* staat al op het tabblad *Tabel*.
+1. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en open de categorie *Voortgang*. Voeg de kolommen *Werkelijke start*, *Werkelijk einde*, *Resterend* en *Status* toe. De kolom *Voortgang* staat al op het tabblad *Tabel*.
 2. Dubbelklik op een cel, typ de waarde en druk op Enter. Een percentage typ je als `50` of `50%`, een datum als `25-06-2027`, een resterende duur als `1`.
 3. Bij *Status* druk je na een dubbelklik op Enter en kies je *Niet gestart*, *Bezig* of *Voltooid*.
 
-Typ je een resterende duur, dan rekent de app het percentage terug: bij een taak van 2 werkdagen geeft een rest van 1 een percentage van 50. Een rest van 0 maakt de taak voltooid. Kies je bij *Status* *Niet gestart*, dan gaat het percentage naar 0 en verdwijnen de werkelijke datums.
+Typ je een resterende duur, dan rekent de app het percentage terug: bij een taak van 2 werkdagen geeft een rest van 1 een percentage van 50. Een rest van 0 maakt de taak voltooid. De kolom *Werkelijke duur* (ook in de categorie *Voortgang*) werkt andersom: typ hoeveel werk al gedaan is, en de app rekent het percentage uit. Bij een taak van 4 werkdagen geeft een werkelijke duur van 1 een percentage van 25. Kies je bij *Status* *Niet gestart*, dan gaat het percentage naar 0 en verdwijnen de werkelijke datums.
 
 **Alles van één taak in het venster Taak bewerken.** Klik met de rechtermuisknop op de taak en kies *Bewerken...*. De voortgangsvelden staan er ook. Ze gelden pas als je op *Opslaan* klikt.
 
@@ -66,7 +66,7 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **Een datum na de statusdatum.** De app weigert een werkelijke start of een werkelijk einde na de statusdatum. In het paneel staat onder de velden *Actuals kunnen niet ná de statusdatum liggen*; in de tabel meldt de cel *De werkelijke datum ligt na de statusdatum.* Zet de statusdatum eerst later, of corrigeer de datum.
 
-**Een taak die pas na de statusdatum zou beginnen.** Vul je voortgang in bij een taak die volgens de planning nog niet begonnen zou zijn, dan opent het venster *Werkelijke start opgeven*. Het vraagt wanneer de taak werkelijk begon; het voorstel is de statusdatum. Met *Voortgang toepassen* leg je het vast, met *Annuleren* verandert er niets.
+**Een taak die pas na de statusdatum zou beginnen.** Vul je voortgang in bij een taak die volgens de planning nog niet begonnen zou zijn, dan opent het venster *Werkelijke start opgeven*. Het vraagt wanneer de taak werkelijk begon; het voorstel is de statusdatum. Met *Voortgang toepassen* leg je het vast, met *Annuleren* verandert er niets. Met de **?** in de kop open je dit Help-artikel zonder de voortgang toe te passen. Ga terug uit Help om dezelfde vraag met je ingevulde datum weer te zien. Kwam de vraag vanuit *Taak bewerken*, dan blijft ook dat concept bewaard; het staat na terugkeer weer achter de vraag. Ook ongeldige datuminvoer en de bijbehorende foutmelding blijven bewaard. Zolang de vraag wacht, kun je vanuit Help geen ander project openen of het huidige sluiten; beantwoord of annuleer eerst de vraag. Ook Ongedaan maken en Opnieuw (in de titelbalk én via sneltoetsen) en de overige achtergrondbediening wachten tot je de vraag hebt beantwoord of geannuleerd.
 
 **100 % zonder datums.** Zet je een taak op 100 % zonder werkelijk einde, dan wordt het werkelijke einde de statusdatum, ook als de taak eerder klaar was. Vul dan het werkelijke einde zelf in.
 
@@ -74,7 +74,7 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **De duur van een lopende taak wijzigen.** Het gedane werk blijft gedaan en het percentage past zich aan. Een taak van 5 werkdagen op 60 % die je op 10 werkdagen zet, staat daarna op 30 %. Een duur die korter is dan het gedane werk weigert de app: *‘Binnenspouwblad metselen’ is al voor 60% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.* In de tabel meldt de cel *Deze duur is korter dan het werk dat al gedaan is.*
 
-**De restduur is afgerond.** De app rondt de restduur af op hele werkdagen. Bij een taak van 2 werkdagen geven 50 % en 75 % allebei een rest van 1 werkdag.
+**De restduur is exact.** De app rondt de restduur niet af op hele werkdagen. Bij een taak van 2 werkdagen geeft 75 % een rest van 0,5 werkdag.
 
 **Een fase.** Een fase heeft geen eigen voortgang. In het paneel staat *Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5).* In de tabel meldt de cel *De voortgang van een samenvattende taak wordt afgeleid uit de onderliggende taken en kan hier niet worden gewijzigd.*
 

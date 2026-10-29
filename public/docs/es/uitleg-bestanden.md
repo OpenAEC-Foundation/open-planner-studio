@@ -4,7 +4,7 @@
 
 ## El concepto
 
-Open Planner Studio tiene un formato de archivo propio: **IFC**, un formato de intercambio abierto para información de construcción de buildingSMART. La aplicación escribe IFC 4.3; en la lista de exportación se llama *IFC 4x3*. No existe un segundo archivo de proyecto propietario. *Guardar* escribe todo su proyecto como archivo IFC (`.ifc`), y *Abrir* lee de nuevo ese archivo. ¿Quiere ver qué incluye el archivo? La pestaña *IFC* muestra el texto IFC de su proyecto; *Generar IFC* actualiza ese texto.
+Open Planner Studio tiene un formato de archivo propio: **IFC**, un formato de intercambio abierto para información de construcción de buildingSMART. La aplicación escribe el esquema IFC del proyecto, de forma predeterminada IFC 4.3 ADD2 (consulte [Elegir el esquema IFC](docs://howto-ifc-schema-kiezen)); en la lista de exportación se llama *IFC*. No existe un segundo archivo de proyecto propietario. *Guardar* escribe todo su proyecto como archivo IFC (`.ifc`) y *Abrir* lee de nuevo ese archivo. ¿Quiere ver qué contiene el archivo? La pestaña *IFC* es un editor que muestra el texto IFC de su proyecto; *Generar IFC* actualiza ese texto y *Copiar* lo pone en el portapapeles. Si cambia el texto, *Aplicar* lo carga como su proyecto. Eso reemplaza por completo el proyecto en esa pestaña.
 
 Todos los demás formatos son **adaptadores**: traductores entre el modelo de otro programa y el de la aplicación. La aplicación lee CSV, MS Project XML, Primavera P6 XML, archivos de Microsoft Project (`.mpp`) y archivos de Primavera (`.xer`). Escribe CSV, MS Project XML, Primavera P6 XML y dos hojas de avance. No puede exportar a `.mpp` ni a `.xer`.
 
@@ -20,7 +20,7 @@ Cada archivo se abre en una pestaña propia. La excepción es una pestaña que a
 
 Tras abrir, la aplicación siempre recalcula. Si el archivo viene de otro paquete, las fechas pueden diferir de lo que decía el archivo. Eso se describe en [Fechas tal como se guardaron](docs://uitleg-datums-zoals-opgeslagen).
 
-Solo un archivo IFC se convierte en el **destino de guardado**: el archivo al que *Guardar* escribe de vuelta. Un archivo CSV, XML, `.mpp` o `.xer` no. Ese proyecto no tiene archivo después de abrirlo; *Guardar* entonces pregunta dónde debe ir el nuevo archivo IFC. Así, al pulsar Ctrl+S nunca se sobrescribe su archivo original con texto IFC.
+Solo un archivo IFC se convierte en el **destino de guardado**: el archivo al que *Guardar* escribe de nuevo. Un archivo CSV, XML, `.mpp` o `.xer` no. Ese proyecto no tiene archivo tras abrirlo; *Guardar* entonces pregunta dónde debe ir el nuevo archivo IFC. Así, al pulsar Ctrl+S nunca se sobrescribe su archivo original con texto IFC.
 
 ### Qué escribe guardar
 
@@ -46,23 +46,23 @@ Cada adaptador lleva lo que su formato conoce.
 
 **Primavera P6 XML** lleva tareas, relaciones, calendarios, recursos, asignaciones, restricciones y la fecha de estado. Las líneas base y las fechas límite no se incluyen, y tampoco los códigos de actividad, los campos personalizados, las notas y las relaciones externas. Una hamaca también pasa a ser una tarea normal aquí. P6 no tiene desfases en porcentaje: la aplicación convierte ese desfase en un número fijo de días. Un desfase en días naturales pasa a ser un desfase en días laborables.
 
-**CSV** es una lista de tareas. El archivo tiene estas columnas para cada tarea: task id, WBS, level, name, duration, start, finish, predecessors, type, el identificador de un tipo de tarea personalizado (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float y description. Recursos, asignaciones, calendarios, restricciones, fechas límite, líneas base y la fecha de estado no están en él. Los encabezados de columna siempre están en inglés.
+**CSV** es una lista de tareas. El archivo tiene estas columnas para cada tarea: task id, WBS, level, name, duration, start, finish, predecessors, work category, el identificador de una categoría de trabajo personalizada (`OPS Custom Task Type ID`), status, completion, actual start and finish, critical, total float y description. Recursos, asignaciones, calendarios, restricciones, fechas límite, líneas base y la fecha de estado no están en él. Los encabezados de columna siempre están en inglés.
 
 **Solo IFC lleva el perfil de cálculo y las opciones de cálculo.** Si exporta a CSV, MS Project XML o Primavera P6 XML, el perfil no está en el archivo; de las opciones de cálculo, MS Project XML escribe como máximo el umbral crítico. Ese archivo se vuelve a abrir como *Open Planner Studio*. Si su proyecto calculó con *Primavera P6* o *Microsoft Project*, por ejemplo porque venía de un `.xer` o `.mpp`, las fechas pueden desplazarse por ese motivo. Qué es un perfil de cálculo se explica en [Perfiles de cálculo y convenciones](docs://uitleg-rekenprofielen).
 
-Si su proyecto viene de un archivo de Primavera (`.xer`), incluso si lo guardó como IFC antes, la aplicación informa tras una exportación a CSV, MS Project XML o P6 XML: *Al exportar a CSV se pierde información de origen XER.* Para MS Project XML dice *MSPDI* en lugar de *CSV*; para P6 XML dice *P6*. Para IFC no recibe ese mensaje: el archivo IFC lleva consigo el archivo de origen de Primavera. Véase [Abrir un archivo de Primavera P6 (.xer)](docs://howto-xer-openen).
+Si su proyecto viene de un archivo de Primavera (`.xer`), incluso si lo guardó como IFC antes, la aplicación informa tras una exportación a CSV, MS Project XML o P6 XML: *Al exportar a CSV se pierde información de origen XER.* Para MS Project XML dice *MSPDI* en lugar de *CSV*; para P6 XML dice *P6*. Con IFC no aparece ese mensaje: el archivo IFC lleva consigo el archivo de origen de Primavera. Consulte [Abrir un archivo de Primavera P6 (.xer)](docs://howto-xer-openen).
 
-Dos cosas más que hace la aplicación con una exportación. Si la planificación está desactualizada, recalcula primero y exporta después. Y no exporta una planificación con una relación circular: recibe un mensaje con el bucle, por ejemplo *Relación circular entre tareas: Set up site → Demolish existing extension → Set up site*.
+Hay dos cosas más que la aplicación hace con una exportación. Si la planificación está desactualizada, recalcula primero y exporta después. Y no exporta una planificación con una relación circular: recibe un mensaje con el bucle, por ejemplo *Relación circular entre tareas: Set up site → Demolish existing extension → Set up site*.
 
 ### Guardar, guardado automático y recuperación tras un fallo
 
-Son tres cosas distintas. Se parecen, pero escriben en un lugar diferente.
+Son tres cosas distintas. Se parecen, pero escriben en un lugar distinto.
 
 **Guardar** es una acción que usted hace. La aplicación escribe su proyecto en su archivo y quita la marca *Sin guardar*.
 
-El **guardado automático** está desactivado de forma predeterminada, y usted lo activa para cada proyecto. La aplicación entonces escribe, sin ventana, en el mismo archivo cada vez que hay cambios, como máximo una vez cada diez segundos. Solo funciona si el proyecto ya tiene un archivo. Véase [Activar el guardado automático](docs://howto-automatisch-opslaan).
+El **guardado automático** está desactivado de forma predeterminada, y usted lo activa para cada proyecto. La aplicación entonces escribe, sin ventana, en el mismo archivo cada vez que hay cambios, como máximo una vez cada diez segundos. Solo funciona si el proyecto ya tiene un archivo. Consulte [Activar el guardado automático](docs://howto-automatisch-opslaan).
 
-La **recuperación tras un fallo** siempre está activada. En cuanto hay un cambio en cualquier parte, la aplicación guarda, también como máximo una vez cada diez segundos, una copia de recuperación de todos los proyectos abiertos, incluidos los proyectos que usted no cambió. Esa copia no está en su archivo de proyecto: en la aplicación de escritorio está en la carpeta de datos de la aplicación; en el navegador, en el almacenamiento del navegador. Al siguiente inicio, la aplicación ofrece esa copia. Lo explica [Recuperar tras un fallo](docs://howto-herstellen-na-een-crash). La recuperación tras un fallo nunca escribe en su archivo de proyecto.
+**La recuperación tras un fallo** siempre está activada. En cuanto hay un cambio en cualquier parte, la aplicación guarda, también como máximo una vez cada diez segundos, una copia de recuperación de todos los proyectos abiertos, incluidos los proyectos que usted no cambió. Esa copia no está en su archivo de proyecto: en la aplicación de escritorio está en la carpeta de datos de la aplicación; en el navegador, en el almacenamiento del navegador. Al siguiente inicio, la aplicación ofrece esa copia. Eso lo explica [Recuperar tras un fallo](docs://howto-herstellen-na-een-crash). La recuperación tras un fallo nunca escribe en su archivo de proyecto.
 
 Como una copia se guarda como máximo una vez cada diez segundos, en un fallo puede perder los últimos segundos de cambios.
 
@@ -70,7 +70,7 @@ Como una copia se guarda como máximo una vez cada diez segundos, en un fallo pu
 
 La aplicación de escritorio y la versión para navegador hacen lo mismo con su proyecto, pero escriben los archivos de otra forma.
 
-En el escritorio la aplicación trabaja con rutas reales. *Guardar* escribe directamente en su archivo. Normalmente la aplicación escribe primero en un archivo temporal junto al suyo (`.ops-save.tmp`) y solo después reemplaza su archivo, de modo que un fallo a mitad de la escritura no corta su archivo antiguo. Si cierra la aplicación con cambios, pregunta para cada proyecto si quiere guardarlo. Al cerrar correctamente, borra sus copias de recuperación.
+En el escritorio la aplicación trabaja con rutas reales. *Guardar* escribe directamente en su archivo. Normalmente la aplicación escribe primero en un archivo temporal junto al suyo (`.ops-save.tmp`) y solo después reemplaza su archivo, de modo que un fallo a mitad de la escritura no corta su archivo antiguo. Si cierra la aplicación con cambios, pregunta para cada proyecto si quiere guardarlo. Al cerrar de forma correcta, borra sus copias de recuperación.
 
 En un navegador que puede guardar archivos donde usted quiera (como Chrome y Edge) obtiene una ventana normal de abrir y guardar. Después, *Guardar* escribe directamente en el archivo; en el caso de un archivo que abrió, el navegador pide permiso una vez. La lista *Recientes* funciona, pero solo muestra nombres de archivo.
 

@@ -56,14 +56,15 @@ interface RecoveryDialogProps {
 export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp }: RecoveryDialogProps) {
   const { t, i18n } = useTranslation('common');
   const timeNotation = useTimeNotation();
+  const unreadableOnly = entries.length === 0;
 
 
   return (
-    // Escape = veilig sluiten (bestanden blijven staan). Enter = herstellen.
+    // Escape = bewaren; Enter herstelt leesbare kopieën of bewaart uitsluitend onleesbare kopieën.
     <Dialog
       onBackdropClick={onClose}
       onCancel={onClose}
-      onConfirm={onRestore}
+      onConfirm={unreadableOnly ? onClose : onRestore}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-recovery-dialog': true }}
     >
@@ -78,7 +79,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-          <p className="text-text-secondary leading-relaxed">{t('recovery.explanation')}</p>
+          <p className="text-text-secondary leading-relaxed">{t(unreadableOnly ? 'recovery.unreadableOnlyExplanation' : 'recovery.explanation')}</p>
 
           <ul className="flex flex-col gap-2">
             {entries.map(entry => (
@@ -111,14 +112,14 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
         {/* Footer */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={onDiscard} className="btn btn--sm btn--secondary">
-            {t('recovery.dontRestore')}
+            {t(unreadableOnly ? 'recovery.deleteCopies' : 'recovery.dontRestore')}
           </button>
           <button
-            onClick={onRestore}
+            onClick={unreadableOnly ? onClose : onRestore}
             className="btn btn--sm btn--primary shadow-[var(--shadow-glow)] flex items-center gap-1.5"
           >
-            <RotateCcw size={13} />
-            {t('recovery.restore')}
+            {!unreadableOnly && <RotateCcw size={13} />}
+            {t(unreadableOnly ? 'recovery.keepCopies' : 'recovery.restore')}
           </button>
         </div>
     </Dialog>

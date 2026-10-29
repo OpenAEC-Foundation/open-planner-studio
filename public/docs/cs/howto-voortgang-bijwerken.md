@@ -14,15 +14,16 @@ Datum stavu je den, ke kterému zjišťujete stav. Nastavte ho dříve, než zad
 
 1. Přejděte na kartu *Plán › Směrné plány a průběh › Datum stavu*.
 2. Zadejte datum do tří polí pro den, měsíc a rok (v pořadí, v jakém píšete datum), například 28, 06 a 2027, a stiskněte Enter. Aplikace přejde do dalšího pole sama.
-3. Malým křížkem vedle pole datum stavu zase vymažete.
+3. Má kalendář projektu bloky pracovní doby (blok *Pracovní hodiny* v okně *Kalendáře*)? Pak aplikace počítá v hodinách a vpravo se zobrazí pole pro čas, například 17:00. Zadejte jiný čas, například 12:00, a stiskněte Enter. Když pole času vyprázdníte, zůstane jen datum. Když změníte jen datum, čas zůstane. Čas se řídí vaším zápisem času (24 nebo 12 hodin). Bez bloků pracovní doby aplikace počítá po celých dnech. Pak pole pro čas není a čára data stavu je na začátku dne.
+4. Malým křížkem vedle pole datum stavu datum znovu vymažete.
 
 Pokud zjišťujete stav v pátek po pracovní době, nastavte datum stavu na další pracovní den, pondělí. Aplikace naplánuje zbývající práci od začátku data stavu.
 
-Pokud zadáte průběh, když ještě není nastaveno datum stavu, aplikace ho nastaví na dnešek a zobrazí hlášení: *Datum stavu nastaveno na dnešek (…).* Raději to proto udělejte nejdřív sami.
+Pokud zadáte průběh, když ještě není nastaveno datum stavu, aplikace ho nastaví na dnešek a zobrazí hlášení: *Datum stavu nastaveno na dnešek (…).* Proto to raději udělejte nejdřív sami.
 
 ### 2. Zadejte průběh
 
-Zvolte způsob, který odpovídá vaší situaci. Všechny dávají stejný výsledek.
+Zvolte způsob, který odpovídá vaší situaci. Všechny vedou ke stejnému výsledku.
 
 **Jeden úkol v panelu vlastností.** Hodí se, když aktualizujete jeden úkol.
 
@@ -32,10 +33,10 @@ Zvolte způsob, který odpovídá vaší situaci. Všechny dávají stejný výs
 
 Milník má jedno pole, *Skutečné datum*.
 
-**Výběr procenta v nabídce.** Hodí se pro rychlý stav.
+**Výběr procenta v nabídce.** Hodí se pro rychlé zadání stavu.
 
 1. Klepněte pravým tlačítkem na pruh úkolu v diagramu Gantt.
-2. Zvolte *Průběh* a potom 0 %, 25 %, 50 %, 75 % nebo 100 %.
+2. Zvolte *Průběh* a potom 0%, 25%, 50%, 75% nebo 100%.
 
 **Více úkolů v tabulce.** Hodí se, když aktualizujete celý seznam.
 
@@ -43,7 +44,7 @@ Milník má jedno pole, *Skutečné datum*.
 2. Dvakrát klepněte na buňku, zadejte hodnotu a stiskněte Enter. Procento zadáte jako `50` nebo `50%`, datum jako `25-06-2027`, zbývající dobu trvání jako `1`.
 3. U sloupce *Stav* po dvojitém klepnutí stiskněte Enter a zvolte *Nezahájeno*, *Probíhá* nebo *Dokončeno*.
 
-Když zadáte zbývající dobu trvání, aplikace dopočítá zpět procento: u úkolu s dobou trvání 2 pracovní dny znamená zbytek 1 procento 50 %. Zbytek 0 úkol dokončí. Když u sloupce *Stav* zvolíte *Nezahájeno*, procento přejde na 0 % a skutečná data zmizí.
+Když zadáte zbývající dobu trvání, aplikace zpětně vypočítá procento: u úkolu, který trvá 2 pracovní dny, zbytek 1 dá procento 50. Zbytek 0 úkol dokončí. Sloupec *Skutečná doba trvání* (také v kategorii *Průběh*) funguje naopak: zadejte, kolik práce je už hotovo, a aplikace vypočítá procento. U úkolu, který trvá 4 pracovní dny, dá skutečná doba trvání 1 průběh 25%. Když u sloupce *Stav* zvolíte *Nezahájeno*, procento přejde na 0% a skutečná data zmizí.
 
 **Vše o jednom úkolu v okně pro úpravu úkolu.** Klepněte pravým tlačítkem na úkol a zvolte *Upravit...*. Pole průběhu jsou tam také. Změny se použijí až po kliknutí na *Uložit*.
 
@@ -51,7 +52,7 @@ Když zadáte zbývající dobu trvání, aplikace dopočítá zpět procento: u
 
 ### 3. Přepočítejte plán
 
-Každá změna průběhu nebo data stavu způsobí, že plán je zastaralý: stavový řádek hlásí *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například na kartě *Plán › Plán › Přepočítat*. Pokud je zapnuta volba *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení*, karta *Plán*), aplikace to udělá sama.
+Každá změna průběhu nebo data stavu způsobí, že plán je zastaralý: stavový řádek hlásí *Zastaralé — přepočítejte (F5)*. Stiskněte **Přepočítat** (F5), například na kartě *Plán › Plán › Přepočítat*. Pokud je zapnuta volba *Automaticky přepočítat* (na kartě *Nastavení › Projekt › Nastavení aplikace*, karta *Plán*), aplikace to udělá sama.
 
 ## Kontrola výsledku
 

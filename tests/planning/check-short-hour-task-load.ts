@@ -18,6 +18,7 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { legacyCpmOptions } from './legacySolveOptions';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 let checks = 0;
 const diffs: string[] = [];
@@ -85,7 +86,7 @@ console.log('-- short-hour-task-load: histogram en overbezetting --');
 {
   const kraan = res('r-kraan', 1);
   const vloer = hourTask('t-vloer', '2026-06-01', 300);
-  const r1 = computeResourceLoad([kraan], [assign('a-vloer', 't-vloer', 'r-kraan', 1)], [vloer], PROJECT_CAL, []);
+  const r1 = computeResourceLoad([kraan], [assign('a-vloer', 't-vloer', 'r-kraan', 1)], [vloer], PROJECT_CAL, [], effectiveSchedulingOptions({}));
   eq('één taak van 5 u boekt 0,625 op zijn dag', r1.load['r-kraan']?.['2026-06-01'], 0.625);
   eq('en boekt op geen andere dag', Object.keys(r1.load['r-kraan'] ?? {}), ['2026-06-01']);
   eq('onder de capaciteit: geen overbezetting', r1.overallocatedDays['r-kraan'] ?? [], []);
@@ -95,6 +96,7 @@ console.log('-- short-hour-task-load: histogram en overbezetting --');
     [kraan],
     [assign('a-vloer', 't-vloer', 'r-kraan', 1), assign('a-trap', 't-trap', 'r-kraan', 1)],
     [vloer, trap], PROJECT_CAL, [],
+    effectiveSchedulingOptions({}),
   );
   eq('twee taken van 5 u op dezelfde dag tellen op tot 1,25', r2.load['r-kraan']?.['2026-06-01'], 1.25);
   eq('en de kraan is die dag overbezet', r2.overallocatedDays['r-kraan'] ?? [], ['2026-06-01']);

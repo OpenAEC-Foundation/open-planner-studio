@@ -6,13 +6,13 @@ Uppgiftstabellen har 86 fasta kolumner, plus en kolumn per uppgiftskod och eget 
 
 Uppgiftstabellen bredvid Gantt-diagrammet och tabellen på fliken *Tabell* har var sin kolumnval. Plustecknet till höger i rubriken öppnar kolumnväljaren (fönstrets titel *Välja kolumn*). På *Tabell* kan du också använda *Tabell › Kolumner › Kolumner…*. Väljaren visar kolumnerna per kategori: *Uppgift*, *Tidsplan*, *Restriktioner*, *Samband*, *Resurser*, *Framdrift*, *Beräknat*, *Baslinje*, *Anpassat* och *Teknisk*. Du söker på namn. *Senast använda* står överst. *Återställ standard* återställer standardkolumnerna.
 
-Som standard visar tabellen bredvid Gantt *WBS*, *Uppgiftsnamn* och *Varaktighet*. Tabellen på fliken *Tabell* visar *WBS*, *Uppgiftsnamn*, *Varaktighet*, *Start*, *Slut*, *Uppgiftstyp*, *Kritisk*, *Totalt slack* och *Framdrift*, plus en kolumn per uppgiftskod och eget fält i projektet.
+Som standard visar tabellen bredvid Gantt *WBS*, *Uppgiftsnamn* och *Varaktighet*. Tabellen på fliken *Tabell* visar *WBS*, *Uppgiftsnamn*, *Varaktighet*, *Start*, *Slut*, *Arbetskategori*, *Kritisk*, *Totalt slack* och *Framdrift*, plus en kolumn per uppgiftskod och eget fält i projektet.
 
 ## Hur värden läses och redigeras
 
 - **Beräknade kolumner** — kolumnerna i kategorin *Beräknat* och ett antal andra är skrivskyddade: de kommer från beräkningen. Försöker du redigera en skrivskyddad cell visar appen *Den här beräknade kolumnen kan inte redigeras.* Den texten gäller för alla skrivskyddade celler, även när kolumnen inte är beräknad. Om värdena är föråldrade eftersom du ändrat något visas *föråldrad* bredvid dem tills du trycker på *Beräkna*.
-- **Datum** — visas i det format du valde under *Inställningar*, fliken *Visa*, rubriken *Datumformat*.
-- **Varaktighet och slack** — en varaktighet visas i uppgiftens enhet (`5d`, `12h`) eller enligt *Visning av varaktighet* på samma flik (*Automatiskt (egen enhet per uppgift)*, *Alltid dagar* eller *Alltid timmar*). Slack visas i arbetsdagar med två decimaler och med decimaltecknet för ditt språk.
+- **Datum** — visas i det format du valde under *Appinställningar*, fliken *Utseende*, rubriken *Datumformat*.
+- **Varaktighet och slack** — en varaktighet visas i uppgiftens enhet (`5d`, `12h`), eller enligt *Visning av varaktighet* på samma flik (*Automatiskt (egen enhet per uppgift)*, *Alltid dagar* eller *Alltid timmar*). Slack visas i arbetsdagar med två decimaler och med decimaltecknet för ditt språk.
 - **Ja/Nej** — ett värde för ja eller nej visas som *Ja* eller *Nej*; ett tomt värde visas som ett streck (—).
 - **Redigera** — skriv eller välj ett värde. Ett ogiltigt värde avvisas med en orsak under cellen, till exempel *Ange en giltig varaktighet, till exempel 5d eller 8h.* eller *Ange en procentsats mellan 0 och 100.* När du klistrar in ett block med celler fungerar det cell för cell. Skrivskyddade celler hoppas över, och appen visar hur många det var.
 
@@ -21,8 +21,8 @@ Som standard visar tabellen bredvid Gantt *WBS*, *Uppgiftsnamn* och *Varaktighet
 - **Uppgiftsnamn** — namnet på uppgiften. Redigerbart; obligatoriskt. En sammanfattningsuppgift visas med fet text och en ljus bakgrundston i namncellen. En milstolpe visas med fet text i milstolpsfärgen (samma färgfamilj som milstolpen i Gantt). En vanlig uppgift ser ut som vanligt. Det är bara formatering: markera, dra och redigera fungerar på samma sätt.
 - **Beskrivning** — beskrivningen. Redigerbar; fri text.
 - **WBS** — WBS-koden. Redigerbar och obligatorisk, men skrivskyddad medan *WBS auto* är på.
-- **Uppgiftstyp** — uppgiftstypen (*Bygg*, *Installation*, *Rivning*, *Logistik*, *Besiktning*, *Flytt*, *Renovering*, *Underhåll* eller *Övrigt*). Redigerbar med en lista.
-- **Egen uppgiftstyp** — den egna uppgiftstypen från projektet, eller ett streck. Redigerbar med en lista över projektets egna typer.
+- **Arbetskategori** — arbetskategorin (*Bygg*, *Installation*, *Rivning*, *Logistik*, *Besiktning*, *Flytt*, *Renovering*, *Underhåll* eller *Övrigt*). Redigerbar med en lista.
+- **Egen arbetskategori** — den egna arbetskategorin från projektet, eller ett streck. Redigerbar med en lista över projektets egna arbetskategorier.
 - **Färg** — den sparade färgen för uppgiften, som en färgkod, till exempel `#1a73e8`. Redigerbar med en färgväljare. Den sparas i IFC-filen, men ingen balk eller rapport använder den. Stapelfärgerna ställer du in under *Visa › Baslinjer & framdrift › Stapelfärger*.
 - **Noteringar** — noteringarna som `✓ text; ○ text`. Redigerbara så länge det finns högst en notering (då redigerar du dess text). Med fler noteringar är de skrivskyddade.
 
@@ -33,14 +33,14 @@ Som standard visar tabellen bredvid Gantt *WBS*, *Uppgiftsnamn* och *Varaktighet
 - **Obligatorisk milstolpe** — flaggan *Obligatorisk (avtalsenlig)*. Redigerbar endast på en milstolpe.
 - **Prioritet för utjämning** — ett heltal från 0 till 1000, standard 500. Redigerbar. 1000 låser uppgiften för utjämning.
 - **Delningsluckor** — antalet avbrott, som `Delningsluckor: 2`, eller ett streck. Skrivskyddad. Du redigerar dem i panelen *Egenskaper*.
-- **Arbetsregel** — uppgiftens arbetsregel; tomt betyder projektets standard. Redigerbar med en lista, men tom och skrivskyddad på en milstolpe, sammanfattningsuppgift eller hängmatta. Den visas i kolumnväljaren endast när arbetsreglerna är synliga (*Visa arbetsregler och arbete*, eller när filen har arbetsregler).
+- **Uppgiftstyp** — den uppgiftstyp som gäller för uppgiften; tomt betyder projektets standard. Redigerbar med en lista, men tom och skrivskyddad på en milstolpe, sammanfattningsuppgift eller hängmatta. Den visas i kolumnväljaren endast när uppgiftstyperna är synliga (*Använd uppgiftstyper*, eller när filen har uppgiftstyper).
 - **Hängmatta (härledd varaktighet)** — om uppgiften är en hängmatta. Redigerbar, utom på en milstolpe eller sammanfattningsuppgift.
 - **Kalender** — id:t för uppgiftens egna kalender; tomt (—) är projektkalendern. Du skriver eller väljer ett id från förslagen. Ett okänt id avvisas. Obs: cellen visar för närvarande det interna id:t i stället för namnet. Välj hellre en kalender i panelen *Egenskaper*.
 - **Varaktighetstyp** — *Arbetstid* (varaktigheten räknas i arbetsdagar eller arbetstider i kalendern) eller *Förfluten tid* (varaktigheten räknas i sammanhängande klocktid, utan kalender). Redigerbar.
 - **Varaktighetsenhet** — *Dagar* eller *Timmar*. Redigerbar, utom på en sammanfattningsuppgift, hängmatta eller milstolpe. Bytet fungerar bara om omräkningen blir exakt och *Aktivera timplanering* är på.
 - **Varaktighet** — uppgiftens varaktighet, i uppgiftens enhet eller enligt *Visning av varaktighet*. Redigerbar: skriv `5d`, `12h` eller `1h 30m`; även ett tal i uppgiftens enhet. Skrivskyddad på en sammanfattningsuppgift, en hängmatta och en milstolpe med varaktighet 0.
-- **Start** — den visade starten, samma datum som Gantt-balken. Redigerbar. Ger du en uppgift med en föregående uppgift en ny start, får den restriktionen *Starta tidigast (SNET)* på det datumet. Skrivskyddad på en sammanfattningsuppgift eller hängmatta, om den inte är manuellt schemalagd.
-- **Slut** — det visade slutet. Redigerbart: ett nytt slut blir en ny varaktighet. Appen avvisar det för en slutförd uppgift, en milstolpe, en uppgift med förfluten tid och en uppgift med avbrott. Den avvisar också ett slut före starten (*Slutet ligger före starten.*). Skrivskyddat på en sammanfattningsuppgift eller hängmatta, om den inte är manuellt schemalagd.
+- **Start** — den visade starten, samma datum som Gantt-balken. För en uppgift som har startat är det den verkliga starten. Redigerbar. Ger du en uppgift med en föregående uppgift en ny start, får den restriktionen *Starta tidigast (SNET)* på det datumet. Skrivskyddad på en sammanfattningsuppgift eller hängmatta, om den inte är manuellt schemalagd, och på en uppgift som har startat (*Den här uppgiften har startat. Dess start är den verkliga starten. Ändra den via framdriften.*).
+- **Slut** — det visade slutet. För en slutförd uppgift är det det verkliga slutet. Redigerbart: ett nytt slut blir en ny varaktighet. Appen avvisar det för en milstolpe, en uppgift med förfluten tid och en uppgift med avbrott, och för ett slut före starten (*Slutet ligger före starten.*). Skrivskyddat på en sammanfattningsuppgift eller hängmatta, om den inte är manuellt schemalagd, och på en slutförd uppgift (*Den här uppgiften är klar. Slutet är det verkliga slutet. Ändra det via framdriften.*).
 - **Schemalagd start** — startpunkten som beräkningen utgår från (inte alltid den visade starten). Redigerbar; samma effekt som att skriva i *Start*.
 - **Schemalagt slut** — det angivna slutet. Redigerbart endast på en manuellt schemalagd uppgift. Annars säger appen *Planerat slut gäller bara för en manuellt schemalagd uppgift. Ändra slutet via kolumnen Slut eller via varaktigheten.*
 
@@ -64,11 +64,12 @@ Som standard visar tabellen bredvid Gantt *WBS*, *Uppgiftsnamn* och *Varaktighet
 ## Resurser
 
 - **Tilldelade resurser** — namnen på de tilldelade resurserna, åtskilda med kommatecken. Redigerbart: när du lägger till ett namn tilldelas resursen med 1 tilldelningsenhet per dag. När du tar bort ett namn tas tilldelningen bort. Skrivskyddat på en milstolpe eller sammanfattningsuppgift.
-- **Tilldelningsenheter per dag** — enheterna per resurs, som `Name: 1; Name: 0.5`. Redigerbart på en uppgift med tilldelningar.
+- **Tilldelningsenheter per dag** — tilldelningsenheterna per resurs, som `Name: 1; Name: 0.5`, med högst två decimaler. Det lagrade värdet blir kvar exakt. Redigerbart på en uppgift med tilldelningar.
+- **Planerade tilldelningsenheter per dag** — den planerade takten per resurs, som `Name: 1.11`, med högst två decimaler, på samma sätt som *Tilldelningsenheter per dag*. Bara för en tilldelning från Primavera P6 med en annan återstående takt; *Tilldelningsenheter per dag* visar då den återstående takten. Skrivskyddad.
 - **Tilldelningskurva** — kurvan per resurs, som `Name: Uniform`. Redigerbar på en uppgift med tilldelningar.
 - **Arbetsfönster start** och **Arbetsfönster slut** — arbetsfönstret per resurs, från en importerad fil, som `Name: datum`. Skrivskyddade.
-- **Planerat arbete (timmar)** och **Verkligt arbete (timmar)** — det planerade och verkliga arbetet per resurs i timmar, som `Name: 12`, från en importerad fil. Skrivskyddade.
-- **Återstående arbete (timmar)** — det återstående arbetet per resurs i timmar, som `Name: 6`: det lagrade arbetet, annars återstående varaktighet × tilldelningsenheter. Redigerbart på en uppgift med tilldelningar där en arbetsregel gäller. Visas i kolumnväljaren endast när arbetsreglerna är synliga.
+- **Planerat arbete (timmar)** och **Verkligt arbete (timmar)** — det planerade och verkliga arbetet per resurs i timmar, som `Name: 617.14`, med högst två decimaler, från en importerad fil. Skrivskyddade.
+- **Återstående arbete (timmar)** — det återstående arbetet per resurs i timmar, som `Name: 6` eller `Name: 26.67`: det lagrade arbetet, annars återstående varaktighet × tilldelningsenheter. Redigerbart på en uppgift med tilldelningar där en uppgiftstyp gäller, med komma eller punkt som decimaltecken. Visas i kolumnväljaren endast när uppgiftstyperna är synliga. En gul ⚠ i cellen betyder att det lagrade arbetet skiljer sig från tilldelningsenheter × återstående varaktighet, precis som ⚠-tecknet vid *Arbete (kvar)* i uppgiftspanelen.
 
 ## Framdrift
 
@@ -87,15 +88,15 @@ Kolumnerna för framdrift följer appens framdriftsregler. Ett verkligt datum ef
 Alla kolumner i den här kategorin är skrivskyddade.
 
 - **Förskjutning pga utjämning** — hur många arbetsdagar utjämningen förskjöt uppgiften; ett streck om ingen utjämning har tillämpats.
-- **Tidigaste start** och **Tidigaste slut** — de tidigaste datumen från beräkningen.
+- **Tidigaste start** och **Tidigaste slut** — de tidigaste datumen från beräkningen. För en uppgift som har startat kan de skilja sig från *Start* och *Slut*. Beräkningsprofilen *Primavera P6* sätter den tidigaste starten för en uppgift som pågår eller är klar på rapportdatumet.
 - **Senaste start** och **Senaste slut** — de senaste datumen då uppgiften fortfarande får börja eller sluta utan att projektet försenas.
 - **Fritt slack** — de arbetsdagar som uppgiften kan glida utan att en efterföljande uppgift försenas.
 - **Totalt slack** — de arbetsdagar som uppgiften kan glida utan att försena projektslutet. Negativt om en restriktion eller ett måldatum inte kan uppnås.
 - **Kritisk** — *Ja* om uppgiften ligger på den kritiska linjen.
 - **Störande slack** — totalt slack minus fritt slack.
-- **Nära kritisk** — *Ja* för en uppgift som är nära kritisk. Fylls bara i om *Markera nära kritisk* är på (*Projektinfo*, blocket *Beräkningsprofil och beräkningsalternativ*); annars ett streck.
+- **Nära kritisk** — *Ja* för en uppgift som är nära kritisk. Fylls bara i om *Markera nära kritisk* är på (*Projektinställningar*, blocket *Beräkningsprofil och beräkningsalternativ*); annars ett streck.
 - **Slackväg** — slackvägens nummer, 1 för den mest kritiska. Fylls bara i om *Flera slackvägar* är på; annars ett streck.
-- **Källa för registrerade datum** — för en fil med registrerade datum: *Avviker* eller *Delvis ej registrerat*. Visas bara i kolumnväljaren för en sådan fil. På en oregistrerad axel visas *Ej registrerat* i kolumnerna för senaste datum och slack.
+- **Källa för registrerade datum** — så länge appen visar datumen från filen: *Delvis ej registrerat* på en uppgift för vilken filen inte innehåller allt. Visas bara i kolumnväljaren i den vyn. På en oregistrerad axel visas *Ej registrerat* i kolumnerna för senaste datum och slack.
 
 Se [Kritisk linje och slack](docs://uitleg-kritiek-pad).
 

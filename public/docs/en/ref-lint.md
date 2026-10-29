@@ -4,9 +4,9 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 
 ## How the ribbon behaves
 
-- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with AI mode on, *AI*.
+- **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with the MCP connection on, *MCP*.
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
-- **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the AI tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
+- **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the MCP tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.
 
 ## File
@@ -26,7 +26,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 - **App settings** — the same settings as the *App settings* window.
 - **Extensions** — management and installation of extensions; see [Installing and managing an extension](docs://howto-extensie-installeren).
 - **Library** — management of resource libraries; see [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
-- **Help** — the built-in documentation, also with F1. The search field searches titles, headings and the text itself. The articles are in four sections: *Tutorials*, *How-to guides*, *Explanation* and *Reference*. Under *Documentation language* you choose *Follow app language*, *Nederlands* or *English*. Help only exists in Dutch and English: if the app is in another language, you read the English version, with a notice. The choice is kept on this device, separately from the language of the app. You can also reach Help from a window or panel: many windows and the panels *Properties*, *Resources* and *Warnings* have a question mark at the top right (*Help on this topic*), which opens Help on the article about that window or panel. If you entered something in the window that is not saved yet, the app first asks *Save*, *Cancel* (discard your input) or *Back* (stay in the window); then the window closes and Help opens. A few windows, such as *Edit task* and *Level resources*, always ask. Without input, Help opens straight away.
+- **Help** — the built-in documentation, also with F1. The search field searches titles, headings and the text itself. The articles are in four sections: *Tutorials*, *How-to guides*, *Explanation* and *Reference*. Under *Documentation language* you choose *Follow app language* or a language from the list. Dutch and English are the source languages; the other languages have the articles that are already translated. If an article is missing in your language, you read the English version, with a notice. The choice is kept on this device, separately from the language of the app. You can also reach Help from a window or panel: many windows and the panels *Properties*, *Resources* and *Warnings* have a question mark at the top right (*Help on this topic*), which opens Help on the article about that window or panel. If you entered something in the window that is not saved yet, the app first asks *Save*, *Cancel* (discard your input) or *Back* (stay in the window); then the window closes and Help opens. A few windows, such as *Edit task* and *Level resources*, always ask. Without input, Help opens straight away.
 - **Start tour** — closes the Backstage and starts the tour at step 1.
 - **Close project** — closes the active document. If it has unsaved changes, the app asks for confirmation.
 
@@ -46,8 +46,8 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 
 ### Home › Tasks
 
-- **Task** — adds a task named *New task*, with a duration of 5 working days, starting on the project start. (If *Enable hour planning* is on and the *Default unit for new tasks* in *Project settings* is hours, the duration is 5 hours.) If a task is selected and the view is the plain tree, it lands directly below the lowest selected task (tooltip *New task directly below the selection*). With no selection it goes at the bottom (tooltip *New task at the bottom of the list*). With a selection but while filtering, grouping or sorting, it also goes at the bottom. A red notification then says that the app cannot place it below your selection, with the *Clear* button. The new task becomes the only selection, the Gantt jumps to it and its name is ready to overwrite in the *Properties* panel.
-- **Milestone ▾** — a drop-down that puts a milestone (duration 0) in the same place as *Task*. *Start milestone* and *Finish milestone* set the kind of milestone; the new milestone is named *New milestone* and gets task type *Other*. *Inspection point (mandatory)* makes a finish milestone with task type *Inspection* and the flag *Mandatory (contractual)*, named *New inspection point*.
+- **Task** — adds a task named *New task*, with a duration of 5 working days, starting on the project start. (If you chose *Hour measure* under *Default measure for new tasks* in *Project settings*, the duration is 5 hours. In the P6 and MSP profiles it is 5 working days in hours.) If a task is selected and the view is the plain tree, it lands directly below the lowest selected task (tooltip *New task directly below the selection*). With no selection it goes at the bottom (tooltip *New task at the bottom of the list*). With a selection but while filtering, grouping or sorting, it also goes at the bottom. A red notification then says that the app cannot place it below your selection, with the *Clear* button. The new task becomes the only selection, the Gantt jumps to it and its name is ready to overwrite in the *Properties* panel.
+- **Milestone ▾** — a drop-down that puts a milestone (duration 0) in the same place as *Task*. *Start milestone* and *Finish milestone* set the kind of milestone; the new milestone is named *New milestone* and gets work category *Other*. *Inspection point (mandatory)* makes a finish milestone with work category *Inspection* and the flag *Mandatory (contractual)*, named *New inspection point*.
 - **Link ▾** — a drop-down with four fixed actions; the main button never changes meaning. See *Planning › Relations* for the four actions.
 - **Split task** — turns split mode on or off. On: a strip under the ribbon explains that you click on a bar where the break starts and drag right for its length. Disabled when the Gantt is not in view (on the *Table*, *IFC* and *Report* tabs and under the full resource panel); the tooltip then says *Only available when the Gantt chart is visible*. See [Splitting a task](docs://howto-taak-splitsen).
 
@@ -148,7 +148,7 @@ This group is also on *Table* and *Report*.
 - **Zoom +** and **Zoom -** — zoom the time axis in or out by 10 pixels per day.
 - **Reset** — sets the zoom back to the default of 30 pixels per day.
 - **Fit to project** — zooms and scrolls so the whole project fits in view.
-- **Scale choice** — a list with *Year*, *Quarter*, *Month*, *Week*, *Day* and, only with *Enable hour planning* on, *Hour*. A choice sets a fixed zoom; the value shown follows the current zoom, and below it that zoom is shown in pixels per day.
+- **Scale choice** — a list with *Year*, *Quarter*, *Month*, *Week*, *Day* and *Hour*. A choice sets a fixed zoom; the value shown follows the current zoom, and below it that zoom is shown in pixels per day.
 
 ### View › Display
 
@@ -176,6 +176,14 @@ This group is also on *Table* and *Report*.
 
 The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings* is the same as on *Planning*.
 
+**The right-hand column.** The column to the right of the Gantt is there as soon as at least one of the panels *Properties*, *Resource dock* or *Warnings* is on. If none is on, there is no column. If a full panel takes over the workspace, for example the full resource panel, the column disappears. Only on the *Table* tab does it stay.
+
+- **Width** — drag the divider between the workspace and the column. One width applies to all panels in the column.
+- **Split** — if two panels are on, drag the border between them. If one is on, that panel fills the whole column.
+- **Collapse** — the button *Collapse side column* in the header hides the column. A narrow strip with the button *Expand side column* brings it back, with the same panels as before.
+- **Close** — every panel has a cross in its header. It is the same switch as the ribbon button.
+- **Full panel** — in the resource dock, the button *Full panel* opens the full resource panel.
+
 ### View › Baselines & progress
 
 This group has the same name as the one on *Planning*, but holds the drawing options of the Gantt.
@@ -183,7 +191,7 @@ This group has the same name as the one on *Planning*, but holds the drawing opt
 - **Baseline overlay** — shows the active baseline as a thin bar under each task bar. Default: on. Without an active baseline there is nothing to see.
 - **Progress line** — draws a line on the status date that bulges out per task to its progress. Default: on. Without a status date there is nothing to see. When the progress line is on, that line is also the marker of the status date.
 - **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on. The label follows your date notation, for example 20-09-2006. If the app calculates in hours, line and label sit at the time of day and the label also shows the time, for example 20-09-2006 17:00.
-- **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Task type* is used temporarily. Outside *Critical path*, a red outline marks the critical path. The choice also applies to the report.
+- **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Work category* is used temporarily. Outside *Critical path*, a red outline marks the critical path. The choice also applies to the report.
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.
 - **Relationship lines** — shows or hides the relationship lines between tasks. Default: on. The choice belongs to the document and to the layout.
@@ -221,28 +229,28 @@ The tab shows the IFC panel in the workspace. The ribbon has no buttons here, on
 
 - **Print** — only on this tab, where it does nothing because *Report* is already open; the report choices are in the report screen.
 
-## AI
+## MCP
 
-The *AI* tab only exists when *Enable AI mode* is on (*App settings*, tab *Advanced*, heading *AI mode*). Default: off. Turning it off removes the tab and stops the bridge. An AI assistant works with your schedule through an MCP bridge that you start here. See [Connecting an AI assistant (MCP)](docs://howto-ai-assistent-koppelen).
+The *MCP* tab only exists when *Allow MCP connection* is on (*App settings*, tab *Advanced*, heading *MCP connection*). Default: off. Turning it off removes the tab and stops the bridge. An MCP client works with your schedule through an MCP bridge that you start here. See [Connecting an MCP client](docs://howto-ai-assistent-koppelen).
 
-### AI › Server
+### MCP › Server
 
-- **Start bridge** and **Stop bridge** — start or stop the MCP bridge. Next to it is the status: *Off*, *Live on port …*, *Port … in use* (with the reason) or *Error*. Disabled in the web version; the tooltip says *The bridge only works in the desktop app.* The same status shows as a dot with *AI* in the status bar.
+- **Start bridge** and **Stop bridge** — start or stop the MCP bridge. Next to it is the status: *Off*, *Live on port …*, *Port … in use* (with the reason) or *Error*. Disabled in the web version; the tooltip says *The bridge only works in the desktop app.* The same status shows as a dot with *MCP* in the status bar.
 
-### AI › Connection
+### MCP › Connection
 
 - **Port** — the port of the bridge. Default: 3877. Only editable when the status is *Off* (tooltip *Only editable while the server is stopped.*).
 - **Token** — the password of the bridge, shown hidden. Small buttons *Show token*/*Hide token*, *Copy* and *New token*. *New token* asks for confirmation first, because a new token breaks all existing connections; if the bridge is running, it restarts with the new token.
-- **Connect** — shows the connection details: endpoint, token, a configuration snippet and a connection prompt that you paste into your AI agent.
+- **Connect** — shows the connection details: endpoint, token, a configuration snippet and a connection prompt that you paste into your MCP client.
 
-### AI › Safety
+### MCP › Safety
 
-- **Pause** / **Resume** — temporarily refuses all changes by the AI; reading stays allowed and the bridge stays live. The button lights up red while paused.
+- **Pause** / **Resume** — temporarily refuses all changes by the MCP client; reading stays allowed and the bridge stays live. The button lights up red while paused.
 - **Read-only** — refuses all mutating tools while this is on.
-- **Auto-backup: on** / **Auto-backup: off** — automatically writes an IFC backup before the first AI change per document. Default: on.
+- **Auto-backup: on** / **Auto-backup: off** — automatically writes an IFC backup before the first MCP change per document. Default: on.
 - **Back up now** — writes a backup straight away and reports the file name. Desktop app only.
 - **Open backup folder** — opens the folder with the backups. Desktop app only.
 
-### AI › Activity
+### MCP › Activity
 
-- **Activity panel** — shows or hides the *AI activity* panel with the calls to the bridge, with their arguments and response.
+- **Activity panel** — shows or hides the *MCP activity* panel with the calls to the bridge, with their arguments and response.

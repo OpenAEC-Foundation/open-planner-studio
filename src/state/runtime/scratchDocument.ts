@@ -72,6 +72,7 @@ function harvestNotifications(store: AppStore): NotifyInput[] {
     severity: n.severity,
     messageKey: n.messageKey,
     params: n.params,
+    numberParams: n.numberParams,
     detail: n.detail,
     dedupeKey: n.dedupeKey,
     helpArticleId: n.helpArticleId,

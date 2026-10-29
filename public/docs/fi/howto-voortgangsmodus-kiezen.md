@@ -25,7 +25,7 @@ Miten valitaan?
 
 ## Sudenkuopat ja mitä sovellus tekee
 
-**Ei eroa.** Edistymistapa vaikuttaa vain tehtäviin, jotka ovat jo alkaneet, kun niiden edeltäjä ei ole vielä päättynyt. Ilman tällaista tehtävää mikään ei muutu.
+**Ei eroa.** Tila vaikuttaa vain tehtäviin, jotka ovat jo alkaneet, kun niiden edeltäjä ei ole vielä päättynyt. Ilman tällaista tehtävää mikään ei muutu.
 
 **Viesti jää.** Progress Override ei ratkaise järjestyksestä poikkeavan edistymisen viestiä. Tila päättää, miten sovellus laskee; ristiriita riippuvuuden ja edistymisen välillä jää. Jos riippuvuus ei ole enää kohdallaan, muutetaan se ([Riippuvuuksien lisääminen](docs://howto-relaties-leggen)).
 
@@ -33,7 +33,7 @@ Miten valitaan?
 
 **P6-tiedosto.** Kun avataan Primavera P6 -tiedosto (.xer), sovellus ottaa tilan tiedostosta. Retained Logic ja Progress Override -tilojen lisäksi P6:ssa on myös Actual Dates. Sovellus ei tunne tätä kolmatta tilaa; tällainen tiedosto lasketaan Retained Logic -tilana. Tuontiviesti kirjaa sen tekstillä *1 P6-aikataulutusasetus käytti turvallista varavaihtoehtoa.*
 
-**Laskentaprofiili.** Primavera P6 -profiilissa Progress Override toimii myös takaperoin: edeltäjän myöhäisissä päivämäärissä ja vapaassa pelivarassa (laskentasääntö *Progress Override ohittaa aloitetun seuraajan myös takaperoin*). Open Planner Studio- ja Microsoft Project -profiileissa näin ei ole. Laskentasäännöt löytyvät kohdasta *Asetukset › Projekti › Projektitiedot*, osiosta *Laskentaprofiili ja laskentavaihtoehdot*. Selityksen esimerkissä tätä takaperoista vaikutusta ei voi nähdä.
+**Laskentaprofiili.** Primavera P6 -profiilissa Progress Override toimii myös takaperoin: edeltäjän myöhäisissä päivämäärissä ja vapaassa pelivarassa (laskentasääntö *Progress Override ohittaa aloitetun seuraajan myös takaperoin*). Open Planner Studio- ja Microsoft Project -profiileissa näin ei ole. Laskentasäännöt löytyvät kohdasta *Asetukset › Projekti › Projektin asetukset*, osiosta *Laskentaprofiili ja laskentavaihtoehdot*. Selityksen esimerkissä tätä takaperoista vaikutusta ei voi nähdä.
 
 ## Katso myös
 

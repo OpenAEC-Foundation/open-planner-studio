@@ -1,0 +1,366 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Open Planner Studio headless API on ECS Fargate behind an Application Load Balancer (HTTPS).
+  Image from ECR, API token from Secrets Manager, logs in CloudWatch. See docs/headless-api.md.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Image and secret }
+        Parameters: [ImageUri, EcrRepositoryArn, ApiTokenSecretArn, SecretKmsKeyArn]
+      - Label: { default: Network }
+        Parameters: [VpcId, LoadBalancerSubnetIds, TaskSubnetIds, AssignPublicIp, LoadBalancerScheme, AllowedCidr, CertificateArn]
+      - Label: { default: Size and limits }
+        Parameters: [CpuArchitecture, TaskCpu, TaskMemory, DesiredCount, MaxBodyBytes, CalculationTimeoutMs, UploadTimeoutMs, MaxUploads, LogRetentionDays]
+
+Parameters:
+  ImageUri:
+    Type: String
+    Description: Full image URI in ECR, preferably with a digest (…/open-planner-api@sha256:…).
+    AllowedPattern: '^[0-9]{12}\.dkr\.ecr\.[a-z0-9-]+\.amazonaws\.com(\.cn)?/.+$'
+  EcrRepositoryArn:
+    Type: String
+    Description: ARN of the ECR repository of ImageUri. The execution role can only pull from this repository.
+    AllowedPattern: '^arn:aws[a-z-]*:ecr:[a-z0-9-]+:[0-9]{12}:repository/.+$'
+  ApiTokenSecretArn:
+    Type: String
+    Description: ARN of the Secrets Manager secret (plain text string, at least 16 characters) with the API bearer token.
+    AllowedPattern: '^arn:aws[a-z-]*:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+$'
+  SecretKmsKeyArn:
+    Type: String
+    Default: ''
+    Description: Optional. ARN of the customer-managed KMS key of the secret. Leave empty for the AWS-managed key.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  LoadBalancerSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets in different availability zones for the load balancer (public subnets for an internet-facing load balancer).
+  TaskSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for the tasks. Private subnets need a NAT gateway or VPC endpoints (ECR, S3, CloudWatch Logs, Secrets Manager).
+  AssignPublicIp:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: ENABLED only when the tasks run in public subnets without NAT.
+  LoadBalancerScheme:
+    Type: String
+    Default: internet-facing
+    AllowedValues: [internet-facing, internal]
+  AllowedCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Client network that may reach the load balancer on port 443 (and 80, which only redirects).
+    AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
+  CertificateArn:
+    Type: String
+    Description: ARN of the ACM certificate for the HTTPS listener.
+    AllowedPattern: '^arn:aws[a-z-]*:acm:[a-z0-9-]+:[0-9]{12}:certificate/.+$'
+  CpuArchitecture:
+    Type: String
+    Default: X86_64
+    AllowedValues: [X86_64, ARM64]
+    Description: Must match the image. The CI builds linux/amd64 (X86_64).
+  TaskCpu:
+    Type: String
+    Default: '1024'
+    AllowedValues: ['512', '1024', '2048', '4096']
+  TaskMemory:
+    Type: String
+    Default: '2048'
+    AllowedValues: ['1024', '2048', '3072', '4096', '8192']
+    Description: Memory in MiB. Must be a valid Fargate combination with TaskCpu.
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+  MaxBodyBytes:
+    Type: Number
+    Default: 20971520
+    MinValue: 1024
+    MaxValue: 536870912
+  # Tijdbudget per verzoek: UploadTimeoutMs (max 30 s) + CalculationTimeoutMs (max 85 s) = max 115 s,
+  # onder de idle-timeout van de load balancer (120 s, LoadBalancer hieronder). Zo antwoordt de server
+  # altijd zelf (JSON), en nooit de ALB met een 504.
+  CalculationTimeoutMs:
+    Type: Number
+    Default: 60000
+    MinValue: 1000
+    MaxValue: 85000
+    Description: Maximum calculation time per request. Upload + calculation stays below the 120 s load balancer idle timeout.
+  UploadTimeoutMs:
+    Type: Number
+    Default: 30000
+    MinValue: 1000
+    MaxValue: 30000
+    Description: Maximum time to receive the request body.
+  MaxUploads:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 16
+    Description: Request bodies received at the same time per task. More requests (or any request while a calculation runs) get 503 BUSY before their body is read. Memory for bodies is at most MaxUploads x MaxBodyBytes.
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 180, 365]
+
+Conditions:
+  HasKmsKey: !Not [!Equals [!Ref SecretKmsKeyArn, '']]
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+      RetentionInDays: !Ref LogRetentionDays
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  # Alleen wat ECS nodig heeft om de taak te starten: de image uit ÉÉN repository halen, naar ÉÉN
+  # loggroep schrijven en ÉÉN secret lezen. Geen managed policy met wildcards.
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: pull-log-secret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: EcrAuth
+                Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Sid: EcrPull
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: !Ref EcrRepositoryArn
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub ${LogGroup.Arn}
+              - Sid: TokenSecret
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref ApiTokenSecretArn
+              - !If
+                - HasKmsKey
+                - Sid: TokenSecretKey
+                  Effect: Allow
+                  Action: kms:Decrypt
+                  Resource: !Ref SecretKmsKeyArn
+                  Condition:
+                    StringEquals:
+                      kms:ViaService: !Sub secretsmanager.${AWS::Region}.amazonaws.com
+                - !Ref AWS::NoValue
+
+  # Geen task role: de API roept zelf geen AWS-diensten aan.
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref AWS::StackName
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+        CpuArchitecture: !Ref CpuArchitecture
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: api
+          Image: !Ref ImageUri
+          Essential: true
+          ReadonlyRootFilesystem: true
+          User: node
+          LinuxParameters:
+            InitProcessEnabled: true
+          StopTimeout: 30
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: HOST
+              Value: 0.0.0.0
+            - Name: PORT
+              Value: '8080'
+            - Name: OPS_API_MAX_BODY_BYTES
+              Value: !Ref MaxBodyBytes
+            - Name: OPS_API_TIMEOUT_MS
+              Value: !Ref CalculationTimeoutMs
+            - Name: OPS_API_UPLOAD_TIMEOUT_MS
+              Value: !Ref UploadTimeoutMs
+            - Name: OPS_API_MAX_UPLOADS
+              Value: !Ref MaxUploads
+          Secrets:
+            - Name: OPS_API_TOKEN
+              ValueFrom: !Ref ApiTokenSecretArn
+          HealthCheck:
+            Command:
+              - CMD
+              - node
+              - -e
+              - "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 15
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: api
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open Planner API load balancer
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedCidr
+          Description: HTTPS from clients
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref AllowedCidr
+          Description: HTTP from clients (redirect to HTTPS only)
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open Planner API tasks (only from the load balancer)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: API port from the load balancer
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: !Ref LoadBalancerScheme
+      Subnets: !Ref LoadBalancerSubnetIds
+      SecurityGroups: [!Ref LoadBalancerSecurityGroup]
+      LoadBalancerAttributes:
+        # Moet boven UploadTimeoutMs + CalculationTimeoutMs liggen (max 115 s), zie de parameters.
+        - Key: idle_timeout.timeout_seconds
+          Value: '120'
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: 'true'
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VpcId
+      TargetType: ip
+      Protocol: HTTP
+      Port: 8080
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /healthz
+      HealthCheckIntervalSeconds: 15
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  HttpRedirectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: '443'
+            StatusCode: HTTP_301
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: HttpsListener
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      PlatformVersion: LATEST
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      HealthCheckGracePeriodSeconds: 30
+      EnableExecuteCommand: false
+      PropagateTags: SERVICE
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: !Ref AssignPublicIp
+          Subnets: !Ref TaskSubnetIds
+          SecurityGroups: [!Ref TaskSecurityGroup]
+      LoadBalancers:
+        - ContainerName: api
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the API (point a DNS name for the certificate at LoadBalancerDnsName).
+    Value: !Sub https://${LoadBalancer.DNSName}
+  LoadBalancerDnsName:
+    Value: !GetAtt LoadBalancer.DNSName
+  LogGroupName:
+    Value: !Ref LogGroup
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !GetAtt Service.Name

@@ -1617,7 +1617,9 @@
     ],
     "avoid": [
       "Aufgabentyp",
-      "Vorgangstyp"
+      "Vorgangstyp",
+      "Arbeitsregel",
+      "Arbeitsregeln"
     ],
     "source": "tbx",
     "status": "arbitrated"
@@ -1753,20 +1755,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "Arbeitskategorie",
+    "forms": [
+      "Arbeitskategorie",
+      "Arbeitskategorien"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "Arbeitszeiten",
     "forms": [
       "Arbeitszeiten",
       "Arbeitszeit"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "Arbeitsregel",
-    "forms": [
-      "Arbeitsregel",
-      "Arbeitsregeln"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

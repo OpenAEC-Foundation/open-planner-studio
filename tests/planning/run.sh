@@ -70,7 +70,7 @@ if [ "$HARNESS_OK" -eq 1 ]; then unset 'BUNDLES[-1]'; fi
 # lijst stil achter en bewaakt hij niets meer). Nieuwe batterij ⇒ naam hieronder bijzetten.
 EXPECTED_BATTERIES=(
   advanced-cpm baselines boundary calendar calibration constraints driving edge float
-  hours hours-relations kalenders lag-advanced milestone-kinds milestones move-project
+  hours hours-blokgrenzen hours-relations kalenders lag-advanced milestone-kinds milestones move-project
   msp-pariteit probes progress relations resource-leveling resource-load view
 )
 
@@ -1055,7 +1055,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # als npm run verify en bewijst met tijdelijke bronfixtures dat echte grenslekken rood worden,
   # terwijl woorden in commentaar en strings geen vals alarm geven.
   GBCHECK="$DIR/.gantt-boundaries.mjs"
-  if bundle_check "$DIR/check-gantt-boundaries.ts" "$GBCHECK"; then node "$GBCHECK" || STATUS=1; fi
+  # Datumvrije detectorcheck: één keer, niet in de tijdzone-matrix (zie "Datumvrije detectorchecks"
+  # bij de matrix onderaan).
+  if bundle_check "$DIR/check-gantt-boundaries.ts" "$GBCHECK"; then
+    node "$GBCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
 
   # Zoomstap-regressie (K-item 34, voorbereidend): de in-/uitzoomstap stond op drie plekken los en
   # twee ervan zoomden in met 10 maar uit met 5 — heen en weer klikken bracht je niet terug waar je
@@ -1416,7 +1421,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Poort `verify-i18n-keys` (in `verify:i18n`): geen cast op een vertaalsleutel. Bewijst dat elke
   # castvorm op t/tX/i18n.t rood wordt en `as const`, commentaar en andere functies niet.
   I18NKEYSCHECK="$DIR/.i18n-keys.mjs"
-  if bundle_check "$DIR/check-i18n-keys.ts" "$I18NKEYSCHECK"; then node "$I18NKEYSCHECK" || STATUS=1; fi
+  # Datumvrije detectorcheck: één keer, niet in de tijdzone-matrix (zie "Datumvrije detectorchecks"
+  # bij de matrix onderaan).
+  if bundle_check "$DIR/check-i18n-keys.ts" "$I18NKEYSCHECK"; then
+    node "$I18NKEYSCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
   # Kern van `npm run i18n:fmt` / `i18n:add`: opmaken verandert nooit de inhoud (op alle 56 echte
   # locale-bestanden), nl-volgorde, meervoudsfamilies en de validatie vóór het schrijven.
   I18NTOOLSCHECK="$DIR/.i18n-tools.mjs"
@@ -1604,7 +1614,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # bewijst met tijdelijke bronfixtures dat value-singletons en adapterlogica worden geweigerd,
   # terwijl commentaar en type-only imports geen vals alarm geven.
   SRBCHECK="$DIR/.store-runtime-boundaries.mjs"
-  if bundle_check "$DIR/check-store-runtime-boundaries.ts" "$SRBCHECK"; then node "$SRBCHECK" || STATUS=1; fi
+  # Datumvrije detectorcheck: één keer, niet in de tijdzone-matrix (zie "Datumvrije detectorchecks"
+  # bij de matrix onderaan).
+  if bundle_check "$DIR/check-store-runtime-boundaries.ts" "$SRBCHECK"; then
+    node "$SRBCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
 
   # Export-guard (bevinding K7). Exports schrijven CPM-datums naar derden; zonder guard ging een
   # verouderde planning het bestand in. De subtiele helft: na een cyclus staat `scheduleStale` al
@@ -1774,7 +1789,12 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   HOURINPUTFINISHCHECK="$DIR/.hour-input-finish.mjs"
   if bundle_check "$DIR/check-hour-input-finish.ts" "$HOURINPUTFINISHCHECK"; then node "$HOURINPUTFINISHCHECK" || STATUS=1; fi
   CONVBOUNDARYCHECK="$DIR/.conventions-boundary.mjs"
-  if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then node "$CONVBOUNDARYCHECK" || STATUS=1; fi
+  # Datumvrije detectorcheck: één keer, niet in de tijdzone-matrix (zie "Datumvrije detectorchecks"
+  # bij de matrix onderaan).
+  if bundle_check "$DIR/check-conventions-boundary.ts" "$CONVBOUNDARYCHECK"; then
+    node "$CONVBOUNDARYCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
 
   # Issue #145: de afgeleide duur/datums van een verzameltaak. Draait mee in de tijdzone-matrix —
   # de afleiding telt werkdagen, dus TZ-onafhankelijkheid moet bewezen worden.
@@ -1882,6 +1902,14 @@ if [ "$HARNESS_OK" -eq 1 ]; then
   if [ "${#FILES[@]}" -gt 0 ]; then
     node "$OUT" "${FILES[@]}" || STATUS=1
   fi
+  # Minutenmodel (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md §6.1, fase F0): elke
+  # dagcase nog twee keer op de tijdas in minuten, vergeleken op dagniveau. Run 1 met de dagenmaat,
+  # run 2 met de urenmaat. Alleen in de volledige run, niet in de tijdzone-matrix. Het oordeel is het
+  # vangnet `minute-model-runs.json`: een case die erbij komt of eraf gaat, is rood (zie README.md).
+  if [ "$RUN_HOLIDAYS" -eq 1 ]; then
+    OPS_MINUTE_MODEL_RUN=1 node "$OUT" "${FILES[@]}" || STATUS=1
+    OPS_MINUTE_MODEL_RUN=2 node "$OUT" "${FILES[@]}" || STATUS=1
+  fi
 else
   echo "XX  cases overgeslagen: de harness kon niet gebundeld worden (zie de fout hierboven)"
 fi
@@ -1904,6 +1932,18 @@ fi
 #                     de zomer (wintertijd = −1) zichtbaar worden.
 # Alleen bij een volledige run — met een losse batterij als argument is dit onnodige looptijd.
 #
+# Datumvrije detectorchecks (sinds 2026-10-20, testaudit review E): check-conventions-boundary,
+# check-gantt-boundaries, check-store-runtime-boundaries en check-i18n-keys staan NIET in de matrix.
+# Ze voeren vaste bronfixtures aan een AST-poort (scripts/verify-conventions.mjs,
+# verify-gantt-boundaries.mjs, verify-store-boundaries.mjs, verify-i18n-keys.mjs, scripts/lib/
+# ts-imports.mjs) en vergelijken exitcode en rapporttekst. Check en poort gebruiken alleen node:fs,
+# node:path, node:child_process en typescript; geen Date, Intl, toLocale* of TZ (gecontroleerd met
+# grep; de enige treffer is `new Date()` als fixturetekst in check-gantt-boundaries, die de poort
+# als AST leest en nooit uitvoert). Een andere TZ kan hun uitkomst dus niet veranderen. Krijgt zo'n
+# check of poort ooit datumlogica, haal dan de `unset 'BUNDLES[-1]'` bij die check weg.
+# Checks met datum- of tijdlogica blijven in de matrix: een teruggezette projectduurbug werd alleen
+# in de Auckland-run rood (review B).
+#
 # Parallel sinds 2026-09 (besluit werkwijze 4c): de matrix was ~70% van de looptijd van deze suite
 # (gemeten 173 van 243 s). Elke zone draait in een eigen achtergrondproces, hoogstens OPS_TZ_JOBS
 # tegelijk (standaard het aantal kernen, maximaal vijf; OPS_TZ_JOBS=1 = één zone tegelijk, zoals
@@ -1914,7 +1954,6 @@ fi
 # rondes). De uitvoer blijft in vaste zonevolgorde, ook als een latere zone eerder klaar is.
 if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   echo ""
-  echo "── Tijdzone-matrix (herdraait de gebouwde bundels onder andere TZ) ──"
   ZONES=(UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores)
   TZ_JOBS="${OPS_TZ_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
   if ! [[ "$TZ_JOBS" =~ ^[1-9][0-9]*$ ]]; then TZ_JOBS=1; fi
@@ -1922,6 +1961,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
   MATRIX=("${BUNDLES[@]}")
   [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
+  echo "── Tijdzone-matrix (herdraait ${#MATRIX[@]} gebouwde bundels onder andere TZ) ──"
   TZ_DIR="$(mktemp -d)"
   run_zone () {
     local zone="$1" log="$2" st=0 bundle

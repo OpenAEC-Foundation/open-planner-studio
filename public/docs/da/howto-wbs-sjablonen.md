@@ -23,7 +23,7 @@ Appen viser *Gren gemt som skabelon 'Foundation'*. Appen spørger ikke om et nav
 
 Hvis en opgave er valgt, indsættes skabelonen som den sidste underopgave under den opgave. Opgaven bliver dermed en hovedopgave. Hvis flere opgaver er valgt, gælder den opgave, du klikkede på først. Hvis ingen opgave er valgt, kommer grenen nederst i listen, på øverste niveau. Den indsatte gren er bagefter valgt.
 
-Alle indsatte opgaver ligger på projektstartdatoen, og tidsplanen er ikke længere opdateret. Tryk på *Beregn* (F5), for eksempel via *Start › Tidsplan › Beregn*, så følger datoerne af afhængighederne. *Fortryd* fortryder hele indsættelsen i ét trin. Det at gemme eller slette en skabelon hører ikke med.
+Alle indsatte opgaver ligger på projektstartdatoen, og tidsplanen er ikke længere opdateret. Tryk på **Beregn** (F5), for eksempel via *Start › Tidsplan › Beregn*, så følger datoerne af afhængighederne. *Fortryd* fortryder hele indsættelsen i ét trin. Det at gemme eller slette en skabelon hører ikke med.
 
 ### Slet en skabelon
 
@@ -31,9 +31,9 @@ Alle indsatte opgaver ligger på projektstartdatoen, og tidsplanen er ikke læng
 
 ### Hvad er i en skabelon
 
-For hver opgave gemmer en skabelon navnet, beskrivelsen, opgavetypen, om den er en milepæl, og varigheden i dage. Af afhængighederne beholder den dem mellem to opgaver i grenen, med type og forsinkelse.
+For hver opgave gemmer en skabelon navnet, beskrivelsen, arbejdskategorien, om den er en milepæl, og varigheden i dage. Af afhængighederne beholder den dem mellem to opgaver i grenen, med type og forsinkelse. En forsinkelse i timer (`4h`) bliver ikke gemt, og den bliver til 0. En forsinkelse i arbejdsdage, kalenderdage eller procent bliver gemt.
 
-Alt andet bliver liggende: datoer, fremdrift og faktiske datoer, tildelinger af ressourcer, koder og brugerdefinerede felter (se [Koder og brugerdefinerede felter](docs://howto-codes-en-velden)), kalenderen, begrænsninger og deadlines, prioriteten, en brugerdefineret opgavetype, for en milepæl typen og afkrydsningen *Obligatorisk (kontraktuel)*, og afhængigheder med opgaver uden for grenen. Efter indsættelsen skal du udfylde det igen: tildelinger, koder, kalender og begrænsninger er tomme, og alle opgaver starter på projektstartdatoen.
+Alt andet bliver liggende: datoer, fremdrift og faktiske datoer, tildelinger af ressourcer, koder og brugerdefinerede felter (se [Koder og brugerdefinerede felter](docs://howto-codes-en-velden)), kalenderen, begrænsninger og deadlines, prioriteten, en brugerdefineret arbejdskategori, afhængigheder med opgaver uden for grenen, og for en milepæl bliver typen og afkrydsningen *Obligatorisk (kontraktuel)* liggende. Efter indsættelsen skal du udfylde det igen: tildelinger, koder, kalender og begrænsninger er tomme, og alle opgaver starter på projektstartdatoen.
 
 En opgave, der var i timer, kommer tilbage som dagopgave, med varigheden omregnet til en brøkdel af en arbejdsdag. En opgave på 5 timer med en arbejdsdag på 8 timer bliver til 0,625 dage.
 

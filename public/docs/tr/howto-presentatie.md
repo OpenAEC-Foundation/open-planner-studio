@@ -19,9 +19,9 @@ Sunum modunda şerit kaybolur. Bu yüzden göstermek istediğinizi önceden ayar
 
 ### Sunumu başlatın
 
-*Görünüm › Sunum › Sunum* öğesini seçin veya F11 tuşuna basın. Şerit, sekmeler, durum çubuğu ve sağdaki panel kaybolur. Görev tablosunu ve Gantt'ı görürsünüz. Açtıysanız histogramı ve mini haritayı da görürsünüz. Altta birkaç saniye boyunca şu metin görünür: *Tam ekrandan çıkmak için Esc veya F11'e basın*.
+*Görünüm › Sunum › Sunum* öğesini seçin. Masaüstü uygulamasında F11 tuşuna da basabilirsiniz. Tarayıcıda F11 tarayıcıya aittir: tarayıcı penceresini tam ekrana alır ve uygulama olduğu gibi kalır. Şerit, sekmeler, durum çubuğu ve sağdaki panel kaybolur. Görev tablosunu ve Gantt'ı görürsünüz. Açtıysanız histogramı ve mini haritayı da görürsünüz. Altta birkaç saniye boyunca şu metin görünür: *Tam ekrandan çıkmak için Esc veya F11'e basın*.
 
-Sunumu her sekmeden başlatabilirsiniz, *Tablo* veya *Rapor* sekmesinden de. Her zaman açık projenin Gantt'ını görürsünüz. Durdurduğunuzda başladığınız sekmeye geri dönersiniz.
+Masaüstü uygulamasında sunumu her sekmeden F11 ile başlatabilirsiniz, *Tablo* veya *Rapor* sekmesinden de. Tarayıcıda sunumu yalnızca *Görünüm › Sunum › Sunum* ile başlatabilirsiniz. Her zaman açık projenin Gantt'ını görürsünüz. Durdurduğunuzda başladığınız sekmeye geri dönersiniz. Tarayıcıda bu *Görünüm* sekmesidir.
 
 ### Sunumu durdurun
 
@@ -33,7 +33,7 @@ Esc veya F11 tuşuna basın. Şerit ve paneller, başladığınız sekmede yenid
 
 **Bildirimler görünür kalır.** Uygulamanın bir mesajı, örneğin bir kaydetme hatası, sunum modunda da görünür. Sunum modunda şerit ve durum çubuğu yoktur. Bu nedenle böyle bir mesaj, bir şeyin yanlış olduğunu gösteren tek işarettir.
 
-**Bölünmüş görünümü, mini haritayı ve düzenleri önceden ayarlayın.** Bunlar için şerit gerekir, ama bu modda şerit yoktur. Yakınlaştırma çalışır: fare tekerleğiyle veya Ctrl+= ve Ctrl+- ile. + ve - de çalışır, ama yalnızca odak Gantt'taysa. F11'den sonra odak çoğu zaman görev tablosunda olur. Bu yüzden önce Gantt'a tıklayın.
+**Bölünmüş görünümü, mini haritayı ve düzenleri önceden ayarlayın.** Bunlar için şerit gerekir, ama bu modda şerit yoktur. Yakınlaştırma çalışır: fare tekerleğiyle veya Ctrl+= ve Ctrl+- ile. + ve - de çalışır, ama yalnızca odak Gantt'taysa. Sunumu başlattıktan sonra odak çoğu zaman görev tablosunda olur. Bu yüzden önce Gantt'a tıklayın.
 
 **Tam ekran çalışmaz.** Uygulama şeridi gizlemenin yanı sıra gerçekten tam ekran da ister. Tarayıcınız veya pencereniz bunu reddederse yalnızca şerit ve paneller kaybolur. Sunum yine çalışır. Tam ekrandan Esc veya F11 dışında bir yolla çıkarsanız, örneğin işletim sisteminizin bir tuşuyla, sunum modu da durur.
 

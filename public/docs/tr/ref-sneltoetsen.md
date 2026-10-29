@@ -8,13 +8,13 @@ Uygulamanın bütün tuş kombinasyonları, *Klavye Kısayolları* penceresindek
 
 **Tam kombinasyon.** Uygulama Ctrl, Shift ve Alt tuşlarını tam olarak karşılaştırır. Bu yüzden Ctrl+Alt+S hiçbir şey yapmaz: tuşlar listedekiyle tam olarak eşleşmelidir.
 
-**Pencereyi açma.** Ctrl+/ tuşuna basın veya *Ayarlar › Klavye Kısayolları › Klavye Kısayolları* seçin. Ctrl+/ pencereyi yeniden de kapatır. Pencere salt okunurdur. Burada listelenen her tuşu göstermez: tablo tuşlarının yalnızca ilk altı girişini gösterir, bu makalenin altındaki iletişim penceresi tuşlarını göstermez.
+**Pencereyi açma.** Ctrl+/ tuşuna basın veya *Ayarlar › Klavye Kısayolları › Klavye Kısayolları* seçin. Ctrl+/ pencereyi yeniden de kapatır. Pencere salt okunurdur. Burada listelenen her tuşu göstermez: tablo tuşlarından yalnızca ilk altı girişi gösterir ve bu makalenin sonundaki iletişim penceresi tuşlarını göstermez.
 
 **Bir tuş çalışmadığında.** Her girişte kısıtlamalar yazılıdır. Bu üç kural neredeyse her yerde geçerlidir:
 
-- Bir giriş alanında, açılır listede veya metin kutusunda uygulama tuşları yakalamaz; doğrudan yazabilirsiniz. İstisnalar: F5, Ctrl+S, F11 ve sunum sırasında Esc de bir alanda çalışır. Yayımlanmış uygulamada (masaüstü ve sitedeki web sürümü) bu, Ctrl+Shift+S, Ctrl+O ve Ctrl+N için de geçerlidir.
-- Bir iletişim penceresi veya başka bir pencere açıkken, aşağıda *İletişim penceresinde değil* ile işaretli tuşlar çalışmaz. Bu, sunum modu, tur, karşılama penceresi ve yanıt bekleyen sorular için de geçerlidir; örneğin bir uzantıyı yüklerken verilen onay.
-- Belge değiştirme (Ctrl+1 ila 9, Ctrl+N, Ctrl+O) da çalışmaz; *Dosya › Proje bilgisi* içinde, *Uygula* ile henüz onaylamadığınız değişiklikler varken. Önce bunları atın veya uygulayın.
+- Bir giriş alanında, açılır listede veya metin kutusunda uygulama tuşları yakalamaz; doğrudan yazabilirsiniz. İstisnalar: F5, Ctrl+S, F11 ve sunum sırasında Esc de bir alanda çalışır. Kapalı bir açılır listede odak varsa Ctrl'li tuşlar da çalışır; örneğin bir seçimden sonra Ctrl+Z (Ctrl+Delete ve Ctrl+Backspace değil). Bu, açık bir listede veya bir iletişim penceresinde geçerli değildir. Yayımlanmış uygulamada (masaüstü ve sitedeki web sürümü) bu, Ctrl+Shift+S, Ctrl+O ve Ctrl+N için de geçerlidir.
+- Bir iletişim penceresi veya başka bir pencere açıkken, aşağıda *İletişim penceresinde değil* ile işaretli tuşlar çalışmaz. Bu, tur, karşılama penceresi ve yanıt bekleyen sorular için de geçerlidir; bunlar, değişikliklerinizi kaydetmek isteyip istemediğinizi soran soru ve bir uzantı yüklenirken verilen onay gibi sorulardır. Sunum modunda da çoğu tuş çalışmaz. İstisna: Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y ve Delete/Backspace düzenleme tuşları sunum sırasında çalışır.
+- Belge değiştirme (Ctrl+1 ila 9, Ctrl+N, Ctrl+O) da çalışmaz; *Dosya › Proje ayarları* içinde, *Uygula* ile henüz onaylamadığınız değişiklikler varken. Önce bunları atın veya uygulayın.
 
 ## Dosya
 
@@ -24,25 +24,25 @@ Uygulamanın bütün tuş kombinasyonları, *Klavye Kısayolları* penceresindek
 
 **Ctrl+Shift+S** — *Farklı kaydet*: dosyanın nereye kaydedileceğini sorar. Geliştirme sürümünde bir giriş alanında çalışmaz.
 
-**Ctrl+O** — *Aç*: bir dosya açar, genellikle yeni bir sekmede. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje bilgisi* varken değil.
+**Ctrl+O** — *Aç*: bir dosya açar, genellikle yeni bir sekmede. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje ayarları* varken değil.
 
-**Ctrl+N** — *Yeni proje*: *Yeni proje* penceresini açar. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje bilgisi* varken değil.
+**Ctrl+N** — *Yeni proje*: *Yeni proje* penceresini açar. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje ayarları* varken değil.
 
 Yayımlanmış uygulama (masaüstü ve sitedeki web sürümü) bazı tarayıcı tuşlarını da engeller, böylece bunlar işinize karışmaz: Ctrl+R ve Ctrl+Shift+R (yenileme), F12, Ctrl+Shift+I ve Ctrl+Shift+J (geliştirici araçları), Ctrl+U (kaynağı görüntüle) ve Ctrl+G, Ctrl+F ve Ctrl+L (bul ve adres çubuğu). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N ve F5 doğrudan uygulamaya gider.
 
 ## Düzenle
 
-**Ctrl+C** — *Kopyala*: seçili görevleri kopyalar. Yalnızca seçim varken. Görev tablosunda Ctrl+C seçili hücreleri kopyalar; bunu tablo kendisi yönetir.
+**Ctrl+C** — *Kopyala*: seçili görevleri kopyalar. Yalnızca seçim varken. İletişim penceresinde değil. *Dosya* sekmesinde, *Rapor* ve *IFC* sekmelerinde değil ve tam kaynak paneli açıkken değil. Görev tablosunda Ctrl+C seçili hücreleri kopyalar; bunu tablo kendisi yönetir.
 
-**Ctrl+V** — *Yapıştır*: kopyalanan görevleri yapıştırır. Görev tablosunda hücreleri yapıştırır.
+**Ctrl+V** — *Yapıştır*: kopyalanan görevleri yapıştırır. İletişim penceresinde değil. *Dosya* sekmesinde, *Rapor* ve *IFC* sekmelerinde değil ve tam kaynak paneli açıkken değil, çünkü görev tablosu orada görünür değildir. Görev tablosunda hücreleri yapıştırır.
 
-**Ctrl+Z** — *Geri al*.
+**Ctrl+Z** — *Geri al*. İletişim penceresinde değil: önce pencereyi kapatın.
 
-**Ctrl+Y** veya **Ctrl+Shift+Z** — *Yinele*: geri aldığınızı yeniden uygular.
+**Ctrl+Y** veya **Ctrl+Shift+Z** — *Yinele*: geri aldığınızı yeniden uygular. İletişim penceresinde değil.
 
-**Delete** veya **Backspace** — *Sil*: seçili görevleri siler. Yalnızca seçim varken. Görev tablosundaki bir hücrede Delete ve Backspace yalnızca hücre içeriğini temizler (bkz. *Tablo*).
+**Delete** veya **Backspace** — *Sil*: seçili görevleri siler. Yalnızca seçim varken. İletişim penceresinde değil. *Dosya* sekmesinde, *Rapor* ve *IFC* sekmelerinde değil ve tam kaynak paneli açıkken değil, çünkü görev tablosu orada görünür değildir. Görev tablosundaki bir hücrede Delete ve Backspace yalnızca hücre içeriğini temizler (bkz. *Tablo*).
 
-**F2** — *Düzenle...*: ilk seçili görevin görev penceresini açar. Yalnızca seçim varken. İletişim penceresinde değil. Görev tablosunda bir hücredeyken F2 hücreyi düzenlemeye başlatır.
+**F2** — *Düzenle...*: ilk seçili görevin görev penceresini açar. Yalnızca seçim varken. İletişim penceresinde değil. Görev tablosundaki bir hücredeyken F2 hücreyi düzenlemeye başlatır.
 
 **Ctrl+A** — *Tümünü seç*: bütün görevleri seçer. İletişim penceresinde değil.
 
@@ -68,7 +68,7 @@ Girinti, girintiyi azaltma ve seçili bir görevin üstüne veya altına ekleme 
 
 ## Görünüm
 
-**F11** — *Sunum*: sunum modunu açar veya kapatır. Uygulama ayrıca tarayıcıdan veya pencereden tam ekran ister. Bir giriş alanında da çalışır.
+**F11** — *Sunum*: sunum modunu açar veya kapatır. Uygulama ayrıca pencereden tam ekran ister. Bir giriş alanında da çalışır. Tarayıcıda F11 sunumu başlatmaz: tarayıcı pencereyi kendisi tam ekrana alır ve uygulama olduğu gibi kalır. Tarayıcıda F11 çalışan bir sunumu durdurur.
 
 **Esc** (sunum sırasında) — *Sunumdan çık*. Bir giriş alanında da çalışır. Bu, *Seçimi kaldır* tuşundan önce gelir.
 
@@ -76,7 +76,7 @@ Girinti, girintiyi azaltma ve seçili bir görevin üstüne veya altına ekleme 
 
 **Ctrl+-** — *Uzaklaştır*: sabit bir adımla uzaklaştırır.
 
-**+** veya **=** — *Yakınlaştır*: Gantt alanının ortası etrafında %10 yakınlaştırır. Bir giriş alanında değil. Ayrıca yalnızca Gantt zaman çizelgesi görünümdeyken (yani *Tablo*, *IFC* ve *Rapor* sekmelerinde değil).
+**+** veya **=** — *Yakınlaştır*: Gantt alanının ortası etrafında %10 yakınlaştırır. Bir giriş alanında değil ve yalnızca Gantt zaman çizelgesi görünümdeyken, yani *Tablo*, *IFC* ve *Rapor* sekmelerinde değil.
 
 **-** — *Uzaklaştır*: %10 uzaklaştırır. Aynı kısıtlamalar geçerlidir.
 
@@ -96,7 +96,7 @@ Girinti, girintiyi azaltma ve seçili bir görevin üstüne veya altına ekleme 
 
 **F1** — *Yardımı aç*: *Dosya › Yardım* açar. Bir giriş alanında veya iletişim penceresinde değil. Bir pencerede sağ üstteki soru işaretini kullanın. Bu, o pencereyle ilgili makaleyi Yardım'da açar (bkz. [Şerit, sekme sekme](docs://ref-lint), *Yardım* altında).
 
-**Ctrl+1** ila **Ctrl+9** — *Belge değiştir*: birinci ila dokuzuncu açık belgeye gider. Belge yoksa bir şey olmaz. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje bilgisi* varken değil.
+**Ctrl+1** ila **Ctrl+9** — *Belge değiştir*: birinci ila dokuzuncu açık belgeye gider. Belge yoksa bir şey olmaz. İletişim penceresinde değil ve *Uygula* ile onaylanmamış *Proje ayarları* varken değil.
 
 **Ctrl+Home** — *Bugüne git*: zaman çizelgesini kaydırır, böylece bir tarih görünümün solunda kalır. Bu, bir durum tarihi ayarladıysanız o tarihtir; aksi halde bugündür. Etiket bu yüzden “bugün” der, zaman çizelgesi durum tarihine atlasa bile. Yakınlaştırma ve zaman çizelgesinin başlangıcı olduğu gibi kalır. Görev tablosunda bir hücre odaktaysa Ctrl+Home bunun yerine tablonun ilk hücresine gider (bkz. *Tablo*).
 

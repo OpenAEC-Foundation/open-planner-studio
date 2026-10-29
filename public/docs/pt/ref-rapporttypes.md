@@ -26,13 +26,13 @@ Abra o separador *Relatório* (ou prima Ctrl+P). À esquerda está a coluna *Rel
 
 O planeamento em forma de gráfico de barras, com uma tabela à esquerda e uma linha de tempo à direita, em várias páginas se for necessário. A pré-visualização mostra o papel com cabeçalho da página, tabela, linha de tempo e legenda. O bloco *Resumo* conta *Tarefas:*, *Tarefas folha:*, *Crítica:* e *Relações:*. Todas as opções estão em *Definições*.
 
-**Empresa:** — a empresa no cabeçalho da página. Padrão: a empresa das informações do projeto. Efeito: só o cabeçalho do relatório; o que escrever aqui não é guardado. Altere a empresa em *Definições › Projeto › Info do projeto*, no campo *Cliente/organização*, e confirme com *Aplicar*.
+**Empresa:** — a empresa no cabeçalho da página. Padrão: a empresa das definições do projeto. Efeito: só o cabeçalho do relatório; o que escrever aqui não é guardado. Altere a empresa em *Definições › Projeto › Definições do projeto*, no campo *Cliente/organização*, e confirme com *Aplicar*.
 
-**Autor:** — o autor no cabeçalho da página. Só leitura: a aplicação obtém-no das informações do projeto.
+**Autor:** — o autor no cabeçalho da página. Só leitura: a aplicação obtém-no das definições do projeto.
 
 **Tamanho da letra:** — tamanho do texto e da tabela no relatório. Escolha entre 90%, 100%, 110% e 125%. Padrão: 100%. Efeito: com uma letra maior, o texto, as linhas e a tabela crescem e a linha de tempo perde largura. Independente de *Tamanho do texto* nas definições.
 
-**Cores das barras:** — do que depende a cor de uma barra. Escolha entre *Caminho crítico*, *Por tarefa — automático* e *Por categoria*, com a lista pendente *Campo de categoria* para *Por categoria*. Padrão: *Caminho crítico*. Efeito: é a mesma escolha que *Cores das barras* no separador *Visualização*: se a mudar aqui, o Gantt no ecrã muda com ela. Se o campo escolhido não existir neste projeto, aparece *Este campo não existe neste projeto. O tipo de tarefa é usado temporariamente.*
+**Cores das barras:** — do que depende a cor de uma barra. Escolha entre *Caminho crítico*, *Por tarefa — automático* e *Por categoria*, com a lista pendente *Campo de categoria* para *Por categoria*. Padrão: *Caminho crítico*. Efeito: é a mesma escolha que *Cores das barras* no separador *Visualização*: se a mudar aqui, o Gantt no ecrã muda com ela. Se o campo escolhido não existir neste projeto, aparece *Este campo não existe neste projeto. A categoria de trabalho é usada temporariamente.*
 
 **Linha de estado:** — uma linha na data de estado. Escolha entre *Nenhuma*, *Linha de data de estado* e *Linha de progresso*. Padrão: *Nenhuma*. Efeito: *Linha de data de estado* desenha uma linha na data de estado; *Linha de progresso* desenha a linha em ziguezague que mostra o progresso de cada tarefa. Se o projeto não tiver data de estado, aparece *Defina primeiro uma data de estado* e o relatório não desenha nada.
 
@@ -74,7 +74,7 @@ O planeamento em forma de gráfico de barras, com uma tabela à esquerda e uma l
 
 ## Diagrama de recursos
 
-As mesmas barras do Gráfico de Gantt, agrupadas por recurso: quem faz o quê e quando. O bloco *Resumo* conta *Recursos*, *Atribuições* e *Sem recurso* (com um período também *Fora do período*). O diagrama partilha todas as opções do Gráfico de Gantt, exceto *Seguir a vista (filtro, agrupamento, ordenação)*, *Caminho crítico* e *Dependências*: as linhas não vêm do ecrã, uma tarefa pode aparecer sob vários recursos, e as relações não são desenhadas aí. A caixa de verificação *Caminho crítico* está oculta e ligada. Estas opções vêm com as do Gráfico de Gantt em *Definições*, com estas quatro caixas de verificação e o período:
+As mesmas barras do Gráfico de Gantt, agrupadas por recurso: quem faz o quê e quando. O bloco *Resumo* conta *Recursos:*, *Atribuições:* e *Sem recurso:* (com um período também *Fora do período:*). O diagrama partilha todas as opções do Gráfico de Gantt, exceto *Seguir a vista (filtro, agrupamento, ordenação)*, *Caminho crítico* e *Dependências*: as linhas não vêm do ecrã, uma tarefa pode aparecer sob vários recursos, e as relações não são desenhadas aí. A caixa de verificação *Caminho crítico* está oculta e ligada. Estas opções vêm com as do Gráfico de Gantt em *Definições*, com estas quatro caixas de verificação e o período:
 
 **Cada recurso numa nova página** — Padrão: desligado. Efeito: cada recurso começa numa nova página, para poder entregar uma folha por equipa ou colaborador. Desligado dá um documento contínuo.
 
@@ -118,9 +118,9 @@ Em que ponto está o projeto na data de estado. Opções em *Opções do relató
 
 **Período do relatório:** — Padrão: *Último mês*. Efeito: *Concluídas no período anterior* conta dentro do período. *Começam no próximo período* olha em frente a partir da data de estado, até *Previsão até*; com um período *Último* vai tão longe em frente como o período olha para trás.
 
-**Quase crítico ≤ (du):** — Padrão: 5. Como na Previsão a curto prazo.
+**Quase crítico ≤ (du):** — Padrão: 5. Como na *Previsão até*.
 
-O bloco *Resumo* mostra *Data de estado*, *Período*, *Previsão até*, *Fim da linha de base*, *Fim previsto*, *Δ fim (du)*, *Planeado* (com *(linha de base)* ou *(cronograma atual)*), *Real*, e as contagens *Concluída*, *Em andamento*, *Não iniciada*, *Atrasada* e *Crítica*. Planeado e real são ponderados pela duração das tarefas. Planeado mede em relação à linha de base se houver uma linha de base ativa; caso contrário, em relação ao planeamento atual. As secções são *Concluídas no período anterior*, *Em andamento*, *Começam no próximo período*, *Atrasadas* e *Atividades críticas em aberto*; uma tarefa pode estar em mais do que uma secção.
+O bloco *Resumo* mostra *Data de estado*, *Período*, *Previsão até*, *Fim da linha de base*, *Fim previsto*, *Δ fim (du)*, *Planeado* (com *(linha de base)* ou *(cronograma atual)*), *Real*, e as contagens *Concluída*, *Em andamento*, *Não iniciada*, *Atrasada* e *Crítica*. Planeado e real são ponderados pela duração das tarefas. Planeado mede em relação à linha de base se houver uma linha de base ativa; caso contrário, em relação ao planeamento atual. As secções são *Concluídas no período anterior*, *Em andamento*, *Começam no próximo período*, *Atrasadas* e *Atividades críticas em aberto*; uma tarefa pode estar em mais do que uma secção. Todas as secções têm as mesmas colunas: *WBS*, *Nome*, *Fim da linha de base*, *Fim previsto*, *Concl*, *Rest. (du)*, *FT (du)* (TF), *Crítica* e *Estado*. O estado por linha é *Concluída*, *Em andamento*, *Não iniciada*, *Devia ter começado* ou *Devia ter terminado*.
 
 ## Saúde do planeamento
 
@@ -149,13 +149,13 @@ Conta as tarefas folha não concluídas, sem marcos nem hammocks, e as relaçõe
 - *Datas inválidas*: um início real ou um fim real posterior à data de estado, ou um início previsto ou um fim previsto anterior à data de estado. Limite: nenhum. Requer uma data de estado.
 - *Recursos*: tarefas sem recurso. Limite: nenhum. Só se o projeto usar recursos; caso contrário, n/a.
 - *Tarefas falhadas*: das tarefas que a linha de base indica que deveriam estar concluídas até à data de estado, a proporção que termina mais tarde ou que tem uma previsão posterior. Limite: no máximo 5%. Requer uma data de estado e uma linha de base ativa.
-- *Teste do caminho crítico*: a aplicação prolonga uma tarefa crítica em 100 dias úteis e recalcula, numa cópia, sem alterar o projeto. O teste é aprovado se a última tarefa do projeto então não terminar antes dessa tarefa. Testa a tarefa crítica e não concluída com o menor início antecipado; o detalhe indica a tarefa e quantos dias úteis o fim se deslocou.
+- *Teste do caminho crítico*: a aplicação prolonga uma tarefa crítica em 100 dias úteis e recalcula, numa cópia, sem alterar o projeto. O teste é aprovado se a última tarefa do projeto então não terminar antes dessa tarefa. Testa a tarefa crítica e não concluída com o menor início antecipado; o detalhe indica a tarefa e quantos dias úteis o fim se deslocou. Na vista *Datas como registadas* este teste é n/a (*não calculado*): o teste calcula, e o relatório mostra então as datas do ficheiro de origem. Carregue em Calcular (F5) e o teste volta a ser executado.
 - *CPLI*: (comprimento do caminho crítico + folga) / comprimento do caminho crítico. O comprimento conta os dias úteis desde a data de estado até ao fim da última tarefa; a folga é a diferença face ao fim da linha de base dessa tarefa, ou a folga calculada se a tarefa não estiver na linha de base. Limite: pelo menos 0,95. Requer uma data de estado.
 - *BEI*: o número de tarefas concluídas na data de estado, dividido pelo número que a linha de base indica que deveriam estar concluídas até essa data, mais as tarefas sem linha de base. Limite: pelo menos 0,95. Requer uma data de estado e uma linha de base ativa.
 
 Dois pontos diferem do folheto porque a aplicação não tem esse conceito: *Duração elevada* conta todas as tarefas não concluídas, enquanto o folheto a limita ao período de planeamento detalhado (rolling wave), e *Recursos* olha apenas para os recursos atribuídos, não para os custos. O folheto não indica nenhum número para o teste do caminho crítico; os 100 dias úteis são uma escolha da aplicação.
 
-As verificações estão nesta ordem, com a respetiva gravidade. Erro: *Folga negativa*, *Prazo falhado*, *Restrição violada* e *Progresso incoerente* (início real ou fim real posterior à data de estado, início previsto ou fim previsto anterior à data de estado, 100% sem um fim real, fim real mas não 100%, progresso sem um início real). Aviso: *Sem predecessora (início aberto)* e *Sem sucessora (fim aberto)* (não marcos), *Duração longa*, *Avanço (atraso negativo)*, *Restrição rígida* (uma restrição obrigatória ou uma MSO, MFO, SNLT ou FNLT), *Progresso fora de sequência* e *Tarefa falhada (face à linha de base)*. Informação: *Quase crítico*, *Folga alta*, *Atraso longo*, *Relação diferente de FS* e *Sem recurso* (só se o projeto usar recursos). O relatório analisa apenas tarefas folha que não são hammocks. O bloco *Resumo* conta as *Sinalizações DCMA*, *Erros*, *Avisos*, *Informação*, *Tarefas folha* e *Relações*; abaixo da secção DCMA estão uma secção *Visão geral* (por verificação, a gravidade e a quantidade) e uma secção *Constatações* (cada tarefa ou relação). Sem um cálculo, faltam as verificações que requerem folga.
+As verificações estão nesta ordem, com a respetiva gravidade. Erro: *Folga negativa*, *Prazo falhado*, *Restrição violada* e *Progresso incoerente* (início real ou fim real posterior à data de estado, início previsto ou fim previsto anterior à data de estado, 100% sem um fim real, fim real mas não 100%, progresso sem um início real). Aviso: *Sem predecessora (início aberto)* e *Sem sucessora (fim aberto)* (não marcos), *Duração longa*, *Avanço (atraso negativo)*, *Restrição rígida* (uma restrição obrigatória ou uma MSO, MFO, SNLT ou FNLT), *Progresso fora de sequência* e *Tarefa falhada (face à linha de base)*. Informação: *Quase crítico*, *Folga alta*, *Atraso longo*, *Relação diferente de FS* e *Sem recurso* (só se o projeto usar recursos). O relatório analisa apenas tarefas folha que não são hammocks. O bloco *Resumo* conta *Sinalizações DCMA*, *Erros*, *Avisos*, *Informação*, *Tarefas folha* e *Relações*; abaixo da secção DCMA estão uma secção *Visão geral* (por verificação, a gravidade e a quantidade) e uma secção *Constatações* (cada tarefa ou relação). Sem um cálculo, faltam as verificações que requerem folga.
 
 ## Carga de recursos
 
@@ -177,7 +177,7 @@ Por recurso, as tarefas a que está associado: o que faz esta equipa ou esta gru
 
 **Incluir tarefas concluídas** — Padrão: desativado. Efeito: ativado inclui também as atribuições de tarefas concluídas.
 
-As linhas são por recurso e, dentro de um recurso, por início. O bloco *Resumo* conta *Recursos*, *Atribuições* e *Tarefas sem recurso*. As colunas incluem o recurso, a tarefa, o início e o fim, *Rest. (du)*, *Unid./dia*, *Concl*, *Crítica* e *Estado*.
+As linhas são por recurso e, dentro de um recurso, por início. O bloco *Resumo* conta *Recursos*, *Atribuições* e *Tarefas sem recurso*. As colunas são *Recurso*, *Tipo*, *WBS*, *Nome*, *Início*, *Fim*, *Rest. (du)*, *Unid./dia*, *Concl*, *Crítica* e *Estado*. *Recurso* e *Tipo* aparecem só na primeira linha de um recurso. O estado de cada linha é igual ao do relatório de progresso: *Concluída*, *Em andamento*, *Não iniciada*, *Devia ter começado* ou *Devia ter terminado*.
 
 ## Resumo WBS
 

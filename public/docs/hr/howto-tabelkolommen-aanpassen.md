@@ -9,7 +9,7 @@ Na sastanku želite vidjeti rok za dovršetak i ukupan slobodni hod uz svaki zad
 Postoje dvije tablice zadataka, svaka sa svojim stupcima:
 
 - **Tablica zadataka uz Gantt** nalazi se lijevo od vremenske crte na, među ostalim, karticama *Početna*, *Raspored* i *Prikaz*. Zadano ima *WBS*, *Naziv zadatka* i *Trajanje*, pa ostaje mjesta za vremensku crtu.
-- **Tablica na kartici Tablica** zauzima cijeli radni prostor. Zadano ima *WBS*, *Naziv zadatka*, *Trajanje*, *Početak*, *Završetak*, *Vrsta zadatka*, *Kritičan*, *Ukupan slobodni hod* i *Napredak*, plus po jedan stupac za svaku šifru zadatka i svako prilagođeno polje projekta.
+- **Tablica na kartici Tablica** zauzima cijeli radni prostor. Zadano ima *WBS*, *Naziv zadatka*, *Trajanje*, *Početak*, *Završetak*, *Kategorija radova*, *Kritičan*, *Ukupan slobodni hod* i *Napredak*, uz po jedan stupac za svaku šifru zadatka i svako prilagođeno polje projekta.
 
 Promjena jedne tablice ne mijenja drugu.
 

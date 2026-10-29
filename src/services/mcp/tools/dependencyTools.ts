@@ -62,7 +62,7 @@ const FIELD_HINTS: Record<string, string> = {
     'show it, so you could not read the result back',
   lagMinutes:
     'a minute-precise lag (from an IFC/P6 import) is deliberately not settable via the bridge: the read ' +
-    'tools do not show it. Give the lag in working days via `lag` (a fraction such as 0.5 is allowed) — that ' +
+    'tools do not show it. Give the lag in days (day measure) via `lag` (a fraction such as 0.5 is allowed) — that ' +
     'CLEARS the minute lag, so the given value is really the effective one',
   fields: 'the fields sit directly on the item here (no `fields` block): { seqId, type, lag, … }',
 };

@@ -32,7 +32,7 @@ export interface TableReportSpec {
   notes: string[];
   summary: ReportSummaryItem[];
   sections: ReportSection[];
-  /** Bestandsnaam-suffix van de PDF-export (`<project>-<suffix>.pdf`), taalonafhankelijk. */
+  /** Bestandsnaam-suffix van de PDF-export (`<project>-<suffix>.pdf`), in de rapporttaal. */
   fileSuffix: string;
 }
 

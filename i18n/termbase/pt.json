@@ -1648,7 +1648,9 @@
       "tipos de tarefa"
     ],
     "avoid": [
-      "tipo de atividade"
+      "tipo de atividade",
+      "regra de trabalho",
+      "regras de trabalho"
     ],
     "source": "existing-ui",
     "status": "existing-ui"
@@ -1807,23 +1809,20 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "categoria de trabalho",
+    "forms": [
+      "categoria de trabalho",
+      "categorias de trabalho"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "horário de trabalho",
     "forms": [
       "horário de trabalho",
       "horários de trabalho"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "regra de trabalho",
-    "forms": [
-      "regra de trabalho",
-      "regras de trabalho"
-    ],
-    "avoid": [
-      "regra de tipo"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

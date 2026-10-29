@@ -6,7 +6,7 @@ Doel: per weekdag vastleggen op welke kloktijden een kalender werkt, zodat taken
 
 De vrijdagmiddag is vrij. De ploeg werkt van 06:00 tot 22:00 in twee diensten. Er is een nachtploeg. De pauze is korter dan een uur. Zolang je alleen in dagen plant, volstaan *Begin (uur)*, *Einde (uur)* en de pauze ([Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen)). Plan je taken in uren, dan telt de app werkminuten binnen de **werktijdblokken** van de kalender. In de app heten die blokken *banden*: een blok is een aaneengesloten stuk werktijd op één weekdag, en een gat tussen twee blokken is een pauze. Wat dat voor je planning betekent, staat in [Dagen en uren](docs://uitleg-dagen-en-uren).
 
-Om een gewone kalender werktijdblokken te geven, heb je *Urenplanning inschakelen* nodig ([Urenplanning aanzetten](docs://howto-urenplanning-aanzetten)). Heeft de kalender al blokken, bijvoorbeeld uit een MS Project-bestand, dan staat het blok *Werktijden* er altijd en wijzig je de blokken ook met urenplanning uit.
+Het blok *Werktijden* is bij elke kalender beschikbaar.
 
 ## Stappen
 
@@ -32,7 +32,7 @@ Dit doet elke preset:
 4. Een blok dat na middernacht doorloopt, vink je aan met *volgende dag*. Het blok telt bij de dag waarop het begint.
 5. Klik op de prullenbak achter een blok om het te verwijderen. Een dag zonder blokken staat als *Niet-werkend*.
 6. Klik bij een dag van maandag tot en met vrijdag op het kopieersymbool (*Kopieer naar alle werkdagen*) om de blokken van die dag naar maandag tot en met vrijdag te zetten.
-7. Boven het blok *Werktijden* staat *Standaard werkdag*: de werktijd per dag die de app uit de blokken afleidt en waarmee hij rekent. Het getal volgt direct als je de blokken wijzigt. Heeft de kalender eigen uren per dag (bijvoorbeeld uit Primavera P6), dan blijft die eigen waarde bewaard en gaat hij mee bij de export, tot een preset hem vervangt. Het venster toont hem niet. Klik op *Toepassen*.
+7. Boven het blok *Werktijden* staat *Standaard werkdag*: de werktijd per dag die de app uit de blokken afleidt en waarmee hij rekent. Het getal volgt direct als je de blokken wijzigt. Heeft de kalender eigen uren per dag (bijvoorbeeld uit Primavera P6), dan blijft die eigen waarde bewaard en gaat hij mee bij de export, tot een preset hem vervangt. Wijkt die eigen waarde af van de *Standaard werkdag*, dan staat direct onder het getal een oranje blok, bijvoorbeeld: *Het bestand heeft een eigen werkdag van 8u. Die gaat mee bij export naar MS Project en P6. Daar telt een dag 8u, hier 10u.* Het blok verdwijnt zodra de blokken dezelfde dagsom geven, of als een preset de eigen waarde vervangt. Het blok verandert niets aan de berekening. Klik op *Toepassen*.
 
 **Voorbeeld: een vrijdagmiddag vrij.** Klik op *Per weekdag instellen…*. Verwijder bij *Vr* het tweede blok (13:00 tot 16:00). Vrijdag telt nu 5 uur, de andere dagen 8. De *Standaard werkdag* blijft 8 uur.
 
@@ -49,13 +49,12 @@ Een eigen preset staat op dit apparaat, niet in het projectbestand.
 
 **Dagknoppen passen de blokken aan.** Zet je bij *Werkdagen* een dag uit, dan verdwijnen de blokken van die dag. Zet je hem weer aan, dan krijgt hij de blokken terug die hij had toen je het venster opende (of na de laatste preset), of anders die van de eerste werkdag. *Ma–vr* doet dat voor maandag tot en met vrijdag en haalt de blokken van zaterdag en zondag weg. *Continu (24/7)* vervangt alle blokken: elke dag krijgt 00:00 tot 24:00.
 
-**Werktijden aanpassen met Urenplanning uit.** Een kalender met werktijdblokken houdt het blok *Werktijden*, ook als je urenplanning uitzet. Je past de blokken daar gewoon aan. Kies je *Dagdienst*, dan wordt het weer een gewone kalender met de velden *Begin (uur)*, *Einde (uur)* en de pauze; blokken terugzetten kan dan alleen met urenplanning aan.
 
 **Geen bruikbare werktijden.** Een kalender zonder blokken of zonder werkdagen kan geen taak in uren dragen. De app meldt dan *Deze kalender heeft geen geldige werktijden. Controleer de werkdagen en werktijden.*
 
 ## Zie ook
 
 - [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app werkuren telt en de standaard werkdag afleidt.
-- [Urenplanning aanzetten](docs://howto-urenplanning-aanzetten): een taak in uren plannen.
+- [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): een taak in uren plannen.
 - [Kalenders en werkdagen](docs://uitleg-kalenders): welke kalender voor welke taak geldt.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

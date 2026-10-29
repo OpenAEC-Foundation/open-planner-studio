@@ -13,7 +13,7 @@ A Gantt-diagramon látja, hogy a falazatnak két nappal később kell kezdődnie
 1. Nyomja meg a tevékenységsáv közepén, és húzza vízszintesen. A kezdés és a befejezés együtt mozdul, egész napokban. Az időtartam nem változik.
 2. Engedje el. A sáv az új helyén marad. Az ütemezés ekkor már nem naprakész. Nyomja meg a *Számítás* gombot (F5), vagy hagyja, hogy az alkalmazás maga végezze el, ha az *Automatikus ütemezés-számítás* be van kapcsolva.
 
-Ha a tevékenységnek van előde, az alkalmazás az új kezdést *Nem korábban kezdődő (SNET)* korlátozásként rögzíti, és ezt az elengedés után jelzi. Hogy miért van ez így, és mi történik más korlátozással, azt itt olvashatja: [Korlátozások és határidők](docs://uitleg-constraints). Ha visszahúzza az eredeti kezdésre, az eredeti korlátozás is visszatér.
+Ha a tevékenységnek van elődje, az alkalmazás az új kezdést *Nem korábban kezdődő (SNET)* korlátozásként rögzíti, és ezt az elengedés után jelzi. Hogy miért van ez így, és mi történik más korlátozással, azt itt olvashatja: [Korlátozások és határidők](docs://uitleg-constraints). Ha visszahúzza az eredeti kezdésre, az eredeti korlátozás is visszatér.
 
 Ha inkább fel vagy le húzza, és nem oldalra, akkor a tevékenységet egy másik sorba helyezi, a dátumok pedig maradnak. Az első néhány pixelben választott irány a teljes húzásra érvényes. Így egy mozdulat sosem módosítja egyszerre a dátumokat és a szerkezetet. Lásd: [A szerkezet módosítása](docs://howto-structuur-aanpassen).
 
@@ -57,6 +57,10 @@ Többet a kijelölésről itt olvashat: [Tevékenységek kijelölése, törlése
 Minél jobban kicsinyít, annál kevesebb a rácsvonal. 8 pixel/nap vagy több esetén minden naphoz tartozik vonal, a hét határán vastagabb vonallal. 2 és 8 pixel/nap között csak a hét határa marad meg. 2 pixel/nap alatt, év szinten, csak a hónapok határai maradnak. Különben a vászon egyenletes csíkmintává válna, amelyben a sávok eltűnnének. A szürke hétvégék és nem munkanapok, valamint a váltakozva színezett hétsávok minden szinten megmaradnak. Ha a vonalak eltűnnek, ezek mutatják a hetek szerkezetét. Az idővonal fejlécében a hétszámok és a napszámok csak akkor jelennek meg, ha van hely rájuk. 40 pixel/nap felett a hét napja is megjelenik a napszám előtt.
 
 A tevékenység neve akkor látszik a sávban, ha teljesen elfér. Ha nem fér el, például kicsinyítéskor, a teljes név a sáv jobb oldalán jelenik meg.
+
+### A tevékenység részleteinek megtekintése
+
+Tartsa az egeret mozdulatlanul egy sáv fölött. Megjelenik egy kis kártya a tevékenység nevével, a *WBS*, az *Időtartam*, a *Kezdés*, a *Befejezés*, az *Előrehaladás*, a *Kritikus* és a *Teljes tartalékidő* adatával. Húzás, az idővonal eltolása, kijelölő keret vagy jobb egérgombos menü közben a kártya eltűnik.
 
 ## Buktatók és az alkalmazás reakciója
 

@@ -70,7 +70,7 @@ Otvorte PDF vo svojom čítači PDF a vytlačte ho tam. Ak vytlačíte PDF vo fo
 
 **Tlačidlo Tlačiť a Ctrl+P netlačia.** Tlačidlo *Tlačiť* v skupine *Zostava* je na samotnej karte *Zostava* a nerobí nič navyše. Ctrl+P vás prenesie na túto kartu. Aplikácia nemá samostatný príkaz na tlač. Cesta na papier vedie cez PDF. Ak Ctrl+P nefunguje (pozri krok 1), otvorí sa v prehliadači tlačový dialóg prehliadača a ten vytlačí obrazovku, nie zostavu.
 
-**Pole Spoločnosť: prepísanie sa neuchová.** Pole *Spoločnosť:* v Gantt-zostave sa začína spoločnosťou z info o projekte. Text, ktorý tam prepíšete, sa neuchová. Do poľa *Autor:* tu nemôžete písať. Obe hodnoty zmeníte cez *Nastavenia › Projekt › Info o projekte*, v poliach *Objednávateľ/organizácia* a *Autor*, a potvrdíte tlačidlom *Použiť*.
+**Pole Spoločnosť: prepísanie sa neuchová.** Pole *Spoločnosť:* v Gantt-zostave sa začína spoločnosťou z nastavení projektu. Text, ktorý tam prepíšete, sa neuchová. Do poľa *Autor:* tu nemôžete písať. Obe hodnoty zmeníte cez *Nastavenia › Projekt › Nastavenia projektu*, v poliach *Objednávateľ/organizácia* a *Autor*, a potvrdíte tlačidlom *Použiť*.
 
 **Farby pruhov: platí aj pre vašu obrazovku.** Voľba *Farby pruhov:* v zostave je tá istá voľba ako *Farby pruhov* na karte *Zobrazenie*. Ak ju zmeníte v zostave, zmení sa s ňou aj váš Gantt na obrazovke.
 

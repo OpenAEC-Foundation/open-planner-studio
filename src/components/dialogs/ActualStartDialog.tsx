@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { isElapsedTask } from '@/engine/scheduler/duration';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { answerActualStartQuestion, type ActualStartAnswers } from '@/state/actualStartQuestion';
+import { ACTUAL_START_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { actualStartAnswerIssue } from '@/engine/progressEntry';
 import { displayDate, displayDateTime } from '@/utils/displayDate';
 import { statusDateAsUsed } from '@/utils/statusDateTime';
@@ -22,8 +25,10 @@ import type { ActualStartQuestionItem, ActualStartQuestionRequest } from '@/stat
  *  - Annuleren (knop, Escape) = er verandert niets. Een klik naast het paneel doet niets: de dialoog
  *    heeft invoervelden (backdrop-regel in `Dialog.tsx`).
  *
- * Stapelt boven "Taak bewerken" (`z-[60]`), daarom eigen Escape/Enter-afhandeling in de capture-fase
- * (zoals `ConfirmDialog`): anders zou Enter hier óók het Opslaan van de dialoog eronder triggeren.
+ * Stapelt boven "Taak bewerken" (`z-[60]`); de gedeelde dialoogstapel laat alleen de bovenste
+ * dialoog op Escape/Enter reageren. Enter op de ?-knop opent Help, zonder te bevestigen.
+ * Help verbergt de vraag tijdelijk, zoals bij het herstelvenster: de invoer en de resolver blijven
+ * staan. Ook "Taak bewerken" verbergt zich zolang deze vraag vanuit Help wordt gelezen.
  */
 export function ActualStartDialog() {
   const pending = useAppStore(s => s.ui.pendingActualStartQuestion);
@@ -36,12 +41,17 @@ type Issue = 'required' | 'afterStatusDate' | 'actualFinishBeforeStart';
 
 function issueOf(value: string, item: ActualStartQuestionItem): Issue | null {
   if (!value) return 'required';
-  return actualStartAnswerIssue(value, item);
+  const state = useAppStore.getState();
+  const task = state.tasks.find(task => task.id === item.taskId);
+  return actualStartAnswerIssue(value, item, task && isElapsedTask(task) ? undefined : resolveCalendar(task?.calendarId, state.calendars, state.calendar));
 }
 
 function ActualStartDialogBody({ request }: { request: ActualStartQuestionRequest }) {
   const { t } = useTranslation('common');
   const notation = useAppStore(s => s.ui.dateNotation);
+  const helpOpen = useAppStore(s => s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help');
+  const [inHelp, setInHelp] = useState(false);
+  const hiddenForHelp = inHelp && helpOpen;
   // De statusdatum mét tijd als de solver die tijd gebruikt (uur-modus; besluit orkestrator 2026-10-19).
   const timeNotation = useAppStore(s => s.ui.timeNotation);
   const usesTime = useAppStore(s => isHourModeCalendar(s.calendar));
@@ -53,25 +63,17 @@ function ActualStartDialogBody({ request }: { request: ActualStartQuestionReques
 
   const issues = request.items.map(item => issueOf(answers[item.taskId] ?? '', item));
   const valid = issues.every(issue => issue === null);
-  const confirm = () => { if (valid) answerActualStartQuestion({ ...answers }); };
+  const confirm = () => {
+    // Een onbestaande datum blijft lokaal in DateTextInput: bevestig nooit de oudere geldige waarde.
+    const invalid = bodyRef.current?.querySelector<HTMLInputElement>('input[aria-invalid="true"]');
+    if (invalid) { invalid.focus(); return; }
+    if (valid) answerActualStartQuestion({ ...answers });
+  };
   const cancel = () => answerActualStartQuestion(null);
 
-  // Capture-fase: zie de docstring (stapeling boven "Taak bewerken").
-  const confirmRef = useRef(confirm);
-  confirmRef.current = confirm;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); answerActualStartQuestion(null); }
-      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); confirmRef.current(); }
-    };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, []);
-
-  // Focus op het eerste datumveld, zodat de gebruiker meteen kan typen of bevestigen.
-  useEffect(() => {
-    bodyRef.current?.querySelector<HTMLInputElement>('input')?.focus();
-  }, []);
+  // De focus-trap kiest dit veld bij openen én hervatten. Een los effect zou bij hervatten met
+  // de opnieuw gemounte trap concurreren, die anders de ?-knop als eerste focusbare element kiest.
+  const initialFocus = useCallback(() => bodyRef.current?.querySelector<HTMLInputElement>('input') ?? null, []);
 
   const first = request.items[0];
   const intro = request.items.length === 1
@@ -80,12 +82,21 @@ function ActualStartDialogBody({ request }: { request: ActualStartQuestionReques
 
   return (
     <Dialog
+      suspended={hiddenForHelp}
+      initialFocus={initialFocus}
+      onCancel={cancel}
+      onConfirm={confirm}
+      focusedButtonOwnsEnter
       overlayClassName="bg-black/60 z-[60]"
       stopBackdropPropagation
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[460px] max-h-[85vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-actual-start-dialog': true }}
     >
-      <DialogHeader title={t('actualStartQuestion.title')} onClose={cancel} />
+      <DialogHeader
+        title={t('actualStartQuestion.title')}
+        onClose={cancel}
+        help={{ articleId: ACTUAL_START_HELP_ARTICLE_ID, close: () => setInHelp(true) }}
+      />
       <div ref={bodyRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <p className="text-text-secondary">{intro}</p>
         {request.items.map((item, index) => {

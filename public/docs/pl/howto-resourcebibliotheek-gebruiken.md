@@ -22,7 +22,7 @@ Dla nowego projektu:
 
 Dla istniejącego projektu:
 
-1. Wybierz *Plik › Info o projekcie*.
+1. Wybierz *Plik › Ustawienia projektu*.
 2. W polu *Biblioteka zasobów* wybierz bibliotekę.
 3. Kliknij *Zastosuj*. Do tego czasu na dole stoi *Zmiany nie zostały zastosowane — kliknij Zastosuj, aby je zachować.*
 
@@ -34,7 +34,7 @@ Jeśli projekt ma już zasoby o tej samej nazwie co element biblioteki, otwiera 
 2. W prawym górnym rogu wybierz *Biblioteka*. Nad tabelą stoi *To edytuje bibliotekę i dotyczy wszystkich projektów — poza cofaniem.*
 3. Kliknij *Nowy zasób w bibliotece*. Na dole tabeli pojawia się pusty wiersz.
 4. Wpisz nazwę, na przykład *Bricklayer*, i naciśnij Enter. Zasób jest teraz w bibliotece. Od razu otwiera się pusty wiersz na następny zasób. Gdy skończysz, naciśnij Esc. Bez nazwy aplikacja niczego nie tworzy.
-5. Wypełnij resztę wiersza. Pole *Typ* ma domyślnie wartość *Robocizna*. W polu *Maks. jednostki* wpisujesz, ile jest tego zasobu łącznie, na przykład 3 dla trzech murarzy. Przegląd obłożenia używa tej liczby jako zdolności. *Stawka/godz* jest opcjonalna. *Jednostka* możesz wpisać tylko dla typu *Materiał*. W polu *Kalendarz* wybierasz kalendarz z biblioteki albo *+ Kalendarz zasobu*, aby go utworzyć. Zobacz [Ustawianie kalendarza zasobu](docs://howto-resourcekalender-instellen). Aplikacja zapisuje nazwę, stawkę i jednostkę, gdy opuścisz pole. Pozostałe pola zapisuje od razu.
+5. Wypełnij resztę wiersza. Pole *Typ* ma domyślnie wartość *Robocizna*. W polu *Maks. jednostki* wpisujesz, ile jest tego zasobu łącznie, na przykład 3 dla trzech murarzy. Przegląd obłożenia używa tej liczby jako zdolności. *Stawka/godz* jest opcjonalna. Możesz wypełnić pole *Jednostka* tylko dla typu *Materiał*. W polu *Kalendarz* wybierasz kalendarz z biblioteki albo *+ Kalendarz zasobu*, aby go utworzyć. Zobacz [Ustawianie kalendarza zasobu](docs://howto-resourcekalender-instellen). Aplikacja zapisuje nazwę, stawkę i jednostkę, gdy opuścisz pole. Pozostałe pola zapisuje od razu.
 
 Każda zmiana w bibliotece od razu przechodzi na niezmienione kopie w Twoich otwartych projektach.
 

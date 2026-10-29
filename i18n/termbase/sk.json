@@ -1871,6 +1871,11 @@
       "typy úloh",
       "typov úloh"
     ],
+    "avoid": [
+      "pravidlo práce",
+      "pravidla práce",
+      "pravidlu práce"
+    ],
     "source": "tbx",
     "status": "tbx"
   },
@@ -2053,6 +2058,18 @@
     "source": "model",
     "status": "model"
   },
+  "work-category": {
+    "term": "druh prác",
+    "forms": [
+      "druh prác",
+      "druhy prác",
+      "druhu prác",
+      "druhov prác",
+      "druhom prác"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "pracovná doba",
     "forms": [
@@ -2061,16 +2078,6 @@
       "pracovnú dobu",
       "pracovné doby",
       "pracovných dôb"
-    ],
-    "source": "model",
-    "status": "model"
-  },
-  "work-rule": {
-    "term": "pravidlo práce",
-    "forms": [
-      "pravidlo práce",
-      "pravidla práce",
-      "pravidlu práce"
     ],
     "source": "model",
     "status": "model"

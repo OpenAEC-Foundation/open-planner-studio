@@ -13,7 +13,7 @@ Je werkt daarbij met **fasen**: aaneengesloten werkdagen waarop de resource met 
 Het voorbeeld is het buitenspouwblad: 6 werkdagen, één metselaar, 48 uur.
 
 1. Selecteer de taak. Het paneel *Eigenschappen* staat rechts; zie je het niet, zet het dan aan met *Beeld › Panelen › Eigensch.*
-2. Klik in het blok *Toewijzingen* bij de metselaar op het staafdiagram-icoon *Urenverdeling…*. Het venster *Urenverdeling in fasen* opent. Je begint bij wat de app nu boekt: bij dit buitenspouwblad één fase van 6 dagen met inzet 1.
+2. Klik in het blok *Toewijzingen* op de naam van de metselaar. Eronder verschijnen *Curve* en de knop *Urenverdeling…*. Klik op *Urenverdeling…*. Het venster *Urenverdeling in fasen* opent. Je begint bij wat de app nu boekt: bij dit buitenspouwblad één fase van 6 dagen met inzet 1.
 3. Kies zo nodig een vertrekpunt bij *Vorm toepassen:*. Bij *Klokvorm* maakt de app vijf fasen: 0,18 eenheden op de eerste en de laatste dag, 0,84 op de tweede en de vijfde dag en 1,98 op de twee middelste dagen. Het totaal blijft 48 uur.
 
 ### De fasen aanpassen
@@ -31,25 +31,27 @@ Kies *Toepassen*. Met *Annuleren* sluit het venster zonder wijziging.
 
 Een voorbeeld. Je kiest *Splitsen*, zet de *Dagen* van de eerste fase op 2 en de inzet van die fase op 0,5. De tweede fase loopt dan 4 dagen met inzet 1. Het totaal is 2 × 0,5 × 8 + 4 × 1 × 8 = 40 uur.
 
-Na *Toepassen* staat bij de toewijzing de curve op *Contour*, uitgeschakeld. *Eenh./dag* blijft staan zoals het was. Het histogram en de overbezetting volgen de nieuwe verdeling meteen. Herberekenen is niet nodig, want er verschuift geen enkele datum.
+Na *Toepassen* staat bij de toewijzing de curve op *Contour*, uitgeschakeld. De *Inzet* blijft staan zoals hij was. Naast de naam staat nu een staafjesicoon, ook als de toewijzing dichtgeklapt is. Het histogram en de overbezetting volgen de nieuwe verdeling meteen. Herberekenen is niet nodig, want er verschuift geen enkele datum.
 
 ### De verdeling loslaten
 
-Heeft de toewijzing een eigen verdeling, dan staat in het venster ook *Verdeling loslaten*. Daarmee vervalt je eigen verdeling en rekent de app weer met *Eenh./dag* en de curve. Kies dit ook als je de curve wilt wijzigen, want de keuzelijst *Curve* is uitgeschakeld zolang er een eigen verdeling is.
+Heeft de toewijzing een eigen verdeling, dan staat in het venster ook *Verdeling loslaten*. Daarmee vervalt je eigen verdeling en rekent de app weer met de *Inzet* en de curve. Kies dit ook als je de curve wilt wijzigen, want de keuzelijst *Curve* is uitgeschakeld zolang er een eigen verdeling is.
 
 ## Valkuilen en wat de app dan doet
 
 **Het totaal verandert mee.** Je verdeelt de uren niet, je bepaalt ze. Zet je een fase op 0,5 in plaats van 0,18, dan wordt het totaal groter. Onderaan het venster staat het totaal in uren, dus controleer dat vóór je op *Toepassen* klikt.
 
-**Wat de inzet daarna doet, hangt van de werkregel af.** Bij *Vaste duur en inzet* verandert een andere *Eenh./dag* niets aan de verdeling. Bij *Vaste duur en werk* schaalt de app de uren per dag mee met de nieuwe inzet: bij inzet 2 in plaats van 1 verdubbelt elke dag en dus ook het totaal (van 32 naar 64 uur), en de duur blijft gelijk. Bij *Vast werk* verandert de inzet de duur van de taak: de verdeling wordt dan over de nieuwe duur samengedrukt of uitgerekt, met hetzelfde totaal. Bij *Vaste inzet* verandert de inzet ook de duur; controleer daarna het totaal onderaan het venster.
+**Wat de inzet daarna doet, hangt van het taaktype af.** Bij *Vaste duur en inzet* verandert een andere *Inzet* niets aan de verdeling. Bij *Vaste duur en werk* schaalt de app de uren per dag mee met de nieuwe inzet: bij inzet 2 in plaats van 1 verdubbelt elke dag en dus ook het totaal (van 32 naar 64 uur), en de duur blijft gelijk. Bij *Vast werk* verandert de inzet de duur van de taak: de verdeling wordt dan over de nieuwe duur samengedrukt of uitgerekt, met hetzelfde totaal. Bij *Vaste inzet* verandert de inzet ook de duur; controleer daarna het totaal onderaan het venster.
 
 **Verander je de duur van de taak, dan rekt de verdeling mee.** De vorm blijft gelijk. Bij *Vaste duur en inzet* en bij *Vaste inzet* groeit het totaal evenredig met de duur: verdubbelt de duur van een taak met een eigen verdeling van 4 naar 8 werkdagen, dan verdubbelt ook het totaal, van 32 naar 64 uur. Bij *Vaste duur en werk* en bij *Vast werk* blijft het totaal gelijk (32 uur blijft 32 uur) en zakt de inzet.
 
-**Het werk volgt de verdeling.** *Werk (rest)* wordt de som van je fasen, ook onder *Vast werk*. De duur van de taak verandert daar niet door.
+**Het werk volgt de verdeling.** *Werk (u)* wordt de som van je fasen, ook onder *Vast werk*. De duur van de taak verandert daar niet door.
 
 **Ongeldige inzet.** Een lege of negatieve inzet krijgt een rode rand en dan is *Toepassen* uitgeschakeld. Een fase met inzet 0 mag wel. Zo'n fase blijft binnen de duur van de taak.
 
 **Alles geldt voor deze ene toewijzing.** De app noemt het zelf: *De verdeling verandert alleen de uren per dag van deze toewijzing; de taakdatums en onderbrekingen blijven zoals ze zijn.* Andere resources op dezelfde taak houden hun eigen verdeling.
+
+**Een deel van een werkdag telt naar rato.** Begint de taak midden op een werkdag, bijvoorbeeld wo om 11:00 op een werkdag van 07:00 tot 16:00 met een uur pauze, dan werkt ze die dag 4 van de 8 uur. Die dag telt voor de helft: bij inzet 1 boekt de app 4 uur, net als het histogram. Een fase houdt haar inzet; de kolom *Uren* telt het deel van de dag mee. Onder de strook staat dan een korte uitleg.
 
 **Nivelleren volgt de verdeling.** De nivelleerder telt dezelfde uren per dag als het histogram.
 

@@ -22,6 +22,7 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readXER } from '@/services/xer/xerReader';
 import { xerImportNotice } from '@/state/slices/fileSlice';
+import { localTodayIso } from '@/utils/dateUtils';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { ImportResult } from '@/services/importTypes';
@@ -90,6 +91,28 @@ const src = S();
   const parsed = readCSV(csv);
   expectResolved('1 CSV', parsed, '2015-01-07', '2015-01-09');
   eq('1 CSV: projectstart = vroegste aanwezige taakstart, niet vandaag', parsed.project.startDate, '2015-01-07');
+
+  // Knownbug 128: de weigering van gevulde onherkende datums verandert lege/ontbrekende cellen niet.
+  const blanks = readCSV([
+    'WBS;Name;Duration;Start;Finish;Actual Start;Actual Finish;Completion (%)',
+    '1;A;5;2015-01-07;2015-01-13;;;0',
+    '2;B;3;   ;   ;   ;   ;100',
+    '3;M;0;;;;;0',
+  ].join('\n'));
+  expectResolved('1 CSV witruimte/leeg', blanks, '2015-01-07', '2015-01-09');
+  eq('1 CSV lege actuals zonder voortgang blijven afwezig',
+    [byName(blanks.tasks, 'A').time.actualStart, byName(blanks.tasks, 'A').time.actualFinish],
+    [undefined, undefined]);
+  for (const text of ['Name;Duration\nZonder kolommen;1', 'Name;Duration;Start;Finish\nLeeg;1;;']) {
+    const before = localTodayIso();
+    const empty = readCSV(text);
+    const after = localTodayIso();
+    ok('1 CSV zonder enige start: bestaande lokale-vandaag-default (ook rond middernacht)',
+      [before, after].includes(empty.project.startDate)
+      && [before, after].includes(empty.tasks[0].time.scheduleStart));
+    eq('1 CSV zonder enige start: geen vastgelegde brondata verzinnen',
+      [empty.recordedTimes, empty.recordedTimesOrigin], [undefined, undefined]);
+  }
 }
 
 // ── 2. MSPDI: <Start>/<Finish> van B en M weg. ─────────────────────────────────────────────────────

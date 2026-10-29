@@ -11,7 +11,7 @@ There are four menus. Which one you get depends on where you click:
 - **On a group header in the task list** — a small menu to expand and collapse groups. Group headers only appear when you group, for example with the *Resource diagram* layout.
 - **On empty space** — in the Gantt next to or below the bars, and in the task list below the last task or on the grey *New task* row. The menu has *New task*, *Add milestone* and *Paste*; in the Gantt also *Reset zoom* and *Fit to project*. A new task or milestone goes to the bottom of the list. In the Gantt it starts on the date where you clicked; in the task list the name cell opens right away so you can type.
 
-On the band of a group header in the Gantt, the right mouse button opens no menu. A right-click in the timeline header does nothing either. The column headers of the task list have their own menu, described in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
+On the band of a group header in the Gantt, the right mouse button opens the menu for empty space; the group header itself has a menu only in the task list. A right-click in the timeline header does nothing. The column headers of the task list have their own menu, described in [Adjusting table columns](docs://howto-tabelkolommen-aanpassen).
 
 **Which tasks does an item apply to?** You click on one task, but the selection sets the scope. If the task you click on is part of the selection, the item applies to the whole selection. If it is not, it applies to that one task only. With a right-click on a bar in the Gantt or on a row in the task list, that task replaces the selection if it was not part of it. Every item that changes something is one step in *Undo*, also for a whole selection.
 

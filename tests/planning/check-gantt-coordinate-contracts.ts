@@ -208,13 +208,20 @@ equal('fitpaden geven de werkelijk gemeten paneelbreedte door',
   /computeFitToProject\([^\n]*rect\.width\s*-/.test(`${ganttCanvasSource}\n${zoomSources}`), false);
 equal('splitlayout trekt de splitter vóór de ratioverdeling af',
   (ganttCanvasSource.match(/splitPanePrimaryWidthCss\(splitView\.ratio, SPLIT_RATIO_BAR_WIDTH\)/g) ?? []).length, 2);
-equal('primaire scrollbar begint lokaal op nul', /data-testid="gantt-hscroll"[\s\S]*?style=\{\{\s*left:\s*0\b/.test(ganttCanvasSource), true);
-// De spacer is de volledige tijdlijn-contentbreedte, alleen boven de browser-elementgrens geschaald
-// (`scrollbarScale`, 1 daaronder) — nooit een paneelaftrek.
-equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte',
-  /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*viewport\.primary\.scrollbarWidth\)/.test(ganttCanvasSource)
+// De primaire balk begint lokaal op nul, of pas na de splittergrijpzone als die over dit pane ligt
+// (eigenaarscheck 2026-10-20, PR #362). Inzet en spacer horen bij elkaar: de spacer is de volledige
+// tijdlijn-contentbreedte (alleen boven de browser-elementgrens geschaald, `scrollbarScale`) MIN
+// precies de inzet van de balk. Zo blijft het schuifbereik van de balk gelijk aan dat van de kaart;
+// een andere paneelaftrek is niet toegestaan.
+equal('primaire scrollbar begint lokaal op nul of na de splittergrijpzone',
+  /data-testid="gantt-hscroll"\n\s*className="[^"]*"\n\s*style=\{\{\s*left:\s*primaryHScrollInset\.left,\s*right:\s*primaryHScrollInset\.right,/.test(ganttCanvasSource)
+    && /left:\s*splitterOnLeft \? GANTT_WORKSPACE_SPLITTER_GRIP : 0/.test(ganttCanvasSource), true);
+equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte min alleen de eigen inzet',
+  /data-testid="gantt-hscroll"[\s\S]*?width:\s*Math\.max\(1,\s*viewport\.primary\.scrollbarWidth - primaryHScrollInset\.left - primaryHScrollInset\.right\)/.test(ganttCanvasSource)
     && /scrollbarWidth:\s*primaryContentWidth\s*\*\s*primaryScrollbarScale/.test(ganttViewportCoordinatorSource)
     && /const primaryScrollbarScale = scrollbarScale\(primaryContentWidth\)/.test(ganttViewportCoordinatorSource), true);
+equal('omrekening balk <-> scrollX rekent met de pane-breedte, niet met de (ingezette) balk',
+  (ganttViewportCoordinatorSource.match(/scrollbarRangeRatio\([^)]*hScrollViewportWidth\((?:el|element)\)\)/g) ?? []).length, 4);
 
 // Task 16D: het histogram is een full-width workspacebaan. Alleen zijn resourcekiezer heeft een
 // semantische linkerbreedte; de datumplot begint exact op die breedte en deelt de primaire view.

@@ -183,6 +183,12 @@ const real = JSON.parse(readFileSync(resolve(process.cwd(), 'public/docs/manifes
 eq('80 manifest v2', real.version, 2);
 ok('81 aliases is een object', !!real.aliases && typeof real.aliases === 'object' && !Array.isArray(real.aliases));
 ok('82 geen tutorials in het manifest', real.articles.every(a => a.kind !== 'tutorial' && a.order === undefined));
+// Uitgeleverde tutorials 1.2.0 gebruiken deze id's. De generieke aliascontrole merkt het
+// verwijderen of omleiden van een bestaande alias niet op; deze twee contracten blijven ook in prod gelden.
+eq('83 oude tutoriallink naar instellingen blijft werken in productie',
+  resolveHelpArticle(real, 'ref-instellingen-lijst', false)?.id, 'ref-instellingen');
+eq('84 oude tutoriallink naar nivellering blijft werken in productie',
+  resolveHelpArticle(real, 'ref-nivellering', false)?.id, 'howto-overbezetting-oplossen');
 
 if (diffs.length === 0) console.log(`OK: help-manifest v2 — ${checks} checks groen`);
 else { console.log(`XX help-manifest v2 — ${diffs.length} van ${checks} checks rood:`); for (const d of diffs) console.log(`  - ${d}`); process.exit(1); }

@@ -4,45 +4,45 @@ Tehtävätaulukossa on 86 kiinteää saraketta. Lisäksi on yksi sarake jokaista
 
 ## Sarakkeiden valinta
 
-Gantt-kaavion vieressä oleva tehtävätaulukko ja *Taulukko*-välilehden taulukko valitsevat sarakkeensa kumpikin erikseen. Otsikon oikealla puolella oleva plusmerkki avaa sarakevalitsimen (ikkunan otsikko *Valitse sarake*). Välilehdellä *Taulukko* on myös käytettävissä valinta *Taulukko › Sarakkeet › Valitse sarakkeet…*. Valitsin listaa sarakkeet luokittain: *Tehtävä*, *Aikataulu*, *Rajoitteet*, *Riippuvuudet*, *Resurssit*, *Edistyminen*, *Lasketut*, *Perustaso*, *Mukautetut* ja *Tekninen*. Haku tapahtuu nimen mukaan, ja *Viimeksi käytetyt* on ylimpänä. *Palauta oletus* palauttaa oletussarakkeet.
+Gantt-kaavion vieressä oleva tehtävätaulukko ja *Taulukko*-välilehden taulukko valitsevat sarakkeensa kumpikin erikseen. Otsikon oikealla puolella oleva plusmerkki avaa sarakevalitsimen (ikkunan otsikko *Valitse sarake*). Välilehdellä *Taulukko* voi myös käyttää valintaa *Taulukko › Sarakkeet › Valitse sarakkeet…*. Valitsin listaa sarakkeet luokittain: *Tehtävä*, *Aikataulu*, *Rajoitteet*, *Riippuvuudet*, *Resurssit*, *Edistyminen*, *Lasketut*, *Perustason suunnitelma*, *Mukautetut* ja *Tekninen*. Haku tehdään nimen mukaan, ja *Viimeksi käytetyt* on ylimpänä. *Palauta oletus* palauttaa oletussarakkeet.
 
-Oletuksena Gantt-kaavion vieressä oleva taulukko näyttää sarakkeet *WBS*, *Tehtävän nimi* ja *Kesto*. *Taulukko*-välilehden taulukko näyttää sarakkeet *WBS*, *Tehtävän nimi*, *Kesto*, *Alku*, *Loppu*, *Tehtävätyyppi*, *Kriittinen*, *Kokonaispelivara* ja *Edistyminen*, lisäksi yhden sarakkeen projektin jokaista tehtäväkoodia ja mukautettua kenttää kohti.
+Oletuksena Gantt-kaavion vieressä oleva taulukko näyttää sarakkeet *WBS*, *Tehtävän nimi* ja *Kesto*. *Taulukko*-välilehden taulukko näyttää sarakkeet *WBS*, *Tehtävän nimi*, *Kesto*, *Alku*, *Loppu*, *Työlaji*, *Kriittinen*, *Kokonaispelivara* ja *Edistyminen*, lisäksi yhden sarakkeen projektin jokaista tehtäväkoodia ja mukautettua kenttää kohti.
 
 ## Arvojen lukeminen ja muokkaaminen
 
-- **Lasketut sarakkeet** — *Lasketut*-luokan sarakkeet ja useat muut ovat vain luettavia: ne tulevat laskennasta. Jos vain luettavaa solua yritetään muokata, sovellus näyttää viestin *Tätä laskettua saraketta ei voi muokata.* Viesti on yleinen kaikille vain luettaville soluille, myös silloin kun sarake ei ole laskettu. Jos arvot ovat vanhentuneet, koska jotain on muutettu, niiden viereen ilmestyy *vanhentunut*, kunnes *Laske*-painiketta painetaan.
-- **Päivämäärät** — ne näkyvät muodossa, joka on valittu kohdassa *Asetukset*, välilehdellä *Näkymä*, otsikon *Päivämäärän muoto* alla.
-- **Kestot ja pelivara** — kesto näkyy tehtävän yksikössä (`5d`, `12h`) tai *Keston näyttö* -asetuksen mukaan samalla välilehdellä (*Automaattinen (oma mitta kullekin tehtävälle)*, *Aina päivinä* tai *Aina tunteina*). Pelivara näkyy työpäivinä kahdella desimaalilla ja kielesi desimaalierottimella.
+- **Lasketut sarakkeet** — *Lasketut*-luokan sarakkeet ja useat muut ovat vain luettavia: ne tulevat laskennasta. Jos vain luettavaa solua yritetään muokata, sovellus näyttää viestin *Tätä laskettua saraketta ei voi muokata.* Viesti on yleinen kaikille vain luettaville soluille, myös silloin kun sarake ei ole laskettu. Jos arvot ovat vanhentuneet, koska jotain on muutettu, niiden viereen tulee *vanhentunut*, kunnes painetaan *Laske*-painiketta.
+- **Päivämäärät** — ne näkyvät muodossa, joka on valittu kohdassa *Asetukset*, välilehdellä *Ulkonäkö*, otsikon *Päivämäärän muoto* alla.
+- **Kestot ja pelivara** — kesto näkyy tehtävän mitassa (`5d`, `12h`) tai *Keston näyttö* -asetuksen mukaan samalla välilehdellä (*Automaattinen (oma mitta kullekin tehtävälle)*, *Aina päivinä* tai *Aina tunteina*). Pelivara näkyy työpäivinä kahdella desimaalilla ja kielen desimaalierottimella.
 - **Kyllä/Ei** — kyllä/ei-arvo näkyy muodossa *Kyllä* tai *Ei*. Tyhjä arvo näkyy viivana (—).
-- **Muokkaaminen** — kirjoita arvo tai valitse se. Virheellinen arvo hylätään, ja solun alla on syy, esimerkiksi *Syötä kelvollinen kesto, esimerkiksi 5d tai 8h.* tai *Syötä prosenttiarvo 0 ja 100 välillä.* Kun solualue liitetään, sovellus käsittelee solut yksi kerrallaan. Vain luettavat solut ohitetaan, ja sovellus näyttää niiden määrän.
+- **Muokkaaminen** — kirjoita arvo tai valitse se. Virheellinen arvo hylätään, ja solun alla näkyy syy, esimerkiksi *Syötä kelvollinen kesto, esimerkiksi 5d tai 8h.* tai *Syötä prosenttiarvo 0 ja 100 välillä.* Solualueen liittäminen käsittelee solut yksi kerrallaan. Vain luettavat solut ohitetaan, ja sovellus antaa raportin niiden määrästä.
 
 ## Tehtävä
 
 - **Tehtävän nimi** — tehtävän nimi. Muokattavissa; pakollinen. Yhteenvetotehtävä näkyy lihavoituna, ja nimisolussa on vaalea taustasävy. Välitavoite näkyy lihavoituna välitavoitteen värillä, sama värisävy kuin välitavoitteella Gantt-kaaviossa. Tavallinen tehtävä pysyy ennallaan. Kyseessä on pelkkä muotoilu: valinta, vetäminen ja muokkaaminen toimivat samalla tavalla.
 - **Kuvaus** — kuvaus. Muokattavissa; vapaa teksti.
 - **WBS** — WBS-koodi. Muokattavissa ja pakollinen, mutta vain luettava, kun *WBS auto* on päällä.
-- **Tehtävätyyppi** — tehtävän tyyppi (*Rakentaminen*, *Asennus*, *Purku*, *Logistiikka*, *Tarkastus*, *Siirto*, *Saneeraus*, *Huolto* tai *Muu*). Muokattavissa luettelosta.
-- **Mukautettu tehtävätyyppi** — projektin mukautettu tehtävätyyppi tai viiva. Muokattavissa luettelosta, jossa ovat projektin mukautetut tyypit.
+- **Työlaji** — tehtävän työlaji (*Rakentaminen*, *Asennus*, *Purku*, *Logistiikka*, *Tarkastus*, *Siirto*, *Saneeraus*, *Huolto* tai *Muu*). Muokattavissa luettelosta.
+- **Mukautettu työlaji** — projektin mukautettu työlaji tai viiva. Muokattavissa luettelosta, jossa ovat projektin mukautetut työlajit.
 - **Väri** — tehtävän tallennettu väri värikoodina, esimerkiksi `#1a73e8`. Muokattavissa värinvalitsimella. Väri tallentuu IFC-tiedostoon, mutta mikään palkki tai raportti ei käytä sitä. Palkkien värit asetetaan polulla *Näkymä › Perustasot ja edistyminen › Palkkien värit*.
-- **Muistiinpanot** — muistiinpanot muodossa `✓ teksti; ○ teksti`. Muokattavissa, kun muistiinpanoja on enintään yksi. Silloin muokataan sen tekstiä. Kun muistiinpanoja on enemmän, ne ovat vain luettavia.
+- **Muistiinpanot** — muistiinpanot muodossa `✓ teksti; ○ teksti`. Muokattavissa, kun muistiinpanoja on enintään yksi; silloin muokataan sen tekstiä. Kun muistiinpanoja on enemmän, ne ovat vain luettavia.
 
 ## Aikataulu
 
-- **Välitavoite** — onko tehtävä välitavoite. Muokattavissa. Kun se asetetaan päälle, kesto on 0. Sovellus hylkää tämän yhteenvetotehtävälle ja tehtävälle, jolla on resurssikohdistuksia.
+- **Välitavoite** — onko tehtävä välitavoite. Muokattavissa. Kun asetus laitetaan päälle, kesto on 0. Sovellus hylkää asetuksen yhteenvetotehtävälle ja tehtävälle, jolla on resurssikohdistuksia.
 - **Välitavoitetyyppi** — *Aloitusvälitavoite* tai *Loppuvälitavoite*, tai viiva automaattiselle valinnalle. Muokattavissa vain välitavoitteella.
 - **Pakollinen välitavoite** — lippu *Pakollinen (sopimuksellinen)*. Muokattavissa vain välitavoitteella.
 - **Tasaamisen prioriteetti** — kokonaisluku 0–1000, oletus 500. Muokattavissa. Arvo 1000 lukitsee tehtävän tasaamiselle.
 - **Jakovälit** — taukojen määrä muodossa `Jakovälit: 2`, tai viiva. Vain luettava; niitä muokataan *Ominaisuudet*-paneelissa.
-- **Työsääntö** — tehtävän työsääntö; tyhjä tarkoittaa projektin oletusta. Muokattavissa luettelosta. Tyhjä ja vain luettava välitavoitteella, yhteenvetotehtävällä tai riippumatolla. Valitsimessa näkyy vain, kun työsäännöt näkyvät (*Näytä työsäännöt ja työ*, tai tiedosto sisältää työsääntöjä).
+- **Tehtävätyyppi** — tehtävän tehtävätyyppi. Tyhjä tarkoittaa projektin oletusta. Muokattavissa luettelosta, mutta tyhjä ja vain luettava välitavoitteella, yhteenvetotehtävällä tai riippumatolla. Näkyy valitsimessa vain, kun tehtävätyypit näkyvät (*Tehtävätyypit käyttöön*, tai tiedosto sisältää tehtävätyyppejä).
 - **Riippumatto (johdettu kesto)** — onko tehtävä riippumatto. Muokattavissa, paitsi välitavoitteella tai yhteenvetotehtävällä.
-- **Kalenteri** — tehtävän oman kalenterin tunnus. Tyhjä (—) tarkoittaa projektin kalenteria. Tunnus kirjoitetaan tai valitaan ehdotuksista. Tuntematon tunnus hylätään. Huomio: solu näyttää tällä hetkellä sisäisen tunnuksen eikä nimeä. Valitse kalenteri mieluummin *Ominaisuudet*-paneelista.
+- **Kalenteri** — tehtävän oman kalenterin tunnus. Tyhjä (—) tarkoittaa projektin kalenteria. Kirjoita tai valitse tunnus ehdotuksista; tuntematon tunnus hylätään. Huomautus: solu näyttää tällä hetkellä sisäisen tunnuksen eikä nimeä. Valitse kalenteri mieluummin *Ominaisuudet*-paneelista.
 - **Keston tyyppi** — *Työaika* (kesto lasketaan kalenterin työpäivinä tai työtunteina) tai *Kulunut aika* (kesto lasketaan yhtenäisenä kellonaikana ilman kalenteria). Muokattavissa.
 - **Keston mitta** — *Päivät* tai *Tunnit*. Muokattavissa, paitsi yhteenvetotehtävällä, riippumatolla tai välitavoitteella. Vaihto onnistuu vain, kun muunnos on tarkka ja *Ota tuntisuunnittelu käyttöön* on päällä.
-- **Kesto** — tehtävän kesto tehtävän yksikössä tai *Keston näyttö* -asetuksen mukaan. Muokattavissa: kirjoita `5d`, `12h` tai `1h 30m`. Kelpaa myös luku tehtävän yksikössä. Vain luettava yhteenvetotehtävällä, riippumatolla ja välitavoitteella, jonka kesto on 0.
-- **Alku** — näytetty alkamispäivä, sama päivä kuin Gantt-palkissa. Muokattavissa. Tehtävä, jolla on edeltäjä ja jolle annetaan uusi alku, saa rajoitteen *Alkaa aikaisintaan (SNET)* tuolle päivälle. Vain luettava yhteenvetotehtävällä ja riippumatolla, ellei sitä ole ajoitettu manuaalisesti.
-- **Loppu** — näytetty loppumispäivä. Muokattavissa: uusi loppu muuttuu uudeksi kestoksi. Sovellus hylkää sen valmiille tehtävälle, välitavoitteelle, tehtävälle, jonka kestotyyppi on kulunut aika, ja tehtävälle, jossa on taukoja. Se hylkää myös loppumispäivän ennen alkua (*Loppu on ennen alkua.*). Vain luettava yhteenvetotehtävällä ja riippumatolla, ellei sitä ole ajoitettu manuaalisesti.
-- **Suunniteltu alku** — laskennan lähtöpäivä, josta laskenta alkaa. Se ei ole välttämättä näytetty alku. Muokattavissa. Vaikutus on sama kuin kirjoittaisi kenttään *Alku*.
-- **Suunniteltu loppu** — annettu loppu. Muokattavissa vain manuaalisesti ajoitetulla tehtävällä. Muuten sovellus sanoo: *Suunniteltu loppu koskee vain manuaalisesti ajoitettua tehtävää. Loppu muutetaan Loppu-sarakkeessa tai kestossa.*
+- **Kesto** — tehtävän kesto tehtävän mitassa tai *Keston näyttö* -asetuksen mukaan. Muokattavissa: kirjoita `5d`, `12h` tai `1h 30m`. Kelpaa myös luku tehtävän mitassa. Vain luettava yhteenvetotehtävällä, riippumatolla ja välitavoitteella, jonka kesto on 0.
+- **Alku** — näytetty alkamispäivä, sama päivä kuin Gantt-palkissa. Jos tehtävä on jo alkanut, alku on toteutunut alkamispäivä. Muokattavissa. Tehtävä, jolla on edeltäjä ja jolle annetaan uusi alku, saa rajoitteen *Alkaa aikaisintaan (SNET)* tälle päivälle. Vain luettava yhteenvetotehtävällä ja riippumatolla, ellei sitä ole ajoitettu manuaalisesti, sekä tehtävällä, joka on jo alkanut (*Tehtävä on jo alkanut; sen alkamispäivä on toteutunut alkamispäivä. Muuta se edistymisen kautta.*).
+- **Loppu** — näytetty loppu. Jos tehtävä on jo päättynyt, loppu on toteutunut valmistumispäivä. Muokattavissa: uusi loppu muuttuu uudeksi kestoksi. Sovellus hylkää uuden lopun tehtävälle, joka on jo päättynyt (*Tehtävä on päättynyt; sen loppu on toteutunut valmistumispäivä. Muuta se edistymisen kautta.*), välitavoitteelle, tehtävälle, jonka keston tyyppi on *Kulunut aika*, ja tehtävälle, jossa on taukoja. Sovellus hylkää myös lopun, joka on ennen alkua (*Loppu on ennen alkua.*). Vain luettava yhteenvetotehtävällä ja riippumatolla, ellei sitä ole ajoitettu manuaalisesti.
+- **Suunniteltu alku** — laskennan lähtöpäivä, josta laskenta alkaa. Se ei ole välttämättä näytetty alku. Muokattavissa. Vaikutus on sama kuin *Alku*-kentän muokkaamisessa.
+- **Suunniteltu loppu** — annettu loppu. Muokattavissa vain manuaalisesti ajoitetulla tehtävällä. Muuten sovellus kertoo: *Suunniteltu loppu koskee vain manuaalisesti ajoitettua tehtävää. Loppu muutetaan Loppu-sarakkeessa tai kestossa.*
 
 ## Rajoitteet
 
@@ -63,12 +63,13 @@ Oletuksena Gantt-kaavion vieressä oleva taulukko näyttää sarakkeet *WBS*, *T
 
 ## Resurssit
 
-- **Kohdistetut resurssit** — kohdistettujen resurssien nimet, erotettuina pilkuilla. Muokattavissa: nimen lisääminen kohdistaa resurssin kuormitusasteella 1 päivässä, nimen poistaminen poistaa kohdistuksen. Vain luettava välitavoitteella ja yhteenvetotehtävällä.
-- **Kuormitusaste päivässä** — kuormitusaste resurssia kohti muodossa `Nimi: 1; Nimi: 0.5`. Muokattavissa tehtävällä, jolla on resurssikohdistuksia.
+- **Kohdistetut resurssit** — kohdistettujen resurssien nimet, erotettuina pilkuilla. Muokattavissa: nimen lisääminen kohdistaa resurssin kuormitusasteella 1 päivässä, nimen poistaminen poistaa resurssikohdistuksen. Vain luettava välitavoitteella ja yhteenvetotehtävällä.
+- **Kuormitusaste päivässä** — kuormitusaste resurssia kohti muodossa `Nimi: 1; Nimi: 0.5`, enintään kahdella desimaalilla. Tallennettu arvo pysyy tarkkana. Muokattavissa tehtävällä, jolla on resurssikohdistuksia.
+- **Suunniteltu kuormitusaste päivässä** — suunniteltu kuormitusaste resurssia kohti muodossa `Name: 1.11`, enintään kahdella desimaalilla, kuten *Kuormitusaste päivässä*. Vain kohdistukselle, joka on tuotu Primavera P6 -ohjelmasta ja jonka jäljellä oleva kuormitusaste on eri. Silloin *Kuormitusaste päivässä* näyttää jäljellä olevan kuormitusasteen. Vain luettava.
 - **Jakautumiskäyrä** — käyrä resurssia kohti muodossa `Nimi: Tasainen`. Muokattavissa tehtävällä, jolla on resurssikohdistuksia.
 - **Työikkunan alku** ja **Työikkunan loppu** — työikkuna resurssia kohti tuodusta tiedostosta muodossa `Nimi: päivämäärä`. Vain luettava.
-- **Suunniteltu työ (tunnit)** ja **Toteutunut työmäärä (tunnit)** — suunniteltu ja toteutunut työ resurssia kohti tunteina muodossa `Nimi: 12`, tuodusta tiedostosta. Vain luettava.
-- **Jäljellä oleva työ (tunnit)** — jäljellä oleva työ resurssia kohti tunteina muodossa `Nimi: 6`: tallennettu työ, muuten jäljellä oleva kesto × kuormitusaste. Muokattavissa tehtävällä, jolla on resurssikohdistuksia ja johon työsääntö soveltuu. Valitsimessa näkyy vain, kun työsäännöt näkyvät.
+- **Suunniteltu työ (tunnit)** ja **Toteutunut työmäärä (tunnit)** — suunniteltu työ ja toteutunut työmäärä resurssia kohti tunteina muodossa `Nimi: 617.14`, enintään kahdella desimaalilla, tuodusta tiedostosta. Vain luettava.
+- **Jäljellä oleva työ (tunnit)** — jäljellä oleva työ resurssia kohti tunteina muodossa `Nimi: 6` tai `Nimi: 26.67`: tallennettu työ, muuten jäljellä oleva kesto × kuormitusaste. Muokattavissa tehtävällä, jolla on resurssikohdistuksia ja johon tehtävätyyppi soveltuu. Desimaalierottimena kelpaa pilkku tai piste. Näkyy valitsimessa vain, kun tehtävätyypit näkyvät. Keltainen ⚠ solussa tarkoittaa, että tallennettu työ eroaa kuormitusasteen × jäljellä olevan keston arvosta, kuten ⚠ kohdassa *Työ (jäljellä)* tehtäväpaneelissa.
 
 ## Edistyminen
 
@@ -87,15 +88,15 @@ Edistymissarakkeet noudattavat sovelluksen edistymissääntöjä: todellinen pä
 Kaikki tämän luokan sarakkeet ovat vain luettavia.
 
 - **Tasaamisviive** — kuinka monta työpäivää tasaaminen viivästytti tehtävää. Viiva, jos tasaamista ei ole sovellettu.
-- **Varhaisin alkamispäivä** ja **Varhaisin valmistumispäivä** — varhaisimmat päivät laskennasta.
+- **Varhaisin alkamispäivä** ja **Varhaisin valmistumispäivä** — varhaisimmat päivät laskennasta. Tehtävälle, joka on alkanut, nämä voivat poiketa kohdista *Alku* ja *Loppu*: laskentaprofiili *Primavera P6* asettaa tehtävän varhaisen alun, joka on kesken tai päättynyt, raportointipäivälle.
 - **Myöhäisin alkamispäivä** ja **Myöhäisin valmistumispäivä** — viimeisimmät päivät, jolloin tehtävä saa vielä alkaa tai päättyä viivästyttämättä projektia.
-- **Vapaa pelivara** — työpäivät, joiden verran tehtävä voi siirtyä viivästyttämättä seuraajaa.
-- **Kokonaispelivara** — työpäivät, joiden verran tehtävä voi siirtyä viivästyttämättä projektin päättymispäivää. Negatiivinen, jos rajoitetta tai tavoitepäivää ei voida täyttää.
+- **Vapaa pelivara** — työpäivien määrä, jonka tehtävä voi siirtyä viivästyttämättä seuraajaa.
+- **Kokonaispelivara** — työpäivien määrä, jonka tehtävä voi siirtyä viivästyttämättä projektin päättymispäivää. Negatiivinen, jos rajoitetta tai tavoitepäivää ei voida täyttää.
 - **Kriittinen** — *Kyllä*, jos tehtävä on kriittisellä polulla.
 - **Häiritsevä pelivara** — kokonaispelivara miinus vapaa pelivara.
-- **Lähes kriittinen** — *Kyllä* lähes kriittiselle tehtävälle. Täytetään vain, kun *Merkitse lähes kriittiset* on päällä (*Projektitiedot*, osio *Laskentaprofiili ja laskentavaihtoehdot*); muuten viiva.
-- **Pelivarapolku** — pelivarapolun numero; 1 on kriittisin. Täytetään vain, kun *Useita pelivarapolkuja* on päällä; muuten viiva.
-- **Kirjattujen päivien lähde** — tiedostolle, jossa on kirjattuja päivämääriä: *Poikkeaa* tai *Osittain kirjaamatta*. Näkyy valitsimessa vain tällaiselle tiedostolle. Kirjaamattomalla aikajanalla *Ei kirjattu* näkyy myöhäisten päivämäärien ja pelivaran sarakkeissa.
+- **Lähes kriittinen** — *Kyllä* lähes kriittiselle tehtävälle. Täytetään vain, kun *Merkitse lähes kriittiset* on päällä (*Projektin asetukset*, osio *Laskentaprofiili ja laskentavaihtoehdot*); muuten viiva.
+- **Pelivarapolku** — pelivarapolun numero, 1 on kriittisin. Täytetään vain, kun *Useita pelivarapolkuja* on päällä; muuten viiva.
+- **Kirjattujen päivien lähde** — niin kauan kuin sovellus näyttää päivät tiedostosta: *Osittain kirjaamatta* tehtävälle, jonka tiedostossa ei ole kaikkea. Näkyy valitsimessa vain tässä näkymässä. Kirjaamattomalla akselilla *Ei kirjattu* näkyy myöhäisten päivämäärien ja pelivaran sarakkeissa.
 
 Katso [Kriittinen polku ja pelivara](docs://uitleg-kritiek-pad).
 

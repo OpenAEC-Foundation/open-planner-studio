@@ -8,6 +8,7 @@ import { externalSourceSide } from '@/engine/externalLinks';
 import { formatExternalLagShort, parseExternalLagInput } from '@/engine/taskGrid/relationFormat';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourModeCalendar } from '@/types/calendar';
+import { parseableHourSuffix } from '@/utils/durationFormat';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { computedFinish, computedStart } from '@/utils/taskDates';
@@ -94,13 +95,13 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const tasks = useAppStore((s) => s.tasks);
   const calendar = useAppStore((s) => s.calendar);
   const calendars = useAppStore((s) => s.calendars);
-  const enableHourPlanning = useAppStore((s) => s.ui.enableHourPlanning);
+
   const parseExternalSource = useAppStore((s) => s.parseExternalSource);
   const addExternalLink = useAppStore((s) => s.addExternalLink);
   const updateExternalLink = useAppStore((s) => s.updateExternalLink);
   const existing = tasks.find(task => task.id === taskId)?.externalLinks?.find(link => link.id === linkId);
   const ownerTask = tasks.find(task => task.id === taskId);
-  const ownerHourMode = enableHourPlanning && !!ownerTask
+  const ownerHourMode = !!ownerTask
     && isHourModeCalendar(effectiveCalendarOf(ownerTask, calendar, calendars));
 
   // Alleen pad-refs zijn read-only te parsen (parseExternalSource is Tauri-only).
@@ -111,7 +112,9 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
   const [direction, setDirection] = useState<Direction>(existing?.direction ?? 'predecessor');
   const [relType, setRelType] = useState<RelType>(existing?.relType ?? 'FS');
-  const [lag, setLag] = useState<string>(existing ? formatExternalLagShort(existing) : '0d');
+  const [lag, setLag] = useState<string>(
+    existing ? formatExternalLagShort(existing, parseableHourSuffix(tCommon('duration.suffixHour'))) : '0d',
+  );
   const existingRecentPath = existing?.sourceRef.filePath
     && recent.some(file => file.path === existing.sourceRef.filePath);
   const [manual, setManual] = useState<boolean>(() => !existingRecentPath);

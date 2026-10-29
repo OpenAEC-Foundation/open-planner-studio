@@ -13,7 +13,7 @@ Du registrerer en grunnlinje når tidsplanen er godkjent og arbeidet ennå ikke 
 1. Trykk **Beregn** (F5), for eksempel via *Tidsplan › Tidsplan › Beregn*. Grunnlinjen registrerer datoene som er beregnet på det tidspunktet.
 2. Velg *Tidsplan › Grunnlinjer og fremdrift › Administrer grunnlinjer…*. Vinduet *Grunnlinjer* åpnes.
 3. Under *Lagre ny grunnlinje* står et forslag til navn, for eksempel *Grunnlinje 1 — (dagens dato)*. Skriv et eget navn som du kjenner igjen senere, for eksempel *Grunnlinje*.
-4. Klikk på *Lagre*. Grunnlinjen står nå i listen og blir med en gang den aktive grunnlinjen.
+4. Klikk på *Lagre*. Grunnlinjen står nå i listen og er med en gang den aktive grunnlinjen.
 5. Klikk på *Lukk*.
 
 Under hver aktivitetsstolpe i Gantt-diagrammet finnes nå en tynn stolpe med grunnlinjedatoene. En milepæl får en liten diamant. Du slår overlegget av eller på med *Visning › Grunnlinjer og fremdrift › Grunnlinjeoverlegg*.
@@ -28,7 +28,7 @@ Endre navnet i listen. Endringen gjelder med en gang. Du trenger ikke klikke på
 
 ### Slette en grunnlinje
 
-Klikk på den lille søppelbøtta ved siden av grunnlinjen i listen. Hvis du sletter den aktive grunnlinjen, spør appen *Slette den aktive grunnlinjen?*. Deretter blir den nyeste gjenværende grunnlinjen den aktive. Finnes det ingen andre, er det ikke lenger noen aktiv grunnlinje, og overlegget forsvinner. Med Ctrl+Z henter du en slettet grunnlinje tilbake.
+Klikk på den lille søppelbøtta ved siden av grunnlinjen i listen. Hvis du sletter den aktive grunnlinjen, spør appen *Slette den aktive grunnlinjen?*. Deretter blir den nyeste gjenværende grunnlinjen den aktive. Finnes det ingen andre, er det ikke lenger noen aktiv grunnlinje, og overlegget forsvinner. Med Ctrl+Z henter du en slettet grunnlinje tilbake. Lukk vinduet først; Ctrl+Z fungerer ikke inne i et vindu.
 
 ### Avvik i aktivitetstabellen
 
@@ -40,13 +40,15 @@ Hver grunnlinje har seks kolonner i aktivitetstabellen. Klikk på **+** til høy
 
 **En grunnlinje med fremdrift.** Lagrer du en grunnlinje etter at du har registrert fremdrift, registrerer den tilstanden med de faktiske datoene. Avviket er da null, og det sier ikke lenger noe om utførelsen. Registrer grunnlinjen før arbeidet starter.
 
-**En grunnlinje kan ikke oppdateres.** Vil du revidere avtalen, lagrer du en ny grunnlinje og sletter den gamle hvis det er nødvendig.
+**En grunnlinje kan ikke oppdateres.** Vil du revidere avtalen, lagre en ny grunnlinje og slett den gamle hvis det er nødvendig.
+
+**Et ⚠ ved Varighet eller Varighetsavvik.** For en aktivitet i timer er en dag arbeidstiden i kalenderen. Har kalenderen egne timer per dag (for eksempel 8 med tidsbånd på 10 timer, fra Primavera P6), telte en eldre versjon av appen dagene annerledes. En grunnlinje fra den versjonen beholder det gamle tallet: en aktivitet på 1870 timer er 233,75 dager i grunnlinjen og 187 dager nå. Appen konverterer ikke en slik grunnlinje. Kolonnene *Varighet* og *Varighetsavvik* for den grunnlinjen viser da et ⚠. Hold musepekeren over det for forklaringen. Datoene i grunnlinjen er riktige. Lagre en ny grunnlinje og slett den gamle hvis det er nødvendig.
 
 **Bare aktiviteter uten delaktiviteter.** En fase står ikke i grunnlinjen. Den har ingen stolpe i grunnlinjen og heller ikke noe avvik. Fasen følger av aktivitetene under den.
 
 **Nye og slettede aktiviteter.** En aktivitet du legger til etter lagring, har ingen stolpe i grunnlinjen. I avviksrapporten vises den som *Ny*. En aktivitet du sletter, vises som *Fjernet*.
 
-**Flytt prosjekt.** I vinduet *Flytt prosjekt…* finnes avkrysningsboksen *Flytt grunnlinjer med* så snart det finnes grunnlinjer. Standard er at boksen er av. Grunnlinjene blir da stående der de er, så forskyvningen viser seg som avvik. Se [Flytte et prosjekt](docs://howto-project-verplaatsen).
+**Flytt prosjekt.** I vinduet *Flytt prosjekt…* finnes avkrysningsboksen *Flytt grunnlinjer med* så snart det finnes grunnlinjer. Som standard er boksen av. Grunnlinjene blir da stående der de er, så forskyvningen viser seg som avvik. Se [Flytte et prosjekt](docs://howto-project-verplaatsen).
 
 **Lagret i prosjektfilen.** Grunnlinjer og valget av aktiv grunnlinje lagres med prosjektet. De kommer tilbake når du åpner filen.
 

@@ -23,7 +23,7 @@ Vasemmalla on *Raportti*-sarake, jossa ovat *Raporttityyppi*-luettelo, yhteenvet
 - *Gantt-tulostus*: aikataulu palkkikaaviona, tavallista jaettavaa aikataulua varten.
 - *Resurssikaavio*: samat palkit, mutta jokaiselle resurssille oma kaistansa. Sopii kysymykseen, mitä työryhmä X tekee. Halutessa kullekin työryhmälle oma arkki.
 - *Välitavoitteet*: kaikki välitavoitteet päivämäärineen ja tiloineen.
-- *Ero*: nykyinen aikataulu aktiivisen perustason rinnalla. Kysymykseen: kuinka paljon ollaan myöhässä?
+- *Ero*: nykyinen aikataulu aktiivisen perustason rinnalla. Sopii kysymykseen: kuinka paljon ollaan myöhässä?
 - *Look-ahead*: se, mikä on käynnissä tai alkaa tulevalla aikajaksolla. Lista viikkokokoukseen.
 - *Kriittinen ja lähes kriittinen*: tehtävät, joissa pelivara on nolla tai lähes nolla.
 - *Edistymisraportti*: missä hanke on raportointipäivänä, eli päivänä, jolloin edistyminen mitataan.
@@ -36,7 +36,7 @@ Vasemmalla on *Raportti*-sarake, jossa ovat *Raporttityyppi*-luettelo, yhteenvet
 
 Sovellus ei laske aikataulua itse. Jos tehtäviä, riippuvuuksia tai kalentereita on muutettu viimeisen laskennan jälkeen, paina **Laske** (F5). Taulukkoraportit varoittavat itse raportin yläosassa: *Aikataulua on muutettu viimeisen laskennan jälkeen — paina Laske (F5) ajantasaisten arvojen saamiseksi.* Tai jos sitä ei ole laskettu koskaan: *Ei vielä laskettu — paina Laske (F5) päivämääriä ja pelivaraa varten.*
 
-*Raportti* -välilehden valintanauhassa ei ole Laske-painiketta, mutta F5 toimii täälläkin hyvin. *Vie PDF* laskee myös ensin itse, jos aikataulu ei ole ajan tasalla, joten PDF ei koskaan jää jälkeen aikataulusta.
+*Raportti*-välilehden valintanauhassa ei ole Laske-painiketta, mutta F5 toimii täälläkin hyvin. **Vie PDF** laskee myös ensin itse, jos aikataulu ei ole ajan tasalla, joten PDF ei koskaan jää jälkeen aikataulusta.
 
 ### 4. Säädä raporttia
 
@@ -68,9 +68,9 @@ Avaa PDF PDF-lukijassa ja tulosta se siellä. Jos A3-PDF tulostetaan A4-tulostim
 
 ## Valkuilut ja mitä sovellus tekee
 
-**Tulosta-painike ja Ctrl+P eivät tulosta.** *Tulosta*-painike *Raportti*-ryhmässä on itse *Raportti*-välilehdellä, eikä se tee mitään muuta. Ctrl+P avaa tämän välilehden. Sovelluksessa ei ole erillistä tulostuskomentoa. Paperille pääsee PDF-tiedoston kautta. Jos Ctrl+P ei toimi (katso vaihe 1), selaimen tulostusikkuna avautuu selaimessa, ja se tulostaa näytön eikä raporttia.
+**Tulosta-painike ja Ctrl+P eivät tulosta.** *Tulosta*-painike *Raportti*-ryhmässä on itse Raportti-välilehdellä, eikä se tee mitään muuta. Ctrl+P avaa tämän välilehden. Sovelluksessa ei ole erillistä tulostuskomentoa. Paperille pääsee PDF-tiedoston kautta. Jos Ctrl+P ei toimi (katso vaihe 1), selaimen tulostusikkuna avautuu selaimessa, ja se tulostaa näytön eikä raporttia.
 
-**Yritys: ylikirjoitusta ei säilytetä.** Gantt-tulostuksen *Yritys:*-kentän alkuarvo on projektitiedoissa oleva yritys. Ylikirjoitettua arvoa ei säilytetä. Kenttään *Tekijä:* ei voi kirjoittaa tässä. Molemmat muutetaan kohdasta *Asetukset › Projekti › Projektitiedot*, kentistä *Tilaaja/organisaatio* ja *Tekijä*, ja vahvistetaan *Käytä*-painikkeella.
+**Yritys: ylikirjoitusta ei säilytetä.** Gantt-tulostuksen *Yritys:*-kentän alkuarvo on projektitiedoissa oleva yritys. Ylikirjoitettua arvoa ei säilytetä. Kenttään *Tekijä:* ei voi kirjoittaa tässä. Molemmat muutetaan kohdasta *Asetukset › Projekti › Projektin asetukset*, kentistä *Tilaaja/organisaatio* ja *Tekijä*, ja vahvistetaan *Käytä*-painikkeella.
 
 **Palkkien värit: koskee myös näyttöä.** Raportin *Palkkien värit:* -valinta on sama kuin Näytä-välilehden *Palkkien värit* -valinta. Jos valinta muutetaan raportissa, myös näytön Gantt muuttuu.
 
@@ -80,7 +80,7 @@ Avaa PDF PDF-lukijassa ja tulosta se siellä. Jos A3-PDF tulostetaan A4-tulostim
 
 **Aikataulussa on silmukka.** Jos aikataulussa on silmukka, *Vie PDF* ei luo tiedostoa ja näyttää virheen.
 
-**Paperi koskee kaikkia raportteja.** *Paperi:* ja *Suunta:* -valinta on yksi ja yhteinen kaikille raporteille. Välitavoitteet ja Ero eivät sisällä omaa paperivalintaa. Ne käyttävät sitä, mikä on asetettu toisessa raportissa, oletuksena A3 vaakasuunnassa. Valitse siksi paperi ensin raportissa, joka sen tarjoaa, esimerkiksi Gantt-tulostuksessa, ja palaa sitten takaisin.
+**Paperi koskee tällä hetkellä kaikkia raportteja.** *Paperi:* ja *Suunta:* -valinta on yksi ja yhteinen kaikille raporteille. Välitavoitteet ja Ero eivät sisällä omaa paperivalintaa. Ne käyttävät sitä, mikä on asetettu toisessa raportissa, oletuksena A3 vaakasuunnassa. Valitse siksi paperi ensin raportissa, joka sen tarjoaa, esimerkiksi Gantt-tulostuksessa, ja palaa sitten takaisin.
 
 **Valinnat koskevat kaikkia projekteja.** Paperi, fonttikoko, aikajakso ja muut valinnat muistaa sovellus tällä laitteella kaikille projekteille. Ne eivät kuulu projektitiedostoon.
 

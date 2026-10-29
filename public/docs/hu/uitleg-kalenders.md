@@ -4,50 +4,50 @@ Hány munkanapig tart egy tevékenység, és melyik napon fejeződik be? Ez att�
 
 ## A fogalom
 
-Egy ütemezés **munkanapokban** számol, nem naptári napokban. „Öt nap falazás” azt jelenti, hogy öt olyan napon van munka. A hétvége vagy egy állami ünnepnap nem számít, ezért a tevékenység a naptári időben öt napnál hosszabb ideig tart.
+Egy ütemezés **munkanapokban** számol, nem naptári napokban. „Öt nap falazás” azt jelenti, hogy öt olyan napon van munka. A hétvége vagy egy állami ünnepnap nem számít, ezért egy ilyen tevékenység a naptári időben öt napnál hosszabb ideig tart.
 
 Hogy mely napok munkanapok, azt a **naptár** rögzíti. A naptár három dolgot határoz meg:
 
 - A **munkahét**: azok a hétköznapok, amelyeken munka van. Alapértelmezés szerint ez hétfőtől péntekig tart.
-- A **munkaidő**: a kezdés, a befejezés és a szünet. Ezekből adódnak a **napi nettó órák**. Alapértelmezés szerint 07:00-tól 16:00-ig tart, egy órás szünettel, tehát 8 óra.
+- A **munkaidő**: a kezdés, a befejezés és a szünet. Ezek adják a **szokásos munkanapot**. Alapértelmezés szerint ez 07:00-tól 16:00-ig tart, egy órás szünettel, azaz 8 óra.
 - Az **ünnepnapok**: egyes napok vagy egész időszakok, amelyeken nincs munka, például a Koningsdag, a karácsony vagy az építőipari szabadság.
 
-Egy projektben egy erőforrástár tartalmazza a naptárakat. Az egyik ezek közül a **projektnaptár**. Ez minden olyan tevékenységre vonatkozik, amelynek nincs saját naptára. Egy egyedi tevékenységhez másik naptárt is megadhat, például egy hatnapos munkahetet egy alvállalkozónak, aki szombaton is dolgozik. Egy erőforrásnak is lehet saját naptára, de az másként működik (lásd lent).
+Egy projektben egy erőforrástár tartalmazza a naptárakat. Az egyik ezek közül a **projektnaptár**. Ez minden olyan tevékenységre vonatkozik, amelynek nincs saját naptára. Egy adott tevékenységhez másik naptárat is megadhat, például egy hatnapos munkahetet egy alvállalkozónak, aki szombaton is dolgozik. Egy erőforrásnak is lehet saját naptára, de az másként működik (lásd lent).
 
-## Hogyan számít az alkalmazás
+## Hogyan számol az alkalmazás
 
 Ez a cikk a szokásos számítást írja le: az *Open Planner Studio* számítási profilt, amellyel egy új projekt számol.
 
 ### Munkanapok számolása
 
-Az első munkanap a tevékenységben az 1. nap. Egy 5 napos tevékenység ezért az ötödik munkanapon fejeződik be. Ha a kezdés nem munkanapra esik, a tevékenység a következő munkanapon kezdődik. Ünnepnap vagy építőipari szabadság a tevékenység közepén nem számít: a tevékenység egyszerűen átnyúlik rajta, és a naptári időben hosszabb lesz.
+A tevékenység első munkanapja számít az 1. napnak. Egy 5 napos tevékenység ezért az ötödik munkanapon fejeződik be. Ha a kezdés nem munkanapra esik, a tevékenység a következő munkanapon kezdődik. Ünnepnap vagy építőipari szabadság a tevékenység közepén nem számít: a tevékenység egyszerűen átnyúlik rajta, és a naptári időben hosszabb lesz.
 
 A napi órák nincsenek hatással a napalapú tevékenységek dátumaira. Csak a munkahét és az ünnepnapok számítanak. A munkaidő csak az óraalapú tevékenységnél kerül szóba; ezt a [Napok és órák](docs://uitleg-dagen-en-uren) ismerteti.
 
 ### Melyik naptár érvényesül
 
-Az alkalmazás tevékenységenként egy naptárt választ:
+Az alkalmazás tevékenységenként egy naptárat választ:
 
 1. Ha a tevékenységnek van saját naptára, az alkalmazás a tevékenységet teljes egészében ebben a naptárban számítja ki: időtartam, befejezés és tartalékidő.
-2. Ha nincs, a projektnaptár érvényes. Ha a tevékenység olyan naptárra mutat, amely már nincs meg, a tevékenység szintén a projektnaptárra tér vissza.
+2. Ha nincs, a projektnaptár érvényes. Ha a tevékenység olyan naptárra mutat, amely már nincs meg, a tevékenységre is a projektnaptár érvényes.
 
 Egy összefoglaló tevékenység (egy szakasz) nem tartalmaz saját munkát, ezért saját naptára sincs. Időtartama a tevékenységeinek dátumaiból adódik, és az alkalmazás a projektnaptár szerint számolja.
 
-Az **erőforrás** naptára nincs hatással a dátumokra. Ha az alkalmazásban saját ütemezést épít, a naptár csak azt határozza meg, mikor áll rendelkezésre az erőforrás: a hisztogramban, a túlterhelés észlelésekor és a kiegyenlítés alatt.
+Az **erőforrás** naptára nincs hatással a dátumokra. Ha az alkalmazásban saját ütemezést épít, a naptár csak azt határozza meg, mikor áll rendelkezésre az erőforrás: a hisztogramban, a túlterhelés észlelésekor és a kiegyenlítés során.
 
 ### Tevékenységek különböző naptárakkal
 
 Ha két, különböző naptárral rendelkező tevékenységet összekapcsol, az alábbi szabály érvényes:
 
-- Befejezés-kezdés kapcsolatnál az utód az előd befejezése utáni első munkanapon kezdődik, az **utód** naptára szerint számítva. Ha egy tevékenység pénteken fejeződik be, a hatnapos munkahetű utód szombaton kezdődik.
-- A **késleltetés** alapértelmezés szerint az **előd** naptárában számít. Ezt megváltoztathatja a *Beállítások › Projekt › Projektinfó* menüpontban, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* részen belül, a *Késleltetési naptár* beállításával, amelynek értéke lehet: *Előd* (alapértelmezett), *Utód*, *24 órás* vagy *Projektnaptár*.
+- Befejezés-kezdés kapcsolatnál az utód az előd befejezését követő első munkanapon kezdődik, az **utód** naptárában számítva. Ha egy tevékenység pénteken fejeződik be, a hatnapos munkahetű utód szombaton kezdődik.
+- A **késleltetés** alapértelmezés szerint az **előd** naptárában számít. Ezt megváltoztathatja a *Beállítások › Projekt › Projektbeállítások* menüpontban, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* részen belül, a *Késleltetési naptár* beállításával, amelynek értéke lehet: *Előd* (alapértelmezett), *Utód*, *24 órás* vagy *Projektnaptár*.
 - A **teljes tartalékidő** a tevékenység saját naptárának munkanapjaiban számít. Ebben a profilban a **szabad tartalékidő** az utód naptárában számít.
 
 A késleltetés pontos jelentését a [Kapcsolatok hozzáadása](docs://howto-relaties-leggen) ismerteti; a tartalékidő fogalmát a [Kritikus út és tartalékidő](docs://uitleg-kritiek-pad).
 
 ### A Gantt-diagramban
 
-A Gantt-diagram szürke háttere mindig a **projektnaptár** nem munkanapjait mutatja. Egy saját naptárral rendelkező tevékenység ezért átfuthat egy szürke napon, például egy hatnapos tevékenység a szombaton is. Az összefüggő, három vagy több napos ünnepnapok nevükkel jelennek meg, például *Bouwvak (Noord)*. Ez nem történik meg, ha a *Csak munkanapok megjelenítése* be van kapcsolva. Ha egyáltalán nem szeretné látni a szürke napokat, kapcsolja be a *Csak munkanapok megjelenítése* beállítást a *Beállítások › Projekt › Beállítások* menüpontban, a *Megjelenés* lapon, az *Időskála* résznél.
+A Gantt-diagram szürke háttere mindig a **projektnaptár** nem munkanapjait mutatja. Egy saját naptárral rendelkező tevékenység ezért átfuthat egy szürke napon, például egy hatnapos tevékenység a szombaton is. A legalább három nap széles ünnepnapi blokk neve megjelenik, például *Bouwvak (Noord)*. Ez nem történik meg, ha a *Csak munkanapok megjelenítése* be van kapcsolva. Ha egyáltalán nem szeretné látni a szürke napokat, kapcsolja be a *Csak munkanapok megjelenítése* beállítást a *Beállítások › Projekt › Alkalmazásbeállítások* menüpontban, a *Megjelenés* lapon, az *Időskála* szakaszban.
 
 ## Kidolgozott példa: az építési ütemezés
 
@@ -90,13 +90,13 @@ A *Brickwork* dátumai nem változnak. Június 4. (péntek) azonban pirossal jel
 
 **„Az erőforrás naptára eltolja a tevékenységeimet.”** Nem. Az erőforrás naptára egyetlen dátumot sem változtat meg; csak a túlterhelést teszi láthatóvá. Ha azt szeretné, hogy maga a tevékenység más napokon fusson, adjon a tevékenységnek saját naptárat.
 
-**„Ha átváltom a projektnaptárt, minden eltolódik.”** Csak azok a tevékenységek mozdulnak el, amelyeknek nincs saját naptáruk. Az a tevékenység, amelynek Ön maga adott naptárat a listából, megtartja azt, még akkor is, ha az éppen a régi projektnaptár. Ha töröl egy naptárat, a használó tevékenységek és erőforrások a projektnaptárra térnek vissza.
+**„Ha átváltom a projektnaptárt, minden eltolódik.”** Csak azok a tevékenységek mozdulnak el, amelyeknek nincs saját naptáruk. Az a tevékenység, amelyhez Ön maga adott naptárat a listából, megtartja azt, akkor is, ha az éppen a régi projektnaptár. Ha töröl egy naptárat, a használó tevékenységek és erőforrások a projektnaptárra térnek vissza.
 
-**„Az ünnepnapok benne vannak, ugye?”** Az ünnepnapok csak azokra az évekre léteznek, amelyekre létrehozták őket. Az ezeken az éveken kívül eső nap egyszerűen munkanap. A naptár párbeszédpanelen az alkalmazás ezt így jelzi: *Az ünnepnapok a(z) 2025–2028 időszakot fedik le; a projekt 2030-ig tart. Újragenerálja?*
+**„Az ünnepnapok benne vannak, ugye?”** Az ünnepnapok csak azokra az évekre léteznek, amelyekre létrehozták őket. Az ezeken az éveken kívül eső nap egyszerűen munkanap. A naptár párbeszédpanelen az alkalmazás ezt így jelzi: *Az ünnepnapok a(z) 2025–2028 időszakot fedik le; újragenerálja 2030-ig?*
 
-**„Több óra naponta rövidebbé teszi a tevékenységemet.”** Napalapú tevékenységnél nem: egész munkanapokat számol, akár 6, akár 8 órás a nap. Csak erőforrásokkal rendelkező tevékenység esetén, a *Rögzített munka* vagy a *Rögzített egységek* munkaszabály mellett változik vele az időtartam.
+**„Több óra naponta rövidebbé teszi a tevékenységemet.”** Napalapú tevékenységnél nem: egész munkanapokat számol, akár 6, akár 8 órás a nap. Csak erőforrásokkal rendelkező tevékenységnél változik vele az időtartam, ha a tevékenységtípus *Rögzített munka* vagy *Rögzített egységek*.
 
-**Munkanap nélküli naptár**: az alkalmazás ezt nem tudja kiszámítani. A számítás ezt jelzi: *A naptárban nincs munkanap beállítva*.
+**Munkanapok nélküli naptárat** az alkalmazás nem tud kiszámítani. A számítás ezt jelzi: *A naptárban nincs munkanap beállítva*.
 
 ## Lásd még
 

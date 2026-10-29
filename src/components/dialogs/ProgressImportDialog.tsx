@@ -371,18 +371,25 @@ export function ProgressImportDialog() {
                 <p className="font-medium">{t('progressImport.sectionNeedsLink')}</p>
                 {cappedNeedsLink.shown.map(row => {
                   const sheetRow = findSheetRow(rows, row.rowNumber);
+                  const sheetLabel = [sheetRow?.wbsCode, sheetRow?.name].filter(Boolean).join(' ');
+                  const sheetTaskId = sheetRow?.taskId
+                    ? t('progressImport.sheetTaskId', { id: sheetRow.taskId })
+                    : null;
                   return (
                     <div
                       key={row.rowNumber}
                       data-ops-progress-row={row.rowNumber}
                       className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
                     >
-                      {/* De rijkop is WBS + naam in de primaire
-                          tekstkleur; het BLADrijnummer verschijnt alleen hier — bij een rij die nog
-                          geen taak heeft is dat het enige aanknopingspunt met het bestand. */}
-                      <span className="font-medium text-text-primary">
-                        {sheetRow?.wbsCode ?? ''} {sheetRow?.name ?? ''}
+                      {/* Zonder WBS/naam is het bron-ID de rijkop; ook zonder ID blijft het
+                          bladrijnummer een aanknopingspunt. De reden staat al vóór het koppelen. */}
+                      <span className="font-medium text-text-primary break-words">
+                        {sheetLabel || sheetTaskId || t('progressImport.sheetRowHint', { row: row.rowNumber })}
                       </span>
+                      {renderRowOutcome(row)}
+                      {sheetLabel && sheetTaskId && (
+                        <span className="text-text-secondary break-all">{sheetTaskId}</span>
+                      )}
                       <span className="text-text-secondary">
                         {t('progressImport.sheetRowHint', { row: row.rowNumber })}
                       </span>

@@ -1,0 +1,14 @@
+{
+  "name": "open-planner-core-consumer-example",
+  "private": true,
+  "version": "2026.43.0",
+  "description": "Minimal external consumer of @openaec/open-planner-core. Uses only the built package.",
+  "type": "module",
+  "license": "LGPL-3.0-or-later",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@openaec/open-planner-core": "file:../../dist-core"
+  }
+}

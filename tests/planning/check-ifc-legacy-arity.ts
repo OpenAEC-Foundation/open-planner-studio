@@ -27,6 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { IfcParseError } from '@/services/ifc/ifcErrors';
+import { normalizeTaskDates } from '@/state/migrations/minuteModel';
 import type { ImportResult } from '@/services/importTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -125,13 +127,50 @@ const rOld = readIFC(OLD);
   eq('1e bibliotheek: werkende uitzondering op de tweeploegenkalender', lib('Tweeploegen')?.workingExceptions?.map(e => e.name), ['Zaterdagdienst']);
   eq('1f baselines', (rOld.baselines ?? []).map(b => b.name), ['Baseline plan', 'Herplanning']);
   eq('1g vijf resourcesoorten', [...new Set(rOld.resources.map(r => r.type))].sort(), ['CREW', 'EQUIPMENT', 'LABOR', 'MATERIAL', 'SUBCONTRACTOR']);
-  ok('1h projectdatums uit het pset', rOld.project.startDate === '2027-05-06');
+  eq('1h contractuele projectinvoer uit het pset, inclusief leeg einde',
+    [rOld.project.startDate, rOld.project.endDate], ['2027-05-06', '']);
 }
 
 // ── 2. Lezen → schrijven (nieuwe ariteit) → lezen: identiek ────────────────────────────────────────
 const NEW = writeIFC(rOld);
 eq('2a de huidige writer schrijft de schema-ariteit', arities(NEW, CONTROL), NEW_ARITY);
-same('2b oud bestand en nieuw equivalent lezen identiek', readIFC(NEW), rOld);
+// T10: schrijven markeert het minutenmodel; alle overige gelezen velden blijven gelijk. In de app passeert
+// een gelezen bestand eerst de laadgrens (D1–D7) en pas daarna de writer; deze ronde volgt die route.
+// Vergelijk daarom de momenten; al het andere blijft letterlijk gelijk. `mapTaskDates` zet bij een
+// gewijzigde taak lege sleutels als `undefined`; die laten we weg. De ruwe route (lezeruitvoer
+// rechtstreeks schrijven) toetst 2e.
+const moments = (r: ImportResult): ImportResult => ({ ...r,
+  tasks: r.tasks.map(t => JSON.parse(JSON.stringify(normalizeTaskDates(t, { calendar: r.calendar, calendars: r.resourceCalendars ?? [] })))) });
+const rNew = readIFC(writeIFC(moments(rOld)));
+same('2b oud bestand en nieuw equivalent lezen dezelfde momenten op TimeModel na', moments(rNew), moments({ ...rOld, timeModel: 'MINUTES-1' }));
+// 2c Een oudere versie schreef de rest van een dagtaak afgerond: "Earthworks for extension" (3 d, 40 %) staat
+// in het bestand met 2 d rest; exact afgeleid zou 1,8 d zijn. De lezer houdt de opgeslagen 2 d. Het bestand
+// zegt niet of een rest ingevoerd of afgeleid was, en een expliciete bronrest (MPP 4 d bij 33 %) ziet er net
+// zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit: eigenaarsbesluit B3 (2026-10-20)
+// staat een verschuiving van oude bestanden toe, maar eist haar niet (fixronde 1 van PR #663).
+const earthworksRest = (r: ImportResult) => r.tasks.find(t => t.name === 'Earthworks for extension')?.time.remainingTime;
+eq('2c oud bestand: de opgeslagen rest blijft staan (2 d, niet de exacte 1,8 d)', [earthworksRest(rOld), earthworksRest(rNew)], [2, 2]);
+// 2d/2e Een dagtaak met een gebroken rest maakt haar kalender letterlijk (T21, §3.10), en een letterlijke
+// kalender schrijft elke waarde zoals hij is (§3.6). Het oude bestand draagt sinds 2c geen gebroken rest meer;
+// dezelfde fixture met 1,8 d rest (wat 40 % invullen in de app geeft, B3) houdt die route gedekt.
+const rFrac: ImportResult = { ...rOld, tasks: rOld.tasks.map(t => t.name === 'Earthworks for extension'
+  ? { ...t, time: { ...t.time, remainingTime: 1.8 } } : t) };
+const rNewFrac = readIFC(writeIFC(moments(rFrac)));
+same('2b gebroken rest: dezelfde momenten op TimeModel na', moments(rNewFrac), moments({ ...rFrac, timeModel: 'MINUTES-1' }));
+eq('2c gebroken rest (B3) blijft bewaard', earthworksRest(rNewFrac), 1.8);
+eq('2d een planningseinde zonder tijd komt terug als het einde van die werkdag',
+  [rFrac.tasks[1].time.scheduleFinish, rNewFrac.tasks[1].time.scheduleFinish], ['2027-05-12', '2027-05-12T16:00']);
+// 2e Knownbug 279 (review ronde 1 van #581, punt 2): de ruwe route `readIFC → writeIFC → readIFC`, zonder
+// laadgrens. Op een letterlijke kalender ging een eindveld zonder tijd als `…T07:00:00` het bestand in en
+// las terug als 07:00: "1. Preparation" eindigde op 12 mei 07:00 in plaats van 16:00. Nu krijgt de writer
+// voor zo'n eindveld het moment van de laadgrens; dezelfde momenten als 2b.
+const rRaw = readIFC(writeIFC(rFrac));
+same('2e ruwe route: dezelfde momenten als het oude bestand, op TimeModel na', moments(rRaw), moments({ ...rFrac, timeModel: 'MINUTES-1' }));
+const prep = (r: ImportResult) => r.tasks.find(t => t.name === '1. Preparation')?.time;
+eq('2e ruwe route: "1. Preparation" eindigt op 12 mei 16:00, vroeg einde 19 mei 16:00',
+  [prep(rRaw)?.scheduleFinish, prep(rRaw)?.earlyFinish, prep(rRaw)?.lateFinish], ['2027-05-12T16:00', '2027-05-19T16:00', '2027-05-19T16:00']);
+eq('2e ruwe route: een kale werkelijke start blijft het 07:00-anker',
+  rRaw.tasks.find(t => t.name === 'Set up site')?.time.actualStart?.slice(11), '07:00');
 
 // ── 3. Mechanisch omgezet naar de nieuwe ariteit: identiek ────────────────────────────────────────
 const converted = rewrite(
@@ -144,13 +183,28 @@ same('3b zelfde inhoud in oude en nieuwe ariteit leest identiek', readIFC(conver
 
 // ── 4. Projectstart en -einde uit IfcWorkPlan (zonder OPS-pset) ────────────────────────────────────
 {
+  // Dit toetst de LEZER met dezelfde slotwaarden. De huidige writer berekent de planomvang
+  // uit getoonde datums (109), dus NEW heeft terecht een ander FinishTime dan de oude writer.
+  // Zet uitsluitend het werkplan van deze lezersfixture op de twee waarden uit het oude bestand.
+  const oldPlan = lines(OLD).find(l => l.type === 'IFCWORKPLAN')!.args;
+  const samePlan = rewrite(NEW, type => type === 'IFCWORKPLAN', a =>
+    [...a.slice(0, 11), oldPlan[12], oldPlan[13], ...a.slice(13)]);
+  eq('4a fixture: nieuwe ariteit blijft behouden', arities(samePlan, ['IFCWORKPLAN']), { IFCWORKPLAN: [14] });
   const fromOld = readIFC(withoutProjectDates(OLD)).project;
-  const fromNew = readIFC(withoutProjectDates(NEW)).project;
+  const fromNew = readIFC(withoutProjectDates(samePlan)).project;
   const fromConverted = readIFC(withoutProjectDates(converted)).project;
   ok('4a controle: de pset-namen zijn echt weg', !withoutProjectDates(OLD).includes("'ProjectStartDate'"));
   eq('4b oud: start/einde uit het WORKPLAN-slot', [fromOld.startDate, fromOld.endDate], ['2027-05-06', '2027-05-13']);
   eq('4c nieuw: zelfde start/einde', [fromNew.startDate, fromNew.endDate], [fromOld.startDate, fromOld.endDate]);
   eq('4d omgezet: zelfde start/einde', [fromConverted.startDate, fromConverted.endDate], [fromOld.startDate, fromOld.endDate]);
+  // Het echte, ongewijzigde nieuwe bestand bewaart het lege contractuele einde, maar zonder
+  // projectpset leest het zijn nieuwe getoonde planomvang (de laatste Handover op 7 juli).
+  const nativeProject = readIFC(NEW).project;
+  eq('4e nieuw met pset: contractuele projectinvoer blijft staan',
+    [nativeProject.startDate, nativeProject.endDate], ['2027-05-06', '']);
+  const shownPlan = readIFC(withoutProjectDates(NEW)).project;
+  eq('4f nieuw zonder pset: getoonde planomvang uit het werkplan',
+    [shownPlan.startDate, shownPlan.endDate], ['2027-05-06', '2027-07-07']);
 }
 
 // ── 5. Het baselinewerkschema wordt herkend, ook als het vóór het gewone werkschema staat ──────────
@@ -262,7 +316,19 @@ for (const [label, ifc] of [['oud', OLD], ['nieuw', NEW]] as const) {
 // de werkschema's), en de werkende uitzondering wordt een feestdag omdat `WorkingExceptionIds`
 // STEP-nummers bewaart die MergeProjects vernummert (knownbugs).
 {
-  const MERGED = readFileSync(join(HERE, 'fixtures', 'ifc-arity-oude-writer-merged.ifc'), 'utf8');
+  const combined = readFileSync(join(HERE, 'fixtures', 'ifc-arity-oude-writer-merged.ifc'), 'utf8');
+  // Knownbug 110: de echte MergeProjects-fixture bevat een terrein en een muur. Die oorspronkelijke
+  // 4D-invoer moet nu worden geweigerd, niet stil als een planning worden geopend.
+  let blocked = false;
+  try { readIFC(combined); }
+  catch (error) { blocked = error instanceof IfcParseError && error.reason === 'building-model'; }
+  ok('8 voorpoort: oorspronkelijke 4D-fixture wordt geweigerd', blocked);
+  // Behoud ALLE onderstaande ariteits-/kalenderasserties op dezelfde historische planningsregels.
+  // Alleen de twee vastgelegde modelregels verdwijnen uit deze testvariant; geen productiebypass.
+  // Dit is geen exportrecept: resterende modelrelaties kunnen nog naar deze ids verwijzen.
+  const modelLines = combined.split('\n').filter(line => /^#(?:6=IFCSITE|8=IFCWALL)\(/.test(line));
+  eq('8 fixture bevat precies de twee bekende modelregels', modelLines.length, 2);
+  const MERGED = combined.split('\n').filter(line => !modelLines.includes(line)).join('\n');
   const all = lines(MERGED);
   const ofType = (...types: string[]) => all.filter(l => types.includes(l.type));
   eq('8a fixture: elke kalender heeft 9 argumenten en een lijst op Identification (5)',

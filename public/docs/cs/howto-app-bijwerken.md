@@ -22,22 +22,22 @@ Těsně před instalací aktualizace aplikace také vytvoří snímek pro obnove
 
 ### Ruční kontrola nové verze
 
-1. Zvolte *Nastavení › Projekt › Nastavení*. Můžete také zvolit *Soubor › Nastavení*, nebo ozubené kolo nahoře.
+1. Zvolte *Nastavení › Projekt › Nastavení aplikace*. Můžete také zvolit *Soubor › Nastavení aplikace*, nebo ozubené kolo nahoře.
 2. Zvolte kartu *Pokročilé*. Pod položkou *Verze* je číslo vaší aktuální verze.
-3. Klikněte na *Zkontrolovat aktualizace*. Otevře se okno *Aktualizace softwaru* a zobrazí *Kontrola…*. Poté se zobrazí *Používáte nejnovější verzi*, nebo zpráva, že je k dispozici nová verze, se stejným tlačítkem *Stáhnout a nainstalovat*.
+3. Klikněte na *Zkontrolovat aktualizace*. Otevře se okno *Aktualizace softwaru* a zobrazí se *Kontrola…*. Poté se zobrazí *Používáte nejnovější verzi*, nebo zpráva, že je k dispozici nová verze, se stejným tlačítkem *Stáhnout a nainstalovat*.
 
 Ve webové verzi tlačítko nic zvláštního neudělá: okno ihned zobrazí *Používáte nejnovější verzi*, aniž by aplikace cokoli kontrolovala.
 
 ### Přečtení novinek
 
-1. Pokud aplikaci poprvé spustíte v jiné verzi než naposledy, nebo po čerstvé instalaci, otevře se okno samo. Okno má nadpis *Máte nejnovější verzi!*.
-2. Nahoře je přechod z předchozí verze na novou. Po čerstvé instalaci se zobrazí jen nová verze.
+1. Pokud aplikaci poprvé spustíte v jiné verzi než naposledy, otevře se okno samo. Okno má nadpis *Máte nejnovější verzi!*. Po čerstvé instalaci se okno neotevře: první spuštění není aktualizace. Chcete-li okno přesto vidět, použijte tlačítko *Co je nového* (viz níže).
+2. Nahoře je přechod z předchozí verze na novou. Tlačítkem *Co je nového* se zobrazí jen nová verze.
 3. Pokud má aplikace pro tuto verzi zabudovaný souhrn, uvidíte jeden hlavní bod a čtyři menší body. U hlavního bodu může být tlačítko *Přečíst příručku*. Jinak uvidíte jen přechod mezi verzemi a obsah pod ním.
-4. Pomocí *Úplné poznámky k vydání* otevřete seznam změn na GitHubu. Pokud to nefunguje, zobrazí se *Poznámky k vydání se nepodařilo otevřít*.
+4. Tlačítkem *Úplné poznámky k vydání* otevřete seznam změn na GitHubu. Pokud to nefunguje, zobrazí se *Poznámky k vydání se nepodařilo otevřít*.
 5. Pod položkou *Tato aktualizace v číslech* je počet dní od předchozího vydání, počet commitů a počet přidaných řádků kódu. Pokud aplikace dokáže zjistit rozdíl ve velikosti instalačního balíčku, zobrazí se i ten. Každé číslo se zobrazí, jen pokud je k dispozici.
 6. Klikněte na *Rozumím*, čímž okno zavřete.
 
-Chcete-li okno později zobrazit znovu, zvolte *Nastavení › Projekt › Nastavení*, kartu *Pokročilé* a pod položkou *Verze* tlačítko *Co je nového*. Okno se pak otevře pro vaši aktuální verzi, bez předchozí verze.
+Chcete-li okno později zobrazit znovu, zvolte *Nastavení › Projekt › Nastavení aplikace*, kartu *Pokročilé* a pod položkou *Verze* tlačítko *Co je nového*. Okno se pak otevře pro vaši aktuální verzi, bez předchozí verze.
 
 ## Časté problémy a co aplikace potom udělá
 

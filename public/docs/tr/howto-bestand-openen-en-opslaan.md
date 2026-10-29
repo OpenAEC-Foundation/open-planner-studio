@@ -10,17 +10,18 @@ Güne dünkü projenizle başlarsınız, bir meslektaşınızdan veya başka bir
 
 ### Dosya açma
 
-1. *Ana sayfa › Dosya › Aç* ya da *Dosya › Aç* seçin, ya da Ctrl+O tuşlarına basın (Mac'te ⌘+O). *Aç* ayrıca en üstteki çubukta da bulunur. *Dosya* grubu da *Tablo* sekmesinde bulunur.
+1. *Ana sayfa › Dosya › Aç* ya da *Dosya › Aç* seçin, ya da Ctrl+O tuşlarına basın (Mac'te ⌘+O). *Dosya* grubu da *Tablo* sekmesinde bulunur.
 2. Dosyayı seçin. Aynı anda yalnızca bir dosya açarsınız. Masaüstü uygulamasında ve Chrome ve Edge gibi dosya erişimi olan tarayıcılarda pencere bir dosya türleri listesi gösterir: *Desteklenen tüm türler*, *IFC dosyaları*, *CSV dosyaları*, *XML dosyaları*, *MS Project dosyaları* ve *Primavera XER dosyaları*.
 3. Proje yeni bir sekmede açılır. Geçerli sekme hâlâ boşsa ve değişmemişse, proje o sekmede açılır.
+4. Dosya IFC değilse, biçimin kısa açıklamasını gösteren bir pencere açılır. Yeşil bir kutu uygulamanın neyi devraldığını gösterir. Turuncu bir kutu neyin dahil edilmediğini veya yalnızca kısmen dahil edildiğini gösterir. Mavi bir kutu ise kaydetmenin ve geri yazmanın nasıl çalıştığını gösterir. *Devamını oku* o biçimin kılavuzunu açar. Pencereyi kapatmak için *Anladım* öğesine tıklayın. Bu biçim için açıklamayı artık görmek istemiyorsanız, önce *… için bir daha gösterme* kutusunu işaretleyin. Bunu [Uygulama ayarları](docs://ref-instellingen) içinde, *Gelişmiş* sekmesinde yeniden açabilirsiniz.
 
-Bir IFC dosyası sekmeye kendi dosya adını verir. Başka bir biçimden gelen proje, proje adını alır.
+IFC dosyası sekmeye kendi dosya adını verir. Başka bir biçimden gelen proje, proje adını alır.
 
 Uygulama `.ifc`, `.csv`, `.xml` (MS Project XML veya Primavera P6 XML), `.mpp` ve `.xer` dosyalarını açar. Son iki tür için ayrı adımlar var: [Bir MS Project dosyasını (.mpp) açma](docs://howto-mpp-openen) ve [Bir Primavera P6 dosyasını (.xer) açma](docs://howto-xer-openen).
 
 ### Son açılan projeyi açma
 
-*Ana sayfa › Dosya › Son açılanlar* seçin ve listedeki bir dosyaya tıklayın, ya da *Dosya › Son açılanlar* seçin. Listede açtığınız, kaydettiğiniz veya dışa aktardığınız son on dosya bulunur. Masaüstü uygulaması her dosya için yolu gösterir, tarayıcı yalnızca adı gösterir.
+*Ana sayfa › Dosya › Son açılanlar* seçin ve listedeki bir dosyaya tıklayın, ya da *Dosya › Son açılanlar* seçin. Liste açtığınız, kaydettiğiniz veya dışa aktardığınız son on dosyayı tutar. IFC olmayan bir dosya için de biçimin açıklaması görünür. Masaüstü uygulaması her dosya için yolu gösterir, tarayıcı yalnızca adı gösterir.
 
 Uygulama listedeki bir dosyayı artık okuyamazsa, örneğin dosyayı taşıdığınız için, dosya mesaj göstermeden listeden kaybolur. Firefox gibi dosya erişimi olmayan tarayıcılarda *Son açılanlar* boş kalır.
 
@@ -32,7 +33,7 @@ Uygulama listedeki bir dosyayı artık okuyamazsa, örneğin dosyayı taşıdı�
 
 *Ana sayfa › Dosya › Kaydet* ya da *Dosya › Kaydet* seçin, ya da Ctrl+S tuşlarına basın. Bundan sonra ne olduğu projenize bağlıdır:
 
-1. Projenin zaten bir dosyası varsa, çünkü bir IFC dosyası açtınız ya da daha önce kaydettiniz, uygulama o dosyaya yazar. Pencere açılmaz.
+1. Projenin zaten bir dosyası varsa, çünkü bir IFC dosyası açtınız ya da daha önce kaydettiniz, uygulama o dosyaya yazar. Pencere açılmaz. Yalnızca IFC 4.3 ADD2 dışında bir IFC şemasıyla kaydedilen bir dosyayı ilk kez kaydettiğinizde pencere açılır. Uygulama önce *Hangi IFC şemasında kaydedilsin?* diye sorar. Bkz. [IFC şemasını seçme](docs://howto-ifc-schema-kiezen).
 2. Projenin henüz bir dosyası yoksa, uygulama nereye kaydedileceğini sorar. Proje adını `.ifc` ile önerir. Bundan sonra o dosya projenin dosyası olur.
 3. Tarayıcınız yalnızca indirme yoluyla kaydediyorsa (Firefox gibi), dosya indirilenler klasörünüze düşer ve her kaydetme yeni bir indirme oluşturur. Bir oturumda ilk kez şu mesajı görürsünüz: *İndirme olarak kaydedildi: “name.ifc” indirilenler klasörünüzde. Bu tarayıcı uygulamanın kendine ait bir yere yazmasına izin vermez, bu yüzden her kaydetme yeni bir indirme oluşturur. Chrome, Edge veya masaüstü uygulamasında Kaydet yalnızca aynı dosyayı günceller.*
 4. Tarayıcı projenin dosyasına geri yazamıyorsa, uygulama her kaydetmede dosyanın nereye konacağını yeniden sorar. Bu *Farklı kaydet* gibi görünür, ama tarayıcının bir sınırıdır. Bir oturumda ilk kez şu mesaj bunu açıklar: *Bu tarayıcı uygulamanın “name.ifc” dosyasına geri yazmasına izin vermez.* Mesajda [Dosyalar](docs://uitleg-bestanden) sayfasına bir bağlantı bulunur.
@@ -57,12 +58,15 @@ Sekmedeki çarpıya tıklayın, ya da *Dosya › Projeyi kapat* seçin. Kaydetme
 
 **Chrome ve Edge izin ister.** Açtığınız bir dosyayı ilk kez *Kaydet* ile kaydettiğinizde, tarayıcı uygulamanın ona yazıp yazamayacağını sorar. Reddederseniz, uygulama yeni bir dosya seçtiğiniz bir pencere açar. Chrome ve Edge'de, mevcut dosyaya yazma başarısız olursa, örneğin dosya kaybolduğu veya kilitlendiği için, bu pencereyi siz de alırsınız.
 
+**Yinelenen kimlikler ve hesaplamaya dahil edilemeyen ilişkilerle ilgili bir mesaj.** Dosyayı açtıktan sonra bir mesaj ekranda kalabilir. Mesaj *Bu dosyada yinelenen kimliğe sahip nesneler* diyorsa, her yinelenen nesne kendi kimliğini aldı ve başvurular ilk örneğe işaret eder. O zaman ilişkileri ve atamaları kontrol edin. Mesaj *ilişki(ler) hesaplamaya dahil edilemedi* diyorsa, ilişki bir özet görevde tanımlıydı ve etkisi yoktur; örneğin kendi özet görevine bağlı bir görev. Dosyanın kendisi değişmez. Bir özet görevdeki ilişkinin ne yaptığı için bkz. [İlişkiler](docs://uitleg-relaties).
+
 **Kaydetme başarısız olabilir.** Kaydetme kendisi bir hata verirse, uygulama nedenini de yazarak *Kaydetme başarısız* mesajını gösterir. Projeniz açık kalır ve hâlâ *Kaydedilmedi* olarak işaretlidir.
 
 ## Ayrıca bakın
 
 - [Dosyalar ve biçimler](docs://uitleg-bestanden): bir IFC dosyasında ne bulunduğu ve uygulamanın biçimleri nasıl ele aldığı.
 - [Otomatik kaydetmeyi açma](docs://howto-automatisch-opslaan): uygulamanın dosyanızı kendisinin güncellemesine izin vermek.
+- [IFC şemasını seçme](docs://howto-ifc-schema-kiezen): *Hangi IFC şemasında kaydedilsin?* sorusunun ne anlama geldiği.
 - [Dışa aktarma](docs://howto-exporteren): başka bir biçimde bir kopya yapmak.
 - [Bir çökmeden sonra kurtarma](docs://howto-herstellen-na-een-crash): uygulama düzgün kapanmadıysa ne yapacağınız.
 - [İçe ve dışa aktarma biçimleri](docs://ref-import-exportformaten): her biçim için neyin aktarılıp neyin aktarılmadığı.

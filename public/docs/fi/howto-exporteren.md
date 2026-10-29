@@ -19,14 +19,14 @@ Jos selain tallentaa vain latauksena (kuten Firefox), tiedosto on lataukset-kans
 Välilehden *Aloitus* luettelo ja kortit kohdassa *Tiedosto › Vie* tarjoavat samat muodot:
 
 - *Edistyminen (Excel)* ja *Edistyminen (CSV)*, kortit *Edistymistaulukko (Excel)* ja *Edistymistaulukko (CSV)*: kevyt taulukko, jossa ovat tunnus, WBS, nimi, päivämäärät ja valmiusaste. Se lähetetään eteenpäin sille, joka täyttää edistymisen.
-- *CSV (;)*, kortilla *CSV (puolipisteillä erotettu)*: tehtävälista, joka avataan laskentataulukossa.
-- *MS Project XML*: voidaan avata ohjelmassa Microsoft Project.
-- *Primavera P6 XML*: Oracle Primavera P6:lle.
-- *IFC 4x3*: sovelluksen oma muoto, johon kaikki tieto sisältyy.
+- *CSV (;)*, kortilla *CSV (puolipisteillä erotettu)*: tehtävätaulukko, joka avataan laskentataulukossa.
+- *MS Project XML*: voidaan avata Microsoft Project -ohjelmassa.
+- *Primavera P6 XML*: Oracle Primavera P6 -ohjelmalle.
+- *IFC*: sovelluksen oma muoto, jossa on kaikki tieto projektin IFC-skeemassa (oletus IFC 4.3 ADD2).
 
 ### IFC-vienti kirjastotiedoston kanssa
 
-Jos projekti on yhdistetty kirjastoon, valintaruutu *Tallenna kirjastotiedosto rinnalle* on korttien alapuolella kohdassa *Tiedosto › Vie*. Jos valintaruutu valitaan ja valitaan *IFC 4x3*, sovellus kysyy paikkaa kahdesti: ensin projektille ja sitten tiedostolle *projektinnimi-bibliotheek.ifc*. Tämä valintaruutu on vain kohdassa *Tiedosto › Vie*, ei välilehden *Aloitus* luettelossa.
+Jos projekti on yhdistetty kirjastoon, valintaruutu *Tallenna kirjastotiedosto rinnalle* on korttien alapuolella kohdassa *Tiedosto › Vie*. Jos valintaruutu valitaan ja valitaan *IFC*, sovellus kysyy paikkaa kahdesti: ensin projektille ja sitten tiedostolle *projektinnimi-bibliotheek.ifc*. Tämä valintaruutu on vain kohdassa *Tiedosto › Vie*, ei välilehden *Aloitus* luettelossa.
 
 ### Täytetyn edistymistaulukon lukeminen
 

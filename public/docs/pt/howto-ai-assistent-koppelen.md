@@ -12,16 +12,16 @@ A ponte só funciona na aplicação desktop. Se ativar o modo IA no navegador, v
 
 ### 1. Ativar o modo IA
 
-1. Escolha *Definições › Projeto › Definições*. Também pode escolher *Ficheiro › Definições*, ou o ícone de engrenagem no topo.
+1. Escolha *Definições › Projeto › Definições da app*. Também pode escolher *Ficheiro › Definições da app*, ou o ícone de engrenagem no topo.
 2. Escolha o separador *Avançado* e ative *Ativar modo IA*. Aparece o separador *IA* no friso.
-3. Se quiser que a ponte fique ativa logo que a aplicação arranque, ative também *Iniciar a ponte automaticamente*. Isto só se aplica quando o modo IA está ativo, e só funciona na aplicação desktop. Por padrão, está desativado, porque abrir uma porta é uma escolha deliberada.
+3. Se quiser que a ponte fique ativa logo que a aplicação arranque, ative também *Iniciar a ponte automaticamente*. Isto só se aplica quando o modo IA está ativo, e só funciona na aplicação de ambiente de trabalho. Por padrão, está desativada, porque abrir uma porta é uma escolha deliberada.
 
 Se desativar o modo IA, a ponte para e o separador *IA* desaparece.
 
 ### 2. Iniciar a ponte
 
 1. Vá ao separador *IA* e clique em *Iniciar ponte* em *Servidor*.
-2. Veja o estado ao lado do botão. Mostra *Desligada*, *Ativa na porta 3877*, *Porta 3877 ocupada* ou *Erro*. Se o arranque tiver êxito, mostra *Ativa na porta 3877* e o botão chama-se *Parar ponte*. Com *Porta 3877 ocupada* ou *Erro*, o botão continua a ser *Iniciar ponte*; veja os problemas comuns.
+2. Veja o estado ao lado do botão. Mostra *Desligada*, *Ativa na porta 3877*, *Porta 3877 ocupada* ou *Erro*. Se o arranque tiver êxito, mostra *Ativa na porta 3877* e o botão chama-se *Parar ponte*. Com *Porta 3877 ocupada* ou *Erro*, o botão continua a chamar-se *Iniciar ponte*; veja os problemas comuns.
 
 A ponte só escuta no seu próprio computador, numa única porta. Por padrão, é a 3877. No grupo *Ligação* pode escolher outra em *Porta*, mas só com a ponte parada.
 
@@ -29,20 +29,46 @@ A ponte só escuta no seu próprio computador, numa única porta. Por padrão, �
 
 1. Clique em *Conectar* em *Ligação*. Abre-se a janela *Detalhes de ligação*.
 2. Escolha o que o seu cliente precisa, veja abaixo.
-3. O token fica oculto. Com o ícone de olho, mostre-o. Os botões de cópia copiam sempre o valor real, mesmo quando o ecrã oculta o token.
+3. O token fica oculto. Com o ícone de olho, mostra-o. Os botões de cópia copiam sempre o valor real, mesmo quando o ecrã oculta o token.
 4. Peça ao assistente a lista de ferramentas. Essa verificação também faz parte do prompt de ligação: deve ver as ferramentas com o prefixo `planner_`; o número esperado está no prompt de ligação.
 
 A janela oferece três formas de ligação:
 
 - *Excerto de configuração*: um excerto de configuração que cola nas definições MCP do seu cliente.
 - *Prompt de ligação*: um texto que cola no seu assistente de IA, depois do qual ele se liga sozinho.
-- *Ponto final* e *Autenticação*: os detalhes separados. O ponto final é `http://localhost:3877/mcp` com transporte *streamable HTTP*. Cada pedido precisa de um cabeçalho `Authorization: Bearer` seguido do seu token.
+- *Ponto final* e *Autenticação*: os detalhes separados. O ponto final é `http://localhost:3877/mcp` com transporte *HTTP em fluxo*. Cada pedido precisa de um cabeçalho `Authorization: Bearer` seguido do seu token. O seu cliente também tem de ser compatível com sessões MCP: ao ligar-se, a ponte entrega um código de sessão no cabeçalho `Mcp-Session-Id`, e recusa todos os pedidos seguintes sem esse código. O Claude Code e o `mcp-remote` fazem isto sozinhos.
+
+**Volte a ligar depois de uma atualização da aplicação.** Se o seu cliente de IA já estava ligado a uma versão mais antiga da aplicação, ainda não envia um código de sessão, e a ponte recusa todos os pedidos. Por isso, volte a ligar depois da atualização: inicie uma nova sessão no Claude Code e feche o Claude Desktop por completo e inicie-o de novo.
+
+**Claude Code.** O excerto de configuração funciona diretamente com o Claude Code. Dê este comando num terminal, com o seu token no lugar de `<token>`:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Também pode pôr o excerto no ficheiro `.mcp.json` na pasta do projeto. Nesse caso, não coloque esse ficheiro no git, porque o token dá acesso ao seu plano. Um servidor de `.mcp.json` tem de ser aprovado na primeira vez no Claude Code.
+
+**Claude Desktop.** O excerto de configuração não funciona diretamente no Claude Desktop. No ficheiro `claude_desktop_config.json` indica-se um programa que o Claude Desktop inicia por si, e não um endereço. Por isso, use a ferramenta externa `mcp-remote` como intermediária; ela precisa do Node.js. No Claude Desktop, escolha *Definições › Programador › Editar configuração*, coloque isto no ficheiro (com o seu token) e inicie o Claude Desktop de novo:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+O token está em `env` e não em `args` de propósito: no Windows, o Claude Desktop quebra um argumento que contém um espaço. Um *conector personalizado* no Claude (*Personalizar › Conectores*) não funciona com a ponte. O Claude liga-se então a partir da nuvem da Anthropic, e essa nuvem não consegue chegar à ponte no seu computador.
 
 No grupo *Ligação* está também o campo *Token*. É um código longo e aleatório que a aplicação cria para o utilizador e guarda neste computador. Na janela aparece *Este token dá acesso ao plano aberto. Não o partilhe com outras pessoas.* Com o ícone *Novo token* cria um novo token. A aplicação pergunta primeiro *Gerar um novo token quebra todas as ligações existentes. Continuar?* Se a ponte estiver em execução, reinicia com o novo token, e o antigo deixa de funcionar.
 
 ### 4. Ver o que a IA faz
 
-1. Clique em *Painel de atividade* em *Atividade*. Na coluna lateral abre-se o painel *Atividade de IA*.
+1. Clique em *Painel de atividade* em *Atividade*. Na lateral abre-se o painel *Atividade de IA*.
 2. Cada chamada da ponte fica numa linha, a mais recente no topo: a hora, o que aconteceu, quanto tempo demorou e se teve êxito ou falhou. Clique numa linha para expandir *Argumentos* e *Resposta*.
 3. Com *Limpar* esvazia a lista. O painel guarda as últimas 500 chamadas. Enquanto nada tiver acontecido, mostra *Ainda sem atividade de IA. As chamadas da ponte aparecerão aqui.*
 
@@ -62,15 +88,15 @@ As cópias de segurança estão na pasta `ai-backups`, na pasta de dados da apli
 
 ### 6. Fazer com que o assistente planeie bem
 
-Um assistente que conhece as ferramentas pode, ainda assim, criar um planeamento que nenhum planeador consegue aproveitar: tarefas sem relações, uma data fixa em cada tarefa ou uma decomposição demasiado detalhada. Por isso, o assistente recebe as regras de planeamento de três formas. Para as duas primeiras, não precisa de fazer nada.
+O assistente só planeia bem se conhecer as regras de planeamento. Porque é que isso importa e o que lá está, pode ler em [Como funciona a ligação à IA](docs://uitleg-ai-koppeling). Isto cabe a si:
 
-1. **As regras principais chegam por si.** Ao ligar, a ponte envia um texto curto com as regras principais. Muitos clientes colocam esse texto no prompt de sistema; se isso acontece, depende do próprio cliente. O texto diz, entre outras coisas: comece pelos marcos, crie tarefas de cerca de um dia a duas semanas, oriente o planeamento com relações em vez de datas fixas, e diga no fim o que assumiu.
-2. **O prompt de ligação aponta para o guia completo.** O prompt de ligação da janela *Detalhes de ligação* pede ao assistente que leia primeiro o guia de planeamento, com a ferramenta `planner_get_planning_guide`. Essa ferramenta devolve um guia em inglês para assistentes: os mesmos princípios de [Planear bem](docs://gids-goed-plannen), com, para cada princípio, as ferramentas que o assistente usa para ele. Pode lê-lo em `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Se não usar o prompt, peça ao assistente: *Leia primeiro o guia de planeamento com planner_get_planning_guide, antes de alterar qualquer coisa.*
-3. **Opcional: as skills.** Uma skill é um pequeno ficheiro de instruções que um assistente lê em cada sessão, para que, numa conversa posterior, também saiba a forma certa de trabalhar. Há duas, ambas em inglês: *goed-plannen*, para criar ou reestruturar um planeamento, e *progress-update*, para a atualização semanal de progresso. Isto só funciona com um assistente que seja compatível com skills; as próprias skills mencionam o Claude Code e assistentes semelhantes. Cada skill é um ficheiro `SKILL.md` na sua própria pasta, com o nome da skill: `.claude/skills/goed-plannen/SKILL.md` e `.claude/skills/progress-update/SKILL.md` na pasta do projeto em que o assistente trabalha, ou as mesmas pastas em `~/.claude/skills/`, para as ter em todos os projetos.
+1. **Não faça nada quanto às regras principais.** Chegam com a ligação. Se o seu cliente as coloca no prompt de sistema, isso depende do cliente.
+2. **Peça que o guia seja lido.** O prompt de ligação da janela *Detalhes de ligação* pede ao assistente que leia o guia com a ferramenta `planner_get_planning_guide`. Se não usar o prompt, peça ao assistente: *Leia primeiro o guia de planeamento com planner_get_planning_guide, antes de alterar qualquer coisa.* Também pode ler o guia em `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Opcional: instale as skills.** Isto só funciona com um assistente que seja compatível com skills. Coloque o `SKILL.md` de *goed-plannen* e de *progress-update* em `.claude/skills/goed-plannen/SKILL.md` e `.claude/skills/progress-update/SKILL.md` na pasta do projeto em que o assistente trabalha, ou em `~/.claude/skills/` para todos os projetos.
 
 Pode obter os ficheiros de duas formas. Peça ao assistente que chame a ferramenta `planner_get_planning_guide` com `part` definido como `skill`: a resposta contém os dois textos e, para cada skill, os locais onde deve ficar. Ou descarregue-os de `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` e `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Se *goed-plannen* ainda estiver lá de uma versão anterior da aplicação, substitua-a: esse texto antigo está em neerlandês e remete para o artigo de Ajuda, em vez do guia para assistentes.
 
-Se o assistente leu mesmo o guia, pode ver no *Painel de atividade*: aparece então uma chamada de `planner_get_planning_guide`. A resposta final deve conter uma lista de pressupostos: durações estimadas, a decomposição escolhida, as relações que criou por si e cada restrição que definiu. Se esta lista faltar, peça-a. Depois de uma atualização de progresso segundo *progress-update*, a resposta deve indicar a data de estado, a nova data de fim e o desvio em relação à linha de base.
+Pode ver se o assistente leu mesmo o guia no *Painel de atividade*: aparece então uma chamada de `planner_get_planning_guide`. A resposta final deve conter uma lista de pressupostos: durações estimadas, a decomposição escolhida, as relações que criou por si e cada restrição que definiu. Se esta lista faltar, peça-a. Depois de uma atualização de progresso segundo *progress-update*, a resposta deve indicar a data de estado, a nova data de fim e o desvio em relação à linha de base.
 
 ## Problemas comuns e o que a aplicação faz então
 

@@ -1734,6 +1734,13 @@
       "görev türleri",
       "görev türlerini"
     ],
+    "avoid": [
+      "iş kuralı",
+      "iş kuralını",
+      "iş kuralına",
+      "iş kuralları",
+      "iş kurallarını"
+    ],
     "source": "existing-ui",
     "status": "existing-ui"
   },
@@ -1903,6 +1910,18 @@
     "source": "existing-ui",
     "status": "existing-ui"
   },
+  "work-category": {
+    "term": "iş kategorisi",
+    "forms": [
+      "iş kategorisi",
+      "iş kategorileri",
+      "iş kategorisini",
+      "iş kategorisinin",
+      "iş kategorisine"
+    ],
+    "source": "model",
+    "status": "model"
+  },
   "work-hours": {
     "term": "çalışma saatleri",
     "forms": [
@@ -1910,18 +1929,6 @@
       "çalışma saatlerini",
       "çalışma saatlerinin",
       "çalışma saati"
-    ],
-    "source": "existing-ui",
-    "status": "existing-ui"
-  },
-  "work-rule": {
-    "term": "iş kuralı",
-    "forms": [
-      "iş kuralı",
-      "iş kuralını",
-      "iş kuralına",
-      "iş kuralları",
-      "iş kurallarını"
     ],
     "source": "existing-ui",
     "status": "existing-ui"

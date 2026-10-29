@@ -51,7 +51,7 @@ Faites un clic droit sur la tâche et choisissez *Ajouter une sous-tâche*. La n
 Les trois types diffèrent ainsi :
 
 - Un *Jalon de début* se place au début de la journée, un *Jalon de fin* à la fin de la journée. Dans le Gantt, le losange se trouve à gauche ou à droite de la colonne du jour, respectivement. Cela compte aussi pour le successeur. Supposons qu'un jalon tombe le mardi 29 septembre 2026 et qu'une tâche le suive avec une relation fin-début : après un jalon de début, cette tâche commence le même mardi ; après un jalon de fin, elle commence le mercredi 30 septembre.
-- Un *Point d’inspection (obligatoire)* est un jalon de fin avec le type de tâche *Inspection* et la case *Obligatoire (contractuel)* cochée.
+- Un *Point d’inspection (obligatoire)* est un jalon de fin avec la catégorie de travaux *Inspection* et la case *Obligatoire (contractuel)* cochée.
 
 ### Transformer une tâche existante en jalon
 
@@ -62,6 +62,7 @@ Si vous le désactivez à nouveau, la tâche reste une tâche ordinaire avec une
 ### Autres méthodes
 
 - Ctrl+M (⌘+M sur Mac) ajoute un nouveau jalon en bas de la liste, même si une tâche est sélectionnée. Le panneau *Propriétés* ne s'ouvre pas.
+- Un jalon créé avec Ctrl+M ou via le menu du clic droit reçoit la catégorie de travaux *Inspection*. Un *Jalon de début* ou un *Jalon de fin* issu de *Jalon ▾* reçoit *Autre*. Modifiez la catégorie de travaux dans *Propriétés* si nécessaire.
 - *Ajouter un jalon* dans le menu du clic droit d'une tâche fait du jalon une sous-tâche de cette tâche, et non une tâche du même niveau.
 
 ### Copier une tâche ou une branche entière
@@ -72,7 +73,7 @@ Si vous le désactivez à nouveau, la tâche reste une tâche ordinaire avec une
 
 La copie a le même nom, les mêmes dates et le même avancement. Elle entre comme tâche du même niveau que la tâche sélectionnée (avec plusieurs : celle sur laquelle vous avez cliqué en premier), en bas parmi ces tâches du même niveau. Si rien n'est sélectionné, elle va en bas de la liste. Les tâches copiées sont ensuite sélectionnées, les codes WBS (le numéro de chaque tâche dans l'arborescence, par exemple 1.2 ; voir [Ajuster la structure](docs://howto-structuur-aanpassen)) sont de nouveau déterminés et le planning n'est plus à jour.
 
-Le presse-papiers est partagé par toute l'application, vous pouvez donc aussi coller dans un autre document. Ce qui n'existe pas là-bas, comme un calendrier de tâche, un type de tâche personnalisé, un code d'activité ou un champ personnalisé, l'application l'efface et vous le signale.
+Le presse-papiers est partagé par toute l'application, vous pouvez donc aussi coller dans un autre document. Ce qui n'existe pas là-bas, comme un calendrier de tâche, une catégorie de travaux personnalisée, un code d'activité ou un champ personnalisé, l'application l'efface et vous le signale.
 
 ### Ensuite
 
@@ -82,7 +83,7 @@ Une nouvelle tâche ne modifie pas encore les autres dates. La barre d'état aff
 
 **Chaque nouvelle tâche commence au début du projet.** Sans relations, une tâche n'attend rien. Ajoutez des relations, voir [Ajouter des relations](docs://howto-relaties-leggen).
 
-**Le filtrage, le regroupement ou le tri est actif.** L'ordre que vous voyez n'est alors pas l'ordre du planning. Si une tâche est sélectionnée, *Tâche* et *Jalon ▾* ajoutent la nouvelle tâche en bas, et la bande *Non disponible pendant le filtrage/regroupement/tri* apparaît. *Insérer au-dessus* et *Insérer en dessous* sont refusés, avec la même bande. Le bouton *Effacer* dans la bande supprime d'un coup le filtre, le regroupement et le tri. Cette action n'est pas couverte par *Annuler* : Ctrl+Z ne les rétablit pas.
+**Le filtrage, le regroupement ou le tri est actif.** L'ordre que vous voyez n'est alors pas l'ordre du planning. Si une tâche est sélectionnée, *Tâche* et *Jalon ▾* ajoutent la nouvelle tâche en bas. Une notification rouge indique alors *La nouvelle tâche a été ajoutée à la fin. Pendant le filtrage, le regroupement ou le tri, l'application ne peut pas la placer sous votre sélection*. *Insérer au-dessus* et *Insérer en dessous* sont refusés, avec la même bande *Non disponible pendant le filtrage/regroupement/tri*. Le bouton *Effacer* dans la notification ou dans la bande supprime d'un coup le filtre, le regroupement et le tri. Cette action n'est pas couverte par *Annuler* : Ctrl+Z ne les rétablit pas.
 
 **Une sous-tâche sous une tâche avec des affectations de ressources.** La tâche devient une tâche récapitulative, et une tâche récapitulative ne porte pas elle-même d'affectations. L'application déplace les affectations vers la nouvelle sous-tâche et vous le signale. Si ce n'est pas possible, par exemple parce que vous avez choisi *Ajouter un jalon* et qu'un jalon ne peut pas porter d'affectations, l'application n'ajoute rien et vous en indique la raison.
 

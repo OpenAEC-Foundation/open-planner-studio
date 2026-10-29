@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { HistorySessionMark } from '@/state/slices/historySlice';
-import { moveTaskVerdict } from '@/state/slices/taskSlice';
+import { moveTaskVerdict, phaseAssignmentQuestionForTaskDialog } from '@/state/slices/taskSlice';
+import type { PhaseAssignmentChoice } from '@/state/structuralTransition';
 import { notifyHierarchyCycle } from '@/state/hierarchyRelationNotice';
 import { useTranslation } from 'react-i18next';
 import { Task } from '@/types/task';
@@ -13,7 +14,7 @@ import { shownStart, startIsActual } from '@/utils/taskDates';
 import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
-import { DateTextInput } from '@/components/common/DateTextInput';
+import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
 import { X } from 'lucide-react';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { Field } from '@/components/task-sections/shared';
@@ -31,6 +32,7 @@ import { TaskWorkRuleField } from '@/components/task-sections/TaskWorkRuleField'
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 import { TaskDurationField } from '@/components/task-sections/TaskDurationField';
 import { TASK_PROPERTIES_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { defaultTaskMeasure } from '@/state/newTaskMeasure';
 
 /** Lege draft voor de (in de praktijk onbereikbare) "nieuwe taak"-tak:
  *  een vangnet, geen actieve UI-ingang roept de dialoog ooit met `editingTaskId: null` aan. */
@@ -49,13 +51,16 @@ export function TaskDialog() {
   const { t: tCommon } = useTranslation('common');
 
   const showTaskDialog = useAppStore(s => s.ui.showTaskDialog);
+  // Help vanuit de gestapelde startvraag laat deze bewerksessie (concept + historie) intact.
+  const actualStartHelpOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null
+    && s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help');
   const editingTaskId = useAppStore(s => s.ui.editingTaskId);
   const tasks = useAppStore(s => s.tasks);
   const setUI = useAppStore(s => s.setUI);
   const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const project = useAppStore(s => s.project);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
-  const enableHourPlanning = useAppStore(s => s.ui.enableHourPlanning);
+
 
   const editingTask = editingTaskId ? tasks.find(t => t.id === editingTaskId) : null;
 
@@ -64,7 +69,8 @@ export function TaskDialog() {
   // `onChange(patch)` — commit pas op Save. De RELATIONELE secties (afhankelijkheden/toewijzingen/
   // codes&velden/CPM-resultaat) werken rechtstreeks op de store via `taskId` (identiek aan het
   // paneel) en raken de draft niet.
-  const newTaskUnit = enableHourPlanning ? (project.defaultTaskDurationUnit ?? 'days') : 'days';
+  // Standaardmaat voor nieuwe taken (B1a): de gekozen maat, of urenmaat onder P6/MSP (`newTaskMeasure.ts`).
+  const newTaskUnit = defaultTaskMeasure(project);
   const [draft, setDraft] = useState<Task>(() => blankDraft(project.startDate, constructionMode, newTaskUnit));
   const onChange = (patch: Partial<Task>) => setDraft(d => ({ ...d, ...patch }));
 
@@ -81,7 +87,9 @@ export function TaskDialog() {
   // De dialoog bevat zowel een lokale draft als relationele secties die direct de store muteren
   // (zoals resourcetoewijzingen). Een storemutatie mag de nog niet opgeslagen draft nooit opnieuw
   // initialiseren; alleen openen of naar een andere taak wisselen begint een nieuwe sessie.
+  const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
   const initializedSessionRef = useRef<string | null>(null);
+  const [readySession, setReadySession] = useState<string | null>(null);
   // Begin van deze bewerksessie in de sessiehistorie.
   const historyMarkRef = useRef<HistorySessionMark | null>(null);
   const historyMark = useAppStore(s => s.historyMark);
@@ -95,15 +103,16 @@ export function TaskDialog() {
   useEffect(() => {
     if (!showTaskDialog) {
       initializedSessionRef.current = null;
+      setReadySession(null);
       // Dicht op een andere manier dan Opslaan/Annuleren: de sessie sluiten, de historie laten staan.
       if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
       historyMarkRef.current = null;
       return;
     }
 
-    const sessionKey = editingTaskId ? `task:${editingTaskId}` : 'new-task';
     if (initializedSessionRef.current === sessionKey) return;
     initializedSessionRef.current = sessionKey;
+    setReadySession(sessionKey);
     if (historyMarkRef.current !== null) endHistorySession(historyMarkRef.current);
     historyMarkRef.current = editingTaskId ? historyMark() : null;
 
@@ -120,18 +129,16 @@ export function TaskDialog() {
       setStartDate(project.startDate);
     }
 
-  }, [showTaskDialog, editingTaskId, editingTask, project.startDate, constructionMode, newTaskUnit, historyMark, endHistorySession]);
+  }, [showTaskDialog, editingTaskId, editingTask, sessionKey, project.startDate, constructionMode, newTaskUnit, historyMark, endHistorySession]);
 
-  useEffect(() => {
-    if (!showTaskDialog) return;
-    const id = setTimeout(() => {
-      const el = nameInputRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(0, el.value.length);
-    }, 30);
-    return () => clearTimeout(id);
-  }, [showTaskDialog, editingTaskId]);
+  // Dialog/useFocusTrap is de enige focuseigenaar. De draft staat al in de DOM voordat dit
+  // wordt aangeroepen; selecteer die naam ook bij hervatten na Help. Geen late timer die een
+  // expliciete focuskeuze van de gebruiker of een bovenliggende dialoog kan overschrijven.
+  const initialFocus = useCallback(() => {
+    const el = nameInputRef.current;
+    el?.setSelectionRange(0, el.value.length);
+    return el;
+  }, []);
 
   // Voortgang invullen is een UI-route (`engine/progressEntry.ts`): dezelfde beslissing als het
   // paneel (`planProgressEntry`), maar op de concepttaak en pas vastgelegd bij Opslaan. Zonder
@@ -142,7 +149,7 @@ export function TaskDialog() {
   draftRef.current = draft;
   const enterDraftProgress = (edit: ProgressEdit, opts?: { actualStart?: string }): ProgressEntryResult => {
     const plan = planProgressEntry(draftRef.current, edit, {
-      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart,
+      statusDate: project.statusDate, today: localTodayIso(), actualStart: opts?.actualStart, calendar: effCal,
     });
     if (!plan.ok) return plan;
     if (plan.change) {
@@ -152,8 +159,17 @@ export function TaskDialog() {
     return { ok: true };
   };
 
-  /** Opslaan en sluiten; `false` = geweigerd (melding), de dialoog blijft open. */
-  const handleSave = (): boolean => {
+  /** Opslaan en sluiten; `false` = geweigerd (melding) of eerst een vraag, de dialoog blijft open. */
+  const handleSave = (): boolean => saveWith(undefined) === true;
+
+  /**
+   * `afterLaterSave`: wat er moet gebeuren als het opslaan pas na de vraag "Taak wordt een
+   * samenvattingstaak" lukt (de ?-knop opent dan Help). `'later'` = de vraag staat open.
+   */
+  const saveWith = (
+    phaseAssignments: PhaseAssignmentChoice | undefined,
+    afterLaterSave?: () => void,
+  ): boolean | 'later' => {
     if (!draft.name.trim()) return false;
     // Een andere bovenliggende taak die via de relaties van de nieuwe fase een kring zou maken
     // moet VÓÓR er iets wordt opgeslagen geweigerd worden. `moveTask` weigert zelf ook,
@@ -181,6 +197,28 @@ export function TaskDialog() {
         return false;
       }
     }
+    // "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17): krijgt de nieuwe bovenliggende taak
+    // hierdoor haar eerste subtaak terwijl ze toewijzingen draagt, dan vraagt de app VÓÓR het
+    // opslaan wat ermee moet. De vraag ligt boven deze dialoog; Annuleren laat alles open zoals het
+    // was, een keuze slaat op met die keuze, in dezelfde undo-stap.
+    if (!phaseAssignments) {
+      const store = useAppStore.getState();
+      // De vorm van het CONCEPT (naam, mijlpaal ja/nee): Opslaan zet die eerst, verhangt daarna.
+      const ask = () => (!editingTask || draft.parentId !== editingTask.parentId
+        ? phaseAssignmentQuestionForTaskDialog(useAppStore.getState(), editingTask?.id ?? null, draft.parentId || null, {
+          name: draft.name,
+          isMilestone: draft.isMilestone,
+          hasChildren: (editingTask?.childIds.length ?? 0) > 0,
+        })
+        : null);
+      const question = ask();
+      if (question) {
+        store.askPhaseAssignmentQuestion(question, (choice) => {
+          if (saveWith(choice) === true) afterLaterSave?.();
+        }, ask);
+        return 'later';
+      }
+    }
     // Opslaan = één undo-stap met dezelfde voortgangsregels als het paneel; de details (vers uit de
     // store vs uit de draft, het scheduleStart-anker, `moveTask` voor de ouder, de duur alleen bij
     // een echte duurbewerking) staan in state/taskDialogSave.ts. Met een open
@@ -195,6 +233,7 @@ export function TaskDialog() {
       initialDuration: initialDurationRef.current,
       session: historyMarkRef.current,
       today: localTodayIso(),
+      phaseAssignments,
     });
     if (!saved) return false;
     setUI({ showTaskDialog: false, editingTaskId: null });
@@ -208,7 +247,9 @@ export function TaskDialog() {
     setUI({ showTaskDialog: false, editingTaskId: null });
   };
 
-  if (!showTaskDialog) return null;
+  // Mount het dialooggedrag pas met de juiste draft. Bij taakwissel begint zo ook de focus-trap
+  // opnieuw, zonder eerst de vorige naam (of de lege begindraft) te selecteren.
+  if (!showTaskDialog || readySession !== sessionKey) return null;
 
   // Een gestarte taak (ook als de werkelijke start in deze dialoog net is ingevuld) begint op haar
   // werkelijke start: dan toont Startdatum die datum, alleen-lezen (eigenaarsbesluit 2026-10-12).
@@ -225,6 +266,9 @@ export function TaskDialog() {
     // ná de `showTaskDialog`-gate hierboven, dus de toetsen zijn alleen actief bij een open dialoog.
     // Let op: overlaytint is hier bg-black/50 (historisch iets lichter dan de andere dialogs).
     <Dialog
+      key={sessionKey}
+      initialFocus={initialFocus}
+      suspended={actualStartHelpOpen}
       onCancel={handleClose}
       onConfirm={handleSave}
       overlayClassName="bg-black/50 z-50"
@@ -241,7 +285,7 @@ export function TaskDialog() {
           <span className="flex items-center gap-1">
             {/* ?-knop: altijd eerst Opslaan / Annuleren / Terug — de dialoog werkt met een concept. */}
             <DialogHelpButton
-              help={{ articleId: TASK_PROPERTIES_HELP_ARTICLE_ID, confirmLeave: { onSave: handleSave } }}
+              help={{ articleId: TASK_PROPERTIES_HELP_ARTICLE_ID, confirmLeave: { onSave: openHelpLater => saveWith(undefined, openHelpLater) } }}
               onClose={handleClose}
             />
             <button
@@ -306,7 +350,10 @@ export function TaskDialog() {
           <span className="ui-card-header !text-small !leading-4">{t('properties.time')}</span>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('dialog.startDate')}>
-              <DateTextInput
+              <TaskDateTimeInput
+                task={draft}
+                side="start"
+                dataAttribute="dialog-start"
                 value={startLocked ? shownStart(draft) : startDate}
                 required
                 disabled={startLocked}

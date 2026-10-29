@@ -13,7 +13,7 @@ Trabalha-se com **fases**: dias úteis consecutivos em que o recurso trabalha co
 O exemplo é a outer cavity leaf: 6 dias úteis, um bricklayer, 48 horas.
 
 1. Selecione a tarefa. O painel *Propriedades* está à direita; se não o vir, ative-o em *Visualização › Painéis › Propriedades*.
-2. No bloco *Atribuições*, clique no ícone de gráfico de barras *Distribuição de horas…* ao lado do bricklayer. A janela *Distribuição de horas por fases* abre. Parte-se do que a aplicação reserva atualmente: para esta outer cavity leaf, uma fase de 6 dias com unidades de 1.
+2. No bloco *Atribuições*, clique no nome do bricklayer. *Curva* e o botão *Distribuição de horas…* aparecem por baixo dele. Clique em *Distribuição de horas…*. A janela *Distribuição de horas por fases* abre. Parte-se do que a aplicação reserva atualmente: para esta outer cavity leaf, uma fase de 6 dias com unidades de 1.
 3. Se for preciso, escolha um ponto de partida em *Aplicar forma:*. Com *Em sino*, a aplicação cria cinco fases: 0,18 unidades no primeiro e no último dia, 0,84 no segundo e no quinto dia e 1,98 nos dois dias do meio. O total mantém-se em 48 horas.
 
 ### Ajustar as fases
@@ -31,25 +31,25 @@ Escolha *Aplicar*. Com *Cancelar*, a janela fecha sem alterações.
 
 Um exemplo. Escolha *Dividir*, defina *Dias* da primeira fase como 2 e o esforço dessa fase como 0,5. A segunda fase passa a durar 4 dias, com esforço 1. O total é 2 × 0,5 × 8 + 4 × 1 × 8 = 40 horas.
 
-Depois de *Aplicar*, a curva da atribuição passa para *Contorno* e fica desativada. *Unid./dia* mantém-se como estava. O histograma e a sobrealocação seguem de imediato a nova distribuição. Não é preciso recalcular, porque nenhuma data se move.
+Depois de *Aplicar*, a curva da atribuição passa para *Contorno* e fica desativada. *Unidades* mantém-se como estava. Surge agora um ícone de gráfico de barras junto ao nome, também quando a atribuição está recolhida. O histograma e a sobrealocação seguem de imediato a nova distribuição. Não é preciso recalcular, porque nenhuma data se move.
 
 ### Libertar a distribuição
 
-Se a atribuição tiver uma distribuição própria, a janela tem também *Libertar distribuição*. Isso remove a sua distribuição própria, e a aplicação volta a *Unid./dia* e à curva. Escolha também esta opção se quiser mudar a curva, porque a lista pendente *Curva* fica desativada enquanto houver uma distribuição própria.
+Se a atribuição tiver uma distribuição própria, a janela tem também *Libertar distribuição*. Isso remove a sua distribuição própria, e a aplicação volta a *Unidades* e à curva. Escolha também esta opção se quiser mudar a curva, porque a lista pendente *Curva* fica desativada enquanto houver uma distribuição própria.
 
 ## Armadilhas e o que a aplicação faz nesse caso
 
 **O total muda com isso.** Não se dividem as horas, decidem-se. Se definir uma fase como 0,5 em vez de 0,18, o total aumenta. O total em horas está no fundo da janela. Verifique-o antes de clicar em *Aplicar*.
 
-**O que as unidades fazem depois depende da regra de trabalho.** Com *Duração e unidades fixas*, outros valores de *Unid./dia* não alteram a distribuição. Com *Duração e trabalho fixos*, a aplicação ajusta as horas por dia em conjunto com as novas unidades: com unidades de 2 em vez de 1, cada dia duplica e o total também (de 32 para 64 horas), e a duração mantém-se. Com *Trabalho fixo*, as unidades alteram a duração da tarefa: a distribuição é então comprimida ou esticada pela nova duração, com o mesmo total. Com *Unidades fixas*, as unidades alteram também a duração. Verifique depois o total no fundo da janela.
+**O que as unidades fazem depois depende do tipo de tarefa.** Com *Duração e unidades fixas*, outros valores de *Unidades* não alteram a distribuição. Com *Duração e trabalho fixos*, a aplicação ajusta as horas por dia em conjunto com as novas unidades: com unidades de 2 em vez de 1, cada dia duplica e o total também (de 32 para 64 horas), e a duração mantém-se. Com *Trabalho fixo*, as unidades alteram a duração da tarefa: a distribuição é então comprimida ou esticada pela nova duração, com o mesmo total. Com *Unidades fixas*, as unidades alteram também a duração. Verifique depois o total no fundo da janela.
 
 **Se alterar a duração da tarefa, a distribuição estica com ela.** A forma mantém-se. Com *Duração e unidades fixas* e com *Unidades fixas*, o total cresce em proporção à duração: se a duração de uma tarefa com distribuição própria duplicar de 4 para 8 dias úteis, o total também duplica, de 32 para 64 horas. Com *Duração e trabalho fixos* e com *Trabalho fixo*, o total mantém-se (32 horas continuam 32 horas) e as unidades descem.
 
-**O trabalho segue a distribuição.** *Trabalho (rest.)* passa a ser a soma das suas fases, também com *Trabalho fixo*. A duração da tarefa não muda por isso.
+**O trabalho segue a distribuição.** *Trabalho (h)* passa a ser a soma das suas fases, também com *Trabalho fixo*. A duração da tarefa não muda por isso.
 
 **Unidades inválidas.** Um esforço vazio ou negativo recebe uma moldura vermelha, e *Aplicar* fica desativado. Uma fase com esforço 0 é permitida. Essa fase fica dentro da duração da tarefa.
 
-**Tudo se aplica só a esta atribuição.** A própria aplicação o indica: *A distribuição só altera as horas por dia desta atribuição; as datas e as divisões da tarefa mantêm-se.* Os outros recursos da mesma tarefa mantêm a sua própria distribuição.
+**Tudo se aplica só a esta atribuição.** A própria aplicação indica-o: *A distribuição só altera as horas por dia desta atribuição; as datas e as divisões da tarefa mantêm-se.* Os outros recursos da mesma tarefa mantêm a sua própria distribuição.
 
 **O nivelamento segue a distribuição.** A função de nivelamento conta as mesmas horas por dia que o histograma.
 

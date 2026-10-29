@@ -4,7 +4,7 @@ Kaydettiğiniz dosyada gerçekte ne var? Ve planlamanıza ne olur, onu başka bi
 
 ## Kavram
 
-Open Planner Studio kendi dosya biçimine sahiptir: **IFC**, buildingSMART'ın inşaat bilgisi için açık bir değişim biçimi. Uygulama IFC 4.3 yazar; dışa aktarma listesinde bu *IFC 4x3* olarak geçer. İkinci bir, tescilli proje dosyası yoktur. *Kaydet* projenizin tamamını bir IFC dosyası (`.ifc`) olarak yazar ve *Aç* böyle bir dosyayı geri okur. Dosyaya neyin girdiğini görmek ister misiniz? *IFC* sekmesi projenizin IFC metnini gösterir; *IFC Oluştur* bu metni yeniler.
+Open Planner Studio kendi dosya biçimine sahiptir: **IFC**, buildingSMART'ın inşaat bilgisi için açık bir değişim biçimi. Uygulama projenin IFC şemasını yazar; varsayılan olarak IFC 4.3 ADD2 kullanır (bkz. [IFC şemasını seçme](docs://howto-ifc-schema-kiezen)). Dışa aktarma listesinde bu *IFC* olarak geçer. İkinci bir, tescilli proje dosyası yoktur. *Kaydet* projenizin tamamını bir IFC dosyası (`.ifc`) olarak yazar ve *Aç* böyle bir dosyayı geri okur. Dosyaya neyin girdiğini görmek ister misiniz? *IFC* sekmesi projenizin IFC metnini gösteren bir düzenleyicidir; *IFC Oluştur* bu metni yeniler ve *Kopyala* metni panoya koyar. Metni değiştirirseniz, *Uygula* onu projeniz olarak yükler. Bu, o sekmedeki projeyi tamamen değiştirir.
 
 Diğer tüm biçimler **uyarlayıcılardır**: başka bir programın modeli ile uygulamanın modeli arasındaki çevirmenlerdir. Uygulama CSV, MS Project XML, Primavera P6 XML, MS Project dosyalarını (`.mpp`) ve Primavera dosyalarını (`.xer`) okur. CSV, MS Project XML, Primavera P6 XML ve iki ilerleme sayfası yazar. `.mpp` veya `.xer` dosyasına dışa aktaramazsınız.
 
@@ -14,13 +14,13 @@ Bu ayrım neden önemli? Bir uyarlayıcı yalnızca iki tarafın da bildiğini a
 
 ### Açmanın ne yaptığı
 
-Uygulama okuyucuyu uzantıya göre seçer: `.ifc`, `.csv`, `.xml`, `.mpp` veya `.xer`. Bir `.xml` dosyasında içine bakar; MS Project XML mi Primavera P6 XML mi olduğunu anlamak için. Bilinmeyen bir uzantı IFC sayılır. Dosya IFC değilse uygulama *Dosya açılamadı* bildirir ve nedenini ekler.
+Uygulama okuyucuyu dosya uzantısına göre seçer: `.ifc`, `.csv`, `.xml`, `.mpp` veya `.xer`. Bir `.xml` dosyasının içine bakar; MS Project XML mi yoksa Primavera P6 XML mi olduğunu anlamak için. Bilinmeyen bir dosya uzantısı IFC sayılır. Dosya IFC değilse uygulama *Dosya açılamadı* bildirir ve nedenini ekler.
 
-Her dosya kendi sekmesinde açılır. Bunun bir istisnası var: boş ve değiştirilmemiş bir sekme dosyayı devralır. Tek bir Primavera dosyası birden fazla sekme üretebilir, görevleri olan her proje için bir sekme.
+Her dosya kendi sekmesinde açılır. Bunun bir istisnası var: boş ve değiştirilmemiş bir sekme dosyayı devralır. Tek bir Primavera dosyası birden fazla sekme üretebilir; görevleri olan her proje için bir sekme.
 
 Açtıktan sonra uygulama her zaman yeniden hesaplar. Dosya başka bir paketten geliyorsa tarihler, dosyanın dediklerinden farklı olabilir. Bu, [Kaydedildiği gibi tarihler](docs://uitleg-datums-zoals-opgeslagen) bölümünde açıklanır.
 
-Yalnızca bir IFC dosyası **kayıt hedefi** olur: *Kaydet* düğmesinin geri yazdığı dosya. Bir CSV, XML, `.mpp` veya `.xer` dosyası olmaz. Böyle bir proje açtıktan sonra dosyası yoktur; *Kaydet* o zaman yeni IFC dosyasının nereye gideceğini sorar. Bu sayede Ctrl+S, özgün dosyanızın üzerine asla IFC metni yazmaz.
+Yalnızca bir IFC dosyası **kayıt hedefi** olur: *Kaydet* düğmesinin geri yazdığı dosya. Bir CSV, XML, `.mpp` veya `.xer` dosyası olmaz. Böyle bir proje açtıktan sonra dosyası yoktur; *Kaydet* o zaman yeni IFC dosyasının nereye gideceğini sorar. Bu sayede Ctrl+S hiçbir zaman özgün dosyanızın üzerine IFC metni yazmaz.
 
 ### Kaydetmenin ne yazdığı
 
@@ -44,9 +44,9 @@ Her uyarlayıcı, kendi biçiminin bildiklerini taşır.
 
 **MS Project XML** görevleri, ilişkileri, takvimleri, kaynakları, atamaları, kısıtlamaları, son tarihleri ve durum tarihini taşır. Temel planlarınızdan yalnızca etkin olanı gider. Etkinlik kodları, özel alanlar, notlar ve dış ilişkiler gitmez. Bir görevdeki ikinci kısıtlama gitmez. Seçeneği *Zorunlu (sabitleme mantığı)* olmayan bir *Şu tarihte başlamalı (MSO)* veya *Şu tarihte bitmeli (MFO)* kısıtlaması, geri gelirken *Şu tarihten önce başlamaz (SNET)* veya *Şu tarihten önce bitmez (FNET)* olur. *Elle planlandı* ve bir görevin *Dengeleme gecikmesi* geri gelmez. Hamak, hesaplanmış tarihleri olan normal bir görev olur.
 
-**Primavera P6 XML** görevleri, ilişkileri, takvimleri, kaynakları, atamaları, kısıtlamaları ve durum tarihini taşır. Temel planlar ve son tarihler gitmez; etkinlik kodları, özel alanlar, notlar ve dış ilişkiler de gitmez. Hamak burada da normal bir görev olur. P6 yüzde olarak gecikme bilmez: uygulama böyle bir gecikmeyi sabit bir gün sayısına çevirir. Takvim günü cinsinden bir gecikme, iş günü cinsinden bir gecikme olur.
+**Primavera P6 XML** görevleri, ilişkileri, takvimleri, kaynakları, atamaları, kısıtlamaları ve durum tarihini taşır. Temel planlar ve son tarihler gitmez; etkinlik kodları, özel alanlar, notlar ve dış ilişkiler de gitmez. Hamak burada da normal bir görev olur. P6 yüzdelik gecikme tanımaz: uygulama böyle bir gecikmeyi sabit bir gün sayısına çevirir. Takvim günü cinsinden bir gecikme, iş günü cinsinden bir gecikme olur.
 
-**CSV** bir görev listesidir. Dosyada her görev için şu sütunlar vardır: görev kimliği, WBS, düzey, ad, süre, başlangıç, bitiş, öncüller, tür, özel görev türünün kimliği (`OPS Custom Task Type ID`), durum, tamamlanma, gerçek başlangıç ve bitiş, kritik, toplam bolluk ve açıklama. Kaynaklar, atamalar, takvimler, kısıtlamalar, son tarihler, temel planlar ve durum tarihi yer almaz. Sütun başlıkları her zaman İngilizcedir.
+**CSV** bir görev listesidir. Dosyada her görev için şu sütunlar vardır: görev kimliği, WBS, düzey, ad, süre, başlangıç, bitiş, öncüller, iş kategorisi, özel iş kategorisinin kimliği (`OPS Custom Task Type ID`), durum, tamamlanma, gerçek başlangıç ve bitiş, kritik, toplam bolluk ve açıklama. Kaynaklar, atamalar, takvimler, kısıtlamalar, son tarihler, temel planlar ve durum tarihi yer almaz. Sütun başlıkları her zaman İngilizcedir.
 
 **Yalnızca IFC hesaplama profilini ve hesaplama seçeneklerini taşır.** CSV, MS Project XML veya Primavera P6 XML'e dışa aktarırsanız profil dosyada olmaz. Hesaplama seçeneklerinden MS Project XML en fazla kritik eşiği yazar. Böyle bir dosya *Open Planner Studio* olarak yeniden açılır. Projeniz *Primavera P6* veya *Microsoft Project* ile hesaplandıysa, örneğin bir `.xer` veya `.mpp` dosyasından geldiği için, tarihler bu yüzden kayabilir. Hesaplama profilinin ne olduğu, [Hesaplama profilleri ve kurallar](docs://uitleg-rekenprofielen) bölümünde açıklanır.
 

@@ -369,10 +369,16 @@ for (const mode of traceModes) {
   if (tr.successors.length === 0) diffs.push('10z fixture: focus heeft geen opvolgers — de trace-checks zijn dan half vacuüm');
 }
 eq('11 trace: lege selectie ⇒ undefined', buildTrace('both', [], sequences, cpm), undefined);
-// Een CPM-resultaat MET fout telt als "nog niets berekend": geen driving-tinten.
+// Knownbug 105: zonder driving-informatie krijgt het hele betrokken pad dezelfde nadruk.
+// De oude sluitingen blijven het onafhankelijke orakel; alleen de nadruk verandert bewust.
 const cpmFailed = { ...(cpm as CPMResult), error: 'cyclus' } as CPMResult;
-eqDeep('12 trace bij een mislukte CPM identiek aan het orakel',
-  buildTrace('both', [idB], sequences, cpmFailed), oldTrace('both', [idB], sequences, cpmFailed));
+const oldFailedTrace = oldTrace('both', [idB], sequences, cpmFailed)!;
+eqDeep('12 trace bij een mislukte CPM behoudt het pad met gelijke nadruk',
+  buildTrace('both', [idB], sequences, cpmFailed), {
+    ...oldFailedTrace,
+    drivingPredecessors: oldFailedTrace.predecessors,
+    drivenSuccessors: oldFailedTrace.successors,
+  });
 
 // 13 — baselineOverlay.
 const baselines: Baseline[] = [{
@@ -509,8 +515,10 @@ const baseInput: GanttRenderOptionsInput = {
   enableQuarterHourZoom: true,
   effectiveCalById: new Map(),
   barSplitMode: 'always',
-  enableHourPlanning: false,
+
   durationDisplay: 'auto',
+  // NIET de standaard (aan): zo valt een bouwer op die het veld laat vallen.
+  workdayDurationMeasure: false,
   durationSuffixes: { day: 'd', hour: 'u', minute: 'm' },
   externalStaleLabel: 'verouderd (NL-test)',
   durationDrag: { taskId: idA, edge: 'right' },
@@ -551,7 +559,7 @@ eq('28 geen CPM: geen missedDeadlineTaskIds', optsNoCpm.missedDeadlineTaskIds, u
 // canvasbewerking. Onbekend ⇒ `undefined` ⇒ neutraal doorgetrokken; de overige lijsten blijven.
 const recordedRecon = cpmResultFromRecorded(
   { [idA]: buildRecordedTime({ start: '2027-03-01', finish: '2027-03-05' })! },
-  S().tasks, calendar,
+  S().tasks, calendar, [],
 );
 const optsRecorded = buildGanttRenderOptions({ ...baseInput, cpmResult: recordedRecon });
 eq('28b opgeslagen datums: geen driving-informatie ⇒ drivingSequenceIds undefined', optsRecorded.drivingSequenceIds, undefined);
@@ -594,8 +602,8 @@ const passthrough: [string, unknown, unknown][] = [
   ['enableQuarterHourZoom', optsOk.enableQuarterHourZoom, baseInput.enableQuarterHourZoom],
   ['effectiveCalById', optsOk.effectiveCalById, baseInput.effectiveCalById],
   ['barSplitMode', optsOk.barSplitMode, baseInput.barSplitMode],
-  ['enableHourPlanning', optsOk.enableHourPlanning, baseInput.enableHourPlanning],
   ['durationDisplay', optsOk.durationDisplay, baseInput.durationDisplay],
+  ['workdayDurationMeasure', optsOk.workdayDurationMeasure, baseInput.workdayDurationMeasure],
   ['durationSuffixes', optsOk.durationSuffixes, baseInput.durationSuffixes],
   ['externalStaleLabel', optsOk.externalStaleLabel, baseInput.externalStaleLabel],
   ['durationDrag', optsOk.durationDrag, baseInput.durationDrag],
@@ -619,7 +627,7 @@ if (optsOk.axis !== axis) diffs.push('30 axis: renderer krijgt niet dezelfde as-
 const optsSecondary = buildGanttRenderOptions({
   ...baseInput,
   view: { ...baseInput.view, zoom: 12, scrollX: 400 },
-  enableHourPlanning: undefined,
+
   durationDisplay: undefined,
   durationSuffixes: undefined,
   externalStaleLabel: undefined,

@@ -36,11 +36,11 @@ Bir kod türünü veya özel alanı filtrelemek, gruplamak ve sıralamak için k
 
 ## Dikkat edilecekler ve uygulamanın yaptıkları
 
-**Silmek, görevlerdeki değerleri kaldırır.** Bir kod türünü, bir değeri veya bir alanı çöp kutusuyla silerseniz, uygulama onay istemez ve tüm görevlerdeki atamalar bununla birlikte kaybolur. Bu kod türü veya alan üzerindeki gruplama veya sıralama da sona erer. *Geri al* (Ctrl+Z) kod türünü, değeri veya alanı ve doldurulmuş değerleri geri getirir, ancak gruplamayı veya sıralamayı değil. Bunları yeniden ayarlarsınız.
+**Silmek, görevlerdeki değerleri kaldırır.** Bir kod türünü, bir değeri veya bir alanı çöp kutusuyla silerseniz, uygulama onay istemez ve tüm görevlerdeki atamalar bununla birlikte kaybolur. Bu kod türü veya alan üzerindeki gruplama veya sıralama da sona erer. *Geri al* (Ctrl+Z, önce pencereyi kapatın) kod türünü, değeri veya alanı ve doldurulmuş değerleri geri getirir, ancak gruplamayı veya sıralamayı değil. Bunları yeniden ayarlarsınız.
 
 **Aynı kodu taşıyan iki değer.** *Değer ekle* öğesi, mevcut değer sayısına göre sıradaki numarayı verir. Bir değeri silip bir tane eklerseniz, bir kod bu yüzden iki kez görünebilir. Bu kodu bir sütun hücresine yazarsanız, uygulama reddeder ve *Bu etkinlik kodu değeri birden çok kez geçiyor. Listeden seçin.* der. Her değere kendi kodunu verin.
 
-**Şablonlar kodları ve alanları almaz.** Bkz. [WBS şablonlarını kaydetme ve ekleme](docs://howto-wbs-sjablonen). Görevleri başka bir belgeye yapıştırırsanız, uygulama orada olmayan kodları ve alanları temizler ve bunu size bildirir.
+**Şablonlar kodları ve alanları taşımaz.** Bkz. [WBS şablonlarını kaydetme ve ekleme](docs://howto-wbs-sjablonen). Görevleri başka bir belgeye yapıştırırsanız, uygulama orada olmayan kodları ve alanları temizler ve bunu size bildirir.
 
 **Tarih alanı birlikte taşınmaz.** Tüm projeyi taşırsanız, *Tarih* türündeki doldurulmuş özel alanlar kendi tarihlerinde kalır. Uygulama bunu önizlemede uyarır.
 

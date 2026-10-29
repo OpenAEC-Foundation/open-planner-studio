@@ -186,6 +186,7 @@ export function createExtensionApi(
      *  (gemapt uit de Immer-bevroren store) — muteren ervan raakt de store niet. Schrijf via
      *  addTask/updateTask/addSequence en roep daarna recalculate() aan. */
     data: {
+      getSelectedTaskIds: () => [...document.store.getState().selectedTaskIds],
       getProject: () => toExtProject(document.store.getState().project),
       getCalendar: () => toExtCalendar(document.store.getState().calendar),
       getTasks: () => {
@@ -256,7 +257,9 @@ export function createExtensionApi(
         // Catalogus + toewijzing vormen voor de gebruiker één wijziging en dus één undo-stap.
         return batch.withTransaction(() => {
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
-          return added(document.store.getState().addTask(fromExtTaskAddInput(input)));
+          // Een extensie kan geen venster tonen: vaste keuze "verplaatsen", het gedrag van vóór de vraag
+          // "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17 geldt voor de gebruikersroutes).
+          return added(document.store.getState().addTask(fromExtTaskAddInput(input), { phaseAssignments: 'move' }));
         });
       },
       updateTask: (id, updates) => {
@@ -292,7 +295,12 @@ export function createExtensionApi(
           if (materialize) document.store.getState().ensureProjectTaskType(materialize);
           // Index voorbij het einde wordt in de store geklemd ⇒ achteraan bij de nieuwe ouder, zoals
           // het wijzigen van de ouder in het taakvenster (`moveTask` zonder positie).
-          if (move) document.store.getState().moveTaskTo(id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER });
+          // Vaste keuze "verplaatsen", zoals `addTask` hierboven.
+          if (move) {
+            document.store.getState().moveTaskTo(
+              id, { parentId: move.parentId, childIndex: Number.MAX_SAFE_INTEGER }, { phaseAssignments: 'move' },
+            );
+          }
           if (!move || Object.keys(patch).length > 0) document.store.getState().updateTask(id, patch);
         });
       },
@@ -317,6 +325,10 @@ export function createExtensionApi(
         unsubscribeExtensionEvent(event, listener);
       },
       emit(event: string, data?: unknown) {
+        // De host-naamruimte is alleen-lezen voor extensies, inclusief toekomstige host-events.
+        if (event.startsWith('host:')) {
+          throw new Error('The host: event namespace is reserved for the application.');
+        }
         emitExtensionEvent(event, data);
       },
     },

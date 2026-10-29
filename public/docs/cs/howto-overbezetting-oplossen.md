@@ -19,12 +19,12 @@ Nejdřív přetížení vyhledáte. Potom zvolíte řešení. **Vyrovnání** je
 
 Histogram můžete zapnout i sami. Zvolte *Zdroje › Histogram › Histogram*. Vyberte zdroj v seznamu vlevo, nebo procházejte zdroje tlačítky *Předchozí* a *Další*. Červená tečka v seznamu znamená, že je zdroj přetížen. Řádek *Všechny zdroje* sečte zdroje dohromady, bez materiálu.
 
-Když je úkol označen, histogram ukazuje jen práci tohoto úkolu a jen zdroje, které na něm jsou. Klávesou Esc zrušíte výběr a znovu uvidíte celý projekt.
+Když je úkol označen, histogram ukazuje jen vytížení od tohoto úkolu a jen zdroje, které na něm jsou. Klávesou Esc zrušíte výběr a znovu uvidíte celý projekt.
 
 ### 2. Zvolte řešení
 
 - **Větší kapacita.** Pokud opravdu přijde druhý zedník, nastavte *Maximální počet jednotek* na 2 (viz [Správa zdrojů](docs://howto-resources-beheren)). Přetížení pak zmizí.
-- **Méně jednotek za den.** Snižte *Jedn./den* nebo zvolte pro přiřazení jinou křivku (viz [Přiřazení zdrojů s křivkou](docs://howto-resource-toewijzen)).
+- **Méně jednotek za den.** Snižte *Jednotky přiřazení* nebo zvolte pro přiřazení jinou křivku (viz [Přiřazení zdrojů s křivkou](docs://howto-resource-toewijzen)).
 - **Úkoly za sebou.** Přidejte mezi oba úkoly závislost, aby druhý začal až po dokončení prvního (viz [Přidání závislostí](docs://howto-relaties-leggen)).
 - **Vyrovnání.** Aplikace nechá úkol začít později.
 
@@ -51,7 +51,7 @@ Když chcete sami rozhodnout, který úkol zůstane, dejte mu vyšší prioritu.
 
 - *Vrátit zpět* (Ctrl+Z) zruší *Použít* jedním krokem.
 - *Zdroje › Vyrovnání › Zrušit vyrovnání* odstraní všechno vyrovnání z úkolů. Tlačítko je šedé, dokud není žádné vyrovnání. Přetížení, které tak vrátíte, se prostě znovu objeví.
-- Pokud jste plán mezitím změnili, zvolte znovu *Vyrovnat…*. Aplikace pak začne znovu od nuly: staré zpoždění se nezohlední.
+- Pokud jste plán mezitím změnili, stačí znovu zvolit *Vyrovnat…*. Aplikace pak začne znovu od nuly: staré zpoždění se nezohlední.
 
 ## Úskalí a co aplikace potom udělá
 

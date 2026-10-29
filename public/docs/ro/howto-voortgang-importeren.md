@@ -28,10 +28,10 @@ Foaia Excel este protejată, fără parolă: pot fi modificate doar cele trei co
 
 Pentru fiecare activitate, responsabilul de șantier completează:
 
-- `Completion (%)`: de la 0 până la 100 inclusiv. În foaia Excel sunt permise zecimale (de exemplu 33,3). În CSV, instrucțiunea cere numere întregi.
-- `Actual Start` și `Actual Finish`: în Excel ca dată, conform setării regionale proprii; în CSV ca zz-ll-aaaa.
+- `Completion (%)`: de la 0 până la 100 inclusiv. Aplicația citește și zecimale, cu virgulă sau cu punct (de exemplu 33,3 sau 33.3). Instrucțiunea din CSV cere totuși numere întregi: o foaie de calcul cu o altă setare regională poate citi 8,38 drept 838.
+- `Actual Start` și `Actual Finish`: în Excel ca dată, conform setării regionale proprii; în CSV ca zz-ll-aaaa sau ca aaaa-ll-zz.
 
-Ce rămâne gol nu modifică nimic. Deci o celulă goală nu șterge nici progresul existent; asta se poate face doar în aplicație. Pentru o activitate care nu a început, celulele rămân complet goale.
+Ce rămâne gol nu modifică nimic. Deci o celulă goală nu șterge nici progresul existent; asta se poate face doar în aplicație. Pentru o activitate care nu a început, responsabilul de șantier lasă celulele complet goale.
 
 ### 4. Citirea foii în aplicație
 

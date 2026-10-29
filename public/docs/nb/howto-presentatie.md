@@ -19,9 +19,9 @@ I presentasjonsmodus er båndet borte, så gjør klar det du vil vise på forhå
 
 ### Start presentasjonen
 
-Velg *Visning › Presentasjon › Presentasjon*, eller trykk på F11. Båndet, fanene, statuslinjen og det høyre panelet forsvinner. Du ser aktivitetstabellen og Gantt-diagrammet og, hvis du har slått dem på, histogrammet og minikartet. I noen sekunder nederst står det *Trykk på Esc eller F11 for å avslutte fullskjerm.*
+Velg *Visning › Presentasjon › Presentasjon*. I desktopappen kan du også trykke på F11. I nettleseren hører F11 til nettleseren selv: den setter nettleservinduet i fullskjerm, og appen blir som den er. Båndet, fanene, statuslinjen og det høyre panelet forsvinner. Du ser aktivitetstabellen og Gantt-diagrammet og, hvis du har slått dem på, histogrammet og minikartet. I noen sekunder nederst står det *Trykk på Esc eller F11 for å avslutte fullskjerm.*
 
-Du kan starte presentasjonen fra alle faner, også fra *Tabell* eller *Rapport*. Du ser alltid Gantt-diagrammet for det åpne prosjektet, og når du stopper, er du tilbake på fanen du startet fra.
+I desktopappen starter du presentasjonen fra alle faner med F11, også fra *Tabell* eller *Rapport*. I nettleseren starter du den bare med *Visning › Presentasjon › Presentasjon*. Du ser alltid Gantt-diagrammet for det åpne prosjektet, og når du stopper, er du tilbake på fanen du startet fra. I nettleseren er det derfor *Visning*.
 
 ### Stopp presentasjonen
 
@@ -33,7 +33,7 @@ Trykk på Esc eller F11. Båndet og panelene kommer tilbake på fanen du startet
 
 **Meldinger forblir synlige.** En melding fra appen, for eksempel en lagringsfeil, vises også i presentasjonsmodus. Ellers finnes verken bånd eller statuslinje, så en slik melding er det eneste tegnet på at noe er galt.
 
-**Sett opp delt visning, minikart og oppsett på forhånd.** Du trenger båndet for dem, og det er borte i denne modusen. Zoom fungerer, med musehjulet eller med Ctrl+= og Ctrl+-. + og - fungerer også, men bare når fokus er i Gantt-diagrammet. Etter F11 er fokus ofte i aktivitetstabellen, så klikk først i Gantt-diagrammet.
+**Sett opp delt visning, minikart og oppsett på forhånd.** Du trenger båndet for dem, og det er borte i denne modusen. Zoom fungerer, med musehjulet eller med Ctrl+= og Ctrl+-. + og - fungerer også, men bare når fokus er i Gantt-diagrammet. Etter at du har startet, er fokus ofte i aktivitetstabellen, så klikk først i Gantt-diagrammet.
 
 **Fullskjerm virker ikke.** I tillegg til å skjule båndet ber appen også om ekte fullskjerm. Hvis nettleseren eller vinduet avslår det, forsvinner bare båndet og panelene. Presentasjonen fungerer likevel. Hvis du avslutter fullskjerm på en annen måte enn med Esc eller F11, for eksempel med en tast i operativsystemet, stopper presentasjonsmodus også.
 

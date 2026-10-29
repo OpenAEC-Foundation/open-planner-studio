@@ -6,14 +6,14 @@ Båndet øverst på skærmen har faner, og hver fane har grupper med knapper. De
 
 - **Faner** — *Fil* står til venstre, derefter *Start*, *Tidsplan*, *Ressourcer*, *Visning*, *Indstillinger*, *Tabel*, *IFC*, *Rapport* og, kun når AI-tilstand er slået til, *AI*.
 - **Smalt vindue** — når båndet ikke passer, skrumpes knapperne ind til et ikon fra højre mod venstre. Navnet vises da som tooltip på knappen. Hver knap uden egen tooltip viser sit navn.
-- **Sammenfold båndet** — pilen nederst til højre på båndet gør det til en flad stribe med kun ikoner. Gruppen *Oprindelige planer & fremdrift* og gruppen *Forbindelse* på fanen AI forsvinder så bag én knap med en pop op-menu. Standard: udvidet. Dit valg huskes.
+- **Sammenfold båndet** — pilen nederst til højre på båndet gør det til en flad stribe med kun ikoner. Gruppen *Oprindelige planer & fremdrift* og gruppen *Forbindelse* på fanen *AI* forsvinder så bag én knap med en pop op-menu. Standard: udvidet. Dit valg huskes.
 - **Udvidelsesknapper** — en udvidelse kan tilføje sin egen gruppe til enden af en fane. En sådan knap gør det, som udvidelsen har fået den til at gøre.
 
 ## Fil
 
-Et klik på *Fil* gør, at et eget skærmbillede (Backstage) overtager arbejdsområdet. Det har intet bånd. *Tilbage* lukker det. Har du ændret noget under *Projektinfo* og ikke anvendt det, spørger appen først, hvad der skal ske med ændringen.
+Et klik på *Fil* gør, at et eget skærmbillede (Backstage) overtager arbejdsområdet. Det har intet bånd. *Tilbage* lukker det. Har du ændret noget under *Projektindstillinger* og ikke anvendt det, spørger appen først, hvad der skal ske med ændringen.
 
-- **Ny** — åbner vinduet *Opret nyt projekt* og lukker Backstage. Felterne står i [Opret nyt projekt og Projektinfo](docs://ref-projectinfo).
+- **Ny** — åbner vinduet *Opret nyt projekt* og lukker Backstage. Felterne står i [Opret nyt projekt og Projektindstillinger](docs://ref-projectinfo).
 - **Åbn** — vælger en fil og åbner den som dokument. Lukker Backstage.
 - **Seneste** — en liste over projekter, der er åbnet for nylig; et klik åbner et af dem. Kun synlig, når omgivelsen kan åbne filer igen: i desktopappen og i browsere, der tilbyder filadgang, som Chrome og Edge. I andre browsere er knappen der, men siden forbliver tom.
 - **Eksempler** — medfølgende eksempeltidsplaner, opdelt i *Fulde showcase-tidsplaner* (mærke *Alle funktioner*) og *Enkle eksempler*. Et klik åbner en i en ny fane.
@@ -22,11 +22,11 @@ Et klik på *Fil* gør, at et eget skærmbillede (Backstage) overtager arbejdsom
 - **Eksportér** — kort pr. eksportformat, med en beskrivelse. Et klik konverterer projektet og gemmer det og bringer dig tilbage til *Start*. Har tidsplanen en cyklus, vises fejlen i Backstage, og du bliver der. Er projektet knyttet til et ressourcebibliotek, vises afkrydsningsfeltet *Gem biblioteksfilen ved siden af* nedenfor; det virker kun for IFC-kortet.
 - **Importér** — øverst står kortet *Opdater fremdrift fra et ark* (ikke aktivt uden opgaver). Under det står de importører, som udvidelser tilføjer.
 - **Udskriv** — knappen *Åbn forhåndsvisning* bringer dig til fanen *Rapport*.
-- **Projektinfo** — metadata og beregningsprofil for dette projekt. Ændringer træder kun i kraft efter *Anvend*. Se [Opret nyt projekt og Projektinfo](docs://ref-projectinfo) og [Beregningsprofiler og konventioner](docs://uitleg-rekenprofielen).
-- **Indstillinger** — de samme indstillinger som i vinduet *Indstillinger*.
+- **Projektindstillinger** — metadata og beregningsprofil for dette projekt. Ændringer træder kun i kraft efter *Anvend*. Se [Opret nyt projekt og Projektindstillinger](docs://ref-projectinfo) og [Beregningsprofiler og konventioner](docs://uitleg-rekenprofielen).
+- **App-indstillinger** — de samme indstillinger som i vinduet *App-indstillinger*.
 - **Udvidelser** — administration og installation af udvidelser; se [Installér og administrér en udvidelse](docs://howto-extensie-installeren).
 - **Bibliotek** — administration af ressourcebiblioteker; se [Administrér og del ressourcebiblioteker](docs://howto-bibliotheken-beheren).
-- **Hjælp** — den indbyggede dokumentation, også med F1. Søgefeltet søger i titler, overskrifter og selve teksten. Artiklerne står i fire afsnit: *Selvstudier*, *How-to-vejledninger*, *Forklaring* og *Reference*. Under *Dokumentationssprog* vælger du *Følg appens sprog*, *Nederlands* eller *English*. Hjælp findes kun på nederlandsk og engelsk. Er appen på et andet sprog, læser du den engelske version, med en besked. Valget gemmes på denne enhed, adskilt fra appens sprog. Du kan også åbne Hjælp fra et vindue eller et panel. Mange vinduer og panelerne *Egenskaber*, *Ressourcer* og *Advarsler* har et spørgsmålstegn øverst til højre (*Hjælp til dette område*). Det åbner Hjælp for artiklen om det vindue eller panel. Har du skrevet noget i vinduet, som ikke er gemt endnu, spørger appen først: *Gem*, *Annuller* (kassér din indtastning) eller *Tilbage* (bliv i vinduet). Derefter lukkes vinduet, og Hjælp åbnes. Nogle få vinduer, som *Rediger opgave* og *Udjævn ressourcer*, spørger altid. Uden indtastning åbnes Hjælp med det samme.
+- **Hjælp** — den indbyggede dokumentation, også med F1. Søgefeltet søger i titler, overskrifter og selve teksten. Artiklerne står i fire afsnit: *Selvstudier*, *How-to-vejledninger*, *Forklaring* og *Reference*. Under *Dokumentationssprog* vælger du *Følg appens sprog* eller et sprog fra listen. Nederlandsk og engelsk er kildesprogene; de andre sprog har de artikler, der allerede er oversat. Mangler en artikel i dit sprog, læser du den engelske version, med en besked. Valget gemmes på denne enhed, adskilt fra appens sprog. Du kan også åbne Hjælp fra et vindue eller et panel. Mange vinduer og panelerne *Egenskaber*, *Ressourcer* og *Advarsler* har et spørgsmålstegn øverst til højre (*Hjælp til dette område*). Det åbner Hjælp for artiklen om det vindue eller panel. Har du skrevet noget i vinduet, som ikke er gemt endnu, spørger appen først: *Gem*, *Annuller* (kassér din indtastning) eller *Tilbage* (bliv i vinduet). Derefter lukkes vinduet, og Hjælp åbnes. Nogle få vinduer, som *Rediger opgave* og *Udjævn ressourcer*, spørger altid. Uden indtastning åbnes Hjælp med det samme.
 - **Start rundvisning** — lukker Backstage og starter rundvisningen ved trin 1.
 - **Luk projekt** — lukker det aktive dokument. Har det ugemte ændringer, beder appen om en bekræftelse.
 
@@ -46,14 +46,14 @@ Et klik på *Fil* gør, at et eget skærmbillede (Backstage) overtager arbejdsom
 
 ### Start › Opgaver
 
-- **Opgave** — tilføjer en opgave med navnet *Ny opgave* og en varighed på 5 arbejdsdage, startende på projektstartdatoen. (Er *Slå timeplanlægning til* slået til, og er *Standardenhed for nye opgaver* i *Projektinfo* timer, er varigheden 5 timer.) Er en opgave valgt, og er visningen den almindelige trævisning, kommer den nye opgave lige under den nederste valgte opgave (tooltip *Ny opgave lige under valget*). Uden valg kommer den nederst (tooltip *Ny opgave nederst på listen*). Med valg, men mens du filtrerer, grupperer eller sorterer, kommer den også nederst, og en strimmel siger *Ikke tilgængelig under filtrering/gruppering/sortering*. Den nye opgave bliver det eneste valg. Gantt springer til den, og du kan skrive over dens navn med det samme i panelet *Egenskaber*.
-- **Milepæl ▾** — en rulleliste, der sætter en milepæl (varighed 0) på samme sted som *Opgave*. *Startmilepæl* og *Slutmilepæl* bestemmer typen af milepæl. Den nye milepæl får navnet *Ny milepæl* og opgavetypen *Andet*. *Kontrolpunkt (obligatorisk)* laver en slutmilepæl med opgavetypen *Kontrol/inspektion* og markeringen *Obligatorisk (kontraktuel)*, med navnet *Nyt inspektionspunkt*.
+- **Opgave** — tilføjer en opgave med navnet *Ny opgave* og en varighed på 5 arbejdsdage, startende på projektstartdatoen. (Er *Slå timeplanlægning til* slået til, og er *Standardenhed for nye opgaver* i *Projektindstillinger* timer, er varigheden 5 timer.) Er en opgave valgt, og er visningen den almindelige trævisning, kommer den nye opgave lige under den nederste valgte opgave (tooltip *Ny opgave lige under valget*). Uden valg kommer den nederst (tooltip *Ny opgave nederst på listen*). Med valg, men mens du filtrerer, grupperer eller sorterer, kommer den også nederst. En rød besked siger så, at appen ikke kan placere den under dit valg, med knappen *Ryd*. Den nye opgave bliver det eneste valg. Gantt springer til den, og du kan skrive over dens navn med det samme i panelet *Egenskaber*.
+- **Milepæl ▾** — en rulleliste, der sætter en milepæl (varighed 0) på samme sted som *Opgave*. *Startmilepæl* og *Slutmilepæl* bestemmer typen af milepæl. Den nye milepæl får navnet *Ny milepæl* og arbejdskategorien *Andet*. *Kontrolpunkt (obligatorisk)* laver en slutmilepæl med arbejdskategorien *Kontrol/inspektion* og markeringen *Obligatorisk (kontraktuel)*, med navnet *Nyt inspektionspunkt*.
 - **Sammenkæd ▾** — en rulleliste med fire faste handlinger. Hovedknappen skifter aldrig betydning. Se *Tidsplan › Afhængigheder* for de fire handlinger.
 - **Opdel opgave** — slår opdelingstilstand til eller fra. Til: en strimmel under båndet forklarer, at du klikker på en bjælke, hvor afbrydelsen starter, og trækker til højre over bjælkens længde. Ikke aktiv, når Gantt ikke er synligt (på fanerne *Tabel*, *IFC* og *Rapport* og under det fulde ressourcepanel). Tooltip siger så *Kun tilgængelig, når Gantt-diagrammet er synligt*. Se [Opdeling af en opgave](docs://howto-taak-splitsen).
 
 ### Start › Tidsplan
 
-- **Beregn** — beregner tidsplanen: datoer, slæk, kritisk vej og ressourcebelastning. Det sker aldrig af sig selv, medmindre du slår *Beregn automatisk* til (*Indstillinger*, fane *Tidsplan*, overskrift *Beregning*). Når tidsplanen er forældet, siger statuslinjen *Forældet — genberegn (F5)*.
+- **Beregn** — beregner tidsplanen: datoer, slæk, kritisk vej og ressourcebelastning. Det sker aldrig af sig selv, medmindre du slår *Beregn automatisk* til (*App-indstillinger*, fane *Tidsplan*, overskrift *Beregning*). Når tidsplanen er forældet, siger statuslinjen *Forældet — genberegn (F5)*.
 
 ### Start › Zoom
 
@@ -94,7 +94,7 @@ Du kan slå begge til samtidig. Et ekstra klik på en knap slår den side fra ig
 ### Tidsplan › Struktur
 
 - **Koder og felter** — åbner vinduet *Koder og felter* for opgavekoder og brugerdefinerede felter. Se [Koder og brugerdefinerede felter](docs://howto-codes-en-velden).
-- **WBS auto** — slår automatisk nummerering af WBS-koderne til eller fra. Standard: fra. Til: hele træet nummereres igen på én gang, koderne følger så hver ændring i strukturen, og feltet *WBS-kode* i panelet og dialogen er ikke aktivt.
+- **WBS auto** — slår automatisk nummerering af WBS-koderne til eller fra. Standard: til i et nyt projekt. I en åbnet fil uden denne indstilling: til, hvis filen er tom, eller hvis alle koder allerede passer til nummereringen af træet; ellers fra. Til: hele træet nummereres igen på én gang, koderne følger så hver ændring i strukturen, og feltet *WBS-kode* i panelet og dialogen er ikke aktivt.
 - **Nummerér WBS igen** — nummererer WBS-koderne én gang, efter positionen i træet (1.2.3). Ikke aktiv, mens *WBS auto* er til.
 - **Skabeloner** — rulleliste med gemte WBS-skabeloner, hver med sit antal opgaver og afhængigheder. Et klik indsætter skabelonen under den valgte opgave, eller på øverste niveau uden valg. Papirkurv-ikonet sletter en skabelon. Uden skabeloner står der, hvordan du gemmer en (højreklik på en hovedopgave, *Gem gren som skabelon*). Se [Gem og indsæt WBS-skabeloner](docs://howto-wbs-sjablonen).
 - **Indryk** — gør de valgte opgaver til underopgaver af opgaven før dem. Ikke aktiv uden valg, og så snart du filtrerer, grupperer eller sorterer. Tooltip siger så *Ikke tilgængelig under filtrering/gruppering/sortering*.
@@ -103,8 +103,8 @@ Du kan slå begge til samtidig. Et ekstra klik på en knap slår den side fra ig
 ### Tidsplan › Oprindelige planer & fremdrift
 
 - **Administrér oprindelige planer…** — åbner vinduet for oprindelige planer. Se [Gem og administrér en oprindelig plan](docs://howto-baseline-opslaan-en-beheren).
-- **Statusdato** — datoen, du måler fremdriften til. Skriv en dato; krydset (*Ryd statusdato*) fjerner den. Effekt: fremdriften måles til den dato, og statusdatolinjen og fremdriftslinjen i Gantt ligger på den. Se [Fremdrift, statusdato og oprindelig plan](docs://uitleg-voortgang).
-- **Fremdriftsmetode** — et valg mellem *Retained Logic* og *Progress Override*. Standard: *Retained Logic*. Effekt: med *Retained Logic* følger det resterende arbejde for en startet efterfølgende opgave afhængigheden. Med *Progress Override* starter det resterende arbejde på statusdatoen, uden at vente på den foregående opgave. Se [Vælg fremdriftsmetode](docs://howto-voortgangsmodus-kiezen).
+- **Statusdato** — datoen, du måler fremdriften til. Skriv en dato; krydset (*Ryd statusdato*) fjerner den. Har projektkalenderen tidsbånd, så beregner appen i timer, og et tidsfelt vises ved siden af datoen (MS Project gemmer ofte 17:00). Tiden tæller så med: 12:00 i stedet for 17:00 giver en halv dag forskel i det resterende arbejde. Uden tidsbånd beregner appen i hele dage, og der er intet tidsfelt. Effekt: fremdriften måles til den dato, og statusdatolinjen og fremdriftslinjen i Gantt ligger på den. Se [Fremdrift, statusdato og oprindelig plan](docs://uitleg-voortgang).
+- **Fremdriftsmetode** — et valg mellem *Retained Logic* og *Progress Override*. Standard: *Retained Logic*. Effekt: med *Retained Logic* afhænger det resterende arbejde for en startet efterfølgende opgave af afhængigheden. Med *Progress Override* starter det resterende arbejde på statusdatoen, uden at vente på den foregående opgave. Se [Vælg fremdriftsmetode](docs://howto-voortgangsmodus-kiezen).
 
 I det sammenfoldede bånd står disse tre bag én flagknap med titlen *Oprindelige planer & fremdrift*.
 
@@ -152,7 +152,7 @@ Denne gruppe findes også på *Tabel* og *Rapport*.
 
 ### Vis › Visning
 
-- **Kolonner…**, **Filtrér…**, **Gruppér…** og **Sortér…** — er kun synlige, når *Vis klassiske visningsknapper* er slået til (*Indstillinger*, fanen *Avanceret*, overskriften *Ældre funktioner*). Standard: fra. *Kolonner…* går til *Tabel* og åbner kolonnevælgeren der. *Filtrér…* åbner filtervinduet med det samme, så længe der ikke findes et gemt filter. Med gemte filtre åbner den en menu med *Filtrér…*, *Ryd* (kun når et filter er aktivt) og de gemte filtre. *Gruppér…* tillader to niveauer. *Sortér…* tillader flere niveauer. En knap lyser op, når den visningsindstilling er aktiv. I det aktuelle bånd gør du det med layoutknapper; se [Oprettelse og brug af et layout](docs://howto-layouts-gebruiken).
+- **Kolonner…**, **Filtrér…**, **Gruppér…** og **Sortér…** — er kun synlige, når *Vis klassiske visningsknapper* er slået til (*App-indstillinger*, fanen *Avanceret*, overskriften *Ældre funktioner*). Standard: fra. *Kolonner…* går til *Tabel* og åbner kolonnevælgeren der. *Filtrér…* åbner filtervinduet med det samme, så længe der ikke findes et gemt filter. Med gemte filtre åbner den en menu med *Filtrér…*, *Ryd* (kun når et filter er aktivt) og de gemte filtre. *Gruppér…* tillader to niveauer. *Sortér…* tillader flere niveauer. En knap lyser op, når den visningsindstilling er aktiv. I det aktuelle bånd gør du det med layoutknapper; se [Oprettelse og brug af et layout](docs://howto-layouts-gebruiken).
 
 ### Vis › Struktur
 
@@ -166,15 +166,23 @@ Denne gruppe findes også på *Tabel* og *Rapport*.
 
 ### Vis › Præsentation
 
-- **Præsentation** — slår præsentationstilstand til eller fra (F11 eller Esc for at stoppe): kun Gantt-diagrammet fylder skærmen. Se [Præsentation på en stor skærm](docs://howto-presentatie).
+- **Præsentation** — slår præsentationstilstand til eller fra (Esc for at stoppe, i desktopappen også F11): kun Gantt-diagrammet fylder skærmen. Se [Præsentation på en stor skærm](docs://howto-presentatie).
 - **Opdelt visning** — deler Gantt-diagrammet i to tidsvinduer, som begge starter med din aktuelle zoom og position (hver delt i 50 procent), eller gør det til ét igen. Standard: fra. Se [Brug af opdelt visning og minikortet](docs://howto-split-view-en-mini-map).
 - **Minikort** — viser eller skjuler minikortet. Standard: fra. Dit valg bliver husket.
 
 ### Vis › Paneler
 
-- **Egenskaber** — viser eller skjuler egenskabspanelet i højre kolonne. Standard: til. Se [Opgavedialog og egenskabspanel](docs://ref-taak-eigenschappen).
+- **Egenskaber** — viser eller skjuler panelet *Egenskaber* i højre kolonne. Standard: til. Se [Opgavedialog og egenskabspanel](docs://ref-taak-eigenschappen).
 
 Knapperne *Ressourcer*, *Ressourcedock* og *Histogram* er de samme som under *Ressourcer*. *Advarsler* er det samme som under *Tidsplan*.
+
+**Den højre kolonne.** Kolonnen til højre for Gantt-diagrammet er der, så snart mindst ét af panelerne *Egenskaber*, *Ressourcedock* eller *Advarsler* er til. Er ingen til, er der ingen kolonne. Hvis et fuldt panel overtager arbejdsområdet, for eksempel det fulde ressourcepanel, forsvinder kolonnen. Kun på fanen *Tabel* bliver den.
+
+- **Bredde** — træk skillelinjen mellem arbejdsområdet og kolonnen. Én bredde gælder for alle paneler i kolonnen.
+- **Deling** — hvis to paneler er til, træk grænsen mellem dem. Hvis ét panel er til, fylder det hele kolonnen.
+- **Skjul** — knappen *Skjul sidekolonne* i overskriften skjuler kolonnen. En smal stribe med knappen *Vis sidekolonne* viser den igen, med de samme paneler som før.
+- **Luk** — hvert panel har et kryds i overskriften. Det er den samme kontakt som knappen i båndet.
+- **Fuldt panel** — i ressourcedokken åbner knappen *Udvid til fuldt panel* det fulde ressourcepanel.
 
 ### Vis › Oprindelig plan og fremdrift
 
@@ -182,8 +190,8 @@ Denne gruppe har samme navn som gruppen under *Tidsplan*, men den indeholder teg
 
 - **Oprindelig plan-overlay** — viser den aktive oprindelige plan som en tynd bjælke under hver opgavebjælke. Standard: til. Uden en aktiv oprindelig plan er der ikke noget at se.
 - **Fremdriftslinje** — tegner en linje på statusdatoen, som buler ud pr. opgave til dens fremdrift. Standard: til. Uden statusdato er der ikke noget at se. Når fremdriftslinjen er til, er den linje også markøren for statusdatoen.
-- **Statusdatolinje** — tegner en stiplet linje på statusdatoen. Standard: til. Du ser den kun, når fremdriftslinjen er fra, for ellers tager fremdriftslinjen dens plads. Etiketten med datoen i overskriften bliver, så længe mindst en af de to er til.
-- **Bjælkefarver** — vælger hvordan bjælkerne farves: *Kritisk vej* (standard), *Pr. opgave — automatisk* eller *Efter kategori* med et valg af felt. Hvis det felt ikke findes i dette projekt, siger menuen, at *Opgavetype* bruges midlertidigt. Uden for *Kritisk vej* markerer en rød kontur den kritiske vej. Valget gælder også for rapporten.
+- **Statusdatolinje** — tegner en stiplet linje på statusdatoen. Standard: til. Du ser den kun, når fremdriftslinjen er fra, for ellers tager fremdriftslinjen dens plads. Etiketten med datoen i overskriften bliver, så længe mindst en af de to er til. Etiketten følger dit datoformat, for eksempel 20-09-2006. Hvis appen regner i timer, placeres linjen og etiketten på tidspunktet, og etiketten viser også klokkeslættet, for eksempel 20-09-2006 17:00.
+- **Bjælkefarver** — vælger hvordan bjælkerne farves: *Kritisk vej* (standard), *Pr. opgave — automatisk* eller *Efter kategori* med et valg af felt. Hvis feltet ikke findes i dette projekt, siger menuen, at *Arbejdskategori* bruges midlertidigt. Uden for *Kritisk vej* markerer en rød kontur den kritiske vej. Valget gælder også for rapporten.
 - **Ressourceaccent** — tegner en tynd stribe i ressourcens farve under hver bjælke for en opgave uden underopgaver. Striben er delt i forhold til tildelingsenhederne pr. dag. Standard: fra.
 - **Slækbånd** — tegner det grønne bånd efter en ikke-kritisk bjælke, op til opgavens seneste slutdato. Standard: til.
 - **Afhængighedslinjer** — viser eller skjuler afhængighedslinjerne mellem opgaver. Standard: til. Valget hører til dokumentet og til layoutet.
@@ -192,8 +200,8 @@ Denne gruppe har samme navn som gruppen under *Tidsplan*, men den indeholder teg
 
 ### Indstillinger › Projekt
 
-- **Projektinfo** — åbner vinduet *Projektinfo*: metadata for projektet og, i blokken *Beregningsprofil og beregningsindstillinger*, hvordan projektet beregnes. Se [Nyt projekt og Projektinfo](docs://ref-projectinfo).
-- **Indstillinger** — åbner vinduet *Indstillinger* med fanerne *Udseende*, *Tidsplan* og *Avanceret*. De samme indstillinger findes under *Fil › Indstillinger*.
+- **Projektindstillinger** — åbner vinduet *Projektindstillinger*: metadata for projektet og, i blokken *Beregningsprofil og beregningsindstillinger*, hvordan projektet beregnes. Se [Nyt projekt og Projektindstillinger](docs://ref-projectinfo).
+- **App-indstillinger** — åbner vinduet *App-indstillinger* med fanerne *Udseende*, *Tidsplan* og *Avanceret*. De samme indstillinger findes under *Fil › App-indstillinger*.
 
 ### Indstillinger › Kalender
 
@@ -213,7 +221,7 @@ Fanen *Tabel* viser opgaverne som en fuld tabel i stedet for Gantt-diagrammet. G
 
 ## IFC
 
-Fanen viser IFC-panelet i arbejdsområdet. Båndet har ingen knapper her, kun tekstlinjen *IFC 4x3 - Industry Foundation Classes*.
+Fanen viser IFC-panelet i arbejdsområdet. Båndet har ingen knapper her, kun tekstlinjen *IFC - Industry Foundation Classes, i projektets skema (standard IFC 4.3 ADD2)*.
 
 ## Rapport
 
@@ -223,7 +231,7 @@ Fanen viser IFC-panelet i arbejdsområdet. Båndet har ingen knapper her, kun te
 
 ## AI
 
-Fanen *AI* findes kun, når *Aktiver AI-tilstand* er slået til (*Indstillinger*, fanen *Avanceret*, overskriften *AI-tilstand*). Standard: fra. Slår du den fra, fjerner appen fanen og stopper broen. En AI-assistent arbejder med din tidsplan via en MCP-bro, som du starter her. Se [Forbind en AI-assistent (MCP)](docs://howto-ai-assistent-koppelen).
+Fanen *AI* findes kun, når *Aktiver AI-tilstand* er slået til (*App-indstillinger*, fanen *Avanceret*, overskriften *AI-tilstand*). Standard: fra. Slår du den fra, fjerner appen fanen og stopper broen. En AI-assistent arbejder med din tidsplan via en MCP-bro, som du starter her. Se [Forbind en AI-assistent (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 
@@ -238,11 +246,11 @@ Fanen *AI* findes kun, når *Aktiver AI-tilstand* er slået til (*Indstillinger*
 ### AI › Sikkerhed
 
 - **Pause** / **Genoptag** — afviser midlertidigt alle ændringer fra AI'en. Læsning er stadig tilladt, og broen forbliver aktiv. Knappen lyser rødt, mens den er sat på pause.
-- **Skrivebeskyttet** — afviser alle værktøjer, der ændrer data, mens den er til.
+- **Skrivebeskyttet** — afviser alle værktøjer, der ændrer data, mens den er slået til.
 - **Automatisk backup: til** / **Automatisk backup: fra** — skriver automatisk en IFC-backup før den første AI-ændring pr. dokument. Standard: til.
 - **Lav backup nu** — skriver straks en backup og viser filnavnet. Kun i desktopappen.
 - **Åbn backupmappe** — åbner mappen med backuperne. Kun i desktopappen.
 
-### AI › Log
+### AI › AI-handlinger
 
 - **Panel AI-handlinger** — viser eller skjuler panelet *AI-handlinger* med kaldene til broen, med deres argumenter og svar.

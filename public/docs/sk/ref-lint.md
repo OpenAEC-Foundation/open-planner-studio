@@ -5,15 +5,15 @@ Pás s nástrojmi hore na obrazovke má karty. Každá karta má skupiny tlačid
 ## Ako sa pás s nástrojmi chová
 
 - **Karty** — *Súbor* je vľavo, potom *Domov*, *Plán*, *Zdroje*, *Zobrazenie*, *Nastavenia*, *Tabuľka*, *IFC*, *Zostava* a len pri zapnutom režime AI aj *AI*.
-- **Úzke okno** — keď sa pás s nástrojmi nezmestí, tlačidlá sa zmenšia na ikonu sprava doľava. Názov je potom v popisku tlačidla. Každé tlačidlo bez vlastného popisku zobrazí svoj názov.
+- **Úzke okno** — keď sa pás s nástrojmi nezmestí, tlačidlá sa zmenšia na ikonu sprava doľava. Názov je potom popisok tlačidla. Každé tlačidlo bez vlastného popisku zobrazí svoj názov.
 - **Zbaliť pás s nástrojmi** — malá šípka vpravo dole na páse ho zmení na plochý pás len s ikonami. Skupiny *Smerné plány a postup* a *Pripojenie* na karte *AI* potom zmiznú za jedno tlačidlo s vyskakovacím oknom. Predvolené: rozbalený. Vaša voľba sa zapamätá.
 - **Tlačidlá rozšírení** — rozšírenie môže pridať vlastnú skupinu na koniec karty. Takéto tlačidlo robí to, čo mu rozšírenie určilo.
 
 ## Súbor
 
-Kliknutím na *Súbor* sa pracovná plocha zmení na vlastnú obrazovku (Backstage). Nemá pás s nástrojmi. *Späť* ju zavrie. Ak ste niečo zmenili v časti *Info o projekte* a neuplatnili ste to, aplikácia sa najprv opýta, čo s tým urobiť.
+Kliknutím na *Súbor* sa pracovná plocha zmení na vlastnú obrazovku (Backstage). Nemá pás s nástrojmi. *Späť* ju zavrie. Ak ste niečo zmenili v časti *Nastavenia projektu* a neuplatnili ste to, aplikácia sa najprv opýta, čo s tým urobiť.
 
-- **Vytvoriť** — otvorí okno *Nový projekt* a zavrie Backstage. Polia nájdete v [Nový projekt a info o projekte](docs://ref-projectinfo).
+- **Vytvoriť** — otvorí okno *Nový projekt* a zavrie Backstage. Polia nájdete v [Nový projekt a nastavenia projektu](docs://ref-projectinfo).
 - **Otvoriť** — vyberie súbor a otvorí ho ako dokument. Zavrie Backstage.
 - **Nedávne** — zoznam nedávno otvorených projektov; kliknutím sa otvorí jeden z nich. Zobrazí sa len vtedy, keď prostredie dokáže znovu otvárať súbory: v počítačovej aplikácii a v prehliadačoch, ktoré ponúkajú prístup k súborom, napríklad Chrome a Edge. V iných prehliadačoch je tlačidlo síce vidieť, ale stránka zostane prázdna.
 - **Príklady** — vstavané ukážkové plány, rozdelené na *Úplné ukážkové plány* (odznak *Všetky funkcie*) a *Jednoduché príklady*. Kliknutím sa jeden z nich otvorí na novej karte.
@@ -22,11 +22,11 @@ Kliknutím na *Súbor* sa pracovná plocha zmení na vlastnú obrazovku (Backsta
 - **Exportovať** — karty pre každý formát exportu s popisom. Kliknutím sa projekt prevedie a uloží a vrátite sa na kartu *Domov*. Ak plán obsahuje cyklus, chyba sa zobrazí v Backstage a zostanete tam. Ak je projekt prepojený s knižnicou zdrojov, pod kartami sa zobrazí zaškrtávacie políčko *Uložiť súbor knižnice vedľa*; funguje len pri karte IFC.
 - **Importovať** — hore karta *Aktualizovať postup z tabuľky* (bez úloh je nedostupná), pod ňou importéry, ktoré pridajú rozšírenia.
 - **Tlačiť** — tlačidlo *Otvoriť náhľad tlače* vás presunie na kartu *Zostava*.
-- **Info o projekte** — metadáta a profil výpočtu tohto projektu. Zmeny sa uplatnia až po *Použiť*. Pozrite [Nový projekt a info o projekte](docs://ref-projectinfo) a [Profily výpočtu a pravidlá výpočtu](docs://uitleg-rekenprofielen).
-- **Nastavenia** — rovnaké nastavenia ako v okne *Nastavenia*.
+- **Nastavenia projektu** — metadáta a profil výpočtu tohto projektu. Zmeny sa uplatnia až po *Použiť*. Pozrite [Nový projekt a nastavenia projektu](docs://ref-projectinfo) a [Profily výpočtu a pravidlá výpočtu](docs://uitleg-rekenprofielen).
+- **Nastavenia aplikácie** — rovnaké nastavenia ako v okne *Nastavenia aplikácie*.
 - **Rozšírenia** — spravovanie a inštalácia rozšírení; pozrite [Inštalácia a spravovanie rozšírenia](docs://howto-extensie-installeren).
 - **Knižnica** — spravovanie knižníc zdrojov; pozrite [Spravovanie a zdieľanie knižníc zdrojov](docs://howto-bibliotheken-beheren).
-- **Pomoc** — vstavaná dokumentácia, aj s klávesom F1. Vyhľadávacie pole hľadá v názvoch, nadpisoch a v samotnom texte. Články sú v štyroch častiach: *Návody* (krok za krokom), *Návody* (postupy), *Vysvetlenie* a *Referencia*. Vo voľbe *Jazyk dokumentácie* vyberte *Podľa jazyka aplikácie*, *Nederlands* alebo *English*. Pomoc existuje len v holandčine a angličtine. Ak je aplikácia v inom jazyku, čítate anglickú verziu s upozornením. Voľba sa uchováva na tomto zariadení oddelene od jazyka aplikácie. Pomoc otvoríte aj z okna alebo panela: mnohé okná a panely *Vlastnosti*, *Zdroje* a *Upozornenia* majú vpravo hore otáznik (*Pomoc k tejto časti*), ktorý otvorí Pomoc na článok o tomto okne alebo paneli. Ak ste v okne zadali niečo, čo ešte nie je uložené, aplikácia sa najprv opýta: *Uložiť*, *Zrušiť* (zahodiť zadané údaje) alebo *Späť* (zostať v okne). Potom sa okno zavrie a otvorí sa Pomoc. Niektoré okná, napríklad *Upraviť úlohu* a *Vyvažovanie zdrojov*, sa vždy opýtajú. Bez zadaných údajov sa Pomoc otvorí hneď.
+- **Pomoc** — vstavaná dokumentácia, aj s klávesom F1. Vyhľadávacie pole hľadá v názvoch, nadpisoch a v samotnom texte. Články sú v štyroch častiach: *Návody* (krok za krokom), *Návody* (postupy), *Vysvetlenie* a *Referencia*. Vo voľbe *Jazyk dokumentácie* vyberte *Podľa jazyka aplikácie* alebo jazyk zo zoznamu. Holandčina a angličtina sú zdrojové jazyky; ostatné jazyky majú články, ktoré sú už preložené. Ak článok vo vašom jazyku chýba, čítate anglickú verziu s upozornením. Voľba sa uchováva na tomto zariadení oddelene od jazyka aplikácie. Pomoc otvoríte aj z okna alebo panela: mnohé okná a panely *Vlastnosti*, *Zdroje* a *Upozornenia* majú vpravo hore otáznik (*Pomoc k tejto časti*), ktorý otvorí Pomoc na článok o tomto okne alebo paneli. Ak ste v okne zadali niečo, čo ešte nie je uložené, aplikácia sa najprv opýta: *Uložiť*, *Zrušiť* (zahodiť zadané údaje) alebo *Späť* (zostať v okne). Potom sa okno zavrie a otvorí sa Pomoc. Niektoré okná, napríklad *Upraviť úlohu* a *Vyvažovanie zdrojov*, sa vždy opýtajú. Bez zadaných údajov sa Pomoc otvorí hneď.
 - **Spustiť prehliadku** — zatvorí Backstage a spustí prehliadku od kroku 1.
 - **Zavrieť projekt** — zavrie aktívny dokument. Ak má neuložené zmeny, aplikácia požiada o potvrdenie.
 
@@ -35,7 +35,7 @@ Kliknutím na *Súbor* sa pracovná plocha zmení na vlastnú obrazovku (Backsta
 ### Domov › Súbor
 
 - **Vytvoriť**, **Uložiť**, **Otvoriť** a **Uložiť ako** — rovnaké akcie ako na karte *Súbor*.
-- **Nedávne** — rozbaľovací zoznam nedávnych projektov; kliknutím sa otvorí jeden z nich. Zobrazí sa len za rovnakej podmienky ako *Nedávne* v Backstage. Bez nedávnych súborov zobrazí *Žiadne nedávne súbory*.
+- **Nedávne** — rozbaľovací zoznam nedávnych projektov; kliknutím sa otvorí jeden z nich. Zobrazí sa len za rovnakej podmienky ako *Súbor › Nedávne*. Bez nedávnych súborov zobrazí *Žiadne nedávne súbory*.
 - **Exportovať** — rozbaľovací zoznam formátov exportu (krátke názvy). Kliknutím sa projekt prevedie a uloží.
 
 ### Domov › Úpravy
@@ -46,14 +46,14 @@ Kliknutím na *Súbor* sa pracovná plocha zmení na vlastnú obrazovku (Backsta
 
 ### Domov › Úlohy
 
-- **Úloha** — pridá úlohu s názvom *Nová úloha* s trvaním 5 pracovných dní, začínajúcu na začiatku projektu. (Ak je *Zapnúť plánovanie v hodinách* zapnuté a *Predvolená jednotka pre nové úlohy* v *Info o projekte* je hodiny, trvanie je 5 hodín.) Ak je vybraná úloha a zobrazenie je obyčajný strom, nová úloha sa vloží priamo pod najnižšiu vybranú úlohu (popisok *Nová úloha priamo pod výberom*). Bez výberu sa vloží dole (popisok *Nová úloha na konci zoznamu*). Ak máte výber, ale práve filtrujete, zoskupujete alebo triedite, úloha sa tiež vloží dole a lišta zobrazí *Nedostupné počas filtrovania, zoskupovania a triedenia*. Nová úloha sa stane jediným výberom, diagram Gantt sa na ňu presunie a jej názov je pripravený na prepísanie v paneli *Vlastnosti*.
-- **Medzník ▾** — rozbaľovací zoznam, ktorý vloží medzník (trvanie 0) na to isté miesto ako *Úloha*. *Medzník začiatku* a *Medzník dokončenia* určujú druh medzníka; nový medzník sa volá *Nový medzník* a dostane typ úlohy *Iné*. *Kontrolný bod (povinný)* vytvorí medzník dokončenia s typom úlohy *Kontrola/inšpekcia* a príznakom *Povinný (zmluvný)*, s názvom *Nový kontrolný bod*.
+- **Úloha** — pridá úlohu s názvom *Nová úloha* s trvaním 5 pracovných dní, začínajúcu na začiatku projektu. (Ak je *Zapnúť plánovanie v hodinách* zapnuté a *Predvolená jednotka pre nové úlohy* v okne *Nastavenia projektu* je hodiny, trvanie je 5 hodín.) Ak je vybraná úloha a zobrazenie je obyčajný strom, nová úloha sa vloží priamo pod najnižšiu vybranú úlohu (popisok *Nová úloha priamo pod výberom*). Bez výberu sa vloží dole (popisok *Nová úloha na konci zoznamu*). Ak máte výber, ale práve filtrujete, zoskupujete alebo triedite, úloha sa tiež vloží dole. Červené oznámenie potom povie, že aplikácia úlohu nemôže vložiť pod váš výber, s tlačidlom *Vymazať*. Nová úloha sa stane jediným výberom, diagram Gantt sa na ňu presunie a jej názov je pripravený na prepísanie v paneli *Vlastnosti*.
+- **Medzník ▾** — rozbaľovací zoznam, ktorý vloží medzník (trvanie 0) na to isté miesto ako *Úloha*. *Medzník začiatku* a *Medzník dokončenia* určujú druh medzníka; nový medzník sa volá *Nový medzník* a dostane druh prác *Iné*. *Kontrolný bod (povinný)* vytvorí medzník dokončenia s druhom prác *Kontrola/inšpekcia* a príznakom *Povinný (zmluvný)*, s názvom *Nový kontrolný bod*.
 - **Prepojiť ▾** — rozbaľovací zoznam so štyrmi pevnými akciami; hlavné tlačidlo nikdy nezmení význam. Štyri akcie nájdete na karte *Plán › Závislosti*.
 - **Rozdeliť úlohu** — zapne alebo vypne režim rozdelenia úlohy. Zapnuté: lišta pod pásom s nástrojmi vysvetlí, že kliknete na pruh tam, kde sa má úloha rozdeliť, a potiahnete doprava o jej dĺžku. Nedostupné, keď diagram Gantt nie je zobrazený (na kartách *Tabuľka*, *IFC* a *Zostava* a pod celým panelom zdrojov). Popisok potom hovorí *Dostupné len vtedy, keď je Gantt zobrazený*. Pozrite [Rozdelenie úlohy](docs://howto-taak-splitsen).
 
 ### Domov › Plán
 
-- **Prepočítať** — vypočíta plán: dátumy, časovú rezervu, kritickú cestu a zaťaženie zdrojov. Nikdy sa to nestane samo od seba, pokiaľ nezapnete *Automatický prepočet* (*Nastavenia*, karta *Plán*, nadpis *Prepočítanie*). Kým je plán zastaralý, stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*.
+- **Prepočítať** — vypočíta plán: dátumy, časovú rezervu, kritickú cestu a zaťaženie zdrojov. Nikdy sa to nestane samo od seba, pokiaľ nezapnete *Automatický prepočet* (*Nastavenia aplikácie*, karta *Plán*, nadpis *Prepočítanie*). Kým je plán zastaralý, stavový riadok zobrazí *Zastaralé — prepočítajte (F5)*.
 
 ### Domov › Priblíženie
 
@@ -94,7 +94,7 @@ Obe môžete zapnúť naraz; druhé kliknutie na tlačidlo túto stranu zase vyp
 ### Plán › Štruktúra
 
 - **Kódy a polia** — otvorí okno *Kódy a polia* pre kódy aktivít a vlastné polia. Pozrite [Kódy a vlastné polia](docs://howto-codes-en-velden).
-- **WBS automaticky** — zapne alebo vypne automatické číslovanie kódov WBS. Predvolené: vypnuté. Zapnuté: celý strom sa prečísluje naraz, kódy potom sledujú každú zmenu štruktúry a pole *Kód WBS* v paneli aj v dialógu je nedostupné.
+- **WBS automaticky** — zapne alebo vypne automatické číslovanie kódov WBS. Predvolené: zapnuté v novom projekte. V otvorenom súbore bez tohto nastavenia: zapnuté, ak je súbor prázdny alebo už všetky kódy zodpovedajú číslovaniu stromu; inak vypnuté. Zapnuté: celý strom sa prečísluje naraz, kódy potom sledujú každú zmenu štruktúry a pole *Kód WBS* v paneli aj v dialógu je nedostupné.
 - **Prečíslovať WBS** — prečísluje kódy WBS jedenkrát podľa pozície v strome (1.2.3). Keď je *WBS automaticky* zapnuté, je nedostupné.
 - **Šablóny** — rozbaľovací zoznam uložených šablón WBS, každá s počtom úloh a závislostí. Kliknutím sa šablóna vloží pod vybranú úlohu, alebo na najvyššiu úroveň bez výberu. Ikona koša šablónu odstráni. Bez šablón zobrazí, ako ju uložiť (kliknite pravým tlačidlom na súhrnnú úlohu a vyberte *Uložiť vetvu ako šablónu*). Pozrite [Ukladanie a vkladanie šablón WBS](docs://howto-wbs-sjablonen).
 - **Znížiť úroveň** — vybraté úlohy sa stanú čiastkovými úlohami úlohy pred nimi. Bez výberu je nedostupné, a tiež hneď ako filtrujete, zoskupujete alebo triedite; popisok potom hovorí *Nedostupné počas filtrovania, zoskupovania a triedenia*.
@@ -103,7 +103,7 @@ Obe môžete zapnúť naraz; druhé kliknutie na tlačidlo túto stranu zase vyp
 ### Plán › Smerné plány a postup
 
 - **Spravovať pôvodné plány…** — otvorí okno pôvodných plánov. Pozrite [Ukladanie a spravovanie pôvodného plánu](docs://howto-baseline-opslaan-en-beheren).
-- **Dátum kontroly stavu** — dátum, do ktorého merate postup. Zadajte dátum; kríž (*Vymazať dátum kontroly stavu*) ho odstráni. Účinok: postup sa meria do tohto dátumu a čiara dátumu kontroly stavu a čiara postupu v diagrame Gantt sú na ňom. Pozrite [Postup, dátum kontroly stavu a pôvodný plán](docs://uitleg-voortgang).
+- **Dátum kontroly stavu** — dátum, do ktorého merate postup. Zadajte dátum; kríž (*Vymazať dátum kontroly stavu*) ho odstráni. Ak má kalendár projektu bloky pracovného času, aplikácia počíta v hodinách a vedľa dátumu sa zobrazí pole času (MS Project často ukladá 17:00). Čas sa potom počíta: 12:00 namiesto 17:00 znamená pol dňa rozdielu v zostávajúcej práci. Bez blokov pracovného času aplikácia počíta v celých dňoch a žiadne pole času sa nezobrazí. Účinok: postup sa meria do tohto dátumu a čiara dátumu kontroly stavu a čiara postupu v diagrame Gantt sú na ňom. Pozrite [Postup, dátum kontroly stavu a pôvodný plán](docs://uitleg-voortgang).
 - **Režim postupu** — voľba medzi *Retained Logic* a *Progress Override*. Predvolené: *Retained Logic*. Účinok: pri *Retained Logic* sa zostávajúca práca začatej nasledujúcej úlohy riadi závislosťou; pri *Progress Override* zostávajúca práca začína dátumom kontroly stavu, bez čakania na predchádzajúcu úlohu. Pozrite [Výber režimu postupu](docs://howto-voortgangsmodus-kiezen).
 
 V zbalenom páse sú tieto tri tlačidlá za jedným tlačidlom s vlajkou s názvom *Smerné plány a postup*.
@@ -148,11 +148,11 @@ Táto skupina je aj na kartách *Tabuľka* a *Zostava*.
 - **Priblížiť +** a **Oddialiť -** — priblížia alebo oddialia časovú os o 10 pixelov na deň.
 - **Obnoviť** — nastaví priblíženie späť na predvolených 30 pixelov na deň.
 - **Prispôsobiť projektu** — priblíži a posunie zobrazenie tak, aby bol celý projekt vidieť.
-- **Výber mierky** — zoznam s *Rok*, *Štvrťrok*, *Mesiac*, *Týždeň*, *Deň* a — iba keď je zapnuté *Zapnúť plánovanie v hodinách* — *Hodina*. Výber nastaví pevné priblíženie; zobrazená hodnota nasleduje aktuálne priblíženie a pod ňou sa zobrazí toto priblíženie v pixeloch na deň.
+- **Výber mierky** — zoznam s *Rok*, *Štvrťrok*, *Mesiac*, *Týždeň*, *Deň* a — iba keď je zapnuté *Zapnúť plánovanie v hodinách* — *Hodina*. Výber nastaví pevné priblíženie. Zobrazená hodnota nasleduje aktuálne priblíženie a pod ňou sa zobrazí toto priblíženie v pixeloch na deň.
 
 ### Zobrazenie › Zobrazovanie
 
-- **Vybrať stĺpce…**, **Filtrovať…**, **Zoskupiť…** a **Zoradiť…** — viditeľné iba vtedy, keď je zapnuté *Zobraziť klasické tlačidlá zobrazenia* (*Nastavenia*, karta *Rozšírené*, nadpis *Staré funkcie*). Predvolené: vypnuté. *Vybrať stĺpce…* vás presunie na kartu *Tabuľka* a tam otvorí výber stĺpcov. *Filtrovať…* otvorí okno filtra hneď, ak nie je uložený žiadny filter; s uloženými filtrami otvorí ponuku s *Filtrovať…*, *Vymazať* (iba keď je filter aktívny) a uloženými filtrami. *Zoskupiť…* umožňuje dve úrovne. *Zoradiť…* umožňuje viac úrovní. Tlačidlo sa rozsvieti, keď je toto nastavenie zobrazenia aktívne. V aktuálnom páse s nástrojmi to robíte tlačidlami rozloženia; pozrite si [Vytvorenie a používanie rozloženia](docs://howto-layouts-gebruiken).
+- **Vybrať stĺpce…**, **Filtrovať…**, **Zoskupiť…** a **Zoradiť…** — viditeľné iba vtedy, keď je zapnuté *Zobraziť klasické tlačidlá zobrazenia* (*Nastavenia aplikácie*, karta *Rozšírené*, nadpis *Staré funkcie*). Predvolené: vypnuté. *Vybrať stĺpce…* vás presunie na kartu *Tabuľka* a tam otvorí výber stĺpcov. *Filtrovať…* otvorí okno filtra hneď, ak nie je uložený žiadny filter. S uloženými filtrami otvorí ponuku s *Filtrovať…*, *Vymazať* (iba keď je filter aktívny) a uloženými filtrami. *Zoskupiť…* umožňuje dve úrovne. *Zoradiť…* umožňuje viac úrovní. Tlačidlo sa rozsvieti, keď je toto nastavenie zobrazenia aktívne. V aktuálnom páse s nástrojmi to robíte tlačidlami rozloženia; pozrite si [Vytvorenie a používanie rozloženia](docs://howto-layouts-gebruiken).
 
 ### Zobrazenie › Osnova
 
@@ -161,12 +161,12 @@ Táto skupina je aj na kartách *Tabuľka* a *Zostava*.
 
 ### Zobrazenie › Rozloženie
 
-- **Tlačidlá rozloženia** — každé rozloženie je prepínač s ikonou a názvom. Je medzi nimi *Diagram zdrojov*. Jedno kliknutie rozloženie zapne, ďalšie kliknutie ho vypne a vráti zobrazenie z času pred kliknutím. Rozloženia s rôznymi časťami môžu byť zapnuté súčasne. Kliknite pravým tlačidlom na rozloženie: *Upraviť…*, *Duplikovať* a *Odstrániť* (po potvrdení). Vstavané rozloženie možno iba duplikovať.
+- **Tlačidlá rozloženia** — každé rozloženie je prepínač s ikonou a názvom. Medzi nimi je aj *Diagram zdrojov*. Jedno kliknutie rozloženie zapne. Ďalšie kliknutie ho vypne a vráti zobrazenie z času pred kliknutím. Rozloženia s rôznymi časťami môžu byť zapnuté súčasne. Kliknite pravým tlačidlom na rozloženie: *Upraviť…*, *Duplikovať* a *Odstrániť* (po potvrdení). Vstavané rozloženie možno iba duplikovať.
 - **Vytvoriť rozloženie** — otvorí okno rozloženia pre nové rozloženie.
 
 ### Zobrazenie › Prezentácia
 
-- **Prezentovať** — zapne alebo vypne režim prezentácie (na zastavenie stlačte F11 alebo Esc): iba Gantt vyplní obrazovku. Pozrite si [Prezentovanie na veľkej obrazovke](docs://howto-presentatie).
+- **Prezentovať** — zapne alebo vypne režim prezentácie (na zastavenie stlačte Esc, v desktopovej aplikácii aj F11). Iba Gantt vyplní obrazovku. Pozrite si [Prezentovanie na veľkej obrazovke](docs://howto-presentatie).
 - **Rozdeliť zobrazenie** — rozdelí Gantt na dve časové okná, ktoré začínajú s vaším aktuálnym priblížením a polohou (rozdelenie na 50 percent), alebo ho znova spojí do jedného. Predvolené: vypnuté. Pozrite si [Používanie rozdeleného zobrazenia a mini-mapy](docs://howto-split-view-en-mini-map).
 - **Zobraziť mini-mapu** — zobrazí alebo skryje mini-mapu. Predvolené: vypnuté. Vaša voľba sa zapamätá.
 
@@ -176,15 +176,23 @@ Táto skupina je aj na kartách *Tabuľka* a *Zostava*.
 
 Tlačidlá *Zdroje*, *Ukotvený panel zdrojov* a *Histogram* sú rovnaké ako na karte *Zdroje* a *Upozornenia* je rovnaké ako na karte *Plán*.
 
+**Pravý stĺpec.** Stĺpec vpravo od Ganttu sa zobrazí hneď, ako je zapnutý aspoň jeden z panelov *Vlastnosti*, *Ukotvený panel zdrojov* alebo *Upozornenia*. Ak nie je zapnutý žiadny, stĺpec sa nezobrazí. Ak celý panel prevezme pracovný priestor, napríklad celý panel zdrojov, stĺpec zmizne. Iba na karte *Tabuľka* stĺpec zostane.
+
+- **Šírka** — potiahnite deliacu čiaru medzi pracovným priestorom a stĺpcom. Jedna šírka platí pre všetky panely v stĺpci.
+- **Rozdelenie** — ak sú zapnuté dva panely, potiahnite hranicu medzi nimi. Ak je zapnutý jeden, ten panel vyplní celý stĺpec.
+- **Zbaliť** — tlačidlo *Zbaliť bočný panel* v hlavičke skryje stĺpec. Úzky pás s tlačidlom *Rozbaliť bočný panel* ho vráti s rovnakými panelmi ako predtým.
+- **Zavrieť** — každý panel má v hlavičke krížik. Je to rovnaký prepínač ako tlačidlo na páse s nástrojmi.
+- **Celý panel** — v ukotvenom paneli zdrojov tlačidlo *Celý panel* otvorí celý panel zdrojov.
+
 ### Zobrazenie › Pôvodné plány a postup
 
 Táto skupina má rovnaký názov ako skupina na karte *Plán*, ale obsahuje možnosti kreslenia Ganttu.
 
 - **Zobraziť pôvodný plán** — zobrazí aktívny pôvodný plán ako tenký pruh pod každým pruhom úlohy. Predvolené: zapnuté. Bez aktívneho pôvodného plánu nie je čo vidieť.
 - **Zobraziť čiaru postupu** — nakreslí čiaru na dátume kontroly stavu, ktorá sa pri každej úlohe vyklenie podľa jej postupu. Predvolené: zapnuté. Bez dátumu kontroly stavu nie je čo vidieť. Keď je čiara postupu zapnutá, táto čiara je zároveň značkou dátumu kontroly stavu.
-- **Zobraziť čiaru dátumu kontroly stavu** — nakreslí prerušovanú čiaru na dátume kontroly stavu. Predvolené: zapnuté. Vidíte ju iba vtedy, keď je čiara postupu vypnutá, lebo inak ju nahrádza čiara postupu. Popis s dátumom v hlavičke zostáva, kým je zapnutá aspoň jedna z oboch čiar.
-- **Farby pruhov** — vyberá, ako sa pruhy farbia: *Kritická cesta* (predvolené), *Podľa úlohy — automaticky* alebo *Podľa kategórie* s výberom poľa. Ak toto pole nie je v tomto projekte, ponuka uvádza, že sa dočasne používa *Typ úlohy*. Mimo možnosti *Kritická cesta* označí kritickú cestu červený obrys. Výber platí aj pre zostavu.
-- **Akcent zdrojov** — nakreslí tenký proužok vo farbe zdroja pod každý pruh úlohy bez podúloh; rozdelí sa úmerne k jednotkám priradenia za deň. Predvolené: vypnuté.
+- **Zobraziť čiaru dátumu kontroly stavu** — nakreslí prerušovanú čiaru na dátume kontroly stavu. Predvolené: zapnuté. Vidíte ju iba vtedy, keď je čiara postupu vypnutá, lebo inak ju nahrádza čiara postupu. Popis s dátumom v hlavičke zostáva, kým je zapnutá aspoň jedna z oboch čiar. Popis sleduje váš formát dátumu, napríklad 20-09-2006. Ak aplikácia počíta v hodinách, čiara aj popis sú na čase dňa a popis ukazuje aj čas, napríklad 20-09-2006 17:00.
+- **Farby pruhov** — vyberá, ako sa pruhy farbia: *Kritická cesta* (predvolené), *Podľa úlohy — automaticky* alebo *Podľa kategórie* s výberom poľa. Ak toto pole nie je v tomto projekte, ponuka uvádza, že sa dočasne používa *Druh prác*. Mimo možnosti *Kritická cesta* červený obrys označuje kritickú cestu. Výber platí aj pre zostavu.
+- **Akcent zdrojov** — nakreslí tenký proužok vo farbe zdroja pod každý pruh úlohy bez podúloh. Rozdelí sa úmerne k jednotkám priradenia za deň. Predvolené: vypnuté.
 - **Zobraziť pás časovej rezervy** — nakreslí zelený pás za nekritickým pruhom, až po neskoré dokončenie úlohy. Predvolené: zapnuté.
 - **Zobraziť čiary závislostí** — zobrazí alebo skryje čiary závislostí medzi úlohami. Predvolené: zapnuté. Výber patrí k dokumentu a k rozloženiu.
 
@@ -192,8 +200,8 @@ Táto skupina má rovnaký názov ako skupina na karte *Plán*, ale obsahuje mo�
 
 ### Nastavenia › Projekt
 
-- **Otvoriť info o projekte** — otvorí okno *Info o projekte*: metaúdaje projektu a v časti *Profil výpočtu a možnosti výpočtu* spôsob, akým projekt počíta. Pozrite si [Nový projekt a Info o projekte](docs://ref-projectinfo).
-- **Otvoriť nastavenia** — otvorí okno *Nastavenia* s kartami *Vzhľad*, *Plánovanie* a *Rozšírené*. Tie isté nastavenia sú v ponuke *Súbor › Nastavenia*.
+- **Nastavenia projektu** — otvorí okno *Nastavenia projektu*: metaúdaje projektu a v časti *Profil výpočtu a možnosti výpočtu* spôsob, akým projekt počíta. Pozrite si [Nový projekt a Nastavenia projektu](docs://ref-projectinfo).
+- **Nastavenia aplikácie** — otvorí okno *Nastavenia aplikácie* s kartami *Vzhľad*, *Plán* a *Rozšírené*. Tie isté nastavenia sú v ponuke *Súbor › Nastavenia aplikácie*.
 
 ### Nastavenia › Kalendár
 
@@ -201,7 +209,7 @@ Tlačidlo *Kalendár* je rovnaké ako na karte *Plán*.
 
 ### Nastavenia › Klávesové skratky
 
-- **Otvoriť klávesové skratky** — otvorí okno *Klávesové skratky*.
+- **Klávesové skratky** — otvorí okno *Klávesové skratky*.
 
 ## Tabuľka
 
@@ -213,7 +221,7 @@ Karta *Tabuľka* zobrazuje úlohy ako úplnú tabuľku namiesto Ganttu. Skupiny 
 
 ## IFC
 
-Karta zobrazí panel IFC v pracovnom priestore. Pás s nástrojmi tu nemá tlačidlá, iba riadok textu *IFC 4x3 - Industry Foundation Classes*.
+Karta zobrazí panel IFC v pracovnom priestore. Pás s nástrojmi tu nemá tlačidlá, iba riadok textu *IFC - Industry Foundation Classes, v schéme projektu (predvolená verzia IFC 4.3 ADD2)*.
 
 ## Zostava
 
@@ -223,11 +231,11 @@ Karta zobrazí panel IFC v pracovnom priestore. Pás s nástrojmi tu nemá tlač
 
 ## AI
 
-Karta *AI* existuje iba vtedy, keď je zapnuté *Zapnúť režim AI* (*Nastavenia*, karta *Rozšírené*, nadpis *Režim AI*). Predvolené: vypnuté. Keď ho vypnete, karta zmizne a most sa zastaví. AI asistent pracuje s vaším plánom cez most MCP, ktorý tu spustíte. Pozrite si [Pripojenie AI asistenta (MCP)](docs://howto-ai-assistent-koppelen).
+Karta *AI* existuje iba vtedy, keď je zapnuté *Zapnúť režim AI* (*Nastavenia aplikácie*, karta *Rozšírené*, nadpis *Režim AI*). Predvolené: vypnuté. Keď ho vypnete, karta zmizne a most sa zastaví. AI asistent pracuje s vaším plánom cez most MCP, ktorý tu spustíte. Pozrite si [Pripojenie AI asistenta (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Server
 
-- **Spustiť most** a **Zastaviť most** — spustí alebo zastaví most MCP. Vedľa neho je stav: *Vypnuté*, *Aktívny na porte …*, *Port … je obsadený* (s dôvodom) alebo *Chyba*. V webovej verzii je tlačidlo vypnuté; popis hovorí *Most funguje iba v desktopovej aplikácii.* Rovnaký stav sa zobrazí ako bodka s *AI* v stavovom riadku.
+- **Spustiť most** a **Zastaviť most** — spustí alebo zastaví most MCP. Vedľa neho je stav: *Vypnuté*, *Aktívny na porte …*, *Port … je obsadený* (s dôvodom) alebo *Chyba*. V webovej verzii je tlačidlo vypnuté; popis hovorí *Most funguje iba v desktopovej aplikácii*. Rovnaký stav sa zobrazí ako bodka s *AI* v stavovom riadku.
 
 ### AI › Pripojenie
 
@@ -240,8 +248,8 @@ Karta *AI* existuje iba vtedy, keď je zapnuté *Zapnúť režim AI* (*Nastaveni
 - **Pozastaviť** / **Pokračovať** — dočasne odmieta všetky zmeny od AI; čítanie zostáva povolené a most zostáva aktívny. Tlačidlo sa počas pozastavenia rozsvieti na červeno.
 - **Iba na čítanie** — odmieta všetky nástroje, ktoré niečo menia, kým je to zapnuté.
 - **Automatická záloha: zapnutá** / **Automatická záloha: vypnutá** — automaticky zapíše zálohu IFC pred prvou zmenou AI v každom dokumente. Predvolené: zapnutá.
-- **Zálohovať teraz** — zapíše zálohu hneď a zobrazí názov súboru. Iba desktopová aplikácia.
-- **Otvoriť priečinok záloh** — otvorí priečinok so zálohami. Iba desktopová aplikácia.
+- **Zálohovať teraz** — zapíše zálohu hneď a zobrazí názov súboru. Iba v desktopovej aplikácii.
+- **Otvoriť priečinok záloh** — otvorí priečinok so zálohami. Iba v desktopovej aplikácii.
 
 ### AI › Činnosť
 

@@ -1,53 +1,81 @@
 /* ScreenshotAnnotator — thumbnail + bijna-schermvullende editor */
 
-/* ── Thumbnail in de dialoog ──────────────────────────────────────────────── */
-.screenshot-annotator-thumbnail {
-  position: relative;
-  overflow: hidden;
-  max-height: 260px;
+/* ── Voorbeeld in de dialoog ──────────────────────────────────────────────
+   Klein en rustig: een licht kader in themakleuren (geen zwart vlak), het beeld
+   in de eigen verhouding (geen balken), de knoppen ernaast. */
+.screenshot-annotator-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px;
   border: 1px solid var(--theme-border);
   border-radius: var(--radius-md);
-  background: #111;
+  background: var(--theme-surface-alt);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+.screenshot-annotator-thumbnail {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 65%;
+  line-height: 0;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+  background: var(--theme-surface);
 }
 
 .screenshot-annotator-thumb-img {
   display: block;
-  width: 100%;
+  max-width: 100%;
+  max-height: 160px;
+  width: auto;
   height: auto;
-  max-height: 260px;
-  object-fit: contain;
   pointer-events: none;
   user-select: none;
 }
 
-/* "Annoteren"-overlay-knop op de thumbnail */
-.screenshot-annotator-open-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+.screenshot-annotator-actions {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 6px;
-  padding: 6px 12px;
-  font-size: var(--text-large);
-  font-weight: 600;
-  color: #fff;
-  background: rgba(20, 20, 20, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  flex-shrink: 0;
 }
 
-.screenshot-annotator-open-btn:hover {
-  background: var(--theme-accent);
+.screenshot-annotator-action,
+.annotator-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--theme-text);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.screenshot-annotator-action:hover:not(:disabled),
+.annotator-cancel-btn:hover {
+  background: var(--theme-hover);
   border-color: var(--theme-accent);
-  transform: translateY(-1px);
+}
+
+.screenshot-annotator-action:focus-visible,
+.annotator-cancel-btn:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+
+.screenshot-annotator-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── Bijna-schermvullende editor-overlay ──────────────────────────────────── */

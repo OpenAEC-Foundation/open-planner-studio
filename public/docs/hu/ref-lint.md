@@ -11,9 +11,9 @@ A menüszalag a képernyő tetején fülekből áll. Minden fülön gombcsoporto
 
 ## Fájl
 
-Ha a *Fájl* fülre kattint, a saját képernyője (a Backstage) veszi át a munkaterületet. Nincs menüszalag. A *Vissza* gomb bezárja. Ha a *Projektinfó* alatt módosított valamit, és nem alkalmazta, az alkalmazás először megkérdezi, mit kell tenni vele.
+Ha a *Fájl* fülre kattint, a saját képernyője (a Backstage) veszi át a munkaterületet. Nincs menüszalag. A *Vissza* gomb bezárja. Ha a *Projektbeállítások* alatt módosított valamit, és nem alkalmazta, az alkalmazás először megkérdezi, mit kell tenni vele.
 
-- **Új** — megnyitja az *Új projekt* ablakot, és bezárja a Backstage-t. A mezőket itt találja: [Új projekt és Projektinfó](docs://ref-projectinfo).
+- **Új** — megnyitja az *Új projekt* ablakot, és bezárja a Backstage-t. A mezőket itt találja: [Új projekt és Projektbeállítások](docs://ref-projectinfo).
 - **Megnyitás** — kiválaszt egy fájlt, és dokumentumként megnyitja. Bezárja a Backstage-t.
 - **Legutóbbi** — a nemrég megnyitott projektek listája; egy kattintással megnyit egyet. Csak akkor látható, ha a környezet újra meg tudja nyitni a fájlokat: az asztali alkalmazásban és azokban a böngészőkben, amelyek fájlhozzáférést kínálnak, például a Chrome-ben és az Edge-ben. Más böngészőkben a gomb ott van, de az oldal üres marad.
 - **Példák** — mellékelt példaütemezések. Ezek a *Teljes bemutató-ütemezések* (jelvény: *Minden funkció*) és az *Egyszerű példák* csoportra oszlanak. Egy kattintás új lapon nyit meg egyet.
@@ -22,11 +22,11 @@ Ha a *Fájl* fülre kattint, a saját képernyője (a Backstage) veszi át a mun
 - **Exportálás** — kártyák exportformátumonként, leírással. Egy kattintás átalakítja a projektet, elmenti, és visszaviszi a *Kezdőlap* fülre. Ha az ütemezésben ciklus van, a hiba a Backstage-ben jelenik meg, és Ön ott marad. Ha a projekt egy erőforrástárhoz kapcsolódik, alul megjelenik az *Erőforrástár-fájl mentése mellé* jelölőnégyzet. Ez csak az IFC-kártyánál működik.
 - **Importálás** — felül az *Előrehaladás frissítése táblázatból* kártya (tevékenységek nélkül le van tiltva), alatta pedig a bővítmények által hozzáadott importálók.
 - **Nyomtatás** — a *Nyomtatási előnézet megnyitása* gomb a *Jelentés* fülre visz.
-- **Projektinfó** — ennek a projektnek a metaadatai és számítási profilja. A módosítások csak az *Alkalmazás* gombra kattintás után lépnek életbe. Lásd: [Új projekt és Projektinfó](docs://ref-projectinfo) és [Számítási profilok és ütemezési szabályok](docs://uitleg-rekenprofielen).
+- **Projektbeállítások** — ennek a projektnek a metaadatai és számítási profilja. A módosítások csak az *Alkalmazás* gombra kattintás után lépnek életbe. Lásd: [Új projekt és Projektbeállítások](docs://ref-projectinfo) és [Számítási profilok és ütemezési szabályok](docs://uitleg-rekenprofielen).
 - **Beállítások** — ugyanazok a beállítások, mint a *Beállítások* ablakban.
 - **Bővítmények** — bővítmények kezelése és telepítése. Lásd: [Bővítmény telepítése és kezelése](docs://howto-extensie-installeren).
 - **Erőforrástár** — erőforrástárak kezelése. Lásd: [Erőforrástárak kezelése és megosztása](docs://howto-bibliotheken-beheren).
-- **Súgó** — a beépített dokumentáció, F1 billentyűvel is. A keresőmező címekben, fejezetcímekben és magában a szövegben keres. A cikkek négy csoportban vannak: *Oktatóanyagok*, *Útmutatók*, *Magyarázat* és *Referencia*. A *Dokumentáció nyelve* alatt a következők közül választhat: *Az alkalmazás nyelvét követi*, *Nederlands* vagy *English*. A súgó csak holland és angol nyelven érhető el. Ha az alkalmazás más nyelven van, az angol változatot olvassa, figyelmeztetéssel. A választást ezen az eszközön tárolja az alkalmazás, az alkalmazás nyelvétől külön. A súgót ablakokból vagy panelekből is megnyithatja. Sok ablaknak, és a *Tulajdonságok*, *Erőforrások* és *Figyelmeztetések* paneleknek a jobb felső sarkában kérdőjel van (*Súgó ehhez a részhez*). Ez a súgót nyitja meg arról az ablakról vagy panelről szóló cikkel. Ha az ablakba olyat írt, amit még nem mentett, az alkalmazás először megkérdezi: *Mentés*, *Mégse* (elveti a bevitt adatokat) vagy *Vissza* (marad az ablakban). Ezután az ablak bezárul, és megnyílik a súgó. Néhány ablak, például a *Tevékenység szerkesztése* és az *Erőforrás-kiegyenlítés*, mindig rákérdez. Bevitel nélkül a súgó azonnal megnyílik.
+- **Súgó** — a beépített dokumentáció, F1 billentyűvel is. A keresőmező címekben, fejezetcímekben és magában a szövegben keres. A cikkek négy csoportban vannak: *Oktatóanyagok*, *Útmutatók*, *Magyarázat* és *Referencia*. A *Dokumentáció nyelve* alatt az *Az alkalmazás nyelvét követi* lehetőséget vagy egy nyelvet választhat a listából. A holland és az angol a forrásnyelv. A többi nyelven csak a már lefordított cikkek érhetők el. Ha egy cikk hiányzik az Ön nyelvén, az angol változatot olvassa, figyelmeztetéssel. A választást ezen az eszközön tárolja az alkalmazás, az alkalmazás nyelvétől külön. A súgót ablakokból vagy panelekből is megnyithatja. Sok ablaknak, és a *Tulajdonságok*, *Erőforrások* és *Figyelmeztetések* paneleknek a jobb felső sarkában kérdőjel van (*Súgó ehhez a részhez*). Ez a súgót nyitja meg arról az ablakról vagy panelről szóló cikkel. Ha az ablakba olyat írt, amit még nem mentett, az alkalmazás először megkérdezi: *Mentés*, *Mégse* (elveti a bevitt adatokat) vagy *Vissza* (marad az ablakban). Ezután az ablak bezárul, és megnyílik a súgó. Néhány ablak, például a *Tevékenység szerkesztése* és az *Erőforrás-kiegyenlítés*, mindig rákérdez. Bevitel nélkül a súgó azonnal megnyílik.
 - **Bemutató indítása** — bezárja a Backstage-t, és elindítja a bemutatót az 1. lépéstől.
 - **Projekt bezárása** — bezárja az aktív dokumentumot. Ha mentetlen módosításai vannak, az alkalmazás megerősítést kér.
 
@@ -35,7 +35,7 @@ Ha a *Fájl* fülre kattint, a saját képernyője (a Backstage) veszi át a mun
 ### Kezdőlap › Fájl
 
 - **Új**, **Mentés**, **Megnyitás** és **Mentés másként** — ugyanazok a műveletek, mint a *Fájl* fülön.
-- **Legutóbbi** — legördülő lista a nemrég megnyitott projektekkel; egy kattintás megnyit egyet. Csak ugyanazzal a feltétellel látható, mint a *Legutóbbi* gomb. Ha nincs legutóbbi fájl, ez áll itt: *Nincs legutóbbi fájl*.
+- **Legutóbbi** — legördülő lista a nemrég megnyitott projektekkel; egy kattintás megnyit egyet. Csak ugyanazzal a feltétellel látható, mint a *Fájl › Legutóbbi*. Ha nincs legutóbbi fájl, ez áll itt: *Nincs legutóbbi fájl*.
 - **Exportálás** — legördülő lista az exportformátumokkal (rövid nevekkel). Egy kattintás átalakítja a projektet, és elmenti.
 
 ### Kezdőlap › Szerkesztés
@@ -46,8 +46,8 @@ Ha a *Fájl* fülre kattint, a saját képernyője (a Backstage) veszi át a mun
 
 ### Kezdőlap › Tevékenységek
 
-- **Tevékenység** — új tevékenységet ad hozzá, *Új tevékenység* névvel, 5 munkanapos időtartammal, a projektkezdéstől kezdve. (Ha az *Óraalapú tervezés bekapcsolása* be van kapcsolva, és a *Projektinfó* részben az *Alapértelmezett egység új tevékenységekhez* óra, az időtartam 5 óra.) Ha van kijelölt tevékenység, és a nézet egyszerű fa, az új tevékenység a legalsó kijelölt tevékenység alá kerül (eszköztipp: *Új tevékenység közvetlenül a kijelölés alatt*). Kijelölés nélkül a lista aljára kerül (eszköztipp: *Új tevékenység a lista alján*). Ha van kijelölés, de szűrés, csoportosítás vagy rendezés van érvényben, az új tevékenység szintén a lista aljára kerül, és egy sáv jelzi: *Szűrés/csoportosítás/rendezés közben nem érhető el*. Az új tevékenység lesz az egyetlen kijelölt elem. A Gantt-diagram odaugrik hozzá, a neve pedig felülírható a *Tulajdonságok* panelben.
-- **Mérföldkő ▾** — legördülő lista, amely mérföldkövet (időtartam 0) tesz ugyanarra a helyre, mint a *Tevékenység* gomb. A *Kezdő mérföldkő* és a *Befejezési mérföldkő* állítja be a mérföldkő típusát. Az új mérföldkő neve *Új mérföldkő*, tevékenységtípusa *Egyéb*. Az *Ellenőrzési pont (kötelező)* befejező mérföldkövet hoz létre, *Ellenőrzés* tevékenységtípussal és a *Kötelező (szerződéses)* jelöléssel. A neve *Új ellenőrzési pont*.
+- **Tevékenység** — új tevékenységet ad hozzá, *Új tevékenység* névvel, 5 munkanapos időtartammal, a projektkezdéstől kezdve. (Ha az *Óraalapú tervezés bekapcsolása* be van kapcsolva, és a *Projektbeállítások* részben az *Alapértelmezett egység új tevékenységekhez* óra, az időtartam 5 óra.) Ha van kijelölt tevékenység, és a nézet egyszerű fa, az új tevékenység a legalsó kijelölt tevékenység alá kerül (eszköztipp: *Új tevékenység közvetlenül a kijelölés alatt*). Kijelölés nélkül a lista aljára kerül (eszköztipp: *Új tevékenység a lista alján*). Ha van kijelölés, de szűrés, csoportosítás vagy rendezés van érvényben, az új tevékenység szintén a lista aljára kerül. Ilyenkor piros értesítés jelzi, hogy az alkalmazás nem tudja a kijelölés alá helyezni, a *Törlés* gombbal. Az új tevékenység lesz az egyetlen kijelölt elem. A Gantt-diagram odaugrik hozzá, a neve pedig felülírható a *Tulajdonságok* panelben.
+- **Mérföldkő ▾** — legördülő lista, amely mérföldkövet (időtartam 0) tesz ugyanarra a helyre, mint a *Tevékenység* gomb. A *Kezdő mérföldkő* és a *Befejezési mérföldkő* állítják be a mérföldkő típusát. Az új mérföldkő neve *Új mérföldkő*, munkaneme *Egyéb*. Az *Ellenőrzési pont (kötelező)* befejező mérföldkövet hoz létre, *Ellenőrzés* munkanemmel és a *Kötelező (szerződéses)* jelöléssel. A neve *Új ellenőrzési pont*.
 - **Összekapcsolás ▾** — legördülő lista négy fix művelettel. A fő gomb jelentése sosem változik. A négy műveletet lásd: *Ütemezés › Kapcsolatok*.
 - **Tevékenység megszakítása** — be- vagy kikapcsolja a megszakítási módot. Bekapcsolt állapotban egy sáv a menüszalag alatt elmagyarázza, hogy a sávon kell kattintani, ahol a megszakítás kezdődik, és jobbra húzni a hosszához. Le van tiltva, ha a Gantt-diagram nem látható (a *Táblázat*, *IFC* és *Jelentés* füleken, valamint a teljes erőforráspanel alatt). Az eszköztipp ekkor ezt írja: *Csak akkor érhető el, ha a Gantt-diagram látható*. Lásd: [Tevékenység megszakítása](docs://howto-taak-splitsen).
 
@@ -75,7 +75,7 @@ A csoportban van az *Összekapcsolás ▾* gomb négy művelettel, és a *Tevék
 
 - **Kapcsolat rajzolása** — be- vagy kikapcsolja az összekapcsolási módot. Bekapcsolt állapotban pipa jelenik meg, és a fő gomb világít. Bekapcsolva a Gantt-diagramon egy sávról egy másikra húzva hozhat létre kapcsolatot. A menüszalag alatti sáv megmondja, hogyan lehet kilépni (*Leállítás* vagy Esc). Le van tiltva, ha a Gantt-diagram nem látható.
 - **Kijelölt tevékenységek összekapcsolása** — befejezés-kezdés kapcsolatot hoz létre két tevékenység között, késleltetés nélkül. Az elsőnek kijelölt tevékenység lesz az előd. Csak akkor érhető el, ha pontosan két tevékenység van kijelölve (egyébként: *Válasszon ki pontosan két tevékenységet*). Ha már van ilyen kapcsolat, vagy ciklus keletkezne, az alkalmazás üzenettel elutasítja.
-- **Projektközi kapcsolat hozzáadása…** — megnyit egy ablakot, amelyben egy külső előd vagy utód adható a kijelölt tevékenységhez. Csak akkor érhető el, ha pontosan egy tevékenység van kijelölve (egyébként: *Válasszon ki pontosan egy tevékenységet*).
+- **Projektközi kapcsolat hozzáadása…** — megnyit egy ablakot, amelyben külső elődöt vagy utódot adhat hozzá a kijelölt tevékenységhez. Csak akkor érhető el, ha pontosan egy tevékenység van kijelölve (egyébként: *Válasszon ki pontosan egy tevékenységet*).
 - **Összes projektközi kapcsolat frissítése** — frissíti az összes projektközi kapcsolat horgonyait, és a menüben jelenti, hány frissült vagy hiányzik. Csak akkor érhető el, ha a projektben van projektközi kapcsolat (egyébként: *Ez a projekt nem tartalmaz projektközi kapcsolatot*).
 
 A kapcsolatok hátterét ezekben olvashatja: [Kapcsolatok létrehozása](docs://howto-relaties-leggen) és [Kapcsolatok és késleltetés](docs://uitleg-relaties).
@@ -94,7 +94,7 @@ Egyszerre mindkettőt bekapcsolhatja. Egy gomb második kattintása ezt az oldal
 ### Ütemezés › Szerkezet
 
 - **Kódok és mezők** — megnyitja a *Kódok és mezők* ablakot a tevékenységkódokhoz és az egyéni mezőkhöz. Lásd: [Kódok és egyéni mezők](docs://howto-codes-en-velden).
-- **WBS automatikus** — be- vagy kikapcsolja a WBS-kódok automatikus számozását. Alapértelmezett: ki. Bekapcsolva a teljes fa egyszerre újraszámozódik, a kódok ezután minden szerkezeti változást követnek, és a *WBS-kód* mező a panelen és az ablakban le van tiltva.
+- **WBS automatikus** — be- vagy kikapcsolja a WBS-kódok automatikus számozását. Alapértelmezett: be egy új projektben. Megnyitott fájlban, ha nincs ez a beállítás: be, ha a fájl üres, vagy ha minden kód már megegyezik a fa számozásával, különben ki. Bekapcsolva a teljes fa egyszerre újraszámozódik, a kódok ezután minden szerkezeti változást követnek, és a *WBS-kód* mező a panelen és az ablakban le van tiltva.
 - **WBS újraszámozása** — egyszer újraszámozza a WBS-kódokat a fában elfoglalt helyzet szerint (1.2.3). Le van tiltva, amíg a *WBS automatikus* be van kapcsolva.
 - **Sablonok** — legördülő lista a mentett WBS-sablonokkal. Mindegyiknél látszik a tevékenységek és a kapcsolatok száma. Egy kattintás a sablont a kijelölt tevékenység alá szúrja, kijelölés nélkül a legfelső szinten. A kuka ikon törli a sablont. Sablon nélkül megmondja, hogyan kell menteni egyet (jobb klikk egy összefoglaló tevékenységen, *Ág mentése sablonként*). Lásd: [WBS-sablonok mentése és beszúrása](docs://howto-wbs-sjablonen).
 - **Behúz** — a kijelölt tevékenységeket az előttük lévő tevékenység altevékenységeivé teszi. Kijelölés nélkül, és amint szűr, csoportosít vagy rendez, le van tiltva. Az eszköztipp ekkor ezt írja: *Szűrés/csoportosítás/rendezés közben nem érhető el*.
@@ -103,7 +103,7 @@ Egyszerre mindkettőt bekapcsolhatja. Egy gomb második kattintása ezt az oldal
 ### Ütemezés › Alaptervek és előrehaladás
 
 - **Alaptervek kezelése…** — megnyitja az alaptervablakot. Lásd: [Alapterv mentése és kezelése](docs://howto-baseline-opslaan-en-beheren).
-- **Állapotdátum** — az a dátum, ameddig az előrehaladást méri. Írjon be egy dátumot. A kereszt (*Állapotdátum törlése*) eltávolítja. Hatás: az alkalmazás eddig a dátumig méri az előrehaladást, és a Gantt-diagramon az állapotdátum-vonal és az előrehaladási vonal erre a dátumra kerül. Lásd: [Előrehaladás, állapotdátum és alapterv](docs://uitleg-voortgang).
+- **Állapotdátum** — az a dátum, ameddig az előrehaladást méri. Írjon be egy dátumot. A kereszt (*Állapotdátum törlése*) eltávolítja. Ha a projektnaptárnak vannak idősávjai, az alkalmazás órában számol, és a dátum mellett időmező jelenik meg (az MS Project gyakran 17:00-t tárol). Az idő ekkor számít: 12:00 a 17:00 helyett fél nappal eltérő hátralévő munkát ad. Idősávok nélkül az alkalmazás egész napokban számol, és nincs időmező. Hatás: az alkalmazás eddig a dátumig méri az előrehaladást, a Gantt-diagramon pedig az állapotdátum-vonal és az előrehaladási vonal erre a dátumra kerül. Lásd: [Előrehaladás, állapotdátum és alapterv](docs://uitleg-voortgang).
 - **Előrehaladási mód** — választás a *Retained Logic* és a *Progress Override* között. Alapértelmezett: *Retained Logic*. Hatás: *Retained Logic* esetén egy elkezdett utód hátralévő munkája követi a kapcsolatot. *Progress Override* esetén a hátralévő munka az állapotdátumon kezdődik, anélkül hogy megvárná az elődöt. Lásd: [Az előrehaladási mód kiválasztása](docs://howto-voortgangsmodus-kiezen).
 
 Összecsukott menüszalag esetén ez a három egyetlen zászlógomb mögött van, amelynek címe: *Alaptervek és előrehaladás*.
@@ -166,15 +166,23 @@ Ez a csoport a *Táblázat* és a *Jelentés* fülön is látható.
 
 ### Nézet › Prezentáció
 
-- **Prezentáció** — be- vagy kikapcsolja a prezentációmódot (leállításhoz F11 vagy Esc). Csak a Gantt-diagram tölti ki a képernyőt. Lásd: [Prezentálás nagy képernyőn](docs://howto-presentatie).
-- **Osztott nézet** — a Gantt-diagramot két időablakra osztja. Mindkettő az aktuális nagyítással és pozícióval indul (50 százalékos osztás). Vagy újra egy ablakot csinál belőle. Alapértelmezett: ki. Lásd: [Az osztott nézet és a mini-térkép használata](docs://howto-split-view-en-mini-map).
+- **Prezentáció** — be- vagy kikapcsolja a prezentációmódot (leállításhoz Esc, az asztali alkalmazásban emellett F11). Csak a Gantt-diagram tölti ki a képernyőt. Lásd: [Prezentálás nagy képernyőn](docs://howto-presentatie).
+- **Osztott nézet** — a Gantt-diagramot két időablakra osztja. Mindkettő az aktuális nagyítással és pozícióval indul (50 százalékos osztás). Vagy visszaállítja egy ablakra. Alapértelmezett: ki. Lásd: [Az osztott nézet és a mini-térkép használata](docs://howto-split-view-en-mini-map).
 - **Mini-térkép** — megjeleníti vagy elrejti a mini-térképet. Alapértelmezett: ki. A választása megmarad.
 
 ### Nézet › Panelek
 
-- **Tulajdonságok** — megjeleníti vagy elrejti a *Tulajdonságok* panelt a jobb oldali oszlopban. Alapértelmezett: be. Lásd: [Tevékenység-párbeszédablak és tulajdonságok panel](docs://ref-taak-eigenschappen).
+- **Tulajdonságok** — megjeleníti vagy elrejti a *Tulajdonságok* panelt a jobb oldali oldalsávban. Alapértelmezett: be. Lásd: [Tevékenység-párbeszédablak és tulajdonságok panel](docs://ref-taak-eigenschappen).
 
 Az *Erőforrások*, *Erőforrás-dokkoló* és *Hisztogram* gombok ugyanazok, mint az *Erőforrások* fülön. A *Figyelmeztetések* ugyanaz, mint az *Ütemezés* fülön.
+
+**A jobb oldali oldalsáv.** A Gantt-diagram jobb oldalán lévő oldalsáv akkor jelenik meg, amint legalább az egyik *Tulajdonságok*, *Erőforrás-dokkoló* vagy *Figyelmeztetések* panel be van kapcsolva. Ha egyik sincs bekapcsolva, nincs oldalsáv. Ha egy teljes panel foglalja el a munkaterületet, például a teljes erőforráspanel, az oldalsáv eltűnik. Csak a *Táblázat* fülön marad meg.
+
+- **Szélesség** — húzza el a munkaterület és az oldalsáv közötti elválasztót. Egy szélesség vonatkozik az oldalsáv összes panelére.
+- **Felosztás** — ha két panel be van kapcsolva, húzza el a köztük lévő szegélyt. Ha csak egy van bekapcsolva, az a panel kitölti az egész oldalsávot.
+- **Összecsukás** — a fejlécben lévő *Oldalsáv összecsukása* gomb elrejti az oldalsávot. A keskeny csíkon lévő *Oldalsáv kibontása* gomb visszahozza az oldalsávot, ugyanazokkal a panelekkel, mint korábban.
+- **Bezárás** — minden panelnek van egy kereszt a fejlécében. Ez ugyanaz a kapcsoló, mint a menüszalagon lévő gomb.
+- **Teljes panel** — az erőforrás-dokkolóban a *Teljes panel* gomb megnyitja a teljes erőforráspanelt.
 
 ### Nézet › Alapterv és előrehaladás
 
@@ -182,8 +190,8 @@ Ennek a csoportnak ugyanaz a neve, mint az *Ütemezés* fülön lévő csoporté
 
 - **Alapterv-átfedés** — az aktív alaptervet vékony sávként mutatja minden tevékenységsáv alatt. Alapértelmezett: be. Aktív alapterv nélkül nincs mit látni.
 - **Előrehaladási vonal** — vonalat rajzol az állapotdátumnál. Ez a vonal tevékenységenként annyira domborodik ki, amennyi az előrehaladása. Alapértelmezett: be. Állapotdátum nélkül nincs mit látni. Ha az előrehaladási vonal be van kapcsolva, ez a vonal jelöli az állapotdátumot is.
-- **Állapotdátum-vonal** — szaggatott vonalat rajzol az állapotdátumnál. Alapértelmezett: be. Csak akkor látja, ha az előrehaladási vonal ki van kapcsolva, mert különben az veszi át a helyét. A fejlécben a dátum felirata addig marad, amíg a két vonal közül legalább az egyik be van kapcsolva.
-- **Sávszínek** — kiválasztja, hogyan színezi a sávokat: *Kritikus út* (alapértelmezett), *Tevékenységenként — automatikus* vagy *Kategória szerint*, egy mező megadásával. Ha ez a mező nincs benne a projektben, a menü jelzi, hogy ideiglenesen a *Tevékenységtípus* szerint színez. Ha a színezés nem a *Kritikus út*, piros körvonal jelöli a kritikus utat. A választás a jelentésre is vonatkozik.
+- **Állapotdátum-vonal** — szaggatott vonalat rajzol az állapotdátumnál. Alapértelmezett: be. Csak akkor látja, ha az előrehaladási vonal ki van kapcsolva, mert különben az veszi át a helyét. A fejlécben a dátum felirata addig marad, amíg a két vonal közül legalább az egyik be van kapcsolva. A felirat a beállított dátumformátumot követi, például 20-09-2006. Ha az alkalmazás órában számol, a vonal és a felirat az adott napi időpontnál áll, a felirat pedig az időt is mutatja, például 20-09-2006 17:00.
+- **Sávszínek** — kiválasztja, hogyan színezi a sávokat: *Kritikus út* (alapértelmezett), *Tevékenységenként — automatikus* vagy *Kategória szerint*, a mező kiválasztásával. Ha ez a mező nincs benne a projektben, a menü jelzi, hogy ideiglenesen a *Munkanem* szerint színez. Ha a színezés nem a *Kritikus út*, piros körvonal jelöli a kritikus utat. A választás a jelentésre is vonatkozik.
 - **Erőforrás-kiemelés** — vékony csíkot rajzol az erőforrás színében minden nem összefoglaló tevékenységsáv alá. A csík a napi hozzárendelt mennyiséggel arányosan van osztva. Alapértelmezett: ki.
 - **Tartalékidő-sáv** — zöld sávot rajzol a nem kritikus sáv után, a tevékenység legkésőbbi befejezéséig. Alapértelmezett: be.
 - **Kapcsolatvonalak** — megjeleníti vagy elrejti a tevékenységek közötti kapcsolatvonalakat. Alapértelmezett: be. A választás a dokumentumhoz és az elrendezéshez tartozik.
@@ -192,7 +200,7 @@ Ennek a csoportnak ugyanaz a neve, mint az *Ütemezés* fülön lévő csoporté
 
 ### Beállítások › Projekt
 
-- **Projektinfó** — megnyitja a *Projektinfó* ablakot: a projekt adatait, és a *Számítási profil és beállítások* blokkban azt, hogyan számítja ki a projekt az ütemezést. Lásd: [Új projekt és Projektinfó](docs://ref-projectinfo).
+- **Projektbeállítások** — megnyitja a *Projektbeállítások* ablakot: a projekt adatait, és a *Számítási profil és beállítások* blokkban azt, hogyan számítja ki a projekt az ütemezést. Lásd: [Új projekt és Projektbeállítások](docs://ref-projectinfo).
 - **Beállítások** — megnyitja a *Beállítások* ablakot a *Megjelenés*, *Ütemezés* és *Speciális* fülekkel. Ugyanezek a beállítások a *Fájl › Beállítások* menüpont alatt érhetők el.
 
 ### Beállítások › Naptár
@@ -213,7 +221,7 @@ A *Táblázat* fül a tevékenységeket teljes táblázatként mutatja a Gantt-d
 
 ## IFC
 
-A fül az IFC-panelt mutatja a munkaterületen. A menüszalagon itt nincs gomb, csak ez a szövegsor: *IFC 4x3 - Industry Foundation Classes*.
+A fül az IFC-panelt mutatja a munkaterületen. A menüszalagon itt nincs gomb, csak ez a szövegsor: *IFC - Industry Foundation Classes, a projekt sémájában (alapértelmezés: IFC 4.3 ADD2)*.
 
 ## Jelentés
 
@@ -223,17 +231,17 @@ A fül az IFC-panelt mutatja a munkaterületen. A menüszalagon itt nincs gomb, 
 
 ## AI
 
-Az *AI* fül csak akkor létezik, ha be van kapcsolva az *AI-mód bekapcsolása* (*Beállítások*, *Speciális* fül, *AI-mód* címsor). Alapértelmezett: ki. A kikapcsolás eltávolítja a fület, és leállítja a hidat. Egy AI-segítőtárs az ütemezésével egy MCP-hídon keresztül dolgozik. Ezt a hidat itt indítja el. Lásd: [AI-segítőtárs csatlakoztatása (MCP)](docs://howto-ai-assistent-koppelen).
+Az *AI* fül csak akkor létezik, ha be van kapcsolva az *AI-mód bekapcsolása* (*Beállítások*, *Speciális* fül, *AI-mód* címsor). Alapértelmezett: ki. Ha kikapcsolja, a fül eltűnik, és a híd leáll. Egy AI-segítőtárs az ütemezésével egy MCP-hídon keresztül dolgozik. Ezt a hidat itt indítja el. Lásd: [AI-segítőtárs csatlakoztatása (MCP)](docs://howto-ai-assistent-koppelen).
 
 ### AI › Kiszolgáló
 
-- **Híd indítása** és **Híd leállítása** — elindítja vagy leállítja az MCP-hidat. Mellette látható az állapot: *Ki*, *Aktív a(z) … porton*, *A(z) … port foglalt* (az okkal együtt) vagy *Hiba*. A webes verzióban tiltva. A súgószöveg ezt mondja: *A híd csak az asztali alkalmazásban működik*. Ugyanez az állapot pontként jelenik meg az *AI* felirattal az állapotsorban.
+- **Híd indítása** és **Híd leállítása** — elindítja vagy leállítja az MCP-hidat. Mellette látható az állapot: *Ki*, *Aktív a(z) … porton*, *A(z) … port foglalt* (az okkal együtt) vagy *Hiba*. A webes verzióban tiltva. A súgószöveg ezt mondja: *A híd csak az asztali alkalmazásban működik*. Ugyanez az állapot pontként jelenik meg az állapotsorban, az *AI* felirattal.
 
 ### AI › Kapcsolat
 
 - **Port** — a híd portja. Alapértelmezett: 3877. Csak akkor módosítható, ha az állapot *Ki*. A súgószöveg: *Csak akkor módosítható, ha a szerver le van állítva*.
 - **Token** — a híd jelszava, rejtve jelenik meg. Kis gombok: *Token megjelenítése*/*Token elrejtése*, *Másolás* és *Új token*. Az *Új token* először megerősítést kér, mert egy új token megszakít minden meglévő kapcsolatot. Ha a híd fut, újraindul az új tokennel.
-- **Csatlakozás** — megjeleníti a kapcsolat adatait: végpont, token, egy konfigurációs részlet és egy kapcsolati prompt. Ezt a promptot az AI-ügynökbe illeszti be.
+- **Csatlakozás** — megjeleníti a kapcsolat adatait: végpont, token, egy konfigurációs részlet és egy kapcsolódási szöveg. Ezt a szöveget illessze be az AI-ügynökbe.
 
 ### AI › Biztonság
 

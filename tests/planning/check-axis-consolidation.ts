@@ -137,7 +137,7 @@ for (const zoom of ZOOMS) {
         const x = dateToX(date, VIEW_START, tableWidth, zoom, scrollX);
         const roundTripped = xToDate(x, VIEW_START, tableWidth, zoom, scrollX);
         checks++;
-        if (Math.abs(roundTripped.getTime() - date.getTime()) > 1) {
+        if (!(Math.abs(roundTripped.getTime() - date.getTime()) <= 1)) {
           diffs.push(`xToDate∘dateToX niet-inverse: z=${zoom} sx=${scrollX} tw=${tableWidth} d=${dayOffset} → Δ=${roundTripped.getTime() - date.getTime()}ms`);
         }
       }

@@ -20,13 +20,13 @@ Las **vacaciones de construcción** (*bouwvak*) son las vacaciones colectivas de
 6. Haga clic en *Generar*. La lista *Festivos* ya está rellena.
 7. Haga clic en *Aplicar*. La aplicación recalcula la planificación de inmediato.
 
-Para los Países Bajos, la aplicación pone cada año en la lista Nieuwjaar, Goede Vrijdag, Pasen (dos días), Koningsdag, Hemelvaart, Pinksteren (dos días) y Kerst (25 y 26 de diciembre) (Año Nuevo, Viernes Santo, Pascua, Día del Rey, Ascensión, Pentecostés y Navidad). Si el Día del Rey cae en domingo, es el 26 de abril. Bevrijdingsdag (Día de la Liberación) solo está en la lista en los años múltiplos de cinco, como 2025 y 2030.
+En los Países Bajos, la aplicación incluye cada año en la lista Nieuwjaar, Goede Vrijdag, Pasen (dos días), Koningsdag, Hemelvaart, Pinksteren (dos días) y Kerst (25 y 26 de diciembre) (Año Nuevo, Viernes Santo, Pascua, Día del Rey, Ascensión, Pentecostés y Navidad). Si el Día del Rey cae en domingo, es el 26 de abril. Bevrijdingsdag (Día de la Liberación) solo está en la lista en los años múltiplos de cinco, como 2025 y 2030.
 
-Los años dependen del período del proyecto: desde el año anterior a la fecha de inicio hasta el año posterior a la fecha de fin. Si el proyecto no tiene fecha de fin, hasta tres años después del año de inicio. Ajuste la fecha de inicio y la de fin en *Configuración › Proyecto › Info del proyecto*.
+Los años dependen del período del proyecto: desde el año anterior a la fecha de inicio hasta el año posterior a la fecha de fin. Si el proyecto no tiene fecha de fin, hasta tres años después del año de inicio. Ajuste la fecha de inicio y la de fin en *Configuración › Proyecto › Ajustes del proyecto*.
 
 ### Regenerar tras un nuevo período del proyecto
 
-Si su proyecto se desplaza o recibe una fecha de fin posterior, los festivos ya no cubren los años nuevos. La aplicación lo indica en la ventana *Calendarios*, por ejemplo *Los festivos cubren 2025–2028; el proyecto llega hasta 2030. ¿Regenerar?* Haga clic después en *Regenerar*. La aplicación usa las mismas opciones que la vez anterior (país, región, vacaciones de construcción) para los años del proyecto. Después haga clic en *Aplicar*. Solo ve este mensaje en un calendario cuyos festivos se generaron antes.
+Si su proyecto se desplaza o recibe una fecha de fin posterior, los festivos ya no cubren los años nuevos. La aplicación lo indica en la ventana *Calendarios*, por ejemplo *Los festivos cubren 2025–2028. ¿Desea volver a generar hasta 2030 inclusive?* Haga clic después en *Regenerar*. La aplicación usa las mismas opciones que la vez anterior (país, región, vacaciones de construcción) para los años del proyecto. Después haga clic en *Aplicar*. Solo ve este mensaje en un calendario cuyos festivos se generaron antes.
 
 ### Añadir un día o un período libre propio
 
@@ -58,5 +58,5 @@ Elija *Sin festivos* en *País* y haga clic en *Generar*. La lista queda entonce
 - [Calendarios y días laborables](docs://uitleg-kalenders): cómo tiene en cuenta la aplicación los festivos y las vacaciones de construcción al contar días laborables.
 - [Crear y asignar un calendario](docs://howto-kalender-maken-en-toewijzen): crear un calendario propio en el que incluir festivos.
 - [Ventanas de calendario](docs://ref-kalenders): todos los campos de las ventanas de calendario.
-- [Nuevo proyecto e Info del proyecto](docs://ref-projectinfo): el conjunto de festivos para un proyecto nuevo.
+- [Nuevo proyecto y Ajustes del proyecto](docs://ref-projectinfo): el conjunto de festivos para un proyecto nuevo.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): además de los festivos, el calendario del proyecto tiene un período libre *Frost delay, foundations*.

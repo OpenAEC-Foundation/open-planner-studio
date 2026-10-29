@@ -35,22 +35,32 @@ Her taşıma *Geri al* (Ctrl+Z) için tek bir adımdır.
 
 *Planlama › Yapı* bölümündeki *WBS auto* düğmesine bakın.
 
-- **Açık (yeni bir projede varsayılan).** Uygulama, her ekleme, silme ve taşımada ağacın tamamını yeniden numaralandırır. WBS kodu o zaman salt okunurdur: onu görev tablosuna veya *Özellikler* paneline yazamazsınız. *WBS'yi yeniden numaralandır* devre dışıdır.
-- **Kapalı.** Kodlar olduğu gibi kalır, taşıma ve girintilemeden sonra da. Kodları kendiniz yazarsınız: *WBS* sütununda veya *Özellikler* içindeki *WBS Kodu* alanında. Ya da *WBS'yi yeniden numaralandır* öğesiyle kodları bir kez yeniden numaralandırırsınız. Bu, kendi yazdığınız kodların üzerine de yazar.
+- **Açık (yeni bir projede varsayılan).** Ayarı olmayan bir dosyayı açtığınızda da açık olur. Bu, yalnızca tüm WBS kodları zaten ağacın numaralandırmasına (1, 1.1, 1.2 …) uyuyorsa geçerlidir. Kodlar değişmez. Bu ayarı olmayan boş bir dosya da, yeni bir proje gibi *açık* olur. Uygulama, her ekleme, silme ve taşımada ağacın tamamını yeniden numaralandırır. WBS kodu o zaman salt okunurdur: onu görev tablosuna veya *Özellikler* paneline yazamazsınız. *WBS'yi yeniden numaralandır* devre dışıdır.
+- **Kapalı.** Kendi kodları olan bir dosyada, örneğin *A1000* gibi kodlarla, ya da ağaçtan farklı tek bir kod olduğunda varsayılandır. Kodlar olduğu gibi kalır, taşıma ve girintilemeden sonra da. Kodları kendiniz yazarsınız: *WBS* sütununda veya *Özellikler* içindeki *WBS Kodu* alanında. Ya da *WBS'yi yeniden numaralandır* öğesiyle kodları bir kez yeniden numaralandırırsınız. Bu, kendi yazdığınız kodların üzerine de yazar.
 
 *WBS auto* düğmesini açarsanız uygulama ağacı hemen numaralandırır. Hem *WBS auto* hem de *WBS'yi yeniden numaralandır* işlemleri *Geri al* ile geri alınabilir.
 
 ## Tuzaklar ve uygulamanın yaptıkları
 
-**Filtreleme, gruplama veya sıralama açıktır.** Gördüğünüz sıra o zaman planlamanın sırası değildir, bu yüzden uygulama yapıyı kilitler. *Girinti* ve *Girintiyi azalt* devre dışıdır; ipucunda *Filtreleme/gruplama/sıralama sırasında kullanılamaz* yazar. Alt+→ ve sürükleme aynı metni, *Temizle* düğmesiyle birlikte bir şeritte gösterir. Bu, filtreyi, gruplamayı ve sıralamayı tek seferde kaldırır. Ctrl+Z bunları geri getirmez. *Girinti* ve *Girintiyi kaldır* o zaman sağ tık menüsünde yoktur.
+**Filtreleme, gruplama veya sıralama açıktır.** Gördüğünüz sıra o zaman planlamanın sırası değildir, bu yüzden uygulama yapıyı kilitler. *Girinti* ve *Girintiyi azalt* devre dışıdır; ipucunda *Filtreleme/gruplama/sıralama sırasında kullanılamaz* yazar. Alt+→ ve sürükleme aynı metni, *Temizle* düğmesiyle birlikte kırmızı bir şeritte gösterir. Bu, filtreyi, gruplamayı ve sıralamayı tek seferde kaldırır. Ctrl+Z bunları geri getirmez. Şerit, çarpıya tıklayana, Ctrl+Z veya Ctrl+Y kullanana ya da başka bir belgeye geçene kadar kalır. *Girinti* ve *Girintiyi kaldır* o zaman sağ tık menüsünde yoktur.
 
 Alt+↑ ve Alt+↓ böyle bir görünümde yine çalışır, mesaj çıkmadan. Yalnızca filtre varsa yeni sırayı hemen görürsünüz. Sıralama varsa planlamadaki sıra gerçekten değişir, ama bunu yalnızca *Temizle* sonrasında görürsünüz.
 
-**WBS auto kapalıysa.** Yeni bir görev, ağaçtaki yerine uyan kodu alır, başka bir görev o kodu zaten kullanıyorsa bile. Böylece aynı numaralar çift görünebilir. Girintilemeden sonra da kodlar ağaçla artık eşleşmez. *WBS'yi yeniden numaralandır* ikisini de düzeltir.
+**WBS auto kapalıysa.** Bu, kendi kodları olan bir dosyada ya da ayarı *kapalı* olarak kaydeden bir dosyada olur. Yeni bir görev, ağaçtaki yerine uyan kodu alır, başka bir görev o kodu zaten kullanıyor olsa bile. Böylece aynı numaralar çift görünebilir. Girintilemeden sonra da kodlar ağaçla artık eşleşmez. *WBS'yi yeniden numaralandır* ikisini de düzeltir.
 
 **Bir kilometre taşına alt görev eklenir.** Bir kilometre taşı bir andır ve alt görevi olmaz. Uygulama kilometre taşı işaretini kaldırır ve bunu size bildirir.
 
-**Kaynak atamaları olan bir göreve alt görev eklenir.** Özet görev kendi başına atama taşımaz. Uygulama atamaları, bunları taşıyabilecek ilk yeni alt göreve taşır ve bunu size bildirir. Böyle bir alt görev yoksa ya da zaten aynı kaynak varsa hiçbir şey olmaz ve mesaj nedenini söyler.
+**Kaynak atamaları olan bir göreve alt görev eklenir.** Özet görev kendi başına atama taşımaz. Bu yüzden uygulama önce bunlarla ne yapılacağını sorar, *Görev özet göreve dönüşür* penceresinde. Bu, bir görevi girintilediğinizde, bir görevde *Alt görev ekle* veya *Kilometre taşı ekle* kullandığınızda, bir şablon eklediğinizde ve *Görevi düzenle* içinde yeni bir *Üst görev* seçtiğinizde olur; mevcut bir görev için de yeni bir görev için de. *Görevi düzenle* içinde soru kaydetmeden önce gelir. Orada *İptal* seçerseniz *Görevi düzenle* değişikliklerinizle birlikte açık kalır. Şunu seçersiniz:
+
+- *İptal*: hiçbir şey değişmez, yapı da olduğu gibi kalır.
+- *Atamayı kaldırın*: görev alt görevlerini alır, atamaları kaldırılır. Bu atamaların gerçek işi de silinir.
+- *Taşı “…”*: atamalar, bunları taşıyabilecek ilk yeni alt göreve gider, gerçek işleriyle birlikte. Bir kilometre taşı veya özet görev atama taşımaz.
+
+Bu alt görevde aynı kaynak zaten varsa veya uygun bir alt görev yoksa *Taşı* devre dışıdır. Penceredeki turuncu bir blok nedenini söyler.
+
+Bir atamada zaten gerçek iş varsa, turuncu blok kaynak başına kaç saat olduğunu söyler, örneğin *Metselaar atamasında zaten 8 saat gerçek iş kayıtlı. Atamayı kaldırırsanız bu iş silinir.* Bu durumda *İptal* varsayılan düğmedir: Enter hiçbir şeyi değiştirmez. Atamayı yine de kaldırmak istiyorsanız *Atamayı kaldırın* düğmesine kendiniz tıklayın.
+
+Pencere açık olduğunda pencerenin dışındaki hiçbir kısayol çalışmaz. Buna *Geri al*, *Yapıştır*, Delete, F5 ve Ctrl+S da dahildir. Tek bir işlem aynı anda birden fazla özet görev oluşturursa pencere kaynakları göreve göre gösterir ve seçiminiz hepsi için geçerli olur. Tek bir *Geri al* (Ctrl+Z) bütün işlemi geri alır.
 
 **Bir ilişki döngü oluşturabilir.** Özet görevin ilişkileri alt görevlerine de uygulanır. Bu yüzden bir taşıma döngü oluşturacaksa uygulama bunu reddeder ve *Bu taşıma planlamada bir döngü oluştururdu (…)* mesajını gösterir. Hiçbir şey değişmez.
 

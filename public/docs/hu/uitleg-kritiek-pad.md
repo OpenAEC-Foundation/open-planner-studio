@@ -16,21 +16,21 @@ A számítási módszer neve **CPM** (Critical Path Method, kritikus út módsze
 
 ## Hogyan számít az alkalmazás
 
-Az alkalmazás nem számítja újra az ütemezést magától. A számítást az **ütemezés-számítás** (F5) parancs indítja, például a *Kezdőlap › Ütemezés › Számítás* útvonalon. Ha az utolsó számítás óta változott valami, az állapotsor ezt mutatja: *Elavult — újraszámítsa (F5)*. Ha az *Automatikus ütemezés-számítás* be van kapcsolva (a *Beállítások › Projekt › Beállítások* alatt, az *Ütemezés* fülön, az *Ütemezés-számítás* részben), akkor az alkalmazás ezt maga végzi el.
+Az alkalmazás nem számítja újra az ütemezést magától. A számítást az **ütemezés-számítás** (F5) parancs indítja, például a *Kezdőlap › Ütemezés › Számítás* útvonalon. Ha az utolsó számítás óta változott valami, az állapotsor ezt mutatja: *Elavult — újraszámítsa (F5)*. Ha az *Automatikus ütemezés-számítás* be van kapcsolva (a *Beállítások › Projekt › Alkalmazásbeállítások* alatt, az *Ütemezés* fülön, az *Ütemezés-számítás* részben), akkor az alkalmazás ezt maga végzi el.
 
 A számítás két menetben jár be a hálózaton.
 
 ### Előre bejárás
 
-Az alkalmazás a projektkezdéstől indul. A kapcsolatokat követve haladva az előd tevékenységtől az utód tevékenység felé halad. Minden tevékenységhez megkeresi a legkorábbi napot, amikor az kezdődhet. Ha egy tevékenységnek több előde van, a tevékenység megvárja az utolsó befejezését. Így minden tevékenység megkapja a **korai kezdés** és a **korai befejezés** dátumát. Az összes tevékenység legkésőbbi korai befejezése a projektbefejezés.
+Az alkalmazás a projektkezdéstől indul. A kapcsolatokat követve az előd tevékenységtől az utód tevékenység felé halad. Minden tevékenységhez megkeresi a legkorábbi napot, amikor az kezdődhet. Ha egy tevékenységnek több előde van, a tevékenység megvárja az utolsó előd befejezését. Így minden tevékenység megkapja a **korai kezdés** és a **korai befejezés** dátumát. Az összes tevékenység legkésőbbi korai befejezése a projektbefejezés.
 
 ### Visszafelé bejárás
 
-Ezután az alkalmazás visszafelé halad, a befejezési dátumtól a kezdésig. Most minden tevékenységhez megkeresi azt az utolsó napot, amíg a tevékenységnek be kell fejeződnie, úgy hogy a befejezési dátum ne tolódjon el. Ha egy tevékenységnek több utódja van, a számítás az utódot veszi figyelembe, amelynek előbb kell kezdődnie. Így kapja meg a **legkésőbbi kezdés** és a **legkésőbbi befejezés** dátumát.
+Ezután az alkalmazás visszafelé halad, a befejezési dátumtól a kezdésig. Most minden tevékenységhez megkeresi azt az utolsó napot, amikor a tevékenységnek be kell fejeződnie, anélkül hogy a befejezési dátum eltolódna. Ha egy tevékenységnek több utódja van, a számítás azt az utódot veszi figyelembe, amelyiknek korábban kell kezdődnie. Így kapja meg a **legkésőbbi kezdés** és a **legkésőbbi befejezés** dátumát.
 
 ### Teljes és szabad tartalékidő
 
-A tevékenység legkésőbbi és legkorábbi dátumának különbsége a **teljes tartalékidő**. Ez az a munkanapokban mért idő, amennyit a tevékenység késhet, vagy később kezdődhet, anélkül hogy a projektbefejezés eltolódna. Az alkalmazás a tevékenység naptárának munkanapjaiban számol. Hétvége és ünnepnap nem számít bele.
+A tevékenység legkésőbbi és legkorábbi dátumának különbsége a **teljes tartalékidő**. Ez a munkanapokban mért idő, amennyit a tevékenység késhet, vagy később kezdődhet, anélkül hogy a projektbefejezés eltolódna. Az alkalmazás a tevékenység naptárának munkanapjaiban számol. Hétvége és ünnepnap nem számít bele.
 
 A **szabad tartalékidő** szigorúbb. Ez az a tartalék, amelyet a tevékenység addig használhat fel, amíg egyik utódjának később kell kezdődnie. Ezt a tartalékot más tevékenység észrevétele nélkül használhatja fel.
 
@@ -42,16 +42,17 @@ A tartalékidő negatív is lehet. Ez akkor fordul elő, ha egy tevékenységnek
 
 ### Mikor kritikus egy tevékenység?
 
-Alapértelmezés szerint egy tevékenység akkor kritikus, ha a teljes tartalékideje 0 vagy kevesebb. Ezt a *Beállítások › Projekt › Projektinfó* alatt lehet módosítani, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* résznél. Ha az *Alkalmazás* gombra kattint, az alkalmazás azonnal újraszámítja az ütemezést. A beállítások a projektfájlhoz tartoznak, nem az alkalmazáshoz.
+Alapértelmezés szerint egy tevékenység akkor kritikus, ha a teljes tartalékideje 0 vagy kevesebb. Ezt a *Beállítások › Projekt › Projektbeállítások* alatt lehet módosítani, a *Számítási profil és beállítások* blokkban, az *Ennek a projektnek a számítási beállításai* résznél. Ha az *Alkalmazás* gombra kattint, az alkalmazás azonnal újraszámítja az ütemezést. A beállítások a projektfájlhoz tartoznak, nem az alkalmazáshoz.
 
-- **Kritikus meghatározás** a *Teljes tartalékidő ≤ küszöbérték* beállítással és a *Küszöbérték (munkanap)* mezővel. A küszöbérték alapértéke 0. Ha egy puffert szeretne védeni, állítsa 2-re. Például: minden tevékenység, amelynek 2 munkanap vagy annál kevesebb tartalékideje van, kritikusnak számít, és pirosra vált.
+- **Kritikus meghatározás** a *Teljes tartalékidő ≤ küszöbérték* beállítással és a *Küszöbérték (munkanap)* mezővel. A küszöbérték alapértéke 0. Ha egy puffert szeretne védeni, állítsa 2-re. Például: minden tevékenység, amelynek 2 munkanap vagy annál kevesebb tartalékideje van, kritikusnak számít, és pirosra vált. Ha a *Leghosszabb útvonal* lehetőséget választja, egy tevékenység akkor kritikus, ha a leghosszabb láncon van, amely az utolsó befejezéshez vezet. Ekkor a tartalékideje nem számít.
+- **Több tartalékidő-útvonal** a láncokat tartalékidejük szerint számozza a *Tartalékidő-útvonal* oszlopban. Az 1-es útvonal a kritikus út. Lásd: [Számítási beállítások és ütemezési szabályok](docs://ref-rekenopties-en-conventies).
 - **Közel kritikus jelölése** a saját *Küszöbérték* beállításával, alapértelmezés szerint 2 munkanap. Egy tevékenység, amelynek 0-nál több, de legfeljebb ennyi tartalékideje van, borostyánsárga sávot kap. Így látszik, mely tevékenységekben alig maradt tartalék, anélkül hogy kritikusnak neveznénk őket.
 - **Nyitott végű tevékenységek kritikusak**: egy tevékenység, amelynek nincs utódja, és még nincs befejezve, kritikusnak számít. Hasznos biztonsági hálóként az elfelejtett kapcsolatok ellen (lásd lent a tévhiteknél).
-- **Tartalékidő-számítás** dönti el, hogy a teljes tartalékidőt a tevékenység kezdetén, a befejezésénél, vagy a kettő közül a kisebbnek megfelelően mérjük. Az új projektek beállítása *Automatikus (alapértelmezett)*. Ha a Primavera P6 számítási módját követi, az *Ennek a profilnak az alapbeállításainak alkalmazása* gomb a választást erre állítja: *Befejezési tartalékidő*. Az MS Projectnél ugyanez a gomb a választást visszaállítja erre: *Automatikus (alapértelmezett)*. Állapotdátummal az MS Project maga is így számol.
+- **Tartalékidő-számítás** dönti el, hogy az alkalmazás a teljes tartalékidőt a tevékenység kezdetén, a befejezésénél, vagy a kettő közül a kisebbnek megfelelően méri. Az új projektek beállítása *Automatikus (alapértelmezett)*. Ha a projekt a Primavera P6 számítási profilt használja, és ez a választás nem *Befejezési tartalékidő*, egy narancssárga blokk a *Projektbeállítások* alatt ezt jelzi. Ennek a gombja a választást *Befejezési tartalékidő* értékre állítja. Az MS Projectnél ugyanez a gomb a választást visszaállítja erre: *Automatikus (alapértelmezett)*. Állapotdátummal az MS Project maga is így számol.
 
 ### Hol látja?
 
-Kritikus tevékenységek piros sávot kapnak a Gantt-diagramon. Egy nem kritikus sáv mögött zöld tartalékidő-sáv húzódik a tevékenység legkésőbbi befejezéséig: ez a tartalékidő. Ezt a sávot a *Nézet › Alaptervek és előrehaladás › Tartalékidő-sáv* útvonalon lehet be- és kikapcsolni.
+A kritikus tevékenységek piros sávot kapnak a Gantt-diagramon. Egy nem kritikus sáv mögött zöld tartalékidő-sáv húzódik a tevékenység legkésőbbi befejezéséig: ez a tartalékidő. Ezt a sávot a *Nézet › Alaptervek és előrehaladás › Tartalékidő-sáv* útvonalon lehet be- és kikapcsolni.
 
 Egy kijelölt tevékenységnél a *Tulajdonságok* panel minden adatot felsorol a *CPM-eredmény* alatt: a korai és legkésőbbi kezdést és befejezést, a teljes, szabad és zavaró tartalékidőt, és azt, hogy a tevékenység a kritikus úton van-e. A tevékenységek tartaléka egymás mellett látszik a *Számított* alatti oszlopokban (a táblázat fejlécének jobb szélén lévő **+**-szal), például *Teljes tartalékidő*, *Szabad tartalékidő*, *Kritikus* és *Közel kritikus*.
 

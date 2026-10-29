@@ -23,8 +23,8 @@ Ha egy tevékenység ki van jelölve, a hisztogram csak annak a tevékenységnek
 
 ### 2. Válasszon megoldást
 
-- **Több kapacitás.** Ha tényleg érkezik egy második bricklayer, állítsa a *Maximális mennyiség* értékét 2-re (lásd: [Erőforrások kezelése](docs://howto-resources-beheren)). Akkor a túlterhelés megszűnik.
-- **Kevesebb hozzárendelt mennyiség naponta.** Csökkentse a *Hozzárendelt mennyiség/nap* értékét, vagy válasszon másik görbét a hozzárendeléshez (lásd: [Erőforrások hozzárendelése görbével](docs://howto-resource-toewijzen)).
+- **Több kapacitás.** Ha tényleg érkezik egy második kőműves, állítsa a *Maximális mennyiség* értékét 2-re (lásd: [Erőforrások kezelése](docs://howto-resources-beheren)). Akkor a túlterhelés megszűnik.
+- **Kevesebb hozzárendelt mennyiség naponta.** Csökkentse a *Hozzárendelt mennyiség* értékét, vagy válasszon másik görbét a hozzárendeléshez (lásd: [Erőforrások hozzárendelése görbével](docs://howto-resource-toewijzen)).
 - **Helyezze a tevékenységeket egymás után.** Adjon hozzá egy kapcsolatot a két tevékenység közé, hogy a második csak akkor kezdődjön, amikor az első befejeződött (lásd: [Kapcsolatok hozzáadása](docs://howto-relaties-leggen)).
 - **Kiegyenlítés.** Az alkalmazás egy tevékenység kezdését későbbre teszi.
 
@@ -50,7 +50,7 @@ Ha Ön szeretné maga eldönteni, melyik tevékenység marad a helyén, adjon ne
 ### Visszavonás és újravégrehajtás
 
 - A *Visszavonás* (Ctrl+Z) egy lépésben visszavonja az *Alkalmazás* műveletet.
-- Az *Erőforrások › Kiegyenlítés › Kiegyenlítés törlése* menüpont eltávolítja a kiegyenlítést a tevékenységekről. A gomb szürke, amíg nincs kiegyenlítés. Az így visszakapott túlterhelés egyszerűen újra megjelenik.
+- Az *Erőforrások › Kiegyenlítés › Kiegyenlítés törlése* menüpont eltávolítja az összes kiegyenlítést a tevékenységekről. A gomb szürke, amíg nincs kiegyenlítés. Az így visszakapott túlterhelés egyszerűen újra megjelenik.
 - Ha azóta módosította az ütemezést, egyszerűen válassza újra a *Kiegyenlítés*… lehetőséget. Az alkalmazás ekkor nulláról indul: a régi késleltetések nem számítanak.
 
 ## Buktatók és mit tesz ekkor az alkalmazás

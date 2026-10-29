@@ -14,7 +14,7 @@ Nastavte dátum kontroly stavu podľa článku [Aktualizácia postupu](docs://ho
 
 ### 2. Vytvorte tabuľku
 
-Vyberte *Plán › Postup › Exportovať tabuľku postupu*. Rovnaké tlačidlo je na kartách *Tabuľka* a *Zostava*. Aplikácia vytvorí súbor Excel a navrhne názov *(názov projektu)-voortgang.xlsx*. V prehliadači sa súbor uloží medzi vaše stiahnuté súbory. Radšej CSV? Vyberte *Súbor › Exportovať › Hárok postupu (CSV)*. Hárok Excel je tam tiež, ako *Hárok postupu (Excel)*.
+Vyberte *Plán › Postup › Exportovať tabuľku postupu*. Rovnaké tlačidlo je na kartách *Tabuľka* a *Zostava*. Aplikácia vytvorí súbor Excel a navrhne názov *(názov projektu)-voortgang.xlsx*. V prehliadači sa súbor uloží do vašich stiahnutých súborov. Radšej CSV? Vyberte *Súbor › Exportovať › Hárok postupu (CSV)*. Hárok Excel je tam tiež, ako *Hárok postupu (Excel)*.
 
 Tabuľka má osem stĺpcov. Názvy stĺpcov zostávajú v angličtine a za nimi je krátky pokyn v jazyku aplikácie:
 
@@ -22,16 +22,16 @@ Tabuľka má osem stĺpcov. Názvy stĺpcov zostávajú v angličtine a za nimi 
 - `Start` a `Finish` sú plánované dátumy, len na informáciu. Aplikácia ich nikdy nezapisuje späť.
 - `Completion (%)`, `Actual Start` a `Actual Finish` sú stĺpce, ktoré vyplníte.
 
-Hárok Excel je chránený bez hesla: upraviť sa dajú len tri stĺpce na vyplnenie. Excel kontroluje, že percento je medzi 0 a 100 a že skutočný dátum je dátum. Fáza (súhrnná úloha) je sivá a má označenie *— súhrnná úloha: nevypĺňajte*.
+Tabuľka v Exceli je chránená bez hesla: upraviť sa dajú len tri stĺpce na vyplnenie. Excel kontroluje, že percento dokončenia je medzi 0 a 100 a že skutočný dátum je dátum. Fáza (súhrnná úloha) je sivá a má označenie *— súhrnná úloha: nevypĺňajte*.
 
 ### 3. Nechajte tabuľku vyplniť
 
 Pri každej úlohe stavbyvedúci vyplní:
 
-- `Completion (%)`: od 0 do 100 vrátane. V hárku Excel sa smú zadať desatinné čísla (napríklad 33,3). V CSV pokyn žiada celé čísla.
-- `Actual Start` a `Actual Finish`: v Exceli ako dátum podľa vášho regionálneho nastavenia; v CSV ako dd-mm-yyyy.
+- `Completion (%)`: od 0 do 100 vrátane. Aplikácia tiež načíta desatinné čísla s čiarkou alebo bodkou (napríklad 33,3 alebo 33.3). Pokyn v CSV stále žiada celé čísla: tabuľkový program s iným regionálnym nastavením môže prečítať 8,38 ako 838.
+- `Actual Start` a `Actual Finish`: v Exceli ako dátum podľa vášho regionálneho nastavenia; v CSV ako dd-mm-yyyy alebo ako yyyy-mm-dd.
 
-Čo zostane prázdne, sa nezmení. Prázdna bunka teda ani nevymaže existujúci postup. To sa dá urobiť len v aplikácii. Úlohu, ktorá sa ešte nezačala, nechá úplne prázdnu.
+Čo zostane prázdne, sa nezmení. Prázdna bunka teda ani nevymaže existujúci postup; to sa dá urobiť len v aplikácii. Úlohu, ktorá sa ešte nezačala, stavbyvedúci nechá úplne prázdnu.
 
 ### 4. Načítajte tabuľku
 
@@ -39,7 +39,7 @@ Pri každej úlohe stavbyvedúci vyplní:
 2. Kliknite na *Vybrať súbor*… a vyberte vyplnený súbor `.xlsx` alebo `.csv`.
 3. Ak sú dátumy v CSV nejednoznačné, aplikácia sa spýta *Najskôr deň alebo mesiac?* a ukáže dátum z vášho súboru načítaný dvoma spôsobmi. Kliknite na správny dátum.
 4. Teraz vidíte náhľad. Hore sú štyri počítadlá: *Použité*, *Nezmenené*, *Čaká na prepojenie* a *Zamietnuté*. Pod nimi je pri každej úlohe vidieť, čo sa zmení, napríklad *Percento dokončenia: 0% → 100%*.
-5. Skontrolujte náhľad a kliknite na *Použiť*. Okno zobrazí *Výsledok* s počítadlami a s riadkami, ktoré boli zamietnuté, a s dôvodom. Dokončite kliknutím na *Zavrieť*.
+5. Skontrolujte náhľad a kliknite na *Použiť*. Okno zobrazí *Výsledok* s počítadlami a s riadkami, ktoré boli zamietnuté, a s dôvodom. Potom kliknite na *Zavrieť*.
 
 Náhľad nemôžete preskočiť. Tlačidlo *Použiť* je neaktívne, kým nie je čo použiť.
 

@@ -83,4 +83,4 @@ Where you see it:
 - **Histogram** — the red parts of the bars and the red dot in the picker.
 - **Dock** — the triangle *Overallocated*.
 
-Leveling can resolve overallocation by moving tasks within their float; it does not resolve a resource that has to work on a day off. See [Leveling](docs://uitleg-nivelleren).
+Leveling can resolve overallocation by letting tasks start later. By default the project finish date may move; with *smoothing* it stays within the float. Leveling does not resolve a resource that has to work on a day off. See [Leveling](docs://uitleg-nivelleren).

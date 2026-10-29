@@ -14,7 +14,7 @@ Durum tarihini, [İlerlemeyi güncelleme](docs://howto-voortgang-bijwerken) böl
 
 ### 2. Sayfayı oluşturun
 
-*Planlama › İlerleme › İlerleme sayfasını dışa aktar* öğesini seçin. Aynı düğme *Tablo* ve *Rapor* sekmelerinde de bulunur. Uygulama bir Excel dosyası oluşturur ve adı olarak *(proje adı)-ilerleme.xlsx* önerir. Tarayıcıda dosya indirilenler klasörünüze kaydedilir. CSV tercih ediyorsanız *Dosya › Dışa aktar › İlerleme sayfası (CSV)* öğesini seçin. Excel sayfası da var: *İlerleme sayfası (Excel)*.
+*Planlama › İlerleme › İlerleme sayfasını dışa aktar* öğesini seçin. Aynı düğme *Tablo* ve *Rapor* sekmelerinde de bulunur. Uygulama bir Excel dosyası oluşturur ve adı olarak *(proje adı)-voortgang.xlsx* önerir. Tarayıcıda dosya indirilenler klasörünüze kaydedilir. CSV tercih ediyorsanız *Dosya › Dışa aktar › İlerleme sayfası (CSV)* öğesini seçin. Excel sayfası da var: *İlerleme sayfası (Excel)*.
 
 Sayfada sekiz sütun var. Sütun adları İngilizce kalır. Her adın ardına uygulamanın dilinde kısa bir açıklama gelir:
 
@@ -28,24 +28,24 @@ Excel sayfası parolasız korumalıdır: yalnızca üç doldurulacak sütun düz
 
 Her görev için saha yöneticisi şunları doldurur:
 
-- `Completion (%)`: 0 ile 100 arasında, bu değerler dahil. Excel sayfasında ondalık sayılara izin verilir (örneğin 33,3). CSV'de açıklama tam sayı ister.
-- `Actual Start` ve `Actual Finish`: Excel'de kendi bölge ayarınıza uygun bir tarih olarak. CSV'de gg-aa-yyyy biçiminde.
+- `Completion (%)`: 0 ile 100 arasında, bu değerler dahil. Uygulama ondalık sayıları da okur, virgül veya nokta ile (örneğin 33,3 veya 33.3). CSV'deki açıklama yine tam sayı ister: farklı bölge ayarına sahip bir hesap tablosu 8,38 değerini 838 olarak okuyabilir.
+- `Actual Start` ve `Actual Finish`: Excel'de kendi bölge ayarınıza uygun bir tarih olarak; CSV'de gg-aa-yyyy veya yyyy-aa-gg biçiminde.
 
-Boş kalan her şey hiçbir şeyi değiştirmez. Dolayısıyla boş bir hücre mevcut ilerlemeyi de silmez. Bu yalnızca uygulamada yapılabilir. Henüz başlamamış bir görevi ise tamamen boş bırakır.
+Boş kalan her şey hiçbir şeyi değiştirmez. Dolayısıyla boş bir hücre mevcut ilerlemeyi de silmez. Mevcut ilerlemeyi silmek yalnızca uygulamada yapılabilir. Henüz başlamamış bir görevi ise saha yöneticisi tamamen boş bırakır.
 
 ### 4. Sayfayı içe aktarın
 
 1. *Planlama › İlerleme › Bir tablodan ilerlemeyi güncelle* öğesini seçin (ayrıca *Tablo* ve *Rapor* sekmelerinde), veya *Dosya › İçe aktar › Bir tablodan ilerlemeyi güncelle* öğesini seçin. *Bir tablodan ilerlemeyi güncelle* penceresi açılır.
 2. *Dosya seç…* düğmesini tıklayın ve doldurulmuş `.xlsx` veya `.csv` dosyasını seçin.
-3. CSV'deki tarihler belirsizse uygulama *Önce gün mü, önce ay mı?* diye sorar. Dosyanızdaki tarih iki şekilde okunmuş olarak gösterilir. Doğru tarihe tıklayın.
-4. Şimdi bir önizleme görürsünüz. Üstte dört sayaç vardır: *Uygulandı*, *Değişmedi*, *Eşleştirme bekliyor* ve *Reddedildi*. Bunun altında her görev için neyin değiştiği görünür, örneğin *Completion: 0% → 100%*.
+3. CSV'deki tarihler belirsizse uygulama *Önce gün mü, önce ay mı?* diye sorar. Dosyanızdaki tarih iki şekilde okunmuş olarak gösterilir. Doğru olan tarihe tıklayın.
+4. Şimdi bir önizleme görürsünüz. Üstte dört sayaç vardır: *Uygulandı*, *Değişmedi*, *Eşleştirme bekliyor* ve *Reddedildi*. Bunun altında her görev için neyin değiştiği görünür, örneğin *Completion: %0 → %100*.
 5. Önizlemeyi kontrol edin ve *Uygula* düğmesini tıklayın. Pencerede *Sonuç* gösterilir. Sayaçlar ile reddedilen satırlar ve nedenleri de burada yer alır. Bitirmek için *Kapat* düğmesini tıklayın.
 
 Önizlemeyi atlayamazsınız. *Uygula* düğmesi, uygulanacak bir şey olmadığı sürece devre dışıdır.
 
 ### 5. Planlamayı yeniden hesaplayın
 
-İçe aktarma planlamayı kendiliğinden yeniden hesaplamaz. **Hesapla** (F5) tuşuna basın, örneğin *Planlama › Zamanlama › Hesapla* üzerinden. *Otomatik hesapla* açık değilse bunu yapın.
+İçe aktarma planlamayı kendiliğinden yeniden hesaplamaz. **Hesapla** (F5) tuşuna basın, örneğin *Planlama › Zamanlama › Hesapla* üzerinden. Bunu, *Otomatik hesapla* açık değilse yapın.
 
 ## Tam olarak uymayan satırlar
 

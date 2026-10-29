@@ -36,7 +36,7 @@ Die Liste *Berichtstyp* enthält elf Berichte. Wählen Sie den Bericht, der zu I
 
 Die App berechnet nicht von selbst. Wenn Sie seit der letzten Berechnung Vorgänge, Beziehungen oder Kalender geändert haben, drücken Sie **Berechnen** (F5). Die Tabellenberichte warnen Sie selbst, oben im Bericht: *Der Terminplan wurde seit der letzten Berechnung geändert — drücken Sie Berechnen (F5) für aktuelle Werte.* Oder, wenn der Terminplan noch nie berechnet wurde: *Noch nicht berechnet — drücken Sie Berechnen (F5) für Termine und Puffer.*
 
-Das Menüband des Reiters *Bericht* hat keine Schaltfläche Berechnen, aber F5 funktioniert hier. *PDF exportieren* berechnet vorab ebenfalls selbst, wenn der Terminplan veraltet ist. So hinkt das PDF nie Ihrem Terminplan hinterher.
+Das Menüband des Reiters *Bericht* hat keine Schaltfläche Berechnen, aber F5 funktioniert hier einwandfrei. *PDF exportieren* berechnet vorab ebenfalls selbst, wenn der Terminplan veraltet ist. So hinkt das PDF nie Ihrem Terminplan hinterher.
 
 ### 4. Passen Sie den Bericht an
 
@@ -70,7 +70,7 @@ Klicken Sie unten in der linken Spalte auf **PDF exportieren**. Der vorgeschlage
 
 **Die Schaltfläche Drucken und Strg+P drucken nicht.** Die Schaltfläche *Drucken* in der Gruppe *Bericht* liegt auf dem Reiter *Bericht* selbst und tut nichts extra. Strg+P öffnet diesen Reiter. Die App hat keinen eigenen Druckbefehl. Der Weg aufs Papier führt über das PDF. Funktioniert Strg+P nicht (siehe Schritt 1), öffnet sich im Browser der Druckdialog des Browsers. Dieser druckt den Bildschirm, nicht den Bericht.
 
-**Unternehmen: Überschreiben wird nicht gespeichert.** Das Feld *Unternehmen:* des Gantt-Diagramms beginnt mit dem Unternehmen aus der Projektinfo. Was Sie darüber schreiben, wird nicht gespeichert. Hier können Sie nicht in *Autor:* schreiben. Beides ändern Sie unter *Einstellungen › Projekt › Projektinfo*, in den Feldern *Auftraggeber/Organisation* und *Autor*. Bestätigen Sie mit *Anwenden*.
+**Unternehmen: Überschreiben wird nicht gespeichert.** Das Feld *Unternehmen:* des Gantt-Diagramms beginnt mit dem Unternehmen aus den Projekteinstellungen. Was Sie darüber schreiben, wird nicht gespeichert. Hier können Sie nicht in *Autor:* schreiben. Beides ändern Sie unter *Einstellungen › Projekt › Projekteinstellungen*, in den Feldern *Auftraggeber/Organisation* und *Autor*. Bestätigen Sie mit *Anwenden*.
 
 **Balkenfarben: gilt auch für Ihren Bildschirm.** Die Auswahl *Balkenfarben:* im Bericht ist dieselbe wie *Balkenfarben* auf dem Reiter Ansicht. Ändern Sie sie im Bericht, ändert sich damit auch Ihr Gantt-Diagramm auf dem Bildschirm.
 

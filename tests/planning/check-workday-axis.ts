@@ -25,7 +25,7 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 function close(label: string, actual: number, expected: number, tol = 1e-6): void {
   checks++;
-  if (Math.abs(actual - expected) > tol) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected} (Δ=${actual - expected})`);
+  if (!(Math.abs(actual - expected) <= tol)) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected} (Δ=${actual - expected})`);
 }
 function ok(label: string, cond: boolean): void {
   checks++;

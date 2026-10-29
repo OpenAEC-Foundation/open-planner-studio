@@ -70,7 +70,7 @@ Apri il PDF nel tuo lettore PDF e stampalo lì. Se stampi un PDF in A3 su una st
 
 **Il pulsante Stampa e Ctrl+P non stampano.** Il pulsante *Stampa* nel gruppo *Rapporto* si trova sulla scheda Rapporto stessa e non fa nulla di più. Ctrl+P ti porta a questa scheda. Nell'app non esiste un comando di stampa separato: il modo per arrivare su carta passa dal PDF. Se Ctrl+P non funziona (vedi passaggio 1), si apre la finestra di stampa del browser, che stampa lo schermo e non il report.
 
-**Azienda: la sovrascrittura non viene mantenuta.** Il campo *Azienda:* del Diagramma di Gantt parte dall'azienda delle info progetto. Quello che digiti sopra non viene mantenuto. Qui non puoi scrivere in *Autore:*. Cambi entrambi con *Impostazioni › Progetto › Info progetto*, nei campi *Committente/organizzazione* e *Autore*, e confermi con *Applica*.
+**Azienda: la sovrascrittura non viene mantenuta.** Il campo *Azienda:* del Diagramma di Gantt parte dall'azienda delle impostazioni progetto. Quello che digiti sopra non viene mantenuto. Qui non puoi scrivere in *Autore:*. Cambi entrambi con *Impostazioni › Progetto › Impostazioni progetto*, nei campi *Committente/organizzazione* e *Autore*, e confermi con *Applica*.
 
 **Colori barre: vale anche per lo schermo.** La scelta *Colori barre:* nel report è la stessa scelta di *Colori barre* nella scheda Vista. Se la cambi nel report, anche il tuo diagramma di Gantt sullo schermo cambia.
 

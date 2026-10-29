@@ -8,7 +8,7 @@ Konsulenten jobber i MS Project, kunden i Primavera, underleverandøren vil ha a
 
 ## Steg
 
-1. Velg *Hjem › Fil › Eksporter* og velg et format fra listen, eller velg *Fil › Eksporter*. Der er hvert format et kort med en kort beskrivelse.
+1. Velg *Hjem › Fil › Eksporter* og velg et format fra listen, eller velg *Fil › Eksporter*. Hvert format vises som et kort med en kort beskrivelse.
 2. I vinduet velger du et navn og et sted. Appen foreslår prosjektnavnet, med filendelsen for formatet. Fremdriftsarkene heter *projectname-voortgang* og åpnes i nedlastingsmappen din der det er mulig.
 3. Bekreft. Det kommer ingen melding hvis eksporten lykkes, bortsett fra meldingene under. Fra *Fil › Eksporter* går du etterpå tilbake til fanen *Hjem*, selv om du avbryter vinduet. Hvis du avbryter vinduet for en eksport fra listen på fanen *Hjem*, skjer det ingenting.
 
@@ -22,11 +22,11 @@ Listen på fanen *Hjem* og kortene i *Fil › Eksporter* tilbyr de samme formate
 - *CSV (;)*, på kortet *CSV (semikolonseparert)*: en aktivitetstabell som du åpner i et regneark.
 - *MS Project XML*: kan åpnes i Microsoft Project.
 - *Primavera P6 XML*: for Oracle Primavera P6.
-- *IFC 4x3*: appens eget format, med alt som er med.
+- *IFC*: appens eget format, med alt som er med, i IFC-skjemaet for prosjektet (standard IFC 4.3 ADD2).
 
 ### En IFC-eksport med en bibliotekfil
 
-Hvis prosjektet ditt er koblet til et bibliotek, står avmerkingsboksen *Lagre bibliotekfilen ved siden av* under kortene i *Fil › Eksporter*. Hvis du krysser av og velger *IFC 4x3*, ber appen om et sted to ganger: først for prosjektet, en gang til for *projectname-bibliotheek.ifc*. Denne avmerkingsboksen står bare i *Fil › Eksporter*, ikke i listen på fanen *Hjem*.
+Hvis prosjektet ditt er koblet til et bibliotek, står avmerkingsboksen *Lagre bibliotekfilen ved siden av* under kortene i *Fil › Eksporter*. Hvis du krysser av og velger *IFC*, ber appen om et sted to ganger: først for prosjektet, en gang til for *projectname-bibliotheek.ifc*. Denne avmerkingsboksen står bare i *Fil › Eksporter*, ikke i listen på fanen *Hjem*.
 
 ### Lese inn et utfylt fremdriftsark igjen
 

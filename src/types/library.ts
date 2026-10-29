@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource } from '@/types/resource';
 
@@ -56,11 +57,16 @@ export interface CompanyLibrary {
   pools: Record<string, CompanyPool>; // key = companyId
 }
 
-/** Vaste id van de automatische standaard-resourcebibliotheek ("Mijn resourcebibliotheek"). */
+/** Vaste id van de automatische standaard-resourcebibliotheek, onafhankelijk van de naam. */
 export const DEFAULT_COMPANY_ID = 'company-default';
 
 export function createDefaultCompany(): Company {
-  return { id: DEFAULT_COMPANY_ID, name: 'Mijn resourcebibliotheek' };
+  // De UI-taal geldt bij aanmaak; opgeslagen namen zijn gebruikersdata. Zonder i18n (headless)
+  // blijft de oude terugval gelden, zonder de DOM-afhankelijke i18n/config te laden.
+  const name = i18next.isInitialized
+    ? i18next.t('companyLibrary.defaultCompany', { ns: 'common' })
+    : 'Mijn resourcebibliotheek';
+  return { id: DEFAULT_COMPANY_ID, name };
 }
 
 export function createEmptyPool(company: Company): CompanyPool {

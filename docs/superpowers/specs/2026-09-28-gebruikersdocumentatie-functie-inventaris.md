@@ -189,7 +189,7 @@ Tandwiel (`TitleBar.tsx:187`), Instellingen › Project › Instellingen, Backst
 - **Veiligheid** (pauzeren, alleen lezen, auto-backup; backup maken/map openen **[T]**) — `ribbon/ai/AiSafetyGroup.tsx:95-132`.
 - **Activiteitenpaneel** — `ribbon/ai/AiActivityGroup.tsx:19`, `panels/AIActivityPanel.tsx`.
 - **AI-status in statusbalk** — `StatusBar.tsx:101`.
-- **42 MCP-tools** — `services/mcp/tools/`.
+- **41 MCP-tools** — `services/mcp/tools/`.
 
 ## 14. Help, onboarding & overig (12)
 
@@ -209,7 +209,7 @@ Tandwiel (`TitleBar.tsx:187`), Instellingen › Project › Instellingen, Backst
 ## Totalen
 
 185 functies in 14 domeinen. Verder: 9 lintregisters, 10 Backstage-onderdelen, 11 rapporttypes, 6 export- en
-5 leesformaten, 39 dialoogbestanden, 37 sneltoetsregels, 27 rekenconventies, 42 MCP-tools, 131 meldingssleutels.
+5 leesformaten, 39 dialoogbestanden, 37 sneltoetsregels, 27 rekenconventies, 41 MCP-tools, 131 meldingssleutels.
 
 ## Opvallend bij de inventaris
 

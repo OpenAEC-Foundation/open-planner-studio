@@ -22,22 +22,22 @@ Tesne predtým, ako sa aktualizácia nainštaluje, aplikácia tiež vytvorí zá
 
 ### Sami skontrolujte, či je k dispozícii nová verzia
 
-1. Vyberte *Nastavenia › Projekt › Nastavenia*. Môžete tiež vybrať *Súbor › Nastavenia*, alebo ozubené koliesko v hornej časti.
+1. Vyberte *Nastavenia › Projekt › Nastavenia aplikácie*. Môžete tiež vybrať *Súbor › Nastavenia aplikácie*, alebo ozubené koliesko v hornej časti.
 2. Vyberte kartu *Rozšírené*. Pod položkou *Verzia* je číslo vašej aktuálnej verzie.
 3. Kliknite na *Skontrolovať aktualizácie*. Otvorí sa okno *Aktualizácia softvéru* a zobrazí *Kontroluje sa…*. Potom sa zobrazí buď *Používate najnovšiu verziu*, alebo správa, že je k dispozícii nová verzia, s rovnakým tlačidlom *Stiahnuť a nainštalovať*.
 
-V prehliadači toto tlačidlo nerobí nič osobitné: okno hneď zobrazí *Používate najnovšiu verziu*, bez toho aby aplikácia niečo kontrolovala.
+V prehliadači toto tlačidlo nerobí nič osobitné: okno hneď zobrazí *Používate najnovšiu verziu*, bez toho, aby aplikácia niečo kontrolovala.
 
 ### Čo je v novej verzii
 
-1. Ak desktopovú aplikáciu spustíte prvýkrát v inej verzii, ako naposledy, alebo po čerstvej inštalácii, okno sa otvorí samo. Okno sa volá *Máte najnovšiu verziu!*
-2. Hore je zmena z predchádzajúcej verzie na novú. Po čerstvej inštalácii sa zobrazí len nová verzia.
+1. Ak desktopovú aplikáciu spustíte prvýkrát v inej verzii, ako naposledy, okno sa otvorí samo. Okno sa volá *Máte najnovšiu verziu!* Po čerstvej inštalácii sa neotvorí: prvé spustenie nie je aktualizácia. Ak ho chcete aj tak vidieť, použite tlačidlo *Zobraziť novinky* (pozrite nižšie).
+2. Hore je zmena z predchádzajúcej verzie na novú. Tlačidlom *Zobraziť novinky* sa zobrazí len nová verzia.
 3. Ak má aplikácia pre túto verziu zabudovaný súhrn, uvidíte jeden hlavný bod a štyri menšie body. Hlavný bod môže mať tlačidlo *Prečítať sprievodcu*. Inak uvidíte len zmenu verzie a to, čo je pod ňou.
 4. Tlačidlom *Zobraziť úplné poznámky k vydaniu* otvoríte zoznam zmien na GitHub. Ak to nefunguje, zobrazí sa *Poznámky k vydaniu sa nepodarilo otvoriť.*
 5. Pod položkou *Táto aktualizácia v číslach* je počet dní od predchádzajúceho vydania, počet commitov a počet pridaných riadkov kódu. Ak aplikácia dokáže zistiť rozdiel vo veľkosti inštalačného balíka, zobrazí sa aj ten. Každý údaj sa zobrazí len vtedy, ak je k dispozícii.
 6. Kliknite na *Potvrdiť*, aby sa okno zavrelo.
 
-Ak chcete toto okno neskôr zobraziť znova, vyberte *Nastavenia › Projekt › Nastavenia*, kartu *Rozšírené* a tlačidlo *Zobraziť novinky* pod položkou *Verzia*. Okno sa potom otvorí pre vašu aktuálnu verziu, bez predchádzajúcej verzie.
+Ak chcete toto okno neskôr zobraziť znova, vyberte *Nastavenia › Projekt › Nastavenia aplikácie*, kartu *Rozšírené* a tlačidlo *Zobraziť novinky* pod položkou *Verzia*. Okno sa potom otvorí pre vašu aktuálnu verziu, bez predchádzajúcej verzie.
 
 ## Problémy a čo aplikácia potom urobí
 

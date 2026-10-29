@@ -22,11 +22,11 @@ Die **Bauferien** (*bouwvak*) sind der gemeinsame Urlaub in der niederländische
 
 Für die Niederlande trägt die App jedes Jahr Nieuwjaar, Goede Vrijdag, Pasen (zwei Tage), Koningsdag, Hemelvaart, Pinksteren (zwei Tage) und Kerst (25. und 26. Dezember) in die Liste ein (Neujahr, Karfreitag, Ostern, Königstag, Christi Himmelfahrt, Pfingsten und Weihnachten). Fällt Koningsdag auf einen Sonntag, ist er am 26. April. Bevrijdingsdag (Tag der Befreiung) steht nur in Lustrumjahren in der Liste, zum Beispiel 2025 und 2030.
 
-Die Jahre richten sich nach der Projektlaufzeit: vom Jahr vor dem Anfangsdatum bis zum Jahr nach dem Enddatum. Hat das Projekt kein Enddatum, gelten bis zu drei Jahre nach dem Jahr des Anfangs. Anfang und Ende passen Sie unter *Einstellungen › Projekt › Projektinfo* an.
+Die Jahre richten sich nach der Projektlaufzeit: vom Jahr vor dem Anfangsdatum bis zum Jahr nach dem Enddatum. Hat das Projekt kein Enddatum, gelten bis zu drei Jahre nach dem Jahr des Anfangs. Anfang und Ende passen Sie unter *Einstellungen › Projekt › Projekteinstellungen* an.
 
 ### Nach einer neuen Projektlaufzeit neu generieren
 
-Verschiebt sich Ihr Projekt oder bekommt es ein späteres Enddatum, decken die Feiertage die neuen Jahre nicht mehr ab. Die App meldet das im Fenster *Kalender*, zum Beispiel *Feiertage decken 2025–2028 ab; Projekt läuft bis 2030. Neu generieren?* Klicken Sie dann auf *Neu generieren*. Die App verwendet dieselben Auswahlmöglichkeiten wie beim letzten Mal (Land, Region, Bauferien) für die Jahre des Projekts. Klicken Sie danach auf *Anwenden*. Diese Meldung sehen Sie nur bei einem Kalender, dessen Feiertage früher generiert wurden.
+Verschiebt sich Ihr Projekt oder bekommt es ein späteres Enddatum, decken die Feiertage die neuen Jahre nicht mehr ab. Die App meldet das im Fenster *Kalender*, zum Beispiel *Feiertage decken 2025–2028 ab; bis 2030 neu generieren?* Klicken Sie dann auf *Neu generieren*. Die App verwendet dieselben Auswahlmöglichkeiten wie beim letzten Mal (Land, Region, Bauferien) für die Jahre des Projekts. Klicken Sie danach auf *Anwenden*. Diese Meldung sehen Sie nur bei einem Kalender, dessen Feiertage früher generiert wurden.
 
 ### Einen eigenen freien Tag oder Zeitabschnitt hinzufügen
 
@@ -58,5 +58,5 @@ Wählen Sie unter *Land* die Option *Keine Feiertage* und klicken Sie auf *Gener
 - [Kalender und Arbeitstage](docs://uitleg-kalenders): wie die App Feiertage und die Bauferien beim Zählen der Arbeitstage berücksichtigt.
 - [Einen Kalender erstellen und zuweisen](docs://howto-kalender-maken-en-toewijzen): einen eigenen Kalender erstellen, in den Sie Feiertage eintragen.
 - [Kalenderfenster](docs://ref-kalenders): alle Felder der Kalenderfenster.
-- [Neues Projekt und Projektinfo](docs://ref-projectinfo): das Feiertagsset für ein neues Projekt.
+- [Neues Projekt und Projekteinstellungen](docs://ref-projectinfo): das Feiertagsset für ein neues Projekt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): Neben den Feiertagen hat der Projektkalender einen freien Zeitabschnitt *Frost delay, foundations*.

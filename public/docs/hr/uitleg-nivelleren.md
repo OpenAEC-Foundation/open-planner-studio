@@ -50,9 +50,9 @@ Uz *smoothing* zadatak ne smije početi kasnije od svog kasnog početka, to jest
 
 ## Primjer: zidar na dva zida
 
-Primjer je projekt za vježbu iz lekcija, *House extension*, u stanju kakvo je neposredno prije uravnoteživanja u lekciji 5. U lekciji 5 to radite sami i provjeravate brojke. U ovom primjeru je žbukanje zadatak tipa *Fiksni rad*, a žbukar radi u jedinicama dodjele od 2, kao u [Pravila rada: trajanje, jedinice i rad](docs://uitleg-werkregels).
+Primjer je projekt za vježbu iz lekcija, *House extension*, u stanju kakvo je neposredno prije uravnoteživanja u lekciji 5. U lekciji 5 to radite sami i provjeravate brojke. U ovom primjeru je vrsta zadatka za žbukanje *Fiksni rad*, a žbukar radi u jedinicama dodjele od 2, kao u [Vrsta zadatka: trajanje, jedinice i rad](docs://uitleg-werkregels).
 
-Nakon šuplje međukatne ploče, završene u ponedjeljak 28. lipnja, unutarnji sloj (5 radnih dana) i vanjski sloj (6 radnih dana) počinju u utorak 29. lipnja. Oba su dodijeljena zidaru, s jedinicama dodjele 1 i vrijednošću *Maksimalan postotak jedinica* 1. Nakon unutarnjeg sloja slijede krovni elementi (posao dizalicom od 6 sati) i pokrivanje krova (2 radna dana). Okviri čekaju pokrivanje krova i vanjski sloj. Predaja je u ponedjeljak 30. kolovoza.
+Nakon šuplje međukatne ploče, završene u ponedjeljak 28. lipnja, unutarnji sloj (5 radnih dana) i vanjski sloj (6 radnih dana) oba počinju u utorak 29. lipnja. Oba su dodijeljena zidaru, s jedinicama dodjele 1 i vrijednošću *Maksimalan postotak jedinica* 1. Nakon unutarnjeg sloja slijede krovni elementi (posao dizalicom od 6 sati) i pokrivanje krova (2 radna dana). Okviri čekaju pokrivanje krova i vanjski sloj. Predaja je u ponedjeljak 30. kolovoza.
 
 ### Preopterećenje resursa
 
@@ -66,14 +66,14 @@ Oba zadatka imaju prioritet 500. Prozorski okviri se isporučuju tek 14. srpnja 
 
 Vanjski sloj ne može početi 29. lipnja. Prvi dan kad je zidar ponovno slobodan je utorak 6. srpnja. To je 5 radnih dana kasnije od najranijeg početka, pa je kašnjenje zbog uravnoteživanja 5. Vanjski sloj sada traje od 6. srpnja do 13. srpnja uključivo. Okviri ionako počinju tek 14. srpnja, pa predaja ostaje u ponedjeljak 30. kolovoza. Prozor prijavljuje *Datum završetka projekta: nepromijenjen (30-08-2027)* i prikazuje jedan redak: *Build outer cavity leaf*, stari početak 29-06-2027, novi početak 06-07-2027, *5 d*.
 
-Tih 5 radnih dana pomaka točno su vremenska rezerva vanjskog sloja. Zato *smoothing* ovdje daje isti rezultat. Vanjski sloj sada nema više vremenske rezerve i kritičan je.
+Tih 5 radnih dana pomaka točno su vremenska rezerva vanjskog sloja. Zato *uravnoteživanje* ovdje daje isti rezultat. Vanjski sloj sada nema više vremenske rezerve i kritičan je.
 
 ### Što ako okviri ne dođu 14. srpnja
 
 Bez tog ograničenja okviri mogu početi u petak 9. srpnja, a predaja je u srijedu 25. kolovoza. Vanjski sloj tada ima samo 2 radna dana vremenske rezerve.
 
-- Bez opcije *smoothing* vanjski sloj se i dalje pomiče za 5 radnih dana. Sada okviri moraju čekati: počinju 14. srpnja, 3 radna dana kasnije. Sve što slijedi pomiče se zajedno s njima, a predaja ide s 25. kolovoza na 30. kolovoza, također 3 radna dana kasnije.
-- Uz *smoothing* se ništa ne pomiče. Vanjski sloj ne stane unutar svojih 2 radna dana vremenske rezerve. Prozor prikazuje sukob *Build outer cavity leaf*, 5 dan(a), s razlogom *Nedovoljno slobodnog kapaciteta unutar vremenske rezerve za rješavanje ovog sukoba*.
+- Bez opcije *uravnoteživanje* vanjski sloj se i dalje pomiče za 5 radnih dana. Sada okviri moraju čekati: počinju 14. srpnja, 3 radna dana kasnije. Sve što slijedi pomiče se zajedno s njima, a predaja ide s 25. kolovoza na 30. kolovoza, također 3 radna dana kasnije.
+- Uz *uravnoteživanje* se ništa ne pomiče. Vanjski sloj ne stane unutar svojih 2 radna dana vremenske rezerve. Prozor prikazuje sukob *Build outer cavity leaf*, 5 dan(a), s razlogom *Nedovoljno slobodnog kapaciteta unutar vremenske rezerve za rješavanje ovog sukoba*.
 
 ### Što ako vanjski sloj dobije prioritet
 
@@ -101,5 +101,5 @@ Ako za zidara postavite *Maksimalan postotak jedinica* na 2, više nema preopter
 
 - [Rješavanje preopterećenja resursa](docs://howto-overbezetting-oplossen): koraci za pronalaženje preopterećenja resursa i njegovo uravnoteživanje.
 - [Kritični put i vremenska rezerva](docs://uitleg-kritiek-pad): što je vremenska rezerva i zašto zadatak postaje kritičan.
-- [Pravila rada: trajanje, jedinice i rad](docs://uitleg-werkregels): kako se trajanje zadatka mijenja zajedno s jedinicama dodjele.
+- [Vrsta zadatka: trajanje, jedinice i rad](docs://uitleg-werkregels): kako se trajanje zadatka mijenja zajedno s jedinicama dodjele.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): tri tornja kojima trebaju iste ekipe i toranjska dizalica te što uravnoteživanje s time radi.

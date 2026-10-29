@@ -16,6 +16,8 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 **Abbreviations.** *wd* is work days. *TF* is total float, *FF* free float.
 
+**Duration and remaining.** The columns *Rem.* and *Duration* show the duration in the measure of the task, like the table. In the OPS profile a day-measure task shows in d (*2.5d*) and an hour-measure task in h (*40h*). Under the P6 and MSP profiles *Duration* follows the setting *Duration display*. A summary task in the WBS summary shows work days.
+
 ## Paper and orientation
 
 **Paper:** — the paper size of the PDF. Choose from A4, A3, A2 and A1. Default: A3. Effect: the pages are laid out for that size. There is one choice for all reports: what you choose for one report also holds for the others. On portrait A4 a wide table gets small, because the table is scaled to the page width. Where: *Settings* (Gantt chart and Resource diagram) or *Report options* (the seven table reports). The Milestone overview and the Variance show no choices.
@@ -32,7 +34,7 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 **Font size:** — size of text and table in the report. Choose from 90%, 100%, 110% and 125%. Default: 100%. Effect: with a larger font, text, rows and table grow and the timeline loses width. Independent of *Text size* in the settings.
 
-**Bar colors:** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a drop-down *Category field* for *By category*. Default: *Critical path*. Effect: this is the same choice as *Bar colors* on the *View* tab: if you change it here, the Gantt on screen changes with it. If the chosen field does not exist in this project, it says *This field does not exist in this project. Task type is used temporarily.*
+**Bar colors:** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*, with a drop-down *Category field* for *By category*. Default: *Critical path*. Effect: this is the same choice as *Bar colors* on the *View* tab: if you change it here, the Gantt on screen changes with it. If the chosen field does not exist in this project, it says *This field does not exist in this project. Work category is used temporarily.*
 
 **Status line:** — a line at the status date. Choose from *None*, *Status date line* and *Progress line*. Default: *None*. Effect: *Status date line* draws a line at the status date; *Progress line* draws the zigzag line that bulges to the progress of each task. If the project has no status date, it says *Set a status date first* and the report draws nothing.
 
@@ -102,7 +104,7 @@ What runs or starts in the period: the list for the weekly meeting. Options unde
 
 **Near-critical ≤ (wd):** — the threshold for *Near-critical*. Number from 0 to 60. Default: 5. Effect: a task with more than 0 and at most that many work days of total float counts as near-critical. At 0 only what the project's calculation option *Mark near-critical* marks counts.
 
-The block *Summary* counts *Activities*, *Overdue*, *In progress*, *Should have started*, *Starting*, *Critical* and *Near-critical*. The status per row, always relative to the reference day: *Overdue* (not completed and the finish is before the reference day), *Should have started* (not started while the start was before the reference day), *In progress*, *Starting* (not yet started, starts in the window). The columns are *WBS*, *Name*, *Start*, *Finish*, *Rem. (wd)*, *Compl.*, *TF (wd)*, *Critical*, *Resources* and *Status*.
+The block *Summary* counts *Activities*, *Overdue*, *In progress*, *Should have started*, *Starting*, *Critical* and *Near-critical*. The status per row, always relative to the reference day: *Overdue* (not completed and the finish is before the reference day), *Should have started* (not started while the start was before the reference day), *In progress*, *Starting* (not yet started, starts in the window). The columns are *WBS*, *Name*, *Start*, *Finish*, *Rem.*, *Compl.*, *TF (wd)*, *Critical*, *Resources* and *Status*.
 
 ## Critical & near-critical
 
@@ -110,7 +112,7 @@ The activities that determine the project end and those that are nearly there. O
 
 **Near-critical ≤ (wd):** — Default: 5. Number from 0 to 60. Effect and meaning as with the Look-ahead. The subtitle states the chosen threshold.
 
-The report contains the uncompleted tasks that are critical (according to the solver and the critical definition of the project) or near-critical, sorted by float path, then by total float, then by start. The block *Summary* counts *Critical*, *Near-critical*, *Critical chains* and *Leaf tasks*. The columns are *WBS*, *Name*, *Start*, *Finish*, *Rem. (wd)*, *TF (wd)*, *FF (wd)*, *Path* and *Status*. The column *Path* shows the float path if the calculation option *Multiple float paths* is on, otherwise a dash.
+The report contains the uncompleted tasks that are critical (according to the solver and the critical definition of the project) or near-critical, sorted by float path, then by total float, then by start. The block *Summary* counts *Critical*, *Near-critical*, *Critical chains* and *Leaf tasks*. The columns are *WBS*, *Name*, *Start*, *Finish*, *Rem.*, *TF (wd)*, *FF (wd)*, *Path* and *Status*. The column *Path* shows the float path if the calculation option *Multiple float paths* is on, otherwise a dash.
 
 ## Progress report
 
@@ -120,7 +122,7 @@ Where the project stands on the status date. Options under *Report options*.
 
 **Near-critical ≤ (wd):** — Default: 5. As with the Look-ahead.
 
-The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline finish*, *Forecast finish*, *Δ finish (wd)*, *Planned* (with *(baseline)* or *(current schedule)*), *Actual*, and the counts *Complete*, *In progress*, *Not started*, *Overdue* and *Critical*. Planned and actual are weighted by the duration of the tasks. Planned measures against the baseline if there is an active baseline, otherwise against the current schedule. The sections are *Completed in the past period*, *In progress*, *Starting in the next period*, *Overdue* and *Open critical activities*; a task can be in more than one section.
+The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline finish*, *Forecast finish*, *Δ finish (wd)*, *Planned* (with *(baseline)* or *(current schedule)*), *Actual*, and the counts *Complete*, *In progress*, *Not started*, *Overdue* and *Critical*. Planned and actual are weighted by the duration of the tasks. Planned measures against the baseline if there is an active baseline, otherwise against the current schedule. The sections are *Completed in the past period*, *In progress*, *Starting in the next period*, *Overdue* and *Open critical activities*; a task can be in more than one section. Every section has the same columns: *WBS*, *Name*, *Baseline finish*, *Forecast finish*, *Compl.*, *Rem.*, *TF (wd)*, *Critical* and *Status*. The status per row is *Complete*, *In progress*, *Not started*, *Should have started* or *Should have finished*.
 
 ## Schedule health
 
@@ -177,7 +179,7 @@ Per resource the activities it is attached to: what is this crew or crane doing?
 
 **Include completed tasks** — Default: off. Effect: on also includes the assignments of completed activities.
 
-The rows are per resource, and within a resource by start. The block *Summary* counts *Resources*, *Assignments* and *Tasks without a resource*. The columns include the resource, the task, start and finish, *Rem. (wd)*, *Units/day*, *Compl.*, *Critical* and *Status*.
+The rows are per resource, and within a resource by start. The block *Summary* counts *Resources*, *Assignments* and *Tasks without a resource*. The columns are *Resource*, *Type*, *WBS*, *Name*, *Start*, *Finish*, *Rem.*, *Units/day*, *Compl.*, *Critical* and *Status*. *Resource* and *Type* appear only on the first row of a resource. The status per row is the same as in the Progress report: *Complete*, *In progress*, *Not started*, *Should have started* or *Should have finished*.
 
 ## WBS summary
 
@@ -187,7 +189,7 @@ The schedule rolled up per WBS element: the management overview. Options under *
 
 **Show activities** — Default: off. Effect: on also shows the leaf tasks themselves under each element.
 
-The columns include *WBS*, *Name*, *Start*, *Finish*, *Baseline start*, *Baseline finish*, *Duration (wd)*, *Compl.*, *Δ finish (wd)*, *Min. TF*, *Act.* (number of activities), *Crit.*, *Active* and *Done*. Start and finish of a summary task come from the last calculation. Progress is duration-weighted over the leaf tasks. *Min. TF* and the counts concern the leaf tasks below. The block *Summary* counts *WBS elements* and *Activities*.
+The columns include *WBS*, *Name*, *Start*, *Finish*, *Baseline start*, *Baseline finish*, *Duration*, *Compl.*, *Δ finish (wd)*, *Min. TF*, *Act.* (number of activities), *Crit.*, *Active* and *Done*. Start and finish of a summary task come from the last calculation. Progress is duration-weighted over the leaf tasks. *Min. TF* and the counts concern the leaf tasks below. The block *Summary* counts *WBS elements* and *Activities*.
 
 ## Reporting period
 

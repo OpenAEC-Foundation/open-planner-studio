@@ -12,7 +12,7 @@ Ce este biblioteca de resurse și ce preia un proiect din ea, aflați în [Bibli
 
 ### 1. Legați proiectul de o bibliotecă
 
-Lucrați cu biblioteca de resurse numai dacă proiectul este legat de ea. Fără legătură, panoul *Resurse* nu afișează comutatorul *Bibliotecă*, *Proiect* și *Ocupare*.
+Lucrați cu biblioteca de resurse numai dacă proiectul este legat de ea. Fără legătură, panoul de resurse nu afișează comutatorul *Bibliotecă*, *Proiect* și *Ocupare*.
 
 Pentru un proiect nou:
 
@@ -22,7 +22,7 @@ Pentru un proiect nou:
 
 Pentru un proiect existent:
 
-1. Alegeți *Fișier › Informații proiect*.
+1. Alegeți *Fișier › Setări proiect*.
 2. Sub *Bibliotecă de resurse*, alegeți biblioteca.
 3. Faceți clic pe *Aplicare*. Până atunci, în partea de jos scrie *Modificările nu au fost aplicate — faceți clic pe Aplicare pentru a le păstra.*
 

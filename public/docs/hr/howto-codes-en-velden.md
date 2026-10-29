@@ -36,7 +36,7 @@ Za boju traka odaberite *Prikaz › Temeljni planovi i napredak › Boje traka*,
 
 ## Zamke i što aplikacija radi
 
-**Brisanje uklanja vrijednosti na zadacima.** Ako s kantom za otpad izbrišete vrstu šifre, vrijednost ili polje, aplikacija ne traži potvrdu i vrijednosti na svim zadacima nestaju. Grupiranje ili sortiranje po toj vrsti šifre ili polju također prestaje vrijediti. *Poništi* (Ctrl+Z) vraća vrstu šifre, vrijednost ili polje i unesene vrijednosti, ali ne grupiranje ni sortiranje: ponovno ih postavite.
+**Brisanje uklanja vrijednosti na zadacima.** Ako s kantom za otpad izbrišete vrstu šifre, vrijednost ili polje, aplikacija ne traži potvrdu i vrijednosti na svim zadacima nestaju. Grupiranje ili sortiranje po toj vrsti šifre ili polju također prestaje vrijediti. *Poništi* (Ctrl+Z, prvo zatvorite prozor) vraća vrstu šifre, vrijednost ili polje i unesene vrijednosti, ali ne grupiranje ni sortiranje: ponovno ih postavite.
 
 **Dvije vrijednosti s istom šifrom.** *Dodaj vrijednost* nastavlja brojanje od broja postojećih vrijednosti. Ako jednu izbrišete i dodate jednu, šifra se zato može pojaviti dvaput. Ako tu šifru upišete u ćeliju stupca, aplikacija to odbija porukom *Ova vrijednost šifre zadatka pojavljuje se više puta. Odaberite je s popisa.* Dajte svakoj vrijednosti vlastitu šifru.
 

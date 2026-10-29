@@ -11,7 +11,8 @@ import './domStub';
 //
 // Fixture: een kleine XER met kalender "Lange dagen" (day_hr_cnt 8, ma–vr 07:00–17:00 = 10 u) en een
 // urentaak van 1870 u, plus een dagkalender met een dagtaak van 40 u (5 d).
-//  §1 XER-import: dagengetal 187; de kalender houdt 8; de dagtaak blijft 5 d.
+//  §1 XER-import: dagengetal 187; de kalender houdt 8; de taak op de dagkalender blijft 5 d (sinds F5b in
+//     de urenmaat: 2400 min, alleen uren §3.10, T15).
 //  §2 IFC-round-trip (lezer en schrijver): 187 en 8; de geschreven duur blijft 1870 u.
 //  §3 de echte openroute, een rasterbewerking (1870 u en 1880 u), daarna opslaan als IFC en heropenen.
 //  §4 export: P6 XML `HoursPerDay` 8 en `PlannedDuration` 1870; MSPDI `MinutesPerDay` 480, `<Duration>` en
@@ -47,6 +48,7 @@ import { installDOMParser } from './xmldom-shim';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
 
@@ -101,7 +103,9 @@ const taskCoded = (tasks: readonly Task[], code: string) => tasks.find((t) => t.
 /** Het taakbeeld dat deze check toetst: eenheid, minuten, dagengetal. */
 const shape = (t: Task | undefined) => t && ({ unit: t.time.durationUnit, min: t.time.durationMinutes ?? null, sd: t.time.scheduleDuration });
 const HOUR_TASK = { unit: 'hours', min: 112200, sd: 187 };
-const DAY_TASK = { unit: 'days', min: null, sd: 5 };
+// De taak op de dagkalender: sinds F5b leest XER elke taak in de urenmaat (alleen uren §3.10, T15). Het
+// dagengetal blijft 5 (2400 min ÷ 480).
+const DAY_TASK = { unit: 'hours', min: 2400, sd: 5 };
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §1 XER-import
@@ -136,11 +140,10 @@ const imported = quiet(() => single(readXER(XER_BYTES)));
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // §3 De echte openroute, een rasterbewerking, opslaan als IFC en heropenen
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, hourDataNotice: false, linkedOpen: true } as const;
+const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openInStore(parsed: OpenedImport) {
   const ctx = createAppStoreContext();
   quiet(() => ctx.store.getState().applyOpenedImport(parsed, OPEN));
-  ctx.store.setState((s) => { s.ui.enableHourPlanning = true; });
   return ctx;
 }
 type Ctx = ReturnType<typeof openInStore>;
@@ -217,7 +220,7 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
 {
   const s = loadCtx.store.getState();
   const a = taskIn(loadCtx, 'A');
-  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project));
   const bucket = Object.values(res.load)[0] ?? {};
   const days = Object.keys(bucket).sort();
   same('§5 belasting: 187 belaste dagen, 187 eenheden, 1870 u',
@@ -279,7 +282,7 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   const perDay = Object.fromEntries(s.assignments.map((a) => [a.resourceId, a.unitsPerDay]));
   same('§7 tempo per dag: Beton 1 × 10, Wapening 2 × 10 (taakdag, niet de 8 u van zijn eigen kalender), Zand 3 × 8 (dagtaak; niet × 10 van zijn blokken)',
     perDay, { 'xer-resource:M1': 10, 'xer-resource:M2': 20, 'xer-resource:M3': 24 });
-  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars);
+  const res = computeResourceLoad(s.resources, s.assignments, s.tasks, s.calendar, s.calendars, effectiveSchedulingOptions(s.project));
   const total = (rid: string) => Math.round(Object.values(res.load[rid] ?? {}).reduce((x, y) => x + y, 0) * 1000) / 1000;
   same('§7 materiaaltotaal = tempo × uren: 1 × 1870, 2 × 1870, 3 × 40',
     [total('xer-resource:M1'), total('xer-resource:M2'), total('xer-resource:M3')], [1870, 3740, 120]);

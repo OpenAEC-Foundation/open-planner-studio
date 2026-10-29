@@ -27,13 +27,13 @@ Come scegli?
 
 **Nessuna differenza.** La modalità ha effetto solo sulle attività che sono già iniziate mentre il loro predecessore non è ancora finito. Senza un'attività del genere non cambia nulla.
 
-**Il messaggio resta.** Progress Override non risolve il messaggio di fuori sequenza. La modalità decide come l'app calcola; la contraddizione tra relazione e avanzamento resta. Se la relazione non è più corretta, modificala ([Aggiungere relazioni](docs://howto-relaties-leggen)).
+**Il messaggio resta.** Progress Override non risolve il messaggio di avanzamento fuori sequenza. La modalità decide come l'app calcola; la contraddizione tra relazione e avanzamento resta. Se la relazione non è più corretta, modificala ([Aggiungere relazioni](docs://howto-relaties-leggen)).
 
 **Appartiene al progetto.** La scelta viene salvata nel file di progetto, vale per tutto il progetto e si può annullare con Ctrl+Z. Un nuovo progetto è impostato su Retained Logic.
 
 **Un file P6.** Se apri un file Primavera P6 (.xer), l'app prende la modalità dal file. Oltre a Retained Logic e Progress Override, P6 ha anche Actual Dates. L'app non conosce quella terza modalità; un file del genere viene calcolato come Retained Logic. Il messaggio di importazione lo segnala come *1 impostazione di pianificazione P6 con fallback sicuro.*
 
-**Il profilo di calcolo.** Nel profilo Primavera P6 anche Progress Override agisce all'indietro, sulle date più tarde e sul margine libero del predecessore (convenzione *Progress Override ignora anche all'indietro un successore iniziato*). Nei profili Open Planner Studio e Microsoft Project non è così. Le convenzioni le trovi sotto *Impostazioni › Progetto › Info progetto*, nel blocco *Profilo di calcolo e opzioni*. Nell'esempio della spiegazione questo effetto all'indietro non si vede.
+**Il profilo di calcolo.** Nel profilo Primavera P6 anche Progress Override agisce all'indietro, sulle date più tarde e sul margine libero del predecessore (convenzione *Progress Override ignora anche all'indietro un successore iniziato*). Nei profili Open Planner Studio e Microsoft Project non è così. Le convenzioni le trovi sotto *Impostazioni › Progetto › Impostazioni progetto*, nel blocco *Profilo di calcolo e opzioni*. Nell'esempio della spiegazione questo effetto all'indietro non si può vedere.
 
 ## Vedi anche
 

@@ -10,9 +10,9 @@ Bryggan fungerar bara i desktopappen. Slår du på AI-läget i webbläsaren, ser
 
 ## Steg
 
-### 1. Slå på AI-läge
+### 1. Slå på AI-läget
 
-1. Välj *Inställningar › Projekt › Inställningar*. Du kan också välja *Fil › Inställningar*, eller kugghjulet högst upp.
+1. Välj *Inställningar › Projekt › Appinställningar*. Du kan också välja *Fil › Appinställningar*, eller kugghjulet högst upp.
 2. Välj fliken *Avancerat* och slå på *Aktivera AI-läge*. Fliken *AI* visas i menyfliksområdet.
 3. Vill du att bryggan är aktiv så snart appen startar, slå då också på *Starta bryggan automatiskt*. Det fungerar bara när AI-läget är på, och bara i desktopappen. Den är av som standard, eftersom det är ett avsiktligt val att öppna en port.
 
@@ -21,7 +21,7 @@ Slår du av AI-läget, stoppas bryggan och fliken *AI* försvinner.
 ### 2. Starta bryggan
 
 1. Gå till fliken *AI* och klicka på *Starta bryggan* under *Server*.
-2. Titta på statusen bredvid knappen. Den säger *Av*, *Aktiv på port 3877*, *Port 3877 är upptagen* eller *Fel*. Lyckas starten, då visar den *Aktiv på port 3877* och heter knappen *Stoppa bryggan*. Vid *Port 3877 är upptagen* eller *Fel* heter knappen kvar *Starta bryggan*. Se fallgroparna.
+2. Titta på statusen bredvid knappen. Den säger *Av*, *Aktiv på port 3877*, *Port 3877 är upptagen* eller *Fel*. Om starten lyckas visar den *Aktiv på port 3877* och heter knappen *Stoppa bryggan*. Vid *Port 3877 är upptagen* eller *Fel* heter knappen fortfarande *Starta bryggan*. Se fallgroparna.
 
 Bryggan lyssnar bara på din egen dator, på en enda port. Som standard är det port 3877. I gruppen *Anslutning* kan du välja en annan port under *Port*. Det går bara när bryggan är stoppad.
 
@@ -36,7 +36,33 @@ Fönstret erbjuder tre sätt att ansluta:
 
 - *Konfigurationsfragment*: ett stycke konfiguration som du klistrar in i MCP-inställningarna i din klient.
 - *Anslutningsprompt*: en text som du klistrar in i din AI-assistent. Därefter ansluter assistenten sig själv.
-- *Slutpunkt* och *Autentisering*: de separata uppgifterna. Slutpunkten är `http://localhost:3877/mcp` med transporten *streamable HTTP*. Varje begäran behöver en header `Authorization: Bearer` följt av din token.
+- *Slutpunkt* och *Autentisering*: de separata uppgifterna. Slutpunkten är `http://localhost:3877/mcp` med transporten *streamable HTTP*. Varje begäran behöver en header `Authorization: Bearer` följt av din token. Din klient måste också stödja MCP-sessioner: när den ansluter ger bryggan en sessionskod i headern `Mcp-Session-Id`, och bryggan avvisar varje senare begäran utan den koden. Claude Code och `mcp-remote` gör detta av sig själva.
+
+**Anslut på nytt efter en uppdatering av appen.** Om din AI-klient redan var ansluten till en äldre version av appen, skickar den ännu ingen sessionskod. Då avvisar bryggan varje begäran. Anslut därför på nytt efter uppdateringen: starta en ny session i Claude Code, och avsluta Claude Desktop helt och starta det igen.
+
+**Claude Code.** Konfigurationsfragmentet passar direkt i Claude Code. Kör det här kommandot i en terminal, med din egen token i stället för `<token>`:
+
+```
+claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --header "Authorization: Bearer <token>"
+```
+
+Du kan också lägga fragmentet i filen `.mcp.json` i din projektmapp. Lägg då inte den filen i git, eftersom token ger åtkomst till din plan. En server från `.mcp.json` måste godkännas första gången i Claude Code.
+
+**Claude Desktop.** Konfigurationsfragmentet passar inte direkt i Claude Desktop. I filen `claude_desktop_config.json` anger du ett program som Claude Desktop startar själv, inte en adress. Använd därför det externa verktyget `mcp-remote` däremellan. Det kräver Node.js. I Claude Desktop väljer du *Inställningar › Utvecklare › Redigera konfiguration*, lägger in detta i filen (med din egen token) och startar Claude Desktop igen:
+
+```
+{
+  "mcpServers": {
+    "open-planner-studio": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3877/mcp", "--header", "Authorization:${AUTH_HEADER}"],
+      "env": { "AUTH_HEADER": "Bearer <token>" }
+    }
+  }
+}
+```
+
+Token står i `env` och inte i `args` med avsikt: på Windows bryter Claude Desktop ett argument som innehåller ett mellanslag. En *anpassad connector* i Claude (*Anpassa › Connectors*) fungerar inte med bryggan. Claude ansluter då från Anthropics moln, och det kan inte nå bryggan på din egen dator.
 
 I gruppen *Anslutning* finns även fältet *Token*. Det är en lång, slumpmässig kod som appen skapar åt dig och sparar på den här datorn. I fönstret står det *Den här token ger åtkomst till den öppna planen. Dela den inte med andra.* Med ikonen *Ny token* skapar du en ny token. Appen frågar först *Om du skapar en ny token bryts alla befintliga anslutningar. Vill du fortsätta?* Om bryggan körs startar den om med den nya token. Den gamla token fungerar då inte längre.
 
@@ -62,11 +88,11 @@ Backuperna ligger i mappen `ai-backups` i appens datamapp. Appen behåller de se
 
 ### 6. Låt assistenten planera väl
 
-En assistent som känner verktygen kan ändå bygga en tidsplan som ingen planerare har nytta av: uppgifter utan samband, ett fast datum på varje uppgift eller en uppdelning som är alldeles för fin. Därför får assistenten planeringsreglerna på tre sätt. För de två första behöver du inget göra.
+En assistent planerar bara väl om den känner planeringsreglerna. Varför det är viktigt och vad reglerna innehåller, läser du i [Så fungerar AI-kopplingen](docs://uitleg-ai-koppeling). Det här gör du själv:
 
-1. **Kärnreglerna följer med av sig själva.** När du ansluter skickar bryggan en kort text med kärnreglerna. Många klienter lägger den i sin systemprompt. Om din klient gör det beror på klienten. Texten säger bland annat: börja med milstolpar, bygg uppgifter som tar ungefär en dag till två veckor, styr tidsplanen med samband i stället för fasta datum och redovisa till slut vad du antog.
-2. **Anslutningsprompten pekar mot hela guiden.** Anslutningsprompten i fönstret *Anslutningsuppgifter* ber assistenten att först läsa planeringsguiden med verktyget `planner_get_planning_guide`. Det ger en engelsk guide för assistenter: samma principer som [Planera väl](docs://gids-goed-plannen), med för varje princip de verktyg som assistenten använder för den. Du kan själv läsa guiden på `https://open-planner-studio.open-aec.com/agent/planning-guide.md`. Använder du inte prompten, be assistenten själv: *Läs planeringsguiden med planner_get_planning_guide först, innan du ändrar något.*
-3. **Valfritt: skills.** En skill är en liten fil med instruktioner som en assistent läser i varje session. Så vet den också i ett senare samtal hur den ska arbeta. Det finns två skills, båda på engelska: *goed-plannen* för att sätta upp eller ordna om en tidsplan, och *progress-update* för den veckovisa uppdateringen av framdriften. Det fungerar bara med en assistent som stöder skills. Skillsen själva nämner Claude Code och liknande assistenter. Varje skill är en fil `SKILL.md` i en egen mapp med skillens namn: `.claude/skills/goed-plannen/SKILL.md` och `.claude/skills/progress-update/SKILL.md` i projektmappen som assistenten arbetar i. Eller samma mappar under `~/.claude/skills/` om du vill ha dem i alla projekt.
+1. **Gör inget för kärnreglerna.** De följer med när du ansluter. Om din klient lägger dem i sin systemprompt beror på klienten.
+2. **Låt assistenten läsa guiden.** Anslutningsprompten i fönstret *Anslutningsuppgifter* ber assistenten att först läsa guiden med verktyget `planner_get_planning_guide`. Använder du inte prompten, be assistenten själv: *Läs planeringsguiden med planner_get_planning_guide först, innan du ändrar något.* Du kan själv läsa guiden på `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
+3. **Valfritt: installera skills.** Det fungerar bara med en assistent som stöder skills. Lägg `SKILL.md` från *goed-plannen* och *progress-update* i `.claude/skills/goed-plannen/SKILL.md` och `.claude/skills/progress-update/SKILL.md` i projektmappen som assistenten arbetar i. Eller under `~/.claude/skills/` för alla projekt.
 
 Du får filerna på två sätt. Be assistenten anropa verktyget `planner_get_planning_guide` med `part` satt till `skill`. Svaret innehåller båda texterna och, för varje skill, de platser där den ska ligga. Eller ladda ner dem från `https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md` och `https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md`. Finns *goed-plannen* kvar från en äldre version av appen, ersätt den. Den gamla texten är på nederländska och pekar på hjälpartikeln i stället för guiden för assistenter.
 

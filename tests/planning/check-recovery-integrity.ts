@@ -32,7 +32,7 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError, type IfcParseErrorReason } from '@/services/ifc/ifcErrors';
-import { parseRecoveryManifest } from '@/services/recovery/recoveryStore';
+import { parseRecoveryManifest, RecoveryManifestError } from '@/services/recovery/recoveryStore';
 import type { RecoveryDocInput } from '@/state/documentContract';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -158,8 +158,8 @@ eq('6c … en zijn statusdatum', rtLeeg.project.statusDate, '2030-06-01');
 
 // ── 7. Manifest-poort: één stuk JSON-bestand mag niet alle snapshots afschrijven ──────────────
 // `loadTauri` deed `JSON.parse` van het manifest BUITEN try/catch, terwijl de per-document-lees
-// eronder wél was afgeschermd. De poort is nu een pure functie die `null` teruggeeft op alles wat
-// geen manifest is; de aanroeper valt dan terug op een directory-scan van de losse snapshots.
+// eronder wél was afgeschermd. Onparseerbare JSON houdt de bestaande scan van stabiele snapshots.
+// Een herkenbaar maar onbekend/ongeldig contract wordt expliciet geweigerd (knownbug 96).
 const geldigManifest = JSON.stringify({
   version: 1,
   activeDocumentId: 'doc-1',
@@ -169,9 +169,17 @@ eq('7a geldig manifest komt er ongewijzigd doorheen',
   parseRecoveryManifest(geldigManifest)?.documents.length, 1);
 eq('7b afgekapt manifest → null (terugval)', parseRecoveryManifest(geldigManifest.slice(0, 40)), null);
 eq('7c lege inhoud → null', parseRecoveryManifest(''), null);
-eq('7d geldig JSON zonder documents-lijst → null', parseRecoveryManifest('{"foo":1}'), null);
-eq('7e JSON-array i.p.v. object → null', parseRecoveryManifest('[1,2,3]'), null);
-eq('7f null-literal → null', parseRecoveryManifest('null'), null);
+for (const [label, raw] of [
+  ['7d object zonder versie/documents', '{"foo":1}'],
+  ['7e array', '[1,2,3]'],
+  ['7f null', 'null'],
+  ['7g verkeerde documents-vorm', '{"version":5,"documents":{}}'],
+  ['7h ongeldige documentregel', '{"version":5,"documents":[null]}'],
+]) {
+  let refused = false;
+  try { parseRecoveryManifest(raw); } catch (error) { refused = error instanceof RecoveryManifestError; }
+  eq(label + ' → expliciete manifestweigering', refused, true);
+}
 
 // ── 8. restoreDocuments: één logisch corrupt document mag het herstel van de rest niet blokkeren ──
 // Recovery-robuustheid (docs/TODO.md): een snapshot kan `readIFC` overleven — geen truncated STEP,

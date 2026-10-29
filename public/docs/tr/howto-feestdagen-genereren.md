@@ -22,11 +22,11 @@ Tatil yoksa uygulama Noel'de veya Kral Günü'nde de hiçbir engel olmadan iş p
 
 Hollanda için uygulama her yıl listeye şu tatilleri ekler: Nieuwjaar (Yılbaşı), Goede Vrijdag (Kutsal Cuma), Pasen (Paskalya, iki gün), Koningsdag (Kral Günü), Hemelvaart (Yükseliş Günü), Pinksteren (Pentikost, iki gün) ve Kerst (Noel, 25 ve 26 Aralık). Kral Günü bir Pazar gününe denk gelirse, 26 Nisan'da olur. Bevrijdingsdag (Özgürlük Günü) yalnızca beşer yıllık dönemlerin yıllarında listededir, örneğin 2025 ve 2030.
 
-Yıllar proje dönemini izler: başlangıç tarihinin bir yıl öncesinden bitiş tarihinin bir yıl sonrasına kadar. Projenin bitiş tarihi yoksa başlangıç yılından sonra en fazla üç yıla kadar. Başlangıç ve bitiş tarihini *Ayarlar › Proje › Proje bilgisi* altında ayarlarsınız.
+Yıllar proje dönemini izler: başlangıç tarihinin bir yıl öncesinden bitiş tarihinin bir yıl sonrasına kadar. Projenin bitiş tarihi yoksa başlangıç yılından sonra en fazla üç yıla kadar. Başlangıç ve bitiş tarihini *Ayarlar › Proje › Proje ayarları* altında ayarlarsınız.
 
 ### Yeni bir proje dönemi için tatilleri yeniden oluşturma
 
-Projeniz kayarsa veya daha geç bir bitiş tarihi alırsa, tatiller yeni yılları artık kapsamaz. Uygulama bunu *Takvimler* penceresinde söyler, örneğin *Tatiller 2025–2028 aralığını kapsıyor; proje 2030 yılına kadar sürüyor. Yeniden oluşturulsun mu?* Ardından *Yeniden oluştur* öğesini tıklayın. Uygulama, projenin yılları için son seferki seçimleri kullanır (ülke, bölge, inşaat tatili). Daha sonra *Uygula* öğesini tıklayın. Bu mesajı yalnızca daha önce tatilleri oluşturulmuş bir takvim için görürsünüz.
+Projeniz kayarsa veya daha geç bir bitiş tarihi alırsa, tatiller yeni yılları artık kapsamaz. Uygulama bunu *Takvimler* penceresinde söyler, örneğin *Tatiller 2025–2028 aralığını kapsıyor. 2030 yılına kadar yeniden oluşturulsun mu?* Ardından *Yeniden oluştur* öğesini tıklayın. Uygulama, projenin yılları için son seferki seçimleri kullanır (ülke, bölge, inşaat tatili). Daha sonra *Uygula* öğesini tıklayın. Bu mesajı yalnızca daha önce tatilleri oluşturulmuş bir takvim için görürsünüz.
 
 ### Kendi tatil gününüzü veya tatil dönemini ekleme
 
@@ -58,5 +58,5 @@ Bir satırın arkasındaki çöp kutusu simgesiyle bir tatili silersiniz.
 - [Takvimler ve iş günleri](docs://uitleg-kalenders): uygulamanın tatilleri ve inşaat tatilini iş günlerini sayarken nasıl dikkate aldığı.
 - [Takvim oluşturma ve atama](docs://howto-kalender-maken-en-toewijzen): tatilleri koymak için kendi takvimini oluşturma.
 - [Takvim pencereleri](docs://ref-kalenders): takvim pencerelerinin tüm alanları.
-- [Yeni proje ve Proje bilgisi](docs://ref-projectinfo): yeni bir projenin tatil seti.
+- [Yeni proje ve Proje ayarları](docs://ref-projectinfo): yeni bir projenin tatil seti.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): tatillerin yanı sıra proje takviminde *Frost delay, foundations* adlı bir tatil dönemi vardır.

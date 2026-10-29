@@ -1,0 +1,87 @@
+name: macOS sign check
+
+# Bouwt een gesigneerde en genotariseerde universal-dmg zonder release, zodat de
+# Apple-signing te testen is zonder tag (een tag publiceert onomkeerbaar).
+# Zelfde pad als de macOS-leg in release.yml: app via tauri, daarna de dmg zelf
+# notariseren en stapelen, dan dmg en app controleren.
+# Draait op een PR die deze workflow, release.yml of een van de macOS-scripts
+# raakt, en handmatig. De gestapelde dmg blijft 7 dagen als artifact staan om op
+# een Mac te proberen.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/macos-sign-check.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/macos-notarize-dmg.sh'
+      - 'scripts/macos-verify-dmg.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-sign-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sign:
+    # Secrets bestaan niet voor PR's uit een fork; dan niets doen.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust targets (macOS universal)
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install frontend dependencies (npm ci)
+        run: npm ci
+
+      - name: Write App Store Connect API key
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$RUNNER_TEMP/apple-api-key.p8"
+          chmod 600 "$RUNNER_TEMP/apple-api-key.p8"
+
+      # Zelfde Apple-env als de macOS-leg in release.yml.
+      - name: Build signed and notarized dmg
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/apple-api-key.p8
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run tauri -- build --target universal-apple-darwin --bundles app,dmg
+
+      # Tauri notariseert alleen de app; de dmg eromheen notariseren we zelf.
+      - name: Notarize and staple dmg
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/apple-api-key.p8
+        run: bash scripts/macos-notarize-dmg.sh src-tauri/target/universal-apple-darwin/release/bundle/dmg
+
+      - name: Verify signature and notarization (dmg and app)
+        run: bash scripts/macos-verify-dmg.sh src-tauri/target/universal-apple-darwin/release/bundle/dmg
+
+      - name: Upload notarized dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-planner-studio-macos-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          retention-days: 7

@@ -8,7 +8,7 @@ import { refusalNotice } from '@/state/refusalNotice';
  * Waar landt een NIEUWE taak?
  *
  * Eén module voor álle invoegroutes — lintknop "+ Taak", de Mijlpaal-dropdown, het contextmenu
- * ("Taak toevoegen" én "Invoegen boven/onder"), de Insert- en Ctrl+I-sneltoets — zodat dezelfde
+ * ("Taak toevoegen" én "Invoegen boven/onder"), de Insert-, Ctrl+I- en Ctrl+M-sneltoets — zodat dezelfde
  * handeling via elke route dezelfde uitkomst heeft.
  *
  * Bewust in `src/state/` en niet in de component-boom (naar het model van `relationActions.ts`):

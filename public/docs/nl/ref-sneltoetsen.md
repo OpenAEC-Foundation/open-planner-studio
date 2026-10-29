@@ -12,7 +12,7 @@ Alle toetscombinaties van de app, gegroepeerd zoals in het venster *Sneltoetsen*
 
 **Wanneer een toets niet werkt.** Elke regel noemt zijn beperkingen. Drie regels gelden bijna overal:
 
-- In een invoerveld, een keuzelijst of een tekstvak vangt de app geen toetsen af, zodat je gewoon kunt typen. Uitzondering: F5, Ctrl+S, F11 en Esc tijdens de presentatie werken ook in een veld. In de gebouwde app (desktop en de webversie op de site) geldt dat ook voor Ctrl+Shift+S, Ctrl+O en Ctrl+N.
+- In een invoerveld, een keuzelijst of een tekstvak vangt de app geen toetsen af, zodat je gewoon kunt typen. Uitzondering: F5, Ctrl+S, F11 en Esc tijdens de presentatie werken ook in een veld. Staat de focus op een gesloten keuzelijst, dan werken ook de toetsen met Ctrl, bijvoorbeeld Ctrl+Z na een keuze (niet Ctrl+Delete en Ctrl+Backspace). Dat geldt niet in een open lijst en niet in een dialoog. In de gebouwde app (desktop en de webversie op de site) geldt dat ook voor Ctrl+Shift+S, Ctrl+O en Ctrl+N.
 - Staat er een dialoog of een ander venster open, dan werken de toetsen die hieronder *Niet in een dialoog* heten niet. Dat geldt ook voor de rondleiding, de welkomstdialoog en de vragen die op een antwoord wachten, zoals de vraag of je wijzigingen wilt opslaan en de toestemming bij het installeren van een extensie. In de presentatiemodus werken de meeste van deze toetsen ook niet. Uitzondering: de bewerktoetsen Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y en Delete/Backspace werken in de presentatie wel.
 - Documentwissels (Ctrl+1 tot en met 9, Ctrl+N, Ctrl+O) werken ook niet zolang *Bestand › Projectinstellingen* wijzigingen bevat die je nog niet met *Toepassen* hebt bevestigd. Verwerp of pas ze eerst toe.
 
@@ -98,7 +98,7 @@ Inspringen, uitspringen en invoegen boven of onder een geselecteerde taak werken
 
 **Ctrl+1** tot en met **Ctrl+9** — *Wissel van document*: gaat naar het eerste tot en met negende geopende document. Bestaat dat document niet, dan gebeurt er niets. Niet in een dialoog en niet bij niet-toegepaste Projectinstellingen.
 
-**Ctrl+Home** — *Spring naar vandaag*: scrolt de tijdlijn zodat een datum links in beeld staat. Dat is de statusdatum als je die hebt ingesteld, anders vandaag. Het label zegt dus "vandaag", ook als de tijdlijn naar de statusdatum springt. Zoom en beginpunt van de tijdlijn blijven zoals ze waren. Heeft een cel van het taakraster de focus, dan gaat Ctrl+Home juist naar de eerste cel van het raster (zie *Tabel*).
+**Ctrl+Home** — *Spring naar statusdatum of vandaag*: scrolt de tijdlijn zodat een datum links in beeld staat. Dat is de statusdatum als je die hebt ingesteld, anders vandaag. Zoom en beginpunt van de tijdlijn blijven zoals ze waren. Heeft een cel van het taakraster de focus, dan gaat Ctrl+Home juist naar de eerste cel van het raster (zie *Tabel*).
 
 ## Tabel
 

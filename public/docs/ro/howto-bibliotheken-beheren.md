@@ -64,15 +64,15 @@ Un fișier de proiect conține propriile copii ale resurselor. Dacă doriți să
 
 1. Deschideți un proiect legat de o bibliotecă și alegeți *Fișier › Exportare*.
 2. Bifați *Salvare fișier bibliotecă alături*. Caseta apare numai pentru un proiect legat.
-3. Alegeți cardul *IFC 4x3* și salvați fișierul. Apoi aplicația cere și un al doilea fișier. Acesta are numele proiectului, urmat de `-bibliotheek`, și conține biblioteca.
+3. Alegeți cardul *IFC* și salvați fișierul. Apoi aplicația cere și un al doilea fișier. Acesta are numele proiectului, urmat de `-bibliotheek`, și conține biblioteca.
 
 Caseta de bifare funcționează numai pentru exportul IFC, nu și pentru celelalte formate. Colegul dumneavoastră importă al doilea fișier, cum s-a descris mai sus.
 
 ## Capcane și ce face aplicația atunci
 
-**Doi planificatori, două biblioteci.** Aplicația nu sincronizează bibliotecile între calculatoare. Fereastra de import afișează întotdeauna un avertisment: *Notă: bibliotecile nu se sincronizează între calculatoare. Dacă doi planificatori lucrează cu aceeași bibliotecă de resurse, bibliotecile pot diverge. Dacă organizația dumneavoastră împarte echipele între companiile de exploatare, alegeți deliberat un conținut comun.*
+**Doi planificatori, două biblioteci.** Aplicația nu sincronizează bibliotecile între calculatoare. Fereastra de import afișează întotdeauna un avertisment: *Notă: bibliotecile nu se sincronizează între calculatoare. Dacă doi planificatori lucrează cu aceeași bibliotecă de resurse, bibliotecile pot diverge. Dacă organizația dumneavoastră împarte echipele între companiile de exploatare, alegeți deliberat o bibliotecă de resurse comună.*
 
-**Înlocuirea suprascrie totul.** Tot ce aveați în biblioteca aleasă dispare, iar o modificare a bibliotecii nu poate fi anulată cu *Anulare*. Exportați mai întâi dacă nu sunteți sigur.
+**Înlocuirea suprascrie totul.** Tot ce aveați în biblioteca aleasă dispare, iar o modificare a bibliotecii nu poate fi anulată cu *Anulare*. Exportați mai întâi dacă nu sunteți sigur. Proiectele dumneavoastră își păstrează copiile. Aplicația actualizează copiile care mai există în fișierul nou. Copiile care nu mai sunt în fișier primesc marcajul *nu mai este în bibliotecă* și funcționează în continuare. Dacă o copie diferă, se deschide fereastra *Legare bibliotecă de resurse* (vezi [Folosirea bibliotecii de resurse](docs://howto-resourcebibliotheek-gebruiken)).
 
 **Ștergerea unui calendar din listă se face imediat.** Aplicația nu cere confirmare, spre deosebire de ștergerea unei resurse. Aceasta pare o lipsă. Modificările bibliotecii nu pot fi anulate cu *Anulare*.
 

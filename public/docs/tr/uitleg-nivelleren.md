@@ -50,9 +50,9 @@ Uygulama kaymayı bir **dengeleme gecikmesi** olarak kaydeder. Bu, görevin takv
 
 ## Uygulamalı örnek: iki duvarda duvarcı
 
-Bu örnek, eğitim 5'teki dengelemeden hemen önceki hâliyle *House extension* alıştırma projesidir. Eğitim 5'te bunu kendiniz yaparsınız ve sayıları kontrol edersiniz. Bu örnekte sıva işi *Sabit iş* türündedir ve sıvacı 2 birimle çalışır; bu, [İş kuralları: süre, birim ve iş](docs://uitleg-werkregels) bölümündeki gibidir.
+Bu örnek, eğitim 5'teki dengelemeden hemen önceki hâliyle *House extension* alıştırma projesidir. Eğitim 5'te bunu kendiniz yaparsınız ve sayıları kontrol edersiniz. Bu örnekte sıva işi *Sabit iş* türündedir ve sıvacı 2 birimle çalışır; bu, [Görev türleri: süre, birim ve iş](docs://uitleg-werkregels) bölümündeki gibidir.
 
-Boşluklu döşeme Pazartesi 28 Haziran'da bitince, iç yaprak (5 iş günü) ve dış yaprak (6 iş günü) ikisi de Salı 29 Haziran'da başlar. İkisi de duvarcıya bağlıdır; birim 1 ve *Maks. birim* 1'dir. İç yapraktan sonra çatı elemanları (6 saatlik bir vinç işi) ve çatı kaplama (2 iş günü) gelir. Pencere çerçeveleri çatı kaplamayı ve dış yaprağı bekler. Teslim Pazartesi 30 Ağustos'tadır.
+Boşluklu döşeme Pazartesi 28 Haziran'da bitince, iç yaprak (5 iş günü) ve dış yaprak (6 iş günü) ikisi de Salı 29 Haziran'da başlar. İkisi de duvarcıya atanmıştır; birim 1 ve *Maks. birim* 1'dir. İç yapraktan sonra çatı elemanları (6 saatlik bir vinç işi) ve çatı kaplama (2 iş günü) gelir. Pencere çerçeveleri çatı kaplamayı ve dış yaprağı bekler. Teslim Pazartesi 30 Ağustos'tadır.
 
 ### Aşırı atanmışlık
 
@@ -66,18 +66,18 @@ Boşluklu döşeme Pazartesi 28 Haziran'da bitince, iç yaprak (5 iş günü) ve
 
 Dış yaprak 29 Haziran'da başlayamaz. Duvarcının yeniden boş olduğu ilk gün Salı 6 Temmuz'dur. Bu, en erken başlangıçtan 5 iş günü sonra demektir; bu nedenle dengeleme gecikmesi 5'tir. Dış yaprak şimdi 6 Temmuz'dan 13 Temmuz dahil sürer. Çerçeveler zaten yalnızca 14 Temmuz'da başlar; bu yüzden teslim Pazartesi 30 Ağustos'ta kalır. Pencere *Proje bitiş tarihi: değişmedi (30-08-2027)* iletisini verir ve tek bir satır gösterir: *Build outer cavity leaf*, eski başlangıç 29-06-2027, yeni başlangıç 06-07-2027, *5 g*.
 
-Kaydırılan 5 iş günü, dış yaprağın bolluğunun tam olarak aynısıdır. Bu yüzden *yumuşatma* burada aynı sonucu verir. Dış yaprağın artık bolluğu kalmadı ve kritiktir.
+Kaydırılan 5 iş günü, dış yaprağın bolluğunun tam olarak aynısıdır. Bu yüzden *dengeleme* burada aynı sonucu verir. Dış yaprağın artık bolluğu kalmadı ve kritiktir.
 
 ### Çerçeveler 14 Temmuz'da gelmezse
 
 Bu kısıtlama olmadan çerçeveler Cuma 9 Temmuz'da başlayabilir ve teslim Çarşamba 25 Ağustos'tadır. Dış yaprağın o zaman yalnızca 2 iş günü bolluğu kalır.
 
-- *Yumuşatma* olmadan dış yaprak yine 5 iş günü kayar. Şimdi çerçevelerin beklemesi gerekir: 14 Temmuz'da başlarlar, 3 iş günü daha geç. Onlardan sonra gelen her şey de kayar ve teslim 25 Ağustos'tan 30 Ağustos'a geçer; bu da 3 iş günü daha geç demektir.
-- *Yumuşatma* açıkken hiçbir şey kaymaz. Dış yaprak, 2 iş günlük bolluğuna sığmaz. Pencere şu çakışmayı gösterir: *Build outer cavity leaf*, 5 gün, nedeni: *Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok.*
+- *Dengeleme* olmadan dış yaprak yine 5 iş günü kayar. Şimdi çerçevelerin beklemesi gerekir: 14 Temmuz'da başlarlar, 3 iş günü daha geç. Onlardan sonra gelen her şey de kayar ve teslim 25 Ağustos'tan 30 Ağustos'a geçer; bu da 3 iş günü daha geç demektir.
+- *Dengeleme* açıkken hiçbir şey kaymaz. Dış yaprak, 2 iş günlük bolluğuna sığmaz. Pencere şu çakışmayı gösterir: *Build outer cavity leaf*, 5 gün, nedeni: *Bu çakışmayı çözmek için bolluk içinde yeterli boş kapasite yok.*
 
 ### Dış yaprak öncelik alırsa
 
-Dış yaprağa öncelik *Yüksek* (900) verirseniz, o önce gelir. 29 Haziran'da yerinde kalır ve şimdi iç yaprak yol verir: 6 iş günü daha geç, 7 Temmuz'dan 13 Temmuz dahil. İç yaprağın yalnızca 3 iş günü bolluğu var; 6 iş günü kaydırmak bu yüzden 3 gün fazla olur. Çatı elemanları, çerçeveler ve sonrasındaki her şey birlikte kayar. Teslim Pazartesi 30 Ağustos'tan Perşembe 2 Eylül'e geçer. Aynı aşırı atanmışlık, hangi görevin yerinde kaldığına bağlı olarak farklı bir bitiş tarihi verir.
+Dış yaprağa öncelik *Yüksek* (900) verirseniz, o önce gelir. 29 Haziran'da yerinde kalır ve şimdi iç yaprak yol verir: 6 iş günü daha geç, 7 Temmuz'dan 13 Temmuz dahil. İç yaprağın yalnızca 3 iş günü bolluğu var; 6 iş günü kaydırmak bu yüzden 3 gün fazla olur. Çatı elemanları, çerçeveler ve sonrasındaki her şey birlikte kayar. Teslim Pazartesi 30 Ağustos'tan Perşembe 2 Eylül'e geçer. Bu yüzden aynı aşırı atanmışlık, hangi görevin yerinde kaldığına bağlı olarak farklı bir bitiş tarihi verir.
 
 ### Ya ikinci bir duvarcı gelirse
 
@@ -101,5 +101,5 @@ Duvarcının *Maks. birim* değerini 2 yaparsanız artık aşırı atanmışlık
 
 - [Aşırı atanmışlığı çözme](docs://howto-overbezetting-oplossen): aşırı atanmışlığı bulmak ve dengelemek için adımlar.
 - [Kritik yol ve bolluk](docs://uitleg-kritiek-pad): bolluğun ne olduğu ve bir görevin neden kritik olduğu.
-- [İş kuralları: süre, birim ve iş](docs://uitleg-werkregels): bir görevin süresinin birimlerle birlikte nasıl değiştiği.
+- [Görev türleri: süre, birim ve iş](docs://uitleg-werkregels): bir görevin süresinin birimlerle birlikte nasıl değiştiği.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): üç kulenin aynı ekiplere ve kule vincine ihtiyaç duyması ve dengelemenin bununla ne yaptığı.

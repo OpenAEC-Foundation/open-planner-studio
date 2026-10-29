@@ -34,7 +34,7 @@ Questi sono limiti minimi. Un successore inizia più tardi se lo richiede un'alt
 
 Un ritardo si può esprimere in quattro modi:
 
-- In **giorni lavorativi** (`3` o `3d`): l'app salta i giorni di chiusura e i fine settimana. Questo è il valore predefinito.
+- In **giorni lavorativi** (`3` o `3d`): l'app salta i giorni non lavorativi e i fine settimana. Questo è il valore predefinito.
 - In **giorni di calendario** (`3ed`, la e sta per *elapsed*, cioè tempo trascorso): ogni giorno conta, anche sabato e domenica. Questa è l'unità per qualcosa che continua senza che si lavori, come la maturazione.
 - Come **percentuale** della durata del predecessore (`40%`): l'app calcola di nuovo questo valore a ogni calcolo e arrotonda ai giorni interi (2,5 giorni diventano 3).
 - In **orari di lavoro** (`4h`): l'app conta il ritardo nel calendario del ritardo, per impostazione predefinita quello del predecessore. Se il predecessore è un'attività in giorni su un calendario senza fasce orarie proprie, come il calendario standard, l'app converte le ore in giorni lavorativi interi, arrotondando al giorno intero più vicino (mezza giornata si arrotonda per eccesso). Con un giorno lavorativo di 8 ore, `2h` e `3h` danno quindi 0 giorni, da `4h` fino e incluso `11h` danno 1 giorno e `12h` danno 2 giorni. Se quel calendario ha fasce orarie proprie, o il predecessore è un'attività in ore, il ritardo conta esattamente in ore.
@@ -45,7 +45,7 @@ Un anticipo non può spostare un'attività prima dell'inizio del progetto. Se ci
 
 ### In quale calendario conta il ritardo
 
-Ogni attività può avere un calendario proprio. Con un ritardo in giorni lavorativi conta il calendario che stabilisce i giorni lavorativi. L'impostazione *Calendario del ritardo* decide questo, con quattro scelte: *Predecessore*, *Successore*, *24 ore* e *Calendario del progetto*. Per impostazione predefinita il ritardo conta nel calendario del **predecessore**. Trovi l'impostazione in *Impostazioni › Progetto › Info progetto*, nel blocco *Profilo di calcolo e opzioni*, alla voce *Opzioni di calcolo di questo progetto*. La scelta appartiene al file di progetto e vale solo dopo aver cliccato su *Applica*; la pianificazione viene poi ricalcolata.
+Ogni attività può avere un calendario proprio. Con un ritardo in giorni lavorativi conta il calendario che stabilisce i giorni lavorativi. L'impostazione *Calendario del ritardo* decide questo, con quattro scelte: *Predecessore*, *Successore*, *24 ore* e *Calendario del progetto*. Per impostazione predefinita il ritardo conta nel calendario del **predecessore**. Trovi l'impostazione in *Impostazioni › Progetto › Impostazioni progetto*, nel blocco *Profilo di calcolo e opzioni*, alla voce *Opzioni di calcolo di questo progetto*. La scelta appartiene al file di progetto e vale solo dopo aver cliccato su *Applica*; la pianificazione viene poi ricalcolata.
 
 Un ritardo in giorni di calendario (`3ed`) conta sempre tutti i giorni, qualunque *Calendario del ritardo* tu scelga.
 

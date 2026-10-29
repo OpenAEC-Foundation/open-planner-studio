@@ -36,7 +36,7 @@ A sávok színezéséhez válassza a *Nézet › Alaptervek és előrehaladás �
 
 ## Buktatók és mit tesz az alkalmazás
 
-**Törléskor a tevékenységekről eltűnnek az értékek.** Ha a kuka ikonnal kódtípust, értéket vagy mezőt töröl, az alkalmazás nem kér megerősítést. Ezzel együtt minden tevékenységen eltűnnek a hozzárendelt értékek. Az adott kódtípusra vagy mezőre vonatkozó csoportosítás vagy rendezés is megszűnik. A *Visszavonás* (Ctrl+Z) visszaállítja a kódtípust, az értéket vagy a mezőt és a kitöltött értékeket, de a csoportosítást és a rendezést nem: ezeket újra be kell állítania.
+**Törléskor a tevékenységekről eltűnnek az értékek.** Ha a kuka ikonnal kódtípust, értéket vagy mezőt töröl, az alkalmazás nem kér megerősítést. Ezzel együtt minden tevékenységen eltűnnek a hozzárendelt értékek. Az adott kódtípusra vagy mezőre vonatkozó csoportosítás vagy rendezés is megszűnik. A *Visszavonás* (Ctrl+Z, előbb zárja be az ablakot) visszaállítja a kódtípust, az értéket vagy a mezőt és a kitöltött értékeket, de a csoportosítást és a rendezést nem: ezeket újra be kell állítania.
 
 **Két érték ugyanazzal a kóddal.** Az *Érték hozzáadása* a meglévő értékek számától folytatja a számozást. Ha töröl egyet és hozzáad egyet, ezért egy kód kétszer is szerepelhet. Ha ezt a kódot beírja egy oszlopcellába, az alkalmazás nem fogadja el, és ezt jeleníti meg: *Ez a tevékenységkód-érték többször szerepel. Válassza ki a listából.* Adjon minden értéknek saját kódot.
 

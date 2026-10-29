@@ -1,0 +1,13 @@
+# Alleen wat headless/server/Dockerfile nodig heeft (allowlist). Een nieuwe COPY in die Dockerfile
+# heeft hier een eigen `!`-regel nodig.
+*
+!package.json
+!package-lock.json
+!LICENSE
+!LICENSE.GPL
+!scripts/build-core.mjs
+!scripts/lib/headless-bundle.mjs
+!scripts/lib/third-party-notices.mjs
+!src/
+!headless/server/server.mjs
+!headless/server/worker.mjs

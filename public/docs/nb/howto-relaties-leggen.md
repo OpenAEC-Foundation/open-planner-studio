@@ -69,14 +69,14 @@ Du skriver en forsinkelse i boksen ved siden av typen, på hver av måtene over.
 - `3` eller `3d`: 3 arbeidsdager. Helgen telles ikke med. Appen viser `+3d`.
 - `3ed`: 3 kalenderdager. Helgen telles med, slik som for betong som også herder lørdag og søndag.
 - `-1`: en negativ forsinkelse (ledetid). Etterfølgeren kan starte én dag tidligere, så aktivitetene overlapper.
-- `4h`: 4 arbeidstimer; appen viser det som `+4u`. Hvis forgjengeren er en dagbasert aktivitet i en kalender uten egne tidsbånd, for eksempel standardkalenderen, gjør appen dette om til hele arbeidsdager, avrundet til nærmeste hele dag: `4h` virker dermed som 1 dag, `2h` som 0. I en kalender med egne tidsbånd, eller etter en timebasert aktivitet, telles forsinkelsen nøyaktig i timer.
-- `50%`: halvparten av varigheten til forgjengeren.
+- `4h`: 4 arbeidstimer; appen viser det som `+4h`. Hvis forgjengeren er en dagbasert aktivitet i en kalender uten egne tidsbånd, for eksempel standardkalenderen, gjør appen dette om til hele arbeidsdager, avrundet til nærmeste hele dag: `4h` virker dermed som 1 dag, `2h` som 0. I en kalender med egne tidsbånd, eller etter en timebasert aktivitet, telles forsinkelsen nøyaktig i timer.
+- `50%`: halvparten av forgjengerens varighet.
 
 Eksempel: fundamentbetongen må herde før murer kan arbeide på den, så *Pour foundation → Foundation brickwork* får en FS-avhengighet med forsinkelse `3`. Hvis støpingen er fredag 18. juni 2027, starter murverket etter **Beregn** torsdag 24. juni: mandag til onsdag er ventetid. Med `3ed` telles helgen med, og murverket starter tirsdag 22. juni.
 
 ### Til slutt: omberegn
 
-En ny avhengighet flytter ingen stolper ennå. Statuslinjen viser *Utdatert — omberegn (F5)*. Trykk **Beregn** (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Først da får etterfølgerne nye datoer. Vil du at appen gjør dette for deg, slå på *Beregne automatisk* under *Innstillinger › Prosjekt › Innstillinger*, fanen *Tidsplan*.
+En ny avhengighet flytter ingen stolper ennå. Statuslinjen viser *Utdatert — omberegn (F5)*. Trykk **Beregn** (F5), for eksempel via *Hjem › Tidsplan › Beregn*. Først da får etterfølgerne nye datoer. Vil du at appen gjør dette for deg, slå på *Beregne automatisk* under *Innstillinger › Prosjekt › Appinnstillinger*, fanen *Tidsplan*.
 
 ## Fallgruver og hva appen gjør
 

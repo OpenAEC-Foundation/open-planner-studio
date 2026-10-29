@@ -12,7 +12,7 @@ Avaa *Raportti*-välilehti (tai paina Ctrl+P). Vasemmalla on *Raportti*-sarake. 
 
 **Muistetaan.** Sovellus muistaa kaikki raporttivalinnat tällä laitteella, kaikille projekteille. Ne eivät kuulu projektitiedostoon. Vain Gantt-tulostuksen kenttää *Yritys:* ei muisteta.
 
-**Nykyinen aikataulu.** Raportit käyttävät viimeisintä laskentaa. Jos aikataulua on muutettu sen jälkeen, taulukkoraporttien yläosassa näkyy *Aikataulua on muutettu viimeisen laskennan jälkeen — paina Laske (F5) ajantasaisten arvojen saamiseksi.* Jos mitään ei ole koskaan laskettu, näkyy *Ei vielä laskettu — paina Laske (F5) päivämääriä ja pelivaraa varten.* Jos projekti on näkymässä *Päivämäärät sellaisina kuin ne on tallennettu*, raportit näyttävät päivämäärät lähdetiedostosta, ja rivi kertoo siitä.
+**Nykyinen aikataulu.** Raportit käyttävät viimeisintä laskentaa. Jos aikataulua on muutettu sen jälkeen, taulukkoraporttien yläosassa näkyy *Aikataulua on muutettu viimeisen laskennan jälkeen — paina Laske (F5) ajantasaisten arvojen saamiseksi*. Jos mitään ei ole koskaan laskettu, näkyy *Ei vielä laskettu — paina Laske (F5) päivämääriä ja pelivaraa varten*. Jos projekti on näkymässä *Päivämäärät sellaisina kuin ne on tallennettu*, raportit näyttävät päivämäärät lähdetiedostosta, ja rivi kertoo siitä.
 
 **Lyhenteet.** *tp* tarkoittaa työpäiviä. *TF* on kokonaispelivara, *FF* on vapaa pelivara.
 
@@ -26,13 +26,13 @@ Avaa *Raportti*-välilehti (tai paina Ctrl+P). Vasemmalla on *Raportti*-sarake. 
 
 Aikataulu palkkikaaviona, taulukko vasemmalla ja aikajana oikealla. Tarvittaessa kaavio jakautuu useammalle sivulle. Esikatselussa näkyvät paperi, sivun ylätunniste, taulukko, aikajana ja selite. Osio *Yhteenveto* laskee *Tehtävät:*, *Lehtitehtävät:*, *Kriittinen:* ja *Riippuvuudet:*. Kaikki valinnat ovat kohdassa *Asetukset*.
 
-**Yritys:** — yritys sivun ylätunnisteessa. Oletus: yritys projektitiedoista. Vaikutus: vain raportin ylätunniste. Sitä, mitä tähän kirjoitetaan, ei tallenneta. Muuta yritys kohdassa *Asetukset › Projekti › Projektitiedot*, kentässä *Tilaaja/organisaatio*, ja vahvista painikkeella *Käytä*.
+**Yritys:** — yritys sivun ylätunnisteessa. Oletus: yritys projektin asetuksista. Vaikutus: vain raportin ylätunniste. Sitä, mitä tähän kirjoitetaan, ei tallenneta. Muuta yritys kohdassa *Asetukset › Projekti › Projektin asetukset*, kentässä *Tilaaja/organisaatio*, ja vahvista painikkeella *Käytä*.
 
-**Tekijä:** — tekijä sivun ylätunnisteessa. Vain luku: sovellus ottaa sen projektitiedoista.
+**Tekijä:** — tekijä sivun ylätunnisteessa. Vain luku: sovellus ottaa sen projektin asetuksista.
 
 **Fonttikoko:** — tekstin ja taulukon koko raportissa. Valittavana ovat 90%, 100%, 110% ja 125%. Oletus: 100%. Vaikutus: suuremmalla fontilla teksti, rivit ja taulukko kasvavat, ja aikajanan leveys pienenee. Ei riipu *Tekstikoko*-asetuksesta.
 
-**Palkkien värit:** — mistä palkin väri riippuu. Valittavana ovat *Kriittinen polku*, *Tehtäväkohtainen — automaattinen* ja *Luokittain*. Pudotusvalikko *Luokkakenttä* näkyy valinnalla *Luokittain*. Oletus: *Kriittinen polku*. Vaikutus: sama valinta kuin *Näkymä*-välilehden kohdassa *Palkkien värit*. Jos sitä muutetaan tässä, myös ruudulla oleva Gantt-näkymä muuttuu. Jos valittua kenttää ei ole tässä projektissa, näkyy *Tätä kenttää ei ole tässä projektissa. Tehtävätyyppiä käytetään väliaikaisesti.*
+**Palkkien värit:** — mistä palkin väri riippuu. Valittavana ovat *Kriittinen polku*, *Tehtäväkohtainen — automaattinen* ja *Luokittain*. Pudotusvalikko *Luokkakenttä* näkyy valinnalla *Luokittain*. Oletus: *Kriittinen polku*. Vaikutus: sama valinta kuin *Näkymä*-välilehden kohdassa *Palkkien värit*. Jos sitä muutetaan tässä, myös ruudulla oleva Gantt-näkymä muuttuu. Jos valittua kenttää ei ole tässä projektissa, näkyy *Tätä kenttää ei ole tässä projektissa. Työlajia käytetään väliaikaisesti*.
 
 **Tilarivi:** — viiva raportointipäivällä. Valittavana ovat *Ei mitään*, *Raportointipäivän viiva* ja *Edistymisviiva*. Oletus: *Ei mitään*. Vaikutus: *Raportointipäivän viiva* piirtää viivan raportointipäivälle. *Edistymisviiva* piirtää siksak-viivan, joka näyttää kunkin tehtävän edistymisen. Jos projektissa ei ole raportointipäivää, näkyy *Aseta ensin raportointipäivä*, eikä raportti piirrä mitään.
 
@@ -84,7 +84,7 @@ Samat palkit kuin Gantt-tulostuksessa, ryhmiteltynä resurssin mukaan: kuka teke
 
 **Näytä kuormitusaste/pv ja jakautumiskäyrä** — Oletus: päällä. Vaikutus: kaksi saraketta tehtävän nimen jälkeen, joissa ovat kuormitusaste päivää kohti ja kyseisen nauhan resurssin jakautumiskäyrä. Jos aikajanalle on liian vähän tilaa, raportti jättää sarakkeet pois ja näyttää *Sarakkeet Kuormitusaste/pv ja Käyrä jätettiin pois: …*. Lisää tilaa saadaan suuremmalla paperikoolla tai vaakasuunnalla, pienemmällä fonttikoolla tai kapeammalla taulukolla.
 
-**Aikajakso:** — vain tehtävät, jotka osuvat jaksoon. Oletus: *Koko projekti*. Vaikutus: aikaakseli kulkee tarkalleen jakson yli. Jos jaksossa ei ole mitään, näkyy *Ei tehtäviä aikajaksolla — valitse toinen aikajakso tai Koko projekti.* Katso alla: *Aikajakso*.
+**Aikajakso:** — vain tehtävät, jotka osuvat jaksoon. Oletus: *Koko projekti*. Vaikutus: aikaakseli kulkee tarkalleen jakson yli. Jos jaksossa ei ole mitään, näkyy *Ei tehtäviä aikajaksolla — valitse toinen aikajakso tai Koko projekti*. Katso alla: *Aikajakso*.
 
 ## Välitavoitteiden yleiskatsaus
 
@@ -120,13 +120,13 @@ Projektin tila raportointipäivänä. Valinnat kohdassa *Raporttivalinnat*.
 
 **Lähes kriittinen ≤ (tp):** — Oletus: 5. Kuten Ennakkonäkymässä.
 
-Osio *Yhteenveto* näyttää *Raportointipäivä*, *Aikajakso*, *Ennakkonäkymä asti*, *Perustason loppu*, *Ennustettu valmistumispäivä*, *Δ loppu (tp)*, *Suunniteltu* (jossa *(perustaso)* tai *(nykyinen aikataulu)*), *Todellinen* sekä laskurit *Suoritettu*, *Käynnissä*, *Ei aloitettu*, *Myöhässä* ja *Kriittinen*. Suunniteltu ja todellinen painotetaan tehtävien kestolla. Suunniteltu mitataan perustasoa vastaan, jos aktiivinen perustaso on, muuten nykyistä aikataulua vastaan. Osiot ovat *Valmistunut edellisellä aikajaksolla*, *Käynnissä*, *Alkaa seuraavalla aikajaksolla*, *Myöhässä* ja *Avoimet kriittiset tehtävät*. Tehtävä voi kuulua useampaan osioon.
+Osio *Yhteenveto* näyttää *Raportointipäivä*, *Aikajakso*, *Ennakkonäkymä asti*, *Perustason loppu*, *Ennustettu valmistumispäivä*, *Δ loppu (tp)*, *Suunniteltu* (jossa *(perustaso)* tai *(nykyinen aikataulu)*), *Todellinen* sekä laskurit *Suoritettu*, *Käynnissä*, *Ei aloitettu*, *Myöhässä* ja *Kriittinen*. Suunniteltu ja todellinen painotetaan tehtävien kestolla. Suunniteltu mitataan perustasoa vastaan, jos aktiivinen perustaso on, muuten nykyistä aikataulua vastaan. Osiot ovat *Valmistunut edellisellä aikajaksolla*, *Käynnissä*, *Alkaa seuraavalla aikajaksolla*, *Myöhässä* ja *Avoimet kriittiset tehtävät*. Tehtävä voi kuulua useampaan osioon. Jokaisessa osiossa ovat samat sarakkeet: *WBS*, *Nimi*, *Perustason loppu*, *Ennustettu valmistumispäivä*, *Valm*, *Jäljellä (tp)*, *TF (tp)*, *Kriittinen* ja *Tila*. Rivin tila on *Suoritettu*, *Käynnissä*, *Ei aloitettu*, *Olisi pitänyt alkaa* tai *Olisi pitänyt päättyä*.
 
 ## Aikataulun kunto
 
 Tarkistus aikataulun itsensä virheiden ja epätavallisten arvojen varalta. Ylimpänä on DCMA 14 kohdan arviointi. Asetukset kohdassa *Raporttivalinnat*.
 
-**Korkea pelivara > (wd):** — Luku väliltä 1–365. Oletus: 44. Vaikutus: keskeneräinen tehtävä, jonka kokonaispelivara on tätä suurempi, kuuluu kohtaan *Korkea pelivara*.
+**Korkea pelivara > (tp):** — Luku väliltä 1–365. Oletus: 44. Vaikutus: keskeneräinen tehtävä, jonka kokonaispelivara on tätä suurempi, kuuluu kohtaan *Korkea pelivara*.
 
 **Pitkä kesto > (wd):** — Luku väliltä 1–365. Oletus: 44. Vaikutus: keskeneräinen tehtävä, joka ei ole välitavoite ja jonka kesto on pidempi, kuuluu kohtaan *Pitkä kesto*.
 
@@ -149,13 +149,13 @@ Se laskee keskeneräiset lehtitehtävät, ilman välitavoitteita ja riippumattoj
 - *Virheelliset päivämäärät*: toteutunut alkamispäivä tai toteutunut valmistumispäivä on raportointipäivän jälkeen, tai ennustettu alkamispäivä tai ennustettu valmistumispäivä on ennen raportointipäivää. Kynnysarvo: ei ole. Vaatii raportointipäivän.
 - *Resurssit*: tehtävät ilman resurssia. Kynnysarvo: ei ole. Vain, jos projektissa käytetään resursseja. Muuten *Ei sovellu*.
 - *Myöhästyneet tehtävät*: niiden tehtävien osuus, jotka perustason mukaan pitää valmistua raportointipäivään mennessä ja jotka valmistuvat myöhemmin tai joiden ennustettu valmistumispäivä on myöhemmin. Kynnysarvo: enintään 5%. Vaatii raportointipäivän ja aktiivisen perustason.
-- *Kriittisen polun testi*: sovellus pidentää kriittistä, keskeneräistä tehtävää 100 työpäivällä ja laskee uudelleen kopiolla, joten projekti ei muutu. Testi on hyväksytty, jos projektin viimeinen tehtävä ei tämän jälkeen valmistu ennen tätä tehtävää. Testi koskee keskeneräistä kriittistä tehtävää, jonka alkamispäivä on aikaisin. Tiedoissa mainitaan tehtävä ja se, kuinka monta työpäivää valmistumispäivä siirtyi.
+- *Kriittisen polun testi*: sovellus pidentää kriittistä, keskeneräistä tehtävää 100 työpäivällä ja laskee uudelleen kopiolla, joten projekti ei muutu. Testi on hyväksytty, jos projektin viimeinen tehtävä ei sen jälkeen valmistu ennen tätä tehtävää. Testi koskee keskeneräistä kriittistä tehtävää, jonka alkamispäivä on aikaisin. Tiedoissa mainitaan tehtävä ja se, kuinka monta työpäivää valmistumispäivä siirtyi. Näkymässä *Tallennetut päivämäärät* tämä testi on *Ei sovellu* (*ei laskettu*): testi laskee, ja raportti näyttää silloin lähdetiedoston päivämäärät. Paina Laske (F5), jolloin testi suoritetaan uudelleen.
 - *CPLI*: (kriittisen polun pituus + pelivara) / kriittisen polun pituus. Pituus lasketaan työpäivinä raportointipäivästä viimeisen tehtävän loppuun. Pelivara on ero tehtävän perustason loppuun. Jos tehtävä ei ole perustasossa, käytetään lasketun pelivaran arvoa. Kynnysarvo: vähintään 0,95. Vaatii raportointipäivän.
 - *BEI*: raportointipäivänä valmiiden tehtävien määrä, jaettuna sillä määrällä, joka perustason mukaan pitää olla tehty siihen mennessä, plus tehtävät ilman perustasoa. Kynnysarvo: vähintään 0,95. Vaatii raportointipäivän ja aktiivisen perustason.
 
 Kaksi kohtaa poikkeaa julkaisusta, koska sovelluksessa ei ole kyseistä käsitettä: *Korkea kesto* laskee jokaisen keskeneräisen tehtävän, kun julkaisu rajaa sen yksityiskohtaiseen suunnitteluvaiheeseen (rolling wave). *Resurssit* katsoo vain kohdistettuja resursseja, ei kustannuksia. Julkaisussa ei ole lukua kriittisen polun testille. 100 työpäivää on sovelluksen oma valinta.
 
-Tarkistukset ovat tässä järjestyksessä, ja niillä on vakavuus. Virhe: *Negatiivinen pelivara*, *Ohitettu tavoitepäivä*, *Rikottu rajoite* ja *Epäjohdonmukainen edistyminen* (toteutunut alkamispäivä tai toteutunut valmistumispäivä raportointipäivän jälkeen, ennustettu alkamispäivä tai ennustettu valmistumispäivä ennen raportointipäivää, 100% ilman toteutunutta valmistumispäivää, toteutunut valmistumispäivä mutta ei 100%, edistyminen ilman toteutunutta alkamispäivää). Varoitus: *Ilman edeltäjää (avoin alku)* ja *Ilman seuraajaa (avoin loppu)* (ei välitavoitteet), *Pitkä kesto*, *Limitys*, *Kova rajoite* (pakollinen rajoite tai MSO, MFO, SNLT tai FNLT), *Järjestyksestä poikkeava edistyminen* ja *Myöhästynyt tehtävä (perustasoon suunnitelmaan nähden)*. Tiedoksi: *Lähes kriittinen*, *Korkea pelivara*, *Pitkä viive*, *Muu riippuvuus kuin FS* ja *Ilman resurssia* (vain, jos projektissa käytetään resursseja). Raportti tarkastelee vain lehtitehtäviä, jotka eivät ole riippumattoja. Ruutu *Yhteenveto* laskee *DCMA-merkinnät*, *Virheet*, *Varoitukset*, *Tiedoksi*, *Lehtitehtävät* ja *Riippuvuudet*. DCMA-osion alapuolella ovat osio *Yhteenveto* (kunkin tarkistuksen vakavuus ja määrä) ja osio *Havainnot* (jokainen tehtävä tai riippuvuus). Ilman laskentaa puuttuvat ne tarkistukset, jotka tarvitsevat pelivaraa.
+Tarkistukset ovat tässä järjestyksessä, ja niillä on vakavuus. Virhe: *Negatiivinen pelivara*, *Ohitettu tavoitepäivä*, *Rikottu rajoite* ja *Epäjohdonmukainen edistyminen* (toteutunut alkamispäivä tai toteutunut valmistumispäivä raportointipäivän jälkeen, ennustettu alkamispäivä tai ennustettu valmistumispäivä ennen raportointipäivää, 100% ilman toteutunutta valmistumispäivää, toteutunut valmistumispäivä mutta ei 100%, edistyminen ilman toteutunutta alkamispäivää). Varoitus: *Ilman edeltäjää (avoin alku)* ja *Ilman seuraajaa (avoin loppu)* (ei koske välitavoitteita), *Pitkä kesto*, *Limitys*, *Kova rajoite* (pakollinen rajoite tai MSO, MFO, SNLT tai FNLT), *Järjestyksestä poikkeava edistyminen* ja *Myöhästynyt tehtävä (perustasoon suunnitelmaan nähden)*. Tiedoksi: *Lähes kriittinen*, *Korkea pelivara*, *Pitkä viive*, *Muu riippuvuus kuin FS* ja *Ilman resurssia* (vain, jos projektissa käytetään resursseja). Raportti tarkastelee vain lehtitehtäviä, jotka eivät ole riippumattoja. Ruutu *Yhteenveto* laskee *DCMA-merkinnät*, *Virheet*, *Varoitukset*, *Tiedoksi*, *Lehtitehtävät* ja *Riippuvuudet*. DCMA-osion alapuolella ovat osio *Yhteenveto* (kunkin tarkistuksen vakavuus ja määrä) ja osio *Havainnot* (jokainen tehtävä tai riippuvuus). Ilman laskentaa puuttuvat ne tarkistukset, jotka tarvitsevat pelivaraa.
 
 ## Resurssikuormitus
 
@@ -173,11 +173,11 @@ Sarakkeet ovat *Resurssi*, *Tyyppi*, *Viikon alku* tai *Kuukausi*, *Vaadittu*, *
 
 Kullekin resurssille sen tehtävät: mitä tämä työryhmä tai nosturi tekee? Asetukset kohdassa *Raporttivalinnat*.
 
-**Aikajakso:** — Oletus: *Koko projekti*. Vaikutus: kun jakso on valittu, mukana ovat vain sellaisten tehtävien resurssikohdistukset, jotka osuvat jaksoon, ja lisäksi myöhässä oleva työ ennen viitepäivää. *Koko projekti* ei suodata päivämäärän mukaan.
+**Aikajakso:** — Oletus: *Koko projekti*. Vaikutus: kun jakso on valittu, mukana ovat vain sellaisten tehtävien resurssikohdistukset, jotka osuvat jaksoon, ja lisäksi myöhässä oleva työ ennen raportointipäivää. *Koko projekti* ei suodata päivämäärän mukaan.
 
 **Sisällytä valmiit tehtävät** — Oletus: pois päältä. Vaikutus: päällä mukana ovat myös valmiiden tehtävien resurssikohdistukset.
 
-Rivit ovat resursseittain, ja resurssin sisällä alkamispäivän mukaan. Ruutu *Yhteenveto* laskee *Resurssit*, *Resurssikohdistukset* ja *Tehtävät ilman resurssia*. Sarakkeisiin kuuluvat resurssi, tehtävä, alku ja loppu, *Jäljellä (tp)*, *Kuorm./päivä*, *Valm*, *Kriittinen* ja *Tila*.
+Rivit ovat resursseittain, ja resurssin sisällä alkamispäivän mukaan. Ruutu *Yhteenveto* laskee *Resurssit*, *Resurssikohdistukset* ja *Tehtävät ilman resurssia*. Sarakkeet ovat *Resurssi*, *Tyyppi*, *WBS*, *Nimi*, *Alku*, *Loppu*, *Jäljellä (tp)*, *Kuorm./päivä*, *Valm*, *Kriittinen* ja *Tila*. *Resurssi* ja *Tyyppi* näkyvät vain resurssin ensimmäisellä rivillä. Tila kullakin rivillä on sama kuin edistymisraportissa: *Suoritettu*, *Käynnissä*, *Ei aloitettu*, *Olisi pitänyt alkaa* tai *Olisi pitänyt päättyä*.
 
 ## WBS-yhteenveto
 

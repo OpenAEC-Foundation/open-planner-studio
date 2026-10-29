@@ -50,7 +50,7 @@ Cu *netezire*, o activitate nu poate începe mai târziu decât începutul târz
 
 ## Exemplu lucrat: zidarul la doi pereți
 
-Exemplul este proiectul de exercițiu al tutorialelor *House extension*, așa cum este chiar înainte de redistribuire, în tutorialul 5. În tutorialul 5 faceți singur acest pas și verificați cifrele. În acest exemplu tencuiala este pe *Muncă fixă*, iar tencuitorul lucrează cu unități de atribuire de 2, ca în [Regulile de lucru: durată, unități de atribuire și lucru](docs://uitleg-werkregels).
+Exemplul este proiectul de exercițiu al tutorialelor *House extension*, așa cum este chiar înainte de redistribuire, în tutorialul 5. În tutorialul 5 faceți singur acest pas și verificați cifrele. În acest exemplu tencuiala este pe *Muncă fixă*, iar tencuitorul lucrează cu unități de atribuire de 2, ca în [Tipuri de activitate: durată, unități de atribuire și lucru](docs://uitleg-werkregels).
 
 După planșeul cu goluri, încheiat luni 28 iunie, foaia interioară a zidăriei (5 zile lucrătoare) și foaia exterioară (6 zile lucrătoare) încep amândouă marți 29 iunie. Ambele sunt pe zidar, cu unități de atribuire de 1 și o *Capacitate maximă* de 1. După foaia interioară urmează elementele de acoperiș (o lucrare de macara de 6 ore) și învelitoarea (2 zile lucrătoare). Cadrele așteaptă învelitoarea și foaia exterioară. Predarea este luni 30 august.
 
@@ -66,14 +66,14 @@ Ambele activități au prioritatea 500. Cadrele ferestrelor sunt livrate abia pe
 
 Foaia exterioară nu poate începe pe 29 iunie. Prima zi în care zidarul este din nou liber este marți 6 iulie. Aceasta este cu 5 zile lucrătoare mai târziu decât începutul cel mai devreme, deci întârzierea prin redistribuire este 5. Foaia exterioară se întinde acum de la 6 iulie până la 13 iulie inclusiv. Cadrele încep oricum abia pe 14 iulie, deci predarea rămâne luni 30 august. Fereastra arată *Data de sfârșit a proiectului: neschimbată (30-08-2027)* și afișează o linie: *Build outer cavity leaf*, început vechi 29-06-2027, început nou 06-07-2027, *5 d*.
 
-Cele 5 zile lucrătoare de mutare sunt exact marja foii exterioare. De aceea *netezire* dă și aici același rezultat. Foaia exterioară nu mai are marjă și acum este critică.
+Cele 5 zile lucrătoare de mutare sunt exact marja foii exterioare. De aceea *redistribuire* dă și aici același rezultat. Foaia exterioară nu mai are marjă și acum este critică.
 
 ### Dacă cadrele nu sosesc pe 14 iulie
 
 Fără această restricție, cadrele pot începe vineri 9 iulie, iar predarea este miercuri 25 august. Foaia exterioară are atunci doar 2 zile lucrătoare de marjă.
 
-- Fără *netezire*, foaia exterioară se mută tot cu 5 zile lucrătoare. Acum cadrele trebuie să aștepte: încep pe 14 iulie, cu 3 zile lucrătoare mai târziu. Tot ce urmează se mută și ele, iar predarea trece de la 25 august la 30 august, tot cu 3 zile lucrătoare mai târziu.
-- Cu *netezire*, nimic nu se mută. Foaia exterioară nu încape în cele 2 zile lucrătoare de marjă. Fereastra arată conflictul *Build outer cavity leaf*, 5 zile, cu motivul *Capacitate liberă insuficientă în marjă pentru a rezolva acest conflict.*
+- Fără *redistribuire*, foaia exterioară se mută tot cu 5 zile lucrătoare. Acum cadrele trebuie să aștepte: încep pe 14 iulie, cu 3 zile lucrătoare mai târziu. Tot ce urmează se mută și ele, iar predarea trece de la 25 august la 30 august, tot cu 3 zile lucrătoare mai târziu.
+- Cu *redistribuire*, nimic nu se mută. Foaia exterioară nu încape în cele 2 zile lucrătoare de marjă. Fereastra arată conflictul *Build outer cavity leaf*, 5 zile, cu motivul *Capacitate liberă insuficientă în marjă pentru a rezolva acest conflict.*
 
 ### Dacă foaia exterioară primește prioritate
 
@@ -101,5 +101,5 @@ Dacă setați *Capacitate maximă* a zidarului la 2, nu mai există supraalocare
 
 - [Rezolvarea supraalocării](docs://howto-overbezetting-oplossen): pașii pentru a găsi supraalocarea și a o redistribui.
 - [Drumul critic și marja](docs://uitleg-kritiek-pad): ce este marja și de ce devine o activitate critică.
-- [Regulile de lucru: durată, unități de atribuire și lucru](docs://uitleg-werkregels): cum se mișcă durata unei activități odată cu unitățile de atribuire.
+- [Tipuri de activitate: durată, unități de atribuire și lucru](docs://uitleg-werkregels): cum se mișcă durata unei activități odată cu unitățile de atribuire.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): trei turnuri care au nevoie de aceleași echipe și de macaraua-turn, și ce face redistribuirea cu acestea.

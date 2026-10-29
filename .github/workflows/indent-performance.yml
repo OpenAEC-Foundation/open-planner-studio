@@ -1,0 +1,95 @@
+name: Inspringen vergelijken
+
+on:
+  pull_request:
+    branches: [main]
+    # Alleen opt-in bij wijziging van deze meetopstelling. Een latere gecombineerde PR met
+    # andere productwijzigingen erft daardoor niet ongemerkt deze specifieke nulmeting.
+    paths:
+      - '.github/workflows/indent-performance.yml'
+      - 'tests/planning/measure-indent-performance.ts'
+      - 'tests/planning/indentFixture.ts'
+      - 'tests/planning/check-bulk-scale.ts'
+      - 'tests/planning/check-task-tree.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: indent-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+      - name: Installeer dezelfde afhankelijkheden voor beide revisies
+        working-directory: candidate
+        run: npm ci
+      - name: Vergelijk de echte store-acties op dezelfde invoer
+        shell: bash
+        env:
+          TZ: Europe/Amsterdam
+        run: |
+          set -euo pipefail
+          ln -s "$PWD/candidate/node_modules" baseline/node_modules
+          cp candidate/tests/planning/{measure-indent-performance.ts,indentFixture.ts} baseline/tests/planning/
+          mkdir -p results
+          for revision in baseline candidate; do
+            root="$PWD/$revision"
+            "$PWD/candidate/node_modules/.bin/esbuild" "$root/tests/planning/measure-indent-performance.ts" \
+              --bundle --platform=node --format=esm --alias:@="$root/src" --external:react-dom/server \
+              --define:import.meta.env.DEV=false --define:import.meta.env.PROD=true \
+              --define:import.meta.env.MODE='"production"' --define:__OPS_DEV_INSTANCE__='"test"' \
+              --outfile="$root/measure-indent.mjs"
+            REVISION_SHA="$(git -C "$root" rev-parse HEAD)" \
+              timeout --kill-after=5s 5m node --expose-gc --max-old-space-size=1536 \
+              "$root/measure-indent.mjs" "$PWD/results/$revision"
+          done
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          baseline, candidate = Path('results/baseline'), Path('results/candidate')
+          names = {p.name for p in baseline.glob('*.json')} - {'measurements.json'}
+          assert len(names) == 40, f'Verwacht 40 toestanden, kreeg {len(names)}'
+          assert names == {p.name for p in candidate.glob('*.json')} - {'measurements.json'}
+          digests = {}
+          for name in sorted(names):
+              before, after = (baseline / name).read_bytes(), (candidate / name).read_bytes()
+              assert before == after, f'Uitvoer verschilt: {name}'
+              digests[name] = hashlib.sha256(before).hexdigest()
+          old = json.loads((baseline / 'measurements.json').read_text())
+          new = json.loads((candidate / 'measurements.json').read_text())
+          comparison = []
+          for a, b in zip(old['measurements'], new['measurements'], strict=True):
+              assert (a['size'], a['selected']) == (b['size'], b['selected'])
+              comparison.append({'taken': a['size'], 'selectie': a['selected'],
+                  'voorMediaanMs': a['medianMs'], 'naMediaanMs': b['medianMs'],
+                  'factor': a['medianMs'] / b['medianMs']})
+          result = {'baseline': old['revision'], 'candidate': new['revision'],
+              'exactGelijkeToestanden': len(names), 'metingen': comparison, 'sha256': digests}
+          Path('results/comparison.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps({key: value for key, value in result.items() if key != 'sha256'}, indent=2))
+          PY
+      - name: Bewaar meetuitvoer en de volledig vergeleken toestanden
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspringen-voor-na-${{ github.run_id }}
+          path: results/
+          if-no-files-found: error
+          retention-days: 7

@@ -9,7 +9,7 @@ Kannettava tietokone sammui, sovellus jäätyi tai selainvälilehti kaatui. Viim
 ## Vaiheet
 
 1. Käynnistä sovellus uudelleen. Selaimessa lataa sama välilehti uudelleen: palautuskopio kuuluu juuri siihen välilehteen.
-2. Jos sovellus löysi kopioita, näkyviin tulee *Palauta tallentamaton työ* -ikkuna: *Open Planner Studio ei sulkeutunut normaalisti. Seuraavissa asiakirjoissa oli tallentamattomia muutoksia, jotka voidaan palauttaa:* Jokaisesta projektista näkyy nimi, tiedoston polku, jos projektilla on tiedosto (selaimessa vain tiedoston nimi), tehtävien määrä ja kopion aika, esimerkiksi *21 tehtävää* ja *Tallennettu: Sep 29, 2026, 9:41 AM*. Ikkunassa voi näkyä myös projekteja, joita ei ollut muutettu.
+2. Jos sovellus löysi kopioita, näkyviin tulee *Palauta tallentamaton työ* -ikkuna: *Open Planner Studio ei sulkeutunut normaalisti. Seuraavissa asiakirjoissa oli tallentamattomia muutoksia, jotka voidaan palauttaa:* Jokaisesta projektista näkyy nimi, tiedoston polku, jos projektilla on tiedosto (selaimessa vain tiedoston nimi), tehtävien määrä ja kopion aika, esimerkiksi *21 tehtävää* ja *Tallennettu: Sep 29, 2026 9:41 AM*. Aika noudattaa asetusta *Kellonajan muoto*. Ikkunassa voi näkyä myös projekteja, joita ei ollut muutettu.
 3. Valitse *Palauta*. Sovellus avaa kaikki listan projektit, kukin omassa välilehdessään, viimeisimmän kopion tilassa. Enter tekee saman.
 4. Tarkista projektit ja tallenna ne heti näppäinyhdistelmällä Ctrl+S.
 

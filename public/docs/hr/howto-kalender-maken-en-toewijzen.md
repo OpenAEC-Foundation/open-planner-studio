@@ -13,8 +13,8 @@ Podizvođač radi i subotom. Ekipa radi samo od ponedjeljka do četvrtka. Zadata
 1. Odaberite *Raspored › Kalendar › Kalendar*. Isti gumb je i u *Postavke › Kalendar › Kalendar*. Otvara se prozor *Kalendari*. Lijevo su kalendari projekta; kalendar projekta ima zvjezdicu.
 2. Ispod popisa kliknite gumb sa znakom plus (*Novi kalendar*). Novi kalendar je kopija standardnog: od ponedjeljka do petka, od 07:00 do 16:00, s pauzom od sat vremena i, ako je *Građevinski način rada* uključen, nizozemskim državnim praznicima. Ako želite postojeći kalendar kao osnovu, odaberite ga na popisu i ispod popisa kliknite gumb s dva lista (*Dupliciraj*).
 3. Ispod *Naziv* upišite naziv koji kaže tko koristi kalendar, na primjer *Six-day week*.
-4. Ispod *Radni dani* kliknite dane u tjednu da ih uključite ili isključite. *Pon–pet* vraća standardni tjedan, od 07:00 do 16:00. *Kontinuirano (24/7)* uključuje svih sedam dana, od 00:00 do 24:00.
-5. Po potrebi prilagodite radno vrijeme: *Početak (sat)*, *Završetak (sat)*, *Početak pauze* i *Trajanje pauze (minute)*. Vrijeme upisujete u obliku HH:MM; strelicama ga povećavate ili smanjujete za četvrt sata. Ako postavite trajanje pauze na 0, kalendar radi bez pauze. *Neto sati po danu* aplikacija izračunava sama. Ako je planiranje u satima uključeno i kalendar ima blokove radnog vremena po danu u tjednu, ta polja ne vidite; pogledajte [Postavljanje radnog vremena](docs://howto-werktijden-instellen).
+4. Ispod *Radni dani* kliknite dane u tjednu da ih uključite ili isključite. *Pon–pet* vraća standardni tjedan, od 07:00 do 16:00. Ako kalendar ima blokove radnog vremena, *Pon–pet* samo uključuje dane od ponedjeljka do petka, a svaki dan zadržava svoje blokove. *Kontinuirano (24/7)* uključuje svih sedam dana, od 00:00 do 24:00.
+5. Po potrebi prilagodite radno vrijeme: *Početak (sat)*, *Završetak (sat)*, *Početak pauze* i *Trajanje pauze (minute)*. Vrijeme upisujete u obliku HH:MM; strelicama ga povećavate ili smanjujete za četvrt sata. Ako postavite trajanje pauze na 0, kalendar radi bez pauze. Aplikacija sama izračunava *Standardni radni dan*. Ako kalendar ima blokove radnog vremena po danu u tjednu (na primjer iz programa MS Project), ta polja ne vidite, nego blok *Radno vrijeme*, također kad je planiranje u satima isključeno; pogledajte [Postavljanje radnog vremena](docs://howto-werktijden-instellen).
 6. Po potrebi prilagodite praznike. Kako to funkcionira, opisano je u [Generiranje praznika i kolektivnog godišnjeg odmora u građevinarstvu](docs://howto-feestdagen-genereren).
 7. Kliknite *Primijeni*. Aplikacija odmah ponovno izračunava raspored i zatvara prozor. Pomoću *Odustani* odbacujete promjene. Tipka Enter u polju za unos privremeno sprema promjenu i ponovno izračunava raspored, bez zatvaranja prozora; *Odustani* tada poništava samo promjene nakon toga.
 
@@ -33,7 +33,7 @@ Novi kalendar djeluje tek kad ga zadatak upotrijebi. Postoje dva načina.
 2. Odaberite *Dodijeli kalendar*, zatim kalendar, ili *Kalendar projekta* da opet uklonite vlastiti kalendar zadatka. Kalendar koji se sada primjenjuje ima kvačicu.
 3. Ako želite jedan kalendar dodijeliti većem broju zadataka odjednom, najprije ih odaberite s Ctrl (⌘ na Macu) i desnom tipkom miša kliknite jedan od odabranih zadataka. Izbor se primjenjuje na sve odabrane zadatke. Ako desnom tipkom miša kliknete zadatak koji nije odabran, primjenjuje se samo na taj zadatak.
 
-Novi izbor kalendara još ne čini raspored ažurnim: traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer putem *Početna › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (*Postavke › Projekt › Postavke*, kartica *Raspored*, naslov *Izračunavanje*), aplikacija to radi sama.
+Novi izbor kalendara još ne čini raspored ažurnim: traka stanja prikazuje *Zastarjelo — ponovno izračunajte (F5)*. Pritisnite **Izračunaj** (F5), na primjer putem *Početna › Raspored › Izračunaj*. Ako je *Automatsko izračunavanje* uključeno (*Postavke › Projekt › Postavke aplikacije*, kartica *Raspored*, naslov *Izračunavanje*), aplikacija to radi sama.
 
 ### Promjena kalendara projekta
 
@@ -59,11 +59,11 @@ Samo zadaci bez vlastitog kalendara prelaze na novi.
 
 **Isti kalendar, dva izbora.** Na popisu se kalendar projekta pojavljuje dvaput: kao *Kalendar projekta: naziv* i kao običan kalendar s tim nazivom. Ako odaberete drugi, to je zaseban izbor za taj zadatak. Zadatak tada ne prati kad kasnije odaberete drugi kalendar projekta.
 
-**Različiti sati po danu.** Ako promijenite radno vrijeme ili pauzu tako da se *Neto sati po danu* kalendara promijene, zadatak u danima i dalje broji isti broj dana. Za zadatak s resursima i pravilom rada *Fiksni rad* ili *Fiksne jedinice* trajanje se s tim mijenja, jer rad ostaje isti. Četrdeset sati rada iznosi 5 dana uz 8 sati dnevno, a 7 dana uz 6 sati dnevno. Aplikacija prijavljuje koliko je zadataka dobilo drugo trajanje.
+**Različiti sati po danu.** Ako promijenite radno vrijeme ili pauzu tako da se *Standardni radni dan* kalendara promijeni, zadatak u danima i dalje broji isti broj dana. Za zadatak s resursima i vrstom zadatka *Fiksni rad* ili *Fiksne jedinice* trajanje se s tim mijenja, jer rad ostaje isti. Četrdeset sati rada iznosi 5 dana uz 8 sati dnevno, a 7 dana uz 6 sati dnevno. Aplikacija prijavljuje koliko je zadataka dobilo drugo trajanje.
 
 ## Vidi također
 
 - [Kalendari i radni dani](docs://uitleg-kalenders): kako aplikacija broji radne dane i koji kalendar ima prednost.
-- [Dani i sati](docs://uitleg-dagen-en-uren): što rade neto sati po danu.
+- [Dani i sati](docs://uitleg-dagen-en-uren): što radi standardni radni dan.
 - [Postavljanje kalendara resursa](docs://howto-resourcekalender-instellen): kalendar za resurs umjesto za zadatak.
 - [Prozori kalendara](docs://ref-kalenders): sva polja prozora kalendara.

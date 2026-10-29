@@ -10,7 +10,7 @@ import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { clipUserGapsToWork, splitUnitMinutes } from '@/engine/scheduler/splitEdit';
 import {
-  rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskWorkMinutes,
+  rescaleContourForDuration, rescaleFactor, rescaleSplitGaps, taskAxisMinutes,
 } from '@/engine/contour/contourEngine';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import { ruleProtectsWork } from '@/engine/work/workTriangle';
@@ -335,6 +335,9 @@ export function mergeTaskTime(base: TaskTime, partial: Partial<TaskTime> | undef
     // Optioneel — sleutel-aanwezigheid, zie docstring hierboven ('in' i.p.v. '??').
     durationMinutes: 'durationMinutes' in partial ? partial.durationMinutes : base.durationMinutes,
     interferingFloat: 'interferingFloat' in partial ? partial.interferingFloat : base.interferingFloat,
+    // Alleen uren §3.4: de speling in minuten (berekend, zoals interferingFloat).
+    totalFloatMinutes: 'totalFloatMinutes' in partial ? partial.totalFloatMinutes : base.totalFloatMinutes,
+    freeFloatMinutes: 'freeFloatMinutes' in partial ? partial.freeFloatMinutes : base.freeFloatMinutes,
     isNearCritical: 'isNearCritical' in partial ? partial.isNearCritical : base.isNearCritical,
     floatPath: 'floatPath' in partial ? partial.floatPath : base.floatPath,
     actualStart: 'actualStart' in partial ? partial.actualStart : base.actualStart,
@@ -618,12 +621,18 @@ export function clearLevelingOutput(task: Task): boolean {
  * haar sub-dag-velden en krijgt `write.gaps[id]` als VOLLEDIGE gatenlijst (importsplits
  * inbegrepen); staat ze niet in `write.gaps`, dan gaan alleen de nivelleergaten van een vorige
  * nivellering weg. `scopeTaskIds`: taken erbuiten zijn vaste last waarop het
- * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken. Retourneert het aantal taken
- * dat sub-dag-precisie verloor (voor de eenmalige melding).
+ * voorstel gerekend heeft en blijven ongemoeid; afwezig ⇒ alle taken.
+ *
+ * Minuutvertraging (spec §3.11): draagt het voorstel `delayMinutes`, dan krijgt een taak met een
+ * vertraging die minuten als `levelingDelayMinutes` (werktijd op de taakkalender; de solver past ze
+ * vóór `levelingDelay` toe). Zo is de toegepaste start precies het moment dat de nivelleerder
+ * toetste en boekte. Er gaat dan geen sub-dag-precisie verloren. Een voorstel zonder `delayMinutes`
+ * (een oudere aanroeper) schrijft alleen hele werkdagen, zoals vroeger.
+ * Retourneert het aantal taken dat sub-dag-precisie verloor (voor de eenmalige melding).
  */
 export function writeLevelingResult(
   tasks: Task[],
-  write: Pick<LevelingResult, 'delays' | 'gaps'>,
+  write: Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>,
   scopeTaskIds?: string[],
 ): number {
   const scope = scopeTaskIds ? new Set(scopeTaskIds) : null;
@@ -632,7 +641,11 @@ export function writeLevelingResult(
     if (scope && !scope.has(task.id)) continue;
     const d = write.delays[task.id];
     task.levelingDelay = d !== undefined && d > 0 ? d : undefined;
-    if (dropSubDayLevelingDelay(task)) roundedCount++;
+    if (dropSubDayLevelingDelay(task) && !write.delayMinutes) roundedCount++;
+    const m = write.delayMinutes?.[task.id];
+    if (task.levelingDelay !== undefined && m !== undefined && Number.isFinite(m) && m > 0) {
+      task.levelingDelayMinutes = Math.round(m);
+    }
     const g = write.gaps[task.id];
     if (g !== undefined) task.splitGaps = g.length > 0 ? g : undefined;
     else clearLevelingGaps(task);
@@ -708,10 +721,12 @@ export function taskCalendarHoursPerDay(task: Task, calendars: WorkCalendar[], p
   return effHoursPerDay(resolveCalendar(task.calendarId, calendars, projectCalendar));
 }
 
-/** Werkduur van de taak in werkminuten (zie `contourEngine.ts`'s `taskWorkMinutes`) — aan te
- *  roepen VÓÓR een `mergeTaskTime`, zodat `rescaleTaskContours` de oude waarde kent. */
+/** Duur van de taak op de contour- en split-as (zie `contourEngine.ts`'s `taskAxisMinutes`): de
+ *  werkminuten, en bij kalendertijd de klokdagen × de werktijd per dag. Aan te roepen VÓÓR een
+ *  `mergeTaskTime`, zodat `rescaleTaskContours` de oude waarde kent; die meet de nieuwe met dezelfde
+ *  functie. Zo herschaalt een wissel van eenheid op dezelfde klokuren niets (knownbug 265). */
 export function taskWorkMinutesOf(task: Task, hoursPerDay: number): number {
-  return taskWorkMinutes(task.time, hoursPerDay);
+  return taskAxisMinutes(task.time, hoursPerDay);
 }
 
 /**
@@ -744,7 +759,8 @@ export function rescaleTaskContours(
 ): boolean {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0) return false;
-  const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+  // Dezelfde as als de oude waarde (`taskWorkMinutesOf`): bij kalendertijd klokdagen × werktijd per dag.
+  const newWorkMinutes = taskAxisMinutes(task.time, hoursPerDay);
   // Eén gedeeld profiel voor de factor: de contour met de langste asspanne bepaalt de taakduur
   // (dezelfde "langste toewijzing bepaalt de finish"-regel als laag 3/4), dus die is de referentie
   // voor zowel de periodes als de gaten.
@@ -815,7 +831,7 @@ export function applyDurationChangeRules(
   const rescaled = opts?.rescaleContours !== false
     && rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, opts?.keepWork);
   if (!rescaled && task.splitGaps !== undefined) {
-    const newWorkMinutes = taskWorkMinutes(task.time, hoursPerDay);
+    const newWorkMinutes = taskAxisMinutes(task.time, hoursPerDay);
     if (newWorkMinutes < oldWorkMinutes - 1e-6) {
       const clipped = clipUserGapsToWork(task.splitGaps, newWorkMinutes);
       task.splitGaps = clipped && clipped.length > 0 ? clipped : undefined;

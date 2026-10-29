@@ -51,11 +51,18 @@ function tutorial(id: string, order: number, title: string) {
   };
 }
 
-test('tutorials uit het register: genummerde leerroute met Vorige/Volgende', async ({ page, ops: _ops }) => {
+test('tutorials uit het register: genummerde leerroute met Vorige/Volgende en bestaande gidsaliassen', async ({ page, ops: _ops }) => {
+  // Verwijzingen uit de uitgeleverde tutorials 1.2.0, zonder fixture-manifest:
+  // ook na een broncorrectie moeten oudere installaties de bedoelde gids blijven openen.
+  const calendar = tutorial('tut-fixture-c', 3, 'Calendar');
+  calendar.body = {
+    nl: `${calendar.body.nl}\n\n[Instellingen](docs://ref-instellingen-lijst)\n\n[Nivelleringsopties](docs://ref-nivellering)`,
+    en: `${calendar.body.en}\n\n[Settings](docs://ref-instellingen-lijst)\n\n[Leveling options](docs://ref-nivellering)`,
+  };
   const registered = await page.evaluate((articles) => {
     const res = window.__OPS__!.help.registerArticles('fixture-tutorials', articles);
     return res.ok;
-  }, [tutorial('tut-fixture-b', 2, 'Relations'), tutorial('tut-fixture-a', 1, 'First schedule'), tutorial('tut-fixture-c', 3, 'Calendar')]);
+  }, [tutorial('tut-fixture-b', 2, 'Relations'), tutorial('tut-fixture-a', 1, 'First schedule'), calendar]);
   expect(registered).toBe(true);
 
   await openHelp(page);
@@ -77,6 +84,28 @@ test('tutorials uit het register: genummerde leerroute met Vorige/Volgende', asy
   await expect(current(page)).toHaveAttribute('data-help-current', 'tut-fixture-c');
   await expect(nav.locator('[data-help-tutorial-nav="next"]')).toHaveCount(0);
 
+  // Echte docs://-klikken vanuit het extensieregister naar de echte NL/EN-artikelen.
+  for (const lang of ['en', 'nl'] as const) {
+    await page.locator('#help-docslang').selectOption(lang);
+    for (const link of [
+      { label: { en: 'Settings', nl: 'Instellingen' }, id: 'ref-instellingen',
+        title: { en: 'App settings', nl: 'App-instellingen' }, text: { en: 'Duration display', nl: 'Duurweergave' } },
+      { label: { en: 'Leveling options', nl: 'Nivelleringsopties' }, id: 'howto-overbezetting-oplossen',
+        title: { en: 'Resolving overallocation', nl: 'Overbezetting oplossen' }, text: { en: '3. Leveling', nl: '3. Nivelleren' } },
+    ]) {
+      await current(page).getByRole('button', { name: link.label[lang], exact: true }).click();
+      await expect(current(page)).toHaveAttribute('data-help-current', link.id);
+      await expect(current(page)).toHaveAttribute('lang', lang);
+      await expect(current(page).locator('h1')).toHaveText(link.title[lang]);
+      await expect(current(page)).toContainText(link.text[lang]);
+      await expect(nav).toHaveCount(0);
+      await section.getByRole('button', { name: /Calendar/ }).click();
+      await expect(current(page)).toHaveAttribute('data-help-current', 'tut-fixture-c');
+      await expect(page.locator('.help-tutorial-step')).toHaveText('Tutorial 3 of 3');
+    }
+  }
+
+  await page.locator('#help-docslang').selectOption('en');
   await nav.locator('[data-help-tutorial-nav="prev"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'tut-fixture-b');
 

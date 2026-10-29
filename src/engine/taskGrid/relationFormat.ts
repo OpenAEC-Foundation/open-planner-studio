@@ -184,6 +184,20 @@ export function sourceProjectKeyFor(sourceRef: ExternalSourceRef, origin: Extern
   return externalSourcePathKey(sourceRef.filePath) ?? `id-only:${origin.ownerTaskId}:${origin.linkId}`;
 }
 
+/** Een lag in werkdagen van een externe relatie: eindig en niet onveilig groot. Een breuk mag (I12, zoals
+ *  bij een interne relatie). Een lag in minuten blijft een heel getal. Gedeeld door de invoer, het
+ *  klembord en het relatieplan, zodat de drie routes dezelfde grens hebben. */
+export function isValidExternalLagValue(key: 'lagDays' | 'lagMinutes', value: unknown): value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return false;
+  return key === 'lagDays' || Number.isSafeInteger(value);
+}
+
+/** Een lag in werkdagen op zes decimalen, zoals de lag van een interne relatie (`parseLagInput`) en de
+ *  opslag in IFC; zo wordt "1/3" geen lange staart. Zonder `-0`. */
+function externalLagDays(value: number): number {
+  return Number(value.toFixed(6)) || 0;
+}
+
 export function parseExternalLagInput(input: string): ExternalLag | null {
   const normalized = input.trim().toLowerCase().replace(/\s+/g, '');
   if (!normalized) return { lagDays: 0 };
@@ -192,36 +206,42 @@ export function parseExternalLagInput(input: string): ExternalLag | null {
   const value = Number.parseFloat(match[1].replace(',', '.'));
   if (!Number.isFinite(value) || Math.abs(value) > MAX_LAG_ABS) return null;
   const suffix = match[2] ?? 'd';
-  const storedValue = Math.round(suffix === 'u' || suffix === 'h' ? value * 60 : value);
-  if (!Number.isSafeInteger(storedValue) || Math.abs(storedValue) > MAX_LAG_ABS) return null;
-  return suffix === 'u' || suffix === 'h' ? { lagMinutes: storedValue } : { lagDays: storedValue };
+  // Uren worden hele minuten. Dagen houden hun breuk (I12): "0,5d" is een halve werkdag, net als bij
+  // een interne relatie. Vroeger rondde deze invoer half van nul af ("0,5d" werd 1 werkdag).
+  if (suffix === 'u' || suffix === 'h') {
+    const lagMinutes = Math.round(value * 60) || 0;
+    return isValidExternalLagValue('lagMinutes', lagMinutes) ? { lagMinutes } : null;
+  }
+  const lagDays = externalLagDays(value);
+  return isValidExternalLagValue('lagDays', lagDays) ? { lagDays } : null;
 }
 
 /** De lag van een externe relatie is óf minuten óf dagen, nooit beide: minuten winnen zodra ze
- *  gezet zijn (ook 0), anders de dagen (standaard 0). Let op: `canonicalLag` hieronder, voor de
- *  WEERGAVE, behandelt 0 minuten juist als afwezig en rondt af. */
+ *  gezet zijn (ook 0), anders de dagen (standaard 0). De weergave hieronder volgt dezelfde voorrang. */
 export function exclusiveExternalLag(lag: ExternalLagFields): ExternalLag {
   return lag.lagMinutes !== undefined ? { lagMinutes: lag.lagMinutes } : { lagDays: lag.lagDays ?? 0 };
 }
 
 function canonicalLag(lag: ExternalLagFields): ExternalLag {
-  if (isFiniteNumber(lag.lagMinutes) && lag.lagMinutes !== 0) {
+  if (isFiniteNumber(lag.lagMinutes)) {
     return { lagMinutes: Math.round(lag.lagMinutes) };
   }
   if (isFiniteNumber(lag.lagDays)) {
-    return { lagDays: Math.round(lag.lagDays) };
+    // De breuk blijft (I12): de weergave en het klembord tonen de lag zoals hij rekent.
+    return { lagDays: lag.lagDays || 0 };
   }
   return { lagDays: 0 };
 }
 
-export function formatExternalLagShort(lag: ExternalLagFields): string {
+/** Korte lagtekst van een externe relatie; `hourSuffix` volgt de app-taal ("+2u" nl, "+2h" en). */
+export function formatExternalLagShort(lag: ExternalLagFields, hourSuffix: 'u' | 'h' = 'u'): string {
   const canonical = canonicalLag(lag);
   if (canonical.lagMinutes !== undefined) {
     const hours = canonical.lagMinutes / 60;
-    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours, 2)}u`;
+    return hours === 0 ? '' : `${hours > 0 ? '+' : ''}${trimNumber(hours, 2)}${hourSuffix}`;
   }
   const days = canonical.lagDays ?? 0;
-  return days === 0 ? '' : `${days > 0 ? '+' : ''}${days}d`;
+  return days === 0 ? '' : `${days > 0 ? '+' : ''}${trimNumber(days, 6)}d`;
 }
 
 /**
@@ -311,7 +331,11 @@ function payloadJson(payload: ExternalRelationClipboardV1): string {
   return JSON.stringify(orderedPayload(payload));
 }
 
-export function formatExternalRelationClipboard(ownerTaskId: string, link: ExternalLink): string {
+export function formatExternalRelationClipboard(
+  ownerTaskId: string,
+  link: ExternalLink,
+  hourSuffix: 'u' | 'h' = 'u',
+): string {
   const origin: ExternalRelationOrigin = { ownerTaskId, direction: link.direction, linkId: link.id };
   const lag = canonicalLag(link);
   const payload: ExternalRelationClipboardV1 = {
@@ -324,13 +348,13 @@ export function formatExternalRelationClipboard(ownerTaskId: string, link: Exter
     anchorDate: link.anchorDate,
     sourceMissing: link.sourceMissing,
   };
-  const visible = `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(lag)}`;
+  const visible = `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(lag, hourSuffix)}`;
   return `${visible}${TOKEN_MARKER}${encodeBase64Url(payloadJson(payload))}${TOKEN_END}`;
 }
 
 /** Zichtbare helft van de canonieke clipboardvorm, voor celchips en editortekst. */
-export function formatExternalRelationVisible(link: ExternalLink): string {
-  return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link))}`;
+export function formatExternalRelationVisible(link: ExternalLink, hourSuffix: 'u' | 'h' = 'u'): string {
+  return `${canonicalExternalSourceLabel(link.sourceRef)} ${link.relType}${formatExternalLagShort(canonicalLag(link), hourSuffix)}`;
 }
 
 function validString(value: unknown, maxLength: number, allowEmpty = false): value is string {
@@ -389,8 +413,7 @@ function parsePayload(json: string): ExternalRelationClipboardV1 | null {
     || !validString(value.anchorDate, MAX_DATE_LENGTH)
     || !validIsoAnchor(value.anchorDate)
     || typeof value.sourceMissing !== 'boolean') return null;
-  const lag = value[lagKey];
-  if (typeof lag !== 'number' || !Number.isSafeInteger(lag) || Math.abs(lag) > MAX_LAG_ABS) return null;
+  if (!isValidExternalLagValue(lagKey, value[lagKey])) return null;
 
   const parsed = value as unknown as ExternalRelationClipboardV1;
   return payloadJson(parsed) === json ? parsed : null;

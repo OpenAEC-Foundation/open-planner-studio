@@ -8,45 +8,45 @@ Kaikki sovelluksen näppäinyhdistelmät, ryhmiteltyinä samoin kuin *Pikanäpp�
 
 **Tarkka yhdistelmä.** Sovellus vertaa Ctrl-, Shift- ja Alt-näppäimiä tarkasti. Ctrl+Alt+S ei siksi tee mitään: näppäinten on vastattava luetteloa tarkasti.
 
-**Ikkunan avaaminen.** Paina Ctrl+/ tai valitse *Asetukset › Pikanäppäimet › Pikanäppäimet*. Ctrl+/ sulkee ikkunan myös uudelleen. Ikkunasta voi vain lukea tietoja. Se ei näytä kaikkia tässä luetellut näppäimiä: taulukon näppäimistä näkyvät vain kuusi ensimmäistä merkintää, eikä artikkelin lopun valintaikkunan näppäimiä.
+**Ikkunan avaaminen.** Paina Ctrl+/ tai valitse *Asetukset › Pikanäppäimet › Pikanäppäimet*. Ctrl+/ sulkee ikkunan myös uudelleen. Ikkunasta voi vain lukea tietoja. Se ei näytä kaikkia tässä luetellut näppäimiä: taulukon näppäimistä näkyvät vain kuusi ensimmäistä merkintää, eikä artikkelin lopussa olevia valintaikkunan näppäimiä.
 
 **Kun näppäin ei toimi.** Jokainen merkintä kertoo omat rajoituksensa. Nämä kolme sääntöä pätevät lähes kaikkialla:
 
-- Syöttökentässä, pudotusvalikossa tai tekstikentässä sovellus ei käsittele näppäimiä, joten voit kirjoittaa suoraan. Poikkeukset: F5, Ctrl+S, F11 ja Esc esityksen aikana toimivat myös kentässä. Julkaistussa sovelluksessa (työpöytäversio ja verkkoversio sivustolla) sama koskee Ctrl+Shift+S:ää, Ctrl+O:ta ja Ctrl+N:ää.
-- Kun valintaikkuna tai toinen ikkuna on auki, näppäimet, jotka on merkitty *Ei valintaikkunassa*, eivät toimi. Sama koskee myös esitystilaa, opastusta, tervetuloikkunaa ja kysymyksiä, joihin odotetaan vastausta, kuten laajennuksen asennuksen suostumusta.
-- Asiakirjan vaihtaminen (Ctrl+1–9, Ctrl+N, Ctrl+O) ei myöskään toimi, kun *Tiedosto › Projektitiedot* sisältää muutoksia, joita ei ole vahvistettu painikkeella *Käytä*. Hylkää tai käytä ne ensin.
+- Syöttökentässä, pudotusvalikossa tai tekstikentässä sovellus ei käsittele näppäimiä, joten voit kirjoittaa suoraan. Poikkeukset: F5, Ctrl+S, F11 ja Esc esityksen aikana toimivat myös kentässä. Jos kohdistus on suljetussa pudotusvalikossa, myös Ctrl-yhdistelmät toimivat, esimerkiksi Ctrl+Z valinnan jälkeen (ei Ctrl+Delete eikä Ctrl+Backspace). Näin ei ole avoimessa luettelossa eikä valintaikkunassa. Julkaistussa sovelluksessa (työpöytäversio ja verkkoversio sivustolla) sama koskee myös Ctrl+Shift+S:ää, Ctrl+O:ta ja Ctrl+N:ää.
+- Kun valintaikkuna tai toinen ikkuna on auki, alla *Ei valintaikkunassa* -merkityt näppäimet eivät toimi. Sama koskee opastusta, tervetuloikkunaa ja kysymyksiä, joihin odotetaan vastausta, kuten kysymystä muutosten tallentamisesta ja laajennuksen asennuksen suostumusta. Useimmat näistä näppäimistä eivät toimi myöskään esitystilassa. Poikkeus: muokkausnäppäimet Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y ja Delete/Backspace toimivat esityksen aikana.
+- Asiakirjan vaihtaminen (Ctrl+1–9, Ctrl+N, Ctrl+O) ei myöskään toimi, kun *Tiedosto › Projektin asetukset* sisältää muutoksia, joita ei ole vahvistettu painikkeella *Käytä*. Hylkää tai käytä ne ensin.
 
 ## Tiedosto
 
-**F5** — *Laske*: lasketaan aikataulu uudelleen, samoin kuin *Laske*-painike (*Aloitus › Aikataulu › Laske*). Toimii myös syöttökentässä.
+**F5** — *Laske*: aikataulu lasketaan uudelleen, samoin kuin *Laske*-painike (*Aloitus › Aikataulu › Laske*). Toimii myös syöttökentässä.
 
 **Ctrl+S** — *Tallenna*: tallentaa projektin. Toimii myös syöttökentässä.
 
 **Ctrl+Shift+S** — *Tallenna nimellä*: kysyy, mihin tiedosto tallennetaan. Kehitysversiossa se ei toimi syöttökentässä.
 
-**Ctrl+O** — *Avaa*: avaa tiedoston, yleensä uuteen välilehteen. Ei toimi valintaikkunassa eikä silloin, kun projektitietojen muutoksia ei ole vahvistettu.
+**Ctrl+O** — *Avaa*: avaa tiedoston, yleensä uuteen välilehteen. Ei valintaikkunassa eikä silloin, kun projektin asetusten muutoksia ei ole vahvistettu.
 
-**Ctrl+N** — *Uusi projekti*: avaa *Uusi projekti* -ikkunan. Ei toimi valintaikkunassa eikä silloin, kun projektitietojen muutoksia ei ole vahvistettu.
+**Ctrl+N** — *Uusi projekti*: avaa *Uusi projekti* -ikkunan. Ei valintaikkunassa eikä silloin, kun projektin asetusten muutoksia ei ole vahvistettu.
 
 Julkaistu sovellus (työpöytäversio ja verkkoversio sivustolla) estää myös joitakin selaimen näppäimiä, jotta ne eivät häiritse: Ctrl+R ja Ctrl+Shift+R (lataa uudelleen), F12, Ctrl+Shift+I ja Ctrl+Shift+J (kehitystyökalut), Ctrl+U (näytä lähdekoodi) sekä Ctrl+G, Ctrl+F ja Ctrl+L (etsintä ja osoitepalkki). Ctrl+S, Ctrl+Shift+S, Ctrl+O, Ctrl+N ja F5 kuuluvat sovellukselle itselleen.
 
 ## Muokkaa
 
-**Ctrl+C** — *Kopioi*: kopioi valitut tehtävät. Vain kun jotain on valittuna. Tehtävätaulukossa Ctrl+C kopioi valitut solut; taulukko hoitaa sen itse.
+**Ctrl+C** — *Kopioi*: kopioi valitut tehtävät. Vain kun jotain on valittuna. Ei valintaikkunassa. Ei *Tiedosto*-välilehdellä, ei *Raportti*- ja *IFC*-välilehdillä eikä silloin, kun koko resurssipaneeli on auki. Tehtävätaulukossa Ctrl+C kopioi valitut solut; taulukko hoitaa sen itse.
 
-**Ctrl+V** — *Liitä*: liittää kopioidut tehtävät. Tehtävätaulukossa se liittää solut.
+**Ctrl+V** — *Liitä*: liittää kopioidut tehtävät. Ei valintaikkunassa. Ei *Tiedosto*-välilehdellä, ei *Raportti*- ja *IFC*-välilehdillä eikä silloin, kun koko resurssipaneeli on auki, koska tehtävätaulukkoa ei silloin näy. Tehtävätaulukossa se liittää solut.
 
-**Ctrl+Z** — *Kumoa*.
+**Ctrl+Z** — *Kumoa*. Ei valintaikkunassa: sulje ikkuna ensin.
 
-**Ctrl+Y** tai **Ctrl+Shift+Z** — *Tee uudelleen*: toistaa kumotun toiminnon.
+**Ctrl+Y** tai **Ctrl+Shift+Z** — *Tee uudelleen*: toistaa kumotun toiminnon. Ei valintaikkunassa.
 
-**Delete** tai **Backspace** — *Poista*: poistaa valitut tehtävät. Vain kun jotain on valittuna. Tehtävätaulukon solussa Delete ja Backspace tyhjentävät vain solun sisällön (katso *Taulukko*).
+**Delete** tai **Backspace** — *Poista*: poistaa valitut tehtävät. Vain kun jotain on valittuna. Ei valintaikkunassa. Ei *Tiedosto*-välilehdellä, ei *Raportti*- ja *IFC*-välilehdillä eikä silloin, kun koko resurssipaneeli on auki, koska tehtävätaulukkoa ei silloin näy. Tehtävätaulukon solussa Delete ja Backspace tyhjentävät vain solun sisällön (katso *Taulukko*).
 
 **F2** — *Muokkaa...*: avaa ensimmäisen valitun tehtävän valintaikkunan. Vain kun jotain on valittuna. Ei valintaikkunassa. Tehtävätaulukon solussa F2 aloittaa solun muokkaamisen.
 
 **Ctrl+A** — *Valitse kaikki*: valitsee kaikki tehtävät. Ei valintaikkunassa.
 
-**Esc** — *Tyhjennä valinta*: tyhjentää valinnan ja samalla kytkee pois riippuvuustilan, jakotilan ja polun jäljittämisen. Se sulkee myös tehtävän valintaikkunan ja projektin yleiskatsauksen. Esityksen aikana Esc sulkee vain esityksen (katso *Näkymä*). Syöttökentässä Esc ei tee mitään näistä.
+**Esc** — *Tyhjennä valinta*: tyhjentää valinnan ja samalla kytkee pois riippuvuustilan, jaetun tehtävän tilan ja polun jäljittämisen. Se sulkee myös tehtävän valintaikkunan ja projektin yleiskatsauksen. Esityksen aikana Esc sulkee vain esityksen (katso *Näkymä*). Syöttökentässä Esc ei tee mitään näistä.
 
 ## Rakenne
 
@@ -68,9 +68,9 @@ Sisentäminen, ulontaminen sekä lisääminen valitun tehtävän yläpuolelle ta
 
 ## Näkymä
 
-**F11** — *Esitys*: kytkee esitystilan päälle tai pois. Sovellus pyytää myös selainta tai ikkunaa koko näytön tilaan. Toimii myös syöttökentässä.
+**F11** — *Esitys*: kytkee esitystilan päälle tai pois. Sovellus pyytää myös ikkunaa koko näytön tilaan. Toimii myös syöttökentässä. Selaimessa F11 ei käynnistä esitystä: selain asettaa ikkunan koko näytön tilaan itse, eikä sovellus muutu. Selaimessa F11 kuitenkin pysäyttää käynnissä olevan esityksen.
 
-**Esc** (esityksen aikana) — *Poistu esityksestä*. Toimii myös syöttökentässä. Tämä on tärkeämpi kuin *Tyhjennä valinta* -toiminto.
+**Esc** (esityksen aikana) — *Poistu esityksestä*. Toimii myös syöttökentässä. Tämä menee etusijalle *Tyhjennä valinta* -toiminnon edelle.
 
 **Ctrl+=** — *Lähennä*: lähentää aikajanaa kiinteän askeleen verran. Ei syöttökentässä.
 
@@ -84,7 +84,7 @@ Sisentäminen, ulontaminen sekä lisääminen valitun tehtävän yläpuolelle ta
 
 **Ctrl+0** — *Sovita projektiin*: zoomaa niin, että koko projekti mahtuu näkyviin. Samat rajoitukset.
 
-**Ctrl+/** — *Näytä pikanäppäimet*: avaa ja sulkee *Pikanäppäimet*-ikkunan. Toimii myös, kun toinen valintaikkuna on auki, mutta ei opastuksen ja tervetuloikkunan aikana.
+**Ctrl+/** — *Näytä pikanäppäimet*: avaa ja sulkee *Pikanäppäimet*-ikkunan. Toimii myös, kun toinen valintaikkuna on auki, mutta ei opastuksen eikä tervetuloikkunan aikana.
 
 **Ctrl+Shift+H** — *Histogrammi*: kytkee histogrammin päälle tai pois, samoin kuin *Histogrammi*-painike (*Resurssit › Histogrammi › Histogrammi* tai *Näkymä › Paneelit › Histogrammi*). Sovellus muistaa valinnan.
 
@@ -96,9 +96,9 @@ Sisentäminen, ulontaminen sekä lisääminen valitun tehtävän yläpuolelle ta
 
 **F1** — *Avaa ohje*: avaa *Tiedosto › Ohje*. Ei syöttökentässä eikä valintaikkunassa. Ikkunassa kysymysmerkki oikeassa yläkulmassa avaa ohjeen, joka kertoo kyseisestä ikkunasta (katso [Valintanauha välilehti kerrallaan](docs://ref-lint), kohta *Ohje*).
 
-**Ctrl+1** – **Ctrl+9** — *Vaihda asiakirjaa*: siirtyy avoimeen asiakirjaan, jonka numero vastaa näppäintä. Jos asiakirjaa ei ole, ei tapahdu mitään. Ei valintaikkunassa eikä silloin, kun projektitietojen muutoksia ei ole vahvistettu.
+**Ctrl+1** – **Ctrl+9** — *Vaihda asiakirjaa*: siirtyy ensimmäiseen–yhdeksänteen avoimeen asiakirjaan. Jos asiakirjaa ei ole, ei tapahdu mitään. Ei valintaikkunassa eikä silloin, kun projektin asetusten muutoksia ei ole vahvistettu.
 
-**Ctrl+Home** — *Siirry tähän päivään*: vierittää aikajanaa niin, että jokin päivä on näkymän vasemmassa reunassa. Se on raportointipäivä, jos sellainen on asetettu, muuten tämä päivä. Siksi nimi sanoo ”tänään”, vaikka aikajana siirtyy raportointipäivään. Zoomaus ja aikajanan alku pysyvät ennallaan. Jos tehtävätaulukon solu on kohdistettu, Ctrl+Home siirtää kohdistuksen taulukon ensimmäiseen soluun (katso *Taulukko*).
+**Ctrl+Home** — *Siirry tähän päivään*: vierittää aikajanaa niin, että jokin päivä on näkymän vasemmassa reunassa. Se on raportointipäivä, jos sellainen on asetettu, muuten tämä päivä. Siksi nimi sanoo ”tänään”, vaikka aikajana siirtyy raportointipäivään. Zoomaus ja aikajanan alku pysyvät ennallaan. Jos tehtävätaulukon solu on kohdistettu, Ctrl+Home siirtää sen sijaan kohdistuksen taulukon ensimmäiseen soluun (katso *Taulukko*).
 
 ## Taulukko
 

@@ -8,6 +8,7 @@ paths:
   - "src/components/task-sections/TaskAssignmentsSection.tsx"
   - "src/utils/taskDefaults.ts"
   - "src/state/slices/resourceSlice.ts"
+  - "src/state/assignmentMutations.ts"
   - "tests/planning/check-contour-*"
 ---
 
@@ -30,8 +31,12 @@ de CPM-datums van een import blijven bij laag 3/4 van de Z8-beslistabel en `spli
 fidelity-poort bewaakt dat. Een duurwijziging (`taskSlice.updateTask`, `createMcpTransactions`,
 `taskEditPlan`) herschaalt de contour én de importsplits proportioneel via `taskDefaults.ts`'s
 `rescaleTaskContours` (actuals blijven; werkbehoud volgt de effectieve werkregel via
-`workRuleApply.ts`'s `contourKeepsWork` — zonder eigen `workRule` geldt nog `mspTaskType ===
-'FIXED_WORK'`); een datum-/kalender-/toewijzingswijziging raakt de as niet (een kalenderwissel
+`taskDefaults.ts`'s `contourKeepsWork` — zonder eigen `workRule` telt `mspTaskType === 'FIXED_WORK'`
+of een werkbeschermende `Project.defaultWorkRule`). Oude én nieuwe duur meet elke route (store, raster,
+MCP) op dezelfde as, `contourEngine.ts`'s `taskAxisMinutes` (via `taskWorkMinutesOf`): werktijd in
+werkminuten, kalendertijd in klokdagen × werktijd per dag, in dagen én in uren — zo herschaalt een
+eenheidswissel op dezelfde klokuren niets (knownbug 265, `check-contour-unit-switch.ts`). Een
+datum-/kalender-/toewijzingswijziging raakt de as niet (een kalenderwissel
 herschaalt de as wél van oude naar nieuwe werkminuten — zie de `taaktypes`-rule). Verandert het
 restwerk van een toewijzing mét contour, dan zakt de contourhoogte mee (`reconcileContourWork`, "vorm
 blijft, hoogte zakt"). `src/services/contourIo.ts` is de adapterlaag:
@@ -42,7 +47,8 @@ curvenaam (dat was een fout van de vroegere writer; de lezer accepteert die naam
 De IFC-lezer leidt resource-ids af uit het GlobalId (`res-ifc-<GlobalId>`) en mapt `contour.resourceId`
 daarom terug (`remapContourResourceIds` → `mappedResourceId`: zelfde id, anders
 `ifcGuid128(ifcObjectSeed('res', id))`, anders de oude `ifcGuid(id)`). Bewerken in de UI (etappe contour-UI + fasen-editor): `ContourDialog.tsx`
-achter de knop **Urenverdeling…** per toewijzing in `TaskAssignmentsSection` — in FASEN (aaneengesloten
+achter de knop **Urenverdeling…** per toewijzing in `TaskAssignmentsSection` (onder de uitklapknop op de
+resourcenaam, `data-ops-assignment-expand`) — in FASEN (aaneengesloten
 werkdagen met één inzet, `src/engine/contour/contourPhases.ts`: run-length over de werkdagslots,
 splitsen/samenvoegen/grens/inzet), als sleepbare SVG-strook (`ContourPhaseStrip.tsx`, in het venster,
 dus buiten de Gantt-renderergrenzen) én als tabel; vorm-als-data, toepassen/loslaten — op het pure

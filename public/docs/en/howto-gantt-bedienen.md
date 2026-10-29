@@ -25,7 +25,7 @@ If you drag mostly up or down instead of sideways, you move the task to another 
 
 The left edge moves the start and leaves the finish, so the task gets shorter or longer at the front. The same SNET rule applies as when moving. When you drag the middle of the bar, the pill does not appear: the duration does not change.
 
-The duration counts working days of the task's calendar. Weekends and days off do not count, and a task in days cannot get shorter than one working day. For a task in hours the app rounds to the step of the timeline under your mouse: at least an hour, or a quarter of an hour if you zoom in far enough and *Show quarter-hours when zoomed in far* is on.
+The duration counts working days of the task's calendar. Weekends and days off do not count. For a task in days the step depends on the zoom. If you see days, the duration changes per working day, and the task does not get shorter than one working day. If you see hours, the duration changes per hour, or per quarter of an hour if *Show quarter-hours when zoomed in far* is on. A day task can then also last part of a day: a task of 2 days becomes for example 0.5 days, from Monday 07:00 to 11:00. The shortest duration is one step: 0.125 days (07:00–08:00) per hour, or 0.03125 days (07:00–07:15) per quarter of an hour. For a task in hours the app rounds to the step of the timeline under your mouse: at least an hour, or a quarter of an hour if you zoom in far enough and *Show quarter-hours when zoomed in far* is on.
 
 One drag is one step in *Undo*, however long you drag. On a split bar the edges work differently; see [Splitting a task](docs://howto-taak-splitsen).
 
@@ -57,6 +57,10 @@ More about selecting is in [Selecting, deleting and undoing tasks](docs://howto-
 The further you zoom out, the fewer grid lines there are. At 8 pixels per day or more there is a line for every day, with a thicker line at the week boundary. Between 2 and 8 pixels per day only the week boundary remains. Below 2 pixels per day, at year level, only the month boundaries are left. Otherwise the canvas would become an even stripe pattern in which the bars disappear. The grey weekends and days off, and the week bands that are tinted alternately, stay at every level; they carry the week structure when the lines drop out. In the timeline header the week numbers and day numbers only appear when there is room for them, and from 40 pixels per day the weekday is shown before the day number as well.
 
 The task name is shown in the bar if it fits completely. If it does not fit, for example when you zoom out, the full name is shown to the right of the bar.
+
+### Looking at the details of a task
+
+Hold the mouse still on a bar. A small card appears with the name of the task, *WBS*, *Duration*, *Start*, *Finish*, *Status*, *Critical* and *Total float*. During dragging, panning, a selection box or a right-click menu the card is gone.
 
 ## Pitfalls and what the app does then
 

@@ -16,7 +16,7 @@ Metoda de calcul se numește **CPM** (Critical Path Method). De aceea blocul cu 
 
 ## Cum calculează aplicația
 
-Aplicația nu recalculează planificarea singură. Calculul începe cu **Calculare** (F5), de exemplu prin *Acasă › Planificare › Calculare*. Dacă ceva s-a schimbat de la ultimul calcul, bara de stare arată *Învechit — recalculați (F5)*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări*, fila *Planificare*, secțiunea *Calculare*), aplicația face asta singură.
+Aplicația nu recalculează planificarea singură. Calculul începe cu **Calculare** (F5), de exemplu prin *Acasă › Planificare › Calculare*. Dacă ceva s-a schimbat de la ultimul calcul, bara de stare arată *Învechit — recalculați (F5)*. Dacă *Calculare automată* este activată (sub *Setări › Proiect › Setări aplicație*, fila *Planificare*, secțiunea *Calculare*), aplicația face asta singură.
 
 Un calcul parcurge rețeaua de două ori.
 
@@ -38,16 +38,17 @@ Marja totală poate fi împărțită. Dacă două activități necritice urmeaz�
 
 ### Marjă negativă
 
-Marja poate deveni și negativă. Aceasta se întâmplă când o activitate are un termen limită. Sau când o restricție impune o dată cea mai târzie, înainte de data pe care aplicația o calculează. Pe hârtie, activitatea este deja întârziată. Activitatea și lanțul dinaintea ei devin critice.
+Marja poate deveni și negativă. Aceasta se întâmplă când o activitate are un termen limită. Sau când o restricție impune o dată cea mai târzie, înainte de data pe care aplicația o calculează pentru activitate. Pe hârtie, activitatea este deja întârziată. Activitatea și lanțul dinaintea ei devin critice.
 
 ### Când este o activitate critică?
 
-Implicit, o activitate este critică atunci când marja ei totală este 0 sau mai mică. Acest lucru se poate modifica sub *Setări › Proiect › Informații proiect*, în blocul *Profil de calcul și opțiuni de calcul*, la *Opțiunile de calcul ale acestui proiect*. Când faceți clic pe *Aplicare*, aplicația recalculează planificarea imediat. Opțiunile aparțin fișierului de proiect, nu aplicației.
+Implicit, o activitate este critică atunci când marja ei totală este 0 sau mai mică. Acest lucru se poate modifica sub *Setări › Proiect › Setări proiect*, în blocul *Profil de calcul și opțiuni de calcul*, la *Opțiunile de calcul ale acestui proiect*. Când faceți clic pe *Aplicare*, aplicația recalculează planificarea imediat. Opțiunile aparțin fișierului de proiect, nu aplicației.
 
-- **Definiția activității critice** cu *Marjă totală ≤ prag* și câmpul *Prag (zile lucrătoare)*. Pragul este implicit 0. Pentru a păstra o rezervă, setați-l la 2, de exemplu: fiecare activitate cu cel mult 2 zile lucrătoare de marjă devine critică și bara devine roșie.
+- **Definiția activității critice** cu *Marjă totală ≤ prag* și câmpul *Prag (zile lucrătoare)*. Pragul este implicit 0. Pentru a păstra o rezervă, setați-l la 2, de exemplu: fiecare activitate cu cel mult 2 zile lucrătoare de marjă devine critică și bara ei devine roșie. Dacă alegeți *Drum cel mai lung*, o activitate este critică atunci când se află pe cel mai lung lanț până la ultimul sfârșit. Marja ei nu mai contează atunci.
+- **Drumuri de marjă multiple** numerotează lanțurile după marja lor, în coloana *Drum de marjă*. Drumul 1 este drumul critic. Consultați [Opțiuni de calcul și convenții de calcul](docs://ref-rekenopties-en-conventies).
 - **Marcare activități aproape critice** cu propriul *Prag*, implicit 2 zile lucrătoare. O activitate cu o marjă mai mare decât 0, dar cel mult atât, primește o bară chihlimbarie. Așa se vede ce activități mai au aproape deloc marjă, fără să fie numite critice.
-- **Activități cu sfârșit deschis, critice**: o activitate fără succesor, care nu este încă terminată, devine critică. Este util ca plasă de siguranță împotriva dependențelor uitate (vezi concepțiile greșite de mai jos).
-- **Calculul marjei** decide dacă marja totală se măsoară la începutul activității, la sfârșitul ei sau ca cea mai mică dintre cele două. Proiectele noi au setarea *Automat (implicit)*. Dacă urmați modul de calcul din Primavera P6, *Aplicare opțiuni implicite ale acestui profil* setează această opțiune pe *Marjă de sfârșit*. Pentru MS Project, același buton o readuce la *Automat (implicit)*: cu data raportului de stare, MS Project calculează singur astfel.
+- **Activități cu sfârșit deschis, critice**: o activitate fără succesor, care nu este încă terminată, devine critică. Util ca plasă de siguranță împotriva dependențelor uitate (consultați concepțiile greșite de mai jos).
+- **Calculul marjei** decide dacă marja totală se măsoară la începutul activității, la sfârșitul ei sau ca cea mai mică dintre cele două. Proiectele noi au setarea *Automat (implicit)*. Dacă proiectul folosește profilul Primavera P6 și această alegere nu este *Marjă de sfârșit*, un bloc portocaliu din *Setări proiect* o arată; butonul lui setează alegerea pe *Marjă de sfârșit*. Pentru MS Project, același buton o readuce la *Automat (implicit)*: cu data raportului de stare, MS Project calculează singur în acest fel.
 
 ### Unde vedeți asta
 

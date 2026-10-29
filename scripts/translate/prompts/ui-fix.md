@@ -8,6 +8,7 @@ findings `{{REVIEW_FILE}}` (only the entries with `"package": "{{ID}}"` apply).
 - Edit only `{{PACKAGE_DIR}}/{{ID}}.out.json`, and in it only the keys named in the findings.
 - Apply each `proposal`, unless it breaks a rule of the package (`terms`, `tokens`, `{{placeholders}}`,
   `$t(...)`, plural categories, `style`); then fix the problem in the smallest way that keeps the rule.
+- An item with `fixedText` must keep that complete text byte for byte, including spacing and placeholder.
 - `nl` decides the meaning when `nl` and `en` differ.
 
 ## Check

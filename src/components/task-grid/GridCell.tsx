@@ -98,6 +98,9 @@ export function GridCell({
           title={model.warning.text}
           aria-label={model.warning.text}
           role="img"
+          // Een uitleg over meer regels (restwerk van meer toewijzingen): eerste regel vet, elke
+          // volgende regel apart in de tooltip (`Tooltip.tsx`, `data-tooltip-lead`).
+          {...(model.warning.text.includes('\n') ? { 'data-tooltip-lead': '' } : {})}
           {...{ [`data-ops-${model.warning.kind}`]: 'true' }}
         >
           <AlertTriangle size={11} aria-hidden />
