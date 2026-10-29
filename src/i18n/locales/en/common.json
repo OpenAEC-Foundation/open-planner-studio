@@ -105,6 +105,7 @@
     "exportSplitsLost_other": "{{count}} tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.",
     "exportP6Truncated_one": "{{count}} name or code was shortened to the length P6 allows.",
     "exportP6Truncated_other": "{{count}} names or codes were shortened to the length P6 allows.",
+    "exportCriticalHoursLost": "When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.",
     "projectStartAnchorsClamped_one": "{{count}} task moved with the project start.",
     "projectStartAnchorsClamped_other": "{{count}} tasks moved with the project start.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",

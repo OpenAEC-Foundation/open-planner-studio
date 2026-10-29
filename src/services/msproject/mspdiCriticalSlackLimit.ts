@@ -21,3 +21,10 @@ export function mspdiCriticalSlackLimit(
     || definition.threshold < 0) return undefined;
   return definition.threshold;
 }
+
+/** De drempel van deze definitie geldt in uren en MSPDI kan hem niet dragen: na de export en opnieuw openen
+ *  rekent het project zonder die drempel (#561). Alleen bij `totalFloat`; `longestPath` gebruikt geen drempel. */
+export function mspdiDropsHourThreshold(definition: ProjectSchedulingOptions['criticalDefinition']): boolean {
+  return definition?.mode === 'totalFloat' && definition.thresholdHours !== undefined
+    && mspdiCriticalSlackLimit(definition) === undefined;
+}

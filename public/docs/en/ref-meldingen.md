@@ -140,6 +140,7 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 - **Work and task types visible** (info) — *This file contains stored work or task types; the task type and remaining work are shown for this project.*
 - **MS Project schedule read** (info) — *This MS Project file contains N tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.*
 - **Breaks not exported** (info) — *N tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.* When exporting to MS Project or Primavera.
+- **Critical threshold in hours not exported** (info) — *When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.* When exporting to MS Project XML, if the project calculates with *Total float ≤ threshold* and a threshold in hours (except 0 hours).
 - **Project start moved** (info) — *N tasks moved with the project start.* When you set the project start later. Only tasks without a predecessor and without a constraint that would lie before the new start date move to that date. With a *Read more* link to [New project and Project settings](docs://ref-projectinfo).
 - **Date window no longer steers** (info) — *MS Project's date window no longer drives N tasks after this edit; …* Once per document.
 - **Leveling delay rounded** (info) — *Leveling rounds MS Project's minute-precise leveling delay for N tasks to whole workdays.* Once per document.

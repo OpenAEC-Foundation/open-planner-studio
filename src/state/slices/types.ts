@@ -351,6 +351,7 @@ export type NotificationMessageKey =
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
   | 'notifications.exportP6Truncated'
+  | 'notifications.exportCriticalHoursLost'
   // Een onbruikbaar XER-bronarchief is bij het
   // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
   // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer

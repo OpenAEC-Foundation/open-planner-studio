@@ -8,6 +8,7 @@ import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { mspdiDropsHourThreshold } from '@/services/msproject/mspdiCriticalSlackLimit';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
@@ -27,6 +28,7 @@ import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './typ
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
+import type { Project } from '@/types/project';
 import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
@@ -346,6 +348,20 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
 export function exportP6TruncatedNotice(format: ExportFormat, truncated: number): NotifyInput | null {
   if (format !== 'p6' || truncated <= 0) return null;
   return { severity: 'info', messageKey: 'notifications.exportP6Truncated', params: { count: truncated } };
+}
+
+/**
+ * MS Project XML kent de kritiek-drempel alleen in hele dagen (`CriticalSlackLimit`). Een drempel in uren
+ * (behalve 0 uur) gaat bij de export verloren; dat meldt `exportAs` na een geslaagde MSPDI-export, voor elk
+ * document, ook een eigen project (#561). Dezelfde beslissing als de writer en de verliesdetector
+ * (`mspdiCriticalSlackLimit`). Los geëxporteerd, zodat een test de regel zonder bestandsdialoog toetst.
+ */
+export function exportCriticalHoursLostNotice(
+  format: ExportFormat,
+  project: Pick<Project, 'schedulingOptions'>,
+): NotifyInput | null {
+  if (format !== 'mspdi' || !mspdiDropsHourThreshold(project.schedulingOptions?.criticalDefinition)) return null;
+  return { severity: 'info', messageKey: 'notifications.exportCriticalHoursLost' };
 }
 
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
@@ -1373,6 +1389,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (splitsLost) get().notify(splitsLost);
       const truncated = exportP6TruncatedNotice(format, p6Truncated);
       if (truncated) get().notify(truncated);
+      const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
+      if (criticalHoursLost) get().notify(criticalHoursLost);
       return { ok: true, warnings };
     },
 

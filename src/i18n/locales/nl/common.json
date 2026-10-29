@@ -105,6 +105,7 @@
     "exportSplitsLost_other": "{{count}} taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
     "exportP6Truncated_one": "{{count}} naam of code is ingekort tot de lengte die P6 toestaat.",
     "exportP6Truncated_other": "{{count}} namen of codes zijn ingekort tot de lengte die P6 toestaat.",
+    "exportCriticalHoursLost": "Bij export naar MS Project XML gaat de kritiek-drempel in uren verloren: MS Project kent alleen een drempel in hele dagen.",
     "projectStartAnchorsClamped_one": "{{count}} taak schoof mee met de projectstart.",
     "projectStartAnchorsClamped_other": "{{count}} taken schoven mee met de projectstart.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
