@@ -205,6 +205,72 @@ eq('autocomplete zoekt op WBS en naam en sluit de eigenaar uit',
 eq('lege autocomplete toont alle andere taken in documentvolgorde',
   relationTaskOptions(tasks, D.id, '').map(option => option.taskId), ['A', 'B', 'C']);
 
+const searchTasks = [
+  task('owner', '0', 'Étage'),
+  task('duplicate', ' 9 ', ' Étage '),
+  task('duplicate', '2', 'Tweede ÉTAGE'),
+  task('owner', '99', 'Tweede eigenaar'),
+  ...Array.from({ length: 12 }, (_, i) => task(`match-${i}`, `3.${i}`, `Werk ${i}`)),
+  task('last', '末', 'Laatste İSTANBUL'),
+];
+for (const query of ['', '  ', 'werk', ' ÉTAGE ', '9', 'İSTANBUL', '末', 'onvindbaar']) {
+  const all = relationTaskOptions(searchTasks, 'owner', query);
+  for (const limit of [1, 2, 8, 50, Infinity]) {
+    eq(`begrensde volledige resultaatobjecten zijn de prefix: ${query}/${limit}`,
+      relationTaskOptions(searchTasks, 'owner', query, limit), all.slice(0, limit));
+  }
+}
+eq('dubbele andere ids blijven in documentvolgorde; alle eigenaarvoorkomens vallen weg',
+  relationTaskOptions(searchTasks, 'owner', ' ÉTAGE ', 8), [
+    { taskId: 'duplicate', wbsCode: ' 9 ', name: ' Étage ', label: '9   Étage' },
+    { taskId: 'duplicate', wbsCode: '2', name: 'Tweede ÉTAGE', label: '2 Tweede ÉTAGE' },
+  ]);
+eq('standaard blijft onbeperkt voor de tabelcel-editor',
+  relationTaskOptions(searchTasks, 'owner', '').length, 15);
+for (const limit of [0, -1, -Infinity, NaN, 0.9]) {
+  const neverRead: Iterable<Task> = { *[Symbol.iterator]() { throw new Error('lege limiet las de invoer'); } };
+  eq(`lege limiet ${limit} bezoekt geen taken`, relationTaskOptions(neverRead, 'owner', '', limit), []);
+}
+eq('positieve breuk wordt naar beneden afgerond',
+  relationTaskOptions(searchTasks, 'owner', '', 1.9), relationTaskOptions(searchTasks, 'owner', '', 1));
+
+// De echte helper consumeert een bewaakte iterable: een extra next() na de achtste treffer faalt.
+const manyTasks = [task('owner', '0', 'Eigenaar'),
+  ...Array.from({ length: 9999 }, (_, i) => task(`t-${i}`, String(i + 1), `Werk ${i}`))];
+let visits = 0;
+let closed = false;
+const guarded: Iterable<Task> = {
+  *[Symbol.iterator]() {
+    try {
+      for (const item of manyTasks) {
+        visits++;
+        if (visits > 9) throw new Error('zoeklimiet bezocht meer dan eigenaar plus acht treffers');
+        yield item;
+      }
+    } finally { closed = true; }
+  },
+};
+eq('vroege stop behoudt alle resultaatvelden', relationTaskOptions(guarded, 'owner', '', 8),
+  relationTaskOptions(manyTasks, 'owner', '').slice(0, 8));
+eq('slechts negen bezoeken bij eigenaar vooraan en acht treffers', visits, 9);
+ok('vroege stop sluit de iterator', closed);
+for (const query of ['Werk 9998', 'onvindbaar']) {
+  visits = 0;
+  const counted: Iterable<Task> = {
+    *[Symbol.iterator]() { for (const item of manyTasks) { visits++; yield item; } },
+  };
+  eq(`late/geen treffer ${query} behoudt resultaat`, relationTaskOptions(counted, 'owner', query, 8),
+    relationTaskOptions(manyTasks, 'owner', query).slice(0, 8));
+  eq(`late/geen treffer ${query} blijft een volledige scan`, visits, 10000);
+}
+const renamed = searchTasks.map(item => item.id === 'last' ? { ...item, name: 'Nieuwe naam', wbsCode: '7.8' } : item);
+eq('vernieuwde naam en WBS zijn meteen zoekbaar', relationTaskOptions(renamed, 'owner', '7.8 nieuwe', 8),
+  [{ taskId: 'last', wbsCode: '7.8', name: 'Nieuwe naam', label: '7.8 Nieuwe naam' }]);
+eq('oude invoer na undo wordt opnieuw gebruikt', relationTaskOptions(searchTasks, 'owner', '7.8 nieuwe', 8), []);
+eq('ander document met hetzelfde taak-id heeft eigen inhoud',
+  relationTaskOptions([task('last', '8', 'Ander document')], 'owner', '', 8),
+  [{ taskId: 'last', wbsCode: '8', name: 'Ander document', label: '8 Ander document' }]);
+
 const normalized = normalizeRelationTokenSources([
   { ...(items[0]!.parsedToken as ParsedInternalRelationToken), lagText: '+4d' },
   items[3]!.parsedToken,

@@ -590,8 +590,9 @@ en noem het in je rapport of PR-tekst.
 
 ## Bibliotheek, bezetting, extensies, AI
 
-28. **Bezettingsoverzicht bij een verouderd actief project** mengt oude startdatums met een nieuwe duur of
-    inzet, onder de tekst "laatst berekende cijfers". — B
+28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
+    nieuwe duur/inzet, onder de tekst "laatst berekende cijfers". Openen rekent het actieve project nu
+    eenmaal door; edits terwijl het overzicht openblijft vereisen nog F5/Automatisch berekenen. — B
 74. **Nederlandse parameternamen en enumwaarden in het MCP-contract.** Na de vertaling naar Engels zijn deze
     sleutels bewust gebleven (ze zijn invoercontract): `planner_list_tasks` `kritiek`/`van`/`tot`/
     `zonder_relaties`, `planner_get_resource_histogram` `van`/`tot` en `bucket: dag|week|maand`,
@@ -721,14 +722,6 @@ en noem het in je rapport of PR-tekst.
     `notifications.librarySaveFailed` (één melding dankzij `dedupeKey`). Bij de start blijft het stil: `loadLibrary`
     valt terug op een verse bibliotheek. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: dezelfde
     stille sessievlag als crashherstel, of één uitleg dat de bibliotheek in deze omgeving niet bewaard wordt. — S
-
-322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:890`
-    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:478` maakt daaruit een
-    `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
-    verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
-    `calendarResourceTools.ts:1611` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
-    conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
-    aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
 
 347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
     `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
@@ -1072,16 +1065,6 @@ en noem het in je rapport of PR-tekst.
      Richting: `durationUnit: 'hours'` zetten als `durMinutes` er is; dat verschuift wel de hele planning van
      De Vaart en de getallen in de gidsen. Gevonden bij het opnieuw genereren van de voorbeelden (PR #600). — B
 
-340. **Na omzetten, Ctrl+Z en crashherstel verdwijnt de modus "Datums zoals opgeslagen".** Een oud bestand wordt
-     bij openen omgezet (B5); Ctrl+Z zet de opgeslagen datums terug met `datesAsRecorded: true`. Crashherstel
-     (`restoreDocuments`) weigert daarna de vóór-toestand: B5 maakt die met `origin: 'ifc-own'` zonder
-     `sourceFormat` (`src/state/minuteModelTransition.ts:65`), en de herstelroute weigert juist die combinatie
-     vóór ze de herstelvlag toepast (`src/state/documentActivation.ts:358`, `:378`). Een actief document krijgt
-     weer de omgerekende datums; een slapend document komt zonder modus en verouderd terug. Geen onherstelbaar
-     verlies aangetoond (het omzet-event kan opnieuw met undo terug). Voorstel: bij expliciet herstel van de modus
-     de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
-     aanval na #600 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
@@ -1090,14 +1073,6 @@ en noem het in je rapport of PR-tekst.
      geval ontbreekt. De tegenproef klopt: 99,6 % wordt bij de eigen MSPDI-export 100 % en blijft met twaalf
      minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
      importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
-
-356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
-     opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
-     (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
-     `scheduleDuration: 0` en `durationMinutes: 0` staan (`src/engine/scheduler/recordedDates.ts:520`).
-     Opnieuw opslaan bewaart die nulduur. Al zo op `9a636ec69`. Voorstel: bij het verwerpen van de solve ook de
-     bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
-     a05 (GPT-6.1-Sol). — B
 
 372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
      5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het
@@ -1119,6 +1094,44 @@ en noem het in je rapport of PR-tekst.
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
 
+468. **De MSPDI-export zet `MaterialLabel` en `StandardRate` op de verkeerde plek in `<Resource>`.**
+     `src/services/msproject/mspdiWriter.ts` (resourcelus): het schema van Microsoft wil `MaterialLabel` vóór
+     `MaxUnits` en `StandardRate` vóór `CalendarUID`; de writer schrijft ze erna. Stond al zo op main. Een
+     strenge XML-lezer kan het bestand weigeren. Voorstel: de twee schrijfregels verplaatsen. Gevonden in review
+     r1 van #728 (GPT-6.1-Sol), tegen de schemavolgorde vergeleken. — B
+
+469. **Een urentaak in kalendertijd met alleen een rest in dagen exporteert een andere rest dan de motor
+     rekent.** `src/services/msproject/mspdiWriter.ts` (`writtenRemaining`): zonder `remainingMinutes` telt de
+     writer `remainingTime` in de werktijd per dag van de taakkalender. De motor (`CPMSolver.progressWork`,
+     tak `elapsed`) negeert `remainingTime` bij een urentaak en rekent de rest uit de voortgang. Een urentaak
+     draagt normaal `remainingMinutes`, dus dit raakt alleen data van buiten de app. Gezien bij #555 in de code;
+     niet nagespeeld. — S
+
+470. **In de stappeneditor van een resource kun je geen capaciteit 0 typen.** `ResourcePanel.tsx` (stapveld)
+     gebruikt de strikt positieve `UnitsInput` (`UnitsInput.tsx`): `0` geeft geen waarde. Een stap naar 0 uit
+     XER of MS Project XML (niet beschikbaar) blijft staan, maar een planner kan een stap niet zelf op 0 zetten.
+     MCP accepteert 0 sinds #728. Stond al zo op main. Voorstel: alleen het capaciteitsveld van een stap 0 laten
+     accepteren; de vlakke capaciteit en toewijzingseenheden blijven groter dan 0. Gevonden in review r3 van
+     #728 (GPT-6.1-Sol), in de broncode; geen browserhandeling. — B
+
+471. **De MSPDI-lezer leest overlappende beschikbaarheidsperiodes en een echte grens op 2049-12-31 niet goed.**
+     `src/services/msproject/mspdiAvailability.ts` (`availabilityFromPeriods`). (a) Een korte periode binnen een
+     langere (bijv. 1–30 nov capaciteit 1, 2–6 nov capaciteit 2) houdt na 6 november capaciteit 2. MS Project
+     weigert overlappende periodes zelf, dus een gewoon bestand bevat ze niet. (b) Eén periode die precies op
+     2049-12-31 eindigt, telt als open einde (NA). Op de datum alleen is dat niet van een echte grens te
+     onderscheiden; met een latere periode erna telt het wel als grens. Een export van OPS zelf heeft beide
+     gevallen niet. Voorstel: overlap weigeren of per dag de laatste periode laten winnen; voor (b) de volledige
+     tijd van NA vergelijken (MPXJ `LocalDateTimeHelper`): de lezer knipt de tijd nu af, dus een einde op
+     2049-12-31T23:58:00 (voor MPXJ een echte grens) telt ook als open. Gevonden in review r4 en r5 van #728
+     (GPT-6.1-Sol), met een proefscript. — B
+
+472. **Een ongeldige beschikbaarheidsperiode in MSPDI kan het open einde van een geldige periode sluiten.**
+     `src/services/msproject/mspdiAvailability.ts` (`availabilityFromPeriods`): `lastFrom` telt alle rijen, ook
+     die de filter daarna weggooit. Voorbeeld: `1984-01-01 → 2049-12-31` met capaciteit 1 plus een ongeldige rij
+     `2050-01-03 → 2048-01-01` geeft capaciteit 0 vanaf 2050-01-01 in plaats van 1. Alleen bij ongeldige invoer
+     van buiten. Voorstel: `lastFrom` alleen over de geaccepteerde rijen berekenen. Gevonden in review r5 van
+     #728 (GPT-6.1-Sol), met een proefscript. — B
+
 480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
      `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, datumconstraints die het doelformaat niet schrijft,
      handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
@@ -1139,7 +1152,9 @@ en noem het in je rapport of PR-tekst.
      (`uiSlice.ts`). Een P6-export met een notitie, een onderbreking zonder urenverdeling en een te lange naam
      die op een emoji wordt ingekort, geeft vier meldingen: de verliesmelding met *Lees meer* verdwijnt. De
      informatie blijft in `warnings`. Voorstel: bundel de exportmeldingen als detailregels in één melding.
-     Gevonden in review ronde 4 van #727 (GPT-6.1-Sol), nagespeeld. — B
+     Gevonden in review ronde 4 van #727 (GPT-6.1-Sol), nagespeeld. Sinds #728 kan ook de melding over een
+     kritiek-drempel in uren erbij komen (eigen project met urendrempel, notitie, onderbreking en vervangen
+     teken: de algemene verliesmelding valt weg; review r6 van #728, nagespeeld). — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -1198,6 +1213,12 @@ en noem het in je rapport of PR-tekst.
      de aanroep, of controleer de nieuwe rapportinhoud. Een testgat; geen gewone
      productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
      — B
+
+474. **De Gantt-regel en een commentaar zeggen dat scherm en afdruk de naam van een fase op dezelfde plek zetten.**
+     `.claude/rules/gantt-splits.md:18` ("net als op de afdruk") en `GanttRenderer.ts:1736`. De afdruk zet de
+     naam links van de balk als rechts geen ruimte is en links wel (`printPreview.ts:867`, `drawBarLabel`); het
+     scherm zet hem altijd rechts. Voorstel: de vergelijking schrappen of die terugval noemen. Alleen tekst.
+     Gevonden in review van #731 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Tests
 
@@ -1461,6 +1482,37 @@ en noem het in je rapport of PR-tekst.
      boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
      vergelijking houden; let op dat de app `generatedAt` toont als bronmoment (`DownloadStatsSection.tsx:148`).
      Gevonden in review van #725 (GPT-6.1-Sol), 2026-10-29. — B
+484. **Het meetartifact van de relatiezoekmeting bewaart de browserbundel niet.**
+     `scripts/performance/relation-search/measure.mjs:137` haalt de geleverde JS-bron op om het bereik van
+     `relationTaskOptions` te vinden. Het artifact bewaart alleen de hash en de offsets;
+     `.github/workflows/relation-search-performance.yml:105` laat de bouwmappen weg. De 48 coverage-tellers zijn
+     na te rekenen, maar hun koppeling aan precies die functie alleen door opnieuw te bouwen. Voorstel: bewaar
+     per revisie de ene bundel met de helper (twee bestanden). Gevonden in review van #656 (GPT-6.1-Sol), 2026-10-29. — B
+491. **De datumcontroles in de miniaturentest en -meting bewaken het tijdsdeel niet.**
+     `tests/browser/document-switch.spec.ts:150` en `scripts/measure-document-thumbnails.mjs:176` vergelijken
+     met `slice(0, 10)`. Daardoor slagen `2026-09-25`, `2026-09-25T07:00` en `2026-09-25T16:00` alle drie, en
+     blijft een terugval naar datums zonder tijd onopgemerkt. De volledige meetsnapshots bewaren de tijden wel.
+     Voorstel: vergelijk in deze vaste fixtures de volledige verwachte tijdstippen. Gevonden in review van #654
+     (GPT-6.1-Sol), 2026-10-29. — B
+
+473. **`check-gantt-label-ellipsis` bewaakt de naam achter een gewone taak niet meer.** Sinds #731 staat er een
+     samenvatting met dezelfde lange naam en dezelfde balkpositie in de scène, en de zoekactie voor de gewone
+     taak (`tests/planning/check-gantt-label-ellipsis.ts:128`) kijkt niet naar de rij. Valt de buitennaam van
+     een gewone taak weg, dan vindt de check de naam van de samenvatting en blijft hij groen (in de review
+     nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
+     met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
+     2026-10-29. — B
+
+402. **De nieuwe MCP-waarschuwing zegt te ruim dat vastgepinde taken niet verschuiven.**
+     `src/services/mcp/tools/calendarResourceTools.ts:1618` zegt dat pins niet
+     verplaatsen. ResourceLeveler.ts:786 laat een pin juist zijn verschoven
+     voorgangers volgen. Een voorganger die één werkdag uitwijkt, kan zo een pin
+     verplaatsen en daar een pinconflict geven. De respons kan die verschuiving
+     samen met de ontkennende waarschuwing bevatten. Zeg dat pins niet zelfstandig
+     voor capaciteit uitwijken, maar hun voorgangers wel volgen. Maak dezelfde
+     nuance in distribute.ts:101. Alleen tekst; geen nieuwe gedragsfout.
+     Twee onafhankelijke broncontroles bij PR #678; niet lokaal uitgevoerd.
+     — B
 
 ## Wensen en open taken (geen bug)
 

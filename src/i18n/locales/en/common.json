@@ -108,6 +108,7 @@
     "exportP6Truncated_other": "{{count}} names or codes were shortened to the length P6 allows.",
     "exportInvalidXmlChars_one": "{{count}} character that XML does not allow was replaced with � in the export.",
     "exportInvalidXmlChars_other": "{{count}} characters that XML does not allow were replaced with � in the export.",
+    "exportCriticalHoursLost": "When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.",
     "projectStartAnchorsClamped_one": "{{count}} task moved with the project start.",
     "projectStartAnchorsClamped_other": "{{count}} tasks moved with the project start.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
