@@ -8,6 +8,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'>;
 export type XerExportLossCategory =
@@ -22,7 +23,7 @@ export type XerExportLossCategory =
   | 'external-links'
   | 'schedule-options-and-provenance'
   | 'p6-relation-lag-degradation'
-  | 'secondary-constraints'
+  | 'constraints'
   | 'manual-scheduling'
   | 'hammock-tasks';
 
@@ -41,7 +42,7 @@ export interface XerExportLossInput {
   readonly sourceArchive: XerSourceArchive | null;
   readonly importMetadata: XerImportMetadata | null;
   readonly project: Pick<Project, 'progressMode' | 'schedulingOptions' | 'schedulingProfile'>;
-  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint2' | 'manuallyScheduled' | 'isHammock'>[];
+  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint' | 'constraint2' | 'manuallyScheduled' | 'isHammock' | 'isSummary' | 'childIds'>[];
   readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
   readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
   readonly activityCodeTypes: readonly ActivityCodeType[];
@@ -57,8 +58,9 @@ interface ExportCapabilities {
   readonly projectedAssignments: boolean;
   readonly percentLag: boolean;
   readonly elapsedLag: boolean;
-  /** Alleen P6 XML heeft een tweede constraint (`SecondaryConstraintType`); MSPDI kent één ConstraintType. */
-  readonly secondaryConstraints: boolean;
+  /** Welke datumconstraints de writer schrijft. CSV heeft geen kolom; MSPDI kent één ConstraintType; P6 XML
+   *  schrijft primair en secundair, maar alleen op een activiteit: een verzameltaak wordt een WBS-element. */
+  readonly constraints: 'none' | 'primary' | 'activities';
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
@@ -82,7 +84,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: false,
     percentLag: true,
     elapsedLag: true,
-    secondaryConstraints: false,
+    constraints: 'none',
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -91,7 +93,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: true,
     elapsedLag: true,
-    secondaryConstraints: false,
+    constraints: 'primary',
     schedulingOptions: 'critical-slack-limit',
     reopenProfile: 'ops',
   },
@@ -100,7 +102,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: false,
     elapsedLag: false,
-    secondaryConstraints: true,
+    constraints: 'activities',
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -237,6 +239,18 @@ function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossI
   return capabilities.schedulingOptions === 'none' || !isMspdiCriticalSlackLimit(options);
 }
 
+function hasConstraintLoss(
+  capabilities: ExportCapabilities,
+  task: XerExportLossInput['tasks'][number],
+): boolean {
+  const primary = task.constraint !== undefined && task.constraint.type !== 'ASAP';
+  switch (capabilities.constraints) {
+    case 'none': return primary || task.constraint2 !== undefined;
+    case 'primary': return task.constraint2 !== undefined;
+    case 'activities': return isSummaryTask(task) && (primary || task.constraint2 !== undefined);
+  }
+}
+
 function categoriesFor(
   format: Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>,
   input: XerExportLossInput,
@@ -266,9 +280,7 @@ function categoriesFor(
     || (!capabilities.elapsedLag && input.sequences.some(sequence => sequence.lagUnit === 'ELAPSEDTIME'))) {
     categories.push('p6-relation-lag-degradation');
   }
-  if (!capabilities.secondaryConstraints && input.tasks.some(task => task.constraint2)) {
-    categories.push('secondary-constraints');
-  }
+  if (input.tasks.some(task => hasConstraintLoss(capabilities, task))) categories.push('constraints');
   // Geen van de drie writers schrijft deze twee: ze gaan als gewone taak met berekende datums.
   if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
   if (input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');

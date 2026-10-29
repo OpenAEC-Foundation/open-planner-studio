@@ -11,6 +11,8 @@ import type { XerImportMetadata } from '@/services/importTypes';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { detectXerExportLoss, xerExportTargetVerdict } from '@/services/xerExportLoss';
 import { parseXerTables } from '@/services/xer/xerTables';
+import { readP6XML } from '@/services/p6/p6xmlReader';
+import { installDOMParser } from './xmldom-shim';
 import type {
   XerAssignmentCostsSource,
   XerCurvePoints,
@@ -21,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
+installDOMParser();
 const failures: string[] = [];
 let checks = 0;
 const expect = (label: string, condition: boolean) => {
@@ -180,9 +183,23 @@ resetProject('Native met notitie');
     categoriesOf(await store().exportAs('ifc')).length === 0);
 }
 
-// #554 (review ronde 1): een secundaire constraint schrijft alleen P6 XML (`SecondaryConstraintType`).
-// MSPDI kent één ConstraintType-element en CSV heeft geen kolom: daar is het verlies.
-// MUTATIEBEWIJS: haal de 'secondary-constraints'-regel uit `categoriesFor` ⇒ de mspdi- en csv-regel slaan rood.
+// #554 (review ronde 1 en 2): welke datumconstraints een writer schrijft. CSV heeft geen kolom; MSPDI kent één
+// ConstraintType; P6 XML schrijft primair en secundair, maar een verzameltaak wordt een WBS-element zonder
+// constraints. MUTATIEBEWIJS: haal de 'constraints'-regel uit `categoriesFor` ⇒ de regels hieronder slaan rood.
+const nativeLoss = (result: any): string[] =>
+  result?.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+    ? [...result.warnings[0].categories] : [];
+resetProject('Native met alleen een primaire constraint');
+{
+  const taskId = store().addTask({ name: 'Taak met één grens' });
+  store().updateTask(taskId, { constraint: { type: 'SNET', date: '2034-01-02' } });
+  expect("csv: primaire constraint meldt 'constraints'",
+    JSON.stringify(nativeLoss(await store().exportAs('csv'))) === JSON.stringify(['constraints']));
+  for (const format of ['mspdi', 'p6'] as const) {
+    expectCategories(`${format}: primaire constraint op een bladtaak is geen verlies`,
+      format, await store().exportAs(format), []);
+  }
+}
 resetProject('Native met secundaire constraint');
 {
   const taskId = store().addTask({ name: 'Taak met twee grenzen' });
@@ -191,15 +208,36 @@ resetProject('Native met secundaire constraint');
     constraint2: { type: 'FNLT', date: '2034-01-06' },
   });
   for (const format of ['mspdi', 'csv'] as const) {
-    const result = await store().exportAs(format);
-    expect(`${format}: secundaire constraint meldt 'secondary-constraints' (#554)`,
-      result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
-      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['secondary-constraints']));
+    expect(`${format}: secundaire constraint meldt 'constraints' (#554)`,
+      JSON.stringify(nativeLoss(await store().exportAs(format))) === JSON.stringify(['constraints']));
   }
   const p6 = await store().exportAs('p6');
   const p6Xml = captures.at(-1) ?? '';
-  expectCategories('p6: secundaire constraint is geen verlies', 'p6', p6, []);
-  expect('p6-writer schreef de secundaire constraint werkelijk', p6Xml.includes('<SecondaryConstraintType>'));
+  expectCategories('p6: secundaire constraint op een bladtaak is geen verlies', 'p6', p6, []);
+  const back = readP6XML(p6Xml).tasks.find(task => task.name === 'Taak met twee grenzen');
+  expect('p6: bladtaak leest beide constraints terug',
+    back?.constraint?.type === 'SNET' && back?.constraint2?.type === 'FNLT');
+}
+resetProject('Native verzameltaak met constraints');
+{
+  const phaseId = store().addTask({ name: 'Fase' });
+  store().addTask({ name: 'Kind', parentId: phaseId });
+  store().updateTask(phaseId, {
+    constraint: { type: 'SNET', date: '2034-01-02' },
+    constraint2: { type: 'FNLT', date: '2034-01-06' },
+  });
+  const phase = store().tasks.find(task => task.id === phaseId);
+  expect('de fixture is echt een verzameltaak met beide constraints',
+    (phase?.childIds.length ?? 0) === 1 && phase?.constraint?.type === 'SNET' && phase?.constraint2?.type === 'FNLT');
+  const p6 = await store().exportAs('p6');
+  const p6Xml = captures.at(-1) ?? '';
+  expect("p6: constraints op een verzameltaak melden 'constraints' (review ronde 2)",
+    JSON.stringify(nativeLoss(p6)) === JSON.stringify(['constraints']));
+  const back = readP6XML(p6Xml).tasks.find(task => task.name === 'Fase');
+  expect('p6: de verzameltaak leest zonder constraints terug (het verlies is echt)',
+    back !== undefined && back.constraint === undefined && back.constraint2 === undefined);
+  expect("mspdi: verzameltaak verliest alleen de secundaire constraint",
+    JSON.stringify(nativeLoss(await store().exportAs('mspdi'))) === JSON.stringify(['constraints']));
 }
 
 // #554 (review ronde 1): handmatige planning en hammock schrijft geen van de drie writers.
