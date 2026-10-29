@@ -234,6 +234,11 @@ export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }
 
+// Muiswiel boven de lint-tabs wisselt van tab (#688): paneelinstelling (3-plekken-regel), standaard aan.
+export async function saveRibbonWheelSwitchesTabs(value: boolean): Promise<void> {
+  await setSetting('ribbonWheelSwitchesTabs', value);
+}
+
 // Histogramstrook: zichtbaarheid + hoogte zijn view-state (net als
 // leftPanelWidth), geen instellingen — persist via dezelfde ops-prefix, geen 3-plekken-regel.
 export async function saveShowHistogram(value: boolean): Promise<void> {

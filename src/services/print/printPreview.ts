@@ -35,7 +35,16 @@ import type { BarColorSelection } from '@/types/barColor';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
-import type { BaselineOverlay } from '@/types/baseline';
+import { baselineReach, type BaselineOverlay } from '@/types/baseline';
+import {
+  baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
+  type BaselineBar, type BaselineMilestone, type BaselineSlot,
+} from '@/engine/renderer/baselineStrip';
+
+/** Kleur per baselineplaats op papier (actief grijs, vergelijkingen cyaan en fuchsia). */
+const printBaselineColor = (slot: BaselineSlot): string => (
+  slot === 0 ? PRINT_COLORS.baseline : slot === 1 ? PRINT_COLORS.baselineCompare1 : PRINT_COLORS.baselineCompare2
+);
 import { ellipsize } from '@/engine/renderer/textFit';
 import { displayDate, displayDateTime } from '@/utils/displayDate';
 import { statusDateAsUsed, statusDateInstant } from '@/utils/statusDateTime';
@@ -738,6 +747,10 @@ export interface PrintOptions {
   assignments?: ResourceAssignment[];
   /** Afleiding uit de actieve baseline; dezelfde taak-id-index als de hoofd-Gantt. */
   baselineOverlay?: BaselineOverlay;
+  /** De vergelijkingsbaselines van het document (issue #391), in dezelfde strook als op het scherm. */
+  baselineComparisons?: { slot: 1 | 2; overlay: BaselineOverlay }[];
+  /** Namen voor de legenda per baselineplaats (0 = actief). Zonder vergelijking blijft de legenda "Baseline". */
+  baselineNames?: Partial<Record<BaselineSlot, string>>;
   /**
    * WYSIWYG-rijen: gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
    * sortering én inklapstatus van het scherm) i.p.v. de volledige takenboom. Groepsband-rijen
@@ -1001,6 +1014,22 @@ export function renderReport(
       const lastBandDay = addCalendarDays(bandEnd, -1);
       if (lastBandDay > maxDate) maxDate = lastBandDay;
     }
+  }
+
+  // De baselinestrook hoort in het automatische bereik: een vergelijkingsbaseline die ver vóór of
+  // na de huidige taken ligt, valt anders onder de tabel of buiten het blad (issue #391).
+  if (options.showBaselineOverlay) {
+    const overlays: BaselineOverlay[] = [];
+    if (options.baselineOverlay) overlays.push(options.baselineOverlay);
+    for (const c of options.baselineComparisons ?? []) overlays.push(c.overlay);
+    // Alleen de baselines van de afgedrukte taken; per taak hooguit drie opzoekingen.
+    const reach = baselineReach(overlays.map(o => {
+      const own: BaselineOverlay = new Map();
+      for (const t of flatTasks) { const e = o.get(t.id); if (e) own.set(t.id, e); }
+      return own;
+    }));
+    if (reach.earliest) { const d = parseDate(reach.earliest); if (d < minDate) minDate = d; }
+    if (reach.latest) { const d = parseDate(reach.latest); if (d > maxDate) maxDate = d; }
   }
 
   if (options.timeWindow) {
@@ -1521,36 +1550,43 @@ export function renderReport(
       }
     }
 
-    // Dezelfde grijze baseline-onderbalk (of mijlpaalruit) als in de hoofd-Gantt.
-    // Hij ligt boven de huidige balk maar vóór relaties/labels, zodat beide uitvoerpaden dezelfde
-    // leesbare laagvolgorde hebben. Samenvattingstaken krijgen alleen iets als de actieve baseline
-    // daar expliciet een entry voor bevat.
-    const baseline = options.showBaselineOverlay ? options.baselineOverlay?.get(task.id) : undefined;
-    if (baseline) {
-      const baseHeight = Math.max(2, barHeight * 0.28);
-      const baseY = y + barHeight + 1;
-      d2d.fillStyle = PRINT_COLORS.baseline;
-      if (baseline.isMilestone) {
-        const x = dateToX(parseDate(baseline.start)) + zoom / 2;
-        const cy = baseY + baseHeight / 2;
-        if (!windowed || (x >= m.tableWidth && x <= canvasWidth)) {
-          const bcx = windowed ? Math.min(canvasWidth - baseHeight, Math.max(m.tableWidth + baseHeight, x)) : x;
-          d2d.beginPath();
-          d2d.moveTo(bcx, cy - baseHeight);
-          d2d.lineTo(bcx + baseHeight, cy);
-          d2d.lineTo(bcx, cy + baseHeight);
-          d2d.lineTo(bcx - baseHeight, cy);
-          d2d.closePath();
-          d2d.fill();
+    // Dezelfde baselinestrook als in de hoofd-Gantt (`baselineStrip.ts`): de actieve baseline plus
+    // de vergelijkingsbaselines, gestreept waar ze overlappen. Hij ligt boven de huidige balk maar vóór
+    // relaties/labels, zodat beide uitvoerpaden dezelfde leesbare laagvolgorde hebben.
+    if (options.showBaselineOverlay) {
+      const layers: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
+      if (options.baselineOverlay) layers.push({ slot: 0, overlay: options.baselineOverlay });
+      for (const c of options.baselineComparisons ?? []) layers.push(c);
+      const bars: BaselineBar[] = [];
+      const milestones: BaselineMilestone[] = [];
+      for (const layer of layers) {
+        const entry = layer.overlay.get(task.id);
+        if (!entry) continue;
+        // Dezelfde uurregel als op het scherm (`baselineSpanX`): een baseline mét tijd staat op
+        // haar tijdstip, een dagbaseline beslaat hele dagen.
+        const pos = baselineSpanX(entry, dateToX, zoom);
+        if (!pos) continue;
+        if (pos.kind === 'milestone') {
+          if (!windowed || (pos.x >= m.tableWidth && pos.x <= canvasWidth)) milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
+          continue;
         }
-      } else {
-        const x1 = clampX(dateToX(parseDate(baseline.start)));
-        const x2 = clampX(dateToX(parseDate(baseline.finish)) + zoom);
-        if (!windowed || x2 > x1) {
-          d2d.beginPath();
-          d2d.roundRect(x1, baseY, Math.max(x2 - x1, 2), baseHeight, 1);
-          d2d.fill();
-        }
+        const x1 = clampX(pos.x1);
+        const x2 = clampX(pos.x2);
+        // Echte grenzen: de minimumbreedte komt pas na de opdeling (`widenShortRuns`), zoals op het
+        // scherm. Een strook zonder breedte op de as (helemaal in niet-werktijd) wordt niet getekend.
+        if (x2 > x1) bars.push({ slot: layer.slot, x1, x2 });
+      }
+      const pieces = widenShortRuns(baselineStripPieces(bars), 2);
+      const diamonds = baselineDiamonds(milestones);
+      if (pieces.length || diamonds.length) {
+        const baseHeight = Math.max(2, barHeight * 0.28);
+        paintBaselineStrip(d2d, pieces, diamonds, {
+          top: y + barHeight + 1,
+          height: baseHeight,
+          stripeWidth: Math.max(2, barHeight * 0.16),
+          diamondSize: baselineDiamondSize(baseHeight),
+          colorOf: printBaselineColor,
+        });
       }
     }
   }
@@ -2726,14 +2762,25 @@ function drawFooter(
           d2d.fillRect(x, midY - m.s(4), swatchW, m.s(8));
         } });
       }
-      const hasBaseline = options.showBaselineOverlay && printRows.some(row => row.kind === 'task' && row.task
-        && options.baselineOverlay?.has(row.task.id));
-      if (hasBaseline) {
-        items.push({ label: lg?.baseline ?? 'Baseline', draw: (x) => {
-          d2d.fillStyle = PRINT_COLORS.baseline;
-          d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(1));
-          d2d.fill();
-        } });
+      // Baselines: zonder vergelijking één regel "Baseline"; met vergelijking één regel per baseline
+      // met haar naam en kleur, zodat de strepen in het rapport te lezen zijn.
+      const layerOverlays: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
+      if (options.baselineOverlay) layerOverlays.push({ slot: 0, overlay: options.baselineOverlay });
+      for (const c of options.baselineComparisons ?? []) layerOverlays.push(c);
+      const shownLayers = options.showBaselineOverlay
+        ? layerOverlays.filter(l => printRows.some(row => row.kind === 'task' && row.task && l.overlay.has(row.task.id)))
+        : [];
+      const swatch = (slot: BaselineSlot) => (x: number) => {
+        d2d.fillStyle = printBaselineColor(slot);
+        d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(2));
+        d2d.fill();
+      };
+      if (shownLayers.length === 1 && shownLayers[0].slot === 0) {
+        items.push({ label: lg?.baseline ?? 'Baseline', draw: swatch(0) });
+      } else {
+        for (const l of shownLayers) {
+          items.push({ label: options.baselineNames?.[l.slot] ?? lg?.baseline ?? 'Baseline', draw: swatch(l.slot) });
+        }
       }
       // Lijnstijl-uitleg: ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een
       // doorgetrokken, eronder een gestreept lijntje — zodat de conventie "doorgetrokken = bepalend,

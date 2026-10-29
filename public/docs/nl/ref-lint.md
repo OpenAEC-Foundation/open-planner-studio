@@ -5,6 +5,7 @@ Het lint bovenin het scherm heeft tabbladen, en elk tabblad heeft groepen met kn
 ## Hoe het lint zich gedraagt
 
 - **Tabbladen** — links staat *Bestand*, daarna *Start*, *Planning*, *Resources*, *Beeld*, *Instellingen*, *Tabel*, *IFC*, *Rapport* en, alleen met de MCP-koppeling aan, *MCP*.
+- **Wisselen met het muiswiel** — draai het muiswiel boven de tabbladen. Omlaag gaat naar het volgende tabblad, omhoog naar het vorige. Bij het eerste en het laatste tabblad stopt het. *Bestand* doet niet mee. Boven de knoppen doet het wiel niets. Uitzetten: *App-instellingen*, tabblad *Weergave*, onderdeel *Lint*.
 - **Smal venster** — past het lint niet, dan krimpen knoppen van rechts naar links tot een icoon. De naam staat dan als tooltip op de knop. Elke knop zonder eigen tooltip toont zijn naam.
 - **Lint inklappen** — het pijltje rechtsonder in het lint maakt er een platte strip van, met alleen iconen. De groep *Baselines & voortgang* en de groep *Verbinding* op het MCP-tabblad verdwijnen dan achter één knop met een uitklapvenster. Standaard: uitgeklapt. De keuze blijft bewaard.
 - **Extensieknoppen** — een extensie kan achteraan een tabblad een eigen groep zetten. Zo'n knop doet wat de extensie hem meegeeft.
@@ -67,7 +68,7 @@ Klik je op *Bestand*, dan neemt een eigen scherm (de Backstage) de werkruimte ov
 De knop *Bereken* is dezelfde als op *Start*.
 
 - **Project verplaatsen…** — opent het venster *Project verplaatsen*. Uitgeschakeld zonder projectstartdatum. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
-- **Waarschuwingen** — toont of verbergt het paneel *Waarschuwingen* in de rechterkolom. De knop licht op zolang je het paneel ziet. Aanzetten klapt een ingeklapte kolom uit. Wat erin staat, lees je in [Meldingen en waarschuwingen](docs://ref-meldingen).
+- **Waarschuwingspaneel** — toont of verbergt het paneel *Waarschuwingen* in de rechterkolom. De knop licht op zolang je het paneel ziet. Aanzetten klapt een ingeklapte kolom uit. Wat erin staat, lees je in [Meldingen en waarschuwingen](docs://ref-meldingen).
 
 ### Planning › Relaties
 
@@ -174,7 +175,7 @@ Deze groep staat ook op *Tabel* en *Rapport*.
 
 - **Eigensch.** — toont of verbergt het paneel *Eigenschappen* in de rechterkolom. Standaard: aan. Zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
 
-De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Resources*, en *Waarschuwingen* is dezelfde als op *Planning*.
+De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Resources*, en *Waarschuwingspaneel* is dezelfde als op *Planning*.
 
 **De rechterkolom.** De kolom rechts van de Gantt staat er zodra minstens één van de panelen *Eigenschappen*, *Resourcedock* of *Waarschuwingen* aan staat. Staat er geen aan, dan is er geen kolom. Neemt een volledig paneel de werkruimte over, bijvoorbeeld het volledige resourcepaneel, dan verdwijnt de kolom. Alleen op het tabblad *Tabel* blijft hij staan.
 
@@ -186,11 +187,13 @@ De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Reso
 
 ### Beeld › Baselines & voortgang
 
-Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties van de Gantt.
+Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties van de Gantt voor baselines en voortgang.
 
-- **Baseline-overlay** — toont de actieve baseline als dunne balk onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien.
+- **Baseline-overlay** — een grote knop in twee delen. Het bovenste deel toont of verbergt de actieve baseline als smalle strook onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien. Het pijltje ▾ eronder opent het menu *Toon in de Gantt*: vink daar tot twee extra baselines aan. Waar baselines dezelfde dagen beslaan, heeft de strook schuine strepen in hun kleuren. De keuze hoort bij het project. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
 - **Voortgangslijn** — tekent een lijn op de statusdatum die per taak uitsteekt naar de voortgang. Standaard: aan. Zonder statusdatum is er niets te zien. Staat de voortgangslijn aan, dan is die lijn ook de markering van de statusdatum.
 - **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is. Het label volgt je datumnotatie, bijvoorbeeld 20-09-2006. Rekent de app in uren, dan staan lijn en label op het tijdstip en toont het label ook de tijd, bijvoorbeeld 20-09-2006 17:00.
+### Beeld › Balken
+
 - **Balkkleuren** — kiest waarmee de balken zijn gekleurd: *Kritiek pad* (standaard), *Per taak — automatisch* of *Op categorie* met een keuze van het veld. Is dat veld niet in dit project, dan meldt het menu dat *Werksoort* tijdelijk wordt gebruikt. Buiten *Kritiek pad* markeert een rode rand het kritieke pad. De keuze geldt ook voor het rapport.
 - **Resource-accent** — tekent een dun streepje in de resourcekleur onder elke bladbalk, verdeeld naar rato van de eenheden per dag. Standaard: uit.
 - **Spelingsband** — tekent de groene band na een niet-kritieke balk, tot het laatste einde van de taak. Standaard: aan.

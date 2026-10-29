@@ -1,6 +1,6 @@
 # Een baseline opslaan en beheren
 
-Doel: de planning vastleggen als afspraak (een baseline), zodat je later kunt zien hoeveel de uitvoering afwijkt, en meerdere baselines bewaren, hernoemen, kiezen en verwijderen.
+Doel: de planning vastleggen als afspraak (een baseline), zodat je later kunt zien hoeveel de uitvoering afwijkt, en meerdere baselines bewaren, hernoemen, kiezen, vergelijken en verwijderen.
 
 ## Wanneer je dit nodig hebt
 
@@ -16,11 +16,23 @@ Je legt een baseline vast als de planning is goedgekeurd en het werk nog moet be
 4. Klik op *Opslaan*. De baseline staat nu in de lijst en is meteen de actieve baseline.
 5. Klik op *Sluiten*.
 
-Onder elke taakbalk in de Gantt staat nu een dunne balk met de baseline-datums; een mijlpaal krijgt een klein ruitje. Die overlay gaat aan of uit met *Beeld › Baselines & voortgang › Baseline-overlay*.
+Onder elke taakbalk in de Gantt staat nu een smalle strook met de baseline-datums; een mijlpaal krijgt een klein ruitje. Die overlay gaat aan of uit met *Beeld › Baselines & voortgang › Baseline-overlay*.
 
 ### De actieve baseline kiezen
 
 Open *Baselines beheren…* en kies in de kolom *Actief* de baseline waar je mee wilt vergelijken. Zolang er baselines zijn, is er precies één actief. De Gantt-overlay, het rapporttype *Variance* en het *Voortgangsrapport* gebruiken die.
+
+### Meerdere baselines tegelijk tonen
+
+Naast de actieve baseline kun je nog twee andere baselines in de Gantt tonen. Zo zie je hoe de planning per herziening is verschoven.
+
+1. Klik op het pijltje ▾ onder *Beeld › Baselines & voortgang › Baseline-overlay*. Het menu *Toon in de Gantt* opent.
+2. Vink de baselines aan die je wilt zien. De actieve baseline staat bovenaan en is altijd aan. Je toont maximaal 3 baselines tegelijk: de actieve en twee andere.
+3. Klik op het pijltje of buiten het menu om het menu te sluiten.
+
+Elke baseline heeft een eigen kleur: de actieve is grijs, de tweede cyaan en de derde roze-paars. De statusbalk onderaan toont een legenda met de namen. Onder elke taakbalk staat één strook. Waar twee of drie baselines dezelfde dagen beslaan, heeft de strook schuine strepen in hun kleuren. Waar één baseline ligt, is de strook effen. Mijlpalen op dezelfde datum delen één gestreept ruitje. Wijs de strook aan: de tooltip toont per baseline de naam, de start en het einde.
+
+De keuze hoort bij het project: de app bewaart hem in het projectbestand, en Ctrl+Z maakt een wijziging ongedaan. Het rapport tekent dezelfde strook als *Baseline-overlay tonen* aan staat.
 
 ### Een baseline hernoemen
 
@@ -50,7 +62,11 @@ Elke baseline heeft zes kolommen in de takentabel. Klik op de **+** rechts in de
 
 **Project verplaatsen.** In het venster *Project verplaatsen…* staat, zodra er baselines zijn, het vinkje *Baselines mee verschuiven*. Het staat standaard uit: de baselines blijven staan, zodat de verschuiving als afwijking zichtbaar blijft. Zie [Project verplaatsen](docs://howto-project-verplaatsen).
 
-**Bewaard in het projectbestand.** Baselines en de actieve keuze worden met het project opgeslagen en komen terug als je het bestand opent.
+**Een getoonde baseline actief maken.** Maak je in *Baselines beheren…* een baseline actief die je al extra toont, dan gaat hij uit het menu *Toon in de Gantt*. Hij staat dan als actieve baseline in de strook. Verwijder je een getoonde baseline, dan verdwijnt hij ook uit de Gantt.
+
+**Een vierde baseline aanvinken kan niet.** Staan er al drie baselines in de Gantt, dan zijn de andere baselines in het menu grijs. Vink eerst een baseline uit.
+
+**Bewaard in het projectbestand.** Baselines, de actieve keuze en de baselines die je extra toont, worden met het project opgeslagen en komen terug als je het bestand opent.
 
 ## Zie ook
 

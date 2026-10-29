@@ -52,7 +52,7 @@ Standaard is een taak kritiek als de totale speling 0 is of minder. Dat is aan t
 
 ### Waar je het ziet
 
-Kritieke taken hebben een rode balk in de Gantt. Achter een niet-kritieke balk staat een groene band tot aan het laatste einde van de taak: dat is de speling. Die band gaat aan of uit met *Beeld › Baselines & voortgang › Spelingsband*.
+Kritieke taken hebben een rode balk in de Gantt. Achter een niet-kritieke balk staat een groene band tot aan het laatste einde van de taak: dat is de speling. Die band gaat aan of uit met *Beeld › Balken › Spelingsband*.
 
 Bij een geselecteerde taak staat in het paneel *Eigenschappen* onder *CPM Resultaat* alles op een rij: vroegste en laatste start en einde, totale, vrije en interfererende speling, en of de taak op het kritieke pad ligt. De speling van alle taken naast elkaar zie je in de kolommen onder *Berekend* (de **+** rechts in de tabelkop), zoals *Totale speling*, *Vrije speling*, *Kritiek* en *Bijna kritiek*.
 

@@ -583,6 +583,59 @@ en noem het in je rapport of PR-tekst.
      besluit het vraagt. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8h (gevallen `dag`, ma
      18:00 en ma 05:00). Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst" betekent. — B
 
+448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
+    alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
+    dat `Popover` gebruikt, ook het menu *Toon in de Gantt* van Baseline-overlay (PR #403). Gezien in
+    `tests/browser/multi-baselines.spec.ts` (2026-10-20). Voorstel: Escape in `Popover` laten sluiten en
+    de focus terugzetten op de trigger. — B
+449. **Menu *Toon in de Gantt*: de toetsenbordfocus gaat niet het menu in.** Enter of ArrowDown op het pijltje
+    van Baseline-overlay opent het menu, maar de focus blijft op de trigger, en de `menuitemcheckbox`-regels
+    kennen geen pijltjesbediening (`src/components/layout/Ribbon/BaselineOverlaySplitButton.tsx`, geen
+    focus- of toetsafhandeling). Vervolgpunt uit review ronde 1 van PR #403 (GPT-6.1-Sol). Voorstel: focus
+    naar het eerste vinkje bij openen, pijltjes omhoog/omlaag, terug naar de trigger bij sluiten. — B
+450. **Korte baselinestukken worden stippen.** `stripOutline` (`src/engine/renderer/baselineStrip.ts`) neemt
+    als straal `min(h/2, (x2-x1)/2)`; bij `x1=100, x2=102, h=5` met twee ronde kanten loopt de vorm van
+    y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
+    PR #403 (GPT-6.1-Sol). Voorstel: de straal begrenzen zonder de hoogte te verliezen (rechte kant bij
+    smalle stukken). — B
+451. **Een baseline met een lege start breekt het bereik.** `baselineReach` (`src/types/baseline.ts`) slaat
+    een niet-datum over: `{start: '', finish: '2026-07-01'}` bij taken in oktober geeft `earliest: null`, dus
+    tijdas-oorsprong en rapportbereik nemen die baseline niet mee. De tekenfunctie valt wel terug. Vervolgpunt
+    uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: dezelfde terugvalregel als de tekenfunctie. — B
+452. **`Popover` met `fitViewport` loopt in een laag venster toch buiten beeld.** De hoogte heeft een vloer van
+    120 px (`src/components/common/Popover.tsx`, `Math.max(120, …)`); bij 30 baselines in 1280×240 eindigt
+    de voetregel van het menu *Toon in de Gantt* op y=247. Vervolgpunt uit review ronde 2 van PR #403
+    (GPT-6.1-Sol). Voorstel: de vloer laten vallen als er minder ruimte is, of het menu boven de trigger
+    openen. — B
+453. **Een baseline-ruit op de rapportgrens wordt gehalveerd.** In de afdruk (`printPreview.ts`) is de ruit
+    van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
+    2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
+    (GPT-6.1-Sol). — B
+454. **Afdruk en scherm hebben een andere baselinestrook.** Bij rijhoogte 24 is de strook 3 px op het scherm en
+    3,696 px op papier (`printPreview.ts` rekent eigen verhoudingen). Vervolgpunt uit review ronde 2 van
+    PR #403 (GPT-6.1-Sol). Voorstel: strookdikte en streepbreedte uit dezelfde geometriebron als het scherm
+    (`barLayout` in `rowGeometry.ts`). — B
+455. **De minimumbreedte van 2 px trekt de afdrukstrook onder de tabel.** In `printPreview.ts` komt de
+    verbreding van korte stukken (`widenShortRuns`) na `clampX`. Voorbeeld: tijdvenster vanaf 20 oktober,
+    5 px/dag, baselines 00:00–01:00 en 02:00–03:00: de tabel eindigt op x=335, de eerste strook begint op
+    x=333,42. Vervolgpunt uit review ronde 3 van PR #403 (GPT-6.1-Sol). Voorstel: na de verbreding opnieuw
+    op de tabelgrens begrenzen. — B
+456. **Een baseline helemaal in niet-werktijd verdwijnt op de werkdag-as.** Met *Alleen werkbare dagen tonen*
+    aan heeft bijvoorbeeld za 24 okt 09:00–10:00, of een dagbaseline op zaterdag, geen breedte; de strook
+    wordt niet getekend en de hover noemt hem niet (`GanttRenderer.ts`, `printPreview.ts`, scherm en afdruk
+    gelijk). De kalender-as toont hem wel. Vervolgpunt uit review ronde 4 van PR #403 (GPT-6.1-Sol).
+    Voorstel: een los minimaal merkteken, zonder valse overlap. — B
+457. **De Gantt bouwt de actieve baseline-overlay drie keer.** `GanttCanvas.tsx` maakt hem apart voor het
+    bereik, voor de losse overlay (`baselineOverlay`) en in de lagen (`buildBaselineLayers`). Geen
+    gedragsfout, alleen opruimwerk. Vervolgpunt uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: één
+    opbouw, de rest afleiden uit de lagen. — B
+458. **De onderste punt van een baselineruit reageert niet op de hover.** Bij rijhoogte 32 en kophoogte 60 ligt
+    het ruitmidden op y=89,1 met halve diagonaal 4; de ruit loopt tot y=93,1, maar de rij eindigt op y=92.
+    Op (11,25; 92,7) ligt de muis in de getekende ruit, maar `getBaselineAt` (`GanttRenderer.ts`) zoekt
+    via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
+    (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
+    de balkgeometrie te veranderen. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -1502,6 +1555,12 @@ en noem het in je rapport of PR-tekst.
      nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
      met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
      2026-10-29. — B
+490. **Lint-muiswiel: de poort voor een openstaande vraag heeft geen teststap.** `useRibbonTabWheel.ts`
+     wisselt niet als het bewaren van het actieve veld een vraag opent (`isBlockingDialogOpen`). De stap in
+     `tests/browser/ribbon-toggles.spec.ts` toetst alleen een duur, en die opent geen vraag. Route die de
+     reviewer met de hand naliep: taak in de toekomst zonder werkelijke start → werkelijk einde invullen →
+     wiel boven de tabs; de startvraag opent, Tabel blijft actief. Voorstel: die route als stap aan hetzelfde
+     scenario toevoegen. Gevonden in review van #732 (GPT-6.1-Sol), 2026-10-29. — B
 
 402. **De nieuwe MCP-waarschuwing zegt te ruim dat vastgepinde taken niet verschuiven.**
      `src/services/mcp/tools/calendarResourceTools.ts:1618` zegt dat pins niet
@@ -1513,6 +1572,11 @@ en noem het in je rapport of PR-tekst.
      nuance in distribute.ts:101. Alleen tekst; geen nieuwe gedragsfout.
      Twee onafhankelijke broncontroles bij PR #678; niet lokaal uitgevoerd.
      — B
+495. **Gidsvertalingen noemen de lintknop nog *Waarschuwingen* in plaats van *Waarschuwingspaneel*.** Sinds #735
+     heet de knop in alle 28 talen anders (bijv. Duits *Warnungsbereich*), maar alleen de gidsen nl/en zijn
+     bijgewerkt. Voorbeeld: `public/docs/de/ref-lint.md:70` (**Warnungen**) en `public/docs/de/ref-meldingen.md:30`
+     (*Planung › Terminplanung › Warnungen*); in 24 lintgidsvertalingen staat de oude naam. Voorstel: bij de
+     volgende `update-docs-lang`-ronde meenemen. Gevonden in review van #735 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
