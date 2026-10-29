@@ -1,6 +1,7 @@
 import type { ExportFormat } from './formatRegistry';
 import type { XerImportMetadata } from './importTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
+import { mspdiCriticalSlackLimit } from './msproject/mspdiCriticalSlackLimit';
 import type { BuiltInProfileId, Project, ProjectSchedulingOptions } from '@/types/project';
 import { CONVENTION_KEYS, builtInConventions, resolveConventions } from '@/engine/scheduler/conventions/registry';
 import type { Task } from '@/types/task';
@@ -8,6 +9,7 @@ import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Baseline } from '@/types/baseline';
+import { isSummaryTask } from '@/utils/taskHierarchy';
 
 export type XerLossyExportFormat = Exclude<ExportFormat, 'ifc'>;
 export type XerExportLossCategory =
@@ -21,10 +23,15 @@ export type XerExportLossCategory =
   | 'raw-curves-and-assignment-quantities'
   | 'external-links'
   | 'schedule-options-and-provenance'
-  | 'p6-relation-lag-degradation';
+  | 'p6-relation-lag-degradation'
+  | 'constraints'
+  | 'manual-scheduling'
+  | 'hammock-tasks';
 
 export interface XerExportLossWarning {
-  readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE';
+  /** `XER_ONLY_…`: het document draagt een XER-archief of XER-importmetadata. `EXPORT_…`: een document
+   *  zonder XER-herkomst; dan kunnen alleen de categorieën uit live documentdata voorkomen (#554). */
+  readonly code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE' | 'EXPORT_DATA_NOT_EXPRESSIBLE';
   readonly format: XerLossyExportFormat;
   /** Er bestaat geen `.mpp`-export (de lezer is alleen-lezen). */
   readonly availability: 'supported-lossy';
@@ -36,7 +43,7 @@ export interface XerExportLossInput {
   readonly sourceArchive: XerSourceArchive | null;
   readonly importMetadata: XerImportMetadata | null;
   readonly project: Pick<Project, 'progressMode' | 'schedulingOptions' | 'schedulingProfile'>;
-  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks'>[];
+  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint' | 'constraint2' | 'manuallyScheduled' | 'isHammock' | 'isSummary' | 'childIds'>[];
   readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
   readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
   readonly activityCodeTypes: readonly ActivityCodeType[];
@@ -52,6 +59,9 @@ interface ExportCapabilities {
   readonly projectedAssignments: boolean;
   readonly percentLag: boolean;
   readonly elapsedLag: boolean;
+  /** Welke datumconstraints de writer schrijft. CSV heeft geen kolom; MSPDI kent één ConstraintType; P6 XML
+   *  schrijft primair en secundair, maar alleen op een activiteit: een verzameltaak wordt een WBS-element. */
+  readonly constraints: 'none' | 'primary' | 'activities';
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
@@ -75,6 +85,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: false,
     percentLag: true,
     elapsedLag: true,
+    constraints: 'none',
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -83,6 +94,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: true,
     elapsedLag: true,
+    constraints: 'primary',
     schedulingOptions: 'critical-slack-limit',
     reopenProfile: 'ops',
   },
@@ -91,6 +103,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     projectedAssignments: true,
     percentLag: false,
     elapsedLag: false,
+    constraints: 'activities',
     schedulingOptions: 'none',
     reopenProfile: 'ops',
   },
@@ -188,13 +201,8 @@ function hasAssignmentLoss(
 }
 
 function isMspdiCriticalSlackLimit(options: ProjectSchedulingOptions): boolean {
-  const definition = options.criticalDefinition;
-  if (!definition
-    || definition.mode !== 'totalFloat'
-    || typeof definition.threshold !== 'number'
-    || !Number.isInteger(definition.threshold)
-    || definition.threshold < 0
-    || definition.thresholdHours !== undefined) return false;
+  // Dezelfde beslissing als de MSPDI-writer: wat hij niet als CriticalSlackLimit schrijft, is verlies.
+  if (mspdiCriticalSlackLimit(options.criticalDefinition) === undefined) return false;
   return Object.entries(options).every(([key, value]) =>
     value === undefined || key === 'criticalDefinition');
 }
@@ -227,6 +235,18 @@ function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossI
   return capabilities.schedulingOptions === 'none' || !isMspdiCriticalSlackLimit(options);
 }
 
+function hasConstraintLoss(
+  capabilities: ExportCapabilities,
+  task: XerExportLossInput['tasks'][number],
+): boolean {
+  const primary = task.constraint !== undefined && task.constraint.type !== 'ASAP';
+  switch (capabilities.constraints) {
+    case 'none': return primary || task.constraint2 !== undefined;
+    case 'primary': return task.constraint2 !== undefined;
+    case 'activities': return isSummaryTask(task) && (primary || task.constraint2 !== undefined);
+  }
+}
+
 function categoriesFor(
   format: Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>,
   input: XerExportLossInput,
@@ -256,6 +276,10 @@ function categoriesFor(
     || (!capabilities.elapsedLag && input.sequences.some(sequence => sequence.lagUnit === 'ELAPSEDTIME'))) {
     categories.push('p6-relation-lag-degradation');
   }
+  if (input.tasks.some(task => hasConstraintLoss(capabilities, task))) categories.push('constraints');
+  // Geen van de drie writers schrijft deze twee: ze gaan als gewone taak met berekende datums.
+  if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
+  if (input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
   return categories;
 }
 
@@ -268,11 +292,14 @@ export function detectXerExportLoss(
   input: XerExportLossInput,
 ): readonly XerExportLossWarning[] {
   if (format === 'ifc' || isProgressSheetFormat(format)) return [];
-  if (!input.sourceArchive && !input.importMetadata) return [];
+  // Geen vroege uitweg voor een document zonder XER-herkomst: verlies hangt af van de data, niet van
+  // de herkomst (#554). Zonder archief en metadata blijven de XER-categorieën vanzelf leeg.
   const categories = categoriesFor(format, input);
   if (categories.length === 0) return [];
   return [{
-    code: 'XER_ONLY_DATA_NOT_EXPRESSIBLE',
+    code: input.sourceArchive || input.importMetadata
+      ? 'XER_ONLY_DATA_NOT_EXPRESSIBLE'
+      : 'EXPORT_DATA_NOT_EXPRESSIBLE',
     format,
     availability: 'supported-lossy',
     categories,
