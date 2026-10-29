@@ -8,7 +8,9 @@
  *
  *  - TASK, per activiteit: `OPS_TaskDurationUnit` (`days` of `hours`), en waar nodig de maatrecords
  *    `OPS_DayMeasureDurations` (dagenmaat met een breuk), `OPS_ExactMinutes` (urenmaat met een breuk in
- *    minuten) en `OPS_DayMeasureLags` (de lagen naar deze activiteit; sleutel `voorganger-task_id:type`);
+ *    minuten) en `OPS_DayMeasureLags` (de lagen naar deze activiteit; sleutel `voorganger-task_id:type`), en
+ *    `OPS_InheritedWorkRule` als de activiteit geen eigen werkregel heeft maar de projectstandaard erft (de
+ *    geërfde regel; `duration_type` draagt hem als token; review PR #393 ronde 3, punt 2);
  *  - PROJECT: `OPS_DefaultWorkRule`, de standaardwerkregel van het project (alleen als het project er
  *    een koos; review PR #393 ronde 2, punt E2);
  *  - RSRC: `OPS_FlatCapacity`, de geschreven `max_qty_per_hr` van een resource met een vaste capaciteit
@@ -35,6 +37,8 @@ import {
 import { WORK_RULES, type WorkRule } from '@/types/workRule';
 import type { XerRow, XerTables } from './xerTables';
 
+/** De geërfde werkregel van een activiteit zonder eigen regel, als TASK-UDF. */
+export const OPS_XER_INHERITED_WORK_RULE_NAME = 'OPS_InheritedWorkRule';
 /** De standaardwerkregel van het project (`Project.defaultWorkRule`), als PROJECT-UDF. */
 export const OPS_XER_DEFAULT_WORK_RULE_NAME = 'OPS_DefaultWorkRule';
 /** De geschreven `max_qty_per_hr` van een resource met vaste capaciteit, als RSRC-UDF. */
@@ -72,8 +76,8 @@ export function parseCapacitySteps(text: string): ReadonlyMap<string, CapacitySt
 /** De duurvelden van een activiteit, op hun XER-naam (de sleutels in een duurrecord). */
 export const XER_DURATION_FIELDS = { duration: 'target_drtn_hr_cnt', remaining: 'remain_drtn_hr_cnt' } as const;
 
-export type XerOpsField = 'unit' | 'dayRecords' | 'exactRecords' | 'lagRecords' | 'defaultWorkRule' | 'flatCapacity'
-  | 'capacitySteps';
+export type XerOpsField = 'unit' | 'dayRecords' | 'exactRecords' | 'lagRecords' | 'inheritedWorkRule' | 'defaultWorkRule'
+  | 'flatCapacity' | 'capacitySteps';
 
 /** Elke OPS-UDF: haar naam, de tabel waar ze op staat, en wat ze draagt. Alleen tekst (`FT_TEXT`). */
 export const OPS_XER_UDFS: readonly { field: XerOpsField; label: string; table: 'TASK' | 'PROJECT' | 'RSRC' }[] = [
@@ -81,14 +85,13 @@ export const OPS_XER_UDFS: readonly { field: XerOpsField; label: string; table: 
   { field: 'dayRecords', label: OPS_DAY_MEASURE_DURATIONS_NAME, table: 'TASK' },
   { field: 'exactRecords', label: OPS_EXACT_MINUTES_NAME, table: 'TASK' },
   { field: 'lagRecords', label: OPS_DAY_MEASURE_LAGS_NAME, table: 'TASK' },
+  { field: 'inheritedWorkRule', label: OPS_XER_INHERITED_WORK_RULE_NAME, table: 'TASK' },
   { field: 'defaultWorkRule', label: OPS_XER_DEFAULT_WORK_RULE_NAME, table: 'PROJECT' },
   { field: 'flatCapacity', label: OPS_XER_FLAT_CAPACITY_NAME, table: 'RSRC' },
   { field: 'capacitySteps', label: OPS_XER_CAPACITY_STEPS_NAME, table: 'RSRC' },
 ];
 
 export interface XerOpsFields {
-  /** De `udf_type_id`'s van alle OPS-definities; de metadatalezer laat ze weg. */
-  typeIds: ReadonlySet<string>;
   /** `task_id` → eenheid. Alleen een eenduidige, geldige waarde: twee verschillende waarden voor één
    *  activiteit tellen als geen waarde (urenmaat, zoals op main). */
   unitByTask: ReadonlyMap<string, 'days' | 'hours'>;
@@ -97,6 +100,8 @@ export interface XerOpsFields {
   exactRecordsByTask: ReadonlyMap<string, string>;
   /** `task_id` van de opvolger → de JSON-tekst van de lagrecords. */
   lagRecordsByTask: ReadonlyMap<string, string>;
+  /** `task_id` → de geërfde werkregel (een geldige `WorkRule`). */
+  inheritedWorkRuleByTask: ReadonlyMap<string, WorkRule>;
   /** `proj_id` → de standaardwerkregel (een geldige `WorkRule`). */
   defaultWorkRuleByProject: ReadonlyMap<string, WorkRule>;
   /** `rsrc_id` → de geschreven capaciteit per uur. */
@@ -106,8 +111,8 @@ export interface XerOpsFields {
 }
 
 const EMPTY: XerOpsFields = {
-  typeIds: new Set(), unitByTask: new Map(), dayRecordsByTask: new Map(), exactRecordsByTask: new Map(),
-  lagRecordsByTask: new Map(), defaultWorkRuleByProject: new Map(), flatCapacityByResource: new Map(),
+  unitByTask: new Map(), dayRecordsByTask: new Map(), exactRecordsByTask: new Map(),
+  lagRecordsByTask: new Map(), inheritedWorkRuleByTask: new Map(), defaultWorkRuleByProject: new Map(), flatCapacityByResource: new Map(),
   capacityStepsByResource: new Map(),
 };
 
@@ -143,6 +148,7 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
     dayRecords: new Map(), exactRecords: new Map(), lagRecords: new Map(),
   };
   const defaultWorkRuleByProject = new Map<string, WorkRule>();
+  const inheritedWorkRuleByTask = new Map<string, WorkRule>();
   const flatCapacityByResource = new Map<string, number>();
   const capacityStepsByResource = new Map<string, ReadonlyMap<string, CapacityStepRecord>>();
   for (const row of tables.tables.get('UDFVALUE')?.rows ?? []) {
@@ -154,9 +160,10 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
       const unit = isTaskDurationUnit(text) ? text : null;
       const seen = units.get(key);
       units.set(key, seen === undefined || seen === unit ? unit : null);
-    } else if (field === 'defaultWorkRule') {
+    } else if (field === 'defaultWorkRule' || field === 'inheritedWorkRule') {
       const rule = WORK_RULES.find(candidate => candidate === text);
-      if (rule && !defaultWorkRuleByProject.has(key)) defaultWorkRuleByProject.set(key, rule);
+      const target = field === 'defaultWorkRule' ? defaultWorkRuleByProject : inheritedWorkRuleByTask;
+      if (rule && !target.has(key)) target.set(key, rule);
     } else if (field === 'flatCapacity') {
       const value = text === '' ? NaN : Number(text);
       if (Number.isFinite(value) && value >= 0 && !flatCapacityByResource.has(key)) flatCapacityByResource.set(key, value);
@@ -169,11 +176,11 @@ export function readXerOpsFields(tables: XerTables): XerOpsFields {
   const unitByTask = new Map<string, 'days' | 'hours'>();
   for (const [key, unit] of units) if (unit) unitByTask.set(key, unit);
   return {
-    typeIds: new Set(fieldByTypeId.keys()),
     unitByTask,
     dayRecordsByTask: texts.dayRecords,
     exactRecordsByTask: texts.exactRecords,
     lagRecordsByTask: texts.lagRecords,
+    inheritedWorkRuleByTask,
     defaultWorkRuleByProject,
     flatCapacityByResource,
     capacityStepsByResource,

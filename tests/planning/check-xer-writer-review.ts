@@ -127,9 +127,13 @@ const UDFTYPE_DEF = [
   const lines = written.text.split('\r\n');
   const udfValueStart = lines.indexOf('%T\tUDFVALUE');
   ok('R1d de export draagt markerwaarden', udfValueStart > 0);
-  // Haal de markerwaarde van de eerste taak weg.
+  // Haal de OPS-waarden van de eerste taak weg, zoals bij een activiteit die in P6 is toegevoegd.
   const taskValue = lines.findIndex((l, i) => i > udfValueStart && l.startsWith('%R\t') && l.split('\t')[1] === '900000001');
-  const partial = lines.filter((_, i) => i !== taskValue).join('\r\n');
+  const firstTaskId = lines[taskValue].split('\t')[2];
+  const isValueOfFirstTask = (l: string, i: number) => i > udfValueStart && l.startsWith('%R\t') && l.split('\t')[2] === firstTaskId;
+  const partial = lines.filter((l, i) => !isValueOfFirstTask(l, i)).join('\r\n');
+  // Alleen de eenheidswaarde weg (de andere OPS-waarden van die taak blijven): de maat leest als op main.
+  const unitOnly = lines.filter((_, i) => i !== taskValue).join('\r\n');
   // Hetzelfde bestand zonder UDFTYPE/UDFVALUE: zo leest de lezer het als gewone P6-XER (zoals op main).
   const stripped: string[] = [];
   let skip = false;
@@ -143,7 +147,10 @@ const UDFTYPE_DEF = [
   const byName = (r: ImportResult, name: string) => r.tasks.find(t => t.name === name);
   // Herschreven (oude opzet: "onvolledige markerwaarden ⇒ het hele project leest als gewone P6-XER"). Nu per
   // taak (ronde 2, punt A): de taak zonder waarde leest precies als zonder OPS-UDF's.
-  eq('R1e taak zonder markerwaarde ⇒ leest als op main', byName(partialRead, 'Een'), byName(plainRead, 'Een'));
+  // Herschreven in ronde 3: de taak heeft nu GEEN enkele OPS-waarde (zoals een in P6 toegevoegde activiteit).
+  // Met alleen de eenheid weg erft ze nog de werkregel (`OPS_InheritedWorkRule`, punt 2): zie R1e3.
+  eq('R1e taak zonder OPS-waarden ⇒ leest als op main', byName(partialRead, 'Een'), byName(plainRead, 'Een'));
+  eq('R1e3 alleen de eenheid weg ⇒ de maat leest als op main', byName(read(enc(unitOnly)), 'Een')?.time, byName(plainRead, 'Een')?.time);
   eq('R1e2 taak zonder markerwaarde ⇒ urenmaat', byName(partialRead, 'Een')?.time.durationUnit, 'hours');
   // Herschreven (oude opzet: "onvolledige markerwaarden ⇒ de UDF's blijven zichtbaar"). Nu: de andere taak
   // merkt niets van de taak zonder waarde (ronde 2, punt A).
@@ -528,12 +535,12 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
     const back = doc1.tasks.find(t => t.name === 'Erft')!;
     eq(`R10a ${label}: na heropenen geen eigen werkregel`, back.workRule, undefined);
     eq(`R10b ${label}: geen verlies`, w.loss, []);
+    // Opnieuw exporteren na heropenen (vóór de wissel): hetzelfde duurtype als de eerste export.
+    eq(`R10e ${label}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').map(r => r.duration_type), rowsOf(w.bytes, 'TASK').map(r => r.duration_type));
     const before = switchToFixedWork(doc0);
     const after = switchToFixedWork(doc1);
     eq(`R10c ${label}: standaard naar Vast werk ⇒ origineel urentaak van 960 min`, [before.time.durationUnit, before.time.durationMinutes], ['hours', 960]);
     eq(`R10d ${label}: standaard naar Vast werk ⇒ heropend gelijk aan het origineel`, [after.time.durationUnit, after.time.durationMinutes], [before.time.durationUnit, before.time.durationMinutes]);
-    // Opnieuw exporteren na heropenen: hetzelfde duurtype als de eerste export.
-    eq(`R10e ${label}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').map(r => r.duration_type), rowsOf(w.bytes, 'TASK').map(r => r.duration_type));
   }
   // In P6 gewijzigd: een ander duurtype ⇒ een eigen regel, zoals op main.
   const { w } = route('FIXED_DURATION_RATE');
@@ -573,7 +580,8 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
   for (const name of ['Uren', 'Dagen']) {
     const m = marked.tasks.find(t => t.name === name)!;
     eq(`R11b ${name}: duur en rest zoals in het bestand (2419,8 en 740,7 min)`, [m.time.durationUnit, m.time.durationMinutes, m.time.remainingMinutes], ['hours', 2419.8, 740.7]);
-    eq(`R11c ${name}: de tijd leest als zonder OPS-velden`, m.time, plain.tasks.find(t => t.name === name)!.time);
+    const sorted = (time: object) => Object.fromEntries(Object.entries(time).sort(([a], [b]) => a.localeCompare(b)));
+    eq(`R11c ${name}: de tijd leest als zonder OPS-velden`, sorted(m.time), sorted(plain.tasks.find(t => t.name === name)!.time));
   }
   // De route: laden en F5 geven hetzelfde einde als het bestand zonder OPS-velden.
   const docMarked = load(marked); f5(docMarked);
@@ -581,8 +589,11 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
   eq('R11d na laden en F5: zelfde vroeg einde als zonder OPS-velden',
     docMarked.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish),
     docPlain.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish));
-  // Opnieuw exporteren: de breuk gaat mee (40,33 u).
-  eq('R11e tweede export: 40,33 u blijft 40,33 u', rowsOf(exportDoc(docMarked).bytes, 'TASK').map(r => r.target_drtn_hr_cnt), ['40.33', '40.33']);
+  // Opnieuw exporteren: de breuk gaat mee. Het standaardveld draagt de hele minuut, het record de breuk (T14,
+  // zoals P6 XML); heropenen geeft weer 2419,8 en 740,7 min.
+  const again = read(exportDoc(docMarked).bytes);
+  eq('R11e tweede export en heropenen: 2419,8 en 740,7 min', again.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen')
+    .map(t => [t.time.durationMinutes, t.time.remainingMinutes]), [[2419.8, 740.7], [2419.8, 740.7]]);
 }
 
 for (const note of notes) console.log(`   · ${note}`);

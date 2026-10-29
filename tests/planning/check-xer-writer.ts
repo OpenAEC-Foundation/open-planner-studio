@@ -338,6 +338,13 @@ function alignCalendarKind(original: Doc, reread: Doc, calendarIssues: string[] 
   return { calendar: align(original.calendar), calendars: original.calendars.map(align) };
 }
 
+/** Het aantal kalenders (uniek per id) zonder eigen werktijdblokken die na heropenen er wel hebben. */
+function changedCalendarKinds(original: Doc, reread: Doc): number {
+  const unique = (doc: Doc) => [...new Map([doc.calendar, ...doc.calendars].map(c => [c.id, c])).values()];
+  const twins = unique(reread);
+  return unique(original).filter(c => !c.workTime && twins.find(t => t.name === c.name)?.workTime).length;
+}
+
 /** (b): reken beide door met dezelfde regels en vergelijk vroeg/laat/speling per bladtaak. Met
  *  `sameCalendarKind: false` blijft de kalendersoort van het origineel staan (voor de notitie). */
 function compareSchedules(label: string, original: Doc, back: XerReadResult, sameCalendarKind = true): string[] {
@@ -511,7 +518,9 @@ function synthetic(): Doc {
   eq('S18a scalaire kalenders komen terug met hun eigen banden', calendarIssues, []);
   const sched = compareSchedules('synthetisch', doc, back);
   eq('S18 (b) zelfde vroege/late datums en speling', sched, []);
-  notes.push(`synthetisch: zonder gelijke kalendersoort wijken ${compareSchedules('synthetisch', doc, back, false).length} datums/spelingen af`);
+  const unaligned = compareSchedules('synthetisch', doc, back, false);
+  notes.push(`synthetisch: zonder gelijke kalendersoort wijken ${unaligned.length} datums/spelingen af`);
+  ok('S18b wijken datums af zonder gelijkstelling, dan meldt de export de kalendersoort', unaligned.length === 0 || written.loss.some(l => l.code === 'calendarKinds'));
   // Kalenders: banden, feestdagen, werkende uitzondering.
   const zes = back.resourceCalendars?.find(c => c.name === 'Zesdaagse week');
   eq('S19 zesdaagse kalender: werkdagen', zes?.workDays, [1, 2, 3, 4, 5, 6]);
@@ -526,9 +535,10 @@ function synthetic(): Doc {
   // Notities en codes.
   eq('S25 notitie terug met regeleinde', back.tasks.find(t => t.name === 'Ruwbouw')?.notes?.map(x => x.text), ['Let op:\nkraan huren']);
   eq('S26 projectcode als proj_short_name', back.xer.scheduleOptions.sourceRows.find(r => r.table === 'PROJECT')?.cells.proj_short_name, 'RND-01');
-  // Verliesverslag: dit project heeft feestdagnamen, een beschrijving bij een resource (gaat mee),
-  // en geen andere verliezen.
-  eq('S27 verliesverslag', written.loss, [{ code: 'holidayNames', count: 5 }]);
+  // Verliesverslag: dit project heeft feestdagnamen, een beschrijving bij een resource (gaat mee), twee
+  // scalaire kalenders (Werkweek, Zesdaagse week; ronde 3, punt 1), en geen andere verliezen.
+  eq('S27 verliesverslag', written.loss, [{ code: 'calendarKinds', count: 2 }, { code: 'holidayNames', count: 5 }]);
+  eq('S27b de melding telt precies de kalenders die van soort wisselen', written.loss.find(l => l.code === 'calendarKinds')?.count, changedCalendarKinds(doc, docOf(back)));
   // Vastgelegde rekenuitvoer reist mee als "Datums zoals opgeslagen".
   const rec = back.recordedTimes?.[back.tasks.find(t => t.name === 'Gevel')!.id];
   const gevel = doc.tasks.find(t => t.name === 'Gevel')!;
@@ -607,10 +617,13 @@ function synthetic(): Doc {
     eq(`E7k ${file}: scalaire kalenders komen terug met hun eigen banden`, calendarIssues, []);
     const sched = compareSchedules(file, withoutDeadlines, back);
     eq(`E7 ${file}: (b) zelfde vroege/late datums en speling`, sched, []);
-    const scalarCount = [original.calendar, ...original.calendars].filter(c => !c.workTime).length;
-    if (scalarCount > 0) {
-      notes.push(`${file}: ${scalarCount} scalaire kalender(s); zonder gelijke kalendersoort wijken ${compareSchedules(file, withoutDeadlines, back, false).length} datums/spelingen af`);
-    }
+    // Zonder gelijkstelling van de kalendersoort (ronde 3, punt 1): wijken datums of speling af, dan meldt de
+    // export de kalendersoort, met precies het aantal kalenders dat van soort wisselt.
+    const changed = changedCalendarKinds(original, docOf(back));
+    const unaligned = compareSchedules(file, withoutDeadlines, back, false);
+    eq(`E7m ${file}: de melding telt de kalenders die van soort wisselen`, written.loss.find(l => l.code === 'calendarKinds')?.count, changed > 0 ? changed : undefined);
+    ok(`E7n ${file}: datums wijken af zonder gelijkstelling ⇒ melding`, unaligned.length === 0 || written.loss.some(l => l.code === 'calendarKinds'));
+    if (changed > 0) notes.push(`${file}: ${changed} scalaire kalender(s); zonder gelijke kalendersoort wijken ${unaligned.length} datums/spelingen af`);
     notes.push(`${file}: ${original.tasks.length} taken, ${original.sequences.length} relaties, verlies ${JSON.stringify(written.loss)}`);
   }
 }

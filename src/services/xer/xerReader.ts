@@ -48,6 +48,7 @@ import { deriveImportedWorkRules } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { taskWorkMinutes as activityWorkMinutesOf } from '@/engine/contour/contourEngine';
 import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
 import {
   dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, parseFieldRecords,
   parseLagRecords, readMeasure, type LagRecord,
@@ -705,6 +706,8 @@ function readXerProject(
     'PROJECT',
   );
   const mappedActivities: Task[] = [];
+  /** `task_id` → de geërfde werkregel uit `OPS_InheritedWorkRule` die nog bij `duration_type` past. */
+  const inheritedRuleByTaskId = new Map<string, WorkRule>();
   let hasExplicitTaskFinish = false;
   // Ontbrekende geplande start/finish (review PR #109, N1): vroeger '1970-01-01' en daarmee ook
   // projectstart 1970, zonder melding. Nu de gedeelde regel van alle lezers
@@ -869,6 +872,12 @@ function readXerProject(
     // eigen export (`xerOpsMarkers.ts`) leest volgens `readMeasure`. De dagenmaat komt terug in de werktijd per
     // dag van haar kalender (T13), met het record zolang duur en rest nog de geschreven minuten dragen (T21).
     // Zonder eenheid blijft alles hierboven staan, precies als op main; de andere activiteiten merken niets.
+    // Een geërfde werkregel uit een eigen export (`OPS_InheritedWorkRule`, ronde 3, punt 2): alleen zolang
+    // `duration_type` nog het token van die regel draagt. De projectstandaard toetst de lezer hieronder.
+    const inheritedRule = opsFields.inheritedWorkRuleByTask.get(row.cells.task_id);
+    if (inheritedRule && XER_DURATION_TYPE_TOKEN[inheritedRule] === row.cells.duration_type?.trim()) {
+      inheritedRuleByTaskId.set(row.cells.task_id, inheritedRule);
+    }
     const opsUnit = opsFields.unitByTask.get(row.cells.task_id);
     if (opsUnit) {
       const workMinutesPerDay = dayMeasureMinutesPerDay(effectiveCalendar, false);
@@ -880,6 +889,8 @@ function readXerProject(
         calendar: effectiveCalendar,
         dayRecords: opsUnit === 'days' ? parseFieldRecords(opsFields.dayRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
         exactRecords: opsUnit === 'hours' ? parseFieldRecords(opsFields.exactRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
+        // Zonder geldig record de minuten zoals hierboven gelezen: een echte bronbreuk blijft (ronde 3, punt 3).
+        keepSourceMinutes: true,
       });
       time.durationUnit = measure.durationUnit;
       time.scheduleDuration = measure.scheduleDuration;
@@ -1203,6 +1214,17 @@ function readXerProject(
         type: relationType.source,
         lagMinutes,
       });
+    }
+  }
+
+  // De geërfde werkregel (hierboven gemarkeerd): de taak erft weer, als de regel nog de projectstandaard is
+  // zoals de lezer die teruglas. `deriveImportedWorkRules` gaf haar een eigen regel met dezelfde waarde; alle
+  // afleidingen hierboven zagen dus dezelfde effectieve regel. Zonder markering blijft de eigen regel, als op main.
+  if (inheritedRuleByTaskId.size > 0) {
+    const projectRule = defaultWorkRule ?? DEFAULT_WORK_RULE;
+    for (const task of mappedActivities) {
+      const rule = task.p6TaskId !== undefined ? inheritedRuleByTaskId.get(task.p6TaskId) : undefined;
+      if (rule && rule === projectRule && task.workRule === rule) delete task.workRule;
     }
   }
 

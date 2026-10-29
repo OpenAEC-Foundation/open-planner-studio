@@ -525,7 +525,8 @@ en noem het in je rapport of PR-tekst.
     (`docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.1 en §7 F6) verdwijnt `mode` in F6; of F6
     ook de regels achter `hasOwnWorkBlocks` gelijk trekt, is niet nagegaan. Er is geen kalendermarkering: een
     lijst op `clndr_id` (zoals `OPS_LiteralCalendars` in P6 XML) breekt als P6 de kalenders hernummert, net als
-    review punt B van PR #393. Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
+    review punt B van PR #393. De export meldt het wel: de verliesregel `calendarKinds` noemt het aantal
+    kalenders (review ronde 3, punt 1). Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
     eigenaar. — B
 
 ## Bibliotheek, bezetting, extensies, AI

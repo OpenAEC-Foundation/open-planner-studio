@@ -231,6 +231,8 @@
     "minuteModelCalendarRepaired": "Kalender '{{calendar}}' is hersteld: het einde of de pauze paste niet bij de opgeslagen werktijd.",
     "exportXerLossItem": {
       "schedulingRules": "Rekenregels: P6 rekent met zijn eigen regels, dus datums en speling kunnen afwijken.",
+      "calendarKinds_one": "{{count}} kalender zonder eigen werktijdblokken krijgt na heropenen werktijdblokken (uurplanning): datums en speling kunnen dan afwijken",
+      "calendarKinds_other": "{{count}} kalenders zonder eigen werktijdblokken krijgen na heropenen werktijdblokken (uurplanning): datums en speling kunnen dan afwijken",
       "baselines_one": "{{count}} baseline (XER bewaart een baseline als apart project)",
       "baselines_other": "{{count}} baselines (XER bewaart een baseline als apart project)",
       "summaryRelations_one": "{{count}} relatie met een samenvattingstaak is omgezet naar relaties tussen de taken eronder",

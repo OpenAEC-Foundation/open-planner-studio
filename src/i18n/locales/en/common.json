@@ -231,6 +231,8 @@
     "minuteModelCalendarRepaired": "Calendar '{{calendar}}' was repaired: its finish or break did not match the stored working time.",
     "exportXerLossItem": {
       "schedulingRules": "Scheduling rules: P6 uses its own rules, so dates and float can differ.",
+      "calendarKinds_one": "{{count}} calendar without its own working-time bands gets working-time bands when reopened (hour planning): dates and float can then differ",
+      "calendarKinds_other": "{{count}} calendars without their own working-time bands get working-time bands when reopened (hour planning): dates and float can then differ",
       "baselines_one": "{{count}} baseline (XER stores a baseline as a separate project)",
       "baselines_other": "{{count}} baselines (XER stores a baseline as a separate project)",
       "summaryRelations_one": "{{count}} relationship with a summary task became relationships between the tasks below it",

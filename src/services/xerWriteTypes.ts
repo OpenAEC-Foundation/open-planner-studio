@@ -17,7 +17,7 @@ export type XerWriteLossCode =
   | 'levelingDelays' | 'splits' | 'percentLags' | 'elapsedLags' | 'summaryRelations'
   | 'summaryAssignments' | 'resourceTypes' | 'libraryLinks' | 'holidayNames' | 'noteStatus'
   | 'truncatedNames' | 'changedIds' | 'nonLatinText' | 'projectDetails' | 'schedulingRules'
-  | 'summaryNotes' | 'priorities';
+  | 'summaryNotes' | 'priorities' | 'calendarKinds';
 
 export interface XerWriteLoss {
   readonly code: XerWriteLossCode;
@@ -56,7 +56,7 @@ export interface XerWriteResult {
 
 /** Vaste volgorde van de regels in de melding. */
 export const LOSS_ORDER: readonly XerWriteLossCode[] = [
-  'schedulingRules', 'baselines', 'summaryRelations', 'summaryAssignments', 'percentLags', 'elapsedLags',
+  'schedulingRules', 'calendarKinds', 'baselines', 'summaryRelations', 'summaryAssignments', 'percentLags', 'elapsedLags',
   'elapsedDurations', 'manualTasks', 'levelingDelays', 'splits', 'deadlines', 'externalLinks',
   'activityCodes', 'customFields', 'customTaskTypes', 'taskCategories', 'priorities', 'taskDescriptions',
   'summaryNotes', 'noteStatus',

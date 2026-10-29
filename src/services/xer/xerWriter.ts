@@ -104,7 +104,7 @@ const FLOAT_TYPE_TOKEN = { start: 'FT_SS', finish: 'FT_FF', smallest: 'FT_Min' }
 
 /** `udf_type_id` per OPS-veld. Dezelfde nummers als de P6 XML-export waar het veld daar ook bestaat. */
 const OPS_XER_UDF_TYPE_ID: Record<XerOpsField, number> = {
-  unit: 900000001, dayRecords: 900000003, exactRecords: 900000004, lagRecords: 900000005,
+  unit: 900000001, dayRecords: 900000003, exactRecords: 900000004, lagRecords: 900000005, inheritedWorkRule: 900000006,
   defaultWorkRule: 900000008, flatCapacity: 900000009, capacitySteps: 900000010,
 };
 
@@ -653,6 +653,11 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     } : {}),
   };
   if (schedulingRulesDiffer(project, options, tasks)) lose('schedulingRules', 1);
+  // Een kalender zonder eigen werktijdblokken (alleen begin, einde en uren per dag) schrijft de XER als banden.
+  // De lezer leest elke kalender met banden als urenkalender (`xerCalendarData.ts`, gelijk aan main), dus na
+  // heropenen heeft ze eigen werktijdblokken, en de engine rekent daar anders mee (knownbug 466; review PR
+  // #393 ronde 3, punt 1). Geen markering: het besluit daarover ligt bij de eigenaar. Wel een melding.
+  lose('calendarKinds', allCalendars.filter(cal => !cal.workTime && effectiveWorkTimeBands(cal) !== undefined).length);
 
   // ── PROJWBS ──────────────────────────────────────────────────────────────────────────────────
   const order = new Map(tasks.map((t, i) => [t.id, i + 1]));
@@ -764,6 +769,12 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     opsValues.push({ field: 'unit', fkId: taskId, text: taskDurationUnit(task) });
     const records = fieldRecordsJson({ [XER_DURATION_FIELDS.duration]: duration.record, [XER_DURATION_FIELDS.remaining]: remaining.record });
     if (records !== undefined) opsValues.push({ field: taskDurationUnit(task) === 'hours' ? 'exactRecords' : 'dayRecords', fkId: taskId, text: records });
+    // Een taak zonder eigen werkregel erft de projectstandaard. `duration_type` draagt de effectieve regel, en de
+    // lezer maakt daar een eigen regel van; deze markering zegt dat ze geërfd was (review PR #393 ronde 3, punt 2).
+    const inheritedRule = effectiveWorkRule(task, project.defaultWorkRule);
+    if (task.workRule === undefined && durationType === XER_DURATION_TYPE_TOKEN[inheritedRule]) {
+      opsValues.push({ field: 'inheritedWorkRule', fkId: taskId, text: inheritedRule });
+    }
   }
 
   // Verlies op taakniveau.
@@ -982,7 +993,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   if (assignmentRows.length > 0) tables.push(table('TASKRSRC', TASKRSRC_COLUMNS, assignmentRows));
   // OPS-velden (`xerOpsMarkers.ts`), zoals de P6 XML-export: de maat per taak en haar records, de
   // standaardwerkregel en de vaste capaciteit, zodat `readXER` een eigen export zo terugleest. P6 ziet
-  // gewone eigen velden (tekst). De vier taakvelden staan er altijd; de andere alleen met een waarde.
+  // gewone eigen velden (tekst). De taakvelden staan er altijd; de andere alleen met een waarde.
   const usedFields = new Set(opsValues.map(value => value.field));
   const udfs = OPS_XER_UDFS.filter(udf => udf.table === 'TASK' || usedFields.has(udf.field));
   const udfTypeId = (field: XerOpsField) => String(OPS_XER_UDF_TYPE_ID[field]);

@@ -120,7 +120,9 @@ bij `xer` weg; haar bron-categorieën worden de regel `sourceDetails`.
 (3) **OPS-velden** (`xerOpsMarkers.ts`), op het urenmodel zoals P6 XML (`p6xmlWriter.ts`, `xmlDayMeasure.ts`;
 T13, T21, I7): duur, rest, lag en toewijzingsuren gaan via de helpers van `xmlDayMeasure.ts`, niet via
 `cal.hoursPerDay`. Tekst-UDF's: per activiteit (TASK) `OPS_TaskDurationUnit` en waar nodig de maatrecords
-`OPS_DayMeasureDurations`, `OPS_ExactMinutes` en `OPS_DayMeasureLags` (sleutel `voorganger-task_id:type`);
+`OPS_DayMeasureDurations`, `OPS_ExactMinutes` en `OPS_DayMeasureLags` (sleutel `voorganger-task_id:type`), en
+`OPS_InheritedWorkRule` voor een taak zonder eigen werkregel (ze erft weer zolang `duration_type` het token van die
+regel draagt en die regel de teruggelezen projectstandaard is);
 op PROJECT `OPS_DefaultWorkRule` (alleen gelezen zolang `def_duration_type` nog het geschreven token draagt);
 op RSRC `OPS_FlatCapacity` (een vaste capaciteit blijft vast zolang de resource één RSRCRATE-rij met precies
 die waarde heeft; anders een stap, zoals op main) en `OPS_CapacitySteps` (materiaalstappen staan per uur in
@@ -131,7 +133,9 @@ leest precies als op main. `xerMetadata.ts` laat elke OPS-definitie weg uit de e
 kalendermarkering: kalenders lezen met de gewone regels (`xerCalendarData.ts` = main), dus een scalaire
 OPS-kalender komt terug als urenkalender met dezelfde banden. Tot F6 rekent de engine daar soms anders mee
 (P6-regels alleen op een kalender met eigen werkblokken); `check-xer-writer.ts` stelt de kalendersoort gelijk
-en telt de afwijkingen zonder die gelijkstelling in een notitie (knownbug 466). Pins: `check-xer-writer-review.ts` (R1, A, RB, RD, M, RE).
+en telt de afwijkingen zonder die gelijkstelling in een notitie (knownbug 466). De export meldt het als verlies
+`calendarKinds` (één regel met het aantal kalenders). Zonder geldig record houdt de lezer de bronminuten
+(`readMeasure` met `keepSourceMinutes`): een echte breuk blijft, als op main. Pins: `check-xer-writer-review.ts` (R1, A, RB, RD, M, RE, R9–R11).
 (4) **Geplande datums** (`target_*`) = `scheduleStart`/`scheduleFinish` (het omgekeerde van de lezer),
 niet de berekende datums: onder P6-herkomst leest de lezer `target_*` als ondergrens.
 Codering: Windows-1252 (MPXJ-default, BEVESTIGD in de MPXJ-bron); past een teken niet, dan UTF-8 zonder BOM
