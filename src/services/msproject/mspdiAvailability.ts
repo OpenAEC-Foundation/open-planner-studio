@@ -13,6 +13,8 @@ import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
  */
 export const MSPDI_AVAILABILITY_NA_START = '1984-01-01';
 export const MSPDI_AVAILABILITY_NA_END = '2049-12-31';
+/** De uiterste datum van MS Project (2149-12-31; 2049 was de grens tot Project 2010). */
+const MSPDI_LAST_DATE = '2149-12-31';
 
 export interface MspdiAvailabilityPeriod {
   /** `YYYY-MM-DD`, inclusief; bij het lezen `''` als de grens ontbreekt (= NA). */
@@ -48,7 +50,10 @@ export function availabilityPeriodsOf(resource: Pick<Resource, 'maxUnits' | 'ava
   }
   steps.forEach((step, i) => {
     const next = steps[i + 1];
-    periods.push({ from: step.from, to: next ? shiftDay(next.from, -1) : MSPDI_AVAILABILITY_NA_END, units: step.maxUnits });
+    // Het open einde: NA, of de uiterste datum van MS Project voor een stap ná NA (anders eindigt de periode
+    // vóór haar begin en valt ze weg).
+    const openEnd = step.from > MSPDI_AVAILABILITY_NA_END ? MSPDI_LAST_DATE : MSPDI_AVAILABILITY_NA_END;
+    periods.push({ from: step.from, to: next ? shiftDay(next.from, -1) : openEnd, units: step.maxUnits });
   });
   return periods;
 }

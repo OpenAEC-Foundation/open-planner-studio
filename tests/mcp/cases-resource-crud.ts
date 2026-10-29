@@ -209,6 +209,23 @@ test('update: `null` WIST een optioneel veld (en laat de sleutel niet als undefi
 });
 
 // =================================================================================================
+// 4b) een stap naar 0 (niet beschikbaar) mag; de vlakke maxUnits blijft > 0
+// =================================================================================================
+test('update: availabilitySteps met een stap naar 0 (bv. uit MS Project XML) blijft bewerkbaar', async () => {
+  reset();
+  const id = await makeResource({ name: 'Kraan' });
+  okData(await call('planner_manage_resources', {
+    actions: [{ action: 'update', id, availabilitySteps: [{ from: '1984-01-01', maxUnits: 0 }, { from: '2026-11-09', maxUnits: 3 }] }],
+  }));
+  const r = store.getState().resources.find((x) => x.id === id)!;
+  assertEq(r.availabilitySteps, [{ from: '1984-01-01', maxUnits: 0 }, { from: '2026-11-09', maxUnits: 3 }], 'de nulstap staat erin');
+  const neg = await call('planner_manage_resources', {
+    actions: [{ action: 'update', id, availabilitySteps: [{ from: '2026-11-09', maxUnits: -1 }] }],
+  });
+  assert(JSON.stringify(neg).includes('>= 0'), `een negatieve stap wordt geweigerd: ${JSON.stringify(neg).slice(0, 300)}`);
+});
+
+// =================================================================================================
 // 5) update zonder velden ⇒ zachte weigering
 // =================================================================================================
 test('update zonder velden ⇒ zachte weigering (nooit `ok` zonder effect)', async () => {

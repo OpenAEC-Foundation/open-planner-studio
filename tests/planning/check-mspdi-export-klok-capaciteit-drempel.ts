@@ -180,6 +180,11 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   // Heen en terug blijft een stap naar 0 op NA staan, zonder extra periode ervoor.
   const zeroFirst = write(project(), cal, [task('T', {})], [res('Z', { availabilitySteps: late.availabilitySteps })]);
   same('§2 Z: stap op NA geeft geen periode ervoor', flat(zeroFirst).match(/<AvailableFrom>[^<]*/g)?.map(m => m.slice(15, 25)), ['1984-01-01', '2009-06-01']);
+  // Een stap na NA (2049-12-31) loopt tot de uiterste datum van MS Project, niet achterstevoren tot 2049.
+  const far = res('F', { availabilitySteps: [{ from: '2050-01-03', maxUnits: 2 }] });
+  const farXml = write(project(), cal, [task('T', {})], [far]);
+  const farBack = quiet(() => readMSPDI(farXml)).resources.find(r => r.name === 'F');
+  same('§2 F: capaciteit na 2049 heen en terug', farBack && ['2049-12-31', '2050-01-02', '2050-01-03', '2120-01-01'].map(d => maxUnitsOn(farBack, d)), [1, 1, 2, 2]);
   same('§2 Z: terug ingelezen', quiet(() => readMSPDI(zeroFirst)).resources.find(r => r.name === 'Z')?.availabilitySteps, late.availabilitySteps);
 }
 
