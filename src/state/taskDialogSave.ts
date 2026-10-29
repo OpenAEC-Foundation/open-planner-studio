@@ -1,9 +1,8 @@
-import { isElapsedTask } from '@/engine/scheduler/duration';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { appStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
 import {
-  actualDateSide, applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualPastStatusDate, normalizeActualDate,
+  applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isTaskActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 import { startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
@@ -80,8 +79,7 @@ function draftWithActualDate(
 ): Task | null {
   // Zelfde weigering als de paneelsetters: actuals nooit ná de statusdatum.
   date = normalizeActualDate(draft, field, date, statusDate, calendar);
-  if (date && statusDate && isActualPastStatusDate(date, statusDate, isElapsedTask(draft) ? undefined : calendar,
-    actualDateSide(draft, field))) return null;
+  if (date && statusDate && isTaskActualPastStatusDate(draft, field, date, statusDate, calendar)) return null;
   const next: Task = { ...draft, time: { ...draft.time } };
   applyActualDateEdit(next, field, date, statusDate, calendar);
   return next;
