@@ -594,6 +594,11 @@ for (const layout of [
   truthy(`${label}: record één byte onder de minimumlengte valt weg`, !result.resourceIdByUniqueId.has(9));
   truthy(`${label}: echt materiaal op de lengtegrens blijft`, byUid(10)?.type === 'MATERIAL' && byUid(10)?.maxUnits === 1.25);
   truthy(`${label}: kostenresource gebruikt Fixed2Meta van de juiste index`, byUid(11)?.type === 'LABOR' && byUid(11)?.maxUnits === 0);
+  // Knownbug 187: alleen de kostenresource staat in `costResourceIds`; het werkrecord (uid 7, de
+  // eerste volledige match ná een record met de kostenbit) en de UID-0-sentinel niet.
+  truthy(`${label}: costResourceIds bevat precies de kostenresource (uid 11)`,
+    result.costResourceIds.size === 1 && result.costResourceIds.has(byUid(11)?.id ?? '')
+    && !result.costResourceIds.has(byUid(7)?.id ?? '') && !result.costResourceIds.has(byUid(0)?.id ?? ''));
   truthy(`${label}: korte UID-0-sentinel behoudt naam, type en inzet`, byUid(0)?.name === 'Unassigned' && byUid(0)?.type === 'LABOR' && byUid(0)?.maxUnits === 1);
   truthy(`${label}: korte UID-0-sentinel behoudt kalenderkoppeling`, byUid(0)?.calendarId === calendar.id);
 }
@@ -691,6 +696,10 @@ for (const [uniqueIdOffset, size] of [[0, 2], [18, 20]]) {
   truthy('T7-spec-review-B7 Fixed2Meta COST-bit: 2 resources gelezen', result.resources.length === 2);
   truthy('T7-spec-review-B7 Fixed2Meta COST-bit gezet (uid=1) ⇒ type LABOR (Cost → LABOR, spiegelt mspdiReader)', byUid1?.type === 'LABOR');
   truthy('T7-spec-review-B7 Fixed2Meta COST-bit NIET gezet (uid=2) ⇒ type MATERIAL', byUid2?.type === 'MATERIAL');
+  // Knownbug 187: de lezer onthoudt welke LABOR-resources in MSP kostenresources zijn, zodat de
+  // `.mpp`-wandeling ze niet laat meetellen (`deriveTimephasedWindowsForTasks`).
+  truthy('187 costResourceIds bevat de kostenresource (uid=1)', !!byUid1 && result.costResourceIds.has(byUid1.id));
+  truthy('187 costResourceIds bevat het materiaal (uid=2) niet', !!byUid2 && !result.costResourceIds.has(byUid2.id) && result.costResourceIds.size === 1);
 }
 
 // ── (d2) T7-spec-review (B7): Fixed2Meta AFWEZIG — defensieve terugval blijft het WORK-bit-only-

@@ -268,23 +268,26 @@ function applyTermsCmd(args: string[]): void {
     if (tampered.length) fail(tampered.join('\n'));
   }
   const outs: TermsOut[] = [];
+  let refused = 0;
   const files = existsSync(dir) ? readdirSync(dir).filter(f => /^terms-\d+\.json$/.test(f)).sort() : [];
   for (const f of files) {
     const outFile = join(dir, f.replace('.json', '.out.json'));
     if (!existsSync(outFile)) { console.log(`..  ${f}: nog geen uitvoer`); continue; }
     const tampered = sealErrors(lang, [f]);
-    if (tampered.length) { console.log(`XX  ${f}: ${tampered.join('; ')}, overgeslagen`); continue; }
+    if (tampered.length) { console.log(`XX  ${f}: ${tampered.join('; ')}, overgeslagen`); refused++; continue; }
     const pkg = readJson<TermsPackage>(join(dir, f));
     const out = readJson<unknown>(outFile);
     const r = checkPackage(pkg, out);
-    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); continue; }
+    if (r.errors.length) { console.log(`XX  ${f}: rood (${r.errors.length} fout(en)), overgeslagen`); refused++; continue; }
     outs.push(out as TermsOut);
   }
   if (outs.length === 0) fail(`geen groene terms-NN.out.json in build/translate/${lang}/`);
+  // Groene pakketten en rapporten blijven bruikbaar; ook de vroege rapport-return moet rood eindigen.
+  if (refused) process.exitCode = 1;
   const tb = applyTerms(loadTermbase(lang) ?? {}, outs, concepts);
   writeJson(termbasePath(lang), tb);
   const n = outs.reduce((s, o) => s + Object.keys(o).filter(k => k !== '_style').length, 0);
-  console.log(`OK  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json`);
+  console.log(`${refused ? 'XX' : 'OK'}  apply-terms ${lang}: ${n} termregel(s) in i18n/termbase/${lang}.json, ${refused} rood overgeslagen`);
   if ((EXISTING_TARGETS as readonly string[]).includes(lang)) {
     writeFileSync(join(dir, 'inconsistencies.md'), inconsistencyReport(lang, outs, concepts));
     console.log(`OK  rapport: build/translate/${lang}/inconsistencies.md`);

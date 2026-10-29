@@ -478,20 +478,21 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
   }
 });
 
-test('knownbug 206: annuleren tijdens verbinden voorkomt de tool-POST, een volgende aanvraag werkt', async () => {
+test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-POST', async () => {
   const port = await freePort();
   const s = await startExtension(TOKEN, port); // lokale initialize terwijl de bridge nog uit staat
   let release = () => {};
   let holding = false;
   const bodies: string[] = [];
-  const late = await startMirror(port, { handleMessage: async (body, ctx) => {
+  const handleMessage = async (body: string, ctx: McpContext) => {
     bodies.push(body);
     if (JSON.parse(body).method === 'initialize') {
       holding = true;
       await new Promise<void>(resolve => { release = resolve; });
     }
     return handleMcpMessage(body, ctx);
-  } });
+  };
+  let late = await startMirror(port, { handleMessage });
   try {
     const before = app.store.getState().tasks.length;
     const controller = new AbortController();
@@ -511,6 +512,27 @@ test('knownbug 206: annuleren tijdens verbinden voorkomt de tool-POST, een volge
     assert(!next.isError, `volgende aanvraag werkt: ${next.text}`);
     assertEq(app.store.getState().tasks.length, before + 1, 'volgende aanvraag precies eenmaal uitgevoerd');
     app.store.getState().undo();
+
+    // Een app-herstart wist de sessie: de eerste lees-POST krijgt 404 en wacht daarna op initialize.
+    await late.close();
+    bodies.length = 0;
+    holding = false;
+    late = await startMirror(port, { handleMessage });
+    const after404 = new AbortController();
+    const cancelledRead = s.client.callTool({ name: 'planner_get_project_info' }, undefined,
+      { signal: after404.signal }).then(() => 'beantwoord', () => 'afgebroken');
+    await waitFor(() => holding);
+    assert(holding, 'na sessieverlies wacht de leesaanvraag op een nieuwe initialize');
+    after404.abort('annuleren na 404 tijdens opnieuw verbinden');
+    assertEq(await cancelledRead, 'afgebroken', 'SDK-client annuleert de leesaanvraag na 404');
+    await sleep(200); // de cancellation-notification bereikt de proxy terwijl initialize nog wacht
+    release();
+    await toolNames(s); // barrière achter aanvraag en annuleringsmelding
+    assert(!bodies.some(body => body.includes('planner_get_project_info')), 'geannuleerde lezing niet herhaald na 404');
+    assertEq(app.store.getState().tasks.length, before, 'geen taakwijziging tijdens sessieherstel');
+    const read = await call(s, 'planner_get_project_info');
+    assert(!read.isError && read.structured.ok === true, `volgende lezing werkt: ${read.text}`);
+    assertEq(bodies.filter(body => body.includes('planner_get_project_info')).length, 1, 'alleen de volgende lezing uitgevoerd');
   } finally {
     release();
     await s.client.close();

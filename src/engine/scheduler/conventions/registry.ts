@@ -322,7 +322,8 @@ export function p6OptionDefaults(): {
  *  bij statusdatum én gestarte taak, anders de kleinste. Dat is MSP's regel (voor een gestarte taak de
  *  finish slack) zodra er een statusdatum is; zonder statusdatum telt voortgang hier niet mee en krijgt
  *  ook een gestarte taak de kleinste. Het is ook wat een geopend `.mpp` draagt (de `.mpp`-lezer zet
- *  geen optie). *Kleinste* (altijd min) is de P6-modus. Levert steeds een verse kopie. */
+ *  geen optie). *Kleinste* (altijd min) is een van de P6-keuzes (`FT_MIN`); het P6-profiel zet *Finishspeling*
+ *  (`p6OptionDefaults`). Levert steeds een verse kopie. */
 export function defaultOptionsFor(baseId: BuiltInProfileId): ProjectSchedulingOptions {
   switch (baseId) {
     case 'p6': {

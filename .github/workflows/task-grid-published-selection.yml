@@ -1,0 +1,106 @@
+name: Taakselectie meten
+
+on:
+  pull_request:
+    branches: [main]
+    # Alleen deze meetroute; gewone productwijzigingen krijgen geen poort tegen een oude basis.
+    paths:
+      - '.github/workflows/task-grid-published-selection.yml'
+      - 'scripts/compare-published-selection.py'
+      - 'tests/planning/check-task-grid-published-selection.ts'
+      - 'tests/browser/fixtures/publishedSelection.ts'
+      - 'tests/browser/table-editor.spec.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taakselectie-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      BASE_SHA: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      OPS_SELECTION_MEASURE: '1'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+          path: base
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: head/package-lock.json
+      - name: Controleer revisies en leg de identieke proef in beide checkouts
+        run: |
+          test "$(git -C base rev-parse HEAD)" = "$BASE_SHA"
+          test "$(git -C head rev-parse HEAD)" = "$HEAD_SHA"
+          cmp base/package-lock.json head/package-lock.json
+          mkdir evidence
+          cp head/tests/browser/table-editor.spec.ts base/tests/browser/table-editor.spec.ts
+          cp head/tests/browser/fixtures/publishedSelection.ts base/tests/browser/fixtures/publishedSelection.ts
+          cp head/tests/planning/check-task-grid-published-selection.ts base/tests/planning/check-task-grid-published-selection.ts
+          {
+            echo "basis=$BASE_SHA"
+            echo "head=$HEAD_SHA"
+            echo "runner=$RUNNER_NAME"
+            uname -a
+            node --version
+            sha256sum base/package-lock.json head/package-lock.json
+            sha256sum base/src/components/task-grid/FullTaskGrid.tsx head/src/components/task-grid/FullTaskGrid.tsx
+            lscpu
+          } > evidence/omgeving.txt
+      - name: Installeer basis
+        working-directory: base
+        run: npm ci
+      - name: Installeer head en Chromium
+        working-directory: head
+        run: |
+          npm ci
+          npx playwright install --with-deps --only-shell chromium
+      - name: Basis — contract, werkbudget en echte toetsenroute
+        working-directory: base
+        env:
+          OPS_SELECTION_BASELINE: '1'
+          OPS_SELECTION_REVISION: fbd4a3f9dcc7bdd308ab86b992d0b26f4670a553
+          OPS_SELECTION_CONTRACT_OUT: ${{ github.workspace }}/evidence/base-contract.json
+          OPS_SELECTION_BROWSER_OUT: ${{ github.workspace }}/evidence/base-browser.json
+        run: |
+          bash tests/planning/run.sh check-task-grid-published-selection.ts
+          node scripts/run-browser-tests.mjs tests/browser/table-editor.spec.ts --grep 'TableEditor navigeert, commit en Ctrl\+Z'
+      - name: Head — contract, werkbudget en echte toetsenroute
+        working-directory: head
+        env:
+          OPS_SELECTION_REVISION: ${{ github.event.pull_request.head.sha }}
+          OPS_SELECTION_CONTRACT_OUT: ${{ github.workspace }}/evidence/head-contract.json
+          OPS_SELECTION_BROWSER_OUT: ${{ github.workspace }}/evidence/head-browser.json
+        run: |
+          bash tests/planning/run.sh check-task-grid-published-selection.ts check-task-grid-selection.ts
+          node scripts/run-browser-tests.mjs tests/browser/table-editor.spec.ts --grep 'TableEditor navigeert, commit en Ctrl\+Z'
+      - name: Vergelijk volledige uitvoer en ruwe tijden
+        run: python3 head/scripts/compare-published-selection.py evidence "$BASE_SHA" "$HEAD_SHA"
+      - name: Bewaar bewijs, ook bij een mislukte controle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taakselectie-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            evidence/
+            base/playwright-report/
+            base/test-results/
+            head/playwright-report/
+            head/test-results/
+          retention-days: 7
+          if-no-files-found: error

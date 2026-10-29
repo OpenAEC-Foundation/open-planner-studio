@@ -366,7 +366,8 @@ vastgelegd; alleen wat écht botst gaat aan het eind naar de eigenaar.
     (onderzoek 24-09 bevestigt: motorproef 192 → 186 zonder verlies, maar de regel is niet als algemeen
     P6-gedrag te onderbouwen — drie kleine P6-testruns zouden het beslissen; jouw keus: laten staan, of
     die runs aanleveren). Hotel:
-    3 ff-cellen van 60 min zonder formule; ATWTPR000 (3) hoort bij C10 ALAP.
+    3 ff-cellen van 60 min zonder formule; ATWTPR000 (3) hoort bij C10 ALAP. *(Correctie #690,
+    2026-10-27: de ff-cellen gingen met brok 9 naar exact; ATWTPR000 bleef na C14 staan, zie punt 5 in §3.)*
 11. *(beantwoord 24-09: "bevestigen, lijkt me logisch", zie §1a)* **Bevestiging gevraagd: DCP-03 Baseline uit het orakel.** Ik heb dat op eigen gezag gedaan onder het
     besluit van 23-09 ("alleen die P6-bestanden"), maar jouw lijst van toen noemde DCP-03 Baseline nog als
     P6-doorgerekend — de critreview wijst er terecht op dat een rolwissel een eigenaarsbesluit is. Bewijs:
@@ -572,7 +573,9 @@ op 24-09 herschreven naar deze stand (voorstel `2026-09-24-pr169-body-voorstel.m
 5. **Restant 104 zonder bouwbare stap:** HarbourPointe 48 opvolgers van verouderde taken (nieuw
    P6-bewijs nodig: het bestand opnieuw door P6 laten rekenen), 7 mijlpaalvloer (n=1), Sample 12
    (SF-lag-0-minuut, n=1 zonder Oracle-bron; drie kleine P6-testruns beslissen het), Hotel 3
-   (ALAP-eindmijlpaal, gaat mee met C14).
+   (ALAP-eindmijlpaal; ging NIET mee met C14 — C14 raakt de late kant niet, zie de port-regel in §2.
+   Het cellenbestand van na C14 (2026-09-24) houdt ls/lf/tf van taak 2666/146012. Correctie #690,
+   2026-10-27).
 6. **Nivellering (eigen etappe):** fundament ligt (`levelingInput.ts`, `leveling`-optie, manifest
    `leveledProjects`); harde voorwaarden en vijf eigenaarsbesluiten in
    `2026-09-24-nivellering-etappe-onderzoek.md` §8. Pas bouwen na die besluiten.
