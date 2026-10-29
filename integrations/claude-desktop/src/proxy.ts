@@ -185,6 +185,10 @@ export const UNSAVED_STAY_NOTE = `${NOTE_PREFIX}the Open Planner Studio app is o
   + 'still has changes that are not written to a file. Requests stay with the planner without the app until you write them '
   + 'with planner_export_ifc. While the app runs, that planner does not replace an existing file, so choose a new file name. '
   + 'After that, requests go to the app.';
+/** Een eerdere wijziging zonder app kreeg geen antwoord, en de controle daarna ook niet: wacht met wijzigen. */
+export const HEADLESS_BUSY_MESSAGE = 'The planner without the app did not answer an earlier change in time, and it does '
+  + 'not answer yet. This request was NOT carried out, so that the earlier change stays with the right document. Try '
+  + 'again in a moment; read-only tools still work.';
 /** Een wijziging aan de app zonder antwoord, terwijl ze wel aangekomen kan zijn: niet opnieuw sturen. */
 export const UNKNOWN_OUTCOME_MESSAGE = 'The connection to the Open Planner Studio app broke before its answer came, so it is '
   + 'not known whether this change was carried out. The extension does not send it again. Read the plan again before you '
@@ -784,8 +788,17 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
   }
 
   async function viaHeadless(id: Id, method: string, toolName: string | null, message: Json): Promise<void> {
+    if (uncertainChange) {
+      await resolveUncertain();
+      if (cancelledIds.has(id)) return; // geannuleerd terwijl de controle liep
+      // Nog onzeker: niets doorsturen wat het actieve document kan veranderen (ook een documentkeuze niet),
+      // anders telt de onzekere wijziging later bij het verkeerde document.
+      if (uncertainChange && toolName !== null && !readOnlyTools.has(toolName)) {
+        await toolError(id, HEADLESS_BUSY_MESSAGE);
+        return;
+      }
+    }
     queuedIds.delete(id);
-    if (uncertainChange) await resolveUncertain();
     const result = await (channel as HeadlessChannel).request(message, timeoutMs);
     if (result.type === 'exited') {
       headlessReady = false;

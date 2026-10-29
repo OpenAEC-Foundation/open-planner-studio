@@ -34,7 +34,7 @@ import { getTools } from '@/services/mcp/toolRegistry';
 import { parseZipEntries } from '@/services/zip';
 import { startBridgeMirror, type BridgeMirror } from './bridgeMirror';
 import {
-  HEADLESS_RESTART_NOTE, SESSION_RESET_MESSAGE, STATUS_TOOL_NAME, SWITCH_TO_APP_MESSAGE, SWITCH_TO_APP_NOTE,
+  HEADLESS_BUSY_MESSAGE, HEADLESS_RESTART_NOTE, SESSION_RESET_MESSAGE, STATUS_TOOL_NAME, SWITCH_TO_APP_MESSAGE, SWITCH_TO_APP_NOTE,
   UNKNOWN_OUTCOME_MESSAGE, UNSAVED_STAY_NOTE, bundleInstructions, createPlannerProxy, headlessLostMessage,
   switchToHeadlessMessage, switchToHeadlessNote, type HeadlessChannel,
 } from '../../integrations/claude-desktop/src/proxy';
@@ -447,12 +447,17 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
   }
 });
 
-test('wijziging zonder app zonder antwoord op tijd: telt als niet weggeschreven, de planner blijft tot het opslaan (review r1, 1)', async () => {
-  // Het schakelstuk zelf, met een nep-kindproces: een time-out van 130 s is in een test niet af te wachten.
+test('wijziging zonder app zonder antwoord op tijd: telt bij het juiste document als niet weggeschreven, de planner blijft tot het opslaan (review r1, 1 en r2)', async () => {
+  // Het schakelstuk zelf, met een nep-kindproces dat een actief document bijhoudt: een time-out van 130 s is
+  // in een test niet af te wachten.
   const sent: Json[] = [];
   const toChild: string[] = [];
   let closed = false;
   let appOpen = false;
+  let active = 'doc-A';
+  const exported: string[] = [];
+  let checks = 0;
+  let releaseCheck: (() => void) | null = null;
   const answer = (msg: Json, result: Json) => ({ type: 'reply' as const, json: { jsonrpc: '2.0', id: msg.id, result } });
   const toolResult = (docId: string) => {
     const structured = { ok: true, envelope: { activeDocumentId: docId } };
@@ -471,11 +476,18 @@ test('wijziging zonder app zonder antwoord op tijd: telt als niet weggeschreven,
       if (msg.id === undefined) return { type: 'none' };
       if (msg.method === 'tools/list') {
         return answer(msg, { tools: [tool('planner_get_project_info', true), tool('planner_list_documents', true),
-          tool('planner_add_tasks', false), tool('planner_export_ifc', false)] });
+          tool('planner_add_tasks', false), tool('planner_export_ifc', false), tool('planner_new_document', false)] });
       }
       // De wijziging wordt uitgevoerd, maar het antwoord komt te laat.
       if (name === 'planner_add_tasks') return { type: 'timeout' };
-      return answer(msg, toolResult('doc-zonder-app'));
+      if (name === 'planner_list_documents') {
+        checks++;
+        if (checks === 1) return { type: 'timeout' }; // de controle zelf krijgt ook geen antwoord op tijd
+        if (checks === 2) await new Promise<void>((resolve) => { releaseCheck = resolve; });
+      }
+      if (name === 'planner_new_document') active = 'doc-B';
+      if (name === 'planner_export_ifc') exported.push(active);
+      return answer(msg, toolResult(active));
     },
     async close() { closed = true; },
   };
@@ -496,6 +508,7 @@ test('wijziging zonder app zonder antwoord op tijd: telt als niet weggeschreven,
   }, async (message) => { sent.push(message as unknown as Json); });
   const reply = (id: number) => sent.find((m) => m.id === id)?.result as Json;
   const callTool = (id: number, name: string) => proxy.handle({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: {} } });
+  const count = (name: string) => toChild.filter((n) => n === name).length;
   try {
     await proxy.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } });
     await proxy.handle({ jsonrpc: '2.0', method: 'notifications/initialized' });
@@ -503,18 +516,34 @@ test('wijziging zonder app zonder antwoord op tijd: telt als niet weggeschreven,
     await callTool(3, 'planner_add_tasks');
     assert(reply(3).isError === true && String(reply(3).content[0].text).includes('did not answer within'), `time-out: ${JSON.stringify(reply(3))}`);
 
+    // De app gaat open. De controle krijgt ook geen antwoord: een documentwissel gaat dan niet door (r2), anders
+    // telt de wijziging in A later bij B.
     appOpen = true;
-    await callTool(4, 'planner_get_project_info');
-    assertEq(reply(4).content[0].text, UNSAVED_STAY_NOTE, 'blijft zonder app: de wijziging kan uitgevoerd zijn');
+    await callTool(4, 'planner_new_document');
+    assertEq(reply(4).content.at(-1).text, HEADLESS_BUSY_MESSAGE, 'nieuw document geweigerd zolang het onzeker is');
+    assertEq([count('planner_new_document'), active], [0, 'doc-A'], 'het kindproces kreeg geen documentwissel');
     assertEq(closed, false, 'het kindproces blijft draaien');
-    assert(toChild.includes('planner_list_documents'), `het actieve document opgevraagd: ${toChild.join(', ')}`);
-    await callTool(5, 'planner_get_project_info');
+
+    // Een wijziging die geannuleerd wordt terwijl de tweede controle loopt, gaat niet naar het kindproces.
+    const pending = callTool(5, 'planner_add_tasks');
+    await waitFor(() => releaseCheck !== null);
+    // Niet wachten op `handle`: de wachtrij is pas klaar als de controle klaar is.
+    const cancelled = proxy.handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 5 } });
+    (releaseCheck as unknown as () => void)();
+    await Promise.all([pending, cancelled]);
+    assertEq(count('planner_add_tasks'), 1, 'de geannuleerde wijziging bereikte het kindproces niet');
+    assertEq(reply(5), undefined, 'geen antwoord op een geannuleerde aanvraag');
+
+    await callTool(6, 'planner_get_project_info');
+    assertEq(reply(6).content[0].text, UNSAVED_STAY_NOTE, 'blijft zonder app: de wijziging in A kan uitgevoerd zijn');
+    await callTool(7, 'planner_get_project_info');
     assertEq(closed, false, 'nog steeds zonder app tot het opslaan');
 
-    await callTool(6, 'planner_export_ifc');
-    await callTool(7, 'planner_get_project_info');
-    assertEq(closed, true, 'na het opslaan naar de app');
-    assertEq(reply(7).content[0].text, SWITCH_TO_APP_NOTE, 'melding van de wissel');
+    await callTool(8, 'planner_export_ifc');
+    assertEq(exported, ['doc-A'], 'het juiste document is weggeschreven');
+    await callTool(9, 'planner_get_project_info');
+    assertEq(closed, true, 'na het opslaan van A naar de app');
+    assertEq(reply(9).content[0].text, SWITCH_TO_APP_NOTE, 'melding van de wissel');
   } finally {
     await proxy.close();
   }
