@@ -96,7 +96,7 @@ Generators/helpers: `npm run gen:examples` (regenerates `public/examples`), `npm
 (tutorial screenshots as WebP from the step scripts in `tests/browser/tutorials/`, which `test:browser` runs without
 capturing), `npm run gen:release-highlights-json`,
 `npm run publish:wiki` (dry run; `-- --push` publishes), `npm run stats:downloads` (downloads per OS from the
-GitHub Releases API; the workflow publishes the JSON weekly to the `stats` data branch).
+GitHub Releases API; the workflow publishes the JSON every 2 hours to the `stats` data branch).
 
 Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 

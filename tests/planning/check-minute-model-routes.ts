@@ -31,6 +31,7 @@ const expected: Record<string, string[]> = {
   'src/components/dialogs/CalendarDialog.tsx': ['bewerking'],
   'src/components/layout/RecordedDatesNotice.tsx': ['bereken'],
   'src/components/panels/ReportPanel.tsx': ['bereken'],
+  'src/components/panels/ResourceOccupancyView.tsx': ['bereken'], // openen; slaat opgeslagen datums en pending minutenmigratie over
   'src/components/panels/TaskPropertiesPanel.tsx': ['bereken'],
   'src/components/panels/WarningsPanel.tsx': ['bereken'],
   'src/components/layout/Ribbon/ribbonConfig.tsx': ['bereken'],

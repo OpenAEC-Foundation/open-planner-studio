@@ -306,7 +306,11 @@ export function relationTaskOptions(
   tasks: Iterable<Task>,
   ownerTaskId: string,
   query: string,
+  limit = Infinity,
 ): RelationTaskOption[] {
+  // Standaard onbeperkt; breuken naar beneden, nul/negatief/NaN leveren geen treffers.
+  const maxResults = Math.floor(limit);
+  if (!(maxResults > 0)) return [];
   const needle = query.trim().toLocaleLowerCase();
   const result: RelationTaskOption[] = [];
   for (const task of tasks) {
@@ -314,6 +318,7 @@ export function relationTaskOptions(
     const label = `${task.wbsCode} ${task.name}`.trim();
     if (needle && !label.toLocaleLowerCase().includes(needle)) continue;
     result.push({ taskId: task.id, wbsCode: task.wbsCode, name: task.name, label });
+    if (result.length >= maxResults) break;
   }
   return result;
 }
