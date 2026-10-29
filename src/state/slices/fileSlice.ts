@@ -10,7 +10,7 @@ import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type SaveOutcome } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
 import { openSiteFile, saveNewSiteFile, saveSiteFileVersion } from '@/services/fileAccess/siteBackend';
 import { askSiteOpen, askSiteSave, type SiteOpenChoice } from '@/services/fileAccess/siteDialogs';
@@ -427,6 +427,10 @@ export interface FileSlice {
   /** `labels` — vertaalde teksten die de UI aanlevert omdat de store-laag geen `t(...)` heeft (zie
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
+  /** De rest van `openFile` zodra er een bestand is: herkennen, openen als document, meldingen,
+   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`), zodat die geen eigen
+   *  inleesroute heeft. */
+  openOpenedFile: (opened: OpenedFile, labels?: ImportLabels) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
   saveFileForDocument: (documentId: string) => Promise<boolean>;
@@ -1142,6 +1146,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openFile: async (labels) => {
       if (siteQuestionOpen()) return;
+      let opened: OpenedFile | null;
       try {
         // Site-opslag aanwezig: eerst "Openen van de site" (met "Van deze pc…" voor de gewone
         // kiezer). Zonder site-opslag komt deze vraag nooit en blijft alles zoals het was.
@@ -1154,8 +1159,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        const opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
-        if (!opened) return;
+        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
+      } catch (err) {
+        console.error('Failed to open file:', err);
+        get().notify(importFailureNotice(err, saveErrorDetail(err)));
+        return;
+      }
+      if (opened) await get().openOpenedFile(opened, labels);
+    },
+
+    openOpenedFile: async (opened, labels) => {
+      try {
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),

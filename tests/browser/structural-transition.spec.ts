@@ -112,12 +112,12 @@ function nameCell(page: Page, taskId: string): Locator {
 }
 const parentOf = (page: Page, id: string) =>
   page.evaluate(taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.parentId, id);
-/** Structuur, toewijzingen en undo-diepte: wat Annuleren ongemoeid moet laten. */
+/** Structuur en volledige toewijzingswaarden: ook inzet, resource en werk moeten gelijk blijven. */
 const fingerprint = (page: Page) => page.evaluate(() => {
   const s = window.__OPS__!.store.getState();
   return JSON.stringify({
     tasks: s.tasks.map(t => [t.id, t.parentId, t.childIds]),
-    assignments: s.assignments.map(a => [a.id, a.taskId]),
+    assignments: s.assignments,
   });
 });
 

@@ -11,7 +11,10 @@ export function gregorianDateFormat(locale: string, options: Intl.DateTimeFormat
   const base = locale.split('-u-')[0] || 'en';
   const utc = { ...options, timeZone: 'UTC' };
   try {
-    return new Intl.DateTimeFormat(`${base}-u-ca-gregory-nu-latn`, utc);
+    // Een geldige maar niet ondersteunde taalcode gooit niet: Intl kiest dan de systeemtaal.
+    // Kies zelf Engels, zodat dezelfde onbekende code overal hetzelfde label geeft.
+    const supported = Intl.DateTimeFormat.supportedLocalesOf(base).length > 0 ? base : 'en';
+    return new Intl.DateTimeFormat(`${supported}-u-ca-gregory-nu-latn`, utc);
   } catch {
     return new Intl.DateTimeFormat('en-u-ca-gregory-nu-latn', utc);
   }

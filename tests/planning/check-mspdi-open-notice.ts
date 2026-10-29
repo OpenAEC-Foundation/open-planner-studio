@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     ['Fundering', 'Deelproject installaties', 'Oplevering (extern)', 'Reserve']);
   eq('1b verslag', result.msProjectReport, {
     format: 'mspdi', baselines: 2, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 3, notes: 2, hyperlinks: 2, fixedCosts: 1, resourceRates: 2,
-    subprojects: 1, externalTasks: 1, manualTasks: 1, levelingDelays: 1, inactiveTasks: 1, criticalSlackLimitDays: 0,
+    subprojects: 1, externalTasks: 1, manualTasks: 1, levelingDelays: 1, inactiveTasks: 1,
   });
   // Wat de lezer wél overneemt, telt niet: de taakaantekening, baseline 0 en het standaardtarief.
   eq('1c taakaantekening overgenomen', result.tasks[0]?.description, 'Taakaantekening komt mee');

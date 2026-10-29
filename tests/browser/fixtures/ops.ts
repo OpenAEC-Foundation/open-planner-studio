@@ -1,4 +1,4 @@
-import { expect, test as base, type ConsoleMessage, type Page } from '@playwright/test';
+import { expect, test as base, type ConsoleMessage, type Frame, type Page } from '@playwright/test';
 import type { OpsDevBridge } from '@/utils/devBridge';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
 
@@ -87,6 +87,19 @@ export async function waitForOps(page: Page): Promise<void> {
  *  `bg-black/60`-overlay aan. Wacht dus eerst hierop, en verberg hem pas dan. */
 export async function waitForWelcomeDialog(page: Page): Promise<void> {
   await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
+}
+
+/** De welkomstcontrole is klaar (na de herstelcontrole) en meldt haar uitkomst in de app-log, bijv.
+ *  `welkomstcontrole: overgeslagen (ingebed)`. Ingebed onder een host (#716) komt er geen
+ *  welkomstvenster; wacht dan hierop in plaats van op `waitForWelcomeDialog`. Geeft de uitkomst. */
+export async function waitForWelcomeCheck(target: Page | Frame): Promise<string> {
+  let outcome = '';
+  await expect.poll(async () => {
+    outcome = await target.evaluate(() => window.__OPS__?.log.snapshot()
+      .find((entry) => entry.channel === 'welkomst')?.text ?? '').catch(() => '');
+    return outcome;
+  }, { message: 'de welkomstcontrole is niet klaar', timeout: 15_000 }).not.toBe('');
+  return outcome;
 }
 
 export async function state(page: Page): Promise<OpsStateSnapshot> {
@@ -223,7 +236,9 @@ export const test = base.extend<{ ops: OpsHarness }>({
     // Een verse context heeft `welcomeSeen` nooit gezien, dus de dialoog KOMT — de vraag is alleen
     // wanneer (zie `waitForWelcomeDialog`). `welcomeSeen` blijft bewust ongezet, zodat tests die na
     // een reload de dialoog verwachten (extensions-storage) hem gewoon nog krijgen.
-    await waitForWelcomeDialog(page);
+    // Met een host (site-specs) draait de tool ingebed en komt er geen welkomst (#716).
+    if (await page.evaluate(() => 'openaecHost' in window)) await waitForWelcomeCheck(page);
+    else await waitForWelcomeDialog(page);
     await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       s.newProject();

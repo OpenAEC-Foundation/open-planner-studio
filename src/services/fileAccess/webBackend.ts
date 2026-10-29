@@ -115,8 +115,9 @@ export function resetWebReadRefusalForTests(): void {
 
 // ---- Fallback (Firefox/Safari): <input type=file> + blob-download ----
 
-/** Een gekozen bestand als tekst, of als bytes voor een binair formaat (`opts.binaryExtensions`). */
-async function openedFromFile(file: File, ref: FileRef | null, opts?: OpenDialogOpts): Promise<OpenedFile> {
+/** Een gekozen bestand als tekst, of als bytes voor een binair formaat (`opts.binaryExtensions`).
+ *  Geëxporteerd voor de dev-link `?open=` (`src/utils/devOpenLink.ts`). */
+export async function openedFromFile(file: File, ref: FileRef | null, opts?: OpenDialogOpts): Promise<OpenedFile> {
   if ((opts?.binaryExtensions ?? []).includes(extensionOf(file.name))) {
     return { name: file.name, content: '', bytes: new Uint8Array(await file.arrayBuffer()), ref };
   }
