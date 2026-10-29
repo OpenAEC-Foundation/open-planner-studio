@@ -1350,6 +1350,12 @@ en noem het in je rapport of PR-tekst.
      boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
      vergelijking houden; let op dat de app `generatedAt` toont als bronmoment (`DownloadStatsSection.tsx:148`).
      Gevonden in review van #725 (GPT-6.1-Sol), 2026-10-29. — B
+484. **Het meetartifact van de relatiezoekmeting bewaart de browserbundel niet.**
+     `scripts/performance/relation-search/measure.mjs:137` haalt de geleverde JS-bron op om het bereik van
+     `relationTaskOptions` te vinden. Het artifact bewaart alleen de hash en de offsets;
+     `.github/workflows/relation-search-performance.yml:105` laat de bouwmappen weg. De 48 coverage-tellers zijn
+     na te rekenen, maar hun koppeling aan precies die functie alleen door opnieuw te bouwen. Voorstel: bewaar
+     per revisie de ene bundel met de helper (twee bestanden). Gevonden in review van #656 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
