@@ -104,7 +104,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Tekens.** De app schrijft het bestand in Windows-1252, zoals P6. Past een teken daar niet in, zoals *Ł*, dan schrijft ze het hele bestand in UTF-8 en meldt ze hoeveel tekens het zijn. Controleer de tekst dan na de import in P6.
 
-**Terug openen.** Een `.xer` uit de app opent weer als *Primavera P6*. Een taak in dagen komt terug in dagen, een taak in uren in uren. Daarvoor schrijft de app twee eigen velden: *OPS_TaskDurationUnit* op de activiteit en *OPS_ExportInfo* op het project. P6 toont ze als gewone eigen velden. De app gebruikt ze alleen als elke activiteit van het project zo'n veld heeft. Voeg je in P6 een activiteit toe, dan opent de app het project als een gewoon P6-bestand en toont ze de twee velden als eigen velden.
+**Terug openen.** Een `.xer` uit de app opent weer als *Primavera P6*. Een taak in dagen komt terug in dagen, een taak in uren in uren. Daarvoor schrijft de app eigen velden in het bestand, net als bij de export naar P6 XML. Elke activiteit krijgt *OPS_TaskDurationUnit*, en waar nodig een veld voor een duur of lag met een breuk. Heeft het project een eigen *Projectstandaard* voor het taaktype, dan krijgt het project *OPS_DefaultWorkRule*. Een resource met een vaste *Max. eenheden* krijgt *OPS_FlatCapacity*. P6 toont ze als gewone eigen velden; de app toont ze niet. Voeg je in P6 een activiteit toe, dan opent de app die activiteit in uren, zoals elke activiteit uit P6. De andere activiteiten houden hun eenheid. De kalenders leest de app zoals in elk P6-bestand.
 
 **Niet getest in P6 zelf.** De app toetst de export door hem zelf terug te lezen. Een import in Primavera P6 zelf is nog niet getest.
 

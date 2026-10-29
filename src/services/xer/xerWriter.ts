@@ -11,6 +11,11 @@
  * (`workRuleMapping.ts`) en het project-ID (`p6ProjectIdentity`). Zo lopen de twee P6-formaten niet uit
  * elkaar.
  *
+ * Duur, rest, lag en toewijzingsuren volgen het urenmodel zoals de P6 XML-schrijver (T13, T21, I7;
+ * `xmlDayMeasure.ts`). Wat XER zelf niet draagt (de eenheid per taak, een breuk in de dagenmaat, de
+ * projectstandaard van het taaktype, een vaste capaciteit) gaat mee als tekst-UDF met een OPS-naam; de
+ * lijst en de leesregels staan in `xerOpsMarkers.ts`.
+ *
  * Wat XER niet kan dragen, of wat deze schrijver nog niet schrijft, komt in `loss` (code + aantal).
  * `exportAs` maakt daar één melding van; nooit stil verlies.
  *

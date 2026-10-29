@@ -1036,6 +1036,25 @@ en noem het in je rapport of PR-tekst.
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
 
+463. **Het P6 Project-ID van een XER-export kan botsen.** Zonder eigen projectcode maakt de XER-schrijver het
+     Project-ID uit de projectnaam (`src/services/xer/xerWriter.ts`, `projectCode`), afgekapt op 40 tekens
+     (`P6_ID_MAX_LENGTH`). Twee projecten met dezelfde naam, of met namen die pas na teken 40 verschillen,
+     krijgen dan hetzelfde ID. Wat P6 bij het importeren met zo'n bestaand ID doet, is niet getoetst.
+     Voorstel: in P6 nagaan of het een bestaand project vervangt, en dan het ID uniek maken of melden. Uit de
+     review van PR #393 (punt F, VERVOLG). — S
+
+464. **De XER-export schrijft geen `restart_date` en `reend_date`.** De TASK-tabel
+     (`src/services/xer/xerWriter.ts`, `TASK_COLUMNS`) heeft geen vroege start en geen vroeg einde van de
+     restduur. Welke datums P6 toont vóór de eerste herberekening in P6, is daardoor niet onderbouwd. Voorstel:
+     een export in P6 openen zonder herberekenen en de getoonde datums vergelijken met OPS. Uit de review van
+     PR #393 (punt 9, VERVOLG). — S
+
+465. **Een XER in UTF-8 zonder BOM is niet bewezen veilig voor P6.** Past een teken niet in Windows-1252, dan
+     schrijft de XER-schrijver UTF-8 zonder BOM (`src/services/xer/xerWriter.ts`, kopcommentaar). Dat de eigen
+     lezer dit bestand leest, is getoetst (`check-xer-writer.ts`, V10–V11); dat P6 het zonder verminkte tekens
+     importeert, niet. Voorstel: een export met bijvoorbeeld `Ł` in P6 importeren en de naam nakijken. Uit de
+     review van PR #393 (punt 10, VERVOLG). — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
