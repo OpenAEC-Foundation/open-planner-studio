@@ -1175,7 +1175,7 @@ function readXerProject(
           : {}),
       };
       const lagRecord = opsFields.lagRecordsByTask.size > 0 ? lagRecordOf(row) : undefined;
-      if (lagRecordHolds(lagRecord, lagMinutes,
+      if (lagRecord && lagRecordHolds(lagRecord, lagMinutes,
         lagWorkMinutesPerDay(sequence, schedulingOptions.lagCalendar, projectCalendar, effCalByTaskId))) {
         delete sequence.lagMinutes;
         Object.assign(sequence, lagFromRecord(lagRecord));
