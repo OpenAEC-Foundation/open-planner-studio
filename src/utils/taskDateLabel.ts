@@ -47,8 +47,10 @@ export function taskDateClock(task: Task, calendar: WorkCalendar): DayClock {
  * (FINISH de eindkant, anders de startkant). Dan toont de tabel alleen de datum als het moment op het begin
  * of het einde van zijn werkdag valt. Die werkdag komt uit `milestoneWorkdayOf` (spec §4.2, B10 met de
  * aanvulling "einde blijft einde"): de dag waarvan de werkspanne het moment bevat, ook op een dag zonder
- * werkblok (D4), maar nooit een D4-dag tegen een moment midden in echte werktijd; bij een gedeelde rand de dag
- * van de soort. Een FINISH-mijlpaal op het einde van ma blijft "ma", ook als hetzelfde moment het begin van
+ * werkblok (D4). Leest de rest van de app (`workdayOfInstant`) het moment op een echte werkdag waarvan de
+ * spanne het bevat, dan is het die dag; zo gaat het echte begin van ma voor een D4-einde van zo op hetzelfde
+ * moment. Een moment midden in echte werktijd hoort nooit bij een D4-dag. Verder beslist op een gedeelde rand
+ * de soort. Een FINISH-mijlpaal op het einde van ma blijft "ma", ook als hetzelfde moment het begin van
  * di is (24-uurskalender). Bij ma–do 22:00–06:00 en vr 22:00–02:00 is za 02:00 "vr" en zo 06:00 "za".
  * Dezelfde werkdag gebruiken het afmelden (B10, `milestoneMomentOn`) en de statusregel
  * (`isTaskActualPastStatusDate`). Stond de mijlpaal op een dagrand, dan toont de tabel na afmelden de dag die
