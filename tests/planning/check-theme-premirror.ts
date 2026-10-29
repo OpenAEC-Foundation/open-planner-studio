@@ -27,6 +27,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { THEME_MIGRATION } from '@/utils/settingsStore';
+import { OA_THEME_FOR } from '@/utils/theme';
 
 let failures = 0;
 function check(name: string, cond: boolean): void {
@@ -76,6 +77,24 @@ for (const key of migrationKeys) {
     indexHtmlMap[key] === THEME_MIGRATION[key],
   );
 }
+
+// De tweede spiegel: OPS-thema → `data-oa-theme` (OpenAEC-tokens 0.4). Zonder dit attribuut
+// tekenen de brugblokken in globals.css bij de eerste paint met de verkeerde tokens (een flits).
+const oaMatch = /var\s+oaTheme\s*=\s*(\{[^}]*\});/.exec(indexHtml);
+check('index.html: de pre-paint-map naar data-oa-theme (`var oaTheme = {...}`) is gevonden', oaMatch !== null);
+if (oaMatch) {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- geïsoleerde literal, zie boven
+  const oaMap = new Function(`"use strict"; return (${oaMatch[1]});`)() as Record<string, string>;
+  check(
+    `index.html oaTheme gelijk aan OA_THEME_FOR (index.html: ${JSON.stringify(oaMap)}, ` +
+      `OA_THEME_FOR: ${JSON.stringify(OA_THEME_FOR)})`,
+    JSON.stringify(Object.entries(oaMap).sort()) === JSON.stringify(Object.entries(OA_THEME_FOR).sort()),
+  );
+}
+check(
+  'index.html zet data-oa-theme naast data-theme vóór de eerste paint',
+  /setAttribute\('data-oa-theme'/.test(indexHtml),
+);
 
 // De onbekende-sleutel-default moet in beide 'dark' zijn — dat staat niet IN de map, dus los
 // vastgezet door de bronnen zelf te grepen op hun fallback-uitdrukking.

@@ -120,8 +120,9 @@ ok('Sturend is een sterkere tint van dezelfde rolkleur (eigen driving-variabelen
     && /\.task-grid-relation-chip--driving\[data-relation-direction="successor"\][\s\S]*?color:\s*var\(--relation-successor-driving\);/.test(relationStyles));
 ok('Het warning-icoon houdt zijn eigen --warning-kleur, los van de rolkleur',
   /\.task-grid-relation-chip--warning \.task-grid-relation-icon--warning > svg\s*\{\s*color:\s*var\(--warning,/.test(relationStyles));
-for (const theme of ['dark', 'light', 'high-contrast']) {
-  const block = new RegExp(`\\[data-theme="${theme}"\\]\\s*\\{([^}]*)\\}`).exec(relationStyles)?.[1] ?? '';
+// Licht en donker zijn brugblokken op `data-oa-theme`; hoog contrast heeft nog zijn eigen blok.
+for (const theme of ['oa-theme="dark"', 'oa-theme="light"', 'theme="high-contrast"']) {
+  const block = new RegExp(`\\[data-${theme}\\]\\s*\\{([^}]*)\\}`).exec(relationStyles)?.[1] ?? '';
   ok(`Thema "${theme}" definieert alle vier de relatie-rolkleurvariabelen als hex-kleur`,
     block !== ''
       && ['--relation-predecessor', '--relation-predecessor-driving', '--relation-successor', '--relation-successor-driving']

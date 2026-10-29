@@ -24,6 +24,46 @@ async function canvasDataUrl(page: Page, selector: string): Promise<string> {
   return page.locator(selector).evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
 }
 
+/** De kleur die het meest voorkomt in de onderste helft van het Gantt-canvas: met één taak bovenin
+ *  is dat de kaartachtergrond (weekendkolommen zijn 2 van de 7 dagen). Als `#RRGGBB`. */
+async function ganttBackground(page: Page): Promise<string> {
+  return page.locator('[data-testid="gantt-primary-canvas"]').evaluate((canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext('2d')!;
+    const y = Math.floor(canvas.height * 0.6);
+    const { data } = ctx.getImageData(0, y, canvas.width, Math.floor(canvas.height * 0.3));
+    const counts = new Map<string, number>();
+    for (let i = 0; i < data.length; i += 4) {
+      const hex = '#' + [data[i], data[i + 1], data[i + 2]].map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+      counts.set(hex, (counts.get(hex) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  });
+}
+
+async function themeAttributes(page: Page): Promise<[string | null, string | null]> {
+  return page.evaluate(() => [
+    document.documentElement.getAttribute('data-theme'),
+    document.documentElement.getAttribute('data-oa-theme'),
+  ]);
+}
+
+/** De achtergrond van titelbalk, linttabs, documentbalk en werkruimte. Bevinding Ethan 2026-10-29:
+ *  elk van de vier houdt zijn eigen tint (de titelbalk liep in donker op in het lint). */
+async function shellTints(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() => {
+    const bg = (selector: string) => {
+      const el = document.querySelector(selector);
+      return el ? getComputedStyle(el).backgroundColor : 'ontbreekt';
+    };
+    return {
+      titlebar: bg('.title-bar'),
+      ribbonTabs: bg('.ribbon-tabs'),
+      docbar: bg('.ops-tabstrip'),
+      workspace: bg('#ops-document-tabpanel'),
+    };
+  });
+}
+
 async function addLibraryBooking(page: Page, taskId: string, label: string): Promise<{
   companyId: string;
   poolResourceId: string;
@@ -59,6 +99,8 @@ async function openOccupancyWithRealClick(page: Page): Promise<void> {
   await expect(page.locator('[data-ops-occupancy-view]')).toBeVisible();
 }
 
+// Licht en donker komen uit de OpenAEC-tokens 0.4 via de brugblokken in globals.css: de Gantt-kaart
+// is `--oa-panel` van het thema. Hoog contrast heeft nog zijn eigen kleuren (#0a0a0a).
 test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async ({ page, ops: _ops }) => {
   await seedProject(page, [{
     name: 'Themataak',
@@ -77,17 +119,59 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
     minimap: await canvasDataUrl(page, '[data-testid="minimap"] canvas'),
   };
 
+  // Standaard donker: beide attributen, en de Gantt-kaart is --oa-frame uit de tokens (#2A2A32):
+  // donkerder dan de oude kaart, zodat geen balkcontrast zakt (check-theme-contrast.ts).
+  expect(await themeAttributes(page)).toEqual(['dark', 'dark']);
+  expect(await ganttBackground(page)).toBe('#2A2A32');
+  // Titelbalk en documentbalk `frame`, linttabs `panel` (Blueprint-schermen); de werkruimte houdt de
+  // oude OPS-waarde #1B1D22 (elk token is lichter en verlaagt het contrast).
+  expect(await shellTints(page)).toEqual({
+    titlebar: 'rgb(42, 42, 50)', ribbonTabs: 'rgb(51, 51, 60)', docbar: 'rgb(42, 42, 50)', workspace: 'rgb(27, 29, 34)',
+  });
+
   // Het openen mag fixturematig; de geteste gebruikershandeling is de echte klik op de themakaart.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.getByRole('dialog');
   await expect(settings).toBeVisible();
+
+  // Licht: de kaart is --oa-panel (#FFFFFF); werkruimte en tekst houden hun oude OPS-waarde.
+  await settings.locator('[data-ops-theme-card="light"]').click();
+  await expect.poll(() => themeAttributes(page)).toEqual(['light', 'light']);
+  await expect.poll(() => ganttBackground(page)).toBe('#FFFFFF');
+  expect(await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return ['--theme-surface', '--theme-bg', '--theme-text', '--theme-accent']
+      .map(name => cs.getPropertyValue(name).trim());
+  })).toEqual(['#FFFFFF', '#E5E5E8', '#2A2A31', '#D97706']);
+  // Licht: titelbalk en documentbalk warm `frame`, linttabs wit, werkruimte neutraal grijs (#E5E5E8).
+  expect(await shellTints(page)).toEqual({
+    titlebar: 'rgb(241, 238, 234)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(241, 238, 234)', workspace: 'rgb(229, 229, 232)',
+  });
+  // Bevinding Ethan 2026-10-29: de randen tussen de vlakken moeten zichtbaar zijn. De kaartrand
+  // is daarom niet --oa-border (#EAEAEA, 1,04:1 op `frame`), maar #D6D2CC (Blueprint-issue #44).
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--theme-border').trim()))
+    .toBe('#D6D2CC');
+  const lightGantt = await canvasDataUrl(page, '[data-testid="gantt-primary-canvas"]');
+  await waitForFontsAndTwoQuietWindows(page, 'primary');
+  before.paint = await paintCount(page, 'primary');
+  before.gantt = lightGantt;
+  before.minimap = await canvasDataUrl(page, '[data-testid="minimap"] canvas');
+
   await settings.locator('[data-ops-theme-card="high-contrast"]').click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme))
     .toBe('high-contrast');
   await expect.poll(() => paintCount(page, 'primary')).toBeGreaterThan(before.paint);
   await expect.poll(() => canvasDataUrl(page, '[data-testid="gantt-primary-canvas"]')).not.toBe(before.gantt);
   await expect.poll(() => canvasDataUrl(page, '[data-testid="minimap"] canvas')).not.toBe(before.minimap);
+  // Hoog contrast valt nog buiten de brug: eigen kaartkleur, data-oa-theme alvast high-contrast-dark.
+  expect(await themeAttributes(page)).toEqual(['high-contrast', 'high-contrast-dark']);
+  expect(await ganttBackground(page)).toBe('#0A0A0A');
   await waitForFontsAndTwoQuietWindows(page, 'primary');
+
+  // En terug naar donker: weer de tokenkleur.
+  await settings.locator('[data-ops-theme-card="dark"]').click();
+  await expect.poll(() => themeAttributes(page)).toEqual(['dark', 'dark']);
+  await expect.poll(() => ganttBackground(page)).toBe('#2A2A32');
 });
 
 test('histogramsplitter tekent de nieuwe hoogte en veroorzaakt geen ResizeObserver-loop', async ({ page, ops: _ops }) => {
