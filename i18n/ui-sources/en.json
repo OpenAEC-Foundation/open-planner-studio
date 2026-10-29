@@ -80,6 +80,7 @@
     "notifications.exportSplitsLost": "2ad7b860bf260cc9",
     "notifications.exportP6Truncated": "86ce575329791e77",
     "notifications.exportInvalidXmlChars": "82194e47290e523b",
+    "notifications.exportCriticalHoursLost": "beb3c37a95df22cb",
     "notifications.exportXerLoss": "e088a9904e9c39f2",
     "notifications.projectStartAnchorsClamped": "534a9e8fea92f60f",
     "notifications.mppTimephasedSteeringLost": "f39d8e5dccf2cedd",

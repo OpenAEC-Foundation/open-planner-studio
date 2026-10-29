@@ -108,6 +108,7 @@
     "exportP6Truncated_other": "{{count}} namen of codes zijn ingekort tot de lengte die P6 toestaat.",
     "exportInvalidXmlChars_one": "{{count}} teken dat in XML niet mag, is in de export vervangen door �.",
     "exportInvalidXmlChars_other": "{{count}} tekens die in XML niet mogen, zijn in de export vervangen door �.",
+    "exportCriticalHoursLost": "Bij export naar MS Project XML gaat de kritiek-drempel in uren verloren: MS Project kent alleen een drempel in hele dagen.",
     "exportXerLoss": "De XER-export is opgeslagen. Dit ging niet of niet precies mee:",
     "projectStartAnchorsClamped_one": "{{count}} taak schoof mee met de projectstart.",
     "projectStartAnchorsClamped_other": "{{count}} taken schoven mee met de projectstart.",

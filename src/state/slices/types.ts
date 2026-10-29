@@ -362,6 +362,7 @@ export type NotificationMessageKey =
   | 'notifications.exportSplitsLost'
   | 'notifications.exportP6Truncated'
   | 'notifications.exportInvalidXmlChars'
+  | 'notifications.exportCriticalHoursLost'
   // Een onbruikbaar XER-bronarchief is bij het
   // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
   // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
