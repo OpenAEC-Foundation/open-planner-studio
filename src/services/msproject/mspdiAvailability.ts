@@ -17,7 +17,8 @@ export const MSPDI_AVAILABILITY_NA_END = '2049-12-31';
 const MSPDI_LAST_DATE = '2149-12-31';
 /** Een open einde bij het lezen: na elke echte datum. */
 const OPEN_END = '9999-12-31';
-const isOpenEnd = (to: string) => !to || to === MSPDI_AVAILABILITY_NA_END || to >= MSPDI_LAST_DATE;
+/** NA of de uiterste datum: een open einde, tenzij er daarna nog een periode begint (dan een echte grens). */
+const isEndSentinel = (to: string) => to === MSPDI_AVAILABILITY_NA_END || to === MSPDI_LAST_DATE;
 
 export interface MspdiAvailabilityPeriod {
   /** `YYYY-MM-DD`, inclusief; bij het lezen `''` als de grens ontbreekt (= NA). */
@@ -63,8 +64,8 @@ export function availabilityPeriodsOf(resource: Pick<Resource, 'maxUnits' | 'ava
 
 /**
  * Periodes uit een bestand ⇒ de vlakke waarde en de stappen. Een ontbrekend begin is NA. Een einde is open als het
- * ontbreekt, NA is (2049-12-31) of op de uiterste datum van MS Project valt; elk ander einde, ook na 2049, is een
- * echte grens. Buiten elke periode is de resource in MS Project niet beschikbaar: vóór de eerste periode, in een
+ * ontbreekt, of als het NA (2049-12-31) of de uiterste datum van MS Project (2149-12-31) is en er geen latere
+ * periode begint; elk ander einde is een echte grens. Buiten elke periode is de resource in MS Project niet beschikbaar: vóór de eerste periode, in een
  * gat en na een periode met een echte einddatum. Dat wordt een stap naar 0; vóór de eerste periode een
  * stap op NA zelf, omdat de vlakke waarde (`MaxUnits`) groter dan 0 moet blijven. Een periode vanaf NA met
  * capaciteit draagt de vlakke waarde. Een stap die de capaciteit niet verandert, valt weg, zodat een vlakke
@@ -74,8 +75,13 @@ export function availabilityFromPeriods(
   maxUnits: number,
   periods: readonly MspdiAvailabilityPeriod[],
 ): { maxUnits: number; availabilitySteps?: AvailabilityStep[] } {
+  const lastFrom = periods.reduce((max, p) => (p.from > max ? p.from : max), '');
   const valid = periods
-    .map(p => ({ from: p.from || MSPDI_AVAILABILITY_NA_START, to: isOpenEnd(p.to) ? OPEN_END : p.to, units: p.units }))
+    .map(p => ({
+      from: p.from || MSPDI_AVAILABILITY_NA_START,
+      to: !p.to || (isEndSentinel(p.to) && lastFrom <= p.to) ? OPEN_END : p.to,
+      units: p.units,
+    }))
     .filter(p => ISO_DAY.test(p.from) && ISO_DAY.test(p.to) && p.to >= p.from && isUnits(p.units))
     .sort((a, b) => a.from.localeCompare(b.from));
   if (valid.length === 0) return { maxUnits };

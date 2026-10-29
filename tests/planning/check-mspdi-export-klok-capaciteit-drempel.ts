@@ -191,6 +191,18 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
     ['2050-01-02', '2050-01-03', '2050-01-07', '2050-01-08'].map(d => maxUnitsOn(r as Resource, d));
   same('§2 lezer: eindige periode na 2049', curve(after('2050-01-07')), [0, 2, 2, 0]);
   same('§2 lezer: periode na 2049 zonder einde', curve(after('')), [0, 2, 2, 2]);
+  // Een einde op NA met een latere periode erna is een echte grens: het gat erna blijft 0.
+  const pastNa = availabilityFromPeriods(1, [
+    { from: '2049-12-20', to: '2049-12-31', units: 1 },
+    { from: '2050-01-03', to: '2050-01-07', units: 2 },
+  ]);
+  const naCurve = (r: { maxUnits: number; availabilitySteps?: Resource['availabilitySteps'] }) =>
+    ['2049-12-19', '2049-12-31', '2050-01-01', '2050-01-02', '2050-01-03', '2050-01-08'].map(d => maxUnitsOn(r as Resource, d));
+  same('§2 lezer: einde op NA met latere periode', naCurve(pastNa), [0, 1, 0, 0, 2, 0]);
+  const pastNaBack = quiet(() => readMSPDI(write(project(), cal, [task('T', {})], [res('N', pastNa)]))).resources.find(r => r.name === 'N');
+  same('§2 N: einde op NA met latere periode heen en terug', pastNaBack && naCurve(pastNaBack), [0, 1, 0, 0, 2, 0]);
+  same('§2 lezer: einde na de uiterste datum is een echte grens',
+    availabilityFromPeriods(1, [{ from: '2050-01-03', to: '2150-01-02', units: 2 }]).availabilitySteps?.at(-1), { from: '2150-01-03', maxUnits: 0 });
   const finite = res('E', after('2050-01-07'));
   const finiteBack = quiet(() => readMSPDI(write(project(), cal, [task('T', {})], [finite]))).resources.find(r => r.name === 'E');
   same('§2 E: eindige periode na 2049 heen en terug', finiteBack && curve(finiteBack), [0, 2, 2, 0]);
