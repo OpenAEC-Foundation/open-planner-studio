@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-29T18:03:37.157Z",
-  "downloads": 3048,
+  "generatedAt": "2026-10-29T20:01:26.032Z",
+  "downloads": 3056,
   "releases": [
     {
       "tag": "v2026.43.0",
@@ -11,12 +11,12 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 222,
-          "update": 70,
+          "install": 225,
+          "update": 73,
           "both": 0,
           "byKind": {
-            "exe": 222,
-            "nsis.zip": 70
+            "exe": 225,
+            "nsis.zip": 73
           }
         },
         "macos": {
@@ -31,16 +31,16 @@
         "linux": {
           "install": 5,
           "update": 0,
-          "both": 83,
+          "both": 86,
           "byKind": {
             "snap": 5,
             "rpm": 8,
-            "AppImage": 51,
-            "deb": 24
+            "AppImage": 53,
+            "deb": 25
           }
         }
       },
-      "polls": 656
+      "polls": 684
     },
     {
       "tag": "v2026.10.0",
@@ -48,11 +48,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 121,
+          "install": 122,
           "update": 56,
           "both": 0,
           "byKind": {
-            "exe": 121,
+            "exe": 122,
             "nsis.zip": 56
           }
         },
@@ -85,11 +85,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1204,
+          "install": 1205,
           "update": 68,
           "both": 0,
           "byKind": {
-            "exe": 1204,
+            "exe": 1205,
             "nsis.zip": 68
           }
         },
@@ -854,12 +854,12 @@
   ],
   "totals": {
     "windows": {
-      "install": 1836,
-      "update": 275,
+      "install": 1841,
+      "update": 278,
       "both": 0,
       "byKind": {
-        "exe": 1836,
-        "nsis.zip": 275
+        "exe": 1841,
+        "nsis.zip": 278
       }
     },
     "macos": {
@@ -874,16 +874,16 @@
     "linux": {
       "install": 84,
       "update": 0,
-      "both": 861,
+      "both": 864,
       "byKind": {
         "snap": 84,
         "rpm": 124,
-        "AppImage": 420,
-        "deb": 317
+        "AppImage": 422,
+        "deb": 318
       }
     }
   },
-  "polls": 5157,
+  "polls": 5185,
   "unknown": [
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
     "v2026.43.0: open-planner-studio_2026.43.0_amd64.snap.asc",
