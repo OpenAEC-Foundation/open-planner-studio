@@ -5,8 +5,8 @@ import { originalSequenceId } from '@/engine/scheduler/expandSummaryRelations';
 import { resolveEffectiveLagDays } from '@/engine/scheduler/CPMSolver';
 import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
-import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
-import { actualDateSide, isActualPastStatusDate } from '@/engine/taskMutationRules';
+import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { isTaskActualPastStatusDate } from '@/engine/taskMutationRules';
 import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
@@ -377,7 +377,7 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
 /**
  * Ongeldige datum (PAM §4.9): een werkelijke start of einde ná de statusdatum, of een prognose
  * vóór de statusdatum — de start van een niet-gestarte taak, het einde van een niet-voltooide taak.
- * "Ná" met dezelfde precisie als het raster (`isActualPastStatusDate`); "vóór" op dagniveau, want de
+ * "Ná" met dezelfde precisie als het raster (`isTaskActualPastStatusDate`); "vóór" op dagniveau, want de
  * statusdatum is de eerste dag van het restwerk (data-date-vloer van de solver). De prognose telt
  * alleen ná een berekening (`withForecast`): daarvóór zijn de getoonde datums de geplande, geen
  * prognose.
@@ -387,8 +387,8 @@ export type InvalidDateReason = 'actualStartAfterStatusDate' | 'actualFinishAfte
 export function invalidDateReasons(t: Task, statusDate: string, statusDay: string, withForecast: boolean, calendar?: WorkCalendar): InvalidDateReason[] {
   const out: InvalidDateReason[] = [];
   const { actualStart, actualFinish } = t.time;
-  if (actualStart && isActualPastStatusDate(actualStart, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualStart'))) out.push('actualStartAfterStatusDate');
-  if (actualFinish && isActualPastStatusDate(actualFinish, statusDate, isElapsedTask(t) ? undefined : calendar, actualDateSide(t, 'actualFinish'))) out.push('actualFinishAfterStatusDate');
+  if (actualStart && isTaskActualPastStatusDate(t, 'actualStart', actualStart, statusDate, calendar)) out.push('actualStartAfterStatusDate');
+  if (actualFinish && isTaskActualPastStatusDate(t, 'actualFinish', actualFinish, statusDate, calendar)) out.push('actualFinishAfterStatusDate');
   if (!withForecast) return out;
   const state = progressState(t);
   if (state === 'notStarted' && dayOf(taskStart(t)) < statusDay) out.push('forecastStartBeforeStatusDate');

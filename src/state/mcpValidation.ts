@@ -22,8 +22,8 @@ import { isElapsedTask } from '@/engine/scheduler/duration';
 import type { AppState } from './appStore';
 import type { Task } from '@/types/task';
 import {
-  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isActualPastStatusDate,
-  actualDateSide, normalizeActualDate,
+  applyProgressInvariants, fillMissingActualStart, isActualFinishBeforeStart, isTaskActualPastStatusDate,
+  normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import { captureProgressWork, settleProgressWork } from '@/engine/work/workRuleApply';
 import { actualStartQuestionFor } from '@/engine/progressEntry';
@@ -213,10 +213,10 @@ export const progress = {
     // (5) OPGEGEVEN actual ná de statusdatum ⇒ weigering (spiegel van setActualStart/Finish accepted=false),
     //     met dezelfde vergelijking als store en grid: een date-only statusdatum laat de hele dag toe.
     if (statusDate) {
-      if (update.actualStart && isActualPastStatusDate(suppliedActualStart!, statusDate, isElapsedTask(task) ? undefined : calendar, actualDateSide(task, 'actualStart'))) {
+      if (update.actualStart && isTaskActualPastStatusDate(task, 'actualStart', suppliedActualStart!, statusDate, calendar)) {
         return { applied: false, reason: `actualStart ${update.actualStart} lies after the status date ${statusDate}` };
       }
-      if (update.actualFinish && isActualPastStatusDate(suppliedActualFinish!, statusDate, isElapsedTask(task) ? undefined : calendar, actualDateSide(task, 'actualFinish'))) {
+      if (update.actualFinish && isTaskActualPastStatusDate(task, 'actualFinish', suppliedActualFinish!, statusDate, calendar)) {
         return { applied: false, reason: `actualFinish ${update.actualFinish} lies after the status date ${statusDate}` };
       }
     }

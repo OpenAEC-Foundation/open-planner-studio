@@ -106,3 +106,61 @@ test('tabel: een datum zonder tijd bij een mijlpaal houdt de klokketijd uit de p
   await typeInCell(page, keuringFinish, '05-06-2026 09:30');
   await expect.poll(() => timeOf(page, keuring).then(t => t.actualFinish)).toBe('2026-06-05T09:30');
 });
+
+// Nachtploeg ma–vr 22:00–06:00 met statusdatum wo 3 jun: afmelden op de statuswerkdag mag (voorheen
+// knownbug 445). Een losse mijlpaal staat in OPS op het einde van de werkdag (B6): di 2 jun 06:00, de
+// tabel toont "01-06-2026". Met 03-06-2026 wordt het do 4 jun 06:00, het einde van de nacht van wo; de
+// cel toont "03-06-2026". Zonder soort en START werden hier eerst geweigerd.
+test('tabel: nachtploeg, een mijlpaal afmelden op de statuswerkdag mag', async ({ page, ops: _ops }) => {
+  const ids = await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const night = [{ start: 1320, end: 1800 }];
+    s.setCalendar({
+      ...s.calendar, workDays: [1, 2, 3, 4, 5], holidays: [], workStartHour: 22, workEndHour: 30, hoursPerDay: 8,
+      workTime: { byWeekday: { 1: night, 2: night, 3: night, 4: night, 5: night, 6: [], 7: [] } },
+    });
+    s.setProject({ name: 'Mijlpaal nachtploeg', startDate: '2026-06-01' });
+    s.setUI({ dateNotation: 'dmy' });
+    const milestone = (name: string, kind?: 'START' | 'FINISH') => s.addTask({
+      name, isMilestone: true, ...(kind ? { milestoneKind: kind } : {}), time: { scheduleDuration: 0 } as never,
+    });
+    const zonder = milestone('Oplevering nacht');
+    const start = milestone('Start nacht', 'START');
+    const after = window.__OPS__!.store.getState();
+    after.runCPM();
+    after.setStatusDate('2026-06-03');
+    const columns = after.taskGridSurfaces['full-task-grid'].columns;
+    after.setTaskGridColumns('full-task-grid', [
+      ...columns,
+      { id: 'task.time.actualStart', width: 140, pinned: false } as unknown as (typeof columns)[number],
+      { id: 'task.time.actualFinish', width: 140, pinned: false } as unknown as (typeof columns)[number],
+    ]);
+    return { zonder, start };
+  });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(2);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  await expect(surface(page).locator('[role="grid"]')).toBeVisible();
+
+  // Voorwaarden: beide mijlpalen op di 2 jun 06:00, de cel Start toont 01-06-2026 zonder tijd (na de
+  // statusdatum staat er ook de markering "verouderd" bij).
+  for (const id of [ids.zonder, ids.start]) {
+    expect((await timeOf(page, id)).planned).toBe('2026-06-02T06:00');
+    const startCell = taskCell(page, id, 'task.time.start');
+    await expect(startCell).toContainText('01-06-2026');
+    await expect(startCell).not.toContainText('06:00');
+  }
+
+  // Zonder soort, werkelijk einde 03-06-2026.
+  const zonderFinish = taskCell(page, ids.zonder, 'task.time.actualFinish');
+  await typeInCell(page, zonderFinish, '03-06-2026');
+  await expect.poll(() => timeOf(page, ids.zonder)).toEqual({
+    planned: '2026-06-02T06:00', actualStart: '2026-06-04T06:00', actualFinish: '2026-06-04T06:00',
+  });
+  await expect(zonderFinish).toHaveText('03-06-2026');
+
+  // START, werkelijke start 03-06-2026.
+  const startStart = taskCell(page, ids.start, 'task.time.actualStart');
+  await typeInCell(page, startStart, '03-06-2026');
+  await expect.poll(() => timeOf(page, ids.start).then(t => t.actualStart)).toBe('2026-06-04T06:00');
+  await expect(startStart).toHaveText('03-06-2026');
+});

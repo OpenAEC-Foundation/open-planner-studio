@@ -244,7 +244,12 @@ en noem het in je rapport of PR-tekst.
      geeft DCMA 0 fouten, de detaillijst meldt `actualStartAfterStatusDate`. Op `main` staat dezelfde
      detailregel, met daarbij een foute telling van 1; de urenomzetting verbeterde de telling. Voorstel: geef
      op deze ene aanroep de effectieve taakkalender mee. Gevonden in review #563 r2, nagespeeld in review r1
-     van #600. — B
+     van #600. Sinds #724 (B10, een afgemelde mijlpaal houdt de klokketijd uit de planning) geldt het ook
+     voor een losse mijlpaal zonder soort of met soort START die op de statusdag wordt afgemeld: OPS,
+     nachtdienst ma–vr 22:00–06:00, status wo 3 jun, "03-06-2026" wordt do 4 jun 06:00. Invoer en DCMA
+     accepteren dat; de detaillijst meldt beide actuals ná de statusdatum. Vóór #724 kregen die mijlpalen
+     wo 22:00 (D7) en meldde de lijst niets; een FINISH-mijlpaal had het al. Gemeten met een probe op kop en
+     basis van #724. — B
 
 317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
      `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
@@ -507,16 +512,16 @@ en noem het in je rapport of PR-tekst.
     `src/engine/reports/reportCommon.ts` overschrijft daardoor de aanwezige rest met nul. Alleen in de
     code vastgesteld bij knownbug 387; samenvattings- en rapportroutes nog niet doorgemeten.
     Voorstel: de voortgangsclassificatie met de importstatus afstemmen en de rollups gericht toetsen. — B
-445. **Nachtploeg: een losse mijlpaal zonder soort of met soort START is op de statusdag niet af te melden.**
-     OPS-profiel, kalender ma–vr 22:00–06:00, losse mijlpaal zonder soort: B6 zet hem op di 2 jun 06:00 (het einde
-     van het blok van ma), de tabel toont "01-06-2026". Statusdatum 3 jun zonder tijd; typ bij *Werkelijke datum*
-     "03-06-2026". Sinds het besluit van 2026-10-29 (een afgemelde mijlpaal houdt de klokketijd uit de planning)
-     wordt dat do 4 jun 06:00, het einde van het blok van wo 3 jun; de tabel zou "03-06-2026" tonen. De
-     statusregel (`isActualPastStatusDate`, `src/engine/taskMutationRules.ts`) kijkt bij een mijlpaal zonder
-     soort naar de startkant, ziet do 4 jun en weigert: *Actuals kunnen niet ná de statusdatum liggen*. Met D7
-     gaf het wo 3 jun 22:00 en werd het geaccepteerd. Een FINISH-mijlpaal heeft het niet (eindkant), en met
-     statusdatum 4 jun gaat het goed. Omweg: typ een tijd. Gemeten met een probe op alle drie de soorten.
-     Voorstel: laat de statusregel bij een mijlpaal dezelfde dag gebruiken als de tabel (`taskDateLabel`). — B
+448. **Nachtploeg: alleen een werkelijk einde op de statusdag geeft een werkelijke start die DCMA "ná de
+     statusdatum" noemt.** Kalender ma–vr 22:00–06:00, taak van 8 u op ma 1 jun 22:00, statusdatum wo 3 jun.
+     Typ alleen bij *Werkelijk einde* "03-06-2026". Dat wordt do 4 jun 06:00 (D6, het einde van de nacht van
+     wo), en `applyProgressInvariants` (`src/engine/taskMutationRules.ts:267`) zet de ontbrekende werkelijke
+     start op hetzelfde moment. De invoer wordt geaccepteerd: het einde leest de eindkant, werkdag wo. DCMA
+     punt 9 (`invalidDateReasons`, `src/engine/reports/dcmaAssessment.ts:387`) leest de start aan de
+     startkant, klokdag do, en meldt `actualStartAfterStatusDate`. Gemeten met een probe op de basis van #724
+     (`3c2c1ec12`) en op de kop; #724 verandert dit niet. Een nulduur-mijlpaal heeft het niet: daar telt de
+     dag die de tabel toont. Voorstel: een afgeleide start die gelijk is aan het einde, krijgt bij de
+     statusregel de werkdag van het einde. — B
 
 ## Kalenders
 

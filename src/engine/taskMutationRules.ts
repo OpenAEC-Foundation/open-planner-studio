@@ -14,7 +14,8 @@ import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /**
  * De statusregel (§4.2): zonder tijd telt de werkdag van de taakkalender; met tijd het moment.
- * Bij een nachtblok kan een feit op donderdag bij de statuswerkdag woensdag horen.
+ * Bij een nachtblok kan een feit op donderdag bij de statuswerkdag woensdag horen. Voor een werkelijke
+ * datum van een taak: {@link isTaskActualPastStatusDate} (kant van het veld, en de mijlpaalregel).
  */
 export function isActualPastStatusDate(
   dateIso: string,
@@ -32,11 +33,40 @@ export function isActualPastStatusDate(
 /** De kant van een werkelijke datum: bij een taak die van het veld (start begin, einde eind). Een
  *  nulduur-mijlpaal heeft één moment voor beide actuals en dus één kant: de eindkant bij een
  *  FINISH-mijlpaal, anders de startkant (D7). Dezelfde kant als de tabel (`taskDateLabel`) en de
- *  statusregel (`isActualPastStatusDate`). */
+ *  statusregel (`isTaskActualPastStatusDate`). */
 export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'): InstantSide {
   return isZeroDurationMilestone(task)
     ? task.milestoneKind === 'FINISH' ? 'end' : 'start'
     : field === 'actualFinish' ? 'end' : 'start';
+}
+
+/**
+ * De statusregel voor een werkelijke datum van een taak: {@link isActualPastStatusDate} met de kant van
+ * het veld ({@link actualDateSide}) en de klok van de taak (kalendertijd of de werkblokken van `calendar`).
+ * Elke invoerroute en het DCMA-rapport toetsen hiermee.
+ *
+ * Een nulduur-mijlpaal heeft één moment. Valt dat op een dagrand, dan toont de tabel de werkdag van die
+ * rand: eerst de rand van zijn soort, dan de andere (B4, `taskDateLabel`). Bij een statusdatum zonder tijd
+ * telt voor een mijlpaal díe werkdag. Wat de tabel op de statusdag toont, mag dus op de statusdag.
+ * Voorbeeld: nachtploeg ma–vr 22:00–06:00, een mijlpaal zonder soort of START staat op di 2 jun 06:00 (de
+ * tabel toont "01-06-2026"), statusdatum wo 3 jun. Afmelden met 3-6-2026 geeft do 4 jun 06:00 (B10, de
+ * klokketijd uit de planning). De tabel toont "03-06-2026", dus geen weigering (was knownbug 445). De
+ * soort blijft gelden: een moment midden op de dag leest een START-mijlpaal aan de startkant, zoals
+ * eerder. Een statusdatum mét tijd blijft een tijdstipcontrole. Een gewone taak: ongewijzigd.
+ */
+export function isTaskActualPastStatusDate(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  dateIso: string,
+  statusDateIso: string,
+  calendar?: WorkCalendar,
+): boolean {
+  const side = actualDateSide(task, field);
+  if (calendar && !statusDateIso.includes('T') && isZeroDurationMilestone(task)) {
+    const shown = taskDateLabel(task, dateIso, side, calendar);
+    if (isDateOnly(shown)) return parseDate(shown).getTime() > parseDate(statusDateIso).getTime();
+  }
+  return isActualPastStatusDate(dateIso, statusDateIso, isElapsedTask(task) ? undefined : calendar, side);
 }
 
 /**
@@ -216,7 +246,7 @@ export function applyCompletionEdit(task: Task, completion: number, statusDate: 
  *  draaien — de gedeelde kern van `setActualStart`/`setActualFinish` (paneel) en de velden in
  *  "Taak bewerken". Het einde wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering
  *  (anders zet de invariant meteen een nieuw einde en is wissen onmogelijk). Een datum ná de
- *  statusdatum weigeren (`isActualPastStatusDate`) doet de aanroeper, vóór deze aanroep. */
+ *  statusdatum weigeren (`isTaskActualPastStatusDate`) doet de aanroeper, vóór deze aanroep. */
 export function applyActualDateEdit(
   task: Task,
   field: 'actualStart' | 'actualFinish',
