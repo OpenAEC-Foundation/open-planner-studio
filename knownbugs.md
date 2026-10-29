@@ -1489,6 +1489,14 @@ en noem het in je rapport of PR-tekst.
      (*Planung › Terminplanung › Warnungen*); in 24 lintgidsvertalingen staat de oude naam. Voorstel: bij de
      volgende `update-docs-lang`-ronde meenemen. Gevonden in review van #735 (GPT-6.1-Sol), 2026-10-29. — B
 
+496. **De browsertest voor de lint-tabs bewaakt alleen de klik op Planning bij 100%.**
+     `tests/browser/control-signals.spec.ts:9` controleert de tabovergang en de afstand tot de titelbalk
+     alleen na een klik op Planning, met standaardinstellingen. Hover, een actieve Bestand-tab, andere
+     lettergroottes (90/110/125%) en de wissel met het muiswiel (#732) dekt de test niet. Een latere fout die
+     alleen `.ribbon-tab--file.active`, hover of 90% raakt, blijft groen. Voorstel: in hetzelfde scenario
+     dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
+     het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
