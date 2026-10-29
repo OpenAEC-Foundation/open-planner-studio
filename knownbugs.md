@@ -1057,8 +1057,16 @@ en noem het in je rapport of PR-tekst.
      2049-12-31 eindigt, telt als open einde (NA). Op de datum alleen is dat niet van een echte grens te
      onderscheiden; met een latere periode erna telt het wel als grens. Een export van OPS zelf heeft beide
      gevallen niet. Voorstel: overlap weigeren of per dag de laatste periode laten winnen; voor (b) de volledige
-     tijd van NA vergelijken (MPXJ `LocalDateTimeHelper`). Gevonden in review r4 van #728 (GPT-6.1-Sol), met een
-     proefscript. — B
+     tijd van NA vergelijken (MPXJ `LocalDateTimeHelper`): de lezer knipt de tijd nu af, dus een einde op
+     2049-12-31T23:58:00 (voor MPXJ een echte grens) telt ook als open. Gevonden in review r4 en r5 van #728
+     (GPT-6.1-Sol), met een proefscript. — B
+
+472. **Een ongeldige beschikbaarheidsperiode in MSPDI kan het open einde van een geldige periode sluiten.**
+     `src/services/msproject/mspdiAvailability.ts` (`availabilityFromPeriods`): `lastFrom` telt alle rijen, ook
+     die de filter daarna weggooit. Voorbeeld: `1984-01-01 → 2049-12-31` met capaciteit 1 plus een ongeldige rij
+     `2050-01-03 → 2048-01-01` geeft capaciteit 0 vanaf 2050-01-01 in plaats van 1. Alleen bij ongeldige invoer
+     van buiten. Voorstel: `lastFrom` alleen over de geaccepteerde rijen berekenen. Gevonden in review r5 van
+     #728 (GPT-6.1-Sol), met een proefscript. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
