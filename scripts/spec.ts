@@ -136,6 +136,9 @@ export interface ScopeMutationSpec {
   addLinks?: LinkSpec[];
   /** Bestaande taak (key) krijgt een nieuwe duur (werkdagen) — bv. meerwerk-vertraging. */
   extendDurations?: { key: string; dur: number }[];
+  /** Extra vrije dagen in de projectkalender (zelfde vorm als `CalSpec.extraHolidays`), via de echte
+   *  `setCalendar` — bv. vorstverlet dat pas na de contractbaseline bekend werd. */
+  addHolidays?: { name: string; fromDay: number; calendarDays: number }[];
 }
 
 export interface BaselineSpec {
@@ -177,6 +180,9 @@ export interface ProjectSpec {
    *  Afwezig ⇒ bestaand gedrag (de LAATST opgeslagen baseline blijft actief, `saveBaseline`
    *  activeert altijd de nieuwste). */
   activeBaselineName?: string;
+  /** OPTIONEEL — baselines (op naam) die de Gantt naast de actieve toont (`comparedBaselineIds`,
+   *  maximaal twee), gezet via de echte `toggleComparedBaseline` ná `activeBaselineName`. */
+  comparedBaselineNames?: string[];
   /** OPTIONEEL — statusdatum (P6 data date, `Project.statusDate`), WERKDAG-offset t.o.v. het
    *  anker. Gezet via de echte `setStatusDate`-actie vóór de (tweede) `runCPM()`-run zodat
    *  voortgang/actuals correct doorwerken in de forward pass (data-date-gedreven herplanning). */
