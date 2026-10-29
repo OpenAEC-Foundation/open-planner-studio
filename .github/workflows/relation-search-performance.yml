@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     env:
-      BASE_REVISION: 1f719e9ffca1123e3fc173ecaa4cd83f3c228416
+      BASE_REVISION: 1c4c8a2b629c1efcd070188a8368b108c4e289cf
       HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: 'true'
     steps:

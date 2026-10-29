@@ -5,7 +5,7 @@ Deze opt-in meting draait uitsluitend in GitHub Actions, via
 bij wijzigingen aan deze meetmap, de twee betrokken tests of de workflow. Later
 kan de workflow handmatig worden gestart. Een PR-tekstwijziging start niets.
 
-De basis is vastgezet op `1f719e9ffca1123e3fc173ecaa4cd83f3c228416`; de andere
+De basis is vastgezet op `1c4c8a2b629c1efcd070188a8368b108c4e289cf`; de andere
 checkout is de expliciete PR-head (bij handmatig starten: de gekozen revisie).
 Beide gebruiken Node 22, dezelfde lockfile, dezelfde Chromium-versie en dezelfde
 runner. De workflow bewaart ook bij fouten de revisies, installatie-/test-/bouwlogs
