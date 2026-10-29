@@ -18,6 +18,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 
 import './styles/globals.css';
+import './components/icons/icons.css';
 
 appLog.init();
 
