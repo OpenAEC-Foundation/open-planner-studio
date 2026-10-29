@@ -89,7 +89,8 @@ export interface HeadlessStarter {
 export type ProxyFailure =
   | { kind: 'no-app' }
   | { kind: 'token' }
-  | { kind: 'unreachable'; detail: string }
+  /** `maybeDelivered`: de verbinding brak pas nadat de aanvraag verstuurd kon zijn (alles behalve ECONNREFUSED). */
+  | { kind: 'unreachable'; detail: string; maybeDelivered: boolean }
   | { kind: 'timeout' }
   | { kind: 'refused'; message: string }
   | { kind: 'http'; status: number }
@@ -182,7 +183,12 @@ export const HEADLESS_RESTART_NOTE = `${NOTE_PREFIX}the planner without the app 
 /** Melding als de app opengaat terwijl de headless planner nog niet opgeslagen werk heeft. */
 export const UNSAVED_STAY_NOTE = `${NOTE_PREFIX}the Open Planner Studio app is open now, but the planner without the app `
   + 'still has changes that are not written to a file. Requests stay with the planner without the app until you write them '
-  + 'with planner_export_ifc (choose another file name if the app has the file open). After that, requests go to the app.';
+  + 'with planner_export_ifc. While the app runs, that planner does not replace an existing file, so choose a new file name. '
+  + 'After that, requests go to the app.';
+/** Een wijziging aan de app zonder antwoord, terwijl ze wel aangekomen kan zijn: niet opnieuw sturen. */
+export const UNKNOWN_OUTCOME_MESSAGE = 'The connection to the Open Planner Studio app broke before its answer came, so it is '
+  + 'not known whether this change was carried out. The extension does not send it again. Read the plan again before you '
+  + 'retry the change.';
 
 /** Uitleg achter de instructies van de planner, in beide standen. */
 export function bundleInstructions(root: string | null): string {
@@ -288,6 +294,9 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
   let headlessReady = false;
   /** Documenten van de headless planner met wijzigingen die nog niet met `planner_export_ifc` op schijf staan. */
   const unsaved = new Set<string>();
+  /** Een wijziging aan de headless planner kreeg geen antwoord op tijd: ze kan uitgevoerd zijn. Tot dat bekend is,
+   *  telt het actieve document als niet opgeslagen (`resolveUncertain`). */
+  let uncertainChange = false;
   /** Al gemeld dat de app open is maar de headless planner nog niet opgeslagen werk heeft? */
   let unsavedNoted = false;
 
@@ -315,7 +324,10 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
       if (isObject(error) && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
         return { type: 'fail', failure: { kind: 'timeout' } };
       }
-      return { type: 'fail', failure: { kind: 'unreachable', detail: describeError(error) } };
+      // Alleen een geweigerde verbinding bewijst dat de bridge niets kreeg; een verbroken verbinding niet.
+      const cause = isObject(error) && isObject(error.cause) ? error.cause : null;
+      const maybeDelivered = cause?.code !== 'ECONNREFUSED';
+      return { type: 'fail', failure: { kind: 'unreachable', detail: describeError(error), maybeDelivered } };
     }
     const text = await res.text().catch(() => '');
     if (res.status === 401) return { type: 'fail', failure: { kind: 'token' } };
@@ -406,6 +418,7 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
     channel = null;
     headlessReady = false;
     unsaved.clear();
+    uncertainChange = false;
     if (old) await old.close();
   }
 
@@ -474,6 +487,7 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
       // Het kindproces stopte terwijl het niets deed: zijn geheugen is weg.
       headlessReady = false;
       unsaved.clear();
+      uncertainChange = false;
       if (mode === 'headless') {
         blocked = headlessLostMessage(root, 'the process ended');
         pendingNote = HEADLESS_RESTART_NOTE;
@@ -481,8 +495,9 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
       log('the planner without the app ended unexpectedly; its unsaved changes are lost');
     }
     const found = opts.findApp();
-    if (found === null || unsaved.size === 0) unsavedNoted = false;
-    const stayHeadless = found !== null && mode === 'headless' && headlessReady && channel?.alive === true && unsaved.size > 0;
+    const pending = unsaved.size > 0 || uncertainChange;
+    if (found === null || !pending) unsavedNoted = false;
+    const stayHeadless = found !== null && mode === 'headless' && headlessReady && channel?.alive === true && pending;
     if (stayHeadless && !unsavedNoted) {
       unsavedNoted = true;
       pendingNote = UNSAVED_STAY_NOTE;
@@ -564,15 +579,42 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
   const succeeded = (result: Json) => result.isError !== true
     && !(isObject(result.structuredContent) && result.structuredContent.ok === false);
 
+  /** Verandert deze tool een document? `planner_export_ifc` schrijft het weg; een import of een nieuw document is
+   *  nog onveranderd. */
+  const changesDocument = (toolName: string | null): toolName is string => toolName !== null
+    && !readOnlyTools.has(toolName) && !DOCUMENT_RECOVERY_TOOLS.has(toolName) && toolName !== EXPORT_TOOL;
+
+  /** Het actieve document volgens de envelope van een toolresultaat. */
+  function activeDocument(result: Json): string | null {
+    const envelope = isObject(result.structuredContent) && isObject(result.structuredContent.envelope)
+      ? result.structuredContent.envelope : null;
+    return envelope && typeof envelope.activeDocumentId === 'string' ? envelope.activeDocumentId : null;
+  }
+
   /** Houdt bij welke headless documenten wijzigingen hebben die nog niet op schijf staan. */
   function trackUnsaved(toolName: string, result: Json): void {
     if (!succeeded(result)) return;
-    const envelope = isObject(result.structuredContent) && isObject(result.structuredContent.envelope)
-      ? result.structuredContent.envelope : null;
-    const docId = envelope && typeof envelope.activeDocumentId === 'string' ? envelope.activeDocumentId : '(unknown)';
-    // `planner_export_ifc` schrijft het actieve document; een import of een nieuw document is nog onveranderd.
+    const docId = activeDocument(result) ?? '(unknown)';
     if (toolName === EXPORT_TOOL) unsaved.delete(docId);
-    else if (!readOnlyTools.has(toolName) && !DOCUMENT_RECOVERY_TOOLS.has(toolName)) unsaved.add(docId);
+    else if (changesDocument(toolName)) unsaved.add(docId);
+  }
+
+  /**
+   * Na een wijziging zonder antwoord: vraag de headless planner welk document actief is (een wijziging verandert
+   * dat niet) en tel dat als niet opgeslagen. Het kindproces werkt aanvragen na elkaar af, dus dit antwoord komt
+   * pas als de wijziging klaar is. Geen antwoord: het blijft onzeker, en de planner blijft.
+   */
+  async function resolveUncertain(): Promise<void> {
+    const check = await (channel as HeadlessChannel).request({
+      jsonrpc: '2.0', id: `ops-mcpb-check-${++internalId}`, method: 'tools/call',
+      params: { name: 'planner_list_documents', arguments: {} },
+    }, timeoutMs);
+    const result = check.type === 'reply' && isObject(check.json) && isObject(check.json.result) ? check.json.result : null;
+    const docId = result ? activeDocument(result) : null;
+    if (docId === null) return;
+    unsaved.add(docId);
+    uncertainChange = false;
+    log(`the change without an answer counts as not written for document ${docId}`);
   }
 
   /** Geeft een antwoord van een planner door; een fout zonder id krijgt het id van het request. */
@@ -722,11 +764,17 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
         await answerOffline(id, method, result.failure);
         return 'done';
       }
-      // Niet afgeleverd (de app ging net dicht, of het token geldt niet meer): opnieuw kiezen. Komt dezelfde
-      // bridge terug, dan hervat `selectBackend` de sessie als die nog bestaat; anders blokkeert `connectApp`
-      // wijzigingen in de nieuwe sessie.
       appConnected = false;
       if (result.failure.kind !== 'token') resumeSession = sessionId;
+      // Een wijziging die aangekomen kan zijn, gaat niet opnieuw: dan zou ze twee keer gebeuren.
+      if (mutates && ((result.failure.kind === 'unreachable' && result.failure.maybeDelivered) || result.failure.kind === 'http')) {
+        log(`${appFailureMessage(result.failure, app?.port ?? null)} The change may have been carried out; not sending it again.`);
+        await toolError(id, UNKNOWN_OUTCOME_MESSAGE);
+        return 'done';
+      }
+      // Niet afgeleverd (de app ging net dicht, of het token geldt niet meer): opnieuw kiezen. Komt dezelfde
+      // bridge terug, dan hervat `selectBackend` de sessie als die nog bestaat; anders blokkeert `connectApp`
+      // wijzigingen in de nieuwe sessie. Een leesaanvraag mag altijd opnieuw.
       log(`${appFailureMessage(result.failure, app?.port ?? null)} Choosing again.`);
       return 'retry';
     }
@@ -737,6 +785,7 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
 
   async function viaHeadless(id: Id, method: string, toolName: string | null, message: Json): Promise<void> {
     queuedIds.delete(id);
+    if (uncertainChange) await resolveUncertain();
     const result = await (channel as HeadlessChannel).request(message, timeoutMs);
     if (result.type === 'exited') {
       headlessReady = false;
@@ -747,6 +796,11 @@ export function createPlannerProxy(opts: PlannerProxyOptions, send: (message: JS
       return;
     }
     if (result.type === 'timeout') {
+      if (changesDocument(toolName)) {
+        // Zonder antwoord is niet bewezen dat er niets veranderde: niet weggooien bij een wissel naar de app.
+        uncertainChange = true;
+        log(`no answer in time to ${toolName}; the planner without the app counts as having changes that are not written`);
+      }
       const text = `The planner without the app did not answer within ${Math.round(timeoutMs / 1000)} seconds. `
         + 'It is not known whether the request was carried out. Read the plan again before you retry a change.';
       if (method === 'tools/call') await toolError(id, text);

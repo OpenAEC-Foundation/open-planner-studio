@@ -171,16 +171,18 @@ test('A1 slot: pid-toestand en registernamen', () => {
     .map(isOpenFilesName), [true, true, false, false, false, false], 'namen');
 });
 
-test('A1 slot: schrijven geweigerd voor een open bestand, lezen mag; dood pid, .tmp, slug en onbruikbare registers', async () => {
+test('A1 slot: zolang de app draait geen bestaand bestand vervangen, lezen mag; nieuw bestand, dood pid, .tmp, slug en onbruikbare registers', async () => {
   const lockRoot = join(tmp, 'lock-root');
   const regDir = join(tmp, 'lock-reg');
-  mkdirSync(join(lockRoot, 'sub'), { recursive: true });
+  mkdirSync(lockRoot, { recursive: true });
   mkdirSync(regDir);
   const open = join(lockRoot, 'open.ifc');
   const other = join(lockRoot, 'ander.ifc');
   writeFileSync(open, ORIGINAL);
   const reg = (name: string, text: string) => writeFileSync(join(regDir, name), text);
   const clear = () => { for (const f of readdirSync(regDir)) rmSync(join(regDir, f)); };
+  let fresh = 0;
+  const newFile = () => join(lockRoot, `nieuw-${++fresh}.ifc`);
   // Een niet-bestaande map in de lijst is geen fout.
   const fs = await createNodeFileFs(lockRoot, createAppLock([join(tmp, 'lock-bestaat-niet'), regDir]));
   const refusedWrite = async (p: string, label: string, text: string) => {
@@ -189,27 +191,27 @@ test('A1 slot: schrijven geweigerd voor een open bestand, lezen mag; dood pid, .
     assert(caught instanceof ScopeEscapeError, `${label}: verwacht SCOPE, kreeg ${String(caught)}`);
     assert(String((caught as Error).message).includes(text), `${label}: tekst ${String((caught as Error).message)}`);
   };
+  const running = 'does not replace the existing file';
   const isOpen = 'is open in the Open Planner Studio desktop app';
   const noneAtAll = 'the server writes no file at all';
 
   // Geen register: vrij.
   await fs.writeTextFile(other, 'A');
-  // Geldig register van een levende app.
+  // Geldig register van een levende app: geen bestaand bestand, ook niet een dat niet in het register staat
+  // (het register loopt achter op wat de app net opende).
   reg('open-files.json', registerText(process.pid, [open]));
-  await refusedWrite(open, 'open bestand', isOpen);
+  await refusedWrite(open, 'open bestand', running);
   assertEq(readFileSync(open, 'utf8'), ORIGINAL, 'open bestand byte-gelijk');
   assertEq(tmpFiles(lockRoot), [], 'geen halffabricaat');
+  await refusedWrite(other, 'ander bestaand bestand', running);
+  assertEq(readFileSync(other, 'utf8'), 'A', 'ander bestand byte-gelijk');
   assertEq(await fs.readTextFile(open), ORIGINAL, 'lezen van het open bestand mag');
   assertEq(await fs.confine!(open), null, 'confine (lezen) kent geen slot');
-  await fs.writeTextFile(other, 'B');
-  assertEq(readFileSync(other, 'utf8'), 'B', 'ander bestand geschreven');
-  // Een symlink binnen de werkmap naar het open bestand.
   symlinkSync(open, join(lockRoot, 'alias.ifc'));
-  await refusedWrite(join(lockRoot, 'alias.ifc'), 'symlink naar het open bestand', isOpen);
-  // Een andere schrijfwijze in het register (`sub/..`) is hetzelfde bestand.
-  clear();
-  reg('open-files.json', registerText(process.pid, [join(lockRoot, 'sub') + '/../open.ifc']));
-  await refusedWrite(open, 'andere schrijfwijze in het register', isOpen);
+  await refusedWrite(join(lockRoot, 'alias.ifc'), 'symlink naar het open bestand', running);
+  const created = newFile();
+  await fs.writeTextFile(created, 'B');
+  assertEq(readFileSync(created, 'utf8'), 'B', 'nieuw bestand geschreven');
   // Dood pid: het register is achtergebleven.
   clear();
   reg('open-files.json', registerText(deadPid(), [open]));
@@ -217,11 +219,11 @@ test('A1 slot: schrijven geweigerd voor een open bestand, lezen mag; dood pid, .
   // Onbruikbaar register met levend pid, en zonder pid: niets wordt geschreven; met dood pid wel.
   clear();
   reg('open-files.json', JSON.stringify({ formatVersion: 2, pid: process.pid, files: [] }));
-  await refusedWrite(other, 'onbruikbaar, levend pid', noneAtAll);
-  assertEq(await fs.readTextFile(other), 'B', 'lezen blijft mogen bij refuse-all');
+  await refusedWrite(newFile(), 'onbruikbaar, levend pid', noneAtAll);
+  assertEq(await fs.readTextFile(other), 'A', 'lezen blijft mogen bij refuse-all');
   clear();
   reg('open-files.json', '{ kapot');
-  await refusedWrite(other, 'onbruikbaar, geen pid', noneAtAll);
+  await refusedWrite(newFile(), 'onbruikbaar, geen pid', noneAtAll);
   clear();
   reg('open-files.json', JSON.stringify({ formatVersion: 2, pid: deadPid() }));
   await fs.writeTextFile(other, 'C');
@@ -229,26 +231,27 @@ test('A1 slot: schrijven geweigerd voor een open bestand, lezen mag; dood pid, .
   clear();
   reg('open-files.json.4f2a.tmp', '{ kapot');
   await fs.writeTextFile(other, 'D');
-  reg('open-files.wt-3007.json', registerText(process.pid, [open]));
-  await refusedWrite(open, 'dev-register met slug', isOpen);
-  // Registerpad en doel bestaan allebei niet en zijn gelijk; ook in een map die nog niet bestaat.
+  reg('open-files.wt-3007.json', registerText(process.pid, []));
+  await refusedWrite(other, 'dev-register met slug, leeg', running);
+  // Registerpad en doel bestaan allebei niet en zijn gelijk (een open document waarvan het bestand weg is);
+  // ook in een map die nog niet bestaat.
   clear();
   reg('open-files.json', registerText(process.pid, [join(lockRoot, 'weg.ifc'), join(lockRoot, 'nieuw', 'weg.ifc')]));
   await refusedWrite(join(lockRoot, 'weg.ifc'), 'beide niet bestaand, gelijk', isOpen);
   await refusedWrite(join(lockRoot, 'nieuw', 'weg.ifc'), 'beide niet bestaand, ontbrekende map', isOpen);
   assert(!existsSync(join(lockRoot, 'weg.ifc')) && !existsSync(join(lockRoot, 'nieuw')), 'niets aangemaakt');
   await fs.writeTextFile(join(lockRoot, 'nieuw', 'anders.ifc'), 'E');
-  // Onzekere identiteit van een registerpad (dode link): weigeren.
+  // Onzekere identiteit van een registerpad (dode link): ook een nieuw bestand weigeren.
   clear();
   symlinkSync(join(tmp, 'lock-nergens.ifc'), join(tmp, 'lock-dode-link.ifc'));
   reg('open-files.json', registerText(process.pid, [join(tmp, 'lock-dode-link.ifc')]));
-  await refusedWrite(other, 'dode link in het register', 'cannot establish the identity');
+  await refusedWrite(newFile(), 'dode link in het register', 'cannot establish the identity');
   // Een registermap die bestaat maar niet te lezen is: weigeren (als root is elke map leesbaar).
   clear();
   if (process.getuid?.() !== 0) {
     chmodSync(regDir, 0o000);
     try {
-      await refusedWrite(other, 'onleesbare registermap', noneAtAll);
+      await refusedWrite(newFile(), 'onleesbare registermap', noneAtAll);
     } finally {
       chmodSync(regDir, 0o700);
     }
@@ -1022,7 +1025,7 @@ test('B stdio: OPS_MCP_READ_ONLY=1 weigert mutaties (READ_ONLY), lezen werkt', a
   }
 });
 
-test('B stdio slot (#730): OPS_MCP_DISCOVERY_DIR — een bestand dat open staat in de app wordt niet geschreven', async () => {
+test('B stdio slot (#730): OPS_MCP_DISCOVERY_DIR — zolang de app draait wordt geen bestaand bestand vervangen', async () => {
   const regB = join(tmp, 'register-b');
   mkdirSync(regB);
   cpSync(EXAMPLE, join(work, 'open-b.ifc'));
@@ -1033,16 +1036,17 @@ test('B stdio slot (#730): OPS_MCP_DISCOVERY_DIR — een bestand dat open staat 
   reg('open-files.json', registerText(process.pid, [openB]));
   const { client, transport } = await stdioClient(['--no-backup'], { OPS_MCP_DISCOVERY_DIR: regB });
   try {
-    assert((client.getInstructions() ?? '').includes('does not write a file that is open in the Open Planner Studio desktop app'),
+    assert((client.getInstructions() ?? '').includes('the server does not replace an existing file'),
       'instructies noemen het slot');
     // Lezen van het open bestand mag.
     await ok(client, 'planner_import_schedule', { path: '~/open-b.ifc' });
     const r = await refused(client, 'planner_export_ifc', { path: '~/open-b.ifc', overwrite: true }, 'SCOPE', 'open bestand overschrijven');
-    assert(String(r.s.error).includes('is open in the Open Planner Studio desktop app'), `tekst: ${r.s.error}`);
+    assert(String(r.s.error).includes('does not replace the existing file'), `tekst: ${r.s.error}`);
     assert(Buffer.compare(readFileSync(openB), bytes) === 0, 'open bestand byte-gelijk');
     assertEq(readdirSync(work).filter((f) => f.endsWith('.tmp')), [], 'geen halffabricaat');
     await ok(client, 'planner_export_ifc', { path: '~/ander-b.ifc' });
-    assert(existsSync(join(work, 'ander-b.ifc')), 'ander bestand geschreven');
+    assert(existsSync(join(work, 'ander-b.ifc')), 'nieuw bestand geschreven');
+    await refused(client, 'planner_export_ifc', { path: '~/ander-b.ifc', overwrite: true }, 'SCOPE', 'bestaand bestand dat niet in het register staat');
     symlinkSync(openB, join(work, 'alias-b.ifc'));
     await refused(client, 'planner_export_ifc', { path: '~/alias-b.ifc', overwrite: true }, 'SCOPE', 'symlink naar het open bestand');
     // Beide niet bestaand en gelijk.
@@ -1055,7 +1059,7 @@ test('B stdio slot (#730): OPS_MCP_DISCOVERY_DIR — een bestand dat open staat 
     reg('open-files.json.9c1d.tmp', '{ kapot');
     reg('open-files.wt-b.json', registerText(process.pid, [openB]));
     await refused(client, 'planner_export_ifc', { path: '~/open-b.ifc', overwrite: true }, 'SCOPE', 'dev-register');
-    await ok(client, 'planner_export_ifc', { path: '~/ander-b.ifc', overwrite: true });
+    await ok(client, 'planner_export_ifc', { path: '~/nieuw-b.ifc' });
     // Dood pid: vrij.
     clear();
     reg('open-files.json', registerText(deadPid(), [openB]));

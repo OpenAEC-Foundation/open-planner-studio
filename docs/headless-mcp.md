@@ -93,7 +93,7 @@ Claude Code: `claude mcp add --transport http open-planner http://127.0.0.1:3878
   geweigerd: kies een lokale werkmap en een lokaal absoluut bestandspad. De tool zet een netwerkpad
   nooit om in een lokaal pad.
 - **Instructies.** `initialize.instructions` bevat de vaste instructies van de app plus een korte
-  headless uitleg (werkmap, opslaan, geen bestand schrijven dat in de desktop-app open staat, geen
+  headless uitleg (werkmap, opslaan, geen bestaand bestand vervangen zolang de desktop-app draait, geen
   gebruikersinterface).
 - **Veiligheidsvlaggen.** `--read-only` zet `ui.aiReadOnly`. `paused` blijft altijd `false`: er is
   geen knop om te pauzeren. Dialogen bestaan niet, dus `DIALOG_OPEN` komt niet voor.
@@ -142,15 +142,18 @@ logging gaat naar stderr.
    Een andere schrijfwijze van een bestaand pad wordt dus geweigerd, nooit toegelaten. De server weigert
    met `SCOPE`: een symlink of junction naar buiten, een dode link, en een bestand met meer dan één harde
    link (dan is niet te bewijzen dat elke naam in de werkmap ligt).
-3. Slot, alleen bij schrijven (`headless/mcp-server/src/appLock.ts`, aangeroepen in `writeChecked`): de
-   server schrijft geen bestand dat open staat in de desktop-app. Lezen blijft mogen. Bij elke
+3. Slot, alleen bij schrijven (`headless/mcp-server/src/appLock.ts`, aangeroepen in `writeChecked`):
+   zolang de desktop-app draait, vervangt de server geen bestaand bestand. Lezen blijft mogen, en een nieuw
+   bestand schrijven ook. Bij elke
    schrijfactie leest hij opnieuw elk `open-files*.json` in de registermappen (ook `open-files.<slug>.json`
    van dev-builds; namen op `.tmp` niet). Per register beslist `openFilesWritePolicy` met de toestand van
    het pid (`process.kill(pid, 0)`: `ESRCH` = dood, `EPERM` = leeft, anders onbekend). Het contract staat
    in `docs/mcp-ontdekking.md`. Geweigerd met `SCOPE`:
-   - het doel heeft dezelfde bestandsidentiteit als een pad in een geldig register van een (mogelijk)
-     levende app: `realpath`, dan `stat` (`dev` + `ino`). Een symlink, een andere schrijfwijze of `..`
-     naar het open bestand telt dus ook;
+   - het doel bestaat, en er is een geldig register van een (mogelijk) levende app. Dat geldt ook voor een
+     bestand dat niet in het register staat: het register loopt achter op de app. In een echte run (app
+     v2026.43.0) stond een net geopend bestand pas na 113–144 ms in het register; in dat venster zou een
+     vergelijking met het register het bestand vrijgeven (review #730, ronde 1). Een symlink naar een
+     bestaand bestand telt ook;
    - een register bestaat maar is onbruikbaar en de app leeft mogelijk, of het register heeft geen geldig
      pid: dan schrijft de server geen enkel bestand;
    - een registermap of register bestaat maar is niet te lezen (bijvoorbeeld `EACCES`): idem;
@@ -164,8 +167,9 @@ logging gaat naar stderr.
    mappen aanmaakt. Op macOS en Windows vergelijkt hij die sleutels zonder onderscheid in hoofdletters
    (alleen meer weigeringen). Een map uit de lijst die niet bestaat, is geen fout.
 
-   Het register is een voorcontrole, geen slot van het besturingssysteem: opent de gebruiker het bestand
-   tussen de controle en het schrijven, dan merkt de server dat niet.
+   Het register is een voorcontrole, geen slot van het besturingssysteem. Wat overblijft: de app start, en
+   maakt hetzelfde nieuwe bestand aan, tussen de controle en de `rename` van de server (microseconden); en een
+   app zonder register (ouder dan #570) ziet de server niet.
 
 **De operatie is gebonden aan de ligging.** Poort 2 is een controle vooraf. Een ander proces kan daarna
 een map door een link vervangen, of een map mét inhoud naar buiten verplaatsen en een link terugleggen.

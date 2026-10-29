@@ -144,8 +144,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
    - **wisselen zonder werk te verliezen**: de app gaat dicht ⇒ melding vooraan het volgende antwoord,
      `notifications/tools/list_changed`, een wijziging wordt geweigerd tot een bestand geopend is, en het werk
      in de app blijft onaangeroerd; de app gaat open terwijl de headless planner nog niet opgeslagen werk heeft
-     ⇒ de aanvragen blijven zonder app (met melding); staat het bestand open in de app (`open-files.json`),
-     dan weigert `planner_export_ifc` met `overwrite: true` het overschrijven en blijft het bestand byte-gelijk;
+     ⇒ de aanvragen blijven zonder app (met melding); zolang de app draait (`open-files.json`), weigert
+     `planner_export_ifc` met `overwrite: true` het overschrijven en blijft het bestand byte-gelijk;
      opslaan onder een andere naam lukt, daarna wissel naar de app,
      weigering tot `planner_switch_document`, en het bestand bevat beide taken; het kindproces stopt
      onverwacht ⇒ melding, en wijzigen pas na opnieuw openen;
@@ -223,8 +223,9 @@ headless MCP-server (#572) op een werkmap. Dit is het schakelstuk uit het ontwer
   werkt. Een kindproces en geen import, omdat de headless server per bestandsoperatie de procesmap zet. Vóór het
   starten controleert de bundel: een werkmap ingevuld, Node 22 of nieuwer (het schakelstuk zelf draait vanaf
   Node 18), en de map bestaat. Lukt dat niet, dan noemt de fout de reden. De logregels van het kind gaan met het
-  voorvoegsel `headless:` naar stderr. De headless server schrijft geen bestand dat open staat in de app
-  (`open-files.json`, slot in `headless/mcp-server/src/appLock.ts`, zie [Headless MCP-server](headless-mcp.md)).
+  voorvoegsel `headless:` naar stderr. Zolang de app draait (`open-files.json` van een levend proces), vervangt de
+  headless server geen bestaand bestand (slot in `headless/mcp-server/src/appLock.ts`, zie
+  [Headless MCP-server](headless-mcp.md)).
 - **Dezelfde tools.** In beide standen gelden dezelfde 41 `planner_*`-tools, met dezelfde namen, beschrijvingen,
   schema's en annotaties (getoetst). Geen tool heeft een scherm nodig; Gantt, dialogen, lint, afdrukken en PDF
   hebben geen tool, ook niet in de app. `initialize.instructions` is die van de planner, met een korte uitleg van

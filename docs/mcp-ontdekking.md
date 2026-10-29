@@ -19,7 +19,7 @@ De plugin kiest per aanvraag tussen twee standen:
 |---|---|
 | App niet geïnstalleerd, of geïnstalleerd en uit | Werkt zelf op IFC-bestanden |
 | App aan, MCP-koppeling aan (bridge draait) | Stuurt alles door naar de bridge van de app |
-| App aan, MCP-koppeling uit | Werkt zelf op bestanden, maar weigert elk bestand dat open staat in de app |
+| App aan, MCP-koppeling uit | Werkt zelf op bestanden, maar weigert elk bestand dat open staat in de app (de headless server van #730 vervangt dan geen enkel bestaand bestand: het register loopt achter op de app) |
 
 Daarvoor moet de plugin weten of de bridge draait (poort en token), en welke bestanden open staan.
 

@@ -57,9 +57,9 @@ per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
 is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
-tools op Node zonder app. Hij schrijft geen bestand dat open staat in de desktop-app: `appLock.ts` leest bij elke
-schrijfactie `open-files*.json` uit de mappen van de app (`mcpDiscoveryDirs`) of `--discovery-dir`, vergelijkt op
-identiteit en weigert bij twijfel. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
+tools op Node zonder app. Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
+op de app): `appLock.ts` leest bij elke schrijfactie `open-files*.json` uit de mappen van de app (`mcpDiscoveryDirs`)
+of `--discovery-dir`, en weigert bij twijfel. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
 (`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid
 (`freshness.ts`) en de dialoogpoort (`src/state/blockingDialogs.ts`) in modules zonder waarde-import uit `appStore.ts`
 (`verify:store-boundaries`). Tools importeren daaruit, niet uit `server.ts`, `backup.ts` of `staleGuard.ts`. Een

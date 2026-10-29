@@ -742,6 +742,13 @@ en noem het in je rapport of PR-tekst.
     gedocumenteerde responseheader met de waarschuwingscodes. Gevonden in de review van de fix voor aanval
     a10 (GPT-6.1-Sol). — B
 
+492. **Het manifest van de Claude Desktop-bundel belooft Node 18, maar de stand zonder app vraagt Node 22.**
+     `integrations/claude-desktop/manifest.json` zegt `compatibility.runtimes.node: ">=18.0.0"`; dat klopt voor het
+     schakelstuk. `headlessChild.ts` (`HEADLESS_MIN_NODE_MAJOR = 22`) weigert de stand zonder app onder Node 22,
+     met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
+     Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
+     in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S

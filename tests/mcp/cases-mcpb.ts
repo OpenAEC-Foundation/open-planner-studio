@@ -35,7 +35,8 @@ import { parseZipEntries } from '@/services/zip';
 import { startBridgeMirror, type BridgeMirror } from './bridgeMirror';
 import {
   HEADLESS_RESTART_NOTE, SESSION_RESET_MESSAGE, STATUS_TOOL_NAME, SWITCH_TO_APP_MESSAGE, SWITCH_TO_APP_NOTE,
-  UNSAVED_STAY_NOTE, bundleInstructions, headlessLostMessage, switchToHeadlessMessage, switchToHeadlessNote,
+  UNKNOWN_OUTCOME_MESSAGE, UNSAVED_STAY_NOTE, bundleInstructions, createPlannerProxy, headlessLostMessage,
+  switchToHeadlessMessage, switchToHeadlessNote, type HeadlessChannel,
 } from '../../integrations/claude-desktop/src/proxy';
 import { readBundleConfig } from '../../integrations/claude-desktop/src/config';
 
@@ -409,13 +410,13 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
     assert(!more.isError && more.structured.ok === true, `tweede wijziging zonder app: ${more.text}`);
     assertEq(app.store.getState().tasks.length, before, 'niets in de app gezet');
 
-    // De gebruiker heeft plan.ifc in de app open: de headless planner schrijft er niet overheen (het slot),
-    // en het werk blijft dus niet weggeschreven.
+    // De gebruiker heeft plan.ifc in de app open: zolang de app draait, vervangt de headless planner geen
+    // bestaand bestand (het slot), en het werk blijft dus niet weggeschreven.
     const original = readFileSync(join(root, 'plan.ifc'), 'utf8');
     writeOpenFiles(discovery, [join(root, 'plan.ifc')]);
     const locked = await call(s, 'planner_export_ifc', { path: '~/plan.ifc', overwrite: true });
-    assert(locked.structured.ok === false && locked.text.includes('is open in the Open Planner Studio desktop app'),
-      `overschrijven van een bestand dat open staat in de app hoort geweigerd: ${locked.text}`);
+    assert(locked.structured.ok === false && locked.text.includes('does not replace the existing file'),
+      `overschrijven van een bestaand bestand terwijl de app draait hoort geweigerd: ${locked.text}`);
     assertEq(readFileSync(join(root, 'plan.ifc'), 'utf8'), original, 'plan.ifc onveranderd');
     const stillHere = await call(s, 'planner_get_project_info');
     assertEq(projectName(stillHere), EXAMPLE_NAME, 'na de weigering nog steeds de headless planner');
@@ -442,6 +443,144 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
   } finally {
     await s.client.close();
     if (bridge) await bridge.close();
+    while (app.store.getState().tasks.length > before) app.store.getState().undo();
+  }
+});
+
+test('wijziging zonder app zonder antwoord op tijd: telt als niet weggeschreven, de planner blijft tot het opslaan (review r1, 1)', async () => {
+  // Het schakelstuk zelf, met een nep-kindproces: een time-out van 130 s is in een test niet af te wachten.
+  const sent: Json[] = [];
+  const toChild: string[] = [];
+  let closed = false;
+  let appOpen = false;
+  const answer = (msg: Json, result: Json) => ({ type: 'reply' as const, json: { jsonrpc: '2.0', id: msg.id, result } });
+  const toolResult = (docId: string) => {
+    const structured = { ok: true, envelope: { activeDocumentId: docId } };
+    return { content: [{ type: 'text', text: JSON.stringify(structured) }], structuredContent: structured };
+  };
+  const tool = (name: string, readOnly: boolean) => ({ name, inputSchema: { type: 'object' }, annotations: { readOnlyHint: readOnly } });
+  const channel: HeadlessChannel = {
+    alive: true,
+    async request(message) {
+      const msg = message as Json;
+      const name = msg.method === 'tools/call' ? String(msg.params?.name) : String(msg.method);
+      toChild.push(name);
+      if (msg.method === 'initialize') {
+        return answer(msg, { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'headless', version: 't' }, instructions: 'h' });
+      }
+      if (msg.id === undefined) return { type: 'none' };
+      if (msg.method === 'tools/list') {
+        return answer(msg, { tools: [tool('planner_get_project_info', true), tool('planner_list_documents', true),
+          tool('planner_add_tasks', false), tool('planner_export_ifc', false)] });
+      }
+      // De wijziging wordt uitgevoerd, maar het antwoord komt te laat.
+      if (name === 'planner_add_tasks') return { type: 'timeout' };
+      return answer(msg, toolResult('doc-zonder-app'));
+    },
+    async close() { closed = true; },
+  };
+  const proxy = createPlannerProxy({
+    version: 't',
+    requestTimeoutMs: 1000,
+    findApp: () => (appOpen ? { port: 1, token: TOKEN, key: 'nep-app', appVersion: 't', pid: process.pid } : null),
+    headless: { root: '/werkmap', start: async () => channel },
+    fetchImpl: async (_url, init) => {
+      const msg = JSON.parse(String(init?.body)) as Json;
+      const result = msg.method === 'initialize'
+        ? { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'app', version: 't' }, instructions: 'a' }
+        : msg.method === 'tools/call' ? toolResult('doc-app') : {};
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }),
+        { status: 200, headers: { 'content-type': 'application/json', 'mcp-session-id': 'sessie-app' } });
+    },
+    log: () => {},
+  }, async (message) => { sent.push(message as unknown as Json); });
+  const reply = (id: number) => sent.find((m) => m.id === id)?.result as Json;
+  const callTool = (id: number, name: string) => proxy.handle({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: {} } });
+  try {
+    await proxy.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } });
+    await proxy.handle({ jsonrpc: '2.0', method: 'notifications/initialized' });
+    await proxy.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    await callTool(3, 'planner_add_tasks');
+    assert(reply(3).isError === true && String(reply(3).content[0].text).includes('did not answer within'), `time-out: ${JSON.stringify(reply(3))}`);
+
+    appOpen = true;
+    await callTool(4, 'planner_get_project_info');
+    assertEq(reply(4).content[0].text, UNSAVED_STAY_NOTE, 'blijft zonder app: de wijziging kan uitgevoerd zijn');
+    assertEq(closed, false, 'het kindproces blijft draaien');
+    assert(toChild.includes('planner_list_documents'), `het actieve document opgevraagd: ${toChild.join(', ')}`);
+    await callTool(5, 'planner_get_project_info');
+    assertEq(closed, false, 'nog steeds zonder app tot het opslaan');
+
+    await callTool(6, 'planner_export_ifc');
+    await callTool(7, 'planner_get_project_info');
+    assertEq(closed, true, 'na het opslaan naar de app');
+    assertEq(reply(7).content[0].text, SWITCH_TO_APP_NOTE, 'melding van de wissel');
+  } finally {
+    await proxy.close();
+  }
+});
+
+test('verloren antwoord van de app: een wijziging gaat niet twee keer, een leesaanvraag wel opnieuw (review r1, 3)', async () => {
+  const bridge = await startMirror();
+  let addPosts = 0;
+  let readPosts = 0;
+  let dropAdd = true;
+  let dropRead = true;
+  // Tussen bundel en spiegel: geeft de aanvraag door, en verbreekt bij de eerste wijziging en de eerste
+  // leesaanvraag de verbinding vóór het antwoord (de app voerde ze dan wel uit).
+  const front = http.createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => {
+      void (async () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        const name = (JSON.parse(body) as Json).params?.name;
+        const headers: Record<string, string> = {};
+        for (const h of ['content-type', 'accept', 'authorization', 'mcp-session-id', 'mcp-protocol-version']) {
+          const v = req.headers[h];
+          if (typeof v === 'string') headers[h] = v;
+        }
+        const up = await fetch(bridge.url, { method: 'POST', headers, body });
+        const text = await up.text();
+        if (name === 'planner_add_tasks') {
+          addPosts++;
+          if (dropAdd) { dropAdd = false; res.destroy(); return; }
+        }
+        if (name === 'planner_get_project_info') {
+          readPosts++;
+          if (dropRead) { dropRead = false; res.destroy(); return; }
+        }
+        const out: Record<string, string> = {};
+        for (const h of ['content-type', 'mcp-session-id']) {
+          const v = up.headers.get(h);
+          if (v) out[h] = v;
+        }
+        res.writeHead(up.status, out);
+        res.end(text);
+      })();
+    });
+  });
+  await new Promise<void>((resolve) => front.listen(0, '127.0.0.1', () => resolve()));
+  const before = app.store.getState().tasks.length;
+  const s = await startWithApp((front.address() as AddressInfo).port);
+  try {
+    await toolNames(s);
+    const lost = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-l', name: 'Antwoord kwijt', duration: 1 }] });
+    assert(lost.isError, 'de client krijgt een fout');
+    assertEq(lost.text, UNKNOWN_OUTCOME_MESSAGE, 'afloop onbekend, niet opnieuw gestuurd');
+    assertEq(addPosts, 1, 'één tool-POST');
+    assertEq(app.store.getState().tasks.length, before + 1, 'precies één taak in de app');
+    const read = await call(s, 'planner_get_project_info');
+    assert(!read.isError && projectName(read) === APP_PROJECT, `leesaanvraag opnieuw en geslaagd: ${read.text}`);
+    assertEq(readPosts, 2, 'de leesaanvraag ging één keer opnieuw');
+    const next = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-m', name: 'Daarna gewoon', duration: 1 }] });
+    assert(!next.isError && next.structured.ok === true, `volgende wijziging: ${next.text}`);
+    assertEq([addPosts, app.store.getState().tasks.length], [2, before + 2], 'één POST en één taak erbij');
+    assert(s.stderr().includes('not sending it again'), `logregel:\n${s.stderr()}`);
+  } finally {
+    await s.client.close();
+    await new Promise<void>((resolve) => front.close(() => resolve()));
+    await bridge.close();
     while (app.store.getState().tasks.length > before) app.store.getState().undo();
   }
 });

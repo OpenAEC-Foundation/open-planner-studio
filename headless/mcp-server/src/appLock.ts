@@ -11,14 +11,20 @@
 //  - elke map uit `mcpDiscoveryDirs`, elk `open-files*.json`, nooit een naam op `.tmp`;
 //  - een map die niet bestaat is geen fout; een map of register dat er wel is maar niet te lezen: weigeren;
 //  - `openFilesWritePolicy` beslist per register: vrij, toets de paden, of weiger elke schrijfactie;
-//  - toetsen gaat op BESTANDSIDENTITEIT (`realpath` → `stat` bigint, `dev` + `ino`), nooit op tekst;
+//  - draait de app (een register met "toets de paden"), dan vervangt de server GEEN BESTAAND BESTAND, ook niet
+//    een dat niet in het register staat. Het register loopt achter op de app: een net geopend bestand stond in
+//    een echte run pas na 113–144 ms in het register (review #730, ronde 1). "Staat niet in het register" bewijst
+//    dus niet dat het niet open is. Een nieuw bestand mag wel;
 //  - onzekere identiteit ⇒ weigeren. Alleen een pad dat aantoonbaar niet bestaat (`ENOENT`/`ENOTDIR` op het
 //    pad zelf, en `realpath` van de diepste bestaande bovenmap lukt) krijgt als sleutel die echte bovenmap
 //    plus de rest van het pad. Bestaan doel en registerpad allebei niet, dan weigeren als de sleutels gelijk
 //    zijn. De contracttekst noemt de oudermap; de diepste bestaande bovenmap is daar een ruimere vorm van,
-//    nodig omdat de server bij opslaan ontbrekende mappen aanmaakt.
+//    nodig omdat de server bij opslaan ontbrekende mappen aanmaakt. Zo'n pad kan een open document zijn
+//    waarvan het bestand weg is: de app zou het bij opslaan opnieuw aanmaken.
 //
-// Het register is een voorcontrole, geen slot in het besturingssysteem (regel 6 van het contract).
+// Het register is een voorcontrole, geen slot in het besturingssysteem (regel 6 van het contract). Wat
+// overblijft: de app start en maakt hetzelfde nieuwe bestand aan tussen de controle en de `rename` van de
+// server (microseconden), of een app zonder register (ouder dan #570).
 // Teksten die de agent leest zijn Engels; commentaar Nederlands.
 import { promises as fsp } from 'node:fs';
 import os from 'node:os';
@@ -62,14 +68,15 @@ export function isOpenFilesName(name: string): boolean {
 }
 
 type Ident =
-  | { kind: 'file'; dev: bigint; ino: bigint }
+  /** Bestaat. Zolang de app draait, is dat genoeg om te weigeren: dan telt niet wélk bestand het is. */
+  | { kind: 'file' }
   /** Bestaat aantoonbaar niet; `key` = echte bovenmap + rest van het pad (letterlijk aaneengeplakt). */
   | { kind: 'missing'; key: string }
   | { kind: 'uncertain'; code: string };
 
 const notThere = (code: string) => code === 'ENOENT' || code === 'ENOTDIR';
 
-/** Bestandsidentiteit van één pad, volgens de regels hierboven. */
+/** Bestaat het pad, en zo niet: zijn sleutel. Volgens de regels hierboven. */
 async function identify(p: string): Promise<Ident> {
   if (!path.isAbsolute(p)) return { kind: 'uncertain', code: 'not an absolute path' };
   try {
@@ -81,9 +88,8 @@ async function identify(p: string): Promise<Ident> {
   }
   // Het pad bestaat (ook een dode link bestaat voor `lstat`; `realpath` faalt daar en dan weigeren we).
   try {
-    const real = await fsp.realpath(p);
-    const info = await fsp.stat(real, { bigint: true });
-    return { kind: 'file', dev: info.dev, ino: info.ino };
+    await fsp.stat(await fsp.realpath(p));
+    return { kind: 'file' };
   } catch (e) {
     return { kind: 'uncertain', code: errCode(e) };
   }
@@ -118,18 +124,18 @@ async function missingKey(p: string): Promise<Ident> {
   return { kind: 'missing', key: process.platform === 'darwin' || process.platform === 'win32' ? key.toLowerCase() : key };
 }
 
-function sameIdent(a: Ident, b: Ident): boolean {
-  if (a.kind === 'file' && b.kind === 'file') return a.dev === b.dev && a.ino === b.ino;
-  if (a.kind === 'missing' && b.kind === 'missing') return a.key === b.key;
-  return false;
-}
-
 // --- Weigerteksten (Engels, voor de agent) -----------------------------------------------------------
 
 export function openInAppText(realPath: string): string {
   return `'${realPath}' is open in the Open Planner Studio desktop app. The server does not write a file that is ` +
     'open in the app: two programs writing one file lose each other\'s changes. Reading it still works. Save under ' +
     'a different name, or ask the user to close the file in the app or to start the MCP bridge there.';
+}
+
+export function appRunningText(realPath: string): string {
+  return `Open Planner Studio is running, so the server does not replace the existing file '${realPath}': the app may ` +
+    'have it open, also when it opened it just now. Two programs writing one file lose each other\'s changes. Reading ' +
+    'it still works. Save under a new file name, or ask the user to start the MCP bridge in the app or to close the app.';
 }
 
 export function registerUnusableText(where: string, detail: string): string {
@@ -160,6 +166,7 @@ export function createAppLock(dirs: readonly string[], deps: AppLockDeps = {}): 
   const pidState = deps.pidState ?? nodePidState;
   return async (realPath) => {
     const listed: string[] = [];
+    let appRunning = false;
     for (const dir of dirs) {
       let names: string[];
       try {
@@ -182,16 +189,21 @@ export function createAppLock(dirs: readonly string[], deps: AppLockDeps = {}): 
         const read = readOpenFilesFile(text);
         const policy = openFilesWritePolicy(read, pidState);
         if (policy === 'refuse-all') return registerUnusableText(file, 'it is damaged or in a format this server does not know');
-        if (policy === 'check-files' && read.status === 'valid') listed.push(...read.file.files);
+        if (policy === 'check-files' && read.status === 'valid') {
+          appRunning = true;
+          listed.push(...read.file.files);
+        }
       }
     }
-    if (listed.length === 0) return null;
+    if (!appRunning) return null;
     const target = await identify(realPath);
     if (target.kind === 'uncertain') return identityUncertainText(realPath, 'target', target.code);
+    if (target.kind === 'file') return appRunningText(realPath);
+    // Een nieuw bestand: alleen een open document waarvan het bestand weg is, heeft dezelfde sleutel.
     for (const p of listed) {
       const id = await identify(p);
       if (id.kind === 'uncertain') return identityUncertainText(realPath, 'open-file', id.code);
-      if (sameIdent(target, id)) return openInAppText(realPath);
+      if (id.kind === 'missing' && id.key === target.key) return openInAppText(realPath);
     }
     return null;
   };

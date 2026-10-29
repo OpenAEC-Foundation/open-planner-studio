@@ -58,7 +58,7 @@ You can also put the snippet in the file `.mcp.json` in your project folder. The
 You do not enter a token or a port: while the bridge runs, the extension finds the app by itself. For each question from Claude, the extension chooses again:
 
 - *The app is open and the bridge runs*: Claude works in the plan that is open in the app. You see each change in the app at once.
-- *The app is closed, or the bridge is off*: Claude works on a schedule file in the working folder. A change is in the file only when Claude saves the file. There is no automatic saving. Claude does not overwrite a file that is open in the app.
+- *The app is closed, or the bridge is off*: Claude works on a schedule file in the working folder. A change is in the file only when Claude saves the file. There is no automatic saving. While the app is open, Claude does not overwrite an existing file, but saves under a new name.
 
 If the app opens or closes while Claude works, the extension switches and tells Claude. Claude then first chooses or opens the plan again, and only then changes something. If Claude still has changes without the app that are not saved, the extension keeps working without the app until Claude has saved them. This way no work is lost. If the extension cannot reach the app and there is no usable working folder, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do.
 
@@ -80,7 +80,7 @@ The token is in `env` and not in `args` on purpose: on Windows, Claude Desktop b
 
 In the group *Connection* there is also the field *Token*. It is a long, random code that the app makes for you and stores on this computer. In the window it says *This token grants access to the open plan. Do not share it with others.* With the icon *New token* you make a new token. The app first asks *Generating a new token breaks all existing connections. Continue?* If the bridge is running, it restarts with the new token and the old one no longer works.
 
-**How the extension finds the app.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The extension for Claude Desktop reads that file for each question. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. The extension and the headless MCP server do not write to a file in that list. Reading is allowed: Claude then sees the version on disk, without your changes that are not saved yet.
+**How the extension finds the app.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The extension for Claude Desktop reads that file for each question. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. While that file exists, the extension and the headless MCP server do not overwrite any existing file, also not a file that you just opened and that is not in the list yet. A new file is allowed. Reading is allowed too: Claude then sees the version on disk, without your changes that are not saved yet.
 
 ### 4. See what the MCP client does
 
@@ -153,7 +153,7 @@ For step 2 in Claude Code, give this command in a terminal, with your own paths:
 claude mcp add open-planner -- node /path/to/server.mjs --root /path/to/working-folder
 ```
 
-Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal. The server does not write a file that is open in the app.
+Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal. While the app is open, the server does not overwrite an existing file.
 
 ## See also
 

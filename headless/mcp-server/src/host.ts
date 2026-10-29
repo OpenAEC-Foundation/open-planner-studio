@@ -77,7 +77,7 @@ export function headlessInstructions(root: string): string {
     'Headless mode: this server runs without the Open Planner Studio desktop app, on a schedule in memory.',
     `- Files: the file tools only read and write inside the working folder '${root}'. Where a tool description says "home folder", read "working folder": \`~/name.ifc\` is a file in it, and absolute paths must stay inside it.`,
     '- Saving: there is no save command and no auto-save. Write the active document with planner_export_ifc (pass `overwrite: true` to replace the file you opened). Changes that you do not export are lost when the server stops.',
-    '- Open in the desktop app: the server does not write a file that is open in the Open Planner Studio desktop app; such a write fails with SCOPE. Reading it still works.',
+    '- Desktop app running: while the Open Planner Studio desktop app runs, the server does not replace an existing file, because the app may have it open; such a write fails with SCOPE. Save under a new file name. Reading still works.',
     '- There is no user interface: no dialogs, and nobody switches documents or edits next to you.',
   ].join('\n');
 }

@@ -58,7 +58,7 @@ Je kunt het fragment ook in het bestand `.mcp.json` in je projectmap zetten. Zet
 Een token of een poort vul je niet in: zolang de bridge draait, vindt de extensie de app zelf. Bij elke vraag van Claude kiest de extensie opnieuw:
 
 - *De app staat open en de bridge draait*: Claude werkt in het plan dat open is in de app. Je ziet elke wijziging meteen in de app.
-- *De app staat dicht, of de bridge staat uit*: Claude werkt op een planningsbestand in de werkmap. Een wijziging staat pas in het bestand als Claude het bestand opslaat. Automatisch opslaan is er niet. Een bestand dat open staat in de app, overschrijft Claude niet.
+- *De app staat dicht, of de bridge staat uit*: Claude werkt op een planningsbestand in de werkmap. Een wijziging staat pas in het bestand als Claude het bestand opslaat. Automatisch opslaan is er niet. Staat de app open, dan overschrijft Claude geen bestaand bestand, maar slaat het op onder een nieuwe naam.
 
 Gaat de app open of dicht terwijl Claude werkt, dan wisselt de extensie en meldt dat aan Claude. Claude kiest of opent daarna eerst het plan opnieuw, en wijzigt pas dan iets. Heeft Claude zonder de app nog wijzigingen die niet zijn opgeslagen, dan blijft de extensie zonder de app werken tot Claude ze heeft opgeslagen. Zo gaat er geen werk verloren. Kan de extensie de app niet bereiken en is er geen bruikbare werkmap, dan ziet Claude alleen de tool `open_planner_studio_status`, met een melding wat je moet doen.
 
@@ -80,7 +80,7 @@ Het token staat bewust in `env` en niet in `args`: op Windows breekt Claude Desk
 
 In de groep *Verbinding* staat ook het veld *Token*. Dat is een lange, willekeurige code die de app voor je maakt en op deze computer bewaart. In het venster staat *Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.* Met het pictogram *Nieuw token* maak je een nieuw token. De app vraagt eerst *Een nieuw token maken verbreekt alle bestaande koppelingen. Doorgaan?* Draait de bridge, dan herstart hij met het nieuwe token en werkt het oude niet meer.
 
-**Hoe de extensie de app vindt.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. De extensie voor Claude Desktop leest dat bestand bij elke vraag. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. De extensie en de headless MCP-server schrijven niet in een bestand dat daarin staat. Lezen mag wel: Claude ziet dan de versie op schijf, zonder je wijzigingen die nog niet zijn opgeslagen.
+**Hoe de extensie de app vindt.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. De extensie voor Claude Desktop leest dat bestand bij elke vraag. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Zolang dat bestand er is, overschrijven de extensie en de headless MCP-server geen enkel bestaand bestand, ook niet een bestand dat je net opende en dat nog niet in de lijst staat. Een nieuw bestand mag wel. Lezen mag ook: Claude ziet dan de versie op schijf, zonder je wijzigingen die nog niet zijn opgeslagen.
 
 ### 4. Zien wat de MCP-client doet
 
@@ -153,7 +153,7 @@ Voor stap 2 in Claude Code geef je in een terminal deze opdracht, met je eigen p
 claude mcp add open-planner -- node /pad/naar/server.mjs --root /pad/naar/werkmap
 ```
 
-Vóór de eerste wijziging per document maakt de server een MCP-backup, net als de app. Een MCP-client die een pad buiten de werkmap kiest, ook via een snelkoppeling (symbolische link), krijgt een weigering. Een bestand dat open staat in de app, schrijft de server niet.
+Vóór de eerste wijziging per document maakt de server een MCP-backup, net als de app. Een MCP-client die een pad buiten de werkmap kiest, ook via een snelkoppeling (symbolische link), krijgt een weigering. Zolang de app open staat, overschrijft de server geen bestaand bestand.
 
 ## Zie ook
 
