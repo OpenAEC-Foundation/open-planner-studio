@@ -1315,6 +1315,13 @@ en noem het in je rapport of PR-tekst.
      `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
      deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
      Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
+442. **`tests/browser/gantt-histogram-rtl.spec.ts:153` faalt soms in CI (ar).** De test voegt 30 resources toe
+     en klikt meteen op `strip.top + 150` in de kiezer. In run 40854256352 (job `verify (browser 3-4)`) op PR
+     #722 bleef `histogramResourceId` daarna `null` in plaats van Resource 05 (time-out van 5 s). De schermafdruk
+     toont de lijst wel met de nieuwe resources, met "alle resources" gekozen. PR #722 wijzigt alleen de
+     `.mpp`-lezer en commentaar; de spec laadt geen `.mpp`. Lokaal op dezelfde kop slaagt de spec 24 van de 24
+     keer (`--repeat-each 3`, alle vier talen). Vermoeden, niet bewezen: de klik valt vóór de lijst opnieuw is
+     getekend, of de klikhoogte ligt op de rand van een rij. Gevonden bij #722 (2026-10-29). — S
 
 ## Wensen en open taken (geen bug)
 
