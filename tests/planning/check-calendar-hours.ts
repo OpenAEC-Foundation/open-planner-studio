@@ -223,28 +223,14 @@ eq('J6  H8 between(x,x)=0', engH8.workMinutesBetween(I('2026-07-06T10:00'), I('2
 eq('J7  H8 scenario-6a S.ES=di 08:00', F(engH8.nextWorkInstant(engH8.addWorkingMinutesSigned(I('2026-07-06T12:00'), 240))), '2026-07-07T08:00');
 
 // ═══════════════════════════════════════════════════════════════════════════
-// K) Cross-modus-primitieven (§4.3, scenario 7) — engine-hulpfuncties (golf 2 bedraadt ze).
-// ═══════════════════════════════════════════════════════════════════════════
-const engDay = new CalendarEngine(cal('Day', undefined, [], 8)); // dag-kalender (geen workTime)
-// Dag-voorganger: predDoneAt(D.EF di) = (di + 1 dag) @ 00:00 = wo 00:00.
-eq('K1  scalair predDoneAt houdt het exclusieve eindmoment', F(engDay.predDoneAt(I('2026-07-07T16:00'))), '2026-07-07T16:00');
-// Uur-opvolger consumeert: availableStart(wo 00:00) = nWI(wo 00:00) = wo 08:00.
-eq('K2  H8 availableStart(wo 00:00)=wo 08:00', F(engH8.availableStart(I('2026-07-08T00:00'))), '2026-07-08T08:00');
-// Uur-voorganger: predDoneAt(ma 12:00) = de instant zelf.
-eq('K3  H8 predDoneAt(ma 12:00)=ma 12:00', F(engH8.predDoneAt(I('2026-07-06T12:00'))), '2026-07-06T12:00');
-// ceilToWorkDay mid-dag ⇒ volgende dag.
-eq('K4  Day ceilToWorkDay(ma 12:00)=di 00:00', F(engDay.ceilToWorkDay(I('2026-07-06T12:00'))), '2026-07-07T00:00');
-// ceilToWorkDay exact middernacht ⇒ zelfde dag.
-eq('K5  Day ceilToWorkDay(ma 00:00)=ma 00:00', F(engDay.ceilToWorkDay(I('2026-07-06'))), '2026-07-06T00:00');
-// Dag-opvolger: availableStart(ma 12:00) = nextWorkDay(ceil(ma 12:00)=di) = di.
-eq('K6  scalair availableStart bewaart een werkmoment', F(engDay.availableStart(I('2026-07-06T12:00'))), '2026-07-06T12:00');
-
-// ═══════════════════════════════════════════════════════════════════════════
 // I) DAG-MODUS-REGRESSIE — de bevroren dag-lussen geven de historisch-correcte antwoorden.
 // ═══════════════════════════════════════════════════════════════════════════
+const engDay = new CalendarEngine(cal('Day', undefined, [], 8)); // scalaire kalender (geen workTime)
 eq('I1  scalaire kalender rekent op werkblokken', engDay.isHourMode, true);
 eq('I2  Day hoursPerDay=8 (opgegeven)', engDay.hoursPerDay, 8);
-eq('I3  scalaire kalender heeft een bandcache', engDay.materializationCount() > 0, true);
+// Een scalaire kalender plaatst een moment midden op de dag op werkblokken (geen dagpad meer).
+eq('I3  scalaire kalender houdt ma 12:00 als werkmoment', F(engDay.nextWorkInstant(I('2026-07-06T12:00'))), '2026-07-06T12:00');
+eq('I3b scalaire kalender heeft een bandcache', engDay.materializationCount() > 0, true);
 // addWorkDays(ma,5): ma=dag1..vr=dag5 ⇒ vr 10.
 eq('I4  Day addWorkDays(ma,5)=vr', formatDate(engDay.addWorkDays(I('2026-07-06'), 5)), '2026-07-10');
 // nextWorkDayAfter(vr) slaat weekend over ⇒ ma 13.

@@ -1190,32 +1190,6 @@ export class CalendarEngine {
       + pb.offset / pb.day.minutes - pa.offset / pa.day.minutes;
   }
 
-  // ── Cross-modus-primitieven — de solver wisselt hiermee tussen dag- en uur-taken ──
-
-  /** De dag-van-t indien t exact op middernacht valt, anders de volgende dag. Modus-agnostisch
-   *  (zuivere datum-rekenkunde): een dag-taak kan niet midden op een dag starten. */
-  ceilToWorkDay(t: Date): Date {
-    const tMs = t.getTime();
-    const dayMs = this.dayStartMsOf(tMs);
-    return new Date(tMs === dayMs ? dayMs : dayMs + MS_PER_DAY);
-  }
-
-  /** De exclusieve "beschikbaar-vanaf"-instant die een taak op DEZE engine als VOORGANGER levert
-   *  Uur-modus ⇒ de exclusieve finish-instant zelf; dag-modus ⇒ `(ef + 1 dag) @ 00:00` (de
-   *  dag-taak bezet zijn hele finish-dag). In een puur dag→dag-net levert de combinatie met
-   *  `availableStart` exact `nextWorkDayAfter(ef)` — bit-identiek met het huidige gedrag. */
-  predDoneAt(ef: Date): Date {
-    if (this.mode === 'hour') return new Date(ef.getTime());
-    return new Date(this.dayStartMsOf(ef.getTime()) + MS_PER_DAY);
-  }
-
-  /** De ES die een taak op DEZE engine als OPVOLGER consumeert uit een `predDoneAt`-instant.
-   *  Uur-modus ⇒ `nextWorkInstant(predDoneAt)`; dag-modus ⇒ `nextWorkDay(ceilToWorkDay(predDoneAt))`. */
-  availableStart(predDoneAt: Date): Date {
-    if (this.mode === 'hour') return this.nextWorkInstant(predDoneAt);
-    return this.nextWorkDay(this.ceilToWorkDay(predDoneAt));
-  }
-
   /**
    * Werk-intervallen (absolute UTC-`Date`-paren, half-open `[start,end)`) die het venster
    * `[from, to]` snijden — voor de balk-opsplitsing/bar-necking in de Gantt. Hergebruikt de
