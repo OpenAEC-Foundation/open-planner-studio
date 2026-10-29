@@ -19,7 +19,13 @@
  *  R6  Een werkende uitzondering over middernacht houdt haar ochtenddeel op de volgende dag.
  *  R7  Een WBS-summary-activiteit (`TT_WBS`) blijft `TT_WBS`.
  *  R8  Activiteit-ID's blijven na normalisatie uniek en binnen 40 tekens; idem resource- en WBS-codes.
+ *  R9  Ronde 3, punt 1: een scalaire kalender komt na heropenen terug als urenkalender (knownbug 466); de
+ *      export meldt dat (`calendarKinds`), getoetst op de echte route zonder de kalendersoort gelijk te trekken.
+ *  R10 Ronde 3, punt 2: een geërfde werkregel blijft geërfd (`OPS_InheritedWorkRule`), zolang
+ *      `duration_type` nog het geschreven token draagt.
+ *  R11 Ronde 3, punt 3: met OPS-markering rondt de lezer een bronbreuk niet af als het record vervallen is.
  */
+import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { writeXER, type XerWriteInput } from '@/services/xer/xerWriter';
 import { isMultiDocumentImport, type ImportResult } from '@/services/importTypes';
@@ -36,10 +42,18 @@ import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { payloadFromImport } from '@/state/documentContract';
+import { solveProject } from '@/engine/scheduler/solveProject';
+import { solveInputFor } from '@/engine/scheduler/solveInput';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { exportXerLossNotice } from '@/state/xerExportNotice';
+import { settleDefaultWorkRuleSwitch } from '@/state/defaultWorkRuleSwitch';
+import { effectiveWorkRule } from '@/engine/work/workRuleApply';
 
 declare const process: { exit(code: number): never };
 
 const diffs: string[] = [];
+const notes: string[] = [];
 let checks = 0;
 function eq(label: string, got: unknown, want: unknown): void {
   checks++;
@@ -233,7 +247,11 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   input.tasks.push(leaf('Geërfd', 5));
   const w = writeXER(input);
   eq('R3a duration_type = Vast werk (DT_FixedQty)', rowsOf(w.bytes, 'TASK')[0].duration_type, 'DT_FixedQty');
-  eq('R3b heropend: werkregel FIXED_WORK', read(w.bytes).tasks.find(t => t.name === 'Geërfd')?.workRule, 'FIXED_WORK');
+  // Herschreven (oude opzet: na heropenen een EIGEN werkregel FIXED_WORK). Ronde 3, punt 2: de taak erft weer
+  // de projectstandaard; de effectieve regel blijft Vast werk.
+  const r3 = read(w.bytes);
+  const r3task = r3.tasks.find(t => t.name === 'Geërfd');
+  eq('R3b heropend: geërfd, effectief FIXED_WORK', [r3task?.workRule, r3task && effectiveWorkRule(r3task, r3.project.defaultWorkRule)], [undefined, 'FIXED_WORK']);
 }
 
 // ── R4: vaste capaciteit ─────────────────────────────────────────────────────────────────────────
@@ -422,6 +440,152 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('E2c def_duration_type in P6 gewijzigd ⇒ geen projectstandaard', read(enc(edited)).project.defaultWorkRule, undefined);
 }
 
+// ── Ronde 3: de echte route (laden, F5, opnieuw exporteren) ─────────────────────────────────────
+interface Doc {
+  project: XerWriteInput['project']; calendar: WorkCalendar; calendars: WorkCalendar[]; tasks: Task[];
+  sequences: XerWriteInput['sequences'] extends readonly (infer S)[] ? S[] : never; resources: Resource[]; assignments: ResourceAssignment[];
+}
+/** Openen zoals de app: door de laadgrens (`payloadFromImport`). */
+function load(r: ImportResult): Doc {
+  const p = payloadFromImport(r, null);
+  return { project: p.project, calendar: p.calendar, calendars: p.calendars, tasks: p.tasks, sequences: p.sequences, resources: p.resources, assignments: p.assignments };
+}
+function importOf(input: ReturnType<typeof baseInput>): ImportResult {
+  return { project: input.project, calendar: input.calendar, resourceCalendars: input.calendars, tasks: input.tasks,
+    sequences: [...input.sequences], resources: input.resources, assignments: input.assignments };
+}
+/** F5. */
+function f5(doc: Doc): void {
+  const error = solveProject(solveInputFor(doc.project, doc.tasks, doc.sequences, doc.calendar, doc.calendars)).error;
+  if (error) diffs.push(`F5 faalt: ${error}`);
+}
+function exportDoc(doc: Doc) {
+  return writeXER({ ...doc, exportDate: '2026-10-20' });
+}
+const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'predecessor' as const, totalFloatMode: 'finish' as const,
+  criticalDefinition: { mode: 'totalFloat' as const, thresholdHours: 0 } };
+
+// ── R9 (ronde 3, punt 1): de kalendersoort staat in de verliesmelding ───────────────────────────
+{
+  const input = baseInput();
+  input.project.schedulingProfile = builtInProfile('p6');
+  input.project.schedulingOptions = { ...P6_OPTIONS };
+  input.project.progressMode = 'RETAINED_LOGIC';
+  const klaar = leaf('Klaar', 2, { status: 'COMPLETED' });
+  klaar.time.actualStart = '2026-06-01'; klaar.time.actualFinish = '2026-06-02'; klaar.time.completion = 1;
+  const volgend = leaf('Volgend', 3);
+  input.tasks.push(klaar, volgend);
+  input.sequences = [{ id: 'r9', predecessorId: klaar.id, successorId: volgend.id, type: 'FINISH_START', lagDays: 0 }];
+  const doc0 = load(importOf(input));
+  f5(doc0);
+  const w = exportDoc(doc0);
+  const doc1 = load(read(w.bytes));
+  f5(doc1);
+  const dates = (doc: Doc) => doc.tasks.filter(t => t.name === 'Klaar' || t.name === 'Volgend')
+    .map(t => [t.name, t.time.earlyStart, t.time.earlyFinish, t.time.lateStart, t.time.lateFinish, t.time.totalFloat]);
+  const differs = JSON.stringify(dates(doc0)) !== JSON.stringify(dates(doc1));
+  const unique = (doc: Doc) => [...new Map([doc.calendar, ...doc.calendars].map(c => [c.id, c])).values()];
+  const changedKinds = unique(doc0).filter(c => !c.workTime && unique(doc1).find(x => x.name === c.name)?.workTime).length;
+  ok('R9a (proef) de scalaire werkweek komt terug als urenkalender', changedKinds === 1);
+  eq('R9b de export meldt de kalendersoort', w.loss.find(l => l.code === 'calendarKinds')?.count, changedKinds);
+  ok('R9c de melding verschijnt', exportXerLossNotice(w.loss)?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.calendarKinds'));
+  // Zonder gelijkstelling van de kalendersoort: wijken datums of speling af, dan staat de regel in de melding.
+  ok('R9d datums wijken af ⇒ de melding noemt de kalendersoort', !differs || w.loss.some(l => l.code === 'calendarKinds'));
+  notes.push(`R9: na heropenen en F5 ${differs ? 'wijken' : 'wijken niet'} datums af (${JSON.stringify(dates(doc0))} → ${JSON.stringify(dates(doc1))})`);
+  // Opnieuw exporteren: de kalender heeft nu eigen werktijdblokken, dus geen melding meer.
+  eq('R9e tweede export: geen kalendersoort-melding', exportDoc(doc1).loss.find(l => l.code === 'calendarKinds'), undefined);
+}
+
+// ── R10 (ronde 3, punt 2): een geërfde werkregel blijft geërfd ──────────────────────────────────
+{
+  const route = (projectDefault: 'FIXED_DURATION_RATE' | undefined) => {
+    const input = baseInput();
+    // P6-profiel en een kalender met eigen werktijdblokken: dan is er geen ander verlies (R10b).
+    input.project.schedulingProfile = builtInProfile('p6');
+    input.project.schedulingOptions = { ...P6_OPTIONS };
+    input.project.progressMode = 'RETAINED_LOGIC';
+    const band = [{ start: 480, end: 960 }];
+    input.calendar.workTime = { byWeekday: { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] } };
+    if (projectDefault) input.project.defaultWorkRule = projectDefault;
+    input.tasks.push(leaf('Erft', 2));
+    const doc0 = load(importOf(input));
+    f5(doc0);
+    const w = exportDoc(doc0);
+    const doc1 = load(read(w.bytes));
+    f5(doc1);
+    return { doc0, doc1, w };
+  };
+  const switchToFixedWork = (doc: Doc): Task => {
+    const previous = doc.project.defaultWorkRule;
+    doc.project.defaultWorkRule = 'FIXED_WORK';
+    settleDefaultWorkRuleSwitch(doc, previous);
+    f5(doc);
+    return doc.tasks.find(t => t.name === 'Erft')!;
+  };
+  for (const projectDefault of ['FIXED_DURATION_RATE', undefined] as const) {
+    const label = projectDefault ?? 'geen standaard';
+    const { doc0, doc1, w } = route(projectDefault);
+    const back = doc1.tasks.find(t => t.name === 'Erft')!;
+    eq(`R10a ${label}: na heropenen geen eigen werkregel`, back.workRule, undefined);
+    eq(`R10b ${label}: geen verlies`, w.loss, []);
+    const before = switchToFixedWork(doc0);
+    const after = switchToFixedWork(doc1);
+    eq(`R10c ${label}: standaard naar Vast werk ⇒ origineel urentaak van 960 min`, [before.time.durationUnit, before.time.durationMinutes], ['hours', 960]);
+    eq(`R10d ${label}: standaard naar Vast werk ⇒ heropend gelijk aan het origineel`, [after.time.durationUnit, after.time.durationMinutes], [before.time.durationUnit, before.time.durationMinutes]);
+    // Opnieuw exporteren na heropenen: hetzelfde duurtype als de eerste export.
+    eq(`R10e ${label}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').map(r => r.duration_type), rowsOf(w.bytes, 'TASK').map(r => r.duration_type));
+  }
+  // In P6 gewijzigd: een ander duurtype ⇒ een eigen regel, zoals op main.
+  const { w } = route('FIXED_DURATION_RATE');
+  const edited = w.text.split('\r\n').map(line => line.startsWith('%R\t') && line.includes('\tErft\t') ? line.replace('\tDT_FixedDrtn\t', '\tDT_FixedQty\t') : line).join('\r\n');
+  ok('R10f (proef) duration_type gewijzigd', edited !== w.text);
+  eq('R10f duration_type in P6 gewijzigd ⇒ eigen regel zoals op main', read(enc(edited)).tasks.find(t => t.name === 'Erft')?.workRule, 'FIXED_WORK');
+}
+
+// ── R11 (ronde 3, punt 3): een bronbreuk blijft een breuk ──────────────────────────────────────
+{
+  const input = baseInput();
+  const uren = leaf('Uren', 2, { status: 'STARTED' });
+  uren.time = { ...uren.time, durationUnit: 'hours', durationMinutes: 960, actualStart: '2026-06-01', completion: 0.25 };
+  const dagen = leaf('Dagen', 2.5, { status: 'STARTED' });
+  dagen.time.actualStart = '2026-06-01'; dagen.time.completion = 0.25;
+  input.tasks.push(uren, dagen);
+  const doc0 = load(importOf(input));
+  f5(doc0);
+  const w = exportDoc(doc0);
+  ok('R11a (proef) de dagtaak heeft een duurrecord', w.text.includes('target_drtn_hr_cnt'));
+  // Een ander programma zet de standaardvelden op 40,33 u duur en 12,345 u rest.
+  let fields: string[] = [];
+  const editedLines = w.text.split('\r\n').map(line => {
+    if (line.startsWith('%F\t')) fields = line.split('\t');
+    if (!line.startsWith('%R\t') || fields[1] !== 'task_id') return line;
+    return line.split('\t').map((cell, i) => fields[i] === 'target_drtn_hr_cnt' ? '40.33' : fields[i] === 'remain_drtn_hr_cnt' ? '12.345' : cell).join('\t');
+  });
+  const edited = editedLines.join('\r\n');
+  const stripped: string[] = [];
+  let skip = false;
+  for (const l of editedLines) {
+    if (l.startsWith('%T\t')) skip = l === '%T\tUDFTYPE' || l === '%T\tUDFVALUE';
+    if (!skip) stripped.push(l);
+  }
+  const marked = read(enc(edited));
+  const plain = read(enc(stripped.join('\r\n')));
+  for (const name of ['Uren', 'Dagen']) {
+    const m = marked.tasks.find(t => t.name === name)!;
+    eq(`R11b ${name}: duur en rest zoals in het bestand (2419,8 en 740,7 min)`, [m.time.durationUnit, m.time.durationMinutes, m.time.remainingMinutes], ['hours', 2419.8, 740.7]);
+    eq(`R11c ${name}: de tijd leest als zonder OPS-velden`, m.time, plain.tasks.find(t => t.name === name)!.time);
+  }
+  // De route: laden en F5 geven hetzelfde einde als het bestand zonder OPS-velden.
+  const docMarked = load(marked); f5(docMarked);
+  const docPlain = load(plain); f5(docPlain);
+  eq('R11d na laden en F5: zelfde vroeg einde als zonder OPS-velden',
+    docMarked.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish),
+    docPlain.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish));
+  // Opnieuw exporteren: de breuk gaat mee (40,33 u).
+  eq('R11e tweede export: 40,33 u blijft 40,33 u', rowsOf(exportDoc(docMarked).bytes, 'TASK').map(r => r.target_drtn_hr_cnt), ['40.33', '40.33']);
+}
+
+for (const note of notes) console.log(`   · ${note}`);
 if (diffs.length === 0) {
   console.log(`OK  xer-writer-review: ${checks} checks groen`);
   process.exit(0);
