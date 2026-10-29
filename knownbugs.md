@@ -1150,6 +1150,12 @@ en noem het in je rapport of PR-tekst.
      productfout aangetoond. Twee onafhankelijke broncontroles; niet uitgevoerd.
      — B
 
+474. **De Gantt-regel en een commentaar zeggen dat scherm en afdruk de naam van een fase op dezelfde plek zetten.**
+     `.claude/rules/gantt-splits.md:18` ("net als op de afdruk") en `GanttRenderer.ts:1736`. De afdruk zet de
+     naam links van de balk als rechts geen ruimte is en links wel (`printPreview.ts:867`, `drawBarLabel`); het
+     scherm zet hem altijd rechts. Voorstel: de vergelijking schrappen of die terugval noemen. Alleen tekst.
+     Gevonden in review van #731 (GPT-6.1-Sol), 2026-10-29. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
@@ -1418,6 +1424,14 @@ en noem het in je rapport of PR-tekst.
      `.github/workflows/relation-search-performance.yml:105` laat de bouwmappen weg. De 48 coverage-tellers zijn
      na te rekenen, maar hun koppeling aan precies die functie alleen door opnieuw te bouwen. Voorstel: bewaar
      per revisie de ene bundel met de helper (twee bestanden). Gevonden in review van #656 (GPT-6.1-Sol), 2026-10-29. — B
+
+473. **`check-gantt-label-ellipsis` bewaakt de naam achter een gewone taak niet meer.** Sinds #731 staat er een
+     samenvatting met dezelfde lange naam en dezelfde balkpositie in de scène, en de zoekactie voor de gewone
+     taak (`tests/planning/check-gantt-label-ellipsis.ts:128`) kijkt niet naar de rij. Valt de buitennaam van
+     een gewone taak weg, dan vindt de check de naam van de samenvatting en blijft hij groen (in de review
+     nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
+     met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
+     2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 
