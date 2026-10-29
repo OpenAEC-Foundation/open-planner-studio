@@ -641,14 +641,6 @@ en noem het in je rapport of PR-tekst.
     valt terug op een verse bibliotheek. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: dezelfde
     stille sessievlag als crashherstel, of één uitleg dat de bibliotheek in deze omgeving niet bewaard wordt. — S
 
-322. **Een conflict tussen vastgepinde taken heeft geen reden.** `src/engine/scheduler/ResourceLeveler.ts:890`
-    vult voor pinconflicten alleen `unresolved`. `src/services/library/distribute.ts:478` maakt daaruit een
-    `DistributionShortfall` waarvan `reason` volgens regel 101 verplicht is: twee botsende pins plus één
-    verplaatsbare taak geven twee tekorten met `reason: undefined`. De MCP-waarschuwing in
-    `calendarResourceTools.ts:1611` verwijst dan naar een lege `unresolvedReasons`. De dialoog toont de
-    conflicten wel goed. Voorstel: een ontbrekende reden expliciet in het typecontract, en de MCP-uitleg daarop
-    aanpassen. Gevonden in review r1 van #594 (GPT-6.1-Sol). — B
-
 347. **De belasting telt dagdelen van verschillende kalenders op: vier beschikbare uren tellen als een volle dag.**
     `src/engine/scheduler/ResourceLoad.ts:446` telt per resource de dagdelen van elke taakkalender bij elkaar op;
     `:468` geeft de resource op een werkdag van haar eigen kalender de volle capaciteit, anders 0. Taak ma 1 juni
@@ -1422,6 +1414,17 @@ en noem het in je rapport of PR-tekst.
      nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
      met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
      2026-10-29. — B
+
+402. **De nieuwe MCP-waarschuwing zegt te ruim dat vastgepinde taken niet verschuiven.**
+     `src/services/mcp/tools/calendarResourceTools.ts:1618` zegt dat pins niet
+     verplaatsen. ResourceLeveler.ts:786 laat een pin juist zijn verschoven
+     voorgangers volgen. Een voorganger die één werkdag uitwijkt, kan zo een pin
+     verplaatsen en daar een pinconflict geven. De respons kan die verschuiving
+     samen met de ontkennende waarschuwing bevatten. Zeg dat pins niet zelfstandig
+     voor capaciteit uitwijken, maar hun voorgangers wel volgen. Maak dezelfde
+     nuance in distribute.ts:101. Alleen tekst; geen nieuwe gedragsfout.
+     Twee onafhankelijke broncontroles bij PR #678; niet lokaal uitgevoerd.
+     — B
 
 ## Wensen en open taken (geen bug)
 
