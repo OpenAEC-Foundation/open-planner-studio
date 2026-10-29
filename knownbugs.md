@@ -1094,6 +1094,28 @@ en noem het in je rapport of PR-tekst.
      apart behandelen, bijvoorbeeld zichtbaar weigeren of melden. Gevonden in review r2 van #659
      (GPT-6.1-Sol). — B
 
+480. **Een paar zeldzamere exportweglatingen staan nog alleen in de console, niet in de verliesenvelope.**
+     `src/services/xerExportLoss.ts` (`categoriesFor`) kent sinds #727 notities, datumconstraints die het doelformaat niet schrijft,
+     handmatige planning en hammock-taken ook voor een native project. Nog niet: een soft MSO/MFO die MSPDI als
+     SNET/FNET schrijft (`mspdiWriter.ts`, `softLossCount`), `levelingDelayMinutes` (MSPDI en P6),
+     resume/stop (MSPDI) en een ELAPSEDTIME-taakduur naar P6 (`p6xmlWriter.ts`, `elapsedTaskCount`). Gelezen in
+     de writers, niet nagespeeld. Voorstel: per geval een categorie en een capability in dezelfde matrix. — S
+
+482. **De exportverliestest bewaakt een primaire constraint op een P6-verzameltaak niet apart.**
+     `tests/planning/check-xer-export-loss.ts` (scenario "Native verzameltaak met constraints") geeft de
+     verzameltaak een primaire én een secundaire constraint. Een fout die alleen de primaire mist (in
+     `hasConstraintLoss`, tak `activities`, alleen `constraint2` controleren) blijft zo groen. Voorstel: in
+     hetzelfde scenario ook een verzameltaak met alleen SNET of ALAP, met waarschuwing én teruggelezen verlies.
+     Gevonden in review ronde 3 van #727 (GPT-6.1-Sol), met een mutatie nagespeeld. — B
+
+483. **Na een export kunnen de exportmeldingen de verliesmelding verdringen.** `exportAs` in
+     `src/state/slices/fileSlice.ts` zet de verliesmelding (algemeen of XER) eerst en daarna de meldingen voor
+     onderbrekingen, ingekorte P6-namen en vervangen XML-tekens; de UI toont er hoogstens drie
+     (`uiSlice.ts`). Een P6-export met een notitie, een onderbreking zonder urenverdeling en een te lange naam
+     die op een emoji wordt ingekort, geeft vier meldingen: de verliesmelding met *Lees meer* verdwijnt. De
+     informatie blijft in `warnings`. Voorstel: bundel de exportmeldingen als detailregels in één melding.
+     Gevonden in review ronde 4 van #727 (GPT-6.1-Sol), nagespeeld. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij

@@ -1,7 +1,7 @@
 import type { Task } from '@/types/task';
 
 /** Eén bron voor de semantische WBS-identiteit. Een expliciete lege samenvatting is nooit blad. */
-export function isSummaryTask(task: Task | undefined): boolean {
+export function isSummaryTask(task: Pick<Task, 'isSummary' | 'childIds'> | undefined): boolean {
   return task?.isSummary === true || (task?.childIds.length ?? 0) > 0;
 }
 
