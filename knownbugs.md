@@ -1043,6 +1043,13 @@ en noem het in je rapport of PR-tekst.
      draagt normaal `remainingMinutes`, dus dit raakt alleen data van buiten de app. Gezien bij #555 in de code;
      niet nagespeeld. — S
 
+470. **In de stappeneditor van een resource kun je geen capaciteit 0 typen.** `ResourcePanel.tsx` (stapveld)
+     gebruikt de strikt positieve `UnitsInput` (`UnitsInput.tsx`): `0` geeft geen waarde. Een stap naar 0 uit
+     XER of MS Project XML (niet beschikbaar) blijft staan, maar een planner kan een stap niet zelf op 0 zetten.
+     MCP accepteert 0 sinds #728. Stond al zo op main. Voorstel: alleen het capaciteitsveld van een stap 0 laten
+     accepteren; de vlakke capaciteit en toewijzingseenheden blijven groter dan 0. Gevonden in review r3 van
+     #728 (GPT-6.1-Sol), in de broncode; geen browserhandeling. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij

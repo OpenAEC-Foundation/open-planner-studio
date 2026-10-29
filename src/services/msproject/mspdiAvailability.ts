@@ -15,6 +15,9 @@ export const MSPDI_AVAILABILITY_NA_START = '1984-01-01';
 export const MSPDI_AVAILABILITY_NA_END = '2049-12-31';
 /** De uiterste datum van MS Project (2149-12-31; 2049 was de grens tot Project 2010). */
 const MSPDI_LAST_DATE = '2149-12-31';
+/** Een open einde bij het lezen: na elke echte datum. */
+const OPEN_END = '9999-12-31';
+const isOpenEnd = (to: string) => !to || to === MSPDI_AVAILABILITY_NA_END || to >= MSPDI_LAST_DATE;
 
 export interface MspdiAvailabilityPeriod {
   /** `YYYY-MM-DD`, inclusief; bij het lezen `''` als de grens ontbreekt (= NA). */
@@ -59,9 +62,10 @@ export function availabilityPeriodsOf(resource: Pick<Resource, 'maxUnits' | 'ava
 }
 
 /**
- * Periodes uit een bestand ⇒ de vlakke waarde en de stappen. Een ontbrekende grens is het open begin of einde
- * (NA), zoals in MS Project. Buiten elke periode is de resource in MS Project niet beschikbaar: vóór de eerste
- * periode, in een gat en na een periode die vóór NA stopt. Dat wordt een stap naar 0; vóór de eerste periode een
+ * Periodes uit een bestand ⇒ de vlakke waarde en de stappen. Een ontbrekend begin is NA. Een einde is open als het
+ * ontbreekt, NA is (2049-12-31) of op de uiterste datum van MS Project valt; elk ander einde, ook na 2049, is een
+ * echte grens. Buiten elke periode is de resource in MS Project niet beschikbaar: vóór de eerste periode, in een
+ * gat en na een periode met een echte einddatum. Dat wordt een stap naar 0; vóór de eerste periode een
  * stap op NA zelf, omdat de vlakke waarde (`MaxUnits`) groter dan 0 moet blijven. Een periode vanaf NA met
  * capaciteit draagt de vlakke waarde. Een stap die de capaciteit niet verandert, valt weg, zodat een vlakke
  * tabel geen stappen geeft.
@@ -71,7 +75,7 @@ export function availabilityFromPeriods(
   periods: readonly MspdiAvailabilityPeriod[],
 ): { maxUnits: number; availabilitySteps?: AvailabilityStep[] } {
   const valid = periods
-    .map(p => ({ from: p.from || MSPDI_AVAILABILITY_NA_START, to: p.to || MSPDI_AVAILABILITY_NA_END, units: p.units }))
+    .map(p => ({ from: p.from || MSPDI_AVAILABILITY_NA_START, to: isOpenEnd(p.to) ? OPEN_END : p.to, units: p.units }))
     .filter(p => ISO_DAY.test(p.from) && ISO_DAY.test(p.to) && p.to >= p.from && isUnits(p.units))
     .sort((a, b) => a.from.localeCompare(b.from));
   if (valid.length === 0) return { maxUnits };
@@ -83,13 +87,14 @@ export function availabilityFromPeriods(
       if (period.units > 0) flat = period.units;
       else raw.push({ from: MSPDI_AVAILABILITY_NA_START, maxUnits: 0 });
     } else {
-      const gapFrom = coveredTo === undefined ? MSPDI_AVAILABILITY_NA_START : shiftDay(coveredTo, 1);
-      if (gapFrom < period.from) raw.push({ from: gapFrom, maxUnits: 0 });
+      const gapFrom = coveredTo === undefined ? MSPDI_AVAILABILITY_NA_START
+        : coveredTo === OPEN_END ? undefined : shiftDay(coveredTo, 1);
+      if (gapFrom !== undefined && gapFrom < period.from) raw.push({ from: gapFrom, maxUnits: 0 });
       raw.push({ from: period.from, maxUnits: period.units });
     }
     if (coveredTo === undefined || period.to > coveredTo) coveredTo = period.to;
   }
-  if (coveredTo !== undefined && coveredTo < MSPDI_AVAILABILITY_NA_END) raw.push({ from: shiftDay(coveredTo, 1), maxUnits: 0 });
+  if (coveredTo !== undefined && coveredTo !== OPEN_END) raw.push({ from: shiftDay(coveredTo, 1), maxUnits: 0 });
   const steps: AvailabilityStep[] = [];
   let current = flat;
   for (const step of raw) {

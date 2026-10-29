@@ -185,6 +185,15 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   const farXml = write(project(), cal, [task('T', {})], [far]);
   const farBack = quiet(() => readMSPDI(farXml)).resources.find(r => r.name === 'F');
   same('§2 F: capaciteit na 2049 heen en terug', farBack && ['2049-12-31', '2050-01-02', '2050-01-03', '2120-01-01'].map(d => maxUnitsOn(farBack, d)), [1, 1, 2, 2]);
+  // Een vreemd bestand met periodes na 2049: een echte einddatum sluit af met 0, een ontbrekend einde is open.
+  const after = (to: string) => availabilityFromPeriods(1, [{ from: '2050-01-03', to, units: 2 }]);
+  const curve = (r: { maxUnits: number; availabilitySteps?: Resource['availabilitySteps'] }) =>
+    ['2050-01-02', '2050-01-03', '2050-01-07', '2050-01-08'].map(d => maxUnitsOn(r as Resource, d));
+  same('§2 lezer: eindige periode na 2049', curve(after('2050-01-07')), [0, 2, 2, 0]);
+  same('§2 lezer: periode na 2049 zonder einde', curve(after('')), [0, 2, 2, 2]);
+  const finite = res('E', after('2050-01-07'));
+  const finiteBack = quiet(() => readMSPDI(write(project(), cal, [task('T', {})], [finite]))).resources.find(r => r.name === 'E');
+  same('§2 E: eindige periode na 2049 heen en terug', finiteBack && curve(finiteBack), [0, 2, 2, 0]);
   same('§2 Z: terug ingelezen', quiet(() => readMSPDI(zeroFirst)).resources.find(r => r.name === 'Z')?.availabilitySteps, late.availabilitySteps);
 }
 
