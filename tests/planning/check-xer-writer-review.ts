@@ -24,6 +24,8 @@
  *  R10 Ronde 3, punt 2: een geërfde werkregel blijft geërfd (`OPS_InheritedWorkRule`), zolang
  *      `duration_type` nog het geschreven token draagt.
  *  R11 Ronde 3, punt 3: met OPS-markering rondt de lezer een bronbreuk niet af als het record vervallen is.
+ *  R12 Ronde 4: kiest de gebruiker bij een taak uit P6 *Projectstandaard*, dan schrijft de export de actuele
+ *      effectieve regel, niet het oude P6-duurtype (`p6DurationType`).
  */
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
@@ -48,7 +50,7 @@ import { solveInputFor } from '@/engine/scheduler/solveInput';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { settleDefaultWorkRuleSwitch } from '@/state/defaultWorkRuleSwitch';
-import { effectiveWorkRule } from '@/engine/work/workRuleApply';
+import { effectiveWorkRule, settleRuleChange } from '@/engine/work/workRuleApply';
 
 declare const process: { exit(code: number): never };
 
@@ -594,6 +596,31 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
   const again = read(exportDoc(docMarked).bytes);
   eq('R11e tweede export en heropenen: 2419,8 en 740,7 min', again.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen')
     .map(t => [t.time.durationMinutes, t.time.remainingMinutes]), [[2419.8, 740.7], [2419.8, 740.7]]);
+}
+
+// ── R12 (ronde 4): een oud P6-duurtype draait de keuze Projectstandaard niet terug ─────────────────
+// Een XER uit P6, zonder OPS-velden en zonder eigen projectstandaard; de taak staat op een bronregel. De gebruiker
+// kiest bij de taak *Projectstandaard* (`setTaskWorkRule(id, undefined)` → `settleRuleChange`), rekent en exporteert.
+for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FIXED_RATE'], ['DT_FixedDUR2', 'FIXED_DURATION_WORK']] as const) {
+  const source = xer([
+    ...BASE.slice(0, -2),
+    `%R\tT1\tP1\tC1\tA100\tBron\tTT_Task\t${token}\tTK_NotStart\t16\t16\t2026-06-01 08:00\t2026-06-02 16:00`,
+    '%E',
+  ]);
+  const doc0 = load(read(source));
+  const task0 = doc0.tasks.find(t => t.name === 'Bron')!;
+  ok(`R12a ${token}: (proef) na openen een eigen regel ${rule}, geen projectstandaard`, task0.workRule === rule && doc0.project.defaultWorkRule === undefined);
+  settleRuleChange(task0, doc0.assignments, doc0, undefined);
+  f5(doc0);
+  const effective = effectiveWorkRule(task0, doc0.project.defaultWorkRule);
+  eq(`R12b ${token}: (proef) Projectstandaard gekozen ⇒ geen eigen regel, effectief FIXED_DURATION_RATE`, [task0.workRule, effective], [undefined, 'FIXED_DURATION_RATE']);
+  const w = exportDoc(doc0);
+  eq(`R12c ${token}: duration_type = de actuele effectieve regel`, rowsOf(w.bytes, 'TASK').find(r => r.task_name === 'Bron')?.duration_type, 'DT_FixedDrtn');
+  const doc1 = load(read(w.bytes));
+  const task1 = doc1.tasks.find(t => t.name === 'Bron')!;
+  eq(`R12d ${token}: na heropenen erft de taak weer`, [task1.workRule, effectiveWorkRule(task1, doc1.project.defaultWorkRule)], [undefined, 'FIXED_DURATION_RATE']);
+  // Opnieuw exporteren na heropenen: hetzelfde duurtype.
+  eq(`R12e ${token}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').find(r => r.task_name === 'Bron')?.duration_type, 'DT_FixedDrtn');
 }
 
 for (const note of notes) console.log(`   · ${note}`);
