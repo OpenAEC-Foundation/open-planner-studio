@@ -591,25 +591,30 @@ function indentEdit(ids: string[]): HierarchyEdit {
     const selected = new Set(ids);
     let changed = false;
     const order = flattenOrder(tasks).map(t => t.id);
-    for (const id of order) {
-      if (!selected.has(id)) continue;
-      const task = tasks.find(t => t.id === id);
+    // De eerste taak per id blijft dezelfde als bij `find`, ook bij dubbele ids in een import.
+    // Alleen parentId/childIds veranderen hier; de index blijft de hele bewerking geldig.
+    const byId = new Map<string, Task>();
+    for (const task of tasks) if (!byId.has(task.id)) byId.set(task.id, task);
+    const previousSibling = new Map<string | null, { id: string; index: number }>();
+    const visitedAt = new Map<string | null, number>();
+    for (let index = 0; index < order.length; index++) {
+      const id = order[index];
+      const task = byId.get(id);
       if (!task) continue;
-      const idx = order.indexOf(id);
-      let newParentId: string | null = null;
-      for (let i = idx - 1; i >= 0; i--) {
-        const cand = tasks.find(t => t.id === order[i]);
-        if (!cand) continue;
-        if (cand.parentId === task.parentId && !selected.has(cand.id)) {
-          newParentId = cand.id;
-          break;
-        }
-        // Voorbij het bereik van dezelfde ouder (omhoog de boom uit): stoppen.
-        if (cand.id === task.parentId) break;
+      const parentIndex = visitedAt.get(task.parentId) ?? -1;
+      visitedAt.set(id, index);
+      if (!selected.has(id)) {
+        // Niet-geselecteerde taken veranderen niet van ouder. De laatste per ouder is dus
+        // precies de eerste passende kandidaat van de vroegere achterwaartse zoeklus.
+        previousSibling.set(task.parentId, { id, index });
+        continue;
       }
-      if (!newParentId) continue;
-      detachFromParent(tasks, id);
-      attachToParent(tasks, id, newParentId);
+      const candidate = previousSibling.get(task.parentId);
+      // De oude lus stopte zodra hij de ouder tegenkwam. Bewaar die grens ook voor wezen en
+      // corrupte bomen; een passende kandidaat op de grens werd vóór de stopconditie gekozen.
+      if (!candidate?.id || candidate.index < parentIndex) continue;
+      detachFromParent(tasks, id, byId);
+      attachToParent(tasks, id, candidate.id, undefined, byId);
       changed = true;
     }
     return { changed, reparented: changed };

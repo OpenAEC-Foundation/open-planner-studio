@@ -44,8 +44,11 @@ export function LibraryLinkDialog() {
   const candidates = companyId ? computeRecognition() : [];
   const withMatch = candidates.filter((c) => c.suggestedPoolId);
   const pool = companyId ? pools[companyId] : undefined;
-  const manualOptions = (kind: 'resource' | 'calendar') =>
-    (kind === 'resource' ? pool?.resources : pool?.calendars)?.map(item => ({ value: item.id, label: item.name })) ?? [];
+  // Eén lijst per soort en render; alle kandidaten en Select-props delen dezelfde opties.
+  const manualOptions = {
+    resource: pool?.resources.map(item => ({ value: item.id, label: item.name })) ?? [],
+    calendar: pool?.calendars.map(item => ({ value: item.id, label: item.name })) ?? [],
+  };
 
   // Afwijkingen: gestempelde items die deviated/removed zijn (scope via de getters).
   const deviatedResources = resources.filter((r) => {
@@ -93,9 +96,9 @@ export function LibraryLinkDialog() {
                   {!c.suggestedPoolId && (
                     <Select
                       value=""
-                      options={manualOptions(c.kind)}
-                      disabled={manualOptions(c.kind).length === 0}
-                      placeholder={t(manualOptions(c.kind).length > 0 ? 'companyLibrary.chooseAndLink' : 'companyLibrary.noLinkItems')}
+                      options={manualOptions[c.kind]}
+                      disabled={manualOptions[c.kind].length === 0}
+                      placeholder={t(manualOptions[c.kind].length > 0 ? 'companyLibrary.chooseAndLink' : 'companyLibrary.noLinkItems')}
                       aria-label={t('companyLibrary.chooseLinkFor', { name: c.projectName })}
                       className="w-48 shrink-0"
                       onChange={poolId => linkRecognizedItems([{ kind: c.kind, projectId: c.projectId, poolId }])}

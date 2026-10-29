@@ -38,7 +38,9 @@ import { ContextMenu } from './ContextMenu';
 // als ÉÉN undo-stap. DOM-vrij afgezonderd zodat de regressiebatterij dezelfde functies draait.
 import { contextMenuOutlineScope, contextMenuBulk } from './contextMenuScope';
 import { addTaskAtEnd } from '@/state/taskInsertActions';
-import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
+import { effHoursPerDay } from '@/utils/taskDuration';
 import { RelationTypePopover } from './RelationTypePopover';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
 // Hover-tooltip die zichzelf binnen het venster houdt (nodig zodra de titel wrapt).
@@ -404,11 +406,24 @@ export function GanttCanvas({
   // anker van de solver, dus de taak blijft na Berekenen op die datum staan.
   const addAtClickedDate = (milestone: boolean) => {
     const date = pointer.contextMenu?.clickDate;
-    addTaskAtEnd({
+    const partial = {
       name: milestone ? defaultMilestoneName : defaultTaskName,
       ...(milestone ? { isMilestone: true, milestoneKind: 'FINISH' as const, taskType: 'USERDEFINED' as const } : {}),
-      ...(date ? { time: createDefaultTaskTime(date, milestone ? 0 : 5, 'days', calendar) } : {}),
-    });
+    };
+    if (!date) { addTaskAtEnd(partial); return; }
+    // Een mijlpaal houdt het dagenpad: start en einde normaliseren dan naar hetzelfde moment. Met de
+    // urenmaat kreeg het einde 00:00 en de start het dageinde, en raakte geen klik de ruit (review #702).
+    if (milestone) { addTaskAtEnd({ ...partial, time: createDefaultTaskTime(date, 0, 'days', calendar) }); return; }
+    // De klik kiest alleen de start, niet een expliciete dagenmaat. Gebruik dezelfde standaard-
+    // en omzettingsregels als addTask, vóór de volledige tijd aan de store wordt doorgegeven.
+    const state = useAppStore.getState();
+    const task = buildNewTask(partial, { id: '', parentId: null, parentTask: undefined, constructionMode: state.ui.constructionMode,
+      time: createDefaultTaskTime(date, milestone ? 0 : 5, newTaskTimeUnit(state.project), calendar) });
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, state.project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    addTaskAtEnd({ ...partial, time: task.time });
   };
   const revealTaskIfOffscreen = useCallback((task: Task) => {
     const canvas = canvasRef.current;

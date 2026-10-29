@@ -11,10 +11,28 @@ import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { NotifyInput } from './slices/types';
+import { current, isDraft } from 'immer';
 import { relationVerdict } from './relationRules';
 import { generateId } from '@/utils/id';
 import { applyWbsNumbering, deriveWbsCodes } from '@/utils/wbs';
 import { refusalNotice, refusedNamesLine, refusedSetKey } from './refusalNotice';
+
+/** De takenlijst en ids blijven in deze helpers op dezelfde posities; alleen andere taakvelden veranderen.
+ * Lees de ids zonder alle bestaande taken te draften, maar haal iedere gevonden taak LIVE uit
+ * de oorspronkelijke lijst. current() ziet ook taken die deze producer net heeft toegevoegd.
+ * De eerste positie wint bij dubbele ids, precies zoals de vroegere Array.find. */
+function insertedTaskLookup(tasks: Task[]): (id: string) => Task | undefined {
+  const view = isDraft(tasks) ? current(tasks) : tasks;
+  const indices = new Map<string, number>();
+  for (let i = 0; i < view.length; i++) {
+    const id = view[i].id;
+    if (!indices.has(id)) indices.set(id, i);
+  }
+  return id => {
+    const index = indices.get(id);
+    return index === undefined ? undefined : tasks[index];
+  };
+}
 
 /**
  * Legt `relations` opnieuw aan tussen de nieuwe ids uit `idMap` (bron-id → nieuw id). Een spread
@@ -36,7 +54,8 @@ export function insertRemappedRelations(
 ): string[] {
   // Geeft de overgeslagen relaties terug als "Voorganger → Opvolger", voor de weigering.
   const skipped: string[] = [];
-  const lookup = (tid: string) => s.tasks.find(t => t.id === tid);
+  if (relations.length === 0) return skipped;
+  const lookup = insertedTaskLookup(s.tasks);
   for (const relation of relations) {
     const candidate = {
       ...relation,
@@ -81,9 +100,10 @@ export function normalizeInsertedBranch(s: InsertTargetDefinitions, ids: Iterabl
   const taskTypeIds = new Set(s.customTaskTypes.map(type => type.id));
   const codeTypes = new Map(s.activityCodeTypes.map(type => [type.id, type] as const));
   const fieldIds = new Set(s.customFieldDefs.map(def => def.id));
+  const lookup = insertedTaskLookup(s.tasks);
   let cleared = 0;
   for (const id of ids) {
-    const task = s.tasks.find(t => t.id === id);
+    const task = lookup(id);
     if (!task) continue;
     if (task.calendarId !== undefined && !calendarIds.has(task.calendarId)) {
       delete task.calendarId;
@@ -141,8 +161,9 @@ export function assignInsertedWbsCodes(
     return;
   }
   const codes = deriveWbsCodes(s.tasks);
+  const lookup = insertedTaskLookup(s.tasks);
   for (const id of ids) {
-    const task = s.tasks.find(t => t.id === id);
+    const task = lookup(id);
     const code = codes.get(id);
     if (task && code !== undefined) task.wbsCode = code;
   }

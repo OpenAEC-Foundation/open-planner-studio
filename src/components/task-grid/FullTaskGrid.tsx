@@ -65,7 +65,8 @@ import {
   lastTaskRow,
   retargetGhostIntents,
 } from '@/engine/taskGrid/ghostRow';
-import { buildNewTask, createDefaultTaskTime } from '@/utils/taskDefaults';
+import { buildNewTask, createDefaultTaskTime, deriveScheduleDurationFromMinutes, seedNewHourTaskFinish } from '@/utils/taskDefaults';
+import { newTaskTimeUnit, settleNewTaskMeasure } from '@/state/newTaskMeasure';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
@@ -348,14 +349,20 @@ export function TaskGridSurface({
   const ghostTask = useMemo<Task>(() => {
     const last = lastTaskRow(viewRows);
     const parentId = last?.task.parentId ?? null;
-    return buildNewTask({ name: '' }, {
+    const task = buildNewTask({ name: '' }, {
       id: GHOST_TASK_ID,
       parentId,
       parentTask: parentId ? tasks.find(task => task.id === parentId) : undefined,
       constructionMode,
-      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, 'days', calendar),
+      time: createDefaultTaskTime(project.startDate || localTodayIso(), 5, newTaskTimeUnit(project), calendar),
     });
-  }, [calendar, constructionMode, project.startDate, tasks, viewRows]);
+    // Ook het editorsjabloon volgt profiel, eigen maatkeuze en vast werk, zoals de echte aanmaak.
+    const hoursPerDay = effHoursPerDay(calendar);
+    deriveScheduleDurationFromMinutes(task.time, hoursPerDay);
+    settleNewTaskMeasure(task, project, false, hoursPerDay);
+    seedNewHourTaskFinish(task, undefined, calendar);
+    return task;
+  }, [calendar, constructionMode, project, tasks, viewRows]);
   const gridRows = useMemo(
     () => (showGhostRow ? appendGhostRow(viewRows, ghostTask) : viewRows),
     [ghostTask, showGhostRow, viewRows],
@@ -613,8 +620,12 @@ export function TaskGridSurface({
         previousColumnsRef.current,
         visibleColumnIds,
       );
-      const samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length
-        && current.selectedTaskIds.every(id => selectedTaskIds.includes(id));
+      let samePublishedSelection = current.selectedTaskIds.length === selectedTaskIds.length;
+      if (samePublishedSelection) {
+        // Alleen de opzoeking verandert: every behoudt ook bij dubbele ids zijn betekenis.
+        const publishedSelectionIds = new Set(selectedTaskIds);
+        samePublishedSelection = current.selectedTaskIds.every(id => publishedSelectionIds.has(id));
+      }
       const samePublishedActiveTask = current.activeTaskId === publishedActiveTaskId;
       if (samePublishedSelection && samePublishedActiveTask) return reconciled;
 
