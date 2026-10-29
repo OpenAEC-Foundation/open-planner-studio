@@ -984,14 +984,6 @@ en noem het in je rapport of PR-tekst.
      minuten rest terecht lopend. Voorstel: alleen met een echte bronfixture aanpassen, eventueel met een
      importmelding; geen drempel die echte rest wist. Gevonden in review ronde 3 van #663 (GPT-6.1-Sol). — S
 
-356. **Een hammock houdt in "Datums zoals opgeslagen" de nulduur van de verworpen berekening.** Hammock B met
-     opgeslagen datums 16–20 maart en duur 5 dagen: de verworpen berekening schrijft duur 0
-     (`writeDerivedSpan`, `src/engine/scheduler/CPMSolver.ts:2106`); de modus zet de datums terug, maar laat
-     `scheduleDuration: 0` en `durationMinutes: 0` staan (`src/engine/scheduler/recordedDates.ts:520`).
-     Opnieuw opslaan bewaart die nulduur. Al zo op `9a636ec69`. Voorstel: bij het verwerpen van de solve ook de
-     bronduur en duurmaat van hammocks vastleggen en terugzetten. Gevonden in de review van de fix voor aanval
-     a05 (GPT-6.1-Sol). — B
-
 372. **Een kalendertijdtaak met een breuk in dagen verliest bij heropenen uit MSPDI een minuut.** ELAPSEDTIME-taak
      5/6 ed vanaf 1 juni 2026 07:00: vóór export eindigt ze 2 juni 03:00, na heropenen en doorrekenen 02:59. Het
      record houdt zes decimalen, omdat 5/6 en 0,833333 allebei afgerond 1200 minuten geven; de solver telt

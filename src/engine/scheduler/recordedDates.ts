@@ -49,6 +49,16 @@ export interface RecordedTime {
    *  als haar datums — wat het bestand zei. Voor een blad bestaat dit niet: diens voortgang raakt de
    *  solve niet aan. */
   summaryProgress?: SummaryProgress;
+  /** Alleen een hammock: de solve overschrijft ook haar duurbron en maat. Bij het verwerpen
+   *  daarvan hoort de gelezen/getoonde duur terug, niet de span van die verworpen solve. */
+  hammockDuration?: Pick<TaskTimeInput, 'scheduleDuration' | 'durationUnit' | 'durationMinutes'>;
+}
+
+/** Een verse kopie: de volgende solve mag de vastgelegde duur niet mee veranderen. */
+export function captureHammockDuration(task: Task): RecordedTime['hammockDuration'] {
+  if (!task.isHammock) return undefined;
+  return { scheduleDuration: task.time.scheduleDuration, durationUnit: task.time.durationUnit,
+    durationMinutes: task.time.durationMinutes };
 }
 
 // Drift-anker: elk CPM-veld in `TaskTimeComputed` moet ook hier een plek
@@ -220,11 +230,12 @@ export function captureRecordedDates(
     // Laag 0 — bron-orakel, MET VOORRANG boven `recordedFields`. Filteren op bestaande taken houdt
     // dezelfde regel aan als de andere twee lagen ("een vastgelegde id die niet meer bestaat telt
     // niet mee"); `recordedFields` wordt hier bewust NIET geraadpleegd (geen menging van kanalen).
-    const knownIds = new Set(tasks.map((t) => t.id));
+    const byId = new Map(tasks.map((t) => [t.id, t]));
     const times: Record<string, RecordedTime> = {};
     for (const [id, rec] of Object.entries(recordedTimes)) {
-      if (!knownIds.has(id)) continue;
-      times[id] = rec;
+      const task = byId.get(id);
+      if (!task) continue;
+      times[id] = task.isHammock ? { ...rec, hammockDuration: captureHammockDuration(task) } : rec;
     }
     return { times, total: Object.keys(times).length };
   }
@@ -260,6 +271,7 @@ export function captureRecordedDates(
       ...(has.has('totalFloat') && t.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.totalFloatMinutes } : {}),
       ...(has.has('freeFloat') && t.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.freeFloatMinutes } : {}),
       isCritical: has.has('isCritical') ? t.isCritical : undefined,
+      ...(task.isHammock ? { hammockDuration: captureHammockDuration(task) } : {}),
       ...(isSummaryTask(task)
         ? {
             summaryProgress: {
@@ -534,6 +546,12 @@ export function applyRecordedTimesToTasks(
     // leidde die af uit de bladen (`applyCpmResult`), net zoals hij haar datums oprolde.
     // Dezelfde schrijver als de rollup: voortgang, status én werkelijke datums samen.
     if (rec.summaryProgress) writeSummaryProgress(task, rec.summaryProgress);
+    if (task.isHammock && rec.hammockDuration) {
+      task.time.scheduleDuration = rec.hammockDuration.scheduleDuration;
+      task.time.durationUnit = rec.hammockDuration.durationUnit;
+      // Expliciet wissen bij de dagenmaat: geen minuten van de verworpen solve laten staan.
+      task.time.durationMinutes = rec.hammockDuration.durationMinutes;
+    }
     task.time.interferingFloat = undefined;
     task.time.isNearCritical = undefined;
     task.time.floatPath = undefined;
