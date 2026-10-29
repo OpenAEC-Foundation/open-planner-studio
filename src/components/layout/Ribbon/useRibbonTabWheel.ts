@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { RibbonTab } from '@/state/slices/types';
+import { isBlockingDialogOpen } from '@/state/blockingDialogs';
 
 /* ------------------------------------------------------------------------------------------------
  * Muiswiel boven de lint-tabs wisselt van tab (issue #688, Office-patroon)
@@ -63,7 +64,14 @@ export function useRibbonTabWheel(
       const direction = accumulated > 0 ? 1 : -1;
       accumulated = 0;
       const next = ribbonTabAfterWheel(latest.current.tabs, useAppStore.getState().ui.activeRibbonTab, direction);
-      if (next) latest.current.setActiveTab(next);
+      if (!next) return;
+      // Net als een klik op een tab: eerst verlaat de focus het actieve veld, zodat dat zijn
+      // getypte waarde bewaart (onBlur). Anders verdwijnt die als de wissel het veld weghaalt.
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused !== document.body) focused.blur();
+      // Opende het bewaren een vraag, dan wisselt het wiel niet (een klik zou op die vraag landen).
+      if (isBlockingDialogOpen(useAppStore.getState().ui)) return;
+      latest.current.setActiveTab(next);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);

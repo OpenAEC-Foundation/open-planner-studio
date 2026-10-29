@@ -3,7 +3,7 @@
 // (Instellingen → Projectinfo) opent zijn dialoog — telkens opnieuw, ook na sluiten. Vooraf: het
 // muiswiel boven de tabs wisselt van tab (#688), boven de knoppen niet, en de instelling zet het uit.
 // Echte klikken en echte wielgebeurtenissen; de storebrug leest alleen de uitkomst.
-import { expect, test } from './fixtures/ops';
+import { expect, seedProject, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
 
 const activeTab = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab);
@@ -31,6 +31,26 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await wheelOver(page, '.ribbon-content', 100);
   await page.waitForTimeout(100);
   expect(await activeTab(page)).toBe('start');
+
+  // Een getypte, nog niet bevestigde waarde blijft bewaard, net als bij een klik op een tab:
+  // Tabel → duur typen → wiel omlaag → IFC (daar verdwijnt het eigenschappenpaneel).
+  const [taskId] = await seedProject(page, [{ name: 'Duurconcept', start: '2026-09-07', finish: '2026-09-08', durationDays: 2 }]);
+  const duration = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, taskId);
+  await page.locator('[data-ops-ribbon-tab="table"]').click();
+  await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    s.selectTask(id);
+  }, taskId);
+  const durationInput = page.locator('[data-ops-duration-value]');
+  await durationInput.fill('3');
+  await expect(durationInput).toBeFocused();
+  expect(await duration()).toBe(2);
+  await wheelOver(page, '.ribbon-tabs', 100);
+  await expect.poll(() => activeTab(page)).toBe('ifc');
+  await expect(durationInput).toHaveCount(0);
+  expect(await duration()).toBe(3);
+  await page.locator('[data-ops-ribbon-tab="start"]').click();
 
   // Instelling uit (echte klik in App-instellingen → Weergave → Lint): het wiel wisselt niet meer.
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
