@@ -10,7 +10,6 @@ import { hasNonAnchorTime } from '@/services/subdayIo';
 /** Elk teken buiten de `Char`-productie van XML 1.0 (https://www.w3.org/TR/xml/#charsets): C0-stuurtekens
  *  behalve tab/LF/CR, een losse UTF-16-surrogaat en U+FFFE/U+FFFF. Met de `u`-vlag is een geldig
  *  surrogaatpaar één teken boven U+FFFF en blijft het staan. */
-// eslint-disable-next-line no-control-regex
 const XML_INVALID_CHAR = /[^\t\n\r -퟿-�\u{10000}-\u{10FFFF}]/gu;
 
 /** Escapet tekst voor XML-inhoud én attributen (de vijf voorgedefinieerde entiteiten). Een teken dat XML 1.0

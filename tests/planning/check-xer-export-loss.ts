@@ -150,6 +150,35 @@ function restoreDownloadSave() {
 resetProject('Schoon niet-XER');
 const cleanCsv = await store().exportAs('csv');
 expectCategories('een schoon niet-XER-project geeft geen XER-lossmelding', 'csv', cleanCsv, []);
+for (const format of ['mspdi', 'p6'] as const) {
+  expectCategories(`${format}: een schoon niet-XER-project geeft geen verlieswaarschuwing`,
+    format, await store().exportAs(format), []);
+}
+
+// #554: verlies hangt af van de gegevens, niet van de herkomst. Een native project (geen XER-archief,
+// geen XER-metadata) met een taaknotitie verliest die notitie in elke XML/CSV-export. De envelope draagt
+// dan een eigen code; de XER-melding ("XER-broninformatie") hoort niet bij een native project.
+// MUTATIEBEWIJS: zet in `detectXerExportLoss` de vroege `return []` voor een project zonder archief en
+// metadata terug ⇒ de drie 'notes'-regels slaan rood.
+resetProject('Native met notitie');
+{
+  const noteTask = store().addTask({ name: 'Taak met notitie' });
+  store().updateTask(noteTask, { notes: [{ id: 'note-native', text: 'Alleen in OPS', done: false }] });
+  for (const format of ['mspdi', 'p6', 'csv'] as const) {
+    clearNotifications();
+    const result = await store().exportAs(format);
+    expect(`${format}: native project met notitie meldt 'notes' in de envelope (#554)`,
+      result.ok === true
+      && result.warnings.length === 1
+      && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+      && result.warnings[0]?.format === format
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['notes']));
+    expect(`${format}: native project krijgt niet de XER-broninformatiemelding`,
+      xerLossNotifications().length === 0);
+  }
+  expect('IFC blijft voor een native project met notitie lossless',
+    categoriesOf(await store().exportAs('ifc')).length === 0);
+}
 
 // Negatief 2: alleen een lege archive/importmetadata-binding is geen verliescategorie.
 resetProject('Lege XER-binding');

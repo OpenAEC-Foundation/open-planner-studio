@@ -1359,7 +1359,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
-      if (warnings.length > 0) {
+      // De bestaande melding noemt XER-broninformatie en hoort dus alleen bij een XER-document. Een
+      // document zonder XER-herkomst draagt zijn verlies (#554) voorlopig alleen in de envelope.
+      if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
         get().notify({
           severity: 'info',
           messageKey: 'notifications.xerExportLoss',

@@ -79,7 +79,6 @@ for (const format of ['mspdi', 'p6'] as const) {
   const parsed = strictParse(xml);
   expect(`${format}: strikte XML 1.0-parser leest de volledige uitvoer (${parsed.error})`, parsed.ok);
   expect(`${format}: geen verboden teken in de uitvoer`,
-    // eslint-disable-next-line no-control-regex
     !/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/.test(xml) && !/[\uD800-\uDFFF]/u.test(xml));
   expect(`${format}: het vervangen teken is zichtbaar als U+FFFD`, xml.includes('A�B'));
   expect(`${format}: de geldige emoji blijft`, xml.includes(emoji));
