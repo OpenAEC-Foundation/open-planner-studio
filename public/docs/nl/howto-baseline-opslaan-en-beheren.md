@@ -73,5 +73,5 @@ Elke baseline heeft zes kolommen in de takentabel. Klik op de **+** rechts in de
 - [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat een baseline vastlegt en hoe de afwijking wordt berekend.
 - [Project verplaatsen](docs://howto-project-verplaatsen): het vakje *Baselines mee verschuiven*.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de werkelijke stand invullen die je met de baseline vergelijkt.
-- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): één baseline (*Baseline at start*) vóór de start, met voortgang en een statusdatum op 20 mei 2027.
-- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): twee baselines, *Contract* en *Re-baseline (variation order)*, met voortgang en een statusdatum op vrijdag 2 juli 2027, aan het einde van de werkdag.
+- [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): twee baselines, samen in de Gantt: *Contract* vóór de start (actief) en *Re-plan after frost delay*, na vorstverlet op de fundering. Met voortgang en een statusdatum op 20 mei 2027.
+- [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): twee baselines, samen in de Gantt: *Contract* (actief) en *Re-baseline (variation order)*, na meerwerk. Met voortgang en een statusdatum op vrijdag 2 juli 2027, aan het einde van de werkdag.

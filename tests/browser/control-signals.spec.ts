@@ -7,6 +7,18 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   // De aparte relatietab bestaat niet meer. De vaste relatie-dropdown op Planning toont zonder
   // selectie dezelfde native uitgeschakelde koppelactie en dus dezelfde niet-klikbare aanwijzing.
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
+  // De tabwissel laat alleen kleuren overvloeien: een geanimeerde rand of marge gaf een kort
+  // donker balkje onder de nieuwe tab en een sprong van 3px. En geen tab steekt onder de
+  // titelbalk (z-index 40), ook de actieve en de Bestand-tab niet.
+  await expect(page.locator('.ribbon-tab.active').filter({ hasText: /^Planning$/ })).toBeVisible();
+  const tabTransitions = await page.evaluate(() => [...new Set([...document.querySelectorAll('.ribbon-tab')]
+    .flatMap(t => getComputedStyle(t).transitionProperty.split(',').map(p => p.trim())))]);
+  expect(tabTransitions.filter(p => p !== 'background-color' && p !== 'color')).toEqual([]);
+  const tabTops = await page.evaluate(() => {
+    const titleBottom = document.querySelector('.title-bar')!.getBoundingClientRect().bottom;
+    return [...document.querySelectorAll('.ribbon-tab')].map(t => t.getBoundingClientRect().top - titleBottom);
+  });
+  expect(Math.min(...tabTops)).toBeGreaterThanOrEqual(0);
   await page.getByRole('button', { name: /^(Link|Relatie)$/ }).click();
   const nativeDisabled = page.getByRole('menuitem', { name: /Link selected tasks|Geselecteerde taken koppelen/ });
   await expect(nativeDisabled).toBeVisible();

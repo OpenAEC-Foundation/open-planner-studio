@@ -1229,6 +1229,16 @@ en noem het in je rapport of PR-tekst.
      kritiek-drempel in uren erbij komen (eigen project met urendrempel, notitie, onderbreking en vervangen
      teken: de algemene verliesmelding valt weg; review r6 van #728, nagespeeld). — B
 
+509. **De externe koppeling in het voorbeeld *De Vaart Apartment Complex* wijst naar ids die het meegeleverde
+     bronbestand niet heeft.** `buildGrootWithExternalSource` in `scripts/gen-core.ts` haalt project- en taak-id
+     uit een eigen bouw van het bronvoorbeeld; `generate-examples.ts` bouwt dat bronbestand daarna opnieuw, met
+     nieuwe ids. In `showcase-appartementencomplex.ifc` staat `proj-mvtzzksw9ms23`/`task-mvtzzkug0aeb11`, in
+     `showcase-groot-terrein-onderaannemer.ifc` komen die niet voor (op main idem, met andere ids). Bijwerken
+     via de echte `refreshExternalAnchors` vindt zo 0 koppelingen; het bevroren anker en het plan kloppen wel.
+     `verify-examples.ts` mist het, omdat die op taaknaam zoekt. Voorstel: gebruik dezelfde bouw voor de
+     koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
+     review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
@@ -1597,6 +1607,14 @@ en noem het in je rapport of PR-tekst.
      bijgewerkt. Voorbeeld: `public/docs/de/ref-lint.md:70` (**Warnungen**) en `public/docs/de/ref-meldingen.md:30`
      (*Planung › Terminplanung › Warnungen*); in 24 lintgidsvertalingen staat de oude naam. Voorstel: bij de
      volgende `update-docs-lang`-ronde meenemen. Gevonden in review van #735 (GPT-6.1-Sol), 2026-10-29. — B
+
+496. **De browsertest voor de lint-tabs bewaakt alleen de klik op Planning bij 100%.**
+     `tests/browser/control-signals.spec.ts:9` controleert de tabovergang en de afstand tot de titelbalk
+     alleen na een klik op Planning, met standaardinstellingen. Hover, een actieve Bestand-tab, andere
+     lettergroottes (90/110/125%) en de wissel met het muiswiel (#732) dekt de test niet. Een latere fout die
+     alleen `.ribbon-tab--file.active`, hover of 90% raakt, blijft groen. Voorstel: in hetzelfde scenario
+     dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
+     het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
 ## Wensen en open taken (geen bug)
 

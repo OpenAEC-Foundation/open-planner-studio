@@ -18,8 +18,11 @@
   align-items: flex-end;
 }
 
+/* Hoogte: 2×3px padding + regel (18px) + 1px bovenrand past in de strook (28px − 1px onderrand),
+   met 1,6–3px lucht bij elke lettergrootte (90–125%). Met 6px stak de tab 4px omhoog en viel
+   die strook onder de titelbalk (z-index 40). */
 .ribbon-tab {
-  padding: calc(6px * var(--ui-font-scale, 1)) calc(16px * var(--ui-font-scale, 1));
+  padding: calc(3px * var(--ui-font-scale, 1)) calc(16px * var(--ui-font-scale, 1));
   font-size: var(--text-large);
   background: transparent;
   border: 1px solid transparent;
@@ -27,7 +30,10 @@
   color: var(--theme-text-dim);
   font-weight: 500;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
-  transition: all 0.15s ease;
+  /* Alleen kleuren laten overvloeien. Bij `all` animeerde ook de onderrand van een nieuwe actieve
+     tab: vanaf `medium` (3px) in tekstkleur, want `border-bottom: none` zet breedte en kleur terug.
+     Dat gaf bij elke tabwissel een kort donker balkje en een sprong van 3px omhoog. */
+  transition: background-color 0.15s ease, color 0.15s ease;
   cursor: pointer;
   position: relative;
 }
@@ -486,7 +492,7 @@
   background: var(--theme-file-tab-bg);
   color: var(--theme-accent-on);
   font-weight: 700;
-  padding: calc(6px * var(--ui-font-scale, 1)) calc(18px * var(--ui-font-scale, 1));
+  padding: calc(3px * var(--ui-font-scale, 1)) calc(18px * var(--ui-font-scale, 1));
 }
 .ribbon-tab--file:hover,
 .ribbon-tab--file.active {
