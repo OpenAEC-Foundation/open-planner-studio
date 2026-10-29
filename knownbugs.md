@@ -983,16 +983,6 @@ en noem het in je rapport of PR-tekst.
      Richting: `durationUnit: 'hours'` zetten als `durMinutes` er is; dat verschuift wel de hele planning van
      De Vaart en de getallen in de gidsen. Gevonden bij het opnieuw genereren van de voorbeelden (PR #600). — B
 
-340. **Na omzetten, Ctrl+Z en crashherstel verdwijnt de modus "Datums zoals opgeslagen".** Een oud bestand wordt
-     bij openen omgezet (B5); Ctrl+Z zet de opgeslagen datums terug met `datesAsRecorded: true`. Crashherstel
-     (`restoreDocuments`) weigert daarna de vóór-toestand: B5 maakt die met `origin: 'ifc-own'` zonder
-     `sourceFormat` (`src/state/minuteModelTransition.ts:65`), en de herstelroute weigert juist die combinatie
-     vóór ze de herstelvlag toepast (`src/state/documentActivation.ts:358`, `:378`). Een actief document krijgt
-     weer de omgerekende datums; een slapend document komt zonder modus en verouderd terug. Geen onherstelbaar
-     verlies aangetoond (het omzet-event kan opnieuw met undo terug). Voorstel: bij expliciet herstel van de modus
-     de IFC-vastlegging toelaten zonder verplicht bronformaat; actief en slapend herstel toetsen. Gevonden in de
-     aanval na #600 (GPT-6.1-Sol). — B
-
 382. **MSPDI en MPP zonder `ActualFinish` maar op 100 % met een rest komen binnen als lopend.** Sinds #663 geldt
      "geen werkelijk einde en rest > 0" als teken voor lopend op 100 % (`src/services/msproject/mspdiReader.ts:643`,
      `src/services/mpp/mppReader.ts:857`). Een bron met 100 %, geen `ActualFinish` en één minuut rest wordt
