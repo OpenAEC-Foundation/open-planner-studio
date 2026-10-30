@@ -120,6 +120,13 @@ export const COMMANDS = {
       s.setUI({ showWarningsPanel: !s.ui.showWarningsPanel });
     },
   },
+  // Het paneel Verschuivingen aan/uit (Beeld → Panelen), net als het Waarschuwingenpaneel.
+  toggleScheduleShiftPanel: {
+    id: 'toggleScheduleShiftPanel',
+    run: (s) => {
+      s.setUI({ showScheduleShiftPanel: !s.ui.showScheduleShiftPanel });
+    },
+  },
 } satisfies Record<string, Command>;
 
 export type CommandId = keyof typeof COMMANDS;

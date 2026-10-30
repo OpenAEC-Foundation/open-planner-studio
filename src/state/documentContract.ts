@@ -340,6 +340,8 @@ type AppGlobalKey =
   | 'documents' | 'activeDocumentId'
   // Eén chronologische, niet-gepersisteerde geschiedenis over documenten en gridsurfaces.
   | 'historyEvents' | 'nextHistorySequence'
+  // De uitleg na F5 (#742): sessiestand van één document, wordt bij een documentwissel gewist.
+  | 'scheduleShift'
   // Extensies: app-niveau data, geen projectdata (zie .claude/rules/extensions.md).
   | 'installedExtensions' | 'quarantinedExtensions' | 'extensionRibbonButtons' | 'extensionImporters'
   | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'

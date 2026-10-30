@@ -1705,5 +1705,43 @@
     "blockedNoChild": "Moving is not possible: '{{phase}}' gets no subtask that can carry an assignment, only milestones or summary tasks.",
     "actualWorkLost_one": "The assignment of {{resource}} already has {{hours}} hour of actual work. Removing it discards that work.",
     "actualWorkLost_other": "The assignment of {{resource}} already has {{hours}} hours of actual work. Removing it discards that work."
+  },
+  "scheduleShift": {
+    "title": "Shifted tasks",
+    "close": "Close shifted tasks",
+    "notice_one": "{{count}} task moved",
+    "notice_other": "{{count}} tasks moved",
+    "deliveryLater_one": "Project finish {{days}} working day later",
+    "deliveryLater_other": "Project finish {{days}} working days later",
+    "deliveryEarlier_one": "Project finish {{days}} working day earlier",
+    "deliveryEarlier_other": "Project finish {{days}} working days earlier",
+    "deliveryUnchanged": "Project finish unchanged",
+    "why": "Why?",
+    "undo": "Undo",
+    "finishChange": "Finish {{from}} → {{to}}",
+    "goTo": "Go to: {{target}}",
+    "showMore_one": "Show {{count}} more task",
+    "showMore_other": "Show {{count}} more tasks",
+    "emptyNoRun": "Press Calculate (F5). This list then shows which tasks moved, and why.",
+    "emptyNoShift": "The last calculation moved no tasks.",
+    "reason": {
+      "predecessor": "Predecessor: {{name}}",
+      "predecessorMore_one": "Predecessor: {{name}} and {{count}} other",
+      "predecessorMore_other": "Predecessor: {{name}} and {{count}} others",
+      "calendar": "Calendar: {{name}}",
+      "constraint": "Fixed date: {{constraint}}",
+      "constraintPlain": "Fixed date",
+      "statusDate": "Status date: {{date}}",
+      "resource": "Resource: {{names}}",
+      "resourceLeveling": "Resource: leveling",
+      "duration": "Own duration changed",
+      "ownStart": "Own start date",
+      "plannedStart": "Planned start",
+      "projectStart": "Project start",
+      "progress": "Progress: actual dates or remaining duration",
+      "manual": "Manually scheduled",
+      "hammock": "Follows the linked tasks",
+      "unknown": "Reason not established"
+    }
   }
 }

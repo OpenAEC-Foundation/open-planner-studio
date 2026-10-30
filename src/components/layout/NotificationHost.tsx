@@ -2,12 +2,13 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
-import type { AppNotification } from '@/state/slices/types';
+import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { notificationDetailText } from '@/utils/notificationDetail';
 import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { clearViewArrangement } from '@/state/viewArrangement';
+import { canUndoScheduleShift, openScheduleShiftPanel } from '@/state/scheduleShift';
 import {
   measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
 } from './toastPlacement';
@@ -121,6 +122,7 @@ export function NotificationHost() {
   // voor waarom dat een eis is en geen toeval.
   const { t, i18n } = useTranslation();
   const placement = useToastPlacement(notifications.length > 0);
+  const canUndoShift = useAppStore(canUndoScheduleShift);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`
   // info (openingsmelding met gewijzigde data, `state/openNoticeSticky.ts`) blijven staan tot de
@@ -138,6 +140,52 @@ export function NotificationHost() {
   }, [notifications, dismissNotification]);
 
   if (notifications.length === 0) return null;
+
+  // De serialiseerbare actie uit de store (o.a. rekenprofielen, *Wissen* bij *Taak*); sluit de
+  // melding na de actie, behalve *Waarom?*: dan blijft *Ongedaan maken* binnen bereik.
+  const runAction = (n: AppNotification, action: NotificationAction) => {
+    if (action.kind === 'clearViewArrangement') {
+      // *Wissen* (eigenaarsbesluit 2026-10-19 5a): filter, groepering en sortering van
+      // het actieve document uit. De melding hoort altijd bij dat document: een
+      // documentwissel wist weigeringen (`clearRefusals`, 5b).
+      clearViewArrangement(useAppStore.getState());
+      dismissNotification(n.id);
+      return;
+    }
+    if (action.kind === 'undoScheduleShift') {
+      useAppStore.getState().undoScheduleShift();
+      return;
+    }
+    if (action.kind === 'showScheduleShift') {
+      const { ui } = useAppStore.getState();
+      const open = () => openScheduleShiftPanel(useAppStore.getState());
+      if (ui.activeRibbonTab === 'file') leaveBackstageGuarded(open);
+      else open();
+      return;
+    }
+    const go = () => {
+      setUI({ activeRibbonTab: 'file', backstageSection: action.section });
+      dismissNotification(n.id);
+    };
+    // Ook deze actie verlaat de huidige Backstage-sectie — via de bewaker; staat de
+    // gebruiker al op de doelsectie, dan valt er niets te verlaten.
+    const { ui } = useAppStore.getState();
+    if (ui.activeRibbonTab === 'file' && ui.backstageSection === action.section) go();
+    else leaveBackstageGuarded(go);
+  };
+  const actionButton = (n: AppNotification, action: NotificationAction | undefined) => {
+    if (!action || (action.kind === 'undoScheduleShift' && !canUndoShift)) return null;
+    return (
+      <button
+        type="button"
+        className="ops-textlink ops-toast-readmore"
+        data-ops-notification-action={action.kind}
+        onClick={() => runAction(n, action)}
+      >
+        {t(action.labelKey)}
+      </button>
+    );
+  };
 
   return (
     <div className="ops-toast-stack" style={placementStyle(placement)} data-ops-toast-placement={placement.kind}>
@@ -171,7 +219,9 @@ export function NotificationHost() {
             : n.detail && <div className="ops-toast-detail">{n.detail}</div>}
           {n.detailLines?.map((line, index) => (
             <div className="ops-toast-detail" key={`${line.messageKey}-${index}`} data-ops-toast-detail={line.messageKey}>
-              {notificationDetailText(t, line)}
+              {notificationDetailText(t, {
+                ...line, params: { ...line.params, ...localizedNumberParams(line.numberParams, i18n.language) },
+              })}
               {line.helpArticleId && (
                 // Een regel met een eigen onderwerp krijgt een eigen gidslink.
                 <button
@@ -204,37 +254,14 @@ export function NotificationHost() {
               {t('notifications.readMore')}
             </button>
           )}
-          {n.action && (
-            // De serialiseerbare actie uit de store (o.a. rekenprofielen, *Wissen* bij *Taak*); sluit
-            // de melding na de actie.
-            <button
-              type="button"
-              className="ops-textlink ops-toast-readmore"
-              data-ops-notification-action={n.action.kind}
-              onClick={() => {
-                const action = n.action!;
-                if (action.kind === 'clearViewArrangement') {
-                  // *Wissen* (eigenaarsbesluit 2026-10-19 5a): filter, groepering en sortering van
-                  // het actieve document uit. De melding hoort altijd bij dat document: een
-                  // documentwissel wist weigeringen (`clearRefusals`, 5b).
-                  clearViewArrangement(useAppStore.getState());
-                  dismissNotification(n.id);
-                  return;
-                }
-                const go = () => {
-                  setUI({ activeRibbonTab: 'file', backstageSection: action.section });
-                  dismissNotification(n.id);
-                };
-                // Ook deze actie verlaat de huidige Backstage-sectie — via de bewaker; staat de
-                // gebruiker al op de doelsectie, dan valt er niets te verlaten.
-                const { ui } = useAppStore.getState();
-                if (ui.activeRibbonTab === 'file' && ui.backstageSection === action.section) go();
-                else leaveBackstageGuarded(go);
-              }}
-            >
-              {t(n.action.labelKey)}
-            </button>
-          )}
+          {n.secondaryAction
+            ? (
+              <div className="ops-toast-actions">
+                {actionButton(n, n.action)}
+                {actionButton(n, n.secondaryAction)}
+              </div>
+            )
+            : actionButton(n, n.action)}
         </div>
       ))}
     </div>

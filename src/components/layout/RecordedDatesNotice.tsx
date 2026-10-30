@@ -21,7 +21,7 @@ export function RecordedDatesNotice() {
   const { t } = useTranslation('common');
   const recordedDates = useAppStore((s) => s.recordedDates);
   const datesAsRecorded = useAppStore((s) => s.datesAsRecorded);
-  const runCPM = useAppStore((s) => s.runCPM);
+  const recalculate = useAppStore((s) => s.recalculate);
 
   if (!datesAsRecorded) return null;
 
@@ -42,7 +42,7 @@ export function RecordedDatesNotice() {
         ? t(recordedDatesActiveKey(recordedDates.origin), { count: recordedDates.shifted })
         : t('recordedDates.active')}
       actionLabel={t('recordedDates.recalculate')}
-      onAction={() => runCPM()}
+      onAction={() => recalculate()}
       role="status"
       stripProps={{ 'data-ops-recorded-dates-active': true }}
       actionProps={{ 'data-ops-recorded-dates-recalculate': true }}
