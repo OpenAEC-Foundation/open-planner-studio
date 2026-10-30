@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-30T16:01:44.859Z",
-  "downloads": 3073,
+  "generatedAt": "2026-10-30T18:01:56.888Z",
+  "downloads": 3076,
   "releases": [
     {
       "tag": "v2026.43.0",
@@ -12,35 +12,35 @@
       "os": {
         "windows": {
           "install": 235,
-          "update": 84,
+          "update": 87,
           "both": 0,
           "byKind": {
             "exe": 235,
-            "nsis.zip": 84
+            "nsis.zip": 87
           }
         },
         "macos": {
-          "install": 36,
+          "install": 37,
           "update": 24,
           "both": 0,
           "byKind": {
-            "dmg": 36,
+            "dmg": 37,
             "app.tar.gz": 24
           }
         },
         "linux": {
           "install": 5,
           "update": 0,
-          "both": 89,
+          "both": 91,
           "byKind": {
             "snap": 5,
             "rpm": 8,
-            "AppImage": 56,
+            "AppImage": 58,
             "deb": 25
           }
         }
       },
-      "polls": 851
+      "polls": 881
     },
     {
       "tag": "v2026.10.0",
@@ -855,35 +855,35 @@
   "totals": {
     "windows": {
       "install": 1854,
-      "update": 289,
+      "update": 292,
       "both": 0,
       "byKind": {
         "exe": 1854,
-        "nsis.zip": 289
+        "nsis.zip": 292
       }
     },
     "macos": {
-      "install": 268,
+      "install": 269,
       "update": 97,
       "both": 0,
       "byKind": {
-        "dmg": 268,
+        "dmg": 269,
         "app.tar.gz": 97
       }
     },
     "linux": {
       "install": 84,
       "update": 0,
-      "both": 867,
+      "both": 869,
       "byKind": {
         "snap": 84,
         "rpm": 124,
-        "AppImage": 425,
+        "AppImage": 427,
         "deb": 318
       }
     }
   },
-  "polls": 5352,
+  "polls": 5382,
   "unknown": [
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
     "v2026.43.0: open-planner-studio_2026.43.0_amd64.snap.asc",
