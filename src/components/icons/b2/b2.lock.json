@@ -1,9 +1,9 @@
 {
   "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
   "source": "local",
-  "branch": "iconen/planning",
-  "commit": "173567c73d2d6372c7132616c764a8ee209f12f0",
+  "branch": "iconen/doorlopende-lijn",
+  "commit": "c10f25f80323a5cbf24805ca4628e9e976bdccd6",
   "b2Revision": 107,
-  "manifestSha256": "9ee78b727691784d65a469a9ddc912a4cb0056b6abcb056848f1e51574559e7c",
+  "manifestSha256": "f14e8bd91c50673b34a3b06b5ff268a6cb35ebc16b4a5a274f9f6c164a6d8936",
   "ids": "src/components/icons/b2/ids.json"
 }
