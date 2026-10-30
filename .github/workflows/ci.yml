@@ -1,5 +1,10 @@
 name: CI
 
+# De browsersuite draait niet bij een gewone PR en niet bij een push op main (besluit eigenaar,
+# 2026-10-30): één run kostte 74 min rekentijd, waarvan 46 aan browsertests. Hij draait in drie
+# gevallen: elke maandagochtend op main, handmatig op elke branch (`gh workflow run ci.yml --ref <branch>`,
+# ook vlak vóór een release: zie de release-skill) en op een PR met het label `browsertests`.
+# Wanneer een agent dat doet staat in AGENTS.md.
 on:
   push:
     branches:
@@ -7,6 +12,16 @@ on:
   pull_request:
     branches:
       - main
+    # `labeled` is de enige toevoeging; de andere drie zijn de standaardtypen. Elk label start een
+    # run, en GitHub kan daar niet op filteren: bij een ander label dan `browsertests` slaan alle
+    # jobs over (zie de `if`'s) en laat de concurrency hieronder de lopende CI staan.
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    # Maandag 04:00 UTC is 05:00 in de winter en 06:00 in de zomer.
+    - cron: '0 4 * * 1'
+  # De geplande en de handmatige run horen in deze workflow, niet in een eigen bestand: de wekker kijkt
+  # met `gh run list --branch main --workflow ci.yml --status completed --limit 1` of main rood staat.
+  workflow_dispatch:
 
 # Zonder dit erft elke job de repo-default van GITHUB_TOKEN, terwijl deze
 # workflow op een PR de afhankelijkheden van vreemde code installeert — een
@@ -19,12 +34,21 @@ permissions:
 # Bevinding O3: zonder dit draaien alle pushes op één branch tegelijk door.
 # Hier mág er wél geannuleerd worden — een afgebroken CI-run laat niets achter
 # (in tegenstelling tot release.yml/snap.yml, die daarom `false` gebruiken).
+# Het event zit in de naam, zodat een push op main de geplande of handmatige browserrun niet afbreekt
+# en omgekeerd; een afgebroken pushrun op main zou ook de deploy overslaan. Een ander label krijgt een
+# eigen groep per run: die run doet niets en mag de lopende CI van de PR niet annuleren. `browsertests`
+# zit wél in de groep van de PR: de labelrun vervangt een lopende run, zodat er nooit twee naast
+# elkaar draaien, ook niet als `opened` en `labeled` tegelijk binnenkomen.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'browsertests' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
   build:
+    # Niet in de browser-only runs (gepland, handmatig) en niet bij een ander label.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
     # Bevinding O6: zonder limiet loopt een hangende job door tot de 6-uursgrens
     # van GitHub. De Tauri-build duurt normaal ~15-25 min per OS.
     timeout-minutes: 45
@@ -117,9 +141,13 @@ jobs:
   # blijft package.json de ene definitie (de reden dat hier eerst bewust één commando stond), terwijl
   # de wandkloktijd de langste job wordt in plaats van de som. live.yml draait zelf geen verify: die
   # deployt pas als deze workflow op main geslaagd is. release.yml draait `npm run verify` nog in één
-  # keer (zie de timeout daar).
+  # keer (zie de timeout daar). De browsershards zijn hetzelfde `verify`-deel, maar staan in de eigen
+  # job `browser`: een `if` op jobniveau kan de matrix niet zien.
   verify:
     name: verify (${{ matrix.name }})
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
     timeout-minutes: 45
     runs-on: ubuntu-22.04
     strategy:
@@ -132,6 +160,40 @@ jobs:
             name: planning
           - part: suites
             name: suites
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install frontend dependencies (npm ci)
+        run: npm ci
+
+      - name: Check that this matrix runs every verify part
+        if: matrix.part == 'static'
+        run: node scripts/verify-parts.mjs --check-ci .github/workflows/ci.yml
+
+      - name: Verify (${{ matrix.name }})
+        run: node scripts/verify-parts.mjs ${{ matrix.part }}
+
+  # De browsersuite, het duurste deel van `verify`; wanneer die draait staat bovenaan dit bestand.
+  # Dezelfde voorwaarde staat in de job `test`, die rood wordt als de twee uiteenlopen.
+  browser:
+    name: verify (${{ matrix.name }})
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      || (contains(github.event.pull_request.labels.*.name, 'browsertests')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests'))
+    timeout-minutes: 45
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           # De browsersuite is de langste stap (~31 min testtijd in één job). Vier runners, elk met een
           # eigen bewaakte Vite-server. De verdeling is op gemeten duur per spec
           # (`--duration-shard`, scripts/browser-shards.mjs + tests/browser/spec-durations.json), niet
@@ -164,18 +226,13 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Chromium
-        if: matrix.part == 'browser'
         run: npx playwright install --with-deps --only-shell chromium
 
-      - name: Check that this matrix runs every verify part
-        if: matrix.part == 'static'
-        run: node scripts/verify-parts.mjs --check-ci .github/workflows/ci.yml
-
       - name: Verify (${{ matrix.name }})
-        run: node scripts/verify-parts.mjs ${{ matrix.part }} ${{ matrix.shard && format('-- --duration-shard={0}', matrix.shard) || '' }}
+        run: node scripts/verify-parts.mjs ${{ matrix.part }} -- --duration-shard=${{ matrix.shard }}
 
       - name: Upload Playwright failure artifacts
-        if: failure() && matrix.part == 'browser'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-ci-${{ matrix.part }}-${{ strategy.job-index }}-${{ github.run_attempt }}
@@ -186,14 +243,22 @@ jobs:
           retention-days: 7
 
   # Houdt de bestaande checknaam `test` (waar een verplichte-check-instelling op kan staan) en is
-  # alleen groen als élk verify-deel groen is — ook bij een overgeslagen of afgebroken deel rood.
+  # alleen groen als elk deel dat in deze run hoort groen is. Elk deel moet precies de verwachte
+  # uitkomst hebben: een afgebroken deel is rood, en een deel dat onverwacht overslaat ook. Alleen
+  # bij een ander label slaat ook deze job over: die run heeft niets om te beoordelen.
   test:
-    if: always()
-    needs: verify
+    if: always() && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
+    needs: [verify, browser]
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
       - name: All verify parts green
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          VERIFY_EXPECTED: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped' }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+          BROWSER_EXPECTED: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'browsertests')) && 'success' || 'skipped' }}
         run: |
-          echo "verify: ${{ needs.verify.result }}"
-          test "${{ needs.verify.result }}" = "success"
+          echo "verify: $VERIFY_RESULT (verwacht: $VERIFY_EXPECTED)"
+          echo "browser: $BROWSER_RESULT (verwacht: $BROWSER_EXPECTED)"
+          test "$VERIFY_RESULT" = "$VERIFY_EXPECTED" && test "$BROWSER_RESULT" = "$BROWSER_EXPECTED"
