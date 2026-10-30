@@ -349,8 +349,9 @@ export function ProgressImportDialog() {
           <li key={shift.field}>
             {t('progressImport.sinceExport.shiftedField', {
               field: t(`progressImport.sinceExport.plannedField.${shift.field}`),
-              exported: formatIsoForDisplay(shift.exported, i18n.language, timeNotation),
-              current: formatIsoForDisplay(shift.current, i18n.language, timeNotation),
+              // Op dagen: de vergelijking kijkt ook alleen naar de dag.
+              exported: formatDisplayDate(parseDate(shift.exported.slice(0, 10)), i18n.language),
+              current: formatDisplayDate(parseDate(shift.current.slice(0, 10)), i18n.language),
             })}
           </li>
         ))}
@@ -362,7 +363,7 @@ export function ProgressImportDialog() {
     selected: ProgressConflictChoice | undefined,
     choose: (choice: ProgressConflictChoice) => void,
   ) => (
-    <div className="flex gap-2">
+    <div className="flex gap-2 shrink-0">
       {(['app', 'sheet'] as const).map(choice => (
         <button
           key={choice}
@@ -482,7 +483,10 @@ export function ProgressImportDialog() {
                     data-ops-progress-row={row.rowNumber}
                     className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
                   >
-                    <span className="font-medium text-text-primary">{row.taskLabel}</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-text-primary">{row.taskLabel}</span>
+                      {renderChoiceButtons(row.conflictChoice, choice => chooseConflict(row.rowNumber, choice))}
+                    </div>
                     <ul className="flex flex-col gap-0.5 pl-4 list-disc text-text-secondary">
                       {row.conflicts?.map(conflict => (
                         <li key={conflict.field}>
@@ -495,7 +499,6 @@ export function ProgressImportDialog() {
                         </li>
                       ))}
                     </ul>
-                    {renderChoiceButtons(row.conflictChoice, choice => chooseConflict(row.rowNumber, choice))}
                     {row.outcome !== 'unresolved' && renderRowOutcome(row)}
                     {renderSinceExport(row)}
                   </div>
