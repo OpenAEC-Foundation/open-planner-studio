@@ -22,6 +22,8 @@ The sheet has eight columns. The column names stay in English, with a short inst
 - `Start` and `Finish` are the planned dates, for information. The app never writes them back.
 - `Completion (%)`, `Actual Start` and `Actual Finish` are the ones you fill in.
 
+The Excel sheet also has a hidden, locked column `OPS Export`. It holds what the schedule said per task at the export. That lets the app see what changed since the export when it reads the sheet (see *Changes since the export*).
+
 The Excel sheet is protected, without a password: only the three fill-in columns can be edited. Excel checks that a percentage is between 0 and 100 and that an actual date is a date. A phase (summary task) is marked grey with *— summary task: do not fill in*.
 
 ### 3. Have it filled in
@@ -41,7 +43,7 @@ Whatever stays empty changes nothing. So an empty cell does not clear existing p
 4. You now see a preview. At the top are four counters: *Applied*, *Unchanged*, *Waiting for a link* and *Refused*. Below that, per task, what changes, for example *Completion: 0% → 100%*.
 5. Check the preview and click *Apply*. The window shows *Result*, with the counters and the rows that were refused and why. Finish with *Close*.
 
-You cannot skip the preview. The button *Apply* is disabled as long as there is nothing to apply.
+You cannot skip the preview. The button *Apply* is disabled as long as there is nothing to apply, or as long as a conflict has no choice yet (see *Changes since the export*).
 
 ### 5. Recalculate the schedule
 
@@ -54,6 +56,18 @@ The app links every row to a task, first on `OPS Task ID` and otherwise on the W
 **Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* takes the row out of this list; it changes nothing about what is applied. *Change* lets you choose another task. With *Clear link* you remove a link you made yourself. Note: a sheet from another project with the same WBS numbers is linked after all, under *Link is uncertain*, and applied when you click *Apply*.
 
 **Waiting for a link.** If the app found no task, or several with the same WBS number, the row is under *Waiting for a link*. The preview already explains why: *No task found for this row.* or *This WBS code occurs on multiple tasks — link the row by hand.* You also see the row number and, if supplied, the `OPS Task ID` from the sheet. If WBS and name are missing, that ID appears at the top of the row. At *Choose a task…* choose the right task; you search by WBS number or name. If you do not link it, the row is refused. A duplicate row appears separately with *Another row already claimed this task.*
+
+## Changes since the export
+
+Between the export and reading the sheet in, you may update progress in the app yourself. The Excel sheet therefore carries the state at the export, and the app compares three values per field: at the export, in the app and in the sheet. The top of the preview shows when the sheet was exported.
+
+- **Only the sheet changed.** This is the normal change.
+- **Only the app changed.** The sheet has no news here, so the value in the app stays. The row is listed under *Changed only in the app since the export*, for example *Completion: at export 30%, now 50%. The sheet does not change this.*
+- **Both changed, and the values differ.** This is a conflict. The row is listed under *Conflicts: changed in the app and in the sheet*, for example *Completion: at export 30%, in the app 50%, in the sheet 40%*. Click *Keep app* or *Use sheet* per row, or choose above the list at *All rows:*. *Apply* stays disabled until every row has a choice. Other changes on the same row go through as usual.
+
+If a planned start or planned finish moved since the export, the row says so. This is only a notice: the sheet does not change your planned dates.
+
+**Rows without an export state.** A CSV sheet, a sheet from an older version, or rows retyped into another file have no export state. The same goes for a row you link by hand to a different task. The top of the preview then shows *Rows without an export state*. The app compares those rows only with the current schedule: a value the person filling in did not touch can then put back a newer value in the app. Check these rows in the preview.
 
 ## Pitfalls and what the app does
 

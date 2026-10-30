@@ -22,6 +22,8 @@ Het blad heeft acht kolommen. De kolomnamen blijven Engels, met een korte instru
 - `Start` en `Finish` zijn de geplande datums, ter informatie. De app schrijft ze nooit terug.
 - `Completion (%)`, `Actual Start` en `Actual Finish` vul je in.
 
+Het Excel-blad heeft daarnaast een verborgen, vergrendelde kolom `OPS Export`. Daarin staat per taak wat er bij de export in de planning stond. Zo ziet de app bij het inlezen wat er sinds de export veranderde (zie *Wijzigingen sinds de export*).
+
 Het Excel-blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zijn te bewerken. Excel controleert dat een percentage tussen 0 en 100 ligt en dat een werkelijke datum een datum is. Een fase (samenvattende taak) is grijs gemarkeerd met *— verzameltaak: niet invullen*.
 
 ### 3. Laat het invullen
@@ -41,7 +43,7 @@ Wat leeg blijft, verandert niets. Met een leeg vak wis je dus ook geen bestaande
 4. Je ziet nu een voorbeeld. Bovenaan staan vier tellers: *Toegepast*, *Ongewijzigd*, *Wacht op koppeling* en *Geweigerd*. Daaronder staat per taak wat er verandert, bijvoorbeeld *Voltooiing: 0% → 100%*.
 5. Controleer het voorbeeld en klik op *Toepassen*. Het venster toont *Resultaat*, met de tellers en de rijen die geweigerd zijn en waarom. Sluit af met *Sluiten*.
 
-Je kunt het voorbeeld niet overslaan. De knop *Toepassen* is uitgeschakeld zolang er niets is om toe te passen.
+Je kunt het voorbeeld niet overslaan. De knop *Toepassen* is uitgeschakeld zolang er niets is om toe te passen, of zolang een botsing nog geen keuze heeft (zie *Wijzigingen sinds de export*).
 
 ### 5. Reken de planning door
 
@@ -54,6 +56,18 @@ De app koppelt elke rij aan een taak, eerst op `OPS Task ID` en anders op het WB
 **Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* haalt de rij uit deze lijst; aan wat er wordt toegepast verandert het niets. *Wijzigen* laat je een andere taak kiezen. Met *Koppeling wissen* haal je een koppeling die je zelf legde weer weg. Let op: een blad van een ander project met dezelfde WBS-nummers wordt wél gekoppeld, onder *Koppeling betwijfeld*, en bij *Toepassen* doorgevoerd.
 
 **Wacht op koppeling.** Vond de app geen taak, of meerdere met hetzelfde WBS-nummer, dan staat de rij onder *Wacht op koppeling*. In het voorbeeld staat al waarom: *Geen taak gevonden voor deze rij.* of *Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand.* Je ziet ook het rijnummer en, indien ingevuld, de `OPS Task ID` uit het blad. Ontbreken WBS en naam, dan staat die ID bovenaan de rij. Kies bij *Kies een taak…* de juiste taak; je zoekt op WBS-nummer of naam. Koppel je hem niet, dan wordt de rij geweigerd. Een dubbele rij staat apart met *Een andere rij claimde deze taak al.*
+
+## Wijzigingen sinds de export
+
+Tussen de export en het inlezen kun je zelf voortgang bijwerken in de app. Het Excel-blad draagt daarom de stand bij de export mee, en de app vergelijkt per veld drie waarden: bij de export, in de app en in het blad. Bovenaan het voorbeeld staat wanneer het blad geëxporteerd is.
+
+- **Alleen het blad veranderde.** Dit is de gewone wijziging.
+- **Alleen de app veranderde.** Het blad heeft hier geen nieuws, dus de waarde in de app blijft staan. De rij staat onder *Alleen in de app gewijzigd sinds de export*, bijvoorbeeld *Voltooiing: bij export 30%, nu 50%. Het blad verandert dit niet.*
+- **Beide veranderden, en de waarden verschillen.** Dit is een botsing. De rij staat onder *Botsingen: in de app én in het blad gewijzigd*, bijvoorbeeld *Voltooiing: bij export 30%, in de app 50%, in het blad 40%*. Klik per rij op *App houden* of *Blad overnemen*, of kies boven de lijst bij *Alle rijen:*. *Toepassen* blijft uitgeschakeld tot elke rij een keuze heeft. Andere wijzigingen op dezelfde rij gaan gewoon mee.
+
+Verschoof een geplande start of een gepland einde sinds de export, dan staat dat bij de rij. Dat is alleen een melding: het blad verandert je plandatums niet.
+
+**Rijen zonder exportstand.** Een CSV-blad, een blad van een oudere versie of rijen die in een ander bestand zijn overgetypt hebben geen exportstand. Hetzelfde geldt voor een rij die je met de hand aan een andere taak koppelt. Bovenaan staat dan *Rijen zonder exportstand*. Die rijen vergelijkt de app alleen met de huidige planning: een waarde die de invuller niet aanraakte, kan dan een nieuwere waarde in de app terugzetten. Controleer deze rijen in het voorbeeld.
 
 ## Valkuilen en wat de app dan doet
 

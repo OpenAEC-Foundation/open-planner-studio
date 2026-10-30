@@ -134,7 +134,7 @@ A filled date cell in an unrecognised format stops the entire CSV from opening. 
 
 **Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the Excel sheet in one click. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
 
-**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code.
+**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code. The Excel sheet also has a hidden column `OPS Export` with the state at the export; the app uses it to compare what changed since then and never writes that column to a task.
 
 **What does not go along** — everything outside these columns: duration, relations, resources and the rest of your schedule. A summary task gets no progress from the sheet.
 

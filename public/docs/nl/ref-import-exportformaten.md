@@ -134,7 +134,7 @@ Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De
 
 **Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst) en *Voortgangsblad (CSV)* (*Voortgang (CSV)*). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het Excel-blad met één klik. Het Excel-blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole; het CSV-blad is dezelfde inhoud als platte tekst.
 
-**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code.
+**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code. Het Excel-blad heeft ook een verborgen kolom `OPS Export` met de stand bij de export; de app vergelijkt daarmee wat er sindsdien veranderde en schrijft die kolom nooit naar een taak.
 
 **Wat niet meegaat** — alles buiten deze kolommen: duur, relaties, resources en de rest van je planning. Een verzameltaak krijgt geen voortgang uit het blad.
 
