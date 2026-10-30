@@ -100,7 +100,7 @@ truthy('12 taak bestaat nog (guard muteert niets onnodigs)', !!S().tasks.find(t 
 
 // ── 4. Alleen echte projectbestanden komen in Recente bestanden ──────────────
 // Eindreview 2026-09-12, bevinding 5: `exportAs` deed onvoorwaardelijk `pushRecent`, dus
-// `<project>-voortgang.csv|xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
+// `<project>-voortgang.xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
 // die het invulblad als project probeert te lezen en met een foutmelding eindigt. De regel zit in
 // `exportGoesToRecents`; die is los exporteerbaar juist zodat dit zonder bestandsdialoog toetsbaar
 // is. De lijst hieronder is met de hand geschreven vanuit "kan de app dit terug openen als
