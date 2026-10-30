@@ -37,8 +37,9 @@ import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
-  baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
-  type BaselineBar, type BaselineMilestone, type BaselineSlot,
+  baselineDiamonds, baselineDiamondSize, baselineLabels, baselineSpanX, baselineStripPieces, paintBaselineStrip,
+  paintBaselineSwatch, widenShortRuns, BASELINE_SLOT_LETTER,
+  type BaselineBar, type BaselineMarkStyle, type BaselineMilestone, type BaselineSlot,
 } from '@/engine/renderer/baselineStrip';
 
 /** Kleur per baselineplaats op papier (actief grijs, vergelijkingen cyaan en fuchsia). */
@@ -751,6 +752,8 @@ export interface PrintOptions {
   baselineComparisons?: { slot: 1 | 2; overlay: BaselineOverlay }[];
   /** Namen voor de legenda per baselineplaats (0 = actief). Zonder vergelijking blijft de legenda "Baseline". */
   baselineNames?: Partial<Record<BaselineSlot, string>>;
+  /** Kenmerk naast kleur in de baselinestrook (issue #741), gelijk aan het scherm. Weglaten = alleen kleur. */
+  baselineMarkStyle?: BaselineMarkStyle;
   /**
    * WYSIWYG-rijen: gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
    * sortering én inklapstatus van het scherm) i.p.v. de volledige takenboom. Groepsband-rijen
@@ -1580,12 +1583,16 @@ export function renderReport(
       const diamonds = baselineDiamonds(milestones);
       if (pieces.length || diamonds.length) {
         const baseHeight = Math.max(2, barHeight * 0.28);
+        const diamondSize = baselineDiamondSize(baseHeight);
         paintBaselineStrip(d2d, pieces, diamonds, {
           top: y + barHeight + 1,
           height: baseHeight,
           stripeWidth: Math.max(2, barHeight * 0.16),
-          diamondSize: baselineDiamondSize(baseHeight),
+          diamondSize,
           colorOf: printBaselineColor,
+          markStyle: options.baselineMarkStyle,
+          labels: options.baselineMarkStyle === 'label' ? baselineLabels(bars, milestones, diamondSize) : undefined,
+          labelFont: m.font(6, true),
         });
       }
     }
@@ -2770,16 +2777,21 @@ function drawFooter(
       const shownLayers = options.showBaselineOverlay
         ? layerOverlays.filter(l => printRows.some(row => row.kind === 'task' && row.task && l.overlay.has(row.task.id)))
         : [];
+      // Hetzelfde stukje strook als in de Gantt (issue #741): in elke stijl ook zonder kleur te lezen.
       const swatch = (slot: BaselineSlot) => (x: number) => {
-        d2d.fillStyle = printBaselineColor(slot);
-        d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(2));
-        d2d.fill();
+        paintBaselineSwatch(d2d, slot, x, midY - m.s(2), swatchW, m.s(4), {
+          colorOf: printBaselineColor, stripeWidth: m.s(3), markStyle: options.baselineMarkStyle, withLabel: false,
+        });
       };
+      // Stijl `label`: de letter uit de strook staat vóór de naam in de legenda.
+      const legendName = (slot: BaselineSlot, name: string) => (
+        options.baselineMarkStyle === 'label' ? `${BASELINE_SLOT_LETTER[slot]}  ${name}` : name
+      );
       if (shownLayers.length === 1 && shownLayers[0].slot === 0) {
-        items.push({ label: lg?.baseline ?? 'Baseline', draw: swatch(0) });
+        items.push({ label: legendName(0, lg?.baseline ?? 'Baseline'), draw: swatch(0) });
       } else {
         for (const l of shownLayers) {
-          items.push({ label: options.baselineNames?.[l.slot] ?? lg?.baseline ?? 'Baseline', draw: swatch(l.slot) });
+          items.push({ label: legendName(l.slot, options.baselineNames?.[l.slot] ?? lg?.baseline ?? 'Baseline'), draw: swatch(l.slot) });
         }
       }
       // Lijnstijl-uitleg: ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een

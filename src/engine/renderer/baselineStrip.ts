@@ -168,11 +168,72 @@ export const baselineDiamondSize = (h: number): number => Math.max(2.4, h * 0.8)
 /** Het deel van een 2D-context dat de strook nodig heeft (canvas én `Draw2D`). */
 export interface StripPainter {
   fillStyle: string | CanvasGradient | CanvasPattern;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
+  lineWidth: number;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
   closePath(): void;
   fill(): void;
+  stroke(): void;
+  setLineDash(segments: number[]): void;
+  fillText(text: string, x: number, y: number): void;
+  measureText(text: string): { width: number };
+}
+
+/**
+ * Issue #741: hoe een baseline ook zonder kleur herkenbaar is (bv. op een zwart-witafdruk). De
+ * kleuren en de strepen bij overlap blijven in elke stijl; de stijl voegt een tweede kenmerk toe.
+ *  - `kleur`: alleen kleur (zoals goedgekeurd op 2026-10-20);
+ *  - `vorm`: actief effen, vergelijking 1 alleen een rand (hol), vergelijking 2 een dunne lijn;
+ *  - `patroon`: actief effen, vergelijking 1 blokjes, vergelijking 2 alleen een rand (hol);
+ *  - `label`: kleur plus een letter (A, B, C) achter het einde van elke baseline.
+ * Tijdelijk drie varianten naast elkaar; de eigenaar kiest er één.
+ */
+export type BaselineMarkStyle = 'kleur' | 'vorm' | 'patroon' | 'label';
+export const BASELINE_MARK_STYLES: readonly BaselineMarkStyle[] = ['kleur', 'vorm', 'patroon', 'label'];
+
+/** Letter per baselineplaats in de stijl `label` (ook in de legenda). */
+export const BASELINE_SLOT_LETTER: Record<BaselineSlot, string> = { 0: 'A', 1: 'B', 2: 'C' };
+
+/** Vulling van één baselineplaats: effen, alleen een rand, een dunne lijn of blokjes. */
+type SlotFill = 'full' | 'rim' | 'thin' | 'dash';
+
+function slotFill(style: BaselineMarkStyle, slot: BaselineSlot): SlotFill {
+  if (style === 'vorm') return (['full', 'rim', 'thin'] as const)[slot];
+  if (style === 'patroon') return (['full', 'dash', 'rim'] as const)[slot];
+  return 'full';
+}
+
+/** Eén letterlabel achter het einde van een baseline (stijl `label`). */
+export interface BaselineLabel {
+  /** Linkerkant van het label: het einde van de baseline (of de rechterpunt van de ruit). */
+  x: number;
+  slots: BaselineSlot[];
+}
+
+/** Labels voor de stijl `label`: één per einde; baselines met hetzelfde einde delen een label.
+ *  Rekent met de echte grenzen, niet met de verbrede stukken. */
+export function baselineLabels(
+  bars: readonly BaselineBar[], milestones: readonly BaselineMilestone[], diamondSize: number,
+): BaselineLabel[] {
+  const ends = [
+    ...bars.filter(b => b.x2 > b.x1).map(b => ({ x: b.x2, slot: b.slot })),
+    ...milestones.map(m => ({ x: m.x + diamondSize, slot: m.slot })),
+  ].sort((a, b) => a.x - b.x || a.slot - b.slot);
+  const out: BaselineLabel[] = [];
+  for (const e of ends) {
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.x - e.x) < 0.5) {
+      if (!last.slots.includes(e.slot)) last.slots.push(e.slot);
+    } else {
+      out.push({ x: e.x, slots: [e.slot] });
+    }
+  }
+  return out;
 }
 
 type Pt = readonly [number, number];
@@ -188,6 +249,9 @@ function clipConvex(subject: readonly Pt[], clip: readonly Pt[]): Pt[] {
     // ruitranden lopen allebei onder 45°: zonder marge geeft een (bijna) evenwijdige rand een
     // snijpunt ver buiten de vorm.
     const len = Math.hypot(bx - ax, by - ay);
+    // Een rand van (bijna) nul lang begrenst niets; zijn richting is alleen afrondruis en zou de
+    // hele vorm kunnen wegsnijden (gebeurt bij een vorm die zelf al afgesneden is, issue #741).
+    if (len < 1e-7) continue;
     const inside = ([x, y]: Pt) => (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= -1e-9 * len;
     const cross = ([px, py]: Pt, [qx, qy]: Pt): Pt => {
       const a1 = by - ay, b1 = ax - bx, c1 = a1 * ax + b1 * ay;
@@ -286,6 +350,11 @@ export interface PaintBaselineStripOptions {
   diamondSize: number;
   /** Alleen dit horizontale bereik tekenen (scherm: het zichtbare canvas). Weglaten = alles. */
   visibleX?: readonly [number, number];
+  /** Kenmerk naast kleur (issue #741). Weglaten = `kleur`. */
+  markStyle?: BaselineMarkStyle;
+  /** Stijl `label`: de labels (`baselineLabels`) en het lettertype. */
+  labels?: readonly BaselineLabel[];
+  labelFont?: string;
 }
 
 /**
@@ -299,6 +368,8 @@ export function paintBaselineStrip(
   o: PaintBaselineStripOptions,
 ): void {
   const [vMin, vMax] = o.visibleX ?? [-Infinity, Infinity];
+  const style = o.markStyle ?? 'kleur';
+  const shaped = style === 'vorm' || style === 'patroon';
   const anchorX = pieces.length ? pieces[0].x1 : 0;
   for (const p of pieces) {
     if (p.x2 < vMin || p.x1 > vMax) continue;
@@ -306,14 +377,162 @@ export function paintBaselineStrip(
     // blijven dan buiten beeld.
     const x1 = p.x1 < vMin - o.height ? vMin - o.height : p.x1;
     const x2 = p.x2 > vMax + o.height ? vMax + o.height : p.x2;
-    const outline = stripOutline(x1, x2, o.top, o.height, p.roundLeft && x1 === p.x1, p.roundRight && x2 === p.x2);
-    fillStriped(d, outline, p.slots.map(o.colorOf), o.stripeWidth, anchorX, o.top, o.height, x1, x2);
+    const roundL = p.roundLeft && x1 === p.x1;
+    const roundR = p.roundRight && x2 === p.x2;
+    const outline = stripOutline(x1, x2, o.top, o.height, roundL, roundR);
+    if (!shaped) {
+      fillStriped(d, outline, p.slots.map(o.colorOf), o.stripeWidth, anchorX, o.top, o.height, x1, x2);
+      continue;
+    }
+    const thin = Math.max(1.5, o.height * 0.4);
+    const ty = o.top + (o.height - thin) / 2;
+    fillShaped(d, outline, p.slots, style, o, anchorX, o.top, o.height, x1, x2, {
+      thin: [[x1, ty], [x2, ty], [x2, ty + thin], [x1, ty + thin]],
+      rim: () => stripOutline(x1 + 0.5, x2 - 0.5, o.top + 0.5, o.height - 1, roundL, roundR),
+    });
   }
   const s = o.diamondSize;
   const cy = o.top + o.height / 2;
   for (const dm of diamonds) {
     if (dm.x + s < vMin || dm.x - s > vMax) continue;
-    const outline: Pt[] = [[dm.x, cy - s], [dm.x + s, cy], [dm.x, cy + s], [dm.x - s, cy]];
-    fillStriped(d, outline, dm.slots.map(o.colorOf), o.stripeWidth, dm.x - s, cy - s, 2 * s, dm.x - s, dm.x + s);
+    const ruit = (r: number): Pt[] => [[dm.x, cy - r], [dm.x + r, cy], [dm.x, cy + r], [dm.x - r, cy]];
+    const outline = ruit(s);
+    if (!shaped) {
+      fillStriped(d, outline, dm.slots.map(o.colorOf), o.stripeWidth, dm.x - s, cy - s, 2 * s, dm.x - s, dm.x + s);
+      continue;
+    }
+    fillShaped(d, outline, dm.slots, style, o, dm.x - s, cy - s, 2 * s, dm.x - s, dm.x + s, {
+      thin: ruit(s * 0.5),
+      rim: () => ruit(Math.max(0.5, s - 0.75)),
+    });
   }
+  if (style === 'label' && o.labels?.length) paintLabels(d, o.labels, o, vMin, vMax);
+}
+
+/**
+ * Stijl `vorm`/`patroon`: elke baseline vult alleen haar eigen deel (effen, dunne lijn of blokjes);
+ * een holle baseline vult niets en krijgt een rand om de hele vorm. Waar baselines overlappen,
+ * krijgt elke schuine band het deel van zijn baseline. Zo zijn ook de strepen zonder kleur te lezen.
+ */
+function fillShaped(
+  d: StripPainter, outline: readonly Pt[], slots: readonly BaselineSlot[], style: BaselineMarkStyle,
+  o: PaintBaselineStripOptions, anchorX: number, top: number, h: number, xMin: number, xMax: number,
+  shapes: { thin: readonly Pt[]; rim: () => Pt[] },
+): void {
+  // Het gebied per baseline als lijst convexe veelhoeken (binnen de vorm).
+  const region = (slot: BaselineSlot): Pt[][] => {
+    const fill = slotFill(style, slot);
+    if (fill === 'full') return [[...outline]];
+    if (fill === 'thin') return [clipConvex(shapes.thin, outline)].filter(q => q.length >= 3);
+    if (fill === 'dash') {
+      const period = Math.max(4, Math.round(o.height * 1.2));
+      const on = Math.ceil(period * 0.6);
+      const out: Pt[][] = [];
+      for (let j = Math.floor((xMin - anchorX) / period); anchorX + j * period <= xMax; j++) {
+        const a = anchorX + j * period;
+        const q = clipConvex([[a, top - 1], [a + on, top - 1], [a + on, top + h + 1], [a, top + h + 1]], outline);
+        if (q.length >= 3) out.push(q);
+      }
+      return out;
+    }
+    return [];
+  };
+  if (slots.length === 1) {
+    d.fillStyle = o.colorOf(slots[0]);
+    for (const q of region(slots[0])) fillPolygon(d, q);
+  } else {
+    const n = slots.length;
+    const regions = slots.map(region);
+    const w = o.stripeWidth;
+    const kFrom = Math.floor((xMin - anchorX) / w);
+    const kTo = Math.ceil((xMax + h - anchorX) / w);
+    for (let k = kFrom; k <= kTo; k++) {
+      const ci = ((k % n) + n) % n;
+      const c1 = anchorX + k * w;
+      const band: Pt[] = [[c1, top], [c1 + w, top], [c1 + w - h, top + h], [c1 - h, top + h]];
+      d.fillStyle = o.colorOf(slots[ci]);
+      for (const q of regions[ci]) fillPolygon(d, clipConvex(band, q));
+    }
+  }
+  for (const slot of slots) {
+    if (slotFill(style, slot) !== 'rim') continue;
+    const rim = shapes.rim();
+    if (rim.length < 3) continue;
+    d.strokeStyle = o.colorOf(slot);
+    d.lineWidth = 1;
+    d.setLineDash([]);
+    d.beginPath();
+    d.moveTo(rim[0][0], rim[0][1]);
+    for (let i = 1; i < rim.length; i++) d.lineTo(rim[i][0], rim[i][1]);
+    d.closePath();
+    d.stroke();
+  }
+}
+
+/** Stijl `label`: de letter(s) achter het einde, elke letter in de kleur van haar baseline. Een
+ *  label dat op het vorige zou vallen, schuift erachter. */
+function paintLabels(
+  d: StripPainter, labels: readonly BaselineLabel[], o: PaintBaselineStripOptions, vMin: number, vMax: number,
+): void {
+  if (o.labelFont) d.font = o.labelFont;
+  d.textAlign = 'left';
+  d.textBaseline = 'middle';
+  const gap = Math.max(1.5, o.height * 0.4);
+  const cy = o.top + o.height / 2;
+  let nextFree = -Infinity;
+  for (const l of labels) {
+    let x = Math.max(l.x + gap, nextFree);
+    const width = l.slots.reduce<number>((sum, slot) => sum + d.measureText(BASELINE_SLOT_LETTER[slot]).width, 0);
+    nextFree = x + width + gap;
+    if (x > vMax || x + width < vMin) continue;
+    for (const slot of l.slots) {
+      const letter = BASELINE_SLOT_LETTER[slot];
+      d.fillStyle = o.colorOf(slot);
+      d.fillText(letter, x, cy);
+      x += d.measureText(letter).width;
+    }
+  }
+}
+
+/**
+ * Legendablokje voor één baseline: een kort stuk strook met dezelfde tekenregel als de Gantt, en in
+ * de stijl `label` de letter erachter (`withLabel: false`: zonder letter). Gedeeld door de afdruklegenda en de legenda in de statusbalk.
+ */
+export function paintBaselineSwatch(
+  d: StripPainter, slot: BaselineSlot, x: number, top: number, width: number, height: number,
+  o: Pick<PaintBaselineStripOptions, 'colorOf' | 'stripeWidth' | 'markStyle' | 'labelFont'> & { withLabel?: boolean },
+): void {
+  paintBaselineStrip(d, [{ x1: x, x2: x + width, slots: [slot], roundLeft: true, roundRight: true }], [], {
+    ...o,
+    top, height,
+    diamondSize: baselineDiamondSize(height),
+    labels: o.withLabel === false ? undefined : [{ x: x + width, slots: [slot] }],
+  });
+}
+
+/** Eén getekend element van {@link svgStripRecorder}. */
+export type SvgStripItem =
+  | { kind: 'fill'; d: string; color: string }
+  | { kind: 'stroke'; d: string; color: string; width: number }
+  | { kind: 'text'; x: number; y: number; text: string; color: string };
+
+/** Een `StripPainter` die SVG-elementen opneemt, voor de legenda in React (geen canvas nodig).
+ *  `charWidth`: geschatte breedte van een letter (SVG meet geen tekst). */
+export function svgStripRecorder(charWidth: number): StripPainter & { items: SvgStripItem[] } {
+  let path = '';
+  const items: SvgStripItem[] = [];
+  const r = (n: number) => Math.round(n * 100) / 100;
+  return {
+    items,
+    fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: 'left', textBaseline: 'middle',
+    beginPath() { path = ''; },
+    moveTo(x, y) { path += `M${r(x)} ${r(y)}`; },
+    lineTo(x, y) { path += `L${r(x)} ${r(y)}`; },
+    closePath() { path += 'Z'; },
+    fill() { items.push({ kind: 'fill', d: path, color: String(this.fillStyle) }); },
+    stroke() { items.push({ kind: 'stroke', d: path, color: String(this.strokeStyle), width: this.lineWidth }); },
+    setLineDash() { /* geen stippellijnen in de strook */ },
+    fillText(text, x, y) { items.push({ kind: 'text', x, y, text, color: String(this.fillStyle) }); },
+    measureText(text) { return { width: text.length * charWidth }; },
+  };
 }

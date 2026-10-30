@@ -792,7 +792,7 @@
 
 .ribbon-check-strip {
   flex-shrink: 0;
-  width: 22px;
+  width: 16px;
   height: 6px;
   border-radius: 3px;
 }

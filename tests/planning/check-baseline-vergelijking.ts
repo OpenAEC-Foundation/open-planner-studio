@@ -24,8 +24,8 @@ import { buildSharedAxis, computeContentSpanDays } from '@/components/canvas/gan
 import { PRINT_PALETTE } from '@/engine/renderer/themePalette';
 import { barLayout, MIN_BAR_HEIGHT_PX, MIN_BAR_HEIGHT_RATIO } from '@/engine/renderer/rowGeometry';
 import {
-  baselineDiamonds, baselineStripPieces, paintBaselineStrip,
-  baselineSpanX, widenShortRuns, type BaselineBar, type BaselineSlot, type StripPainter,
+  baselineDiamonds, baselineLabels, baselineStripPieces, paintBaselineStrip,
+  baselineSpanX, widenShortRuns, type BaselineBar, type BaselineMarkStyle, type BaselineSlot, type StripPainter,
 } from '@/engine/renderer/baselineStrip';
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
@@ -77,18 +77,26 @@ eq(baselineDiamonds([{ slot: 0, x: 40, moment: 'm1' }, { slot: 0, x: 40, moment:
 
 // Tekenregel met een opnemende painter.
 interface Fill { color: string; pts: [number, number][] }
-function recordPainter(): { d: StripPainter; fills: Fill[] } {
+interface Stroke { color: string; pts: [number, number][] }
+interface Text { color: string; text: string; x: number; y: number }
+function recordPainter(): { d: StripPainter; fills: Fill[]; strokes: Stroke[]; texts: Text[] } {
   const fills: Fill[] = [];
+  const strokes: Stroke[] = [];
+  const texts: Text[] = [];
   let path: [number, number][] = [];
   const d: StripPainter = {
-    fillStyle: '',
+    fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: 'left', textBaseline: 'middle',
     beginPath() { path = []; },
     moveTo(x, y) { path.push([x, y]); },
     lineTo(x, y) { path.push([x, y]); },
     closePath() {},
     fill() { fills.push({ color: String(d.fillStyle), pts: path }); },
+    stroke() { strokes.push({ color: String(d.strokeStyle), pts: path }); },
+    setLineDash() {},
+    fillText(text, x, y) { texts.push({ color: String(d.fillStyle), text, x, y }); },
+    measureText(text) { return { width: text.length * 5 }; },
   };
-  return { d, fills };
+  return { d, fills, strokes, texts };
 }
 const COLOR: Record<BaselineSlot, string> = { 0: 'k0', 1: 'k1', 2: 'k2' };
 const paintOpts = { top: 100, height: 6, stripeWidth: 3, diamondSize: 5, colorOf: (s: BaselineSlot) => COLOR[s] };
@@ -305,7 +313,8 @@ function piecesPerRow(fills: Fill[]): Piece[][] {
 
 type Comparisons = { slot: 1 | 2; overlay: BaselineOverlay }[];
 /** Scherm: de echte GanttRenderer met een opnemende context. */
-function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[] } = {}): Fill[] {
+type MarkCounts = { strokes: number; texts: number };
+function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[]; markStyle?: BaselineMarkStyle; counts?: MarkCounts } = {}): Fill[] {
   const fills: Fill[] = [];
   let path: [number, number][] = [];
   const st = { fillStyle: '', strokeStyle: '' };
@@ -318,8 +327,10 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
     moveTo: (x: number, y: number) => { path.push([x, y]); }, lineTo: (x: number, y: number) => { path.push([x, y]); },
     arc: noop, arcTo: noop, ellipse: noop, rect: noop, roundRect: noop,
     fill: () => { fills.push({ color: st.fillStyle, pts: path }); },
-    stroke: noop, save: noop, restore: noop, clip: noop, translate: noop, scale: noop, rotate: noop,
-    setLineDash: noop, getLineDash: () => [], fillText: noop, strokeText: noop,
+    stroke: () => { if (over.counts && BASE_COLORS.has(st.strokeStyle)) over.counts.strokes++; },
+    save: noop, restore: noop, clip: noop, translate: noop, scale: noop, rotate: noop,
+    setLineDash: noop, getLineDash: () => [], strokeText: noop,
+    fillText: () => { if (over.counts && BASE_COLORS.has(st.fillStyle)) over.counts.texts++; },
     measureText: (t: string) => ({ width: String(t).length * 6 }),
     createLinearGradient: () => ({ addColorStop: noop }), createPattern: () => null,
     quadraticCurveTo: noop, bezierCurveTo: noop, drawImage: noop,
@@ -331,7 +342,7 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
     view: { ...st0.view, scrollX: 0, scrollY: 0, zoom: over.zoom ?? 30, ...(over.viewStart ? { viewStartDate: over.viewStart } : {}) },
     compressNonWorkdays: over.compress,
     selectedTaskIds: [], canvasWidth: 4000, canvasHeight: 300, rowHeight: 32, headerHeight: 60,
-    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps,
+    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps, baselineMarkStyle: over.markStyle,
     activityCodeTypes: [], customFieldDefs: [], taskTypeLabels: {}, barColorNoneLabel: '(geen)',
     resources: [], assignments: [],
   });
@@ -341,7 +352,7 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
 }
 
 /** Afdruk: de echte renderReport (raster-preview én vector-PDF) met een opnemende Draw2D. */
-function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean } = {}) {
+function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; markStyle?: BaselineMarkStyle; counts?: MarkCounts } = {}) {
   const fills: Fill[] = [];
   let path: [number, number][] | null = null;
   const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
@@ -356,7 +367,8 @@ function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, ov
     setLineDash: noop, fillRect: noop, strokeRect: noop,
     beginPath() { path = []; }, moveTo(x, y) { (path ??= []).push([x, y]); }, lineTo(x, y) { (path ??= []).push([x, y]); },
     closePath: noop, fill() { if (path) fills.push({ color: st.fillStyle, pts: path }); path = null; },
-    stroke() { path = null; }, roundRect: noop, fillText: noop,
+    stroke() { if (over.counts && BASE_COLORS.has(st.strokeStyle)) over.counts.strokes++; path = null; }, roundRect: noop,
+    fillText() { if (over.counts && BASE_COLORS.has(st.fillStyle)) over.counts.texts++; },
     measureText: (t: string) => ({ width: t.length * 6 }),
   };
   const options = {
@@ -366,7 +378,7 @@ function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, ov
     paperSize: 'A3', orientation: 'landscape', companyName: 'Test',
     barColorSelection: { mode: 'critical' }, activityCodeTypes: [], customFieldDefs: [],
     taskTypeLabels: {}, barColorNoneLabel: '(geen)',
-    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps,
+    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps, baselineMarkStyle: over.markStyle,
     labels: { noTasks: '-', printed: '-', today: '-', statusDate: '-', progressDate: '-', legend: {}, tableHeaders: {} },
   } as unknown as PrintOptions;
   const dims = renderReport(() => d2d, tasks, [], S().calendar, 'P', options);
@@ -765,6 +777,73 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
           `J ${lay.label}, ${what}: hover op rij ${i + 1} noemt beide baselines`);
       });
     }
+  }
+}
+
+// ══ K. Herkenbaar zonder kleur (issue #741) ═══════════════════════════════════════════════════════
+// Teken elke combinatie van baselines in ÉÉN kleur (een zwart-witafdruk). In de stijlen `vorm` en
+// `patroon` moet elke combinatie er dan anders uitzien; in `label` noemt de letter de baseline.
+// `kleur` (en geen stijl) tekent precies wat het altijd tekende.
+{
+  const SUBSETS: BaselineSlot[][] = [[0], [1], [2], [0, 1], [0, 2], [1, 2], [0, 1, 2]];
+  const mono = { ...paintOpts, colorOf: () => 'zw' };
+  /** Wat zonder kleur overblijft: de geometrie van vullingen en randen, afgerond. */
+  const signature = (style: BaselineMarkStyle, slots: BaselineSlot[], kind: 'strip' | 'ruit') => {
+    const { d, fills, strokes } = recordPainter();
+    if (kind === 'strip') {
+      paintBaselineStrip(d, baselineStripPieces(slots.map(slot => ({ slot, x1: 10, x2: 60 }))), [], { ...mono, markStyle: style });
+    } else {
+      paintBaselineStrip(d, [], baselineDiamonds(slots.map(slot => ({ slot, x: 40, moment: 'm' }))), { ...mono, diamondSize: 6, markStyle: style });
+    }
+    const r = (n: number) => Math.round(n * 4) / 4;
+    return JSON.stringify([fills.map(f => f.pts.map(([x, y]) => [r(x), r(y)])), strokes.length]);
+  };
+  for (const style of ['vorm', 'patroon'] as const) {
+    for (const kind of ['strip', 'ruit'] as const) {
+      const sigs = SUBSETS.map(sub => signature(style, sub, kind));
+      eq(new Set(sigs).size, SUBSETS.length, `K ${style} ${kind}: alle 7 combinaties zien er in één kleur anders uit`);
+    }
+    // Alles blijft binnen de strook (geen vulling of rand erbuiten).
+    for (const sub of SUBSETS) {
+      const { d, fills, strokes } = recordPainter();
+      paintBaselineStrip(d, baselineStripPieces(sub.map(slot => ({ slot, x1: 10, x2: 60 }))), [], { ...paintOpts, markStyle: style });
+      const out = [...fills, ...strokes].filter(f => {
+        const b = bbox(f.pts);
+        return b.x1 < 10 - 1e-6 || b.x2 > 60 + 1e-6 || b.y1 < 100 - 1e-6 || b.y2 > 106 + 1e-6;
+      });
+      eq(out.length, 0, `K ${style} ${sub.join('+')}: alles binnen de strook`);
+      // De kleuren blijven: elke baseline van het stuk komt in haar eigen kleur terug.
+      eq([...new Set([...fills, ...strokes].map(f => f.color))].sort(), sub.map(x => COLOR[x]).sort(),
+        `K ${style} ${sub.join('+')}: elke baseline in haar eigen kleur`);
+    }
+  }
+  // Kleur: hetzelfde als zonder stijl, dus het goedgekeurde ontwerp verandert niet.
+  for (const sub of SUBSETS) {
+    eq(signature('kleur', sub, 'strip'), signature(undefined as unknown as BaselineMarkStyle, sub, 'strip'),
+      `K kleur ${sub.join('+')}: gelijk aan zonder stijl`);
+  }
+  // Label: één letter per einde, in de kleur van haar baseline; gedeelde einden delen een label en
+  // een label dat op het vorige zou vallen, schuift erachter.
+  {
+    const bars = [{ slot: 0 as const, x1: 10, x2: 60 }, { slot: 1 as const, x1: 20, x2: 60 }, { slot: 2 as const, x1: 30, x2: 62 }];
+    const labels = baselineLabels(bars, [{ slot: 2, x: 200, moment: 'm' }], 5);
+    eq(labels, [{ x: 60, slots: [0, 1] }, { x: 62, slots: [2] }, { x: 205, slots: [2] }], 'K label: einden gegroepeerd');
+    const { d, texts } = recordPainter();
+    paintBaselineStrip(d, baselineStripPieces(bars), [], { ...paintOpts, markStyle: 'label', labels });
+    eq(texts.map(t => [t.text, t.color]), [['A', 'k0'], ['B', 'k1'], ['C', 'k2'], ['C', 'k2']], 'K label: letters A, B, C in hun kleur');
+    eq(texts[2].x >= texts[1].x + 5, true, 'K label: het label van C schuift achter AB (geen overlap)');
+    const none = recordPainter();
+    paintBaselineStrip(none.d, baselineStripPieces(bars), [], { ...paintOpts, markStyle: 'kleur', labels });
+    eq(none.texts.length, 0, 'K kleur: geen letters');
+  }
+  // Scherm = afdruk ook met een stijl: de echte renderer en het echte rapport geven die door.
+  for (const style of ['vorm', 'patroon', 'label'] as const) {
+    const scr: MarkCounts = { strokes: 0, texts: 0 };
+    const prt: MarkCounts = { strokes: 0, texts: 0 };
+    renderScreen([bar, ms], overlay0, comparisons, { markStyle: style, counts: scr });
+    renderPrint([bar, ms], overlay0, comparisons, { markStyle: style, counts: prt });
+    eq(style === 'label' ? scr.texts > 0 : scr.strokes > 0, true, `K ${style}: scherm tekent het kenmerk (rand of letter)`);
+    eq([scr.strokes > 0, scr.texts > 0], [prt.strokes > 0, prt.texts > 0], `K ${style}: afdruk tekent hetzelfde kenmerk als het scherm`);
   }
 }
 

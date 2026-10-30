@@ -48,6 +48,7 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
+import { useBaselineMarkStyle } from '@/utils/baselineMarkStyleDev';
 
 
 /**
@@ -293,6 +294,7 @@ export function ReportPanel() {
     [baselines, activeBaselineId, comparedBaselineIds],
   );
   const baselineComparisons = useMemo(() => comparisonOverlays(baselineLayers), [baselineLayers]);
+  const baselineMarkStyle = useBaselineMarkStyle();
   const baselineNames = useMemo(
     () => Object.fromEntries(baselineLayers.map(l => [l.slot, l.name])) as Partial<Record<0 | 1 | 2, string>>,
     [baselineLayers],
@@ -746,6 +748,7 @@ export function ReportPanel() {
     baselineOverlay,
     baselineComparisons,
     baselineNames,
+    baselineMarkStyle,
     rows: reportRows,
     // "Een blad per persoon": gedwongen paginaovergang vóór elke resourceband.
     pageBreakBeforeGroups: reportType === 'resourceGantt' && resourceGanttOptions.pageBreakPerResource,
@@ -771,7 +774,7 @@ export function ReportPanel() {
     project.endDate, project.author, dateNotation, timeNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
-    assignments, baselineOverlay, baselineComparisons, baselineNames, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
+    assignments, baselineOverlay, baselineComparisons, baselineNames, baselineMarkStyle, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
     resourceGantt, resourceGanttWindow, assignmentColumns, curveLabels, curveColumnWidth, columnWidths, tableHeaders, i18n.language,
     durationDisplay, durationSuffixes, calendars, workdayDurationMeasure]);
   // `options` bevat afgeleide catalogus-/vertaalobjecten die bij een lokale preview-state-update

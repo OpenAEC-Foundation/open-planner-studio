@@ -32,8 +32,8 @@ import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/eng
 import { ellipsize } from './textFit';
 import { barLayout, type BarLayout } from './rowGeometry';
 import {
-  baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
-  type BaselineBar, type BaselineMilestone, type BaselineSlot,
+  baselineDiamonds, baselineDiamondSize, baselineLabels, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
+  type BaselineBar, type BaselineMarkStyle, type BaselineMilestone, type BaselineSlot,
 } from './baselineStrip';
 import { canvasFont, type TextRole } from './textRoles';
 import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
@@ -143,6 +143,8 @@ export interface GanttRenderOptions {
   /** Tot twee vergelijkingsbaselines (issue #391), in dezelfde strook als de actieve. `slot` bepaalt
    *  de vaste kleur (`baselineCompare1`/`baselineCompare2`). */
   baselineComparisons?: { slot: 1 | 2; overlay: BaselineOverlay }[];
+  /** Kenmerk naast kleur in de baselinestrook (issue #741). Weglaten = alleen kleur. */
+  baselineMarkStyle?: BaselineMarkStyle;
   canvasWidth: number;
   canvasHeight: number;
   rowHeight: number;
@@ -1020,6 +1022,9 @@ export class GanttRenderer {
       top, height: h, stripeWidth: this.bar.baselineStripeWidth, diamondSize,
       colorOf: slot => this.baselineColor(slot),
       visibleX: [0, this.opts.canvasWidth],
+      markStyle: this.opts.baselineMarkStyle,
+      labels: this.opts.baselineMarkStyle === 'label' ? baselineLabels(bars, milestones, diamondSize) : undefined,
+      labelFont: this.font('caption', true),
     });
     const cy = top + h / 2;
     this.baselineHits.set(rowIndex, {
