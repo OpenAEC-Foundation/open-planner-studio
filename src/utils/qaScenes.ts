@@ -518,7 +518,7 @@ const SCENES: Record<string, Scene> = {
   // Issue #741: dezelfde drie baselines, meteen in het rapport (afdrukvoorbeeld) met de strook aan.
   'meerdere-baselines-rapport': {
     run: async () => {
-      await SCENES['meerdere-baselines'].run();
+      await SCENES['meerdere-baselines'].run?.();
       (await waitFor('[data-ops-ribbon-tab="report"]')).click();
       for (let i = 0; i < 40; i++) {
         const box = [...document.querySelectorAll('label')]
