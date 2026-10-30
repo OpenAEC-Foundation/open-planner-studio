@@ -2,7 +2,8 @@ name: Deploy site
 
 # Deployt pas ná een geslaagde CI-run op `main`. Dit workflow draait zelf GEEN verify meer:
 # de uitkomst van `ci.yml` op die push (de verify-delen zonder browsersuite, plus de Tauri-builds) is
-# de poort. De geplande en handmatige browserruns van CI deployen niet: zie de `if` hieronder. Eerder draaide
+# de poort. De geplande en handmatige browserruns van CI deployen niet: zie `concurrency` en de `if`
+# hieronder. Eerder draaide
 # hier een eigen, seriële `npm run verify`; dat duurde 31–45 min en haalde de grens van 45 min op
 # 2026-10-13 niet meer (run 38422479396: alle stappen groen, afgebroken 3 s voor het einde, deploy
 # overgeslagen), terwijl ci.yml dezelfde controles al parallel had gedraaid.
@@ -23,7 +24,11 @@ concurrency:
   # overzet. Twee snelle pushes achter elkaar braken met `true` de eerste run
   # middenin de overdracht af — resultaat: een half gedeployde site. Deploys
   # horen op elkaar te wachten, niet elkaar te annuleren.
-  group: deploy-site
+  # GitHub houdt per groep één wachtende run vast; een nieuwere run vervangt die. De afhandeling van
+  # een CI-run die geen push was (geplande of handmatige browserrun) deployt nooit en krijgt daarom een
+  # eigen groep per run. In `deploy-site` zou hij een wachtende echte deploy verdringen en daarna zelf
+  # overslaan, en die commit ging dan niet live.
+  group: ${{ github.event.workflow_run.event == 'push' && 'deploy-site' || format('deploy-site-geen-push-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:

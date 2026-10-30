@@ -1621,13 +1621,6 @@ en noem het in je rapport of PR-tekst.
      #757 laat ze staan: elke wijziging aan `release.yml` start de teken-checks voor Windows en macOS. Voorstel:
      meenemen bij de volgende inhoudelijke wijziging aan `release.yml`. Alleen tekst. — B
 
-551. **Een handmatige of geplande CI-run op main kan een wachtende deploy verdringen.** `live.yml` start na
-     elke afgeronde CI-run op main, ook als de job daarna overslaat omdat het event geen `push` is. De groep
-     `deploy-site` houdt één wachtende run vast. Loopt deploy A en wacht deploy B, dan vervangt zo'n lege run
-     deploy B, en die commit gaat pas live bij de volgende push. Niet gemeten; het vraagt drie runs in dezelfde
-     minuten. Voorstel: de `event`-eis in `live.yml` vóór de concurrency-groep brengen, of een eigen groep per
-     event. Gezien bij #757. — S
-
 552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
      alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
      en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
@@ -1635,6 +1628,18 @@ en noem het in je rapport of PR-tekst.
      `test` ooit een verplichte check, kijk dan eerst opnieuw, want GitHub telt een overgeslagen check als
      geslaagd. Voorstel: de lege run een andere jobnaam geven, of de `labeled`-trigger naar een eigen workflow
      verplaatsen. — B
+
+553. **Het PR-sjabloon vraagt nog om een groene volledige `npm run verify`.** `.github/pull_request_template.md:16`
+     heeft het vinkje `npm run verify` green, terwijl de gewone PR-CI sinds #757 de browsersuite niet meer
+     draait en agents de volledige poort niet lokaal draaien. Voorstel: het vinkje vragen om groene PR-CI, en bij
+     werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
+     2026-10-30. — B
+
+554. **Een rode CI-run op main kan een wachtende deploy verdringen.** #757 geeft de afhandeling van een run
+     die geen push was een eigen groep in `live.yml`. Een rode pushrun blijft in de groep `deploy-site`: loopt
+     deploy A en wacht deploy B, dan vervangt zijn afhandeling deploy B en slaat zelf over. Commit B gaat dan pas
+     live met de volgende groene push. Bestond al vóór #757; niet gemeten. Voorstel: ook `conclusion` in de
+     groepssleutel opnemen. Gezien bij #757. — S
 
 ## Wensen en open taken (geen bug)
 
