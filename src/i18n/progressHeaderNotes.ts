@@ -52,6 +52,7 @@ export function buildProgressHeaderNotes(
     'Actual Finish': variant === 'xlsx'
       ? t('export.progressXlsxNotes.actualFinish')
       : t('export.progressCsvNotes.actualFinish'),
+    'OPS Export': readOnly,
   };
 }
 

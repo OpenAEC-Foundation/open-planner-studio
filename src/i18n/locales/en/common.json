@@ -1391,6 +1391,27 @@
       "completion": "Completion",
       "actualStart": "Actual start",
       "actualFinish": "Actual finish"
+    },
+    "sinceExport": {
+      "exportedAt": "Sheet exported on {{date}}.",
+      "summaryConflicts": "Conflicts: {{conflicts}}, still to choose: {{open}}",
+      "summaryAppNewer": "Changed only in the app: {{kept}}",
+      "summaryPlannedShift": "Schedule moved since the export: {{shifted}}",
+      "missingState": "Rows without an export state: {{rows}}. For these rows the app cannot see what changed since the export, so it compares the sheet only with the current schedule.",
+      "sectionConflicts": "Conflicts: changed in the app and in the sheet",
+      "conflictIntro": "These values changed in two places since the export. Choose per row which value stays. You can apply once every row has a choice.",
+      "conflictField": "{{field}}: at export {{exported}}, in the app {{app}}, in the sheet {{sheet}}",
+      "keepApp": "Keep app",
+      "takeSheet": "Use sheet",
+      "allRows": "All rows:",
+      "chooseFirst": "First choose app or sheet for each conflict.",
+      "sectionAppNewer": "Changed only in the app since the export",
+      "keptField": "{{field}}: at export {{exported}}, now {{app}}. The sheet does not change this.",
+      "shiftedField": "{{field}} moved since the export: {{exported}} → {{current}}",
+      "plannedField": {
+        "start": "Planned start",
+        "finish": "Planned finish"
+      }
     }
   },
   "conventions": {

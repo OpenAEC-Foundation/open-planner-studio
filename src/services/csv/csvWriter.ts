@@ -166,7 +166,7 @@ export function writeCSV(
  *  Alleen de instructie ÁCHTER de sleutel varieert per taal. */
 export type ProgressSheetColumnKey =
   | 'OPS Task ID' | 'WBS' | 'Name' | 'Start' | 'Finish'
-  | 'Completion (%)' | 'Actual Start' | 'Actual Finish';
+  | 'Completion (%)' | 'Actual Start' | 'Actual Finish' | 'OPS Export';
 
 /**
  * Voortgangsblad-export: een SLANK CSV-blad met uitsluitend de kolommen die een invuller voor de

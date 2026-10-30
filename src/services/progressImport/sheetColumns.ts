@@ -23,6 +23,8 @@ export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   actualFinish: ['actual finish', 'actualfinish', 'werkelijk einde', 'werkelijke einde'],
   start: ['start', 'start date', 'begin', 'startdatum'],
   finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
+  // De exportstand (`exportState.ts`): de verborgen kolom van het eigen blad.
+  exportState: ['ops export'],
 };
 
 // Het geëxporteerde voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA
@@ -147,6 +149,7 @@ export function collectProgressRows(
     const rawActualFinish = boundedCell(cell('actualFinish'), limits.maxCellChars);
     const startCell = boundedCell(cell('start'), limits.maxCellChars);
     const finishCell = boundedCell(cell('finish'), limits.maxCellChars);
+    const rawExportState = boundedCell(cell('exportState'), limits.maxCellChars);
 
     rawRows.push({
       rowNumber,
@@ -156,6 +159,7 @@ export function collectProgressRows(
       ...(rawCompletion !== undefined ? { rawCompletion } : {}),
       ...(rawActualStart !== undefined ? { rawActualStart } : {}),
       ...(rawActualFinish !== undefined ? { rawActualFinish } : {}),
+      ...(rawExportState !== undefined ? { rawExportState } : {}),
     });
 
     // `taskId` op een detectiecel alleen bij een harde id-treffer VAN DEZE RIJ — de ijkpuntregel

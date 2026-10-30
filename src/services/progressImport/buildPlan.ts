@@ -2,11 +2,18 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
 import type { Task } from '@/types/task';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
+import { computedFinish, computedStart } from '@/utils/taskDates';
 import { matchProgressRows } from './matchRows';
 import type {
+  ProgressConflictChoices,
+  ProgressExportState,
+  ProgressField,
   ProgressFieldChange,
+  ProgressFieldConflict,
+  ProgressFieldKept,
   ProgressImportPlan,
   ProgressOverrides,
+  ProgressPlannedShift,
   ProgressPlanRow,
   ProgressRow,
   ProgressRowReason,
@@ -61,6 +68,51 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
   return Math.round(before * scale) === Math.round(incoming * scale);
 }
 
+/** Is de voltooiing in de app nog de exportwaarde? Exact op de precisie van de exportstand (vier
+ *  decimalen in procenten): anders dan bij een bladwaarde telt hier ook een kleine wijziging. */
+function isCompletionAsExported(app: number, exported: number): boolean {
+  return Math.round(app * 1e6) === Math.round(exported * 1e6);
+}
+
+/** Een datum op minuutprecisie: de schrijver zet datums in een seriële cel, en de lezer rondt die op
+ *  hele minuten af (`serialToIso`). */
+function minuteKey(iso: string): string {
+  return iso.replace(' ', 'T').slice(0, 16);
+}
+
+/** Draagt het blad nog de exportwaarde? Een kale datum op dezelfde dag telt mee (`isDateNoop`). */
+function isSheetDateAsExported(exported: string | undefined, incoming: string): boolean {
+  if (exported === undefined) return false;
+  return minuteKey(exported) === minuteKey(incoming) || isDateNoop(exported, incoming);
+}
+
+function isAppDateAsExported(app: string | undefined, exported: string | undefined): boolean {
+  if (app === undefined || exported === undefined) return app === exported;
+  return minuteKey(app) === minuteKey(exported);
+}
+
+/** Een veld dat het blad anders heeft dan de app. Zonder exportstand is dat altijd een wijziging. */
+function verdictFor(
+  sheetAsExported: boolean | undefined,
+  appAsExported: boolean | undefined,
+): 'edit' | 'kept' | 'conflict' {
+  if (sheetAsExported === undefined) return 'edit';
+  if (sheetAsExported) return 'kept';
+  return appAsExported ? 'edit' : 'conflict';
+}
+
+function plannedShifts(task: Task, state: ProgressExportState): ProgressPlannedShift[] {
+  const shifts: ProgressPlannedShift[] = [];
+  const add = (field: ProgressPlannedShift['field'], exported: string | undefined, current: string) => {
+    if (exported && current && exported.slice(0, 10) !== current.slice(0, 10)) {
+      shifts.push({ field, exported, current });
+    }
+  };
+  add('start', state.plannedStart, computedStart(task));
+  add('finish', state.plannedFinish, computedFinish(task));
+  return shifts;
+}
+
 /**
  * Bouwt het voortgangsimportplan. Puur: geen store, geen I/O. `previewProgressImport`/
  * `applyProgressImport` (`taskSlice.ts`) roepen LETTERLIJK dezelfde functie aan — de preview is
@@ -74,7 +126,9 @@ function isCompletionUnchanged(before: number, incoming: number): boolean {
  *      ook zelf (code `summaryProgress`), maar hier vroeg afvangen levert de eigen,
  *      importspecifieke uitkomst op in plaats van een generieke celweigering.
  *   5. no-op-filter (`isCompletionUnchanged` + datum-only-degradatie) — alleen ECHT veranderende
- *      velden worden een `CellEditIntent`; niets over ⇒ noop.
+ *      velden worden een `CellEditIntent`; mét exportstand per veld een driewegvergelijking: alleen
+ *      in de app veranderd ⇒ `keptApp`, op beide plekken ⇒ `conflicts`. Een botsing zonder keuze in
+ *      `conflictChoices` ⇒ `unresolved`, met keuze `app` valt het veld weg; niets over ⇒ noop.
  *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.
  *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst — alleen de velden
  *      die de RIJ ZELF aanleverde, before uit de HUIDIGE taak, after uit de GEPLANDE taak.
@@ -86,6 +140,7 @@ export function buildProgressImportPlan(
   tasks: readonly Task[],
   deps: ProgressPlanDeps,
   overrides?: ProgressOverrides,
+  conflictChoices?: ProgressConflictChoices,
 ): ProgressImportPlan {
   const { matches, ignoredOverrideRows } = matchProgressRows(rows, tasks, overrides);
   const tasksById = new Map(tasks.map(task => [task.id, task] as const));
@@ -96,6 +151,12 @@ export function buildProgressImportPlan(
   let refusedCount = 0;
   let needsLinkCount = 0;
   let needsConfirmationCount = 0;
+  let conflictCount = 0;
+  let unresolvedConflictCount = 0;
+  let appNewerCount = 0;
+  let plannedShiftCount = 0;
+  let withoutExportStateCount = 0;
+  let latestExportedAt: string | undefined;
   const claimedTaskIds = new Set<string>();
 
   const planRows: ProgressPlanRow[] = rows.map((row): ProgressPlanRow => {
@@ -162,41 +223,103 @@ export function buildProgressImportPlan(
     // 5. No-op-filter — alleen velden die het BLAD zelf echt anders zet, worden een
     // `CellEditIntent`. Dat voorkomt óók dat een ongewijzigde actualStart alsnog
     // `actualAfterStatusDate` triggert nadat de statusdatum naar voren is gezet.
-    const edits: CellEditIntent[] = [];
+    //
+    // Mét exportstand wordt elk zo'n veld daarna vergeleken met de stand bij de export: draagt het
+    // blad nog de exportwaarde, dan veranderde alleen de app en blijft die waarde staan; veranderden
+    // beide, dan is het een botsing en beslist de planner. De stand hoort bij de taak van deze rij
+    // (`row.taskId`): na een koppeling aan een andere taak zegt hij niets meer.
+    const exported = row.exportState !== undefined && row.taskId === taskId ? row.exportState : undefined;
+    if (exported !== undefined) {
+      if (latestExportedAt === undefined || exported.exportedAt > latestExportedAt) latestExportedAt = exported.exportedAt;
+    } else if (row.completion !== undefined || row.actualStart !== undefined || row.actualFinish !== undefined) {
+      withoutExportStateCount++;
+    }
+    const shifts = exported !== undefined ? plannedShifts(task, exported) : [];
+
+    const choice = conflictChoices?.get(row.rowNumber);
+    const fieldEdits: { edit: CellEditIntent; conflict: boolean }[] = [];
+    const conflicts: ProgressFieldConflict[] = [];
+    const keptApp: ProgressFieldKept[] = [];
+    const routeField = (
+      field: ProgressField,
+      value: string | number,
+      app: string | number | undefined,
+      exportedValue: string | number | undefined,
+      verdict: 'edit' | 'kept' | 'conflict',
+    ) => {
+      if (verdict === 'kept') {
+        keptApp.push({ field, exported: exportedValue, app });
+        return;
+      }
+      if (verdict === 'conflict') conflicts.push({ field, exported: exportedValue, app, sheet: value });
+      fieldEdits.push({
+        edit: {
+          kind: 'cell-edit', taskId, columnId: taskColumnId(`task.time.${field}`),
+          route: 'task-progress', value,
+        },
+        conflict: verdict === 'conflict',
+      });
+    };
+
     if (row.completion?.kind === 'value') {
-      if (!isCompletionUnchanged(task.time.completion, row.completion.value)) {
-        edits.push({
-          kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.completion'),
-          route: 'task-progress', value: row.completion.value,
-        });
+      const app = task.time.completion;
+      const incoming = row.completion.value;
+      if (!isCompletionUnchanged(app, incoming)) {
+        routeField('completion', incoming, app, exported?.completion, verdictFor(
+          exported && isCompletionUnchanged(exported.completion, incoming),
+          exported && isCompletionAsExported(app, exported.completion),
+        ));
       }
     }
     if (row.actualStart?.kind === 'value') {
       const before = task.time.actualStart;
       const incoming = row.actualStart.iso;
       if (before !== incoming && !isDateNoop(before, incoming)) {
-        edits.push({
-          kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.actualStart'),
-          route: 'task-progress', value: incoming,
-        });
+        routeField('actualStart', incoming, before || undefined, exported?.actualStart, verdictFor(
+          exported && isSheetDateAsExported(exported.actualStart, incoming),
+          exported && isAppDateAsExported(before || undefined, exported.actualStart),
+        ));
       }
     }
     if (row.actualFinish?.kind === 'value') {
       const before = task.time.actualFinish;
       const incoming = row.actualFinish.iso;
       if (before !== incoming && !isDateNoop(before, incoming)) {
-        edits.push({
-          kind: 'cell-edit', taskId, columnId: taskColumnId('task.time.actualFinish'),
-          route: 'task-progress', value: incoming,
-        });
+        routeField('actualFinish', incoming, before || undefined, exported?.actualFinish, verdictFor(
+          exported && isSheetDateAsExported(exported.actualFinish, incoming),
+          exported && isAppDateAsExported(before || undefined, exported.actualFinish),
+        ));
       }
     }
+
+    const sinceExport = {
+      ...(conflicts.length > 0 ? { conflicts } : {}),
+      ...(choice !== undefined && conflicts.length > 0 ? { conflictChoice: choice } : {}),
+      ...(keptApp.length > 0 ? { keptApp } : {}),
+      ...(shifts.length > 0 ? { plannedShifts: shifts } : {}),
+    };
+    if (conflicts.length > 0) conflictCount++;
+    if (keptApp.length > 0) appNewerCount++;
+    if (shifts.length > 0) plannedShiftCount++;
+
+    // Een botsing zonder keuze: de hele rij wacht, want de geplande taak hangt van die keuze af.
+    if (conflicts.length > 0 && choice === undefined) {
+      unresolvedConflictCount++;
+      return {
+        rowNumber: row.rowNumber, outcome: 'unresolved',
+        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [], ...sinceExport,
+      };
+    }
+
+    const edits = fieldEdits
+      .filter(entry => !entry.conflict || choice === 'sheet')
+      .map(entry => entry.edit);
 
     if (edits.length === 0) {
       noopCount++;
       return {
         rowNumber: row.rowNumber, outcome: 'noop',
-        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
+        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [], ...sinceExport,
       };
     }
 
@@ -210,7 +333,7 @@ export function buildProgressImportPlan(
       refusedCount++;
       return {
         rowNumber: row.rowNumber, outcome: 'refused', reason, plannerCode,
-        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [],
+        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [], ...sinceExport,
       };
     }
 
@@ -237,7 +360,7 @@ export function buildProgressImportPlan(
     return {
       rowNumber: row.rowNumber, outcome: 'apply',
       match: match.match, needsConfirmation, taskId, taskLabel: label,
-      changes, plannedTask: planned.value.task,
+      changes, plannedTask: planned.value.task, ...sinceExport,
     };
   });
 
@@ -254,5 +377,11 @@ export function buildProgressImportPlan(
     needsConfirmationCount,
     ignoredOverrideRows,
     untouchedTaskCount,
+    conflictCount,
+    unresolvedConflictCount,
+    appNewerCount,
+    plannedShiftCount,
+    withoutExportStateCount,
+    ...(latestExportedAt !== undefined ? { exportedAt: latestExportedAt } : {}),
   };
 }

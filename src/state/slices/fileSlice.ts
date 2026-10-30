@@ -1286,7 +1286,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             summaryNote: buildProgressSummaryNote(menuT),
             sheetName: menuT('export.progressXlsxSheetName'),
             validation: buildProgressXlsxValidationText(menuT),
-          });
+          }, { exportedAt: new Date().toISOString() });
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

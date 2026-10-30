@@ -22,6 +22,8 @@ export interface RawProgressRow {
   rawCompletion?: string;
   rawActualStart?: string;
   rawActualFinish?: string;
+  /** De ruwe cel van de verborgen kolom `OPS Export` (`exportState.ts`). */
+  rawExportState?: string;
 }
 
 export type ProgressFileIssue =
@@ -51,6 +53,20 @@ export type DateOrderDetection =
    *  (nooit een Date.UTC-rollover als "keuze"). */
   | { order: 'ambiguous'; sample: string; sampleAlternatives: [dmyIso: string, mdyIso: string] };
 
+/** Wat er bij de export in de planning stond (`exportState.ts`). Alleen vergelijkingsmateriaal:
+ *  wordt nooit naar een taak geschreven. */
+export interface ProgressExportState {
+  /** Exportmoment, ISO in UTC. */
+  exportedAt: string;
+  /** Voltooiing 0..1. */
+  completion: number;
+  actualStart?: string;
+  actualFinish?: string;
+  /** Berekende start en einde (`computedStart`/`computedFinish`). */
+  plannedStart?: string;
+  plannedFinish?: string;
+}
+
 /** Eén gefinaliseerde rij: waarden geparsed onder de vastgestelde datumvolgorde. */
 export interface ProgressRow {
   rowNumber: number;
@@ -61,10 +77,16 @@ export interface ProgressRow {
     | { kind: 'outOfRange'; raw: string };
   actualStart?: { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
   actualFinish?: { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
+  exportState?: ProgressExportState;
 }
 
 /** Handmatige koppelingen: rijnummer → task.id. Leeft in de dialoog, niet in de store. */
 export type ProgressOverrides = ReadonlyMap<number, string>;
+
+/** Bij een botsing: de app-waarde houden of de bladwaarde overnemen. */
+export type ProgressConflictChoice = 'app' | 'sheet';
+/** Keuzes per rijnummer. Leeft in de dialoog, niet in de store. */
+export type ProgressConflictChoices = ReadonlyMap<number, ProgressConflictChoice>;
 
 export type ProgressMatchKind = 'id' | 'wbs' | 'manual';
 
@@ -84,15 +106,42 @@ export type ProgressRowReason =
   | 'actualStartRequired'
   | 'rejected';          // overige plannerfout; `plannerCode` draagt de originele code
 
+export type ProgressField = 'completion' | 'actualStart' | 'actualFinish';
+
 export interface ProgressFieldChange {
-  field: 'completion' | 'actualStart' | 'actualFinish';
+  field: ProgressField;
   before: string | number | undefined;
   after: string | number | undefined;
 }
 
+/** Sinds de export veranderde dit veld in de app én in het blad, en de twee waarden verschillen. */
+export interface ProgressFieldConflict {
+  field: ProgressField;
+  exported: string | number | undefined;
+  app: string | number | undefined;
+  sheet: string | number | undefined;
+}
+
+/** Sinds de export veranderde dit veld alleen in de app: het blad draagt nog de exportwaarde, dus de
+ *  app-waarde blijft staan. */
+export interface ProgressFieldKept {
+  field: ProgressField;
+  exported: string | number | undefined;
+  app: string | number | undefined;
+}
+
+/** De berekende start of het berekende einde ligt op een andere dag dan bij de export. Alleen een
+ *  melding; de import raakt plandatums nooit aan. */
+export interface ProgressPlannedShift {
+  field: 'start' | 'finish';
+  exported: string;
+  current: string;
+}
+
 export interface ProgressPlanRow {
   rowNumber: number;
-  outcome: 'apply' | 'noop' | 'refused';
+  /** `unresolved`: de rij heeft een botsing zonder keuze en wacht daarop. */
+  outcome: 'apply' | 'noop' | 'refused' | 'unresolved';
   reason?: ProgressRowReason;
   plannerCode?: string;
   match?: ProgressMatchKind;
@@ -104,6 +153,12 @@ export interface ProgressPlanRow {
   changes: readonly ProgressFieldChange[];
   /** Alleen bij `apply`: de volledig gecanonicaliseerde taak zoals hij geschreven wordt. */
   plannedTask?: Task;
+  /** Botsingen op deze rij, ongeacht de keuze; afwezig als er geen zijn. */
+  conflicts?: readonly ProgressFieldConflict[];
+  conflictChoice?: ProgressConflictChoice;
+  /** Velden die alleen in de app veranderden; afwezig als er geen zijn. */
+  keptApp?: readonly ProgressFieldKept[];
+  plannedShifts?: readonly ProgressPlannedShift[];
 }
 
 export interface ProgressImportPlan {
@@ -119,6 +174,18 @@ export interface ProgressImportPlan {
   ignoredOverrideRows: readonly number[];
   /** Taken zonder enige rij die ze claimde (informatief, niet fout). */
   untouchedTaskCount: number;
+  /** Rijen met minstens één botsing. */
+  conflictCount: number;
+  /** Rijen met een botsing zonder keuze. Zolang dit boven 0 staat, past `applyProgressImport` niets toe. */
+  unresolvedConflictCount: number;
+  /** Rijen met minstens één veld dat alleen in de app veranderde. */
+  appNewerCount: number;
+  /** Rijen met een plandatum op een andere dag dan bij de export. */
+  plannedShiftCount: number;
+  /** Rijen met voortgangswaarden maar zonder bruikbare exportstand. */
+  withoutExportStateCount: number;
+  /** Het laatste exportmoment in het blad (ISO in UTC), als er een is. */
+  exportedAt?: string;
 }
 
 /** Harde grenzen op ONGEVALIDEERDE bestandsinvoer. */

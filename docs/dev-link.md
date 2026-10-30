@@ -10,6 +10,8 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
 - `open=<pad>` opent een bestand uit de repo; het pad begint bij de root. Meestal is dat een van de
   voorbeeldprojecten in `examples/`. `..`, een absoluut pad en een backslash worden geweigerd. Codeer
   bijzondere tekens in de URL (`%20` voor een spatie).
+- `progressSheet=<pad>` werkt samen met `open=`: na het openen start de voortgangsimport met dat blad al
+  ingelezen (`.xlsx` of `.csv`), zonder bestandskiezer.
 - `theme=light|dark` zet het thema voor deze sessie. De bewaarde voorkeur (`ops-theme`) blijft staan:
   een gewone herlaad zonder `theme=` toont weer het eigen thema. Kies je in de app zelf een thema, dan
   bewaart de app die keuze zoals altijd. `theme=` werkt ook zonder `open=`.
@@ -22,8 +24,8 @@ bestand komt binnen zoals in een browser zonder bestandshandle (Firefox/Safari):
 dus Opslaan vraagt om een plek. Een onbekend pad of een fout bij het inlezen geeft de gewone melding
 "openen mislukt", met het pad erbij.
 
-Code: `src/utils/devOpenLink.ts` (ophalen en openen), het effect in `src/App.tsx`, en
-`devSessionTheme` in `src/utils/settingsStore.ts`.
+Code: `src/utils/devOpenLink.ts` (ophalen en openen), het effect in `src/App.tsx`, het effect in
+`src/components/dialogs/ProgressImportDialog.tsx` en `devSessionTheme` in `src/utils/settingsStore.ts`.
 
 ## Waar testbestanden staan
 
@@ -37,6 +39,6 @@ mag ook elders in de repo staan; zet er geen klantdata in, want de repo is openb
 ## Niet in een productiebouw
 
 Alle drie de ingangen staan achter `import.meta.env.DEV` en `!isTauri()`. De app laadt `devOpenLink`
-alleen met een dynamische import vanuit die tak. `tests/planning/check-dev-open-link.ts` bewijst dat de
+alleen met een dynamische import vanuit die tak, in `App.tsx` en in `ProgressImportDialog.tsx`. `tests/planning/check-dev-open-link.ts` bewijst dat de
 takken in een productiebouw wegvallen (esbuild-minify met `DEV=false`, zoals Vite), met een tegenproef in
 dev. Hij bewijst ook dat `?theme=` met de Tauri-marker niets doet.

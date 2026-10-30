@@ -40,9 +40,14 @@
  * 6. **Geen `sharedStrings`-part**: `t="inlineStr"` scheelt een part en een indirectie. De LEZER moet
  *    `sharedStrings` wél aankunnen, want Excel herschrijft het bestand bij opslaan en gebruikt dan
  *    vrijwel altijd wél zo'n part.
+ * 7. **De exportstand staat in een verborgen, vergrendelde negende kolom** (`OPS Export`, zie
+ *    `exportState.ts`), niet op een apart werkblad. De lezer leest alleen het eerste werkblad, en op
+ *    dezelfde rij blijft de stand bij zijn taak, ook na sorteren of filteren. Hij staat er alleen met
+ *    `exportedAt`: zonder dat argument blijft dit het blad met acht kolommen.
  */
 import type { Task } from '@/types/task';
 import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
+import { encodeProgressExportState } from '@/services/progressImport/exportState';
 import { escapeXmlText, escapeXmlAttr } from '@/services/xlsx/xmlText';
 import { isoHasClock, isoToSerial } from '@/services/xlsx/serialDate';
 import { writeZip } from '@/services/zip/zipWriter';
@@ -58,6 +63,11 @@ export interface ProgressXlsxText {
   sheetName?: string;
   /** De vier teksten van de invoervalidatie (titels + foutmeldingen). */
   validation?: { percentTitle: string; percentError: string; dateTitle: string; dateError: string };
+}
+
+export interface ProgressXlsxOptions {
+  /** Exportmoment (ISO in UTC). Zet de exportstand in het blad; zonder dit geen negende kolom. */
+  exportedAt?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,6 +94,9 @@ const COLUMNS: readonly ColumnSpec[] = [
   { key: 'Actual Start', kind: 'date', editable: true },
   { key: 'Actual Finish', kind: 'date', editable: true },
 ];
+
+/** De verborgen kolom met de exportstand, achter de acht kolommen van het blad. */
+const EXPORT_STATE_KEY: ProgressSheetColumnKey = 'OPS Export';
 
 /** 0-gebaseerde kolomindex → `A`, `B`, … `AA`. */
 function columnLetter(index: number): string {
@@ -408,13 +421,19 @@ function fillableSqref(letter: string, markedRows: ReadonlySet<number>, lastRow:
   return ranges.join(' ');
 }
 
-function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string {
+function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText, options: ProgressXlsxOptions): string {
   const notes = text.headerNotes;
   const summaryNote = text.summaryNote;
+  const exportedAt = options.exportedAt;
+  const stateLetter = columnLetter(COLUMNS.length);
   const headers = COLUMNS.map(col => {
     const note = notes?.[col.key];
     return note ? `${col.key} — ${note}` : col.key;
   });
+  if (exportedAt !== undefined) {
+    const note = notes?.[EXPORT_STATE_KEY];
+    headers.push(note ? `${EXPORT_STATE_KEY} — ${note}` : EXPORT_STATE_KEY);
+  }
 
   // ── breedtes ───────────────────────────────────────────────────────────────
   // De KALE sleutel telt mee, de instructie niet. Zie de moduledoc, valstrik 4.
@@ -435,7 +454,9 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
   const cols = COLUMNS.map((col, i) => {
     const n = i + 1;
     return `<col min="${n}" max="${n}" width="${columnWidth(maxChars[i] ?? 0)}" customWidth="1" style="${columnStyle(col)}"/>`;
-  }).join('');
+  }).join('') + (exportedAt !== undefined
+    ? `<col min="${COLUMNS.length + 1}" max="${COLUMNS.length + 1}" width="10" hidden="1" customWidth="1" style="${STYLE.roText}"/>`
+    : '');
 
   // ── rijen ──────────────────────────────────────────────────────────────────
   const headerCells = headers
@@ -453,7 +474,11 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
     const cells = COLUMNS.map((col, i) =>
       dataCell(`${columnLetter(i)}${rowNumber}`, col, values[i] ?? '', marked && col.editable),
     ).join('');
-    rows.push(`<row r="${rowNumber}">${cells}</row>`);
+    // Een verzameltaak krijgt geen voortgang uit het blad, dus ook geen exportstand.
+    const stateCell = exportedAt !== undefined && task.childIds.length === 0
+      ? inlineStringCell(`${stateLetter}${rowNumber}`, STYLE.roText, encodeProgressExportState(task, exportedAt))
+      : '';
+    rows.push(`<row r="${rowNumber}">${cells}${stateCell}</row>`);
   });
 
   // ── validatiebereik ────────────────────────────────────────────────────────
@@ -483,7 +508,7 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
     .filter(v => v.sqref.length > 0)
     .map(v => validationXml({ ...v.opts, sqref: v.sqref }));
 
-  const lastCol = columnLetter(COLUMNS.length - 1);
+  const lastCol = exportedAt !== undefined ? stateLetter : columnLetter(COLUMNS.length - 1);
   return `${XML_DECL}<worksheet xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">`
     + `<dimension ref="A1:${lastCol}${lastRow}"/>`
     // `CT_SheetView` is ook een sequence: `pane` vóór `selection`.
@@ -512,13 +537,14 @@ function buildWorksheet(tasks: readonly Task[], text: ProgressXlsxText): string 
 export function buildProgressXlsxParts(
   tasks: readonly Task[],
   text: ProgressXlsxText = {},
+  options: ProgressXlsxOptions = {},
 ): readonly { name: string; xml: string }[] {
   return [
     { name: '[Content_Types].xml', xml: buildContentTypes() },
     { name: '_rels/.rels', xml: buildRootRels() },
     { name: 'xl/workbook.xml', xml: buildWorkbook(sanitizeSheetName(text.sheetName)) },
     { name: 'xl/_rels/workbook.xml.rels', xml: buildWorkbookRels() },
-    { name: 'xl/worksheets/sheet1.xml', xml: buildWorksheet(tasks, text) },
+    { name: 'xl/worksheets/sheet1.xml', xml: buildWorksheet(tasks, text, options) },
     { name: 'xl/styles.xml', xml: buildStyles() },
   ];
 }
@@ -527,9 +553,10 @@ export function buildProgressXlsxParts(
 export async function writeProgressSheetXLSX(
   tasks: readonly Task[],
   text: ProgressXlsxText = {},
+  options: ProgressXlsxOptions = {},
 ): Promise<Uint8Array> {
   const encoder = new TextEncoder();
-  const files = buildProgressXlsxParts(tasks, text).map(part => ({
+  const files = buildProgressXlsxParts(tasks, text, options).map(part => ({
     name: part.name,
     data: encoder.encode(part.xml),
   }));

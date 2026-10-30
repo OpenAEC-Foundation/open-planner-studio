@@ -14,6 +14,7 @@ import {
   type RawDateCell,
 } from './types';
 import { shownStart, shownFinish } from '@/utils/taskDates';
+import { decodeProgressExportState } from './exportState';
 
 type DateValue = { kind: 'value'; iso: string } | { kind: 'unreadable'; raw: string };
 type PercentValue = { kind: 'value'; value: number } | { kind: 'unreadable'; raw: string }
@@ -295,6 +296,8 @@ export function finalizeProgressRows(sheet: ProgressSheet, order: DateOrder): re
       ? parseSheetDate(row.rawActualStart, order) : undefined;
     const actualFinish = row.rawActualFinish !== undefined && !isMarkerCell(row.rawActualFinish)
       ? parseSheetDate(row.rawActualFinish, order) : undefined;
+    const exportState = row.rawExportState !== undefined
+      ? decodeProgressExportState(row.rawExportState) : undefined;
     return {
       rowNumber: row.rowNumber,
       ...(row.taskId !== undefined ? { taskId: row.taskId } : {}),
@@ -303,6 +306,7 @@ export function finalizeProgressRows(sheet: ProgressSheet, order: DateOrder): re
       ...(completion !== undefined ? { completion } : {}),
       ...(actualStart !== undefined ? { actualStart } : {}),
       ...(actualFinish !== undefined ? { actualFinish } : {}),
+      ...(exportState !== undefined ? { exportState } : {}),
     };
   });
 }

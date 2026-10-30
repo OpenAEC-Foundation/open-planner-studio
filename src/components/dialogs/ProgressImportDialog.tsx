@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -10,6 +10,7 @@ import { openFileDialog } from '@/services/fileAccess';
 import { localTodayIso, parseDate } from '@/utils/dateUtils';
 import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
+import { isTauri } from '@/utils/platform';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
 // `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-
 // agnostisch. Beide rechtstreeks uit hun eigen bestand — NIET via de barrel (`index.ts`).
@@ -18,6 +19,8 @@ import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport
 import type {
   DateOrder,
   DateOrderDetection,
+  ProgressConflictChoice,
+  ProgressConflictChoices,
   ProgressFieldChange,
   ProgressFileIssue,
   ProgressImportPlan,
@@ -35,7 +38,7 @@ type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
 type ProgressImportPlanFn = (
   rows: readonly ProgressRow[],
   overrides?: ProgressOverrides,
-  opts?: { today?: string },
+  opts?: { today?: string; conflictChoices?: ProgressConflictChoices },
 ) => ProgressImportPlan;
 
 /** Een blad van een ANDER project maakt alle rijen unmatched — tot
@@ -58,6 +61,13 @@ function formatIsoForDisplay(iso: string, locale: string, timeNotation: TimeNota
   const timePart = displayIsoTime(iso, timeNotation);
   const dateLabel = formatDisplayDate(parseDate(datePart), locale);
   return timePart ? `${dateLabel} ${timePart}` : dateLabel;
+}
+
+/** Exportmoment (ISO in UTC) → lokale datum en tijd, in de vorm die `formatIsoForDisplay` leest. */
+function localMinuteIso(iso: string): string {
+  const date = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${localTodayIso(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 /** Hele procenten blijven "33%", maar een significant verschil (33,4% vs 33%)
@@ -114,6 +124,7 @@ export function ProgressImportDialog() {
   const [detection, setDetection] = useState<DateOrderDetection | null>(null);
   const [rows, setRows] = useState<readonly ProgressRow[] | null>(null);
   const [overrides, setOverrides] = useState<Map<number, string>>(new Map());
+  const [conflictChoices, setConflictChoices] = useState<Map<number, ProgressConflictChoice>>(new Map());
   const [result, setResult] = useState<ProgressImportPlan | null>(null);
   // Puur UI-comfort (niet in de kern, niet in de store): welke "Koppeling betwijfeld"-rijen de
   // kiezer opengeklapt tonen na een klik op "Wijzigen". Los van `overrides` — "Wijzigen" mag de
@@ -133,9 +144,11 @@ export function ProgressImportDialog() {
   const plan = useMemo(
     // UI-route: `today` zet dezelfde voortgangsregels aan als paneel en
     // raster — zonder statusdatum op vandaag, geen verzonnen werkelijke start (`ProgressImportEntryOptions`).
-    () => (stage === 'preview' && rows ? previewProgressImport(rows, overrides, { today: localTodayIso() }) : null),
+    () => (stage === 'preview' && rows
+      ? previewProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices })
+      : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stage, rows, overrides, tasks, previewProgressImport],
+    [stage, rows, overrides, conflictChoices, tasks, previewProgressImport],
   );
 
   const takenTaskIds = useMemo(() => {
@@ -149,12 +162,53 @@ export function ProgressImportDialog() {
     [plan],
   );
   const doubtfulRows = useMemo(() => (plan ? plan.rows.filter(r => r.needsConfirmation) : []), [plan]);
+  const conflictRows = useMemo(() => (plan ? plan.rows.filter(r => r.conflicts) : []), [plan]);
+  const appNewerRows = useMemo(
+    () => (plan ? plan.rows.filter(r => r.outcome === 'noop' && r.keptApp && !r.conflicts) : []),
+    [plan],
+  );
   const generalRows = useMemo(
     () => (plan
-      ? plan.rows.filter(r => r.outcome !== 'noop' && !r.needsConfirmation && r.reason !== 'unmatched' && r.reason !== 'ambiguousWbs')
+      ? plan.rows.filter(r => r.outcome !== 'noop' && !r.conflicts && !r.needsConfirmation && r.reason !== 'unmatched' && r.reason !== 'ambiguousWbs')
       : []),
     [plan],
   );
+
+  const loadSheet = async (res: { name: string; content: string; bytes?: Uint8Array }) => {
+    let parsed: ProgressSheet;
+    if (extensionOf(res.name) === 'xlsx') {
+      // Geen bytes terwijl de extensie `.xlsx` zegt ⇒ onleesbaar, nooit een gok.
+      if (!res.bytes) { setFileIssue('unreadable'); return; }
+      const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
+      parsed = await parseProgressXlsx(res.bytes);
+    } else {
+      parsed = parseProgressCsv(res.content);
+    }
+    if (parsed.fileIssue) {
+      setFileIssue(parsed.fileIssue);
+      return;
+    }
+    setSheet(parsed);
+    const det = detectDateOrder(parsed.detectionCells, tasks);
+    setDetection(det);
+    if (det.order === 'ambiguous') {
+      setStage('dateOrder');
+    } else {
+      setRows(finalizeProgressRows(parsed, det.order));
+      setStage('preview');
+    }
+  };
+
+  // Alleen op de dev-server: `?progressSheet=` (docs/dev-link.md) legt een blad klaar, zodat een check
+  // niet langs de bestandskiezer hoeft. De import valt uit elke productiebouw.
+  useEffect(() => {
+    if (!import.meta.env.DEV || isTauri()) return;
+    void import('@/utils/devOpenLink').then(({ takeDevProgressSheet }) => {
+      const opened = takeDevProgressSheet();
+      if (opened) void loadSheet(opened);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!open) return null;
 
@@ -180,28 +234,7 @@ export function ProgressImportDialog() {
         { binaryExtensions: ['xlsx'] },
       );
       if (!res) return;
-      let parsed: ProgressSheet;
-      if (extensionOf(res.name) === 'xlsx') {
-        // Geen bytes terwijl de extensie `.xlsx` zegt ⇒ onleesbaar, nooit een gok.
-        if (!res.bytes) { setFileIssue('unreadable'); return; }
-        const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
-        parsed = await parseProgressXlsx(res.bytes);
-      } else {
-        parsed = parseProgressCsv(res.content);
-      }
-      if (parsed.fileIssue) {
-        setFileIssue(parsed.fileIssue);
-        return;
-      }
-      setSheet(parsed);
-      const det = detectDateOrder(parsed.detectionCells, tasks);
-      setDetection(det);
-      if (det.order === 'ambiguous') {
-        setStage('dateOrder');
-      } else {
-        setRows(finalizeProgressRows(parsed, det.order));
-        setStage('preview');
-      }
+      await loadSheet(res);
     } catch {
       setFileIssue('unreadable');
     }
@@ -242,17 +275,29 @@ export function ProgressImportDialog() {
     });
   };
 
+  const chooseConflict = (rowNumber: number, choice: ProgressConflictChoice) => {
+    setConflictChoices(prev => new Map(prev).set(rowNumber, choice));
+  };
+
+  const chooseAllConflicts = (choice: ProgressConflictChoice) => {
+    setConflictChoices(new Map(conflictRows.map(row => [row.rowNumber, choice] as const)));
+  };
+
   const confirm = () => {
     if (!rows) return;
-    setResult(applyProgressImport(rows, overrides, { today: localTodayIso() }));
+    const applied = applyProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices });
+    // Een botsing die pas bij het herberekenen tegen de live taken opdook: er is niets geschreven, en
+    // de preview toont de rij nu met haar keuzeknoppen.
+    if (applied.unresolvedConflictCount > 0) return;
+    setResult(applied);
     setStage('result');
   };
 
   /** Opslaan vanuit de ?-knop: dezelfde toepassing als Toepassen, maar daarna sluiten in plaats van
    *  de resultaatstap tonen (Help opent erna). `false` = niets om toe te passen, venster blijft open. */
   const applyAndClose = (): boolean => {
-    if (stage !== 'preview' || !rows || !plan || plan.appliedCount === 0) return false;
-    applyProgressImport(rows, overrides, { today: localTodayIso() });
+    if (stage !== 'preview' || !rows || !plan || plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return false;
+    applyProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices });
     close();
     return true;
   };
@@ -262,6 +307,8 @@ export function ProgressImportDialog() {
   // hooks nodig; `needsLinkRows`/`doubtfulRows`/`generalRows` zijn zelf al gememoïseerd hierboven.
   const cappedNeedsLink = capRows(needsLinkRows);
   const cappedDoubtful = capRows(doubtfulRows);
+  const cappedConflicts = capRows(conflictRows);
+  const cappedAppNewer = capRows(appNewerRows);
   const cappedGeneral = capRows(generalRows);
   const refusedResultRows = result ? result.rows.filter(r => r.outcome === 'refused') : [];
   const cappedRefusedResult = capRows(refusedResultRows);
@@ -279,6 +326,54 @@ export function ProgressImportDialog() {
         </li>
       ))}
     </ul>
+  );
+
+  const showFieldValue = (field: ProgressFieldChange['field'], value: string | number | undefined) =>
+    formatChangeValue(field, value, i18n.language, emptyLabel, timeNotation);
+
+  /** Wat sinds de export veranderde en de import niet verandert. */
+  const renderSinceExport = (row: ProgressPlanRow) => {
+    if (!row.keptApp && !row.plannedShifts) return null;
+    return (
+      <ul className="flex flex-col gap-0.5 pl-4 list-disc text-text-secondary">
+        {row.keptApp?.map(kept => (
+          <li key={kept.field}>
+            {t('progressImport.sinceExport.keptField', {
+              field: t(`progressImport.field.${kept.field}`),
+              exported: showFieldValue(kept.field, kept.exported),
+              app: showFieldValue(kept.field, kept.app),
+            })}
+          </li>
+        ))}
+        {row.plannedShifts?.map(shift => (
+          <li key={shift.field}>
+            {t('progressImport.sinceExport.shiftedField', {
+              field: t(`progressImport.sinceExport.plannedField.${shift.field}`),
+              exported: formatIsoForDisplay(shift.exported, i18n.language, timeNotation),
+              current: formatIsoForDisplay(shift.current, i18n.language, timeNotation),
+            })}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  const renderChoiceButtons = (
+    selected: ProgressConflictChoice | undefined,
+    choose: (choice: ProgressConflictChoice) => void,
+  ) => (
+    <div className="flex gap-2">
+      {(['app', 'sheet'] as const).map(choice => (
+        <button
+          key={choice}
+          onClick={() => choose(choice)}
+          aria-pressed={selected === choice}
+          className={`btn btn--sm ${selected === choice ? 'btn--primary' : 'btn--secondary'}`}
+        >
+          {t(choice === 'app' ? 'progressImport.sinceExport.keepApp' : 'progressImport.sinceExport.takeSheet')}
+        </button>
+      ))}
+    </div>
   );
 
   const renderRowOutcome = (row: ProgressPlanRow) => {
@@ -339,11 +434,77 @@ export function ProgressImportDialog() {
         {stage === 'preview' && plan && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1 border border-border rounded-[10px] p-2.5">
+              {plan.exportedAt && (
+                <span className="text-text-secondary">
+                  {t('progressImport.sinceExport.exportedAt', {
+                    date: formatIsoForDisplay(localMinuteIso(plan.exportedAt), i18n.language, timeNotation),
+                  })}
+                </span>
+              )}
               <span>{t('progressImport.summaryApplied', { applied: plan.appliedCount })}</span>
               <span>{t('progressImport.summaryNoop', { noop: plan.noopCount })}</span>
               <span>{t('progressImport.summaryNeedsLink', { needsLink: plan.needsLinkCount })}</span>
               <span>{t('progressImport.summaryRefused', { refused: plan.refusedCount })}</span>
+              {plan.conflictCount > 0 && (
+                <span>{t('progressImport.sinceExport.summaryConflicts', { conflicts: plan.conflictCount, open: plan.unresolvedConflictCount })}</span>
+              )}
+              {plan.appNewerCount > 0 && (
+                <span>{t('progressImport.sinceExport.summaryAppNewer', { kept: plan.appNewerCount })}</span>
+              )}
+              {plan.plannedShiftCount > 0 && (
+                <span>{t('progressImport.sinceExport.summaryPlannedShift', { shifted: plan.plannedShiftCount })}</span>
+              )}
             </div>
+
+            {plan.withoutExportStateCount > 0 && (
+              <div className="alert alert--warning">
+                {t('progressImport.sinceExport.missingState', { rows: plan.withoutExportStateCount })}
+              </div>
+            )}
+
+            {conflictRows.length > 0 && (
+              <div className="flex flex-col gap-2" data-ops-progress-conflicts>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">{t('progressImport.sinceExport.sectionConflicts')}</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-text-secondary">{t('progressImport.sinceExport.allRows')}</span>
+                    {renderChoiceButtons(
+                      conflictRows.every(row => row.conflictChoice === 'app') ? 'app'
+                        : conflictRows.every(row => row.conflictChoice === 'sheet') ? 'sheet' : undefined,
+                      chooseAllConflicts,
+                    )}
+                  </div>
+                </div>
+                <p className="text-text-secondary">{t('progressImport.sinceExport.conflictIntro')}</p>
+                {cappedConflicts.shown.map(row => (
+                  <div
+                    key={row.rowNumber}
+                    data-ops-progress-row={row.rowNumber}
+                    className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
+                  >
+                    <span className="font-medium text-text-primary">{row.taskLabel}</span>
+                    <ul className="flex flex-col gap-0.5 pl-4 list-disc text-text-secondary">
+                      {row.conflicts?.map(conflict => (
+                        <li key={conflict.field}>
+                          {t('progressImport.sinceExport.conflictField', {
+                            field: t(`progressImport.field.${conflict.field}`),
+                            exported: showFieldValue(conflict.field, conflict.exported),
+                            app: showFieldValue(conflict.field, conflict.app),
+                            sheet: showFieldValue(conflict.field, conflict.sheet),
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                    {renderChoiceButtons(row.conflictChoice, choice => chooseConflict(row.rowNumber, choice))}
+                    {row.outcome !== 'unresolved' && renderRowOutcome(row)}
+                    {renderSinceExport(row)}
+                  </div>
+                ))}
+                {cappedConflicts.hiddenCount > 0 && (
+                  <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedConflicts.hiddenCount })}</span>
+                )}
+              </div>
+            )}
 
             {/* `detectDateOrder` levert `evidence: 'contradictoryNoSample'` wanneer het
                 bestand tegenstrijdig datumbewijs bevat maar er geen enkele cel is om de gebruiker
@@ -468,10 +629,30 @@ export function ProgressImportDialog() {
                       )}
                     </div>
                     {renderRowOutcome(row)}
+                    {renderSinceExport(row)}
                   </div>
                 ))}
                 {cappedGeneral.hiddenCount > 0 && (
                   <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedGeneral.hiddenCount })}</span>
+                )}
+              </div>
+            )}
+
+            {appNewerRows.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="font-medium">{t('progressImport.sinceExport.sectionAppNewer')}</p>
+                {cappedAppNewer.shown.map(row => (
+                  <div
+                    key={row.rowNumber}
+                    data-ops-progress-row={row.rowNumber}
+                    className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
+                  >
+                    <span className="font-medium text-text-primary">{row.taskLabel}</span>
+                    {renderSinceExport(row)}
+                  </div>
+                ))}
+                {cappedAppNewer.hiddenCount > 0 && (
+                  <span className="text-text-secondary">{t('progressImport.moreRows', { more: cappedAppNewer.hiddenCount })}</span>
                 )}
               </div>
             )}
@@ -514,14 +695,21 @@ export function ProgressImportDialog() {
         )}
       </div>
 
-      <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
+      <div className="flex justify-end items-center gap-3 px-4 py-3 border-t border-border">
+        {stage === 'preview' && plan && plan.unresolvedConflictCount > 0 && (
+          <span className="mr-auto text-small text-text-secondary">{t('progressImport.sinceExport.chooseFirst')}</span>
+        )}
         {stage === 'result' ? (
           <button onClick={close} className="btn btn--sm btn--primary">{t('progressImport.close')}</button>
         ) : (
           <>
             <button onClick={close} className="btn btn--sm btn--secondary">{t('cancel')}</button>
             {stage === 'preview' && (
-              <button onClick={confirm} disabled={!plan || plan.appliedCount === 0} className="btn btn--sm btn--primary">
+              <button
+                onClick={confirm}
+                disabled={!plan || plan.appliedCount === 0 || plan.unresolvedConflictCount > 0}
+                className="btn btn--sm btn--primary"
+              >
                 {t('progressImport.confirm')}
               </button>
             )}
