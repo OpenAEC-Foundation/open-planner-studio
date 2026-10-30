@@ -420,17 +420,18 @@ const warningsPanelButton: RibbonButtonSpec = {
   },
 };
 
-/** Paneel Verschuivingen aan/uit — dezelfde vorm als `warningsPanelButton`. */
+/** Paneel Verschuivingen aan/uit — dezelfde vorm als `warningsPanelButton`, maar zonder commando:
+ *  deze actie bestaat alleen in het lint, want het paneel heeft geen sneltoets. */
 const scheduleShiftPanelButton: RibbonButtonSpec = {
   kind: 'button', id: 'scheduleShiftPanel', icon: <ArrowLeftRight size={20} />, labelKey: 'menu:ribbon.scheduleShiftPanel',
   use: () => {
-    const binding = useCommandBinding(COMMANDS.toggleScheduleShiftPanel);
+    const setUI = useAppStore(s => s.setUI);
     const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
     const showScheduleShiftPanel = useAppStore(s => s.ui.showScheduleShiftPanel);
     const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
     const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
     const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
-    return { ...binding, active: railVisible && showScheduleShiftPanel };
+    return { onClick: () => setUI({ showScheduleShiftPanel: !showScheduleShiftPanel }), active: railVisible && showScheduleShiftPanel };
   },
 };
 
