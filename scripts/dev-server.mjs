@@ -2,12 +2,12 @@
 // Browser-dev-launcher: wijst deze worktree een vaste poort toe, bewaakt tegen
 // dubbelstart, stempelt launch.json, en spawnt vite op die poort.
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 import { worktreeRoot, worktreeSlug, allocatePort } from './dev-port.mjs';
 import { acquireGuardLock } from './dev-lock.mjs';
+import { nodeBin } from './node-bin.mjs';
 
 const printOnly = process.argv.includes('--print-plan');
 
@@ -39,11 +39,10 @@ if (printOnly) {
   process.exit(0);
 }
 
-const binName = process.platform === 'win32' ? 'vite.cmd' : 'vite';
-const localBin = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', binName);
-const viteBin = existsSync(localBin) ? localBin : binName;
+const vite = nodeBin(join(dirname(fileURLToPath(import.meta.url)), '..'), 'vite', 'bin/vite.js', 'vite');
 
-const child = spawn(viteBin, [], {
+const child = spawn(vite.command, vite.args, {
+  shell: vite.shell,
   stdio: 'inherit',
   env: { ...process.env, OPS_DEV_PORT: String(port) },
 });
