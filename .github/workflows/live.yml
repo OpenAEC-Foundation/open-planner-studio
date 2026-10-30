@@ -24,16 +24,17 @@ concurrency:
   # overzet. Twee snelle pushes achter elkaar braken met `true` de eerste run
   # middenin de overdracht af — resultaat: een half gedeployde site. Deploys
   # horen op elkaar te wachten, niet elkaar te annuleren.
-  # GitHub houdt per groep één wachtende run vast; een nieuwere run vervangt die. De afhandeling van
-  # een CI-run die geen push was (geplande of handmatige browserrun) deployt nooit en krijgt daarom een
-  # eigen groep per run. In `deploy-site` zou hij een wachtende echte deploy verdringen en daarna zelf
-  # overslaan, en die commit ging dan niet live.
-  group: ${{ github.event.workflow_run.event == 'push' && 'deploy-site' || format('deploy-site-geen-push-{0}', github.run_id) }}
+  # GitHub houdt per groep één wachtende run vast; een nieuwere run vervangt die. Alleen een run die
+  # echt deployt hoort daarom in `deploy-site`. Elke andere run (rode of geannuleerde CI, een oude commit,
+  # een geplande of handmatige browserrun) krijgt een eigen groep per run: in `deploy-site` zou hij een
+  # wachtende deploy verdringen en daarna zelf overslaan, en die commit ging dan niet live.
+  # Deze groep en de `if` op de job `deploy` eisen dezelfde drie voorwaarden: verander ze samen.
+  group: ${{ (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.sha == github.event.workflow_run.head_sha) && 'deploy-site' || format('deploy-site-overslaan-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
   deploy:
-    # De poort. Alle voorwaarden samen:
+    # De poort, gelijk aan de voorwaarde in `concurrency.group`: verander ze samen. Alle voorwaarden samen:
     #  - CI is geslaagd (een geannuleerde of rode run deployt niet);
     #  - de CI-run kwam uit een push op main, niet uit een pull request;
     #  - `github.sha` (bij `workflow_run` de punt van de standaardbranch op het moment dat deze run

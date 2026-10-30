@@ -1635,12 +1635,6 @@ en noem het in je rapport of PR-tekst.
      werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
      2026-10-30. — B
 
-554. **Een rode CI-run op main kan een wachtende deploy verdringen.** #757 geeft de afhandeling van een run
-     die geen push was een eigen groep in `live.yml`. Een rode pushrun blijft in de groep `deploy-site`: loopt
-     deploy A en wacht deploy B, dan vervangt zijn afhandeling deploy B en slaat zelf over. Commit B gaat dan pas
-     live met de volgende groene push. Bestond al vóór #757; niet gemeten. Voorstel: ook `conclusion` in de
-     groepssleutel opnemen. Gezien bij #757. — S
-
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
