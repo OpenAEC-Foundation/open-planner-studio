@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Undo2 } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
+import { formatReportNumber } from '@/utils/reportNumber';
 import { canUndoScheduleShift } from '@/state/scheduleShift';
 import type { ShiftReason } from '@/engine/scheduler/shiftExplanation';
 import type { Task } from '@/types/task';
@@ -19,7 +20,7 @@ const ROWS_PER_PAGE = 200;
  * hem niet; alleen Ongedaan maken verdwijnt dan, want dat zou die bewerkingen meenemen.
  */
 export function ScheduleShiftPanel() {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const dd = useDisplayDate();
   const taskDate = useTaskDateText();
@@ -75,13 +76,22 @@ export function ScheduleShiftPanel() {
   };
 
   const rows = shift?.report.tasks ?? [];
+  const deliveryDays = rows.length > 0 ? shift?.report.projectEndWorkdays : undefined;
+  const deliveryText = (days: number): string => {
+    if (days === 0) return t('scheduleShift.deliveryUnchanged');
+    const params = { count: Math.abs(days), days: formatReportNumber(Math.abs(days), i18n.language) };
+    return days > 0 ? t('scheduleShift.deliveryLater', params) : t('scheduleShift.deliveryEarlier', params);
+  };
   return (
     <div className="flex flex-col h-full !text-body" data-ops-shift-panel>
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border text-text-secondary flex-shrink-0">
-        <span className="flex-1 min-w-0 truncate" data-ops-shift-summary>
-          {shift
-            ? t('scheduleShift.notice', { count: rows.length })
-            : t('scheduleShift.emptyNoRun')}
+        <span className="flex-1 min-w-0 flex flex-col" data-ops-shift-summary>
+          <span className="truncate">
+            {shift
+              ? t('scheduleShift.notice', { count: rows.length })
+              : t('scheduleShift.emptyNoRun')}
+          </span>
+          {deliveryDays !== undefined && <span className="truncate">{deliveryText(deliveryDays)}</span>}
         </span>
         {canUndo && (
           <button

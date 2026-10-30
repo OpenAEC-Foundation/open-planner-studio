@@ -90,10 +90,11 @@ export function scheduleShiftNotice(report: ShiftReport): NotifyInput {
   };
 }
 
-/** Open het paneel. Op de IFC- en Rapport-werkruimte en in Backstage bestaat de rail niet; spring
- *  dan mee naar de Gantt, net als de statusbalk bij de waarschuwingen. */
+/** Open het paneel. Op de IFC- en Rapport-werkruimte, in Backstage en in de presentatiemodus bestaat
+ *  de rail niet; spring dan mee naar de Gantt, net als de statusbalk bij de waarschuwingen. */
 export function openScheduleShiftPanel(store: AppState): void {
   const tab = store.ui.activeRibbonTab;
+  if (store.ui.presentationMode) store.setPresentationMode(false);
   store.setUI({
     showScheduleShiftPanel: true,
     ...(tab === 'ifc' || tab === 'report' || tab === 'file' ? { activeRibbonTab: 'start' as const } : {}),

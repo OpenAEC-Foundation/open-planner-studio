@@ -50,6 +50,7 @@ test('F5 meldt de verschuiving; Waarom? toont de lijst en Ongedaan maken draait 
   await expect(panel).toBeVisible();
   await expect(page.locator('[data-ops-rail-panel="warnings"]')).toBeVisible();
   await expect(toast).toHaveCount(0);
+  await expect(panel.locator('[data-ops-shift-summary]')).toContainText('Project finish 3 working days later');
 
   const rowB = panel.locator(`[data-ops-shift-id="${b}"]`);
   await expect(rowB).toContainText('Metselwerk');
