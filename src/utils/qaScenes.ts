@@ -515,6 +515,24 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-baseline-split]';
     },
   },
+  // Issue #741: dezelfde drie baselines, meteen in het rapport (afdrukvoorbeeld) met de strook aan.
+  'meerdere-baselines-rapport': {
+    run: async () => {
+      await SCENES['meerdere-baselines'].run();
+      (await waitFor('[data-ops-ribbon-tab="report"]')).click();
+      for (let i = 0; i < 40; i++) {
+        const box = [...document.querySelectorAll('label')]
+          .find(l => /Baseline-overlay|baseline overlay/i.test(l.textContent ?? ''))
+          ?.querySelector('input');
+        if (box) {
+          if (!box.checked) box.click();
+          break;
+        }
+        await sleep(150);
+      }
+      return '[data-ops-ribbon-tab="report"]';
+    },
+  },
 };
 
 export async function runQaScene(name: string): Promise<void> {
