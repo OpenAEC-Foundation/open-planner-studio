@@ -495,6 +495,8 @@ export interface AppNotification {
   action?: NotificationAction;
   /** Een tweede vervolgknop naast `action`, voor een melding met een keuze (#742). */
   secondaryAction?: NotificationAction;
+  /** Toon de melding rechtsonder in plaats van onderaan in het midden (#742). */
+  atEnd?: boolean;
   /** Alleen voor `info`: hoe lang de melding blijft staan, in ms (standaard 5000). Voor uitleg
    *  die je echt moet kunnen lezen, zoals de browseruitleg bij opslaan. */
   durationMs?: number;

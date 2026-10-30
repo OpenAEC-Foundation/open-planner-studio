@@ -142,7 +142,7 @@ export function NotificationHost() {
   if (notifications.length === 0) return null;
 
   // De serialiseerbare actie uit de store (o.a. rekenprofielen, *Wissen* bij *Taak*); sluit de
-  // melding na de actie, behalve *Waarom?*: dan blijft *Ongedaan maken* binnen bereik.
+  // melding na de actie. *Waarom?* opent het paneel, en dat heeft zijn eigen knop *Ongedaan maken*.
   const runAction = (n: AppNotification, action: NotificationAction) => {
     if (action.kind === 'clearViewArrangement') {
       // *Wissen* (eigenaarsbesluit 2026-10-19 5a): filter, groepering en sortering van
@@ -158,7 +158,10 @@ export function NotificationHost() {
     }
     if (action.kind === 'showScheduleShift') {
       const { ui } = useAppStore.getState();
-      const open = () => openScheduleShiftPanel(useAppStore.getState());
+      const open = () => {
+        openScheduleShiftPanel(useAppStore.getState());
+        dismissNotification(n.id);
+      };
       if (ui.activeRibbonTab === 'file') leaveBackstageGuarded(open);
       else open();
       return;
@@ -187,9 +190,7 @@ export function NotificationHost() {
     );
   };
 
-  return (
-    <div className="ops-toast-stack" style={placementStyle(placement)} data-ops-toast-placement={placement.kind}>
-      {notifications.map((n: AppNotification) => (
+  const renderToast = (n: AppNotification) => (
         <div
           key={n.id}
           className={`ops-toast ${n.severity === 'error' ? 'toast-error' : 'toast-info'}`}
@@ -263,7 +264,26 @@ export function NotificationHost() {
             )
             : actionButton(n, n.action)}
         </div>
-      ))}
-    </div>
+  );
+
+  const center = notifications.filter(n => !n.atEnd);
+  const atEnd = notifications.filter(n => n.atEnd);
+  return (
+    <>
+      {center.length > 0 && (
+        <div className="ops-toast-stack" style={placementStyle(placement)} data-ops-toast-placement={placement.kind}>
+          {center.map(renderToast)}
+        </div>
+      )}
+      {atEnd.length > 0 && (
+        <div
+          className="ops-toast-stack ops-toast-stack--end"
+          style={placementStyle(placement)}
+          data-ops-toast-placement={placement.kind}
+        >
+          {atEnd.map(renderToast)}
+        </div>
+      )}
+    </>
   );
 }

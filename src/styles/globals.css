@@ -2155,6 +2155,14 @@ body {
   pointer-events: none;   /* de stapel zelf vangt geen klikken … */
 }
 
+/* Een melding over de planning zelf (#742) staat rechtsonder, in RTL linksonder. */
+.ops-toast-stack--end {
+  left: auto;
+  transform: none;
+  inset-inline-end: var(--sp-6);
+  align-items: flex-end;
+}
+
 .ops-toast {
   pointer-events: auto;   /* … de losse melding wél (tekst selecteren, links, het kruisje) */
   position: relative;     /* anker voor het kruisje */

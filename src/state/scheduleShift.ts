@@ -85,6 +85,7 @@ export function scheduleShiftNotice(report: ShiftReport): NotifyInput {
     secondaryAction: { kind: 'undoScheduleShift', labelKey: 'scheduleShift.undo' },
     dedupeKey: SCHEDULE_SHIFT_NOTICE_KEY,
     replaceOnDedupe: true,
+    atEnd: true,
     durationMs: SCHEDULE_SHIFT_NOTICE_MS,
   };
 }
