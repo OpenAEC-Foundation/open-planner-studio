@@ -1593,6 +1593,7 @@ export function renderReport(
           markStyle: options.baselineMarkStyle,
           labels: options.baselineMarkStyle === 'label' ? baselineLabels(bars, milestones, diamondSize) : undefined,
           labelFont: m.font(6, true),
+          labelBackground: PRINT_COLORS.bg,
         });
       }
     }

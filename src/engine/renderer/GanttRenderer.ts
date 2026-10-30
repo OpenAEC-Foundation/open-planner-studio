@@ -1025,6 +1025,7 @@ export class GanttRenderer {
       markStyle: this.opts.baselineMarkStyle,
       labels: this.opts.baselineMarkStyle === 'label' ? baselineLabels(bars, milestones, diamondSize) : undefined,
       labelFont: this.font('caption', true),
+      labelBackground: this.colors.bg,
     });
     const cy = top + h / 2;
     this.baselineHits.set(rowIndex, {

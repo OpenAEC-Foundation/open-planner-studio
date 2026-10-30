@@ -355,6 +355,8 @@ export interface PaintBaselineStripOptions {
   /** Stijl `label`: de labels (`baselineLabels`) en het lettertype. */
   labels?: readonly BaselineLabel[];
   labelFont?: string;
+  /** Achtergrond achter een label, zodat een letter op een andere strook leesbaar blijft. */
+  labelBackground?: string;
 }
 
 /**
@@ -485,6 +487,12 @@ function paintLabels(
     const width = l.slots.reduce<number>((sum, slot) => sum + d.measureText(BASELINE_SLOT_LETTER[slot]).width, 0);
     nextFree = x + width + gap;
     if (x > vMax || x + width < vMin) continue;
+    if (o.labelBackground) {
+      const size = Number(/(\d+(?:\.\d+)?)px/.exec(o.labelFont ?? '')?.[1] ?? o.height * 2);
+      const pad = Math.max(1, size * 0.15);
+      d.fillStyle = o.labelBackground;
+      fillPolygon(d, [[x - pad, cy - size * 0.55], [x + width + pad, cy - size * 0.55], [x + width + pad, cy + size * 0.55], [x - pad, cy + size * 0.55]]);
+    }
     for (const slot of l.slots) {
       const letter = BASELINE_SLOT_LETTER[slot];
       d.fillStyle = o.colorOf(slot);
@@ -500,7 +508,7 @@ function paintLabels(
  */
 export function paintBaselineSwatch(
   d: StripPainter, slot: BaselineSlot, x: number, top: number, width: number, height: number,
-  o: Pick<PaintBaselineStripOptions, 'colorOf' | 'stripeWidth' | 'markStyle' | 'labelFont'> & { withLabel?: boolean },
+  o: Pick<PaintBaselineStripOptions, 'colorOf' | 'stripeWidth' | 'markStyle' | 'labelFont' | 'labelBackground'> & { withLabel?: boolean },
 ): void {
   paintBaselineStrip(d, [{ x1: x, x2: x + width, slots: [slot], roundLeft: true, roundRight: true }], [], {
     ...o,
