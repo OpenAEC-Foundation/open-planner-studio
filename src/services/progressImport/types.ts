@@ -29,9 +29,11 @@ export interface RawProgressRow {
 export type ProgressFileIssue =
   | 'tooLarge' | 'tooManyRows' | 'noKeyColumn' | 'noProgressColumns' | 'unreadable'
   /** Het bestand is met een wachtwoord beveiligd (CFB-container i.p.v. ZIP). */
-  | 'encrypted';
+  | 'encrypted'
+  /** Een `.csv`: het voortgangsblad bestaat alleen als `.xlsx` (eigenaarsbesluit 2026-10-30). */
+  | 'csvNotSupported';
 
-/** Wat een bestandslezer (CSV of XLSX) oplevert. */
+/** Wat de bestandslezer oplevert. */
 export interface ProgressSheet {
   fileIssue?: ProgressFileIssue;
   rawRows: readonly RawProgressRow[];
@@ -214,6 +216,6 @@ export const PROGRESS_IMPORT_LIMITS = {
 /** Kalibratiedrempels (datumvolgorde, regel 3) — geëxporteerd zodat de test ze bij naam noemt. */
 export const MIN_CALIBRATION_HITS = 3;
 export const CALIBRATION_RATIO = 3;
-// Geen vaste no-op-tolerantie op completion: een float-epsilon is per constructie stuk (0.335 wordt
-// door `writeCSV` als "34" geschreven; `0.34 - 0.335` ligt net boven élke drempel die "45,5" nog als
+// Geen vaste no-op-tolerantie op completion: een float-epsilon is per constructie stuk (een blad met
+// "34" tegen een taak op 0.335: `0.34 - 0.335` ligt net boven élke drempel die "45,5" nog als
 // wijziging moet doorlaten). Zie de precisiebewuste `isCompletionUnchanged` in `buildPlan.ts`.

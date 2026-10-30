@@ -365,17 +365,9 @@
     "progressXlsxNotes": {
       "completion": "udfyld: 0 til og med 100, decimaler er tilladt",
       "actualStart": "udfyld: faktisk startdato (som dato)",
-      "actualFinish": "udfyld: faktisk slutdato (som dato)"
-    },
-    "progressCsvLabel": "Fremdriftsark (CSV)",
-    "progressCsvDesc": "Det samme slanke fremdriftsark som ren tekst. Til dig, der hellere vil arbejde med en CSV.",
-    "progressCsvShort": "Fremdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "udfyld: faktisk slutdato (som dato)",
       "readOnly": "ændr ikke",
       "plannedReadOnly": "planlagt, ændr ikke",
-      "completion": "udfyld: 0 til og med 100, hele tal",
-      "actualStart": "udfyld: faktisk startdato (dd-mm-åååå)",
-      "actualFinish": "udfyld: faktisk slutdato (dd-mm-åååå)",
       "summaryRow": "— hovedopgave: udfyld ikke"
     },
     "csvLabel": "CSV (semikolonsepareret)",

@@ -8,7 +8,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Opslaan** schrijft altijd IFC. Alleen een geopend IFC-bestand wordt het opslagdoel; een project uit een ander formaat heeft na het openen nog geen bestand en *Opslaan* vraagt dan waar het IFC-bestand moet komen.
 
-**Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, CSV en twee voortgangsbladen (Excel en CSV). Een export verandert je project niet.
+**Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, CSV en een voortgangsblad (Excel). Een export verandert je project niet.
 
 **Alleen lezen** zijn `.mpp` en `.xer`: de app kan ze openen, niet schrijven.
 
@@ -126,15 +126,15 @@ Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De
 
 **Wat niet meegaat** — resources, toewijzingen, kalenders, constraints, deadlines, baselines en de statusdatum. Staan de datums in de weergave *Datums zoals opgeslagen*, dan laat de export `Critical` en `Total Float` leeg voor taken waarvan het bronbestand dat niet vastlegde.
 
-## Voortgangsblad (Excel en CSV)
+## Voortgangsblad (Excel)
 
-**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*) of via de knop met die naam in de lintgroep *Voortgang* op *Planning*, *Tabel* en *Rapport*. De app leest `.xlsx` en `.csv`, tot 16 MB en 50.000 rijen. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
+**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*) of via de knop met die naam in de lintgroep *Voortgang* op *Planning*, *Tabel* en *Rapport*. De app leest alleen `.xlsx`, tot 16 MB en 50.000 rijen. Een `.csv` wordt niet gelezen; de app vraagt het blad als `.xlsx` op te slaan. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
 
 **Opslaan** — nee.
 
-**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst) en *Voortgangsblad (CSV)* (*Voortgang (CSV)*). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het Excel-blad met één klik. Het Excel-blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole; het CSV-blad is dezelfde inhoud als platte tekst.
+**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het blad met één klik. Het blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole.
 
-**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code. Het Excel-blad heeft ook een verborgen kolom `OPS Export` met de stand bij de export; de app vergelijkt daarmee wat er sindsdien veranderde en schrijft die kolom nooit naar een taak.
+**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code. Het blad heeft ook een verborgen kolom `OPS Export` met de stand bij de export; de app vergelijkt daarmee wat er sindsdien veranderde en schrijft die kolom nooit naar een taak.
 
 **Wat niet meegaat** — alles buiten deze kolommen: duur, relaties, resources en de rest van je planning. Een verzameltaak krijgt geen voortgang uit het blad.
 

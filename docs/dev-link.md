@@ -11,7 +11,7 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
   voorbeeldprojecten in `examples/`. `..`, een absoluut pad en een backslash worden geweigerd. Codeer
   bijzondere tekens in de URL (`%20` voor een spatie).
 - `progressSheet=<pad>` werkt samen met `open=`: na het openen start de voortgangsimport met dat blad al
-  ingelezen (`.xlsx` of `.csv`), zonder bestandskiezer.
+  ingelezen, zonder bestandskiezer.
 - `theme=light|dark` zet het thema voor deze sessie. De bewaarde voorkeur (`ops-theme`) blijft staan:
   een gewone herlaad zonder `theme=` toont weer het eigen thema. Kies je in de app zelf een thema, dan
   bewaart de app die keuze zoals altijd. `theme=` werkt ook zonder `open=`.

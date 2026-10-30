@@ -12,9 +12,7 @@ import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { isTauri } from '@/utils/platform';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
-// `parseProgressCsv` is de ENIGE module die van CSV weet; `sheetValues` is bestandsformaat-
-// agnostisch. Beide rechtstreeks uit hun eigen bestand — NIET via de barrel (`index.ts`).
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
+// Rechtstreeks uit het eigen bestand — NIET via de barrel (`index.ts`).
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type {
   DateOrder,
@@ -175,15 +173,13 @@ export function ProgressImportDialog() {
   );
 
   const loadSheet = async (res: { name: string; content: string; bytes?: Uint8Array }) => {
-    let parsed: ProgressSheet;
-    if (extensionOf(res.name) === 'xlsx') {
-      // Geen bytes terwijl de extensie `.xlsx` zegt ⇒ onleesbaar, nooit een gok.
-      if (!res.bytes) { setFileIssue('unreadable'); return; }
-      const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
-      parsed = await parseProgressXlsx(res.bytes);
-    } else {
-      parsed = parseProgressCsv(res.content);
-    }
+    const extension = extensionOf(res.name);
+    if (extension === 'csv') { setFileIssue('csvNotSupported'); return; }
+    // Geen `.xlsx` of geen bytes ⇒ onleesbaar, nooit een gok.
+    if (extension !== 'xlsx' || !res.bytes) { setFileIssue('unreadable'); return; }
+    // De xlsx-lezer laadt dynamisch: de ZIP/XLSX-code hoort niet in de hoofdbundel.
+    const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
+    const parsed: ProgressSheet = await parseProgressXlsx(res.bytes);
     if (parsed.fileIssue) {
       setFileIssue(parsed.fileIssue);
       return;
@@ -222,15 +218,10 @@ export function ProgressImportDialog() {
     // een geweigerde bestandspermissie, of onverwachte inhoud die de parser zelf niet als `fileIssue`
     // afvangt) zou anders een onafgehandelde promise-rejection zijn, zonder enige melding.
     try {
-      // De dialoog accepteert beide voortgangsformaten. `binaryExtensions` zorgt dat een
-      // `.xlsx` als bytes binnenkomt; de dispatch gaat op de EXTENSIE en niet op
-      // `res.bytes !== undefined` — `bytes` is een gevolg van die optie, niet een eigenschap van
-      // het bestand, dus duck-typen zou een vergeten optie stil de CSV-lezer op binaire rommel
-      // zetten. De xlsx-lezer laadt dynamisch: de ZIP/XLSX-code hoort niet in de hoofdbundel.
+      // `.csv` staat bewust in de filter: wie nog een CSV-blad heeft, ziet dat bestand en krijgt
+      // de uitleg dat het `.xlsx` moet zijn, in plaats van een lege map.
       const res = await openFileDialog(
-        [{ name: 'Progress sheet', extensions: ['xlsx', 'csv'] },
-         { name: 'Excel Workbook', extensions: ['xlsx'] },
-         { name: 'CSV Files', extensions: ['csv'] }],
+        [{ name: 'Progress sheet', extensions: ['xlsx', 'csv'] }],
         { binaryExtensions: ['xlsx'] },
       );
       if (!res) return;

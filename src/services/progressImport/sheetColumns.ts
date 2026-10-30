@@ -1,6 +1,5 @@
-// De kolomherkenning van het voortgangsblad, formaat-AGNOSTISCH. Zowel de CSV- als de XLSX-lezer
-// gebruikt deze ene tabel en deze ene matchregel; een kopie zou stil uit de pas lopen zodra er een
-// alias bijkomt. Niets in dit bestand weet van CSV, delimiters, ZIP of XML.
+// De kolomherkenning van het voortgangsblad. Niets in dit bestand weet van ZIP of XML: dat hoort bij
+// `parseProgressXlsx.ts`.
 
 import type {
   ProgressFileIssue,
@@ -27,14 +26,14 @@ export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   exportState: ['ops export'],
 };
 
-// Het geëxporteerde voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA
+// Het geëxporteerde voortgangsblad (`writeProgressSheetXLSX`) draagt per kolom een invulinstructie NA
 // de sleutel, gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers
 // snijdt de instructie van de sleutel af.
 export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
 
 /**
  * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (dekt zowel
- * oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het PREFIX vóór de
+ * oude bladen als een zelfgebouwd blad). Lukt dat niet, dan is de terugval het PREFIX vóór de
  * vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
  * `Completion (%) — invullen: …` — het haakje van "(%)" ligt vóór de "—", dus de afgesneden prefix
  * wordt "completion", een bestaande alias. Geen van beide treft ⇒ geen kolom.

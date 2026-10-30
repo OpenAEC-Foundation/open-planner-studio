@@ -18,7 +18,7 @@ Bewaart je browser alleen via een download (zoals Firefox), dan staat het bestan
 
 De lijst op het tabblad *Start* en de kaarten in *Bestand › Exporteren* bieden dezelfde formaten:
 
-- *Voortgang (Excel)* en *Voortgang (CSV)*, op de kaarten *Voortgangsblad (Excel)* en *Voortgangsblad (CSV)*: een slank blad met id, WBS, naam, datums en voltooiing, om rond te sturen naar wie de voortgang invult.
+- *Voortgang (Excel)*, op de kaart *Voortgangsblad (Excel)*: een slank blad met id, WBS, naam, datums en voltooiing, om rond te sturen naar wie de voortgang invult.
 - *CSV (;)*, op de kaart *CSV (puntkomma-gescheiden)*: een taaklijst die je in een spreadsheet opent.
 - *MS Project XML*: te openen in Microsoft Project.
 - *Primavera P6 XML*: voor Oracle Primavera P6.

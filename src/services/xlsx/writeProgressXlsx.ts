@@ -1,17 +1,12 @@
 /**
  * De `.xlsx`-schrijver voor het voortgangsblad.
  *
- * Waarom dit bestaat: de kolommen moeten zo breed zijn als de tekst erin, en een CSV kán dat niet —
- * geen breedte, geen opmaak, geen celtype. Dit blad heeft kolommen op maat, alleen de invulcellen
- * bewerkbaar, een percentage dat buiten 0–100 geweigerd wordt, en datums die als **datum** in de cel
- * staan zodat de terugimport nooit de dag/maand-vraag hoeft te stellen.
+ * Dit blad heeft kolommen op maat, alleen de invulcellen bewerkbaar, een percentage dat buiten 0–100
+ * geweigerd wordt, en datums die als **datum** in de cel staan zodat de terugimport nooit de
+ * dag/maand-vraag hoeft te stellen.
  *
  * De schrijver blijft **puur**: geen store, geen React, geen `@tauri-apps/*`, geen i18n. Alle
- * gebruikerszichtbare tekst komt van buiten via `ProgressXlsxText`, precies zoals
- * `writeProgressSheetCSV(tasks, headerNotes, summaryNote)` dat al doet. De rijvolgorde, de acht
- * kolomsleutels, de em-dash-markering van verzameltaken en de instructie-in-de-kopcel zijn
- * letterlijk hetzelfde als in de CSV — dit is een tweede SCHRIJVER op dezelfde afspraken, geen
- * tweede formaatdefinitie.
+ * gebruikerszichtbare tekst komt van buiten via `ProgressXlsxText`.
  *
  * ## De valstrikken die dit bestand dragen
  *
@@ -33,10 +28,9 @@
  * 4. **De instructietekst telt NIET mee in de kolombreedte.** Anders werd elke kolom 70+ tekens breed.
  *    De breedte volgt de data plus de kále kolomsleutel; de kopcel krijgt `wrapText` en de kopregel
  *    een vaste hoogte, zodat de instructie zichtbaar blijft zonder de kolom op te blazen.
- * 5. **Percentages gaan hier WÉL met decimalen.** De CSV gebruikt hele procenten omdat "8,38" door
- *    een programma met een andere landinstelling als 838 gelezen werd. In een `.xlsx`-cel staat een
- *    getal, geen tekst — die valstrik bestaat daar niet. Gevolg: een taak op 1/3 komt exact als no-op
- *    terug waar de CSV-round-trip een afrondingsverlies heeft.
+ * 5. **Percentages gaan met decimalen.** In een `.xlsx`-cel staat een getal, geen tekst, dus een
+ *    landinstelling kan "8,38" hier niet als 838 lezen. Gevolg: een taak op 1/3 komt exact als no-op
+ *    terug.
  * 6. **Geen `sharedStrings`-part**: `t="inlineStr"` scheelt een part en een indirectie. De LEZER moet
  *    `sharedStrings` wél aankunnen, want Excel herschrijft het bestand bij opslaan en gebruikt dan
  *    vrijwel altijd wél zo'n part.
@@ -46,16 +40,21 @@
  *    `exportedAt`: zonder dat argument blijft dit het blad met acht kolommen.
  */
 import type { Task } from '@/types/task';
-import type { ProgressSheetColumnKey } from '@/services/csv/csvWriter';
 import { encodeProgressExportState } from '@/services/progressImport/exportState';
 import { escapeXmlText, escapeXmlAttr } from '@/services/xlsx/xmlText';
 import { isoHasClock, isoToSerial } from '@/services/xlsx/serialDate';
 import { writeZip } from '@/services/zip/zipWriter';
 import { shownStart, shownFinish } from '@/utils/taskDates';
 
+/** Sleutels van het voortgangsblad, letterlijk — nooit vertaald: de lezer matcht hierop, dus de
+ *  sleutel zelf blijft in elke UI-taal Engels. Alleen de instructie ÁCHTER de sleutel varieert. */
+export type ProgressSheetColumnKey =
+  | 'OPS Task ID' | 'WBS' | 'Name' | 'Start' | 'Finish'
+  | 'Completion (%)' | 'Actual Start' | 'Actual Finish' | 'OPS Export';
+
 /** Alle gebruikerszichtbare tekst komt van BUITEN; de schrijver blijft puur (geen i18n in `services/`). */
 export interface ProgressXlsxText {
-  /** Instructie per kolomsleutel, ` — ` achter de kale sleutel geplakt — zelfde bron als de CSV. */
+  /** Instructie per kolomsleutel, ` — ` achter de kale sleutel geplakt. */
   headerNotes?: Partial<Record<ProgressSheetColumnKey, string>>;
   /** Markeertekst voor de drie invulcellen van een verzameltaak; MOET met een em-dash beginnen. */
   summaryNote?: string;
@@ -83,7 +82,7 @@ interface ColumnSpec {
   editable: boolean;
 }
 
-/** Exact de acht kolommen van `writeProgressSheetCSV`, in dezelfde volgorde. */
+/** De acht zichtbare kolommen, in bladvolgorde. */
 const COLUMNS: readonly ColumnSpec[] = [
   { key: 'OPS Task ID', kind: 'text', editable: false },
   { key: 'WBS', kind: 'text', editable: false },
@@ -144,8 +143,7 @@ function columnStyle(col: ColumnSpec): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Percentage met vier decimalen. `completion` is 0..1; de cel draagt 0..100 als GETAL, dus de
- * landinstellingen-valstrik van de CSV bestaat hier niet. Buiten bereik wordt geklemd in plaats van
+ * Percentage met vier decimalen. `completion` is 0..1; de cel draagt 0..100 als GETAL. Buiten bereik wordt geklemd in plaats van
  * geweigerd: dit is een export van eigen state, geen invoer.
  */
 function percentValue(completion: number): number {
@@ -208,7 +206,7 @@ function dataCell(ref: string, col: ColumnSpec, raw: string, marked: boolean): s
   return inlineStringCell(ref, col.editable ? STYLE.fillText : STYLE.roText, raw);
 }
 
-/** De acht rauwe celwaarden van één taak, in kolomvolgorde — spiegelt `writeProgressSheetCSV`. */
+/** De acht rauwe celwaarden van één taak, in kolomvolgorde. */
 function rowValues(task: Task, marked: boolean, summaryNote: string): readonly string[] {
   return [
     task.id,

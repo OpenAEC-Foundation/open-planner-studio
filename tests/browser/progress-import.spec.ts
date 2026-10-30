@@ -28,6 +28,7 @@ import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
 import { detectDateOrder } from '@/services/progressImport/sheetValues';
 import { writeProgressSheetXLSX } from '@/services/xlsx/writeProgressXlsx';
 import { parseZipEntries, writeZip } from '@/services/zip';
+import { xlsxFromText } from '../planning/progressSheetFixture';
 import type { Task } from '@/types/task';
 
 const DIALOG = '[data-ops-progress-import-dialog]';
@@ -68,10 +69,10 @@ async function openViaBackstage(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'file', backstageSection: 'import' });
   });
-  await expect(page.locator('[data-ops-progress-import-card]')).toContainText(/CSV.*XLSX/);
+  await expect(page.locator('[data-ops-progress-import-card]')).toContainText(/\.xlsx/);
   await page.locator('[data-ops-progress-import-card]').click();
   await expect(dialog(page)).toBeVisible();
-  await expect(dialog(page)).toContainText(/CSV.*XLSX/);
+  await expect(dialog(page)).toContainText(/\.xlsx/);
 }
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -89,8 +90,9 @@ async function chooseSheet(
   await chooser.setFiles({ name, mimeType, buffer });
 }
 
-async function chooseCsv(page: Page, csv: string, name = 'voortgang.csv'): Promise<void> {
-  await chooseSheet(page, name, 'text/csv', Buffer.from(csv, 'utf-8'));
+/** Een blad met alleen tekstcellen: `;` tussen de cellen, één regel per rij. */
+async function chooseTextSheet(page: Page, text: string): Promise<void> {
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, Buffer.from(await xlsxFromText(text)));
 }
 
 /** De bytes van een `download`-event als één Buffer. */
@@ -143,7 +145,7 @@ test('preview toont wijzigingen en weigeringen, annuleren laat het document onge
   ]);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     `${idA};40`,
     'niet-bestaand-id;40',
@@ -168,7 +170,7 @@ test('bevestigen past het blad toe en één Ctrl+Z draait het hele blad terug', 
   ]);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     `${idA};40`,
     `${idB};70`,
@@ -210,7 +212,7 @@ test('een losse rij handmatig koppelen laat hem meedraaien', async ({ page, ops:
   const infoB = await taskInfo(page, idB);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;WBS;Name;Completion (%)',
     'onbekend-id;;;55',
     'ander-project-id;DUBBEL;Bladtaak;65',
@@ -275,7 +277,7 @@ test('koppelkiezer met plaatshouder: bij openen geen actieve optie, Enter en Spa
     { name: 'Koppel-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-id;55',
     '',
@@ -312,7 +314,7 @@ test('een al gekoppelde taak is niet nog eens kiesbaar', async ({ page, ops: _op
   const info = await taskInfo(page, idA);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-1;40',
     'onbekend-2;60',
@@ -338,7 +340,7 @@ test('een bestand met alleen dubbelzinnige datums vraagt de volgorde', async ({ 
   // Geen "OPS Task ID"-kolom (WBS-koppeling i.p.v. id) — zonder id-match levert de ijkpuntregel
   // (A5.2, kalibratie) sowieso nul kandidaten, dus dit bestand kan NOOIT anders dan `ambiguous`
   // uitkomen zolang er minstens één niet-ISO datum met beide componenten ≤ 12 in staat.
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'WBS;Actual Start',
     `${info.wbsCode};3-4-2026`,
     '',
@@ -356,7 +358,7 @@ test('de keuze werkt door in de preview', async ({ page, ops: _ops }) => {
   const info = await taskInfo(page, idA);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'WBS;Actual Start',
     `${info.wbsCode};3-4-2026`,
     '',
@@ -384,6 +386,13 @@ test('de Tabel-tabknop opent dezelfde dialoog', async ({ page, ops: _ops }) => {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'table' }));
   await page.getByRole('button', { name: PROGRESS_IMPORT_BUTTON }).click();
   await expect(dialog(page)).toBeVisible();
+
+  // Het CSV-voortgangsblad bestaat niet meer (eigenaarsbesluit 2026-10-30): een CSV krijgt uitleg en
+  // de dialoog blijft op de bestandskeuze staan.
+  await chooseSheet(page, 'voortgang.csv', 'text/csv', Buffer.from('OPS Task ID;Completion (%)\r\ntaak;50\r\n', 'utf-8'));
+  await expect(dialog(page)).toContainText(/(can only be read as an Excel file|alleen als Excel-bestand gelezen)/);
+  await expect(dialog(page).getByRole('button', { name: CHOOSE_FILE })).toBeVisible();
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toHaveCount(0);
 });
 
 test('de knop staat niet op de Start-tab', async ({ page, ops: _ops }) => {
@@ -413,7 +422,7 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
   await expect.poll(() => state(page).then(s => s.activeDocumentId)).toBe(doc1Id);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-doc1;40',
     '',
@@ -467,7 +476,7 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
 // E7 (eigenaarsbesluit 2026-09-05): "ik wil gewoon op een knop in de planning tab kunnen klikken en
 // dan krijg ik de juiste [blad] met de juiste instellingen in mijn downloads" — de exportknop naast
 // de importknop in dezelfde `progressGroup`. Sinds issue #27 etappe 3 levert die knop een `.xlsx`
-// in plaats van een CSV (de CSV-variant blijft bereikbaar via Backstage → Exporteren); deze twee
+// (sinds #743 de enige vorm van het blad); deze twee
 // cases bewijzen de ECHTE handeling en de ECHTE terugweg.
 const EXPORT_BUTTON = /^(Export progress sheet|Voortgangsblad exporteren)$/;
 

@@ -1337,7 +1337,7 @@
   "progressImport": {
     "title": "Update progress from a spreadsheet",
     "chooseFile": "Choose file…",
-    "intro": "Pick a returned CSV or XLSX sheet. The app only reads completion, actual start and actual finish — the rest of your plan stays unchanged.",
+    "intro": "Choose a returned Excel sheet (.xlsx). The app reads only completion, actual start and actual finish — the rest of your schedule stays unchanged.",
     "summaryApplied": "Applied: {{applied}}",
     "summaryNoop": "Unchanged: {{noop}}",
     "summaryNeedsLink": "Waiting for a link: {{needsLink}}",
@@ -1371,7 +1371,8 @@
       "noKeyColumn": "This file has no “OPS Task ID” or “WBS” column to link rows to tasks.",
       "noProgressColumns": "This file has none of the Completion, Actual Start or Actual Finish columns.",
       "unreadable": "This file could not be read as a progress sheet.",
-      "encrypted": "This file is password-protected and cannot be read."
+      "encrypted": "This file is password-protected and cannot be read.",
+      "csvNotSupported": "A progress sheet can only be read as an Excel file. Open this CSV in Excel, save it as .xlsx and choose the file again."
     },
     "reason": {
       "unmatched": "No task found for this row.",

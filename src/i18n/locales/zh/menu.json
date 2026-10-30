@@ -363,17 +363,9 @@
     "progressXlsxNotes": {
       "completion": "请填写：0 到 100，允许小数",
       "actualStart": "请填写：实际开始日期（日期格式）",
-      "actualFinish": "请填写：实际完成日期（日期格式）"
-    },
-    "progressCsvLabel": "进度表（CSV）",
-    "progressCsvDesc": "同一份精简进度表的纯文本版——适合更习惯使用 CSV 的人。",
-    "progressCsvShort": "进度（CSV）",
-    "progressCsvNotes": {
+      "actualFinish": "请填写：实际完成日期（日期格式）",
       "readOnly": "请勿更改",
       "plannedReadOnly": "计划值，请勿更改",
-      "completion": "请填写：0 到 100 的整数",
-      "actualStart": "请填写：实际开始日期（日-月-年）",
-      "actualFinish": "请填写：实际完成日期（日-月-年）",
       "summaryRow": "— 摘要任务：请勿填写"
     },
     "csvLabel": "CSV（分号分隔）",

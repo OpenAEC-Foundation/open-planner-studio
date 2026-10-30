@@ -365,17 +365,9 @@
     "progressXlsxNotes": {
       "completion": "täytä: 0–100, desimaaliluvut sallittuja",
       "actualStart": "täytä: toteutunut alkamispäivä (päivämääränä)",
-      "actualFinish": "täytä: toteutunut valmistumispäivä (päivämääränä)"
-    },
-    "progressCsvLabel": "Edistymistaulukko (CSV)",
-    "progressCsvDesc": "Sama suppea edistymistaulukko pelkkänä tekstinä — sopii niille, jotka mieluummin työskentelevät CSV-tiedoston kanssa.",
-    "progressCsvShort": "Edistyminen (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "täytä: toteutunut valmistumispäivä (päivämääränä)",
       "readOnly": "ei muuteta",
       "plannedReadOnly": "suunniteltu, ei muuteta",
-      "completion": "täytä: 0–100, kokonaisluvut",
-      "actualStart": "täytä: toteutunut alkamispäivä (pp-kk-vvvv)",
-      "actualFinish": "täytä: toteutunut valmistumispäivä (pp-kk-vvvv)",
       "summaryRow": "— yhteenvetotehtävä: ei täytetä"
     },
     "csvLabel": "CSV (puolipisteillä erotettu)",

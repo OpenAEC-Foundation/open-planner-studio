@@ -1,5 +1,5 @@
-// Bestandsformaat-AGNOSTISCHE waarde-/detectielaag. Geen CSV-kennis hier — die hoort exclusief in
-// `parseProgressCsv.ts`; de XLSX-lezer levert hetzelfde `ProgressSheet`. `csvDateOrToday`
+// Waarde- en detectielaag van het voortgangsblad: een cel in Excel kan ook tekst zijn, dus een
+// datum of percentage komt hier als tekst binnen. `csvDateOrToday`
 // (importDates.ts) wordt hier BEWUST niet gebruikt: die geeft bij onherkenbare invoer stil "vandaag"
 // terug, en datums moeten altijd juist gelezen worden — stil raden is verboden.
 
@@ -272,12 +272,10 @@ export function detectDateOrder(
 
 /**
  * Markeercel: het geëxporteerde voortgangsblad zet in de drie invulcellen van een VERZAMELtaak een
- * gelokaliseerde tekst die met een em-dash (U+2014) begint — `writeProgressSheetCSV(tasks,
- * headerNotes, summaryNote)`. Een cel die daarmee begint telt als AFWEZIG (leeg), niet als
+ * gelokaliseerde tekst die met een em-dash (U+2014) begint (`ProgressXlsxText.summaryNote`). Een cel die daarmee begint telt als AFWEZIG (leeg), niet als
  * onleesbaar: het is geen invoer maar een instructie, en een ongewijzigd teruggestuurd blad mag daar
  * geen enkele weigering aan overhouden. De em-dash is gekozen omdat geen geldige datum- of
- * percentage-invoer ermee begint (een minteken is `-`, U+002D) en de markering zo
- * bestandsformaat-agnostisch blijft (XLSX levert dezelfde strings).
+ * percentage-invoer ermee begint (een minteken is `-`, U+002D).
  */
 function isMarkerCell(raw: string): boolean {
   return raw.trimStart().startsWith('\u2014');

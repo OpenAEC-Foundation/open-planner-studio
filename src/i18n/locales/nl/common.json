@@ -1337,7 +1337,7 @@
   "progressImport": {
     "title": "Voortgang bijwerken uit een blad",
     "chooseFile": "Bestand kiezen…",
-    "intro": "Kies een teruggestuurd CSV- of XLSX-blad. De app leest alleen voltooiing, werkelijke start en werkelijk einde — de rest van je planning blijft ongewijzigd.",
+    "intro": "Kies een teruggestuurd Excel-blad (.xlsx). De app leest alleen voltooiing, werkelijke start en werkelijk einde — de rest van je planning blijft ongewijzigd.",
     "summaryApplied": "Toegepast: {{applied}}",
     "summaryNoop": "Ongewijzigd: {{noop}}",
     "summaryNeedsLink": "Wacht op koppeling: {{needsLink}}",
@@ -1371,7 +1371,8 @@
       "noKeyColumn": "Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.",
       "noProgressColumns": "Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.",
       "unreadable": "Dit bestand kon niet als voortgangsblad worden gelezen.",
-      "encrypted": "Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen."
+      "encrypted": "Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen.",
+      "csvNotSupported": "Een voortgangsblad wordt alleen als Excel-bestand gelezen. Open deze CSV in Excel, sla hem op als .xlsx en kies het bestand opnieuw."
     },
     "reason": {
       "unmatched": "Geen taak gevonden voor deze rij.",

@@ -110,7 +110,6 @@ const recentsVerwacht: Record<ExportFormat, boolean> = {
   csv: true,
   mspdi: true,
   p6: true,
-  'progress-csv': false,
   'progress-xlsx': false,
 };
 for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, boolean][]) {
@@ -148,7 +147,7 @@ for (const format of ['mspdi', 'p6'] as ExportFormat[]) {
 }
 // IFC draagt de onderbreking (native formaat); de voortgangsbladen kennen geen stukken. CSV verliest
 // hem wél maar valt bewust (nog) buiten deze melding, die over MS Project/P6 gaat — zie docs/TODO.md.
-for (const format of ['ifc', 'csv', 'progress-csv', 'progress-xlsx'] as ExportFormat[]) {
+for (const format of ['ifc', 'csv', 'progress-xlsx'] as ExportFormat[]) {
   eq(`17 ${format}: geen melding`, exportSplitsLostNotice(format, S().tasks), null);
 }
 // Mét contour schrijven beide writers de onderbreking als spreiding mee ⇒ geen verlies, geen melding.

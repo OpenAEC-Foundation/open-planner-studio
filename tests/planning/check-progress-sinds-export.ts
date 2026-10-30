@@ -15,7 +15,6 @@
 import { useAppStore } from '@/state/appStore';
 import { hydratePayload, payloadFromImport } from '@/state/documentContract';
 import { decodeProgressExportState, encodeProgressExportState } from '@/services/progressImport/exportState';
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
 import { finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type { ProgressConflictChoice, ProgressPlanRow, ProgressRow } from '@/services/progressImport/types';
@@ -24,6 +23,7 @@ import { computedFinish, shownFinish } from '@/utils/taskDates';
 import { flattenOrder } from '@/utils/wbs';
 import type { Task } from '@/types/task';
 import { buildRichSchemaProject } from './ifcSchemaFixture';
+import { sheetFromText } from './progressSheetFixture';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -65,13 +65,13 @@ interface SheetLine {
   actualFinish?: string;
 }
 
-/** Een blad met de kolom `OPS Export`. De lezer is formaat-agnostisch; het `.xlsx` staat in Deel F. */
+/** Een blad met de kolom `OPS Export`, zonder ZIP. Het echte `.xlsx` staat in Deel F. */
 function readSheet(lines: readonly SheetLine[]): readonly ProgressRow[] {
   const header = 'OPS Task ID;WBS;Completion (%);Actual Start;Actual Finish;OPS Export';
   const body = lines.map(l => [
     l.task.id, l.task.wbsCode, l.completion ?? '', l.actualStart ?? '', l.actualFinish ?? '', l.state ?? '',
   ].join(';'));
-  const sheet = parseProgressCsv([header, ...body].join('\n'));
+  const sheet = sheetFromText([header, ...body].join('\n'));
   if (sheet.fileIssue) throw new Error(`testblad geweigerd: ${sheet.fileIssue}`);
   return finalizeProgressRows(sheet, 'dmy');
 }

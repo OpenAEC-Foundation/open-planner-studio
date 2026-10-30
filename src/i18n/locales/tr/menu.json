@@ -365,17 +365,9 @@
     "progressXlsxNotes": {
       "completion": "doldurun: 0 ile 100 arası, ondalık sayı kullanılabilir",
       "actualStart": "doldurun: gerçek başlangıç tarihi (tarih olarak)",
-      "actualFinish": "doldurun: gerçek bitiş tarihi (tarih olarak)"
-    },
-    "progressCsvLabel": "İlerleme sayfası (CSV)",
-    "progressCsvDesc": "Aynı sade ilerleme sayfasının düz metin hâli — CSV ile çalışmayı tercih edenler için.",
-    "progressCsvShort": "İlerleme (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "doldurun: gerçek bitiş tarihi (tarih olarak)",
       "readOnly": "değiştirmeyin",
       "plannedReadOnly": "planlanan, değiştirmeyin",
-      "completion": "doldurun: 0 ile 100 arası, tam sayı",
-      "actualStart": "doldurun: gerçek başlangıç tarihi (gg-aa-yyyy)",
-      "actualFinish": "doldurun: gerçek bitiş tarihi (gg-aa-yyyy)",
       "summaryRow": "— özet görev: doldurmayın"
     },
     "csvLabel": "CSV (noktalı virgülle ayrılmış)",

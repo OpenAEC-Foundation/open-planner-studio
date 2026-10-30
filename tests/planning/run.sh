@@ -1841,9 +1841,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
   PICHECK="$DIR/.progress-import.mjs"
   if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
-  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
-  PICSVCHECK="$DIR/.progress-import-csv.mjs"
-  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+  # …plus de waardelaag: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-sheet-values.mjs"
+  if bundle_check "$DIR/check-progress-sheet-values.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
   # CSV-lezer/-schrijver (audit import/export): "Completion (%)" via dezelfde percentageparser als de
   # voortgangsimport, de gedeelde prioriteit-default, uur-lags in de korte lag-notatie van de app en
   # de decimale komma waar die eenduidig is.

@@ -365,17 +365,9 @@
     "progressXlsxNotes": {
       "completion": "kitöltendő: 0–100, tizedes számok is megadhatók",
       "actualStart": "kitöltendő: tényleges kezdés (dátumként)",
-      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)"
-    },
-    "progressCsvLabel": "Előrehaladási lap (CSV)",
-    "progressCsvDesc": "Ugyanaz az egyszerű előrehaladási lap sima szövegként — azoknak, akik inkább CSV-vel dolgoznak.",
-    "progressCsvShort": "Előrehaladás (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)",
       "readOnly": "ne módosítsa",
       "plannedReadOnly": "tervezett, ne módosítsa",
-      "completion": "kitöltendő: 0–100, egész számok",
-      "actualStart": "kitöltendő: tényleges kezdés (nn-hh-éééé)",
-      "actualFinish": "kitöltendő: tényleges befejezés (nn-hh-éééé)",
       "summaryRow": "— összefoglaló tevékenység: ne töltse ki"
     },
     "csvLabel": "CSV (pontosvesszővel tagolt)",

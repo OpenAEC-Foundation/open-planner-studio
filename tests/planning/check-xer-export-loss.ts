@@ -317,10 +317,8 @@ installXer(makeXerFixture());
   };
   expect('mspdi op ditzelfde document geeft wél een categorie (anker voor het mutatiebewijs)',
     detectXerExportLoss('mspdi', lossInput).length === 1);
-  for (const format of ['progress-csv', 'progress-xlsx'] as const) {
-    expect(`${format}: een voortgangsblad krijgt nooit een XER-verliesmelding`,
-      detectXerExportLoss(format, lossInput).length === 0);
-  }
+  expect('progress-xlsx: een voortgangsblad krijgt nooit een XER-verliesmelding',
+    detectXerExportLoss('progress-xlsx', lossInput).length === 0);
 }
 
 const capMspdi = await store().exportAs('mspdi');

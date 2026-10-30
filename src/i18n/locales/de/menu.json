@@ -365,17 +365,9 @@
     "progressXlsxNotes": {
       "completion": "ausfüllen: 0 bis 100, Dezimalstellen erlaubt",
       "actualStart": "ausfüllen: tatsächliches Startdatum (als Datum)",
-      "actualFinish": "ausfüllen: tatsächliches Enddatum (als Datum)"
-    },
-    "progressCsvLabel": "Fortschrittsblatt (CSV)",
-    "progressCsvDesc": "Dasselbe schlanke Fortschrittsblatt als reiner Text — für alle, die lieber mit einer CSV arbeiten.",
-    "progressCsvShort": "Fortschritt (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "ausfüllen: tatsächliches Enddatum (als Datum)",
       "readOnly": "nicht ändern",
       "plannedReadOnly": "geplant, nicht ändern",
-      "completion": "ausfüllen: 0 bis 100, ganze Zahlen",
-      "actualStart": "ausfüllen: tatsächliches Startdatum (TT-MM-JJJJ)",
-      "actualFinish": "ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)",
       "summaryRow": "— Sammelvorgang: nicht ausfüllen"
     },
     "csvLabel": "CSV (semikolon-getrennt)",
