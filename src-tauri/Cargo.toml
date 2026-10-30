@@ -11,6 +11,8 @@ tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
 tauri-plugin-os = "2"
 tauri-plugin-updater = "2"
+# Bijwerken via de OpenAEC Installer (OpenAEC-Blueprint#33).
+openaec-update = { git = "https://github.com/OpenAEC-Foundation/openaec-installer", rev = "2b66f84" }
 # Directe dependency op de zip-crate om via feature-unification de deflate-
 # backend (pure-Rust flate2/miniz_oxide) te forceren. Zonder deze feature bouwt
 # tauri-plugin-updater's zip zonder deflate-decompressie en faalt de Windows-
