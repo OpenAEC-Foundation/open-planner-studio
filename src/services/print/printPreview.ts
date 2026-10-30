@@ -2778,8 +2778,14 @@ function drawFooter(
       const shownLayers = options.showBaselineOverlay
         ? layerOverlays.filter(l => printRows.some(row => row.kind === 'task' && row.task && l.overlay.has(row.task.id)))
         : [];
-      // Hetzelfde stukje strook als in de Gantt (issue #741): in elke stijl ook zonder kleur te lezen.
+      // Zonder stijl het vertrouwde blokje; met een stijl (issue #741) hetzelfde stukje strook als in de Gantt.
       const swatch = (slot: BaselineSlot) => (x: number) => {
+        if ((options.baselineMarkStyle ?? 'kleur') === 'kleur') {
+          d2d.fillStyle = printBaselineColor(slot);
+          d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(2));
+          d2d.fill();
+          return;
+        }
         paintBaselineSwatch(d2d, slot, x, midY - m.s(2), swatchW, m.s(4), {
           colorOf: printBaselineColor, stripeWidth: m.s(3), markStyle: options.baselineMarkStyle, withLabel: false,
         });
