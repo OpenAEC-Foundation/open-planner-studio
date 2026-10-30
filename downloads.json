@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-30T00:01:46.559Z",
-  "downloads": 3059,
+  "generatedAt": "2026-10-30T02:01:41.880Z",
+  "downloads": 3063,
   "releases": [
     {
       "tag": "v2026.43.0",
@@ -11,20 +11,20 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 225,
-          "update": 73,
+          "install": 227,
+          "update": 74,
           "both": 0,
           "byKind": {
-            "exe": 225,
-            "nsis.zip": 73
+            "exe": 227,
+            "nsis.zip": 74
           }
         },
         "macos": {
-          "install": 35,
+          "install": 36,
           "update": 24,
           "both": 0,
           "byKind": {
-            "dmg": 35,
+            "dmg": 36,
             "app.tar.gz": 24
           }
         },
@@ -40,7 +40,7 @@
           }
         }
       },
-      "polls": 712
+      "polls": 723
     },
     {
       "tag": "v2026.10.0",
@@ -85,11 +85,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1205,
+          "install": 1206,
           "update": 68,
           "both": 0,
           "byKind": {
-            "exe": 1205,
+            "exe": 1206,
             "nsis.zip": 68
           }
         },
@@ -854,20 +854,20 @@
   ],
   "totals": {
     "windows": {
-      "install": 1842,
-      "update": 278,
+      "install": 1845,
+      "update": 279,
       "both": 0,
       "byKind": {
-        "exe": 1842,
-        "nsis.zip": 278
+        "exe": 1845,
+        "nsis.zip": 279
       }
     },
     "macos": {
-      "install": 267,
+      "install": 268,
       "update": 97,
       "both": 0,
       "byKind": {
-        "dmg": 267,
+        "dmg": 268,
         "app.tar.gz": 97
       }
     },
@@ -883,7 +883,7 @@
       }
     }
   },
-  "polls": 5213,
+  "polls": 5224,
   "unknown": [
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
     "v2026.43.0: open-planner-studio_2026.43.0_amd64.snap.asc",
