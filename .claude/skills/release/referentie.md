@@ -45,7 +45,8 @@ De volledige lijst:
 Interne helperprocessen van deze opdrachten horen bij die stap; dit staat geen andere losse Node-opdracht toe.
 Tests (`npm test`, alle suites en browsertests), app-builds (`npm run build`, `tauri:*`), de volledige
 `npm run verify` en dev-servers blijven hier verboden. Ook geen andere installatie of `npx`.
-De verplichte volledige verify vóór de tag komt uit `ci.yml` op de exacte main-SHA.
+De verplichte volledige verify vóór de tag komt uit `ci.yml` op de exacte main-SHA:
+de pushrun plus de handmatig gestarte browserrun uit stap 3 van de skill.
 `release.yml` herhaalt de volledige verify na de tag, vóór publicatie. Bekijk die runs met `gh`.
 Gerichte tests en foutreproducties horen eveneens in PR-CI; sla geen check over en verzwak niets.
 
@@ -226,8 +227,8 @@ maakt de route naar een nieuwe opvolgversie vrij; een bestaande ongetagde opvolg
 
 ## CI herstellen
 
-Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en
-releaseworkflows na de tag. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
+Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI (ook de browserrun van
+stap 3), release-PR-CI en releaseworkflows na de tag. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
 
 ### Deadline en voortgang
 
@@ -267,7 +268,7 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
    De cijfercorrectie voegt zo precies één commit toe; bereken vanaf de actuele basis volgens
    [Releasecijfers](#releasecijfers). Na een inhoudelijke fix kan een aparte cijfercorrectie nodig zijn.
    Haal main opnieuw op en wacht op groene `ci.yml` met event `push`, branch `main` en exact de
-   merge-SHA. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
+   merge-SHA; de browserrun volgt in stap 3 van de skill op de SHA die je tagt. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
 5. Hervat pas daarna de release. Bij een rode release-PR: neem de fix via een gewone merge van
    main op in de bestaande releasebranch. Los conflicten op, behoud de kandidaatversie en vernieuw
    cijfers/JSON volgens [Releasecijfers](#releasecijfers). Ook een fout die alleen in de kandidaat

@@ -47,6 +47,7 @@ Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen
   Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
   verplaats, verwijder of push hem nooit opnieuw. Geen force-push, secretwijziging of ongepoort dispatch.
+  De handmatige browserrun van `ci.yml` in stap 3 is hierop de enige uitzondering: die publiceert niets.
 
 ## 2. Release-inhoud
 
@@ -102,6 +103,15 @@ Hiervoor is geen menselijke review nodig. Bewaak de basis en cijfers zoals in de
 
 Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede releasecommit.
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
+De pushrun draait geen browsertests (besluit eigenaar, 2026-10-30). Start ze zelf op dezelfde commit.
+Doe dit vóór de tag: de `gate` van `release.yml` vindt een rode test pas ná de onomkeerbare tag.
+```bash
+SHA=$(git rev-parse origin/main)
+gh workflow run ci.yml --ref main
+gh run list --workflow ci.yml --event workflow_dispatch --commit "$SHA" --json databaseId,status,conclusion
+```
+Eis `success` op exact `SHA`; die run blijft geldig bij hervatten, dus start dan geen tweede.
+Geen run op die SHA of rood: geen tag. Bij rood: volg CI herstellen.
 Controleer vóór de tag opnieuw dat `origin/main` nog die SHA heeft. Bij nieuwe commits:
 behoud kandidaatversie en voortgang; werk de basis, cijfers en CI bij zonder nieuwe bump.
 Draai op de releasecommit; vergelijk ook hier jaar, week en volgnummer numeriek met `PREV`:

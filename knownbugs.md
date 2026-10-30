@@ -1616,6 +1616,18 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
+550. **`release.yml` zegt nog dat `ci.yml` de hele poort draait.** Sinds #757 draait `ci.yml` de browsersuite
+     niet meer bij een PR of push. De opmerkingen op `release.yml:30` en `release.yml:76` zeggen dat nog wel.
+     #757 laat ze staan: elke wijziging aan `release.yml` start de teken-checks voor Windows en macOS. Voorstel:
+     meenemen bij de volgende inhoudelijke wijziging aan `release.yml`. Alleen tekst. — B
+
+551. **Een handmatige of geplande CI-run op main kan een wachtende deploy verdringen.** `live.yml` start na
+     elke afgeronde CI-run op main, ook als de job daarna overslaat omdat het event geen `push` is. De groep
+     `deploy-site` houdt één wachtende run vast. Loopt deploy A en wacht deploy B, dan vervangt zo'n lege run
+     deploy B, en die commit gaat pas live bij de volgende push. Niet gemeten; het vraagt drie runs in dezelfde
+     minuten. Voorstel: de `event`-eis in `live.yml` vóór de concurrency-groep brengen, of een eigen groep per
+     event. Gezien bij #757. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

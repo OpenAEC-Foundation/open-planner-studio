@@ -31,7 +31,7 @@ de `verify:i18n`-poort. De overige scripts draaien via hun npm-script in de kete
 
 | script | npm-script | doet |
 |---|---|---|
-| `verify-parts.mjs` | `.github/workflows/ci.yml` (job `verify`) | verdeelt de stappen van `npm run verify` — rechtstreeks gelezen uit `package.json` — over de parallelle CI-delen; een niet-ingedeelde stap valt in `static`. `--list` toont de indeling, `--check-ci` eist dat de CI-matrix elk deel draait en dat de browsershards samen precies `1/n` … `n/n` zijn |
+| `verify-parts.mjs` | `.github/workflows/ci.yml` (jobs `verify` en `browser`) | verdeelt de stappen van `npm run verify` — rechtstreeks gelezen uit `package.json` — over de parallelle CI-delen; een niet-ingedeelde stap valt in `static`. `--list` toont de indeling, `--check-ci` eist dat `ci.yml` elk deel in een matrix heeft en dat de browsershards samen precies `1/n` … `n/n` zijn |
 | `i18n-diff.mjs` | `verify:i18n` | ontbrekende vertaalsleutels t.o.v. `nl`, met CLDR-pluralcategorieën. Fout: een gat in `en`, of een halve meervoudsfamilie in welke taal ook. Rapport (exit 0, één regel per taal; `--verbose` noemt de sleutels): een sleutel die in een andere taal helemaal ontbreekt (besluit B5) |
 | `verify-i18n-keys.mjs` | `verify:i18n` | geen cast (`as 'a.b'`) op een vertaalsleutel in `src/`: zo'n cast zet de typecheck van die sleutel uit (`as const` mag); bewezen door `tests/planning/check-i18n-keys.ts` |
 | `i18n-fmt.ts` | `verify:i18n` (met `--check`) en `npm run i18n:fmt` (schrijven) | de vaste opmaak van alle 112 locale-bestanden: één sleutel per regel, volgorde van `nl`, meervoudsfamilies in CLDR-volgorde |

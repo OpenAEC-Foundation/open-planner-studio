@@ -27,6 +27,7 @@ When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the 
 - **`agent-ticket`**: the issue was created by an agent, not by a person. Always set it on issues you create (see `docs/agents/issue-tracker.md`).
 - **`in-progress`**: someone is working on it. This is the claim marker; assignees are not, because every issue is auto-assigned.
 - **`wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`**: used only by `/wayfinder`.
+- **`browsertests`**: on a pull request, runs the browser suite in CI, at once and on every next push. See *Testing pitfalls* in `AGENTS.md` for when an agent does this.
 - **`good first issue`, `help wanted`**: invitations to outside contributors. Set them only when a maintainer asks.
 
 New issues from people outside the project get `needs-triage` automatically (`.github/workflows/triage-new-issues.yml`).

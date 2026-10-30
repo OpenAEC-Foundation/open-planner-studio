@@ -1,7 +1,8 @@
 name: Deploy site
 
 # Deployt pas ná een geslaagde CI-run op `main`. Dit workflow draait zelf GEEN verify meer:
-# de uitkomst van `ci.yml` (alle verify-delen plus de Tauri-builds) is de poort. Eerder draaide
+# de uitkomst van `ci.yml` op die push (de verify-delen zonder browsersuite, plus de Tauri-builds) is
+# de poort. De geplande en handmatige browserruns van CI deployen niet: zie de `if` hieronder. Eerder draaide
 # hier een eigen, seriële `npm run verify`; dat duurde 31–45 min en haalde de grens van 45 min op
 # 2026-10-13 niet meer (run 38422479396: alle stappen groen, afgebroken 3 s voor het einde, deploy
 # overgeslagen), terwijl ci.yml dezelfde controles al parallel had gedraaid.

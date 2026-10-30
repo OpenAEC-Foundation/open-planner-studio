@@ -35,8 +35,10 @@ npm run verify
 ```
 
 That is the same definition, in `package.json`, that the release gate runs; CI runs
-exactly its steps, split over parallel jobs by `scripts/verify-parts.mjs`, and the site deploy waits for a green CI run on
-`main`. Agents (see `AGENTS.md`) run targeted checks locally and let CI run the full gate on a draft PR. The steps, in this order:
+its steps, split over parallel jobs by `scripts/verify-parts.mjs`, and the site deploy waits for a green CI run on
+`main`. CI leaves out the browser suite on an ordinary pull request or push: that suite runs weekly, before a release,
+with the label `browsertests` or on a manual start (see `AGENTS.md`). Agents run targeted checks locally and let CI run the
+gate on a draft PR. The steps, in this order:
 
 | component | what |
 |---|---|

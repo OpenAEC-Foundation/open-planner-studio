@@ -8,9 +8,10 @@
 
 ### How it was verified
 
-<!-- `npm run verify` is the gate — CI, the release gate and the deploy gate all
-     run it. Note below what you ran and what came out of it. Tested by hand in
-     the app? Say what you clicked. -->
+<!-- `npm run verify` is the gate. The release gate runs all of it; CI and the
+     deploy gate run it without the browser suite (see AGENTS.md). Note below what
+     you ran and what came out of it. Tested by hand in the app? Say what you
+     clicked. -->
 
 - [ ] `npm run verify` green
 

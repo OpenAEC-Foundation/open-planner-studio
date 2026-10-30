@@ -34,7 +34,7 @@ npm run build:platform -- --base /pad/   # platform build for the OpenAEC app on
 npm run build:core   # headless core package @openaec/open-planner-core → dist-core/ (not published)
 npm run build:mcp-server   # headless MCP server (planner_* tools without the app) → dist-mcp-server/server.mjs (not published)
 npm run build:mcpb   # Claude Desktop extension (MCP Bundle) → dist-mcpb/open-planner-studio-<version>.mcpb
-npm run verify       # THE gate — the same steps as CI (split in parallel), release and deploy gate
+npm run verify       # THE gate — the release gate; CI runs the same steps in parallel, the browser suite only on occasion (see Testing pitfalls)
 npm run typecheck    # tsc over src/ AND scripts/+tests/ — use this, not just build (incremental)
 npm run lint         # deliberately minimal ESLint (promises, control-regex, React hooks)
 npm run lint:fast    # same lint with a cache, for iterating; `lint` stays the gate
@@ -54,7 +54,8 @@ A new `check-*.ts` runs automatically (also in the timezone matrix); add your ow
 New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k lines) in full.
 
 **`npm run verify` is one definition, in `package.json`** — the release gate runs that line; ci.yml runs the same
-steps in parallel jobs via `scripts/verify-parts.mjs`, which reads them from that definition. The deploy (live.yml)
+steps in parallel jobs via `scripts/verify-parts.mjs`, which reads them from that definition, but not the browser
+suite on an ordinary PR or push (see *Testing pitfalls*). The deploy (live.yml)
 runs no verify of its own: it starts after a green ci.yml run on `main` (`workflow_run`) and only for the commit CI
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
@@ -120,8 +121,21 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   suppressions — no formatter, no style rules; `import/no-cycle` is deliberately absent (`verify:cycles` covers it).
 - Run the planning suite after every change to scheduling code. Run scoped tests and targeted checks
   freely while you work (table below). Do not run the full `npm run verify` locally before you push:
-  CI runs the full gate on every PR. Open a draft PR early and watch it with `gh pr checks --watch`; if a
-  check is red, fix it and push again. A red suite blocks both deploy and release.
+  CI runs the gate on every PR, without the browser suite. Open a draft PR early and watch it with
+  `gh pr checks --watch`; if a check is red, fix it and push again. A red suite blocks both deploy and release;
+  a red browser suite blocks the release, not the deploy.
+- **The browser suite does not run on an ordinary PR or a push to `main`** (owner decision 2026-10-30: CI minutes;
+  one run cost 74 minutes, 46 of them browser tests). `ci.yml` runs the full set every Monday morning on `main`,
+  and the release skill starts it just before the tag. A green PR therefore says nothing about the browser suite.
+  Turn it on for your own PR only when you think that is very important, for example for work on dragging, focus,
+  dialogs or saving. There are two ways, and both run in CI, never locally; a local run of the whole set is
+  no replacement (one targeted spec stays allowed, see the table below):
+  - the label `browsertests`: `gh api repos/OpenAEC-Foundation/open-planner-studio/issues/<nr>/labels -f 'labels[]=browsertests'`. It starts at once with a full
+    CI run and runs again on every push until you take the label off. `gh pr edit --add-label` fails in this
+    repo on a Projects deprecation error.
+  - a manual start: `gh workflow run ci.yml --ref <branch>`. It runs only the browser jobs, once, on any branch,
+    for the current tip of that branch. Find the result with
+    `gh run list --workflow ci.yml --event workflow_dispatch --branch <branch>`.
 - Browser tests use real browser events. The dev-only `window.__OPS__` bridge may set fixtures and read state,
   but never replace the user action under test.
 - **A new browser test extends an existing scenario first.** Every `test()` block starts the app again
@@ -150,7 +164,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 | Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
-| before push | the targeted checks above; the full `npm run verify` runs in CI on the PR |
+| before push | the targeted checks above; CI runs the rest of `npm run verify` on the PR, without the browser suite |
 
 ## Invariants that bite
 
@@ -325,8 +339,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   never edited by hand (`wiki` skill).
 - **Releases**: only via the `release` skill; a `v*` tag is irreversible and rolls out to all users
   (updater + Snap Store). The weekly Saturday job on aia09-mp50 runs that skill automatically,
-  without human approval before the tag (owner, conversation 2026-10-22). Green main CI and the
-  release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  without human approval before the tag (owner, conversation 2026-10-22). Green main CI, a green
+  browser run on the exact main SHA and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
   Saturday alongside that release. Also resume open release PRs and untagged versions on main without another bump,
   only when their candidate version is numerically newer than the previous release; otherwise stop.
