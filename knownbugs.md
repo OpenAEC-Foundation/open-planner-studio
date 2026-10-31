@@ -1320,6 +1320,13 @@ en noem het in je rapport of PR-tekst.
    aangepaste selectie die ook een `noop`-rij met `plannedShifts` toont. Gevonden in review van #756 (GPT-6.1-Sol),
    2026-10-31. — B
 
+587. **De gids legt de weigering van een rij die een behouden app-waarde zou veranderen, onvoldoende uit.**
+   `public/docs/nl/howto-voortgang-importeren.md:66` zegt dat andere wijzigingen op dezelfde rij gewoon meegaan. Dat geldt
+   niet als ze een behouden app-waarde zouden veranderen. Bij export 100 %, app heropend naar 50 % en een blad met een
+   ander einde eindigt *Blad overnemen* in `refused`, met alleen de algemene melding. Voorstel: één concreet voorbeeld
+   toevoegen: een werkelijk einde vereist 100 %, maar het nieuwere app-percentage blijft behouden. Gevonden in review van
+   #756 (GPT-6.1-Sol), 2026-10-31. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
