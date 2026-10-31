@@ -121,7 +121,10 @@ test('statusbalk: altijd één rij, en wat niet past blijft te vinden', async ({
 
   // De ⋯-knop toont wat verborgen is, ook bij aanwijzen: de echte tooltip, niet alleen het attribuut.
   await page.locator(MORE).hover();
-  await expect(page.locator('.ops-tooltip')).toContainText('Zoom:');
+  const tooltip = page.locator('.ops-tooltip');
+  await expect(tooltip).toContainText('Zoom:');
+  // Elke verborgen tekst op een eigen regel, ook in de weergave.
+  expect(await tooltip.evaluate(el => (el as HTMLElement).innerText)).toMatch(/Scale: \S+\nZoom:/);
   await page.mouse.move(400, 300);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWarningsPanel: false }));
 
