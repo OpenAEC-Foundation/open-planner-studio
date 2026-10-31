@@ -5,7 +5,7 @@
 // stijl van deze suite.
 //
 // Draait via run.sh. Exit 0 = alles groen.
-import { computeDistribution, type DistributionDocInput, type DistributionLevelRun } from '@/services/library/distribute';
+import { computeDistribution, type DistributionDocInput, type DistributionLevelRun, type DistributionShortfall } from '@/services/library/distribute';
 import { computeLibraryOccupancy } from '@/services/library/occupancy';
 import type { LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
@@ -870,6 +870,28 @@ console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09
   assert(doc !== undefined, 'samenvattingsrelatie: d1 in het voorstel');
   assert(JSON.stringify(doc?.delays) === '{}', `samenvattingsrelatie: geen onterechte vertraging (kreeg ${JSON.stringify(doc?.delays)})`);
   assert(!result.hasShortfall, 'samenvattingsrelatie: geen tekort');
+}
+
+// 322: gemengd document met twee botsende pins blijft een geldig voorstel zonder verzonnen zoekreden.
+{
+  const p = pool([poolRes('lib-1', 'Kraan', 1)]);
+  const doc = distDoc('pins', {
+    resources: [stamped('r', 'lib-1', 'c1', { maxUnits: 1 })],
+    tasks: [task('pin-a', '2026-08-03', '2026-08-03', 1, { priority: 1000 }),
+      task('pin-b', '2026-08-03', '2026-08-03', 1, { priority: 1000 }),
+      task('movable', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('a', 'pin-a', 'r', 1), assign('b', 'pin-b', 'r', 1), assign('c', 'movable', 'r', 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-1', [doc], OPTS_OFF);
+  const shortfalls = result.docs[0].shortfalls;
+  assert(result.hasShortfall, '322 pinconflicten maken het voorstel niet conflictvrij');
+  assert(shortfalls.length === 2, '322 beide pins houden een tekort');
+  for (const id of ['pin-a', 'pin-b']) {
+    const shortfall = shortfalls.find(s => s.taskId === id);
+    assert(shortfall?.reason === undefined, '322 geen verzonnen zoekreden voor een pin');
+    const expected: DistributionShortfall = { taskId: id, days: ['2026-08-03'] };
+    assert(JSON.stringify(shortfall) === JSON.stringify(expected), '322 conflictdag en optioneel redencontract blijven beschikbaar');
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

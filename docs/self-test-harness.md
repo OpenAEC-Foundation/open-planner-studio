@@ -34,8 +34,8 @@ De runner reserveert een afzonderlijke browserpoort per worktree, start en stopt
 Chromium headless shell met één worker en nul retries. Een gerichte run geeft argumenten door, bv.
 `npm run test:browser -- tests/browser/gantt-drag-undo.spec.ts` of
 `npm run test:browser -- --grep "documentwissel"`. Bij falen staan screenshot en trace in
-`test-results/` en het HTML-rapport in `playwright-report/`; de gedeelde CI-, live- en release-gates
-uploaden deze mappen als foutartefact.
+`test-results/` en het HTML-rapport in `playwright-report/`; de CI uploadt deze mappen als
+foutartefact.
 
 De scheidslijn is bindend: klikken, typen, slepen, scrollen, taal kiezen en documenttabs wisselen
 gebeurt met echte muis-, toetsenbord- en DOM-events. `window.__OPS__` mag vooraf deterministische

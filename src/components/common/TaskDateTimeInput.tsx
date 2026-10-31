@@ -68,7 +68,8 @@ export function timeStepValue(label: string, value: string, delta: number): stri
  * de tabel toont: alleen de datum als het moment op de dagrand van zijn kant valt, en datum plus tijd als
  * het midden op de werkdag valt.
  *  - Een datum zonder tijd typen: de store zet hem op de dagrand van het veld (D1 begin, D2 einde, D7
- *    mijlpaal), net als in de tabel en via MCP.
+ *    mijlpaal), net als in de tabel en via MCP. Een werkelijke datum van een mijlpaal krijgt de
+ *    klokketijd uit de planning (`normalizeActualDate`, besluit 2026-10-29).
  *  - Een tijd typen: dat moment, op de getoonde datum. De tijd leegmaken: terug naar de dagrand.
  *  - Een andere datum bij een getoonde tijd houdt die tijd (`dateCommitValue`).
  * De commit gaat via `onCommit`, zoals bij `DateTextInput` (`false` = geweigerd, het veld valt terug).

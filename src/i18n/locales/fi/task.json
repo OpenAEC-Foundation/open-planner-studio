@@ -594,7 +594,8 @@
     "customFieldSuffix": "mukautettu kenttä"
   },
   "tooltip": {
-    "status": "Tila"
+    "status": "Tila",
+    "baselineActive": "Aktiivinen"
   },
   "externalLinks": {
     "action": "Lisää ulkoinen riippuvuus…",

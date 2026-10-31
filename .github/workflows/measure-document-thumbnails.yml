@@ -1,0 +1,83 @@
+name: Documentminiaturen vergelijken
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'scripts/measure-document-thumbnails.mjs'
+      - 'tests/browser/document-switch.spec.ts'
+      - '.github/workflows/measure-document-thumbnails.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: document-thumbnails-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    # Bewuste opt-in via deze marker in de PR-omschrijving; geen extra werk op andere PR's.
+    if: contains(github.event.pull_request.body, '<!-- meet-documentminiaturen -->')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Maak bewijsmap vóór de basischeckout
+        run: |
+          mkdir -p evidence
+          printf '%s\n' "$EXPECTED_HEAD" > evidence/expected-head.txt
+          printf '%s\n' '1c4c8a2b629c1efcd070188a8368b108c4e289cf' > evidence/expected-base.txt
+      - uses: actions/checkout@v5
+        with:
+          ref: 1c4c8a2b629c1efcd070188a8368b108c4e289cf
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+      - name: Installeer exacte head en basis
+        id: install
+        timeout-minutes: 6
+        shell: bash
+        run: |
+          set -o pipefail
+          npm ci --prefix candidate 2>&1 | tee evidence/install-head.log
+          npm ci --prefix baseline 2>&1 | tee evidence/install-base.log
+          cd candidate
+          npx playwright install --with-deps --only-shell chromium 2>&1 | tee ../evidence/install-browser.log
+      - name: Controleer de uitgebreide documentroute op exacte head
+        timeout-minutes: 3
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/run-browser-tests.mjs tests/browser/document-switch.spec.ts 2>&1 | tee ../evidence/browser-route.log
+      - name: Vergelijk beide standen met hetzelfde harnas
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 34
+        shell: bash
+        run: |
+          set -o pipefail
+          node candidate/scripts/measure-document-thumbnails.mjs baseline candidate evidence 2>&1 | tee evidence/measurement.log
+      - name: Bewaar ook basisfouten en gedeeltelijke metingen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-thumbnails-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            evidence/
+            candidate/test-results/
+            candidate/playwright-report/
+          if-no-files-found: error
+          retention-days: 14

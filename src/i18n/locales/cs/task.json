@@ -602,7 +602,8 @@
     "customFieldSuffix": "vlastní pole"
   },
   "tooltip": {
-    "status": "Stav"
+    "status": "Stav",
+    "baselineActive": "aktivní"
   },
   "externalLinks": {
     "action": "Vazba mezi projekty…",

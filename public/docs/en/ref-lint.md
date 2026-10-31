@@ -5,6 +5,7 @@ The ribbon at the top of the screen has tabs, and each tab has groups of buttons
 ## How the ribbon behaves
 
 - **Tabs** — *File* is on the left, then *Home*, *Planning*, *Resources*, *View*, *Settings*, *Table*, *IFC*, *Report* and, only with the MCP connection on, *MCP*.
+- **Switch with the mouse wheel** — turn the mouse wheel over the tabs. Down goes to the next tab, up to the previous one. It stops at the first and the last tab. *File* is not included. Over the buttons, the wheel does nothing. To turn it off: *App settings*, *Appearance* tab, *Ribbon* section.
 - **Narrow window** — when the ribbon does not fit, buttons shrink to an icon from right to left. The name is then the tooltip on the button. Every button without its own tooltip shows its name.
 - **Collapse the ribbon** — the small arrow at the bottom right of the ribbon turns it into a flat strip with icons only. The *Baselines & progress* group and the *Connection* group on the MCP tab then disappear behind a single button with a pop-up. Default: expanded. Your choice is remembered.
 - **Extension buttons** — an extension can add its own group at the end of a tab. Such a button does what the extension gave it.
@@ -67,7 +68,7 @@ Clicking *File* makes a screen of its own (the Backstage) take over the workspac
 The *Calculate* button is the same as on *Home*.
 
 - **Move project…** — opens the *Move project* window. Disabled without a project start date. See [Moving a project](docs://howto-project-verplaatsen).
-- **Warnings** — shows or hides the *Warnings* panel in the right-hand column. The button lights up while you can see the panel. Turning it on expands a collapsed column. What is in it is described in [Notifications and warnings](docs://ref-meldingen).
+- **Warnings panel** — shows or hides the *Warnings* panel in the right-hand column. The button lights up while you can see the panel. Turning it on expands a collapsed column. What is in it is described in [Notifications and warnings](docs://ref-meldingen).
 
 ### Planning › Relations
 
@@ -174,7 +175,7 @@ This group is also on *Table* and *Report*.
 
 - **Properties** — shows or hides the *Properties* panel in the right-hand column. Default: on. See [Task dialog and properties panel](docs://ref-taak-eigenschappen).
 
-The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings* is the same as on *Planning*.
+The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Resources*, and *Warnings panel* is the same as on *Planning*.
 
 **The right-hand column.** The column to the right of the Gantt is there as soon as at least one of the panels *Properties*, *Resource dock* or *Warnings* is on. If none is on, there is no column. If a full panel takes over the workspace, for example the full resource panel, the column disappears. Only on the *Table* tab does it stay.
 
@@ -186,11 +187,13 @@ The *Resources*, *Resource dock* and *Histogram* buttons are the same as on *Res
 
 ### View › Baselines & progress
 
-This group has the same name as the one on *Planning*, but holds the drawing options of the Gantt.
+This group has the same name as the one on *Planning*, but holds the drawing options of the Gantt for baselines and progress.
 
-- **Baseline overlay** — shows the active baseline as a thin bar under each task bar. Default: on. Without an active baseline there is nothing to see.
+- **Baseline overlay** — a large button in two parts. The upper part shows or hides the active baseline as a narrow strip under each task bar. Default: on. Without an active baseline there is nothing to see. The arrow ▾ below it opens the menu *Show in the Gantt*: tick up to two extra baselines there. Where baselines cover the same days, the strip has diagonal stripes in their colours. The choice belongs to the project. See [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren).
 - **Progress line** — draws a line on the status date that bulges out per task to its progress. Default: on. Without a status date there is nothing to see. When the progress line is on, that line is also the marker of the status date.
 - **Status date line** — draws a dashed line on the status date. Default: on. You only see it when the progress line is off, because otherwise that line takes its place. The label with the date in the header stays as long as at least one of the two is on. The label follows your date notation, for example 20-09-2006. If the app calculates in hours, line and label sit at the time of day and the label also shows the time, for example 20-09-2006 17:00.
+### View › Bars
+
 - **Bar colors** — chooses how the bars are coloured: *Critical path* (default), *Per task — automatic* or *By category* with a choice of field. If that field is not in this project, the menu says that *Work category* is used temporarily. Outside *Critical path*, a red outline marks the critical path. The choice also applies to the report.
 - **Resource accent** — draws a thin strip in the resource colour under each leaf bar, divided in proportion to the units per day. Default: off.
 - **Float band** — draws the green band after a non-critical bar, up to the task's late finish. Default: on.

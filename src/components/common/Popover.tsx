@@ -50,10 +50,19 @@ export interface PopoverProps {
   panelClassName?: string;
   /** Extra stijl op de `position: relative`-container (bijv. `minWidth`). */
   containerStyle?: CSSProperties;
+  /**
+   * Begrens de paneelhoogte op de ruimte tussen de trigger en de onderkant van het venster
+   * (`maxHeight`, ook na een venstergrootte-wijziging). Het paneel zelf scrolt niet: de inhoud
+   * kiest welk deel scrolt (bv. een lijst tussen een vaste kop en voetregel).
+   */
+  fitViewport?: boolean;
 }
 
+/** Ruimte (px) die onder een {@link PopoverProps.fitViewport}-paneel vrij blijft. */
+const VIEWPORT_MARGIN = 8;
+
 export function Popover({
-  open, onClose, trigger, children, align = 'left', panelStyle, panelClassName, containerStyle,
+  open, onClose, trigger, children, align = 'left', panelStyle, panelClassName, containerStyle, fitViewport = false,
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -64,15 +73,28 @@ export function Popover({
   const [panelPos, setPanelPos] = useState<CSSProperties | null>(null);
   useLayoutEffect(() => {
     if (!open) { setPanelPos(null); return; }
-    const trigger = ref.current;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    setPanelPos(
-      align === 'right'
-        ? { top: rect.bottom, right: window.innerWidth - rect.right, minWidth: rect.width }
-        : { top: rect.bottom, left: rect.left, minWidth: rect.width },
-    );
-  }, [open, align]);
+    const place = () => {
+      const trigger = ref.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const marginTop = typeof panelStyle?.marginTop === 'number' ? panelStyle.marginTop : 0;
+      const fit: CSSProperties = fitViewport
+        ? { maxHeight: Math.max(120, window.innerHeight - rect.bottom - marginTop - VIEWPORT_MARGIN) }
+        : {};
+      setPanelPos(
+        align === 'right'
+          ? { top: rect.bottom, right: window.innerWidth - rect.right, minWidth: rect.width, ...fit }
+          : { top: rect.bottom, left: rect.left, minWidth: rect.width, ...fit },
+      );
+    };
+    place();
+    if (!fitViewport) return;
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+    // panelStyle.marginTop is een vaste waarde per site; een nieuw stijlobject per render mag de
+    // positie niet steeds opnieuw laten meten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, align, fitViewport]);
 
   return (
     <div ref={ref} style={{ position: 'relative', ...containerStyle }}>
