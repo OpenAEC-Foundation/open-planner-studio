@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { useDocumentCards, useDocumentActions, type DocumentCard } from './useDocumentCards';
 import { projectOverviewCloseButtonId, projectOverviewCloseFocusTarget } from './projectOverviewFocus';
@@ -88,7 +88,7 @@ export function ProjectOverview() {
               fontWeight: 600, cursor: 'pointer',
             }}
           >
-            <Plus size={14} />{t('documents.newOrOpenTitle')}
+            <Icon id="documents.new-or-open" size={14} />{t('documents.newOrOpenTitle')}
           </button>
         </div>
 
@@ -147,7 +147,7 @@ export function ProjectOverview() {
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--theme-text-muted)',
                   }}
                 >
-                  <X size={12} />
+                  <Icon id="document.close" size={12} />
                 </button>
               </div>
 

@@ -15,6 +15,7 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
 - `theme=light|dark` zet het thema voor deze sessie. De bewaarde voorkeur (`ops-theme`) blijft staan:
   een gewone herlaad zonder `theme=` toont weer het eigen thema. Kies je in de app zelf een thema, dan
   bewaart de app die keuze zoals altijd. `theme=` werkt ook zonder `open=`.
+- `tab=<tab>` opent die tab van het lint, bijv. `tab=planning` of `tab=beeld`. Werkt ook zonder `open=`.
 
 ## Hoe het werkt
 

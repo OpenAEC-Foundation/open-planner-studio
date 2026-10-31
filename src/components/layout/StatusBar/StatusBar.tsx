@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Terminal, Circle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
-import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
+import { AI_STATUS_COLOR, AI_STATUS_ICON } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { BaselineLegend } from '@/components/canvas/BaselineLegend';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
@@ -113,7 +113,7 @@ export function StatusBar() {
           title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
         >
-          <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
+          <Icon id={AI_STATUS_ICON[aiServerStatus.state]} size={10} style={{ color: AI_STATUS_COLOR[aiServerStatus.state] }} />
           <span>MCP</span>
         </button>
       )}
@@ -123,7 +123,7 @@ export function StatusBar() {
           title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
         >
-          <Terminal size={12} />
+          <Icon id="panel.debug-terminal" size={12} />
         </button>
       )}
     </div>

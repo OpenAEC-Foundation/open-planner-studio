@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import type { AppNotification, NotificationAction } from '@/state/slices/types';
 import { formatReportNumber } from '@/utils/reportNumber';
@@ -208,7 +208,7 @@ export function NotificationHost() {
             data-ops-toast-close=""
             onClick={() => dismissNotification(n.id)}
           >
-            <X size={14} aria-hidden="true" />
+            <Icon id="ui.close" size={14} aria-hidden="true" />
           </button>
           <div className="ops-toast-message">
             {t(n.messageKey, { ...n.params, ...localizedNumberParams(n.numberParams, i18n.language, n.messageKey === 'notifications.minuteModelConverted') })}

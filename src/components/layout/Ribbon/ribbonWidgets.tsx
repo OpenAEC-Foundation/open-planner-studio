@@ -3,13 +3,7 @@ import { Fragment, useCallback, useMemo, useState, useRef, useEffect } from 'rea
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import {
-  Diamond, Link, ZoomIn, ZoomOut, Trash2, Eye,
-  History, Download, Puzzle,
-  LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
-  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Palette,
-  Map as MapIcon, AlertTriangle, Plus,
-} from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
@@ -94,7 +88,7 @@ export function BaselinesProgressGroupContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+        <Icon id="planning.status-date" size={16} mono style={{ opacity: 0.6, flexShrink: 0 }} />
         <DateTextInput
           value={statusDate ?? ''}
           onCommit={v => setStatusDate(v || undefined)}
@@ -113,9 +107,9 @@ export function BaselinesProgressGroupContent() {
             title={tMenu('ribbon.statusDateClear')}
             aria-label={tMenu('ribbon.statusDateClear')}
             onClick={() => setStatusDate(undefined)}
-            style={{ padding: 2 }}
+            style={{ padding: 0 }}
           >
-            <X size={12} />
+            <Icon id="planning.clear-status-date" size={16} />
           </button>
         )}
       </div>
@@ -139,7 +133,7 @@ export function BaselinesProgressGroupContent() {
   if (!compact) {
     return (
       <>
-        <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+        <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
         {statusDateControl}
         {progressModeControl}
       </>
@@ -157,7 +151,7 @@ export function BaselinesProgressGroupContent() {
       }}
       trigger={
         <RibbonCompactTrigger
-          icon={<Flag size={14} />}
+          icon={<Icon id="planning.progress-menu" size={16} />}
           title={tMenu('ribbon.baselines')}
           ariaLabel={tMenu('ribbon.baselines')}
           onClick={() => setOpen(o => !o)}
@@ -169,7 +163,7 @@ export function BaselinesProgressGroupContent() {
         style={{ width: '100%' }}
         onClick={() => { onManageBaselines(); setOpen(false); }}
       >
-        <span className="ribbon-btn-icon"><GitCompareArrows size={14} /></span>
+        <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} /></span>
         <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
       </button>
       <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
@@ -273,7 +267,7 @@ export function MilestoneDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 200, padding: '4px 0' }}
       trigger={
         <button className="ribbon-btn" onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><Diamond size={20} /></span>
+          <span className="ribbon-btn-icon"><Icon id="task.milestone-menu" size={24} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.milestone')} ▾</span>
         </button>
       }
@@ -403,7 +397,7 @@ export function RelationDropdown() {
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="ribbon-btn-icon"><Link size={20} /></span>
+            <span className="ribbon-btn-icon"><Icon id="planning.relations-menu" size={24} /></span>
             <span className="ribbon-btn-label">{tMenu('ribbon.relation')} ▾</span>
           </button>
         }
@@ -454,7 +448,7 @@ export function TemplatesDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 240, maxWidth: 360, padding: '4px 0' }}
       trigger={
         <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><LayoutTemplate size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="wbs.templates" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
         </button>
       }
@@ -485,7 +479,7 @@ export function TemplatesDropdown() {
               title={tMenu('ribbon.deleteTemplate')}
               onClick={() => { deleteWbsTemplate(tpl.id); setTemplates(listWbsTemplates()); }}
             >
-              <Trash2 size={12} />
+              <Icon id="edit.delete" size={12} />
             </button>
           </div>
         ))
@@ -516,7 +510,7 @@ export function RecentFilesDropdown() {
           className="ribbon-btn small"
           onClick={() => setOpen(!open)}
         >
-          <span className="ribbon-btn-icon"><History size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="project.recent" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('backstage.recent')}</span>
         </button>
       }
@@ -568,7 +562,7 @@ export function ExportDropdown() {
           className="ribbon-btn small"
           onClick={() => setOpen(!open)}
         >
-          <span className="ribbon-btn-icon"><Download size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="file.export-options" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('backstage.export')}</span>
         </button>
       }
@@ -625,7 +619,7 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
                 icon={
                   <ExtensionIcon
                     raw={b.icon}
-                    fallback={<Puzzle size={20} />}
+                    fallback={<Icon id="extension.item" size={24} />}
                     style={{ display: 'inline-flex', width: 20, height: 20 }}
                   />
                 }
@@ -664,7 +658,7 @@ export function ResourceAssignDropdown() {
   const available = resources.filter(r => !assignedIds.has(r.id));
 
   if (!valid) {
-    return <RibbonButton icon={<UserPlus size={20} />} label={tMenu('ribbon.assignResource')} disabled />;
+    return <RibbonButton icon={<Icon id="resource.assign" size={24} />} label={tMenu('ribbon.assignResource')} disabled />;
   }
 
   return (
@@ -674,7 +668,7 @@ export function ResourceAssignDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 200, maxHeight: 300, overflowY: 'auto', padding: '4px 0' }}
       trigger={
         <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><UserPlus size={20} /></span>
+          <span className="ribbon-btn-icon"><Icon id="resource.assign" size={24} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')} ▾</span>
         </button>
       }
@@ -775,7 +769,7 @@ export function ScreenColorsPopoverButton() {
           data-ops-bar-colors-toggle
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Palette size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="planning.bar-colors" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.screenColors')}</span>
         </button>
       }
@@ -857,7 +851,7 @@ export function GroupPopoverButton() {
           aria-label={tMenu('ribbon.group')}
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Layers size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.group-by" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.group')}</span>
         </button>
       }
@@ -904,7 +898,7 @@ export function SortPopoverButton() {
           aria-label={tMenu('ribbon.sort')}
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><ArrowUpDown size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.sort-fields" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.sort')}</span>
         </button>
       }
@@ -983,7 +977,7 @@ export function LayoutGroupContent() {
                 onContextMenu={e => { e.preventDefault(); setMenuId(layout.id); }}
               >
                 <RibbonButton
-                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined))}
+                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined), 24)}
                   label={layout.name}
                   active={activeIds.has(layout.id)}
                   onClick={() => toggleLayout(layout)}
@@ -1012,7 +1006,7 @@ export function LayoutGroupContent() {
         );
       })}
       <RibbonButton
-        icon={<Plus size={20} />}
+        icon={<Icon id="layout.manage" size={24} />}
         label={tMenu('ribbon.addLayout')}
         onClick={() => setUI({ showLayoutsDialog: true, layoutDialogTargetId: null })}
       />
@@ -1048,21 +1042,21 @@ export function PresentationGroupContent() {
   return (
     <RibbonButtonStack>
       <RibbonSmallButton
-        icon={presentationMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        icon={presentationMode ? <Icon id="view.fullscreen-exit" size={16} /> : <Icon id="view.fullscreen" size={16} />}
         label={tMenu('ribbon.presentationMode')}
         title={tMenu('ribbon.presentationMode')}
         onClick={() => setPresentationMode(!presentationMode)}
         active={presentationMode}
       />
       <RibbonSmallButton
-        icon={<SplitSquareHorizontal size={14} />}
+        icon={<Icon id="view.gantt-split" size={16} />}
         label={tMenu('ribbon.splitView')}
         title={tMenu('ribbon.splitView')}
         onClick={toggleSplitView}
         active={!!splitView}
       />
       <RibbonSmallButton
-        icon={<MapIcon size={14} />}
+        icon={<Icon id="view.minimap" size={16} />}
         label={tMenu('ribbon.miniMap')}
         title={tMenu('ribbon.miniMap')}
         onClick={toggleMiniMap}
@@ -1088,18 +1082,18 @@ export function TimeScaleGroupContent() {
 
   const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
     </>
   );
   const resetFitButtons = (
     <>
-      <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
       {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
           takentabel volledig gevuld is. `requestFitToProject` is dezelfde
           pendingFit-route als na het openen van een bestand — GanttCanvas kent de
           viewport-breedte en voert de echte berekening uit. */}
-      <RibbonSmallButton icon={<Maximize2 size={14} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
+      <RibbonSmallButton icon={<Icon id="view.fit" size={16} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
   );
   const dropdown = (
@@ -1216,13 +1210,13 @@ function SavedFilterDropdown() {
           title={tMenu('ribbon.filter')}
           aria-label={tMenu('ribbon.filter')}
         >
-          <span className="ribbon-btn-icon"><Filter size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.filter')} ▾</span>
         </button>
       }
     >
       <button className="ribbon-btn small" style={{ width: '100%' }} onClick={() => { setUI({ showFilterDialog: true }); setOpen(false); }}>
-        <span className="ribbon-btn-icon"><Filter size={14} /></span>
+        <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} /></span>
         <span className="ribbon-btn-label">{tMenu('ribbon.filter')}</span>
       </button>
       {filter !== null && (
@@ -1245,7 +1239,7 @@ export function DisplayGroupContent() {
 
   return (
     <div className="ribbon-display-grid icons">
-      <RibbonSmallButton icon={<Columns3 size={14} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
+      <RibbonSmallButton icon={<Icon id="table.columns" size={16} />} label={tMenu('ribbon.columns')} title={columns.title} onClick={columns.onClick} />
       <SavedFilterDropdown />
       <GroupPopoverButton />
       <SortPopoverButton />
@@ -1273,7 +1267,7 @@ export function OverallocationIndicator() {
       display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px',
       color: overallocatedCount > 0 ? 'var(--error)' : 'var(--theme-text-dim)',
     }}>
-      {overallocatedCount > 0 && <AlertTriangle size={16} />}
+      {overallocatedCount > 0 && <Icon id="status.resource-overallocated" size={16} />}
       <span>
         {overallocatedCount > 0
           ? tMenu('ribbon.overallocationCount', { count: overallocatedCount })

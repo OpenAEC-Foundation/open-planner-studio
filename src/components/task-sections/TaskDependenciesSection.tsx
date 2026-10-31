@@ -12,7 +12,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
-import { Check, CircleHelp, Plus, Trash2, X, Zap } from 'lucide-react';
+import { Icon } from '@/components/icons';
 
 interface HoverState { x: number; y: number; task: Task; }
 
@@ -191,11 +191,11 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   title={t('properties.drivingUnknown')}
                   style={{ color: 'var(--theme-text-muted)' }}
                 >
-                  <CircleHelp size={10} aria-hidden />
+                  <Icon id="planning.driving-unknown" size={10} aria-hidden />
                 </span>
               ) : isDriving && (
                 <span title={t('properties.driving')} style={{ color: 'var(--theme-accent)' }}>
-                  <Zap size={10} />
+                  <Icon id="planning.driving" size={10} />
                 </span>
               )}
             </span>
@@ -219,7 +219,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               className="dependency-remove-button justify-self-center"
               style={{ color: 'var(--error)' }}
             >
-              <Trash2 size={10} />
+              <Icon id="edit.delete" size={10} />
             </button>
           </div>
           {focusedSequenceId === seq.id && (
@@ -312,7 +312,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               className="dependency-remove-button"
               onClick={() => setDraft(null)}
             >
-              <X size={10} />
+              <Icon id="ui.close" size={10} />
             </button>
           </div>
           <div className="dependency-row !text-small">
@@ -348,7 +348,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               style={{ color: draft.otherTaskId ? 'var(--theme-accent)' : 'var(--theme-text-muted)' }}
               onClick={commitDraft}
             >
-              <Check size={10} />
+              <Icon id="input.confirm-draft" size={10} />
             </button>
           </div>
           {draftOther && (
@@ -366,7 +366,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
           className="dependency-add-button"
           onClick={() => setDraft({ ...EMPTY_DRAFT })}
         >
-          <Plus size={10} />
+          <Icon id="planning.dependency-add" size={10} />
           {t('properties.addRelation')}
         </button>
       ))}

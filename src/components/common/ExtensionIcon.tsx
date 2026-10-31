@@ -13,7 +13,7 @@ import { sanitizeSvgIcon } from '@/utils/sanitizeSvgIcon';
 interface ExtensionIconProps {
   /** Ruwe icoonstring uit extensiedata (manifest, importer-registratie, ribbonknop). Ongefilterd. */
   raw: string | null | undefined;
-  /** Wat er getoond wordt als er geen veilig icoon overblijft (lucide-icoon van de aanroeper). */
+  /** Wat er getoond wordt als er geen veilig icoon overblijft (icoon van de aanroeper). */
   fallback: ReactNode;
   style?: CSSProperties;
 }

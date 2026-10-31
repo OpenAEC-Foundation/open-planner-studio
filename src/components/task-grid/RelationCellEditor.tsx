@@ -11,7 +11,7 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CircleHelp, Zap } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
@@ -167,7 +167,7 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
               {item.driving && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--driving" title={t('relations.driving')}>
-                  <Zap size={10} aria-label={t('relations.driving')} />
+                  <Icon id="planning.driving" size={10} aria-label={t('relations.driving')} />
                 </span>
               )}
               {item.kind === 'internal' && item.driving === undefined && (
@@ -178,12 +178,12 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                   aria-label={t('properties.drivingUnknown')}
                   style={{ color: 'var(--theme-text-muted)' }}
                 >
-                  <CircleHelp size={10} aria-hidden />
+                  <Icon id="planning.driving-unknown" size={10} aria-hidden />
                 </span>
               )}
               {item.warnings.length > 0 && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--warning" title={relationWarningTexts(item, t).join(' · ')}>
-                  <AlertTriangle size={10} aria-label={t('relations.warnings')} />
+                  <Icon id="status.warning" size={10} aria-label={t('relations.warnings')} />
                 </span>
               )}
             </span>

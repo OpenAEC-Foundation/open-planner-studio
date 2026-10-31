@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Undo2 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { formatReportNumber } from '@/utils/reportNumber';
@@ -99,7 +99,7 @@ export function ScheduleShiftPanel() {
             className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-primary flex-shrink-0"
             data-ops-shift-undo
           >
-            <Undo2 size={12} />
+            <Icon id="edit.undo" size={12} />
             <span>{t('scheduleShift.undo')}</span>
           </button>
         )}

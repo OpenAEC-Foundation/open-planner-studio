@@ -1,0 +1,62 @@
+/* B2-iconen uit de OpenAEC Style Repo (huisstijl 0.4), gerenderd door `Icon.tsx`.
+   Volgt `.oa-icon` uit `web/openaec-components.css` van de Style Repo: hoofdkleur `currentColor`,
+   accent via `--icon-accent`. Tot de thema's op de `--oa-*`-tokens staan (fase B van
+   docs/superpowers/specs/2026-10-23-openaec-style-repo-harmonisatie.md) komt het accent uit `--theme-accent`. */
+
+.oa-icon {
+  flex: none;
+  color: inherit;
+  --icon-accent: var(--theme-accent);
+}
+
+/* Alles in de hoofdkleur: op een gekleurd vlak (actieve lintknop, primaire knop) of bij uitgeschakeld. */
+.oa-icon--mono,
+:disabled > .oa-icon,
+[aria-disabled='true'] > .oa-icon {
+  --icon-accent: currentColor;
+}
+
+/* Statusiconen kleuren mee met de themarol (Style Repo `semantic_color`); de rol wint van `currentColor`. */
+.oa-icon--error { color: var(--theme-critical-text); }
+.oa-icon--warning { color: var(--theme-warning-text); }
+.oa-icon--success { color: var(--theme-success-text, #16a34a); }
+.oa-icon--info { color: var(--theme-info-text, #2563eb); }
+.oa-icon--text-secondary { color: var(--theme-text-dim); }
+.oa-icon--error,
+.oa-icon--warning,
+.oa-icon--success,
+.oa-icon--info,
+.oa-icon--text-secondary {
+  --icon-accent: currentColor;
+}
+
+/* Lint: op een gevulde knop (actief, primair, gevaar bij hover) en op een uitgeschakelde knop tekent het
+   accentdeel in de hoofdkleur, anders verdwijnt het accent tegen de accentachtergrond. */
+.ribbon-btn.active .oa-icon,
+.ribbon-btn.primary .oa-icon,
+.ribbon-btn.danger:hover .oa-icon,
+.ribbon-btn.disabled .oa-icon,
+.ribbon-btn:disabled .oa-icon {
+  --icon-accent: currentColor;
+}
+
+/* Alleen hele mastermaten (16 of 24 px): een B2-master die verkleind wordt (de mini-stand van het lint
+   zette 15 px), valt met zijn lijnen van 1,25 px nog verder buiten het pixelraster en wordt vaag.
+   Meting en achtergrond: https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/35 */
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Een groot icoon (24 px-master) draagt ook de 16 px-master mee. Zet het lint hem op 16 px, dan tekent de
+   16 px-master op ware grootte in plaats van de 24 px-master verkleind (te dunne lijnen naast het raster). */
+.oa-icon__m16 { display: none; }
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m16,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m16 { display: inline; }
+.ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m24,
+.ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m24 { display: none; }
+
+/* De grote gesplitste knop blijft in de mini-stand een groot pictogram, dus op zijn 24 px-master. */
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m16 { display: none; }
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m24 { display: inline; }

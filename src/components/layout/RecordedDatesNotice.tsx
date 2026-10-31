@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { CircleDot } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 import { recordedDatesActiveKey } from './recordedDatesNoticeText';
@@ -37,7 +36,7 @@ export function RecordedDatesNotice() {
   // staat in de React-vrije `recordedDatesActiveKey` zodat ze headless getest kan worden.
   return (
     <NoticeStrip
-      icon={CircleDot}
+      icon="status.recorded-dates"
       text={recordedDates && recordedDates.shifted !== undefined
         ? t(recordedDatesActiveKey(recordedDates.origin), { count: recordedDates.shifted })
         : t('recordedDates.active')}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pause, Play, Trash2, X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { appLog, LogEntry, LogLevel } from '@/services/debug/appLog';
 import { useAppStore } from '@/state/appStore';
 import { createSnapshotStore, DashboardIconButton, DashboardPanel, formatClockTime } from './DashboardPanel';
@@ -117,13 +117,13 @@ export function DebugTerminal() {
           onClick={() => setPaused(p => !p)}
           title={paused ? t('debugTerminal.resume') : t('debugTerminal.pause')}
         >
-          {paused ? <Play size={12} /> : <Pause size={12} />}
+          {paused ? <Icon id="log.resume-view" size={12} /> : <Icon id="log.pause-view" size={12} />}
         </DashboardIconButton>
         <DashboardIconButton onClick={() => appLog.clear()} title={t('debugTerminal.clear')}>
-          <Trash2 size={12} />
+          <Icon id="activity.clear" size={12} />
         </DashboardIconButton>
         <DashboardIconButton onClick={() => setUI({ debugTerminalOpen: false })} title={t('close')}>
-          <X size={12} />
+          <Icon id="ui.close" size={12} />
         </DashboardIconButton>
       </>}
     >

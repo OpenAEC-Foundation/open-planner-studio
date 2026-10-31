@@ -1813,3 +1813,6 @@ en noem het in je rapport of PR-tekst.
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
+
+590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Weghalen
+     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B

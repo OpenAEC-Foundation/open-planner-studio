@@ -102,7 +102,7 @@ De stappen voor gebruikers staan in de in-app gids *AI-assistent koppelen*.
 
 ### 8. UI en het OpenAEC-stijlboek
 
-De UI is eigen code: eigen ribbon, backstage, titel- en statusbalk en dialogen, met `lucide-react`-iconen.
+De UI is eigen code: eigen ribbon, backstage, titel- en statusbalk en dialogen, met de iconen uit de OpenAEC Blueprint.
 De app gebruikt geen pakketten uit het stijlboek (`@openaec/design-tokens`, `@openaec/ribbon`,
 `@openaec/shell`, `@openaec/ui-primitives`, versie 0.1.0, niet op npm) en ook niet `openaec-ui`.
 

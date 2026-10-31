@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, Plus } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useDocumentCards, useDocumentActions, type DocumentCard } from './useDocumentCards';
 import './DocumentChrome.css';
 
@@ -16,7 +16,7 @@ export function ProjectRail() {
   return (
     <div className="ops-rail" data-ops-rail>
       <button className="ops-iconbtn ops-rail-grid" title={t('documents.allProjects')} onClick={openOverview}>
-        <LayoutGrid size={20} />
+        <Icon id="documents.overview" size={20} />
       </button>
       <div className="ops-rail-sep" />
 
@@ -36,7 +36,7 @@ export function ProjectRail() {
       ))}
 
       <button className="ops-rail-add" title={t('documents.newOrOpenTitle')} onClick={chooseNewOrOpenProject}>
-        <Plus size={16} />
+        <Icon id="documents.new-or-open" size={16} />
       </button>
 
       {hover && (
