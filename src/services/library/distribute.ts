@@ -98,7 +98,8 @@ export type DistributionBlockReason = 'UNCOUNTED_DOCUMENT' | 'MATERIAL_ITEM' | '
 
 export interface DistributionShortfall {
   taskId: string;
-  reason: LevelingReason;
+  /** Ontbreekt bij vastgepinde taken: die zijn niet verplaatst en hebben geen zoekreden. */
+  reason?: LevelingReason;
   /** De dagen waarop het niet paste (uit `LevelingResult.unresolved`). */
   days: string[];
 }

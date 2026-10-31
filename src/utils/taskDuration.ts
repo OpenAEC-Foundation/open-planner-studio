@@ -193,12 +193,14 @@ export function formatMeasuredDurationText(duration: MeasuredDuration, hoursPerD
 
 /**
  * De resterende duur van een urentaak in MINUTEN — dezelfde bron als de planning (`CPMSolver`,
- * IN-PROGRESS-tak): `remainingMinutes` als die er is, anders duur × (1 − voortgang). Voltooid ⇒ 0.
- * `remainingTime` is voor een urentaak onbruikbaar als weergave: `applyProgressInvariants` rondt hem
- * op HELE dagen af, dus een taak van 5h op 40% stond als "0" terwijl er 3 uur werk openstaat.
+ * IN-PROGRESS-tak): `remainingMinutes` als die er is, anders duur × (1 − voortgang).
+ * Voltooide status of werkelijk einde ⇒ 0.
+ * Een lopende importtaak op 100 % kan nog een expliciete bronrest hebben.
+ * `remainingTime` is voor een urentaak onbruikbaar als weergave: `applyProgressInvariants` rondde hem
+ * vroeger op hele dagen af, dus een taak van 5h op 40% stond als "0" terwijl er 3 uur werk openstaat.
  */
 export function remainingTaskMinutes(task: Task): number {
-  if (task.time.completion >= 1 || task.time.actualFinish) return 0;
+  if (task.status === 'COMPLETED' || task.time.actualFinish) return 0;
   return Math.max(0, task.time.remainingMinutes
     ?? Math.round((task.time.durationMinutes ?? 0) * (1 - task.time.completion)));
 }

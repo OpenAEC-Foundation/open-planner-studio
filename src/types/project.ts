@@ -68,7 +68,9 @@ export interface SchedulingOptions {
     threshold?: number;
     thresholdHours?: number;
   };
-  /** TF-berekeningswijze: 'start' = LS−ES, 'finish' = LF−EF, 'smallest' = min(beide) (P6-modus).
+  /** TF-berekeningswijze: 'start' = LS−ES, 'finish' = LF−EF, 'smallest' = min(beide) (P6-keuze
+   *  `FT_MIN`). Het P6-profiel en de XER-lezer zetten standaard 'finish' (`p6OptionDefaults`; een
+   *  lege of onbekende `sched_float_type` valt ook op 'finish').
    *  Afwezig = *Automatisch*: finish-float bij statusdatum én gestarte taak, anders het minimum
    *  (`scheduleAnalysis.ts`). Met een statusdatum is dat de regel van MS Project; zonder statusdatum
    *  telt voortgang niet mee (MSP neemt dan voor een gestarte taak nog steeds de finish slack). Ook de

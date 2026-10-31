@@ -16,6 +16,9 @@ Daarnaast bestaat de app-eigen MCP-bridge (Tier 1½, hieronder): geen dev-only t
 echte AI-assistent-oppervlak van de app (de `planner_*`-tools) — Tauri-only en een bewuste
 gebruikerskeuze (`ui.aiMode`), geen vervanging van Tier 1 of 2.
 
+Een testbestand met één link openen voor handmatige controle (`?open=examples/…&theme=dark`, alleen dev-server):
+zie [`dev-link.md`](dev-link.md).
+
 ## Gecommitteerde browserpoort
 
 De vaste regressiesuite staat in `tests/browser/` en draait als vijfde gedragssuite achter zowel
@@ -31,8 +34,8 @@ De runner reserveert een afzonderlijke browserpoort per worktree, start en stopt
 Chromium headless shell met één worker en nul retries. Een gerichte run geeft argumenten door, bv.
 `npm run test:browser -- tests/browser/gantt-drag-undo.spec.ts` of
 `npm run test:browser -- --grep "documentwissel"`. Bij falen staan screenshot en trace in
-`test-results/` en het HTML-rapport in `playwright-report/`; de gedeelde CI-, live- en release-gates
-uploaden deze mappen als foutartefact.
+`test-results/` en het HTML-rapport in `playwright-report/`; de CI uploadt deze mappen als
+foutartefact.
 
 De scheidslijn is bindend: klikken, typen, slepen, scrollen, taal kiezen en documenttabs wisselen
 gebeurt met echte muis-, toetsenbord- en DOM-events. `window.__OPS__` mag vooraf deterministische

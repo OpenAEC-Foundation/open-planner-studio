@@ -138,11 +138,12 @@ const KLEIN: ProjectSpec = {
 
 // ── Showcase 2 — MIDDEL: 6 grondgebonden rijwoningen (~80 taken) ───────────────────────────
 // Genoeg herhaling om repeterende structuur + resources + voortgang te tonen: gedeelde fundering
-// met vorstverlet (extraHolidays), ruwbouw per woning met een doorschuivende metselploeg
+// met vorstverlet (via de herplanning), ruwbouw per woning met een doorschuivende metselploeg
 // (CREW+LABOR) die ook in de KLEIN-showcase geboekt wordt, afbouw met curve-variatie en
 // zichtbare (met nivellering oplosbare) overallocatie op de stukadoors, per-woning verplichte
 // opleverinspecties + een BEWUST te krappe contractdeadline (negatieve float), activity codes
-// Woning×Discipline, voortgang+statusdatum halverwege, en een baseline vóór start. Bewust GEEN
+// Woning×Discipline, voortgang+statusdatum halverwege, en twee baselines (Contract vóór start en een
+// herplanning na het vorstverlet) die de Gantt samen toont. Bewust GEEN
 // EQUIPMENT/SUBCONTRACTOR-resources, GEEN %-lag/ELAPSEDTIME/lead/START_FINISH, GEEN volledige
 // curve-set (BELL/EARLY_PEAK/LATE_PEAK) — die landen in GOLF 2 (GROOT), zie de TODO in
 // verify-examples.ts.
@@ -361,17 +362,18 @@ const MIDDEL: ProjectSpec = {
   category: 'showcase',
   description: 'New-build block of six identical terraced houses — repeating structure, resources and progress reporting.',
   publicDescription:
-    'Mid-sized showcase: six terraced houses with a shared foundation (frost delay via extraHolidays), ' +
+    'Mid-sized showcase: six terraced houses with a shared foundation (frost delay, added to the calendar after the contract baseline), ' +
     'a masonry crew (CREW+LABOR) moving from house to house — the same crew as in the small ' +
     'refurbishment showcase, so the occupancy overview shows a cross-project conflict on it — ' +
     'fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible ' +
     'over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately ' +
     'tight contract deadline (negative total float), activity codes House x Discipline, notes ' +
-    '(open and completed), progress plus a status date halfway through, and a baseline before start.',
+    '(open and completed), progress plus a status date halfway through, and two baselines shown together in ' +
+    'the Gantt: Contract before start and a Re-plan after the frost delay.',
   tags: ['residential', 'medium', 'resources', 'over-allocation', 'progress', 'baseline', 'activity-codes', 'notes'],
-  calendar: {
-    extraHolidays: [{ name: 'Frost delay, foundations', fromDay: 16, calendarDays: 6 }],
-  },
+  // Het vorstverlet staat niet in de startkalender: het komt via de herplanning hieronder, zodat de
+  // contractbaseline de planning van vóór de vorst vastlegt. De eindplanning is dezelfde als toen
+  // het verlet hier stond.
   codeTypes: [
     { name: 'House', values: [
       { code: '1', description: 'House 1' }, { code: '2', description: 'House 2' },
@@ -439,7 +441,18 @@ const MIDDEL: ProjectSpec = {
   // ELAPSEDTIME-fix + de daaruit volgende +3-translatie van de ruwbouwketen (zie hierboven);
   // dezelfde relatieve positie t.o.v. "woning 4 in uitvoering" blijft behouden.
   statusDay: 58,
-  baselines: [{ name: 'Baseline at start' }],
+  // Twee baselines, samen in de Gantt: Contract vóór de start, en een herplanning nadat het
+  // vorstverlet op de fundering (6 kalenderdagen vanaf werkdag 16) in de kalender kwam. Alles na de
+  // fundering schuift daardoor een paar werkdagen op; de voortgang tot de statusdatum komt daar nog bij.
+  baselines: [
+    { name: 'Contract' },
+    {
+      name: 'Re-plan after frost delay',
+      mutationBefore: { addHolidays: [{ name: 'Frost delay, foundations', fromDay: 16, calendarDays: 6 }] },
+    },
+  ],
+  activeBaselineName: 'Contract',
+  comparedBaselineNames: ['Re-plan after frost delay'],
 };
 
 export const SHOWCASES: ProjectSpec[] = [KLEIN, MIDDEL];

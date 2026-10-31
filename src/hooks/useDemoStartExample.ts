@@ -5,6 +5,7 @@ import { isActivePristine } from '@/state/slices/fileSlice';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { isTauri } from '@/utils/platform';
 import { DEMO_START_EXAMPLE } from '@/utils/buildFlags';
+import { runsEmbedded } from '@/services/fileAccess/siteHost';
 import type { RecoveryState } from './useRecoveryRestore';
 
 interface ExampleEntry {
@@ -19,7 +20,8 @@ interface ExampleEntry {
 // alleen als het actieve document nog leeg is, zodat niets van de gebruiker wordt overschreven.
 // De voorbeeldplanning is de eerste showcase uit het manifest (het instapvoorbeeld). Het document moet
 // schoon blijven (`isDirty` onwaar), anders neemt de herstel-dialoog het over bij de volgende herlaad.
-// De platformbouw (#310, `DEMO_START_EXAMPLE` uit) start altijd met een leeg document.
+// De platformbouw (#310, `DEMO_START_EXAMPLE` uit) en elke host (#716) starten met een leeg document
+// of het bestand van de host.
 export function useDemoStartExample(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const { t } = useTranslation('common');
   const started = useRef(false);
@@ -27,7 +29,7 @@ export function useDemoStartExample(recoveryResolved: boolean, recovery: Recover
   useEffect(() => {
     if (started.current || !recoveryResolved || recovery !== null) return;
     started.current = true;
-    if (!DEMO_START_EXAMPLE || isTauri() || !import.meta.env.PROD) return;
+    if (!DEMO_START_EXAMPLE || isTauri() || !import.meta.env.PROD || runsEmbedded()) return;
     if (!isActivePristine(useAppStore.getState())) return;
 
     void (async () => {

@@ -6,6 +6,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 import { saveRibbonCompact } from '@/utils/settingsStore';
 import { RibbonTab } from '@/state/slices/types';
 import { RibbonTabContent } from './RibbonTabContent';
+import { useRibbonTabWheel } from './useRibbonTabWheel';
 import { ExtensionRibbonGroups } from './ribbonWidgets';
 import { AI_MODE_AVAILABLE, EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import { RibbonDensity, RibbonDensityContext } from './ribbonDensity';
@@ -312,13 +313,15 @@ export function Ribbon() {
     'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report',
     ...(AI_MODE_AVAILABLE && aiMode ? (['ai'] as RibbonTab[]) : []),
   ];
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useRibbonTabWheel(tabsRef, tabs, setActiveTab);
 
   const densityClass = density === 'compact' ? ' compact' : '';
 
   return (
     <div ref={containerRef} className={`ribbon-container${densityClass}`}>
       {/* Tabs — 'file' is de speciale amber backstage-tab links. */}
-      <div className="ribbon-tabs" data-tour-anchor="ribbon-tabs">
+      <div ref={tabsRef} className="ribbon-tabs" data-tour-anchor="ribbon-tabs">
         <button
           key="file"
           className={`ribbon-tab ribbon-tab--file ${activeTab === 'file' ? 'active' : ''}`}

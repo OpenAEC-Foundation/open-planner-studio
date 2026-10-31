@@ -3252,24 +3252,23 @@ if (corpusPresent) {
           // Z19 (Opus-review L2-correctie): NIET "toewijzingen delen het werk" (dat zou een
           // PARTITIE van de taakduur suggereren — klopt niet letterlijk: taakduur 2880 min,
           // 3×1440 gedecodeerd werk = 4320, geen partitie). De ware regel: ELKE toewijzing wandelt
-          // haar EIGEN gedecodeerde werk-aandeel, de LANGSTE bepaalt de finish. Van de drie
-          // toewijzingen zijn er in DIT bestand twee (Wade Golden, Jon Iles) toevallig MATERIAL
-          // getypeerd — de MATERIAL-uitsluiting (klokdossier-fixronde, zie
-          // `deriveTimephasedWindowsForTasks`'s docblok) filtert die uit de wandeling, dus
-          // `timephasedDurationWalks` draagt hier PRECIES 1 item (Brian Leach, LABOR, de "Night
-          // Shift"-kalender die de max bepaalde) — `startAnchor` blijft wél over alle drie gaan
-          // (Task A se eigen START komt uit Wade/Jon se vroegere anker, niet uit Brian se latere).
+          // haar EIGEN werktijd (werk ÷ inzet, knownbug 187), de LANGSTE bepaalt de finish. Alle
+          // drie toewijzingen (Wade Golden, Jon Iles, Brian Leach) zijn werkresources: sinds #494
+          // leest de lezer de volle resourcerecords (in MPXJ ook WORK; de oude lezer maakte er door
+          // de korte records van 16 bytes MATERIAL van — knownbug 428). Dus draagt
+          // `timephasedDurationWalks` DRIE items van elk 1440 werkminuten (werk 1440 ÷ inzet 1);
+          // Brian Leach begint op zijn "Night Shift"-kalender om 23:00 en bepaalt de max.
           truthy(
-            `[T12 mpp14resource, Z19] "Task A" krijgt timephasedDurationWalks met 1 item (na MATERIAL-uitsluiting), met workMinutes (kreeg ${JSON.stringify(taskA.timephasedDurationWalks)})`,
-            Array.isArray(taskA.timephasedDurationWalks) && taskA.timephasedDurationWalks.length === 1
-              && taskA.timephasedDurationWalks.every((w) => typeof w.workMinutes === 'number' && w.workMinutes > 0),
+            `[T12 mpp14resource, Z19] "Task A" krijgt 3 timephasedDurationWalks (alle drie werkresources), elk 1440 werkminuten (kreeg ${JSON.stringify(taskA.timephasedDurationWalks)})`,
+            Array.isArray(taskA.timephasedDurationWalks) && taskA.timephasedDurationWalks.length === 3
+              && taskA.timephasedDurationWalks.every((w) => w.workMinutes === 1440),
           );
           truthy(
             `[T12 mpp14resource, Z19] "Task A".scheduleFinish === MSP's eigen 2006-08-30T08:00 (werkVERDELING, kreeg ${taskA.time.scheduleFinish})`,
             taskA.time.scheduleFinish === '2006-08-30T08:00',
           );
           truthy(
-            `[T12 mpp14resource, Z19] "Task A".scheduleStart === MSP's eigen 2006-08-25T08:00 (startAnchor blijft over ALLE toewijzingen gaan, ook de uitgesloten MATERIAL-toewijzingen — kreeg ${taskA.time.scheduleStart})`,
+            `[T12 mpp14resource, Z19] "Task A".scheduleStart === MSP's eigen 2006-08-25T08:00 (startAnchor = het vroegste anker over alle toewijzingen: Wade/Jon om 08:00, niet Brian om 23:00 — kreeg ${taskA.time.scheduleStart})`,
             taskA.time.scheduleStart === '2006-08-25T08:00',
           );
           // Mutatiebewijs (Z19-acceptatiepunt, "negeer de apportionering ⇒ ROOD"): reproduceer de

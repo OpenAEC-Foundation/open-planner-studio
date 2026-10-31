@@ -16,6 +16,43 @@ Een `v*`-tag is onomkeerbaar: installers, updater en Snap Store leveren aan alle
 Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen publiceert niets.
 `main` is altijd af; groot werk landt achter een feature-flag.
 
+**Een ontbrekend AUR-secret is geen stopreden** (besluit eigenaar, 2026-10-31). Slaat `aur.yml` de stap
+`Push to AUR` over omdat `AUR_SSH_PRIVATE_KEY` ontbreekt, dan is AUR geen onafgerond werk, ook niet
+voor een oudere tag. De run gaat door. Het eindrapport zegt dat Arch nog geen pakket kreeg, en waarom.
+Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt wel.
+Lever het bewijs uit [Ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret).
+
+## Eerst: browsertests
+
+Doe dit vóór alles op main.
+
+Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is een open issue met de titel
+`Browsertests repareren` en het label `browsertests-reparatie`. Open issue: de reparatie loopt.
+
+- Issue open: de release wacht. Geen vertalingen, geen versie, geen PR en geen tag.
+- Issue dicht en laatste browserrun op main groen: de release gaat verder.
+- Geen issue, en de vrijdagrun is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
+- Nog geen tag om 14:00: geen tag die week. De release meldt dat aan Ethan, met de reden.
+  Is de reparatie dan niet klaar, dan blijft het issue open.
+
+Wacht zo, met een lus die om 14:00 stopt. Exit 0: geen open issue. Exit 1: het is 14:00 en het issue is nog open.
+Stopt de shell eerder, start dan dezelfde opdracht opnieuw; de grens blijft 14:00.
+```bash
+REPO=OpenAEC-Foundation/open-planner-studio
+GRENS=$(TZ=Europe/Amsterdam date -d 14:00 +%s)
+open_issues() { gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length; }
+until [ "$(open_issues)" = 0 ] || [ "$(date +%s)" -ge "$GRENS" ]; do sleep 300; done
+[ "$(open_issues)" = 0 ]
+```
+Exit 1: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
+Exit 0: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
+```bash
+SHA=$(git rev-parse origin/main)
+node scripts/release-ci-check.mjs --browser "$SHA"
+```
+Exit 0: ga verder. Exit 1: voer eerst de [reparatie](../browsertests-repareren/SKILL.md) in zijn geheel uit en geef haar
+de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
+
 ## 1. Werkplek en stopregels
 
 - Controleer eerst de fetch- én push-URL van `origin`. Beide moeten exact naar
@@ -33,6 +70,7 @@ Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen
   Controleer GitHub-publicatie, release-/Snap-/AUR-runs, wiki en website. Rond onafgerond werk
   voor dezelfde tag af, ook zonder nieuwe commits. Onopgelost: stop, tenzij de tag is afgeschreven
   of alleen websitewerk openstaat. Probeer dat de volgende zaterdag opnieuw naast de nieuwe release.
+  Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen onafgerond werk.
 - Na herstel, uitgesteld websitewerk of vastgelegde afschrijving geldt die nieuwste tag als `PREV`.
   Volg daarna de [kandidaatselectie](referentie.md#kandidaatselectie): zoek open release-PR's
   en een ongetagde versie op main. Elke ongetagde kandidaat moet numeriek `VERSION > PREV` zijn;
@@ -47,6 +85,7 @@ Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen
   Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
   verplaats, verwijder of push hem nooit opnieuw. Geen force-push, secretwijziging of ongepoort dispatch.
+  De handmatige browserrun van `ci.yml` (de reparatie en het herstel van de gate) is hierop de enige uitzondering: die publiceert niets.
 
 ## 2. Release-inhoud
 
@@ -102,6 +141,15 @@ Hiervoor is geen menselijke review nodig. Bewaak de basis en cijfers zoals in de
 
 Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede releasecommit.
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
+Controleer daarna de pushrun en de browserrun van vrijdag, met dezelfde regels als de `gate` van `release.yml`.
+Zo loopt de release niet pas ná de onomkeerbare tag vast. Start geen browserrun alleen voor de tag.
+```bash
+SHA=$(git rev-parse origin/main)
+node scripts/release-ci-check.mjs "$SHA"
+```
+Exit 1: geen tag. Elke `::error::`-regel zegt wat er ontbreekt. Rode pushrun: volg CI herstellen.
+Browserrun afgewezen: voer de [reparatie](../browsertests-repareren/SKILL.md) uit, ook met dat issue, en geef haar
+de regel `BROWSERRUN=<id>` door. Bewijs telt vanaf de laatste vrijdag 22:00; eerder groen vervangt de vrijdagrun niet.
 Controleer vóór de tag opnieuw dat `origin/main` nog die SHA heeft. Bij nieuwe commits:
 behoud kandidaatversie en voortgang; werk de basis, cijfers en CI bij zonder nieuwe bump.
 Draai op de releasecommit; vergelijk ook hier jaar, week en volgnummer numeriek met `PREV`:
@@ -127,9 +175,11 @@ Alle poorten groen: noteer de definitieve SHA in het hervatverslag en tag zonder
 git tag -a "v$VERSION" <gecontroleerde-main-SHA> -m "Open Planner Studio v$VERSION"
 git push origin "refs/tags/v$VERSION"
 ```
-`release.yml` herhaalt `verify:translations`, `verify` en de highlight-/versiecontroles.
+`release.yml` herhaalt `verify:translations` en de highlight-/versiecontroles. De volledige `verify` draait daar niet meer:
+de `gate` leest met hetzelfde script of de pushrun en de browserrun groen zijn.
 Daarna bouwt en signeert hij installers, verifieert de draft en publiceert `latest.json`.
 `snap.yml` en `aur.yml` volgen automatisch. Volg ze tot hun eindstatus en werk het hervatverslag bij.
+Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen falen.
 Bij falen na de tag: volg [Herstel na de tag](referentie.md#herstel-na-de-tag), binnen de deadline.
 Vereist herstel gewijzigde broncode/workflow: fix op main, schrijf de tag af en maak een opvolgversie.
 De afgeschreven tag blijft staan; een eventuele draft blijft draft. Hervat die tag nooit meer.
@@ -157,5 +207,6 @@ Verwijder alleen eigen of aantoonbaar gemergede, schone worktrees zonder actieve
 Controleer per worktree `git status --porcelain`; behoud ongemergd of twijfelachtig werk.
 Gebruik `git worktree remove` zonder force en daarna `git worktree prune`.
 Meld versie, tag-SHA, workflow-URL's, fix-PR's/reviews, deadline, UI-vertalingen, wiki en websitedeploy.
+Ontbreekt `AUR_SSH_PRIVATE_KEY`: meld dat Arch nog geen pakket kreeg, en waarom.
 Bij een stop vóór de tag: meld de precieze reden en dat niets is uitgebracht.
 Leg bijvangst buiten deze release vast in `knownbugs.md`; los die niet stil mee op.

@@ -13,7 +13,9 @@ import { formatGridDateTime, parseGridDateTime } from '@/engine/taskGrid/editors
 import type { Task } from '@/types/task';
 
 const diffs: string[] = [];
+let checks = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
+  checks++;
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
@@ -79,6 +81,20 @@ eq('33 fmt 45 @H8 hours ⇒ "45m"', formatDuration(45, 8, 'hours'), '45m');
 eq('34 fmt 480 @H10 days ⇒ "0.8d"', formatDuration(480, 10, 'days'), '0.8d');
 eq('35 fmt 480 @H8 days ⇒ "1d"', formatDuration(480, 8, 'days'), '1d');
 eq('36 fmt 240 @H8 auto ⇒ "4h"', formatDuration(240, 8, 'auto'), '4h');
+// 411: 500 minuten wordt na uren × 60 een fractie groter; alleen floating-point-ruis
+// mag verdwijnen. Een echte minuut of zelfs een kleine echte fractie blijft urenweergave.
+for (const [minutes, expected] of [[0, '0d'], [500, '1d'], [1000, '2d'],
+  [499, '8h 19m'], [501, '8h 21m'], [999, '16h 39m'], [1001, '16h 41m']] as const) {
+  eq(`411 auto ${minutes} bij 500 min/dag`, formatDuration(minutes, 25 / 3, 'auto'), expected);
+}
+eq('411 expliciete uren blijven uren', formatDuration(500, 25 / 3, 'hours'), '8h 20m');
+eq('411 expliciete dagen blijven dagen', formatDuration(500, 25 / 3, 'days'), '1d');
+eq('411 vertaalde suffix', formatDuration(1000, 25 / 3, 'auto', { day: 'j', hour: 'h', minute: 'm' }), '2j');
+eq('411 echte fractie niet tot dag afronden', formatDuration(500, 25 / 3 + 1e-8, 'auto'), '8h 20m');
+eq('411 ongeldige dagdeler houdt uren', formatDuration(500, 0, 'auto'), '8h 20m');
+eq('411 oneindige dagdeler houdt uren', formatDuration(500, Infinity, 'auto'), '8h 20m');
+eq('411 één minuut wordt nooit nul dagen', formatDuration(1, 1e17, 'auto'), '1m');
+
 
 // ── 5) durationMinutesOf / durationDaysOf — invariant (Bevinding 2) ──────────
 // A: scheduleDuration=2 werkdagen, durationMinutes=1200 (=20u=2.5d op H8).
@@ -135,7 +151,7 @@ eq('68 datetime 12h roundtrip bewaart ISO-minuut (middernacht)',
   parseGridDateTime(formatGridDateTime('2024-02-29T00:05', 'dmy', '12h'), 'dmy'), '2024-02-29T00:05');
 
 if (diffs.length === 0) {
-  console.log('OK  datetime-check: alle checks groen (68)');
+  console.log(`OK  datetime-check: alle checks groen (${checks})`);
   process.exit(0);
 } else {
   console.log(`XX  datetime-check: ${diffs.length} afwijking(en)`);

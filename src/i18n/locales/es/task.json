@@ -598,7 +598,8 @@
     "customFieldSuffix": "campo personalizado"
   },
   "tooltip": {
-    "status": "Estado"
+    "status": "Estado",
+    "baselineActive": "activa"
   },
   "externalLinks": {
     "action": "Enlace externo…",

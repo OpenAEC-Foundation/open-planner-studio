@@ -31,7 +31,7 @@ Choose the way that suits your situation. They give the same result.
 2. Drag the slider *Progress (%)* to the percentage that is done.
 3. If needed, fill in *Actual start* and *Actual finish*, in the same way as the status date. The app calculates the field *Remaining* itself; you cannot change it here.
 
-A milestone has one field, *Actual date*.
+A milestone has one field, *Actual date*. If you type only a date for a milestone, here or in the table, it keeps the time it had in the schedule. Example: *Handover* is planned on Monday 16:00 and you type Wednesday; it becomes Wednesday 16:00. If the milestone was at the start or end of the working day, it goes to the start or end of the day you type. If Friday ends at 12:00, *Handover* on Friday becomes 12:00. If the milestone is in the middle of the day and the day you type ends before that time, it gets the end of that day: *Inspection* on Monday 14:00, recorded on that Friday, becomes Friday 12:00. If the day you type starts only after that time, it gets the start. If you type a time yourself, that time applies.
 
 **Choosing a percentage in the menu.** Useful for a quick state.
 
