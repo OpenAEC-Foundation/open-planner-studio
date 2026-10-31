@@ -22,7 +22,7 @@ import {
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
-import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { computedStart, computedFinish } from '@/utils/taskDates';
 import {
@@ -134,7 +134,8 @@ function p6LabelForToken(token: string): string | undefined {
 }
 
 function taskTypeToP6(task: Task): string {
-  if (task.isMilestone) {
+  if (isZeroDurationMilestone(task)) {
+    // Een mijlpaal mét duur kent P6 niet: die blijft hieronder een gewone activiteit met zijn duur.
     // De expliciete soort bepaalt het P6-activitytype; automatisch ⇒ Start Milestone (P6's eigen
     // default bij import).
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
@@ -274,7 +275,7 @@ export function p6RelationshipLag(
     const predCal = pred ? effCalByTask.get(pred.id) ?? calendar : calendar;
     // De voorgangerduur is leidend, in minuten; nooit eerst naar hele dagen afronden (I6).
     const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
-    const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
+    const predMinutes = pred && !isZeroDurationMilestone(pred) ? taskMinutesForWrite(pred, predHpd) : 0;
     const minutes = Math.round(predMinutes * seq.lagPercent / 100);
     return { hours: minutes / 60, minutes };
   }
@@ -676,7 +677,7 @@ export function writeP6XMLWithReport(
       // Taakkalender: effectieve kalender-ObjectId; onbekende/verwijderde calendarId valt terug op 1
       // (projectkalender).
       ...leaf('CalendarObjectId', (task.calendarId && calObjMap.get(task.calendarId)) || 1),
-      ...(durationTypeLabel && !task.isMilestone ? leaf('DurationType', durationTypeLabel) : []),
+      ...(durationTypeLabel && !isZeroDurationMilestone(task) ? leaf('DurationType', durationTypeLabel) : []),
       ...leaf('Id', task.wbsCode || task.id),
       ...leaf('Name', task.name),
       ...leaf('ObjectId', objId),

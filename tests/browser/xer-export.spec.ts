@@ -36,9 +36,9 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   const card = page.locator('button.backstage-export-card').filter({ has: page.locator('h4', { hasText: 'Primavera P6 XER' }) });
   await expect(card).toHaveCount(1);
   await expect(card.locator('.backstage-export-icon')).toHaveText('XER');
-  // Label "Experimenteel" (eigenaar, 2026-10-29): alleen op de XER-kaart.
+  // Label "Experimenteel" (eigenaar, 2026-10-29): op de kaarten XER en P6 XML.
   await expect(card.locator('[data-ops-experimental-badge]')).toHaveText(/^(Experimenteel|Experimental)$/);
-  await expect(page.locator('button.backstage-export-card [data-ops-experimental-badge]')).toHaveCount(1);
+  await expect(page.locator('button.backstage-export-card [data-ops-experimental-badge]')).toHaveCount(2);
   // De Akkers rekent met het OPS-profiel: XER, P6 XML en MS Project XML krijgen de hint (eigenaar, 2026-10-31).
   await expect(card.locator('[data-ops-export-profile-hint]')).toHaveText(/Open Planner Studio.*Primavera P6/);
   await expect(page.locator('[data-ops-export-profile-hint]')).toHaveCount(3);
@@ -72,7 +72,7 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   await page.locator('button.ribbon-btn').filter({ has: page.locator('.ribbon-btn-label', { hasText: /^(Export|Exporteren)$/ }) }).click();
   const ribbonXer = page.locator('button').filter({ hasText: /^Primavera P6 XER/ }).filter({ has: page.locator('[data-ops-experimental-badge]') });
   await expect(ribbonXer).toHaveCount(1);
-  await expect(page.locator('button:not(.backstage-export-card) [data-ops-experimental-badge]')).toHaveCount(1);
+  await expect(page.locator('button:not(.backstage-export-card) [data-ops-experimental-badge]')).toHaveCount(2);
   await expect(ribbonXer.locator('[data-ops-export-profile-hint]')).toHaveText(/Open Planner Studio/);
 
   // Met het profiel Primavera P6 verdwijnt de hint bij XER uit de open lijst (fixture via de store).

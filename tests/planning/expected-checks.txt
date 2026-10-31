@@ -247,6 +247,7 @@ check-p6-verified-cases.ts matrix
 check-p6xml-calendar-rules.ts matrix
 check-p6xml-constraint-labels.ts matrix
 check-p6xml-corpus.ts matrix
+check-p6xml-export-loss.ts matrix
 check-p6xml-nested.ts matrix
 check-p6xml-open-notice.ts matrix
 check-p6xml-project-code.ts matrix
@@ -454,6 +455,7 @@ check-xer-export-loss.ts matrix
 check-xer-fidelity-baseline-schema.ts matrix
 check-xer-fidelity.ts matrix
 check-xer-field-whitelist.ts matrix
+check-xer-lag-kalender-leeg.ts matrix
 check-xer-manifest-exclusions.ts los
 check-xer-manifest-leveling.ts los
 check-xer-metadata-corpus.ts los

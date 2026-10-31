@@ -1806,10 +1806,15 @@ en noem het in je rapport of PR-tekst.
      ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
      check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
 
-570. **P6 XML: een mijlpaal mét duur krijgt een mijlpaaltype naast zijn duur.** `src/services/p6/p6xmlWriter.ts`,
-     `taskTypeToP6`, kijkt alleen naar `isMilestone`. Een taak uit `.mpp` met de vlag en 5 dagen duur krijgt dus
-     `Start Milestone` met `PlannedDuration` 40. P6 rekent een mijlpaal zonder duur, dus de duur kan daar wegvallen. De
-     XER-export is hierop gerepareerd in #393 (`isZeroDurationMilestone`). Gevonden tijdens die fix. Niet in P6 getest. — S
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
+
+591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
+     (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
+     De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
+
+592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
+     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
+     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
+     zelf geëxporteerd door de reviewer. — B

@@ -110,6 +110,8 @@
     "exportInvalidXmlChars_other": "{{count}} tekens die in XML niet mogen, zijn in de export vervangen door �.",
     "exportCriticalHoursLost": "Bij export naar MS Project XML gaat de kritiek-drempel in uren verloren: MS Project kent alleen een drempel in hele dagen.",
     "exportXerLoss": "De XER-export is opgeslagen. Dit ging niet of niet precies mee:",
+    "exportP6XmlLoss": "De P6 XML-export is opgeslagen. Dit ging niet of niet precies mee:",
+    "p6XmlOpensAsOps": "Dit bestand rekent met het {{profile}}-profiel, niet met de instellingen van P6.",
     "projectStartAnchorsClamped_one": "{{count}} taak schoof mee met de projectstart.",
     "projectStartAnchorsClamped_other": "{{count}} taken schoven mee met de projectstart.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
@@ -297,6 +299,27 @@
       "nonLatinText_one": "{{count}} teken past niet in Windows-1252: het bestand is in UTF-8 opgeslagen. Controleer de tekst na import in P6.",
       "nonLatinText_other": "{{count}} tekens passen niet in Windows-1252: het bestand is in UTF-8 opgeslagen. Controleer de tekst na import in P6.",
       "sourceDetails": "Gegevens uit het oorspronkelijke XER-bestand die de app niet gebruikt, zoals onbekende tabellen en ruwe curves"
+    },
+    "exportP6XmlLossItem": {
+      "schedulingOptions": "Rekeninstellingen van het project: P6 gebruikt zijn eigen instellingen, dus datums en speling kunnen afwijken",
+      "baselines_one": "{{count}} baseline",
+      "baselines_other": "{{count}} baselines",
+      "summaryRelations_one": "{{count}} relatie met een samenvattingstaak: P6 kent die relatie niet",
+      "summaryRelations_other": "{{count}} relaties met een samenvattingstaak: P6 kent die relaties niet",
+      "hammocks_one": "{{count}} hammock-taak is een gewone taak geworden",
+      "hammocks_other": "{{count}} hammock-taken zijn gewone taken geworden",
+      "suspendResume_one": "{{count}} taak met een stop- of hervatdatum: die datums vallen weg",
+      "suspendResume_other": "{{count}} taken met een stop- of hervatdatum: die datums vallen weg",
+      "priorities_one": "{{count}} eigen prioriteit valt weg",
+      "priorities_other": "{{count}} eigen prioriteiten vallen weg",
+      "notes_one": "{{count}} notitie",
+      "notes_other": "{{count}} notities",
+      "resourceTypes_one": "{{count}} resource van het type ploeg of onderaannemer krijgt een P6-type: het eigen type valt weg",
+      "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer krijgen een P6-type: het eigen type valt weg",
+      "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
+      "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
+      "defaultWorkRule": "De projectstandaard voor het taaktype: taken zonder eigen regel krijgen de P6-standaard",
+      "projectDetails": "Auteur en bedrijf van het project"
     }
   },
   "scheduleErrors": {
