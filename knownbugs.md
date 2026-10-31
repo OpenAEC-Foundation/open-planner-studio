@@ -1652,4 +1652,15 @@ en noem het in je rapport of PR-tekst.
     zonder naar de volgende kolom te gaan. Bij snel invoeren via de spookregel (typ naam, Tab, typ duur)
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
+555. **De AUR-uitzondering van de release-skill eist `Push to AUR = skipped`, maar dat volgt al uit de notice.**
+     `.claude/skills/release/referentie.md`, *Ontbrekend AUR-secret*, punt 2. In `aur.yml` zet de stap *Decide on
+     publishing* `publish=false` in dezelfde tak als de notice, dus een run met de echte notice slaat de push altijd
+     over. Voorstel: laat punt 2 en de stapconclusie uit de eerste bewijsopdracht weg. Gevonden in review van #759
+     (GPT-6.1-Sol), in `aur.yml` nagelezen. — B
+556. **De terugval in het AUR-bewijs bewaakt met de pijp alleen `grep`.** `.claude/skills/release/referentie.md`,
+     *Ontbrekend AUR-secret*. In een foutproef schreef de eerste poging een passende regel en eindigde met exit 1,
+     de terugval faalde ook, en toch gaf de pijp exit 0. Uitvoer van de eerste poging blijft staan, dus regels
+     kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
+     Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
+     (GPT-6.1-Sol). — S
 

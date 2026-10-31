@@ -342,7 +342,10 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   without human approval before the tag (owner, conversation 2026-10-22). Green main CI, a green
   browser run on the exact main SHA and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
-  Saturday alongside that release. Also resume open release PRs and untagged versions on main without another bump,
+  Saturday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
+  neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package
+  yet and why. A real AUR failure still stops the release (owner decision, 2026-10-31).
+  Also resume open release PRs and untagged versions on main without another bump,
   only when their candidate version is numerically newer than the previous release; otherwise stop.
   Record workflow IDs, wiki commit and website PR in the release PR. Every release includes the UI
   translations for all locales, wiki publication and the two website blocks (the highlights in

@@ -16,7 +16,7 @@ bridge and automatic updates.
   *no effect*.
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
 - **Milestones** — start, finish and mandatory inspection milestones.
-- **Baselines & progress** — capture baselines and track progress against them.
+- **Baselines & progress** — capture baselines and track progress against them. Compare the active baseline and two earlier baselines together in the Gantt and in print.
 - **Calculation profiles** — one scheduling engine, three schools: Primavera P6, Microsoft Project and
   Open Planner Studio. A profile is a named set of conventions (per project, switchable, with custom
   profiles as templates); the file's own calculation options stay per project.
@@ -27,7 +27,7 @@ bridge and automatic updates.
 
 - **Work calendars** — configurable working days, start and finish times, breaks, holidays, the construction industry's collective holiday, and inspection moments.
 - **Resource calendars** — per-resource availability.
-- **Hour-level planning** — day- and hour-based task durations, with minute-accurate calendar resolution; mixed day/hour schedules are an explicit user choice.
+- **Days and hours** — hour planning is always available. Mix day and hour measures, including fractional days, on one time axis in minutes. Tasks can follow each other within a work day; the calendar and scheduling profile determine how the measure is counted.
 
 ## Resources
 

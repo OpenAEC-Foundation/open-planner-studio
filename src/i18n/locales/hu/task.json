@@ -594,7 +594,8 @@
     "customFieldSuffix": "egyéni mező"
   },
   "tooltip": {
-    "status": "Státusz"
+    "status": "Státusz",
+    "baselineActive": "aktív"
   },
   "externalLinks": {
     "action": "Projektközi kapcsolat…",
