@@ -1,8 +1,999 @@
 {
   "schema": 1,
   "product": "open-planner-studio",
-  "generated": "2026-10-24T15:04:26.522Z",
+  "generated": "2026-10-31T07:45:10.263Z",
   "releases": [
+    {
+      "version": "2026.44.0",
+      "tag": "v2026.44.0",
+      "stats": {
+        "daysSincePrevious": 7,
+        "commitsSincePrevious": 916,
+        "addedCodeLines": 59375
+      },
+      "highlights": {
+        "nl": {
+          "primary": {
+            "category": "PLANNEN",
+            "title": "Dagen en uren op één tijdas",
+            "description": "Plan altijd in uren, gebruik gebroken dagen en laat taken direct op elkaar aansluiten.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASELINES",
+              "title": "Vergelijk drie baselines",
+              "description": "Toon de actieve baseline en twee eerdere versies samen in de Gantt en op papier.",
+              "icon": "examples"
+            },
+            {
+              "category": "PRESTATIES",
+              "title": "Minder wachten bij grote plannen",
+              "description": "Gerichte versnellingen voor IFC, de Gantt, resourceweergaven en het zoeken naar relaties.",
+              "icon": "tasks"
+            },
+            {
+              "category": "UITWISSELING",
+              "title": "Behoud duur, rest en lag",
+              "description": "Nauwkeuriger uitwisselen met MS Project en P6, met duidelijkere meldingen bij exportverlies.",
+              "icon": "import"
+            },
+            {
+              "category": "HERSTEL",
+              "title": "Veiliger verder werken",
+              "description": "Verbeteringen aan crashherstel, updates en bestandswerk via MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "en": {
+          "primary": {
+            "category": "SCHEDULING",
+            "title": "Days and hours on one timeline",
+            "description": "Always plan in hours, use fractional days and let tasks follow each other immediately.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASELINES",
+              "title": "Compare three baselines",
+              "description": "Show the active baseline and two earlier versions together in the Gantt and in print.",
+              "icon": "examples"
+            },
+            {
+              "category": "PERFORMANCE",
+              "title": "Less waiting with large schedules",
+              "description": "Targeted improvements for IFC, the Gantt, resource views and dependency searches.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INTERCHANGE",
+              "title": "Keep duration, remaining time and lag",
+              "description": "More accurate exchange with MS Project and P6, with clearer notices about export losses.",
+              "icon": "import"
+            },
+            {
+              "category": "RECOVERY",
+              "title": "Continue working more safely",
+              "description": "Improvements to crash recovery, updates and file operations through MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "fr": {
+          "primary": {
+            "category": "PLANIFICATION",
+            "title": "Jours et heures sur une même échelle",
+            "description": "Planifiez toujours en heures, utilisez des fractions de jour et enchaînez les tâches sans attente.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "RÉFÉRENCES",
+              "title": "Comparez trois références",
+              "description": "Affichez la référence active et deux versions antérieures dans le Gantt et à l’impression.",
+              "icon": "examples"
+            },
+            {
+              "category": "PERFORMANCES",
+              "title": "Moins d’attente sur les grands plannings",
+              "description": "Améliorations ciblées pour IFC, le Gantt, les vues de ressources et la recherche de dépendances.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ÉCHANGES",
+              "title": "Conservez durées, reste et décalages",
+              "description": "Échanges plus précis avec MS Project et P6, et messages plus clairs sur les pertes à l’export.",
+              "icon": "import"
+            },
+            {
+              "category": "RÉCUPÉRATION",
+              "title": "Reprenez le travail plus sereinement",
+              "description": "Améliorations de la récupération, des mises à jour et des opérations sur les fichiers via MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "de": {
+          "primary": {
+            "category": "TERMINPLANUNG",
+            "title": "Tage und Stunden auf einer Zeitachse",
+            "description": "Stundenplanung ist immer verfügbar. Nutzen Sie Tagesbruchteile und schließen Sie Vorgänge direkt aneinander an.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASISPLÄNE",
+              "title": "Drei Basispläne vergleichen",
+              "description": "Zeigen Sie den aktiven Basisplan und zwei frühere Versionen im Gantt und im Ausdruck.",
+              "icon": "examples"
+            },
+            {
+              "category": "LEISTUNG",
+              "title": "Weniger warten bei großen Plänen",
+              "description": "Gezielte Verbesserungen für IFC, Gantt, Ressourcenansichten und die Suche nach Abhängigkeiten.",
+              "icon": "tasks"
+            },
+            {
+              "category": "DATENAUSTAUSCH",
+              "title": "Dauer, Restdauer und Abstand erhalten",
+              "description": "Genauerer Austausch mit MS Project und P6 sowie klarere Hinweise auf Exportverluste.",
+              "icon": "import"
+            },
+            {
+              "category": "WIEDERHERSTELLUNG",
+              "title": "Sicherer weiterarbeiten",
+              "description": "Verbesserte Wiederherstellung, Updates und Dateioperationen über MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "es": {
+          "primary": {
+            "category": "PLANIFICACIÓN",
+            "title": "Días y horas en una misma escala",
+            "description": "Planifique siempre en horas, use fracciones de día y encadene tareas sin esperas.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "LÍNEAS BASE",
+              "title": "Compare tres líneas base",
+              "description": "Muestre la línea base activa y dos versiones anteriores en el Gantt y en la impresión.",
+              "icon": "examples"
+            },
+            {
+              "category": "RENDIMIENTO",
+              "title": "Menos esperas con planes grandes",
+              "description": "Mejoras específicas en IFC, el Gantt, las vistas de recursos y la búsqueda de dependencias.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INTERCAMBIO",
+              "title": "Conserve duración, tiempo restante y desfase",
+              "description": "Intercambio más preciso con MS Project y P6, con avisos más claros sobre pérdidas al exportar.",
+              "icon": "import"
+            },
+            {
+              "category": "RECUPERACIÓN",
+              "title": "Siga trabajando con más seguridad",
+              "description": "Mejoras en la recuperación, las actualizaciones y las operaciones de archivos mediante MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "zh": {
+          "primary": {
+            "category": "计划",
+            "title": "在同一时间轴上使用天和小时",
+            "description": "随时按小时计划，使用小数天数，让任务紧密衔接。",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "基准",
+              "title": "比较三个基准",
+              "description": "在甘特图和打印结果中同时显示当前基准和两个早期版本。",
+              "icon": "examples"
+            },
+            {
+              "category": "性能",
+              "title": "大型计划等待更少",
+              "description": "针对 IFC、甘特图、资源视图和依赖关系搜索进行优化。",
+              "icon": "tasks"
+            },
+            {
+              "category": "数据交换",
+              "title": "保留工期、剩余时间和延迟",
+              "description": "与 MS Project 和 P6 的数据交换更准确，导出损失提示更清晰。",
+              "icon": "import"
+            },
+            {
+              "category": "恢复",
+              "title": "更安全地继续工作",
+              "description": "改进崩溃恢复、更新和通过 MCP 进行的文件操作。",
+              "icon": "library"
+            }
+          ]
+        },
+        "it": {
+          "primary": {
+            "category": "PIANIFICAZIONE",
+            "title": "Giorni e ore su un’unica scala",
+            "description": "Pianifichi sempre in ore, usi frazioni di giorno e colleghi le attività senza attese.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASELINE",
+              "title": "Confronti tre baseline",
+              "description": "Mostri la baseline attiva e due versioni precedenti nel Gantt e nella stampa.",
+              "icon": "examples"
+            },
+            {
+              "category": "PRESTAZIONI",
+              "title": "Meno attese con piani grandi",
+              "description": "Miglioramenti mirati per IFC, Gantt, viste delle risorse e ricerca delle dipendenze.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SCAMBIO DATI",
+              "title": "Conservi durata, residuo e ritardo",
+              "description": "Scambi più precisi con MS Project e P6, con avvisi più chiari sulle perdite in esportazione.",
+              "icon": "import"
+            },
+            {
+              "category": "RIPRISTINO",
+              "title": "Riprenda il lavoro con più sicurezza",
+              "description": "Miglioramenti al ripristino, agli aggiornamenti e alle operazioni sui file tramite MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "pt": {
+          "primary": {
+            "category": "PLANEAMENTO",
+            "title": "Dias e horas na mesma escala",
+            "description": "Planeie sempre em horas, use frações de dia e encadeie tarefas sem espera.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "LINHAS DE BASE",
+              "title": "Compare três linhas de base",
+              "description": "Mostre a linha de base ativa e duas versões anteriores no Gantt e na impressão.",
+              "icon": "examples"
+            },
+            {
+              "category": "DESEMPENHO",
+              "title": "Menos espera com planos grandes",
+              "description": "Melhorias específicas em IFC, Gantt, vistas de recursos e pesquisa de dependências.",
+              "icon": "tasks"
+            },
+            {
+              "category": "INTERCÂMBIO",
+              "title": "Preserve duração, tempo restante e atraso",
+              "description": "Troca mais precisa com MS Project e P6, com avisos mais claros sobre perdas na exportação.",
+              "icon": "import"
+            },
+            {
+              "category": "RECUPERAÇÃO",
+              "title": "Continue a trabalhar com mais segurança",
+              "description": "Melhorias na recuperação, nas atualizações e nas operações de ficheiros através de MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "pl": {
+          "primary": {
+            "category": "HARMONOGRAM",
+            "title": "Dni i godziny na jednej osi",
+            "description": "Planuj zawsze w godzinach, używaj ułamków dni i łącz zadania bez zbędnej przerwy.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "PLANY BAZOWE",
+              "title": "Porównaj trzy plany bazowe",
+              "description": "Pokaż aktywny plan bazowy i dwie wcześniejsze wersje na wykresie Gantta i na wydruku.",
+              "icon": "examples"
+            },
+            {
+              "category": "WYDAJNOŚĆ",
+              "title": "Mniej czekania przy dużych planach",
+              "description": "Usprawnienia IFC, wykresu Gantta, widoków zasobów i wyszukiwania zależności.",
+              "icon": "tasks"
+            },
+            {
+              "category": "WYMIANA DANYCH",
+              "title": "Zachowaj czas trwania, pozostały czas i zwłokę",
+              "description": "Dokładniejsza wymiana z MS Project i P6 oraz czytelniejsze informacje o stratach przy eksporcie.",
+              "icon": "import"
+            },
+            {
+              "category": "ODZYSKIWANIE",
+              "title": "Pracuj dalej bezpieczniej",
+              "description": "Ulepszenia odzyskiwania, aktualizacji i operacji na plikach przez MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "tr": {
+          "primary": {
+            "category": "PLANLAMA",
+            "title": "Günler ve saatler tek zaman çizgisinde",
+            "description": "Her zaman saatle planlayın, kesirli günler kullanın ve görevleri beklemeden art arda yerleştirin.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "TEMEL PLANLAR",
+              "title": "Üç temel planı karşılaştırın",
+              "description": "Etkin temel planı ve önceki iki sürümü Gantt'ta ve çıktıda birlikte gösterin.",
+              "icon": "examples"
+            },
+            {
+              "category": "PERFORMANS",
+              "title": "Büyük planlarda daha az bekleyin",
+              "description": "IFC, Gantt, kaynak görünümleri ve bağımlılık aramaları için hedefli iyileştirmeler.",
+              "icon": "tasks"
+            },
+            {
+              "category": "VERİ ALIŞVERİŞİ",
+              "title": "Süreyi, kalan süreyi ve gecikmeyi koruyun",
+              "description": "MS Project ve P6 ile daha doğru alışveriş ve dışa aktarma kayıpları için daha açık bildirimler.",
+              "icon": "import"
+            },
+            {
+              "category": "KURTARMA",
+              "title": "Daha güvenle çalışmaya devam edin",
+              "description": "Kurtarma, güncellemeler ve MCP üzerinden dosya işlemlerinde iyileştirmeler.",
+              "icon": "library"
+            }
+          ]
+        },
+        "ar": {
+          "primary": {
+            "category": "الجدولة",
+            "title": "الأيام والساعات على محور زمني واحد",
+            "description": "خطط بالساعات دائماً، واستخدم كسور الأيام، واجعل المهام تتتابع دون انتظار.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "خطوط الأساس",
+              "title": "قارن ثلاثة خطوط أساس",
+              "description": "اعرض خط الأساس النشط وإصدارين سابقين معاً في مخطط جانت وفي الطباعة.",
+              "icon": "examples"
+            },
+            {
+              "category": "الأداء",
+              "title": "انتظار أقل مع الجداول الكبيرة",
+              "description": "تحسينات محددة لملفات IFC ومخطط جانت وعروض الموارد والبحث عن التبعيات.",
+              "icon": "tasks"
+            },
+            {
+              "category": "تبادل البيانات",
+              "title": "احتفظ بالمدة والوقت المتبقي والتأخير",
+              "description": "تبادل أدق مع MS Project وP6 وإشعارات أوضح عن البيانات التي يفقدها التصدير.",
+              "icon": "import"
+            },
+            {
+              "category": "الاسترداد",
+              "title": "واصل العمل بأمان أكبر",
+              "description": "تحسينات لاسترداد الأعطال والتحديثات وعمليات الملفات عبر MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "ja": {
+          "primary": {
+            "category": "スケジュール",
+            "title": "日と時間を同じ時間軸で",
+            "description": "時間単位の計画が常に利用可能に。小数の日数を使い、タスクを途切れずにつなげます。",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "ベースライン",
+              "title": "3つのベースラインを比較",
+              "description": "現在のベースラインと過去の2つをガントチャートと印刷にまとめて表示します。",
+              "icon": "examples"
+            },
+            {
+              "category": "性能",
+              "title": "大きな計画での待ち時間を短縮",
+              "description": "IFC、ガントチャート、リソース表示、依存関係検索を重点的に改善。",
+              "icon": "tasks"
+            },
+            {
+              "category": "データ交換",
+              "title": "期間・残期間・ラグを保持",
+              "description": "MS ProjectやP6との交換精度を改善し、エクスポート時の損失を明確に通知します。",
+              "icon": "import"
+            },
+            {
+              "category": "復元",
+              "title": "より安全に作業を続行",
+              "description": "クラッシュ復元、更新、MCP経由のファイル操作を改善しました。",
+              "icon": "library"
+            }
+          ]
+        },
+        "ko": {
+          "primary": {
+            "category": "일정",
+            "title": "하나의 시간축에서 일과 시간 사용",
+            "description": "언제든 시간 단위로 계획하고 소수 일수를 사용하며 작업을 바로 이어 배치하세요.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "기준선",
+              "title": "기준선 세 개 비교",
+              "description": "현재 기준선과 이전 두 버전을 간트 차트와 인쇄물에 함께 표시하세요.",
+              "icon": "examples"
+            },
+            {
+              "category": "성능",
+              "title": "큰 일정의 대기 시간 단축",
+              "description": "IFC, 간트 차트, 자원 보기, 의존 관계 검색을 집중 개선했습니다.",
+              "icon": "tasks"
+            },
+            {
+              "category": "데이터 교환",
+              "title": "기간·남은 시간·지연 유지",
+              "description": "MS Project 및 P6와 더 정확하게 교환하고 내보내기 손실을 더 명확하게 안내합니다.",
+              "icon": "import"
+            },
+            {
+              "category": "복구",
+              "title": "더 안전하게 작업 계속",
+              "description": "충돌 복구, 업데이트, MCP를 통한 파일 작업을 개선했습니다.",
+              "icon": "library"
+            }
+          ]
+        },
+        "fa": {
+          "primary": {
+            "category": "زمان‌بندی",
+            "title": "روز و ساعت روی یک محور زمان",
+            "description": "همیشه بر حسب ساعت برنامه‌ریزی کنید، از کسری از روز استفاده کنید و کارها را بدون انتظار پشت سر هم قرار دهید.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "خطوط مبنا",
+              "title": "سه خط مبنا را مقایسه کنید",
+              "description": "خط مبنای فعال و دو نسخهٔ قبلی را هم‌زمان در گانت و چاپ نمایش دهید.",
+              "icon": "examples"
+            },
+            {
+              "category": "کارایی",
+              "title": "انتظار کمتر در برنامه‌های بزرگ",
+              "description": "بهبودهای هدفمند برای IFC، گانت، نماهای منابع و جست‌وجوی وابستگی‌ها.",
+              "icon": "tasks"
+            },
+            {
+              "category": "تبادل داده",
+              "title": "مدت، زمان باقی‌مانده و تأخیر را حفظ کنید",
+              "description": "تبادل دقیق‌تر با MS Project و P6 و اعلان‌های روشن‌تر دربارهٔ داده‌های از دست‌رفته در خروجی.",
+              "icon": "import"
+            },
+            {
+              "category": "بازیابی",
+              "title": "با اطمینان بیشتری کار را ادامه دهید",
+              "description": "بهبود بازیابی پس از خرابی، به‌روزرسانی‌ها و عملیات فایل از طریق MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "ru": {
+          "primary": {
+            "category": "ПЛАНИРОВАНИЕ",
+            "title": "Дни и часы на одной шкале",
+            "description": "Планируйте в часах в любой момент, используйте доли дня и ставьте задачи сразу друг за другом.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "БАЗОВЫЕ ПЛАНЫ",
+              "title": "Сравнивайте три базовых плана",
+              "description": "Показывайте активный базовый план и две прежние версии в диаграмме Ганта и при печати.",
+              "icon": "examples"
+            },
+            {
+              "category": "ПРОИЗВОДИТЕЛЬНОСТЬ",
+              "title": "Меньше ожидания в больших планах",
+              "description": "Улучшения IFC, диаграммы Ганта, представлений ресурсов и поиска зависимостей.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ОБМЕН ДАННЫМИ",
+              "title": "Сохраняйте длительность, остаток и задержку",
+              "description": "Более точный обмен с MS Project и P6 и понятные сообщения о потерях при экспорте.",
+              "icon": "import"
+            },
+            {
+              "category": "ВОССТАНОВЛЕНИЕ",
+              "title": "Продолжайте работать безопаснее",
+              "description": "Улучшены восстановление после сбоев, обновления и операции с файлами через MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "uk": {
+          "primary": {
+            "category": "ПЛАНУВАННЯ",
+            "title": "Дні й години на одній шкалі",
+            "description": "Плануйте в годинах будь-коли, використовуйте частки дня та розміщуйте завдання одразу одне за одним.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "БАЗОВІ ПЛАНИ",
+              "title": "Порівнюйте три базові плани",
+              "description": "Показуйте активний базовий план і дві попередні версії на діаграмі Ганта та під час друку.",
+              "icon": "examples"
+            },
+            {
+              "category": "ПРОДУКТИВНІСТЬ",
+              "title": "Менше очікування у великих планах",
+              "description": "Поліпшення IFC, діаграми Ганта, подань ресурсів і пошуку залежностей.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ОБМІН ДАНИМИ",
+              "title": "Зберігайте тривалість, залишок і затримку",
+              "description": "Точніший обмін із MS Project і P6 та зрозуміліші повідомлення про втрати під час експорту.",
+              "icon": "import"
+            },
+            {
+              "category": "ВІДНОВЛЕННЯ",
+              "title": "Працюйте далі безпечніше",
+              "description": "Поліпшено відновлення після збоїв, оновлення та операції з файлами через MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "cs": {
+          "primary": {
+            "category": "PLÁNOVÁNÍ",
+            "title": "Dny a hodiny na jedné ose",
+            "description": "Plánujte kdykoli v hodinách, používejte části dne a navazujte úkoly bez čekání.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "SMĚRNÉ PLÁNY",
+              "title": "Porovnejte tři směrné plány",
+              "description": "Zobrazte aktivní směrný plán a dvě starší verze v Ganttově diagramu i při tisku.",
+              "icon": "examples"
+            },
+            {
+              "category": "VÝKON",
+              "title": "Méně čekání u velkých plánů",
+              "description": "Cílená vylepšení IFC, Ganttova diagramu, pohledů na zdroje a hledání závislostí.",
+              "icon": "tasks"
+            },
+            {
+              "category": "VÝMĚNA DAT",
+              "title": "Zachovejte dobu, zbývající čas a prodlevu",
+              "description": "Přesnější výměna s MS Project a P6 a jasnější upozornění na ztráty při exportu.",
+              "icon": "import"
+            },
+            {
+              "category": "OBNOVA",
+              "title": "Pokračujte v práci bezpečněji",
+              "description": "Vylepšení obnovy po pádu, aktualizací a operací se soubory přes MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "sk": {
+          "primary": {
+            "category": "PLÁNOVANIE",
+            "title": "Dni a hodiny na jednej osi",
+            "description": "Plánujte kedykoľvek v hodinách, používajte časti dňa a nadväzujte úlohy bez čakania.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "ZÁKLADNÉ PLÁNY",
+              "title": "Porovnajte tri základné plány",
+              "description": "Zobrazte aktívny základný plán a dve staršie verzie v Ganttovom diagrame aj pri tlači.",
+              "icon": "examples"
+            },
+            {
+              "category": "VÝKON",
+              "title": "Menej čakania pri veľkých plánoch",
+              "description": "Cielené zlepšenia IFC, Ganttovho diagramu, pohľadov na zdroje a hľadania závislostí.",
+              "icon": "tasks"
+            },
+            {
+              "category": "VÝMENA ÚDAJOV",
+              "title": "Zachovajte trvanie, zvyšný čas a oneskorenie",
+              "description": "Presnejšia výmena s MS Project a P6 a jasnejšie upozornenia na straty pri exporte.",
+              "icon": "import"
+            },
+            {
+              "category": "OBNOVA",
+              "title": "Pokračujte v práci bezpečnejšie",
+              "description": "Zlepšenia obnovy po páde, aktualizácií a operácií so súbormi cez MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "sr": {
+          "primary": {
+            "category": "ПЛАНИРАЊЕ",
+            "title": "Дани и сати на једној оси",
+            "description": "Увек планирајте у сатима, користите делове дана и нижите задатке без чекања.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "ОСНОВНИ ПЛАНОВИ",
+              "title": "Упоредите три основна плана",
+              "description": "Прикажите активни основни план и две раније верзије у Гантовом дијаграму и при штампању.",
+              "icon": "examples"
+            },
+            {
+              "category": "ПЕРФОРМАНСЕ",
+              "title": "Мање чекања код великих планова",
+              "description": "Циљана побољшања за IFC, Гантов дијаграм, приказе ресурса и претрагу зависности.",
+              "icon": "tasks"
+            },
+            {
+              "category": "РАЗМЕНА ПОДАТАКА",
+              "title": "Сачувајте трајање, остатак и кашњење",
+              "description": "Прецизнија размена са MS Project и P6 и јаснија обавештења о губицима при извозу.",
+              "icon": "import"
+            },
+            {
+              "category": "ОПОРАВАК",
+              "title": "Наставите рад безбедније",
+              "description": "Побољшани опоравак после пада, ажурирања и операције са датотекама преко MCP-а.",
+              "icon": "library"
+            }
+          ]
+        },
+        "hr": {
+          "primary": {
+            "category": "PLANIRANJE",
+            "title": "Dani i sati na istoj osi",
+            "description": "Uvijek planirajte u satima, koristite dijelove dana i nižite zadatke bez čekanja.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "OSNOVNI PLANOVI",
+              "title": "Usporedite tri osnovna plana",
+              "description": "Prikažite aktivni osnovni plan i dvije ranije verzije u Ganttovu dijagramu i pri ispisu.",
+              "icon": "examples"
+            },
+            {
+              "category": "PERFORMANSE",
+              "title": "Manje čekanja kod velikih planova",
+              "description": "Ciljana poboljšanja za IFC, Ganttov dijagram, prikaze resursa i pretraživanje ovisnosti.",
+              "icon": "tasks"
+            },
+            {
+              "category": "RAZMJENA PODATAKA",
+              "title": "Sačuvajte trajanje, ostatak i odgodu",
+              "description": "Preciznija razmjena s MS Projectom i P6 te jasnije obavijesti o gubicima pri izvozu.",
+              "icon": "import"
+            },
+            {
+              "category": "OPORAVAK",
+              "title": "Nastavite raditi sigurnije",
+              "description": "Poboljšani oporavak nakon rušenja, ažuriranja i operacije s datotekama putem MCP-a.",
+              "icon": "library"
+            }
+          ]
+        },
+        "bg": {
+          "primary": {
+            "category": "ПЛАНИРАНЕ",
+            "title": "Дни и часове на една ос",
+            "description": "Планирайте винаги в часове, използвайте части от деня и свързвайте задачите без изчакване.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "БАЗОВИ ПЛАНОВЕ",
+              "title": "Сравнете три базови плана",
+              "description": "Покажете активния базов план и две предишни версии в диаграмата на Гант и при печат.",
+              "icon": "examples"
+            },
+            {
+              "category": "ПРОИЗВОДИТЕЛНОСТ",
+              "title": "По-малко чакане при големи планове",
+              "description": "Целеви подобрения за IFC, диаграмата на Гант, изгледите на ресурсите и търсенето на зависимости.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ОБМЕН НА ДАННИ",
+              "title": "Запазете продължителността, остатъка и закъснението",
+              "description": "По-точен обмен с MS Project и P6 и по-ясни известия за загуби при износ.",
+              "icon": "import"
+            },
+            {
+              "category": "ВЪЗСТАНОВЯВАНЕ",
+              "title": "Продължете работа по-сигурно",
+              "description": "Подобрени възстановяване след срив, актуализации и файлови операции чрез MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "hu": {
+          "primary": {
+            "category": "ÜTEMEZÉS",
+            "title": "Napok és órák egy időtengelyen",
+            "description": "Tervezzen bármikor órákban, használjon törtnapokat, és kapcsolja a feladatokat várakozás nélkül egymáshoz.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "ALAPTERVEK",
+              "title": "Hasonlítson össze három alaptervet",
+              "description": "Jelenítse meg az aktív alaptervet és két korábbi változatot a Gantt-diagramon és nyomtatásban.",
+              "icon": "examples"
+            },
+            {
+              "category": "TELJESÍTMÉNY",
+              "title": "Kevesebb várakozás nagy terveknél",
+              "description": "Célzott javítások az IFC, a Gantt-diagram, az erőforrásnézetek és a függőségkeresés terén.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ADATCSERE",
+              "title": "Őrizze meg az időtartamot, a hátralévő időt és a késleltetést",
+              "description": "Pontosabb adatcsere az MS Projecttel és a P6-tal, egyértelműbb jelzések az exportveszteségekről.",
+              "icon": "import"
+            },
+            {
+              "category": "HELYREÁLLÍTÁS",
+              "title": "Folytassa biztonságosabban a munkát",
+              "description": "Javult az összeomlás utáni helyreállítás, a frissítés és az MCP-n keresztüli fájlkezelés.",
+              "icon": "library"
+            }
+          ]
+        },
+        "ro": {
+          "primary": {
+            "category": "PLANIFICARE",
+            "title": "Zile și ore pe aceeași axă",
+            "description": "Planificați oricând în ore, folosiți fracțiuni de zi și înlănțuiți activitățile fără așteptare.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "PLANURI DE REFERINȚĂ",
+              "title": "Comparați trei planuri de referință",
+              "description": "Afișați planul de referință activ și două versiuni anterioare în Gantt și la imprimare.",
+              "icon": "examples"
+            },
+            {
+              "category": "PERFORMANȚĂ",
+              "title": "Mai puțină așteptare la planuri mari",
+              "description": "Îmbunătățiri pentru IFC, Gantt, vizualizările resurselor și căutarea dependențelor.",
+              "icon": "tasks"
+            },
+            {
+              "category": "SCHIMB DE DATE",
+              "title": "Păstrați durata, timpul rămas și decalajul",
+              "description": "Schimb mai precis cu MS Project și P6 și notificări mai clare despre pierderile la export.",
+              "icon": "import"
+            },
+            {
+              "category": "RECUPERARE",
+              "title": "Continuați lucrul mai sigur",
+              "description": "Îmbunătățiri ale recuperării după blocare, actualizărilor și operațiilor cu fișiere prin MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "sv": {
+          "primary": {
+            "category": "PLANERING",
+            "title": "Dagar och timmar på samma tidsaxel",
+            "description": "Planera alltid i timmar, använd delar av dagar och låt uppgifter följa direkt på varandra.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASLINJER",
+              "title": "Jämför tre baslinjer",
+              "description": "Visa den aktiva baslinjen och två tidigare versioner i Gantt-schemat och på utskriften.",
+              "icon": "examples"
+            },
+            {
+              "category": "PRESTANDA",
+              "title": "Mindre väntan med stora tidplaner",
+              "description": "Riktade förbättringar för IFC, Gantt-schemat, resursvyer och sökning efter beroenden.",
+              "icon": "tasks"
+            },
+            {
+              "category": "DATAUTBYTE",
+              "title": "Behåll varaktighet, återstående tid och fördröjning",
+              "description": "Noggrannare utbyte med MS Project och P6 samt tydligare besked om exportförluster.",
+              "icon": "import"
+            },
+            {
+              "category": "ÅTERSTÄLLNING",
+              "title": "Fortsätt arbeta säkrare",
+              "description": "Förbättrad kraschåterställning, uppdatering och filhantering via MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "nb": {
+          "primary": {
+            "category": "PLANLEGGING",
+            "title": "Dager og timer på samme tidsakse",
+            "description": "Planlegg alltid i timer, bruk deler av dager og la oppgaver følge rett etter hverandre.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "GRUNNPLANER",
+              "title": "Sammenlign tre grunnplaner",
+              "description": "Vis den aktive grunnplanen og to tidligere versjoner i Gantt-diagrammet og på utskriften.",
+              "icon": "examples"
+            },
+            {
+              "category": "YTELSE",
+              "title": "Mindre venting med store planer",
+              "description": "Målrettede forbedringer for IFC, Gantt-diagrammet, ressursvisninger og søk etter avhengigheter.",
+              "icon": "tasks"
+            },
+            {
+              "category": "DATAUTVEKSLING",
+              "title": "Behold varighet, gjenstående tid og forsinkelse",
+              "description": "Mer nøyaktig utveksling med MS Project og P6 og tydeligere varsler om eksporttap.",
+              "icon": "import"
+            },
+            {
+              "category": "GJENOPPRETTING",
+              "title": "Fortsett arbeidet tryggere",
+              "description": "Bedre gjenoppretting etter krasj, oppdateringer og filoperasjoner gjennom MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "da": {
+          "primary": {
+            "category": "PLANLÆGNING",
+            "title": "Dage og timer på samme tidsakse",
+            "description": "Planlæg altid i timer, brug dele af dage, og lad opgaver følge direkte efter hinanden.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "BASISPLANER",
+              "title": "Sammenlign tre basisplaner",
+              "description": "Vis den aktive basisplan og to tidligere versioner i Gantt-diagrammet og på udskriften.",
+              "icon": "examples"
+            },
+            {
+              "category": "YDEEVNE",
+              "title": "Mindre ventetid med store planer",
+              "description": "Målrettede forbedringer af IFC, Gantt-diagrammet, ressourcevisninger og søgning efter afhængigheder.",
+              "icon": "tasks"
+            },
+            {
+              "category": "DATAUDVEKSLING",
+              "title": "Bevar varighed, resterende tid og forsinkelse",
+              "description": "Mere præcis udveksling med MS Project og P6 og tydeligere beskeder om eksporttab.",
+              "icon": "import"
+            },
+            {
+              "category": "GENDANNELSE",
+              "title": "Fortsæt arbejdet mere sikkert",
+              "description": "Bedre gendannelse efter nedbrud, opdateringer og filhandlinger via MCP.",
+              "icon": "library"
+            }
+          ]
+        },
+        "fi": {
+          "primary": {
+            "category": "AIKATAULUTUS",
+            "title": "Päivät ja tunnit samalla aika-akselilla",
+            "description": "Suunnittele aina tunneissa, käytä päivän osia ja aseta tehtävät jatkumaan heti toisistaan.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "PERUSSUUNNITELMAT",
+              "title": "Vertaa kolmea perussuunnitelmaa",
+              "description": "Näytä aktiivinen perussuunnitelma ja kaksi aiempaa versiota Gantt-kaaviossa ja tulosteessa.",
+              "icon": "examples"
+            },
+            {
+              "category": "SUORITUSKYKY",
+              "title": "Vähemmän odotusta suurissa aikatauluissa",
+              "description": "Kohdennettuja parannuksia IFC:hen, Gantt-kaavioon, resurssinäkymiin ja riippuvuuksien hakuun.",
+              "icon": "tasks"
+            },
+            {
+              "category": "TIEDONSIIRTO",
+              "title": "Säilytä kesto, jäljellä oleva aika ja viive",
+              "description": "Tarkempi tiedonsiirto MS Projectin ja P6:n kanssa sekä selkeämmät ilmoitukset viennin menetyksistä.",
+              "icon": "import"
+            },
+            {
+              "category": "PALAUTUS",
+              "title": "Jatka työskentelyä turvallisemmin",
+              "description": "Parannuksia kaatumisesta palautumiseen, päivityksiin ja MCP:n kautta tehtäviin tiedostotoimintoihin.",
+              "icon": "library"
+            }
+          ]
+        },
+        "lo": {
+          "primary": {
+            "category": "ການວາງແຜນ",
+            "title": "ວັນ ແລະຊົ່ວໂມງໃນແກນເວລາດຽວ",
+            "description": "ວາງແຜນເປັນຊົ່ວໂມງໄດ້ສະເໝີ, ໃຊ້ເສດສ່ວນຂອງວັນ ແລະໃຫ້ວຽກຕໍ່ກັນທັນທີ.",
+            "icon": "tasks",
+            "docsId": "howto-taak-in-uren-plannen"
+          },
+          "secondary": [
+            {
+              "category": "ແຜນຖານ",
+              "title": "ປຽບທຽບສາມແຜນຖານ",
+              "description": "ສະແດງແຜນຖານທີ່ໃຊ້ຢູ່ ແລະສອງສະບັບກ່ອນໜ້າພ້ອມກັນໃນ Gantt ແລະເອກະສານພິມ.",
+              "icon": "examples"
+            },
+            {
+              "category": "ປະສິດທິພາບ",
+              "title": "ລໍຖ້າໜ້ອຍລົງກັບແຜນໃຫຍ່",
+              "description": "ປັບປຸງ IFC, Gantt, ມຸມມອງຊັບພະຍາກອນ ແລະການຄົ້ນຫາຄວາມສຳພັນ.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ການແລກປ່ຽນຂໍ້ມູນ",
+              "title": "ຮັກສາໄລຍະເວລາ, ເວລາທີ່ເຫຼືອ ແລະຄວາມລ່າຊ້າ",
+              "description": "ແລກປ່ຽນກັບ MS Project ແລະ P6 ໄດ້ແມ່ນຍຳຂຶ້ນ ແລະແຈ້ງການສູນເສຍຂໍ້ມູນເມື່ອສົ່ງອອກໄດ້ຊັດເຈນຂຶ້ນ.",
+              "icon": "import"
+            },
+            {
+              "category": "ການກູ້ຄືນ",
+              "title": "ເຮັດວຽກຕໍ່ຢ່າງປອດໄພຂຶ້ນ",
+              "description": "ປັບປຸງການກູ້ຄືນຫຼັງຂັດຂ້ອງ, ການອັບເດດ ແລະການໃຊ້ໄຟລ໌ຜ່ານ MCP.",
+              "icon": "library"
+            }
+          ]
+        }
+      }
+    },
     {
       "version": "2026.43.0",
       "tag": "v2026.43.0",
