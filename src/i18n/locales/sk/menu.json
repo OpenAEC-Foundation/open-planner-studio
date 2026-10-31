@@ -215,6 +215,7 @@
     "screenColors_critical": "Kritická cesta",
     "screenColors_auto": "Podľa úlohy — automaticky",
     "screenColors_category": "Podľa kategórie",
+    "screenColorsNearCritical": "Takmer kritická",
     "screenColorsMissingField": "Toto pole v tomto projekte neexistuje. Dočasne sa používa druh prác.",
     "screenColorsHint": "Mimo kritickej cesty červený obrys označuje kritickú cestu.",
     "addLayout": "Vytvoriť rozloženie",

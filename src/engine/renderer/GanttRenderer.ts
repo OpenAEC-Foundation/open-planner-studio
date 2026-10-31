@@ -19,7 +19,7 @@ import { assignmentsForTask, computeBarColors, type BarPalette } from '@/service
 import type { BarColorContext } from '@/services/print/barColorCategories';
 import type { BarColorSelection } from '@/types/barColor';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
-import { ensureThemeVisible } from '@/engine/renderer/resourcePalette';
+import { ensureCustomBarVisible, ensureHighContrastBarVisible, ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { TimelineTier, TierConfig, TIER_CONFIG, pickTiers, nextTickBoundary, snapToTickStart } from './timelineTiers';
 import { readGanttPalette, barLabelColor, doneBarTones, type GanttPalette } from './themePalette';
 import { paintProgressBarPiece } from './barPaint';
@@ -440,8 +440,14 @@ export class GanttRenderer {
    *  (`isNearCritical`/`floatPath` anders afwezig). */
   private barColor(task: Task, overrideColor?: string): string {
     if (overrideColor) return overrideColor;
-    if (task.time.isCritical) return this.colors.critical;
-    if (task.time.isNearCritical) return this.colors.nearCritical;
+    const selection = this.opts.barColorSelection;
+    const custom = selection?.mode === 'critical' ? selection.colors : undefined;
+    const visible = (color: string) => this.highContrast
+      ? ensureHighContrastBarVisible(color, [this.colors.bg, this.compressed ? this.colors.gridWeekBand : this.colors.gridWeekend])
+      : ensureCustomBarVisible(color, this.opts.darkTheme === true);
+    if (task.time.isCritical) return custom?.critical ? visible(custom.critical) : this.colors.critical;
+    if (task.time.isNearCritical) return custom?.nearCritical ? visible(custom.nearCritical) : this.colors.nearCritical;
+    if (custom?.normal) return visible(custom.normal);
     const fp = task.time.floatPath;
     if (fp !== undefined && fp > 1) {
       const tints = this.colors.floatPathTints;

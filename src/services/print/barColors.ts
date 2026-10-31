@@ -1,6 +1,6 @@
 // Pure kleurengine voor scherm en rapport. De API ontvangt één app-globale selectie en
 // een BarColorContext; geen renderer leest het legacy Task.color-veld.
-import { paletteColorForId, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
+import { ensureCustomBarVisible, paletteColorForId, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import {
   effectiveBarColorSelection,
   resolveBarCategoryValues,
@@ -107,7 +107,8 @@ function computeSelectionColors(
   barPx?: number,
 ): BarFill {
   if (selection.mode === 'critical') {
-    return { kind: 'solid', fill: criticalFill(task, palette) };
+    const custom = task.isMilestone ? undefined : task.time.isCritical ? selection.colors?.critical : task.time.isNearCritical ? selection.colors?.nearCritical : selection.colors?.normal;
+    return { kind: 'solid', fill: custom ? ensureCustomBarVisible(custom, false) : criticalFill(task, palette) };
   }
 
   const outline = task.time.isCritical ? palette.critical : undefined;

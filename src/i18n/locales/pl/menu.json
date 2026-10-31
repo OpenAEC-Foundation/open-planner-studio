@@ -215,6 +215,7 @@
     "screenColors_critical": "Ścieżka krytyczna",
     "screenColors_auto": "Na zadanie — automatycznie",
     "screenColors_category": "Według kategorii",
+    "screenColorsNearCritical": "Prawie krytyczne",
     "screenColorsMissingField": "To pole nie istnieje w tym projekcie. Tymczasowo używany jest rodzaj robót.",
     "screenColorsHint": "Poza trybem Ścieżka krytyczna czerwony obrys oznacza ścieżkę krytyczną.",
     "addLayout": "Nowy układ",

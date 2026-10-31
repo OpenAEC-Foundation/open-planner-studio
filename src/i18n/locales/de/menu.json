@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritischer Pfad",
     "screenColors_auto": "Pro Vorgang — automatisch",
     "screenColors_category": "Nach Kategorie",
+    "screenColorsNearCritical": "Fast kritisch",
     "screenColorsMissingField": "Dieses Feld ist in diesem Projekt nicht vorhanden. Vorübergehend wird die Arbeitskategorie verwendet.",
     "screenColorsHint": "Außerhalb des Modus „Kritischer Pfad“ markiert ein roter Rand den kritischen Pfad.",
     "addLayout": "Neues Layout",

@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritisk linje",
     "screenColors_auto": "Per aktivitet — automatisk",
     "screenColors_category": "Etter kategori",
+    "screenColorsNearCritical": "Nesten kritisk",
     "screenColorsMissingField": "Dette feltet finnes ikke i dette prosjektet. Arbeidskategori brukes midlertidig.",
     "screenColorsHint": "Utenfor Kritisk linje markerer en rød kant den kritiske linjen.",
     "addLayout": "Nytt oppsett",

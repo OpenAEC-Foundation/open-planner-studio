@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritik yol",
     "screenColors_auto": "Görev başına — otomatik",
     "screenColors_category": "Kategoriye göre",
+    "screenColorsNearCritical": "Kritiğe yakın",
     "screenColorsMissingField": "Bu alan bu projede yok. Geçici olarak iş kategorisi kullanılıyor.",
     "screenColorsHint": "Kritik yol modu dışında kırmızı çerçeve kritik yolu işaret eder.",
     "addLayout": "Yeni düzen",

@@ -213,6 +213,7 @@
     "screenColors_critical": "Критичен път",
     "screenColors_auto": "По задача — автоматично",
     "screenColors_category": "По категория",
+    "screenColorsNearCritical": "Почти критична",
     "screenColorsMissingField": "Това поле не съществува в този проект. Вид работа се използва временно.",
     "screenColorsHint": "Извън „Критичен път“ червен контур маркира критичния път.",
     "addLayout": "Създай оформление",

@@ -215,6 +215,7 @@
     "screenColors_critical": "Критичний шлях",
     "screenColors_auto": "За завданням — автоматично",
     "screenColors_category": "За категорією",
+    "screenColorsNearCritical": "Майже критичне",
     "screenColorsMissingField": "Цього поля немає в цьому проєкті. Тимчасово використовується вид робіт.",
     "screenColorsHint": "Поза варіантом «Критичний шлях» червона рамка позначає критичний шлях.",
     "addLayout": "Новий макет",

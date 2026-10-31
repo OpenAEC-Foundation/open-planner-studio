@@ -214,6 +214,7 @@
     "screenColors_critical": "Drum critic",
     "screenColors_auto": "Pe activitate — automat",
     "screenColors_category": "După categorie",
+    "screenColorsNearCritical": "Aproape critic",
     "screenColorsMissingField": "Acest câmp nu există în acest proiect. Categoria de lucrări se folosește temporar.",
     "screenColorsHint": "În afara opțiunii Drum critic, o margine roșie marchează drumul critic.",
     "addLayout": "Creare aspect",

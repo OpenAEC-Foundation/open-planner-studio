@@ -212,6 +212,7 @@
     "screenColors_critical": "クリティカルパス",
     "screenColors_auto": "タスクごと — 自動",
     "screenColors_category": "カテゴリ別",
+    "screenColorsNearCritical": "準クリティカル",
     "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。作業区分を一時的に使用します。",
     "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
     "addLayout": "新規レイアウト",

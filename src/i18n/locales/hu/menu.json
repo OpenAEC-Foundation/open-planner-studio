@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritikus út",
     "screenColors_auto": "Tevékenységenként — automatikus",
     "screenColors_category": "Kategória szerint",
+    "screenColorsNearCritical": "Közel kritikus",
     "screenColorsMissingField": "Ez a mező nem létezik ebben a projektben. Átmenetileg a munkanem van használatban.",
     "screenColorsHint": "Ha nem a Kritikus út szerint színez, piros szegély jelöli a kritikus utat.",
     "addLayout": "Elrendezés létrehozása",

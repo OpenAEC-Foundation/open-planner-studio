@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritiek pad",
     "screenColors_auto": "Per taak — automatisch",
     "screenColors_category": "Op categorie",
+    "screenColorsNearCritical": "Bijna-kritiek",
     "screenColorsMissingField": "Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.",
     "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad.",
     "addLayout": "Nieuwe layout",

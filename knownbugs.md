@@ -613,6 +613,14 @@ en noem het in je rapport of PR-tekst.
     kennen geen pijltjesbediening (`src/components/layout/Ribbon/BaselineOverlaySplitButton.tsx`, geen
     focus- of toetsafhandeling). Vervolgpunt uit review ronde 1 van PR #403 (GPT-6.1-Sol). Voorstel: focus
     naar het eerste vinkje bij openen, pijltjes omhoog/omlaag, terug naar de trigger bij sluiten. — B
+583. **Scrollen verplaatst het paneel niet mee.** `src/components/common/Popover.tsx:102` volgt
+    vensterwijzigingen en paneelgrootte, maar geen scrollgebeurtenissen. Bij horizontaal scrollen komt het
+    menu los van zijn knop. Bestond al op main. Kleinste oplossing: sluit het paneel wanneer zijn
+    scrollcontainer verschuift. VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol),
+    2026-10-31. — B
+584. **`Ribbon.css` heeft onnodige regeleindewijzigingen.** `src/components/layout/Ribbon/Ribbon.css:1`: 894
+    regels toegevoegd en 816 weg, terwijl 78 regels inhoudelijk zijn. Herstel de oorspronkelijke regeleinden.
+    VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol), 2026-10-31. — B
 450. **Korte baselinestukken worden stippen.** `stripOutline` (`src/engine/renderer/baselineStrip.ts`) neemt
     als straal `min(h/2, (x2-x1)/2)`; bij `x1=100, x2=102, h=5` met twee ronde kanten loopt de vorm van
     y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
@@ -1320,6 +1328,12 @@ en noem het in je rapport of PR-tekst.
      meldt "niet gevonden". Spaties werken wel. De voorbeelden in `examples/` hebben geen `#`. Richting:
      de beperking in `docs/dev-link.md` noemen, of oplossen met een echte HTTP-check. VERVOLG uit
      review #703 r3. — B
+
+562. **Standaardbalken halen in hoog contrast geen 7:1 op tijdasbanden.**
+    Kritiek `#ff6b6b` haalt op weekband `#141414` 6,64:1 en op weekendvlak `#1c1c1c`
+    6,14:1; normaal `#60a5fa` haalt op het weekendvlak 6,70:1. Dezelfde pixels zijn op de
+    basis van PR #701 gemeten. De bestaande thema-contrasttest controleert alleen het gewone
+    vlak `#0a0a0a`; laat die ook de banden controleren bij het herstellen. — B
 
 313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`

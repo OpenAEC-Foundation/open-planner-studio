@@ -214,6 +214,7 @@
     "screenColors_critical": "Percorso critico",
     "screenColors_auto": "Per attività — automatico",
     "screenColors_category": "Per categoria",
+    "screenColorsNearCritical": "Quasi critico",
     "screenColorsMissingField": "Questo campo non esiste in questo progetto. La categoria di lavoro viene usata temporaneamente.",
     "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico.",
     "addLayout": "Nuovo layout",
