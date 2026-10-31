@@ -13,8 +13,8 @@ const SOURCE_ONLY: ReadonlySet<XerExportLossCategory> = new Set<XerExportLossCat
 
 /**
  * De melding na een geslaagde XER-export: wat niet, of niet precies, mee kon. Eén detailregel per
- * soort, in de vaste volgorde van de writer (`LOSS_ORDER`), plus één regel voor XER-broninformatie
- * die geen writer terugschrijft. Niets verloren ⇒ geen melding. Altijd `info` (de export zelf is
+ * soort, in de vaste volgorde van de writer (`LOSS_ORDER`), plus regels voor definities zonder
+ * taakwaarden, plus één regel voor XER-broninformatie die geen writer terugschrijft. Niets verloren ⇒ geen melding. Altijd `info` (de export zelf is
  * geslaagd), en lang genoeg zichtbaar om de lijst te lezen.
  */
 export function exportXerLossNotice(
@@ -24,6 +24,14 @@ export function exportXerLossNotice(
   const detailLines: NotificationDetailLine[] = loss.map(({ code, count }) => (UNCOUNTED.has(code)
     ? { messageKey: `notifications.exportXerLossItem.${code}` }
     : { messageKey: `notifications.exportXerLossItem.${code}`, params: { count } }));
+  // Definities zonder taakwaarden kent de writer niet. Met taakwaarden noemt zijn regel ze al.
+  const hasLoss = (code: XerWriteLoss['code']) => loss.some(item => item.code === code);
+  if (sourceCategories.includes('activity-codes') && !hasLoss('activityCodes')) {
+    detailLines.push({ messageKey: 'notifications.exportXerLossItem.activityCodeDefinitions' });
+  }
+  if (sourceCategories.includes('udfs') && !hasLoss('customFields')) {
+    detailLines.push({ messageKey: 'notifications.exportXerLossItem.customFieldDefinitions' });
+  }
   if (sourceCategories.some(category => SOURCE_ONLY.has(category))) {
     detailLines.push({ messageKey: 'notifications.exportXerLossItem.sourceDetails' });
   }

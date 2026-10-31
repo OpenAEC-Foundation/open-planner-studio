@@ -28,6 +28,9 @@
  *      effectieve regel, niet het oude P6-duurtype (`p6DurationType`).
  *  R14 Eindreview: een geïmporteerde mijlpaal mét duur (vlag naast werkminuten, `mppReader.ts`) wordt een gewone
  *      activiteit met zijn duur en rest, en de melding noemt dat. Een nulduur-mijlpaal blijft `TT_Mile`/`TT_FinMile`.
+ *  R15 Eindreview: de markering Verplicht kent P6 niet; de melding noemt verplichte mijlpalen.
+ *  R16 Eindreview: activiteitcodetypen en eigen velddefinities zonder taakwaarden gaan niet mee; de melding noemt ze,
+ *      ook zonder taakwaarden, en niet dubbel naast de regel met taakwaarden.
  */
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
@@ -51,6 +54,7 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { solveInputFor } from '@/engine/scheduler/solveInput';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
+import { detectXerExportLoss, type XerExportLossInput } from '@/services/xerExportLoss';
 import { settleDefaultWorkRuleSwitch } from '@/state/defaultWorkRuleSwitch';
 import { effectiveWorkRule, settleRuleChange } from '@/engine/work/workRuleApply';
 
@@ -682,6 +686,49 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R14i na heropenen: duur en rest terug', [task('Dagen')?.isMilestone, task('Dagen')?.time.scheduleDuration, task('Dagen')?.time.remainingTime], [false, 5, 5]);
   eq('R14j na heropenen: urentaak 2400 minuten', [task('Uren')?.time.durationUnit, task('Uren')?.time.durationMinutes], ['hours', 2400]);
   eq('R14k nulduur-mijlpalen blijven mijlpaal', [task('Start')?.isMilestone, task('Slot')?.milestoneKind], [true, 'FINISH']);
+}
+
+// ── R15: verplichte mijlpaal ─────────────────────────────────────────────────────────────────────
+{
+  const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
+  const calendar: WorkCalendar = {
+    id: 'cal', name: 'Werkweek', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  };
+  const task = (name: string, extra: Partial<Task>): Task => ({
+    id: `r15-${name}`, name, description: '', wbsCode: name, taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: true,
+    priority: 500, parentId: null, childIds: [], resourceIds: [], time: createDefaultTaskTime('2026-06-01', 0), ...extra,
+  });
+  const write = (tasks: Task[]) => writeXER({ project, calendar, calendars: [calendar], tasks, sequences: [], resources: [], assignments: [], exportDate: '2026-10-20' });
+  const written = write([task('Keuring', { mandatory: true }), task('Oplevering', { mandatory: true }), task('Vrij', {})]);
+  eq('R15a de melding telt twee verplichte mijlpalen', written.loss.find(l => l.code === 'mandatoryMilestones')?.count, 2);
+  const line = exportXerLossNotice(written.loss)?.detailLines?.find(l => l.messageKey === 'notifications.exportXerLossItem.mandatoryMilestones');
+  eq('R15b de detailregel draagt het aantal', line?.params, { count: 2 });
+  eq('R15c na heropenen is de markering weg: daarom de melding', read(written.bytes).tasks.find(t => t.name === 'Keuring')?.mandatory, undefined);
+  eq('R15d zonder verplichte mijlpaal: geen regel', write([task('Vrij', {})]).loss.some(l => l.code === 'mandatoryMilestones'), false);
+}
+
+// ── R16: definities zonder taakwaarden ───────────────────────────────────────────────────────────
+{
+  const definitions = (input: Partial<XerExportLossInput>) => {
+    const categories = detectXerExportLoss('xer', {
+      sourceArchive: null, importMetadata: null, project: {}, tasks: [], sequences: [], assignments: [],
+      activityCodeTypes: [], customFieldDefs: [], baselines: [], activeBaselineId: null, ...input,
+    }).flatMap(w => w.categories);
+    return categories;
+  };
+  const CODE_LINE = 'notifications.exportXerLossItem.activityCodeDefinitions';
+  const FIELD_LINE = 'notifications.exportXerLossItem.customFieldDefinitions';
+  const linesOf = (loss: Parameters<typeof exportXerLossNotice>[0], categories: Parameters<typeof exportXerLossNotice>[1]) =>
+    exportXerLossNotice(loss, categories)?.detailLines?.map(l => l.messageKey) ?? [];
+  const codeTypes = [{ id: 'd', name: 'Discipline' }] as unknown as XerExportLossInput['activityCodeTypes'];
+  const fieldDefs = [{ id: 'w', name: 'Werkpakket' }] as unknown as XerExportLossInput['customFieldDefs'];
+  eq('R16a activiteitcodetype zonder taakwaarden: een regel', linesOf([], definitions({ activityCodeTypes: codeTypes })), [CODE_LINE]);
+  eq('R16b eigen veld zonder taakwaarden: een regel', linesOf([], definitions({ customFieldDefs: fieldDefs })), [FIELD_LINE]);
+  eq('R16c beide: twee regels', linesOf([], definitions({ activityCodeTypes: codeTypes, customFieldDefs: fieldDefs })), [CODE_LINE, FIELD_LINE]);
+  eq('R16d taakwaarden: alleen de regel met het aantal',
+    linesOf([{ code: 'activityCodes', count: 1 }, { code: 'customFields', count: 1 }], definitions({ activityCodeTypes: codeTypes, customFieldDefs: fieldDefs })),
+    ['notifications.exportXerLossItem.activityCodes', 'notifications.exportXerLossItem.customFields']);
+  eq('R16e geen definities: geen melding', exportXerLossNotice([], definitions({})), null);
 }
 
 for (const note of notes) console.log(`   · ${note}`);

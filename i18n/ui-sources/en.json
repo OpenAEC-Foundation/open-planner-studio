@@ -183,6 +183,8 @@
     "notifications.exportXerLossItem.externalLinks": "cf02ac180ea55a3e",
     "notifications.exportXerLossItem.activityCodes": "eecbeed53ab0c44e",
     "notifications.exportXerLossItem.customFields": "ef327f30e6e2db24",
+    "notifications.exportXerLossItem.activityCodeDefinitions": "0f726fc6d859d90f",
+    "notifications.exportXerLossItem.customFieldDefinitions": "c7de97385e5b0282",
     "notifications.exportXerLossItem.customTaskTypes": "7389bdd484a93a9b",
     "notifications.exportXerLossItem.taskCategories": "e898749c41515f41",
     "notifications.exportXerLossItem.priorities": "d87d4607e3dbd3df",
@@ -1398,7 +1400,9 @@
     "notifications.exportXerLossItem.summaryConstraints_one": "33d7e1b1d5c3284b",
     "notifications.exportXerLossItem.summaryConstraints_other": "bb2b5082e9158310",
     "notifications.exportXerLossItem.durationMilestones_one": "3d064bc3fe3657a5",
-    "notifications.exportXerLossItem.durationMilestones_other": "d0f6653331e64ec5"
+    "notifications.exportXerLossItem.durationMilestones_other": "d0f6653331e64ec5",
+    "notifications.exportXerLossItem.mandatoryMilestones_one": "46f275fc71f6bbdf",
+    "notifications.exportXerLossItem.mandatoryMilestones_other": "f4b9e2bc763d692d"
   },
   "task": {
     "contourDialog.title": "2c88619a7af281e3",

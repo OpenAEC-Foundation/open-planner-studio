@@ -787,6 +787,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   lose('taskCategories', tasks.filter(t => t.taskType && t.taskType !== 'CONSTRUCTION').length);
   lose('manualTasks', tasks.filter(t => t.manuallyScheduled).length);
   lose('durationMilestones', leafTasks.filter(t => t.isMilestone && !isZeroDurationMilestone(t)).length);
+  lose('mandatoryMilestones', tasks.filter(t => t.isMilestone && t.mandatory).length);
   lose('elapsedDurations', tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length);
   lose('levelingDelays', tasks.filter(t => (t.levelingDelay ?? 0) !== 0 || (t.levelingDelayMinutes ?? 0) !== 0).length);
   lose('splits', countSplitTasksWithoutContour([...tasks]) + tasks.filter(t => (t.timephasedContours?.length ?? 0) > 0).length);

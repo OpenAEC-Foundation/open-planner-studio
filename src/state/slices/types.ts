@@ -40,8 +40,9 @@ import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 
 /** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
- *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`). */
-export type XerExportLossItem = XerWriteLossCode | 'sourceDetails';
+ *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`), of een definitie
+ *  zonder taakwaarden (activiteitcodetype, eigen veld). */
+export type XerExportLossItem = XerWriteLossCode | 'sourceDetails' | 'activityCodeDefinitions' | 'customFieldDefinitions';
 export type { McpServerStatus };
 
 export type WeekStartDay = 'monday' | 'sunday';
