@@ -533,6 +533,10 @@ test('Gantt Escape annuleert rijsleep en datumsleep zonder mutatie', async ({ pa
     expect(cancelled.undoDepth).toBe(edited.undoDepth);
     expect(cancelled.selectedTaskIds).toEqual([id]);
     expect(await taskName(secondId)).toBe('Eerdere bewerking');
+    // Annuleren is geen undo: Ctrl+Y brengt de afgebroken sleep niet terug.
+    await page.keyboard.press('Control+y');
+    expect(await fields(id)).toEqual(original);
+    expect((await state(page)).redoDepth).toBe(edited.redoDepth);
   }
 
   // Een sleep die nog niets schreef, heeft niets terug te draaien: de eerdere bewerking blijft staan.
@@ -544,6 +548,28 @@ test('Gantt Escape annuleert rijsleep en datumsleep zonder mutatie', async ({ pa
   await page.mouse.up();
   expect((await state(page)).undoDepth).toBe(edited.undoDepth);
   expect(await taskName(secondId)).toBe('Eerdere bewerking');
+
+  // Ook niet als F5 de vastgepakte taak verzet: F5 is geen stap van de sleep, en de duurwijziging van de
+  // voorganger die eraan voorafging blijft staan.
+  await page.evaluate((id) => {
+    const s = window.__OPS__!.store.getState();
+    const time = s.tasks.find(task => task.id === id)!.time;
+    s.updateTask(id, { time: { ...time, scheduleFinish: '2026-09-25T16:00', earlyFinish: '2026-09-25T16:00', scheduleDuration: 15 } });
+  }, firstId);
+  const longer = await fields(firstId);
+  const longerState = await state(page);
+  const heldMilestone = await fields(milestoneId);
+  const held = await barPoint(page, milestoneId);
+  await page.mouse.move(held.x, held.y);
+  await page.mouse.down();
+  await page.keyboard.press('F5');
+  await expect.poll(() => fields(milestoneId).then(now => now.time.earlyStart)).not.toBe(heldMilestone.time.earlyStart);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  expect((await fields(firstId)).time.scheduleFinish).toBe(longer.time.scheduleFinish);
+  expect((await state(page)).undoDepth).toBe(longerState.undoDepth);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => fields(firstId).then(now => now.time.scheduleDuration)).toBe(10);
 
   // De eerstvolgende Ctrl+Z raakt die eerdere bewerking, niet de afgebroken sleep.
   await page.keyboard.press('Control+z');
