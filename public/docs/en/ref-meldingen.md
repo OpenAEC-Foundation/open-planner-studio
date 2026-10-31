@@ -27,7 +27,7 @@ The bar at the bottom shows, from left to right:
 
 ## The Warnings panel
 
-- **Opening** — *Planning › Schedule › Warnings*, *View › Panels › Warnings*, or a counter in the status bar. The panel is in the right-hand column, below *Properties* and the resource dock, and expands a collapsed column. By default it is closed and it is not remembered between sessions. You drag its height at the edge when it is under other panels, and that height is remembered. The cross at the top right closes it (*Close warnings*).
+- **Opening** — *Planning › Schedule › Warnings panel*, *View › Panels › Warnings panel*, or a counter in the status bar. The panel is in the right-hand column, below *Properties* and the resource dock, and expands a collapsed column. By default it is closed and it is not remembered between sessions. You drag its height at the edge when it is under other panels, and that height is remembered. The cross at the top right closes it (*Close warnings*).
 - **Header line** — *N error(s), N warning(s)*. If nothing has been calculated yet, it says *Not calculated yet — press Calculate (F5) to run the checks.*
 - **Calculate** — a button in the header line, visible as long as the schedule is out of date or not yet calculated. It does the same as *Calculate* in the ribbon.
 - **Warning sign in the header line** — when the schedule is out of date, with the tooltip *Schedule is stale — this list comes from the last calculation. Recalculate (F5).* The list is not hidden, only marked as out of date.
@@ -139,7 +139,10 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 - **Dates as in the file** (info) — *N tasks show the dates as recorded in the file (not recalculated).* (N counts every task with recorded dates) or *N tasks differ from the dates in the file — you can show them.* When opening a file with recorded dates.
 - **Work and task types visible** (info) — *This file contains stored work or task types; the task type and remaining work are shown for this project.*
 - **MS Project schedule read** (info) — *This MS Project file contains N tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.*
+- **Export loses data** (info) — *Exporting to {format} drops data that {format} cannot hold, such as notes or a secondary constraint. The IFC project file keeps everything.* After a successful export to CSV, MS Project XML or P6 XML of a project that does not come from an XER file, when the format cannot hold something from the project. With a *Read more* link to [Exporting](docs://howto-exporteren).
+- **Characters replaced** (info) — *N characters that XML does not allow were replaced with � in the export.* After an export to MS Project XML or P6 XML, when a name or text contained a control character.
 - **Breaks not exported** (info) — *N tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.* When exporting to MS Project or Primavera.
+- **Critical threshold in hours not exported** (info) — *When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.* When exporting to MS Project XML, if the project calculates with *Total float ≤ threshold* and a threshold in hours (except 0 hours).
 - **Project start moved** (info) — *N tasks moved with the project start.* When you set the project start later. Only tasks without a predecessor and without a constraint that would lie before the new start date move to that date. With a *Read more* link to [New project and Project settings](docs://ref-projectinfo).
 - **Date window no longer steers** (info) — *MS Project's date window no longer drives N tasks after this edit; …* Once per document.
 - **Leveling delay rounded** (info) — *Leveling rounds MS Project's minute-precise leveling delay for N tasks to whole workdays.* Once per document.

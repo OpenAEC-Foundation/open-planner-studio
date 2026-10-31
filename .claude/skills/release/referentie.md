@@ -36,6 +36,7 @@ De volledige lijst:
   Het absolute Node-pad mag ook; checker en pakket blijven in dezelfde release-worktree.
 - `npm run i18n:add -- ...`, `npm run i18n:fmt`, `npm run i18n:resolve`,
   `npm run verify:i18n` en `npm run verify:translations`.
+- `node scripts/release-ci-check.mjs "$SHA"` (stap 3 van de skill) en met `--browser` (*Eerst: browsertests*).
 - `npm run verify:docs`, `npm run publish:wiki` (dry-run), `npm run publish:wiki -- --push`
   en `node scripts/run-ts.mjs scripts/check-wiki-links.ts`.
 - Alleen in de tijdelijke websitekopie: `node scripts/generate-release-notes.js`,
@@ -45,8 +46,9 @@ De volledige lijst:
 Interne helperprocessen van deze opdrachten horen bij die stap; dit staat geen andere losse Node-opdracht toe.
 Tests (`npm test`, alle suites en browsertests), app-builds (`npm run build`, `tauri:*`), de volledige
 `npm run verify` en dev-servers blijven hier verboden. Ook geen andere installatie of `npx`.
-De verplichte volledige verify vóór de tag komt uit `ci.yml` op de exacte main-SHA.
-`release.yml` herhaalt de volledige verify na de tag, vóór publicatie. Bekijk die runs met `gh`.
+De verplichte volledige verify vóór de tag komt uit `ci.yml`: de pushrun op de exacte main-SHA
+plus de laatste browserrun op main. De `gate` van `release.yml` draait geen verify en leest alleen
+of die runs groen zijn, met dezelfde regels als stap 3 van de skill. Bekijk die runs met `gh`.
 Gerichte tests en foutreproducties horen eveneens in PR-CI; sla geen check over en verzwak niets.
 
 ### Grenzen bij aangeroepen skills
@@ -69,6 +71,7 @@ Doe dit vóór “niets veranderd” en vóór `npm run bump`. Neem de numeriek 
 Werk voor publicatie in een schone worktree op `SHA`; CI-fixes krijgen apart een branch vanaf main.
 Een incomplete app-uitlevering wordt nooit stil als vorige voltooide release gebruikt.
 Alleen open websitewerk blokkeert een volgende app-release niet; probeer het de volgende zaterdag opnieuw.
+Een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) is geen open werk; meld het in het eindrapport.
 
 **Controleer eerst afschrijving**, vóór enige release-/workflowpoging voor deze tag.
 De vaste regel staat in de body van de gemergde app-release-PR, titel `Release v<VERSION>`:
@@ -113,7 +116,8 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Zoek vervolgruns met `gh run list --workflow snap.yml --event workflow_run` (idem `aur.yml`).
    Hun eigen `head_sha` kan de defaultbranch zijn: koppel via getagde checkout/versie in de logs
    en de vastgelegde run-ID's, niet blind via `--commit`. Een PR-run of overgeslagen publicatie
-   telt niet. Wacht binnen de deadline op een lopende run; start geen tweede.
+   telt niet; alleen een [ontbrekend AUR-secret](#ontbrekend-aur-secret) is hierop een uitzondering.
+   Wacht binnen de deadline op een lopende run; start geen tweede.
 2. **Release herstellen.** Is de bijbehorende `release.yml`-run mislukt of geannuleerd: bekijk
    eerst de fout en de geslaagde jobs met `gh run view <run-id> --json jobs` en `--log-failed`.
    Volg [CI herstellen](#ci-herstellen): eerst eenmaal `gh run rerun <run-id> --failed`, ook bij een
@@ -121,7 +125,7 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Dit is publiceren en valt onder het zaterdagmandaat. Bewaar de gebruikte rerunpoging.
    Nooit een hele release-run opnieuw starten als `create-release` al slaagde: die maakt een nieuwe
    draft met `createRelease`, zonder bestaande-releasecontrole. Gebruik de bestaande run en outputs.
-   Ontbreken zowel release als run: start eenmaal de volledige gate op **de bestaande tag**:
+   Ontbreken zowel release als run: start eenmaal de gate op **de bestaande tag**:
    `gh workflow run release.yml --ref "$TAG" -f "version=$TAG"`. Ontbreekt alleen de run maar
    bestaat wel een draft/publicatie, of zijn de outputs onbruikbaar: stop met de exacte blokkade.
    Een main-fix werkt niet vanzelf door in deze tag; volg [Herstel na de tag](#herstel-na-de-tag).
@@ -133,8 +137,9 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    en publiceert niet. Stop daarvoor met de ontbrekende run als blokkade.
    Voor een ontbrekende AUR-run mag de bestaande publicatieroute wel:
    `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`.
-   Controleer `Publish to Snap Store` en `Push to AUR` op `success`; ontbreken credentials, meld
-   de blokkade zonder secrets te wijzigen. Bestond een vervolgworkflow nog niet in deze historische
+   Controleer `Publish to Snap Store` en `Push to AUR` op `success`; ontbreken Snap-credentials, meld
+   de blokkade zonder secrets te wijzigen. Een ontbrekend AUR-secret is geen blokkade: volg
+   [Ontbrekend AUR-secret](#ontbrekend-aur-secret). Bestond een vervolgworkflow nog niet in deze historische
    tag, leg “niet van toepassing” vast met bewijs uit `git cat-file -e "$TAG:.github/workflows/<naam>"`.
 4. **Gepubliceerde assets.** Voer [Uitlevering controleren](#uitlevering-controleren) uit voor `TAG`.
    Een gepubliceerde release alleen is geen bewijs van complete of juiste assets.
@@ -159,6 +164,39 @@ Na alle toepasselijke hervatstappen, uitgesteld websitewerk of vastgelegde afsch
 Ga terug naar actuele `origin/main` en voer de kandidaatselectie hieronder uit. Een bestaande kandidaat gaat vóór
 “niets veranderd” en vóór een nieuwe bump. `PREV` blijft de numerieke versieondergrens.
 Bij afschrijving blijft de oorspronkelijke releasetekst daarnaast de inhoudsbron voor de opvolger.
+
+### Ontbrekend AUR-secret
+
+Besluit eigenaar, 2026-10-31. Een ontbrekend `AUR_SSH_PRIVATE_KEY` houdt de release niet tegen.
+De AUR-uitlevering is dan geen onafgerond werk en geen stopreden, ook niet voor een oudere tag.
+Dit geldt alleen als de `aur.yml`-run van deze tag aan alle vier de punten voldoet:
+
+1. De run heeft conclusie `success`.
+2. De stap `Push to AUR` heeft conclusie `skipped`.
+3. De job heeft de notice `AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.`
+4. De joblog toont de `.deb` van `VERSION`, dus deze run hoort bij deze tag.
+
+Lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
+toont ook het script zelf. `AUR_RUN` is het run-ID uit hervatstap 1. De laatste opdracht heeft twee
+vormen: `gh` 2.102.0 weigert deze log zonder `--allow-escape-sequences`, en `gh` 2.45.0 op aia kent die vlag niet.
+
+```bash
+gh run view "$AUR_RUN" --repo "$REPO" --json conclusion,jobs \
+  --jq '.conclusion, (.jobs[].steps[] | select(.name == "Push to AUR") | .conclusion)'
+JOB=$(gh run view "$AUR_RUN" --repo "$REPO" --json jobs --jq '.jobs[] | select(.name == "aur") | .databaseId')
+gh api "repos/$REPO/check-runs/$JOB/annotations" --jq '.[] | select(.annotation_level == "notice") | .message'
+{ gh api "repos/$REPO/actions/jobs/$JOB/logs" --allow-escape-sequences 2>/dev/null ||
+  gh api "repos/$REPO/actions/jobs/$JOB/logs"; } | grep -F "Open.Planner.Studio_${VERSION}_amd64.deb:"
+```
+
+Is dit bewezen: ga door, zonder rerun, dispatch of secretwijziging. Schrijf in het hervatverslag en
+het eindrapport: “Arch kreeg nog geen pakket: secret `AUR_SSH_PRIVATE_KEY` ontbreekt.”
+
+De release stopt wel bij een rode `aur.yml`, een mislukte push terwijl het secret er is, of een pakket
+met de verkeerde versie. Een overgeslagen push zonder deze notice is geen bewijs; dat is bijvoorbeeld
+een handmatige test zonder `publish`. Er is geen schakelaar. Bestaat het secret, dan pusht de
+volgende `aur.yml`-run vanzelf, en gelden weer `success` en de `pkgver`-controle uit
+[Uitlevering controleren](#uitlevering-controleren).
 
 ## Kandidaatselectie
 
@@ -226,8 +264,8 @@ maakt de route naar een nieuwe opvolgversie vrij; een bestaande ongetagde opvolg
 
 ## CI herstellen
 
-Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en
-releaseworkflows na de tag. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
+Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en releaseworkflows
+na de tag. Een rode browserrun volgt de skill `browsertests-repareren`. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
 
 ### Deadline en voortgang
 
@@ -267,7 +305,7 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
    De cijfercorrectie voegt zo precies één commit toe; bereken vanaf de actuele basis volgens
    [Releasecijfers](#releasecijfers). Na een inhoudelijke fix kan een aparte cijfercorrectie nodig zijn.
    Haal main opnieuw op en wacht op groene `ci.yml` met event `push`, branch `main` en exact de
-   merge-SHA. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
+   merge-SHA; stap 3 van de skill controleert daarna ook de browserrun. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
 5. Hervat pas daarna de release. Bij een rode release-PR: neem de fix via een gewone merge van
    main op in de bestaande releasebranch. Los conflicten op, behoud de kandidaatversie en vernieuw
    cijfers/JSON volgens [Releasecijfers](#releasecijfers). Ook een fout die alleen in de kandidaat
@@ -310,6 +348,13 @@ Een main-fix verandert de getagde broncode of workflow niet; een rerun gebruikt 
 Is uitsluitend een externe oorzaak weggenomen, hervat dan gericht de mislukte jobs van de bestaande
 run. Bewaar het bewijs; herhaal niet ongewijzigd als die weer faalt. Nooit een volledige rerun na
 geslaagde `create-release` of een dispatch op main om de getagde gate te omzeilen.
+
+Stopt de `gate` bij **Check CI and browser run**, lees dan de `::error::`-regels. Is de reden weg, draai dan
+de gate opnieuw met `gh run rerun <run-id> --failed`. Browserrun afgewezen: volg de skill
+`browsertests-repareren` en geef haar de regel `BROWSERRUN=<id>` uit de log door. Staat main nog op de getagde commit,
+dan telt zijn bewijsrun voor de tag.
+Staat main verder, dan is de nieuwe run geen voorouder van de tag en stopt de gate weer: schrijf de tag af volgens
+punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door te laten.
 
 **Besluit orkestrator, 2026-10-22:** heeft de tag gewijzigde broncode of workflow nodig, dan geldt:
 
@@ -474,6 +519,7 @@ Bij historisch hervatten vervallen alleen workflowcontroles die het hervatpad aa
   onvolledige release; meld dit zonder secrets op te vragen of te wijzigen.
 - Controleer ook `aur.yml`, stap **Push to AUR**: `success`; een groen pakket zonder publicatie
   is geen afgeronde AUR-uitlevering. Controleer de gepubliceerde `pkgver` voor deze versie.
+  Uitzondering: bij een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) vervalt deze controle.
 - Een `latest.json` met ontbrekende darwin-entry kan duiden op een ontbrekend macOS `app`-target.
   Windows-updaterarchief en `.sig` moeten ná Azure-signing opnieuw zijn gemaakt door de workflow.
 - Bij een afwijking: rapporteer het bewijs. Verplaats nooit de tag en wijzig assets niet op goed geluk.

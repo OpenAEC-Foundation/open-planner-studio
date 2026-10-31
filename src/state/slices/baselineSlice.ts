@@ -1,4 +1,7 @@
-import type { Baseline } from '@/types/baseline';
+import {
+  normalizeComparedBaselines, noComparedBaselines, toggleComparedBaseline,
+  type Baseline, type ComparedBaselineIds,
+} from '@/types/baseline';
 import { generateId } from '@/utils/id';
 import type { AppSliceFactory } from './types';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -7,6 +10,9 @@ import { shownFinish, shownStart } from '@/utils/taskDates';
 export interface BaselineSlice {
   baselines: Baseline[];
   activeBaselineId: string | null;
+  /** Tot twee vergelijkingsbaselines naast de actieve (issue #391), per document bewaard. Nooit de
+   *  actieve en nooit een onbekend id (`normalizeComparedBaselines`). */
+  comparedBaselineIds: ComparedBaselineIds;
   /** Snapshot huidige plan → nieuwe Baseline; retourneert het nieuwe id; zet direct als actief.
    *  Pure metadata: pusht ÉÉN undo-snapshot, roept NOOIT runCPM aan, zet NOOIT scheduleStale. */
   saveBaseline: (name: string) => string;
@@ -15,11 +21,15 @@ export interface BaselineSlice {
   renameBaseline: (id: string, name: string) => void;
   /** Actieve baseline voor overlay/variance; leest alleen, geen runCPM. */
   setActiveBaseline: (id: string | null) => void;
+  /** Zet een baseline in of uit de vergelijking (max. twee naast de actieve). Zelfde soort wijziging
+   *  als `setActiveBaseline`: één undo-stap, document gewijzigd, geen runCPM. */
+  toggleComparedBaseline: (id: string) => void;
 }
 
 export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => (set) => ({
   baselines: [],
   activeBaselineId: null,
+  comparedBaselineIds: noComparedBaselines(),
 
   saveBaseline: (name) => {
     const id = generateId('baseline');
@@ -60,6 +70,8 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
       if (s.activeBaselineId === id) {
         s.activeBaselineId = s.baselines.length ? s.baselines[s.baselines.length - 1].id : null;
       }
+      // Een verwijderde baseline (of de nieuwe actieve) verdwijnt uit de vergelijking.
+      s.comparedBaselineIds = normalizeComparedBaselines(s.comparedBaselineIds, s.baselines, s.activeBaselineId);
       runtime.finishMutation(s);
     }),
 
@@ -77,6 +89,18 @@ export const createBaselineSlice: AppSliceFactory<BaselineSlice> = (runtime) => 
       if (s.activeBaselineId === id) return;
       runtime.beginUndoable(s);
       s.activeBaselineId = id;
+      // Een vergeleken baseline die actief wordt, verdwijnt uit de vergelijking.
+      s.comparedBaselineIds = normalizeComparedBaselines(s.comparedBaselineIds, s.baselines, s.activeBaselineId);
+      runtime.finishMutation(s);
+    }),
+
+  toggleComparedBaseline: (id) =>
+    set((s) => {
+      if (id === s.activeBaselineId || !s.baselines.some((b) => b.id === id)) return;
+      const next = toggleComparedBaseline(s.comparedBaselineIds, id);
+      if (next[0] === s.comparedBaselineIds[0] && next[1] === s.comparedBaselineIds[1]) return; // vol: geen loze undo-stap
+      runtime.beginUndoable(s);
+      s.comparedBaselineIds = next;
       runtime.finishMutation(s);
     }),
 });

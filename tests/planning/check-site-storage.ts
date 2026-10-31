@@ -4,7 +4,7 @@
 //   A. Het hostcontract: `getSiteStorage()` vindt een geldige host op het eigen venster en op een
 //      same-origin parent, valt stil terug bij een cross-origin parent (die gooit bij lezen), weigert
 //      een host zonder vier functies, en ziet in Tauri nooit een site. Plus `siteInitialFileId`,
-//      `siteHostWindows` (waar het ready-event kan komen), de foutcodes en `siteSkipsWelcome` (#583).
+//      `siteHostWindows` (waar het ready-event kan komen), de foutcodes, `runsEmbedded` en `siteLanguageHints` (#716).
 //   B. De dispatch in `fileAccess/index.ts`: de algemene schrijffuncties schrijven NOOIT naar de site
 //      (ook niet met host), lezen mag wel; een handle-ref blijft bij de webbackend.
 //   C. De site-backend: openen geeft de gelezen versie (verplicht), een oudere versie geeft geen doel
@@ -116,7 +116,7 @@ g.indexedDB = {
 // ── Imports (na de globals) ────────────────────────────────────────────────────────────────────
 const {
   getSiteStorage, isSiteStorage, siteInitialFileId, isSiteConflict, isSiteNotFound, siteStorageAvailable, siteHostWindows,
-  siteSkipsWelcome,
+  runsEmbedded, siteLanguageHints,
 } = await import('@/services/fileAccess/siteHost');
 const {
   saveToRef, saveToRefWithoutPrompt, canWriteToRefWithoutPrompt, readFromRef, readBytesFromRef, saveTargetRef,
@@ -298,22 +298,42 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   eq('A11 conflict is geen not-found', isSiteNotFound({ code: 'conflict' }), false);
   eq('A11 null is geen not-found', isSiteNotFound(null), false);
 
-  // Welkomstvenster overslaan (#583): alleen strikt `true`, ook zonder opslag, ook via de parent.
-  eq('A12 geen host ⇒ welkomst niet overslaan', siteSkipsWelcome(), false);
-  setHost({ skipWelcome: true });
-  eq('A12 skipWelcome zonder opslag telt', siteSkipsWelcome(), true);
-  eq('A12 skipWelcome maakt nog geen site', getSiteStorage(), null);
-  for (const [label, value] of [['tekst', 'true'], ['getal', 1], ['object', {}], ['false', false], ['ontbreekt', undefined]] as const) {
-    setHost({ storage: memorySite().storage, skipWelcome: value });
-    eq(`A12 skipWelcome ${label} ⇒ niet overslaan`, siteSkipsWelcome(), false);
-  }
-  setHost({ storage: memorySite().storage });
-  win.parent = sameOriginParent({ openaecHost: { skipWelcome: true } });
-  eq('A12 skipWelcome op de same-origin parent telt', siteSkipsWelcome(), true);
+  // Ingebed (#716): elk host-object telt, ook zonder opslag en ook op de same-origin parent. Desktop nooit.
+  eq('A12 geen host ⇒ niet ingebed', runsEmbedded(), false);
+  setHost({});
+  eq('A12 leeg host-object ⇒ ingebed', runsEmbedded(), true);
+  eq('A12 leeg host-object maakt nog geen site', getSiteStorage(), null);
   clearHost();
-  setHost({ skipWelcome: true });
+  setHost('geen object');
+  eq('A12 host die geen object is ⇒ niet ingebed', runsEmbedded(), false);
+  clearHost();
+  win.parent = sameOriginParent({ openaecHost: {} });
+  eq('A12 host op de same-origin parent ⇒ ingebed', runsEmbedded(), true);
+  clearHost();
+  setHost({});
   win.__TAURI_INTERNALS__ = {};
-  eq('A12 Tauri ⇒ welkomst nooit overslaan', siteSkipsWelcome(), false);
+  eq('A12 Tauri ⇒ nooit ingebed', runsEmbedded(), false);
+  clearHost();
+
+  // De taal van de host (#716), in volgorde: `taal` op de host, `lang` van de same-origin parent, `taal=`
+  // in de hash. Alleen tekst telt; een cross-origin parent of een kapotte hash is "niets".
+  const parentWithLang = (lang: string) => sameOriginParent({ document: { documentElement: { lang } } });
+  eq('A13 geen host, geen parent, geen hash ⇒ geen taal', siteLanguageHints(), []);
+  setHost({ taal: 'de' });
+  win.parent = parentWithLang('fr-FR');
+  win.location = { hash: '#x=1&taal=es' };
+  eq('A13 volgorde host, parent, hash', siteLanguageHints(), ['de', 'fr-FR', 'es']);
+  setHost({ taal: 3 });
+  eq('A13 taal die geen tekst is telt niet', siteLanguageHints(), ['fr-FR', 'es']);
+  win.parent = parentWithLang('');
+  win.location = { hash: '#taal=tr' };
+  eq('A13 lege lang van de parent telt niet; hash aan het begin', siteLanguageHints(), ['tr']);
+  win.parent = { get document(): never { throw new Error('SecurityError'); } };
+  win.location = { hash: '#taal=%E0%A4' };
+  eq('A13 cross-origin parent ⇒ niets; kapotte codering blijft ruwe tekst', siteLanguageHints(), ['%E0%A4']);
+  win.location = { hash: '#mijntaal=nl' };
+  eq('A13 alleen de sleutel taal= telt', siteLanguageHints(), []);
+  delete win.location;
   clearHost();
 }
 

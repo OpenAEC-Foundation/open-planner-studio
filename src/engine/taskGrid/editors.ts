@@ -88,8 +88,10 @@ export function parseGridEditorText(
  * precies de datum die de cel nu toont, dan geldt het opgeslagen moment.
  *
  * Een andere datum is nieuwe invoer en houdt de regels van de store (de kant van het veld; bij een
- * mijlpaal D7). Niet voor een beperkingsdatum: haar kant volgt het type, en dezelfde plak kan dat type
- * wijzigen; de transactie leest die datum met het nieuwe type (`gridTransaction.ts`).
+ * mijlpaal D7, en bij een werkelijke datum van een mijlpaal de klokketijd uit de planning, besluit
+ * 2026-10-29, `normalizeActualDate`). Niet voor een beperkingsdatum: haar kant volgt het type, en
+ * dezelfde plak kan dat type wijzigen; de transactie leest die datum met het nieuwe type
+ * (`gridTransaction.ts`).
  */
 function keepShownMoment(
   descriptor: TaskColumnDescriptor,

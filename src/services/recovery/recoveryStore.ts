@@ -968,16 +968,22 @@ const CLAIM_RETRY_MS = 150;
  * voor een "page lease". `ifAvailable` zorgt dat we niet gaan wachten maar meteen weten of iemand
  * anders hem al heeft.
  */
-function claimLock(name: string): Promise<boolean> {
-  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-  if (!locks) return Promise.resolve(true); // geen Web Locks → geen detectie mogelijk
-  return new Promise<boolean>((resolve) => {
-    locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
-      resolve(lock !== null);
-      if (!lock) return undefined;
-      return new Promise<never>(() => { /* nooit vrijgeven: leeft zolang deze pagina leeft */ });
-    }).catch(() => resolve(false));
-  });
+async function claimLock(name: string): Promise<boolean> {
+  try {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    if (!locks) return true; // geen Web Locks → geen detectie mogelijk
+    return await new Promise<boolean>((resolve, reject) => {
+      locks.request(name, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+        resolve(lock !== null);
+        if (!lock) return undefined;
+        return new Promise<never>(() => { /* nooit vrijgeven: leeft zolang deze pagina leeft */ });
+      }).catch(reject);
+    });
+  } catch {
+    // Ook een synchrone fout in getter/request betekent een onzekere claim, geen geweigerde
+    // IndexedDB. Volg dezelfde retry/nieuwe-id-route als bij een afgewezen lock-promise (373).
+    return false;
+  }
 }
 
 const delay = (ms: number) => new Promise<void>((r) => { setTimeout(r, ms); });

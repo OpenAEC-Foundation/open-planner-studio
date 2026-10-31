@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Frame, Page } from '@playwright/test';
-import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeCheck } from './fixtures/ops';
 
 const HOST_KEY = 'ops-test-site-host';
 const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -198,21 +198,20 @@ async function recoveryRecords(page: Page): Promise<number> {
 }
 
 /**
- * Na een herlaadbeurt: wacht op het herstelvenster of de welkomst (die komt pas na de herstelcontrole).
- * Een herstelvenster beantwoorden we met "niet herstellen"; daarna gaat de welkomst weg zoals in de
- * fixture.
+ * Na een herlaadbeurt: wacht op het herstelvenster of het einde van de welkomstcontrole (die komt pas
+ * na de herstelcontrole). Een herstelvenster beantwoorden we met "niet herstellen". Met een host draait
+ * de tool ingebed: geen welkomstvenster (#716).
  */
 async function settleAfterReload(page: Page): Promise<void> {
   await waitForOps(page);
   const recovery = page.locator('[data-ops-recovery-dialog]');
-  const welcome = page.locator('[data-ops-welcome-dialog]');
-  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  const welcomeChecked = () => page.evaluate(() => window.__OPS__!.log.snapshot().some((e) => e.channel === 'welkomst'));
+  await expect.poll(async () => await recovery.count() > 0 || await welcomeChecked(), { timeout: 15_000 }).toBe(true);
   if (await recovery.count() > 0) {
     await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
     await expect(recovery).toHaveCount(0);
   }
-  await waitForWelcomeDialog(page);
-  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  expect(await waitForWelcomeCheck(page)).toBe('welkomstcontrole: overgeslagen (ingebed)');
 }
 
 const openDialog = (tool: Tool) => tool.locator('[data-ops-site-open-dialog]');
@@ -580,8 +579,11 @@ async function openToolInIframe(page: Page, options: { initialFileId?: string; l
   const frame = page.frames().find((f) => f !== page.mainFrame())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined), { timeout: 15_000 }).toBe(true);
   expect(await frame.evaluate(() => 'openaecHost' in window)).toBe(false);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  // De host op de parent maakt de tool ook ingebed: geen welkomstvenster (#716). Komt de host pas ná de
+  // welkomstcontrole (`lateMs`), dan staat het venster al open, zoals het contract zegt; sluit het dan.
+  const outcome = await waitForWelcomeCheck(frame);
+  if (options.lateMs === undefined) expect(outcome).toBe('welkomstcontrole: overgeslagen (ingebed)');
+  else await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
   return frame;
 }
 
@@ -651,8 +653,7 @@ async function readyToolFrame(page: Page, previous: Frame | null): Promise<Frame
   await expect.poll(() => page.frames().some((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())).toBe(true);
   const frame = page.frames().find((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined).catch(() => false), { timeout: 15_000 }).toBe(true);
-  await frame.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
-  await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  await waitForWelcomeCheck(frame);
   return frame;
 }
 

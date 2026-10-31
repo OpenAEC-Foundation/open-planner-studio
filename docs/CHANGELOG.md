@@ -6,6 +6,48 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.44.0 — 2026-10-31
+
+### Added
+
+- Compare up to three baselines at once: the active baseline and two comparison baselines share a strip in the Gantt and in reports. Overlapping segments and coincident milestones show their baseline colours together; comparison choices survive save/reopen and undo.
+- New-project and project settings choose the default measure for new tasks. Tasks with fixed work use the hour measure; P6 and Microsoft Project profiles default to hour measure.
+- Ribbon tabs can be switched with the mouse wheel, with an application setting to disable this behaviour. Summary-task names remain behind their bars.
+- Embedded operation follows the host language and skips the welcome dialog. A development-only file link opens repository examples through the normal file-open route.
+- Extension contract 1.5 exposes the current task selection for reading.
+
+### Changed
+
+- Scheduling uses one time axis in minutes and effective working-time blocks throughout. OPS day-measure tasks count work days, including fractions, while hour-measure tasks count working hours. A day task can follow an hour task within the same day.
+- Hour planning is always available. The former hour-planning switch is removed; mixed planning controls the unit selector, and OPS tasks display their own measure. Dates at a working-day boundary omit the clock time; other moments display it. Duration display uses up to two decimals while retaining the underlying value.
+- Calendar walks use integer milliseconds without rounding source work quantities. Dragging, splits, contours, resource loading, levelling, printing and scheduling share placement rules.
+- Existing project files pass through the documented, undoable minute-model conversion. The app, headless core results and MCP import responses report the conversion.
+- IFC reader/writer indexes avoid repeated hierarchy, calendar and crew scans. Other targeted changes limit Gantt drawing to visible rows, defer document thumbnails until the overview opens, and reduce repeated work in resource views, task selection, indentation, insertion and dependency searching.
+- The Warnings ribbon controls are named Warnings panel. Download statistics count program downloads and refresh every two hours.
+- The application and installers use the restored Open Planner Studio logo. Rustls is updated to 0.23.46.
+
+### Fixed
+
+- Release statistics count binary fixtures as zero source-code lines while retaining strict comparisons for textual changes.
+- Preserve actual timestamps, completed work and explicit source remaining durations through progress edits, work-rule changes, import, save/reopen and recalculation. Completed milestones retain their planned clock time; zero remaining duration does not silently change a running P6 task's status.
+- Correct working-day and clock-time boundaries for constraints, milestones, ALAP placement, lag and fractional remaining durations. Unchanged date input preserves its original instant.
+- MS Project XML and P6 XML round trips retain task measures, remaining duration and lag metadata. Native MPP assignment calculations account for assignment units; XER decoding is deterministic for Windows-1252.
+- MS Project XML exports time-phased resource capacity. Export warnings cover unsupported data, critical thresholds in hours and XML character replacement.
+- Refuse malformed headless XML characters, entities and namespace bindings; decode UTF-16 input without silent character loss. Unprefixed XML no longer performs an unused namespace search for each element.
+- Preserve recovery sets on read or claim failures, handle inaccessible browser storage, and stop update installation if recovery flush fails. Legacy recovery restores dirty state correctly.
+- Keep MCP requests cancellable during reconnection, preserve operation and confinement errors, clean up failed discovery writes, bound temporary filenames and synchronize atomic-save directories.
+- Confirm resource-library calendar removal, restore manual recognition choices, explain unavailable recent files and keep notifications clear of the guide panel.
+
+### Documentation
+
+- Updated Dutch and English guides for days and hours, fractional measures, task types, scheduling profiles, calendar boundaries, progress, exports and baseline comparison. The old hour-planning guide redirects to Plan a task in hours.
+- Refreshed examples use the minute model; the two largest examples demonstrate simultaneous baselines.
+- UI translations are completed through the translation pipeline for all 28 interface languages. Guide translations beyond Dutch and English remain a separate translation task.
+
+### Compatibility
+
+- Update every workstation before sharing files saved by this version with old installations. In v2026.9.0 and older, new files lose calendar details such as the work week, working times, holidays and shifts. In v2026.9.0 a task with a non-default time, an hour duration or a fractional day duration can also become a zero-duration task (known issue 150).
+
 ## v2026.43.0 — 2026-10-24
 
 This release makes MCP clients easier to connect, improves large-schedule performance, and

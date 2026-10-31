@@ -320,6 +320,7 @@ export type NotificationMessageKey =
   // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
   | 'notifications.importDatesAsRecorded'
   | 'notifications.xerExportLoss'
+  | 'notifications.exportDataLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.taskEditRevertBlocked'
@@ -351,6 +352,8 @@ export type NotificationMessageKey =
   // MSPDI-/P6-export — zie `fileSlice.ts`s `exportSplitsLostNotice`. Meervoud, `count`.
   | 'notifications.exportSplitsLost'
   | 'notifications.exportP6Truncated'
+  | 'notifications.exportInvalidXmlChars'
+  | 'notifications.exportCriticalHoursLost'
   // Een onbruikbaar XER-bronarchief is bij het
   // openen weggelaten — zie `src/state/xerArchiveIssueNotice.ts`. Bewust geen meervoud (ook bij
   // crashherstel van meerdere documenten één zin); `xerArchiveUnusableLine` is de kopregel wanneer
@@ -590,6 +593,7 @@ export interface UIState {
   debugTerminalOpen: boolean;     // session
   documentChromeStyle: DocumentChromeStyle; // persisted — multi-document wisselstijl
   ribbonCompact: boolean; // persisted — compacte ribbon voor kleine schermen
+  ribbonWheelSwitchesTabs: boolean; // persisted — muiswiel boven de lint-tabs wisselt van tab (#688)
   showProjectOverview: boolean;             // session — projectoverzicht-overlay open
   pendingCloseDocId: string | null;         // session — document met openstaande sluit-bevestiging
   /** Session — de gebruiker sluit de hele app: `useAppCloseGuard` loopt de documenten met

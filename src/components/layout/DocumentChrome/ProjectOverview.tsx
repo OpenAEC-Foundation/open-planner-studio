@@ -14,7 +14,7 @@ import './DocumentChrome.css';
 export function ProjectOverview() {
   const { t } = useTranslation('common');
   const open = useAppStore((s) => s.ui.showProjectOverview);
-  const cards = useDocumentCards();
+  const cards = useDocumentCards(open);
   const { switchTo, closeWithGuard, chooseNewOrOpenProject, closeOverview } = useDocumentActions();
   const closeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousDocumentIds = useRef(cards.map(card => card.id));

@@ -18,6 +18,7 @@ import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { parseDate, formatDate, addCalendarDays, diffDays } from '@/utils/dateUtils';
 import { StatusBanner } from './StatusBanner';
+import { isAutoCalcHeld, onAutoCalcReleased } from '@/state/editHold';
 
 /** Maximaal getoonde conflictdatums in de badge-tooltip/subregel ("max. ~5, dan …"). */
 const MAX_CONFLICT_DATES_SHOWN = 5;
@@ -120,6 +121,8 @@ export function resolveLibrarySliceCache(
  * uitsluitend ongetelde boekingen toont "—" voor periode/piek, krijgt nooit een conflictbadge en
  * bij selectie geen chart maar de stale-uitleg.
  *
+ * Het actieve document rekent bij openen/documentwissel één keer als het stale is (behalve
+ * in de modus opgeslagen datums). Latere edits volgen F5/Automatisch berekenen.
  * Uitzondering — het ACTIEVE document (perf-poort): dat krijgt `skipEphemeralSolve` mee, want elke
  * bewerking invalideert de zware memo en zou anders per toetsaanslag een volledige CPM-solve
  * synchroon in de render kosten. Het telt mee met zijn laatst berekende cijfers (dezelfde staleness
@@ -163,6 +166,25 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
   const recalculateStaleSleepingDocuments = useAppStore(s => s.recalculateStaleSleepingDocuments);
+
+  // Openen (of naar een ander document wisselen) is één rekenmoment, niet elke render/edit.
+  // De ref voorkomt een dubbele poging bij StrictMode en bij een mislukte berekening.
+  // Wacht op een lopend invoer-/sleepgebaar; cleanup voorkomt rekenen na sluiten/docwissel.
+  const openingAttempt = useRef<string | null>(null);
+  useEffect(() => {
+    const key = JSON.stringify([activeDocumentId, companyId]);
+    const calculateOnOpen = () => {
+      if (openingAttempt.current === key || isAutoCalcHeld()) return;
+      const s = useAppStore.getState();
+      if (s.activeDocumentId !== activeDocumentId || s.project.companyId !== companyId) return;
+      openingAttempt.current = key;
+      // Opgeslagen datums verlaten / een minutenmigratie bevestigen blijft expliciet, nooit een leesvenster.
+      if (s.scheduleStale && !s.datesAsRecorded && !s.minuteModelPending) s.runCPM();
+    };
+    const unsubscribe = onAutoCalcReleased(calculateOnOpen);
+    calculateOnOpen();
+    return unsubscribe;
+  }, [activeDocumentId, companyId]);
 
   const untitledLabel = t('project.untitled');
 
