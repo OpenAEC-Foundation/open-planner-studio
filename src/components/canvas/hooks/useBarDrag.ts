@@ -174,6 +174,10 @@ interface UseBarDragOptions {
   /** De exacte as waarmee de renderer de balk heeft getekend, inclusief werkdagencompressie. */
   axis: GanttAxis;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  /** Neemt de laatste undo-stap terug: Escape draait zo de lopende coalesce-stap van dit gebaar terug. */
+  undo: () => void;
+  /** Slikt de click van de mouseup na een afgebroken gebaar in (gewist door de click of de volgende mousedown). */
+  suppressClickRef: RefObject<boolean>;
   /** De ENE schrijfweg voor gebruikerssplits. Zonder deze naad (tests) sleept een gesplitste
    *  balk als geheel. */
   setTaskSplits?: (taskId: string, pieces: SplitPiece[] | null, opts?: { coalesceKey?: string }) => unknown;
@@ -216,7 +220,7 @@ interface UseBarDragOptions {
 // (body en linkerrand) en elke ongesplitste balk lopen over de gewone code hieronder.
 export function useBarDrag({
   zoom, enableQuarterHourZoom, calendar, effectiveCalById, compressNonWorkdays, getTask,
-  updateTask, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor, looseDayEndMilestone,
+  updateTask, undo, suppressClickRef, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor, looseDayEndMilestone,
   notify, dateNotation = 'dmy', timeNotation = '24h', workdayDurationMeasure = true,
 }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -246,6 +250,9 @@ export function useBarDrag({
    *  en of B6 hem op het dageinde zet (`looseDayEndMilestone`). Wisselt niet midden in het gebaar en
    *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
   const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean; time: Task['time'] } | null>(null);
+  // De taak bij pointer-down. Dezelfde referentie bij Escape betekent: dit gebaar schreef niets, dus er valt
+  // niets terug te draaien (een undo zou dan een eerdere bewerking terugnemen).
+  const gestureTaskRef = useRef<Task | undefined>(undefined);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -305,6 +312,7 @@ export function useBarDrag({
     const rect = canvas?.getBoundingClientRect();
     const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
     const original = getTask(next.taskId);
+    gestureTaskRef.current = original;
     const completed = !!original && finishIsActual(original);
     // Een voltooide balk heeft geen stukgrepen: zijn pauzes liggen in het verleden.
     const split = completed ? undefined : prepareSplitDrag(next, rect ? next.startX - rect.left : null);
@@ -770,7 +778,22 @@ export function useBarDrag({
       setDragState(null);
     };
 
-    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp });
+    // Escape breekt het gebaar af: de lopende coalesce-stap gaat terug, dus ook de constraint en wat een
+    // sleepcommit verder wiste. Capture-fase + stopImmediatePropagation, net als de rijsleep en de
+    // kaderselectie: anders wist de globale Escape-sneltoets de selectie.
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      if (getTask(dragState.taskId) !== gestureTaskRef.current) undo();
+      undoKeyRef.current = null;
+      startRuleRef.current = null;
+      actualLockRef.current = null;
+      suppressClickRef.current = true;
+      setSplitLabel(null);
+      setDragState(null);
+    };
+
+    return listenWindowDrag({ onMove: handleMouseMove, onUp: handleMouseUp, onKeyDown: handleKeyDown, keyCapture: true });
   }, [
     dragState,
     zoom,
@@ -781,6 +804,8 @@ export function useBarDrag({
     compressNonWorkdays,
     getTask,
     updateTask,
+    undo,
+    suppressClickRef,
     onVerticalBodyDrag,
     axis,
     canvasRef,

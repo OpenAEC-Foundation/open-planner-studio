@@ -66,9 +66,9 @@ export function useGanttPointerCoordinator(
   const view = viewport.effectiveView;
 
   const justBoxSelectedRef = useRef(false);
-  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen: de mouseup van
-  // dat gebaar levert op het canvas nog een click op, en die mag de zojuist verplaatste taak niet
-  // her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
+  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen, of met Escape is
+  // afgebroken: de mouseup van dat gebaar levert op het canvas nog een click op, en die mag de zojuist
+  // verplaatste taak niet her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
   // want eindigt de sleep boven de grid, dan komt er op het canvas helemaal geen click (zelfde
   // vangnet als `useTableRowDrag`'s `justDraggedRef`).
   const justRowDraggedRef = useRef(false);
@@ -114,6 +114,8 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     getTask,
     updateTask,
+    undo,
+    suppressClickRef: justRowDraggedRef,
     onVerticalBodyDrag: startVerticalRowDrag ? onVerticalBodyDrag : undefined,
     axis: viewport.sharedAxis,
     canvasRef,

@@ -1670,9 +1670,3 @@ en noem het in je rapport of PR-tekst.
      leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
      beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
      van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
-425. **De browsertest van mijlpaal slepen controleert Ctrl+Z na heen-en-terug niet.** De stap aan het eind van
-    het eerste blok in `tests/browser/gantt-drag-undo.spec.ts` (losse mijlpaal op 24/7) vergelijkt na heen en
-    terug slepen alleen `time` en staat hoogstens één extra undo-stap toe. Hij controleert niet dat Ctrl+Z
-    daarna een eerdere bewerking intact laat. De hookproef van review #704 r8 liet zien dat het goed gaat;
-    de regressiecontrole ontbreekt. Richting: vóór de sleep een naam wijzigen, na de sleep Ctrl+Z, dan
-    `time` gelijk en de naam nog gewijzigd. VERVOLG uit review #704 r8. — B
