@@ -387,10 +387,13 @@ export interface Task {
    *  bepaalt de finish"). Nooit samen met `timephasedFinishFloor`.
    *
    *  `workMinutes` per item: ontbreekt het, dan wandelt het item `task.time.durationMinutes` (volgt
-   *  bewerkingen vanzelf). Bij meerdere gelijktijdige toewijzingen draagt elk item zijn eigen
-   *  werkaandeel (`decodeAssignmentWorkMinutes`, `mppReader.ts`) — de volle taakduur per toewijzing gaf
-   *  een ~2× te late finish. De garantie zit op de producerende tak in `mppReader.ts`, niet op de
-   *  lengte: ook een lijst van lengte 1 kan `workMinutes` dragen. Zo'n BEVROREN waarde volgt een latere
+   *  bewerkingen vanzelf). Bij meerdere gelijktijdige toewijzingen draagt elk item de WERKTIJD van zijn
+   *  toewijzing in werkminuten: haar werk ÷ haar inzet (`decodeAssignmentWorkMinutes` en
+   *  `assignmentRemainingMinutes`, regel 2 van de werkdriehoek; bij inzet 1 dus haar werk) — de volle
+   *  taakduur per toewijzing gaf een ~2× te late finish. Toewijzingen die de duur niet sturen
+   *  (materiaal, een MS Project-kostenresource) staan niet in de lijst. De garantie zit op de
+   *  producerende tak in `mppReader.ts`, niet op de lengte: ook een lijst van lengte 1 kan
+   *  `workMinutes` dragen. Zo'n BEVROREN waarde volgt een latere
    *  duur-/datum-/kalenderwijziging niet, dus wist `clearTimephasedDurationWalks` (`taskDefaults.ts`) de
    *  lijst zodra een item `workMinutes` draagt; de taak valt dan terug op laag 5. `clearTimephasedWindow`
    *  raakt deze lijst niet. Round-tript via `OPS_TimephasedWindow` (`ifcPsets.ts`). */

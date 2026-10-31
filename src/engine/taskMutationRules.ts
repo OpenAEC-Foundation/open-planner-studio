@@ -1,18 +1,21 @@
 import type { CustomFieldValue } from '@/types/structure';
 import type { WorkCalendar } from '@/types/calendar';
 import {
-  blocksClock, dayEndInstant, dayStartInstant, ELAPSED_CLOCK, isDateOnly, workdayOfInstant,
-  type InstantSide,
+  blocksClock, dayEndInstant, dayStartInstant, ELAPSED_CLOCK, isDateOnly, isInstant, milestoneMomentOn, workdayOfInstant,
+  type DayClock, type InstantSide,
 } from '@/engine/calendar/workdayRules';
 import { isElapsedTask, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import type { Task, TaskTime } from '@/types/task';
 import { parseDate, parseInstant } from '@/utils/dateUtils';
+import { milestoneDay } from '@/utils/taskDateLabel';
+import { shownStart } from '@/utils/taskDates';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 
 /**
  * De statusregel (§4.2): zonder tijd telt de werkdag van de taakkalender; met tijd het moment.
- * Bij een nachtblok kan een feit op donderdag bij de statuswerkdag woensdag horen.
+ * Bij een nachtblok kan een feit op donderdag bij de statuswerkdag woensdag horen. Voor een werkelijke
+ * datum van een taak: {@link isTaskActualPastStatusDate} (kant van het veld, en de mijlpaalregel).
  */
 export function isActualPastStatusDate(
   dateIso: string,
@@ -27,14 +30,112 @@ export function isActualPastStatusDate(
   return parseInstant(dateIso).getTime() > parseInstant(statusDateIso).getTime();
 }
 
-/** D7: een nulduur-mijlpaal gebruikt voor beide actuals dezelfde kant. */
+/** De kant van een werkelijke datum: bij een taak die van het veld (start begin, einde eind). Een
+ *  nulduur-mijlpaal heeft één moment voor beide actuals en dus één kant: de eindkant bij een
+ *  FINISH-mijlpaal, anders de startkant (D7). Dezelfde kant als de tabel (`taskDateLabel`) en de
+ *  statusregel (`isTaskActualPastStatusDate`). */
 export function actualDateSide(task: Task, field: 'actualStart' | 'actualFinish'): InstantSide {
   return isZeroDurationMilestone(task)
     ? task.milestoneKind === 'FINISH' ? 'end' : 'start'
     : field === 'actualFinish' ? 'end' : 'start';
 }
 
-/** D1/D2/D4/D6/D7 vóór validatie en vergelijking, op elke kalender. Letterlijke tijden blijven rauw (N0). */
+/**
+ * De statusregel voor een werkelijke datum van een taak: {@link isActualPastStatusDate} met de kant van
+ * het veld ({@link actualDateSide}) en de klok van de taak (kalendertijd of de werkblokken van `calendar`).
+ * Elke invoerroute, het DCMA-rapport en het gezondheidsrapport toetsen hiermee, met de kalender van de taak.
+ *
+ * Een nulduur-mijlpaal heeft één moment. Bij een statusdatum zonder tijd telt voor een mijlpaal de werkdag
+ * van dat moment volgens `milestoneWorkdayOf` (spec §4.2, B10 met de aanvulling "einde blijft einde"): de
+ * dag waarvan de werkspanne het moment bevat, ook op een dag zonder werkblok (D4). Dezelfde werkdag
+ * gebruiken de tabel (`taskDateLabel`) en het afmelden (`milestoneMomentOn`). Wat je op de statusdag
+ * afmeldt, mag dus op de statusdag. Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, statusdatum vr 5 jun.
+ * Een mijlpaal op het einde van zijn dienst, afgemeld met 05-06-2026, wordt za 6 jun 02:00, het einde van
+ * de vrijdagdienst: geen weigering. Za 02:01 ligt na die dienst en wordt geweigerd. Een statusdatum mét
+ * tijd blijft een tijdstipcontrole. Een gewone taak: ongewijzigd.
+ */
+export function isTaskActualPastStatusDate(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  dateIso: string,
+  statusDateIso: string,
+  calendar?: WorkCalendar,
+): boolean {
+  const side = actualDateSide(task, field);
+  if (calendar && !statusDateIso.includes('T') && isZeroDurationMilestone(task)) {
+    const day = milestoneDay(task, dateIso, calendar);
+    if (day) return parseDate(day).getTime() > parseDate(statusDateIso).getTime();
+  }
+  return isActualPastStatusDate(dateIso, statusDateIso, isElapsedTask(task) ? undefined : calendar, side);
+}
+
+/**
+ * Een afgemelde mijlpaal houdt de klokketijd uit de planning. Besluit van Ethan, 2026-10-29 (vloot-wiki,
+ * `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande tijd.md`): "Meld je een mijlpaal af met alleen
+ * een datum, dan houdt hij de klokketijd die hij in de planning had. De dag komt van wat je typt, de tijd
+ * uit de planning. Typ je zelf een tijd, dan geldt die." Het vervangt D7 (spec §4.2) voor afmelden, in
+ * elk profiel en voor elke soort mijlpaal. Voorbeeld: "Oplevering" staat op ma 1 jun 16:00; 3-6-2026
+ * wordt wo 3 jun 16:00.
+ *
+ * Met de aanvulling van later die dag ("einde blijft einde"): stond de mijlpaal op het begin of einde van
+ * zijn werkdag, dan komt hij op hetzelfde begin of einde van de getypte dag. Bij ma–do 07:00–16:00 en
+ * vr 07:00–12:00 wordt "Oplevering" (ma 16:00), afgemeld op vr 5 jun, dus vr 12:00. De regel zelf, met de
+ * uitwerking voor een kloktijd die bij een andere werkdag hoort, staat in `milestoneMomentOn`.
+ *
+ * "De planning" is het moment dat de mijlpaal nu toont: {@link shownStart}, waar de Gantt ook de ruit
+ * tekent (`milestoneAnchorX`). Voor een mijlpaal die nog niet is afgemeld is dat de berekende
+ * `earlyStart` (vóór de eerste berekening het anker `scheduleStart`); is hij al afgemeld, dan zijn
+ * werkelijke datum. Zo houdt een tweede afmelding de tijd, ook in P6, waar C5 de vroege start van een
+ * voltooide taak op de statusdatum zet. Niet `scheduleStart` alleen: dat is het ingevoerde anker en
+ * niet de uitkomst van de logica (een mijlpaal na een taak van 3 u staat om 10:00, zijn anker om
+ * 07:00). Na een berekening zijn begin en einde van een mijlpaal hetzelfde moment, dus één veld voor
+ * beide actuals.
+ *
+ * `null`: de mijlpaal heeft geen moment met tijd in de planning (geen berekening en een anker zonder
+ * tijd); dan geldt D7.
+ */
+function plannedMilestoneActual(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  date: string,
+  clock: DayClock,
+): string | null {
+  const planned = shownStart(task);
+  if (!planned || !isInstant(planned)) return null;
+  return milestoneMomentOn(clock, planned, date, actualDateSide(task, field));
+}
+
+function normalizeActualDateWith(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  value: string | undefined,
+  statusDate: string | undefined,
+  calendar: WorkCalendar | undefined,
+  plannedClock: boolean,
+): string | undefined {
+  // F2 normaliseert elke kalenderdatum vóór validatie en waardevergelijking (D1/D2/D7),
+  // ook buiten de statusdag en op een scalaire kalender.
+  if (!value || !isDateOnly(value) || !calendar) return value;
+  const clock = isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar);
+  const side = actualDateSide(task, field);
+  const planned = plannedClock && isZeroDurationMilestone(task)
+    ? plannedMilestoneActual(task, field, value, clock)
+    : null;
+  const moment = planned ?? (side === 'end' ? dayEndInstant(clock, value) : dayStartInstant(clock, value)) ?? value;
+  // Alleen een datumloze invoer op de statuswerkdag mag tot het expliciete statusmoment klemmen.
+  if (statusDate?.includes('T') && value === workdayOfInstant(clock, statusDate, 'start')
+    && parseInstant(moment) > parseInstant(statusDate)) return statusDate;
+  return moment;
+}
+
+/**
+ * Een ingevoerde werkelijke datum vóór validatie en vergelijking, op elke kalender: D1/D2/D4/D6, en bij
+ * een nulduur-mijlpaal de klokketijd uit de planning ({@link plannedMilestoneActual}, besluit
+ * 2026-10-29; zonder bruikbaar gepland moment D7). Letterlijke tijden blijven rauw (N0). Elke
+ * invoerroute gebruikt deze functie: tabel en plakken, voortgangsimport, eigenschappenpaneel,
+ * contextmenu, Taak bewerken en MCP, en de afgeleide datums bij 100 % (`applyProgressInvariants`).
+ * `task` is de taak zoals ze vóór deze invoer staat: haar getoonde moment is "de planning".
+ */
 export function normalizeActualDate(
   task: Task,
   field: 'actualStart' | 'actualFinish',
@@ -42,16 +143,19 @@ export function normalizeActualDate(
   statusDate: string | undefined,
   calendar: WorkCalendar | undefined,
 ): string | undefined {
-  // F2 normaliseert elke kalenderdatum vóór validatie en waardevergelijking (D1/D2/D7),
-  // ook buiten de statusdag en op een scalaire kalender.
-  if (!value || !isDateOnly(value) || !calendar) return value;
-  const clock = isElapsedTask(task) ? ELAPSED_CLOCK : blocksClock(calendar);
-  const side = actualDateSide(task, field);
-  const moment = (side === 'end' ? dayEndInstant(clock, value) : dayStartInstant(clock, value)) ?? value;
-  // Alleen een datumloze invoer op de statuswerkdag mag tot het expliciete statusmoment klemmen.
-  if (statusDate?.includes('T') && value === workdayOfInstant(clock, statusDate, 'start')
-    && parseInstant(moment) > parseInstant(statusDate)) return statusDate;
-  return moment;
+  return normalizeActualDateWith(task, field, value, statusDate, calendar, true);
+}
+
+/** De laadgrens (`normalizeImportedProgress`): D1/D2/D4/D6/D7 zoals in spec §4.2. Het besluit van
+ *  2026-10-29 geldt daar niet; een bestand bepaalt zelf zijn tijden. */
+export function normalizeLoadedActualDate(
+  task: Task,
+  field: 'actualStart' | 'actualFinish',
+  value: string | undefined,
+  statusDate: string | undefined,
+  calendar: WorkCalendar | undefined,
+): string | undefined {
+  return normalizeActualDateWith(task, field, value, statusDate, calendar, false);
 }
 
 /**
@@ -137,7 +241,7 @@ export function applyCompletionEdit(task: Task, completion: number, statusDate: 
  *  draaien — de gedeelde kern van `setActualStart`/`setActualFinish` (paneel) en de velden in
  *  "Taak bewerken". Het einde wissen terwijl de taak op 100% stond ⇒ terug naar in-uitvoering
  *  (anders zet de invariant meteen een nieuw einde en is wissen onmogelijk). Een datum ná de
- *  statusdatum weigeren (`isActualPastStatusDate`) doet de aanroeper, vóór deze aanroep. */
+ *  statusdatum weigeren (`isTaskActualPastStatusDate`) doet de aanroeper, vóór deze aanroep. */
 export function applyActualDateEdit(
   task: Task,
   field: 'actualStart' | 'actualFinish',

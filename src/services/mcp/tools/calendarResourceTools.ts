@@ -1608,13 +1608,14 @@ function levelingData(
   }
   if (unresolvedCount > 0) {
     warnings.push(
-      `${unresolvedCount} task(s) keep an unresolved peak; see \`unresolvedReasons\` (INTRINSIC_OVERRUN = ` +
+      `${unresolvedCount} task(s) keep an unresolved peak; see \`unresolved\` for conflict dates and, when available, \`unresolvedReasons\` (INTRINSIC_OVERRUN = ` +
       'the task on its own already asks for more than the capacity, CALENDAR_MISMATCH = resource and task ' +
       'calendar do not line up, INSUFFICIENT_CAPACITY = there is simply too little capacity, ' +
       'CEILING_TOO_TIGHT = the extension ceiling leaves too little room, CEILING_UNREACHABLE = a ' +
       'deadline/backward constraint makes every ceiling unreachable, RESIDUAL_FULL = the project\'s own ' +
       'allocation had room but the residual capacity of the library pool item is used up — other documents ' +
-      'occupy the pool, NO_WINDOW_IN_HORIZON = the search horizon ran out without finding a fitting window).',
+      'occupy the pool, NO_WINDOW_IN_HORIZON = the search horizon ran out without finding a fitting window). ' +
+      'Pinned tasks are not moved or searched for a new window, so their conflict dates may have no search reason.',
     );
   }
   // `projectEndAfter` is de VOORSPELLING van de nivelleerder; `projectEnd` is wat er ná de

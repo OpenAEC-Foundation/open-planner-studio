@@ -401,6 +401,7 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       customTaskTypes: deepClone(src.customTaskTypes),
       baselines: deepClone(src.baselines),
       activeBaselineId: src.activeBaselineId,
+      comparedBaselineIds: [src.comparedBaselineIds[0], src.comparedBaselineIds[1]],
       cpmResult: src.cpmResult,
       resourceLoadResult: src.resourceLoadResult,
       scheduleStale: src.scheduleStale,

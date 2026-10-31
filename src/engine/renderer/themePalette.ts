@@ -183,6 +183,9 @@ export interface GanttPalette {
   milestone: string;
   float: string;
   baseline: string;
+  /** Issue #391: kleuren van vergelijkingsbaseline 1 en 2 (naast de actieve, grijze, in dezelfde strook). */
+  baselineCompare1: string;
+  baselineCompare2: string;
   selected: string;
   dependency: string;
   today: string;
@@ -230,6 +233,9 @@ export function readGanttPalette(): GanttPalette {
     milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
     baseline: v('--theme-bar-baseline', BRAND.baseline),
+    // Vergelijkingsbaselines: per thema een eigen tint (licht donkerder, donker lichter), zie globals.css.
+    baselineCompare1: v('--theme-bar-baseline-compare-1', '#0891B2'),
+    baselineCompare2: v('--theme-bar-baseline-compare-2', '#C026D3'),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
@@ -344,6 +350,9 @@ export const PRINT_PALETTE = {
   normalDark: '#1d4ed8',
   milestone: '#7C3AED',
   baseline: '#6B7280',
+  // Vergelijkingsbaselines (issue #391): de tinten van het lichte schermthema; papier is wit.
+  baselineCompare1: '#0891B2',
+  baselineCompare2: '#C026D3',
   uncategorized: BRAND.ghost, // '#94A3B8' — ontbrekende categoriewaarde
   float: '#10B981',
   dependency: '#9CA3AF',
