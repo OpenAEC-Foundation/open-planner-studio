@@ -663,6 +663,7 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
     milestone('Eind', 5, { milestoneKind: 'FINISH' }, { durationMinutes: 2400 }),
     milestone('Start', 0),
     milestone('Slot', 0, { milestoneKind: 'FINISH' }),
+    milestone('Gewoon', 5, { isMilestone: false }, { durationMinutes: 2400 }),
   ];
   const written = writeXER({ project, calendar, calendars: [calendar], tasks, sequences: [], resources: [], assignments: [], exportDate: '2026-10-20' });
   const row = (name: string) => rowsOf(written.bytes, 'TASK').find(r => r.task_name === name);
@@ -671,7 +672,8 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R14b mijlpaal met duur in uren: gewone activiteit, 40 u duur en rest', cells('Uren'), ['TT_Task', 40, 40]);
   eq('R14c half af: de rest blijft 20 u', cells('Bezig'), ['TT_Task', 40, 20]);
   eq('R14d eindmijlpaal met duur: gewone activiteit', cells('Eind'), ['TT_Task', 40, 40]);
-  ok('R14e met duur: start en einde vallen niet samen', row('Eind')?.target_start_date !== row('Eind')?.target_end_date);
+  eq('R14e met duur: dezelfde datumkanten als een gewone activiteit',
+    [row('Eind')?.target_start_date, row('Eind')?.target_end_date], [row('Gewoon')?.target_start_date, row('Gewoon')?.target_end_date]);
   eq('R14f nulduur-mijlpaal blijft TT_Mile', cells('Start'), ['TT_Mile', 0, 0]);
   eq('R14g nulduur-eindmijlpaal blijft TT_FinMile', cells('Slot'), ['TT_FinMile', 0, 0]);
   eq('R14h de melding telt de vier omgezette mijlpalen', written.loss.find(l => l.code === 'durationMilestones')?.count, 4);

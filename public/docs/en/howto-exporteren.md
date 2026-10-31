@@ -22,7 +22,7 @@ The list on the *Home* tab and the cards in *File › Export* offer the same for
 - *CSV (;)*, on the card *CSV (semicolon-separated)*: a task list that you open in a spreadsheet.
 - *MS Project XML*: can be opened in Microsoft Project.
 - *Primavera P6 XML*: for Oracle Primavera P6.
-- *Primavera P6 XER*: for Oracle Primavera P6, as a `.xer` file. This choice has the label *Experimental*: the export has not yet been tested by opening the file in Primavera P6 itself, and much is not included, or not exactly. After saving, the app reports what was not included, or not exactly. Check the schedule after you open it in P6. If your project uses a scheduling profile other than *Primavera P6*, a short hint below the choice names the recommended profile. The same applies to *Primavera P6 XML*, and to *MS Project XML* with the *Microsoft Project* profile. The export still goes ahead.
+- *Primavera P6 XER*: for Oracle Primavera P6, as a `.xer` file. This choice has the label *Experimental*: the export has not yet been tested by opening the file in Primavera P6 itself, and much is not included, or not exactly. After saving, the app reports what was not included, or not exactly. Check the schedule after you open it in P6. If your project uses a scheduling profile other than *Primavera P6*, a short hint below the choice names the recommended profile. The same applies to *Primavera P6 XML*, and to *MS Project XML* with the *Microsoft Project* profile. After saving, the app gives the same advice in a notification. The export still goes ahead.
 - *IFC*: the app's own format, with everything in it, in the IFC schema of the project (default IFC 4.3 ADD2).
 
 ### An IFC export with a library file

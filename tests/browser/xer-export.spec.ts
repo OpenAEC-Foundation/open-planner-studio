@@ -85,4 +85,10 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   await expect(ribbonXer.locator('[data-ops-export-profile-hint]')).toHaveCount(0);
   // MS Project XML houdt de hint: daar past het profiel Microsoft Project.
   await expect(page.locator('[data-ops-export-profile-hint]')).toHaveText(/Primavera P6.*Microsoft Project/);
+
+  // Na de export geeft een melding hetzelfde advies, in dezelfde tekst als de hint.
+  const mspdiDownload = page.waitForEvent('download');
+  await page.locator('button').filter({ hasText: /^MS Project XML/ }).click();
+  expect((await mspdiDownload).suggestedFilename()).toMatch(/\.xml$/);
+  await expect(page.locator('.ops-toast').filter({ hasText: /Primavera P6.*Microsoft Project/ })).toBeVisible();
 });
