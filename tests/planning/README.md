@@ -18,9 +18,22 @@ regel, `EINDOORDEEL planningssuite: GROEN/ROOD`, volgt altijd de exitcode; tusse
 "(alles groen)" gaan alleen over hun eigen deel.
 `run.sh` bundelt `harness.ts` met esbuild (komt met Vite mee) en draait het op Node — geen extra deps.
 
-De tijdzone-matrix aan het eind (alle bundels opnieuw onder vijf tijdzones) draait de zones
-tegelijk, hoogstens zoveel als er processorkernen zijn; `OPS_TZ_JOBS=1 bash tests/planning/run.sh`
-draait ze één voor één, zoals vroeger. De uitvoer staat altijd in vaste zonevolgorde.
+De volledige run draait parallel: `run.sh` zet elke check in een plan en `scripts/planning-pool.mjs`
+draait de checks en de tijdzone-matrix (alle bundels opnieuw onder vijf tijdzones) met hoogstens 4
+processen tegelijk. `OPS_PLANNING_JOBS=1 bash tests/planning/run.sh` draait ze één voor één. Elk proces
+heeft een eigen logbestand en een eigen `TMPDIR`. De uitvoer van de gewone run staat in vaste volgorde;
+van een zone zie je alleen de checks die daar rood zijn, met hun eigen uitvoer. De twee
+performance-poorten draaien alleen, als de rest klaar is. Een rode check houdt de rest niet tegen.
+
+In de CI draait de suite in drie jobs (`bash tests/planning/run.sh --shard=1/3`, 2/3, 3/3). De verdeling
+gaat op naam; alle runs van één check blijven in één job.
+
+**Elke check moet precies één keer draaien.** `expected-checks.txt` noemt elke controle en of hij in de
+matrix hoort (`matrix`) of niet (`los`). Klopt het plan niet met die lijst, in welke richting ook, dan is
+de run rood. Een volledige run telt daarna wat er echt gedraaid heeft; in de CI doet de job `test` dat
+over de drie jobs samen. Bij een nieuwe check of een bewuste wijziging werk je de lijst bij met
+`bash tests/planning/run.sh --list-checks > tests/planning/expected-checks.txt`. Dat bundelt en draait
+niets.
 
 ### Gerichte runs
 
@@ -32,7 +45,8 @@ mogelijk was. Sinds deze paragraaf print `run.sh` daarom aan het eind van een ge
 zichtbare waarschuwing met het aantal overgeslagen checks, dynamisch geteld uit het script zelf —
 er staat bewust geen getal in deze README, want dat veroudert bij elke nieuwe of verwijderde check;
 laat `bash tests/planning/run.sh <iets ongeldigs>` of een gerichte run het actuele aantal tonen.
-Een nieuwe `check-*.ts` hoef je **niet** in `run.sh` te bedraden: de volledige run bundelt en draait
+Een nieuwe `check-*.ts` hoef je **niet** in `run.sh` te bedraden (wel in `expected-checks.txt`, zie
+hierboven): de volledige run bundelt en draait
 elke `check-*.ts` zonder eigen `bundle_check`-regel automatisch, inclusief de tijdzone-matrix (de
 check-scriptinventaris bovenin `run.sh` somt ze op). Een eigen regel is alleen nodig voor een check
 die iets bijzonders vraagt — een omgevingsvariabele, een vaste plek, of juist niet in de
