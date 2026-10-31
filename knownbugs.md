@@ -1736,7 +1736,5 @@ en noem het in je rapport of PR-tekst.
      `Start Milestone` met `PlannedDuration` 40. P6 rekent een mijlpaal zonder duur, dus de duur kan daar wegvallen. De
      XER-export is hierop gerepareerd in #393 (`isZeroDurationMilestone`). Gevonden tijdens die fix. Niet in P6 getest. — S
 
-571. **Twee meervoudsfamilies staan met aparte hashes in `i18n/ui-sources/en.json`.** `notifications.exportP6Truncated` en
-     `notifications.p6xmlImportUnassignedActivities` hebben daar `_one`- en `_other`-regels. De vertaalstraat verwacht één
-     hash onder de naam van de familie. Gevolg: de vertaalstraat ziet ze als verouderd. Dezelfde fout op drie
-     sleutels van #393 is daar gerepareerd. Gevonden tijdens die reparatie. — B
+571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
+     families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
