@@ -34,9 +34,7 @@ const task = (name: string, calendarId: string): Task => ({
   id: name, name, description: '', wbsCode: name, taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false,
   priority: 500, parentId: null, childIds: [], resourceIds: [], calendarId, time: createDefaultTaskTime('2026-06-05', 1),
 });
-const sequence: Sequence = {
-  id: 'R', predecessorId: 'A', successorId: 'B', type: 'FINISH_START', lag: 1, lagMinutes: 480, lagUnit: 'WORKTIME',
-} as Sequence;
+const sequence: Sequence = { id: 'R', predecessorId: 'A', successorId: 'B', type: 'FINISH_START', lagDays: 1, lagMinutes: 480 };
 const project = { ...createDefaultProject(), startDate: '2026-06-05', statusDate: '2026-06-05' };
 const written = writeXER({
   project, calendar: predCal, calendars: [predCal, succCal], tasks: [task('A', 'Voorganger'), task('B', 'Opvolger')],

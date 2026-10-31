@@ -333,6 +333,12 @@ export type NotificationMessageKey =
   | 'notifications.exportXerLoss'
   | `notifications.exportXerLossItem.${XerExportLossItem}`
   | 'notifications.exportDataLoss'
+  // Na een geslaagde P6 XML-export (`state/p6XmlExportNotice.ts`): zelfde vorm als de XER-melding, met
+  // de XER-regels die ook hier kloppen en deze eigen regels.
+  | 'notifications.exportP6XmlLoss'
+  | `notifications.exportP6XmlLossItem.${'schedulingOptions' | 'baselines' | 'summaryRelations' | 'hammocks' | 'suspendResume' | 'priorities' | 'notes' | 'resourceTypes'}`
+  // Bij het openen van een P6 XML: het project rekent met het OPS-profiel (`withP6XmlProfileNotice`).
+  | 'notifications.p6XmlOpensAsOps'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.taskEditRevertBlocked'

@@ -1280,15 +1280,6 @@ en noem het in je rapport of PR-tekst.
      lezer dit bestand leest, is getoetst (`check-xer-writer.ts`, V10–V11); dat P6 het zonder verminkte tekens
      importeert, niet. Voorstel: een export met bijvoorbeeld `Ł` in P6 importeren en de naam nakijken. Uit de
      review van PR #393 (punt 10, VERVOLG). — S
-467. **De P6 XML-export draait de keuze *Projectstandaard* voor het taaktype terug.** Een taak uit P6 houdt het
-     oude duurtype in `p6DurationType`. Kiest de gebruiker bij die taak *Projectstandaard*, dan schrijft
-     `src/services/p6/p6xmlWriter.ts` (`durationTypeLabel`, rond regel 605) zonder eigen regel toch dat oude type.
-     Na heropenen heeft de taak weer een eigen regel. Nagespeeld met een script: een XER met `DT_FixedQty`,
-     `DT_FixedRate` of `DT_FixedDUR2`, openen, *Projectstandaard* (`settleRuleChange` met `undefined`), export naar
-     P6 XML en heropenen geeft weer `FIXED_WORK`, `FIXED_RATE` of `FIXED_DURATION_WORK` in plaats van de
-     standaard `FIXED_DURATION_RATE` (3 van 3). De XER-export had dezelfde fout; die is in PR #393 (review
-     ronde 4) hersteld door het duurtype uit de effectieve regel te schrijven. Voorstel: in de P6 XML-schrijver
-     hetzelfde doen. Gevonden bij die fix. — B
 475. **Het advies "Kies Primavera P6" verschijnt ook als het project al met Primavera P6 rekent.** De verliesregel
      *Rekenregels* (`schedulingRules`, `xerWriter.ts`, `schedulingRulesDiffer`) meldt ook afwijkende projectopties,
      niet alleen een ander profiel. Nagespeeld met De Akkers: profiel Primavera P6 met de P6-standaardopties geeft
@@ -1806,10 +1797,6 @@ en noem het in je rapport of PR-tekst.
      ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
      check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
 
-570. **P6 XML: een mijlpaal mét duur krijgt een mijlpaaltype naast zijn duur.** `src/services/p6/p6xmlWriter.ts`,
-     `taskTypeToP6`, kijkt alleen naar `isMilestone`. Een taak uit `.mpp` met de vlag en 5 dagen duur krijgt dus
-     `Start Milestone` met `PlannedDuration` 40. P6 rekent een mijlpaal zonder duur, dus de duur kan daar wegvallen. De
-     XER-export is hierop gerepareerd in #393 (`isZeroDurationMilestone`). Gevonden tijdens die fix. Niet in P6 getest. — S
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B

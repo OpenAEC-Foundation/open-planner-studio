@@ -13,6 +13,7 @@ import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import type { XerWriteLoss } from '@/services/xerWriteTypes';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
+import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -52,7 +53,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
-import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
+import { withP6XmlProfileNotice, withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
@@ -1118,7 +1119,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           withSchedulingProfileNotice(
             results,
             xerImportNotice(results, datesAsRecordedShownTotal)
-              ?? p6xmlImportNotice(results)
+              ?? withP6XmlProfileNotice(results, p6xmlImportNotice(results), openedDocumentIds[0] ?? '')
               ?? msProjectImportNotice(results),
             openedDocumentIds[0] ?? '',
           ),
@@ -1390,9 +1391,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
       // document zonder XER-herkomst krijgt de algemene melding (#554).
       const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
-      if (xerLoss) {
-        const notice = exportXerLossNotice(xerLoss, warnings.flatMap(w => w.categories));
-        if (notice) get().notify(notice);
+      const categories = warnings.flatMap(warning => warning.categories);
+      const lossNotice = xerLoss ? exportXerLossNotice(xerLoss, categories)
+        : format === 'p6' ? exportP6XmlLossNotice({
+          project: state.project, calendars: [state.calendar, ...state.calendars.filter(cal => cal.id !== state.calendar.id)], tasks: state.tasks,
+          sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+          baselineCount: state.baselines.length,
+        }, categories) : null;
+      if (xerLoss || format === 'p6') {
+        if (lossNotice) get().notify(lossNotice);
       } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
         get().notify({
           severity: 'info',
@@ -1419,7 +1426,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (invalidChars) get().notify(invalidChars);
       const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
       if (criticalHoursLost) get().notify(criticalHoursLost);
-      if (!xerLoss?.some(loss => loss.code === 'schedulingRules')) {
+      if (!lossNotice?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.schedulingRules')) {
         const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
           i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
         if (profileNotice) get().notify(profileNotice);

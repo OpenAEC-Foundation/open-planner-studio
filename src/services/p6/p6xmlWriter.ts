@@ -22,7 +22,7 @@ import {
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
-import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { computedStart, computedFinish } from '@/utils/taskDates';
 import {
@@ -31,7 +31,7 @@ import {
   withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
-import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { P6_DURATION_TYPE_NAME } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -125,16 +125,9 @@ export function taskStatusToP6(task: Task): 'Completed' | 'In Progress' | 'Not S
   return 'Not Started';
 }
 
-/** XER-token → PMXML-label, via de gedeelde tabel in `workRuleMapping.ts` (Oracle-datamap). */
-function p6LabelForToken(token: string): string | undefined {
-  for (const [rule, t] of Object.entries(XER_DURATION_TYPE_TOKEN) as [keyof typeof P6_DURATION_TYPE_NAME, string][]) {
-    if (t === token) return P6_DURATION_TYPE_NAME[rule];
-  }
-  return undefined;
-}
-
 function taskTypeToP6(task: Task): string {
-  if (task.isMilestone) {
+  if (isZeroDurationMilestone(task)) {
+    // Een mijlpaal mét duur kent P6 niet: die blijft hieronder een gewone activiteit met zijn duur.
     // De expliciete soort bepaalt het P6-activitytype; automatisch ⇒ Start Milestone (P6's eigen
     // default bij import).
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
@@ -274,7 +267,7 @@ export function p6RelationshipLag(
     const predCal = pred ? effCalByTask.get(pred.id) ?? calendar : calendar;
     // De voorgangerduur is leidend, in minuten; nooit eerst naar hele dagen afronden (I6).
     const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
-    const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
+    const predMinutes = pred && !isZeroDurationMilestone(pred) ? taskMinutesForWrite(pred, predHpd) : 0;
     const minutes = Math.round(predMinutes * seq.lagPercent / 100);
     return { hours: minutes / 60, minutes };
   }
@@ -601,11 +594,9 @@ export function writeP6XMLWithReport(
   for (const task of leafTasks) {
     const objId = taskObjMap.get(task.id)!;
     const wbsObjId = task.parentId ? taskObjMap.get(task.parentId) : undefined;
-    // <DurationType> uit de werkregel; zonder werkregel valt een taak met alleen een bewaard P6-token
-    // op dat token terug. Zonder beide schrijft de export niets.
-    const durationTypeLabel = task.workRule
-      ? P6_DURATION_TYPE_NAME[task.workRule]
-      : task.p6DurationType ? p6LabelForToken(task.p6DurationType) : undefined;
+    // <DurationType> uit de eigen werkregel. Zonder eigen regel schrijft de export niets, ook niet het oude
+    // P6-token (`p6DurationType`): dat zou de keuze *Projectstandaard* terugdraaien (knownbug 467).
+    const durationTypeLabel = task.workRule ? P6_DURATION_TYPE_NAME[task.workRule] : undefined;
     // Uur-taak ⇒ PlannedDuration in uren uit de minuten (op de hele minuut; een breuk in minuten gaat als
     // `OPS_ExactMinutes`-record mee, T14). Dag-taak ⇒ werkdagen × de werktijd per dag van de
     // activiteitkalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15), niet de
@@ -676,7 +667,7 @@ export function writeP6XMLWithReport(
       // Taakkalender: effectieve kalender-ObjectId; onbekende/verwijderde calendarId valt terug op 1
       // (projectkalender).
       ...leaf('CalendarObjectId', (task.calendarId && calObjMap.get(task.calendarId)) || 1),
-      ...(durationTypeLabel && !task.isMilestone ? leaf('DurationType', durationTypeLabel) : []),
+      ...(durationTypeLabel && !isZeroDurationMilestone(task) ? leaf('DurationType', durationTypeLabel) : []),
       ...leaf('Id', task.wbsCode || task.id),
       ...leaf('Name', task.name),
       ...leaf('ObjectId', objId),

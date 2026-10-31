@@ -54,8 +54,8 @@ eq('XER met aangepast P6: wel een hint', targetOf('xer', modified), 'p6');
 const custom: SchedulingProfile = { ...p6, id: 'eigen', name: 'Eigen', overrides: {} };
 eq('XER met eigen profiel: wel een hint', targetOf('xer', custom), 'p6');
 
-// Alleen XER draagt het label Experimenteel.
-eq('label Experimenteel alleen bij XER', EXPORT_FORMATS.filter(f => 'experimental' in f && f.experimental).map(f => f.format), ['xer']);
+// Alleen P6 XML en XER dragen het label Experimenteel (eigenaar, 2026-10-29).
+eq('label Experimenteel alleen bij P6 XML en XER', EXPORT_FORMATS.filter(f => 'experimental' in f && f.experimental).map(f => f.format), ['p6', 'xer']);
 
 // De tekst: elke taal heeft de sleutel, met beide invulplekken, en de oude sleutel is weg.
 const root = 'src/i18n/locales';
@@ -95,10 +95,10 @@ for (const locale of locales) {
       rules: notes.flatMap(n => n.detailLines ?? []).filter(l => l.messageKey === 'notifications.exportXerLossItem.schedulingRules').length,
     };
   };
-  const OPS_NAME = 'Open Planner Studio';
-  eq('melding P6 XML met ops', await advice('p6', undefined), { params: [{ name: OPS_NAME, target: 'Primavera P6' }], rules: 0 });
+  eq('P6 XML met ops: één advies, in de regel Rekenregels', await advice('p6', undefined), { params: [], rules: 1 });
   eq('melding MS Project XML met p6', await advice('mspdi', p6), { params: [{ name: 'Primavera P6', target: 'Microsoft Project' }], rules: 0 });
-  eq('melding P6 XML met eigen profiel', await advice('p6', custom), { params: [{ name: 'Eigen', target: 'Primavera P6' }], rules: 0 });
+  eq('P6 XML met eigen profiel: één advies, in de regel Rekenregels', await advice('p6', custom), { params: [], rules: 1 });
+  eq('melding MS Project XML met eigen profiel', await advice('mspdi', custom), { params: [{ name: 'Eigen', target: 'Microsoft Project' }], rules: 0 });
   eq('melding P6 XML met passend profiel: geen', await advice('p6', p6), { params: [], rules: 0 });
   eq('melding IFC: geen', await advice('ifc', undefined), { params: [], rules: 0 });
   eq('XER met ops: één advies, in de regel Rekenregels', await advice('xer', undefined), { params: [], rules: 1 });
