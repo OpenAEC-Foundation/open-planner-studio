@@ -1734,3 +1734,8 @@ en noem het in je rapport of PR-tekst.
     ingedrukt blijft, laat los: `active=true`, `isAutoCalcHeld()=true`, nul mouseup-luisteraars, en een latere bewerking
     krijgt dezelfde `sessionKey`. Richting: sluit bij een ontbrekende taak de sessie en wis de sleeptoestand; één extra
     afsluitroute volstaat. VERVOLG uit review #704 (GPT-6.1-Sol) op `3daa132d4`. — B
+588. **VERVOLG: een vooraf ingestelde `OPS_RELAX_PERF=0` doorbreekt het alleen draaien van de performancechecks.**
+     `tests/planning/run.sh:85` bewaart alleen omgevingswaarden die afwijken van de aanroepende shell. Bij
+     `OPS_RELAX_PERF=0 npm run verify` verdwijnt die waarde dus uit de planregels, en `scripts/planning-pool.mjs:67`
+     ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
+     check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
