@@ -503,7 +503,6 @@ const baseInput: GanttRenderOptionsInput = {
   showBaselineOverlay: true,
   baselineOverlay: buildBaselineOverlay(baselines, 'bl1'),
   baselineComparisons: undefined,
-  baselineMarkStyle: undefined,
   trace: buildTrace('both', [idB], sequences, cpmDistinct),
   canvasWidth: 1200,
   canvasHeight: 800,

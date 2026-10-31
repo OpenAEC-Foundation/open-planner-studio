@@ -3,15 +3,16 @@
  *
  * Bewaakt:
  *  A. DE OPDELING (puur, `baselineStrip.ts`): 1, 2 en 3 baselines; overlappend, samenvallend,
- *     aansluitend en niet-rakend; ronde kanten alleen aan een buitenkant; mijlpalen op dezelfde datum
- *     delen één ruit. De tekenregel gebruikt per stuk precies de kleuren van zijn baselines, blijft
- *     binnen het stuk en de strepen schuiven mee met de strook (vast aan de linkerkant).
+ *     aansluitend en niet-rakend; mijlpalen op dezelfde datum delen één ruit.
+ *  L. DE LIJNEN (issue #741, puur): elke baseline is een eigen lijn in de strook. Alleen: volle dikte,
+ *     recht afgesneden. Samen: ze delen de hoogte, vloeiend, in een vaste volgorde. De tekenregel blijft
+ *     binnen de strook en schuift mee met de strook.
  *  B. HET DOCUMENTVELD `comparedBaselineIds`: aan/uit, maximaal twee naast de actieve, de actieve en
  *     een onbekende id doen niets, een baseline die actief wordt of verdwijnt gaat uit de vergelijking,
  *     undo/redo (zoals `setActiveBaseline`), documentwissel, IFC schrijven en lezen
  *     (`OPS_Baselines.ComparedBaselineIds`), een oud bestand zonder het veld, en crashherstel.
  *  C. SCHERM = AFDRUK: de echte `GanttRenderer` en de echte `renderReport` tekenen voor dezelfde
- *     baselines dezelfde stukken (relatieve plaats, kleur van de ondergrond, streepkleuren) en ruiten.
+ *     baselines dezelfde lijnen (relatieve plaats, kleur) en ruiten.
  */
 import { useAppStore } from '@/state/appStore';
 import { recoveryInputFromParsed } from '@/state/documentContract';
@@ -24,8 +25,8 @@ import { buildSharedAxis, computeContentSpanDays } from '@/components/canvas/gan
 import { PRINT_PALETTE } from '@/engine/renderer/themePalette';
 import { barLayout, MIN_BAR_HEIGHT_PX, MIN_BAR_HEIGHT_RATIO } from '@/engine/renderer/rowGeometry';
 import {
-  baselineDiamonds, baselineLabels, baselineStripPieces, paintBaselineStrip,
-  baselineSpanX, widenShortRuns, type BaselineBar, type BaselineMarkStyle, type BaselineSlot, type StripPainter,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineLanes, baselineStripPieces, paintBaselineStrip,
+  baselineSpanX, widenBars, widenShortRuns, type BaselineBar, type BaselineSlot, type StripPainter,
 } from '@/engine/renderer/baselineStrip';
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
@@ -46,26 +47,25 @@ const ok = (cond: boolean, msg: string) => { checks++; if (!cond) { console.log(
 const eq = (got: unknown, want: unknown, msg: string) => ok(J(got) === J(want), `${msg}: verwacht ${J(want)}, kreeg ${J(got)}`);
 
 // ══ A. De opdeling van de strook ═══════════════════════════════════════════════════════════════
-const sig = (bars: BaselineBar[]) => baselineStripPieces(bars).map(p =>
-  `${p.x1}-${p.x2}:${p.slots.join('')}${p.roundLeft ? 'L' : ''}${p.roundRight ? 'R' : ''}`);
+const sig = (bars: BaselineBar[]) => baselineStripPieces(bars).map(p => `${p.x1}-${p.x2}:${p.slots.join('')}`);
 
-eq(sig([{ slot: 0, x1: 10, x2: 50 }]), ['10-50:0LR'], 'A 1 baseline: één stuk, rond aan beide kanten');
+eq(sig([{ slot: 0, x1: 10, x2: 50 }]), ['10-50:0'], 'A 1 baseline: één stuk');
 eq(sig([]), [], 'A geen baselines: geen stukken');
 eq(sig([{ slot: 0, x1: 10, x2: 10 }]), [], 'A lege strook (x2 = x1) telt niet mee');
 eq(sig([{ slot: 0, x1: 10, x2: 50 }, { slot: 1, x1: 30, x2: 70 }]),
-  ['10-30:0L', '30-50:01', '50-70:1R'], 'A 2 baselines overlappend: effen, gestreept, effen');
+  ['10-30:0', '30-50:01', '50-70:1'], 'A 2 baselines overlappend: drie stukken');
 eq(sig([{ slot: 1, x1: 10, x2: 50 }, { slot: 0, x1: 10, x2: 50 }]),
-  ['10-50:01LR'], 'A 2 baselines samenvallend: één gestreept stuk, plaatsen oplopend');
+  ['10-50:01'], 'A 2 baselines samenvallend: één stuk, plaatsen oplopend');
 eq(sig([{ slot: 0, x1: 10, x2: 30 }, { slot: 2, x1: 60, x2: 90 }]),
-  ['10-30:0LR', '60-90:2LR'], 'A 2 baselines niet-rakend: twee losse stukken, elk rond');
+  ['10-30:0', '60-90:2'], 'A 2 baselines niet-rakend: twee losse stukken');
 eq(sig([{ slot: 0, x1: 10, x2: 30 }, { slot: 1, x1: 30, x2: 50 }]),
-  ['10-30:0L', '30-50:1R'], 'A 2 baselines aansluitend: geen ronde kant op de naad');
+  ['10-30:0', '30-50:1'], 'A 2 baselines aansluitend: twee stukken');
 eq(sig([{ slot: 0, x1: 0, x2: 10 }, { slot: 1, x1: 5, x2: 15 }, { slot: 2, x1: 8, x2: 20 }]),
-  ['0-5:0L', '5-8:01', '8-10:012', '10-15:12', '15-20:2R'], 'A 3 baselines trapsgewijs: vijf stukken');
+  ['0-5:0', '5-8:01', '8-10:012', '10-15:12', '15-20:2'], 'A 3 baselines trapsgewijs: vijf stukken');
 eq(sig([{ slot: 0, x1: 0, x2: 20 }, { slot: 1, x1: 0, x2: 20 }, { slot: 2, x1: 0, x2: 20 }]),
-  ['0-20:012LR'], 'A 3 baselines samenvallend: één stuk met drie kleuren');
+  ['0-20:012'], 'A 3 baselines samenvallend: één stuk met drie baselines');
 eq(sig([{ slot: 0, x1: 0, x2: 10 }, { slot: 1, x1: 20, x2: 30 }, { slot: 2, x1: 40, x2: 50 }]),
-  ['0-10:0LR', '20-30:1LR', '40-50:2LR'], 'A 3 baselines niet-rakend: drie losse stukken');
+  ['0-10:0', '20-30:1', '40-50:2'], 'A 3 baselines niet-rakend: drie losse stukken');
 
 eq(baselineDiamonds([{ slot: 1, x: 40, moment: 'm1' }, { slot: 0, x: 40, moment: 'm1' }]), [{ x: 40, slots: [0, 1] }],
   'A mijlpaal op dezelfde datum: één ruit met beide baselines');
@@ -77,68 +77,167 @@ eq(baselineDiamonds([{ slot: 0, x: 40, moment: 'm1' }, { slot: 0, x: 40, moment:
 
 // Tekenregel met een opnemende painter.
 interface Fill { color: string; pts: [number, number][] }
-interface Stroke { color: string; pts: [number, number][] }
-interface Text { color: string; text: string; x: number; y: number }
-function recordPainter(): { d: StripPainter; fills: Fill[]; strokes: Stroke[]; texts: Text[] } {
+function recordPainter(): { d: StripPainter; fills: Fill[] } {
   const fills: Fill[] = [];
-  const strokes: Stroke[] = [];
-  const texts: Text[] = [];
   let path: [number, number][] = [];
   const d: StripPainter = {
-    fillStyle: '', strokeStyle: '', lineWidth: 1, font: '', textAlign: 'left', textBaseline: 'middle',
+    fillStyle: '',
     beginPath() { path = []; },
     moveTo(x, y) { path.push([x, y]); },
     lineTo(x, y) { path.push([x, y]); },
     closePath() {},
     fill() { fills.push({ color: String(d.fillStyle), pts: path }); },
-    stroke() { strokes.push({ color: String(d.strokeStyle), pts: path }); },
-    setLineDash() {},
-    fillText(text, x, y) { texts.push({ color: String(d.fillStyle), text, x, y }); },
-    measureText(text) { return { width: text.length * 5 }; },
   };
-  return { d, fills, strokes, texts };
+  return { d, fills };
 }
 const COLOR: Record<BaselineSlot, string> = { 0: 'k0', 1: 'k1', 2: 'k2' };
-const paintOpts = { top: 100, height: 6, stripeWidth: 3, diamondSize: 5, colorOf: (s: BaselineSlot) => COLOR[s] };
+const paintOpts = { top: 100, height: 6, blend: 24, stripeWidth: 3, diamondSize: 5, colorOf: (s: BaselineSlot) => COLOR[s] };
 const bbox = (pts: [number, number][]) => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   return { x1: Math.min(...xs), x2: Math.max(...xs), y1: Math.min(...ys), y2: Math.max(...ys) };
 };
+// ══ L. De lijnen ═══════════════════════════════════════════════════════════════════════════════
+const near = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
+const laneAt = (lane: { x: number[]; top: number[]; bottom: number[] }, x: number) => {
+  // Lineair tussen de meetpunten; de tekening doet hetzelfde.
+  for (let i = 0; i + 1 < lane.x.length; i++) {
+    if (x < lane.x[i] || x > lane.x[i + 1]) continue;
+    const t = lane.x[i + 1] === lane.x[i] ? 0 : (x - lane.x[i]) / (lane.x[i + 1] - lane.x[i]);
+    return {
+      top: lane.top[i] + (lane.top[i + 1] - lane.top[i]) * t,
+      bottom: lane.bottom[i] + (lane.bottom[i + 1] - lane.bottom[i]) * t,
+    };
+  }
+  return null;
+};
+const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: number) => {
+  const p = laneAt(lane, x);
+  return p ? p.bottom - p.top : 0;
+};
 {
-  const { d, fills } = recordPainter();
-  paintBaselineStrip(d, baselineStripPieces([{ slot: 0, x1: 10, x2: 60 }]), [], paintOpts);
-  eq(fills.map(f => f.color), ['k0'], 'A teken 1 baseline: één effen vulling');
+  const [one] = baselineLanes([{ slot: 1, x1: 10, x2: 200 }], 6, 24);
+  eq(one.x, [10, 34, 176, 200], 'L alleen: geen extra meetpunten, want de dikte verandert niet');
+  ok(one.top.every(v => v === 0) && one.bottom.every(v => v === 6), 'L alleen: volle dikte, ook op de plek van het begin en einde (recht afgesneden)');
+  eq(baselineLanes([], 6, 24), [], 'L geen baselines: geen lijnen');
+  eq(baselineLanes([{ slot: 0, x1: 10, x2: 10 }], 6, 24), [], 'L lege strook telt niet mee');
+}
+{
+  // Samenvallend: gelijk gewicht, dus overal gelijk verdeeld, ook op het rechte begin en einde.
+  const bars: BaselineBar[] = [{ slot: 2, x1: 0, x2: 300 }, { slot: 0, x1: 0, x2: 300 }, { slot: 1, x1: 0, x2: 300 }];
+  const lanes = baselineLanes(bars, 6, 24);
+  eq(lanes.map(l => l.slot), [0, 1, 2], 'L volgorde: plaats 0 boven, ongeacht de invoervolgorde');
+  eq(bars.map(b => b.slot), [2, 0, 1], 'L de invoer blijft ongewijzigd');
+  lanes.forEach((l, i) => {
+    ok(l.top.every(v => near(v, i * 2, 1e-3)) && l.bottom.every(v => near(v, (i + 1) * 2, 1e-3)),
+      `L 3 samenvallend: lijn ${i} is overal 2 dik, kreeg ${l.top[0]}..${l.bottom[0]}`);
+  });
+}
+{
+  // Trapsgewijs: los begin, samen, los einde. Op elke x tellen de diktes op tot de strook.
+  const bars: BaselineBar[] = [{ slot: 0, x1: 0, x2: 200 }, { slot: 1, x1: 80, x2: 280 }, { slot: 2, x1: 150, x2: 400 }];
+  const lanes = baselineLanes(bars, 6, 24);
+  for (let x = 1; x < 400; x += 3) {
+    const here = lanes.filter(l => x > l.x[0] && x < l.x[l.x.length - 1]);
+    const total = here.reduce((sum, l) => sum + thickness(l, x), 0);
+    ok(near(total, 6, 1e-6), `L x=${x}: de diktes vullen precies de strook, kreeg ${total}`);
+    here.forEach((l, i) => {
+      const next = here[i + 1];
+      if (next) ok(near(laneAt(l, x)!.bottom, laneAt(next, x)!.top, 1e-6), `L x=${x}: lijnen sluiten op elkaar aan`);
+    });
+  }
+  eq(thickness(lanes[0], 40), 6, 'L los begin: volle dikte');
+  eq(thickness(lanes[2], 350), 6, 'L los einde: volle dikte');
+  ok(near(thickness(lanes[0], 120), 3) && near(thickness(lanes[1], 120), 3), 'L twee naast elkaar: elk de helft');
+  ok(near(thickness(lanes[1], 170) + thickness(lanes[2], 170) + thickness(lanes[0], 170), 6) && thickness(lanes[2], 174) > 2 - 1e-6 && thickness(lanes[1], 174) > 1.9,
+    'L drie naast elkaar: delen de hoogte');
+  // Vloeiend: geen sprong tussen twee meetpunten. Binnen een lijn mag de rand per meetpunt maar een
+  // klein stukje bewegen (de steilste plek van de S-curve is 1,5 × hoogte / overgang).
+  for (const lane of lanes) {
+    for (let i = 1; i < lane.x.length; i++) {
+      const dx = lane.x[i] - lane.x[i - 1];
+      if (dx > 2) continue;
+      ok(Math.abs(lane.top[i] - lane.top[i - 1]) <= 6 * 1.6 * dx / 24 + 1e-6, `L vloeiend: bovenkant slot ${lane.slot} op x=${lane.x[i]}`);
+      ok(Math.abs(lane.bottom[i] - lane.bottom[i - 1]) <= 6 * 1.6 * dx / 24 + 1e-6, `L vloeiend: onderkant slot ${lane.slot} op x=${lane.x[i]}`);
+    }
+  }
+  // De baseline die erbij komt, begint bij 0 en is na de overgang op zijn gelijke deel.
+  ok(thickness(lanes[1], 80.5) < 0.05, `L erbij komen: begint bij 0, kreeg ${thickness(lanes[1], 80.5)}`);
+  ok(near(thickness(lanes[1], 80 + 24), 3), 'L erbij komen: na de overgang op zijn deel');
+  ok(thickness(lanes[1], 92) > 0.5 && thickness(lanes[1], 92) < 2.5, 'L erbij komen: halverwege tussenin');
+}
+{
+  // De overgang telt in pixels: dezelfde afstanden geven dezelfde vorm, waar de strook ook ligt.
+  const a = baselineLanes([{ slot: 0, x1: 0, x2: 100 }, { slot: 1, x1: 50, x2: 200 }], 5, BASELINE_BLEND_PX);
+  const b = baselineLanes([{ slot: 0, x1: 37, x2: 137 }, { slot: 1, x1: 87, x2: 237 }], 5, BASELINE_BLEND_PX);
+  eq(b.map(l => l.top.map(v => Math.round(v * 1e5))), a.map(l => l.top.map(v => Math.round(v * 1e5))), 'L pannen: dezelfde vorm');
+  eq(b[1].x.map(v => Math.round((v - 37) * 1e5)), a[1].x.map(v => Math.round(v * 1e5)), 'L pannen: dezelfde meetpunten');
+  // Op papier schaalt de overgang mee: alles dubbel is dezelfde vorm, dubbel zo groot.
+  const big = baselineLanes([{ slot: 0, x1: 0, x2: 200 }, { slot: 1, x1: 100, x2: 400 }], 10, BASELINE_BLEND_PX * 2);
+  eq(big[1].top.map(v => Math.round(v * 1e3)), a[1].top.map(v => Math.round(v * 2e3)), 'L schaal: de vorm blijft gelijk');
+}
+{
+  // Korte baseline midden in een lange: hij bereikt zijn volle deel, anders zie je hem niet.
+  const lanes = baselineLanes([{ slot: 0, x1: 0, x2: 500 }, { slot: 1, x1: 200, x2: 210 }], 6, 24);
+  ok(near(thickness(lanes[1], 205), 3, 1e-6), `L korte baseline: in het midden zijn volle deel, kreeg ${thickness(lanes[1], 205)}`);
+  eq(thickness(lanes[0], 100), 6, 'L korte baseline: de lange houdt ernaast de volle dikte');
+}
+{
+  // Korte overlap van twee lange: de ene gaat vloeiend over in de andere, zonder gat.
+  const lanes = baselineLanes([{ slot: 0, x1: 0, x2: 105 }, { slot: 1, x1: 100, x2: 300 }], 6, 24);
+  ok(near(thickness(lanes[0], 102.5), 3, 1e-6) && near(thickness(lanes[1], 102.5), 3, 1e-6), 'L korte overlap: in het midden elk de helft');
+  eq(thickness(lanes[0], 99), 6, 'L korte overlap: ervoor de volle dikte');
+  eq(thickness(lanes[1], 106), 6, 'L korte overlap: erna de volle dikte');
+}
+{
+  // Niet-rakend en aansluitend: elk de volle dikte, recht afgesneden.
+  for (const [a2, b1] of [[50, 90], [50, 50]]) {
+    const lanes = baselineLanes([{ slot: 0, x1: 0, x2: a2 }, { slot: 1, x1: b1, x2: 200 }], 6, 24);
+    ok(lanes.every(l => l.top.every(v => v === 0) && l.bottom.every(v => near(v, 6))), `L los (${a2}, ${b1}): beide de volle dikte`);
+  }
+}
+{
+  eq(widenBars([{ slot: 0, x1: 10, x2: 10.5 }, { slot: 1, x1: 20, x2: 40 }, { slot: 2, x1: 5, x2: 5 }], 2),
+    [{ slot: 0, x1: 10, x2: 12 }, { slot: 1, x1: 20, x2: 40 }], 'L minimumbreedte: 2 px, lege strook valt weg');
+  eq(widenBars([{ slot: 0, x1: 100, x2: 101.25 }, { slot: 1, x1: 101.25, x2: 102.5 }], 2),
+    [{ slot: 0, x1: 100, x2: 101.25 }, { slot: 1, x1: 101.25, x2: 102.5 }], 'L minimumbreedte: aansluitende baselines gaan niet overlappen');
+  eq(widenBars([{ slot: 0, x1: 100, x2: 100.2 }, { slot: 1, x1: 100.2, x2: 100.4 }], 2),
+    [{ slot: 0, x1: 100, x2: 100.2 }, { slot: 1, x1: 100.2, x2: 102 }], 'L minimumbreedte: alleen de buitenkant groeit');
+  eq(widenBars([{ slot: 0, x1: 100, x2: 100.5 }, { slot: 1, x1: 100.25, x2: 140 }], 2).map(b => [b.x1, b.x2]),
+    [[100, 100.5], [100.25, 140]], 'L minimumbreedte: een groep die breed genoeg is, blijft gelijk');
 }
 {
   const { d, fills } = recordPainter();
-  const pieces = baselineStripPieces([{ slot: 0, x1: 10, x2: 60 }, { slot: 1, x1: 10, x2: 60 }, { slot: 2, x1: 10, x2: 60 }]);
-  paintBaselineStrip(d, pieces, [], paintOpts);
-  eq(fills[0]?.color, 'k0', 'A teken 3 samenvallend: ondergrond in de kleur van de actieve');
-  eq([...new Set(fills.map(f => f.color))].sort(), ['k0', 'k1', 'k2'], 'A teken 3 samenvallend: alle drie de kleuren');
-  const out = fills.filter(f => { const b = bbox(f.pts); return b.x1 < 10 - 1e-6 || b.x2 > 60 + 1e-6 || b.y1 < 100 - 1e-6 || b.y2 > 106 + 1e-6; });
-  eq(out.length, 0, 'A teken 3 samenvallend: geen vulling buiten de strook');
-  // Band k heeft kleur k mod 3: twee opeenvolgende strepen hebben nooit dezelfde kleur.
-  const stripes = fills.slice(1).map(f => f.color);
-  ok(stripes.every((c, i) => i === 0 || c !== stripes[i - 1] || c === 'k0'), 'A teken 3: strepen wisselen van kleur');
+  paintBaselineStrip(d, [{ slot: 0, x1: 10, x2: 60 }], [], paintOpts);
+  eq(fills.map(f => f.color), ['k0'], 'L teken 1 baseline: één vulling');
+  eq(bbox(fills[0].pts), { x1: 10, x2: 60, y1: 100, y2: 106 }, 'L teken 1 baseline: rechthoek van de volle dikte');
+  ok(fills[0].pts.every(([x, y]) => (y === 100 || y === 106) && x >= 10 && x <= 60)
+    && fills[0].pts.filter(([x]) => x === 10).length === 2 && fills[0].pts.filter(([x]) => x === 60).length === 2,
+  'L teken 1 baseline: recht afgesneden, geen ronde kant');
 }
 {
+  // Elke lijn loopt door tot de onderkant van de strook; de lijn eronder komt eroverheen, dus de
+  // volgorde van tekenen is van boven naar onder en er valt geen naad.
   const { d, fills } = recordPainter();
-  paintBaselineStrip(d, baselineStripPieces([{ slot: 0, x1: 10, x2: 40 }, { slot: 1, x1: 25, x2: 60 }]), [], paintOpts);
-  const k2 = fills.filter(f => f.color === 'k2');
-  eq(k2.length, 0, 'A teken 2 baselines: geen kleur van een baseline die er niet is');
-  const k1InFirst = fills.filter(f => f.color === 'k1' && bbox(f.pts).x2 <= 25 - 1e-6);
-  eq(k1InFirst.length, 0, 'A teken 2 baselines: het effen eerste stuk heeft geen strepen');
+  paintBaselineStrip(d, [{ slot: 2, x1: 10, x2: 60 }, { slot: 0, x1: 10, x2: 60 }, { slot: 1, x1: 30, x2: 90 }], [], paintOpts);
+  eq(fills.map(f => f.color), ['k0', 'k1', 'k2'], 'L teken 3: van boven naar onder');
+  ok(fills.every(f => near(bbox(f.pts).y2, 106)), 'L teken 3: elke vulling loopt door tot de onderkant');
+  ok(fills.every(f => { const b = bbox(f.pts); return b.y1 >= 100 - 1e-6 && b.y2 <= 106 + 1e-6; }), 'L teken 3: geen vulling buiten de strook');
 }
 {
-  // Strepen liggen vast aan de strook: alles 37 px verschuiven verschuift elke vulling precies mee.
-  const bars: BaselineBar[] = [{ slot: 0, x1: 10, x2: 40 }, { slot: 1, x1: 25, x2: 60 }];
-  const a = recordPainter();
-  const b = recordPainter();
-  paintBaselineStrip(a.d, baselineStripPieces(bars), [], paintOpts);
-  paintBaselineStrip(b.d, baselineStripPieces(bars.map(x => ({ ...x, x1: x.x1 + 37, x2: x.x2 + 37 }))), [], paintOpts);
-  const shifted = a.fills.map(f => ({ color: f.color, pts: f.pts.map(([x, y]) => [Math.round((x + 37) * 1000) / 1000, Math.round(y * 1000) / 1000]) }));
-  const round = b.fills.map(f => ({ color: f.color, pts: f.pts.map(([x, y]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]) }));
-  eq(round, shifted, 'A pannen: de strepen schuiven mee met de strook');
+  // Een baseline die er niet is, krijgt geen kleur.
+  const { d, fills } = recordPainter();
+  paintBaselineStrip(d, [{ slot: 0, x1: 10, x2: 40 }, { slot: 1, x1: 25, x2: 60 }], [], paintOpts);
+  eq(fills.filter(f => f.color === 'k2').length, 0, 'L teken 2 baselines: geen kleur van een baseline die er niet is');
+}
+{
+  // Op het scherm en in een rapportvenster: alleen tekenen wat in beeld valt.
+  const { d, fills } = recordPainter();
+  paintBaselineStrip(d, [{ slot: 0, x1: -5000, x2: 9000 }, { slot: 1, x1: 700, x2: 9000 }], [], { ...paintOpts, visibleX: [0, 800] });
+  ok(fills.every(f => { const b = bbox(f.pts); return b.x1 >= 0 && b.x2 <= 800; }), 'L zichtbaar bereik: niets buiten het canvas');
+  ok(near(bbox(fills[0].pts).x1, 0) && near(bbox(fills[0].pts).x2, 800), 'L zichtbaar bereik: de lijn vult het canvas');
+  const off = recordPainter();
+  paintBaselineStrip(off.d, [{ slot: 0, x1: 900, x2: 1000 }], [], { ...paintOpts, visibleX: [0, 800] });
+  eq(off.fills.length, 0, 'L zichtbaar bereik: een lijn buiten beeld wordt niet getekend');
 }
 {
   const { d, fills } = recordPainter();
@@ -162,14 +261,6 @@ const bbox = (pts: [number, number][]) => {
     }
   }
 }
-{
-  // Op het scherm: een stuk dat ver buiten beeld loopt, wordt ingekort tot rond het zichtbare deel.
-  const { d, fills } = recordPainter();
-  paintBaselineStrip(d, baselineStripPieces([{ slot: 0, x1: -5000, x2: 9000 }]), [], { ...paintOpts, visibleX: [0, 800] });
-  const b = bbox(fills[0]?.pts ?? [[0, 0]]);
-  ok(b.x1 >= -6 - 1e-6 && b.x2 <= 806 + 1e-6, `A zichtbaar bereik: stuk ingekort tot het canvas, kreeg ${b.x1}..${b.x2}`);
-}
-
 // ══ B. Het documentveld ════════════════════════════════════════════════════════════════════════
 S().newProject();
 S().addTask({ name: 'Ruwbouw' });
@@ -313,8 +404,7 @@ function piecesPerRow(fills: Fill[]): Piece[][] {
 
 type Comparisons = { slot: 1 | 2; overlay: BaselineOverlay }[];
 /** Scherm: de echte GanttRenderer met een opnemende context. */
-type MarkCounts = { strokes: number; texts: number };
-function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[]; markStyle?: BaselineMarkStyle; counts?: MarkCounts } = {}): Fill[] {
+function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; keep?: { r?: GanttRenderer }; viewStart?: string; rows?: ViewRow[] } = {}): Fill[] {
   const fills: Fill[] = [];
   let path: [number, number][] = [];
   const st = { fillStyle: '', strokeStyle: '' };
@@ -327,10 +417,8 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
     moveTo: (x: number, y: number) => { path.push([x, y]); }, lineTo: (x: number, y: number) => { path.push([x, y]); },
     arc: noop, arcTo: noop, ellipse: noop, rect: noop, roundRect: noop,
     fill: () => { fills.push({ color: st.fillStyle, pts: path }); },
-    stroke: () => { if (over.counts && BASE_COLORS.has(st.strokeStyle)) over.counts.strokes++; },
-    save: noop, restore: noop, clip: noop, translate: noop, scale: noop, rotate: noop,
-    setLineDash: noop, getLineDash: () => [], strokeText: noop,
-    fillText: () => { if (over.counts && BASE_COLORS.has(st.fillStyle)) over.counts.texts++; },
+    stroke: noop, save: noop, restore: noop, clip: noop, translate: noop, scale: noop, rotate: noop,
+    setLineDash: noop, getLineDash: () => [], fillText: noop, strokeText: noop,
     measureText: (t: string) => ({ width: String(t).length * 6 }),
     createLinearGradient: () => ({ addColorStop: noop }), createPattern: () => null,
     quadraticCurveTo: noop, bezierCurveTo: noop, drawImage: noop,
@@ -342,7 +430,7 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
     view: { ...st0.view, scrollX: 0, scrollY: 0, zoom: over.zoom ?? 30, ...(over.viewStart ? { viewStartDate: over.viewStart } : {}) },
     compressNonWorkdays: over.compress,
     selectedTaskIds: [], canvasWidth: 4000, canvasHeight: 300, rowHeight: 32, headerHeight: 60,
-    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps, baselineMarkStyle: over.markStyle,
+    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps,
     activityCodeTypes: [], customFieldDefs: [], taskTypeLabels: {}, barColorNoneLabel: '(geen)',
     resources: [], assignments: [],
   });
@@ -352,7 +440,7 @@ function renderScreen(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, o
 }
 
 /** Afdruk: de echte renderReport (raster-preview én vector-PDF) met een opnemende Draw2D. */
-function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean; markStyle?: BaselineMarkStyle; counts?: MarkCounts } = {}) {
+function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, over: { zoom?: number; compress?: boolean } = {}) {
   const fills: Fill[] = [];
   let path: [number, number][] | null = null;
   const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
@@ -367,8 +455,7 @@ function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, ov
     setLineDash: noop, fillRect: noop, strokeRect: noop,
     beginPath() { path = []; }, moveTo(x, y) { (path ??= []).push([x, y]); }, lineTo(x, y) { (path ??= []).push([x, y]); },
     closePath: noop, fill() { if (path) fills.push({ color: st.fillStyle, pts: path }); path = null; },
-    stroke() { if (over.counts && BASE_COLORS.has(st.strokeStyle)) over.counts.strokes++; path = null; }, roundRect: noop,
-    fillText() { if (over.counts && BASE_COLORS.has(st.fillStyle)) over.counts.texts++; },
+    stroke() { path = null; }, roundRect: noop, fillText: noop,
     measureText: (t: string) => ({ width: t.length * 6 }),
   };
   const options = {
@@ -378,7 +465,7 @@ function renderPrint(tasks: Task[], ov0: BaselineOverlay, comps: Comparisons, ov
     paperSize: 'A3', orientation: 'landscape', companyName: 'Test',
     barColorSelection: { mode: 'critical' }, activityCodeTypes: [], customFieldDefs: [],
     taskTypeLabels: {}, barColorNoneLabel: '(geen)',
-    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps, baselineMarkStyle: over.markStyle,
+    showBaselineOverlay: true, baselineOverlay: ov0, baselineComparisons: comps,
     labels: { noTasks: '-', printed: '-', today: '-', statusDate: '-', progressDate: '-', legend: {}, tableHeaders: {} },
   } as unknown as PrintOptions;
   const dims = renderReport(() => d2d, tasks, [], S().calendar, 'P', options);
@@ -395,8 +482,8 @@ eq(print, screen, 'C afdruk tekent dezelfde stukken, ondergronden en streepkleur
 // En dat beeld is het verwachte: vier stukken op de balkrij, twee ruiten op de mijlpaalrij.
 const P = PRINT_PALETTE;
 eq(screen[0]?.map(p => [p.base, p.stripes]), [
-  [P.baseline, []], [P.baseline, [P.baselineCompare1]], [P.baselineCompare1, []], [P.baselineCompare2, []],
-], 'C balkrij: effen, gestreept (actief + 1), effen 1, los stuk 2');
+  [P.baseline, []], [P.baselineCompare1, []], [P.baselineCompare2, []],
+], 'C balkrij: drie lijnen, de derde los');
 eq(screen[1]?.map(p => [p.base, p.stripes]), [
   [P.baseline, [P.baselineCompare1]], [P.baselineCompare2, []],
 ], 'C mijlpaalrij: één gestreepte ruit op de gedeelde datum, één losse ruit');
@@ -777,73 +864,6 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
           `J ${lay.label}, ${what}: hover op rij ${i + 1} noemt beide baselines`);
       });
     }
-  }
-}
-
-// ══ K. Herkenbaar zonder kleur (issue #741) ═══════════════════════════════════════════════════════
-// Teken elke combinatie van baselines in ÉÉN kleur (een zwart-witafdruk). In de stijlen `vorm` en
-// `patroon` moet elke combinatie er dan anders uitzien; in `label` noemt de letter de baseline.
-// `kleur` (en geen stijl) tekent precies wat het altijd tekende.
-{
-  const SUBSETS: BaselineSlot[][] = [[0], [1], [2], [0, 1], [0, 2], [1, 2], [0, 1, 2]];
-  const mono = { ...paintOpts, colorOf: () => 'zw' };
-  /** Wat zonder kleur overblijft: de geometrie van vullingen en randen, afgerond. */
-  const signature = (style: BaselineMarkStyle, slots: BaselineSlot[], kind: 'strip' | 'ruit') => {
-    const { d, fills, strokes } = recordPainter();
-    if (kind === 'strip') {
-      paintBaselineStrip(d, baselineStripPieces(slots.map(slot => ({ slot, x1: 10, x2: 60 }))), [], { ...mono, markStyle: style });
-    } else {
-      paintBaselineStrip(d, [], baselineDiamonds(slots.map(slot => ({ slot, x: 40, moment: 'm' }))), { ...mono, diamondSize: 6, markStyle: style });
-    }
-    const r = (n: number) => Math.round(n * 4) / 4;
-    return JSON.stringify([fills.map(f => f.pts.map(([x, y]) => [r(x), r(y)])), strokes.length]);
-  };
-  for (const style of ['vorm', 'patroon'] as const) {
-    for (const kind of ['strip', 'ruit'] as const) {
-      const sigs = SUBSETS.map(sub => signature(style, sub, kind));
-      eq(new Set(sigs).size, SUBSETS.length, `K ${style} ${kind}: alle 7 combinaties zien er in één kleur anders uit`);
-    }
-    // Alles blijft binnen de strook (geen vulling of rand erbuiten).
-    for (const sub of SUBSETS) {
-      const { d, fills, strokes } = recordPainter();
-      paintBaselineStrip(d, baselineStripPieces(sub.map(slot => ({ slot, x1: 10, x2: 60 }))), [], { ...paintOpts, markStyle: style });
-      const out = [...fills, ...strokes].filter(f => {
-        const b = bbox(f.pts);
-        return b.x1 < 10 - 1e-6 || b.x2 > 60 + 1e-6 || b.y1 < 100 - 1e-6 || b.y2 > 106 + 1e-6;
-      });
-      eq(out.length, 0, `K ${style} ${sub.join('+')}: alles binnen de strook`);
-      // De kleuren blijven: elke baseline van het stuk komt in haar eigen kleur terug.
-      eq([...new Set([...fills, ...strokes].map(f => f.color))].sort(), sub.map(x => COLOR[x]).sort(),
-        `K ${style} ${sub.join('+')}: elke baseline in haar eigen kleur`);
-    }
-  }
-  // Kleur: hetzelfde als zonder stijl, dus het goedgekeurde ontwerp verandert niet.
-  for (const sub of SUBSETS) {
-    eq(signature('kleur', sub, 'strip'), signature(undefined as unknown as BaselineMarkStyle, sub, 'strip'),
-      `K kleur ${sub.join('+')}: gelijk aan zonder stijl`);
-  }
-  // Label: één letter per einde, in de kleur van haar baseline; gedeelde einden delen een label en
-  // een label dat op het vorige zou vallen, schuift erachter.
-  {
-    const bars = [{ slot: 0 as const, x1: 10, x2: 60 }, { slot: 1 as const, x1: 20, x2: 60 }, { slot: 2 as const, x1: 30, x2: 62 }];
-    const labels = baselineLabels(bars, [{ slot: 2, x: 200, moment: 'm' }], 5);
-    eq(labels, [{ x: 60, slots: [0, 1] }, { x: 62, slots: [2] }, { x: 205, slots: [2] }], 'K label: einden gegroepeerd');
-    const { d, texts } = recordPainter();
-    paintBaselineStrip(d, baselineStripPieces(bars), [], { ...paintOpts, markStyle: 'label', labels });
-    eq(texts.map(t => [t.text, t.color]), [['A', 'k0'], ['B', 'k1'], ['C', 'k2'], ['C', 'k2']], 'K label: letters A, B, C in hun kleur');
-    eq(texts[2].x >= texts[1].x + 5, true, 'K label: het label van C schuift achter AB (geen overlap)');
-    const none = recordPainter();
-    paintBaselineStrip(none.d, baselineStripPieces(bars), [], { ...paintOpts, markStyle: 'kleur', labels });
-    eq(none.texts.length, 0, 'K kleur: geen letters');
-  }
-  // Scherm = afdruk ook met een stijl: de echte renderer en het echte rapport geven die door.
-  for (const style of ['vorm', 'patroon', 'label'] as const) {
-    const scr: MarkCounts = { strokes: 0, texts: 0 };
-    const prt: MarkCounts = { strokes: 0, texts: 0 };
-    renderScreen([bar, ms], overlay0, comparisons, { markStyle: style, counts: scr });
-    renderPrint([bar, ms], overlay0, comparisons, { markStyle: style, counts: prt });
-    eq(style === 'label' ? scr.texts > 0 : scr.strokes > 0, true, `K ${style}: scherm tekent het kenmerk (rand of letter)`);
-    eq([scr.strokes > 0, scr.texts > 0], [prt.strokes > 0, prt.texts > 0], `K ${style}: afdruk tekent hetzelfde kenmerk als het scherm`);
   }
 }
 

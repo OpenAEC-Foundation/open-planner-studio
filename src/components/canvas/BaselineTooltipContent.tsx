@@ -2,8 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { useDisplayDate } from '@/hooks/displayDate';
 import type { Task } from '@/types/task';
 import type { BaselineLayer, BaselineLayerSlot } from '@/types/baseline';
-import { paintBaselineSwatch, svgStripRecorder } from '@/engine/renderer/baselineStrip';
-import { useBaselineMarkStyle } from '@/utils/baselineMarkStyleDev';
 
 /** Issue #391: CSS-kleur per baselineplaats; dezelfde thema-tokens als de tekenlaag. */
 export const BASELINE_SLOT_COLOR: Record<BaselineLayerSlot, string> = {
@@ -12,30 +10,17 @@ export const BASELINE_SLOT_COLOR: Record<BaselineLayerSlot, string> = {
   2: 'var(--theme-bar-baseline-compare-2, #C026D3)',
 };
 
-/** Klein strookje dat laat zien welke baseline bedoeld is: dezelfde tekenregel als de Gantt
- *  (`paintBaselineSwatch`), dus in elke stijl van issue #741 ook zonder kleur te lezen. */
+/** Klein rond kleurstrookje dat laat zien welke baseline (kleur) bedoeld is. */
 export function BaselineSwatch({ slot }: { slot: BaselineLayerSlot }) {
-  const style = useBaselineMarkStyle();
-  const W = 16, H = 6, LETTER = 6;
-  const rec = svgStripRecorder(LETTER);
-  paintBaselineSwatch(rec, slot, 0.5, 0.5, W - 1, H - 1, {
-    colorOf: s => BASELINE_SLOT_COLOR[s], stripeWidth: 3, markStyle: style,
-  });
-  const width = style === 'label' ? W + LETTER + 3 : W;
   return (
-    <svg
+    <span
       aria-hidden="true"
       data-ops-baseline-swatch={slot}
-      data-ops-baseline-mark-style={style}
-      width={width} height={H + 4} viewBox={`0 -2 ${width} ${H + 4}`}
-      style={{ display: 'inline-block', marginInlineEnd: 6, verticalAlign: 'middle', flexShrink: 0, overflow: 'visible' }}
-    >
-      {rec.items.map((it, i) => it.kind === 'fill'
-        ? <path key={i} d={it.d} fill={it.color} />
-        : it.kind === 'stroke'
-          ? <path key={i} d={it.d} fill="none" stroke={it.color} strokeWidth={it.width} />
-          : <text key={i} x={it.x} y={it.y} fill={it.color} fontSize={9} fontWeight={700} dominantBaseline="middle">{it.text}</text>)}
-    </svg>
+      style={{
+        display: 'inline-block', width: 16, height: 6, borderRadius: 3, marginInlineEnd: 6,
+        verticalAlign: 'middle', background: BASELINE_SLOT_COLOR[slot], flexShrink: 0,
+      }}
+    />
   );
 }
 

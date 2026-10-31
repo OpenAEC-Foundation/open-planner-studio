@@ -59,10 +59,6 @@ import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/Documen
 // verschijnt is prima.
 const IFCPanel = lazy(() => import('@/components/panels/IFCPanel').then(m => ({ default: m.IFCPanel })));
 const ReportPanel = lazy(() => import('@/components/panels/ReportPanel').then(m => ({ default: m.ReportPanel })));
-// Issue #741: tijdelijke schakelaar voor de baselinevarianten, alleen op de dev-server.
-const BaselineStyleSwitcher = import.meta.env.DEV && new URLSearchParams(window.location.search).has('baselineStijl')
-  ? lazy(() => import('@/components/dev/BaselineStyleSwitcher').then(m => ({ default: m.BaselineStyleSwitcher })))
-  : null;
 const TaskDialog = lazy(() => import('@/components/dialogs/TaskDialog').then(m => ({ default: m.TaskDialog })));
 const ProjectInfoDialog = lazy(() => import('@/components/dialogs/ProjectInfoDialog').then(m => ({ default: m.ProjectInfoDialog })));
 const SettingsDialog = lazy(() => import('@/components/dialogs/SettingsDialog').then(m => ({ default: m.SettingsDialog })));
@@ -519,7 +515,6 @@ function AppContent() {
             File-tab (Backstage) de body overneemt. */}
         <NotificationHost />
         <TooltipHost />
-        {BaselineStyleSwitcher && <Suspense fallback={null}><BaselineStyleSwitcher /></Suspense>}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@
 // `import.meta.env.DEV` in main.tsx). Geen testhaak: browsertests doen hun eigen handelingen.
 import { useAppStore } from '@/state/appStore';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
+import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
 
 type Scene = {
   /** Eigen verloop zonder Projectinfo; geeft het doel-selector terug. */
@@ -16,6 +17,8 @@ type Scene = {
   target?: string;
   /** Omlijning binnen het element, voor een doel in een vlak dat de buitenkant afknipt. */
   inset?: boolean;
+  /** Geen omlijning en niet scrollen: de hele weergave is het doel. */
+  plain?: boolean;
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -280,6 +283,82 @@ async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
   return waitFor('[data-task-grid-surface-id="full-task-grid"] [role="grid"]').then(() => '[data-task-grid-surface-id="full-task-grid"]');
 }
 
+/**
+ * Issue #741: De Akkers met drie baselines die op elke rij anders door elkaar lopen. Elke taak krijgt
+ * een van vijf patronen, als verschuiving van begin en einde in delen van de duur:
+ * trap (elk stuk later), trap omgekeerd, uitloop (zelfde begin), inloop (zelfde einde), en een lange
+ * baseline met een korte erin. Zo staan los begin, delen door twee, delen door drie en los einde op
+ * bijna elke rij. Mijlpalen schuiven mee, zodat er ook losse en samenvallende ruiten zijn.
+ */
+async function openBaselinesDoorElkaar(): Promise<void> {
+  await openExample('showcase-rijwoningen-de-akkers.ifc');
+  const { addCalendarDays, formatDate, parseDate } = await import('@/utils/dateUtils');
+  useAppStore.setState(s => { s.baselines = []; s.activeBaselineId = null; });
+  const contractId = useAppStore.getState().saveBaseline('Contract');
+  const contract = useAppStore.getState().baselines.find(b => b.id === contractId)!;
+  type Offsets = readonly [start: number, finish: number];
+  const PATTERNS: readonly (readonly [Offsets, Offsets, Offsets])[] = [
+    [[-0.45, -0.45], [0, 0], [0.45, 0.45]],
+    [[0.45, 0.45], [0, 0], [-0.45, -0.45]],
+    [[0, -0.35], [0, 0.2], [0, 0.8]],
+    [[-0.8, 0], [-0.3, 0], [0.25, 0]],
+    [[-0.5, 0.5], [0.15, -0.3], [0.3, 0.9]],
+  ];
+  const shift = (iso: string, days: number) => (iso
+    ? formatDate(addCalendarDays(parseDate(iso), days)) + iso.slice(10)
+    : iso);
+  const derive = (which: 0 | 1 | 2) => contract.tasks.map((t, i) => {
+    if (t.isMilestone) {
+      // Om de beurt: drie losse ruiten, twee samen en één los, of alle drie op hetzelfde moment.
+      const days = ([[-6, 0, 6], [-5, -5, 3], [0, 0, 0]] as const)[i % 3][which];
+      return { ...t, start: shift(t.start, days), finish: shift(t.finish, days) };
+    }
+    const span = Math.round((parseDate(t.finish).getTime() - parseDate(t.start).getTime()) / 86_400_000) + 1;
+    const days = Math.max(span, 5);
+    const [startOffset, finishOffset] = PATTERNS[i % PATTERNS.length][which];
+    return {
+      ...t,
+      start: shift(t.start, Math.round(startOffset * days)),
+      finish: shift(t.finish, days - span + Math.round(finishOffset * days)),
+    };
+  });
+  const named = (name: string, which: 0 | 1 | 2) => ({
+    ...contract,
+    id: `${contractId}-${name.replace(/\s+/g, '-').toLowerCase()}`,
+    name,
+    tasks: derive(which),
+  });
+  const maart = named('Herplanning maart', 1);
+  const juni = named('Herplanning juni', 2);
+  useAppStore.setState(s => {
+    const i = s.baselines.findIndex(b => b.id === contractId);
+    s.baselines[i] = { ...contract, tasks: derive(0) };
+    s.baselines.push(maart, juni);
+    s.activeBaselineId = contractId;
+    s.ui.showBaselineOverlay = true;
+    s.comparedBaselineIds = [maart.id, juni.id];
+    s.ui.showPropertiesPanel = false;
+  });
+  (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
+  for (let i = 0; i < 20; i++) {
+    if (document.querySelector('[data-ops-welcome-dialog]')) {
+      await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
+      break;
+    }
+    await sleep(150);
+  }
+  // Maandschaal, en meteen bij het ruwbouwblok: daar staan de rijen van de woningen onder elkaar.
+  useAppStore.getState().setZoom(TIMESCALE_ZOOM.month);
+  const { computeScrollToDate } = await import('@/utils/ganttViewport');
+  const state = useAppStore.getState();
+  const firstRow = state.tasks.findIndex(t => t.name.startsWith('Ground floor masonry'));
+  useAppStore.setState(s => {
+    const start = contract.tasks.find(t => t.taskId === state.tasks[firstRow]?.id)?.start;
+    s.view.scrollX = computeScrollToDate(start?.slice(0, 10), state);
+    s.view.scrollY = Math.max(0, firstRow - 1) * TASK_ROW_HEIGHT;
+  });
+}
+
 const SCENES: Record<string, Scene> = {
   // F4b-checkstap: het testproject in licht en donker, en de plek van "Gemengde dag/uur-planning toestaan".
   'f4b-maten': { run: () => f4bGantt('light') },
@@ -515,10 +594,19 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-baseline-split]';
     },
   },
-  // Issue #741: dezelfde drie baselines, meteen in het rapport (afdrukvoorbeeld) met de strook aan.
-  'meerdere-baselines-rapport': {
+  // Issue #741: een echt project met drie baselines die op elke rij door elkaar lopen.
+  'baselines-door-elkaar': {
+    plain: true,
     run: async () => {
-      await SCENES['meerdere-baselines'].run?.();
+      await openBaselinesDoorElkaar();
+      return '[data-ops-ribbon-tab="beeld"]';
+    },
+  },
+  // Issue #741: hetzelfde project in het rapport (afdrukvoorbeeld), met de strook aan.
+  'baselines-door-elkaar-rapport': {
+    plain: true,
+    run: async () => {
+      await openBaselinesDoorElkaar();
       (await waitFor('[data-ops-ribbon-tab="report"]')).click();
       for (let i = 0; i < 40; i++) {
         const box = [...document.querySelectorAll('label')]
@@ -553,6 +641,7 @@ export async function runQaScene(name: string): Promise<void> {
     await scene.steps?.();
     target = scene.target!;
   }
+  if (scene.plain) return;
   (await waitFor(target)).scrollIntoView({ block: 'center' });
   // Alle treffers omlijnen (bv. meerdere meldingen naast elkaar in de statusbalk).
   for (const el of document.querySelectorAll<HTMLElement>(target)) {

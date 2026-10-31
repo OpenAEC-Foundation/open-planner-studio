@@ -37,9 +37,8 @@ import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
-  baselineDiamonds, baselineDiamondSize, baselineLabels, baselineSpanX, baselineStripPieces, paintBaselineStrip,
-  paintBaselineSwatch, widenShortRuns, BASELINE_SLOT_LETTER,
-  type BaselineBar, type BaselineMarkStyle, type BaselineMilestone, type BaselineSlot,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, paintBaselineStrip, widenBars,
+  type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from '@/engine/renderer/baselineStrip';
 
 /** Kleur per baselineplaats op papier (actief grijs, vergelijkingen cyaan en fuchsia). */
@@ -752,8 +751,6 @@ export interface PrintOptions {
   baselineComparisons?: { slot: 1 | 2; overlay: BaselineOverlay }[];
   /** Namen voor de legenda per baselineplaats (0 = actief). Zonder vergelijking blijft de legenda "Baseline". */
   baselineNames?: Partial<Record<BaselineSlot, string>>;
-  /** Kenmerk naast kleur in de baselinestrook (issue #741), gelijk aan het scherm. Weglaten = alleen kleur. */
-  baselineMarkStyle?: BaselineMarkStyle;
   /**
    * WYSIWYG-rijen: gegeven ⇒ de export tekent precies deze rijen (filter, groepering,
    * sortering én inklapstatus van het scherm) i.p.v. de volledige takenboom. Groepsband-rijen
@@ -1554,7 +1551,7 @@ export function renderReport(
     }
 
     // Dezelfde baselinestrook als in de hoofd-Gantt (`baselineStrip.ts`): de actieve baseline plus
-    // de vergelijkingsbaselines, gestreept waar ze overlappen. Hij ligt boven de huidige balk maar vóór
+    // de vergelijkingsbaselines, elk als eigen lijn. Hij ligt boven de huidige balk maar vóór
     // relaties/labels, zodat beide uitvoerpaden dezelfde leesbare laagvolgorde hebben.
     if (options.showBaselineOverlay) {
       const layers: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
@@ -1573,27 +1570,22 @@ export function renderReport(
           if (!windowed || (pos.x >= m.tableWidth && pos.x <= canvasWidth)) milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
           continue;
         }
-        const x1 = clampX(pos.x1);
-        const x2 = clampX(pos.x2);
-        // Echte grenzen: de minimumbreedte komt pas na de opdeling (`widenShortRuns`), zoals op het
-        // scherm. Een strook zonder breedte op de as (helemaal in niet-werktijd) wordt niet getekend.
-        if (x2 > x1) bars.push({ slot: layer.slot, x1, x2 });
+        // Echte grenzen, ook in een rapportvenster: de lijnen delen de hoogte zoals op het scherm, en
+        // `visibleX` klemt alleen wat buiten het venster valt. Een strook zonder breedte op de as
+        // (helemaal in niet-werktijd) of helemaal buiten het venster wordt niet getekend.
+        if (clampX(pos.x2) > clampX(pos.x1)) bars.push({ slot: layer.slot, x1: pos.x1, x2: pos.x2 });
       }
-      const pieces = widenShortRuns(baselineStripPieces(bars), 2);
       const diamonds = baselineDiamonds(milestones);
-      if (pieces.length || diamonds.length) {
+      if (bars.length || diamonds.length) {
         const baseHeight = Math.max(2, barHeight * 0.28);
-        const diamondSize = baselineDiamondSize(baseHeight);
-        paintBaselineStrip(d2d, pieces, diamonds, {
+        paintBaselineStrip(d2d, widenBars(bars, 2), diamonds, {
           top: y + barHeight + 1,
           height: baseHeight,
+          blend: m.s(BASELINE_BLEND_PX),
           stripeWidth: Math.max(2, barHeight * 0.16),
-          diamondSize,
+          visibleX: windowed ? [m.tableWidth, canvasWidth] : undefined,
+          diamondSize: baselineDiamondSize(baseHeight),
           colorOf: printBaselineColor,
-          markStyle: options.baselineMarkStyle,
-          labels: options.baselineMarkStyle === 'label' ? baselineLabels(bars, milestones, diamondSize) : undefined,
-          labelFont: m.font(6, true),
-          labelBackground: PRINT_COLORS.bg,
         });
       }
     }
@@ -2771,34 +2763,23 @@ function drawFooter(
         } });
       }
       // Baselines: zonder vergelijking één regel "Baseline"; met vergelijking één regel per baseline
-      // met haar naam en kleur, zodat de strepen in het rapport te lezen zijn.
+      // met haar naam en kleur, zodat de lijnen in het rapport te lezen zijn.
       const layerOverlays: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
       if (options.baselineOverlay) layerOverlays.push({ slot: 0, overlay: options.baselineOverlay });
       for (const c of options.baselineComparisons ?? []) layerOverlays.push(c);
       const shownLayers = options.showBaselineOverlay
         ? layerOverlays.filter(l => printRows.some(row => row.kind === 'task' && row.task && l.overlay.has(row.task.id)))
         : [];
-      // Zonder stijl het vertrouwde blokje; met een stijl (issue #741) hetzelfde stukje strook als in de Gantt.
       const swatch = (slot: BaselineSlot) => (x: number) => {
-        if ((options.baselineMarkStyle ?? 'kleur') === 'kleur') {
-          d2d.fillStyle = printBaselineColor(slot);
-          d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(2));
-          d2d.fill();
-          return;
-        }
-        paintBaselineSwatch(d2d, slot, x, midY - m.s(2), swatchW, m.s(4), {
-          colorOf: printBaselineColor, stripeWidth: m.s(3), markStyle: options.baselineMarkStyle, withLabel: false,
-        });
+        d2d.fillStyle = printBaselineColor(slot);
+        d2d.roundRect(x, midY - m.s(2), swatchW, m.s(4), m.s(2));
+        d2d.fill();
       };
-      // Stijl `label`: de letter uit de strook staat vóór de naam in de legenda.
-      const legendName = (slot: BaselineSlot, name: string) => (
-        options.baselineMarkStyle === 'label' ? `${BASELINE_SLOT_LETTER[slot]}  ${name}` : name
-      );
       if (shownLayers.length === 1 && shownLayers[0].slot === 0) {
-        items.push({ label: legendName(0, lg?.baseline ?? 'Baseline'), draw: swatch(0) });
+        items.push({ label: lg?.baseline ?? 'Baseline', draw: swatch(0) });
       } else {
         for (const l of shownLayers) {
-          items.push({ label: legendName(l.slot, options.baselineNames?.[l.slot] ?? lg?.baseline ?? 'Baseline'), draw: swatch(l.slot) });
+          items.push({ label: options.baselineNames?.[l.slot] ?? lg?.baseline ?? 'Baseline', draw: swatch(l.slot) });
         }
       }
       // Lijnstijl-uitleg: ÉÉN legenda-regel die beide stijlen tegelijk toont — boven een

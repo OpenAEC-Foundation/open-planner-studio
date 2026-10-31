@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, LayoutGrid } from 'lucide-react';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
-import { BaselineSwatch } from '@/components/canvas/BaselineTooltipContent';
+import { BASELINE_SLOT_COLOR } from '@/components/canvas/BaselineTooltipContent';
 import { buildBaselineLayers, MAX_COMPARED_BASELINES } from '@/types/baseline';
 
 /**
@@ -126,9 +126,11 @@ export function BaselineOverlaySplitButton() {
                 <span className={`ribbon-check-box${checked ? ' is-checked' : ''}`} aria-hidden="true">
                   {checked && <Check size={11} strokeWidth={3} />}
                 </span>
-                {checked
-                  ? <BaselineSwatch slot={slot} />
-                  : <span className="ribbon-check-strip is-empty" aria-hidden="true" />}
+                <span
+                  className={`ribbon-check-strip${checked ? '' : ' is-empty'}`}
+                  style={checked ? { background: BASELINE_SLOT_COLOR[slot] } : undefined}
+                  aria-hidden="true"
+                />
                 <span className="ribbon-check-label">{b.name}</span>
                 {isActive && <span className="ribbon-check-note">{tMenu('ribbon.baselineMenuActive')}</span>}
               </button>
