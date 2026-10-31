@@ -19,8 +19,10 @@ import { shownFinish, shownStart } from '@/utils/taskDates';
  * Twee bronnen, met elk hun eigen zekerheid:
  *  - Wat de datum NU bepaalt, komt uit de solver zelf. Dat is geen reconstructie achteraf.
  *  - Wat er VERANDERDE, komt uit `ShiftBasis`: de invoer bij de vorige berekening. Dat is nodig als
- *    de start gelijk bleef, want dan zegt het spoor niets over het einde. Ontbreekt de basis, of
- *    verklaart hij het verschil niet, dan is de reden `unknown`. Een gok tonen we niet als feit.
+ *    de start gelijk bleef, want dan zegt het spoor niets over het einde. Dat geldt ook voor een
+ *    lopende taak: haar werkelijke start staat vast, en het spoor gaat over het resterende werk.
+ *    Ontbreekt de basis, of verklaart hij het verschil niet, dan is de reden `unknown`. Een gok tonen
+ *    we niet als feit.
  */
 export type ShiftReason =
   | { kind: 'predecessor'; taskIds: string[] }
@@ -159,14 +161,15 @@ class ShiftReasoner {
     if (!basis) return false;
     const before = this.basisAssignments?.get(task.id) ?? [];
     const after = this.assignments.get(task.id) ?? [];
-    const staying = before.filter(assignment => after.some(now => now.id === assignment.id));
-    if (staying.some(assignment => !after.some(now => now.id === assignment.id && now.unitsPerDay === assignment.unitsPerDay))) {
-      return false;
-    }
+    const afterById = new Map(after.map(assignment => [assignment.id, assignment]));
+    if (before.some(assignment => {
+      const now = afterById.get(assignment.id);
+      return now !== undefined && now.unitsPerDay !== assignment.unitsPerDay;
+    })) return false;
     const replay = structuredClone(base);
     const assignments = structuredClone(before);
     for (const assignment of before) {
-      if (staying.includes(assignment)) continue;
+      if (afterById.has(assignment.id)) continue;
       const captured = captureTriangle(replay, assignments, basis);
       assignments.splice(assignments.findIndex(item => item.id === assignment.id), 1);
       settleAssignmentRemoved(replay, assignments, captured, assignment.id);
