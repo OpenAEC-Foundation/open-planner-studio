@@ -580,6 +580,18 @@ regression('24c vast werk, handmatig langer en een resource erbij', () => {
   S().recalculate();
   deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
 });
+regression('24e vast werk, handmatig langer zonder andere resource', () => {
+  // De inzet volgt de duur. In de data is dat hetzelfde als een andere inzet: niet vast te stellen.
+  const { store, S, a } = chain();
+  const [first] = resources(S);
+  S().setTaskWorkRule(a, 'FIXED_WORK');
+  S().assignResource(a, first, 1);
+  withDuration(store, a, 10);
+  S().runCPM();
+  withDuration(store, a, 20);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
+});
 regression('24d vast werk, alleen een resource eraf', () => {
   const { store, S, a } = chain();
   const [first, second] = resources(S);
