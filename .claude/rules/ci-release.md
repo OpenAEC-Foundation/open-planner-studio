@@ -37,3 +37,5 @@ De webbuild levert daarnaast `public/release-highlights.json` mee — gegenereer
 ## AUR-pakket
 
 `aur.yml` volgt een geslaagde `release.yml` (zoals `snap.yml`), vult `packaging/aur/PKGBUILD` in, test met `makepkg` + `namcap` in een `archlinux`-container en pusht naar de AUR alleen met het secret `AUR_SSH_PRIVATE_KEY`. De jobvoorwaarde weigert vóór checkout elke `workflow_run` uit een andere bronrepo of een ander bronevent dan `push` (met `v*`-prefix) en `workflow_dispatch`; de run moet geslaagd zijn. Wijzig het pakket in `packaging/aur/`, niet in de AUR-git.
+
+Besluit eigenaar, 2026-10-31: slaat `aur.yml` de push over omdat `AUR_SSH_PRIVATE_KEY` ontbreekt, dan is dat geen onafgerond werk en geen stopreden, ook niet voor een oudere tag. Het eindrapport zegt dat Arch nog geen pakket kreeg, en waarom. Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt de release wel. Het vereiste bewijs staat in de `release`-skill, `referentie.md`, onder *Ontbrekend AUR-secret*.

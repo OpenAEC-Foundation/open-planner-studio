@@ -20,6 +20,8 @@ Besluit: eigenaar, gesprek 2026-10-22.
   Verduidelijking orkestrator, 2026-10-23: de lichte vertaalscripts en pakketchecks bij ouder
   en T3-Haiku-stations zijn inbegrepen, alleen binnen deze job en dezelfde release-worktree.
 - Eén actieve run tegelijk. Volg het hervatpad; alleen afschrijving opent de route naar een opvolgversie.
+- Besluit eigenaar, 2026-10-31: een ontbrekend `AUR_SSH_PRIVATE_KEY` is geen stopreden. Het rapport zegt
+  dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel; zie de referentie.
 - Rode main-/release-PR-/releaseworkflow: eerst eenmaal `gh run rerun <id> --failed`.
   Blijft hij rood: kleinste fix-PR vanaf main, tweede Sol-review via T3 `delegate_task`
   (`codex`, `gpt-6.1-sol`, `reasoningEffort: xhigh`). Letterlijke reviewerbrief en BLOKKEERT/VERVOLG
@@ -48,6 +50,8 @@ Geef elk T3-Haiku-station het zaterdagmandaat en toestemming voor zijn eigen pak
 alleen in dezelfde release-worktree. De stations installeren niets. Behoud alle vertaalpoorten.
 Het zaterdagmandaat omvat publiceren en gecontroleerd hervatten, zonder menselijk akkoord.
 Rond eerst onafgerond werk voor de laatste tag af. Respecteer alle stopregels.
+Een ontbrekend AUR_SSH_PRIVATE_KEY is geen stopreden; volg daarvoor de referentie.
+Meld in het rapport dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel.
 Herstel rode CI volgens referentie.md: eenmaal rerun, dan fix-PR met tweede Sol-review.
 De reviewbrief bevat de letterlijke body van ~/.claude/agents/reviewer.md en BLOKKEERT/VERVOLG.
 Gebruik delegate_task met codex/gpt-6.1-sol en reasoningEffort xhigh; elke ronde is een nieuwe taak.
