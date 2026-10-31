@@ -8,7 +8,7 @@ import { recordedDatesActiveKey } from './recordedDatesNoticeText';
  * kruisje). Alleen de MODUS ACTIEF (`datesAsRecorded`): de opgeslagen datums staan op het scherm,
  * er is niet herberekend. Bewust GEEN kruisje: een modus mag niet wegklikbaar zijn zonder hem te
  * verlaten (dezelfde regel als `DependencyModeNotice`) — "Herberekenen" is de enige uitgang, en die
- * roept exact `runCPM()` aan, dus dezelfde store-actie en dezelfde undo-stap als F5.
+ * roept exact `recalculate()` aan, dus dezelfde store-actie en dezelfde undo-stap als F5.
  *
  * Er is geen AANBOD-stand meer (eigenaar, 2026-10-17, optie 1): buiten de modus vergeet de app de
  * opgeslagen datums (`applyRecordedDatesOnLoad`).
@@ -20,7 +20,7 @@ export function RecordedDatesNotice() {
   const { t } = useTranslation('common');
   const recordedDates = useAppStore((s) => s.recordedDates);
   const datesAsRecorded = useAppStore((s) => s.datesAsRecorded);
-  const runCPM = useAppStore((s) => s.runCPM);
+  const recalculate = useAppStore((s) => s.recalculate);
 
   if (!datesAsRecorded) return null;
 
@@ -41,7 +41,7 @@ export function RecordedDatesNotice() {
         ? t(recordedDatesActiveKey(recordedDates.origin), { count: recordedDates.shifted })
         : t('recordedDates.active')}
       actionLabel={t('recordedDates.recalculate')}
-      onAction={() => runCPM()}
+      onAction={() => recalculate()}
       role="status"
       stripProps={{ 'data-ops-recorded-dates-active': true }}
       actionProps={{ 'data-ops-recorded-dates-recalculate': true }}

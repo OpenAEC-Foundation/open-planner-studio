@@ -417,10 +417,6 @@ importgrens). Deze drie zijn bewust blijven liggen.
       praktijk zeldzaam — het is een gratis extra drempel bovenop `ROW_DRAG_THRESHOLD`.
 
 ### Klein
-- [ ] **Mijlpaal horizontaal verslepen om de datum te wijzigen.** Nu geblokkeerd door dezelfde
-      `getTaskBarBounds`-null die het relatie-tekenen blokkeerde (opgelost in spec 2026-08-14). Raakt
-      `barDrag`: bij een 0-duurtaak mag alleen een body-sleep armen, nooit een resize-greep, en
-      snapping/undo/uur-modus moeten kloppen.
 - [ ] **Taakbewerkvenster en eigenschappenpaneel labelen hetzelfde duurveld verschillend:** het paneel
       toont `Duur (dagen)` (`task:properties.duration`), de dialoog (`TaskDialog`, via de gedeelde
       `task-sections`) `Duur (werkdagen)` (`task:dialog.duration`). Gemeten in een browsergebruikstest
@@ -955,8 +951,9 @@ met de dwingende volgorde, en het werkt alléén zolang de oude sleutel er nog i
 #### 3.8 Import/export
 > Zie ook GitHub-issue #17 (DutchSailor, 2026-07-06): onderbouwd formaten-voorstel met NL-marktanalyse
 > ("6+2"-lijst). Kern klopt met onze richting; prioriteiten hieronder daarop aangescherpt.
-- [ ] **Primavera XER export** — de XER-import bestaat (PR #109, `src/services/xer/`); een XER-schrijver
-  niet (export naar P6 loopt via P6-XML, met verliesmelding `xerExportLoss.ts`). Issue #17.
+- [x] **Primavera XER export** — `src/services/xer/xerWriter.ts`, *Bestand › Exporteren › Primavera P6 XER*,
+  met een verliesmelding per soort (issue #391, Must "Write XER"; eerder issue #17). Open: een import in
+  Primavera P6 zelf is nog niet getest; baselines (aparte XER-projecten) schrijft de writer nog niet.
 - [ ] **iCalendar (.ics) export** — mijlpalen/deadlines naar agenda-apps; goedkoop, hoge waarde (issue #17).
 - [ ] **MPP-vervolgetappes (user-wens 2026-08-15: de bewuste beperkingen van etappe 1 zijn geen
   eindstation — "als we hier een keer genoeg tokens tegenaan gooien dan lukt het wel").** In

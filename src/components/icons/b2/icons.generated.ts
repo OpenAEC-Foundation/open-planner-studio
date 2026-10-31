@@ -1,5 +1,5 @@
-// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (bbbd8265aa7d)
-// (B2-revisie 107, 213 iconen). Niet met de hand bewerken; zie de kop van dat script.
+// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (aa43c3dc2e87)
+// (B2-revisie 107, 214 iconen). Niet met de hand bewerken; zie de kop van dat script.
 // Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen
 // iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.
 
@@ -119,6 +119,7 @@ export type IconId =
   | "panel.properties"
   | "panel.properties-hidden"
   | "panel.right"
+  | "panel.schedule-shift"
   | "panel.warnings"
   | "planning.bar-colors"
   | "planning.baseline-overlay"
@@ -633,6 +634,10 @@ export const B2_ICONS: Readonly<Record<IconId, IconDef>> = {
   "panel.right": {
     s16: { w: 1.25, parts: [[0, 0, "M2.9 2.5L13.1 2.5Q14.5 2.5 14.5 3.9L14.5 12.1Q14.5 13.5 13.1 13.5L2.9 13.5Q1.5 13.5 1.5 12.1L1.5 3.9Q1.5 2.5 2.9 2.5Z"], [0, 0, "M9.5 2.5L9.5 13.5"]] },
     s24: { w: 1.75, parts: [[0, 0, "M5 4L19 4Q21 4 21 6L21 18Q21 20 19 20L5 20Q3 20 3 18L3 6Q3 4 5 4Z"], [0, 0, "M15 4L15 20"]] },
+  },
+  "panel.schedule-shift": {
+    s16: { w: 1.25, parts: [[0, 0, "M4.5 1.5L1.71 4.29Q1.5 4.5 1.71 4.71L4.5 7.5"], [0, 0, "M1.5 4.5L14.5 4.5"], [0, 0, "M11.5 8.5L14.29 11.29Q14.5 11.5 14.29 11.71L11.5 14.5"], [0, 0, "M14.5 11.5L1.5 11.5"]] },
+    s24: { w: 1.75, parts: [[0, 0, "M7 3L3.35 6.65Q3 7 3.35 7.35L7 11"], [0, 0, "M3 7L21 7"], [0, 0, "M17 13L20.65 16.65Q21 17 20.65 17.35L17 21"], [0, 0, "M21 17L3 17"]] },
   },
   "panel.warnings": {
     s16: { w: 1.25, parts: [[0, 0, "M8.2 2.96L13.55 12.29Q14.25 13.5 12.85 13.5L2.15 13.5Q0.75 13.5 1.45 12.29L6.8 2.96Q7.5 1.75 8.2 2.96Z"], [0, 0, "M7.5 6.5L7.5 8.25"], [1, 0, "M6.7 10.75A0.8 0.8 0 1 0 8.3 10.75A0.8 0.8 0 1 0 6.7 10.75Z"]] },

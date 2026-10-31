@@ -2,13 +2,15 @@
 // repo (pad vanaf de root, bijv. `examples/03-kantoorgebouw-zuidas.ifc`) via dezelfde route als
 // Bestand › Openen (formaatherkenning, bestandsnaam, meldingen). `?theme=light|dark` zet het thema
 // voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?tab=planning` opent die tab van het
-// lint. Valt uit elke productiebouw: App.tsx
-// importeert deze module alleen dynamisch achter `import.meta.env.DEV && !isTauri()`.
+// lint. `?progressSheet=<pad>` opent daarna de voortgangsimport met dat blad al ingelezen. Valt uit elke
+// productiebouw: App.tsx en ProgressImportDialog.tsx importeren deze module alleen dynamisch achter
+// `import.meta.env.DEV`.
 // Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { useAppStore } from '@/state/appStore';
 import { openedFromFile } from '@/services/fileAccess/webBackend';
+import type { OpenedFile } from '@/services/fileAccess';
 import { binaryExtensions } from '@/services/formatRegistry';
 import type { RibbonTab } from '@/state/slices/types';
 
@@ -23,19 +25,32 @@ export function devFilePath(raw: string | null): string | null {
   return parts.map(encodeURIComponent).join('/');
 }
 
-async function openDevFile(raw: string): Promise<void> {
+async function fetchDevFile(param: string, raw: string, extensions: readonly string[]): Promise<OpenedFile> {
   const path = devFilePath(raw);
-  if (!path) throw new Error(`?open=${raw}: alleen een pad vanaf de repo-root, zonder ..`);
+  if (!path) throw new Error(`?${param}=${raw}: alleen een pad vanaf de repo-root, zonder ..`);
   const res = await fetch(`${import.meta.env.BASE_URL}${path}`);
   // Een onbekend pad geeft bij Vite de SPA-terugval (index.html, status 200): dat is geen bestand.
   if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) {
-    throw new Error(`?open=${raw}: niet gevonden`);
+    throw new Error(`?${param}=${raw}: niet gevonden`);
   }
   const name = raw.split('/').pop()!;
   const file = new File([await res.blob()], name);
   // Zoals de bestandskiezer zonder handle (Firefox/Safari): tekst of bytes per formaat, geen ref.
-  const opened = await openedFromFile(file, null, { binaryExtensions: binaryExtensions() });
+  return openedFromFile(file, null, { binaryExtensions: [...extensions] });
+}
+
+async function openDevFile(raw: string): Promise<void> {
+  const opened = await fetchDevFile('open', raw, binaryExtensions());
   await useAppStore.getState().openOpenedFile(opened, buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
+}
+
+let pendingProgressSheet: OpenedFile | null = null;
+
+/** Het blad van `?progressSheet=`, één keer: de dialoog haalt het op zodra hij opent. */
+export function takeDevProgressSheet(): OpenedFile | null {
+  const opened = pendingProgressSheet;
+  pendingProgressSheet = null;
+  return opened;
 }
 
 let started = false;
@@ -49,6 +64,11 @@ export async function openDevLinkOnce(): Promise<void> {
   started = true;
   try {
     if (raw) await openDevFile(raw);
+    const sheet = params.get('progressSheet');
+    if (raw && sheet) {
+      pendingProgressSheet = await fetchDevFile('progressSheet', sheet, ['xlsx']);
+      useAppStore.getState().setUI({ showProgressImportDialog: true });
+    }
   } catch (err) {
     console.error('[dev-link]', err);
     useAppStore.getState().notify({

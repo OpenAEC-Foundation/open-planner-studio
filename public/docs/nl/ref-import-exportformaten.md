@@ -8,15 +8,15 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 **Opslaan** schrijft altijd IFC. Alleen een geopend IFC-bestand wordt het opslagdoel; een project uit een ander formaat heeft na het openen nog geen bestand en *Opslaan* vraagt dan waar het IFC-bestand moet komen.
 
-**Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, CSV en twee voortgangsbladen (Excel en CSV). Een export verandert je project niet.
+**Exporteren** kan naar IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV en een voortgangsblad (Excel). Een export verandert je project niet.
 
-**Alleen lezen** zijn `.mpp` en `.xer`: de app kan ze openen, niet schrijven.
+**Alleen lezen** is `.mpp`: de app kan het openen, niet schrijven. Een `.xer` kan de app openen en exporteren, maar *Opslaan* schrijft nooit naar een `.xer`.
 
 **PDF** komt alleen uit een rapport (zie [Rapporttypes](docs://ref-rapporttypes)). De app leest geen PDF.
 
 **Waar.** Openen: *Start › Bestand › Openen*, *Bestand › Openen* of Ctrl+O. Exporteren: *Start › Bestand › Exporteren* of *Bestand › Exporteren*. Een ingevuld voortgangsblad lees je in via *Bestand › Importeren*, of met de knop *Voortgang bijwerken uit een blad* in de lintgroep *Voortgang* op de tabbladen *Planning*, *Tabel* en *Rapport*.
 
-**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` opent met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV, MS Project XML en P6 XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer` en `.mpp` meldt de app dat het project zo rekent. Alleen IFC neemt het rekenprofiel en de reken-opties mee; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Een heropende export van een ander formaat rekent als *Open Planner Studio*.
+**Rekenprofiel bij openen.** Elk formaat opent met een rekenprofiel; wat dat is, staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies). `.xer` opent met *Primavera P6*, `.mpp` met *Microsoft Project*, en CSV, MS Project XML en P6 XML met *Open Planner Studio*. IFC houdt het profiel dat in het bestand staat. Bij `.xer` en `.mpp` meldt de app dat het project zo rekent. Alleen IFC neemt het rekenprofiel en de reken-opties mee; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel, en een `.xer` de planningsinstellingen van P6. Een heropende `.xer`-export rekent als *Primavera P6*, een heropende export van een ander formaat als *Open Planner Studio*.
 
 ## IFC
 
@@ -92,11 +92,21 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## Primavera-bestand (`.xer`)
 
-**Openen** — ja. Rekenprofiel: *Primavera P6*. De app leest het bestand alleen: ze schrijft geen `.xer` en verandert je bestand nooit. Ze opent één tabblad per project met taken. Een bestand zonder activiteiten of met beschadigde tabellen weigert ze met een melding.
+**Openen** — ja. Rekenprofiel: *Primavera P6*. De app verandert je bestand nooit. Ze opent één tabblad per project met taken. Een bestand zonder activiteiten of met beschadigde tabellen weigert ze met een melding.
 
 **Opslaan** — nee, en er is geen opslagdoel: *Opslaan* schrijft een nieuw IFC-bestand, met het oorspronkelijke `.xer` erin.
 
-**Exporteren** — nee. Exporteer je een project uit een `.xer` naar CSV, MS Project XML of P6 XML, dan meldt de app dat XER-broninformatie verloren gaat, ook als je het project tussendoor als IFC hebt opgeslagen. Naar IFC gaat niets verloren.
+**Exporteren** — ja, als *Primavera P6 XER* (*Voor Oracle Primavera P6, als .xer-bestand.*). Standaardnaam: de projectnaam met `.xer`, met het project-ID tussen haakjes als het project er een heeft. Heeft het project geen project-ID, dan schrijft de app de projectnaam als project-ID (hooguit 40 tekens). Activiteit-ID's en WBS-codes zijn in P6 uniek en hooguit 40 tekens; een lege, dubbele of te lange code past de app aan en ze meldt hoeveel. Exporteer je een project uit een `.xer` naar CSV, MS Project XML of P6 XML, dan meldt de app dat XER-broninformatie verloren gaat, ook als je het project tussendoor als IFC hebt opgeslagen. Naar IFC gaat niets verloren.
+
+**Wat de export meeneemt** — de WBS-structuur; activiteiten met duur, geplande en werkelijke datums, voortgang en twee constraints; relaties met lag; kalenders met werktijden, vrije dagen en werkende uitzonderingen; resources (arbeid, materieel en materiaal) met tarief en beschikbaarheid; toewijzingen met tempo, werk en urenverdeling; aantekeningen; de statusdatum; de planningsinstellingen van P6. De berekende datums en de speling staan er ook in. P6 toont ze tot je het project in P6 opnieuw doorrekent.
+
+**Wat de export niet meeneemt** — baselines, deadlines, activiteitcodes, eigen velden, externe relaties, beschrijvingen van taken, het vinkje bij een aantekening en de namen van vrije dagen. Een relatie met een samenvattingstaak wordt een relatie tussen de taken eronder. Een lag in procenten wordt een vaste lag, een lag in kalenderdagen een lag in werkuren. Een onderbreking valt weg. Na de export meldt de app *De XER-export is opgeslagen. Dit ging niet of niet precies mee:*, met per soort een regel en het aantal.
+
+**Tekens.** De app schrijft het bestand in Windows-1252, zoals P6. Past een teken daar niet in, zoals *Ł*, dan schrijft ze het hele bestand in UTF-8 en meldt ze hoeveel tekens het zijn. Controleer de tekst dan na de import in P6.
+
+**Terug openen.** Een `.xer` uit de app opent weer als *Primavera P6*. Een taak in dagen komt terug in dagen, een taak in uren in uren. Daarvoor schrijft de app eigen velden in het bestand, net als bij de export naar P6 XML. Elke activiteit krijgt *OPS_TaskDurationUnit*, en waar nodig een veld voor een duur of lag met een breuk. Heeft het project een eigen *Projectstandaard* voor het taaktype, dan krijgt het project *OPS_DefaultWorkRule*. Een activiteit die het taaktype van het project erft, krijgt *OPS_InheritedWorkRule*: na heropenen erft ze weer. Een resource met een vaste *Max. eenheden* krijgt *OPS_FlatCapacity*. Materiaal met stappen in de capaciteit krijgt *OPS_CapacitySteps*: P6 telt de capaciteit per uur, de app per dag. P6 toont ze als gewone eigen velden; de app toont ze niet. Voeg je in P6 een activiteit toe, dan opent de app die activiteit in uren, zoals elke activiteit uit P6. De andere activiteiten houden hun eenheid. De kalenders leest de app zoals in elk P6-bestand. Een kalender zonder eigen werktijdblokken krijgt na heropenen werktijdblokken (uurplanning). Datums en speling kunnen dan afwijken; de melding na de export noemt hoeveel kalenders het zijn.
+
+**Niet getest in P6 zelf.** De app toetst de export door hem zelf terug te lezen. Een import in Primavera P6 zelf is nog niet getest.
 
 **Wat meegaat** — de WBS-structuur en activiteiten met duur, datums, constraints en voortgang; relaties met lag; kalenders; resources met toewijzingen; activiteitcodes; eigen velden (UDF's); aantekeningen; de planningsinstellingen van P6. Een activiteit van het type *Level of Effort* wordt een hammock. Een baselineproject wordt de actieve baseline van het project dat ernaar verwijst. Een relatie tussen twee projecten bewaart de app als brongegeven.
 
@@ -126,15 +136,15 @@ Een gevulde datumcel in een onherkende vorm stopt het openen van de hele CSV. De
 
 **Wat niet meegaat** — resources, toewijzingen, kalenders, constraints, deadlines, baselines en de statusdatum. Staan de datums in de weergave *Datums zoals opgeslagen*, dan laat de export `Critical` en `Total Float` leeg voor taken waarvan het bronbestand dat niet vastlegde.
 
-## Voortgangsblad (Excel en CSV)
+## Voortgangsblad (Excel)
 
-**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*) of via de knop met die naam in de lintgroep *Voortgang* op *Planning*, *Tabel* en *Rapport*. De app leest `.xlsx` en `.csv`, tot 16 MB en 50.000 rijen. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
+**Openen** — ja, via *Bestand › Importeren* (*Voortgang bijwerken uit een blad*) of via de knop met die naam in de lintgroep *Voortgang* op *Planning*, *Tabel* en *Rapport*. De app leest alleen `.xlsx`, tot 16 MB en 50.000 rijen. Een `.csv` wordt niet gelezen; de app vraagt het blad als `.xlsx` op te slaan. Dit opent geen project: het werkt de voortgang van je geopende project bij. Zie [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren).
 
 **Opslaan** — nee.
 
-**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst) en *Voortgangsblad (CSV)* (*Voortgang (CSV)*). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het Excel-blad met één klik. Het Excel-blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole; het CSV-blad is dezelfde inhoud als platte tekst.
+**Exporteren** — ja, als *Voortgangsblad (Excel)* (*Voortgang (Excel)* in de lijst). Standaardnaam: *projectnaam-voortgang*. De knop *Voortgangsblad exporteren* in dezelfde lintgroep maakt het blad met één klik. Het blad heeft vaste kolombreedtes, vergrendelde velden en een datumcontrole.
 
-**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code.
+**Wat meegaat** — de kolommen `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` en `Actual Finish`. Bij het inlezen gebruikt de app `Completion (%)`, `Actual Start` en `Actual Finish`; `Start` en `Finish` dienen alleen om de datumnotatie te herkennen en veranderen je planning niet. Rijen koppelt de app aan taken op het `OPS Task ID`, of anders op een unieke WBS-code. Het blad heeft ook een verborgen kolom `OPS Export` met de stand bij de export; de app vergelijkt daarmee wat er sindsdien veranderde en schrijft die kolom nooit naar een taak.
 
 **Wat niet meegaat** — alles buiten deze kolommen: duur, relaties, resources en de rest van je planning. Een verzameltaak krijgt geen voortgang uit het blad.
 

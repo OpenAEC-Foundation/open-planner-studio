@@ -8,15 +8,15 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Saving** always writes IFC. Only an opened IFC file becomes the save target; a project from another format has no file after opening, and *Save* then asks where the IFC file should go.
 
-**Exporting** works to IFC, MS Project XML, Primavera P6 XML, CSV and two progress sheets (Excel and CSV). An export does not change your project.
+**Exporting** works to IFC, MS Project XML, Primavera P6 XML, Primavera XER (`.xer`), CSV and a progress sheet (Excel). An export does not change your project.
 
-**Read-only** are `.mpp` and `.xer`: the app can open them, not write them.
+**Read-only** is `.mpp`: the app can open it, not write it. The app can open and export an `.xer`, but *Save* never writes to an `.xer`.
 
 **PDF** only comes from a report (see [Report types](docs://ref-rapporttypes)). The app does not read PDF.
 
 **Where.** Opening: *Home › File › Open*, *File › Open* or Ctrl+O. Exporting: *Home › File › Export* or *File › Export*. You read a filled-in progress sheet in via *File › Import*, or with the button *Update progress from a spreadsheet* in the ribbon group *Progress* on the *Planning*, *Table* and *Report* tabs.
 
-**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` opens with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV, MS Project XML and P6 XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer` and `.mpp` the app reports that the project calculates this way. Only IFC carries the calculation profile and the calculation options; of the calculation options, MS Project XML writes at most the critical threshold. A reopened export of another format calculates as *Open Planner Studio*.
+**Calculation profile on opening.** Every format opens with a calculation profile; what that is, is in [Calculation options and conventions](docs://ref-rekenopties-en-conventies). `.xer` opens with *Primavera P6*, `.mpp` with *Microsoft Project*, and CSV, MS Project XML and P6 XML with *Open Planner Studio*. IFC keeps the profile stored in the file. For `.xer` and `.mpp` the app reports that the project calculates this way. Only IFC carries the calculation profile and the calculation options; of the calculation options, MS Project XML writes at most the critical threshold, and an `.xer` the scheduling settings of P6. A reopened `.xer` export calculates as *Primavera P6*, a reopened export of another format as *Open Planner Studio*.
 
 ## IFC
 
@@ -92,11 +92,21 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## Primavera file (`.xer`)
 
-**Open** — yes. Calculation profile: *Primavera P6*. The app only reads the file: it does not write `.xer` and never changes your file. It opens one tab per project with tasks. A file without activities or with damaged tables it refuses with a message.
+**Open** — yes. Calculation profile: *Primavera P6*. The app never changes your file. It opens one tab per project with tasks. A file without activities or with damaged tables it refuses with a message.
 
 **Save** — no, and there is no save target: *Save* writes a new IFC file, with the original `.xer` inside.
 
-**Export** — no. If you export a project from a `.xer` to CSV, MS Project XML or P6 XML, the app reports that XER source information is lost, even if you saved the project as IFC in between. To IFC nothing is lost.
+**Export** — yes, as *Primavera P6 XER* (*For Oracle Primavera P6, as a .xer file.*). Default name: the project name with `.xer`, with the project ID in brackets if the project has one. If the project has no project ID, the app writes the project name as the project ID (at most 40 characters). Activity IDs and WBS codes are unique in P6 and at most 40 characters; the app adjusts an empty, duplicate or too long code and reports how many. If you export a project from a `.xer` to CSV, MS Project XML or P6 XML, the app reports that XER source information is lost, even if you saved the project as IFC in between. To IFC nothing is lost.
+
+**What the export includes** — the WBS structure; activities with duration, planned and actual dates, progress and two constraints; relations with lag; calendars with work times, days off and working exceptions; resources (labor, equipment and material) with rate and availability; assignments with rate, work and work distribution; notes; the status date; the scheduling settings of P6. The calculated dates and the float are also in the file. P6 shows them until you calculate the project again in P6.
+
+**What the export does not include** — baselines, deadlines, activity codes, custom fields, external relationships, task descriptions, the check mark on a note and the names of days off. A relationship with a summary task becomes a relationship between the tasks below it. A percentage lag becomes a fixed lag, a lag in calendar days a lag in working hours. A break is lost. After the export the app reports *The XER export is saved. This was not included, or not exactly:*, with one line and the number per kind.
+
+**Characters.** The app writes the file in Windows-1252, as P6 does. If a character does not fit, such as *Ł*, it writes the whole file in UTF-8 and reports how many characters there are. Then check the text after the import in P6.
+
+**Opening it again.** An `.xer` from the app opens again as *Primavera P6*. A task in days comes back in days, a task in hours in hours. For this the app writes its own custom fields in the file, as in the export to P6 XML. Each activity gets *OPS_TaskDurationUnit*, and where necessary a field for a duration or lag with a fraction. If the project has its own *Project default* for the task type, the project gets *OPS_DefaultWorkRule*. An activity that inherits the task type of the project gets *OPS_InheritedWorkRule*: after reopening it inherits again. A resource with a fixed *Max units* gets *OPS_FlatCapacity*. Material with steps in its capacity gets *OPS_CapacitySteps*: P6 counts the capacity per hour, the app per day. P6 shows them as normal custom fields; the app does not show them. If you add an activity in P6, the app opens that activity in hours, like every activity from P6. The other activities keep their unit. The app reads the calendars as in every P6 file. A calendar without its own working-time bands gets working-time bands when reopened (hour planning). Dates and float can then differ; the message after the export says how many calendars this concerns.
+
+**Not tested in P6 itself.** The app tests the export by reading it back itself. An import in Primavera P6 itself has not been tested yet.
 
 **What goes along** — the WBS structure and activities with duration, dates, constraints and progress; relations with lag; calendars; resources with assignments; activity codes; custom fields (UDFs); notes; the scheduling settings of P6. An activity of the type *Level of Effort* becomes a hammock. A baseline project becomes the active baseline of the project that refers to it. A relation between two projects is kept by the app as source data.
 
@@ -126,15 +136,15 @@ A filled date cell in an unrecognised format stops the entire CSV from opening. 
 
 **What does not go along** — resources, assignments, calendars, constraints, deadlines, baselines and the status date. If the dates are in the view *Dates as recorded*, the export leaves `Critical` and `Total Float` empty for tasks whose source file did not record that.
 
-## Progress sheet (Excel and CSV)
+## Progress sheet (Excel)
 
-**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*) or via the button of that name in the ribbon group *Progress* on *Planning*, *Table* and *Report*. The app reads `.xlsx` and `.csv`, up to 16 MB and 50,000 rows. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
+**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*) or via the button of that name in the ribbon group *Progress* on *Planning*, *Table* and *Report*. The app reads only `.xlsx`, up to 16 MB and 50,000 rows. A `.csv` is not read; the app asks you to save the sheet as `.xlsx`. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
 
 **Save** — no.
 
-**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the Excel sheet in one click. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
+**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the sheet in one click. The sheet has fixed column widths, locked fields and date checking.
 
-**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code.
+**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code. The sheet also has a hidden column `OPS Export` with the state at the export; the app uses it to compare what changed since then and never writes that column to a task.
 
 **What does not go along** — everything outside these columns: duration, relations, resources and the rest of your schedule. A summary task gets no progress from the sheet.
 

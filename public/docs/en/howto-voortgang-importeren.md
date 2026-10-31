@@ -14,34 +14,36 @@ Set the status date as described in [Updating progress](docs://howto-voortgang-b
 
 ### 2. Make the sheet
 
-Choose *Planning › Progress › Export progress sheet*. The same button is on the *Table* and *Report* tabs. The app makes an Excel file and suggests the name *(project name)-voortgang.xlsx*; in the browser the file lands in your downloads. Prefer a CSV? Choose *File › Export › Progress sheet (CSV)*. The Excel sheet is there too, as *Progress sheet (Excel)*.
+Choose *Planning › Progress › Export progress sheet*. The same button is on the *Table* and *Report* tabs. The app makes an Excel file and suggests the name *(project name)-voortgang.xlsx*; in the browser the file lands in your downloads. The sheet is also under *File › Export*, as *Progress sheet (Excel)*.
 
-The sheet has eight columns. The column names stay in English, with a short instruction in the language of the app after them:
+The sheet has eight visible columns. The column names stay in English, with a short instruction in the language of the app after them:
 
 - `OPS Task ID`, `WBS` and `Name` are only there to recognise the task. Leave them alone.
 - `Start` and `Finish` are the planned dates, for information. The app never writes them back.
 - `Completion (%)`, `Actual Start` and `Actual Finish` are the ones you fill in.
 
-The Excel sheet is protected, without a password: only the three fill-in columns can be edited. Excel checks that a percentage is between 0 and 100 and that an actual date is a date. A phase (summary task) is marked grey with *— summary task: do not fill in*.
+The sheet also has a hidden, locked column `OPS Export`. It holds what the schedule said per task at the export. That lets the app see what changed since the export when it reads the sheet (see *Changes since the export*).
+
+The sheet is protected, without a password: only the three fill-in columns can be edited. Excel checks that a percentage is between 0 and 100 and that an actual date is a date. A phase (summary task) is marked grey with *— summary task: do not fill in*.
 
 ### 3. Have it filled in
 
 For each task the site manager fills in:
 
-- `Completion (%)`: 0 up to and including 100. The app also reads decimals, with a comma or a point (for example 33,3 or 33.3). The instruction in the CSV still asks for whole numbers: a spreadsheet with a different regional setting can read 8,38 as 838.
-- `Actual Start` and `Actual Finish`: in Excel as a date in your own regional setting; in the CSV as dd-mm-yyyy or as yyyy-mm-dd.
+- `Completion (%)`: 0 up to and including 100. Decimals are allowed, for example 33.3.
+- `Actual Start` and `Actual Finish`: as a date in your own regional setting.
 
 Whatever stays empty changes nothing. So an empty cell does not clear existing progress either; that can only be done in the app. A task that has not started, he leaves completely empty.
 
 ### 4. Read the sheet in
 
 1. Choose *Planning › Progress › Update progress from a spreadsheet* (also on the *Table* and *Report* tabs), or *File › Import › Update progress from a spreadsheet*. The window *Update progress from a spreadsheet* opens.
-2. Click *Choose file…* and choose the filled-in `.xlsx` or `.csv` file.
-3. If the dates in a CSV are ambiguous, the app asks *Day first or month first?*, with the date from your file read in two ways. Click the date that is right.
+2. Click *Choose file…* and choose the filled-in `.xlsx` file.
+3. If dates are stored as text in the sheet and are ambiguous, the app asks *Day first or month first?*, with the date from your file read in two ways. Click the date that is right.
 4. You now see a preview. At the top are four counters: *Applied*, *Unchanged*, *Waiting for a link* and *Refused*. Below that, per task, what changes, for example *Completion: 0% → 100%*.
 5. Check the preview and click *Apply*. The window shows *Result*, with the counters and the rows that were refused and why. Finish with *Close*.
 
-You cannot skip the preview. The button *Apply* is disabled as long as there is nothing to apply.
+You cannot skip the preview. The button *Apply* is disabled as long as there is nothing to apply, or as long as a conflict has no choice yet (see *Changes since the export*).
 
 ### 5. Recalculate the schedule
 
@@ -54,6 +56,18 @@ The app links every row to a task, first on `OPS Task ID` and otherwise on the W
 **Link is uncertain.** If the app found the task only by WBS number, the row is under *Link is uncertain*, with *Confirm* and *Change*. The row is applied too if you do nothing; so check that the task is right. *Confirm* takes the row out of this list; it changes nothing about what is applied. *Change* lets you choose another task. With *Clear link* you remove a link you made yourself. Note: a sheet from another project with the same WBS numbers is linked after all, under *Link is uncertain*, and applied when you click *Apply*.
 
 **Waiting for a link.** If the app found no task, or several with the same WBS number, the row is under *Waiting for a link*. The preview already explains why: *No task found for this row.* or *This WBS code occurs on multiple tasks — link the row by hand.* You also see the row number and, if supplied, the `OPS Task ID` from the sheet. If WBS and name are missing, that ID appears at the top of the row. At *Choose a task…* choose the right task; you search by WBS number or name. If you do not link it, the row is refused. A duplicate row appears separately with *Another row already claimed this task.*
+
+## Changes since the export
+
+Between the export and reading the sheet in, you may update progress in the app yourself. The sheet therefore carries the state at the export, and the app compares three values per field: at the export, in the app and in the sheet. The top of the preview shows when the sheet was exported.
+
+- **Only the sheet changed.** This is the normal change.
+- **Only the app changed.** The sheet has no news here, so the value in the app stays. The row is listed under *Changed only in the app since the export*, for example *Completion: at export 30%, now 50%. The sheet does not change this.*
+- **Both changed, and the values differ.** This is a conflict. The row is listed under *Conflicts: changed in the app and in the sheet*, for example *Completion: at export 30%, in the app 50%, in the sheet 40%*. Click *Keep app* or *Use sheet* per row, or choose above the list at *All rows:*. *Apply* stays disabled until every row has a choice. Other changes on the same row go through as usual.
+
+If a planned start or planned finish moved since the export, the row says so. This is only a notice: the sheet does not change your planned dates.
+
+**Rows without an export state.** A sheet from an older version, a self-made sheet, or rows retyped into another file have no export state. The same goes for a row you link by hand to a different task. The top of the preview then shows *Rows without an export state*. The app compares those rows only with the current schedule: a value the person filling in did not touch can then put back a newer value in the app. Check these rows in the preview.
 
 ## Pitfalls and what the app does
 
@@ -72,6 +86,8 @@ A row that does not fit is refused with a reason. The rest of the sheet just car
 - *Refused by the planner.* Another refusal by the planning itself, without a message of its own.
 
 If the whole file is refused, one of these messages appears in the window: *This file has no “OPS Task ID” or “WBS” column to link rows to tasks.*, *This file has none of the Completion, Actual Start or Actual Finish columns.*, *This file is too large to read as a progress sheet.* (more than 16 MB), *This file has too many rows to read as a progress sheet.* (more than 50,000 rows) or *This file is password-protected and cannot be read.* or *This file could not be read as a progress sheet.*
+
+**A CSV file.** The progress sheet exists only as an Excel file. If you choose a `.csv`, the app reports: *A progress sheet can only be read as an Excel file. Open this CSV in Excel, save it as .xlsx and choose the file again.* After that step the sheet has no export state (see *Changes since the export*).
 
 **No status date.** If there is no status date yet and the import applies progress, the app sets it to today and tells you. So set it yourself first.
 

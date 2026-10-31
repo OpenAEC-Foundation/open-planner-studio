@@ -1,15 +1,15 @@
-// Issue #27 etappe 2 (T4, baan B — bestandskant): de id-kolom in de CSV-writer, de ruime maar
+// De waardelaag van het voortgangsblad: de id-kolom in de CSV-writer van taken, de ruime maar
 // strenge datumherkenning (A5.1), de dag/maand-detectie per bestand (A5.2), dat Start/Finish
 // uitsluitend detectiemateriaal zijn (A5.4), de percentage-semantiek (E6/A5.6) en de
-// bestandsgrenzen (hardening-checklist: limits vóór allocaties, weigering i.p.v. afkapping).
+// bestandsgrenzen (hardening-checklist: limits vóór allocaties, weigering i.p.v. afkapping). Een cel
+// in Excel kan tekst zijn, dus al deze notaties komen ook via een `.xlsx` binnen.
 //
 // Draait standalone via esbuild (zie het commando in het plan, T2); geregistreerd in run.sh doet
 // T11. Exit 0 = alles groen — de tail van dit script kan "alles groen" tonen bij een gefaalde
 // BUNDEL; alleen de exitcode telt.
 
-import { formatCompletionPercent, writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { readCSV } from '@/services/csv/csvReader';
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { detectDateOrder, finalizeProgressRows, parseSheetDate, parseSheetPercent } from '@/services/progressImport/sheetValues';
 import { PROGRESS_IMPORT_LIMITS, type DateOrder, type DateOrderDetection, type RawDateCell } from '@/services/progressImport/types';
 import { buildProgressImportPlan, type ProgressPlanDeps } from '@/services/progressImport/buildPlan';
@@ -19,6 +19,7 @@ import type { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CellEditIntent, CellValidationError, GridResult } from '@/types/taskGrid';
 import type { PlannedTaskEdit } from '@/engine/taskGrid/taskEditPlan';
+import { sheetFromText } from './progressSheetFixture';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -314,7 +315,7 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 // Deel 4 — Start/Finish zijn detectie-only (A5.4)
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 {
-  const sfSheet = parseProgressCsv('OPS Task ID;Start;Finish;Completion (%)\r\ntask-1;9-6-2026;20-6-2026;50');
+  const sfSheet = sheetFromText('OPS Task ID;Start;Finish;Completion (%)\r\ntask-1;9-6-2026;20-6-2026;50');
   eq(
     'Start/Finish komen niet in de rijen',
     Object.keys(sfSheet.rawRows[0]).some(k => /start|finish/i.test(k) && !/actual/i.test(k)),
@@ -327,8 +328,8 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   // (een `ProgressImportPlan` met ongewijzigde `appliedCount`) hoort in T3's `buildPlan`-batterij
   // (baan A, `check-progress-import.ts`), niet hier: `buildProgressImportPlan` is geen bestand van
   // deze baan.
-  const startBaseline = parseProgressCsv('OPS Task ID;Start;Completion (%)\r\ntask-1;9-6-2026;50');
-  const startChanged = parseProgressCsv('OPS Task ID;Start;Completion (%)\r\ntask-1;25-12-2099;50');
+  const startBaseline = sheetFromText('OPS Task ID;Start;Completion (%)\r\ntask-1;9-6-2026;50');
+  const startChanged = sheetFromText('OPS Task ID;Start;Completion (%)\r\ntask-1;25-12-2099;50');
   eq(
     'een gewijzigde Start-kolom verandert niets aan de gefinaliseerde rij',
     JSON.stringify(finalizeProgressRows(startChanged, 'dmy')),
@@ -372,216 +373,33 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 // Deel 6 — bestandsgrenzen (hardening-checklist)
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 {
-  eq('blad zonder sleutelkolom', parseProgressCsv('Name;Completion (%)\r\nFoo;50').fileIssue, 'noKeyColumn');
-  eq('blad zonder voortgangskolommen', parseProgressCsv('OPS Task ID;Name\r\ntask-1;Foo').fileIssue, 'noProgressColumns');
+  eq('blad zonder sleutelkolom', sheetFromText('Name;Completion (%)\r\nFoo;50').fileIssue, 'noKeyColumn');
+  eq('blad zonder voortgangskolommen', sheetFromText('OPS Task ID;Name\r\ntask-1;Foo').fileIssue, 'noProgressColumns');
 
   const tinyLimits = { ...PROGRESS_IMPORT_LIMITS, maxRows: 2 };
   const bigCsv = ['OPS Task ID;Completion (%)', ...Array.from({ length: 5 }, (_, i) => `task-${i};50`)].join('\r\n');
-  eq('te veel rijen wordt geweigerd', parseProgressCsv(bigCsv, tinyLimits).fileIssue, 'tooManyRows');
+  eq('te veel rijen wordt geweigerd', sheetFromText(bigCsv, tinyLimits).fileIssue, 'tooManyRows');
 
   const longId = 'x'.repeat(300);
-  const rows9 = parseProgressCsv(`OPS Task ID;Completion (%)\r\n${longId};50`).rawRows;
+  const rows9 = sheetFromText(`OPS Task ID;Completion (%)\r\n${longId};50`).rawRows;
   eq('te lang id wordt geweigerd', rows9[0].taskId, undefined);
 
   const controlId = 'task\x01abc';
-  const rows10 = parseProgressCsv(`OPS Task ID;Completion (%)\r\n${controlId};50`).rawRows;
+  const rows10 = sheetFromText(`OPS Task ID;Completion (%)\r\n${controlId};50`).rawRows;
   eq('id met stuurteken telt niet', rows10[0].taskId, undefined);
 
-  const rows11 = parseProgressCsv('OPS Task ID;Name;Completion (%)\r\ntask-1;"Fase 1; deel ""A""";50').rawRows;
-  ok('quotes en delimiters in namen overleven', rows11[0].name === 'Fase 1; deel "A"');
+  const rows11 = sheetFromText('OPS Task ID;Name;Completion (%)\r\ntask-1;Fase 1;50').rawRows;
   eq('rowNumber telt de kopregel mee', rows11[0].rowNumber, 2);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 7 — fixronde-bevinding 3: quote-bewuste recordsplitsing + bevinding 9: echte regelnummers
+// Lezer — invulinstructies in de kolomkoppen (punt D, besluit 2026-09-05, letterlijke gebruikerswens:
+// "er moet ook in de headers van de kolommen komen te staan wat je in mag voeren en waar je af moet
+// blijven"). De lezer moet de sleutel VÓÓR de instructiemarker (` — `, ` - ` of `(`) blijven
+// herkennen, in élke taal — de sleutel zelf is altijd het letterlijke Engelse kolomwoord, alleen de
+// instructie erachter varieert.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 {
-  // (a) Round-trip met een taaknaam ÉN een omschrijving die allebei een letterlijke regeleinde
-  // dragen — `writeCSV` quote't zulke velden RFC4180-gewijs (Name staat vroeg in de rij, vóór
-  // Completion; Description staat helemaal achteraan, dus dit dekt "de scheuring zit vroeg" én
-  // "er zit ook verderop nog een quote-veld met een newline"). Vóór de fix verloor de ECHTE rij
-  // alles ná de scheuring (Completion incluis) en ontstond er een rommelrij.
-  const multilineTask = baseTask('task-multiline', '2026-06-01', 5);
-  multilineTask.name = 'Regel1\nRegel2';
-  multilineTask.description = 'Beschrijving1\nBeschrijving2';
-  multilineTask.time.completion = 0.4;
-  const multilineCsv = writeCSV({} as Project, {} as WorkCalendar, [multilineTask], [], [], []);
-  const multilineSheet = parseProgressCsv(multilineCsv);
-  eq('multiline naam/omschrijving scheurt de rij niet in tweeën', multilineSheet.rawRows.length, 1);
-  eq('…de naam blijft compleet (met de letterlijke regeleinde)', multilineSheet.rawRows[0]?.name, 'Regel1\nRegel2');
-  eq('…en de Completion-kolom overleeft (stond ná de multiline naam)', multilineSheet.rawRows[0]?.rawCompletion, '40');
-  eq('…en het echte task-id blijft aan deze ene rij gekoppeld', multilineSheet.rawRows[0]?.taskId, multilineTask.id);
-
-  // (b) Een aanhalingsteken dat nooit sluit maakt GEEN kolomgrens in het bestand nog betrouwbaar —
-  // het hele blad wordt geweigerd, nooit een halfgelezen resultaat.
-  const unterminated = parseProgressCsv('OPS Task ID;Name;Completion (%)\r\ntask-1;"Nooit gesloten;50');
-  eq('niet-gesloten aanhalingsteken weigert het HELE blad', unterminated.fileIssue, 'unreadable');
-  eq('…geen enkele halfgelezen rij', unterminated.rawRows.length, 0);
-  eq('…en geen halfgelezen detectiecellen', unterminated.detectionCells.length, 0);
-
-  // Bevinding 9: een lege regel telt mee in de regelnummering — vóór de fix kreeg de rij ná een
-  // lege regel het verkeerde (te lage) nummer, omdat lege regels vóór het nummeren werden weggefilterd.
-  const withBlankLine = parseProgressCsv('OPS Task ID;Completion (%)\r\na;10\r\n\r\nb;20');
-  eq('lege regel wordt overgeslagen als datarij', withBlankLine.rawRows.length, 2);
-  eq('eerste datarij op fysieke regel 2', withBlankLine.rawRows[0]?.rowNumber, 2);
-  eq('tweede datarij op regel 4 — de lege regel 3 telt mee', withBlankLine.rawRows[1]?.rowNumber, 4);
-
-  // En de twee bevindingen samen: een gequote meerregelig record beslaat zelf meerdere fysieke
-  // regels, dus de rij DAARNA moet daarmee rekenen — niet met "één record is één regel".
-  const multilineThenPlain = parseProgressCsv(
-    'OPS Task ID;Name;Completion (%)\r\ntask-1;"Regel1\nRegel2";40\r\ntask-2;Normaal;60',
-  );
-  eq('twee rijen, geen rommelrij erbij', multilineThenPlain.rawRows.length, 2);
-  eq('eerste (meerregelige) rij begint op regel 2', multilineThenPlain.rawRows[0]?.rowNumber, 2);
-  eq(
-    'tweede rij op regel 4 (regels 2+3 zijn door de eerste, meerregelige rij gebruikt)',
-    multilineThenPlain.rawRows[1]?.rowNumber,
-    4,
-  );
-  eq('…en draagt gewoon zijn eigen task-id', multilineThenPlain.rawRows[1]?.taskId, 'task-2');
-}
-
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Writer — voortgangsblad (E7, eigenaarsbesluit 2026-09-05; percentage-ronde 3 zelfde dag):
-// `writeProgressSheetCSV` is een tweede SCHRIJVER op dezelfde helpers
-// (escapeCSV/formatCompletionPercent/BOM/CRLF) uit csvWriter.ts — geen tweede lezer. Exacte
-// 8-koloms kop, correcte veldvolgorde, een fractioneel percentage AFGEROND naar een heel procent
-// (geen decimalen meer — een spreadsheet met een andere landinstelling leest "8,38" anders als
-// 838), en een round-trip terug door de bestaande lezer/planner (STUB-planner, zoals
-// check-progress-import.ts Deel 2) die op een ongewijzigd blad NUL wijzigingen mag opleveren.
-// ════════════════════════════════════════════════════════════════════════════════════════════
-{
-  function stubPlanEdits(
-    task: Task,
-    edits: readonly CellEditIntent[],
-  ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
-    const next: Task = { ...task, time: { ...task.time } };
-    for (const edit of edits) {
-      const id = String(edit.columnId);
-      if (id === 'task.time.completion') next.time.completion = edit.value as number;
-      else if (id === 'task.time.actualStart') next.time.actualStart = edit.value as string;
-      else if (id === 'task.time.actualFinish') next.time.actualFinish = edit.value as string;
-    }
-    return { ok: true, value: { task: next, changed: true, timephasedGuidanceLost: false, scheduleStale: true } };
-  }
-  const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
-
-  const taskA = baseTask('task-a', '2026-01-05', 5);
-  taskA.wbsCode = '1';
-  taskA.name = 'Fundering';
-  taskA.time.completion = 0.335;
-  const taskB = baseTask('task-b', '2026-01-12', 3);
-  taskB.wbsCode = '2';
-  taskB.time.completion = 1;
-  taskB.time.actualStart = '2026-01-12';
-  taskB.time.actualFinish = '2026-01-16';
-
-  const csv = writeProgressSheetCSV([taskA, taskB]);
-
-  ok('begint met de BOM', csv.startsWith('﻿'));
-  const withoutBom = csv.slice(1);
-  const lines = withoutBom.split('\r\n');
-  eq(
-    'exacte 8-koloms kop, in die volgorde',
-    lines[0],
-    'OPS Task ID;WBS;Name;Start;Finish;Completion (%);Actual Start;Actual Finish',
-  );
-  const fieldsA = lines[1]?.split(';') ?? [];
-  eq('rij 1: 8 velden', fieldsA.length, 8);
-  eq('rij 1 draagt het echte taak-id', fieldsA[0], 'task-a');
-  eq('rij 1 draagt de WBS', fieldsA[1], '1');
-  eq('rij 1 draagt de naam', fieldsA[2], 'Fundering');
-  eq('rij 1 draagt Start', fieldsA[3], taskA.time.earlyStart || taskA.time.scheduleStart);
-  eq('rij 1 draagt Finish', fieldsA[4], taskA.time.earlyFinish || taskA.time.scheduleFinish);
-  eq('rij 1: fractioneel percentage afgerond naar heel procent (33,5% ⇒ "34")', fieldsA[5], '34');
-  eq('rij 1: geen actuals ⇒ lege cellen', fieldsA[6], '');
-  eq('rij 1: geen actuals ⇒ lege cellen', fieldsA[7], '');
-
-  const fieldsB = lines[2]?.split(';') ?? [];
-  eq('rij 2: 100% blijft "100"', fieldsB[5], '100');
-  eq('rij 2 draagt Actual Start', fieldsB[6], '2026-01-12');
-  eq('rij 2 draagt Actual Finish', fieldsB[7], '2026-01-16');
-
-  // Geen predecessors/duration/type/status/critical/float/description — de volle CSV-export heeft
-  // die kolommen wel, dit slanke blad bewust niet.
-  ok('geen "Predecessors"-kolom in het slanke blad', !lines[0]?.includes('Predecessors'));
-  ok('geen "Duration (days)"-kolom in het slanke blad', !lines[0]?.includes('Duration'));
-
-  // Round-trip: een ONGEWIJZIGD, écht geschreven en teruggelezen blad ⇒ nul wijzigingen.
-  const sheet = parseProgressCsv(csv);
-  const rows = finalizeProgressRows(sheet, 'dmy');
-  const plan = buildProgressImportPlan(rows, [taskA, taskB], stubDeps);
-  eq('round-trip van het slanke blad ⇒ nul wijzigingen', plan.appliedCount, 0);
-  ok('…en dus ook geen enkele rij die als apply doorliep', plan.rows.every((row) => row.outcome !== 'apply'));
-
-  // besluit 2026-09-05 (gebruikstest): geen decimalen meer, wat de landinstelling ook is.
-  eq('formatCompletionPercent: 0.0838 ⇒ heel procent "8" (geen "8.38")', formatCompletionPercent(0.0838), '8');
-  eq('formatCompletionPercent: 0.5 ⇒ "50"', formatCompletionPercent(0.5), '50');
-  eq('formatCompletionPercent: 0.995 ⇒ "100" (rondt naar boven)', formatCompletionPercent(0.995), '100');
-}
-
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Writer/lezer — invulinstructies in de kolomkoppen (punt D, besluit 2026-09-05, letterlijke
-// gebruikerswens: "er moet ook in de headers van de kolommen komen te staan wat je in mag voeren
-// en waar je af moet blijven"; aanleiding: OnlyOffice met NL-instellingen las "8,38" als 838).
-// `writeProgressSheetCSV` krijgt `headerNotes` mee; `parseProgressCsv` moet de sleutel VÓÓR de
-// instructiemarker (` — `, ` - ` of `(`) blijven herkennen, in élke taal — de sleutel zelf is
-// altijd het letterlijke Engelse kolomwoord, alleen de instructie erachter varieert.
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-{
-  function stubPlanEditsD(
-    task: Task,
-    edits: readonly CellEditIntent[],
-  ): GridResult<PlannedTaskEdit, readonly CellValidationError[]> {
-    const next: Task = { ...task, time: { ...task.time } };
-    for (const edit of edits) {
-      const id = String(edit.columnId);
-      if (id === 'task.time.completion') next.time.completion = edit.value as number;
-      else if (id === 'task.time.actualStart') next.time.actualStart = edit.value as string;
-      else if (id === 'task.time.actualFinish') next.time.actualFinish = edit.value as string;
-    }
-    return { ok: true, value: { task: next, changed: true, timephasedGuidanceLost: false, scheduleStale: true } };
-  }
-  const stubDepsD: ProgressPlanDeps = { planEdits: stubPlanEditsD };
-
-  const taskD = baseTask('task-d', '2026-01-05', 5);
-  taskD.wbsCode = '1';
-  taskD.name = 'Fundering';
-  taskD.time.completion = 0.335;
-
-  const headerNotes = {
-    'OPS Task ID': 'niet wijzigen',
-    WBS: 'niet wijzigen',
-    Name: 'niet wijzigen',
-    Start: 'gepland, niet wijzigen',
-    Finish: 'gepland, niet wijzigen',
-    'Completion (%)': 'invullen: 0 t/m 100, hele getallen',
-    'Actual Start': 'invullen: werkelijke startdatum (dd-mm-jjjj)',
-    'Actual Finish': 'invullen: werkelijke einddatum (dd-mm-jjjj)',
-  } as const;
-  const csvWithNotes = writeProgressSheetCSV([taskD], headerNotes);
-  const headerLine = csvWithNotes.slice(1).split('\r\n')[0];
-  ok('elke kolom draagt " — " gevolgd door de instructie', headerLine.split(';').every(cell => cell.includes(' — ')));
-  eq(
-    '…en de sleutel zelf blijft vooraan, letterlijk Engels',
-    headerLine,
-    [
-      'OPS Task ID — niet wijzigen', 'WBS — niet wijzigen', 'Name — niet wijzigen',
-      'Start — gepland, niet wijzigen', 'Finish — gepland, niet wijzigen',
-      'Completion (%) — invullen: 0 t/m 100, hele getallen',
-      'Actual Start — invullen: werkelijke startdatum (dd-mm-jjjj)',
-      'Actual Finish — invullen: werkelijke einddatum (dd-mm-jjjj)',
-    ].join(';'),
-  );
-
-  // Round-trip: een ONGEWIJZIGD blad MET instructiekoppen ⇒ nul wijzigingen — de lezer moet de
-  // instructie negeren en gewoon de kolom vinden.
-  const sheetD = parseProgressCsv(csvWithNotes);
-  const rowsD = finalizeProgressRows(sheetD, 'dmy');
-  const planD = buildProgressImportPlan(rowsD, [taskD], stubDepsD);
-  eq('round-trip MET instructiekoppen ⇒ nul wijzigingen', planD.appliedCount, 0);
-  eq('…en de taak werd wel degelijk gevonden (niet als "geen kolommen" geweigerd)', planD.rows[0]?.taskId, taskD.id);
-
   // Fixture: een kop met NEDERLANDSE instructies en één met "DUITSE" (verzonnen tekst) — alle acht
   // kolommen moeten in beide gevallen herkend worden. Mutatiebewijs: haal de prefix-match-terugval
   // in `matchColumnKey` weg en dit blok kleurt rood (`fileIssue` zou `noProgressColumns` worden).
@@ -597,18 +415,18 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     + 'Actual Finish — ausfüllen: tatsächliches Enddatum (TT-MM-JJJJ)';
   const dataLine = 'task-d;1;Fundering;2026-01-05;2026-01-09;40;;';
 
-  const nlSheet = parseProgressCsv(`${nlHeader}\r\n${dataLine}`);
+  const nlSheet = sheetFromText(`${nlHeader}\r\n${dataLine}`);
   ok('NL-instructiekop: alle acht kolommen herkend (geen fileIssue)', nlSheet.fileIssue === undefined);
   eq('…taskId gevonden', nlSheet.rawRows[0]?.taskId, 'task-d');
   eq('…completion gevonden', nlSheet.rawRows[0]?.rawCompletion, '40');
 
-  const deSheet = parseProgressCsv(`${deHeader}\r\n${dataLine}`);
+  const deSheet = sheetFromText(`${deHeader}\r\n${dataLine}`);
   ok('DE-instructiekop: alle acht kolommen herkend (geen fileIssue)', deSheet.fileIssue === undefined);
   eq('…taskId gevonden', deSheet.rawRows[0]?.taskId, 'task-d');
   eq('…completion gevonden', deSheet.rawRows[0]?.rawCompletion, '40');
 
   // Losse kop-string ⇒ completion-kolom, expliciet genoemd in de opdracht.
-  const completionOnlySheet = parseProgressCsv(
+  const completionOnlySheet = sheetFromText(
     'OPS Task ID;Completion (%) — invullen: 0 t/m 100, hele getallen\r\ntask-d;40',
   );
   eq('…gevonden als completion-kolom', completionOnlySheet.rawRows[0]?.rawCompletion, '40');
@@ -617,7 +435,7 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // Deel 8 — reason `percentOutOfRange` (besluit 2026-09-05, gebruikstest): een numeriek leesbare
 // waarde buiten [0, 100] ("838", "-5") krijgt zijn eigen reden, apart van `unreadableNumber`
-// (tekst zoals "abc"). Via een echt CSV-blad, net als Deel 5 in check-progress-import.ts.
+// (tekst zoals "abc").
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function stubPlanEdits2(
@@ -643,7 +461,7 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     `${taskY.id};-5`,
     `${taskZ.id};abc`,
   ].join('\r\n');
-  const sheet = parseProgressCsv(csv);
+  const sheet = sheetFromText(csv);
   const rows = finalizeProgressRows(sheet, 'dmy');
   const plan = buildProgressImportPlan(rows, [taskX, taskY, taskZ], stubDeps2);
   const rowFor = (id: string) => plan.rows.find(r => r.taskId === id);
@@ -654,7 +472,7 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// Writer/lezer — verzameltaken dragen hun eigen markering IN het blad (gebruikstest 2026-09-11,
+// Lezer — verzameltaken dragen hun eigen markering IN het blad (gebruikstest 2026-09-11,
 // fix 1). Letterlijke wens van de eigenaar: "hij zegt dat summary tasks geen progress kunnen
 // krijgen uit een spreadsheet, waarom staat dat ook niet gewoon in dat veld in de spreadsheet?".
 // De drie INVULcellen van een verzameltaak (`childIds.length > 0`) krijgen een gelokaliseerde
@@ -691,20 +509,13 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   child.time.completion = 0.4;
 
   const SUMMARY_NOTE = '— verzameltaak: niet invullen';
-  const csvS = writeProgressSheetCSV([parent, child], undefined, SUMMARY_NOTE);
-  const linesS = csvS.slice(1).split('\r\n');
-  const parentFields = linesS[1]?.split(';') ?? [];
-  const childFields = linesS[2]?.split(';') ?? [];
 
-  eq('verzameltaak: Completion draagt de markering', parentFields[5], SUMMARY_NOTE);
-  eq('verzameltaak: Actual Start draagt de markering', parentFields[6], SUMMARY_NOTE);
-  eq('verzameltaak: Actual Finish draagt de markering', parentFields[7], SUMMARY_NOTE);
-  eq('verzameltaak: de leescellen blijven gewoon gevuld', parentFields[1], '1');
-  eq('bladtaak houdt zijn echte percentage', childFields[5], '40');
-  eq('bladtaak krijgt GEEN markering', childFields[6], '');
-
-  // Round-trip: het geëxporteerde blad ongewijzigd terug ⇒ niets toegepast, niets geweigerd.
-  const sheetS = parseProgressCsv(csvS);
+  // Het blad ongewijzigd terug ⇒ niets toegepast, niets geweigerd.
+  const sheetS = sheetFromText([
+    'OPS Task ID;WBS;Completion (%);Actual Start;Actual Finish',
+    `${parent.id};1;${SUMMARY_NOTE};${SUMMARY_NOTE};${SUMMARY_NOTE}`,
+    `${child.id};1.1;40;;`,
+  ].join('\r\n'));
   const rowsS = finalizeProgressRows(sheetS, 'dmy');
   const planS = buildProgressImportPlan(rowsS, [parent, child], stubDepsS);
   eq('round-trip met verzameltaak ⇒ niets toegepast', planS.appliedCount, 0);
@@ -712,13 +523,8 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('…de verzameltaakrij is gewoon ongewijzigd', planS.rows[0]?.outcome, 'noop');
   eq('…net als de bladtaakrij', planS.rows[1]?.outcome, 'noop');
 
-  // Zonder markeertekst blijft het blad exact zoals het was (de parameter is optioneel).
-  const csvPlain = writeProgressSheetCSV([parent, child]);
-  const plainParent = csvPlain.slice(1).split('\r\n')[1]?.split(';') ?? [];
-  eq('zonder markeertekst: verzameltaak schrijft gewoon zijn eigen percentage', plainParent[5], '40');
-
   // De lezer zelf: een cel die met een em-dash begint is AFWEZIG, niet onleesbaar.
-  const markedSheet = parseProgressCsv(
+  const markedSheet = sheetFromText(
     'OPS Task ID;Completion (%);Actual Start\r\n'
     + `task-child;${SUMMARY_NOTE};${SUMMARY_NOTE}`,
   );
@@ -729,9 +535,9 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 
 
 if (diffs.length > 0) {
-  console.error(`FAIL progress-import-csv: ${diffs.length}/${checks} afwijkingen`);
+  console.error(`FAIL progress-sheet-values: ${diffs.length}/${checks} afwijkingen`);
   for (const diff of diffs) console.error(`  - ${diff}`);
   process.exitCode = 1;
 } else {
-  console.log(`OK  progress-import-csv: ${checks}/${checks}`);
+  console.log(`OK  progress-sheet-values: ${checks}/${checks}`);
 }

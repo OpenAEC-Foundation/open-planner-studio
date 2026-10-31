@@ -1,11 +1,18 @@
 export type {
   DateOrder,
   DateOrderDetection,
+  ProgressConflictChoice,
+  ProgressConflictChoices,
+  ProgressExportState,
+  ProgressField,
   ProgressFieldChange,
+  ProgressFieldConflict,
+  ProgressFieldKept,
   ProgressFileIssue,
   ProgressImportPlan,
   ProgressMatchKind,
   ProgressOverrides,
+  ProgressPlannedShift,
   ProgressPlanRow,
   ProgressRow,
   ProgressRowReason,
@@ -25,3 +32,5 @@ export { matchProgressRows } from './matchRows';
 
 export type { ProgressPlanDeps } from './buildPlan';
 export { buildProgressImportPlan } from './buildPlan';
+
+export { decodeProgressExportState, encodeProgressExportState } from './exportState';

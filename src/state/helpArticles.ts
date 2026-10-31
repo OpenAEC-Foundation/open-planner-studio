@@ -103,6 +103,9 @@ export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
 /** Het paneel Waarschuwingen. */
 export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';
 
+/** Het paneel Verschuivingen. */
+export const SCHEDULE_SHIFT_HELP_ARTICLE_ID = 'uitleg-verschuivingen';
+
 // ── ?-knoppen in zes vensters (besluit eigenaar na fase 4) ──────────────────────────────────────────
 
 /** Projectinformatie (Instellingen › Project › Projectinfo): de referentie van het formulier, en de
@@ -142,6 +145,10 @@ export const FORMAT_NOTICE_MSPDI_HELP_ARTICLE_ID = 'ref-import-exportformaten#ms
 
 /** Primavera P6 XML: het kopje in de formatenreferentie. */
 export const FORMAT_NOTICE_P6XML_HELP_ARTICLE_ID = 'ref-import-exportformaten#primavera-p6-xml';
+
+/** Na een XER-export: de formatenreferentie, waar per formaat staat wat meegaat. Zonder anker: het
+ *  kopje heet per taal anders (*Primavera-bestand* / *Primavera file*). */
+export const XER_EXPORT_HELP_ARTICLE_ID = 'ref-import-exportformaten';
 
 /** CSV: het kopje in de formatenreferentie. */
 export const FORMAT_NOTICE_CSV_HELP_ARTICLE_ID = 'ref-import-exportformaten#csv';

@@ -45,6 +45,8 @@ export interface SolveProjectInput {
   projectStartDate?: string;
   /** `project.endDate`; alleen bronsemantisch actief via useProjectEndDateForFloat. */
   projectEndDate?: string;
+  /** Leg per taak vast wat haar datums bepaalde (`CPMResult.dateDriverByTaskId`). */
+  traceDateDrivers?: boolean;
 }
 
 /**
@@ -75,6 +77,7 @@ export function solveProject(input: SolveProjectInput): CPMResult {
     schedulingOptions: input.schedulingOptions,
     projectStartDate: input.projectStartDate,
     projectEndDate: input.projectEndDate,
+    traceDateDrivers: input.traceDateDrivers,
   });
   const result = solver.solve();
   // De solver rekende op de GEËXPANDEERDE (synthetische) relatie-set, dus zijn

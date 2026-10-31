@@ -215,6 +215,7 @@
     "screenColors_critical": "Критичний шлях",
     "screenColors_auto": "За завданням — автоматично",
     "screenColors_category": "За категорією",
+    "screenColorsNearCritical": "Майже критичне",
     "screenColorsMissingField": "Цього поля немає в цьому проєкті. Тимчасово використовується вид робіт.",
     "screenColorsHint": "Поза варіантом «Критичний шлях» червона рамка позначає критичний шлях.",
     "addLayout": "Новий макет",
@@ -378,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "Заповніть: від 0 до 100, дроби дозволено",
       "actualStart": "Заповніть: фактична дата початку (як дата)",
-      "actualFinish": "Заповніть: фактична дата завершення (як дата)"
-    },
-    "progressCsvLabel": "Аркуш прогресу (CSV)",
-    "progressCsvDesc": "Той самий стислий аркуш прогресу у вигляді простого тексту — для тих, хто краще працює з CSV.",
-    "progressCsvShort": "Прогрес (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "Заповніть: фактична дата завершення (як дата)",
       "readOnly": "не змінювати",
       "plannedReadOnly": "плановий, не змінювати",
-      "completion": "Заповніть: від 0 до 100, цілі числа",
-      "actualStart": "Заповніть: фактична дата початку (дд-мм-рррр)",
-      "actualFinish": "Заповніть: фактична дата завершення (дд-мм-рррр)",
       "summaryRow": "— зведене завдання: не заповнювати"
     },
     "csvLabel": "CSV (розділений крапкою з комою)",
@@ -397,6 +390,7 @@
     "mspdiDesc": "Відкривається в Microsoft Project. Повна робоча структура проєкту.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Для Oracle Primavera P6.",
+    "profileHint": "Ваш проєкт зараз використовує профіль {{name}}. Радимо використовувати профіль {{target}} для найкращої сумісності з цим форматом файлу.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт BuildingSMART, у схемі IFC проєкту (за замовчуванням IFC 4.3 ADD2). 4D-зв'язок з BIM-моделями.",
     "csvShort": "CSV (;)"

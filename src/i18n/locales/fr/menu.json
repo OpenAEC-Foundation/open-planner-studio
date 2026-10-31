@@ -214,6 +214,7 @@
     "screenColors_critical": "Chemin critique",
     "screenColors_auto": "Par tâche — automatique",
     "screenColors_category": "Par catégorie",
+    "screenColorsNearCritical": "Quasi critique",
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.",
     "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
     "addLayout": "Nouvelle disposition",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "à remplir : 0 à 100, décimales autorisées",
       "actualStart": "à remplir : date de début réelle (comme date)",
-      "actualFinish": "à remplir : date de fin réelle (comme date)"
-    },
-    "progressCsvLabel": "Feuille d’avancement (CSV)",
-    "progressCsvDesc": "La même feuille d’avancement allégée en texte brut — pour qui préfère travailler avec un CSV.",
-    "progressCsvShort": "Avancement (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "à remplir : date de fin réelle (comme date)",
       "readOnly": "ne pas modifier",
       "plannedReadOnly": "prévu, ne pas modifier",
-      "completion": "à remplir : 0 à 100, nombres entiers",
-      "actualStart": "à remplir : date de début réelle (jj-mm-aaaa)",
-      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)",
       "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
     "csvLabel": "CSV (séparé par des points-virgules)",
@@ -395,6 +388,7 @@
     "mspdiDesc": "À ouvrir dans Microsoft Project. Structure WBS complète.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pour Oracle Primavera P6.",
+    "profileHint": "Votre projet utilise actuellement le profil {{name}}. Nous recommandons le profil {{target}} pour une meilleure compatibilité avec ce format de fichier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard buildingSMART, dans le schéma IFC du projet (par défaut IFC 4.3 ADD2). Liaison 4D avec les modèles BIM.",
     "csvShort": "CSV (;)"

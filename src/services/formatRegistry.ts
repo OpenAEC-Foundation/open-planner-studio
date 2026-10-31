@@ -2,6 +2,8 @@
 // parseExternalSource, fileTools.parseByExtension, devBridge.openFromPath) plus de bijbehorende
 // exportlijst (Backstage).
 
+import type { XerWriteInput, XerWriteResult } from '@/services/xerWriteTypes';
+import type { BuiltInProfileId } from '@/types/project';
 import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
 import {
   precomputeSha256, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
@@ -286,7 +288,16 @@ export function importErrorMessageKey(
 
 // ── Export-kant ──
 
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'progress-csv' | 'progress-xlsx';
+/**
+ * De XER-schrijver, achter dezelfde lazy grens als de XER-lezer (`services/xer/` is een eigen chunk,
+ * `check-xer-chunk-boundary.ts`): de hoofdbundel laadt hem pas bij een XER-export.
+ */
+export async function writeXerExport(input: XerWriteInput): Promise<XerWriteResult> {
+  const { writeXER } = await import('@/services/xer/xerWriter');
+  return writeXER(input);
+}
+
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'xer' | 'progress-xlsx';
 
 export interface ExportFormatMeta {
   format: ExportFormat;
@@ -296,14 +307,20 @@ export interface ExportFormatMeta {
   /** Korte variant voor de ribbon-exportdropdown (ExportDropdown); alleen csv wijkt af van
    *  `labelKey` — de overige drie hergebruiken hun volle label. */
   shortLabelKey?: string;
+  /** Toon het label "Experimenteel" bij deze keuze (Backstage-kaart en ExportDropdown). Voor een
+   *  export die niet in het doelprogramma zelf getest is en waarbij veel verloren gaat (eigenaar, 2026-10-29). */
+  experimental?: boolean;
+  /** Het ingebouwde profiel dat bij dit formaat past; rekent het project anders, dan volgt een hint
+   *  (`exportProfileAdvice`). Geen waarde ⇒ geen hint. */
+  recommendedProfile?: BuiltInProfileId;
 }
 
 /** Volgorde = de Backstage-volgorde (en die van ExportDropdown). */
 export const EXPORT_FORMATS = [
   { format: 'progress-xlsx', icon: 'XLSX', labelKey: 'export.progressXlsxLabel', descKey: 'export.progressXlsxDesc', shortLabelKey: 'export.progressXlsxShort' },
-  { format: 'progress-csv', icon: 'CSV', labelKey: 'export.progressCsvLabel', descKey: 'export.progressCsvDesc', shortLabelKey: 'export.progressCsvShort' },
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
-  { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined },
-  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined },
+  { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined, recommendedProfile: 'msproject' },
+  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined, recommendedProfile: 'p6' },
+  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined, experimental: true, recommendedProfile: 'p6' },
   { format: 'ifc', icon: 'IFC', labelKey: 'export.ifcLabel', descKey: 'export.ifcDesc', shortLabelKey: undefined },
 ] as const satisfies readonly ExportFormatMeta[];
