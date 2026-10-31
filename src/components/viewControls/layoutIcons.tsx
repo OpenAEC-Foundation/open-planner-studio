@@ -25,7 +25,7 @@ const LAYOUT_ICONS = {
 export type LayoutIconKey = keyof typeof LAYOUT_ICONS;
 export const LAYOUT_ICON_KEYS = Object.keys(LAYOUT_ICONS) as LayoutIconKey[];
 
-export function layoutIcon(key: string | undefined, size = 20): ReactNode {
+export function layoutIcon(key: string | undefined, size = 24): ReactNode {
   const id = LAYOUT_ICONS[(key ?? 'layout') as LayoutIconKey] ?? LAYOUT_ICONS.layout;
   return <Icon id={id} size={size} />;
 }

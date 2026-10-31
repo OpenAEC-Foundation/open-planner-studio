@@ -56,3 +56,7 @@
 .ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m16 { display: inline; }
 .ribbon-btn[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m24,
 .ribbon-container.compact .ribbon-btn-icon svg.oa-icon > .oa-icon__m24 { display: none; }
+
+/* De grote gesplitste knop blijft in de mini-stand een groot pictogram, dus op zijn 24 px-master. */
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m16 { display: none; }
+.ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg.oa-icon > .oa-icon__m24 { display: inline; }

@@ -703,8 +703,8 @@
 }
 
 .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-bottom .ribbon-btn-label {

@@ -947,7 +947,7 @@ export function LayoutGroupContent() {
                 onContextMenu={e => { e.preventDefault(); setMenuId(layout.id); }}
               >
                 <RibbonButton
-                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined))}
+                  icon={layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined), 24)}
                   label={layout.name}
                   active={activeIds.has(layout.id)}
                   onClick={() => toggleLayout(layout)}
