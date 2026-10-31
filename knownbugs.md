@@ -1663,3 +1663,10 @@ en noem het in je rapport of PR-tekst.
      kan het bewijs op pagina 2 staan en meldt het script `geen browserrun`. De gate stopt dan; hij gaat niet stil door.
      Zeldzaam, want het venster is hoogstens een week. Voorstel: pagineren tot een pagina minder dan 100 runs geeft.
      Gevonden in de review van #757 (GPT-6.1-Sol), met 101 runs nagespeeld. — B
+559. **`release-ci-check.mjs` beoordeelt latere pogingen onvolledig, en de reparatie kan de verkeerde poging onderzoeken.**
+     `scripts/release-ci-check.mjs`, `firstAttemptJobs` en `checkBrowserRun`: het script leest alleen de jobs van poging 1 en
+     de huidige conclusie. Poging 1 groen, poging 2 rood, poging 3 groen geeft dus `ok: true`, en de hapering in poging 2
+     verdwijnt. Bij alleen groen en dan rood stopt de gate wel, maar `.claude/skills/browsertests-repareren/SKILL.md`, stap 4,
+     leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
+     beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
+     van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
