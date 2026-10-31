@@ -1,18 +1,15 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
+  Plus, Undo2, Redo2,
   FileText, FolderOpen, Save, Printer, Trash2,
-  Calendar, Settings, Info,
+  Settings, Info,
   Eye, EyeOff, SaveAll,
-  Tags, ListOrdered, Hash,
-  IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
   Keyboard, PanelRight,
-  CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
-  FileDown, FileUp, Scissors,
+  ChevronsDownUp, ChevronsUpDown, Columns3,
 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
 import { useCommandBinding } from './useCommandBinding';
@@ -120,7 +117,7 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
 
 /** Bereken/CPM-knop (start/planning/relations/table). */
 const calcButton: RibbonButtonSpec = {
-  kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
+  kind: 'button', id: 'calc', icon: <Icon id="solver.run" size={24} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
     const runCPM = useAppStore(s => s.runCPM);
     return { onClick: () => runCPM() };
@@ -155,7 +152,7 @@ const relationDropdownItem: RibbonComponentSpec = {
  * planning en tabel; de uitleg van het gebaar staat uitsluitend in `SplitModeNotice`.
  */
 const splitTaskButton: RibbonButtonSpec = {
-  kind: 'button', id: 'splitTask', icon: <Scissors size={20} />, labelKey: 'menu:ribbon.splitTask',
+  kind: 'button', id: 'splitTask', icon: <Icon id="task.split-mode" size={24} />, labelKey: 'menu:ribbon.splitTask',
   use: () => {
     const { t } = useTranslation('menu');
     const splitMode = useAppStore(s => s.ui.showSplitMode);
@@ -174,7 +171,7 @@ const splitTaskButton: RibbonButtonSpec = {
 
 /** Kalender-knop (planning + instellingen). */
 const calendarButton: RibbonButtonSpec = {
-  kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
+  kind: 'button', id: 'calendar', icon: <Icon id="calendar.manage" size={24} />, labelKey: 'menu:ribbon.calendar',
   use: uiAction({ showCalendarDialog: true }),
 };
 
@@ -204,7 +201,7 @@ const traceGroup: RibbonGroupSpec = {
   id: 'trace', labelKey: 'menu:ribbon.trace',
   items: [
     {
-      kind: 'button', id: 'tracePred', icon: <ArrowLeftToLine size={20} />, labelKey: 'menu:ribbon.tracePredecessors',
+      kind: 'button', id: 'tracePred', icon: <Icon id="planning.trace-predecessors" size={24} />, labelKey: 'menu:ribbon.tracePredecessors',
       use: () => {
         const traceMode = useAppStore(s => s.ui.traceMode);
         const setUI = useAppStore(s => s.setUI);
@@ -221,7 +218,7 @@ const traceGroup: RibbonGroupSpec = {
       },
     },
     {
-      kind: 'button', id: 'traceSucc', icon: <ArrowRightToLine size={20} />, labelKey: 'menu:ribbon.traceSuccessors',
+      kind: 'button', id: 'traceSucc', icon: <Icon id="planning.trace-successors" size={24} />, labelKey: 'menu:ribbon.traceSuccessors',
       use: () => {
         const traceMode = useAppStore(s => s.ui.traceMode);
         const setUI = useAppStore(s => s.setUI);
@@ -338,11 +335,11 @@ const startTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'zoomStack', items: [
           {
-            kind: 'small', id: 'zoomIn', icon: <ZoomIn size={14} />, labelKey: 'menu:ribbon.zoomIn',
+            kind: 'small', id: 'zoomIn', icon: <Icon id="view.zoom-in" size={16} />, labelKey: 'menu:ribbon.zoomIn',
             use: () => useCommandBinding(COMMANDS.zoomIn),
           },
           {
-            kind: 'small', id: 'zoomOut', icon: <ZoomOut size={14} />, labelKey: 'menu:ribbon.zoomOut',
+            kind: 'small', id: 'zoomOut', icon: <Icon id="view.zoom-out" size={16} />, labelKey: 'menu:ribbon.zoomOut',
             use: () => useCommandBinding(COMMANDS.zoomOut),
           },
         ],
@@ -355,7 +352,7 @@ const startTab: RibbonTabConfig = [
  *  Bereken; geen structuur-, kalender- of baseline-actie. Uitgeschakeld zonder projectstartdatum
  *  (die is het referentiepunt van de verschuiving). */
 const moveProjectButton: RibbonButtonSpec = {
-  kind: 'button', id: 'moveProject', icon: <CalendarClock size={20} />, labelKey: 'menu:ribbon.moveProject',
+  kind: 'button', id: 'moveProject', icon: <Icon id="planning.move-date" size={24} />, labelKey: 'menu:ribbon.moveProject',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasStart = useAppStore(s => !!s.project.startDate);
@@ -367,7 +364,7 @@ const moveProjectButton: RibbonButtonSpec = {
  *  én Rapport (één bron, drie callsites; zelfde patroon als `openResourcePanelButton`/`calcButton`).
  *  Uitgeschakeld zonder taken: een blad kan dan sowieso niets koppelen (zelfde lijn als `moveProjectButton`). */
 const progressImportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressImport', icon: <FileUp size={14} />, labelKey: 'menu:ribbon.progressImport',
+  kind: 'small', id: 'progressImport', icon: <Icon id="planning.progress-sheet-import" size={16} />, labelKey: 'menu:ribbon.progressImport',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -383,7 +380,7 @@ const progressImportButton: RibbonButtonSpec = {
  *  exportkaart in Backstage → Exporteren en een leesbaar importformaat. Het knoplabel
  *  (`menu:ribbon.progressExport`) noemt bewust geen formaat. */
 const progressExportButton: RibbonButtonSpec = {
-  kind: 'small', id: 'progressExport', icon: <FileDown size={14} />, labelKey: 'menu:ribbon.progressExport',
+  kind: 'small', id: 'progressExport', icon: <Icon id="planning.progress-sheet-export" size={16} />, labelKey: 'menu:ribbon.progressExport',
   use: () => {
     const exportAs = useAppStore(s => s.exportAs);
     const hasTasks = useAppStore(s => s.tasks.length > 0);
@@ -405,7 +402,7 @@ const progressGroup: RibbonGroupSpec = {
 
 /** Waarschuwingenpaneel aan/uit — Beeld → Panelen én Planning → Planning, naast Bereken. */
 const warningsPanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'warningsPanel', icon: <AlertTriangle size={20} />, labelKey: 'menu:ribbon.warningsPanel',
+  kind: 'button', id: 'warningsPanel', icon: <Icon id="panel.warnings" size={24} />, labelKey: 'menu:ribbon.warningsPanel',
   // Zelfde vorm als de Eigenschappen-knop: actief ⇔ je ziet het paneel nu (rail niet ingeklapt en
   // niet verdrongen door het volledige resourcepaneel); aanzetten klapt de rail zo nodig uit
   // (`setUI`-invariant 1b). Het omzetten zelf zit in het commando.
@@ -435,13 +432,13 @@ const planningTab: RibbonTabConfig = [
     id: 'structure', labelKey: 'menu:ribbon.structure',
     items: [
       {
-        kind: 'button', id: 'codesFields', icon: <Tags size={20} />, labelKey: 'menu:ribbon.codesFields',
+        kind: 'button', id: 'codesFields', icon: <Icon id="planning.structure" size={24} />, labelKey: 'menu:ribbon.codesFields',
         use: uiAction({ showStructureDialog: true }),
       },
       {
         kind: 'stack', id: 'structureStack1', items: [
           {
-            kind: 'small', id: 'wbsAuto', icon: <Hash size={14} />, labelKey: 'menu:ribbon.wbsAuto',
+            kind: 'small', id: 'wbsAuto', icon: <Icon id="wbs.auto-number" size={16} />, labelKey: 'menu:ribbon.wbsAuto',
             use: () => {
               const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
               const setWbsAutoNumber = useAppStore(s => s.setWbsAutoNumber);
@@ -449,7 +446,7 @@ const planningTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'renumberWbs', icon: <ListOrdered size={14} />, labelKey: 'menu:ribbon.renumberWbs',
+            kind: 'small', id: 'renumberWbs', icon: <Icon id="wbs.renumber" size={16} />, labelKey: 'menu:ribbon.renumberWbs',
             use: () => {
               const renumberWbs = useAppStore(s => s.renumberWbs);
               const wbsAutoNumber = useAppStore(s => !!s.project.wbsAutoNumber);
@@ -462,7 +459,7 @@ const planningTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'structureStack2', items: [
           {
-            kind: 'small', id: 'indent', icon: <IndentIncrease size={14} />, labelKey: 'menu:ribbon.indent',
+            kind: 'small', id: 'indent', icon: <Icon id="task.indent" size={16} />, labelKey: 'menu:ribbon.indent',
             // Aanvulling op de gedeelde binding: buiten boommodus krijgt de UITGESCHAKELDE knop
             // een tooltip die uitlegt waarom. De sneltoets kan dat niet en toont in plaats daarvan
             // een melding — zie de toelichting bij `COMMANDS.indent`.
@@ -474,7 +471,7 @@ const planningTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'outdent', icon: <IndentDecrease size={14} />, labelKey: 'menu:ribbon.outdent',
+            kind: 'small', id: 'outdent', icon: <Icon id="task.outdent" size={16} />, labelKey: 'menu:ribbon.outdent',
             use: () => {
               const binding = useCommandBinding(COMMANDS.outdent);
               const treeMode = useAppStore(s => isTreeMode(s.view));
@@ -769,7 +766,7 @@ const beeldTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'overlaysStack', items: [
           {
-            kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
+            kind: 'small', id: 'toggleProgressLine', icon: <Icon id="planning.progress-line" size={16} />, labelKey: 'menu:ribbon.toggleProgressLine',
             use: () => {
               const showProgressLine = useAppStore(s => s.ui.showProgressLine);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -777,7 +774,7 @@ const beeldTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'toggleStatusDateLine', icon: <CalendarDays size={14} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
+            kind: 'small', id: 'toggleStatusDateLine', icon: <Icon id="planning.status-date-line" size={16} />, labelKey: 'menu:ribbon.toggleStatusDateLine',
             use: () => {
               const showStatusDateLine = useAppStore(s => s.ui.showStatusDateLine);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -797,7 +794,7 @@ const beeldTab: RibbonTabConfig = [
         kind: 'stack', id: 'colorAccentStack', items: [
           { kind: 'component', id: 'screenColors', Component: ScreenColorsPopoverButton },
           {
-            kind: 'small', id: 'toggleResourceAccent', icon: <Palette size={14} />, labelKey: 'menu:ribbon.toggleResourceAccent',
+            kind: 'small', id: 'toggleResourceAccent', icon: <Icon id="planning.resource-accent" size={16} />, labelKey: 'menu:ribbon.toggleResourceAccent',
             use: () => {
               const showResourceAccent = useAppStore(s => s.ui.showResourceAccent);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -807,7 +804,7 @@ const beeldTab: RibbonTabConfig = [
           {
             // De groene speling-band ná niet-kritieke balken uit kunnen zetten. Derde knop
             // in deze kolom (drie per stack is de vaste linthoogte), naast de andere balk-overlays.
-            kind: 'small', id: 'toggleFloatBand', icon: <MoveHorizontal size={14} />, labelKey: 'menu:ribbon.toggleFloatBand',
+            kind: 'small', id: 'toggleFloatBand', icon: <Icon id="planning.float-band" size={16} />, labelKey: 'menu:ribbon.toggleFloatBand',
             use: () => {
               const showFloatBand = useAppStore(s => s.ui.showFloatBand);
               const setOverlays = useAppStore(s => s.setOverlays);
@@ -822,7 +819,7 @@ const beeldTab: RibbonTabConfig = [
           {
             // Schermtegenhanger van de rapportoptie "Afhankelijkheden". Per document
             // (view-state), en een layoutdeel: het resourcediagram zet de lijnen uit.
-            kind: 'small', id: 'toggleRelations', icon: <Spline size={14} />, labelKey: 'menu:ribbon.toggleRelations',
+            kind: 'small', id: 'toggleRelations', icon: <Icon id="planning.relations-visible" size={16} />, labelKey: 'menu:ribbon.toggleRelations',
             use: () => {
               const showRelations = useAppStore(s => s.view.showRelations ?? true);
               const setShowRelations = useAppStore(s => s.setShowRelations);

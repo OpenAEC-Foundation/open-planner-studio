@@ -1,7 +1,8 @@
 // Dev-link voor handmatige controle, alleen op de dev-server: `?open=<pad>` opent een bestand uit de
 // repo (pad vanaf de root, bijv. `examples/03-kantoorgebouw-zuidas.ifc`) via dezelfde route als
 // Bestand › Openen (formaatherkenning, bestandsnaam, meldingen). `?theme=light|dark` zet het thema
-// voor die sessie (zie `devSessionTheme` in settingsStore.ts). Valt uit elke productiebouw: App.tsx
+// voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?tab=planning` opent die tab van het
+// lint. Valt uit elke productiebouw: App.tsx
 // importeert deze module alleen dynamisch achter `import.meta.env.DEV && !isTauri()`.
 // Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
@@ -9,6 +10,9 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import { useAppStore } from '@/state/appStore';
 import { openedFromFile } from '@/services/fileAccess/webBackend';
 import { binaryExtensions } from '@/services/formatRegistry';
+import type { RibbonTab } from '@/state/slices/types';
+
+const RIBBON_TABS: readonly RibbonTab[] = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'];
 
 /** `?open=` → pad vanaf de repo-root, of `null` bij een leeg of ongeldig pad (geen `..`, geen
  *  absoluut pad, geen backslash). De Vite-dev-server serveert elk bestand onder de root. */
@@ -38,15 +42,19 @@ let started = false;
 
 /** Eén keer per paginalading (StrictMode draait effecten dubbel). Een fout komt als gewone melding. */
 export async function openDevLinkOnce(): Promise<void> {
-  const raw = new URLSearchParams(window.location.search).get('open');
-  if (started || !raw) return;
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('open');
+  const tab = RIBBON_TABS.find(t => t === params.get('tab'));
+  if (started || (!raw && !tab)) return;
   started = true;
   try {
-    await openDevFile(raw);
+    if (raw) await openDevFile(raw);
   } catch (err) {
     console.error('[dev-link]', err);
     useAppStore.getState().notify({
       severity: 'error', messageKey: 'notifications.openFailed', detail: err instanceof Error ? err.message : String(err),
     });
   }
+  // Na het openen: een bestand openen kan zelf de tab kiezen.
+  if (tab) useAppStore.getState().setUI({ activeRibbonTab: tab });
 }

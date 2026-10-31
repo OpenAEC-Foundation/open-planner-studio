@@ -1,0 +1,9 @@
+{
+  "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
+  "source": "local",
+  "branch": "iconen/doorlopende-lijn",
+  "commit": "c10f25f80323a5cbf24805ca4628e9e976bdccd6",
+  "b2Revision": 107,
+  "manifestSha256": "f14e8bd91c50673b34a3b06b5ff268a6cb35ebc16b4a5a274f9f6c164a6d8936",
+  "ids": "src/components/icons/b2/ids.json"
+}

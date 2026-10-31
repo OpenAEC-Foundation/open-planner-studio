@@ -3,12 +3,13 @@ import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import {
-  Diamond, Link, ZoomIn, ZoomOut, Trash2, Eye,
+  Diamond, Trash2,
   History, Download, Puzzle,
-  LayoutTemplate, UserPlus, Flag, GitCompareArrows, CalendarClock, X,
-  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal, Palette,
+  UserPlus,
+  Columns3, Filter, Layers, ArrowUpDown, Maximize2, Minimize2, SplitSquareHorizontal,
   Map as MapIcon, AlertTriangle, Plus,
 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { listWbsTemplates, deleteWbsTemplate, type WbsTemplate } from '@/utils/wbsTemplates';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import {
@@ -92,7 +93,7 @@ export function BaselinesProgressGroupContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <CalendarClock size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+        <Icon id="planning.status-date" size={16} mono style={{ opacity: 0.6, flexShrink: 0 }} />
         <DateTextInput
           value={statusDate ?? ''}
           onCommit={v => setStatusDate(v || undefined)}
@@ -111,9 +112,9 @@ export function BaselinesProgressGroupContent() {
             title={tMenu('ribbon.statusDateClear')}
             aria-label={tMenu('ribbon.statusDateClear')}
             onClick={() => setStatusDate(undefined)}
-            style={{ padding: 2 }}
+            style={{ padding: 0 }}
           >
-            <X size={12} />
+            <Icon id="planning.clear-status-date" size={16} />
           </button>
         )}
       </div>
@@ -137,7 +138,7 @@ export function BaselinesProgressGroupContent() {
   if (!compact) {
     return (
       <>
-        <RibbonButton icon={<GitCompareArrows size={20} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+        <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
         {statusDateControl}
         {progressModeControl}
       </>
@@ -155,7 +156,7 @@ export function BaselinesProgressGroupContent() {
       }}
       trigger={
         <RibbonCompactTrigger
-          icon={<Flag size={14} />}
+          icon={<Icon id="planning.progress-menu" size={16} />}
           title={tMenu('ribbon.baselines')}
           ariaLabel={tMenu('ribbon.baselines')}
           onClick={() => setOpen(o => !o)}
@@ -167,7 +168,7 @@ export function BaselinesProgressGroupContent() {
         style={{ width: '100%' }}
         onClick={() => { onManageBaselines(); setOpen(false); }}
       >
-        <span className="ribbon-btn-icon"><GitCompareArrows size={14} /></span>
+        <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} /></span>
         <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
       </button>
       <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
@@ -401,7 +402,7 @@ export function RelationDropdown() {
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="ribbon-btn-icon"><Link size={20} /></span>
+            <span className="ribbon-btn-icon"><Icon id="planning.relations-menu" size={24} /></span>
             <span className="ribbon-btn-label">{tMenu('ribbon.relation')} ▾</span>
           </button>
         }
@@ -452,7 +453,7 @@ export function TemplatesDropdown() {
       panelStyle={{ zIndex: 1000, minWidth: 240, maxWidth: 360, padding: '4px 0' }}
       trigger={
         <button className="ribbon-btn small" onClick={() => setOpen(!open)}>
-          <span className="ribbon-btn-icon"><LayoutTemplate size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="wbs.templates" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.templates')}</span>
         </button>
       }
@@ -769,7 +770,7 @@ export function ScreenColorsPopoverButton() {
           aria-label={tMenu('ribbon.screenColors')}
           onClick={() => setOpen(o => !o)}
         >
-          <span className="ribbon-btn-icon"><Palette size={14} /></span>
+          <span className="ribbon-btn-icon"><Icon id="planning.bar-colors" size={16} /></span>
           <span className="ribbon-btn-label">{tMenu('ribbon.screenColors')}</span>
         </button>
       }
@@ -1058,13 +1059,13 @@ export function TimeScaleGroupContent() {
 
   const zoomInOutButtons = (
     <>
-      <RibbonSmallButton icon={<ZoomIn size={14} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
-      <RibbonSmallButton icon={<ZoomOut size={14} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-in" size={16} />} label={tMenu('ribbon.zoomIn')} title={tMenu('ribbon.zoomInTitle')} onClick={() => setZoom(zoom + ZOOM_STEP)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-out" size={16} />} label={tMenu('ribbon.zoomOut')} title={tMenu('ribbon.zoomOutTitle')} onClick={() => setZoom(zoom - ZOOM_STEP)} />
     </>
   );
   const resetFitButtons = (
     <>
-      <RibbonSmallButton icon={<Eye size={14} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
+      <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
       {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
           takentabel volledig gevuld is. `requestFitToProject` is dezelfde
           pendingFit-route als na het openen van een bestand — GanttCanvas kent de
