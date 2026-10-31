@@ -1638,4 +1638,10 @@ en noem het in je rapport of PR-tekst.
      publishing* `publish=false` in dezelfde tak als de notice, dus een run met de echte notice slaat de push altijd
      over. Voorstel: laat punt 2 en de stapconclusie uit de eerste bewijsopdracht weg. Gevonden in review van #759
      (GPT-6.1-Sol), in `aur.yml` nagelezen. — B
+556. **De terugval in het AUR-bewijs bewaakt met de pijp alleen `grep`.** `.claude/skills/release/referentie.md`,
+     *Ontbrekend AUR-secret*. In een foutproef schreef de eerste poging een passende regel en eindigde met exit 1,
+     de terugval faalde ook, en toch gaf de pijp exit 0. Uitvoer van de eerste poging blijft staan, dus regels
+     kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
+     Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
+     (GPT-6.1-Sol). — S
 
