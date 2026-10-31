@@ -60,7 +60,8 @@ jobs:
           cache: 'npm'
 
       # Eerst, want dit faalt in seconden: de ci.yml-pushrun op precies deze commit en de laatste
-      # browserrun op main moeten groen zijn. Elke stop geeft een `::error::`, ook een fout van `gh`.
+      # browserrun op main sinds vrijdag 22:00 moeten groen zijn. Elke stop geeft een `::error::`, ook
+      # een fout van `gh`.
       # De release-skill draait hetzelfde script vóór de tag.
       - name: Check CI and browser run
         env:

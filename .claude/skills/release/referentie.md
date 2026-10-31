@@ -36,7 +36,7 @@ De volledige lijst:
   Het absolute Node-pad mag ook; checker en pakket blijven in dezelfde release-worktree.
 - `npm run i18n:add -- ...`, `npm run i18n:fmt`, `npm run i18n:resolve`,
   `npm run verify:i18n` en `npm run verify:translations`.
-- `node scripts/release-ci-check.mjs "$SHA"` (stap 3 van de skill).
+- `node scripts/release-ci-check.mjs "$SHA"` (stap 3 van de skill) en met `--browser` (*Eerst: browsertests*).
 - `npm run verify:docs`, `npm run publish:wiki` (dry-run), `npm run publish:wiki -- --push`
   en `node scripts/run-ts.mjs scripts/check-wiki-links.ts`.
 - Alleen in de tijdelijke websitekopie: `node scripts/generate-release-notes.js`,
@@ -350,8 +350,9 @@ run. Bewaar het bewijs; herhaal niet ongewijzigd als die weer faalt. Nooit een v
 geslaagde `create-release` of een dispatch op main om de getagde gate te omzeilen.
 
 Stopt de `gate` bij **Check CI and browser run**, lees dan de `::error::`-regels. Is de reden weg, draai dan
-de gate opnieuw met `gh run rerun <run-id> --failed`. Browserrun rood, ontbrekend of te oud: volg
-de skill `browsertests-repareren`. Staat main nog op de getagde commit, dan telt zijn bewijsrun voor de tag.
+de gate opnieuw met `gh run rerun <run-id> --failed`. Browserrun afgewezen: volg de skill
+`browsertests-repareren` en geef haar de regel `BROWSERRUN=<id>` uit de log door. Staat main nog op de getagde commit,
+dan telt zijn bewijsrun voor de tag.
 Staat main verder, dan is de nieuwe run geen voorouder van de tag en stopt de gate weer: schrijf de tag af volgens
 punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door te laten.
 

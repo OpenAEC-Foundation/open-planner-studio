@@ -56,8 +56,8 @@ New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k line
 **`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
 `scripts/verify-parts.mjs`, which reads them from that definition, but not the browser suite on an ordinary PR or
 push (see *Testing pitfalls*). The release gate runs no verify of its own: `scripts/release-ci-check.mjs` checks that
-the CI push run on the tagged commit and the last browser run on `main` are green (owner decision 2026-10-31; what
-reaches `main` after Friday 22:00 gets no browser test). The deploy (live.yml)
+the CI push run on the tagged commit and the last browser run on `main` since Friday 22:00 Dutch time are green (owner
+decision 2026-10-31; what reaches `main` after that gets no browser test). The deploy (live.yml)
 runs no verify of its own: it starts after a green ci.yml run on `main` (`workflow_run`) and only for the commit CI
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →

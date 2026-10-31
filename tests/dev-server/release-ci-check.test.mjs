@@ -5,7 +5,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkBrowserRun, checkPushRun, gitIsAncestor } from '../../scripts/release-ci-check.mjs';
+import { checkBrowserRun, checkPushRun, fridayEvening, gitIsAncestor } from '../../scripts/release-ci-check.mjs';
 
 // De CI-controle van de release: dezelfde regels in de gate van release.yml en in de release-skill.
 const root = resolve(fileURLToPath(import.meta.url), '..', '..', '..');
@@ -90,27 +90,91 @@ test('browserrun: ontbrekend stopt', () => {
   assert.match(result.text, /geen browserrun/);
 });
 
-test('browserrun: te oud stopt, precies 7 dagen mag nog', () => {
-  const exact = new Date(NOW - 7 * 86400000).toISOString();
-  const late = new Date(NOW - 7 * 86400000 - 1000).toISOString();
-  assert.equal(browser({ schedule: [run(1, { created_at: exact })], jobs: { 1: GREEN_JOBS } }).ok, true);
-  const result = browser({ schedule: [run(1, { created_at: late })], jobs: { 1: GREEN_JOBS } });
+test('browserrun: een groene run van donderdag vervangt de ontbrekende vrijdagrun niet', () => {
+  const thursday = '2026-11-05T12:00:00Z';
+  const result = browser({
+    dispatch: [run(1, { event: 'workflow_dispatch', created_at: thursday })],
+    jobs: { 1: GREEN_JOBS },
+  });
+  assert.equal(result.ok, false, result.text);
+  assert.match(result.text, /geen browserrun sinds vrijdag 2026-11-06T21:00:00/);
+});
+
+test('browserrun: een vrijdagrun met overgeslagen browserjobs laat een eerdere groene run niet tellen', () => {
+  const result = browser({
+    schedule: [run(2)],
+    dispatch: [run(1, { event: 'workflow_dispatch', created_at: '2026-11-05T12:00:00Z' })],
+    jobs: { 2: SKIPPED_JOBS, 1: GREEN_JOBS },
+  });
+  assert.equal(result.ok, false, result.text);
+  assert.match(result.text, /geen browserrun sinds vrijdag/);
+});
+
+test('browserrun: het bewijs begint op vrijdag precies 22:00 Nederlandse tijd', () => {
+  const dispatchAt = created_at => ({ dispatch: [run(1, { event: 'workflow_dispatch', created_at })], jobs: { 1: GREEN_JOBS } });
+  assert.equal(browser(dispatchAt('2026-11-06T20:59:59Z')).ok, false);
+  assert.equal(browser(dispatchAt('2026-11-06T21:00:00Z')).ok, true);
+  assert.equal(browser({ dispatch: [run(1, { event: 'workflow_dispatch', created_at: 'onzin' })], jobs: { 1: GREEN_JOBS } }).ok, false);
+});
+
+test('browserrun: een latere groene bewijsrun telt, ook na een vrijdagrun met overgeslagen browserjobs', () => {
+  const result = browser({
+    schedule: [run(1)],
+    dispatch: [run(2, { event: 'workflow_dispatch', created_at: '2026-11-07T01:00:00Z' })],
+    jobs: { 1: SKIPPED_JOBS, 2: GREEN_JOBS },
+  });
+  assert.equal(result.ok, true, result.text);
+  assert.equal(result.runId, 2);
+});
+
+test('fridayEvening: de laatste vrijdag 22:00 in Europe/Amsterdam, in winter- en zomertijd', () => {
+  const iso = text => new Date(fridayEvening(Date.parse(text))).toISOString();
+  assert.equal(iso('2026-11-07T10:00:00Z'), '2026-11-06T21:00:00.000Z');
+  assert.equal(iso('2027-04-03T10:00:00Z'), '2027-04-02T20:00:00.000Z');
+  // Vrijdag vóór 22:00 is de vrijdag ervoor nog de grens; om 22:00 precies begint de nieuwe.
+  assert.equal(iso('2026-11-06T20:59:59Z'), '2026-10-30T21:00:00.000Z');
+  assert.equal(iso('2026-11-06T21:00:00Z'), '2026-11-06T21:00:00.000Z');
+  assert.equal(iso('2026-11-10T09:00:00Z'), '2026-11-06T21:00:00.000Z');
+  // Vlak na een klokwissel staat de grens nog in de oude tijd.
+  assert.equal(iso('2027-03-28T12:00:00Z'), '2027-03-26T21:00:00.000Z');
+  assert.equal(iso('2027-11-01T09:00:00Z'), '2027-10-29T20:00:00.000Z');
+  // Een UTC-tijd op zaterdag is in Amsterdam soms al later, nooit een andere vrijdag dan die ervoor.
+  assert.equal(iso('2026-11-06T23:30:00Z'), '2026-11-06T21:00:00.000Z');
+});
+
+test('browserrun: elke uitkomst noemt de beoordeelde run, zodat gate, release en reparatie dezelfde lezen', () => {
+  // Vrijdag groen, daarna een handmatige run: rood in poging 1, groen in de rerun.
+  const firstAttempt = [shard(1, 'failure'), shard(2), shard(3), shard(4), { name: 'test', conclusion: 'failure' }];
+  const state = {
+    schedule: [run(1)],
+    dispatch: [run(2, { event: 'workflow_dispatch', created_at: '2026-11-07T01:00:00Z', run_attempt: 2 })],
+    jobs: { 1: GREEN_JOBS, 2: firstAttempt },
+  };
+  const result = browser(state);
   assert.equal(result.ok, false);
-  assert.match(result.text, /ouder dan 7 dagen/);
-  assert.equal(browser({ schedule: [run(1, { created_at: 'onzin' })], jobs: { 1: GREEN_JOBS } }).ok, false);
+  assert.equal(result.runId, 2);
+  assert.equal(browser({ schedule: [run(1)], jobs: { 1: GREEN_JOBS } }).runId, 1);
+  assert.equal(browser({}).runId, null);
+});
+
+test('browserrun: een rode huidige conclusie stopt, ook als poging 1 groen was', () => {
+  const result = browser({ schedule: [run(1, { conclusion: 'failure', run_attempt: 2 })], jobs: { 1: GREEN_JOBS } });
+  assert.equal(result.ok, false, result.text);
+  assert.match(result.text, /conclusie failure/);
+  assert.equal(result.runId, 1);
 });
 
 test('browserrun: overgeslagen browserjobs tellen niet als browserrun', () => {
   const alleen = browser({ schedule: [run(1)], jobs: { 1: SKIPPED_JOBS } });
   assert.equal(alleen.ok, false);
   assert.match(alleen.text, /geen browserrun/);
-  // De run ervoor blijft dan de laatste browserrun.
+  // Na de overgeslagen run blijft een eerdere run binnen het venster de laatste browserrun.
   const eerder = browser({
-    schedule: [run(2), run(1, { created_at: '2026-11-05T21:00:00Z' })],
+    schedule: [run(2, { created_at: '2026-11-07T02:00:00Z' }), run(1)],
     jobs: { 2: SKIPPED_JOBS, 1: GREEN_JOBS },
   });
   assert.equal(eerder.ok, true, eerder.text);
-  assert.match(eerder.text, /run 1 /);
+  assert.equal(eerder.runId, 1);
   // Ook een shard die `skipped` meldt onder zijn eigen naam telt niet.
   const opNaam = [1, 2, 3, 4].map(n => shard(n, 'skipped')).concat({ name: 'test', conclusion: 'success' });
   assert.equal(browser({ schedule: [run(1)], jobs: { 1: opNaam } }).ok, false);
@@ -190,8 +254,25 @@ test('commando: geen runs noemt beide ontbrekende runs, elk met ::error::', (t) 
   assert.match(r.stdout, /::error::.*geen browserrun/);
 });
 
+test('commando: --browser doet alleen de browsercontrole en noemt de run', (t) => {
+  const r = cli(t, `echo '{"workflow_runs":[]}'`, ['--browser', SHA]);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /::error::.*geen browserrun/);
+  assert.doesNotMatch(r.stdout, /pushrun/);
+  assert.match(r.stdout, /^BROWSERRUN=$/m);
+});
+
+test('de release en de reparatie gebruiken dezelfde browsercontrole als de gate', () => {
+  for (const file of ['.claude/skills/release/SKILL.md', '.claude/skills/browsertests-repareren/SKILL.md']) {
+    assert.match(readFileSync(join(root, file), 'utf8'), /node scripts\/release-ci-check\.mjs --browser "\$SHA"/, file);
+  }
+  const repair = readFileSync(join(root, '.claude/skills/browsertests-repareren/SKILL.md'), 'utf8');
+  assert.doesNotMatch(repair, /--event schedule/, 'de reparatie kiest geen eigen run');
+  assert.match(repair, /BROWSERRUN/);
+});
+
 test('commando: een ontbrekende of ongeldige SHA stopt', (t) => {
-  for (const args of [[], [''], ['HEAD'], ['abc']]) {
+  for (const args of [[], [''], ['HEAD'], ['abc'], ['--browser'], ['--browser', 'abc']]) {
     const r = cli(t, 'exit 1', args);
     assert.equal(r.status, 1);
     assert.match(r.stdout, /::error::/);

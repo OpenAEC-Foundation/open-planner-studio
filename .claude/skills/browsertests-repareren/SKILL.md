@@ -28,44 +28,44 @@ dispatch. Om 14:00 stop je: volg *Stoppen om 14:00*.
 **Node.** Deze job heeft geen Node-uitzondering; de serverregel uit `AGENTS.md` geldt. Draai zo min mogelijk lokaal.
 De browsersuite draait in CI, nooit op aia. Ook geen volledige `npm test` of `npm run verify`, geen Playwright-run
 over meerdere specs, geen productie-, Rust- of Tauri-build en geen losse dev-server. Wel mag dit, in de eigen worktree:
-eenmaal per run `npm ci` als een stap hieronder het nodig heeft, `npm run typecheck`, `npm run lint:fast` en
+`node scripts/release-ci-check.mjs`, eenmaal per run `npm ci` als een stap hieronder het nodig heeft, `npm run typecheck`, `npm run lint:fast` en
 één spec die de oorzaak sneller aantoont dan PR-CI (`flock /tmp/ops-zwaar.lock node scripts/run-browser-tests.mjs <spec>`).
 Geen link naar `node_modules` in een andere checkout. Voert de release deze skill uit, dan gelden de Node-grenzen
 van de release.
 
-## 1. Zoek de run
+## 1. Lees de browsercontrole
 
 Haal `origin/main` op. Zoek eerst bestaand werk, ook van een vorige week:
 
 ```bash
 REPO=OpenAEC-Foundation/open-planner-studio
-export TZ=Europe/Amsterdam
-VRIJDAG=$(date -d "$(( ($(date +%u) + 2) % 7 )) days ago" +%F)
-VANAF=$(date -d "$VRIJDAG 21:00" +%FT%T%:z)
 gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number,title,updatedAt
 gh pr list --repo "$REPO" --state open --json number,headRefName,headRefOid \
   --jq '.[] | select(.headRefName | startswith("fix/browsertests-"))'
-gh run list --repo "$REPO" --workflow ci.yml --branch main --event schedule --created ">=$VANAF" \
-  --json databaseId,status,conclusion,headSha,createdAt
 ```
 
 Is het issue open en de afgelopen 2 uur bijgewerkt, dan werkt er al een taak: stop en meld dat. Is het ouder, dan
 hervat je dat werk.
 
-Neem de bovenste run. Loopt hij nog (`queued` of `in_progress`): wacht, hoogstens 2 uur.
-Oordeel altijd op poging 1. Een rerun verandert de conclusie van de run, dus die conclusie zegt niets meer:
+Lees daarna de uitkomst. Dit is dezelfde browsercontrole als in de gate en de release: zelfde run, zelfde uitkomst.
+Ze zoekt de laatste browserrun sinds vrijdag 22:00 Nederlandse tijd. Kies dus geen eigen run.
 
 ```bash
-gh api "repos/$REPO/actions/runs/$RUN/attempts/1" --jq .conclusion
+SHA=$(git rev-parse origin/main)
+node scripts/release-ci-check.mjs --browser "$SHA"
 ```
 
-- `success`: ga naar stap 2.
-- `failure` of `timed_out`: open meteen het issue (stap 3) en ga naar stap 4.
-- Geen run, `cancelled`, `skipped`, `startup_failure`, of na 2 uur nog bezig: de set is niet afgemaakt. Open meteen
-  het issue en start de run zelf. Volg die tot het einde en oordeel op zijn poging 1.
+De laatste regel is `BROWSERRUN=<id>`, de beoordeelde run. Roept de release je aan, dan noemt hij die regel ook.
+Gebruik die run als `RUN`.
+
+- Exit 0: ga naar stap 2.
+- `niet klaar`: wacht, hoogstens 2 uur, en draai de controle opnieuw.
+- `geen browserrun`, of na 2 uur nog `niet klaar`: de set is niet afgemaakt. Open meteen het issue en start de run
+  zelf (hieronder). Draai de controle opnieuw zodra hij klaar is.
+- Een andere afwijzing: open meteen het issue. Is poging 1 `cancelled` of `startup_failure`
+  (`gh api "repos/$REPO/actions/runs/$RUN/attempts/1" --jq .conclusion`), start de run dan zelf. Anders: stap 4.
 
 ```bash
-SHA=$(git ls-remote origin refs/heads/main | cut -f1)
 gh workflow run ci.yml --repo "$REPO" --ref main
 gh run list --repo "$REPO" --workflow ci.yml --event workflow_dispatch --commit "$SHA" \
   --json databaseId,status,conclusion,createdAt
@@ -75,7 +75,7 @@ Start geen tweede handmatige run op main terwijl er een loopt: de nieuwe annulee
 
 ## 2. Groen
 
-Eén regel in het eindrapport, met run-ID en SHA. Geen PR. Staat er een open issue: sluit het met die regel.
+Eén regel in het eindrapport, met `BROWSERRUN` en SHA. Geen PR. Staat er een open issue: sluit het met die regel.
 Staat er nog een fix-PR van een vorige week open: noem hem in het rapport. Klaar.
 
 ## 3. Open het issue
@@ -85,7 +85,7 @@ het pas in stap 2 of 6. Bestaat er al een: gebruik dat en meld dat je hervat. Ee
 
 ```bash
 gh issue create --repo "$REPO" --title "Browsertests repareren" --label agent-ticket --label browsertests-reparatie \
-  --body "<vrijdag $VRIJDAG, run-URL, SHA en wat er rood is>"
+  --body "<run-URL, SHA en wat er rood is>"
 ```
 
 Schrijf na elke stap, en bij wachten minstens elk uur, een reactie: run-ID's, foutbewijs, fix-PR's, review-taak-ID's
@@ -115,7 +115,7 @@ in een stap vóór de tests. Noteer dat bewijs in het issue, sla stap 5 over en 
 Volg [CI herstellen](../release/referentie.md#ci-herstellen), stap 2 tot en met 4. Lokale checks volgen de Node-regel
 hierboven. Verder geldt dit:
 
-- Branch `fix/browsertests-<VRIJDAG>-<onderwerp>` vanaf vers opgehaalde `origin/main`. De kleinste fix, één oorzaak per PR.
+- Branch `fix/browsertests-<datum>-<onderwerp>` vanaf vers opgehaalde `origin/main`. De kleinste fix, één oorzaak per PR.
 - Zet meteen het label, zodat de PR de hele set draait. `gh pr edit --add-label` faalt in deze repo:
 
   ```bash
@@ -134,8 +134,8 @@ hierboven. Verder geldt dit:
 
 ## 6. Bewijs op main
 
-Start na de laatste merge de browserrun op main (zie stap 1) en volg hem. Poging 1 moet `success` zijn, op exact de
-SHA waarop je hem startte. Rood: terug naar stap 4, met deze run als `RUN`.
+Start na de laatste merge de browserrun op main (zie stap 1) en volg hem. Draai daarna de browsercontrole uit stap 1
+opnieuw. Exit 0 is het bewijs. Exit 1: terug naar stap 4, met `BROWSERRUN` als `RUN`.
 
 De gate van `release.yml` en stap 3 van de release-skill lezen deze run als laatste browserrun op main.
 Dit is het einde van de job. Sluit het issue met de run-URL. Het eindrapport noemt wat er rood was, de oorzaak,
@@ -158,13 +158,8 @@ Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is ee
   Is de reparatie dan niet klaar, dan blijft het issue open.
 
 De release-skill wacht vóór alles op main, in [Eerst: browsertests](../release/SKILL.md#eerst-browsertests).
-Hij leest de laatste browserrun zo, met `REPO` en `VANAF` uit stap 1. Oordeel op poging 1:
-
-```bash
-gh run list --repo "$REPO" --workflow ci.yml --branch main --created ">=$VANAF" --limit 100 \
-  --json databaseId,event,status,conclusion,headSha,createdAt \
-  --jq '[.[] | select(.event == "schedule" or .event == "workflow_dispatch")] | first'
-```
+De gate, de release en deze skill gebruiken één browsercontrole, `scripts/release-ci-check.mjs`. Zo oordelen ze over
+dezelfde run. Bewijs telt vanaf de laatste vrijdag 22:00 Nederlandse tijd; eerder groen vervangt de vrijdagrun niet.
 
 ## Geplande taak
 
@@ -198,9 +193,9 @@ Je werkt zonder de eigenaar. Stel geen vragen.
 Haal eerst origin/main op. Lees daaruit AGENTS.md, .claude/rules/ci-release.md, .claude/rules/tests.md
 en .claude/skills/browsertests-repareren/SKILL.md. Volg die skill volledig, ook de delen van
 .claude/skills/release/referentie.md waarnaar hij verwijst.
-Zoek de geplande ci.yml-run op main van deze vrijdagavond. Loopt hij nog, wacht dan hoogstens 2 uur.
+Lees de browsercontrole: node scripts/release-ci-check.mjs --browser met de SHA van origin/main.
+Dat is dezelfde controle als in de gate; kies geen eigen run. Loopt de run nog, wacht dan hoogstens 2 uur.
 Is er geen run, of is hij niet afgemaakt, start hem dan zelf met gh workflow run ci.yml --ref main en volg die.
-Oordeel altijd op poging 1 van de run.
 Groen: één regel in het eindrapport, klaar. Geen PR.
 Niet groen: open meteen het issue met de titel Browsertests repareren en het label browsertests-reparatie.
 Dat issue is het enige signaal aan de release. Sluit het pas na de groene bewijsrun.

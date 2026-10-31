@@ -1658,4 +1658,8 @@ en noem het in je rapport of PR-tekst.
      kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
      Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
      (GPT-6.1-Sol). — S
-
+558. **`release-ci-check.mjs` leest alleen de eerste pagina van de runs.** `scripts/release-ci-check.mjs`, `runsOf`: het script
+     vraagt 100 runs per event en pagineert niet. Staan er sinds vrijdag 22:00 meer dan 100 handmatige runs op main, dan
+     kan het bewijs op pagina 2 staan en meldt het script `geen browserrun`. De gate stopt dan; hij gaat niet stil door.
+     Zeldzaam, want het venster is hoogstens een week. Voorstel: pagineren tot een pagina minder dan 100 runs geeft.
+     Gevonden in de review van #757 (GPT-6.1-Sol), met 101 runs nagespeeld. — B

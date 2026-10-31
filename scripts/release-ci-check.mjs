@@ -3,23 +3,52 @@
 // dubbel, maar kijkt of de CI en de browserrun al groen zijn. De release-skill draait precies dit
 // script vóór de tag, zodat de release niet pas ná de onomkeerbare tag vastloopt.
 //
-//   node scripts/release-ci-check.mjs <commit-sha>
+//   node scripts/release-ci-check.mjs <commit-sha>            # de gate en stap 3 van de release-skill
+//   node scripts/release-ci-check.mjs --browser <commit-sha>  # alleen eis 2: de browsercontrole
 //
 // Twee eisen, allebei op GitHub gelezen met `gh api`:
 //   1. De `ci.yml`-pushrun op main op precies deze commit is klaar en `success`.
-//   2. De laatste browserrun op main (gepland of handmatig) is `success`, staat op deze commit of
-//      een voorouder daarvan, en is hoogstens 7 dagen oud. De uitkomst komt uit de browserjobs van
-//      poging 1: een rerun maakt een haperende test niet groen, en een run waarin die jobs zijn
-//      overgeslagen is geen browserrun.
+//   2. De laatste browserrun op main sinds de laatste vrijdag 22:00 Europe/Amsterdam (gepland of
+//      handmatig) is `success` en staat op deze commit of een voorouder daarvan. Een eerdere groene
+//      run vervangt die vrijdagrun niet; een latere bewijsrun mag wel. Ook de browserjobs van poging 1
+//      moeten groen zijn: een rerun maakt een haperende test niet groen, en een run waarin die jobs
+//      zijn overgeslagen is geen browserrun.
 //
-// Exit 0 = beide groen. Anders exit 1 met een `::error::`-regel per probleem. Een andere foutcode,
-// lege uitvoer of onverwachte JSON van `gh` of `git` stopt ook: dit script gaat nooit stil door.
+// De gate, de release-skill en de reparatie gebruiken alle drie deze ene browsercontrole. Daarom
+// noemt de laatste regel de beoordeelde run: `BROWSERRUN=<id>`, leeg als er geen is.
+//
+// Exit 0 = groen. Anders exit 1 met een `::error::`-regel per probleem. Een andere foutcode, lege
+// uitvoer of onverwachte JSON van `gh` of `git` stopt ook: dit script gaat nooit stil door.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const MAX_BROWSER_RUN_AGE_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
+const TIME_ZONE = 'Europe/Amsterdam';
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const BROWSER_JOB = /^verify \(browser (\d+)-(\d+)\)$/;
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const localFormat = new Intl.DateTimeFormat('en-US', {
+  timeZone: TIME_ZONE, hourCycle: 'h23', weekday: 'short',
+  year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+});
+
+/** De weekdag en de kloktijd in Nederland, die laatste als getal alsof het UTC was. */
+function localClock(ms) {
+  const part = Object.fromEntries(localFormat.formatToParts(ms).map(({ type, value }) => [type, value]));
+  return {
+    weekday: WEEKDAYS.indexOf(part.weekday),
+    clock: Date.UTC(+part.year, +part.month - 1, +part.day, +part.hour, +part.minute, +part.second),
+  };
+}
+
+/** De laatste vrijdag 22:00 Nederlandse tijd op of vóór `now`, in milliseconden. */
+export function fridayEvening(now) {
+  const { weekday, clock } = localClock(now);
+  let target = clock - (clock % DAY_MS) - ((weekday + 2) % 7) * DAY_MS + 22 * HOUR_MS;
+  if (target > clock) target -= 7 * DAY_MS;
+  return target - (localClock(target).clock - target);
+}
 
 /** Een tekst per run, voor in een foutmelding. */
 const describe = run => `run ${run.id} (${run.event}, ${run.created_at})`;
@@ -73,28 +102,30 @@ export function browserJobProblems(jobs) {
   return problems;
 }
 
-/** Eis 2. Geeft `{ ok, text }`. `now` is in milliseconden. */
+/** Eis 2, de ene browsercontrole. Geeft `{ ok, text, runId }`. `now` is in milliseconden. */
 export function checkBrowserRun({ sha, repo, now, api, isAncestor }) {
-  const list = event => runsOf(api, `repos/${repo}/actions/workflows/ci.yml/runs?branch=main&event=${event}&per_page=100`);
+  const since = fridayEvening(now);
+  const sinceIso = new Date(since).toISOString();
+  const created = encodeURIComponent(`>=${sinceIso}`);
+  const list = event => runsOf(api, `repos/${repo}/actions/workflows/ci.yml/runs?branch=main&event=${event}&created=${created}&per_page=100`);
   const runs = [...list('schedule'), ...list('workflow_dispatch')]
     .filter(run => run.head_branch === 'main' && (run.event === 'schedule' || run.event === 'workflow_dispatch'))
+    .filter(run => Date.parse(run.created_at) >= since)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   for (const run of runs) {
-    if (run.status !== 'completed') return { ok: false, text: `browserrun: ${describe(run)} is niet klaar (status ${run.status})` };
+    const stop = text => ({ ok: false, text, runId: run.id });
+    if (run.status !== 'completed') return stop(`browserrun: ${describe(run)} is niet klaar (status ${run.status})`);
     const jobs = firstAttemptJobs(api, repo, run);
     if (browserJobs(jobs).length === 0) continue; // Geen browserrun: de browserjobs zijn overgeslagen.
     const problems = browserJobProblems(jobs);
-    if (problems.length) return { ok: false, text: `laatste browserrun ${describe(run)}: ${problems.join('; ')}` };
-    const age = now - Date.parse(run.created_at);
-    if (!(age <= MAX_BROWSER_RUN_AGE_DAYS * DAY_MS)) {
-      return { ok: false, text: `laatste browserrun ${describe(run)} is ouder dan ${MAX_BROWSER_RUN_AGE_DAYS} dagen` };
-    }
+    if (run.conclusion !== 'success') problems.unshift(`conclusie ${run.conclusion}`);
+    if (problems.length) return stop(`laatste browserrun ${describe(run)}: ${problems.join('; ')}`);
     if (!isAncestor(run.head_sha, sha)) {
-      return { ok: false, text: `laatste browserrun ${describe(run)} staat op ${run.head_sha}, geen voorouder van ${sha}` };
+      return stop(`laatste browserrun ${describe(run)} staat op ${run.head_sha}, geen voorouder van ${sha}`);
     }
-    return { ok: true, text: `browserrun ${describe(run)} is groen, op ${run.head_sha}` };
+    return { ok: true, text: `browserrun ${describe(run)} is groen, op ${run.head_sha}`, runId: run.id };
   }
-  return { ok: false, text: 'geen browserrun op main gevonden (gepland of handmatig)' };
+  return { ok: false, text: `geen browserrun sinds vrijdag ${sinceIso} (gepland of handmatig op main)`, runId: null };
 }
 
 /** `gh api`: elke andere foutcode, lege uitvoer of ongeldige JSON is een harde fout. */
@@ -122,15 +153,18 @@ export function gitIsAncestor(ancestor, commit) {
 }
 
 function main(argv) {
-  const sha = argv[0] ?? '';
+  const browserOnly = argv[0] === '--browser';
+  const sha = (browserOnly ? argv[1] : argv[0]) ?? '';
   if (!/^[0-9a-f]{40}$/.test(sha)) {
     console.log(`::error::release-ci-check: geef een volledige commit-SHA, niet "${sha}"`);
     return 1;
   }
   const repo = process.env.GITHUB_REPOSITORY || 'OpenAEC-Foundation/open-planner-studio';
   const context = { sha, repo, now: Date.now(), api: ghApi, isAncestor: gitIsAncestor };
-  const results = [checkPushRun(context), checkBrowserRun(context)];
+  const browser = checkBrowserRun(context);
+  const results = browserOnly ? [browser] : [checkPushRun(context), browser];
   for (const { ok, text } of results) console.log(ok ? `OK  release-ci-check: ${text}` : `::error::release-ci-check: ${text}`);
+  console.log(`BROWSERRUN=${browser.runId ?? ''}`);
   return results.every(result => result.ok) ? 0 : 1;
 }
 

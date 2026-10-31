@@ -45,8 +45,13 @@ until [ "$(open_issues)" = 0 ] || [ "$(date +%s)" -ge "$GRENS" ]; do sleep 300; 
 [ "$(open_issues)" = 0 ]
 ```
 Exit 1: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
-Exit 0: lees de [laatste browserrun](../browsertests-repareren/SKILL.md#stand-voor-de-release). Poging 1 `success`:
-ga verder. Anders, of als er geen run is: voer die skill eerst zelf uit, in zijn geheel. Daarna ga je verder.
+Exit 0: maak de worktree uit stap 1 en draai daar de browsercontrole. Dit is dezelfde controle als in de `gate`.
+```bash
+SHA=$(git rev-parse origin/main)
+node scripts/release-ci-check.mjs --browser "$SHA"
+```
+Exit 0: ga verder. Exit 1: voer eerst de [reparatie](../browsertests-repareren/SKILL.md) in zijn geheel uit en geef haar
+de regel `BROWSERRUN=<id>` uit de uitvoer door. Daarna ga je verder.
 
 ## 1. Werkplek en stopregels
 
@@ -143,7 +148,8 @@ SHA=$(git rev-parse origin/main)
 node scripts/release-ci-check.mjs "$SHA"
 ```
 Exit 1: geen tag. Elke `::error::`-regel zegt wat er ontbreekt. Rode pushrun: volg CI herstellen.
-Browserrun rood, ontbrekend of te oud: voer de [reparatie](../browsertests-repareren/SKILL.md) uit, ook met dat issue.
+Browserrun afgewezen: voer de [reparatie](../browsertests-repareren/SKILL.md) uit, ook met dat issue, en geef haar
+de regel `BROWSERRUN=<id>` door. Bewijs telt vanaf de laatste vrijdag 22:00; eerder groen vervangt de vrijdagrun niet.
 Controleer vóór de tag opnieuw dat `origin/main` nog die SHA heeft. Bij nieuwe commits:
 behoud kandidaatversie en voortgang; werk de basis, cijfers en CI bij zonder nieuwe bump.
 Draai op de releasecommit; vergelijk ook hier jaar, week en volgnummer numeriek met `PREV`:
