@@ -1670,3 +1670,8 @@ en noem het in je rapport of PR-tekst.
      leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
      beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
      van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
+588. **VERVOLG: een vooraf ingestelde `OPS_RELAX_PERF=0` doorbreekt het alleen draaien van de performancechecks.**
+     `tests/planning/run.sh:85` bewaart alleen omgevingswaarden die afwijken van de aanroepende shell. Bij
+     `OPS_RELAX_PERF=0 npm run verify` verdwijnt die waarde dus uit de planregels, en `scripts/planning-pool.mjs:67`
+     ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
+     check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
