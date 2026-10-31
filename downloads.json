@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-31T12:01:38.065Z",
-  "downloads": 3167,
+  "generatedAt": "2026-10-31T14:01:48.278Z",
+  "downloads": 3251,
   "releases": [
     {
       "tag": "v2026.44.0",
@@ -11,36 +11,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1,
-          "update": 2,
+          "install": 2,
+          "update": 5,
           "both": 0,
           "byKind": {
-            "exe": 1,
-            "nsis.zip": 2
+            "exe": 2,
+            "nsis.zip": 5
           }
         },
         "macos": {
-          "install": 1,
+          "install": 3,
           "update": 2,
           "both": 0,
           "byKind": {
-            "dmg": 1,
+            "dmg": 3,
             "app.tar.gz": 2
           }
         },
         "linux": {
           "install": 1,
           "update": 0,
-          "both": 8,
+          "both": 11,
           "byKind": {
             "snap": 1,
             "rpm": 3,
-            "AppImage": 2,
-            "deb": 3
+            "AppImage": 4,
+            "deb": 4
           }
         }
       },
-      "polls": 6
+      "polls": 24
     },
     {
       "tag": "v2026.43.0",
@@ -380,12 +380,12 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 24,
-          "update": 10,
+          "install": 25,
+          "update": 11,
           "both": 0,
           "byKind": {
-            "exe": 24,
-            "nsis.zip": 10
+            "exe": 25,
+            "nsis.zip": 11
           }
         },
         "macos": {
@@ -398,18 +398,18 @@
           }
         },
         "linux": {
-          "install": 0,
+          "install": 1,
           "update": 0,
           "both": 15,
           "byKind": {
-            "snap": 0,
+            "snap": 1,
             "rpm": 2,
             "AppImage": 3,
             "deb": 10
           }
         }
       },
-      "polls": 82
+      "polls": 83
     },
     {
       "tag": "v2026.7.9",
@@ -417,36 +417,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 7,
-          "update": 2,
+          "install": 8,
+          "update": 3,
           "both": 0,
           "byKind": {
-            "exe": 7,
-            "nsis.zip": 2
+            "exe": 8,
+            "nsis.zip": 3
           }
         },
         "macos": {
-          "install": 0,
-          "update": 1,
+          "install": 1,
+          "update": 2,
           "both": 0,
           "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 1
+            "dmg": 1,
+            "app.tar.gz": 2
           }
         },
         "linux": {
-          "install": 0,
+          "install": 1,
           "update": 0,
-          "both": 10,
+          "both": 13,
           "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 3,
-            "deb": 6
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 4,
+            "deb": 7
           }
         }
       },
-      "polls": 32
+      "polls": 33
     },
     {
       "tag": "v2026.7.8",
@@ -454,36 +454,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 6,
-          "update": 3,
+          "install": 7,
+          "update": 4,
           "both": 0,
           "byKind": {
-            "exe": 6,
-            "nsis.zip": 3
+            "exe": 7,
+            "nsis.zip": 4
           }
         },
         "macos": {
-          "install": 0,
-          "update": 2,
+          "install": 1,
+          "update": 3,
           "both": 0,
           "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 2
+            "dmg": 1,
+            "app.tar.gz": 3
           }
         },
         "linux": {
-          "install": 0,
+          "install": 1,
           "update": 0,
-          "both": 8,
+          "both": 11,
           "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 3,
-            "deb": 4
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 4,
+            "deb": 5
           }
         }
       },
-      "polls": 43
+      "polls": 44
     },
     {
       "tag": "v2026.7.7",
@@ -491,36 +491,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 3,
-          "update": 7,
+          "install": 4,
+          "update": 8,
           "both": 0,
           "byKind": {
-            "exe": 3,
-            "nsis.zip": 7
+            "exe": 4,
+            "nsis.zip": 8
           }
         },
         "macos": {
-          "install": 0,
-          "update": 1,
+          "install": 1,
+          "update": 2,
           "both": 0,
           "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 1
+            "dmg": 1,
+            "app.tar.gz": 2
           }
         },
         "linux": {
-          "install": 0,
+          "install": 1,
           "update": 0,
-          "both": 5,
+          "both": 8,
           "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 2,
-            "deb": 2
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 3,
+            "deb": 3
           }
         }
       },
-      "polls": 30
+      "polls": 31
     },
     {
       "tag": "v2026.7.6",
@@ -528,11 +528,196 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 6,
+          "install": 7,
+          "update": 5,
+          "both": 0,
+          "byKind": {
+            "exe": 7,
+            "nsis.zip": 5
+          }
+        },
+        "macos": {
+          "install": 2,
+          "update": 3,
+          "both": 0,
+          "byKind": {
+            "dmg": 2,
+            "app.tar.gz": 3
+          }
+        },
+        "linux": {
+          "install": 1,
+          "update": 0,
+          "both": 13,
+          "byKind": {
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 4,
+            "deb": 7
+          }
+        }
+      },
+      "polls": 55
+    },
+    {
+      "tag": "v2026.7.5",
+      "publishedAt": "2026-07-04T15:21:03Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 2,
+          "update": 3,
+          "both": 0,
+          "byKind": {
+            "exe": 2,
+            "nsis.zip": 3
+          }
+        },
+        "macos": {
+          "install": 1,
+          "update": 2,
+          "both": 0,
+          "byKind": {
+            "dmg": 1,
+            "app.tar.gz": 2
+          }
+        },
+        "linux": {
+          "install": 1,
+          "update": 0,
+          "both": 7,
+          "byKind": {
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 2,
+            "deb": 3
+          }
+        }
+      },
+      "polls": 5
+    },
+    {
+      "tag": "v2026.7.4",
+      "publishedAt": "2026-07-04T11:27:36Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 1,
+          "update": 2,
+          "both": 0,
+          "byKind": {
+            "exe": 1,
+            "nsis.zip": 2
+          }
+        },
+        "macos": {
+          "install": 1,
+          "update": 2,
+          "both": 0,
+          "byKind": {
+            "dmg": 1,
+            "app.tar.gz": 2
+          }
+        },
+        "linux": {
+          "install": 1,
+          "update": 0,
+          "both": 9,
+          "byKind": {
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 2,
+            "deb": 5
+          }
+        }
+      },
+      "polls": 4
+    },
+    {
+      "tag": "v2026.7.3",
+      "publishedAt": "2026-07-03T17:16:55Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 2,
+          "update": 3,
+          "both": 0,
+          "byKind": {
+            "exe": 2,
+            "nsis.zip": 3
+          }
+        },
+        "macos": {
+          "install": 1,
+          "update": 1,
+          "both": 0,
+          "byKind": {
+            "dmg": 1,
+            "app.tar.gz": 1
+          }
+        },
+        "linux": {
+          "install": 1,
+          "update": 0,
+          "both": 8,
+          "byKind": {
+            "snap": 1,
+            "rpm": 1,
+            "AppImage": 1,
+            "deb": 6
+          }
+        }
+      },
+      "polls": 9
+    },
+    {
+      "tag": "v2026.7.2",
+      "publishedAt": "2026-07-03T06:45:41Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 2,
+          "update": 1,
+          "both": 0,
+          "byKind": {
+            "exe": 2,
+            "nsis.zip": 1
+          }
+        },
+        "macos": {
+          "install": 1,
+          "update": 1,
+          "both": 0,
+          "byKind": {
+            "dmg": 1,
+            "app.tar.gz": 1
+          }
+        },
+        "linux": {
+          "install": 1,
+          "update": 0,
+          "both": 5,
+          "byKind": {
+            "snap": 1,
+            "rpm": 1,
+            "AppImage": 1,
+            "deb": 3
+          }
+        }
+      },
+      "polls": 22
+    },
+    {
+      "tag": "v2026.7.1",
+      "publishedAt": "2026-07-02T20:14:50Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 1,
           "update": 4,
           "both": 0,
           "byKind": {
-            "exe": 6,
+            "exe": 1,
             "nsis.zip": 4
           }
         },
@@ -546,203 +731,18 @@
           }
         },
         "linux": {
-          "install": 0,
+          "install": 1,
           "update": 0,
           "both": 10,
           "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 3,
+            "snap": 1,
+            "rpm": 2,
+            "AppImage": 2,
             "deb": 6
           }
         }
       },
-      "polls": 54
-    },
-    {
-      "tag": "v2026.7.5",
-      "publishedAt": "2026-07-04T15:21:03Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 1,
-          "update": 2,
-          "both": 0,
-          "byKind": {
-            "exe": 1,
-            "nsis.zip": 2
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 1,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 1
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 4,
-          "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 1,
-            "deb": 2
-          }
-        }
-      },
-      "polls": 4
-    },
-    {
-      "tag": "v2026.7.4",
-      "publishedAt": "2026-07-04T11:27:36Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 0,
-          "update": 1,
-          "both": 0,
-          "byKind": {
-            "exe": 0,
-            "nsis.zip": 1
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 1,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 1
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 6,
-          "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 1,
-            "deb": 4
-          }
-        }
-      },
       "polls": 3
-    },
-    {
-      "tag": "v2026.7.3",
-      "publishedAt": "2026-07-03T17:16:55Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 1,
-          "update": 2,
-          "both": 0,
-          "byKind": {
-            "exe": 1,
-            "nsis.zip": 2
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 0,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 0
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 5,
-          "byKind": {
-            "snap": 0,
-            "rpm": 0,
-            "AppImage": 0,
-            "deb": 5
-          }
-        }
-      },
-      "polls": 8
-    },
-    {
-      "tag": "v2026.7.2",
-      "publishedAt": "2026-07-03T06:45:41Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 1,
-          "update": 0,
-          "both": 0,
-          "byKind": {
-            "exe": 1,
-            "nsis.zip": 0
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 0,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 0
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 2,
-          "byKind": {
-            "snap": 0,
-            "rpm": 0,
-            "AppImage": 0,
-            "deb": 2
-          }
-        }
-      },
-      "polls": 21
-    },
-    {
-      "tag": "v2026.7.1",
-      "publishedAt": "2026-07-02T20:14:50Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 0,
-          "update": 3,
-          "both": 0,
-          "byKind": {
-            "exe": 0,
-            "nsis.zip": 3
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 1,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 1
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 7,
-          "byKind": {
-            "snap": 0,
-            "rpm": 1,
-            "AppImage": 1,
-            "deb": 5
-          }
-        }
-      },
-      "polls": 2
     },
     {
       "tag": "v2026.7.0",
@@ -750,58 +750,21 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 0,
-          "update": 0,
+          "install": 1,
+          "update": 1,
           "both": 0,
           "byKind": {
-            "exe": 0,
-            "nsis.zip": 0
+            "exe": 1,
+            "nsis.zip": 1
           }
         },
         "macos": {
-          "install": 0,
-          "update": 0,
+          "install": 1,
+          "update": 1,
           "both": 0,
           "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 0
-          }
-        },
-        "linux": {
-          "install": 0,
-          "update": 0,
-          "both": 3,
-          "byKind": {
-            "snap": 0,
-            "rpm": 0,
-            "AppImage": 0,
-            "deb": 3
-          }
-        }
-      },
-      "polls": 3
-    },
-    {
-      "tag": "v2026.6.1",
-      "publishedAt": "2026-06-29T14:35:17Z",
-      "prerelease": false,
-      "os": {
-        "windows": {
-          "install": 7,
-          "update": 0,
-          "both": 0,
-          "byKind": {
-            "exe": 7,
-            "nsis.zip": 0
-          }
-        },
-        "macos": {
-          "install": 0,
-          "update": 0,
-          "both": 0,
-          "byKind": {
-            "dmg": 0,
-            "app.tar.gz": 0
+            "dmg": 1,
+            "app.tar.gz": 1
           }
         },
         "linux": {
@@ -810,13 +773,50 @@
           "both": 6,
           "byKind": {
             "snap": 1,
-            "rpm": 0,
-            "AppImage": 2,
+            "rpm": 1,
+            "AppImage": 1,
             "deb": 4
           }
         }
       },
-      "polls": 21
+      "polls": 4
+    },
+    {
+      "tag": "v2026.6.1",
+      "publishedAt": "2026-06-29T14:35:17Z",
+      "prerelease": false,
+      "os": {
+        "windows": {
+          "install": 8,
+          "update": 1,
+          "both": 0,
+          "byKind": {
+            "exe": 8,
+            "nsis.zip": 1
+          }
+        },
+        "macos": {
+          "install": 1,
+          "update": 1,
+          "both": 0,
+          "byKind": {
+            "dmg": 1,
+            "app.tar.gz": 1
+          }
+        },
+        "linux": {
+          "install": 2,
+          "update": 0,
+          "both": 9,
+          "byKind": {
+            "snap": 2,
+            "rpm": 1,
+            "AppImage": 3,
+            "deb": 5
+          }
+        }
+      },
+      "polls": 22
     },
     {
       "tag": "v2026.6.0",
@@ -824,35 +824,35 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 27,
-          "update": 0,
+          "install": 28,
+          "update": 1,
           "both": 0,
           "byKind": {
-            "exe": 27,
-            "nsis.zip": 0
+            "exe": 28,
+            "nsis.zip": 1
           }
         },
         "macos": {
-          "install": 3,
-          "update": 0,
+          "install": 4,
+          "update": 1,
           "both": 0,
           "byKind": {
-            "dmg": 3,
-            "app.tar.gz": 0
+            "dmg": 4,
+            "app.tar.gz": 1
           }
         },
         "linux": {
           "install": 0,
           "update": 0,
-          "both": 21,
+          "both": 24,
           "byKind": {
-            "rpm": 1,
-            "AppImage": 7,
-            "deb": 13
+            "rpm": 2,
+            "AppImage": 8,
+            "deb": 14
           }
         }
       },
-      "polls": 57
+      "polls": 58
     },
     {
       "tag": "v2026.2.0",
@@ -860,29 +860,29 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 9,
+          "install": 10,
           "update": 0,
           "both": 0,
           "byKind": {
-            "exe": 9
+            "exe": 10
           }
         },
         "macos": {
-          "install": 3,
+          "install": 4,
           "update": 0,
           "both": 0,
           "byKind": {
-            "dmg": 3
+            "dmg": 4
           }
         },
         "linux": {
           "install": 0,
           "update": 0,
-          "both": 12,
+          "both": 15,
           "byKind": {
-            "rpm": 4,
-            "AppImage": 4,
-            "deb": 4
+            "rpm": 5,
+            "AppImage": 5,
+            "deb": 5
           }
         }
       },
@@ -891,36 +891,36 @@
   ],
   "totals": {
     "windows": {
-      "install": 1875,
-      "update": 313,
+      "install": 1890,
+      "update": 329,
       "both": 0,
       "byKind": {
-        "exe": 1875,
-        "nsis.zip": 313
+        "exe": 1890,
+        "nsis.zip": 329
       }
     },
     "macos": {
-      "install": 282,
-      "update": 111,
+      "install": 297,
+      "update": 123,
       "both": 0,
       "byKind": {
-        "dmg": 282,
-        "app.tar.gz": 111
+        "dmg": 297,
+        "app.tar.gz": 123
       }
     },
     "linux": {
-      "install": 93,
+      "install": 105,
       "update": 0,
-      "both": 917,
+      "both": 959,
       "byKind": {
-        "snap": 93,
-        "rpm": 139,
-        "AppImage": 444,
-        "deb": 334
+        "snap": 105,
+        "rpm": 152,
+        "AppImage": 459,
+        "deb": 348
       }
     }
   },
-  "polls": 5474,
+  "polls": 5505,
   "unknown": [
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
