@@ -125,8 +125,10 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `gh pr checks --watch`; if a check is red, fix it and push again. A red suite blocks both deploy and release;
   a red browser suite blocks the release, not the deploy.
 - **The browser suite does not run on an ordinary PR or a push to `main`** (owner decision 2026-10-30: CI minutes;
-  one run cost 74 minutes, 46 of them browser tests). `ci.yml` runs the full set every Monday morning on `main`,
-  and the release skill starts it just before the tag. A green PR therefore says nothing about the browser suite.
+  one run cost 74 minutes, 46 of them browser tests). `ci.yml` runs the full set every Friday at 22:00 Dutch time on
+  `main` (`timezone: Europe/Amsterdam`, owner decision 2026-10-31); a scheduled job on aia09-mp50 repairs whatever turns
+  red (`browsertests-repareren` skill), and the release skill starts the set again just before the tag. A green PR
+  therefore says nothing about the browser suite.
   Turn it on for your own PR only when you think that is very important, for example for work on dragging, focus,
   dialogs or saving. There are two ways, and both run in CI, never locally; a local run of the whole set is
   no replacement (one targeted spec stays allowed, see the table below):
@@ -404,7 +406,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `ci-release` | `.github/`, release notes, bump |
 | `docs-index` | `docs/`, `PLAN.md`, `artifacts/` |
 
-Skills in `.claude/skills/`: `release`, `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
+Skills in `.claude/skills/`: `release`, `browsertests-repareren` (the Friday-night repair of a red browser run), `wiki`, `docs-update`, `docs-audit`, `update-ui-lang` (translation pipeline for the
 UI, a release step), `update-docs-lang` (pipeline for the guides, on request), `goed-plannen`, `progress-update` (source of the
 last two: `public/skills/<name>/SKILL.md`, copied byte-identically; they are the agent skills that
 `planner_get_planning_guide` hands out, next to the English agent guide `public/agent/planning-guide.md`).

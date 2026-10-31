@@ -2,7 +2,7 @@ name: CI
 
 # De browsersuite draait niet bij een gewone PR en niet bij een push op main (besluit eigenaar,
 # 2026-10-30): één run kostte 74 min rekentijd, waarvan 46 aan browsertests. Hij draait in drie
-# gevallen: elke maandagochtend op main, handmatig op elke branch (`gh workflow run ci.yml --ref <branch>`,
+# gevallen: elke vrijdagavond op main, handmatig op elke branch (`gh workflow run ci.yml --ref <branch>`,
 # ook vlak vóór een release: zie de release-skill) en op een PR met het label `browsertests`.
 # Wanneer een agent dat doet staat in AGENTS.md.
 on:
@@ -17,8 +17,11 @@ on:
     # jobs over (zie de `if`'s) en laat de concurrency hieronder de lopende CI staan.
     types: [opened, synchronize, reopened, labeled]
   schedule:
-    # Maandag 04:00 UTC is 05:00 in de winter en 06:00 in de zomer.
-    - cron: '0 4 * * 1'
+    # Vrijdag 22:00 Nederlandse tijd (besluit eigenaar, 2026-10-31). Met `timezone` blijft dat zo na de
+    # wisseling van zomer- en wintertijd. Wat rood is, repareert de vrijdagjob: zie de skill
+    # `.claude/skills/browsertests-repareren/`.
+    - cron: '0 22 * * 5'
+      timezone: Europe/Amsterdam
   # De geplande en de handmatige run horen in deze workflow, niet in een eigen bestand: de wekker kijkt
   # met `gh run list --branch main --workflow ci.yml --status completed --limit 1` of main rood staat.
   workflow_dispatch:
