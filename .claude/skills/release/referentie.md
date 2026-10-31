@@ -175,14 +175,16 @@ Dit geldt alleen als de `aur.yml`-run van deze tag aan alle vier de punten voldo
 4. De joblog toont de `.deb` van `VERSION`, dus deze run hoort bij deze tag.
 
 Lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
-toont ook het script zelf. `AUR_RUN` is het run-ID uit hervatstap 1:
+toont ook het script zelf. `AUR_RUN` is het run-ID uit hervatstap 1. De laatste opdracht heeft twee
+vormen: `gh` 2.102.0 weigert deze log zonder `--allow-escape-sequences`, en `gh` 2.45.0 op aia kent die vlag niet.
 
 ```bash
 gh run view "$AUR_RUN" --repo "$REPO" --json conclusion,jobs \
   --jq '.conclusion, (.jobs[].steps[] | select(.name == "Push to AUR") | .conclusion)'
 JOB=$(gh run view "$AUR_RUN" --repo "$REPO" --json jobs --jq '.jobs[] | select(.name == "aur") | .databaseId')
 gh api "repos/$REPO/check-runs/$JOB/annotations" --jq '.[] | select(.annotation_level == "notice") | .message'
-gh api "repos/$REPO/actions/jobs/$JOB/logs" | grep -F "Open.Planner.Studio_${VERSION}_amd64.deb:"
+{ gh api "repos/$REPO/actions/jobs/$JOB/logs" --allow-escape-sequences 2>/dev/null ||
+  gh api "repos/$REPO/actions/jobs/$JOB/logs"; } | grep -F "Open.Planner.Studio_${VERSION}_amd64.deb:"
 ```
 
 Is dit bewezen: ga door, zonder rerun, dispatch of secretwijziging. Schrijf in het hervatverslag en
