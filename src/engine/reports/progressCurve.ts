@@ -1,6 +1,8 @@
 import type { Task } from '@/types/task';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { parseDate } from '@/utils/dateUtils';
+import { isDateOnly, isInstant } from '@/engine/calendar/workdayRules';
+import { isHourModeCalendar } from '@/types/calendar';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
   type ReportContext, activityTasks, dayOf, durationDays, makeEngineCache, progressState, referenceDay, round1,
@@ -18,7 +20,9 @@ import {
  * werkdagen(start, dag) ÷ werkdagen(start, einde) op de kalender van de taak. Het gewicht is de duur
  * in werkdagen (`durationDays`), net als de gewogen voortgang van het voortgangsrapport; mijlpalen
  * wegen 0. De waarde op een dag is de stand aan het EINDE van die dag (de dag telt als gewerkt), dezelfde
- * telling als de geplande voortgang van `computeProgressReport`.
+ * telling als de geplande voortgang van `computeProgressReport`. Alleen een statusdatum mét tijd op een
+ * uur-projectkalender is een moment: op dat punt telt het deel van de dag dat verstreken is, in de
+ * dagenmaat van de kalender. Kerncijfer en curve lezen dan hetzelfde moment.
  *
  * De WERKELIJKE curve is een benadering: de app bewaart alleen de stand van nu. Per taak loopt de
  * voortgang lineair van de werkelijke start naar de huidige voltooiing — tot het werkelijke einde bij
@@ -100,8 +104,11 @@ function isoOfDayNum(n: number): string {
   return new Date(n * DAY_MS).toISOString().slice(0, 10);
 }
 
-/** Een venster op dagniveau (ISO-dagen). */
-interface Window { start: string; finish: string }
+/** Een venster op dagniveau (ISO-dagen), met de oorspronkelijke momenten voor een statusmoment met tijd. */
+interface Window { start: string; finish: string; startAt: string; finishAt: string }
+
+/** Waar het rapport de stand opneemt: het einde van `day`, of `moment` bij een statusdatum met tijd. */
+interface StatusPoint { day: string; moment?: Date }
 
 /**
  * Het verstreken deel (0–1) van een venster aan het EINDE van dag `atDay`, in werkdagen van de
@@ -115,6 +122,22 @@ function elapsedFraction(eng: CalendarEngine, w: Window, atDay: string): number 
   const total = eng.workDaysBetween(s, parseDate(w.finish));
   if (!(total > 0)) return 1;
   return Math.min(1, Math.max(0, eng.workDaysBetween(s, parseDate(atDay)) / total));
+}
+
+/**
+ * Het verstreken deel (0–1) van een venster op een statusmoment, in de dagenmaat van de taakkalender
+ * (`measuredWorkdaysBetween`): elke werkdag telt 1, zoals in `elapsedFraction`. Een einde zonder tijd
+ * bezet zijn hele dag. Een dagkalender kent geen tijd van de dag en telt de dag als geheel.
+ */
+function elapsedFractionAt(eng: CalendarEngine, w: Window, at: StatusPoint): number {
+  if (!at.moment || !eng.isHourMode) return elapsedFraction(eng, w, at.day);
+  const s = parseInstant(w.startAt);
+  const f = isDateOnly(w.finishAt) ? new Date(parseDate(w.finishAt).getTime() + DAY_MS) : parseInstant(w.finishAt);
+  if (at.moment <= s) return 0;
+  if (at.moment >= f) return 1;
+  const total = eng.measuredWorkdaysBetween(s, f);
+  if (!(total > 0)) return 1;
+  return Math.min(1, Math.max(0, eng.measuredWorkdaysBetween(s, at.moment) / total));
 }
 
 interface Weighted { task: Task; weight: number; eng: CalendarEngine }
@@ -151,11 +174,11 @@ function curveOver(
   });
 }
 
-function valueAt(items: readonly Weighted[], windowOf: (w: Weighted) => Window | undefined, at: string, totalWeight: number): number {
+function valueAt(items: readonly Weighted[], windowOf: (w: Weighted) => Window | undefined, at: StatusPoint, totalWeight: number): number {
   let sum = 0;
   for (const it of items) {
     const win = windowOf(it);
-    if (win) sum += it.weight * elapsedFraction(it.eng, win, at);
+    if (win) sum += it.weight * elapsedFractionAt(it.eng, win, at);
   }
   return totalWeight > 0 ? (sum / totalWeight) * 100 : 0;
 }
@@ -165,7 +188,9 @@ function win(start: string | undefined, finish: string | undefined): Window | un
   if (!start || !finish) return undefined;
   const s = dayOf(start);
   const f = dayOf(finish);
-  return f < s ? { start: s, finish: s } : { start: s, finish: f };
+  return f < s
+    ? { start: s, finish: s, startAt: start, finishAt: start }
+    : { start: s, finish: f, startAt: start, finishAt: finish };
 }
 
 function round2(n: number): number {
@@ -199,6 +224,11 @@ function axisTicks(from: number, to: number): { day: string; kind: 'month' | 'we
 
 export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   const { day: ref, statusDateMissing } = referenceDay(ctx);
+  // De tijd telt alleen op een uur-projectkalender, zoals in de motor (`isHourModeCalendar`).
+  const statusPoint: StatusPoint = {
+    day: ref,
+    moment: ctx.statusDate && isInstant(ctx.statusDate) && isHourModeCalendar(ctx.calendar) ? parseInstant(ctx.statusDate) : undefined,
+  };
   const engines = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const hasBaseline = !!ctx.baseline;
@@ -273,7 +303,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   const one = () => 1;
   const curve = (windowOf: (w: Weighted) => Window | undefined): CurvePoint[] => {
     const pts = curveOver(items, windowOf, one, samples, totalWeight).map((pct, i) => ({ day: samples[i], pct: round2(pct) }));
-    const at = { day: ref, pct: round2(valueAt(items, windowOf, ref, totalWeight)) };
+    const at = { day: ref, pct: round2(valueAt(items, windowOf, statusPoint, totalWeight)) };
     const i = pts.findIndex(p => p.day >= ref);
     if (i < 0) pts.push(at);
     else if (pts[i].day === ref) pts[i] = at;
@@ -294,7 +324,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     actualCurve.push({ day: ref, pct: round2(actualPct) });
   }
 
-  const plannedPct = valueAt(items, hasBaseline ? plannedWin : earlyWin, ref, totalWeight);
+  const plannedPct = valueAt(items, hasBaseline ? plannedWin : earlyWin, statusPoint, totalWeight);
 
   // ── Kerncijfers en risicotaken ──
   let lateCount = 0;

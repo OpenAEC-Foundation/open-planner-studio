@@ -828,6 +828,36 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   near('curve twee jaar: laatste curve op de statusdatum', pointAt(tr.lateCurve, '2026-09-18'), 50, 0.05);
   ok('curve twee jaar: punten blijven op volgorde', tr.earlyCurve.every((p, i) => i === 0 || tr.earlyCurve[i - 1].day < p.day));
   ok('curve lang project: maandstrepen', lr.ticks.length > 0 && lr.ticks.length <= 13 && lr.ticks.every(t => t.kind === 'month' && t.day.endsWith('-01')));
+
+  // Knownbug 560: een statusmoment met tijd telt als dat moment, niet als de hele dag. Eén taak, ma 08–16,
+  // baseline gelijk aan de planning, status 12:00, 50 % gereed: precies volgens plan, dus geen achterstand.
+  const werkdag = [{ start: 480, end: 960 }];
+  const urenCal = { ...ctx.calendar, workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+    workTime: { byWeekday: { 1: werkdag, 2: werkdag, 3: werkdag, 4: werkdag, 5: werkdag, 6: [], 7: [] } } };
+  const urenTaak = (start: string, finish: string, days: number, completion: number) => {
+    const t = ctx.tasks.find(x => x.id === G)!;
+    return { ...t, time: { ...t.time, earlyStart: start, earlyFinish: finish, lateStart: start, lateFinish: finish, scheduleDuration: days,
+      actualStart: start, actualFinish: undefined, completion }, constraint: undefined };
+  };
+  const urenCtx = (start: string, finish: string, days: number, statusDate: string, calendar: ReportContext['calendar'] = urenCal): ReportContext => {
+    const task = urenTaak(start, finish, days, 0.5);
+    return { ...ctx, tasks: [task], calendar, calendars: [calendar], statusDate, cpmResult: null,
+      baseline: { ...ctx.baseline!, tasks: [{ ...ctx.baseline!.tasks[0], taskId: task.id, start, finish }] } };
+  };
+  const midden = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'));
+  near('curve statusmoment: gepland 50 % op 12:00 van een taak 08–16', midden.plannedPct, 50, 0.05);
+  near('curve statusmoment: werkelijk 50 %', midden.actualPct, 50, 0.05);
+  near('curve statusmoment: de geplande curve wijst op de statusdag hetzelfde aan', pointAt(midden.plannedCurve, '2026-06-01'), 50, 0.05);
+  near('curve statusmoment: de vroegste curve ook', pointAt(midden.earlyCurve, '2026-06-01'), 50, 0.05);
+  const tweede = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02T12:00'));
+  near('curve statusmoment: 1,5 van 3 werkdagen', tweede.plannedPct, 50, 0.05);
+  ok('curve statusmoment: curve blijft stijgen rond het moment', tweede.plannedCurve!.every((p, i, a) => i === 0 || a[i - 1].pct <= p.pct));
+  const heleDag = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02'));
+  near('curve statusdatum zonder tijd: de dag telt als gewerkt, zoals De Akkers', heleDag.plannedPct, 66.7, 0.05);
+  const eindeDag = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02T16:00'));
+  near('curve statusmoment: einde werktijd = statusdatum zonder tijd', eindeDag.plannedPct, heleDag.plannedPct, 0.05);
+  const dagKalender = computeProgressCurve(urenCtx('2026-06-01', '2026-06-03', 3, '2026-06-02T12:00', { ...urenCal, workTime: undefined }));
+  near('curve statusmoment: dagkalender negeert de tijd, zoals de motor', dagKalender.plannedPct, 66.7, 0.05);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

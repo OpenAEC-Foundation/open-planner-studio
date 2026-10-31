@@ -404,12 +404,11 @@ en noem het in je rapport of PR-tekst.
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
 
-560. **De voortgangscurve rekent een urenproject op dagstand.** `src/engine/reports/progressCurve.ts`
-     (`elapsedFraction`, `referenceDay`): de statusdatum telt als een hele, gewerkte dag. Een taak van 08:00 tot
-     16:00 met statusdatum 12:00 en 50 % gereed geeft *Gepland* 100 % tegen *Werkelijk* 50 %, dus een schijnbare
-     achterstand. Zo staat het ook in de spec (`2026-10-27-voortgangscurve-rapport.md`) en zo rekent het
-     voortgangsrapport al. Richting: bij een statusmoment met tijd op dat moment vergelijken, of de dagstand in het
-     rapport noemen. Gevonden in review ronde 1 van #705 (GPT-6.1-Sol). — B
+562. **Het voortgangsrapport telt een statusmoment met tijd nog als hele dag.** `src/engine/reports/progressReport.ts:153`
+     rekent de geplande voortgang met `workDaysBetween` tot de statusdag. Op een uur-projectkalender geeft een taak
+     08:00–16:00 met status 12:00 dus 100 % gepland, waar het rapport Voortgangscurve sinds #705 50 % geeft. Afgeleid
+     uit de code, niet nagespeeld in de app. Voorstel: dezelfde telling als `elapsedFractionAt` in
+     `src/engine/reports/progressCurve.ts`. Gevonden bij #705. — S
 
 ## Tabel, invoer en bediening
 

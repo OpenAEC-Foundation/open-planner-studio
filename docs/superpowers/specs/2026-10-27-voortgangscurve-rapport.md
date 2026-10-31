@@ -49,6 +49,11 @@ verstreken is. Dat deel is werkdagen(start, *d*) ÷ werkdagen(start, einde) op d
 Beide grenzen tellen mee (zoals `workDaysBetween`), dus de waarde op een dag is de stand aan het
 einde van die dag. Dat is dezelfde telling als de geplande voortgang in het voortgangsrapport.
 
+Een statusdatum mét tijd op een uur-projectkalender is een moment. Op dat punt, en alleen daar, telt het
+deel van de dag dat verstreken is, in de dagenmaat van de taakkalender (elke werkdag telt 1). Een taak van
+08:00 tot 16:00 staat om 12:00 dus op 50 %. *Gepland* en de curves lezen hetzelfde moment. Op een dagkalender
+heeft de tijd geen betekenis, net als in de motor; daar telt de dag als geheel.
+
 **De werkelijke curve** is een benadering. De app bewaart geen voortgang per week, alleen de stand van
 nu. Per taak loopt de voortgang daarom lineair (in werkdagen) van de werkelijke start naar de huidige
 voltooiing: tot het werkelijke einde bij een voltooide taak, tot de statusdatum bij een lopende taak.
