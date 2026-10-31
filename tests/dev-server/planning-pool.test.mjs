@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import {
   countProblems,
+  durationsFromManifests,
   expectedLines,
   expectedRuns,
   itemsOfShard,
@@ -37,6 +38,7 @@ function fixture(checks, zones = ['UTC', 'Pacific/Auckland']) {
   const expectedPath = join(dir, 'expected.txt');
   writeFileSync(planPath, text);
   writeFileSync(expectedPath, `${expectedLines(parsePlan(text)).join('\n')}\n`);
+  writeFileSync(join(dir, 'check-durations.json'), '{}');
   return { dir, planPath, expectedPath };
 }
 
@@ -167,7 +169,7 @@ test('de delen samen draaien alles precies één keer, en count ziet elk gat', a
 });
 
 test('een check die niet bundelt is rood en houdt de andere checks niet tegen', async () => {
-  const dir = mkdtempSync(join(root, 'tests', 'planning', '.pool-test-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ops-pool-bundel-'));
   try {
     const good = join(dir, 'goed.ts');
     const broken = join(dir, 'kapot.ts');
@@ -184,6 +186,7 @@ test('een check die niet bundelt is rood en houdt de andere checks niet tegen', 
     const expectedPath = join(dir, 'expected.txt');
     writeFileSync(planPath, `${lines.join('\n')}\n`);
     writeFileSync(expectedPath, `${expectedLines(parsePlan(`${lines.join('\n')}\n`)).join('\n')}\n`);
+    writeFileSync(join(dir, 'check-durations.json'), '{}');
     const result = await exec(['run', planPath, expectedPath]);
     assert.equal(result.code, 1);
     assert.match(result.stdout, /XX {2}bundelen mislukt: kapot\.ts/);
@@ -200,6 +203,20 @@ test('itemsOfShard verdeelt elke check over precies één deel, onafhankelijk va
   assert.equal(new Set(parts.flat()).size, 50);
   assert.equal(parts.flat().length, 50);
   assert.deepEqual(itemsOfShard([...items].reverse(), 2, 3).map(item => item.id), parts[1]);
+});
+
+test('itemsOfShard zet zware checks in verschillende delen, en een check zonder meting draait ook', () => {
+  const items = ['check-a.ts', 'check-b.ts', 'check-c.ts', 'check-d.ts', 'check-nieuw.ts'].map(id => ({ id }));
+  const durations = { 'check-a.ts': 300, 'check-b.ts': 300, 'check-c.ts': 1, 'check-d.ts': 1 };
+  const parts = [1, 2].map(k => itemsOfShard(items, k, 2, durations).map(item => item.id));
+  assert.equal(parts.flat().length, 5);
+  assert.equal(new Set(parts.flat()).size, 5);
+  assert.notEqual(parts[0].includes('check-a.ts'), parts[0].includes('check-b.ts'));
+});
+
+test('durationsFromManifests telt alle runs van een check op, in hele seconden', () => {
+  const durations = durationsFromManifests(['check-b.ts\t-\t0\t1400\ncheck-b.ts\tUTC\t0\t1400\n', 'check-a.ts\t-\t0\t10\n']);
+  assert.deepEqual(durations, { 'check-a.ts': 1, 'check-b.ts': 3 });
 });
 
 test('parseShard weigert onzin, planProblems ziet twee checks op één uitvoerpad', () => {

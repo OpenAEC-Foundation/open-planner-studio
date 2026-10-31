@@ -26,7 +26,10 @@ van een zone zie je alleen de checks die daar rood zijn, met hun eigen uitvoer. 
 performance-poorten draaien alleen, als de rest klaar is. Een rode check houdt de rest niet tegen.
 
 In de CI draait de suite in drie jobs (`bash tests/planning/run.sh --shard=1/3`, 2/3, 3/3). De verdeling
-gaat op naam; alle runs van één check blijven in één job.
+gaat op gemeten duur uit `check-durations.json`, langste eerst naar de lichtste job; alle runs van één
+check blijven in één job. Een check zonder meting krijgt de mediaan, dus een verouderd getal kost alleen
+balans en nooit dekking. Bijwerken: download de manifesten van een CI-run (`gh run download <run>`) en draai
+`node scripts/planning-pool.mjs durations planning-manifest-*/*.tsv > tests/planning/check-durations.json`.
 
 **Elke check moet precies één keer draaien.** `expected-checks.txt` noemt elke controle en of hij in de
 matrix hoort (`matrix`) of niet (`los`). Klopt het plan niet met die lijst, in welke richting ook, dan is

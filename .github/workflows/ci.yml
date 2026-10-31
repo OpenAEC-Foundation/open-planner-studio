@@ -161,8 +161,9 @@ jobs:
           - part: static
             name: static
           # De planningssuite in drie jobs, elk met het volle aantal kernen: 21 min in één job op een
-          # trage runner. scripts/planning-pool.mjs verdeelt de checks; samen dekken de shards alles, en
-          # de job `test` telt dat na. Meer of minder shards: alleen deze regels aanpassen.
+          # trage runner. scripts/planning-pool.mjs verdeelt de checks op gemeten duur
+          # (tests/planning/check-durations.json); samen dekken de shards alles, en de job `test` telt
+          # dat na. Meer of minder shards: alleen deze regels aanpassen.
           - part: planning
             name: planning 1-3
             shard: 1/3

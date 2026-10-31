@@ -9,6 +9,7 @@
 //   node scripts/planning-pool.mjs run <plan> <verwacht.txt> [--shard=k/n] [--manifest=<pad>]
 //   node scripts/planning-pool.mjs list <plan>                         # inhoud voor verwacht.txt
 //   node scripts/planning-pool.mjs count <verwacht.txt> <manifest>...  # alles precies één keer gedraaid?
+//   node scripts/planning-pool.mjs durations <manifest>...             # inhoud voor check-durations.json
 //
 // Elk proces krijgt een eigen logbestand en een eigen TMPDIR, dus uitvoer loopt niet door elkaar en twee
 // checks delen geen tijdelijke map. De bundels schrijft esbuild vooraf, elk op een eigen pad; daarna lezen
@@ -23,6 +24,7 @@ import { appendFileSync, closeSync, mkdirSync, mkdtempSync, openSync, readFileSy
 import { availableParallelism, tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assignShards } from './browser-shards.mjs';
 
 /** De zone van een run in de gewone tijdzone, dus zonder eigen TZ. */
 const BASE_ZONE = '-';
@@ -125,9 +127,28 @@ export function planProblems(plan, expected) {
   return problems;
 }
 
-/** Deel `k` van `n`: de checks op naam gesorteerd, om en om. Alle runs van één check blijven bij elkaar. */
-export function itemsOfShard(items, k, n) {
-  return [...items].sort(byId).filter((_, i) => i % n === k - 1);
+/**
+ * Deel `k` van `n`: langste eerst naar het lichtste deel, op gemeten seconden per check (zie de browser-
+ * shards). Alle runs van één check blijven bij elkaar. Dekking hangt niet van de duren af: een check
+ * zonder meting krijgt de mediaan, en een verouderd getal kost alleen balans.
+ */
+export function itemsOfShard(items, k, n, durations = {}) {
+  const ids = new Set(assignShards(items.map(item => item.id), durations, n)[k - 1].files);
+  return items.filter(item => ids.has(item.id)).sort(byId);
+}
+
+/** Seconden per check uit de manifesten, voor `tests/planning/check-durations.json`. */
+export function durationsFromManifests(manifests) {
+  const totals = new Map();
+  for (const manifest of manifests) {
+    for (const line of manifest.split('\n')) {
+      if (!line) continue;
+      const [id, , , ms] = line.split('\t');
+      totals.set(id, (totals.get(id) ?? 0) + Number(ms));
+    }
+  }
+  const sorted = [...totals.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(sorted.map(([id, ms]) => [id, Math.max(1, Math.round(ms / 1000))]));
 }
 
 /** `--shard=k/n` naar `[k, n]`; gooit bij een ongeldige waarde. */
@@ -153,7 +174,7 @@ export function countProblems(expected, manifests) {
       if (code !== '0') red.push(`${id} (${zone}): exit ${code}`);
     }
   }
-  const show = (key) => key.replace('\t', ' in zone ');
+  const show = (key) => key.replaceAll('\t', ' in zone ');
   const problems = [...red];
   for (const key of want) {
     const count = seen.get(key) ?? 0;
@@ -241,7 +262,8 @@ async function commandRun(argv) {
     console.log(`OK  verwachte checks: plan klopt met de lijst (${expectedRuns(expected).length} runs over ${plan.items.length} checks)`);
   }
 
-  const items = itemsOfShard(plan.items, k, n);
+  const durations = JSON.parse(readFileSync(join(dirname(expectedPath), 'check-durations.json'), 'utf8'));
+  const items = itemsOfShard(plan.items, k, n, durations);
   const order = new Map(plan.items.map((item, i) => [item.id, i]));
   items.sort((a, b) => order.get(a.id) - order.get(b.id));
   const shardText = n > 1 ? ` (deel ${k}/${n})` : '';
@@ -363,6 +385,11 @@ async function main(argv) {
   const [command, ...rest] = argv;
   if (command === 'run') return commandRun(rest);
   if (command === 'count') return commandCount(rest);
+  if (command === 'durations') {
+    const durations = durationsFromManifests(rest.map(p => readFileSync(p, 'utf8')));
+    console.log(JSON.stringify(durations, null, 0).replaceAll(',"', ',\n"'));
+    return 0;
+  }
   if (command === 'list') {
     console.log(expectedLines(parsePlan(readFileSync(rest[0], 'utf8'))).join('\n'));
     return 0;
