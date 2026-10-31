@@ -2,8 +2,8 @@ import type { MeasuredDuration } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
-  type ReportContext, type ProgressState, dayOf, durationDays, isNearCritical, activityTasks, makeEngineCache, progressState, scheduleSlip,
-  remainingDays, remainingMeasure, resolvePeriodFor, round1, taskFinish, taskStart,
+  type ReportContext, type ProgressState, dayOf, durationDays, elapsedWorkFraction, isNearCritical, activityTasks, makeEngineCache, progressState, scheduleSlip,
+  remainingDays, remainingMeasure, resolvePeriodFor, round1, statusMoment, taskFinish, taskStart,
 } from './reportCommon';
 import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
 
@@ -107,6 +107,7 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
   const engines = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const refDate = parseDate(ref);
+  const moment = statusMoment(ctx);
 
   const leaves = activityTasks(ctx.tasks);
   const rows = new Map<string, ProgressRow>();
@@ -148,7 +149,9 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
     const finish = bt ? bt.finish : taskFinish(t);
     const eng = engines.forTask(t);
     let plannedFrac: number;
-    if (refDate < parseDate(start)) plannedFrac = 0;
+    // Een statusmoment met tijd meet in het taakvenster zelf; zonder tijd telt de statusdag als gewerkt.
+    if (moment && eng.isHourMode) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
+    else if (refDate < parseDate(start)) plannedFrac = 0;
     else if (refDate >= parseDate(finish)) plannedFrac = 1;
     else plannedFrac = Math.min(1, Math.max(0, eng.workDaysBetween(parseDate(start), refDate) / weight));
     weightSum += weight;

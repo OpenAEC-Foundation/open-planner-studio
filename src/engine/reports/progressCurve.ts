@@ -1,12 +1,9 @@
 import type { Task } from '@/types/task';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isDateOnly, isInstant } from '@/engine/calendar/workdayRules';
-import { isHourModeCalendar } from '@/types/calendar';
-import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
-  type ReportContext, activityTasks, dayOf, durationDays, makeEngineCache, progressState, referenceDay, round1,
-  scheduleSlip, taskFinish, taskStart,
+  type ReportContext, activityTasks, dayOf, durationDays, elapsedWorkFraction, makeEngineCache, progressState, referenceDay,
+  round1, scheduleSlip, statusMoment, taskFinish, taskStart,
 } from './reportCommon';
 
 /**
@@ -16,13 +13,13 @@ import {
  * Alleen-lezen: het rapport leest wat de laatste berekening op de taken zette (getoonde data,
  * laatste data, speling, kritiek) en rekent niets door.
  *
- * Een CURVE telt per dag elke bladtaak mee met gewicht × het verstreken deel van haar venster:
- * werkdagen(start, dag) ÷ werkdagen(start, einde) op de kalender van de taak. Het gewicht is de duur
+ * Een CURVE telt per dag elke bladtaak mee met gewicht × het verstreken deel van haar venster
+ * (`elapsedWorkFraction`), op de kalender van de taak. Het gewicht is de duur
  * in werkdagen (`durationDays`), net als de gewogen voortgang van het voortgangsrapport; mijlpalen
  * wegen 0. De waarde op een dag is de stand aan het EINDE van die dag (de dag telt als gewerkt), dezelfde
- * telling als de geplande voortgang van `computeProgressReport`. Alleen een statusdatum mét tijd op een
- * uur-projectkalender is een moment: op dat punt telt het deel van de dag dat verstreken is, in de
- * dagenmaat van de kalender. Kerncijfer en curve lezen dan hetzelfde moment.
+ * telling als de geplande voortgang van `computeProgressReport`. Een statusdatum mét tijd op een
+ * uur-projectkalender is een moment (`statusMoment`): een eigen meetpunt vóór het einde van die dag.
+ * Kerncijfer en curve lezen dan hetzelfde moment.
  *
  * De WERKELIJKE curve is een benadering: de app bewaart alleen de stand van nu. Per taak loopt de
  * voortgang lineair van de werkelijke start naar de huidige voltooiing — tot het werkelijke einde bij
@@ -104,41 +101,8 @@ function isoOfDayNum(n: number): string {
   return new Date(n * DAY_MS).toISOString().slice(0, 10);
 }
 
-/** Een venster op dagniveau (ISO-dagen), met de oorspronkelijke momenten voor een statusmoment met tijd. */
+/** Een venster op dagniveau (ISO-dagen), met de oorspronkelijke momenten voor de fractie. */
 interface Window { start: string; finish: string; startAt: string; finishAt: string }
-
-/** Waar het rapport de stand opneemt: het einde van `day`, of `moment` bij een statusdatum met tijd. */
-interface StatusPoint { day: string; moment?: Date }
-
-/**
- * Het verstreken deel (0–1) van een venster aan het EINDE van dag `atDay`, in werkdagen van de
- * taakkalender (beide grenzen inclusief, zoals `workDaysBetween`). Dezelfde telling als de geplande
- * voortgang van het voortgangsrapport: de statusdag telt als gewerkt.
- */
-function elapsedFraction(eng: CalendarEngine, w: Window, atDay: string): number {
-  if (atDay < w.start) return 0;
-  if (atDay >= w.finish) return 1;
-  const s = parseDate(w.start);
-  const total = eng.workDaysBetween(s, parseDate(w.finish));
-  if (!(total > 0)) return 1;
-  return Math.min(1, Math.max(0, eng.workDaysBetween(s, parseDate(atDay)) / total));
-}
-
-/**
- * Het verstreken deel (0–1) van een venster op een statusmoment, in de dagenmaat van de taakkalender
- * (`measuredWorkdaysBetween`): elke werkdag telt 1, zoals in `elapsedFraction`. Een einde zonder tijd
- * bezet zijn hele dag. Een dagkalender kent geen tijd van de dag en telt de dag als geheel.
- */
-function elapsedFractionAt(eng: CalendarEngine, w: Window, at: StatusPoint): number {
-  if (!at.moment || !eng.isHourMode) return elapsedFraction(eng, w, at.day);
-  const s = parseInstant(w.startAt);
-  const f = isDateOnly(w.finishAt) ? new Date(parseDate(w.finishAt).getTime() + DAY_MS) : parseInstant(w.finishAt);
-  if (at.moment <= s) return 0;
-  if (at.moment >= f) return 1;
-  const total = eng.measuredWorkdaysBetween(s, f);
-  if (!(total > 0)) return 1;
-  return Math.min(1, Math.max(0, eng.measuredWorkdaysBetween(s, at.moment) / total));
-}
 
 interface Weighted { task: Task; weight: number; eng: CalendarEngine }
 
@@ -164,7 +128,7 @@ function curveOver(
     // Eerste punt op of na de startdag; vanaf het eerste punt op of na de einddag is de taak "vol".
     const i0 = Math.max(0, Math.ceil((isoDayNumber(win.start) - first) / step));
     const iFull = Math.max(0, Math.ceil((isoDayNumber(win.finish) - first) / step));
-    for (let i = i0; i < Math.min(iFull, n); i++) sums[i] += amount * elapsedFraction(it.eng, win, samples[i]);
+    for (let i = i0; i < Math.min(iFull, n); i++) sums[i] += amount * elapsedWorkFraction(it.eng, win.startAt, win.finishAt, samples[i]);
     if (iFull < n) full[iFull] += amount;
   }
   let acc = 0;
@@ -174,11 +138,11 @@ function curveOver(
   });
 }
 
-function valueAt(items: readonly Weighted[], windowOf: (w: Weighted) => Window | undefined, at: StatusPoint, totalWeight: number): number {
+function valueAt(items: readonly Weighted[], windowOf: (w: Weighted) => Window | undefined, day: string, moment: Date | undefined, totalWeight: number): number {
   let sum = 0;
   for (const it of items) {
     const win = windowOf(it);
-    if (win) sum += it.weight * elapsedFractionAt(it.eng, win, at);
+    if (win) sum += it.weight * elapsedWorkFraction(it.eng, win.startAt, win.finishAt, day, moment);
   }
   return totalWeight > 0 ? (sum / totalWeight) * 100 : 0;
 }
@@ -224,11 +188,7 @@ function axisTicks(from: number, to: number): { day: string; kind: 'month' | 'we
 
 export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
   const { day: ref, statusDateMissing } = referenceDay(ctx);
-  // De tijd telt alleen op een uur-projectkalender, zoals in de motor (`isHourModeCalendar`).
-  const statusPoint: StatusPoint = {
-    day: ref,
-    moment: ctx.statusDate && isInstant(ctx.statusDate) && isHourModeCalendar(ctx.calendar) ? parseInstant(ctx.statusDate) : undefined,
-  };
+  const moment = statusMoment(ctx);
   const engines = makeEngineCache(ctx);
   const baseMap = new Map(ctx.baseline ? ctx.baseline.tasks.map(b => [b.taskId, b]) : []);
   const hasBaseline = !!ctx.baseline;
@@ -266,7 +226,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     const state = progressState(t);
     if (state === 'notStarted' && !(t.time.completion > 0)) return undefined;
     const start = t.time.actualStart || taskStart(t);
-    const finish = state === 'complete' ? (t.time.actualFinish || taskFinish(t)) : ref;
+    const finish = state === 'complete' ? (t.time.actualFinish || taskFinish(t)) : (moment ? ctx.statusDate : ref);
     return win(start, finish);
   };
   const actualScale = (w: Weighted) => (progressState(w.task) === 'complete' ? 1 : Math.min(1, Math.max(0, w.task.time.completion)));
@@ -300,13 +260,14 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
 
   // Elke curve krijgt naast het raster een exact punt OP de statusdatum: bij een lang project ligt de
   // statusdag tussen twee meetpunten, en dan moet *Gepland* toch gelijk zijn aan het punt in de grafiek.
+  // Een statusmoment met tijd is een ander punt dan het einde van die dag; dat einde blijft erachter staan.
   const one = () => 1;
   const curve = (windowOf: (w: Weighted) => Window | undefined): CurvePoint[] => {
     const pts = curveOver(items, windowOf, one, samples, totalWeight).map((pct, i) => ({ day: samples[i], pct: round2(pct) }));
-    const at = { day: ref, pct: round2(valueAt(items, windowOf, statusPoint, totalWeight)) };
+    const at = { day: ref, pct: round2(valueAt(items, windowOf, ref, moment, totalWeight)) };
     const i = pts.findIndex(p => p.day >= ref);
     if (i < 0) pts.push(at);
-    else if (pts[i].day === ref) pts[i] = at;
+    else if (pts[i].day === ref && (!moment || pts[i].pct === at.pct)) pts[i] = at;
     else pts.splice(i, 0, at);
     return pts;
   };
@@ -324,7 +285,7 @@ export function computeProgressCurve(ctx: ReportContext): ProgressCurveResult {
     actualCurve.push({ day: ref, pct: round2(actualPct) });
   }
 
-  const plannedPct = valueAt(items, hasBaseline ? plannedWin : earlyWin, statusPoint, totalWeight);
+  const plannedPct = valueAt(items, hasBaseline ? plannedWin : earlyWin, ref, moment, totalWeight);
 
   // ── Kerncijfers en risicotaken ──
   let lateCount = 0;

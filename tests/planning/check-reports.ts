@@ -841,7 +841,7 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   };
   const urenCtx = (start: string, finish: string, days: number, statusDate: string, calendar: ReportContext['calendar'] = urenCal): ReportContext => {
     const task = urenTaak(start, finish, days, 0.5);
-    return { ...ctx, tasks: [task], calendar, calendars: [calendar], statusDate, cpmResult: null,
+    return { ...ctx, tasks: [task], calendar, calendars: [calendar], statusDate,
       baseline: { ...ctx.baseline!, tasks: [{ ...ctx.baseline!.tasks[0], taskId: task.id, start, finish }] } };
   };
   const midden = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'));
@@ -858,6 +858,37 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   near('curve statusmoment: einde werktijd = statusdatum zonder tijd', eindeDag.plannedPct, heleDag.plannedPct, 0.05);
   const dagKalender = computeProgressCurve(urenCtx('2026-06-01', '2026-06-03', 3, '2026-06-02T12:00', { ...urenCal, workTime: undefined }));
   near('curve statusmoment: dagkalender negeert de tijd, zoals de motor', dagKalender.plannedPct, 66.7, 0.05);
+
+  // Alle meetpunten van een curve gebruiken dezelfde kalenderfractie: ook bij een start of einde midden op de dag
+  // daalt de voortgang nooit zonder wijziging aan de planning.
+  const stijgt = (c: CurvePoint[] | undefined) => !!c?.length && c.every((p, i) => i === 0 || c[i - 1].pct <= p.pct);
+  const halveDagen = computeProgressCurve(urenCtx('2026-06-01T12:00', '2026-06-03T12:00', 2, '2026-06-02T08:00'));
+  near('curve deeldagen: maandag ma 12:00–wo 12:00 = 0,5 van 2 werkdagen', pointAt(halveDagen.plannedCurve, '2026-06-01'), 25, 0.05);
+  near('curve deeldagen: di 08:00 = dezelfde stand als het einde van maandag', pointAt(halveDagen.plannedCurve, '2026-06-02'), 25, 0.05);
+  ok('curve deeldagen: gepland, vroegst en laatst stijgen', stijgt(halveDagen.plannedCurve) && stijgt(halveDagen.earlyCurve) && stijgt(halveDagen.lateCurve));
+  const weekend = computeProgressCurve(urenCtx('2026-06-05T12:00', '2026-06-08T16:00', 1.5, '2026-06-06T12:00'));
+  near('curve weekend: vr 12:00–ma 16:00, status za = 0,5 van 1,5 werkdag', weekend.plannedPct, 33.3, 0.05);
+  ok('curve weekend: gepland, vroegst en laatst stijgen', stijgt(weekend.plannedCurve) && stijgt(weekend.earlyCurve) && stijgt(weekend.lateCurve));
+  ok('curve statusmoment: de werkelijke curve stijgt', stijgt(tweede.actualCurve) && stijgt(weekend.actualCurve));
+
+  // Een statusmoment en het latere dageinde zijn twee meetpunten: het einde op 100 % blijft staan.
+  const dagEinde = (c: CurvePoint[] | undefined) => c?.[c.length - 1];
+  eq('curve statusmoment: geplande curve eindigt op 100 %', dagEinde(midden.plannedCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: vroegste curve eindigt op 100 %', dagEinde(midden.earlyCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: laatste curve eindigt op 100 %', dagEinde(midden.lateCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: de werkelijke curve stopt op het statusmoment', dagEinde(midden.actualCurve), { day: '2026-06-01', pct: 50 });
+  ok('curve statusmoment: stijgt ook met het eindpunt', stijgt(midden.plannedCurve) && stijgt(midden.earlyCurve));
+
+  // Het voortgangsrapport leest hetzelfde moment; het gewicht blijft de duur van de taak.
+  const periode = { period: { preset: 'last2Weeks' as const }, nearCriticalDays: 5 };
+  const voortgang = computeProgressReport(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'), periode);
+  near('voortgang statusmoment: gepland 50 % op 12:00', voortgang.summary.plannedPct, 50, 0.05);
+  const dagStand = computeProgressReport(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01'), periode);
+  near('voortgang statusdatum zonder tijd: de dag telt als gewerkt', dagStand.summary.plannedPct, 100, 0.05);
+  const klein = urenTaak('2026-06-01T08:00', '2026-06-01T16:00', 1, 0.5);
+  const groot = { ...urenTaak('2026-06-01T08:00', '2026-06-04T16:00', 4, 0.125), id: `${klein.id}-groot` };
+  const gewogen = { ...urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'), tasks: [klein, groot], baseline: null };
+  near('voortgang statusmoment: gewicht blijft de duur (1 en 4 werkdagen)', computeProgressReport(gewogen, periode).summary.plannedPct, 20, 0.05);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

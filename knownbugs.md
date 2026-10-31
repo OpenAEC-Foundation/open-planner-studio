@@ -404,12 +404,6 @@ en noem het in je rapport of PR-tekst.
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
 
-562. **Het voortgangsrapport telt een statusmoment met tijd nog als hele dag.** `src/engine/reports/progressReport.ts:153`
-     rekent de geplande voortgang met `workDaysBetween` tot de statusdag. Op een uur-projectkalender geeft een taak
-     08:00–16:00 met status 12:00 dus 100 % gepland, waar het rapport Voortgangscurve sinds #705 50 % geeft. Afgeleid
-     uit de code, niet nagespeeld in de app. Voorstel: dezelfde telling als `elapsedFractionAt` in
-     `src/engine/reports/progressCurve.ts`. Gevonden bij #705. — S
-
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
