@@ -1,4 +1,4 @@
-// Issue #391: meerdere baselines tegelijk in de Gantt, in één gestreepte strook. Opent de
+// Issue #391: meerdere baselines tegelijk in de Gantt, in één strook. Opent de
 // kijkscène `?qaScene=meerdere-baselines` (drie baselines; "Contract" actief, twee extra aan) en
 // controleert met echte klikken en hovers: de gesplitste knop Baseline-overlay met het menu "Toon in
 // de Gantt", de legenda en de tooltip op stukken met één, twee en drie baselines, en dat de keuze
@@ -169,7 +169,7 @@ test('meerdere baselines: gesplitste knop, menu, legenda en tooltip per stuk', a
   await fresh.close();
 });
 
-test('meerdere baselines: 2×-schermbeeld van de strepen (alleen met OPS_QA_SHOTS)', async ({ browser }) => {
+test('meerdere baselines: 2×-schermbeeld van de lijnen (alleen met OPS_QA_SHOTS)', async ({ browser }) => {
   test.skip(!SHOTS, 'alleen voor de ontwerpbeoordeling');
   test.setTimeout(90_000);
   const context = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 1600, height: 900 } });

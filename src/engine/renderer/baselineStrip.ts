@@ -2,16 +2,16 @@
 // (`GanttRenderer`) en de afdruk/PDF (`printPreview`), net als `paintProgressBarPiece` voor de balk.
 //
 // De Gantt toont de actieve baseline plus tot twee vergelijkingsbaselines (issue #391) in ÉÉN strook.
-// Per taak wordt die strook op de begin- en eindgrenzen van de baselines in stukken verdeeld:
-//   - ligt er in een stuk één baseline: effen in haar kleur;
-//   - liggen er twee of drie: schuine strepen (45°) die om de beurt precies die kleuren tonen;
-//   - raken baselines elkaar niet: losse stukken.
-// Een buitenkant van de strook (geen baseline er direct naast) is halfrond. Mijlpalen krijgen een
-// ruit per datum; vallen meerdere baselines op dezelfde datum, dan één gestreepte ruit.
+// Elke baseline is een eigen lijn binnen die strook (issue #741), in een vaste volgorde van boven naar
+// onder (plaats 0, 1, 2):
+//   - loopt er één baseline: die heeft de volle dikte, en begin en einde zijn recht afgesneden;
+//   - lopen er meer tegelijk: ze delen de hoogte, en de overgang is vloeiend (`baselineLanes`);
+//   - raken baselines elkaar niet: losse lijnen.
+// Mijlpalen krijgen een ruit per datum; vallen meerdere baselines op dezelfde datum, dan één gestreepte
+// ruit.
 //
 // Alles wordt als veelhoek getekend (geen canvaspatroon, geen clip), omdat de afdruklaag (`Draw2D`,
-// ook de vector-PDF) die niet kent. Zo zijn scherm en papier per constructie gelijk. De strepen
-// liggen vast aan `anchorX` (de linkerkant van de strook), dus ze schuiven mee bij pannen.
+// ook de vector-PDF) die niet kent. Zo zijn scherm en papier per constructie gelijk.
 
 import { MS_PER_DAY, parseDate, parseInstant } from '@/utils/dateUtils';
 import { finishInstant } from '@/utils/taskDates';
@@ -80,14 +80,11 @@ export function baselineSpanX(
   return { kind: 'bar', x1, x2 };
 }
 
-/** Eén stuk van de strook met de baselines die er liggen (oplopend op plaats). */
+/** Eén stuk van de strook met de baselines die er liggen (oplopend op plaats). Voor de hover. */
 export interface BaselineStripPiece {
   x1: number;
   x2: number;
   slots: BaselineSlot[];
-  /** Halfrond aan deze kant: er ligt geen baseline direct links/rechts van het stuk. */
-  roundLeft: boolean;
-  roundRight: boolean;
 }
 
 /** Eén ruit met de baselines die op die datum liggen. */
@@ -106,14 +103,13 @@ export function baselineStripPieces(bars: readonly BaselineBar[]): BaselineStrip
   const valid = bars.filter(b => b.x2 > b.x1);
   if (valid.length === 0) return [];
   const edges = [...new Set(valid.flatMap(b => [b.x1, b.x2]))].sort((a, b) => a - b);
-  const covered = (x: number) => valid.some(b => b.x1 < x && b.x2 > x);
   const pieces: BaselineStripPiece[] = [];
   for (let i = 0; i < edges.length - 1; i++) {
     const a = edges[i];
     const b = edges[i + 1];
     const slots = valid.filter(bar => bar.x1 <= a && bar.x2 >= b).map(bar => bar.slot).sort(bySlot);
     if (slots.length === 0) continue;
-    pieces.push({ x1: a, x2: b, slots, roundLeft: !covered(a - 1e-6), roundRight: !covered(b + 1e-6) });
+    pieces.push({ x1: a, x2: b, slots });
   }
   return pieces;
 }
@@ -144,6 +140,108 @@ export function widenShortRuns(pieces: readonly BaselineStripPiece[], minWidth: 
     i = j + 1;
   }
   return out;
+}
+
+/**
+ * Lengte van de overgang in px: over deze afstand bouwt een baseline zijn dikte op of af. In pixels en
+ * niet in dagen, zodat de overgang er bij elke zoom hetzelfde uitziet. Dit is de enige plek voor deze
+ * waarde; de afdruk schaalt hem mee met de rapportschaal.
+ */
+export const BASELINE_BLEND_PX = 21;
+
+/** Afstand tussen twee meetpunten in een overgang, als deel van de overgangslengte. */
+const BLEND_STEPS = 16;
+/** Zo ver naast een rand meten we: precies op de rand is het gewicht 0. */
+const EDGE_EPSILON = 1e-3;
+
+/** S-curve van 0 naar 1. */
+function sCurve(t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+}
+
+/** Overgangslengte van één baseline: een korte baseline bereikt midden in zijn lengte zijn volle
+ *  gewicht, anders blijft hij naast een lange baseline een onzichtbaar sliertje. */
+const rampOf = (b: BaselineBar, blend: number) => Math.min(blend, (b.x2 - b.x1) / 2);
+
+/** Gewicht op x: bouwt op vanaf het begin, bouwt af naar het einde, buiten de baseline 0. */
+function laneWeight(b: BaselineBar, x: number, blend: number): number {
+  if (x <= b.x1 || x >= b.x2) return 0;
+  const ramp = rampOf(b, blend);
+  return sCurve((x - b.x1) / ramp) * sCurve((b.x2 - x) / ramp);
+}
+
+/** Eén baseline als lijn in de strook: per `x` de boven- en onderkant, gemeten vanaf de strookbovenkant. */
+export interface BaselineLane {
+  slot: BaselineSlot;
+  x: number[];
+  top: number[];
+  bottom: number[];
+}
+
+/**
+ * Rekent de lijnen van één taak uit. Dikte = `height` × eigen gewicht ÷ som van de gewichten; de
+ * volgorde in de strook is de plaats (0 boven). Loopt een baseline alleen, dan is zijn gewicht ook de
+ * som: volle dikte tot aan de rand. Puur, en buiten de overgangen maar twee punten per stuk.
+ * Lege of omgekeerde stroken tellen niet mee.
+ */
+export function baselineLanes(bars: readonly BaselineBar[], height: number, blend: number): BaselineLane[] {
+  const valid = bars.filter(b => b.x2 > b.x1).sort((a, b) => a.slot - b.slot);
+  const edges = [...new Set(valid.flatMap(b => {
+    const ramp = rampOf(b, blend);
+    return [b.x1, b.x1 + ramp, b.x2 - ramp, b.x2];
+  }))].sort((a, b) => a - b);
+  // Meetpunten: alle randen, en fijn verdeeld waar twee of meer baselines naast elkaar lopen en de
+  // dikte dus verandert. Loopt er één, dan blijft de dikte gelijk.
+  const grid: number[] = [];
+  edges.forEach((a, i) => {
+    grid.push(a);
+    const b = edges[i + 1];
+    if (b === undefined) return;
+    const active = valid.filter(v => v.x1 <= a && v.x2 >= b);
+    const changing = active.length > 1 && active.some(v => {
+      const ramp = rampOf(v, blend);
+      return a < v.x1 + ramp || b > v.x2 - ramp;
+    });
+    if (!changing) return;
+    const n = Math.max(1, Math.ceil((b - a) / (blend / BLEND_STEPS)));
+    for (let k = 1; k < n; k++) grid.push(a + ((b - a) * k) / n);
+  });
+  return valid.map(bar => {
+    const lane: BaselineLane = { slot: bar.slot, x: [], top: [], bottom: [] };
+    for (const x of grid) {
+      if (x < bar.x1 || x > bar.x2) continue;
+      // Op de eigen rand net binnen de baseline meten: daar is het eigen gewicht nog niet 0.
+      const at = x === bar.x1 ? x + EDGE_EPSILON : x === bar.x2 ? x - EDGE_EPSILON : x;
+      let above = 0;
+      let own = 0;
+      let sum = 0;
+      for (const other of valid) {
+        const w = laneWeight(other, at, blend);
+        sum += w;
+        if (other.slot < bar.slot) above += w;
+        else if (other === bar) own = w;
+      }
+      if (sum <= 0) continue;
+      lane.x.push(x);
+      lane.top.push((height * above) / sum);
+      lane.bottom.push((height * (above + own)) / sum);
+    }
+    return lane;
+  });
+}
+
+/** Past de minimumbreedte van {@link widenShortRuns} toe op de baselines zelf, vóór `baselineLanes`
+ *  (scherm en afdruk gelijk). Een baseline volgt de stukken waarin hij ligt, dus twee baselines die op
+ *  elkaar aansluiten, gaan niet overlappen. */
+export function widenBars(bars: readonly BaselineBar[], minWidth: number): BaselineBar[] {
+  const valid = bars.filter(b => b.x2 > b.x1);
+  const real = baselineStripPieces(valid);
+  const wide = widenShortRuns(real, minWidth);
+  return valid.map(bar => {
+    const mine = wide.filter((_, i) => real[i].x1 >= bar.x1 && real[i].x2 <= bar.x2);
+    return { ...bar, x1: Math.min(...mine.map(p => p.x1)), x2: Math.max(...mine.map(p => p.x2)) };
+  });
 }
 
 /** Groepeert baseline-mijlpalen op hun moment (`moment`): mijlpalen op hetzelfde moment
@@ -211,31 +309,6 @@ function clipConvex(subject: readonly Pt[], clip: readonly Pt[]): Pt[] {
   return out;
 }
 
-/** Rechthoek met halfronde zijkanten als convexe veelhoek (met de klok mee). */
-function stripOutline(x1: number, x2: number, y: number, h: number, roundLeft: boolean, roundRight: boolean): Pt[] {
-  const r = Math.min(h / 2, (x2 - x1) / 2);
-  const steps = 6;
-  const pts: Pt[] = [];
-  // Bovenkant van links naar rechts, rechterkant, onderkant terug, linkerkant.
-  if (roundRight && r > 0) {
-    for (let i = 0; i <= steps; i++) {
-      const a = -Math.PI / 2 + (Math.PI * i) / steps;
-      pts.push([x2 - r + r * Math.cos(a), y + r + r * Math.sin(a)]);
-    }
-  } else {
-    pts.push([x2, y], [x2, y + h]);
-  }
-  if (roundLeft && r > 0) {
-    for (let i = 0; i <= steps; i++) {
-      const a = Math.PI / 2 + (Math.PI * i) / steps;
-      pts.push([x1 + r + r * Math.cos(a), y + r + r * Math.sin(a)]);
-    }
-  } else {
-    pts.push([x1, y + h], [x1, y]);
-  }
-  return pts;
-}
-
 function fillPolygon(d: StripPainter, pts: readonly Pt[]): void {
   if (pts.length < 3) return;
   d.beginPath();
@@ -278,7 +351,9 @@ export interface PaintBaselineStripOptions {
   /** Bovenkant en hoogte van de strook. */
   top: number;
   height: number;
-  /** Breedte van één schuine band (horizontaal gemeten). */
+  /** Lengte van de overgang in px (`BASELINE_BLEND_PX`, op papier geschaald). */
+  blend: number;
+  /** Breedte van één schuine band waar mijlpalen samenvallen (horizontaal gemeten). */
   stripeWidth: number;
   /** Kleur per baselineplaats. */
   colorOf: (slot: BaselineSlot) => string;
@@ -289,25 +364,26 @@ export interface PaintBaselineStripOptions {
 }
 
 /**
- * Tekent de strook van één taak: de stukken uit {@link baselineStripPieces} en de ruiten uit
- * {@link baselineDiamonds}. De strepen liggen vast aan de linkerkant van de strook (`anchorX`).
+ * Tekent de strook van één taak: de lijnen uit {@link baselineLanes} en de ruiten uit
+ * {@link baselineDiamonds}. Elke lijn loopt van zijn bovenkant door tot de onderkant van de strook, en
+ * de lijnen eronder komen er daarna overheen. Zo valt er tussen twee lijnen geen lichte naad.
  */
 export function paintBaselineStrip(
   d: StripPainter,
-  pieces: readonly BaselineStripPiece[],
+  bars: readonly BaselineBar[],
   diamonds: readonly BaselineDiamond[],
   o: PaintBaselineStripOptions,
 ): void {
   const [vMin, vMax] = o.visibleX ?? [-Infinity, Infinity];
-  const anchorX = pieces.length ? pieces[0].x1 : 0;
-  for (const p of pieces) {
-    if (p.x2 < vMin || p.x1 > vMax) continue;
-    // Een heel lang stuk (ver ingezoomd) alleen tekenen waar het zichtbaar is; de ronde kanten
-    // blijven dan buiten beeld.
-    const x1 = p.x1 < vMin - o.height ? vMin - o.height : p.x1;
-    const x2 = p.x2 > vMax + o.height ? vMax + o.height : p.x2;
-    const outline = stripOutline(x1, x2, o.top, o.height, p.roundLeft && x1 === p.x1, p.roundRight && x2 === p.x2);
-    fillStriped(d, outline, p.slots.map(o.colorOf), o.stripeWidth, anchorX, o.top, o.height, x1, x2);
+  // Heel ver ingezoomd of in een rapportvenster: alleen tekenen wat in beeld valt.
+  const clampX = (x: number) => Math.min(vMax, Math.max(vMin, x));
+  const bottom = o.top + o.height;
+  for (const lane of baselineLanes(bars, o.height, o.blend)) {
+    const n = lane.x.length;
+    if (n < 2 || lane.x[n - 1] < vMin || lane.x[0] > vMax) continue;
+    d.fillStyle = o.colorOf(lane.slot);
+    const edge: Pt[] = lane.x.map((x, i) => [clampX(x), o.top + lane.top[i]]);
+    fillPolygon(d, [...edge, [clampX(lane.x[n - 1]), bottom], [clampX(lane.x[0]), bottom]]);
   }
   const s = o.diamondSize;
   const cy = o.top + o.height / 2;

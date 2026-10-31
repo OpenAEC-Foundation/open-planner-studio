@@ -38,7 +38,7 @@ import type { RowAssignment, RowCurve } from '@/engine/reports/resourceGantt';
 import { formatReportNumber } from '@/utils/reportNumber';
 import { baselineReach, type BaselineOverlay } from '@/types/baseline';
 import {
-  baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, paintBaselineStrip, widenBars,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from '@/engine/renderer/baselineStrip';
 
@@ -1552,7 +1552,7 @@ export function renderReport(
     }
 
     // Dezelfde baselinestrook als in de hoofd-Gantt (`baselineStrip.ts`): de actieve baseline plus
-    // de vergelijkingsbaselines, gestreept waar ze overlappen. Hij ligt boven de huidige balk maar vóór
+    // de vergelijkingsbaselines, elk als eigen lijn. Hij ligt boven de huidige balk maar vóór
     // relaties/labels, zodat beide uitvoerpaden dezelfde leesbare laagvolgorde hebben.
     if (options.showBaselineOverlay) {
       const layers: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
@@ -1571,20 +1571,20 @@ export function renderReport(
           if (!windowed || (pos.x >= m.tableWidth && pos.x <= canvasWidth)) milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
           continue;
         }
-        const x1 = clampX(pos.x1);
-        const x2 = clampX(pos.x2);
-        // Echte grenzen: de minimumbreedte komt pas na de opdeling (`widenShortRuns`), zoals op het
-        // scherm. Een strook zonder breedte op de as (helemaal in niet-werktijd) wordt niet getekend.
-        if (x2 > x1) bars.push({ slot: layer.slot, x1, x2 });
+        // Echte grenzen, ook in een rapportvenster: de lijnen delen de hoogte zoals op het scherm, en
+        // `visibleX` klemt alleen wat buiten het venster valt. Een strook zonder breedte op de as
+        // (helemaal in niet-werktijd) of helemaal buiten het venster wordt niet getekend.
+        if (clampX(pos.x2) > clampX(pos.x1)) bars.push({ slot: layer.slot, x1: pos.x1, x2: pos.x2 });
       }
-      const pieces = widenShortRuns(baselineStripPieces(bars), 2);
       const diamonds = baselineDiamonds(milestones);
-      if (pieces.length || diamonds.length) {
+      if (bars.length || diamonds.length) {
         const baseHeight = Math.max(2, barHeight * 0.28);
-        paintBaselineStrip(d2d, pieces, diamonds, {
+        paintBaselineStrip(d2d, widenBars(bars, 2), diamonds, {
           top: y + barHeight + 1,
           height: baseHeight,
+          blend: m.s(BASELINE_BLEND_PX),
           stripeWidth: Math.max(2, barHeight * 0.16),
+          visibleX: windowed ? [m.tableWidth, canvasWidth] : undefined,
           diamondSize: baselineDiamondSize(baseHeight),
           colorOf: printBaselineColor,
         });
@@ -2764,7 +2764,7 @@ function drawFooter(
         } });
       }
       // Baselines: zonder vergelijking één regel "Baseline"; met vergelijking één regel per baseline
-      // met haar naam en kleur, zodat de strepen in het rapport te lezen zijn.
+      // met haar naam en kleur, zodat de lijnen in het rapport te lezen zijn.
       const layerOverlays: { slot: BaselineSlot; overlay: BaselineOverlay }[] = [];
       if (options.baselineOverlay) layerOverlays.push({ slot: 0, overlay: options.baselineOverlay });
       for (const c of options.baselineComparisons ?? []) layerOverlays.push(c);

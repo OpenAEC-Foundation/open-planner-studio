@@ -25,6 +25,7 @@ check-bar-colors.ts matrix
 check-bar-label-color.ts matrix
 check-bar-progress.ts matrix
 check-baseline-oude-dagtelling.ts matrix
+check-baseline-referentie.ts matrix
 check-baseline-vergelijking.ts matrix
 check-benchmark-generator.ts matrix
 check-bulk-scale.ts matrix

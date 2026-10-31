@@ -16,6 +16,8 @@ type Scene = {
   target?: string;
   /** Omlijning binnen het element, voor een doel in een vlak dat de buitenkant afknipt. */
   inset?: boolean;
+  /** Geen omlijning en niet scrollen: de hele weergave is het doel. */
+  plain?: boolean;
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -280,6 +282,101 @@ async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
   return waitFor('[data-task-grid-surface-id="full-task-grid"] [role="grid"]').then(() => '[data-task-grid-surface-id="full-task-grid"]');
 }
 
+/** Schaal van de schets, in px per dag. */
+const SKETCH_ZOOM = 6;
+
+/**
+ * Issue #741: de rijen uit de schets van de eigenaar, in dagen vanaf de start van het project. Per rij
+ * de baselines in volgorde (Contract, Herplanning maart, Herplanning juni); een baseline is `[van, tot)`.
+ * De keuze van de eigenaar was het beeld van `dak`: lange stukken op volle dikte en korte overlappen.
+ */
+const SKETCH_ROWS = {
+  dak: [[56, 70], [66, 84], [80, 92]],
+  stap: [[28, 48], [34, 54], [40, 60]],
+  twee: [[14, 34], [30, 50]],
+  korter: [[6, 38], [18, 26]],
+  gat: [[40, 54], [62, 76], [72, 90]],
+  gelijk: [[14, 38], [14, 38], [14, 38]],
+} satisfies Record<string, readonly (readonly [number, number])[]>;
+type SketchRow = keyof typeof SKETCH_ROWS;
+
+/** Deze taken dragen een rij letterlijk, op de dagen uit de schets. Ze liggen daar in de tijd het dichtst bij. */
+const SKETCH_LITERAL: Record<string, SketchRow> = {
+  'Construct site road': 'korter',
+  'Excavation, building pit': 'gelijk',
+  'Pour foundation beams': 'twee',
+  'Pour ground floor slab': 'stap',
+  'Ground floor masonry \u2014 House 1': 'gat',
+  'Roof structure \u2014 House 1': 'dak',
+};
+/** De andere taken krijgen om de beurt een rij met dezelfde lengtes, verschoven naar de eigen balk. */
+const SKETCH_REPEAT: readonly SketchRow[] = ['dak', 'gat', 'twee', 'dak', 'korter', 'gat', 'dak', 'twee'];
+
+/**
+ * Issue #741: De Akkers met drie baselines, op de schaal van de schets (6 px per dag) en vanaf de
+ * start van het project in beeld. Mijlpalen schuiven mee, zodat er ook losse en samenvallende ruiten zijn.
+ */
+async function openBaselinesDoorElkaar(): Promise<void> {
+  await openExample('showcase-rijwoningen-de-akkers.ifc');
+  const { addCalendarDays, formatDate, MS_PER_DAY, parseDate } = await import('@/utils/dateUtils');
+  useAppStore.setState(s => { s.baselines = []; s.activeBaselineId = null; });
+  const contractId = useAppStore.getState().saveBaseline('Contract');
+  const contract = useAppStore.getState().baselines.find(b => b.id === contractId)!;
+  const nameOf = new Map(useAppStore.getState().tasks.map(t => [t.id, t.name]));
+  const day0 = parseDate(contract.tasks.map(t => t.start.slice(0, 10)).sort()[0]);
+  const dayOf = (iso: string) => Math.round((parseDate(iso.slice(0, 10)).getTime() - day0.getTime()) / MS_PER_DAY);
+  const isoOf = (day: number) => formatDate(addCalendarDays(day0, day));
+  const shift = (iso: string, days: number) => (iso ? isoOf(dayOf(iso) + days) + iso.slice(10) : iso);
+  const repeats = contract.tasks.filter(t => !t.isMilestone && !SKETCH_LITERAL[nameOf.get(t.taskId) ?? '']);
+  const derive = (which: 0 | 1 | 2) => contract.tasks.flatMap((t, i) => {
+    if (t.isMilestone) {
+      // Om de beurt: drie losse ruiten, twee samen en één los, of alle drie op hetzelfde moment.
+      const days = ([[-6, 0, 6], [-5, -5, 3], [0, 0, 0]] as const)[i % 3][which];
+      return [{ ...t, start: shift(t.start, days), finish: shift(t.finish, days) }];
+    }
+    const literal = SKETCH_LITERAL[nameOf.get(t.taskId) ?? ''];
+    const row: readonly (readonly [number, number])[] = SKETCH_ROWS[literal ?? SKETCH_REPEAT[repeats.indexOf(t) % SKETCH_REPEAT.length]];
+    const range = row[which];
+    if (!range) return []; // Op deze rij lopen maar twee baselines.
+    const offset = literal ? 0 : Math.max(0, dayOf(t.start) - 3) - row[0][0];
+    // De baseline bewaart de laatste dag: `tot` zelf hoort er niet meer bij.
+    return [{ ...t, start: isoOf(range[0] + offset), finish: isoOf(range[1] + offset - 1) }];
+  });
+  const named = (name: string, which: 0 | 1 | 2) => ({
+    ...contract,
+    id: `${contractId}-${name.replace(/\s+/g, '-').toLowerCase()}`,
+    name,
+    tasks: derive(which),
+  });
+  const maart = named('Herplanning maart', 1);
+  const juni = named('Herplanning juni', 2);
+  useAppStore.setState(s => {
+    const i = s.baselines.findIndex(b => b.id === contractId);
+    s.baselines[i] = { ...contract, tasks: derive(0) };
+    s.baselines.push(maart, juni);
+    s.activeBaselineId = contractId;
+    s.ui.showBaselineOverlay = true;
+    s.comparedBaselineIds = [maart.id, juni.id];
+    s.ui.showPropertiesPanel = false;
+  });
+  (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
+  for (let i = 0; i < 20; i++) {
+    if (document.querySelector('[data-ops-welcome-dialog]')) {
+      await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
+      break;
+    }
+    await sleep(150);
+  }
+  // De schaal van de schets, vanaf de start van het project: daar staan de rijen van de schets.
+  useAppStore.getState().setZoom(SKETCH_ZOOM);
+  const { computeScrollToDate } = await import('@/utils/ganttViewport');
+  const state = useAppStore.getState();
+  useAppStore.setState(s => {
+    s.view.scrollX = computeScrollToDate(isoOf(0), state);
+    s.view.scrollY = 0;
+  });
+}
+
 const SCENES: Record<string, Scene> = {
   // F4b-checkstap: het testproject in licht en donker, en de plek van "Gemengde dag/uur-planning toestaan".
   'f4b-maten': { run: () => f4bGantt('light') },
@@ -515,6 +612,33 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-baseline-split]';
     },
   },
+  // Issue #741: een echt project met drie baselines die op elke rij door elkaar lopen.
+  'baselines-door-elkaar': {
+    plain: true,
+    run: async () => {
+      await openBaselinesDoorElkaar();
+      return '[data-ops-ribbon-tab="beeld"]';
+    },
+  },
+  // Issue #741: hetzelfde project in het rapport (afdrukvoorbeeld), met de strook aan.
+  'baselines-door-elkaar-rapport': {
+    plain: true,
+    run: async () => {
+      await openBaselinesDoorElkaar();
+      (await waitFor('[data-ops-ribbon-tab="report"]')).click();
+      for (let i = 0; i < 40; i++) {
+        const box = [...document.querySelectorAll('label')]
+          .find(l => /Baseline-overlay|baseline overlay/i.test(l.textContent ?? ''))
+          ?.querySelector('input');
+        if (box) {
+          if (!box.checked) box.click();
+          break;
+        }
+        await sleep(150);
+      }
+      return '[data-ops-ribbon-tab="report"]';
+    },
+  },
 };
 
 export async function runQaScene(name: string): Promise<void> {
@@ -535,6 +659,7 @@ export async function runQaScene(name: string): Promise<void> {
     await scene.steps?.();
     target = scene.target!;
   }
+  if (scene.plain) return;
   (await waitFor(target)).scrollIntoView({ block: 'center' });
   // Alle treffers omlijnen (bv. meerdere meldingen naast elkaar in de statusbalk).
   for (const el of document.querySelectorAll<HTMLElement>(target)) {
