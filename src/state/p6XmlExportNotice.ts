@@ -75,7 +75,7 @@ export function exportP6XmlLossNotice(
     Object.values(t.customFields ?? {}).some(value => value !== undefined && value !== '')));
   fact('notifications.exportXerLossItem.activityCodeDefinitions', categories.includes('activity-codes'));
   fact('notifications.exportXerLossItem.customFieldDefinitions', categories.includes('udfs'));
-  item('notifications.exportXerLossItem.taskCategories', count(t => !!t.taskType && t.taskType !== 'CONSTRUCTION' && !t.customTaskTypeId));
+  item('notifications.exportXerLossItem.taskCategories', count(t => !!t.taskType && t.taskType !== 'CONSTRUCTION' && (isSummaryTask(t) || !t.customTaskTypeId)));
   item('notifications.exportP6XmlLossItem.priorities', count(t => t.priority !== 500));
   item('notifications.exportXerLossItem.taskDescriptions', count(t => isSummaryTask(t) && !!t.description?.trim()));
   item('notifications.exportP6XmlLossItem.notes', tasks.reduce((n, t) => n + (t.notes?.length ?? 0), 0));

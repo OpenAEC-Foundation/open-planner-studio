@@ -89,6 +89,9 @@ one('resources en kalender', {
 }, [`${P}resourceTypes:2`, `${X}libraryLinks:1`, `${X}holidayNames:1`, `${P}projectDetails`]);
 one('alleen een projectbeschrijving gaat mee', { project: { schedulingProfile: p6, description: 'Tekst' } as P6XmlLossInput['project'] }, []);
 one('eigen taaktype gaat mee', { tasks: [task('Inkoop', { taskType: 'USERDEFINED' as Task['taskType'], customTaskTypeId: 'x' })] }, []);
+one('eigen taaktype op een samenvattingstaak gaat niet mee', {
+  tasks: [task('Fase', { isSummary: true, childIds: ['Kind'], taskType: 'USERDEFINED' as Task['taskType'], customTaskTypeId: 'x' }), task('Kind', { parentId: 'Fase' })],
+}, [`${X}taskCategories:1`]);
 one('projectstandaard gelijk aan de P6-standaard', { project: { schedulingProfile: p6, defaultWorkRule: DEFAULT_WORK_RULE } }, []);
 
 // Elke categorie die de detector voor P6 XML kan geven, levert minstens één regel.
