@@ -889,6 +889,13 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   const groot = { ...urenTaak('2026-06-01T08:00', '2026-06-04T16:00', 4, 0.125), id: `${klein.id}-groot` };
   const gewogen = { ...urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'), tasks: [klein, groot], baseline: null };
   near('voortgang statusmoment: gewicht blijft de duur (1 en 4 werkdagen)', computeProgressReport(gewogen, periode).summary.plannedPct, 20, 0.05);
+
+  // Zonder statustijd: op een uur-kalender geven curve en Voortgang dezelfde fractie, ook op deeldagen.
+  for (const [status, verwacht] of [['2026-06-01', 25], ['2026-06-02', 75]] as const) {
+    const deeldagen = { ...urenCtx('2026-06-01T12:00', '2026-06-03T12:00', 2, status), baseline: null };
+    near(`curve deeldagen zonder statustijd ${status}`, computeProgressCurve(deeldagen).plannedPct, verwacht, 0.05);
+    near(`voortgang deeldagen zonder statustijd ${status}`, computeProgressReport(deeldagen, periode).summary.plannedPct, verwacht, 0.05);
+  }
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

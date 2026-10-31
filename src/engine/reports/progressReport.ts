@@ -149,8 +149,8 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
     const finish = bt ? bt.finish : taskFinish(t);
     const eng = engines.forTask(t);
     let plannedFrac: number;
-    // Een statusmoment met tijd meet in het taakvenster zelf; zonder tijd telt de statusdag als gewerkt.
-    if (moment && eng.isHourMode) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
+    // Een uur-kalender meet in het taakvenster zelf, zoals de voortgangscurve; het gewicht blijft de duur.
+    if (eng.isHourMode) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
     else if (refDate < parseDate(start)) plannedFrac = 0;
     else if (refDate >= parseDate(finish)) plannedFrac = 1;
     else plannedFrac = Math.min(1, Math.max(0, eng.workDaysBetween(parseDate(start), refDate) / weight));

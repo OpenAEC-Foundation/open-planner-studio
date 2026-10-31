@@ -66,10 +66,11 @@ Op de statusdatum is de curve precies de gewogen voortgang van nu. Het rapport z
 onder de grafiek.
 
 **Gepland % op de statusdatum** is de waarde van de geplande curve op die dag. Zonder baseline is het de
-curve op vroegste data, met "(huidige planning)" erbij, zoals in het voortgangsrapport. Het
-voortgangsrapport deelt het verstreken deel door de huidige duur; dit rapport door het eigen venster
+curve op vroegste data, met "(huidige planning)" erbij, zoals in het voortgangsrapport. Op een dagkalender
+deelt het voortgangsrapport het verstreken deel door de huidige duur; dit rapport door het eigen venster
 van de baseline. Bij een baseline met andere duren dan nu kan het getal dus iets verschillen. Dat is
-bewust: het getal moet gelijk zijn aan het punt in de grafiek.
+bewust: het getal moet gelijk zijn aan het punt in de grafiek. Op een uur-kalender gebruiken beide rapporten
+dezelfde fractie.
 
 **Te laat** is een open taak die
 - volgens de planning al had moeten eindigen of starten (`scheduleSlip`, dezelfde regel als het
