@@ -23,8 +23,8 @@ Besluit: eigenaar, gesprek 2026-10-22.
 - Besluit eigenaar, 2026-10-31: een ontbrekend `AUR_SSH_PRIVATE_KEY` is geen stopreden. Het rapport zegt
   dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel; zie de referentie.
 - Besluit eigenaar, 2026-10-31: de browsersuite draait vrijdag om 22:00 en de taak van vrijdag 23:30 repareert
-  wat rood is ([skill](../browsertests-repareren/SKILL.md)). De zaterdagjob leest die stand in stap 1 van de skill.
-  De prompt hieronder blijft gelijk: hij volgt de release-skill al volledig.
+  wat rood is ([skill](../browsertests-repareren/SKILL.md)). Is het issue `Browsertests repareren` open, dan wacht
+  de zaterdagjob vóór alles op main, tot uiterlijk 14:00. Zie *Eerst: browsertests* in de release-skill.
 - Rode main-/release-PR-/releaseworkflow: eerst eenmaal `gh run rerun <id> --failed`.
   Blijft hij rood: kleinste fix-PR vanaf main, tweede Sol-review via T3 `delegate_task`
   (`codex`, `gpt-6.1-sol`, `reasoningEffort: xhigh`). Letterlijke reviewerbrief en BLOKKEERT/VERVOLG
@@ -52,7 +52,9 @@ De lichte vertaalscripts, i18n-onderhoud en pakketchecks uit update-ui-lang vall
 Geef elk T3-Haiku-station het zaterdagmandaat en toestemming voor zijn eigen pakketcheck mee,
 alleen in dezelfde release-worktree. De stations installeren niets. Behoud alle vertaalpoorten.
 Het zaterdagmandaat omvat publiceren en gecontroleerd hervatten, zonder menselijk akkoord.
-Rond eerst onafgerond werk voor de laatste tag af. Respecteer alle stopregels.
+Doe vóór alles op main eerst de stap Eerst: browsertests uit de release-skill. Is het issue Browsertests
+repareren open, wacht dan tot uiterlijk 14:00. Geen vertalingen, geen versie, geen PR en geen tag.
+Rond daarna onafgerond werk voor de laatste tag af. Respecteer alle stopregels.
 Een ontbrekend AUR_SSH_PRIVATE_KEY is geen stopreden; volg daarvoor de referentie.
 Meld in het rapport dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel.
 Herstel rode CI volgens referentie.md: eenmaal rerun, dan fix-PR met tweede Sol-review.

@@ -22,6 +22,32 @@ voor een oudere tag. De run gaat door. Het eindrapport zegt dat Arch nog geen pa
 Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt wel.
 Lever het bewijs uit [Ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret).
 
+## Eerst: browsertests
+
+Doe dit vóór alles op main.
+
+Er werkt nooit meer dan één Sol-taak tegelijk op main. Het enige signaal is een open issue met de titel
+`Browsertests repareren` en het label `browsertests-reparatie`. Open issue: de reparatie loopt.
+
+- Issue open: de release wacht. Geen vertalingen, geen versie, geen PR en geen tag.
+- Issue dicht en laatste browserrun op main groen: de release gaat verder.
+- Geen issue, en de vrijdagrun is rood of ontbreekt: de release doet de reparatie eerst zelf, ook met dat issue.
+- Nog geen tag om 14:00: geen tag die week. De release meldt dat aan Ethan, met de reden.
+  Is de reparatie dan niet klaar, dan blijft het issue open.
+
+Wacht zo, met een lus die om 14:00 stopt. Exit 0: geen open issue. Exit 1: het is 14:00 en het issue is nog open.
+Stopt de shell eerder, start dan dezelfde opdracht opnieuw; de grens blijft 14:00.
+```bash
+REPO=OpenAEC-Foundation/open-planner-studio
+GRENS=$(TZ=Europe/Amsterdam date -d 14:00 +%s)
+open_issues() { gh issue list --repo "$REPO" --state open --label browsertests-reparatie --json number --jq length; }
+until [ "$(open_issues)" = 0 ] || [ "$(date +%s)" -ge "$GRENS" ]; do sleep 300; done
+[ "$(open_issues)" = 0 ]
+```
+Exit 1: stop zonder iets op main te doen. Meld Ethan dat de reparatie de release kostte, met de reden uit het issue.
+Exit 0: lees de [laatste browserrun](../browsertests-repareren/SKILL.md#stand-voor-de-release). Poging 1 `success`:
+ga verder. Anders, of als er geen run is: voer die skill eerst zelf uit, in zijn geheel. Daarna ga je verder.
+
 ## 1. Werkplek en stopregels
 
 - Controleer eerst de fetch- én push-URL van `origin`. Beide moeten exact naar
@@ -50,9 +76,6 @@ Lever het bewijs uit [Ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret
   Rood: volg [CI herstellen](referentie.md#ci-herstellen): eenmaal rerun, dan een fix-PR
   met tweede Sol-review. Ga pas verder na groene CI op de actuele main-SHA.
 - Geen commits sinds `PREV` en geen onafgerond app-werk: stop zonder bump/tag; meld “niets veranderd”.
-- **Vrijdagrun.** Lees de [stand voor de release](../browsertests-repareren/SKILL.md#stand-voor-de-release).
-  Groen of reparatie klaar: ga door. Reparatie loopt: ga door met je eigen werk en laat de browserfouten aan die job.
-  Geen run en geen reparatie: voer eerst die skill zelf uit, binnen de deadline.
 - Falende `verify:translations`, `verify` in CI of ontbrekende/lege releasetekst blokkeert de tag.
   Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
@@ -115,7 +138,6 @@ Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede re
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
 De pushrun draait geen browsertests (besluit eigenaar, 2026-10-30). Start ze zelf op dezelfde commit.
 Doe dit vóór de tag: de `gate` van `release.yml` vindt een rode test pas ná de onomkeerbare tag.
-Loopt de browserreparatie nog: wacht tot hij klaar is, binnen de deadline. Je run zou zijn bewijsrun annuleren.
 ```bash
 SHA=$(git rev-parse origin/main)
 gh workflow run ci.yml --ref main
