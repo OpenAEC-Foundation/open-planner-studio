@@ -1329,8 +1329,7 @@ button.task-grid-relation-reference {
   /* Layout sizes (LAYOUTS.md §4.1) */
   --titlebar-height:  32px;
   --toolbar-height:   40px;
-  --statusbar-row-height: 23px; /* plus 1 px bovenrand: één rij is 24 px */
-  --statusbar-height: 24px; /* de hele balk; StatusBar.tsx overschrijft dit met de gemeten hoogte */
+  --statusbar-height: 24px;
   --sidebar-width:    260px;
   --inspector-width:  280px;
 }
@@ -2140,20 +2139,12 @@ body {
 }
 
 
-/* Knop in de statusbalk: de hover-achtergrond blijft een smalle pil, de marge vult aan tot de rijhoogte,
-   zodat elke rij even hoog is, ook als er alleen een knop op staat. */
-.statusbar-button {
-  margin-block: 3px;
-  min-height: calc(var(--statusbar-row-height) - 6px);
-  line-height: calc(var(--statusbar-row-height) - 6px);
-}
-
 /* Toast notification — gecentraliseerde gebruikersmeldingen (bevinding K8). De stapel-container
    positioneert; de losse melding verzorgt alleen inhoud + kruisje. De naam is ops-toast (was
    gantt-toast): de meldingen komen ook uit Backstage/tabel/rapport, waar geen canvas is. */
 .ops-toast-stack {
   position: fixed;
-  bottom: var(--statusbar-height);
+  bottom: var(--sp-6);
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-toast);

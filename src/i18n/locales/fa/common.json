@@ -662,7 +662,9 @@
     "missedDeadlines": "مهلت‌های گذشته: {{count}}",
     "violatedConstraints": "محدودیت‌های نقض‌شده: {{count}}",
     "outOfSequence": "روابط خارج از توالی: {{count}}",
-    "overallocated": "منابع بیش‌تخصیص‌یافته: {{count}}"
+    "overallocated": "منابع بیش‌تخصیص‌یافته: {{count}}",
+    "summary_one": "{{count}} هشدار",
+    "summary_other": "{{count}} هشدار"
   },
   "warnings": {
     "title": "هشدارها",

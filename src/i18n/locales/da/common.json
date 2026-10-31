@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} deadline(s) overskredet",
     "violatedConstraints": "{{count}} begrænsning(er) overtrådt",
     "outOfSequence": "{{count}} afhængighed(er) med fremdrift uden for rækkefølge",
-    "overallocated": "{{count}} ressource(r) overallokeret"
+    "overallocated": "{{count}} ressource(r) overallokeret",
+    "summary_one": "{{count}} advarsel",
+    "summary_other": "{{count}} advarsler"
   },
   "warnings": {
     "title": "Advarsler",

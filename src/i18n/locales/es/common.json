@@ -723,7 +723,10 @@
     "missedDeadlines": "{{count}} fecha(s) límite superada(s)",
     "violatedConstraints": "{{count}} restricción(es) incumplida(s)",
     "outOfSequence": "{{count}} relación(es) fuera de secuencia",
-    "overallocated": "{{count}} recurso(s) sobreasignado(s)"
+    "overallocated": "{{count}} recurso(s) sobreasignado(s)",
+    "summary_one": "{{count}} advertencia",
+    "summary_many": "{{count}} advertencias",
+    "summary_other": "{{count}} advertencias"
   },
   "warnings": {
     "title": "Advertencias",

@@ -1,26 +1,29 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Terminal, Circle } from 'lucide-react';
+import { Terminal, Circle, Ellipsis } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { BaselineLegend } from '@/components/canvas/BaselineLegend';
+import { BaselineLegend, useBaselineLegendLayers } from '@/components/canvas/BaselineLegend';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
+import { useStatusFold } from './useStatusFold';
 
-// Past een blok niet meer op de rij, dan schuift het als geheel naar de volgende; alleen een blok dat
-// breder is dan de hele balk verdeelt zich over meer rijen.
-const STATUS_GROUP = 'flex flex-wrap items-center gap-x-4 min-w-0 empty:hidden';
-
-// Wat bij elke klik, bewerking of opslag komt en gaat, houdt zijn plek ook als het niet zichtbaar is.
-// Zo wisselt de balk niet van rij en wordt de Gantt niet hoger of lager tijdens het werk. De plek is
-// alleen CSS-inhoud: de tekst staat dan niet in de DOM, dus tutorials en tests zien hem ook niet.
-function ReservedStatus({ shown, text, color, title }: { shown: boolean; text: string; color?: string; title?: string }) {
-  return shown
-    ? <span style={{ color }} title={title}>{text}</span>
-    : <span aria-hidden className="invisible before:content-[attr(data-reserve)]" data-reserve={text} />;
-}
+// De balk is altijd één rij. Past niet alles, dan valt dit samen, in deze volgorde: eerst wat de
+// planner elders ook ziet, als laatste wat om actie vraagt. Wat weg is, staat in de tooltip van de
+// ⋯-knop; de waarschuwingen staan onder hun kopje, dat altijd blijft.
+const FOLD_ORDER = [
+  'view', // Schaal en Zoom: staan ook op de tijdas.
+  'baselineNames', // De kleuren blijven; de namen staan in hun tooltip.
+  'warnings', // Eén kopje dat het Waarschuwingenpaneel opent.
+  'counts', // Taken en Mijlpalen.
+  'critical',
+  'selection', // Ook zichtbaar in de Gantt en de tabel.
+  'end',
+  'unsaved', // Staat ook in de titelbalk en op het tabblad.
+  'stale',
+] as const;
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -45,6 +48,9 @@ export function StatusBar() {
   const dd = useDisplayDate();
   const projectCalendar = useAppStore(s => s.calendar);
 
+  const barRef = useRef<HTMLDivElement>(null);
+  const baselineLayers = useBaselineLegendLayers();
+
   const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
   const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
   const criticalCount = cpmResult?.criticalPath.length || 0;
@@ -58,12 +64,23 @@ export function StatusBar() {
     showWarningsPanel: true,
     ...(activeRibbonTab === 'ifc' || activeRibbonTab === 'report' ? { activeRibbonTab: 'start' as const } : {}),
   });
-  const warningButton = (key: string, label: string) => (
+  const warnings = cpmResult ? [
+    { key: 'missedDeadlines', count: cpmResult.missedDeadlineTaskIds?.length ?? 0 },
+    { key: 'violatedConstraints', count: cpmResult.violatedConstraintTaskIds?.length ?? 0 },
+    { key: 'outOfSequence', count: cpmResult.outOfSequenceSequenceIds?.length ?? 0 },
+    { key: 'overallocated', count: overallocatedCount },
+  ] as const : [];
+  const activeWarnings = warnings.filter(w => w.count > 0).map(w => ({
+    ...w,
+    label: tCommon(`statusWarnings.${w.key}`, { count: w.count }),
+  }));
+  const warningTotal = activeWarnings.reduce((sum, w) => sum + w.count, 0);
+  const warningButton = (key: string, label: string, title: string) => (
     <button
       key={key}
       onClick={openWarnings}
-      title={tCommon('warnings.openPanel')}
-      className="statusbar-button px-1 rounded hover:bg-surface-hover"
+      title={title}
+      className="px-1 rounded hover:bg-surface-hover"
       style={{ color: 'var(--theme-warning-text)' }}
       data-ops-status-warning={key}
     >
@@ -71,101 +88,97 @@ export function StatusBar() {
     </button>
   );
 
-  // De balk kan meer rijen krijgen; het begeleidingspaneel en de meldingen die erboven zweven rekenen
-  // daarom met zijn gemeten hoogte. Zonder balk (presentatiemodus) geldt weer de waarde uit globals.css.
-  const barRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const bar = barRef.current;
-    if (!bar || typeof ResizeObserver === 'undefined') return;
-    const root = document.documentElement;
-    const apply = () => root.style.setProperty('--statusbar-height', `${Math.round(bar.getBoundingClientRect().height)}px`);
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(bar);
-    return () => {
-      observer.disconnect();
-      root.style.removeProperty('--statusbar-height');
-    };
-  }, []);
+  const tasksText = `${t('status.tasks')} ${leafCount}`;
+  const milestonesText = `${t('status.milestones')} ${milestoneCount}`;
+  const criticalText = cpmResult ? t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration }) : '';
+  // Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen kale "Einde:"-label
+  // zonder waarde. B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt.
+  const endText = cpmResult?.projectEnd ? `${t('status.end')} ${dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}` : '';
+  // Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
+  // Een fout houdt de vlag juist vast en blijft daarom zichtbaar.
+  const staleText = scheduleStale && (!autoCalcCPM || !!cpmResult?.error) ? `⚠ ${t('status.scheduleStale')}` : '';
+  const selectionText = selectedTaskIds.length > 0 ? t('status.selection', { count: selectedTaskIds.length }) : '';
+  // Afgeleid uit zoom — kan niet desyncen van de getekende as.
+  const scaleText = `${t('status.scale')} ${t(`ribbon.${scaleFromZoom(zoom)}`)}`;
+  const zoomText = t('status.zoom', { level: Math.round(zoom) });
+  const unsavedText = isDirty ? t('status.unsaved') : '';
+  const baselineNames = baselineLayers.map(l => l.name);
 
-  const showStale = scheduleStale && (!autoCalcCPM || !!cpmResult?.error);
+  const level = useStatusFold(barRef, FOLD_ORDER.length, [
+    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, zoomText, unsavedText,
+    ...baselineNames, ...activeWarnings.map(w => w.label), aiMode, debugTerminalEnabled,
+  ].join('|'));
+  const folded = (part: typeof FOLD_ORDER[number]) => FOLD_ORDER.indexOf(part) < level;
+
+  const hiddenTexts = [
+    ...(folded('counts') ? [tasksText, milestonesText] : []),
+    ...(folded('critical') ? [criticalText] : []),
+    ...(folded('end') ? [endText] : []),
+    ...(folded('stale') ? [staleText] : []),
+    ...(folded('selection') ? [selectionText] : []),
+    ...(folded('baselineNames') ? baselineNames : []),
+    ...(folded('view') ? [scaleText, zoomText] : []),
+    ...(folded('unsaved') ? [unsavedText] : []),
+  ].filter(text => text !== '');
 
   return (
-    // Geen `nowrap`: een flex-item gaat eerst als geheel naar de volgende rij en breekt pas als het
-    // breder is dan de hele balk. Dat houdt de tekst compleet, ook in een heel smal venster.
     <div
       ref={barRef}
-      className="flex flex-wrap items-start bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-x-4"
-      style={{ lineHeight: 'var(--statusbar-row-height)' }}
+      className="flex items-center overflow-hidden whitespace-nowrap bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
+      style={{ height: 'var(--statusbar-height)' }}
       data-tour-anchor="status-bar"
     >
-      <div className={STATUS_GROUP}>
-        <span>{t('status.tasks')} {leafCount}</span>
-        <span>{t('status.milestones')} {milestoneCount}</span>
-        {cpmResult && (
-          <>
-            <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
-            {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
-                kale "Einde:"-label zonder waarde. */}
-            {/* B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt. */}
-            {cpmResult.projectEnd && <span>{t('status.end')} {dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}</span>}
-          </>
-        )}
-      </div>
-      <div className={STATUS_GROUP}>
-        {cpmResult && (
-          <>
-            {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
-              'missedDeadlines',
-              tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
-            )}
-            {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && warningButton(
-              'violatedConstraints',
-              tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length }),
-            )}
-            {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && warningButton(
-              'outOfSequence',
-              tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length }),
-            )}
-            {overallocatedCount > 0 && warningButton(
-              'overallocated',
-              tCommon('statusWarnings.overallocated', { count: overallocatedCount }),
-            )}
-          </>
-        )}
-        {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
-            Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
-        {(showStale || !autoCalcCPM) && (
-          <ReservedStatus shown={showStale} text={`⚠ ${t('status.scheduleStale')}`} color="var(--theme-warning-text)" title={tCommon('resource.histogram.staleHint')} />
-        )}
-      </div>
-      <div className={`${STATUS_GROUP} justify-end ms-auto`}>
-        <ReservedStatus shown={selectedTaskIds.length > 0} text={t('status.selection', { count: selectedTaskIds.length || 99 })} />
-        <ReservedStatus shown={isDirty} text={t('status.unsaved')} color="var(--theme-warning-text)" />
-        <BaselineLegend />
-        {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
-        <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
-        <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
-        {aiMode && (
-          <button
-            onClick={() => setUI({ activeRibbonTab: 'ai' })}
-            title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
-            className="statusbar-button flex items-center gap-1 px-1.5 rounded hover:bg-surface-hover text-text-secondary"
-          >
-            <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
-            <span>MCP</span>
-          </button>
-        )}
-        {debugTerminalEnabled && (
-          <button
-            onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
-            title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
-            className={`statusbar-button flex items-center gap-1 px-1.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
-          >
-            <Terminal size={12} />
-          </button>
-        )}
-      </div>
+      {!folded('counts') && <span>{tasksText}</span>}
+      {!folded('counts') && <span>{milestonesText}</span>}
+      {criticalText && !folded('critical') && <span style={{ color: 'var(--theme-critical-text)' }}>{criticalText}</span>}
+      {endText && !folded('end') && <span>{endText}</span>}
+      {folded('warnings') && warningTotal > 0
+        ? warningButton(
+          'summary',
+          tCommon('statusWarnings.summary', { count: warningTotal }),
+          [...activeWarnings.map(w => w.label), tCommon('warnings.openPanel')].join('\n'),
+        )
+        : activeWarnings.map(w => warningButton(w.key, w.label, tCommon('warnings.openPanel')))}
+      {staleText && !folded('stale') && (
+        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>{staleText}</span>
+      )}
+      {selectionText && !folded('selection') && <span>{selectionText}</span>}
+      <div className="flex-1" />
+      <BaselineLegend layers={baselineLayers} namesHidden={folded('baselineNames')} />
+      {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{scaleText}</span>}
+      {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{zoomText}</span>}
+      {unsavedText && !folded('unsaved') && <span style={{ color: 'var(--theme-warning-text)' }}>{unsavedText}</span>}
+      {hiddenTexts.length > 0 && (
+        <button
+          type="button"
+          aria-label={hiddenTexts.join(', ')}
+          title={hiddenTexts.join('\n')}
+          data-tooltip-instant="true"
+          data-ops-status-more
+          className="flex items-center px-1.5 py-0.5 rounded hover:bg-surface-hover"
+        >
+          <Ellipsis size={14} aria-hidden="true" />
+        </button>
+      )}
+      {aiMode && (
+        <button
+          onClick={() => setUI({ activeRibbonTab: 'ai' })}
+          title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
+        >
+          <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
+          <span>MCP</span>
+        </button>
+      )}
+      {debugTerminalEnabled && (
+        <button
+          onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
+          title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
+        >
+          <Terminal size={12} />
+        </button>
+      )}
     </div>
   );
 }

@@ -723,7 +723,10 @@
     "missedDeadlines": "{{count}} échéance(s) dépassée(s)",
     "violatedConstraints": "{{count}} contrainte(s) non respectée(s)",
     "outOfSequence": "{{count}} relation(s) hors séquence",
-    "overallocated": "{{count}} ressource(s) en surallocation"
+    "overallocated": "{{count}} ressource(s) en surallocation",
+    "summary_one": "{{count}} avertissement",
+    "summary_many": "{{count}} avertissements",
+    "summary_other": "{{count}} avertissements"
   },
   "warnings": {
     "title": "Avertissements",

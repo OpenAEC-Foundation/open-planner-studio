@@ -723,7 +723,10 @@
     "missedDeadlines": "Propušteni rokovi za dovršetak: {{count}}",
     "violatedConstraints": "Prekršena ograničenja: {{count}}",
     "outOfSequence": "Ovisnosti izvan redoslijeda: {{count}}",
-    "overallocated": "Preopterećenja resursa: {{count}}"
+    "overallocated": "Preopterećenja resursa: {{count}}",
+    "summary_one": "{{count}} upozorenje",
+    "summary_few": "{{count}} upozorenja",
+    "summary_other": "{{count}} upozorenja"
   },
   "warnings": {
     "title": "Upozorenja",

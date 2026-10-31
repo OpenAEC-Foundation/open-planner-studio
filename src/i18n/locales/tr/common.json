@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} son tarih aşıldı",
     "violatedConstraints": "{{count}} kısıtlama ihlal edildi",
     "outOfSequence": "{{count}} sıra dışı ilerleme",
-    "overallocated": "{{count}} kaynak aşırı atanmış"
+    "overallocated": "{{count}} kaynak aşırı atanmış",
+    "summary_one": "{{count}} uyarı",
+    "summary_other": "{{count}} uyarı"
   },
   "warnings": {
     "title": "Uyarılar",

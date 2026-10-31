@@ -1,11 +1,13 @@
-// Statusbalk: geen tekst breekt af, wordt afgekapt of valt onder de vensterrand, ook niet in een smal
-// venster, in de langste talen en met drie lange baselinenamen. De balk krijgt dan extra rijen. Opent
-// De Akkers via de gewone open-route; de zwaarste stand (alles tegelijk in beeld) zet de brug als
-// fixture, want het gaat hier om de opmaak en niet om de handelingen die elke melding oproepen.
+// Statusbalk: altijd precies één rij, zonder overloop en zonder afgebroken tekst, op elke breedte en
+// in elke taal. Past niet alles, dan voegt de balk samen of verbergt hij; wat weg is, staat nog in de
+// tooltip van het waarschuwingenkopje of van de ⋯-knop. Opent De Akkers via de gewone open-route; de
+// zwaarste stand (alles tegelijk in beeld) zet de brug als fixture.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
 const BAR = '[data-tour-anchor="status-bar"]';
+const MORE = '[data-ops-status-more]';
+const SUMMARY = '[data-ops-status-warning="summary"]';
 const WIDTHS = [1920, 1500, 1366, 1280, 1024, 800, 640, 480];
 const LONG_BASELINES = [
   'Contract gegund aanbesteding fase 1',
@@ -15,50 +17,55 @@ const LONG_BASELINES = [
 
 interface BarMeasure {
   height: number;
-  /** Elke tekst in de balk, per element: verdwijnt er een, dan valt die op tegen de breedste meting. */
-  texts: string[];
+  /** De zichtbare teksten, per element. */
+  visible: string[];
+  /** De tooltips waar samengevoegde en verborgen tekst nog in staat. */
+  tooltips: string[];
   problems: string[];
 }
 
-/** Meet elke tekst: op één regel, volledig binnen de balk, en de balk zelf helemaal in het venster. */
-function measureBar(page: Page, allowBreak?: string): Promise<BarMeasure> {
-  return page.evaluate(async ({ selector, allowBreak }) => {
+/** Meet de balk: één rij, niets loopt over, elke tekst op één regel en volledig binnen de balk. */
+function measureBar(page: Page): Promise<BarMeasure> {
+  return page.evaluate(async ({ selector, more, summary }) => {
     await document.fonts.ready;
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const bar = document.querySelector<HTMLElement>(selector)!;
     const rect = bar.getBoundingClientRect();
     const problems: string[] = [];
+    if (Math.round(rect.height) !== 24) problems.push(`balk is ${rect.height}px hoog`);
     if (Math.abs(rect.bottom - innerHeight) > 0.5) problems.push(`balk eindigt op ${rect.bottom}, venster op ${innerHeight}`);
-    const published = getComputedStyle(document.documentElement).getPropertyValue('--statusbar-height');
-    if (parseFloat(published) !== Math.round(rect.height)) problems.push(`--statusbar-height ${published} bij balk van ${rect.height}px`);
-    const workspace = document.querySelector('[data-tour-anchor="gantt-panel"]')!.getBoundingClientRect();
-    if (workspace.bottom > rect.top + 0.5) problems.push(`werkruimte loopt door tot ${workspace.bottom}, balk begint op ${rect.top}`);
+    if (bar.scrollWidth > bar.clientWidth) problems.push(`overloop: ${bar.scrollWidth} in ${bar.clientWidth}`);
 
     const owners = new Set<HTMLElement>();
     const walker = document.createTreeWalker(bar, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (node.textContent?.trim()) owners.add(node.parentElement!);
     }
-    const texts: string[] = [];
+    const visible: string[] = [];
     for (const owner of owners) {
       const text = owner.textContent!.trim();
-      texts.push(text);
+      visible.push(text);
       const range = document.createRange();
       range.selectNodeContents(owner);
-      const lines = [...range.getClientRects()].filter(r => r.width > 0);
-      const tops = lines.map(r => r.top);
+      const tops = [...range.getClientRects()].filter(r => r.width > 0).map(r => r.top);
       // Kleiner dan een halve rij: een lettertypewissel binnen één regel (ar, fa, lo) mag iets schelen.
-      if (text !== allowBreak && Math.max(...tops) - Math.min(...tops) >= 12) problems.push(`breekt af: ${text}`);
+      if (Math.max(...tops) - Math.min(...tops) >= 12) problems.push(`breekt af: ${text}`);
       const box = range.getBoundingClientRect();
       if (box.left < rect.left - 0.5 || box.right > rect.right + 0.5 || box.top < rect.top - 0.5 || box.bottom > rect.bottom + 0.5) {
         problems.push(`valt buiten de balk: ${text}`);
       }
-      for (let el: HTMLElement | null = owner; el && el !== bar.parentElement; el = el.parentElement) {
-        if (getComputedStyle(el).overflowX !== 'visible' && el.scrollWidth > el.clientWidth + 1) problems.push(`afgekapt: ${text}`);
-      }
     }
-    return { height: Math.round(rect.height), texts: texts.sort(), problems };
-  }, { selector: BAR, allowBreak });
+    const tooltips = [...bar.querySelectorAll(`${more}, ${summary}`)].map(el => el.getAttribute('title') ?? '');
+    return { height: Math.round(rect.height), visible, tooltips, problems };
+  }, { selector: BAR, more: MORE, summary: SUMMARY });
+}
+
+const plain = (text: string) => text.replace(/^⚠\s*/, '');
+
+/** Alle tekst uit de ruimste meting staat nog in beeld, of anders in een tooltip. */
+function expectNothingLost(full: BarMeasure, measured: BarMeasure, where: string): void {
+  const reachable = [...measured.visible, ...measured.tooltips].map(plain).join('\n');
+  expect(full.visible.map(plain).filter(text => !reachable.includes(text)), where).toEqual([]);
 }
 
 const setLocale = (page: Page, locale: string) => page.evaluate(async lng => {
@@ -86,8 +93,8 @@ const showEverything = (page: Page) => page.evaluate(names => {
   });
 }, LONG_BASELINES);
 
-test('statusbalk: elke tekst blijft heel en in beeld, in elke taal en vensterbreedte', async ({ page, ops: _ops }) => {
-  test.setTimeout(180_000);
+test('statusbalk: altijd één rij, en wat niet past blijft te vinden', async ({ page, ops: _ops }) => {
+  test.setTimeout(240_000);
   await page.setViewportSize({ width: 1920, height: 900 });
   await page.goto('/?open=examples/showcase-rijwoningen-de-akkers.ifc');
   await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().cpmResult?.projectEnd ?? ''), { timeout: 30_000 }).not.toBe('');
@@ -95,57 +102,64 @@ test('statusbalk: elke tekst blijft heel en in beeld, in elke taal en vensterbre
   const bar = page.locator(BAR);
   await expect(bar).toContainText('83');
 
-  // In een breed venster verandert er niets: De Akkers past op één rij van 24 px.
+  // In een breed venster verandert er niets: De Akkers past en er valt niets samen.
   await setLocale(page, 'en');
-  expect((await measureBar(page)).height).toBe(24);
+  expect((await measureBar(page)).problems).toEqual([]);
+  await expect(page.locator(MORE)).toHaveCount(0);
+  await expect(page.locator(SUMMARY)).toHaveCount(0);
+  await expect(page.locator('[data-ops-status-warning="outOfSequence"]')).toBeVisible();
+  await expect(bar).toContainText('Zoom:');
 
-  // Een taak aanklikken, bewerken en herberekenen laat de balk met rust: wat komt en gaat houdt zijn
-  // plek, dus niets springt naar een andere rij en de Gantt verandert niet van hoogte.
+  // Het kopje telt de waarschuwingen, noemt ze in de tooltip en opent met een klik het paneel.
+  await page.setViewportSize({ width: 800, height: 900 });
+  const summary = page.locator(SUMMARY);
+  await expect(summary).toHaveText(/18 warnings/);
+  await expect(summary).toHaveAttribute('title', /16 out-of-sequence relation\(s\)/);
+  await expect(page.locator('[data-ops-status-warning="outOfSequence"]')).toHaveCount(0);
+  await summary.click();
+  await expect(page.locator('[data-ops-warnings-panel]')).toBeVisible();
+
+  // De ⋯-knop toont wat verborgen is, ook bij aanwijzen: de echte tooltip, niet alleen het attribuut.
+  await page.locator(MORE).hover();
+  await expect(page.locator('.ops-tooltip')).toContainText('Zoom:');
+  await page.mouse.move(400, 300);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWarningsPanel: false }));
+
+  // Een echte klik op een taak: de selectie verschijnt, de balk blijft één rij.
   await page.setViewportSize({ width: 1500, height: 900 });
-  const layout = () => page.evaluate(selector => {
-    const bar = document.querySelector(selector)!.getBoundingClientRect();
-    const legend = document.querySelector('[data-ops-baseline-legend]')!.getBoundingClientRect();
-    return { height: bar.height, legendLeft: legend.left, legendTop: legend.top };
-  }, BAR);
-  await measureBar(page);
-  const idle = await layout();
-  await expect(bar).not.toContainText('Selection:');
   const point = await page.evaluate(() => {
     const { tasks } = window.__OPS__!.store.getState();
     return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary')).find(p => p !== null)!;
   });
   await page.mouse.click(point.x, point.y);
   await expect(bar).toContainText('Selection: 1');
-  await measureBar(page);
-  expect(await layout()).toEqual(idle);
-  await page.evaluate(() => window.__OPS__!.store.setState(s => { s.isDirty = true; s.scheduleStale = true; }));
-  await expect(bar).toContainText('Unsaved');
-  await expect(bar).toContainText('Out of date');
-  await measureBar(page);
-  expect(await layout()).toEqual(idle);
-  await page.setViewportSize({ width: 1920, height: 900 });
+  expect((await measureBar(page)).problems).toEqual([]);
 
   await showEverything(page);
   await expect(page.locator('[data-ops-baseline-legend] [data-ops-baseline-swatch]')).toHaveCount(3);
 
   const locales = await page.evaluate(async () => (await import('/src/i18n/config.ts' as string)).LOCALES as string[]);
-  expect(locales.length).toBeGreaterThanOrEqual(28);
+  expect(locales).toHaveLength(28);
   for (const locale of locales) {
     await setLocale(page, locale);
-    await page.setViewportSize({ width: 2600, height: 900 });
-    const reference = await measureBar(page);
+    await page.setViewportSize({ width: 4000, height: 900 });
+    const full = await measureBar(page);
+    expect(full.problems, `${locale} ruim`).toEqual([]);
+    expect(full.tooltips, `${locale} ruim`).toEqual([]);
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       const measured = await measureBar(page);
       expect(measured.problems, `${locale} op ${width}px`).toEqual([]);
-      expect(measured.texts, `${locale} op ${width}px`).toEqual(reference.texts);
+      expectNothingLost(full, measured, `${locale} op ${width}px`);
+      // De waarschuwingen vallen samen, maar verdwijnen nooit helemaal uit beeld.
+      await expect(page.locator('[data-ops-status-warning]').first(), `${locale} op ${width}px`).toBeVisible();
     }
   }
 
-  // Fijnmazig, om afrondingsgrenzen te vangen waar een rij net wel of net niet past.
+  // Fijnmazig, om afrondingsgrenzen te vangen waar een stand net wel of net niet past.
   for (const locale of ['nl', 'en']) {
     await setLocale(page, locale);
-    for (let width = 1700; width >= 800; width -= 7) {
+    for (let width = 2600; width >= 480; width -= 7) {
       await page.setViewportSize({ width, height: 900 });
       expect((await measureBar(page)).problems, `${locale} op ${width}px`).toEqual([]);
     }
@@ -163,9 +177,17 @@ test('statusbalk: elke tekst blijft heel en in beeld, in elke taal en vensterbre
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 100 }));
   await setLocale(page, 'en');
 
-  // Laatste redmiddel: een naam die breder is dan het hele venster mag afbreken, maar blijft compleet.
+  // Een baselinenaam breder dan het venster: geen overloop, en de naam blijft in de tooltip.
   const huge = Array.from({ length: 14 }, (_, i) => `Herplanningsvariant${i}`).join('');
   await page.evaluate(name => window.__OPS__!.store.setState(s => { s.baselines[0].name = name; }), huge);
   await page.setViewportSize({ width: 800, height: 900 });
-  expect((await measureBar(page, huge)).problems).toEqual([]);
+  const measured = await measureBar(page);
+  expect(measured.problems).toEqual([]);
+  expect(measured.tooltips.join('\n')).toContain(huge);
+
+  // Terug naar ruim: wat samenviel, komt weer helemaal terug.
+  await page.evaluate(() => window.__OPS__!.store.setState(s => { s.baselines[0].name = 'Contract'; }));
+  await page.setViewportSize({ width: 4000, height: 900 });
+  await expect(page.locator(MORE)).toHaveCount(0);
+  await expect(page.locator(SUMMARY)).toHaveCount(0);
 });
