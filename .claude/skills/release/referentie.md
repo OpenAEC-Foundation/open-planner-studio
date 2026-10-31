@@ -69,6 +69,7 @@ Doe dit vóór “niets veranderd” en vóór `npm run bump`. Neem de numeriek 
 Werk voor publicatie in een schone worktree op `SHA`; CI-fixes krijgen apart een branch vanaf main.
 Een incomplete app-uitlevering wordt nooit stil als vorige voltooide release gebruikt.
 Alleen open websitewerk blokkeert een volgende app-release niet; probeer het de volgende zaterdag opnieuw.
+Een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) is geen open werk; meld het in het eindrapport.
 
 **Controleer eerst afschrijving**, vóór enige release-/workflowpoging voor deze tag.
 De vaste regel staat in de body van de gemergde app-release-PR, titel `Release v<VERSION>`:
@@ -113,7 +114,8 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Zoek vervolgruns met `gh run list --workflow snap.yml --event workflow_run` (idem `aur.yml`).
    Hun eigen `head_sha` kan de defaultbranch zijn: koppel via getagde checkout/versie in de logs
    en de vastgelegde run-ID's, niet blind via `--commit`. Een PR-run of overgeslagen publicatie
-   telt niet. Wacht binnen de deadline op een lopende run; start geen tweede.
+   telt niet; alleen een [ontbrekend AUR-secret](#ontbrekend-aur-secret) is hierop een uitzondering.
+   Wacht binnen de deadline op een lopende run; start geen tweede.
 2. **Release herstellen.** Is de bijbehorende `release.yml`-run mislukt of geannuleerd: bekijk
    eerst de fout en de geslaagde jobs met `gh run view <run-id> --json jobs` en `--log-failed`.
    Volg [CI herstellen](#ci-herstellen): eerst eenmaal `gh run rerun <run-id> --failed`, ook bij een
@@ -133,8 +135,9 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    en publiceert niet. Stop daarvoor met de ontbrekende run als blokkade.
    Voor een ontbrekende AUR-run mag de bestaande publicatieroute wel:
    `gh workflow run aur.yml --ref "$TAG" -f "version=$TAG" -f publish=true`.
-   Controleer `Publish to Snap Store` en `Push to AUR` op `success`; ontbreken credentials, meld
-   de blokkade zonder secrets te wijzigen. Bestond een vervolgworkflow nog niet in deze historische
+   Controleer `Publish to Snap Store` en `Push to AUR` op `success`; ontbreken Snap-credentials, meld
+   de blokkade zonder secrets te wijzigen. Een ontbrekend AUR-secret is geen blokkade: volg
+   [Ontbrekend AUR-secret](#ontbrekend-aur-secret). Bestond een vervolgworkflow nog niet in deze historische
    tag, leg “niet van toepassing” vast met bewijs uit `git cat-file -e "$TAG:.github/workflows/<naam>"`.
 4. **Gepubliceerde assets.** Voer [Uitlevering controleren](#uitlevering-controleren) uit voor `TAG`.
    Een gepubliceerde release alleen is geen bewijs van complete of juiste assets.
@@ -159,6 +162,37 @@ Na alle toepasselijke hervatstappen, uitgesteld websitewerk of vastgelegde afsch
 Ga terug naar actuele `origin/main` en voer de kandidaatselectie hieronder uit. Een bestaande kandidaat gaat vóór
 “niets veranderd” en vóór een nieuwe bump. `PREV` blijft de numerieke versieondergrens.
 Bij afschrijving blijft de oorspronkelijke releasetekst daarnaast de inhoudsbron voor de opvolger.
+
+### Ontbrekend AUR-secret
+
+Besluit eigenaar, 2026-10-31. Een ontbrekend `AUR_SSH_PRIVATE_KEY` houdt de release niet tegen.
+De AUR-uitlevering is dan geen onafgerond werk en geen stopreden, ook niet voor een oudere tag.
+Dit geldt alleen als de `aur.yml`-run van deze tag aan alle vier de punten voldoet:
+
+1. De run heeft conclusie `success`.
+2. De stap `Push to AUR` heeft conclusie `skipped`.
+3. De job heeft de notice `AUR-push overgeslagen: secret AUR_SSH_PRIVATE_KEY ontbreekt.`
+4. De joblog toont de `.deb` van `VERSION`, dus deze run hoort bij deze tag.
+
+Lees de notice uit de annotaties, niet uit de joblog. De tekst staat daar altijd, want de log
+toont ook het script zelf. `AUR_RUN` is het run-ID uit hervatstap 1:
+
+```bash
+gh run view "$AUR_RUN" --repo "$REPO" --json conclusion,jobs \
+  --jq '.conclusion, (.jobs[].steps[] | select(.name == "Push to AUR") | .conclusion)'
+JOB=$(gh run view "$AUR_RUN" --repo "$REPO" --json jobs --jq '.jobs[] | select(.name == "aur") | .databaseId')
+gh api "repos/$REPO/check-runs/$JOB/annotations" --jq '.[] | select(.annotation_level == "notice") | .message'
+gh api "repos/$REPO/actions/jobs/$JOB/logs" | grep -F "Open.Planner.Studio_${VERSION}_amd64.deb:"
+```
+
+Is dit bewezen: ga door, zonder rerun, dispatch of secretwijziging. Schrijf in het hervatverslag en
+het eindrapport: “Arch kreeg nog geen pakket: secret `AUR_SSH_PRIVATE_KEY` ontbreekt.”
+
+De release stopt wel bij een rode `aur.yml`, een mislukte push terwijl het secret er is, of een pakket
+met de verkeerde versie. Een overgeslagen push zonder deze notice is geen bewijs; dat is bijvoorbeeld
+een handmatige test zonder `publish`. Er is geen schakelaar. Bestaat het secret, dan pusht de
+volgende `aur.yml`-run vanzelf, en gelden weer `success` en de `pkgver`-controle uit
+[Uitlevering controleren](#uitlevering-controleren).
 
 ## Kandidaatselectie
 
@@ -474,6 +508,7 @@ Bij historisch hervatten vervallen alleen workflowcontroles die het hervatpad aa
   onvolledige release; meld dit zonder secrets op te vragen of te wijzigen.
 - Controleer ook `aur.yml`, stap **Push to AUR**: `success`; een groen pakket zonder publicatie
   is geen afgeronde AUR-uitlevering. Controleer de gepubliceerde `pkgver` voor deze versie.
+  Uitzondering: bij een bewezen [ontbrekend AUR-secret](#ontbrekend-aur-secret) vervalt deze controle.
 - Een `latest.json` met ontbrekende darwin-entry kan duiden op een ontbrekend macOS `app`-target.
   Windows-updaterarchief en `.sig` moeten ná Azure-signing opnieuw zijn gemaakt door de workflow.
 - Bij een afwijking: rapporteer het bewijs. Verplaats nooit de tag en wijzig assets niet op goed geluk.

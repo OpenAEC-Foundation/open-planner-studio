@@ -16,6 +16,12 @@ Een `v*`-tag is onomkeerbaar: installers, updater en Snap Store leveren aan alle
 Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen publiceert niets.
 `main` is altijd af; groot werk landt achter een feature-flag.
 
+**Een ontbrekend AUR-secret is geen stopreden** (besluit eigenaar, 2026-10-31). Slaat `aur.yml` de stap
+`Push to AUR` over omdat `AUR_SSH_PRIVATE_KEY` ontbreekt, dan is AUR geen onafgerond werk, ook niet
+voor een oudere tag. De run gaat door. Het eindrapport zegt dat Arch nog geen pakket kreeg, en waarom.
+Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt wel.
+Lever het bewijs uit [Ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret).
+
 ## 1. Werkplek en stopregels
 
 - Controleer eerst de fetch- én push-URL van `origin`. Beide moeten exact naar
@@ -33,6 +39,7 @@ Alleen deze skill mag een release uitvoeren. Een verzoek om de skill te wijzigen
   Controleer GitHub-publicatie, release-/Snap-/AUR-runs, wiki en website. Rond onafgerond werk
   voor dezelfde tag af, ook zonder nieuwe commits. Onopgelost: stop, tenzij de tag is afgeschreven
   of alleen websitewerk openstaat. Probeer dat de volgende zaterdag opnieuw naast de nieuwe release.
+  Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen onafgerond werk.
 - Na herstel, uitgesteld websitewerk of vastgelegde afschrijving geldt die nieuwste tag als `PREV`.
   Volg daarna de [kandidaatselectie](referentie.md#kandidaatselectie): zoek open release-PR's
   en een ongetagde versie op main. Elke ongetagde kandidaat moet numeriek `VERSION > PREV` zijn;
@@ -130,6 +137,7 @@ git push origin "refs/tags/v$VERSION"
 `release.yml` herhaalt `verify:translations`, `verify` en de highlight-/versiecontroles.
 Daarna bouwt en signeert hij installers, verifieert de draft en publiceert `latest.json`.
 `snap.yml` en `aur.yml` volgen automatisch. Volg ze tot hun eindstatus en werk het hervatverslag bij.
+Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen falen.
 Bij falen na de tag: volg [Herstel na de tag](referentie.md#herstel-na-de-tag), binnen de deadline.
 Vereist herstel gewijzigde broncode/workflow: fix op main, schrijf de tag af en maak een opvolgversie.
 De afgeschreven tag blijft staan; een eventuele draft blijft draft. Hervat die tag nooit meer.
@@ -157,5 +165,6 @@ Verwijder alleen eigen of aantoonbaar gemergede, schone worktrees zonder actieve
 Controleer per worktree `git status --porcelain`; behoud ongemergd of twijfelachtig werk.
 Gebruik `git worktree remove` zonder force en daarna `git worktree prune`.
 Meld versie, tag-SHA, workflow-URL's, fix-PR's/reviews, deadline, UI-vertalingen, wiki en websitedeploy.
+Ontbreekt `AUR_SSH_PRIVATE_KEY`: meld dat Arch nog geen pakket kreeg, en waarom.
 Bij een stop vóór de tag: meld de precieze reden en dat niets is uitgebracht.
 Leg bijvangst buiten deze release vast in `knownbugs.md`; los die niet stil mee op.
