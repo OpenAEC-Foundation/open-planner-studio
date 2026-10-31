@@ -406,13 +406,197 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   S().recalculate();
   strictEqual(S().historyEvents.length, undoDepth + 1, 'F5 in de modus is een undo-stap');
   strictEqual(S().datesAsRecorded, false);
-  strictEqual(S().scheduleShift?.ownHistoryEvent, true);
+  strictEqual(typeof S().scheduleShift?.historyEventId, 'string');
   // Zelfde start, ander einde, en geen bewerking om mee te vergelijken: niet vast te stellen.
   deepStrictEqual(reasons(store)[b], { kind: 'unknown' });
   S().undoScheduleShift();
   strictEqual(S().datesAsRecorded, true);
   strictEqual(task(store, b).time.earlyFinish, recordedFinish);
   strictEqual(task(store, a).name, 'A');
+}
+
+// De vier regressies uit de review. Elk geval rapporteert apart, zodat één fout de rest niet verbergt.
+const failed: string[] = [];
+function regression(name: string, body: () => void) {
+  try { body(); } catch (error) { failed.push(`${name}: ${(error as Error).message}`); }
+}
+
+/** A → B → C met A op urenduur; `prepare` zet de stand vóór de eerste berekening. */
+function hourTask(prepare: (ctx: ReturnType<typeof chain>) => void) {
+  const ctx = chain();
+  const { store, S, a } = ctx;
+  S().updateTask(a, { time: { ...task(store, a).time, durationUnit: 'hours', durationMinutes: 2400, scheduleDuration: 5 } });
+  prepare(ctx);
+  S().runCPM();
+  S().updateTask(a, { time: { ...task(store, a).time, durationMinutes: 3840, scheduleDuration: 8 } });
+  S().recalculate();
+  return ctx;
+}
+
+/** Zet de modus "datums zoals opgeslagen" aan, met een afwijkend einde op B. */
+function recordedMode(ctx: ReturnType<typeof chain>, finish: string) {
+  ctx.store.setState(s => {
+    s.tasks.find(t => t.id === ctx.b)!.time.earlyFinish = finish;
+    s.datesAsRecorded = true;
+    s.recordedDates = { times: {}, total: 1 } as unknown as typeof s.recordedDates;
+    s.scheduleStale = false;
+  });
+}
+
+// 21. Ongedaan maken herstelt het event van de berekening, ook met een nieuwer event erboven.
+regression('21 kolom na F5 in de modus', () => {
+  const ctx = chain();
+  const { store, S, b } = ctx;
+  const recordedFinish = '2026-09-04T16:00';
+  recordedMode(ctx, recordedFinish);
+  S().recalculate();
+  const eventId = S().scheduleShift!.historyEventId!;
+  strictEqual(S().historyEvents.find(e => e.id === eventId)?.state, 'applied');
+  const columns = S().taskGridSurfaces['gantt-task-grid'].columns;
+  const narrower = columns.map((column, i) => (i === 0 ? { ...column, width: column.width + 40 } : column));
+  S().commitTaskGridColumns('gantt-task-grid', 'Kolom', narrower);
+  const changed = S().taskGridSurfaces['gantt-task-grid'].columns;
+  strictEqual(changed[0].width, columns[0].width + 40);
+  strictEqual(canUndoScheduleShift(S()), true);
+  S().undoScheduleShift();
+  strictEqual(task(store, b).time.earlyFinish, recordedFinish, 'de berekening is terug');
+  strictEqual(S().datesAsRecorded, true);
+  deepStrictEqual(S().taskGridSurfaces['gantt-task-grid'].columns, changed, 'de kolom blijft staan');
+  strictEqual(S().historyEvents.find(e => e.id === eventId)?.state, 'undone');
+  strictEqual(S().scheduleShift, null);
+  // Ctrl+Z neemt daarna de kolom terug, en Ctrl+Y zet de berekening terug.
+  S().undo();
+  strictEqual(S().taskGridSurfaces['gantt-task-grid'].columns[0].width, columns[0].width);
+  strictEqual(task(store, b).time.earlyFinish, recordedFinish);
+  S().redo();
+  strictEqual(S().datesAsRecorded, false);
+});
+regression('21b event al teruggedraaid', () => {
+  const ctx = chain();
+  const { S } = ctx;
+  recordedMode(ctx, '2026-09-04T16:00');
+  S().recalculate();
+  S().undo();
+  strictEqual(canUndoScheduleShift(S()), false, 'na Ctrl+Z is er niets meer om te herstellen');
+  S().undoScheduleShift();
+  strictEqual(S().datesAsRecorded, true);
+});
+
+// 22. Een startgrens die al vaststond is niet de reden als alleen de duur veranderde.
+regression('22 SNET bleef gelijk', () => {
+  const { store, S, a, b } = hourTask(({ store, S, a }) => {
+    S().updateTask(a, { constraint: { type: 'SNET', date: '2026-07-06T07:00' } });
+    strictEqual(task(store, a).constraint?.type, 'SNET');
+  });
+  strictEqual(S().cpmResult!.dateDriverByTaskId?.[a].kind, 'constraint');
+  deepStrictEqual(reasons(store)[a], { kind: 'duration' });
+  deepStrictEqual(reasons(store)[b], { kind: 'predecessor', taskIds: [a] });
+});
+regression('22b statusdatum bleef gelijk', () => {
+  const { store, S, a } = hourTask(({ S }) => S().setStatusDate('2026-07-06'));
+  strictEqual(S().cpmResult!.dateDriverByTaskId?.[a].kind, 'statusDate');
+  deepStrictEqual(reasons(store)[a], { kind: 'duration' });
+});
+
+// 23. Een lopende taak: de werkelijke start staat vast, het spoor gaat over het resterende werk.
+function runningSuccessor() {
+  const ctx = chain();
+  const { store, S, b } = ctx;
+  S().updateTask(b, { time: { ...task(store, b).time, completion: 0.2, actualStart: '2026-06-02T07:00' } });
+  S().runCPM();
+  return ctx;
+}
+regression('23 voorganger van een lopende taak', () => {
+  const { store, S, a, b } = runningSuccessor();
+  const finish = task(store, b).time.earlyFinish;
+  withDuration(store, a, 10);
+  S().recalculate();
+  strictEqual(task(store, b).time.earlyFinish !== finish, true, 'het einde verschuift');
+  strictEqual(S().cpmResult!.dateDriverByTaskId?.[b].kind, 'relation');
+  deepStrictEqual(reasons(store)[b], { kind: 'predecessor', taskIds: [a] });
+});
+regression('23b twee oorzaken op een lopende taak', () => {
+  const { store, S, a, b } = runningSuccessor();
+  withDuration(store, a, 10);
+  withDuration(store, b, 9);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[b], { kind: 'unknown' });
+});
+regression('23c eigen duur van een lopende taak', () => {
+  // Zonder voorganger: de voortgang bepaalt de datum, maar de duur veranderde en het werk niet.
+  const { store, S } = setup();
+  const x = S().addTask({ name: 'X' });
+  withDuration(store, x, 10);
+  S().updateTask(x, { time: { ...task(store, x).time, completion: 0.5, actualStart: '2026-06-01T07:00' } });
+  S().runCPM();
+  withDuration(store, x, 16);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[x], { kind: 'duration' });
+});
+regression('23d statusdatum van een lopende taak', () => {
+  const { store, S, a } = chain();
+  S().setStatusDate('2026-06-03');
+  S().updateTask(a, { time: { ...task(store, a).time, completion: 0.2, actualStart: '2026-06-01T07:00' } });
+  S().runCPM();
+  S().setStatusDate('2026-06-24');
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'statusDate', date: '2026-06-24' });
+});
+
+// 24. Resource alleen als alleen de toewijzing precies deze duur oplevert.
+function resources(S: () => ReturnType<Store['getState']>) {
+  const add = (name: string) => S().addResource({ name, description: '', type: 'LABOR', maxUnits: 1 });
+  return [add('Metselaar'), add('Opperman')];
+}
+regression('24 vaste duur, handmatig langer en een resource erbij', () => {
+  const { store, S, a } = chain();
+  const [first] = resources(S);
+  withDuration(store, a, 10);
+  S().assignResource(a, first, 1);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
+});
+regression('24b vast werk, alleen een resource erbij', () => {
+  const { store, S, a } = chain();
+  const [first, second] = resources(S);
+  S().setTaskWorkRule(a, 'FIXED_WORK');
+  S().assignResource(a, first, 1);
+  withDuration(store, a, 10);
+  S().runCPM();
+  S().assignResource(a, second, 1);
+  strictEqual(task(store, a).time.scheduleDuration < 10, true, 'de werkregel maakt de taak korter');
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'resource', resourceIds: [first, second] });
+});
+regression('24c vast werk, handmatig langer en een resource erbij', () => {
+  const { store, S, a } = chain();
+  const [first, second] = resources(S);
+  S().setTaskWorkRule(a, 'FIXED_WORK');
+  S().assignResource(a, first, 1);
+  withDuration(store, a, 10);
+  S().runCPM();
+  withDuration(store, a, 20);
+  S().assignResource(a, second, 1);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
+});
+regression('24d vast werk, alleen een resource eraf', () => {
+  const { store, S, a } = chain();
+  const [first, second] = resources(S);
+  S().setTaskWorkRule(a, 'FIXED_WORK');
+  S().assignResource(a, first, 1);
+  S().assignResource(a, second, 1);
+  withDuration(store, a, 6);
+  S().runCPM();
+  S().unassignResource(S().assignments.find(x => x.resourceId === second)!.id);
+  strictEqual(task(store, a).time.scheduleDuration, 12);
+  S().recalculate();
+  deepStrictEqual(reasons(store)[a], { kind: 'resource', resourceIds: [first] });
+});
+
+if (failed.length) {
+  for (const line of failed) console.log(`XX  ${line}`);
+  throw new Error(`${failed.length} regressie(s) rood`);
 }
 
 console.log('OK  check-shift-explanation');

@@ -246,7 +246,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     });
     // Nogmaals F5 zonder dat er iets veranderde: de uitleg van de vorige keer blijft staan.
     if (report.tasks.length === 0 && !before.scheduleStale && !before.datesAsRecorded) return;
-    const ownHistoryEvent = after.nextHistorySequence !== before.nextHistorySequence;
+    const historyEventId = after.historyEvents.find(event => event.sequence === before.nextHistorySequence)?.id ?? null;
     set((s) => {
       s.scheduleShift = {
         documentId: s.activeDocumentId,
@@ -254,8 +254,8 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
         before: createSnapshot(before),
         beforeResourceLoad: before.resourceLoadResult,
         after: createSnapshot(after),
-        ownHistoryEvent,
-        refreshedHistoryEvent: !ownHistoryEvent && before.scheduleStale && !before.datesAsRecorded,
+        historyEventId,
+        refreshedHistoryEvent: historyEventId === null && before.scheduleStale && !before.datesAsRecorded,
       };
       if (report.tasks.length === 0) {
         s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
@@ -269,7 +269,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     const shift = current.scheduleShift;
     if (!shift || !canUndoScheduleShift(current)) return;
     // Rekende F5 in "datums zoals opgeslagen", dan is dat al een eigen stap in de geschiedenis.
-    if (shift.ownHistoryEvent) current.undo();
+    if (shift.historyEventId !== null) current.undoHistoryEvent(shift.historyEventId);
     else {
       set((s) => {
         // Niet als bewerking tellen; wel als afwijking van de schijf, voor het geval er intussen

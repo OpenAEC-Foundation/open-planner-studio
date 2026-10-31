@@ -1,9 +1,12 @@
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
-import type { ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { Project } from '@/types/project';
 import type { CPMResult } from './CPMSolver';
 import { CalendarEngine } from './CalendarEngine';
+import { isPinnedInProgress } from './duration';
 import { resolveCalendar } from './resolveCalendar';
+import { captureTriangle, settleAssignmentAdded, settleAssignmentRemoved } from '@/engine/work/workRuleApply';
 import { parseInstant } from '@/utils/dateUtils';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { shownFinish, shownStart } from '@/utils/taskDates';
@@ -47,6 +50,8 @@ export interface ShiftBasis {
   calendar: WorkCalendar;
   calendars: WorkCalendar[];
   assignments: ResourceAssignment[];
+  resources: Resource[];
+  project: Pick<Project, 'defaultWorkRule'>;
   statusDate?: string;
 }
 
@@ -88,11 +93,17 @@ function sameDuration(a: Task, b: Task): boolean {
     && a.time.durationType === b.time.durationType;
 }
 
+function doneWork(task: Task): number {
+  return task.time.completion * (task.time.durationMinutes ?? task.time.scheduleDuration);
+}
+
 function sameProgress(a: Task, b: Task): boolean {
+  if (a.time.actualStart !== b.time.actualStart || a.time.actualFinish !== b.time.actualFinish) return false;
+  // Een duurbewerking op een lopende taak herschrijft percentage en rest; het gedane werk blijft.
+  if (!sameDuration(a, b)) return Math.abs(doneWork(a) - doneWork(b)) < 1e-6;
   return a.time.completion === b.time.completion
-    && a.time.actualStart === b.time.actualStart
-    && a.time.actualFinish === b.time.actualFinish
-    && a.time.remainingMinutes === b.time.remainingMinutes;
+    && a.time.remainingMinutes === b.time.remainingMinutes
+    && a.time.remainingTime === b.time.remainingTime;
 }
 
 class ShiftReasoner {
@@ -129,10 +140,45 @@ class ShiftReasoner {
     return changed;
   }
 
+  /** Andere resources of een andere inzet. Restwerk telt niet: dat volgt ook uit een duurbewerking. */
   private assignmentsChanged(taskId: string): boolean {
     const before = this.basisAssignments?.get(taskId) ?? [];
     const after = this.assignments.get(taskId) ?? [];
-    return before.length !== after.length || before.some((assignment, i) => assignment !== after[i]);
+    return before.length !== after.length || before.some(assignment =>
+      after.find(now => now.id === assignment.id)?.unitsPerDay !== assignment.unitsPerDay);
+  }
+
+  /**
+   * Geeft alleen de gewijzigde toewijzing precies deze duur? Daarvoor rekent de werkregel, op een
+   * kopie van de vorige stand, dezelfde stappen door als de store. Pas dan is de toewijzing de oorzaak.
+   * Een andere inzet op een blijvende resource bewijst niets: onder Vast werk geeft een duurbewerking
+   * precies dezelfde uitkomst.
+   */
+  private durationFollowsAssignments(task: Task, base: Task): boolean {
+    const basis = this.input.basis;
+    if (!basis) return false;
+    const before = this.basisAssignments?.get(task.id) ?? [];
+    const after = this.assignments.get(task.id) ?? [];
+    const staying = before.filter(assignment => after.some(now => now.id === assignment.id));
+    if (staying.some(assignment => !after.some(now => now.id === assignment.id && now.unitsPerDay === assignment.unitsPerDay))) {
+      return false;
+    }
+    const replay = structuredClone(base);
+    const assignments = structuredClone(before);
+    for (const assignment of before) {
+      if (staying.includes(assignment)) continue;
+      const captured = captureTriangle(replay, assignments, basis);
+      assignments.splice(assignments.findIndex(item => item.id === assignment.id), 1);
+      settleAssignmentRemoved(replay, assignments, captured, assignment.id);
+    }
+    for (const assignment of after) {
+      if (before.some(item => item.id === assignment.id)) continue;
+      const captured = captureTriangle(replay, assignments, basis);
+      const added = structuredClone(assignment);
+      assignments.push(added);
+      settleAssignmentAdded(replay, assignments, captured, added);
+    }
+    return sameDuration(replay, task);
   }
 
   private assignedResourceIds(taskId: string): string[] {
@@ -148,10 +194,23 @@ class ShiftReasoner {
     const calendarChanged = this.calendarChanged(task, base);
     if (durationChanged === calendarChanged) return { kind: 'unknown' };
     if (calendarChanged) return { kind: 'calendar', calendarName: this.calendarOf(task).name };
-    if (this.assignmentsChanged(task.id)) {
-      return { kind: 'resource', resourceIds: this.assignedResourceIds(task.id) };
-    }
-    return { kind: 'duration' };
+    if (!this.assignmentsChanged(task.id)) return { kind: 'duration' };
+    return this.durationFollowsAssignments(task, base)
+      ? { kind: 'resource', resourceIds: this.assignedResourceIds(task.id) }
+      : { kind: 'unknown' };
+  }
+
+  /**
+   * Een lopende taak: de werkelijke start staat vast, dus de start zegt niets over het einde. Het spoor
+   * gaat over het resterende werk. Veranderde wat dat werk stuurt, en de taak zelf niet, dan is dat de
+   * reden. Veranderden beide, dan weten we niet welke het verschil maakte.
+   */
+  private remainingWorkReason(task: Task, reason: ShiftReason, causeMoved: boolean): ShiftReason {
+    const base = this.basisTasks?.get(task.id);
+    if (!base) return { kind: 'unknown' };
+    const ownChanged = !sameDuration(base, task) || !sameProgress(base, task) || this.calendarChanged(task, base);
+    if (ownChanged) return causeMoved ? { kind: 'unknown' } : this.spanReason(task);
+    return causeMoved ? reason : { kind: 'unknown' };
   }
 
   /** Bleef de aanleiding zelf gelijk terwijl de kalender veranderde, dan is de nieuwe start het
@@ -169,17 +228,29 @@ class ShiftReasoner {
     if (!driver) return { kind: 'unknown' };
     const base = this.basisTasks?.get(task.id);
     const startMoved = !sameMoment(shownStart(previous), shownStart(task));
+    const inProgress = isPinnedInProgress(task.time);
     switch (driver.kind) {
-      case 'constraint': return { kind: 'constraint' };
+      case 'constraint': {
+        const reason: ShiftReason = { kind: 'constraint' };
+        if (inProgress) {
+          return this.remainingWorkReason(task, reason, JSON.stringify(base?.constraint) !== JSON.stringify(task.constraint));
+        }
+        return startMoved ? reason : this.spanReason(task);
+      }
       case 'manual': return { kind: 'manual' };
       case 'hammock': return { kind: 'hammock' };
       case 'other': return { kind: 'unknown' };
-      case 'progress': return { kind: 'progress' };
-      case 'statusDate':
-        return base && !sameProgress(base, task) && base.time.scheduleStart === task.time.scheduleStart
-          && this.input.basis?.statusDate === this.input.statusDate
-          ? { kind: 'progress' }
-          : { kind: 'statusDate', date: this.input.statusDate ?? '' };
+      case 'progress': return base && sameProgress(base, task) ? this.spanReason(task) : { kind: 'progress' };
+      case 'statusDate': {
+        const basis = this.input.basis;
+        const statusDateMoved = !!basis && basis.statusDate !== this.input.statusDate;
+        if (base && !statusDateMoved && !sameProgress(base, task) && base.time.scheduleStart === task.time.scheduleStart) {
+          return { kind: 'progress' };
+        }
+        const reason: ShiftReason = { kind: 'statusDate', date: this.input.statusDate ?? '' };
+        if (inProgress) return this.remainingWorkReason(task, reason, statusDateMoved);
+        return startMoved ? reason : this.spanReason(task);
+      }
       case 'leveling': {
         if (!startMoved) return this.spanReason(task);
         // De vertraging zegt niet door welke resource hij ontstond; met één toewijzing is dat zeker.
@@ -187,6 +258,13 @@ class ShiftReasoner {
         return { kind: 'resource', resourceIds: resourceIds.length === 1 ? resourceIds : [] };
       }
       case 'relation':
+        if (inProgress) {
+          return this.remainingWorkReason(
+            task,
+            { kind: 'predecessor', taskIds: driver.predecessorIds },
+            driver.predecessorIds.some(id => this.shiftedIds.has(id)),
+          );
+        }
         if (!startMoved) return this.spanReason(task);
         return this.startReason(
           task,

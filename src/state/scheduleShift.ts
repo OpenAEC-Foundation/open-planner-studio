@@ -21,8 +21,9 @@ export interface ScheduleShift {
   before: Snapshot;
   beforeResourceLoad: ResourceLoadResult | null;
   after: Snapshot;
-  /** `runCPM` maakte zelf een undo-stap (datums zoals opgeslagen, urenomzetting). */
-  ownHistoryEvent: boolean;
+  /** Het event dat `runCPM` zelf maakte (datums zoals opgeslagen, urenomzetting). Ongedaan maken
+   *  herstelt precies dit event: het nieuwste kan een kolom of weergave zijn. */
+  historyEventId: string | null;
   /** `runCPM` schreef zijn resultaat in het `after` van de vorige undo-stap; terugdraaien moet dat
    *  dan ook doen. */
   refreshedHistoryEvent: boolean;
@@ -53,6 +54,8 @@ export function previousSolveBasis(state: AppState): ShiftBasis | null {
     calendar: basis.calendar,
     calendars: basis.calendars,
     assignments: basis.assignments,
+    resources: basis.resources,
+    project: basis.project,
     statusDate: basis.project.statusDate,
   };
 }
@@ -62,6 +65,8 @@ export function previousSolveBasis(state: AppState): ShiftBasis | null {
 export function canUndoScheduleShift(state: AppState): boolean {
   const shift = state.scheduleShift;
   if (!shift || shift.documentId !== state.activeDocumentId || shift.report.tasks.length === 0) return false;
+  if (shift.historyEventId !== null
+    && !state.historyEvents.some(event => event.id === shift.historyEventId && event.state === 'applied')) return false;
   const after = shift.after as unknown as Record<string, unknown>;
   return DOCUMENT_FIELDS.every(field => field.snapshot !== 'data' || Object.is(field.get(state), after[field.key]));
 }
