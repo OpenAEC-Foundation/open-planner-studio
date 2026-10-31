@@ -29,8 +29,8 @@
  *  R14 Eindreview: een geïmporteerde mijlpaal mét duur (vlag naast werkminuten, `mppReader.ts`) wordt een gewone
  *      activiteit met zijn duur en rest, en de melding noemt dat. Een nulduur-mijlpaal blijft `TT_Mile`/`TT_FinMile`.
  *  R15 Eindreview: de markering Verplicht kent P6 niet; de melding noemt verplichte mijlpalen.
- *  R16 Eindreview: activiteitcodetypen en eigen velddefinities zonder taakwaarden gaan niet mee; de melding noemt ze,
- *      ook zonder taakwaarden, en niet dubbel naast de regel met taakwaarden.
+ *  R16 Eindreview: definities van activiteitcodes en eigen velden gaan niet mee; de melding noemt ze altijd, los van
+ *      taakwaarden. Gemengd gebruik (Discipline ingevuld, Locatie niet) mag die regel niet onderdrukken.
  */
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
@@ -707,7 +707,7 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R15d zonder verplichte mijlpaal: geen regel', write([task('Vrij', {})]).loss.some(l => l.code === 'mandatoryMilestones'), false);
 }
 
-// ── R16: definities zonder taakwaarden ───────────────────────────────────────────────────────────
+// ── R16: definities ───────────────────────────────────────────────────────────────────────────
 {
   const definitions = (input: Partial<XerExportLossInput>) => {
     const categories = detectXerExportLoss('xer', {
@@ -725,9 +725,9 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R16a activiteitcodetype zonder taakwaarden: een regel', linesOf([], definitions({ activityCodeTypes: codeTypes })), [CODE_LINE]);
   eq('R16b eigen veld zonder taakwaarden: een regel', linesOf([], definitions({ customFieldDefs: fieldDefs })), [FIELD_LINE]);
   eq('R16c beide: twee regels', linesOf([], definitions({ activityCodeTypes: codeTypes, customFieldDefs: fieldDefs })), [CODE_LINE, FIELD_LINE]);
-  eq('R16d taakwaarden: alleen de regel met het aantal',
+  eq('R16d gemengd gebruik: de regels met het aantal en de regels over de definities',
     linesOf([{ code: 'activityCodes', count: 1 }, { code: 'customFields', count: 1 }], definitions({ activityCodeTypes: codeTypes, customFieldDefs: fieldDefs })),
-    ['notifications.exportXerLossItem.activityCodes', 'notifications.exportXerLossItem.customFields']);
+    ['notifications.exportXerLossItem.activityCodes', 'notifications.exportXerLossItem.customFields', CODE_LINE, FIELD_LINE]);
   eq('R16e geen definities: geen melding', exportXerLossNotice([], definitions({})), null);
 }
 
