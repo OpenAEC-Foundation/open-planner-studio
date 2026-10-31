@@ -253,6 +253,8 @@
       "elapsedDurations_other": "{{count}} taken met een duur in kalenderdagen rekenen in werkuren",
       "manualTasks_one": "{{count}} handmatig geplande taak wordt in P6 automatisch gepland",
       "manualTasks_other": "{{count}} handmatig geplande taken worden in P6 automatisch gepland",
+      "durationMilestones_one": "{{count}} mijlpaal met duur is een gewone activiteit geworden (P6 kent geen mijlpaal met duur)",
+      "durationMilestones_other": "{{count}} mijlpalen met duur zijn gewone activiteiten geworden (P6 kent geen mijlpaal met duur)",
       "levelingDelays_one": "{{count}} nivelleringsvertraging",
       "levelingDelays_other": "{{count}} nivelleringsvertragingen",
       "splits_one": "{{count}} taak met onderbrekingen of een eigen urenverdeling: die valt weg",

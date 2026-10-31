@@ -4,6 +4,7 @@
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { readFileSync, readdirSync } from 'node:fs';
+import { installDOMParser } from './xmldom-shim';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { EXPORT_FORMATS, type ExportFormat } from '@/services/formatRegistry';
 import { exportProfileAdvice } from '@/state/exportProfileAdvice';
@@ -65,6 +66,42 @@ for (const locale of locales) {
   const text = menu.export.profileHint ?? '';
   eq(`${locale}: invulplekken`, [text.includes('{{name}}'), text.includes('{{target}}')], [true, true]);
   eq(`${locale}: oude sleutel weg`, 'xerProfileHint' in menu.export, false);
+}
+
+// De melding na een geslaagde export: dezelfde sleutel en dezelfde invulwaarden als de hint, via de echte route.
+{
+  let captured = 0;
+  const g = globalThis as any;
+  g.window = g.window ?? {};
+  g.Blob = class { constructor() { captured++; } };
+  g.URL = g.URL ?? {};
+  g.URL.createObjectURL = () => 'blob:test';
+  g.URL.revokeObjectURL = () => { /* no-op */ };
+  g.document = { createElement: () => ({ href: '', download: '', click() { /* no-op */ } }) };
+  installDOMParser();
+  const { useAppStore } = await import('@/state/appStore');
+  const S = () => useAppStore.getState();
+  const advice = async (format: ExportFormat, profile: SchedulingProfile | undefined) => {
+    useAppStore.setState(state => {
+      state.project.schedulingProfile = profile;
+      state.ui.notifications = [];
+    });
+    const before = captured;
+    const result = await S().exportAs(format);
+    eq(`${format}: export geslaagd`, [result.ok, captured - before], [true, 1]);
+    const notes = S().ui.notifications;
+    return {
+      params: notes.filter(n => n.messageKey === 'menu:export.profileHint').map(n => n.params),
+      rules: notes.flatMap(n => n.detailLines ?? []).filter(l => l.messageKey === 'notifications.exportXerLossItem.schedulingRules').length,
+    };
+  };
+  const OPS_NAME = 'Open Planner Studio';
+  eq('melding P6 XML met ops', await advice('p6', undefined), { params: [{ name: OPS_NAME, target: 'Primavera P6' }], rules: 0 });
+  eq('melding MS Project XML met p6', await advice('mspdi', p6), { params: [{ name: 'Primavera P6', target: 'Microsoft Project' }], rules: 0 });
+  eq('melding P6 XML met eigen profiel', await advice('p6', custom), { params: [{ name: 'Eigen', target: 'Primavera P6' }], rules: 0 });
+  eq('melding P6 XML met passend profiel: geen', await advice('p6', p6), { params: [], rules: 0 });
+  eq('melding IFC: geen', await advice('ifc', undefined), { params: [], rules: 0 });
+  eq('XER met ops: één advies, in de regel Rekenregels', await advice('xer', undefined), { params: [], rules: 1 });
 }
 
 if (diffs.length === 0) {

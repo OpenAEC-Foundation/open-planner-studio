@@ -12,6 +12,7 @@ import { mspdiDropsHourThreshold } from '@/services/msproject/mspdiCriticalSlack
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
 import type { XerWriteLoss } from '@/services/xerWriteTypes';
 import { exportXerLossNotice } from '@/state/xerExportNotice';
+import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -1448,6 +1449,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (invalidChars) get().notify(invalidChars);
       const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
       if (criticalHoursLost) get().notify(criticalHoursLost);
+      if (!xerLoss?.some(loss => loss.code === 'schedulingRules')) {
+        const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
+          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
+        if (profileNotice) get().notify(profileNotice);
+      }
       return { ok: true, warnings };
     },
 

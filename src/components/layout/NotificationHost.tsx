@@ -119,7 +119,7 @@ export function NotificationHost() {
   const setUI = useAppStore((s) => s.setUI);
   // Alle meldingsleutels wonen in `common` (de default-namespace) — zie `NotificationMessageKey`
   // voor waarom dat een eis is en geen toeval.
-  const { t, i18n } = useTranslation();
+  const { t, i18n } = useTranslation(['common', 'menu']);
   const placement = useToastPlacement(notifications.length > 0);
 
   // Auto-dismiss uitsluitend voor `info`-meldingen (5 s, of `durationMs`); `error` en een `sticky`

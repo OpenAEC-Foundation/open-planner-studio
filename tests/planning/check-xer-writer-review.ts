@@ -26,6 +26,8 @@
  *  R11 Ronde 3, punt 3: met OPS-markering rondt de lezer een bronbreuk niet af als het record vervallen is.
  *  R12 Ronde 4: kiest de gebruiker bij een taak uit P6 *Projectstandaard*, dan schrijft de export de actuele
  *      effectieve regel, niet het oude P6-duurtype (`p6DurationType`).
+ *  R14 Eindreview: een geïmporteerde mijlpaal mét duur (vlag naast werkminuten, `mppReader.ts`) wordt een gewone
+ *      activiteit met zijn duur en rest, en de melding noemt dat. Een nulduur-mijlpaal blijft `TT_Mile`/`TT_FinMile`.
  */
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
@@ -640,6 +642,44 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   // Ronde 9 (VERVOLG): de telling is per constraint; Fase 2 draagt er twee.
   eq('R13a de export telt drie constraints op samenvattingstaken', w.loss.find(l => l.code === 'summaryConstraints')?.count, 3);
   ok('R13b de constraint van de gewone taak gaat mee (cstr_type)', rowsOf(w.bytes, 'TASK').find(r => r.task_name === 'Los')?.cstr_type);
+}
+
+// ── R14: mijlpaal mét duur ───────────────────────────────────────────────────────────────────────
+{
+  const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
+  const calendar: WorkCalendar = {
+    id: 'cal', name: 'Werkweek', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+  };
+  const milestone = (name: string, days: number, extra: Partial<Task> = {}, time: Partial<Task['time']> = {}): Task => ({
+    id: `r14-${name}`, name, description: '', wbsCode: name, taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: true,
+    priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: { ...createDefaultTaskTime('2026-06-01', days), ...time }, ...extra,
+  });
+  const tasks = [
+    // Dezelfde vorm als `mppReader.ts`: de vlag staat naast de werkminuten.
+    milestone('Dagen', 5, {}, { durationMinutes: 2400 }),
+    milestone('Uren', 5, {}, { durationMinutes: 2400, durationUnit: 'hours' }),
+    milestone('Bezig', 5, {}, { durationMinutes: 2400, completion: 0.5 }),
+    milestone('Eind', 5, { milestoneKind: 'FINISH' }, { durationMinutes: 2400 }),
+    milestone('Start', 0),
+    milestone('Slot', 0, { milestoneKind: 'FINISH' }),
+  ];
+  const written = writeXER({ project, calendar, calendars: [calendar], tasks, sequences: [], resources: [], assignments: [], exportDate: '2026-10-20' });
+  const row = (name: string) => rowsOf(written.bytes, 'TASK').find(r => r.task_name === name);
+  const cells = (name: string) => [row(name)?.task_type, Number(row(name)?.target_drtn_hr_cnt), Number(row(name)?.remain_drtn_hr_cnt)];
+  eq('R14a mijlpaal met duur in dagen: gewone activiteit, 40 u duur en rest', cells('Dagen'), ['TT_Task', 40, 40]);
+  eq('R14b mijlpaal met duur in uren: gewone activiteit, 40 u duur en rest', cells('Uren'), ['TT_Task', 40, 40]);
+  eq('R14c half af: de rest blijft 20 u', cells('Bezig'), ['TT_Task', 40, 20]);
+  eq('R14d eindmijlpaal met duur: gewone activiteit', cells('Eind'), ['TT_Task', 40, 40]);
+  ok('R14e met duur: start en einde vallen niet samen', row('Eind')?.target_start_date !== row('Eind')?.target_end_date);
+  eq('R14f nulduur-mijlpaal blijft TT_Mile', cells('Start'), ['TT_Mile', 0, 0]);
+  eq('R14g nulduur-eindmijlpaal blijft TT_FinMile', cells('Slot'), ['TT_FinMile', 0, 0]);
+  eq('R14h de melding telt de vier omgezette mijlpalen', written.loss.find(l => l.code === 'durationMilestones')?.count, 4);
+  const back = read(written.bytes);
+  const task = (name: string) => back.tasks.find(t => t.name === name);
+  eq('R14i na heropenen: duur en rest terug', [task('Dagen')?.isMilestone, task('Dagen')?.time.scheduleDuration, task('Dagen')?.time.remainingTime], [false, 5, 5]);
+  eq('R14j na heropenen: urentaak 2400 minuten', [task('Uren')?.time.durationUnit, task('Uren')?.time.durationMinutes], ['hours', 2400]);
+  eq('R14k nulduur-mijlpalen blijven mijlpaal', [task('Start')?.isMilestone, task('Slot')?.milestoneKind], [true, 'FINISH']);
 }
 
 for (const note of notes) console.log(`   · ${note}`);

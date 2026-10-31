@@ -253,6 +253,8 @@
       "elapsedDurations_other": "{{count}} tasks with a duration in calendar days use working hours",
       "manualTasks_one": "{{count}} manually scheduled task is scheduled automatically in P6",
       "manualTasks_other": "{{count}} manually scheduled tasks are scheduled automatically in P6",
+      "durationMilestones_one": "{{count}} milestone with a duration became a normal activity (P6 has no milestone with a duration)",
+      "durationMilestones_other": "{{count}} milestones with a duration became normal activities (P6 has no milestone with a duration)",
       "levelingDelays_one": "{{count}} leveling delay",
       "levelingDelays_other": "{{count}} leveling delays",
       "splits_one": "{{count}} task with breaks or its own work distribution: this is lost",

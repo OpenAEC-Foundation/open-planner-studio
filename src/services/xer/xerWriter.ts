@@ -33,7 +33,7 @@ import type { ResourceAssignment } from '@/types/resource';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { effectiveSchedulingOptions, resolveConventions, builtInConventions, CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, isFlatCurveValues } from '@/engine/contour/contourEngine';
 import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 import { effectiveWorkRule, remainingMinutesOf } from '@/engine/work/workRuleApply';
@@ -508,10 +508,11 @@ function workMinutesPerDayOf(cal: WorkCalendar): number {
  *  - kalendertijd kent P6 niet per activiteit: de lengte telt als werktijd, en het record draagt de eenheid
  *    (`ed`/`eu`), ook bij hele dagen, zodat OPS de kalendertijd terugleest (review #585 r1, punt 3).
  * De rest volgt de solver en de werkregelbrug (`remainingMinutesOf`): de vastgelegde rest, anders duur ×
- * (1 − voortgang), in de maat van de taak. Een voltooide taak en een mijlpaal: 0.
+ * (1 − voortgang), in de maat van de taak. Een voltooide taak en een nulduur-mijlpaal: 0. Een mijlpaal mét
+ * duur (`isZeroDurationMilestone`) houdt zijn duur en rest: P6 kent die niet, dus die wordt een gewone activiteit.
  */
 function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { duration: WrittenAmount; remaining: WrittenAmount } {
-  if (task.isMilestone) return { duration: { minutes: 0 }, remaining: { minutes: 0 } };
+  if (isZeroDurationMilestone(task)) return { duration: { minutes: 0 }, remaining: { minutes: 0 } };
   const minutesPerDay = workMinutesPerDayOf(cal);
   const isHour = taskDurationUnit(task) === 'hours';
   const elapsed = isElapsedTask(task);
@@ -702,8 +703,9 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     // Activiteit-ID: uniek, niet leeg en hooguit 40 tekens, ná normalisatie (P6 eist dat).
     const code = uniqueCode(task.wbsCode, P6_MAX_LENGTH.Activity.Id, usedCodes, () => `A${(order.get(task.id) ?? 1) * 10}`, counter, codeChanges);
     const milestoneSide = task.milestoneKind === 'FINISH' ? 'finish' : 'start';
-    const startSide = task.isMilestone ? milestoneSide : 'start';
-    const finishSide = task.isMilestone ? milestoneSide : 'finish';
+    const zeroMilestone = isZeroDurationMilestone(task);
+    const startSide = zeroMilestone ? milestoneSide : 'start';
+    const finishSide = zeroMilestone ? milestoneSide : 'finish';
     const constraintSide = (type: string | undefined): 'start' | 'finish' =>
       type === 'MFO' || type === 'FNET' || type === 'FNLT' ? 'finish' : 'start';
     // De ACTUELE effectieve werkregel: eigen regel, anders de projectstandaard, anders de standaardregel (review
@@ -715,7 +717,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
     const durationType = XER_DURATION_TYPE_TOKEN[workRule];
     // Activiteittype: mijlpaal, hammock (TT_LOE), anders het P6-type uit de bron als dat een gewone
     // activiteit is (TT_Rsrc, TT_WBS: review PR #393, punt 7), anders TT_Task.
-    const taskType = task.isMilestone ? (task.milestoneKind === 'FINISH' ? 'TT_FinMile' : 'TT_Mile')
+    const taskType = zeroMilestone ? (task.milestoneKind === 'FINISH' ? 'TT_FinMile' : 'TT_Mile')
       : task.isHammock ? 'TT_LOE'
         : task.p6ActivityType === 'TT_Rsrc' || task.p6ActivityType === 'TT_WBS' ? task.p6ActivityType : 'TT_Task';
     const priority = XER_PRIORITY.reduce((best, entry) =>
@@ -784,6 +786,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
   lose('customTaskTypes', tasks.filter(t => t.customTaskTypeId).length);
   lose('taskCategories', tasks.filter(t => t.taskType && t.taskType !== 'CONSTRUCTION').length);
   lose('manualTasks', tasks.filter(t => t.manuallyScheduled).length);
+  lose('durationMilestones', leafTasks.filter(t => t.isMilestone && !isZeroDurationMilestone(t)).length);
   lose('elapsedDurations', tasks.filter(t => t.time.durationType === 'ELAPSEDTIME').length);
   lose('levelingDelays', tasks.filter(t => (t.levelingDelay ?? 0) !== 0 || (t.levelingDelayMinutes ?? 0) !== 0).length);
   lose('splits', countSplitTasksWithoutContour([...tasks]) + tasks.filter(t => (t.timephasedContours?.length ?? 0) > 0).length);

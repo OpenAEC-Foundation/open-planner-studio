@@ -1396,7 +1396,9 @@
     "notifications.exportP6Truncated_one": "95e5a50366fdaaa3",
     "notifications.exportP6Truncated_other": "ae64ca54c96c61a4",
     "notifications.exportXerLossItem.summaryConstraints_one": "33d7e1b1d5c3284b",
-    "notifications.exportXerLossItem.summaryConstraints_other": "bb2b5082e9158310"
+    "notifications.exportXerLossItem.summaryConstraints_other": "bb2b5082e9158310",
+    "notifications.exportXerLossItem.durationMilestones_one": "3d064bc3fe3657a5",
+    "notifications.exportXerLossItem.durationMilestones_other": "d0f6653331e64ec5"
   },
   "task": {
     "contourDialog.title": "2c88619a7af281e3",

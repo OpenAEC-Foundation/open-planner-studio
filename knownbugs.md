@@ -1730,3 +1730,8 @@ en noem het in je rapport of PR-tekst.
      leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
      beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
      van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
+
+570. **P6 XML: een mijlpaal mét duur krijgt een mijlpaaltype naast zijn duur.** `src/services/p6/p6xmlWriter.ts`,
+     `taskTypeToP6`, kijkt alleen naar `isMilestone`. Een taak uit `.mpp` met de vlag en 5 dagen duur krijgt dus
+     `Start Milestone` met `PlannedDuration` 40. P6 rekent een mijlpaal zonder duur, dus de duur kan daar wegvallen. De
+     XER-export is hierop gerepareerd in #393 (`isZeroDurationMilestone`). Gevonden tijdens die fix. Niet in P6 getest. — S
