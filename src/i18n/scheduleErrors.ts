@@ -13,7 +13,7 @@ export type ScheduleErrorKey = `scheduleErrors.${ScheduleErrorCode}`;
 // Een `Record` over de unie: een nieuwe code zonder regel hier is een compile-fout.
 const CODES: Record<ScheduleErrorCode, true> = {
   cycle: true, noWorkingDays: true, invalidDayDuration: true, invalidHourDuration: true,
-  hourTaskWithoutWorkHours: true, invalidStartDate: true,
+  hourTaskWithoutWorkHours: true, taskWithoutWorkHours: true, noWorkingHours: true, invalidStartDate: true,
 };
 /** Alle codes — voor de controle dat elke code in elke taal een tekst heeft. */
 export const SCHEDULE_ERROR_CODES = Object.keys(CODES) as ScheduleErrorCode[];

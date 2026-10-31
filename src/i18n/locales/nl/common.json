@@ -239,6 +239,8 @@
     "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
     "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
     "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "taskWithoutWorkHours": "Taak '{{task}}' heeft geen geldige werktijden in haar kalender",
+    "noWorkingHours": "De projectkalender heeft geen geldige werktijden",
     "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
   },
   "yes": "Ja",

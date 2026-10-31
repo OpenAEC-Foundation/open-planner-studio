@@ -170,6 +170,8 @@
     "scheduleErrors.invalidDayDuration": "9570c6555e03a9f4",
     "scheduleErrors.invalidHourDuration": "ffddea24c4143194",
     "scheduleErrors.hourTaskWithoutWorkHours": "b94bfd1074a83809",
+    "scheduleErrors.taskWithoutWorkHours": "0b335b560798cb49",
+    "scheduleErrors.noWorkingHours": "64ea3b8abc36e337",
     "scheduleErrors.invalidStartDate": "4376bda348ca4639",
     "yes": "231cb7330f9cd5ec",
     "no": "41c6bb6af3b29471",
