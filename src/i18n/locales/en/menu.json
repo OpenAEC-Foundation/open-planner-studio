@@ -444,5 +444,9 @@
     "redo": "Redo",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
+  },
+  "native": {
+    "window": "Window",
+    "quit": "Quit Open Planner Studio"
   }
 }

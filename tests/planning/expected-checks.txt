@@ -237,6 +237,7 @@ check-mspdi-werktijd-minuten.ts matrix
 check-msproject-float-default.ts matrix
 check-mutation-cost.ts matrix
 check-mutation-seq.ts matrix
+check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
 check-notifications.ts matrix

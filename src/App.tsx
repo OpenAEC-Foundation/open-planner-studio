@@ -24,6 +24,7 @@ import { ProjectRail } from '@/components/layout/DocumentChrome/ProjectRail';
 import { NewOrOpenProjectDialog } from '@/components/dialogs/NewOrOpenProjectDialog';
 import { ProjectOverview } from '@/components/layout/DocumentChrome/ProjectOverview';
 import { CloseDocumentDialog } from '@/components/layout/DocumentChrome/CloseDocumentDialog';
+import { useMacOSMenu } from '@/hooks/useMacOSMenu';
 import { useKeyboardShortcuts } from '@/hooks/keyboard/useKeyboardShortcuts';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
@@ -105,6 +106,7 @@ const guideActiveSnapshot = () => getGuideView() !== null;
 
 function AppContent() {
   useKeyboardShortcuts();
+  useMacOSMenu();
   const { t } = useTranslation('common');
 
   const activeTab = useAppStore(s => s.ui.activeRibbonTab);
