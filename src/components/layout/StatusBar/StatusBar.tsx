@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
 import { Terminal, Circle } from 'lucide-react';
@@ -8,6 +8,10 @@ import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import { BaselineLegend } from '@/components/canvas/BaselineLegend';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
+
+// Past een blok niet meer op de rij, dan schuift het als geheel naar de volgende; alleen een blok dat
+// breder is dan de hele balk verdeelt zich over meer rijen.
+const STATUS_GROUP = 'flex flex-wrap items-center gap-x-4 min-w-0 empty:hidden';
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -50,7 +54,7 @@ export function StatusBar() {
       key={key}
       onClick={openWarnings}
       title={tCommon('warnings.openPanel')}
-      className="px-1 rounded hover:bg-surface-hover"
+      className="statusbar-button px-1 rounded hover:bg-surface-hover"
       style={{ color: 'var(--theme-warning-text)' }}
       data-ops-status-warning={key}
     >
@@ -58,74 +62,103 @@ export function StatusBar() {
     </button>
   );
 
+  // De balk kan meer rijen krijgen; het begeleidingspaneel en de meldingen die erboven zweven rekenen
+  // daarom met zijn gemeten hoogte. Zonder balk (presentatiemodus) geldt weer de waarde uit globals.css.
+  const barRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar || typeof ResizeObserver === 'undefined') return;
+    const root = document.documentElement;
+    const apply = () => root.style.setProperty('--statusbar-height', `${Math.round(bar.getBoundingClientRect().height)}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty('--statusbar-height');
+    };
+  }, []);
+
   return (
+    // Geen `nowrap`: een flex-item gaat eerst als geheel naar de volgende rij en breekt pas als het
+    // breder is dan de hele balk. Dat houdt de tekst compleet, ook in een heel smal venster.
     <div
-      className="flex items-center bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
-      style={{ height: 'var(--statusbar-height)' }}
+      ref={barRef}
+      className="flex flex-wrap items-start bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-x-4"
+      style={{ lineHeight: 'var(--statusbar-row-height)' }}
       data-tour-anchor="status-bar"
     >
-      <span>{t('status.tasks')} {leafCount}</span>
-      <span>{t('status.milestones')} {milestoneCount}</span>
-      {cpmResult && (
-        <>
-          <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
-          {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
-              kale "Einde:"-label zonder waarde. */}
-          {/* B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt. */}
-          {cpmResult.projectEnd && <span>{t('status.end')} {dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}</span>}
-          {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
-            'missedDeadlines',
-            tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
-          )}
-          {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && warningButton(
-            'violatedConstraints',
-            tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length }),
-          )}
-          {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && warningButton(
-            'outOfSequence',
-            tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length }),
-          )}
-          {overallocatedCount > 0 && warningButton(
-            'overallocated',
-            tCommon('statusWarnings.overallocated', { count: overallocatedCount }),
-          )}
-        </>
-      )}
-      {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
-          Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
-      {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
-        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
-          ⚠ {t('status.scheduleStale')}
-        </span>
-      )}
+      <div className={STATUS_GROUP}>
+        <span>{t('status.tasks')} {leafCount}</span>
+        <span>{t('status.milestones')} {milestoneCount}</span>
+        {cpmResult && (
+          <>
+            <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
+            {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
+                kale "Einde:"-label zonder waarde. */}
+            {/* B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt. */}
+            {cpmResult.projectEnd && <span>{t('status.end')} {dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}</span>}
+          </>
+        )}
+      </div>
+      <div className={STATUS_GROUP}>
+        {cpmResult && (
+          <>
+            {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
+              'missedDeadlines',
+              tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
+            )}
+            {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && warningButton(
+              'violatedConstraints',
+              tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length }),
+            )}
+            {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && warningButton(
+              'outOfSequence',
+              tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length }),
+            )}
+            {overallocatedCount > 0 && warningButton(
+              'overallocated',
+              tCommon('statusWarnings.overallocated', { count: overallocatedCount }),
+            )}
+          </>
+        )}
+        {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
+            Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
+        {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
+          <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
+            ⚠ {t('status.scheduleStale')}
+          </span>
+        )}
+      </div>
       {selectedTaskIds.length > 0 && (
         <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
       )}
-      <div className="flex-1" />
-      <BaselineLegend />
-      {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
-      {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
-      {aiMode && (
-        <button
-          onClick={() => setUI({ activeRibbonTab: 'ai' })}
-          title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
-        >
-          <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
-          <span>MCP</span>
-        </button>
-      )}
-      {debugTerminalEnabled && (
-        <button
-          onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
-          title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
-          className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
-        >
-          <Terminal size={12} />
-        </button>
-      )}
+      <div className={`${STATUS_GROUP} justify-end ms-auto`}>
+        <BaselineLegend />
+        {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
+        <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
+        <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
+        {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
+        {aiMode && (
+          <button
+            onClick={() => setUI({ activeRibbonTab: 'ai' })}
+            title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
+            className="statusbar-button flex items-center gap-1 px-1.5 rounded hover:bg-surface-hover text-text-secondary"
+          >
+            <Circle size={10} fill={AI_STATUS_COLOR[aiServerStatus.state]} color={AI_STATUS_COLOR[aiServerStatus.state]} />
+            <span>MCP</span>
+          </button>
+        )}
+        {debugTerminalEnabled && (
+          <button
+            onClick={() => setUI({ debugTerminalOpen: !debugTerminalOpen })}
+            title={debugTerminalOpen ? tCommon('debugTerminal.hide') : tCommon('debugTerminal.show')}
+            className={`statusbar-button flex items-center gap-1 px-1.5 rounded hover:bg-surface-hover ${debugTerminalOpen ? 'text-text-primary' : 'text-text-secondary'}`}
+          >
+            <Terminal size={12} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -19,11 +19,13 @@ export function BaselineLegend() {
   );
   if (!showBaselineOverlay || !layers.some(l => l.slot !== 0)) return null;
   return (
-    <span data-ops-baseline-legend className="flex items-center gap-3 min-w-0">
+    <span data-ops-baseline-legend className="flex flex-wrap items-center gap-x-3 min-w-0">
       {layers.map(l => (
-        <span key={l.slot} className="flex items-center min-w-0 whitespace-nowrap" title={l.name}>
+        <span key={l.slot} className="flex items-center min-w-0" title={l.name}>
           <BaselineSwatch slot={l.slot} />
-          <span className="overflow-hidden text-ellipsis">{l.name}</span>
+          {/* Niet afkappen: de naam is de enige manier om de kleur te lezen. Alleen een naam die breder
+              is dan de hele balk breekt af, ook zonder spaties. */}
+          <span className="min-w-0 [overflow-wrap:anywhere]">{l.name}</span>
         </span>
       ))}
     </span>
