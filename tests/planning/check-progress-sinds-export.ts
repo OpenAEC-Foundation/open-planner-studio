@@ -9,6 +9,7 @@
 //   Deel D — wanneer de exportstand NIET geldt: geen kolom, WBS-terugval, koppeling aan een andere taak.
 //   Deel E — meldingen: plandatums en het exportmoment.
 //   Deel F — het echte `.xlsx`: verborgen kolom, verzamelrij, en terug door de echte lezer.
+//   Deel G — behouden waarden na de taakplanner: strijdige voortgang wordt geweigerd.
 //
 // Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
 
@@ -351,6 +352,92 @@ const choices = (entries: readonly [number, ProgressConflictChoice][]) => new Ma
   const after = S().previewProgressImport(rows);
   eq('F5 na een wijziging in de app blijft die staan', rowOf(after.rows, b.id).outcome, 'noop');
   eq('F5 met de melding', rowOf(after.rows, b.id).keptApp, [{ field: 'completion', exported: 0, app: 0.5 }]);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════
+// Deel G — behouden waarden na de taakplanner (review #756). Een veld dat uit de invoer valt, is nog
+// niet veilig: de taakplanner leidt voortgang af. De rijen komen uit de echte schrijver en lezer.
+// ════════════════════════════════════════════════════════════════════════════════════════════
+const exportedRows = async (): Promise<readonly ProgressRow[]> => {
+  const text = { headerNotes: { 'OPS Export': 'niet wijzigen' }, summaryNote: '— verzameltaak: niet invullen' };
+  const bytes = await writeProgressSheetXLSX([...flattenOrder(S().tasks)], text, { exportedAt: EXPORTED_AT });
+  return finalizeProgressRows(await parseProgressXlsx(bytes), 'dmy');
+};
+const returnedSheet = (rows: readonly ProgressRow[], task: Task, filledIn: Partial<ProgressRow>) =>
+  rows.map(row => (row.taskId === task.id ? { ...row, ...filledIn } : row));
+
+{
+  // G1 — export 20 %, app 50 %, blad 100 % met een einde. Keuze app: het einde mag de voltooiing niet
+  // alsnog op 100 % zetten. Keuze blad blijft werken, dus de rij loopt niet vast.
+  const [a] = freshProject();
+  S().setActualStart(a.id, '2026-03-02');
+  S().setTaskProgress(a.id, 0.2);
+  const rows = await exportedRows();
+  S().setTaskProgress(a.id, 0.5);
+  const sheet = returnedSheet(rows, a, {
+    completion: { kind: 'value', value: 1 },
+    actualFinish: { kind: 'value', iso: '2026-03-06' },
+  });
+  const undecided = rowOf(S().previewProgressImport(sheet).rows, a.id);
+  eq('G1 eerst een botsing op de voltooiing', undecided.conflicts?.map(c => c.field), ['completion']);
+
+  const keep = { conflictChoices: choices([[undecided.rowNumber, 'app']]) };
+  const refused = rowOf(S().previewProgressImport(sheet, undefined, keep).rows, a.id);
+  eq('G1 keuze app: de rij is geweigerd', refused.outcome, 'refused');
+  eq('G1 met de bestaande reden', refused.reason, 'conflictingProgressInputs');
+  eq('G1 geen geplande taak', refused.plannedTask, undefined);
+  eq('G1 de keuze staat op de rij', refused.conflictChoice, 'app');
+  ok('G1 de rij blijft een botsing, dus wisselbaar', refused.conflicts?.length === 1);
+
+  const applied = S().applyProgressImport(sheet, undefined, keep);
+  eq('G1 niets toegepast', applied.appliedCount, 0);
+  eq('G1 de voltooiing blijft de app-waarde', live(a.id).time.completion, 0.5);
+  eq('G1 geen werkelijk einde', live(a.id).time.actualFinish, undefined);
+
+  const take = S().applyProgressImport(sheet, undefined, { conflictChoices: choices([[undecided.rowNumber, 'sheet']]) });
+  eq('G1 keuze blad: toegepast', take.appliedCount, 1);
+  eq('G1 keuze blad: de voltooiing', live(a.id).time.completion, 1);
+  eq('G1 keuze blad: het einde', live(a.id).time.actualFinish?.slice(0, 10), '2026-03-06');
+}
+{
+  // G2 — export 100 %, einde 6 maart. App: einde 5 maart. Blad: 50 %, einde onaangeraakt. Geen botsing,
+  // maar de percentagebewerking zou het behouden einde wissen: de rij is tegenstrijdig, zoals op main.
+  const [a] = freshProject();
+  S().setActualStart(a.id, '2026-03-02');
+  S().setActualFinish(a.id, '2026-03-06');
+  const rows = await exportedRows();
+  S().setActualFinish(a.id, '2026-03-05');
+  const corrected = live(a.id).time.actualFinish;
+  const sheet = returnedSheet(rows, a, { completion: { kind: 'value', value: 0.5 } });
+
+  const row = rowOf(S().previewProgressImport(sheet).rows, a.id);
+  eq('G2 geen botsing', row.conflicts, undefined);
+  eq('G2 het einde is een app-waarde', row.keptApp?.map(k => k.field), ['actualFinish']);
+  eq('G2 de rij is geweigerd', row.outcome, 'refused');
+  eq('G2 met de bestaande reden', row.reason, 'conflictingProgressInputs');
+
+  const applied = S().applyProgressImport(sheet);
+  eq('G2 niets toegepast', applied.appliedCount, 0);
+  eq('G2 het einde blijft staan', live(a.id).time.actualFinish, corrected);
+  eq('G2 de voltooiing blijft staan', live(a.id).time.completion, 1);
+}
+{
+  // G3 — geen te ruime weigering: raakt de taakplanner de behouden waarde niet, dan gaat de rij door.
+  const [a] = freshProject();
+  S().setActualStart(a.id, '2026-03-02');
+  S().setTaskProgress(a.id, 0.2);
+  const rows = await exportedRows();
+  S().setActualStart(a.id, '2026-03-03');
+  const corrected = live(a.id).time.actualStart;
+  const sheet = returnedSheet(rows, a, { completion: { kind: 'value', value: 0.4 } });
+
+  const row = rowOf(S().previewProgressImport(sheet).rows, a.id);
+  eq('G3 de rij gaat door', row.outcome, 'apply');
+  eq('G3 de start is een app-waarde', row.keptApp?.map(k => k.field), ['actualStart']);
+  eq('G3 de start overleeft de planner', row.plannedTask?.time.actualStart, corrected);
+  S().applyProgressImport(sheet);
+  eq('G3 de voltooiing komt uit het blad', live(a.id).time.completion, 0.4);
+  eq('G3 de start blijft staan', live(a.id).time.actualStart, corrected);
 }
 
 if (diffs.length > 0) {

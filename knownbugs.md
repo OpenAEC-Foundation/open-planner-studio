@@ -1313,6 +1313,13 @@ en noem het in je rapport of PR-tekst.
    blad. De andere talen beschrijven een kaart en een import die niet meer bestaan, en missen het deel over wijzigingen
    sinds de export. Voorstel: `update-docs-lang` draaien. Gezien in `public/docs/de/` en `public/docs/fr/`. — B
 
+582. **Een rij met alleen verschoven plandatums staat in de teller, maar niet in de lijst.** Voortgangsimport,
+   `ProgressImportDialog.tsx`, de filters `appNewerRows` en `generalRows`: bij ongewijzigde voortgang en een
+   berekende start en een berekend einde die een week schoven, levert het plan `noop`, `plannedShifts` en
+   `plannedShiftCount: 1`. Beide filters laten die rij vallen, dus de planner ziet niet welke taak schoof. Voorstel: één
+   aangepaste selectie die ook een `noop`-rij met `plannedShifts` toont. Gevonden in review van #756 (GPT-6.1-Sol),
+   2026-10-31. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`

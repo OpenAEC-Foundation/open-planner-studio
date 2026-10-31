@@ -101,6 +101,14 @@ function verdictFor(
   return appAsExported ? 'edit' : 'conflict';
 }
 
+/** Staat een veld dat de app houdt na de taakplanner nog op de app-waarde? Niet vanzelfsprekend: de
+ *  planner leidt voortgang af. Een werkelijk einde zet 100 %, en een percentage onder 100 wist het einde. */
+function keepsAppValue(app: Task['time'], planned: Task['time'], field: ProgressField): boolean {
+  return field === 'completion'
+    ? isCompletionAsExported(planned.completion, app.completion)
+    : isAppDateAsExported(planned[field] || undefined, app[field] || undefined);
+}
+
 function plannedShifts(task: Task, state: ProgressExportState): ProgressPlannedShift[] {
   const shifts: ProgressPlannedShift[] = [];
   const add = (field: ProgressPlannedShift['field'], exported: string | undefined, current: string) => {
@@ -129,7 +137,9 @@ function plannedShifts(task: Task, state: ProgressExportState): ProgressPlannedS
  *      velden worden een `CellEditIntent`; mét exportstand per veld een driewegvergelijking: alleen
  *      in de app veranderd ⇒ `keptApp`, op beide plekken ⇒ `conflicts`. Een botsing zonder keuze in
  *      `conflictChoices` ⇒ `unresolved`, met keuze `app` valt het veld weg; niets over ⇒ noop.
- *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`.
+ *   6. `deps.planEdits(task, edits)` — `ok: false` ⇒ refused met `plannerCode`. Verandert de geplande
+ *      taak een veld dat de app houdt (`keptApp`, of een botsing met keuze `app`), dan is de rij
+ *      tegenstrijdig ⇒ refused/conflictingProgressInputs.
  *   7. `ok: true` ⇒ apply, met de volledig geplande taak en de `changes`-lijst — alleen de velden
  *      die de RIJ ZELF aanleverde, before uit de HUIDIGE taak, after uit de GEPLANDE taak.
  * `needsConfirmation` (⇔ `match === 'wbs'`) wordt op ELKE rij gezet die een taak trof, ongeacht de
@@ -333,6 +343,17 @@ export function buildProgressImportPlan(
       refusedCount++;
       return {
         rowNumber: row.rowNumber, outcome: 'refused', reason, plannerCode,
+        match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [], ...sinceExport,
+      };
+    }
+
+    // Een veld dat uit de invoer viel, is nog niet veilig: de overige bewerkingen kunnen het via de
+    // voortgangsregels alsnog veranderen. Dan spreekt de rij de app tegen, en schrijft hij niets.
+    const appFields = [...keptApp.map(kept => kept.field), ...(choice === 'app' ? conflicts.map(c => c.field) : [])];
+    if (appFields.some(field => !keepsAppValue(task.time, planned.value.task.time, field))) {
+      refusedCount++;
+      return {
+        rowNumber: row.rowNumber, outcome: 'refused', reason: 'conflictingProgressInputs',
         match: match.match, needsConfirmation, taskId, taskLabel: label, changes: [], ...sinceExport,
       };
     }
