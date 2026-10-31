@@ -1644,6 +1644,17 @@ en noem het in je rapport of PR-tekst.
      werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
      2026-10-30. — B
 
+561. **De voortgangscurve heeft geen browsertest op de getekende lijnen.** `tests/browser/table-reports.spec.ts`
+     kijkt alleen of de vier kaarten en de grafiek er staan; de ligging zelf toetst `check-print-report.ts` op
+     `layoutCurveChart` en de PDF-tekenaar. Een fout alleen in de SVG-weergave (`CurveChartView.tsx`) valt zo niet
+     op. Gevonden bij #705. — S
+
+585. **`onHourCalendar` is overbodig.** `src/engine/reports/reportCommon.ts:113` zoekt de taakkalender opnieuw op,
+     terwijl de engine dit onderscheid al bewaart als `hasOwnWorkBlocks` (`src/engine/scheduler/CalendarEngine.ts:118`).
+     De uitkomsten zijn gelijk in tien combinaties. De helper en zijn import kunnen weg; in
+     `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
+     VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

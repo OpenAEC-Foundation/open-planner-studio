@@ -48,6 +48,7 @@
     "lookAhead": "look-ahead",
     "critical": "ວິກິດ",
     "progress": "ຄວາມຄືບໜ້າ",
+    "progressCurve": "ເສັ້ນໂຄ້ງຄວາມຄືບໜ້າ",
     "health": "ສຸຂະພາບແຜນງານ",
     "resourceLoading": "ການໂຫຼດຊັບພະຍາກອນ",
     "resourceAssignments": "ການມອບໝາຍຊັບພະຍາກອນ",
@@ -90,6 +91,7 @@
     "lookAhead": "ແຜນຄາດການລ່ວງໜ້າ",
     "critical": "ວຽກວິກິດ ແລະ ໃກ້ວິກິດ",
     "progress": "ບົດລາຍງານຄວາມຄືບໜ້າ",
+    "progressCurve": "ເສັ້ນໂຄ້ງຄວາມຄືບໜ້າ",
     "health": "ສຸຂະພາບຕາຕະລາງງານ",
     "resourceLoading": "ການນຳໃຊ້ຊັບພະຍາກອນ",
     "resourceAssignments": "ການມອບໝາຍຊັບພະຍາກອນ",
@@ -400,6 +402,32 @@
       "activitiesLabel": "ກິດຈະກຳ",
       "levelSubtitle": "ຮອດລະດັບ {{level}}",
       "empty": "ບໍ່ມີອົງປະກອບ WBS."
+    },
+    "progressCurve": {
+      "title": "ເສັ້ນໂຄ້ງຄວາມຄືບໜ້າ",
+      "kpiComplete": "ສຳເລັດ",
+      "kpiPlanned_baseline": "ຕາມແຜນ {{value}}",
+      "kpiPlanned_current": "ຕາມແຜນ {{value}} (ແຜນງານປັດຈຸບັນ)",
+      "kpiLate": "ເກີນກຳນົດ",
+      "kpiLateCritical": "ໃນນີ້ວິກິດ: {{value}}",
+      "kpiNegativeFloat": "ເວລາຜ່ອນຜັນຕິດລົບ",
+      "kpiLargest": "ໃຫຍ່ສຸດ: {{value}}",
+      "kpiNextMilestone": "ຫຼັກໝາຍຕໍ່ໄປ",
+      "milestoneIn_other": "ອີກ {{count}} ວັນ",
+      "milestoneAgo_other": "{{count}} ວັນກ່ອນ",
+      "milestoneToday": "ມື້ນີ້",
+      "noMilestone": "ບໍ່ມີຫຼັກໝາຍທີ່ເປີດຢູ່",
+      "chartLabel": "ເສັ້ນ S ຂອງຄວາມຄືບໜ້າສະສົມ",
+      "seriesPlanned": "ຕາມແຜນ (ແຜນຫຼັກ)",
+      "seriesActual": "ຕົວຈິງ",
+      "seriesEarly": "ວັນທີຕົ້ນສຸດ",
+      "band": "ເຂດເປົ້າໝາຍ: ຈາກວັນທີຕົ້ນສຸດຫາວັນທີ late",
+      "actualFootnote": "ເສັ້ນຕົວຈິງເປັນການປະມານ: ແຕ່ລະໜ້າວຽກເປັນເສັ້ນກົງ ຈາກວັນເລີ່ມຕົວຈິງຫາເປີເຊັນສຳເລັດປັດຈຸບັນ.",
+      "emptyChart": "ບໍ່ມີໜ້າວຽກທີ່ມີໄລຍະເວລາ: ບໍ່ມີເສັ້ນໂຄ້ງໃຫ້ແຕ້ມ.",
+      "noBaselineNote": "ບໍ່ມີແຜນຫຼັກທີ່ໃຊ້ຢູ່: ບໍ່ມີເສັ້ນໂຄ້ງຕາມແຜນ. ຕາມແຜນມາຈາກແຜນງານປັດຈຸບັນ.",
+      "noProgressNote": "ຍັງບໍ່ໄດ້ປ້ອນຄວາມຄືບໜ້າ: ເສັ້ນໂຄ້ງຕົວຈິງຢູ່ທີ່ 0%.",
+      "riskHeading": "ໜ້າວຽກທີ່ມີຄວາມສ່ຽງ: ເກີນກຳນົດ ຫຼື ເວລາຜ່ອນຜັນຕິດລົບ",
+      "riskEmpty": "ບໍ່ມີໜ້າວຽກເກີນກຳນົດ ແລະ ບໍ່ມີເວລາຜ່ອນຜັນຕິດລົບ."
     }
   }
 }

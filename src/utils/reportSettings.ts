@@ -39,7 +39,9 @@ export type ReportType =
   | 'resourceGantt'
   | 'milestones' | 'variance'
   // Tabelrapporten uit discussie #31 (manuvarkey) — zie `src/engine/reports/`.
-  | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary';
+  | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary'
+  // Voortgangscurve (issue #689): kerncijfers en een S-curve — zie `src/engine/reports/progressCurve.ts`.
+  | 'progressCurve';
 
 /**
  * De rapporttypen die door de Gantt-printpijplijn lopen (`renderReport` → raster-/vector-PDF met
@@ -76,7 +78,7 @@ export function reportTypeShowsCriticalToggle(type: ReportType): boolean {
 
 /** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
-  'lookAhead', 'critical', 'progress', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
+  'lookAhead', 'critical', 'progress', 'progressCurve', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
 ];
 
 export function isTableReportType(type: ReportType): boolean {
