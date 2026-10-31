@@ -21,7 +21,7 @@ grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentati
 - Scheduling uses one time axis in minutes and effective working-time blocks throughout. OPS day-measure tasks count work days, including fractions, while hour-measure tasks count working hours. A day task can follow an hour task within the same day.
 - Hour planning is always available. The former hour-planning switch is removed; mixed planning controls the unit selector, and OPS tasks display their own measure. Dates at a working-day boundary omit the clock time; other moments display it. Duration display uses up to two decimals while retaining the underlying value.
 - Calendar walks use integer milliseconds without rounding source work quantities. Dragging, splits, contours, resource loading, levelling, printing and scheduling share placement rules.
-- Existing project files pass through the documented, undoable minute-model conversion. App and headless import routes report the conversion before further work or export.
+- Existing project files pass through the documented, undoable minute-model conversion. The app, headless core results and MCP import responses report the conversion.
 - IFC reader/writer indexes avoid repeated hierarchy, calendar and crew scans. Other targeted changes limit Gantt drawing to visible rows, defer document thumbnails until the overview opens, and reduce repeated work in resource views, task selection, indentation, insertion and dependency searching.
 - The Warnings ribbon controls are named Warnings panel. Download statistics count program downloads and refresh every two hours.
 - The application and installers use the restored Open Planner Studio logo. Rustls is updated to 0.23.46.
