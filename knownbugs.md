@@ -403,6 +403,12 @@ en noem het in je rapport of PR-tekst.
      `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
+     gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
+     `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
+     arbeidsresource; handmatig verkort naar vijf dagen; nieuwe materiaalresource toegewezen: F5 meldt `resource` met
+     beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
+     ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
 
 ## Tabel, invoer en bediening
 
