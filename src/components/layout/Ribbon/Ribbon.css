@@ -812,6 +812,23 @@
   padding-inline-start: 22px;
 }
 
+/* Eigen vlak onder een keuze, zodat de regels erin niet op de volgende keuze lijken. Het vlak
+   begint op de tekst van de keuze; de rand draagt het verschil in hoog contrast, waar de
+   achtergrond gelijk is aan het menu. */
+.ribbon-choice-block {
+  flex: none;
+  margin-block: 2px 4px;
+  margin-inline: 28px 6px;
+  padding: 2px;
+  border: 1px solid var(--theme-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface-alt);
+}
+
+.ribbon-choice-block .ribbon-choice-detail {
+  padding-inline-start: 0;
+}
+
 /* De tekstgrootte komt van de plek waar dit staat: het menu of het venster Layouts. */
 .ribbon-choice-detail .ribbon-check-item {
   font-size: inherit;

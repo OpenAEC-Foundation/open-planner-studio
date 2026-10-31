@@ -800,7 +800,9 @@ export function ScreenColorsPopoverButton() {
               <span className="ribbon-check-label">{tMenu(`ribbon.screenColors_${mode}`)}</span>
             </button>
             {selected && mode === 'critical' && (
-              <CriticalBarColorsEditor colors={selection.colors} onChange={colors => updateSelection({ ...selection, colors })} />
+              <div className="ribbon-choice-block">
+                <CriticalBarColorsEditor colors={selection.colors} onChange={colors => updateSelection({ ...selection, colors })} />
+              </div>
             )}
             {selected && mode === 'category' && fields.length > 0 && (
               <div className="ribbon-choice-detail">

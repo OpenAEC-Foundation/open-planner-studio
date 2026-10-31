@@ -118,6 +118,21 @@ async function expectBarColorsMenuInView(page: Page): Promise<void> {
   expect(await hint.evaluate(element => element.scrollWidth <= element.clientWidth), 'uitleg is niet afgekapt').toBe(true);
 }
 
+/** De kleurvelden staan verder in dan de tekst van de keuzes, in een eigen vlak. */
+async function expectBarColorsBlockApart(page: Page): Promise<void> {
+  const editor = page.locator('[data-ops-bar-colors-editor]');
+  const rtl = await page.evaluate(() => document.documentElement.dir === 'rtl');
+  const field = await box(editor.locator('label span').first());
+  const choice = await box(page.locator('[data-ops-bar-color-mode="auto"] .ribbon-check-label'));
+  if (rtl) expect(field.right, 'veld springt verder in').toBeLessThan(choice.right);
+  else expect(field.left, 'veld springt verder in').toBeGreaterThan(choice.left);
+  const panelBackground = await page.locator('[data-ops-bar-colors-menu]').evaluate(
+    title => getComputedStyle(title.closest<HTMLElement>('div[style*="fixed"]')!).backgroundColor,
+  );
+  const block = await editor.evaluate(element => getComputedStyle(element.parentElement!).backgroundColor);
+  expect(block, 'eigen vlak').not.toBe(panelBackground);
+}
+
 async function openBarColors(page: Page): Promise<void> {
   await page.locator('[data-ops-ribbon-tab="beeld"]').click();
   await page.locator('[data-ops-bar-colors-toggle]').click();
@@ -140,6 +155,7 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   const category = page.locator('[data-ops-bar-color-mode="category"]');
   expect((await box(critical)).bottom).toBeLessThanOrEqual((await box(editor)).top + 1);
   expect((await box(editor)).bottom).toBeLessThanOrEqual((await box(auto)).top + 1);
+  await expectBarColorsBlockApart(page);
 
   // Keuzes zien eruit als keuzes: gewone tekstkleur, geen uitgegrijsde lintlabels.
   const textColor = (selector: string) => page.locator(selector).first().evaluate(element => {
@@ -204,6 +220,8 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   await chooseLocale(page, LOCALE_CASES[0]);
   await openBarColors(page);
   await expectBarColorsMenuInView(page);
+  await expectBarColorsBlockApart(page);
   await page.setViewportSize({ width: 420, height: 760 });
   await expectBarColorsMenuInView(page);
+  await expectBarColorsBlockApart(page);
 });
