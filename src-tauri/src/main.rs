@@ -82,6 +82,9 @@ fn main() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Bijwerken via de OpenAEC Installer (OpenAEC-Blueprint#33): op Windows met de
+        // installer geeft de app de update door; anders blijft de updater hierboven.
+        .plugin(openaec_update::init("open-planner-studio"))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(process_info_plugin())
