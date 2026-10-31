@@ -3300,7 +3300,7 @@
           "menu:backstage.exportTitle": "395ba95533d01f8f",
           "menu:backstage.progressImportCardTitle": "738117482ad35527",
           "menu:export.progressCsvLabel": "2ad090a4ca664762",
-          "menu:export.progressCsvNotes.summaryRow": "9c9e862ac59c4491",
+          "menu:export.progressXlsxNotes.summaryRow": "9c9e862ac59c4491",
           "menu:export.progressXlsxLabel": "4650f852dac2212c",
           "menu:export.progressXlsxSheetName": "11a948c44c0d5fd4",
           "menu:extensions.import": "9c4dd00fbf06a9d1",

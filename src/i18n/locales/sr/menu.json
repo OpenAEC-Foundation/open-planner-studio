@@ -214,6 +214,7 @@
     "screenColors_critical": "Критична путања",
     "screenColors_auto": "По задатку — аутоматски",
     "screenColors_category": "По категорији",
+    "screenColorsNearCritical": "Готово критичан",
     "screenColorsMissingField": "Ово поље не постоји у овом пројекту. Врста радова се привремено користи.",
     "screenColorsHint": "Ван критичног пута, црвена ивица означава критични пут.",
     "addLayout": "Нови изглед",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "попуните: од 0 до 100, децимални бројеви су дозвољени",
       "actualStart": "попуните: стварни почетак (као датум)",
-      "actualFinish": "попуните: стварни завршетак (као датум)"
-    },
-    "progressCsvLabel": "Лист напретка (CSV)",
-    "progressCsvDesc": "Исти сажети лист напретка као обичан текст, за оне који радије раде са CSV-ом.",
-    "progressCsvShort": "Напредак (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "попуните: стварни завршетак (као датум)",
       "readOnly": "не мењати",
       "plannedReadOnly": "планирано, не мењати",
-      "completion": "попуните: од 0 до 100, цели бројеви",
-      "actualStart": "попуните: стварни почетак (дд-мм-гггг)",
-      "actualFinish": "попуните: стварни завршетак (дд-мм-гггг)",
       "summaryRow": "— збирни задатак: не попуњавајте"
     },
     "csvLabel": "CSV (раздвојено тачка-зарезом)",

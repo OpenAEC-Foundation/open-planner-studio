@@ -44,6 +44,7 @@ check-conventions-p6-flags.ts matrix
 check-conventions-registry.ts matrix
 check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
+check-critical-bar-colors-route.ts matrix
 check-csv-import.ts matrix
 check-custom-task-types.ts matrix
 check-dag-is-werktijd.ts matrix
@@ -196,6 +197,7 @@ check-leveling-input.ts los
 check-load-profile.ts matrix
 check-local-time-parsing.ts matrix
 check-mijlpaal-afmelden.ts matrix
+check-milestone-drag.ts matrix
 check-milestone-duration-render.ts matrix
 check-milestone-report-status.ts matrix
 check-minmax-spread.ts matrix
@@ -259,11 +261,12 @@ check-print-screen-parity.ts matrix
 check-print-working-exceptions.ts matrix
 check-profile-switch-dates.ts matrix
 check-progress-entry.ts matrix
-check-progress-import-csv.ts matrix
 check-progress-import-ronde.ts matrix
 check-progress-import-xlsx.ts matrix
 check-progress-import.ts matrix
 check-progress-sheet-middernacht.ts matrix
+check-progress-sheet-values.ts matrix
+check-progress-sinds-export.ts matrix
 check-progress-xlsx-writer.ts matrix
 check-project-start-anchor.ts matrix
 check-raster-datum-ongewijzigd.ts matrix

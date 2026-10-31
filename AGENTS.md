@@ -398,7 +398,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `taaktypes` | work rules / task types (`src/engine/work/`) |
 | `gantt-splits` | renderer, canvas interaction, task grid, splits |
 | `reports` | reports, PDF, print |
-| `import-export` | progress sheet (Excel/CSV), XLSX, ZIP services |
+| `import-export` | progress sheet (Excel), XLSX, ZIP services |
 | `ui-shell` | layout, ribbon, backstage, panels, dialogs, first-start tour |
 | `text-roles` | the six text roles (`*.tsx`, `*.css`) |
 | `i18n` | `src/i18n/`, i18n scripts and tests |

@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import { CriticalBarColorsEditor } from '@/components/viewControls/CriticalBarColors';
+import { Fragment, useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
@@ -741,14 +742,13 @@ export function ScreenColorsPopoverButton() {
   const updateSelection = (next: typeof selection) => setOverlays({ barColors: next });
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
     if (mode === 'critical' || mode === 'auto') {
-      updateSelection({ mode });
-      setOpen(false);
+      updateSelection({ mode, colors: selection.colors });
       return;
     }
     const effectiveField = control.effective.mode === 'category'
       ? control.effective.field
       : fields[0]?.field;
-    if (effectiveField) updateSelection({ mode: 'category', field: effectiveField });
+    if (effectiveField) updateSelection({ mode: 'category', field: effectiveField, colors: selection.colors });
   };
   const effectiveFieldValue = control.effective.mode === 'category'
     ? encodeFieldRef(control.effective.field)
@@ -758,15 +758,18 @@ export function ScreenColorsPopoverButton() {
     <Popover
       open={open}
       onClose={() => setOpen(false)}
+      fitViewport
+      panelClassName="!text-body"
       panelStyle={{
-        marginTop: 2, zIndex: 9999, minWidth: 230, padding: 8,
-        display: 'flex', flexDirection: 'column', gap: 4,
+        marginTop: 2, zIndex: 9999, width: 280, padding: 6, overflowY: 'auto',
+        display: 'flex', flexDirection: 'column', gap: 2,
       }}
       trigger={
         <button
           className={`ribbon-btn small${selection.mode !== 'critical' ? ' active' : ''}`}
           title={tMenu('ribbon.screenColors')}
           aria-label={tMenu('ribbon.screenColors')}
+          data-ops-bar-colors-toggle
           onClick={() => setOpen(o => !o)}
         >
           <span className="ribbon-btn-icon"><Palette size={14} /></span>
@@ -774,30 +777,54 @@ export function ScreenColorsPopoverButton() {
         </button>
       }
     >
-      <span className="ribbon-info" style={{ fontWeight: 600 }}>{tMenu('ribbon.screenColors')}</span>
-      {(['critical', 'auto', 'category'] as const).map(mode => (
-        <button
-          key={mode}
-          className={`ribbon-btn small w-full justify-start${selection.mode === mode ? ' active' : ''}`}
-          onClick={() => selectMode(mode)}
-        >
-          <span className="ribbon-btn-label">{tMenu(`ribbon.screenColors_${mode}`)}</span>
-        </button>
-      ))}
-      {selection.mode === 'category' && fields.length > 0 && (
-        <RibbonInlineSelect
-          value={effectiveFieldValue}
-          options={fields.map(option => ({ value: encodeFieldRef(option.field), label: option.label }))}
-          onChange={value => updateSelection({ mode: 'category', field: decodeFieldRef(value) })}
-          ariaLabel={tMenu('ribbon.screenColors_category')}
-        />
-      )}
+      <div data-ops-bar-colors-menu className="ribbon-info !text-body" style={{ fontWeight: 600, padding: '2px 6px 4px', flex: 'none' }}>
+        {tMenu('ribbon.screenColors')}
+      </div>
+      {(['critical', 'auto', 'category'] as const).map(mode => {
+        const selected = selection.mode === mode;
+        return (
+          <Fragment key={mode}>
+            <button
+              className="ribbon-check-item"
+              aria-pressed={selected}
+              data-ops-bar-color-mode={mode}
+              onClick={() => selectMode(mode)}
+            >
+              <span className={`ribbon-check-box is-radio${selected ? ' is-checked' : ''}`} aria-hidden="true" />
+              <span className="ribbon-check-label">{tMenu(`ribbon.screenColors_${mode}`)}</span>
+            </button>
+            {selected && mode === 'critical' && (
+              <div className="ribbon-choice-block">
+                <CriticalBarColorsEditor colors={selection.colors} onChange={colors => updateSelection({ ...selection, colors })} />
+              </div>
+            )}
+            {selected && mode === 'category' && fields.length > 0 && (
+              <div className="ribbon-choice-detail">
+                <div className="ribbon-choice-row">
+                  <RibbonInlineSelect
+                    value={effectiveFieldValue}
+                    options={fields.map(option => ({ value: encodeFieldRef(option.field), label: option.label }))}
+                    onChange={value => updateSelection({ mode: 'category', field: decodeFieldRef(value), colors: selection.colors })}
+                    ariaLabel={tMenu('ribbon.screenColors_category')}
+                  />
+                </div>
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
       {control.missingField && (
-        <span className="ribbon-info" role="status">
+        <div className="ribbon-info !text-body" role="status" style={{ padding: '2px 6px', whiteSpace: 'normal' }}>
           {tMenu('ribbon.screenColorsMissingField')}
-        </span>
+        </div>
       )}
-      <span className="ribbon-info">{tMenu('ribbon.screenColorsHint')}</span>
+      <div
+        data-ops-bar-colors-hint
+        className="ribbon-info !text-body"
+        style={{ padding: '6px 6px 2px', borderTop: '1px solid var(--theme-border)', marginTop: 4, whiteSpace: 'normal', flex: 'none' }}
+      >
+        {tMenu('ribbon.screenColorsHint')}
+      </div>
     </Popover>
   );
 }

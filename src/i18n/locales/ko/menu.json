@@ -212,6 +212,7 @@
     "screenColors_critical": "주공정 경로",
     "screenColors_auto": "작업별 — 자동",
     "screenColors_category": "범주별",
+    "screenColorsNearCritical": "준주공정",
     "screenColorsMissingField": "이 필드는 이 프로젝트에 없습니다. 공종을 임시로 사용합니다.",
     "screenColorsHint": "주공정 경로 모드 외에는 빨간 테두리가 주공정 경로를 표시합니다.",
     "addLayout": "새 레이아웃",
@@ -372,17 +373,9 @@
     "progressXlsxNotes": {
       "completion": "입력: 0~100, 소수점 사용 가능",
       "actualStart": "입력: 실제 시작일 (날짜 형식)",
-      "actualFinish": "입력: 실제 종료일 (날짜 형식)"
-    },
-    "progressCsvLabel": "진행률 시트(CSV)",
-    "progressCsvDesc": "같은 간결한 진행률 시트의 일반 텍스트 버전 — CSV로 작업하는 것을 선호하는 분용.",
-    "progressCsvShort": "진행률(CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "입력: 실제 종료일 (날짜 형식)",
       "readOnly": "변경하지 마세요",
       "plannedReadOnly": "계획값, 변경하지 마세요",
-      "completion": "입력: 0~100 사이의 정수",
-      "actualStart": "입력: 실제 시작일 (일-월-년)",
-      "actualFinish": "입력: 실제 종료일 (일-월-년)",
       "summaryRow": "— 요약 작업: 입력하지 마세요"
     },
     "csvLabel": "CSV (세미콜론 구분)",

@@ -18,7 +18,7 @@ If your browser only saves through a download (such as Firefox), the file is in 
 
 The list on the *Home* tab and the cards in *File › Export* offer the same formats:
 
-- *Progress (Excel)* and *Progress (CSV)*, on the cards *Progress sheet (Excel)* and *Progress sheet (CSV)*: a slim sheet with id, WBS, name, dates and completion, to send round to whoever fills in the progress.
+- *Progress (Excel)*, on the card *Progress sheet (Excel)*: a slim sheet with id, WBS, name, dates and completion, to send round to whoever fills in the progress.
 - *CSV (;)*, on the card *CSV (semicolon-separated)*: a task list that you open in a spreadsheet.
 - *MS Project XML*: can be opened in Microsoft Project.
 - *Primavera P6 XML*: for Oracle Primavera P6.

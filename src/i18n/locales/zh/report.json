@@ -48,6 +48,7 @@
     "lookAhead": "前瞻",
     "critical": "关键",
     "progress": "进度",
+    "progressCurve": "进度曲线",
     "health": "计划健康",
     "resourceLoading": "资源负荷",
     "resourceAssignments": "资源分配",
@@ -90,6 +91,7 @@
     "lookAhead": "前瞻计划 (Look-ahead)",
     "critical": "关键与近关键",
     "progress": "进度报告",
+    "progressCurve": "进度曲线",
     "health": "进度计划健康度",
     "resourceLoading": "资源负荷",
     "resourceAssignments": "资源分配",
@@ -400,6 +402,32 @@
       "activitiesLabel": "活动",
       "levelSubtitle": "至第 {{level}} 层",
       "empty": "没有 WBS 元素。"
+    },
+    "progressCurve": {
+      "title": "进度曲线",
+      "kpiComplete": "已完成",
+      "kpiPlanned_baseline": "计划的 {{value}}",
+      "kpiPlanned_current": "计划的 {{value}}（当前计划）",
+      "kpiLate": "延迟",
+      "kpiLateCritical": "其中关键：{{value}}",
+      "kpiNegativeFloat": "负浮时",
+      "kpiLargest": "最大：{{value}}",
+      "kpiNextMilestone": "下一个里程碑",
+      "milestoneIn_other": "{{count}} 天后",
+      "milestoneAgo_other": "{{count}} 天前",
+      "milestoneToday": "今天",
+      "noMilestone": "没有未完成的里程碑",
+      "chartLabel": "累计进度的 S 曲线",
+      "seriesPlanned": "计划的（基线）",
+      "seriesActual": "实际",
+      "seriesEarly": "最早日期",
+      "band": "目标带：从最早到最晚日期",
+      "actualFootnote": "实际曲线为估算值：每个任务从实际开始日期到当前完成度线性计算。",
+      "emptyChart": "没有带工期的任务：无法绘制曲线。",
+      "noBaselineNote": "没有激活的基线：没有计划曲线。计划的值来自当前计划。",
+      "noProgressNote": "尚未输入进度：实际曲线为 0%。",
+      "riskHeading": "风险任务：延迟或负浮时",
+      "riskEmpty": "没有延迟任务，也没有负浮时。"
     }
   }
 }

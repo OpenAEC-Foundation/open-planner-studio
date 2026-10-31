@@ -125,6 +125,9 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     case 'progress':
       body = <>{periodRow('progressPeriod')}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
       break;
+    case 'progressCurve':
+      // Geen eigen opties: alleen papier en oriëntatie (spec 2026-10-27-voortgangscurve-rapport.md).
+      break;
     case 'health':
       body = (
         <>

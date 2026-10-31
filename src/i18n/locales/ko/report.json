@@ -48,6 +48,7 @@
     "lookAhead": "룩어헤드",
     "critical": "주공정",
     "progress": "진행률",
+    "progressCurve": "진행률-곡선",
     "health": "일정-상태",
     "resourceLoading": "리소스-부하",
     "resourceAssignments": "리소스-할당",
@@ -90,6 +91,7 @@
     "lookAhead": "선행 계획 (Look-ahead)",
     "critical": "주공정 및 준주공정",
     "progress": "진척 보고서",
+    "progressCurve": "진행률 곡선",
     "health": "일정 건전성",
     "resourceLoading": "자원 부하",
     "resourceAssignments": "자원 배정",
@@ -400,6 +402,32 @@
       "activitiesLabel": "활동",
       "levelSubtitle": "{{level}} 수준까지",
       "empty": "WBS 요소가 없습니다."
+    },
+    "progressCurve": {
+      "title": "진행률 곡선",
+      "kpiComplete": "완료",
+      "kpiPlanned_baseline": "계획 {{value}}",
+      "kpiPlanned_current": "계획 {{value}} (현재 일정)",
+      "kpiLate": "지연",
+      "kpiLateCritical": "그중 주공정: {{value}}",
+      "kpiNegativeFloat": "음수 여유",
+      "kpiLargest": "최대: {{value}}",
+      "kpiNextMilestone": "다음 마일스톤",
+      "milestoneIn_other": "{{count}}일 후",
+      "milestoneAgo_other": "{{count}}일 전",
+      "milestoneToday": "오늘",
+      "noMilestone": "열린 마일스톤 없음",
+      "chartLabel": "누적 진행률의 S-곡선",
+      "seriesPlanned": "계획 (기준선)",
+      "seriesActual": "실제",
+      "seriesEarly": "이른 날짜",
+      "band": "목표 구간: 이른 날짜부터 늦은 날짜까지",
+      "actualFootnote": "실제 곡선은 근사값입니다: 작업마다 실제 시작부터 현재 완료율까지 선형으로 계산합니다.",
+      "emptyChart": "기간이 있는 작업이 없습니다: 그릴 곡선이 없습니다.",
+      "noBaselineNote": "활성 기준선이 없습니다: 계획 곡선이 없습니다. 계획 값은 현재 일정에서 가져옵니다.",
+      "noProgressNote": "아직 진행률이 입력되지 않았습니다: 실제 곡선은 0%입니다.",
+      "riskHeading": "위험 작업: 지연 또는 음수 여유",
+      "riskEmpty": "지연된 작업과 음수 여유가 없습니다."
     }
   }
 }
