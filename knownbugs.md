@@ -1321,13 +1321,13 @@ en noem het in je rapport of PR-tekst.
      de beperking in `docs/dev-link.md` noemen, of oplossen met een echte HTTP-check. VERVOLG uit
      review #703 r3. — B
 
-560. **Standaardbalken halen in hoog contrast geen 7:1 op tijdasbanden.**
+562. **Standaardbalken halen in hoog contrast geen 7:1 op tijdasbanden.**
     Kritiek `#ff6b6b` haalt op weekband `#141414` 6,64:1 en op weekendvlak `#1c1c1c`
     6,14:1; normaal `#60a5fa` haalt op het weekendvlak 6,70:1. Dezelfde pixels zijn op de
     basis van PR #701 gemeten. De bestaande thema-contrasttest controleert alleen het gewone
     vlak `#0a0a0a`; laat die ook de banden controleren bij het herstellen. — B
 
-561. **De kleurkeuze voor het kritieke pad heeft nog geen blijvende browsercontrole.**
+563. **De kleurkeuze voor het kritieke pad heeft nog geen blijvende browsercontrole.**
     De route is in een losse browserpagina met de echte lintcomponent gecontroleerd, maar de
     CI-browsertests doorlopen kleur kiezen, modus wisselen en herstellen nog niet. Voeg die
     handelingen toe aan een passend bestaand scenario. — B
