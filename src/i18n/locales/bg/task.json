@@ -594,7 +594,8 @@
     "customFieldSuffix": "потребителско поле"
   },
   "tooltip": {
-    "status": "Статус"
+    "status": "Статус",
+    "baselineActive": "активен"
   },
   "externalLinks": {
     "action": "Създай междупроектна връзка…",
