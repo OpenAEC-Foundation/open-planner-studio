@@ -21,6 +21,7 @@ import type { Task, TaskConstraint } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { DateNotation, TimeNotation } from '@/types/view';
 import type { NotifyInput } from '@/state/slices/types';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 import {
   constraintBlockingStart,
   constraintForDraggedStart,
@@ -174,8 +175,11 @@ interface UseBarDragOptions {
   /** De exacte as waarmee de renderer de balk heeft getekend, inclusief werkdagencompressie. */
   axis: GanttAxis;
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  /** Neemt de laatste undo-stap terug: Escape draait zo de lopende coalesce-stap van dit gebaar terug. */
-  undo: () => void;
+  /** De bewerksessie van het gebaar (`historySlice`). Ze opent bij de eerste sleepcommit, zodat eerdere
+   *  bewerkingen erbuiten vallen; Escape draait haar terug zonder redo, loslaten sluit haar. */
+  historyMark: () => HistorySessionMark;
+  revertHistorySince: (mark: HistorySessionMark) => void;
+  endHistorySession: (mark: HistorySessionMark) => void;
   /** Slikt de click van de mouseup na een afgebroken gebaar in (gewist door de click of de volgende mousedown). */
   suppressClickRef: RefObject<boolean>;
   /** De ENE schrijfweg voor gebruikerssplits. Zonder deze naad (tests) sleept een gesplitste
@@ -220,7 +224,7 @@ interface UseBarDragOptions {
 // (body en linkerrand) en elke ongesplitste balk lopen over de gewone code hieronder.
 export function useBarDrag({
   zoom, enableQuarterHourZoom, calendar, effectiveCalById, compressNonWorkdays, getTask,
-  updateTask, undo, suppressClickRef, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor, looseDayEndMilestone,
+  updateTask, historyMark, revertHistorySince, endHistorySession, suppressClickRef, onVerticalBodyDrag, axis, canvasRef, setTaskSplits, barTopOf, isStartDrivenByPredecessor, looseDayEndMilestone,
   notify, dateNotation = 'dmy', timeNotation = '24h', workdayDurationMeasure = true,
 }: UseBarDragOptions) {
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -250,9 +254,8 @@ export function useBarDrag({
    *  en of B6 hem op het dageinde zet (`looseDayEndMilestone`). Wisselt niet midden in het gebaar en
    *  overleeft een effectherstart. `null` ⇒ geen mijlpaal. */
   const milestoneGestureRef = useRef<{ finishSide: boolean; loose: boolean; time: Task['time'] } | null>(null);
-  // De taak bij pointer-down. Dezelfde referentie bij Escape betekent: dit gebaar schreef niets, dus er valt
-  // niets terug te draaien (een undo zou dan een eerdere bewerking terugnemen).
-  const gestureTaskRef = useRef<Task | undefined>(undefined);
+  // De bewerksessie van dit gebaar. Leeg zolang het gebaar niets schreef: dan heeft Escape niets terug te draaien.
+  const gestureMarkRef = useRef<HistorySessionMark | null>(null);
   const hourSnapMinutes = hourSnapMinutesFor(zoom, enableQuarterHourZoom);
   const snapAt = useCallback(
     (x: number, hourMode: boolean) => snapTimelineDate(axis, x, hourMode, hourSnapMinutes),
@@ -312,7 +315,6 @@ export function useBarDrag({
     const rect = canvas?.getBoundingClientRect();
     const pointerStart = rect ? axis.xToDate(next.startX - rect.left) : undefined;
     const original = getTask(next.taskId);
-    gestureTaskRef.current = original;
     const completed = !!original && finishIsActual(original);
     // Een voltooide balk heeft geen stukgrepen: zijn pauzes liggen in het verleden.
     const split = completed ? undefined : prepareSplitDrag(next, rect ? next.startX - rect.left : null);
@@ -350,6 +352,12 @@ export function useBarDrag({
   const dragging = dragState !== null;
   useEffect(() => (dragging ? holdAutoCalc() : undefined), [dragging]);
 
+  // Unmount midden in een gebaar: een open sessie zou latere bewerkingen blijven merken.
+  useEffect(() => () => {
+    if (gestureMarkRef.current) endHistorySession(gestureMarkRef.current);
+    gestureMarkRef.current = null;
+  }, [endHistorySession]);
+
   // Drag and drop: mousemove (via native event for performance)
   useEffect(() => {
     if (!dragState) return;
@@ -358,6 +366,14 @@ export function useBarDrag({
     // in `startBarDrag` garandeert dat een volgende sleep nooit met deze kan samenvloeien.
     const undoKey = undoKeyRef.current;
     if (!undoKey) return;
+
+    const openGestureSession = () => {
+      gestureMarkRef.current ??= historyMark();
+    };
+    const writeTask = (id: string, updates: Partial<Task>, opts: { coalesceKey: string }) => {
+      openGestureSession();
+      updateTask(id, updates, opts);
+    };
 
     // Sinds F2 heeft ook een dagtaak momenten. De maat van de taak bepaalt hoe een sleep rekent:
     //  - `hours`: een urentaak, in werkminuten (`resolveHourBarDrag`, F4a);
@@ -453,7 +469,7 @@ export function useBarDrag({
       // Netto geen snapstap (ook na heen en terug): de oorspronkelijke velden terug, met hun eigen anker.
       if (at.getTime() === original.getTime()) {
         if (!gesture || startBlocked(false) || baseTime === gesture.time) return;
-        updateTask(dragState.taskId, { time: gesture.time, ...constraintForStart(dragState.originalStart) },
+        writeTask(dragState.taskId, { time: gesture.time, ...constraintForStart(dragState.originalStart) },
           { coalesceKey: undoKey });
         return;
       }
@@ -463,7 +479,7 @@ export function useBarDrag({
       if (startBlocked(next !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === next && baseTime.scheduleFinish === next
         && baseTime.earlyStart === next && baseTime.earlyFinish === next) return;
-      updateTask(dragState.taskId, {
+      writeTask(dragState.taskId, {
         time: {
           ...baseTime,
           scheduleStart: next,
@@ -518,7 +534,7 @@ export function useBarDrag({
       if (dragState.edge !== 'right' && startBlocked(nextStart !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
         && (daysAsHours ? baseTime.scheduleDuration === duration.scheduleDuration : baseTime.durationMinutes === result.durationMinutes)) return;
-      updateTask(dragState.taskId, {
+      writeTask(dragState.taskId, {
         time: {
           ...baseTime,
           scheduleStart: dragState.edge === 'right' ? baseTime.scheduleStart : nextStart,
@@ -567,7 +583,7 @@ export function useBarDrag({
       if (dragState.edge !== 'right' && startBlocked(nextStart !== dragState.originalStart)) return;
       if (baseTime.scheduleStart === nextStart && baseTime.scheduleFinish === nextFinish
         && baseTime.scheduleDuration === result.days) return;
-      updateTask(dragState.taskId, {
+      writeTask(dragState.taskId, {
         time: {
           ...baseTime,
           scheduleStart: dragState.edge === 'right' ? baseTime.scheduleStart : nextStart,
@@ -605,6 +621,7 @@ export function useBarDrag({
         ? setGapLength(split.pieces0, split.index, gapMinutes, split.unitMinutes)
         : setWorkLength(split.pieces0, split.index, rawMinutes, split.unitMinutes, split.minimumMinutes);
       if (!result.ok) return;
+      openGestureSession();
       setTaskSplits(dragState.taskId, result.pieces, { coalesceKey: undoKey });
       // Het label leest de nieuwe lengte terug uit de UITKOMST (dus gesnapt en geklemd), niet uit de
       // ruwe muisafstand. Een samengevoegde pauze bestaat niet meer ⇒ 0.
@@ -698,7 +715,7 @@ export function useBarDrag({
         // Een dagsleep bewaart een bestaand moment binnen de werkdag (N0).
         const start = `${formatDate(newStart)}${dragState.originalStart.slice(10)}`;
         const finish = `${formatDate(newFinish)}${dragState.originalFinish.slice(10)}`;
-        updateTask(dragState.taskId, {
+        writeTask(dragState.taskId, {
           time: {
             ...currentTime,
             scheduleStart: start,
@@ -720,7 +737,7 @@ export function useBarDrag({
         const newFinish = shiftByDisplayedColumns(axisCalEngine, origFinish, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(origStart, newFinish));
         const canonFinish = resizeCalEngine.addWorkDays(origStart, newDuration);
-        updateTask(dragState.taskId, {
+        writeTask(dragState.taskId, {
           time: {
             ...currentTime,
             scheduleFinish: formatDate(canonFinish),
@@ -737,7 +754,7 @@ export function useBarDrag({
         const newStart = shiftByDisplayedColumns(axisCalEngine, origStart, daysDelta, compressed);
         const newDuration = Math.max(1, resizeCalEngine.workDaysBetween(newStart, origFinish));
         const canonStart = resizeCalEngine.subtractWorkDays(origFinish, newDuration);
-        updateTask(dragState.taskId, {
+        writeTask(dragState.taskId, {
           time: {
             ...currentTime,
             scheduleStart: formatDate(canonStart),
@@ -750,6 +767,8 @@ export function useBarDrag({
     };
 
     const handleMouseUp = () => {
+      if (gestureMarkRef.current) endHistorySession(gestureMarkRef.current);
+      gestureMarkRef.current = null;
       undoKeyRef.current = null;
       const lock = actualLockRef.current;
       actualLockRef.current = null;
@@ -778,13 +797,14 @@ export function useBarDrag({
       setDragState(null);
     };
 
-    // Escape breekt het gebaar af: de lopende coalesce-stap gaat terug, dus ook de constraint en wat een
+    // Escape breekt het gebaar af: de sessie gaat terug zonder redo, dus ook de constraint en wat een
     // sleepcommit verder wiste. Capture-fase + stopImmediatePropagation, net als de rijsleep en de
     // kaderselectie: anders wist de globale Escape-sneltoets de selectie.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();
-      if (getTask(dragState.taskId) !== gestureTaskRef.current) undo();
+      if (gestureMarkRef.current) revertHistorySince(gestureMarkRef.current);
+      gestureMarkRef.current = null;
       undoKeyRef.current = null;
       startRuleRef.current = null;
       actualLockRef.current = null;
@@ -804,7 +824,9 @@ export function useBarDrag({
     compressNonWorkdays,
     getTask,
     updateTask,
-    undo,
+    historyMark,
+    revertHistorySince,
+    endHistorySession,
     suppressClickRef,
     onVerticalBodyDrag,
     axis,

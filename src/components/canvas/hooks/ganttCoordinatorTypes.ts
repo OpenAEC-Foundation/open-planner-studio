@@ -19,6 +19,7 @@ import type {
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { ModifierMap, NotifyInput, PositionDivision, ScrollMode } from '@/state/slices/types';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 import type { Task } from '@/types/task';
 import type { DateNotation, SplitViewState, TimeNotation, ViewState } from '@/types/view';
 import type { WorkCalendar } from '@/types/calendar';
@@ -223,6 +224,9 @@ export interface GanttPointerCoordinatorInput {
   setTaskSplits: (taskId: string, pieces: SplitPiece[] | null, options?: { coalesceKey?: string }) => unknown;
   /** Esc midden in een splitsgebaar draait de lopende coalesce-stap terug. */
   undo: () => void;
+  historyMark: () => HistorySessionMark;
+  revertHistorySince: (mark: HistorySessionMark) => void;
+  endHistorySession: (mark: HistorySessionMark) => void;
   setScroll: (x: number, y: number) => void;
   openTask: (id: string) => void;
   clearHistogramTooltip: () => void;

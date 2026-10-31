@@ -1670,8 +1670,12 @@ en noem het in je rapport of PR-tekst.
      leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
      beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
      van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
-426. **Redo zet een met Escape afgebroken sleep terug.** Escape neemt de lopende sleep terug met een gewone undo
-    (`useBarDrag`, net als `useSplitGesture`). De stap blijft daarna als redo staan: `redoDepth` gaat van 0 naar 1, en
-    Ctrl+Y zet de afgebroken verplaatsing terug. Gemeten op #704 voor een mijlpaal en een gewone balk. Richting: een
-    afgebroken gebaar laat geen redo achter, zoals `revertHistorySince` bij de taakdialoog. Een blur-bewerking die
-    tussen mousedown en de eerste sleepcommit landt, mag daarbij niet mee terug. — B
+580. **Redo zet een met Escape afgebroken splitsgebaar terug.** `useSplitGesture` neemt bij Escape een gewone undo
+    (`if (g?.committed) undo()`), dus de stap blijft als redo staan en Ctrl+Y zet hem terug. `useBarDrag` is hier op
+    #704 van af: dat gebruikt `revertHistorySince`, met de grens bij de eerste sleepcommit. Dezelfde route past hier.
+    Uit de code gelezen, niet nagespeeld. — S
+581. **De sleepluisteraar kent onvolledige stoproutes en onderschept Escape van een dialoog.** `listenWindowDrag`
+    registreert alleen mousemove, mouseup en keydown. Blur en pointercancel stoppen niets, en mousemove controleert geen
+    ingedrukte muisknop. Ook: balk vastpakken, F2 opent Taak bewerken, Escape. De window-capture in `useBarDrag` stopt
+    het event vóór `useDialogKeys`. Popover en inline-editor liggen ook achter deze luisteraar. VERVOLG uit review #704
+    (GPT-6.1-Sol) op `d90cb289d`. — B

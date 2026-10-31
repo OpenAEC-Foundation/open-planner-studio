@@ -157,6 +157,9 @@ export function GanttCanvas({
   const splitMode = useAppStore(s => s.ui.showSplitMode);
   const setTaskSplits = useAppStore(s => s.setTaskSplits);
   const undo = useAppStore(s => s.undo);
+  const historyMark = useAppStore(s => s.historyMark);
+  const revertHistorySince = useAppStore(s => s.revertHistorySince);
+  const endHistorySession = useAppStore(s => s.endHistorySession);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
   // Store-acties die het contextmenu ontsluit. De muterende taak-acties (in-/uitspringen,
@@ -523,6 +526,9 @@ export function GanttCanvas({
     updateTask,
     setTaskSplits,
     undo,
+    historyMark,
+    revertHistorySince,
+    endHistorySession,
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
