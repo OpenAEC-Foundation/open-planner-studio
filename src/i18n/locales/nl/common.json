@@ -234,7 +234,7 @@
     "minuteModelConverted_other": "{{document}}: {{count}} taken hebben na de omzetting een ander begin of einde; de grootste verschuiving is {{days}} werkdagen. Ctrl+Z zet de opgeslagen datums terug.",
     "minuteModelCalendarRepaired": "Kalender '{{calendar}}' is hersteld: het einde of de pauze paste niet bij de opgeslagen werktijd.",
     "exportXerLossItem": {
-      "schedulingRules": "Rekenregels: P6 rekent met zijn eigen regels, dus datums en speling kunnen afwijken. Kies vóór het exporteren het rekenprofiel Primavera P6 om te zien wat P6 uitrekent.",
+      "schedulingRules": "Rekenregels: P6 rekent met zijn eigen regels, dus datums en speling kunnen afwijken. We raden aan om het Primavera P6-profiel te gebruiken voor de beste compatibiliteit met dit bestandsformaat.",
       "calendarKinds_one": "{{count}} kalender zonder eigen werktijdblokken krijgt na heropenen werktijdblokken (uurplanning): datums en speling kunnen dan afwijken",
       "calendarKinds_other": "{{count}} kalenders zonder eigen werktijdblokken krijgen na heropenen werktijdblokken (uurplanning): datums en speling kunnen dan afwijken",
       "baselines_one": "{{count}} baseline (XER bewaart een baseline als apart project)",

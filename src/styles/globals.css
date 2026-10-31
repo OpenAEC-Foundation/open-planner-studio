@@ -2419,7 +2419,7 @@ body {
   vertical-align: middle;
   white-space: nowrap;
 }
-/* Hint onder de XER-keuze als het project niet met Primavera P6 rekent (`XerProfileHint`):
+/* Hint onder een exportkeuze als het project met een ander profiel rekent (`ExportProfileHint`):
    een eigen regel in de kleur van de beschrijvingstekst, iets kleiner. */
 .ops-export-profile-hint {
   display: block;

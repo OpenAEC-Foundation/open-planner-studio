@@ -39,9 +39,9 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   // Label "Experimenteel" (eigenaar, 2026-10-29): alleen op de XER-kaart.
   await expect(card.locator('[data-ops-experimental-badge]')).toHaveText(/^(Experimenteel|Experimental)$/);
   await expect(page.locator('button.backstage-export-card [data-ops-experimental-badge]')).toHaveCount(1);
-  // De Akkers rekent met het OPS-profiel: onder de XER-keuze staat de hint met het profiel (eigenaar, 2026-10-29).
-  await expect(card.locator('[data-ops-xer-profile-hint]')).toHaveText(/Open Planner Studio/);
-  await expect(page.locator('[data-ops-xer-profile-hint]')).toHaveCount(1);
+  // De Akkers rekent met het OPS-profiel: XER, P6 XML en MS Project XML krijgen de hint (eigenaar, 2026-10-31).
+  await expect(card.locator('[data-ops-export-profile-hint]')).toHaveText(/Open Planner Studio.*Primavera P6/);
+  await expect(page.locator('[data-ops-export-profile-hint]')).toHaveCount(3);
   const downloadPromise = page.waitForEvent('download');
   await card.click();
   const download = await downloadPromise;
@@ -73,14 +73,16 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   const ribbonXer = page.locator('button').filter({ hasText: /^Primavera P6 XER/ }).filter({ has: page.locator('[data-ops-experimental-badge]') });
   await expect(ribbonXer).toHaveCount(1);
   await expect(page.locator('button:not(.backstage-export-card) [data-ops-experimental-badge]')).toHaveCount(1);
-  await expect(ribbonXer.locator('[data-ops-xer-profile-hint]')).toHaveText(/Open Planner Studio/);
+  await expect(ribbonXer.locator('[data-ops-export-profile-hint]')).toHaveText(/Open Planner Studio/);
 
-  // Met het profiel Primavera P6 verdwijnt de hint uit de open lijst (fixture via de store).
+  // Met het profiel Primavera P6 verdwijnt de hint bij XER uit de open lijst (fixture via de store).
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.applySchedulingSettings({ profile: { baseId: 'p6', id: 'p6', name: '', overrides: {} }, options: s.project.schedulingOptions });
   });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.schedulingProfile?.id)).toBe('p6');
   await expect(ribbonXer).toHaveCount(1);
-  await expect(page.locator('[data-ops-xer-profile-hint]')).toHaveCount(0);
+  await expect(ribbonXer.locator('[data-ops-export-profile-hint]')).toHaveCount(0);
+  // MS Project XML houdt de hint: daar past het profiel Microsoft Project.
+  await expect(page.locator('[data-ops-export-profile-hint]')).toHaveText(/Primavera P6.*Microsoft Project/);
 });

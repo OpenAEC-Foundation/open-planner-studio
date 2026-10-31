@@ -3,6 +3,7 @@
 // exportlijst (Backstage).
 
 import type { XerWriteInput, XerWriteResult } from '@/services/xerWriteTypes';
+import type { BuiltInProfileId } from '@/types/project';
 import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
 import {
   precomputeSha256, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
@@ -309,6 +310,9 @@ export interface ExportFormatMeta {
   /** Toon het label "Experimenteel" bij deze keuze (Backstage-kaart en ExportDropdown). Voor een
    *  export die niet in het doelprogramma zelf getest is en waarbij veel verloren gaat (eigenaar, 2026-10-29). */
   experimental?: boolean;
+  /** Het ingebouwde profiel dat bij dit formaat past; rekent het project anders, dan volgt een hint
+   *  (`exportProfileAdvice`). Geen waarde ⇒ geen hint. */
+  recommendedProfile?: BuiltInProfileId;
 }
 
 /** Volgorde = de Backstage-volgorde (en die van ExportDropdown). */
@@ -316,8 +320,8 @@ export const EXPORT_FORMATS = [
   { format: 'progress-xlsx', icon: 'XLSX', labelKey: 'export.progressXlsxLabel', descKey: 'export.progressXlsxDesc', shortLabelKey: 'export.progressXlsxShort' },
   { format: 'progress-csv', icon: 'CSV', labelKey: 'export.progressCsvLabel', descKey: 'export.progressCsvDesc', shortLabelKey: 'export.progressCsvShort' },
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
-  { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined },
-  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined },
-  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined, experimental: true },
+  { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined, recommendedProfile: 'msproject' },
+  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined, recommendedProfile: 'p6' },
+  { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined, experimental: true, recommendedProfile: 'p6' },
   { format: 'ifc', icon: 'IFC', labelKey: 'export.ifcLabel', descKey: 'export.ifcDesc', shortLabelKey: undefined },
 ] as const satisfies readonly ExportFormatMeta[];

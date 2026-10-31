@@ -396,7 +396,7 @@
     "xerLabel": "Primavera P6 XER",
     "xerDesc": "Voor Oracle Primavera P6, als .xer-bestand.",
     "experimentalBadge": "Experimenteel",
-    "xerProfileHint": "Je project rekent met het profiel {{name}}. Kies Primavera P6 om te zien wat P6 uitrekent.",
+    "profileHint": "Je project rekent nu met het {{name}}-profiel. We raden aan om het {{target}}-profiel te gebruiken voor de beste compatibiliteit met dit bestandsformaat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standaard, in het IFC-schema van het project (standaard IFC 4.3 ADD2). 4D-koppeling met BIM-modellen.",
     "csvShort": "CSV (;)"

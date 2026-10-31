@@ -396,7 +396,7 @@
     "xerLabel": "Primavera P6 XER",
     "xerDesc": "For Oracle Primavera P6, as a .xer file.",
     "experimentalBadge": "Experimental",
-    "xerProfileHint": "Your project uses the {{name}} profile. Choose Primavera P6 to see what P6 will calculate.",
+    "profileHint": "Your project currently uses the {{name}} profile. We recommend the {{target}} profile for the best compatibility with this file format.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART standard, in the IFC schema of the project (default IFC 4.3 ADD2). 4D link with BIM models.",
     "csvShort": "CSV (;)"
