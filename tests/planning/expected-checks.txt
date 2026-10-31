@@ -454,6 +454,7 @@ check-xer-export-loss.ts matrix
 check-xer-fidelity-baseline-schema.ts matrix
 check-xer-fidelity.ts matrix
 check-xer-field-whitelist.ts matrix
+check-xer-lag-kalender-leeg.ts matrix
 check-xer-manifest-exclusions.ts los
 check-xer-manifest-leveling.ts los
 check-xer-metadata-corpus.ts los

@@ -253,7 +253,7 @@ export function expectedXerScheduleOptions(
   schedulingOptions.lagCalendar = enumToken(scheduleRow, 'sched_calendar_on_relationship_lag', {
     RCAL_PREDECESSOR: 'predecessor', RCAL_SUCCESSOR: 'successor',
     RCAL_24HOUR: '24hour', RCAL_PROJDEFAULT: 'projectDefault',
-  } as const, 'predecessor', fallbacks);
+  } as const, 'successor', fallbacks);
   schedulingOptions.totalFloatMode = enumToken(scheduleRow, 'sched_float_type', {
     FT_SS: 'start', FT_FF: 'finish', FT_MIN: 'smallest',
   } as const, 'finish', fallbacks);
