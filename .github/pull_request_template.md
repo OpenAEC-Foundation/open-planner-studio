@@ -8,8 +8,8 @@
 
 ### How it was verified
 
-<!-- `npm run verify` is the gate. The release gate runs all of it; CI and the
-     deploy gate run it without the browser suite (see AGENTS.md). Note below what
+<!-- `npm run verify` is the gate. CI runs it without the browser suite; the deploy
+     and release gates read that result (see AGENTS.md). Note below what
      you ran and what came out of it. Tested by hand in the app? Say what you
      clicked. -->
 

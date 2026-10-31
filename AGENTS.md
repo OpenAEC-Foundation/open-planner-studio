@@ -34,7 +34,7 @@ npm run build:platform -- --base /pad/   # platform build for the OpenAEC app on
 npm run build:core   # headless core package @openaec/open-planner-core → dist-core/ (not published)
 npm run build:mcp-server   # headless MCP server (planner_* tools without the app) → dist-mcp-server/server.mjs (not published)
 npm run build:mcpb   # Claude Desktop extension (MCP Bundle) → dist-mcpb/open-planner-studio-<version>.mcpb
-npm run verify       # THE gate — the release gate; CI runs the same steps in parallel, the browser suite only on occasion (see Testing pitfalls)
+npm run verify       # THE gate; CI runs the same steps in parallel, the browser suite only on occasion (see Testing pitfalls)
 npm run typecheck    # tsc over src/ AND scripts/+tests/ — use this, not just build (incremental)
 npm run lint         # deliberately minimal ESLint (promises, control-regex, React hooks)
 npm run lint:fast    # same lint with a cache, for iterating; `lint` stays the gate
@@ -53,9 +53,11 @@ A new `check-*.ts` runs automatically (also in the timezone matrix); add your ow
 `tests/planning/run.sh` only for an environment variable, a fixed order or no matrix (grep a neighbouring check).
 New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k lines) in full.
 
-**`npm run verify` is one definition, in `package.json`** — the release gate runs that line; ci.yml runs the same
-steps in parallel jobs via `scripts/verify-parts.mjs`, which reads them from that definition, but not the browser
-suite on an ordinary PR or push (see *Testing pitfalls*). The deploy (live.yml)
+**`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
+`scripts/verify-parts.mjs`, which reads them from that definition, but not the browser suite on an ordinary PR or
+push (see *Testing pitfalls*). The release gate runs no verify of its own: `scripts/release-ci-check.mjs` checks that
+the CI push run on the tagged commit and the last browser run on `main` are green (owner decision 2026-10-31; what
+reaches `main` after Friday 22:00 gets no browser test). The deploy (live.yml)
 runs no verify of its own: it starts after a green ci.yml run on `main` (`workflow_run`) and only for the commit CI
 tested (a serial verify there took 31–45 min and hit the 45-minute job limit on 2026-10-13). The
 steps, in order: `typecheck` → `lint` → `test` (all five suites) → `verify:examples` → `verify:docs` →
@@ -127,8 +129,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **The browser suite does not run on an ordinary PR or a push to `main`** (owner decision 2026-10-30: CI minutes;
   one run cost 74 minutes, 46 of them browser tests). `ci.yml` runs the full set every Friday at 22:00 Dutch time on
   `main` (`timezone: Europe/Amsterdam`, owner decision 2026-10-31); a scheduled job on aia09-mp50 repairs whatever turns
-  red (`browsertests-repareren` skill), and the release skill starts the set again just before the tag. A green PR
-  therefore says nothing about the browser suite.
+  red (`browsertests-repareren` skill), and the release gate and the release skill check that this run is green.
+  A green PR therefore says nothing about the browser suite.
   Turn it on for your own PR only when you think that is very important, for example for work on dragging, focus,
   dialogs or saving. There are two ways, and both run in CI, never locally; a local run of the whole set is
   no replacement (one targeted spec stays allowed, see the table below):
@@ -342,7 +344,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Releases**: only via the `release` skill; a `v*` tag is irreversible and rolls out to all users
   (updater + Snap Store). The weekly Saturday job on aia09-mp50 runs that skill automatically,
   without human approval before the tag (owner, conversation 2026-10-22). Green main CI, a green
-  browser run on the exact main SHA and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
+  Friday browser run and the release gates are mandatory. Resume unfinished work for the latest tag before checking for new
   commits or bumping. Outstanding website work does not block the next app release; retry it the next
   Saturday alongside that release. A push that `aur.yml` skipped because `AUR_SSH_PRIVATE_KEY` is missing is
   neither unfinished work nor a stop reason, also for an older tag; the final report says Arch got no package

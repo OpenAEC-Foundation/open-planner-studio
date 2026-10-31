@@ -3,7 +3,8 @@ name: CI
 # De browsersuite draait niet bij een gewone PR en niet bij een push op main (besluit eigenaar,
 # 2026-10-30): één run kostte 74 min rekentijd, waarvan 46 aan browsertests. Hij draait in drie
 # gevallen: elke vrijdagavond op main, handmatig op elke branch (`gh workflow run ci.yml --ref <branch>`,
-# ook vlak vóór een release: zie de release-skill) en op een PR met het label `browsertests`.
+# ook als bewijs van de reparatie) en op een PR met het label `browsertests`. De gate van release.yml
+# leest of de pushrun en de laatste browserrun groen zijn.
 # Wanneer een agent dat doet staat in AGENTS.md.
 on:
   push:
@@ -143,8 +144,8 @@ jobs:
   # valt vanzelf in `static`, en het `static`-deel controleert dat deze matrix elk deel draait. Zo
   # blijft package.json de ene definitie (de reden dat hier eerst bewust één commando stond), terwijl
   # de wandkloktijd de langste job wordt in plaats van de som. live.yml draait zelf geen verify: die
-  # deployt pas als deze workflow op main geslaagd is. release.yml draait `npm run verify` nog in één
-  # keer (zie de timeout daar). De browsershards zijn hetzelfde `verify`-deel, maar staan in de eigen
+  # deployt pas als deze workflow op main geslaagd is, en release.yml leest alleen of hij groen is
+  # (scripts/release-ci-check.mjs). De browsershards zijn hetzelfde `verify`-deel, maar staan in de eigen
   # job `browser`: een `if` op jobniveau kan de matrix niet zien.
   verify:
     name: verify (${{ matrix.name }})

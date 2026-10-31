@@ -25,6 +25,8 @@ Besluit: eigenaar, gesprek 2026-10-22.
 - Besluit eigenaar, 2026-10-31: de browsersuite draait vrijdag om 22:00 en de taak van vrijdag 23:30 repareert
   wat rood is ([skill](../browsertests-repareren/SKILL.md)). Is het issue `Browsertests repareren` open, dan wacht
   de zaterdagjob vóór alles op main, tot uiterlijk 14:00. Zie *Eerst: browsertests* in de release-skill.
+- Besluit eigenaar, 2026-10-31: de gate in `release.yml` test niets dubbel. Hij en stap 3 van de skill lezen met
+  `scripts/release-ci-check.mjs` of de pushrun en de browserrun van vrijdag groen zijn. Geen browserrun alleen voor de tag.
 - Rode main-/release-PR-/releaseworkflow: eerst eenmaal `gh run rerun <id> --failed`.
   Blijft hij rood: kleinste fix-PR vanaf main, tweede Sol-review via T3 `delegate_task`
   (`codex`, `gpt-6.1-sol`, `reasoningEffort: xhigh`). Letterlijke reviewerbrief en BLOKKEERT/VERVOLG

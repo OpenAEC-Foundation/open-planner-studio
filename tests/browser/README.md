@@ -64,11 +64,11 @@ Tests lopen via echte browser-events. De brug mag deterministische fixtures zett
 Canvasgeometrie lezen, maar de geteste gebruikershandeling nooit vervangen.
 
 In CI draait de suite als apart deel van `scripts/verify-parts.mjs` (`test:browser`), verdeeld over
-vier shards (`--duration-shard=1/4` … `4/4`), elk met een eigen bewaakte Vite-server; de CI- en release-workflows uploaden bij falen `playwright-report/`
+vier shards (`--duration-shard=1/4` … `4/4`), elk met een eigen bewaakte Vite-server; de CI uploadt bij falen `playwright-report/`
 en `test-results/` als `playwright-*`-artefact (zeven dagen).
 
 De suite draait niet bij een gewone PR en niet bij een push op main (besluit eigenaar, 2026-10-30). De job
-`browser` in `ci.yml` draait elke vrijdag om 22:00 Nederlandse tijd op main, vlak vóór een release, op een PR met
+`browser` in `ci.yml` draait elke vrijdag om 22:00 Nederlandse tijd op main, op een PR met
 het label `browsertests` en na `gh workflow run ci.yml --ref <branch>`. Wanneer een agent dat doet staat in
 `AGENTS.md`. Wat in de vrijdagrun rood wordt, repareert een geplande job (skill `browsertests-repareren`).
 

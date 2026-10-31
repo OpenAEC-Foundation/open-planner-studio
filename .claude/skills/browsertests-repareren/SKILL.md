@@ -137,6 +137,7 @@ hierboven. Verder geldt dit:
 Start na de laatste merge de browserrun op main (zie stap 1) en volg hem. Poging 1 moet `success` zijn, op exact de
 SHA waarop je hem startte. Rood: terug naar stap 4, met deze run als `RUN`.
 
+De gate van `release.yml` en stap 3 van de release-skill lezen deze run als laatste browserrun op main.
 Dit is het einde van de job. Sluit het issue met de run-URL. Het eindrapport noemt wat er rood was, de oorzaak,
 fix-PR's, reviews, VERVOLG en de bewijsrun.
 

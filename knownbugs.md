@@ -1616,11 +1616,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
-550. **`release.yml` zegt nog dat `ci.yml` de hele poort draait.** Sinds #757 draait `ci.yml` de browsersuite
-     niet meer bij een PR of push. De opmerkingen op `release.yml:30` en `release.yml:76` zeggen dat nog wel.
-     #757 laat ze staan: elke wijziging aan `release.yml` start de teken-checks voor Windows en macOS. Voorstel:
-     meenemen bij de volgende inhoudelijke wijziging aan `release.yml`. Alleen tekst. — B
-
 552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
      alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
      en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
@@ -1663,10 +1658,4 @@ en noem het in je rapport of PR-tekst.
      kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
      Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
      (GPT-6.1-Sol). — S
-557. **De browserrun vlak vóór de tag laat een haperende test nog door met een rerun.** `.claude/skills/release/referentie.md`,
-     *CI herstellen*, stap 1: wordt de rode browserrun van stap 3 bij `gh run rerun --failed` groen, dan gaat de release
-     verder. De skill `browsertests-repareren` telt zo'n test juist als rood (besluit eigenaar, 2026-10-31). Een hapering
-     die pas op zaterdag optreedt, blijft dus liggen tot de volgende vrijdag. Voorstel: laat de release zo'n test melden
-     en de tag doorgaan, of behandel hem als rood; dat is een keuze voor de eigenaar. Gevonden bij het schrijven van die
-     skill, in de tekst nagelezen. — B
 

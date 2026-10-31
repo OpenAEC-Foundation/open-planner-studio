@@ -80,7 +80,7 @@ ga verder. Anders, of als er geen run is: voer die skill eerst zelf uit, in zijn
   Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
   verplaats, verwijder of push hem nooit opnieuw. Geen force-push, secretwijziging of ongepoort dispatch.
-  De handmatige browserrun van `ci.yml` (stap 3 en de reparatie) is hierop de enige uitzondering: die publiceert niets.
+  De handmatige browserrun van `ci.yml` (de reparatie en het herstel van de gate) is hierop de enige uitzondering: die publiceert niets.
 
 ## 2. Release-inhoud
 
@@ -136,15 +136,14 @@ Hiervoor is geen menselijke review nodig. Bewaak de basis en cijfers zoals in de
 
 Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede releasecommit.
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
-De pushrun draait geen browsertests (besluit eigenaar, 2026-10-30). Start ze zelf op dezelfde commit.
-Doe dit vóór de tag: de `gate` van `release.yml` vindt een rode test pas ná de onomkeerbare tag.
+Controleer daarna de pushrun en de browserrun van vrijdag, met dezelfde regels als de `gate` van `release.yml`.
+Zo loopt de release niet pas ná de onomkeerbare tag vast. Start geen browserrun alleen voor de tag.
 ```bash
 SHA=$(git rev-parse origin/main)
-gh workflow run ci.yml --ref main
-gh run list --workflow ci.yml --event workflow_dispatch --commit "$SHA" --json databaseId,status,conclusion
+node scripts/release-ci-check.mjs "$SHA"
 ```
-Eis `success` op exact `SHA`; die run blijft geldig bij hervatten, dus start dan geen tweede.
-Geen run op die SHA of rood: geen tag. Bij rood: volg CI herstellen.
+Exit 1: geen tag. Elke `::error::`-regel zegt wat er ontbreekt. Rode pushrun: volg CI herstellen.
+Browserrun rood, ontbrekend of te oud: voer de [reparatie](../browsertests-repareren/SKILL.md) uit, ook met dat issue.
 Controleer vóór de tag opnieuw dat `origin/main` nog die SHA heeft. Bij nieuwe commits:
 behoud kandidaatversie en voortgang; werk de basis, cijfers en CI bij zonder nieuwe bump.
 Draai op de releasecommit; vergelijk ook hier jaar, week en volgnummer numeriek met `PREV`:
@@ -170,7 +169,8 @@ Alle poorten groen: noteer de definitieve SHA in het hervatverslag en tag zonder
 git tag -a "v$VERSION" <gecontroleerde-main-SHA> -m "Open Planner Studio v$VERSION"
 git push origin "refs/tags/v$VERSION"
 ```
-`release.yml` herhaalt `verify:translations`, `verify` en de highlight-/versiecontroles.
+`release.yml` herhaalt `verify:translations` en de highlight-/versiecontroles. De volledige `verify` draait daar niet meer:
+de `gate` leest met hetzelfde script of de pushrun en de browserrun groen zijn.
 Daarna bouwt en signeert hij installers, verifieert de draft en publiceert `latest.json`.
 `snap.yml` en `aur.yml` volgen automatisch. Volg ze tot hun eindstatus en werk het hervatverslag bij.
 Een [ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret) is geen falen.
