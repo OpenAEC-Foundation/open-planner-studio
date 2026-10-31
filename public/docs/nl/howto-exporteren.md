@@ -22,6 +22,7 @@ De lijst op het tabblad *Start* en de kaarten in *Bestand › Exporteren* bieden
 - *CSV (;)*, op de kaart *CSV (puntkomma-gescheiden)*: een taaklijst die je in een spreadsheet opent.
 - *MS Project XML*: te openen in Microsoft Project.
 - *Primavera P6 XML*: voor Oracle Primavera P6.
+- *Primavera P6 XER*: voor Oracle Primavera P6, als `.xer`-bestand. Deze keuze heeft het label *Experimenteel*: de export is nog niet getest door het bestand in Primavera P6 zelf te openen, en er gaat veel niet of niet precies mee. Na het opslaan meldt de app wat niet of niet precies meeging. Controleer de planning na het openen in P6. Rekent je project met een ander rekenprofiel dan *Primavera P6*, dan staat onder de keuze een korte hint met het aanbevolen profiel. Hetzelfde geldt voor *Primavera P6 XML*, en voor *MS Project XML* met het profiel *Microsoft Project*. Na het opslaan geeft de app hetzelfde advies in een melding. De export gaat gewoon door.
 - *IFC*: het eigen formaat van de app, met alles erin, in het IFC-schema van het project (standaard IFC 4.3 ADD2).
 
 ### Een IFC-export met bibliotheekbestand
@@ -40,7 +41,7 @@ Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [V
 
 **Een export staat ook in Recent.** Dat geldt niet voor de voortgangsbladen. Open je een export daar, dan opent hij als import van dat formaat.
 
-**Een export neemt niet alles mee.** Een CSV-bestand heeft geen resources of constraints, P6 XML heeft geen baselines en deadlines. Ook het rekenprofiel gaat niet mee: een heropende export rekent als *Open Planner Studio*. Alleen IFC neemt alles mee. Een voorbeeld met getallen vind je in [Bestanden en formaten](docs://uitleg-bestanden).
+**Een export neemt niet alles mee.** Een CSV-bestand heeft geen resources of constraints, P6 XML heeft geen baselines en deadlines. Ook het rekenprofiel gaat niet mee: een heropende export rekent als *Open Planner Studio*, een heropende `.xer` als *Primavera P6*. Alleen IFC neemt alles mee. Na een export naar `.xer` meldt de app *De XER-export is opgeslagen. Dit ging niet of niet precies mee:*, met per soort een regel, bijvoorbeeld *2 deadlines*. Zie [Import- en exportformaten](docs://ref-import-exportformaten). Een voorbeeld met getallen vind je in [Bestanden en formaten](docs://uitleg-bestanden).
 
 **Twee formaten met dezelfde extensie.** MS Project XML en Primavera P6 XML krijgen allebei de naam *projectnaam.xml*. Geef ze zelf een verschillende naam, anders weet je later niet welk bestand welk formaat is.
 

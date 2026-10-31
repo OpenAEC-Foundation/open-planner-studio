@@ -384,6 +384,7 @@
     "mspdiDesc": "可在 Microsoft Project 中打开，完整 WBS 结构。",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "适用于 Oracle Primavera P6。",
+    "profileHint": "你的项目当前使用 {{name}} 配置。为了与此文件格式获得最佳兼容性，我们建议使用 {{target}} 配置。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 标准，采用项目的 IFC 模式（默认为 IFC 4.3 ADD2）。与 BIM 模型的 4D 关联。",
     "csvShort": "CSV (;)"

@@ -10,6 +10,9 @@ import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { writeMSPDIWithReport } from '@/services/msproject/mspdiWriter';
 import { mspdiDropsHourThreshold } from '@/services/msproject/mspdiCriticalSlackLimit';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
+import type { XerWriteLoss } from '@/services/xerWriteTypes';
+import { exportXerLossNotice } from '@/state/xerExportNotice';
+import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -23,7 +26,7 @@ import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
-import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, writeXerExport, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './types';
@@ -1256,6 +1259,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let payload: string | Uint8Array;
       let ext: string;
       let p6Truncated = 0;
+      let xerLoss: readonly XerWriteLoss[] | null = null;
       let invalidXmlChars = 0;
       let filters: { name: string; extensions: string[] }[];
       let mime: string | undefined;
@@ -1340,6 +1344,26 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
+        case 'xer': {
+          // P6 Resource-ID's uit een eerdere XER-import gaan ongewijzigd terug (`rsrc_short_name`).
+          const resourceCodes = new Map<string, string>();
+          for (const source of state.xerSourceArchive?.readModel.resourceCatalog.rows.resources ?? []) {
+            const code = source.rawRow?.cells.rsrc_short_name?.trim();
+            if (code) resourceCodes.set(source.internalId, code);
+          }
+          const written = await writeXerExport({
+            project: state.project, calendar: state.calendar, calendars: state.calendars,
+            tasks: state.tasks, sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+            baselineCount: state.baselines.length,
+            projectCode: documentProjectCode(state.project, state.xerImportMetadata),
+            resourceCodes,
+          });
+          payload = written.bytes;
+          xerLoss = written.loss;
+          ext = 'xer';
+          filters = [{ name: 'Primavera XER', extensions: ['xer'] }];
+          break;
+        }
         case 'ifc':
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
@@ -1362,10 +1386,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
-      // Eén verliesmelding per export: de XER-melding noemt XER-broninformatie en hoort alleen bij een
-      // XER-document; een document zonder XER-herkomst krijgt de algemene melding (#554).
+      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+      // document zonder XER-herkomst krijgt de algemene melding (#554).
       const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
-      if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
+      if (xerLoss) {
+        const notice = exportXerLossNotice(xerLoss, warnings.flatMap(w => w.categories));
+        if (notice) get().notify(notice);
+      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
         get().notify({
           severity: 'info',
           messageKey: 'notifications.xerExportLoss',
@@ -1391,6 +1419,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (invalidChars) get().notify(invalidChars);
       const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
       if (criticalHoursLost) get().notify(criticalHoursLost);
+      if (!xerLoss?.some(loss => loss.code === 'schedulingRules')) {
+        const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
+          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
+        if (profileNotice) get().notify(profileNotice);
+      }
       return { ok: true, warnings };
     },
 

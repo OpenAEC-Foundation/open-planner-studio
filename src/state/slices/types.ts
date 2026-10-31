@@ -36,7 +36,13 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 import type { SiteOpenRequest, SiteSaveRequest } from '@/services/fileAccess/siteDialogs';
 import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
+import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
+
+/** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
+ *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`), of een definitie
+ *  (activiteitcode, eigen veld). */
+export type XerExportLossItem = XerWriteLossCode | 'sourceDetails' | 'activityCodeDefinitions' | 'customFieldDefinitions';
 export type { McpServerStatus };
 
 export type WeekStartDay = 'monday' | 'sunday';
@@ -183,6 +189,8 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  // Dezelfde tekst als de hint bij de exportkeuze, na een geslaagde export (`exportProfileNotice`).
+  | 'menu:export.profileHint'
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
@@ -320,6 +328,10 @@ export type NotificationMessageKey =
   // voor P6 XML/MSPDI/.mpp/CSV/IFC — één melding per geopend bestand (`applyOpenedImport`).
   | 'notifications.importDatesAsRecorded'
   | 'notifications.xerExportLoss'
+  // Na een geslaagde XER-export: wat niet (precies) meeging, één detailregel per soort
+  // (`state/xerExportNotice.ts`).
+  | 'notifications.exportXerLoss'
+  | `notifications.exportXerLossItem.${XerExportLossItem}`
   | 'notifications.exportDataLoss'
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'

@@ -517,6 +517,12 @@ function astFieldHits(fileName: string, text: string, fields: readonly string[])
         waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
       { file: 'services/leveling/levelingInput.ts', field: 'free_float_hr_cnt', context: 'catalog:P6_PRIORITY_FIELD_QUANTITY', count: 1,
         waarom: 'bak 4, gesloten mapping P6-prioriteitskolomnaam ⇒ EIGEN berekende grootheid, geen celtoegang' },
+      { file: 'services/xer/xerWriter.ts', field: 'plan_start_date', context: 'catalog:XER_PROJECT_PLANNING_COLUMNS', count: 1,
+        waarom: 'SCHRIJVER, PROJECT-tabel: de geplande projectstart als uitvoerkolom, geen celtoegang (#391)' },
+      { file: 'services/xer/xerWriter.ts', field: 'plan_end_date', context: 'catalog:XER_PROJECT_PLANNING_COLUMNS', count: 1,
+        waarom: 'SCHRIJVER, PROJECT-tabel: het projecteinde bij useProjectEndDateForFloat, geen celtoegang (#391)' },
+      { file: 'services/xer/xerWriter.ts', field: 'critical_drtn_hr_cnt', context: 'catalog:XER_PROJECT_PLANNING_COLUMNS', count: 1,
+        waarom: 'SCHRIJVER, PROJECT-tabel: de kritiek-drempel in uren, geen celtoegang (#391)' },
     ];
     const bak4Eigenaar = 'services/xer/xerRecordedTimes.ts';
     const gezien = new Map<Uitzondering, number>();

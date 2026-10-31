@@ -384,6 +384,7 @@
     "mspdiDesc": "Microsoft Project에서 열 수 있습니다. 전체 WBS 구조.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6용.",
+    "profileHint": "현재 프로젝트는 {{name}} 프로필을 사용하고 있습니다. 이 파일 형식과 가장 잘 호환되도록 {{target}} 프로필을 사용하는 것을 권장합니다.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 표준, 프로젝트의 IFC 스키마 기준 (기본값 IFC 4.3 ADD2). BIM 모델과의 4D 연동.",
     "csvShort": "CSV (;)"

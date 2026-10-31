@@ -18,6 +18,7 @@ import {
 import { applySetting } from '@/components/settings/applySetting';
 import { ExportFormat } from '@/state/appStore';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
+import { ExportProfileHint } from '@/components/common/ExportProfileHint';
 import { addTaskNearSelection } from '@/state/taskInsertActions';
 import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -553,8 +554,8 @@ export function ExportDropdown() {
   const [open, setOpen] = useState(false);
   const exportAs = useAppStore(s => s.exportAs);
 
-  const formats: { label: string; format: ExportFormat }[] = EXPORT_FORMATS.map(
-    (f) => ({ label: tMenu(f.shortLabelKey ?? f.labelKey), format: f.format }),
+  const formats: { label: string; format: ExportFormat; experimental: boolean }[] = EXPORT_FORMATS.map(
+    (f) => ({ label: tMenu(f.shortLabelKey ?? f.labelKey), format: f.format, experimental: 'experimental' in f && f.experimental }),
   );
 
   return (
@@ -585,6 +586,8 @@ export function ExportDropdown() {
           }}
         >
           {f.label}
+          {f.experimental && <span className="ops-experimental-badge" data-ops-experimental-badge>{tMenu('export.experimentalBadge')}</span>}
+          <ExportProfileHint format={f.format} />
         </RibbonMenuItem>
       ))}
     </Popover>
