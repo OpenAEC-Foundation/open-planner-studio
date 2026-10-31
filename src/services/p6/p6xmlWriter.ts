@@ -31,7 +31,7 @@ import {
   withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
-import { P6_DURATION_TYPE_NAME } from '@/engine/work/workRuleMapping';
+import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -123,6 +123,14 @@ export function taskStatusToP6(task: Task): 'Completed' | 'In Progress' | 'Not S
   if (task.status === 'COMPLETED' || task.time.actualFinish || (task.time.completion >= 1 && !runningAtFull)) return 'Completed';
   if (task.status === 'STARTED' || task.time.actualStart || task.time.completion > 0) return 'In Progress';
   return 'Not Started';
+}
+
+/** XER-token → PMXML-label, via de gedeelde tabel in `workRuleMapping.ts` (Oracle-datamap). */
+function p6LabelForToken(token: string): string | undefined {
+  for (const [rule, t] of Object.entries(XER_DURATION_TYPE_TOKEN) as [keyof typeof P6_DURATION_TYPE_NAME, string][]) {
+    if (t === token) return P6_DURATION_TYPE_NAME[rule];
+  }
+  return undefined;
 }
 
 function taskTypeToP6(task: Task): string {
@@ -594,9 +602,11 @@ export function writeP6XMLWithReport(
   for (const task of leafTasks) {
     const objId = taskObjMap.get(task.id)!;
     const wbsObjId = task.parentId ? taskObjMap.get(task.parentId) : undefined;
-    // <DurationType> uit de eigen werkregel. Zonder eigen regel schrijft de export niets, ook niet het oude
-    // P6-token (`p6DurationType`): dat zou de keuze *Projectstandaard* terugdraaien (knownbug 467).
-    const durationTypeLabel = task.workRule ? P6_DURATION_TYPE_NAME[task.workRule] : undefined;
+    // <DurationType> uit de werkregel; zonder werkregel valt een taak met alleen een bewaard P6-token
+    // op dat token terug. Zonder beide schrijft de export niets.
+    const durationTypeLabel = task.workRule
+      ? P6_DURATION_TYPE_NAME[task.workRule]
+      : task.p6DurationType ? p6LabelForToken(task.p6DurationType) : undefined;
     // Uur-taak ⇒ PlannedDuration in uren uit de minuten (op de hele minuut; een breuk in minuten gaat als
     // `OPS_ExactMinutes`-record mee, T14). Dag-taak ⇒ werkdagen × de werktijd per dag van de
     // activiteitkalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15), niet de

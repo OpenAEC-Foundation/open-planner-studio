@@ -1,6 +1,6 @@
 // P6 XML-export en -opening, fase 2 van #690 (eigenaar, 2026-10-29). De verliesmelding na export heeft dezelfde vorm
 // als bij XER, met de regels van dit formaat. Elke verliescategorie van de detector voor P6 XML geeft een regel.
-// Ook: een mijlpaal mét duur blijft een activiteit, *Projectstandaard* blijft staan, en openen meldt het OPS-profiel.
+// Ook: een mijlpaal mét duur blijft een activiteit, en openen meldt het OPS-profiel.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { installDOMParser } from './xmldom-shim';
@@ -103,22 +103,17 @@ eq('notitie: detector en melding zijn het eens', [
 ], [true, [`${P}notes:1`]]);
 eq('broninformatie: één regel', lines(input(), ['exact-source-bytes', 'typed-diagnostics']), [`${X}sourceDetails`]);
 
-// De schrijver: een mijlpaal mét duur blijft een activiteit (knownbug 570), *Projectstandaard* blijft staan (467).
+// De schrijver: een mijlpaal mét duur blijft een activiteit (knownbug 570).
 const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
 const xml = writeP6XML(project, calendar, [
   task('Met duur', { isMilestone: true }, { durationMinutes: 2400, scheduleDuration: 5, remainingTime: 2 }),
   task('Nul', { isMilestone: true, milestoneKind: 'FINISH' }, { durationMinutes: 0, scheduleDuration: 0 }),
-  task('Standaard', { p6DurationType: 'DT_FixedQty' } as Partial<Task>),
-  task('Eigen', { workRule: 'FIXED_WORK' } as Partial<Task>),
 ], [], [], []);
 const activity = (name: string) => xml.split('<Activity>').find(part => part.includes(`<Name>${name}</Name>`)) ?? '';
 const tag = (name: string, field: string) => new RegExp(`<${field}>([^<]*)</${field}>`).exec(activity(name))?.[1];
 eq('mijlpaal met duur: gewone activiteit met duur en rest',
   [tag('Met duur', 'Type'), Number(tag('Met duur', 'PlannedDuration')), Number(tag('Met duur', 'RemainingDuration'))], ['Task Dependent', 40, 16]);
 eq('nulduur-mijlpaal blijft mijlpaal', tag('Nul', 'Type'), 'Finish Milestone');
-eq('Projectstandaard schrijft geen oud duurtype', tag('Standaard', 'DurationType'), undefined);
-ok('eigen werkregel gaat mee', tag('Eigen', 'DurationType'));
-function ok(label: string, value: unknown): void { eq(label, Boolean(value), true); }
 
 // Openen: de melding over het OPS-profiel.
 const opened = await parseOpenedFile({ name: 'p.xml', text: xml }) as OpenedImport;

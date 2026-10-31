@@ -139,7 +139,9 @@ pred.time.scheduleDuration = 3;
 source.sequences = [{ ...source.sequences[0], lagDays: 0, lagMinutes: 13, lagPercent: 50 }];
 eq('I6: kalendertijd-voorganger en procent gaat voor minuten', readP6XML(writeP6(source)).sequences[0]?.lagMinutes, 2160);
 pred.isMilestone = true;
-eq('I6: mijlpaal heeft geen procentduur', readP6XML(writeP6(source)).sequences[0]?.lagMinutes, 0);
+eq('I6: mijlpaal met duur houdt zijn procentduur, zoals in de motor', readP6XML(writeP6(source)).sequences[0]?.lagMinutes, 2160);
+pred.time.scheduleDuration = 0;
+eq('I6: nulduur-mijlpaal heeft geen procentduur', readP6XML(writeP6(source)).sequences[0]?.lagMinutes, 0);
 
 // T15 bewaart ook de dagcomponent van een verstreken ISO-duur in minuten.
 const dayDuration = readMSPDI(mspXml(false, 0, 7, 'P1DT12H', 'P1D'));
