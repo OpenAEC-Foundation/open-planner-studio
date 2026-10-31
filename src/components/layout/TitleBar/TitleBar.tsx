@@ -4,6 +4,7 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
+import { isMacPlatform } from '@/hooks/keyboard/shortcutFormat';
 import {
   Undo2, Redo2, Minus, Square, Copy, X, Settings,
 } from 'lucide-react';
@@ -231,11 +232,12 @@ export function TitleBar() {
         )}
       </div>
 
-      {/* Vensterknoppen alleen in Tauri. In de browserbuild — die productie-live staat op
+      {/* Eigen vensterknoppen alleen op Windows/Linux; macOS gebruikt de native titelbalk.
+          In de browserbuild — die productie-live staat op
           open-planner-studio.open-aec.com — beheert de browser het venster en beginnen alle drie
           de handlers hierboven met `if (!isTauri()) return;`. Ze renderden tot nu toe
           onvoorwaardelijk, dus de webgebruiker zag drie knoppen die niets deden. */}
-      {isTauri() && (
+      {isTauri() && !isMacPlatform() && (
         <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>
             <Minus size={14} />

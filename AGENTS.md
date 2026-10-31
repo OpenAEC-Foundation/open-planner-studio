@@ -190,6 +190,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
   client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
+- **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
   plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).

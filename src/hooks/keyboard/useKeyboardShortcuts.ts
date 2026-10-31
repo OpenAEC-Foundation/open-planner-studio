@@ -75,7 +75,7 @@ export function shouldYieldClipboardShortcutToTaskGrid(event: {
  * terugzetten meteen weer een rekenblokkade en bleef de planning verouderd (review #401, punt 3).
  * Typt de gebruiker daarna verder, dan houdt `onInput` de berekening weer vast.
  */
-function commitPendingTextEdit(target: EventTarget | null, opts: { recalculate: boolean }): void {
+export function commitPendingTextEdit(target: EventTarget | null, opts: { recalculate: boolean }): void {
   const el = target as HTMLElement | null;
   if (!el || !(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
   el.blur();

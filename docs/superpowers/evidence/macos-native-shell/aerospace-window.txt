@@ -1,0 +1,11 @@
+org.openaec.planner.devqa.216 |||   "AXCloseButton" : {
+org.openaec.planner.devqa.216 |||     "AXSubrole" : "AXCloseButton",
+org.openaec.planner.devqa.216 |||   "AXFullScreenButton" : {
+org.openaec.planner.devqa.216 |||     "AXSubrole" : "AXFullScreenButton",
+org.openaec.planner.devqa.216 |||   "AXMinimizeButton" : {
+org.openaec.planner.devqa.216 |||     "AXSubrole" : "AXMinimizeButton",
+org.openaec.planner.devqa.216 |||     "AXSubrole" : "AXFullScreenButton",
+org.openaec.planner.devqa.216 |||   "Aero.App.appBundleId" : "org.openaec.planner.devqa",
+org.openaec.planner.devqa.216 |||   "Aero.AxUiElementWindowType" : "window",
+org.openaec.planner.devqa.216 |||   "Aero.AxUiElementWindowType_isDialogHeuristic" : false,
+org.openaec.planner.devqa.216 |||   "Aero.treeNodeParent" : "Optional(AppBundle.TilingContainer)",

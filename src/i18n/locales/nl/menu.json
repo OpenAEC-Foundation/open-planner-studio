@@ -444,5 +444,9 @@
     "redo": "Opnieuw",
     "zoomIn": "Inzoomen",
     "zoomOut": "Uitzoomen"
+  },
+  "native": {
+    "window": "Venster",
+    "quit": "Stop Open Planner Studio"
   }
 }
