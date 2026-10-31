@@ -75,6 +75,7 @@ check-duration-cell-text.ts matrix
 check-duration-change-routes.ts matrix
 check-duration-measure.ts matrix
 check-export-guard.ts matrix
+check-export-profile-hint.ts matrix
 check-ext-calendar-mapper.ts matrix
 check-ext-consent.ts matrix
 check-ext-contract.ts matrix
@@ -491,6 +492,8 @@ check-xer-suspend-invariant.ts matrix
 check-xer-tables.ts matrix
 check-xer-task-replay.ts los
 check-xer-wbs-tree.ts matrix
+check-xer-writer-review.ts matrix
+check-xer-writer.ts matrix
 check-xer-x7-hour-mode.ts matrix
 check-xer-x9-verdicts.ts matrix
 check-xlsx-primitives.ts matrix
