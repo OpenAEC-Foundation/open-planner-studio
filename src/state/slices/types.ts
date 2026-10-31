@@ -334,6 +334,11 @@ export type NotificationMessageKey =
   // telling "N taken verschoven" na een profielwissel (`count`).
   | 'notifications.schedulingProfileApplied'
   | 'notifications.schedulingProfileShifted'
+  // De melding na F5 (#742): `count` taken verschoven, met een regel over de oplevering.
+  | 'scheduleShift.notice'
+  | 'scheduleShift.deliveryLater'
+  | 'scheduleShift.deliveryEarlier'
+  | 'scheduleShift.deliveryUnchanged'
   // Eigen rekenprofielen als sjabloon (critreview #169, B9): opgeslagen (param `name`), de limiet
   // (`max`), en een opslag die mislukt (quota of geen opslag) bij opslaan of verwijderen.
   | 'notifications.schedulingTemplateSaved'
@@ -416,23 +421,31 @@ export type NotificationMessageKey =
 export type NotificationActionLabelKey =
   | 'notifications.actions.openProjectInfo'
   | 'notifications.actions.openHelp'
-  | 'view.filter.clear';
+  | 'view.filter.clear'
+  | 'scheduleShift.why'
+  | 'scheduleShift.undo';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
  *  - `openBackstageSection`: open Bestand › `section` (rekenprofielen, tutorials);
+ *  - `showScheduleShift`: open het paneel Verschuivingen; de melding blijft staan (#742);
+ *  - `undoScheduleShift`: draai de herberekening terug; alleen zichtbaar zolang dat kan (#742);
  *  - `clearViewArrangement`: wis filter, groepering en sortering van het ACTIEVE document
  *    (eigenaarsbesluit 2026-10-19 5a). Veilig omdat een weigering bij een documentwissel verdwijnt
  *    (5b, `clearRefusals` in uiSlice): de knop staat dus nooit boven een ander document. */
 export type NotificationAction =
   | { kind: 'openBackstageSection'; section: BackstageSection; labelKey: NotificationActionLabelKey }
-  | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey };
+  | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
+  | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
+  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
 export interface NotificationDetailLine {
   messageKey: NotificationMessageKey;
   params?: Record<string, string | number>;
+  /** Getallen in de notatie van de app-taal, zie `AppNotification.numberParams`. */
+  numberParams?: Record<string, number>;
   /** Optioneel een EIGEN gidslink voor deze regel: de melding zelf linkt
    *  naar het artikel van het bestand/profiel; een samengevoegde regel over een ander onderwerp
    *  (werkregels) krijgt zo een eigen, aanklikbare link in plaats van een gidsnaam in de tekst.
@@ -480,6 +493,10 @@ export interface AppNotification {
   helpArticleId?: string;
   /** Optionele vervolgknop; zie `NotificationAction` (serialiseerbaar, nooit een functie). */
   action?: NotificationAction;
+  /** Een tweede vervolgknop naast `action`, voor een melding met een keuze (#742). */
+  secondaryAction?: NotificationAction;
+  /** Toon de melding rechtsonder in plaats van onderaan in het midden (#742). */
+  atEnd?: boolean;
   /** Alleen voor `info`: hoe lang de melding blijft staan, in ms (standaard 5000). Voor uitleg
    *  die je echt moet kunnen lezen, zoals de browseruitleg bij opslaan. */
   durationMs?: number;
@@ -645,6 +662,9 @@ export interface UIState {
    *  aan/uit-vlag, geen samengevouwen tussentoestand; aanzetten klapt de rail uit (`setUI`-
    *  invariant 1b). Default uit — de statusbalk blijft de compacte ingang. */
   showWarningsPanel: boolean;
+  /** session — het paneel Verschuivingen (#742): welke taken de laatste herberekening verschoof, en
+   *  waarom. Staat onderin de rail in dezelfde sectie als het Waarschuwingenpaneel, met dezelfde regels. */
+  showScheduleShiftPanel: boolean;
   /** Persisted — hoogte in px van het Waarschuwingenpaneel (kopbalk inbegrepen) wanneer
    *  er óók een ander railpaneel aan staat; staat alleen dit paneel aan, dan vult het de rail en is
    *  dit veld niet van kracht. Geklemd bij het laden (`settingsRegistry`) én live tijdens het slepen

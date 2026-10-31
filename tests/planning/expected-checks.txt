@@ -332,6 +332,7 @@ check-session-history-migration.ts matrix
 check-session-history-model.ts matrix
 check-session-history-store.ts matrix
 check-settings-storage-blocked.ts matrix
+check-shift-explanation.ts matrix
 check-short-hour-task-load.ts matrix
 check-shown-dates-formats.ts matrix
 check-site-storage.ts matrix

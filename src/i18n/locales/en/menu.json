@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Warnings panel",
+    "scheduleShiftPanel": "Shifted tasks",
     "prevResource": "Previous",
     "nextResource": "Next",
     "leveling": "Leveling",

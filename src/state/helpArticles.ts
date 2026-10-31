@@ -103,6 +103,9 @@ export const RESOURCE_PANEL_HELP_ARTICLE_ID = 'ref-resourcepaneel';
 /** Het paneel Waarschuwingen. */
 export const WARNINGS_HELP_ARTICLE_ID = 'ref-meldingen';
 
+/** Het paneel Verschuivingen. */
+export const SCHEDULE_SHIFT_HELP_ARTICLE_ID = 'uitleg-verschuivingen';
+
 // ── ?-knoppen in zes vensters (besluit eigenaar na fase 4) ──────────────────────────────────────────
 
 /** Projectinformatie (Instellingen › Project › Projectinfo): de referentie van het formulier, en de

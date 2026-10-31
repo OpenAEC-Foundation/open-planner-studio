@@ -1727,5 +1727,43 @@
     "blockedNoChild": "Verplaatsen kan niet: '{{phase}}' krijgt geen subtaak die een toewijzing kan dragen, alleen mijlpalen of samenvattingstaken.",
     "actualWorkLost_one": "Op de toewijzing van {{resource}} staat al {{hours}} uur verricht werk. Verwijderen gooit dat weg.",
     "actualWorkLost_other": "Op de toewijzing van {{resource}} staat al {{hours}} uur verricht werk. Verwijderen gooit dat weg."
+  },
+  "scheduleShift": {
+    "title": "Verschuivingen",
+    "close": "Verschuivingen sluiten",
+    "notice_one": "{{count}} taak verschoven",
+    "notice_other": "{{count}} taken verschoven",
+    "deliveryLater_one": "Oplevering {{days}} werkdag later",
+    "deliveryLater_other": "Oplevering {{days}} werkdagen later",
+    "deliveryEarlier_one": "Oplevering {{days}} werkdag eerder",
+    "deliveryEarlier_other": "Oplevering {{days}} werkdagen eerder",
+    "deliveryUnchanged": "Oplevering ongewijzigd",
+    "why": "Waarom?",
+    "undo": "Ongedaan maken",
+    "finishChange": "Einde {{from}} → {{to}}",
+    "goTo": "Ga naar: {{target}}",
+    "showMore_one": "Nog {{count}} taak tonen",
+    "showMore_other": "Nog {{count}} taken tonen",
+    "emptyNoRun": "Druk op Bereken (F5). Hier staat daarna welke taken verschoven zijn, en waarom.",
+    "emptyNoShift": "De laatste berekening verschoof geen taken.",
+    "reason": {
+      "predecessor": "Voorganger: {{name}}",
+      "predecessorMore_one": "Voorganger: {{name}} en {{count}} andere",
+      "predecessorMore_other": "Voorganger: {{name}} en {{count}} andere",
+      "calendar": "Kalender: {{name}}",
+      "constraint": "Vaste datum: {{constraint}}",
+      "constraintPlain": "Vaste datum",
+      "statusDate": "Statusdatum: {{date}}",
+      "resource": "Resource: {{names}}",
+      "resourceLeveling": "Resource: nivellering",
+      "duration": "Eigen duur gewijzigd",
+      "ownStart": "Eigen startdatum",
+      "plannedStart": "Geplande start",
+      "projectStart": "Projectstart",
+      "progress": "Voortgang: werkelijke datums of restduur",
+      "manual": "Handmatig gepland",
+      "hammock": "Volgt de gekoppelde taken",
+      "unknown": "Reden niet vastgesteld"
+    }
   }
 }

@@ -16,6 +16,12 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { markScheduleStale } from '../transaction';
+import { restoreSnapshot, createSnapshot } from '../snapshot';
+import {
+  SCHEDULE_SHIFT_NOTICE_KEY, canUndoScheduleShift, previousSolveBasis, scheduleShiftNotice,
+  type ScheduleShift,
+} from '../scheduleShift';
+import { buildShiftReport } from '@/engine/scheduler/shiftExplanation';
 import { scheduleFailedNotice } from '../scheduleErrorNotice';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
@@ -46,7 +52,17 @@ export interface ScheduleSlice {
   /** Staat de modus aan: toont de app de opgeslagen datums in plaats van de herberekende? */
   datesAsRecorded: boolean;
   minuteModelPending: boolean;
-  runCPM: (options?: { withinEvent?: boolean }) => void;
+  /** De uitleg van de laatste herberekening door de gebruiker, zolang dit document open is (#742).
+   *  Sessiestand en geen documentdata: hij hoort bij dit scherm, niet bij het bestand. */
+  scheduleShift: ScheduleShift | null;
+  runCPM: (options?: { withinEvent?: boolean; traceDateDrivers?: boolean }) => void;
+  /** F5 en de knop Bereken: dezelfde `runCPM`, plus de melding welke taken verschoven en waarom. Alles
+   *  wat zelf herrekent (MCP, laden, nivelleren, Automatisch berekenen) blijft `runCPM` aanroepen. */
+  recalculate: () => void;
+  /** Ongedaan maken op die melding: de datums van vóór de herberekening terug, in één stap. Dit is
+   *  geen stap in de undo-geschiedenis, want `runCPM` is dat ook niet: Ctrl+Z na F5 neemt nog steeds
+   *  de bewerking zelf terug. Doet niets als er sinds de herberekening iets aan de data veranderde. */
+  undoScheduleShift: () => void;
   /** Herbereken ALLEEN de resource-belasting op de bestaande CPM-datums: pure resource-
    *  mutaties (toewijzen, capaciteit, kalender) verversen zo het histogram direct, ZONDER runCPM en
    *  ZONDER de datums aan te raken — past binnen "manual, not reactive". Datum-rakende mutaties
@@ -83,6 +99,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
   recordedDates: null,
   datesAsRecorded: false,
   minuteModelPending: false,
+  scheduleShift: null,
 
   recomputeResourceLoad: () => {
     // Rekenen BUITEN de producer, alleen het resultaat erin — zelfde vorm als `recomputeViewRows`.
@@ -105,7 +122,7 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     const before = get();
     const tasks = cloneTasksForSolve(before.tasks);
     const input = solveInputFor(before.project, tasks, before.sequences, before.calendar, before.calendars);
-    const result = solveProject(input);
+    const result = solveProject({ ...input, traceDateDrivers: options?.traceDateDrivers });
     // De belasting leest dezelfde maatconventie als de solver (het profiel van het project).
     const resourceLoad = computeReliableResourceLoad(
       result, before.resources, before.assignments, tasks, before.calendar, before.calendars, input.schedulingOptions,
@@ -196,6 +213,80 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
       error: cpm?.error ?? null,
       criticalTasks: get().tasks.filter((t) => t.time.isCritical).length,
     });
+  },
+
+  recalculate: () => {
+    const before = get();
+    // Automatisch berekenen rekent na elke bewerking: daar past geen melding, en Ongedaan maken zou
+    // meteen weer doorgerekend worden.
+    if (before.ui.autoCalcCPM) {
+      before.runCPM();
+      return;
+    }
+    const basis = previousSolveBasis(before);
+    before.runCPM({ traceDateDrivers: true });
+    const after = get();
+    if (!after.cpmResult || after.cpmResult.error) {
+      set((s) => {
+        s.scheduleShift = null;
+        s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
+      });
+      return;
+    }
+    const report = buildShiftReport({
+      tasksBefore: before.tasks,
+      tasksAfter: after.tasks,
+      result: after.cpmResult,
+      previousProjectEnd: before.cpmResult && !before.cpmResult.error ? before.cpmResult.projectEnd : undefined,
+      calendar: after.calendar,
+      calendars: after.calendars,
+      assignments: after.assignments,
+      statusDate: after.project.statusDate,
+      basis,
+    });
+    // Nogmaals F5 zonder dat er iets veranderde: de uitleg van de vorige keer blijft staan.
+    if (report.tasks.length === 0 && !before.scheduleStale && !before.datesAsRecorded) return;
+    const historyEventId = after.historyEvents.find(event => event.sequence === before.nextHistorySequence)?.id ?? null;
+    set((s) => {
+      s.scheduleShift = {
+        documentId: s.activeDocumentId,
+        report,
+        before: createSnapshot(before),
+        beforeResourceLoad: before.resourceLoadResult,
+        after: createSnapshot(after),
+        historyEventId,
+        refreshedHistoryEvent: historyEventId === null && before.scheduleStale && !before.datesAsRecorded,
+      };
+      if (report.tasks.length === 0) {
+        s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
+      }
+    });
+    if (report.tasks.length > 0) get().notify(scheduleShiftNotice(report));
+  },
+
+  undoScheduleShift: () => {
+    const current = get();
+    const shift = current.scheduleShift;
+    if (!shift || !canUndoScheduleShift(current)) return;
+    // Rekende F5 in "datums zoals opgeslagen", dan is dat al een eigen stap in de geschiedenis.
+    if (shift.historyEventId !== null) current.undoHistoryEvent(shift.historyEventId);
+    else {
+      set((s) => {
+        // Niet als bewerking tellen; wel als afwijking van de schijf, voor het geval er intussen
+        // is opgeslagen (zelfde regel als Ctrl+Z na F5, zie `restoreSnapshot`).
+        restoreSnapshot(s, shift.before, { clearImportPristine: false });
+        s.resourceLoadResult = shift.beforeResourceLoad;
+        // De planning is weer niet doorgerekend, ook als dat vóór F5 nog niet zo gemarkeerd stond.
+        markScheduleStale(s);
+        if (shift.refreshedHistoryEvent) runtime.refreshLatestDocumentDataHistoryAfter(s);
+      });
+    }
+    set((s) => {
+      s.scheduleShift = null;
+      s.ui.showScheduleShiftPanel = false;
+      s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
+    });
+    get().recomputeViewRows();
   },
 
   levelingInput: (options) => {
