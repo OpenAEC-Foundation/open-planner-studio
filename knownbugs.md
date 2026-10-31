@@ -613,6 +613,14 @@ en noem het in je rapport of PR-tekst.
     kennen geen pijltjesbediening (`src/components/layout/Ribbon/BaselineOverlaySplitButton.tsx`, geen
     focus- of toetsafhandeling). Vervolgpunt uit review ronde 1 van PR #403 (GPT-6.1-Sol). Voorstel: focus
     naar het eerste vinkje bij openen, pijltjes omhoog/omlaag, terug naar de trigger bij sluiten. — B
+583. **Scrollen verplaatst het paneel niet mee.** `src/components/common/Popover.tsx:102` volgt
+    vensterwijzigingen en paneelgrootte, maar geen scrollgebeurtenissen. Bij horizontaal scrollen komt het
+    menu los van zijn knop. Bestond al op main. Kleinste oplossing: sluit het paneel wanneer zijn
+    scrollcontainer verschuift. VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol),
+    2026-10-31. — B
+584. **`Ribbon.css` heeft onnodige regeleindewijzigingen.** `src/components/layout/Ribbon/Ribbon.css:1`: 894
+    regels toegevoegd en 816 weg, terwijl 78 regels inhoudelijk zijn. Herstel de oorspronkelijke regeleinden.
+    VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol), 2026-10-31. — B
 450. **Korte baselinestukken worden stippen.** `stripOutline` (`src/engine/renderer/baselineStrip.ts`) neemt
     als straal `min(h/2, (x2-x1)/2)`; bij `x1=100, x2=102, h=5` met twee ronde kanten loopt de vorm van
     y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
