@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, LayoutGrid } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { BASELINE_SLOT_COLOR } from '@/components/canvas/BaselineTooltipContent';
@@ -68,7 +68,7 @@ export function BaselineOverlaySplitButton() {
             data-ops-ribbon-item="toggleBaselineOverlay"
             onClick={() => setOverlays({ baseline: !showBaselineOverlay })}
           >
-            <span className="ribbon-btn-icon"><LayoutGrid size={20} /></span>
+            <span className="ribbon-btn-icon"><Icon id="planning.baseline-overlay" size={24} /></span>
             <span className="ribbon-btn-label ribbon-split-top-label">{label}</span>
           </button>
           {/* Onderste deel: label met ▾ (zoals de knop Relatie), opent het menu. */}
@@ -124,7 +124,7 @@ export function BaselineOverlaySplitButton() {
                 }}
               >
                 <span className={`ribbon-check-box${checked ? ' is-checked' : ''}`} aria-hidden="true">
-                  {checked && <Check size={11} strokeWidth={3} />}
+                  {checked && <Icon id="selection.mark" size={11} />}
                 </span>
                 <span
                   className={`ribbon-check-strip${checked ? '' : ' is-empty'}`}

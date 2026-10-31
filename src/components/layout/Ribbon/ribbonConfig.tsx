@@ -1,14 +1,5 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Plus, Undo2, Redo2,
-  FileText, FolderOpen, Save, Printer, Trash2,
-  Settings, Info,
-  Eye, EyeOff, SaveAll,
-  Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  Keyboard, PanelRight,
-  ChevronsDownUp, ChevronsUpDown, Columns3,
-} from 'lucide-react';
 import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { COMMANDS } from '@/state/commands';
@@ -59,7 +50,7 @@ export interface RibbonButtonBinding {
   disabled?: boolean;
   /** Tooltip (kleine én grote knoppen). */
   title?: string;
-  /** Icoon-override voor knoppen die van staat wisselen (bv. Eye/EyeOff). */
+  /** Icoon-override voor knoppen die van staat wisselen (bv. `panel.properties` en `panel.properties-hidden`). */
   icon?: ReactNode;
 }
 
@@ -126,7 +117,7 @@ const calcButton: RibbonButtonSpec = {
 
 /** Taak-toevoegen-knop (start + table). */
 const addTaskButton: RibbonButtonSpec = {
-  kind: 'button', id: 'addTask', icon: <Plus size={20} />, labelKey: 'menu:ribbon.task',
+  kind: 'button', id: 'addTask', icon: <Icon id="task.add" size={24} />, labelKey: 'menu:ribbon.task',
   use: () => {
     const { t } = useTranslation('task');
     const { t: tMenu } = useTranslation('menu');
@@ -177,7 +168,7 @@ const calendarButton: RibbonButtonSpec = {
 
 /** Afdrukvoorbeeld-knop — opent de Rapport-tab. */
 const printPreviewButton: RibbonButtonSpec = {
-  kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
+  kind: 'button', id: 'printPreview', icon: <Icon id="report.workspace" size={24} />, labelKey: 'menu:ribbon.printPreview',
   use: uiAction({ activeRibbonTab: 'report' }),
 };
 
@@ -248,15 +239,15 @@ const fileGroup: RibbonGroupSpec = {
     {
       kind: 'stack', id: 'fileStack1', items: [
         {
-          kind: 'small', id: 'new', icon: <FileText size={14} />, labelKey: 'menu:ribbon.new',
+          kind: 'small', id: 'new', icon: <Icon id="file.new" size={16} />, labelKey: 'menu:ribbon.new',
           use: uiAction({ showNewProjectDialog: true }),
         },
         {
-          kind: 'small', id: 'save', icon: <Save size={14} />, labelKey: 'menu:ribbon.save',
+          kind: 'small', id: 'save', icon: <Icon id="file.save" size={16} />, labelKey: 'menu:ribbon.save',
           use: () => useCommandBinding(COMMANDS.save),
         },
         {
-          kind: 'small', id: 'open', icon: <FolderOpen size={14} />, labelKey: 'menu:ribbon.open',
+          kind: 'small', id: 'open', icon: <Icon id="file.open" size={16} />, labelKey: 'menu:ribbon.open',
           use: () => useCommandBinding(COMMANDS.open),
         },
       ],
@@ -266,7 +257,7 @@ const fileGroup: RibbonGroupSpec = {
       // horizontaal en wordt de groep ~2× zo breed).
       kind: 'stack', id: 'fileStack2', items: [
         {
-          kind: 'small', id: 'saveAs', icon: <SaveAll size={14} />, labelKey: 'menu:backstage.saveAs',
+          kind: 'small', id: 'saveAs', icon: <Icon id="file.save-as" size={16} />, labelKey: 'menu:backstage.saveAs',
           use: () => useCommandBinding(COMMANDS.saveAs),
         },
         { kind: 'component', id: 'recentFiles', Component: RecentFilesDropdown },
@@ -287,15 +278,15 @@ const editGroup: RibbonGroupSpec = {
     {
       kind: 'stack', id: 'editStack', items: [
         {
-          kind: 'small', id: 'undo', icon: <Undo2 size={14} />, labelKey: 'menu:ribbon.undo',
+          kind: 'small', id: 'undo', icon: <Icon id="edit.undo" size={16} />, labelKey: 'menu:ribbon.undo',
           use: () => useCommandBinding(COMMANDS.undo),
         },
         {
-          kind: 'small', id: 'redo', icon: <Redo2 size={14} />, labelKey: 'menu:ribbon.redo',
+          kind: 'small', id: 'redo', icon: <Icon id="edit.redo" size={16} />, labelKey: 'menu:ribbon.redo',
           use: () => useCommandBinding(COMMANDS.redo),
         },
         {
-          kind: 'small', id: 'delete', icon: <Trash2 size={14} />, labelKey: 'menu:ribbon.delete', danger: true,
+          kind: 'small', id: 'delete', icon: <Icon id="edit.delete" size={16} />, labelKey: 'menu:ribbon.delete', danger: true,
           use: () => useCommandBinding(COMMANDS.delete),
         },
       ],
@@ -317,7 +308,7 @@ const tableColumnsGroup: RibbonGroupSpec = {
   // `common:view.columns.title` bestaat al in alle veertien talen.
   id: 'tableColumns', labelKey: 'common:view.columns.title',
   items: [{
-    kind: 'button', id: 'tableColumns', icon: <Columns3 size={20} />, labelKey: 'menu:ribbon.columns',
+    kind: 'button', id: 'tableColumns', icon: <Icon id="table.columns" size={24} />, labelKey: 'menu:ribbon.columns',
     use: useColumnsButtonBinding,
   }],
 };
@@ -505,7 +496,7 @@ const planningTab: RibbonTabConfig = [
 
 /** Het volledige resourcepaneel — Resources-tab én Beeld → Panelen (dezelfde spec, twee callsites). */
 const openResourcePanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'openResourcePanel', icon: <Users size={20} />, labelKey: 'menu:ribbon.openResourcePanel',
+  kind: 'button', id: 'openResourcePanel', icon: <Icon id="resource.workspace" size={24} />, labelKey: 'menu:ribbon.openResourcePanel',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
     const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
@@ -520,16 +511,16 @@ const openResourcePanelButton: RibbonButtonSpec = {
 };
 
 /**
- * De gedockte compacte rail. Icoon: `PanelRight` — het paneel-in-de-zijkolom-glyph (rechthoek met
+ * De gedockte compacte rail. Icoon: `resource.dock` — het paneel-in-de-zijkolom-glyph (rechthoek met
  * een afgescheiden zijvak), dezelfde conventie als VS Code/Figma voor precies deze schakelaar. Het
- * zegt WAAR het paneel komt; `Users` zegt WAT erin staat en hoort daarom bij de knop hierboven.
- * Geen pijlpunt (`PanelRightOpen`/`-Close`) — dat detail valt weg op 20 px en in de compacte strip.
+ * zegt WAAR het paneel komt; `resource.workspace` zegt WAT erin staat en hoort daarom bij de knop hierboven.
+ * Geen pijlpunt — dat detail valt weg in de compacte strip.
  * Geen icoonwissel bij aan/uit: net als de Histogram-knop ernaast is de actief-markering van het
  * lint de terugkoppeling. In RTL (`ar`/`fa`) staat de rail gemeten aan de LINKERkant, dus daar
  * spiegelt het glyph mee — zie `.ribbon-btn-icon .ops-icon-rail` in Ribbon.css.
  */
 const dockResourcePanelButton: RibbonButtonSpec = {
-  kind: 'button', id: 'dockResourcePanel', icon: <PanelRight size={20} className="ops-icon-rail" />,
+  kind: 'button', id: 'dockResourcePanel', icon: <Icon id="resource.dock" size={24} className="ops-icon-rail" />,
   labelKey: 'menu:ribbon.dockResourcePanel',
   use: () => {
     const setUI = useAppStore(s => s.setUI);
@@ -571,7 +562,7 @@ function histogramResourceStep(step: -1 | 1): () => RibbonButtonBinding {
 }
 
 const toggleHistogramButton: RibbonButtonSpec = {
-  kind: 'button', id: 'toggleHistogram', icon: <BarChart3 size={20} />, labelKey: 'menu:ribbon.toggleHistogram',
+  kind: 'button', id: 'toggleHistogram', icon: <Icon id="data.chart" size={24} />, labelKey: 'menu:ribbon.toggleHistogram',
   // Aanvulling op de gedeelde binding: een schakelaar toont zijn STAND. Het omzetten zelf
   // (inclusief het persisteren) zit in het commando, gedeeld met Ctrl+Shift+H.
   use: () => {
@@ -588,7 +579,7 @@ const resourcesTab: RibbonTabConfig = [
       openResourcePanelButton,
       dockResourcePanelButton,
       {
-        kind: 'button', id: 'newResource', icon: <Plus size={20} />, labelKey: 'menu:ribbon.newResource',
+        kind: 'button', id: 'newResource', icon: <Icon id="resource.new" size={24} />, labelKey: 'menu:ribbon.newResource',
         // Zelfde route als de "+ Nieuwe resource"-knop in het paneel (concept-rij, geen naamloze
         // resource + undo-stap): alleen een verzoek-vlag zetten, `ResourcePanel` opent de draft en
         // maakt pas bij een niet-lege naam écht een resource aan — in de bibliotheek of het project,
@@ -610,11 +601,11 @@ const resourcesTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'histogramStack', items: [
           {
-            kind: 'small', id: 'prevResource', icon: <ChevronLeft size={14} />, labelKey: 'menu:ribbon.prevResource',
+            kind: 'small', id: 'prevResource', icon: <Icon id="resource.previous" size={16} />, labelKey: 'menu:ribbon.prevResource',
             use: histogramResourceStep(-1),
           },
           {
-            kind: 'small', id: 'nextResource', icon: <ChevronRight size={14} />, labelKey: 'menu:ribbon.nextResource',
+            kind: 'small', id: 'nextResource', icon: <Icon id="resource.next" size={16} />, labelKey: 'menu:ribbon.nextResource',
             use: histogramResourceStep(1),
           },
         ],
@@ -625,11 +616,11 @@ const resourcesTab: RibbonTabConfig = [
     id: 'leveling', labelKey: 'menu:ribbon.leveling',
     items: [
       {
-        kind: 'button', id: 'levelResources', icon: <Scale size={20} />, labelKey: 'menu:ribbon.levelResourcesDialog',
+        kind: 'button', id: 'levelResources', icon: <Icon id="resource.level" size={24} />, labelKey: 'menu:ribbon.levelResourcesDialog',
         use: uiAction({ showLevelingDialog: true }),
       },
       {
-        kind: 'button', id: 'clearLeveling', icon: <Eraser size={20} />, labelKey: 'menu:ribbon.clearLeveling',
+        kind: 'button', id: 'clearLeveling', icon: <Icon id="resource.clear-level" size={24} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
           // Houd deze conditie LETTERLIJK gelijk aan de no-op-guard in
@@ -666,7 +657,7 @@ const outlineGroup: RibbonGroupSpec = {
   items: [{
     kind: 'stack', id: 'outlineStack', items: [
       {
-        kind: 'small', id: 'collapseTasks', icon: <ChevronsDownUp size={14} />, labelKey: 'menu:ribbon.collapseTasks',
+        kind: 'small', id: 'collapseTasks', icon: <Icon id="tree.collapse-scope" size={16} />, labelKey: 'menu:ribbon.collapseTasks',
         use: () => {
           const collapseTasks = useAppStore(s => s.collapseTasks);
           const collapseAllGroups = useAppStore(s => s.collapseAllGroups);
@@ -680,7 +671,7 @@ const outlineGroup: RibbonGroupSpec = {
         },
       },
       {
-        kind: 'small', id: 'expandTasks', icon: <ChevronsUpDown size={14} />, labelKey: 'menu:ribbon.expandTasks',
+        kind: 'small', id: 'expandTasks', icon: <Icon id="tree.expand-scope" size={16} />, labelKey: 'menu:ribbon.expandTasks',
         use: () => {
           const expandTasks = useAppStore(s => s.expandTasks);
           const expandAllGroups = useAppStore(s => s.expandAllGroups);
@@ -713,7 +704,7 @@ const beeldTab: RibbonTabConfig = [
     id: 'panels', labelKey: 'menu:ribbon.panels',
     items: [
       {
-        kind: 'button', id: 'properties', icon: <Eye size={20} />, labelKey: 'menu:ribbon.properties',
+        kind: 'button', id: 'properties', icon: <Icon id="panel.properties" size={24} />, labelKey: 'menu:ribbon.properties',
         // `!rightPanelCollapsed` is niet hetzelfde als "de rail staat er". Het
         // VOLLEDIGE resource-paneel vervangt de hele werkruimte (App.tsx `isFullPanel`); dan
         // bestaat de rail niet. De andere `isFullPanel`-termen (tabbladen
@@ -739,7 +730,7 @@ const beeldTab: RibbonTabConfig = [
           const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
           const visible = railVisible && showPropertiesPanel;
           return {
-            icon: visible ? <Eye size={20} /> : <EyeOff size={20} />,
+            icon: visible ? <Icon id="panel.properties" size={24} /> : <Icon id="panel.properties-hidden" size={24} />,
             active: visible,
             onClick: () => setUI(visible ? { showPropertiesPanel: false } : { showPropertiesPanel: true }),
           };
@@ -839,11 +830,11 @@ const instellingenTab: RibbonTabConfig = [
     // `projectInfo` = Projectinstellingen, `projectSettings` = App-instellingen.
     items: [
       {
-        kind: 'button', id: 'projectInfo', icon: <Info size={20} />, labelKey: 'menu:ribbon.projectInfo',
+        kind: 'button', id: 'projectInfo', icon: <Icon id="project.properties" size={24} />, labelKey: 'menu:ribbon.projectInfo',
         use: uiAction({ showProjectInfoDialog: true }),
       },
       {
-        kind: 'button', id: 'projectSettings', icon: <Settings size={20} />, labelKey: 'menu:ribbon.projectSettings',
+        kind: 'button', id: 'projectSettings', icon: <Icon id="ui.settings" size={24} />, labelKey: 'menu:ribbon.projectSettings',
         use: uiAction({ showSettingsDialog: true }),
       },
     ],
@@ -852,7 +843,7 @@ const instellingenTab: RibbonTabConfig = [
   {
     id: 'shortcuts', labelKey: 'common:shortcuts.title',
     items: [{
-      kind: 'small', id: 'shortcuts', icon: <Keyboard size={14} />, labelKey: 'common:shortcuts.title',
+      kind: 'small', id: 'shortcuts', icon: <Icon id="ui.shortcuts" size={16} />, labelKey: 'common:shortcuts.title',
       use: uiAction({ showShortcutsDialog: true }),
     }],
   },

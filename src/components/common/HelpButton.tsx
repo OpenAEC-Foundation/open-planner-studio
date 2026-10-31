@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { CircleHelp } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 
@@ -43,7 +43,7 @@ export function HelpButton({ articleId, onOpen, disabled, size = 16 }: HelpButto
       title={label}
       data-ops-help-button={articleId}
     >
-      <CircleHelp size={size} />
+      <Icon id="ui.help" size={size} />
     </button>
   );
 }

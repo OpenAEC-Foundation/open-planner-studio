@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatReportNumber } from '@/utils/reportNumber';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -234,7 +234,7 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
             aria-label={tCommon('close')}
             title={tCommon('close')}
           >
-            <X size={16} />
+            <Icon id="ui.close" size={16} />
           </button>
         </span>
       </div>

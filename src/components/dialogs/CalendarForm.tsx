@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Info, Plus, Trash2, X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { isHourModeCalendar, type WorkCalendar, type Holiday, type WorkTimeBands } from '@/types/calendar';
 import { accentChipClass, CalendarGeneratorFields } from './CalendarGeneratorFields';
 import { WorkTimeEditor } from './WorkTimeEditor';
@@ -597,7 +597,7 @@ export function CalendarForm({
               data-tooltip-instant="true"
               data-ops-standard-workday-info
             >
-              <Info size={14} aria-hidden="true" />
+              <Icon id="help.context-hint" size={14} aria-hidden="true" />
             </button>
           </div>
           <output
@@ -713,7 +713,7 @@ export function CalendarForm({
               <button type="button" onClick={() => deleteOwnPreset(p.id)}
                 className="px-1.5 py-1.5 text-text-secondary hover:bg-surface-hover hover:text-red-500"
                 title={tCommon('delete')} data-ops-own-preset-del={p.id}>
-                <X size={11} />
+                <Icon id="list.item-remove" size={11} />
               </button>
             </span>
           ))}
@@ -816,7 +816,7 @@ export function CalendarForm({
             {tMenu('ribbon.calendarDialog.holidaysSection')}
           </label>
           <button onClick={addHoliday} className="btn btn--sm btn--secondary flex items-center gap-1">
-            <Plus size={12} />
+            <Icon id="calendar.holiday-add" size={12} />
             {tMenu('ribbon.calendarDialog.addHoliday')}
           </button>
         </div>
@@ -866,7 +866,7 @@ export function CalendarForm({
                       className="p-1.5 hover:bg-surface-hover rounded-[8px] text-text-secondary"
                       title={tCommon('delete')}
                     >
-                      <Trash2 size={14} />
+                      <Icon id="edit.delete" size={14} />
                     </button>
                   </div>
                   {issue && (

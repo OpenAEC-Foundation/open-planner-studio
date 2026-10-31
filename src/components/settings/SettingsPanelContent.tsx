@@ -9,7 +9,7 @@ import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNot
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
-import { Info } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
@@ -406,7 +406,7 @@ export function SettingsPanelContent() {
                 <span>{t('settings.showTaskTypes')}</span>
               </label>
               <div className="ops-note" data-ops-setting-show-task-types-note>
-                <Info size={12} aria-hidden />
+                <Icon id="status.info" size={12} aria-hidden />
                 <span>{t('settings.showTaskTypesHint')}</span>
               </div>
             </div>

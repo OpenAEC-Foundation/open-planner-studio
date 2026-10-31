@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 
 const TONES = {
   // Een echte waarschuwing: semantische --warning-token + per-thema --theme-warning-text, leesbaar
@@ -40,7 +40,7 @@ export function StatusBanner({ tone, children, bannerProps, inline = false }: {
   const classes = inline ? className.replace('mx-2 mt-2 ', '') : className;
   return (
     <div className={classes} style={style} role={role} {...bannerProps}>
-      <AlertTriangle size={14} className="shrink-0" aria-hidden />
+      <Icon id={tone === 'warning' ? 'status.warning' : 'status.info'} size={14} className="shrink-0" aria-hidden />
       <span>{children}</span>
     </div>
   );

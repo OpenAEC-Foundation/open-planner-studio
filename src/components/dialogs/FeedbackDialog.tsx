@@ -18,7 +18,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import {
   submitFeedback,
   prepareGitHubFallback,
@@ -362,7 +362,7 @@ export function FeedbackDialog() {
             title={closeLabel}
             aria-label={closeLabel}
           >
-            <X size={16} />
+            <Icon id="ui.close" size={16} />
           </button>
         </div>
 

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import type { CompanyPool } from '@/types/library';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -430,7 +430,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                           className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
                           data-ops-occupancy-expand
                         >
-                          {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                          {open ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} />}
                         </button>
                         <span className="truncate font-medium">{row.name}</span>
                       </div>
@@ -491,7 +491,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                   title={t('resource.occupancy.staleDoc')}
                                   data-ops-occupancy-stale-doc
                                 >
-                                  <AlertTriangle size={12} aria-hidden />
+                                  <Icon id="status.warning" size={12} aria-hidden />
                                   <span className="!text-small">{t('resource.occupancy.staleDoc')}</span>
                                 </span>
                               ) : doc.scheduleStale && (
@@ -508,7 +508,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                                     ? { 'data-ops-occupancy-stale-computed-doc': '' }
                                     : { 'data-ops-occupancy-stale-as-shown-doc': '' })}
                                 >
-                                  <AlertTriangle size={12} aria-hidden />
+                                  <Icon id={doc.ephemeralComputed ? 'status.schedule-preview' : 'status.schedule-last-result'} size={12} aria-hidden />
                                   <span className="!text-small">
                                     {doc.ephemeralComputed
                                       ? t('resource.occupancy.staleComputedDoc')
@@ -540,7 +540,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                 style={{ color: 'var(--theme-warning-text)' }}
                 data-ops-occupancy-chart-stale
               >
-                <AlertTriangle size={13} className="shrink-0" aria-hidden />
+                <Icon id="status.warning" size={13} className="shrink-0" aria-hidden />
                 {t('resource.occupancy.staleDoc')}
               </p>
             ) : (
@@ -856,7 +856,7 @@ function OccupancyHistogram({ row, poolItem, untitledLabel, docColors }: {
             <span className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: docColors.get(doc.docId) }} aria-hidden />
             <span className="truncate !text-small text-text-secondary">{doc.title || untitledLabel}</span>
             {!doc.counted && (
-              <AlertTriangle size={11} style={{ color: 'var(--theme-warning-text)' }} aria-label={t('resource.occupancy.staleDoc')} />
+              <Icon id="status.warning" size={11} style={{ color: 'var(--theme-warning-text)' }} aria-label={t('resource.occupancy.staleDoc')} />
             )}
           </span>
         ))}

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Maximize2, PanelRightClose, X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/useSplitter';
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
@@ -155,7 +155,7 @@ export function RightRail() {
         style={{ width: 28 }}
         data-ops-rail-strip
       >
-        <ChevronRight size={14} className="text-text-secondary ops-icon-inline-flip" />
+        <Icon id="panel.right" size={14} className="text-text-secondary ops-icon-inline-flip" />
         <span
           className="!text-small font-semibold text-text-secondary uppercase tracking-wider"
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
@@ -211,7 +211,7 @@ export function RightRail() {
                 title={t('sidebar.closeProperties')}
                 className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
               >
-                <X size={14} />
+                <Icon id="ui.close" size={14} />
               </button>
               </>
             }
@@ -249,14 +249,14 @@ export function RightRail() {
                   title={t('resource.compact.expandFull')}
                   className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
                 >
-                  <Maximize2 size={13} />
+                  <Icon id="panel.expand-full" size={13} />
                 </button>
                 <button
                   onClick={() => setUI({ showResourcePanel: false, resourcePanelDocked: false })}
                   title={t('resource.compact.closeDock')}
                   className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
                 >
-                  <X size={14} />
+                  <Icon id="ui.close" size={14} />
                 </button>
               </>
             }
@@ -297,7 +297,7 @@ export function RightRail() {
                 className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
                 data-ops-warnings-close
               >
-                <X size={14} />
+                <Icon id="ui.close" size={14} />
               </button>
               </>
             }
@@ -371,7 +371,7 @@ function RailPanel({
               title={collapseRailTitle}
               className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
             >
-              <PanelRightClose size={14} className="ops-icon-inline-flip" />
+              <Icon id="panel.right" size={14} className="ops-icon-inline-flip" />
             </button>
           )}
         </div>

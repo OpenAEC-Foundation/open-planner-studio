@@ -6,7 +6,7 @@ export type { IconId };
 const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
 
 /**
- * Eén B2-icoon uit de OpenAEC Style Repo (huisstijl 0.4). Vervangt de lucide-iconen: één betekenis per
+ * Eén B2-icoon uit de OpenAEC Blueprint (huisstijl 0.4). Alle iconen van de app lopen hierlangs: één betekenis per
  * icoon, dus de `id` is de FUNCTIE (`task.add`, `calendar.holiday-add`), niet de vorm (`Plus`).
  *
  * - Master zoals de Style Repo voorschrijft: tot en met 18 px de 16 px-tekening, daarboven de 24 px-tekening;
@@ -15,7 +15,7 @@ const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
  * - Hoofdkleur `currentColor`, accent `var(--icon-accent)` (gezet in `icons.css` per thema; `oa-icon--mono`
  *   schakelt het accent uit). Een icoon met `semantic` kleurt mee met de statuskleur van het thema.
  * - Standaard decoratief (`aria-hidden`); met `aria-label` of `title` wordt het een `role="img"`.
- * - `data-icon` draagt het id voor tests en de self-test-harness (vervangt `.lucide-*`-selectors).
+ * - `data-icon` draagt het id voor tests en de self-test-harness.
  */
 export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children' | 'viewBox' | 'width' | 'height'> {
   id: IconId;
@@ -36,7 +36,9 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
   const master = masterFor(id, size);
   const box = size <= 18 ? 16 : 24;
   const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
-  const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic ? `oa-icon--${def.semantic}` : '', className ?? '']
+  // Geeft de plek zelf een tekstkleur op, dan gaat die voor op de statuskleur van het icoon.
+  const ownColor = /(^|\s)text-/.test(className ?? '');
+  const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic && !ownColor ? `oa-icon--${def.semantic}` : '', className ?? '']
     .filter(Boolean).join(' ');
   const svgStyle: CSSProperties | undefined = def.accent
     ? { color: 'var(--icon-accent, currentColor)', ...style }
