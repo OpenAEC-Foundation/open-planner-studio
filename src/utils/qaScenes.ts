@@ -4,7 +4,6 @@
 // `import.meta.env.DEV` in main.tsx). Geen testhaak: browsertests doen hun eigen handelingen.
 import { useAppStore } from '@/state/appStore';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
-import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
 
 type Scene = {
   /** Eigen verloop zonder Projectinfo; geeft het doel-selector terug. */
@@ -283,44 +282,65 @@ async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
   return waitFor('[data-task-grid-surface-id="full-task-grid"] [role="grid"]').then(() => '[data-task-grid-surface-id="full-task-grid"]');
 }
 
+/** Schaal van de schets, in px per dag. */
+const SKETCH_ZOOM = 6;
+
 /**
- * Issue #741: De Akkers met drie baselines die op elke rij anders door elkaar lopen. Elke taak krijgt
- * een van vijf patronen, als verschuiving van begin en einde in delen van de duur:
- * trap (elk stuk later), trap omgekeerd, uitloop (zelfde begin), inloop (zelfde einde), en een lange
- * baseline met een korte erin. Zo staan los begin, delen door twee, delen door drie en los einde op
- * bijna elke rij. Mijlpalen schuiven mee, zodat er ook losse en samenvallende ruiten zijn.
+ * Issue #741: de rijen uit de schets van de eigenaar, in dagen vanaf de start van het project. Per rij
+ * de baselines in volgorde (Contract, Herplanning maart, Herplanning juni); een baseline is `[van, tot)`.
+ * De keuze van de eigenaar was het beeld van `dak`: lange stukken op volle dikte en korte overlappen.
+ */
+const SKETCH_ROWS = {
+  dak: [[56, 70], [66, 84], [80, 92]],
+  stap: [[28, 48], [34, 54], [40, 60]],
+  twee: [[14, 34], [30, 50]],
+  korter: [[6, 38], [18, 26]],
+  gat: [[40, 54], [62, 76], [72, 90]],
+  gelijk: [[14, 38], [14, 38], [14, 38]],
+} satisfies Record<string, readonly (readonly [number, number])[]>;
+type SketchRow = keyof typeof SKETCH_ROWS;
+
+/** Deze taken dragen een rij letterlijk, op de dagen uit de schets. Ze liggen daar in de tijd het dichtst bij. */
+const SKETCH_LITERAL: Record<string, SketchRow> = {
+  'Construct site road': 'korter',
+  'Excavation, building pit': 'gelijk',
+  'Pour foundation beams': 'twee',
+  'Pour ground floor slab': 'stap',
+  'Ground floor masonry \u2014 House 1': 'gat',
+  'Roof structure \u2014 House 1': 'dak',
+};
+/** De andere taken krijgen om de beurt een rij met dezelfde lengtes, verschoven naar de eigen balk. */
+const SKETCH_REPEAT: readonly SketchRow[] = ['dak', 'gat', 'twee', 'dak', 'korter', 'gat', 'dak', 'twee'];
+
+/**
+ * Issue #741: De Akkers met drie baselines, op de schaal van de schets (6 px per dag) en vanaf de
+ * start van het project in beeld. Mijlpalen schuiven mee, zodat er ook losse en samenvallende ruiten zijn.
  */
 async function openBaselinesDoorElkaar(): Promise<void> {
   await openExample('showcase-rijwoningen-de-akkers.ifc');
-  const { addCalendarDays, formatDate, parseDate } = await import('@/utils/dateUtils');
+  const { addCalendarDays, formatDate, MS_PER_DAY, parseDate } = await import('@/utils/dateUtils');
   useAppStore.setState(s => { s.baselines = []; s.activeBaselineId = null; });
   const contractId = useAppStore.getState().saveBaseline('Contract');
   const contract = useAppStore.getState().baselines.find(b => b.id === contractId)!;
-  type Offsets = readonly [start: number, finish: number];
-  const PATTERNS: readonly (readonly [Offsets, Offsets, Offsets])[] = [
-    [[-0.45, -0.45], [0, 0], [0.45, 0.45]],
-    [[0.45, 0.45], [0, 0], [-0.45, -0.45]],
-    [[0, -0.35], [0, 0.2], [0, 0.8]],
-    [[-0.8, 0], [-0.3, 0], [0.25, 0]],
-    [[-0.5, 0.5], [0.15, -0.3], [0.3, 0.9]],
-  ];
-  const shift = (iso: string, days: number) => (iso
-    ? formatDate(addCalendarDays(parseDate(iso), days)) + iso.slice(10)
-    : iso);
-  const derive = (which: 0 | 1 | 2) => contract.tasks.map((t, i) => {
+  const nameOf = new Map(useAppStore.getState().tasks.map(t => [t.id, t.name]));
+  const day0 = parseDate(contract.tasks.map(t => t.start.slice(0, 10)).sort()[0]);
+  const dayOf = (iso: string) => Math.round((parseDate(iso.slice(0, 10)).getTime() - day0.getTime()) / MS_PER_DAY);
+  const isoOf = (day: number) => formatDate(addCalendarDays(day0, day));
+  const shift = (iso: string, days: number) => (iso ? isoOf(dayOf(iso) + days) + iso.slice(10) : iso);
+  const repeats = contract.tasks.filter(t => !t.isMilestone && !SKETCH_LITERAL[nameOf.get(t.taskId) ?? '']);
+  const derive = (which: 0 | 1 | 2) => contract.tasks.flatMap((t, i) => {
     if (t.isMilestone) {
       // Om de beurt: drie losse ruiten, twee samen en één los, of alle drie op hetzelfde moment.
       const days = ([[-6, 0, 6], [-5, -5, 3], [0, 0, 0]] as const)[i % 3][which];
-      return { ...t, start: shift(t.start, days), finish: shift(t.finish, days) };
+      return [{ ...t, start: shift(t.start, days), finish: shift(t.finish, days) }];
     }
-    const span = Math.round((parseDate(t.finish).getTime() - parseDate(t.start).getTime()) / 86_400_000) + 1;
-    const days = Math.max(span, 5);
-    const [startOffset, finishOffset] = PATTERNS[i % PATTERNS.length][which];
-    return {
-      ...t,
-      start: shift(t.start, Math.round(startOffset * days)),
-      finish: shift(t.finish, days - span + Math.round(finishOffset * days)),
-    };
+    const literal = SKETCH_LITERAL[nameOf.get(t.taskId) ?? ''];
+    const row: readonly (readonly [number, number])[] = SKETCH_ROWS[literal ?? SKETCH_REPEAT[repeats.indexOf(t) % SKETCH_REPEAT.length]];
+    const range = row[which];
+    if (!range) return []; // Op deze rij lopen maar twee baselines.
+    const offset = literal ? 0 : Math.max(0, dayOf(t.start) - 3) - row[0][0];
+    // De baseline bewaart de laatste dag: `tot` zelf hoort er niet meer bij.
+    return [{ ...t, start: isoOf(range[0] + offset), finish: isoOf(range[1] + offset - 1) }];
   });
   const named = (name: string, which: 0 | 1 | 2) => ({
     ...contract,
@@ -347,15 +367,13 @@ async function openBaselinesDoorElkaar(): Promise<void> {
     }
     await sleep(150);
   }
-  // Maandschaal, en meteen bij het ruwbouwblok: daar staan de rijen van de woningen onder elkaar.
-  useAppStore.getState().setZoom(TIMESCALE_ZOOM.month);
+  // De schaal van de schets, vanaf de start van het project: daar staan de rijen van de schets.
+  useAppStore.getState().setZoom(SKETCH_ZOOM);
   const { computeScrollToDate } = await import('@/utils/ganttViewport');
   const state = useAppStore.getState();
-  const firstRow = state.tasks.findIndex(t => t.name.startsWith('Ground floor masonry'));
   useAppStore.setState(s => {
-    const start = contract.tasks.find(t => t.taskId === state.tasks[firstRow]?.id)?.start;
-    s.view.scrollX = computeScrollToDate(start?.slice(0, 10), state);
-    s.view.scrollY = Math.max(0, firstRow - 1) * TASK_ROW_HEIGHT;
+    s.view.scrollX = computeScrollToDate(isoOf(0), state);
+    s.view.scrollY = 0;
   });
 }
 

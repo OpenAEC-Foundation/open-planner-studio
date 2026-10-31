@@ -7,6 +7,8 @@
  *  L. DE LIJNEN (issue #741, puur): elke baseline is een eigen lijn in de strook. Alleen: volle dikte,
  *     recht afgesneden. Samen: ze delen de hoogte, vloeiend, in een vaste volgorde. De tekenregel blijft
  *     binnen de strook en schuift mee met de strook.
+ *  M. DE SCHETS (issue #741): de rijen die de eigenaar koos, op 6 px per dag, tegen de rekenregel uit
+ *     de schets (onafhankelijk nagerekend): w = S((t - begin) / tw) × S((einde - t) / tw), tw = 3,5 dag.
  *  B. HET DOCUMENTVELD `comparedBaselineIds`: aan/uit, maximaal twee naast de actieve, de actieve en
  *     een onbekende id doen niets, een baseline die actief wordt of verdwijnt gaat uit de vergelijking,
  *     undo/redo (zoals `setActiveBaseline`), documentwissel, IFC schrijven en lezen
@@ -261,6 +263,49 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
     }
   }
 }
+// ══ M. De rijen uit de schets ══════════════════════════════════════════════════════════════════
+{
+  const PX_PER_DAY = 6;
+  const TW = 3.5;
+  const H = 5;
+  eq(BASELINE_BLEND_PX, TW * PX_PER_DAY, 'M de overgang is de keuze "middel": 3,5 dag bij 6 px per dag');
+  const smooth = (v: number) => { const c = Math.min(1, Math.max(0, v)); return c * c * (3 - 2 * c); };
+  const SKETCH: Record<string, [number, number][]> = {
+    'korte overlappen (Dak)': [[56, 70], [66, 84], [80, 92]],
+    'alles één stap later': [[28, 48], [34, 54], [40, 60]],
+    'twee baselines': [[14, 34], [30, 50]],
+    'één korter, midden in': [[6, 38], [18, 26]],
+    'met een gat ertussen': [[40, 54], [62, 76], [72, 90]],
+    'allemaal gelijk': [[14, 38], [14, 38], [14, 38]],
+  };
+  for (const [name, row] of Object.entries(SKETCH)) {
+    const bars: BaselineBar[] = row.map(([a, b], i) => ({ slot: i as BaselineSlot, x1: a * PX_PER_DAY, x2: b * PX_PER_DAY }));
+    const lanes = baselineLanes(bars, H, BASELINE_BLEND_PX);
+    const expected = (t: number) => {
+      const w = row.map(([a, b]) => (t > a && t < b ? smooth((t - a) / TW) * smooth((b - t) / TW) : 0));
+      const sum = w.reduce((x, y) => x + y, 0);
+      return w.map(v => (sum > 0 ? (H * v) / sum : 0));
+    };
+    // Op de meetpunten is het precies de regel uit de schets; ertussen lineair, dus hooguit een fractie ernaast.
+    lanes.forEach((lane, i) => lane.x.forEach((x, k) => {
+      const edge = x === bars[i].x1 || x === bars[i].x2;
+      if (!edge) ok(near(lane.bottom[k] - lane.top[k], expected(x / PX_PER_DAY)[i], 1e-9), `M ${name}: lijn ${i} op x=${x} volgt de schets`);
+    }));
+    const [from, to] = [Math.min(...row.flat()) * PX_PER_DAY, Math.max(...row.flat()) * PX_PER_DAY];
+    for (let x = from + 0.25; x < to; x += 0.5) {
+      const want = expected(x / PX_PER_DAY);
+      lanes.forEach((lane, i) => ok(near(thickness(lane, x), want[i], 0.02), `M ${name}: lijn ${i} op x=${x}: verwacht ${want[i]}, kreeg ${thickness(lane, x)}`));
+    }
+  }
+  // De rij Dak in woorden: lange stukken op volle dikte, en alleen in de overlap gedeeld.
+  const dak = baselineLanes(SKETCH['korte overlappen (Dak)'].map(([a, b], i) => ({ slot: i as BaselineSlot, x1: a * 6, x2: b * 6 })), H, BASELINE_BLEND_PX);
+  eq(thickness(dak[0], 57 * 6), H, 'M Dak: de eerste lijn begint recht, op volle dikte');
+  eq(thickness(dak[1], 75 * 6), H, 'M Dak: de tweede lijn heeft tussen de overlappen de volle dikte');
+  eq(thickness(dak[2], 91 * 6), H, 'M Dak: de derde lijn eindigt recht, op volle dikte');
+  ok(near(thickness(dak[0], 68 * 6), H / 2), 'M Dak: midden in de eerste overlap elk de helft');
+  ok(near(thickness(dak[1], 82 * 6), H / 2), 'M Dak: midden in de tweede overlap elk de helft');
+}
+
 // ══ B. Het documentveld ════════════════════════════════════════════════════════════════════════
 S().newProject();
 S().addTask({ name: 'Ruwbouw' });
