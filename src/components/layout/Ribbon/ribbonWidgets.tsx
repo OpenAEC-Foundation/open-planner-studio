@@ -741,14 +741,8 @@ export function ScreenColorsPopoverButton() {
 
   const updateSelection = (next: typeof selection) => setOverlays({ barColors: next });
   const selectMode = (mode: 'critical' | 'auto' | 'category') => {
-    if (mode === 'critical') {
-      // Het menu blijft open: de kleuren staan onder deze keuze.
+    if (mode === 'critical' || mode === 'auto') {
       updateSelection({ mode, colors: selection.colors });
-      return;
-    }
-    if (mode === 'auto') {
-      updateSelection({ mode, colors: selection.colors });
-      setOpen(false);
       return;
     }
     const effectiveField = control.effective.mode === 'category'

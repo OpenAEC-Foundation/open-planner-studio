@@ -186,13 +186,17 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
   expect(await fontSizes()).toHaveLength(1);
   await expectBarColorsMenuInView(page);
+  // Elke keuze laat het menu open; alleen een klik buiten sluit het.
   await auto.click();
-  await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
   expect((await barColors(page)).mode).toBe('auto');
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
+  await expect(editor).toHaveCount(0);
+  await page.mouse.click(5, 400);
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
   await page.locator('[data-ops-bar-colors-toggle]').click();
   await expect(editor).toHaveCount(0);
-  // Terug naar Kritiek pad: het menu blijft open, want de kleuren staan er nu onder.
   await critical.click();
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
   await expect(editor).toBeVisible();
   await expect(editor.locator('input[type="color"]').first()).toHaveValue('#123456');
   await editor.getByRole('button').click();
