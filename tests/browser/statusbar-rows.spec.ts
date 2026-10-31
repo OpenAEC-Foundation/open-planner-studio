@@ -99,6 +99,32 @@ test('statusbalk: elke tekst blijft heel en in beeld, in elke taal en vensterbre
   await setLocale(page, 'en');
   expect((await measureBar(page)).height).toBe(24);
 
+  // Een taak aanklikken, bewerken en herberekenen laat de balk met rust: wat komt en gaat houdt zijn
+  // plek, dus niets springt naar een andere rij en de Gantt verandert niet van hoogte.
+  await page.setViewportSize({ width: 1500, height: 900 });
+  const layout = () => page.evaluate(selector => {
+    const bar = document.querySelector(selector)!.getBoundingClientRect();
+    const legend = document.querySelector('[data-ops-baseline-legend]')!.getBoundingClientRect();
+    return { height: bar.height, legendLeft: legend.left, legendTop: legend.top };
+  }, BAR);
+  await measureBar(page);
+  const idle = await layout();
+  await expect(bar).not.toContainText('Selection:');
+  const point = await page.evaluate(() => {
+    const { tasks } = window.__OPS__!.store.getState();
+    return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary')).find(p => p !== null)!;
+  });
+  await page.mouse.click(point.x, point.y);
+  await expect(bar).toContainText('Selection: 1');
+  await measureBar(page);
+  expect(await layout()).toEqual(idle);
+  await page.evaluate(() => window.__OPS__!.store.setState(s => { s.isDirty = true; s.scheduleStale = true; }));
+  await expect(bar).toContainText('Unsaved');
+  await expect(bar).toContainText('Out of date');
+  await measureBar(page);
+  expect(await layout()).toEqual(idle);
+  await page.setViewportSize({ width: 1920, height: 900 });
+
   await showEverything(page);
   await expect(page.locator('[data-ops-baseline-legend] [data-ops-baseline-swatch]')).toHaveCount(3);
 

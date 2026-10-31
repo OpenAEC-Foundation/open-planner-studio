@@ -13,6 +13,15 @@ import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
 // breder is dan de hele balk verdeelt zich over meer rijen.
 const STATUS_GROUP = 'flex flex-wrap items-center gap-x-4 min-w-0 empty:hidden';
 
+// Wat bij elke klik, bewerking of opslag komt en gaat, houdt zijn plek ook als het niet zichtbaar is.
+// Zo wisselt de balk niet van rij en wordt de Gantt niet hoger of lager tijdens het werk. De plek is
+// alleen CSS-inhoud: de tekst staat dan niet in de DOM, dus tutorials en tests zien hem ook niet.
+function ReservedStatus({ shown, text, color, title }: { shown: boolean; text: string; color?: string; title?: string }) {
+  return shown
+    ? <span style={{ color }} title={title}>{text}</span>
+    : <span aria-hidden className="invisible before:content-[attr(data-reserve)]" data-reserve={text} />;
+}
+
 export function StatusBar() {
   const { t } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -79,6 +88,8 @@ export function StatusBar() {
     };
   }, []);
 
+  const showStale = scheduleStale && (!autoCalcCPM || !!cpmResult?.error);
+
   return (
     // Geen `nowrap`: een flex-item gaat eerst als geheel naar de volgende rij en breekt pas als het
     // breder is dan de hele balk. Dat houdt de tekst compleet, ook in een heel smal venster.
@@ -124,21 +135,17 @@ export function StatusBar() {
         )}
         {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
             Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
-        {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
-          <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
-            ⚠ {t('status.scheduleStale')}
-          </span>
+        {(showStale || !autoCalcCPM) && (
+          <ReservedStatus shown={showStale} text={`⚠ ${t('status.scheduleStale')}`} color="var(--theme-warning-text)" title={tCommon('resource.histogram.staleHint')} />
         )}
       </div>
-      {selectedTaskIds.length > 0 && (
-        <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
-      )}
       <div className={`${STATUS_GROUP} justify-end ms-auto`}>
+        <ReservedStatus shown={selectedTaskIds.length > 0} text={t('status.selection', { count: selectedTaskIds.length || 99 })} />
+        <ReservedStatus shown={isDirty} text={t('status.unsaved')} color="var(--theme-warning-text)" />
         <BaselineLegend />
         {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
         <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
         <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
-        {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
         {aiMode && (
           <button
             onClick={() => setUI({ activeRibbonTab: 'ai' })}
