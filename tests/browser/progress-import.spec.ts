@@ -27,6 +27,8 @@ import { expect, seedProject, state, test } from './fixtures/ops';
 import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
 import { detectDateOrder } from '@/services/progressImport/sheetValues';
 import { writeProgressSheetXLSX } from '@/services/xlsx/writeProgressXlsx';
+import { parseZipEntries, writeZip } from '@/services/zip';
+import { xlsxFromText } from '../planning/progressSheetFixture';
 import type { Task } from '@/types/task';
 
 const DIALOG = '[data-ops-progress-import-dialog]';
@@ -36,6 +38,8 @@ const CANCEL = /^(Cancel|Annuleren)$/;
 const APPLY = /^(Apply|Toepassen)$/;
 const CLOSE = /^(Close|Sluiten)$/;
 const CLEAR_LINK = /^(Clear link|Koppeling wissen)$/;
+const KEEP_APP = /^(Keep app|App houden)$/;
+const USE_SHEET = /^(Use sheet|Blad overnemen)$/;
 const NEEDS_LINK_HEADING = /^(Waiting for a link|Wacht op koppeling)$/;
 const PICKER_PLACEHOLDER = /^(Choose a task…|Kies een taak…)$/;
 const PROGRESS_IMPORT_BUTTON = /^(Update progress from a spreadsheet|Voortgang bijwerken uit een blad)$/;
@@ -65,10 +69,10 @@ async function openViaBackstage(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'file', backstageSection: 'import' });
   });
-  await expect(page.locator('[data-ops-progress-import-card]')).toContainText(/CSV.*XLSX/);
+  await expect(page.locator('[data-ops-progress-import-card]')).toContainText(/\.xlsx/);
   await page.locator('[data-ops-progress-import-card]').click();
   await expect(dialog(page)).toBeVisible();
-  await expect(dialog(page)).toContainText(/CSV.*XLSX/);
+  await expect(dialog(page)).toContainText(/\.xlsx/);
 }
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -86,8 +90,9 @@ async function chooseSheet(
   await chooser.setFiles({ name, mimeType, buffer });
 }
 
-async function chooseCsv(page: Page, csv: string, name = 'voortgang.csv'): Promise<void> {
-  await chooseSheet(page, name, 'text/csv', Buffer.from(csv, 'utf-8'));
+/** Een blad met alleen tekstcellen: `;` tussen de cellen, één regel per rij. */
+async function chooseTextSheet(page: Page, text: string): Promise<void> {
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, Buffer.from(await xlsxFromText(text)));
 }
 
 /** De bytes van een `download`-event als één Buffer. */
@@ -140,7 +145,7 @@ test('preview toont wijzigingen en weigeringen, annuleren laat het document onge
   ]);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     `${idA};40`,
     'niet-bestaand-id;40',
@@ -165,7 +170,7 @@ test('bevestigen past het blad toe en één Ctrl+Z draait het hele blad terug', 
   ]);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     `${idA};40`,
     `${idB};70`,
@@ -207,7 +212,7 @@ test('een losse rij handmatig koppelen laat hem meedraaien', async ({ page, ops:
   const infoB = await taskInfo(page, idB);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;WBS;Name;Completion (%)',
     'onbekend-id;;;55',
     'ander-project-id;DUBBEL;Bladtaak;65',
@@ -272,7 +277,7 @@ test('koppelkiezer met plaatshouder: bij openen geen actieve optie, Enter en Spa
     { name: 'Koppel-taak', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ]);
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-id;55',
     '',
@@ -309,7 +314,7 @@ test('een al gekoppelde taak is niet nog eens kiesbaar', async ({ page, ops: _op
   const info = await taskInfo(page, idA);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-1;40',
     'onbekend-2;60',
@@ -335,7 +340,7 @@ test('een bestand met alleen dubbelzinnige datums vraagt de volgorde', async ({ 
   // Geen "OPS Task ID"-kolom (WBS-koppeling i.p.v. id) — zonder id-match levert de ijkpuntregel
   // (A5.2, kalibratie) sowieso nul kandidaten, dus dit bestand kan NOOIT anders dan `ambiguous`
   // uitkomen zolang er minstens één niet-ISO datum met beide componenten ≤ 12 in staat.
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'WBS;Actual Start',
     `${info.wbsCode};3-4-2026`,
     '',
@@ -353,7 +358,7 @@ test('de keuze werkt door in de preview', async ({ page, ops: _ops }) => {
   const info = await taskInfo(page, idA);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'WBS;Actual Start',
     `${info.wbsCode};3-4-2026`,
     '',
@@ -381,6 +386,13 @@ test('de Tabel-tabknop opent dezelfde dialoog', async ({ page, ops: _ops }) => {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'table' }));
   await page.getByRole('button', { name: PROGRESS_IMPORT_BUTTON }).click();
   await expect(dialog(page)).toBeVisible();
+
+  // Het CSV-voortgangsblad bestaat niet meer (eigenaarsbesluit 2026-10-30): een CSV krijgt uitleg en
+  // de dialoog blijft op de bestandskeuze staan.
+  await chooseSheet(page, 'voortgang.csv', 'text/csv', Buffer.from('OPS Task ID;Completion (%)\r\ntaak;50\r\n', 'utf-8'));
+  await expect(dialog(page)).toContainText(/(can only be read as an Excel file|alleen als Excel-bestand gelezen)/);
+  await expect(dialog(page).getByRole('button', { name: CHOOSE_FILE })).toBeVisible();
+  await expect(dialog(page).getByRole('button', { name: APPLY })).toHaveCount(0);
 });
 
 test('de knop staat niet op de Start-tab', async ({ page, ops: _ops }) => {
@@ -410,7 +422,7 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
   await expect.poll(() => state(page).then(s => s.activeDocumentId)).toBe(doc1Id);
 
   await openViaBackstage(page);
-  await chooseCsv(page, [
+  await chooseTextSheet(page, [
     'OPS Task ID;Completion (%)',
     'onbekend-doc1;40',
     '',
@@ -464,7 +476,7 @@ test('wisselen is onmogelijk zolang de dialoog openstaat', async ({ page, ops: _
 // E7 (eigenaarsbesluit 2026-09-05): "ik wil gewoon op een knop in de planning tab kunnen klikken en
 // dan krijg ik de juiste [blad] met de juiste instellingen in mijn downloads" — de exportknop naast
 // de importknop in dezelfde `progressGroup`. Sinds issue #27 etappe 3 levert die knop een `.xlsx`
-// in plaats van een CSV (de CSV-variant blijft bereikbaar via Backstage → Exporteren); deze twee
+// (sinds #743 de enige vorm van het blad); deze twee
 // cases bewijzen de ECHTE handeling en de ECHTE terugweg.
 const EXPORT_BUTTON = /^(Export progress sheet|Voortgangsblad exporteren)$/;
 
@@ -593,4 +605,72 @@ test('een gewijzigd .xlsx-blad komt zonder datumvraag terug het document in', as
 
   const after = await taskTime(page, idA);
   expect(after.completion).toBeCloseTo(0.65, 5);
+});
+
+/** "De invuller typt een percentage in Excel": alleen die ene cel verandert, de verborgen exportstand
+ *  blijft staan. De schrijver kan dat niet, want die zet cel en exportstand uit dezelfde taak. */
+async function typeCompletion(bytes: Buffer, cells: Record<string, number>): Promise<Buffer> {
+  const part = 'xl/worksheets/sheet1.xml';
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const entries = await parseZipEntries(buffer);
+  const files = entries.map((entry) => {
+    if (entry.name !== part) return { name: entry.name, data: entry.data };
+    let xml = new TextDecoder().decode(entry.data);
+    for (const [ref, value] of Object.entries(cells)) {
+      const next = xml.replace(new RegExp(`(<c r="${ref}"[^>]*><v>)[^<]*(</v>)`), `$1${value}$2`);
+      expect(next).not.toBe(xml);
+      xml = next;
+    }
+    return { name: entry.name, data: new TextEncoder().encode(xml) };
+  });
+  return Buffer.from(await writeZip(files));
+}
+
+// Issue #743: het blad komt terug nadat de planner zelf ook voortgang bijwerkte. Een onaangeraakte rij
+// mag dat werk niet terugzetten, en een botsing vraagt per rij een keuze (eigenaarsbesluit 2026-10-30).
+test('na de export gewijzigd: de app-waarde blijft en een botsing vraagt een keuze', async ({ page, ops: _ops }) => {
+  const [idA, idB, idC] = await seedProject(page, [
+    { name: 'Fundering', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+    { name: 'Ruwbouw', start: '2026-09-21', finish: '2026-10-02', durationDays: 10 },
+    { name: 'Afbouw', start: '2026-10-05', finish: '2026-10-16', durationDays: 10 },
+  ], 'Voortgangsblad-sinds-export');
+  await page.evaluate(() => { window.__OPS__!.store.getState().setStatusDate('2026-10-30'); });
+
+  const { bytes } = await exportProgressSheet(page);
+  const filled = await typeCompletion(bytes, { F3: 40, F4: 60 });
+
+  // Testopzet: de planner werkt na de export in de app bij. Fundering staat onaangeraakt in het blad,
+  // Ruwbouw staat ook in het blad anders (botsing), Afbouw is alleen in het blad gewijzigd.
+  await page.evaluate(([a, b]) => {
+    const s = window.__OPS__!.store.getState();
+    s.setTaskProgress(a, 0.5);
+    s.setTaskProgress(b, 0.3);
+  }, [idA, idB] as const);
+
+  await openViaBackstage(page);
+  await chooseSheet(page, 'voortgang.xlsx', XLSX_MIME, filled);
+
+  const conflicts = dialog(page).locator('[data-ops-progress-conflicts]');
+  await expect(conflicts).toContainText(/Ruwbouw/);
+  await expect(conflicts).not.toContainText(/Fundering/);
+  const apply = dialog(page).getByRole('button', { name: APPLY });
+  await expect(apply).toBeDisabled();
+  await expect(dialog(page)).toContainText(/(First choose app or sheet|Kies eerst bij elke botsing)/);
+  // Fundering zou anders van 50% naar 0% gaan; hij staat nu bij "alleen in de app".
+  await expect(dialog(page)).toContainText(/(Changed only in the app since the export|Alleen in de app gewijzigd sinds de export)/);
+
+  // De knop voor alles zet de keuze op elke rij; daarna mag één rij nog anders.
+  const row = conflicts.locator('[data-ops-progress-row]');
+  await conflicts.getByRole('button', { name: USE_SHEET }).first().click();
+  await expect(row.getByRole('button', { name: USE_SHEET })).toHaveAttribute('aria-pressed', 'true');
+  await expect(apply).toBeEnabled();
+  await row.getByRole('button', { name: KEEP_APP }).click();
+  await expect(row.getByRole('button', { name: KEEP_APP })).toHaveAttribute('aria-pressed', 'true');
+  await expect(row.getByRole('button', { name: USE_SHEET })).toHaveAttribute('aria-pressed', 'false');
+
+  await apply.click();
+  await expect(footerCloseButton(page)).toBeVisible();
+  expect((await taskTime(page, idA)).completion).toBeCloseTo(0.5, 5);
+  expect((await taskTime(page, idB)).completion).toBeCloseTo(0.3, 5);
+  expect((await taskTime(page, idC)).completion).toBeCloseTo(0.6, 5);
 });

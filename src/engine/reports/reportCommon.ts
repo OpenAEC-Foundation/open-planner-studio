@@ -1,7 +1,7 @@
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import type { WorkCalendar } from '@/types/calendar';
+import { isHourModeCalendar, type WorkCalendar } from '@/types/calendar';
 import type { Baseline } from '@/types/baseline';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
@@ -11,9 +11,11 @@ import {
   type MeasuredDuration,
 } from '@/utils/taskDuration';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
+import { parseDate, parseInstant } from '@/utils/dateUtils';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 import { taskDateLabelIn, type TaskDateLabelOptions } from '@/utils/taskDateLabel';
-import type { InstantSide } from '@/engine/calendar/workdayRules';
+import { isDateOnly, isInstant, type InstantSide } from '@/engine/calendar/workdayRules';
+import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { progressState, taskWorkDays, type ProgressState } from '@/engine/scheduler/summaryProgress';
 import { type ReportingPeriod, type ResolvedPeriod, resolveReportingPeriod } from './reportingPeriod';
 
@@ -96,6 +98,48 @@ export function activityTasks(tasks: readonly Task[]): Task[] {
 /** Referentiedag van het rapport: de statusdatum, anders vandaag. */
 export function referenceDay(ctx: ReportContext): { day: string; statusDateMissing: boolean } {
   return referenceDayOf(ctx.statusDate, ctx.today);
+}
+
+const DAY_MS = 86_400_000;
+
+/** Het statusmoment: alleen een statusdatum mét tijd op een uur-projectkalender, zoals in de motor
+ *  (`isHourModeCalendar`). Anders telt de statusdag als geheel. */
+export function statusMoment(ctx: Pick<ReportContext, 'statusDate' | 'calendar'>): Date | undefined {
+  return ctx.statusDate && isInstant(ctx.statusDate) && isHourModeCalendar(ctx.calendar) ? parseInstant(ctx.statusDate) : undefined;
+}
+
+/** Staat de taak op een uur-kalender (`workTime`)? De engine zegt dat niet: `calendarForEngine` geeft ook
+ *  een dagkalender werkblokken, dus `eng.isHourMode` is daar ook waar. */
+export function onHourCalendar(ctx: Pick<ReportContext, 'calendar' | 'calendars'>, t: Task): boolean {
+  return isHourModeCalendar(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]));
+}
+
+/**
+ * Het verstreken deel (0–1) van een taakvenster aan het einde van `day`, of op `moment` als dat er is.
+ * Eén fractie voor alle meetpunten, dus een curve daalt niet. Met werkblokken (ook de afgeleide blokken van
+ * een dagkalender) meet ze in de dagenmaat (`measuredWorkdaysBetween`): elke werkdag telt 1 en een taak mag
+ * midden op de dag starten of eindigen; een einde zonder tijd bezet zijn hele dag. Een taak die hele dagen
+ * loopt, komt zo op hele werkdagen uit. Zonder werkblokken telt ze werkdagen, beide grenzen inclusief.
+ */
+export function elapsedWorkFraction(eng: CalendarEngine, start: string, finish: string, day: string, moment?: Date): number {
+  if (!eng.isHourMode) {
+    const from = dayOf(start);
+    const to = dayOf(finish);
+    if (day < from) return 0;
+    if (day >= to) return 1;
+    const s = parseDate(from);
+    const total = eng.workDaysBetween(s, parseDate(to));
+    if (!(total > 0)) return 1;
+    return Math.min(1, Math.max(0, eng.workDaysBetween(s, parseDate(day)) / total));
+  }
+  const s = parseInstant(start);
+  const f = isDateOnly(finish) ? new Date(parseDate(finish).getTime() + DAY_MS) : parseInstant(finish);
+  const at = moment ?? new Date(parseDate(day).getTime() + DAY_MS);
+  if (at <= s) return 0;
+  if (at >= f) return 1;
+  const total = eng.measuredWorkdaysBetween(s, f);
+  if (!(total > 0)) return 1;
+  return Math.min(1, Math.max(0, eng.measuredWorkdaysBetween(s, at) / total));
 }
 
 /** Zelfde regel, zonder volledige context — voor de UI die het periodevenster vooraf toont. */

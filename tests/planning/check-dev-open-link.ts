@@ -38,12 +38,15 @@ function prodTransform(file: string): string {
 }
 const app = prodTransform('src/App.tsx');
 check(!app.includes('devOpenLink'), 'App.tsx: de import van devOpenLink valt weg');
+check(!prodTransform('src/components/dialogs/ProgressImportDialog.tsx').includes('devOpenLink'),
+  'ProgressImportDialog.tsx: de import van devOpenLink valt weg');
 const settings = prodTransform('src/utils/settingsStore.ts');
 check(!/["']theme["']\)/.test(settings) && !settings.includes('location.search'), 'settingsStore.ts: ?theme valt weg');
 // Tegenproef: met DEV=true blijft alles staan, dus de check meet echt.
 const devTransform = (file: string) => execFileSync(esbuild, [join(root, file), '--minify', '--format=esm',
   '--log-level=error', '--define:import.meta.env.DEV=true', '--define:import.meta.env.PROD=false'], { encoding: 'utf8' });
 check(devTransform('src/App.tsx').includes('devOpenLink'), 'tegenproef: App.tsx in dev houdt de import');
+check(devTransform('src/components/dialogs/ProgressImportDialog.tsx').includes('devOpenLink'), 'tegenproef: de dialoog in dev houdt de import');
 check(devTransform('src/utils/settingsStore.ts').includes('location.search'), 'tegenproef: settingsStore.ts in dev leest ?theme');
 
 // 3. Niet in Tauri-dev (dezelfde Vite-server): met DEV=true, het linkthema alleen in de browser,
@@ -77,7 +80,11 @@ function walk(dir: string, out: string[] = []): string[] {
 const importers = walk(join(root, 'src'))
   .filter(p => /(from\s+|import\()['"][^'"]*devOpenLink['"]/.test(readFileSync(p, 'utf8')))
   .map(p => relative(root, p));
-check(importers.length === 1 && importers[0] === 'src/App.tsx', `alleen App.tsx importeert devOpenLink (${importers.join(', ')})`);
-check(/import\(['"]@\/utils\/devOpenLink['"]\)/.test(readFileSync(join(root, 'src/App.tsx'), 'utf8')), 'App.tsx laadt devOpenLink dynamisch');
+const devLinkImporters = ['src/App.tsx', 'src/components/dialogs/ProgressImportDialog.tsx'];
+check(JSON.stringify([...importers].sort()) === JSON.stringify(devLinkImporters),
+  `alleen App.tsx en ProgressImportDialog.tsx importeren devOpenLink (${importers.join(', ')})`);
+for (const file of devLinkImporters) {
+  check(/import\(['"]@\/utils\/devOpenLink['"]\)/.test(readFileSync(join(root, file), 'utf8')), `${file} laadt devOpenLink dynamisch`);
+}
 
 if (failures > 0) process.exit(1);

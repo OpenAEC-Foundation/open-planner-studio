@@ -51,6 +51,10 @@ replace the corpus-free CI gate.
 One battery: `bash tests/planning/run.sh cases-<x>.json` or `bash tests/planning/run.sh check-<x>.ts`.
 A new `check-*.ts` runs automatically (also in the timezone matrix); add your own `if bundle_check` line in
 `tests/planning/run.sh` only for an environment variable, a fixed order or no matrix (grep a neighbouring check).
+Every check must also be listed in `tests/planning/expected-checks.txt`, otherwise the full run is red:
+`bash tests/planning/run.sh --list-checks > tests/planning/expected-checks.txt` (bundles and runs nothing).
+The full run goes through `scripts/planning-pool.mjs`, at most 4 processes at once (`OPS_PLANNING_JOBS`), and CI
+splits it over three jobs (`--shard=k/3`); the job `test` checks that every run happened exactly once.
 New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k lines) in full.
 
 **`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
@@ -394,7 +398,7 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the root, created lazily. S
 | `taaktypes` | work rules / task types (`src/engine/work/`) |
 | `gantt-splits` | renderer, canvas interaction, task grid, splits |
 | `reports` | reports, PDF, print |
-| `import-export` | progress sheet (Excel/CSV), XLSX, ZIP services |
+| `import-export` | progress sheet (Excel), XLSX, ZIP services |
 | `ui-shell` | layout, ribbon, backstage, panels, dialogs, first-start tour |
 | `text-roles` | the six text roles (`*.tsx`, `*.css`) |
 | `i18n` | `src/i18n/`, i18n scripts and tests |

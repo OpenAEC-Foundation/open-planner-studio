@@ -214,6 +214,7 @@
     "screenColors_critical": "Percorso critico",
     "screenColors_auto": "Per attività — automatico",
     "screenColors_category": "Per categoria",
+    "screenColorsNearCritical": "Quasi critico",
     "screenColorsMissingField": "Questo campo non esiste in questo progetto. La categoria di lavoro viene usata temporaneamente.",
     "screenColorsHint": "Fuori dalla modalità Percorso critico, un contorno rosso indica il percorso critico.",
     "addLayout": "Nuovo layout",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "da compilare: da 0 a 100, sono ammessi i decimali",
       "actualStart": "da compilare: data di inizio effettiva (come data)",
-      "actualFinish": "da compilare: data di fine effettiva (come data)"
-    },
-    "progressCsvLabel": "Foglio di avanzamento (CSV)",
-    "progressCsvDesc": "Lo stesso foglio di avanzamento snello in testo semplice — per chi preferisce lavorare con un CSV.",
-    "progressCsvShort": "Avanzamento (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "da compilare: data di fine effettiva (come data)",
       "readOnly": "non modificare",
       "plannedReadOnly": "pianificato, non modificare",
-      "completion": "da compilare: da 0 a 100, numeri interi",
-      "actualStart": "da compilare: data di inizio effettiva (gg-mm-aaaa)",
-      "actualFinish": "da compilare: data di fine effettiva (gg-mm-aaaa)",
       "summaryRow": "— attività di riepilogo: non compilare"
     },
     "csvLabel": "CSV (separato da punto e virgola)",
