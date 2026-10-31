@@ -598,7 +598,8 @@
     "customFieldSuffix": "prilagođeno polje"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Status",
+    "baselineActive": "aktivno"
   },
   "externalLinks": {
     "action": "Dodaj međuzavisnost projekata…",

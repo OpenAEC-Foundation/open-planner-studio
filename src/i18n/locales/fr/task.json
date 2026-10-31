@@ -598,7 +598,8 @@
     "customFieldSuffix": "champ personnalisé"
   },
   "tooltip": {
-    "status": "Statut"
+    "status": "Statut",
+    "baselineActive": "actif"
   },
   "externalLinks": {
     "action": "Relation externe…",
