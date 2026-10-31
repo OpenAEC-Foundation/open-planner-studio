@@ -1500,16 +1500,6 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
-393. **Een beschadigd numeriek kalender-id `NaN` krijgt bij opslaan onbedoeld koppelingen.**
-     `src/services/ifc/ifcWriter.ts:1465` en `:1473`: de kalenderindex gebruikt `Map.get`,
-     dat `NaN` aan zichzelf koppelt. De eerdere vergelijking met `===` deed dat niet.
-     Bij een kalender met `id: NaN` en taken/resources met `calendarId: NaN` schrijft de
-     nieuwe schrijver extra `IFCRELASSIGNSTOCONTROL`-relaties. Bij heropenen krijgen zij
-     daardoor een echte kalenderkoppeling. Een gewone gebruikersroute naar deze beschadigde
-     invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
-     control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
-     Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
-
 427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
      `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
      een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
