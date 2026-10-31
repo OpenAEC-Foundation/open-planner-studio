@@ -896,6 +896,32 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
     near(`curve deeldagen zonder statustijd ${status}`, computeProgressCurve(deeldagen).plannedPct, verwacht, 0.05);
     near(`voortgang deeldagen zonder statustijd ${status}`, computeProgressReport(deeldagen, periode).summary.plannedPct, verwacht, 0.05);
   }
+
+  // Afwijkende baseline. Op een uur-kalender meten beide rapporten in het baselinevenster; een taak op een
+  // dagkalender houdt in Voortgang de huidige duur als noemer, ook al geeft de motor die kalender werkblokken.
+  const dagCal = { ...urenCal, id: 'dag', workTime: undefined };
+  const uurCal = { ...urenCal, id: 'uren' };
+  const metBaseline = (start: string, finish: string, days: number, bStart: string, bFinish: string, calendarId: string) => {
+    const task = { ...urenTaak(start, finish, days, 0.3), calendarId };
+    return { task, base: { ...ctx.baseline!.tasks[0], taskId: task.id, start: bStart, finish: bFinish } };
+  };
+  const gemengd = (calendar: ReportContext['calendar'], statusDate: string, ...delen: ReturnType<typeof metBaseline>[]): ReportContext => ({
+    ...ctx, calendar, calendars: [dagCal, uurCal], statusDate, tasks: delen.map(d => d.task),
+    baseline: { ...ctx.baseline!, tasks: delen.map(d => d.base) },
+  });
+  const gepland = (c: ReportContext) => computeProgressReport(c, periode).summary.plannedPct;
+  const verlengd = () => metBaseline('2026-06-01T08:00', '2026-06-12T16:00', 10, '2026-06-01T08:00', '2026-06-05T16:00', 'dag');
+  const uurTaak = () => { const d = metBaseline('2026-06-01T12:00', '2026-06-03T12:00', 2, '2026-06-01T12:00', '2026-06-05T12:00', 'uren'); return { ...d, task: { ...d.task, id: `${d.task.id}-uur` }, base: { ...d.base, taskId: `${d.task.id}-uur` } }; };
+  near('voortgang dagkalender: baseline 5 wd, duur 10 wd, status di = 2 van 10', gepland(gemengd(dagCal, '2026-06-02', verlengd())), 20, 0.05);
+  near('voortgang gemengd: dagtaak op een uur-project houdt de huidige duur', gepland(gemengd(uurCal, '2026-06-02', verlengd())), 20, 0.05);
+  near('voortgang statusmoment: dagtaak meet op het moment in het baselinevenster', gepland(gemengd(uurCal, '2026-06-02T12:00', verlengd())), 30, 0.05);
+  for (const [status, verwacht] of [['2026-06-01', 12.5], ['2026-06-02', 37.5]] as const) {
+    const c = gemengd(dagCal, status, uurTaak());
+    near(`voortgang uur-taak met afwijkende baseline ${status}`, gepland(c), verwacht, 0.05);
+    near(`curve uur-taak met afwijkende baseline ${status}`, computeProgressCurve(c).plannedPct, verwacht, 0.05);
+  }
+  // Dagtaak: gewicht 10, fractie 0,2. Uur-taak: gewicht 2, fractie 0,375. Samen 2,75 van 12.
+  near('voortgang gemengd: elke taak op haar eigen kalender', gepland(gemengd(dagCal, '2026-06-02', verlengd(), uurTaak())), 22.9, 0.05);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

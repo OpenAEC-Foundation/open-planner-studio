@@ -108,12 +108,18 @@ export function statusMoment(ctx: Pick<ReportContext, 'statusDate' | 'calendar'>
   return ctx.statusDate && isInstant(ctx.statusDate) && isHourModeCalendar(ctx.calendar) ? parseInstant(ctx.statusDate) : undefined;
 }
 
+/** Staat de taak op een uur-kalender (`workTime`)? De engine zegt dat niet: `calendarForEngine` geeft ook
+ *  een dagkalender werkblokken, dus `eng.isHourMode` is daar ook waar. */
+export function onHourCalendar(ctx: Pick<ReportContext, 'calendar' | 'calendars'>, t: Task): boolean {
+  return isHourModeCalendar(effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]));
+}
+
 /**
  * Het verstreken deel (0–1) van een taakvenster aan het einde van `day`, of op `moment` als dat er is.
- * Eén fractie voor alle meetpunten, dus een curve daalt niet. Een uur-kalender meet in de dagenmaat
- * (`measuredWorkdaysBetween`): elke werkdag telt 1 en een taak mag midden op de dag starten of eindigen;
- * een einde zonder tijd bezet zijn hele dag. Een dagkalender kent geen tijd van de dag: hij telt werkdagen,
- * beide grenzen inclusief (`workDaysBetween`).
+ * Eén fractie voor alle meetpunten, dus een curve daalt niet. Met werkblokken (ook de afgeleide blokken van
+ * een dagkalender) meet ze in de dagenmaat (`measuredWorkdaysBetween`): elke werkdag telt 1 en een taak mag
+ * midden op de dag starten of eindigen; een einde zonder tijd bezet zijn hele dag. Een taak die hele dagen
+ * loopt, komt zo op hele werkdagen uit. Zonder werkblokken telt ze werkdagen, beide grenzen inclusief.
  */
 export function elapsedWorkFraction(eng: CalendarEngine, start: string, finish: string, day: string, moment?: Date): number {
   if (!eng.isHourMode) {

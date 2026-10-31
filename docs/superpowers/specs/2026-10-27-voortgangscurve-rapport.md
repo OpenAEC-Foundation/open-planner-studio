@@ -49,15 +49,15 @@ verstreken is. Dat deel is werkdagen(start, *d*) ÷ werkdagen(start, einde) op d
 Beide grenzen tellen mee (zoals `workDaysBetween`), dus de waarde op een dag is de stand aan het
 einde van die dag. Dat is dezelfde telling als de geplande voortgang in het voortgangsrapport.
 
-Op een uur-kalender meet elk punt van de curve in de dagenmaat van de taakkalender: elke werkdag telt 1 en
-een taak mag midden op de dag starten of eindigen. Een taak van maandag 12:00 tot woensdag 12:00 staat aan
-het einde van maandag dus op 25 %. Op een dagkalender telt het rapport hele werkdagen, zoals hierboven. Alle
-punten gebruiken dezelfde fractie (`elapsedWorkFraction`), dus een curve daalt niet.
+Elk punt van de curve meet in de dagenmaat van de taakkalender: elke werkdag telt 1 en een taak mag midden
+op de dag starten of eindigen. Een taak van maandag 12:00 tot woensdag 12:00 staat aan het einde van maandag
+dus op 25 %. Een taak die hele dagen loopt, komt op de telling hierboven uit. Alle punten gebruiken dezelfde
+fractie (`elapsedWorkFraction`), dus een curve daalt niet.
 
 Een statusdatum mét tijd op een uur-projectkalender is een moment. Dat is een eigen meetpunt, naast het
 einde van die dag: een taak van 08:00 tot 16:00 staat om 12:00 op 50 %, en de curve loopt op die dag door
 tot 100 %. *Gepland* en de curves lezen hetzelfde moment, en de geplande voortgang van het voortgangsrapport
-ook. Op een dagkalender heeft de tijd geen betekenis, net als in de motor; daar telt de dag als geheel.
+ook. Op een dag-projectkalender heeft de tijd geen betekenis, net als in de motor; daar telt de dag als geheel.
 
 **De werkelijke curve** is een benadering. De app bewaart geen voortgang per week, alleen de stand van
 nu. Per taak loopt de voortgang daarom lineair (in werkdagen) van de werkelijke start naar de huidige
@@ -66,11 +66,12 @@ Op de statusdatum is de curve precies de gewogen voortgang van nu. Het rapport z
 onder de grafiek.
 
 **Gepland % op de statusdatum** is de waarde van de geplande curve op die dag. Zonder baseline is het de
-curve op vroegste data, met "(huidige planning)" erbij, zoals in het voortgangsrapport. Op een dagkalender
+curve op vroegste data, met "(huidige planning)" erbij, zoals in het voortgangsrapport. Voor een taak op een dagkalender
 deelt het voortgangsrapport het verstreken deel door de huidige duur; dit rapport door het eigen venster
 van de baseline. Bij een baseline met andere duren dan nu kan het getal dus iets verschillen. Dat is
-bewust: het getal moet gelijk zijn aan het punt in de grafiek. Op een uur-kalender gebruiken beide rapporten
-dezelfde fractie.
+bewust: het getal moet gelijk zijn aan het punt in de grafiek. Voor een taak op een uur-kalender, en bij een
+statusmoment met tijd, gebruiken beide rapporten dezelfde fractie. De kalender is die van de taak zelf
+(`workTime`); `eng.isHourMode` zegt dat niet, want de motor geeft ook een dagkalender werkblokken.
 
 **Te laat** is een open taak die
 - volgens de planning al had moeten eindigen of starten (`scheduleSlip`, dezelfde regel als het

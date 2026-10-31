@@ -2,7 +2,7 @@ import type { MeasuredDuration } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
-  type ReportContext, type ProgressState, dayOf, durationDays, elapsedWorkFraction, isNearCritical, activityTasks, makeEngineCache, progressState, scheduleSlip,
+  type ReportContext, type ProgressState, dayOf, durationDays, elapsedWorkFraction, isNearCritical, activityTasks, makeEngineCache, onHourCalendar, progressState, scheduleSlip,
   remainingDays, remainingMeasure, resolvePeriodFor, round1, statusMoment, taskFinish, taskStart,
 } from './reportCommon';
 import { type ReportingPeriod, periodDays, windowEnd } from './reportingPeriod';
@@ -149,8 +149,9 @@ export function computeProgressReport(ctx: ReportContext, opts: ProgressReportOp
     const finish = bt ? bt.finish : taskFinish(t);
     const eng = engines.forTask(t);
     let plannedFrac: number;
-    // Een uur-kalender meet in het taakvenster zelf, zoals de voortgangscurve; het gewicht blijft de duur.
-    if (eng.isHourMode) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
+    // Een uur-kalender of een statusmoment meet in het taakvenster zelf, zoals de voortgangscurve; een
+    // dagkalender zonder moment deelt door de duur. Het gewicht blijft in alle gevallen de duur.
+    if (onHourCalendar(ctx, t) || (moment && eng.isHourMode)) plannedFrac = elapsedWorkFraction(eng, start, finish, ref, moment);
     else if (refDate < parseDate(start)) plannedFrac = 0;
     else if (refDate >= parseDate(finish)) plannedFrac = 1;
     else plannedFrac = Math.min(1, Math.max(0, eng.workDaysBetween(parseDate(start), refDate) / weight));
