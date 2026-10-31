@@ -8,7 +8,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 **Saving** always writes IFC. Only an opened IFC file becomes the save target; a project from another format has no file after opening, and *Save* then asks where the IFC file should go.
 
-**Exporting** works to IFC, MS Project XML, Primavera P6 XML, CSV and two progress sheets (Excel and CSV). An export does not change your project.
+**Exporting** works to IFC, MS Project XML, Primavera P6 XML, CSV and a progress sheet (Excel). An export does not change your project.
 
 **Read-only** are `.mpp` and `.xer`: the app can open them, not write them.
 
@@ -126,15 +126,15 @@ A filled date cell in an unrecognised format stops the entire CSV from opening. 
 
 **What does not go along** — resources, assignments, calendars, constraints, deadlines, baselines and the status date. If the dates are in the view *Dates as recorded*, the export leaves `Critical` and `Total Float` empty for tasks whose source file did not record that.
 
-## Progress sheet (Excel and CSV)
+## Progress sheet (Excel)
 
-**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*) or via the button of that name in the ribbon group *Progress* on *Planning*, *Table* and *Report*. The app reads `.xlsx` and `.csv`, up to 16 MB and 50,000 rows. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
+**Open** — yes, via *File › Import* (*Update progress from a spreadsheet*) or via the button of that name in the ribbon group *Progress* on *Planning*, *Table* and *Report*. The app reads only `.xlsx`, up to 16 MB and 50,000 rows. A `.csv` is not read; the app asks you to save the sheet as `.xlsx`. This does not open a project: it updates the progress of your open project. See [Importing progress from a spreadsheet](docs://howto-voortgang-importeren).
 
 **Save** — no.
 
-**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list) and *Progress sheet (CSV)* (*Progress (CSV)*). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the Excel sheet in one click. The Excel sheet has fixed column widths, locked fields and date checking; the CSV sheet is the same content as plain text.
+**Export** — yes, as *Progress sheet (Excel)* (*Progress (Excel)* in the list). Default name: *projectname-voortgang*. The button *Export progress sheet* in the same ribbon group makes the sheet in one click. The sheet has fixed column widths, locked fields and date checking.
 
-**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code.
+**What goes along** — the columns `OPS Task ID`, `WBS`, `Name`, `Start`, `Finish`, `Completion (%)`, `Actual Start` and `Actual Finish`. When reading it in, the app uses `Completion (%)`, `Actual Start` and `Actual Finish`; `Start` and `Finish` only serve to recognise the date notation and do not change your schedule. The app links rows to tasks by the `OPS Task ID`, or otherwise by a unique WBS code. The sheet also has a hidden column `OPS Export` with the state at the export; the app uses it to compare what changed since then and never writes that column to a task.
 
 **What does not go along** — everything outside these columns: duration, relations, resources and the rest of your schedule. A summary task gets no progress from the sheet.
 

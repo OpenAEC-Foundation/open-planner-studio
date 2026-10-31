@@ -379,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "vyplňte: 0 až 100, desetinná čísla povolena",
       "actualStart": "vyplňte: skutečné zahájení (jako datum)",
-      "actualFinish": "vyplňte: skutečné dokončení (jako datum)"
-    },
-    "progressCsvLabel": "Tabulka průběhu (CSV)",
-    "progressCsvDesc": "Stejná štíhlá tabulka průběhu jako prostý text — pro ty, kteří raději pracují s CSV.",
-    "progressCsvShort": "Průběh (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "vyplňte: skutečné dokončení (jako datum)",
       "readOnly": "neměňte",
       "plannedReadOnly": "plánované, neměňte",
-      "completion": "vyplňte: 0 až 100, celá čísla",
-      "actualStart": "vyplňte: skutečné zahájení (dd-mm-rrrr)",
-      "actualFinish": "vyplňte: skutečné dokončení (dd-mm-rrrr)",
       "summaryRow": "— souhrnný úkol: nevyplňujte"
     },
     "csvLabel": "CSV (oddělené středníkem)",

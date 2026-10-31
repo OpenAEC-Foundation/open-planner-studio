@@ -379,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "vyplňte: 0 až 100, desatinné čísla sú povolené",
       "actualStart": "vyplňte: skutočný začiatok (ako dátum)",
-      "actualFinish": "vyplňte: skutočné dokončenie (ako dátum)"
-    },
-    "progressCsvLabel": "Hárok postupu (CSV)",
-    "progressCsvDesc": "Rovnaký štíhly hárok postupu ako čistý text — pre tých, ktorí radšej pracujú s CSV.",
-    "progressCsvShort": "Postup (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "vyplňte: skutočné dokončenie (ako dátum)",
       "readOnly": "nemeňte",
       "plannedReadOnly": "plánované, nemeňte",
-      "completion": "vyplňte: 0 až 100, celé čísla",
-      "actualStart": "vyplňte: skutočný začiatok (dd-mm-rrrr)",
-      "actualFinish": "vyplňte: skutočné dokončenie (dd-mm-rrrr)",
       "summaryRow": "— súhrnná úloha: nevypĺňajte"
     },
     "csvLabel": "CSV (oddelené bodkočiarkou)",

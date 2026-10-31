@@ -1311,6 +1311,30 @@ en noem het in je rapport of PR-tekst.
      scherm zet hem altijd rechts. Voorstel: de vergelijking schrappen of die terugval noemen. Alleen tekst.
      Gevonden in review van #731 (GPT-6.1-Sol), 2026-10-29. — B
 
+520. **De teller *Toegepast* staat ook in het voorbeeld, terwijl daar nog niets is toegepast.** Voortgangsimport,
+   `progressImport.summaryApplied` in `ProgressImportDialog.tsx`: dezelfde tekst in het voorbeeld en in *Resultaat*.
+   Met een botsing is het verschil groter: *Toegepast: 1* naast een uitgeschakelde knop *Toepassen*. Voorstel: in het
+   voorbeeld *Wordt toegepast*. Gezien in de app op `feat/743-voortgang-sinds-export`. — B
+
+521. **De gidsen in de andere talen noemen het CSV-voortgangsblad nog.** `public/docs/<taal>/howto-voortgang-importeren.md`,
+   `howto-exporteren.md` en `ref-import-exportformaten.md`: alleen nl en en zijn bijgewerkt bij het verwijderen van dat
+   blad. De andere talen beschrijven een kaart en een import die niet meer bestaan, en missen het deel over wijzigingen
+   sinds de export. Voorstel: `update-docs-lang` draaien. Gezien in `public/docs/de/` en `public/docs/fr/`. — B
+
+582. **Een rij met alleen verschoven plandatums staat in de teller, maar niet in de lijst.** Voortgangsimport,
+   `ProgressImportDialog.tsx`, de filters `appNewerRows` en `generalRows`: bij ongewijzigde voortgang en een
+   berekende start en een berekend einde die een week schoven, levert het plan `noop`, `plannedShifts` en
+   `plannedShiftCount: 1`. Beide filters laten die rij vallen, dus de planner ziet niet welke taak schoof. Voorstel: één
+   aangepaste selectie die ook een `noop`-rij met `plannedShifts` toont. Gevonden in review van #756 (GPT-6.1-Sol),
+   2026-10-31. — B
+
+587. **De gids legt de weigering van een rij die een behouden app-waarde zou veranderen, onvoldoende uit.**
+   `public/docs/nl/howto-voortgang-importeren.md:66` zegt dat andere wijzigingen op dezelfde rij gewoon meegaan. Dat geldt
+   niet als ze een behouden app-waarde zouden veranderen. Bij export 100 %, app heropend naar 50 % en een blad met een
+   ander einde eindigt *Blad overnemen* in `refused`, met alleen de algemene melding. Voorstel: één concreet voorbeeld
+   toevoegen: een werkelijk einde vereist 100 %, maar het nieuwere app-percentage blijft behouden. Gevonden in review van
+   #756 (GPT-6.1-Sol), 2026-10-31. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`

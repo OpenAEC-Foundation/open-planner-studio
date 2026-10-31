@@ -375,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "fyll i: 0 till och med 100, decimaler tillåtna",
       "actualStart": "fyll i: verklig start (som datum)",
-      "actualFinish": "fyll i: verkligt slutdatum (som datum)"
-    },
-    "progressCsvLabel": "Framdriftsblad (CSV)",
-    "progressCsvDesc": "Samma smala framdriftsblad som platt text. För dig som hellre arbetar med en CSV.",
-    "progressCsvShort": "Framdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "fyll i: verkligt slutdatum (som datum)",
       "readOnly": "ändra inte",
       "plannedReadOnly": "planerad, ändra inte",
-      "completion": "fyll i: 0 till och med 100, hela tal",
-      "actualStart": "fyll i: verklig start (dd-mm-åååå)",
-      "actualFinish": "fyll i: verkligt slutdatum (dd-mm-åååå)",
       "summaryRow": "— sammanfattningsuppgift: fyll inte i"
     },
     "csvLabel": "CSV (semikolonseparerad)",

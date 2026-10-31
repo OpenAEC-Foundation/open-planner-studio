@@ -377,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "à remplir : 0 à 100, décimales autorisées",
       "actualStart": "à remplir : date de début réelle (comme date)",
-      "actualFinish": "à remplir : date de fin réelle (comme date)"
-    },
-    "progressCsvLabel": "Feuille d’avancement (CSV)",
-    "progressCsvDesc": "La même feuille d’avancement allégée en texte brut — pour qui préfère travailler avec un CSV.",
-    "progressCsvShort": "Avancement (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "à remplir : date de fin réelle (comme date)",
       "readOnly": "ne pas modifier",
       "plannedReadOnly": "prévu, ne pas modifier",
-      "completion": "à remplir : 0 à 100, nombres entiers",
-      "actualStart": "à remplir : date de début réelle (jj-mm-aaaa)",
-      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)",
       "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
     "csvLabel": "CSV (séparé par des points-virgules)",

@@ -95,7 +95,7 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 
 **Opening an export again does not always give the same schedule.** The app always recalculates on opening, with the calculation profile that belongs to the format. If logic is missing, like the constraint in the CSV example, or the profile calculates differently, the outcome changes.
 
-**An export is also in Recent.** On the desktop and in browsers with file access, an export ends up in *Recent*, just like a saved project (the progress sheets do not). If you open it there, it opens as an import of that format.
+**An export is also in Recent.** On the desktop and in browsers with file access, an export ends up in *Recent*, just like a saved project (the progress sheet does not). If you open it there, it opens as an import of that format.
 
 **Saving is not the same as crash recovery.** Crash recovery helps after a crash, but does not replace saving. So save before you close a tab or the app.
 

@@ -377,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "de completat: 0 până la 100, zecimale permise",
       "actualStart": "de completat: data reală de început efectiv (ca dată)",
-      "actualFinish": "de completat: data reală de sfârșit efectiv (ca dată)"
-    },
-    "progressCsvLabel": "Foaie de progres (CSV)",
-    "progressCsvDesc": "Aceeași foaie simplă de progres, ca text simplu. Pentru cei care preferă să lucreze cu un CSV.",
-    "progressCsvShort": "Progres (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "de completat: data reală de sfârșit efectiv (ca dată)",
       "readOnly": "nu modificați",
       "plannedReadOnly": "planificat, nu modificați",
-      "completion": "de completat: 0 până la 100, numere întregi",
-      "actualStart": "de completat: data reală de început efectiv (zz-ll-aaaa)",
-      "actualFinish": "de completat: data reală de sfârșit efectiv (zz-ll-aaaa)",
       "summaryRow": "— activitate rezumat: nu completați"
     },
     "csvLabel": "CSV (separat prin punct și virgulă)",

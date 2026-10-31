@@ -3,7 +3,7 @@
 //
 //   Deel A — ALLEEN voortgangsvelden. Een rijk project (de IFC-schemafixture: twee+ kalenders,
 //            relaties met elke lag-vorm, resources met toewijzingen en werkvelden, baselines,
-//            notities, eigen velden) krijgt een CSV-blad dat voltooiing, werkelijke start en
+//            notities, eigen velden) krijgt een blad dat voltooiing, werkelijke start en
 //            werkelijk einde wijzigt, plus kolommen met een afwijkende naam, geplande start/einde en
 //            duur. Daarna wordt ELK `DOCUMENT_FIELDS`-veld, en per taak en per toewijzing elk veld,
 //            met het origineel vergeleken. Alleen de lijst `TOEGESTANE_TAAKPADEN` (+ de
@@ -13,8 +13,8 @@
 //            toepassen geeft de tweede keer nul wijzigingen en geen extra undo-stap; één Ctrl+Z
 //            herstelt het HELE document exact (niet alleen `completion`, zoals check-progress-import
 //            Deel 4 toetst).
-//   Deel C — Nederlandse notatie in CSV: dd-mm-jjjj naast ISO en de decimale komma, door de echte
-//            lezer → detectie → finalizer → store. (XLSX: zie check-progress-import-xlsx.ts.)
+//   Deel C — Nederlandse notatie als tekstcel: dd-mm-jjjj naast ISO en de decimale komma, door de
+//            echte detectie → finalizer → store. (Het echte .xlsx: zie check-progress-import-xlsx.ts.)
 //   Deel D — onbekende id, dubbele rij en dubbelzinnige WBS in de preview: elk een eigen `reason`,
 //            en welke ervan onder "Wacht op koppeling" (`needsLinkCount`) vallen.
 //
@@ -22,13 +22,13 @@
 
 import { useAppStore } from '@/state/appStore';
 import { capturePayload, DOCUMENT_FIELDS, hydratePayload, payloadFromImport } from '@/state/documentContract';
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type { ProgressRow } from '@/services/progressImport/types';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 import type { Task } from '@/types/task';
 import { buildRichSchemaProject } from './ifcSchemaFixture';
+import { sheetFromText } from './progressSheetFixture';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -98,9 +98,9 @@ function documentDiff(before: Snapshot, after: Snapshot): string[] {
   return out;
 }
 
-/** Leest een CSV-blad zoals de dialoog: lezer → datumvolgorde → finalizer. */
+/** Leest een blad zoals de dialoog: lezer → datumvolgorde → finalizer. */
 function rowsFromCsv(csv: string, tasks: readonly Task[]): { rows: readonly ProgressRow[]; order: string } {
-  const sheet = parseProgressCsv(csv);
+  const sheet = sheetFromText(csv);
   if (sheet.fileIssue) throw new Error(`testblad geweigerd: ${sheet.fileIssue}`);
   const detection = detectDateOrder(sheet.detectionCells, tasks);
   const order = detection.order === 'ambiguous' ? 'ambiguous' : detection.order;

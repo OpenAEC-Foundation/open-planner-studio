@@ -379,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "wypełnij: od 0 do 100, dozwolone ułamki dziesiętne",
       "actualStart": "wypełnij: rzeczywista data rozpoczęcia (jako data)",
-      "actualFinish": "wypełnij: rzeczywista data zakończenia (jako data)"
-    },
-    "progressCsvLabel": "Arkusz postępu (CSV)",
-    "progressCsvDesc": "Ten sam odchudzony arkusz postępu jako zwykły tekst — dla tych, którzy wolą pracować z plikiem CSV.",
-    "progressCsvShort": "Postęp (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "wypełnij: rzeczywista data zakończenia (jako data)",
       "readOnly": "nie zmieniać",
       "plannedReadOnly": "zaplanowane, nie zmieniać",
-      "completion": "wypełnij: od 0 do 100, liczby całkowite",
-      "actualStart": "wypełnij: rzeczywista data rozpoczęcia (dd-mm-rrrr)",
-      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)",
       "summaryRow": "— zadanie sumaryczne: nie wypełniać"
     },
     "csvLabel": "CSV (rozdzielany średnikiem)",
