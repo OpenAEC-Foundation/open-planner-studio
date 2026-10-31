@@ -142,6 +142,8 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
     return id;
   });
   const looseTime = () => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time, looseId);
+  const looseName = () => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, looseId);
+  await page.evaluate((id) => window.__OPS__!.store.getState().updateTask(id, { name: 'Eerst hernoemd' }), looseId);
   const looseBefore = await looseTime();
   const looseUndo = (await state(page)).undoDepth;
   const loosePoint = await barPoint(page, looseId);
@@ -153,13 +155,18 @@ test('Gantt bodydrag wijzigt de datum en Ctrl+Z herstelt exact één handeling',
   await page.mouse.up();
   await expect.poll(() => looseTime()).toEqual(looseBefore);
   const looseUndoAfter = (await state(page)).undoDepth;
-  expect(looseUndoAfter).toBeLessThanOrEqual(looseUndo + 1);
+  expect(looseUndoAfter).toBe(looseUndo + 1);
   await page.mouse.move(loosePoint.x, loosePoint.y);
   await page.mouse.down();
   await page.mouse.move(loosePoint.x + 8, loosePoint.y, { steps: 2 });
   await page.mouse.up();
   expect(await looseTime()).toEqual(looseBefore);
   expect((await state(page)).undoDepth).toBe(looseUndoAfter);
+  // Ctrl+Z neemt alleen de sleep terug: de bewerking van daarvoor blijft staan.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => state(page).then(snapshot => snapshot.undoDepth)).toBe(looseUndo);
+  expect(await looseTime()).toEqual(looseBefore);
+  expect(await looseName()).toBe('Eerst hernoemd');
 });
 
 // De gedeelde DOM-taakgrid bezit de structurele rijdrag; het tijdlijncanvas bezit uitsluitend
@@ -469,7 +476,7 @@ test('Gantt-grid rowdrag gebruikt actuele rijen en commit na een mid-gesture upd
   expect(dropped.undoDepth).toBe(midGesture.undoDepth + 1);
 });
 
-test('Gantt-grid rowdrag Escape annuleert zonder mutatie', async ({ page, ops: _ops }) => {
+test('Gantt Escape annuleert rijsleep en datumsleep zonder mutatie', async ({ page, ops: _ops }) => {
   const [firstId, secondId] = await seedProject(page, [
     { name: 'Blijft vooraan', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Blijft achteraan', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
@@ -489,4 +496,56 @@ test('Gantt-grid rowdrag Escape annuleert zonder mutatie', async ({ page, ops: _
   const after = await state(page);
   expect(after.tasks.map(task => task.id)).toEqual(before.tasks.map(task => task.id));
   expect(after.undoDepth).toBe(before.undoDepth);
+
+  // Review #704 r8: Escape stopt ook een datumsleep, van een mijlpaal en van een gewone balk. De velden en de
+  // constraint staan weer zoals bij pointer-down, verder bewegen schrijft niets, de selectie blijft (ook als de
+  // muis naast de teruggezette balk loslaat) en een eerdere bewerking blijft staan.
+  const milestoneId = await page.evaluate((predecessorId) => {
+    const id = window.__OPS__!.store.getState().addTask({ name: 'Oplevering', isMilestone: true });
+    window.__OPS__!.store.getState().addSequence({ predecessorId, successorId: id, type: 'FINISH_FINISH', lagDays: 0 });
+    window.__OPS__!.store.getState().runCPM();
+    return id;
+  }, firstId);
+  const fields = (id: string) => page.evaluate((taskId) => {
+    const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === taskId)!;
+    return { time: task.time, constraint: task.constraint ?? null };
+  }, id);
+  const taskName = (id: string) => page.evaluate(
+    taskId => window.__OPS__!.store.getState().tasks.find(task => task.id === taskId)!.name, id);
+  const nameBefore = await taskName(secondId);
+  await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, { name: 'Eerdere bewerking' }), secondId);
+  const edited = await state(page);
+
+  for (const id of [milestoneId, firstId]) {
+    const original = await fields(id);
+    const point = await barPoint(page, id);
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    await page.mouse.move(point.x + 72, point.y, { steps: 6 });
+    await expect.poll(() => fields(id).then(now => now.time.earlyStart)).not.toBe(original.time.earlyStart);
+    if (id === milestoneId) expect((await fields(id)).constraint?.type).toBe('SNET');
+    await page.keyboard.press('Escape');
+    await expect.poll(() => fields(id)).toEqual(original);
+    await page.mouse.move(point.x + 216, point.y, { steps: 6 });
+    await page.mouse.up();
+    expect(await fields(id)).toEqual(original);
+    const cancelled = await state(page);
+    expect(cancelled.undoDepth).toBe(edited.undoDepth);
+    expect(cancelled.selectedTaskIds).toEqual([id]);
+    expect(await taskName(secondId)).toBe('Eerdere bewerking');
+  }
+
+  // Een sleep die nog niets schreef, heeft niets terug te draaien: de eerdere bewerking blijft staan.
+  const point = await barPoint(page, firstId);
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 2, point.y);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  expect((await state(page)).undoDepth).toBe(edited.undoDepth);
+  expect(await taskName(secondId)).toBe('Eerdere bewerking');
+
+  // De eerstvolgende Ctrl+Z raakt die eerdere bewerking, niet de afgebroken sleep.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => taskName(secondId)).toBe(nameBefore);
 });
