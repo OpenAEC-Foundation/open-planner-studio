@@ -1616,6 +1616,20 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
+552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
+     alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
+     en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
+     `fail` en `gh pr checks` bleef exit 1. Alleen een rode `test` zonder eigen rood deel raakt uit beeld. Wordt
+     `test` ooit een verplichte check, kijk dan eerst opnieuw, want GitHub telt een overgeslagen check als
+     geslaagd. Voorstel: de lege run een andere jobnaam geven, of de `labeled`-trigger naar een eigen workflow
+     verplaatsen. — B
+
+553. **Het PR-sjabloon vraagt nog om een groene volledige `npm run verify`.** `.github/pull_request_template.md:16`
+     heeft het vinkje `npm run verify` green, terwijl de gewone PR-CI sinds #757 de browsersuite niet meer
+     draait en agents de volledige poort niet lokaal draaien. Voorstel: het vinkje vragen om groene PR-CI, en bij
+     werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
+     2026-10-30. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1644,4 +1658,15 @@ en noem het in je rapport of PR-tekst.
      kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
      Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
      (GPT-6.1-Sol). — S
-
+558. **`release-ci-check.mjs` leest alleen de eerste pagina van de runs.** `scripts/release-ci-check.mjs`, `runsOf`: het script
+     vraagt 100 runs per event en pagineert niet. Staan er sinds vrijdag 22:00 meer dan 100 handmatige runs op main, dan
+     kan het bewijs op pagina 2 staan en meldt het script `geen browserrun`. De gate stopt dan; hij gaat niet stil door.
+     Zeldzaam, want het venster is hoogstens een week. Voorstel: pagineren tot een pagina minder dan 100 runs geeft.
+     Gevonden in de review van #757 (GPT-6.1-Sol), met 101 runs nagespeeld. — B
+559. **`release-ci-check.mjs` beoordeelt latere pogingen onvolledig, en de reparatie kan de verkeerde poging onderzoeken.**
+     `scripts/release-ci-check.mjs`, `firstAttemptJobs` en `checkBrowserRun`: het script leest alleen de jobs van poging 1 en
+     de huidige conclusie. Poging 1 groen, poging 2 rood, poging 3 groen geeft dus `ok: true`, en de hapering in poging 2
+     verdwijnt. Bij alleen groen en dan rood stopt de gate wel, maar `.claude/skills/browsertests-repareren/SKILL.md`, stap 4,
+     leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
+     beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
+     van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B

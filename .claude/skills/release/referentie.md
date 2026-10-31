@@ -36,6 +36,7 @@ De volledige lijst:
   Het absolute Node-pad mag ook; checker en pakket blijven in dezelfde release-worktree.
 - `npm run i18n:add -- ...`, `npm run i18n:fmt`, `npm run i18n:resolve`,
   `npm run verify:i18n` en `npm run verify:translations`.
+- `node scripts/release-ci-check.mjs "$SHA"` (stap 3 van de skill) en met `--browser` (*Eerst: browsertests*).
 - `npm run verify:docs`, `npm run publish:wiki` (dry-run), `npm run publish:wiki -- --push`
   en `node scripts/run-ts.mjs scripts/check-wiki-links.ts`.
 - Alleen in de tijdelijke websitekopie: `node scripts/generate-release-notes.js`,
@@ -45,8 +46,9 @@ De volledige lijst:
 Interne helperprocessen van deze opdrachten horen bij die stap; dit staat geen andere losse Node-opdracht toe.
 Tests (`npm test`, alle suites en browsertests), app-builds (`npm run build`, `tauri:*`), de volledige
 `npm run verify` en dev-servers blijven hier verboden. Ook geen andere installatie of `npx`.
-De verplichte volledige verify vóór de tag komt uit `ci.yml` op de exacte main-SHA.
-`release.yml` herhaalt de volledige verify na de tag, vóór publicatie. Bekijk die runs met `gh`.
+De verplichte volledige verify vóór de tag komt uit `ci.yml`: de pushrun op de exacte main-SHA
+plus de laatste browserrun op main. De `gate` van `release.yml` draait geen verify en leest alleen
+of die runs groen zijn, met dezelfde regels als stap 3 van de skill. Bekijk die runs met `gh`.
 Gerichte tests en foutreproducties horen eveneens in PR-CI; sla geen check over en verzwak niets.
 
 ### Grenzen bij aangeroepen skills
@@ -123,7 +125,7 @@ volgende release, zodat het ook na een nieuwe tag hervatbaar blijft.
    Dit is publiceren en valt onder het zaterdagmandaat. Bewaar de gebruikte rerunpoging.
    Nooit een hele release-run opnieuw starten als `create-release` al slaagde: die maakt een nieuwe
    draft met `createRelease`, zonder bestaande-releasecontrole. Gebruik de bestaande run en outputs.
-   Ontbreken zowel release als run: start eenmaal de volledige gate op **de bestaande tag**:
+   Ontbreken zowel release als run: start eenmaal de gate op **de bestaande tag**:
    `gh workflow run release.yml --ref "$TAG" -f "version=$TAG"`. Ontbreekt alleen de run maar
    bestaat wel een draft/publicatie, of zijn de outputs onbruikbaar: stop met de exacte blokkade.
    Een main-fix werkt niet vanzelf door in deze tag; volg [Herstel na de tag](#herstel-na-de-tag).
@@ -262,8 +264,8 @@ maakt de route naar een nieuwe opvolgversie vrij; een bestaande ongetagde opvolg
 
 ## CI herstellen
 
-Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en
-releaseworkflows na de tag. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
+Besluit 8: eigenaar, gesprek 2026-10-22. Dit geldt voor rode main-CI, release-PR-CI en releaseworkflows
+na de tag. Een rode browserrun volgt de skill `browsertests-repareren`. Een rode poort blijft blokkeren; de job repareert de oorzaak zelf.
 
 ### Deadline en voortgang
 
@@ -303,7 +305,7 @@ maak geen dubbele PR. Een al verbruikte rerunpoging begint na een weekwissel nie
    De cijfercorrectie voegt zo precies één commit toe; bereken vanaf de actuele basis volgens
    [Releasecijfers](#releasecijfers). Na een inhoudelijke fix kan een aparte cijfercorrectie nodig zijn.
    Haal main opnieuw op en wacht op groene `ci.yml` met event `push`, branch `main` en exact de
-   merge-SHA. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
+   merge-SHA; stap 3 van de skill controleert daarna ook de browserrun. Is main verder gegaan, controleer de nieuwste main-SHA; een oudere groene run volstaat niet.
 5. Hervat pas daarna de release. Bij een rode release-PR: neem de fix via een gewone merge van
    main op in de bestaande releasebranch. Los conflicten op, behoud de kandidaatversie en vernieuw
    cijfers/JSON volgens [Releasecijfers](#releasecijfers). Ook een fout die alleen in de kandidaat
@@ -346,6 +348,13 @@ Een main-fix verandert de getagde broncode of workflow niet; een rerun gebruikt 
 Is uitsluitend een externe oorzaak weggenomen, hervat dan gericht de mislukte jobs van de bestaande
 run. Bewaar het bewijs; herhaal niet ongewijzigd als die weer faalt. Nooit een volledige rerun na
 geslaagde `create-release` of een dispatch op main om de getagde gate te omzeilen.
+
+Stopt de `gate` bij **Check CI and browser run**, lees dan de `::error::`-regels. Is de reden weg, draai dan
+de gate opnieuw met `gh run rerun <run-id> --failed`. Browserrun afgewezen: volg de skill
+`browsertests-repareren` en geef haar de regel `BROWSERRUN=<id>` uit de log door. Staat main nog op de getagde commit,
+dan telt zijn bewijsrun voor de tag.
+Staat main verder, dan is de nieuwe run geen voorouder van de tag en stopt de gate weer: schrijf de tag af volgens
+punt 2 hieronder en maak een opvolgversie. Verander de gate niet om een tag door te laten.
 
 **Besluit orkestrator, 2026-10-22:** heeft de tag gewijzigde broncode of workflow nodig, dan geldt:
 
