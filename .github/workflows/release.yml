@@ -27,23 +27,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Release-gate: ci.yml draait de poorten (`npm run verify`), maar triggert
-  # alleen op push/PR naar `main` — een tag matcht geen van beide. Zonder deze
-  # poort wordt een tag die bovenop een commit met
-  # een rode suite staat gewoon gebouwd, gesigneerd, gepubliceerd en via de
-  # auto-updater naar alle bestaande installaties gepusht. De
+  # Release-gate. Hij test niets dubbel (besluit eigenaar, 2026-10-31): de poorten draaien in ci.yml,
+  # en deze job kijkt of die groen zijn, met `scripts/release-ci-check.mjs`. Zonder deze controle
+  # wordt een tag die bovenop een commit met een rode suite staat gewoon gebouwd, gesigneerd,
+  # gepubliceerd en via de auto-updater naar alle bestaande installaties gepusht. Wat na de
+  # browserrun van vrijdagavond op main komt, krijgt geen browsertest; de eigenaar aanvaardt dat.
+  # De vertalingen en de controles op de tag draaien alleen hier en blijven dus staan. De
   # versievergelijking hieronder vangt bovendien een vergeten `npm run bump`:
   # als tag en package.json/tauri.conf.json niet synchroon lopen, vergelijkt de
   # updater gelijke versies en blijft de release voor bestaande installaties
   # STIL onzichtbaar. Bij verschil faalt deze job expliciet vóór create-release.
   gate:
-    # De volledige verify in één job duurt ~45 min (typecheck + planning ~15, browser ~29, rest ~1)
-    # en raakte op 2026-10-13 in live.yml de grens van 45 min; live.yml wacht daarom nu op ci.yml.
-    # Deze gate draait nog serieel (plus vertalingen en highlights), dus ruime marge tot het ook
-    # hier in delen gaat.
-    timeout-minutes: 90
+    timeout-minutes: 20
     permissions:
       contents: read
+      # Lezen van de ci.yml-runs voor scripts/release-ci-check.mjs.
+      actions: read
     runs-on: ubuntu-latest
 
     steps:
@@ -51,6 +50,7 @@ jobs:
         with:
           # De release-highlightsverifier vergelijkt de huidige tag met de
           # vorige stabiele tag en heeft daarom tags plus volledige historie nodig.
+          # De CI-controle hieronder leest daaruit of de browserrun op een voorouder staat.
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -59,25 +59,23 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      # Eerst, want dit faalt in seconden: de ci.yml-pushrun op precies deze commit en de laatste
+      # browserrun op main moeten groen zijn. Elke stop geeft een `::error::`, ook een fout van `gh`.
+      # De release-skill draait hetzelfde script vóór de tag.
+      - name: Check CI and browser run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-ci-check.mjs "$(git rev-parse 'HEAD^{commit}')"
+
       - name: Install dependencies (npm ci)
         run: npm ci
 
       # Besluit B5 (2026-10-10): een PR vraagt alleen nl + en, dus main mag met vertalingen
       # achterlopen; een release niet. Elke UI-sleutel moet in elke taal vertaald en actueel zijn
       # (skill update-ui-lang, release-skill stap 2); docs in andere talen mogen achterlopen (2026-10-12).
-      # Direct na npm ci, vóór Playwright en de verify: dit faalt in seconden.
       # Bewust niet in `npm run verify`, anders wordt elke PR rood.
       - name: Verify translations (UI in alle talen compleet en actueel)
         run: npm run verify:translations
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps --only-shell chromium
-
-      # Exact dezelfde poort als ci.yml en live.yml — één definitie, in
-      # package.json: typecheck (src én scripts/tests) + de vijf testsuites +
-      # verify:examples + verify:docs.
-      - name: Verify (typecheck, testsuites, examples, docs)
-        run: npm run verify
 
       # Alleen de release-pipeline heeft gegarandeerd een stabiele tag. De
       # highlight-cijfers worden hier daarom tegen die tagrange gevalideerd;
@@ -95,17 +93,6 @@ jobs:
             TAG_VERSION="${GITHUB_REF#refs/tags/}"
           fi
           node scripts/release-highlights.mjs "${TAG_VERSION#v}"
-
-      - name: Upload Playwright failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-release-${{ github.job }}-${{ github.run_attempt }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 7
 
       - name: Verify tag matches bumped version
         env:
