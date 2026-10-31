@@ -393,6 +393,7 @@
     "mspdiDesc": "Avattavissa ohjelmassa Microsoft Project. Täysi WBS-rakenne.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6 -ohjelmalle.",
+    "profileHint": "Projektissa käytetään tällä hetkellä profiilia {{name}}. Tämän tiedostomuodon kanssa parhaaseen yhteensopivuuteen suositellaan profiilia {{target}}.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standardi, projektin IFC-skeemassa (oletuksena IFC 4.3 ADD2). 4D-yhteys BIM-malleihin.",
     "csvShort": "CSV (;)"

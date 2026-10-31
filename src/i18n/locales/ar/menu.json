@@ -401,6 +401,7 @@
     "mspdiDesc": "يُفتح في Microsoft Project. هيكل WBS كامل.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "لبرنامج Oracle Primavera P6.",
+    "profileHint": "يعمل مشروعك حاليًا بملف التعريف {{name}}. ننصح باستخدام ملف التعريف {{target}} لتحقيق أفضل توافق مع تنسيق الملف هذا.",
     "ifcLabel": "IFC",
     "ifcDesc": "معيار BuildingSMART، وفق مخطط IFC الخاص بالمشروع (افتراضي: IFC 4.3 ADD2). ربط رباعي الأبعاد مع نماذج BIM.",
     "csvShort": "CSV (;)"

@@ -1278,14 +1278,14 @@ en noem het in je rapport of PR-tekst.
 475. **Het advies "Kies Primavera P6" verschijnt ook als het project al met Primavera P6 rekent.** De verliesregel
      *Rekenregels* (`schedulingRules`, `xerWriter.ts`, `schedulingRulesDiffer`) meldt ook afwijkende projectopties,
      niet alleen een ander profiel. Nagespeeld met De Akkers: profiel Primavera P6 met de P6-standaardopties geeft
-     geen hint bij de XER-keuze (`XerProfileHint.tsx`), maar de export meldt *Rekenregels* door de 24 voltooide taken
+     geen hint bij de XER-keuze (`exportProfileAdvice.ts`), maar de export meldt *Rekenregels* door de 24 voltooide taken
      zonder het bronsignaal `p6CompletedLateFromRemainingWindow`. De regel raadt dan P6 aan; opnieuw P6 kiezen helpt
      niet. Richting: bij alleen afwijkende projectopties een eigen, gerichte regel zonder profieladvies. Review PR #393
      ronde 8 (VERVOLG). — B
 476. **Een eigen profiel met de naam "Primavera P6" krijgt zichzelf aangeraden.** De hint bij de XER-keuze
-     (`XerProfileHint.tsx`) kijkt naar het profiel (ingebouwd P6, ongewijzigd), niet naar een rekenverschil. Een eigen
-     kopie van P6 zonder afwijkingen met de naam *Primavera P6* toont "Je project rekent met het profiel Primavera P6.
-     Kies Primavera P6 …"; de export meldt dan geen *Rekenregels*. Richting: noem in de hint het ingebouwde profiel
+     (`exportProfileAdvice.ts`) kijkt naar het profiel (ingebouwd P6, ongewijzigd), niet naar een rekenverschil. Een eigen
+     kopie van P6 zonder afwijkingen met de naam *Primavera P6* toont "Je project rekent nu met het Primavera P6-profiel.
+     We raden aan om het Primavera P6-profiel te gebruiken …"; de export meldt dan geen *Rekenregels*. Richting: noem in de hint het ingebouwde profiel
      ("het ingebouwde profiel Primavera P6"), of toon hem alleen als de conventies afwijken van P6. Review PR #393
      ronde 8 (VERVOLG). — B
 

@@ -395,6 +395,7 @@
     "mspdiDesc": "Отвара се у програму Microsoft Project. Потпуна структура САП.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "profileHint": "Ваш пројекат тренутно користи профил {{name}}. Препоручујемо профил {{target}} за најбољу компатибилност са овим форматом датотеке.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART стандард, у IFC шеми пројекта (подразумевано IFC 4.3 ADD2). 4D повезивање са BIM моделима.",
     "csvShort": "CSV (;)"
