@@ -1663,4 +1663,10 @@ en noem het in je rapport of PR-tekst.
      kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
      Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
      (GPT-6.1-Sol). — S
+557. **De browserrun vlak vóór de tag laat een haperende test nog door met een rerun.** `.claude/skills/release/referentie.md`,
+     *CI herstellen*, stap 1: wordt de rode browserrun van stap 3 bij `gh run rerun --failed` groen, dan gaat de release
+     verder. De skill `browsertests-repareren` telt zo'n test juist als rood (besluit eigenaar, 2026-10-31). Een hapering
+     die pas op zaterdag optreedt, blijft dus liggen tot de volgende vrijdag. Voorstel: laat de release zo'n test melden
+     en de tag doorgaan, of behandel hem als rood; dat is een keuze voor de eigenaar. Gevonden bij het schrijven van die
+     skill, in de tekst nagelezen. — B
 

@@ -50,11 +50,14 @@ Lever het bewijs uit [Ontbrekend AUR-secret](referentie.md#ontbrekend-aur-secret
   Rood: volg [CI herstellen](referentie.md#ci-herstellen): eenmaal rerun, dan een fix-PR
   met tweede Sol-review. Ga pas verder na groene CI op de actuele main-SHA.
 - Geen commits sinds `PREV` en geen onafgerond app-werk: stop zonder bump/tag; meld “niets veranderd”.
+- **Vrijdagrun.** Lees de [stand voor de release](../browsertests-repareren/SKILL.md#stand-voor-de-release).
+  Groen of reparatie klaar: ga door. Reparatie loopt: ga door met je eigen werk en laat de browserfouten aan die job.
+  Geen run en geen reparatie: voer eerst die skill zelf uit, binnen de deadline.
 - Falende `verify:translations`, `verify` in CI of ontbrekende/lege releasetekst blokkeert de tag.
   Herstel binnen de deadline volgens de referentie. Omzeil nooit een poort.
 - Geen gelijktijdige release-run. Een bestaande doeltag gaat uitsluitend via het hervatpad;
   verplaats, verwijder of push hem nooit opnieuw. Geen force-push, secretwijziging of ongepoort dispatch.
-  De handmatige browserrun van `ci.yml` in stap 3 is hierop de enige uitzondering: die publiceert niets.
+  De handmatige browserrun van `ci.yml` (stap 3 en de reparatie) is hierop de enige uitzondering: die publiceert niets.
 
 ## 2. Release-inhoud
 
@@ -112,6 +115,7 @@ Haal `origin/main` opnieuw op en gebruik een schone checkout van de gemergede re
 Wacht op de `ci.yml`-pushrun voor exact die commit: **alle jobs groen**.
 De pushrun draait geen browsertests (besluit eigenaar, 2026-10-30). Start ze zelf op dezelfde commit.
 Doe dit vóór de tag: de `gate` van `release.yml` vindt een rode test pas ná de onomkeerbare tag.
+Loopt de browserreparatie nog: wacht tot hij klaar is, binnen de deadline. Je run zou zijn bewijsrun annuleren.
 ```bash
 SHA=$(git rev-parse origin/main)
 gh workflow run ci.yml --ref main

@@ -22,6 +22,9 @@ Besluit: eigenaar, gesprek 2026-10-22.
 - Eén actieve run tegelijk. Volg het hervatpad; alleen afschrijving opent de route naar een opvolgversie.
 - Besluit eigenaar, 2026-10-31: een ontbrekend `AUR_SSH_PRIVATE_KEY` is geen stopreden. Het rapport zegt
   dat Arch nog geen pakket kreeg, en waarom. Een echte AUR-fout stopt wel; zie de referentie.
+- Besluit eigenaar, 2026-10-31: de browsersuite draait vrijdag om 22:00 en de taak van vrijdag 23:30 repareert
+  wat rood is ([skill](../browsertests-repareren/SKILL.md)). De zaterdagjob leest die stand in stap 1 van de skill.
+  De prompt hieronder blijft gelijk: hij volgt de release-skill al volledig.
 - Rode main-/release-PR-/releaseworkflow: eerst eenmaal `gh run rerun <id> --failed`.
   Blijft hij rood: kleinste fix-PR vanaf main, tweede Sol-review via T3 `delegate_task`
   (`codex`, `gpt-6.1-sol`, `reasoningEffort: xhigh`). Letterlijke reviewerbrief en BLOKKEERT/VERVOLG
