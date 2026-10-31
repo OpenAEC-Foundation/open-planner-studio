@@ -261,6 +261,24 @@ test('Stuk slepen: de pauze ervoor groeit en krimpt, tegen het vorige stuk = sam
   await expect.poll(() => splitGapsOf(page, taskId)).toEqual([
     { afterMinutes: 2400, gapMinutes: 2400, source: 'user' },
   ]);
+
+  // Review #704 r10: Escape haalt een lopende stuksleep weg zonder redo. Verder bewegen, loslaten en Ctrl+Y
+  // brengen hem niet terug, en de eerdere pauzewijziging blijft staan.
+  const gaps = await splitGapsOf(page, taskId);
+  const beforeCancel = await state(page);
+  await page.mouse.move(await dayColumnX(page, taskId, 16), y);
+  await page.mouse.down();
+  await page.mouse.move(await dayColumnX(page, taskId, 18), y, { steps: 8 });
+  await expect.poll(() => splitGapsOf(page, taskId)).not.toEqual(gaps);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => splitGapsOf(page, taskId)).toEqual(gaps);
+  await page.mouse.move(await dayColumnX(page, taskId, 20), y, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.press('Control+y');
+  expect(await splitGapsOf(page, taskId)).toEqual(gaps);
+  const afterCancel = await state(page);
+  expect(afterCancel.undoDepth).toBe(beforeCancel.undoDepth);
+  expect(afterCancel.redoDepth).toBe(0);
 });
 
 test('Stukrand slepen: stuk 1 één werkdag korter maakt de taak één werkdag korter', async ({ page, ops: _ops }) => {

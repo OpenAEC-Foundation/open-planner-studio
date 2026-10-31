@@ -5,12 +5,39 @@
 #
 #   bash tests/planning/run.sh            # alle batterijen
 #   bash tests/planning/run.sh cases-relations.json   # één batterij
+#   bash tests/planning/run.sh --shard=1/3            # deel 1 van 3 van de volledige run (CI)
+#   bash tests/planning/run.sh --list-checks          # de inhoud van expected-checks.txt
+#
+# Bij een volledige run voert dit script de checks niet zelf uit: het loopt de regels hieronder af,
+# zet elke check in een plan en geeft dat aan scripts/planning-pool.mjs, die alles parallel draait.
+# De vorm per check blijft dus `if bundle_check …; then node … || STATUS=1; fi`. Zie "Het plan".
 #
 # Exit 0 = alles groen, exit 1 = minstens één afwijking.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
 OUT="$DIR/.harness.mjs"
+
+# Opties gaan vóór de argumentafhandeling hieronder weg: die kent alleen namen van batterijen.
+SHARD=""
+MANIFEST=""
+LIST_ONLY=0
+NAMES=()
+for arg in "$@"; do
+  case "$arg" in
+    --shard=*) SHARD="${arg#--shard=}" ;;
+    --manifest=*) MANIFEST="${arg#--manifest=}" ;;
+    --list-checks) LIST_ONLY=1 ;;
+    *) NAMES+=("$arg") ;;
+  esac
+done
+set -- "${NAMES[@]}"
+if [ "$#" -gt 0 ] && { [ -n "$SHARD" ] || [ -n "$MANIFEST" ] || [ "$LIST_ONLY" -eq 1 ]; }; then
+  echo "XX  --shard, --manifest en --list-checks horen bij een volledige run, zonder namen erachter"
+  exit 1
+fi
+# De lijst moet schoon op stdout staan; de tussenregels hieronder gaan dan naar stderr.
+if [ "$LIST_ONLY" -eq 1 ]; then exec 3>&1 1>&2; fi
 
 # Elke gebouwde bundel wordt hier bijgehouden voor de tijdzone-matrix onderaan. Expliciet
 # bijhouden i.p.v. een glob op "$DIR"/.*.mjs, want zo'n glob pakt ook verouderde artefacten
@@ -20,6 +47,102 @@ BUNDLES=()
 # STATUS staat bewust HIER al (en niet pas na de argumentafhandeling): `bundle_check`
 # hieronder zet hem, en die wordt al aangeroepen vóór dat punt.
 STATUS=0
+
+# De ene definitie van de bundel: run.sh gebruikt hem hier, planning-pool.mjs krijgt hem via het plan.
+ESBUILD_ARGS=(
+  --log-level=error
+  --bundle --platform=node --format=esm --alias:@="$ROOT/src"
+  --external:react-dom/server
+  --define:import.meta.env.DEV=false
+  --define:import.meta.env.PROD=true
+  --define:import.meta.env.MODE='"production"'
+  --define:__OPS_DEV_INSTANCE__='"test"'
+)
+
+# ── Het plan ─────────────────────────────────────────────────────────────────────────────────
+# Tussen `node () { plan_node …` en `unset -f node` hieronder voert een checkregel niets uit: bundle_check
+# onthoudt de bundel en `node` wordt een functie die de run in het plan zet, met de omgevingsvariabelen
+# die de regel ervoor zet. `unset 'BUNDLES[-1]'` werkt zoals altijd, dus de tijdzone-matrix volgt uit
+# dezelfde regels. Daarom hoeft een nieuwe of samengevoegde checkregel niets van het plan te weten.
+PLAN_ACTIVE=0
+PENDING_SRC=""
+PENDING_OUT=""
+PLAN_IDS=() PLAN_SRCS=() PLAN_OUTS=() PLAN_ENVS=() PLAN_ARGVS=() PLAN_CMDS=()
+declare -A PLAN_BASE_ENV=()
+PLAN_SEP=$'\x1f'
+PLAN_RESULT=""
+
+plan_begin () {
+  local name
+  for name in $(compgen -e); do PLAN_BASE_ENV[$name]="${!name-}"; done
+  PLAN_ACTIVE=1
+}
+
+# De variabelen die de aanroepende regel zelf zet, zoals `OPS_RELAX_PERF=0 node …`.
+plan_env () {
+  local name found=""
+  for name in $(compgen -e); do
+    if [ "$name" != "_" ] && [ "${PLAN_BASE_ENV[$name]-$PLAN_SEP}" != "${!name-}" ]; then
+      found+="$name=${!name-}$PLAN_SEP"
+    fi
+  done
+  PLAN_RESULT="${found%"$PLAN_SEP"}"
+}
+
+plan_argv () {
+  local arg found=""
+  for arg in "$@"; do found+="$arg$PLAN_SEP"; done
+  PLAN_RESULT="${found%"$PLAN_SEP"}"
+}
+
+# Zet een check in het plan: <id> <bron> <bundel> <env> <argv...>
+plan_add () {
+  local id="$1" src="$2" out="$3" env="$4"
+  shift 4
+  plan_argv "$@"
+  PLAN_IDS+=("$id") PLAN_SRCS+=("$src") PLAN_OUTS+=("$out") PLAN_ENVS+=("$env") PLAN_ARGVS+=("$PLAN_RESULT")
+}
+
+plan_node () {
+  if [ -z "$PENDING_OUT" ] || [ "${*: -1}" != "$PENDING_OUT" ]; then
+    echo "XX  run.sh: node ${*: -1} hoort niet bij de laatste bundle_check (${PENDING_OUT:-geen})"
+    STATUS=1
+    return 0
+  fi
+  plan_env
+  plan_add "${PENDING_SRC##*/}" "$PENDING_SRC" "$PENDING_OUT" "$PLAN_RESULT" "$@"
+  PENDING_SRC="" PENDING_OUT=""
+}
+
+# Een controle zonder bundel, zoals tsc: <id> <programma> <argumenten...>
+plan_cmd () {
+  local id="$1" env
+  shift
+  plan_env
+  env="$PLAN_RESULT"
+  plan_argv "$@"
+  PLAN_CMDS+=("cmd"$'\t'"$id"$'\t'"$env"$'\t'"$PLAN_RESULT")
+}
+
+# Schrijf het plan weg en geef zijn pad terug. Een bundel in BUNDLES hoort in de tijdzone-matrix.
+plan_write () {
+  local file i bundle in_matrix
+  local -A matrix=()
+  file="$(mktemp)"
+  for bundle in "${BUNDLES[@]}"; do matrix[$bundle]=1; done
+  {
+    printf 'esbuild'; printf '\t%s' "${ESBUILD_ARGS[@]}"; printf '\n'
+    printf 'zones'; printf '\t%s' "${ZONES[@]}"; printf '\n'
+    for i in "${!PLAN_IDS[@]}"; do
+      in_matrix=0
+      if [ -n "${PLAN_OUTS[$i]}" ] && [ -n "${matrix[${PLAN_OUTS[$i]}]:-}" ]; then in_matrix=1; fi
+      printf 'check\t%s\t%s\t%s\t%s\t%s\t%s\n' "${PLAN_IDS[$i]}" "${PLAN_SRCS[$i]}" "${PLAN_OUTS[$i]}" \
+        "$in_matrix" "${PLAN_ENVS[$i]}" "${PLAN_ARGVS[$i]}"
+    done
+    if [ "${#PLAN_CMDS[@]}" -gt 0 ]; then printf '%s\n' "${PLAN_CMDS[@]}"; fi
+  } > "$file"
+  printf '%s' "$file"
+}
 
 # Bundel één check-script met esbuild.
 #
@@ -37,16 +160,18 @@ STATUS=0
 # De `if`-vorm is nodig: een functie die 1 teruggeeft binnen een `if`-conditie triggert `set -e` niet.
 bundle_check () {
   local src="$1" out="$2"
+  if [ "$PLAN_ACTIVE" -eq 1 ]; then
+    if [ -n "$PENDING_OUT" ]; then
+      echo "XX  run.sh: geen node-regel na de bundle_check van $(basename "$PENDING_SRC")"
+      STATUS=1
+    fi
+    PENDING_SRC="$src" PENDING_OUT="$out"
+    BUNDLES+=("$out")
+    return 0
+  fi
   # --log-level=error: esbuild schrijft zijn groottemelding naar STDERR (niet stdout), dus die
   # lekte mee zodra we stderr doorlieten. Dit dempt de samenvatting maar laat fouten staan.
-  if ! "$ROOT/node_modules/.bin/esbuild" "$src" --log-level=error \
-      --bundle --platform=node --format=esm --alias:@="$ROOT/src" \
-      --external:react-dom/server \
-      --define:import.meta.env.DEV=false \
-      --define:import.meta.env.PROD=true \
-      --define:import.meta.env.MODE='"production"' \
-      --define:__OPS_DEV_INSTANCE__='"test"' \
-      --outfile="$out" >/dev/null; then
+  if ! "$ROOT/node_modules/.bin/esbuild" "$src" "${ESBUILD_ARGS[@]}" --outfile="$out" >/dev/null; then
     echo "XX  bundelen mislukt: $(basename "$src") — zie de esbuild-fout hierboven"
     STATUS=1
     return 1
@@ -58,9 +183,11 @@ bundle_check () {
 # De hoofd-harness draagt alle CPM-cases. Mislukt dit bundelen, dan kunnen de cases niet
 # draaien; de checks hieronder wél, dus we breken niet af maar slaan alleen de case-run over.
 HARNESS_OK=1
-bundle_check "$DIR/harness.ts" "$OUT" || HARNESS_OK=0
-# $OUT hoort niet in BUNDLES: de tijdzone-matrix draait hem apart, mét "${FILES[@]}".
-if [ "$HARNESS_OK" -eq 1 ]; then unset 'BUNDLES[-1]'; fi
+if [ "$LIST_ONLY" -eq 0 ]; then
+  bundle_check "$DIR/harness.ts" "$OUT" || HARNESS_OK=0
+  # $OUT hoort niet in BUNDLES: het plan onderaan zet hem er apart in, mét "${FILES[@]}".
+  if [ "$HARNESS_OK" -eq 1 ]; then unset 'BUNDLES[-1]'; fi
+fi
 
 # ── Batterij-inventaris (bevinding K10b) ───────────────────────────────────────────────────────
 # De casus-bestanden worden geglobd. Een batterij die bij een rebase/merge/verkeerde `git checkout`
@@ -212,6 +339,12 @@ else
     if ! is_auxiliary_case_data "$f"; then FILES+=("$f"); fi
   done
   RUN_HOLIDAYS=1   # volledige run: ook de holiday-generator-checks (fase 2.8a, §10.2)
+fi
+
+# Vanaf hier tot `unset -f node` komen de checks van de volledige run in het plan (zie "Het plan").
+if [ "$RUN_HOLIDAYS" -eq 1 ]; then
+  node () { plan_node "$@"; }
+  plan_begin
 fi
 
 # Holiday-generator-checks (feestdagen-engine, los van de CPM-cases).
@@ -1730,7 +1863,7 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   #      oude tsconfig.roundtrip.json dekte alleen deze ene batterij, de rest werd door esbuild
   #      gestript en dus nooit type-gecheckt.
   #  (2) De round-trip zelf: writeIFC→readIFC veld-voor-veld + idempotentie + KNOWN_GAPS.
-  "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json" || STATUS=1
+  plan_cmd tsc-check "$ROOT/node_modules/.bin/tsc" --noEmit -p "$DIR/tsconfig.check.json"
 
   # Tabel-overhaul Task 2: stabiele dynamische kolom-id's, registrycontract en compile-time
   # velddekking. Beide checks zijn headless en importeren geen Zustand-store.
@@ -1841,9 +1974,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # koppelingen, no-op-tolerantie, per-rij-weigeringen en de undo-kosten van één blad (= één stap).
   PICHECK="$DIR/.progress-import.mjs"
   if bundle_check "$DIR/check-progress-import.ts" "$PICHECK"; then node "$PICHECK" || STATUS=1; fi
-  # …plus de bestandskant: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
-  PICSVCHECK="$DIR/.progress-import-csv.mjs"
-  if bundle_check "$DIR/check-progress-import-csv.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
+  # …plus de waardelaag: id-kolom, ruime datumherkenning, dag/maand-detectie en percentages.
+  PICSVCHECK="$DIR/.progress-sheet-values.mjs"
+  if bundle_check "$DIR/check-progress-sheet-values.ts" "$PICSVCHECK"; then node "$PICSVCHECK" || STATUS=1; fi
   # CSV-lezer/-schrijver (audit import/export): "Completion (%)" via dezelfde percentageparser als de
   # voortgangsimport, de gedeelde prioriteit-default, uur-lags in de korte lag-notatie van de app en
   # de decimale komma waar die eenduidig is.
@@ -1871,6 +2004,8 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     out="$DIR/.${name%.ts}.mjs"
     if bundle_check "$DIR/$name" "$out"; then node "$out" || STATUS=1; fi
   done
+  unset -f node
+  PLAN_ACTIVE=0
 fi
 
 # ── Losse check-bestanden bij een gerichte run (argumentvorm check-*.ts) ───────────────────
@@ -1899,7 +2034,10 @@ fi
 if [ "$HARNESS_OK" -eq 1 ]; then
   # Bij een gerichte run met uitsluitend check-*.ts-argumenten is FILES leeg; de harness dan
   # toch aanroepen zou alleen een verwarrende "TOTAAL: 0/0" opleveren.
-  if [ "${#FILES[@]}" -gt 0 ]; then
+  if [ "$RUN_HOLIDAYS" -eq 1 ]; then
+    plan_add harness.ts "" "$OUT" "" "$OUT" "${FILES[@]}"
+    BUNDLES+=("$OUT")
+  elif [ "${#FILES[@]}" -gt 0 ]; then
     node "$OUT" "${FILES[@]}" || STATUS=1
   fi
   # Minutenmodel (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md §6.1, fase F0): elke
@@ -1907,8 +2045,8 @@ if [ "$HARNESS_OK" -eq 1 ]; then
   # run 2 met de urenmaat. Alleen in de volledige run, niet in de tijdzone-matrix. Het oordeel is het
   # vangnet `minute-model-runs.json`: een case die erbij komt of eraf gaat, is rood (zie README.md).
   if [ "$RUN_HOLIDAYS" -eq 1 ]; then
-    OPS_MINUTE_MODEL_RUN=1 node "$OUT" "${FILES[@]}" || STATUS=1
-    OPS_MINUTE_MODEL_RUN=2 node "$OUT" "${FILES[@]}" || STATUS=1
+    plan_add harness.ts#minutenmodel-1 "" "" OPS_MINUTE_MODEL_RUN=1 "$OUT" "${FILES[@]}"
+    plan_add harness.ts#minutenmodel-2 "" "" OPS_MINUTE_MODEL_RUN=2 "$OUT" "${FILES[@]}"
   fi
 else
   echo "XX  cases overgeslagen: de harness kon niet gebundeld worden (zie de fout hierboven)"
@@ -1944,64 +2082,26 @@ fi
 # Checks met datum- of tijdlogica blijven in de matrix: een teruggezette projectduurbug werd alleen
 # in de Auckland-run rood (review B).
 #
-# Parallel sinds 2026-09 (besluit werkwijze 4c): de matrix was ~70% van de looptijd van deze suite
-# (gemeten 173 van 243 s). Elke zone draait in een eigen achtergrondproces, hoogstens OPS_TZ_JOBS
-# tegelijk (standaard het aantal kernen, maximaal vijf; OPS_TZ_JOBS=1 = één zone tegelijk, zoals
-# voorheen). Dat kan veilig: de twee checks die bestanden schrijven doen dat in een eigen
-# mkdtemp-map, geen check opent een poort, en de twee zware performance-poorten staan al buiten de
-# matrix. De tijdgevoelige checks (o.a. de 100-ms-grenzen in grid-nav/task-grid-selection en de
-# tijdslimieten van de .mpp-lezer) bleven groen met vijf zones tegelijk (8 checks × 5 zones × 3
-# rondes). De uitvoer blijft in vaste zonevolgorde, ook als een latere zone eerder klaar is.
+# Parallel sinds 2026-09 (besluit werkwijze 4c), per run sinds 2026-10-31: scripts/planning-pool.mjs
+# zet de gewone runs en de zone-runs in één rij en draait hoogstens OPS_PLANNING_JOBS processen tegelijk
+# (standaard 4; OPS_PLANNING_JOBS=1 = één tegelijk). Dat kan veilig: de checks die
+# bestanden schrijven doen dat in een eigen mkdtemp-map, onder een eigen TMPDIR per proces, geen check
+# opent een poort, en de twee zware performance-poorten draaien alleen, nadat de rij leeg is. De
+# tijdgevoelige checks (o.a. de 100-ms-grenzen in grid-nav/task-grid-selection en de tijdslimieten van
+# de .mpp-lezer) draaiden al onder deze belasting in de matrix.
 if [ "$RUN_HOLIDAYS" -eq 1 ]; then
-  echo ""
   ZONES=(UTC America/New_York Pacific/Midway Pacific/Auckland Atlantic/Azores)
-  TZ_JOBS="${OPS_TZ_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}"
-  if ! [[ "$TZ_JOBS" =~ ^[1-9][0-9]*$ ]]; then TZ_JOBS=1; fi
-  if [ "$TZ_JOBS" -gt "${#ZONES[@]}" ]; then TZ_JOBS="${#ZONES[@]}"; fi
-  # $OUT alleen meenemen als de harness gebouwd is; anders draaien we een niet-bestaand bestand.
-  MATRIX=("${BUNDLES[@]}")
-  [ "$HARNESS_OK" -eq 1 ] && MATRIX+=("$OUT")
-  echo "── Tijdzone-matrix (herdraait ${#MATRIX[@]} gebouwde bundels onder andere TZ) ──"
-  TZ_DIR="$(mktemp -d)"
-  run_zone () {
-    local zone="$1" log="$2" st=0 bundle
-    for bundle in "${MATRIX[@]}"; do
-      echo "--- $(basename "$bundle") ---" >> "$log"
-      if [ "$bundle" = "$OUT" ]; then
-        TZ="$zone" node "$OUT" "${FILES[@]}" >> "$log" 2>&1 || st=1
-      else
-        TZ="$zone" node "$bundle" >> "$log" 2>&1 || st=1
-      fi
-    done
-    return "$st"
-  }
-  declare -A ZONE_PID=() ZONE_RC=()
-  RUNNING=()
-  for i in "${!ZONES[@]}"; do
-    # Vol? Wacht dan eerst op de oudste lopende zone.
-    if [ "${#RUNNING[@]}" -ge "$TZ_JOBS" ]; then
-      oldest="${RUNNING[0]}"
-      RUNNING=("${RUNNING[@]:1}")
-      if wait "${ZONE_PID[$oldest]}"; then ZONE_RC[$oldest]=0; else ZONE_RC[$oldest]=1; fi
-    fi
-    : > "$TZ_DIR/$i.log"
-    run_zone "${ZONES[$i]}" "$TZ_DIR/$i.log" &
-    ZONE_PID[$i]=$!
-    RUNNING+=("$i")
-  done
-  for i in "${RUNNING[@]}"; do
-    if wait "${ZONE_PID[$i]}"; then ZONE_RC[$i]=0; else ZONE_RC[$i]=1; fi
-  done
-  for i in "${!ZONES[@]}"; do
-    if [ "${ZONE_RC[$i]}" -eq 0 ]; then
-      echo "TZ ${ZONES[$i]}: groen"
-    else
-      echo "TZ ${ZONES[$i]}: ROOD — volledige uitvoer volgt"
-      cat "$TZ_DIR/$i.log"
-      STATUS=1
-    fi
-  done
-  rm -rf "$TZ_DIR"
+  PLAN_FILE="$(plan_write)"
+  if [ "$LIST_ONLY" -eq 1 ]; then
+    node "$ROOT/scripts/planning-pool.mjs" list "$PLAN_FILE" >&3
+    rm -f "$PLAN_FILE"
+    exit "$STATUS"
+  fi
+  POOL_ARGS=()
+  if [ -n "$SHARD" ]; then POOL_ARGS+=("--shard=$SHARD"); fi
+  if [ -n "$MANIFEST" ]; then POOL_ARGS+=("--manifest=$MANIFEST"); fi
+  node "$ROOT/scripts/planning-pool.mjs" run "$PLAN_FILE" "$DIR/expected-checks.txt" "${POOL_ARGS[@]}" || STATUS=1
+  rm -f "$PLAN_FILE"
 fi
 
 # ── Waarschuwing bij een gerichte run ───────────────────────────────────────────────────────

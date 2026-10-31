@@ -76,12 +76,11 @@ interface ExportCapabilities {
  * Gemeten tegen de drie writerimplementaties. Dit is een capabilitymatrix, geen vaste verlieslijst:
  * een categorie ontstaat pas wanneer de bijbehorende retained/live data werkelijk aanwezig is.
  */
-/** De voortgangsbladen zijn werkbladen om rond te sturen, geen projectexport: ze dragen alleen
- *  id/WBS/naam/datums/voortgang en worden via `OPS Task ID` teruggekoppeld. Een XER-verliesmelding
+/** Het voortgangsblad is een werkblad om rond te sturen, geen projectexport: het draagt alleen
+ *  id/WBS/naam/datums/voortgang en wordt via `OPS Task ID` teruggekoppeld. Een XER-verliesmelding
  *  is daar per definitie loos (bv. relatie-lag-degradatie voor een blad zonder relaties). */
-type ProgressSheetFormat = 'progress-csv' | 'progress-xlsx';
-const isProgressSheetFormat = (format: string): format is ProgressSheetFormat =>
-  format === 'progress-csv' || format === 'progress-xlsx';
+type ProgressSheetFormat = 'progress-xlsx';
+const isProgressSheetFormat = (format: string): format is ProgressSheetFormat => format === 'progress-xlsx';
 
 const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>, ExportCapabilities>> = {
   csv: {

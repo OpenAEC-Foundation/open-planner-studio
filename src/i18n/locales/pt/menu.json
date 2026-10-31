@@ -214,6 +214,7 @@
     "screenColors_critical": "Caminho crítico",
     "screenColors_auto": "Por tarefa — automático",
     "screenColors_category": "Por categoria",
+    "screenColorsNearCritical": "Quase crítico",
     "screenColorsMissingField": "Este campo não existe neste projeto. A categoria de trabalho é usada temporariamente.",
     "screenColorsHint": "Fora do modo Caminho crítico, um contorno vermelho marca o caminho crítico.",
     "addLayout": "Novo layout",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "preencher: 0 a 100, decimais permitidos",
       "actualStart": "preencher: data de início real (como data)",
-      "actualFinish": "preencher: data de fim real (como data)"
-    },
-    "progressCsvLabel": "Folha de progresso (CSV)",
-    "progressCsvDesc": "A mesma folha de progresso reduzida em texto simples — para quem prefere trabalhar com um CSV.",
-    "progressCsvShort": "Progresso (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "preencher: data de fim real (como data)",
       "readOnly": "não alterar",
       "plannedReadOnly": "planeado, não alterar",
-      "completion": "preencher: 0 a 100, números inteiros",
-      "actualStart": "preencher: data de início real (dd-mm-aaaa)",
-      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)",
       "summaryRow": "— tarefa de resumo: não preencher"
     },
     "csvLabel": "CSV (separado por ponto e vírgula)",

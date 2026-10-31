@@ -4,7 +4,7 @@ import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
-import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
 import { writeMSPDIWithReport } from '@/services/msproject/mspdiWriter';
@@ -326,7 +326,7 @@ export { type ExportFormat };
  * `tests/planning/check-export-guard.ts` loopt hem over álle `ExportFormat`-waarden.
  */
 export function exportGoesToRecents(format: ExportFormat): boolean {
-  return format !== 'progress-csv' && format !== 'progress-xlsx';
+  return format !== 'progress-xlsx';
 }
 
 /**
@@ -1263,18 +1263,17 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let invalidXmlChars = 0;
       let filters: { name: string; extensions: string[] }[];
       let mime: string | undefined;
-      // Het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
-      // (`<projectnaam>-voortgang.csv`, i.p.v. `<projectnaam>.csv`) zodat het in de downloadmap
-      // meteen te onderscheiden is van de volle CSV-export — en waar mogelijk landt het ook echt
-      // in de downloadmap (preferDownloads hieronder).
+      // Het voortgangsblad krijgt een eigen bestandsnaamsuffix (`<projectnaam>-voortgang.xlsx`), en
+      // waar mogelijk landt het ook echt in de downloadmap (preferDownloads hieronder).
       let nameOverride: string | undefined;
 
       switch (format) {
         case 'progress-xlsx': {
-          // Zelfde i18n-reden als bij `progress-csv` hieronder: `@/i18n/config` heeft een
-          // randeffect bij het laden, dus dynamisch. De schrijver zelf ook — de ZIP/XLSX-laag
-          // hoort niet in de hoofdbundel (net als `mppReader`), en een statische import hier zou
-          // hem er stilzwijgend in trekken.
+          // Dynamische import: `@/i18n/config` initialiseert i18next en raakt DIRECT bij het laden
+          // al `document.documentElement.dir` aan (RTL-afhandeling) — een top-level import hier zou
+          // dat in `fileSlice.ts` trekken, en daarmee in ELKE headless test die `appStore` importeert.
+          // De schrijver zelf ook: de ZIP/XLSX-laag hoort niet in de hoofdbundel (net als
+          // `mppReader`), en een statische import hier zou hem er stilzwijgend in trekken.
           const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote, buildProgressXlsxValidationText }, { writeProgressSheetXLSX }] = await Promise.all([
             import('@/i18n/config'),
             import('@/i18n/progressHeaderNotes'),
@@ -1284,43 +1283,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // Rijen in boomvolgorde: de store-volgorde is na een P6-/IFC-import
           // "samenvattingen eerst" — onleesbaar als rondgestuurd blad. Terugimport matcht op OPS Task ID.
           payload = await writeProgressSheetXLSX([...flattenOrder(state.tasks)], {
-            // `'xlsx'`: alleen de voltooiingskolom krijgt een eigen instructie (decimalen mogen
-            // hier wél, anders dan in de CSV) — zie `buildProgressHeaderNotes`.
-            headerNotes: buildProgressHeaderNotes(menuT, 'xlsx'),
+            headerNotes: buildProgressHeaderNotes(menuT),
             summaryNote: buildProgressSummaryNote(menuT),
             sheetName: menuT('export.progressXlsxSheetName'),
             validation: buildProgressXlsxValidationText(menuT),
-          });
+          }, { exportedAt: new Date().toISOString() });
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
-          break;
-        }
-        case 'progress-csv': {
-          // Dynamische import: `@/i18n/config` initialiseert i18next en
-          // raakt DIRECT bij het laden al `document.documentElement.dir` aan (RTL-afhandeling) —
-          // een top-level import hier zou dat in `fileSlice.ts` trekken, en daarmee in ELKE
-          // headless test die `appStore` importeert (vrijwel geen `check-*.ts`-batterij heeft een
-          // document-stub). Zelfde patroon als de Tauri-imports elders in deze
-          // slice: puur data-laden blijft synchroon, alles met een randeffect gaat achter een
-          // dynamic import.
-          const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote }] = await Promise.all([
-            import('@/i18n/config'),
-            import('@/i18n/progressHeaderNotes'),
-          ]);
-          // `any`-sleutel: de i18next-`t` is op sleutel-literals getypeerd; `ImportLabelT` is
-          // precies de bestaande overloop-uitweg daarvoor (zie `importLabels.ts`).
-          const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
-          payload = writeProgressSheetCSV(
-            [...flattenOrder(state.tasks)],
-            buildProgressHeaderNotes(menuT),
-            // Verzameltaken dragen hun "niet invullen" IN het
-            // blad zelf, i.p.v. pas bij terugimport als weigering op te duiken.
-            buildProgressSummaryNote(menuT),
-          );
-          ext = 'csv';
-          filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
           break;
         }
@@ -1404,8 +1374,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
-      // Beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
-      const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
+      // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
+      const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
         : undefined;
       const outcome = typeof payload === 'string'

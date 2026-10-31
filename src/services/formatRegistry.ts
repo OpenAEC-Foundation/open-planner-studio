@@ -297,7 +297,7 @@ export async function writeXerExport(input: XerWriteInput): Promise<XerWriteResu
   return writeXER(input);
 }
 
-export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'xer' | 'progress-csv' | 'progress-xlsx';
+export type ExportFormat = 'ifc' | 'csv' | 'mspdi' | 'p6' | 'xer' | 'progress-xlsx';
 
 export interface ExportFormatMeta {
   format: ExportFormat;
@@ -318,7 +318,6 @@ export interface ExportFormatMeta {
 /** Volgorde = de Backstage-volgorde (en die van ExportDropdown). */
 export const EXPORT_FORMATS = [
   { format: 'progress-xlsx', icon: 'XLSX', labelKey: 'export.progressXlsxLabel', descKey: 'export.progressXlsxDesc', shortLabelKey: 'export.progressXlsxShort' },
-  { format: 'progress-csv', icon: 'CSV', labelKey: 'export.progressCsvLabel', descKey: 'export.progressCsvDesc', shortLabelKey: 'export.progressCsvShort' },
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
   { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined, recommendedProfile: 'msproject' },
   { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined, recommendedProfile: 'p6' },

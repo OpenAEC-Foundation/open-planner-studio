@@ -20,6 +20,7 @@ import {
 } from '@/services/print/printPreview';
 import { computeTileLayout, footerLayoutWidthFor, PAPER_PT } from '@/services/print/tileLayout';
 import { fitColumnsToHeaders, makeSectionedRenderReport, makeTableRenderReport } from '@/services/pdf/pdfTable';
+import { drawCurveChart, layoutCurveChart } from '@/services/pdf/pdfCurveChart';
 import {
   computePreviewRasterLimits,
   PREVIEW_MAX_PAGE_PIXELS,
@@ -885,6 +886,43 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
       title: 'T', summary: [], sections: [{ columns: narrowCols, rows: wideRows }],
     }, meterPdf)(() => stub);
     ok(sectioned.width === 395, `tabelrapport: ook gesectioneerd groeit de kolom mee (got ${sectioned.width})`);
+
+    // Voortgangscurve (issue #689): kerncijfers en grafiek vormen één blok bovenaan; de eerste
+    // breekpositie ligt pas ná de grafiek, en het rapport is minstens zo breed als de grafiek.
+    const curvePts = [{ day: '2026-09-01', pct: 0 }, { day: '2026-09-15', pct: 40 }, { day: '2026-09-30', pct: 100 }];
+    const lines: string[] = [];
+    const recStub: Draw2D = { ...stub, fillText: (t: string) => { lines.push(t); } };
+    const withChart = makeSectionedRenderReport({
+      title: 'T', summary: [], sections: [{ columns, rows: rows.slice(0, 3) }],
+      kpis: [{ label: 'Gereed', value: '40%', detail: 'gepland 50%' }, { label: 'Te laat', value: '2' }],
+      chart: { spec: {
+        from: '2026-08-31', to: '2026-09-30', ariaLabel: 'S', footnote: 'benaderd',
+        series: [{ key: 'actual', label: 'Werkelijk', color: '#D97706', points: curvePts.slice(0, 2) }],
+        band: { key: 'band', label: 'Doelband', color: '#10B981', upper: curvePts, lower: curvePts },
+        marker: { day: '2026-09-15', label: 'Statusdatum', color: '#DC2626' },
+        xTicks: [{ day: '2026-09-01', label: 'sep 2026' }], yTicks: [{ pct: 0, label: '0%' }, { pct: 100, label: '100%' }],
+      } },
+    })(() => recStub);
+    ok(withChart.width >= 760, `voortgangscurve: rapport minstens grafiekbreed (got ${withChart.width})`);
+    ok((withChart.breakOffsets?.[0] ?? 0) > 36 + 66 + 280, `voortgangscurve: eerste breekpositie ligt onder de grafiek (got ${withChart.breakOffsets?.[0]})`);
+    for (const want of ['40%', 'gepland 50%', 'Statusdatum', 'Werkelijk', 'Doelband', 'benaderd', 'sep 2026', '100%']) {
+      ok(lines.includes(want), `voortgangscurve: PDF tekent "${want}"`);
+    }
+    // Review #705 r1: bij nul speling vallen vroegst en laatst samen; de band moet dan als lijn
+    // zichtbaar blijven (randen in de bandkleur), niet als leeg vlak.
+    const strokes: string[] = [];
+    const strokeStub: Draw2D = { ...stub, stroke() { strokes.push(this.strokeStyle); } };
+    const flatSpec = {
+      from: '2026-08-31', to: '2026-09-30', ariaLabel: 'S', series: [],
+      band: { key: 'band', label: 'Doelband', color: '#10B981', upper: curvePts, lower: curvePts },
+      xTicks: [], yTicks: [],
+    };
+    const flat = layoutCurveChart(flatSpec);
+    ok(flat.band?.edges.length === 2 && flat.band.edges[0].length === curvePts.length, 'voortgangscurve: band heeft twee randen');
+    drawCurveChart(strokeStub, flat, 0, 0, 'Inter');
+    ok(strokes.filter(c => c === '#10B981').length === 2, `voortgangscurve: PDF tekent beide bandranden bij nul speling (got ${strokes.join(',')})`);
+    const noChart = makeSectionedRenderReport({ title: 'T', summary: [], sections: [], chart: { emptyText: 'geen curve' } })(() => recStub);
+    ok(lines.includes('geen curve') && noChart.height < 120, 'voortgangscurve: zonder curve alleen de lege-staattekst');
   }
 
   const portrait = computeTileLayout({

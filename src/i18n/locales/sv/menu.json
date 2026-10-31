@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritisk linje",
     "screenColors_auto": "Per uppgift — automatiskt",
     "screenColors_category": "Efter kategori",
+    "screenColorsNearCritical": "Nära kritisk",
     "screenColorsMissingField": "Det här fältet finns inte i projektet. Arbetskategori används tillfälligt.",
     "screenColorsHint": "Utanför Kritisk linje markerar en röd kant den kritiska linjen.",
     "addLayout": "Ny layout",
@@ -374,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "fyll i: 0 till och med 100, decimaler tillåtna",
       "actualStart": "fyll i: verklig start (som datum)",
-      "actualFinish": "fyll i: verkligt slutdatum (som datum)"
-    },
-    "progressCsvLabel": "Framdriftsblad (CSV)",
-    "progressCsvDesc": "Samma smala framdriftsblad som platt text. För dig som hellre arbetar med en CSV.",
-    "progressCsvShort": "Framdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "fyll i: verkligt slutdatum (som datum)",
       "readOnly": "ändra inte",
       "plannedReadOnly": "planerad, ändra inte",
-      "completion": "fyll i: 0 till och med 100, hela tal",
-      "actualStart": "fyll i: verklig start (dd-mm-åååå)",
-      "actualFinish": "fyll i: verkligt slutdatum (dd-mm-åååå)",
       "summaryRow": "— sammanfattningsuppgift: fyll inte i"
     },
     "csvLabel": "CSV (semikolonseparerad)",

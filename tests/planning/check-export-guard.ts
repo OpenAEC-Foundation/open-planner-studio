@@ -100,7 +100,7 @@ truthy('12 taak bestaat nog (guard muteert niets onnodigs)', !!S().tasks.find(t 
 
 // ── 4. Alleen echte projectbestanden komen in Recente bestanden ──────────────
 // Eindreview 2026-09-12, bevinding 5: `exportAs` deed onvoorwaardelijk `pushRecent`, dus
-// `<project>-voortgang.csv|xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
+// `<project>-voortgang.xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
 // die het invulblad als project probeert te lezen en met een foutmelding eindigt. De regel zit in
 // `exportGoesToRecents`; die is los exporteerbaar juist zodat dit zonder bestandsdialoog toetsbaar
 // is. De lijst hieronder is met de hand geschreven vanuit "kan de app dit terug openen als
@@ -111,7 +111,6 @@ const recentsVerwacht: Record<ExportFormat, boolean> = {
   mspdi: true,
   p6: true,
   xer: true,
-  'progress-csv': false,
   'progress-xlsx': false,
 };
 for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, boolean][]) {
@@ -149,7 +148,7 @@ for (const format of ['mspdi', 'p6'] as ExportFormat[]) {
 }
 // IFC draagt de onderbreking (native formaat); de voortgangsbladen kennen geen stukken. CSV verliest
 // hem wél maar valt bewust (nog) buiten deze melding, die over MS Project/P6 gaat — zie docs/TODO.md.
-for (const format of ['ifc', 'csv', 'progress-csv', 'progress-xlsx'] as ExportFormat[]) {
+for (const format of ['ifc', 'csv', 'progress-xlsx'] as ExportFormat[]) {
   eq(`17 ${format}: geen melding`, exportSplitsLostNotice(format, S().tasks), null);
 }
 // Mét contour schrijven beide writers de onderbreking als spreiding mee ⇒ geen verlies, geen melding.

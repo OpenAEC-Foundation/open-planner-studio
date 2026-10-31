@@ -34,7 +34,7 @@ eq('MS Project XML met msproject: geen hint', targetOf('mspdi', msp), null);
 
 // Elk formaat tegen elk profiel: alleen de drie formaten met een bijpassend profiel krijgen ooit een hint.
 const WANT: Record<ExportFormat, string | null> = {
-  'progress-xlsx': null, 'progress-csv': null, csv: null, mspdi: 'msproject', p6: 'p6', xer: 'p6', ifc: null,
+  'progress-xlsx': null, csv: null, mspdi: 'msproject', p6: 'p6', xer: 'p6', ifc: null,
 };
 for (const { format } of EXPORT_FORMATS) {
   for (const profile of [ops, p6, msp]) {

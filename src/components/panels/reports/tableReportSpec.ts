@@ -1,4 +1,5 @@
-import type { PdfTableColumn, PdfSectionedReportSpec } from '@/services/pdf/pdfTable';
+import type { PdfTableColumn, PdfSectionedReportSpec, PdfReportKpi } from '@/services/pdf/pdfTable';
+import type { CurveChartSpec } from '@/services/pdf/pdfCurveChart';
 
 /**
  * Contract tussen de rapportbouwers (`useTableReportSpec`), de DOM-weergave (`TableReportView`)
@@ -25,12 +26,18 @@ export interface ReportSummaryItem {
   color?: string;
 }
 
+export type ReportKpi = PdfReportKpi;
+
 export interface TableReportSpec {
   title: string;
   subtitle?: string;
   /** Meldingen boven het rapport (geen statusdatum, planning niet berekend, …). */
   notes: string[];
   summary: ReportSummaryItem[];
+  /** Kerncijfers als kaarten (voortgangscurve); DOM en PDF tekenen dezelfde lijst. */
+  kpis?: ReportKpi[];
+  /** Curvegrafiek; `spec` ontbreekt als er niets te tekenen is (dan `emptyText`). */
+  chart?: { spec?: CurveChartSpec; emptyText?: string };
   sections: ReportSection[];
   /** Bestandsnaam-suffix van de PDF-export (`<project>-<suffix>.pdf`), in de rapporttaal. */
   fileSuffix: string;
@@ -47,6 +54,8 @@ export function toPdfSpec(spec: TableReportSpec): PdfSectionedReportSpec {
     subtitle: spec.subtitle,
     notes: spec.notes,
     summary: spec.summary.map(s => ({ label: s.label, value: s.value, color: s.color })),
+    kpis: spec.kpis,
+    chart: spec.chart,
     sections: spec.sections.map(s => ({ heading: s.heading, columns: s.columns, rows: s.rows, emptyText: s.emptyText })),
   };
 }

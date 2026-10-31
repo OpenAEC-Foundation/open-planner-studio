@@ -14,34 +14,36 @@ Zet de statusdatum zoals beschreven in [Voortgang bijwerken](docs://howto-voortg
 
 ### 2. Maak het blad
 
-Kies *Planning › Voortgang › Voortgangsblad exporteren*. Dezelfde knop staat op de tabbladen *Tabel* en *Rapport*. De app maakt een Excel-bestand en stelt de naam *(projectnaam)-voortgang.xlsx* voor; in de browser komt het bestand in je downloads. Liever een CSV? Kies *Bestand › Exporteren › Voortgangsblad (CSV)*. Het Excel-blad staat daar ook, als *Voortgangsblad (Excel)*.
+Kies *Planning › Voortgang › Voortgangsblad exporteren*. Dezelfde knop staat op de tabbladen *Tabel* en *Rapport*. De app maakt een Excel-bestand en stelt de naam *(projectnaam)-voortgang.xlsx* voor; in de browser komt het bestand in je downloads. Het blad staat ook onder *Bestand › Exporteren*, als *Voortgangsblad (Excel)*.
 
-Het blad heeft acht kolommen. De kolomnamen blijven Engels, met een korte instructie in de taal van de app erachter:
+Het blad heeft acht zichtbare kolommen. De kolomnamen blijven Engels, met een korte instructie in de taal van de app erachter:
 
 - `OPS Task ID`, `WBS` en `Name` zijn alleen om de taak te herkennen. Laat ze staan.
 - `Start` en `Finish` zijn de geplande datums, ter informatie. De app schrijft ze nooit terug.
 - `Completion (%)`, `Actual Start` en `Actual Finish` vul je in.
 
-Het Excel-blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zijn te bewerken. Excel controleert dat een percentage tussen 0 en 100 ligt en dat een werkelijke datum een datum is. Een fase (samenvattende taak) is grijs gemarkeerd met *— verzameltaak: niet invullen*.
+Daarnaast heeft het blad een verborgen, vergrendelde kolom `OPS Export`. Daarin staat per taak wat er bij de export in de planning stond. Zo ziet de app bij het inlezen wat er sinds de export veranderde (zie *Wijzigingen sinds de export*).
+
+Het blad is beveiligd, zonder wachtwoord: alleen de drie invulkolommen zijn te bewerken. Excel controleert dat een percentage tussen 0 en 100 ligt en dat een werkelijke datum een datum is. Een fase (samenvattende taak) is grijs gemarkeerd met *— verzameltaak: niet invullen*.
 
 ### 3. Laat het invullen
 
 De uitvoerder vult per taak in:
 
-- `Completion (%)`: 0 tot en met 100. De app leest ook decimalen, met een komma of een punt (bijvoorbeeld 33,3 of 33.3). De instructie in de CSV vraagt toch om hele getallen: een spreadsheet met een andere landinstelling kan 8,38 als 838 lezen.
-- `Actual Start` en `Actual Finish`: in Excel als datum in de eigen landinstelling; in de CSV als dd-mm-jjjj of als jjjj-mm-dd.
+- `Completion (%)`: 0 tot en met 100. Decimalen mogen, bijvoorbeeld 33,3.
+- `Actual Start` en `Actual Finish`: als datum in de eigen landinstelling.
 
 Wat leeg blijft, verandert niets. Met een leeg vak wis je dus ook geen bestaande voortgang; dat kan alleen in de app. Een taak die niet gestart is, laat hij helemaal leeg.
 
 ### 4. Lees het blad in
 
 1. Kies *Planning › Voortgang › Voortgang bijwerken uit een blad* (ook op de tabbladen *Tabel* en *Rapport*), of *Bestand › Importeren › Voortgang bijwerken uit een blad*. Het venster *Voortgang bijwerken uit een blad* opent.
-2. Klik op *Bestand kiezen…* en kies het ingevulde `.xlsx`- of `.csv`-bestand.
-3. Zijn de datums in een CSV niet eenduidig, dan vraagt de app *Dag of maand eerst?*, met de datum uit je bestand op twee manieren gelezen. Klik op de datum die klopt.
+2. Klik op *Bestand kiezen…* en kies het ingevulde `.xlsx`-bestand.
+3. Staan datums als tekst in het blad en zijn ze niet eenduidig, dan vraagt de app *Dag of maand eerst?*, met de datum uit je bestand op twee manieren gelezen. Klik op de datum die klopt.
 4. Je ziet nu een voorbeeld. Bovenaan staan vier tellers: *Toegepast*, *Ongewijzigd*, *Wacht op koppeling* en *Geweigerd*. Daaronder staat per taak wat er verandert, bijvoorbeeld *Voltooiing: 0% → 100%*.
 5. Controleer het voorbeeld en klik op *Toepassen*. Het venster toont *Resultaat*, met de tellers en de rijen die geweigerd zijn en waarom. Sluit af met *Sluiten*.
 
-Je kunt het voorbeeld niet overslaan. De knop *Toepassen* is uitgeschakeld zolang er niets is om toe te passen.
+Je kunt het voorbeeld niet overslaan. De knop *Toepassen* is uitgeschakeld zolang er niets is om toe te passen, of zolang een botsing nog geen keuze heeft (zie *Wijzigingen sinds de export*).
 
 ### 5. Reken de planning door
 
@@ -54,6 +56,18 @@ De app koppelt elke rij aan een taak, eerst op `OPS Task ID` en anders op het WB
 **Koppeling betwijfeld.** Vond de app de taak alleen op WBS-nummer, dan staat de rij onder *Koppeling betwijfeld*, met *Bevestigen* en *Wijzigen*. De rij wordt ook toegepast als je niets doet; controleer dus of de taak klopt. *Bevestigen* haalt de rij uit deze lijst; aan wat er wordt toegepast verandert het niets. *Wijzigen* laat je een andere taak kiezen. Met *Koppeling wissen* haal je een koppeling die je zelf legde weer weg. Let op: een blad van een ander project met dezelfde WBS-nummers wordt wél gekoppeld, onder *Koppeling betwijfeld*, en bij *Toepassen* doorgevoerd.
 
 **Wacht op koppeling.** Vond de app geen taak, of meerdere met hetzelfde WBS-nummer, dan staat de rij onder *Wacht op koppeling*. In het voorbeeld staat al waarom: *Geen taak gevonden voor deze rij.* of *Deze WBS-code komt bij meerdere taken voor — koppel de rij met de hand.* Je ziet ook het rijnummer en, indien ingevuld, de `OPS Task ID` uit het blad. Ontbreken WBS en naam, dan staat die ID bovenaan de rij. Kies bij *Kies een taak…* de juiste taak; je zoekt op WBS-nummer of naam. Koppel je hem niet, dan wordt de rij geweigerd. Een dubbele rij staat apart met *Een andere rij claimde deze taak al.*
+
+## Wijzigingen sinds de export
+
+Tussen de export en het inlezen kun je zelf voortgang bijwerken in de app. Het blad draagt daarom de stand bij de export mee, en de app vergelijkt per veld drie waarden: bij de export, in de app en in het blad. Bovenaan het voorbeeld staat wanneer het blad geëxporteerd is.
+
+- **Alleen het blad veranderde.** Dit is de gewone wijziging.
+- **Alleen de app veranderde.** Het blad heeft hier geen nieuws, dus de waarde in de app blijft staan. De rij staat onder *Alleen in de app gewijzigd sinds de export*, bijvoorbeeld *Voltooiing: bij export 30%, nu 50%. Het blad verandert dit niet.*
+- **Beide veranderden, en de waarden verschillen.** Dit is een botsing. De rij staat onder *Botsingen: in de app én in het blad gewijzigd*, bijvoorbeeld *Voltooiing: bij export 30%, in de app 50%, in het blad 40%*. Klik per rij op *App houden* of *Blad overnemen*, of kies boven de lijst bij *Alle rijen:*. *Toepassen* blijft uitgeschakeld tot elke rij een keuze heeft. Andere wijzigingen op dezelfde rij gaan gewoon mee.
+
+Verschoof een geplande start of een gepland einde sinds de export, dan staat dat bij de rij. Dat is alleen een melding: het blad verandert je plandatums niet.
+
+**Rijen zonder exportstand.** Een blad van een oudere versie, een zelfgemaakt blad of rijen die in een ander bestand zijn overgetypt hebben geen exportstand. Hetzelfde geldt voor een rij die je met de hand aan een andere taak koppelt. Bovenaan staat dan *Rijen zonder exportstand*. Die rijen vergelijkt de app alleen met de huidige planning: een waarde die de invuller niet aanraakte, kan dan een nieuwere waarde in de app terugzetten. Controleer deze rijen in het voorbeeld.
 
 ## Valkuilen en wat de app dan doet
 
@@ -72,6 +86,8 @@ Een rij die niet past, wordt geweigerd met een reden. De rest van het blad gaat 
 - *Geweigerd door de planner.* Een andere weigering van de planning zelf, zonder eigen melding.
 
 Wordt het hele bestand geweigerd, dan staat er een van deze meldingen in het venster: *Dit bestand heeft geen kolom “OPS Task ID” of “WBS” om rijen aan taken te koppelen.*, *Dit bestand heeft geen van de kolommen Voltooiing, Werkelijke start of Werkelijk einde.*, *Dit bestand is te groot om als voortgangsblad te lezen.* (meer dan 16 MB), *Dit bestand heeft te veel rijen om als voortgangsblad te lezen.* (meer dan 50.000 rijen) of *Dit bestand is met een wachtwoord beveiligd en kan niet worden gelezen.* of *Dit bestand kon niet als voortgangsblad worden gelezen.*
+
+**Een CSV-bestand.** Het voortgangsblad bestaat alleen als Excel-bestand. Kies je een `.csv`, dan meldt de app: *Een voortgangsblad wordt alleen als Excel-bestand gelezen. Open deze CSV in Excel, sla hem op als .xlsx en kies het bestand opnieuw.* Na die stap heeft het blad geen exportstand (zie *Wijzigingen sinds de export*).
 
 **Geen statusdatum.** Is er nog geen statusdatum en past de import voortgang toe, dan zet de app hem op vandaag en meldt dat. Zet hem dus eerst zelf.
 

@@ -95,7 +95,7 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 
 **Een export opnieuw openen levert niet altijd dezelfde planning.** De app rekent bij het openen altijd door, met het rekenprofiel dat bij het formaat hoort. Mist er logica, zoals de constraint in het CSV-voorbeeld, of rekent het profiel anders, dan verandert de uitkomst.
 
-**Een export staat ook in Recent.** Op de desktop en in browsers met bestandstoegang komt een export, net als een opgeslagen project, in *Recent* te staan (de voortgangsbladen niet). Open je hem daar, dan opent hij als import van dat formaat.
+**Een export staat ook in Recent.** Op de desktop en in browsers met bestandstoegang komt een export, net als een opgeslagen project, in *Recent* te staan (het voortgangsblad niet). Open je hem daar, dan opent hij als import van dat formaat.
 
 **Opslaan is niet hetzelfde als crashherstel.** Crashherstel helpt na een crash, maar vervangt het opslaan niet. Sla dus op voordat je een tabblad of de app sluit.
 

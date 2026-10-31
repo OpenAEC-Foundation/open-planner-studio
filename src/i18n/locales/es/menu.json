@@ -214,6 +214,7 @@
     "screenColors_critical": "Ruta crítica",
     "screenColors_auto": "Por tarea — automático",
     "screenColors_category": "Por categoría",
+    "screenColorsNearCritical": "Casi crítico",
     "screenColorsMissingField": "Este campo no existe en este proyecto. Se usa temporalmente la categoría de trabajo.",
     "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica.",
     "addLayout": "Nuevo diseño",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "rellenar: de 0 a 100, se permiten decimales",
       "actualStart": "rellenar: fecha de inicio real (como fecha)",
-      "actualFinish": "rellenar: fecha de fin real (como fecha)"
-    },
-    "progressCsvLabel": "Hoja de avance (CSV)",
-    "progressCsvDesc": "La misma hoja de avance reducida en texto plano — para quien prefiera trabajar con un CSV.",
-    "progressCsvShort": "Avance (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "rellenar: fecha de fin real (como fecha)",
       "readOnly": "no modificar",
       "plannedReadOnly": "planificado, no modificar",
-      "completion": "rellenar: de 0 a 100, números enteros",
-      "actualStart": "rellenar: fecha de inicio real (dd-mm-aaaa)",
-      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)",
       "summaryRow": "— tarea resumen: no rellenar"
     },
     "csvLabel": "CSV (separado por punto y coma)",
