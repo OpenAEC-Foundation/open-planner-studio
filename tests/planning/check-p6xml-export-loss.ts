@@ -13,6 +13,8 @@ import { parseOpenedFile } from '@/services/formatRegistry';
 import { createDefaultProject } from '@/state/defaults';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { activeImportResult, type ImportResult, type OpenedImport } from '@/services/importTypes';
+import { DEFAULT_WORK_RULE } from '@/types/workRule';
+import { readP6XML } from '@/services/p6/p6xmlReader';
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Sequence } from '@/types/sequence';
@@ -84,7 +86,10 @@ one('resources en kalender', {
   resources: [{ id: 'c', type: 'CREW' }, { id: 'o', type: 'SUBCONTRACTOR' }, { id: 'l', type: 'LABOR', libraryOrigin: {} }] as unknown as Resource[],
   calendars: [{ ...calendar, holidays: [{ name: 'Kerst', startDate: '2026-12-25' }] } as unknown as WorkCalendar],
   project: { schedulingProfile: p6, author: 'A' },
-}, [`${P}resourceTypes:2`, `${X}libraryLinks:1`, `${X}holidayNames:1`, `${X}projectDetails`]);
+}, [`${P}resourceTypes:2`, `${X}libraryLinks:1`, `${X}holidayNames:1`, `${P}projectDetails`]);
+one('alleen een projectbeschrijving gaat mee', { project: { schedulingProfile: p6, description: 'Tekst' } as P6XmlLossInput['project'] }, []);
+one('eigen taaktype gaat mee', { tasks: [task('Inkoop', { taskType: 'USERDEFINED' as Task['taskType'], customTaskTypeId: 'x' })] }, []);
+one('projectstandaard gelijk aan de P6-standaard', { project: { schedulingProfile: p6, defaultWorkRule: DEFAULT_WORK_RULE } }, []);
 
 // Elke categorie die de detector voor P6 XML kan geven, levert minstens één regel.
 const notes = [{ id: 'n', text: 'x', done: false }];
@@ -125,6 +130,37 @@ const merged = withP6XmlProfileNotice(results, { severity: 'info', messageKey: '
 eq('met een importverslag: een regel, geen tweede melding', [merged?.messageKey, merged?.detailLines?.map(l => l.messageKey)],
   ['notifications.p6xmlImportReport', ['notifications.p6XmlOpensAsOps']]);
 eq('ander formaat: geen melding', withP6XmlProfileNotice([{ ...results[0], p6xmlReport: undefined }], undefined, 'doc'), undefined);
+
+// De echte route: exportAs('p6') schrijft de XML en de melding. Heropenen bewijst dat de regel een echt verlies noemt.
+{
+  let captured: string | null = null;
+  const g = globalThis as any;
+  g.window = g.window ?? {};
+  g.Blob = class { constructor(parts: unknown[]) { captured = parts.join(''); } };
+  g.URL = g.URL ?? {};
+  g.URL.createObjectURL = () => 'blob:test';
+  g.URL.revokeObjectURL = () => { /* no-op */ };
+  g.document = { createElement: () => ({ href: '', download: '', click() { /* no-op */ } }) };
+  const { useAppStore } = await import('@/state/appStore');
+  useAppStore.getState().addTask({ name: 'Erft' });
+  useAppStore.setState(state => {
+    state.project.schedulingProfile = p6;
+    state.project.defaultWorkRule = 'FIXED_WORK';
+    state.resources = [{ ...state.resources[0], id: 'kraan', name: 'Kraan', type: 'EQUIPMENT', maxUnits: 1,
+      availabilitySteps: [{ from: '2026-06-08', maxUnits: 2 }] } as Resource];
+    state.ui.notifications = [];
+  });
+  const result = await useAppStore.getState().exportAs('p6');
+  const notice = useAppStore.getState().ui.notifications.find(n => n.messageKey === 'notifications.exportP6XmlLoss');
+  const noticed = notice?.detailLines?.map(l => l.messageKey) ?? [];
+  eq('route: export geslaagd', [result.ok, captured !== null], [true, true]);
+  eq('route: de melding noemt capaciteit en projectstandaard', [
+    noticed.includes(`${P}capacitySteps`), noticed.includes(`${P}defaultWorkRule`),
+  ], [true, true]);
+  const back = readP6XML(captured!);
+  eq('route: na heropenen is de capaciteitsstap weg', back.resources.find(r => r.name === 'Kraan')?.availabilitySteps, undefined);
+  eq('route: na heropenen is de projectstandaard weg', [back.project.defaultWorkRule, back.tasks.find(t => t.name === 'Erft')?.workRule], [undefined, undefined]);
+}
 
 if (diffs.length === 0) {
   console.log(`OK  p6xml-export-loss: ${checks} checks groen`);

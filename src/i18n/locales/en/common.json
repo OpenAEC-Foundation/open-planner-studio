@@ -315,7 +315,11 @@
       "notes_one": "{{count}} note",
       "notes_other": "{{count}} notes",
       "resourceTypes_one": "{{count}} crew or subcontractor resource gets a P6 type: its own type is lost",
-      "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost"
+      "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
+      "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
+      "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
+      "defaultWorkRule": "The project default for the task type: tasks without their own rule get the P6 default",
+      "projectDetails": "Project author and company"
     }
   },
   "scheduleErrors": {

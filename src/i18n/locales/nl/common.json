@@ -315,7 +315,11 @@
       "notes_one": "{{count}} notitie",
       "notes_other": "{{count}} notities",
       "resourceTypes_one": "{{count}} resource van het type ploeg of onderaannemer krijgt een P6-type: het eigen type valt weg",
-      "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer krijgen een P6-type: het eigen type valt weg"
+      "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer krijgen een P6-type: het eigen type valt weg",
+      "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
+      "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
+      "defaultWorkRule": "De projectstandaard voor het taaktype: taken zonder eigen regel krijgen de P6-standaard",
+      "projectDetails": "Auteur en bedrijf van het project"
     }
   },
   "scheduleErrors": {
