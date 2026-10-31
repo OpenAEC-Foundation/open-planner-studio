@@ -149,6 +149,7 @@
     "overallocationCount_other": "{{count}} 个资源",
     "overallocationNone": "无",
     "baselines": "基线与进度",
+    "barsGroup": "任务条",
     "manageBaselines": "管理基线…",
     "statusDate": "状态日期",
     "statusDateClear": "清除状态日期",
@@ -159,6 +160,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "基线叠加",
+    "baselineMenu": "在 Gantt 中显示",
+    "baselineMenuOpen": "为 Gantt 选择基线",
+    "baselineMenuActive": "活动",
+    "baselineMenuHint": "最多同时 3 个。请在「管理基线」中选择活动基线。",
+    "baselineMenuEmpty": "还没有基线。请在「管理基线」中保存一个。",
     "toggleProgressLine": "进度线",
     "toggleStatusDateLine": "状态日期线",
     "year": "年",
@@ -206,6 +212,7 @@
     "screenColors_critical": "关键路径",
     "screenColors_auto": "按任务 — 自动",
     "screenColors_category": "按类别",
+    "screenColorsNearCritical": "近关键",
     "screenColorsMissingField": "此项目中不存在该字段。暂时使用工作类别。",
     "screenColorsHint": "在关键路径模式之外，红色边框标示关键路径。",
     "addLayout": "新建布局",
@@ -298,6 +305,7 @@
     "recentTitle": "最近项目",
     "recentSubtitle": "点击打开。",
     "recentEmpty": "暂无最近打开的项目。",
+    "recentUnavailable": "此浏览器无法从最近使用中重新打开之前的本地文件。请使用「打开」为你的项目文件重新选择。",
     "recentOnSite": "现场",
     "examples": "示例",
     "examplesTitle": "示例项目",
@@ -350,6 +358,8 @@
     "helpDraft": "草稿"
   },
   "export": {
+    "progressFileSuffix": "进度",
+    "libraryFileSuffix": "资源库",
     "progressXlsxLabel": "进度表（Excel）",
     "progressXlsxDesc": "精简表格，仅含编号、WBS、名称、日期和完成度——列宽固定、字段锁定并带日期校验。",
     "progressXlsxShort": "进度（Excel）",
@@ -363,17 +373,9 @@
     "progressXlsxNotes": {
       "completion": "请填写：0 到 100，允许小数",
       "actualStart": "请填写：实际开始日期（日期格式）",
-      "actualFinish": "请填写：实际完成日期（日期格式）"
-    },
-    "progressCsvLabel": "进度表（CSV）",
-    "progressCsvDesc": "同一份精简进度表的纯文本版——适合更习惯使用 CSV 的人。",
-    "progressCsvShort": "进度（CSV）",
-    "progressCsvNotes": {
+      "actualFinish": "请填写：实际完成日期（日期格式）",
       "readOnly": "请勿更改",
       "plannedReadOnly": "计划值，请勿更改",
-      "completion": "请填写：0 到 100 的整数",
-      "actualStart": "请填写：实际开始日期（日-月-年）",
-      "actualFinish": "请填写：实际完成日期（日-月-年）",
       "summaryRow": "— 摘要任务：请勿填写"
     },
     "csvLabel": "CSV（分号分隔）",

@@ -150,6 +150,7 @@
     "overallocationCount_other": "{{count}} erőforrás",
     "overallocationNone": "Nincs",
     "baselines": "Alaptervek és előrehaladás",
+    "barsGroup": "Sávok",
     "manageBaselines": "Alapterv kezelése…",
     "statusDate": "Állapotdátum",
     "statusDateClear": "Állapotdátum törlése",
@@ -160,6 +161,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Alapterv-átfedés",
+    "baselineMenu": "Megjelenítés a Gantt-ban",
+    "baselineMenuOpen": "Alaptervek kiválasztása a Gantt-diagramhoz",
+    "baselineMenuActive": "aktív",
+    "baselineMenuHint": "Egyszerre legfeljebb 3. Válassza ki az aktív alaptervet a „Alaptervek kezelése” menüpontban választhatja ki.",
+    "baselineMenuEmpty": "Még nincs alapterv. Mentsen egyet a „Alaptervek kezelése” menüpontban.",
     "toggleProgressLine": "Előrehaladási vonal",
     "toggleStatusDateLine": "Állapotdátum-vonal",
     "year": "Év",
@@ -207,6 +213,7 @@
     "screenColors_critical": "Kritikus út",
     "screenColors_auto": "Tevékenységenként — automatikus",
     "screenColors_category": "Kategória szerint",
+    "screenColorsNearCritical": "Közel kritikus",
     "screenColorsMissingField": "Ez a mező nem létezik ebben a projektben. Átmenetileg a munkanem van használatban.",
     "screenColorsHint": "Ha nem a Kritikus út szerint színez, piros szegély jelöli a kritikus utat.",
     "addLayout": "Elrendezés létrehozása",
@@ -300,6 +307,7 @@
     "recentTitle": "Legutóbbi projektek",
     "recentSubtitle": "Kattintson a megnyitáshoz.",
     "recentEmpty": "Még nincs legutóbb megnyitott projekt.",
+    "recentUnavailable": "Ez a böngésző nem tudja újra megnyitni a korábban megnyitott helyi fájlokat a „Legutóbbi” listából. Használja a „Megnyitás” parancsot a projektfájl újbóli kiválasztásához.",
     "recentOnSite": "Helyszínen",
     "examples": "Példák",
     "examplesTitle": "Példaprojektek",
@@ -352,6 +360,8 @@
     "helpDraft": "vázlat"
   },
   "export": {
+    "progressFileSuffix": "előrehaladás",
+    "libraryFileSuffix": "erőforrástár",
     "progressXlsxLabel": "Előrehaladási lap (Excel)",
     "progressXlsxDesc": "Egyszerű lap, csak ezekkel: azonosító, WBS, név, dátumok és elkészültség — rögzített oszlopszélességgel, zárolt mezőkkel és dátumellenőrzéssel.",
     "progressXlsxShort": "Előrehaladás (Excel)",
@@ -365,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "kitöltendő: 0–100, tizedes számok is megadhatók",
       "actualStart": "kitöltendő: tényleges kezdés (dátumként)",
-      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)"
-    },
-    "progressCsvLabel": "Előrehaladási lap (CSV)",
-    "progressCsvDesc": "Ugyanaz az egyszerű előrehaladási lap sima szövegként — azoknak, akik inkább CSV-vel dolgoznak.",
-    "progressCsvShort": "Előrehaladás (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)",
       "readOnly": "ne módosítsa",
       "plannedReadOnly": "tervezett, ne módosítsa",
-      "completion": "kitöltendő: 0–100, egész számok",
-      "actualStart": "kitöltendő: tényleges kezdés (nn-hh-éééé)",
-      "actualFinish": "kitöltendő: tényleges befejezés (nn-hh-éééé)",
       "summaryRow": "— összefoglaló tevékenység: ne töltse ki"
     },
     "csvLabel": "CSV (pontosvesszővel tagolt)",

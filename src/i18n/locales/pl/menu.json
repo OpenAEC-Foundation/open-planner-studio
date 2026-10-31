@@ -152,6 +152,7 @@
     "overallocationCount_other": "{{count}} zasobu",
     "overallocationNone": "Brak",
     "baselines": "Plan bazowy i postęp",
+    "barsGroup": "Paski",
     "manageBaselines": "Zarządzaj planem bazowym…",
     "statusDate": "Data statusu",
     "statusDateClear": "Wyczyść datę statusu",
@@ -162,6 +163,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Nakładka planu bazowego",
+    "baselineMenu": "Pokaż w Gantt",
+    "baselineMenuOpen": "Wybierz plany bazowe dla Gantt",
+    "baselineMenuActive": "aktywny",
+    "baselineMenuHint": "Maksymalnie 3 naraz. Aktywny plan bazowy wybierzesz w oknie „Zarządzaj planami bazowymi”.",
+    "baselineMenuEmpty": "Brak planów bazowych. Zapisz jeden w oknie „Zarządzaj planami bazowymi”.",
     "toggleProgressLine": "Linia postępu",
     "toggleStatusDateLine": "Linia daty statusu",
     "year": "Rok",
@@ -209,6 +215,7 @@
     "screenColors_critical": "Ścieżka krytyczna",
     "screenColors_auto": "Na zadanie — automatycznie",
     "screenColors_category": "Według kategorii",
+    "screenColorsNearCritical": "Prawie krytyczne",
     "screenColorsMissingField": "To pole nie istnieje w tym projekcie. Tymczasowo używany jest rodzaj robót.",
     "screenColorsHint": "Poza trybem Ścieżka krytyczna czerwony obrys oznacza ścieżkę krytyczną.",
     "addLayout": "Nowy układ",
@@ -304,6 +311,7 @@
     "recentTitle": "Ostatnie projekty",
     "recentSubtitle": "Kliknij, aby otworzyć.",
     "recentEmpty": "Brak ostatnio otwieranych projektów.",
+    "recentUnavailable": "Ta przeglądarka nie może ponownie otworzyć lokalnych plików z listy Ostatnie. Użyj Otwórz, aby ponownie wybrać plik projektu.",
     "recentOnSite": "W witrynie",
     "examples": "Przykłady",
     "examplesTitle": "Przykładowe projekty",
@@ -356,6 +364,8 @@
     "helpDraft": "szkic"
   },
   "export": {
+    "progressFileSuffix": "postęp",
+    "libraryFileSuffix": "biblioteka zasobów",
     "progressXlsxLabel": "Arkusz postępu (Excel)",
     "progressXlsxDesc": "Odchudzony arkusz zawierający tylko id, WBS, nazwę, daty i postęp — ze stałymi szerokościami kolumn, zablokowanymi polami i kontrolą dat.",
     "progressXlsxShort": "Postęp (Excel)",
@@ -369,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "wypełnij: od 0 do 100, dozwolone ułamki dziesiętne",
       "actualStart": "wypełnij: rzeczywista data rozpoczęcia (jako data)",
-      "actualFinish": "wypełnij: rzeczywista data zakończenia (jako data)"
-    },
-    "progressCsvLabel": "Arkusz postępu (CSV)",
-    "progressCsvDesc": "Ten sam odchudzony arkusz postępu jako zwykły tekst — dla tych, którzy wolą pracować z plikiem CSV.",
-    "progressCsvShort": "Postęp (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "wypełnij: rzeczywista data zakończenia (jako data)",
       "readOnly": "nie zmieniać",
       "plannedReadOnly": "zaplanowane, nie zmieniać",
-      "completion": "wypełnij: od 0 do 100, liczby całkowite",
-      "actualStart": "wypełnij: rzeczywista data rozpoczęcia (dd-mm-rrrr)",
-      "actualFinish": "wypełnij: rzeczywista data zakończenia (dd-mm-rrrr)",
       "summaryRow": "— zadanie sumaryczne: nie wypełniać"
     },
     "csvLabel": "CSV (rozdzielany średnikiem)",

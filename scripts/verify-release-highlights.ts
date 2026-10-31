@@ -2,6 +2,7 @@
 // én vergelijkt de bewaarde cijfers met reproduceerbare Git-metingen.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { addedCodeLinesFromNumstat } from './lib/releaseStats';
 import { RELEASE_HIGHLIGHT_CATALOG, isStableReleaseTag, validateReleaseHighlightCatalog, validateReleaseHighlightStats, type ReleaseStats } from '@/services/updater/releaseHighlights';
 
 const runGit = (...args: string[]): string => execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -23,8 +24,7 @@ if (!previous) {
     ':(exclude)**/package-lock.json', ':(exclude)**/*.lock', ':(exclude)dist/**',
     ':(exclude)node_modules/**', ':(exclude)vendor/**', ':(exclude)public/examples/**',
   ];
-  const addedCodeLines = runGit('diff', '--numstat', `${previous}..${current}`, '--', 'src', 'src-tauri', 'scripts', 'tests', ...excluded)
-    .split('\n').filter(Boolean).reduce((sum, line) => sum + Number(line.split('\t')[0] || 0), 0);
+  const addedCodeLines = addedCodeLinesFromNumstat(runGit('diff', '--numstat', `${previous}..${current}`, '--', 'src', 'src-tauri', 'scripts', 'tests', ...excluded));
   const measured: ReleaseStats = { daysSincePrevious, commitsSincePrevious, addedCodeLines };
   errors.push(...validateReleaseHighlightStats(RELEASE_HIGHLIGHT_CATALOG, version, measured));
   if (errors.length === 0) console.log(JSON.stringify({ version, previous, current, ...measured }, null, 2));

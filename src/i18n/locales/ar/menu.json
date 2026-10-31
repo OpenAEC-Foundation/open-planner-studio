@@ -154,6 +154,7 @@
     "overallocationCount_other": "{{count}} مورد",
     "overallocationNone": "لا شيء",
     "baselines": "خطوط الأساس والتقدم",
+    "barsGroup": "أشرطة المهام",
     "manageBaselines": "إدارة خطوط الأساس…",
     "statusDate": "تاريخ الحالة",
     "statusDateClear": "مسح تاريخ الحالة",
@@ -164,6 +165,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "تراكب خط الأساس",
+    "baselineMenu": "عرض في Gantt",
+    "baselineMenuOpen": "اختر خطوط الأساس لـ Gantt",
+    "baselineMenuActive": "نشط",
+    "baselineMenuHint": "حد أقصى 3 في وقت واحد. اختر خط الأساس النشط في «إدارة خطوط الأساس».",
+    "baselineMenuEmpty": "لا توجد خطوط أساس بعد. احفظ واحدًا في «إدارة خطوط الأساس».",
     "toggleProgressLine": "خط التقدم",
     "toggleStatusDateLine": "خط تاريخ الحالة",
     "year": "سنة",
@@ -211,6 +217,7 @@
     "screenColors_critical": "المسار الحرج",
     "screenColors_auto": "لكل مهمة — تلقائي",
     "screenColors_category": "حسب الفئة",
+    "screenColorsNearCritical": "شبه حرج",
     "screenColorsMissingField": "هذا الحقل غير موجود في هذا المشروع. تُستخدم فئة العمل مؤقتًا.",
     "screenColorsHint": "خارج وضع المسار الحرج، يشير الإطار الأحمر إلى المسار الحرج.",
     "addLayout": "تخطيط جديد",
@@ -308,6 +315,7 @@
     "recentTitle": "المشاريع الأخيرة",
     "recentSubtitle": "انقر للفتح.",
     "recentEmpty": "لا توجد مشاريع مفتوحة مؤخراً.",
+    "recentUnavailable": "لا يستطيع هذا المتصفح إعادة فتح الملفات المحلية من «الأخيرة». استخدم «فتح» لاختيار ملف المشروع مرة أخرى.",
     "recentOnSite": "على الموقع",
     "examples": "أمثلة",
     "examplesTitle": "مشاريع نموذجية",
@@ -360,6 +368,8 @@
     "helpDraft": "مسودة"
   },
   "export": {
+    "progressFileSuffix": "التقدم",
+    "libraryFileSuffix": "مكتبة الموارد",
     "progressXlsxLabel": "ورقة التقدّم (Excel)",
     "progressXlsxDesc": "ورقة مبسّطة تحتوي فقط على المعرّف وهيكل تجزئة العمل والاسم والتواريخ ونسبة الإنجاز — بعرض أعمدة ثابت وحقول مقفلة والتحقّق من التواريخ.",
     "progressXlsxShort": "التقدّم (Excel)",
@@ -373,17 +383,9 @@
     "progressXlsxNotes": {
       "completion": "املأ: من 0 إلى 100، ويُسمح بالكسور العشرية",
       "actualStart": "املأ: تاريخ البدء الفعلي (كتاريخ)",
-      "actualFinish": "املأ: تاريخ الانتهاء الفعلي (كتاريخ)"
-    },
-    "progressCsvLabel": "ورقة التقدّم (CSV)",
-    "progressCsvDesc": "نفس ورقة التقدّم المبسّطة كنص عادي — لمن يفضّل العمل بملف CSV.",
-    "progressCsvShort": "التقدّم (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "املأ: تاريخ الانتهاء الفعلي (كتاريخ)",
       "readOnly": "لا تُغيّر",
       "plannedReadOnly": "مخطَّط، لا تُغيّر",
-      "completion": "املأ: من 0 إلى 100، أعداد صحيحة",
-      "actualStart": "املأ: تاريخ البدء الفعلي (يوم-شهر-سنة)",
-      "actualFinish": "املأ: تاريخ الانتهاء الفعلي (يوم-شهر-سنة)",
       "summaryRow": "— مهمة تلخيصية: لا تملأ"
     },
     "csvLabel": "CSV (مفصول بفاصلة منقوطة)",

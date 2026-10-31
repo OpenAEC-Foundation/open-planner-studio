@@ -613,6 +613,14 @@ en noem het in je rapport of PR-tekst.
     kennen geen pijltjesbediening (`src/components/layout/Ribbon/BaselineOverlaySplitButton.tsx`, geen
     focus- of toetsafhandeling). Vervolgpunt uit review ronde 1 van PR #403 (GPT-6.1-Sol). Voorstel: focus
     naar het eerste vinkje bij openen, pijltjes omhoog/omlaag, terug naar de trigger bij sluiten. — B
+583. **Scrollen verplaatst het paneel niet mee.** `src/components/common/Popover.tsx:102` volgt
+    vensterwijzigingen en paneelgrootte, maar geen scrollgebeurtenissen. Bij horizontaal scrollen komt het
+    menu los van zijn knop. Bestond al op main. Kleinste oplossing: sluit het paneel wanneer zijn
+    scrollcontainer verschuift. VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol),
+    2026-10-31. — B
+584. **`Ribbon.css` heeft onnodige regeleindewijzigingen.** `src/components/layout/Ribbon/Ribbon.css:1`: 894
+    regels toegevoegd en 816 weg, terwijl 78 regels inhoudelijk zijn. Herstel de oorspronkelijke regeleinden.
+    VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol), 2026-10-31. — B
 450. **Korte baselinestukken worden stippen.** `stripOutline` (`src/engine/renderer/baselineStrip.ts`) neemt
     als straal `min(h/2, (x2-x1)/2)`; bij `x1=100, x2=102, h=5` met twee ronde kanten loopt de vorm van
     y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
@@ -1303,6 +1311,30 @@ en noem het in je rapport of PR-tekst.
      scherm zet hem altijd rechts. Voorstel: de vergelijking schrappen of die terugval noemen. Alleen tekst.
      Gevonden in review van #731 (GPT-6.1-Sol), 2026-10-29. — B
 
+520. **De teller *Toegepast* staat ook in het voorbeeld, terwijl daar nog niets is toegepast.** Voortgangsimport,
+   `progressImport.summaryApplied` in `ProgressImportDialog.tsx`: dezelfde tekst in het voorbeeld en in *Resultaat*.
+   Met een botsing is het verschil groter: *Toegepast: 1* naast een uitgeschakelde knop *Toepassen*. Voorstel: in het
+   voorbeeld *Wordt toegepast*. Gezien in de app op `feat/743-voortgang-sinds-export`. — B
+
+521. **De gidsen in de andere talen noemen het CSV-voortgangsblad nog.** `public/docs/<taal>/howto-voortgang-importeren.md`,
+   `howto-exporteren.md` en `ref-import-exportformaten.md`: alleen nl en en zijn bijgewerkt bij het verwijderen van dat
+   blad. De andere talen beschrijven een kaart en een import die niet meer bestaan, en missen het deel over wijzigingen
+   sinds de export. Voorstel: `update-docs-lang` draaien. Gezien in `public/docs/de/` en `public/docs/fr/`. — B
+
+582. **Een rij met alleen verschoven plandatums staat in de teller, maar niet in de lijst.** Voortgangsimport,
+   `ProgressImportDialog.tsx`, de filters `appNewerRows` en `generalRows`: bij ongewijzigde voortgang en een
+   berekende start en een berekend einde die een week schoven, levert het plan `noop`, `plannedShifts` en
+   `plannedShiftCount: 1`. Beide filters laten die rij vallen, dus de planner ziet niet welke taak schoof. Voorstel: één
+   aangepaste selectie die ook een `noop`-rij met `plannedShifts` toont. Gevonden in review van #756 (GPT-6.1-Sol),
+   2026-10-31. — B
+
+587. **De gids legt de weigering van een rij die een behouden app-waarde zou veranderen, onvoldoende uit.**
+   `public/docs/nl/howto-voortgang-importeren.md:66` zegt dat andere wijzigingen op dezelfde rij gewoon meegaan. Dat geldt
+   niet als ze een behouden app-waarde zouden veranderen. Bij export 100 %, app heropend naar 50 % en een blad met een
+   ander einde eindigt *Blad overnemen* in `refused`, met alleen de algemene melding. Voorstel: één concreet voorbeeld
+   toevoegen: een werkelijk einde vereist 100 %, maar het nieuwere app-percentage blijft behouden. Gevonden in review van
+   #756 (GPT-6.1-Sol), 2026-10-31. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
@@ -1320,6 +1352,12 @@ en noem het in je rapport of PR-tekst.
      meldt "niet gevonden". Spaties werken wel. De voorbeelden in `examples/` hebben geen `#`. Richting:
      de beperking in `docs/dev-link.md` noemen, of oplossen met een echte HTTP-check. VERVOLG uit
      review #703 r3. — B
+
+562. **Standaardbalken halen in hoog contrast geen 7:1 op tijdasbanden.**
+    Kritiek `#ff6b6b` haalt op weekband `#141414` 6,64:1 en op weekendvlak `#1c1c1c`
+    6,14:1; normaal `#60a5fa` haalt op het weekendvlak 6,70:1. Dezelfde pixels zijn op de
+    basis van PR #701 gemeten. De bestaande thema-contrasttest controleert alleen het gewone
+    vlak `#0a0a0a`; laat die ook de banden controleren bij het herstellen. — B
 
 313. **De bulkprestatiepoort kan in een volledige run falen terwijl beide gerichte controles slagen.**
     Tijdens een volledige corpusloze F1b-suite die deels met andere controles overlapte, meet `check-bulk-scale.ts`
@@ -1616,6 +1654,31 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
+552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
+     alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
+     en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
+     `fail` en `gh pr checks` bleef exit 1. Alleen een rode `test` zonder eigen rood deel raakt uit beeld. Wordt
+     `test` ooit een verplichte check, kijk dan eerst opnieuw, want GitHub telt een overgeslagen check als
+     geslaagd. Voorstel: de lege run een andere jobnaam geven, of de `labeled`-trigger naar een eigen workflow
+     verplaatsen. — B
+
+553. **Het PR-sjabloon vraagt nog om een groene volledige `npm run verify`.** `.github/pull_request_template.md:16`
+     heeft het vinkje `npm run verify` green, terwijl de gewone PR-CI sinds #757 de browsersuite niet meer
+     draait en agents de volledige poort niet lokaal draaien. Voorstel: het vinkje vragen om groene PR-CI, en bij
+     werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
+     2026-10-30. — B
+
+561. **De voortgangscurve heeft geen browsertest op de getekende lijnen.** `tests/browser/table-reports.spec.ts`
+     kijkt alleen of de vier kaarten en de grafiek er staan; de ligging zelf toetst `check-print-report.ts` op
+     `layoutCurveChart` en de PDF-tekenaar. Een fout alleen in de SVG-weergave (`CurveChartView.tsx`) valt zo niet
+     op. Gevonden bij #705. — S
+
+585. **`onHourCalendar` is overbodig.** `src/engine/reports/reportCommon.ts:113` zoekt de taakkalender opnieuw op,
+     terwijl de engine dit onderscheid al bewaart als `hasOwnWorkBlocks` (`src/engine/scheduler/CalendarEngine.ts:118`).
+     De uitkomsten zijn gelijk in tien combinaties. De helper en zijn import kunnen weg; in
+     `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
+     VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1633,4 +1696,46 @@ en noem het in je rapport of PR-tekst.
     zonder naar de volgende kolom te gaan. Bij snel invoeren via de spookregel (typ naam, Tab, typ duur)
     verwacht je het Excel-gedrag: vastleggen en een kolom verder (Shift+Tab terug). Gezien bij review
     vader, punt 1. — B
-
+555. **De AUR-uitzondering van de release-skill eist `Push to AUR = skipped`, maar dat volgt al uit de notice.**
+     `.claude/skills/release/referentie.md`, *Ontbrekend AUR-secret*, punt 2. In `aur.yml` zet de stap *Decide on
+     publishing* `publish=false` in dezelfde tak als de notice, dus een run met de echte notice slaat de push altijd
+     over. Voorstel: laat punt 2 en de stapconclusie uit de eerste bewijsopdracht weg. Gevonden in review van #759
+     (GPT-6.1-Sol), in `aur.yml` nagelezen. — B
+556. **De terugval in het AUR-bewijs bewaakt met de pijp alleen `grep`.** `.claude/skills/release/referentie.md`,
+     *Ontbrekend AUR-secret*. In een foutproef schreef de eerste poging een passende regel en eindigde met exit 1,
+     de terugval faalde ook, en toch gaf de pijp exit 0. Uitvoer van de eerste poging blijft staan, dus regels
+     kunnen dubbel of aan elkaar geplakt zijn. Met de echte GitHub-uitvoer is geen verkeerd besluit aangetoond.
+     Voorstel: bewaar elke poging apart en doorzoek alleen een geslaagde poging. Gevonden in review van #759
+     (GPT-6.1-Sol). — S
+558. **`release-ci-check.mjs` leest alleen de eerste pagina van de runs.** `scripts/release-ci-check.mjs`, `runsOf`: het script
+     vraagt 100 runs per event en pagineert niet. Staan er sinds vrijdag 22:00 meer dan 100 handmatige runs op main, dan
+     kan het bewijs op pagina 2 staan en meldt het script `geen browserrun`. De gate stopt dan; hij gaat niet stil door.
+     Zeldzaam, want het venster is hoogstens een week. Voorstel: pagineren tot een pagina minder dan 100 runs geeft.
+     Gevonden in de review van #757 (GPT-6.1-Sol), met 101 runs nagespeeld. — B
+559. **`release-ci-check.mjs` beoordeelt latere pogingen onvolledig, en de reparatie kan de verkeerde poging onderzoeken.**
+     `scripts/release-ci-check.mjs`, `firstAttemptJobs` en `checkBrowserRun`: het script leest alleen de jobs van poging 1 en
+     de huidige conclusie. Poging 1 groen, poging 2 rood, poging 3 groen geeft dus `ok: true`, en de hapering in poging 2
+     verdwijnt. Bij alleen groen en dan rood stopt de gate wel, maar `.claude/skills/browsertests-repareren/SKILL.md`, stap 4,
+     leest poging 1 en vindt dan nul rode browserjobs. Het vraagt het opnieuw draaien van een al groene run. Voorstel:
+     beoordeel ook de tussenliggende pogingen, en laat de reparatie de werkelijk rode poging lezen. Gevonden in de review
+     van #757 (GPT-6.1-Sol), ronde 5, nagespeeld. — B
+580. **Redo zet een met Escape afgebroken splitsgebaar terug.** `useSplitGesture` neemt bij Escape een gewone undo
+    (`if (g?.committed) undo()`), dus de stap blijft als redo staan en Ctrl+Y zet hem terug. `useBarDrag` is hier op
+    #704 van af: dat gebruikt `revertHistorySince`, met de grens bij de eerste sleepcommit. Dezelfde route past hier.
+    Uit de code gelezen, niet nagespeeld. — S
+581. **De sleepluisteraar kent onvolledige stoproutes en onderschept Escape van een dialoog.** `listenWindowDrag`
+    registreert alleen mousemove, mouseup en keydown. Blur en pointercancel stoppen niets, en mousemove controleert geen
+    ingedrukte muisknop. Ook: balk vastpakken, F2 opent Taak bewerken, Escape. De window-capture in `useBarDrag` stopt
+    het event vóór `useDialogKeys`. Popover en inline-editor liggen ook achter deze luisteraar. VERVOLG uit review #704
+    (GPT-6.1-Sol) op `d90cb289d`. — B
+586. **Een verdwenen taak laat de sleepsessie hangen.** `src/components/canvas/hooks/useBarDrag.ts:387` stopt het effect
+    als de taak ontbreekt. Bij een gewijzigde takenlijst ruimt React eerst de oude luisteraars op, en de nieuwe mouseup-
+    en Escape-luisteraars worden niet geregistreerd. Sleep schrijft, verwijder de geselecteerde taak terwijl de muisknop
+    ingedrukt blijft, laat los: `active=true`, `isAutoCalcHeld()=true`, nul mouseup-luisteraars, en een latere bewerking
+    krijgt dezelfde `sessionKey`. Richting: sluit bij een ontbrekende taak de sessie en wis de sleeptoestand; één extra
+    afsluitroute volstaat. VERVOLG uit review #704 (GPT-6.1-Sol) op `3daa132d4`. — B
+588. **VERVOLG: een vooraf ingestelde `OPS_RELAX_PERF=0` doorbreekt het alleen draaien van de performancechecks.**
+     `tests/planning/run.sh:85` bewaart alleen omgevingswaarden die afwijken van de aanroepende shell. Bij
+     `OPS_RELAX_PERF=0 npm run verify` verdwijnt die waarde dus uit de planregels, en `scripts/planning-pool.mjs:67`
+     ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
+     check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B

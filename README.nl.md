@@ -88,7 +88,7 @@ IFC 4.3 ADD2 is standaard het eigen formaat, geschreven als schemageldige IFC. E
 
 Het oorspronkelijke `.xer`-bestand blijft bewaard in de opgeslagen IFC. **Datums zoals opgeslagen** toont de datums die P6 of MS Project heeft bewaard, voordat je herberekent.
 
-Voortgang kan ook via een spreadsheet: exporteer een voortgangsblad (`.xlsx` of `.csv`), vul het op de bouwplaats in en lees het terug in het open project.
+Voortgang kan ook via een spreadsheet: exporteer een voortgangsblad (`.xlsx`), vul het op de bouwplaats in en lees het terug in het open project.
 
 Niet elk gegeven overleeft elk formaat, bijvoorbeeld baselines in `.mpp` of activiteitcodes in MS Project XML. De documentatie noemt precies wat meegaat en wat verandert. De `.mpp`-lezer is voor OPS geschreven en is afgeleid van de structuurkennis van [MPXJ](https://github.com/joniles/mpxj) (LGPL-2.1).
 

@@ -150,6 +150,7 @@
     "overallocationCount_other": "{{count}} ressurser",
     "overallocationNone": "Ingen",
     "baselines": "Grunnlinjer og fremdrift",
+    "barsGroup": "Stolper",
     "manageBaselines": "Administrer grunnlinjer…",
     "statusDate": "Statusdato",
     "statusDateClear": "Tøm statusdato",
@@ -160,6 +161,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Grunnlinjeoverlegg",
+    "baselineMenu": "Vis i Gantt",
+    "baselineMenuOpen": "Velg grunnlinjer for Gantt",
+    "baselineMenuActive": "aktiv",
+    "baselineMenuHint": "Maksimalt 3 om gangen. Velg den aktive grunnlinjen i «Administrer grunnlinjer».",
+    "baselineMenuEmpty": "Ingen grunnlinjer ennå. Lagre en i «Administrer grunnlinjer».",
     "toggleProgressLine": "Fremdriftslinje",
     "toggleStatusDateLine": "Statusdatolinje",
     "year": "År",
@@ -207,6 +213,7 @@
     "screenColors_critical": "Kritisk linje",
     "screenColors_auto": "Per aktivitet — automatisk",
     "screenColors_category": "Etter kategori",
+    "screenColorsNearCritical": "Nesten kritisk",
     "screenColorsMissingField": "Dette feltet finnes ikke i dette prosjektet. Arbeidskategori brukes midlertidig.",
     "screenColorsHint": "Utenfor Kritisk linje markerer en rød kant den kritiske linjen.",
     "addLayout": "Nytt oppsett",
@@ -300,6 +307,7 @@
     "recentTitle": "Nylige prosjekter",
     "recentSubtitle": "Klikk for å åpne.",
     "recentEmpty": "Ingen nylig åpnede prosjekter ennå.",
+    "recentUnavailable": "Denne nettleseren kan ikke åpne lokale filer fra «Nylige» på nytt. Bruk «Åpne» for å velge prosjektfilen din på nytt.",
     "recentOnSite": "På nettstedet",
     "examples": "Eksempler",
     "examplesTitle": "Eksempelprosjekter",
@@ -352,6 +360,8 @@
     "helpDraft": "utkast"
   },
   "export": {
+    "progressFileSuffix": "fremdrift",
+    "libraryFileSuffix": "bibliotek",
     "progressXlsxLabel": "Fremdriftsark (Excel)",
     "progressXlsxDesc": "Enkelt ark med bare id, WBS, navn, datoer og fullføringsgrad — med faste kolonnebredder, låste felt og datokontroll.",
     "progressXlsxShort": "Fremdrift (Excel)",
@@ -365,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "fyll inn: 0 til og med 100, desimaler er tillatt",
       "actualStart": "fyll inn: faktisk startdato (som dato)",
-      "actualFinish": "fyll inn: faktisk sluttdato (som dato)"
-    },
-    "progressCsvLabel": "Fremdriftsark (CSV)",
-    "progressCsvDesc": "Det samme enkle fremdriftsarket som ren tekst — for deg som helst vil jobbe med en CSV.",
-    "progressCsvShort": "Fremdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "fyll inn: faktisk sluttdato (som dato)",
       "readOnly": "ikke endre",
       "plannedReadOnly": "planlagt, ikke endre",
-      "completion": "fyll inn: 0 til og med 100, hele tall",
-      "actualStart": "fyll inn: faktisk startdato (dd-mm-åååå)",
-      "actualFinish": "fyll inn: faktisk sluttdato (dd-mm-åååå)",
       "summaryRow": "— hovedaktivitet: ikke fyll inn"
     },
     "csvLabel": "CSV (semikolonseparert)",

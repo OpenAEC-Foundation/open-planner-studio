@@ -151,6 +151,7 @@
     "overallocationCount_other": "{{count}} ressources",
     "overallocationNone": "Aucune",
     "baselines": "Références et avancement",
+    "barsGroup": "Barres",
     "manageBaselines": "Gérer les références…",
     "statusDate": "Date d'état",
     "statusDateClear": "Effacer la date d'état",
@@ -161,6 +162,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Superposition de la référence",
+    "baselineMenu": "Afficher dans le Gantt",
+    "baselineMenuOpen": "Choisir les références pour le Gantt",
+    "baselineMenuActive": "active",
+    "baselineMenuHint": "3 maximum à la fois. Choisissez la référence active dans « Gérer les références ».",
+    "baselineMenuEmpty": "Aucune référence pour l'instant. Enregistrez-en une dans « Gérer les références ».",
     "toggleProgressLine": "Ligne d'avancement",
     "toggleStatusDateLine": "Ligne de la date d'état",
     "year": "Année",
@@ -208,6 +214,7 @@
     "screenColors_critical": "Chemin critique",
     "screenColors_auto": "Par tâche — automatique",
     "screenColors_category": "Par catégorie",
+    "screenColorsNearCritical": "Quasi critique",
     "screenColorsMissingField": "Ce champ n’existe pas dans ce projet. La catégorie de travaux est utilisée temporairement.",
     "screenColorsHint": "Hors du mode Chemin critique, un contour rouge marque le chemin critique.",
     "addLayout": "Nouvelle disposition",
@@ -302,6 +309,7 @@
     "recentTitle": "Projets récents",
     "recentSubtitle": "Cliquez pour ouvrir.",
     "recentEmpty": "Aucun projet récemment ouvert.",
+    "recentUnavailable": "Ce navigateur ne peut pas rouvrir les fichiers locaux récemment ouverts depuis « Récents ». Utilisez « Ouvrir » pour choisir de nouveau votre fichier de projet.",
     "recentOnSite": "Sur le site",
     "examples": "Exemples",
     "examplesTitle": "Projets d'exemple",
@@ -354,6 +362,8 @@
     "helpDraft": "brouillon"
   },
   "export": {
+    "progressFileSuffix": "avancement",
+    "libraryFileSuffix": "bibliothèque de ressources",
     "progressXlsxLabel": "Feuille d’avancement (Excel)",
     "progressXlsxDesc": "Feuille allégée avec uniquement l’id, la SDP, le nom, les dates et l’avancement — avec largeurs de colonnes fixes, champs verrouillés et contrôle des dates.",
     "progressXlsxShort": "Avancement (Excel)",
@@ -367,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "à remplir : 0 à 100, décimales autorisées",
       "actualStart": "à remplir : date de début réelle (comme date)",
-      "actualFinish": "à remplir : date de fin réelle (comme date)"
-    },
-    "progressCsvLabel": "Feuille d’avancement (CSV)",
-    "progressCsvDesc": "La même feuille d’avancement allégée en texte brut — pour qui préfère travailler avec un CSV.",
-    "progressCsvShort": "Avancement (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "à remplir : date de fin réelle (comme date)",
       "readOnly": "ne pas modifier",
       "plannedReadOnly": "prévu, ne pas modifier",
-      "completion": "à remplir : 0 à 100, nombres entiers",
-      "actualStart": "à remplir : date de début réelle (jj-mm-aaaa)",
-      "actualFinish": "à remplir : date de fin réelle (jj-mm-aaaa)",
       "summaryRow": "— tâche récapitulative : ne pas remplir"
     },
     "csvLabel": "CSV (séparé par des points-virgules)",

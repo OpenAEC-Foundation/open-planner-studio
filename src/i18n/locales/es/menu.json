@@ -151,6 +151,7 @@
     "overallocationCount_other": "{{count}} recursos",
     "overallocationNone": "Ninguna",
     "baselines": "Líneas base y progreso",
+    "barsGroup": "Barras",
     "manageBaselines": "Gestionar líneas base…",
     "statusDate": "Fecha de estado",
     "statusDateClear": "Borrar fecha de estado",
@@ -161,6 +162,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Superposición de la línea base",
+    "baselineMenu": "Mostrar en Gantt",
+    "baselineMenuOpen": "Elegir líneas base para Gantt",
+    "baselineMenuActive": "activa",
+    "baselineMenuHint": "Máximo 3 a la vez. Elija la línea base activa en «Gestionar líneas base».",
+    "baselineMenuEmpty": "Todavía no hay líneas base. Guarde una en «Gestionar líneas base».",
     "toggleProgressLine": "Línea de progreso",
     "toggleStatusDateLine": "Línea de fecha de estado",
     "year": "Año",
@@ -208,6 +214,7 @@
     "screenColors_critical": "Ruta crítica",
     "screenColors_auto": "Por tarea — automático",
     "screenColors_category": "Por categoría",
+    "screenColorsNearCritical": "Casi crítico",
     "screenColorsMissingField": "Este campo no existe en este proyecto. Se usa temporalmente la categoría de trabajo.",
     "screenColorsHint": "Fuera del modo Ruta crítica, un contorno rojo marca la ruta crítica.",
     "addLayout": "Nuevo diseño",
@@ -302,6 +309,7 @@
     "recentTitle": "Proyectos recientes",
     "recentSubtitle": "Haga clic para abrir.",
     "recentEmpty": "Aún no hay proyectos abiertos recientemente.",
+    "recentUnavailable": "Este navegador no puede volver a abrir archivos locales desde «Recientes». Use «Abrir» para elegir de nuevo el archivo de su proyecto.",
     "recentOnSite": "En el sitio",
     "examples": "Ejemplos",
     "examplesTitle": "Proyectos de ejemplo",
@@ -354,6 +362,8 @@
     "helpDraft": "borrador"
   },
   "export": {
+    "progressFileSuffix": "avance",
+    "libraryFileSuffix": "biblioteca de recursos",
     "progressXlsxLabel": "Hoja de avance (Excel)",
     "progressXlsxDesc": "Hoja reducida con solo id, WBS, nombre, fechas y avance — con anchos de columna fijos, campos bloqueados y control de fechas.",
     "progressXlsxShort": "Avance (Excel)",
@@ -367,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "rellenar: de 0 a 100, se permiten decimales",
       "actualStart": "rellenar: fecha de inicio real (como fecha)",
-      "actualFinish": "rellenar: fecha de fin real (como fecha)"
-    },
-    "progressCsvLabel": "Hoja de avance (CSV)",
-    "progressCsvDesc": "La misma hoja de avance reducida en texto plano — para quien prefiera trabajar con un CSV.",
-    "progressCsvShort": "Avance (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "rellenar: fecha de fin real (como fecha)",
       "readOnly": "no modificar",
       "plannedReadOnly": "planificado, no modificar",
-      "completion": "rellenar: de 0 a 100, números enteros",
-      "actualStart": "rellenar: fecha de inicio real (dd-mm-aaaa)",
-      "actualFinish": "rellenar: fecha de fin real (dd-mm-aaaa)",
       "summaryRow": "— tarea resumen: no rellenar"
     },
     "csvLabel": "CSV (separado por punto y coma)",

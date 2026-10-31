@@ -152,6 +152,7 @@
     "overallocationCount_other": "{{count}} zdrojů",
     "overallocationNone": "Žádné",
     "baselines": "Směrné plány a průběh",
+    "barsGroup": "Pruhy",
     "manageBaselines": "Spravovat směrné plány…",
     "statusDate": "Datum stavu",
     "statusDateClear": "Vymazat datum stavu",
@@ -162,6 +163,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Překryv směrného plánu",
+    "baselineMenu": "Zobrazit v Gantt",
+    "baselineMenuOpen": "Vybrat směrné plány pro Gantt",
+    "baselineMenuActive": "aktivní",
+    "baselineMenuHint": "Nejvýše 3 najednou. Aktivní směrný plán vyberte v nabídce „Spravovat směrné plány“.",
+    "baselineMenuEmpty": "Zatím žádné směrné plány. Uložte jeden v nabídce „Spravovat směrné plány“.",
     "toggleProgressLine": "Čára průběhu",
     "toggleStatusDateLine": "Čára datumu stavu",
     "year": "Rok",
@@ -209,6 +215,7 @@
     "screenColors_critical": "Kritická cesta",
     "screenColors_auto": "Podle úkolu — automaticky",
     "screenColors_category": "Podle kategorie",
+    "screenColorsNearCritical": "Téměř kritický",
     "screenColorsMissingField": "Toto pole v tomto projektu neexistuje. Dočasně se použije druh práce.",
     "screenColorsHint": "Mimo režim Kritická cesta označuje červený okraj kritickou cestu.",
     "addLayout": "Nové rozložení",
@@ -304,6 +311,7 @@
     "recentTitle": "Nedávné projekty",
     "recentSubtitle": "Klikněte pro otevření.",
     "recentEmpty": "Zatím nebyly otevřeny žádné nedávné projekty.",
+    "recentUnavailable": "Tento prohlížeč nemůže znovu otevřít dříve otevřené místní soubory z „Nedávné“. Použijte „Otevřít“ a znovu vyberte soubor projektu.",
     "recentOnSite": "Na stavbě",
     "examples": "Příklady",
     "examplesTitle": "Ukázkové projekty",
@@ -356,6 +364,8 @@
     "helpDraft": "koncept"
   },
   "export": {
+    "progressFileSuffix": "průběh",
+    "libraryFileSuffix": "knihovna zdrojů",
     "progressXlsxLabel": "Tabulka průběhu (Excel)",
     "progressXlsxDesc": "Štíhlá tabulka jen s id, WBS, názvem, daty a procentem dokončení — s pevnými šířkami sloupců, uzamčenými poli a kontrolou dat.",
     "progressXlsxShort": "Průběh (Excel)",
@@ -369,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "vyplňte: 0 až 100, desetinná čísla povolena",
       "actualStart": "vyplňte: skutečné zahájení (jako datum)",
-      "actualFinish": "vyplňte: skutečné dokončení (jako datum)"
-    },
-    "progressCsvLabel": "Tabulka průběhu (CSV)",
-    "progressCsvDesc": "Stejná štíhlá tabulka průběhu jako prostý text — pro ty, kteří raději pracují s CSV.",
-    "progressCsvShort": "Průběh (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "vyplňte: skutečné dokončení (jako datum)",
       "readOnly": "neměňte",
       "plannedReadOnly": "plánované, neměňte",
-      "completion": "vyplňte: 0 až 100, celá čísla",
-      "actualStart": "vyplňte: skutečné zahájení (dd-mm-rrrr)",
-      "actualFinish": "vyplňte: skutečné dokončení (dd-mm-rrrr)",
       "summaryRow": "— souhrnný úkol: nevyplňujte"
     },
     "csvLabel": "CSV (oddělené středníkem)",

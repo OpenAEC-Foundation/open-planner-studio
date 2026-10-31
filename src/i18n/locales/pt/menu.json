@@ -151,6 +151,7 @@
     "overallocationCount_other": "{{count}} recursos",
     "overallocationNone": "Nenhuma",
     "baselines": "Linhas de base e progresso",
+    "barsGroup": "Barras",
     "manageBaselines": "Gerir linhas de base…",
     "statusDate": "Data de estado",
     "statusDateClear": "Limpar data de estado",
@@ -161,6 +162,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Sobreposição da linha de base",
+    "baselineMenu": "Mostrar no Gantt",
+    "baselineMenuOpen": "Escolher linhas de base para o Gantt",
+    "baselineMenuActive": "ativa",
+    "baselineMenuHint": "Máximo de 3 de cada vez. Escolha a linha de base ativa em «Gerir linhas de base».",
+    "baselineMenuEmpty": "Ainda não há linhas de base. Guarde uma em «Gerir linhas de base».",
     "toggleProgressLine": "Linha de progresso",
     "toggleStatusDateLine": "Linha da data de estado",
     "year": "Ano",
@@ -208,6 +214,7 @@
     "screenColors_critical": "Caminho crítico",
     "screenColors_auto": "Por tarefa — automático",
     "screenColors_category": "Por categoria",
+    "screenColorsNearCritical": "Quase crítico",
     "screenColorsMissingField": "Este campo não existe neste projeto. A categoria de trabalho é usada temporariamente.",
     "screenColorsHint": "Fora do modo Caminho crítico, um contorno vermelho marca o caminho crítico.",
     "addLayout": "Novo layout",
@@ -302,6 +309,7 @@
     "recentTitle": "Projetos recentes",
     "recentSubtitle": "Clique para abrir.",
     "recentEmpty": "Ainda não há projetos abertos recentemente.",
+    "recentUnavailable": "Este navegador não consegue reabrir ficheiros locais abertos recentemente a partir de «Recentes». Use «Abrir» para escolher de novo o seu ficheiro de projeto.",
     "recentOnSite": "No estaleiro",
     "examples": "Exemplos",
     "examplesTitle": "Projetos de exemplo",
@@ -354,6 +362,8 @@
     "helpDraft": "rascunho"
   },
   "export": {
+    "progressFileSuffix": "progresso",
+    "libraryFileSuffix": "biblioteca de recursos",
     "progressXlsxLabel": "Folha de progresso (Excel)",
     "progressXlsxDesc": "Folha reduzida apenas com id, WBS, nome, datas e progresso — com larguras de coluna fixas, campos bloqueados e verificação de datas.",
     "progressXlsxShort": "Progresso (Excel)",
@@ -367,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "preencher: 0 a 100, decimais permitidos",
       "actualStart": "preencher: data de início real (como data)",
-      "actualFinish": "preencher: data de fim real (como data)"
-    },
-    "progressCsvLabel": "Folha de progresso (CSV)",
-    "progressCsvDesc": "A mesma folha de progresso reduzida em texto simples — para quem prefere trabalhar com um CSV.",
-    "progressCsvShort": "Progresso (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "preencher: data de fim real (como data)",
       "readOnly": "não alterar",
       "plannedReadOnly": "planeado, não alterar",
-      "completion": "preencher: 0 a 100, números inteiros",
-      "actualStart": "preencher: data de início real (dd-mm-aaaa)",
-      "actualFinish": "preencher: data de fim real (dd-mm-aaaa)",
       "summaryRow": "— tarefa de resumo: não preencher"
     },
     "csvLabel": "CSV (separado por ponto e vírgula)",

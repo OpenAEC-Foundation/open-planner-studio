@@ -150,6 +150,7 @@
     "overallocationCount_other": "{{count}} ressourcer",
     "overallocationNone": "Ingen",
     "baselines": "Oprindelige planer & fremdrift",
+    "barsGroup": "Bjælker",
     "manageBaselines": "Administrer oprindelige planer…",
     "statusDate": "Statusdato",
     "statusDateClear": "Ryd statusdato",
@@ -160,6 +161,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Overlay for oprindelig plan",
+    "baselineMenu": "Vis i Gantt",
+    "baselineMenuOpen": "Vælg oprindelige planer til Gantt",
+    "baselineMenuActive": "aktiv",
+    "baselineMenuHint": "Højst 3 ad gangen. Vælg den aktive oprindelige plan i „Administrer oprindelige planer“.",
+    "baselineMenuEmpty": "Ingen oprindelige planer endnu. Gem en i „Administrer oprindelige planer“.",
     "toggleProgressLine": "Fremdriftslinje",
     "toggleStatusDateLine": "Statusdatolinje",
     "year": "År",
@@ -207,6 +213,7 @@
     "screenColors_critical": "Kritisk vej",
     "screenColors_auto": "Pr. opgave — automatisk",
     "screenColors_category": "Efter kategori",
+    "screenColorsNearCritical": "Næsten kritisk",
     "screenColorsMissingField": "Dette felt findes ikke i dette projekt. Arbejdskategori bruges midlertidigt.",
     "screenColorsHint": "Når Kritisk vej ikke er valgt, markerer en rød kant den kritiske vej.",
     "addLayout": "Opret layout",
@@ -300,6 +307,7 @@
     "recentTitle": "Seneste projekter",
     "recentSubtitle": "Klik for at åbne.",
     "recentEmpty": "Ingen nyligt åbnede projekter endnu.",
+    "recentUnavailable": "Denne browser kan ikke åbne lokale filer igen fra „Seneste“. Brug „Åbn“ for at vælge din projektfil igen.",
     "recentOnSite": "På stedet",
     "examples": "Eksempler",
     "examplesTitle": "Eksempelprojekter",
@@ -352,6 +360,8 @@
     "helpDraft": "kladde"
   },
   "export": {
+    "progressFileSuffix": "fremdrift",
+    "libraryFileSuffix": "bibliotek",
     "progressXlsxLabel": "Fremdriftsark (Excel)",
     "progressXlsxDesc": "Slankt ark med kun id, WBS, navn, datoer og færdiggørelsesgrad. Har faste kolonnebredder, låste felter og datokontrol.",
     "progressXlsxShort": "Fremdrift (Excel)",
@@ -365,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "udfyld: 0 til og med 100, decimaler er tilladt",
       "actualStart": "udfyld: faktisk startdato (som dato)",
-      "actualFinish": "udfyld: faktisk slutdato (som dato)"
-    },
-    "progressCsvLabel": "Fremdriftsark (CSV)",
-    "progressCsvDesc": "Det samme slanke fremdriftsark som ren tekst. Til dig, der hellere vil arbejde med en CSV.",
-    "progressCsvShort": "Fremdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "udfyld: faktisk slutdato (som dato)",
       "readOnly": "ændr ikke",
       "plannedReadOnly": "planlagt, ændr ikke",
-      "completion": "udfyld: 0 til og med 100, hele tal",
-      "actualStart": "udfyld: faktisk startdato (dd-mm-åååå)",
-      "actualFinish": "udfyld: faktisk slutdato (dd-mm-åååå)",
       "summaryRow": "— hovedopgave: udfyld ikke"
     },
     "csvLabel": "CSV (semikolonsepareret)",

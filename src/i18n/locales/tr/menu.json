@@ -150,6 +150,7 @@
     "overallocationCount_other": "{{count}} kaynak",
     "overallocationNone": "Yok",
     "baselines": "Temel plan ve ilerleme",
+    "barsGroup": "Çubuklar",
     "manageBaselines": "Temel planları yönet…",
     "statusDate": "Durum tarihi",
     "statusDateClear": "Durum tarihini temizle",
@@ -160,6 +161,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Temel plan bindirmesi",
+    "baselineMenu": "Gantt'te göster",
+    "baselineMenuOpen": "Gantt için temel planları seçin",
+    "baselineMenuActive": "etkin",
+    "baselineMenuHint": "En fazla 3 tane aynı anda. Etkin temel planı “Temel planları yönet” bölümünde seçin.",
+    "baselineMenuEmpty": "Henüz temel plan yok. “Temel planları yönet” bölümünde bir tane kaydedin.",
     "toggleProgressLine": "İlerleme çizgisi",
     "toggleStatusDateLine": "Durum tarihi çizgisi",
     "year": "Yıl",
@@ -207,6 +213,7 @@
     "screenColors_critical": "Kritik yol",
     "screenColors_auto": "Görev başına — otomatik",
     "screenColors_category": "Kategoriye göre",
+    "screenColorsNearCritical": "Kritiğe yakın",
     "screenColorsMissingField": "Bu alan bu projede yok. Geçici olarak iş kategorisi kullanılıyor.",
     "screenColorsHint": "Kritik yol modu dışında kırmızı çerçeve kritik yolu işaret eder.",
     "addLayout": "Yeni düzen",
@@ -300,6 +307,7 @@
     "recentTitle": "Son açılan projeler",
     "recentSubtitle": "Açmak için tıklayın.",
     "recentEmpty": "Henüz son açılan proje yok.",
+    "recentUnavailable": "Bu tarayıcı, “Son kullanılanlar” bölümündeki yerel dosyaları yeniden açamaz. Proje dosyanızı yeniden seçmek için “Aç” komutunu kullanın.",
     "recentOnSite": "Sitede",
     "examples": "Örnekler",
     "examplesTitle": "Örnek projeler",
@@ -352,6 +360,8 @@
     "helpDraft": "taslak"
   },
   "export": {
+    "progressFileSuffix": "ilerleme",
+    "libraryFileSuffix": "kaynak kitaplığı",
     "progressXlsxLabel": "İlerleme sayfası (Excel)",
     "progressXlsxDesc": "Yalnızca kimlik, İş Kırılım Yapısı, ad, tarihler ve tamamlanma içeren sade sayfa — sabit sütun genişlikleri, kilitli alanlar ve tarih denetimiyle.",
     "progressXlsxShort": "İlerleme (Excel)",
@@ -365,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "doldurun: 0 ile 100 arası, ondalık sayı kullanılabilir",
       "actualStart": "doldurun: gerçek başlangıç tarihi (tarih olarak)",
-      "actualFinish": "doldurun: gerçek bitiş tarihi (tarih olarak)"
-    },
-    "progressCsvLabel": "İlerleme sayfası (CSV)",
-    "progressCsvDesc": "Aynı sade ilerleme sayfasının düz metin hâli — CSV ile çalışmayı tercih edenler için.",
-    "progressCsvShort": "İlerleme (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "doldurun: gerçek bitiş tarihi (tarih olarak)",
       "readOnly": "değiştirmeyin",
       "plannedReadOnly": "planlanan, değiştirmeyin",
-      "completion": "doldurun: 0 ile 100 arası, tam sayı",
-      "actualStart": "doldurun: gerçek başlangıç tarihi (gg-aa-yyyy)",
-      "actualFinish": "doldurun: gerçek bitiş tarihi (gg-aa-yyyy)",
       "summaryRow": "— özet görev: doldurmayın"
     },
     "csvLabel": "CSV (noktalı virgülle ayrılmış)",

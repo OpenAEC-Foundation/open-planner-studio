@@ -151,6 +151,7 @@
     "overallocationCount_other": "{{count}} resursa",
     "overallocationNone": "Nema",
     "baselines": "Temeljni planovi i napredak",
+    "barsGroup": "Trake",
     "manageBaselines": "Upravljaj temeljnim planovima…",
     "statusDate": "Datum stanja",
     "statusDateClear": "Ukloni datum stanja",
@@ -161,6 +162,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Prikaz temeljnog plana",
+    "baselineMenu": "Prikaži u Gantt prikazu",
+    "baselineMenuOpen": "Temeljni planovi za Gantt prikaz",
+    "baselineMenuActive": "aktivan",
+    "baselineMenuHint": "Najviše 3 istodobno. Aktivni temeljni plan odaberite u „Upravljanje temeljnim planovima“.",
+    "baselineMenuEmpty": "Još nema temeljnih planova. Spremite jedan u „Upravljanje temeljnim planovima“.",
     "toggleProgressLine": "Linija napretka",
     "toggleStatusDateLine": "Linija datuma stanja",
     "year": "Godina",
@@ -208,6 +214,7 @@
     "screenColors_critical": "Kritični put",
     "screenColors_auto": "Po zadatku — automatski",
     "screenColors_category": "Po kategoriji",
+    "screenColorsNearCritical": "Gotovo kritičan",
     "screenColorsMissingField": "Ovo polje ne postoji u ovom projektu. Privremeno se koristi kategorija radova.",
     "screenColorsHint": "Izvan opcije Kritični put, crveni obrub označava kritični put.",
     "addLayout": "Novi izgled",
@@ -302,6 +309,7 @@
     "recentTitle": "Nedavni projekti",
     "recentSubtitle": "Kliknite za otvaranje.",
     "recentEmpty": "Još nema nedavno otvorenih projekata.",
+    "recentUnavailable": "Ovaj preglednik ne može ponovno otvoriti lokalne datoteke iz „Nedavno“. Za ponovni odabir projektne datoteke upotrijebite „Otvori“.",
     "recentOnSite": "Na lokaciji",
     "examples": "Primjeri",
     "examplesTitle": "Primjeri projekata",
@@ -354,6 +362,8 @@
     "helpDraft": "nacrt"
   },
   "export": {
+    "progressFileSuffix": "napredak",
+    "libraryFileSuffix": "biblioteka",
     "progressXlsxLabel": "List napretka (Excel)",
     "progressXlsxDesc": "Sažet list samo s ID-jem, WBS, nazivom, datumima i dovršenošću, s fiksnim širinama stupaca, zaključanim poljima i provjerom datuma.",
     "progressXlsxShort": "Napredak (Excel)",
@@ -367,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "unesite: 0 do 100, decimale su dopuštene",
       "actualStart": "unesite: stvarni početak (kao datum)",
-      "actualFinish": "unesite: stvarni završetak (kao datum)"
-    },
-    "progressCsvLabel": "List napretka (CSV)",
-    "progressCsvDesc": "Isti sažeti list napretka kao obični tekst — za one koji radije rade s CSV-om.",
-    "progressCsvShort": "Napredak (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "unesite: stvarni završetak (kao datum)",
       "readOnly": "ne mijenjajte",
       "plannedReadOnly": "planirano, ne mijenjajte",
-      "completion": "unesite: 0 do 100, cijeli brojevi",
-      "actualStart": "unesite: stvarni početak (dd.mm.gggg)",
-      "actualFinish": "unesite: stvarni završetak (dd.mm.gggg)",
       "summaryRow": "— zadatak sažetka: ne unosite"
     },
     "csvLabel": "CSV (odvojeno točka-zarezom)",

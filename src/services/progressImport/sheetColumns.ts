@@ -1,6 +1,5 @@
-// De kolomherkenning van het voortgangsblad, formaat-AGNOSTISCH. Zowel de CSV- als de XLSX-lezer
-// gebruikt deze ene tabel en deze ene matchregel; een kopie zou stil uit de pas lopen zodra er een
-// alias bijkomt. Niets in dit bestand weet van CSV, delimiters, ZIP of XML.
+// De kolomherkenning van het voortgangsblad. Niets in dit bestand weet van ZIP of XML: dat hoort bij
+// `parseProgressXlsx.ts`.
 
 import type {
   ProgressFileIssue,
@@ -23,16 +22,18 @@ export const PROGRESS_COLUMN_ALIASES: Record<string, readonly string[]> = {
   actualFinish: ['actual finish', 'actualfinish', 'werkelijk einde', 'werkelijke einde'],
   start: ['start', 'start date', 'begin', 'startdatum'],
   finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
+  // De exportstand (`exportState.ts`): de verborgen kolom van het eigen blad.
+  exportState: ['ops export'],
 };
 
-// Het geëxporteerde voortgangsblad (`writeProgressSheetCSV`) draagt per kolom een invulinstructie NA
+// Het geëxporteerde voortgangsblad (`writeProgressSheetXLSX`) draagt per kolom een invulinstructie NA
 // de sleutel, gescheiden door ` — ` (`<sleutel> — <instructie>`). De vroegste van deze drie markers
 // snijdt de instructie van de sleutel af.
 export const HEADER_INSTRUCTION_MARKERS = [' — ', ' - ', '('];
 
 /**
  * Matcht één kopcel op zijn kolomsleutel. Eerst EXACT tegen `PROGRESS_COLUMN_ALIASES` (dekt zowel
- * oude bladen als de volledige CSV-export). Lukt dat niet, dan is de terugval het PREFIX vóór de
+ * oude bladen als een zelfgebouwd blad). Lukt dat niet, dan is de terugval het PREFIX vóór de
  * vroegste instructiemarker: dat vangt `OPS Task ID — niet wijzigen` op, en ook
  * `Completion (%) — invullen: …` — het haakje van "(%)" ligt vóór de "—", dus de afgesneden prefix
  * wordt "completion", een bestaande alias. Geen van beide treft ⇒ geen kolom.
@@ -147,6 +148,7 @@ export function collectProgressRows(
     const rawActualFinish = boundedCell(cell('actualFinish'), limits.maxCellChars);
     const startCell = boundedCell(cell('start'), limits.maxCellChars);
     const finishCell = boundedCell(cell('finish'), limits.maxCellChars);
+    const rawExportState = boundedCell(cell('exportState'), limits.maxCellChars);
 
     rawRows.push({
       rowNumber,
@@ -156,6 +158,7 @@ export function collectProgressRows(
       ...(rawCompletion !== undefined ? { rawCompletion } : {}),
       ...(rawActualStart !== undefined ? { rawActualStart } : {}),
       ...(rawActualFinish !== undefined ? { rawActualFinish } : {}),
+      ...(rawExportState !== undefined ? { rawExportState } : {}),
     });
 
     // `taskId` op een detectiecel alleen bij een harde id-treffer VAN DEZE RIJ — de ijkpuntregel

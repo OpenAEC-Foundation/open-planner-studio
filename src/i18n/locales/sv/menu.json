@@ -150,6 +150,7 @@
     "overallocationCount_other": "{{count}} resurser",
     "overallocationNone": "Ingen",
     "baselines": "Baslinjer & framdrift",
+    "barsGroup": "Balkar",
     "manageBaselines": "Hantera baslinjer…",
     "statusDate": "Rapportdatum",
     "statusDateClear": "Töm rapportdatum",
@@ -160,6 +161,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Baslinjeöverlägg",
+    "baselineMenu": "Visa i Gantt",
+    "baselineMenuOpen": "Välj baslinjer för Gantt",
+    "baselineMenuActive": "aktiv",
+    "baselineMenuHint": "Högst 3 åt gången. Välj den aktiva baslinjen i ”Hantera baslinjer”.",
+    "baselineMenuEmpty": "Inga baslinjer än. Spara en i ”Hantera baslinjer”.",
     "toggleProgressLine": "Framdriftslinje",
     "toggleStatusDateLine": "Rapportdatumlinje",
     "year": "År",
@@ -207,6 +213,7 @@
     "screenColors_critical": "Kritisk linje",
     "screenColors_auto": "Per uppgift — automatiskt",
     "screenColors_category": "Efter kategori",
+    "screenColorsNearCritical": "Nära kritisk",
     "screenColorsMissingField": "Det här fältet finns inte i projektet. Arbetskategori används tillfälligt.",
     "screenColorsHint": "Utanför Kritisk linje markerar en röd kant den kritiska linjen.",
     "addLayout": "Ny layout",
@@ -300,6 +307,7 @@
     "recentTitle": "Senaste projekten",
     "recentSubtitle": "Klicka för att öppna.",
     "recentEmpty": "Inga nyligen öppnade projekt ännu.",
+    "recentUnavailable": "Den här webbläsaren kan inte öppna lokala filer från ”Senaste” igen. Använd ”Öppna” för att välja din projektfil igen.",
     "recentOnSite": "På platsen",
     "examples": "Exempel",
     "examplesTitle": "Exempelprojekt",
@@ -352,6 +360,8 @@
     "helpDraft": "utkast"
   },
   "export": {
+    "progressFileSuffix": "framdrift",
+    "libraryFileSuffix": "bibliotek",
     "progressXlsxLabel": "Framdriftsblad (Excel)",
     "progressXlsxDesc": "Smalt blad med bara id, WBS, namn, datum och slutförandegrad. Har fasta kolumnbredder, låsta fält och datumkontroll.",
     "progressXlsxShort": "Framdrift (Excel)",
@@ -365,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "fyll i: 0 till och med 100, decimaler tillåtna",
       "actualStart": "fyll i: verklig start (som datum)",
-      "actualFinish": "fyll i: verkligt slutdatum (som datum)"
-    },
-    "progressCsvLabel": "Framdriftsblad (CSV)",
-    "progressCsvDesc": "Samma smala framdriftsblad som platt text. För dig som hellre arbetar med en CSV.",
-    "progressCsvShort": "Framdrift (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "fyll i: verkligt slutdatum (som datum)",
       "readOnly": "ändra inte",
       "plannedReadOnly": "planerad, ändra inte",
-      "completion": "fyll i: 0 till och med 100, hela tal",
-      "actualStart": "fyll i: verklig start (dd-mm-åååå)",
-      "actualFinish": "fyll i: verkligt slutdatum (dd-mm-åååå)",
       "summaryRow": "— sammanfattningsuppgift: fyll inte i"
     },
     "csvLabel": "CSV (semikolonseparerad)",

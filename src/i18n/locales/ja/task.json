@@ -590,7 +590,8 @@
     "customFieldSuffix": "カスタムフィールド"
   },
   "tooltip": {
-    "status": "ステータス"
+    "status": "ステータス",
+    "baselineActive": "有効"
   },
   "externalLinks": {
     "action": "外部関係…",

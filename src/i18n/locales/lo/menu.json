@@ -149,6 +149,7 @@
     "overallocationCount_other": "{{count}} ຊັບພະຍາກອນ",
     "overallocationNone": "ບໍ່ມີ",
     "baselines": "ແຜນຖານ ແລະ ຄວາມຄືບໜ້າ",
+    "barsGroup": "ແຖບໜ້າວຽກ",
     "manageBaselines": "ຈັດການແຜນຖານ…",
     "statusDate": "ວັນທີສະຖານະ",
     "statusDateClear": "ລ້າງວັນທີສະຖານະ",
@@ -159,6 +160,11 @@
     "progressModeRetained": "ຮັກສາຕາມເງື່ອນໄຂເດີມ (Retained Logic)",
     "progressModeOverride": "ຂ້າມເງື່ອນໄຂເດີມ (Progress Override)",
     "toggleBaselineOverlay": "ສະແດງແຜນຖານຊ້ອນທັບ",
+    "baselineMenu": "ສະແດງໃນ Gantt",
+    "baselineMenuOpen": "ເລືອກແຜນຫຼັກສຳລັບ Gantt",
+    "baselineMenuActive": "ໃຊ້ງານ",
+    "baselineMenuHint": "ສູງສຸດ 3 ພ້ອມກັນ. ທ່ານເລືອກແຜນຫຼັກທີ່ໃຊ້ງານໃນ “ຈັດການແຜນຫຼັກ”.",
+    "baselineMenuEmpty": "ຍັງບໍ່ມີແຜນຫຼັກ. ກະລຸນາບັນທຶກໜຶ່ງໃນ “ຈັດການແຜນຫຼັກ”.",
     "toggleProgressLine": "ເສັ້ນຄວາມຄືບໜ້າ",
     "toggleStatusDateLine": "ເສັ້ນວັນທີສະຖານະ",
     "year": "ປີ",
@@ -206,6 +212,7 @@
     "screenColors_critical": "ເສັ້ນທາງວິກິດ",
     "screenColors_auto": "ຕາມແຕ່ລະວຽກ — ອັດຕະໂນມັດ",
     "screenColors_category": "ຕາມໝວດໝູ່",
+    "screenColorsNearCritical": "ໃກ້ວິກິດ",
     "screenColorsMissingField": "ບໍ່ມີຫ້ອງຂໍ້ມູນນີ້ໃນໂຄງການນີ້. ລະບົບຈະໃຊ້ໝວດວຽກຊົ່ວຄາວ.",
     "screenColorsHint": "ນອກຈາກເສັ້ນທາງວິກິດແລ້ວ, ຂອບສີແດງຈະໝາຍບອກເສັ້ນທາງວິກິດໄວ້.",
     "addLayout": "ໂຄງຮ່າງການຈັດວາງໃໝ່",
@@ -298,6 +305,7 @@
     "recentTitle": "ໂຄງການຫຼ້າສຸດ",
     "recentSubtitle": "ກົດເພື່ອເປີດ.",
     "recentEmpty": "ຍັງບໍ່ມີໂຄງການທີ່ເປີດຫຼ້າສຸດເທື່ອ.",
+    "recentUnavailable": "ບຣາວເຊີນີ້ບໍ່ສາມາດເປີດໄຟລ໌ໃນເຄື່ອງທີ່ເປີດກ່ອນໜ້ານີ້ຄືນໄດ້ຈາກ “ຫຼ້າສຸດ”. ກະລຸນາໃຊ້ “ເປີດ” ເພື່ອເລືອກໄຟລ໌ໂຄງການຂອງທ່ານອີກຄັ້ງ.",
     "recentOnSite": "ຢູ່ໜ້າງານ",
     "examples": "ຕົວຢ່າງ",
     "examplesTitle": "ໂຄງການຕົວຢ່າງ",
@@ -350,6 +358,8 @@
     "helpDraft": "ຮ່າງ"
   },
   "export": {
+    "progressFileSuffix": "ຄວາມຄືບໜ້າ",
+    "libraryFileSuffix": "ຄັງຂໍ້ມູນ",
     "progressXlsxLabel": "ໃບຄວາມຄືບໜ້າ (Excel)",
     "progressXlsxDesc": "ແຜ່ນງານຂະໜາດກະທັດຮັດ ທີ່ມີພຽງແຕ່ລະຫັດ, WBS, ຊື່, ວັນທີ ແລະ ຄວາມສຳເລັດ — ພ້ອມກຳນົດຄວາມກວ້າງຖັນຕາຍຕົວ, ລັອກຫ້ອງຂໍ້ມູນ ແລະ ກວດສອບຄວາມຖືກຕ້ອງຂອງວັນທີ.",
     "progressXlsxShort": "ຄວາມຄືບໜ້າ (Excel)",
@@ -363,17 +373,9 @@
     "progressXlsxNotes": {
       "completion": "ປ້ອນຂໍ້ມູນ: 0 ຫາ 100, ສາມາດໃສ່ຈຸດທົດສະນິຍົມໄດ້",
       "actualStart": "ປ້ອນຂໍ້ມູນ: ວັນທີເລີ່ມຕົ້ນຕົວຈິງ (ໃນຮູບແບບວັນທີ)",
-      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ໃນຮູບແບບວັນທີ)"
-    },
-    "progressCsvLabel": "ໃບຄວາມຄືບໜ້າ (CSV)",
-    "progressCsvDesc": "ແຜ່ນງານຄວາມຄືບໜ້າຂະໜາດກະທັດຮັດຮູບແບບດຽວກັນ ແຕ່ເປັນຂໍ້ຄວາມລ້າໆ — ສຳລັບຜູ້ທີ່ສະດວກເຮັດວຽກກັບ CSV.",
-    "progressCsvShort": "ຄວາມຄືບໜ້າ (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ໃນຮູບແບບວັນທີ)",
       "readOnly": "ຫ້າມແກ້ໄຂ",
       "plannedReadOnly": "ແຜນທີ່ວາງໄວ້, ຫ້າມແກ້ໄຂ",
-      "completion": "ປ້ອນຂໍ້ມູນ: 0 ຫາ 100, ຕົວເລກຖ້ວນ",
-      "actualStart": "ປ້ອນຂໍ້ມູນ: ວັນທີເລີ່ມຕົ້ນຕົວຈິງ (ວວ-ດດ-ປປປປ)",
-      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ວວ-ດດ-ປປປປ)",
       "summaryRow": "— ວຽກສະຫຼຸບ: ຫ້າມປ້ອນຂໍ້ມູນ"
     },
     "csvLabel": "CSV (ຂັ້ນດ້ວຍຈໍ້າຈຸດ ;)",

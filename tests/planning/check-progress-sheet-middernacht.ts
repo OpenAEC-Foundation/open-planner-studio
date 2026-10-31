@@ -7,7 +7,7 @@
 // de kale datum `2026-06-02` van, en de voortgangsimport leest een kale einddatum als "einde van die
 // werkdag": `2026-06-03T00:00`. Eén dag te laat, zonder melding.
 //
-// De keten hier is de ECHTE: store → `writeProgressSheetXLSX`/`writeProgressSheetCSV` → lezer →
+// De keten hier is de ECHTE: store → `writeProgressSheetXLSX` → lezer →
 // `finalizeProgressRows` → `previewProgressImport`/`applyProgressImport` op de EERDERE, voortgangsloze
 // stand van dezelfde taak. Tegen de al voltooide bron zou de no-op-filter het verlies maskeren.
 //
@@ -27,9 +27,7 @@
 import { useAppStore } from '@/state/appStore';
 import { writeProgressSheetXLSX, buildProgressXlsxParts } from '@/services/xlsx/writeProgressXlsx';
 import { parseProgressXlsx } from '@/services/progressImport/parseProgressXlsx';
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
 import { finalizeProgressRows } from '@/services/progressImport/sheetValues';
-import { writeProgressSheetCSV } from '@/services/csv/csvWriter';
 import { readXlsxSheet } from '@/services/xlsx/readXlsxSheet';
 import { writeZip } from '@/services/zip';
 import type { ProgressRow, ProgressSheet } from '@/services/progressImport/types';
@@ -97,12 +95,6 @@ async function viaXlsx(task: Task): Promise<readonly ProgressRow[]> {
   return finalizeProgressRows(sheet, 'dmy');
 }
 
-function viaCsv(task: Task): readonly ProgressRow[] {
-  const sheet = parseProgressCsv(writeProgressSheetCSV([task]));
-  eq(`${task.time.actualFinish}: csv zonder bestandsprobleem`, sheet.fileIssue, undefined);
-  return finalizeProgressRows(sheet, 'dmy');
-}
-
 // ── 1. Einde om middernacht (24-uurskalender) ──────────────────────────────────────────────
 {
   const bron = voltooideTaak(true);
@@ -115,7 +107,7 @@ function viaCsv(task: Task): readonly ProgressRow[] {
   eq('24u: werkelijk einde staat als serieel getal 46175', finishCell?.[2], '46175');
   eq('24u: …met de invul-datumtijdstijl (8)', finishCell?.[1], '8');
 
-  for (const [vorm, rows] of [['xlsx', await viaXlsx(bron)], ['csv', viaCsv(bron)]] as const) {
+  for (const [vorm, rows] of [['xlsx', await viaXlsx(bron)]] as const) {
     eq(`24u ${vorm}: de lezer houdt T00:00`, rows[0]?.actualFinish, { kind: 'value', iso: '2026-06-02T00:00' });
     eq(`24u ${vorm}: toepassen op de stand zonder voortgang`, pasToe(bron, rows), {
       preview: [1, 0], applied: [1, 0], actualStart: '2026-06-01T00:00', actualFinish: '2026-06-02T00:00',
@@ -127,7 +119,7 @@ function viaCsv(task: Task): readonly ProgressRow[] {
 {
   const bron = voltooideTaak(false);
   eq('16u: de store bewaart het einde als moment', bron.time.actualFinish, '2026-06-01T16:00');
-  for (const [vorm, rows] of [['xlsx', await viaXlsx(bron)], ['csv', viaCsv(bron)]] as const) {
+  for (const [vorm, rows] of [['xlsx', await viaXlsx(bron)]] as const) {
     eq(`16u ${vorm}: toepassen op de stand zonder voortgang`, pasToe(bron, rows), {
       preview: [1, 0], applied: [1, 0], actualStart: bron.time.actualStart, actualFinish: '2026-06-01T16:00',
     });
@@ -150,15 +142,6 @@ function viaCsv(task: Task): readonly ProgressRow[] {
   const rows = finalizeProgressRows(await parseProgressXlsx(bytes), 'dmy');
   eq('datum: de lezer geeft een kale datum', rows[0]?.actualFinish, { kind: 'value', iso: '2026-06-01' });
   eq('datum: toepassen leest het als einde van de werkdag', pasToe(bron, rows).actualFinish, '2026-06-01T16:00');
-
-  // En in CSV: een kale datum in de kolom Actual Finish.
-  const csv = writeProgressSheetCSV([zonderVoortgang(bron)]).replace(/\r?\n$/, '');
-  const lines = csv.split(/\r?\n/);
-  // De laatste kolom (Actual Finish) is leeg in een blad zonder voortgang: daar komt de datum.
-  lines[1] = `${lines[1]}2026-06-01`;
-  const csvRows = finalizeProgressRows(parseProgressCsv(lines.join('\n')), 'dmy');
-  eq('datum csv: de lezer geeft een kale datum', csvRows[0]?.actualFinish, { kind: 'value', iso: '2026-06-01' });
-  eq('datum csv: toepassen leest het als einde van de werkdag', pasToe(bron, csvRows).actualFinish, '2026-06-01T16:00');
 }
 
 // ── 4. De opmaak van de cel: alleen een datum mét kloktijd maakt een moment ────────────────

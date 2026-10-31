@@ -149,6 +149,7 @@
     "overallocationCount_other": "{{count}} 件のリソース",
     "overallocationNone": "なし",
     "baselines": "ベースラインと進捗",
+    "barsGroup": "バー",
     "manageBaselines": "ベースラインを管理…",
     "statusDate": "状態日",
     "statusDateClear": "状態日を解除",
@@ -159,6 +160,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "ベースラインオーバーレイ",
+    "baselineMenu": "Gantt に表示",
+    "baselineMenuOpen": "Gantt のベースラインを選択",
+    "baselineMenuActive": "有効",
+    "baselineMenuHint": "同時に最大3つまでです。有効なベースラインは「ベースラインの管理」で選択してください。",
+    "baselineMenuEmpty": "ベースラインはまだありません。「ベースラインの管理」で保存してください。",
     "toggleProgressLine": "進捗ライン",
     "toggleStatusDateLine": "状態日ライン",
     "year": "年",
@@ -206,6 +212,7 @@
     "screenColors_critical": "クリティカルパス",
     "screenColors_auto": "タスクごと — 自動",
     "screenColors_category": "カテゴリ別",
+    "screenColorsNearCritical": "準クリティカル",
     "screenColorsMissingField": "このフィールドはこのプロジェクトにありません。作業区分を一時的に使用します。",
     "screenColorsHint": "クリティカルパス以外のモードでは、赤い枠線がクリティカルパスを示します。",
     "addLayout": "新規レイアウト",
@@ -298,6 +305,7 @@
     "recentTitle": "最近のプロジェクト",
     "recentSubtitle": "クリックして開きます。",
     "recentEmpty": "最近開いたプロジェクトはありません。",
+    "recentUnavailable": "このブラウザーでは、最近使ったローカルファイルを再度開けません。「開く」を使って、プロジェクトファイルを選び直してください。",
     "recentOnSite": "サイト上",
     "examples": "サンプル",
     "examplesTitle": "サンプルプロジェクト",
@@ -350,6 +358,8 @@
     "helpDraft": "下書き"
   },
   "export": {
+    "progressFileSuffix": "進捗",
+    "libraryFileSuffix": "リソースライブラリ",
     "progressXlsxLabel": "進捗シート（Excel）",
     "progressXlsxDesc": "ID、WBS、名前、日付、完了率のみを含むスリムなシート — 列幅固定、フィールドのロック、日付チェック付き。",
     "progressXlsxShort": "進捗（Excel）",
@@ -363,17 +373,9 @@
     "progressXlsxNotes": {
       "completion": "入力してください：0〜100、小数も可",
       "actualStart": "入力してください：実際の開始日（日付として）",
-      "actualFinish": "入力してください：実際の終了日（日付として）"
-    },
-    "progressCsvLabel": "進捗シート（CSV）",
-    "progressCsvDesc": "同じスリムな進捗シートのプレーンテキスト版 — CSV で作業したい方向け。",
-    "progressCsvShort": "進捗（CSV）",
-    "progressCsvNotes": {
+      "actualFinish": "入力してください：実際の終了日（日付として）",
       "readOnly": "変更しないでください",
       "plannedReadOnly": "予定値、変更しないでください",
-      "completion": "入力してください：0〜100の整数",
-      "actualStart": "入力してください：実際の開始日（日-月-年）",
-      "actualFinish": "入力してください：実際の終了日（日-月-年）",
       "summaryRow": "— 要約タスク：入力しないでください"
     },
     "csvLabel": "CSV（セミコロン区切り）",

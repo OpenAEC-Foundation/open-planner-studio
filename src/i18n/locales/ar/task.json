@@ -610,7 +610,8 @@
     "customFieldSuffix": "حقل مخصص"
   },
   "tooltip": {
-    "status": "الحالة"
+    "status": "الحالة",
+    "baselineActive": "نشط"
   },
   "externalLinks": {
     "action": "علاقة خارجية…",

@@ -48,6 +48,7 @@
     "lookAhead": "look-ahead",
     "critical": "クリティカル",
     "progress": "進捗",
+    "progressCurve": "進捗曲線",
     "health": "スケジュール健全性",
     "resourceLoading": "リソース負荷",
     "resourceAssignments": "リソース割り当て",
@@ -90,6 +91,7 @@
     "lookAhead": "先行計画 (Look-ahead)",
     "critical": "クリティカル／準クリティカル",
     "progress": "進捗レポート",
+    "progressCurve": "進捗曲線",
     "health": "スケジュール健全性",
     "resourceLoading": "リソース負荷",
     "resourceAssignments": "リソース割当",
@@ -400,6 +402,32 @@
       "activitiesLabel": "アクティビティ",
       "levelSubtitle": "レベル {{level}} まで",
       "empty": "WBS 要素はありません。"
+    },
+    "progressCurve": {
+      "title": "進捗曲線",
+      "kpiComplete": "完了",
+      "kpiPlanned_baseline": "計画された {{value}}",
+      "kpiPlanned_current": "計画された {{value}}（現在のスケジュール）",
+      "kpiLate": "遅延",
+      "kpiLateCritical": "うちクリティカル: {{value}}",
+      "kpiNegativeFloat": "負のフロート",
+      "kpiLargest": "最大: {{value}}",
+      "kpiNextMilestone": "次のマイルストーン",
+      "milestoneIn_other": "{{count}}日後",
+      "milestoneAgo_other": "{{count}}日前",
+      "milestoneToday": "今日",
+      "noMilestone": "未完了のマイルストーンはありません",
+      "chartLabel": "累積進捗のSカーブ",
+      "seriesPlanned": "計画された（ベースライン）",
+      "seriesActual": "実績",
+      "seriesEarly": "最も早い日付",
+      "band": "目標帯: 最も早い日付から遅い日付まで",
+      "actualFootnote": "実績曲線は概算です。タスクごとに、実績開始日から現在の完了率まで直線で示しています。",
+      "emptyChart": "期間のあるタスクがないため、曲線を描けません。",
+      "noBaselineNote": "有効なベースラインがないため、計画された曲線はありません。計画された値は現在のスケジュールから取得されます。",
+      "noProgressNote": "まだ進捗が入力されていないため、実績曲線は0%です。",
+      "riskHeading": "リスクのあるタスク: 遅延または負のフロート",
+      "riskEmpty": "遅延タスクも負のフロートもありません。"
     }
   }
 }

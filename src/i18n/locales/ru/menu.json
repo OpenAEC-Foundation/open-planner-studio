@@ -152,6 +152,7 @@
     "overallocationCount_other": "{{count}} ресурса",
     "overallocationNone": "Нет",
     "baselines": "Базовые планы и ход выполнения",
+    "barsGroup": "Полосы",
     "manageBaselines": "Управлять базовыми планами…",
     "statusDate": "Дата отчета о состоянии",
     "statusDateClear": "Очистить дату отчета о состоянии",
@@ -162,6 +163,11 @@
     "progressModeRetained": "Retained Logic",
     "progressModeOverride": "Progress Override",
     "toggleBaselineOverlay": "Наложение базового плана",
+    "baselineMenu": "Показывать в диаграмме Ганта",
+    "baselineMenuOpen": "Выбрать базовые планы для диаграммы Ганта",
+    "baselineMenuActive": "активный",
+    "baselineMenuHint": "Не более 3 одновременно. Активный базовый план выберите в «Управление базовыми планами».",
+    "baselineMenuEmpty": "Базовых планов пока нет. Сохраните один в «Управление базовыми планами».",
     "toggleProgressLine": "Линия хода выполнения",
     "toggleStatusDateLine": "Линия даты отчета о состоянии",
     "year": "Год",
@@ -209,6 +215,7 @@
     "screenColors_critical": "Критический путь",
     "screenColors_auto": "По задаче — автоматически",
     "screenColors_category": "По категории",
+    "screenColorsNearCritical": "Почти критическая",
     "screenColorsMissingField": "Этого поля нет в проекте. Временно используется вид работ.",
     "screenColorsHint": "Вне режима «Критический путь» красная рамка отмечает критический путь.",
     "addLayout": "Создать макет",
@@ -304,6 +311,7 @@
     "recentTitle": "Недавние проекты",
     "recentSubtitle": "Нажмите, чтобы открыть.",
     "recentEmpty": "Недавно открытых проектов пока нет.",
+    "recentUnavailable": "Этот браузер не может снова открыть локальные файлы из раздела «Недавние». Используйте «Открыть», чтобы снова выбрать файл проекта.",
     "recentOnSite": "На объекте",
     "examples": "Примеры",
     "examplesTitle": "Примеры проектов",
@@ -356,6 +364,8 @@
     "helpDraft": "черновик"
   },
   "export": {
+    "progressFileSuffix": "ход выполнения",
+    "libraryFileSuffix": "библиотека ресурсов",
     "progressXlsxLabel": "Лист хода выполнения (Excel)",
     "progressXlsxDesc": "Компактный лист только с id, СДР, названием, датами и процентом завершения — с фиксированной шириной столбцов, заблокированными полями и проверкой дат.",
     "progressXlsxShort": "Ход выполнения (Excel)",
@@ -369,17 +379,9 @@
     "progressXlsxNotes": {
       "completion": "заполнить: от 0 до 100, десятичные знаки допускаются",
       "actualStart": "заполнить: фактическое начало (как дату)",
-      "actualFinish": "заполнить: фактическое окончание (как дату)"
-    },
-    "progressCsvLabel": "Лист хода выполнения (CSV)",
-    "progressCsvDesc": "Тот же компактный лист хода выполнения в виде простого текста — для тех, кто предпочитает работать с CSV.",
-    "progressCsvShort": "Ход выполнения (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "заполнить: фактическое окончание (как дату)",
       "readOnly": "не менять",
       "plannedReadOnly": "плановое, не менять",
-      "completion": "заполнить: от 0 до 100, целые числа",
-      "actualStart": "заполнить: фактическое начало (дд-мм-гггг)",
-      "actualFinish": "заполнить: фактическое окончание (дд-мм-гггг)",
       "summaryRow": "— суммарная задача: не заполнять"
     },
     "csvLabel": "CSV (разделитель «;»)",
