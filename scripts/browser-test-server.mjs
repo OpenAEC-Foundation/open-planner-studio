@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { PORT_LANES, worktreeRoot, worktreeSlug } from './dev-port.mjs';
 import { acquireNamedGuardLock } from './dev-lock.mjs';
+import { nodeBin } from './node-bin.mjs';
 
 const port = Number(process.env.OPS_BROWSER_TEST_PORT);
 const { min, max } = PORT_LANES.browser;
@@ -33,13 +34,14 @@ const cleanup = () => {
   releaseGuard();
 };
 
-const viteBin = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
+const vite = nodeBin(root, 'vite', 'bin/vite.js', 'vite', ['--host', '127.0.0.1']);
 const instance = `${worktreeSlug(root)}-browser-test`;
 // Playwright pollt bewust 127.0.0.1. Op sommige CI-runners resolveert Vites
 // standaardhost `localhost` uitsluitend naar ::1, waardoor Vite gezond draait
 // maar de webServer-poort na 60 seconden alsnog time-out. Bind beide kanten
 // daarom expliciet aan hetzelfde IPv4-adres.
-const child = spawn(viteBin, ['--host', '127.0.0.1'], {
+const child = spawn(vite.command, vite.args, {
+  shell: vite.shell,
   cwd: root,
   stdio: 'inherit',
   env: {

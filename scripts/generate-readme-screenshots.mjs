@@ -23,6 +23,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { acquireNamedGuardLock } from './dev-lock.mjs';
+import { nodeBin } from './node-bin.mjs';
 import { allocateNamedPort, worktreeRoot, worktreeSlug } from './dev-port.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -50,8 +51,9 @@ async function startVite() {
   const wtRoot = worktreeRoot() ?? root;
   const port = await allocateNamedPort(wtRoot, 'browser');
   const release = acquireNamedGuardLock(wtRoot, port, 'browser');
-  const viteBin = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite');
-  const child = spawn(viteBin, ['--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
+  const vite = nodeBin(root, 'vite', 'bin/vite.js', 'vite', ['--host', '127.0.0.1', '--port', String(port), '--strictPort']);
+  const child = spawn(vite.command, vite.args, {
+    shell: vite.shell,
     cwd: root,
     stdio: ['ignore', 'ignore', 'inherit'],
     env: { ...process.env, OPS_DEV_PORT: String(port), OPS_DEV_INSTANCE: `${worktreeSlug(wtRoot)}-browser-test` },
