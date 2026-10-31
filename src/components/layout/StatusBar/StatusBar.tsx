@@ -1,13 +1,29 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Terminal, Circle } from 'lucide-react';
+import { Terminal, Circle, Ellipsis } from 'lucide-react';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR } from '@/components/ribbon/ai/AiServerGroup';
 import { isLeafTask } from '@/utils/taskHierarchy';
-import { BaselineLegend } from '@/components/canvas/BaselineLegend';
+import { BaselineLegend, useBaselineLegendLayers } from '@/components/canvas/BaselineLegend';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
+import { useStatusFold } from './useStatusFold';
+
+// De balk is altijd één rij. Past niet alles, dan valt dit samen, in deze volgorde: eerst wat de
+// planner elders ook ziet, als laatste wat om actie vraagt. Wat weg is, staat in de tooltip van de
+// ⋯-knop; de waarschuwingen staan onder hun kopje, dat altijd blijft.
+const FOLD_ORDER = [
+  'view', // Schaal en Zoom: staan ook op de tijdas.
+  'baselineNames', // De kleuren blijven; de namen staan in hun tooltip.
+  'warnings', // Eén kopje dat het Waarschuwingenpaneel opent.
+  'counts', // Taken en Mijlpalen.
+  'critical',
+  'selection', // Ook zichtbaar in de Gantt en de tabel.
+  'end',
+  'unsaved', // Staat ook in de titelbalk en op het tabblad.
+  'stale',
+] as const;
 
 export function StatusBar() {
   const { t } = useTranslation('menu');
@@ -32,6 +48,9 @@ export function StatusBar() {
   const dd = useDisplayDate();
   const projectCalendar = useAppStore(s => s.calendar);
 
+  const barRef = useRef<HTMLDivElement>(null);
+  const baselineLayers = useBaselineLegendLayers();
+
   const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
   const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
   const criticalCount = cpmResult?.criticalPath.length || 0;
@@ -45,11 +64,22 @@ export function StatusBar() {
     showWarningsPanel: true,
     ...(activeRibbonTab === 'ifc' || activeRibbonTab === 'report' ? { activeRibbonTab: 'start' as const } : {}),
   });
-  const warningButton = (key: string, label: string) => (
+  const warnings = cpmResult ? [
+    { key: 'missedDeadlines', count: cpmResult.missedDeadlineTaskIds?.length ?? 0 },
+    { key: 'violatedConstraints', count: cpmResult.violatedConstraintTaskIds?.length ?? 0 },
+    { key: 'outOfSequence', count: cpmResult.outOfSequenceSequenceIds?.length ?? 0 },
+    { key: 'overallocated', count: overallocatedCount },
+  ] as const : [];
+  const activeWarnings = warnings.filter(w => w.count > 0).map(w => ({
+    ...w,
+    label: tCommon(`statusWarnings.${w.key}`, { count: w.count }),
+  }));
+  const warningTotal = activeWarnings.reduce((sum, w) => sum + w.count, 0);
+  const warningButton = (key: string, label: string, title: string) => (
     <button
       key={key}
       onClick={openWarnings}
-      title={tCommon('warnings.openPanel')}
+      title={title}
       className="px-1 rounded hover:bg-surface-hover"
       style={{ color: 'var(--theme-warning-text)' }}
       data-ops-status-warning={key}
@@ -58,55 +88,78 @@ export function StatusBar() {
     </button>
   );
 
+  const tasksText = `${t('status.tasks')} ${leafCount}`;
+  const milestonesText = `${t('status.milestones')} ${milestoneCount}`;
+  const criticalText = cpmResult ? t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration }) : '';
+  // Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen kale "Einde:"-label
+  // zonder waarde. B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt.
+  const endText = cpmResult?.projectEnd ? `${t('status.end')} ${dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}` : '';
+  // Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
+  // Een fout houdt de vlag juist vast en blijft daarom zichtbaar.
+  const staleText = scheduleStale && (!autoCalcCPM || !!cpmResult?.error) ? `⚠ ${t('status.scheduleStale')}` : '';
+  const selectionText = selectedTaskIds.length > 0 ? t('status.selection', { count: selectedTaskIds.length }) : '';
+  // Afgeleid uit zoom — kan niet desyncen van de getekende as.
+  const scaleText = `${t('status.scale')} ${t(`ribbon.${scaleFromZoom(zoom)}`)}`;
+  const zoomText = t('status.zoom', { level: Math.round(zoom) });
+  const unsavedText = isDirty ? t('status.unsaved') : '';
+  const baselineNames = baselineLayers.map(l => l.name);
+
+  const level = useStatusFold(barRef, FOLD_ORDER.length, [
+    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, unsavedText,
+    ...baselineNames, ...activeWarnings.map(w => w.label), aiMode, debugTerminalEnabled,
+  ].join('|'), zoomText);
+  const folded = (part: typeof FOLD_ORDER[number]) => FOLD_ORDER.indexOf(part) < level;
+
+  const hiddenTexts = [
+    ...(folded('counts') ? [tasksText, milestonesText] : []),
+    ...(folded('critical') ? [criticalText] : []),
+    ...(folded('end') ? [endText] : []),
+    ...(folded('stale') ? [staleText] : []),
+    ...(folded('selection') ? [selectionText] : []),
+    ...(folded('baselineNames') ? baselineNames : []),
+    ...(folded('view') ? [scaleText, zoomText] : []),
+    ...(folded('unsaved') ? [unsavedText] : []),
+  ].filter(text => text !== '');
+
   return (
     <div
-      className="flex items-center bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
+      ref={barRef}
+      className="flex items-center overflow-hidden whitespace-nowrap bg-surface-alt border-t border-border px-3 !text-body text-text-secondary select-none gap-4"
       style={{ height: 'var(--statusbar-height)' }}
       data-tour-anchor="status-bar"
     >
-      <span>{t('status.tasks')} {leafCount}</span>
-      <span>{t('status.milestones')} {milestoneCount}</span>
-      {cpmResult && (
-        <>
-          <span style={{ color: 'var(--theme-critical-text)' }}>{t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration })}</span>
-          {/* Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen
-              kale "Einde:"-label zonder waarde. */}
-          {/* B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt. */}
-          {cpmResult.projectEnd && <span>{t('status.end')} {dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}</span>}
-          {(cpmResult.missedDeadlineTaskIds?.length ?? 0) > 0 && warningButton(
-            'missedDeadlines',
-            tCommon('statusWarnings.missedDeadlines', { count: cpmResult.missedDeadlineTaskIds.length }),
-          )}
-          {(cpmResult.violatedConstraintTaskIds?.length ?? 0) > 0 && warningButton(
-            'violatedConstraints',
-            tCommon('statusWarnings.violatedConstraints', { count: cpmResult.violatedConstraintTaskIds.length }),
-          )}
-          {(cpmResult.outOfSequenceSequenceIds?.length ?? 0) > 0 && warningButton(
-            'outOfSequence',
-            tCommon('statusWarnings.outOfSequence', { count: cpmResult.outOfSequenceSequenceIds.length }),
-          )}
-          {overallocatedCount > 0 && warningButton(
-            'overallocated',
-            tCommon('statusWarnings.overallocated', { count: overallocatedCount }),
-          )}
-        </>
+      {!folded('counts') && <span>{tasksText}</span>}
+      {!folded('counts') && <span>{milestonesText}</span>}
+      {criticalText && !folded('critical') && <span style={{ color: 'var(--theme-critical-text)' }}>{criticalText}</span>}
+      {endText && !folded('end') && <span>{endText}</span>}
+      {folded('warnings') && warningTotal > 0
+        ? warningButton(
+          'summary',
+          tCommon('statusWarnings.summary', { count: warningTotal }),
+          [...activeWarnings.map(w => w.label), tCommon('warnings.openPanel')].join('\n'),
+        )
+        : activeWarnings.map(w => warningButton(w.key, w.label, tCommon('warnings.openPanel')))}
+      {staleText && !folded('stale') && (
+        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>{staleText}</span>
       )}
-      {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
-          Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
-      {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
-        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
-          ⚠ {t('status.scheduleStale')}
-        </span>
-      )}
-      {selectedTaskIds.length > 0 && (
-        <span>{t('status.selection', { count: selectedTaskIds.length })}</span>
-      )}
+      {selectionText && !folded('selection') && <span>{selectionText}</span>}
       <div className="flex-1" />
-      <BaselineLegend />
-      {/* Afgeleid uit zoom — kan niet desyncen van de getekende as. */}
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.scale')} {t(`ribbon.${scaleFromZoom(zoom)}`)}</span>
-      <span style={{ color: 'var(--theme-text-muted)' }}>{t('status.zoom', { level: Math.round(zoom) })}</span>
-      {isDirty && <span style={{ color: 'var(--theme-warning-text)' }}>{t('status.unsaved')}</span>}
+      <BaselineLegend layers={baselineLayers} namesHidden={folded('baselineNames')} />
+      {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{scaleText}</span>}
+      {!folded('view') && <span style={{ color: 'var(--theme-text-muted)' }}>{zoomText}</span>}
+      {unsavedText && !folded('unsaved') && <span style={{ color: 'var(--theme-warning-text)' }}>{unsavedText}</span>}
+      {hiddenTexts.length > 0 && (
+        <button
+          type="button"
+          aria-label={hiddenTexts.join(', ')}
+          title={hiddenTexts.join('\n')}
+          data-tooltip-instant="true"
+          data-ops-status-more
+          className="flex items-center px-1.5 py-0.5 rounded hover:bg-surface-hover"
+        >
+          <Ellipsis size={14} aria-hidden="true" />
+        </button>
+      )}
       {aiMode && (
         <button
           onClick={() => setUI({ activeRibbonTab: 'ai' })}

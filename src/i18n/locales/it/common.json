@@ -723,7 +723,10 @@
     "missedDeadlines": "Scadenze superate: {{count}}",
     "violatedConstraints": "Vincoli violati: {{count}}",
     "outOfSequence": "Relazioni fuori sequenza: {{count}}",
-    "overallocated": "{{count}} risorsa/e sovrassegnata/e"
+    "overallocated": "{{count}} risorsa/e sovrassegnata/e",
+    "summary_one": "{{count}} avviso",
+    "summary_many": "{{count}} avvisi",
+    "summary_other": "{{count}} avvisi"
   },
   "warnings": {
     "title": "Avvisi",

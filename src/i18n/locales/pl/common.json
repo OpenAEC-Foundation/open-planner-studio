@@ -784,7 +784,11 @@
     "missedDeadlines": "Przekroczone terminy: {{count}}",
     "violatedConstraints": "Naruszone ograniczenia: {{count}}",
     "outOfSequence": "Relacje poza kolejnością: {{count}}",
-    "overallocated": "Przeciążone zasoby: {{count}}"
+    "overallocated": "Przeciążone zasoby: {{count}}",
+    "summary_one": "{{count}} ostrzeżenie",
+    "summary_few": "{{count}} ostrzeżenia",
+    "summary_many": "{{count}} ostrzeżeń",
+    "summary_other": "{{count}} ostrzeżenia"
   },
   "warnings": {
     "title": "Ostrzeżenia",

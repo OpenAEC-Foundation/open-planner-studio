@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} deadline(s) missed",
     "violatedConstraints": "{{count}} constraint(s) violated",
     "outOfSequence": "{{count}} out-of-sequence relation(s)",
-    "overallocated": "{{count}} resource(s) overallocated"
+    "overallocated": "{{count}} resource(s) overallocated",
+    "summary_one": "{{count}} warning",
+    "summary_other": "{{count}} warnings"
   },
   "warnings": {
     "title": "Warnings",

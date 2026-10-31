@@ -784,7 +784,11 @@
     "missedDeadlines": "Nesplněné konečné termíny: {{count}}",
     "violatedConstraints": "Porušená omezení: {{count}}",
     "outOfSequence": "Závislosti mimo posloupnost: {{count}}",
-    "overallocated": "Přetížení zdrojů: {{count}}"
+    "overallocated": "Přetížení zdrojů: {{count}}",
+    "summary_one": "{{count}} varování",
+    "summary_few": "{{count}} varování",
+    "summary_many": "{{count}} varování",
+    "summary_other": "{{count}} varování"
   },
   "warnings": {
     "title": "Varování",

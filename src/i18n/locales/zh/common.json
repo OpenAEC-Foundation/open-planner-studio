@@ -601,7 +601,8 @@
     "missedDeadlines": "已超过 {{count}} 个期限",
     "violatedConstraints": "{{count}} 个限制被违反",
     "outOfSequence": "{{count}} 个乱序关系",
-    "overallocated": "{{count}} 个资源过度分配"
+    "overallocated": "{{count}} 个资源过度分配",
+    "summary_other": "{{count}} 个警告"
   },
   "warnings": {
     "title": "警告",
