@@ -104,8 +104,10 @@ export function StatusBar() {
   const unsavedText = isDirty ? t('status.unsaved') : '';
   const baselineNames = baselineLayers.map(l => l.name);
 
+  // De zoomtekst telt hier niet mee: die tikt mee met elk wieltje. Groeit hij, dan vangt de
+  // overloopmeting dat op.
   const level = useStatusFold(barRef, FOLD_ORDER.length, [
-    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, zoomText, unsavedText,
+    tasksText, milestonesText, criticalText, endText, staleText, selectionText, scaleText, unsavedText,
     ...baselineNames, ...activeWarnings.map(w => w.label), aiMode, debugTerminalEnabled,
   ].join('|'));
   const folded = (part: typeof FOLD_ORDER[number]) => FOLD_ORDER.indexOf(part) < level;
