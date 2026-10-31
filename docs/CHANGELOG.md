@@ -28,6 +28,7 @@ grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentati
 
 ### Fixed
 
+- Release statistics count binary fixtures as zero source-code lines while retaining strict comparisons for textual changes.
 - Preserve actual timestamps, completed work and explicit source remaining durations through progress edits, work-rule changes, import, save/reopen and recalculation. Completed milestones retain their planned clock time; zero remaining duration does not silently change a running P6 task's status.
 - Correct working-day and clock-time boundaries for constraints, milestones, ALAP placement, lag and fractional remaining durations. Unchanged date input preserves its original instant.
 - MS Project XML and P6 XML round trips retain task measures, remaining duration and lag metadata. Native MPP assignment calculations account for assignment units; XER decoding is deterministic for Windows-1252.
