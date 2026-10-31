@@ -790,6 +790,67 @@
   opacity: 0.6;
 }
 
+/* Keuze uit meerdere standen: rond rondje in plaats van een vinkje. */
+.ribbon-check-box.is-radio {
+  border-radius: 50%;
+}
+
+.ribbon-check-box.is-radio.is-checked::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--theme-accent-on);
+}
+
+/* Wat bij een keuze hoort staat eronder en springt in tot de tekst van die keuze
+   (6px marge + 14px rondje + 8px gat, min de 6px marge van de regels zelf). */
+.ribbon-choice-detail {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  padding-inline-start: 22px;
+}
+
+/* De tekstgrootte komt van de plek waar dit staat: het menu of het venster Layouts. */
+.ribbon-choice-detail .ribbon-check-item {
+  font-size: inherit;
+}
+
+.ribbon-choice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  color: var(--theme-text);
+}
+
+.ribbon-color-swatch {
+  flex-shrink: 0;
+  width: 28px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--theme-control-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.ribbon-color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.ribbon-color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 1px;
+}
+
+.ribbon-color-swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 1px;
+}
+
 .ribbon-check-strip {
   flex-shrink: 0;
   width: 22px;

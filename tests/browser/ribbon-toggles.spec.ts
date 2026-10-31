@@ -4,6 +4,7 @@
 // muiswiel boven de tabs wisselt van tab (#688), boven de knoppen niet, en de instelling zet het uit.
 // Echte klikken en echte wielgebeurtenissen; de storebrug leest alleen de uitkomst.
 import { expect, seedProject, test } from './fixtures/ops';
+import { box, chooseLocale, LOCALE_CASES } from './fixtures/locale';
 import type { Page } from '@playwright/test';
 
 const activeTab = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab);
@@ -101,4 +102,108 @@ test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mi
     return { isMilestone: task.isMilestone, milestoneKind: task.milestoneKind };
   });
   expect(added).toEqual({ isMilestone: true, milestoneKind: 'START' });
+});
+
+/** Het paneel staat helemaal in het venster, en de uitleg is niet afgekapt. */
+async function expectBarColorsMenuInView(page: Page): Promise<void> {
+  const title = page.locator('[data-ops-bar-colors-menu]');
+  await expect(title).toBeVisible();
+  const viewport = page.viewportSize()!;
+  const panel = await box(title.locator('xpath=ancestor::div[contains(@style, "fixed")]'));
+  expect(panel.left, 'linkerrand').toBeGreaterThanOrEqual(0);
+  expect(panel.right, 'rechterrand').toBeLessThanOrEqual(viewport.width);
+  expect(panel.bottom, 'onderrand').toBeLessThanOrEqual(viewport.height);
+  const hint = page.locator('[data-ops-bar-colors-hint]');
+  expect((await box(hint)).right, 'uitleg past in het paneel').toBeLessThanOrEqual(panel.right);
+  expect(await hint.evaluate(element => element.scrollWidth <= element.clientWidth), 'uitleg is niet afgekapt').toBe(true);
+}
+
+async function openBarColors(page: Page): Promise<void> {
+  await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+  await page.locator('[data-ops-bar-colors-toggle]').click();
+}
+
+const barColors = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.barColorSelection);
+
+test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, en de tekst is overal gelijk', async ({ page, ops: _ops }) => {
+  // #692, ontwerpcontrole: op een venster van 1343 px viel het menu 30,7 px buiten de rechterrand.
+  // Waar de knop staat, hangt af van de inpassing van het lint; op 900 px valt een breedte van 305
+  // px ook in een vers venster buiten beeld.
+  await page.setViewportSize({ width: 900, height: 760 });
+  await openBarColors(page);
+  await expectBarColorsMenuInView(page);
+
+  // De drie kleuren en het herstellen staan direct onder Kritiek pad, boven de andere keuzes.
+  const editor = page.locator('[data-ops-bar-colors-editor]');
+  const critical = page.locator('[data-ops-bar-color-mode="critical"]');
+  const auto = page.locator('[data-ops-bar-color-mode="auto"]');
+  const category = page.locator('[data-ops-bar-color-mode="category"]');
+  expect((await box(critical)).bottom).toBeLessThanOrEqual((await box(editor)).top + 1);
+  expect((await box(editor)).bottom).toBeLessThanOrEqual((await box(auto)).top + 1);
+
+  // Keuzes zien eruit als keuzes: gewone tekstkleur, geen uitgegrijsde lintlabels.
+  const textColor = (selector: string) => page.locator(selector).first().evaluate(element => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    return getComputedStyle(walker.nextNode()!.parentElement!).color;
+  });
+  const dim = await textColor('[data-ops-bar-colors-hint]');
+  expect(await textColor('[data-ops-bar-color-mode="auto"]')).not.toBe(dim);
+  expect(await textColor('[data-ops-bar-color-mode="category"]')).not.toBe(dim);
+
+  // Eén tekstgrootte in het hele menu: elke tekst, ook de velden.
+  const fontSizes = () => page.locator('[data-ops-bar-colors-menu]').evaluate(title => {
+    const panel = title.closest<HTMLElement>('div[style*="fixed"]')!;
+    const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
+    const sizes = new Set<string>();
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.textContent?.trim()) sizes.add(getComputedStyle(node.parentElement!).fontSize);
+    }
+    return [...sizes];
+  });
+  expect(await fontSizes()).toHaveLength(1);
+
+  // Kleur kiezen, van stand wisselen en terugkomen: de kleurvelden horen alleen bij Kritiek pad.
+  await editor.locator('input[type="color"]').first().fill('#123456');
+  expect((await barColors(page)).colors?.critical).toBe('#123456');
+  await category.click();
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
+  expect(await fontSizes()).toHaveLength(1);
+  await expectBarColorsMenuInView(page);
+  await auto.click();
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
+  expect((await barColors(page)).mode).toBe('auto');
+  await page.locator('[data-ops-bar-colors-toggle]').click();
+  await expect(editor).toHaveCount(0);
+  // Terug naar Kritiek pad: het menu blijft open, want de kleuren staan er nu onder.
+  await critical.click();
+  await expect(editor).toBeVisible();
+  await expect(editor.locator('input[type="color"]').first()).toHaveValue('#123456');
+  await editor.getByRole('button').click();
+  expect((await barColors(page)).colors).toBeUndefined();
+
+  // Het venster verandert terwijl het menu open staat: het schuift mee.
+  await page.setViewportSize({ width: 1343, height: 760 });
+  await expectBarColorsMenuInView(page);
+  await page.setViewportSize({ width: 420, height: 760 });
+  await expectBarColorsMenuInView(page);
+  await page.keyboard.press('Escape');
+  await page.locator('[data-ops-ribbon-tab="beeld"]').click({ position: { x: 2, y: 2 } });
+  await page.mouse.click(5, 400);
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
+
+  // Een laag venster: de onderkant blijft in beeld, het menu scrolt.
+  await page.setViewportSize({ width: 1343, height: 300 });
+  await openBarColors(page);
+  await expectBarColorsMenuInView(page);
+  await page.mouse.click(5, 280);
+  await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
+
+  // Rechts-naar-links, breed en smal.
+  await page.setViewportSize({ width: 1343, height: 760 });
+  await chooseLocale(page, LOCALE_CASES[0]);
+  await openBarColors(page);
+  await expectBarColorsMenuInView(page);
+  await page.setViewportSize({ width: 420, height: 760 });
+  await expectBarColorsMenuInView(page);
 });
