@@ -57,7 +57,9 @@ per app-sessie zodat een handmatige stop niet stil ongedaan wordt gemaakt.
 
 De kern-bouwstenen nemen hun Tauri-randen als injecteerbare functies, zodat alles headless testbaar
 is — zie `tests/mcp/`. **Headless MCP-server** (`headless/mcp-server/`, #570, `docs/headless-mcp.md`): dezelfde
-tools op Node zonder app. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
+tools op Node zonder app. Zolang de desktop-app draait, vervangt hij geen bestaand bestand (het register loopt achter
+op de app): `appLock.ts` leest bij elke schrijfactie `open-files*.json` uit de mappen van de app (`mcpDiscoveryDirs`)
+of `--discovery-dir`, en weigert bij twijfel. Hij bundelt de MCP-laag zonder app-singleton; daarom staan de requestlaag
 (`requestHandler.ts`), `createMcpContext` (`context.ts`), de backupkern (`backupService.ts`), de versheid
 (`freshness.ts`) en de dialoogpoort (`src/state/blockingDialogs.ts`) in modules zonder waarde-import uit `appStore.ts`
 (`verify:store-boundaries`). Tools importeren daaruit, niet uit `server.ts`, `backup.ts` of `staleGuard.ts`. Een
@@ -76,17 +78,21 @@ sessieheader), pas dan `headless/mcp-server/src/http.ts` mee aan. Dezelfde contr
 Rust-unit-tests van de bridge (`cargo test … mcp_bridge`), die geen andere workflow draait. Wat geleverd is en wat
 niet: `docs/mcp-verificatie.md`.
 
-**Claude Desktop-bundel.** `integrations/claude-desktop/` is een MCP Bundle (`.mcpb`): een stdio-server die elk
-bericht doorstuurt naar de bridge van de draaiende app (`src/proxy.ts`), met token en poort uit het
-installatievenster (`src/config.ts`). `proxy.ts` blijft vrij van manifest-, transport- en clientcode: de bundel is een
-tussenstap en de module gaat op in de ene plugin uit #570. Geen planner, geen kern; `scripts/build-mcpb.mjs` faalt als `src/` in de bundel komt.
+**Claude Desktop-bundel** (#730). `integrations/claude-desktop/` is een MCP Bundle (`.mcpb`) met twee programma's:
+het schakelstuk (`server/index.mjs`, logica in `src/proxy.ts`) en de ongewijzigde headless server
+(`server/headless.mjs`, uit `build:mcp-server`). Per aanvraag leest het schakelstuk `runtime.json`
+(`src/discovery.ts`): draait de bridge, dan gaat de aanvraag daarheen; anders naar de headless server als kindproces op
+de werkmap uit het installatievenster (`src/headlessChild.ts`, `src/config.ts`). Na een wissel tijdens een sessie
+weigert hij wijzigingen tot een documentkeuze, en hij verlaat de headless planner niet zolang die werk heeft dat
+niet met `planner_export_ifc` is weggeschreven. `proxy.ts` blijft vrij van manifest-, transport-, bestands- en
+procescode. In het schakelstuk zit geen app-code behalve `discoveryContract.ts`; `scripts/build-mcpb.mjs` faalt anders.
 Wijzig je het HTTP-contract van de bridge (statuscodes, sessieheader, `404` bij een onbekende sessie), loop dan ook
-`proxy.ts` na; `tests/mcp/cases-mcpb.ts` start de gebouwde server uit de ZIP tegen `bridgeMirror.ts`. Een
+`proxy.ts` na; `tests/mcp/cases-mcpb.ts` start beide servers uit de ZIP, tegen `bridgeMirror.ts` en zonder app. Een
 wijzigende tool wordt na sessieverlies bewust niet herhaald (het drift-anker is dan weg), en daarna blijven wijzigingen
 geweigerd tot een geslaagde `planner_switch_document`, `planner_new_document` of `planner_import_schedule`
-het anker opnieuw bindt. Nieuw/import mogen als losse herstelactie door, maar worden nooit automatisch herhaald; hernoem of verander je die tool, loop dan
-`DOCUMENT_CHOICE_TOOL` in `proxy.ts` na; welke tools lezen, haalt
-de bundel uit `readOnlyHint` in `tools/list`.
+het anker opnieuw bindt. Nieuw/import mogen als losse herstelactie door, maar worden nooit automatisch herhaald; hernoem of verander je die tools
+of `planner_export_ifc` (of het veld `envelope.activeDocumentId`), loop dan `DOCUMENT_CHOICE_TOOL`, `DOCUMENT_RECOVERY_TOOLS`
+en `EXPORT_TOOL` in `proxy.ts` na; welke tools lezen, haalt de bundel uit `readOnlyHint` in `tools/list`.
 
 **Ontdekkingsbestanden voor de MCP-plugin** (issue #570). `runtime.json` (zolang de bridge draait) en
 `open-files.json` (zolang de desktop-app draait, ook met de MCP-koppeling uit) in `<appDataDir>/mcp/`. Contract
