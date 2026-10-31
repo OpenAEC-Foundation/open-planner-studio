@@ -1679,3 +1679,9 @@ en noem het in je rapport of PR-tekst.
     ingedrukte muisknop. Ook: balk vastpakken, F2 opent Taak bewerken, Escape. De window-capture in `useBarDrag` stopt
     het event vóór `useDialogKeys`. Popover en inline-editor liggen ook achter deze luisteraar. VERVOLG uit review #704
     (GPT-6.1-Sol) op `d90cb289d`. — B
+586. **Een verdwenen taak laat de sleepsessie hangen.** `src/components/canvas/hooks/useBarDrag.ts:387` stopt het effect
+    als de taak ontbreekt. Bij een gewijzigde takenlijst ruimt React eerst de oude luisteraars op, en de nieuwe mouseup-
+    en Escape-luisteraars worden niet geregistreerd. Sleep schrijft, verwijder de geselecteerde taak terwijl de muisknop
+    ingedrukt blijft, laat los: `active=true`, `isAutoCalcHeld()=true`, nul mouseup-luisteraars, en een latere bewerking
+    krijgt dezelfde `sessionKey`. Richting: sluit bij een ontbrekende taak de sessie en wis de sleeptoestand; één extra
+    afsluitroute volstaat. VERVOLG uit review #704 (GPT-6.1-Sol) op `3daa132d4`. — B
