@@ -5,9 +5,15 @@ import { flushSync } from 'react-dom';
  * De statusbalk is altijd één rij hoog; deze hook zoekt de laagste vouwstand waarin alles past. De
  * meting is de echte DOM, dus taal, tekstschaal en lettertype tellen vanzelf mee. Verandert de breedte
  * of `contentKey`, dan begint de zoektocht weer bij 0. Alles gebeurt vóór het tekenen: zolang de balk
- * overloopt zet de layout-effect de volgende stand, dus geen tussenstand komt in beeld.
+ * overloopt zet de layout-effect de volgende stand, dus geen tussenstand komt in beeld. `liveText`
+ * verandert vaak (de zoomtekst, bij elk wieltje): die meet alleen opnieuw en begint niet bij 0.
  */
-export function useStatusFold(barRef: RefObject<HTMLElement | null>, maxLevel: number, contentKey: string): number {
+export function useStatusFold(
+  barRef: RefObject<HTMLElement | null>,
+  maxLevel: number,
+  contentKey: string,
+  liveText: string,
+): number {
   const [level, setLevel] = useState(0);
   const [measureRound, setMeasureRound] = useState(0);
   const lastKey = useRef('');
@@ -24,7 +30,7 @@ export function useStatusFold(barRef: RefObject<HTMLElement | null>, maxLevel: n
       }
     }
     if (level < maxLevel && bar.scrollWidth > bar.clientWidth) setLevel(level + 1);
-  });
+  }, [barRef, key, level, maxLevel, liveText]);
 
   useLayoutEffect(() => {
     const bar = barRef.current;
