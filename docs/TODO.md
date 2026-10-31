@@ -417,10 +417,6 @@ importgrens). Deze drie zijn bewust blijven liggen.
       praktijk zeldzaam — het is een gratis extra drempel bovenop `ROW_DRAG_THRESHOLD`.
 
 ### Klein
-- [ ] **Mijlpaal horizontaal verslepen om de datum te wijzigen.** Nu geblokkeerd door dezelfde
-      `getTaskBarBounds`-null die het relatie-tekenen blokkeerde (opgelost in spec 2026-08-14). Raakt
-      `barDrag`: bij een 0-duurtaak mag alleen een body-sleep armen, nooit een resize-greep, en
-      snapping/undo/uur-modus moeten kloppen.
 - [ ] **Taakbewerkvenster en eigenschappenpaneel labelen hetzelfde duurveld verschillend:** het paneel
       toont `Duur (dagen)` (`task:properties.duration`), de dialoog (`TaskDialog`, via de gedeelde
       `task-sections`) `Duur (werkdagen)` (`task:dialog.duration`). Gemeten in een browsergebruikstest

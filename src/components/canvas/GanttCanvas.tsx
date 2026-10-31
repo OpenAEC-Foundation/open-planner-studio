@@ -61,7 +61,7 @@ import {
   type GanttRenderOptionsSourceInput,
 } from './ganttRenderOptions';
 import { buildTrace } from '@/engine/taskGrid/trace';
-import { predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
+import { isLooseDayEndMilestone, predecessorDrivenTaskIds } from '@/engine/startEditConstraint';
 import { useGanttRendererHost, useGanttRendererRefs } from './hooks/useGanttRendererHost';
 import { useGanttViewportCoordinator } from './hooks/useGanttViewportCoordinator';
 import { useGanttHistogramInteraction } from './hooks/useGanttHistogramInteraction';
@@ -157,6 +157,9 @@ export function GanttCanvas({
   const splitMode = useAppStore(s => s.ui.showSplitMode);
   const setTaskSplits = useAppStore(s => s.setTaskSplits);
   const undo = useAppStore(s => s.undo);
+  const historyMark = useAppStore(s => s.historyMark);
+  const revertHistorySince = useAppStore(s => s.revertHistorySince);
+  const endHistorySession = useAppStore(s => s.endHistorySession);
   const setScroll = useAppStore(s => s.setScroll);
   const setUI = useAppStore(s => s.setUI);
   // Store-acties die het contextmenu ontsluit. De muterende taak-acties (in-/uitspringen,
@@ -223,6 +226,12 @@ export function GanttCanvas({
   // De belasting van de selectie leest dezelfde maatconventie (het profiel) als de solver.
   const schedulingProfile = useAppStore(s => s.project.schedulingProfile);
   const projectSchedulingOptions = useAppStore(s => s.project.schedulingOptions);
+  const looseDayEndMilestone = useCallback((taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    const dayEnd = effectiveSchedulingOptions({ schedulingProfile, schedulingOptions: projectSchedulingOptions })
+      .milestoneWithoutPredecessorAtDayEnd;
+    return !!task && isLooseDayEndMilestone(task, tasks, allSequences, dayEnd);
+  }, [tasks, allSequences, schedulingProfile, projectSchedulingOptions]);
   const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
   const showProgressLine = useAppStore(s => s.ui.showProgressLine);
   // Resource-accent + de bijbehorende resources/toewijzingen (zelfde bron als de histogram/
@@ -517,11 +526,15 @@ export function GanttCanvas({
     updateTask,
     setTaskSplits,
     undo,
+    historyMark,
+    revertHistorySince,
+    endHistorySession,
     setScroll,
     openTask,
     clearHistogramTooltip: histogramInteraction.clearTooltip,
     startVerticalRowDrag: rowDragBridge ? startVerticalRowDrag : undefined,
     isStartDrivenByPredecessor,
+    looseDayEndMilestone,
     notify,
     dateNotation,
     timeNotation,
