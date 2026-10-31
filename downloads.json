@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-10-31T02:01:54.051Z",
+  "generatedAt": "2026-10-31T04:01:53.174Z",
   "downloads": 3085,
   "releases": [
     {
@@ -40,7 +40,7 @@
           }
         }
       },
-      "polls": 923
+      "polls": 931
     },
     {
       "tag": "v2026.10.0",
@@ -883,7 +883,7 @@
       }
     }
   },
-  "polls": 5424,
+  "polls": 5432,
   "unknown": [
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
     "v2026.43.0: open-planner-studio_2026.43.0_amd64.snap.asc",
