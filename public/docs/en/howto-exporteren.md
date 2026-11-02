@@ -21,7 +21,7 @@ The list on the *Home* tab and the cards in *File › Export* offer the same for
 - *Progress (Excel)*, on the card *Progress sheet (Excel)*: a slim sheet with id, WBS, name, dates and completion, to send round to whoever fills in the progress.
 - *CSV (;)*, on the card *CSV (semicolon-separated)*: a task list that you open in a spreadsheet.
 - *MS Project XML*: can be opened in Microsoft Project.
-- *Primavera P6 XML*: for Oracle Primavera P6.
+- *Primavera P6 XML*: for Oracle Primavera P6. This choice also has the label *Experimental*: the export has not yet been tested by opening the file in Primavera P6 itself. After saving, the app reports what was not included, or not exactly.
 - *Primavera P6 XER*: for Oracle Primavera P6, as a `.xer` file. This choice has the label *Experimental*: the export has not yet been tested by opening the file in Primavera P6 itself, and much is not included, or not exactly. After saving, the app reports what was not included, or not exactly. Check the schedule after you open it in P6. If your project uses a scheduling profile other than *Primavera P6*, a short hint below the choice names the recommended profile. The same applies to *Primavera P6 XML*, and to *MS Project XML* with the *Microsoft Project* profile. After saving, the app gives the same advice in a notification. The export still goes ahead.
 - *IFC*: the app's own format, with everything in it, in the IFC schema of the project (default IFC 4.3 ADD2).
 
@@ -47,9 +47,9 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **A schedule with a circular dependency is not exported.** The app calculates first and stops if there is a loop. On the *Home* tab you get the message *Schedule could not be calculated*, with below it for example *Circular dependency between tasks: Set up site → Demolish existing extension → Set up site*. In *File › Export* only that second text is on the page. Resolve the loop and export again.
 
-**A project from Primavera loses source information.** If you export such a project to CSV, MS Project XML or P6 XML, the app reports: *Exporting to CSV loses XER source information.* For MS Project XML it says *MSPDI*, for P6 XML *P6*. See [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
+**A project from Primavera loses source information.** If you export such a project to CSV or MS Project XML, the app reports: *Exporting to CSV loses XER source information.* For MS Project XML it says *MSPDI*. P6 XML names it in its own list. See [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen).
 
-**A project you made yourself also loses data.** If the format cannot hold something from your project, such as notes, a secondary constraint or manual scheduling, the app reports after the export: *Exporting to CSV drops data that CSV cannot hold, such as notes or a secondary constraint. The IFC project file keeps everything.* For MS Project XML it says *MSPDI*, for P6 XML *P6*. The *Read more* link brings you to this page.
+**A project you made yourself also loses data.** If the format cannot hold something from your project, such as notes, a secondary constraint or manual scheduling, the app reports after the export: *Exporting to CSV drops data that CSV cannot hold, such as notes or a secondary constraint. The IFC project file keeps everything.* For MS Project XML it says *MSPDI*. P6 XML and XER give a list per kind. The *Read more* link brings you to this page.
 
 **Characters that XML does not allow are replaced.** A control character in a name or text, for example from an imported CSV file, cannot be in an XML file. For MS Project XML and P6 XML the app replaces such a character with �. The app then reports: *2 characters that XML does not allow were replaced with � in the export.* For one character it says *1 character that XML does not allow was replaced with � in the export.* Search the exported file for � to find the place.
 

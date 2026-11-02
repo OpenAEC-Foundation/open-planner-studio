@@ -110,6 +110,8 @@
     "exportInvalidXmlChars_other": "{{count}} characters that XML does not allow were replaced with � in the export.",
     "exportCriticalHoursLost": "When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.",
     "exportXerLoss": "The XER export is saved. This was not included, or not exactly:",
+    "exportP6XmlLoss": "The P6 XML export is saved. This was not included, or not exactly:",
+    "p6XmlOpensAsOps": "This file uses the {{profile}} profile, not the P6 settings.",
     "projectStartAnchorsClamped_one": "{{count}} task moved with the project start.",
     "projectStartAnchorsClamped_other": "{{count}} tasks moved with the project start.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
@@ -297,6 +299,27 @@
       "nonLatinText_one": "{{count}} character does not fit in Windows-1252: the file is saved in UTF-8. Check the text after the import in P6.",
       "nonLatinText_other": "{{count}} characters do not fit in Windows-1252: the file is saved in UTF-8. Check the text after the import in P6.",
       "sourceDetails": "Data from the original XER file that the app does not use, such as unknown tables and raw curves"
+    },
+    "exportP6XmlLossItem": {
+      "schedulingOptions": "Project scheduling settings: P6 uses its own settings, so dates and float can differ",
+      "baselines_one": "{{count}} baseline",
+      "baselines_other": "{{count}} baselines",
+      "summaryRelations_one": "{{count}} relationship with a summary task: P6 does not support it",
+      "summaryRelations_other": "{{count}} relationships with a summary task: P6 does not support them",
+      "hammocks_one": "{{count}} hammock task became a normal task",
+      "hammocks_other": "{{count}} hammock tasks became normal tasks",
+      "suspendResume_one": "{{count}} task with a suspend or resume date: those dates are lost",
+      "suspendResume_other": "{{count}} tasks with a suspend or resume date: those dates are lost",
+      "priorities_one": "{{count}} task priority is lost",
+      "priorities_other": "{{count}} task priorities are lost",
+      "notes_one": "{{count}} note",
+      "notes_other": "{{count}} notes",
+      "resourceTypes_one": "{{count}} crew or subcontractor resource gets a P6 type: its own type is lost",
+      "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
+      "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
+      "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
+      "defaultWorkRule": "The project default for the task type: tasks without their own rule get the P6 default",
+      "projectDetails": "Project author and company"
     }
   },
   "scheduleErrors": {
