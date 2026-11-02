@@ -4,12 +4,11 @@ name: CodeQL (advanced)
 # alleen als de Rust-kant of de pakketlijst wijzigt, en altijd op main en bij de wekelijkse run. Besluit Ethan
 # (2026-11-02, optie 1 uit PR #763): Rust kostte 4 tot 6 min per PR, ook bij een PR die geen Rust raakt.
 #
-# Deze workflow staat UIT tot iemand met beheerrechten twee dingen doet; GitHub verwerkt geen eigen CodeQL-analyse
-# zolang de standaardinstelling aanstaat:
-#   1. code scanning: default setup uitzetten (Settings → Code security, of
-#      `gh api -X PATCH repos/OpenAEC-Foundation/open-planner-studio/code-scanning/default-setup -f state=not-configured`);
-#   2. de repo-variabele OPS_CODEQL_ADVANCED op `true` zetten
-#      (`gh variable set OPS_CODEQL_ADVANCED --body true --repo OpenAEC-Foundation/open-planner-studio`).
+# Deze workflow staat UIT tot de omschakeling: GitHub verwerkt geen eigen CodeQL-analyse zolang de standaardinstelling
+# (default setup) aanstaat. Hij draait bij push, PR en schema alleen als de repo-variabele OPS_CODEQL_ADVANCED `true`
+# is. Een handmatige start met `force: true` draait ook zonder die variabele: zo slaagt de eerste scan van main,
+# Rust inbegrepen, vóórdat de variabele aangaat. De omschakeling stap voor stap, met controle en herstel per stap,
+# staat in de beschrijving van PR #777.
 # Een overgeslagen Rust-analyse verschijnt als "Analyze (rust)" met status skipped.
 on:
   push:
@@ -21,6 +20,11 @@ on:
   schedule:
     - cron: '27 3 * * 1'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Draai ook zonder OPS_CODEQL_ADVANCED (voor de eerste scan bij de omschakeling)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,7 +36,7 @@ concurrency:
 jobs:
   changes:
     name: changes
-    if: vars.OPS_CODEQL_ADVANCED == 'true'
+    if: vars.OPS_CODEQL_ADVANCED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     outputs:
@@ -48,7 +52,7 @@ jobs:
 
   analyze:
     name: Analyze (${{ matrix.language }})
-    if: vars.OPS_CODEQL_ADVANCED == 'true'
+    if: vars.OPS_CODEQL_ADVANCED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -66,7 +70,6 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-          queries: default
 
       - uses: github/codeql-action/analyze@v4
         with:
@@ -76,7 +79,7 @@ jobs:
   analyze-rust:
     name: Analyze (rust)
     needs: changes
-    if: vars.OPS_CODEQL_ADVANCED == 'true' && needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -90,7 +93,6 @@ jobs:
         with:
           languages: rust
           build-mode: none
-          queries: default
 
       - uses: github/codeql-action/analyze@v4
         with:
