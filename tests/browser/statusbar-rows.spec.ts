@@ -170,6 +170,26 @@ test('statusbalk: altijd één rij, en wat niet past blijft te vinden', async ({
     }
   }
 
+  // Alleen de tekstgrootte of het lettertype verandert, bij dezelfde breedte en taal: de balk meet
+  // zelf opnieuw. Geen venster- of taalwissel vóór de meting, want die meet al opnieuw.
+  await setLocale(page, 'en');
+  for (const width of [...WIDTHS, 1100]) {
+    await page.setViewportSize({ width, height: 900 });
+    const before = await measureBar(page);
+    expect(before.problems, `en op ${width}px, 100%`).toEqual([]);
+    await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 125 }));
+    expect((await measureBar(page)).problems, `en op ${width}px, naar 125%`).toEqual([]);
+    await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 100 }));
+    const after = await measureBar(page);
+    expect(after.problems, `en op ${width}px, terug naar 100%`).toEqual([]);
+    // Terug naar kleiner: wat samenviel, komt weer terug.
+    expect(after.visible, `en op ${width}px, terug naar 100%`).toEqual(before.visible);
+    await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontFamily: 'mono' }));
+    expect((await measureBar(page)).problems, `en op ${width}px, lettertype mono`).toEqual([]);
+    await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontFamily: 'default' }));
+    expect((await measureBar(page)).visible, `en op ${width}px, lettertype terug`).toEqual(before.visible);
+  }
+
   // De grootste tekstschaal uit de instellingen, in de talen met de langste statusteksten.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ uiFontScale: 125 }));
   for (const locale of ['hr', 'fi', 'ru', 'de']) {

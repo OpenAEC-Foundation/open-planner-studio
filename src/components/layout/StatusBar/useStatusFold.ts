@@ -3,8 +3,9 @@ import { flushSync } from 'react-dom';
 
 /**
  * De statusbalk is altijd één rij hoog; deze hook zoekt de laagste vouwstand waarin alles past. De
- * meting is de echte DOM, dus taal, tekstschaal en lettertype tellen vanzelf mee. Verandert de breedte
- * of `contentKey`, dan begint de zoektocht weer bij 0. Alles gebeurt vóór het tekenen: zolang de balk
+ * meting is de echte DOM, dus taal, tekstschaal en lettertype tellen mee. Verandert de breedte, de
+ * `contentKey`, de stijl van `<html>` (tekstgrootte en lettertype) of laadt er een lettertype, dan
+ * begint de zoektocht weer bij 0. Alles gebeurt vóór het tekenen: zolang de balk
  * overloopt zet de layout-effect de volgende stand, dus geen tussenstand komt in beeld. `liveText`
  * verandert vaak (de zoomtekst, bij elk wieltje): die meet alleen opnieuw en begint niet bij 0.
  */
@@ -43,9 +44,19 @@ export function useStatusFold(
       flushSync(() => setMeasureRound(round => round + 1));
     });
     observer.observe(bar);
-    // Het lettertype komt later binnen dan de eerste meting en verandert de breedtes.
-    void document.fonts?.ready.then(() => setMeasureRound(round => round + 1));
-    return () => observer.disconnect();
+    // Tekstgrootte en lettertype zet App als CSS-variabelen op <html>, ná deze meting en zonder dat de
+    // balk breder of smaller wordt. De callback komt vóór het tekenen, dus geen frame overloop.
+    const styleObserver = new MutationObserver(() => flushSync(() => setMeasureRound(round => round + 1)));
+    styleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    // Een lettertype komt later binnen dan de eerste meting en verandert de breedtes.
+    const remeasure = () => setMeasureRound(round => round + 1);
+    void document.fonts?.ready.then(remeasure);
+    document.fonts?.addEventListener?.('loadingdone', remeasure);
+    return () => {
+      observer.disconnect();
+      styleObserver.disconnect();
+      document.fonts?.removeEventListener?.('loadingdone', remeasure);
+    };
   }, [barRef]);
 
   return level;
