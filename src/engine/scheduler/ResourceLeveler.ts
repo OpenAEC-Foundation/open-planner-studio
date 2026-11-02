@@ -910,12 +910,17 @@ export function levelResources(
   for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(inScope)]) {
     const start = pinnedStartDate.get(taskId);
     if (!start) continue;
-    const { days: occ, byRes } = demandAt(workById.get(taskId)!, start);
+    const task = workById.get(taskId)!;
+    const { days: occ, byRes } = demandAt(task, start);
     const days = new Set(fixedPoolConflicts.get(taskId) ?? []);
-    for (const [resId, demand] of byRes) {
-      for (let i = 0; i < demand.length && i < occ.length; i++) {
-        if (demand[i] > 0 && exceedsCapacity(bookedOn(resId, occ[i]), capacityOf(resId, occ[i]))) {
-          days.add(occ[i]);
+    // De bestaande projectrapportage blijft voor pins en handmatige/volledig vaste plaatsing.
+    // Bij overige voortgangslast voegen we uitsluitend de ontbrekende poolconflicten toe.
+    if (pinnedSet.has(taskId) || hasManualPlacement(task) || options.preserveExistingLeveling) {
+      for (const [resId, demand] of byRes) {
+        for (let i = 0; i < demand.length && i < occ.length; i++) {
+          if (demand[i] > 0 && exceedsCapacity(bookedOn(resId, occ[i]), capacityOf(resId, occ[i]))) {
+            days.add(occ[i]);
+          }
         }
       }
     }
