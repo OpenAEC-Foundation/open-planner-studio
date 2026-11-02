@@ -1752,13 +1752,6 @@ en noem het in je rapport of PR-tekst.
      Voorstel: vergelijk in deze vaste fixtures de volledige verwachte tijdstippen. Gevonden in review van #654
      (GPT-6.1-Sol), 2026-10-29. — B
 
-473. **`check-gantt-label-ellipsis` bewaakt de naam achter een gewone taak niet meer.** Sinds #731 staat er een
-     samenvatting met dezelfde lange naam en dezelfde balkpositie in de scène, en de zoekactie voor de gewone
-     taak (`tests/planning/check-gantt-label-ellipsis.ts:128`) kijkt niet naar de rij. Valt de buitennaam van
-     een gewone taak weg, dan vindt de check de naam van de samenvatting en blijft hij groen (in de review
-     nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
-     met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
-     2026-10-29. — B
 490. **Lint-muiswiel: de poort voor een openstaande vraag heeft geen teststap.** `useRibbonTabWheel.ts`
      wisselt niet als het bewaren van het actieve veld een vraag opent (`isBlockingDialogOpen`). De stap in
      `tests/browser/ribbon-toggles.spec.ts` toetst alleen een duur, en die opent geen vraag. Route die de
