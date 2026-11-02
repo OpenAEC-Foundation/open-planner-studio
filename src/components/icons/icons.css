@@ -18,8 +18,8 @@
 }
 
 /* Statusiconen kleuren mee met de themarol (Style Repo `semantic_color`); de rol wint van `currentColor`.
-   Het oranje deel blijft oranje: elk icoon heeft een oranje element, ook een statusicoon naast zijn
-   statuskleur (besluit Ethan, 2 november 2026; Blueprint `docs/iconen.md`). */
+   Het kader krijgt de statuskleur, het teken erin blijft oranje (voorstel a, gekozen door Ethan op 2 november
+   2026; Blueprint `docs/iconen.md`, "Grijs en oranje"). */
 .oa-icon--error { color: var(--theme-critical-text); }
 .oa-icon--warning { color: var(--theme-warning-text); }
 .oa-icon--success { color: var(--theme-success-text, #16a34a); }

@@ -1,6 +1,6 @@
-import type { CSSProperties, SVGAttributes } from 'react';
+import type { SVGAttributes } from 'react';
 import { B2_ICONS, type IconDef, type IconId, type IconMaster } from './b2/icons.generated';
-import { applyStatusProposal } from './statusProposal';
+import { applyDockProposal } from './dockProposal';
 
 export type { IconId };
 
@@ -15,6 +15,8 @@ const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
  *   het icoon op 16 px zet (zie `icons.css`).
  * - Hoofdkleur `currentColor`, accent `var(--icon-accent)` (gezet in `icons.css` per thema; `oa-icon--mono`
  *   schakelt het accent uit). Een icoon met `semantic` kleurt mee met de statuskleur van het thema.
+ * - Grijs is de basis, oranje het accent: een icoon is nooit helemaal oranje (Blueprint `docs/iconen.md`, "Grijs en
+ *   oranje"). De Blueprint zet daarom geen `accent` meer op een heel icoon; dat veld wordt hier niet gebruikt.
  * - Standaard decoratief (`aria-hidden`); met `aria-label` of `title` wordt het een `role="img"`.
  * - `data-icon` draagt het id voor tests en de self-test-harness.
  */
@@ -29,7 +31,7 @@ export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children'
 
 function masterFor(id: IconId, size: number): IconMaster {
   const def = ICONS[id];
-  return applyStatusProposal(id, size <= 18 ? def.s16 : def.s24);
+  return size <= 18 ? applyDockProposal(id, 16, def.s16) : applyDockProposal(id, 24, def.s24);
 }
 
 export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
@@ -41,9 +43,6 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
   const ownColor = /(^|\s)text-/.test(className ?? '');
   const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic && !ownColor ? `oa-icon--${def.semantic}` : '', className ?? '']
     .filter(Boolean).join(' ');
-  const svgStyle: CSSProperties | undefined = def.accent
-    ? { color: 'var(--icon-accent, currentColor)', ...style }
-    : style;
   return (
     <svg
       className={classes}
@@ -54,7 +53,7 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
       aria-hidden={decorative ? true : undefined}
       role={decorative ? undefined : 'img'}
       focusable="false"
-      style={svgStyle}
+      style={style}
       {...rest}
     >
       {title ? <title>{title}</title> : null}
@@ -65,7 +64,7 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
             <g className="oa-icon__m24">{renderParts(master)}</g>
             {/* De 16 px-master op het 24-raster (×1,5). `icons.css` toont hem waar het lint een groot icoon
                 op 16 px zet (mini-stand, ingeklapt lint); dan staat hij op ware grootte en blijft hij scherp. */}
-            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(applyStatusProposal(id, def.s16))}</g>
+            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(applyDockProposal(id, 16, def.s16))}</g>
           </>
         )}
     </svg>

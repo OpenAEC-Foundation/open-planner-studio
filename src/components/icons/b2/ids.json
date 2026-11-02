@@ -163,6 +163,7 @@
   "status.library-item-missing",
   "status.library-linked",
   "status.library-suggestion",
+  "status.more-hidden",
   "status.project-calendar",
   "status.recorded-dates",
   "status.resource-overallocated",

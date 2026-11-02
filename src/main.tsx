@@ -41,10 +41,11 @@ if (qaScene) {
   void import('@/utils/qaScenes').then(({ runQaScene }) => runQaScene(qaScene)).catch(e => console.error(e));
 }
 
-// Statusblad voor het voorstel over het oranje element in statusiconen, alleen in DEV en met `?iconen=status`
-// (zie src/components/icons/statusProposal.ts). Tijdelijk: gaat eruit zodra Ethan een voorstel kiest.
-if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('iconen') === 'status') {
-  void import('@/components/icons/StatusIconSheet').then(({ mountStatusIconSheet }) => mountStatusIconSheet()).catch(e => console.error(e));
+// Iconenblad, alleen in DEV: `?iconen=status` (statusiconen) of `?iconen=dock` (voorstellen voor Resourcedock,
+// zie src/components/icons/dockProposal.ts). Tijdelijk: gaat eruit zodra Ethan een voorstel kiest.
+const iconSheet = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('iconen') : null;
+if (iconSheet === 'status' || iconSheet === 'dock') {
+  void import('@/components/icons/IconReviewSheet').then(({ mountIconReviewSheet }) => mountIconReviewSheet(iconSheet)).catch(e => console.error(e));
 }
 
 // Wacht tot de actieve taal geladen is voordat we renderen (voorkomt een Engelse flits).
