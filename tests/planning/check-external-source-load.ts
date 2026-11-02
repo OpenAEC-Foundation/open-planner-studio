@@ -15,6 +15,10 @@ import { readExternalSource } from '@/state/externalSource';
 import { computedFinish, computedStart } from '@/utils/taskDates';
 import type { FormatIO } from '@/services/formatRegistry';
 import type { ExternalLink } from '@/types/task';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { externIfc } from '../fixtures/recordedDatesIfc';
 
 let checks = 0;
 const failures: string[] = [];
@@ -102,6 +106,60 @@ eq('3d het document blijft rekenkundig actueel', S().scheduleStale, false);
   eq('4b verversen vindt de koppeling op id', result, { refreshed: 1, missing: 0 });
   eq('4c het opgeslagen anker is al het actuele anker',
     groot.getState().tasks.find(task => task.id === own)!.externalLinks![0].anchorDate, original.anchorDate);
+}
+
+// (5) Review PR #792 ronde 1: de bron houdt de modus "datums zoals opgeslagen" aan, zoals openen.
+// Bron: de fixture van issue #63. Taak B staat in het bestand op 16–20 maart 2026; de berekening
+// geeft 9–13 maart. Een eigen IFC dat IN de modus is opgeslagen, opent weer in de modus, met B op
+// 20 maart 16:00. De bronlezer gaf eerst B op 13 maart (de berekening), en dan schoof het
+// gekoppelde werk na "Bron vernieuwen" van 23 naar 16 maart.
+{
+  const memoryIo = (text: string): FormatIO => ({
+    readTextFile: async () => text,
+    readFile: async () => new TextEncoder().encode(text),
+  });
+  const bFinish = (tasks: readonly { name: string }[]) => {
+    const b = tasks.find(task => task.name === 'B') as Parameters<typeof computedFinish>[0] | undefined;
+    return b ? computedFinish(b) : null;
+  };
+  const opener = createAppStoreContext().store;
+  opener.getState().newProject();
+  opener.getState().applyLoadedProject(readIFC(externIfc('ext5')), { filePath: null, recompute: true });
+  eq('5a de verse import opent in de modus, met B op 20 maart', [opener.getState().datesAsRecorded, bFinish(opener.getState().tasks)],
+    [true, '2026-03-20T16:00']);
+  const savedInMode = writeIFC(buildWriteIFCInput(opener.getState()));
+  opener.getState().newProject();
+  opener.getState().applyLoadedProject(readIFC(savedInMode), { filePath: null, recompute: true });
+  eq('5b het eigen IFC, opgeslagen in de modus, opent weer met B op 20 maart',
+    [opener.getState().datesAsRecorded, bFinish(opener.getState().tasks)], [true, '2026-03-20T16:00']);
+
+  const ownPath = '/projecten/bron-in-modus.ifc';
+  const ownSource = await readExternalSource(ownPath, memoryIo(savedInMode));
+  eq('5c de bronlezer geeft B dezelfde datum als openen', bFinish(ownSource.tasks), '2026-03-20T16:00');
+  const foreignSource = await readExternalSource('/projecten/extern.ifc', memoryIo(externIfc('ext5')));
+  eq('5d ook een verse import als bron: B op 20 maart', bFinish(foreignSource.tasks), '2026-03-20T16:00');
+
+  const linked = createAppStoreContext().store;
+  linked.setState({ parseExternalSource: async (filePath: string) => readExternalSource(filePath, memoryIo(savedInMode)) });
+  linked.getState().newProject();
+  linked.getState().setProject({ startDate: '2026-03-02' });
+  const own = linked.getState().addTask({ name: 'Bestrating' });
+  const sourceB = ownSource.tasks.find(task => task.name === 'B')!;
+  linked.getState().updateTask(own, {
+    externalLinks: [{
+      id: 'fs-b', direction: 'predecessor', relType: 'FS', anchorDate: '2026-03-20T16:00', lagDays: 0, sourceMissing: false,
+      sourceRef: { projectId: ownSource.projectId, taskId: sourceB.id, filePath: ownPath },
+    }],
+  });
+  linked.getState().runCPM();
+  const ownStart = () => computedStart(linked.getState().tasks.find(task => task.id === own)!);
+  eq('5e het gekoppelde werk start na B, op maandag 23 maart', ownStart(), '2026-03-23T07:00');
+  const result = await linked.getState().refreshExternalAnchorsFrom(ownPath);
+  linked.getState().runCPM();
+  eq('5f "Bron vernieuwen" vindt de koppeling', result, { refreshed: 1, missing: 0 });
+  eq('5g het anker blijft 20 maart 16:00', linked.getState().tasks.find(task => task.id === own)!.externalLinks![0].anchorDate,
+    '2026-03-20T16:00');
+  eq('5h het gekoppelde werk blijft op 23 maart', ownStart(), '2026-03-23T07:00');
 }
 
 if (failures.length) {

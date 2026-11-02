@@ -6,7 +6,7 @@ import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/form
 import { activeImportResult, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
 import { payloadFromImport } from './documentContract';
-import { prepareLoadedPayload } from './documentActivation';
+import { applyRecordedDatesOnLoad, prepareLoadedPayload } from './documentActivation';
 
 /** Een ingelezen bron, met de velden die de verversing en de dialoog lezen. */
 export interface ExternalSourceRead extends ExternalSourceDoc {
@@ -21,12 +21,18 @@ export interface ExternalSourceRead extends ExternalSourceDoc {
  * planner in dat project ziet. De kale lezer gaf een eigen IFC datums zonder tijd; de eigen taak
  * koos daar dan de verkeerde kant van de dag bij (een mijlpaal heeft één moment, D7).
  *
- * Zonder modus "datums zoals opgeslagen": de bron telt met zijn berekende datums. Een cyclus in de
- * bron laat de datums staan zoals gelezen (`solveProject` schrijft dan niets terug).
+ * Ook de modus "datums zoals opgeslagen" volgt het openen (`applyRecordedDatesOnLoad`, met dezelfde
+ * argumenten als `fileSlice.applyLoadedProject`): opent de bron in de modus, dan telt hij met de
+ * opgeslagen datums, anders met de berekening (review PR #792 ronde 1). Een cyclus in de bron laat
+ * de datums staan zoals gelezen (`solveProject` schrijft dan niets terug).
  */
 export function externalSourceFromImport(parsed: ImportResult, filePath: string): ExternalSourceRead {
   const { result } = ensureUniqueImportIds(parsed);
-  const prepared = prepareLoadedPayload(payloadFromImport(result, filePath), { recompute: true });
+  const payload = payloadFromImport(result, filePath);
+  const prepared = prepareLoadedPayload(payload, { recompute: true });
+  // `payload.tasks` is de taaklijst van vóór de berekening: `prepareLoadedPayload` muteert zijn
+  // invoer niet, en `applyRecordedDatesOnLoad` vergelijkt de vastlegging met de nieuwe berekening.
+  applyRecordedDatesOnLoad(payload.tasks, prepared, parsed);
   return {
     projectId: prepared.project.id,
     projectName: prepared.project.name,

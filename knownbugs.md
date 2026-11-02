@@ -1198,6 +1198,13 @@ en noem het in je rapport of PR-tekst.
      uit een vreemd of met de hand bewerkt IFC-bestand (`storedExternalLinks` laat een leeg anker door, omdat
      het model "anker onbekend" kent). Of de relatiecel dan een bewerking weigert, is niet nagespeeld. Raakt ook
      voorstel 3 in #792 (MSPDI-links zonder anker). — B (klembord), S (relatiecel)
+835. **VERVOLG: de fasetest van #792 dekt niet elke aanroeper die de externe relaties van een fase meekrijgt.**
+     `tests/planning/check-external-summary.ts` roept alleen `solveProject`, `leafTasksForSolve`/`effectiveExternalLinks`
+     en het logica-rapport aan. De nivelleerinvoer (`levelingInput` in `scheduleSlice.ts`), de voorvertoning van
+     *Project verplaatsen* (`previewMoveProject` in `projectSlice.ts`), de bibliotheekverdeling (`distribute.ts`) en
+     de benchmark (`runner.ts`) krijgen ook `leafTasksForSolve`. Een terugval naar een kale bladfilter op een van
+     die plekken merkt de test niet op. Later: breid de test uit met een fase met een externe voorganger, via de
+     store-acties nivelleren en *Project verplaatsen*. Uit de review van #792, ronde 1 (Sol). — S
 
 ## Rondleiding, Help en extensie-gidsen
 
