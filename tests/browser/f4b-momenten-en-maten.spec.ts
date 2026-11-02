@@ -104,10 +104,10 @@ async function dragBar(page: Page, id: string, edge: 'body' | 'right', dx: numbe
   await page.mouse.up();
 }
 
-/** Kies een voorinstelling van de tijdschaal zoals een planner dat doet: Beeld → Tijdschaal ▼ → optie. */
+/** Kies een voorinstelling van de tijdschaal zoals een planner dat doet: Beeld → Tijdschaal (punthaak) → optie. */
 async function choosePreset(page: Page, preset: RegExp, zoom: number, id: string): Promise<void> {
   await page.locator('.ribbon-tab').filter({ hasText: /^(View|Beeld)$/ }).click();
-  await page.locator('[data-tour-anchor="ribbon-group:beeld:timeScale"] button').filter({ hasText: /▼/ }).click();
+  await page.locator('[data-tour-anchor="ribbon-group:beeld:timeScale"] button').filter({ has: page.locator('[data-icon="ui.dropdown"]') }).click();
   await page.getByRole('button', { name: preset, exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().view.zoom)).toBe(zoom);
   await page.evaluate(() => window.__OPS__!.store.getState().setViewStartDate('2026-09-01'));

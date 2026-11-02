@@ -29,6 +29,7 @@ import { sameCellAddress, type GridCellAddress, type GridSelectionState } from '
 import type { TaskColumnId } from '@/types/taskGrid';
 import { nextFrame } from '@/utils/nextFrame';
 import { OVERLAY_SCROLLBAR_SIZE, TASK_GRID_CHOOSER_STRIP, taskListScrollContentHeight } from '@/engine/taskGrid/scrollExtent';
+import { Icon } from '@/components/icons';
 
 export interface DataGridCoreProps {
   rows: readonly DataGridRowModel[];
@@ -625,7 +626,7 @@ export function DataGridCore({
                         className="task-grid-group-toggle"
                         onClick={() => onToggleGroup?.(row.rowKey, !row.collapsed)}
                       >
-                        <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+                        {expanded ? <Icon id="tree.collapse" size={16} /> : <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />}
                         <span className="task-grid-group-label">{row.label}</span>
                         <span className="task-grid-group-count">{row.count}</span>
                       </button>

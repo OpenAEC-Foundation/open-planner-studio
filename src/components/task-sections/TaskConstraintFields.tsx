@@ -7,6 +7,7 @@ import { constraintDateSide } from '@/engine/calendar/workdayRules';
 import { Select } from '@/components/common/Select';
 import { Field } from './shared';
 import { readLocal, writeLocal } from '@/utils/settingsStore';
+import { Icon } from '@/components/icons';
 
 const PRIMARY_TYPES: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const SECONDARY_TYPES: ConstraintType[] = ['SNET', 'FNET', 'SNLT', 'FNLT'];
@@ -21,6 +22,7 @@ export function TaskConstraintFields({ task, onChange }: {
   onChange: (patch: Partial<Task>) => void;
 }) {
   const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
   // Eenmalige, niet-blokkerende hint bij het AANZETTEN van een harde pin: "pin
   // overschrijft relaties". Geen bevestigingsdialoog — gegate op een localStorage-vlag zodat hij
   // maar één keer ooit verschijnt.
@@ -102,7 +104,7 @@ export function TaskConstraintFields({ task, onChange }: {
               data-ops-pin-hint
             >
               <span className="flex-1">{t('properties.hardPinHint')}</span>
-              <button onClick={() => setPinHint(false)} style={{ color: 'var(--theme-accent)' }}>×</button>
+              <button onClick={() => setPinHint(false)} aria-label={tCommon('close')} title={tCommon('close')} className="inline-flex"><Icon id="ui.close" size={16} /></button>
             </div>
           )}
         </>

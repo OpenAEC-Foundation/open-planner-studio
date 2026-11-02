@@ -199,7 +199,7 @@
 .feedback-ann-btn.active {
   background: rgba(217, 119, 6, 0.12);
   border-color: var(--theme-accent);
-  color: var(--theme-accent);
+  color: var(--theme-text);
 }
 
 .feedback-ann-btn:disabled {

@@ -12,8 +12,9 @@
  * welke tekst in de stream staat — de bevroren naam-kolom wordt op elke kolom k>0 herhaald als
  * zelfstandige tekst.
  *
- * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; caller levert de rauwe Inter-TTF-bytes aan
- * (geen asset-loader-koppeling hier), zodat deze module ook headless bundelbaar is.
+ * Puur browser (pdf-lib/fontkit) — geen Tauri-imports; caller levert de rauwe TTF-bytes van de
+ * rapportletter én de subsetter aan (geen asset-loader-koppeling hier, ook geen `?url`-import via
+ * `hbSubset.ts`), zodat deze module ook headless bundelbaar is.
  */
 import {
   PDFDocument, PDFName, PDFRef, type PDFFont, type PDFOperator,
@@ -23,8 +24,7 @@ import {
 } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { PdfVectorDraw2D, type PdfResourcePool, type ArabicShapingFonts, type CjkVectorFont } from '@/services/pdf/pdfVectorDraw2d';
-import { getCjkFontProviders } from '@/services/pdf/fontRegistry';
-import { subsetFont } from '@/services/pdf/hbSubset';
+import { getCjkFontProviders, type CjkFontProvider } from '@/services/pdf/fontRegistry';
 import { appLog } from '@/services/debug/appLog';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
@@ -65,10 +65,28 @@ export interface VectorPaginateOptions {
    * complexe (RTL/gemengde) tekst-pad. Default `'ltr'` — zo blijven de 12 LTR-locales onveranderd.
    */
   baseDir?: 'ltr' | 'rtl';
+  /**
+   * Subsetter voor de fonts die per export alleen hun gebruikte tekens meekrijgen (de CJK-providers
+   * en {@link fallbackFonts}): in de app `subsetFont` uit `hbSubset.ts`. Hij moet de glyph-id's van
+   * het bronfont behouden (HarfBuzz `RETAIN_GIDS`). Als parameter en niet als import, omdat
+   * `hbSubset.ts` zijn wasm via een Vite-`?url`-import laadt die headless niet bundelt.
+   */
+  subsetFont: (ttf: Uint8Array, codepoints: Iterable<number>) => Promise<Uint8Array>;
+  /**
+   * Fonts voor tekens die de rapportletter zelf mist, in volgorde van voorkeur en vóór de
+   * geregistreerde CJK-providers (issue #770: een andere rapportletter dan Inter mist vaak een
+   * teken dat Inter wél heeft, zoals `≤` of Cyrillisch). Zonder deze terugval valt de hele PDF
+   * om één teken terug op raster. Een terugvalfont wordt alleen geladen en (als subset) ingebed als
+   * de tekst zo'n teken bevat. Leeg of afwezig ⇒ geen terugval, exact het oude gedrag.
+   */
+  fallbackFonts?: ReadonlyArray<{ id: string; bytes: ReportFontBytes }>;
 }
 
-/** Rauwe Inter-TTF-bytes per gewicht (caller levert ze; hier geen `?url`/asset-loader-afhankelijkheid). */
-export interface InterFontBytes {
+/**
+ * Rauwe TTF-bytes van de rapportletter per gewicht (standaard het gevendorde Inter). De caller levert
+ * ze; hier geen `?url`/asset-loader-afhankelijkheid. Statische glyf-TTF's (geen CFF, geen variabel font).
+ */
+export interface ReportFontBytes {
   regular: Uint8Array;
   bold: Uint8Array;
 }
@@ -84,10 +102,10 @@ export interface ArabicFontBytes {
 }
 
 /**
- * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die het
- * ingebedde Inter-font niet dekt (CJK/RTL/…). Zonder deze bewuste fout zou `subset:false` die glyphs
- * stil op `.notdef` (tofu) mappen. `handleExportPDF` vangt 'm en valt terug op de raster-pijplijn, die
- * de browser CJK/RTL correct laat tekenen. De `name` is stabiel (`'VectorUnsupportedError'`) zodat de
+ * Gegooid door {@link paginateVectorToPdfBytes} zodra de te tekenen tekst codepoints bevat die de
+ * ingebedde rapportletter (standaard Inter) en geen enkel terugvalfont dekt (CJK/RTL/…). Zonder
+ * deze bewuste fout zou `subset:false` die glyphs stil op `.notdef` (tofu) mappen. `handleExportPDF`
+ * vangt 'm en valt terug op de raster-pijplijn, die de browser CJK/RTL correct laat tekenen. De `name` is stabiel (`'VectorUnsupportedError'`) zodat de
  * catch 'm kan herkennen zónder deze (lazy geïmporteerde) module in de hoofdbundle te trekken.
  */
 export class VectorUnsupportedError extends Error {
@@ -101,7 +119,7 @@ export class VectorUnsupportedError extends Error {
       .map(cp => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0'))
       .join(' ');
     const more = codepoints.length > 24 ? ` (+${codepoints.length - 24} more)` : '';
-    super(`Inter dekt ${codepoints.length} codepoint(s) niet: ${preview}${more}`);
+    super(`De rapportletter dekt ${codepoints.length} codepoint(s) niet: ${preview}${more}`);
     this.name = 'VectorUnsupportedError';
     this.codepoints = codepoints;
     this.hasRtl = hasRtl;
@@ -117,12 +135,12 @@ export class VectorUnsupportedError extends Error {
  *                       parameter is `PrintOptions.footerLayoutWidth`: de breedte (logische px) die
  *                       op één pagina past, zodat de herhaalde voet op elke kolompagina compleet is.
  * @param opts          papierformaat/oriëntatie/modus/marge.
- * @param fontBytes     rauwe Inter-TTF-bytes (Regular + Bold) voor de subset-embedding.
+ * @param fontBytes     rauwe TTF-bytes van de rapportletter (Regular + Bold), volledig ingebed.
  */
 export async function paginateVectorToPdfBytes(
   renderReport: (makeDraw2D: (w: number, h: number) => Draw2D, footerLayoutWidth?: number) => RenderReportResult,
   opts: VectorPaginateOptions,
-  fontBytes: InterFontBytes,
+  fontBytes: ReportFontBytes,
   arabicBytes: ArabicFontBytes,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -174,7 +192,20 @@ export async function paginateVectorToPdfBytes(
   // elk in try/catch: een kapotte/onbeschikbare provider wordt OVERGESLAGEN (z'n codepoints blijven ongedekt
   // → coverage-poort → raster) zónder de rest te breken. Zijn er providers geladen, dan her-renderen we pass
   // 1 mét die fonts (nu echte `fk`-coverage + correcte CJK-breedte-meting/truncatie + verzamelde used-cps).
-  const providers = getCjkFontProviders();
+  // De terugvalfonts van de aanroeper gaan vóór de geregistreerde CJK-providers en lopen door
+  // precies hetzelfde pad (scan → alleen laden wat nodig is → HarfBuzz-subset → tweede pass). Hun
+  // `covers` parseert het font pas bij de eerste vraag, dus een export zonder ontbrekende tekens
+  // raakt de terugvalbytes niet aan.
+  const fallbackProviders: CjkFontProvider[] = (opts.fallbackFonts ?? []).map(({ id, bytes }) => {
+    let fk: ArabicShapingFonts['regular'] | undefined;
+    return {
+      id,
+      covers: (cp: number) => (fk ??= fkCreate.create(bytes.regular)).hasGlyphForCodePoint(cp),
+      getRegularBytes: async () => bytes.regular,
+      getBoldBytes: async () => bytes.bold,
+    };
+  });
+  const providers = [...fallbackProviders, ...getCjkFontProviders()];
   type LoadedCjk = {
     provider: (typeof providers)[number];
     regBytes: Uint8Array;
@@ -256,8 +287,8 @@ export async function paginateVectorToPdfBytes(
       if (cps && cps.size > 0) {
         const keyRegular = `F${4 + 2 * i}`;
         const keyBold = `F${5 + 2 * i}`;
-        const subReg = await subsetFont(cjkPreload[i].regBytes, cps);
-        const subBold = await subsetFont(cjkPreload[i].boldBytes, cps);
+        const subReg = await opts.subsetFont(cjkPreload[i].regBytes, cps);
+        const subBold = await opts.subsetFont(cjkPreload[i].boldBytes, cps);
         const embReg = await doc.embedFont(subReg, { subset: false });
         const embBold = await doc.embedFont(subBold, { subset: false });
         pool.setCjkFont(keyRegular, embReg);
@@ -391,8 +422,9 @@ export async function paginateVectorToPdfBytes(
       leaf.setXObject(PDFName.of('X0'), xobjRef);
       // De tegel-tekst én de footer draaien op de PAGINA-content-stream i.p.v. in het
       // XObject, dus de pagina heeft dezelfde font-resources nodig als het XObject. `resources.Font`
-      // bevat precies de ingebedde fonts (F0/F1 Inter altijd; F2/F3 Noto alleen bij Arabisch; F4/F5…
-      // alleen bij CJK) — geen dangling refs, want ongebruikte gewichten zitten er niet in.
+      // bevat precies de ingebedde fonts (F0/F1 de rapportletter altijd; F2/F3 Noto alleen bij
+      // Arabisch; F4/F5… alleen bij terugval- of CJK-tekens) — geen dangling refs, want ongebruikte
+      // gewichten zitten er niet in.
       for (const [key, ref] of Object.entries(resources.Font)) {
         leaf.setFontDictionary(PDFName.of(key), ref);
       }

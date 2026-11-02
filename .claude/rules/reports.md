@@ -70,3 +70,14 @@ de render óók gebruikt — anders meet je "Duur" en teken je iets anders. Bij 
 `fitColumnsToHeaders` (`pdfTable.ts`) hetzelfde voor de PDF, maar **alleen verbreden**: een kolom die
 haar eigen vertaalde kop niet kwijt kan groeit mee, versmallen niet — `mode: 'fit-width'` schaalt een
 smallere tabel juist gróter, en celinhoud hoort in een vrije-tekstkolom wél af te kappen.
+
+**De rapportletter is een parameter** (issue #770). De canvas-fontstack komt uit `PrintOptions.fontFamily`,
+de derde parameter van `makeTableRenderReport`/`makeSectionedRenderReport` en het `fontStack`-argument van
+de meethulpen (`nameCellFont`, `tableTextFont`, `curveCellFont`, `TableColumnMeasureInput.fontFamily`);
+zonder waarde geldt `DEFAULT_REPORT_FONT_STACK` (het gevendorde Inter, `src/services/pdf/reportFont.ts`).
+Meten in het paneel en tekenen in de render horen op dezelfde stack. De vector-backend leest de familie
+niet uit de string maar tekent met de bytes die de pagineerder inbedt: geef `paginateVectorToPdfBytes` dus
+de bytes van dezelfde letter, plus `fallbackFonts` (Inter) voor tekens die die letter mist — zonder
+terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op raster. De subsetter (`subsetFont`
+uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
+`tests/planning/check-report-font.ts`.

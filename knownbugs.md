@@ -1671,6 +1671,13 @@ en noem het in je rapport of PR-tekst.
      ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
      geen onderdeel van de geautomatiseerde vóór/na-poort. — B
 
+844. **VERVOLG: de regressiecheck voor de rapportletter bewijst geen echte subsetting.** De subsetter in
+     `tests/planning/check-report-font.ts:164` geeft het volledige bronfont terug. De check toont dus niet dat
+     HarfBuzz echt alleen de gebruikte tekens houdt, en hij test geen geregistreerde CJK-provider. Voorstel:
+     later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
+     (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
+     werkt. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1735,6 +1742,11 @@ en noem het in je rapport of PR-tekst.
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
+
+590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
+     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
+     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
+     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
 
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".

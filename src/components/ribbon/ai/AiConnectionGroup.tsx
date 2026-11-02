@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Check, RefreshCw, Eye, EyeOff, Plug } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { loadMcpPort, saveMcpPort } from '@/utils/settingsStore';
 import { ensureMcpToken, regenerateAndApplyMcpToken } from '@/services/mcp/server';
@@ -136,7 +136,7 @@ export function AiConnectionGroup() {
         aria-label={showToken ? t('ai.hideToken') : t('ai.showToken')}
         onClick={() => setShowToken(v => !v)}
       >
-        {showToken ? <EyeOff size={13} /> : <Eye size={13} />}
+        {showToken ? <Icon id="credential.hide" size={13} /> : <Icon id="credential.show" size={13} />}
       </button>
       <button
         type="button"
@@ -145,7 +145,7 @@ export function AiConnectionGroup() {
         aria-label={t('ai.copy')}
         onClick={() => { void copy(token, 'token'); }}
       >
-        {copied === 'token' ? <Check size={13} /> : <Copy size={13} />}
+        {copied === 'token' ? <Icon id="status.success" size={13} /> : <Icon id="edit.copy" size={13} />}
       </button>
       <button
         type="button"
@@ -155,7 +155,7 @@ export function AiConnectionGroup() {
         disabled={managedConnection}
         onClick={() => setConfirming(true)}
       >
-        <RefreshCw size={13} />
+        <Icon id="credential.regenerate" size={13} />
       </button>
     </label>
   );
@@ -195,7 +195,7 @@ export function AiConnectionGroup() {
           }}
           trigger={
             <RibbonCompactTrigger
-              icon={<Plug size={14} />}
+              icon={<Icon id="ai.connection-menu" size={16} />}
               title={t('ai.connectHint')}
               ariaLabel={t('ai.connect')}
               onClick={() => setPopoverOpen(o => !o)}
@@ -210,7 +210,7 @@ export function AiConnectionGroup() {
             style={{ width: '100%' }}
             onClick={() => { setShowDetails(true); setPopoverOpen(false); }}
           >
-            <span className="ribbon-btn-icon"><Plug size={14} /></span>
+            <span className="ribbon-btn-icon"><Icon id="ai.connection-details" size={16} /></span>
             <span className="ribbon-btn-label">{t('ai.connect')}</span>
           </button>
         </Popover>
@@ -230,7 +230,7 @@ export function AiConnectionGroup() {
           toelichting boven. Label volgt de intentie ("Verbinden"); de tooltip legt de inhoud uit. */}
       <span title={t('ai.connectHint')}>
         <RibbonButton
-          icon={<Plug size={20} />}
+          icon={<Icon id="ai.connection-details" size={24} />}
           label={t('ai.connect')}
           onClick={() => setShowDetails(true)}
         />

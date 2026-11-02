@@ -12,7 +12,7 @@ const draftRow = { css: 'tr[data-ops-pending-new-row="true"]' } as const;
 const resourcePanel = { css: '.ui-card:has(table)' } as const;
 const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouderd'] : []) };
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
-const OVERALLOCATED = l('⚠ 1 resource(s) overbezet', '⚠ 1 resource(s) overallocated');
+const OVERALLOCATED = l('1 resource(s) overbezet', '1 resource(s) overallocated');
 
 
 /** Eén resource in de conceptrij: naam, type, eventueel Max. eenheden en Eenheid, Enter. */
