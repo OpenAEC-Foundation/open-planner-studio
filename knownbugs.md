@@ -1347,6 +1347,19 @@ en noem het in je rapport of PR-tekst.
    verdwenen bestanden weg met `rsync --delete`, en een onbekend pad geeft HTTP 200 met de HTML van de app. Voorstel:
    houd beide oude URL's met een HTTP-redirect naar `/agent/planning-guide.md`. Gevonden in de review van #778. — B
 
+832. **VERVOLG: de Help in 26 talen noemt de verwijderde knop Afdruk en de groep Rapportage nog.** In #791
+     ging *Rapport › Afdruk* weg, en alleen de Nederlandse en Engelse Help zijn aangepast. De andere 26 talen
+     beschrijven de knop nog in `public/docs/<taal>/ref-lint.md` (sectie Rapport) en in
+     `public/docs/<taal>/howto-rapport-maken-en-afdrukken.md` (stap 6 en de valkuil over Afdruk en Ctrl+P),
+     bijvoorbeeld `public/docs/de/howto-rapport-maken-en-afdrukken.md:71` en `public/docs/de/ref-lint.md:230`.
+     Voorstel: via de vertaalstraat, vanuit de Nederlandse tekst. Uit de review van #791 (GPT-6.1-Sol, xhigh,
+     op `a60d2491e`, VERVOLG). — B
+
+833. **VERVOLG: de README-afbeelding van het rapportscherm toont de verwijderde knop Print.**
+     `README.md:59` toont `docs/images/readme/report-preview.png`. Daarop staan in het lint nog de knop *Print*
+     en de groep *Report*, die in #791 zijn verwijderd. Voorstel: de afbeelding opnieuw maken als #791 in main
+     zit. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`, VERVOLG). — B
+
 ## Tests
 
 720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
@@ -1753,3 +1766,11 @@ en noem het in je rapport of PR-tekst.
      Blueprint-tag geeft zo stil andere kleuren. Fix: eerst de commit van de tag tegen de pin controleren en
      stoppen bij een verschil; alleen `--tag` zet een andere commit vast. Uit de review van #721 (GPT-6.1-Sol, ronde 1,
      op 33b8d17e2, BEVESTIGD, VERVOLG). — B
+
+834. **VERVOLG: de formulierroute in het lint wordt niet meer gebruikt.** Sinds #791 heeft geen lintknop nog
+     `form`. Toch staan er nog: `RibbonButtonSpec.form` (`src/components/layout/Ribbon/ribbonConfig.tsx:77`), de
+     doorgifte in `src/components/layout/Ribbon/RibbonTabContent.tsx:61` en `:69`, en de submit-tak in
+     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`. Verouderde verwijzingen naar *Rapport › Afdruk*:
+     het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
+     Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
+     VERVOLG). — B
