@@ -1778,3 +1778,11 @@ en noem het in je rapport of PR-tekst.
      het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
      Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
      VERVOLG). — B
+
+842. **VERVOLG: dubbele Linux-ondertekening in het plan.** `docs/installers-ondertekenen-plan.md:175` en
+     `:189` combineren losse OpenPGP-handtekeningen voor DEB, RPM, AppImage en Snap met een ondertekend
+     overzicht van checksums voor alle bestanden, zonder te benoemen welke download- of controleroute
+     die losse handtekeningen nodig heeft. Voorstel: benoem die route, of laat de losse handtekeningen
+     weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
+     voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
+     review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B
