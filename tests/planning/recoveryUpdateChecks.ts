@@ -1,5 +1,5 @@
 // Knownbug 329: de echte herstelhook moet opslagfouten tot aan de updater doorgeven.
-// Alleen Reacts effectregistratie, de klok en de desktopplugins worden hier nagebootst;
+// Effectregistratie, klok, IndexedDB en desktopplugins worden hier nagebootst;
 // store, IFC-serialisatie, deltabepaling, schrijfketen en foutmeldingen zijn productiecode.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ function loadModule<T>(path: string, dependencies: Record<string, unknown>, glob
   runInNewContext(output, {
     exports, Error, Promise,
     require: (name: string) => {
-      assert.ok(Object.hasOwn(dependencies, name), `Onverwachte afhankelijkheid van ${path}: ${name}`);
+      assert.ok(Object.prototype.hasOwnProperty.call(dependencies, name), `Onverwachte afhankelijkheid van ${path}: ${name}`);
       return dependencies[name];
     },
     ...globals,
@@ -48,6 +48,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
   const loggedErrors: unknown[][] = [];
   let releaseSerialization: (() => void) | undefined;
   let holdSerialization = false;
+  let serializationError: Error | undefined;
   const hook = loadModule<{ useAutoSave: (enabled: { current: boolean }) => void }>('src/hooks/useAutoSave.ts', {
     react: { useEffect: (effect: () => void | (() => void)) => effects.push(effect) },
     '@/state/appStore': { useAppStore: ctx.store },
@@ -62,6 +63,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
       const serializer = createRecoverySnapshotSerializer(() => null);
       return { dispose: () => serializer.dispose(), serialize: async (...args: Parameters<typeof serializer.serialize>) => {
         if (holdSerialization) await new Promise<void>(resolve => { releaseSerialization = resolve; });
+        if (serializationError) throw serializationError;
         return serializer.serialize(...args);
       } };
     } },
@@ -141,6 +143,21 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     assert.deepEqual(calls, ['download'], 'ook een reeds gemelde manifestfout blokkeert installatie');
     assert.deepEqual(statuses, [{ kind: 'error', message: manifestError.message }]);
     assert.equal(ctx.store.getState().ui.notifications.at(-1)?.messageKey, 'notifications.recoveryManifestBlocked');
+    await install();
+    assert.deepEqual(calls, ['download', 'download']);
+    assert.equal(ctx.store.getState().ui.notifications.filter(n => n.dedupeKey === 'recovery-manifest').length, 1,
+      'ook een al afgehandelde manifestmelding blijft installatie blokkeren, zonder extra melding');
+
+    // Een serialisatiefout vóór de opslag moet dezelfde installatieblokkade geven.
+    failWrites();
+    serializationError = new Error('IFC-serialisatie mislukt');
+    ctx.store.getState().updateTask(taskId, { name: 'Serialisatie weigert deze bewerking' });
+    calls.length = 0;
+    statuses.length = 0;
+    await install();
+    assert.deepEqual(calls, ['download']);
+    assert.deepEqual(statuses, [{ kind: 'error', message: serializationError.message }]);
+    serializationError = undefined;
 
     // Update aangevraagd tijdens een timeropslag: dezelfde mislukking bereikt beide aanroepers.
     failWrites(diskError);
