@@ -34,6 +34,7 @@ export function GridEditorHost({
   useEffect(() => setCurrentError(error), [error, cell.rowKey, cell.columnId]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
