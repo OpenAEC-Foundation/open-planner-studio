@@ -421,6 +421,15 @@ en noem het in je rapport of PR-tekst.
      beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
      ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
 
+802. **Een nivelleervoorstel toepassen duurt bij 10.000 taken ruim twee seconden.** De bestaande
+     `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC 7763,
+     Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte klik op *Toepassen* tot de Gantt klaar is:
+     2.072,9 ms mediaan (2.057,0–2.095,9 ms, drie herhalingen). Dit is afzonderlijk van het maken van
+     het voorstel; de wijziging voor 800 richt zich alleen op dat laatste. Voorstel: eerst de
+     store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
+     [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1344,6 +1353,15 @@ en noem het in je rapport of PR-tekst.
      `verify-examples.ts` mist het, omdat die op taaknaam zoekt. Voorstel: gebruik dezelfde bouw voor de
      koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
      review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
+
+801. **Een groot IFC-bestand openen kost op de vaste 10.000-takenfixture circa 3,7 seconden.** De
+     bestaande `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC
+     7763, Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte bestandskeuze tot de Gantt klaar is:
+     3.660,1 ms mediaan (3.635,9–3.668,4 ms, drie herhalingen). Geen vergelijking met de historische
+     kantoor-pc-nulmeting: het betreft een andere runner en een nieuwere bron. Voorstel: deze
+     gebruikersroute eerst uitsplitsen in lezen, importnormalisatie, store en eerste tekening.
+     Ruwe gegevens en [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

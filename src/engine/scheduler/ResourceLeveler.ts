@@ -686,6 +686,7 @@ export function levelResources(
     // Een lopende taak boekt zo haar ene gezaghebbende plaatsing (de berekende spanne), dezelfde als
     // het histogram — geen nieuwe wandeling van de totale duur (acceptatie-eis 4 van F3b).
     bookDemandAt(id, parseInstant(startIso), true);
+    forgetDemand(id); // vaste last wordt hierna alleen uit het grootboek gelezen
     placedStartIso.set(id, startIso);
   }
 
@@ -872,6 +873,9 @@ export function levelResources(
     if (work.levelingDelay !== newDelay) markChanged(pick);
     work.levelingDelay = newDelay;
     work.levelingDelayMinutes = newDelayMinutes;
+    // Alleen pins hebben hun plaatsing later nog nodig voor de conflictcontrole. Een gewone
+    // plaatsing leeft na boeking voort in het grootboek en de werkkopie, niet in deze vraagcache.
+    if (!pinnedSet.has(pick)) forgetDemand(pick);
 
     placed.add(pick);
     markPlaced(pick);
@@ -899,6 +903,8 @@ export function levelResources(
     // Geen verzonnen scanreden zoals 'onvoldoende speling': de pin is niet verplaatst.
     // De UI kan het bestaande taak-/conflictdagenrapport zonder specifieke reden tonen.
   }
+
+  demandCache.clear(); // ook de gecontroleerde pins hoeven niet mee de proef-solve in
 
   // Preview uit één echte proef-solve op de werkkopieën (nu mét alle gezette delays) — exact wat
   // applyLeveling→runCPM straks doet (incl. `cpmOptions`, anders wijkt de preview zelf weer af).
