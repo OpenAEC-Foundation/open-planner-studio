@@ -8,11 +8,17 @@
 // proces-id uit het initialisatiescript. Dat toetst `tests/mcp/realApp/run-real-app.ts` (CI, Linux).
 
 import { useAppStore, test, assert, assertEq, run } from './harness';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
+  MCP_APP_IDENTIFIER,
+  MCP_DISCOVERY_DIR_ENV,
   MCP_DISCOVERY_FILE_MODE,
   MCP_DISCOVERY_FORMAT_VERSION,
   buildOpenFilesFile,
   buildRuntimeFile,
+  mcpDiscoveryDirs,
   mcpDiscoveryNames,
   openFileList,
   openFilePathsFromDocuments,
@@ -30,6 +36,8 @@ import {
   type DiscoveryWriterDeps,
 } from '@/services/mcp/discoveryFiles';
 import { buildMcpContext, createBridgeController, type BridgeDeps } from '@/services/mcp/server';
+
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 // --- Geheugen-bestandssysteem -----------------------------------------------------------------------
 
@@ -177,6 +185,26 @@ test('bestandsnamen: canoniek in productie, met slug voor een dev-instantie', ()
   assertEq(mcpDiscoveryNames(null), { runtime: 'runtime.json', openFiles: 'open-files.json' }, 'productie');
   assertEq(mcpDiscoveryNames(''), { runtime: 'runtime.json', openFiles: 'open-files.json' }, 'lege slug = productie');
   assertEq(mcpDiscoveryNames('wt-a'), { runtime: 'runtime.wt-a.json', openFiles: 'open-files.wt-a.json' }, 'dev');
+});
+
+test('mappen voor een lezer: per besturingssysteem, Snap erbij op Linux, en de vervangmap (#730)', () => {
+  const tauri = JSON.parse(readFileSync(join(ROOT, 'src-tauri/tauri.conf.json'), 'utf8')) as { identifier: string };
+  assertEq(MCP_APP_IDENTIFIER, tauri.identifier, 'identifier = die van de app');
+  const id = MCP_APP_IDENTIFIER;
+  assertEq(mcpDiscoveryDirs({ platform: 'linux', home: '/home/jan', env: {} }),
+    [`/home/jan/.local/share/${id}/mcp`, `/home/jan/snap/open-planner-studio/current/.local/share/${id}/mcp`], 'Linux standaard');
+  assertEq(mcpDiscoveryDirs({ platform: 'linux', home: '/home/jan', env: { XDG_DATA_HOME: '/data/' } })[0], `/data/${id}/mcp`, 'XDG_DATA_HOME');
+  assertEq(mcpDiscoveryDirs({ platform: 'linux', home: '/home/jan', env: { XDG_DATA_HOME: 'rel' } })[0],
+    `/home/jan/.local/share/${id}/mcp`, 'een relatief XDG_DATA_HOME telt niet');
+  assertEq(mcpDiscoveryDirs({ platform: 'darwin', home: '/Users/jan', env: {} }),
+    [`/Users/jan/Library/Application Support/${id}/mcp`], 'macOS');
+  assertEq(mcpDiscoveryDirs({ platform: 'win32', home: 'C:\\Users\\Jan', env: { APPDATA: 'C:\\Users\\Jan\\AppData\\Roaming' } }),
+    [`C:\\Users\\Jan\\AppData\\Roaming\\${id}\\mcp`], 'Windows');
+  assertEq(mcpDiscoveryDirs({ platform: 'win32', home: 'C:\\Users\\Jan', env: {} }),
+    [`C:\\Users\\Jan\\AppData\\Roaming\\${id}\\mcp`], 'Windows zonder APPDATA');
+  assertEq(mcpDiscoveryDirs({ platform: 'linux', home: '/h', env: { [MCP_DISCOVERY_DIR_ENV]: '/tmp/x' } }), ['/tmp/x'], 'vervangmap');
+  assertEq(mcpDiscoveryDirs({ platform: 'linux', home: '/h', env: { [MCP_DISCOVERY_DIR_ENV]: '${user_config.x}' } }).length, 2,
+    'een niet-ingevulde manifestvariabele telt niet');
 });
 
 test('alleen FileRef van de soort path telt: site, browserhandle en naamloos niet; browser ⇒ niets', () => {
