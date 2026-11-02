@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isAutoCalcHeld } from '@/state/editHold';
 import { isTauri } from '@/utils/platform';
-import { SHORTCUTS, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
+import { SHORTCUTS, canRunShortcut, isDocumentLeaveBlocked, isGlobalShortcutFrozen, matchesCombo } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
 // Zelfde bron als `shortcutRegistry` (dat al `i18n.t` gebruikt voor default-taaknamen): deze
 // voorpoort spiegelt de `file.open`-entry daar, dus spiegelt hij ook hóé het label wordt opgehaald.
@@ -143,13 +143,11 @@ export function useKeyboardShortcuts() {
       // Sneltoets-register: matcht in volgorde, stopt bij de EERSTE hit (zie shortcutRegistry.ts
       // voor de volgorde-gevoelige gevallen, met name Escape: presentatie-afsluiten vóór deselecteren).
       for (const entry of SHORTCUTS) {
-        if (entry.displayOnly) continue;
         if (!matchesCombo(e, entry.combo)) continue;
         // Invoerveld-guard: normaal negeren we ALLE sneltoetsen in een invoerveld zodat
         // tekstbewerking niet wordt gekaapt. `allowInInput` whitelist't uitzonderingen als
         // F5/Ctrl+S/F11/Escape-in-presentatie.
-        if (typing && !entry.allowInInput) continue;
-        if (entry.when && !entry.when()) continue;
+        if (!canRunShortcut(entry, typing)) continue;
 
         // Forceer een eventuele hangende onBlur-commit vóórdat we herberekenen/opslaan/etc.
         if (entry.allowInInput && typing) commitPendingTextEdit(target, { recalculate: entry.id !== 'file.recalculate' });

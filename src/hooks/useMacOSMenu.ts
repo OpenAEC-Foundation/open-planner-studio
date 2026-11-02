@@ -23,12 +23,14 @@ export function useMacOSMenu(): void {
       if (disposed) return;
       const items: SubmenuOptions[] = [
         { text: 'Open Planner Studio', items: [
-          { item: { About: { name: 'Open Planner Studio', version: __APP_VERSION__ } } },
+          { item: { About: { name: 'Open Planner Studio', version: __APP_VERSION__ } }, text: t('menu:native.about') },
           { item: 'Separator' },
           { id: 'ops.settings', text: t('menu:ribbon.settings'), accelerator: 'Cmd+,',
             action: () => { if (!disposed) openNativeSettings(); } },
-          { item: 'Separator' }, { item: 'Services' }, { item: 'Separator' },
-          { item: 'Hide' }, { item: 'HideOthers' }, { item: 'ShowAll' },
+          { item: 'Separator' }, { item: 'Services', text: t('menu:native.services') }, { item: 'Separator' },
+          { item: 'Hide', text: t('menu:native.hide') },
+          { item: 'HideOthers', text: t('menu:native.hideOthers') },
+          { item: 'ShowAll', text: t('menu:native.showAll') },
           { item: 'Separator' },
           { id: 'ops.quit', text: t('menu:native.quit'), accelerator: 'Cmd+Q', action: () => {
             if (disposed) return;
@@ -45,14 +47,17 @@ export function useMacOSMenu(): void {
           command('file.saveAs', t('menu:backstage.saveAs'), 'Cmd+Shift+S'),
           { item: 'Separator' },
           command('nav.reportTab', t('menu:ribbon.print'), 'Cmd+P'),
-          { item: 'Separator' }, { item: 'CloseWindow' },
+          { item: 'Separator' }, { item: 'CloseWindow', text: t('menu:native.closeWindow') },
         ] },
         { text: t('menu:ribbon.edit'), items: [
           command('edit.undo', t('menu:commands.undo'), 'Cmd+Z'),
           command('edit.redoShiftZ', t('menu:commands.redo'), 'Cmd+Shift+Z'),
           { item: 'Separator' },
           // Native clipboardacties bereiken ook de copy/paste-listeners van het taakgrid.
-          { item: 'Cut' }, { item: 'Copy' }, { item: 'Paste' }, { item: 'SelectAll' },
+          { item: 'Cut', text: t('menu:native.cut') },
+          { item: 'Copy', text: t('common:shortcuts.edit.copy') },
+          { item: 'Paste', text: t('common:context.paste') },
+          { item: 'SelectAll', text: t('common:shortcuts.edit.selectAll') },
         ] },
         { text: t('menu:ribbon.planning'), items: [
           command('file.recalculate', t('menu:ribbon.calculate'), 'F5'),
@@ -62,10 +67,12 @@ export function useMacOSMenu(): void {
           command('view.zoomOut', t('menu:commands.zoomOut'), 'Cmd+-'),
           { item: 'Separator' },
           command('view.toggleFullscreen', t('menu:ribbon.presentationMode'), 'F11'),
-          { item: 'Fullscreen' },
+          { item: 'Fullscreen', text: t('menu:native.fullscreen') },
         ] },
         { id: 'ops.window', text: t('menu:native.window'), items: [
-          { item: 'Minimize' }, { item: 'Maximize' }, { item: 'Separator' }, { item: 'BringAllToFront' },
+          { item: 'Minimize', text: t('common:window.minimize') },
+          { item: 'Maximize', text: t('common:window.maximize') },
+          { item: 'Separator' }, { item: 'BringAllToFront', text: t('menu:native.bringAllToFront') },
         ] },
         { id: 'ops.help', text: t('menu:backstage.help'), items: [
           command('nav.help', t('menu:backstage.help'), 'F1'),

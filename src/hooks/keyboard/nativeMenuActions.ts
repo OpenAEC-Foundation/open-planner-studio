@@ -1,7 +1,7 @@
 // Native menuacties delen de sneltoetsacties én hun modale/draftbewaking. Geen nagebootste
 // KeyboardEvents: een menu-opdracht heeft geen keydown en leest de actuele focus en store.
 import { useAppStore } from '@/state/appStore';
-import { SHORTCUTS, isGlobalShortcutFrozen, isShortcutBlockedByDialog } from './shortcutRegistry';
+import { SHORTCUTS, canRunShortcut, isGlobalShortcutFrozen, isShortcutBlockedByDialog } from './shortcutRegistry';
 import { isTypingTarget } from './isTypingTarget';
 import { commitPendingTextEdit } from './useKeyboardShortcuts';
 
@@ -25,7 +25,7 @@ export function runNativeShortcut(id: NativeShortcutId): void {
     document.execCommand(id === 'edit.undo' ? 'undo' : 'redo');
     return;
   }
-  if (entry.when && !entry.when()) return;
+  if (!canRunShortcut(entry, typing)) return;
   // Opslaan en berekenen committen hetzelfde invoerconcept als Ctrl/Cmd+S en F5.
   if (id === 'file.save' || id === 'file.saveAs' || id === 'file.recalculate') {
     commitPendingTextEdit(target, { recalculate: id !== 'file.recalculate' });

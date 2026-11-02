@@ -57,6 +57,11 @@ export interface ShortcutDef {
   skipPreventDefault?: boolean;
 }
 
+/** Dezelfde invoer- en actiepoort voor toetsenbord en native menu. */
+export function canRunShortcut(entry: ShortcutDef, typing: boolean): boolean {
+  return !entry.displayOnly && (!typing || !!entry.allowInInput) && (!entry.when || entry.when());
+}
+
 /** Zie `isBlockingDialogOpen` (`state/blockingDialogs.ts`); zonder argument leest hij de app-store. */
 export function hasBlockingDialogOpen(ui: UIState = useAppStore.getState().ui): boolean {
   return isBlockingDialogOpen(ui);
