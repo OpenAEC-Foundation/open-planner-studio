@@ -321,9 +321,9 @@ test('dag→uur op de projectkalender ⇒ native taakduren blijven behouden', as
 });
 
 // =================================================================================================
-// 5) UUR → DAG — `workTime: null`, zonder dagfallback of stille conversie
+// 5) UUR → DAG — effectieve scalaire blokken blijven geldig, zonder conversie van taakminuten
 // =================================================================================================
-test('uur→dag met bestaande urentaak ⇒ transactie blokkeert zonder dagfallback', async () => {
+test('uur→dag met bestaande urentaak ⇒ effectieve scalaire blokken behouden de taakminuten', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
@@ -331,12 +331,11 @@ test('uur→dag met bestaande urentaak ⇒ transactie blokkeert zonder dagfallba
   const halve = addTask('Halve dag werk', 2, 240);
 
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: null }] });
-  assert(!res.ok, 'banden verwijderen bij een bestaande urentaak hoort te worden geblokkeerd');
-  assert(!res.ok && /concrete work blocks/.test(res.error), `fout legt de vereiste uit: ${res.ok ? '' : res.error}`);
+  okData(res);
   const hourTask = S().tasks.find((t) => t.id === halve)!;
-  assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft na blokkering uren');
-  assertEq(hourTask.time.durationMinutes, 240, 'exacte minuten blijven na blokkering behouden');
-  assert('workTime' in (calById(projId) as object), 'rollback behoudt de concrete werkblokken');
+  assertEq(hourTask.time.durationUnit, 'hours', 'urentaak blijft uren');
+  assertEq(hourTask.time.durationMinutes, 240, 'exacte minuten blijven behouden');
+  assert(!('workTime' in (calById(projId) as object)), 'de scalaire kalender heeft geen expliciete blokken');
   assertEq(S().calendar.workTime, calById(projId)!.workTime, 'projectkalender-cache blijft consistent');
 });
 
