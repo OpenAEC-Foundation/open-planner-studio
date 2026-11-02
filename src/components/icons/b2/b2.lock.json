@@ -2,8 +2,8 @@
   "blueprint": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
   "source": "local",
   "branch": "iconen/ops-overig",
-  "commit": "810ab481d533279d775a0fccf0a4fca8c0c8f431",
+  "commit": "6908fd2ac0ff5d73e53e3fb155c09e62f8a9323e",
   "b2Revision": 107,
-  "manifestSha256": "aaba9ba932998cadaa174e59ee1376c5b5cf31dfd0571df792b31b7744e6336a",
+  "manifestSha256": "841a37cb67f27d6b98883cd1589f04ab1c30029346b2b1c7d3f84114c3ecf19b",
   "ids": "src/components/icons/b2/ids.json"
 }

@@ -229,7 +229,9 @@ def export_parts(svg: str) -> list[tuple[int, int, str]]:
 
 
 def needs_export(icon: dict, spec: dict) -> bool:
-    return bool(spec.get("clear_primary")) or bool(icon.get("rounded_joint"))
+    # `colour_rule`: de Blueprint kort het oranje in of spaart het grijs uit (scripts/b2_kleurregel.py); dat staat
+    # alleen in de export, niet in de lijnen van de constructie.
+    return bool(spec.get("clear_primary")) or bool(spec.get("colour_rule")) or bool(icon.get("rounded_joint"))
 
 
 # ---------------------------------------------------------------- uitvoer
