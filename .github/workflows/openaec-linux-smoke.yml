@@ -47,11 +47,20 @@ jobs:
           chmod 777 test-results/openaec-linux
           APPIMAGE="$(find appimage -name '*.AppImage' -print -quit)"
           test -n "$APPIMAGE"
+          container_args=(--rm --network none --read-only --cap-drop ALL
+            --security-opt no-new-privileges --shm-size 256m
+            -v "$PWD:/src:ro" -v "$PWD/test-results/openaec-linux:/output:rw")
           set +e
-          docker run --rm --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges --shm-size 256m \
-            --tmpfs /tmp:rw,nosuid,nodev,size=1g \
-            -v "$PWD:/src:ro" -v "$PWD/test-results/openaec-linux:/output:rw" \
+          # Hetzelfde script moet een niet-uitvoerbare tijdelijke map vroeg en duidelijk weigeren.
+          docker run "${container_args[@]}" --tmpfs /tmp:rw,noexec,nosuid,nodev,size=1g \
+            ops-linux-test "/src/$APPIMAGE" /output > test-results/openaec-linux/noexec-proef.log 2>&1
+          noexec_code=$?
+          echo "EXIT:$noexec_code" >> test-results/openaec-linux/noexec-proef.log
+          if [ "$noexec_code" -ne 78 ] || ! grep -q 'tijdelijke testmap staat op noexec' test-results/openaec-linux/noexec-proef.log; then
+            cat test-results/openaec-linux/noexec-proef.log
+            exit 1
+          fi
+          docker run "${container_args[@]}" --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g \
             ops-linux-test "/src/$APPIMAGE" /output > test-results/openaec-linux/proef.log 2>&1
           code=$?
           echo "EXIT:$code" >> test-results/openaec-linux/proef.log

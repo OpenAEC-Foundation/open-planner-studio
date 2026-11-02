@@ -15,6 +15,13 @@ cleanup() {
 trap cleanup EXIT
 print_failure() { local code=$?; echo "EXIT:$code"; }
 trap print_failure ERR
+# Docker voegt standaard noexec aan een tmpfs toe. Ook uitgepakte AppImages en WebKit-helpers
+# moeten hier kunnen starten: controleer dit vóór het uitpakken of starten van de compositor.
+cp /bin/true "$tmp/uitvoerbaarheidsproef"
+if ! "$tmp/uitvoerbaarheidsproef"; then
+  echo 'De tijdelijke testmap staat op noexec; gebruik --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g' >&2
+  exit 78
+fi
 cp "$appimage" "$tmp/app.AppImage"
 chmod +x "$tmp/app.AppImage"
 appimage="$tmp/app.AppImage"
