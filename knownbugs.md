@@ -669,6 +669,21 @@ en noem het in je rapport of PR-tekst.
     via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
     (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
     de balkgeometrie te veranderen. — B
+593. **Typen-om-te-bewerken stuurt de eerste letter langs de invoermethode.** Een gekozen cel in selectiemodus
+    is geen tekstveld, dus de webview zet de invoermethode (IBus, Fcitx, IME) uit. De eerste toets komt als kale
+    letter binnen, `resolveTaskGridCommand` (`src/engine/taskGrid/navigation.ts:148`) opent er de editor mee, en
+    pas de volgende toetsen gaan door de invoermethode. Telex `ddaays` geeft zo `ddấy` in plaats van `đấy`;
+    ook `aw` (ă) en `oo` (ô) aan het begin van een woord breken. Bij Chinees pinyin of Japans romaji gaat de
+    eerste letter zo ook buiten de compositie. Gezien met v2026.44.0 (deb) en IBus Unikey onder Xvfb (issue
+    #764). Omweg: eerst F2, Enter of dubbelklik, dan typen. Voorstel: in selectiemodus een verborgen tekstveld
+    focussen dat de compositie opvangt (zoals spreadsheets doen); raakt het focusmodel en de toegankelijkheid. — B
+594. **Enter en Escape in de celeditor kijken niet naar compositie.** `GridEditorHost.tsx` (`onKeyDown`) legt bij
+    Enter vast en breekt bij Escape af, ook tijdens een IME-compositie. In Chromium (Windows-app, webversie)
+    heeft die keydown `key === 'Enter'` met `isComposing`; een Japanse of Chinese gebruiker die met Enter een
+    kandidaat kiest, sluit dan de cel. WebKitGTK geeft bij een toets die de invoermethode afhandelt
+    `key 'Unidentified'`, keyCode 229 (gemeten met Unikey), dus Linux raakt dit waarschijnlijk niet. Niet getest
+    in Chromium met een echte IME. Voorstel: `event.nativeEvent.isComposing || keyCode === 229` overslaan, zoals
+    `useDialogKeys.ts` al doet. — S
 
 ## Kalenders
 
