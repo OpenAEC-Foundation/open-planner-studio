@@ -34,13 +34,6 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fake
   void import('@/services/fileAccess/fakeSiteHost').then(({ installFakeSiteHost }) => installFakeSiteHost());
 }
 
-// Twee grijzen voor titelbalk en documentbalk in licht, alleen in DEV en met `?grijs=b` (PR #721,
-// check van Ethan; zie devGreyChoice.ts). Valt uit elke productiebouw.
-const devGrey = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('grijs') : null;
-if (devGrey) {
-  void import('@/utils/devGreyChoice').then(({ installDevGreyChoice }) => installDevGreyChoice(devGrey));
-}
-
 // Kijkscène voor handmatige controle, alleen in DEV en met `?qaScene=<naam>` (zie qaScenes.ts).
 const qaScene = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('qaScene') : null;
 if (qaScene) {
