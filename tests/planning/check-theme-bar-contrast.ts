@@ -169,6 +169,15 @@ const lStar = (hex: string): number => {
     ['donker', '#2E3239', donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']],
     ['hoog contrast', '#0a0a0a', hoog('--theme-bar-baseline'), hoog('--theme-bar-baseline-compare-2'), hoog('--theme-bar-baseline-compare-1')],
   ];
+  // Ethan 2026-11-02, check van #780: "helemaal wit is in het donkere thema gewoon te fel". De
+  // actieve baseline blijft in donker de lichtste, maar is lichtgrijs, niet (bijna) wit. Hoog
+  // contrast mag wel wit blijven: dat thema is er juist voor het grootste contrast.
+  const MAX_L_DONKER_ACTIEF = 90;
+  {
+    const a = donker['--theme-bar-baseline'];
+    ok(`donker: actieve baseline ${a} (L* ${a ? lStar(a).toFixed(1) : '?'}) is niet feller dan L* ${MAX_L_DONKER_ACTIEF}`,
+      !!a && lStar(a) <= MAX_L_DONKER_ACTIEF);
+  }
   for (const [naam, kaart, actief, verg2, verg1] of sets) {
     ok(`${naam}: drie baselinetinten gezet (${actief}, ${verg2}, ${verg1})`, !!actief && !!verg2 && !!verg1);
     if (!actief || !verg2 || !verg1) continue;
