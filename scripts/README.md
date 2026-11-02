@@ -636,3 +636,12 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
   hij importeert `sharp`, en dat staat bewust niet in `package.json` (het is een zware native
   dependency voor een handeling die je hooguit bij een rebranding doet). Wil je hem draaien:
   `npm i --no-save sharp` en dan `node scripts/generate-icon.mjs`.
+- `style-tokens.py` — haalt `web/openaec-tokens.css` (OpenAEC-tokens 0.4, `--oa-*` per
+  `data-oa-theme`) uit de [OpenAEC-Blueprint](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint)
+  op een release-tag en schrijft het byte-identiek naar `src/styles/openaec-tokens.css`. De tag,
+  de commit van die tag en de SHA-256 staan in `src/styles/openaec-tokens.lock.json`. Zonder opties:
+  opnieuw schrijven op de vastgezette tag; `--check`: exit 1 als de repo afwijkt (of de tag is
+  verplaatst); `--tag <tag>`: andere tag vastzetten; `--latest`: print de nieuwste release-tag.
+  Alleen de Python-standaardbibliotheek. De Blueprint is privé: zet een token met leesrecht
+  (`GITHUB_TOKEN` of `GH_TOKEN`, bijv. `GH_TOKEN=$(gh auth token)`), anders geeft GitHub 404.
+  `globals.css` importeert het bestand en leidt `--theme-*` er per thema uit af (het brugblok).

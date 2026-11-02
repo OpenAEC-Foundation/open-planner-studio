@@ -4,8 +4,8 @@ import type { ResolvedUITheme, UITheme } from '@/state/slices/types';
  * Thema-resolutie voor de "Systeem"-voorkeur (volg het OS/browser-kleurschema).
  *
  * `UITheme` is de VOORKEUR van de gebruiker en kent daarnaast `'system'`. Die waarde bestaat
- * bewust niet als `data-theme`-waarde: `globals.css` heeft alleen `[data-theme="dark"]`,
- * `[data-theme="light"]` en `[data-theme="high-contrast"]`-blokken. Alles wat een thema
+ * bewust niet als themawaarde op `<html>`: `globals.css` heeft alleen blokken voor donker, licht
+ * en hoog contrast (zie `applyThemeAttributes`). Alles wat een thema
  * TOEPAST (het `<html data-theme>`-attribuut, de Canvas-2D-renderers) werkt daarom met
  * `ResolvedUITheme`; alleen de settings-UI en de opslag werken met de voorkeur zelf.
  *
@@ -23,6 +23,24 @@ export const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 export function resolveUITheme(preference: UITheme, systemPrefersDark: boolean): ResolvedUITheme {
   if (preference !== 'system') return preference;
   return systemPrefersDark ? 'dark' : 'light';
+}
+
+/** Het OpenAEC-thema (tokens 0.4, `data-oa-theme`) bij een OPS-thema. Licht en donker zijn
+ *  dezelfde namen; het oude hoog contrast is donker, dus `high-contrast-dark`. De `--oa-*`-waarden
+ *  van dat laatste gebruikt nog niets: `[data-theme="high-contrast"]` zet zijn eigen kleuren. */
+export type OAThemeId = 'light' | 'dark' | 'high-contrast-dark';
+export const OA_THEME_FOR = {
+  'dark': 'dark',
+  'light': 'light',
+  'high-contrast': 'high-contrast-dark',
+} as const satisfies Record<ResolvedUITheme, OAThemeId>;
+
+/** Zet het thema op een element: `data-theme` (de bestaande CSS) én `data-oa-theme` (de tokens en
+ *  de brugblokken in `globals.css`). Altijd samen, anders tekent de brug met de verkeerde tokens.
+ *  De pre-paint in `index.html` doet hetzelfde in losse JS. */
+export function applyThemeAttributes(el: Element, theme: ResolvedUITheme): void {
+  el.setAttribute('data-theme', theme);
+  el.setAttribute('data-oa-theme', OA_THEME_FOR[theme]);
 }
 
 /** Leest de huidige systeemstand. Geen `matchMedia` (headless Node, oude webview) ⇒ `false`, wat

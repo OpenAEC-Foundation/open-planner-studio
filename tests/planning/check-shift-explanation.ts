@@ -606,6 +606,23 @@ regression('24d vast werk, alleen een resource eraf', () => {
   deepStrictEqual(reasons(store)[a], { kind: 'resource', resourceIds: [first] });
 });
 
+// Knownbug 589: nieuw materiaal ontbreekt in de vorige basis en mag geen arbeidsresource worden.
+regression('589 nieuw materiaal verklaart geen handmatige verkorting', () => {
+  const { store, S, a } = chain();
+  const [labor] = resources(S);
+  S().setTaskWorkRule(a, 'FIXED_RATE');
+  S().assignResource(a, labor, 1);
+  withDuration(store, a, 10);
+  S().runCPM();
+  withDuration(store, a, 5);
+  const material = S().addResource({ name: 'Bakstenen', description: '', type: 'MATERIAL', maxUnits: 1 });
+  S().assignResource(a, material, 1);
+  strictEqual(task(store, a).time.scheduleDuration, 5, 'materiaal verandert de duur niet');
+  S().recalculate();
+  strictEqual(task(store, a).time.scheduleDuration, 5, 'F5 houdt de juiste planning');
+  deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
+});
+
 if (failed.length) {
   for (const line of failed) console.log(`XX  ${line}`);
   throw new Error(`${failed.length} regressie(s) rood`);

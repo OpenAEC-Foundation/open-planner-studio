@@ -1,0 +1,20 @@
+{
+  "run": "https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41453138966",
+  "basis": "dd9d7b46c599ceaaa4e9626e32ee596cce5b81c1",
+  "kandidaat": "1fc75e094c7cf0ed8dff9d9f6bf94a515d915b88",
+  "voorstellenPerProfiel": {
+    "ops": 96,
+    "msproject": 92,
+    "p6": 98
+  },
+  "profielbestanden": {
+    "profielen-voor.json": {
+      "bytes": 8027105,
+      "sha256": "dbc8452f59d060bc69b44d23c941cca96e7deda4f66fa13339c3bb0aae733975"
+    },
+    "profielen-na.json": {
+      "bytes": 8027105,
+      "sha256": "dbc8452f59d060bc69b44d23c941cca96e7deda4f66fa13339c3bb0aae733975"
+    }
+  }
+}

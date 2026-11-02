@@ -146,7 +146,7 @@ export function baselineReach(overlays: Iterable<BaselineOverlay>): BaselineReac
   let latest: string | null = null;
   for (const overlay of overlays) {
     for (const entry of overlay.values()) {
-      const s = entry.start.slice(0, 10);
+      const s = (entry.start || entry.finish).slice(0, 10);
       const f = (entry.finish || entry.start).slice(0, 10);
       if (DAY_RE.test(s) && (earliest === null || s < earliest)) earliest = s;
       if (DAY_RE.test(f) && (latest === null || f > latest)) latest = f;

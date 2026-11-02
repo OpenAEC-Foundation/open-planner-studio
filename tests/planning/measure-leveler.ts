@@ -27,6 +27,7 @@ export function createMeasurement(size: number) {
     const result = levelResources(tasks, sequences, data.resources, data.assignments,
       data.calendar, [data.calendar], cpm, { constrainToFloat: false }, options);
     const ms = performance.now() - start;
+    if (hash(data) !== inputHash) throw new Error('nivelleren heeft de meetinvoer gemuteerd');
     const applied = tasks.map(t => ({
       ...t, time: { ...t.time }, levelingDelay: result.delays[t.id],
       levelingDelayMinutes: undefined, levelingDelayElapsed: undefined,

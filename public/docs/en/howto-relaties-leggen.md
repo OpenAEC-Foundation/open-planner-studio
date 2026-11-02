@@ -69,7 +69,7 @@ What you type replaces the whole cell. If there are predecessors in it already, 
 You type a lag in the box next to the type, with each of the ways above. You change an existing lag in *Dependencies*: click in the lag box, type the new value and press Enter.
 
 - `3` or `3d`: 3 work days. A weekend does not count. The app shows `+3d`.
-- `3ed`: 3 calendar days. The weekend does count, as with concrete that also cures on Saturday and Sunday.
+- `3ed`: 3 calendar days. The weekend does count. This is the unit for something that carries on without work being done, such as concrete that also cures on Saturday and Sunday.
 - `-1`: a negative lag (lead). The successor may start a day earlier, so the tasks overlap.
 - `4h`: 4 working hours; the app shows it as `+4h`. The app counts them exactly in working hours, also after a day task. If the predecessor finishes on Friday at 16:00, the successor starts on Monday at 11:00.
 - `1.5`: one and a half work days. A lag in days may be a fraction.
@@ -93,7 +93,7 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 **A task to its own phase.** A relation between a task and the summary task it sits under is not possible. The app says *A relation between a task and its own (grand)parent summary task is not allowed.*
 
-**A relation on a phase.** For the calculation the app puts such a relation on every task in the phase. If the phase is the predecessor with FS or FF, the successor waits for the task in the phase that finishes last. With SS or SF it waits for the task that starts last, not for the start of the phase. If the phase is the successor, every task in the phase has to meet the relation itself. If you move a task into or out of the phase, the relations that apply to that task change too.
+**A relation on a phase.** For the calculation the app puts such a relation on every task in the phase. If the phase is the predecessor with FS or FF, the successor waits for the task in the phase that finishes last. With SS or SF it waits for the task that starts last, not for the start of the phase. If you want the successor to follow the start of the phase, put the relation on the task in the phase that starts first. If the phase is the successor, every task in the phase has to meet the relation itself. With FF or SF that also goes for a task that could have been done much earlier. Rather put such a relation on the task in the phase that finishes last. If you move a task into or out of the phase, the relations that apply to that task change too.
 
 **Duplicate.** If the relation already exists, the app says *That relation already exists* and nothing changes.
 

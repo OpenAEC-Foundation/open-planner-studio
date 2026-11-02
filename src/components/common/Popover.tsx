@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
@@ -39,7 +39,7 @@ const BASE_PANEL_STYLE: CSSProperties = {
 export interface PopoverProps {
   /** Open-vlag (controlled). */
   open: boolean;
-  /** Aangeroepen wanneer buiten geklikt wordt (de aanroeper zet dan zijn `open` op false). */
+  /** Sluiten bij buiten klikken, Escape of scrollen van de triggeromgeving. */
   onClose: () => void;
   /** De trigger (knop) — altijd gerenderd, binnen de `position: relative`-container. */
   trigger: ReactNode;
@@ -77,21 +77,60 @@ export function Popover({
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const anchorRectRef = useRef<DOMRect | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   // extraRef: het paneel leeft (via de portal) buiten `ref`'s DOM-subtree — zonder dit telt een
   // klik ín het paneel als "buiten" en sluit useClickOutside het meteen vóór het item-onClick vuurt.
   useClickOutside(ref, onClose, open, { extraRef: panelRef });
 
+  useEffect(() => {
+    if (!open) return;
+    const container = ref.current;
+    // Een gesplitste knop kan meer dan één focusbaar deel hebben: onthoud het bediende deel.
+    const focused = document.activeElement;
+    const trigger = focused instanceof HTMLElement && container?.contains(focused) ? focused : null;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeRef.current();
+      trigger?.focus();
+    };
+    const onScroll = (event: Event) => {
+      const target = event.target;
+      // De lijst in het paneel en andere scrollvlakken mogen bewegen; alleen een bewegende
+      // voorouder maakt de vaste portalpositie los van de trigger.
+      if (target === document || (target instanceof Node && container && target.contains(container))) {
+        const anchor = anchorRectRef.current;
+        const current = container?.getBoundingClientRect();
+        // De browser kan de knop vóór de openende klik in beeld schuiven en het scrollevent pas
+        // erna bezorgen. Sluit alleen als de knop sinds het plaatsen van dit paneel is verplaatst.
+        if (anchor && current && (current.left !== anchor.left || current.right !== anchor.right || current.bottom !== anchor.bottom)) {
+          closeRef.current();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open]);
+
   const [panelPos, setPanelPos] = useState<CSSProperties | null>(null);
   const panelMounted = panelPos !== null;
   useLayoutEffect(() => {
-    if (!open) { setPanelPos(null); return; }
+    if (!open) { anchorRectRef.current = null; setPanelPos(null); return; }
     const place = () => {
       const trigger = ref.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
+      anchorRectRef.current = rect;
       const marginTop = typeof panelStyle?.marginTop === 'number' ? panelStyle.marginTop : 0;
       const fit: CSSProperties = fitViewport
-        ? { maxHeight: Math.max(120, window.innerHeight - rect.bottom - marginTop - VIEWPORT_MARGIN) }
+        ? { maxHeight: Math.max(0, window.innerHeight - rect.bottom - marginTop - VIEWPORT_MARGIN) }
         : {};
       // De eerste ronde is er nog geen paneel; de tweede, vóór het schilderen, meet zijn breedte.
       const width = panelRef.current?.offsetWidth ?? 0;

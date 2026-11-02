@@ -6,7 +6,7 @@ Goal: record on which days a resource is available, so that the histogram, the o
 
 The bricklaying crew works only Monday to Thursday. The crane is on another project in the first two weeks of August. A subcontractor has four fixed work days. Without a calendar of its own the app assumes the resource works on the days of the project calendar.
 
-A resource calendar changes no task date at all. It only determines when the resource is available. If a task works on a day on which the resource does not work, the capacity that day is 0 and the day counts as overallocated. If you want the task itself to run on other days, give the task a calendar of its own ([Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen)). The difference is covered in [Calendar windows](docs://ref-kalenders).
+In a schedule you build yourself in the app, a resource calendar changes no task date at all on **Calculate**. It then only determines when the resource is available: in the histogram, for overallocation and when leveling. Through leveling a task can therefore move later. For a task from an .mpp file, the resource calendar of an assignment can determine the finish, as in MS Project. If a task works on a day on which the resource does not work, the capacity that day is 0 and the day counts as overallocated. If you want the task itself to run on other days, give the task a calendar of its own ([Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen)). The difference is covered in [Calendar windows](docs://ref-kalenders).
 
 ## Steps
 

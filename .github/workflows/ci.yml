@@ -372,10 +372,12 @@ jobs:
   # Houdt de bestaande checknaam `test` (waar een verplichte-check-instelling op kan staan) en is
   # alleen groen als elk deel dat in deze run hoort groen is. Elk deel moet precies de verwachte
   # uitkomst hebben: een afgebroken deel is rood, en een deel dat onverwacht overslaat ook. Alleen
-  # bij een ander label slaat ook deze job over: die run heeft niets om te beoordelen.
+  # bij een ander label slaat ook deze job over: die run heeft niets om te beoordelen. Geef die
+  # lege run een eigen naam, zodat hij de laatste echte `test`-check niet verdringt (#552).
   # Ook de builds: de Ubuntu-build altijd, Windows en macOS alleen als `changes` zegt dat Rust of de
   # pakketlijst geraakt is. Een build die overslaat terwijl hij had moeten draaien, is hier rood.
   test:
+    name: ${{ github.event.action == 'labeled' && github.event.label.name != 'browsertests' && 'label zonder controles' || 'test' }}
     if: always() && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
     needs: [verify, browser, changes, build-ubuntu, build-windows, build-macos]
     runs-on: ubuntu-22.04
