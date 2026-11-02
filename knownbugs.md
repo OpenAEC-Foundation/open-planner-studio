@@ -684,6 +684,16 @@ en noem het in je rapport of PR-tekst.
     `key 'Unidentified'`, keyCode 229 (gemeten met Unikey), dus Linux raakt dit waarschijnlijk niet. Niet getest
     in Chromium met een echte IME. Voorstel: `event.nativeEvent.isComposing || keyCode === 229` overslaan, zoals
     `useDialogKeys.ts` al doet. — S
+595. **VERVOLG: de PR-check `appimage-im-check.yml` kan groen zijn terwijl de modules ontbreken.** De stap *Verify
+     AppImage input-method modules* (`.github/workflows/appimage-im-check.yml:57`) heeft geen `shell:` en draait dus
+     met `bash -e` zonder `pipefail`; `| tee` bepaalt dan de exitcode. Het script direct met een ontbrekend bestand
+     geeft exit 1, via de pipeline met `tee` exit 0 ondanks `::error::`. De releasecontrole in `release.yml` gebruikt
+     geen pipeline en faalt wel. Voorstel: `set -o pipefail` in de stap, of `| tee` weghalen. Gevonden in de review
+     van #772 (GPT-6.1-Sol). — B
+596. **VERVOLG: knownbugs 594 beschrijft `useDialogKeys.ts` te ruim.** 594 zegt "zoals `useDialogKeys.ts` al doet"
+     met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
+     niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
+     van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
