@@ -34,7 +34,7 @@ export const GANTT_TRACE_COLORS = {
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
-//   baseline  #6B7280  4,63 / 2,66 / 4,10
+//   baseline  #1F2937  14,06 / 1,14 / 1,35  (licht; donker en hoog contrast zetten een eigen tint)
 // Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
 // 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
 // grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
@@ -56,7 +56,7 @@ export const GANTT_TRACE_COLORS = {
 // BenchmarkDialog en TaskCpmResultSection. Op #DC2626 haalt die tekst 4,83 op wit, maar 2,67 op de
 // donkere kaart en 2,33 op een elevated donker vlak — geen AA. Wie dat wil oplossen verplaatst die
 // zes gebruiken naar `--theme-critical-text`, dat per thema bestaat en precies hiervoor bedoeld is.
-// LET OP 3: enkele tinten vallen samen: `baseline` == `dependency` (#6B7280), en `milestone` ==
+// LET OP 3: enkele tinten vallen samen: `milestone` ==
 // GANTT_TRACE_COLORS.successorDriving (#7C3AED), wat ook DOC_PALETTE[3] in utils/documents.ts is —
 // bij 1 op de 8
 // documenten valt de mijlpaalmarkering daar samen met de identiteitskleur.
@@ -66,7 +66,10 @@ const BRAND = {
   hammock: '#0E7490',           // hammock/LOE-balk (teal)
   normal: '#2563EB',            // normale taak (blauw)
   milestone: '#7C3AED',         // mijlpaal (paars, ruit)
-  baseline: '#6B7280',          // baseline-onderbalk (grijs)
+  // Baseline-onderbalk (actieve baseline). Issue #741, besluit Ethan 2026-11-02: de drie baselines
+  // verschillen ook in helderheid (actief donkerst, dan vergelijking 2, dan vergelijking 1), zodat
+  // ze in grijs uit elkaar blijven. Het donkere thema zet een eigen grijs (`--theme-bar-baseline`).
+  baseline: '#1F2937',
   dependency: '#6B7280',        // afhankelijkheidspijl (grijs)
   summary: '#475569',           // samenvattingsbalk (slate)
   ghost: '#94A3B8',             // externe (cross-project) ghost-balk (grijs)
@@ -230,7 +233,9 @@ export function readGanttPalette(): GanttPalette {
     // De balktinten komen uit BRAND, maar via een thema-var met BRAND als fallback — hetzelfde
     // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
     // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
-    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt.
+    // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt. Uitzondering
+    // (#741): licht en donker zetten allebei `--theme-bar-baseline`. Het donkere blok geldt ook voor
+    // `:root`, dus het lichte thema moet zijn #1F2937 zelf zetten, anders erft het het donkere grijs.
     critical: v('--theme-bar-critical', BRAND.critical),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,
@@ -240,7 +245,7 @@ export function readGanttPalette(): GanttPalette {
     baseline: v('--theme-bar-baseline', BRAND.baseline),
     // Vergelijkingsbaselines: per thema een eigen tint (licht donkerder, donker lichter), zie globals.css.
     baselineCompare1: v('--theme-bar-baseline-compare-1', '#0891B2'),
-    baselineCompare2: v('--theme-bar-baseline-compare-2', '#C026D3'),
+    baselineCompare2: v('--theme-bar-baseline-compare-2', '#A21CAF'),
     selected: v('--theme-accent', '#B45309'),
     dependency: BRAND.dependency,
     today: v('--theme-accent', '#B45309'),
@@ -354,10 +359,12 @@ export const PRINT_PALETTE = {
   normal: '#2563EB',
   normalDark: '#1d4ed8',
   milestone: '#7C3AED',
-  baseline: '#6B7280',
-  // Vergelijkingsbaselines (issue #391): de tinten van het lichte schermthema; papier is wit.
+  // Baselines (issue #391, #741): de tinten van het lichte schermthema; papier is wit. De drie
+  // verschillen in helderheid, zodat ze op een zwart-witafdruk te onderscheiden blijven:
+  // grijswaarde (0,299R + 0,587G + 0,114B) 40 / 108 / 85 van 255.
+  baseline: '#1F2937',
   baselineCompare1: '#0891B2',
-  baselineCompare2: '#C026D3',
+  baselineCompare2: '#A21CAF',
   uncategorized: BRAND.ghost, // '#94A3B8' — ontbrekende categoriewaarde
   float: '#10B981',
   dependency: '#9CA3AF',

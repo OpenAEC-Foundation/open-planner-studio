@@ -12,7 +12,9 @@ export { ScopeEscapeError } from '@/services/mcp/fileScopeError';
 //     bovenmap) moet binnen de `realpath` van de werkmap liggen. Die vergelijking is EXACT, teken voor
 //     teken: geen aanname over hoofdletters per besturingssysteem. Geweigerd met `SCOPE`: een link of
 //     junction naar buiten, een dode link, een bestand met meer dan één harde link (niet te bewijzen dat
-//     elke naam binnen ligt), en een bestand dat in de app open staat (`appLock.ts`).
+//     elke naam binnen ligt).
+//  3. SLOT — alleen bij SCHRIJVEN (`writeChecked`), ná de fysieke poort: staat het doel open in de
+//     desktop-app (register `open-files*.json`, `appLock.ts`), dan `SCOPE`. Lezen blijft mogen.
 //
 // DE OPERATIE ZELF IS GEBONDEN AAN DE LIGGING (review PR #572, ronde 1 en 2, bevinding 2). `check()` is
 // alleen een controle vooraf; een ander proces kan daarna een map door een link vervangen, of een map
@@ -44,7 +46,7 @@ import path from 'node:path';
 import { decodeXmlBytes } from './xmlEncoding';
 import type { McpFileFs } from '@/services/mcp/tools/fileTools';
 import type { FileIdentityInfo } from '@/services/fileAccess/fileIdentity';
-import { isPathOpenInApp as noAppLock, type IsPathOpenInApp } from './appLock';
+import { noAppLock, type AppLock } from './appLock';
 
 /** Is `child` gelijk aan of binnen `parent`? Beide zijn absolute, door `realpath` opgeloste paden.
  *  Exacte vergelijking, ook op Windows en macOS: liever een terechte weigering dan een ontsnapping. */
@@ -113,11 +115,12 @@ const O_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
 
 /**
  * Maak de bestandstoegang voor één werkmap. `root` moet de `realpath` van een bestaande map zijn
- * (`host.ts` controleert dat). `isOpenInApp` is de slot-haak (`appLock.ts`).
+ * (`host.ts` controleert dat). `appLock` is het slot voor schrijfacties (`appLock.ts`); de host geeft
+ * altijd het echte slot mee, de standaard (nooit open) is alleen voor tests.
  */
 export async function createNodeFileFs(
   root: string,
-  isOpenInApp: IsPathOpenInApp = noAppLock,
+  appLock: AppLock = noAppLock,
   hooks: NodeFsHooks = {},
 ): Promise<McpFileFs & { root: string }> {
   const realRoot = root;
@@ -169,10 +172,6 @@ export async function createNodeFileFs(
     if (!isInside(realRoot, real) || real === realRoot) {
       if (real === realRoot) throw new ScopeEscapeError(`Path '${target}' is the working folder itself, not a file in it.`);
       throw outside(target);
-    }
-    if (await isOpenInApp(real)) {
-      throw new ScopeEscapeError(`'${target}' is open in Open Planner Studio. Close it there first, or let the user ` +
-        'work on it in the app; two programs writing one file lose each other\'s changes.');
     }
     let file: Checked['file'] = null;
     if (missing.length === 0) {
@@ -318,6 +317,9 @@ export async function createNodeFileFs(
   async function writeChecked(target: string, content: string): Promise<void> {
     const c = await check(target);
     if (c.file && !c.file.isFile) throw new Error(`'${target}' is a folder, not a file`);
+    // Het slot: per schrijfactie het register opnieuw lezen en op bestandsidentiteit toetsen.
+    const locked = await appLock(c.real);
+    if (locked !== null) throw new ScopeEscapeError(locked);
     hooks.afterCheck?.('create', c.real);
     inDir(c.anchor, target, () => {
       // Ontbrekende mappen één voor één, elk relatief aan de vorige en elk opnieuw gecontroleerd.

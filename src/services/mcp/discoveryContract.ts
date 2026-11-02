@@ -57,6 +57,48 @@ export interface McpOpenFilesFile {
   files: string[];
 }
 
+/** Identifier van de desktop-app (`identifier` in `src-tauri/tauri.conf.json`); de naam van zijn `appDataDir`. */
+export const MCP_APP_IDENTIFIER = 'org.openaec.planner';
+
+/** Omgevingsvariabele die de mappen hieronder vervangt door één map (tests, een dev-build, een afwijkende
+ *  installatie). Leeg of een niet-ingevulde manifestvariabele (`${…}`) telt als niet gezet. */
+export const MCP_DISCOVERY_DIR_ENV = 'OPS_MCP_DISCOVERY_DIR';
+
+/** Wat een lezer over zijn omgeving meegeeft; zo blijft deze module zonder imports. */
+export interface DiscoveryLocation {
+  /** `process.platform`. */
+  platform: string;
+  /** De thuismap (`os.homedir()`). */
+  home: string;
+  env: Record<string, string | undefined>;
+}
+
+/**
+ * De mappen `<appDataDir>/mcp` waarin de desktop-app de ontdekkingsbestanden schrijft, in de volgorde
+ * waarin een lezer ze afloopt (tabel in `docs/mcp-ontdekking.md`). Linux geeft er twee: de gewone map en
+ * die van de Snap (snapd zet `HOME` om). `XDG_DATA_HOME` telt alleen als absoluut pad, zoals in de app.
+ */
+export function mcpDiscoveryDirs(loc: DiscoveryLocation): string[] {
+  const override = (loc.env[MCP_DISCOVERY_DIR_ENV] ?? '').trim();
+  if (override !== '' && !override.startsWith('${')) return [override];
+  const win = loc.platform === 'win32';
+  const sep = win ? '\\' : '/';
+  const join = (base: string, ...parts: string[]) => [base.replace(/[\\/]+$/, ''), ...parts].join(sep);
+  if (win) {
+    const appData = (loc.env.APPDATA ?? '').trim();
+    return [join(appData !== '' ? appData : join(loc.home, 'AppData', 'Roaming'), MCP_APP_IDENTIFIER, MCP_DISCOVERY_DIR)];
+  }
+  if (loc.platform === 'darwin') {
+    return [join(loc.home, 'Library', 'Application Support', MCP_APP_IDENTIFIER, MCP_DISCOVERY_DIR)];
+  }
+  const xdg = (loc.env.XDG_DATA_HOME ?? '').trim();
+  const data = xdg.startsWith('/') ? xdg : join(loc.home, '.local', 'share');
+  return [
+    join(data, MCP_APP_IDENTIFIER, MCP_DISCOVERY_DIR),
+    join(loc.home, 'snap', 'open-planner-studio', 'current', '.local', 'share', MCP_APP_IDENTIFIER, MCP_DISCOVERY_DIR),
+  ];
+}
+
 /** Bestandsnamen. Een productiebuild gebruikt de canonieke namen; een dev-instantie (worktree-slug,
  *  `OPS_DEV_INSTANCE`) schrijft `runtime.<slug>.json` en `open-files.<slug>.json`, zodat twee
  *  dev-builds naast elkaar elkaars bestanden niet overschrijven (zelfde reden als de recovery-namen). */
@@ -125,8 +167,8 @@ export function serializeDiscoveryFile(file: McpRuntimeFile | McpOpenFilesFile):
 // tekst: `realpath` van beide kanten en dan `stat` (dev + ino; op Windows het bestandsindex-nummer via
 // `fs.stat(…, { bigint: true })`). Zo vallen ook symlinks, harde links en andere schrijfwijzen samen.
 // Een tekstvergelijking is nooit een terugval (twee harde links hebben elk een eigen realpath). Mislukt
-// `realpath` of `stat` om een andere reden dan "bestaat aantoonbaar niet" (ENOENT op het pad zelf, met een
-// bestaande oudermap), dan weigert de lezer het schrijven. Zie `docs/mcp-ontdekking.md`.
+// `realpath` of `stat` om een andere reden dan "bestaat aantoonbaar niet" (ENOENT, met `realpath` van de
+// diepste bestaande bovenmap), dan weigert de lezer het schrijven. Zie `docs/mcp-ontdekking.md`.
 
 /** Ontdubbel en sorteer (vaste volgorde ⇒ geen onnodige schrijfactie); paden blijven letterlijk. */
 export function openFileList(paths: readonly string[]): string[] {
