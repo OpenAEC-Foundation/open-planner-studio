@@ -11,9 +11,7 @@
  */
 import type { BuiltInProfileId } from '@/types/project';
 import type { XerRow, XerTable } from '@/services/xer/xerTables';
-import {
-  deriveXerScheduleOptions, indexXerScheduleOptions, type XerScheduleOptionsResult,
-} from '@/services/xer/xerScheduleOptions';
+import { deriveXerScheduleOptions, indexXerScheduleOptions, type XerScheduleOptionsResult } from '@/services/xer/xerScheduleOptions';
 
 /** Een P6 XML-project opent met hetzelfde rekenprofiel als een XER. */
 export const P6XML_PROFILE_ID: BuiltInProfileId = 'p6';
