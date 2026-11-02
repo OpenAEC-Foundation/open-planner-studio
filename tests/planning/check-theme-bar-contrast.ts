@@ -132,10 +132,12 @@ for (const [selector, mag] of Object.entries(MAG_ZETTEN)) {
   ok(`${selector} laat de balktinten aan BRAND over (kreeg ${gezet.join(', ') || 'geen'})`, gezet.length === 0);
 }
 
-// ── 4. Baselines: drie helderheidsstappen (#741, besluit Ethan 2026-11-02) ──────────────────
-// "Niet alleen door kleur": de actieve baseline is het donkerst, dan vergelijking 2, dan
-// vergelijking 1. Zo blijven ze in grijs (zwart-witafdruk, kleurenblindheid) uit elkaar. Gemeten
-// als CIELAB L* (0 zwart, 100 wit); elke stap minstens MIN_STAP_L.
+// ── 4. Baselines: drie helderheidsstappen (#741, besluiten Ethan 2026-11-02) ─────────────────
+// "Niet alleen door kleur": de drie baselines verschillen in helderheid, zodat ze in grijs
+// (zwart-witafdruk, kleurenblindheid) uit elkaar blijven. Regel: de actieve baseline valt in elk
+// thema het meest op. Op een lichte kaart is hij dus het donkerst (dan vergelijking 2, dan 1); op
+// een donkere kaart (donker, hoog contrast) is hij het lichtst (dan vergelijking 2, dan 1, elk
+// donkerder). Gemeten als CIELAB L* (0 zwart, 100 wit); elke stap minstens MIN_STAP_L.
 const MIN_STAP_L = 10;
 const lStar = (hex: string): number => {
   const lin = (c: number) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
@@ -159,16 +161,34 @@ const lStar = (hex: string): number => {
   eq('afdruk actief = fallback', PRINT_PALETTE.baseline, pal.baseline);
   eq('afdruk vergelijking 1 = fallback', PRINT_PALETTE.baselineCompare1, pal.baselineCompare1);
   eq('afdruk vergelijking 2 = fallback', PRINT_PALETTE.baselineCompare2, pal.baselineCompare2);
-  const sets: [string, (string | undefined)[]][] = [
-    ['licht', lichtSet],
-    ['donker', [donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']]],
+  const hoogEigen = themeBlock('[data-theme="high-contrast"]');
+  const hoog = (v: string): string | undefined => hoogEigen[v] ?? donker[v];
+  // [naam, kaart, actief, vergelijking 2, vergelijking 1]
+  const sets: [string, string, string | undefined, string | undefined, string | undefined][] = [
+    ['licht', '#FAFAFA', ...lichtSet] as [string, string, string | undefined, string | undefined, string | undefined],
+    ['donker', '#2E3239', donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']],
+    ['hoog contrast', '#0a0a0a', hoog('--theme-bar-baseline'), hoog('--theme-bar-baseline-compare-2'), hoog('--theme-bar-baseline-compare-1')],
   ];
-  for (const [naam, [actief, verg2, verg1]] of sets) {
+  for (const [naam, kaart, actief, verg2, verg1] of sets) {
     ok(`${naam}: drie baselinetinten gezet (${actief}, ${verg2}, ${verg1})`, !!actief && !!verg2 && !!verg1);
     if (!actief || !verg2 || !verg1) continue;
-    const [la, l2, l1] = [lStar(actief), lStar(verg2), lStar(verg1)];
-    ok(`${naam}: actief ${actief} (L* ${la.toFixed(1)}) + ${MIN_STAP_L} <= vergelijking 2 ${verg2} (L* ${l2.toFixed(1)})`, la + MIN_STAP_L <= l2);
-    ok(`${naam}: vergelijking 2 (L* ${l2.toFixed(1)}) + ${MIN_STAP_L} <= vergelijking 1 ${verg1} (L* ${l1.toFixed(1)})`, l2 + MIN_STAP_L <= l1);
+    const [lk, la, l2, l1] = [lStar(kaart), lStar(actief), lStar(verg2), lStar(verg1)];
+    // Op een lichte kaart loopt de rij van donker naar licht, op een donkere van licht naar donker.
+    const richting = lk >= 50 ? 1 : -1;
+    const woord = richting === 1 ? 'lichter' : 'donkerder';
+    ok(`${naam}: vergelijking 2 ${verg2} (L* ${l2.toFixed(1)}) is minstens ${MIN_STAP_L} ${woord} dan actief ${actief} (L* ${la.toFixed(1)})`,
+      richting * (l2 - la) >= MIN_STAP_L);
+    ok(`${naam}: vergelijking 1 ${verg1} (L* ${l1.toFixed(1)}) is minstens ${MIN_STAP_L} ${woord} dan vergelijking 2 (L* ${l2.toFixed(1)})`,
+      richting * (l1 - l2) >= MIN_STAP_L);
+    // De actieve valt het meest op: hij ligt in helderheid het verst van de kaart.
+    ok(`${naam}: actief ligt het verst van de kaart ${kaart} (L* ${lk.toFixed(1)}): ${Math.abs(la - lk).toFixed(1)} tegen ${Math.abs(l2 - lk).toFixed(1)} en ${Math.abs(l1 - lk).toFixed(1)}`,
+      Math.abs(la - lk) > Math.abs(l2 - lk) && Math.abs(la - lk) > Math.abs(l1 - lk));
+    // Elke lijn blijft zichtbaar op de kaart (grafisch object, WCAG 1.4.11): 3:1, hoog contrast 7:1.
+    const lat = naam === 'hoog contrast' ? 7 : 3;
+    for (const [rol, hex] of [['actief', actief], ['vergelijking 2', verg2], ['vergelijking 1', verg1]] as const) {
+      const c = contrastRatio(rgbOf(hex), rgbOf(kaart));
+      ok(`${naam}: ${rol} ${hex} haalt ${c.toFixed(2)} >= ${lat} op ${kaart}`, c >= lat);
+    }
   }
 }
 
