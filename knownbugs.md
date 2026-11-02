@@ -1451,42 +1451,42 @@ en noem het in je rapport of PR-tekst.
    toevoegen: een werkelijk einde vereist 100 %, maar het nieuwere app-percentage blijft behouden. Gevonden in review van
    #756 (GPT-6.1-Sol), 2026-10-31. — B
 
-597. **Oude getallen in de nivelleer-how-to.** `public/docs/{nl,en}/howto-overbezetting-oplossen.md` noemt bij stap 2 en
+600. **Oude getallen in de nivelleer-how-to.** `public/docs/{nl,en}/howto-overbezetting-oplossen.md` noemt bij stap 2 en
    onder *Overbezet door de kalender* *Overbezet op 5 dag(en) (29-06-2027 – 05-07-2027)* en bij stap 6 de nieuwe start
    06-07-2027. `tests/browser/tutorials/tut-5.ts:188,202` en het verwijderde `uitleg-nivelleren` gaven 6 dagen (28-06 –
    05-07) en een nieuwe start op 05-07-2027 10:00. Gezien door een leesagent bij het weghalen van `uitleg-nivelleren`;
    niet in de app nagespeeld. — S
 
-598. **Vier redenen van een niet opgelost nivelleerconflict staan niet in de Help.** Het venster kent
+601. **Vier redenen van een niet opgelost nivelleerconflict staan niet in de Help.** Het venster kent
    `common:resource.leveling.reason.ceilingTooTight`, `ceilingUnreachable`, `noWindowInHorizon` en `residualFull`;
    `howto-overbezetting-oplossen.md` (*Valkuilen*) noemt ze niet. Gezien in de locales. — S
 
-599. **De how-to over constraints spreekt zichzelf tegen over de secundaire constraint.** `howto-constraint-deadline-zetten.md:17`
+602. **De how-to over constraints spreekt zichzelf tegen over de secundaire constraint.** `howto-constraint-deadline-zetten.md:17`
    zegt eerst dat *Secundaire constraint* verschijnt bij elke constraint met een datum behalve een harde pin, en daarna
    dat het bij MSO en MFO niet mag. `ref-taak-eigenschappen.md` zegt: zichtbaar behalve bij ASAP, ALAP of een harde pin.
    Gezien bij het lezen. — S
 
-600. **"Mandatory-pin" in plaats van de knopnaam.** `howto-project-verplaatsen.md:33` schrijft *harde Mandatory-pin*;
+603. **"Mandatory-pin" in plaats van de knopnaam.** `howto-project-verplaatsen.md:33` schrijft *harde Mandatory-pin*;
    de app noemt het vakje *Verplicht (pin logica)* / *Mandatory (pin logic)*. — S
 
-601. **Twee teksten voor een afgekapte lead.** `task.json` `warnTruncatedLead` (*Lead afgekapt op de projectstart — de
+604. **Twee teksten voor een afgekapte lead.** `task.json` `warnTruncatedLead` (*Lead afgekapt op de projectstart — de
    overlap wordt niet volledig benut*) wijkt af van `common.json` `truncatedLead` in het paneel *Waarschuwingen*; de
    eerste tekst staat nergens in de Help. Gezien in de locales. — S
 
-602. **"7 dagen bij 6 uur per dag" klopt niet met de exacte rekenregel.** `howto-kalender-maken-en-toewijzen.md:62`
+605. **"7 dagen bij 6 uur per dag" klopt niet met de exacte rekenregel.** `howto-kalender-maken-en-toewijzen.md:62`
    (nl en en) zegt dat 40 uur werk bij 6 uur per dag 7 dagen is. De app rondt niet af:
    `tests/planning/check-docs-resources-voorbeelden.ts` verwacht exact 16/3 werkdagen voor 32 / 6, dus 40 / 6 = 6,67.
    Niet in de app nagespeeld. — S
 
-603. **De kalendermelding van de taaktypes heeft een andere linktekst dan de Help zegt.** `ref-meldingen.md`, punt
+606. **De kalendermelding van de taaktypes heeft een andere linktekst dan de Help zegt.** `ref-meldingen.md`, punt
    *Taaktype paste duren aan*, noemt een link *Taaktypes uitgelegd*. Die melding heeft geen `linkKey` en toont dus
    *Lees meer*; alleen de detailregel in de bestandsmelding heet *Taaktypes uitgelegd* (`NotificationHost.tsx`,
    `taskTypesNotice.ts`). Gezien in de code door een leesagent. — S
 
-604. **nl mist de weergave `+4u` bij de lag in uren.** `en/howto-relaties-leggen.md` zegt bij `4h` "the app shows it as
+607. **nl mist de weergave `+4u` bij de lag in uren.** `en/howto-relaties-leggen.md` zegt bij `4h` "the app shows it as
    `+4h`"; de nl-regel bij `4u` mist die zin. — S
 
-605. **Een verweesde vertaling `howto-urenplanning-aanzetten.md` in 26 talen.** Het id is al een alias naar
+608. **Een verweesde vertaling `howto-urenplanning-aanzetten.md` in 26 talen.** Het id is al een alias naar
    `howto-taak-in-uren-plannen`, maar `public/docs/<taal>/howto-urenplanning-aanzetten.md` staat er nog;
    `verify:docs` meldt per taal "1 wees". Voorstel: `npm run translate -- remove-doc howto-urenplanning-aanzetten`.
    Gezien in de uitvoer van `remove-doc` en `verify:docs`. — B
