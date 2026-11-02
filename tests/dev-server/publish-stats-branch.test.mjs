@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -9,6 +9,16 @@ import { join, resolve } from 'node:path';
 // stats-branch (orphan-commit), dan nog eens (commit mét parent), dan ongewijzigd (no-op).
 
 const SCRIPT = resolve(import.meta.dirname, '../../scripts/publish-stats-branch.sh');
+
+test('geplande en handmatige stats-publicaties delen één vaste wachtrij zonder annulering', () => {
+  const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/download-stats.yml'), 'utf8');
+  const concurrency = workflow.match(/^concurrency:\n((?:[ \t]+[^\n]*\n|\n)*)/m)?.[1];
+  assert.ok(concurrency, 'zonder workflowbrede wachtrij kunnen twee runs dezelfde stats-parent kiezen (460)');
+  assert.match(concurrency, /^  group: ['"]?[A-Za-z0-9_-]+['"]?\s*$/m,
+    'een vaste groep laat beide triggers en alle refs op dezelfde publicatie wachten');
+  assert.match(concurrency, /^  cancel-in-progress: false\s*$/m,
+    'een nieuwe run mag een publicatie die al bezig is niet afbreken');
+});
 
 function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
