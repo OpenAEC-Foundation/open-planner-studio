@@ -1450,11 +1450,6 @@ en noem het in je rapport of PR-tekst.
    `common:resource.leveling.reason.ceilingTooTight`, `ceilingUnreachable`, `noWindowInHorizon` en `residualFull`;
    `howto-overbezetting-oplossen.md` (*Valkuilen*) noemt ze niet. Gezien in de locales. — S
 
-604. **De how-to over constraints spreekt zichzelf tegen over de secundaire constraint.** `howto-constraint-deadline-zetten.md:17`
-   zegt eerst dat *Secundaire constraint* verschijnt bij elke constraint met een datum behalve een harde pin, en daarna
-   dat het bij MSO en MFO niet mag. `ref-taak-eigenschappen.md` zegt: zichtbaar behalve bij ASAP, ALAP of een harde pin.
-   Gezien bij het lezen. — S
-
 605. **"Mandatory-pin" in plaats van de knopnaam.** `howto-project-verplaatsen.md:33` schrijft *harde Mandatory-pin*;
    de app noemt het vakje *Verplicht (pin logica)* / *Mandatory (pin logic)*. — S
 
@@ -1479,6 +1474,12 @@ en noem het in je rapport of PR-tekst.
    `howto-taak-in-uren-plannen`, maar `public/docs/<taal>/howto-urenplanning-aanzetten.md` staat er nog;
    `verify:docs` meldt per taal "1 wees". Voorstel: `npm run translate -- remove-doc howto-urenplanning-aanzetten`.
    Gezien in de uitvoer van `remove-doc` en `verify:docs`. — B
+
+611. **VERVOLG: de oude download-URL van "Goed plannen" blijft niet bestaan.** De alias `gids-goed-plannen` in
+   `public/docs/manifest.json` werkt alleen in de Help-viewer. Een oudere geïnstalleerde skill of MCP-instructie die
+   rechtstreeks `/docs/en/gids-goed-plannen.md` (of `/docs/nl/…`) downloadt, gebruikt die alias niet. De deploy haalt
+   verdwenen bestanden weg met `rsync --delete`, en een onbekend pad geeft HTTP 200 met de HTML van de app. Voorstel:
+   houd beide oude URL's met een HTTP-redirect naar `/agent/planning-guide.md`. Gevonden in de review van #778. — B
 
 ## Tests
 
