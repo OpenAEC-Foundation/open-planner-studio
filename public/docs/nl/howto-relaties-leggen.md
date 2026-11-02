@@ -10,6 +10,8 @@ Je legt relaties bij het opbouwen van een planning, als er een taak bijkomt, of 
 
 De standaardrelatie is **FS** (Eind-Start): de opvolger kan pas beginnen als de voorganger klaar is. De app kent daarnaast SS, FF en SF, die een start of einde aan een start of einde koppelen; bij SS (Start-Start) kan het stucwerk bijvoorbeeld pas beginnen als de installaties begonnen zijn.
 
+Een relatie is een ondergrens: de opvolger mag later beginnen, nooit eerder. Zonder lag rekent de app zo. Bij FS begint de opvolger op de eerste werkdag na het einde van de voorganger, bij SS op de startdag van de voorganger. Bij FF eindigt de opvolger op de einddag van de voorganger, bij SF op de startdag; de app telt dan terug over de duur van de opvolger. Heeft een taak meer voorgangers, dan geldt de laatste datum.
+
 Twijfel je welk type je nodig hebt? Onder de keuze van het type staat een zin met de echte taaknamen, bijvoorbeeld *Metselwerk begint pas als Fundering klaar is.* Kies je een ander type, dan verandert de zin mee. Je ziet hem in het venster *Type relatie*, in het blok *Afhankelijkheden* en in de kolom *Voorgangers* of *Opvolgers*.
 
 ## Stappen
@@ -71,7 +73,9 @@ Een lag typ je in het vak naast het type, bij elke manier hierboven. Een bestaan
 - `-1`: een negatieve lag (lead). De opvolger mag een dag eerder beginnen, zodat de taken overlappen.
 - `4u`: 4 werkuren. De app telt ze exact in werkuren, ook na een dagtaak. Eindigt de voorganger vrijdag om 16:00, dan begint de opvolger maandag om 11:00.
 - `1,5`: anderhalve werkdag. Een lag in dagen mag een breuk zijn.
-- `50%`: de helft van de duur van de voorganger.
+- `50%`: de helft van de duur van de voorganger. De app rekent dit bij elke berekening opnieuw uit, op de minuut exact.
+
+Bij FS telt de lag vanaf het einde van de voorganger, bij SS vanaf zijn start en bij FF vanaf zijn einde. Een lag in werktijd telt in de kalender die *Lag-kalender* kiest, standaard die van de voorganger (zie [Rekenopties en conventies](docs://ref-rekenopties-en-conventies)).
 
 Voorbeeld: het beton van de fundering moet uitharden voordat de metselaar erop kan, dus *Fundering storten → Funderingsmetselwerk* krijgt een FS-relatie met lag `3`. Is het storten op vrijdag 18 juni 2027, dan begint het metselwerk na **Bereken** op donderdag 24 juni: maandag tot en met woensdag is wachttijd. Met `3ed` telt het weekend mee en begint het metselwerk op dinsdag 22 juni.
 
@@ -89,6 +93,8 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 
 **Een taak aan de eigen fase.** Een relatie tussen een taak en de samenvattende taak waar de taak zelf onder valt, kan niet. De app meldt *Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.*
 
+**Een relatie op een fase.** De app legt zo'n relatie voor de berekening op elke taak in de fase. Is de fase voorganger bij FS of FF, dan wacht de opvolger op de taak in de fase die het laatst klaar is. Bij SS of SF wacht hij op de taak die het laatst begint, niet op de start van de fase. Is de fase opvolger, dan moet elke taak in de fase zelf aan de relatie voldoen. Verplaats je een taak in of uit de fase, dan verandert ook welke relaties voor die taak gelden.
+
 **Dubbel.** Bestaat de relatie al, dan meldt de app *Deze relatie bestaat al* en verandert er niets.
 
 **In de kolom korter gemeld.** Dezelfde weigeringen geeft de kolom *Voorgangers* met een kortere tekst onder de cel: *Deze wijziging zou een kring in de planning maken.*, *Deze relatie bestaat al.* of *Een taak kan geen relatie hebben met zijn eigen samenvattende taak.* Typ je alleen een WBS-nummer, zoals `3.1`, dan mist het type en meldt de cel *Gebruik bijvoorbeeld 1.2 FS+2d.* De cel blijft open; verbeter de invoer of druk op Esc om te annuleren.
@@ -97,8 +103,6 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd �
 
 ## Zie ook
 
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app met je relaties uitrekent, en waarom een taak kritiek wordt.
-- [Relaties en lag](docs://uitleg-relaties): wat de vier soorten relaties en een lag met de datums doen.
 - [Een pad traceren](docs://howto-pad-traceren): de keten van voorgangers en opvolgers in beeld brengen.
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): de velden voor relaties en lag in het paneel en het venster.
 - [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): een keten van eind-start-relaties met één start-start (muren en dak, lag van 2 dagen) en één eind-eind (tegelwerk en schilderwerk, lag van 1 dag).

@@ -98,7 +98,6 @@ Een nieuwe taak verandert nog niets aan de andere datums. De statusbalk meldt *V
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): taken laten inspringen, verplaatsen en de WBS-nummers bijhouden.
 - [Relaties leggen](docs://howto-relaties-leggen): taken aan elkaar koppelen.
 - [Taken selecteren, verwijderen en ongedaan maken](docs://howto-taken-selecteren-verwijderen): een taak weer weghalen.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat de app uitrekent zodra er relaties zijn.
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): alle velden van een taak.
 - [Nieuw project en Projectinstellingen](docs://ref-projectinfo): beginnen met een fasering-template.
 - [Rechtermuismenu's](docs://ref-contextmenus): alle items van het menu op een taak.

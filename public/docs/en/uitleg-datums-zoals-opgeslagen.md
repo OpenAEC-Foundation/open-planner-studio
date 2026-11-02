@@ -92,7 +92,7 @@ What if it is different?
 
 ## Consequences and misunderstandings
 
-**A difference is not an import error.** The app calculates with its own rules: with an `.xer` with the calculation profile *Primavera P6*, with an `.mpp` with *Microsoft Project*, with CSV, MS Project XML and Primavera P6 XML with *Open Planner Studio*. Why the dates in the source package came out differently can lie with the file or with the package. The view shows you *that* they differ.
+**A difference is not an import error.** The app calculates with its own rules: with an `.xer` and Primavera P6 XML with the calculation profile *Primavera P6*, with an `.mpp` with *Microsoft Project*, with CSV and MS Project XML with *Open Planner Studio*. Why the dates in the source package came out differently can lie with the file or with the package. The view shows you *that* they differ.
 
 **The view is not a calculation result.** The app did not calculate the dates. Do not simply take them over as the outcome of your own schedule.
 
@@ -106,4 +106,4 @@ What if it is different?
 - [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen): the steps and messages for a `.xer` file.
 - [Opening an MS Project file (.mpp)](docs://howto-mpp-openen): the steps and messages for a `.mpp` file.
 - [Recovering after a crash](docs://howto-herstellen-na-een-crash): what happens to this project after a crash.
-- [Critical path and float](docs://uitleg-kritiek-pad): how the app calculates float and criticality when it does calculate.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): how the app calculates float and criticality when it does calculate.

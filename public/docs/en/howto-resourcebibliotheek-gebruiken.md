@@ -6,7 +6,7 @@ Goal: use resources from the resource library in your project, and put a resourc
 
 You have a fixed bricklaying crew, a crane and a plasterer who appear in several projects. Without a library you type them in again in every project, with a risk of different names and rates, and no project sees that another one asks for the same crew as well. In the library you record them once.
 
-What the library is and what a project takes over from it, you read in [The resource library](docs://uitleg-resourcebibliotheek). This article is about the actions. Creating, exporting and deleting libraries is in [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
+What the library decides and what the project decides is listed per field in [Resource panel](docs://ref-resourcepaneel). This article is about the actions. Creating, exporting and deleting libraries is in [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren).
 
 ## Steps
 
@@ -41,7 +41,7 @@ Every change in the library immediately works through into the unedited copies i
 ### 3. Assign a resource to your project
 
 1. In the *Library* view, choose *Assign to project* on the resource. Above the table it says *Added.* If you click again, it says *Already in the project.* and no second copy appears.
-2. Choose *Project*. The copy is in the table with a small library icon next to the name, called *From the library*. Name, type, rate and unit are plain text. If you hold the mouse over them, you see *Library value — edit it in the Library view, or unlink this resource from the library.*
+2. Choose *Project*. The copy is in the table with a small library icon next to the name, called *From the library*. Name, type, rate and unit are plain text. If you hold the mouse over them, you see *Library value — edit it in the Library view, or unlink this resource from the library.* The copy is an ordinary resource in your project file. It gets an origin stamp: the note of which library and which item it comes from.
 3. Set *Max units* for this project. The field starts with the value from the library and stays editable in the project.
 4. Now assign the resource to tasks like any other resource, see [Assigning resources with a curve](docs://howto-resource-toewijzen). *Resources › Assignment › Assign* only shows resources that are already in the project, so first assign a library resource to the project in this way.
 
@@ -90,6 +90,8 @@ For a deviation you have two choices:
 
 **You edit the library by accident.** The panel always opens on *Project* to prevent that. Changes in the *Library* view apply to all projects and fall outside *Undo*.
 
+**Briefly you see *1 item updated from the library*.** When you open a project and when you switch tabs, the app compares the copies with the library. It silently updates an unedited copy that is behind. With more copies it says *N items updated from the library*. If a copy differs, it gets the marker *differs — decide*. On a tab switch the *Link resource library* window never opens by itself.
+
 **You delete a resource from the library.** The app first asks *Remove 'Bricklayer' from the library? This applies to all projects and cannot be undone.* The copies in your projects stay and keep working. They get the marker *no longer in the library* and are fully editable. With *Remove from project* you take a copy out of the project.
 
 **Under Resource library you choose another library or *none (standalone project)*.** The origin stamps of the previous library disappear. The resources stay in the project as ordinary project resources. With another library, the app looks again for resources with the same name.
@@ -98,7 +100,7 @@ For a deviation you have two choices:
 
 ## See also
 
-- [The resource library](docs://uitleg-resourcebibliotheek): what the library decides, what the project decides, and how copies follow along.
+- [Resource panel](docs://ref-resourcepaneel): which fields the library fixes and which the project decides.
 - [Managing and sharing resource libraries](docs://howto-bibliotheken-beheren): creating, exporting and importing libraries.
 - [Using the occupancy overview](docs://howto-bezettingsoverzicht-gebruiken): seeing whether two projects ask for the same resource at once.
 - [Managing resources](docs://howto-resources-beheren): the resources of a single project.

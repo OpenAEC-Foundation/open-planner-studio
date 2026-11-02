@@ -596,29 +596,6 @@ en noem het in je rapport of PR-tekst.
      MCP weigert overlappende weekbanden (`calendarResourceTools.ts:273–278`), de kalendereditor niet
      (`WorkTimeEditor.tsx:60–67`). Voorstel: dit ene geval als vaste uitkomst in sectie 8h, met de echte
      celeditor. — B
-503. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
-     bouwer).** Een handmatig anker of een import kan een mijlpaal buiten de werktijd zetten, bijvoorbeeld ma
-     18:00 bij ma–do 07:00–16:00 en vr 07:00–12:00. Afgemeld met alleen een datum houdt hij in #724 de
-     kloktijd: vr 5 jun wordt vr 18:00, wo 3 jun wordt wo 18:00. Het besluit B10 zegt "de tijd uit de
-     planning"; de aanvulling "einde blijft einde" gaat over een dagrand en de tweede aanvulling over een
-     moment midden in een dienst. Geen van beide noemt een moment buiten de werkspanne. Een eerdere versie van
-     fixronde 5 zette het ook op het einde van de dienst (vr 12:00, wo 16:00); dat is teruggedraaid omdat geen
-     besluit het vraagt. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8h (gevallen `dag`, ma
-     18:00 en ma 05:00). Review ronde 6 van #724 (Sol): dit botst niet met de woorden van het besluit; geen
-     aanvulling noemt een moment buiten de dienst, en main geeft hier D7 (START en zonder soort vr 07:00, FINISH
-     vr 12:00). Geen aangetoonde fout. Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst"
-     betekent. — B
-504. **Afmelden van een mijlpaal: "begint de dienst later, dan het begin" is een uitwerking, geen besluit van
-     Ethan.** `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`, regel 4, rond regel 270) zet een
-     mijlpaal midden in de dienst op het begin van de dienst van de getypte dag als die dienst pas na de geplande
-     kloktijd begint. Dat is een uitwerking van de orkestrator (fixronde 5 van #724). B10 zegt "daartussen geldt
-     de geplande kloktijd"; de tweede aanvulling gaat alleen over een dienst die eerder eindigt. Voorbeeld:
-     ma 04:00–08:00, di–vr 07:00–16:00; een mijlpaal op ma 06:00, afgemeld met 02-06-2026, wordt di 07:00, waar
-     de woorden van B10 di 06:00 aanwijzen. Main geeft hier D7: START en zonder soort di 07:00, FINISH di 16:00.
-     Bij di–vr 22:00–06:00 wordt het di 22:00. De gids *Voortgang bijwerken* beschrijft dit al als gedrag.
-     Gevonden in review ronde 6 van #724 (Sol, VRAAG EIGENAAR). Voorstel: Ethan laten kiezen tussen de
-     geplande kloktijd houden (dan kan de tak `else if` van regel 4 weg, en de gidszin) en het begin van de
-     dienst (dan het besluit in de spec bij B10 zetten). — B
 
 448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
     alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
@@ -705,6 +682,18 @@ en noem het in je rapport of PR-tekst.
      met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
      niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
      van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
+597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
+     (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
+     `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
+     Bij 800 × 600 px en een zeer lange baselinenaam is de tooltip ~582 px hoog en begint hij op 603 px, dus buiten
+     beeld. Voorstel: een maximale hoogte met scrollen, of de tooltip boven inkorten. Gevonden in de review van
+     #762 (GPT-6.1-Sol). — B
+600. **VERVOLG: geen blijvende test voor een lettertype dat later laadt in de statusbalk.**
+     `src/components/layout/StatusBar/useStatusFold.ts` meet opnieuw bij `document.fonts` `loadingdone`, maar
+     `tests/browser/statusbar-rows.spec.ts:173–190` wisselt alleen tekstgrootte en lettertype en lokt geen latere
+     fontload uit. Een losse browserproef bevestigt de werking; de repository bewaakt die route nog niet. Voorstel:
+     één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -1451,6 +1440,47 @@ en noem het in je rapport of PR-tekst.
    toevoegen: een werkelijk einde vereist 100 %, maar het nieuwere app-percentage blijft behouden. Gevonden in review van
    #756 (GPT-6.1-Sol), 2026-10-31. — B
 
+602. **Oude getallen in de nivelleer-how-to.** `public/docs/{nl,en}/howto-overbezetting-oplossen.md` noemt bij stap 2 en
+   onder *Overbezet door de kalender* *Overbezet op 5 dag(en) (29-06-2027 – 05-07-2027)* en bij stap 6 de nieuwe start
+   06-07-2027. `tests/browser/tutorials/tut-5.ts:188,202` en het verwijderde `uitleg-nivelleren` gaven 6 dagen (28-06 –
+   05-07) en een nieuwe start op 05-07-2027 10:00. Gezien door een leesagent bij het weghalen van `uitleg-nivelleren`;
+   niet in de app nagespeeld. — S
+
+603. **Vier redenen van een niet opgelost nivelleerconflict staan niet in de Help.** Het venster kent
+   `common:resource.leveling.reason.ceilingTooTight`, `ceilingUnreachable`, `noWindowInHorizon` en `residualFull`;
+   `howto-overbezetting-oplossen.md` (*Valkuilen*) noemt ze niet. Gezien in de locales. — S
+
+605. **"Mandatory-pin" in plaats van de knopnaam.** `howto-project-verplaatsen.md:33` schrijft *harde Mandatory-pin*;
+   de app noemt het vakje *Verplicht (pin logica)* / *Mandatory (pin logic)*. — S
+
+606. **Twee teksten voor een afgekapte lead.** `task.json` `warnTruncatedLead` (*Lead afgekapt op de projectstart — de
+   overlap wordt niet volledig benut*) wijkt af van `common.json` `truncatedLead` in het paneel *Waarschuwingen*; de
+   eerste tekst staat nergens in de Help. Gezien in de locales. — S
+
+607. **"7 dagen bij 6 uur per dag" klopt niet met de exacte rekenregel.** `howto-kalender-maken-en-toewijzen.md:62`
+   (nl en en) zegt dat 40 uur werk bij 6 uur per dag 7 dagen is. De app rondt niet af:
+   `tests/planning/check-docs-resources-voorbeelden.ts` verwacht exact 16/3 werkdagen voor 32 / 6, dus 40 / 6 = 6,67.
+   Niet in de app nagespeeld. — S
+
+608. **De kalendermelding van de taaktypes heeft een andere linktekst dan de Help zegt.** `ref-meldingen.md`, punt
+   *Taaktype paste duren aan*, noemt een link *Taaktypes uitgelegd*. Die melding heeft geen `linkKey` en toont dus
+   *Lees meer*; alleen de detailregel in de bestandsmelding heet *Taaktypes uitgelegd* (`NotificationHost.tsx`,
+   `taskTypesNotice.ts`). Gezien in de code door een leesagent. — S
+
+609. **nl mist de weergave `+4u` bij de lag in uren.** `en/howto-relaties-leggen.md` zegt bij `4h` "the app shows it as
+   `+4h`"; de nl-regel bij `4u` mist die zin. — S
+
+610. **Een verweesde vertaling `howto-urenplanning-aanzetten.md` in 26 talen.** Het id is al een alias naar
+   `howto-taak-in-uren-plannen`, maar `public/docs/<taal>/howto-urenplanning-aanzetten.md` staat er nog;
+   `verify:docs` meldt per taal "1 wees". Voorstel: `npm run translate -- remove-doc howto-urenplanning-aanzetten`.
+   Gezien in de uitvoer van `remove-doc` en `verify:docs`. — B
+
+611. **VERVOLG: de oude download-URL van "Goed plannen" blijft niet bestaan.** De alias `gids-goed-plannen` in
+   `public/docs/manifest.json` werkt alleen in de Help-viewer. Een oudere geïnstalleerde skill of MCP-instructie die
+   rechtstreeks `/docs/en/gids-goed-plannen.md` (of `/docs/nl/…`) downloadt, gebruikt die alias niet. De deploy haalt
+   verdwenen bestanden weg met `rsync --delete`, en een onbekend pad geeft HTTP 200 met de HTML van de app. Voorstel:
+   houd beide oude URL's met een HTTP-redirect naar `/agent/planning-guide.md`. Gevonden in de review van #778. — B
+
 ## Tests
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
@@ -1869,3 +1899,22 @@ en noem het in je rapport of PR-tekst.
      naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
      komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
      zelf geëxporteerd door de reviewer. — B
+
+601. **VERVOLG: de nieuwe buiten-dienstregel (503) is alleen op de dagkalender getoetst.** In
+     `tests/planning/check-mijlpaal-afmelden.ts`, sectie 8h, staan de gevallen ma 18:00 en ma 05:00 alleen op de
+     kalender `dag`. Voeg een geval toe met een nachtdienst: ma 00:00–06:00 en di–vr 22:00–06:00. Een anker op ma
+     07:00, afgemeld op vr, moet za 06:00 worden. Breid de bestaande tabel `FIXED` uit; een nieuwe testlaag is niet
+     nodig. Uit de review van #776 (GPT-6.1-Sol, op 710e547aa, BEVESTIGD, VERVOLG). — B
+
+620. **Een onbekende waarde in `<ScheduleOptions>` van een P6 XML geeft geen melding bij het openen.** De lezer
+     (`src/services/p6/p6xmlScheduleOptions.ts`) geeft zo'n waarde door aan `deriveXerScheduleOptions`; die valt terug
+     op de P6-standaard en noteert een terugval. Bij XER komt die terugval in de importmetadata; bij P6 XML gaat hij
+     verloren. Voorstel: de terugvallen als één regel in de openingsmelding. VERVOLG uit #775. — B
+
+621. **De P6 XML-lezer leest `SuspendDate`/`ResumeDate` en `ResourceList` nog niet.** Een XER draagt onderbreken en
+     hervatten (`p6SuspendResume`) en de resourcelijst wel. Een geopende P6 XML met een onderbroken activiteit rekent
+     daardoor anders dan dezelfde XER. De pariteitstest van #775 heeft geen onderbroken activiteit. VERVOLG uit #775. — S
+
+622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
+     Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel
+     rekent, tot de vertaalstraat ze bijwerkt (`i18n/ui-sources/` mist hun hash). VERVOLG uit #775. — B

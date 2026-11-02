@@ -10,6 +10,8 @@ You add relations when you build a schedule, when a task is added, or when two j
 
 The default relation is **FS** (Finish-Start): the successor can only start once the predecessor is finished. The app also knows SS, FF and SF, which tie a start or finish to a start or finish; with SS (Start-Start), for example, the plastering can only start once the building services have started.
 
+A relation is a lower limit: the successor may start later, never earlier. Without a lag the app calculates like this. With FS the successor starts on the first work day after the predecessor's finish, with SS on the predecessor's start day. With FF the successor finishes on the predecessor's finish day, with SF on its start day; the app then counts back over the successor's duration. If a task has several predecessors, the latest date counts.
+
 Not sure which type you need? Below the type choice, a sentence with the real task names explains it, for example *Metselwerk can only start once Fundering has finished.* Choose another type and the sentence changes with it. You see it in the *Relation type* window, in the *Dependencies* block and in the *Predecessors* or *Successors* column.
 
 ## Steps
@@ -71,7 +73,9 @@ You type a lag in the box next to the type, with each of the ways above. You cha
 - `-1`: a negative lag (lead). The successor may start a day earlier, so the tasks overlap.
 - `4h`: 4 working hours; the app shows it as `+4h`. The app counts them exactly in working hours, also after a day task. If the predecessor finishes on Friday at 16:00, the successor starts on Monday at 11:00.
 - `1.5`: one and a half work days. A lag in days may be a fraction.
-- `50%`: half the predecessor's duration.
+- `50%`: half the predecessor's duration. The app works this out again at every calculation, exact to the minute.
+
+With FS the lag counts from the predecessor's finish, with SS from its start and with FF from its finish. A lag in working time counts in the calendar that *Lag calendar* chooses, by default the predecessor's (see [Calculation options and conventions](docs://ref-rekenopties-en-conventies)).
 
 Example: the foundation concrete has to cure before the bricklayer can work on it, so *Pour foundation → Foundation brickwork* gets an FS relation with lag `3`. If the pour is on Friday 18 June 2027, the brickwork starts after **Calculate** on Thursday 24 June: Monday to Wednesday is waiting time. With `3ed` the weekend counts and the brickwork starts on Tuesday 22 June.
 
@@ -89,6 +93,8 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 **A task to its own phase.** A relation between a task and the summary task it sits under is not possible. The app says *A relation between a task and its own (grand)parent summary task is not allowed.*
 
+**A relation on a phase.** For the calculation the app puts such a relation on every task in the phase. If the phase is the predecessor with FS or FF, the successor waits for the task in the phase that finishes last. With SS or SF it waits for the task that starts last, not for the start of the phase. If the phase is the successor, every task in the phase has to meet the relation itself. If you move a task into or out of the phase, the relations that apply to that task change too.
+
 **Duplicate.** If the relation already exists, the app says *That relation already exists* and nothing changes.
 
 **Shorter messages in the column.** The *Predecessors* column gives the same refusals with a shorter text under the cell: *This change would create a cycle in the schedule.*, *This relationship already exists.* or *A task cannot have a relationship with its own summary task.* If you type only a WBS number, such as `3.1`, the type is missing and the cell says *Use a value such as 1.2 FS+2d.* The cell stays open; correct the input or press Esc to cancel.
@@ -97,8 +103,6 @@ A new relation does not move any bars yet; the status bar says *Out of date — 
 
 ## See also
 
-- [Critical path and float](docs://uitleg-kritiek-pad): what the app calculates from your relations, and why a task becomes critical.
-- [Relations and lag](docs://uitleg-relaties): what the four kinds of relation and a lag do to the dates.
 - [Tracing a path](docs://howto-pad-traceren): bringing the chain of predecessors and successors into view.
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): the fields for relations and lag in the panel and the dialog.
 - [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a chain of finish-to-start relations with one start-to-start (walls and roof, lag of 2 days) and one finish-to-finish (tiling and painting, lag of 1 day).

@@ -66,38 +66,6 @@
       "kind": "howto"
     },
     {
-      "id": "gids-goed-plannen",
-      "title": {
-        "nl": "Goed plannen",
-        "en": "Planning well"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-kritiek-pad",
-      "title": {
-        "nl": "Kritiek pad en speling",
-        "en": "Critical path and float"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-relaties",
-      "title": {
-        "nl": "Relaties en lag",
-        "en": "Relations and lag"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-constraints",
-      "title": {
-        "nl": "Constraints en deadlines",
-        "en": "Constraints and deadlines"
-      },
-      "kind": "uitleg"
-    },
-    {
       "id": "uitleg-verschuivingen",
       "title": {
         "nl": "Waarom een taak verschuift",
@@ -136,22 +104,6 @@
         "en": "Creating a hammock"
       },
       "kind": "howto"
-    },
-    {
-      "id": "uitleg-kalenders",
-      "title": {
-        "nl": "Kalenders en werkdagen",
-        "en": "Calendars and working days"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-dagen-en-uren",
-      "title": {
-        "nl": "Dagen en uren",
-        "en": "Days and hours"
-      },
-      "kind": "uitleg"
     },
     {
       "id": "howto-kalender-maken-en-toewijzen",
@@ -232,30 +184,6 @@
         "en": "Resolving overallocation"
       },
       "kind": "howto"
-    },
-    {
-      "id": "uitleg-werkregels",
-      "title": {
-        "nl": "Taaktypes: duur, inzet en werk",
-        "en": "Task types: duration, units and work"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-nivelleren",
-      "title": {
-        "nl": "Nivelleren",
-        "en": "Resource leveling"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-voortgang",
-      "title": {
-        "nl": "Voortgang, statusdatum en baseline",
-        "en": "Progress, status date and baseline"
-      },
-      "kind": "uitleg"
     },
     {
       "id": "uitleg-rekenprofielen",
@@ -451,22 +379,6 @@
       "kind": "howto"
     },
     {
-      "id": "uitleg-resourcebibliotheek",
-      "title": {
-        "nl": "De resourcebibliotheek",
-        "en": "The resource library"
-      },
-      "kind": "uitleg"
-    },
-    {
-      "id": "uitleg-ai-koppeling",
-      "title": {
-        "nl": "Hoe de MCP-koppeling werkt",
-        "en": "How the MCP link works"
-      },
-      "kind": "uitleg"
-    },
-    {
       "id": "howto-resourcebibliotheek-gebruiken",
       "title": {
         "nl": "De resourcebibliotheek gebruiken",
@@ -646,17 +558,17 @@
   "aliases": {
     "quick-start": "howto-taken-en-mijlpalen-toevoegen",
     "gids-plannen-wbs": "howto-structuur-aanpassen",
-    "gids-relaties-constraints": "uitleg-relaties",
+    "gids-relaties-constraints": "howto-relaties-leggen",
     "gids-taken-splitsen": "howto-taak-splitsen",
-    "gids-kalenders-uren": "uitleg-kalenders",
+    "gids-kalenders-uren": "ref-kalenders",
     "gids-resources-histogram": "howto-resources-beheren",
-    "gids-resourcebibliotheken": "uitleg-resourcebibliotheek",
+    "gids-resourcebibliotheken": "howto-resourcebibliotheek-gebruiken",
     "gids-bezettingsoverzicht": "howto-bezettingsoverzicht-gebruiken",
-    "gids-baselines-voortgang": "uitleg-voortgang",
-    "gids-kritiek-pad-analyse": "uitleg-kritiek-pad",
+    "gids-baselines-voortgang": "howto-voortgang-bijwerken",
+    "gids-kritiek-pad-analyse": "ref-rekenopties-en-conventies",
     "gids-import-export": "uitleg-bestanden",
     "gids-voortgang-importeren": "howto-voortgang-importeren",
-    "gids-taaktypes": "uitleg-werkregels",
+    "gids-taaktypes": "howto-werkregel-kiezen",
     "gids-msproject-import": "howto-mpp-openen",
     "gids-xer-import": "howto-xer-openen",
     "gids-rekenprofielen": "uitleg-rekenprofielen",
@@ -681,6 +593,17 @@
     "ref-waarschuwingen": "ref-meldingen",
     "ref-sneltoetsen-lijst": "ref-sneltoetsen",
     "ref-instellingen-lijst": "ref-instellingen",
-    "howto-urenplanning-aanzetten": "howto-taak-in-uren-plannen"
+    "howto-urenplanning-aanzetten": "howto-taak-in-uren-plannen",
+    "gids-goed-plannen": "howto-taken-en-mijlpalen-toevoegen",
+    "uitleg-kritiek-pad": "ref-rekenopties-en-conventies",
+    "uitleg-relaties": "howto-relaties-leggen",
+    "uitleg-constraints": "howto-constraint-deadline-zetten",
+    "uitleg-kalenders": "ref-kalenders",
+    "uitleg-dagen-en-uren": "howto-taak-in-uren-plannen",
+    "uitleg-werkregels": "howto-werkregel-kiezen",
+    "uitleg-nivelleren": "howto-overbezetting-oplossen",
+    "uitleg-voortgang": "howto-voortgang-bijwerken",
+    "uitleg-resourcebibliotheek": "howto-resourcebibliotheek-gebruiken",
+    "uitleg-ai-koppeling": "howto-ai-assistent-koppelen"
   }
 }

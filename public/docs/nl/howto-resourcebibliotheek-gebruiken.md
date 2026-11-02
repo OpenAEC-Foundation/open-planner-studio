@@ -6,7 +6,7 @@ Doel: resources uit de resourcebibliotheek in je project gebruiken, en een resou
 
 Je hebt een vaste metselploeg, een kraan en een stukadoor die in meerdere projecten voorkomen. Zonder bibliotheek typ je ze in elk project opnieuw in, met kans op verschillende namen en tarieven, en ziet geen enkel project dat een ander dezelfde ploeg ook vraagt. In de bibliotheek leg je ze één keer vast.
 
-Wat de bibliotheek is en wat een project ervan overneemt, lees je in [De resourcebibliotheek](docs://uitleg-resourcebibliotheek). Dit artikel gaat over de handelingen. Bibliotheken aanmaken, exporteren en verwijderen staat in [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren).
+Wat de bibliotheek en wat het project bepaalt, staat per veld in [Resourcepaneel](docs://ref-resourcepaneel). Dit artikel gaat over de handelingen. Bibliotheken aanmaken, exporteren en verwijderen staat in [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren).
 
 ## Stappen
 
@@ -41,7 +41,7 @@ Elke wijziging in de bibliotheek werkt direct door in de onbewerkte kopieën in 
 ### 3. Een resource aan je project toewijzen
 
 1. Kies in de weergave *Bibliotheek* bij de resource *Toewijzen aan project*. Boven de tabel staat *Toegevoegd.* Klik je nog een keer, dan staat er *Zit al in het project.* en komt er geen tweede kopie.
-2. Kies *Project*. De kopie staat in de tabel met een klein bibliotheekpictogram bij de naam, dat *Uit de bibliotheek* heet. Naam, type, tarief en eenheid staan als platte tekst. Houd je de muis erboven, dan zie je *Bibliotheekwaarde — bewerk in de Bibliotheekweergave, of maak deze resource los van de bibliotheek.*
+2. Kies *Project*. De kopie staat in de tabel met een klein bibliotheekpictogram bij de naam, dat *Uit de bibliotheek* heet. Naam, type, tarief en eenheid staan als platte tekst. Houd je de muis erboven, dan zie je *Bibliotheekwaarde — bewerk in de Bibliotheekweergave, of maak deze resource los van de bibliotheek.* De kopie is een gewone resource in je projectbestand. Hij krijgt een herkomststempel: de aantekening uit welke bibliotheek en van welk item hij komt.
 3. Stel *Max. eenheden* in voor dit project. Het veld begint met de waarde uit de bibliotheek en blijft in het project bewerkbaar.
 4. Hang de resource nu aan taken zoals bij elke andere resource, zie [Resources toewijzen met een curve](docs://howto-resource-toewijzen). *Resources › Toewijzing › Toewijzen* toont alleen resources die al in het project staan, dus wijs een bibliotheekresource eerst op deze manier aan het project toe.
 
@@ -90,6 +90,8 @@ Je hebt bij een afwijking twee keuzes:
 
 **Je bewerkt de bibliotheek per ongeluk.** Het paneel opent altijd op *Project* om dat te voorkomen. Wijzigingen in de weergave *Bibliotheek* gelden voor alle projecten en vallen buiten *Ongedaan*.
 
+**Er staat kort *1 onderdeel bijgewerkt vanuit de bibliotheek*.** Bij het openen van een project en bij een wissel van tabblad vergelijkt de app de kopieën met de bibliotheek. Een onbewerkte kopie die achterloopt, werkt hij stil bij. Bij meer kopieën staat er *N onderdelen bijgewerkt vanuit de bibliotheek*. Wijkt een kopie af, dan krijgt hij de markering *wijkt af — beslis*. Bij een wissel van tabblad opent het venster *Resourcebibliotheek koppelen* nooit vanzelf.
+
 **Je verwijdert een resource uit de bibliotheek.** De app vraagt eerst *'Metselaar' verwijderen uit de bibliotheek? Dit geldt voor alle projecten en is niet ongedaan te maken.* De kopieën in je projecten blijven bestaan en werken door. Ze krijgen de markering *niet meer in de bibliotheek* en zijn volledig bewerkbaar. Met *Verwijder uit project* haal je een kopie uit het project.
 
 **Je kiest bij Resourcebibliotheek een andere bibliotheek of *geen bibliotheek (los project)*.** De herkomststempels van de vorige bibliotheek verdwijnen. De resources blijven in het project staan als gewone projectresources. Bij een andere bibliotheek zoekt de app opnieuw naar resources met dezelfde naam.
@@ -98,7 +100,7 @@ Je hebt bij een afwijking twee keuzes:
 
 ## Zie ook
 
-- [De resourcebibliotheek](docs://uitleg-resourcebibliotheek): wat de bibliotheek bepaalt, wat het project, en hoe kopieën meelopen.
+- [Resourcepaneel](docs://ref-resourcepaneel): welke velden de bibliotheek vastlegt en welke het project bepaalt.
 - [Resourcebibliotheken beheren en delen](docs://howto-bibliotheken-beheren): bibliotheken aanmaken, exporteren en importeren.
 - [Het bezettingsoverzicht gebruiken](docs://howto-bezettingsoverzicht-gebruiken): zien of twee projecten dezelfde resource tegelijk vragen.
 - [Resources beheren](docs://howto-resources-beheren): de resources van één project.

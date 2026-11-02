@@ -251,8 +251,8 @@ deze lijst verwijderd — wat klaar is, staat in de changelog en git-historie.
 
 > Ontwerp: `docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md` (opvolger van de
 > spec van 2026-08-18). Gebouwd op PR #101 en als PR #170 (overname op de rekenprofielen-kop)
-> naar `main` gemerged. De gidsen staan sinds de omschakeling van de documentatie in
-> `uitleg-werkregels` en `howto-werkregel-kiezen` (nl+en). Eigenaarsbesluiten 1–10 staan in spec §3.
+> naar `main` gemerged. De gidsen staan sinds november 2026 in
+> `howto-werkregel-kiezen` en het veld *Taaktype* van `ref-taak-eigenschappen` (nl+en). Eigenaarsbesluiten 1–10 staan in spec §3.
 
 - [ ] **MS Project-meting van K2 en de Δ-regel (§6.4/§6.5):** beide zijn *documented* voor de richting
       en *reasoned* voor de OPS-werkdagen; wie MS Project heeft, meet cases 32–36 plus "duur wijzigen

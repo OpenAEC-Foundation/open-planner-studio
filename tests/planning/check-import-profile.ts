@@ -66,7 +66,7 @@ const task = {
 const mspdi = single(await parseOpenedFile({ name: 'p.xml', text: writeMSPDI(project, calendar, [task], [], [], []) }));
 eq('05 MSPDI ⇒ OPS in deze etappe', [mspdi.project.schedulingProfile, mspdi.suggestedProfileId], [undefined, 'ops']);
 const p6xml = single(await parseOpenedFile({ name: 'p.xml', text: writeP6XML(project, calendar, [task], [], [], []) }));
-eq('06 P6-XML ⇒ OPS in deze etappe', [p6xml.project.schedulingProfile, p6xml.suggestedProfileId], [undefined, 'ops']);
+eq('06 P6-XML ⇒ p6, net als XER (#775)', [p6xml.project.schedulingProfile, p6xml.suggestedProfileId], [builtInProfile('p6'), 'p6']);
 const csv = single(await parseOpenedFile({ name: 'p.csv', text: writeCSV(project, calendar, [task], [], [], []) }));
 eq('07 CSV ⇒ OPS', [csv.project.schedulingProfile, csv.suggestedProfileId], [undefined, 'ops']);
 

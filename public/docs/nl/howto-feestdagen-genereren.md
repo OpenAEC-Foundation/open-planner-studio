@@ -4,7 +4,7 @@ Doel: de feestdagen van een land, en eventueel de bouwvak, in een kalender laten
 
 ## Wanneer je dit nodig hebt
 
-Zonder feestdagen plant de app gewoon werk op Kerst of Koningsdag. Een nieuw project krijgt de Nederlandse feestdagen al mee, zolang *Bouwmodus* aan staat. Je genereert opnieuw als je een ander land of een andere regio nodig hebt, als je de bouwvak wilt meenemen, of als je project buiten de jaren valt waarvoor feestdagen zijn aangemaakt. Die jaren zijn belangrijk: een dag buiten die jaren is voor de app gewoon een werkdag. Hoe de app een feestdag meeneemt bij het tellen, lees je in [Kalenders en werkdagen](docs://uitleg-kalenders).
+Zonder feestdagen plant de app gewoon werk op Kerst of Koningsdag. Een nieuw project krijgt de Nederlandse feestdagen al mee, zolang *Bouwmodus* aan staat. Je genereert opnieuw als je een ander land of een andere regio nodig hebt, als je de bouwvak wilt meenemen, of als je project buiten de jaren valt waarvoor feestdagen zijn aangemaakt. Die jaren zijn belangrijk: een dag buiten die jaren is voor de app gewoon een werkdag. Hoe de app een feestdag meeneemt bij het tellen, lees je in [Kalendervensters](docs://ref-kalenders).
 
 De **bouwvak** is de collectieve vakantie in de bouw, drie weken in de zomer. In de app staat hij standaard uit.
 
@@ -55,7 +55,6 @@ Kies bij *Land* de keuze *Geen feestdagen* en klik op *Genereren*. De lijst is d
 
 ## Zie ook
 
-- [Kalenders en werkdagen](docs://uitleg-kalenders): hoe de app feestdagen en bouwvak meeneemt bij het tellen van werkdagen.
 - [Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen): een eigen kalender maken waar je feestdagen in zet.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.
 - [Nieuw project en Projectinstellingen](docs://ref-projectinfo): de feestdagenset bij een nieuw project.

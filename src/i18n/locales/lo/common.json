@@ -601,7 +601,8 @@
     "missedDeadlines": "ກາຍກຳນົດສົ່ງ {{count}} ລາຍການ",
     "violatedConstraints": "ຜິດຕໍ່ເງື່ອນໄຂຜູກມັດ {{count}} ລາຍການ",
     "outOfSequence": "ສາຍສຳພັນຂ້າມລຳດັບ {{count}} ລາຍການ",
-    "overallocated": "ຊັບພະຍາກອນຖືກໃຊ້ເກີນກຳລັງ {{count}} ລາຍການ"
+    "overallocated": "ຊັບພະຍາກອນຖືກໃຊ້ເກີນກຳລັງ {{count}} ລາຍການ",
+    "summary_other": "ຄຳເຕືອນ {{count}} ລາຍການ"
   },
   "warnings": {
     "title": "ຄຳເຕືອນ",

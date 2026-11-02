@@ -4,7 +4,7 @@ Doel: per weekdag vastleggen op welke kloktijden een kalender werkt, zodat taken
 
 ## Wanneer je dit nodig hebt
 
-De vrijdagmiddag is vrij. De ploeg werkt van 06:00 tot 22:00 in twee diensten. Er is een nachtploeg. De pauze is korter dan een uur. Zolang je alleen in dagen plant, volstaan *Begin (uur)*, *Einde (uur)* en de pauze ([Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen)). Plan je taken in uren, dan telt de app werkminuten binnen de **werktijdblokken** van de kalender. In de app heten die blokken *banden*: een blok is een aaneengesloten stuk werktijd op één weekdag, en een gat tussen twee blokken is een pauze. Wat dat voor je planning betekent, staat in [Dagen en uren](docs://uitleg-dagen-en-uren).
+De vrijdagmiddag is vrij. De ploeg werkt van 06:00 tot 22:00 in twee diensten. Er is een nachtploeg. De pauze is korter dan een uur. Zolang je alleen in dagen plant, volstaan *Begin (uur)*, *Einde (uur)* en de pauze ([Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen)). Plan je taken in uren, dan telt de app werkminuten binnen de **werktijdblokken** van de kalender. In de app heten die blokken *banden*: een blok is een aaneengesloten stuk werktijd op één weekdag, en een gat tussen twee blokken is een pauze. Wat dat voor je planning betekent, staat in [Kalendervensters](docs://ref-kalenders).
 
 Het blok *Werktijden* is bij elke kalender beschikbaar.
 
@@ -54,7 +54,5 @@ Een eigen preset staat op dit apparaat, niet in het projectbestand.
 
 ## Zie ook
 
-- [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app werkuren telt en de standaard werkdag afleidt.
 - [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): een taak in uren plannen.
-- [Kalenders en werkdagen](docs://uitleg-kalenders): welke kalender voor welke taak geldt.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

@@ -723,7 +723,10 @@
     "missedDeadlines": "{{count}} termen(e) limită depășit(e)",
     "violatedConstraints": "{{count}} restricție(i) încălcată(e)",
     "outOfSequence": "{{count}} dependență(e) în afara secvenței",
-    "overallocated": "{{count}} resursă(e) supraalocată(e)"
+    "overallocated": "{{count}} resursă(e) supraalocată(e)",
+    "summary_one": "{{count}} avertisment",
+    "summary_few": "{{count}} avertismente",
+    "summary_other": "{{count}} de avertismente"
   },
   "warnings": {
     "title": "Avertismente",

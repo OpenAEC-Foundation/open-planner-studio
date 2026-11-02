@@ -1,5 +1,8 @@
-// De getallen van de gids "Dagen en uren" (`public/docs/{nl,en}/uitleg-dagen-en-uren.md`) en van de
-// lagvoorbeelden in "Relaties" en "Relaties leggen", doorgerekend met de ECHTE store.
+// De getallen over dagen en uren in de Help, doorgerekend met de ECHTE store: de velden *Duur* en
+// *Duureenheid* (`ref-taak-eigenschappen`), "Een dagtaak na een urentaak" (`howto-taak-in-uren-plannen`)
+// en de lagvoorbeelden in "Relaties leggen". Tot november 2026 stonden ze in de gidsen "Dagen en uren"
+// en "Relaties en lag"; die zijn weg (de Help beschrijft alleen nog hoe de app werkt). De blokken
+// hieronder noemen soms nog die oude gids; de getallen gelden onveranderd als rekenpin.
 //
 // Waarom: na de urenomzetting (#600) beschreef de gids nog de oude regels — een dagtaak die nooit
 // midden op een dag begint, een lag in uren die na een dagtaak op hele dagen afrondt, en `1.5d` dat

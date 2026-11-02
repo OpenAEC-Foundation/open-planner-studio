@@ -196,7 +196,9 @@ console.log('-- (d) P6 XML round-trip --');
     return xml.slice(xml.lastIndexOf('<Activity>', at), xml.indexOf('</Activity>', at));
   };
   eq('d1 writer: <DurationType>-label per regel', WORK_RULES.map((r) => (actXml(r).match(/<DurationType>([^<]*)<\/DurationType>/) ?? [])[1]), WORK_RULES.map((r) => P6_DURATION_TYPE_NAME[r]));
-  ok('d2 writer: bewaard XER-token zonder regel ⇒ label via de datamap', actXml('token').includes('<DurationType>Fixed Duration and Units</DurationType>'));
+  // Een taak zonder eigen regel erft de projectstandaard (`effectiveWorkRule`), ook met een bewaard token. Ze krijgt
+  // geen eigen <DurationType>; zo erft ze na heropenen weer, zoals bij de XER-schrijver (review Sol #781).
+  ok('d2 writer: bewaard XER-token zonder regel ⇒ geen eigen <DurationType> (erft de projectstandaard)', !actXml('token').includes('<DurationType>'));
   ok('d3 writer: geen regel/token ⇒ geen <DurationType>', !actXml('plain').includes('<DurationType>'));
   ok('d4 writer: units in uren op hun alfabetische plek', /<ActualUnits>20<\/ActualUnits>[\s\S]*<PlannedUnits>60<\/PlannedUnits>\s*<PlannedUnitsPerTime>1<\/PlannedUnitsPerTime>[\s\S]*<RemainingUnits>40<\/RemainingUnits>/.test(xml));
   const back = readP6XML(xml);

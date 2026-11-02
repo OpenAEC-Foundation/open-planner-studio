@@ -56,7 +56,7 @@ Een gekoppelde MCP-client zet onderbrekingen met de tool `planner_set_task_split
 
 **Een klik zonder effect.** Een onderbreking kan niet op de eerste dag van de taak beginnen en niet binnen een bestaande pauze. Ook moet elk stuk werk minstens één werkdag lang blijven. Klik je op zo'n plek, dan gebeurt er niets, zonder melding.
 
-**Een taak met voortgang.** Heeft de taak voortgang, dan kan een onderbreking pas beginnen na het werk dat al gedaan is. Bij 50% van 8 werkdagen is dat op zijn vroegst de vijfde werkdag. Een klik in het gedane deel doet niets, en een taak die 100% klaar is kun je niet meer splitsen. In het paneel is *Onderbreking toevoegen* dan uitgeschakeld: dat geldt ook als het midden van het langste stuk in gedaan werk valt, bijvoorbeeld bij 75% van 8 werkdagen.
+**Een taak met voortgang.** Heeft de taak voortgang, dan kan een onderbreking pas beginnen na het werk dat al gedaan is. Bij 50% van 8 werkdagen is dat op zijn vroegst de vijfde werkdag. Een klik in het gedane deel doet niets, en een taak die 100% klaar is kun je niet meer splitsen. In het paneel is *Onderbreking toevoegen* dan uitgeschakeld: dat geldt ook als het midden van het langste stuk in gedaan werk valt, bijvoorbeeld bij 75% van 8 werkdagen. Een pauze in het deel dat nog moet gebeuren, blijft in het restwerk: het restwerk begint op de statusdatum en loopt door de pauze heen.
 
 **Nivelleren maakt ook onderbrekingen.** Die staan in het blok *Onderbrekingen* met het label *nivellering*. *Resources › Nivellering › Nivellering wissen* haalt ze weer weg. Bewerk je de onderbrekingen van zo'n taak zelf, dan worden al haar nivelleerpauzes van jou en haalt *Nivellering wissen* ze niet meer weg.
 
@@ -66,6 +66,5 @@ Een gekoppelde MCP-client zet onderbrekingen met de tool `planner_set_task_split
 
 ## Zie ook
 
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de planning rekent met werkdagen en waarom het einde opschuift.
 - [Relaties leggen](docs://howto-relaties-leggen): een andere modus in de Gantt, die je met een balksleep gebruikt.
 - [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): de sectie Onderbrekingen in het eigenschappenpaneel.

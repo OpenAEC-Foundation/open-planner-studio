@@ -6,7 +6,7 @@ Doel: bepalen over welk stuk van de tijd een rapport gaat, bijvoorbeeld de komen
 
 Het weekoverleg wil weten wat er de komende vier weken gebeurt. De maandrapportage gaat over juni. Zonder periode krijg je de hele planning op papier. Vijf rapporten werken daarom met een *Rapportageperiode:*: *Look-ahead*, *Voortgangsrapport*, *Resourcebelasting*, *Resourcetoewijzingen* en het *Resourcediagram*. De andere rapporten hebben geen periode.
 
-De periode hangt niet aan een kalendermaand, maar aan een **referentiedag**: de statusdatum van je project (de dag waarop je de voortgang peilt, zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang)), of vandaag als het project geen statusdatum heeft. *Volgende 4 weken* telt vanaf die dag. Schuif je de statusdatum op, dan schuift het venster mee.
+De periode hangt niet aan een kalendermaand, maar aan een **referentiedag**: de statusdatum van je project (de dag waarop je de voortgang peilt, zie [Voortgang bijwerken](docs://howto-voortgang-bijwerken)), of vandaag als het project geen statusdatum heeft. *Volgende 4 weken* telt vanaf die dag. Schuif je de statusdatum op, dan schuift het venster mee.
 
 ## Stappen
 
@@ -68,6 +68,6 @@ De periode werkt niet in elk rapport hetzelfde.
 ## Zie ook
 
 - [Een rapport maken en afdrukken](docs://howto-rapport-maken-en-afdrukken): het hele traject van rapporttype tot PDF.
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de statusdatum is en waarom de app ermee rekent.
+- [Voortgang bijwerken](docs://howto-voortgang-bijwerken): wat de statusdatum is en waarom de app ermee rekent.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet met de overbelaste weken uit de Resourcebelasting.
 - [Rapporttypes](docs://ref-rapporttypes): alle rapporttypes en hun opties.

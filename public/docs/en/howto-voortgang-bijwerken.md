@@ -4,7 +4,7 @@ Goal: put the actual state of the work into the schedule and recalculate the sch
 
 ## When you need this
 
-You update progress at fixed moments, for example every Friday when the site manager reports the state. That way the schedule sees what has actually happened and calculates the remaining work from the status date. Why the app does it this way is explained in [Progress, status date and baseline](docs://uitleg-voortgang).
+You update progress at fixed moments, for example every Friday when the site manager reports the state. That way the schedule sees what has actually happened and calculates the remaining work from the status date.
 
 ## Steps
 
@@ -31,7 +31,7 @@ Choose the way that suits your situation. They give the same result.
 2. Drag the slider *Progress (%)* to the percentage that is done.
 3. If needed, fill in *Actual start* and *Actual finish*, in the same way as the status date. The app calculates the field *Remaining* itself; you cannot change it here.
 
-A milestone has one field, *Actual date*. If you type only a date for a milestone, here or in the table, it keeps the time it had in the schedule. Example: *Handover* is planned on Monday 16:00 and you type Wednesday; it becomes Wednesday 16:00. If the milestone was at the start or end of the working day, it goes to the start or end of the day you type. If Friday ends at 12:00, *Handover* on Friday becomes 12:00. If the milestone is in the middle of the day and the day you type ends before that time, it gets the end of that day: *Inspection* on Monday 14:00, recorded on that Friday, becomes Friday 12:00. If the day you type starts only after that time, it gets the start. If you type a time yourself, that time applies.
+A milestone has one field, *Actual date*. If you type only a date for a milestone, here or in the table, it keeps the time it had in the schedule. Example: *Handover* is planned on Monday 16:00 and you type Wednesday; it becomes Wednesday 16:00. If the milestone was at the start or end of the working day, it goes to the start or end of the day you type. If Friday ends at 12:00, *Handover* on Friday becomes 12:00. If the milestone is in the middle of the day and the day you type ends before that time, it gets the end of that day: *Inspection* on Monday 14:00, recorded on that Friday, becomes Friday 12:00. If the day you type starts only after that time, it gets the start. If the milestone was outside working hours, for example at a manually fixed moment, it gets the nearest edge of the day you type: the end if it was too late, the start if it was too early. Example: working hours Mon–Thu 07:00–16:00 and Fri 07:00–12:00. *Handover* was on Monday 18:00; recorded on Friday 5 June, it becomes Friday 12:00. If it was on Monday 05:00, it becomes Friday 07:00. If you type a time yourself, that time applies.
 
 **Choosing a percentage in the menu.** Useful for a quick state.
 
@@ -76,6 +76,10 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **The remaining duration is exact.** The app does not round the remaining duration to whole work days. For a task of 2 work days, 75% gives a remainder of 0.5 work day.
 
+**Progress without a status date.** If the project has progress but no status date, for example after you cleared it with the cross, the app calculates a running task forward with its remaining duration but backward with its full duration. The float then comes out negative and the task looks critical. A completed task can then be critical too. Set the status date again.
+
+**Dragging a started bar.** The start of a started task is the actual start and does not move. For a completed task the start and finish do not move. The app then reports, for example, *'…' has started: its start is the actual start and does not move. Change it through the progress.* Change the *Actual start* or the *Actual finish* instead.
+
 **A phase.** A phase has no progress of its own. In the panel it says *Derived from the subtasks: change progress there. The summary task follows after calculating (F5).* In the table the cell reports *The progress of a summary task is derived from its subtasks and cannot be changed here.*
 
 **Moving the status date later.** The remaining work of running tasks starts on the new status date, and work that has not started yet cannot lie before that date. So move it only together with an update of the progress. If you set a status date without also entering progress, all work that has not started yet moves to that date (except in the Microsoft Project profile).
@@ -84,7 +88,6 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 ## See also
 
-- [Progress, status date and baseline](docs://uitleg-voortgang): how the app calculates the remaining work and the status date, with a worked example.
 - [Importing progress from a spreadsheet](docs://howto-voortgang-importeren): reading in progress for many tasks at once.
 - [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen): what the app does with a task that has started while its predecessor is still running.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): recording the original schedule to compare progress with.
