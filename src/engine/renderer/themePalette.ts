@@ -229,7 +229,8 @@ export function readGanttPalette(): GanttPalette {
     // patroon dat `--theme-bar-float` al had. Licht en donker definiëren die vars NIET, dus daar
     // valt alles terug op BRAND en is de uitkomst gelijk aan een directe `BRAND.x`. Alleen
     // het hoog-contrastthema zet ze, omdat de verzadigde set daar onder 3:1 zakt. Uitzondering
-    // (#741): het donkere thema zet `--theme-bar-baseline`, want het lichte #1F2937 valt daar weg.
+    // (#741): licht en donker zetten allebei `--theme-bar-baseline`. Het donkere blok geldt ook voor
+    // `:root`, dus het lichte thema moet zijn #1F2937 zelf zetten, anders erft het het donkere grijs.
     critical: v('--theme-bar-critical', BRAND.critical),
     nearCritical: BRAND.nearCritical,
     hammock: BRAND.hammock,

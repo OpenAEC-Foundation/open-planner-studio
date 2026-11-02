@@ -120,10 +120,10 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
 // ── 3. Licht en donker zetten ze bewust NIET ────────────────────────────────
 // Zou een van beide er een gaan zetten, dan is de aanname "licht en donker delen één balkset"
 // stilzwijgend vervallen — dat moet een bewuste wijziging zijn, geen verrassing.
-// Uitzondering (#741): het donkere thema zet alleen de actieve baseline, omdat het lichte #1F2937
-// op de donkere kaart wegvalt.
+// Uitzondering (#741): licht en donker zetten allebei de actieve baseline. Het lichte #1F2937 valt
+// op de donkere kaart weg, en het donkere blok geldt ook voor `:root`, dus licht moet het zijne zelf zetten.
 const MAG_ZETTEN: Record<string, readonly string[]> = {
-  '[data-theme="light"]': [],
+  '[data-theme="light"]': ['--theme-bar-baseline'],
   '[data-theme="dark"]': ['--theme-bar-baseline'],
 };
 for (const [selector, mag] of Object.entries(MAG_ZETTEN)) {
@@ -145,16 +145,22 @@ const lStar = (hex: string): number => {
 };
 {
   const pal = readGanttPalette();
-  const licht = themeBlock('[data-theme="light"]');
   const donker = themeBlock('[data-theme="dark"]');
-  // Het lichte thema en de tekenlaag zonder CSS (headless, afdruk-fallback) moeten gelijk blijven.
-  eq('licht vergelijking 1 = fallback', licht['--theme-bar-baseline-compare-1'], pal.baselineCompare1);
-  eq('licht vergelijking 2 = fallback', licht['--theme-bar-baseline-compare-2'], pal.baselineCompare2);
-  eq('afdruk actief = licht', PRINT_PALETTE.baseline, pal.baseline);
-  eq('afdruk vergelijking 1 = licht', PRINT_PALETTE.baselineCompare1, pal.baselineCompare1);
-  eq('afdruk vergelijking 2 = licht', PRINT_PALETTE.baselineCompare2, pal.baselineCompare2);
-  const sets: [string, string[]][] = [
-    ['licht', [pal.baseline, pal.baselineCompare2, pal.baselineCompare1]],
+  // Het donkere blok is ook `:root`: wat licht niet zelf zet, erft het van donker. Lees dus de
+  // waarde die in de browser echt geldt, niet alleen het eigen blok.
+  const lichtEigen = themeBlock('[data-theme="light"]');
+  const licht = (v: string): string | undefined => lichtEigen[v] ?? donker[v];
+  ok('donker blok is ook :root', /:root,\s*\[data-theme="dark"\]\s*\{/.test(css));
+  // Het lichte thema, de tekenlaag zonder CSS (headless) en de afdruk houden dezelfde tinten.
+  const lichtSet = [licht('--theme-bar-baseline'), licht('--theme-bar-baseline-compare-2'), licht('--theme-bar-baseline-compare-1')];
+  eq('licht actief = fallback', lichtSet[0], pal.baseline);
+  eq('licht vergelijking 2 = fallback', lichtSet[1], pal.baselineCompare2);
+  eq('licht vergelijking 1 = fallback', lichtSet[2], pal.baselineCompare1);
+  eq('afdruk actief = fallback', PRINT_PALETTE.baseline, pal.baseline);
+  eq('afdruk vergelijking 1 = fallback', PRINT_PALETTE.baselineCompare1, pal.baselineCompare1);
+  eq('afdruk vergelijking 2 = fallback', PRINT_PALETTE.baselineCompare2, pal.baselineCompare2);
+  const sets: [string, (string | undefined)[]][] = [
+    ['licht', lichtSet],
     ['donker', [donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']]],
   ];
   for (const [naam, [actief, verg2, verg1]] of sets) {

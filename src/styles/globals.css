@@ -1538,7 +1538,10 @@ button.task-grid-relation-reference {
   --theme-bar-float: #059669;
   /* Issue #391/#741: vergelijkingsbaselines, licht thema. Besluit Ethan 2026-11-02: drie
      helderheidsstappen, actief #1F2937 (BRAND, L* 16.3), vergelijking 2 fuchsia-700 #A21CAF
-     (L* 40.6, 6.06:1), vergelijking 1 cyaan-600 #0891B2 (L* 55.6, 3.53:1 op de kaart). */
+     (L* 40.6, 6.06:1), vergelijking 1 cyaan-600 #0891B2 (L* 55.6, 3.53:1 op de kaart).
+     De actieve staat hier expliciet: `:root` hoort bij het donkere blok, dus zonder deze regel
+     erft het lichte thema het donkere #6B7280. */
+  --theme-bar-baseline: #1F2937;
   --theme-bar-baseline-compare-1: #0891B2;
   --theme-bar-baseline-compare-2: #A21CAF;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
