@@ -14,6 +14,7 @@ test.beforeAll(async () => {
 });
 
 async function mount(page: Page, fixture = 'menu') {
+  await page.goto('about:blank');
   await page.setContent(`<html lang="nl"><head><style>* { box-sizing: border-box; } body { margin: 8px; }</style></head>
     <body data-fixture="${fixture}"><div id="root"></div></body></html>`);
   await page.addScriptTag({ content: bundle });
@@ -57,6 +58,19 @@ test('gedeeld menu: alleen scrollen van de triggeromgeving sluit het paneel', as
   await page.mouse.wheel(100, 0);
   await expect.poll(() => ribbon.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
   await expect(menu).toHaveCount(0);
+
+  // Het in beeld schuiven VOOR de openende klik mag het nieuwe menu niet weer sluiten wanneer
+  // de browser het native scrollevent pas na de klik bezorgt (WBS-menu na een taalwissel in CI).
+  await mount(page, 'menu-scroll');
+  const scrolledTrigger = page.getByRole('button', { name: 'Menu openen' });
+  await scrolledTrigger.click();
+  await expect.poll(() => page.locator('[data-ribbon-scroll]').evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+  await expect(menu).toBeVisible();
+
+  await mount(page, 'menu-scroll-click');
+  await page.getByRole('button', { name: 'Menu openen' }).click();
+  await expect(page.locator('[data-ribbon-scroll]')).toHaveAttribute('data-scroll-delivered', 'yes');
+  await expect(menu).toBeVisible();
 });
 
 test('gedeeld menu: ook in een laag venster blijven lijst en voetregel bereikbaar', async ({ page }) => {
@@ -75,6 +89,8 @@ test('gedeeld menu: ook in een laag venster blijven lijst en voetregel bereikbaa
 });
 
 test('celeditor: kandidaatkeuze met Enter of Escape bewerkt geen cel tijdens compositie', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
   await mount(page, 'editor');
   const input = page.getByRole('textbox', { name: 'Taaknaam' });
   await input.focus();
@@ -102,6 +118,10 @@ test('celeditor: kandidaatkeuze met Enter of Escape bewerkt geen cel tijdens com
   await expect(page.locator('[data-cancels]')).toHaveText('1');
   await expect(page.locator('[data-focus-requests]')).toHaveText('2');
   await session.detach();
+  await page.getByRole('button', { name: 'Keuze vastleggen' }).click();
+  await expect(page.locator('[data-commits]')).toHaveText('2');
+  await expect(page.locator('[data-focus-requests]')).toHaveText('3');
+  expect(errors).toEqual([]);
 });
 
 // Een aparte appopstelling bewaakt de document-/focuseffecten; de componentproef hierboven bewaakt

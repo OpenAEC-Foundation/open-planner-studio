@@ -77,6 +77,7 @@ export function Popover({
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const anchorRectRef = useRef<DOMRect | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   // extraRef: het paneel leeft (via de portal) buiten `ref`'s DOM-subtree — zonder dit telt een
@@ -101,7 +102,13 @@ export function Popover({
       // De lijst in het paneel en andere scrollvlakken mogen bewegen; alleen een bewegende
       // voorouder maakt de vaste portalpositie los van de trigger.
       if (target === document || (target instanceof Node && container && target.contains(container))) {
-        closeRef.current();
+        const anchor = anchorRectRef.current;
+        const current = container?.getBoundingClientRect();
+        // De browser kan de knop vóór de openende klik in beeld schuiven en het scrollevent pas
+        // erna bezorgen. Sluit alleen als de knop sinds het plaatsen van dit paneel is verplaatst.
+        if (anchor && current && (current.left !== anchor.left || current.right !== anchor.right || current.bottom !== anchor.bottom)) {
+          closeRef.current();
+        }
       }
     };
     document.addEventListener('keydown', onKey);
@@ -115,11 +122,12 @@ export function Popover({
   const [panelPos, setPanelPos] = useState<CSSProperties | null>(null);
   const panelMounted = panelPos !== null;
   useLayoutEffect(() => {
-    if (!open) { setPanelPos(null); return; }
+    if (!open) { anchorRectRef.current = null; setPanelPos(null); return; }
     const place = () => {
       const trigger = ref.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
+      anchorRectRef.current = rect;
       const marginTop = typeof panelStyle?.marginTop === 'number' ? panelStyle.marginTop : 0;
       const fit: CSSProperties = fitViewport
         ? { maxHeight: Math.max(0, window.innerHeight - rect.bottom - marginTop - VIEWPORT_MARGIN) }
