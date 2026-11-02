@@ -2,14 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, touchesRust } from '../../scripts/ci-changes.mjs';
 
-test('touchesRust: src-tauri, de pakketlijst en de eigen workflow tellen, de rest niet', () => {
+test('touchesRust: src-tauri en de pakketlijst tellen, de rest niet, ook de workflow niet', () => {
   assert.equal(touchesRust(['src-tauri/src/main.rs']), true);
   assert.equal(touchesRust(['src-tauri/Cargo.lock']), true);
   assert.equal(touchesRust(['src-tauri/Cargo.toml']), true);
   assert.equal(touchesRust(['package.json']), true);
   assert.equal(touchesRust(['package-lock.json']), true);
-  assert.equal(touchesRust(['.github/workflows/ci.yml'], '.github/workflows/ci.yml'), true);
-  assert.equal(touchesRust(['.github/workflows/ci.yml']), false);
+  assert.equal(touchesRust(['.github/workflows/ci.yml', '.github/workflows/codeql.yml']), false);
   assert.equal(touchesRust(['src/engine/renderer/GanttRenderer.ts', 'docs/x.md', 'public/docs/nl/a.md']), false);
   assert.equal(touchesRust(['headless/server/package.json']), false, 'alleen de pakketlijst in de root');
   assert.equal(touchesRust([]), false);

@@ -68,7 +68,7 @@ jobs:
 
       - name: Does this run touch Rust or the package list?
         id: diff
-        run: node scripts/ci-changes.mjs "${{ github.event_name }}" .github/workflows/ci.yml
+        run: node scripts/ci-changes.mjs "${{ github.event_name }}"
 
   # De Tauri-build, als drie eigen jobs met een vaste naam in plaats van één matrix. Een matrixjob die
   # overslaat verschijnt als `build (${{ matrix.platform }})`; deze jobs verschijnen ook bij overslaan

@@ -3,10 +3,10 @@
 //
 // Besluit Ethan (2026-11-02, optie 1 uit PR #763): die drie draaien alleen bij een wijziging in `src-tauri/` of in
 // de pakketlijst (package.json, package-lock.json, Cargo.toml, Cargo.lock), en altijd op main. De Ubuntu-build
-// draait altijd. Een wijziging aan de workflow die deze jobs beschrijft telt ook mee: anders zou een PR die de
-// Windows-build verandert, die build zelf nooit draaien.
+// draait altijd. Een wijziging aan de workflow zelf telt bewust niet mee (het besluit noemt alleen de Rust-kant
+// en de pakketlijst); een PR die alleen de Windows-build in ci.yml verandert, bouwt Windows dus pas op main.
 //
-//   node scripts/ci-changes.mjs <event> [workflowbestand]   # schrijft rust=true|false naar $GITHUB_OUTPUT
+//   node scripts/ci-changes.mjs <event>   # schrijft rust=true|false naar $GITHUB_OUTPUT
 //
 // Bij een pull_request staat de merge-commit uitgecheckt; zijn eerste ouder is de basis. Lukt het vergelijken
 // niet, dan is het antwoord `true`: bij twijfel draait er meer, nooit minder.
@@ -16,13 +16,13 @@ import { fileURLToPath } from 'node:url';
 
 const RUST_PATHS = [/^src-tauri\//, /^package\.json$/, /^package-lock\.json$/];
 
-/** Hoort een van deze bestanden bij de Rust-kant, de pakketlijst of de opgegeven workflow? */
-export function touchesRust(files, workflow = '') {
-  return files.some(file => file === workflow || RUST_PATHS.some(re => re.test(file)));
+/** Hoort een van deze bestanden bij de Rust-kant of de pakketlijst? */
+export function touchesRust(files) {
+  return files.some(file => RUST_PATHS.some(re => re.test(file)));
 }
 
 /** `true` buiten een PR; binnen een PR alleen als de wijzigingen de Rust-kant raken. */
-export function decide(event, listFiles, workflow = '') {
+export function decide(event, listFiles) {
   if (event !== 'pull_request') return { rust: true, reason: `${event}: alles draait` };
   let files;
   try {
@@ -30,7 +30,7 @@ export function decide(event, listFiles, workflow = '') {
   } catch (err) {
     return { rust: true, reason: `wijzigingen niet te bepalen (${err instanceof Error ? err.message : String(err)}): alles draait` };
   }
-  const rust = touchesRust(files, workflow);
+  const rust = touchesRust(files);
   return { rust, reason: `${files.length} gewijzigde bestanden; Rust of pakketlijst geraakt: ${rust ? 'ja' : 'nee'}` };
 }
 
@@ -39,8 +39,8 @@ const gitFiles = () => execFileSync('git', ['diff', '--name-only', 'HEAD^1', 'HE
 
 const isCli = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isCli) {
-  const [event = '', workflow = ''] = process.argv.slice(2);
-  const { rust, reason } = decide(event, gitFiles, workflow);
+  const [event = ''] = process.argv.slice(2);
+  const { rust, reason } = decide(event, gitFiles);
   console.log(reason);
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `rust=${rust}\n`);
 }

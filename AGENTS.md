@@ -56,7 +56,7 @@ Every check must also be listed in `tests/planning/expected-checks.txt`, otherwi
 The full run goes through `scripts/planning-pool.mjs`, at most 4 processes at once (`OPS_PLANNING_JOBS`), and CI
 splits it over four jobs (`--shard=k/4`); the job `test` checks that every run happened exactly once.
 On a PR, CI builds the Tauri app on Ubuntu always, and on Windows and macOS only when `scripts/ci-changes.mjs` sees a
-change in `src-tauri/`, `package.json`, `package-lock.json` or `ci.yml` (owner decision 2026-11-02); a push to `main`
+change in `src-tauri/`, `package.json` or `package-lock.json` (owner decision 2026-11-02); a push to `main`
 builds all three. The skipped builds show as "skipped", and the job `test` fails if a build skipped that should have run.
 New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k lines) in full.
 

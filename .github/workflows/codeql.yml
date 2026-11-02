@@ -44,7 +44,7 @@ jobs:
 
       - name: Does this run touch Rust or the package list?
         id: diff
-        run: node scripts/ci-changes.mjs "${{ github.event_name }}" .github/workflows/codeql.yml
+        run: node scripts/ci-changes.mjs "${{ github.event_name }}"
 
   analyze:
     name: Analyze (${{ matrix.language }})
