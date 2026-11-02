@@ -43,7 +43,7 @@ test('solverfouten verschijnen in de gekozen UI-taal, in de melding en in het wa
   const cycleText = /^Zirkelbezug zwischen Vorgängen: (Erdarbeiten → Rohbau → Erdarbeiten|Rohbau → Erdarbeiten → Rohbau)$/;
   await expect(toast.locator('.ops-toast-detail')).toHaveText(cycleText);
 
-  await ribbon.getByRole('button', { name: /^Warnungen$/ }).click();
+  await ribbon.getByRole('button', { name: /^Warnungsbereich$/ }).click();
   const panel = page.locator('[data-ops-warnings-panel]');
   await expect(panel).toContainText('Der Terminplan konnte nicht berechnet werden: Zirkelbezug zwischen Vorgängen:');
   await expect(panel).not.toContainText('Circular dependency');

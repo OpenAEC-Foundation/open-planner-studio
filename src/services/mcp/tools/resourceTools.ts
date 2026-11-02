@@ -119,8 +119,10 @@ function parseAvailabilitySteps(raw: unknown): AvailabilityStep[] | string {
     if (typeof step.from !== 'string' || !ISO_DATE_ONLY.test(step.from)) {
       return `\`availabilitySteps.from\` must be an ISO date (YYYY-MM-DD), got '${String(step.from)}'`;
     }
-    if (!isFiniteNumber(step.maxUnits) || step.maxUnits <= 0) {
-      return `\`availabilitySteps.maxUnits\` must be a number > 0 (units per working day), got '${String(step.maxUnits)}'`;
+    // 0 = niet beschikbaar vanaf `from` (een periode buiten de MS Project-beschikbaarheid, een P6-tarief met 0);
+    // alleen de vlakke `maxUnits` moet groter dan 0 zijn.
+    if (!isFiniteNumber(step.maxUnits) || step.maxUnits < 0) {
+      return `\`availabilitySteps.maxUnits\` must be a number >= 0 (units per working day), got '${String(step.maxUnits)}'`;
     }
     if (seen.has(step.from)) return `\`availabilitySteps\` contains two steps with the same date '${step.from}'`;
     seen.add(step.from);
@@ -641,7 +643,7 @@ const manageResources: BatchStepTool = {
                 required: ['from', 'maxUnits'],
                 properties: {
                   from: { type: 'string', description: 'ISO date (YYYY-MM-DD): from this day maxUnits applies.' },
-                  maxUnits: { type: 'number', exclusiveMinimum: 0, description: 'Capacity per working day from `from`.' },
+                  maxUnits: { type: 'number', minimum: 0, description: 'Capacity per working day from `from`; 0 = not available.' },
                 },
               },
             },

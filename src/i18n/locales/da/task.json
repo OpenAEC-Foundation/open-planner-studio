@@ -594,7 +594,8 @@
     "customFieldSuffix": "brugerdefineret felt"
   },
   "tooltip": {
-    "status": "Fremdrift"
+    "status": "Fremdrift",
+    "baselineActive": "aktiv"
   },
   "externalLinks": {
     "action": "Tilføj ekstern afhængighed…",

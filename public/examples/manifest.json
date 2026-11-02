@@ -19,7 +19,7 @@
     {
       "file": "showcase-rijwoningen-de-akkers.ifc",
       "name": "6 New Terraced Houses, De Akkers",
-      "description": "Mid-sized showcase: six terraced houses with a shared foundation (frost delay via extraHolidays), a masonry crew (CREW+LABOR) moving from house to house — the same crew as in the small refurbishment showcase, so the occupancy overview shows a cross-project conflict on it — fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately tight contract deadline (negative total float), activity codes House x Discipline, notes (open and completed), progress plus a status date halfway through, and a baseline before start.",
+      "description": "Mid-sized showcase: six terraced houses with a shared foundation (frost delay, added to the calendar after the contract baseline), a masonry crew (CREW+LABOR) moving from house to house — the same crew as in the small refurbishment showcase, so the occupancy overview shows a cross-project conflict on it — fit-out with curve variation (UNIFORM/FRONT_LOADED/BACK_LOADED) and a visible over-allocation on the plasterers, a mandatory handover inspection per house plus a deliberately tight contract deadline (negative total float), activity codes House x Discipline, notes (open and completed), progress plus a status date halfway through, and two baselines shown together in the Gantt: Contract before start and a Re-plan after the frost delay.",
       "category": "showcase",
       "tags": [
         "residential",
@@ -35,7 +35,7 @@
     {
       "file": "showcase-appartementencomplex.ifc",
       "name": "De Vaart Apartment Complex",
-      "description": "LARGE: apartment complex with three parallel towers (~250 tasks) — hard-pin MSO, secondary constraint, hammock (LOE), near-critical marking plus multiple critical paths (floatPaths), hourly scheduling for rebar fixing/pouring, all five resource types including a tower crane (EQUIPMENT) with a capacity step, all four relationship types (including START_FINISH), all six assignment curves, an external link to a separately delivered site file, two baselines (Contract then Re-baseline after a variation order) and progress plus a status date.",
+      "description": "LARGE: apartment complex with three parallel towers (~250 tasks) — hard-pin MSO, secondary constraint, hammock (LOE), near-critical marking plus multiple critical paths (floatPaths), hourly scheduling for rebar fixing/pouring, all five resource types including a tower crane (EQUIPMENT) with a capacity step, all four relationship types (including START_FINISH), all six assignment curves, an external link to a separately delivered site file, two baselines shown together in the Gantt (Contract, and a Re-baseline after a variation order) and progress plus a status date.",
       "category": "showcase",
       "tags": [
         "residential",

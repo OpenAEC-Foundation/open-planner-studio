@@ -4,7 +4,7 @@ import type { Task, TaskTime } from '@/types/task';
 import { sameValue } from '@/utils/sameValue';
 import {
   applyActualDateEdit, applyCompletionEdit, applyProgressInvariants, isActualFinishBeforeStart,
-  actualDateSide, isActualPastStatusDate, normalizeActualDate,
+  isActualPastStatusDate, isTaskActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 
 /**
@@ -182,8 +182,7 @@ export function planProgressEntry(task: Task, edit: ProgressEdit, ctx: ProgressE
     [edit.field === 'completion' ? 'actualStart' : edit.field, edit.field === 'completion' ? undefined : edit.value],
     ['actualStart', answer],
   ] as const) {
-    if (date && statusDate && isActualPastStatusDate(date, statusDate, isElapsedTask(task) ? undefined : ctx.calendar,
-      actualDateSide(task, field))) {
+    if (date && statusDate && isTaskActualPastStatusDate(task, field, date, statusDate, ctx.calendar)) {
       return { ok: false, reason: 'afterStatusDate' };
     }
   }

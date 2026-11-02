@@ -168,11 +168,14 @@ export function computeScheduleHealth(ctx: ReportContext, opts: HealthOptions): 
       }
     }
     // Voortgangsuitzonderingen: inconsistente actuals, en (DCMA punt 9) een prognose vóór de
-    // statusdatum. Eén definitie met de DCMA-telling (`invalidDateReasons`): "ná" met dezelfde
-    // precisie als het raster en de store-setters (`isActualPastStatusDate`).
+    // statusdatum. Eén definitie met de DCMA-telling (`invalidDateReasons`), met dezelfde taakkalender:
+    // "ná" met dezelfde precisie en dezelfde werkdag als het raster en de store-setters
+    // (`isTaskActualPastStatusDate`). Zonder kalender las de lijst een nachtdienst op de klokdag en
+    // meldde ze een afmelding die de invoer en DCMA goedkeuren.
     const { actualStart, actualFinish, completion } = t.time;
     if (statusDate && statusDay) {
-      for (const reason of invalidDateReasons(t, statusDate, statusDay, !!cpm)) {
+      const taskCalendar = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
+      for (const reason of invalidDateReasons(t, statusDate, statusDay, !!cpm, taskCalendar)) {
         const date = reason === 'actualStartAfterStatusDate' ? actualStart
           : reason === 'actualFinishAfterStatusDate' ? actualFinish
             : reason === 'forecastStartBeforeStatusDate' ? t.time.earlyStart : t.time.earlyFinish;

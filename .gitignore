@@ -17,6 +17,7 @@ headless/**/package-lock.json
 !.claude/rules/
 .claude/skills/*
 !.claude/skills/release/
+!.claude/skills/browsertests-repareren/
 !.claude/skills/wiki/
 !.claude/skills/docs-update/
 !.claude/skills/docs-audit/

@@ -64,8 +64,13 @@ Tests lopen via echte browser-events. De brug mag deterministische fixtures zett
 Canvasgeometrie lezen, maar de geteste gebruikershandeling nooit vervangen.
 
 In CI draait de suite als apart deel van `scripts/verify-parts.mjs` (`test:browser`), verdeeld over
-vier shards (`--duration-shard=1/4` … `4/4`), elk met een eigen bewaakte Vite-server; de CI- en release-workflows uploaden bij falen `playwright-report/`
+vier shards (`--duration-shard=1/4` … `4/4`), elk met een eigen bewaakte Vite-server; de CI uploadt bij falen `playwright-report/`
 en `test-results/` als `playwright-*`-artefact (zeven dagen).
+
+De suite draait niet bij een gewone PR en niet bij een push op main (besluit eigenaar, 2026-10-30). De job
+`browser` in `ci.yml` draait elke vrijdag om 22:00 Nederlandse tijd op main, op een PR met
+het label `browsertests` en na `gh workflow run ci.yml --ref <branch>`. Wanneer een agent dat doet staat in
+`AGENTS.md`. Wat in de vrijdagrun rood wordt, repareert een geplande job (skill `browsertests-repareren`).
 
 De shards zijn verdeeld op gemeten duur per spec (`scripts/browser-shards.mjs`, duren in
 `spec-durations.json`), niet met Playwrights `--shard`: die knipt op aantal tests in bestandsvolgorde,
@@ -74,7 +79,7 @@ shard, ook zonder meting (dan de mediaan); `tests/dev-server/browser-shards.test
 shards samen exact de specs zijn die `playwright test --list` vindt. `node scripts/browser-shards.mjs 4`
 toont de indeling. Een nieuwe spec hoeft niet in `spec-durations.json`; een verwijderde of hernoemde
 spec moet eruit (die test faalt anders). Bijwerken van de duren: haal de joblogs van alle vier
-shards van één groene run op (`gh api repos/<repo>/actions/jobs/<job-id>/logs > shard-1.log`, …) en
+shards van één groene browserrun op, bijvoorbeeld die van vrijdag op main (`gh api repos/<repo>/actions/jobs/<job-id>/logs > shard-1.log`, …) en
 draai `node scripts/browser-shards.mjs --update "CI-run <id>" shard-*.log`. Meer runs tegelijk mag
 en is beter: GitHub-runners verschillen per job tot ±25 % in snelheid, dus het script corrigeert elke
 log met de mediaanverhouding tot de huidige duren en middelt daarna per spec.

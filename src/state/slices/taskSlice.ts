@@ -57,7 +57,7 @@ import { effHoursPerDay } from '@/utils/taskDuration';
 import { buildTaskEditPlanEnvironment } from '../gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
 import { buildProgressImportPlan } from '@/services/progressImport';
-import type { ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
+import type { ProgressConflictChoices, ProgressImportPlan, ProgressOverrides, ProgressRow } from '@/services/progressImport';
 import type { ProgressPlanDeps } from '@/services/progressImport';
 
 /**
@@ -231,7 +231,9 @@ export interface TaskSlice {
   ) => ProgressImportPlan;
   /** Herberekent hetzelfde plan tegen de LIVE taken en past het in ÉÉN undo-stap toe: drift
    *  tussen preview en apply wordt opgelost door opnieuw te bouwen, nooit door het preview-plan te
-   *  hergebruiken. Nul toepassingen ⇒ nul undo-stappen (zoals `setActualStart` bij een weigering). */
+   *  hergebruiken. Nul toepassingen ⇒ nul undo-stappen (zoals `setActualStart` bij een weigering).
+   *  Een botsing zonder keuze (`unresolvedConflictCount > 0`) houdt het HELE blad tegen: dan schrijft
+   *  deze actie niets, ook niet de rijen die `apply` als uitkomst hebben. */
   applyProgressImport: (
     rows: readonly ProgressRow[],
     overrides?: ProgressOverrides,
@@ -252,6 +254,8 @@ export interface TaskSlice {
  */
 export interface ProgressImportEntryOptions {
   today?: string;
+  /** Keuzes bij botsingen met de stand sinds de export. Geen invoerregel, wel plan-invoer. */
+  conflictChoices?: ProgressConflictChoices;
 }
 
 /** De planner-naad van het voortgangsblad (`buildProgressImportPlan`), met de regels hierboven. */
@@ -1655,7 +1659,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
 
   previewProgressImport: (rows, overrides, opts) => {
     const s = get();
-    return buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
+    return buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides, opts?.conflictChoices);
   },
 
   // Het plan wordt HIER, binnen dezelfde `set()`, opnieuw gebouwd tegen de LIVE taken — nooit het
@@ -1667,8 +1671,8 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
     let plan!: ProgressImportPlan;
     let statusDateToday: string | undefined;
     set((s) => {
-      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides);
-      if (plan.appliedCount === 0) return;
+      plan = buildProgressImportPlan(rows, s.tasks, progressImportDeps(s, opts?.today), overrides, opts?.conflictChoices);
+      if (plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return;
       runtime.beginUndoable(s);
       // Met `ProgressImportEntryOptions`: houdt een toegepaste rij voortgang over en was er geen
       // statusdatum, dan gaat die in deze undo-stap op vandaag.

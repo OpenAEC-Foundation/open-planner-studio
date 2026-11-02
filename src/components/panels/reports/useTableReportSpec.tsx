@@ -26,8 +26,9 @@ import {
   type ReportContext, type SolvedReportContext, type LookAheadRow, type CriticalRow, type ProgressRow, type HealthCheck, type HealthItem,
   type DcmaMetric, DCMA_DAYS, type ResourceLoadingRow, type ResourceAssignmentRow, type WbsSummaryRow,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
-  computeResourceLoading, computeResourceAssignments, computeWbsSummary,
+  computeResourceLoading, computeResourceAssignments, computeWbsSummary, computeProgressCurve, type ProgressCurveRiskRow,
 } from '@/engine/reports';
+import type { CurveChartSpec } from '@/services/pdf/pdfCurveChart';
 import { REPORT_COLORS, section, type ReportColumn, type ReportSummaryItem, type TableReportSpec } from './tableReportSpec';
 
 /**
@@ -273,6 +274,113 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
       sec('critical', r.critical),
     ],
     fileSuffix: t('fileSuffix.progress'),
+  };
+}
+
+/** Lijnkleuren van de voortgangscurve — dezelfde in DOM en PDF, leesbaar op licht en donker. */
+const CURVE_COLORS = {
+  planned: REPORT_COLORS.info,
+  actual: REPORT_COLORS.warn,
+  band: REPORT_COLORS.ok,
+  marker: REPORT_COLORS.error,
+} as const;
+
+function buildProgressCurve(ctx: ReportContext, t: T, dd: DD, stale: boolean, locale: string): TableReportSpec {
+  const r = computeProgressCurve(ctx);
+  const p = 'tableReports.progressCurve';
+  const notes = commonNotes(t, dd, ctx, stale, r.statusDateMissing);
+  if (!r.hasBaseline) notes.push(t(`${p}.noBaselineNote`));
+  if (!r.hasProgress) notes.push(t(`${p}.noProgressNote`));
+
+  const behind = r.actualPct + 0.05 < r.plannedPct;
+  const m = r.nextMilestone;
+  const milestoneWhen = !m ? t(`${p}.noMilestone`)
+    : m.daysUntil === 0 ? `${dd.date(m.day)} · ${t(`${p}.milestoneToday`)}`
+    : m.daysUntil > 0 ? `${dd.date(m.day)} · ${t(`${p}.milestoneIn`, { count: m.daysUntil })}`
+    : `${dd.date(m.day)} · ${t(`${p}.milestoneAgo`, { count: -m.daysUntil })}`;
+  const kpis = [
+    {
+      label: t(`${p}.kpiComplete`),
+      value: `${dd.num(r.actualPct)}%`,
+      detail: t(`${p}.kpiPlanned_${r.plannedBasis}`, { value: `${dd.num(r.plannedPct)}%` }),
+      color: behind ? REPORT_COLORS.error : REPORT_COLORS.ok,
+    },
+    {
+      label: t(`${p}.kpiLate`),
+      value: String(r.lateTasks.count),
+      detail: t(`${p}.kpiLateCritical`, { value: String(r.lateTasks.critical) }),
+      color: r.lateTasks.count > 0 ? REPORT_COLORS.error : REPORT_COLORS.ok,
+    },
+    {
+      label: t(`${p}.kpiNegativeFloat`),
+      value: String(r.negativeFloat.count),
+      detail: r.negativeFloat.minDays === undefined ? '—' : t(`${p}.kpiLargest`, { value: dd.workDays(r.negativeFloat.minDays) }),
+      color: r.negativeFloat.count > 0 ? REPORT_COLORS.error : REPORT_COLORS.ok,
+    },
+    {
+      label: t(`${p}.kpiNextMilestone`),
+      value: m ? m.name : '—',
+      detail: milestoneWhen,
+      color: m && m.daysUntil < 0 ? REPORT_COLORS.error : undefined,
+    },
+  ];
+
+  let chart: CurveChartSpec | undefined;
+  if (r.axis) {
+    const monthLabel = makeMonthLabeler(locale);
+    const series: CurveChartSpec['series'] = [];
+    if (r.plannedCurve) series.push({ key: 'planned', label: t(`${p}.seriesPlanned`), color: CURVE_COLORS.planned, dashed: true, points: r.plannedCurve });
+    // Zonder laatste data (niet berekend) is er geen band: dan de curve op vroegste data als lijn.
+    if (!r.lateCurve) series.push({ key: 'early', label: t(`${p}.seriesEarly`), color: CURVE_COLORS.band, points: r.earlyCurve });
+    series.push({ key: 'actual', label: t(`${p}.seriesActual`), color: CURVE_COLORS.actual, points: r.actualCurve });
+    chart = {
+      from: r.axis.from,
+      to: r.axis.to,
+      series,
+      band: r.lateCurve ? { key: 'band', label: t(`${p}.band`), color: CURVE_COLORS.band, upper: r.earlyCurve, lower: r.lateCurve } : undefined,
+      marker: { day: r.statusDate, label: t('tableReports.statusDate'), color: CURVE_COLORS.marker },
+      xTicks: r.ticks.map(tk => ({ day: tk.day, label: tk.kind === 'month' ? monthLabel(tk.day) : dd.date(tk.day) })),
+      yTicks: [0, 25, 50, 75, 100].map(v => ({ pct: v, label: `${dd.num(v)}%` })),
+      ariaLabel: t(`${p}.chartLabel`),
+      footnote: t(`${p}.actualFootnote`),
+    };
+  }
+
+  const columns: ReportColumn<ProgressCurveRiskRow>[] = [
+    wbsCol(t), nameCol(t),
+    taskDateCol('baselineFinish', t('tableReports.progress.baselineFinish'), r => r.baselineFinish, 'end', dd),
+    taskDateCol('finish', t('tableReports.progress.forecastFinish'), r => r.finish, 'end', dd),
+    {
+      key: 'variance', header: t('tableReports.progress.finishVariance'), width: 80, align: 'right',
+      text: r => (r.finishVarianceDays === undefined ? '—' : dd.signed(r.finishVarianceDays)),
+      color: r => (r.finishVarianceDays !== undefined && r.finishVarianceDays > 0 ? REPORT_COLORS.error : undefined),
+      bold: r => r.finishVarianceDays !== undefined && r.finishVarianceDays > 0,
+    },
+    tfCol(t, dd),
+    {
+      key: 'critical', header: t('tableReports.common.critical'), width: 70, align: 'left',
+      text: r => (r.isCritical ? t('tableReports.common.yes') : ''), color: r => (r.isCritical ? REPORT_COLORS.error : undefined), bold: r => r.isCritical,
+    },
+    {
+      key: 'late', header: t(`${p}.kpiLate`), width: 70, align: 'left',
+      text: r => (r.late ? t('tableReports.common.yes') : ''), color: r => (r.late ? REPORT_COLORS.error : undefined),
+    },
+  ];
+  const varianceColor = r.finishVarianceDays === undefined ? undefined
+    : r.finishVarianceDays > 0 ? REPORT_COLORS.error : r.finishVarianceDays < 0 ? REPORT_COLORS.info : REPORT_COLORS.ok;
+  return {
+    title: t(`${p}.title`),
+    notes,
+    summary: [
+      { label: t('tableReports.statusDate'), value: dd.date(r.statusDate) },
+      { label: t('tableReports.progress.baselineFinish'), value: dd.date(r.baselineFinish) || '—' },
+      { label: t('tableReports.progress.forecastFinish'), value: dd.date(r.forecastFinish) || '—' },
+      { label: t('tableReports.progress.finishVariance'), value: r.finishVarianceDays === undefined ? '—' : dd.signed(r.finishVarianceDays), color: varianceColor },
+    ],
+    kpis,
+    chart: { spec: chart, emptyText: t(`${p}.emptyChart`) },
+    sections: [section<ProgressCurveRiskRow>({ key: 'risk', heading: t(`${p}.riskHeading`), columns, rows: r.riskRows, emptyText: t(`${p}.riskEmpty`) })],
+    fileSuffix: t('fileSuffix.progressCurve'),
   };
 }
 
@@ -550,6 +658,7 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
         case 'lookAhead': return buildLookAhead(ctx, options, t, dd, stale);
         case 'critical': return buildCritical(ctx, options, t, dd, stale);
         case 'progress': return buildProgress(ctx, options, t, dd, stale);
+        case 'progressCurve': return buildProgressCurve(ctx, t, dd, stale, locale);
         case 'health': return buildHealth(ctx, options, t, dd, stale);
         case 'resourceLoading': return buildResourceLoading(ctx, options, t, tCommon, dd, stale, locale);
         case 'resourceAssignments': return buildResourceAssignments(ctx, options, t, tCommon, dd, stale);

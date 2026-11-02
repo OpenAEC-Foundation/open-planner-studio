@@ -356,7 +356,9 @@ function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
   return mapTaskDates(task, (value, field) => n.value(value, field, ctx, 'task', task.id));
 }
 
-/** Dezelfde D1–D7 bij invoer, zonder schemamigratie of wijziging aan duur/werk. */
+/** Dezelfde D1–D7 bij invoer, zonder schemamigratie of wijziging aan duur/werk. Een werkelijke datum
+ *  van een mijlpaal komt hier bij de voortgangsroutes al als moment langs: die zetten hem eerst om met
+ *  de klokketijd uit de planning (`normalizeActualDate`, besluit 2026-10-29). */
 export function normalizeTaskDates(task: Task, calendars: Pick<DocumentPayload, 'calendar' | 'calendars'>): Task {
   let ctx: TaskDateContext | undefined;
   return mapTaskDates(task, (value, field) => {

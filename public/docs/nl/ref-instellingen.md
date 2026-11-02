@@ -26,11 +26,13 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Tijdnotatie** — hoe kloktijden in de app staan. Keuze uit *24 uur (13:00)* en *12 uur (1:00 PM)*. Standaard: *24 uur (13:00)*. Effect: de tijden in het kalendervenster, de datum met tijd van taken in uren (tabel, splitsingen, meldingen) en de tijdschaal *Uur* in de Gantt. In een tijdveld mag je beide vormen typen: *13:00*, *1300*, *13*, *1:00 PM* of *1 pm*. Middernacht als einde van de dag is *24:00* of *12:00 AM*. Bestanden en berekeningen veranderen niet: die blijven 24 uur. Waar: *Weergave*.
 
-**Duurweergave** — In het OPS-profiel is dit veld grijs: elke taak toont zijn eigen maat. Onder P6 en MSP is de keuze actief. in welke eenheid de duur van een taak staat. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: *Weergave*.
+**Duurweergave** — in welke eenheid de duur van een taak staat. In het OPS-profiel is dit veld grijs: elke taak toont zijn eigen maat. Onder P6 en MSP is de keuze actief. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: *Weergave*.
 
 **Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Weergave*, onder *Duurweergave*. Zie [Dagen en uren](docs://uitleg-dagen-en-uren).
 
 **Documentwissel-stijl** — hoe je wisselt tussen geopende projecten. Keuze uit *Horizontale tabbladen*, *Verticale tabbladen* en *Pil*. Standaard: *Horizontale tabbladen*. Effect: bij *Horizontale tabbladen* staat een tabbalk onder het lint; bij *Verticale tabbladen* een projectbalk links; bij *Pil* een kleine projectknop in de titelbalk. Waar: *Weergave*.
+
+**Van tab wisselen met het muiswiel** — of het muiswiel boven de tabbladen van het lint van tabblad wisselt. Standaard: aan. Effect: aan laat wiel omlaag naar het volgende tabblad gaan en wiel omhoog naar het vorige. Uit laat het wiel daar niets doen. Waar: *Weergave*, onder *Lint*. Zie [Lint per tabblad](docs://ref-lint).
 
 ### Onderdeel Gantt
 
@@ -86,17 +88,17 @@ Een automatisch gevonden update wacht tot de welkomstschermen en een lopende tut
 
 Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onderdeel zelf, niet in het instellingenpaneel.
 
-**Baseline-overlay** — de actieve baseline als dunne balk onder de taakbalk. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Baseline-overlay*.
+**Baseline-overlay** — de actieve baseline als smalle strook onder de taakbalk. Welke baselines er extra in de strook staan, hoort bij het project, niet bij dit apparaat. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Baseline-overlay*.
 
 **Voortgangslijn** — de zigzaglijn van de voortgang op de statusdatum. Standaard: aan. Effect: de lijn verschijnt alleen als het project een statusdatum heeft, en vervangt dan de losse statusdatumlijn. Waar: *Beeld › Baselines & voortgang › Voortgangslijn*.
 
 **Statusdatumlijn** — een gestippelde lijn op de statusdatum. Standaard: aan. Effect: staat de voortgangslijn aan, dan tekent die zelf de markering. Waar: *Beeld › Baselines & voortgang › Statusdatumlijn*.
 
-**Resource-accent** — een dun streepje in de resourcekleur onder de taakbalk. Standaard: uit. Waar: *Beeld › Baselines & voortgang › Resource-accent*.
+**Resource-accent** — een dun streepje in de resourcekleur onder de taakbalk. Standaard: uit. Waar: *Beeld › Balken › Resource-accent*.
 
-**Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Baselines & voortgang › Spelingsband*.
+**Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Balken › Spelingsband*.
 
-**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Baselines & voortgang › Balkkleuren*.
+**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Balken › Balkkleuren*.
 
 **Histogram** — de histogramstrook onder de Gantt. Standaard: uit. Waar: *Resources › Histogram › Histogram*, *Beeld › Panelen › Histogram* of Ctrl+Shift+H. De hoogte van de strook (standaard 160 pixels, tussen 80 en 480) stel je in door de rand te slepen.
 

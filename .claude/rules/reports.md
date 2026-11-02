@@ -13,7 +13,7 @@ paths:
 
 ### Rapporten: één kolomspec voor DOM én PDF
 
-Het Rapport-tabblad (`ReportPanel.tsx`) kent elf rapporttypen (`ReportType` in
+Het Rapport-tabblad (`ReportPanel.tsx`) kent twaalf rapporttypen (`ReportType` in
 `src/utils/reportSettings.ts`): de Gantt-afdruk (Canvas → raster/vector-PDF), het **resourcediagram**
 (issue #113: dezelfde Gantt-render met als rijenbron `computeResourceGanttRows` uit
 `src/engine/reports/resourceGantt.ts` — per resource-IDENTITEIT een band (niet per naam, zoals de
@@ -50,6 +50,14 @@ tijdvenster (look-ahead, voortgang, belasting, toewijzingen) delen de **rapporta
 uit `src/engine/reports/reportingPeriod.ts`, per rapport opgeslagen in `TableReportOptions`, in de
 UI het gedeelde `ReportingPeriodField`, en in de engine opgelost via `resolvePeriodFor(ctx, period)`
 — nooit een eigen weken-getal erbij bouwen.
+
+**Voortgangscurve** (issue #689, spec `docs/superpowers/specs/2026-10-27-voortgangscurve-rapport.md`) is
+een tabelrapport (`progressCurve`, rekenlaag `progressCurve.ts`) met twee extra blokken in dezelfde
+`TableReportSpec`: `kpis` (kaarten) en `chart` (een `CurveChartSpec`). De ligging van de grafiek komt uit
+één pure functie (`layoutCurveChart` in `src/services/pdf/pdfCurveChart.ts`); het scherm tekent die als
+SVG in de themakleuren (`CurveChartView`), de PDF via `Draw2D` op wit (`makeSectionedRenderReport`). Een
+nieuwe grafiek of een nieuw blok hoort op dezelfde manier: één ligging, twee tekenaars. Het rapport leest
+alleen wat de laatste berekening op de taken zette; het rekent niets door.
 
 **Kolombreedtes zijn gemeten, niet vast.** De datakolommen van de Gantt-/resourcediagram-tabel (WBS,
 Duur, Start, Einde, Volt., Eenh./d) worden — net als de naam- en de curvekolom — door `ReportPanel`

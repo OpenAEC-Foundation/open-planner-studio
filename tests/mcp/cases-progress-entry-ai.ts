@@ -87,10 +87,12 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   const { M } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: M, progress: { actualFinish: '2026-06-09' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  // F2 (spec §4.2 D7): een mijlpaal heeft één moment; zonder soort (`milestoneKind`) is dat D1, het begin
-  // van de werkdag, net als in het paneel (`check-progress-entry.ts`, "3d mijlpaal"). B6 gaat over de
-  // berekende plaats van een losse mijlpaal, niet over een opgegeven werkelijke datum. Fixronde 1 deel B, B1.
-  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T07:00', af: '2026-06-09T07:00' }, 'mijlpaal afgemeld');
+  // Een mijlpaal heeft één moment. Afgemeld met alleen een datum houdt hij de klokketijd uit de planning:
+  // deze losse mijlpaal zonder soort staat in OPS om 16:00 (B6). Besluit Ethan 2026-10-29 (vloot-wiki,
+  // `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande tijd.md`); het vervangt D7 (07:00) voor
+  // afmelden. Net als in het paneel (`check-progress-entry.ts`, "3d mijlpaal").
+  assertEq(timeOf(M).earlyStart?.slice(11), '16:00', 'geplande tijd');
+  assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
 
 test('taak die volgens plan al begonnen is: voortgang zonder actualStart werkt zoals altijd', async () => {

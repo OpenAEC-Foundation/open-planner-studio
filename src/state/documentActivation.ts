@@ -305,7 +305,8 @@ export function prepareLoadedPayload(
  *     `scheduleStale`, maar de herberekening staat pas op `setTimeout(0)`, dus een auto-save in dat
  *     gat schrijft de brondatums weg zónder modus. Stond hij uit, dan vergeet de app de opgeslagen
  *     datums (zie hieronder).
- *  (Vóór beide: de poort `recordedDatesSource` — geen bron met echte rekenuitvoer ⇒ niets.)
+ *  (Vóór beide: de bronpoort — expliciet crashherstel mag ook de eigen IFC-vastlegging
+ *   zonder bronformaat hervatten, zoals na undo van de minutenomzetting.)
  *  2. Anders: automatisch aan bij een VERSE import (`isFreshImportOrigin`) mét restverschillen, en
  *     bij een HEROPENING van een eigen IFC (`'ifc-own'`/`'xer-archive'`) als `importPristine` nog
  *     `true` is of het bestand IN de modus is opgeslagen (`recordedSourceFormat`) — "zoals je het
@@ -362,8 +363,12 @@ export function recordedDatesSource(
 }
 
 /** Vastlegging via de poort: `undefined` als de bron niet toegelaten is of niets vastlegde. */
-function captureAllowed(tasks: Task[], parsed: RecordedSourceInput, payload: Pick<DocumentPayload, 'calendar' | 'calendars'>) {
-  const source = recordedDatesSource(parsed);
+function captureAllowed(tasks: Task[], parsed: RecordedSourceInput, payload: Pick<DocumentPayload, 'calendar' | 'calendars'>,
+  restoredMode = false) {
+  // Crashherstel hervat een expliciet bewaarde modus, ook na undo van B5. Dat is geen
+  // verse import: laat alleen echte IFC-uitvoervelden toe en verzin geen bronformaat.
+  const source = recordedDatesSource(parsed) ?? (restoredMode && parsed.recordedTimesOrigin === 'ifc-own'
+    ? { sourceFormat: undefined, scheduleLayer: false } : undefined);
   if (!source) return undefined;
   const recorded = normalizeRecordedTimes({ ...payload, tasks }, captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes, { scheduleLayer: source.scheduleLayer }));
   return recorded.total > 0 ? { recorded, sourceFormat: source.sourceFormat } : undefined;
@@ -375,7 +380,7 @@ export function applyRecordedDatesOnLoad(
   parsed: RecordedSourceInput,
   restoredMode?: boolean,
 ): void {
-  const allowed = captureAllowed(rawTasks, parsed, prepared);
+  const allowed = captureAllowed(rawTasks, parsed, prepared, restoredMode);
   if (!allowed) return;
   const { recorded, sourceFormat } = allowed;
   const shiftedIds = shiftedTaskIds(prepared.tasks, recorded.times);
@@ -401,7 +406,8 @@ export function applyRecordedDatesOnLoad(
     ...recorded, shifted: shiftedIds.length, shiftedTaskIds: shiftedIds, origin: parsed.recordedTimesOrigin, sourceFormat,
   };
   enterRecordedDatesMode(prepared, recorded.times);
-  prepared.minuteModelPending = false;
+  // De herstelde B5-vóór-toestand blijft een nog open omzetting; herstel is geen Bereken.
+  if (sourceFormat !== undefined) prepared.minuteModelPending = false;
 }
 
 /**
@@ -443,7 +449,7 @@ export function applyRestoredRecordedMode(
   payload: DocumentPayload,
   parsed: RecordedSourceInput,
 ): void {
-  const allowed = captureAllowed(payload.tasks, parsed, payload);
+  const allowed = captureAllowed(payload.tasks, parsed, payload, true);
   if (!allowed) return;
   const { recorded, sourceFormat } = allowed;
   // De vastlegging WEL zetten, alleen zonder (het optionele) `shifted`. Zonder `recordedDates`
@@ -467,5 +473,5 @@ export function applyRestoredRecordedMode(
     task.time.lateFinish = task.time.scheduleFinish;
   }
   enterRecordedDatesMode(payload, recorded.times);
-  payload.minuteModelPending = false;
+  if (sourceFormat !== undefined) payload.minuteModelPending = false;
 }

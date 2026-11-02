@@ -1,5 +1,6 @@
 import { restoreSnapshot } from '../snapshot';
 import {
+  isSessionHistoryEventApplicable,
   materializeHistoryEventTargets,
   recordSessionHistoryDeltas,
   selectRedoHistoryEvent,
@@ -30,6 +31,10 @@ export interface HistorySlice {
   /** Registreer een reeds toegepaste, voorbereide wijziging als één atomair event. */
   recordSessionHistoryEvent: (label: string, deltas: readonly SessionHistoryDelta[]) => void;
   undo: () => void;
+  /** Draai precies dit event terug, ook als er nieuwere events staan (Ongedaan maken na F5, #742): een
+   *  kolom of weergave die ná de berekening veranderde, blijft staan. De aanroeper bewaakt dat er
+   *  sindsdien geen projectdata veranderde. */
+  undoHistoryEvent: (eventId: string) => void;
   redo: () => void;
   /**
    * Een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
@@ -88,12 +93,16 @@ function applyHistoryEvent(
   set: Parameters<AppSlice<HistorySlice>>[0],
   get: Parameters<AppSlice<HistorySlice>>[1],
   direction: 'undo' | 'redo',
+  eventId?: string,
 ): void {
   runtime.resetUndoCoalescing();
   const current = get();
-  const event = direction === 'undo'
-    ? selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId)
-    : selectRedoHistoryEvent(current.historyEvents, current.activeDocumentId);
+  const event = eventId !== undefined
+    ? current.historyEvents.find(item => item.id === eventId && item.state === 'applied'
+        && isSessionHistoryEventApplicable(item, current.activeDocumentId)) ?? null
+    : direction === 'undo'
+      ? selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId)
+      : selectRedoHistoryEvent(current.historyEvents, current.activeDocumentId);
   if (!event) return;
 
   const side = direction === 'undo' ? 'before' : 'after';
@@ -145,6 +154,7 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
   },
 
   undo: () => applyHistoryEvent(runtime, set, get, 'undo'),
+  undoHistoryEvent: (eventId) => applyHistoryEvent(runtime, set, get, 'undo', eventId),
   redo: () => applyHistoryEvent(runtime, set, get, 'redo'),
 
   historyMark: () => {

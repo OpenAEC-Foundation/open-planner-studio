@@ -8,8 +8,8 @@ import {
   Tags, ListOrdered, Hash,
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
-  ArrowLeftToLine, ArrowRightToLine, LayoutGrid, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
-  Keyboard, PanelRight,
+  ArrowLeftToLine, ArrowRightToLine, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
+  Keyboard, PanelRight, ArrowLeftRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
   FileDown, FileUp, Scissors,
 } from 'lucide-react';
@@ -21,6 +21,7 @@ import { isTreeMode } from '@/engine/view/visibleRows';
 import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
+import { BaselineOverlaySplitButton } from './BaselineOverlaySplitButton';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -121,8 +122,8 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
-    const runCPM = useAppStore(s => s.runCPM);
-    return { onClick: () => runCPM() };
+    const recalculate = useAppStore(s => s.recalculate);
+    return { onClick: () => recalculate() };
   },
 };
 
@@ -419,8 +420,23 @@ const warningsPanelButton: RibbonButtonSpec = {
   },
 };
 
+/** Paneel Verschuivingen aan/uit — dezelfde vorm als `warningsPanelButton`, maar zonder commando:
+ *  deze actie bestaat alleen in het lint, want het paneel heeft geen sneltoets. */
+const scheduleShiftPanelButton: RibbonButtonSpec = {
+  kind: 'button', id: 'scheduleShiftPanel', icon: <ArrowLeftRight size={20} />, labelKey: 'menu:ribbon.scheduleShiftPanel',
+  use: () => {
+    const setUI = useAppStore(s => s.setUI);
+    const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
+    const showScheduleShiftPanel = useAppStore(s => s.ui.showScheduleShiftPanel);
+    const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+    const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
+    const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
+    return { onClick: () => setUI({ showScheduleShiftPanel: !showScheduleShiftPanel }), active: railVisible && showScheduleShiftPanel };
+  },
+};
+
 const planningTab: RibbonTabConfig = [
-  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton] },
+  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton, scheduleShiftPanelButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
     items: [relationDropdownItem, splitTaskButton],
@@ -755,21 +771,19 @@ const beeldTab: RibbonTabConfig = [
       dockResourcePanelButton,
       toggleHistogramButton,
       warningsPanelButton,
+      scheduleShiftPanelButton,
     ],
   },
   {
+    // Issue #391: de oude groep "Baselines & voortgang" is gesplitst. Hier staan alleen nog
+    // de baseline- en voortgangslijnen; de balkweergave (kleuren, accent, speling, relatielijnen) staat
+    // in de groep "Balken" hierna.
     id: 'overlays', labelKey: 'menu:ribbon.baselines',
     items: [
+      // Grote gesplitste knop (zoals Plakken in Word): boven = overlay aan/uit, onder = menu.
+      { kind: 'component', id: 'toggleBaselineOverlay', Component: BaselineOverlaySplitButton },
       {
         kind: 'stack', id: 'overlaysStack', items: [
-          {
-            kind: 'small', id: 'toggleBaselineOverlay', icon: <LayoutGrid size={14} />, labelKey: 'menu:ribbon.toggleBaselineOverlay',
-            use: () => {
-              const showBaselineOverlay = useAppStore(s => s.ui.showBaselineOverlay);
-              const setOverlays = useAppStore(s => s.setOverlays);
-              return { active: showBaselineOverlay, onClick: () => setOverlays({ baseline: !showBaselineOverlay }) };
-            },
-          },
           {
             kind: 'small', id: 'toggleProgressLine', icon: <TrendingUp size={14} />, labelKey: 'menu:ribbon.toggleProgressLine',
             use: () => {
@@ -788,6 +802,11 @@ const beeldTab: RibbonTabConfig = [
           },
         ],
       },
+    ],
+  },
+  {
+    id: 'bars', labelKey: 'menu:ribbon.barsGroup',
+    items: [
       // De vaste linthoogte draagt drie kleine knoppen per stack. Kleurmodus en resource-accent
       // vormen daarom samen de tweede verticale kolom, niet twee losse horizontale groepsitems.
       {

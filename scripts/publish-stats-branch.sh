@@ -42,7 +42,7 @@ fi
 readme="$(cat <<EOF
 # stats
 
-Databranch, geschreven door \`.github/workflows/download-stats.yml\` (wekelijks en op verzoek).
+Databranch, geschreven door \`.github/workflows/download-stats.yml\` (elke 2 uur en op verzoek).
 Nooit met de hand bewerken; elke run overschrijft de inhoud.
 
 - \`$FILE\` — downloads per besturingssysteem en per release uit de GitHub Releases-API,

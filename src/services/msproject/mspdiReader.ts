@@ -1,6 +1,7 @@
 import { Task, TaskConstraint, ConstraintType, type MilestoneKind } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { Resource, ResourceAssignment } from '@/types/resource';
+import { availabilityFromPeriods, type MspdiAvailabilityPeriod } from '@/services/msproject/mspdiAvailability';
 import { Project } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
@@ -204,6 +205,21 @@ function getElementFloat(parent: Element, tagName: string, fallback = 0): number
   return toFloat(getElementText(parent, tagName), fallback);
 }
 
+/** De `<AvailabilityPeriod>`-rijen van één resource, als hele dagen (`availabilityFromPeriods` filtert onzin). */
+function readAvailabilityPeriods(resEl: Element): MspdiAvailabilityPeriod[] {
+  const rows = resEl.getElementsByTagName('AvailabilityPeriod');
+  const periods: MspdiAvailabilityPeriod[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    periods.push({
+      from: getElementText(row, 'AvailableFrom').slice(0, 10),
+      to: getElementText(row, 'AvailableTo').slice(0, 10),
+      units: getElementFloat(row, 'AvailableUnits', NaN),
+    });
+  }
+  return periods;
+}
+
 /** MS Project-datum in DAG-modus (`2026-03-09T08:00:00` → `2026-03-09`); gedeeld met P6. */
 function parseMSPDate(s: string): string {
   return isoDatePrefixOrToday(s);
@@ -365,13 +381,16 @@ export function readMSPDI(content: string): ImportResult {
 
       // MSP maakt geen onderscheid tussen LABOR/EQUIPMENT/CREW/SUBCONTRACTOR (Type=1 =
       // "Work") — zonder verdere hint komt dat terug als LABOR (geaccepteerd verlies).
+      // Tijdsafhankelijke capaciteit uit `<AvailabilityPeriods>` (#556); zonder periodes de vlakke `MaxUnits`.
+      const availability = availabilityFromPeriods(maxUnits, readAvailabilityPeriods(resEl));
       const resource: Resource = {
         id,
         name,
         type: type === 0 ? 'MATERIAL' : 'LABOR',
         description: '',
-        maxUnits,
+        maxUnits: availability.maxUnits,
       };
+      if (availability.availabilitySteps) resource.availabilitySteps = availability.availabilitySteps;
       if (materialLabel) resource.unitOfMeasure = materialLabel;
       if (calUid >= 0 && calUidToId.has(calUid)) resource.calendarId = calUidToId.get(calUid);
       const rate = parseFloat(standardRate);

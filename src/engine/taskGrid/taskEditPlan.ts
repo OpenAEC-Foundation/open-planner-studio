@@ -11,7 +11,7 @@ import {
   assignTaskActivityCode,
   assignTaskCustomField,
   fillMissingActualStart,
-  actualDateSide, isActualPastStatusDate, normalizeActualDate,
+  isTaskActualPastStatusDate, normalizeActualDate,
 } from '@/engine/taskMutationRules';
 import type { ActivityCodeType, CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import type {
@@ -52,7 +52,7 @@ import { durationHoursPerDay } from '@/utils/taskDuration';
 import { taskAxisMinutes } from '@/engine/contour/contourEngine';
 import { finishIsActual, shownFinish, shownStart, startAnchorAfterEdit, startIsActual } from '@/utils/taskDates';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { isElapsedTask, isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
+import { isPinnedComplete, isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { taskCountsInWorkdays } from '@/engine/scheduler/conventions/durationMeasure';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { isFiniteNumber } from '@/utils/guards';
@@ -683,8 +683,8 @@ function applyProgressEdit(
   } else if (id === 'task.time.actualStart' || id === 'task.time.actualFinish') {
     if (!optionalString(edit.value)) return failure('date', edit);
     if (edit.value && environment.statusDate
-      && isActualPastStatusDate(edit.value, environment.statusDate, isElapsedTask(task) ? undefined : calendar,
-        actualDateSide(task, edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart'))) {
+      && isTaskActualPastStatusDate(task, edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart',
+        edit.value, environment.statusDate, calendar)) {
       return failure('actualAfterStatusDate', edit);
     }
     if (id === 'task.time.actualStart') task.time.actualStart = edit.value || undefined;
@@ -820,8 +820,8 @@ function applyProgressEdits(
   for (const edit of [actualStartEdit, actualFinishEdit]) {
     if (!edit) continue;
     if (!optionalString(edit.value)) return failure('date', edit);
-    if (edit.value && environment.statusDate && isActualPastStatusDate(edit.value, environment.statusDate, isElapsedTask(task) ? undefined : calendar,
-        actualDateSide(task, edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart'))) {
+    if (edit.value && environment.statusDate && isTaskActualPastStatusDate(task,
+        edit.columnId === 'task.time.actualFinish' ? 'actualFinish' : 'actualStart', edit.value, environment.statusDate, calendar)) {
       return failure('actualAfterStatusDate', edit);
     }
   }

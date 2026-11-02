@@ -30,6 +30,7 @@ import { createAppStore } from '@/state/appStoreFactory';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
 import { prepareLoadedPayload } from '@/state/documentActivation';
+import { formatRemainingDurationText } from '@/utils/taskDuration';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { readMPP } from '@/services/mpp/mppReader';
 import { readXER } from '@/services/xer/xerReader';
@@ -493,6 +494,29 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
   eq('MPP 100 % zonder werkelijk einde met rest 0: voltooid met rest 0',
     threePoints(readMPP(runningMpp({ name: 'Klaar zonder einde', pct: 100, rest: 0 })), 'rest0.mpp').map(p => [p[0], p[2]]),
     thrice(['COMPLETED', 0]));
+}
+
+// 387: dezelfde bronrest ook zichtbaar na openen, Bereken en twee IFC-rondgangen.
+for (const [name, imported] of [
+  ['P6 XML', p6xml()], ['MSPDI', mspdi()],
+  ['MPP', readMPP(runningMpp({ name: 'Restweergave', pct: 100, actualStart: [555, 0] }))],
+] as const) {
+  const app = createAppStore();
+  app.getState().openAsDocument(imported, { name, ref: null });
+  const check = (stage: string) => {
+    const t = leaf(app.getState());
+    eq(`387 ${name} ${stage}: lopend met bronrest`, [t.status, t.time.completion, t.time.remainingMinutes, t.time.actualFinish ?? null],
+      ['STARTED', 1, 1920, null]);
+    eq(`387 ${name} ${stage}: zichtbare rest`, formatRemainingDurationText(t), '32h');
+  };
+  check('openen');
+  app.getState().runCPM();
+  check('berekenen');
+  for (let round = 1; round <= 2; round++) {
+    const back = readIFC(writeIFC(buildWriteIFCInput(app.getState())));
+    app.getState().openAsDocument(back, { name: `${name}-${round}.ifc`, ref: null });
+    check(`IFC ${round}`);
+  }
 }
 
 // ── 12. Export door OPS naar P6 XML of MSPDI en terug: lopend op 100 % blijft lopend ─────────────

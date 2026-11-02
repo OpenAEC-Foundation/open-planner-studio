@@ -24,7 +24,6 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   const cards = page.locator('.backstage-export-card');
   const csv = cards.filter({ has: page.getByRole('heading', { name: 'CSV (semicolon-separated)', exact: true }) });
   const xlsx = cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (Excel)', exact: true }) });
-  const progressCsv = cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (CSV)', exact: true }) });
   const ifc = cards.filter({ has: page.getByRole('heading', { name: 'IFC', exact: true }) });
   const inExport = () => page.evaluate(() => {
     const ui = window.__OPS__!.store.getState().ui;
@@ -33,14 +32,15 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
 
   let expectedCalls = 0;
   const pickerCalls = () => page.evaluate(() => Number(sessionStorage.getItem('ops-test-export-picker-calls')));
-  for (const card of [csv, xlsx, progressCsv, csv]) {
+  await expect(cards.filter({ has: page.getByRole('heading', { name: 'Progress sheet (CSV)', exact: true }) })).toHaveCount(0);
+  for (const card of [csv, xlsx, csv]) {
     await card.click();
     await expect.poll(pickerCalls).toBe(++expectedCalls);
     await expect.poll(inExport).toEqual(['file', 'export']);
     await expect(cards.first()).toBeVisible();
-    if (card === xlsx || card === progressCsv) {
+    if (card === xlsx) {
       await expect.poll(() => page.evaluate(() => sessionStorage.getItem('ops-test-export-suggested-name')))
-        .toMatch(card === xlsx ? /-progress\.xlsx$/ : /-progress\.csv$/);
+        .toMatch(/-progress\.xlsx$/);
     }
   }
 

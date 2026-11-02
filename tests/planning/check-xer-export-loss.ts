@@ -11,6 +11,8 @@ import type { XerImportMetadata } from '@/services/importTypes';
 import { EXPORT_FORMATS } from '@/services/formatRegistry';
 import { detectXerExportLoss, xerExportTargetVerdict } from '@/services/xerExportLoss';
 import { parseXerTables } from '@/services/xer/xerTables';
+import { readP6XML } from '@/services/p6/p6xmlReader';
+import { installDOMParser } from './xmldom-shim';
 import type {
   XerAssignmentCostsSource,
   XerCurvePoints,
@@ -21,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 
 declare const process: { exit(code: number): never };
+installDOMParser();
 const failures: string[] = [];
 let checks = 0;
 const expect = (label: string, condition: boolean) => {
@@ -136,6 +139,11 @@ function xerLossNotifications() {
     (notification.messageKey as string) === 'notifications.xerExportLoss');
 }
 
+function dataLossNotifications() {
+  return store().ui.notifications.filter(notification =>
+    (notification.messageKey as string) === 'notifications.exportDataLoss');
+}
+
 function failNextSave(error: Error) {
   global.window.showOpenFilePicker = async () => [];
   global.window.showSaveFilePicker = async () => { throw error; };
@@ -150,6 +158,139 @@ function restoreDownloadSave() {
 resetProject('Schoon niet-XER');
 const cleanCsv = await store().exportAs('csv');
 expectCategories('een schoon niet-XER-project geeft geen XER-lossmelding', 'csv', cleanCsv, []);
+clearNotifications();
+for (const format of ['mspdi', 'p6'] as const) {
+  expectCategories(`${format}: een schoon niet-XER-project geeft geen verlieswaarschuwing`,
+    format, await store().exportAs(format), []);
+}
+expect('een schoon niet-XER-project krijgt geen verliesmelding', dataLossNotifications().length === 0);
+
+// #554: verlies hangt af van de gegevens, niet van de herkomst. Een native project (geen XER-archief,
+// geen XER-metadata) met een taaknotitie verliest die notitie in elke XML/CSV-export. De envelope draagt
+// dan een eigen code; de XER-melding ("XER-broninformatie") hoort niet bij een native project.
+// MUTATIEBEWIJS: zet in `detectXerExportLoss` de vroege `return []` voor een project zonder archief en
+// metadata terug ⇒ de drie 'notes'-regels slaan rood.
+resetProject('Native met notitie');
+{
+  const noteTask = store().addTask({ name: 'Taak met notitie' });
+  store().updateTask(noteTask, { notes: [{ id: 'note-native', text: 'Alleen in OPS', done: false }] });
+  for (const format of ['mspdi', 'p6', 'csv'] as const) {
+    clearNotifications();
+    const result = await store().exportAs(format);
+    expect(`${format}: native project met notitie meldt 'notes' in de envelope (#554)`,
+      result.ok === true
+      && result.warnings.length === 1
+      && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+      && result.warnings[0]?.format === format
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['notes']));
+    expect(`${format}: native project krijgt niet de XER-broninformatiemelding`,
+      xerLossNotifications().length === 0);
+    const dataLoss = dataLossNotifications();
+    if (format === 'p6') {
+      // P6 XML meldt per soort, zoals XER (eigenaar, 2026-10-29).
+      const p6Loss = store().ui.notifications.filter(n => n.messageKey === 'notifications.exportP6XmlLoss');
+      expect('p6: native project krijgt de eigen verliesmelding met de notitie',
+        dataLoss.length === 0 && p6Loss.length === 1
+        && p6Loss[0]?.detailLines?.some(line => line.messageKey === 'notifications.exportP6XmlLossItem.notes') === true);
+      continue;
+    }
+    expect(`${format}: native project krijgt één algemene verliesmelding met het formaat (#554)`,
+      dataLoss.length === 1
+      && dataLoss[0]?.params?.format === (format === 'mspdi' ? 'MSPDI' : format.toUpperCase())
+      && dataLoss[0]?.helpArticleId === 'howto-exporteren');
+  }
+  // Annuleren is geen export: geen melding en geen warnings.
+  clearNotifications();
+  failNextSave(new DOMException('geannuleerd', 'AbortError'));
+  const cancelledNative = await store().exportAs('mspdi');
+  restoreDownloadSave();
+  expect('native: annuleren geeft geen verliesmelding en geen warnings',
+    cancelledNative.ok && cancelledNative.cancelled === true && cancelledNative.warnings.length === 0
+    && dataLossNotifications().length === 0);
+  expect('IFC blijft voor een native project met notitie lossless',
+    categoriesOf(await store().exportAs('ifc')).length === 0);
+}
+
+// #554 (review ronde 1 en 2): welke datumconstraints een writer schrijft. CSV heeft geen kolom; MSPDI kent één
+// ConstraintType; P6 XML schrijft primair en secundair, maar een verzameltaak wordt een WBS-element zonder
+// constraints. MUTATIEBEWIJS: haal de 'constraints'-regel uit `categoriesFor` ⇒ de regels hieronder slaan rood.
+const nativeLoss = (result: any): string[] =>
+  result?.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+    ? [...result.warnings[0].categories] : [];
+resetProject('Native met alleen een primaire constraint');
+{
+  const taskId = store().addTask({ name: 'Taak met één grens' });
+  store().updateTask(taskId, { constraint: { type: 'SNET', date: '2034-01-02' } });
+  expect("csv: primaire constraint meldt 'constraints'",
+    JSON.stringify(nativeLoss(await store().exportAs('csv'))) === JSON.stringify(['constraints']));
+  for (const format of ['mspdi', 'p6'] as const) {
+    expectCategories(`${format}: primaire constraint op een bladtaak is geen verlies`,
+      format, await store().exportAs(format), []);
+  }
+}
+resetProject('Native met secundaire constraint');
+{
+  const taskId = store().addTask({ name: 'Taak met twee grenzen' });
+  store().updateTask(taskId, {
+    constraint: { type: 'SNET', date: '2034-01-02' },
+    constraint2: { type: 'FNLT', date: '2034-01-06' },
+  });
+  for (const format of ['mspdi', 'csv'] as const) {
+    expect(`${format}: secundaire constraint meldt 'constraints' (#554)`,
+      JSON.stringify(nativeLoss(await store().exportAs(format))) === JSON.stringify(['constraints']));
+  }
+  const p6 = await store().exportAs('p6');
+  const p6Xml = captures.at(-1) ?? '';
+  expectCategories('p6: secundaire constraint op een bladtaak is geen verlies', 'p6', p6, []);
+  const back = readP6XML(p6Xml).tasks.find(task => task.name === 'Taak met twee grenzen');
+  expect('p6: bladtaak leest beide constraints terug',
+    back?.constraint?.type === 'SNET' && back?.constraint2?.type === 'FNLT');
+}
+resetProject('Native verzameltaak met constraints');
+{
+  const phaseId = store().addTask({ name: 'Fase' });
+  store().addTask({ name: 'Kind', parentId: phaseId });
+  store().updateTask(phaseId, {
+    constraint: { type: 'SNET', date: '2034-01-02' },
+    constraint2: { type: 'FNLT', date: '2034-01-06' },
+  });
+  const phase = store().tasks.find(task => task.id === phaseId);
+  expect('de fixture is echt een verzameltaak met beide constraints',
+    (phase?.childIds.length ?? 0) === 1 && phase?.constraint?.type === 'SNET' && phase?.constraint2?.type === 'FNLT');
+  const p6 = await store().exportAs('p6');
+  const p6Xml = captures.at(-1) ?? '';
+  expect("p6: constraints op een verzameltaak melden 'constraints' (review ronde 2)",
+    JSON.stringify(nativeLoss(p6)) === JSON.stringify(['constraints']));
+  const back = readP6XML(p6Xml).tasks.find(task => task.name === 'Fase');
+  expect('p6: de verzameltaak leest zonder constraints terug (het verlies is echt)',
+    back !== undefined && back.constraint === undefined && back.constraint2 === undefined);
+  expect("mspdi: verzameltaak verliest alleen de secundaire constraint",
+    JSON.stringify(nativeLoss(await store().exportAs('mspdi'))) === JSON.stringify(['constraints']));
+}
+
+// #554 (review ronde 1): handmatige planning en hammock schrijft geen van de drie writers.
+// MUTATIEBEWIJS: haal de 'manual-scheduling'- of 'hammock-tasks'-regel uit `categoriesFor` ⇒ rood.
+resetProject('Native handmatig en hammock');
+{
+  const manualId = store().addTask({ name: 'Handmatig' });
+  store().updateTask(manualId, { manuallyScheduled: true });
+  const hammockId = store().addTask({ name: 'Hammock' });
+  useAppStore.setState(state => {
+    const hammock = state.tasks.find(task => task.id === hammockId);
+    if (hammock) hammock.isHammock = true;
+  });
+  for (const format of ['mspdi', 'p6', 'csv'] as const) {
+    const result = await store().exportAs(format);
+    expect(`${format}: handmatige planning en hammock staan in de envelope (#554)`,
+      result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['manual-scheduling', 'hammock-tasks']));
+  }
+  // XER schrijft een hammock als `TT_LOE` (#393, review ronde 9): geen hammock-categorie, wel handmatig.
+  const xerResult = await store().exportAs('xer');
+  const xerCategories: readonly string[] = xerResult.ok ? xerResult.warnings[0]?.categories ?? [] : [];
+  expect('xer: hammock gaat mee als TT_LOE, handmatige planning blijft in de envelope (#393)',
+    xerResult.ok === true && !xerCategories.includes('hammock-tasks') && xerCategories.includes('manual-scheduling'));
+}
 
 // Negatief 2: alleen een lege archive/importmetadata-binding is geen verliescategorie.
 resetProject('Lege XER-binding');
@@ -189,10 +330,8 @@ installXer(makeXerFixture());
   };
   expect('mspdi op ditzelfde document geeft wél een categorie (anker voor het mutatiebewijs)',
     detectXerExportLoss('mspdi', lossInput).length === 1);
-  for (const format of ['progress-csv', 'progress-xlsx'] as const) {
-    expect(`${format}: een voortgangsblad krijgt nooit een XER-verliesmelding`,
-      detectXerExportLoss(format, lossInput).length === 0);
-  }
+  expect('progress-xlsx: een voortgangsblad krijgt nooit een XER-verliesmelding',
+    detectXerExportLoss('progress-xlsx', lossInput).length === 0);
 }
 
 const capMspdi = await store().exportAs('mspdi');
@@ -514,7 +653,8 @@ const notifiedSuccess = await store().exportAs('csv');
 expect('succesvolle echte store-export geeft één centrale XER-lossmelding met Lees meer',
   notifiedSuccess.ok && !notifiedSuccess.cancelled
   && xerLossNotifications().length === 1
-  && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen');
+  && xerLossNotifications()[0]?.helpArticleId === 'howto-xer-openen'
+  && dataLossNotifications().length === 0);
 
 clearNotifications();
 failNextSave(new DOMException('geannuleerd', 'AbortError'));
@@ -571,6 +711,33 @@ resetProject('OPS zonder opties');
 installXer(makeXerFixture({ sourceBytes: '%T\tTASK\r\n%F\ttask_id\r\n%R\tops\r\n%E' }));
 expect('C7-02 OPS-profiel zonder opties naar CSV ⇒ geen schedule-verlies',
   !categoriesOf(await store().exportAs('csv')).includes('schedule-options-and-provenance'));
+
+// ── XER-export (#391): één melding van de XER-writer, nooit daarnaast de algemene XER-bronmelding.
+// De bronverliezen die geen writer terugschrijft (hier: een onbekende tabel) komen als één regel
+// `sourceDetails` in die melding. Mutatiebewijs: de `xerLoss`-tak in `exportAs` weglaten ⇒ X-01
+// (de algemene melding verschijnt) en X-02 slaan rood.
+resetProject('XER-export met onbekende tabel');
+store().addTask({ name: 'Taak voor XER' });
+store().setProject({ description: 'Omschrijving' });
+installXer(makeParsedXerFixture([
+  'ERMHDR\t23.12',
+  '%T\tVENDOR_TABLE',
+  '%F\tvendor_field',
+  '%R\tvalue',
+  '%E',
+].join('\r\n')));
+clearNotifications();
+const xerResult = await store().exportAs('xer');
+const xerNotices = store().ui.notifications.filter(n => (n.messageKey as string) === 'notifications.exportXerLoss');
+expect('X-00 XER-export slaagt', xerResult.ok === true);
+expect('X-01 XER-export geeft geen algemene XER-bronmelding', xerLossNotifications().length === 0);
+expect('X-02 XER-export geeft één eigen verliesmelding', xerNotices.length === 1);
+const xerLines = (xerNotices[0]?.detailLines ?? []).map(line => line.messageKey as string);
+expect('X-03 projectgegevens en XER-bronverlies als detailregel',
+  xerLines.includes('notifications.exportXerLossItem.projectDetails')
+  && xerLines.includes('notifications.exportXerLossItem.sourceDetails'));
+expect('X-04 notities blijven buiten de XER-categorieën (de writer schrijft ze)',
+  !categoriesOf(xerResult).includes('notes'));
 
 if (failures.length === 0) {
   console.log(`OK  xer-export-loss: alle checks groen (${checks})`);

@@ -1,6 +1,6 @@
 name: Download stats
 
-# Wekelijks (en op verzoek) de downloadcijfers per besturingssysteem uit de
+# Elke 2 uur (en op verzoek) de downloadcijfers per besturingssysteem uit de
 # GitHub Releases-API: als rapport in de job-samenvatting, als artefact, én als
 # `downloads.json` op de `stats`-databranch — de vaste leeslocatie voor de app
 # en voor iedereen:
@@ -14,7 +14,7 @@ name: Download stats
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 1' # maandag 06:00 UTC
+    - cron: '0 */2 * * *' # elke 2 uur, op het hele uur (UTC)
 
 # `contents: write` uitsluitend voor de push naar de `stats`-databranch; de
 # checkout van main blijft alleen-lezen in de praktijk (er wordt niets in

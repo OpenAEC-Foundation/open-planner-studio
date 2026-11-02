@@ -16,7 +16,7 @@ import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { useAppStore } from '@/state/appStore';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
 import { baselineColumnId, taskColumnId } from '@/engine/taskGrid/fieldIds';
-import { effectiveCalendarOf, effHoursPerDay, formatWorkDaysText } from '@/utils/taskDuration';
+import { effectiveCalendarOf, effHoursPerDay, formatWorkDaysText, remainingTaskMinutes } from '@/utils/taskDuration';
 import { TaskTooltipContent } from '@/components/canvas/TaskTooltipContent';
 import { TaskProgressFields } from '@/components/task-sections/TaskProgressFields';
 import type { WorkCalendar } from '@/types/calendar';
@@ -106,6 +106,38 @@ S().runCPM();
 const pid = S().project.id;
 eq('3a raster BL1 — Duur', gridCell(A, baselineColumnId(pid, bl, 'duration') as string), '0,56d');
 eq('3b raster BL1 — Duurafwijking', gridCell(A, baselineColumnId(pid, bl, 'varianceDuration') as string), '0,11d');
+
+// 4. Lopend op 100 % is niet voltooid: de opgeslagen bronrest blijft zichtbaar (knownbug 387).
+// Pure weergaveproeven veranderen geen voortgang of planning.
+for (const [name, status, completion, rest, finish, want] of [
+  ['bronrest bij 100 %', 'STARTED', 1, 1920, undefined, 1920],
+  ['nulrest bij 100 %', 'STARTED', 1, 0, undefined, 0],
+  ['geen bronrest bij 100 %', 'STARTED', 1, undefined, undefined, 0],
+  ['bronrest bij 40 %', 'STARTED', 0.4, 120, undefined, 120],
+  ['afleiding bij 40 %', 'STARTED', 0.4, undefined, undefined, 180],
+  ['negatieve bronrest', 'STARTED', 1, -10, undefined, 0],
+  ['voltooide status wint', 'COMPLETED', 0.4, 1920, undefined, 0],
+  ['werkelijk einde wint', 'STARTED', 1, 1920, '2026-06-01T13:00', 0],
+] as const) {
+  const probe = { ...taskOf(A), status, time: { ...taskOf(A).time,
+    durationMinutes: 300, completion, remainingMinutes: rest, actualFinish: finish } };
+  const before = JSON.stringify(probe);
+  eq(`4 ${name}`, remainingTaskMinutes(probe), want);
+  eq(`4 ${name}: weergave muteert niet`, JSON.stringify(probe), before);
+}
+useAppStore.setState(s => {
+  const t = s.tasks.find(t => t.id === A)!;
+  t.status = 'STARTED';
+  t.time.completion = 1;
+  t.time.actualFinish = undefined;
+  t.time.remainingMinutes = 1920;
+});
+eq('4 raster: lopend op 100 % toont 32u', gridCell(A, 'task.time.remainingTime'), '32u');
+const runningProgress = renderToStaticMarkup(createElement(TaskProgressFields, {
+  task: taskOf(A), onSetProgress: () => ({ ok: true as const }), onSetActualStart: () => ({ ok: true as const }), onSetActualFinish: () => ({ ok: true as const }),
+}));
+eq('4 paneel: lopend op 100 % toont 32u', /<input[^>]*value="([^"]*)"[^>]*disabled/.exec(runningProgress)?.[1]
+  ?? /<input[^>]*disabled[^>]*value="([^"]*)"/.exec(runningProgress)?.[1], '32u');
 
 if (diffs.length === 0) {
   console.log(`OK  float-remaining-text: alle checks groen (${checks})`);

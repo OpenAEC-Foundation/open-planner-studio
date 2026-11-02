@@ -326,6 +326,29 @@ for (const [durationType, hoursPerDay, hours] of [['ELAPSEDTIME', 8, 47], ['WORK
   }
 }
 
+// 411: werkdag 08:00–16:20, geen zwevende-komma-ruis in de hele-dagherkenning.
+for (const days of [1, 2]) {
+  const cal: WorkCalendar = { ...S().calendar, hoursPerDay: 25 / 3, workStartHour: 8,
+    workEndHour: 16 + 1 / 3, workTime: undefined };
+  for (const durationUnit of ['days', 'hours'] as const) {
+    const probe: Task = { ...wide, time: { ...wide.time, durationType: 'WORKTIME', durationUnit,
+      scheduleDuration: days, durationMinutes: durationUnit === 'hours' ? days * 500 : undefined,
+      scheduleStart: '2026-08-03T08:00', earlyStart: '2026-08-03T08:00',
+      scheduleFinish: '2026-08-04T16:20', earlyFinish: '2026-08-04T16:20' } };
+    const row: ViewRow = { kind: 'task', rowKey: probe.id, task: probe, depth: 0, dimmed: false };
+    for (const effective of [false, true]) {
+      for (const display of ['hours', 'days', 'auto'] as const) {
+        const opts = baseOpts([row], 100, 0, { calendar: effective ? S().calendar : cal,
+          effectiveCalById: effective ? new Map([[probe.id, cal]]) : undefined,
+          durationDisplay: display, durationSuffixes: { day: 'd', hour: 'u', minute: 'm' } });
+        const label = `411 ${days}d/${durationUnit}/${effective}/${display}`;
+        const b = badge(opts, { taskId: probe.id, edge: 'right' }, label);
+        eq(`${label}: tekst`, b.text.text, display === 'hours' ? (days === 1 ? '8u 20m' : '16u 40m') : `${days}d`);
+      }
+    }
+  }
+}
+
 // ── Uitkomst ─────────────────────────────────────────────────────────────────
 if (diffs.length) {
   for (const d of diffs) console.log(`   XX ${d}`);

@@ -4,7 +4,7 @@ import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden } from '@/utils/settingsStore';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -64,6 +64,7 @@ export function SettingsPanelContent() {
   const documentChromeStyle = useAppStore(s => s.ui.documentChromeStyle);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const showClassicViewControls = useAppStore(s => s.ui.showClassicViewControls);
+  const ribbonWheelSwitchesTabs = useAppStore(s => s.ui.ribbonWheelSwitchesTabs);
   const constructionMode = useAppStore(s => s.ui.constructionMode);
   const dateNotation = useAppStore(s => s.ui.dateNotation);
   const timeNotation = useAppStore(s => s.ui.timeNotation);
@@ -292,6 +293,18 @@ export function SettingsPanelContent() {
                 ]}
               />
               <p className="scrollzoom-hint">{t('settings.documentChromeHint')}</p>
+            </div>
+
+            <div className="settings-section">
+              <h3>{t('settings.ribbonSection')}</h3>
+              {/* #688: muiswiel boven de lint-tabs wisselt van tab (useRibbonTabWheel). */}
+              <SettingToggle
+                label={t('settings.ribbonWheelSwitchesTabs')}
+                hint={t('settings.ribbonWheelSwitchesTabsHint')}
+                checked={ribbonWheelSwitchesTabs}
+                onChange={checked => applySetting('ribbonWheelSwitchesTabs', checked, saveRibbonWheelSwitchesTabs)}
+                inputProps={{ 'data-ops-ribbon-wheel-setting': '' }}
+              />
             </div>
 
             {/* Subkop die de Gantt-tijdlijninstellingen groepeert — geen eigen tab, wel een

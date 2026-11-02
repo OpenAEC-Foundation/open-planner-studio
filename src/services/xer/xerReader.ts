@@ -47,7 +47,14 @@ import type { RecordedTime } from '@/engine/scheduler/recordedDates';
 import { deriveImportedWorkRules } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, resolveMissingScheduleDates } from '@/services/importDates';
 import { taskWorkMinutes as activityWorkMinutesOf } from '@/engine/contour/contourEngine';
+import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
+import {
+  dayMeasureMinutesPerDay, lagFromRecord, lagRecordHolds, lagRecordKey, lagWorkMinutesPerDay, parseFieldRecords,
+  parseLagRecords, readMeasure, type LagRecord,
+} from '@/services/xmlDayMeasure';
 import { readXerCalendars } from './xerCalendarData';
+import { readXerOpsFields, XER_DURATION_FIELDS, type XerOpsFields } from './xerOpsMarkers';
 import { sourceInstant } from './xerInstant';
 import { readXerRecordedTimes } from './xerRecordedTimes';
 import { buildXerMetadataCatalog, materializeXerMetadata, type XerMetadataCatalog } from './xerMetadata';
@@ -582,6 +589,7 @@ function readXerProject(
   metadataCatalog: XerMetadataCatalog,
   taskResourceRowsByProject: ReadonlyMap<string, readonly XerRow[]>,
   projectRowsIndex: XerProjectRowsIndex,
+  opsFields: XerOpsFields,
 ): XerReadResult {
   const projectRow = scheduleOptionsIndex.projectRowsById.get(projectId)?.row;
   if (!projectRow) {
@@ -698,6 +706,8 @@ function readXerProject(
     'PROJECT',
   );
   const mappedActivities: Task[] = [];
+  /** `task_id` → de geërfde werkregel uit `OPS_InheritedWorkRule` die nog bij `duration_type` past. */
+  const inheritedRuleByTaskId = new Map<string, WorkRule>();
   let hasExplicitTaskFinish = false;
   // Ontbrekende geplande start/finish (review PR #109, N1): vroeger '1970-01-01' en daarmee ook
   // projectstart 1970, zonder melding. Nu de gedeelde regel van alle lezers
@@ -858,6 +868,40 @@ function readXerProject(
         ? Math.round(p6RemainingHours * 60)
         : sixDecimalHoursToMinutes(p6RemainingHours);
     }
+    // De uitzondering op de urenmaat (T15, zoals de P6 XML-lezer): een activiteit met de OPS-eenheid uit een
+    // eigen export (`xerOpsMarkers.ts`) leest volgens `readMeasure`. De dagenmaat komt terug in de werktijd per
+    // dag van haar kalender (T13), met het record zolang duur en rest nog de geschreven minuten dragen (T21).
+    // Zonder eenheid blijft alles hierboven staan, precies als op main; de andere activiteiten merken niets.
+    // Een geërfde werkregel uit een eigen export (`OPS_InheritedWorkRule`, ronde 3, punt 2): alleen zolang
+    // `duration_type` nog het token van die regel draagt. De projectstandaard toetst de lezer hieronder.
+    const inheritedRule = opsFields.inheritedWorkRuleByTask.get(row.cells.task_id);
+    if (inheritedRule && XER_DURATION_TYPE_TOKEN[inheritedRule] === row.cells.duration_type?.trim()) {
+      inheritedRuleByTaskId.set(row.cells.task_id, inheritedRule);
+    }
+    const opsUnit = opsFields.unitByTask.get(row.cells.task_id);
+    if (opsUnit) {
+      const workMinutesPerDay = dayMeasureMinutesPerDay(effectiveCalendar, false);
+      const measure = readMeasure({
+        unit: opsUnit,
+        durationMinutes,
+        remainingMinutes: time.remainingMinutes,
+        minutesPerDay: workMinutesPerDay > 0 ? workMinutesPerDay : 480,
+        calendar: effectiveCalendar,
+        dayRecords: opsUnit === 'days' ? parseFieldRecords(opsFields.dayRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
+        exactRecords: opsUnit === 'hours' ? parseFieldRecords(opsFields.exactRecordsByTask.get(row.cells.task_id), XER_DURATION_FIELDS) : {},
+        // Zonder geldig record de minuten zoals hierboven gelezen: een echte bronbreuk blijft (ronde 3, punt 3).
+        keepSourceMinutes: true,
+      });
+      time.durationUnit = measure.durationUnit;
+      time.scheduleDuration = measure.scheduleDuration;
+      if (measure.durationType) time.durationType = measure.durationType;
+      delete time.durationMinutes;
+      delete time.remainingMinutes;
+      delete time.remainingTime;
+      if (measure.durationMinutes !== undefined) time.durationMinutes = measure.durationMinutes;
+      if (measure.remainingMinutes !== undefined) time.remainingMinutes = measure.remainingMinutes;
+      if (measure.remainingTime !== undefined) time.remainingTime = measure.remainingTime;
+    }
     if (actualStart) time.actualStart = actualStart;
     if (actualFinish) time.actualFinish = actualFinish;
     const stop = sourceX7Instant(row.cells.suspend_date ?? '');
@@ -917,6 +961,13 @@ function readXerProject(
   resolveMissingScheduleDates(mappedActivities, missingDates, '', task =>
     calendarById.get(task.calendarId ?? '') ?? projectCalendar);
 
+  // De standaardwerkregel uit een eigen export (`OPS_DefaultWorkRule`, review PR #393 ronde 2, punt E2): alleen
+  // zolang `def_duration_type` nog het geschreven token draagt. Een bestand uit P6 heeft de UDF niet; daar
+  // blijft `def_duration_type` alleen de terugval per activiteit (hierboven), zoals op main.
+  const opsDefaultWorkRule = opsFields.defaultWorkRuleByProject.get(projectId);
+  const defaultWorkRule = opsDefaultWorkRule
+    && XER_DURATION_TYPE_TOKEN[opsDefaultWorkRule] === projectRow.cells.def_duration_type?.trim()
+    ? opsDefaultWorkRule : undefined;
   const projectHourMode = projectCalendar.workTime !== undefined;
   const sourceProjectEnd = sourceInstant(projectRow.cells.plan_end_date ?? '', projectHourMode);
   const derivedSchedule = deriveXerScheduleOptions(scheduleOptionsIndex, projectId, {
@@ -1044,10 +1095,14 @@ function readXerProject(
     availableCalendarIds: new Set(calendarList.map(calendar => calendar.id)),
     calendarHoursPerDay: new Map(calendarList.map(calendar => [calendar.id, calendar.hoursPerDay])),
     taskIds: new Set(mappedActivities.map(task => task.id)),
-    // Geplande werkminuten per activiteit voor de werkveld-afleiding.
+    // Geplande werkminuten per activiteit voor de werkveld-afleiding. Een urentaak telt haar eigen minuten;
+    // een dagenmaat-taak (alleen uit een eigen export, `xerOpsMarkers.ts`) de werktijd per dag van haar
+    // kalender, zoals de werkregelbrug (T14). Voor een bestand uit P6 (alleen urentaken) verandert dit niets.
     taskWorkMinutes: new Map(mappedActivities.map(task => [
       task.id,
-      activityWorkMinutes(task, calendarById.get(task.calendarId ?? '')?.hoursPerDay ?? projectCalendar.hoursPerDay),
+      activityWorkMinutes(task, task.time.durationUnit === 'days'
+        ? effHoursPerDay(calendarById.get(task.calendarId ?? '') ?? projectCalendar)
+        : calendarById.get(task.calendarId ?? '')?.hoursPerDay ?? projectCalendar.hoursPerDay),
     ])),
     // Per urentaak de dag van haar dagengetal (dezelfde taakkalender als bij `hourTaskScheduleDuration`
     // hierboven: `clndr_id`, anders de projectkalender). Materiaal op een urentaak rekent zijn tempo per
@@ -1065,6 +1120,33 @@ function readXerProject(
 
   const sequences: Sequence[] = [];
   const externalRelations: XerExternalRelation[] = [];
+  // Lagrecords uit een eigen export (`OPS_DayMeasureLags` op de opvolger, `xerOpsMarkers.ts`; T21, I7): de
+  // dagenmaat van een lag komt terug zolang `lag_hr_cnt` nog de geschreven minuten draagt en de lagkalender
+  // van dit project nog dezelfde werktijd per dag geeft. Anders, en zonder record, blijft de lag urenmaat.
+  // Een sleutel die bij één opvolger twee keer voorkomt, is dubbelzinnig en telt niet.
+  const lagRecordsBySuccessor = new Map<string, Map<string, LagRecord>>();
+  const lagKeyCount = new Map<string, number>();
+  const lagKeyOf = (row: XerRow) => lagRecordKey(row.cells.pred_task_id, relationTypeOf(row.cells.pred_type, row, []).sequence);
+  if (opsFields.lagRecordsByTask.size > 0) {
+    for (const row of relationRows) {
+      const key = `${row.cells.task_id}>${lagKeyOf(row)}`;
+      lagKeyCount.set(key, (lagKeyCount.get(key) ?? 0) + 1);
+    }
+  }
+  const effCalByTaskId = new Map(opsFields.lagRecordsByTask.size > 0
+    ? mappedActivities.map(task => [task.id, calendarById.get(task.calendarId ?? '') ?? projectCalendar] as const)
+    : []);
+  const lagRecordOf = (row: XerRow): LagRecord | undefined => {
+    const successorId = row.cells.task_id;
+    const text = opsFields.lagRecordsByTask.get(successorId);
+    if (text === undefined || lagKeyCount.get(`${successorId}>${lagKeyOf(row)}`) !== 1) return undefined;
+    let records = lagRecordsBySuccessor.get(successorId);
+    if (!records) {
+      records = parseLagRecords(text);
+      lagRecordsBySuccessor.set(successorId, records);
+    }
+    return records.get(lagKeyOf(row));
+  };
   for (const row of relationRows) {
     const successorProjectId = row.cells.proj_id || projectId;
     const predecessorProjectId = row.cells.pred_proj_id || successorProjectId;
@@ -1092,7 +1174,7 @@ function readXerProject(
         && plannedPredecessorFinish.getTime() === plannedSuccessorStart.getTime()
         && predecessorCalendar.effectiveBandsOn(plannedPredecessorFinish)
           .some(band => band.end === finishMinute);
-      sequences.push({
+      const sequence: Sequence = {
         id: relationId,
         predecessorId: row.cells.pred_task_id,
         successorId: row.cells.task_id,
@@ -1102,7 +1184,14 @@ function readXerProject(
         ...(p6StartAtPredecessorFinishBoundary
           ? { p6StartAtPredecessorFinishBoundary: true }
           : {}),
-      });
+      };
+      const lagRecord = opsFields.lagRecordsByTask.size > 0 ? lagRecordOf(row) : undefined;
+      if (lagRecord && lagRecordHolds(lagRecord, lagMinutes,
+        lagWorkMinutesPerDay(sequence, schedulingOptions.lagCalendar, projectCalendar, effCalByTaskId))) {
+        delete sequence.lagMinutes;
+        Object.assign(sequence, lagFromRecord(lagRecord));
+      }
+      sequences.push(sequence);
     } else if (successorLocal && predecessorProjectId !== projectId) {
       externalRelations.push({
         id: relationId,
@@ -1128,6 +1217,17 @@ function readXerProject(
     }
   }
 
+  // De geërfde werkregel (hierboven gemarkeerd): de taak erft weer, als de regel nog de projectstandaard is
+  // zoals de lezer die teruglas. `deriveImportedWorkRules` gaf haar een eigen regel met dezelfde waarde; alle
+  // afleidingen hierboven zagen dus dezelfde effectieve regel. Zonder markering blijft de eigen regel, als op main.
+  if (inheritedRuleByTaskId.size > 0) {
+    const projectRule = defaultWorkRule ?? DEFAULT_WORK_RULE;
+    for (const task of mappedActivities) {
+      const rule = task.p6TaskId !== undefined ? inheritedRuleByTaskId.get(task.p6TaskId) : undefined;
+      if (rule && rule === projectRule && task.workRule === rule) delete task.workRule;
+    }
+  }
+
   return {
     project: {
       id: projectId,
@@ -1146,6 +1246,7 @@ function readXerProject(
       // Rekenprofielen: XER ⇒ P6 zonder afwijkingen. A19 staat in de P6-basis;
       // PROJECT.rem_target_link_flag stuurt geen conventie.
       schedulingProfile: builtInProfile('p6'),
+      ...(defaultWorkRule ? { defaultWorkRule } : {}),
     },
     calendar: projectCalendar,
     resourceCalendars: calendarList.filter(calendar => calendar.id !== projectCalendar.id),
@@ -1212,7 +1313,9 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
     const calendarId = row.cells.clndr_id?.trim();
     if (calendarId) availableCalendarIds.add(calendarId);
   }
-  const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds);
+  // De OPS-UDF's van een eigen export (`xerOpsMarkers.ts`); leeg, en zonder effect, in elk bestand uit P6.
+  const opsFields = readXerOpsFields(tables);
+  const resourceCatalog = buildXerResourceCatalog(tables, availableCalendarIds, opsFields);
   const metadataCatalog = buildXerMetadataCatalog(tables);
   const taskResourceRowsByProject = indexXerTaskResourceRows(tables);
   const projectRowsIndex = indexXerProjectRows(tables);
@@ -1242,6 +1345,7 @@ export function readXER(bytes: Uint8Array): XerOpenResult {
       metadataCatalog,
       taskResourceRowsByProject,
       projectRowsIndex,
+      opsFields,
     ),
   );
   // Precies één frozen bytearchief per ingelezen bestand. De projectmappers leveren alleen views;

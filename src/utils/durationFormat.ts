@@ -114,8 +114,14 @@ export function formatDuration(
   }
 
   // 'auto': hele dagen ⇒ dag-vorm; anders uur-vorm.
-  if (minPerDay > 0 && minutes % minPerDay === 0) {
-    return `${minutes / minPerDay}${suffixes.day}`;
+  const days = minutes / minPerDay;
+  const wholeDays = Math.round(days);
+  // Uren × 60 kan bijvoorbeeld 500.00000000000006 geven bij 8 u 20 m per dag (411).
+  // Alleen rekenruis op machineprecisie toelaten, geen echte fractie van een dag afronden.
+  if (minPerDay > 0 && Number.isFinite(minPerDay) && Number.isFinite(days)
+    && (wholeDays !== 0 || minutes === 0)
+    && Math.abs(days - wholeDays) <= 4 * Number.EPSILON * Math.max(1, Math.abs(days))) {
+    return `${wholeDays}${suffixes.day}`;
   }
   return formatDuration(minutes, effHoursPerDay, 'hours', suffixes);
 }

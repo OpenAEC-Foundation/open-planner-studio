@@ -108,16 +108,27 @@ function validated(state: TriangleState): TriangleResult {
   return { ok: true, state };
 }
 
-/** R = max_i(W_i / I_i) over de werkresources, met W_i afgeleid waar het veld ontbreekt (regel 2),
+/** De restduur die ÉÉN toewijzing zelf vraagt: W_i / I_i (de term van regel 2), met W_i afgeleid
+ *  waar het veld ontbreekt, zonder afronding (regel 3). `null` voor een toewijzing die de duur niet
+ *  stuurt (materiaal) of zonder geldige inzet. De taakduur is het maximum hiervan over de
+ *  werkresources ({@link derivedRemaining}); de `.mpp`-lezer gebruikt dezelfde term voor de
+ *  wandeling per toewijzing (`deriveTimephasedWindowsForTasks`). */
+export function assignmentRemainingMinutes(a: TriangleAssignment, remainingMinutes: number): number | null {
+  if (!a.drivesDuration || !isPositive(a.unitsPerDay)) return null;
+  return remainingWorkOf(a, remainingMinutes) / a.unitsPerDay;
+}
+
+/** R = max_i(W_i / I_i) over de werkresources ({@link assignmentRemainingMinutes}, regel 2),
  *  zonder afronding (regel 3). Zonder werkresources blijft de huidige restduur staan; is al het
  *  restwerk 0, dan komt er 0 uit en weigert `validated` de bewerking. */
 function derivedRemaining(state: TriangleState, assignments: readonly TriangleAssignment[]): number {
   let max = 0;
   let any = false;
   for (const a of assignments) {
-    if (!a.drivesDuration || !isPositive(a.unitsPerDay)) continue;
+    const own = assignmentRemainingMinutes(a, state.remainingMinutes);
+    if (own === null) continue;
     any = true;
-    max = Math.max(max, remainingWorkOf(a, state.remainingMinutes) / a.unitsPerDay);
+    max = Math.max(max, own);
   }
   if (!any) return state.remainingMinutes;
   return max;

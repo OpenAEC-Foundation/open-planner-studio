@@ -14,7 +14,7 @@
 // `renderP6Xml` sorteert de kinderen van elk element op deze tabel. Een kind zonder plek in de
 // tabel is een programmeerfout en geeft een exception (de round-trip-checks vangen dat).
 
-import { escapeXml } from '@/services/xmlInterchange';
+import { escapeXml, replaceInvalidXmlChars } from '@/services/xmlInterchange';
 
 /** Schemagrenzen (Oracle P6 API, `xs:maxLength`) voor velden die de writer vult. */
 export const P6_ID_MAX_LENGTH = 40;
@@ -140,8 +140,12 @@ export function renderP6Xml(root: P6Node, rootAttributes: string): string {
   return renderP6XmlWithReport(root, rootAttributes).xml;
 }
 
-/** Als `renderP6Xml`, plus het aantal velden dat tot de schemagrens is ingekort. */
-export function renderP6XmlWithReport(root: P6Node, rootAttributes: string): { xml: string; truncated: number } {
+/** Als `renderP6Xml`, plus het aantal velden dat tot de schemagrens is ingekort en het aantal tekens dat XML 1.0
+ *  niet toestaat en dat U+FFFD werd (`replaceInvalidXmlChars`). */
+export function renderP6XmlWithReport(
+  root: P6Node,
+  rootAttributes: string,
+): { xml: string; truncated: number; invalidXmlChars: number } {
   const lines: string[] = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'];
   let truncated = 0;
   const used = new Map<string, Set<string>>();
@@ -169,5 +173,6 @@ export function renderP6XmlWithReport(root: P6Node, rootAttributes: string): { x
     lines.push(`${pad}<${n.tag}>${escapeXml(text)}</${n.tag}>`);
   };
   render(root, 0, rootAttributes ? ` ${rootAttributes}` : '');
-  return { xml: lines.join('\n'), truncated };
+  const { xml, replaced } = replaceInvalidXmlChars(lines.join('\n'));
+  return { xml, truncated, invalidXmlChars: replaced };
 }

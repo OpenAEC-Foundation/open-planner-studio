@@ -52,7 +52,7 @@ By default a task is critical when its total float is 0 or less. This can be cha
 
 ### Where you see it
 
-Critical tasks have a red bar in the Gantt. Behind a non-critical bar there is a green band up to the task's late finish: that is the float. The band is turned on or off with *View › Baselines & progress › Float band*.
+Critical tasks have a red bar in the Gantt. Behind a non-critical bar there is a green band up to the task's late finish: that is the float. The band is turned on or off with *View › Bars › Float band*.
 
 For a selected task, the *Properties* panel lists everything under *CPM Result*: early and late start and finish, total, free and interfering float, and whether the task is on the critical path. The float of all tasks side by side is in the columns under *Calculated* (the **+** on the right of the table header), such as *Total float*, *Free float*, *Critical* and *Near critical*.
 

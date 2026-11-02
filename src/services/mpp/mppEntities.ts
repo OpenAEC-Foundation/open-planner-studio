@@ -219,12 +219,18 @@ function isFixed2MetaCostBit(fixed2Meta: FixedMeta | null, index: number): boole
 export interface ReadResourcesResult {
   resources: Resource[];
   resourceIdByUniqueId: Map<number, string>;
+  /** De `Resource.id`'s van MS Project-KOSTENresources (geen werkbit, wel de Fixed2Meta-kostenbit,
+   *  zie `isFixed2MetaCostBit`). `ResourceType` kent geen COST, dus deze resources staan als LABOR in
+   *  `resources`. Alleen de lezer gebruikt deze lijst: een kostenresource stuurt in MS Project de duur
+   *  niet ("assigning material resources or cost resources to a task doesn't affect task
+   *  scheduling"), dus `deriveTimephasedWindowsForTasks` laat haar niet meewandelen. */
+  costResourceIds: Set<string>;
 }
 
 /** Factory i.p.v. een module-singleton: de lege resultaatobjecten gaan de store in, en Immer's
  *  autoFreeze zou een gedeelde instantie module-breed bevriezen. */
 function emptyResourcesResult(): ReadResourcesResult {
-  return { resources: [], resourceIdByUniqueId: new Map() };
+  return { resources: [], resourceIdByUniqueId: new Map(), costResourceIds: new Set() };
 }
 
 /** Poort van `MPP14Reader.processResourceData`/`createResourceMap` — `"   114"/TBkndRsc` →
@@ -305,6 +311,7 @@ function readResourcesUnsafe(
 
   const resources: Resource[] = [];
   const resourceIdByUniqueId = new Map<number, string>();
+  const costResourceIds = new Set<string>();
     // Itereer op de echte unique-ID's uit VarMeta (`rscVarMeta.getUniqueIdentifierArray()`). UniqueID 0
     // is een GELDIGE resource-id (870d339f60603f71's afgeleide kalenders dragen resource-ID 0), dus
     // GEEN uid===0-skip zoals bij taken (waar 0 de projectsamenvattingstaak is).
@@ -327,13 +334,15 @@ function readResourcesUnsafe(
       : varData.getUnicodeString(uniqueId, nameKey, MAX_VAR_TEXT_BYTES, `${label}/name[uid=${uniqueId}]`) || 'Resource';
 
     let type: ResourceType;
+    let isCost = false;
     if (isUnassignedPlaceholder) {
       type = 'LABOR';
     } else {
       const metaItem = fixedMeta.getByteArrayValue(index);
       const isWork = !!metaItem && metaItem.length > typeOffset && (metaItem[typeOffset] & typeMask) !== 0;
       // Niet-WORK ⇒ Fixed2Meta's COST-bit beslist tussen LABOR (Cost) en MATERIAL.
-      type = isWork || isFixed2MetaCostBit(fixed2Meta, index) ? 'LABOR' : 'MATERIAL';
+      isCost = !isWork && isFixed2MetaCostBit(fixed2Meta, index);
+      type = isWork || isCost ? 'LABOR' : 'MATERIAL';
     }
 
     // MAX_UNITS (DataType.UNITS, FieldMap.java): 8-byte double. FieldMap.java's eigen `/100` levert
@@ -355,8 +364,9 @@ function readResourcesUnsafe(
 
     resources.push(resource);
     resourceIdByUniqueId.set(uniqueId, resource.id);
+    if (isCost) costResourceIds.add(resource.id);
   }
-  return { resources, resourceIdByUniqueId };
+  return { resources, resourceIdByUniqueId, costResourceIds };
 }
 
 /** Poort van `ResourceAssignmentFactory.process` — `"   114"/TBkndAssn` → `ResourceAssignment[]`,
@@ -402,17 +412,22 @@ function readAssignmentsUnsafe(
     // (-65535)-sentinel: die uid komt nooit in `resourceIdByUniqueId` voor, dus de lookup faalt vanzelf.
     if (!taskId || !resourceId) continue;
 
-    // ASSIGNMENT_UNITS (DataType.UNITS, FieldMap.java): 8-byte double, zelfde dubbele `/100` als
-    // MAX_UNITS hierboven (PERCENT → FRACTIE-schaal, spiegelt mspdiReader's `<Units>`).
-    let unitsPerDay = 1;
-    if (unitsOffset !== null && data.length >= unitsOffset + 8) {
-      const rawUnits = getDouble(data, unitsOffset, `${label}/FixedData units`);
-      unitsPerDay = (Math.abs(rawUnits) < 0.1 ? 0 : rawUnits) / 100 / 100;
-    }
+    const unitsPerDay = decodeAssignmentUnits(data, unitsOffset) ?? 1;
 
     assignments.push({ id: generateId('asgn'), taskId, resourceId, unitsPerDay });
   }
   return assignments;
+}
+
+/** ASSIGNMENT_UNITS (DataType.UNITS, FieldMap.java): 8-byte double, zelfde dubbele `/100` als
+ *  MAX_UNITS in `readResourcesUnsafe` (PERCENT → FRACTIE-schaal, spiegelt mspdiReader's `<Units>`).
+ *  `null` als het veld niet in de veldkaart staat of het record te kort is; `readAssignments` valt
+ *  dan terug op 1. Gedeeld met `mppReader.ts`'s `buildAssignmentUidLinks`, zodat de wandeling per
+ *  toewijzing dezelfde inzet ziet als `ResourceAssignment.unitsPerDay`. */
+export function decodeAssignmentUnits(data: Uint8Array, unitsOffset: number | null): number | null {
+  if (unitsOffset === null || data.length < unitsOffset + 8) return null;
+  const rawUnits = getDouble(data, unitsOffset, '"   114"/TBkndAssn/FixedData units');
+  return (Math.abs(rawUnits) < 0.1 ? 0 : rawUnits) / 100 / 100;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════

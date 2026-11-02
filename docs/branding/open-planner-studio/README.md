@@ -20,12 +20,10 @@ Het isometrische kubuslogo met zes Gantt-blokken op drie rijen. De tijdlijn en Ã
 
 De map bevat het complete aangeleverde pakket, ongewijzigd uitgepakt naast het oorspronkelijke ZIP-bestand. De ZIP en de bestanden in de hashmanifesten zijn byte voor byte gecontroleerd. Deze index is apart toegevoegd en valt buiten het pakketmanifest.
 
-De app en de installers gebruiken het beeldmerk uit dit pakket in een afgeleide vorm; zie *Gebruik in de app* hieronder.
+De app en de installers gebruiken dit logo nu niet; zie *Gebruik in de app* hieronder.
 
 Voor het bewerken en opnieuw renderen: zie [LEESMIJ.txt](LEESMIJ.txt). De generator gebruikt Blender, zonder Node.js. De fonts hebben een eigen [SIL Open Font License](04-source/fonts/OFL.txt).
 
-## Gebruik in de app: doorzichtig bovenvlak
+## Gebruik in de app
 
-De app en de installers gebruiken alleen het beeldmerk (de kubus), met een **doorzichtig bovenvlak** in plaats van #594124, net als de zijvlakken. Dat besloot de eigenaar (Ethan) op 2026-10-23: "het bovenvlak moet natuurlijk doorzichtig zijn". Een eerder besluit van dezelfde dag (wit bovenvlak) is daarmee vervallen. Het pakket in deze map blijft ongewijzigd.
-
-Afleiding: [`scripts/branding/bovenvlak_open.py`](../../../scripts/branding/bovenvlak_open.py) projecteert elke pixel op de lijn bruin â†’ amber. Het bruine aandeel wordt doorzichtig; het amber aandeel blijft als dekking in #F59E0B, zodat de randen tegen de amber contour schoon blijven. Zo ontstaan de masters in [`docs/branding/app-iconbron/`](../app-iconbron/). [`scripts/generate-icon.py`](../../../scripts/generate-icon.py) maakt daaruit alle app- en installer-iconen.
+Van 2026-10-23 tot 2026-10-29 gebruikten de app en de installers het beeldmerk uit dit pakket, met een doorzichtig bovenvlak. Op 2026-10-29 besloot de eigenaar (Ethan) terug te gaan naar het vorige logo: "het nieuwe logo werkt voor geen meter. verander het dus terug naar het oude logo. binnenkort komt er een nieuw die wel werkt." De iconen komen weer uit [`scripts/generate-icon.mjs`](../../../scripts/generate-icon.mjs). Dit pakket blijft hier staan als bron.
