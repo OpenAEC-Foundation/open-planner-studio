@@ -43,7 +43,7 @@
   {"theme": "light", "group": "App", "name": "tekst op zwevend", "min": 14.25},
   {"theme": "light", "group": "App", "name": "tekst op veld", "min": 14.25},
   {"theme": "light", "group": "App", "name": "tekst op lint", "min": 13.65},
-  {"theme": "light", "group": "App", "name": "tekst op titelbalk", "min": 12.32, "main": 12.96, "reden": "warme titelbalk (--oa-frame); blijft AAA; aanvaard door de eigenaar op 2026-10-29 (PR #721)"},
+  {"theme": "light", "group": "App", "name": "tekst op titelbalk", "min": 12.96},
   {"theme": "light", "group": "App", "name": "tekst op dropdown", "min": 14.25},
   {"theme": "light", "group": "App", "name": "secundaire tekst op kaart", "min": 6.86},
   {"theme": "light", "group": "App", "name": "secundaire tekst op kop/verzonken vlak", "min": 6.35},
