@@ -146,7 +146,7 @@ test('urentaak-bodydrag blijft één undo-stap en herstelt exacte minuten en dat
 test('voorinstelling Dag sleept per hele dag en Uur per uur', async ({ page, ops: _ops }) => {
   const id = await seedHourTask(page);
   await page.locator('.ribbon-tab').filter({ hasText: /^(View|Beeld)$/ }).click();
-  const scale = page.locator('[data-tour-anchor="ribbon-group:beeld:timeScale"] button').filter({ hasText: /▼/ });
+  const scale = page.locator('[data-tour-anchor="ribbon-group:beeld:timeScale"] button').filter({ has: page.locator('[data-icon="ui.dropdown"]') });
   for (const [preset, zoom, pixels, expected] of [
     [/^(Day|Dag)$/, 100, 100, '2026-09-08T07:00'],
     [/^(Hour|Uur)$/, 1000, 1000 / 24, '2026-09-08T08:00'],

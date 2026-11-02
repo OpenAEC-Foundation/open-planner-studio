@@ -141,7 +141,8 @@ test('Taak toevoegen selecteert, onthult en richt de nieuwe taak zonder zoomwijz
   await expect(name).toBeFocused();
 
   // Alleen de expliciete inspectiekeuze blijft een verplichte keuring.
-  await page.getByRole('button', { name: 'Milestone ▾', exact: true }).click();
+  // De punthaak achter het label is een icoon (ui.dropdown); de knop zelf herken je aan zijn lint-icoon.
+  await page.locator('.ribbon-btn').filter({ has: page.locator('[data-icon="task.milestone-menu"]') }).click();
   await page.getByRole('button', { name: 'Inspection point (mandatory)', exact: true }).click();
   await expect.poll(() => page.evaluate(() => {
     const t = window.__OPS__!.store.getState().tasks.find(t => t.mandatory);

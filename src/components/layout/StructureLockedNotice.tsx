@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ListTree } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { isTreeMode } from '@/engine/view/visibleRows';
 import { clearViewArrangement } from '@/state/viewArrangement';
@@ -71,7 +70,7 @@ export function StructureLockedNotice() {
 
   return (
     <NoticeStrip
-      icon={ListTree}
+      icon="status.structure-locked"
       text={t('view.structureLockedHint')}
       actionLabel={t('view.filter.clear')}
       onAction={clearView}

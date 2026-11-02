@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 
@@ -23,7 +22,7 @@ export function DependencyModeNotice() {
 
   return (
     <NoticeStrip
-      icon={Link}
+      icon="planning.dependency-draw-mode"
       text={t('view.dependencyModeHint')}
       actionLabel={t('view.dependencyModeStop')}
       onAction={() => setUI({ showDependencyMode: false })}
