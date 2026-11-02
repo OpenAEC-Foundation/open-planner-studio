@@ -7,6 +7,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import type { DateNotation, DurationDisplay, TimeNotation } from '@/types/view';
 import type { Draw2D } from '@/services/pdf/draw2d';
 import { CanvasDraw2D } from '@/services/pdf/canvasDraw2d';
+import { DEFAULT_REPORT_FONT_STACK } from '@/services/pdf/reportFont';
 import { printableWidthLogicalPx, type TileLayout } from '@/services/print/tileLayout';
 // Print-vriendelijk kleurschema uit het centrale themapalet.
 import { PRINT_PALETTE as PRINT_COLORS, doneBarTones } from '@/engine/renderer/themePalette';
@@ -61,10 +62,8 @@ const TIMELINE_HEADER_HEIGHT = 44;
 // De tabelbreedte is geen constante maar de som van de kolommen (zie `COL` en `tableWidthFor`).
 // Met de standaard naamkolom van 130 px en Volt. aan is dat 380 px.
 const FOOTER_HEIGHT = 50;
-// Inter (gevendorde glyf-TTF, family 'InterPDF') eerst — deterministisch en inbedbaar zodat preview
-// en de vector-export identieke measureText geven; systeem-stack als fallback zolang de
-// FontFace nog niet geladen is.
-const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+// De fontstack van alle rapporttekst komt uit `PrintOptions.fontFamily`; zonder die optie geldt het
+// gevendorde Inter (`DEFAULT_REPORT_FONT_STACK`, uitleg in `reportFont.ts`).
 
 /**
  * De raster- en vectorpaden delen deze tekenroutine. Op een zeer lange, in auto-fit gecomprimeerde
@@ -265,14 +264,17 @@ function getColPositions(k: number, showCompletion: boolean, widths: ResolvedCol
   };
 }
 
-/** De letter van een naamcel in de taaktabel (9 px, vet voor samenvattingen), ongeschaald. */
-export function nameCellFont(bold: boolean): string {
-  return `${bold ? 'bold ' : ''}9px ${FONT_FAMILY}`;
+/**
+ * De letter van een naamcel in de taaktabel (9 px, vet voor samenvattingen), ongeschaald. `fontStack`
+ * is dezelfde stack als `PrintOptions.fontFamily` van de render die erop gemeten wordt.
+ */
+export function nameCellFont(bold: boolean, fontStack: string = DEFAULT_REPORT_FONT_STACK): string {
+  return `${bold ? 'bold ' : ''}9px ${fontStack}`;
 }
 
 /** De letter van de curvekolom, ongeschaald: de kop (9 px vet) of een cel (8 px) — voor de meting in het paneel. */
-export function curveCellFont(header: boolean): string {
-  return tableTextFont(header);
+export function curveCellFont(header: boolean, fontStack: string = DEFAULT_REPORT_FONT_STACK): string {
+  return tableTextFont(header, fontStack);
 }
 
 /**
@@ -280,8 +282,8 @@ export function curveCellFont(header: boolean): string {
  * (8 px). Meten en tekenen gebruiken deze ene functie, zodat het paneel gegarandeerd op dezelfde
  * letter meet als waarop de render tekent.
  */
-export function tableTextFont(header: boolean): string {
-  return header ? `bold 9px ${FONT_FAMILY}` : `8px ${FONT_FAMILY}`;
+export function tableTextFont(header: boolean, fontStack: string = DEFAULT_REPORT_FONT_STACK): string {
+  return header ? `bold 9px ${fontStack}` : `8px ${fontStack}`;
 }
 
 /** De vertaalde kolomkoppen van de taaktabel (het paneel levert ze; print heeft geen `t()`). */
@@ -461,6 +463,8 @@ export interface TableColumnMeasureInput extends CellTextOptions {
   assignmentColumns?: boolean;
   /** De vertaalde koppen; ontbreken ⇒ dezelfde Nederlandse terugval als de render tekent. */
   tableHeaders?: Partial<TableHeaderLabels>;
+  /** Dezelfde fontstack als `PrintOptions.fontFamily` van de render; ontbreekt ⇒ Inter. */
+  fontFamily?: string;
 }
 
 /**
@@ -468,7 +472,7 @@ export interface TableColumnMeasureInput extends CellTextOptions {
  * KOP (9 px vet) en alle CELLEN (8 px) die dit rapport toont, plus celmarge aan beide zijden.
  * Geklemd op [{@link AUTO_COLUMN_MIN_WIDTH}, `COL[key].max`].
  *
- * `measure` meet op het geladen Inter-font — de aanroeper (het rapportpaneel) levert dat vanuit een
+ * `measure` meet op de geladen rapportletter (`input.fontFamily`, standaard Inter) — de aanroeper (het rapportpaneel) levert dat vanuit een
  * canvas, om dezelfde reden als bij {@link measureTaskNameColumnWidth}: `measurePrintReport`
  * (paginering) heeft geen canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster- en
  * vector-render. Kolommen die niet in de tabel staan worden weggelaten in plaats van gemeten.
@@ -482,8 +486,8 @@ export function measureTableColumnWidths(
   if (input.showCompletion) keys.push('complete');
   if (input.assignmentColumns) keys.push('units');
 
-  const headerFont = tableTextFont(true);
-  const cellFont = tableTextFont(false);
+  const headerFont = tableTextFont(true, input.fontFamily);
+  const cellFont = tableTextFont(false, input.fontFamily);
   const needed = new Map<AutoColumnKey, number>();
   for (const key of keys) needed.set(key, measure(headerLabel(input.tableHeaders, AUTO_COLUMN_HEADER[key]), headerFont));
   for (const row of printRows) {
@@ -566,6 +570,7 @@ function makeMetrics(
   assignmentColumns = false,
   curveColumnWidth?: number,
   columnWidths?: TableColumnWidths,
+  fontStack: string = DEFAULT_REPORT_FONT_STACK,
 ): ReportMetrics {
   const pct = snapToChoice(REPORT_FONT_SCALES, reportFontScale ?? 100) ?? 100;
   const k = pct / 100;
@@ -575,7 +580,7 @@ function makeMetrics(
   return {
     k,
     s: (v) => v * k,
-    font: (size, bold) => `${bold ? 'bold ' : ''}${size * k}px ${FONT_FAMILY}`,
+    font: (size, bold) => `${bold ? 'bold ' : ''}${size * k}px ${fontStack}`,
     rowHeight: ROW_HEIGHT * k,
     projectHeaderHeight,
     timelineHeaderHeight,
@@ -722,6 +727,13 @@ export interface PrintOptions {
    * bij {@link ReportMetrics}, want uniform schalen zou onder de fit-width-pagineerder niets doen.
    */
   reportFontScale?: number;
+  /**
+   * CSS-fontstack van alle rapporttekst op het canvas (preview, raster-export). Ontbreekt ⇒ het
+   * gevendorde Inter (`DEFAULT_REPORT_FONT_STACK`), dus dan tekent de render exact als voorheen.
+   * De vector-backend leest de familie hier niet uit maar tekent met de fonts die de pagineerder
+   * inbedt; de aanroeper geeft die dus de bytes van dezelfde letter (`reportFont.ts`).
+   */
+  fontFamily?: string;
   /**
    * Ids van de BEPALENDE (driving) relaties uit de laatste CPM-run. Zonder dit veld tekent het
    * rapport élke relatie neutraal doorgetrokken — de eerlijke weergave zolang er niet gerekend is.
@@ -965,12 +977,12 @@ export function renderReport(
     options.orientation,
   );
   let assignmentColumns = !!options.assignmentColumns;
-  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth, options.columnWidths);
+  let m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, assignmentColumns, options.curveColumnWidth, options.columnWidths, options.fontFamily);
   let assignmentColumnsDropped = false;
   if (assignmentColumns && m.tableWidth > printableWidth - minChartWidthPx(printableWidth)) {
     assignmentColumns = false;
     assignmentColumnsDropped = true;
-    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths);
+    m = makeMetrics(options.reportFontScale, options.showCompletion, options.taskNameColumnWidth, false, undefined, options.columnWidths, options.fontFamily);
   }
 
   // Rijen-bron: zie {@link buildPrintRows} — taakrijen mét diepte plus groepsband-rijen die
