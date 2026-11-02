@@ -5,9 +5,10 @@
 
 .oa-icon {
   flex: none;
-  color: inherit;
   --icon-accent: var(--theme-accent);
 }
+/* Geen `color: inherit` hier: de kleur erft vanzelf. Deze regel staat buiten een CSS-laag en won daardoor van
+   Tailwind-klassen in `@layer utilities`, zodat bijvoorbeeld `text-accent` op een icoon geen effect had. */
 
 /* Alles in de hoofdkleur: op een gekleurd vlak (actieve lintknop, primaire knop) of bij uitgeschakeld. */
 .oa-icon--mono,
@@ -16,23 +17,26 @@
   --icon-accent: currentColor;
 }
 
-/* Statusiconen kleuren mee met de themarol (Style Repo `semantic_color`); de rol wint van `currentColor`. */
+/* Statusiconen kleuren mee met de themarol (Style Repo `semantic_color`); de rol wint van `currentColor`.
+   Het oranje deel blijft oranje: elk icoon heeft een oranje element, ook een statusicoon naast zijn
+   statuskleur (besluit Ethan, 2 november 2026; Blueprint `docs/iconen.md`). */
 .oa-icon--error { color: var(--theme-critical-text); }
 .oa-icon--warning { color: var(--theme-warning-text); }
 .oa-icon--success { color: var(--theme-success-text, #16a34a); }
 .oa-icon--info { color: var(--theme-info-text, #2563eb); }
 .oa-icon--text-secondary { color: var(--theme-text-dim); }
-.oa-icon--error,
-.oa-icon--warning,
-.oa-icon--success,
-.oa-icon--info,
-.oa-icon--text-secondary {
+
+/* Een melding (toast) heeft een rode of blauwe achtergrond met witte tekst. Oranje en de statuskleur vallen daar
+   weg, dus een icoon tekent daar helemaal in de witte tekstkleur, net als op een gevulde lintknop. */
+.ops-toast .oa-icon {
+  color: inherit;
   --icon-accent: currentColor;
 }
 
 /* Lint: op een gevulde knop (actief, primair, gevaar bij hover) en op een uitgeschakelde knop tekent het
    accentdeel in de hoofdkleur, anders verdwijnt het accent tegen de accentachtergrond. */
 .ribbon-btn.active .oa-icon,
+.ribbon-split-large.active .ribbon-split-bottom .oa-icon,
 .ribbon-btn.primary .oa-icon,
 .ribbon-btn.danger:hover .oa-icon,
 .ribbon-btn.disabled .oa-icon,

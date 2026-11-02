@@ -364,7 +364,7 @@ const SCENES: Record<string, Scene> = {
       await markStale();
       (await waitFor('[data-ops-ribbon-tab="planning"]')).click();
       await clickText('body', ['Baselines beheren…', 'Manage baselines…']);
-      return tagWhere('[role="dialog"] div', el => el.children.length === 0 && (el.textContent ?? '').startsWith('⚠'));
+      return tagWhere('[role="dialog"] [data-ops-baseline-stale-hint]', () => true);
     },
   },
   // 3. Project verplaatsen: "De nieuwe startdatum ligt in het verleden." bij een datum vóór vandaag.
@@ -384,8 +384,7 @@ const SCENES: Record<string, Scene> = {
     run: async () => {
       await openExample('showcase-rijwoningen-de-akkers.ifc');
       await clickTaskRow(await taskOverFreePeriod());
-      return tagWhere('div', el => el.children.length === 0 && el.style.color === 'var(--theme-warning-text)'
-        && (el.textContent ?? '').startsWith('⚠'));
+      return tagWhere('[data-ops-free-period-warning]', () => true);
     },
   },
   // 5. Paneel Waarschuwingen met gele driehoekjes, geopend via de gele melding in de statusbalk.

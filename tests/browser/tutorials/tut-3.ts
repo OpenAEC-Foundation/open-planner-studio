@@ -84,8 +84,8 @@ export const TUTORIAL_3: TutorialScript = {
         ...fitToProject,
         { click: { taskName: T.painting } },
         { check: { see: props, text: l(
-          '⚠ Deze taak loopt over Bouwvak (Midden) — een vrije periode van 23 dagen (31-07-2027 t/m 22-08-2027).',
-          '⚠ This task runs through Bouwvak (Midden) — a 23-day non-working period (31-07-2027 to 22-08-2027).',
+          'Deze taak loopt over Bouwvak (Midden) — een vrije periode van 23 dagen (31-07-2027 t/m 22-08-2027).',
+          'This task runs through Bouwvak (Midden) — a 23-day non-working period (31-07-2027 to 22-08-2027).',
         ) } },
       ],
       shots: [{ name: 'tut-3-bouwvak-constraint', of: { anchor: 'gantt-panel' }, pad: 0 }],

@@ -107,7 +107,7 @@ export function Backstage() {
     <div className="backstage" role="region" aria-label={tMenu('backstage.fileMenu')}>
       <aside className="backstage-sidebar" aria-label={tMenu('backstage.fileNav')}>
         <button className="backstage-back" onClick={() => leave(closeBackstage)} data-ops-backstage-back>
-          <Icon id="nav.back" size={16} /> {tMenu('backstage.back')}
+          <Icon id="nav.back" size={16} className="ops-icon-inline-flip" /> {tMenu('backstage.back')}
         </button>
 
         {/* Actie-items: triggeren actie en sluiten backstage */}

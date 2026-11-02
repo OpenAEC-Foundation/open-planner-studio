@@ -81,9 +81,9 @@ export function BaselineOverlaySplitButton() {
             data-ops-baseline-menu-toggle
             onClick={() => setOpen(o => !o)}
           >
-            {/* Breed: "label ▾" loopt als één tekst door (zoals Relatie ▾). Smal: alleen de losse ▾. */}
-            <span className="ribbon-btn-label">{label} ▾</span>
-            <span className="ribbon-split-caret" aria-hidden="true">▾</span>
+            {/* Breed: label met de punthaak erachter (zoals Relatie). Smal: alleen de losse punthaak. */}
+            <span className="ribbon-btn-label">{label}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+            <Icon id="ui.dropdown" size={16} className="ribbon-split-caret" />
           </button>
         </div>
       }

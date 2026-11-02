@@ -268,7 +268,7 @@ export function MilestoneDropdown() {
       trigger={
         <button className="ribbon-btn" onClick={() => setOpen(!open)}>
           <span className="ribbon-btn-icon"><Icon id="task.milestone-menu" size={24} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.milestone')} ▾</span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.milestone')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
         </button>
       }
     >
@@ -398,7 +398,7 @@ export function RelationDropdown() {
             aria-expanded={open}
           >
             <span className="ribbon-btn-icon"><Icon id="planning.relations-menu" size={24} /></span>
-            <span className="ribbon-btn-label">{tMenu('ribbon.relation')} ▾</span>
+            <span className="ribbon-btn-label">{tMenu('ribbon.relation')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
           </button>
         }
       >
@@ -414,7 +414,7 @@ export function RelationDropdown() {
               className="ribbon-relation-menu-item"
               onClick={item.disabled ? undefined : item.onClick}
             >
-              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? '✓' : ''}</span>
+              <span className="ribbon-relation-menu-mark" aria-hidden="true">{item.active ? <Icon id="menu.item-checked" size={16} /> : null}</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -669,7 +669,7 @@ export function ResourceAssignDropdown() {
       trigger={
         <button className={`ribbon-btn${open ? ' active' : ''}`} onClick={() => setOpen(!open)}>
           <span className="ribbon-btn-icon"><Icon id="resource.assign" size={24} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')} ▾</span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.assignResource')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
         </button>
       }
     >
@@ -1211,7 +1211,7 @@ function SavedFilterDropdown() {
           aria-label={tMenu('ribbon.filter')}
         >
           <span className="ribbon-btn-icon"><Icon id="list.filter" size={16} /></span>
-          <span className="ribbon-btn-label">{tMenu('ribbon.filter')} ▾</span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.filter')}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
         </button>
       }
     >

@@ -210,6 +210,7 @@ export function NotificationHost() {
           >
             <Icon id="ui.close" size={14} aria-hidden="true" />
           </button>
+          <Icon id={n.severity === 'error' ? 'status.error' : 'status.info'} size={16} className="ops-toast-icon" />
           <div className="ops-toast-message">
             {t(n.messageKey, { ...n.params, ...localizedNumberParams(n.numberParams, i18n.language, n.messageKey === 'notifications.minuteModelConverted') })}
             {n.count > 1 && <span className="ops-toast-count">{`×${n.count}`}</span>}

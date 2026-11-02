@@ -1,5 +1,6 @@
 import type { CSSProperties, SVGAttributes } from 'react';
 import { B2_ICONS, type IconDef, type IconId, type IconMaster } from './b2/icons.generated';
+import { applyStatusProposal } from './statusProposal';
 
 export type { IconId };
 
@@ -28,7 +29,7 @@ export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children'
 
 function masterFor(id: IconId, size: number): IconMaster {
   const def = ICONS[id];
-  return size <= 18 ? def.s16 : def.s24;
+  return applyStatusProposal(id, size <= 18 ? def.s16 : def.s24);
 }
 
 export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
@@ -64,7 +65,7 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
             <g className="oa-icon__m24">{renderParts(master)}</g>
             {/* De 16 px-master op het 24-raster (×1,5). `icons.css` toont hem waar het lint een groot icoon
                 op 16 px zet (mini-stand, ingeklapt lint); dan staat hij op ware grootte en blijft hij scherp. */}
-            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(def.s16)}</g>
+            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(applyStatusProposal(id, def.s16))}</g>
           </>
         )}
     </svg>

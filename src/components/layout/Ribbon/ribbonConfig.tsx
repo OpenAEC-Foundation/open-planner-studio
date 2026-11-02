@@ -278,11 +278,11 @@ const editGroup: RibbonGroupSpec = {
     {
       kind: 'stack', id: 'editStack', items: [
         {
-          kind: 'small', id: 'undo', icon: <Icon id="edit.undo" size={16} />, labelKey: 'menu:ribbon.undo',
+          kind: 'small', id: 'undo', icon: <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.undo',
           use: () => useCommandBinding(COMMANDS.undo),
         },
         {
-          kind: 'small', id: 'redo', icon: <Icon id="edit.redo" size={16} />, labelKey: 'menu:ribbon.redo',
+          kind: 'small', id: 'redo', icon: <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.redo',
           use: () => useCommandBinding(COMMANDS.redo),
         },
         {
@@ -465,7 +465,7 @@ const planningTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'structureStack2', items: [
           {
-            kind: 'small', id: 'indent', icon: <Icon id="task.indent" size={16} />, labelKey: 'menu:ribbon.indent',
+            kind: 'small', id: 'indent', icon: <Icon id="task.indent" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.indent',
             // Aanvulling op de gedeelde binding: buiten boommodus krijgt de UITGESCHAKELDE knop
             // een tooltip die uitlegt waarom. De sneltoets kan dat niet en toont in plaats daarvan
             // een melding — zie de toelichting bij `COMMANDS.indent`.
@@ -477,7 +477,7 @@ const planningTab: RibbonTabConfig = [
             },
           },
           {
-            kind: 'small', id: 'outdent', icon: <Icon id="task.outdent" size={16} />, labelKey: 'menu:ribbon.outdent',
+            kind: 'small', id: 'outdent', icon: <Icon id="task.outdent" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.outdent',
             use: () => {
               const binding = useCommandBinding(COMMANDS.outdent);
               const treeMode = useAppStore(s => isTreeMode(s.view));
@@ -616,11 +616,11 @@ const resourcesTab: RibbonTabConfig = [
       {
         kind: 'stack', id: 'histogramStack', items: [
           {
-            kind: 'small', id: 'prevResource', icon: <Icon id="resource.previous" size={16} />, labelKey: 'menu:ribbon.prevResource',
+            kind: 'small', id: 'prevResource', icon: <Icon id="resource.previous" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.prevResource',
             use: histogramResourceStep(-1),
           },
           {
-            kind: 'small', id: 'nextResource', icon: <Icon id="resource.next" size={16} />, labelKey: 'menu:ribbon.nextResource',
+            kind: 'small', id: 'nextResource', icon: <Icon id="resource.next" size={16} className="ops-icon-inline-flip" />, labelKey: 'menu:ribbon.nextResource',
             use: histogramResourceStep(1),
           },
         ],

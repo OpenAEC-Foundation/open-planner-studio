@@ -430,7 +430,7 @@ export function ResourceOccupancyView({ companyId, pool }: { companyId: string; 
                           className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
                           data-ops-occupancy-expand
                         >
-                          {open ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} />}
+                          {open ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" />}
                         </button>
                         <span className="truncate font-medium">{row.name}</span>
                       </div>

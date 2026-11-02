@@ -413,7 +413,7 @@ export function RelationCellEditor({
                   placeholder="0d"
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
-                <button type="button" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+                <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
                 {focusedToken === index && sentenceFor(token.relType, relationSentenceName(task ?? { wbsCode: token.wbsCode }))}
               </div>
             );
@@ -465,7 +465,7 @@ export function RelationCellEditor({
                   if (lag) replaceToken(index, { ...token, external: { ...token.external, lag } });
                 }}
               />
-              <button type="button" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+              <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
               {focusedToken === index && sentenceFor(
                 token.external.relType,
                 token.external.sourceRef.taskName || token.external.sourceRef.taskId,

@@ -534,6 +534,9 @@
   flex: 0 0 16px;
   width: 16px;
   height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0;
   border: 0;
   color: var(--theme-text-muted);
@@ -1809,7 +1812,9 @@ body {
 /* Issue #46 (slot): iconen die een RICHTING aanwijzen (de chevrons en het paneel-glyph in de
    rechter-rail) moeten in RTL meespiegelen — daar staat de rail links, dus "de rail wegklappen"
    wijst de andere kant op. Zelfde truc als `.ops-icon-rail` in Ribbon.css, maar dan bruikbaar
-   buiten de ribbon. Uitsluitend voor richtingsiconen; nooit voor iconen met tekst of een cijfer. */
+   buiten de ribbon. Uitsluitend voor richtingsiconen; nooit voor iconen met tekst of een cijfer.
+   Ook: terug, vorige/volgende resource, ongedaan maken/opnieuw, in- en uitspringen en de punthaak van een
+   ingeklapte rij. Die spiegelen ook in Material en in Compose (`AutoMirrored`). */
 [dir="rtl"] .ops-icon-inline-flip {
   transform: scaleX(-1);
 }
@@ -2169,6 +2174,7 @@ body {
   background: var(--error);
   color: #ffffff;
   padding: var(--sp-3) var(--sp-6);
+  padding-inline-start: calc(var(--sp-4) + 16px + var(--sp-2)); /* ruimte voor het statusicoon */
   padding-inline-end: calc(var(--sp-6) + 20px); /* ruimte voor het kruisje, ook in RTL */
   border-radius: var(--radius-md);
   font-family: var(--font-body);
@@ -2177,6 +2183,14 @@ body {
   box-shadow: var(--shadow-lg);
   max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
+}
+
+/* Het statusicoon vóór de tekst (info of fout), zodat het verschil ook zonder kleur te zien is. Het staat op de
+   eerste tekstregel: regelhoogte 1,4 × 12 px is ongeveer 17 px, het icoon 16 px. */
+.ops-toast-icon {
+  position: absolute;
+  inset-block-start: var(--sp-3);
+  inset-inline-start: var(--sp-4);
 }
 
 /* Het kruisje rechtsboven (in RTL linksboven via inset-inline-end): de enige manier om een melding

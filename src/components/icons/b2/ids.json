@@ -91,6 +91,8 @@
   "list.sort-fields",
   "log.pause-view",
   "log.resume-view",
+  "menu.item-checked",
+  "menu.submenu",
   "nav.back",
   "object.rename",
   "panel.ai-activity",

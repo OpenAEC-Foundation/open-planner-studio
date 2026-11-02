@@ -148,7 +148,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t(fileVersions ? 'siteFiles.hideVersions' : 'siteFiles.showVersions')}
                         data-ops-site-versions-toggle
                       >
-                        {fileVersions ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} />}
+                        {fileVersions ? <Icon id="tree.collapse" size={14} /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" />}
                       </button>
                       <button
                         className="flex-1 min-w-0 flex items-start gap-2.5 p-2.5 text-left hover:bg-surface rounded-r-[8px]"

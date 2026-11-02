@@ -50,11 +50,11 @@ export function StatusBar() {
       key={key}
       onClick={openWarnings}
       title={tCommon('warnings.openPanel')}
-      className="px-1 rounded hover:bg-surface-hover"
+      className="px-1 rounded hover:bg-surface-hover inline-flex items-center gap-1"
       style={{ color: 'var(--theme-warning-text)' }}
       data-ops-status-warning={key}
     >
-      ⚠ {label}
+      <Icon id="status.warning" size={16} />{label}
     </button>
   );
 
@@ -94,8 +94,8 @@ export function StatusBar() {
       {/* Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
           Een fout houdt de vlag juist vast en blijft daarom zichtbaar. */}
       {scheduleStale && (!autoCalcCPM || !!cpmResult?.error) && (
-        <span style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
-          ⚠ {t('status.scheduleStale')}
+        <span className="inline-flex items-center gap-1" style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
+          <Icon id="status.warning" size={16} />{t('status.scheduleStale')}
         </span>
       )}
       {selectedTaskIds.length > 0 && (
