@@ -94,7 +94,7 @@ Voor relaties tussen projecten mist dit contract vier dingen:
 ### 3.3 Het werkplekprotocol
 
 De werkplek praat met een tool via `postMessage`. Het protocol staat in de issues van DutchSailor bij Open PDF Studio
-(OpenAEC-Foundation/open-pdf-studio#694 en #704, oktober 2026). GEZIEN daar. De bron is volgens #704 de hostcode in
+(OpenAEC-Foundation/open-pdf-studio#694 en open-pdf-studio#704, oktober 2026). GEZIEN daar. De bron is volgens open-pdf-studio#704 de hostcode in
 de werkplekrepo, `frontend/apps/werkplek/src/gast/ouder.ts`; die repo kon ik niet lezen.
 
 | soort | wat (samengevat uit #694/#704) |
