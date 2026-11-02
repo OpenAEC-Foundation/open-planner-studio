@@ -386,7 +386,9 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
   # Tabelrapporten (discussie #31): look-ahead, kritiek, voortgang, gezondheid, resources, WBS —
   # de pure engine in src/engine/reports/ tegen een via de echte store opgebouwd project.
   RPCHECK="$DIR/.reports-check.mjs"
-  if bundle_check "$DIR/check-reports.ts" "$RPCHECK"; then node "$RPCHECK" || STATUS=1; fi
+  # Onbekende Intl-taalcodes vallen zonder onze guard terug op de systeemtaal. Onder Engels
+  # blijft die fout onzichtbaar (#432); het uitvoerplan bewaart deze taal ook in de TZ-matrix.
+  if bundle_check "$DIR/check-reports.ts" "$RPCHECK"; then LC_ALL=nl_NL.UTF-8 LANG=nl_NL.UTF-8 node "$RPCHECK" || STATUS=1; fi
 
   # "Bestaat dit tekst-asset echt?"-poort van de in-app help (textAsset.ts — pure functies +
   # injecteerbare fetch). Zet de desktopbug vast waarbij een content-type-check ALLE help-artikelen
@@ -2020,6 +2022,9 @@ if [ "${#CHECK_NAMES[@]}" -gt 0 ]; then
     out="$DIR/.$base.mjs"
     if bundle_check "$DIR/$name" "$out"; then
       case "$base" in
+        check-reports)
+          LC_ALL=nl_NL.UTF-8 LANG=nl_NL.UTF-8 node "$out" || STATUS=1
+          ;;
         check-task-grid-performance|check-task-grid-paste-performance)
           OPS_RELAX_PERF=0 node "$out" || STATUS=1
           ;;
