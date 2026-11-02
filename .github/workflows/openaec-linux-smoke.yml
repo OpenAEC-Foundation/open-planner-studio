@@ -28,7 +28,7 @@ jobs:
           node-version: 22
       - name: Checksumregressie en SHA256SUMS van het ongepubliceerde AppImage-artifact
         run: |
-          node --test scripts/release-checksums.test.mjs
+          node --test scripts/release-checksums.test.mjs scripts/openaec-linux-probe.test.mjs
           node scripts/release-checksums.mjs appimage
           (cd appimage && sha256sum --check SHA256SUMS)
       - name: Testomgeving bouwen (geen productimage of publicatie)

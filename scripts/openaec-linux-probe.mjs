@@ -71,7 +71,9 @@ if (mode === 'recovery') {
     tasks = await tool('planner_list_tasks');
     if (tasks.ok && (mode === 'idle' || tasks.data.total > 0)) break;
     // Echte toetsactie: een verse Linux-gebruiker sluit het gewone welkomstvenster met Escape.
-    if (tasks.error?.code === 'DIALOG_OPEN') execFileSync('wtype', ['-k', 'Escape']);
+    if (tasks.code === 'DIALOG_OPEN' && typeof tasks.error === 'string' && tasks.error.includes('(showWelcomeDialog)')) {
+      execFileSync('wtype', ['-k', 'Escape']);
+    }
     await delay(200);
   }
   assert.equal(tasks.ok, true, JSON.stringify(tasks));

@@ -16,6 +16,7 @@ on:
       - 'packaging/linux-test/**'
       - 'scripts/check-openaec-linux.sh'
       - 'scripts/openaec-linux-probe.mjs'
+      - 'scripts/openaec-linux-probe.test.mjs'
       - 'scripts/release-checksums*'
       - 'src-tauri/**'
       - 'src/utils/linuxEnvironment.ts'
