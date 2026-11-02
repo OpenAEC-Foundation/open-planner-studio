@@ -977,7 +977,7 @@ Zo zette de meting het ook om.
     tabel toont "06-06-2026".
   - *Daartussen de geplande kloktijd*: de afstand tot middernacht van de werkdag van de planning, op de getypte
     dag. Ma 10:00, afgemeld op wo, wordt wo 10:00. Eindigt de dienst van de getypte dag vóór die kloktijd, dan
-    geldt de tweede aanvulling van Ethan; begint hij erna, dan de uitwerking door de orkestrator (beide
+    geldt de tweede aanvulling van Ethan; begint hij erna, dan de derde aanvulling van Ethan (beide
     hieronder).
   - **Tweede aanvulling van Ethan: de dienst eindigt vóór de geplande kloktijd** (Ethan, 2026-10-29; de tekst staat
     één keer letterlijk in §8 onder B10, *Tweede aanvulling*; voorheen knownbug 450). Ligt de mijlpaal midden in
