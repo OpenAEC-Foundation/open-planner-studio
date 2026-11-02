@@ -1,13 +1,14 @@
 // P6 XML-export en -opening, fase 2 van #690 (eigenaar, 2026-10-29). De verliesmelding na export heeft dezelfde vorm
 // als bij XER, met de regels van dit formaat. Elke verliescategorie van de detector voor P6 XML geeft een regel.
-// Ook: een mijlpaal mét duur blijft een activiteit, en openen meldt het OPS-profiel.
+// Ook: een mijlpaal mét duur blijft een activiteit. Sinds #775 schrijft de export de rekenopties en een hammock
+// als Level of Effort, en opent een P6 XML als Primavera P6.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 import { installDOMParser } from './xmldom-shim';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { detectXerExportLoss } from '@/services/xerExportLoss';
 import { exportP6XmlLossNotice, type P6XmlLossInput } from '@/state/p6XmlExportNotice';
-import { withP6XmlProfileNotice } from '@/state/schedulingProfileNotice';
+import { withSchedulingProfileNotice } from '@/state/schedulingProfileNotice';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { createDefaultProject } from '@/state/defaults';
@@ -41,8 +42,10 @@ const task = (name: string, extra: Partial<Task> = {}, time: Partial<Task['time'
   priority: 500, parentId: null, childIds: [], resourceIds: [],
   time: { ...createDefaultTaskTime('2026-06-01', 3), ...time }, ...extra,
 });
+/** Een project met het P6-profiel en de P6-standaard voor de speling, zoals een geopende XER of P6 XML. */
+const p6Project = { schedulingProfile: p6, schedulingOptions: { totalFloatMode: 'finish' as const }, progressMode: 'RETAINED_LOGIC' as const };
 const input = (extra: Partial<P6XmlLossInput> = {}): P6XmlLossInput => ({
-  project: { schedulingProfile: p6 }, calendars: [calendar], tasks: [task('Gewoon')], sequences: [], resources: [], assignments: [],
+  project: p6Project, calendars: [calendar], tasks: [task('Gewoon')], sequences: [], resources: [], assignments: [],
   baselineCount: 0, ...extra,
 });
 /** De regels van één invoer, als `sleutel:aantal`. */
@@ -55,7 +58,9 @@ const head = exportP6XmlLossNotice(input({ baselineCount: 1 }));
 eq('kop, duur en soort', [head?.messageKey, head?.severity, head?.durationMs], ['notifications.exportP6XmlLoss', 'info', 15000]);
 one('baseline', { baselineCount: 2 }, [`${P}baselines:2`]);
 eq('OPS-profiel: het advies, geen tweede regel', lines(input({ project: {} }), ['schedule-options-and-provenance']), [`${X}schedulingRules`]);
-eq('P6-profiel: de rekeninstellingen gaan niet mee', lines(input(), ['schedule-options-and-provenance']), [`${P}schedulingOptions`]);
+eq('P6-profiel: de rekenopties gaan mee', lines(input(), ['schedule-options-and-provenance']), []);
+eq('P6-profiel met nivellering: die kent P6 niet', lines(input({ project: { ...p6Project, schedulingOptions: { ...p6Project.schedulingOptions, leveling: { levelAllResources: true } } } })), [`${P}schedulingOptions`]);
+eq('P6-profiel met speling "automatisch": die kent P6 niet', lines(input({ project: { schedulingProfile: p6 } })), [`${P}schedulingOptions`]);
 
 const summary = task('Fase', { isSummary: true, childIds: ['Kind'], description: 'Tekst', constraint: { type: 'SNET', date: '2026-06-02' }, constraint2: { type: 'FNLT', date: '2026-06-09' } } as Partial<Task>);
 const kind = task('Kind', { parentId: 'Fase', description: 'Gaat mee' });
@@ -79,20 +84,20 @@ one('taken', { tasks: [
   task('Ontwerp', { taskType: 'DESIGN' as Task['taskType'] }),
   task('Hoog', { priority: 700 }),
   task('Notitie', { notes: [{ id: 'n', text: 'x', done: false }] } as unknown as Partial<Task>),
-] }, [`${X}elapsedDurations:1`, `${X}manualTasks:1`, `${P}hammocks:1`, `${X}durationMilestones:1`, `${X}mandatoryMilestones:1`,
+] }, [`${X}elapsedDurations:1`, `${X}manualTasks:1`, `${X}durationMilestones:1`, `${X}mandatoryMilestones:1`,
   `${X}levelingDelays:1`, `${P}suspendResume:1`, `${X}deadlines:1`, `${X}externalLinks:1`, `${X}activityCodes:1`, `${X}customFields:1`,
   `${X}taskCategories:1`, `${P}priorities:1`, `${P}notes:1`]);
 one('resources en kalender', {
   resources: [{ id: 'c', type: 'CREW' }, { id: 'o', type: 'SUBCONTRACTOR' }, { id: 'l', type: 'LABOR', libraryOrigin: {} }] as unknown as Resource[],
   calendars: [{ ...calendar, holidays: [{ name: 'Kerst', startDate: '2026-12-25' }] } as unknown as WorkCalendar],
-  project: { schedulingProfile: p6, author: 'A' },
+  project: { ...p6Project, author: 'A' },
 }, [`${P}resourceTypes:2`, `${X}libraryLinks:1`, `${X}holidayNames:1`, `${P}projectDetails`]);
-one('alleen een projectbeschrijving gaat mee', { project: { schedulingProfile: p6, description: 'Tekst' } as P6XmlLossInput['project'] }, []);
+one('alleen een projectbeschrijving gaat mee', { project: { ...p6Project, description: 'Tekst' } as P6XmlLossInput['project'] }, []);
 one('eigen taaktype gaat mee', { tasks: [task('Inkoop', { taskType: 'USERDEFINED' as Task['taskType'], customTaskTypeId: 'x' })] }, []);
 one('eigen taaktype op een samenvattingstaak gaat niet mee', {
   tasks: [task('Fase', { isSummary: true, childIds: ['Kind'], taskType: 'USERDEFINED' as Task['taskType'], customTaskTypeId: 'x' }), task('Kind', { parentId: 'Fase' })],
 }, [`${X}taskCategories:1`]);
-one('projectstandaard gelijk aan de P6-standaard', { project: { schedulingProfile: p6, defaultWorkRule: DEFAULT_WORK_RULE } }, []);
+one('projectstandaard gelijk aan de P6-standaard', { project: { ...p6Project, defaultWorkRule: DEFAULT_WORK_RULE } }, []);
 
 // Elke categorie die de detector voor P6 XML kan geven, levert minstens één regel.
 const notes = [{ id: 'n', text: 'x', done: false }];
@@ -122,17 +127,19 @@ const tag = (name: string, field: string) => new RegExp(`<${field}>([^<]*)</${fi
 eq('mijlpaal met duur: gewone activiteit met duur en rest',
   [tag('Met duur', 'Type'), Number(tag('Met duur', 'PlannedDuration')), Number(tag('Met duur', 'RemainingDuration'))], ['Task Dependent', 40, 16]);
 eq('nulduur-mijlpaal blijft mijlpaal', tag('Nul', 'Type'), 'Finish Milestone');
+const hammockXml = writeP6XML(project, calendar, [task('Hangmat', { isHammock: true })], [], [], []);
+eq('hammock: Level of Effort, en terug een hammock', [
+  /<Type>Level of Effort<\/Type>/.test(hammockXml), readP6XML(hammockXml).tasks.find(t => t.name === 'Hangmat')?.isHammock,
+], [true, true]);
+eq('de rekenopties staan in <ScheduleOptions>', /<ScheduleOptions>[\s\S]*<RelationshipLagCalendar>/.test(xml), true);
 
-// Openen: de melding over het OPS-profiel.
+// Openen: het project rekent als Primavera P6, zoals een XER; de melding over het OPS-profiel is weg (#775).
 const opened = await parseOpenedFile({ name: 'p.xml', text: xml }) as OpenedImport;
 const results: ImportResult[] = [activeImportResult(opened)];
-const own = withP6XmlProfileNotice(results, undefined, 'doc');
-eq('P6 XML openen: eigen melding met het OPS-profiel', [own?.messageKey, own?.params, own?.severity],
-  ['notifications.p6XmlOpensAsOps', { profile: 'Open Planner Studio' }, 'info']);
-const merged = withP6XmlProfileNotice(results, { severity: 'info', messageKey: 'notifications.p6xmlImportReport', detailLines: [] } as never, 'doc');
-eq('met een importverslag: een regel, geen tweede melding', [merged?.messageKey, merged?.detailLines?.map(l => l.messageKey)],
-  ['notifications.p6xmlImportReport', ['notifications.p6XmlOpensAsOps']]);
-eq('ander formaat: geen melding', withP6XmlProfileNotice([{ ...results[0], p6xmlReport: undefined }], undefined, 'doc'), undefined);
+eq('P6 XML openen: profiel Primavera P6', [results[0].suggestedProfileId, results[0].project.schedulingProfile?.id], ['p6', 'p6']);
+const own = withSchedulingProfileNotice(results, undefined, 'doc');
+eq('P6 XML openen: de profielmelding zoals bij XER', [own?.messageKey, own?.params, own?.severity],
+  ['notifications.schedulingProfileApplied', { profile: 'Primavera P6' }, 'info']);
 
 // De echte route: exportAs('p6') schrijft de XML en de melding. Heropenen bewijst dat de regel een echt verlies noemt.
 {

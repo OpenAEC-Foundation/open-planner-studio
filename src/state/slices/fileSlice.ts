@@ -53,7 +53,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
-import { withP6XmlProfileNotice, withSchedulingProfileNotice } from '../schedulingProfileNotice';
+import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
 import type { ImportLabelT } from '@/i18n/importLabels';
 import { parseableHourSuffix } from '@/utils/durationFormat';
@@ -1119,7 +1119,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           withSchedulingProfileNotice(
             results,
             xerImportNotice(results, datesAsRecordedShownTotal)
-              ?? withP6XmlProfileNotice(results, p6xmlImportNotice(results), openedDocumentIds[0] ?? '')
+              ?? p6xmlImportNotice(results)
               ?? msProjectImportNotice(results),
             openedDocumentIds[0] ?? '',
           ),

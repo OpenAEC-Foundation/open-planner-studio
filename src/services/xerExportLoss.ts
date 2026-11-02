@@ -65,10 +65,10 @@ interface ExportCapabilities {
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
   /** Schrijft de writer taaknotities? (De XER-writer wel; de afvinkstatus meldt hij zelf.) */
   readonly notes: boolean;
-  /** Schrijft de writer een hammock als hammock terug? (Alleen XER: `TT_LOE`.) */
+  /** Schrijft de writer een hammock als hammock terug? (XER: `TT_LOE`; P6 XML: `Level of Effort`, #775.) */
   readonly hammocks: boolean;
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
-   *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
+   *  CSV en MSPDI heropenen als OPS; P6 XML en XER als P6 (#775). */
   readonly reopenProfile: BuiltInProfileId;
 }
 
@@ -113,8 +113,8 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     constraints: 'activities',
     schedulingOptions: 'none',
     notes: false,
-    hammocks: false,
-    reopenProfile: 'ops',
+    hammocks: true,
+    reopenProfile: 'p6',
   },
   // De XER-writer (`xer/xerWriter.ts`) meldt zijn eigen verlies per soort; deze matrix telt alleen
   // voor de XER-broninformatie die geen writer terugschrijft (exacte bytes, onbekende tabellen, …).

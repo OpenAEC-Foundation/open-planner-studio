@@ -111,7 +111,6 @@
     "exportCriticalHoursLost": "Bij export naar MS Project XML gaat de kritiek-drempel in uren verloren: MS Project kent alleen een drempel in hele dagen.",
     "exportXerLoss": "De XER-export is opgeslagen. Dit ging niet of niet precies mee:",
     "exportP6XmlLoss": "De P6 XML-export is opgeslagen. Dit ging niet of niet precies mee:",
-    "p6XmlOpensAsOps": "Dit bestand rekent met het {{profile}}-profiel, niet met de instellingen van P6.",
     "projectStartAnchorsClamped_one": "{{count}} taak schoof mee met de projectstart.",
     "projectStartAnchorsClamped_other": "{{count}} taken schoven mee met de projectstart.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
@@ -1781,7 +1780,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "De app nam de WBS en de taken over, met relaties, constraints, kalenders, resources, toewijzingen, voortgang en de statusdatum. Een baselineproject wordt een baseline van het project waar het bij hoort.",
-        "limited": "Deadlines, activiteitcodes, eigen velden en aantekeningen komen niet mee. Het project rekent met het profiel Open Planner Studio, niet als Primavera P6.",
+        "limited": "Deadlines, activiteitcodes, eigen velden en aantekeningen komen niet mee. Het project rekent als Primavera P6, met de rekenopties uit het bestand.",
         "save": "Opslaan schrijft een nieuw IFC-bestand: je XML-bestand verandert niet. Terugschrijven kan met Exporteren › Primavera P6 XML."
       },
       "csv": {

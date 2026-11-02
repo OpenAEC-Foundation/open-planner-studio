@@ -125,6 +125,7 @@ The list below is a selection, grouped by topic. Where it does not say otherwise
 ### Primavera P6 XML
 
 - **P6 XML file opened** (info) — *P6 XML file opened: N project documents.* After opening a P6 XML file.
+- **Calculation profile applied** (info) — *This project calculates as Primavera P6. …* A P6 XML calculates as Primavera P6, as an `.xer` does. If the file has a report (several projects or a baseline), this line is at the top of that notification.
 - **Not imported** (stays) — *N relationships between projects were not imported as relationships.* and *N activities without a project were not read.* Check whether your schedule is complete.
 - **Empty or unusable** (error) — nothing opens. Three reasons: *This file contains no activities the app can read.*, *The activities have no ObjectId. …* and *The file uses XER column names … Open the .xer file itself.*
 

@@ -21,6 +21,8 @@ import {
 } from '@/services/xmlInterchange';
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
+import { p6XmlScheduleOptionFields } from './p6xmlScheduleOptions';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
 import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
@@ -32,6 +34,7 @@ import {
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
 import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { DEFAULT_WORK_RULE } from '@/types/workRule';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
 export const OPS_CUSTOM_TASK_TYPE_UDF_TITLE = 'OPS Custom Task Type';
@@ -141,6 +144,8 @@ function taskTypeToP6(task: Task): string {
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
   }
   if (isSummaryTask(task)) return 'WBS Summary';
+  // Een hammock is in P6 een Level of Effort, zoals `TT_LOE` in de XER; de lezer leest hem zo terug (#775).
+  if (task.isHammock) return 'Level of Effort';
   return 'Task Dependent';
 }
 
@@ -322,19 +327,6 @@ export function writeP6XMLWithReport(
   const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);
   if (extLinkCount > 0) {
     console.warn(`P6-export: ${extLinkCount} externe (cross-project) dependency(s) weggelaten — niet uitdrukbaar in P6-XML (§6).`);
-  }
-
-  // P6 kent native LOE-activity's, maar de exacte `task_type`-code is niet geverifieerd ⇒ niet
-  // gokken: een hammock exporteert als gewone taak met de berekende datums. Eén warn.
-  const hammockCount = tasks.filter(t => t.isHammock).length;
-  if (hammockCount > 0) {
-    console.warn(`P6-export: ${hammockCount} hammock/LOE-taak/-taken geëxporteerd als gewone taak met berekende datums — P6 native LOE-type UNVERIFIED, niet gegokt (§6).`);
-  }
-
-  // Native P6 SCHEDOPTIONS-velden zijn niet geverifieerd ⇒ niet geschreven; alleen een warn wanneer
-  // een niet-lege optieset verloren gaat (de volle set round-tript via IFC OPS_SchedulingOptions).
-  if (project.schedulingOptions && Object.keys(project.schedulingOptions).length > 0) {
-    console.warn('P6-export: scheduling-opties niet geëxporteerd — P6 SCHEDOPTIONS-mapping UNVERIFIED (aspiratie, §6).');
   }
 
   // Taakaantekeningen zijn in P6-XML niet uitdrukbaar ⇒ weggelaten (blijven in-app), met warn.
@@ -806,8 +798,16 @@ export function writeP6XMLWithReport(
   // de projectnaam in P6 juist een dragend, verplicht ingevuld veld is. Dezelfde neutrale,
   // taalonafhankelijke terugval als de bestandsnaam en de STEP-header.
   const projectIdentity = p6ProjectIdentity(project, projectCode);
+  // De rekenopties zoals de XER-schrijver ze in SCHEDOPTIONS zet (issue #775): de lezer leidt ze op dezelfde
+  // manier af als bij een XER. Wat P6 niet kent (nivellering, bijna-kritiek, een ander profiel), meldt de
+  // exportmelding (`p6XmlExportNotice.ts`).
+  const scheduleFields = p6XmlScheduleOptionFields(project, effectiveSchedulingOptions(project), calendar.hoursPerDay);
   top.push(node('Project', [
     ...leaf('ActivityDefaultCalendarObjectId', 1),
+    // De standaardduursoort van het project, zoals `PROJECT.def_duration_type` in de XER: een activiteit zonder
+    // eigen `<DurationType>` erft hem, en de P6-regels voor voltooide activiteiten lezen hem (issue #775).
+    ...leaf('ActivityDefaultDurationType', P6_DURATION_TYPE_NAME[project.defaultWorkRule ?? DEFAULT_WORK_RULE]),
+    ...scheduleFields.project.flatMap(([name, value]) => leaf(name, value)),
     // Data date — P6's peildatum. Alleen wanneer gezet (golden rule).
     ...(project.statusDate ? leaf('DataDate', toXmlDateTime(project.statusDate)) : []),
     ...leaf('Description', project.description),
@@ -825,6 +825,10 @@ export function writeP6XMLWithReport(
       ...leaf('TextValue', literalCalendarsJson([...writeView.literalCalendarIds].flatMap(id => calObjMap.get(id) ?? []))),
     ]),
     ...inProject,
+    node('ScheduleOptions', [
+      ...scheduleFields.schedule.flatMap(([name, value]) => leaf(name, value)),
+      ...leaf('ProjectObjectId', 1),
+    ]),
   ]));
 
   return renderP6XmlWithReport(

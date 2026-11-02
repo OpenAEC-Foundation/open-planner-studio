@@ -2,7 +2,7 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { P6XmlImportError } from './p6xmlErrors';
 import { p6ConstraintFromCodeOrLabel } from './p6ConstraintTypes';
 import { Task, TaskConstraint, ConstraintType } from '@/types/task';
-import type { P6CompletePctType, P6DurationType } from '@/types/task';
+import type { P6ActivityType, P6CompletePctType, P6DurationType } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { Sequence, SequenceType } from '@/types/sequence';
@@ -28,6 +28,8 @@ import { baselineTasksFromSource } from '@/services/importBaselines';
 import type { CustomTaskType } from '@/types/taskType';
 import type { TaskTimephasedContour } from '@/types/task';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { deriveP6XmlScheduleOptions, P6XML_PROFILE_ID } from './p6xmlScheduleOptions';
 import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine, seedScalarBands } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
@@ -106,6 +108,16 @@ const P6_XML_PERCENT_TYPE: Readonly<Record<string, P6CompletePctType>> = {
   // DURATION en SCOPE delen `getPercentageComplete`). Wij ook: de Duration-route hieronder, maar
   // eerst de eigen schemakolom `ScopePercentComplete` als die er staat.
   Scope: 'CP_Drtn',
+};
+
+/** PMXML `<Type>` ⇒ het XER-token (`TASK.task_type`), zodat de P6-regels in de motor dezelfde herkomst zien. */
+const P6_XML_ACTIVITY_TYPE: Readonly<Record<string, P6ActivityType>> = {
+  'Task Dependent': 'TT_Task',
+  'Resource Dependent': 'TT_Rsrc',
+  'Level of Effort': 'TT_LOE',
+  'Start Milestone': 'TT_Mile',
+  'Finish Milestone': 'TT_FinMile',
+  'WBS Summary': 'TT_WBS',
 };
 
 /** Een getal-element, of null als het ontbreekt of leeg/`xsi:nil` is (anders dan `getElementFloat`,
@@ -781,8 +793,28 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
 
   // Parse project
   const project = parseProject(scope.project, timeRule);
-  // De lagkalender (I7) staat in de project-UDF `OPS_LagCalendar`. Zonder die waarde rekent de lezer met
-  // de standaard (de voorganger); een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
+  // Rekenopties: dezelfde afleiding als een XER (issue #775), uit `<ScheduleOptions>` en de kritiekvelden van
+  // het project. Een P6 XML rekent daarmee als Primavera P6, net als een XER. Het projecteinde telt als
+  // bruikbaar zoals bij XER: een MustFinishByDate of minstens één geplande einddatum van een activiteit.
+  const scheduleOptionsEl = scopedElements(scope, 'ScheduleOptions')[0];
+  const derivedSchedule = deriveP6XmlScheduleOptions({
+    project: field => (scope.project ? getElementText(scope.project, field) : ''),
+    schedule: scheduleOptionsEl ? field => getElementText(scheduleOptionsEl, field) : null,
+  }, {
+    taskCount: activityElements.length,
+    hasUsableProjectEnd: !!project.endDate || activityElements.some(el => getElementText(el, 'PlannedFinishDate') !== ''),
+  });
+  project.progressMode = derivedSchedule.progressMode;
+  project.schedulingOptions = derivedSchedule.schedulingOptions;
+  project.schedulingProfile = builtInProfile(P6XML_PROFILE_ID);
+  // Herkomst van het project voor de activiteiten (`p6ProjectId`), en de standaardduursoort als een activiteit
+  // er zelf geen draagt (XER: `PROJECT.def_duration_type`).
+  const p6ProjectId = String(scope.projectObjectId ?? 1);
+  const inheritsDefaultDurationType = new Set<string>();
+  const projectDefaultDurationType = scope.project
+    ? p6DurationTypeFromXml(getElementText(scope.project, 'ActivityDefaultDurationType')) : undefined;
+  // De lagkalender (I7) staat ook in de project-UDF `OPS_LagCalendar` (eigen exports, ook die van vóór
+  // `<ScheduleOptions>`); die wint. Zonder beide geldt de P6-standaard (de voorganger). Een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
   // (`lagRecordHolds`; review #585 r1, punt 1).
   const lagCalendarUdfIds = new Set(scopedElements(scope, 'UDFType')
     .filter(el => getElementText(el, 'SubjectArea') === 'Project' && getElementText(el, 'DataType') === 'Text'
@@ -1124,6 +1156,11 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     const durationMinutes = measure.durationMinutes;
     const durationDays = measure.scheduleDuration;
     const isMilestone = p6Type.includes('Milestone');
+    // Leeg of onbekend ⇒ Task Dependent, zoals de XER-lezer bij een onbekend `task_type`.
+    const p6ActivityType: P6ActivityType = P6_XML_ACTIVITY_TYPE[p6Type.trim()] ?? 'TT_Task';
+    const completePctLabel = getElementText(actEl, 'PercentCompleteType').trim();
+    const completePctType = completePctLabel ? P6_XML_PERCENT_TYPE[completePctLabel] ?? 'CP_Drtn' : undefined;
+    const expectedFinish = parseTaskDate(getElementText(actEl, 'ExpectedFinishDate'));
     // P6 onderscheidt Start/Finish Milestone — bewaar de soort expliciet.
     const milestoneKind = !isMilestone ? undefined
       : p6Type.includes('Finish') ? 'FINISH' as const
@@ -1166,7 +1203,18 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       wbsCode: actId,
       taskType: customTaskType ? 'USERDEFINED' : 'CONSTRUCTION',
       ...(customTaskType ? { customTaskTypeId: customTaskType.id } : {}),
-      ...(p6DurationType ? { p6DurationType } : {}),
+      ...(p6DurationType ?? projectDefaultDurationType
+        ? { p6DurationType: p6DurationType ?? projectDefaultDurationType } : {}),
+      // P6-herkomst, zoals de XER-lezer hem zet (issue #775): de P6-regels in de motor gelden alleen voor een
+      // activiteit met deze velden (`verify:conventions`, herkomst-datagates). Het project en de activiteit
+      // heten hier naar hun ObjectId; het type, de voortgangssoort en het geplande venster komen uit de XML.
+      p6ActivityType,
+      p6ProjectId,
+      p6TaskId: String(objId),
+      ...(sourceStart !== undefined && sourceFinish !== undefined ? { p6ExplicitTargetWindow: true } : {}),
+      ...(completePctType ? { p6CompletePctType: completePctType } : {}),
+      ...(expectedFinish ? { p6ExpectedFinish: expectedFinish } : {}),
+      ...(p6ActivityType === 'TT_LOE' ? { isHammock: true } : {}),
       status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
       isMilestone,
       ...(milestoneKind ? { milestoneKind } : {}),
@@ -1201,6 +1249,7 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     };
 
     leafTasks.push(task);
+    if (!p6DurationType && projectDefaultDurationType) inheritsDefaultDurationType.add(id);
     const running = writtenByOps
       ? !actualFinish && (getElementText(actEl, 'Status').trim() === 'In Progress'
         || (remainingMinutes ?? 0) > 0 || (remainingTime ?? 0) > 0)
@@ -1223,6 +1272,12 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // Anker = projectstart uit het bestand, anders de vroegste aanwezige activiteitstart; finish uit
   // start + duur op de effectieve kalender (P6 levert elke kalender mee, dus eenduidig voor hele
   // werkdagen).
+  // Op een urenkalender houdt de projectstart zijn tijd, met de tijdregel van de taakdatums: zo leest de XER-lezer
+  // `PROJECT.plan_start_date` ook (issue #775). Zonder tijd bleef de start een dag, en kreeg een startmijlpaal
+  // op de projectstart een andere datum dan uit de XER van hetzelfde project.
+  if (projectStartRaw && hourModeCalIds.has(calendar.id)) {
+    project.startDate = xmlTaskDate(projectStartRaw, timeRule, true) ?? project.startDate;
+  }
   project.startDate = resolveMissingScheduleDates(tasks, missingDates, projectStartRaw ? project.startDate : '',
     (task) => resolveCalendar(task.calendarId, resourceCalendars, calendar));
 
@@ -1230,6 +1285,11 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   // blijft exact (B3), zoals de restminuten van een urentaak. Een lopende activiteit op 100 % blijft lopend.
   normalizeImportedProgress(tasks, project.statusDate, runningAtFullIds);
   deriveImportedWorkRules(tasks); // werkregel uit <DurationType>
+  // Een eigen export laat `<DurationType>` weg als de taak de projectstandaard erft; zo'n taak erft weer, net als
+  // bij de XER-lezer (`OPS_InheritedWorkRule`). Een bestand uit P6 houdt de regel van de projectstandaard.
+  if (writtenByOps) {
+    for (const task of leafTasks) if (inheritsDefaultDurationType.has(task.id)) delete task.workRule;
+  }
 
   // Parse relationships
   const relElements = scopedElements(scope, 'Relationship');
@@ -1258,6 +1318,8 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     }
     return records.get(lagKeyOf(relEl));
   };
+  const leafById = new Map(leafTasks.map(task => [task.id, task] as const));
+  const boundaryEngines = new Map<string, CalendarEngine>();
   for (const relEl of relElements) {
     const predObjId = getElementInt(relEl, 'PredecessorActivityObjectId', -1);
     const succObjId = getElementInt(relEl, 'SuccessorActivityObjectId', -1);
@@ -1289,7 +1351,22 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
       type: SEQUENCE_TYPE_BY_P6[p6Type] ?? 'FINISH_START',
       lagDays: 0,
     };
-    if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, lagCalendarOption, calendar, effCalByTaskId))) {
+    // Een FS zonder lag waarvan de geplande opvolgerstart precies op het geplande einde van de voorganger valt,
+    // aan het eind van een werkband: dezelfde P6-grensvlag als de XER-lezer zet.
+    const predTask = leafById.get(predId);
+    const succTask = leafById.get(succId);
+    if (predTask && succTask && seq.type === 'FINISH_START' && sixDecimalHoursToMinutes(lagHours) === 0) {
+      const predCalendar = effCalByTaskId.get(predId) ?? calendar;
+      let engine = boundaryEngines.get(predCalendar.id);
+      if (!engine) { engine = new CalendarEngine(calendarForEngine(predCalendar)); boundaryEngines.set(predCalendar.id, engine); }
+      const predFinish = parseInstant(predTask.time.scheduleFinish);
+      const finishMinute = predFinish.getUTCHours() * 60 + predFinish.getUTCMinutes();
+      if (engine.isHourMode && predFinish.getTime() === parseInstant(succTask.time.scheduleStart).getTime()
+        && engine.effectiveBandsOn(predFinish).some(band => band.end === finishMinute)) {
+        seq.p6StartAtPredecessorFinishBoundary = true;
+      }
+    }
+    if (lagRecordHolds(record, lagHours * 60, lagWorkMinutesPerDay(seq, project.schedulingOptions?.lagCalendar, calendar, effCalByTaskId))) {
       Object.assign(seq, lagFromRecord(record));
     } else {
       // Een echte breuk blijft (§3.10; review #591 r2): 150,5 min gaat als 2.5083333333333333 u en komt zo terug.
@@ -1444,9 +1521,8 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
     assignments,
     resourceCalendars,
     customTaskTypes: [...customTaskTypes.values()],
-    // Rekenprofielen: P6-XML opent als OPS — de lezer zet geen opties, en onder het P6-profiel zouden
-    // A12/A13/A16/A17/A20/B2 aangaan zonder orakel.
-    suggestedProfileId: 'ops',
+    // Rekenprofielen: P6 XML opent als Primavera P6, met de opties uit `<ScheduleOptions>`, net als een XER (#775).
+    suggestedProfileId: P6XML_PROFILE_ID,
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'p6xml' as const } : {}),
   };
   return { result, crossProjectRelations, activitiesRead: leafTasks.length };
