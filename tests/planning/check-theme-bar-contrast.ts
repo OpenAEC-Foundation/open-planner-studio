@@ -77,8 +77,9 @@ const DONE_MIN_CONTRAST = 3;
 // Elk thema met zijn eigen kaartkleur en de lat die daar geldt. Hoog contrast bestaat om de norm
 // te halen, dus daar 7:1 in plaats van de 3:1-ondergrens voor grafische objecten.
 const THEMAS: { selector: string; kaart: string; lat: number; moetZetten: boolean }[] = [
-  { selector: '[data-theme="high-contrast"]', kaart: '#0a0a0a', lat: 7, moetZetten: true },
-  { selector: '[data-theme="light"]', kaart: '#FAFAFA', lat: 3, moetZetten: false },
+  { selector: '[data-theme="high-contrast"] {', kaart: '#0a0a0a', lat: 7, moetZetten: true },
+  // De lichte kaart is --oa-panel uit de tokens 0.4 (wit).
+  { selector: '[data-oa-theme="light"] {', kaart: '#FFFFFF', lat: 3, moetZetten: false },
 ];
 
 for (const { selector, kaart, lat, moetZetten } of THEMAS) {
@@ -111,9 +112,10 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
   const pal = readGanttPalette();
   for (const base of [pal.critical, pal.normal]) {
     const grey = doneBarTones(base, true).fill;
-    const c = contrastRatio(rgbOf(grey), rgbOf('#2E3239'));
+    // De donkere kaart is --oa-frame uit de tokens 0.4.
+    const c = contrastRatio(rgbOf(grey), rgbOf('#2A2A32'));
     // Het donkere grijs is bewust ingetogen: het moet van de kaart loskomen, niet ermee wedijveren.
-    ok(`[data-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #2E3239`, c >= 1.5);
+    ok(`[data-oa-theme="dark"] grijs voltooid deel ${grey} haalt ${c.toFixed(2)} >= 1.5 op #2A2A32`, c >= 1.5);
   }
 }
 
@@ -123,8 +125,8 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
 // Uitzondering (#741): licht en donker zetten allebei de actieve baseline. Het lichte #1F2937 valt
 // op de donkere kaart weg, en het donkere blok geldt ook voor `:root`, dus licht moet het zijne zelf zetten.
 const MAG_ZETTEN: Record<string, readonly string[]> = {
-  '[data-theme="light"]': ['--theme-bar-baseline'],
-  '[data-theme="dark"]': ['--theme-bar-baseline'],
+  '[data-oa-theme="light"] {': ['--theme-bar-baseline'],
+  '[data-oa-theme="dark"] {': ['--theme-bar-baseline'],
 };
 for (const [selector, mag] of Object.entries(MAG_ZETTEN)) {
   const vars = themeBlock(selector);
@@ -147,12 +149,12 @@ const lStar = (hex: string): number => {
 };
 {
   const pal = readGanttPalette();
-  const donker = themeBlock('[data-theme="dark"]');
+  const donker = themeBlock('[data-oa-theme="dark"] {');
   // Het donkere blok is ook `:root`: wat licht niet zelf zet, erft het van donker. Lees dus de
   // waarde die in de browser echt geldt, niet alleen het eigen blok.
-  const lichtEigen = themeBlock('[data-theme="light"]');
+  const lichtEigen = themeBlock('[data-oa-theme="light"] {');
   const licht = (v: string): string | undefined => lichtEigen[v] ?? donker[v];
-  ok('donker blok is ook :root', /:root,\s*\[data-theme="dark"\]\s*\{/.test(css));
+  ok('donker blok is ook :root', /:root,\s*\[data-oa-theme="dark"\]\s*\{/.test(css));
   // Het lichte thema, de tekenlaag zonder CSS (headless) en de afdruk houden dezelfde tinten.
   const lichtSet = [licht('--theme-bar-baseline'), licht('--theme-bar-baseline-compare-2'), licht('--theme-bar-baseline-compare-1')];
   eq('licht actief = fallback', lichtSet[0], pal.baseline);
@@ -161,12 +163,13 @@ const lStar = (hex: string): number => {
   eq('afdruk actief = fallback', PRINT_PALETTE.baseline, pal.baseline);
   eq('afdruk vergelijking 1 = fallback', PRINT_PALETTE.baselineCompare1, pal.baselineCompare1);
   eq('afdruk vergelijking 2 = fallback', PRINT_PALETTE.baselineCompare2, pal.baselineCompare2);
-  const hoogEigen = themeBlock('[data-theme="high-contrast"]');
+  const hoogEigen = themeBlock('[data-theme="high-contrast"] {');
   const hoog = (v: string): string | undefined => hoogEigen[v] ?? donker[v];
   // [naam, kaart, actief, vergelijking 2, vergelijking 1]
   const sets: [string, string, string | undefined, string | undefined, string | undefined][] = [
-    ['licht', '#FAFAFA', ...lichtSet] as [string, string, string | undefined, string | undefined, string | undefined],
-    ['donker', '#2E3239', donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']],
+    // Kaarten uit de tokens 0.4: licht --oa-panel (wit), donker --oa-frame.
+    ['licht', '#FFFFFF', ...lichtSet] as [string, string, string | undefined, string | undefined, string | undefined],
+    ['donker', '#2A2A32', donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']],
     ['hoog contrast', '#0a0a0a', hoog('--theme-bar-baseline'), hoog('--theme-bar-baseline-compare-2'), hoog('--theme-bar-baseline-compare-1')],
   ];
   // Ethan 2026-11-02, check van #780: "helemaal wit is in het donkere thema gewoon te fel". De
