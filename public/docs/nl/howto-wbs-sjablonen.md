@@ -53,4 +53,4 @@ Een taak die in uren stond, komt als dagtaak terug, met haar duur omgerekend naa
 
 - [Structuur aanpassen](docs://howto-structuur-aanpassen): de ingevoegde tak verplaatsen of laten inspringen.
 - [Relaties leggen](docs://howto-relaties-leggen): relaties in een tak zelf aanmaken voordat je hem bewaart.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat er na Bereken met de ingevoegde tak gebeurt.
+- [Waarom een taak verschuift](docs://uitleg-verschuivingen): wat er na Bereken met de ingevoegde tak gebeurt.

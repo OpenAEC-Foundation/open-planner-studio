@@ -15,9 +15,13 @@ import { clearRecovery, loadRecovery } from '@/services/recovery/recoveryStore';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush, flushRecoveryNow } from '@/services/recovery/recoveryFlush';
+import { checkRecoveryUpdateFlush } from './recoveryUpdateChecks';
 
 const writes: string[] = [];
-installFakeRecoveryIndexedDb({ onPut: (_store, value) => {
+let writeError: Error | undefined;
+installFakeRecoveryIndexedDb({ onTransaction: mode => {
+  if (mode === 'readwrite' && writeError) throw writeError;
+}, onPut: (_store, value) => {
   const ifc = (value as { ifc?: string }).ifc;
   if (ifc) writes.push(ifc);
 } });
@@ -288,4 +292,5 @@ const rejected = Promise.all([assert.rejects(active, /gestopt/), assert.rejects(
 disposable.dispose();
 await rejected;
 assert.equal(disposedTransport.requests.length, 1);
+await checkRecoveryUpdateFlush(error => { writeError = error; });
 console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback en stopraces groen');

@@ -92,5 +92,5 @@ Open the PDF in your PDF reader and print it there. If you print an A3 PDF on an
 - [Creating and using a layout](docs://howto-layouts-gebruiken): first filter or group, then print with *Follow view*.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): the snapshot the Variance compares with.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do when Resource loading shows overloaded weeks.
-- [Critical path and float](docs://uitleg-kritiek-pad): why an activity is critical or near-critical.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): why an activity is critical or near-critical.
 - [Report types](docs://ref-rapporttypes): all report types and their options.

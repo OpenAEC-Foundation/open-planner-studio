@@ -4,7 +4,7 @@ Goal: record the schedule as an agreement (a baseline), so you can later see how
 
 ## When you need this
 
-You record a baseline when the schedule has been approved and the work still has to start. If the schedule is formally revised later, for example after a variation order, you save a second baseline and keep the first one. That way you measure the execution against the first agreement and against the revised one. What a baseline records exactly and how the app calculates the variance is explained in [Progress, status date and baseline](docs://uitleg-voortgang).
+You record a baseline when the schedule has been approved and the work still has to start. If the schedule is formally revised later, for example after a variation order, you save a second baseline and keep the first one. That way you measure the execution against the first agreement and against the revised one. What a baseline records exactly and how the app calculates the variance is explained in [Table columns](docs://ref-tabelkolommen).
 
 ## Steps
 
@@ -30,7 +30,7 @@ Next to the active baseline you can show two other baselines in the Gantt. That 
 2. Tick the baselines you want to see. The active baseline is at the top and is always on. You show up to 3 baselines at a time: the active one and two others.
 3. Click the arrow or outside the menu to close the menu.
 
-Each baseline has its own colour: the active one is grey, the second cyan and the third pink-purple. The status bar at the bottom shows a legend with the names. Under each task bar there is one strip. Where two or three baselines cover the same days, the strip has diagonal stripes in their colours. Where one baseline lies, the strip is plain. Milestones on the same date share one striped diamond. Point at the strip: the tooltip shows the name, the start and the finish of each baseline.
+Each baseline has its own colour: the active one is dark grey, the second cyan and the third purple. The colours also differ in lightness: the active one is the darkest and the second the lightest. So you can also tell them apart on a black-and-white print. In the dark theme the three colours are lighter, in the same order. The status bar at the bottom shows a legend with the names. Under each task bar there is one strip. Where one baseline lies, it fills the whole strip. Where two or three baselines cover the same days, they share the height: each baseline is its own line, from top to bottom the active one, the second and the third. Where an overlap starts or ends, a line gradually becomes thinner or thicker. Milestones on the same date share one striped diamond. Point at the strip: the tooltip shows the name, the start and the finish of each baseline.
 
 The choice belongs to the project: the app keeps it in the project file, and Ctrl+Z undoes a change. The report draws the same strip when *Show baseline overlay* is on.
 
@@ -70,7 +70,7 @@ Every baseline has six columns in the task table. Click the **+** at the right o
 
 ## See also
 
-- [Progress, status date and baseline](docs://uitleg-voortgang): what a baseline records and how the variance is calculated.
+- [Table columns](docs://ref-tabelkolommen): what a baseline records and how the variance is calculated.
 - [Moving a project](docs://howto-project-verplaatsen): the checkbox *Shift baselines too*.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering the actual state that you compare with the baseline.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): two baselines, shown together in the Gantt: *Contract* before the start (active) and *Re-plan after frost delay*, after frost delayed the foundations. With progress and a status date of 20 May 2027.

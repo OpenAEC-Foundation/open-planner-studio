@@ -1376,7 +1376,7 @@ button.task-grid-relation-reference {
        critical  #DC2626  4.63 / 2.67 / 4.10 / 4.83
        normal    #2563EB  4.95 / 2.49 / 3.83 / 5.17
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
-       baseline  #6B7280  4.63 / 2.66 / 4.10 / 4.83
+       baseline  #1F2937  14.06 / 1.14 / 1.35 / 14.68  (licht; donker en hoog contrast zetten een eigen tint)
      Die 3:1-eis is dus opgegeven op de donkere kaart; formeel is dat non-conform met WCAG 1.4.11 —
      bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten effen; alleen het voltooide
      deel wordt grijs (`doneBarTones` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
@@ -1392,7 +1392,7 @@ button.task-grid-relation-reference {
   --color-task-normal: #2563EB;
   --color-task-milestone: #7C3AED;
   --color-task-float: #10B981;
-  --color-task-baseline: #6B7280;
+  --color-task-baseline: #1F2937;
 }
 
 /* Dark theme — OpenAEC default
@@ -1436,9 +1436,15 @@ button.task-grid-relation-reference {
   /* Samenvattingsbalk, donker thema: lichtere leisteen (slate-400), 5,0:1 op de donkere kaart
      (#2E3239). Het merk-#475569 haalde daar maar 1,7 en viel samen met het grijs van voltooid werk. */
   --theme-bar-summary: #94A3B8;
-  /* Issue #391: vergelijkingsbaselines, donker thema: cyaan-400 en fuchsia-400, beide
-     ruim boven 3:1 op de donkere kaart (#2E3239) en duidelijk anders dan het grijs van de actieve. */
-  --theme-bar-baseline-compare-1: #22D3EE;
+  /* Issue #741, besluit Ethan 2026-11-02: de drie baselines verschillen ook in helderheid, in
+     dezelfde volgorde als in het lichte thema: actief donkerst, dan vergelijking 2, dan
+     vergelijking 1. Gemeten (CIELAB L*, op de donkere kaart #2E3239 met L* 21):
+       actief          #6B7280  L* 47.9  contrast 2.66 op de kaart
+       vergelijking 2  #E879F9  L* 67.8  contrast 5.23 (fuchsia-400)
+       vergelijking 1  #67E8F9  L* 85.7  contrast 8.88 (cyaan-300; was cyaan-400 #22D3EE, L* 77.9)
+     Het actieve grijs blijft het merkgrijs van vóór #741; het lichte #1F2937 verdwijnt hier op de kaart. */
+  --theme-bar-baseline: #6B7280;
+  --theme-bar-baseline-compare-1: #67E8F9;
   --theme-bar-baseline-compare-2: #E879F9;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1533,9 +1539,14 @@ button.task-grid-relation-reference {
   --theme-grid-milestone-text: #6D28D9;
   /* Spelingband, licht thema: donkerder groen dan --color-task-float, 3,61:1 op de lichte kaart. */
   --theme-bar-float: #059669;
-  /* Issue #391: vergelijkingsbaselines, licht thema: cyaan-600 en fuchsia-600 (>=3:1 op de kaart). */
+  /* Issue #391/#741: vergelijkingsbaselines, licht thema. Besluit Ethan 2026-11-02: drie
+     helderheidsstappen, actief #1F2937 (BRAND, L* 16.3), vergelijking 2 fuchsia-700 #A21CAF
+     (L* 40.6, 6.06:1), vergelijking 1 cyaan-600 #0891B2 (L* 55.6, 3.53:1 op de kaart).
+     De actieve staat hier expliciet: `:root` hoort bij het donkere blok, dus zonder deze regel
+     erft het lichte thema het donkere #6B7280. */
+  --theme-bar-baseline: #1F2937;
   --theme-bar-baseline-compare-1: #0891B2;
-  --theme-bar-baseline-compare-2: #C026D3;
+  --theme-bar-baseline-compare-2: #A21CAF;
   --theme-critical-text: #C81E1E; /* 5.5:1 op de kaart, 4.6:1 op de werkruimte */
   --theme-input-bg: #FFFFFF;
   --theme-dropdown-bg: #FFFFFF;

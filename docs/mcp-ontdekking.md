@@ -6,6 +6,11 @@ de app draait). De typen, de bestandsnamen en de leesregels staan in code in
 `src/services/mcp/discoveryContract.ts`; dat bestand importeert niets en mag door de plugin gebundeld worden.
 Een wijziging daar is een contractwijziging.
 
+Sinds issue #730 zijn er twee lezers. De Claude Desktop-bundel leest `runtime.json` om per aanvraag te kiezen
+tussen de app en de stand zonder app (`integrations/claude-desktop/src/discovery.ts`, uitleg in
+[MCP-verificatie](mcp-verificatie.md)). De headless MCP-server leest `open-files*.json` vóór elke schrijfactie
+(`headless/mcp-server/src/appLock.ts`, uitleg in [Headless MCP-server](headless-mcp.md)).
+
 ## Waarom
 
 De plugin kiest per aanvraag tussen twee standen:
@@ -14,7 +19,7 @@ De plugin kiest per aanvraag tussen twee standen:
 |---|---|
 | App niet geïnstalleerd, of geïnstalleerd en uit | Werkt zelf op IFC-bestanden |
 | App aan, MCP-koppeling aan (bridge draait) | Stuurt alles door naar de bridge van de app |
-| App aan, MCP-koppeling uit | Werkt zelf op bestanden, maar weigert elk bestand dat open staat in de app |
+| App aan, MCP-koppeling uit | Werkt zelf op bestanden, maar weigert elk bestand dat open staat in de app (de headless server van #730 vervangt dan geen enkel bestaand bestand: het register loopt achter op de app) |
 
 Daarvoor moet de plugin weten of de bridge draait (poort en token), en welke bestanden open staan.
 
@@ -29,10 +34,15 @@ Beide bestanden staan in de map `mcp/` in de `appDataDir` van de app (identifier
 | macOS | `~/Library/Application Support/org.openaec.planner/mcp/` |
 | Windows | `%APPDATA%\org.openaec.planner\mcp\` (Roaming) |
 
+De mappen staan ook in code: `mcpDiscoveryDirs` in `discoveryContract.ts` (`MCP_APP_IDENTIFIER` is de identifier
+uit `tauri.conf.json`; een test bewaakt dat). `XDG_DATA_HOME` telt alleen als absoluut pad. De omgevingsvariabele
+`OPS_MCP_DISCOVERY_DIR` vervangt de mappen door één map, voor tests en dev-builds.
+
 Een productiebuild gebruikt de namen `runtime.json` en `open-files.json`. Een dev-instantie (`npm run tauri:dev`,
 worktree-slug in `OPS_DEV_INSTANCE`) schrijft `runtime.<slug>.json` en `open-files.<slug>.json`, zodat twee
-dev-builds elkaars bestanden niet overschrijven. Een plugin voor gebruikers leest alleen de canonieke namen. Wie
-ook dev-builds wil beschermen, leest voor de weigerregel elk `open-files*.json` in de map.
+dev-builds elkaars bestanden niet overschrijven. Een plugin voor gebruikers leest alleen de canonieke naam
+`runtime.json` (de bundel leest `runtime.<slug>.json` alleen met `OPS_MCP_DEV_INSTANCE`). Voor de weigerregel leest
+de headless server elk `open-files*.json` in de map, dus ook die van dev-builds.
 
 ## `runtime.json`
 
@@ -100,10 +110,14 @@ een terugval: twee harde links naar hetzelfde bestand hebben elk een eigen `real
 
 **Onzekere identiteit ⇒ weigeren.** Mislukt `realpath` of `stat` (voor het doel of voor een pad uit `files`) om
 een andere reden dan "bestaat aantoonbaar niet", dan weigert de plugin de schrijvende aanvraag. Alleen een pad dat
-aantoonbaar niet bestaat (`ENOENT` op dat pad zelf, terwijl de oudermap wel bestaat en `realpath` van die map
-lukt) mag apart behandeld worden: zo'n pad is geen bestaand bestand, dus het deelt met geen ander bestand een
-identiteit. Bestaan het doel en een pad uit `files` allebei aantoonbaar niet (een open document waarvan het bestand
-weg is), dan weigert de plugin als `realpath` van de oudermap plus de naam bij beide gelijk is.
+aantoonbaar niet bestaat (`ENOENT`, en `realpath` van de diepste bovenmap die wel bestaat lukt) mag apart behandeld
+worden: zo'n pad is geen bestaand bestand, dus het deelt met geen ander bestand een identiteit. Bestaan het doel en
+een pad uit `files` allebei aantoonbaar niet (een open document waarvan het bestand weg is), dan weigert de plugin
+als `realpath` van die diepste bestaande bovenmap plus de rest van het pad bij beide gelijk is. De diepste bovenmap,
+niet alleen de oudermap: de headless server maakt bij opslaan ontbrekende mappen aan, en met alleen de oudermap zou
+elk opslaan in een nieuwe submap geweigerd worden zolang de app draait (#730). Een relatief pad in `files` is
+onzeker en geeft dus een weigering; op macOS en Windows vergelijkt de headless server zo'n sleutel zonder onderscheid
+in hoofdletters.
 
 ## Invariant voor elke toekomstige `formatVersion`
 
@@ -179,4 +193,7 @@ bestandsnaam veranderen.
 - `tests/mcp/realApp/run-real-app.ts` (`.github/workflows/mcp-real-app.yml`, Linux): de echte app schrijft
   `runtime.json` met de juiste poort, het juiste token, een levend pid en rechten `0600`; het register bestaat;
   na Stop is `runtime.json` weg en blijft het register staan.
+- `tests/mcp/cases-discovery.ts` toetst ook `mcpDiscoveryDirs` per besturingssysteem en de identifier.
+- `tests/mcp/cases-mcpb.ts` (bundel) en `tests/mcp/cases-headless-server.ts` (slot) toetsen de lezers met
+  bestanden in een tijdelijke map (`OPS_MCP_DISCOVERY_DIR`): geldig, achtergebleven (dood pid), onbruikbaar.
 - Niet getoetst: de ACL op Windows, de paden op macOS en Windows, en de Snap-map.

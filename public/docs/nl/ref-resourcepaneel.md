@@ -36,7 +36,7 @@ Zonder resources staat er *Nog geen resources. Voeg er een toe om te beginnen.* 
 
 ### Resources uit de bibliotheek
 
-Een resource die uit de bibliotheek komt, heeft een bibliotheek-icoontje (*Uit de bibliotheek*). Haar *Naam*, *Type*, *Tarief/uur* en *Eenheid* zijn dan platte tekst (*Bibliotheekwaarde — bewerk in de Bibliotheekweergave, of maak deze resource los van de bibliotheek.*), want de bibliotheek bepaalt wat de resource is. *Kleur*, *Max. eenheden*, de capaciteitsstappen, *Kalender* en *Ploeg* blijven te bewerken, want het project bepaalt hoeveel en wanneer. Twee badges kunnen erbij staan: *wijkt af — beslis* (een klik opent het venster *Resourcebibliotheek koppelen*) en *niet meer in de bibliotheek*, met de knop *Verwijder uit project*.
+Een resource die uit de bibliotheek komt, heeft een bibliotheek-icoontje (*Uit de bibliotheek*). Haar *Naam*, *Type*, *Tarief/uur* en *Eenheid* zijn dan platte tekst (*Bibliotheekwaarde — bewerk in de Bibliotheekweergave, of maak deze resource los van de bibliotheek.*), want de bibliotheek bepaalt wat de resource is. *Kleur*, *Max. eenheden*, de capaciteitsstappen, *Kalender* en *Ploeg* blijven te bewerken, want het project bepaalt hoeveel en wanneer. Wijzig je die velden in het project, dan telt dat niet als afwijking van de bibliotheek. De inhoud van een kalender die met de resource is meegekomen, volgt wel de bibliotheek. Twee badges kunnen erbij staan: *wijkt af — beslis* (een klik opent het venster *Resourcebibliotheek koppelen*) en *niet meer in de bibliotheek*, met de knop *Verwijder uit project*.
 
 ## De weergave Bibliotheek
 
@@ -83,4 +83,4 @@ Waar je het ziet:
 - **Histogram** — de rode delen van de staven en het rode bolletje in de kiezer.
 - **Dock** — het driehoekje *Overbelast*.
 
-Nivelleren kan overbezetting oplossen door taken later te laten beginnen. Standaard mag de einddatum van het project daarbij opschuiven; met *smoothing* blijft het binnen de speling. Nivelleren lost een resource niet op die op een vrije dag moet werken. Zie [Nivelleren](docs://uitleg-nivelleren).
+Nivelleren kan overbezetting oplossen door taken later te laten beginnen. Standaard mag de einddatum van het project daarbij opschuiven; met *smoothing* blijft het binnen de speling. Nivelleren lost een resource niet op die op een vrije dag moet werken. Zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).

@@ -4,7 +4,7 @@ Goal: put the progress that site staff fill in on a spreadsheet into the schedul
 
 ## When you need this
 
-A subcontractor or site manager does not have the app, but reports his state every week: how many percent done, when started, when finished. You send him a sheet with your tasks, he fills in three columns and sends it back. From that the app reads only three values per task: completion, actual start and actual finish. The rest of your schedule is left alone. What the app does with that progress is explained in [Progress, status date and baseline](docs://uitleg-voortgang).
+A subcontractor or site manager does not have the app, but reports his state every week: how many percent done, when started, when finished. You send him a sheet with your tasks, he fills in three columns and sends it back. From that the app reads only three values per task: completion, actual start and actual finish. The rest of your schedule is left alone.
 
 ## Steps
 
@@ -97,5 +97,4 @@ If the whole file is refused, one of these messages appears in the window: *This
 
 ## See also
 
-- [Progress, status date and baseline](docs://uitleg-voortgang): what the app calculates with actual dates and percentages.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering progress in the app itself.

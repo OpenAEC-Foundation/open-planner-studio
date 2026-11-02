@@ -4,7 +4,7 @@ Doel: de planning vastleggen als afspraak (een baseline), zodat je later kunt zi
 
 ## Wanneer je dit nodig hebt
 
-Je legt een baseline vast als de planning is goedgekeurd en het werk nog moet beginnen. Wordt de planning later formeel herzien, bijvoorbeeld na een meerwerkopdracht, dan sla je een tweede baseline op en houd je de eerste erbij. Zo meet je de uitvoering aan de eerste afspraak en aan de herziene. Wat een baseline precies vastlegt en hoe de app de afwijking rekent, lees je in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+Je legt een baseline vast als de planning is goedgekeurd en het werk nog moet beginnen. Wordt de planning later formeel herzien, bijvoorbeeld na een meerwerkopdracht, dan sla je een tweede baseline op en houd je de eerste erbij. Zo meet je de uitvoering aan de eerste afspraak en aan de herziene. Wat een baseline precies vastlegt en hoe de app de afwijking rekent, lees je in [Tabelkolommen](docs://ref-tabelkolommen).
 
 ## Stappen
 
@@ -30,7 +30,7 @@ Naast de actieve baseline kun je nog twee andere baselines in de Gantt tonen. Zo
 2. Vink de baselines aan die je wilt zien. De actieve baseline staat bovenaan en is altijd aan. Je toont maximaal 3 baselines tegelijk: de actieve en twee andere.
 3. Klik op het pijltje of buiten het menu om het menu te sluiten.
 
-Elke baseline heeft een eigen kleur: de actieve is grijs, de tweede cyaan en de derde roze-paars. De statusbalk onderaan toont een legenda met de namen. Onder elke taakbalk staat één strook. Waar twee of drie baselines dezelfde dagen beslaan, heeft de strook schuine strepen in hun kleuren. Waar één baseline ligt, is de strook effen. Mijlpalen op dezelfde datum delen één gestreept ruitje. Wijs de strook aan: de tooltip toont per baseline de naam, de start en het einde.
+Elke baseline heeft een eigen kleur: de actieve is donkergrijs, de tweede cyaan en de derde paars. De kleuren verschillen ook in helderheid: de actieve is het donkerst en de tweede het lichtst. Zo zijn ze ook op een zwart-witafdruk te onderscheiden. In het donkere thema zijn de drie kleuren lichter, in dezelfde volgorde. De statusbalk onderaan toont een legenda met de namen. Onder elke taakbalk staat één strook. Waar één baseline ligt, vult die de hele strook. Waar twee of drie baselines dezelfde dagen beslaan, delen ze de hoogte: elke baseline is een eigen lijn, van boven naar beneden de actieve, de tweede en de derde. Waar een overlap begint of eindigt, wordt een lijn geleidelijk dunner of dikker. Mijlpalen op dezelfde datum delen één gestreept ruitje. Wijs de strook aan: de tooltip toont per baseline de naam, de start en het einde.
 
 De keuze hoort bij het project: de app bewaart hem in het projectbestand, en Ctrl+Z maakt een wijziging ongedaan. Het rapport tekent dezelfde strook als *Baseline-overlay tonen* aan staat.
 
@@ -70,7 +70,7 @@ Elke baseline heeft zes kolommen in de takentabel. Klik op de **+** rechts in de
 
 ## Zie ook
 
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat een baseline vastlegt en hoe de afwijking wordt berekend.
+- [Tabelkolommen](docs://ref-tabelkolommen): wat een baseline vastlegt en hoe de afwijking wordt berekend.
 - [Project verplaatsen](docs://howto-project-verplaatsen): het vakje *Baselines mee verschuiven*.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de werkelijke stand invullen die je met de baseline vergelijkt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): twee baselines, samen in de Gantt: *Contract* vóór de start (actief) en *Re-plan after frost delay*, na vorstverlet op de fundering. Met voortgang en een statusdatum op 20 mei 2027.

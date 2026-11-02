@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} tidsfrist(er) oversittet",
     "violatedConstraints": "{{count}} begrensning(er) brutt",
     "outOfSequence": "{{count}} avhengighet(er) utenfor rekkefølge",
-    "overallocated": "{{count}} ressurs(er) med overallokering"
+    "overallocated": "{{count}} ressurs(er) med overallokering",
+    "summary_one": "{{count}} advarsel",
+    "summary_other": "{{count}} advarsler"
   },
   "warnings": {
     "title": "Advarsler",

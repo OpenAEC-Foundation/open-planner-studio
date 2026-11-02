@@ -111,7 +111,6 @@
     "exportCriticalHoursLost": "Bij export naar MS Project XML gaat de kritiek-drempel in uren verloren: MS Project kent alleen een drempel in hele dagen.",
     "exportXerLoss": "De XER-export is opgeslagen. Dit ging niet of niet precies mee:",
     "exportP6XmlLoss": "De P6 XML-export is opgeslagen. Dit ging niet of niet precies mee:",
-    "p6XmlOpensAsOps": "Dit bestand rekent met het {{profile}}-profiel, niet met de instellingen van P6.",
     "projectStartAnchorsClamped_one": "{{count}} taak schoof mee met de projectstart.",
     "projectStartAnchorsClamped_other": "{{count}} taken schoven mee met de projectstart.",
     "mppTimephasedSteeringLost_one": "Het datumvenster uit MS Project stuurt {{count}} taak niet meer na deze bewerking; de urenverdeling zelf blijft gelden en in het bestand bewaard.",
@@ -318,7 +317,6 @@
       "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer krijgen een P6-type: het eigen type valt weg",
       "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
-      "defaultWorkRule": "De projectstandaard voor het taaktype: taken zonder eigen regel krijgen de P6-standaard",
       "projectDetails": "Auteur en bedrijf van het project"
     }
   },
@@ -327,7 +325,9 @@
     "noWorkingDays": "De kalender heeft geen werkdagen ingesteld",
     "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
     "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
-    "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "hourTaskWithoutWorkHours": "De kalender van urentaak '{{task}}' heeft geen geldige werktijden. Controleer in die kalender de werkdagen, het begin, het einde en de pauze.",
+    "taskWithoutWorkHours": "De kalender van taak '{{task}}' heeft geen geldige werktijden. Controleer in die kalender de werkdagen, het begin, het einde en de pauze.",
+    "noWorkingHours": "De projectkalender heeft geen geldige werktijden. Controleer in die kalender het begin, het einde en de pauze.",
     "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
   },
   "yes": "Ja",
@@ -751,7 +751,9 @@
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
     "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
-    "overallocated": "{{count}} resource(s) overbezet"
+    "overallocated": "{{count}} resource(s) overbezet",
+    "summary_one": "{{count}} waarschuwing",
+    "summary_other": "{{count}} waarschuwingen"
   },
   "warnings": {
     "title": "Waarschuwingen",
@@ -1779,7 +1781,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "De app nam de WBS en de taken over, met relaties, constraints, kalenders, resources, toewijzingen, voortgang en de statusdatum. Een baselineproject wordt een baseline van het project waar het bij hoort.",
-        "limited": "Deadlines, activiteitcodes, eigen velden en aantekeningen komen niet mee. Het project rekent met het profiel Open Planner Studio, niet als Primavera P6.",
+        "limited": "Deadlines, activiteitcodes, eigen velden en aantekeningen komen niet mee. Het project rekent als Primavera P6, met de rekenopties uit het bestand.",
         "save": "Opslaan schrijft een nieuw IFC-bestand: je XML-bestand verandert niet. Terugschrijven kan met Exporteren › Primavera P6 XML."
       },
       "csv": {

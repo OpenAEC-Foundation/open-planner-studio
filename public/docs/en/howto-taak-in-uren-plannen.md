@@ -37,10 +37,12 @@ New tasks get the chosen measure. The same choice is available when creating a p
 
 **Fixed work.** A task with the task type *Fixed work* always uses the hour measure. If you set a task of 3 d to *Fixed work*, it becomes 24 h: 3 × the working time per day. The finish can therefore move, as with a duration change. In the table you cannot set such a task back to days.
 
+**A day task after an hour task.** A successor with a Finish-Start relation begins the moment the predecessor is finished, even in the middle of a day. On the standard calendar (07:00 to 16:00): if an hour task finishes on Tuesday at 11:00, a day task of 2 days also begins on Tuesday at 11:00 and finishes on Thursday at 11:00. A day task that ends on a whole day is finished at the end of the working time, for example Tuesday 16:00. An hour task after it begins at the next working moment: Wednesday 07:00.
+
 **Duration display in OPS.** This setting is disabled: each task shows its own unit. In the P6 and MSP profiles the choice remains available.
 
 ## See also
 
-- [Days and hours](docs://uitleg-dagen-en-uren): the two units.
+- [Task dialog and properties panel](docs://ref-taak-eigenschappen): the fields *Duration* and *Duration unit*.
 - [Set working times](docs://howto-werktijden-instellen): the calendar.
 - [App settings](docs://ref-instellingen): display and quarter-hour zoom.

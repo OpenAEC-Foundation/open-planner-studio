@@ -79,7 +79,7 @@ De groep heeft de knop *Relatie ▾* met vier acties en de knop *Taak splitsen* 
 - **Externe relatie toevoegen…** — opent een venster om een externe voorganger of opvolger aan de geselecteerde taak toe te voegen. Alleen beschikbaar bij precies één geselecteerde taak (anders *Selecteer precies één taak*).
 - **Alle externe relaties vernieuwen** — ververst de ankers van alle externe relaties en meldt in het menu hoeveel er zijn bijgewerkt of ontbreken. Alleen beschikbaar als het project externe relaties heeft (anders *Dit project bevat geen externe relaties*).
 
-Voor het waarom van relaties zie [Relaties leggen](docs://howto-relaties-leggen) en [Relaties en lag](docs://uitleg-relaties).
+Hoe de app met relaties rekent, staat in [Relaties leggen](docs://howto-relaties-leggen).
 
 ### Planning › Pad traceren
 
@@ -104,7 +104,7 @@ Je kunt beide tegelijk aan hebben; een tweede klik op een knop zet die kant weer
 ### Planning › Baselines & voortgang
 
 - **Baselines beheren…** — opent het baselinevenster. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
-- **Statusdatum** — de datum tot waar je de voortgang meet. Typ een datum; het kruisje (*Statusdatum leegmaken*) wist hem. Heeft de projectkalender werktijdblokken, dan rekent de app in uren en staat naast de datum ook een tijdveld (MS Project bewaart vaak 17:00). De tijd telt dan mee: 12:00 in plaats van 17:00 geeft een halve dag ander restwerk. Zonder werktijdblokken rekent de app in hele dagen en is er geen tijdveld. Effect: voortgang wordt tot die datum gemeten, en de statusdatumlijn en voortgangslijn in de Gantt staan erop. Zie [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+- **Statusdatum** — de datum tot waar je de voortgang meet. Typ een datum; het kruisje (*Statusdatum leegmaken*) wist hem. Heeft de projectkalender werktijdblokken, dan rekent de app in uren en staat naast de datum ook een tijdveld (MS Project bewaart vaak 17:00). De tijd telt dan mee: 12:00 in plaats van 17:00 geeft een halve dag ander restwerk. Zonder werktijdblokken rekent de app in hele dagen en is er geen tijdveld. Effect: voortgang wordt tot die datum gemeten, en de statusdatumlijn en voortgangslijn in de Gantt staan erop. Zie [Voortgang bijwerken](docs://howto-voortgang-bijwerken).
 - **Voortgangsmodus** — keuze tussen *Retained Logic* en *Progress Override*. Standaard: *Retained Logic*. Effect: bij *Retained Logic* volgt het restwerk van een gestarte opvolger de relatie; bij *Progress Override* begint het restwerk op de statusdatum, zonder op de voorganger te wachten. Zie [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen).
 
 In het ingeklapte lint staan deze drie achter één vlaggetjesknop met de titel *Baselines & voortgang*.
@@ -135,7 +135,7 @@ Deze groep staat ook op *Tabel* en *Rapport*.
 
 ### Resources › Nivellering
 
-- **Nivelleren…** — opent het venster *Resources nivelleren*. Zie [Nivelleren](docs://uitleg-nivelleren).
+- **Nivelleren…** — opent het venster *Resources nivelleren*. Zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 - **Nivellering wissen** — zet de door nivelleren aangebrachte vertragingen en pauzes terug. Uitgeschakeld als geen enkele taak nivelleeruitkomst heeft.
 
 ### Resources › Overallocatie
@@ -189,7 +189,7 @@ De knoppen *Resources*, *Resourcedock* en *Histogram* zijn dezelfde als op *Reso
 
 Deze groep heeft dezelfde naam als die op *Planning*, maar bevat de tekenopties van de Gantt voor baselines en voortgang.
 
-- **Baseline-overlay** — een grote knop in twee delen. Het bovenste deel toont of verbergt de actieve baseline als smalle strook onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien. Het pijltje ▾ eronder opent het menu *Toon in de Gantt*: vink daar tot twee extra baselines aan. Waar baselines dezelfde dagen beslaan, heeft de strook schuine strepen in hun kleuren. De keuze hoort bij het project. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
+- **Baseline-overlay** — een grote knop in twee delen. Het bovenste deel toont of verbergt de actieve baseline als smalle strook onder elke taakbalk. Standaard: aan. Zonder actieve baseline is er niets te zien. Het pijltje ▾ eronder opent het menu *Toon in de Gantt*: vink daar tot twee extra baselines aan. Waar baselines dezelfde dagen beslaan, delen ze de hoogte van de strook: elke baseline is een eigen lijn. De keuze hoort bij het project. Zie [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren).
 - **Voortgangslijn** — tekent een lijn op de statusdatum die per taak uitsteekt naar de voortgang. Standaard: aan. Zonder statusdatum is er niets te zien. Staat de voortgangslijn aan, dan is die lijn ook de markering van de statusdatum.
 - **Statusdatumlijn** — tekent een gestippelde lijn op de statusdatum. Standaard: aan. Je ziet hem alleen als de voortgangslijn uit staat, want anders neemt die lijn zijn plaats in. Het label met de datum in de kop blijft wel staan zolang minstens één van de twee aan is. Het label volgt je datumnotatie, bijvoorbeeld 20-09-2006. Rekent de app in uren, dan staan lijn en label op het tijdstip en toont het label ook de tijd, bijvoorbeeld 20-09-2006 17:00.
 ### Beeld › Balken

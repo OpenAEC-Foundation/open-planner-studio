@@ -10,7 +10,6 @@ import {
 } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
-import { readP6XMLDocuments } from '@/services/p6/p6xmlReader';
 import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { extensionOf } from '@/utils/filePath';
@@ -105,9 +104,14 @@ export class UnknownScheduleXmlError extends Error {
  *  van het root-element (`detectXmlFlavor`). Gooit bij een onbekend formaat i.p.v. stil als MSPDI
  *  te parsen. Niet geëxporteerd: geen afnemer buiten deze module — de enige
  *  aanroeper is de xml-entry hieronder. */
-function parseProjectXml(content: string): OpenedImport {
+async function parseProjectXml(content: string): Promise<OpenedImport> {
   const flavor = detectXmlFlavor(content);
-  if (flavor === 'p6') return readP6XMLDocuments(content);
+  if (flavor === 'p6') {
+    // Dynamic import: de P6 XML-lezer leidt de rekenopties af met de XER-code (#775), en die blijft buiten
+    // de main chunk.
+    const { readP6XMLDocuments } = await import('@/services/p6/p6xmlReader');
+    return readP6XMLDocuments(content);
+  }
   if (flavor === 'mspdi') return readMSPDI(content);
   throw new UnknownScheduleXmlError();
 }

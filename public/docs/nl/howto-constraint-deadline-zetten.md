@@ -4,7 +4,7 @@ Doel: een datumafspraak op een taak vastleggen, zodat de planning er rekening me
 
 ## Wanneer je dit nodig hebt
 
-De stenen worden pas op 21 juni geleverd, dus het metselwerk mag niet eerder beginnen: een **constraint** *Start niet eerder dan*. Het dak moet dicht zijn voor de bouwvak, en je wilt gewaarschuwd worden als dat niet lukt: een **deadline**. De stort staat vast op een dag omdat de betoncentrale hem toegezegd heeft: *Moet starten op*. Welk type wanneer past en wat de app ermee rekent, staat in [Constraints en deadlines](docs://uitleg-constraints).
+De stenen worden pas op 21 juni geleverd, dus het metselwerk mag niet eerder beginnen: een **constraint** *Start niet eerder dan*. Het dak moet dicht zijn voor de bouwvak, en je wilt gewaarschuwd worden als dat niet lukt: een **deadline**. De stort staat vast op een dag omdat de betoncentrale hem toegezegd heeft: *Moet starten op*. Wat elk type in de berekening doet, staat in [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
 
 ## Stappen
 
@@ -52,9 +52,9 @@ Kies bij *Constraint* weer *Zo vroeg mogelijk (ASAP)*. Dat haalt ook de secundai
 
 ## Zie ook
 
-- [Constraints en deadlines](docs://uitleg-constraints): wat elk type doet, en de uitleg bij harde pin, negatieve speling en deadline.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat negatieve speling met het kritieke pad doet.
-- [Relaties en lag](docs://uitleg-relaties): de relaties waar een constraint naast staat.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): wat elk type doet, en de uitleg bij harde pin, negatieve speling en deadline.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): wat negatieve speling met het kritieke pad doet.
+- [Relaties leggen](docs://howto-relaties-leggen): de relaties waar een constraint naast staat.
 - [Meldingen en waarschuwingen](docs://ref-meldingen): de waarschuwingen bij een overschreden constraint of deadline.
 - [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): een vergunningsconstraint *Start niet eerder dan* op *Demolish existing extension* (14 mei 2027) en een deadline die ruim gehaald wordt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): een bewust te krappe deadline op *Contractual project handover* (15 juli 2027): na het doorrekenen staat het einde op 17 augustus en hebben veel taken negatieve speling.

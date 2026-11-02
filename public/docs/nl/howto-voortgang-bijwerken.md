@@ -4,7 +4,7 @@ Doel: de werkelijke stand van het werk in de planning zetten en de planning opni
 
 ## Wanneer je dit nodig hebt
 
-Je werkt de voortgang bij op vaste momenten, bijvoorbeeld elke vrijdag als de uitvoerder de stand doorgeeft. Zo ziet de planning wat er werkelijk gebeurd is en rekent zij het restwerk vanaf de statusdatum door. Waarom de app dat zo doet, lees je in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+Je werkt de voortgang bij op vaste momenten, bijvoorbeeld elke vrijdag als de uitvoerder de stand doorgeeft. Zo ziet de planning wat er werkelijk gebeurd is en rekent zij het restwerk vanaf de statusdatum door.
 
 ## Stappen
 
@@ -31,7 +31,7 @@ Kies de manier die bij je situatie past. Ze maken hetzelfde resultaat.
 2. Sleep de schuif *Voortgang (%)* naar het percentage dat klaar is.
 3. Vul zo nodig *Werkelijke start* en *Werkelijk einde* in, op dezelfde manier als de statusdatum. Het veld *Resterend* rekent de app zelf uit; je kunt het hier niet wijzigen.
 
-Bij een mijlpaal staat er één veld, *Werkelijke datum*. Typ je bij een mijlpaal alleen een datum, hier of in de tabel, dan houdt hij de tijd die hij in de planning had. Voorbeeld: *Oplevering* staat gepland op maandag 16:00 en je typt woensdag; dan wordt het woensdag 16:00. Stond de mijlpaal op het begin of einde van de werkdag, dan komt hij op het begin of einde van de dag die je typt. Eindigt de vrijdag om 12:00, dan wordt *Oplevering* op vrijdag 12:00. Ligt de mijlpaal midden op de dag en eindigt de dag die je typt vóór die tijd, dan krijgt hij het einde van die dag: *Keuring* op maandag 14:00, afgemeld op die vrijdag, wordt vrijdag 12:00. Begint de dag die je typt pas na die tijd, dan krijgt hij het begin. Typ je zelf een tijd, dan geldt die.
+Bij een mijlpaal staat er één veld, *Werkelijke datum*. Typ je bij een mijlpaal alleen een datum, hier of in de tabel, dan houdt hij de tijd die hij in de planning had. Voorbeeld: *Oplevering* staat gepland op maandag 16:00 en je typt woensdag; dan wordt het woensdag 16:00. Stond de mijlpaal op het begin of einde van de werkdag, dan komt hij op het begin of einde van de dag die je typt. Eindigt de vrijdag om 12:00, dan wordt *Oplevering* op vrijdag 12:00. Ligt de mijlpaal midden op de dag en eindigt de dag die je typt vóór die tijd, dan krijgt hij het einde van die dag: *Keuring* op maandag 14:00, afgemeld op die vrijdag, wordt vrijdag 12:00. Begint de dag die je typt pas na die tijd, dan krijgt hij het begin. Stond de mijlpaal buiten de werktijd, bijvoorbeeld door een handmatig vastgezet moment, dan krijgt hij de dichtstbijzijnde rand van de dag die je typt. Was hij te laat, dan het einde; was hij te vroeg, dan het begin. Voorbeeld: werktijd ma–do 07:00–16:00 en vr 07:00–12:00. *Oplevering* stond op maandag 18:00; afgemeld op vrijdag 5 juni wordt het vrijdag 12:00. Stond hij op maandag 05:00, dan wordt het vrijdag 07:00. Typ je zelf een tijd, dan geldt die.
 
 **Een percentage kiezen in het menu.** Handig voor een snelle stand.
 
@@ -76,6 +76,10 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **De restduur is exact.** De app rondt de restduur niet af op hele werkdagen. Bij een taak van 2 werkdagen geeft 75 % een rest van 0,5 werkdag.
 
+**Voortgang zonder statusdatum.** Heeft het project voortgang maar geen statusdatum, bijvoorbeeld nadat je hem met het kruisje wiste, dan rekent de app een lopende taak vooruit met de restduur maar terug met de volle duur. De speling komt dan negatief uit en de taak lijkt kritiek. Ook een voltooide taak kan dan kritiek zijn. Zet de statusdatum weer.
+
+**Een gestarte balk slepen.** De start van een gestarte taak is de werkelijke start en verschuift niet. Bij een voltooide taak verschuiven begin en einde niet. De app meldt dan bijvoorbeeld *'…' is gestart: de start is de werkelijke start en verschuift niet. Wijzig die via de voortgang.* Wijzig dan de *Werkelijke start* of het *Werkelijk einde*.
+
 **Een fase.** Een fase heeft geen eigen voortgang. In het paneel staat *Afgeleid uit de onderliggende taken: wijzig de voortgang daar. De samenvattende taak volgt na berekenen (F5).* In de tabel meldt de cel *De voortgang van een samenvattende taak wordt afgeleid uit de onderliggende taken en kan hier niet worden gewijzigd.*
 
 **De statusdatum later verzetten.** Het restwerk van lopende taken begint op de nieuwe statusdatum, en werk dat nog niet begonnen is kan niet voor die datum liggen. Verzet hem dus alleen samen met een update van de voortgang. Zet je een statusdatum zonder ook voortgang in te vullen, dan schuift alle werk dat nog niet begonnen is naar die datum (behalve in het profiel Microsoft Project).
@@ -84,7 +88,6 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 ## Zie ook
 
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): hoe de app het restwerk en de statusdatum rekent, met een uitgewerkt voorbeeld.
 - [Voortgang uit een spreadsheet importeren](docs://howto-voortgang-importeren): voortgang van veel taken tegelijk inlezen.
 - [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen): wat de app doet met een taak die al begonnen is terwijl zijn voorganger nog loopt.
 - [Een baseline opslaan en beheren](docs://howto-baseline-opslaan-en-beheren): de oorspronkelijke planning vastleggen om de voortgang mee te vergelijken.

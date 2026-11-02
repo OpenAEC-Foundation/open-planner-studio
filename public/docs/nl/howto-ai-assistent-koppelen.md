@@ -4,7 +4,7 @@ Doel: een MCP-client laten meelezen en meewerken aan je planning, met zicht op w
 
 ## Wanneer je dit nodig hebt
 
-Je wilt dat een MCP-client je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-programma, de **MCP-client**, gereedschappen van een ander programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [MCP-tools](docs://ref-ai-tools); waarom de koppeling zo werkt, staat in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling).
+Je wilt dat een MCP-client je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-programma, de **MCP-client**, gereedschappen van een ander programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [MCP-tools](docs://ref-ai-tools). De MCP-client werkt in het project dat je open hebt, niet in een kopie: een taak die hij toevoegt, zie je meteen in de Gantt. Hij gebruikt dezelfde berekening en dezelfde *Ongedaan*-geschiedenis als jij.
 
 De bridge werkt alleen in de desktop-app. Sta je de MCP-koppeling in de browser toe, dan zie je het tabblad *MCP* wel, maar de knop *Bridge starten* is grijs met de tekst *De bridge werkt alleen in de desktop-app.* De rest van dit artikel gaat over de desktop-app. In de browser zijn ook *Nu backup maken* en *Backup-map openen* grijs.
 
@@ -23,7 +23,7 @@ Zet je de MCP-koppeling uit, dan stopt de bridge en verdwijnt het tabblad *MCP*.
 1. Ga naar het tabblad *MCP* en klik bij *Server* op *Bridge starten*.
 2. Kijk naar de status naast de knop. Die zegt *Uit*, *Actief op poort 3877*, *Poort 3877 bezet* of *Fout*. Lukt het starten, dan staat er *Actief op poort 3877* en heet de knop *Bridge stoppen*. Bij *Poort 3877 bezet* of *Fout* blijft de knop *Bridge starten*; zie de valkuilen.
 
-De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat 3877. In de groep *Verbinding* kun je bij *Poort* een andere kiezen, maar alleen als de bridge gestopt is.
+De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat 3877. In de groep *Verbinding* kun je bij *Poort* een andere kiezen, maar alleen als de bridge gestopt is. De verbinding is gewone HTTP op je eigen computer. De app stuurt zelf niets naar buiten. Wat de MCP-client met je planning doet, bijvoorbeeld wat zijn aanbieder ermee doet, valt buiten de app.
 
 ### 3. De MCP-client koppelen
 
@@ -48,14 +48,19 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 Je kunt het fragment ook in het bestand `.mcp.json` in je projectmap zetten. Zet dat bestand dan niet in git, want het token geeft toegang tot je plan. Een server uit `.mcp.json` moet je de eerste keer goedkeuren in Claude Code.
 
-**Claude Desktop.** Voor Claude Desktop is er een extensie: het bestand `open-planner-studio-<versie>.mcpb`. Claude Desktop installeert het met een dubbelklik. Je hebt er geen Node.js voor nodig.
+**Claude Desktop.** Voor Claude Desktop is er een extensie: het bestand `open-planner-studio-<versie>.mcpb`. Claude Desktop installeert het met een dubbelklik. Je hebt er geen Node.js voor nodig. De extensie werkt met de app en zonder de app.
 
 1. Download het `.mcpb`-bestand bij de nieuwste release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
 2. Dubbelklik op het bestand. Claude Desktop opent en toont de extensie *Open Planner Studio*. Installeer hem. Werkt dubbelklikken niet, open dan in Claude Desktop *Settings › Extensions* en installeer het bestand daar.
-3. Plak bij *Token* het token uit het venster *Verbindingsgegevens*. Laat *Port* op 3877 staan, tenzij je in de app een andere poort koos.
+3. Kies bij *Working folder* de map met je planningsbestanden. Die map gebruikt Claude alleen als de app dicht is. Claude leest en schrijft dan alleen in die map.
 4. Zet de extensie aan en begin een nieuw gesprek. Vraag Claude welke tools van Open Planner Studio hij ziet.
 
-De extensie bevat geen planner. Hij stuurt alles door naar de app op je eigen computer. Draait de app niet, of staat de bridge uit, dan ziet Claude alleen de tool `open_planner_studio_status`, met een melding wat je moet doen. Start dan de app en de bridge. Claude krijgt de tools bij zijn volgende aanroep. Herstart je de app terwijl Claude werkt, dan voert de extensie een wijziging die op dat moment binnenkomt niet uit. Claude krijgt daarover een melding en kan de wijziging opnieuw sturen.
+Een token of een poort vul je niet in: zolang de bridge draait, vindt de extensie de app zelf. Bij elke vraag van Claude kiest de extensie opnieuw:
+
+- *De app staat open en de bridge draait*: Claude werkt in het plan dat open is in de app. Je ziet elke wijziging meteen in de app.
+- *De app staat dicht, of de bridge staat uit*: Claude werkt op een planningsbestand in de werkmap. Een wijziging staat pas in het bestand als Claude het bestand opslaat. Automatisch opslaan is er niet. Staat de app open, dan overschrijft Claude geen bestaand bestand, maar slaat het op onder een nieuwe naam.
+
+Gaat de app open of dicht terwijl Claude werkt, dan wisselt de extensie en meldt dat aan Claude. Claude kiest of opent daarna eerst het plan opnieuw, en wijzigt pas dan iets. Heeft Claude zonder de app nog wijzigingen die niet zijn opgeslagen, dan blijft de extensie zonder de app werken tot Claude ze heeft opgeslagen. Zo gaat er geen werk verloren. Kan de extensie de app niet bereiken en is er geen bruikbare werkmap, dan ziet Claude alleen de tool `open_planner_studio_status`, met een melding wat je moet doen.
 
 **Claude Desktop zonder extensie.** Kun je de extensie niet gebruiken, koppel Claude Desktop dan met het externe hulpprogramma `mcp-remote`. Het configuratiefragment past niet direct in Claude Desktop: in het bestand `claude_desktop_config.json` noem je een programma dat Claude Desktop zelf start, geen adres. Voor `mcp-remote` heb je Node.js nodig. Kies in Claude Desktop *Settings › Developer › Edit Config*, zet dit in het bestand (met je eigen token) en start Claude Desktop opnieuw:
 
@@ -75,7 +80,7 @@ Het token staat bewust in `env` en niet in `args`: op Windows breekt Claude Desk
 
 In de groep *Verbinding* staat ook het veld *Token*. Dat is een lange, willekeurige code die de app voor je maakt en op deze computer bewaart. In het venster staat *Dit token geeft toegang tot het geopende plan. Deel het niet met anderen.* Met het pictogram *Nieuw token* maak je een nieuw token. De app vraagt eerst *Een nieuw token maken verbreekt alle bestaande koppelingen. Doorgaan?* Draait de bridge, dan herstart hij met het nieuwe token en werkt het oude niet meer.
 
-**Voorbereid op automatische detectie.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. De huidige Claude Desktop-extensie gebruikt nog de poort en het token die je zelf invult; een plugin die de app via dit bestand vindt is nog niet beschikbaar. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Dit register is bedoeld voor een toekomstige plugin; de huidige headless server controleert het nog niet. Open daarom niet tegelijk hetzelfde bestand in de app en de headless server.
+**Hoe de extensie de app vindt.** Zolang de bridge draait, schrijft de desktop-app de poort en het token in het bestand `mcp/runtime.json` in de gegevensmap van de app. De extensie voor Claude Desktop leest dat bestand bij elke vraag. Op Linux en macOS kan alleen jouw gebruikersaccount het bestand lezen. Op Windows beschermt de standaard-ACL van je profielmap het bestand; dat controleert de app niet apart. Stop je de bridge of zet je de MCP-koppeling uit, dan verwijdert de app het bestand. Daarnaast houdt de app in `mcp/open-files.json` bij welke bestanden open staan, ook als de MCP-koppeling uit staat. Zolang dat bestand er is, overschrijven de extensie en de headless MCP-server geen enkel bestaand bestand, ook niet een bestand dat je net opende en dat nog niet in de lijst staat. Een nieuw bestand mag wel. Lezen mag ook: Claude ziet dan de versie op schijf, zonder je wijzigingen die nog niet zijn opgeslagen.
 
 ### 4. Zien wat de MCP-client doet
 
@@ -99,9 +104,9 @@ De backups staan in de map `ai-backups` in de gegevensmap van de app. De app hou
 
 ### 6. De MCP-client goed laten plannen
 
-Een MCP-client plant pas goed als hij de planningsregels kent. Waarom dat nodig is en wat erin staat, lees je in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling). Dit doe je zelf:
+Een MCP-client plant pas goed als hij de planningsregels kent. Dit doe je zelf:
 
-1. **Niets doen voor de kernregels.** Ze komen vanzelf mee bij het verbinden. Of je client ze in de systeemprompt zet, hangt van de client af.
+1. **Niets doen voor de kernregels.** Ze komen vanzelf mee bij het verbinden: de bridge stuurt ze in het veld `instructions` van de MCP-handdruk. Of je client ze in de systeemprompt zet, hangt van de client af.
 2. **De gids laten lezen.** De koppelprompt uit het venster *Verbindingsgegevens* vraagt de MCP-client de gids te lezen met de tool `planner_get_planning_guide`. Gebruik je de prompt niet, vraag het dan zelf: *Lees eerst de planningsgids met planner_get_planning_guide, voordat je iets wijzigt.* Je kunt de gids zelf lezen op `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
 3. **Optioneel: de skills installeren.** Dit werkt alleen met een MCP-client die skills ondersteunt. Zet `SKILL.md` van *goed-plannen* en *progress-update* in `.claude/skills/goed-plannen/SKILL.md` en `.claude/skills/progress-update/SKILL.md` in de projectmap waarin de MCP-client werkt, of onder `~/.claude/skills/` voor elk project.
 
@@ -115,13 +120,13 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 
 **De app weigert een aanroep van de MCP-client.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk, ook met het doorrekenen van een verouderde planning. Zit je zelf midden in een bewerking, zoals een balk slepen of typen in een veld, dan krijgt de MCP-client de datums van vóór je bewerking met een melding dat ze verouderd zijn. Heb je een dialoog open, bijvoorbeeld de instellingen, een taakdialoog of het welkomstvenster, of staat de presentatiemodus aan, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De MCP-client krijgt dan een foutmelding met de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog`. Alleen `planner_get_planning_guide` blijft werken, omdat die je planning niet leest.
 
-**Je wisselt van tabblad terwijl de MCP-client werkt.** De MCP-client werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project.
+**Je wisselt van tabblad terwijl de MCP-client werkt.** De MCP-client werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project. Opent of dupliceert de MCP-client zelf een document, dan werkt hij daarna in dat nieuwe document.
 
 **De MCP-client schrijft of opent een bestand.** De MCP-client kan een planning als IFC-bestand wegschrijven en een planningsbestand openen als nieuw tabblad. Dat kan alleen binnen je gebruikersmap. Een bestaand bestand overschrijft hij alleen als hij daar uitdrukkelijk om vraagt.
 
 **De status is *Poort 3877 bezet*.** Een ander programma gebruikt de poort. De melding van de app staat eronder. Het poortveld blijft dan op slot (*Alleen wijzigbaar wanneer de server gestopt is.*), ook al draait de bridge niet, en een stopknop is er niet. Dat is een bekende tekortkoming. Tot die is opgelost: zet *MCP-koppeling toestaan* uit en weer aan. Dan staat de status weer op *Uit* en kun je een andere poort kiezen. Kopieer daarna de verbindingsgegevens opnieuw, want het endpoint bevat de poort.
 
-**De client krijgt geen verbinding na een nieuw token.** Een nieuw token verbreekt alle bestaande koppelingen. Geef de client het nieuwe token, of plak het configuratiefragment opnieuw. Gebruik je de extensie in Claude Desktop, plak het nieuwe token dan bij *Token* in *Settings › Extensions*.
+**De client krijgt geen verbinding na een nieuw token.** Een nieuw token verbreekt alle bestaande koppelingen. Geef de client het nieuwe token, of plak het configuratiefragment opnieuw. De extensie in Claude Desktop leest het nieuwe token zelf; daar hoef je niets te doen.
 
 **Je hebt de bridge zelf gestopt en hij start niet vanzelf.** *Bridge automatisch starten* werkt één keer per keer dat de app start. Stop je de bridge zelf, dan zet de app hem niet stilletjes weer aan.
 
@@ -132,6 +137,8 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 ## Zonder de app
 
 Er is ook een MCP-server die zonder de desktop-app werkt: de **headless MCP-server**. Hij biedt dezelfde `planner_*`-tools, maar werkt op een planningsbestand op schijf in plaats van op je open project. Je ziet de wijzigingen dus niet in de Gantt, en *Ongedaan* in de app werkt er niet op. Gebruik hem als je de app niet open wilt hebben, of op een computer zonder scherm.
+
+De extensie voor Claude Desktop start deze server zelf als de app dicht is (zie stap 3). De stappen hieronder zijn voor een andere MCP-client, zoals Claude Code.
 
 De release bevat geen kant-en-klare download van de server. Je bouwt hem uit de broncode met `npm run build:mcp-server`; daarvoor heb je Node.js 22 of nieuwer nodig. Het resultaat is één bestand, `server.mjs`.
 
@@ -146,12 +153,10 @@ Voor stap 2 in Claude Code geef je in een terminal deze opdracht, met je eigen p
 claude mcp add open-planner -- node /pad/naar/server.mjs --root /pad/naar/werkmap
 ```
 
-Vóór de eerste wijziging per document maakt de server een MCP-backup, net als de app. Een MCP-client die een pad buiten de werkmap kiest, ook via een snelkoppeling (symbolische link), krijgt een weigering.
+Vóór de eerste wijziging per document maakt de server een MCP-backup, net als de app. Een MCP-client die een pad buiten de werkmap kiest, ook via een snelkoppeling (symbolische link), krijgt een weigering. Zolang de app open staat, overschrijft de server geen bestaand bestand.
 
 ## Zie ook
 
 - [Feedback geven](docs://howto-feedback-geven): loopt de koppeling anders dan hier staat, meld het dan.
-- [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling): wat de koppeling is, waarom de MCP-client in je open project werkt en wat hij niet mag.
 - [MCP-tools](docs://ref-ai-tools): alle `planner_*`-tools per groep, de foutcodes en hoe lang backups bewaard blijven.
-- [Goed plannen](docs://gids-goed-plannen): de planningsprincipes; de MCP-client krijgt ze in een Engelse versie met de tools erbij.
 - [App-instellingen](docs://ref-instellingen): de MCP-instellingen.

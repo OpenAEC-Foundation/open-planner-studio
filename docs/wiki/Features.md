@@ -34,13 +34,13 @@ bridge and automatic updates.
 - **Resource libraries** — resources and calendars live in a shared, organization-wide library that
   multiple projects draw from; a project shows what it actually uses, with per-item provenance
   (from the library, project-only, or orphaned) and a library/project view toggle. See
-  [The resource library](docs://uitleg-resourcebibliotheek) in the manual.
+  [Using the resource library](docs://howto-resourcebibliotheek-gebruiken) in the manual.
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
 - **Task types and work** — a work rule per task (fixed duration and units, fixed duration and
   work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
   corner of work = remaining duration × units moves when you edit another; remaining work per
   assignment is editable in hours. Hidden by default; a file that already carries task types shows
-  them. See [Work rules: duration, units and work](docs://uitleg-werkregels) in the manual.
+  them. See [Choosing a task type](docs://howto-werkregel-kiezen) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a
@@ -85,8 +85,9 @@ bridge and automatic updates.
   out of reach entirely.
 - **Desktop only, off by default** — the bridge runs in the desktop shell; it can optionally start
   automatically with the app.
-- **Claude Desktop extension** — the release includes a `.mcpb` bundle that forwards calls to the
-  running desktop app. Enter the token and port from the MCP tab; the bundle contains no planner.
+- **Claude Desktop extension** — the release includes a `.mcpb` bundle. While the desktop app runs
+  with its MCP bridge, Claude works in the open plan; when the app is closed, the bundle starts its own
+  planner on a working folder that you choose at install. It finds the app by itself: no token to paste.
 - **Headless MCP server** — developers can build the same tools as a standalone Node program,
   with stdio or authenticated loopback HTTP transport and file access limited to a working folder.
   See [the headless MCP documentation](https://github.com/OpenAEC-Foundation/open-planner-studio/blob/main/docs/headless-mcp.md).

@@ -18,7 +18,7 @@ The list uses these reasons:
 
 - *Predecessor*: a relation determines the start. You see the name of the predecessor. If several predecessors determine the start together, the number is shown.
 - *Calendar*: the start stayed the same or moved because of the calendar, and the task's calendar changed since the previous calculation.
-- *Fixed date*: a constraint determines the date (see [Constraints and deadlines](docs://uitleg-constraints)).
+- *Fixed date*: a constraint determines the date (see [Setting a constraint or deadline](docs://howto-constraint-deadline-zetten)).
 - *Status date*: the task cannot run earlier than the status date.
 - *Resource*: a leveling delay determines the start, or the duration changed through a different assignment.
 - *Own duration changed*: the start stayed the same and the duration changed.
@@ -36,5 +36,5 @@ Task A takes 5 working days and task B follows with a finish-to-start relation. 
 - *Undo* in the message restores the dates from before the calculation, in one step. Your edit stays, and the schedule counts as out of date again. The button disappears as soon as you change anything else in the schedule.
 - Ctrl+Z after F5 works differently: it takes back your last edit, together with the calculation after it.
 - The list is a snapshot of the last calculation. Later edits do not change it.
-- With leveling you see the preview beforehand, so this message is not needed there (see [How leveling works](docs://uitleg-nivelleren)).
+- With leveling you see the preview beforehand, so this message is not needed there (see [Resolving overallocation](docs://howto-overbezetting-oplossen)).
 - The reason names what determines the date now. That is not always the first cause: in a chain each task names its own predecessor. Click through the list to follow the chain.

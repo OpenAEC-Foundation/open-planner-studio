@@ -4,7 +4,7 @@ Goal: let an MCP client read along and work on your schedule, with insight into 
 
 ## When you need this
 
-You want an MCP client to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI program, the **MCP client**, use tools of another program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [MCP tools](docs://ref-ai-tools); why the link works this way is in [How the MCP link works](docs://uitleg-ai-koppeling).
+You want an MCP client to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI program, the **MCP client**, use tools of another program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [MCP tools](docs://ref-ai-tools). The MCP client works in the project you have open, not in a copy: a task it adds shows up in the Gantt straight away. It uses the same calculation and the same *Undo* history as you.
 
 The bridge only works in the desktop app. If you allow the MCP connection in the browser, you do see the *MCP* tab, but the button *Start bridge* is grey with the text *The bridge only works in the desktop app.* The rest of this article is about the desktop app. In the browser, *Back up now* and *Open backup folder* are grey too.
 
@@ -23,7 +23,7 @@ If you turn the MCP connection off, the bridge stops and the tab *MCP* disappear
 1. Go to the tab *MCP* and click *Start bridge* under *Server*.
 2. Look at the status next to the button. It says *Off*, *Live on port 3877*, *Port 3877 in use* or *Error*. If starting succeeds, it says *Live on port 3877* and the button is called *Stop bridge*. With *Port 3877 in use* or *Error* the button stays *Start bridge*; see the pitfalls.
 
-The bridge only listens on your own computer, on one port. By default that is 3877. In the group *Connection* you can choose another one under *Port*, but only while the bridge is stopped.
+The bridge only listens on your own computer, on one port. By default that is 3877. In the group *Connection* you can choose another one under *Port*, but only while the bridge is stopped. The connection is plain HTTP on your own computer. The app itself sends nothing out. What the MCP client does with your schedule, for example what its provider does with it, falls outside the app.
 
 ### 3. Connect the MCP client
 
@@ -48,14 +48,19 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 You can also put the snippet in the file `.mcp.json` in your project folder. Then do not put that file in git, because the token gives access to your plan. A server from `.mcp.json` must be approved the first time in Claude Code.
 
-**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it.
+**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it. The extension works with the app and without the app.
 
 1. Download the `.mcpb` file from the latest release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
 2. Double-click the file. Claude Desktop opens and shows the extension *Open Planner Studio*. Install it. If a double-click does not work, open *Settings › Extensions* in Claude Desktop and install the file there.
-3. Paste the token from the window *Connection details* into *Token*. Keep *Port* at 3877, unless you chose another port in the app.
+3. At *Working folder*, choose the folder with your schedule files. Claude uses this folder only when the app is closed. Claude then reads and writes only in that folder.
 4. Turn on the extension and start a new chat. Ask Claude which tools of Open Planner Studio it sees.
 
-The extension contains no planner. It passes everything on to the app on your own computer. If the app does not run, or the bridge is off, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do. Then start the app and the bridge. Claude gets the tools at its next call. If you restart the app while Claude works, the extension does not carry out a change that arrives at that moment. Claude gets a message about it and can send the change again.
+You do not enter a token or a port: while the bridge runs, the extension finds the app by itself. For each question from Claude, the extension chooses again:
+
+- *The app is open and the bridge runs*: Claude works in the plan that is open in the app. You see each change in the app at once.
+- *The app is closed, or the bridge is off*: Claude works on a schedule file in the working folder. A change is in the file only when Claude saves the file. There is no automatic saving. While the app is open, Claude does not overwrite an existing file, but saves under a new name.
+
+If the app opens or closes while Claude works, the extension switches and tells Claude. Claude then first chooses or opens the plan again, and only then changes something. If Claude still has changes without the app that are not saved, the extension keeps working without the app until Claude has saved them. This way no work is lost. If the extension cannot reach the app and there is no usable working folder, Claude sees only the tool `open_planner_studio_status`, with a message that tells you what to do.
 
 **Claude Desktop without the extension.** If you cannot use the extension, connect Claude Desktop with the external tool `mcp-remote`. The configuration snippet does not fit Claude Desktop directly: in the file `claude_desktop_config.json` you name a program that Claude Desktop starts itself, not an address. `mcp-remote` needs Node.js. In Claude Desktop choose *Settings › Developer › Edit Config*, put this in the file (with your own token) and start Claude Desktop again:
 
@@ -75,7 +80,7 @@ The token is in `env` and not in `args` on purpose: on Windows, Claude Desktop b
 
 In the group *Connection* there is also the field *Token*. It is a long, random code that the app makes for you and stores on this computer. In the window it says *This token grants access to the open plan. Do not share it with others.* With the icon *New token* you make a new token. The app first asks *Generating a new token breaks all existing connections. Continue?* If the bridge is running, it restarts with the new token and the old one no longer works.
 
-**Prepared for automatic discovery.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The current Claude Desktop extension still uses the port and token you enter yourself; a plugin that finds the app through this file is not yet available. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. This inventory is intended for a future plugin; the current headless server does not check it yet. Do not open the same file in the app and the headless server at the same time.
+**How the extension finds the app.** While the bridge runs, the desktop app writes the port and the token to the file `mcp/runtime.json` in the app's data folder. The extension for Claude Desktop reads that file for each question. On Linux and macOS, only your user account can read the file. On Windows, the default ACL of your profile folder protects the file; the app does not check this separately. When you stop the bridge or turn off the MCP connection, the app removes the file. The app also keeps a list of open files in `mcp/open-files.json`, even when the MCP connection is off. While that file exists, the extension and the headless MCP server do not overwrite any existing file, also not a file that you just opened and that is not in the list yet. A new file is allowed. Reading is allowed too: Claude then sees the version on disk, without your changes that are not saved yet.
 
 ### 4. See what the MCP client does
 
@@ -99,9 +104,9 @@ The backups are in the folder `ai-backups` in the data folder of the app. The ap
 
 ### 6. Have the MCP client plan well
 
-An MCP client only plans well if it knows the planning rules. Why that matters and what is in them, you read in [How the MCP link works](docs://uitleg-ai-koppeling). This is what you do yourself:
+An MCP client only plans well if it knows the planning rules. This is what you do yourself:
 
-1. **Do nothing for the core rules.** They come along when connecting. Whether your client puts them in its system prompt depends on the client.
+1. **Do nothing for the core rules.** They come along when connecting: the bridge sends them in the `instructions` field of the MCP handshake. Whether your client puts them in its system prompt depends on the client.
 2. **Have the guide read.** The connection prompt from the window *Connection details* asks the MCP client to read the guide with the tool `planner_get_planning_guide`. If you do not use the prompt, ask yourself: *Read the planning guide with planner_get_planning_guide first, before you change anything.* You can read the guide yourself at `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
 3. **Optional: install the skills.** This only works with an MCP client that supports skills. Put the `SKILL.md` of *goed-plannen* and *progress-update* in `.claude/skills/goed-plannen/SKILL.md` and `.claude/skills/progress-update/SKILL.md` in the project folder the MCP client works in, or under `~/.claude/skills/` for every project.
 
@@ -115,13 +120,13 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 **The app refuses a call by the MCP client.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible, including the recalculation of a stale schedule. If you are in the middle of an edit yourself, such as dragging a bar or typing in a field, the MCP client gets the dates from before your edit with a notice that they are stale. If you have a dialog open, for example the settings, a task dialog or the welcome window, or presentation mode is on, the app refuses all calls, including reading, until you close the dialog. The MCP client then gets an error message with the internal name of what is open, for example `showTaskDialog`. Only `planner_get_planning_guide` keeps working, because it does not read your schedule.
 
-**You switch tabs while the MCP client is working.** The MCP client works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project.
+**You switch tabs while the MCP client is working.** The MCP client works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project. If the MCP client opens or duplicates a document itself, it works in that new document afterwards.
 
 **The MCP client writes or opens a file.** The MCP client can write a schedule as an IFC file and open a schedule file as a new tab. It can only do that within your user folder. It only overwrites an existing file if it explicitly asks to.
 
 **The status is *Port 3877 in use*.** Another program is using the port. The app's message is shown below it. The port field then stays locked (*Only editable while the server is stopped.*), even though the bridge is not running, and there is no stop button. That is a known shortcoming. Until it is fixed: turn *Allow MCP connection* off and on again. The status is then back to *Off* and you can choose another port. Then copy the connection details again, because the endpoint contains the port.
 
-**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again. If you use the extension in Claude Desktop, paste the new token into *Token* in *Settings › Extensions*.
+**The client cannot connect after a new token.** A new token breaks all existing connections. Give the client the new token, or paste the configuration snippet again. The extension in Claude Desktop reads the new token by itself; you do not have to do anything there.
 
 **You stopped the bridge yourself and it does not start by itself.** *Start bridge automatically* works once each time the app starts. If you stop the bridge yourself, the app does not quietly turn it on again.
 
@@ -132,6 +137,8 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 ## Without the app
 
 There is also an MCP server that works without the desktop app: the **headless MCP server**. It offers the same `planner_*` tools, but it works on a schedule file on disk instead of on your open project. So you do not see the changes in the Gantt chart, and *Undo* in the app does not apply to them. Use it when you do not want the app open, or on a computer without a screen.
+
+The extension for Claude Desktop starts this server by itself when the app is closed (see step 3). The steps below are for another MCP client, such as Claude Code.
 
 The release does not include a ready-made server download. You build it from the source code with `npm run build:mcp-server`; for that you need Node.js 22 or newer. The result is one file, `server.mjs`.
 
@@ -146,12 +153,10 @@ For step 2 in Claude Code, give this command in a terminal, with your own paths:
 claude mcp add open-planner -- node /path/to/server.mjs --root /path/to/working-folder
 ```
 
-Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal.
+Before the first change per document, the server makes an MCP backup, like the app. An MCP client that chooses a path outside the working folder, also through a shortcut (symbolic link), gets a refusal. While the app is open, the server does not overwrite an existing file.
 
 ## See also
 
 - [Giving feedback](docs://howto-feedback-geven): if the connection works differently from what is described here, report it.
-- [How the MCP link works](docs://uitleg-ai-koppeling): what the link is, why the MCP client works in your open project and what it may not do.
 - [MCP tools](docs://ref-ai-tools): all `planner_*` tools by group, the error codes and how long backups are kept.
-- [Planning well](docs://gids-goed-plannen): the planning principles; the MCP client receives them in an English version with the tools added.
 - [App settings](docs://ref-instellingen): the MCP settings.

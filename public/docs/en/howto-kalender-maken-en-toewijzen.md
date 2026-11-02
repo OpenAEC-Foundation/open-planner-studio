@@ -4,7 +4,7 @@ Goal: make a calendar of your own, for example a six-day work week, and give it 
 
 ## When you need this
 
-A subcontractor also works on Saturdays. A crew works only Monday to Thursday. A task falls in a period in which only that task stands still. The project calendar then has the wrong work days. With a calendar of your own, the app calculates those tasks on the right days, and the rest stays on the project calendar. What the app does with a calendar exactly, you can read in [Calendars and working days](docs://uitleg-kalenders).
+A subcontractor also works on Saturdays. A crew works only Monday to Thursday. A task falls in a period in which only that task stands still. The project calendar then has the wrong work days. With a calendar of your own, the app calculates those tasks on the right days, and the rest stays on the project calendar. What the app does with a calendar exactly, you can read in [Calendar windows](docs://ref-kalenders).
 
 ## Steps
 
@@ -63,7 +63,5 @@ Only the tasks without a calendar of their own move along.
 
 ## See also
 
-- [Calendars and working days](docs://uitleg-kalenders): how the app counts work days and which calendar wins.
-- [Days and hours](docs://uitleg-dagen-en-uren): what the standard workday does.
 - [Setting up a resource calendar](docs://howto-resourcekalender-instellen): a calendar for a resource instead of a task.
 - [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.

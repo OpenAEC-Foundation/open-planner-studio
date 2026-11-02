@@ -19,7 +19,7 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
-import { readGanttPalette, contrastRatio, doneBarTones } from '@/engine/renderer/themePalette';
+import { readGanttPalette, contrastRatio, doneBarTones, PRINT_PALETTE } from '@/engine/renderer/themePalette';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -48,7 +48,7 @@ const rgbOf = (hex: string): [number, number, number] => {
   eq('fallback critical', p.critical, '#DC2626');
   eq('fallback normal', p.normal, '#2563EB');
   eq('fallback milestone', p.milestone, '#7C3AED');
-  eq('fallback baseline', p.baseline, '#6B7280');
+  eq('fallback baseline', p.baseline, '#1F2937');
 }
 
 // ── 2. De themablokken uit globals.css ──────────────────────────────────────
@@ -120,10 +120,56 @@ for (const { selector, kaart, lat, moetZetten } of THEMAS) {
 // ── 3. Licht en donker zetten ze bewust NIET ────────────────────────────────
 // Zou een van beide er een gaan zetten, dan is de aanname "licht en donker delen één balkset"
 // stilzwijgend vervallen — dat moet een bewuste wijziging zijn, geen verrassing.
-for (const selector of ['[data-theme="light"]', '[data-theme="dark"]']) {
+// Uitzondering (#741): licht en donker zetten allebei de actieve baseline. Het lichte #1F2937 valt
+// op de donkere kaart weg, en het donkere blok geldt ook voor `:root`, dus licht moet het zijne zelf zetten.
+const MAG_ZETTEN: Record<string, readonly string[]> = {
+  '[data-theme="light"]': ['--theme-bar-baseline'],
+  '[data-theme="dark"]': ['--theme-bar-baseline'],
+};
+for (const [selector, mag] of Object.entries(MAG_ZETTEN)) {
   const vars = themeBlock(selector);
-  const gezet = BALK_VARS.filter(v => vars[v] !== undefined);
+  const gezet = BALK_VARS.filter(v => vars[v] !== undefined && !mag.includes(v));
   ok(`${selector} laat de balktinten aan BRAND over (kreeg ${gezet.join(', ') || 'geen'})`, gezet.length === 0);
+}
+
+// ── 4. Baselines: drie helderheidsstappen (#741, besluit Ethan 2026-11-02) ──────────────────
+// "Niet alleen door kleur": de actieve baseline is het donkerst, dan vergelijking 2, dan
+// vergelijking 1. Zo blijven ze in grijs (zwart-witafdruk, kleurenblindheid) uit elkaar. Gemeten
+// als CIELAB L* (0 zwart, 100 wit); elke stap minstens MIN_STAP_L.
+const MIN_STAP_L = 10;
+const lStar = (hex: string): number => {
+  const lin = (c: number) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+  const [r, g, b] = rgbOf(hex);
+  const y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return y > 216 / 24389 ? 116 * Math.cbrt(y) - 16 : y * 24389 / 27;
+};
+{
+  const pal = readGanttPalette();
+  const donker = themeBlock('[data-theme="dark"]');
+  // Het donkere blok is ook `:root`: wat licht niet zelf zet, erft het van donker. Lees dus de
+  // waarde die in de browser echt geldt, niet alleen het eigen blok.
+  const lichtEigen = themeBlock('[data-theme="light"]');
+  const licht = (v: string): string | undefined => lichtEigen[v] ?? donker[v];
+  ok('donker blok is ook :root', /:root,\s*\[data-theme="dark"\]\s*\{/.test(css));
+  // Het lichte thema, de tekenlaag zonder CSS (headless) en de afdruk houden dezelfde tinten.
+  const lichtSet = [licht('--theme-bar-baseline'), licht('--theme-bar-baseline-compare-2'), licht('--theme-bar-baseline-compare-1')];
+  eq('licht actief = fallback', lichtSet[0], pal.baseline);
+  eq('licht vergelijking 2 = fallback', lichtSet[1], pal.baselineCompare2);
+  eq('licht vergelijking 1 = fallback', lichtSet[2], pal.baselineCompare1);
+  eq('afdruk actief = fallback', PRINT_PALETTE.baseline, pal.baseline);
+  eq('afdruk vergelijking 1 = fallback', PRINT_PALETTE.baselineCompare1, pal.baselineCompare1);
+  eq('afdruk vergelijking 2 = fallback', PRINT_PALETTE.baselineCompare2, pal.baselineCompare2);
+  const sets: [string, (string | undefined)[]][] = [
+    ['licht', lichtSet],
+    ['donker', [donker['--theme-bar-baseline'], donker['--theme-bar-baseline-compare-2'], donker['--theme-bar-baseline-compare-1']]],
+  ];
+  for (const [naam, [actief, verg2, verg1]] of sets) {
+    ok(`${naam}: drie baselinetinten gezet (${actief}, ${verg2}, ${verg1})`, !!actief && !!verg2 && !!verg1);
+    if (!actief || !verg2 || !verg1) continue;
+    const [la, l2, l1] = [lStar(actief), lStar(verg2), lStar(verg1)];
+    ok(`${naam}: actief ${actief} (L* ${la.toFixed(1)}) + ${MIN_STAP_L} <= vergelijking 2 ${verg2} (L* ${l2.toFixed(1)})`, la + MIN_STAP_L <= l2);
+    ok(`${naam}: vergelijking 2 (L* ${l2.toFixed(1)}) + ${MIN_STAP_L} <= vergelijking 1 ${verg1} (L* ${l1.toFixed(1)})`, l2 + MIN_STAP_L <= l1);
+  }
 }
 
 if (diffs.length === 0) {

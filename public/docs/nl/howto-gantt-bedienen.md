@@ -13,7 +13,7 @@ Je ziet in de Gantt dat het metselwerk twee dagen later moet beginnen, of dat de
 1. Druk op het midden van een taakbalk en sleep horizontaal. Start en einde schuiven samen op, in hele dagen; de duur blijft gelijk.
 2. Laat los. De balk blijft staan op de nieuwe plek. De planning is dan verouderd: druk op *Bereken* (F5), of laat de app het zelf doen als *Automatisch berekenen* aan staat.
 
-Heeft de taak een voorganger, dan legt de app de nieuwe start vast als constraint *Start niet eerder dan (SNET)*, en meldt dat na het loslaten. Dat geldt niet voor een taak met voortgang, een samenvattingstaak, een hammock of een handmatig geplande taak. Waarom dat zo is en wat er bij een andere constraint gebeurt, staat in [Constraints en deadlines](docs://uitleg-constraints). Sleep je terug naar de oorspronkelijke start, dan komt de oorspronkelijke constraint ook terug.
+Heeft de taak een voorganger, dan legt de app de nieuwe start vast als constraint *Start niet eerder dan (SNET)*, en meldt dat na het loslaten. Dat geldt niet voor een taak met voortgang, een samenvattingstaak, een hammock of een handmatig geplande taak. Waarom dat zo is en wat er bij een andere constraint gebeurt, staat in [Een constraint of deadline zetten](docs://howto-constraint-deadline-zetten). Sleep je terug naar de oorspronkelijke start, dan komt de oorspronkelijke constraint ook terug.
 
 Sleep je overwegend omhoog of omlaag in plaats van opzij, dan verplaats je de taak naar een andere rij en blijven de datums staan. De richting die je in de eerste paar pixels kiest, geldt voor de hele sleepbeweging, dus één gebaar verandert nooit tegelijk datums en structuur. Zie [Structuur aanpassen](docs://howto-structuur-aanpassen).
 
@@ -84,4 +84,4 @@ Houd de muis stil op een balk. Er verschijnt een kaartje met de naam van de taak
 - [Rechtermuismenu's](docs://ref-contextmenus): de menu's op een balk, een rij en een groepskop.
 - [Sneltoetsen](docs://ref-sneltoetsen): de toetsen voor zoomen en voor het annuleren van een gebaar.
 - [App-instellingen](docs://ref-instellingen): de scrollmodus en de tijdas.
-- [Constraints en deadlines](docs://uitleg-constraints): waarom een verschoven start een constraint wordt.
+- [Een constraint of deadline zetten](docs://howto-constraint-deadline-zetten): waarom een verschoven start een constraint wordt.

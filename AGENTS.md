@@ -54,7 +54,10 @@ A new `check-*.ts` runs automatically (also in the timezone matrix); add your ow
 Every check must also be listed in `tests/planning/expected-checks.txt`, otherwise the full run is red:
 `bash tests/planning/run.sh --list-checks > tests/planning/expected-checks.txt` (bundles and runs nothing).
 The full run goes through `scripts/planning-pool.mjs`, at most 4 processes at once (`OPS_PLANNING_JOBS`), and CI
-splits it over three jobs (`--shard=k/3`); the job `test` checks that every run happened exactly once.
+splits it over five jobs (`--shard=k/5`); the job `test` checks that every run happened exactly once.
+On a PR, CI builds the Tauri app on Ubuntu always, and on Windows and macOS only when `scripts/ci-changes.mjs` sees a
+change in `src-tauri/`, `package.json`, `package-lock.json` or a root `Cargo.toml`/`Cargo.lock` (owner decision 2026-11-02); a push to `main`
+builds all three. The skipped builds show as "skipped", and the job `test` fails if a build skipped that should have run.
 New `cases-*.json`: extend `EXPECTED_BATTERIES` — do not read run.sh (~2k lines) in full.
 
 **`npm run verify` is one definition, in `package.json`** — ci.yml runs its steps in parallel jobs via
@@ -171,7 +174,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 | i18n key | `npm run verify:i18n` |
 | UI change | `node scripts/run-browser-tests.mjs tests/browser/smoke.spec.ts` (or a targeted spec), plus `window.__OPS__` |
 | MCP tool | `bash tests/mcp/run.sh cases-<x>.ts` |
-| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror`) |
+| Claude Desktop bundle (`integrations/claude-desktop/`) | `bash tests/mcp/run.sh cases-mcpb.ts` (builds the bundle, runs it over stdio against `bridgeMirror` and without the app) |
 | library code | `bash tests/library/run.sh [check-<x>.ts]` |
 | in-app docs/guides | `npm run verify:docs` |
 | before push | the targeted checks above; CI runs the rest of `npm run verify` on the PR, without the browser suite |
@@ -186,11 +189,15 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
   AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
-- **Claude Desktop bundle = a plug, not a planner.** `integrations/claude-desktop/` (`manifest.json` +
-  `src/proxy.ts`) is an MCP Bundle (`.mcpb`) whose stdio server forwards every message to the bridge of the
-  running desktop app (`127.0.0.1:<port>/mcp`, token and port from the install dialog). It must never contain
-  app code; `build:mcpb` fails if `src/` ends up in the bundle. Keep `proxy.ts` free of manifest, transport and
-  client code (that lives in `main.ts`/`config.ts`): it is an interim step and moves into the single plugin of #570. Its manifest version is in the bump register;
+- **Claude Desktop bundle = a switch plus the headless server.** `integrations/claude-desktop/` is an MCP Bundle
+  (`.mcpb`, #730) with two programs. `server/index.mjs` (the switch, `src/proxy.ts`) reads `runtime.json` for
+  every request: the app runs with its bridge ⇒ forward to `127.0.0.1:<port>/mcp` (port and token from that file);
+  otherwise ⇒ the unchanged headless MCP server (`server/headless.mjs`, from `build:mcp-server`) as a child
+  process on the working folder from the install dialog. A switch during a session blocks changes until an
+  explicit document choice, and never leaves the headless planner while it has work not written with
+  `planner_export_ifc`. The switch contains no app code except `discoveryContract.ts`; `build:mcpb` fails
+  otherwise. Keep `proxy.ts` free of manifest, transport, file and process code (that lives in `main.ts`,
+  `config.ts`, `discovery.ts`, `headlessChild.ts`). Its manifest version is in the bump register;
   `release.yml` (job `build-mcpb`) attaches it to every release. Detail: `docs/mcp-verificatie.md`.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. One command-less
@@ -234,7 +241,8 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   (stdio default, streamable HTTP on loopback with the bridge's HTTP contract), on its own store context, with file
   tools confined to `--root` (lexical + exact `realpath` check, operations run synchronously relative to the checked folder
   object via `chdir` + native `realpath('.')`, `O_NOFOLLOW`;
-  atomic save with no direct-write fallback), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
+  atomic save with no direct-write fallback), no replacing of an existing file while the desktop app runs (`appLock.ts`
+  reads `open-files*.json` from the app's data folders or `--discovery-dir` on every write), its own XML parser as `DOMParser` (`xmlDom.ts`, for MSPDI/P6 XML) and
   MCP backups in its own data folder. It reuses the
   dispatcher, registry, `runtime.ts`, the tools and `requestHandler.ts` unchanged; host functions go through seams
   (`fileToolDeps`, `McpFileFs.confine`, `guideToolDeps`, `createAppBackupService` overrides). Code it bundles imports
