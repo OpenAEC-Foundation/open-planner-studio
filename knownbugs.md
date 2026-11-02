@@ -597,17 +597,6 @@ en noem het in je rapport of PR-tekst.
      aanvulling noemt een moment buiten de dienst, en main geeft hier D7 (START en zonder soort vr 07:00, FINISH
      vr 12:00). Geen aangetoonde fout. Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst"
      betekent. — B
-504. **Afmelden van een mijlpaal: "begint de dienst later, dan het begin" is een uitwerking, geen besluit van
-     Ethan.** `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`, regel 4, rond regel 270) zet een
-     mijlpaal midden in de dienst op het begin van de dienst van de getypte dag als die dienst pas na de geplande
-     kloktijd begint. Dat is een uitwerking van de orkestrator (fixronde 5 van #724). B10 zegt "daartussen geldt
-     de geplande kloktijd"; de tweede aanvulling gaat alleen over een dienst die eerder eindigt. Voorbeeld:
-     ma 04:00–08:00, di–vr 07:00–16:00; een mijlpaal op ma 06:00, afgemeld met 02-06-2026, wordt di 07:00, waar
-     de woorden van B10 di 06:00 aanwijzen. Main geeft hier D7: START en zonder soort di 07:00, FINISH di 16:00.
-     Bij di–vr 22:00–06:00 wordt het di 22:00. De gids *Voortgang bijwerken* beschrijft dit al als gedrag.
-     Gevonden in review ronde 6 van #724 (Sol, VRAAG EIGENAAR). Voorstel: Ethan laten kiezen tussen de
-     geplande kloktijd houden (dan kan de tak `else if` van regel 4 weg, en de gidszin) en het begin van de
-     dienst (dan het besluit in de spec bij B10 zetten). — B
 
 448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
     alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu

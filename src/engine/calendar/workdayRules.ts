@@ -222,7 +222,7 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *     getypte dag vóór die kloktijd, dan het einde van die dienst. Dat geldt overdag en 's nachts.
  *     Voorbeelden: ma–do 07:00–12:00 en 13:00–16:00, vr 07:00–12:00; ma 14:00, afgemeld op vr ⇒ vr 12:00.
  *     Ma–do 22:00–06:00, vr 22:00–02:00; di 05:00, afgemeld op vr ⇒ za 02:00.
- *  4. Uitwerking door de orkestrator (fixronde 5 van #724, niet letterlijk in het besluit): begint de dienst
+ *  4. Besluit van Ethan, 2 november 2026 (knownbug 504; geen uitwerking meer): begint de dienst
  *     van de getypte dag na die kloktijd, dan het begin van die dienst. Voorbeeld: ma 04:00–08:00, een
  *     mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00 ⇒ 07:00 die dag. Valt de kloktijd in
  *     de spanne van de getypte dag maar in de dienst van een andere werkdag, dan de rand van de getypte dag

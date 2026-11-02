@@ -989,11 +989,14 @@ Zo zette de meting het ook om.
     in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel
     toont "05-06-2026"; met statusdatum vr mag de invoer, met statusdatum do niet. In de code is dit regel 3 van
     `milestoneMomentOn`.
-  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724):
+  - **Derde aanvulling van Ethan: de dienst begint na de geplande kloktijd** (besluit van Ethan, 2 november 2026,
+    knownbug 504; letterlijk: "doe dit maar"; hij koos het begin van de dienst boven het houden van de geplande
+    kloktijd). Dit is geen uitwerking meer. Opdrachten van fixronde 3 en 5 van #724 bouwden het al zo.
     - Begint de dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst
       (fixronde 5). Voorbeeld: ma 04:00–08:00, een mijlpaal op ma 06:00, afgemeld op een dag met dienst
       07:00–16:00, wordt 07:00 die dag. Bij ma 04:00–08:00 en di–vr 22:00–06:00 wordt dezelfde mijlpaal, afgemeld
       met `02-06-2026`, di 22:00; de tabel toont "02-06-2026". Regel 4 van `milestoneMomentOn`.
+  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdracht fixronde 3 van #724):
     - Valt de kloktijd binnen de werkspanne van de getypte dag, maar in de dienst van een **andere** werkdag (alleen
       bij diensten die elkaar overlappen), dan gaat "de dag komt van wat je typt" voor: het moment komt op de rand
       van de getypte werkdag die het dichtst bij ligt (fixronde 3). Het eerdere voorbeeld (ma–do 22:00–06:00,
