@@ -1441,7 +1441,7 @@ button.task-grid-relation-reference {
        actief          #D1D5DB  L* 85.1   8.74 / 3.51 / 5.01  (gray-300)
        vergelijking 2  #E879F9  L* 67.8   5.23 / 2.10 / 3.00  (fuchsia-400)
        vergelijking 1  #0891B2  L* 55.6   3.50 / 1.40 / 2.00  (cyaan-600, dezelfde tint als licht)
-     Stappen 17.3 en 12.2 L*. De strook ligt los onder de balk, dus het balkcontrast is een extra.
+     Stappen 17.4 en 12.2 L*. De strook ligt los onder de balk, dus het balkcontrast is een extra.
      Niet wit: Ethan vond wit hier te fel (check van #780); de test houdt actief op L* 90 of lager. */
   --theme-bar-baseline: #D1D5DB;
   --theme-bar-baseline-compare-1: #0891B2;
