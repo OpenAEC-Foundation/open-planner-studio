@@ -2,7 +2,8 @@
 // repo (pad vanaf de root, bijv. `examples/03-kantoorgebouw-zuidas.ifc`) via dezelfde route als
 // Bestand › Openen (formaatherkenning, bestandsnaam, meldingen). `?theme=light|dark` zet het thema
 // voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?progressSheet=<pad>` opent daarna de
-// voortgangsimport met dat blad al ingelezen. Valt uit elke productiebouw: App.tsx en
+// voortgangsimport met dat blad al ingelezen. `?help=<artikel-id>` (eventueel `%23<anker>`) opent Help op
+// dat artikel. Valt uit elke productiebouw: App.tsx en
 // ProgressImportDialog.tsx importeren deze module alleen dynamisch achter `import.meta.env.DEV`.
 // Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
@@ -55,15 +56,19 @@ let started = false;
 export async function openDevLinkOnce(): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('open');
-  if (started || !raw) return;
+  const help = params.get('help');
+  if (started || (!raw && !help)) return;
   started = true;
   try {
-    await openDevFile(raw);
-    const sheet = params.get('progressSheet');
-    if (sheet) {
-      pendingProgressSheet = await fetchDevFile('progressSheet', sheet, ['xlsx']);
-      useAppStore.getState().setUI({ showProgressImportDialog: true });
+    if (raw) {
+      await openDevFile(raw);
+      const sheet = params.get('progressSheet');
+      if (sheet) {
+        pendingProgressSheet = await fetchDevFile('progressSheet', sheet, ['xlsx']);
+        useAppStore.getState().setUI({ showProgressImportDialog: true });
+      }
     }
+    if (help) useAppStore.getState().openHelpArticle(help);
   } catch (err) {
     console.error('[dev-link]', err);
     useAppStore.getState().notify({

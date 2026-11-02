@@ -358,7 +358,10 @@
     "helpTutorialStep": "Tutorial {{number}} of {{total}}",
     "helpTutorialsEmpty": "No tutorials are installed yet. You install them as an extension from the catalogue.",
     "helpTutorialsInstall": "Install tutorials",
-    "helpDraft": "draft"
+    "helpDraft": "draft",
+    "helpCopyPrompt": "Copy prompt",
+    "helpPromptCopied": "Copied. Now paste the prompt into Claude.",
+    "helpPromptCopyFailed": "Copying did not work. Select the text below and copy it yourself."
   },
   "export": {
     "progressFileSuffix": "progress",

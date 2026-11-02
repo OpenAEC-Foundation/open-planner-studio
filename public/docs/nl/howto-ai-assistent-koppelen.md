@@ -2,6 +2,46 @@
 
 Doel: een MCP-client laten meelezen en meewerken aan je planning, met zicht op wat hij doet en met grenzen die je zelf bepaalt.
 
+## Snel: laat Claude het regelen
+
+Werk je met Claude Desktop of Claude Code? Dan kan Claude de koppeling zelf installeren:
+
+1. Klik hieronder op *Prompt kopiëren*.
+2. Plak de prompt in een nieuw gesprek met Claude en verstuur hem.
+
+Claude installeert dan de extensie voor Open Planner Studio en legt onderweg uit wat hij doet. Moet jij zelf iets doen, zoals op *Install* klikken in Claude Desktop, dan zegt Claude precies welke klik. Een token heb je er niet voor nodig.
+
+```prompt
+Installeer voor mij de extensie van Open Planner Studio, zodat jij mijn bouwplanningen in Open Planner Studio kunt lezen en wijzigen. Doe zoveel mogelijk zelf. Zeg vóór elke stap in één gewone zin wat je gaat doen en waarom. Heb je mij nodig, vraag dan één ding tegelijk en wacht op mijn antwoord. Moet ik zelf iets doen, zeg dan precies welke ene klik of handeling, en waar.
+
+Wat je moet weten:
+- De extensie is één bestand, open-planner-studio-<versie>.mcpb, bij de nieuwste release: https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest. De directe link staat in https://api.github.com/repos/OpenAEC-Foundation/open-planner-studio/releases/latest (het bestand waarvan de naam eindigt op .mcpb). Het bestand is een ZIP-bestand.
+- De extensie werkt met de desktop-app van Open Planner Studio en zonder de app. Staat de app open en draait de MCP-bridge, dan werk je in het plan dat open is in de app. Staat de app dicht, dan werk je op planningsbestanden in een werkmap die ik kies.
+- De installatie heeft geen token en geen wachtwoord nodig. Vraag mij er niet om, en lees of toon er geen.
+
+Draai je in Claude Desktop:
+1. Kun je een bestand downloaden en openen op mijn computer, doe dat dan met het .mcpb-bestand. Kan dat niet, geef mij dan de directe downloadlink en zeg dat ik op het bestand dubbelklik als de download klaar is.
+2. Claude Desktop toont dan de extensie Open Planner Studio. Zeg dat ik op Install klik. Zeg daarna dat ik bij Working folder de map met mijn planningsbestanden kies.
+3. Zeg dat ik een nieuw gesprek begin en je daar vraag welke tools van Open Planner Studio je ziet.
+
+Draai je in Claude Code:
+1. Controleer of Node.js 22 of nieuwer geïnstalleerd is. Is dat niet zo, zeg dan hoe ik het installeer, en stop.
+2. Vraag mij in welke map mijn planningsbestanden staan. Dat is de werkmap.
+3. Download het .mcpb-bestand en pak het uit in een nieuwe, eigen map in mijn gebruikersmap. Lees daar manifest.json: server.mcp_config zegt hoe de server start. Vervang ${__dirname} door de uitgepakte map en ${user_config.workdir} door de werkmap.
+4. Voer claude mcp list uit. Staat er al een server met de naam open-planner-studio, vraag dan of je hem mag vervangen. Toon zijn instellingen niet, want daar kan een token in staan.
+5. Voeg de server toe voor mijn gebruikersaccount, bijvoorbeeld: claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<werkmap> -- node <uitgepakte map>/server/index.mjs
+6. Zeg dat ik een nieuwe sessie van Claude Code start, en dat /mcp daar laat zien of open-planner-studio verbonden is.
+
+Draai je ergens anders, zoals claude.ai in de browser, zeg dan dat dit Claude Desktop of Claude Code nodig heeft. Weet je niet waar je draait, vraag het mij.
+
+Is de installatie klaar, leg dan in een paar zinnen uit:
+- hoe ik je in de open app laat werken: kies in Open Planner Studio Instellingen › Project › App-instellingen, tabblad Geavanceerd, en zet MCP-koppeling toestaan aan. Klik daarna op het tabblad MCP op Bridge starten.
+- dat zonder de app een wijziging pas in het bestand staat als je het opslaat, en dat je geen bestaand bestand overschrijft zolang de app open staat.
+Mislukt een stap, zeg dan in één zin wat er misging en wat ik kan doen. Gok niet.
+```
+
+Doe je het liever zelf, of gebruik je een andere MCP-client? Volg dan de stappen hieronder.
+
 ## Wanneer je dit nodig hebt
 
 Je wilt dat een MCP-client je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-programma, de **MCP-client**, gereedschappen van een ander programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [MCP-tools](docs://ref-ai-tools); waarom de koppeling zo werkt, staat in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling).
@@ -48,7 +88,7 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 Je kunt het fragment ook in het bestand `.mcp.json` in je projectmap zetten. Zet dat bestand dan niet in git, want het token geeft toegang tot je plan. Een server uit `.mcp.json` moet je de eerste keer goedkeuren in Claude Code.
 
-**Claude Desktop.** Voor Claude Desktop is er een extensie: het bestand `open-planner-studio-<versie>.mcpb`. Claude Desktop installeert het met een dubbelklik. Je hebt er geen Node.js voor nodig. De extensie werkt met de app en zonder de app.
+**Claude Desktop.** Voor Claude Desktop is er een extensie: het bestand `open-planner-studio-<versie>.mcpb`. Claude Desktop installeert het met een dubbelklik. Je hebt er geen Node.js voor nodig. De extensie werkt met de app en zonder de app. Sneller gaat het met de prompt bovenaan dit artikel; hieronder staan de stappen met de hand.
 
 1. Download het `.mcpb`-bestand bij de nieuwste release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
 2. Dubbelklik op het bestand. Claude Desktop opent en toont de extensie *Open Planner Studio*. Installeer hem. Werkt dubbelklikken niet, open dan in Claude Desktop *Settings › Extensions* en installeer het bestand daar.

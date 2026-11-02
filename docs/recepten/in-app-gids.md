@@ -82,6 +82,8 @@ veiligheidsgarantie, geen aparte escape-stap nodig). Ondersteund:
 - paragrafen (regels gescheiden door een lege regel)
 - `**vet**`, `*cursief*`, inline `` `code` ``
 - codeblokken (` ``` `)
+- promptblokken (` ```prompt `): een tekst om in een AI-assistent te plakken. De Help toont hem als gewone
+  tekst met de knop *Prompt kopiëren*; de wiki toont hem als codeblok.
 - ongeordende (`-`/`*`) en geordende (`1.`) lijsten — **single-level**, geen geneste/ingesprongen
   items
 - afbeeldingen `![alt](pad)` — alt-tekst verplicht; het pad wordt opgelost tegen

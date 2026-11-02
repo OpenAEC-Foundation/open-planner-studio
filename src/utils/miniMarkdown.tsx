@@ -8,7 +8,8 @@
 //   - koppen #, ##, ###
 //   - paragrafen (regels gescheiden door een lege regel)
 //   - **vet**, *cursief*, inline `code`
-//   - codeblokken (```)
+//   - codeblokken (```), en promptblokken (```prompt): een tekst om in een AI-assistent te plakken,
+//     getoond als leesbare tekst met de knop *Prompt kopiëren* (zie `MiniMarkdownPrompt`)
 //   - ongeordende (- / *) en geordende (1.) lijsten
 //   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
 //     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
@@ -29,7 +30,10 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Check, Copy } from 'lucide-react';
 import { createHeadingSlugger, resolveHelpImagePath } from '@/utils/helpManifest';
+import { copyViaTextarea, useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /** Standaard: een `public/docs`-pad, `{lang}` = en. */
 function defaultResolveImage(src: string): string {
@@ -51,6 +55,8 @@ const HEADER_RE = /^(#{1,3})\s+(.*)$/;
 const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const FENCE_RE = /^```/;
+/** Opent een promptblok in plaats van een codeblok. */
+const PROMPT_FENCE = '```prompt';
 /** Een regel met niets dan één afbeelding ⇒ blokafbeelding. */
 const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 
@@ -79,6 +85,37 @@ function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: strin
   }
 
   return <img className="help-image" src={resolved} alt={alt} onError={() => setFailed(true)} />;
+}
+
+/**
+ * Een prompt om in een AI-assistent te plakken: de tekst zelf, selecteerbaar, en een kopieerknop.
+ * Zonder klembord-API (de dev-server via http is geen secure context) kopieert de knop via een
+ * verborgen textarea; lukt ook dat niet, dan zegt de melding dat de gebruiker zelf kopieert.
+ */
+function MiniMarkdownPrompt({ text }: { text: string }) {
+  const { t } = useTranslation('menu');
+  const { copiedKey, copy, markCopied } = useCopyFeedback(4000);
+
+  const onCopy = async () => {
+    if (await copy(text)) return;
+    markCopied(copyViaTextarea(text) ? 'copied' : 'failed');
+  };
+
+  return (
+    <div className="help-prompt" data-help-prompt="">
+      <div className="help-prompt-bar">
+        <button type="button" className="btn btn--sm btn--primary help-prompt-copy" onClick={() => { void onCopy(); }}>
+          {copiedKey === 'copied' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+          {t('backstage.helpCopyPrompt')}
+        </button>
+        <span className="help-prompt-status" role="status">
+          {copiedKey === 'copied' && t('backstage.helpPromptCopied')}
+          {copiedKey === 'failed' && t('backstage.helpPromptCopyFailed')}
+        </span>
+      </div>
+      <pre className="help-prompt-text">{text}</pre>
+    </div>
+  );
 }
 
 function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandlers, key: string): ReactNode {
@@ -170,6 +207,10 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
         i++;
       }
       i++; // sluitende ``` overslaan (indien aanwezig)
+      if (line.trim() === PROMPT_FENCE) {
+        blocks.push(<MiniMarkdownPrompt key={`b${key++}`} text={codeLines.join('\n')} />);
+        continue;
+      }
       blocks.push(
         <pre className="help-code-block" key={`b${key++}`}>
           <code>{codeLines.join('\n')}</code>

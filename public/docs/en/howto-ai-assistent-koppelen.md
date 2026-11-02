@@ -2,6 +2,46 @@
 
 Goal: let an MCP client read along and work on your schedule, with insight into what it does and with limits that you set yourself.
 
+## Quick: let Claude do it
+
+Do you work with Claude Desktop or Claude Code? Then Claude can install the connection itself:
+
+1. Click *Copy prompt* below.
+2. Paste the prompt into a new chat with Claude and send it.
+
+Claude then installs the extension for Open Planner Studio and explains what it does along the way. If you must do something yourself, such as click *Install* in Claude Desktop, Claude tells you exactly which click. You do not need a token for it.
+
+```prompt
+Install the Open Planner Studio extension for me, so that you can read and change my construction schedules in Open Planner Studio. Do as much as you can yourself. Before each step, say in one plain sentence what you are going to do and why. If you need me, ask one thing at a time and wait for my answer. If I must do something myself, tell me exactly which one click or action, and where.
+
+What you need to know:
+- The extension is one file, open-planner-studio-<version>.mcpb, on the newest release: https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest. The direct link is in https://api.github.com/repos/OpenAEC-Foundation/open-planner-studio/releases/latest (the file whose name ends in .mcpb). The file is a ZIP file.
+- The extension works with the Open Planner Studio desktop app and without the app. When the app is open and its MCP bridge runs, you work in the plan that is open in the app. When the app is closed, you work on schedule files in a working folder that I choose.
+- The installation needs no token and no password. Do not ask me for one, and do not read or show one.
+
+If you run in Claude Desktop:
+1. If you can download a file and open it on my computer, do that with the .mcpb file. If you cannot, give me the direct download link and tell me to double-click the file when the download is complete.
+2. Claude Desktop then shows the extension Open Planner Studio. Tell me to click Install. Then tell me to choose, at Working folder, the folder with my schedule files.
+3. Tell me to start a new chat and to ask you there which Open Planner Studio tools you see.
+
+If you run in Claude Code:
+1. Check that Node.js 22 or newer is installed. If it is not, tell me how to install it, and stop.
+2. Ask me which folder holds my schedule files. That is the working folder.
+3. Download the .mcpb file and unpack it into a new folder of its own in my user folder. Read manifest.json there: server.mcp_config tells how the server starts. Replace ${__dirname} with the unpacked folder and ${user_config.workdir} with the working folder.
+4. Run claude mcp list. If a server with the name open-planner-studio is there already, ask me whether you may replace it. Do not show its settings, because they can contain a token.
+5. Add the server for my user account, for example: claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<working folder> -- node <unpacked folder>/server/index.mjs
+6. Tell me to start a new Claude Code session, and that /mcp there shows whether open-planner-studio is connected.
+
+If you run somewhere else, such as claude.ai in the browser, tell me that this needs Claude Desktop or Claude Code. If you do not know where you run, ask me.
+
+When the installation is done, explain in a few sentences:
+- how I let you work in the open app: in Open Planner Studio, choose Settings › Project › App settings, tab Advanced, and turn on Allow MCP connection. Then click Start bridge on the tab MCP.
+- that without the app a change is in the file only after you save it, and that you do not overwrite an existing file while the app is open.
+If a step fails, tell me in one sentence what went wrong and what I can do. Do not guess.
+```
+
+Do you prefer to do it yourself, or do you use another MCP client? Then follow the steps below.
+
 ## When you need this
 
 You want an MCP client to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI program, the **MCP client**, use tools of another program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [MCP tools](docs://ref-ai-tools); why the link works this way is in [How the MCP link works](docs://uitleg-ai-koppeling).
@@ -48,7 +88,7 @@ claude mcp add --transport http open-planner-studio http://localhost:3877/mcp --
 
 You can also put the snippet in the file `.mcp.json` in your project folder. Then do not put that file in git, because the token gives access to your plan. A server from `.mcp.json` must be approved the first time in Claude Code.
 
-**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it. The extension works with the app and without the app.
+**Claude Desktop.** For Claude Desktop there is an extension: the file `open-planner-studio-<version>.mcpb`. Claude Desktop installs it with a double-click. You do not need Node.js for it. The extension works with the app and without the app. It is quicker with the prompt at the top of this article; below are the steps by hand.
 
 1. Download the `.mcpb` file from the latest release: `https://github.com/OpenAEC-Foundation/open-planner-studio/releases/latest`.
 2. Double-click the file. Claude Desktop opens and shows the extension *Open Planner Studio*. Install it. If a double-click does not work, open *Settings › Extensions* in Claude Desktop and install the file there.

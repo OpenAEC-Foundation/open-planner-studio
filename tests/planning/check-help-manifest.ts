@@ -169,6 +169,12 @@ ok('64 inline-afbeelding blijft in de alinea', kids(blocks[2]).some(k => el(k)?.
 const link = kids(blocks[4]).map(el).find(k => k?.type === 'button');
 (link?.props.onClick as (() => void) | undefined)?.();
 eq('65 docs://id#anker navigeert met anker', navigated, ['howto-kalender#stap-1-kalender']);
+// Een ```prompt-blok wordt het promptonderdeel met de tekst letterlijk (lege regel en lijst inbegrepen);
+// een gewoon codeblok blijft een <pre>.
+const promptBlocks = renderMiniMarkdown('```prompt\nDoe dit.\n\n- *niet* opgemaakt\n```\n\n```\ncode\n```\n', { onNavigate: () => {} });
+eq('66 promptblok: eigen onderdeel met de letterlijke tekst, codeblok blijft pre',
+  [typeof el(promptBlocks[0])?.type, el(promptBlocks[0])?.props.text, el(promptBlocks[1])?.type],
+  ['function', 'Doe dit.\n\n- *niet* opgemaakt', 'pre']);
 
 // 9. De viewer gebruikt deze regels echt, met drafts alleen in dev.
 const panel = readFileSync(resolve(process.cwd(), 'src/components/backstage/HelpPanel.tsx'), 'utf8');
