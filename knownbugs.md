@@ -421,6 +421,15 @@ en noem het in je rapport of PR-tekst.
      beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
      ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
 
+802. **Een nivelleervoorstel toepassen duurt bij 10.000 taken ruim twee seconden.** De bestaande
+     `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC 7763,
+     Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte klik op *Toepassen* tot de Gantt klaar is:
+     2.072,9 ms mediaan (2.057,0–2.095,9 ms, drie herhalingen). Dit is afzonderlijk van het maken van
+     het voorstel; de wijziging voor 800 richt zich alleen op dat laatste. Voorstel: eerst de
+     store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
+     [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -1333,6 +1342,15 @@ en noem het in je rapport of PR-tekst.
      koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
      review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
 
+801. **Een groot IFC-bestand openen kost op de vaste 10.000-takenfixture circa 3,7 seconden.** De
+     bestaande `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC
+     7763, Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte bestandskeuze tot de Gantt klaar is:
+     3.660,1 ms mediaan (3.635,9–3.668,4 ms, drie herhalingen). Geen vergelijking met de historische
+     kantoor-pc-nulmeting: het betreft een andere runner en een nieuwere bron. Voorstel: deze
+     gebruikersroute eerst uitsplitsen in lezen, importnormalisatie, store en eerste tekening.
+     Ruwe gegevens en [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -1755,6 +1773,18 @@ en noem het in je rapport of PR-tekst.
      `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
      doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
      opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+
+803. **VERVOLG: de vóór/na-poort voor de nivelleeroptimalisatie mist enkele relevante paden.**
+     `tests/planning/check-leveler-differential.ts:57` genereert de 286 geldige projecten zonder
+     vastgepinde taken, voortgang, poolgrootboek, opgeslagen contouren of resourcecapaciteit die in de
+     tijd wisselt. `.github/workflows/perf-snelheid.yml:70` draait de bestaande gerichte batterijen
+     alleen op de kandidaat; daarvoor vergelijkt de poort dus geen volledige uitvoer met de basisbron.
+     Voorstel voor later: vergelijk ook die bestaande gerichte gevallen vóór en na, inclusief de
+     poolboekingen. Dit is een dekkingsgat, geen aangetoonde afwijking in het productgedrag. VERVOLG uit
+     review ronde 1 van PR 784 op `96b8431d8` door Sol (GPT-6.1-Sol, xhigh); geen BLOKKEERT. Sol
+     rapporteerde daarnaast 60 vergeleken voorstellen en 18 extra combinaties vóór/na, exact gelijk,
+     ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
+     geen onderdeel van de geautomatiseerde vóór/na-poort. — B
 
 ## Wensen en open taken (geen bug)
 
