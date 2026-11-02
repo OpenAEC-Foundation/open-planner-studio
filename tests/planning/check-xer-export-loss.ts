@@ -186,6 +186,14 @@ resetProject('Native met notitie');
     expect(`${format}: native project krijgt niet de XER-broninformatiemelding`,
       xerLossNotifications().length === 0);
     const dataLoss = dataLossNotifications();
+    if (format === 'p6') {
+      // P6 XML meldt per soort, zoals XER (eigenaar, 2026-10-29).
+      const p6Loss = store().ui.notifications.filter(n => n.messageKey === 'notifications.exportP6XmlLoss');
+      expect('p6: native project krijgt de eigen verliesmelding met de notitie',
+        dataLoss.length === 0 && p6Loss.length === 1
+        && p6Loss[0]?.detailLines?.some(line => line.messageKey === 'notifications.exportP6XmlLossItem.notes') === true);
+      continue;
+    }
     expect(`${format}: native project krijgt één algemene verliesmelding met het formaat (#554)`,
       dataLoss.length === 1
       && dataLoss[0]?.params?.format === (format === 'mspdi' ? 'MSPDI' : format.toUpperCase())

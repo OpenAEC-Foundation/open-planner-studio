@@ -66,7 +66,7 @@ Per bestandsformaat: of je het kunt openen, opslaan en exporteren, wat er wel en
 
 ## Primavera P6 XML
 
-**Openen** — ja. De app herkent een `.xml`-bestand als P6 XML aan het hoofdelement `APIBusinessObjects`. Rekenprofiel: *Open Planner Studio*.
+**Openen** — ja. De app herkent een `.xml`-bestand als P6 XML aan het hoofdelement `APIBusinessObjects`. Rekenprofiel: *Open Planner Studio*. Een melding zegt dat het project met dat profiel rekent, niet met de instellingen van P6.
 
 **Onleesbare taakdatums.** Hiervoor gelden dezelfde regels als bij MS Project XML: een onleesbare datum geldt als ontbrekend en breekt het openen niet af.
 

@@ -669,6 +669,31 @@ en noem het in je rapport of PR-tekst.
     via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
     (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
     de balkgeometrie te veranderen. — B
+593. **Typen-om-te-bewerken stuurt de eerste letter langs de invoermethode.** Een gekozen cel in selectiemodus
+    is geen tekstveld, dus de webview zet de invoermethode (IBus, Fcitx, IME) uit. De eerste toets komt als kale
+    letter binnen, `resolveTaskGridCommand` (`src/engine/taskGrid/navigation.ts:148`) opent er de editor mee, en
+    pas de volgende toetsen gaan door de invoermethode. Telex `ddaays` geeft zo `ddấy` in plaats van `đấy`;
+    ook `aw` (ă) en `oo` (ô) aan het begin van een woord breken. Bij Chinees pinyin of Japans romaji gaat de
+    eerste letter zo ook buiten de compositie. Gezien met v2026.44.0 (deb) en IBus Unikey onder Xvfb (issue
+    #764). Omweg: eerst F2, Enter of dubbelklik, dan typen. Voorstel: in selectiemodus een verborgen tekstveld
+    focussen dat de compositie opvangt (zoals spreadsheets doen); raakt het focusmodel en de toegankelijkheid. — B
+594. **Enter en Escape in de celeditor kijken niet naar compositie.** `GridEditorHost.tsx` (`onKeyDown`) legt bij
+    Enter vast en breekt bij Escape af, ook tijdens een IME-compositie. In Chromium (Windows-app, webversie)
+    heeft die keydown `key === 'Enter'` met `isComposing`; een Japanse of Chinese gebruiker die met Enter een
+    kandidaat kiest, sluit dan de cel. WebKitGTK geeft bij een toets die de invoermethode afhandelt
+    `key 'Unidentified'`, keyCode 229 (gemeten met Unikey), dus Linux raakt dit waarschijnlijk niet. Niet getest
+    in Chromium met een echte IME. Voorstel: `event.nativeEvent.isComposing || keyCode === 229` overslaan, zoals
+    `useDialogKeys.ts` al doet. — S
+595. **VERVOLG: de PR-check `appimage-im-check.yml` kan groen zijn terwijl de modules ontbreken.** De stap *Verify
+     AppImage input-method modules* (`.github/workflows/appimage-im-check.yml:57`) heeft geen `shell:` en draait dus
+     met `bash -e` zonder `pipefail`; `| tee` bepaalt dan de exitcode. Het script direct met een ontbrekend bestand
+     geeft exit 1, via de pipeline met `tee` exit 0 ondanks `::error::`. De releasecontrole in `release.yml` gebruikt
+     geen pipeline en faalt wel. Voorstel: `set -o pipefail` in de stap, of `| tee` weghalen. Gevonden in de review
+     van #772 (GPT-6.1-Sol). — B
+596. **VERVOLG: knownbugs 594 beschrijft `useDialogKeys.ts` te ruim.** 594 zegt "zoals `useDialogKeys.ts` al doet"
+     met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
+     niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
+     van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -1806,13 +1831,18 @@ en noem het in je rapport of PR-tekst.
      ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
      check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
 
-570. **P6 XML: een mijlpaal mét duur krijgt een mijlpaaltype naast zijn duur.** `src/services/p6/p6xmlWriter.ts`,
-     `taskTypeToP6`, kijkt alleen naar `isMilestone`. Een taak uit `.mpp` met de vlag en 5 dagen duur krijgt dus
-     `Start Milestone` met `PlannedDuration` 40. P6 rekent een mijlpaal zonder duur, dus de duur kan daar wegvallen. De
-     XER-export is hierop gerepareerd in #393 (`isZeroDurationMilestone`). Gevonden tijdens die fix. Niet in P6 getest. — S
 
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
 
 590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Weghalen
      raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
+
+591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
+     (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
+     De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
+
+592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
+     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
+     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
+     zelf geëxporteerd door de reviewer. — B

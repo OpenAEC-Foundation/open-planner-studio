@@ -320,7 +320,7 @@ export const EXPORT_FORMATS = [
   { format: 'progress-xlsx', icon: 'XLSX', labelKey: 'export.progressXlsxLabel', descKey: 'export.progressXlsxDesc', shortLabelKey: 'export.progressXlsxShort' },
   { format: 'csv', icon: 'CSV', labelKey: 'export.csvLabel', descKey: 'export.csvDesc', shortLabelKey: 'export.csvShort' },
   { format: 'mspdi', icon: 'XML', labelKey: 'export.mspdiLabel', descKey: 'export.mspdiDesc', shortLabelKey: undefined, recommendedProfile: 'msproject' },
-  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined, recommendedProfile: 'p6' },
+  { format: 'p6', icon: 'P6', labelKey: 'export.p6Label', descKey: 'export.p6Desc', shortLabelKey: undefined, experimental: true, recommendedProfile: 'p6' },
   { format: 'xer', icon: 'XER', labelKey: 'export.xerLabel', descKey: 'export.xerDesc', shortLabelKey: undefined, experimental: true, recommendedProfile: 'p6' },
   { format: 'ifc', icon: 'IFC', labelKey: 'export.ifcLabel', descKey: 'export.ifcDesc', shortLabelKey: undefined },
 ] as const satisfies readonly ExportFormatMeta[];
