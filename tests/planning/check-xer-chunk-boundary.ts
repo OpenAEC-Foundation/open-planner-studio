@@ -21,15 +21,30 @@ function walk(directory: string, files: string[] = []): string[] {
   return files;
 }
 
+// #775: de P6 XML-lezer leidt de rekenopties af met dezelfde XER-code. Dat mag alleen omdat die lezer zelf lazy
+// is: `p6xmlScheduleOptions.ts` wordt alleen door `p6xmlReader.ts` geïmporteerd, en `p6xmlReader.ts` alleen via
+// `await import(` in formatRegistry.ts. Elke andere (statische) afnemer van die twee maakt deze poort rood.
+const p6xmlBridge = join('src', 'services', 'p6', 'p6xmlScheduleOptions.ts');
+const p6xmlReaderFile = join('src', 'services', 'p6', 'p6xmlReader.ts');
+let p6xmlDynamicImportFound = false;
 for (const file of walk(srcRoot)) {
   const rel = relative(root, file);
   for (const [index, line] of readFileSync(file, 'utf8').split('\n').entries()) {
+    if (line.includes('/p6xmlScheduleOptions\'') && rel !== p6xmlReaderFile) {
+      diffs.push(`${rel}:${index + 1} importeert p6xmlScheduleOptions; alleen p6xmlReader.ts mag dat (lazy XER-brug, #775)`);
+    }
+    if (line.includes('/p6xmlReader\'')) {
+      if (rel === allowed && line.includes('await import(')) p6xmlDynamicImportFound = true;
+      else diffs.push(`${rel}:${index + 1} importeert p6xmlReader niet lazy; die trekt de XER-code in de main chunk (#775)`);
+    }
     if (!line.includes(marker)) continue;
     if (rel === allowed && line.includes('await import(')) dynamicImportFound = true;
+    else if (rel === p6xmlBridge && /^import\b/.test(line)) continue;
     else diffs.push(`${rel}:${index + 1} bevat een statische XER-import buiten de lazy registryrand`);
   }
 }
 if (!dynamicImportFound) diffs.push('de lazy XER-import ontbreekt in formatRegistry.ts');
+if (!p6xmlDynamicImportFound) diffs.push('de lazy P6 XML-import ontbreekt in formatRegistry.ts');
 const vite = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 if (!vite.includes("return 'xer-reader'")) diffs.push('vite.config.ts mist de xer-reader manual chunk');
 const archiveModule = join(srcRoot, 'services', 'xerSourceArchive.ts');

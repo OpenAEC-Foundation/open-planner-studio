@@ -41,7 +41,7 @@ You read a filled-in progress sheet back through *File › Import*. See [Importi
 
 **An export is also in Recent.** That does not apply to the progress sheets. If you open an export there, it opens as an import of that format.
 
-**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened export calculates as *Open Planner Studio*, a reopened `.xer` as *Primavera P6*. Only IFC carries everything. After an export to `.xer` the app reports *The XER export is saved. This was not included, or not exactly:*, with one line per kind, for example *2 deadlines*. See [Import and export formats](docs://ref-import-exportformaten). You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
+**An export does not carry everything.** A CSV file has no resources or constraints, P6 XML has no baselines and deadlines. The calculation profile does not go along either: a reopened CSV or MS Project XML export calculates as *Open Planner Studio*, a reopened `.xer` or P6 XML export as *Primavera P6*. Only IFC carries everything. After an export to `.xer` the app reports *The XER export is saved. This was not included, or not exactly:*, with one line per kind, for example *2 deadlines*. See [Import and export formats](docs://ref-import-exportformaten). You find an example with numbers in [Files and formats](docs://uitleg-bestanden).
 
 **Two formats with the same extension.** MS Project XML and Primavera P6 XML both get the name *projectname.xml*. Give them different names yourself, otherwise you will not know later which file is which format.
 
