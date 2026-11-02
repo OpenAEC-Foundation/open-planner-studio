@@ -41,6 +41,7 @@
 //
 // Draait via run.sh (esbuild-bundel, ook in de tijdzone-matrix). Alleen de exitcode telt.
 import './domStub';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { assignmentPlacementLoad, assignmentPlacementWork, workPlacement } from '@/engine/scheduler/workPlacement';
 import { computeResourceLoad, contourLookup, taskLoadPlacement } from '@/engine/scheduler/ResourceLoad';
@@ -424,6 +425,26 @@ for (const calendar of CALENDARS) {
   // De grens ligt op de goede plek: net boven een halve ms is 1 ms.
   eq(`(b2) ${calendar.id}: 0,0000083334 min vanaf ma 08:00 is 1 ms`,
     iso(engine.addWorkMinutes(MONDAY, 0.0000083334)), '2026-06-01T08:00:00.001Z');
+}
+
+// Knownbug 395: een positieve duur die op nul ms rondt, houdt ook in de solver haar anker.
+for (const minutes of [0, 0.000001, 0.000008]) {
+  const { store } = createAppStoreContext();
+  store.setState(s => {
+    s.calendar = DAY;
+    s.project.startDate = '2026-06-01T08:00';
+    s.project.schedulingProfile = builtInProfile('msproject');
+  });
+  const S = () => store.getState();
+  const id = S().addTask({ name: 'Nul ms', time: { ...createDefaultTaskTime('2026-05-29T16:00', 0),
+    durationUnit: 'hours', durationMinutes: minutes } });
+  S().runCPM();
+  const time = S().tasks.find(t => t.id === id)!.time;
+  eq(`395 ${minutes}: berekening zonder fout`, S().cpmResult?.error, undefined);
+  eq(`395 ${minutes}: beide vroege momenten op het anker`, [time.earlyStart, time.earlyFinish],
+    ['2026-05-29T16:00', '2026-05-29T16:00']);
+  eq(`395 ${minutes}: nulduur houdt hetzelfde late venster zonder negatieve speling`,
+    [time.lateStart, time.lateFinish, time.totalFloatMinutes], ['2026-05-29T16:00', '2026-05-29T16:00', 0]);
 }
 
 if (errors.length) {

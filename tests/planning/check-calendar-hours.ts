@@ -414,6 +414,23 @@ const engAsymmetric = new CalendarEngine({
 eq('M30 Asymmetric hoursPerDay=8 (modaal, controle)', engAsymmetric.hoursPerDay, 8);
 eq('M31 Asymmetric workMinutesBetween(za11,zo12)=480 (modale standaardbanden, niet de eerste-dag 240m)', engAsymmetric.workMinutesBetween(I('2026-07-11'), I('2026-07-12')), 480);
 
+// Knownbug 462: een nachtstaart en een werkende uitzondering leveren samen de vereniging.
+const overlapCal: WorkCalendar = { ...cal('nacht met zaterdag', w5([{ start: 1320, end: 1800 }])),
+  workingExceptions: [{ name: 'Zaterdag open', startDate: '2026-06-06', endDate: '2026-06-06',
+    bands: [{ start: 0, end: 1440 }] }] };
+const overlap = new CalendarEngine(overlapCal);
+const sat = I('2026-06-06T00:00');
+const sun = I('2026-06-07T00:00');
+eq('462 zaterdag: precies 1440 minuten, geen dubbele nachtstaart', overlap.workMinutesBetween(sat, sun), 1440);
+eq('462 vrijdag 22 tot zondag 00: 26 uur', overlap.workMinutesBetween(I('2026-06-05T22:00'), sun), 1560);
+eq('462 vooruit 24 uur vanaf zaterdag 00', F(overlap.addWorkMinutes(sat, 1440)), '2026-06-07T00:00');
+eq('462 achteruit 24 uur vanaf zondag 00', F(overlap.subtractWorkMinutes(sun, 1440)), '2026-06-06T00:00');
+const intervals462 = overlap.workIntervalsBetween(sat, sun);
+eq('462 gedeelde intervallen boeken ook precies 24 uur', intervals462.reduce((n, b) => n + (b.end.getTime() - b.start.getTime()) / 60000, 0), 1440);
+eq('462 lange telling via de prefixsom: 22 nachten minus laatste staart plus 18 extra uur',
+  overlap.workMinutesBetween(I('2026-06-01'), I('2026-07-01')), 11280);
+eq('462 omgekeerd is de telling negatief', overlap.workMinutesBetween(sun, sat), -1440);
+
 if (diffs.length === 0) {
   console.log(`OK  calendar-hours-check: alle checks groen (${checks})`);
   process.exit(0);

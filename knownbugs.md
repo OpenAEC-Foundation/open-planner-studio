@@ -193,30 +193,12 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
-     `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
-     (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
-     en MSP ook "1,5d") krijgt zo 720 × (1 − 1/3) = 480,00000000000006 min in plaats van 480. De motor legde
-     het einde daardoor net voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Gemeten in
-     fixronde 4 van #584. Sinds fixronde 7 van #591 rekenen de kalenderwandelingen in hele ms, en is het einde
-     di 16:00; de vier rijen zijn uit `KNOWN_DRIFT` in `tests/planning/check-f4b-review-r3.ts`. De ruis in de
-     rest zelf is niet weggenomen (die fix raakt `durationEditProgress` niet; niet opnieuw gemeten). Voorstel:
-     de rest als nieuwe duur − verricht rekenen. — B
-
 317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
      `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
      het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
      met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
      ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
      mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
-
-341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
-     `src/engine/work/workRuleApply.ts:990`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
-     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
-     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
-     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
-     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
-     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
 358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
      `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
@@ -249,15 +231,6 @@ en noem het in je rapport of PR-tekst.
      in deze vorm blijft staan in plaats van B te vertragen (wacht in `placeUnstartedAlap`, gepind in
      `check-alap-maatplaatsing.ts`). Voorstel: bewaar de startbovengrens bij de projectie naar de
      voorgangerkalender, met de bestaande grenshelpers. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-346. **Een procentlag weegt onder P6/MSP de duur van een dagvoorganger met de lagkalender in plaats van de
-     voorgangerkalender.** `src/engine/scheduler/CPMSolver.ts:1498`. A 1 d op 08:00–16:00 (480 min), B op
-     08:00–18:00 (600 min per dag), SS+50 %, lagkalender opvolger. Verwacht: 50 % van A is 240 min, dus B
-     begint ma 12:00. B begint 13:00: de motor rekent 50 % van 600 min. Met A als urentaak
-     (`durationMinutes` 480) begint B wel 12:00. `resolveLagMinutes` geeft de lagkalender ook aan
-     `durationMinutesOf` voor de duur van de voorganger. Al op `fbd4a3f9d`. Voorstel: reken het percentage
-     uit met de kalender van de voorganger en gebruik de lagkalender alleen voor de verschuiving. Gevonden
-     in de aanval na #600 (GPT-6.1-Sol). — B
 
 361. **Een gestarte ALAP-taak houdt de oude stap in hele werkdagen.** `src/engine/scheduler/CPMSolver.ts:3390`
      en `:3404` (`applyAlap`, de tak na `placeUnstartedAlap`). Kalender ma–vr 08:00–16:00 met een werkende
@@ -322,15 +295,6 @@ en noem het in je rapport of PR-tekst.
      aftrekken vanaf 12:00:00,028 verliest 28 ms, ook op main. Geen getoonde dag verspringt. Voorstel: de loper houdt
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
-
-395. **Een positieve duur die op nul ms rondt, is bij een rauw MS Project-werkeinde nog geen nulduur voor de
-     solver.** `src/engine/scheduler/CPMSolver.ts:1281–1284`: de wacht toetst `totalMinutes > 0` en verlegt een rauw
-     werkeinde eerst naar het begin van dezelfde dag; pas daarna behandelt de kalender de lengte als 0. Via de store:
-     MS Project-profiel, ma–vr 08–16, projectstart 1 juni 2026 08:00, worteltaak met eigen start vr 29 mei 16:00 en
-     duur 0,000001 min. Uitkomst: ES vr 16:00, EF vr 08:00 (een omgekeerde spanne), LS vr 16:00, speling 0. Een
-     letterlijke nulduur houdt ES en EF op vr 16:00. Op main dezelfde omgekeerde vroege spanne, plus LS do 16:00 en
-     −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
-     ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
 
 399. **Een contourperiode na een split-gat korter dan een halve ms kan een fantoomoverbezetting geven.**
      `src/engine/scheduler/workPlacement.ts` (`placementResidueAxis`): de rest buiten de afgeronde spanne loopt op de
@@ -402,13 +366,6 @@ en noem het in je rapport of PR-tekst.
      `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
      Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
      huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
-589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
-     gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
-     `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
-     arbeidsresource; handmatig verkort naar vijf dagen; nieuwe materiaalresource toegewezen: F5 meldt `resource` met
-     beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
-     ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
-
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
@@ -687,12 +644,6 @@ en noem het in je rapport of PR-tekst.
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
-462. **Een nachtband en een werkende uitzondering op de dag erna tellen dubbel.** Kalender met vrijdag
-    22:00–06:00 (`workTime`, band tot minuut 1800) en een werkende zaterdaguitzondering 00:00–24:00: `CalendarEngine`
-    telt op zaterdag 1.800 werkminuten, terwijl de dag er maar 1.440 heeft (de ochtendstaart van vrijdag en de
-    uitzondering overlappen 00:00–06:00). Nagespeeld met `workMinutesBetween(za, zo)` = 1800. De XER-schrijver
-    (`xerWriter.ts`, `workOnDate`) verenigt de banden tot 1.440, zonder melding; zie de vervolgpunten van PR #393
-    (punt G). Voorstel: overlappende banden in de engine verenigen. — B
 466. **Een scalaire OPS-kalender komt na XER-export en heropenen terug als urenkalender, en rekent dan anders.**
     De XER-lezer leest kalenders met de gewone regels (`xerCalendarData.ts`, gelijk aan main): elke kalender met
     banden in `clndr_data` wordt een urenkalender (`workTime`). Een kalender die in OPS alleen begin, einde en

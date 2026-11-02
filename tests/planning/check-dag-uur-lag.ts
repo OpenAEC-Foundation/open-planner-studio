@@ -7,6 +7,8 @@
 // binnen het oude bereik exact dezelfde dag, daarbuiten het juiste antwoord.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -42,6 +44,41 @@ for (const type of ['FINISH_START', 'START_START'] as const) {
     const a = r.tasks.get('A')!;
     eq(`${type} lag ${lag}: A blijft kritiek (tf 0)`, a.totalFloat, 0);
     eq(`${type} lag ${lag}: late finish A = vroege finish A`, a.lateFinish, a.earlyFinish);
+  }
+}
+
+// Knownbug 346: een procentlag weegt de voorganger op diens eigen kalender.
+// A = één dag van 8 uur; B heeft dagen van 10 uur. 50% van A blijft 4 uur.
+for (const profile of ['p6', 'msproject'] as const) {
+  for (const hours of [false, true]) {
+    for (const lagCalendar of ['predecessor', 'successor', 'projectDefault'] as const) {
+      const { store } = createAppStoreContext();
+      const S = () => store.getState();
+      const calendar = (id: string, end: number): WorkCalendar => {
+        const bands = [{ start: 480, end }];
+        return { ...CAL, id, holidays: [], workEndHour: end / 60, workTime: { byWeekday: {
+          1: bands, 2: bands, 3: bands, 4: bands, 5: bands, 6: [], 7: [],
+        } } };
+      };
+      store.setState(s => {
+        s.calendar = calendar('project', 960);
+        s.calendars = [calendar('acht', 960), calendar('tien', 1080)];
+        s.project.startDate = '2026-06-01T08:00';
+        s.project.schedulingProfile = builtInProfile(profile);
+        s.project.schedulingOptions = { lagCalendar };
+      });
+      const a = S().addTask({ ...mk('A', 1, hours), calendarId: 'acht' });
+      const b = S().addTask({ ...mk('B', 1, true), calendarId: 'tien' });
+      S().addSequence({ predecessorId: a, successorId: b, type: 'START_START', lagDays: 0, lagPercent: 50 });
+      S().runCPM();
+      const label = `346 ${profile} ${hours ? 'uren' : 'dagen'} ${lagCalendar}`;
+      eq(`${label}: berekening zonder fout`, S().cpmResult?.error, undefined);
+      const result = () => S().tasks.find(t => t.id === b)!.time;
+      eq(`${label}: B start na 240 minuten`, result().earlyStart, '2026-06-01T12:00');
+      eq(`${label}: terugrekening houdt hetzelfde startvenster`, result().lateStart, result().earlyStart);
+      S().runCPM();
+      eq(`${label}: tweede F5 blijft gelijk`, result().earlyStart, '2026-06-01T12:00');
+    }
   }
 }
 

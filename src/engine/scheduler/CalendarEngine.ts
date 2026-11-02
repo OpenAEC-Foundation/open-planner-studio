@@ -667,6 +667,26 @@ export class CalendarEngine {
     const hit = cache.days.get(dayMs);
     if (hit) return hit;
     cache.fills++;
+    // Een nachtstaart blijft bij haar startdag. Een band op de volgende dag krijgt alleen
+    // het nog niet bedekte deel: dezelfde minuut mag niet twee keer in tellingen, de
+    // prefixsom of de gedeelde werkintervallen terechtkomen.
+    const previousDay = dayMs - MS_PER_DAY;
+    let coveredUntil = dayMs;
+    for (const band of this.sourceBandsOn(previousDay)) {
+      coveredUntil = Math.max(coveredUntil, previousDay + band.end * CalendarEngine.MS_PER_MIN);
+    }
+    const result: BandInterval[] = [];
+    for (const band of this.sourceBandsOn(dayMs)) {
+      const start = Math.max(coveredUntil, dayMs + band.start * CalendarEngine.MS_PER_MIN);
+      const end = dayMs + band.end * CalendarEngine.MS_PER_MIN;
+      if (end > start) result.push({ start, end });
+    }
+    cache.days.set(dayMs, result);
+    return result;
+  }
+
+  /** De opgeslagen dagbanden, vóór het wegnemen van overlap met de vorige nacht. */
+  private sourceBandsOn(dayMs: number): { start: number; end: number }[] {
     const d = new Date(dayMs);
     const dayIdx = utcDayIndex(dayMs); // dayMs is altijd dag-uitgelijnd (aanroepers)
     const wd = isoDayOfWeek(d) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -680,12 +700,7 @@ export class CalendarEngine {
     } else {
       bands = this.calendar.workTime!.byWeekday[wd] ?? [];
     }
-    const result: BandInterval[] = bands.map((b) => ({
-      start: dayMs + b.start * CalendarEngine.MS_PER_MIN,
-      end: dayMs + b.end * CalendarEngine.MS_PER_MIN,
-    }));
-    cache.days.set(dayMs, result);
-    return result;
+    return bands;
   }
 
   /** De band die `tMs` bevat, of null. `leftOpen=false` ⇒ voorwaartse conventie `[start,end)`;
