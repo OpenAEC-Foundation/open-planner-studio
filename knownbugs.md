@@ -1774,3 +1774,12 @@ en noem het in je rapport of PR-tekst.
      het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
      Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
      VERVOLG). — B
+
+835. **VERVOLG: in 26 talen heten *Install* en *Working folder* van Claude Desktop soms anders.** De nl- en en-tekst
+     van `howto-ai-assistent-koppelen` (ook de setup-prompt) laten deze twee namen in het Engels. De vertaalstraat
+     (#779) vertaalde ze in de meeste talen: de *Installieren* en de nalezer maakte de prompt daaraan gelijk; ja, ru
+     en bg vertaalden ook *Working folder*. *Working folder* is de titel uit `integrations/claude-desktop/manifest.json`
+     en blijft dus Engels in Claude Desktop. Of Claude Desktop *Install* in die talen vertaalt, is niet nagegaan.
+     Claude noemt de klik zelf, dus de installatie loopt niet vast. Voorstel: zet beide namen in
+     `i18n/docs-literal.json` (`manual`) en haal het artikel opnieuw door de straat (`prepare docs <taal> --ids
+     howto-ai-assistent-koppelen`). — S
