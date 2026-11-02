@@ -1,5 +1,6 @@
 import type { Task, ExternalLink } from '@/types/task';
-import { externalSourceSide, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
+import { externalSourceSide, isValidExternalLagValue, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
+import { isRecord } from '@/utils/guards';
 import { computedStart, computedFinish } from '@/utils/taskDates';
 
 export { externalSourceSide };
@@ -127,4 +128,51 @@ export function refreshExternalAnchors(
   });
 
   return { tasks: anyChanged ? outTasks : tasks, refreshed, missing, changed: anyChanged };
+}
+
+const DIRECTIONS: readonly string[] = ['predecessor', 'successor'];
+const RELATION_TYPES: readonly string[] = ['FS', 'SS', 'FF', 'SF'];
+const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath'] as const;
+
+/**
+ * De externe koppelingen uit een opgeslagen bestand (`OPS_ExternalLink`), in een vorm die de app
+ * aankan. Een koppeling zonder geldige richting, type, anker (tekst) of bron (project-id als tekst,
+ * taak-id niet leeg) valt weg: zulke data liet laden, rekenen en de relatiecel vastlopen. Een
+ * ontbrekend of dubbel id krijgt een eigen id per taak, een ontbrekende bronstatus wordt "bron
+ * ontbreekt", een ongeldige lag en een bronveld dat geen tekst is vervallen. Onbekende extra velden
+ * blijven staan, zodat een nieuwere versie van de app bij opslaan niets verliest.
+ * Geen geldige koppeling ⇒ `undefined` (de taak heeft er dan geen).
+ */
+export function storedExternalLinks(value: unknown): ExternalLink[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const used = new Set<string>();
+  const uniqueId = (wanted: string): string => {
+    let id = wanted;
+    for (let n = 2; used.has(id); n++) id = `${wanted}-${n}`;
+    used.add(id);
+    return id;
+  };
+  const links: ExternalLink[] = [];
+  value.forEach((raw, index) => {
+    if (!isRecord(raw) || !isRecord(raw.sourceRef)) return;
+    const { direction, relType, anchorDate, sourceRef } = raw;
+    if (typeof direction !== 'string' || !DIRECTIONS.includes(direction)) return;
+    if (typeof relType !== 'string' || !RELATION_TYPES.includes(relType)) return;
+    if (typeof anchorDate !== 'string') return;
+    if (typeof sourceRef.projectId !== 'string') return;
+    if (typeof sourceRef.taskId !== 'string' || sourceRef.taskId === '') return;
+    const ref: Record<string, unknown> = { ...sourceRef };
+    for (const key of OPTIONAL_SOURCE_FIELDS) if (key in ref && typeof ref[key] !== 'string') delete ref[key];
+    const link: Record<string, unknown> = {
+      ...raw,
+      id: uniqueId(typeof raw.id === 'string' && raw.id !== '' ? raw.id : `extlink-ifc-${index + 1}`),
+      sourceRef: ref,
+      sourceMissing: typeof raw.sourceMissing === 'boolean' ? raw.sourceMissing : true,
+    };
+    for (const key of ['lagDays', 'lagMinutes'] as const) {
+      if (key in link && !isValidExternalLagValue(key, link[key])) delete link[key];
+    }
+    links.push(link as unknown as ExternalLink);
+  });
+  return links.length > 0 ? links : undefined;
 }

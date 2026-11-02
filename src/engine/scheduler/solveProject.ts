@@ -16,8 +16,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { EffectiveSchedulingOptions, ProgressMode } from '@/types/project';
 import { CPMSolver, type CPMResult } from './CPMSolver';
 import { applyCpmResult } from './applyCpmResult';
-import { expandSummaryRelations, foldSyntheticSequenceIds } from './expandSummaryRelations';
-import { isLeafTask } from '@/utils/taskHierarchy';
+import { expandSummaryRelations, foldSyntheticSequenceIds, leafTasksForSolve } from './expandSummaryRelations';
 
 /** Invoer van één doorrekening — plain data, geen store. */
 export interface SolveProjectInput {
@@ -64,7 +63,8 @@ export interface SolveProjectInput {
 export function solveProject(input: SolveProjectInput): CPMResult {
   // Per-taak-kalender: de solver krijgt de projectdefault + de bibliotheek en
   // bouwt zelf een engine-cache; taken zonder eigen calendarId rekenen in de projectkalender.
-  const leafTasks = input.tasks.filter(isLeafTask);
+  // Externe relaties op een fase gelden voor de bladtaken eronder (`leafTasksForSolve`).
+  const leafTasks = leafTasksForSolve(input.tasks);
   // Samenvattingsrelatie-propagatie (MS Project-semantiek): relaties die een WBS-samenvattingstaak
   // raken worden herschreven naar equivalente bladtaak-relaties vóórdat de solver ze ziet — de
   // solver kent alleen bladtaken. Dit hoort in de kern (niet in `runCPM`), zodat óók het

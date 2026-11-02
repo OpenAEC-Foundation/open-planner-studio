@@ -14,7 +14,7 @@ import { diffDays } from '@/utils/dateUtils';
 import { applyWbsNumbering } from '@/utils/wbs';
 import { CPMSolver, type CPMResult } from '@/engine/scheduler/CPMSolver';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { applyProjectPatch } from '../projectPatch';
 import { applyIfcSchemaChoice, splitIfcSchemaPatch } from '../ifcSchemaChoice';
 import { markDocumentUnsaved } from '../documentEdited';
@@ -35,7 +35,6 @@ import { notifyTimephasedLoss } from '../timephasedLossNotice';
 import type { AppSliceFactory } from './types';
 import { PROJECT_INFO_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { effHoursPerDay } from '@/utils/taskDuration';
-import { isLeafTask } from '@/utils/taskHierarchy';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 // De fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
@@ -424,7 +423,7 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     const solve = (
       tasks: Task[], dataDate: string | undefined, projectStartDate: string, projectEndDate: string,
     ): CPMResult => {
-      const leaf = tasks.filter(isLeafTask);
+      const leaf = leafTasksForSolve(tasks);
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
         ...solveOptionsFor(s.project),
         dataDate,
