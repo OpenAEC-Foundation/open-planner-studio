@@ -4,7 +4,7 @@ Goal: put the actual state of the work into the schedule and recalculate the sch
 
 ## When you need this
 
-You update progress at fixed moments, for example every Friday when the site manager reports the state. That way the schedule sees what has actually happened and calculates the remaining work from the status date. Why the app does it this way is explained in [Progress, status date and baseline](docs://uitleg-voortgang).
+You update progress at fixed moments, for example every Friday when the site manager reports the state. That way the schedule sees what has actually happened and calculates the remaining work from the status date.
 
 ## Steps
 
@@ -76,6 +76,10 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **The remaining duration is exact.** The app does not round the remaining duration to whole work days. For a task of 2 work days, 75% gives a remainder of 0.5 work day.
 
+**Progress without a status date.** If the project has progress but no status date, for example after you cleared it with the cross, the app calculates a running task forward with its remaining duration but backward with its full duration. The float then comes out negative and the task looks critical. A completed task can then be critical too. Set the status date again.
+
+**Dragging a started bar.** The start of a started task is the actual start and does not move. For a completed task the start and finish do not move. The app then reports, for example, *'…' has started: its start is the actual start and does not move. Change it through the progress.* Change the *Actual start* or the *Actual finish* instead.
+
 **A phase.** A phase has no progress of its own. In the panel it says *Derived from the subtasks: change progress there. The summary task follows after calculating (F5).* In the table the cell reports *The progress of a summary task is derived from its subtasks and cannot be changed here.*
 
 **Moving the status date later.** The remaining work of running tasks starts on the new status date, and work that has not started yet cannot lie before that date. So move it only together with an update of the progress. If you set a status date without also entering progress, all work that has not started yet moves to that date (except in the Microsoft Project profile).
@@ -84,7 +88,6 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 ## See also
 
-- [Progress, status date and baseline](docs://uitleg-voortgang): how the app calculates the remaining work and the status date, with a worked example.
 - [Importing progress from a spreadsheet](docs://howto-voortgang-importeren): reading in progress for many tasks at once.
 - [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen): what the app does with a task that has started while its predecessor is still running.
 - [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren): recording the original schedule to compare progress with.

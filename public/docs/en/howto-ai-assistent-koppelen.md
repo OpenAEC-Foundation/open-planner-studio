@@ -4,7 +4,7 @@ Goal: let an MCP client read along and work on your schedule, with insight into 
 
 ## When you need this
 
-You want an MCP client to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI program, the **MCP client**, use tools of another program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [MCP tools](docs://ref-ai-tools); why the link works this way is in [How the MCP link works](docs://uitleg-ai-koppeling).
+You want an MCP client to read, analyze or change your schedule. For example to have it draft a first WBS, correct tasks or explain the critical path. That works through the **Model Context Protocol** (MCP): a standard that lets an AI program, the **MCP client**, use tools of another program. For this, Open Planner Studio runs a small server on your own computer, the **bridge**. It offers a set of tools, all with a name that starts with `planner_`: reading and changing tasks, relations, resources, calendars, baselines, documents and files. Which ones there are and what they refuse is in [MCP tools](docs://ref-ai-tools). The MCP client works in the project you have open, not in a copy: a task it adds shows up in the Gantt straight away. It uses the same calculation and the same *Undo* history as you.
 
 The bridge only works in the desktop app. If you allow the MCP connection in the browser, you do see the *MCP* tab, but the button *Start bridge* is grey with the text *The bridge only works in the desktop app.* The rest of this article is about the desktop app. In the browser, *Back up now* and *Open backup folder* are grey too.
 
@@ -23,7 +23,7 @@ If you turn the MCP connection off, the bridge stops and the tab *MCP* disappear
 1. Go to the tab *MCP* and click *Start bridge* under *Server*.
 2. Look at the status next to the button. It says *Off*, *Live on port 3877*, *Port 3877 in use* or *Error*. If starting succeeds, it says *Live on port 3877* and the button is called *Stop bridge*. With *Port 3877 in use* or *Error* the button stays *Start bridge*; see the pitfalls.
 
-The bridge only listens on your own computer, on one port. By default that is 3877. In the group *Connection* you can choose another one under *Port*, but only while the bridge is stopped.
+The bridge only listens on your own computer, on one port. By default that is 3877. In the group *Connection* you can choose another one under *Port*, but only while the bridge is stopped. The connection is plain HTTP on your own computer. The app itself sends nothing out. What the MCP client does with your schedule, for example what its provider does with it, falls outside the app.
 
 ### 3. Connect the MCP client
 
@@ -99,9 +99,9 @@ The backups are in the folder `ai-backups` in the data folder of the app. The ap
 
 ### 6. Have the MCP client plan well
 
-An MCP client only plans well if it knows the planning rules. Why that matters and what is in them, you read in [How the MCP link works](docs://uitleg-ai-koppeling). This is what you do yourself:
+An MCP client only plans well if it knows the planning rules. This is what you do yourself:
 
-1. **Do nothing for the core rules.** They come along when connecting. Whether your client puts them in its system prompt depends on the client.
+1. **Do nothing for the core rules.** They come along when connecting: the bridge sends them in the `instructions` field of the MCP handshake. Whether your client puts them in its system prompt depends on the client.
 2. **Have the guide read.** The connection prompt from the window *Connection details* asks the MCP client to read the guide with the tool `planner_get_planning_guide`. If you do not use the prompt, ask yourself: *Read the planning guide with planner_get_planning_guide first, before you change anything.* You can read the guide yourself at `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
 3. **Optional: install the skills.** This only works with an MCP client that supports skills. Put the `SKILL.md` of *goed-plannen* and *progress-update* in `.claude/skills/goed-plannen/SKILL.md` and `.claude/skills/progress-update/SKILL.md` in the project folder the MCP client works in, or under `~/.claude/skills/` for every project.
 
@@ -115,7 +115,7 @@ Whether the MCP client really read the guide you can see in the *Activity panel*
 
 **The app refuses a call by the MCP client.** With *Pause* and *Read-only* the app refuses all changes and reading remains possible, including the recalculation of a stale schedule. If you are in the middle of an edit yourself, such as dragging a bar or typing in a field, the MCP client gets the dates from before your edit with a notice that they are stale. If you have a dialog open, for example the settings, a task dialog or the welcome window, or presentation mode is on, the app refuses all calls, including reading, until you close the dialog. The MCP client then gets an error message with the internal name of what is open, for example `showTaskDialog`. Only `planner_get_planning_guide` keeps working, because it does not read your schedule.
 
-**You switch tabs while the MCP client is working.** The MCP client works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project.
+**You switch tabs while the MCP client is working.** The MCP client works on the document where its first change landed. If you switch tabs in the meantime, the app refuses its next change until it confirms that it wants to work on the other tab. That way nothing ends up in the wrong project. If the MCP client opens or duplicates a document itself, it works in that new document afterwards.
 
 **The MCP client writes or opens a file.** The MCP client can write a schedule as an IFC file and open a schedule file as a new tab. It can only do that within your user folder. It only overwrites an existing file if it explicitly asks to.
 
@@ -151,7 +151,5 @@ Before the first change per document, the server makes an MCP backup, like the a
 ## See also
 
 - [Giving feedback](docs://howto-feedback-geven): if the connection works differently from what is described here, report it.
-- [How the MCP link works](docs://uitleg-ai-koppeling): what the link is, why the MCP client works in your open project and what it may not do.
 - [MCP tools](docs://ref-ai-tools): all `planner_*` tools by group, the error codes and how long backups are kept.
-- [Planning well](docs://gids-goed-plannen): the planning principles; the MCP client receives them in an English version with the tools added.
 - [App settings](docs://ref-instellingen): the MCP settings.

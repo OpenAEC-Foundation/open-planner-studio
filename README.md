@@ -26,7 +26,7 @@ It runs in your browser with nothing to install, or as a small native desktop ap
 
 **[Open the browser version](https://open-planner-studio.open-aec.com/)**. It starts with a realistic example project, so you can start clicking right away. More examples are under *File › Examples*.
 
-The built-in Help has **67 published articles** in English and Dutch, with translations in the other UI languages. You can also read the [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) or visit the [website](https://open-aec.com/open-planner-studio/).
+The built-in Help has **68 published articles** in English and Dutch, with translations in the other UI languages. You can also read the [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) or visit the [website](https://open-aec.com/open-planner-studio/).
 
 ## Download
 

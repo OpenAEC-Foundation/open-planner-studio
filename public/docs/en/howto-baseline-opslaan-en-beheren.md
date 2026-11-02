@@ -4,7 +4,7 @@ Goal: record the schedule as an agreement (a baseline), so you can later see how
 
 ## When you need this
 
-You record a baseline when the schedule has been approved and the work still has to start. If the schedule is formally revised later, for example after a variation order, you save a second baseline and keep the first one. That way you measure the execution against the first agreement and against the revised one. What a baseline records exactly and how the app calculates the variance is explained in [Progress, status date and baseline](docs://uitleg-voortgang).
+You record a baseline when the schedule has been approved and the work still has to start. If the schedule is formally revised later, for example after a variation order, you save a second baseline and keep the first one. That way you measure the execution against the first agreement and against the revised one. What a baseline records exactly and how the app calculates the variance is explained in [Table columns](docs://ref-tabelkolommen).
 
 ## Steps
 
@@ -70,7 +70,7 @@ Every baseline has six columns in the task table. Click the **+** at the right o
 
 ## See also
 
-- [Progress, status date and baseline](docs://uitleg-voortgang): what a baseline records and how the variance is calculated.
+- [Table columns](docs://ref-tabelkolommen): what a baseline records and how the variance is calculated.
 - [Moving a project](docs://howto-project-verplaatsen): the checkbox *Shift baselines too*.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering the actual state that you compare with the baseline.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): two baselines, shown together in the Gantt: *Contract* before the start (active) and *Re-plan after frost delay*, after frost delayed the foundations. With progress and a status date of 20 May 2027.

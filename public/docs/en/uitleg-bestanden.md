@@ -104,8 +104,8 @@ Without that constraint the example itself also ends on 2 July 2027. So the diff
 - [Opening and saving a file](docs://howto-bestand-openen-en-opslaan): the steps for open, save and save as.
 - [Exporting](docs://howto-exporteren): choosing a format and what you get.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why an imported schedule can show other dates.
-- [Constraints and deadlines](docs://uitleg-constraints): what a constraint does, and so what disappears if it is missing.
-- [Relations and lag](docs://uitleg-relaties): what a lag is and how the app calculates it.
+- [Task dialog and properties panel](docs://ref-taak-eigenschappen): what a constraint does, and so what disappears if it is missing.
+- [Adding relations](docs://howto-relaties-leggen): what a lag is and how the app calculates it.
 - [Creating a hammock](docs://howto-hammock): what a hammock is, which an export writes as an ordinary task.
 - [Codes and custom fields](docs://howto-codes-en-velden): activity codes and custom fields, which only IFC keeps.
 - [External relations to another project](docs://howto-externe-relaties): links that MS Project XML and P6 XML do not carry.

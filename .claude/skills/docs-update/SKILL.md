@@ -74,10 +74,10 @@ het gebied te benoemen en gebruik dat als scope.
 |---|---|
 | UI: dialoog, paneel, ribbon-actie, backstage | de `howto-*` van dat gebied, plus `ref-lint` (lintknoppen), `ref-taak-eigenschappen`, `ref-kalenders`, `ref-resourcepaneel` of `ref-tabelkolommen` (grep het manifest op het onderwerp) |
 | Sneltoets (`shortcutRegistry.ts`) | `ref-sneltoetsen` |
-| Scheduling / CPM / kalender | `uitleg-kritiek-pad`, `uitleg-relaties`, `uitleg-constraints`, `uitleg-kalenders`, `uitleg-dagen-en-uren`, `ref-rekenopties-en-conventies` |
+| Scheduling / CPM / kalender | `howto-relaties-leggen`, `howto-constraint-deadline-zetten`, `howto-taak-in-uren-plannen`, `ref-kalenders`, `ref-taak-eigenschappen`, `ref-tabelkolommen`, `ref-rekenopties-en-conventies`, `uitleg-verschuivingen` |
 | Import/export-adapter (IFC/CSV/MSP/P6) | `uitleg-bestanden`, `ref-import-exportformaten`, `howto-exporteren`, `howto-mpp-openen`, `howto-xer-openen`, `howto-externe-relaties` |
 | Nieuwe instelling | `ref-instellingen` (+ de 3-surfaces-regel uit `AGENTS.md`) |
-| Resources / nivellering / baselines | `howto-resources-beheren`, `howto-resource-toewijzen`, `howto-overbezetting-oplossen`, `uitleg-nivelleren`, `uitleg-werkregels`, `uitleg-voortgang`, `howto-baseline-opslaan-en-beheren` |
+| Resources / nivellering / baselines | `howto-resources-beheren`, `howto-resource-toewijzen`, `howto-overbezetting-oplossen`, `howto-werkregel-kiezen`, `howto-voortgang-bijwerken`, `howto-baseline-opslaan-en-beheren`, `ref-resourcepaneel` |
 | Rapport / print / PDF | `howto-rapport-maken-en-afdrukken`, `ref-rapporttypes` |
 | Herstel / auto-save / bestands-I/O | `howto-herstellen-na-een-crash`, `howto-automatisch-opslaan`, `howto-bestand-openen-en-opslaan`, `uitleg-bestanden` |
 | Melding of waarschuwing | `ref-meldingen` |

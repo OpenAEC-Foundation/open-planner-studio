@@ -6,7 +6,7 @@ Goal: see on which days two or more open projects together ask for more of a res
 
 Your bricklaying crew is on the facades in one project and on the garages in another. Each project finds the crew neatly planned, because the histogram and the overallocation of a project only look at that one project. Only when you lay the projects side by side does it turn out that on the same days they together ask for more than you have bricklayers. The occupancy overview does that laying side by side for you.
 
-The overview only counts resources that come from the resource library, in projects that are linked to the same library. How that calculates, you read in [The resource library](docs://uitleg-resourcebibliotheek).
+The overview only counts resources that come from the resource library, in projects that are linked to the same library.
 
 ## Steps
 
@@ -43,7 +43,7 @@ The overview shows the problem, but does not resolve it. You have two options:
 - Move a task in one of the projects, or give it fewer units per day. Then recalculate that project with F5.
 - If someone really joins, raise *Max units* of the resource in the library. You do that in *Resources › Manage › Resources*, *Library* view.
 
-*Level…* in the ribbon does not help here: it looks at the resources of the one project you are in, see [Resource leveling](docs://uitleg-nivelleren).
+*Level…* in the ribbon does not help here: it looks at the resources of the one project you are in, see [Resolving overallocation](docs://howto-overbezetting-oplossen).
 
 ## Pitfalls and what the app does then
 
@@ -65,6 +65,6 @@ The overview shows the problem, but does not resolve it. You have two options:
 
 ## See also
 
-- [The resource library](docs://uitleg-resourcebibliotheek): how the occupancy is counted, with a worked example.
+- [Resource panel](docs://ref-resourcepaneel): the *Occupancy* view field by field.
 - [Using the resource library](docs://howto-resourcebibliotheek-gebruiken): linking projects and assigning resources.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): overallocation within one project.

@@ -4,7 +4,7 @@ Doel: de planning vastleggen als afspraak (een baseline), zodat je later kunt zi
 
 ## Wanneer je dit nodig hebt
 
-Je legt een baseline vast als de planning is goedgekeurd en het werk nog moet beginnen. Wordt de planning later formeel herzien, bijvoorbeeld na een meerwerkopdracht, dan sla je een tweede baseline op en houd je de eerste erbij. Zo meet je de uitvoering aan de eerste afspraak en aan de herziene. Wat een baseline precies vastlegt en hoe de app de afwijking rekent, lees je in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+Je legt een baseline vast als de planning is goedgekeurd en het werk nog moet beginnen. Wordt de planning later formeel herzien, bijvoorbeeld na een meerwerkopdracht, dan sla je een tweede baseline op en houd je de eerste erbij. Zo meet je de uitvoering aan de eerste afspraak en aan de herziene. Wat een baseline precies vastlegt en hoe de app de afwijking rekent, lees je in [Tabelkolommen](docs://ref-tabelkolommen).
 
 ## Stappen
 
@@ -70,7 +70,7 @@ Elke baseline heeft zes kolommen in de takentabel. Klik op de **+** rechts in de
 
 ## Zie ook
 
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat een baseline vastlegt en hoe de afwijking wordt berekend.
+- [Tabelkolommen](docs://ref-tabelkolommen): wat een baseline vastlegt en hoe de afwijking wordt berekend.
 - [Project verplaatsen](docs://howto-project-verplaatsen): het vakje *Baselines mee verschuiven*.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de werkelijke stand invullen die je met de baseline vergelijkt.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): twee baselines, samen in de Gantt: *Contract* vóór de start (actief) en *Re-plan after frost delay*, na vorstverlet op de fundering. Met voortgang en een statusdatum op 20 mei 2027.

@@ -744,311 +744,6 @@
       }
     ]
   },
-  "gids-goed-plannen": {
-    "structure": "d33ea7518f62fa10",
-    "sections": [
-      {
-        "hash": "7057c6d85ae73e2d",
-        "labels": {}
-      },
-      {
-        "hash": "cf2a1030338cb24c",
-        "labels": {}
-      },
-      {
-        "hash": "acaf49e19d3466e0",
-        "labels": {
-          "common:benchmark.summaryTasks": "2de9a1d4c9155aef",
-          "common:hourData.enable": "bc8fb098fd3c685b",
-          "common:resource.leveling.constrainToFloat": "374d19218a6e053f",
-          "common:settings.autoCalcCPM": "c103efcb7c7914be",
-          "common:settings.enableHourPlanning": "bc8fb098fd3c685b",
-          "common:settings.planningTab": "90c2be0871c269d4",
-          "menu:projectInfo.calc.nearCritical": "770fd75dc4f83bd3",
-          "menu:ribbon.baselines": "09f9c8f0bf203234",
-          "menu:ribbon.manageBaselines": "882203f8e0a4257a",
-          "menu:ribbon.milestone": "70027787da02fd6b",
-          "menu:ribbon.planning": "90c2be0871c269d4",
-          "menu:ribbon.start": "7c146ff37b9e1ab0",
-          "menu:ribbon.tasks": "2de9a1d4c9155aef",
-          "menu:status.scheduleStale": "a145af432bd97b01",
-          "menu:status.tasks": "40586a76f169bea0",
-          "report:legend.milestone": "70027787da02fd6b",
-          "report:tasks": "40586a76f169bea0",
-          "report:variance.total": "2de9a1d4c9155aef",
-          "task:constraintType.SNET": "75aa2c409adb971e",
-          "task:duration.enableHourPlanning": "bc8fb098fd3c685b",
-          "task:properties.hardPin": "0e8b2fb10a7e819b",
-          "task:properties.mandatory": "5bcabfdb0bb7b695",
-          "task:properties.milestone": "70027787da02fd6b",
-          "task:relations.warnOutOfSequence": "4616e2629f8a0d2e",
-          "task:table.milestone": "70027787da02fd6b",
-          "task:taskGrid.category.planning": "90c2be0871c269d4",
-          "task:taskGrid.columns.milestone": "70027787da02fd6b"
-        }
-      },
-      {
-        "hash": "46c72af5f5bdd1e6",
-        "labels": {
-          "common:warnings.kind.missedDeadline": "831c462ec22bc53e",
-          "menu:projectInfo.calc.makeOpenEndedCritical": "b60370e3b1a8a892"
-        }
-      },
-      {
-        "hash": "8a4aeb8d03871bab",
-        "labels": {}
-      },
-      {
-        "hash": "3c93142123832f79",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-kritiek-pad": {
-    "structure": "af02cfa701a59836",
-    "sections": [
-      {
-        "hash": "e02eb74764f9edae",
-        "labels": {}
-      },
-      {
-        "hash": "1f849558315dfc7c",
-        "labels": {
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "task:properties.cpmResult": "472ed644546edb4e"
-        }
-      },
-      {
-        "hash": "dc48e04ebf1966bd",
-        "labels": {
-          "common:apply": "0848db6b37051d98",
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:progressImport.confirm": "0848db6b37051d98",
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:resource.leveling.apply": "0848db6b37051d98",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:schedulingProfile.optionsDeviate.days": "fd7cd09a539688e7",
-          "common:schedulingProfile.optionsTitle": "45d43d07c7305b04",
-          "common:schedulingProfile.title": "c5c8705528636046",
-          "common:settings.autoCalcCPM": "c103efcb7c7914be",
-          "common:settings.calculationSection": "897532dde8439ef5",
-          "common:settings.planningTab": "90c2be0871c269d4",
-          "common:settings.title": "8af481aba70ae8df",
-          "common:shortcuts.category.view": "5689a0ce29d9abb7",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "common:view.layout.apply": "0848db6b37051d98",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
-          "menu:backstage.settings": "694fe8208da8f577",
-          "menu:ifc.apply": "0848db6b37051d98",
-          "menu:projectInfo.calc.critLongestPath": "b95e21a8965fea1b",
-          "menu:projectInfo.calc.critThreshold": "0714105619b19e9d",
-          "menu:projectInfo.calc.critTotalFloat": "395dc3e664107c40",
-          "menu:projectInfo.calc.nearCriticalThreshold": "1b98187ba4c63d93",
-          "menu:projectInfo.calc.tfAuto": "393d194880afcfba",
-          "menu:projectInfo.calc.tfFinish": "d39755fc939d1342",
-          "menu:projectInfo.calc.title": "897532dde8439ef5",
-          "menu:projectInfo.title": "ff065ab59558d5b5",
-          "menu:ribbon.baselines": "09f9c8f0bf203234",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "menu:ribbon.planning": "90c2be0871c269d4",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.projectSettings": "694fe8208da8f577",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.schedule": "90c2be0871c269d4",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "menu:ribbon.start": "7c146ff37b9e1ab0",
-          "menu:ribbon.toggleFloatBand": "a6297cfb16926d09",
-          "menu:ribbon.view": "5689a0ce29d9abb7",
-          "menu:status.criticalPath": "c6f55a4b6be7de9c",
-          "menu:status.scheduleStale": "a145af432bd97b01",
-          "report:critical": "82681573b05583c9",
-          "report:milestoneReport.status_critical": "52359d26e4cf5efd",
-          "report:settings": "8af481aba70ae8df",
-          "report:tableReports.common.critical": "52359d26e4cf5efd",
-          "report:tableReports.critical.status_critical": "52359d26e4cf5efd",
-          "report:tableReports.health.dcma_norm": "1b98187ba4c63d93",
-          "task:properties.cpmResult": "472ed644546edb4e",
-          "task:properties.freeFloat": "69615d39a31cee8c",
-          "task:properties.recalculate": "b5587fc1f75ae7dd",
-          "task:properties.totalFloat": "7e8c3c0fd5af9b75",
-          "task:relations.freeFloat": "cb62b39dafbd0e0f",
-          "task:table.critical": "52359d26e4cf5efd",
-          "task:taskGrid.category.computed": "4fc31d4658630772",
-          "task:taskGrid.category.planning": "90c2be0871c269d4",
-          "task:taskGrid.columns.critical": "52359d26e4cf5efd",
-          "task:taskGrid.columns.floatPath": "d3848f0ca951cd11",
-          "task:taskGrid.columns.freeFloat": "cb62b39dafbd0e0f",
-          "task:taskGrid.columns.nearCritical": "a08d6ca0514d259d",
-          "task:taskGrid.columns.totalFloat": "4d344f7e131e119a"
-        }
-      },
-      {
-        "hash": "198fa93376cad545",
-        "labels": {
-          "menu:projectInfo.calc.nearCritical": "770fd75dc4f83bd3",
-          "menu:status.criticalPath": "c6f55a4b6be7de9c"
-        }
-      },
-      {
-        "hash": "f91b6d31da38005b",
-        "labels": {
-          "menu:projectInfo.calc.makeOpenEndedCritical": "b60370e3b1a8a892"
-        }
-      },
-      {
-        "hash": "dc45b31a968b8e0a",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-relaties": {
-    "structure": "ef812cf46f311267",
-    "sections": [
-      {
-        "hash": "abb7bc46fdbacee2",
-        "labels": {
-          "common:app.title": "4a127ae1c2d34e4e",
-          "common:profiles.builtIn.ops": "4a127ae1c2d34e4e"
-        }
-      },
-      {
-        "hash": "5aa235dc93f2aefb",
-        "labels": {}
-      },
-      {
-        "hash": "af296718741bdca7",
-        "labels": {
-          "common:apply": "0848db6b37051d98",
-          "common:calendar.library.project": "7be11dab566ab0b2",
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:context.calendarProjectDefault": "7be11dab566ab0b2",
-          "common:progressImport.confirm": "0848db6b37051d98",
-          "common:resource.leveling.apply": "0848db6b37051d98",
-          "common:resource.projectCalendar": "7be11dab566ab0b2",
-          "common:schedulingProfile.optionsTitle": "45d43d07c7305b04",
-          "common:schedulingProfile.title": "c5c8705528636046",
-          "common:view.layout.apply": "0848db6b37051d98",
-          "common:warnings.kind.truncatedLead": "70bf273046fdb44e",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "common:warnings.title": "2240c8bf13410b88",
-          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
-          "menu:ifc.apply": "0848db6b37051d98",
-          "menu:projectInfo.calc.lag24hour": "8596cf5cf1814d76",
-          "menu:projectInfo.calc.lagCalendar": "4429f0f57b2ff058",
-          "menu:projectInfo.calc.lagPredecessor": "c88f636f40981d3a",
-          "menu:projectInfo.calc.lagProjectDefault": "5fec453b2b6234ac",
-          "menu:projectInfo.calc.lagSuccessor": "08be06b2fca63d08",
-          "menu:projectInfo.title": "ff065ab59558d5b5",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.relations": "a2706ca618a496bf",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "menu:ribbon.tracePredecessors": "354d6fbededafe70",
-          "menu:ribbon.traceSuccessors": "4829b72a46ac9829",
-          "menu:ribbon.warningsPanel": "2240c8bf13410b88",
-          "menu:status.scheduleStale": "a145af432bd97b01",
-          "report:relations": "d9b3047ecf01d0a3",
-          "report:settings": "8af481aba70ae8df",
-          "report:tableReports.health.relations": "a2706ca618a496bf",
-          "report:tableReports.health.warnings": "2240c8bf13410b88",
-          "task:properties.calendarProject": "7be11dab566ab0b2",
-          "task:relations.driving": "72d259ecf7765287",
-          "task:relations.predecessor": "c88f636f40981d3a",
-          "task:relations.successor": "08be06b2fca63d08",
-          "task:relations.warnings": "da8f741b8766ef1f",
-          "task:taskGrid.category.relations": "a2706ca618a496bf",
-          "task:taskGrid.columns.predecessors": "354d6fbededafe70",
-          "task:taskGrid.columns.successors": "4829b72a46ac9829"
-        }
-      },
-      {
-        "hash": "6c416cf42b33ccb3",
-        "labels": {
-          "common:calendar.library.project": "7be11dab566ab0b2",
-          "common:context.calendarProjectDefault": "7be11dab566ab0b2",
-          "common:resource.projectCalendar": "7be11dab566ab0b2",
-          "common:shortcuts.category.structure": "2e29286295ee93cc",
-          "menu:projectInfo.calc.lag24hour": "8596cf5cf1814d76",
-          "menu:projectInfo.calc.lagCalendar": "4429f0f57b2ff058",
-          "menu:projectInfo.calc.lagPredecessor": "c88f636f40981d3a",
-          "menu:projectInfo.calc.lagProjectDefault": "5fec453b2b6234ac",
-          "menu:projectInfo.calc.lagSuccessor": "08be06b2fca63d08",
-          "menu:ribbon.structure": "2e29286295ee93cc",
-          "task:properties.calendarProject": "7be11dab566ab0b2",
-          "task:relations.predecessor": "c88f636f40981d3a",
-          "task:relations.successor": "08be06b2fca63d08"
-        }
-      },
-      {
-        "hash": "aaab738bacfc3905",
-        "labels": {}
-      },
-      {
-        "hash": "f393c3e6e891eeab",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-constraints": {
-    "structure": "0c2b0b626cf5da99",
-    "sections": [
-      {
-        "hash": "6a71a60a910a3ee8",
-        "labels": {
-          "common:app.title": "4a127ae1c2d34e4e",
-          "common:profiles.builtIn.ops": "4a127ae1c2d34e4e"
-        }
-      },
-      {
-        "hash": "b61f1ce7806d2992",
-        "labels": {}
-      },
-      {
-        "hash": "8f7cb345fd38f434",
-        "labels": {
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "common:statusWarnings.violatedConstraints": "4207dda78d1778f3",
-          "common:warnings.title": "2240c8bf13410b88",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.warningsPanel": "2240c8bf13410b88",
-          "report:tableReports.health.warnings": "2240c8bf13410b88",
-          "task:constraintType.ALAP": "c087a630d7879554",
-          "task:constraintType.ASAP": "023eaf2d4d811363",
-          "task:constraintType.FNET": "404bb76d67199f76",
-          "task:constraintType.FNLT": "2e2f14b694ff2f06",
-          "task:constraintType.MFO": "e704189ad82db58f",
-          "task:constraintType.MSO": "6aef8e493015db7d",
-          "task:constraintType.SNET": "75aa2c409adb971e",
-          "task:constraintType.SNLT": "90447c5cfd8c8fd9",
-          "task:dialog.editTitle": "3862cee4829f8795",
-          "task:properties.constraint": "d88ac06e490ed682",
-          "task:properties.constraintPair.secondary-same-side": "f1900830ab14445f",
-          "task:properties.hardPin": "0e8b2fb10a7e819b",
-          "task:properties.totalFloat": "7e8c3c0fd5af9b75",
-          "task:relations.warnings": "da8f741b8766ef1f",
-          "task:taskGrid.columns.totalFloat": "4d344f7e131e119a"
-        }
-      },
-      {
-        "hash": "69a22c89e62c50d8",
-        "labels": {
-          "common:warnings.kind.missedDeadline": "831c462ec22bc53e",
-          "common:warnings.kind.violatedConstraint": "f58a1ae5169721e4"
-        }
-      },
-      {
-        "hash": "227a791060439427",
-        "labels": {}
-      },
-      {
-        "hash": "557f4bb264ecaae7",
-        "labels": {}
-      }
-    ]
-  },
   "howto-pad-traceren": {
     "structure": "98f90f08eedc46b6",
     "sections": [
@@ -1371,135 +1066,6 @@
       },
       {
         "hash": "284b84ece9b79c01",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-kalenders": {
-    "structure": "8dc05fbd578a28db",
-    "sections": [
-      {
-        "hash": "ed89584fd003de7c",
-        "labels": {}
-      },
-      {
-        "hash": "f1185d51192e98b9",
-        "labels": {}
-      },
-      {
-        "hash": "0504c185689beddd",
-        "labels": {
-          "common:app.title": "4a127ae1c2d34e4e",
-          "common:calendar.library.project": "7be11dab566ab0b2",
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:context.calendarProjectDefault": "7be11dab566ab0b2",
-          "common:profiles.builtIn.ops": "4a127ae1c2d34e4e",
-          "common:resource.projectCalendar": "7be11dab566ab0b2",
-          "common:schedulingProfile.optionsTitle": "45d43d07c7305b04",
-          "common:schedulingProfile.title": "c5c8705528636046",
-          "common:settings.appearanceTab": "d1324d98e1014e42",
-          "common:settings.compressNonWorkdays": "bb1f3faa76ce08a5",
-          "common:settings.compressNonWorkdaysSection": "52dd95e28b1f8794",
-          "common:settings.title": "8af481aba70ae8df",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
-          "menu:backstage.settings": "694fe8208da8f577",
-          "menu:projectInfo.calc.lag24hour": "8596cf5cf1814d76",
-          "menu:projectInfo.calc.lagCalendar": "4429f0f57b2ff058",
-          "menu:projectInfo.calc.lagPredecessor": "c88f636f40981d3a",
-          "menu:projectInfo.calc.lagProjectDefault": "5fec453b2b6234ac",
-          "menu:projectInfo.calc.lagSuccessor": "08be06b2fca63d08",
-          "menu:projectInfo.title": "ff065ab59558d5b5",
-          "menu:ribbon.appearance": "e3b0c44298fc1c14",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.projectSettings": "694fe8208da8f577",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "report:settings": "8af481aba70ae8df",
-          "task:properties.calendarProject": "7be11dab566ab0b2",
-          "task:relations.predecessor": "c88f636f40981d3a",
-          "task:relations.successor": "08be06b2fca63d08"
-        }
-      },
-      {
-        "hash": "8801c556c859e845",
-        "labels": {
-          "common:resource.histogram.overallocatedNonWorkingDay": "ba4ad5ffbede91db",
-          "common:resource.leveling.dialogTitle": "209de7ab4079e60d",
-          "common:resource.leveling.reason.calendarMismatch": "66c4bc263e06226b",
-          "common:resource.leveling.remainingConflicts": "795eb63a2be12c06",
-          "menu:projectInfo.calc.lagCalendar": "4429f0f57b2ff058",
-          "menu:projectInfo.calc.lagSuccessor": "08be06b2fca63d08",
-          "menu:ribbon.overallocationIndicator": "10da1775035c4b99",
-          "task:relations.successor": "08be06b2fca63d08"
-        }
-      },
-      {
-        "hash": "3374415662c2eb07",
-        "labels": {
-          "common:calendar.regen.hint": "2addf21f6aa07431",
-          "common:scheduleErrors.noWorkingDays": "68bf504d99e80388",
-          "task:workRule.FIXED_RATE": "301e982db1591587",
-          "task:workRule.FIXED_WORK": "3ff9dcf430ae28bb"
-        }
-      },
-      {
-        "hash": "01fbcf624e85b894",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-dagen-en-uren": {
-    "structure": "a1cb30edef4a450d",
-    "sections": [
-      {
-        "hash": "1d9ebe88450dde6e",
-        "labels": {}
-      },
-      {
-        "hash": "43f9eddc99358d61",
-        "labels": {
-          "common:hourData.notice": "f6340a2450551c0e"
-        }
-      },
-      {
-        "hash": "55d28f3fcceb5c67",
-        "labels": {
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:settings.appearanceTab": "d1324d98e1014e42",
-          "common:settings.durationDisplay": "ed8ee2e70f1fa379",
-          "common:settings.durationDisplayAuto": "831c399997942d22",
-          "common:settings.durationDisplayDays": "c205a56d6e85eea5",
-          "common:settings.durationDisplayHours": "de5e05a739b45136",
-          "common:settings.title": "8af481aba70ae8df",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "menu:backstage.settings": "694fe8208da8f577",
-          "menu:ribbon.appearance": "e3b0c44298fc1c14",
-          "menu:ribbon.calendarDialog.endHour": "0d44e262d23bf149",
-          "menu:ribbon.calendarDialog.standardWorkday": "4f57198c020336ba",
-          "menu:ribbon.calendarDialog.startHour": "616d970d913c714d",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.projectSettings": "694fe8208da8f577",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "report:settings": "8af481aba70ae8df",
-          "task:duration.invalid": "64f63987566920fb"
-        }
-      },
-      {
-        "hash": "59ba85cf4350a5b1",
-        "labels": {}
-      },
-      {
-        "hash": "c5c065685a1147a2",
-        "labels": {
-          "common:calendar.shift.night": "369a97c5b8647ba9",
-          "common:calendar.shift.threeShift": "1e4ac958aa385c69",
-          "common:calendar.shift.twoShift": "f2ef550acc8df029",
-          "task:workRule.FIXED_RATE": "301e982db1591587",
-          "task:workRule.FIXED_WORK": "3ff9dcf430ae28bb"
-        }
-      },
-      {
-        "hash": "f1a4a916144dc43d",
         "labels": {}
       }
     ]
@@ -1850,108 +1416,6 @@
       },
       {
         "hash": "589817618f14e99d",
-        "labels": {}
-      }
-    ]
-  },
-  "howto-urenplanning-aanzetten": {
-    "structure": "6a61476bc50ad248",
-    "sections": [
-      {
-        "hash": "b3c3d97520331968",
-        "labels": {}
-      },
-      {
-        "hash": "1ebda2b226667da7",
-        "labels": {
-          "common:hourData.notice": "f6340a2450551c0e"
-        }
-      },
-      {
-        "hash": "c1f721736ae890f0",
-        "labels": {
-          "common:apply": "0848db6b37051d98",
-          "common:calendar.library.title": "19339f592fb63387",
-          "common:calendar.shift.day": "99c9d0a572de743e",
-          "common:calendar.worktime.section": "29294d5615642aef",
-          "common:calendar.worktime.shiftPreset": "f778d1a2cc00ac12",
-          "common:companyLibrary.calendars": "19339f592fb63387",
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:documents.newProject": "d04c40b12139fd18",
-          "common:duration.days": "acab262fb68007cb",
-          "common:duration.hours": "fb59488f2163e362",
-          "common:feedback.tools.undo": "f0df6326f19de5bc",
-          "common:hourData.enable": "bc8fb098fd3c685b",
-          "common:hourData.notice": "f6340a2450551c0e",
-          "common:progressImport.confirm": "0848db6b37051d98",
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:resource.leveling.apply": "0848db6b37051d98",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:settings.allowMixedDayHour": "bfaffbd821ee0244",
-          "common:settings.defaultTaskDurationUnit": "809a2b0fd6e1182f",
-          "common:settings.enableHourPlanning": "bc8fb098fd3c685b",
-          "common:settings.hourPlanningSection": "d77b95da4d9bd7ff",
-          "common:settings.planningTab": "90c2be0871c269d4",
-          "common:settings.title": "8af481aba70ae8df",
-          "common:shortcuts.category.view": "5689a0ce29d9abb7",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "common:view.layout.apply": "0848db6b37051d98",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
-          "menu:backstage.settings": "694fe8208da8f577",
-          "menu:commands.newProject": "d04c40b12139fd18",
-          "menu:commands.undo": "f0df6326f19de5bc",
-          "menu:ifc.apply": "0848db6b37051d98",
-          "menu:newProject.title": "434f4bd455bb0cc0",
-          "menu:projectInfo.title": "ff065ab59558d5b5",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "menu:ribbon.hour": "8859628a30622fd1",
-          "menu:ribbon.planning": "90c2be0871c269d4",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.projectSettings": "694fe8208da8f577",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.schedule": "90c2be0871c269d4",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "menu:ribbon.start": "7c146ff37b9e1ab0",
-          "menu:ribbon.timeScale": "5de1d6bd4d394080",
-          "menu:ribbon.undo": "f0df6326f19de5bc",
-          "menu:ribbon.view": "5689a0ce29d9abb7",
-          "report:projectDuration": "aa90d67edde8c110",
-          "report:settings": "8af481aba70ae8df",
-          "report:tableHeaders.duration": "c14330211613fe70",
-          "task:contourDialog.days": "acab262fb68007cb",
-          "task:contourDialog.hoursTotal": "fb59488f2163e362",
-          "task:dialog.durationDays": "acab262fb68007cb",
-          "task:dialog.durationHours": "fb59488f2163e362",
-          "task:duration.days": "acab262fb68007cb",
-          "task:duration.enableHourPlanning": "bc8fb098fd3c685b",
-          "task:duration.hours": "fb59488f2163e362",
-          "task:duration.label": "c14330211613fe70",
-          "task:duration.unit": "e3b0c44298fc1c14",
-          "task:properties.recalculate": "b5587fc1f75ae7dd",
-          "task:properties.time": "16d140f73d826927",
-          "task:table.duration": "c14330211613fe70",
-          "task:taskGrid.category.planning": "90c2be0871c269d4",
-          "task:taskGrid.columns.duration": "c14330211613fe70"
-        }
-      },
-      {
-        "hash": "e4aa4a2dab272813",
-        "labels": {
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:scheduleErrors.hourTaskWithoutWorkHours": "3e98e7c53a1bd6b7",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "task:dialog.editTitle": "3862cee4829f8795",
-          "task:duration.conversionNotExact": "acc822d29866b5dd",
-          "task:duration.enableHourPlanningFirst": "bdf35ec4bcb48e3c",
-          "task:duration.invalid": "64f63987566920fb",
-          "task:duration.requiresWorkBlocks": "dbeff2580ac8de59",
-          "task:taskGrid.validation.durationConversionNotExact": "8414fe161d783736"
-        }
-      },
-      {
-        "hash": "4d763cdac696d976",
         "labels": {}
       }
     ]
@@ -2538,274 +2002,6 @@
         "labels": {
           "common:resource.leveling.constrainToFloat": "374d19218a6e053f"
         }
-      }
-    ]
-  },
-  "uitleg-werkregels": {
-    "structure": "8a11c33e25c49020",
-    "sections": [
-      {
-        "hash": "c1ca293bde987033",
-        "labels": {}
-      },
-      {
-        "hash": "1dd1da0f57c53464",
-        "labels": {
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "report:tableReports.resourceAssignments.units": "5257a8f38581c967",
-          "task:durationType.ELAPSEDTIME": "ee7e640612173326",
-          "task:properties.assignments.units": "ca6e0a3775a64bb2",
-          "task:properties.assignments.unitsPerDay": "34c637ade790927e",
-          "task:taskGrid.columns.durationType": "4a6d1da5c4010bdb",
-          "task:taskGrid.columns.workRule": "55b0e9db176ee538",
-          "task:workRule.label": "55b0e9db176ee538"
-        }
-      },
-      {
-        "hash": "cb86319f07f8b65c",
-        "labels": {
-          "common:properties": "2d3f0ce9b1f49bcb",
-          "common:settings.autoCalcCPM": "c103efcb7c7914be",
-          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
-          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
-          "menu:status.scheduleStale": "a145af432bd97b01",
-          "task:properties.assignments.workHours": "d957c1be61633b2a",
-          "task:taskGrid.columns.workRule": "55b0e9db176ee538",
-          "task:workRule.explain.followsDuration": "89fd107f4d9d603a",
-          "task:workRule.explain.followsUnits": "011f4232ef07f1c2",
-          "task:workRule.explain.followsWork": "1d32a22bc590974a",
-          "task:workRule.label": "55b0e9db176ee538"
-        }
-      },
-      {
-        "hash": "98fe3cc5326a768f",
-        "labels": {
-          "common:notifications.workRuleDurationsChanged": "95e20e4277377c29",
-          "task:properties.assignments.work": "e54fbb547508c886",
-          "task:properties.assignments.workDeviates": "4115a8f1d29cd076",
-          "task:properties.assignments.workHours": "d957c1be61633b2a",
-          "task:workRule.FIXED_DURATION_RATE": "2bd952919a5df2cc",
-          "task:workRule.FIXED_DURATION_WORK": "62a568b837b02467",
-          "task:workRule.FIXED_RATE": "301e982db1591587",
-          "task:workRule.FIXED_WORK": "3ff9dcf430ae28bb"
-        }
-      },
-      {
-        "hash": "690461d50fea39b1",
-        "labels": {
-          "task:properties.assignments.workHours": "d957c1be61633b2a",
-          "task:workRule.FIXED_DURATION_RATE": "2bd952919a5df2cc",
-          "task:workRule.FIXED_DURATION_WORK": "62a568b837b02467",
-          "task:workRule.FIXED_RATE": "301e982db1591587",
-          "task:workRule.FIXED_WORK": "3ff9dcf430ae28bb"
-        }
-      },
-      {
-        "hash": "bbd3477271245d9d",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-nivelleren": {
-    "structure": "aa2e5a2fe2889d2c",
-    "sections": [
-      {
-        "hash": "0f740aaa93b07c2b",
-        "labels": {}
-      },
-      {
-        "hash": "0bd35c5eff6d67bc",
-        "labels": {
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.leveling.constrainToFloat": "374d19218a6e053f",
-          "common:resource.leveling.dialogTitle": "209de7ab4079e60d",
-          "common:resource.maxUnits": "df3725e706ed4408"
-        }
-      },
-      {
-        "hash": "46084213ebde6ed0",
-        "labels": {
-          "common:apply": "0848db6b37051d98",
-          "common:context.priorityHigh": "e78fe39e9b7ba39d",
-          "common:context.priorityLow": "24aa5daac4f398c1",
-          "common:context.priorityMenu": "6b6feb198ba3cdff",
-          "common:context.priorityNormal": "5c1086388b16d9f9",
-          "common:progressImport.confirm": "0848db6b37051d98",
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.leveling.apply": "0848db6b37051d98",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:resource.leveling.remainingConflicts": "795eb63a2be12c06",
-          "common:resource.maxUnits": "df3725e706ed4408",
-          "common:view.layout.apply": "0848db6b37051d98",
-          "menu:ifc.apply": "0848db6b37051d98",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "report:legend.normal": "5c1086388b16d9f9",
-          "report:previewQuality.high": "e78fe39e9b7ba39d",
-          "task:properties.levelingDelay": "f055ba9fba714dcf",
-          "task:properties.recalculate": "b5587fc1f75ae7dd",
-          "task:taskGrid.category.computed": "4fc31d4658630772",
-          "task:taskGrid.columns.levelingDelay": "f055ba9fba714dcf"
-        }
-      },
-      {
-        "hash": "7475f8f538ef34ae",
-        "labels": {
-          "common:context.priorityHigh": "e78fe39e9b7ba39d",
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:resource.leveling.noChanges": "4b7d96471a590608",
-          "common:resource.leveling.projectEndUnchanged": "24274b8c13b95ee4",
-          "common:resource.leveling.reason.insufficientCapacity": "e4a5bb9d7f43443c",
-          "common:resource.maxUnits": "df3725e706ed4408",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "report:previewQuality.high": "e78fe39e9b7ba39d",
-          "task:constraintType.SNET": "75aa2c409adb971e",
-          "task:properties.recalculate": "b5587fc1f75ae7dd",
-          "task:workRule.FIXED_WORK": "3ff9dcf430ae28bb"
-        }
-      },
-      {
-        "hash": "ceefb31f54c3adb5",
-        "labels": {
-          "common:resource.leveling.noChanges": "4b7d96471a590608",
-          "menu:ribbon.overallocationIndicator": "10da1775035c4b99"
-        }
-      },
-      {
-        "hash": "0ddddc89c15b4450",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-voortgang": {
-    "structure": "2a6257fb940af76c",
-    "sections": [
-      {
-        "hash": "4b0a786c02ccd17b",
-        "labels": {}
-      },
-      {
-        "hash": "0e918bf41b46717a",
-        "labels": {}
-      },
-      {
-        "hash": "9f8079df37102def",
-        "labels": {
-          "common:app.title": "4a127ae1c2d34e4e",
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:profiles.builtIn.ops": "4a127ae1c2d34e4e",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:settings.autoCalcCPM": "c103efcb7c7914be",
-          "common:settings.calculationSection": "897532dde8439ef5",
-          "common:settings.planningTab": "90c2be0871c269d4",
-          "common:settings.title": "8af481aba70ae8df",
-          "common:shortcuts.category.view": "5689a0ce29d9abb7",
-          "common:statusWarnings.outOfSequence": "91719b5be80ca006",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "common:warnings.title": "2240c8bf13410b88",
-          "menu:backstage.settings": "694fe8208da8f577",
-          "menu:projectInfo.calc.title": "897532dde8439ef5",
-          "menu:ribbon.baselines": "09f9c8f0bf203234",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "menu:ribbon.new": "07ff45576de577fd",
-          "menu:ribbon.planning": "90c2be0871c269d4",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.projectSettings": "694fe8208da8f577",
-          "menu:ribbon.report": "23d69cba2712f360",
-          "menu:ribbon.reporting": "23d69cba2712f360",
-          "menu:ribbon.schedule": "90c2be0871c269d4",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "menu:ribbon.statusDate": "cb2dffb28428bdac",
-          "menu:ribbon.toggleBaselineOverlay": "7897b54a09b4a98f",
-          "menu:ribbon.toggleProgressLine": "36276ccea23d9c29",
-          "menu:ribbon.toggleStatusDateLine": "559d904493756d3e",
-          "menu:ribbon.view": "5689a0ce29d9abb7",
-          "menu:ribbon.warningsPanel": "2240c8bf13410b88",
-          "menu:status.scheduleStale": "a145af432bd97b01",
-          "report:milestoneReport.status_onSchedule": "5dba02bd1a47f59e",
-          "report:reportType.progress": "99a13b0547be0d98",
-          "report:reportType.variance": "3f165d2cd82449df",
-          "report:settings": "8af481aba70ae8df",
-          "report:statusDateLabel": "cb2dffb28428bdac",
-          "report:statusLine_progress": "36276ccea23d9c29",
-          "report:statusLine_statusDate": "559d904493756d3e",
-          "report:tableReports.health.warnings": "2240c8bf13410b88",
-          "report:tableReports.lookAhead.status_inProgress": "991d33afd35eac7b",
-          "report:tableReports.progress.sections.inProgress": "991d33afd35eac7b",
-          "report:tableReports.progress.status_inProgress": "991d33afd35eac7b",
-          "report:tableReports.progress.title": "99a13b0547be0d98",
-          "report:tableReports.resourceLoading.variance": "3f165d2cd82449df",
-          "report:tableReports.statusDate": "cb2dffb28428bdac",
-          "report:title": "23d69cba2712f360",
-          "report:variance.earlyCount": "77cfc61a90b6f110",
-          "report:variance.lateCount": "8101b4b0498ee799",
-          "report:variance.status_dropped": "20283e16499f2df7",
-          "report:variance.status_early": "77cfc61a90b6f110",
-          "report:variance.status_late": "8101b4b0498ee799",
-          "report:variance.status_new": "07ff45576de577fd",
-          "report:variance.status_onSchedule": "5dba02bd1a47f59e",
-          "task:properties.recalculate": "b5587fc1f75ae7dd",
-          "task:relations.warnings": "da8f741b8766ef1f",
-          "task:table.activeDuring": "991d33afd35eac7b",
-          "task:taskGrid.category.planning": "90c2be0871c269d4",
-          "task:taskGrid.summary.baselineVarianceDuration": "b7e101c824c5bfa1",
-          "task:taskStatus.STARTED": "991d33afd35eac7b"
-        }
-      },
-      {
-        "hash": "5d94f24c4c73d29c",
-        "labels": {
-          "menu:status.criticalPath": "c6f55a4b6be7de9c",
-          "report:legend.baseline": "62550c263c581b20",
-          "report:milestoneReport.status_onSchedule": "5dba02bd1a47f59e",
-          "report:tableReports.progress.actual": "c63c742b971d13cc",
-          "report:tableReports.progress.planned": "65d745750e5b64c1",
-          "report:variance.earlyCount": "77cfc61a90b6f110",
-          "report:variance.lateCount": "8101b4b0498ee799",
-          "report:variance.status_early": "77cfc61a90b6f110",
-          "report:variance.status_late": "8101b4b0498ee799",
-          "report:variance.status_onSchedule": "5dba02bd1a47f59e",
-          "task:taskGrid.category.baseline": "67a28d77675ed240"
-        }
-      },
-      {
-        "hash": "1d8ff86b22be28e7",
-        "labels": {
-          "common:companyLibrary.projectView": "b04eef1662b92fa8",
-          "common:conventions.p6ProgressOverrideIgnoresStartedSuccessor.label": "bb85033ee3285621",
-          "common:conventions.resumeFromActualElapsed.label": "c113ed0fef9f4507",
-          "common:conventions.unstartedIgnoresStatusDate.label": "fded42f283fd8c76",
-          "common:schedulingProfile.title": "c5c8705528636046",
-          "common:statusWarnings.outOfSequence": "91719b5be80ca006",
-          "common:warnings.kind.outOfSequence": "caa1dde8518f459c",
-          "common:warnings.target.project": "b04eef1662b92fa8",
-          "common:warnings.title": "2240c8bf13410b88",
-          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
-          "menu:projectInfo.title": "ff065ab59558d5b5",
-          "menu:ribbon.project": "b04eef1662b92fa8",
-          "menu:ribbon.settings": "8af481aba70ae8df",
-          "menu:ribbon.warningsPanel": "2240c8bf13410b88",
-          "report:milestoneReport.kind_START": "0ee0724e66c8e816",
-          "report:projectStart": "2e1e42a5d7bf4960",
-          "report:settings": "8af481aba70ae8df",
-          "report:tableHeaders.start": "0ee0724e66c8e816",
-          "report:tableReports.common.start": "0ee0724e66c8e816",
-          "report:tableReports.health.warnings": "2240c8bf13410b88",
-          "task:properties.start": "c295a2253c68aa71",
-          "task:relations.warnings": "da8f741b8766ef1f",
-          "task:table.start": "0ee0724e66c8e816",
-          "task:taskGrid.columns.start": "7c146ff37b9e1ab0"
-        }
-      },
-      {
-        "hash": "d93f2d798b390243",
-        "labels": {}
-      },
-      {
-        "hash": "5a637f80212c16c9",
-        "labels": {}
       }
     ]
   },
@@ -4884,143 +4080,6 @@
       },
       {
         "hash": "7d80459343816411",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-resourcebibliotheek": {
-    "structure": "87602e12f18ea575",
-    "sections": [
-      {
-        "hash": "5685652731e9470b",
-        "labels": {}
-      },
-      {
-        "hash": "36ee7182f4da8904",
-        "labels": {}
-      },
-      {
-        "hash": "6540d546fd9f2400",
-        "labels": {
-          "common:companyLibrary.deviates": "880b6b89d2026437",
-          "common:companyLibrary.linkTitle": "60a27871dca99036",
-          "common:companyLibrary.notInCompany": "d7ce05c2aa0a5788",
-          "common:companyLibrary.refreshNotice": "18ae9e6af9f452a9",
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.availabilityStepsEditor.title": "ce549d9bafba5149",
-          "common:resource.maxUnits": "df3725e706ed4408",
-          "common:resource.occupancyView": "6417dd6d393df814",
-          "common:resource.promoteToLibrary": "455eafe40a6f7521"
-        }
-      },
-      {
-        "hash": "34fa280db42e1eb9",
-        "labels": {
-          "common:calendar.generate.bouwvak.none": "a252f7aeeb243472",
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.compact.title": "5c21834fd45858f2",
-          "common:resource.leveling.resourceSelect": "5c21834fd45858f2",
-          "common:resource.maxUnits": "df3725e706ed4408",
-          "common:resource.noParent": "1f24529524d4640c",
-          "common:resource.occupancy.conflictDays": "7819003d16e326ab",
-          "common:resource.occupancy.docCount": "0d25f1b4ed9fb527",
-          "common:resource.panel.title": "5c21834fd45858f2",
-          "menu:ribbon.openResourcePanel": "5c21834fd45858f2",
-          "menu:ribbon.overallocationIndicator": "10da1775035c4b99",
-          "menu:ribbon.overallocationNone": "1f24529524d4640c",
-          "menu:ribbon.resources": "5c21834fd45858f2",
-          "report:resourceGantt.resources": "d4fe744ff89d3213",
-          "report:statusLine_none": "1f24529524d4640c",
-          "report:tableReports.common.resources": "5c21834fd45858f2",
-          "report:tableReports.health.metric_resources": "5c21834fd45858f2",
-          "report:tableReports.resourceAssignments.resources": "5c21834fd45858f2",
-          "report:tableReports.resourceLoading.resources": "5c21834fd45858f2",
-          "task:column.resource": "5c21834fd45858f2",
-          "task:taskGrid.category.resources": "5c21834fd45858f2"
-        }
-      },
-      {
-        "hash": "063c7ab7f2bc5ca5",
-        "labels": {
-          "common:companyLibrary.companyView": "1508542f91f68a8a",
-          "common:companyLibrary.companyViewHint": "f58c75a56b69db89",
-          "common:feedback.tools.undo": "f0df6326f19de5bc",
-          "common:resource.availabilityStepsEditor.maxUnits": "df3725e706ed4408",
-          "common:resource.compact.title": "5c21834fd45858f2",
-          "common:resource.leveling.resourceSelect": "5c21834fd45858f2",
-          "common:resource.maxUnits": "df3725e706ed4408",
-          "common:resource.panel.title": "5c21834fd45858f2",
-          "common:resource.promoteToLibrary": "455eafe40a6f7521",
-          "menu:backstage.library": "1508542f91f68a8a",
-          "menu:commands.undo": "f0df6326f19de5bc",
-          "menu:ribbon.levelResourcesDialog": "6d9b1510394f0156",
-          "menu:ribbon.leveling": "d3676ec10193f596",
-          "menu:ribbon.openResourcePanel": "5c21834fd45858f2",
-          "menu:ribbon.resources": "5c21834fd45858f2",
-          "menu:ribbon.undo": "f0df6326f19de5bc",
-          "report:resourceGantt.resources": "d4fe744ff89d3213",
-          "report:tableReports.common.resources": "5c21834fd45858f2",
-          "report:tableReports.health.metric_resources": "5c21834fd45858f2",
-          "report:tableReports.options.wbsLevel": "d9a3eeae4dcaf493",
-          "report:tableReports.resourceAssignments.resources": "5c21834fd45858f2",
-          "report:tableReports.resourceLoading.resources": "5c21834fd45858f2",
-          "task:column.resource": "5c21834fd45858f2",
-          "task:taskGrid.category.resources": "5c21834fd45858f2"
-        }
-      },
-      {
-        "hash": "c0eb2e7e3aafcc4a",
-        "labels": {}
-      }
-    ]
-  },
-  "uitleg-ai-koppeling": {
-    "structure": "03426ab29e2a41b5",
-    "sections": [
-      {
-        "hash": "274ad04302d59d56",
-        "labels": {}
-      },
-      {
-        "hash": "cd92803ffba2ded9",
-        "labels": {}
-      },
-      {
-        "hash": "60886eb55a49e7c4",
-        "labels": {
-          "common:ai.connectionDetailsTitle": "f23f7d417ab7654a",
-          "common:aiActivity.panelButton": "8ab0e90ee87f3458",
-          "common:aiSafety.pause": "719173cb765a3755",
-          "common:aiSafety.readOnly": "b80c497929f70f6d",
-          "common:debugTerminal.pause": "719173cb765a3755",
-          "common:feedback.tools.undo": "f0df6326f19de5bc",
-          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
-          "common:save": "106ee672ec96e762",
-          "common:settings.autoCalcCPM": "c103efcb7c7914be",
-          "menu:commands.undo": "f0df6326f19de5bc",
-          "menu:ribbon.ai": "11fb682be0a0233d",
-          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
-          "menu:ribbon.save": "106ee672ec96e762",
-          "menu:ribbon.undo": "f0df6326f19de5bc",
-          "task:properties.recalculate": "b5587fc1f75ae7dd"
-        }
-      },
-      {
-        "hash": "2723a2be16fa7691",
-        "labels": {
-          "common:feedback.tools.undo": "f0df6326f19de5bc",
-          "menu:commands.undo": "f0df6326f19de5bc",
-          "menu:ribbon.undo": "f0df6326f19de5bc"
-        }
-      },
-      {
-        "hash": "26cad03795b2777e",
-        "labels": {
-          "common:aiSafety.readOnly": "b80c497929f70f6d"
-        }
-      },
-      {
-        "hash": "1465ab4ffe439433",
         "labels": {}
       }
     ]
@@ -9616,6 +8675,108 @@
           "menu:extensions.import": "205d4f301112f87d",
           "menu:ribbon.file": "badde3a70ac4254d"
         }
+      }
+    ]
+  },
+  "howto-urenplanning-aanzetten": {
+    "structure": "6a61476bc50ad248",
+    "sections": [
+      {
+        "hash": "b3c3d97520331968",
+        "labels": {}
+      },
+      {
+        "hash": "1ebda2b226667da7",
+        "labels": {
+          "common:hourData.notice": "f6340a2450551c0e"
+        }
+      },
+      {
+        "hash": "c1f721736ae890f0",
+        "labels": {
+          "common:apply": "0848db6b37051d98",
+          "common:calendar.library.title": "19339f592fb63387",
+          "common:calendar.shift.day": "99c9d0a572de743e",
+          "common:calendar.worktime.section": "29294d5615642aef",
+          "common:calendar.worktime.shiftPreset": "f778d1a2cc00ac12",
+          "common:companyLibrary.calendars": "19339f592fb63387",
+          "common:companyLibrary.projectView": "b04eef1662b92fa8",
+          "common:documents.newProject": "d04c40b12139fd18",
+          "common:duration.days": "acab262fb68007cb",
+          "common:duration.hours": "fb59488f2163e362",
+          "common:feedback.tools.undo": "f0df6326f19de5bc",
+          "common:hourData.enable": "bc8fb098fd3c685b",
+          "common:hourData.notice": "f6340a2450551c0e",
+          "common:progressImport.confirm": "0848db6b37051d98",
+          "common:properties": "2d3f0ce9b1f49bcb",
+          "common:resource.leveling.apply": "0848db6b37051d98",
+          "common:resource.leveling.calculate": "b5587fc1f75ae7dd",
+          "common:settings.allowMixedDayHour": "bfaffbd821ee0244",
+          "common:settings.defaultTaskDurationUnit": "809a2b0fd6e1182f",
+          "common:settings.enableHourPlanning": "bc8fb098fd3c685b",
+          "common:settings.hourPlanningSection": "d77b95da4d9bd7ff",
+          "common:settings.planningTab": "90c2be0871c269d4",
+          "common:settings.title": "8af481aba70ae8df",
+          "common:shortcuts.category.view": "5689a0ce29d9abb7",
+          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
+          "common:view.layout.apply": "0848db6b37051d98",
+          "common:warnings.target.project": "b04eef1662b92fa8",
+          "menu:backstage.projectInfoTitle": "ff065ab59558d5b5",
+          "menu:backstage.settings": "694fe8208da8f577",
+          "menu:commands.newProject": "d04c40b12139fd18",
+          "menu:commands.undo": "f0df6326f19de5bc",
+          "menu:ifc.apply": "0848db6b37051d98",
+          "menu:newProject.title": "434f4bd455bb0cc0",
+          "menu:projectInfo.title": "ff065ab59558d5b5",
+          "menu:ribbon.calculate": "b5587fc1f75ae7dd",
+          "menu:ribbon.hour": "8859628a30622fd1",
+          "menu:ribbon.planning": "90c2be0871c269d4",
+          "menu:ribbon.project": "b04eef1662b92fa8",
+          "menu:ribbon.projectSettings": "694fe8208da8f577",
+          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
+          "menu:ribbon.schedule": "90c2be0871c269d4",
+          "menu:ribbon.settings": "8af481aba70ae8df",
+          "menu:ribbon.start": "7c146ff37b9e1ab0",
+          "menu:ribbon.timeScale": "5de1d6bd4d394080",
+          "menu:ribbon.undo": "f0df6326f19de5bc",
+          "menu:ribbon.view": "5689a0ce29d9abb7",
+          "report:projectDuration": "aa90d67edde8c110",
+          "report:settings": "8af481aba70ae8df",
+          "report:tableHeaders.duration": "c14330211613fe70",
+          "task:contourDialog.days": "acab262fb68007cb",
+          "task:contourDialog.hoursTotal": "fb59488f2163e362",
+          "task:dialog.durationDays": "acab262fb68007cb",
+          "task:dialog.durationHours": "fb59488f2163e362",
+          "task:duration.days": "acab262fb68007cb",
+          "task:duration.enableHourPlanning": "bc8fb098fd3c685b",
+          "task:duration.hours": "fb59488f2163e362",
+          "task:duration.label": "c14330211613fe70",
+          "task:duration.unit": "e3b0c44298fc1c14",
+          "task:properties.recalculate": "b5587fc1f75ae7dd",
+          "task:properties.time": "16d140f73d826927",
+          "task:table.duration": "c14330211613fe70",
+          "task:taskGrid.category.planning": "90c2be0871c269d4",
+          "task:taskGrid.columns.duration": "c14330211613fe70"
+        }
+      },
+      {
+        "hash": "e4aa4a2dab272813",
+        "labels": {
+          "common:properties": "2d3f0ce9b1f49bcb",
+          "common:scheduleErrors.hourTaskWithoutWorkHours": "3e98e7c53a1bd6b7",
+          "common:sidebar.properties": "2d3f0ce9b1f49bcb",
+          "menu:ribbon.properties": "2d3f0ce9b1f49bcb",
+          "task:dialog.editTitle": "3862cee4829f8795",
+          "task:duration.conversionNotExact": "acc822d29866b5dd",
+          "task:duration.enableHourPlanningFirst": "bdf35ec4bcb48e3c",
+          "task:duration.invalid": "64f63987566920fb",
+          "task:duration.requiresWorkBlocks": "dbeff2580ac8de59",
+          "task:taskGrid.validation.durationConversionNotExact": "8414fe161d783736"
+        }
+      },
+      {
+        "hash": "4d763cdac696d976",
+        "labels": {}
       }
     ]
   }

@@ -30,7 +30,7 @@ The *Move* button only works after a preview without an error, and if the new da
 
 ### What shifts along, and what does not
 
-What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin, see [Constraints and deadlines](docs://uitleg-constraints)), deadlines, the status date, the anchors of external relations and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
+What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin, see [Task dialog and properties panel](docs://ref-taak-eigenschappen)), deadlines, the status date, the anchors of external relations and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
 
 What does not shift:
 
@@ -56,6 +56,6 @@ What does not shift:
 
 ## See also
 
-- [Critical path and float](docs://uitleg-kritiek-pad): how the schedule calculates and why the finish moves.
+- [Why a task moves](docs://uitleg-verschuivingen): how the schedule calculates and why the finish moves.
 - [Adding relations](docs://howto-relaties-leggen): relations simply stay in place when you move.
 - [New project and Project settings](docs://ref-projectinfo): what the start date in Project settings does.

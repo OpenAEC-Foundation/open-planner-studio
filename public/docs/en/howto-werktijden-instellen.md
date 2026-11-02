@@ -4,7 +4,7 @@ Goal: record per weekday at which clock times a calendar works, so that tasks in
 
 ## When you need this
 
-Friday afternoon is off. The crew works from 06:00 to 22:00 in two shifts. There is a night crew. The break is shorter than an hour. As long as you plan only in days, *Start (hour)*, *End (hour)* and the break are enough ([Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen)). If you plan tasks in hours, the app counts working minutes within the **working-time blocks** of the calendar. In the app those blocks are called *bands*: a block is a continuous stretch of working time on one weekday, and a gap between two blocks is a break. What that means for your schedule is covered in [Days and hours](docs://uitleg-dagen-en-uren).
+Friday afternoon is off. The crew works from 06:00 to 22:00 in two shifts. There is a night crew. The break is shorter than an hour. As long as you plan only in days, *Start (hour)*, *End (hour)* and the break are enough ([Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen)). If you plan tasks in hours, the app counts working minutes within the **working-time blocks** of the calendar. In the app those blocks are called *bands*: a block is a continuous stretch of working time on one weekday, and a gap between two blocks is a break. What that means for your schedule is covered in [Calendar windows](docs://ref-kalenders).
 
 The *Working times* block is available for every calendar.
 
@@ -54,7 +54,5 @@ A preset of your own is stored on this device, not in the project file.
 
 ## See also
 
-- [Days and hours](docs://uitleg-dagen-en-uren): how the app counts working hours and derives the standard workday.
 - [Plan a task in hours](docs://howto-taak-in-uren-plannen): planning a task in hours.
-- [Calendars and working days](docs://uitleg-kalenders): which calendar applies to which task.
 - [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.
