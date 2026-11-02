@@ -228,9 +228,7 @@ The tab shows the IFC panel in the workspace. The ribbon has no buttons here, on
 
 ## Report
 
-### Report › Report
-
-- **Print** — only on this tab, where it does nothing because *Report* is already open; the report choices are in the report screen.
+The tab shows the report screen in the workspace, with the report choices and *Export PDF*. The ribbon here only has the *Progress* group; it is the same as on *Planning*.
 
 ## MCP
 
