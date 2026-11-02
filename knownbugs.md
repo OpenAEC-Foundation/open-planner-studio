@@ -1838,6 +1838,18 @@ en noem het in je rapport of PR-tekst.
      doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
      opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 
+803. **VERVOLG: de vóór/na-poort voor de nivelleeroptimalisatie mist enkele relevante paden.**
+     `tests/planning/check-leveler-differential.ts:57` genereert de 286 geldige projecten zonder
+     vastgepinde taken, voortgang, poolgrootboek, opgeslagen contouren of resourcecapaciteit die in de
+     tijd wisselt. `.github/workflows/perf-snelheid.yml:70` draait de bestaande gerichte batterijen
+     alleen op de kandidaat; daarvoor vergelijkt de poort dus geen volledige uitvoer met de basisbron.
+     Voorstel voor later: vergelijk ook die bestaande gerichte gevallen vóór en na, inclusief de
+     poolboekingen. Dit is een dekkingsgat, geen aangetoonde afwijking in het productgedrag. VERVOLG uit
+     review ronde 1 van PR 784 op `96b8431d8` door Sol (GPT-6.1-Sol, xhigh); geen BLOKKEERT. Sol
+     rapporteerde daarnaast 60 vergeleken voorstellen en 18 extra combinaties vóór/na, exact gelijk,
+     ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
+     geen onderdeel van de geautomatiseerde vóór/na-poort. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
