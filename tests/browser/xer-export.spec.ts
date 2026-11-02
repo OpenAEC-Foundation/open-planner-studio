@@ -89,15 +89,20 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   // Knownbug 483: meerdere exportverliezen delen één zichtbare melding met alle uitleg.
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    const task = s.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
-    s.updateTask(task.id, { name: 'Tekst\u0001', notes: [{ id: 'export-note', text: 'Notitie', done: false }] });
-    s.setTaskSplits(task.id, [
+    // Een nieuwe taak heeft geen contour of voortgang die de onderbreking al kan bewaren.
+    const taskId = s.addTask({ name: 'Tekst\u0001' });
+    s.updateTask(taskId, { notes: [{ id: 'export-note', text: 'Notitie', done: false }] });
+    s.setTaskSplits(taskId, [
       { kind: 'work', minutes: 480 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 480 },
     ]);
     s.setProject({ schedulingOptions: { ...s.project.schedulingOptions,
       criticalDefinition: { mode: 'totalFloat', thresholdHours: 4 } } });
     for (const n of [...window.__OPS__!.store.getState().ui.notifications]) s.dismissNotification(n.id);
   });
+  expect(await page.evaluate(() => {
+    const task = window.__OPS__!.store.getState().tasks.find(t => t.name === 'Tekst\u0001')!;
+    return [!!task.splitGaps?.length, !!task.timephasedContours?.length, task.notes?.length];
+  })).toEqual([true, false, 1]);
   // Na de export geeft een melding hetzelfde advies, in dezelfde tekst als de hint.
   const mspdiDownload = page.waitForEvent('download');
   await page.locator('button').filter({ hasText: /^MS Project XML/ }).click();
