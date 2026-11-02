@@ -12,11 +12,13 @@ import {
   expectedLines,
   expectedRuns,
   itemsOfShard,
+  longestFirst,
   parseExpected,
   parsePlan,
   parseShard,
   planProblems,
   runsAlone,
+  shardWeights,
 } from '../../scripts/planning-pool.mjs';
 
 const run = promisify(execFile);
@@ -217,6 +219,15 @@ test('itemsOfShard zet zware checks in verschillende delen, en een check zonder 
 test('durationsFromManifests telt alle runs van een check op, in hele seconden', () => {
   const durations = durationsFromManifests(['check-b.ts\t-\t0\t1400\ncheck-b.ts\tUTC\t0\t1400\n', 'check-a.ts\t-\t0\t10\n']);
   assert.deepEqual(durations, { 'check-a.ts': 1, 'check-b.ts': 3 });
+});
+
+test('longestFirst zet de zwaarste runs vooraan; shardWeights telt een alleen-check vier keer', () => {
+  const run = (id, matrix, zone = '-') => ({ item: { id, matrix }, zone });
+  const runs = [run('licht.ts', true), run('zwaar.ts', true), run('los.ts', false), run('zwaar.ts', true, 'UTC')];
+  const order = longestFirst(runs, { 'licht.ts': 6, 'zwaar.ts': 60, 'los.ts': 5 }, 5).map(r => `${r.item.id}${r.zone}`);
+  assert.deepEqual(order, ['zwaar.ts-', 'zwaar.tsUTC', 'los.ts-', 'licht.ts-']);
+  const weights = shardWeights([{ id: 'perf.ts', env: ['OPS_RELAX_PERF=0'] }, { id: 'gewoon.ts', env: [] }], { 'perf.ts': 30, 'gewoon.ts': 30 });
+  assert.deepEqual(weights, { 'perf.ts': 120, 'gewoon.ts': 30 });
 });
 
 test('parseShard weigert onzin, planProblems ziet twee checks op één uitvoerpad', () => {

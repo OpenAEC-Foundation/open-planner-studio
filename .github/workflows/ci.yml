@@ -234,19 +234,20 @@ jobs:
           # trage runner, ~6 min in drie (PR #763), vier sinds besluit Ethan 2026-11-02.
           # scripts/planning-pool.mjs verdeelt de checks op gemeten duur
           # (tests/planning/check-durations.json); samen dekken de shards alles, en de job `test` telt
-          # dat na. Meer of minder shards: alleen deze regels aanpassen.
+          # dat na. Meer of minder shards: alleen deze regels aanpassen. De aanhalingstekens houden de regels
+          # `shard: k/4` uniek voor de browsershards; tests/dev-server/browser-shards.test.mjs muteert die.
           - part: planning
             name: planning 1-4
-            shard: 1/4
+            shard: '1/4'
           - part: planning
             name: planning 2-4
-            shard: 2/4
+            shard: '2/4'
           - part: planning
             name: planning 3-4
-            shard: 3/4
+            shard: '3/4'
           - part: planning
             name: planning 4-4
-            shard: 4/4
+            shard: '4/4'
           - part: suites
             name: suites
 
@@ -259,7 +260,17 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      # node_modules uit de cache bij een ongewijzigde package-lock.json: `npm ci` kostte 25 tot 52 s per job.
+      # De build-jobs draaien `npm ci` wel altijd, dus de controle dat de lockfile klopt blijft op elke PR.
+      - name: Restore node_modules
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+
       - name: Install frontend dependencies (npm ci)
+        if: steps.node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Check that this matrix runs every verify part
