@@ -1678,6 +1678,12 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
 
+845. **VERVOLG: echt uitloggen is nog niet bewezen.** `scripts/check-openaec-linux.sh:60` stuurt SIGTERM
+     alleen naar het hoofdproces. Bij systemd kan `KillMode=control-group` ook de webview stoppen, en na
+     `TimeoutStopSec` volgt meestal SIGKILL; dat hangt af van de sessie. De AppImage-proef bewijst die route
+     dus niet. Controleer bij de SuperCloud-integratie de signaalroute en de tijdlimiet, met een echte
+     logoutproef. Uit de review van #800 (GPT-6.1-Sol, xhigh, op `37a8b35cc`, VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
