@@ -77,9 +77,11 @@ to `open-feedback-studio.pages.dev`. Installed extensions may use their own netw
 Fonts, help and examples are bundled for local use.
 
 In managed mode, `SIGTERM` blocks further interaction, waits for a running MCP operation and user-file
-writes already in progress, then writes
-the latest unsaved work to the existing recovery store before exiting. Allow at least 30 seconds
-before forcing termination. A failed/unconfirmed recovery write gives a nonzero exit status.
+writes already in progress, then writes the latest unsaved work to the existing recovery store.
+Planner exits only after the application confirms that this has completed. It keeps waiting while
+I/O or recovery is blocked, with no forced native timeout. The host must allow it to finish;
+a fixed grace period does not guarantee completion. `SIGKILL` or a forced container stop can still
+interrupt a write or prevent recovery.
 The release workflow tests the extracted AppImage without network or GPU under headless Wayland,
 captures screenshots and adds the measured idle memory (PSS of the app and its child processes)
 to the release notes before publication. The same test runs on the unsigned PR artifact.

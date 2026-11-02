@@ -209,9 +209,11 @@ ingestuurde feedback gaat naar `open-feedback-studio.pages.dev`. Geïnstalleerde
 hun eigen netwerkrechten gebruiken. Lettertypen, hulp en voorbeelden worden lokaal meegeleverd.
 
 Bij `SIGTERM` blokkeert de beheerde sessie verdere invoer, wacht zij een lopende MCP-actie en al
-begonnen schrijfacties naar gebruikersbestanden af en
-bewaart zij de laatste niet-opgeslagen wijzigingen via de bestaande herstelopslag. Geef minstens
-30 seconden vóór geforceerd stoppen. Een mislukte of onbevestigde herstelopslag geeft een foutstatus.
+begonnen schrijfacties naar gebruikersbestanden af en bewaart zij de laatste niet-opgeslagen
+wijzigingen via de bestaande herstelopslag. Planner sluit pas af nadat de app bevestigt dat dit
+voltooid is. Bij geblokkeerde I/O of herstel blijft het proces wachten, zonder harde native timeout.
+De host moet het proces laten afronden; een vaste gratieperiode garandeert dat niet.
+Een `SIGKILL` of geforceerde containerstop kan nog steeds een write afbreken of herstel verhinderen.
 De releaseworkflow test de uitgepakte AppImage zonder netwerk of GPU onder headless Wayland,
 bewaart schermafdrukken en zet het gemeten rustgeheugen (PSS van app en kindprocessen) vóór
 publicatie in de releasenotes. Dezelfde proef draait op het ongetekende PR-artifact.

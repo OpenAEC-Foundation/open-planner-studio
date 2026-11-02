@@ -39,7 +39,10 @@ Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_
 
 `linux_environment.rs` leest vóór GTK de omgeving en het startargument. De commandloze plugin
 `ops-linux-environment` zet de sessieconfiguratie in de webview, verleent alleen de opgegeven map
-en het startbestand fs-toegang en verbindt SIGTERM met de bestaande herstel-flush. Verander de
+en het startbestand fs-toegang en verbindt SIGTERM met de bestaande herstel-flush. De native
+afsluitfunctie in `linux_shutdown.rs` wacht zonder deadline op de expliciete bevestiging na alle
+begonnen writes en herstel; ook een verbroken bevestigingskanaal mag het proces niet afsluiten.
+Een SIGKILL door de host kan opslag nog steeds afbreken. Verander de
 AppRun-werkmap niet: WebKit zoekt daar zijn hulpprocessen. `OPENAEC_BEHEERD=1` laadt de updater-plugin
 niet; de TS-updater en opstartmeldingen hebben dezelfde poort. De omgevings-MCP-waarden blijven
 sessiegebonden, op loopback, zonder runtime.json met het omgevingsgeheim. README.nl.md bevat de

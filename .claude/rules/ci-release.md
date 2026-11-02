@@ -50,3 +50,7 @@ netwerk/GPU, onder headless labwc, en bewaart screenshots, MCP-/herstelbewijs en
 Het geheugen komt vóór publicatie in de releasebody. `release-checksums.mjs` schrijft SHA256SUMS
 van de bestanden die de draft-verificatie downloadde, naast de bestaande AppImage-.sig.
 De proef publiceert niets; alleen de reeds bestaande releasejob publiceert achter deze poort.
+De aparte job `shutdown-policy` in `appimage-im-check.yml` test dezelfde native afsluitfunctie
+zonder Tauri. Een echte symlink-write en een herstel-flush blijven elk langer dan de oude grens
+van 25 seconden bezig; pas hun voltooiing mag native exit 0 opleveren. De gewone planningscheck
+draait alleen de korte varianten. De native module draait ook mee met de AppImage-contracttests.

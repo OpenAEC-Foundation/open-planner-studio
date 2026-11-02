@@ -205,7 +205,9 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   plugin `ops-process-info` injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). On Linux,
   `ops-linux-environment` supplies startup file, `OPENAEC_MAP` and managed-session settings (Blueprint #61),
   and connects SIGTERM to the existing recovery flush after started user-file writes finish (without waiting
-  for file dialogs). New user-file writes are blocked during shutdown. `OPENAEC_BEHEERD=1` disables the updater in both layers;
+  for file dialogs). New user-file writes are blocked during shutdown. Native exit requires explicit
+  confirmation; `linux_shutdown.rs` retries without a forced deadline, including during writes/recovery.
+  A host SIGKILL can still interrupt storage. `OPENAEC_BEHEERD=1` disables the updater in both layers;
   optional `OPENAEC_MCP_POORT`/`OPENAEC_MCP_GEHEIM` start the loopback bridge without persisting the environment
   secret. The shared-image contract, network use and start command are in README.md and README.nl.md.
   `openaec-linux-smoke.yml` tests the extracted AppImage under headless Wayland without GPU or network, both

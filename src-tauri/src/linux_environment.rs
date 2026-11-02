@@ -142,6 +142,7 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                         let _ = tx.send(());
                     });
                     // Ook tijdens het opstarten: herhaal tot de webview zijn luisteraar heeft.
+                    // Geen deadline: een lopende write of herstelronde mag niet worden afgekapt.
                     let confirmed = crate::linux_shutdown::wait_for_confirmation(
                         &rx,
                         crate::linux_shutdown::RETRY_INTERVAL,
@@ -154,9 +155,7 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                         },
                     );
                     if !confirmed {
-                        eprintln!(
-                            "[openaec] herstelopslag niet bevestigd; afsluiten met foutstatus"
-                        );
+                        eprintln!("[openaec] bevestigingskanaal verbroken; proces blijft actief");
                     }
                 });
             }

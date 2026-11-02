@@ -1,4 +1,4 @@
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::Duration;
 
 pub const RETRY_INTERVAL: Duration = Duration::from_millis(250);
@@ -10,15 +10,20 @@ pub fn wait_for_confirmation(
     mut request: impl FnMut(),
     mut exit: impl FnMut(i32),
 ) -> bool {
-    for _ in 0..100 {
+    // Een timeout kan midden in een directe write of herstelcommit vallen. Alleen de app weet
+    // wanneer beide klaar zijn. Bij vastgelopen I/O blijft zij dus leven tot de host ingrijpt.
+    loop {
         request();
-        if receiver.recv_timeout(interval).is_ok() {
-            exit(0);
-            return true;
+        match receiver.recv_timeout(interval) {
+            Ok(()) => {
+                exit(0);
+                return true;
+            }
+            Err(RecvTimeoutError::Timeout) => continue,
+            // Ook verlies van de bevestigingsroute bewijst niet dat de opslag klaar is.
+            Err(RecvTimeoutError::Disconnected) => return false,
         }
     }
-    exit(1);
-    false
 }
 
 #[cfg(test)]
