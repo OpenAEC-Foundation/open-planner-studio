@@ -34,6 +34,17 @@ assert.equal(S().tasks.some(t => t.id === task), true, 'undo achter modale inste
 runNativeShortcut('file.newProject');
 assert.equal(S().ui.showNewProjectDialog, false, 'geen tweede dialoog via Nieuw');
 S().setUI({ showSettingsDialog: false });
+
+// Zonder tekstfocus selecteert het menu taken, met dezelfde dialoogbewaking als Cmd+A.
+const secondTask = S().addTask({ name: 'Ruwbouw' });
+S().selectTask(task);
+runNativeShortcut('edit.selectAll');
+assert.deepEqual(new Set(S().selectedTaskIds), new Set([task, secondTask]));
+S().selectTask(task);
+S().setUI({ showSettingsDialog: true });
+runNativeShortcut('edit.selectAll');
+assert.deepEqual(S().selectedTaskIds, [task], 'geen taakselectie achter een dialoog');
+S().setUI({ showSettingsDialog: false });
 runNativeShortcut('file.newProject');
 assert.equal(S().ui.showNewProjectDialog, true);
 S().setUI({ showNewProjectDialog: false });
@@ -68,8 +79,15 @@ Object.defineProperty(document, 'execCommand', { value: (command: string) => { t
 const tasks = S().tasks;
 runNativeShortcut('edit.undo');
 runNativeShortcut('edit.redoShiftZ');
-assert.deepEqual(textCommands, ['undo', 'redo']);
+runNativeShortcut('edit.selectAll');
+assert.deepEqual(textCommands, ['undo', 'redo', 'selectAll']);
 assert.equal(S().tasks, tasks);
+assert.deepEqual(S().selectedTaskIds, [task], 'tekstselectie wijzigt de taakselectie niet');
+S().setUI({ showSettingsDialog: true });
+runNativeShortcut('edit.selectAll');
+assert.deepEqual(textCommands, ['undo', 'redo', 'selectAll', 'selectAll'], 'tekstselectie werkt ook binnen een dialoog');
+assert.deepEqual(S().selectedTaskIds, [task]);
+S().setUI({ showSettingsDialog: false });
 
 // De expliciet toegestane acties blijven de invoer eerst committen.
 runNativeShortcut('file.save');
@@ -102,9 +120,31 @@ assert.equal(savedDuration, 7, 'Opslaan als leest de gecommitteerde duur, niet d
 // De wachtende-vraagpoort blijft sterker dan de invoeruitzondering voor Opslaan als.
 useAppStore.setState(s => ({ ui: { ...s.ui, pendingActualStartQuestion: {} as NonNullable<typeof s.ui.pendingActualStartQuestion> } }));
 runNativeShortcut('file.saveAs');
+const textCommandCount = textCommands.length;
+runNativeShortcut('edit.selectAll');
+assert.equal(textCommands.length, textCommandCount, 'een wachtende vraag blokkeert ook tekstselectie');
 assert.equal(input.blurs, 3);
 assert.equal(savesAs, 2);
 useAppStore.setState(s => ({ ui: { ...s.ui, pendingActualStartQuestion: null } }));
+
+// Presentatie commit vóór de actie die de zijpanelen verwijdert, precies zoals F11.
+const previousWindow = g.window;
+g.window = { __TAURI_INTERNALS__: {} };
+const setPresentationMode = S().setPresentationMode;
+let presentationDuration: number | undefined;
+useAppStore.setState({ setPresentationMode: on => {
+  presentationDuration = S().tasks.find(t => t.id === task)!.time.scheduleDuration;
+  setPresentationMode(on);
+} });
+input.onBlur = () => { setDuration(9); };
+runNativeShortcut('view.toggleFullscreen');
+assert.equal(input.blurs, 4, 'Presentatie commit het actieve veld');
+assert.equal(presentationDuration, 9, 'Presentatie leest de gecommitteerde duur');
+assert.equal(S().ui.presentationMode, true);
+setPresentationMode(false);
+useAppStore.setState({ setPresentationMode });
+if (previousWindow === undefined) delete g.window;
+else g.window = previousWindow;
 input.onBlur = undefined;
 Object.defineProperty(document, 'activeElement', { value: null, configurable: true });
 runNativeShortcut('nav.reportTab');

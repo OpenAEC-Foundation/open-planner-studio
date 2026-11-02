@@ -7,7 +7,7 @@ De macOS-desktopapp gebruikt de native titelbalk met de rode, gele en groene ven
 De menubalk bovenaan het scherm biedt dezelfde projectacties als het lint en de sneltoetsen:
 
 - Bestand: Nieuw project, Openen, Opslaan, Opslaan als en Afdrukken. Afdrukken opent de rapportwerkruimte.
-- Bewerken: Ongedaan maken en Opnieuw voor de planning, of tekstgeschiedenis wanneer een tekstveld focus heeft. Knippen, Kopiëren, Plakken en Alles selecteren gebruiken de native tekstbewerking en de klembordafhandeling van het taakgrid.
+- Bewerken: Ongedaan maken en Opnieuw voor de planning, of tekstgeschiedenis wanneer een tekstveld focus heeft. Knippen, Kopiëren en Plakken gebruiken de native tekstbewerking en de klembordafhandeling van het taakgrid. Alles selecteren selecteert tekst in een veld met focus, anders selecteert het taken zoals Cmd+A.
 - Planning: Bereken.
 - Beeld: Inzoomen, Uitzoomen, Presentatie en native volledig scherm.
 - Venster: minimaliseren, maximaliseren en vensters naar voren halen.
@@ -19,6 +19,6 @@ Het lint blijft beschikbaar onder de titelbalk. Native volledig scherm behoudt h
 
 ## Sneltoetsen en dialogen
 
-Gebruik Cmd+N, Cmd+O, Cmd+S en Shift+Cmd+S voor projectbestanden. Cmd+Z en Shift+Cmd+Z maken ongedaan en opnieuw. Een menuactie gebruikt dezelfde document- en dialoogbewaking als de bijbehorende sneltoets. Opslaan en Bereken verwerken een hangende tekstbewerking voordat ze het project lezen.
+Gebruik Cmd+N, Cmd+O, Cmd+S en Shift+Cmd+S voor projectbestanden. Cmd+Z en Shift+Cmd+Z maken ongedaan en opnieuw. Een menuactie gebruikt dezelfde document- en dialoogbewaking als de bijbehorende sneltoets. Opslaan, Opslaan als en Bereken verwerken een hangende tekstbewerking voordat ze het project lezen. Presentatie verwerkt de bewerking ook voordat het eigenschappenpaneel verdwijnt. Afdrukken en Help wachten totdat je het invoerveld verlaat.
 
 De browserversie gebruikt de menu's en vensterknoppen van de browser. Het hier beschreven native menu hoort bij de macOS-desktopapp.

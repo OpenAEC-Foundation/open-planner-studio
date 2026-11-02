@@ -57,7 +57,7 @@ export function useMacOSMenu(): void {
           { item: 'Cut', text: t('menu:native.cut') },
           { item: 'Copy', text: t('common:shortcuts.edit.copy') },
           { item: 'Paste', text: t('common:context.paste') },
-          { item: 'SelectAll', text: t('common:shortcuts.edit.selectAll') },
+          command('edit.selectAll', t('common:shortcuts.edit.selectAll'), 'Cmd+A'),
         ] },
         { text: t('menu:ribbon.planning'), items: [
           command('file.recalculate', t('menu:ribbon.calculate'), 'F5'),

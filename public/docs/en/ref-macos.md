@@ -7,7 +7,7 @@ The macOS desktop app uses the native title bar with the red, yellow and green w
 The menu bar at the top of the screen offers the same project actions as the ribbon and keyboard shortcuts:
 
 - File: New project, Open, Save, Save as and Print. Print opens the report workspace.
-- Edit: Undo and Redo for the planning, or text undo/redo when a text field has focus. Cut, Copy, Paste and Select All use native text editing and the task grid's clipboard handling.
+- Edit: Undo and Redo for the planning, or text undo/redo when a text field has focus. Cut, Copy and Paste use native text editing and the task grid's clipboard handling. Select All selects text in a focused field, otherwise it selects tasks as Cmd+A does.
 - Planning: Calculate.
 - View: Zoom in, Zoom out, Presentation and native fullscreen.
 - Window: minimise, maximise and bring windows to the front.
@@ -19,6 +19,6 @@ The ribbon remains available below the title bar. Native fullscreen keeps the ri
 
 ## Shortcuts and dialogs
 
-Use Cmd+N, Cmd+O, Cmd+S and Shift+Cmd+S for project files. Cmd+Z and Shift+Cmd+Z undo and redo. A menu action uses the same document and dialog guards as its keyboard shortcut. Save and Calculate commit a pending text edit before reading the project.
+Use Cmd+N, Cmd+O, Cmd+S and Shift+Cmd+S for project files. Cmd+Z and Shift+Cmd+Z undo and redo. A menu action uses the same document and dialog guards as its keyboard shortcut. Save, Save as and Calculate commit a pending text edit before reading the project. Presentation also commits the edit before hiding the properties panel. Print and Help wait until you leave the input field.
 
 The browser version uses its browser's menus and window controls. The native menu described here belongs to the macOS desktop app.

@@ -7,7 +7,7 @@ import { commitPendingTextEdit } from './useKeyboardShortcuts';
 
 export const NATIVE_SHORTCUT_IDS = [
   'file.newProject', 'file.open', 'file.save', 'file.saveAs', 'file.recalculate',
-  'edit.undo', 'edit.redoShiftZ', 'view.zoomIn', 'view.zoomOut',
+  'edit.undo', 'edit.redoShiftZ', 'edit.selectAll', 'view.zoomIn', 'view.zoomOut',
   'view.toggleFullscreen', 'nav.help', 'nav.reportTab', 'view.showShortcuts',
 ] as const;
 export type NativeShortcutId = typeof NATIVE_SHORTCUT_IDS[number];
@@ -23,14 +23,15 @@ export function runNativeShortcut(id: NativeShortcutId): void {
   const typing = isTypingTarget(target, {
     key: entry.combo.key, ctrlKey: false, metaKey: !!entry.combo.mod,
   });
-  // Cmd+Z/Shift+Cmd+Z in een tekstveld blijft tekstgeschiedenis; buiten invoer is het app-undo.
-  if (typing && (id === 'edit.undo' || id === 'edit.redoShiftZ')) {
-    document.execCommand(id === 'edit.undo' ? 'undo' : 'redo');
+  // Tekstgeschiedenis en tekstselectie blijven bij het veld; buiten invoer zijn het app-acties.
+  if (typing && (id === 'edit.undo' || id === 'edit.redoShiftZ' || id === 'edit.selectAll')) {
+    document.execCommand(id === 'edit.undo' ? 'undo' : id === 'edit.redoShiftZ' ? 'redo' : 'selectAll');
     return;
   }
   if (!canRunShortcut(entry, typing)) return;
-  // Opslaan en berekenen committen hetzelfde invoerconcept als Ctrl/Cmd+S en F5.
-  if (id === 'file.save' || id === 'file.saveAs' || id === 'file.recalculate') {
+  // Elke toegestane invoeractie commit eerst, zoals het toetsenbordregister: ook Presentatie
+  // moet de veldwaarde bewaren voordat het eigenschappenpaneel verdwijnt.
+  if (entry.allowInInput && typing) {
     commitPendingTextEdit(target, { recalculate: id !== 'file.recalculate' });
   }
   entry.run(useAppStore.getState());
