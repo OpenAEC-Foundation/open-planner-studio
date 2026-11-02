@@ -51,4 +51,37 @@ test('355: effectieve scalaire werkblokken blijven geldig voor een urentaak, ook
   }
 });
 
+test('85: statusdatum en afgeleide voortgang zijn gelijk in een batch en in losse calls', async () => {
+  const outcomes: unknown[] = [];
+  for (const batch of [false, true]) {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-01' });
+    const a = S().addTask({ name: 'Grondwerk', time: createDefaultTaskTime('2026-06-01', 3) });
+    const b = S().addTask({ name: 'Fundering', time: createDefaultTaskTime('2026-06-01', 4) });
+    S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
+    S().runCPM();
+    const before = S().tasks.find(t => t.id === b)!.time.earlyStart;
+    const steps = [
+      { tool: 'planner_update_project', args: { statusDate: '2026-06-10' } },
+      { tool: 'planner_update_tasks', args: { updates: [
+        { id: a, progress: { completion: 100 } }, { id: b, progress: { completion: 50 } },
+      ] } },
+    ];
+    const results = batch ? [await call('planner_batch', { steps })]
+      : [await call(steps[0].tool, steps[0].args), await call(steps[1].tool, steps[1].args)];
+    assert(results.every(r => r.ok), `calls slagen: ${JSON.stringify(results)}`);
+    outcomes.push(S().tasks.map(t => ({ name: t.name, status: t.status, time: t.time })));
+    assertEq(S().project.statusDate, '2026-06-10', 'statusdatum gezet');
+    assert(before.startsWith('2026-06-04'), 'voorwaarde: fundering begint aanvankelijk op 4 juni');
+    if (batch) {
+      S().undo();
+      assertEq(S().project.statusDate, '2026-06-01', 'één undo herstelt ook de statusdatum');
+      assert(S().tasks.every(t => t.time.completion === 0 && !t.time.actualStart), 'één undo herstelt alle voortgang');
+      S().redo();
+      assertEq(S().tasks.map(t => ({ name: t.name, status: t.status, time: t.time })), outcomes[1], 'redo herstelt de batch');
+    }
+  }
+  assertEq(outcomes[1], outcomes[0], 'dezelfde invoer geeft dezelfde voortgang en planning');
+});
+
 await run();

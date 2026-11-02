@@ -781,9 +781,8 @@ console.log('-- distribute: bookingByDay bevat elk boekend document, gelijk aan 
 // De twee dingen die deze case vastlegt (zie het moduleblok van distribute.ts):
 //  (a) B's boeking staat volledig en ongeschonden in `afterLoadByDay`, zonder tekort — een lege
 //      na-balk in de UI is dus een presentatiefout (as uit de VOOR-stand), geen verdelerfout;
-//  (b) `endShiftWorkdays` is GEEN maat voor hoe ver de boeking opschoof: met
-//      `manuallyScheduled: true` houdt de taak haar eigen datums in de CPM-solve, dus dat getal
-//      blijft 0 terwijl de boeking tien werkdagen verderop ligt. Met `false` is het wél 10.
+//  (b) handmatige taken houden hun eigen datums in zowel de CPM-solve als de boekhouding;
+//      een vaste botsing blijft een tekort, zonder onwerkzame vertraging (knownbug 259).
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: na-boeking buiten de voor-dagen, endShiftWorkdays is geen maat (case 18) --');
 for (const manual of [true, false]) {
@@ -808,6 +807,15 @@ for (const manual of [true, false]) {
 
   const docB = result.docs.find(d => d.docId === 'B')!;
   assert(docB !== undefined && docB.participated, `${label}: B doet mee als deelnemer`);
+  if (manual) {
+    // Knownbug 259: de solver houdt handmatige datums vast. Het voorstel moet diezelfde last
+    // tonen en het onoplosbare conflict melden, zonder een onwerkzame nivelleervertraging.
+    assert(Object.keys(docB.delays).length === 0, `${label}: geen vertraging op handmatige taken`);
+    assert(docB.shortfalls.length > 0 && result.hasShortfall, `${label}: vaste botsing blijft zichtbaar`);
+    assert(docB.endShiftWorkdays === 0, `${label}: projecteinde blijft vast`);
+    assert(JSON.stringify(result.afterLoadByDay.B) === JSON.stringify(result.bookingByDay.B), `${label}: boeking blijft op haar echte dagen`);
+    continue;
+  }
   assert(docB.shortfalls.length === 0, `${label}: B is geplaatst, dus geen tekort (kreeg ${JSON.stringify(docB.shortfalls)})`);
   assert(result.hasShortfall === false, `${label}: geen tekort in het voorstel`);
 
@@ -892,6 +900,21 @@ console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09
     const expected: DistributionShortfall = { taskId: id, days: ['2026-08-03'] };
     assert(JSON.stringify(shortfall) === JSON.stringify(expected), '322 conflictdag en optioneel redencontract blijven beschikbaar');
   }
+}
+
+console.log('-- distribute: twee projectresources op hetzelfde item tellen samen (349) --');
+for (const allowSplits of [false, true]) {
+  const p = pool([poolRes('lib-1', 'Gedeelde kraan', 1)]);
+  const doc = distDoc('dubbele-koppeling', {
+    resources: [stamped('r1', 'lib-1', 'c1', { maxUnits: 1 }), stamped('r2', 'lib-1', 'c1', { maxUnits: 1 })],
+    tasks: [task('dubbele-vraag', '2026-08-03', '2026-08-03', 1)],
+    assignments: [assign('a1', 'dubbele-vraag', 'r1', 1), assign('a2', 'dubbele-vraag', 'r2', 1)],
+  });
+  const result = computeDistribution('c1', p, 'lib-1', [doc], { allowSplits });
+  assert(result.blocked === null, '349: invoer is geldig');
+  assert(result.hasShortfall && result.afterIncomplete, '349: twee op capaciteit één blijft een tekort');
+  assert(result.docs[0].shortfalls.some(s => s.taskId === 'dubbele-vraag'), '349: tekort noemt de taak');
+  assert(Object.values(result.afterLoadByDay['dubbele-koppeling'] ?? {}).every(v => v <= 1), '349: geen verborgen overboeking');
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────

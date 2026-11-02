@@ -444,10 +444,12 @@ export function levelResources(
   // onvoorwaardelijk op actualStart/actualFinish — of IN UITVOERING (`isPinnedInProgress`, de TWEEDE
   // voortgangs-conditie van de forward pass, die op actualStart/restwerk plant en `levelingDelay`
   // nooit raadpleegt). Een delay zou op beide een stille no-op zijn en het conflict stil laten
-  // herleven; ze boeken WEL als vaste last (zie `fixedLoadIds`).
+  // herleven; ze boeken WEL als vaste last (zie `fixedLoadIds`). Ook handmatige taken houden hun
+  // eigen datums in de solver en mogen daarom geen nivelleervertraging krijgen.
   const isCompletedTask = (task: Task): boolean => isPinnedComplete(task.time);
   const isInProgressTask = (task: Task): boolean => isPinnedInProgress(task.time);
-  const isImmovableTask = (task: Task): boolean => isCompletedTask(task) || isInProgressTask(task);
+  const isImmovableTask = (task: Task): boolean => task.manuallyScheduled === true
+    || isCompletedTask(task) || isInProgressTask(task);
 
   // ── Vraag per kandidaat (spec §3.11, review ronde 2 punt 6) ────────────────────────────────────
   // Voor elke kandidaatstart bepaalt de GEDEELDE plaatsing (`taskLoadPlacement`, dezelfde als het
@@ -591,9 +593,10 @@ export function levelResources(
 
   // Geplaatste posities (voor boekhouding/debug): iso-startdag.
   const placedStartIso = new Map<string, string>();
-  // Het exacte boekingsmoment van elke vastgepinde taak: de pinconflictcontrole na de lus leest
+  // Het exacte boekingsmoment van elke vaste taak: de conflictcontrole na de lus leest
   // daarmee precies de vraag die `bookDemandAt` boekte (`demandAt` is per moment gecachet).
   const pinnedStartDate = new Map<string, Date>();
+  const fixedPoolConflicts = new Map<string, string[]>();
 
   // Boek de vraag van een taak vanaf een gegeven startmoment — via `demandAt` hierboven, dezelfde
   // uitkomst als `findSlot`s capaciteitstoets (conflictdetectie en boeking lopen niet uit elkaar).
@@ -650,10 +653,11 @@ export function levelResources(
     if (ea !== eb) return ea < eb ? -1 : 1;
     return creationIndex.get(a)! - creationIndex.get(b)!;
   };
-  // Zowel movable als pinned lopen door de lus (pinned volgt voorgangers, maar schuift niet voor
-  // capaciteit). Niet-actieve taken (geen vraag / mijlpaal / summary / VOLTOOID) gelden meteen
-  // als geplaatst — `fixedLoadIds` zit hier bewust ook niet in `active`.
-  const active = new Set<string>([...pinnedIds, ...movableIds]);
+  // Een tussenstap zonder vraag moet eerst haar voorgangers afwachten: anders kan een actieve
+  // opvolger boeken vóór een nog te verschuiven voorouder. Deze tussenstappen boeken zelf niets.
+  const transitIds = tasks.filter(t => !hasDemand(t.id) && !isImmovableTask(t)
+    && predsOf.get(t.id)!.length > 0).map(t => t.id);
+  const active = new Set<string>([...pinnedIds, ...movableIds, ...transitIds]);
   const sortedActive = [...active].sort(cmp);
 
   const placed = new Set<string>();
@@ -678,12 +682,16 @@ export function levelResources(
   // — dus `baseEs(id)` is hier al haar VERSCHOVEN, genivelleerde positie, niet haar kale PF.
   for (const id of fixedLoadIds) {
     const startIso = baseEs(id);
+    const start = parseInstant(startIso);
+    const demand = demandAt(workById.get(id)!, start);
+    if (taskById.get(id)!.manuallyScheduled) fixedPoolConflicts.set(id, poolConflicts(demand.byRes, demand.days));
     // `toPoolLedger: true` — een onverplaatsbare of out-of-scope taak bezet de
     // pool ECHT (ze is per definitie al geplaatst, dus geen "niet-plaatsbaar = geen cascade"-geval).
     // Een lopende taak boekt zo haar ene gezaghebbende plaatsing (de berekende spanne), dezelfde als
     // het histogram — geen nieuwe wandeling van de totale duur (acceptatie-eis 4 van F3b).
-    bookDemandAt(id, parseInstant(startIso), true);
+    bookDemandAt(id, start, true);
     placedStartIso.set(id, startIso);
+    pinnedStartDate.set(id, start);
   }
 
   const delays: Record<string, number> = {};
@@ -774,6 +782,13 @@ export function levelResources(
       pick = sortedActive.find(id => !placed.has(id) && allPredsPlaced(id));
     }
     if (!pick) break; // zou niet mogen (CPM is acyclisch); voorkom oneindige lus
+
+    if (!hasDemand(pick)) {
+      placed.add(pick);
+      markPlaced(pick);
+      remaining--;
+      continue;
+    }
 
     // PF: de vroege start op de werkkopie (geplaatste taken hebben hun delay; `pick` niet).
     const pf = pfFor(pick);
@@ -875,16 +890,16 @@ export function levelResources(
     remaining--;
   }
 
-  // Vastgepind betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
+  // Vastgepind of handmatig betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
   // geen alternatief venster. Controleer na ALLE boekingen hun werkelijke vraagdagen, zodat
   // ook de eerst geboekte pin het conflict met een later geboekte pin terugkrijgt.
   // Geen tweede boeking: booked bevat de eigen vraag al. Nulvraag telt niet als conflict.
   // De vraag komt uit dezelfde gedeelde plaatsing als de boeking (`demandAt` op het boekingsmoment).
-  for (const taskId of pinnedIds) {
+  for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(id => inScope(id) && taskById.get(id)!.manuallyScheduled)]) {
     const start = pinnedStartDate.get(taskId);
     if (!start) continue;
     const { days: occ, byRes } = demandAt(workById.get(taskId)!, start);
-    const days = new Set<string>();
+    const days = new Set(fixedPoolConflicts.get(taskId) ?? []);
     for (const [resId, demand] of byRes) {
       for (let i = 0; i < demand.length && i < occ.length; i++) {
         if (demand[i] > 0 && exceedsCapacity(bookedOn(resId, occ[i]), capacityOf(resId, occ[i]))) {
@@ -1046,18 +1061,17 @@ export function levelResources(
       // Naast de projecttoets ook de pool-tak: anders blijft een taak die UITSLUITEND op het
       // poolitem-grootboek vastloopt met een LEGE conflictdagenlijst zitten — de
       // hoofdlus zet `unresolved[pick]`/`unresolvedReasons[pick]` alleen bij `slotUnresolved.length >
-      // 0`, dus RESIDUAL_FULL zou stilzwijgend verdwijnen. Spiegelt `fits`'s tweede toets: de POOL-tak
-      // wordt alleen bekeken als de PROJECTtoets al slaagde (elke-if, geen dubbele push).
-      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
+      // 0`, dus RESIDUAL_FULL zou stilzwijgend verdwijnen. De pooltoets telt alle gekoppelde
+      // projectresources eerst op; de uiteindelijke conflictdagen worden ontdubbeld.
       for (let i = 0; i < arr.length && i < occ.length; i++) {
         // Zelfde nul-guard als `fits` hieronder — een dag zonder vraag (`arr[i] <= 0`) kan niet
         // botsen, ook niet als een ANDERE (bv. vastgepinde) taak die dag overboekt; anders een
         // fantoomconflict van DEZE taak (`check-leveler-seam.ts` geval 3).
         if (arr[i] <= 0) continue;
         if (exceedsCapacity(bookedOn(resId, occ[i]) + arr[i], capacityOf(resId, occ[i]))) conflicts.push(occ[i]);
-        else if (poolItem !== null && exceedsCapacity(arr[i], ledger!.residualOn(poolItem, occ[i]))) conflicts.push(occ[i]);
       }
     }
+    conflicts.push(...poolConflicts(byRes, occ));
     return {
       start: snappedPf,
       skipped: 0,
@@ -1130,14 +1144,38 @@ export function levelResources(
    *  uitsluitend aan de pool lag. */
   function fits(byRes: Map<string, number[]>, occ: string[]): boolean {
     for (const [resId, arr] of byRes) {
-      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
       for (let i = 0; i < arr.length && i < occ.length; i++) {
         if (arr[i] <= 0) continue;
         if (exceedsCapacity(bookedOn(resId, occ[i]) + arr[i], capacityOf(resId, occ[i]))) { poolBlockedOnly = false; return false; }
-        if (poolItem !== null && exceedsCapacity(arr[i], ledger!.residualOn(poolItem, occ[i]))) return false;
       }
     }
-    return true;
+    return !ledger || poolConflicts(byRes, occ).length === 0;
+  }
+
+  /** Meerdere projectresources kunnen dezelfde bibliotheekcapaciteit aanspreken. Toets hun som
+   *  vóór het boeken, zowel in de gewone scan als bij onderbrekingen en conflictrapportage. */
+  function demandByPool(byRes: Map<string, number[]>): Map<string, number[]> {
+    const byPool = new Map<string, number[]>();
+    if (!ledger) return byPool;
+    for (const [resId, demand] of byRes) {
+      const poolId = ledger.poolItemOf(resId);
+      if (poolId === null) continue;
+      const total = byPool.get(poolId) ?? [];
+      for (let i = 0; i < demand.length; i++) total[i] = (total[i] ?? 0) + demand[i];
+      byPool.set(poolId, total);
+    }
+    return byPool;
+  }
+
+  function poolConflicts(byRes: Map<string, number[]>, days: string[]): string[] {
+    if (!ledger) return [];
+    const conflicts = new Set<string>();
+    for (const [poolId, demand] of demandByPool(byRes)) {
+      for (let i = 0; i < demand.length && i < days.length; i++) {
+        if (demand[i] > 0 && exceedsCapacity(demand[i], ledger!.residualOn(poolId, days[i]))) conflicts.add(days[i]);
+      }
+    }
+    return [...conflicts];
   }
 
   /** Heeft de gebruiker deze taak ZELF al onderbroken? De
@@ -1171,8 +1209,11 @@ export function levelResources(
       const amt = arr[i];
       if (amt <= 0) continue;
       if (exceedsCapacity(bookedOn(resId, iso) + amt, capacityOf(resId, iso))) return false;
-      const poolItem = ledger ? ledger.poolItemOf(resId) : null;
-      if (poolItem !== null && exceedsCapacity(amt, ledger!.residualOn(poolItem, iso))) return false;
+    }
+    if (!ledger) return true;
+    for (const [poolId, demand] of demandByPool(byRes)) {
+      const amount = demand[i] ?? 0;
+      if (amount > 0 && exceedsCapacity(amount, ledger!.residualOn(poolId, iso))) return false;
     }
     return true;
   }

@@ -748,15 +748,6 @@ en noem het in je rapport of PR-tekst.
     er komt geen undo-stap, maar `shifts` meldt taak 1.2 `oldStart 2026-03-16 → newStart 2026-03-09` (het
     verschil tussen opgeslagen en herberekend). Een agent leest dat als effect van de nivellering. Dat `dryRun`
     hetzelfde meldt, is afgeleid (zelfde preview), niet nagespeeld. — B
-85. **Dezelfde voortgang geeft in één `planner_batch` een ander resultaat dan in losse calls.** Binnen een
-    batch rekent `recomputeMidBatch` alleen vóór een lees- of levelstap (`batchTool.ts:~320`), dus tussen
-    `planner_update_project` (statusdatum) en `planner_update_tasks` niet: de voortgang ziet de geplande
-    datums van vóór de statusdatum. Nagespeeld via de echte dispatcher (netwerk en datums als bij 81, alleen
-    percentages, geen datums): batch ⇒ Grondwerk werkelijk 7–11 juni, Fundering storten (50%) gestart op 10
-    juni, projecteinde donderdag 24 juni (+1); losse calls ⇒ Grondwerk werkelijk 11–11 juni, Fundering
-    storten geweigerd (geplande start na de statusdatum), projecteinde vrijdag 25 juni (+2). Met expliciete
-    werkelijke datums zijn beide routes gelijk (23 juni, +0). Voorstel: na een statusdatumwijziging binnen
-    een batch tussentijds herrekenen, of 81 oplossen zodat de afleiding niet van de route afhangt. — B
 88. **Feestdagen gegenereerd vóór de taken dekken een lang project niet.** Zonder rekenresultaat geeft
     `calendarSpan` geen projecteinde door en neemt `computeGenerateSpan` startjaar−1 t/m startjaar+3
     (`calendarResourceTools.ts:~585`, `generateCalendarHolidays.ts:~62`). Nagespeeld: start 7 juni 2027,
@@ -799,22 +790,6 @@ en noem het in je rapport of PR-tekst.
      `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
      oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
      Review ronde 2 van PR #559, deel B. — B
-
-257. **Type en commentaar van `applyLeveling` noemen de minuutvertraging niet.** `scheduleSlice.ts:69-72` en
-     `createMcpTransactions.ts:958` typen het voorstel als `Pick<LevelingResult, 'delays' | 'gaps'>`. Sinds F3c
-     draagt het voorstel ook `delayMinutes`, en `writeLevelingResult` (`utils/taskDefaults.ts`) schrijft die als
-     `levelingDelayMinutes`. Alle aanroepers geven het volledige resultaat door, dus de minuten komen aan. Een
-     aanroeper die zelf een object bouwt, verliest ze zonder typefout. Het commentaar in `applyLeveling`
-     (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
-     in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
-
-259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
-     behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
-     een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).
-     Na toepassen boekt de nivelleerder de taak dus op een andere plek dan het histogram haar toont.
-     `tests/library/check-distribute.ts` case 18 legt dit vast: vertraging 10, einde schuift 0. Voorstel: een
-     handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
-     Gevonden bij F3c deel 3. — B
 
 215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
     Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
@@ -878,28 +853,6 @@ en noem het in je rapport of PR-tekst.
     loslaten en verwijderen van een contour, en alle lezers via dezelfde koppelfunctie laten lopen. Gevonden in de
     aanval na #600 (GPT-6.1-Sol). — B
 
-349. **Twee projectresources op hetzelfde bibliotheekitem worden apart tegen dezelfde vrije capaciteit getoetst.**
-    `src/engine/scheduler/ResourceLeveler.ts:1137` (`fits`) vergelijkt de vraag van elke resource afzonderlijk met
-    de restcapaciteit van het poolitem; de som wordt pas daarna geboekt. Bibliotheekitem P heeft capaciteit 1; de
-    projectresources R1 en R2 (elk capaciteit 1) verwijzen allebei naar P. Eén taak vraagt op ma 1 juni 2026 één
-    eenheid van R1 en één van R2. `computeDistribution` geeft `blocked: null` en geen tekort, terwijl
-    `afterLoadByDay` op die dag 2 telt; het restprofiel wordt op 0 geklemd en verbergt de overschrijding.
-    `librarySlice.linkRecognizedItems` laat twee projectresources aan hetzelfde item koppelen, dus deze invoer kan
-    ontstaan. Al op `fbd4a3f9d`. Voorstel: de kandidaatvraag per bibliotheekitem en werkdag optellen vóór de
-    pooltoets, en die som ook bij onderbrekingen gebruiken (`:1058`); de projecttoets blijft daarnaast nodig.
-    Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-350. **Een tussenstap zonder resource maakt een afhankelijke taak te vroeg plaatsbaar.**
-    `src/engine/scheduler/ResourceLeveler.ts:660` telt een taak zonder vraag meteen als geplaatst; de wachtrij
-    (`:718`) wacht daardoor alleen op actieve voorgangers. Kalender ma–vr 08:00–16:00, capaciteit 1. A → M → B
-    met FS+0, elk één werkdag; A heeft prioriteit 500 en resource R, M heeft geen resource, B prioriteit 1000 en
-    resource R. Pin C bezet R op ma 1 juni 2026; D (prioriteit 400) vraagt R op do 4 juni. A moet naar dinsdag,
-    dus M naar woensdag en B naar donderdag. De nivelleerder boekt B al op woensdag, en D krijgt donderdag. Na
-    toepassen en herberekenen staat B ook op donderdag: het histogram telt daar 2 bij capaciteit 1, en
-    `unresolved` is leeg. Al op `fbd4a3f9d`. Voorstel: een actieve taak pas plaatsbaar maken als ook haar
-    transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
-    plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
 370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
     (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
     in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
@@ -957,6 +910,15 @@ en noem het in je rapport of PR-tekst.
      met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
      Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
      in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
+760. **Een deelnemend document met alleen priority-1000-taken omzeilt de poolcapaciteit.**
+     `src/services/library/distribute.ts` boekt in de tak `cannotMove` de bestaande last en geeft
+     altijd `shortfalls: []` terug, zonder capaciteitstoets. Twee documenten vragen op 3 augustus 2026
+     elk één kraan op hetzelfde bibliotheekitem met capaciteit 1; het tweede document heeft uitsluitend
+     een taak met prioriteit 1000. `afterLoadByDay` telt samen 2, maar `hasShortfall` en `afterIncomplete`
+     zijn beide `false`. Nagespeeld met een gerichte proef op 2 november 2026 (exit 1 op de verwachting
+     dat het tekort gemeld wordt). Richting: ook dit document via dezelfde capaciteitstoets laten gaan,
+     met behoud van zijn vastgepinde taken. Bijvangst bij 259/349. — B
 
 ## Bestanden en herstel
 
