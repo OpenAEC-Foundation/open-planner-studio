@@ -39,7 +39,7 @@ het origineel terug.
 De solver krijgt uitsluitend `EffectiveSchedulingOptions` via `solveOptionsFor`/`solveInputFor`
 (`src/engine/scheduler/solveInput.ts`) — `CPMOptions.schedulingOptions` is verplicht dat type, dus een
 aanroeper die het profiel overslaat compileert niet. Lezers stellen het profiel voor
-(`ImportResult.suggestedProfileId`: XER ⇒ p6, `.mpp` ⇒ msproject, MSPDI/P6-XML/CSV ⇒ ops deze etappe);
+(`ImportResult.suggestedProfileId`: XER en P6 XML ⇒ p6 (P6 XML sinds #775, met `<ScheduleOptions>` via `deriveXerScheduleOptions`), `.mpp` ⇒ msproject, MSPDI/CSV ⇒ ops);
 openen meldt het profiel met een actie naar Projectinstellingen (`src/state/schedulingProfileNotice.ts`; bij een
 onbruikbaar XER-archief stapelt `withXerArchiveIssueNotice` er als buitenste laag omheen). IFC:
 `OPS_SchedulingProfile` (alle negenentwintig opgelost plus de letterlijke afwijkingen, alleen ≠

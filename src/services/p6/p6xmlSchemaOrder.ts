@@ -38,12 +38,23 @@ const MAX_LENGTH: Readonly<Record<string, Readonly<Record<string, number>>>> = P
 const ORDER: Readonly<Record<string, readonly string[]>> = {
   APIBusinessObjects: ['UDFType', 'NotebookTopic', 'Calendar', 'ResourceCurve', 'Resource', 'ResourceRate', 'Project'],
   Project: [
-    'ActivityDefaultCalendarObjectId', 'DataDate', 'Description', 'Id', 'MustFinishByDate', 'Name', 'ObjectId',
+    'ActivityDefaultCalendarObjectId', 'ActivityDefaultDurationType', 'CriticalActivityFloatLimit', 'CriticalActivityPathType',
+    'DataDate', 'Description', 'Id', 'MustFinishByDate', 'Name', 'ObjectId',
     'PlannedStartDate', 'Status',
     // Een project-UDF (`UDFAssignmentType`) na de gewone velden, vóór WBS en activiteiten: zo staat hij in
     // echte P6-exports (corpus `pmxml-samples/UploadScheduleP6.xml`, `EC00850_V2.xml`).
     'UDF',
     'WBS', 'Activity', 'ResourceAssignment', 'ActivityNote', 'Relationship',
+    // De rekenopties als laatste kind van het project, zoals in echte P6-exports (corpus `CartaGantt_Exportacion_P6_es.xml`,
+    // `pmxml-samples/Prueba 3 Exportacion.xml`).
+    'ScheduleOptions',
+  ],
+  // `ScheduleOptionsType`, in schemavolgorde (dezelfde volgorde als in de echte exports hierboven).
+  ScheduleOptions: [
+    'CalculateFloatBasedOnFinishDate', 'ComputeTotalFloatType', 'MakeOpenEndedActivitiesCritical',
+    'MaximumMultipleFloatPaths', 'MultipleFloatPathsEnabled', 'MultipleFloatPathsUseTotalFloat',
+    'OutOfSequenceScheduleType', 'ProjectObjectId', 'RelationshipLagCalendar', 'StartToStartLagCalculationType',
+    'UseExpectedFinishDates',
   ],
   Calendar: ['HoursPerDay', 'HoursPerMonth', 'HoursPerWeek', 'HoursPerYear', 'Name', 'ObjectId', 'Type', 'StandardWorkWeek', 'HolidayOrExceptions'],
   StandardWorkWeek: ['StandardWorkHours'],
@@ -60,10 +71,11 @@ const ORDER: Readonly<Record<string, readonly string[]>> = {
   NotebookTopic: ['AvailableForActivity', 'AvailableForEPS', 'AvailableForProject', 'AvailableForWBS', 'Name', 'ObjectId'],
   WBS: ['Code', 'Name', 'ObjectId', 'ParentObjectId', 'ProjectObjectId', 'SequenceNumber'],
   Activity: [
-    'ActualFinishDate', 'ActualStartDate', 'CalendarObjectId', 'DurationType', 'Id', 'Name', 'ObjectId',
+    'ActualFinishDate', 'ActualStartDate', 'CalendarObjectId', 'DurationPercentComplete', 'DurationType',
+    'ExpectedFinishDate', 'Id', 'Name', 'ObjectId',
     'PercentCompleteType', 'PhysicalPercentComplete', 'PlannedDuration', 'PlannedFinishDate', 'PlannedStartDate',
     'PrimaryConstraintDate', 'PrimaryConstraintType', 'ProjectObjectId', 'RemainingDuration',
-    'SecondaryConstraintDate', 'SecondaryConstraintType', 'Status', 'Type', 'WBSObjectId', 'UDF',
+    'SecondaryConstraintDate', 'SecondaryConstraintType', 'Status', 'Type', 'UnitsPercentComplete', 'WBSObjectId', 'UDF',
   ],
   ActivityNote: ['ActivityObjectId', 'Note', 'NotebookTopicObjectId', 'ObjectId', 'ProjectObjectId'],
   Relationship: [

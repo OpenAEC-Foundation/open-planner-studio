@@ -111,7 +111,6 @@
     "exportCriticalHoursLost": "When exporting to MS Project XML, the critical threshold in hours is lost: MS Project only has a threshold in whole days.",
     "exportXerLoss": "The XER export is saved. This was not included, or not exactly:",
     "exportP6XmlLoss": "The P6 XML export is saved. This was not included, or not exactly:",
-    "p6XmlOpensAsOps": "This file uses the {{profile}} profile, not the P6 settings.",
     "projectStartAnchorsClamped_one": "{{count}} task moved with the project start.",
     "projectStartAnchorsClamped_other": "{{count}} tasks moved with the project start.",
     "mppTimephasedSteeringLost_one": "MS Project's date window no longer drives {{count}} task after this edit; the hour distribution itself still applies and stays in the file.",
@@ -318,7 +317,6 @@
       "resourceTypes_other": "{{count}} crew or subcontractor resources get a P6 type: their own type is lost",
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
-      "defaultWorkRule": "The project default for the task type: tasks without their own rule get the P6 default",
       "projectDetails": "Project author and company"
     }
   },
@@ -1783,7 +1781,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "The app took over the WBS and the tasks, with relationships, constraints, calendars, resources, assignments, progress and the status date. A baseline project becomes a baseline of the project it belongs to.",
-        "limited": "Deadlines, activity codes, custom fields and notes are not included. The project calculates with the Open Planner Studio profile, not as Primavera P6.",
+        "limited": "Deadlines, activity codes, custom fields and notes are not included. The project calculates as Primavera P6, with the calculation options from the file.",
         "save": "Save writes a new IFC file: your XML file does not change. You can write back with Export › Primavera P6 XML."
       },
       "csv": {
