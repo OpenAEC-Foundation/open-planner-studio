@@ -724,6 +724,7 @@ export function loadMcpPort(): number {
 }
 
 export function saveMcpPort(value: number): void {
+  if (linuxEnvironment()?.mcp) return;
   if (!localStorageAvailable()) return;
   writeLocal('ops-mcpPort', JSON.stringify(Math.round(value)));
 }
@@ -739,6 +740,7 @@ export function loadMcpToken(): string | null {
 }
 
 export function saveMcpToken(value: string): void {
+  if (linuxEnvironment()?.mcp) return;
   if (!AI_MODE_AVAILABLE || !localStorageAvailable()) return;
   writeLocal('ops-mcpToken', value);
 }

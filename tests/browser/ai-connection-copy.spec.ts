@@ -138,4 +138,24 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   const afterHelp = await page.evaluate(() => (window as CopyLogWindow).__opsA1Copied!.slice());
   expect(afterHelp).toHaveLength(afterDialog.length + 1);
   expect(afterHelp[afterHelp.length - 1]).toBe(setupText);
+
+  // Omgevingsbeheer houdt poort/token vast, ook als de bridge uitstaat. De omgeving is de fixture;
+  // de echte invoervelden en knoppen moeten de planner vervolgens geen onwerkzame wijziging bieden.
+  await page.evaluate(() => {
+    Object.assign(window, { __TAURI_INTERNALS__: {}, __OPS_LINUX__: {
+      managed: true, directory: '/openaec', initialFile: null,
+      mcp: { port: 4319, token: 'synthetisch-beheerd-testtoken-1234567890' },
+    } });
+    window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'ai', ribbonCompact: false });
+    window.__OPS__!.store.getState().setAiServerStatus({ state: 'off', port: 4319 });
+  });
+  try {
+    await expect(page.getByRole('spinbutton', { name: /^(Port|Poort)$/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /^(New token|Nieuw token)$/ })).toBeDisabled();
+  } finally {
+    await page.evaluate(() => {
+      delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+      delete (window as Window & { __OPS_LINUX__?: unknown }).__OPS_LINUX__;
+    });
+  }
 });

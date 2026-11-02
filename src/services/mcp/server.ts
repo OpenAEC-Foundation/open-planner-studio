@@ -84,6 +84,8 @@ export function ensureMcpToken(): string {
  * eerst om bevestiging. Geeft het nieuwe token terug.
  */
 export function regenerateMcpToken(): string {
+  const managed = linuxEnvironment()?.mcp;
+  if (managed) return managed.token;
   const token = generateToken();
   saveMcpToken(token);
   return token;
@@ -97,6 +99,8 @@ export function regenerateMcpToken(): string {
  * de bestaande commands — geen nieuw Rust-oppervlak).
  */
 export async function regenerateAndApplyMcpToken(isRunning: () => boolean): Promise<string> {
+  const managed = linuxEnvironment()?.mcp;
+  if (managed) return managed.token;
   const token = regenerateMcpToken();
   // Nieuw token = alle oude koppelingen vervallen, dus ook hun sessies en documentbindingen: wie opnieuw
   // verbindt, begint een nieuwe sessie en bindt opnieuw. Ook als de bridge niet draait.

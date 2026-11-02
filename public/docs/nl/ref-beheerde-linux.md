@@ -20,6 +20,6 @@ Stopt de beheerder de beheerde sessie met `SIGTERM`, dan blokkeert Planner verde
 
 ## AI-koppeling
 
-Je beheerder kan de MCP-koppeling voor de sessie starten met `OPENAEC_MCP_POORT` en `OPENAEC_MCP_GEHEIM`. Het geheim wordt niet als gebruikersvoorkeur bewaard. De server luistert alleen binnen de gedeelde Linux-netwerkruimte op loopback en accepteert geen browserverzoeken met een `Origin`-kop.
+Je beheerder kan de MCP-koppeling voor de sessie starten met `OPENAEC_MCP_POORT` en `OPENAEC_MCP_GEHEIM`. Het geheim wordt niet als gebruikersvoorkeur bewaard. Poort en Nieuw token zijn dan niet wijzigbaar in het lint; je beheerder past de omgeving aan. De server luistert alleen binnen de gedeelde Linux-netwerkruimte op loopback en accepteert geen browserverzoeken met een `Origin`-kop.
 
 De gewone rechten, pauzeknop, alleen-lezenstand en documentbeveiliging blijven gelden. Zie [Een AI-assistent koppelen](docs://howto-ai-assistent-koppelen).

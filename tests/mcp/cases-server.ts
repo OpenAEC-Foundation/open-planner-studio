@@ -75,6 +75,25 @@ test('generateToken levert telkens een uniek 64-hex-token (32 crypto-random byte
   assert(a !== b, 'twee generaties mogen niet identiek zijn (crypto-random)');
 });
 
+test('de beheerde MCP-configuratie blijft sessiegebonden en regenereert geen schijn-token', async () => {
+  const before = backing.get('ops-mcpToken');
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+    __TAURI_INTERNALS__: {},
+    __OPS_LINUX__: { managed: true, directory: '/openaec', initialFile: null,
+      mcp: { port: 9123, token: 'synthetisch-beheerd-testtoken-1234567890' } },
+  } });
+  try {
+    const managedToken = ensureMcpToken();
+    const result = await regenerateAndApplyMcpToken(() => true);
+    assertEq(result, managedToken, 'een omgevingsgeheim blijft door de omgeving beheerd');
+    assertEq(backing.get('ops-mcpToken'), before, 'de oude persoonlijke voorkeur blijft intact');
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'window', previous);
+    else delete (globalThis as { window?: unknown }).window;
+  }
+});
+
 // --- (2) request-flow ----------------------------------------------------------------------------
 
 test('createRequestHandler draait de ECHTE dispatcher en emit {id, body} met het JSON-RPC-antwoord', async () => {

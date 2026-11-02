@@ -11,6 +11,7 @@ import { Popover } from '@/components/common/Popover';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 import { isTauri } from '@/utils/platform';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 
 /**
  * AI-ribbontab — groep **Verbinding**:
@@ -71,7 +72,8 @@ export function AiConnectionGroup() {
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
-  const portLocked = serverState === 'live';
+  const managedConnection = Boolean(linuxEnvironment()?.mcp);
+  const portLocked = managedConnection || serverState === 'live';
 
   // Alleen op de dev-server: `?mcp=connect` (docs/dev-link.md) opent dit venster meteen, zodat een
   // check niet langs het lint hoeft. De import valt uit elke productiebouw.
@@ -150,6 +152,7 @@ export function AiConnectionGroup() {
         style={iconBtnStyle}
         title={t('ai.regenerate')}
         aria-label={t('ai.regenerate')}
+        disabled={managedConnection}
         onClick={() => setConfirming(true)}
       >
         <RefreshCw size={13} />

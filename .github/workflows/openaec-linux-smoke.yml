@@ -32,7 +32,14 @@ jobs:
           node scripts/release-checksums.mjs appimage
           (cd appimage && sha256sum --check SHA256SUMS)
       - name: Testomgeving bouwen (geen productimage of publicatie)
-        run: docker build -t ops-linux-test packaging/linux-test
+        run: |
+          mkdir -p test-results/openaec-linux
+          set +e
+          docker build -t ops-linux-test packaging/linux-test > test-results/openaec-linux/docker-build.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> test-results/openaec-linux/docker-build.log
+          tail -n 80 test-results/openaec-linux/docker-build.log
+          exit "$code"
       - name: AppImage onder Wayland als gewone gebruiker, zonder GPU of netwerk
         run: |
           set -euo pipefail

@@ -20,6 +20,6 @@ If your administrator stops the managed session with `SIGTERM`, Planner blocks f
 
 ## AI connection
 
-Your administrator can start the session's MCP connection with `OPENAEC_MCP_POORT` and `OPENAEC_MCP_GEHEIM`. The secret is not saved as a user preference. The server listens on loopback inside the shared Linux network namespace and rejects browser requests carrying an `Origin` header.
+Your administrator can start the session's MCP connection with `OPENAEC_MCP_POORT` and `OPENAEC_MCP_GEHEIM`. The secret is not saved as a user preference. Port and New token cannot be changed in the ribbon in this case; your administrator changes the environment. The server listens on loopback inside the shared Linux network namespace and rejects browser requests carrying an `Origin` header.
 
 The regular permissions, pause button, read-only mode and document guards still apply. See [Connecting an AI assistant](docs://howto-ai-assistent-koppelen).
