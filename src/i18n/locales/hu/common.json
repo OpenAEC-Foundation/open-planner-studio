@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} határidő lekésve",
     "violatedConstraints": "{{count}} korlátozás megsértve",
     "outOfSequence": "{{count}} sorrenden kívüli kapcsolat",
-    "overallocated": "{{count}} erőforrás túlterhelve"
+    "overallocated": "{{count}} erőforrás túlterhelve",
+    "summary_one": "{{count}} figyelmeztetés",
+    "summary_other": "{{count}} figyelmeztetés"
   },
   "warnings": {
     "title": "Figyelmeztetések",
