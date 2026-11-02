@@ -911,15 +911,6 @@ en noem het in je rapport of PR-tekst.
      Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
      in review ronde 1 van #734 (GPT-6.1-Sol). — B
 
-760. **Een deelnemend document met alleen priority-1000-taken omzeilt de poolcapaciteit.**
-     `src/services/library/distribute.ts` boekt in de tak `cannotMove` de bestaande last en geeft
-     altijd `shortfalls: []` terug, zonder capaciteitstoets. Twee documenten vragen op 3 augustus 2026
-     elk één kraan op hetzelfde bibliotheekitem met capaciteit 1; het tweede document heeft uitsluitend
-     een taak met prioriteit 1000. `afterLoadByDay` telt samen 2, maar `hasShortfall` en `afterIncomplete`
-     zijn beide `false`. Nagespeeld met een gerichte proef op 2 november 2026 (exit 1 op de verwachting
-     dat het tekort gemeld wordt). Richting: ook dit document via dezelfde capaciteitstoets laten gaan,
-     met behoud van zijn vastgepinde taken. Bijvangst bij 259/349. — B
-
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S

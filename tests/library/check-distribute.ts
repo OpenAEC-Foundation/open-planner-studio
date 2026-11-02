@@ -329,9 +329,9 @@ console.log('-- distribute: gepind document (case 7) --');
 // ═══════════════════════════════════════════════════════════════════════════
 // Case 8 (§9.8): priority-1000-document — alle taken vastgepind ⇒ "kan niet wijken".
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('-- distribute: document kan niet wijken (case 8) --');
-{
-  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
+console.log('-- distribute: document kan niet wijken, maar meldt zijn tekort (case 8 / 760) --');
+for (const capacity of [1, 2]) {
+  const p = pool([poolRes('lib-1', 'Kraan', capacity)]);
   const d1 = distDoc('d1', {
     rank: 1,
     resources: [stamped('d1-r1', 'lib-1')],
@@ -348,6 +348,12 @@ console.log('-- distribute: document kan niet wijken (case 8) --');
   assert(p8.docs[0].docId === 'd1' && p8.docs[0].cannotMove === false, 'case 8: d1 (rank1) is gewoon movable');
   assert(p8.docs[1].docId === 'd2', 'case 8: d2 staat op index 1');
   assert(p8.docs[1].cannotMove === true, `case 8: document kan niet wijken (kreeg ${p8.docs[1].cannotMove})`);
+  assert(p8.hasShortfall === (capacity === 1), '760: een vastgepind document moet dezelfde poolcapaciteit respecteren');
+  assert(p8.afterIncomplete === p8.hasShortfall, '760: het voorstel vermeldt dat het niet past');
+  assert(Object.keys(p8.docs[1].delays).length === 0, '760: de pin krijgt geen capaciteitsvertraging');
+  if (capacity === 1) {
+    assert(p8.docs[1].shortfalls.some(s => s.taskId === 'a2' && s.days.includes('2026-08-03')), '760: het tekort noemt de vaste taak en haar conflictdag');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

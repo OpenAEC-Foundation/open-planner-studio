@@ -79,9 +79,8 @@ export interface LevelingPoolLedger {
   poolItemOf(resourceId: string): string | null;
   /** Restcapaciteit van dat poolitem op die dag. ALTIJD ≥ 0 (de implementatie klemt). */
   residualOn(poolItemId: string, iso: string): number;
-  /** Boek geplaatste vraag terug. UITSLUITEND aangeroepen voor een taak die daadwerkelijk een
-   *  passend venster kreeg — een niet-plaatsbare taak boekt NIET (anders wordt het restprofiel
-   *  negatief en cascadeert het tekort naar elk volgend document). */
+  /** Boek de werkelijke plaatsing. Vaste taken blijven ook bij een conflict geboekt. Een
+   *  verplaatsbare taak zonder passend venster boekt niet, zodat haar tekort niet cascadeert. */
   book(poolItemId: string, iso: string, units: number): void;
   /** Laatste dag waarvoor het restprofiel betekenisvol is; `null` ⇒ geen extra horizon-eis. Zie de
    *  scanhorizon hieronder: zodra er vaste last van buiten dit document in het grootboek zit, kan
@@ -834,9 +833,12 @@ export function levelResources(
     // "Niet-plaatsbaar = tekort per document, geen cascade" — alleen een taak die daadwerkelijk een passend venster kreeg (`slotUnresolved`
     // leeg) boekt in het GEDEELDE poolitem-grootboek. Vastgepinde taken (priority 1000) scannen niet
     // (`slotUnresolved` blijft hun default `[]`) en boeken dus WÉL — correct: ze bezetten de pool
-    // ongeacht of dat past. Dat het restprofiel daardoor op 0 geklemd kan raken terwijl er
-    // feitelijk overboeking is, is geen motorprobleem: dat is een tekort op poolniveau, voor de
-    // verdeler.
+    // ongeacht of dat past. Toets vóór de boeking de poolrest, die na de boeking op nul geklemd
+    // kan zijn. De conflictcontrole na de lus bewaart deze dagen in het tekortrapport.
+    if (pinnedSet.has(pick)) {
+      const demand = demandAt(workById.get(pick)!, startDate);
+      fixedPoolConflicts.set(pick, poolConflicts(demand.byRes, demand.days));
+    }
     bookDemandAt(pick, startDate, slotUnresolved.length === 0);
     placedStartIso.set(pick, formatInstant(startDate, 'hour'));
     if (pinnedSet.has(pick)) pinnedStartDate.set(pick, startDate);

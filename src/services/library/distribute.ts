@@ -31,7 +31,7 @@
 // `fixedLoadByDay` (twee documenten van tien werkdagen op capaciteit 1: de B-boeking begint pas ná
 // de laatste voor-dag). Een tijdas die alleen uit de VOOR-stand is opgebouwd, tekent dan een LEGE
 // balk — een presentatiefout, geen verdelerfout. `endShiftWorkdays` meet de PROJECTeinddatum en blijft
-// bv. 0 wanneer een `manuallyScheduled`-taak haar opgeslagen datums houdt; de enige betrouwbare bron
+// bv. 0 wanneer een niet-kritieke taak binnen haar speling verschuift; de enige betrouwbare bron
 // voor "welke dagen tonen" is de vereniging van `fixedLoadByDay`, `bookingByDay` ÉN `afterLoadByDay`
 // (gepind in `check-distribute.ts`).
 //
@@ -176,8 +176,7 @@ const defaultLevelRun: DistributionLevelRun = (doc, options) => {
 };
 
 /** De huidige (ongewijzigde) projecteinddatum van een document — het maximum over de `earlyFinish`
- *  van zijn bladtaken. Gebruikt voor documenten die de motor NIET draait (gepind/datesAsRecorded/
- *  `cannotMove`):
+ *  van zijn bladtaken. Gebruikt voor documenten die de motor NIET draait (gepind/datesAsRecorded):
  *  hun `projectEndBefore`/`projectEndAfter` zijn per definitie gelijk, want er verandert niets. */
 function currentProjectEnd(tasks: Task[]): string {
   let end = '';
@@ -189,7 +188,7 @@ function currentProjectEnd(tasks: Task[]): string {
 }
 
 /** `currentProjectEnd`, maar STALE-bewust. Deelnemers krijgen hun `projectEndBefore` uit een VERSE
- *  `defaultLevelRun`-solve; een gepind/datesAsRecorded/`cannotMove`-document draait de motor niet,
+ *  `defaultLevelRun`-solve; een gepind/datesAsRecorded-document draait de motor niet,
  *  en de rauwe `t.time.earlyFinish` van een STALE document (open, maar niet herberekend sinds de
  *  laatste taakwijziging) is een verouderd getal, inconsistent met wat de deelnemers wél zien.
  *
@@ -334,7 +333,6 @@ export function computeDistribution(
   }
 
   const docById = new Map(docs.map(d => [d.docId, d]));
-  const bookingByDocId = new Map(row.docs.map(b => [b.docId, b]));
 
   // Vaste last: gepinde + datesAsRecorded-documenten. "Een document dat wél op het poolitem boekt maar
   // níét als deelnemer meedoet" heeft in dit contract maar één mechanisme — de aanroeper levert het
@@ -452,20 +450,8 @@ export function computeDistribution(
     const tasksById = new Map(doc.levelInput.tasks.map(t => [t.id, t]));
     const cannotMove = scopeTaskIds.length > 0 && scopeTaskIds.every(id => tasksById.get(id)?.priority === 1000);
 
-    if (cannotMove) {
-      // Het document KAN niet wijken: alle betrokken taken zijn vastgepind. Boek de
-      // bestaande boeking rechtstreeks in het grootboek (het document bezet de pool wél — het is
-      // gewoon niet verplaatsbaar), geen motor-run.
-      const booking = bookingByDocId.get(doc.docId)!;
-      for (const [iso, units] of Object.entries(booking.dailyLoad)) bookPlaced(libraryItemId, iso, units, doc.docId);
-      const end = currentProjectEndFor(doc);
-      results.push({
-        docId: doc.docId, title: doc.title, participated: true, cannotMove: true,
-        delays: {}, gaps: {}, projectEndBefore: end, projectEndAfter: end, endShiftWorkdays: 0, shortfalls: [],
-      });
-      continue;
-    }
-
+    // Ook uitsluitend vastgepinde taken moeten de pooltoets doorlopen. De motor bewaart hun
+    // prioriteit en meldt een tekort wanneer hun vaste boeking niet meer in de pool past.
     const horizonIso = computeHorizonIso(fixedLoadByDay, placedByItem[libraryItemId] ?? {}, participants);
     const levelOptions: LevelingOptions = {
       constrainToFloat: false,
@@ -486,7 +472,7 @@ export function computeDistribution(
       docId: doc.docId,
       title: doc.title,
       participated: true,
-      cannotMove: false,
+      cannotMove,
       delays: result.delays,
       ...(result.delayMinutes ? { delayMinutes: result.delayMinutes } : {}),
       gaps: result.gaps,
