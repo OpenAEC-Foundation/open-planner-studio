@@ -1477,6 +1477,13 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
+     `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
+     `classifyMsp` nu rechtstreeks `mppScannedRoots` gebruikt. Een zoekactie in de
+     repo vindt alleen de functiedefinitie. Vervolg: verwijder de ongebruikte
+     functie met haar commentaar (vier regels). Bevestigd bij de broncontrole en
+     in Sols reviewronde 1 op `13a27c352`; geen blokkerende bevinding. — B
+
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
      zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
      mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
