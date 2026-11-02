@@ -91,6 +91,8 @@ check-external-lag-days.ts matrix
 check-external-link-dialog.ts matrix
 check-external-link-edit.ts matrix
 check-external-relation-format.ts matrix
+check-external-source-load.ts matrix
+check-external-summary.ts matrix
 check-f3b-production-compat.ts matrix
 check-f4b-contourdagen.ts matrix
 check-f4b-datuminvoer.ts matrix
@@ -153,6 +155,7 @@ check-ifc-dagenmaat.ts matrix
 check-ifc-dagkalender-hele-dag.ts matrix
 check-ifc-datumvorm.ts matrix
 check-ifc-empty-date-slots.ts matrix
+check-ifc-external-links.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix
 check-ifc-lopend-100.ts matrix
@@ -227,6 +230,7 @@ check-mpp-relations.ts matrix
 check-mpp-summary-relations.ts matrix
 check-mpp-walk-units.ts matrix
 check-mspdi-baseline-export.ts matrix
+check-mspdi-cross-project.ts matrix
 check-mspdi-export-klok-capaciteit-drempel.ts matrix
 check-mspdi-export-kritiek-uren-melding.ts matrix
 check-mspdi-feestdagen.ts matrix
@@ -238,6 +242,7 @@ check-mspdi-werktijd-minuten.ts matrix
 check-msproject-float-default.ts matrix
 check-mutation-cost.ts matrix
 check-mutation-seq.ts matrix
+check-native-menu.ts matrix
 check-new-project-view-rows.ts matrix
 check-new-task-measure.ts matrix
 check-notifications.ts matrix

@@ -381,15 +381,6 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
-     houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
-     `check-f4b-review-r1.ts`). In uurmodus, de gewone route, rekent de motor `lagDays` × werktijd per dag
-     zonder afronding (`CPMSolver.externalLagMinutes`). Alleen `CPMSolver.externalLagDays`
-     (`CPMSolver.ts:3170-3176`) rondt een lag in minuten nog half van nul af naar hele dagen. Die functie
-     werkt alleen op een kalender waaruit geen werkblokken af te leiden zijn (`calendarForEngine` geeft dan
-     geen `workTime`). Zo'n kalender heb ik niet in een gewone planning kunnen maken; de lege kalender
-     weigert de motor al. Voorstel: de afronding weghalen als de dagmodus verdwijnt; motorwerk. Alleen in
-     de code gelezen. — S
 283. **Vast werk met een inzet die het werk niet in hele minuten deelt, geeft een duur met een deel van een
      minuut en een negatieve speling.** Gemeten op het stucwerk van het tutorialproject (stand na tutorial
      4, Vast werk, 32 uur): inzet 7 geeft `durationMinutes` 274,2857 (einde vr 23 jul 11:34) en een totale
@@ -1041,19 +1032,6 @@ en noem het in je rapport of PR-tekst.
      Het tijdsignaal telt in zo'n export niet meer; de vroegere 275 is in #591 opgelost. Gemeten met een probe
      bij het bijwerken van #591 met main. — B
 
-336. **Het bronbestand van een externe koppeling wordt zonder laadgrens gelezen.** `parseExternalSource`
-     (`fileSlice.ts:1385`) leest het bestand met de kale `readIFC`; het anker is dan een datum zonder tijd, en de
-     eigenaar normaliseert die naar de kant van de relatie (`externalAnchorField`, `minuteModel.ts:159`). Twee
-     gevolgen, gemeten met een script op `examples/showcase-groot-terrein-onderaannemer.ifc`:
-     (1) een mijlpaal heeft in de geopende bron één moment (D7), maar het anker valt aan de andere kant van de
-     dag: FS naar de startmijlpaal *Start of subcontractor site works* geeft `2027-03-01T16:00` (bron 07:00), SS
-     naar de eindmijlpaal *Site ready for main contractor paving* geeft `2027-04-06T07:00` (bron 16:00); gewone
-     taken en FS naar een eindmijlpaal kloppen. (2) `refreshExternalAnchors` vergelijkt het opgeslagen moment
-     `2027-04-06T16:00` met de kale `2027-04-06` en meldt `changed` bij een koppeling die al actueel is; dan maakt
-     `refreshExternalAnchorsFrom` een undo-stap en rekent opnieuw (vergelijk 241). Niet in de app-dialoog
-     nagespeeld (Tauri-route). Richting: lees de bron via de laadgrens, zoals `loadState`. Gevonden bij het
-     opnieuw genereren van de voorbeelden (PR #600). — B
-
 337. **De urentaken in De Vaart duren 5 werkdagen in plaats van 4 tot 8 uur.** `scripts/showcase-groot.ts:160-171`
      geeft vlechtwerk en stort per toren `durMinutes` (480, 360, 480, 240) op de uurkalender. `gen-core.ts:193` zet
      alleen `time.durationMinutes`; de taak blijft dagenmaat met de standaardduur 5 (`dur ?? 5`). Gemeten met een
@@ -1192,16 +1170,6 @@ en noem het in je rapport of PR-tekst.
      ("het ingebouwde profiel Primavera P6"), of toon hem alleen als de conventies afwijken van P6. Review PR #393
      ronde 8 (VERVOLG). — B
 
-509. **De externe koppeling in het voorbeeld *De Vaart Apartment Complex* wijst naar ids die het meegeleverde
-     bronbestand niet heeft.** `buildGrootWithExternalSource` in `scripts/gen-core.ts` haalt project- en taak-id
-     uit een eigen bouw van het bronvoorbeeld; `generate-examples.ts` bouwt dat bronbestand daarna opnieuw, met
-     nieuwe ids. In `showcase-appartementencomplex.ifc` staat `proj-mvtzzksw9ms23`/`task-mvtzzkug0aeb11`, in
-     `showcase-groot-terrein-onderaannemer.ifc` komen die niet voor (op main idem, met andere ids). Bijwerken
-     via de echte `refreshExternalAnchors` vindt zo 0 koppelingen; het bevroren anker en het plan kloppen wel.
-     `verify-examples.ts` mist het, omdat die op taaknaam zoekt. Voorstel: gebruik dezelfde bouw voor de
-     koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
-     review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
-
 801. **Een groot IFC-bestand openen kost op de vaste 10.000-takenfixture circa 3,7 seconden.** De
      bestaande `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC
      7763, Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte bestandskeuze tot de Gantt klaar is:
@@ -1210,6 +1178,33 @@ en noem het in je rapport of PR-tekst.
      gebruikersroute eerst uitsplitsen in lezen, importnormalisatie, store en eerste tekening.
      Ruwe gegevens en [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+
+830. **Een MSPDI-relatie naar een taak in een ander project valt bij openen stil weg.** MS Project schrijft zo'n
+     relatie als `<PredecessorLink>` met `<CrossProject>1</CrossProject>` en `<CrossProjectName>` (pad + `\` +
+     taaknummer in het andere project); de externe taak zelf staat niet als `<Task>` in het bestand (MPXJ
+     `MSPDIWriter.writePredecessor`: "We'll just replicate what MS Project writes"). `readMSPDI` vindt de
+     voorganger-UID dan niet en slaat de link over (`mspdiReader.ts`, resolutie van `pendingLinks`); de
+     openingsmelding telt niets. Na opslaan of een MSPDI-export is de relatie weg. Nagespeeld met een probe: twee
+     taken en één CrossProject-link geven 0 relaties, 0 externe koppelingen en geen importverslag. Een UID die
+     samenvalt met een eigen taak gaf een verkeerde interne relatie; dat is in #792 opgelost
+     (`check-mspdi-cross-project.ts`). Voorstel: lees de link in als externe relatie; daarvoor is eerst een besluit
+     nodig over een koppeling zonder anker en zonder project-id (de dialoog en het klembord eisen beide nu). Zie
+     voorstel 3 in #792. — B
+
+831. **Een externe relatie zonder anker kan niet door het klembordformaat van de relatiecel.** `parsePayload` in
+     `src/engine/taskGrid/relationFormat.ts` eist een geldig ISO-anker; `formatExternalRelationClipboard` schrijft
+     een leeg anker wel weg. Nagespeeld met een probe: een koppeling met `anchorDate: ''` geeft bij teruglezen
+     `invalidExternalPayload`. De app zelf maakt zo'n koppeling niet (de dialoog eist een anker); hij komt alleen
+     uit een vreemd of met de hand bewerkt IFC-bestand (`storedExternalLinks` laat een leeg anker door, omdat
+     het model "anker onbekend" kent). Of de relatiecel dan een bewerking weigert, is niet nagespeeld. Raakt ook
+     voorstel 3 in #792 (MSPDI-links zonder anker). — B (klembord), S (relatiecel)
+835. **VERVOLG: de fasetest van #792 dekt niet elke aanroeper die de externe relaties van een fase meekrijgt.**
+     `tests/planning/check-external-summary.ts` roept alleen `solveProject`, `leafTasksForSolve`/`effectiveExternalLinks`
+     en het logica-rapport aan. De nivelleerinvoer (`levelingInput` in `scheduleSlice.ts`), de voorvertoning van
+     *Project verplaatsen* (`previewMoveProject` in `projectSlice.ts`), de bibliotheekverdeling (`distribute.ts`) en
+     de benchmark (`runner.ts`) krijgen ook `leafTasksForSolve`. Een terugval naar een kale bladfilter op een van
+     die plekken merkt de test niet op. Later: breid de test uit met een fase met een externe voorganger, via de
+     store-acties nivelleren en *Project verplaatsen*. Uit de review van #792, ronde 1 (Sol). — S
 
 ## Rondleiding, Help en extensie-gidsen
 

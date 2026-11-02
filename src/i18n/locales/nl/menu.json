@@ -447,5 +447,18 @@
     "redo": "Opnieuw",
     "zoomIn": "Inzoomen",
     "zoomOut": "Uitzoomen"
+  },
+  "native": {
+    "window": "Venster",
+    "quit": "Stop Open Planner Studio",
+    "about": "Over Open Planner Studio",
+    "services": "Voorzieningen",
+    "hide": "Verberg Open Planner Studio",
+    "hideOthers": "Verberg andere",
+    "showAll": "Toon alles",
+    "closeWindow": "Sluit venster",
+    "cut": "Knip",
+    "fullscreen": "Schakel schermvullende weergave in/uit",
+    "bringAllToFront": "Alles naar voren"
   }
 }

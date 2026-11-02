@@ -447,5 +447,18 @@
     "redo": "Redo",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
+  },
+  "native": {
+    "window": "Window",
+    "quit": "Quit Open Planner Studio",
+    "about": "About Open Planner Studio",
+    "services": "Services",
+    "hide": "Hide Open Planner Studio",
+    "hideOthers": "Hide Others",
+    "showAll": "Show All",
+    "closeWindow": "Close Window",
+    "cut": "Cut",
+    "fullscreen": "Toggle Full Screen",
+    "bringAllToFront": "Bring All to Front"
   }
 }

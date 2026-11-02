@@ -5,6 +5,7 @@ import type {
 import { WORK_RULES } from '@/types/workRule';
 import { hasValidP6SuspendResume } from '@/utils/p6SuspendResume';
 import { importStatusDate } from '@/services/importDates';
+import { storedExternalLinks } from '@/engine/externalLinks';
 import {
   DAY_MEASURE_DURATIONS_PROP, DAY_MEASURE_DURATION_KEYS, EXACT_FLOAT_KEYS, EXACT_FLOAT_PROP,
   EXACT_MINUTES_KEYS, EXACT_MINUTES_PROP, parseDayMeasureDurations, parseExactFloat, parseExactMinutes,
@@ -431,8 +432,10 @@ export const PER_TASK_PSETS: PerTaskPset[] = [
       for (const { name, value } of props) {
         if (name !== 'Links' || typeof value !== 'string' || !value) continue;
         try {
-          const parsed = JSON.parse(value);
-          if (Array.isArray(parsed) && parsed.length > 0) task.externalLinks = parsed;
+          // Alleen koppelingen die de app aankan (`storedExternalLinks`); een kapotte liet laden,
+          // rekenen en de relatiecel vastlopen.
+          const links = storedExternalLinks(JSON.parse(value));
+          if (links) task.externalLinks = links;
         } catch { /* corrupte JSON: negeren i.p.v. de load te breken. */ }
       }
     },

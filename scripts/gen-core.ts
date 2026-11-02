@@ -496,13 +496,12 @@ export function topologyToSpec(def: TopoDef, index: number): ProjectSpec {
 /** Bouwt het externe-koppeling-bronbestand (fase 2.10, golf 2, §4.2) ÉÉN keer, leest het
  *  meteen terug via de ECHTE `readIFC` (exact het patroon van `ExternalLinkDialog`: bron
  *  read-only parsen, anker bevriezen) en construeert daarmee de GROOT-spec met een vooraf-
- *  berekend `ExternalLink`-object. Puur qua datums: `build()` is deterministisch (zelfde anker,
- *  zelfde CPM-netwerk ⇒ zelfde vroege datums) ongeacht hoe vaak dit bronbestand hierna nog eens
- *  gebouwd wordt door de aanroeper (bv. `generate-examples.ts` bouwt het NOGMAALS om het echt
- *  weg te schrijven) — alleen het (niet-geverifieerde) project-/taak-id verschilt per build, dus
- *  de consistentie-check in `verify-examples.ts` matcht bewust op TAAKNAAM, niet op id.
+ *  berekend `ExternalLink`-object. Geeft die bouw ook terug: `allBuilds` schrijft PRECIES dat
+ *  bronbestand weg. Elke bouw geeft nieuwe project- en taak-id's, en de verversing zoekt op id
+ *  (`refreshExternalAnchors`); een tweede bouw liet de koppeling naar onbekende id's wijzen
+ *  (knownbug 509). `verify-examples.ts` vergelijkt daarom naam, anker én id's.
  */
-function buildGrootWithExternalSource(): { groot: ProjectSpec; terrain: ProjectSpec } {
+function buildGrootWithExternalSource(): { groot: ProjectSpec; terrain: ProjectSpec; terrainBuild: BuildResult } {
   const terrainBuild = build(TERREIN_ONDERAANNEMER);
   const parsed = readIFC(terrainBuild.ifc);
   const anchorTask = parsed.tasks.find(t => t.name === ANCHOR_TASK_NAME);
@@ -514,14 +513,25 @@ function buildGrootWithExternalSource(): { groot: ProjectSpec; terrain: ProjectS
     sourceTaskId: anchorTask.id,
     sourceTaskName: anchorTask.name,
   });
-  return { groot, terrain: TERREIN_ONDERAANNEMER };
+  return { groot, terrain: TERREIN_ONDERAANNEMER, terrainBuild };
 }
 
 /** Alle specs in publicatievolgorde: de showcases (incl. GROOT), het NIET-PUBLIC externe-
  *  koppeling-bronbestand, dan de 20 basisvoorbeelden. */
 export function allSpecs(): ProjectSpec[] {
+  return allSpecsWithSource().specs;
+}
+
+/** Alle specs met hun bouw, in publicatievolgorde (`generate-examples.ts`). Het externe-koppeling-
+ *  bronbestand komt uit dezelfde bouw als waaruit GROOT zijn koppeling las (knownbug 509). */
+export function allBuilds(): { spec: ProjectSpec; res: BuildResult }[] {
+  const { specs, terrain, terrainBuild } = allSpecsWithSource();
+  return specs.map(spec => ({ spec, res: spec === terrain ? terrainBuild : build(spec) }));
+}
+
+function allSpecsWithSource(): { specs: ProjectSpec[]; terrain: ProjectSpec; terrainBuild: BuildResult } {
   const defs: TopoDef[] = (topologies as any).defs;
   const basics = defs.map((d, i) => topologyToSpec(d, i));
-  const { groot, terrain } = buildGrootWithExternalSource();
-  return [...SHOWCASES, groot, terrain, ...basics];
+  const { groot, terrain, terrainBuild } = buildGrootWithExternalSource();
+  return { specs: [...SHOWCASES, groot, terrain, ...basics], terrain, terrainBuild };
 }
