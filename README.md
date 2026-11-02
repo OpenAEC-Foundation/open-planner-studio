@@ -26,7 +26,7 @@ It runs in your browser with nothing to install, or as a small native desktop ap
 
 **[Open the browser version](https://open-planner-studio.open-aec.com/)**. It starts with a realistic example project, so you can start clicking right away. More examples are under *File › Examples*.
 
-The built-in Help has **78 published articles** in English and Dutch, with translations in the other UI languages. You can also read the [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) or visit the [website](https://open-aec.com/open-planner-studio/).
+The built-in Help has **67 published articles** in English and Dutch, with translations in the other UI languages. You can also read the [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) or visit the [website](https://open-aec.com/open-planner-studio/).
 
 ## Download
 
@@ -62,13 +62,13 @@ Installed apps update themselves when a new version is out (Windows, macOS, `.de
 ## Advanced scheduling
 
 - **Critical Path Method** with total, free and interfering float, negative float, and a recalculation you trigger yourself (or switch to automatic).
-- **All eight constraint types:** As Soon As Possible, As Late As Possible, Start/Finish No Earlier Than, Start/Finish No Later Than, Must Start On, Must Finish On (optionally mandatory, "pin logic"), plus task deadlines. See [Constraints](public/docs/en/uitleg-constraints.md).
+- **All eight constraint types:** As Soon As Possible, As Late As Possible, Start/Finish No Earlier Than, Start/Finish No Later Than, Must Start On, Must Finish On (optionally mandatory, "pin logic"), plus task deadlines. See [Constraints](public/docs/en/howto-constraint-deadline-zetten.md).
 - **All four relationship types** (FS, SS, FF, SF) with positive and negative lag, in days or hours.
 - **Hammock tasks** (level of effort) that follow the work they hang on. See [Creating a hammock](public/docs/en/howto-hammock.md).
 - **External (cross-project) relations.** A task can depend on a task in another project file through a stored anchor date. The link is not live: the other project is not recalculated. See [External relations](public/docs/en/howto-externe-relaties.md).
 - **Near-critical tasks** with a threshold you set, and **multiple float paths** (path 1, 2, 3 ...) to see more than the single longest chain.
 - **Calculation profiles.** Three built-in profiles: *Open Planner Studio*, *Primavera P6* and *Microsoft Project*. A profile is a set of conventions for the places where the two products calculate differently. See [Calculation profiles](public/docs/en/uitleg-rekenprofielen.md).
-- **Task types (work rules).** Choose fixed duration and units, fixed duration and work, fixed work or fixed units per task. Duration, resource units and work adjust together when you edit them. Assignments have one row per resource, with units and remaining work in hours. See [Task types](public/docs/en/uitleg-werkregels.md).
+- **Task types (work rules).** Choose fixed duration and units, fixed duration and work, fixed work or fixed units per task. Duration, resource units and work adjust together when you edit them. Assignments have one row per resource, with units and remaining work in hours. See [Task types](public/docs/en/howto-werkregel-kiezen.md).
 - **Days and hours.** Choose the duration unit per task; hours display as `10h` in English (`10u` in Dutch).
 - Work breakdown structure, baselines, progress and status date, task splitting in the Gantt, resource levelling and a cross-project occupancy view.
 - **Resource libraries.** Share resources and calendars across projects, with provenance recorded for each item.

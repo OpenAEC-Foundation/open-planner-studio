@@ -26,7 +26,7 @@ Het draait in je browser zonder installatie, of als kleine native desktop-app op
 
 **[Open de browserversie](https://open-planner-studio.open-aec.com/)**. Hij start met een realistisch voorbeeldproject, dus je kunt meteen beginnen met klikken. Meer voorbeelden staan onder *Bestand › Voorbeelden*.
 
-De ingebouwde Help heeft **78 gepubliceerde artikelen** in het Nederlands en Engels, met vertalingen in de andere UI-talen. Je kunt ook de [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) lezen of de [website](https://open-aec.com/open-planner-studio/) bezoeken.
+De ingebouwde Help heeft **67 gepubliceerde artikelen** in het Nederlands en Engels, met vertalingen in de andere UI-talen. Je kunt ook de [wiki](https://github.com/OpenAEC-Foundation/open-planner-studio/wiki) lezen of de [website](https://open-aec.com/open-planner-studio/) bezoeken.
 
 ## Download
 
@@ -62,13 +62,13 @@ Geïnstalleerde apps werken zichzelf bij als er een nieuwe versie is (Windows, m
 ## Geavanceerd plannen
 
 - **Critical Path Method** met totale, vrije en storende speling, negatieve speling, en een herberekening die je zelf start (of zet op automatisch).
-- **Alle acht constrainttypen:** zo vroeg mogelijk, zo laat mogelijk, start/einde niet eerder dan, start/einde niet later dan, moet starten op, moet eindigen op (eventueel verplicht, "pin logic"), plus deadlines. Zie [Constraints](public/docs/nl/uitleg-constraints.md).
+- **Alle acht constrainttypen:** zo vroeg mogelijk, zo laat mogelijk, start/einde niet eerder dan, start/einde niet later dan, moet starten op, moet eindigen op (eventueel verplicht, "pin logic"), plus deadlines. Zie [Constraints](public/docs/nl/howto-constraint-deadline-zetten.md).
 - **Alle vier de relatietypen** (FS, SS, FF, SF) met positieve en negatieve lag, in dagen of uren.
 - **Hammocktaken** (level of effort) die het werk volgen waaraan ze hangen. Zie [Een hammock maken](public/docs/nl/howto-hammock.md).
 - **Externe relaties (tussen projecten).** Een taak kan afhangen van een taak in een ander projectbestand via een vaste ankerdatum. De koppeling is niet live: het andere project wordt niet herberekend. Zie [Externe relaties](public/docs/nl/howto-externe-relaties.md).
 - **Bijna-kritieke taken** met een drempel die je zelf instelt, en **meerdere speling-paden** (pad 1, 2, 3 ...) om meer te zien dan de ene langste keten.
 - **Rekenprofielen.** Drie ingebouwde profielen: *Open Planner Studio*, *Primavera P6* en *Microsoft Project*. Een profiel is een set conventies voor de punten waar beide programma's anders rekenen. Zie [Rekenprofielen](public/docs/nl/uitleg-rekenprofielen.md).
-- **Taaktypen (werkregels).** Kies per taak vaste duur en inzet, vaste duur en werk, vast werk of vaste inzet. Duur, resource-eenheden en werk worden bij bewerken op elkaar afgestemd. Toewijzingen hebben één regel per resource, met eenheden en resterend werk in uren. Zie [Taaktypen](public/docs/nl/uitleg-werkregels.md).
+- **Taaktypen (werkregels).** Kies per taak vaste duur en inzet, vaste duur en werk, vast werk of vaste inzet. Duur, resource-eenheden en werk worden bij bewerken op elkaar afgestemd. Toewijzingen hebben één regel per resource, met eenheden en resterend werk in uren. Zie [Taaktypen](public/docs/nl/howto-werkregel-kiezen.md).
 - **Dagen en uren.** Kies de duureenheid per taak; uren worden getoond als `10u` in het Nederlands (`10h` in het Engels).
 - Werkstructuur (WBS), baselines, voortgang en statusdatum, taken splitsen in de Gantt, resource-nivellering en een bezettingsoverzicht over projecten heen.
 - **Resourcebibliotheken.** Deel resources en kalenders tussen projecten, met herkomststempels per item.
