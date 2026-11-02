@@ -52,7 +52,8 @@ De balk onderaan toont van links naar rechts:
 - *Kringverwijzing tussen taken: {pad}* — de relaties vormen een kring. De taken staan in het pad; draai of verwijder één relatie.
 - *De kalender heeft geen werkdagen ingesteld* — geef de kalender minstens één werkdag, zie [Kalendervensters](docs://ref-kalenders).
 - *Ongeldige duur in dagen voor taak '{taak}'* en *Ongeldige duur in uren voor taak '{taak}'* — de duur van de taak is geen geldig getal.
-- *Urentaak '{taak}' heeft geen geldige werktijden in zijn kalender* — een taak in uren op een kalender zonder werkuren.
+- *De kalender van urentaak '{taak}' heeft geen geldige werktijden* en *De kalender van taak '{taak}' heeft geen geldige werktijden* — de kalender van de taak heeft geen werkblokken, en zijn begin, einde en pauze geven ook geen werktijd. Een voorbeeld is een pauze die de hele werkdag beslaat. De melding zegt erbij wat je controleert: de werkdagen, het begin, het einde en de pauze van die kalender, zie [Kalendervensters](docs://ref-kalenders).
+- *De projectkalender heeft geen geldige werktijden* — hetzelfde voor de projectkalender. Controleer daar het begin, het einde en de pauze.
 - *Ongeldige startdatum voor taak '{taak}'* — de startdatum van de taak is niet geldig.
 
 ## De stroken onder het lint
