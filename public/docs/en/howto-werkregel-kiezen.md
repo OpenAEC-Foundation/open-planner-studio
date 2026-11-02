@@ -6,7 +6,7 @@ Goal: set per task what the app adjusts when you change the duration, the units 
 
 You have put resources on a task and you want the app to calculate the way you do. One example: the crane is hired for one day and that day is fixed. Another example: you know there are 160 hours of brickwork in it and you want to see how long it takes with three people instead of two. Those two situations need a different task type.
 
-The task type decides which of the three quantities duration, units and work moves along when you change another one. The background and worked examples are in [Task types: duration, units and work](docs://uitleg-werkregels).
+The task type decides which of the three quantities duration, units and work moves along when you change another one.
 
 ## Steps
 
@@ -45,6 +45,8 @@ If you want to change the work yourself, type the hours in the field and press E
 
 If you choose a task type, no number changes yet. Under a task type that protects work, the app only fixes the current work, so *Work (h)* has a stored value. Only at the next change does the task type decide what moves along. Change the *Units*, for example, and see what happens to the duration and the work.
 
+The task type only calculates when you change the duration, the *Units*, the *Work (h)*, add or remove a resource, or change the calendar's working time per day. **Calculate** (F5) does not change duration, units or work. The work is duration × units × the working time per day from the task's calendar.
+
 If that changes the task's duration, the status bar says *Out of date — recalculate (F5)*. Press **Calculate** (F5), for example via *Home › Schedule › Calculate*, to see the new dates. If *Calculate automatically* is on (same *Planning* tab, heading *Calculation*), the app does this itself.
 
 ## Which task type fits
@@ -60,15 +62,14 @@ If that changes the task's duration, the status bar says *Out of date — recalc
 
 **The duration changes without me changing it.** Under *Fixed work* and *Fixed units* the duration follows from units and work. If you change one of those or the number of resources, the app adjusts the duration. The app does not round the duration: at units of 3 on 32 hours of work the duration becomes 10 hours and 40 minutes.
 
-**The work does not exactly match units × duration.** That can happen for a task from P6 or MS Project, if the file holds a different remaining work. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work. A change you make yourself gives no difference, because the app does not round.
+**The work does not exactly match units × duration.** That can happen for a task from P6 or MS Project, if the file holds a different remaining work. In the *Work (h)* field a warning sign then appears, *Differs from units × duration*. The histogram follows the stored work. A change you make yourself gives no difference, because the app does not round. If you change the duration of such a task, the app follows the task type. Under *Fixed duration and units* and *Fixed units* the remaining work becomes units × new remaining duration. The app then reports *Remaining work of ‘…’ recalculated: …h → …h (the value came from the file). Ctrl+Z restores it.* Under *Fixed duration and work* and *Fixed work* the work stays and the units adjust. The tooltip at the warning sign tells you per task which of the two happens.
 
 **Material does not count.** For a material resource *Work (h)* shows a dash. Material never drives the duration.
 
-**A task with progress.** The task type works on the remaining part. So *Work (h)* shows only what still has to happen.
+**A task with progress.** The task type works on the remaining part. So *Work (h)* shows only what still has to happen. If the task type makes the remaining duration shorter, the percentage rises, because the part that is done stays the same.
 
 **Undoing.** Choosing a task type, and every change that the task type calculates, is one step for *Undo* (Ctrl+Z). The chosen task type is then gone again, but the *Task type* field stays in view.
 
 ## See also
 
-- [Task types: duration, units and work](docs://uitleg-werkregels): how the app ties duration, units and work together, with worked examples.
 - [Assigning resources with a curve](docs://howto-resource-toewijzen): putting a resource on a task.

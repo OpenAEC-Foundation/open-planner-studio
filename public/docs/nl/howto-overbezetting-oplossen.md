@@ -6,7 +6,7 @@ Doel: zien waar een resource op een dag te veel moet doen en dat oplossen, meest
 
 Op papier klopt je planning, maar de metselaar staat op twee muren die op dezelfde dagen lopen. Dat noemt de app **overbezetting**. Een resource is overbezet op een werkdag als de planning die dag meer van hem vraagt dan zijn capaciteit (*Max. eenheden*), of als hij die dag volgens zijn kalender niet werkt.
 
-Je zoekt de overbezetting eerst op. Daarna kies je een oplossing. **Nivelleren** is de oplossing die de app zelf voor je berekent: hij laat taken later beginnen tot de resource het aankan. Hoe dat rekent, lees je in [Nivelleren](docs://uitleg-nivelleren).
+Je zoekt de overbezetting eerst op. Daarna kies je een oplossing. **Nivelleren** is de oplossing die de app zelf voor je berekent: hij laat taken later beginnen tot de resource het aankan. Meer doet hij niet: hij maakt geen taak korter en verandert geen inzet of relatie.
 
 ## Stappen
 
@@ -43,7 +43,7 @@ Wijzig je in het venster een optie nadat je op *Berekenen* hebt geklikt, dan ver
 
 ### Bepalen welke taak blijft staan
 
-De app zet taken één voor één neer en de taken die eerst aan de beurt komen, blijven staan. De taken met de hoogste prioriteit gaan eerst. Bij gelijke prioriteit gaat de taak met de minste speling voor.
+De app zet taken één voor één neer en de taken die eerst aan de beurt komen, blijven staan. De taken met de hoogste prioriteit gaan eerst. Bij gelijke prioriteit gaat de taak met de minste totale speling voor, dan de vroegste start, dan de volgorde in de takenlijst. Een taak komt pas aan de beurt als haar voorgangers hun plek hebben. De app begint bij de vroegste start die de relaties toelaten en probeert zo nodig de volgende werkdag. Heeft de taak meer resources, dan moeten ze allemaal vrij zijn. Een taak schuift dus alleen naar later. De app zoekt geen kortste planning: een andere prioriteit kan een andere einddatum geven.
 
 Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit. Klik met de rechtermuisknop op de balk van de taak in de Gantt en kies *Prioriteit*, dan *Laag* (100), *Normaal* (500) of *Hoog* (900). *Normaal* is de standaard. Je kunt ook zelf een getal van 0 tot en met 1000 typen in de kolom *Nivelleerprioriteit*: klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en kies onder *Planning* die kolom. Een hoger getal betekent dat de taak eerder blijft staan. Een groter getal dan 1000 neemt de app niet over. Een taak met prioriteit 1000 schuift nooit voor capaciteit.
 
@@ -59,13 +59,13 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 
 **Resterende conflicten.** Niet elke overbezetting is op te lossen door te schuiven. De taken die overblijven, staan onder *Resterende conflicten*, met het aantal dagen en de reden:
 
-- *Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.* Dit zie je bij *smoothing*: binnen de speling van de taak is geen vrij moment. Haal het vinkje weg, dan mag de einddatum wel opschuiven.
+- *Onvoldoende vrije capaciteit binnen de speling om dit conflict op te lossen.* Dit zie je bij *smoothing*: binnen de speling van de taak is geen vrij moment. Met *smoothing* begint een taak niet later dan haar laatste start; past ze daar niet, dan blijft ze op haar vroegste plek. Haal het vinkje weg, dan mag de einddatum wel opschuiven.
 - *De resource werkt niet op alle dagen die deze taak nodig heeft — verschuiven lost dit niet op.* De resource heeft in zijn eigen kalender vrije dagen midden in de taak. Pas de kalender of de taak aan.
 - *Metselaar vraagt op de piek 2 eenh./dag, capaciteit is 1 — niet oplosbaar door schuiven.* De taak vraagt door haar curve alleen al op één dag meer dan de resource kan leveren. Kies een andere curve of een lagere inzet.
 
 **Er staat** *Geen taken hoeven te verschuiven — de planning is al conflictvrij.* Deze regel verschijnt alleen als het voorstel geen verschuivingen én geen gemelde resterende conflicten bevat. Vastgepinde taken op prioriteit 1000 blijven staan, maar hun overboeking wordt wel gemeld. Al gestarte of voltooide taken vallen buiten die pincontrole en kunnen nog overbezetting veroorzaken. Controleer daarom na het toepassen ook *Resources › Overallocatie*.
 
-**Taken die niet meeschuiven.** Een taak die al gestart of klaar is, schuift nooit. Haar belasting telt wel mee. Ook mijlpalen en fasen schuiven niet.
+**Taken die niet meeschuiven.** Een taak die al gestart of klaar is, schuift nooit. Haar belasting telt wel mee. Ook mijlpalen en fasen schuiven niet. Taken zonder toewijzing aan een aangevinkte resource schuiven alleen mee als een voorganger verschuift. Ook een taak met prioriteit 1000 volgt haar voorgangers.
 
 **Materiaal wordt niet genivelleerd.** Vraagt een materiaalresource op een dag meer dan zijn *Max. eenheden*, dan telt hij in *Overallocatie* wel als overbezet, maar staat hij niet in het nivelleervenster.
 
@@ -75,7 +75,6 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 
 ## Zie ook
 
-- [Nivelleren](docs://uitleg-nivelleren): wat nivelleren verschuift, binnen speling en erbuiten, en wat het niet doet.
 - [Resources beheren](docs://howto-resources-beheren): capaciteit en kalender van een resource aanpassen.
 - [Relaties leggen](docs://howto-relaties-leggen): taken achter elkaar zetten.
 - [Meldingen en waarschuwingen](docs://ref-meldingen): de waarschuwing Overbezet in het paneel Waarschuwingen.

@@ -24,14 +24,14 @@
  * meldt dat: liever tekst die een ander programma correct leest dan vraagtekens.
  */
 
-import type { Project, EffectiveSchedulingOptions } from '@/types/project';
 import type { WorkCalendar } from '@/types/calendar';
 import { holidayEndDate } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
-import { effectiveSchedulingOptions, resolveConventions, builtInConventions, CONVENTION_KEYS } from '@/engine/scheduler/conventions/registry';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { p6SchedulingRulesDiffer } from '@/services/p6SchedulingRules';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { CONTOUR_SHAPE_VALUES, CURVE_TO_SHAPE, isFlatCurveValues } from '@/engine/contour/contourEngine';
@@ -469,28 +469,6 @@ const UDFVALUE_COLUMNS = ['udf_type_id', 'fk_id', 'proj_id', 'udf_date', 'udf_nu
 const MEMOTYPE_COLUMNS = ['memo_type_id', 'seq_num', 'eps_flag', 'proj_flag', 'wbs_flag', 'task_flag', 'memo_type'] as const;
 const TASKMEMO_COLUMNS = ['memo_id', 'task_id', 'memo_type_id', 'proj_id', 'task_memo'] as const;
 
-// ── Rekenopties ──────────────────────────────────────────────────────────────────────────────────
-
-/** Wat de lezer van deze SCHEDOPTIONS-rij maakt, vergeleken met wat het project nu gebruikt. Een
- *  verschil (of een profiel dat niet P6 is) ⇒ het verlies `schedulingRules`. */
-function schedulingRulesDiffer(project: Project, options: EffectiveSchedulingOptions, tasks: readonly Task[]): boolean {
-  const own = resolveConventions(project.schedulingProfile);
-  const p6 = builtInConventions('p6');
-  if (CONVENTION_KEYS.some(key => own[key] !== p6[key])) return true;
-  if (options.totalFloatMode === undefined) return true; // "Automatisch" kent P6 niet
-  if (options.useExpectedFinishDates === false && tasks.some(t => t.p6ExpectedFinish)) return true;
-  if (options.useExpectedFinishDates === undefined && tasks.some(t => t.p6ExpectedFinish)) return true;
-  if ((options.p6CompletedLateFromRemainingWindow ?? false) !== (project.progressMode !== 'PROGRESS_OVERRIDE')
-    && tasks.some(t => t.time.actualFinish)) return true;
-  // Alleen de eigen projectopties: `options` bevat ook de conventies (die toetst de regel hierboven).
-  const own2 = project.schedulingOptions ?? {};
-  if (own2.leveling !== undefined) return true;
-  if (own2.nearCriticalThreshold !== undefined) return true;
-  const crit = options.criticalDefinition;
-  if (crit && crit.mode === 'totalFloat' && crit.thresholdHours === undefined && (crit.threshold ?? 0) !== 0) return true;
-  return false;
-}
-
 // ── Maat (alleen uren §3.3, §3.10; T13, T14, T21; `xmlDayMeasure.ts`) ───────────────────────────
 
 /** De werktijd per dag van een kalender in minuten (T13): daarin telt de dagenmaat, net als in de P6
@@ -653,7 +631,7 @@ export function writeXER(input: XerWriteInput): XerWriteResult {
       use_total_float_multiple_longest_paths: flag(floatPaths.method === 'TOTAL_FLOAT'),
     } : {}),
   };
-  if (schedulingRulesDiffer(project, options, tasks)) lose('schedulingRules', 1);
+  if (p6SchedulingRulesDiffer(project, options, tasks)) lose('schedulingRules', 1);
   // Een kalender zonder eigen werktijdblokken (alleen begin, einde en uren per dag) schrijft de XER als banden.
   // De lezer leest elke kalender met banden als urenkalender (`xerCalendarData.ts`, gelijk aan main), dus na
   // heropenen heeft ze eigen werktijdblokken, en de engine rekent daar anders mee (knownbug 466; review PR

@@ -137,6 +137,24 @@ export function itemsOfShard(items, k, n, durations = {}) {
   return items.filter(item => ids.has(item.id)).sort(byId);
 }
 
+/**
+ * Gewicht per check voor de verdeling over de jobs. Een check die alleen draait, houdt de andere kernen leeg:
+ * hij telt daarom voor DEFAULT_JOBS keer zijn duur. Een vaste factor, zodat elke job dezelfde verdeling ziet.
+ */
+export function shardWeights(items, durations) {
+  const weights = { ...durations };
+  for (const item of items) {
+    if (runsAlone(item) && typeof durations[item.id] === 'number') weights[item.id] = durations[item.id] * DEFAULT_JOBS;
+  }
+  return weights;
+}
+
+/** De runs op geschatte duur per run, langste eerst; bij gelijke duur in de oude volgorde. Een onbekende check telt als 1 s. */
+export function longestFirst(runs, durations, zoneCount) {
+  const estimate = (run) => (durations[run.item.id] ?? 1) / (run.item.matrix ? 1 + zoneCount : 1);
+  return runs.map((run, i) => ({ run, i })).sort((a, b) => estimate(b.run) - estimate(a.run) || a.i - b.i).map(x => x.run);
+}
+
 /** Seconden per check uit de manifesten, voor `tests/planning/check-durations.json`. */
 export function durationsFromManifests(manifests) {
   const totals = new Map();
@@ -263,7 +281,7 @@ async function commandRun(argv) {
   }
 
   const durations = JSON.parse(readFileSync(join(dirname(expectedPath), 'check-durations.json'), 'utf8'));
-  const items = itemsOfShard(plan.items, k, n, durations);
+  const items = itemsOfShard(plan.items, k, n, shardWeights(plan.items, durations));
   const order = new Map(plan.items.map((item, i) => [item.id, i]));
   items.sort((a, b) => order.get(a.id) - order.get(b.id));
   const shardText = n > 1 ? ` (deel ${k}/${n})` : '';
@@ -291,7 +309,8 @@ async function commandRun(argv) {
   const makeRun = (item, zone) => ({ item, zone, index: 0, log: '', code: null, ms: 0 });
   const baseRuns = runnable.map(item => makeRun(item, BASE_ZONE));
   const zoneRuns = plan.zones.flatMap(zone => runnable.filter(item => item.matrix).map(item => makeRun(item, zone)));
-  const parallel = [...baseRuns.filter(run => !runsAlone(run.item)), ...zoneRuns];
+  // Langste runs eerst: dan eindigt de job niet met één lange run terwijl de andere kernen niets doen.
+  const parallel = longestFirst([...baseRuns.filter(run => !runsAlone(run.item)), ...zoneRuns], durations, plan.zones.length);
   const alone = baseRuns.filter(run => runsAlone(run.item));
   [...parallel, ...alone].forEach((run, i) => { run.index = i; });
 
@@ -300,7 +319,9 @@ async function commandRun(argv) {
     const dir = join(work, 'tmp', String(run.index));
     mkdirSync(dir, { recursive: true });
     run.log = join(logs, `${run.index}.log`);
-    const env = { ...process.env, TMPDIR: dir, TMP: dir, TEMP: dir };
+    // Eén compile-cache voor de hele run (besluit Ethan 2026-11-02): elke bundel draait tot zes keer, en vanaf
+    // de tweede keer slaat Node het compileren over. Node controleert elke cache-entry; een kapotte telt niet.
+    const env = { NODE_COMPILE_CACHE: join(work, 'compile-cache'), ...process.env, TMPDIR: dir, TMP: dir, TEMP: dir };
     if (run.zone !== BASE_ZONE) env.TZ = run.zone;
     for (const pair of run.item.env) {
       const at = pair.indexOf('=');

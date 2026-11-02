@@ -6,7 +6,7 @@ Doel: vastleggen op welke dagen een resource beschikbaar is, zodat het histogram
 
 De metselploeg werkt alleen van maandag tot en met donderdag. De kraan staat de eerste twee weken van augustus op een ander project. Een onderaannemer heeft vier vaste werkdagen. Zonder eigen kalender gaat de app ervan uit dat de resource werkt op de dagen van de projectkalender.
 
-Een resourcekalender verandert geen enkele taakdatum. Hij bepaalt alleen wanneer de resource beschikbaar is. Werkt een taak op een dag waarop de resource niet werkt, dan is de capaciteit die dag 0 en telt de dag als overbezet. Wil je dat de taak zelf op andere dagen loopt, geef dan de taak een eigen kalender ([Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen)). Het verschil staat in [Kalenders en werkdagen](docs://uitleg-kalenders).
+Een resourcekalender verandert geen enkele taakdatum. Hij bepaalt alleen wanneer de resource beschikbaar is. Werkt een taak op een dag waarop de resource niet werkt, dan is de capaciteit die dag 0 en telt de dag als overbezet. Wil je dat de taak zelf op andere dagen loopt, geef dan de taak een eigen kalender ([Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen)). Het verschil staat in [Kalendervensters](docs://ref-kalenders).
 
 ## Stappen
 
@@ -40,7 +40,6 @@ Kies in de kolom *Kalender* een kalender uit de lijst. *Projectkalender* haalt d
 
 ## Zie ook
 
-- [Kalenders en werkdagen](docs://uitleg-kalenders): waarom een resourcekalender geen datums verschuift.
 - [Een kalender maken en toewijzen](docs://howto-kalender-maken-en-toewijzen): de velden van het kalenderformulier.
 - [Feestdagen en bouwvak genereren](docs://howto-feestdagen-genereren): vakantie en feestdagen in de kalender zetten.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

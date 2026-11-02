@@ -7,6 +7,8 @@ import { createDefaultProject } from '@/state/defaults';
 import type { Task } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { installDOMParser } from './xmldom-shim';
+import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { DEFAULT_WORK_RULE } from '@/types/workRule';
 
 declare const process: { exit(code: number): never };
 installDOMParser();
@@ -32,11 +34,16 @@ expect('1 P6XML schrijft reguliere planningdata', xml.includes('<Activity>') && 
 // Taaktypes-etappe (2026-09-05, bouwstap 2): <DurationType> is sindsdien de ENE uitzondering op de
 // asymmetrie — de writer schrijft het label uit de werkregel of het bewaarde token, de lezer leest
 // het terug (spec §4.4). De overige P6-velden blijven éénrichting.
+// Sinds #775 zet de P6 XML-lezer zijn EIGEN P6-herkomst (ObjectId's en het activiteittype uit `<Type>`), zodat de
+// P6-regels in de motor gelden zoals bij een XER. De XER-identiteit en het XER-type van het origineel gaan niet mee.
 expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes-etappe)',
-  roundTripped?.p6DurationType === 'DT_FixedRate'
-  && roundTripped?.p6ActivityType === undefined
-  && roundTripped?.p6ProjectId === undefined
-  && roundTripped?.p6TaskId === undefined);
+  // Zonder eigen werkregel erft de taak de projectstandaard; de schrijver schrijft dan geen eigen <DurationType>
+  // (review Sol #781), en de lezer geeft haar het token van `ActivityDefaultDurationType`, zonder eigen regel.
+  roundTripped?.p6DurationType === XER_DURATION_TYPE_TOKEN[DEFAULT_WORK_RULE]
+  && roundTripped?.workRule === undefined
+  && roundTripped?.p6ActivityType === 'TT_Task'
+  && roundTripped?.p6ProjectId !== undefined && roundTripped?.p6ProjectId !== 'XER-PROJ'
+  && roundTripped?.p6TaskId !== undefined && roundTripped?.p6TaskId !== 'XER-TASK');
 expect('3 de asymmetrie is als TODO in de writer vastgelegd',
   warnings.length === 0
   && xml.includes('<PlannedDuration>')
@@ -82,15 +89,18 @@ for (const [label, expected] of Object.entries(knownDurationTypeLabels)) {
     value === expected && labelWarnings.length === 0);
 }
 
+// Sinds #775 erft een activiteit zonder bruikbaar `<DurationType>` de projectstandaard (`ActivityDefaultDurationType`),
+// zoals een XER-activiteit `PROJECT.def_duration_type` erft. De schrijver zet die standaard altijd.
+const projectDefaultToken = XER_DURATION_TYPE_TOKEN[DEFAULT_WORK_RULE];
 const { value: unknownValue, warnings: unknownWarnings } = readDurationType('Fixed Whatever');
-expect('5 onbekend <DurationType>-label blijft afwezig en wordt gerapporteerd',
-  unknownValue === undefined
+expect('5 onbekend <DurationType>-label erft de projectstandaard en wordt gerapporteerd',
+  unknownValue === projectDefaultToken
   && unknownWarnings.length === 1
   && unknownWarnings[0].includes('Fixed Whatever'));
 
 const { value: missingValue, warnings: missingWarnings } = readDurationType(null);
-expect('6 ontbrekend <DurationType>-element blijft afwezig, geen melding',
-  missingValue === undefined && missingWarnings.length === 0);
+expect('6 ontbrekend <DurationType>-element erft de projectstandaard, geen melding',
+  missingValue === projectDefaultToken && missingWarnings.length === 0);
 
 if (failures.length === 0) {
   console.log('OK  xer-p6xml-parity: asymmetrie zichtbaar, geen gelijkwaardigheidsclaim');

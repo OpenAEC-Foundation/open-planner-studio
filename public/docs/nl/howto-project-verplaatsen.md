@@ -30,7 +30,7 @@ De knop *Verplaatsen* is pas te gebruiken na een voorbeeld zonder fout, en als d
 
 ### Wat er meeschuift, en wat niet
 
-Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin, zie [Constraints en deadlines](docs://uitleg-constraints)), deadlines, de statusdatum, de ankers van externe relaties en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
+Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin, zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen)), deadlines, de statusdatum, de ankers van externe relaties en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
 
 Niet mee schuift:
 
@@ -56,6 +56,6 @@ Niet mee schuift:
 
 ## Zie ook
 
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de planning rekent en waarom het einde schuift.
+- [Waarom een taak verschuift](docs://uitleg-verschuivingen): hoe de planning rekent en waarom het einde schuift.
 - [Relaties leggen](docs://howto-relaties-leggen): de relaties blijven bij het verplaatsen gewoon bestaan.
 - [Nieuw project en Projectinstellingen](docs://ref-projectinfo): wat de startdatum in Projectinstellingen doet.

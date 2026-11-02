@@ -37,10 +37,12 @@ Nieuwe taken krijgen de gekozen maat. Dezelfde keuze staat bij het maken van een
 
 **Vast werk.** Een taak met het taaktype *Vast werk* heeft altijd de urenmaat. Zet je een taak van 3 d op *Vast werk*, dan wordt het 24 u: 3 × de werktijd per dag. Het einde kan daardoor verschuiven, net als bij een duurwijziging. In de tabel kun je zo'n taak niet terugzetten naar dagen.
 
+**Een dagtaak na een urentaak.** Een opvolger met een relatie Eind-Start begint op het moment dat de voorganger klaar is, ook midden op een dag. Op de standaardkalender (07:00 tot 16:00): eindigt een urentaak dinsdag om 11:00, dan begint een dagtaak van 2 dagen ook dinsdag om 11:00 en eindigt hij donderdag om 11:00. Eindigt een dagtaak op een hele dag, dan is hij klaar aan het einde van de werktijd, bijvoorbeeld dinsdag 16:00. Een urentaak daarna begint op het volgende werkmoment: woensdag 07:00.
+
 **Duurweergave in OPS.** Deze instelling is grijs: elke taak toont zijn eigen maat. Onder het P6- en MSP-profiel blijft de keuze actief.
 
 ## Zie ook
 
-- [Dagen en uren](docs://uitleg-dagen-en-uren): de twee maten.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): de velden *Duur* en *Duureenheid*.
 - [Werktijden instellen](docs://howto-werktijden-instellen): de kalender.
 - [App-instellingen](docs://ref-instellingen): weergave en kwartierzoom.

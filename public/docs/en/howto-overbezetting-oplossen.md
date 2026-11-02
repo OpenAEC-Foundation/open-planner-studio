@@ -6,7 +6,7 @@ Goal: see where a resource has too much to do on a day and resolve that, usually
 
 On paper your schedule works, but the bricklayer is on two walls that run on the same days. The app calls that **overallocation**. A resource is overallocated on a work day if the schedule asks more of it that day than its capacity (*Max units*), or if it does not work that day according to its calendar.
 
-You first look up the overallocation. Then you pick a solution. **Leveling** is the solution the app calculates for you: it makes tasks start later until the resource can cope. How that calculates you read in [Resource leveling](docs://uitleg-nivelleren).
+You first look up the overallocation. Then you pick a solution. **Leveling** is the solution the app calculates for you: it makes tasks start later until the resource can cope. That is all it does: it does not shorten a task or change units or relations.
 
 ## Steps
 
@@ -43,7 +43,7 @@ If you change an option in the window after you have clicked *Calculate*, the pr
 
 ### Deciding which task stays put
 
-The app places tasks one by one and the tasks that come first stay where they are. The tasks with the highest priority go first. With equal priority the task with the least float goes first.
+The app places tasks one by one and the tasks that come first stay where they are. The tasks with the highest priority go first. With equal priority the task with the least total float goes first, then the earliest start, then the order in the task list. A task only comes up once its predecessors have their place. The app starts at the earliest start the relations allow and tries the next working day if needed. If the task has several resources, they must all be free. So a task only shifts later. The app does not look for the shortest schedule: another priority can give another finish date.
 
 If you want to decide yourself which task stays, give it a higher priority. Right-click the task's bar in the Gantt and choose *Priority*, then *Low* (100), *Normal* (500) or *High* (900). *Normal* is the default. You can also type a number from 0 to 1000 yourself in the *Leveling priority* column: click the **+** on the right of the task list header (*Add column*) and choose that column under *Planning*. A higher number means the task is more likely to stay put. The app does not accept a number above 1000. A task with priority 1000 never moves for capacity.
 
@@ -59,13 +59,13 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 
 **Remaining conflicts.** Not every overallocation can be solved by shifting. The tasks that remain are listed under *Remaining conflicts*, with the number of days and the reason:
 
-- *Not enough free capacity within the slack to resolve this conflict.* You see this with *smoothing*: within the task's float there is no free moment. Untick the box and the end date may move.
+- *Not enough free capacity within the slack to resolve this conflict.* You see this with *smoothing*: within the task's float there is no free moment. With *smoothing* a task starts no later than its late start; if it does not fit, it stays at its earliest place. Untick the box and the end date may move.
 - *The resource does not work on all days this task needs — shifting cannot resolve this.* The resource has days off in its own calendar in the middle of the task. Change the calendar or the task.
 - *Bricklayer peaks at 2 units/day, capacity is 1 — cannot be resolved by shifting.* Through its curve the task alone asks more on one day than the resource can supply. Choose another curve or lower units.
 
 **It says** *No tasks need to move — the schedule is already conflict-free.* This line appears only when the proposal has neither shifts nor reported remaining conflicts. Tasks pinned at priority 1000 stay put, but their overallocation is reported. Already started or completed tasks are outside this pinned-task check and may still cause overallocation. After applying, also check *Resources › Overallocation*.
 
-**Tasks that do not shift.** A task that has already started or is finished never shifts. Its load does count. Milestones and phases do not shift either.
+**Tasks that do not shift.** A task that has already started or is finished never shifts. Its load does count. Milestones and phases do not shift either. Tasks without an assignment to a ticked resource only move if a predecessor shifts. A task with priority 1000 also follows its predecessors.
 
 **Material is not leveled.** If a material resource asks more than its *Max units* on a day, it does count as overallocated in *Overallocation*, but it is not in the leveling window.
 
@@ -75,7 +75,6 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 
 ## See also
 
-- [Resource leveling](docs://uitleg-nivelleren): what leveling shifts, within float and beyond, and what it does not do.
 - [Managing resources](docs://howto-resources-beheren): adjusting a resource's capacity and calendar.
 - [Adding relations](docs://howto-relaties-leggen): putting tasks one after the other.
 - [Notifications and warnings](docs://ref-meldingen): the Overallocated warning in the Warnings panel.

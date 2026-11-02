@@ -4,7 +4,7 @@ Doel: een eigen kalender maken, bijvoorbeeld een zesdaagse werkweek, en die geve
 
 ## Wanneer je dit nodig hebt
 
-Een onderaannemer werkt ook op zaterdag. Een ploeg werkt alleen van maandag tot en met donderdag. Een taak valt in een periode waarin alleen die taak stilligt. In de projectkalender staan dan de verkeerde werkdagen. Met een eigen kalender rekent de app die taken op de juiste dagen door, en blijft de rest op de projectkalender. Wat de app precies met een kalender doet, lees je in [Kalenders en werkdagen](docs://uitleg-kalenders).
+Een onderaannemer werkt ook op zaterdag. Een ploeg werkt alleen van maandag tot en met donderdag. Een taak valt in een periode waarin alleen die taak stilligt. In de projectkalender staan dan de verkeerde werkdagen. Met een eigen kalender rekent de app die taken op de juiste dagen door, en blijft de rest op de projectkalender. Wat de app precies met een kalender doet, lees je in [Kalendervensters](docs://ref-kalenders).
 
 ## Stappen
 
@@ -63,7 +63,5 @@ Alleen de taken zonder eigen kalender gaan mee.
 
 ## Zie ook
 
-- [Kalenders en werkdagen](docs://uitleg-kalenders): hoe de app werkdagen telt en welke kalender wint.
-- [Dagen en uren](docs://uitleg-dagen-en-uren): wat de standaard werkdag doet.
 - [Een resourcekalender instellen](docs://howto-resourcekalender-instellen): een kalender voor een resource in plaats van een taak.
 - [Kalendervensters](docs://ref-kalenders): alle velden van de kalendervensters.

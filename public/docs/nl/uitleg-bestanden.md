@@ -44,11 +44,11 @@ Elke adapter neemt mee wat zijn formaat kent.
 
 **MS Project XML** neemt taken, relaties, kalenders, resources, toewijzingen, constraints, deadlines en de statusdatum mee. Van je baselines gaat alleen de actieve mee. Activiteitcodes, eigen velden, aantekeningen en externe koppelingen gaan niet mee. Een tweede constraint op een taak gaat niet mee. Een constraint *Moet starten op (MSO)* of *Moet eindigen op (MFO)* zonder de keuze *Verplicht (pin logica)* komt terug als *Start niet eerder dan (SNET)* of *Eindig niet eerder dan (FNET)*. *Handmatig gepland* en de *Nivelleervertraging* van een taak komen niet terug. Een hammock wordt een gewone taak met berekende datums.
 
-**Primavera P6 XML** neemt taken, relaties, kalenders, resources, toewijzingen, constraints en de statusdatum mee. Baselines en deadlines gaan niet mee, en ook geen activiteitcodes, eigen velden, aantekeningen en externe koppelingen. Een hammock wordt ook hier een gewone taak. P6 kent geen lag in procenten: de app rekent zo'n lag om naar een vast aantal dagen. Een lag in kalenderdagen wordt een lag in werkdagen.
+**Primavera P6 XML** neemt taken, relaties, kalenders, resources, toewijzingen, constraints en de statusdatum mee. Baselines en deadlines gaan niet mee, en ook geen activiteitcodes, eigen velden, aantekeningen en externe koppelingen. Een hammock gaat mee als *Level of Effort*, net als in een `.xer`. P6 kent geen lag in procenten: de app rekent zo'n lag om naar een vast aantal dagen. Een lag in kalenderdagen wordt een lag in werkdagen.
 
 **CSV** is een taaklijst. Het bestand heeft per taak deze kolommen: taak-id, WBS, niveau, naam, duur, start, einde, voorgangers, werksoort, het id van een eigen werksoort (`OPS Custom Task Type ID`), status, voltooiing, werkelijke start en einde, kritiek, totale speling en beschrijving. Resources, toewijzingen, kalenders, constraints, deadlines, baselines en de statusdatum staan er niet in. De kolomkoppen zijn altijd Engels.
 
-**Alleen IFC neemt het rekenprofiel en de reken-opties mee.** Exporteer je naar CSV, MS Project XML of Primavera P6 XML, dan staat het profiel niet in het bestand; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Zo'n bestand heropent als *Open Planner Studio*. Een `.xer` heropent als *Primavera P6*, met de planningsinstellingen van P6 die in het bestand staan. Rekende je project met *Primavera P6* of *Microsoft Project*, bijvoorbeeld omdat het uit een `.xer` of `.mpp` kwam, dan kunnen de datums daardoor verschuiven. Wat een rekenprofiel is, staat in [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
+**Alleen IFC neemt het rekenprofiel en alle reken-opties mee.** Exporteer je naar CSV of MS Project XML, dan staat het profiel niet in het bestand; van de reken-opties schrijft MS Project XML hooguit de kritiek-drempel. Zo'n bestand heropent als *Open Planner Studio*. Een `.xer` en een Primavera P6 XML heropenen als *Primavera P6*, met de planningsinstellingen van P6 die in het bestand staan. Rekende je project met *Primavera P6* of *Microsoft Project*, bijvoorbeeld omdat het uit een `.xer` of `.mpp` kwam, dan kunnen de datums daardoor verschuiven. Wat een rekenprofiel is, staat in [Rekenprofielen en conventies](docs://uitleg-rekenprofielen).
 
 Komt je project uit een Primavera-bestand (`.xer`), ook als je het tussendoor als IFC hebt opgeslagen, dan meldt de app na een export naar CSV, MS Project XML of P6 XML: *Bij export naar CSV gaat XER-broninformatie verloren.* Bij MS Project XML staat er *MSPDI* in plaats van *CSV*, bij P6 XML staat er *P6*. Naar IFC krijg je die melding niet: het IFC-bestand bewaart Primavera's bronbestand mee. Zie [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
@@ -104,8 +104,8 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): de stappen voor openen, opslaan en opslaan als.
 - [Exporteren](docs://howto-exporteren): een formaat kiezen en wat je te zien krijgt.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom een geïmporteerde planning andere datums kan tonen.
-- [Constraints en deadlines](docs://uitleg-constraints): wat een constraint doet, en dus wat er verdwijnt als hij ontbreekt.
-- [Relaties en lag](docs://uitleg-relaties): wat een lag is en hoe de app hem rekent.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): wat een constraint doet, en dus wat er verdwijnt als hij ontbreekt.
+- [Relaties leggen](docs://howto-relaties-leggen): wat een lag is en hoe de app hem rekent.
 - [Een hammock maken](docs://howto-hammock): wat een hammock is, die een export als gewone taak schrijft.
 - [Codes en eigen velden](docs://howto-codes-en-velden): activiteitcodes en eigen velden, die alleen IFC bewaart.
 - [Externe relaties naar een ander project](docs://howto-externe-relaties): koppelingen die MS Project XML en P6 XML niet meenemen.

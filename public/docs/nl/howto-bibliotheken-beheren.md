@@ -4,9 +4,9 @@ Doel: resourcebibliotheken aanmaken en verwijderen, kalenders erin zetten, en ee
 
 ## Wanneer je dit nodig hebt
 
-De bibliotheek staat niet in je projectbestanden maar in de app: in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser. Hij wordt niet gesynchroniseerd. Wis je in de browser de sitegegevens, dan is de bibliotheek weg; exporteer hem dus als back-up. Wil een collega met dezelfde ploegen en tarieven werken, dan lever je de bibliotheek ook als bestand over. Heeft je organisatie meerdere werkmaatschappijen met eigen ploegen, dan maak je per werkmaatschappij een eigen bibliotheek. Bij een nieuw project kies je welke bibliotheek het gebruikt.
+De bibliotheek staat niet in je projectbestanden maar in de app: in de desktop-app in een bestand op deze computer, in de browser in de opslag van die browser. Hij wordt niet gesynchroniseerd. Wis je in de browser de sitegegevens, dan is de bibliotheek weg; exporteer hem dus als back-up. Wil een collega met dezelfde ploegen en tarieven werken, dan lever je de bibliotheek ook als bestand over. Heeft je organisatie meerdere werkmaatschappijen met eigen ploegen, dan maak je per werkmaatschappij een eigen bibliotheek. Bij een nieuw project kies je welke bibliotheek het gebruikt. De lijst van een bibliotheek heet in de app ook de *pool*.
 
-Wat een bibliotheek is, lees je in [De resourcebibliotheek](docs://uitleg-resourcebibliotheek). De resources zelf bewerk je niet hier, maar in het resourcepaneel, zie [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken).
+De resources zelf bewerk je niet hier, maar in het resourcepaneel, zie [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken).
 
 ## Stappen
 
@@ -19,6 +19,8 @@ Kies *Bestand › Bibliotheek*. Links staat de lijst *Resourcebibliotheken*. Rec
 1. Klik boven de lijst op het plusje (*Resourcebibliotheek toevoegen*). Er komt een bibliotheek *Nieuwe resourcebibliotheek* bij, en die staat meteen geselecteerd.
 2. Typ de nieuwe naam in het naamveld bovenaan het rechterdeel en druk op Enter, of klik buiten het veld. Een lege naam neemt de app niet over.
 3. Klik op *Als standaard* om deze bibliotheek voortaan voor te selecteren bij nieuwe projecten. De standaardbibliotheek heeft een ster in de lijst.
+
+De eerste bibliotheek maakt de app zelf aan, met een naam in de taal van de interface: *Mijn resourcebibliotheek* in het Nederlands. Wissel je later van taal, dan blijft die naam staan.
 
 ### Een kalender in de bibliotheek zetten
 
@@ -78,6 +80,5 @@ Het vinkje werkt alleen voor de IFC-export, niet voor de andere exportformaten. 
 
 ## Zie ook
 
-- [De resourcebibliotheek](docs://uitleg-resourcebibliotheek): hoe bibliotheek en project zich tot elkaar verhouden.
 - [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken): resources koppelen, toewijzen en afwijkingen oplossen.
 - [Exporteren](docs://howto-exporteren): de exportformaten, ook IFC met bibliotheekbestand.
