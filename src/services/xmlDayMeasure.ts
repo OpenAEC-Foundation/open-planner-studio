@@ -271,6 +271,9 @@ export interface ReadMeasure {
  * De minuten mogen een breuk zijn: de urenmaat rondt ze af op de hele minuut, de leesregel ook.
  * `durationDays`/`remainingDays`: de dagen van het standaardveld zonder geldig record, als het formaat ze zelf
  * draagt (MSPDI `P5D`); anders minuten ÷ minuten per dag (ook P6 XML, knownbug 293).
+ * `keepSourceMinutes`: de urenmaat zonder geldig record houdt de minuten zoals gegeven, zonder afronding. De
+ * XER-lezer geeft minuten die hij al met zijn eigen regel las (een echte bronbreuk blijft, zoals op main;
+ * review PR #393 ronde 3, punt 3). Standaard uit: MSPDI en P6 XML ronden af zoals altijd.
  */
 export function readMeasure(input: {
   unit: 'days' | 'hours';
@@ -282,17 +285,19 @@ export function readMeasure(input: {
   calendar: WorkCalendar;
   dayRecords: { duration?: FieldRecord; remaining?: FieldRecord };
   exactRecords: { duration?: FieldRecord; remaining?: FieldRecord };
+  keepSourceMinutes?: boolean;
 }): ReadMeasure {
   const { durationMinutes, remainingMinutes, minutesPerDay, calendar } = input;
+  const sourceMinutes = (minutes: number) => (input.keepSourceMinutes ? minutes : Math.round(minutes));
   const perDay = (minutes: number) => (minutesPerDay > 0 ? minutes / minutesPerDay : 0);
   /** De urenmaat: de minuten uit het bestand, of de exacte minuten uit een geldig `ExactMinutes`-record. */
   const hours = (exact: { duration?: FieldRecord; remaining?: FieldRecord }): ReadMeasure => {
     const durationRecord = exact.duration;
     const durationHolds = recordHolds(durationRecord, durationMinutes) && minuteRecordFits(durationRecord);
-    const minutes = durationHolds ? durationRecord[0] : Math.round(durationMinutes);
+    const minutes = durationHolds ? durationRecord[0] : sourceMinutes(durationMinutes);
     const restRecord = exact.remaining;
     const rest = remainingMinutes === undefined ? undefined
-      : recordHolds(restRecord, remainingMinutes) && minuteRecordFits(restRecord) ? restRecord[0] : Math.round(remainingMinutes);
+      : recordHolds(restRecord, remainingMinutes) && minuteRecordFits(restRecord) ? restRecord[0] : sourceMinutes(remainingMinutes);
     return {
       durationUnit: 'hours', durationMinutes: minutes, scheduleDuration: hourTaskScheduleDuration(minutes, calendar),
       ...(rest !== undefined ? { remainingMinutes: rest } : {}),

@@ -88,7 +88,7 @@ IFC 4.3 ADD2 is the default native format, written as schema-valid IFC. Every ot
 
 The original `.xer` is kept inside the saved IFC. **Dates as recorded** shows the dates saved by P6 or MS Project before you recalculate.
 
-Progress can also go through a spreadsheet: export a progress sheet (`.xlsx` or `.csv`), fill it in on site, and read it back into the open project.
+Progress can also go through a spreadsheet: export a progress sheet (`.xlsx`), fill it in on site, and read it back into the open project.
 
 Some data does not survive every format, for example baselines in `.mpp`, or activity codes in MS Project XML. The documentation lists exactly what goes along and what changes. The `.mpp` reader was written for OPS and is derived from the structure knowledge of [MPXJ](https://github.com/joniles/mpxj) (LGPL-2.1).
 

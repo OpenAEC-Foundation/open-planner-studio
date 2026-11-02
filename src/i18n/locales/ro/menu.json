@@ -214,6 +214,7 @@
     "screenColors_critical": "Drum critic",
     "screenColors_auto": "Pe activitate — automat",
     "screenColors_category": "După categorie",
+    "screenColorsNearCritical": "Aproape critic",
     "screenColorsMissingField": "Acest câmp nu există în acest proiect. Categoria de lucrări se folosește temporar.",
     "screenColorsHint": "În afara opțiunii Drum critic, o margine roșie marchează drumul critic.",
     "addLayout": "Creare aspect",
@@ -376,17 +377,9 @@
     "progressXlsxNotes": {
       "completion": "de completat: 0 până la 100, zecimale permise",
       "actualStart": "de completat: data reală de început efectiv (ca dată)",
-      "actualFinish": "de completat: data reală de sfârșit efectiv (ca dată)"
-    },
-    "progressCsvLabel": "Foaie de progres (CSV)",
-    "progressCsvDesc": "Aceeași foaie simplă de progres, ca text simplu. Pentru cei care preferă să lucreze cu un CSV.",
-    "progressCsvShort": "Progres (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "de completat: data reală de sfârșit efectiv (ca dată)",
       "readOnly": "nu modificați",
       "plannedReadOnly": "planificat, nu modificați",
-      "completion": "de completat: 0 până la 100, numere întregi",
-      "actualStart": "de completat: data reală de început efectiv (zz-ll-aaaa)",
-      "actualFinish": "de completat: data reală de sfârșit efectiv (zz-ll-aaaa)",
       "summaryRow": "— activitate rezumat: nu completați"
     },
     "csvLabel": "CSV (separat prin punct și virgulă)",
@@ -395,6 +388,7 @@
     "mspdiDesc": "Se deschide în Microsoft Project. Structură WBS completă.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pentru Oracle Primavera P6.",
+    "profileHint": "Proiectul dumneavoastră utilizează în prezent profilul {{name}}. Vă recomandăm profilul {{target}} pentru cea mai bună compatibilitate cu acest format de fișier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, în schema IFC a proiectului (implicit IFC 4.3 ADD2). Legătură 4D cu modele BIM.",
     "csvShort": "CSV (;)"

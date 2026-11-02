@@ -1,3 +1,4 @@
+import { ensureCustomBarVisible } from '@/engine/renderer/resourcePalette';
 import { Task } from '@/types/task';
 import { Sequence } from '@/types/sequence';
 import { isHourModeCalendar, WorkCalendar } from '@/types/calendar';
@@ -2675,13 +2676,13 @@ function drawFooter(
       if (isCriticalMode) {
         if (options.showCritical) {
           items.push({ label: lg?.criticalPath ?? 'Kritiek pad', draw: (x) => {
-            d2d.fillStyle = PRINT_COLORS.critical;
+            d2d.fillStyle = selection.mode === 'critical' && selection.colors?.critical ? ensureCustomBarVisible(selection.colors.critical, false) : PRINT_COLORS.critical;
             d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
             d2d.fill();
           } });
         }
         items.push({ label: lg?.normal ?? 'Normaal', draw: (x) => {
-          d2d.fillStyle = PRINT_COLORS.normal;
+          d2d.fillStyle = selection.mode === 'critical' && selection.colors?.normal ? ensureCustomBarVisible(selection.colors.normal, false) : PRINT_COLORS.normal;
           d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
           d2d.fill();
         } });
@@ -2689,7 +2690,7 @@ function drawFooter(
           && !row.task.time.isCritical && row.task.time.isNearCritical);
         if (hasNearCritical) {
           items.push({ label: lg?.nearCritical ?? 'Bijna-kritiek', draw: (x) => {
-            d2d.fillStyle = PRINT_COLORS.nearCritical;
+            d2d.fillStyle = selection.mode === 'critical' && selection.colors?.nearCritical ? ensureCustomBarVisible(selection.colors.nearCritical, false) : PRINT_COLORS.nearCritical;
             d2d.roundRect(x, midY - swatchH / 2, swatchW, swatchH, m.s(2));
             d2d.fill();
           } });

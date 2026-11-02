@@ -89,31 +89,42 @@ export function matrixRecords(yaml) {
   return records;
 }
 
-/** Problemen met de browsershards: alleen browserrecords hebben een shard, en samen zijn ze 1/n … n/n. */
+/** De delen die over meer jobs verdeeld mogen zijn. */
+const SHARDED_PARTS = ['browser', 'planning'];
+
+/** Problemen met de shards: alleen de delen hierboven hebben een shard, en per deel zijn ze samen 1/n … n/n. */
 export function shardProblemsOf(records) {
   const problems = [];
   for (const r of records) {
-    if (r.shard && r.part !== 'browser') problems.push(`shard ${r.shard} hoort bij ${r.part ? `deel "${r.part}"` : 'geen matrixrecord'}, niet bij browser`);
+    if (r.shard && !SHARDED_PARTS.includes(r.part)) {
+      problems.push(`shard ${r.shard} hoort bij ${r.part ? `deel "${r.part}"` : 'geen matrixrecord'}, niet bij browsershards of planningshards`);
+    }
   }
-  const browser = records.filter(r => r.part === 'browser');
-  const sharded = browser.filter(r => r.shard);
+  for (const part of SHARDED_PARTS) problems.push(...partShardProblems(records, part));
+  return problems;
+}
+
+function partShardProblems(records, part) {
+  const problems = [];
+  const all = records.filter(r => r.part === part);
+  const sharded = all.filter(r => r.shard);
   if (sharded.length === 0) {
-    if (browser.length > 1) problems.push(`${browser.length} browserrecords zonder shard draaien elk de hele suite`);
+    if (all.length > 1) problems.push(`${all.length} ${part}records zonder shard draaien elk de hele suite`);
     return problems;
   }
-  if (sharded.length !== browser.length) problems.push('een browserrecord zonder shard naast gesharde browserrecords');
+  if (sharded.length !== all.length) problems.push(`een ${part}record zonder shard naast gesharde ${part}records`);
   const parsed = sharded.map(r => /^(\d+)\/(\d+)$/.exec(r.shard));
   if (parsed.some(m => !m)) {
-    problems.push(`ongeldige shard(s): ${sharded.filter((_, i) => !parsed[i]).map(r => r.shard).join(', ')}`);
+    problems.push(`ongeldige ${part}shard(s): ${sharded.filter((_, i) => !parsed[i]).map(r => r.shard).join(', ')}`);
     return problems;
   }
   const totals = [...new Set(parsed.map(m => Number(m[2])))];
   if (totals.length !== 1) {
-    problems.push(`verschillende totalen (${totals.join(', ')})`);
+    problems.push(`verschillende totalen bij ${part}shards (${totals.join(', ')})`);
   } else {
     const ks = parsed.map(m => Number(m[1])).sort((a, b) => a - b).join(',');
     if (ks !== Array.from({ length: totals[0] }, (_, i) => i + 1).join(',')) {
-      problems.push(`browsershards ${sharded.map(r => r.shard).join(', ')} zijn niet precies 1/${totals[0]} … ${totals[0]}/${totals[0]}`);
+      problems.push(`${part}shards ${sharded.map(r => r.shard).join(', ')} zijn niet precies 1/${totals[0]} … ${totals[0]}/${totals[0]}`);
     }
   }
   return problems;
@@ -143,12 +154,15 @@ function main(argv) {
     if (missing.length || extra.length || shardProblems.length) {
       if (missing.length) console.log(`XX  ci.yml draait deel/delen niet: ${missing.join(', ')} — voeg een matrixregel \`part: <naam>\` toe`);
       if (extra.length) console.log(`XX  ci.yml noemt onbekende delen: ${extra.join(', ')} (zie --list)`);
-      for (const problem of shardProblems) console.log(`XX  ci.yml browsershards: ${problem}`);
+      for (const problem of shardProblems) console.log(`XX  ci.yml: ${problem}`);
       return 1;
     }
-    const browserShards = records.filter(r => r.part === 'browser' && r.shard).length;
-    console.log(`OK  verify-parts: ci.yml draait alle ${Object.keys(parts).length} delen (${Object.keys(parts).join(', ')})`
-      + `${browserShards ? `, browser in ${browserShards} shards` : ''}`);
+    const shardText = SHARDED_PARTS
+      .map(part => [part, records.filter(r => r.part === part && r.shard).length])
+      .filter(([, count]) => count > 0)
+      .map(([part, count]) => `, ${part} in ${count} shards`)
+      .join('');
+    console.log(`OK  verify-parts: ci.yml draait alle ${Object.keys(parts).length} delen (${Object.keys(parts).join(', ')})${shardText}`);
     return 0;
   }
 

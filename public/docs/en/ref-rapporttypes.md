@@ -6,7 +6,7 @@ Every report on the *Report* tab, with the options that belong to it: what they 
 
 Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with the drop-down *Report type*, the block *Summary* with counts, the block *Settings* or *Report options* and at the bottom the button *Export PDF*. On the right is the preview. What you see in the preview goes into the PDF.
 
-**Report type** — which report you see. Choose from eleven reports. Default: *Gantt chart*. Where: *Report*, at the top of the *Report* column.
+**Report type** — which report you see. Choose from twelve reports. Default: *Gantt chart*. Where: *Report*, at the top of the *Report* column.
 
 **Export PDF** — makes the PDF. Effect: the result is only a PDF; the app does not send anything to a printer. If the schedule is out of date, the app calculates first. If the calculation gives an error, for example because of a loop in the relations, the button makes no file and shows the error. Where: *Report*, at the bottom of the *Report* column.
 
@@ -123,6 +123,26 @@ Where the project stands on the status date. Options under *Report options*.
 **Near-critical ≤ (wd):** — Default: 5. As with the Look-ahead.
 
 The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline finish*, *Forecast finish*, *Δ finish (wd)*, *Planned* (with *(baseline)* or *(current schedule)*), *Actual*, and the counts *Complete*, *In progress*, *Not started*, *Overdue* and *Critical*. Planned and actual are weighted by the duration of the tasks. Planned measures against the baseline if there is an active baseline, otherwise against the current schedule. The sections are *Completed in the past period*, *In progress*, *Starting in the next period*, *Overdue* and *Open critical activities*; a task can be in more than one section. Every section has the same columns: *WBS*, *Name*, *Baseline finish*, *Forecast finish*, *Compl.*, *Rem.*, *TF (wd)*, *Critical* and *Status*. The status per row is *Complete*, *In progress*, *Not started*, *Should have started* or *Should have finished*.
+
+## Progress curve
+
+Where the project stands, on one sheet: four key figures, an S-curve of progress and the tasks at risk. This report has no options of its own, only *Paper:* and *Orientation:*.
+
+The *Overview* block shows *Status date*, *Baseline finish*, *Forecast finish* and *Δ finish (wd)*. Below it are four key figures:
+
+- *Complete* — the actual progress, weighted by task duration. Below it is the planned progress on the status date. Without a baseline, *planned* comes from the current schedule and is followed by *(current schedule)*. The figure is red when you are behind the plan.
+- *Late* — open tasks that should already have started or finished according to the schedule, or that finish later than the baseline. Below it is how many of them are critical.
+- *Negative float* — open tasks with total float below zero. Below it is the largest negative float.
+- *Next milestone* — the first open milestone, with its date and in how many calendar days. If the milestone is before the status date, it shows how many days ago, in red.
+
+The S-curve shows cumulative progress from 0 to 100%, weighted by duration:
+
+- *Planned (baseline)* — dashed: progress according to the active baseline. Without a baseline there is no planned line.
+- *Actual* — solid, up to the status date. The app does not store progress per week. The line is therefore an estimate: per task, progress runs evenly from the actual start to the current completion.
+- *Target band: early to late dates* — the area between progress if every task runs on its early dates, and if every task runs on its late dates. If *Actual* is below the band, you are behind what is still possible without delay. If the schedule has not been calculated, there is no band and a line *Early dates* is shown instead.
+- *Status date* — a vertical line.
+
+The table *Tasks at risk: late or negative float* lists the open tasks from *Late* and *Negative float*, lowest float first. The columns are *WBS*, *Name*, *Baseline finish*, *Forecast finish*, *Δ finish (wd)*, *TF (wd)*, *Critical* and *Late*.
 
 ## Schedule health
 

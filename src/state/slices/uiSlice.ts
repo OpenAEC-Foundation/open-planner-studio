@@ -135,6 +135,7 @@ export function createDefaultUI(): UIState {
     showPropertiesPanel: true,
     railPropertiesHeight: 240,
     showWarningsPanel: false,
+    showScheduleShiftPanel: false,
     railWarningsHeight: 220,
     showHistogram: false,
     histogramHeight: 160,
@@ -294,7 +295,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
       const turnsDockOn = (updates.showResourcePanel === true || updates.resourcePanelDocked === true) && dockIsPresent;
       const turnsPropertiesOn = updates.showPropertiesPanel === true;
       // Het Waarschuwingenpaneel is het derde railpaneel en volgt dezelfde regel.
-      const turnsWarningsOn = updates.showWarningsPanel === true;
+      const turnsWarningsOn = updates.showWarningsPanel === true || updates.showScheduleShiftPanel === true;
       if ((turnsDockOn || turnsPropertiesOn || turnsWarningsOn) && updates.rightPanelCollapsed === undefined) {
         (updates as Partial<UIState>).rightPanelCollapsed = false;
       }
@@ -319,7 +320,8 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           && (updates.resourcePanelDocked ?? s.ui.resourcePanelDocked);
         const propsFinal = updates.showPropertiesPanel ?? s.ui.showPropertiesPanel;
         const warningsFinal = updates.showWarningsPanel ?? s.ui.showWarningsPanel;
-        if (!dockFinal && !propsFinal && !warningsFinal) {
+        const shiftsFinal = updates.showScheduleShiftPanel ?? s.ui.showScheduleShiftPanel;
+        if (!dockFinal && !propsFinal && !warningsFinal && !shiftsFinal) {
           (updates as Partial<UIState>).showPropertiesPanel = true;
         }
       }
@@ -375,6 +377,7 @@ export const createUiSlice: AppSlice<UiSlice> = (set, get) => ({
           if (n.helpArticleId !== undefined) existing.helpArticleId = n.helpArticleId;
           // Rekenprofielen: de serialiseerbare vervolgactie volgt dezelfde regel.
           if (n.action !== undefined) existing.action = { ...n.action };
+          if (n.secondaryAction !== undefined) existing.secondaryAction = { ...n.secondaryAction };
           if (n.sticky !== undefined) existing.sticky = n.sticky;
           if (n.refusal !== undefined) existing.refusal = n.refusal;
           existing.detailKey = n.detailKey;

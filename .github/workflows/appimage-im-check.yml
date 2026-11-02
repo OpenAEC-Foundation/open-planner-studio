@@ -1,0 +1,66 @@
+name: AppImage IME check
+
+# Bouwt alleen de AppImage, met dezelfde Linux-pakketten als build-linux-mac in release.yml, en
+# controleert dat de GTK-invoermodules voor IBus en Fcitx erin zitten (issue #764). Zonder die
+# modules typt de AppImage geen Vietnamees, Chinees, Japans of Koreaans. Zo is dat te bewijzen
+# zonder tag (een tag publiceert onomkeerbaar). Geen signing, geen upload naar een release; de
+# AppImage blijft 7 dagen als artifact staan, om met de hand te testen.
+# Draait op een PR die deze workflow, release.yml of het controlescript raakt, en handmatig.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/appimage-im-check.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/check-appimage-im-modules.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appimage-im-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      # Zelfde lijst als "Install dependencies (Ubuntu only)" in release.yml.
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf ibus-gtk3 fcitx5-frontend-gtk3
+
+      - name: Install frontend dependencies (npm ci)
+        run: npm ci
+
+      # Zonder updater-artefacten: die vragen de signeersleutel, en die is hier niet nodig.
+      - name: Build AppImage
+        run: npm run tauri -- build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Verify AppImage input-method modules
+        run: |
+          APPIMAGE="$(find src-tauri/target/release/bundle/appimage -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE" || { echo "::error::geen AppImage gebouwd" >&2; exit 1; }
+          bash scripts/check-appimage-im-modules.sh "$APPIMAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload AppImage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-im-check
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 7
+          if-no-files-found: ignore

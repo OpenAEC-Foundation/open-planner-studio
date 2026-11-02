@@ -213,6 +213,7 @@
     "screenColors_critical": "مسیر بحرانی",
     "screenColors_auto": "به ازای هر کار — خودکار",
     "screenColors_category": "بر اساس دسته",
+    "screenColorsNearCritical": "نزدیک به بحرانی",
     "screenColorsMissingField": "این فیلد در این پروژه وجود ندارد. دسته‌بندی کار به‌طور موقت استفاده می‌شود.",
     "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد.",
     "addLayout": "چیدمان جدید",
@@ -374,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "تکمیل کنید: بین 0 تا 100، اعشار مجاز است",
       "actualStart": "تکمیل کنید: تاریخ شروع واقعی (به‌صورت تاریخ)",
-      "actualFinish": "تکمیل کنید: تاریخ پایان واقعی (به‌صورت تاریخ)"
-    },
-    "progressCsvLabel": "صفحهٔ پیشرفت (CSV)",
-    "progressCsvDesc": "همان صفحهٔ پیشرفت فشرده به‌صورت متن ساده — برای کسانی که ترجیح می‌دهند با CSV کار کنند.",
-    "progressCsvShort": "پیشرفت (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "تکمیل کنید: تاریخ پایان واقعی (به‌صورت تاریخ)",
       "readOnly": "تغییر ندهید",
       "plannedReadOnly": "برنامه‌ریزی‌شده، تغییر ندهید",
-      "completion": "تکمیل کنید: عددی صحیح بین 0 تا 100",
-      "actualStart": "تکمیل کنید: تاریخ شروع واقعی (روز-ماه-سال)",
-      "actualFinish": "تکمیل کنید: تاریخ پایان واقعی (روز-ماه-سال)",
       "summaryRow": "— وظیفه خلاصه: پر نکنید"
     },
     "csvLabel": "CSV (نقطه‌ویرگول‌جدا)",
@@ -393,6 +386,7 @@
     "mspdiDesc": "در Microsoft Project باز می‌شود. ساختار کامل WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "برای Oracle Primavera P6.",
+    "profileHint": "پروژه شما اکنون با نمایه {{name}} محاسبه می‌شود. برای بهترین سازگاری با این قالب فایل، نمایه {{target}} را استفاده کنید.",
     "ifcLabel": "IFC",
     "ifcDesc": "استاندارد BuildingSMART، در شِمای IFC پروژه (پیش‌فرض IFC 4.3 ADD2). پیوند چهاربُعدی با مدل‌های BIM.",
     "csvShort": "CSV (;)"

@@ -1,3 +1,4 @@
+import { CriticalBarColorsEditor } from '@/components/viewControls/CriticalBarColors';
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { ParseKeys } from 'i18next';
@@ -251,7 +252,7 @@ export function LayoutsDialog() {
               <span>{t('menu:ribbon.screenColors')}</span>
               <select
                 value={colorValue}
-                onChange={e => setOverlay({ barColors: decodeBarColors(e.target.value) })}
+                onChange={e => setOverlay({ barColors: { ...decodeBarColors(e.target.value), colors: overlays.barColors.colors } })}
                 className="input !text-small !leading-4 !px-1.5 !py-1"
                 style={{ width: 'auto' }}
                 aria-label={t('menu:ribbon.screenColors')}
@@ -260,6 +261,8 @@ export function LayoutsDialog() {
                 {colorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
+            {overlays.barColors.mode === 'critical' && <CriticalBarColorsEditor colors={overlays.barColors.colors}
+              onChange={colors => setOverlay({ barColors: { ...overlays.barColors, colors } })} />}
           </>
         );
       }

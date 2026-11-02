@@ -213,6 +213,7 @@
     "screenColors_critical": "Kriittinen polku",
     "screenColors_auto": "Tehtävittäin — automaattinen",
     "screenColors_category": "Luokittain",
+    "screenColorsNearCritical": "Lähes kriittinen",
     "screenColorsMissingField": "Tätä kenttää ei ole tässä projektissa. Työlajia käytetään väliaikaisesti.",
     "screenColorsHint": "Muualla kuin tilassa Kriittinen polku punainen reunus merkitsee kriittisen polun.",
     "addLayout": "Uusi asettelu",
@@ -374,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "täytä: 0–100, desimaaliluvut sallittuja",
       "actualStart": "täytä: toteutunut alkamispäivä (päivämääränä)",
-      "actualFinish": "täytä: toteutunut valmistumispäivä (päivämääränä)"
-    },
-    "progressCsvLabel": "Edistymistaulukko (CSV)",
-    "progressCsvDesc": "Sama suppea edistymistaulukko pelkkänä tekstinä — sopii niille, jotka mieluummin työskentelevät CSV-tiedoston kanssa.",
-    "progressCsvShort": "Edistyminen (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "täytä: toteutunut valmistumispäivä (päivämääränä)",
       "readOnly": "ei muuteta",
       "plannedReadOnly": "suunniteltu, ei muuteta",
-      "completion": "täytä: 0–100, kokonaisluvut",
-      "actualStart": "täytä: toteutunut alkamispäivä (pp-kk-vvvv)",
-      "actualFinish": "täytä: toteutunut valmistumispäivä (pp-kk-vvvv)",
       "summaryRow": "— yhteenvetotehtävä: ei täytetä"
     },
     "csvLabel": "CSV (puolipisteillä erotettu)",
@@ -393,6 +386,7 @@
     "mspdiDesc": "Avattavissa ohjelmassa Microsoft Project. Täysi WBS-rakenne.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6 -ohjelmalle.",
+    "profileHint": "Projektissa käytetään tällä hetkellä profiilia {{name}}. Tämän tiedostomuodon kanssa parhaaseen yhteensopivuuteen suositellaan profiilia {{target}}.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standardi, projektin IFC-skeemassa (oletuksena IFC 4.3 ADD2). 4D-yhteys BIM-malleihin.",
     "csvShort": "CSV (;)"

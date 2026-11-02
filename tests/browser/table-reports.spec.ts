@@ -168,6 +168,8 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
     { option: /^Look-ahead$/, nl: 'look-ahead', en: 'look-ahead' },
     { option: /^(Critical & near-critical|Kritiek & near-critical)$/, nl: 'kritiek', en: 'critical' },
     { option: /^(Progress report|Voortgangsrapport)$/, nl: 'voortgang', en: 'progress' },
+    // Issue #689: kerncijfers en S-curve staan in de preview, de export gebruikt het eigen suffix.
+    { option: /^(Progress curve|Voortgangscurve)$/, nl: 'voortgangscurve', en: 'progress-curve', chart: true },
     { option: /^(Schedule health|Planningsgezondheid)$/, nl: 'gezondheid', en: 'schedule-health' },
     { option: /^(Resource loading|Resourcebelasting)$/, nl: 'resourcebelasting', en: 'resource-loading' },
     { option: /^(Resource assignments|Resourcetoewijzingen)$/, nl: 'toewijzingen', en: 'resource-assignments' },
@@ -179,6 +181,10 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
       await typePicker.click();
       await page.getByRole('option', { name: reportExport.option }).click();
       await expect(report).toBeVisible();
+      if (reportExport.chart) {
+        await expect(page.locator('[data-ops-report-kpi]')).toHaveCount(4);
+        await expect(page.locator('[data-ops-report-chart] svg[role="img"]')).toBeVisible();
+      }
       const nextDownload = page.waitForEvent('download');
       await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
       expect((await nextDownload).suggestedFilename()).toBe(`Tabelrapporten-${reportExport[locale.code]}.pdf`);

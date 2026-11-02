@@ -50,11 +50,15 @@ export function useGanttPointerCoordinator(
     updateTask,
     setTaskSplits,
     undo,
+    historyMark,
+    revertHistorySince,
+    endHistorySession,
     setScroll,
     openTask,
     clearHistogramTooltip,
     startVerticalRowDrag,
     isStartDrivenByPredecessor,
+    looseDayEndMilestone,
     notify,
     dateNotation,
     timeNotation,
@@ -65,9 +69,9 @@ export function useGanttPointerCoordinator(
   const view = viewport.effectiveView;
 
   const justBoxSelectedRef = useRef(false);
-  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen: de mouseup van
-  // dat gebaar levert op het canvas nog een click op, en die mag de zojuist verplaatste taak niet
-  // her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
+  // Gezet zodra een balkbody-sleep aan de rijsleep van de DOM-grid is overgedragen, of met Escape is
+  // afgebroken: de mouseup van dat gebaar levert op het canvas nog een click op, en die mag de zojuist
+  // verplaatste taak niet her-selecteren of (naast een balk) de selectie wissen. Gewist bij de eerstvolgende mousedown,
   // want eindigt de sleep boven de grid, dan komt er op het canvas helemaal geen click (zelfde
   // vangnet als `useTableRowDrag`'s `justDraggedRef`).
   const justRowDraggedRef = useRef(false);
@@ -113,12 +117,17 @@ export function useGanttPointerCoordinator(
     compressNonWorkdays,
     getTask,
     updateTask,
+    historyMark,
+    revertHistorySince,
+    endHistorySession,
+    suppressClickRef: justRowDraggedRef,
     onVerticalBodyDrag: startVerticalRowDrag ? onVerticalBodyDrag : undefined,
     axis: viewport.sharedAxis,
     canvasRef,
     setTaskSplits,
     barTopOf,
     isStartDrivenByPredecessor,
+    looseDayEndMilestone,
     notify,
     dateNotation,
     timeNotation,
@@ -390,8 +399,10 @@ export function useGanttPointerCoordinator(
         // De datums waarop de renderer de balk tekent (`shownStart`/`shownFinish`): de rechterrand van een lopende
         // taak rekent zo de duur vanaf haar werkelijke start, net als de Tabel-kolom Einde
         // (`taskEditPlan.durationForShownFinish`).
-        originalStart: shownStart(hit.task),
-        originalFinish: shownFinish(hit.task),
+        // Een ruit met maar één datum leent de andere kant, zoals de renderer hem tekent (`milestoneAnchorX`);
+        // voor elke andere hit staan beide datums er al (datumloos-guard in `getTaskBarBounds`).
+        originalStart: shownStart(hit.task) || shownFinish(hit.task),
+        originalFinish: shownFinish(hit.task) || shownStart(hit.task),
         originalDuration: hit.task.time.scheduleDuration,
         originalDurationMinutes: hit.task.time.durationMinutes,
       });

@@ -5,6 +5,7 @@ paths:
   - "src/services/recovery/recoverySnapshot.ts"
   - "src/services/xerExportLoss.ts"
   - "src/state/xerArchiveIssueNotice.ts"
+  - "src/state/xerExportNotice.ts"
   - "src/utils/xerDocumentName.ts"
   - "src/services/formatRegistry.ts"
   - "src/services/mcp/tools/xerProvenanceTools.ts"
@@ -100,3 +101,46 @@ recept en verboden omwegen in `scripts/README.md`; de cel-baseline per rekenprof
 `npm run test:browser:x11` legt lokaal (headed, met corpus en desktopdisplay) aanvullend schermbewijs vast;
 hij vervangt de corpusloze CI-poort niet.
 Gebruikersgidsen: `public/docs/{nl,en}/howto-xer-openen.md` en `uitleg-datums-zoals-opgeslagen.md`.
+
+### De XER-schrijver (#391)
+
+`src/services/xer/xerWriter.ts` (`writeXER`) schrijft een `.xer` uit de documentstate; `exportAs('xer')`
+in `fileSlice.ts` laadt hem lazy via `writeXerExport` (`formatRegistry.ts`, dezelfde chunkgrens als de
+lezer) en slaat de bytes op via `saveBytesDialog`. Het contract (invoer, uitvoer, verliescodes,
+`LOSS_ORDER`) staat buiten de lazy map in `src/services/xerWriteTypes.ts`. Vier regels:
+(1) **Verlies wordt geteld, nooit stil.** Elke soort die XER niet draagt, telt de writer als
+`XerWriteLoss` (vaste volgorde `LOSS_ORDER`); `state/xerExportNotice.ts` maakt er één melding met een
+detailregel per soort van. Een nieuw OPS-gegeven dat de writer niet schrijft, krijgt een eigen code én
+een `notifications.exportXerLossItem.*`-sleutel. De algemene XER-bronmelding (`xerExportLoss.ts`) valt
+bij `xer` weg; haar bron-categorieën worden de regel `sourceDetails`.
+(2) **Bak 2 en bak 4 alleen via catalogi.** De PROJECT-kolommen `plan_start_date`/`plan_end_date`/
+`critical_drtn_hr_cnt` staan in `XER_PROJECT_PLANNING_COLUMNS` (drie gepinde uitzonderingen in
+`check-xer-field-whitelist.ts`), de vastgelegde rekenuitvoer komt uit `XER_RECORDED_OUTPUT_COLUMNS` in
+`xerRecordedTimes.ts`. Schrijf nooit zo'n kolomnaam als letterlijke string.
+(3) **OPS-velden** (`xerOpsMarkers.ts`), op het urenmodel zoals P6 XML (`p6xmlWriter.ts`, `xmlDayMeasure.ts`;
+T13, T21, I7): duur, rest, lag en toewijzingsuren gaan via de helpers van `xmlDayMeasure.ts`, niet via
+`cal.hoursPerDay`. Tekst-UDF's: per activiteit (TASK) `OPS_TaskDurationUnit` en waar nodig de maatrecords
+`OPS_DayMeasureDurations`, `OPS_ExactMinutes` en `OPS_DayMeasureLags` (sleutel `voorganger-task_id:type`), en
+`OPS_InheritedWorkRule` voor een taak zonder eigen werkregel (ze erft weer zolang `duration_type` het token van die
+regel draagt en die regel de teruggelezen projectstandaard is);
+op PROJECT `OPS_DefaultWorkRule` (alleen gelezen zolang `def_duration_type` nog het geschreven token draagt);
+op RSRC `OPS_FlatCapacity` (een vaste capaciteit blijft vast zolang de resource één RSRCRATE-rij met precies
+die waarde heeft; anders een stap, zoals op main) en `OPS_CapacitySteps` (materiaalstappen staan per uur in
+`max_qty_per_hr`; het record per startdatum geeft de dagwaarde terug zolang de rij de geschreven waarde draagt).
+De herkenning is PER TAAK (T15, zoals `p6xmlReader.ts`):
+een activiteit zonder eenheidswaarde leest als op main en verandert de andere niet. Een bestand zonder OPS-UDF's
+leest precies als op main. `xerMetadata.ts` laat elke OPS-definitie weg uit de eigen velden. Er is geen
+kalendermarkering: kalenders lezen met de gewone regels (`xerCalendarData.ts` = main), dus een scalaire
+OPS-kalender komt terug als urenkalender met dezelfde banden. Tot F6 rekent de engine daar soms anders mee
+(P6-regels alleen op een kalender met eigen werkblokken); `check-xer-writer.ts` stelt de kalendersoort gelijk
+en telt de afwijkingen zonder die gelijkstelling in een notitie (knownbug 466). De export meldt het als verlies
+`calendarKinds` (één regel met het aantal kalenders). Zonder geldig record houdt de lezer de bronminuten
+(`readMeasure` met `keepSourceMinutes`): een echte breuk blijft, als op main. Pins: `check-xer-writer-review.ts` (R1, A, RB, RD, M, RE, R9–R11).
+(4) **Geplande datums** (`target_*`) = `scheduleStart`/`scheduleFinish` (het omgekeerde van de lezer),
+niet de berekende datums: onder P6-herkomst leest de lezer `target_*` als ondergrens.
+Codering: Windows-1252 (MPXJ-default, BEVESTIGD in de MPXJ-bron); past een teken niet, dan UTF-8 zonder BOM
+met een `nonLatinText`-verlies (hoe P6 dat leest is VERMOED, niet bewezen; knownbug 465). Project-ID zonder eigen code = de
+projectnaam (geen `OPS:`-code; `xerProjectCode` filtert niets; botsing: knownbug 463). Codes (activiteit, WBS per ouder, resource):
+eerst normaliseren, dan lengte (40) en uniciteit (`uniqueCode`). Bewijs: `tests/planning/check-xer-writer.ts` (rondgang, zelfde datums en
+speling na `solveProject`, XER → OPS → XER → OPS op `tests/browser/fixtures/xer`, byte-gelijke tweede en
+derde export). Een import in P6 zelf is niet getest.

@@ -213,6 +213,7 @@
     "screenColors_critical": "Критичен път",
     "screenColors_auto": "По задача — автоматично",
     "screenColors_category": "По категория",
+    "screenColorsNearCritical": "Почти критична",
     "screenColorsMissingField": "Това поле не съществува в този проект. Вид работа се използва временно.",
     "screenColorsHint": "Извън „Критичен път“ червен контур маркира критичния път.",
     "addLayout": "Създай оформление",
@@ -374,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "попълнете: от 0 до 100, допустими са десетични числа",
       "actualStart": "попълнете: действително начало (като дата)",
-      "actualFinish": "попълнете: действително завършване (като дата)"
-    },
-    "progressCsvLabel": "Лист за напредък (CSV)",
-    "progressCsvDesc": "Същият опростен лист за напредък като обикновен текст — за тези, които предпочитат работа с CSV.",
-    "progressCsvShort": "Напредък (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "попълнете: действително завършване (като дата)",
       "readOnly": "не променяйте",
       "plannedReadOnly": "планирано, не променяйте",
-      "completion": "попълнете: от 0 до 100, цели числа",
-      "actualStart": "попълнете: действително начало (дд-мм-гггг)",
-      "actualFinish": "попълнете: действително завършване (дд-мм-гггг)",
       "summaryRow": "— обобщаваща задача: не попълвайте"
     },
     "csvLabel": "CSV (разделени с точка и запетая)",
@@ -393,6 +386,7 @@
     "mspdiDesc": "За отваряне в Microsoft Project. Пълна WBS структура.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "profileHint": "Вашият проект в момента използва профила {{name}}. Препоръчваме профила {{target}} за най-добра съвместимост с този файлов формат.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт на buildingSMART, в IFC схемата на проекта (по подразбиране IFC 4.3 ADD2). 4D свързване с BIM модели.",
     "csvShort": "CSV (;)"

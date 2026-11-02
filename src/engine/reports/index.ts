@@ -9,3 +9,4 @@ export * from './resourceAssignments';
 export * from './wbsSummary';
 export * from './resourceGantt';
 export * from './dcmaAssessment';
+export * from './progressCurve';

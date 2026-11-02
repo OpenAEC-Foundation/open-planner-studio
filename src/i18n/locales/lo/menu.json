@@ -212,6 +212,7 @@
     "screenColors_critical": "ເສັ້ນທາງວິກິດ",
     "screenColors_auto": "ຕາມແຕ່ລະວຽກ — ອັດຕະໂນມັດ",
     "screenColors_category": "ຕາມໝວດໝູ່",
+    "screenColorsNearCritical": "ໃກ້ວິກິດ",
     "screenColorsMissingField": "ບໍ່ມີຫ້ອງຂໍ້ມູນນີ້ໃນໂຄງການນີ້. ລະບົບຈະໃຊ້ໝວດວຽກຊົ່ວຄາວ.",
     "screenColorsHint": "ນອກຈາກເສັ້ນທາງວິກິດແລ້ວ, ຂອບສີແດງຈະໝາຍບອກເສັ້ນທາງວິກິດໄວ້.",
     "addLayout": "ໂຄງຮ່າງການຈັດວາງໃໝ່",
@@ -372,17 +373,9 @@
     "progressXlsxNotes": {
       "completion": "ປ້ອນຂໍ້ມູນ: 0 ຫາ 100, ສາມາດໃສ່ຈຸດທົດສະນິຍົມໄດ້",
       "actualStart": "ປ້ອນຂໍ້ມູນ: ວັນທີເລີ່ມຕົ້ນຕົວຈິງ (ໃນຮູບແບບວັນທີ)",
-      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ໃນຮູບແບບວັນທີ)"
-    },
-    "progressCsvLabel": "ໃບຄວາມຄືບໜ້າ (CSV)",
-    "progressCsvDesc": "ແຜ່ນງານຄວາມຄືບໜ້າຂະໜາດກະທັດຮັດຮູບແບບດຽວກັນ ແຕ່ເປັນຂໍ້ຄວາມລ້າໆ — ສຳລັບຜູ້ທີ່ສະດວກເຮັດວຽກກັບ CSV.",
-    "progressCsvShort": "ຄວາມຄືບໜ້າ (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ໃນຮູບແບບວັນທີ)",
       "readOnly": "ຫ້າມແກ້ໄຂ",
       "plannedReadOnly": "ແຜນທີ່ວາງໄວ້, ຫ້າມແກ້ໄຂ",
-      "completion": "ປ້ອນຂໍ້ມູນ: 0 ຫາ 100, ຕົວເລກຖ້ວນ",
-      "actualStart": "ປ້ອນຂໍ້ມູນ: ວັນທີເລີ່ມຕົ້ນຕົວຈິງ (ວວ-ດດ-ປປປປ)",
-      "actualFinish": "ປ້ອນຂໍ້ມູນ: ວັນທີສຳເລັດຕົວຈິງ (ວວ-ດດ-ປປປປ)",
       "summaryRow": "— ວຽກສະຫຼຸບ: ຫ້າມປ້ອນຂໍ້ມູນ"
     },
     "csvLabel": "CSV (ຂັ້ນດ້ວຍຈໍ້າຈຸດ ;)",
@@ -391,6 +384,7 @@
     "mspdiDesc": "ເປີດໃນ Microsoft Project ໄດ້. ຮັກສາໂຄງສ້າງ WBS ຄົບຖ້ວນ.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "ສຳລັບ Oracle Primavera P6.",
+    "profileHint": "ໂປຣເຈັກຂອງທ່ານກຳລັງໃຊ້ໂປຣໄຟລ໌ “{{name}}” ຢູ່ຕອນນີ້. ພວກເຮົາແນະນຳໃຫ້ໃຊ້ໂປຣໄຟລ໌ “{{target}}” ເພື່ອຄວາມເຂົ້າກັນໄດ້ທີ່ດີທີ່ສຸດກັບຮູບແບບໄຟລ໌ນີ້.",
     "ifcLabel": "IFC",
     "ifcDesc": "ມາດຕະຖານ BuildingSMART, ໃນ schema IFC ຂອງໂຄງການ (ຄ່າເລີ່ມຕົ້ນ IFC 4.3 ADD2). ການເຊື່ອມໂຍງ 4D ກັບໂມເດວ BIM.",
     "csvShort": "CSV (;)"

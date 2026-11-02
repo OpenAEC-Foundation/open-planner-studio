@@ -1,3 +1,4 @@
+import { SCHEDULE_SHIFT_NOTICE_KEY } from '../scheduleShift';
 import { minuteModelTransition, minuteModelNotice, recordMinuteModelTransition, type MinuteModelTransition } from '../minuteModelTransition';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { castDraft } from 'immer';
@@ -103,6 +104,9 @@ function resetDocumentScopedUI(s: AppState): void {
   // Weigeringen horen bij het uitgaande document (eigenaarsbesluit 2026-10-19 5b): weg, en ze komen
   // niet terug bij terugwisselen. Echte fouten en infos blijven (`clearRefusals`).
   clearRefusals(s.ui);
+  // De uitleg na F5 noemt taken van het uitgaande document.
+  s.scheduleShift = null;
+  s.ui.notifications = s.ui.notifications.filter(n => n.dedupeKey !== SCHEDULE_SHIFT_NOTICE_KEY);
 }
 
 function publishActivation(s: AppState, activation: DocumentActivationMaterialization): void {

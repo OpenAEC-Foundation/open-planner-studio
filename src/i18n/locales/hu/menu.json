@@ -213,6 +213,7 @@
     "screenColors_critical": "Kritikus út",
     "screenColors_auto": "Tevékenységenként — automatikus",
     "screenColors_category": "Kategória szerint",
+    "screenColorsNearCritical": "Közel kritikus",
     "screenColorsMissingField": "Ez a mező nem létezik ebben a projektben. Átmenetileg a munkanem van használatban.",
     "screenColorsHint": "Ha nem a Kritikus út szerint színez, piros szegély jelöli a kritikus utat.",
     "addLayout": "Elrendezés létrehozása",
@@ -374,17 +375,9 @@
     "progressXlsxNotes": {
       "completion": "kitöltendő: 0–100, tizedes számok is megadhatók",
       "actualStart": "kitöltendő: tényleges kezdés (dátumként)",
-      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)"
-    },
-    "progressCsvLabel": "Előrehaladási lap (CSV)",
-    "progressCsvDesc": "Ugyanaz az egyszerű előrehaladási lap sima szövegként — azoknak, akik inkább CSV-vel dolgoznak.",
-    "progressCsvShort": "Előrehaladás (CSV)",
-    "progressCsvNotes": {
+      "actualFinish": "kitöltendő: tényleges befejezés (dátumként)",
       "readOnly": "ne módosítsa",
       "plannedReadOnly": "tervezett, ne módosítsa",
-      "completion": "kitöltendő: 0–100, egész számok",
-      "actualStart": "kitöltendő: tényleges kezdés (nn-hh-éééé)",
-      "actualFinish": "kitöltendő: tényleges befejezés (nn-hh-éééé)",
       "summaryRow": "— összefoglaló tevékenység: ne töltse ki"
     },
     "csvLabel": "CSV (pontosvesszővel tagolt)",
@@ -393,6 +386,7 @@
     "mspdiDesc": "Megnyitható a Microsoft Project-ben. Teljes WBS-szerkezet.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6-hoz.",
+    "profileHint": "A projekt jelenleg a {{name}} profillal számol. Ehhez a fájlformátumhoz a legjobb kompatibilitás érdekében a {{target}} profil használatát javasoljuk.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-szabvány, a projekt IFC-sémájában (alapértelmezés: IFC 4.3 ADD2). 4D-összekapcsolás BIM-modellekkel.",
     "csvShort": "CSV (;)"
