@@ -9,8 +9,8 @@
 // Mutatiebewijs: `visibleHelpArticles` de filter laten weglaten ⇒ 02/05/06 rood; de alias ook laten
 // volgen als het oude id nog bestaat ⇒ 09 rood; `headingSlug` de `&` laten houden ⇒ 20 rood; in
 // `helpArticleRegistry` de nl-body niet eisen ⇒ 41 rood.
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import {
   HELP_DOC_LANGS, articleLang, createHeadingSlugger, extractHeadingSlugs, headingSlug, helpArticleMatches,
@@ -22,7 +22,10 @@ import {
   getRegisteredHelpArticles, registerHelpArticles, resetRegisteredHelpArticles, subscribeRegisteredHelpArticles,
   type RegisteredHelpArticleInput,
 } from '@/utils/helpArticleRegistry';
-import { renderMiniMarkdown } from '@/utils/miniMarkdown';
+import { promptBlocksOf, renderMiniMarkdown } from '@/utils/miniMarkdown';
+import { PromptBlock } from '@/components/common/PromptBlock';
+import { HELP_DOCS_LANG_KEY, loadHelpArticlePrompt } from '@/utils/helpArticlePrompt';
+import { AI_CONNECTION_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
 const diffs: string[] = [];
 let checks = 0;
@@ -175,6 +178,64 @@ const promptBlocks = renderMiniMarkdown('```prompt\nDoe dit.\n\n- *niet* opgemaa
 eq('66 promptblok: eigen onderdeel met de letterlijke tekst, codeblok blijft pre',
   [typeof el(promptBlocks[0])?.type, el(promptBlocks[0])?.props.text, el(promptBlocks[1])?.type],
   ['function', 'Doe dit.\n\n- *niet* opgemaakt', 'pre']);
+
+// Eén bron voor de setup-prompt: het venster Verbindingsgegevens neemt het promptblok uit het Help-artikel
+// (`loadHelpArticlePrompt` → `promptBlocksOf`). 67: voor elk artikel in elke taal leest `promptBlocksOf`
+// precies de prompts die Help toont; 68: het AI-artikel heeft er in elke taal precies één.
+const docsRoot = resolve(process.cwd(), 'public/docs');
+const promptDiffs: string[] = [];
+const aiPromptCounts: Record<string, number> = {};
+for (const lang of readdirSync(docsRoot).filter(d => existsSync(join(docsRoot, d, 'index.json')) || d === 'nl' || d === 'en')) {
+  for (const file of readdirSync(join(docsRoot, lang)).filter(f => f.endsWith('.md'))) {
+    const md = readFileSync(join(docsRoot, lang, file), 'utf8');
+    const shown = renderMiniMarkdown(md, { onNavigate: () => {} }).map(el).filter(b => b?.type === PromptBlock).map(b => b!.props.text);
+    if (JSON.stringify(promptBlocksOf(md)) !== JSON.stringify(shown)) promptDiffs.push(`${lang}/${file}`);
+    if (file === `${AI_CONNECTION_HELP_ARTICLE_ID}.md`) aiPromptCounts[lang] = shown.length;
+  }
+}
+eq('67 promptBlocksOf leest dezelfde prompts als Help toont (alle artikelen, alle talen)', promptDiffs, []);
+eq('68 het AI-artikel heeft in elke taal precies één promptblok',
+  Object.entries(aiPromptCounts).filter(([, n]) => n !== 1).map(([l, n]) => `${l}: ${n}`), []);
+ok('68b het AI-artikel bestaat in nl, en en de vertaalde talen', Object.keys(aiPromptCounts).length >= 28);
+
+// 69: de taalkeuze van `loadHelpArticlePrompt` is die van Help (vastgezette docstaal, anders de UI-taal; buiten
+// de index of zonder promptblok Engels), met een nagemaakte fetch en localStorage.
+{
+  const files: Record<string, string> = {
+    '/b/docs/nl/x.md': '# X\n\n```prompt\nNL\n```\n',
+    '/b/docs/en/x.md': '# X\n\n```prompt\nEN\nregel 2\n```\n',
+    '/b/docs/de/index.json': '{"x":{"title":"X"}}',
+    '/b/docs/de/x.md': '# X\n\n```prompt\nDE\n```\n',
+    '/b/docs/fr/index.json': '{}',
+    '/b/docs/fr/x.md': '# X\n\n```prompt\nFR (niet in de index)\n```\n',
+    '/b/docs/sv/index.json': '{"x":{"title":"X"}}',
+    '/b/docs/sv/x.md': '# X\n\nNog zonder promptblok.\n',
+    '/b/docs/nl/y.md': '# Y\n\nGeen prompt.\n',
+    '/b/docs/en/y.md': '# Y\n\nNo prompt.\n',
+  };
+  const g = globalThis as unknown as { fetch: unknown; localStorage: unknown };
+  const realFetch = g.fetch;
+  const store = new Map<string, string>();
+  g.localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v), removeItem: (k: string) => store.delete(k) };
+  g.fetch = (url: string) => {
+    const body = files[url];
+    return Promise.resolve(body === undefined
+      ? { ok: false, status: 404, text: async () => '', json: async () => null }
+      : { ok: true, status: 200, text: async () => body, json: async () => JSON.parse(body) as unknown });
+  };
+  const load = (ui: string) => loadHelpArticlePrompt('x', ui, '/b/');
+  const got = [await load('nl'), await load('en'), await load('de'), await load('fr'), await load('sv'), await load('xx')];
+  store.set(HELP_DOCS_LANG_KEY, 'nl');
+  got.push(await load('de'));
+  store.set(HELP_DOCS_LANG_KEY, 'geen-taal');
+  got.push(await load('de'));
+  store.clear();
+  got.push(await loadHelpArticlePrompt('y', 'nl', '/b/'));
+  got.push(await loadHelpArticlePrompt('bestaat-niet', 'nl', '/b/').catch(() => 'fout'));
+  g.fetch = realFetch;
+  eq('69 setup-prompt in de taal van Help (nl, en, de, fr→en, sv→en, xx→en, vast nl, ongeldig vast, zonder prompt, ontbreekt)', got,
+    ['NL', 'EN\nregel 2', 'DE', 'EN\nregel 2', 'EN\nregel 2', 'EN\nregel 2', 'NL', 'DE', null, 'fout']);
+}
 
 // 9. De viewer gebruikt deze regels echt, met drafts alleen in dev.
 const panel = readFileSync(resolve(process.cwd(), 'src/components/backstage/HelpPanel.tsx'), 'utf8');

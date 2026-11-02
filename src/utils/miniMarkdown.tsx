@@ -9,7 +9,7 @@
 //   - paragrafen (regels gescheiden door een lege regel)
 //   - **vet**, *cursief*, inline `code`
 //   - codeblokken (```), en promptblokken (```prompt): een tekst om in een AI-assistent te plakken,
-//     getoond als leesbare tekst met de knop *Prompt kopiëren* (zie `MiniMarkdownPrompt`)
+//     getoond als leesbare tekst met de knop *Prompt kopiëren* (`PromptBlock`; `promptBlocksOf` leest ze)
 //   - ongeordende (- / *) en geordende (1.) lijsten
 //   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
 //     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
@@ -30,10 +30,8 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Check, Copy } from 'lucide-react';
 import { createHeadingSlugger, resolveHelpImagePath } from '@/utils/helpManifest';
-import { copyViaTextarea, useCopyFeedback } from '@/hooks/useCopyFeedback';
+import { PromptBlock } from '@/components/common/PromptBlock';
 
 /** Standaard: een `public/docs`-pad, `{lang}` = en. */
 function defaultResolveImage(src: string): string {
@@ -71,6 +69,36 @@ export function extractHeadings(source: string): string[] {
   return headings;
 }
 
+/** Eén codeblok vanaf de openingsregel `lines[start]`: de openingsregel (getrimd), de regels ertussen
+ *  en de index na de sluitende ``` (ontbreekt die, dan het einde van de tekst). */
+function readFence(lines: string[], start: number): { opener: string; body: string; next: number } {
+  const body: string[] = [];
+  let i = start + 1;
+  while (i < lines.length && !FENCE_RE.test(lines[i].trim())) {
+    body.push(lines[i]);
+    i++;
+  }
+  return { opener: lines[start].trim(), body: body.join('\n'), next: i + 1 };
+}
+
+/**
+ * De promptblokken (```prompt) van een artikel, in volgorde, precies zoals `renderMiniMarkdown` ze
+ * toont. Een alinea of lijst slokt nooit een ```-regel op, dus elke ```-regel buiten een codeblok
+ * opent er een. Het venster Verbindingsgegevens haalt zo zijn prompt uit het Help-artikel.
+ */
+export function promptBlocksOf(source: string): string[] {
+  const lines = source.replace(/\r\n/g, '\n').split('\n');
+  const prompts: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!FENCE_RE.test(lines[i].trim())) { i++; continue; }
+    const fence = readFence(lines, i);
+    if (fence.opener === PROMPT_FENCE) prompts.push(fence.body);
+    i = fence.next;
+  }
+  return prompts;
+}
+
 function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: string; resolveImage?: (src: string) => string }) {
   const [failed, setFailed] = useState(false);
   // Een resolver mag `''` teruggeven voor "bestaat niet" (bv. een ontbrekende extensie-asset).
@@ -85,37 +113,6 @@ function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: strin
   }
 
   return <img className="help-image" src={resolved} alt={alt} onError={() => setFailed(true)} />;
-}
-
-/**
- * Een prompt om in een AI-assistent te plakken: de tekst zelf, selecteerbaar, en een kopieerknop.
- * Zonder klembord-API (de dev-server via http is geen secure context) kopieert de knop via een
- * verborgen textarea; lukt ook dat niet, dan zegt de melding dat de gebruiker zelf kopieert.
- */
-function MiniMarkdownPrompt({ text }: { text: string }) {
-  const { t } = useTranslation('menu');
-  const { copiedKey, copy, markCopied } = useCopyFeedback(4000);
-
-  const onCopy = async () => {
-    if (await copy(text)) return;
-    markCopied(copyViaTextarea(text) ? 'copied' : 'failed');
-  };
-
-  return (
-    <div className="help-prompt" data-help-prompt="">
-      <div className="help-prompt-bar">
-        <button type="button" className="btn btn--sm btn--primary help-prompt-copy" onClick={() => { void onCopy(); }}>
-          {copiedKey === 'copied' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
-          {t('backstage.helpCopyPrompt')}
-        </button>
-        <span className="help-prompt-status" role="status">
-          {copiedKey === 'copied' && t('backstage.helpPromptCopied')}
-          {copiedKey === 'failed' && t('backstage.helpPromptCopyFailed')}
-        </span>
-      </div>
-      <pre className="help-prompt-text">{text}</pre>
-    </div>
-  );
 }
 
 function renderLink(label: ReactNode, href: string, handlers: MiniMarkdownHandlers, key: string): ReactNode {
@@ -200,20 +197,15 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
 
     // Codeblok
     if (FENCE_RE.test(line.trim())) {
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !FENCE_RE.test(lines[i].trim())) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      i++; // sluitende ``` overslaan (indien aanwezig)
-      if (line.trim() === PROMPT_FENCE) {
-        blocks.push(<MiniMarkdownPrompt key={`b${key++}`} text={codeLines.join('\n')} />);
+      const fence = readFence(lines, i);
+      i = fence.next;
+      if (fence.opener === PROMPT_FENCE) {
+        blocks.push(<PromptBlock key={`b${key++}`} text={fence.body} />);
         continue;
       }
       blocks.push(
         <pre className="help-code-block" key={`b${key++}`}>
-          <code>{codeLines.join('\n')}</code>
+          <code>{fence.body}</code>
         </pre>
       );
       continue;

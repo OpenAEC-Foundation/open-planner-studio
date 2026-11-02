@@ -543,6 +543,8 @@
     "connect": "Connect",
     "connectHint": "Shows the connection details: endpoint, token, configuration snippet and connection prompt.",
     "connectionDetailsTitle": "Connection details",
+    "setupPrompt": "Let Claude do it",
+    "setupPromptHint": "For Claude Desktop and Claude Code. Paste the prompt into a new chat. Claude then installs the extension itself. You do not need a token for it.",
     "endpoint": "Endpoint",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Authentication",

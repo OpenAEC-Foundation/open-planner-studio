@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check, RefreshCw, Eye, EyeOff, Plug } from 'lucide-react';
 import { useAppStore } from '@/state/appStore';
@@ -10,6 +10,7 @@ import { RibbonButton, RibbonCompactTrigger } from '@/components/layout/Ribbon/r
 import { Popover } from '@/components/common/Popover';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
+import { isTauri } from '@/utils/platform';
 
 /**
  * AI-ribbontab — groep **Verbinding**:
@@ -71,6 +72,15 @@ export function AiConnectionGroup() {
 
   // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
   const portLocked = serverState === 'live';
+
+  // Alleen op de dev-server: `?mcp=connect` (docs/dev-link.md) opent dit venster meteen, zodat een
+  // check niet langs het lint hoeft. De import valt uit elke productiebouw.
+  useEffect(() => {
+    if (!import.meta.env.DEV || isTauri()) return;
+    void import('@/utils/devOpenLink').then(({ takeDevConnectionDetails }) => {
+      if (takeDevConnectionDetails()) setShowDetails(true);
+    });
+  }, []);
 
   const onPortChange = (raw: string) => {
     const n = parseInt(raw, 10);

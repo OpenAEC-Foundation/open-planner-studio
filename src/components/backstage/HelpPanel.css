@@ -142,36 +142,7 @@
   white-space: pre;
 }
 
-/* Promptblok (```prompt): leesbare tekst om in een AI-assistent te plakken, met een kopieerknop. */
-.help-prompt {
-  border: 1px solid var(--theme-border);
-  border-radius: var(--radius-md);
-  background: var(--theme-surface-alt);
-  margin: 0 0 var(--sp-3, 10px) 0;
-}
-.help-prompt-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-3, 10px);
-  padding: var(--sp-3, 10px) var(--sp-4, 12px);
-  border-bottom: 1px solid var(--theme-border);
-}
-.help-prompt-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2, 6px);
-}
-.help-prompt-status { color: var(--theme-text-dim); }
-.help-prompt-text {
-  margin: 0;
-  padding: var(--sp-3, 10px) var(--sp-4, 12px);
-  max-height: 18em;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  font-family: inherit;
-  font-size: var(--text-body);
-}
+/* Promptblok (```prompt): zie src/components/common/PromptBlock.css. */
 
 .help-link {
   background: none;

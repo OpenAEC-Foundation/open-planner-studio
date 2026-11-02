@@ -72,8 +72,9 @@ De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat
 3. Het token staat verborgen. Met het oog-pictogram toon je het. De kopieerknoppen kopiëren altijd de echte waarde, ook als het scherm het token verbergt.
 4. Laat de MCP-client de lijst met tools opvragen. Die controle staat ook in de koppelprompt: hij hoort de tools met het voorvoegsel `planner_` te zien; het verwachte aantal staat in de koppelprompt.
 
-Het venster biedt drie manieren om te koppelen:
+Het venster biedt vier manieren om te koppelen:
 
+- *Laat Claude het regelen*: dezelfde prompt als bovenaan dit artikel, met de knop *Prompt kopiëren*. Dit is voor Claude Desktop en Claude Code. Je hebt er geen token voor nodig.
 - *Configuratiefragment*: een stukje configuratie dat je in de MCP-instellingen van je client plakt.
 - *Koppelprompt*: een tekst die je in je MCP-client plakt, waarna die zichzelf koppelt.
 - *Endpoint* en *Authenticatie*: de losse gegevens. Het endpoint is `http://localhost:3877/mcp` met transport *streamable HTTP*. Bij elke aanvraag hoort een header `Authorization: Bearer` gevolgd door je token. Je client moet ook MCP-sessies ondersteunen: de bridge geeft bij het verbinden een sessiecode in de header `Mcp-Session-Id`, en weigert elke latere aanvraag zonder die code. Claude Code en `mcp-remote` doen dat vanzelf.

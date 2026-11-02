@@ -72,8 +72,9 @@ The bridge only listens on your own computer, on one port. By default that is 38
 3. The token is hidden. With the eye icon you show it. The copy buttons always copy the real value, even if the screen hides the token.
 4. Have the MCP client request the list of tools. That check is also in the connection prompt: it should see the tools with the prefix `planner_`; the expected number is in the connection prompt.
 
-The window offers three ways to connect:
+The window offers four ways to connect:
 
+- *Let Claude do it*: the same prompt as at the top of this article, with the button *Copy prompt*. This is for Claude Desktop and Claude Code. You do not need a token for it.
 - *Configuration snippet*: a piece of configuration that you paste into the MCP settings of your client.
 - *Connection prompt*: a text that you paste into your MCP client, after which it connects itself.
 - *Endpoint* and *Authentication*: the separate details. The endpoint is `http://localhost:3877/mcp` with transport *streamable HTTP*. Every request needs a header `Authorization: Bearer` followed by your token. Your client must also support MCP sessions: when it connects, the bridge gives a session code in the header `Mcp-Session-Id`, and it refuses every later request without that code. Claude Code and `mcp-remote` do this by themselves.
