@@ -92,7 +92,7 @@ Wat als het anders is?
 
 ## Gevolgen en misverstanden
 
-**Een verschil is geen importfout.** De app rekent met haar eigen regels: bij een `.xer` met het rekenprofiel *Primavera P6*, bij een `.mpp` met *Microsoft Project*, bij CSV, MS Project XML en Primavera P6 XML met *Open Planner Studio*. Waarom de datums in het bronpakket anders uitkwamen, kan aan het bestand liggen of aan het pakket. De weergave laat je zien dát ze afwijken.
+**Een verschil is geen importfout.** De app rekent met haar eigen regels: bij een `.xer` en Primavera P6 XML met het rekenprofiel *Primavera P6*, bij een `.mpp` met *Microsoft Project*, bij CSV en MS Project XML met *Open Planner Studio*. Waarom de datums in het bronpakket anders uitkwamen, kan aan het bestand liggen of aan het pakket. De weergave laat je zien dát ze afwijken.
 
 **De weergave is geen rekenuitkomst.** De app heeft de datums niet uitgerekend. Neem ze niet zonder meer over als uitkomst van je eigen planning.
 

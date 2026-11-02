@@ -28,6 +28,8 @@ import { solveProject } from '@/engine/scheduler/solveProject';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
 import { installDOMParser } from './xmldom-shim';
 import { opsSolveInput } from './legacySolveOptions';
+import { p6SchedulingRulesDiffer } from '@/services/p6SchedulingRules';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 
 installDOMParser();
 
@@ -129,7 +131,10 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   // `task.resourceIds` is een projectie van de toewijzingen; elke lezer met toewijzingen moet hem
   // vullen (de P6- en MSPDI-lezer lieten hem leeg, de IFC- en MPP-lezer niet).
   eq('P6 resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
-  eq('P6XML zonder bronwaarde introduceert geen schedulingOptions', p.project.schedulingOptions, undefined);
+  // Sinds #775 schrijft P6 XML <ScheduleOptions> en leest hij ze zoals een XER: het profiel is P6, en de
+  // lagkalender is wat de schrijver schreef (de standaard, voorganger).
+  eq('P6XML opent met het P6-profiel en de geschreven lagkalender (#775)',
+    [p.project.schedulingProfile?.baseId, p.project.schedulingOptions?.lagCalendar], ['p6', 'predecessor']);
 }
 {
   const p = readMSPDI(writeMSPDI(project, H8, tasks, sequences, resources, assignments, lib));
@@ -590,13 +595,14 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(warns.some(w => w.includes('secundaire constraint')), 'MSPDI secundair → weggelaten-warn');
   }
 
-  // (f) OPS_Hammock-pset: IFC round-trippt isHammock; P6/MSPDI laten 'm vallen (gewone taak) + warn.
+  // (f) OPS_Hammock-pset: IFC round-trippt isHammock, P6 XML als Level of Effort (#775); MSPDI laat 'm vallen
+  //     (gewone taak) + warn.
   {
     const tk = mkT({ isHammock: true });
     eq('IFC hammock round-trip', readT('IFC', tk).isHammock, true);
     const { out: p6Tk, warns: pw } = withWarns(() => readP6XML(writeP6XML(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
-    eq('P6 hammock valt weg (gewone taak)', p6Tk.isHammock ?? false, false);
-    assert(pw.some(w => w.includes('hammock')), 'P6 hammock → warn');
+    eq('P6 hammock round-trip als Level of Effort (#775)', p6Tk.isHammock ?? false, true);
+    assert(!pw.some(w => w.includes('hammock')), 'P6 hammock → geen warn');
     const { out: mspTk, warns: mw } = withWarns(() => readMSPDI(writeMSPDI(dayProj, dayCal, tk, [], [], [])).tasks.find(t => t.name === 'X')!);
     eq('MSPDI hammock valt weg (gewone taak)', mspTk.isHammock ?? false, false);
     assert(mw.some(w => w.includes('hammock')), 'MSPDI hammock → warn');
@@ -604,7 +610,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 
   // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI criticalDefinition.threshold via
   //     CriticalSlackLimit en de lagkalender via `OPS_LagCalendar` (F5a-2, review #585 r1 punt 1; rest
-  //     weggelaten + warn); P6 alleen de lagkalender via de project-UDF `OPS_LagCalendar` + warn.
+  //     weggelaten + warn); P6 XML de opties die P6 kent via <ScheduleOptions> (#775); wat P6 niet kent,
+  //     meldt de exportmelding (`p6SchedulingRulesDiffer`).
   {
     const so = {
       criticalDefinition: { mode: 'totalFloat' as const, threshold: 2 },
@@ -631,8 +638,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     }
     assert(!tfOnly().warns.some(w => w.includes('totalFloatMode')), 'MSPDI zonder totalFloatMode (automatisch) → geen warn');
     const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
-    eq('P6 schedulingOptions: alleen de lagkalender (OPS_LagCalendar)', p6Back ?? null, { lagCalendar: 'successor' });
-    assert(pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions-verlies-warn');
+    // 2 d drempel × 8 u per dag = 16 u (P6 rekent de drempel in uren).
+    eq('P6 schedulingOptions: lagkalender, drempel en float paths via <ScheduleOptions> (#775)',
+      [p6Back?.lagCalendar, p6Back?.criticalDefinition, p6Back?.floatPaths],
+      ['successor', { mode: 'totalFloat', thresholdHours: 16 }, so.floatPaths]);
+    assert(!pw.some(w => w.includes('scheduling-opties')), 'P6 schedulingOptions: geen schrijverwarn meer');
+    assert(p6SchedulingRulesDiffer(proj2, effectiveSchedulingOptions(proj2), tk),
+      'P6 schedulingOptions: de exportmelding meldt het verlies (OPS-profiel, speling automatisch)');
   }
 }
 

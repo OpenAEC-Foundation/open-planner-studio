@@ -523,6 +523,8 @@ function astFieldHits(fileName: string, text: string, fields: readonly string[])
         waarom: 'SCHRIJVER, PROJECT-tabel: het projecteinde bij useProjectEndDateForFloat, geen celtoegang (#391)' },
       { file: 'services/xer/xerWriter.ts', field: 'critical_drtn_hr_cnt', context: 'catalog:XER_PROJECT_PLANNING_COLUMNS', count: 1,
         waarom: 'SCHRIJVER, PROJECT-tabel: de kritiek-drempel in uren, geen celtoegang (#391)' },
+      { file: 'services/p6/p6xmlScheduleOptions.ts', field: 'critical_drtn_hr_cnt', context: 'other:PropertyAssignment', count: 1,
+        waarom: 'P6 XML-LEZER, nagebouwde PROJECT-rij: CriticalActivityFloatLimit (invoer) als kritiek-drempel voor dezelfde afleiding als XER, geen celtoegang (#775)' },
     ];
     const bak4Eigenaar = 'services/xer/xerRecordedTimes.ts';
     const gezien = new Map<Uitzondering, number>();
