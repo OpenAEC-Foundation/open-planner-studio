@@ -427,10 +427,6 @@ en noem het in je rapport of PR-tekst.
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
 
-241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
-     de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
-     Gevonden in fixronde 1 van F2 (laadfix). — B
-
 281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
      houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
      `check-f4b-review-r1.ts`). In uurmodus, de gewone route, rekent de motor `lagDays` × werktijd per dag
