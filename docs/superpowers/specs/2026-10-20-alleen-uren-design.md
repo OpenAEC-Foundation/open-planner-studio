@@ -977,7 +977,7 @@ Zo zette de meting het ook om.
     tabel toont "06-06-2026".
   - *Daartussen de geplande kloktijd*: de afstand tot middernacht van de werkdag van de planning, op de getypte
     dag. Ma 10:00, afgemeld op wo, wordt wo 10:00. Eindigt de dienst van de getypte dag vóór die kloktijd, dan
-    geldt de tweede aanvulling van Ethan; begint hij erna, dan de uitwerking door de orkestrator (beide
+    geldt de tweede aanvulling van Ethan; begint hij erna, dan de derde aanvulling van Ethan (beide
     hieronder).
   - **Tweede aanvulling van Ethan: de dienst eindigt vóór de geplande kloktijd** (Ethan, 2026-10-29; de tekst staat
     één keer letterlijk in §8 onder B10, *Tweede aanvulling*; voorheen knownbug 450). Ligt de mijlpaal midden in
@@ -989,20 +989,28 @@ Zo zette de meting het ook om.
     in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel
     toont "05-06-2026"; met statusdatum vr mag de invoer, met statusdatum do niet. In de code is dit regel 3 van
     `milestoneMomentOn`.
-  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724):
+  - **Derde aanvulling van Ethan: de dienst begint na de geplande kloktijd** (besluit van Ethan, 2 november 2026,
+    knownbug 504; letterlijk: "doe dit maar"; hij koos het begin van de dienst boven het houden van de geplande
+    kloktijd). Dit is geen uitwerking meer. Opdrachten van fixronde 3 en 5 van #724 bouwden het al zo.
     - Begint de dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst
       (fixronde 5). Voorbeeld: ma 04:00–08:00, een mijlpaal op ma 06:00, afgemeld op een dag met dienst
       07:00–16:00, wordt 07:00 die dag. Bij ma 04:00–08:00 en di–vr 22:00–06:00 wordt dezelfde mijlpaal, afgemeld
       met `02-06-2026`, di 22:00; de tabel toont "02-06-2026". Regel 4 van `milestoneMomentOn`.
+  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdracht fixronde 3 van #724):
     - Valt de kloktijd binnen de werkspanne van de getypte dag, maar in de dienst van een **andere** werkdag (alleen
       bij diensten die elkaar overlappen), dan gaat "de dag komt van wat je typt" voor: het moment komt op de rand
       van de getypte werkdag die het dichtst bij ligt (fixronde 3). Het eerdere voorbeeld (ma–do 22:00–06:00,
       vr 22:00–02:00, za 04:00–12:00; di 05:00 afgemeld op vr ⇒ za 02:00) valt sinds fixronde 5 onder de tweede
       aanvulling: za 05:00 ligt ook na het einde van de vrijdagdienst. De uitkomst blijft za 02:00.
-  - De tweede aanvulling en deze uitwerking gelden alleen midden in de dienst: binnen de werkspanne van de werkdag
-    van de planning. Een gepland moment buiten die spanne, zoals een handmatig anker om 18:00 bij 07:00–16:00,
-    houdt de kloktijd zoals het besluit zelf zegt: ma 18:00, afgemeld op vr, wordt vr 18:00 (keuze van de bouwer
-    in fixronde 5, gemeld in #724: geen van de aanvullingen noemt zo'n moment).
+  - De tweede en derde aanvulling gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de
+    planning.
+  - **Vierde aanvulling van Ethan: buiten de werkspanne** (besluit van Ethan, 2 november 2026, knownbug 503, optie 1;
+    vervangt de keuze van de bouwer in fixronde 5 van #724, die de kloktijd hield). Lag de mijlpaal buiten de
+    werktijd, zoals bij een handmatig anker of een import, dan krijgt hij bij afmelden met alleen een datum de
+    dichtstbijzijnde rand van de dienst van de getypte dag. Lag hij na de dienst, dan het einde; lag hij ervoor, dan
+    het begin. Voorbeeld: ma–do 07:00–16:00 en vr 07:00–12:00; *Oplevering* op ma 18:00, afgemeld met
+    5 juni, wordt vr 12:00; op ma 05:00 wordt het vr 07:00. Binnen de dienst blijft de derde aanvulling gelden. In
+    de code is dit regel 6 van `milestoneMomentOn`; de test is sectie 8h van `check-mijlpaal-afmelden.ts`.
   - **Een geval dat besluit en uitwerking niet dekken** (keuze van de bouwer in fixronde 3 van #724, niet
     besloten; gemeld in de PR; knownbug 501). Ook hier gaat "de dag komt van wat je typt" voor; anders toont de
     tabel een andere dag en weigert de statusregel de statusdag. De rand van de getypte dag is ook een rand van
