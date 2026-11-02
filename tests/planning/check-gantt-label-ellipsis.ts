@@ -42,6 +42,7 @@ const OUTSIDE_GAP = 8 + 6;
 const OUTSIDE_MAX = 260;
 
 interface TextCall { text: string; x: number; y: number }
+const rijY = (r: { top: number; bottom: number }) => (t: TextCall) => t.y > r.top && t.y < r.bottom;
 function makeCtx(): { ctx: CanvasRenderingContext2D; texts: TextCall[] } {
   const texts: TextCall[] = [];
   const noop = () => {};
@@ -124,12 +125,16 @@ if (rectKort && rectLang) {
   // Het lange label past van geen kant: dat is de hele opzet van deze check.
   ok('opzet: de lange naam past niet in de balk', LANG.length * CHAR_W > maxW);
 
-  const labelKort = texts.find((t) => Math.abs(t.x - (rectKort.left + 6)) < 0.001 && t.text.startsWith('Fund'));
-  const labelLang = texts.find((t) => Math.abs(t.x - (rectLang.right + OUTSIDE_GAP)) < 0.001 && t.text.startsWith('Sheet'));
+  // De samenvattingen dragen dezelfde namen en x-posities. Alleen de eigen rij bewijst dat
+  // de gewone taak haar label heeft; de fase twee rijen lager mag dat niet overnemen (#473).
+  const kortTeksten = texts.filter(rijY(rectKort));
+  const langTeksten = texts.filter(rijY(rectLang));
+  const labelKort = kortTeksten.find((t) => Math.abs(t.x - (rectKort.left + 6)) < 0.001 && t.text.startsWith('Fund'));
+  const labelLang = langTeksten.find((t) => Math.abs(t.x - (rectLang.right + OUTSIDE_GAP)) < 0.001 && t.text.startsWith('Sheet'));
 
   ok('korte naam: label in de balk getekend', labelKort !== undefined);
-  ok(`lange naam: label rechts naast de balk getekend (teksten: ${JSON.stringify(texts.map(t => [t.text.slice(0, 12), t.x]))})`, labelLang !== undefined);
-  ok('lange naam: GEEN afgekapt label meer in de balk', !texts.some((t) => Math.abs(t.x - (rectLang.left + 6)) < 0.001 && t.text.startsWith('Sheet')));
+  ok(`lange naam: label rechts naast de balk getekend (teksten op eigen rij: ${JSON.stringify(langTeksten.map(t => [t.text.slice(0, 12), t.x]))})`, labelLang !== undefined);
+  ok('lange naam: GEEN afgekapt label meer in de balk', !langTeksten.some((t) => Math.abs(t.x - (rectLang.left + 6)) < 0.001 && t.text.startsWith('Sheet')));
 
   if (labelKort) {
     ok('korte naam blijft ONGEWIJZIGD (geen ellips)', labelKort.text === KORT);
@@ -161,7 +166,6 @@ if (rectKort && rectLang) {
   ok(`opzet: rijhoogte ${ROWH} px (${rectLang.top - rectKort.top})`, rectLang.top - rectKort.top === ROWH);
   const rectSumKort = rijOnder(rectKort, 2);
   const rectSumLang = rijOnder(rectKort, 3);
-  const rijY = (r: { top: number; bottom: number }) => (t: TextCall) => t.y > r.top && t.y < r.bottom;
   const teksten = (r: { top: number; bottom: number }) => texts.filter(rijY(r));
   const fmt = (r: { top: number; bottom: number }) => JSON.stringify(teksten(r).map(t => [t.text.slice(0, 12), t.x]));
   // Zelfde datums als de gewone taak 'kort', waar de korte naam wél in de balk staat.
