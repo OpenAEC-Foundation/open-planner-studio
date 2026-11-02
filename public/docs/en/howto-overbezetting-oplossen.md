@@ -71,7 +71,7 @@ If you want to decide yourself which task stays, give it a higher priority. Righ
 
 **Leveling does not adapt.** The delays stay as they were calculated. If you change a task's duration later, a leveled task stays where it is, even if that place is no longer needed. Level again then.
 
-**A leveled task has less float.** Leveling uses float. The shifted task then has less or no float left and can become critical.
+**Float after leveling.** Leveling can use up float. A shifted task can then have less or no float left and become critical. If the project finish moves, the float of a task can grow instead. So look at *Total float* again after applying.
 
 **Overallocated because of the calendar.** If the resource does not work on a day according to its calendar, the *Warnings* panel says, for example, *Overallocated on 5 day(s) (29-06-2027 – 05-07-2027), of which 1 day(s) the resource does not work per its calendar*. If a task always runs across such a day, which is the second reason above, leveling does not resolve that.
 

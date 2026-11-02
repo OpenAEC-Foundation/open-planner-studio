@@ -71,7 +71,7 @@ Wil je zelf bepalen welke taak blijft staan, geef die dan een hogere prioriteit.
 
 **Nivelleren past zich niet aan.** De vertragingen blijven staan zoals ze berekend zijn. Wijzig je later de duur van een taak, dan blijft een genivelleerde taak op zijn plek, ook als die plek nu niet meer nodig is. Nivelleer dan opnieuw.
 
-**Een genivelleerde taak heeft minder speling.** Nivelleren gebruikt speling. De verschoven taak heeft daarna minder of geen speling meer en kan kritiek worden.
+**Speling na nivelleren.** Nivelleren kan speling opgebruiken. Een verschoven taak kan daarna minder of geen speling hebben en kritiek worden. Schuift het projecteinde op, dan kan de speling van een taak juist groter worden. Kijk daarom na het toepassen opnieuw naar *Totale speling*.
 
 **Overbezet door de kalender.** Werkt de resource op een dag niet volgens zijn kalender, dan meldt het paneel *Waarschuwingen* bijvoorbeeld *Overbezet op 5 dag(en) (29-06-2027 – 05-07-2027), waarvan 1 dag(en) waarop de resource niet werkt volgens zijn kalender*. Loopt een taak altijd over zo'n dag heen, wat de tweede reden hierboven is, dan lost nivelleren dat niet op.
 
