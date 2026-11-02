@@ -11,14 +11,17 @@
 //
 // Voorbeeld uit het besluit (sectie 4): Installatie staat gepland op 1 maart en mag uiterlijk op
 // 15 maart beginnen. De ruwbouw krijgt dan 10 werkdagen speling, niet 0.
-import { readExternalSource } from '@/state/externalSource';
+import { externalSourceFromImport, readExternalSource } from '@/state/externalSource';
 import { createAppStoreContext } from '@/state/appStore';
 import { refreshExternalAnchors, sourceAnchorDate } from '@/engine/externalLinks';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { IFC_TASKTIME_SLOTS, TASKTIME_SLOT } from '@/services/ifc/ifcTaskSlots';
+import { taskArgs } from '../fixtures/recordedDatesIfc';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
-import { computedStart } from '@/utils/taskDates';
+import { computedFinish, computedStart } from '@/utils/taskDates';
 import type { FormatIO } from '@/services/formatRegistry';
 import type { ExternalLink, Task } from '@/types/task';
 import { installDOMParser } from './xmldom-shim';
@@ -164,6 +167,174 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
   o().runCPM();
   eq('4e met het anker op de laatst toelaatbare start: 10 werkdagen speling, laatste einde 12 maart',
     [shellTask().time.totalFloat, shellTask().time.lateFinish], [10, '2027-03-12T16:00']);
+}
+
+/** Leest `text` als bron via het laadpad van de app (`readExternalSource`), vanaf `path`. */
+const memorySource = (path: string, text: string) => readExternalSource(path, {
+  readTextFile: async () => text,
+  readFile: async () => new TextEncoder().encode(text),
+});
+/** Eigen planning: Ruwbouw (20 d) en Afbouw (40 d, begrenst het projecteinde niet), met de
+ *  koppelingen `links` op de ruwbouw. Ververst uit `path` en rekent; geeft de ruwbouw terug. */
+async function refreshShell(path: string, text: string, links: ExternalLink[]) {
+  const own = createAppStoreContext().store;
+  const o = () => own.getState();
+  own.setState({ parseExternalSource: async () => memorySource(path, text) });
+  o().newProject();
+  o().setProject({ startDate: '2027-02-01' });
+  const shell = o().addTask({ name: 'Ruwbouw', time: createDefaultTaskTime('2027-02-01', 20, 'days') });
+  o().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2027-02-01', 40, 'days') });
+  o().updateTask(shell, { externalLinks: links });
+  const result = await o().refreshExternalAnchorsFrom(path);
+  o().runCPM();
+  const task = o().tasks.find(t => t.id === shell)!;
+  return { result, task, anchors: Object.fromEntries(task.externalLinks!.map(l => [l.id, l.anchorDate])) };
+}
+
+// (5) Review #794 ronde 1, punt 1: een bronbestand ZONDER late datums, via het laadpad van de app.
+// Het laadpad rekent de bron door, dus de brontaak heeft daarna wél late datums. Die komen dan uit
+// onze berekening, niet uit het bestand; het anker moet de vroege datum blijven (het besluit).
+// Bron: een IFC uit een ander pakket (vaste id's, dus "Bron vernieuwen" vindt de taak terug), met
+// Installatie 1–5 maart en een langere Leidingwerk 1–19 maart, beide vóór Oplevering op 22 maart.
+// De datums kloppen met de berekening, dus de bron opent niet in "datums zoals opgeslagen".
+// (Een MSPDI-bron kan dit niet tonen: die lezer geeft bij elk inlezen nieuwe taak-id's, knownbug 837.)
+{
+  const tt = (o: { start: string; finish: string; days: number; lateStart?: string; lateFinish?: string }) => {
+    const a: string[] = new Array(IFC_TASKTIME_SLOTS.length).fill('$');
+    a[TASKTIME_SLOT.name] = "'T'";
+    a[TASKTIME_SLOT.dataOrigin] = '.PREDICTED.';
+    a[TASKTIME_SLOT.durationType] = '.WORKTIME.';
+    a[TASKTIME_SLOT.scheduleDuration] = `'P${o.days}D'`;
+    a[TASKTIME_SLOT.scheduleStart] = `'${o.start}'`;
+    a[TASKTIME_SLOT.scheduleFinish] = `'${o.finish}'`;
+    a[TASKTIME_SLOT.earlyStart] = `'${o.start}'`;
+    a[TASKTIME_SLOT.earlyFinish] = `'${o.finish}'`;
+    if (o.lateStart) a[TASKTIME_SLOT.lateStart] = `'${o.lateStart}'`;
+    if (o.lateFinish) a[TASKTIME_SLOT.lateFinish] = `'${o.lateFinish}'`;
+    return a.join(',');
+  };
+  const foreignIfc = (late: { start: boolean; finish: boolean }) => {
+    const rows = [
+      { n: 2, name: 'Installatie', start: '2027-03-01', finish: '2027-03-05', days: 5, ls: '2027-03-15', lf: '2027-03-19' },
+      { n: 3, name: 'Leidingwerk', start: '2027-03-01', finish: '2027-03-19', days: 15, ls: '2027-03-01', lf: '2027-03-19' },
+      { n: 4, name: 'Oplevering', start: '2027-03-22', finish: '2027-03-22', days: 1, ls: '2027-03-22', lf: '2027-03-22' },
+    ];
+    return [
+      'ISO-10303-21;', 'HEADER;', "FILE_NAME('X.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');", 'ENDSEC;', 'DATA;',
+      "#1=IFCPROJECT('gInstProj',$,'Installateur',$,$,$,$,$,$);",
+      ...rows.flatMap(r => [
+        `#${r.n + 10}=IFCTASKTIME(${tt({ start: r.start, finish: r.finish, days: r.days,
+          ...(late.start ? { lateStart: r.ls } : {}), ...(late.finish ? { lateFinish: r.lf } : {}) })});`,
+        `#${r.n}=IFCTASK(${taskArgs({ guid: `gInst${r.n}`, name: r.name, wbs: `1.${r.n}`, taskTimeRef: `#${r.n + 10}` })});`,
+      ]),
+      "#20=IFCRELSEQUENCE('gSeqA',$,$,$,#2,#4,$,.FINISH_START.,$);",
+      "#21=IFCRELSEQUENCE('gSeqB',$,$,$,#3,#4,$,.FINISH_START.,$);",
+      'ENDSEC;', 'END-ISO-10303-21;',
+    ].join('\n');
+  };
+  const path = '/projecten/installateur-extern.ifc';
+  const run = async (late: { start: boolean; finish: boolean }) => {
+    const text = foreignIfc(late);
+    const source = await memorySource(path, text);
+    const inst = source.tasks.find(t => t.name === 'Installatie')!;
+    const ref = { projectId: source.projectId, taskId: inst.id, filePath: path };
+    const links = TYPES.map(relType => ({ ...link('successor', relType), sourceRef: ref }));
+    return { inst, ...(await refreshShell(path, text, links)) };
+  };
+
+  const none = await run({ start: false, finish: false });
+  eq('5a zonder late datums in het bestand rekent het laadpad ze toch uit (de val)',
+    [none.inst.time.lateStart, none.inst.time.lateFinish], ['2027-03-15T07:00', '2027-03-19T16:00']);
+  eq('5b "Bron vernieuwen": vier koppelingen gevonden', none.result, { refreshed: 4, missing: 0 });
+  eq('5c zonder late datums in het bestand: opvolger FS/SS/FF/SF op de vroege datum', none.anchors, {
+    'successor-FS': '2027-03-01T07:00', 'successor-SS': '2027-03-01T07:00',
+    'successor-FF': '2027-03-05T16:00', 'successor-SF': '2027-03-05T16:00',
+  });
+  eq('5d ...en de ruwbouw (alleen de FS-grens telt hier) krijgt 0 werkdagen speling, niet 10',
+    none.task.time.totalFloat, 0);
+
+  const both = await run({ start: true, finish: true });
+  eq('5e met late datums in het bestand: de late datums', both.anchors, {
+    'successor-FS': '2027-03-15T07:00', 'successor-SS': '2027-03-15T07:00',
+    'successor-FF': '2027-03-19T16:00', 'successor-SF': '2027-03-19T16:00',
+  });
+  eq('5f ...en de ruwbouw krijgt 10 werkdagen speling', both.task.time.totalFloat, 10);
+  const onlyStart = await run({ start: true, finish: false });
+  eq('5g alleen een late start in het bestand: FS/SS laat, FF/SF vroeg', onlyStart.anchors, {
+    'successor-FS': '2027-03-15T07:00', 'successor-SS': '2027-03-15T07:00',
+    'successor-FF': '2027-03-05T16:00', 'successor-SF': '2027-03-05T16:00',
+  });
+
+  // Het andere kanaal (`recordedTimes`: XER, P6 XML, MSPDI, `.mpp`, CSV) volgt dezelfde regel: een
+  // ontbrekende late as in de vastlegging ⇒ de vroege datum.
+  const viaTimes = (record: Record<string, string>) => {
+    const parsed = readIFC(foreignIfc({ start: false, finish: false }));
+    const instId = parsed.tasks.find(t => t.name === 'Installatie')!.id;
+    const source = externalSourceFromImport({ ...parsed, recordedTimes: { [instId]: { start: '2027-03-01', finish: '2027-03-05', ...record } } }, path);
+    const inst = source.tasks.find(t => t.name === 'Installatie')!;
+    return [sourceAnchorDate(link('successor', 'FS'), inst, source), sourceAnchorDate(link('successor', 'FF'), inst, source)];
+  };
+  eq('5h vastlegging zonder late as: FS/FF vroeg', viaTimes({}), ['2027-03-01T07:00', '2027-03-05T16:00']);
+  eq('5i vastlegging met late as: FS/FF laat', viaTimes({ lateStart: '2027-03-15', lateFinish: '2027-03-19' }),
+    ['2027-03-15T07:00', '2027-03-19T16:00']);
+}
+
+// (6) Review #794 ronde 1, punt 2: een FASE in de bron telt voortgang zoals een bladtaak.
+// Fase A met één voltooid kind (Installatie, werkelijk 1–5 maart); fase B met één gestart kind
+// (Montage, werkelijk gestart op 1 maart). Een langere Leidingwerk geeft beide fasen een late start
+// ná hun vroege start.
+{
+  const src = createAppStoreContext().store;
+  const s = () => src.getState();
+  s().newProject();
+  s().setProject({ startDate: '2027-03-01', statusDate: '2027-03-08', name: 'Installateur' });
+  const phaseA = s().addTask({ name: 'Fase A' });
+  const inst = s().addTask({ name: 'Installatie', parentId: phaseA, time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+  const phaseB = s().addTask({ name: 'Fase B' });
+  const mount = s().addTask({ name: 'Montage', parentId: phaseB, time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+  const pipes = s().addTask({ name: 'Leidingwerk', time: createDefaultTaskTime('2027-03-01', 15, 'days') });
+  const handover = s().addTask({ name: 'Oplevering', time: createDefaultTaskTime('2027-03-01', 1, 'days') });
+  for (const pred of [inst, mount, pipes]) s().addSequence({ predecessorId: pred, successorId: handover, type: 'FINISH_START', lagDays: 0 });
+  const timeOf = (id: string) => s().tasks.find(t => t.id === id)!.time;
+  s().updateTask(inst, { time: { ...timeOf(inst), actualStart: '2027-03-01T07:00', actualFinish: '2027-03-05T16:00', completion: 1 } });
+  s().updateTask(mount, { time: { ...timeOf(mount), actualStart: '2027-03-01T07:00', completion: 0.4 } });
+  s().runCPM();
+  const text = writeIFC(buildWriteIFCInput(s()));
+  const path = '/projecten/installateur-fasen.ifc';
+  const source = await memorySource(path, text);
+  const byName = (name: string) => source.tasks.find(t => t.name === name)!;
+  const [a, b, child] = [byName('Fase A'), byName('Fase B'), byName('Installatie')];
+  eq('6a de bron: fase A klaar, fase B gestart, en beide fasen met een late start ná de vroege',
+    [a.time.completion, a.time.actualFinish, b.time.actualStart, a.time.lateStart > computedStart(a), b.time.lateStart > computedStart(b)],
+    [1, '2027-03-05T16:00', '2027-03-01T07:00', true, true]);
+  const to = (task: Task, relType: ExternalLink['relType'], id: string): ExternalLink => ({
+    ...link('successor', relType), id, sourceRef: { projectId: source.projectId, taskId: task.id, filePath: path },
+  });
+  const { anchors } = await refreshShell(path, text, [
+    to(child, 'FS', 'kind-FS'), to(child, 'FF', 'kind-FF'),
+    to(a, 'FS', 'faseA-FS'), to(a, 'FF', 'faseA-FF'),
+    to(b, 'FS', 'faseB-FS'), to(b, 'FF', 'faseB-FF'),
+  ]);
+  eq('6b voltooid kind en fase A: dezelfde ankers, de werkelijke datums', [
+    anchors['kind-FS'], anchors['faseA-FS'], anchors['kind-FF'], anchors['faseA-FF'],
+  ], ['2027-03-01T07:00', '2027-03-01T07:00', '2027-03-05T16:00', '2027-03-05T16:00']);
+  eq('6c gestarte fase B: FS op de rekendatum van de start, FF op de late finish',
+    [anchors['faseB-FS'], anchors['faseB-FF']], [computedStart(b), b.time.lateFinish]);
+
+  // Het kanaal `recordedTimes` (XER, P6 XML, MSPDI, `.mpp`, CSV) bewaart alleen bladtaken
+  // (`leafRecordedTimes`). Een fase telt een late as dan als al haar bladen hem droegen.
+  const parsed = readIFC(text);
+  const montageId = parsed.tasks.find(t => t.name === 'Montage')!.id;
+  const phaseFF = (record: Record<string, string>) => {
+    const viaTimes = externalSourceFromImport(
+      { ...parsed, recordedTimes: { [montageId]: { start: '2027-03-01', finish: '2027-03-05', ...record } } }, path);
+    const phase = viaTimes.tasks.find(t => t.name === 'Fase B')!;
+    return [sourceAnchorDate(link('successor', 'FF'), phase, viaTimes), phase.time.lateFinish, computedFinish(phase)];
+  };
+  const [withLate, lateFinish] = phaseFF({ lateStart: '2027-03-15', lateFinish: '2027-03-19' });
+  eq('6d fase B, haar blad droeg een late finish: FF op de late finish van de fase', withLate, lateFinish);
+  const [withoutLate, , earlyFinish] = phaseFF({});
+  eq('6e fase B, haar blad droeg geen late finish: FF op de vroege finish van de fase', withoutLate, earlyFinish);
 }
 
 if (failures.length) {
