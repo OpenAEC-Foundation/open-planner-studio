@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-02T20:02:04.560Z",
-  "downloads": 3351,
+  "generatedAt": "2026-11-02T22:01:58.102Z",
+  "downloads": 3355,
   "releases": [
     {
       "tag": "v2026.44.0",
@@ -11,12 +11,12 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 62,
-          "update": 76,
+          "install": 64,
+          "update": 79,
           "both": 0,
           "byKind": {
-            "exe": 62,
-            "nsis.zip": 76
+            "exe": 64,
+            "nsis.zip": 79
           }
         },
         "macos": {
@@ -31,16 +31,16 @@
         "linux": {
           "install": 1,
           "update": 0,
-          "both": 37,
+          "both": 38,
           "byKind": {
             "snap": 1,
             "rpm": 3,
-            "AppImage": 23,
+            "AppImage": 24,
             "deb": 11
           }
         }
       },
-      "polls": 615
+      "polls": 643
     },
     {
       "tag": "v2026.43.0",
@@ -122,11 +122,11 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 1211,
+          "install": 1212,
           "update": 69,
           "both": 0,
           "byKind": {
-            "exe": 1211,
+            "exe": 1212,
             "nsis.zip": 69
           }
         },
@@ -891,12 +891,12 @@
   ],
   "totals": {
     "windows": {
-      "install": 1955,
-      "update": 400,
+      "install": 1958,
+      "update": 403,
       "both": 0,
       "byKind": {
-        "exe": 1955,
-        "nsis.zip": 400
+        "exe": 1958,
+        "nsis.zip": 403
       }
     },
     "macos": {
@@ -911,16 +911,16 @@
     "linux": {
       "install": 105,
       "update": 0,
-      "both": 986,
+      "both": 987,
       "byKind": {
         "snap": 105,
         "rpm": 152,
-        "AppImage": 479,
+        "AppImage": 480,
         "deb": 355
       }
     }
   },
-  "polls": 6096,
+  "polls": 6124,
   "unknown": [
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
