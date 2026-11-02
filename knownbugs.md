@@ -1918,3 +1918,10 @@ en noem het in je rapport of PR-tekst.
 622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
      Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel
      rekent, tot de vertaalstraat ze bijwerkt (`i18n/ui-sources/` mist hun hash). VERVOLG uit #775. — B
+
+630. **VERVOLG: `scripts/style-tokens.py` zonder opties controleert de vastgezette commit niet.** Zonder `--check`
+     of `--tag` leest het script alleen de tag uit `src/styles/openaec-tokens.lock.json` (r. 115–139). Daarna
+     schrijft het de CSS en het lockbestand opnieuw, ook als de tag nu naar een andere commit wijst. Een verplaatste
+     Blueprint-tag geeft zo stil andere kleuren. Fix: eerst de commit van de tag tegen de pin controleren en
+     stoppen bij een verschil; alleen `--tag` zet een andere commit vast. Uit de review van #721 (GPT-6.1-Sol, ronde 1,
+     op 33b8d17e2, BEVESTIGD, VERVOLG). — B

@@ -1442,7 +1442,11 @@ button.task-grid-relation-reference {
   --theme-accent-on: var(--oa-text-on-accent);
   /* Tekst: de oude OPS-waarde. --oa-text (#EDEBE8) is iets donkerder en verlaagt elk tekstpaar. */
   --theme-text: #F1F3F5;
-  --theme-text-dim: var(--oa-text-secondary);
+  /* Secundaire tekst: eigen neutraal grijs. --oa-text-secondary (#BEBDBD) zakt op de lichtere schil
+     onder main: niet-actieve linttab 7,93 → 6,67, lintlabels 7,22 → 6,67, niet-actief document
+     7,93 → 7,59 (review Sol r1). #CECED0 haalt 7,96 op het lint (#33333C) en 9,06 op de documentbalk.
+     https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/42 */
+  --theme-text-dim: #CECED0;
   /* Geen eigen trap in de tokens; --oa-text-disabled haalt geen AA en is voor uitgeschakeld.
      https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/42 */
   --theme-text-muted: var(--oa-text-secondary);

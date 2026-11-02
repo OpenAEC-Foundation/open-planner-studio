@@ -136,6 +136,15 @@ function pairs(theme: 'light' | 'dark' | 'high-contrast'): Map<string, number> {
   for (const [n, s] of Object.entries(surf)) if (!s.includes('gradient')) add(A, `tekst op ${n}`, v['--theme-text'], s);
   for (const n of ['kaart', 'kop/verzonken vlak', 'werkruimte', 'veld']) add(A, `secundaire tekst op ${n}`, v['--theme-text-dim'], surf[n]);
   for (const n of ['kaart', 'kop/verzonken vlak']) add(A, `gedempte tekst op ${n}`, v['--theme-text-muted'], surf[n]);
+  // Schil (review Sol r1, PR #721): niet-actieve linttab, lintlabels (statusdatum, zoomniveau) en de naam van
+  // een niet-actief document dragen secundaire tekst (Ribbon.css, DocumentChrome.css). Op main lag de
+  // documentbalk op --theme-ribbon-tab-bg; een verloop (hoog contrast) heeft geen enkel getal en valt weg.
+  const schil: Record<string, string | undefined> = {
+    lint: v['--theme-ribbon-content-bg'], linttabs: v['--theme-ribbon-tab-bg'],
+    documentbalk: v['--theme-docbar-bg'] ?? v['--theme-ribbon-tab-bg'],
+  };
+  for (const [n, s] of Object.entries(schil))
+    if (s && !s.includes('gradient')) add(A, `secundaire tekst op ${n}`, v['--theme-text-dim'], s);
   for (const n of ['kaart', 'kop/verzonken vlak']) {
     add(A, `waarschuwing op ${n}`, v['--theme-warning-text'], surf[n]);
     add(A, `kritiek-tekst op ${n}`, v['--theme-critical-text'], surf[n]);
