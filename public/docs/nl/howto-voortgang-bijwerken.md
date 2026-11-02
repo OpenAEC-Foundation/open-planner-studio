@@ -72,6 +72,8 @@ Elke wijziging in voortgang of statusdatum maakt de planning verouderd: de statu
 
 **Een percentage onder 100 %.** Zet je een voltooide taak terug onder de 100 %, dan vervalt het werkelijke einde. Wis je alleen het werkelijke einde, dan gaat het percentage naar 0 en blijft de taak *Bezig*. Wil je de taak weer als niet begonnen laten tellen, wis dan ook de werkelijke start, of kies in de tabel bij *Status* *Niet gestart*.
 
+**0 % met een werkelijke start.** Heeft een taak een werkelijke start, dan telt hij als begonnen, ook op 0 %. Het restwerk is dan de volle duur, tenzij je in de tabel bij *Resterend* een andere waarde invult. Wis de werkelijke start om hem weer als niet begonnen te laten tellen.
+
 **De duur van een lopende taak wijzigen.** Het gedane werk blijft gedaan en het percentage past zich aan. Een taak van 5 werkdagen op 60 % die je op 10 werkdagen zet, staat daarna op 30 %. Een duur die korter is dan het gedane werk weigert de app: *‘Binnenspouwblad metselen’ is al voor 60% gedaan: een duur korter dan het gedane werk kan niet. De duur is niet gewijzigd.* In de tabel meldt de cel *Deze duur is korter dan het werk dat al gedaan is.*
 
 **De restduur is exact.** De app rondt de restduur niet af op hele werkdagen. Bij een taak van 2 werkdagen geeft 75 % een rest van 0,5 werkdag.

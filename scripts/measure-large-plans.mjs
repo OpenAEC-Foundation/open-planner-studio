@@ -24,10 +24,11 @@
 // een rAF-lus) veranderen geen productgedrag.
 //
 // Vlaggen: --sizes 1000,5000,10000  --repeats 3  --out <bestand.json>  --dist <bestaande build>
-//          --headed  --skip <fase,...>  --step-timeout-s 900
+//          --headed  --skip <fase,...>  --step-timeout-s 900  --parity (store- en opslaghashes buiten de timers)
 // Exit 0 = alle metingen gelukt; 1 = minstens één fase mislukt of time-out (staat in de JSON).
 // Niet in `npm run verify` en niet in CI: zwaar en machine-afhankelijk.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { cpus, totalmem, tmpdir, release, platform, arch } from 'node:os';
@@ -46,15 +47,16 @@ function opt(name, fallback) {
   if (v === undefined || v.startsWith('--')) { console.error(`${name} mist een waarde`); process.exit(2); }
   return v;
 }
-const KNOWN = new Set(['--sizes', '--repeats', '--out', '--dist', '--headed', '--skip', '--step-timeout-s']);
+const KNOWN = new Set(['--sizes', '--repeats', '--out', '--dist', '--headed', '--parity', '--skip', '--step-timeout-s']);
 for (let i = 0; i < argv.length; i++) {
   if (!argv[i].startsWith('--')) continue;
   if (!KNOWN.has(argv[i])) { console.error(`onbekend argument: ${argv[i]}`); process.exit(2); }
-  if (argv[i] !== '--headed') i++;
+  if (argv[i] !== '--headed' && argv[i] !== '--parity') i++;
 }
 const SIZES = opt('--sizes', '1000,5000,10000').split(',').map(Number);
 const REPEATS = Number(opt('--repeats', '3'));
 const HEADED = argv.includes('--headed');
+const PARITY = argv.includes('--parity');
 const SKIP = new Set(opt('--skip', '').split(',').filter(Boolean));
 const STEP_TIMEOUT_MS = Number(opt('--step-timeout-s', '900')) * 1000;
 if (SIZES.some(s => !Number.isInteger(s) || s < 10) || !Number.isInteger(REPEATS) || REPEATS < 1) {
@@ -63,6 +65,14 @@ if (SIZES.some(s => !Number.isInteger(s) || s < 10) || !Number.isInteger(REPEATS
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const sh = (cmd, args, extra = {}) => spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...extra });
+const sha256 = value => createHash('sha256').update(value).digest('hex');
+// Alleen de door de schrijver gemaakte tijdstempels normaliseren; de overige IFC-bytes blijven
+// deel van het opslagbewijs. Dezelfde normalisatie als in measure-large-plans-data.ts.
+function normalizeWriteTime(ifc) {
+  const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(ifc)?.[1];
+  const withoutStamp = stamp ? ifc.split(`'${stamp}'`).join("'<tijd>'") : ifc;
+  return withoutStamp.replace(/^(#\d+=IFCOWNERHISTORY\((?:[^,]*,){7})\d+\)/m, '$1<tijd>)');
+}
 
 // ── omstandigheden ──────────────────────────────────────────────────────────────────────────────
 function conditions() {
@@ -265,11 +275,26 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
   // Herladen met een gewijzigd document vraagt een beforeunload-bevestiging; die accepteren we.
   page.on('dialog', d => { void d.accept(); });
 
-  const r = { rep: repIndex + 1, phases: {}, notes: [], errors };
+  const r = { rep: repIndex + 1, phases: {}, notes: [], errors, ...(PARITY ? { parity: {} } : {}) };
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const until = (name, a = {}, timeout = STEP_TIMEOUT_MS) => ev(([n, x, t]) => window.__nm.until(n, x, t), [name, a, timeout]);
   const arm = (kind = null, a = {}) => ev(([k, x]) => window.__nm.arm(k, x), [kind, a]);
   const longest = (from, to) => ev(([f, t]) => window.__nm.longTasks(f, t).reduce((m, e) => Math.max(m, e.d), 0), [from, to]);
+  // Buiten de tijdvensters: alle taakvelden, relaties, resources, toewijzingen, kalenders en het
+  // volledige CPM- en belastingresultaat. De IFC-lezer maakt per opening nieuwe assignment-ids;
+  // alleen die sessie-ids worden op lijstpositie gecanonicaliseerd, alle overige velden blijven staan.
+  const recordState = async phase => {
+    if (!PARITY) return;
+    const text = await ev(() => {
+      const s = window.__OPS__.store.getState();
+      return JSON.stringify({ project: s.project, tasks: s.tasks, sequences: s.sequences,
+        resources: s.resources, assignments: s.assignments.map((a, index) => ({ ...a, id: `assignment-${index}` })),
+        calendar: s.calendar, calendars: s.calendars,
+        cpm: s.cpmResult, load: s.resourceLoadResult },
+      (_key, value) => value instanceof Map || value instanceof Set ? [...value] : value);
+    });
+    r.parity[phase] = sha256(text);
+  };
   async function waitQuiet(quietMs = 1500, timeout = 120_000) {
     const t = Date.now(); let last = -1; let since = Date.now();
     while (Date.now() - t < timeout) {
@@ -303,6 +328,7 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
       else {
         const state = await ev(() => { const s = window.__OPS__.store.getState(); return { scheduleStale: s.scheduleStale, datesAsRecorded: s.datesAsRecorded, hasCpm: !!s.cpmResult, isDirty: s.isDirty, documents: s.documents.length }; });
         r.phases.open = { ok: true, ms: r1(hit.paintEnd - t0), storeMs: r1(hit.storeAt - t0), paintMs: r1(hit.paintEnd - hit.paintStart), longestTaskMs: r1(await longest(t0, hit.paintEnd)), ...state };
+        await recordState('open');
       }
       await waitQuiet();
     }
@@ -363,6 +389,7 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
         const overlap = await ev(([n, a, b]) => window.__nm.idb.slice(n).some(x => x.start >= a && x.start <= b), [idbBefore, input, hit.paintEnd]);
         r.phases.f5 = { ok: true, ms: r1(hit.paintEnd - input), storeMs: r1(hit.storeAt - input), paintMs: r1(hit.paintEnd - hit.paintStart), longestTaskMs: r1(await longest(input, hit.paintEnd)), autosaveInWindow: overlap,
           isDirtyAfter: await ev(() => window.__OPS__.store.getState().isDirty) };
+        await recordState('f5');
       }
       await waitQuiet(2000);
     }
@@ -392,6 +419,7 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
           if (!applied) fail('levelApply', 'time-out');
           else r.phases.levelApply = { ok: true, ms: r1(applied.paintEnd - inApply), storeMs: r1(applied.storeAt - inApply), longestTaskMs: r1(await longest(inApply, applied.paintEnd)),
             isDirtyAfter: await ev(() => window.__OPS__.store.getState().isDirty) };
+          if (applied) await recordState('levelApply');
         }
       }
       // Nivelleerdialoog nog open (fout)? Sluit met Escape zodat de rest kan doorgaan.
@@ -465,10 +493,12 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
       else r.phases.save = { ok: true, ms: r1(end - input), cleanMs: done.cleanAt == null ? null : r1(done.cleanAt - input),
         longestTaskMs: r1(await longest(input, end)), route: done.downloadAt != null ? 'download' : 'bestandshandle',
         bytes: dl ? statSync(await dl.path()).size : null, wasDirty: dirty };
+      if (PARITY && dl) r.parity.savedIfc = sha256(normalizeWriteTime(readFileSync(await dl.path(), 'utf8')));
     }
   } catch (e) {
     r.notes.push(`afgebroken: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
     log('  ! afgebroken:', e instanceof Error ? e.message.split('\n')[0] : e);
+    fail('route', r.notes[r.notes.length - 1]);
   } finally {
     r.heapMB = await ev(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null).catch(() => null);
     await context.close();
