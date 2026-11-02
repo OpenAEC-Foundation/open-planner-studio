@@ -63,13 +63,14 @@ for (const pristine of [true, false]) {
   if (!pristine) S().addTask({ name: 'Bestaand onopgeslagen werk' });
   for (const extension of ['ifc', 'mpp']) {
     const path = `D:\\Budowy Łódź\\Zażółć gęślą jaźń.${extension}`;
-    store.setState({ recentFiles: await addRecent({ kind: 'path', path }, path.split('\\').pop()!) });
-    const entry = S().recentFiles[0];
     for (const reason of [
       `failed to open file at path: ${path}: The system cannot find the file specified. (os error 2)`,
       `forbidden path: ${path}`,
       new Error('Permission denied (os error 13)'),
     ]) {
+      // Elke fout begint met een aanwezige, gepersisteerde entry, ook als main hem verwijdert.
+      store.setState({ recentFiles: await addRecent({ kind: 'path', path }, path.split('\\').pop()!) });
+      const entry = S().recentFiles[0];
       failure = reason;
       store.setState(s => { s.ui.notifications = []; });
       const before = documentState();
@@ -126,7 +127,7 @@ for (const denied of [true, false]) {
 // Dit bewaakt de bedrading; een echte native herstart is hiermee niet uitgevoerd.
 const main = readFileSync('src-tauri/src/main.rs', 'utf8').replace(/\/\/[^\n]*/g, '');
 const plugins = [...main.matchAll(/\.plugin\(tauri_plugin_(\w+)::init\(\)\)/g)].map(m => m[1]);
-eq('Desktop: scope-opslag na fs geregistreerd', plugins.includes('persisted_scope')
+eq('Desktop: scope-opslag na fs geregistreerd', plugins.includes('fs') && plugins.includes('persisted_scope')
   && plugins.indexOf('persisted_scope') > plugins.indexOf('fs'), true);
 eq('Desktop: scope-plugin als dependency',
   /^tauri-plugin-persisted-scope\s*=/m.test(readFileSync('src-tauri/Cargo.toml', 'utf8')), true);
