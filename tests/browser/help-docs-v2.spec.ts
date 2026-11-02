@@ -183,6 +183,40 @@ test('docs://id#anker scrolt naar de kop; een gewone artikelwissel begint bovena
   await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
 });
 
+test('Prompt kopiëren zet het promptblok van het artikel letterlijk op het klembord, ook zonder klembord-API', async ({ page, context, ops: _ops }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openHelp(page);
+  await page.locator('[data-help-article="howto-ai-assistent-koppelen"]').click();
+  await expect(current(page)).toHaveAttribute('data-help-current', 'howto-ai-assistent-koppelen');
+
+  // De bron: het ```prompt-blok uit het artikel in de taal die de viewer toont.
+  const lang = await current(page).getAttribute('lang');
+  const md = await page.evaluate(async (l) => (await fetch(`/docs/${l}/howto-ai-assistent-koppelen.md`)).text(), lang);
+  const source = /^```prompt\n([\s\S]*?)\n```$/m.exec(md)?.[1];
+  expect(source).toBeTruthy();
+
+  const prompt = current(page).locator('[data-help-prompt]');
+  const button = prompt.getByRole('button', { name: /^(Prompt kopiëren|Copy prompt)$/ });
+  const status = prompt.getByRole('status');
+  expect(await prompt.locator('pre').textContent()).toBe(source);
+  await button.click();
+  await expect(status).toHaveText(/^(Gekopieerd|Copied)\./);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(source);
+
+  // Zonder klembord-API (dev-server via http, geen secure context): de knop kopieert via de textarea.
+  await page.evaluate(async () => {
+    const w = window as Window & { __opsClipboard?: Clipboard };
+    w.__opsClipboard = navigator.clipboard;
+    await navigator.clipboard.writeText('');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+  });
+  await expect(status).toHaveText('', { timeout: 6000 }); // de vorige melding is weg
+  await button.click();
+  await expect(status).toHaveText(/^(Gekopieerd|Copied)\./);
+  await expect(button).toBeFocused();
+  expect(await page.evaluate(() => (window as Window & { __opsClipboard?: Clipboard }).__opsClipboard!.readText())).toBe(source);
+});
+
 test('?-knop in de sneltoetsendialoog sluit de dialoog en opent het juiste artikel', async ({ page, ops: _ops }) => {
   // Echte route: de sneltoets Ctrl+/ (registry `view.showShortcuts`).
   await page.keyboard.press('Control+/');

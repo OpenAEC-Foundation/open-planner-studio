@@ -47,7 +47,7 @@
 "howto-bibliotheken-beheren": {"title": "리소스 라이브러리 관리 및 공유"},
 "howto-bezettingsoverzicht-gebruiken": {"title": "점유 현황 개요 사용하기"},
 "howto-extensie-installeren": {"title": "확장 프로그램 설치 및 관리"},
-"howto-ai-assistent-koppelen": {"title": "AI 도우미 연결하기 (MCP)"},
+"howto-ai-assistent-koppelen": {"title": "MCP 클라이언트 연결"},
 "howto-feedback-geven": {"title": "피드백 보내기"},
 "howto-app-bijwerken": {"title": "앱 업데이트"},
 "ref-lint": {"title": "탭별 리본"},

@@ -1,7 +1,7 @@
 // Dev-link `?open=` / `?theme=` (docs/dev-link.md): de padregel voor `?open=<pad>` (vanaf de repo-root), en het bewijs dat
 // de dev-code uit een productiebouw valt. Vite minificeert een productiebouw met esbuild, met
 // `import.meta.env.DEV` vervangen door false. Deze check doet dat per bronbestand en kijkt of de
-// dode takken weg zijn. Daarnaast: `devOpenLink` wordt alleen dynamisch geladen, vanuit App.tsx.
+// dode takken weg zijn. Daarnaast: `devOpenLink` wordt alleen dynamisch geladen, vanuit drie vaste plekken.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,6 +40,8 @@ const app = prodTransform('src/App.tsx');
 check(!app.includes('devOpenLink'), 'App.tsx: de import van devOpenLink valt weg');
 check(!prodTransform('src/components/dialogs/ProgressImportDialog.tsx').includes('devOpenLink'),
   'ProgressImportDialog.tsx: de import van devOpenLink valt weg');
+check(!prodTransform('src/components/ribbon/ai/AiConnectionGroup.tsx').includes('devOpenLink'),
+  'AiConnectionGroup.tsx: de import van devOpenLink valt weg');
 const settings = prodTransform('src/utils/settingsStore.ts');
 check(!/["']theme["']\)/.test(settings) && !settings.includes('location.search'), 'settingsStore.ts: ?theme valt weg');
 // Tegenproef: met DEV=true blijft alles staan, dus de check meet echt.
@@ -47,6 +49,7 @@ const devTransform = (file: string) => execFileSync(esbuild, [join(root, file), 
   '--log-level=error', '--define:import.meta.env.DEV=true', '--define:import.meta.env.PROD=false'], { encoding: 'utf8' });
 check(devTransform('src/App.tsx').includes('devOpenLink'), 'tegenproef: App.tsx in dev houdt de import');
 check(devTransform('src/components/dialogs/ProgressImportDialog.tsx').includes('devOpenLink'), 'tegenproef: de dialoog in dev houdt de import');
+check(devTransform('src/components/ribbon/ai/AiConnectionGroup.tsx').includes('devOpenLink'), 'tegenproef: de groep Verbinding in dev houdt de import');
 check(devTransform('src/utils/settingsStore.ts').includes('location.search'), 'tegenproef: settingsStore.ts in dev leest ?theme');
 
 // 3. Niet in Tauri-dev (dezelfde Vite-server): met DEV=true, het linkthema alleen in de browser,
@@ -71,7 +74,7 @@ rmSync(probeDir, { recursive: true, force: true });
 check(/import\.meta\.env\.DEV && !isTauri\(\) &&[^\n]*\n\s*void import\(['"]@\/utils\/devOpenLink['"]\)/
   .test(readFileSync(join(root, 'src/App.tsx'), 'utf8')), 'App.tsx: ?open alleen met DEV en zonder Tauri');
 
-// 4. Geen andere ingang naar devOpenLink dan de dynamische import in App.tsx.
+// 4. Geen andere ingang naar devOpenLink dan de dynamische imports in App.tsx, de voortgangsimport en de groep Verbinding.
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
@@ -83,9 +86,9 @@ function walk(dir: string, out: string[] = []): string[] {
 const importers = walk(join(root, 'src'))
   .filter(p => /(from\s+|import\()['"][^'"]*devOpenLink['"]/.test(readFileSync(p, 'utf8')))
   .map(p => relative(root, p));
-const devLinkImporters = ['src/App.tsx', 'src/components/dialogs/ProgressImportDialog.tsx'];
-check(JSON.stringify([...importers].sort()) === JSON.stringify(devLinkImporters),
-  `alleen App.tsx en ProgressImportDialog.tsx importeren devOpenLink (${importers.join(', ')})`);
+const devLinkImporters = ['src/App.tsx', 'src/components/dialogs/ProgressImportDialog.tsx', 'src/components/ribbon/ai/AiConnectionGroup.tsx'];
+check(JSON.stringify([...importers].sort()) === JSON.stringify([...devLinkImporters].sort()),
+  `alleen App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx importeren devOpenLink (${importers.join(', ')})`);
 for (const file of devLinkImporters) {
   check(/import\(['"]@\/utils\/devOpenLink['"]\)/.test(readFileSync(join(root, file), 'utf8')), `${file} laadt devOpenLink dynamisch`);
 }

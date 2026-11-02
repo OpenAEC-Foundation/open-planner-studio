@@ -574,6 +574,8 @@
     "connect": "Połącz",
     "connectHint": "Pokazuje szczegóły połączenia: punkt końcowy, token, fragment konfiguracji i polecenie połączenia.",
     "connectionDetailsTitle": "Szczegóły połączenia",
+    "setupPrompt": "Pozwól Claude to załatwić",
+    "setupPromptHint": "Dla Claude Desktop i Claude Code. Wklej prompt do nowej rozmowy. Claude zainstaluje wtedy rozszerzenie samodzielnie. Nie potrzebujesz do tego tokenu.",
     "endpoint": "Punkt końcowy",
     "endpointHint": "Transport: strumieniowy HTTP",
     "auth": "Uwierzytelnianie",

@@ -39,10 +39,12 @@ import { buildImportLabels } from '@/i18n/importLabels';
 import './HelpPanel.css';
 import { readLocal, removeLocal, writeLocal } from '@/utils/settingsStore';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { HELP_DOCS_LANG_KEY } from '@/utils/helpArticlePrompt';
 
 // De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
-// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft.
-const DOCS_LANG_KEY = 'ops-docs-locale';
+// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft. Het venster
+// Verbindingsgegevens leest dezelfde sleutel (`loadHelpArticlePrompt`).
+const DOCS_LANG_KEY = HELP_DOCS_LANG_KEY;
 
 // Drafts (nieuwe manifestartikelen in aanbouw) alleen in de dev-build; de productiebuild ziet ze nooit.
 const INCLUDE_DRAFTS = import.meta.env.DEV;

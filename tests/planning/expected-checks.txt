@@ -92,6 +92,7 @@ check-external-link-dialog.ts matrix
 check-external-link-edit.ts matrix
 check-external-relation-format.ts matrix
 check-external-source-load.ts matrix
+check-external-successor-late.ts matrix
 check-external-summary.ts matrix
 check-f3b-production-compat.ts matrix
 check-f4b-contourdagen.ts matrix
@@ -146,6 +147,7 @@ check-i18n-keys.ts los
 check-i18n-plurals.ts matrix
 check-i18n-resolve.ts matrix
 check-i18n-tools.ts matrix
+check-icon-accent-text.ts matrix
 check-ifc-arity.ts matrix
 check-ifc-building-model-guard.ts matrix
 check-ifc-calendar-identity.ts matrix

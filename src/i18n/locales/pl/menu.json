@@ -361,7 +361,10 @@
     "helpTutorialStep": "Samouczek {{number}} z {{total}}",
     "helpTutorialsEmpty": "Nie zainstalowano jeszcze żadnych samouczków. Instalujesz je jako rozszerzenie z katalogu.",
     "helpTutorialsInstall": "Zainstaluj samouczki",
-    "helpDraft": "szkic"
+    "helpDraft": "szkic",
+    "helpCopyPrompt": "Skopiuj prompt",
+    "helpPromptCopied": "Skopiowano. Wklej teraz prompt do Claude.",
+    "helpPromptCopyFailed": "Nie udało się skopiować. Zaznacz poniższy tekst i skopiuj go samodzielnie."
   },
   "export": {
     "progressFileSuffix": "postęp",

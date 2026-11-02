@@ -10,7 +10,7 @@ import {
   type BenchmarkResult, type ProgressUpdate, type PhaseId,
 } from '@/services/benchmark/runner';
 import { formatBytes } from '@/utils/formatBytes';
-import { useCopyFeedback } from '@/hooks/useCopyFeedback';
+import { copyViaTextarea, useCopyFeedback } from '@/hooks/useCopyFeedback';
 
 /** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt. */
 const LARGE_SIZE_THRESHOLD = 2500;
@@ -78,16 +78,8 @@ export function BenchmarkDialog() {
     if (!result) return;
     const text = formatResultsMarkdown(result);
     if (await copyToClipboard(text)) return;
-    // Klembord-API kan ontbreken of geblokkeerd zijn (headless/permissies): val terug op een
-    // selecteerbare textarea zodat de gebruiker handmatig kan kopiëren.
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); markCopied('copied'); } catch { /* geef op */ }
-    document.body.removeChild(ta);
+    // Klembord-API kan ontbreken of geblokkeerd zijn (headless/permissies).
+    if (copyViaTextarea(text)) markCopied('copied');
   }, [result, copyToClipboard, markCopied]);
 
   const pct = progress ? Math.round((progress.iteration / progress.iterations) * 100) : 0;

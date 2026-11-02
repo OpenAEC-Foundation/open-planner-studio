@@ -357,7 +357,10 @@
     "helpTutorialStep": "Selvstudium {{number}} af {{total}}",
     "helpTutorialsEmpty": "Der er endnu ikke installeret nogen selvstudier. Du installerer dem som udvidelse fra kataloget.",
     "helpTutorialsInstall": "Installer selvstudier",
-    "helpDraft": "kladde"
+    "helpDraft": "kladde",
+    "helpCopyPrompt": "Kopiér prompt",
+    "helpPromptCopied": "Kopieret. Indsæt nu prompten i Claude.",
+    "helpPromptCopyFailed": "Kopiering lykkedes ikke. Markér teksten nedenfor, og kopiér den selv."
   },
   "export": {
     "progressFileSuffix": "fremdrift",
