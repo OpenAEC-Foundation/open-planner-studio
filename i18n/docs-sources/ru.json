@@ -4484,24 +4484,36 @@
     ]
   },
   "howto-ai-assistent-koppelen": {
-    "structure": "ed8e8f6fb2d62d2a",
+    "structure": "a06772aae7b7391c",
     "sections": [
       {
-        "hash": "cfc2c2474a3c4d4e",
+        "hash": "ba2e518de3c2dcd6",
         "labels": {}
       },
       {
-        "hash": "4309015ed5ed9a65",
+        "hash": "59e4e1044025cf26",
+        "labels": {
+          "common:extConsent.confirm": "b7cd6fae08d93f3f",
+          "menu:backstage.helpCopyPrompt": "17d55dbbac6cf286",
+          "menu:extensions.install": "b7cd6fae08d93f3f"
+        }
+      },
+      {
+        "hash": "d2633c17cbfde081",
         "labels": {
           "common:ai.desktopOnly": "b801ef011f89e5c6",
           "common:ai.start": "6aae0e17f2df70b8",
           "common:aiSafety.backupNow": "bfe78596e2e4d742",
           "common:aiSafety.openFolder": "7f58de8f040b5dd1",
-          "menu:ribbon.ai": "fc063eb6eb515902"
+          "common:feedback.tools.undo": "7c47f7292ba4f2ae",
+          "common:scheduleShift.undo": "e3b0c44298fc1c14",
+          "menu:commands.undo": "7c47f7292ba4f2ae",
+          "menu:ribbon.ai": "53f13ae99ed53bd3",
+          "menu:ribbon.undo": "7c47f7292ba4f2ae"
         }
       },
       {
-        "hash": "637d6bc401aa8edb",
+        "hash": "35f91a74c44fdbc8",
         "labels": {
           "common:ai.auth": "672a6738943fd652",
           "common:ai.configSnippet": "ba391010c0f722b1",
@@ -4512,6 +4524,7 @@
           "common:ai.port": "90947197f86bfdea",
           "common:ai.regenerate": "bbac8fb5af5dbdbe",
           "common:ai.regenerateConfirm": "142e68d6e56308f1",
+          "common:ai.setupPrompt": "46624624807a2f1c",
           "common:ai.start": "6aae0e17f2df70b8",
           "common:ai.statusError": "bf22dfeeba8b8508",
           "common:ai.statusLive": "e732dd27694af5b2",
@@ -4522,10 +4535,11 @@
           "common:ai.tokenWarning": "b3bbb42d54bce592",
           "common:aiActivity.args": "751a142ab038d3b2",
           "common:aiActivity.clear": "8965271d3c97c79d",
-          "common:aiActivity.empty": "cf1fc4da10764cf9",
+          "common:aiActivity.empty": "ced9094454c96244",
+          "common:aiActivity.error": "bf22dfeeba8b8508",
           "common:aiActivity.panelButton": "be0886a468b681b6",
           "common:aiActivity.result": "5cfcac6ad022ecff",
-          "common:aiActivity.title": "c05d03389df687b4",
+          "common:aiActivity.title": "e3b0c44298fc1c14",
           "common:aiSafety.autoBackupOff": "077d3d1c7d51b13f",
           "common:aiSafety.autoBackupOn": "10bd03d8aa87d11c",
           "common:aiSafety.backupNow": "bfe78596e2e4d742",
@@ -4533,20 +4547,24 @@
           "common:aiSafety.pause": "6aab9e2cb4b2e4c7",
           "common:aiSafety.readOnly": "2b19e845209a8d4f",
           "common:aiSafety.resume": "07c7b8b8142d494f",
+          "common:app.title": "4a127ae1c2d34e4e",
           "common:companyLibrary.projectView": "f45edf0068510853",
           "common:debugTerminal.clear": "8965271d3c97c79d",
           "common:debugTerminal.pause": "6aab9e2cb4b2e4c7",
           "common:debugTerminal.resume": "07c7b8b8142d494f",
           "common:feedback.clearDraft": "8965271d3c97c79d",
+          "common:profiles.builtIn.ops": "4a127ae1c2d34e4e",
           "common:settings.advancedTab": "d51dd6760ad81572",
           "common:settings.aiAutostart": "ba19055fbda223f4",
-          "common:settings.aiMode": "b7966615ef4f9712",
+          "common:settings.aiMode": "e428e6e3a16ba4a7",
           "common:settings.title": "39176dbb613cc2fb",
           "common:shortcuts.category.file": "f242456b22736979",
           "common:view.filter.clear": "8965271d3c97c79d",
           "common:warnings.target.project": "f45edf0068510853",
+          "menu:backstage.helpCopyPrompt": "17d55dbbac6cf286",
           "menu:backstage.settings": "39176dbb613cc2fb",
-          "menu:ribbon.ai": "fc063eb6eb515902",
+          "menu:extensions.title": "ba1b8e9001a23128",
+          "menu:ribbon.ai": "53f13ae99ed53bd3",
           "menu:ribbon.aiActivity": "b9ce27191d406d71",
           "menu:ribbon.aiConnection": "ab71afb97f2e9ea6",
           "menu:ribbon.aiSafety": "d90121745924a07f",
@@ -4560,19 +4578,29 @@
         }
       },
       {
-        "hash": "b50a7da4718cf1aa",
+        "hash": "83dc8a862936ff52",
         "labels": {
           "common:aiSafety.pause": "6aab9e2cb4b2e4c7",
           "common:aiSafety.readOnly": "2b19e845209a8d4f",
           "common:debugTerminal.pause": "6aab9e2cb4b2e4c7",
           "common:feedback.tools.undo": "7c47f7292ba4f2ae",
+          "common:scheduleShift.undo": "e3b0c44298fc1c14",
           "common:settings.aiAutostart": "ba19055fbda223f4",
           "menu:commands.undo": "7c47f7292ba4f2ae",
           "menu:ribbon.undo": "7c47f7292ba4f2ae"
         }
       },
       {
-        "hash": "d5fac80b8d766e8e",
+        "hash": "c0f8606abd255c84",
+        "labels": {
+          "common:feedback.tools.undo": "7c47f7292ba4f2ae",
+          "common:scheduleShift.undo": "e3b0c44298fc1c14",
+          "menu:commands.undo": "7c47f7292ba4f2ae",
+          "menu:ribbon.undo": "7c47f7292ba4f2ae"
+        }
+      },
+      {
+        "hash": "6a86b8fbd4c992a3",
         "labels": {}
       }
     ]

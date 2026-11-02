@@ -47,7 +47,7 @@
 "howto-bibliotheken-beheren": {"title": "Kaynak kitaplıklarını yönetme ve paylaşma"},
 "howto-bezettingsoverzicht-gebruiken": {"title": "Doluluk genel bakışını kullanma"},
 "howto-extensie-installeren": {"title": "Uzantı kurma ve yönetme"},
-"howto-ai-assistent-koppelen": {"title": "Yapay zeka asistanını bağlamak (MCP)"},
+"howto-ai-assistent-koppelen": {"title": "Bir MCP-istemcisini bağlama"},
 "howto-feedback-geven": {"title": "Geri bildirim vermek"},
 "howto-app-bijwerken": {"title": "Uygulamayı güncelleme"},
 "ref-lint": {"title": "Şerit, sekme sekme"},
