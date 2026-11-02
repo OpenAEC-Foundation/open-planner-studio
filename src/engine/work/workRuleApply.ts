@@ -986,11 +986,16 @@ export function durationEditProgress(
   }
   // Eenheidswissel: via de werkminuten; de restduur volgt de gewone regel in de nieuwe eenheid.
   const completion = newWork > 0 ? cap((c * oldWork) / newWork) : c;
+  const oldRemaining = unitBefore === 'hours'
+    ? before.remainingMinutes ?? oldWork * (1 - c)
+    : (before.remainingTime ?? before.scheduleDuration * (1 - c)) * hoursPerDay * 60;
+  const remaining = oldRemaining + (newWork - oldWork);
+  if (remaining < -1e-9) return refusal;
+  const remainingMinutes = Math.max(0, remaining);
   if (unitAfter === 'hours') {
-    const remainingMinutes = (after.durationMinutes ?? 0) * (1 - completion);
     return { refused: false, completion, remainingMinutes, remainingTime: hourRemainingDays(after, remainingMinutes) };
   }
-  return { refused: false, completion, remainingTime: after.scheduleDuration * (1 - completion) };
+  return { refused: false, completion, remainingTime: remainingMinutes / (hoursPerDay * 60) };
 }
 
 function timeUnit(time: TaskTime): 'days' | 'hours' {

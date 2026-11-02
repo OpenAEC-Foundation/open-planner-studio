@@ -39,6 +39,11 @@ export const GANTT_TRACE_COLORS = {
 // 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
 // grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
 // ja/nee", wat ook 1.4.1 raakt. Die afwijking is aanvaard voor licht en donker.
+// Sinds de OpenAEC-tokens 0.4 (huisstijl fase B) is de lichte kaart #FFFFFF en de donkere #2A2A32
+// (`--oa-frame`, bewust donkerder dan de oude #2E3239). Op die kaarten: critical 4,83 / 2,95,
+// normal 5,17 / 2,75, milestone 5,70 / 2,50, baseline 4,83 / 2,94 — overal beter dan hierboven.
+// Elk paar en zijn drempel (nooit lager dan op main) staat in
+// `tests/planning/theme-contrast-thresholds.json`, bewaakt door `check-theme-contrast.ts`.
 // De taakbalk tekent deze tinten effen; alleen het voltooide deel wordt grijs (`doneBarTones`
 // hieronder, getekend via `paintProgressBarPiece` in barPaint.ts).
 // De speling (`float`) is als enige WEL per thema gescheiden gebleven (`--theme-bar-float`): die

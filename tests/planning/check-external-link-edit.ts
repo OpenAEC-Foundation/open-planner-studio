@@ -81,6 +81,60 @@ eq('bewerking maakt de planning stale', S().scheduleStale, true);
 S().undo();
 eq('één undo herstelt de volledige oude externe link', current(), { id: linkId, ...original });
 
+// Knownbug 241: vergelijk het anker ná dezelfde datumnormalisatie als bij het schrijven.
+// De eerste/tweede relatieletter kiest de externe kant; de kalender is die van de lokale taak.
+for (const ownCalendar of [false, true]) {
+  for (const direction of ['predecessor', 'successor'] as const) {
+    for (const relType of ['FS', 'SS', 'FF', 'SF'] as const) {
+      S().newProject();
+      S().setCalendar({
+        ...S().calendar, holidays: [], workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
+      });
+      const calendarId = 'cal-anker';
+      if (ownCalendar) {
+        useAppStore.setState(s => {
+          s.calendars.push({
+            ...s.calendar, id: calendarId, name: 'Taakkalender', workStartHour: 9, workEndHour: 17,
+          });
+        });
+      }
+      const localTaskId = S().addTask({ name: 'Anker opnieuw invoeren', ...(ownCalendar ? { calendarId } : {}) });
+      const link: Omit<ExternalLink, 'id'> = {
+        direction, relType, anchorDate: '2026-08-24', lagMinutes: 90, sourceMissing: true,
+        sourceRef: { projectId: 'bron', taskId: 'bron-taak', taskName: 'Bronnaam' },
+      };
+      const externalId = S().addExternalLink(localTaskId, link);
+      const readLink = () => S().tasks.find(task => task.id === localTaskId)!.externalLinks![0];
+      const isFinish = (direction === 'predecessor' ? relType[0] : relType[1]) === 'F';
+      const clock = isFinish ? (ownCalendar ? '17:00' : '16:00') : (ownCalendar ? '09:00' : '07:00');
+      const label = `241 ${ownCalendar ? 'taakkalender' : 'projectkalender'} ${direction} ${relType}`;
+      eq(`${label}: aanmaken bewaart de juiste kant als moment`, readLink().anchorDate, `2026-08-24T${clock}`);
+      S().runCPM();
+      eq(`${label}: beginstand is doorgerekend`, S().scheduleStale, false);
+      const before = S();
+      const savedLink = readLink();
+      eq(`${label}: dezelfde datum wordt geaccepteerd`, S().updateExternalLink(localTaskId, externalId, link), true);
+      eq(`${label}: geen extra undo-event`, S().historyEvents.length, before.historyEvents.length);
+      eq(`${label}: planning blijft actueel`, S().scheduleStale, false);
+      ok(`${label}: taakreferenties blijven gelijk`, S().tasks === before.tasks);
+      eq(`${label}: de opgeslagen link blijft gelijk`, readLink(), savedLink);
+
+      const moved = { ...link, anchorDate: '2026-08-25' };
+      ok(`${label}: een andere datum wordt geaccepteerd`, S().updateExternalLink(localTaskId, externalId, moved));
+      eq(`${label}: een echte wijziging krijgt één event`, S().historyEvents.length, before.historyEvents.length + 1);
+      eq(`${label}: een echte wijziging maakt de planning verouderd`, S().scheduleStale, true);
+      eq(`${label}: de nieuwe datum wordt genormaliseerd`, readLink().anchorDate, `2026-08-25T${clock}`);
+      S().undo();
+      eq(`${label}: undo herstelt de link`, readLink(), savedLink);
+      const afterUndo = S();
+      S().updateExternalLink(localTaskId, externalId, link);
+      ok(`${label}: herinvoer na undo bewaart de geschiedenis`, S().historyEvents === afterUndo.historyEvents);
+      S().redo();
+      eq(`${label}: redo blijft beschikbaar`, readLink().anchorDate, `2026-08-25T${clock}`);
+    }
+  }
+}
+
 // FIX 8c (eindreview, onderzoek): `normalizeExternalSourcePath` geeft null voor zowel "geen pad"
 // als "een niet-lexicaal-absoluut (relatief) pad". `OPS_ExternalLink` schrijft `externalLinks`
 // ongefilterd als één JSON-blob weg (ifcPsets.ts) en leest 'm ook ongevalideerd terug — een van

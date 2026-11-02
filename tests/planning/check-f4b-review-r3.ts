@@ -42,6 +42,11 @@
 //    `KNOWN_DRIFT` mag alleen precies de gemeten afwijking geven; verdwijnt die, dan wordt de rij rood.
 // Exit 0 = groen.
 import './domStub';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { durationEditProgress } from '@/engine/work/workRuleApply';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -455,6 +460,63 @@ for (const stand of ['lopend', 'gereed'] as const) {
     }
   }
 }
+
+// Knownbugs 266 en 341: maatwissels houden een expliciete rest, zonder percentage-ruis.
+for (const profile of ['ops', 'p6', 'msproject'] as const) {
+  for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
+    for (const unit of ['days', 'hours'] as const) {
+      const hpd = type === 'ELAPSEDTIME' ? 24 : 8;
+      const { store } = createAppStoreContext();
+      store.setState(s => {
+        s.calendar = week;
+        s.project.startDate = '2026-06-01T07:00';
+        s.project.statusDate = '2026-06-02T07:00';
+        s.project.schedulingProfile = builtInProfile(profile);
+      });
+      const S = () => store.getState();
+      const before = { ...createDefaultTaskTime('2026-06-01T07:00', 4), durationUnit: unit,
+        durationType: type, completion: 0.5, actualStart: '2026-06-01T07:00', remainingTime: 1,
+        ...(unit === 'hours' ? { durationMinutes: 4 * hpd * 60, remainingMinutes: hpd * 60 } : {}) };
+      const id = S().addTask({ name: 'Expliciete rest', time: before });
+      const get = () => S().tasks.find(t => t.id === id)!.time;
+      const afterUnit = unit === 'days' ? 'hours' : 'days';
+      const after: Task['time'] = { ...get(), scheduleDuration: 4, durationUnit: afterUnit, durationMinutes: afterUnit === 'hours' ? 4 * hpd * 60 : undefined };
+      S().updateTask(id, { time: after });
+      const label = `341 ${profile} ${type} ${unit} naar ${afterUnit}`;
+      const expect = [0.5, 1, afterUnit === 'hours' ? hpd * 60 : undefined];
+      const state = () => [get().completion, get().remainingTime, get().remainingMinutes];
+      rows++;
+      if (JSON.stringify(state()) !== JSON.stringify(expect)) failures.push(`${label}: ${JSON.stringify(state())} ≠ ${JSON.stringify(expect)}`);
+      S().runCPM();
+      rows++;
+      if (JSON.stringify(state()) !== JSON.stringify(expect)) failures.push(`${label}: F5 wijzigt de rest`);
+      S().undo();
+      rows++;
+      if (get().durationUnit !== unit || get().remainingTime !== 1) failures.push(`${label}: undo herstelt de bron niet`);
+      S().redo();
+      rows++;
+      if (JSON.stringify(state()) !== JSON.stringify(expect)) failures.push(`${label}: redo verliest de rest`);
+      const reopened = createAppStoreContext().store;
+      reopened.getState().loadState(readIFC(writeIFC(buildWriteIFCInput(S()))));
+      reopened.getState().runCPM();
+      const saved = reopened.getState().tasks.find(t => t.name === 'Expliciete rest')!.time;
+      rows++;
+      // Na laden wordt het hulpveld remainingTime van een urentaak opnieuw afgeleid. De
+      // restbron blijft remainingMinutes; bij een dagtaak is remainingTime zelf de bron.
+      const savedState = [saved.completion, saved.durationUnit,
+        afterUnit === 'hours' ? saved.remainingMinutes : saved.remainingTime];
+      const savedWant = [0.5, afterUnit, afterUnit === 'hours' ? hpd * 60 : 1];
+      if (JSON.stringify(savedState) !== JSON.stringify(savedWant)) {
+        failures.push(`${label}: opslaan, heropenen en F5: ${JSON.stringify(savedState)} ≠ ${JSON.stringify(savedWant)}`);
+      }
+    }
+  }
+}
+const before266 = { ...createDefaultTaskTime('2026-06-01T07:00', 2), completion: 0.25, actualStart: '2026-06-01T07:00' };
+const after266 = { ...before266, durationUnit: 'hours' as const, durationMinutes: 720, scheduleDuration: 1.5 };
+const result266 = durationEditProgress({ childIds: [] }, before266, after266, 8);
+rows++;
+if (!result266 || result266.refused || result266.remainingMinutes !== 480) failures.push(`266: rest moet exact 480 min zijn, kreeg ${JSON.stringify(result266)}`);
 
 if (failures.length > 0) {
   for (const failure of failures) console.log(`XX  ${failure}`);

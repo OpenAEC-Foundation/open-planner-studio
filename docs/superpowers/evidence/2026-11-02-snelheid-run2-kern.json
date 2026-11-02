@@ -1,0 +1,738 @@
+{
+  "base": "dd9d7b46c599ceaaa4e9626e32ee596cce5b81c1",
+  "head": "1fc75e094c7cf0ed8dff9d9f6bf94a515d915b88",
+  "sourceHashes": {
+    "src/engine/scheduler/CPMSolver.ts": {
+      "before": "fcacec6e725e6baf82b855727186ad35dddfc862",
+      "after": "fcacec6e725e6baf82b855727186ad35dddfc862"
+    },
+    "src/engine/scheduler/ResourceLeveler.ts": {
+      "before": "678c7460d2766bfc5d110c7b80dc71e76327c6d0",
+      "after": "543953886b40680622783fe356cc88bb226fb27b"
+    }
+  },
+  "warmups": 2,
+  "repeats": 5,
+  "node": "v22.23.4",
+  "timezone": "Europe/Amsterdam",
+  "cpu": "AMD EPYC 7763 64-Core Processor",
+  "logicalCpus": 4,
+  "freeMemoryAtEnd": 12632178688,
+  "at": "2026-11-02T13:31:57.057Z",
+  "rows": [
+    {
+      "size": 1000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "before",
+      "ms": 468.2746279999999,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "after",
+      "ms": 369.8015270000001,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "after",
+      "ms": 274.94148799999994,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "before",
+      "ms": 313.435199,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "before",
+      "ms": 254.1162290000002,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "after",
+      "ms": 251.69560600000023,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "after",
+      "ms": 229.3011779999997,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "before",
+      "ms": 275.03062,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "before",
+      "ms": 255.66706599999998,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "after",
+      "ms": 253.80308400000013,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "after",
+      "ms": 244.75592799999959,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "before",
+      "ms": 284.35510200000044,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.41,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "before",
+      "ms": 255.33635099999992,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.42,
+        0.16
+      ]
+    },
+    {
+      "size": 1000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "after",
+      "ms": 233.0344839999998,
+      "inputHash": "77fb8a4cc8e53491d1f7e8473cf0577881da61d4eca50997977b5690e884607e",
+      "proposalHash": "a646c4dd73737116cf807bc125070c63f5ffa7e003941bd5d28d3335bec4dbf8",
+      "cpmHash": "adbcea716816e2369da5cf26681ae65631468c770124a896973523eef857c9a7",
+      "shifts": 756,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.42,
+        0.16
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "before",
+      "ms": 3617.9520460000003,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.95,
+        0.42,
+        0.16
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "after",
+      "ms": 2824.178629,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.96,
+        0.43,
+        0.17
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "after",
+      "ms": 2670.949494999999,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.96,
+        0.43,
+        0.17
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "before",
+      "ms": 3494.4465039999977,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.96,
+        0.44,
+        0.17
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "before",
+      "ms": 3114.0391229999987,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.96,
+        0.44,
+        0.17
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "after",
+      "ms": 2929.2824010000004,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.96,
+        0.45,
+        0.18
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "after",
+      "ms": 2826.598754999999,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.45,
+        0.18
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "before",
+      "ms": 3466.5715199999977,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.45,
+        0.18
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "before",
+      "ms": 2981.3778940000047,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.46,
+        0.19
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "after",
+      "ms": 2828.6663100000005,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.47,
+        0.19
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "after",
+      "ms": 3086.329759,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.47,
+        0.19
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "before",
+      "ms": 3179.235151999994,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.97,
+        0.48,
+        0.2
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "before",
+      "ms": 3093.682922,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.98,
+        0.49,
+        0.2
+      ]
+    },
+    {
+      "size": 5000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "after",
+      "ms": 2688.471540000006,
+      "inputHash": "3f544c5e33c2c3ca07e6621df47c9d3565a2aa81fe252c246bf73d757485479b",
+      "proposalHash": "17873c2b4e8e460420cc10eb3398a6b1594e575822eff8f620890d4900fdfe21",
+      "cpmHash": "9e66c02c3f5aaea5cfe1f4206069c09d29d5d3fbb8580d3a53c37cf9e3c35d98",
+      "shifts": 4313,
+      "unresolved": 0,
+      "loadBefore": [
+        0.98,
+        0.49,
+        0.2
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "before",
+      "ms": 10371.659121999997,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        0.98,
+        0.5,
+        0.21
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": -1,
+      "warmup": true,
+      "version": "after",
+      "ms": 9616.157640999998,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        0.98,
+        0.52,
+        0.21
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "after",
+      "ms": 9931.08812500001,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        0.99,
+        0.53,
+        0.22
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 0,
+      "warmup": true,
+      "version": "before",
+      "ms": 11150.536783000003,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        0.99,
+        0.55,
+        0.23
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "before",
+      "ms": 12638.868185,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        0.99,
+        0.57,
+        0.25
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 1,
+      "warmup": false,
+      "version": "after",
+      "ms": 10781.509698999987,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.29,
+        0.65,
+        0.28
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "after",
+      "ms": 10534.038063,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.24,
+        0.66,
+        0.28
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 2,
+      "warmup": false,
+      "version": "before",
+      "ms": 12318.300010000006,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.19,
+        0.68,
+        0.3
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "before",
+      "ms": 12087.331131999992,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.16,
+        0.69,
+        0.3
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 3,
+      "warmup": false,
+      "version": "after",
+      "ms": 10313.292159000004,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.12,
+        0.71,
+        0.31
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "after",
+      "ms": 10634.09718099999,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.18,
+        0.73,
+        0.33
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 4,
+      "warmup": false,
+      "version": "before",
+      "ms": 12369.440067999996,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.15,
+        0.74,
+        0.34
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "before",
+      "ms": 12080.181878999982,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.12,
+        0.76,
+        0.35
+      ]
+    },
+    {
+      "size": 10000,
+      "repeat": 5,
+      "warmup": false,
+      "version": "after",
+      "ms": 10053.97620199999,
+      "inputHash": "a494ef22d3416721fdbee5503b289b9f351cd3b3d803f8ad15bfae0b2d2280ed",
+      "proposalHash": "b6ef37d4819ef7e6bc5747ec745eb616d2e897c158e6a9a719df8581e018cd31",
+      "cpmHash": "fa439fb5837dad2e66d66e5eac7526743915a5d8c9bc7c2813f43b37997cf144",
+      "shifts": 8920,
+      "unresolved": 0,
+      "loadBefore": [
+        1.26,
+        0.8,
+        0.37
+      ]
+    }
+  ]
+}

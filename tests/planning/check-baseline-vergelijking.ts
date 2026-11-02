@@ -643,6 +643,26 @@ eq(screen[1]?.map(p => [p.base, p.stripes]), [
   eq(reach, { earliest: '2026-07-01', latest: '2026-10-21' }, 'E bereik: actief okt + vergelijking juli');
   eq(shownBaselineReach([octBl, julyBl], octBl.id, [null, null]), { earliest: '2026-10-20', latest: '2026-10-21' },
     'E bereik zonder vergelijking: alleen de actieve');
+  // Knownbug 451: dezelfde terugval bij een ontbrekende rand als de echte tekenfunctie.
+  for (const [start, finish, expected] of [
+    ['', '2026-07-01', { earliest: '2026-07-01', latest: '2026-10-21' }],
+    ['2026-07-01', '', { earliest: '2026-07-01', latest: '2026-10-21' }],
+    ['', '', { earliest: '2026-10-20', latest: '2026-10-21' }],
+  ] as const) {
+    const partial = { ...julyBl, tasks: [{ ...julyBl.tasks[0], start, finish }] };
+    const partialReach = shownBaselineReach([octBl, partial], octBl.id, [partial.id, null]);
+    eq(partialReach, expected, `451 bereik met start ${J(start)} en einde ${J(finish)}`);
+    if (!start && finish) {
+      eq(computeEffectiveViewStart([t], '2026-10-20', partialReach.earliest), '2026-06-17',
+        '451 de julidatum blijft bereikbaar op de tijdas');
+      const partialOv: BaselineOverlay = new Map([[t.id, { start, finish, isMilestone: false }]]);
+      const completeOv: BaselineOverlay = new Map([[t.id, { start: finish, finish, isMilestone: false }]]);
+      const activeOv: BaselineOverlay = new Map([[t.id, { start: '2026-10-20', finish: '2026-10-21', isMilestone: false }]]);
+      eq(renderPrint([t], activeOv, [{ slot: 1, overlay: partialOv }]).dims,
+        renderPrint([t], activeOv, [{ slot: 1, overlay: completeOv }]).dims,
+        '451 het echte rapport heeft hetzelfde bereik als de getekende julidag');
+    }
+  }
   eq(computeEffectiveViewStart([t], '2026-10-20'), '2026-10-06', 'E oorsprong zonder baselines: ongewijzigd (taakstart − 14)');
   eq(computeEffectiveViewStart([t], '2026-10-20', reach.earliest), '2026-06-17', 'E oorsprong met juli-baseline: 1 juli − 14');
 
@@ -966,6 +986,22 @@ eq(Math.round(barLayout(32, { resourceAccent: true, baselines: true }).barHeight
       });
     }
   }
+}
+
+// Knownbug 458: de onderste punt is zichtbaar in de buur-rij en blijft onderdeel van dezelfde ruit.
+{
+  const ov: BaselineOverlay = new Map([[ms.id, { start: m0, finish: m0, isMilestone: true }]]);
+  const keep: { r?: GanttRenderer } = {};
+  const fills = renderScreen([ms, bar], ov, [], { keep });
+  const shape = fills.find(fill => fill.color === PRINT_PALETTE.baseline && fill.pts.length >= 3)!;
+  const box = bbox(shape.pts);
+  const x = (box.x1 + box.x2) / 2;
+  const y = box.y2 - 0.2;
+  ok(y > 92, '458 de echte tekening steekt onder rij 0 uit');
+  eq(keep.r?.getRowIndex(y), 1, '458 de onderste punt ligt geometrisch in rij 1');
+  eq(keep.r?.getBaselineAt(x, y)?.task.id, ms.id, '458 hover onder de rijgrens vindt de getekende mijlpaal');
+  eq(keep.r?.getBaselineAt(x, y)?.slots, [0], '458 hover noemt de baseline van die ruit');
+  eq(keep.r?.getBaselineAt(x, box.y2 + 3), null, '458 buiten de vorm en de bestaande marge is er geen hover');
 }
 
 if (failures > 0) {

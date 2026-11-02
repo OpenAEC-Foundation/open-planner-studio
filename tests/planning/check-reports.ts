@@ -926,6 +926,22 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   near('voortgang gemengd: elke taak op haar eigen kalender', gepland(gemengd(dagCal, '2026-06-02', verlengd(), uurTaak())), 22.9, 0.05);
 }
 
+// Knownbug 343: de WBS-duur volgt de berekende fase, ook bij een deel van een dag.
+for (const unit of ['days', 'hours'] as const) {
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const parent = S().addTask({ name: 'Halve dag' });
+  const child = S().addTask({ name: 'Werk', parentId: parent });
+  const time = S().tasks.find(t => t.id === child)!.time;
+  S().updateTask(child, { time: { ...time, durationUnit: unit, scheduleDuration: 0.5,
+    ...(unit === 'hours' ? { durationMinutes: 240 } : {}) } });
+  S().runCPM();
+  ok(`343 ${unit}: berekening zonder fout`, !!S().cpmResult && !S().cpmResult!.error);
+  eq(`343 ${unit}: fase in de store is een halve dag`, S().tasks.find(t => t.id === parent)!.time.scheduleDuration, 0.5);
+  const row = computeWbsSummary(ctxFromStore(), { maxLevel: 0, includeActivities: true }).rows.find(r => r.taskId === parent)!;
+  eq(`343 ${unit}: rapport bewaart de halve dag`, row.durationDays, 0.5);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────
 if (diffs.length) {
   for (const d of diffs) console.log(`XX ${d}`);

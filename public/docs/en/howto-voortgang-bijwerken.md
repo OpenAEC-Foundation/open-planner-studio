@@ -72,6 +72,8 @@ Every change to progress or the status date makes the schedule out of date: the 
 
 **A percentage below 100%.** If you set a completed task back below 100%, the actual finish is dropped. If you clear only the actual finish, the percentage goes to 0 and the task stays *In progress*. If you want the task to count as not started again, also clear the actual start, or choose *Not started* at *Status* in the table.
 
+**0% with an actual start.** If a task has an actual start, it counts as started, even at 0%. The remaining work is then the full duration, unless you enter another value at *Remaining* in the table. Clear the actual start to make it count as not started again.
+
 **Changing the duration of a running task.** The work done stays done and the percentage adjusts. A task of 5 work days at 60% that you set to 10 work days ends up at 30%. The app refuses a duration shorter than the work already done: *‘Build inner cavity leaf’ is already 60% done: a duration shorter than the work already done isn't possible. The duration was not changed.* In the table the cell reports *This duration is shorter than the work already done.*
 
 **The remaining duration is exact.** The app does not round the remaining duration to whole work days. For a task of 2 work days, 75% gives a remainder of 0.5 work day.

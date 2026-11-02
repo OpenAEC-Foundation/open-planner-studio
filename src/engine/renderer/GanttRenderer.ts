@@ -1043,8 +1043,7 @@ export class GanttRenderer {
   /** Welke baselines liggen onder de muis? Leest de stukken die de laatste teken-ronde vastlegde
    *  (zelfde geometrie als getekend), met een marge van 2 px boven en onder. */
   getBaselineAt(canvasX: number, canvasY: number): { task: Task; slots: BaselineSlot[] } | null {
-    const hit = this.baselineHits.get(this.getRowIndex(canvasY));
-    if (!hit) return null;
+    const rowIndex = this.getRowIndex(canvasY);
     const PAD = 2;
     // Afstand van de muis tot de echte vorm (0 = erin): een ruit is |dx| + |dy| <= s, een stuk
     // van de strook een rechthoek.
@@ -1059,15 +1058,21 @@ export class GanttRenderer {
     // Eerst de getekende vormen zelf, in omgekeerde tekenvolgorde: de bovenste vorm wint (bv. een
     // ruit die deels over een andere ligt). Pas als geen vorm geraakt is, telt de marge van 2 px;
     // dan wint de dichtstbijzijnde vorm (bij gelijke afstand de bovenste).
-    let best: BaselineHitRect | null = null;
+    let best: { task: Task; slots: BaselineSlot[] } | null = null;
     let bestDistance = Infinity;
-    for (let i = hit.rects.length - 1; i >= 0; i--) {
-      const r = hit.rects[i];
-      const d = distance(r);
-      if (d === 0) return { task: hit.task, slots: r.slots };
-      if (d <= PAD && d < bestDistance) { best = r; bestDistance = d; }
+    // Een baselineruit kan over de rijgrens steken. Neem beide buurrijen mee, in omgekeerde
+    // tekenvolgorde; een echte vorm gaat overal vóór de marge van een andere vorm.
+    for (const candidate of [rowIndex + 1, rowIndex, rowIndex - 1]) {
+      const hit = this.baselineHits.get(candidate);
+      if (!hit) continue;
+      for (let i = hit.rects.length - 1; i >= 0; i--) {
+        const r = hit.rects[i];
+        const d = distance(r);
+        if (d === 0) return { task: hit.task, slots: r.slots };
+        if (d <= PAD && d < bestDistance) { best = { task: hit.task, slots: r.slots }; bestDistance = d; }
+      }
     }
-    return best ? { task: hit.task, slots: best.slots } : null;
+    return best;
   }
 
   private drawTimelineHeader(): void {

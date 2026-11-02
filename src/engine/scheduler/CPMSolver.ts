@@ -1292,7 +1292,8 @@ export class CPMSolver {
     // De urenmaat: een urentaak, of een dagenmaat-taak in een profiel zonder dagenmaat (§3.2:
     // `scheduleDuration` × werktijd per dag × 60 minuten).
     const totalMinutes = splitTotalSpanMinutes(task.splitGaps, this.workMinutesOf(task, eng));
-    if (totalMinutes > 0 && this.p6FinishBoundaryStartTaskIds.has(task.id)
+    const hasDuration = CalendarEngine.walkMs(totalMinutes) > 0;
+    if (hasDuration && this.p6FinishBoundaryStartTaskIds.has(task.id)
       && this.isExactBandEnd(eng, start)) {
       return {
         date: eng.addWorkMinutes(eng.nextWorkInstantAfter(start), totalMinutes),
@@ -1309,11 +1310,11 @@ export class CPMSolver {
     // resteren. Reken de duur daarom vanaf de EERSTE band van diezelfde kalenderdag i.p.v. vanaf
     // het band-eind-instant zelf — de GERAPPORTEERDE `earlyStart` blijft ongewijzigd het rauwe
     // band-eind-anker, dit raakt uitsluitend het interne rekenpunt voor de
-    // duur-optelling. `totalMinutes > 0`-wacht: anders verlegt dit ook de RETURN van een
+    // duur-optelling. De wacht op een positieve lengte in hele ms voorkomt dat dit de RETURN van een
     // NUL-duur, niet-mijlpaal-taak (`isZeroDurationMilestone` vereist óók `task.isMilestone`) van
-    // `addWorkMinutes`'s `minutes ≤ 0`-kortsluiting naar de band-begin-waarde (dataDate-vloer-cases
-    // `msp-06`/`msp-06b`). Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false`.
-    const walkStart = totalMinutes > 0 && this.isExactBandEnd(eng, start)
+    // `addWorkMinutes`'s nul-lengte-kortsluiting naar de band-begin-waarde (dataDate-vloer-cases
+    // `msp-06`/`msp-06b`) verlegt. Band-INTERIEUR/normale starts ⇒ `isExactBandEnd` levert `false`.
+    const walkStart = hasDuration && this.isExactBandEnd(eng, start)
       ? this.dayFirstBandStart(eng, start) ?? start
       : start;
     return { date: eng.addWorkMinutes(walkStart, totalMinutes), capped: false };
@@ -1491,11 +1492,12 @@ export class CPMSolver {
     return date;
   }
 
-  /** WORKTIME-lag in MINUTEN in de voorganger-kalender: procent ⇒ uit `durationMinutesOf(pred)`;
-   *  `lagMinutes` ⇒ bron; anders `lagDays × pred-hoursPerDay × 60` (naakt getal = werkdagen). */
+  /** WORKTIME-lag in minuten: een percentage weegt de duur op de voorgangerkalender;
+   *  `lagMinutes` is de bron; anders telt `lagDays × hoursPerDay × 60` op de meegegeven lagkalender.
+   *  Alleen het verschuiven met die minuten gebruikt de lagkalender. */
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
     if (isFiniteNumber(seq.lagPercent)) {
-      const predMin = isZeroDurationMilestone(predTask) ? 0 : durationMinutesOf(predTask, predEng);
+      const predMin = isZeroDurationMilestone(predTask) ? 0 : durationMinutesOf(predTask, this.calendarFor(predTask));
       return Math.round((predMin * seq.lagPercent) / 100);
     }
     if (isFiniteNumber(seq.lagMinutes)) return seq.lagMinutes;
