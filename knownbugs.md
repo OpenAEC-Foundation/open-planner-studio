@@ -604,6 +604,15 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+843. **Kolomkoppen verslepen werkt op Windows in de desktop-app mogelijk niet.** De herordening in
+     `src/components/task-grid/DataGridHeader.tsx:459` gebruikt HTML5-slepen (`draggable`, `drop` op
+     `window`). `src-tauri/tauri.conf.json` zet `dragDropEnabled: true`; dan zet wry 0.57.0 op Windows
+     `SetAllowExternalDrop(false)` en vervangt het de drop-target van WebView2 door een eigen target
+     (`webview2/drag_drop.rs`, `RevokeDragDrop` + `RegisterDragDrop`). De Tauri-documentatie zegt dat
+     HTML5-slepen op Windows `dragDropEnabled: false` vraagt. Afgeleid uit de bron bij #771, niet op
+     Windows nagespeeld. `dragDropEnabled` moet aan blijven voor het neerzetten van bestanden (alleen
+     zo krijgt de app het pad). Voorstel: de herordening met pointer-events, zoals `GuidePanel.tsx`. — S
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
