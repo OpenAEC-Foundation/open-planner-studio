@@ -88,7 +88,7 @@ export function BaselinesProgressGroupContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.statusDate')}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <Icon id="planning.status-date" size={16} mono style={{ opacity: 0.6, flexShrink: 0 }} />
+        <Icon id="planning.status-date" size={16} />
         <DateTextInput
           value={statusDate ?? ''}
           onCommit={v => setStatusDate(v || undefined)}
