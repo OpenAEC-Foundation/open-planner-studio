@@ -1,6 +1,6 @@
 import type { Task, TaskConstraint, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { effectiveExternalLinks, expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { type ReportContext, activityTasks } from './reportCommon';
 
 /**
@@ -35,8 +35,10 @@ export function buildLogicIndex(ctx: ReportContext): LogicIndex {
   const hasPred = new Set<string>();
   const hasSucc = new Set<string>();
   for (const s of relations) { hasSucc.add(s.predecessorId); hasPred.add(s.successorId); }
+  // Een externe relatie op een fase geldt voor de bladtaken eronder (zoals in de berekening).
+  const externalLinksOf = effectiveExternalLinks(ctx.tasks);
   for (const t of leaves) {
-    for (const l of t.externalLinks ?? []) {
+    for (const l of externalLinksOf(t)) {
       if (l.direction === 'predecessor') hasPred.add(t.id); else hasSucc.add(t.id);
     }
   }

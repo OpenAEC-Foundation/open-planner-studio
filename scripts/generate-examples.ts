@@ -7,7 +7,7 @@
 // met de ECHTE writeIFC. Zie ook verify-examples.ts (npm run verify:examples).
 import { writeFileSync, mkdirSync, existsSync, copyFileSync, statSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { allSpecs, build } from './gen-core';
+import { allBuilds } from './gen-core';
 
 const ROOT = process.cwd();
 const EX_DIR = join(ROOT, 'examples');
@@ -30,8 +30,10 @@ function main() {
   if (!existsSync(EX_DIR)) mkdirSync(EX_DIR, { recursive: true });
   if (!existsSync(PUB_DIR)) mkdirSync(PUB_DIR, { recursive: true });
 
-  const specs = allSpecs();
-  const built = specs.map(spec => ({ spec, res: build(spec) }));
+  // Eén bouw per spec; het externe-koppeling-bronbestand komt uit de bouw waaruit GROOT zijn
+  // koppeling las (`allBuilds`, knownbug 509).
+  const built = allBuilds();
+  const specs = built.map(({ spec }) => spec);
 
   // Publieke selectie: alle showcases (afgeleid uit `category`, dus GROOT komt automatisch mee
   // zodra het `category:'showcase'` heeft — fase 2.10, golf 2) + representatieve basis-selectie,

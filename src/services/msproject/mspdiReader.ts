@@ -197,6 +197,11 @@ function getElementText(parent: Element, tagName: string): string {
   return descendantText(parent, tagName);
 }
 
+/** Een xsd:boolean uit MSPDI: MS Project schrijft `1`/`0`, andere schrijvers soms `true`/`false`. */
+function isXmlTrue(text: string): boolean {
+  return text === '1' || text.trim().toLowerCase() === 'true';
+}
+
 function getElementInt(parent: Element, tagName: string, fallback = 0): number {
   return toInt(getElementText(parent, tagName), fallback);
 }
@@ -418,7 +423,14 @@ export function readMSPDI(content: string): ImportResult {
   const effHpdByTaskId = new Map<string, number>();
   /** De effectieve kalender per taak (na de uur-promotie), voor de lagkalender van een lagrecord. */
   const effCalByTaskId = new Map<string, WorkCalendar>();
-  const pendingLinks: { successorId: string; predUid: number; type: number; lag: number; lagFormat: number; record?: LagRecord }[] = [];
+  const pendingLinks: {
+    successorId: string; predUid: number; type: number; lag: number; lagFormat: number; record?: LagRecord;
+    /** `<CrossProject>1`: de voorganger staat in een ander project (zie de resolutie hieronder). */
+    crossProject?: true;
+  }[] = [];
+  /** UID's van taken met `<ExternalTask>1`: een spooktaak die een andere schrijver wél als `<Task>`
+   *  meegaf. De lezer leest haar als gewone taak (de openingsmelding telt haar). */
+  const externalTaskUids = new Set<number>();
   // Baseline 0: per taak de gesnapshotte Start/Finish/Duration.
   const baselineEntries: BaselineTask[] = [];
 
@@ -479,6 +491,7 @@ export function readMSPDI(content: string): ImportResult {
 
     const id = generateId('task');
     uidToId.set(uid, id);
+    if (isXmlTrue(getElementText(te, 'ExternalTask'))) externalTaskUids.add(uid);
 
     const name = getElementText(te, 'Name') || 'Task';
     const wbs = getElementText(te, 'WBS') || `${uid}`;
@@ -717,6 +730,7 @@ export function readMSPDI(content: string): ImportResult {
       const linkType = getElementInt(pl, 'Type', 1);
       const linkLag = getElementInt(pl, 'LinkLag', 0);
       const lagFormat = getElementInt(pl, 'LagFormat', 7);
+      const crossProject = isXmlTrue(getElementText(pl, 'CrossProject'));
       if (predUid >= 0) {
         taskLinks.push({
           successorId: id,
@@ -724,6 +738,7 @@ export function readMSPDI(content: string): ImportResult {
           type: linkType,
           lag: linkLag,
           lagFormat,
+          ...(crossProject ? { crossProject: true as const } : {}),
         });
       }
     }
@@ -754,6 +769,11 @@ export function readMSPDI(content: string): ImportResult {
   const ELAPSED_DURATION_FORMATS = new Set([4, 6, 8, 10, 12]);
   const sequences: Sequence[] = [];
   for (const link of pendingLinks) {
+    // Een link naar een ander project (`<CrossProject>1`) wijst met `PredecessorUID` naar de spooktaak,
+    // niet naar een taak van dit bestand; MS Project schrijft die spooktaak zelf niet als `<Task>`
+    // (MPXJ `MSPDIWriter.writePredecessor`). Valt het nummer samen met een gewone eigen taak, dan is
+    // dat niet de voorganger. Alleen een meegegeven spooktaak (`<ExternalTask>1`) houdt de relatie.
+    if (link.crossProject && !externalTaskUids.has(link.predUid)) continue;
     const predId = uidToId.get(link.predUid);
     if (!predId) continue;
     const seq: Sequence = {

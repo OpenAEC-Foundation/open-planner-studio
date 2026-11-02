@@ -306,7 +306,8 @@ function verifyExternalSource(specs: ProjectSpec[], diffs: string[]) {
   if (!terrain) { diffs.push('extern bronbestand-spec ontbreekt (category "external-source")'); return; }
   const terrainPath = join(EX_DIR, `${terrain.slug}.ifc`);
   if (!existsSync(terrainPath)) { diffs.push(`extern bronbestand niet op schijf: ${terrainPath}`); return; }
-  const terrainTasks = openedTasks(readIFC(readFileSync(terrainPath, 'utf8')));
+  const terrainParsed = readIFC(readFileSync(terrainPath, 'utf8'));
+  const terrainTasks = openedTasks(terrainParsed);
 
   const groot = specs.find(s => s.category === 'showcase' && (s.tags ?? []).includes('large'));
   if (!groot) { diffs.push('GROOT-showcase (tag "groot") niet gevonden'); return; }
@@ -320,6 +321,12 @@ function verifyExternalSource(specs: ProjectSpec[], diffs: string[]) {
     for (const link of t.externalLinks ?? []) {
       const srcTask = terrainTasks.find(x => x.name === link.sourceRef.taskName);
       if (!srcTask) { diffs.push(`extern-koppeling: brontaak "${link.sourceRef.taskName}" niet gevonden in bronbestand`); continue; }
+      // De verversing zoekt op id, niet op naam (`refreshExternalAnchors`): de koppeling moet de
+      // id's van het weggeschreven bronbestand dragen (knownbug 509).
+      expect(diffs, link.sourceRef.projectId === terrainParsed.project.id,
+        `extern-koppeling: project-id ${link.sourceRef.projectId} ≠ bronbestand ${terrainParsed.project.id}`);
+      expect(diffs, link.sourceRef.taskId === srcTask.id,
+        `extern-koppeling: taak-id ${link.sourceRef.taskId} ≠ brontaak ${srcTask.id}`);
       const side = (link.direction === 'predecessor' ? link.relType[0] : link.relType[1]) === 'F' ? 'finish' : 'start';
       const expected = side === 'finish'
         ? (srcTask.time.earlyFinish || srcTask.time.scheduleFinish)
