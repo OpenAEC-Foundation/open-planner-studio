@@ -311,9 +311,16 @@ Drie nieuwe velden per koppeling, allemaal optioneel, in het bestaande JSON-veld
 | `sourceVersion` | de versie van de bron bij het lezen (site), of de wijzigingstijd (bestand) | `"12"` of `"2026-11-02T14:05:00Z"` |
 | `anchorReadAt` | wanneer OPS het anker las | `"2026-11-02T14:10:00Z"` |
 
-Een oudere versie van OPS laat deze velden staan (`storedExternalLinks` houdt onbekende velden). Ververst een oudere
-versie het anker, dan blijven `sourceVersion` en `anchorReadAt` op de oude waarde staan; de nieuwe versie ziet dat aan
-een anker dat niet bij de bronversie past, en vraagt dan opnieuw te lezen. Het lijstje "wie hangt van mij af" komt niet
+Een oudere versie van OPS laat deze velden bij openen en opslaan staan (`storedExternalLinks` houdt onbekende velden).
+Twee randgevallen:
+
+- Ververst een oudere versie het anker, dan blijven `sourceVersion` en `anchorReadAt` op de oude waarde staan. De
+  nieuwe versie toont dan nog een keer de balk; *Bekijken* vindt geen verschil en zet de velden goed.
+- Bewerkt een oudere versie de koppeling in de dialoog, dan vallen de nieuwe velden weg: de bronroute bouwt een nieuwe
+  koppeling (`ExternalLinkDialog.tsx`, `submit`). De nieuwe versie herkent de bron dan weer op project-id en pad,
+  zoals nu.
+
+Het lijstje "wie hangt van mij af" komt niet
 in het IFC: in de SuperCloud houdt de host het bij, zonder cloud zoekt OPS het op (6.4 en 7.3). Alleen de map waarin
 OPS zonder cloud zoekt, kan een projectinstelling worden (keuze 7).
 
@@ -579,7 +586,19 @@ Advies: optie 1.
 
 ## 11. Issues bij de SuperCloud
 
-Volgt.
+De repo `openaec-supercloud` (met de werkplek) is voor ons niet zichtbaar. De issues staan daarom in de openbare
+repo van de SuperCloud, `OpenAEC-Foundation/openaec-storage`, in het Nederlands, met per issue een regel "Waar" voor
+het deel dat bij de werkplek hoort. Vooraf gezocht: in `openaec-storage` stond alleen #1 (versienummer), en in de
+andere repo's van OpenAEC-Foundation was er geen issue voor deze behoeften. In de privérepo kon ik niet zoeken.
+
+| | issue |
+|---|---|
+| C1 | [openaec-storage#2](https://github.com/OpenAEC-Foundation/openaec-storage/issues/2): een bestand lezen buiten de map van het geopende bestand, ook uit *Gedeeld met mij* |
+| C2 | [openaec-storage#3](https://github.com/OpenAEC-Foundation/openaec-storage/issues/3): een bestand volgen, bericht bij een nieuwe versie |
+| C3 | [openaec-storage#4](https://github.com/OpenAEC-Foundation/openaec-storage/issues/4): koppelingen tussen bestanden bewaren en terugvragen |
+| C4 | [openaec-storage#5](https://github.com/OpenAEC-Foundation/openaec-storage/issues/5): een melding aan de planner van een ander bestand |
+| C5 | [openaec-storage#6](https://github.com/OpenAEC-Foundation/openaec-storage/issues/6): een ander bestand openen in een nieuw tabblad |
+| C6 | [openaec-storage#7](https://github.com/OpenAEC-Foundation/openaec-storage/issues/7): een haak bij een nieuwe versie, voor een app op de server |
 
 ## 12. Bronnen
 
