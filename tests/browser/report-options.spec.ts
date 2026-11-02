@@ -43,7 +43,7 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
   await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
   const previewBefore = await preview.getAttribute('src');
 
-  // Afdruk moet het ingestelde vel gebruiken, niet opnieuw het standaardrapport openen.
+  // De export moet het ingestelde vel gebruiken, niet opnieuw het standaardrapport openen.
   const paper = page.getByLabel(/^(Paper:|Papier:)$/);
   await paper.click();
   await page.getByRole('option', { name: 'A4', exact: true }).click();
@@ -81,8 +81,8 @@ test('report options: preview en export gebruiken dezelfde actuele kop en legend
     drawn?.splice(0, drawn.length);
   });
   const downloadPromise = page.waitForEvent('download');
-  // Knownbug 21: de echte lintknop start dezelfde export als Exporteer PDF, zonder remount.
-  const print = page.locator('[data-tour-anchor="ribbon:report:printPreview"]');
+  // Knownbug 21: Exporteer PDF exporteert met de ingestelde paneelstate, zonder remount.
+  const print = page.locator('form#report-pdf-export button[type="submit"]');
   await print.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Rapportopties-schedule.pdf');

@@ -375,6 +375,12 @@ function momentAtOffset(
   return new Date(dayMs + bands[bands.length - 1].end * 60_000);
 }
 
+/** De bestaande handmatige plaatsingsregel, gedeeld door histogram en nivelleerder. De
+ *  herkomstlezing blijft hier in de motor; de gepinde datagate krijgt geen extra lezingen. */
+export function hasManualPlacement(task: Pick<Task, 'manuallyScheduled'>): boolean {
+  return task.manuallyScheduled === true;
+}
+
 /**
  * Staat de plaatsing van deze taak vast in haar berekende spanne (`earlyStart`..`earlyFinish`)?
  *  - kalendertijd: de duur is klokminuten, niet het werk op de taakkalender;
@@ -387,7 +393,7 @@ function momentAtOffset(
 export function placementFollowsSpan(task: Task): boolean {
   const t = task.time;
   return t.durationType === 'ELAPSEDTIME' || isPinnedComplete(t) || isPinnedInProgress(t)
-    || task.manuallyScheduled === true || task.isHammock === true;
+    || hasManualPlacement(task) || task.isHammock === true;
 }
 
 /**

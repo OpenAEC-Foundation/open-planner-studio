@@ -319,8 +319,12 @@ export function executeSteps(
         );
       }
 
-      // Verse planning vóór een lezing of een levelingstap die op mutaties volgt.
-      if (mutatedSinceRecompute && (def.kind === 'read' || def.name === LEVEL_TOOL)) {
+      // Voortgang zonder werkelijke datums leidt die datums uit de planning af. Net als een
+      // losse call moet zo'n stap de eerdere wijzigingen (ook de statusdatum) doorgerekend zien.
+      const derivesProgressDates = def.name === 'planner_update_tasks' && isRecord(args)
+        && Array.isArray(args.updates)
+        && args.updates.some(update => isRecord(update) && update.progress !== undefined);
+      if (mutatedSinceRecompute && (def.kind === 'read' || def.name === LEVEL_TOOL || derivesProgressDates)) {
         recomputeMidBatch(ctx);
         mutatedSinceRecompute = false;
       }

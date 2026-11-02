@@ -19,7 +19,7 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   });
 
   // R1 knownbug 21: vanuit het volledige resourcepaneel moet Rapport zijn eigen werkruimte
-  // openen; anders ontbreekt het formulier en doet de lintknop Afdruk verderop stil niets.
+  // openen; anders ontbreekt het formulier met Exporteer PDF dat de export verderop gebruikt.
   await page.locator('[data-ops-ribbon-tab="resources"]').click();
   await page.locator('[data-tour-anchor="ribbon:resources:openResourcePanel"]').click();
   const addResource = page.locator('[data-ops-resource-add]');
@@ -141,7 +141,7 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   });
   await expect(report.locator('[role=note]')).toHaveCount(1);
   const downloadPromise = page.waitForEvent('download');
-  const print = page.locator('[data-tour-anchor="ribbon:report:printPreview"]');
+  const print = page.locator('form#report-pdf-export button[type="submit"]');
   await print.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('Tabelrapporten-look-ahead.pdf');
