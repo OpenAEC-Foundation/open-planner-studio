@@ -1,4 +1,4 @@
-// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (0f8903324eb4)
+// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (b6843e2716bd)
 // (B2-revisie 107, 217 iconen). Niet met de hand bewerken; zie de kop van dat script.
 // Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen
 // iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.
