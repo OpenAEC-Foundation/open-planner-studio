@@ -24,7 +24,7 @@
 // een rAF-lus) veranderen geen productgedrag.
 //
 // Vlaggen: --sizes 1000,5000,10000  --repeats 3  --out <bestand.json>  --dist <bestaande build>
-//          --headed  --skip <fase,...>  --step-timeout-s 900
+//          --headed  --skip <fase,...>  --step-timeout-s 900  --parity (store- en opslaghashes buiten de timers)
 // Exit 0 = alle metingen gelukt; 1 = minstens één fase mislukt of time-out (staat in de JSON).
 // Niet in `npm run verify` en niet in CI: zwaar en machine-afhankelijk.
 import { spawnSync } from 'node:child_process';

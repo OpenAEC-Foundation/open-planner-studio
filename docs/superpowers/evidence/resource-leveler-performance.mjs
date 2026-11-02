@@ -17,6 +17,7 @@ const base = execFileSync('git', ['rev-parse', arg('--base') ?? '522589202727a4a
 const paths = ['src/engine/scheduler/CPMSolver.ts', 'src/engine/scheduler/ResourceLeveler.ts'];
 const changed = execFileSync('git', ['diff', '--name-only', base, '--', 'src/'], { cwd: root, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 if (changed.some(path => !paths.includes(path))) throw new Error(`Deze meetroute isoleert alleen ${paths.join(', ')}; overige productwijzigingen: ${changed.join(', ')}`);
+execFileSync('git', ['diff', '--quiet', base, '--', 'package.json', 'package-lock.json'], { cwd: root });
 const temp = mkdtempSync(join(tmpdir(), 'ops-leveler-perf-'));
 const rows = [];
 try {

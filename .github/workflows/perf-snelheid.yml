@@ -11,6 +11,11 @@ on:
       - 'tests/planning/check-leveler-differential.ts'
       - 'tests/planning/measure-leveler.ts'
   workflow_dispatch:
+    inputs:
+      base_revision:
+        description: Exacte basis-SHA voor de vergelijking
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -26,7 +31,7 @@ jobs:
     timeout-minutes: 15
     env:
       TZ: Europe/Amsterdam
-      BASE_REVISION: ${{ github.event.pull_request.base.sha || '6386f95e6ca28b47c1ded7c085b74a1e15c2d87b' }}
+      BASE_REVISION: ${{ github.event.pull_request.base.sha || inputs.base_revision }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -79,7 +84,7 @@ jobs:
     timeout-minutes: 40
     env:
       TZ: Europe/Amsterdam
-      BASE_REVISION: ${{ github.event.pull_request.base.sha || '6386f95e6ca28b47c1ded7c085b74a1e15c2d87b' }}
+      BASE_REVISION: ${{ github.event.pull_request.base.sha || inputs.base_revision }}
       HEAD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
@@ -117,7 +122,8 @@ jobs:
       - name: Bestaande grote-planningenroute, drie herhalingen per grootte
         run: |
           set -euo pipefail
-          for revision in baseline candidate; do
+          # Bevestiging na run 41451571010: omgekeerde volgorde om runnerdrift zichtbaar te maken.
+          for revision in candidate baseline; do
             (cd "$revision" && npm run measure:large-plans -- \
               --sizes 1000,5000,10000 --repeats 3 --skip autosave,recovery --parity \
               --step-timeout-s 90 --out "$GITHUB_WORKSPACE/evidence/$revision.json") \
