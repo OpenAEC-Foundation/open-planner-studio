@@ -447,6 +447,27 @@ function makeFakeTauri(opts?: { failStart?: boolean; alreadyRunningOnce?: boolea
   };
 }
 
+test('stop wacht op de lopende tool voordat SIGTERM herstelopslag mag starten', async () => {
+  const fake = makeFakeTauri();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let handling = false;
+  fake.deps.handleMessage = async () => { handling = true; await pending; return '{"ok":true}'; };
+  const controller = createBridgeController(fake.deps);
+  await controller.start();
+  fake.fire('mcp://request', { id: 1, body: INIT_BODY });
+  await Promise.resolve();
+  assert(handling, 'de aanvraag moet werkelijk lopen');
+  let stopped = false;
+  const stopping = controller.stop().then(() => { stopped = true; });
+  await Promise.resolve();
+  assert(!stopped, 'stop mag de lopende tool niet inhalen');
+  assertEq(fake.handlerCount('mcp://request'), 0, 'nieuwe requests zijn al afgemeld');
+  release();
+  await stopping;
+  assert(stopped, 'na afronden van de tool mag stop bevestigen');
+});
+
 test('start na een webview-herlaad ("draait al"): stop + tweede poging, geen port-busy (audit 2026-09-26)', async () => {
   const fake = makeFakeTauri({ alreadyRunningOnce: true });
   const controller = createBridgeController(fake.deps);

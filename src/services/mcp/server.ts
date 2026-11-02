@@ -23,6 +23,7 @@ import { mcpTransactions } from '@/state/mcpTransaction';
 import { createMcpTransactions, type McpTransactions } from '@/state/runtime/createMcpTransactions';
 import { loadMcpPort, loadMcpToken, saveMcpToken, saveAiMode } from '@/utils/settingsStore';
 import { isTauri } from '@/utils/platform';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 import { handleMcpMessage } from './dispatcher';
 import { createAppBackupService, ensureBackup, resetBackupSession, markDuplicateBorn } from './backup';
 import { registerAllTools } from './toolRegistry';
@@ -317,6 +318,7 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
   const sessions = deps.sessions ?? createMcpSessionTable();
   let unlisteners: Array<() => void> = [];
   let starting = false;
+  let requests: Promise<void> = Promise.resolve();
 
   /** Meld een start of stop aan de ontdekkingsbestanden; een fout daar raakt de bridge niet. */
   async function notify(hook: (() => void | Promise<void>) | undefined): Promise<void> {
@@ -351,7 +353,9 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
       });
       const onStatus = createStatusHandler({ setStatus: deps.setStatus });
 
-      const unReq = await deps.listen<McpRequestEvent>('mcp://request', (p) => { void onRequest(p); });
+      const unReq = await deps.listen<McpRequestEvent>('mcp://request', (p) => {
+        requests = onRequest(p).catch(error => { console.error('MCP: verzoek afhandelen mislukt:', error); });
+      });
       const unStatus = await deps.listen<{ state: string; port: number; message?: string }>('mcp://status', (p) => { onStatus(p); });
       unlisteners = [unReq, unStatus];
 
@@ -387,6 +391,8 @@ export function createBridgeController(deps: BridgeDeps): BridgeController {
     // Eerst afmelden: de stop-invoke emit weliswaar een "stopped"-event, maar we willen dat niet
     // meer verwerken — de status zetten we hieronder expliciet op off.
     cleanup();
+    // SIGTERM mag pas een snapshot schrijven nadat de laatste lopende tool is afgerond.
+    await requests;
     try { await deps.invoke('mcp_bridge_stop', {}); } catch { /* al gestopt / geen bridge — niet fataal */ }
     deps.setStatus({ state: 'off', port: deps.getPort() });
     await notify(deps.onBridgeStopped);
@@ -421,7 +427,8 @@ async function buildLiveController(): Promise<BridgeController> {
     getToken: ensureMcpToken,
     sessions: appMcpSessions,
     // `runtime.json` voor de MCP-plugin (issue #570); de writer is alleen in de desktop-app actief.
-    onBridgeStarted: (port, token) => getMcpDiscoveryWriter()?.bridgeStarted(port, token),
+    // Het omgevingsgeheim hoort niet in runtime.json op de persistente gebruikersschijf.
+    onBridgeStarted: (port, token) => linuxEnvironment()?.mcp ? undefined : getMcpDiscoveryWriter()?.bridgeStarted(port, token),
     onBridgeStopped: () => getMcpDiscoveryWriter()?.bridgeStopped(),
   });
 }

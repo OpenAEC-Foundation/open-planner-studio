@@ -7,6 +7,7 @@ import { detectJustUpdated } from '@/services/updater/releaseInfo';
 import { appLog } from '@/services/debug/appLog';
 import { isOnboardingActive } from '@/state/onboarding';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
+import { isManagedLinux } from '@/utils/linuxEnvironment';
 
 /**
  * Stel de automatische updatedialoog uit tot welkomst/rondleiding/tutorialvraag én begeleiding
@@ -46,7 +47,7 @@ export function useUpdateCheck(): void {
   useEffect(() => {
     if (updateChecked.current) return;
     updateChecked.current = true;
-    if (!isTauri()) return;
+    if (!isTauri() || isManagedLinux()) return;
     // Snap- en AUR-builds werkt de pakketbeheerder zelf bij (snapd, pacman) — de in-app
     // auto-check overslaan zodat we de gebruiker niet lastigvallen.
     getInstallKind()
@@ -68,7 +69,7 @@ export function useUpdateCheck(): void {
   useEffect(() => {
     if (justUpdatedChecked.current) return;
     justUpdatedChecked.current = true;
-    if (!isTauri()) return;
+    if (!isTauri() || isManagedLinux()) return;
     void (async () => {
       try {
         const { getVersion } = await import('@tauri-apps/api/app');

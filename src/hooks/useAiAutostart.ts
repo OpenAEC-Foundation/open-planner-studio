@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { startMcpServer } from '@/services/mcp/server';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 
 /**
  * Bridge automatisch starten bij het opstarten van de app (instelling `ops-aiAutostart`).
@@ -26,7 +27,9 @@ export function useAiAutostart(): void {
 
   useEffect(() => {
     if (started.current) return;
-    if (!aiMode || !aiAutostart) return;
+    if (!linuxEnvironment()?.mcp && (!aiMode || !aiAutostart)) return;
+    // Alleen deze sessie: de door de omgeving gevraagde koppeling niet als gebruikersvoorkeur bewaren.
+    if (linuxEnvironment()?.mcp && !aiMode) useAppStore.getState().setUI({ aiMode: true });
     started.current = true;
     void startMcpServer();
   }, [aiMode, aiAutostart]);

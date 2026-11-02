@@ -8,6 +8,7 @@ import type { RecoveryState } from './useRecoveryRestore';
 import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
 import { runsEmbedded } from '@/services/fileAccess/siteHost';
 import { appLog } from '@/services/debug/appLog';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 
 // Geen welkomstvenster (en dus geen taalvraag en geen rondleiding) als de tool ingebed draait (#716:
 // een host of de platformbouw), of als hij niet kan onthouden dat het al gezien is: zonder
@@ -35,7 +36,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     // Eén registergedreven hydratatie: `loadAllSettings` itereert het `SETTINGS`-register + de drie
     // afwijkers (thema-migratie, synchrone bouwmodus, balkkleurkeuze) en levert één `setUI`-patch
     // (geen veld overlapt).
-    void loadAllSettings().then(patch => setUI(patch)).catch(error => {
+    void loadAllSettings().then(patch => setUI({ ...patch, ...(linuxEnvironment()?.mcp ? { aiMode: true } : {}) })).catch(error => {
       console.error('Instellingen laden mislukt; de app draait op de standaardwaarden:', error);
     });
     // Platformbouw (#311): geen extensies, dus ook niets uit IndexedDB laden of uitvoeren.

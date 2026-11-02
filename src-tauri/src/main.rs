@@ -3,6 +3,8 @@
 mod commands;
 #[cfg(target_os = "linux")]
 mod desktop_integration;
+#[cfg(target_os = "linux")]
+mod linux_environment;
 mod mcp_bridge;
 
 use tauri::Manager;
@@ -44,6 +46,11 @@ fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    if let Err(error) = linux_environment::prepare() {
+        eprintln!("OpenAEC Linux: {error}");
+        std::process::exit(78);
+    }
     // Installatietype één keer per proces bepalen, vroeg en buiten de UI-thread (zie
     // `commands::install_kind`): later kan het programmapad al vervangen zijn door een pakketupdate.
     std::thread::spawn(commands::warm_install_kind);
@@ -75,13 +82,24 @@ fn main() {
         }));
     }
 
-    builder
+    #[cfg(target_os = "linux")]
+    let managed = linux_environment::managed();
+    #[cfg(not(target_os = "linux"))]
+    let managed = false;
+    if !managed {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init());
+    #[cfg(target_os = "linux")]
+    { builder = builder.plugin(linux_environment::plugin()); }
+
+    builder
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(process_info_plugin())

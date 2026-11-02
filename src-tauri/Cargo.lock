@@ -2600,6 +2600,7 @@ version = "2026.44.0"
 dependencies = [
  "serde",
  "serde_json",
+ "signal-hook",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",

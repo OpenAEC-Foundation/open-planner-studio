@@ -159,7 +159,7 @@ export async function startHttpTransport(opts: HttpTransportOptions): Promise<Ht
     const done = (status: number) => opts.log?.(`${req.method ?? '?'} ${(req.url ?? '').split('?')[0]} ${status} ${Date.now() - started}ms`);
     const refuse = (status: number, headers?: Record<string, string>) => { respondEmpty(res, status, headers); done(status); };
     const origin = req.headers.origin;
-    if (typeof origin === 'string' && origin !== '') return refuse(403);
+    if (origin !== undefined) return refuse(403);
     if (req.method !== 'POST') return refuse(405, { Allow: 'POST' });
     const path = (req.url ?? '').split('?')[0];
     if (path !== '/mcp') return refuse(404);

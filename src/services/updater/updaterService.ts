@@ -9,6 +9,7 @@
  */
 
 import { isTauri } from '@/utils/platform';
+import { isManagedLinux } from '@/utils/linuxEnvironment';
 import { GITHUB_REPO } from '@/services/githubRepo';
 import { flushRecoveryNow } from '@/services/recovery/recoveryFlush';
 
@@ -79,7 +80,7 @@ export async function checkForUpdates(
   onStatus?: (status: UpdateStatus) => void,
 ): Promise<UpdateInfo | null> {
   // In de web-build is er geen updater — netjes no-opten.
-  if (!isTauri()) {
+  if (!isTauri() || isManagedLinux()) {
     onStatus?.({ kind: 'upToDate' });
     return null;
   }
@@ -117,7 +118,7 @@ export async function checkForUpdates(
 export async function downloadAndInstall(
   onStatus?: (status: UpdateStatus) => void,
 ): Promise<void> {
-  if (!isTauri()) {
+  if (!isTauri() || isManagedLinux()) {
     onStatus?.({ kind: 'upToDate' });
     return;
   }

@@ -412,6 +412,7 @@ export function externalClientChecks(
       name: 'met Origin-header ⇒ 403, ook met geldig token',
       fn: async () => {
         await expectConnectStatus(env.url, { ...auth, Origin: 'http://evil.example' }, 403);
+        await expectConnectStatus(env.url, { ...auth, Origin: '' }, 403);
       },
     },
     {
