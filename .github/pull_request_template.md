@@ -13,7 +13,9 @@
      you ran and what came out of it. Tested by hand in the app? Say what you
      clicked. -->
 
-- [ ] `npm run verify` green
+- [ ] PR-CI green
+- [ ] Browser coverage considered for dragging, focus, dialogs or saving: link the
+      browser run when needed, or explain why the targeted checks are sufficient.
 
 ### Does this touch
 
