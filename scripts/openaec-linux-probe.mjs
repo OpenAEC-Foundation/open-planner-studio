@@ -1,7 +1,7 @@
 // Alleen de CI-smoketest; spreekt de openbare MCP-interface van de echte AppImage.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 const [mode, out, extra] = process.argv.slice(2);
 const marker = 'SIGTERM-herstelproef-753';
@@ -83,9 +83,10 @@ if (mode === 'recovery') {
     const seed = 'Checkpoint-voor-SIGTERM-753';
     const added = await tool('planner_add_tasks', { tasks: [{ tempId: 'tmp-sigterm', name: seed, duration: 1 }] });
     assert.equal(added.ok, true, JSON.stringify(added));
-    // Eerst een bewezen periodieke snapshot; de volgende bewerking valt dan binnen de 10s-throttle.
+    // Opstart-/UI-wijzigingen kunnen de 10s-throttle al hebben gestart vóór de eerste dirty-taak.
+    // Wacht één heel interval plus schrijfmarge op het checkpoint; wijzig daarna pas opnieuw.
     let checkpoint = false;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 150; i++) {
       if (existsSync(process.env.XDG_DATA_HOME)) {
         checkpoint = walk(process.env.XDG_DATA_HOME).filter(p => p.endsWith('.ifc'))
           .some(p => readFileSync(p, 'utf8').includes(seed));
@@ -93,7 +94,14 @@ if (mode === 'recovery') {
       if (checkpoint) break;
       await delay(100);
     }
-    assert.ok(checkpoint, 'periodieke herstelopslag leverde geen eerste checkpoint');
+    if (!checkpoint) {
+      const root = process.env.XDG_DATA_HOME;
+      writeFileSync(join(out, 'checkpoint-diagnose.json'), JSON.stringify({
+        documents: await tool('planner_list_documents'),
+        recoveryFiles: existsSync(root) ? walk(root).filter(p => /recovery\.[^/]+$/.test(p)).map(p => relative(root, p)) : [],
+      }, null, 2));
+    }
+    assert.ok(checkpoint, 'periodieke herstelopslag leverde binnen 15 seconden geen eerste checkpoint');
     // De echte Ctrl+S-route schrijft buiten HOME naar OPENAEC_MAP, zonder de MCP-padgrens te verruimen.
     execFileSync('wtype', ['-M', 'ctrl', '-k', 's', '-m', 'ctrl']);
     const source = join(process.env.OPENAEC_MAP, 'plannen/proef é.ifc');
@@ -111,6 +119,8 @@ if (mode === 'recovery') {
     assert.equal(changed.ok, true, JSON.stringify(changed));
     const current = await tool('planner_list_tasks', { limit: 1000 });
     assert.ok(current.data.tasks.some(t => t.name === marker), 'de laatste taakbewerking moet werkelijk zijn toegepast');
+    assert.ok(!walk(process.env.XDG_DATA_HOME).filter(p => p.endsWith('.ifc'))
+      .some(p => readFileSync(p, 'utf8').includes(marker)), 'de laatste wijziging moet nog binnen de throttle wachten op SIGTERM');
   }
   writeFileSync(join(out, `${mode}-mcp.txt`), `OK MCP-authenticatie, Origin-weigering en ${tasks.data.total} taken\n`);
 }
