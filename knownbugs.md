@@ -606,10 +606,6 @@ en noem het in je rapport of PR-tekst.
     y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
     PR #403 (GPT-6.1-Sol). Voorstel: de straal begrenzen zonder de hoogte te verliezen (rechte kant bij
     smalle stukken). — B
-451. **Een baseline met een lege start breekt het bereik.** `baselineReach` (`src/types/baseline.ts`) slaat
-    een niet-datum over: `{start: '', finish: '2026-07-01'}` bij taken in oktober geeft `earliest: null`, dus
-    tijdas-oorsprong en rapportbereik nemen die baseline niet mee. De tekenfunctie valt wel terug. Vervolgpunt
-    uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: dezelfde terugvalregel als de tekenfunctie. — B
 453. **Een baseline-ruit op de rapportgrens wordt gehalveerd.** In de afdruk (`printPreview.ts`) is de ruit
     van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
     2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
@@ -632,12 +628,6 @@ en noem het in je rapport of PR-tekst.
     bereik, voor de losse overlay (`baselineOverlay`) en in de lagen (`buildBaselineLayers`). Geen
     gedragsfout, alleen opruimwerk. Vervolgpunt uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: één
     opbouw, de rest afleiden uit de lagen. — B
-458. **De onderste punt van een baselineruit reageert niet op de hover.** Bij rijhoogte 32 en kophoogte 60 ligt
-    het ruitmidden op y=89,1 met halve diagonaal 4; de ruit loopt tot y=93,1, maar de rij eindigt op y=92.
-    Op (11,25; 92,7) ligt de muis in de getekende ruit, maar `getBaselineAt` (`GanttRenderer.ts`) zoekt
-    via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
-    (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
-    de balkgeometrie te veranderen. — B
 593. **Typen-om-te-bewerken stuurt de eerste letter langs de invoermethode.** Een gekozen cel in selectiemodus
     is geen tekstveld, dus de webview zet de invoermethode (IBus, Fcitx, IME) uit. De eerste toets komt als kale
     letter binnen, `resolveTaskGridCommand` (`src/engine/taskGrid/navigation.ts:148`) opent er de editor mee, en
@@ -646,12 +636,6 @@ en noem het in je rapport of PR-tekst.
     eerste letter zo ook buiten de compositie. Gezien met v2026.44.0 (deb) en IBus Unikey onder Xvfb (issue
     #764). Omweg: eerst F2, Enter of dubbelklik, dan typen. Voorstel: in selectiemodus een verborgen tekstveld
     focussen dat de compositie opvangt (zoals spreadsheets doen); raakt het focusmodel en de toegankelijkheid. — B
-595. **VERVOLG: de PR-check `appimage-im-check.yml` kan groen zijn terwijl de modules ontbreken.** De stap *Verify
-     AppImage input-method modules* (`.github/workflows/appimage-im-check.yml:57`) heeft geen `shell:` en draait dus
-     met `bash -e` zonder `pipefail`; `| tee` bepaalt dan de exitcode. Het script direct met een ontbrekend bestand
-     geeft exit 1, via de pipeline met `tee` exit 0 ondanks `::error::`. De releasecontrole in `release.yml` gebruikt
-     geen pipeline en faalt wel. Voorstel: `set -o pipefail` in de stap, of `| tee` weghalen. Gevonden in de review
-     van #772 (GPT-6.1-Sol). — B
 597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
      (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
      `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
