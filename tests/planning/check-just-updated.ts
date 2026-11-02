@@ -2,6 +2,7 @@
  * Contract-check voor de "Je bent net geüpdatet"-vergelijklogica (releaseInfo.ts).
  * Pure functies → headless, geen store/DOM nodig. Exit 1 bij een afwijking.
  */
+import { addedCodeLinesFromNumstat } from '../../scripts/lib/releaseStats';
 import {
   detectJustUpdated,
   pickInstallerAsset,
@@ -174,6 +175,13 @@ check('highlights: verifier weigert screenshot/layout-achtige data', validateRel
 
 check('highlights: verifier weigert stats die afwijken van Git-meting', validateReleaseHighlightStats(RELEASE_HIGHLIGHT_CATALOG, '2026.8.1', { ...currentBlock.stats, addedCodeLines: currentBlock.stats.addedCodeLines + 1 }).some(error => error.includes('addedCodeLines')));
 check('highlights: statistiekverifier gebruikt alleen stabiele CalVer-tags', isStableReleaseTag('v2026.8.1') && !isStableReleaseTag('v2026.8.1-beta') && !isStableReleaseTag('v2026.8'));
+
+// De vijf XLSX-fixtures sinds v2026.43.0 leveren `-\t-` op, geen regelaantal.
+check('releasecijfers: tekst en binaire bestanden samen blijven een exact aantal', addedCodeLinesFromNumstat('12\t5\tsrc/voorbeeld.ts\n-\t-\ttests/planning/fixtures/blad.xlsx\n3\t0\tsrc/met spaties.ts\n') === 15);
+check('releasecijfers: alleen binaire bestanden hebben nul broncoderegels', addedCodeLinesFromNumstat('-\t-\ttests/planning/fixtures/blad.xlsx') === 0);
+check('releasecijfers: een lege diff telt nul', addedCodeLinesFromNumstat('') === 0);
+check('releasecijfers: verwijderingen en hernoemingen voegen alleen hun echte regels toe', addedCodeLinesFromNumstat('0\t8\tsrc/weg.ts\n4\t2\tsrc/{oud => nieuw}.ts') === 4);
+check('releasecijfers: een ongeldige tekstteller wordt niet stil nul', Number.isNaN(addedCodeLinesFromNumstat('ongeldig\t0\tsrc/voorbeeld.ts')));
 
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);

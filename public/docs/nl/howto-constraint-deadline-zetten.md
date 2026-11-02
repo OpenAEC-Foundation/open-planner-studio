@@ -27,7 +27,7 @@ Heeft de taak een voorganger, dan is er een kortere weg voor *Start niet eerder 
 ## Resultaat controleren
 
 - In de Gantt staat een klein ruitje boven de balk, aan de startkant bij een start-constraint en aan de eindkant bij een einde-constraint: blauw bij SNET en FNET, violet bij SNLT, FNLT, MSO en MFO, rood als de constraint geschonden is. Een harde pin heeft een speldje. Een deadline is een pijl omlaag op de deadlinedatum: groen zolang de taak op tijd klaar is, rood als hij te laat is.
-- Een geschonden constraint of overschreden deadline verschijnt in het paneel *Waarschuwingen* (*Planning › Planning › Waarschuwingen*) en in de statusbalk. De *Totale speling* van de taak en de taken ervoor is dan negatief.
+- Een geschonden constraint of overschreden deadline verschijnt in het paneel *Waarschuwingen* (*Planning › Planning › Waarschuwingspaneel*) en in de statusbalk. De *Totale speling* van de taak en de taken ervoor is dan negatief.
 - Bij een bovengrens (*Start niet later dan*, *Eindig niet later dan*) of een deadline betekent het ontbreken van een waarschuwing dat de planning de datum haalt.
 
 ## Een constraint of deadline weghalen

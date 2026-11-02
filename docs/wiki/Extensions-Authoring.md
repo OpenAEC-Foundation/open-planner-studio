@@ -23,7 +23,7 @@ block. Extensions are entirely frontend; there is no Rust involved.
 Categories: `Import/Export`, `Planning`, `Reporting`, `Utility`, `Fonts`, `Other`.
 
 The optional `apiVersion` field names the extension contract version the extension was built against
-(current: `1.4.1`, readable via `require('open-planner-studio').apiVersion`). History: `1.1.0` —
+(current: `1.5.0`, readable via `require('open-planner-studio').apiVersion`). History: `1.1.0` —
 read-only XER source route (`data.getImportSource*`); `1.2.0` — calculation profile
 (`ExtProject.schedulingProfile`) + `getImportSourceIssue()`; `1.3.0` — task types (`ExtTask.workRule`,
 `ExtProject.defaultWorkRule` and the optional work fields `plannedWorkMinutes`/`actualWorkMinutes`/
@@ -31,7 +31,7 @@ read-only XER source route (`data.getImportSource*`); `1.2.0` — calculation pr
 `api.help.*` (register Help articles, open a bundled project file, guide panel) plus the generic
 ribbon anchors; `1.4.1` — patch, no contract change: `loadProject` with the same project id keeps the
 project data that the result cannot carry, a different id gets no save target, and the document is
-marked as changed after every load; an importer result opens as a new document.
+marked as changed after every load; an importer result opens as a new document; `1.5.0` — read the selected task IDs with `api.data.getSelectedTaskIds()`. It returns a fresh array for the active document and adds no write access or extra permission.
 
 ### Permissions
 
@@ -90,7 +90,7 @@ module.exports = {
 | Area | Functions |
 |---|---|
 | `api.importers` | `register(def)`, `unregister(id)` |
-| `api.data` | `getProject/getCalendar/getTasks/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
+| `api.data` | `getProject/getCalendar/getTasks/getSelectedTaskIds/getSequences/getResources/getAssignments`, `getImportSourceInfo/getImportSourceIssue/getImportSourceChunk/getImportSourceCatalogPage` (permission `importSource`, see below), `addTask`, `updateTask`, `addSequence`, `loadProject(result)`, `recalculate()`, `batch(fn)` |
 | `api.events` | `on/off/emit` (permission `events`) |
 | `api.ui` | `addRibbonButton(reg)` (permission `ribbon`), `showNotification(msg, type?)` — a notification the user sees, see below |
 | `api.settings` | `get(key, default)`, `set(key, value)` — prefixed per extension in localStorage |

@@ -13,6 +13,7 @@ import {
   type ReportContext, type ReportingPeriod, type SolvedReportContext,
   computeLookAhead, computeCriticalReport, computeProgressReport, computeScheduleHealth,
   computeResourceLoading, computeResourceAssignments, computeResourceGanttRows, computeWbsSummary, progressState,
+  computeProgressCurve, PROGRESS_CURVE_MAX_SAMPLES, type CurvePoint,
   remainingDays, resourceBandLabels, taskDepths, taskFinish, taskStart,
 } from '@/engine/reports';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -752,6 +753,175 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   ok('resourceGantt: geen toewijzingen ⇒ leeg', computeResourceGanttRows({ ...base, assignments: [] }, opts).rows.length === 0);
   const leeg = computeResourceGanttRows({ tasks: [], resources: base.resources, assignments: base.assignments }, { ...opts, includeUnassigned: true });
   eq('resourceGantt: leeg project ⇒ geen rijen, nultellingen', [leeg.rows.length, leeg.counts], [0, { resources: 0, assignments: 0, unassignedTasks: 0, outsidePeriod: 0, inPeriod: 0 }]);
+}
+
+// ── Voortgangscurve (issue #689) ─────────────────────────────────────────────────────────────────
+{
+  const r = computeProgressCurve(ctx);
+  const pr = computeProgressReport(ctx, { period: { preset: 'last2Weeks' }, nearCriticalDays: 5 });
+  const rising = (c: CurvePoint[]) => c.every((p, i) => i === 0 || p.pct + 1e-9 >= c[i - 1].pct);
+  eq('curve: statusdatum', [r.statusDate, r.statusDateMissing], ['2026-09-18', false]);
+  eq('curve: met baseline', [r.hasBaseline, r.plannedBasis, r.hasLateDates, r.hasProgress], [true, 'baseline', true, true]);
+  near('curve: werkelijk % = gewogen voortgang van het voortgangsrapport', r.actualPct, pr.summary.actualPct);
+  near('curve: gepland % = voortgangsrapport (zelfde vensters in dit scenario)', r.plannedPct, pr.summary.plannedPct);
+  ok('curve: as en meetpunten', !!r.axis && r.earlyCurve.length > 2 && r.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES);
+  for (const [name, c] of [['vroegst', r.earlyCurve], ['laatst', r.lateCurve ?? []], ['gepland', r.plannedCurve ?? []]] as const) {
+    ok(`curve ${name}: begint op 0 %`, c[0]?.pct === 0, String(c[0]?.pct));
+    ok(`curve ${name}: eindigt op 100 %`, c[c.length - 1]?.pct === 100, String(c[c.length - 1]?.pct));
+    ok(`curve ${name}: stijgt nooit af`, rising(c));
+  }
+  ok('curve: band — vroegst ligt nooit onder laatst', r.earlyCurve.every((p, i) => p.pct + 0.01 >= (r.lateCurve?.[i]?.pct ?? 0)));
+  const last = r.actualCurve[r.actualCurve.length - 1];
+  eq('curve werkelijk: eindigt op de statusdatum', last?.day, '2026-09-18');
+  near('curve werkelijk: laatste punt = werkelijk %', last?.pct, r.actualPct, 0.05);
+  ok('curve werkelijk: stijgt nooit af', rising(r.actualCurve));
+  ok('curve werkelijk: geen punt na de statusdatum', r.actualCurve.every(p => p.day <= '2026-09-18'));
+  // C (5 → 8 wd) eindigt 3 wd later dan de baseline; B (40 %, rest 6 wd) haalt zijn baseline-einde nog.
+  const rc = r.riskRows.find(x => x.taskId === C);
+  eq('curve: C is te laat, 3 wd na de baseline', [rc?.late, rc?.finishVarianceDays], [true, 3]);
+  ok('curve: B is geen risico', !r.riskRows.some(x => x.taskId === B));
+  eq('curve: telling te laat = risicorijen met late', r.lateTasks.count, r.riskRows.filter(x => x.late).length);
+  ok('curve: voltooide A is geen risico', !r.riskRows.some(x => x.taskId === A));
+  eq('curve: volgende mijlpaal is E', r.nextMilestone?.taskId, E);
+  ok('curve: E ligt na de statusdatum', (r.nextMilestone?.daysUntil ?? -1) > 0);
+  ok('curve: risicorijen op speling gesorteerd', r.riskRows.every((x, i) => i === 0 || r.riskRows[i - 1].totalFloat <= x.totalFloat));
+
+  // Zonder baseline: geen geplande curve, gepland uit de vroegste data, te laat alleen volgens planning.
+  const nb = computeProgressCurve({ ...ctx, baseline: null });
+  eq('curve zonder baseline', [nb.plannedCurve, nb.plannedBasis, nb.lateTasks.basis], [undefined, 'current', 'schedule']);
+  ok('curve zonder baseline: C niet meer te laat (alleen de planning telt)', !nb.riskRows.some(x => x.late && x.taskId === C));
+
+  // Niet berekend: geen laatste data, dus geen band.
+  const nc = computeProgressCurve({ ...ctx, cpmResult: null });
+  eq('curve niet berekend: geen band', [nc.hasLateDates, nc.lateCurve], [false, undefined]);
+
+  // Geen voortgang: de werkelijke curve ligt op 0.
+  const fresh = ctx.tasks.map(t => ({ ...t, status: 'NOT_STARTED' as Task['status'], time: { ...t.time, completion: 0, actualStart: undefined, actualFinish: undefined } }));
+  const np = computeProgressCurve({ ...ctx, tasks: fresh });
+  eq('curve zonder voortgang', [np.hasProgress, np.actualPct], [false, 0]);
+  ok('curve zonder voortgang: werkelijke curve plat op 0', np.actualCurve.every(p => p.pct === 0));
+
+  // Alleen mijlpalen: geen curve, wel kerncijfers.
+  const ms = computeProgressCurve({ ...ctx, tasks: ctx.tasks.filter(t => t.id === E) });
+  eq('curve alleen mijlpaal: geen as', [ms.axis, ms.weightedTasks, ms.nextMilestone?.taskId], [undefined, 0, E]);
+
+  // Lang project: meer dan 240 dagen ⇒ hoogstens 240 meetpunten, eind nog steeds 100 %.
+  const long = ctx.tasks.map(t => (t.id === F ? { ...t, time: { ...t.time, earlyFinish: '2028-06-30', lateFinish: '2028-06-30' } } : t));
+  const lr = computeProgressCurve({ ...ctx, tasks: long });
+  ok('curve lang project: hoogstens 240 punten', lr.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES, String(lr.earlyCurve.length));
+  eq('curve lang project: as tot het laatste einde', lr.axis?.to, '2028-06-30');
+  eq('curve lang project: eindigt op 100 %', lr.earlyCurve[lr.earlyCurve.length - 1].pct, 100);
+  // Review #705 r1: de statusdag ligt bij een lang project tussen twee meetpunten; elke curve heeft
+  // toch een exact punt op de statusdatum, gelijk aan het kerncijfer *Gepland*.
+  const pointAt = (c: CurvePoint[] | undefined, day: string) => c?.find(p => p.day === day)?.pct;
+  near('curve: geplande curve op de statusdatum = gepland %', pointAt(r.plannedCurve, '2026-09-18'), r.plannedPct, 0.05);
+  const twee = ctx.tasks
+    .filter(t => t.id === G || t.id === D)
+    .map(t => ({ ...t, time: { ...t.time, ...(t.id === G
+      ? { earlyStart: '2026-09-18', earlyFinish: '2026-09-18', lateStart: '2026-09-18', lateFinish: '2026-09-18', scheduleDuration: 1 }
+      : { earlyStart: '2028-09-18', earlyFinish: '2028-09-18', lateStart: '2028-09-18', lateFinish: '2028-09-18', scheduleDuration: 1 }),
+      actualStart: undefined, actualFinish: undefined, completion: 0 }, constraint: undefined }));
+  const tr = computeProgressCurve({ ...ctx, tasks: twee, baseline: null });
+  ok('curve twee jaar: meetstap groter dan één dag', tr.earlyCurve.length <= PROGRESS_CURVE_MAX_SAMPLES + 1);
+  near('curve twee jaar: gepland % = de helft (één van twee gelijke taken)', tr.plannedPct, 50, 0.05);
+  near('curve twee jaar: vroegste curve op de statusdatum = gepland %', pointAt(tr.earlyCurve, '2026-09-18'), tr.plannedPct, 0.05);
+  near('curve twee jaar: laatste curve op de statusdatum', pointAt(tr.lateCurve, '2026-09-18'), 50, 0.05);
+  ok('curve twee jaar: punten blijven op volgorde', tr.earlyCurve.every((p, i) => i === 0 || tr.earlyCurve[i - 1].day < p.day));
+  ok('curve lang project: maandstrepen', lr.ticks.length > 0 && lr.ticks.length <= 13 && lr.ticks.every(t => t.kind === 'month' && t.day.endsWith('-01')));
+
+  // Knownbug 560: een statusmoment met tijd telt als dat moment, niet als de hele dag. Eén taak, ma 08–16,
+  // baseline gelijk aan de planning, status 12:00, 50 % gereed: precies volgens plan, dus geen achterstand.
+  const werkdag = [{ start: 480, end: 960 }];
+  const urenCal = { ...ctx.calendar, workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
+    workTime: { byWeekday: { 1: werkdag, 2: werkdag, 3: werkdag, 4: werkdag, 5: werkdag, 6: [], 7: [] } } };
+  const urenTaak = (start: string, finish: string, days: number, completion: number) => {
+    const t = ctx.tasks.find(x => x.id === G)!;
+    return { ...t, time: { ...t.time, earlyStart: start, earlyFinish: finish, lateStart: start, lateFinish: finish, scheduleDuration: days,
+      actualStart: start, actualFinish: undefined, completion }, constraint: undefined };
+  };
+  const urenCtx = (start: string, finish: string, days: number, statusDate: string, calendar: ReportContext['calendar'] = urenCal): ReportContext => {
+    const task = urenTaak(start, finish, days, 0.5);
+    return { ...ctx, tasks: [task], calendar, calendars: [calendar], statusDate,
+      baseline: { ...ctx.baseline!, tasks: [{ ...ctx.baseline!.tasks[0], taskId: task.id, start, finish }] } };
+  };
+  const midden = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'));
+  near('curve statusmoment: gepland 50 % op 12:00 van een taak 08–16', midden.plannedPct, 50, 0.05);
+  near('curve statusmoment: werkelijk 50 %', midden.actualPct, 50, 0.05);
+  near('curve statusmoment: de geplande curve wijst op de statusdag hetzelfde aan', pointAt(midden.plannedCurve, '2026-06-01'), 50, 0.05);
+  near('curve statusmoment: de vroegste curve ook', pointAt(midden.earlyCurve, '2026-06-01'), 50, 0.05);
+  const tweede = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02T12:00'));
+  near('curve statusmoment: 1,5 van 3 werkdagen', tweede.plannedPct, 50, 0.05);
+  ok('curve statusmoment: curve blijft stijgen rond het moment', tweede.plannedCurve!.every((p, i, a) => i === 0 || a[i - 1].pct <= p.pct));
+  const heleDag = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02'));
+  near('curve statusdatum zonder tijd: de dag telt als gewerkt, zoals De Akkers', heleDag.plannedPct, 66.7, 0.05);
+  const eindeDag = computeProgressCurve(urenCtx('2026-06-01T08:00', '2026-06-03T16:00', 3, '2026-06-02T16:00'));
+  near('curve statusmoment: einde werktijd = statusdatum zonder tijd', eindeDag.plannedPct, heleDag.plannedPct, 0.05);
+  const dagKalender = computeProgressCurve(urenCtx('2026-06-01', '2026-06-03', 3, '2026-06-02T12:00', { ...urenCal, workTime: undefined }));
+  near('curve statusmoment: dagkalender negeert de tijd, zoals de motor', dagKalender.plannedPct, 66.7, 0.05);
+
+  // Alle meetpunten van een curve gebruiken dezelfde kalenderfractie: ook bij een start of einde midden op de dag
+  // daalt de voortgang nooit zonder wijziging aan de planning.
+  const stijgt = (c: CurvePoint[] | undefined) => !!c?.length && c.every((p, i) => i === 0 || c[i - 1].pct <= p.pct);
+  const halveDagen = computeProgressCurve(urenCtx('2026-06-01T12:00', '2026-06-03T12:00', 2, '2026-06-02T08:00'));
+  near('curve deeldagen: maandag ma 12:00–wo 12:00 = 0,5 van 2 werkdagen', pointAt(halveDagen.plannedCurve, '2026-06-01'), 25, 0.05);
+  near('curve deeldagen: di 08:00 = dezelfde stand als het einde van maandag', pointAt(halveDagen.plannedCurve, '2026-06-02'), 25, 0.05);
+  ok('curve deeldagen: gepland, vroegst en laatst stijgen', stijgt(halveDagen.plannedCurve) && stijgt(halveDagen.earlyCurve) && stijgt(halveDagen.lateCurve));
+  const weekend = computeProgressCurve(urenCtx('2026-06-05T12:00', '2026-06-08T16:00', 1.5, '2026-06-06T12:00'));
+  near('curve weekend: vr 12:00–ma 16:00, status za = 0,5 van 1,5 werkdag', weekend.plannedPct, 33.3, 0.05);
+  ok('curve weekend: gepland, vroegst en laatst stijgen', stijgt(weekend.plannedCurve) && stijgt(weekend.earlyCurve) && stijgt(weekend.lateCurve));
+  ok('curve statusmoment: de werkelijke curve stijgt', stijgt(tweede.actualCurve) && stijgt(weekend.actualCurve));
+
+  // Een statusmoment en het latere dageinde zijn twee meetpunten: het einde op 100 % blijft staan.
+  const dagEinde = (c: CurvePoint[] | undefined) => c?.[c.length - 1];
+  eq('curve statusmoment: geplande curve eindigt op 100 %', dagEinde(midden.plannedCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: vroegste curve eindigt op 100 %', dagEinde(midden.earlyCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: laatste curve eindigt op 100 %', dagEinde(midden.lateCurve), { day: '2026-06-01', pct: 100 });
+  eq('curve statusmoment: de werkelijke curve stopt op het statusmoment', dagEinde(midden.actualCurve), { day: '2026-06-01', pct: 50 });
+  ok('curve statusmoment: stijgt ook met het eindpunt', stijgt(midden.plannedCurve) && stijgt(midden.earlyCurve));
+
+  // Het voortgangsrapport leest hetzelfde moment; het gewicht blijft de duur van de taak.
+  const periode = { period: { preset: 'last2Weeks' as const }, nearCriticalDays: 5 };
+  const voortgang = computeProgressReport(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'), periode);
+  near('voortgang statusmoment: gepland 50 % op 12:00', voortgang.summary.plannedPct, 50, 0.05);
+  const dagStand = computeProgressReport(urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01'), periode);
+  near('voortgang statusdatum zonder tijd: de dag telt als gewerkt', dagStand.summary.plannedPct, 100, 0.05);
+  const klein = urenTaak('2026-06-01T08:00', '2026-06-01T16:00', 1, 0.5);
+  const groot = { ...urenTaak('2026-06-01T08:00', '2026-06-04T16:00', 4, 0.125), id: `${klein.id}-groot` };
+  const gewogen = { ...urenCtx('2026-06-01T08:00', '2026-06-01T16:00', 1, '2026-06-01T12:00'), tasks: [klein, groot], baseline: null };
+  near('voortgang statusmoment: gewicht blijft de duur (1 en 4 werkdagen)', computeProgressReport(gewogen, periode).summary.plannedPct, 20, 0.05);
+
+  // Zonder statustijd: op een uur-kalender geven curve en Voortgang dezelfde fractie, ook op deeldagen.
+  for (const [status, verwacht] of [['2026-06-01', 25], ['2026-06-02', 75]] as const) {
+    const deeldagen = { ...urenCtx('2026-06-01T12:00', '2026-06-03T12:00', 2, status), baseline: null };
+    near(`curve deeldagen zonder statustijd ${status}`, computeProgressCurve(deeldagen).plannedPct, verwacht, 0.05);
+    near(`voortgang deeldagen zonder statustijd ${status}`, computeProgressReport(deeldagen, periode).summary.plannedPct, verwacht, 0.05);
+  }
+
+  // Afwijkende baseline. Op een uur-kalender meten beide rapporten in het baselinevenster; een taak op een
+  // dagkalender houdt in Voortgang de huidige duur als noemer, ook al geeft de motor die kalender werkblokken.
+  const dagCal = { ...urenCal, id: 'dag', workTime: undefined };
+  const uurCal = { ...urenCal, id: 'uren' };
+  const metBaseline = (start: string, finish: string, days: number, bStart: string, bFinish: string, calendarId: string) => {
+    const task = { ...urenTaak(start, finish, days, 0.3), calendarId };
+    return { task, base: { ...ctx.baseline!.tasks[0], taskId: task.id, start: bStart, finish: bFinish } };
+  };
+  const gemengd = (calendar: ReportContext['calendar'], statusDate: string, ...delen: ReturnType<typeof metBaseline>[]): ReportContext => ({
+    ...ctx, calendar, calendars: [dagCal, uurCal], statusDate, tasks: delen.map(d => d.task),
+    baseline: { ...ctx.baseline!, tasks: delen.map(d => d.base) },
+  });
+  const gepland = (c: ReportContext) => computeProgressReport(c, periode).summary.plannedPct;
+  const verlengd = () => metBaseline('2026-06-01T08:00', '2026-06-12T16:00', 10, '2026-06-01T08:00', '2026-06-05T16:00', 'dag');
+  const uurTaak = () => { const d = metBaseline('2026-06-01T12:00', '2026-06-03T12:00', 2, '2026-06-01T12:00', '2026-06-05T12:00', 'uren'); return { ...d, task: { ...d.task, id: `${d.task.id}-uur` }, base: { ...d.base, taskId: `${d.task.id}-uur` } }; };
+  near('voortgang dagkalender: baseline 5 wd, duur 10 wd, status di = 2 van 10', gepland(gemengd(dagCal, '2026-06-02', verlengd())), 20, 0.05);
+  near('voortgang gemengd: dagtaak op een uur-project houdt de huidige duur', gepland(gemengd(uurCal, '2026-06-02', verlengd())), 20, 0.05);
+  near('voortgang statusmoment: dagtaak meet op het moment in het baselinevenster', gepland(gemengd(uurCal, '2026-06-02T12:00', verlengd())), 30, 0.05);
+  for (const [status, verwacht] of [['2026-06-01', 12.5], ['2026-06-02', 37.5]] as const) {
+    const c = gemengd(dagCal, status, uurTaak());
+    near(`voortgang uur-taak met afwijkende baseline ${status}`, gepland(c), verwacht, 0.05);
+    near(`curve uur-taak met afwijkende baseline ${status}`, computeProgressCurve(c).plannedPct, verwacht, 0.05);
+  }
+  // Dagtaak: gewicht 10, fractie 0,2. Uur-taak: gewicht 2, fractie 0,375. Samen 2,75 van 12.
+  near('voortgang gemengd: elke taak op haar eigen kalender', gepland(gemengd(dagCal, '2026-06-02', verlengd(), uurTaak())), 22.9, 0.05);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

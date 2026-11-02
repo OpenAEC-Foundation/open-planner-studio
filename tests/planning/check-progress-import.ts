@@ -7,7 +7,7 @@
 //                 drift-herberekening, overrides).
 //   Deel 5 — regressie na twee fixrondes op de no-op-vergelijking op completion (Opus-eindreview
 //            bevindingen 1+2, daarna Opus-hercheck N-B): `isCompletionUnchanged` (buildPlan.ts) +
-//            `formatCompletionPercent` (csvWriter.ts), via een ECHTE writeCSV→parseProgressCsv→
+//            `formatCompletionPercent` (csvWriter.ts), via een blad→lezer→
 //            finalizeProgressRows-round-trip en echte handmatige bladen, niet handgemaakte rijen.
 // Draait via run.sh (registratie: T11). Exit 0 = alles groen; de suite print "alles groen" ook bij
 // exit 1 wanneer het bundelen faalt — de exitcode is het enige geldige oordeel.
@@ -18,8 +18,8 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { useAppStore } from '@/state/appStore';
 import { buildTaskEditPlanEnvironment } from '@/state/gridTransaction';
 import { planTaskCellEdits } from '@/engine/taskGrid/taskEditPlan';
-import { writeCSV } from '@/services/csv/csvWriter';
-import { parseProgressCsv } from '@/services/progressImport/parseProgressCsv';
+import { formatCompletionPercent } from '@/services/csv/csvWriter';
+import { sheetFromText } from './progressSheetFixture';
 import { finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type { ProgressOverrides, ProgressRow } from '@/services/progressImport/types';
 import type { Task } from '@/types/task';
@@ -492,11 +492,12 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
   S().runCPM();
 
   const before = S();
-  const roundTripCsv = writeCSV(
-    before.project, before.calendar, before.tasks, before.sequences,
-    before.resources, before.assignments, before.customTaskTypes,
-  );
-  const roundTripSheet = parseProgressCsv(roundTripCsv);
+  // Hele procenten: de afronding die elk blad met getypte waarden kan hebben.
+  const roundTripText = [
+    'OPS Task ID;Completion (%)',
+    ...before.tasks.map(task => `${task.id};${formatCompletionPercent(task.time.completion)}`),
+  ].join('\r\n');
+  const roundTripSheet = sheetFromText(roundTripText);
   const roundTripRows = finalizeProgressRows(roundTripSheet, 'dmy');
   const roundTripPlan = buildProgressImportPlan(roundTripRows, S().tasks, realDeps);
   eq('round-trip van de eigen export ⇒ nul wijzigingen', roundTripPlan.appliedCount, 0);
@@ -508,8 +509,8 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
     (id) => roundTripRows.some((row) => row.taskId === id),
   ));
 
-  // ── Ronde 3: vijf precisiecases, ELK via een echt handmatig CSV-blad (twee kolommen volstaan —
-  //    `OPS Task ID` + `Completion (%)` — precies wat `parseProgressCsv` nodig heeft). ──
+  // ── Ronde 3: vijf precisiecases, ELK via een handmatig blad (twee kolommen volstaan —
+  //    `OPS Task ID` + `Completion (%)` — precies wat het blad nodig heeft). ──
   const idL = S().addTask({ name: 'L', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.334 } });
   const idM = S().addTask({ name: 'M', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.33 } });
   const idN = S().addTask({ name: 'N', time: { ...createDefaultTaskTime('2026-01-05', 5), completion: 0.995 } });
@@ -525,7 +526,7 @@ const stubDeps: ProgressPlanDeps = { planEdits: stubPlanEdits };
     `${idO};0`,    // "0" op een taak van 0,4% ⇒ noop (BEWUST, symmetrisch met idN)
     `${idR};100`,  // "100" op een taak van 50% ⇒ ALTIJD een echte wijziging
   ].join('\r\n');
-  const manualSheet = parseProgressCsv(manualCsv);
+  const manualSheet = sheetFromText(manualCsv);
   const manualRows = finalizeProgressRows(manualSheet, 'dmy');
   const manualPlan = buildProgressImportPlan(manualRows, S().tasks, realDeps);
   const rowFor = (taskId: string) => manualPlan.rows.find((row) => row.taskId === taskId);

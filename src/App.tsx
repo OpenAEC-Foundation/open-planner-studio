@@ -119,6 +119,7 @@ function AppContent() {
   const showFeedbackDialog = useAppStore(s => s.ui.showFeedbackDialog);
   const showPropertiesPanel = useAppStore(s => s.ui.showPropertiesPanel);
   const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
+  const showScheduleShiftPanel = useAppStore(s => s.ui.showScheduleShiftPanel);
   const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
@@ -296,7 +297,8 @@ function AppContent() {
   // Zet de gebruiker ze allemaal uit via hun lintknop, dan verdwijnt de kolom — inclusief de
   // ingeklapte strip, want er valt dan niets terug te halen.
   // Het Waarschuwingenpaneel is het derde railpaneel.
-  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked) || showWarningsPanel;
+  const railHasPanel = showPropertiesPanel || (showResourcePanel && resourcePanelDocked) || showWarningsPanel
+    || showScheduleShiftPanel;
 
   // Presentation mode: één wrapper-conditie i.p.v. losse `&& !presentationMode`-
   // guards door de hele boom — alle chrome (TitleBar/Ribbon/tabbar/brand-strip/rechterpaneel/

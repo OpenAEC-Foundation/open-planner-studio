@@ -25,6 +25,7 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(Time format|Tijdnotatie)$/,
     /^(Duration display|Duurweergave)$/,
     /^(Document switch style|Documentwissel-stijl)$/,
+    /^(Ribbon|Lint)$/,
     /^Gantt$/,
     /^(Timeline axis|Tijd-as)$/,
     /^(Quarter-hour zoom|Kwartierzoom)$/,

@@ -34,11 +34,15 @@ const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
 // ── Opnemende 2D-context-stub (fillRects zijn het accent; roundRects de balken) ──────────────────
 interface Rect { x: number; y: number; w: number; h: number; color: string; }
 interface RoundShape { x: number; y: number; w: number; h: number; fill: string; stroke: string; }
-function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: RoundShape[] } {
+// Gevulde veelhoeken (moveTo/lineTo + fill) als omhullende rechthoek: zo tekent de baselinestrook
+// (`baselineStrip.ts`, gedeeld met de afdruk).
+function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: RoundShape[]; polys: RoundShape[] } {
   // shapes: roundRect-aanroepen mét de fill/stroke-stijl die op dat moment gold (renderer zet
   // fillStyle vóór roundRect+fill, strokeStyle vóór roundRect+stroke — dus lezen op roundRect-tijd klopt).
   const fillRects: Rect[] = [];
   const shapes: RoundShape[] = [];
+  const polys: RoundShape[] = [];
+  let path: { x: number; y: number }[] = [];
   const st = { fillStyle: '', strokeStyle: '' };
   const noop = () => {};
   const ctx = {
@@ -47,10 +51,18 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: 
     set fillStyle(v: string) { st.fillStyle = v; }, get fillStyle() { return st.fillStyle; },
     set strokeStyle(v: string) { st.strokeStyle = v; }, get strokeStyle() { return st.strokeStyle; },
     fillRect: (x: number, y: number, w: number, h: number) => { fillRects.push({ x, y, w, h, color: st.fillStyle }); },
-    strokeRect: noop, clearRect: noop, beginPath: noop, closePath: noop,
-    moveTo: noop, lineTo: noop, arc: noop, arcTo: noop, ellipse: noop, rect: noop,
+    strokeRect: noop, clearRect: noop, beginPath: () => { path = []; }, closePath: noop,
+    moveTo: (x: number, y: number) => { path.push({ x, y }); },
+    lineTo: (x: number, y: number) => { path.push({ x, y }); },
+    arc: noop, arcTo: noop, ellipse: noop, rect: noop,
     roundRect: (x: number, y: number, w: number, h: number) => { shapes.push({ x, y, w, h, fill: st.fillStyle, stroke: st.strokeStyle }); },
-    fill: noop, stroke: noop, save: noop, restore: noop, clip: noop,
+    fill: () => {
+      if (path.length < 3) return;
+      const xs = path.map(p => p.x), ys = path.map(p => p.y);
+      const x = Math.min(...xs), y = Math.min(...ys);
+      polys.push({ x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y, fill: st.fillStyle, stroke: st.strokeStyle });
+    },
+    stroke: noop, save: noop, restore: noop, clip: noop,
     translate: noop, scale: noop, rotate: noop,
     setLineDash: noop, getLineDash: () => [], fillText: noop, strokeText: noop,
     measureText: (t: string) => ({ width: String(t).length * 6 }),
@@ -58,7 +70,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: 
     createPattern: () => null,
     quadraticCurveTo: noop, bezierCurveTo: noop, drawImage: noop,
   };
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, fillRects, shapes };
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, fillRects, shapes, polys };
 }
 
 // ── Fixture: echte store-taak (geldige CPM-datums) + resources 1:3 ──────────────────────────────
@@ -83,7 +95,7 @@ function render(showResourceAccent: boolean, over: {
   baseline?: boolean;
 } = {}) {
   const st = S();
-  const { ctx, fillRects, shapes } = makeCtx();
+  const { ctx, fillRects, shapes, polys } = makeCtx();
   const row = { kind: 'task' as const, rowKey: (over.task ?? task).id, task: over.task ?? task, depth: 0, dimmed: false };
   const renderer = new GanttRenderer(ctx, {
     rows: [row],
@@ -111,7 +123,7 @@ function render(showResourceAccent: boolean, over: {
     assignments: ASG,
   });
   renderer.render();
-  return { fillRects, shapes };
+  return { fillRects, shapes, polys };
 }
 
 // Balk, accent en baseline komen uit `barLayout(ROWH)`. Het accent staat op y = balkY + barH + 1
@@ -139,11 +151,11 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
 
 // Baseline en resource-accent zijn twee onafhankelijke onderbalken. Als beide aan staan, mogen ze
 // elkaar niet bedekken: de baseline begint pas onder het volledige resource-accent. De baseline
-// houdt in elke combinatie dezelfde hoogte (`barLayout`), met of zonder accent.
+// krijgt zijn hoogte uit `barLayout`: met accent de rest van de strook.
 {
-  const { fillRects, shapes } = render(true, { baseline: true });
+  const { fillRects, polys } = render(true, { baseline: true });
   const a = accents(fillRects);
-  const baseline = shapes.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  const baseline = polys.find(sh => sh.fill === '#6B7280' && sh.h < 10);
   ok(a.length === 2, `baseline-combinatie: beide accentsegmenten aanwezig (got ${a.length})`);
   ok(!!baseline, 'baseline-combinatie: baseline aanwezig');
   if (a.length > 0 && baseline) {
@@ -152,10 +164,13 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
     ok(baseline.y + baseline.h <= HDRH + ROWH,
       `baseline-combinatie: gestapelde baseline blijft binnen de rij (eindigt ${baseline.y + baseline.h}, rij eindigt ${HDRH + ROWH})`);
   }
-  const alone = render(false, { baseline: true }).shapes.find(sh => sh.fill === '#6B7280' && sh.h < 10);
-  ok(!!alone && !!baseline && Math.abs(alone.h - baseline.h) < 1e-9,
-    `baseline-hoogte gelijk met en zonder accent (alleen ${alone?.h}, met accent ${baseline?.h})`);
-  ok(!!alone && Math.abs(alone.h - barLayout(ROWH).baselineHeight) < 1e-9, 'baseline-hoogte volgt barLayout');
+  // Issue #391 + eigenaarsbesluit 2026-10-20: de baseline is even dik met of zonder accent
+  // (regel uit fe70487a2); met beide aan wordt de balk lager. Beide uit `barLayout`.
+  const alone = render(false, { baseline: true }).polys.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  ok(!!alone && Math.abs(alone.h - barLayout(ROWH).baselineHeight) < 1e-9, 'baseline-hoogte zonder accent volgt barLayout');
+  ok(!!baseline && Math.abs(baseline.h - barLayout(ROWH).baselineHeight) < 1e-9,
+    `baseline-hoogte met accent is dezelfde als zonder (got ${baseline?.h})`);
+  ok(!!alone && alone.y + alone.h <= HDRH + ROWH, 'baseline zonder accent blijft binnen de rij');
 }
 
 // ── Donker thema: te donkere resourcekleuren verlicht (#21 user-bevinding) ──────────────────────

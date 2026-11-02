@@ -143,14 +143,16 @@ test('theme switch tekent Gantt en minimap opnieuw en wordt daarna stil', async 
     return ['--theme-surface', '--theme-bg', '--theme-text', '--theme-accent']
       .map(name => cs.getPropertyValue(name).trim());
   })).toEqual(['#FFFFFF', '#E5E5E8', '#2A2A31', '#D97706']);
-  // Licht: titelbalk en documentbalk warm `frame`, linttabs wit, werkruimte neutraal grijs (#E5E5E8).
+  // Licht: titelbalk en documentbalk neutraal zoals main (#F4F4F5, #E9E9EC; geen crème, besluit
+  // Ethan 2026-11-02), linttabs wit, werkruimte neutraal grijs (#E5E5E8).
   expect(await shellTints(page)).toEqual({
-    titlebar: 'rgb(241, 238, 234)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(241, 238, 234)', workspace: 'rgb(229, 229, 232)',
+    titlebar: 'rgb(244, 244, 245)', ribbonTabs: 'rgb(255, 255, 255)', docbar: 'rgb(233, 233, 236)', workspace: 'rgb(229, 229, 232)',
   });
   // Bevinding Ethan 2026-10-29: de randen tussen de vlakken moeten zichtbaar zijn. De kaartrand
-  // is daarom niet --oa-border (#EAEAEA, 1,04:1 op `frame`), maar #D6D2CC (Blueprint-issue #44).
+  // is daarom niet --oa-border (#EAEAEA, 1,20:1 op wit), maar de neutrale #D4D4D8 van main
+  // (Blueprint-issue #44).
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--theme-border').trim()))
-    .toBe('#D6D2CC');
+    .toBe('#D4D4D8');
   const lightGantt = await canvasDataUrl(page, '[data-testid="gantt-primary-canvas"]');
   await waitForFontsAndTwoQuietWindows(page, 'primary');
   before.paint = await paintCount(page, 'primary');

@@ -20,7 +20,7 @@ Hoe kies je?
 
 ## Resultaat controleren
 
-- Klik op de melding *N out-of-sequence-relatie(s)* in de statusbalk. Het paneel *Waarschuwingen* opent, ook te bereiken via *Planning › Planning › Waarschuwingen*. Elke relatie staat erin met de tekst *Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen*, bijvoorbeeld *4.2 Stucwerk → 4.5 Schilderwerk (FS)*.
+- Klik op de melding *N out-of-sequence-relatie(s)* in de statusbalk. Het paneel *Waarschuwingen* opent, ook te bereiken via *Planning › Planning › Waarschuwingspaneel*. Elke relatie staat erin met de tekst *Out-of-sequence: de voortgang van de opvolger spreekt de relatie tegen*, bijvoorbeeld *4.2 Stucwerk → 4.5 Schilderwerk (FS)*.
 - Kijk naar de balk van de opvolger. Onder Retained Logic loopt hij tot ná het einde van zijn voorganger. Onder Progress Override eindigt hij eerder. In het voorbeeld van de uitleg is dat dinsdag 27 juli tegenover donderdag 22 juli.
 
 ## Valkuilen en wat de app dan doet

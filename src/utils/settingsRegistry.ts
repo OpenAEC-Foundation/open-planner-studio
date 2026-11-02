@@ -157,6 +157,8 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'leftPanelWidth', field: 'leftPanelWidth', parse: parseClampedInt(TASK_TABLE_MIN_WIDTH, TASK_TABLE_MAX_WIDTH) }),
   setting({ key: 'rightPanelWidth', field: 'rightPanelWidth', parse: parseClampedInt(RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH) }),
   setting({ key: 'ribbonCompact', field: 'ribbonCompact', parse: parseBoolean }),
+  // Muiswiel boven de lint-tabs wisselt van tab (#688); paneelinstelling, standaard aan.
+  setting({ key: 'ribbonWheelSwitchesTabs', field: 'ribbonWheelSwitchesTabs', parse: parseBoolean }),
 
   // Rail-accordeon: hoogte van de Eigenschappen-sectie wanneer beide secties
   // openstaan. Alleen de AFMETING is een voorkeur; de inklaptoestand per sectie is sessiewerk en

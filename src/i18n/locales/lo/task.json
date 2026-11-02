@@ -590,7 +590,8 @@
     "customFieldSuffix": "ຊ່ອງກຳນົດເອງ"
   },
   "tooltip": {
-    "status": "ສະຖານະ"
+    "status": "ສະຖານະ",
+    "baselineActive": "ເຄື່ອນໄຫວ"
   },
   "externalLinks": {
     "action": "ເຊື່ອມໂຍງພາຍນອກ…",

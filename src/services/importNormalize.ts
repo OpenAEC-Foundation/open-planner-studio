@@ -2,7 +2,7 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { ResourceAssignment } from '@/types/resource';
 import type { ImportResult } from '@/services/importTypes';
-import { applyRemainingDuration, defaultActualFinish, defaultActualStart, normalizeActualDate } from '@/engine/taskMutationRules';
+import { applyRemainingDuration, defaultActualFinish, defaultActualStart, normalizeLoadedActualDate } from '@/engine/taskMutationRules';
 import { isDateOnly } from '@/engine/calendar/workdayRules';
 import { orderActualsAfterDerivedFinish } from '@/engine/actualDatesOrder';
 import { workRuleFromMsp, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
@@ -58,9 +58,10 @@ export function deriveImportedWorkRules(tasks: Task[]): void {
  * van 4 d bij 33 % ziet er net zo uit als een afgeronde afleiding. De opgeslagen waarde is dan het feit.
  * Eigenaarsbesluit B3 (2026-10-20) staat een verschuiving van oude bestanden toe, maar eist haar niet. *
  * `calendar`: de kalender van de taken, als de lezer hem kent (nu alleen CSV). Een afgeleid einde zonder
- * tijd naast een vastgelegde start mét tijd gaat dan eerst door dezelfde kalenderregel als in de store
- * (D2/D6, `normalizeActualDate`), vóór de volgordevergelijking. Anders telt het als 00:00, ligt het vóór
- * een start om 10:15 op dezelfde dag en wordt het einde die start (nulduur).
+ * tijd naast een vastgelegde start mét tijd gaat dan eerst door de kalenderregel van de laadgrens
+ * (D2/D6/D7, `normalizeLoadedActualDate`), vóór de volgordevergelijking. Anders telt het als 00:00, ligt
+ * het vóór een start om 10:15 op dezelfde dag en wordt het einde die start (nulduur). Het besluit van
+ * 2026-10-29 (een afgemelde mijlpaal houdt de geplande tijd) geldt alleen bij invoer, niet hier.
  */
 export function normalizeImportedProgress(
   tasks: Task[],
@@ -105,7 +106,7 @@ export function normalizeImportedProgress(
       if (startWasDerived) t.actualStart = defaultActualStart(t);
       t.actualFinish = defaultActualFinish(t, statusDate);
       if (!startWasDerived && !isDateOnly(t.actualStart!)) {
-        t.actualFinish = normalizeActualDate(task, 'actualFinish', t.actualFinish, statusDate, calendar);
+        t.actualFinish = normalizeLoadedActualDate(task, 'actualFinish', t.actualFinish, statusDate, calendar);
       }
       // Alleen een ontbrekende start mag terug naar de statusdatum; aanwezige feiten blijven staan.
       orderActualsAfterDerivedFinish(t, statusDate, startWasDerived);

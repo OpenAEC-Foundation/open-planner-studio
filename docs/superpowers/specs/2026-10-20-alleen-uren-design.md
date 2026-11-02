@@ -8,7 +8,10 @@
   midden op de werkdag), B5 (berekenen en melden), B6 (losse mijlpaal aan het einde van de werkdag in het
   OPS-profiel), B7 (procentlag exact) en B8 ("d" is in het OPS-profiel de dagenmaat; de urenmaat staat in u).
   Besloten door de eigenaar op 2026-10-23 in het orkestratorgesprek: B9 = optie 1 (Duurweergave heeft in het
-  OPS-profiel geen effect; elke taak toont zijn eigen maat, §3.12).
+  OPS-profiel geen effect; elke taak toont zijn eigen maat, §3.12). Besloten door Ethan op 2026-10-29: B10 (een
+  mijlpaal die met alleen een datum wordt afgemeld, houdt de klokketijd uit de planning; vervangt D7 voor
+  afmelden, §4.2), later die dag aangevuld met "einde blijft einde" (een mijlpaal op het begin of einde van zijn
+  werkdag komt op hetzelfde begin of einde van de getypte dag).
 - **Review:** ronde 1 (GPT-6.1-Sol, Codex, reasoning xhigh; oordeel NEE) is verwerkt: de laadgrens en B5 (§5.2),
   de normalisatie en de markering (§3.6, §5.2), de adapters in de eerste release (§7), de belasting per werkdag
   (§3.11), de beperkte N1/N2 (§4.3), de statusregel (§4.2), `project.endDate` (§4.2), de eindsemantiek van
@@ -110,7 +113,8 @@ nodig heeft. Het document gebruikt daarna steeds precies deze woorden.
   kalender van de taak. Bij kalendertijd zijn de dagranden 00:00 en 24:00.
 - **Klokdatum:** de datum van een moment op de klok, van 00:00 tot 23:59. Het eindmoment wo 06:00 van een
   nachtblok heeft klokdatum wo en werkdag di.
-- **Normalisatie:** het omzetten van een datum zonder tijd naar een moment, met de regels D1–D7 (§4.2).
+- **Normalisatie:** het omzetten van een datum zonder tijd naar een moment, met de regels D1–D7 (§4.2); bij afmelden
+  van een mijlpaal met B10 en de aanvulling "einde blijft einde" (§4.2).
 - **Afleidbaar moment:** een moment dat de normalisatie van zijn werkdag, met de regel van zijn veld, precies
   teruggeeft. Op de standaardkalender: een start om 07:00 en een einde om 16:00. Niet afleidbaar: een start om
   11:00.
@@ -437,7 +441,10 @@ typewijziging. "Fase" verwijst naar §7.
   - Invoer: in de store-acties die datums zetten (`setActualStart`/`setActualFinish`, `taskSlice.ts:1448,1455`;
     `applyProgressInvariants`, `taskMutationRules.ts:110`; de setters voor beperking en deadline; het aanmaken
     van taken). Zo krijgen paneel, dialoog, raster, MCP en extensies dezelfde regel. F4 verandert alleen wat
-    de invoervelden tonen.
+    de invoervelden tonen. Uitzondering sinds B10 (2026-10-29): een werkelijke datum van een mijlpaal krijgt op de
+    voortgangsroutes de klokketijd uit de planning, of het begin of einde van de getypte werkdag als hij op een
+    rand van zijn werkdag stond (`normalizeActualDate`, §4.2). De rauwe veldtoegang van
+    extensies (`api.data.updateTask`) draait geen voortgangsregels en houdt daar D7.
   - In ontwikkelmodus controleert het documentcontract na het laden en na elke mutatie dat er geen datum zonder
     tijd in zo'n veld staat.
 - **Projectdatums blijven zoals ingevoerd.** `project.startDate`, `project.statusDate` en `project.endDate`
@@ -877,7 +884,12 @@ Zo zette de meting het ook om.
   datum. Een werkelijk einde op zaterdag 6 jun wordt dan za 16:00, niet zo 00:00. Reden: een werkelijke datum
   is een feit en blijft op zijn datum. MSP heeft daarvoor een standaard begin- en eindtijd (niet in MSP
   getoetst). Voor geplande datums maakt het geen verschil: de motor schuift ze toch naar de volgende werktijd.
-  (De meting gebruikte hier nog middernacht; groep 11 komt daaruit voort.)
+  (De meting gebruikte hier nog middernacht; groep 11 komt daaruit voort.) Bij een nachtblok eindigt de typische
+  werkdag van een vrije dag op de klokdag erna: za 6 jun wordt bij 22:00–06:00 zo 7 jun 06:00. Bij een
+  nulduur-mijlpaal hoort dat moment bij za: weergave, afmelden en statusregel lezen zijn werkdag uit de
+  werkspanne, met D4 voor een dag zonder werkblok (*De werkdag van een mijlpaal* onder B10 hieronder,
+  `milestoneWorkdayOf` in `src/engine/calendar/workdayRules.ts`; fixronde 2 en 3 van #724). Bij een gewone taak
+  nog niet: die weergave en die statusregel lezen zo (knownbug 498).
 - **D5 statusdatum:** de motor leest hem als startachtig (D1). De statusdatum is het moment waarop het restwerk
   begint (`src/types/project.ts:548-550`: "restwerk start niet vóór deze datum"). Gemeten: als begin van de dag
   3 rode dagcases in `cases-progress`, als einde van de dag 17. Opgeslagen blijft hij zoals ingevoerd (§3.6).
@@ -893,7 +905,130 @@ Zo zette de meting het ook om.
   programma) D1. Reden: met alleen D1 en D2 per veld krijgt een mijlpaal begin 07:00 en einde 16:00. Dan is hij
   op een ankerkalender nooit afleidbaar, en wordt elke kalender met een mijlpaal letterlijk (§3.6). Of D1 voor een
   oud bestand de werkelijke datum van een voltooide mijlpaal zonder soort gelijk houdt op dagniveau, toetst F0
-  met een dagcase (VERMOED).
+  met een dagcase (VERMOED). **D7 geldt sinds 2026-10-29 niet meer voor afmelden** (B10, hieronder). Op de
+  laadgrens (openen, de IFC-hint `AtDayEnd`, MSPDI, P6, `.mpp`, CSV), voor de geplande datums en voor de rauwe
+  veldtoegang van extensies blijft D7 de regel.
+- **Afmelden van een mijlpaal (B10, besluit Ethan, 2026-10-29):** een nulduur-mijlpaal die bij werkelijk begin of
+  werkelijk einde een datum zonder tijd krijgt, krijgt de dag van de invoer en de klokketijd die hij in de planning
+  had. Een getypte tijd gaat voor. Dit geldt voor elke soort mijlpaal en in elk profiel. Voorbeeld:
+  "Oplevering" staat gepland op ma 1 jun 16:00; 3-6-2026 wordt wo 3 jun 16:00. "Start bouw", gepland ma 1 jun
+  07:00, afgemeld op 2-6-2026, wordt di 2 jun 07:00.
+
+  **Aanvulling, einde blijft einde** (Ethan, later op 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde
+  mijlpaal houdt de geplande tijd.md`, alinea "Aanvulling"). Letterlijk:
+  "Aanvulling, later op 29 oktober (Ethan, gesprek in Yappo, vraag uit de urenthread run 349). Bij ongelijke
+  werktijden past de geplande kloktijd soms niet in de getypte dag. Dan geldt: einde blijft einde. Stond de
+  mijlpaal op het begin of einde van zijn werkdag, dan komt hij op hetzelfde begin of einde van de getypte dag.
+  Daartussen geldt de geplande kloktijd. Voorbeeld: werktijd ma–do 07:00–16:00 en vr 07:00–12:00, "Oplevering"
+  gepland op maandag 16:00, afgemeld op vrijdag 5 juni: hij wordt vrijdag 12:00 en de tabel toont alleen de
+  datum. Het alternatief was letterlijk de kloktijd houden (vrijdag 16:00, vier uur na het einde van de
+  werkdag). Een planner die op vrijdag "klaar" meldt, bedoelt het einde van die vrijdag."
+
+  Tweede voorbeeld (van de superagent, doorgegeven in de opdracht van de orkestrator voor fixronde 3 van #724):
+  nachtkalender ma–do 22:00–06:00 en vr 22:00–02:00. Een mijlpaal op het einde van zijn dienst, afgemeld op
+  vrijdag, komt op het einde van de vrijdagdienst: za 02:00. De tabel toont "vr"; met statusdatum vr mag de
+  invoer, met statusdatum do niet.
+
+  Uitwerking (`normalizeActualDate` in `src/engine/taskMutationRules.ts`; de regel zelf in `milestoneMomentOn` en
+  `milestoneWorkdayOf`, `src/engine/calendar/workdayRules.ts`):
+  - *De planning* is de getoonde start van de mijlpaal vóór de invoer (`shownStart`): de berekende `earlyStart`,
+    vóór de eerste berekening het anker `scheduleStart`, en bij een al afgemelde mijlpaal zijn werkelijke datum.
+    Daar tekent de Gantt ook de ruit. Niet `scheduleStart` alleen: dat is het anker en niet de uitkomst van de
+    logica (een mijlpaal na een taak van 3 u staat om 10:00, zijn anker om 07:00). Een tweede afmelding houdt zo
+    de afgemelde tijd, ook in P6, waar C5 de vroege start van een voltooide taak op de statusdatum zet.
+  - *De werkdag van een mijlpaal* is de datum waarvan de werkspanne het moment bevat. De werkspanne loopt van het
+    begin van het eerste werkblok van die datum tot het einde van het laatste (D1 tot D2, randen inbegrepen); een
+    datum zonder werkblok heeft de spanne van de typische werkdag (D4). Eerst telt de datum die de rest van de
+    app leest (`workdayOfInstant`: het werkblok aan de kant van de soort, daarbuiten de klokdatum met de
+    24:00-regel aan de eindkant; zo las main ook de statuscontrole):
+    1. Heeft die datum eigen werkblokken en ligt het moment in haar spanne, randen inbegrepen, dan is het die
+       datum. Een echte werkdag houdt zo haar begin en einde tegen een verzonnen rand uit D4 op hetzelfde
+       moment (fixronde 5 van #724, na review ronde 5). Voorbeeld: ma 06:00–10:00, di–vr 22:00–06:00, weekend
+       vrij. De typische werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Een taak begint ma 06:00
+       en een mijlpaal is haar SS-opvolger; na Berekenen staat hij ma 06:00, ook bij FINISH. Dat is het begin
+       van ma: de tabel, het rapport en de PDF tonen "01-06-2026", zoals op main, en met statusdatum zo wordt
+       `01-06-2026 06:00` geweigerd. Eerst won bij FINISH het D4-einde van zo: de tabel toonde "31-05-2026" en
+       de invoer mocht.
+
+    Anders telt de spanne die het moment bevat (de nacht na middernacht, of een vrije dag met D4):
+    2. Ligt het moment binnen de spanne van een datum met eigen werkblokken, dus niet op haar rand, dan telt
+       een datum zonder werkblok niet mee. Een verzonnen rand uit D4 trekt echte werktijd niet naar de vrije
+       dag (fixronde 4 van #724, na review ronde 4). Voorbeeld: ma 04:00–08:00, di–vr 22:00–06:00, weekend
+       vrij. De typische werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Een mijlpaal op ma 06:00
+       ligt midden in de echte maandagdienst en is "ma": de tabel toont "01-06-2026 06:00", zoals op main, en
+       met statusdatum zo wordt hij geweigerd.
+    3. Dan wint de rand van zijn soort (FINISH de eindkant, anders de startkant), dan de andere rand, dan een
+       moment binnen de spanne; bij gelijke stand een datum met eigen werkblokken voor D4. De soort beslist
+       dus alleen op een rand die twee datums delen waar main dat ook doet. Voorbeelden: op een
+       24-uurskalender is di 00:00 bij FINISH "ma" en anders "di" (regel 1); bij 24 uur ma–vr is za 00:00 bij
+       START "za" (D4, regel 3) en bij FINISH "vr" (regel 1); bij ma–do 22:00–06:00 en vr 22:00–02:00 is
+       za 02:00 "vr" en zo 06:00 "za" (D4).
+
+    Buiten elke spanne de klokdatum, met de 24:00-regel aan de eindkant. De tabel (B4: alleen de datum op het
+    begin of einde van die werkdag), het afmelden en de statusregel (regel 4 hieronder) gebruiken deze ene
+    werkdag. Een gewone taak niet.
+  - *Einde blijft einde* (de aanvulling): staat de mijlpaal op het begin of einde van zijn werkdag, dan komt hij op
+    hetzelfde begin of einde van de getypte dag. Ma–do 07:00–16:00, vr 07:00–12:00: "Oplevering" (ma 16:00),
+    afgemeld op vr 5 jun, wordt vr 12:00; de tabel toont "05-06-2026". Een beginmijlpaal op ma 07:00, afgemeld op
+    een vrijdag die om 09:00 begint, wordt vr 09:00. Bij een blokeinde na middernacht geeft dat het blokeinde
+    van de getypte dag: een FINISH-mijlpaal om di 00:00 (24:00-regel), afgemeld op wo, wordt do 00:00; bij een
+    nachtploeg 22:00–06:00 wordt het einde van ma (di 06:00), afgemeld op wo, do 06:00. Een getypte dag zonder
+    werkblok krijgt de rand van de typische werkdag (D4): bij 22:00–06:00 wordt za 6 jun zo 7 jun 06:00, en de
+    tabel toont "06-06-2026".
+  - *Daartussen de geplande kloktijd*: de afstand tot middernacht van de werkdag van de planning, op de getypte
+    dag. Ma 10:00, afgemeld op wo, wordt wo 10:00. Eindigt de dienst van de getypte dag vóór die kloktijd, dan
+    geldt de tweede aanvulling van Ethan; begint hij erna, dan de uitwerking door de orkestrator (beide
+    hieronder).
+  - **Tweede aanvulling van Ethan: de dienst eindigt vóór de geplande kloktijd** (Ethan, 2026-10-29; de tekst staat
+    één keer letterlijk in §8 onder B10, *Tweede aanvulling*; voorheen knownbug 450). Ligt de mijlpaal midden in
+    een dienst en eindigt de dienst van de getypte dag vóór die kloktijd, dan krijgt hij het einde van die
+    dienst. Dat geldt overdag en 's nachts. Voorbeeld overdag (de opstelling van Sol in review ronde 5): ma–do
+    07:00–12:00 en 13:00–16:00, vr 07:00–12:00; een taak van 6 u met een FS-mijlpaal geeft na Berekenen ma 14:00;
+    met statusdatum vr 5 jun wordt `05-06-2026` vr 12:00, en de tabel toont "05-06-2026" (fixronde 5 van #724).
+    Voorbeeld 's nachts: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij; een mijlpaal op di 2 jun 05:00 (midden
+    in de nacht van ma), afgemeld met `05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel
+    toont "05-06-2026"; met statusdatum vr mag de invoer, met statusdatum do niet. In de code is dit regel 3 van
+    `milestoneMomentOn`.
+  - **Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724):
+    - Begint de dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst
+      (fixronde 5). Voorbeeld: ma 04:00–08:00, een mijlpaal op ma 06:00, afgemeld op een dag met dienst
+      07:00–16:00, wordt 07:00 die dag. Bij ma 04:00–08:00 en di–vr 22:00–06:00 wordt dezelfde mijlpaal, afgemeld
+      met `02-06-2026`, di 22:00; de tabel toont "02-06-2026". Regel 4 van `milestoneMomentOn`.
+    - Valt de kloktijd binnen de werkspanne van de getypte dag, maar in de dienst van een **andere** werkdag (alleen
+      bij diensten die elkaar overlappen), dan gaat "de dag komt van wat je typt" voor: het moment komt op de rand
+      van de getypte werkdag die het dichtst bij ligt (fixronde 3). Het eerdere voorbeeld (ma–do 22:00–06:00,
+      vr 22:00–02:00, za 04:00–12:00; di 05:00 afgemeld op vr ⇒ za 02:00) valt sinds fixronde 5 onder de tweede
+      aanvulling: za 05:00 ligt ook na het einde van de vrijdagdienst. De uitkomst blijft za 02:00.
+  - De tweede aanvulling en deze uitwerking gelden alleen midden in de dienst: binnen de werkspanne van de werkdag
+    van de planning. Een gepland moment buiten die spanne, zoals een handmatig anker om 18:00 bij 07:00–16:00,
+    houdt de kloktijd zoals het besluit zelf zegt: ma 18:00, afgemeld op vr, wordt vr 18:00 (keuze van de bouwer
+    in fixronde 5, gemeld in #724: geen van de aanvullingen noemt zo'n moment).
+  - **Een geval dat besluit en uitwerking niet dekken** (keuze van de bouwer in fixronde 3 van #724, niet
+    besloten; gemeld in de PR; knownbug 501). Ook hier gaat "de dag komt van wat je typt" voor; anders toont de
+    tabel een andere dag en weigert de statusregel de statusdag. De rand van de getypte dag is ook een rand van
+    de buurdag, en de soort leest hem als die buurdag: de andere rand van de getypte dag. Voorbeeld: 24 uur
+    ma–do, vr 00:00–12:00; een START-mijlpaal op vr 12:00 (het einde van vr), afgemeld op ma ⇒ het einde van ma
+    is di 00:00, en START leest dat als "di"; dus ma 00:00. Dat is geen besluit en geen uitzondering op "einde
+    blijft einde": main geeft met dezelfde invoer ook ma 00:00 (D7, START = begin), en de mijlpaal kan daar ook
+    door Berekenen komen (OPS, losse START-mijlpaal, projectstart vr). Het gat bestaat ook op main en blijft
+    open: een eindmoment wordt hier als beginmoment gelezen. Dezelfde regel (regel 5 in `milestoneMomentOn`)
+    geldt ook als de D4-rand van een getypte vrije dag midden in echte werktijd ligt. Voorbeeld: ma 04:00–08:00,
+    di–vr 22:00–06:00; een mijlpaal zonder soort op ma 08:00 (het einde van ma), afgemeld op zo 7 jun ⇒ het
+    D4-einde van zo is ma 8 jun 06:00, midden in de echte maandagdienst; dus het begin van zo, zo 22:00. Main
+    geeft hier ook zo 22:00 (D7).
+  - Zonder moment met tijd in de planning geldt D7. Een gewone taak houdt D1 en D2.
+  - De klem op het statusmoment (statusregel 2 hieronder) en de andere controles blijven. Een datumloze invoer
+    op de statuswerkdag na een statusmoment met tijd wordt dat statusmoment, ook als de planning later op de dag
+    ligt.
+  - Ook het afgeleide einde bij 100 % zonder datum (`applyProgressInvariants`: de statusdatum zonder tijd) volgt
+    deze regel.
+  - De statuscontrole leest een mijlpaal op zijn werkdag (statusregel 4 hieronder). Zo mag wat je op de
+    statusdag afmeldt. Voorbeeld: nachtploeg ma–vr 22:00–06:00, een losse mijlpaal zonder soort staat in OPS op
+    di 2 jun 06:00 en toont "01-06-2026". Met statusdatum wo 3 jun wordt 03-06-2026 do 4 jun 06:00, het einde
+    van de nacht van wo; de tabel toont "03-06-2026" en de invoer mag (fixronde 1 van #724, voorheen knownbug
+    445). Op een statusdag zonder werkblok: statusdatum za 6 jun, 06-06-2026 wordt zo 7 jun 06:00, en de invoer
+    mag, ook bij een FINISH-mijlpaal (fixronde 2). Bij een kortere vrijdag 22:00–02:00 met statusdatum za
+    6 jun: een mijlpaal op za 02:00 (het einde van vr) wordt zo 7 jun 06:00 en mag (fixronde 3).
 
 **D3 per veld: wat de datum van een kalendertijd-taak nu betekent** (review ronde 1, punt 8). Het dagpad schrijft
 het einde als start + n kalenderdagen, maar leest de datum daarna als inclusief. Probes (BEVESTIGD, harness):
@@ -936,6 +1071,26 @@ functie (`taskDialogSave.ts:77`, `taskEditPlan.ts:621,746`, `progressEntry.ts:10
 2. **Statusdatum met tijd:** vergelijking op het moment, zoals nu. Een datumloze werkelijke datum op de statusdag
    wordt D1 of D2, maar nooit later dan het statusmoment.
 3. De functie krijgt de kalender van de taak mee, zodat "werkdag" ook bij een nachtblok klopt.
+4. **Een nulduur-mijlpaal** heeft één moment voor beide actuals. Bij een statusdatum zonder tijd is zijn werkdag
+   de werkdag van een mijlpaal uit B10 hierboven (`milestoneWorkdayOf`): eerst de datum die de rest van de app
+   leest, als die eigen werkblokken heeft en haar spanne het moment bevat (fixronde 5 van #724); anders de datum
+   waarvan de werkspanne het moment bevat, ook op een dag zonder werkblok (D4), maar nooit een dag zonder
+   werkblok voor een moment midden in de werkspanne van een echte werkdag (fixronde 4 van #724); bij een
+   gedeelde rand eerst de rand van zijn soort; buiten elke spanne de klokdatum (24:00-regel aan de eindkant). De
+   tabel en het afmelden gebruiken dezelfde werkdag. Voorbeelden: ma 04:00–08:00, di–vr 22:00–06:00, weekend
+   vrij; een getypt `01-06-2026 06:00` is ma, dus met statusdatum zo geweigerd. Ma 06:00–10:00, di–vr
+   22:00–06:00: een getypt `01-06-2026 06:00` is het begin van ma, ook bij een FINISH-mijlpaal, en wordt met
+   statusdatum zo geweigerd, zoals op main.
+   Wat je op de statusdag afmeldt, mag dus op de statusdag. Een moment dat echt ná de statusdag ligt, blijft
+   geweigerd: bij ma–do 22:00–06:00 en vr 22:00–02:00 mag za 02:00 met statusdatum vr, za 02:01 niet. Een
+   statusdatum met tijd blijft regel 2: een moment ná het statusmoment wordt geweigerd, ook als de tabel het op
+   de statusdag toont. Een gewone taak houdt regel 1 met de kant van het veld. Sinds 2026-10-29 (fixronde 1 van
+   #724) lopen alle invoerroutes, het DCMA-rapport en (sinds fixronde 2) het gezondheidsrapport via
+   `isTaskActualPastStatusDate` (`src/engine/taskMutationRules.ts`), dat de kant van het veld en deze regel
+   toepast, steeds met de kalender van de taak. Reden: met B10 kan een afgemelde mijlpaal op het blokeinde na
+   middernacht staan (nachtploeg), ook na een vrije dag of op een kortere dienst; de startkant las dat als de
+   klokdag erna en weigerde de invoer op de statusdag, en het gezondheidsrapport las het zonder taakkalender en
+   meldde twee fouten. Fixronde 1 en 2 losten dat op met losse randgevallen; fixronde 3 met deze ene werkdag.
 
 Regressiegevallen: status "wo 3 jun", werkelijk einde "wo 3 jun" ⇒ toegestaan, opgeslagen wo 16:00; status
 "wo 3 jun 12:00", werkelijk einde "wo 3 jun" ⇒ opgeslagen wo 12:00; status "wo 3 jun 12:00", werkelijk einde
@@ -1690,6 +1845,8 @@ nodig heeft. B2, B4 en B8 zijn besloten (2026-10-20) en bepalen F4. B9 = optie 1
 Besloten op 2026-10-20: B1, B1a, B2, B3, B4, B5, B6, B7 en B8. De regel voor `isDirty` bij B5 is geen besluit van de
 eigenaar, maar een technische keuze van de orkestrator (2026-10-20; §5.2). De eigenaar besloot op 2026-10-23 in het
 orkestratorgesprek: B9 = optie 1. Duurweergave heeft in het OPS-profiel geen effect; elke taak toont zijn eigen maat.
+Ethan besloot op 2026-10-29 B10: een afgemelde mijlpaal houdt de klokketijd uit de planning. Later die dag vulde
+hij B10 aan: einde blijft einde.
 
 ### B1. Wat is één dag (welke maat)? — besloten: optie 3, een maat per taak
 
@@ -1916,6 +2073,10 @@ B ma 1 tot di 2 jun).
 **Uitwerking:** de conventie staat in §3.14 en komt in F2. Nu hangt de plaats af van de kalender (dagkalender:
 einde; urenkalender: begin). Een oud OPS-bestand met een urenkalender verschuift dus; de melding van B5 telt het.
 
+**Bij afmelden (B10, 2026-10-29):** zo'n mijlpaal staat op het einde van zijn werkdag en komt bij een datum zonder
+tijd op het einde van de getypte dag: 16:00 op de standaardkalender, 12:00 op een vrijdag die om 12:00 eindigt
+(aanvulling "einde blijft einde"). Eerder zette D7 hem bij afmelden op het begin van de dag, 9 uur terug.
+
 **Wie, wanneer, bron:** de eigenaar, 2026-10-20, via de coördinator in dit gesprek.
 
 ### B7. Procentlag — besloten: exact, ook in het OPS-profiel
@@ -1985,12 +2146,93 @@ korte vrijdag). Dan betekent "u" twee dingen, terwijl de maat bepaalt hoe een ta
 
 **Wie, wanneer, bron:** de eigenaar, 2026-10-23, in het orkestratorgesprek.
 
+### B10. Afgemelde mijlpaal — besloten: hij houdt de klokketijd uit de planning; einde blijft einde
+
+**Besluit (Ethan, 2026-10-29, letterlijk):** "Meld je een mijlpaal af met alleen een datum, dan houdt hij de
+klokketijd die hij in de planning had. De dag komt van wat je typt, de tijd uit de planning. Typ je zelf een tijd,
+dan geldt die."
+
+**Wat de planner ziet** (standaardkalender 07:00–16:00). "Oplevering" staat gepland op ma 1 jun 16:00. Hij typt bij
+werkelijk 3-6-2026; de mijlpaal wordt wo 3 jun 16:00. "Start bouw", gepland ma 1 jun 07:00, afgemeld op 2-6-2026,
+wordt di 2 jun 07:00. Een mijlpaal die door de logica om 10:00 uitkomt, krijgt bij afmelden ook 10:00, en de tabel
+toont die tijd.
+
+**Waarom:** B6 zet een losse mijlpaal zonder soort in de planning op het einde van de werkdag. D7 (§4.2, fixronde 2,
+geschreven door de ontwerpagent) zette hem bij afmelden op het begin van de dag. Daardoor sprong de mijlpaal 9 uur
+terug. Twee andere keuzes vielen af: altijd 16:00 (een mijlpaal zonder soort is een afrondingsmoment) en altijd
+07:00 (een beginmoment, ook in de planning). Deze regel werkt voor elke soort mijlpaal en in elk profiel, zonder
+opnieuw te bepalen wat "zonder soort" betekent. Nadeel: komt een mijlpaal door de logica midden op de dag uit, dan
+krijgt de afgemelde datum ook die tijd.
+
+**Aanvulling (Ethan, later op 2026-10-29, letterlijk):** "Aanvulling, later op 29 oktober (Ethan, gesprek in
+Yappo, vraag uit de urenthread run 349). Bij ongelijke werktijden past de geplande kloktijd soms niet in de
+getypte dag. Dan geldt: einde blijft einde. Stond de mijlpaal op het begin of einde van zijn werkdag, dan komt hij
+op hetzelfde begin of einde van de getypte dag. Daartussen geldt de geplande kloktijd. Voorbeeld: werktijd ma–do
+07:00–16:00 en vr 07:00–12:00, "Oplevering" gepland op maandag 16:00, afgemeld op vrijdag 5 juni: hij wordt
+vrijdag 12:00 en de tabel toont alleen de datum. Het alternatief was letterlijk de kloktijd houden (vrijdag 16:00,
+vier uur na het einde van de werkdag). Een planner die op vrijdag "klaar" meldt, bedoelt het einde van die
+vrijdag."
+
+**Wat de planner ziet met de aanvulling.** Ma–do 07:00–16:00, vr 07:00–12:00: "Oplevering", gepland ma 16:00,
+afgemeld op vr 5 jun, wordt vr 12:00; de tabel toont "05-06-2026". Nachtkalender ma–do 22:00–06:00 en vr
+22:00–02:00 (voorbeeld van de superagent): een mijlpaal op het einde van zijn dienst, afgemeld op vrijdag, wordt
+za 02:00, het einde van de vrijdagdienst. De tabel toont vrijdag; met statusdatum vrijdag mag het, met statusdatum
+donderdag niet.
+
+**Waarom de aanvulling:** de letterlijke kloktijd gaf bij ongelijke werktijden een moment buiten de getypte
+werkdag: vr 16:00, vier uur na het einde van de werkdag. Bij een nachtdienst viel dat moment op een andere werkdag;
+de tabel toonde dan een andere dag dan de planner typte en de statuscontrole weigerde de statusdag (review ronde 3
+van #724, de derde variant na de nachtploeg en de vrije statusdag). Het alternatief, letterlijk de kloktijd houden,
+wees Ethan af: een planner die op vrijdag "klaar" meldt, bedoelt het einde van die vrijdag.
+
+**Tweede aanvulling (Ethan, 2026-10-29, letterlijk; dezelfde vloot-wiki, alinea "Nog een aanvulling"):** "Nog
+een aanvulling (Ethan, gesprek in Yappo, knownbug 450). Ligt de mijlpaal midden in een dienst, en eindigt de dienst
+van de getypte dag vóór de geplande kloktijd, dan krijgt hij het einde van die dienst. Voorbeeld: nachtdienst
+22:00–06:00, op vrijdag 22:00–02:00. Een mijlpaal op dinsdag 05:00, afgemeld met "vrijdag", wordt zaterdag 02:00.
+Afmelden betekent meestal klaar in die dienst. Het begin van de dienst of een extra vraag om een tijd werd het
+niet."
+
+**Wat de planner ziet met de tweede aanvulling.** Ze geldt overdag en 's nachts. Overdag: ma–do 07:00–12:00 en
+13:00–16:00, vr 07:00–12:00. Een mijlpaal op ma 14:00 (FS na een taak van 6 u), afgemeld met `05-06-2026`, wordt
+vr 12:00; de tabel toont "05-06-2026" (fixronde 5 van #724, na review ronde 5). 's Nachts: ma–do
+22:00–06:00, vr 22:00–02:00, weekend vrij. Een mijlpaal op di 2 jun 05:00 (midden in de nacht van ma), afgemeld met
+`05-06-2026`, wordt za 6 jun 02:00, het einde van de vrijdagdienst. De tabel toont "05-06-2026"; met statusdatum vr
+mag het, met statusdatum do niet. Letterlijk zou het za 05:00 zijn: na de vrijdagdienst, in geen dienst, en de tabel
+zou zaterdag tonen.
+
+**Uitwerking door de orkestrator** (niet letterlijk in het besluit; opdrachten fixronde 3 en 5 van #724). Begint de
+dienst van de getypte dag na de geplande kloktijd, dan krijgt het moment het begin van die dienst: ma 04:00–08:00,
+een mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00, wordt 07:00 die dag (fixronde 5). Valt de
+kloktijd binnen de werkspanne van de getypte dag maar in de dienst van een andere werkdag (overlappende diensten),
+dan gaat "de dag komt van wat je typt" voor; het moment komt op de dichtstbijzijnde rand van de getypte werkdag
+(fixronde 3).
+
+Eén geval dekken besluit, aanvullingen en uitwerking niet; de bouwer koos daar ook "de dag komt van wat je typt"
+(§4.2, niet besloten, gemeld in #724, knownbug 501). Main geeft daar dezelfde uitkomst; het is geen uitzondering die
+Ethan besloot.
+
+**Uitwerking:** §4.2 (*Afmelden van een mijlpaal*, met *De werkdag van een mijlpaal*) en statusregel 4 (§4.2): de
+tabel, het afmelden en de statuscontrole lezen een mijlpaal op dezelfde werkdag (`milestoneWorkdayOf`), zodat
+afmelden op de statuswerkdag mag, ook bij een nachtploeg (fixronde 1 van #724, voorheen knownbug 445), op een
+statusdag zonder werkblok (fixronde 2) en op een kortere dienst (fixronde 3). Een verzonnen rand uit D4 trekt een
+moment midden in echte werktijd niet naar een vrije dag (fixronde 4), en wint ook niet van het echte begin of
+einde van een werkdag op hetzelfde moment (fixronde 5). Het gezondheidsrapport leest de
+statusdag met de taakkalender, zoals DCMA (fixronde 2, voorheen knownbug 316). De laadgrens houdt D7. Bekende
+randgevallen: knownbug 447 (de rauwe veldtoegang van extensies houdt D7), 497 (een afgeleide werkelijke start bij
+nachtwerk) en 498 (een gewone taak op een statusdag zonder werkblok bij nachtwerk).
+
+**Wie, wanneer, bron:** Ethan, 2026-10-29; vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
+tijd.md` (het besluit en de alinea "Aanvulling", gesprek in Yappo; de alinea "Nog een aanvulling", gesprek in
+Yappo, doorgegeven in de opdrachten voor fixronde 4 en 5 van #724). Het nachtvoorbeeld: de superagent, in de
+opdracht voor fixronde 3; de uitwerking: de orkestrator, in de opdrachten voor fixronde 3 en 5 van #724; alles
+2026-10-29.
+
 ### Technische keuzes die dit ontwerp zelf neemt
 
 | # | Keuze | Reden |
 |---|---|---|
 | T1 | Uren per dag > spanne: einde verlengen, melden | §3.1 |
-| T2 | Regels D1–D7 voor datums zonder tijd, met D3 per veld (ook het baseline-einde) en D7 voor mijlpalen | §4.2; review ronde 2, punt 7 |
+| T2 | Regels D1–D7 voor datums zonder tijd, met D3 per veld (ook het baseline-einde) en D7 voor mijlpalen; bij afmelden van een mijlpaal geldt sinds 2026-10-29 B10 | §4.2; review ronde 2, punt 7; B10 |
 | T3 | 24:00-regel | §4.2, B4 |
 | T4 | Grensregels N0–N3, alleen op benoemde plekken (herzien na review ronde 1) | §4.3; een algemene snap breekt `z13-*` en P6-grenzen |
 | T5 | Speling in IFC als hele dagen plus minuten in de pset | §3.4, forward-compat |
@@ -2282,7 +2524,8 @@ De probe van review ronde 7 (`/tmp/uren-review7/splits.log`) liet de gaten zien.
 - Of MSP en P6 een `ExtendedAttribute` of UDF voor de lagmaat bewaren als een planner het bestand daar opslaat
   (§3.3). De nieuwe markeringen en records in MSPDI en P6 XML (T21) zijn alleen als leesregel nagebootst, niet
   integraal door schrijver en lezer getoetst.
-- Of D1 voor een mijlpaal zonder soort in een oud bestand de werkelijke datum gelijk houdt op dagniveau (D7).
+- Of D1 voor een mijlpaal zonder soort in een oud bestand de werkelijke datum gelijk houdt op dagniveau (D7). Dit
+  gaat alleen nog over de laadgrens; bij afmelden geldt sinds 2026-10-29 B10 (§4.2).
 - De precieze weging van een curve, contour of opgeslagen werk over een eerste en laatste deeldag (§3.11), en wat
   de vraag per kandidaat de nivelleerder aan tijd kost.
 - De punten van knownbugs 145–148 zijn gemeld door de bouwer van #402 en niet door deze agent nagespeeld.

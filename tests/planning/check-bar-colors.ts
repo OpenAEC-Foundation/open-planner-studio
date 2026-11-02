@@ -1,3 +1,4 @@
+import { ensureCustomBarVisible } from '@/engine/renderer/resourcePalette';
 /**
  * Resourcepalet + kleurtoewijzing (#21 punt 1-nieuw) — regressiebatterij.
  *
@@ -160,6 +161,36 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(near.kind === 'solid' && near.fill === PAL.nearCritical, 'critical-modus: bijna-kritiek oranje');
   const plain = computeBarColors(mkTask('t2b'), { mode: 'critical' }, CTX, PAL);
   ok(plain.kind === 'solid' && plain.fill === PAL.normal, 'critical-modus: gewone taak blauw');
+}
+
+// Eigen kleuren voor elk van de drie statussen.
+{
+  const selection = { mode: 'critical', colors: { critical: '#112233', nearCritical: '#223344', normal: '#112233' } } as const;
+  for (const [task, expected] of [
+    [mkTask('critical', { time: mkTime({ isCritical: true }) }), '#112233'],
+    [mkTask('near', { time: mkTime({ isNearCritical: true }) }), '#223344'],
+    [mkTask('normal'), '#112233'],
+  ] as const) {
+    const result = computeBarColors(task, selection, CTX, PAL);
+    ok(result.kind === 'solid' && result.fill === expected, `eigen kleur ${expected}`);
+  }
+}
+
+// Eigen kleuren blijven zichtbaar op een lichte of donkere achtergrond.
+{
+  const light = ensureCustomBarVisible('#ffffff', false);
+  const dark = ensureCustomBarVisible('#000000', true);
+  ok(light !== '#ffffff', 'lichte kleur wordt zichtbaar op een lichte achtergrond');
+  ok(dark !== '#000000', 'donkere kleur wordt zichtbaar op een donkere achtergrond');
+}
+
+// Eén eigen kleur mag de standaard van de overige statussen niet veranderen.
+{
+  const selection = { mode: 'critical', colors: { normal: '#005500' } } as const;
+  const critical = computeBarColors(mkTask('critical', { time: mkTime({ isCritical: true }) }), selection, CTX, PAL);
+  const near = computeBarColors(mkTask('near', { time: mkTime({ isNearCritical: true }) }), selection, CTX, PAL);
+  ok(critical.kind === 'solid' && critical.fill === PAL.critical, 'kritiek blijft standaard bij alleen eigen normaal');
+  ok(near.kind === 'solid' && near.fill === PAL.nearCritical, 'bijna-kritiek blijft standaard bij alleen eigen normaal');
 }
 
 // 8. Task.color is inert: dezelfde taakuitkomst in iedere overgebleven modus, ongeacht legacydata.

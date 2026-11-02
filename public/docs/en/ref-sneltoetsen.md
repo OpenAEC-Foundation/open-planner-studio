@@ -88,7 +88,7 @@ Indent, outdent and inserting above or below a selected task only work in the pl
 
 **Ctrl+Shift+H** — *Histogram*: switches the histogram on or off, like the *Histogram* button (*Resources › Histogram › Histogram* or *View › Panels › Histogram*). The app remembers your choice.
 
-**Ctrl+Shift+L** — *Warnings*: switches the warnings panel on or off, like the *Warnings* button (*View › Panels › Warnings* or *Planning › Schedule › Warnings*).
+**Ctrl+Shift+L** — *Warnings panel*: switches the warnings panel on or off, like the *Warnings panel* button (*View › Panels › Warnings panel* or *Planning › Schedule › Warnings panel*).
 
 ## Navigation
 

@@ -28,8 +28,9 @@ export interface DocumentCard {
  * Bouwt de afgeleide kaart-info voor elk geopend document. Het actieve
  * document leest uit de top-level store-velden; inactieve uit hun payload.
  * Eén bron voor de tabstrip, de projectbalk, de flyout én het overzicht.
+ * Mini-Gantts zijn alleen nodig zolang het projectoverzicht open is.
  */
-export function useDocumentCards(): DocumentCard[] {
+export function useDocumentCards(includeThumbnails = false): DocumentCard[] {
   const { t } = useTranslation('common');
   const documents = useAppStore((s) => s.documents);
   const activeId = useAppStore((s) => s.activeDocumentId);
@@ -82,10 +83,10 @@ export function useDocumentCards(): DocumentCard[] {
         milestoneCount: stats.milestoneCount,
         criticalCount: stats.criticalCount,
         endDate: stats.endDate,
-        thumb: buildThumbnail(tl, color),
+        thumb: includeThumbnails ? buildThumbnail(tl, color) : [],
       };
     });
-  }, [documents, activeId, project, tasks, cpmResult, filePath, isDirty, activeCode, t]);
+  }, [documents, activeId, project, tasks, cpmResult, filePath, isDirty, activeCode, t, includeThumbnails]);
 }
 
 /** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */

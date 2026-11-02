@@ -280,6 +280,10 @@ export function build(spec: ProjectSpec): BuildResult {
         if (!task) throw new Error(`[${spec.slug}] extendDurations: taak "${e.key}" niet in store`);
         S().updateTask(id, { time: { ...task.time, scheduleDuration: e.dur } });
       }
+      if (m.addHolidays?.length) {
+        const cal = S().calendar;
+        S().setCalendar({ ...cal, holidays: [...cal.holidays, ...m.addHolidays.map(h => extraHolidayRange(anchor, h))] });
+      }
       S().runCPM();
     }
     baselineIds[b.name] = S().saveBaseline(b.name);
@@ -288,6 +292,11 @@ export function build(spec: ProjectSpec): BuildResult {
     const id = baselineIds[spec.activeBaselineName];
     if (!id) throw new Error(`[${spec.slug}] activeBaselineName "${spec.activeBaselineName}" komt niet voor in baselines`);
     S().setActiveBaseline(id);
+  }
+  for (const name of spec.comparedBaselineNames ?? []) {
+    const id = baselineIds[name];
+    if (!id) throw new Error(`[${spec.slug}] comparedBaselineNames: "${name}" komt niet voor in baselines`);
+    S().toggleComparedBaseline(id);
   }
 
   // Voortgang/statusdatum (fase 2.10, item 20): via de ECHTE store-acties (zelfde invarianten

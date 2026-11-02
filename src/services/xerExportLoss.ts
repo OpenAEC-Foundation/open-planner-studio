@@ -63,6 +63,10 @@ interface ExportCapabilities {
    *  schrijft primair en secundair, maar alleen op een activiteit: een verzameltaak wordt een WBS-element. */
   readonly constraints: 'none' | 'primary' | 'activities';
   readonly schedulingOptions: 'none' | 'critical-slack-limit';
+  /** Schrijft de writer taaknotities? (De XER-writer wel; de afvinkstatus meldt hij zelf.) */
+  readonly notes: boolean;
+  /** Schrijft de writer een hammock als hammock terug? (Alleen XER: `TT_LOE`.) */
+  readonly hammocks: boolean;
   /** Met welk ingebouwd profiel dit doelformaat heropent = het `suggestedProfileId` van zijn lezer.
    *  CSV, MSPDI en P6-XML heropenen alle drie als OPS. */
   readonly reopenProfile: BuiltInProfileId;
@@ -72,12 +76,11 @@ interface ExportCapabilities {
  * Gemeten tegen de drie writerimplementaties. Dit is een capabilitymatrix, geen vaste verlieslijst:
  * een categorie ontstaat pas wanneer de bijbehorende retained/live data werkelijk aanwezig is.
  */
-/** De voortgangsbladen zijn werkbladen om rond te sturen, geen projectexport: ze dragen alleen
- *  id/WBS/naam/datums/voortgang en worden via `OPS Task ID` teruggekoppeld. Een XER-verliesmelding
+/** Het voortgangsblad is een werkblad om rond te sturen, geen projectexport: het draagt alleen
+ *  id/WBS/naam/datums/voortgang en wordt via `OPS Task ID` teruggekoppeld. Een XER-verliesmelding
  *  is daar per definitie loos (bv. relatie-lag-degradatie voor een blad zonder relaties). */
-type ProgressSheetFormat = 'progress-csv' | 'progress-xlsx';
-const isProgressSheetFormat = (format: string): format is ProgressSheetFormat =>
-  format === 'progress-csv' || format === 'progress-xlsx';
+type ProgressSheetFormat = 'progress-xlsx';
+const isProgressSheetFormat = (format: string): format is ProgressSheetFormat => format === 'progress-xlsx';
 
 const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | ProgressSheetFormat>, ExportCapabilities>> = {
   csv: {
@@ -87,6 +90,8 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     elapsedLag: true,
     constraints: 'none',
     schedulingOptions: 'none',
+    notes: false,
+    hammocks: false,
     reopenProfile: 'ops',
   },
   mspdi: {
@@ -96,6 +101,8 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     elapsedLag: true,
     constraints: 'primary',
     schedulingOptions: 'critical-slack-limit',
+    notes: false,
+    hammocks: false,
     reopenProfile: 'ops',
   },
   p6: {
@@ -105,7 +112,22 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     elapsedLag: false,
     constraints: 'activities',
     schedulingOptions: 'none',
+    notes: false,
+    hammocks: false,
     reopenProfile: 'ops',
+  },
+  // De XER-writer (`xer/xerWriter.ts`) meldt zijn eigen verlies per soort; deze matrix telt alleen
+  // voor de XER-broninformatie die geen writer terugschrijft (exacte bytes, onbekende tabellen, …).
+  xer: {
+    baselineProjection: 'none',
+    projectedAssignments: true,
+    percentLag: false,
+    elapsedLag: false,
+    constraints: 'activities',
+    schedulingOptions: 'none',
+    notes: true,
+    hammocks: true,
+    reopenProfile: 'p6',
   },
 };
 
@@ -263,7 +285,7 @@ function categoriesFor(
     || input.tasks.some(task => hasObjectValues(task.customFields))) categories.push('udfs');
   if (input.activityCodeTypes.length > 0
     || input.tasks.some(task => hasObjectValues(task.activityCodes))) categories.push('activity-codes');
-  if (input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
+  if (!capabilities.notes && input.tasks.some(task => (task.notes?.length ?? 0) > 0)) categories.push('notes');
   if (hasAssignmentLoss(capabilities, input)) {
     categories.push('raw-curves-and-assignment-quantities');
   }
@@ -277,9 +299,10 @@ function categoriesFor(
     categories.push('p6-relation-lag-degradation');
   }
   if (input.tasks.some(task => hasConstraintLoss(capabilities, task))) categories.push('constraints');
-  // Geen van de drie writers schrijft deze twee: ze gaan als gewone taak met berekende datums.
+  // Handmatige planning schrijft geen writer: die taak gaat als gewone taak met berekende datums. Een
+  // hammock alleen CSV, MSPDI en P6 XML niet; de XER-writer schrijft hem als `TT_LOE`.
   if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
-  if (input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
+  if (!capabilities.hammocks && input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
   return categories;
 }
 

@@ -34,9 +34,11 @@ multiple worktrees at the same time is fine for exactly that reason:
 npm run verify
 ```
 
-That is the same definition, in `package.json`, that the release gate runs; CI runs
-exactly its steps, split over parallel jobs by `scripts/verify-parts.mjs`, and the site deploy waits for a green CI run on
-`main`. Agents (see `AGENTS.md`) run targeted checks locally and let CI run the full gate on a draft PR. The steps, in this order:
+That is one definition, in `package.json`. CI runs its steps, split over parallel jobs by `scripts/verify-parts.mjs`;
+the site deploy waits for a green CI run on `main`, and the release gate checks that CI and the browser run are green.
+CI leaves out the browser suite on an ordinary pull request or push: that suite runs every Friday evening,
+with the label `browsertests` or on a manual start (see `AGENTS.md`). Agents run targeted checks locally and let CI run the
+gate on a draft PR. The steps, in this order:
 
 | component | what |
 |---|---|

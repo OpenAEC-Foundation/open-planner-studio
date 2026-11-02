@@ -599,6 +599,8 @@ function applyCellEdits(
     let value = edit.value;
     // Dezelfde datum heeft vóór validatie en de no-op-vergelijking dezelfde vorm als
     // de opgeslagen taak (D1/D2/D7). Een ongewijzigde start mag geen nieuwe SNET maken.
+    // Een werkelijke datum van een mijlpaal krijgt de klokketijd uit de planning van de taak
+    // van vóór deze invoer (`normalizeActualDate`, besluit 2026-10-29).
     // Een einde zonder tijd is het einde van die dag zoals de tabel het toont (B4), ook bij
     // kalendertijd (`normalizeTaskDateInput`); D3-exclusief geldt alleen op de laadgrens.
     if (typeof value === 'string') {

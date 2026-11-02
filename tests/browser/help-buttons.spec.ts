@@ -1,5 +1,6 @@
 import { expect, seedProject, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
+import { xlsxFromText } from '../planning/progressSheetFixture';
 
 // ?-knoppen in dialogen en panelen (ontwerp gebruikersdocumentatie §8.1 en §10.2, fase 4). Een
 // dialoog zonder onopgeslagen invoer sluit en opent Help meteen; een dialoog met wijzigingen vraagt
@@ -290,9 +291,9 @@ test('voortgang importeren: bij het kiezen meteen Help, met een ingelezen blad e
   await dialog.getByRole('button', { name: /^(Choose file…|Bestand kiezen…)$/ }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
-    name: 'voortgang.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from(['OPS Task ID;Completion (%)', `${taskId};40`, ''].join('\r\n'), 'utf-8'),
+    name: 'voortgang.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: Buffer.from(await xlsxFromText(['OPS Task ID;Completion (%)', `${taskId};40`].join('\n'))),
   });
   await expect(dialog.getByRole('button', { name: /^(Apply|Toepassen)$/ })).toBeEnabled();
   await help.click();
