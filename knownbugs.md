@@ -1122,15 +1122,6 @@ en noem het in je rapport of PR-tekst.
      hetzelfde scenario ook een verzameltaak met alleen SNET of ALAP, met waarschuwing én teruggelezen verlies.
      Gevonden in review ronde 3 van #727 (GPT-6.1-Sol), met een mutatie nagespeeld. — B
 
-483. **Na een export kunnen de exportmeldingen de verliesmelding verdringen.** `exportAs` in
-     `src/state/slices/fileSlice.ts` zet de verliesmelding (algemeen of XER) eerst en daarna de meldingen voor
-     onderbrekingen, ingekorte P6-namen en vervangen XML-tekens; de UI toont er hoogstens drie
-     (`uiSlice.ts`). Een P6-export met een notitie, een onderbreking zonder urenverdeling en een te lange naam
-     die op een emoji wordt ingekort, geeft vier meldingen: de verliesmelding met *Lees meer* verdwijnt. De
-     informatie blijft in `warnings`. Voorstel: bundel de exportmeldingen als detailregels in één melding.
-     Gevonden in review ronde 4 van #727 (GPT-6.1-Sol), nagespeeld. Sinds #728 kan ook de melding over een
-     kritiek-drempel in uren erbij komen (eigen project met urendrempel, notitie, onderbreking en vervangen
-     teken: de algemene verliesmelding valt weg; review r6 van #728, nagespeeld). — B
 463. **Het P6 Project-ID van een XER-export kan botsen.** Zonder eigen projectcode maakt de XER-schrijver het
      Project-ID uit de projectnaam (`src/services/xer/xerWriter.ts`, `projectCode`), afgekapt op 40 tekens
      (`P6_ID_MAX_LENGTH`). Twee projecten met dezelfde naam, of met namen die pas na teken 40 verschillen,

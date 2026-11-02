@@ -86,9 +86,30 @@ test('XER-export: kaart Primavera P6 XER levert een leesbaar .xer en één verli
   // MS Project XML houdt de hint: daar past het profiel Microsoft Project.
   await expect(page.locator('[data-ops-export-profile-hint]')).toHaveText(/Primavera P6.*Microsoft Project/);
 
+  // Knownbug 483: meerdere exportverliezen delen één zichtbare melding met alle uitleg.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const task = s.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
+    s.updateTask(task.id, { name: 'Tekst\u0001', notes: [{ id: 'export-note', text: 'Notitie', done: false }] });
+    s.setTaskSplits(task.id, [
+      { kind: 'work', minutes: 480 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 480 },
+    ]);
+    s.setProject({ schedulingOptions: { ...s.project.schedulingOptions,
+      criticalDefinition: { mode: 'totalFloat', thresholdHours: 4 } } });
+    for (const n of [...window.__OPS__!.store.getState().ui.notifications]) s.dismissNotification(n.id);
+  });
   // Na de export geeft een melding hetzelfde advies, in dezelfde tekst als de hint.
   const mspdiDownload = page.waitForEvent('download');
   await page.locator('button').filter({ hasText: /^MS Project XML/ }).click();
   expect((await mspdiDownload).suggestedFilename()).toMatch(/\.xml$/);
   await expect(page.locator('.ops-toast').filter({ hasText: /Primavera P6.*Microsoft Project/ })).toBeVisible();
+  const combined = page.locator('.ops-toast').filter({
+    has: page.locator('[data-ops-toast-detail="notifications.exportCriticalHoursLost"]'),
+  });
+  await expect(combined).toHaveCount(1);
+  for (const key of ['notifications.exportSplitsLost', 'notifications.exportInvalidXmlChars', 'menu:export.profileHint']) {
+    await expect(combined.locator(`[data-ops-toast-detail="${key}"]`)).toBeVisible();
+  }
+  await expect(combined.locator('.ops-toast-readmore').first()).toBeVisible();
+
 });
