@@ -37,6 +37,9 @@ import type { Sequence } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Project, ProjectSchedulingOptions } from '@/types/project';
+import { captureTriangle, effectiveWorkRule, settleRuleChange, settleUnitsEdit, triangleStateOf, workRuleContextOf } from '@/engine/work/workRuleApply';
+import { XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import type { WorkRule } from '@/types/workRule';
 import { installDOMParser } from './xmldom-shim';
 
 declare const process: { exit(code: number): never };
@@ -377,6 +380,60 @@ for (const variant of VARIANTS) {
     `CP_Drtn | - | TT_Task`, `CP_Phys | ${at('2026-03-20T16:00')} | TT_Task`, 'CP_Phys | - | TT_Rsrc', 'CP_Phys | - | TT_WBS', 'CP_Units | - | TT_Task',
   ]);
   notes.push(`rondgang P6 XML: ${before.size} activiteiten, ${differing.length} wijken af`);
+}
+
+// ── R7: de werkregel na de rondgang, voor alle vier projectstandaarden (review Sol #781 r2) ─────────
+// Per projectstandaard twee taken van 16 werkuren met één resource: één erft (gekozen via *Projectstandaard*,
+// `settleRuleChange(…, undefined)`, met een ander bron-token), één heeft een eigen regel gelijk aan de standaard.
+// Na export en heropenen: dezelfde effectieve regel. Daarna de inzet verdubbelen: dezelfde duur en hetzelfde werk
+// als dezelfde bewerking vóór de export.
+{
+  const RULES: WorkRule[] = ['FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE'];
+  for (const rule of RULES) {
+    const base = synthetic({}, 'RETAINED_LOGIC');
+    const calendar = withWorkBlocks(base.calendar);
+    const otherToken = (rule === 'FIXED_WORK' ? XER_DURATION_TYPE_TOKEN.FIXED_RATE : XER_DURATION_TYPE_TOKEN.FIXED_WORK) as Task['p6DurationType'];
+    const mk = (id: string, name: string, workRule: WorkRule | undefined): Task => ({
+      id, name, description: '', wbsCode: id.toUpperCase(), taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+      isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: ['res-1'],
+      time: createDefaultTaskTime('2026-03-02', 2), p6DurationType: otherToken, workRule,
+    });
+    const doc: Doc = {
+      project: { ...base.project, defaultWorkRule: rule }, calendar, calendars: [], sequences: [],
+      tasks: [mk('w1', 'Erft', otherToken === XER_DURATION_TYPE_TOKEN.FIXED_RATE ? 'FIXED_RATE' : 'FIXED_WORK'), mk('w2', 'Eigen', rule)],
+      resources: [{ id: 'res-1', name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 } as Resource],
+      assignments: [
+        { id: 'as-1', taskId: 'w1', resourceId: 'res-1', unitsPerDay: 1 } as ResourceAssignment,
+        { id: 'as-2', taskId: 'w2', resourceId: 'res-1', unitsPerDay: 1 } as ResourceAssignment,
+      ],
+    };
+    const deps = (d: Doc) => ({ calendars: d.calendars, calendar: d.calendar, project: d.project, resources: d.resources });
+    // De gebruiker kiest bij de eerste taak *Projectstandaard* (de echte functie, zoals `setTaskWorkRule(id, undefined)`).
+    settleRuleChange(doc.tasks[0], doc.assignments, deps(doc), undefined);
+    eq(`R7 ${rule}: (proef) de eerste taak erft, de tweede heeft een eigen regel`, doc.tasks.map(t => t.workRule), [undefined, rule]);
+    eq(`R7 ${rule}: bron rekent`, solve(doc), undefined);
+    const back = openXml(xmlText(doc));
+    eq(`R7 ${rule}: rondgang rekent`, solve(back), undefined);
+    const byCode = (d: Doc, code: string) => d.tasks.find(t => t.wbsCode === code)!;
+    for (const code of ['W1', 'W2']) {
+      const label = `R7 ${rule} ${code === 'W1' ? 'erft' : 'eigen regel'}`;
+      eq(`${label}: zelfde effectieve regel en wel/niet eigen regel na heropenen`,
+        [effectiveWorkRule(byCode(back, code), back.project.defaultWorkRule), byCode(back, code).workRule === undefined],
+        [effectiveWorkRule(byCode(doc, code), doc.project.defaultWorkRule), byCode(doc, code).workRule === undefined]);
+      // Inzet verdubbelen, op de bron en op de rondgang: dezelfde duur en hetzelfde werk.
+      const doubled = (d: Doc) => {
+        const task = byCode(d, code);
+        const own = d.assignments.filter(a => a.taskId === task.id);
+        const captured = captureTriangle(task, d.assignments, deps(d));
+        own[0].unitsPerDay = 2;
+        settleUnitsEdit(task, d.assignments, captured, own[0].id, 2);
+        const state = triangleStateOf(task, d.assignments, workRuleContextOf(task, deps(d)));
+        return [task.time.durationMinutes ?? task.time.scheduleDuration * 480, task.time.scheduleDuration, state.rule,
+          state.remainingMinutes, state.assignments.map(a => [a.unitsPerDay, a.remainingWorkMinutes ?? state.remainingMinutes * a.unitsPerDay])];
+      };
+      eq(`${label}: inzet verdubbelen geeft dezelfde duur en hetzelfde werk als vóór de export`, doubled(back), doubled(doc));
+    }
+  }
 }
 
 // ── S: geschreven labels tegen de waarden van het P6-schema ─────────────────────────────────────

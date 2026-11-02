@@ -5,7 +5,6 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import { DEFAULT_WORK_RULE } from '@/types/workRule';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { exportProfileAdvice } from './exportProfileAdvice';
@@ -55,7 +54,6 @@ export function exportP6XmlLossNotice(
   // wat P6 niet kent, gaat verloren: dezelfde toets als de XER-export.
   fact('notifications.exportP6XmlLossItem.schedulingOptions', !advised
     && p6SchedulingRulesDiffer(project, effectiveSchedulingOptions(project), tasks));
-  fact('notifications.exportP6XmlLossItem.defaultWorkRule', !!project.defaultWorkRule && project.defaultWorkRule !== DEFAULT_WORK_RULE);
   item('notifications.exportP6XmlLossItem.baselines', input.baselineCount);
   item('notifications.exportP6XmlLossItem.summaryRelations',
     sequences.filter(seq => summaryIds.has(seq.predecessorId) || summaryIds.has(seq.successorId)).length);

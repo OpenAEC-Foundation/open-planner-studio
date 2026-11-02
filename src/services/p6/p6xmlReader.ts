@@ -34,7 +34,8 @@ import { resolveCalendar } from '@/engine/scheduler/resolveCalendar';
 import { calendarForEngine, seedScalarBands } from '@/utils/effectiveWorkTime';
 import { isFlatCurveValues, matchCurveValues, normalizeCurveValues } from '@/engine/contour/contourEngine';
 import { attachContours, axisOffsetMinutes, collectContour, p6SpreadToContourPeriods } from '@/services/contourIo';
-import { importedAssignmentRate, importedWorkFields } from '@/engine/work/workRuleMapping';
+import { importedAssignmentRate, importedWorkFields, workRuleFromXerDurationType } from '@/engine/work/workRuleMapping';
+import { DEFAULT_WORK_RULE } from '@/types/workRule';
 import { taskWorkMinutes } from '@/engine/contour/contourEngine';
 import { buildRecordedTime, recordedFloatDays, type RecordedTime } from '@/engine/scheduler/recordedDates';
 import {
@@ -813,6 +814,12 @@ function readP6XmlProject(scope: P6XmlScope): P6XmlProjectRead {
   const inheritsDefaultDurationType = new Set<string>();
   const projectDefaultDurationType = scope.project
     ? p6DurationTypeFromXml(getElementText(scope.project, 'ActivityDefaultDurationType')) : undefined;
+  // Een eigen export schrijft de projectstandaard van de werkregel als `ActivityDefaultDurationType`; een taak die
+  // erft, krijgt geen eigen `<DurationType>` en erft na het lezen weer (hieronder). Zonder de standaard terug zou
+  // zo'n taak de standaardregel van OPS krijgen in plaats van die van het project (review Sol #781 r2). De
+  // standaardregel zelf blijft afwezig, zoals in de bron (dezelfde effectieve regel).
+  const projectDefaultWorkRule = writtenByOps ? workRuleFromXerDurationType(projectDefaultDurationType) : undefined;
+  if (projectDefaultWorkRule && projectDefaultWorkRule !== DEFAULT_WORK_RULE) project.defaultWorkRule = projectDefaultWorkRule;
   // De lagkalender (I7) staat ook in de project-UDF `OPS_LagCalendar` (eigen exports, ook die van vóór
   // `<ScheduleOptions>`); die wint. Zonder beide geldt de P6-standaard (de voorganger). Een lagrecord dat met een andere lagkalender is geschreven, telt dan niet
   // (`lagRecordHolds`; review #585 r1, punt 1).

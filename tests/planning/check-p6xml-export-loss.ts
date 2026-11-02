@@ -164,12 +164,14 @@ eq('P6 XML openen: de profielmelding zoals bij XER', [own?.messageKey, own?.para
   const notice = useAppStore.getState().ui.notifications.find(n => n.messageKey === 'notifications.exportP6XmlLoss');
   const noticed = notice?.detailLines?.map(l => l.messageKey) ?? [];
   eq('route: export geslaagd', [result.ok, captured !== null], [true, true]);
-  eq('route: de melding noemt capaciteit en projectstandaard', [
-    noticed.includes(`${P}capacitySteps`), noticed.includes(`${P}defaultWorkRule`),
-  ], [true, true]);
+  // De projectstandaard gaat mee als `ActivityDefaultDurationType`, en de lezer zet hem terug (review Sol #781 r2):
+  // geen verlies meer.
+  eq('route: de melding noemt capaciteit, niet de projectstandaard', [
+    noticed.includes(`${P}capacitySteps`), noticed.some(key => key.endsWith('.defaultWorkRule')),
+  ], [true, false]);
   const back = readP6XML(captured!);
   eq('route: na heropenen is de capaciteitsstap weg', back.resources.find(r => r.name === 'Kraan')?.availabilitySteps, undefined);
-  eq('route: na heropenen is de projectstandaard weg', [back.project.defaultWorkRule, back.tasks.find(t => t.name === 'Erft')?.workRule], [undefined, undefined]);
+  eq('route: na heropenen is de projectstandaard terug en de taak erft', [back.project.defaultWorkRule, back.tasks.find(t => t.name === 'Erft')?.workRule], ['FIXED_WORK', undefined]);
 }
 
 if (diffs.length === 0) {

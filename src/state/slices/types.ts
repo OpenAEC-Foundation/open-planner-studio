@@ -336,7 +336,7 @@ export type NotificationMessageKey =
   // Na een geslaagde P6 XML-export (`state/p6XmlExportNotice.ts`): zelfde vorm als de XER-melding, met
   // de XER-regels die ook hier kloppen en deze eigen regels.
   | 'notifications.exportP6XmlLoss'
-  | `notifications.exportP6XmlLossItem.${'schedulingOptions' | 'baselines' | 'summaryRelations' | 'suspendResume' | 'priorities' | 'notes' | 'resourceTypes' | 'capacitySteps' | 'defaultWorkRule' | 'projectDetails'}`
+  | `notifications.exportP6XmlLossItem.${'schedulingOptions' | 'baselines' | 'summaryRelations' | 'suspendResume' | 'priorities' | 'notes' | 'resourceTypes' | 'capacitySteps' | 'projectDetails'}`
   | 'notifications.mppSourceScheduleNotes'
   | 'notifications.projectStartAnchorsClamped'
   | 'notifications.taskEditRevertBlocked'
