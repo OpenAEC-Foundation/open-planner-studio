@@ -132,7 +132,9 @@ test('statusbalk: altijd één rij, en wat niet past blijft te vinden', async ({
   await page.setViewportSize({ width: 1500, height: 900 });
   const point = await page.evaluate(() => {
     const { tasks } = window.__OPS__!.store.getState();
-    return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary')).find(p => p !== null)!;
+    // Alleen een punt dat echt op de Gantt valt: een mijlpaal aan de rand kan onder de scheidingslijn van de tabel liggen.
+    return tasks.map(t => window.__OPS__!.gantt.taskBarPoint(t.id, 'body', 'primary'))
+      .find(p => p !== null && document.elementFromPoint(p.x, p.y) instanceof HTMLCanvasElement)!;
   });
   await page.mouse.click(point.x, point.y);
   await expect(bar).toContainText('Selection: 1');
