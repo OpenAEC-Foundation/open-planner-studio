@@ -21,7 +21,7 @@ De lijst op het tabblad *Start* en de kaarten in *Bestand › Exporteren* bieden
 - *Voortgang (Excel)*, op de kaart *Voortgangsblad (Excel)*: een slank blad met id, WBS, naam, datums en voltooiing, om rond te sturen naar wie de voortgang invult.
 - *CSV (;)*, op de kaart *CSV (puntkomma-gescheiden)*: een taaklijst die je in een spreadsheet opent.
 - *MS Project XML*: te openen in Microsoft Project.
-- *Primavera P6 XML*: voor Oracle Primavera P6.
+- *Primavera P6 XML*: voor Oracle Primavera P6. Deze keuze heeft ook het label *Experimenteel*: de export is nog niet getest door het bestand in Primavera P6 zelf te openen. Na het opslaan meldt de app wat niet of niet precies meeging.
 - *Primavera P6 XER*: voor Oracle Primavera P6, als `.xer`-bestand. Deze keuze heeft het label *Experimenteel*: de export is nog niet getest door het bestand in Primavera P6 zelf te openen, en er gaat veel niet of niet precies mee. Na het opslaan meldt de app wat niet of niet precies meeging. Controleer de planning na het openen in P6. Rekent je project met een ander rekenprofiel dan *Primavera P6*, dan staat onder de keuze een korte hint met het aanbevolen profiel. Hetzelfde geldt voor *Primavera P6 XML*, en voor *MS Project XML* met het profiel *Microsoft Project*. Na het opslaan geeft de app hetzelfde advies in een melding. De export gaat gewoon door.
 - *IFC*: het eigen formaat van de app, met alles erin, in het IFC-schema van het project (standaard IFC 4.3 ADD2).
 
@@ -47,9 +47,9 @@ Een ingevuld voortgangsblad lees je weer in via *Bestand › Importeren*. Zie [V
 
 **Een planning met een kringverwijzing exporteert niet.** De app rekent eerst door en stopt als er een kring is. Op het tabblad *Start* krijg je de melding *Planning kon niet worden berekend*, met daaronder bijvoorbeeld *Kringverwijzing tussen taken: Set up site → Demolish existing extension → Set up site*. In *Bestand › Exporteren* staat alleen die tweede tekst op de pagina. Los de kring op en exporteer opnieuw.
 
-**Een project uit Primavera verliest broninformatie.** Exporteer je zo'n project naar CSV, MS Project XML of P6 XML, dan meldt de app: *Bij export naar CSV gaat XER-broninformatie verloren.* Bij MS Project XML staat er *MSPDI*, bij P6 XML *P6*. Zie [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
+**Een project uit Primavera verliest broninformatie.** Exporteer je zo'n project naar CSV of MS Project XML, dan meldt de app: *Bij export naar CSV gaat XER-broninformatie verloren.* Bij MS Project XML staat er *MSPDI*. P6 XML noemt het in zijn eigen lijst. Zie [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
-**Een project dat je zelf maakte, verliest ook gegevens.** Kan het formaat iets uit je project niet bewaren, zoals notities, een tweede constraint of handmatige planning, dan meldt de app na de export: *Bij export naar CSV gaan gegevens verloren die CSV niet kent, zoals notities of een tweede constraint. Het IFC-projectbestand bewaart alles.* Bij MS Project XML staat er *MSPDI*, bij P6 XML *P6*. Met de link *Lees meer* kom je op deze pagina.
+**Een project dat je zelf maakte, verliest ook gegevens.** Kan het formaat iets uit je project niet bewaren, zoals notities, een tweede constraint of handmatige planning, dan meldt de app na de export: *Bij export naar CSV gaan gegevens verloren die CSV niet kent, zoals notities of een tweede constraint. Het IFC-projectbestand bewaart alles.* Bij MS Project XML staat er *MSPDI*. P6 XML en XER geven een lijst per soort. Met de link *Lees meer* kom je op deze pagina.
 
 **Tekens die XML niet toestaat, worden vervangen.** Een stuurteken in een naam of tekst, bijvoorbeeld uit een ingelezen CSV-bestand, mag niet in een XML-bestand staan. Bij MS Project XML en P6 XML vervangt de app zo'n teken door �. Daarna meldt de app: *2 tekens die in XML niet mogen, zijn in de export vervangen door �.* Bij één teken staat er *1 teken dat in XML niet mag, is in de export vervangen door �.* Zoek in het geëxporteerde bestand naar � om de plek te vinden.
 

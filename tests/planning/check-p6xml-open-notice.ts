@@ -104,6 +104,7 @@ async function main(): Promise<void> {
     ['notifications.xerImportEmptyProjectsSkipped', 1],
     ['notifications.xerImportBaselinesMaterialized', 2],
     ['notifications.p6xmlImportCrossProjectRelations', 1],
+    ['notifications.p6XmlOpensAsOps', null],
   ]);
   // Integratie ronde 2 (#320 × #330): een relatie tussen projecten is niet overgenomen ⇒ de
   // openingsmelding blijft staan tot het kruisje (`STICKY_OPEN_NOTICE_KEYS`), blijft wel `info`.
