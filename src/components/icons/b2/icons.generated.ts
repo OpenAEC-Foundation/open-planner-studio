@@ -1,4 +1,4 @@
-// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (ea1ecb9a0ebf)
+// Gegenereerd door scripts/style-icons.py uit https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint @ branch iconen/ops-overig (lokaal) (810ab481d533)
 // (B2-revisie 107, 217 iconen). Niet met de hand bewerken; zie de kop van dat script.
 // Bron en licentie van de iconen: de Blueprint (voorlopig LGPL-3.0-only, besluit over een eigen
 // iconenlicentie open in issue #15 daar). Hoofdkleur `currentColor`, accent `var(--icon-accent)`.
@@ -311,8 +311,8 @@ export const B2_ICONS: Readonly<Record<IconId, IconDef>> = {
     s24: { w: 1.75, parts: [[0, 0, "M12 4L12 20"], [0, 0, "M4 12L20 12"]] },
   },
   "calendar.manage": {
-    s16: { w: 1.25, parts: [[0, 1, "M3.75 7.5L12.25 7.5"], [0, 0, "M3 3.5L13 3.5Q14.5 3.5 14.5 5L14.5 13Q14.5 14.5 13 14.5L3 14.5Q1.5 14.5 1.5 13L1.5 5Q1.5 3.5 3 3.5Z"], [0, 0, "M4.5 1.5L4.5 4.5"], [0, 0, "M11.5 1.5L11.5 4.5"]] },
-    s24: { w: 1.75, parts: [[0, 1, "M6.25 10L17.75 10"], [0, 0, "M5.2 4L18.8 4Q21 4 21 6.2L21 18.8Q21 21 18.8 21L5.2 21Q3 21 3 18.8L3 6.2Q3 4 5.2 4Z"], [0, 0, "M8 2L8 6"], [0, 0, "M16 2L16 6"]] },
+    s16: { w: 1.25, parts: [[1, 1, "M10 11A1 1 0 1 0 12 11A1 1 0 1 0 10 11Z"], [0, 0, "M3 3.5L13 3.5Q14.5 3.5 14.5 5L14.5 13Q14.5 14.5 13 14.5L3 14.5Q1.5 14.5 1.5 13L1.5 5Q1.5 3.5 3 3.5Z"], [0, 0, "M4.5 1.5L4.5 4.5"], [0, 0, "M11.5 1.5L11.5 4.5"], [0, 0, "M1.5 7.5L14.5 7.5"], [1, 0, "M4 11A1 1 0 1 0 6 11A1 1 0 1 0 4 11Z"], [1, 0, "M7 11A1 1 0 1 0 9 11A1 1 0 1 0 7 11Z"]] },
+    s24: { w: 1.75, parts: [[1, 1, "M14.9 17.5A1.1 1.1 0 1 0 17.1 17.5A1.1 1.1 0 1 0 14.9 17.5Z"], [0, 0, "M5.2 4L18.8 4Q21 4 21 6.2L21 18.8Q21 21 18.8 21L5.2 21Q3 21 3 18.8L3 6.2Q3 4 5.2 4Z"], [0, 0, "M8 2L8 6"], [0, 0, "M16 2L16 6"], [0, 0, "M3 10L21 10"], [1, 0, "M6.9 13.5A1.1 1.1 0 1 0 9.1 13.5A1.1 1.1 0 1 0 6.9 13.5Z"], [1, 0, "M10.9 13.5A1.1 1.1 0 1 0 13.1 13.5A1.1 1.1 0 1 0 10.9 13.5Z"], [1, 0, "M14.9 13.5A1.1 1.1 0 1 0 17.1 13.5A1.1 1.1 0 1 0 14.9 13.5Z"], [1, 0, "M6.9 17.5A1.1 1.1 0 1 0 9.1 17.5A1.1 1.1 0 1 0 6.9 17.5Z"], [1, 0, "M10.9 17.5A1.1 1.1 0 1 0 13.1 17.5A1.1 1.1 0 1 0 10.9 17.5Z"]] },
   },
   "calendar.new": {
     s16: { w: 1.25, parts: [[0, 0, "M7.5 2.5L7.5 12.5"], [0, 0, "M2.5 7.5L12.5 7.5"]] },
