@@ -1483,6 +1483,16 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+780. **De renderer-meetworkflow faalt bij een wijziging aan alleen de test.**
+     De trigger van `.github/workflows/renderer-performance.yml` omvat
+     `check-render-caches.ts`, maar de bundelstap eist precies één gewijzigde
+     productbron: `GanttRenderer.ts`. Bij uitsluitend een testwijziging is die
+     lijst leeg en stopt de workflow vóór de meting. Bevestigd op PR #786,
+     run 41450060913, head f122053d9: de harde `test "$changed" = …` faalt.
+     Richting: bij nul productwijzigingen geen snelheidsvergelijking uitvoeren;
+     de gewone CI blijft de aangescherpte test draaien. — B
+
+
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
      zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
      mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
