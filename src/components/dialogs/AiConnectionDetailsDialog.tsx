@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { getTools, TOOL_PREFIX } from '@/services/mcp/toolRegistry';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 import { AI_CONNECTION_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { PromptBlock } from '@/components/common/PromptBlock';
+import { loadHelpArticlePrompt } from '@/utils/helpArticlePrompt';
 
 /**
  * Verbindingsgegevens-dialoog voor de MCP-bridge (AI-ribbontab → groep Verbinding).
@@ -16,6 +18,10 @@ import { AI_CONNECTION_HELP_ARTICLE_ID } from '@/state/helpArticles';
  *
  * Het token wordt standaard gemaskeerd getoond (toon/verberg-knop); de kopieerknoppen kopiëren
  * altijd de ECHTE waarde, ook wanneer het scherm maskeert — anders plakt de gebruiker bolletjes.
+ *
+ * Bovenaan staat de setup-prompt voor Claude Desktop en Claude Code (de extensie, zonder token). Die
+ * tekst komt uit het promptblok van het Help-artikel en niet uit een eigen vertaalsleutel: zo zijn
+ * Help en dit venster altijd gelijk, in elke taal (`loadHelpArticlePrompt`).
  */
 
 export interface AiConnectionDetailsDialogProps {
@@ -47,8 +53,17 @@ function buildSnippet(endpoint: string, token: string): string {
 }
 
 export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnectionDetailsDialogProps) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const [showToken, setShowToken] = useState(false);
+  const [setupPrompt, setSetupPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadHelpArticlePrompt(AI_CONNECTION_HELP_ARTICLE_ID, i18n.language)
+      .then(text => { if (!cancelled) setSetupPrompt(text); })
+      .catch(err => { console.error('[Verbindingsgegevens] setup-prompt uit Help laden mislukt:', err); });
+    return () => { cancelled = true; };
+  }, [i18n.language]);
   const { copiedKey: copied, copy } = useCopyFeedback(1500);
 
   const endpoint = `http://localhost:${port}/mcp`;
@@ -118,6 +133,15 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} help={{ articleId: AI_CONNECTION_HELP_ARTICLE_ID }} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        {/* Setup-prompt: dezelfde knop en tekst als bovenaan het Help-artikel (één bron). */}
+        {setupPrompt !== null && (
+          <div className="flex flex-col gap-1" data-ops-ai-setup-prompt="">
+            <span className="text-small leading-4 font-semibold text-text-primary">{t('ai.setupPrompt')}</span>
+            <span className="!text-body text-text-secondary">{t('ai.setupPromptHint')}</span>
+            <PromptBlock text={setupPrompt} />
+          </div>
+        )}
+
         {/* Endpoint */}
         {section(
           t('ai.endpoint'),

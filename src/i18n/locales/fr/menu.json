@@ -359,7 +359,10 @@
     "helpTutorialStep": "Tutoriel {{number}} sur {{total}}",
     "helpTutorialsEmpty": "Aucun tutoriel n’est encore installé. Vous les installez comme extension depuis le catalogue.",
     "helpTutorialsInstall": "Installer les tutoriels",
-    "helpDraft": "brouillon"
+    "helpDraft": "brouillon",
+    "helpCopyPrompt": "Copier le prompt",
+    "helpPromptCopied": "Copié. Collez maintenant le prompt dans Claude.",
+    "helpPromptCopyFailed": "La copie a échoué. Sélectionnez le texte ci-dessous et copiez-le vous-même."
   },
   "export": {
     "progressFileSuffix": "avancement",

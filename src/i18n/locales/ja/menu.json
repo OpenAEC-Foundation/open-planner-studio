@@ -355,7 +355,10 @@
     "helpTutorialStep": "チュートリアル {{number}}/{{total}}",
     "helpTutorialsEmpty": "チュートリアルはまだインストールされていません。カタログから拡張機能としてインストールします。",
     "helpTutorialsInstall": "チュートリアルをインストール",
-    "helpDraft": "下書き"
+    "helpDraft": "下書き",
+    "helpCopyPrompt": "プロンプトをコピー",
+    "helpPromptCopied": "コピーしました。今すぐClaudeにプロンプトを貼り付けてください。",
+    "helpPromptCopyFailed": "コピーできませんでした。下のテキストを選択して、ご自身でコピーしてください。"
   },
   "export": {
     "progressFileSuffix": "進捗",

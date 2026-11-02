@@ -357,7 +357,10 @@
     "helpTutorialStep": "آموزش {{number}} از {{total}}",
     "helpTutorialsEmpty": "هنوز هیچ آموزشی نصب نشده است. آموزش‌ها را به‌صورت افزونه از کاتالوگ نصب می‌کنید.",
     "helpTutorialsInstall": "نصب آموزش‌ها",
-    "helpDraft": "پیش‌نویس"
+    "helpDraft": "پیش‌نویس",
+    "helpCopyPrompt": "کپی پرامپت",
+    "helpPromptCopied": "کپی شد. حالا پرامپت را در Claude بچسبانید.",
+    "helpPromptCopyFailed": "کپی کردن انجام نشد. متن زیر را انتخاب کنید و خودتان آن را کپی کنید."
   },
   "export": {
     "progressFileSuffix": "پیشرفت",

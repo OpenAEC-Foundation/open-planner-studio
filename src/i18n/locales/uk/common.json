@@ -574,6 +574,8 @@
     "connect": "Підключитися",
     "connectHint": "Показує дані з'єднання: Endpoint, токен, фрагмент конфігурації та підказку для підключення.",
     "connectionDetailsTitle": "Дані з'єднання",
+    "setupPrompt": "Доручити це Claude",
+    "setupPromptHint": "Для Claude Desktop і Claude Code. Вставте промпт у новий чат. Тоді Claude сам встановить розширення. Для цього токен не потрібен.",
     "endpoint": "Endpoint",
     "endpointHint": "Транспорт: streamable HTTP",
     "auth": "Автентифікація",

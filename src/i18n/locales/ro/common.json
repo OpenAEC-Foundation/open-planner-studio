@@ -514,6 +514,8 @@
     "connect": "Conectare",
     "connectHint": "Afișează datele de conectare: endpoint, token, fragmentul de configurare și promptul de conectare.",
     "connectionDetailsTitle": "Date de conectare",
+    "setupPrompt": "Configurare prin Claude",
+    "setupPromptHint": "Pentru Claude Desktop și Claude Code. Lipiți promptul într-o conversație nouă. Claude instalează apoi singur extensia. Pentru asta nu aveți nevoie de niciun token.",
     "endpoint": "Endpoint",
     "endpointHint": "Transport: HTTP streamable",
     "auth": "Autentificare",

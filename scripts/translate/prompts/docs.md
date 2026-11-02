@@ -14,6 +14,18 @@ You get ONE package: `{{PACKAGE}}` (`"kind": "docs"`, language `lang`) and its E
   the alt text; keep the target and the path byte for byte.
 - Inline code (`` `…` ``): copy byte for byte. Only the codes listed in `display` may follow the
   language (the app shows them translated, e.g. a unit).
+- Code blocks (between lines of three backticks): copy the opening line exactly, also the word `prompt`
+  after the backticks.
+  Copy a plain code block byte for byte; only an example path or folder name may follow the language.
+- A prompt block (it opens with three backticks and `prompt`) is a text that the reader pastes into an
+  AI assistant. Translate it like the rest, line by line: the same lines, blank lines, `-` items and numbered items, and no italics or other
+  Markdown added. Keep byte for byte: URLs, commands (`claude mcp add …`, `/mcp`), options (`--scope`,
+  `-e`), `${…}`, file and folder names (`manifest.json`, `/server/index.mjs`), `OPS_MCP_ROOT`, the server
+  name `open-planner-studio`, and `Node.js`. A placeholder in angle brackets (`<working folder>`) may be
+  translated. Names that the source keeps in English because another program shows them (Install and
+  Working folder in Claude Desktop) stay in English. A name from the Open Planner Studio interface in
+  the prompt (such as Settings › Project › App settings, Start bridge) gets the same translation as the
+  same label in `labels`, without italics.
 - Numbers: keep every number of the source. Write digits as 0-9 only, also in ar and fa (never ٠-٩
   or ۰-۹). A line must not start with a number and a period (`18. června`) unless the source has a
   numbered list there: write such a date another way.

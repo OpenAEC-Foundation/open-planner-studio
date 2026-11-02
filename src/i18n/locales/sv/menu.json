@@ -357,7 +357,10 @@
     "helpTutorialStep": "Självstudie {{number}} av {{total}}",
     "helpTutorialsEmpty": "Det finns inga självstudier installerade ännu. Du installerar dem som tillägg från katalogen.",
     "helpTutorialsInstall": "Installera självstudier",
-    "helpDraft": "utkast"
+    "helpDraft": "utkast",
+    "helpCopyPrompt": "Kopiera prompt",
+    "helpPromptCopied": "Kopierat. Klistra in prompten i Claude nu.",
+    "helpPromptCopyFailed": "Det gick inte att kopiera. Markera texten nedan och kopiera den själv."
   },
   "export": {
     "progressFileSuffix": "framdrift",

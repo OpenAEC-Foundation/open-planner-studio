@@ -394,6 +394,8 @@
     "connect": "连接",
     "connectHint": "显示连接信息：端点、令牌、配置片段和连接提示词。",
     "connectionDetailsTitle": "连接信息",
+    "setupPrompt": "让 Claude 来处理",
+    "setupPromptHint": "适用于 Claude Desktop 和 Claude Code。把提示词粘贴到新对话中。然后 Claude 会自行安装该扩展。你不需要为此准备令牌。",
     "endpoint": "端点",
     "endpointHint": "传输方式：流式 HTTP",
     "auth": "身份验证",

@@ -199,6 +199,39 @@ export function blocksOf(md: string): Block[] {
   return out;
 }
 
+
+/** De codeblokken (```) van een tekst: de openingsregel (getrimd) en de inhoud, zoals `renderMiniMarkdown`. */
+export function fencesOf(md: string): { opener: string; body: string }[] {
+  const lines = md.replace(/\r\n/g, '\n').split('\n');
+  const out: { opener: string; body: string }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!FENCE_RE.test(lines[i].trim())) continue;
+    const opener = lines[i].trim();
+    const body: string[] = [];
+    for (i++; i < lines.length && !FENCE_RE.test(lines[i].trim()); i++) body.push(lines[i]);
+    out.push({ opener, body: body.join('\n') });
+  }
+  return out;
+}
+
+/**
+ * De technische stukken van een promptblok, die een vertaling letterlijk houdt: URL's, `${…}`, opties
+ * (`--scope`, `-e`), commando's met een schuine streep (`/mcp`), woorden met `.`, `/` of `_` erin
+ * (`manifest.json`, `Node.js`, `OPS_MCP_ROOT`), namen met twee streepjes (`open-planner-studio`) en
+ * `claude mcp <opdracht>`. Leestekens aan het eind tellen niet mee.
+ */
+export function techTokens(text: string): string[] {
+  const out = [...text.matchAll(/\bclaude mcp [a-z]+\b/g)].map(m => m[0]);
+  for (const raw of text.split(/[\s=<>()]+/)) {
+    const w = raw.replace(/[.,;:!?]+$/, '');
+    if (w === '') continue;
+    if (/^https?:\/\//.test(w) || /\$\{[^}]+\}/.test(w) || /^--?[a-z][\w-]*$/i.test(w) || /^\/[a-z]/i.test(w)
+      || /^[\w./@:-]+$/.test(w) && /[./_]/.test(w.slice(1, -1))
+      || /^[a-z0-9]+(?:-[a-z0-9]+){2,}$/.test(w)) out.push(w);
+  }
+  return out;
+}
+
 export const wordCount = (text: string): number => text.split(/\s+/).filter(Boolean).length;
 
 /** De H1 van een artikel als platte tekst (zonder `*`, `` ` `` en linkopmaak). */

@@ -359,7 +359,10 @@
     "helpTutorialStep": "Lekcija {{number}} od {{total}}",
     "helpTutorialsEmpty": "Još nema instaliranih lekcija. Instalirajte ih kao proširenje iz kataloga.",
     "helpTutorialsInstall": "Instaliraj vodiče",
-    "helpDraft": "nacrt"
+    "helpDraft": "nacrt",
+    "helpCopyPrompt": "Kopiraj upit",
+    "helpPromptCopied": "Kopirano. Sada zalijepite upit u Claude.",
+    "helpPromptCopyFailed": "Kopiranje nije uspjelo. Odaberite tekst ispod i sami ga kopirajte."
   },
   "export": {
     "progressFileSuffix": "napredak",

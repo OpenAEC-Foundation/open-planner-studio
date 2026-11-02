@@ -454,6 +454,8 @@
     "connect": "Csatlakozás",
     "connectHint": "Megjeleníti a kapcsolat adatait: végpont, token, konfigurációs részlet és csatlakozási prompt.",
     "connectionDetailsTitle": "Kapcsolat adatai",
+    "setupPrompt": "Beállítás Claude-dal",
+    "setupPromptHint": "Claude Desktop és Claude Code számára. Illessze be a promptot egy új beszélgetésbe. Ezután Claude maga telepíti a bővítményt. Ehhez nincs szükség tokenre.",
     "endpoint": "Végpont",
     "endpointHint": "Átvitel: streamable HTTP",
     "auth": "Hitelesítés",

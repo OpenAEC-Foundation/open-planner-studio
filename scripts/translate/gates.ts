@@ -8,7 +8,7 @@ import { conceptErrors, styleErrors, termEntryErrors } from './termbase';
 import { uiFixedTextError, type UiLabel, type UiPackage } from './ui';
 import { sectionHash, splitSections, structureOf, subsetErrors, type DocSection } from '../lib/docs-structure';
 import {
-  avoidWords, blocksOf, codesOf, hasStem, hasWord, italicsOf, normLabel, outSections, type Block, type DocsPackage,
+  avoidWords, blocksOf, codesOf, fencesOf, hasStem, hasWord, italicsOf, normLabel, outSections, techTokens, type Block, type DocsPackage,
 } from './docs';
 import type { TermsCheckPackage, TermsPackage } from './tbx';
 
@@ -276,8 +276,12 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
     break;
   }
   // Een regel "18. června" midden in een alinea wordt een genummerde lijst (ook als de opbouw al eerder afweek).
+  // Niet binnen een codeblok: daar maakt miniMarkdown geen lijst (een promptblok heeft "1. …" na een zin).
   const lines = o.split('\n');
+  let inFence = false;
   lines.forEach((line, i) => {
+    if (/^```/.test(line.trim())) { inFence = !inFence; return; }
+    if (inFence) return;
     const prev = i > 0 ? lines[i - 1] : '';
     if (/^\d+\.\s/.test(line) && prev.trim() !== '' && !/^(\d+\.|[-*])\s/.test(prev)) {
       const msg = `${at}, regel ${i + 1}: "${short(line)}" begint met een getal en een punt; miniMarkdown maakt daar een genummerde lijst, de bron niet — zet het getal niet vooraan`;
@@ -300,6 +304,31 @@ function checkDocsSection(pkg: DocsPackage, idx: number, src: DocSection, out: D
   for (const [code, n] of bag(sc.filter(c => !display.includes(c)))) {
     if ((have.get(code) ?? 0) < n) errors.push(`${at}: inline code \`${code}\` ontbreekt of is veranderd (byte-gelijk overnemen)`);
   }
+
+  // Codeblokken (```): dezelfde openingsregel (een ```prompt-blok blijft er een, anders verliest Help de knop
+  // Prompt kopiëren). Een gewoon codeblok blijft gelijk; alleen voorbeeldpaden mogen de taal volgen (nl schrijft
+  // `/pad/naar/werkmap`), dus een verschil is een waarschuwing. Een promptblok wordt vertaald, maar houdt zijn
+  // regels, lege regels en lijsttekens, en zijn technische stukken (`techTokens`) letterlijk.
+  const sf = fencesOf(s);
+  const of = fencesOf(o);
+  sf.forEach((a, k) => {
+    const b = of[k];
+    if (!b) return; // het ontbrekende blok meldt de opbouwregel al
+    const which = `codeblok ${k + 1} (${a.opener})`;
+    if (a.opener !== b.opener) { errors.push(`${at}: ${which} opent in de vertaling met ${b.opener} — neem de openingsregel letterlijk over`); return; }
+    if (a.opener !== '```prompt') {
+      if (a.body !== b.body) warnings.push(`${at}: ${which} wijkt af van de bron — alleen een voorbeeldpad mag de taal volgen`);
+      return;
+    }
+    const shape = (body: string) => body.split('\n').map(l => (l.trim() === '' ? '' : /^-\s/.test(l) ? '-' : /^\d+\.\s/.test(l) ? l.split('.')[0] + '.' : 't')).join(' ');
+    if (shape(a.body) !== shape(b.body)) {
+      errors.push(`${at}: ${which} heeft regels [${shape(b.body)}], de bron [${shape(a.body)}] — dezelfde regels, lege regels en lijsttekens (t = tekst)`);
+    }
+    const kept = bag(techTokens(b.body));
+    for (const [tok, n] of bag(techTokens(a.body))) {
+      if ((kept.get(tok) ?? 0) < n) errors.push(`${at}: ${which}: "${tok}" staat ${n}× in de bron, ${kept.get(tok) ?? 0}× in de vertaling — letterlijk overnemen`);
+    }
+  });
 
   // Cijfers: elke cijferreeks van de bron staat er, alleen ASCII-cijfers.
   const bad = o.match(new RegExp(NON_ASCII_DIGIT.source, 'gu'));
