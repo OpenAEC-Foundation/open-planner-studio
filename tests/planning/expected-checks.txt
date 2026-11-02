@@ -76,6 +76,7 @@ check-duration-cell-text.ts matrix
 check-duration-change-routes.ts matrix
 check-duration-measure.ts matrix
 check-export-guard.ts matrix
+check-export-profile-hint.ts matrix
 check-ext-calendar-mapper.ts matrix
 check-ext-consent.ts matrix
 check-ext-contract.ts matrix
@@ -247,6 +248,7 @@ check-p6-verified-cases.ts matrix
 check-p6xml-calendar-rules.ts matrix
 check-p6xml-constraint-labels.ts matrix
 check-p6xml-corpus.ts matrix
+check-p6xml-export-loss.ts matrix
 check-p6xml-nested.ts matrix
 check-p6xml-open-notice.ts matrix
 check-p6xml-project-code.ts matrix
@@ -333,6 +335,7 @@ check-session-history-migration.ts matrix
 check-session-history-model.ts matrix
 check-session-history-store.ts matrix
 check-settings-storage-blocked.ts matrix
+check-shift-explanation.ts matrix
 check-short-hour-task-load.ts matrix
 check-shown-dates-formats.ts matrix
 check-site-storage.ts matrix
@@ -453,6 +456,7 @@ check-xer-export-loss.ts matrix
 check-xer-fidelity-baseline-schema.ts matrix
 check-xer-fidelity.ts matrix
 check-xer-field-whitelist.ts matrix
+check-xer-lag-kalender-leeg.ts matrix
 check-xer-manifest-exclusions.ts los
 check-xer-manifest-leveling.ts los
 check-xer-metadata-corpus.ts los
@@ -492,6 +496,8 @@ check-xer-suspend-invariant.ts matrix
 check-xer-tables.ts matrix
 check-xer-task-replay.ts los
 check-xer-wbs-tree.ts matrix
+check-xer-writer-review.ts matrix
+check-xer-writer.ts matrix
 check-xer-x7-hour-mode.ts matrix
 check-xer-x9-verdicts.ts matrix
 check-xlsx-primitives.ts matrix

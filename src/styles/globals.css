@@ -2155,6 +2155,14 @@ body {
   pointer-events: none;   /* de stapel zelf vangt geen klikken … */
 }
 
+/* Een melding over de planning zelf (#742) staat rechtsonder, in RTL linksonder. */
+.ops-toast-stack--end {
+  left: auto;
+  transform: none;
+  inset-inline-end: var(--sp-6);
+  align-items: flex-end;
+}
+
 .ops-toast {
   pointer-events: auto;   /* … de losse melding wél (tekst selecteren, links, het kruisje) */
   position: relative;     /* anker voor het kruisje */
@@ -2242,6 +2250,11 @@ body {
   display: block;
   margin-top: var(--sp-1);
   font-size: var(--text-body);
+}
+
+.ops-toast-actions {
+  display: flex;
+  gap: var(--sp-3);
 }
 
 @keyframes toast-in {
@@ -2400,6 +2413,35 @@ body {
   flex-direction: column;
   gap: var(--sp-1);
   min-width: 0;
+}
+
+/* Label "Experimenteel" achter een exportkeuze (Backstage-kaart en lintlijst): klein en rustig,
+   een dunne rand (`--theme-border`) en tekst in de kleur van de beschrijvingstekst, geen vlakke
+   accentkleur (eigenaar, 2026-10-29). Tekst `--theme-text-dim`: contrast 6,9 (licht) en 6,7 (donker)
+   op de kaart; `--theme-text-muted` haalde in donker maar 3,4. */
+.ops-experimental-badge {
+  display: inline-block;
+  margin-inline-start: var(--sp-2);
+  padding: 0 6px;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-dim);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+/* Hint onder een exportkeuze als het project met een ander profiel rekent (`ExportProfileHint`):
+   een eigen regel in de kleur van de beschrijvingstekst, iets kleiner. */
+.ops-export-profile-hint {
+  display: block;
+  margin-top: var(--sp-1);
+  max-width: 34em;
+  color: var(--theme-text-dim);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  white-space: normal;
 }
 
 .input {

@@ -403,6 +403,12 @@ en noem het in je rapport of PR-tekst.
      `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
+     gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
+     `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
+     arbeidsresource; handmatig verkort naar vijf dagen; nieuwe materiaalresource toegewezen: F5 meldt `resource` met
+     beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
+     ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
 
 ## Tabel, invoer en bediening
 
@@ -663,11 +669,58 @@ en noem het in je rapport of PR-tekst.
     via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
     (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
     de balkgeometrie te veranderen. — B
+593. **Typen-om-te-bewerken stuurt de eerste letter langs de invoermethode.** Een gekozen cel in selectiemodus
+    is geen tekstveld, dus de webview zet de invoermethode (IBus, Fcitx, IME) uit. De eerste toets komt als kale
+    letter binnen, `resolveTaskGridCommand` (`src/engine/taskGrid/navigation.ts:148`) opent er de editor mee, en
+    pas de volgende toetsen gaan door de invoermethode. Telex `ddaays` geeft zo `ddấy` in plaats van `đấy`;
+    ook `aw` (ă) en `oo` (ô) aan het begin van een woord breken. Bij Chinees pinyin of Japans romaji gaat de
+    eerste letter zo ook buiten de compositie. Gezien met v2026.44.0 (deb) en IBus Unikey onder Xvfb (issue
+    #764). Omweg: eerst F2, Enter of dubbelklik, dan typen. Voorstel: in selectiemodus een verborgen tekstveld
+    focussen dat de compositie opvangt (zoals spreadsheets doen); raakt het focusmodel en de toegankelijkheid. — B
+594. **Enter en Escape in de celeditor kijken niet naar compositie.** `GridEditorHost.tsx` (`onKeyDown`) legt bij
+    Enter vast en breekt bij Escape af, ook tijdens een IME-compositie. In Chromium (Windows-app, webversie)
+    heeft die keydown `key === 'Enter'` met `isComposing`; een Japanse of Chinese gebruiker die met Enter een
+    kandidaat kiest, sluit dan de cel. WebKitGTK geeft bij een toets die de invoermethode afhandelt
+    `key 'Unidentified'`, keyCode 229 (gemeten met Unikey), dus Linux raakt dit waarschijnlijk niet. Niet getest
+    in Chromium met een echte IME. Voorstel: `event.nativeEvent.isComposing || keyCode === 229` overslaan, zoals
+    `useDialogKeys.ts` al doet. — S
+595. **VERVOLG: de PR-check `appimage-im-check.yml` kan groen zijn terwijl de modules ontbreken.** De stap *Verify
+     AppImage input-method modules* (`.github/workflows/appimage-im-check.yml:57`) heeft geen `shell:` en draait dus
+     met `bash -e` zonder `pipefail`; `| tee` bepaalt dan de exitcode. Het script direct met een ontbrekend bestand
+     geeft exit 1, via de pipeline met `tee` exit 0 ondanks `::error::`. De releasecontrole in `release.yml` gebruikt
+     geen pipeline en faalt wel. Voorstel: `set -o pipefail` in de stap, of `| tee` weghalen. Gevonden in de review
+     van #772 (GPT-6.1-Sol). — B
+596. **VERVOLG: knownbugs 594 beschrijft `useDialogKeys.ts` te ruim.** 594 zegt "zoals `useDialogKeys.ts` al doet"
+     met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
+     niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
+     van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
 
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
+462. **Een nachtband en een werkende uitzondering op de dag erna tellen dubbel.** Kalender met vrijdag
+    22:00–06:00 (`workTime`, band tot minuut 1800) en een werkende zaterdaguitzondering 00:00–24:00: `CalendarEngine`
+    telt op zaterdag 1.800 werkminuten, terwijl de dag er maar 1.440 heeft (de ochtendstaart van vrijdag en de
+    uitzondering overlappen 00:00–06:00). Nagespeeld met `workMinutesBetween(za, zo)` = 1800. De XER-schrijver
+    (`xerWriter.ts`, `workOnDate`) verenigt de banden tot 1.440, zonder melding; zie de vervolgpunten van PR #393
+    (punt G). Voorstel: overlappende banden in de engine verenigen. — B
+466. **Een scalaire OPS-kalender komt na XER-export en heropenen terug als urenkalender, en rekent dan anders.**
+    De XER-lezer leest kalenders met de gewone regels (`xerCalendarData.ts`, gelijk aan main): elke kalender met
+    banden in `clndr_data` wordt een urenkalender (`workTime`). Een kalender die in OPS alleen begin, einde en
+    uren per dag had, komt zo terug met dezelfde banden, maar als urenkalender. De engine rekent daar anders
+    mee: ze onderscheidt een kalender met en zonder eigen werkblokken (`mode` en `hasOwnWorkBlocks` in
+    `src/engine/scheduler/CalendarEngine.ts`), en sommige P6-regels gelden alleen met eigen werkblokken
+    (bijvoorbeeld de vroege datums van een voltooide taak op de statusdatum). `check-xer-writer.ts` meet het:
+    met de kalendersoort gelijkgesteld wijkt niets af; zonder gelijkstelling wijken zoveel datums en spelingen af:
+    rijwoningen 336, appartementencomplex 98, kantoorgebouw Zuidas 13, brugvervanging 10, zorgcentrum 10,
+    datacentrum 10, villa 7, verbouwing 0, het synthetische project 11. Volgens de spec
+    (`docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §3.1 en §7 F6) verdwijnt `mode` in F6; of F6
+    ook de regels achter `hasOwnWorkBlocks` gelijk trekt, is niet nagegaan. Er is geen kalendermarkering: een
+    lijst op `clndr_id` (zoals `OPS_LiteralCalendars` in P6 XML) breekt als P6 de kalenders hernummert, net als
+    review punt B van PR #393. De export meldt het wel: de verliesregel `calendarKinds` noemt het aantal
+    kalenders (review ronde 3, punt 1). Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
+    eigenaar. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -1236,6 +1289,44 @@ en noem het in je rapport of PR-tekst.
      Gevonden in review ronde 4 van #727 (GPT-6.1-Sol), nagespeeld. Sinds #728 kan ook de melding over een
      kritiek-drempel in uren erbij komen (eigen project met urendrempel, notitie, onderbreking en vervangen
      teken: de algemene verliesmelding valt weg; review r6 van #728, nagespeeld). — B
+463. **Het P6 Project-ID van een XER-export kan botsen.** Zonder eigen projectcode maakt de XER-schrijver het
+     Project-ID uit de projectnaam (`src/services/xer/xerWriter.ts`, `projectCode`), afgekapt op 40 tekens
+     (`P6_ID_MAX_LENGTH`). Twee projecten met dezelfde naam, of met namen die pas na teken 40 verschillen,
+     krijgen dan hetzelfde ID. Wat P6 bij het importeren met zo'n bestaand ID doet, is niet getoetst.
+     Voorstel: in P6 nagaan of het een bestaand project vervangt, en dan het ID uniek maken of melden. Uit de
+     review van PR #393 (punt F, VERVOLG). — S
+464. **De XER-export schrijft geen `restart_date` en `reend_date`.** De TASK-tabel
+     (`src/services/xer/xerWriter.ts`, `TASK_COLUMNS`) heeft geen vroege start en geen vroeg einde van de
+     restduur. Welke datums P6 toont vóór de eerste herberekening in P6, is daardoor niet onderbouwd. Voorstel:
+     een export in P6 openen zonder herberekenen en de getoonde datums vergelijken met OPS. Uit de review van
+     PR #393 (punt 9, VERVOLG). — S
+465. **Een XER in UTF-8 zonder BOM is niet bewezen veilig voor P6.** Past een teken niet in Windows-1252, dan
+     schrijft de XER-schrijver UTF-8 zonder BOM (`src/services/xer/xerWriter.ts`, kopcommentaar). Dat de eigen
+     lezer dit bestand leest, is getoetst (`check-xer-writer.ts`, V10–V11); dat P6 het zonder verminkte tekens
+     importeert, niet. Voorstel: een export met bijvoorbeeld `Ł` in P6 importeren en de naam nakijken. Uit de
+     review van PR #393 (punt 10, VERVOLG). — S
+467. **De P6 XML-export draait de keuze *Projectstandaard* voor het taaktype terug.** Een taak uit P6 houdt het
+     oude duurtype in `p6DurationType`. Kiest de gebruiker bij die taak *Projectstandaard*, dan schrijft
+     `src/services/p6/p6xmlWriter.ts` (`durationTypeLabel`, rond regel 605) zonder eigen regel toch dat oude type.
+     Na heropenen heeft de taak weer een eigen regel. Nagespeeld met een script: een XER met `DT_FixedQty`,
+     `DT_FixedRate` of `DT_FixedDUR2`, openen, *Projectstandaard* (`settleRuleChange` met `undefined`), export naar
+     P6 XML en heropenen geeft weer `FIXED_WORK`, `FIXED_RATE` of `FIXED_DURATION_WORK` in plaats van de
+     standaard `FIXED_DURATION_RATE` (3 van 3). De XER-export had dezelfde fout; die is in PR #393 (review
+     ronde 4) hersteld door het duurtype uit de effectieve regel te schrijven. Voorstel: in de P6 XML-schrijver
+     hetzelfde doen. Gevonden bij die fix. — B
+475. **Het advies "Kies Primavera P6" verschijnt ook als het project al met Primavera P6 rekent.** De verliesregel
+     *Rekenregels* (`schedulingRules`, `xerWriter.ts`, `schedulingRulesDiffer`) meldt ook afwijkende projectopties,
+     niet alleen een ander profiel. Nagespeeld met De Akkers: profiel Primavera P6 met de P6-standaardopties geeft
+     geen hint bij de XER-keuze (`exportProfileAdvice.ts`), maar de export meldt *Rekenregels* door de 24 voltooide taken
+     zonder het bronsignaal `p6CompletedLateFromRemainingWindow`. De regel raadt dan P6 aan; opnieuw P6 kiezen helpt
+     niet. Richting: bij alleen afwijkende projectopties een eigen, gerichte regel zonder profieladvies. Review PR #393
+     ronde 8 (VERVOLG). — B
+476. **Een eigen profiel met de naam "Primavera P6" krijgt zichzelf aangeraden.** De hint bij de XER-keuze
+     (`exportProfileAdvice.ts`) kijkt naar het profiel (ingebouwd P6, ongewijzigd), niet naar een rekenverschil. Een eigen
+     kopie van P6 zonder afwijkingen met de naam *Primavera P6* toont "Je project rekent nu met het Primavera P6-profiel.
+     We raden aan om het Primavera P6-profiel te gebruiken …"; de export meldt dan geen *Rekenregels*. Richting: noem in de hint het ingebouwde profiel
+     ("het ingebouwde profiel Primavera P6"), of toon hem alleen als de conventies afwijken van P6. Review PR #393
+     ronde 8 (VERVOLG). — B
 
 509. **De externe koppeling in het voorbeeld *De Vaart Apartment Complex* wijst naar ids die het meegeleverde
      bronbestand niet heeft.** `buildGrootWithExternalSource` in `scripts/gen-core.ts` haalt project- en taak-id
@@ -1739,3 +1830,16 @@ en noem het in je rapport of PR-tekst.
      `OPS_RELAX_PERF=0 npm run verify` verdwijnt die waarde dus uit de planregels, en `scripts/planning-pool.mjs:67`
      ziet de twee performancechecks als gewone parallelle runs. Voorstel: herken de twee performancechecks op hun
      check-id. Gevonden in de review van #763 (GPT-6.1-Sol). — B
+
+
+571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
+     families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
+
+591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
+     (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
+     De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
+
+592. **De P6 XML-export meldt kleuren en resourcebeschrijvingen niet als verlies.** `src/state/p6XmlExportNotice.ts` kijkt er niet
+     naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
+     komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
+     zelf geëxporteerd door de reviewer. — B

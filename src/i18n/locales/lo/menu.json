@@ -384,6 +384,7 @@
     "mspdiDesc": "ເປີດໃນ Microsoft Project ໄດ້. ຮັກສາໂຄງສ້າງ WBS ຄົບຖ້ວນ.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "ສຳລັບ Oracle Primavera P6.",
+    "profileHint": "ໂປຣເຈັກຂອງທ່ານກຳລັງໃຊ້ໂປຣໄຟລ໌ “{{name}}” ຢູ່ຕອນນີ້. ພວກເຮົາແນະນຳໃຫ້ໃຊ້ໂປຣໄຟລ໌ “{{target}}” ເພື່ອຄວາມເຂົ້າກັນໄດ້ທີ່ດີທີ່ສຸດກັບຮູບແບບໄຟລ໌ນີ້.",
     "ifcLabel": "IFC",
     "ifcDesc": "ມາດຕະຖານ BuildingSMART, ໃນ schema IFC ຂອງໂຄງການ (ຄ່າເລີ່ມຕົ້ນ IFC 4.3 ADD2). ການເຊື່ອມໂຍງ 4D ກັບໂມເດວ BIM.",
     "csvShort": "CSV (;)"

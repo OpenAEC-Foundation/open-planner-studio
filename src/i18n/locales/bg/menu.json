@@ -386,6 +386,7 @@
     "mspdiDesc": "За отваряне в Microsoft Project. Пълна WBS структура.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "profileHint": "Вашият проект в момента използва профила {{name}}. Препоръчваме профила {{target}} за най-добра съвместимост с този файлов формат.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт на buildingSMART, в IFC схемата на проекта (по подразбиране IFC 4.3 ADD2). 4D свързване с BIM модели.",
     "csvShort": "CSV (;)"

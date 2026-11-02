@@ -9,7 +9,7 @@ import {
   IndentIncrease, IndentDecrease,
   Users, BarChart3, Scale, Eraser, ChevronLeft, ChevronRight,
   ArrowLeftToLine, ArrowRightToLine, Spline, TrendingUp, CalendarDays, Palette, MoveHorizontal,
-  Keyboard, PanelRight,
+  Keyboard, PanelRight, ArrowLeftRight,
   CalendarClock, ChevronsDownUp, ChevronsUpDown, Columns3, AlertTriangle,
   FileDown, FileUp, Scissors,
 } from 'lucide-react';
@@ -122,8 +122,8 @@ function uiAction(patch: Partial<UIState>): () => RibbonButtonBinding {
 const calcButton: RibbonButtonSpec = {
   kind: 'button', id: 'calc', icon: <Play size={20} />, labelKey: 'menu:ribbon.calculate', primary: true,
   use: () => {
-    const runCPM = useAppStore(s => s.runCPM);
-    return { onClick: () => runCPM() };
+    const recalculate = useAppStore(s => s.recalculate);
+    return { onClick: () => recalculate() };
   },
 };
 
@@ -420,8 +420,23 @@ const warningsPanelButton: RibbonButtonSpec = {
   },
 };
 
+/** Paneel Verschuivingen aan/uit — dezelfde vorm als `warningsPanelButton`, maar zonder commando:
+ *  deze actie bestaat alleen in het lint, want het paneel heeft geen sneltoets. */
+const scheduleShiftPanelButton: RibbonButtonSpec = {
+  kind: 'button', id: 'scheduleShiftPanel', icon: <ArrowLeftRight size={20} />, labelKey: 'menu:ribbon.scheduleShiftPanel',
+  use: () => {
+    const setUI = useAppStore(s => s.setUI);
+    const rightPanelCollapsed = useAppStore(s => s.ui.rightPanelCollapsed);
+    const showScheduleShiftPanel = useAppStore(s => s.ui.showScheduleShiftPanel);
+    const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
+    const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
+    const railVisible = !rightPanelCollapsed && !(showResourcePanel && !resourcePanelDocked);
+    return { onClick: () => setUI({ showScheduleShiftPanel: !showScheduleShiftPanel }), active: railVisible && showScheduleShiftPanel };
+  },
+};
+
 const planningTab: RibbonTabConfig = [
-  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton] },
+  { id: 'schedule', labelKey: 'menu:ribbon.schedule', items: [calcButton, moveProjectButton, warningsPanelButton, scheduleShiftPanelButton] },
   {
     id: 'relations', labelKey: 'menu:ribbon.relations',
     items: [relationDropdownItem, splitTaskButton],
@@ -756,6 +771,7 @@ const beeldTab: RibbonTabConfig = [
       dockResourcePanelButton,
       toggleHistogramButton,
       warningsPanelButton,
+      scheduleShiftPanelButton,
     ],
   },
   {

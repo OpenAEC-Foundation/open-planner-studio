@@ -386,6 +386,7 @@
     "mspdiDesc": "Öffnen in Microsoft Project. Vollständige PSP-Struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Für Oracle Primavera P6.",
+    "profileHint": "Ihr Projekt verwendet derzeit das Profil {{name}}. Wir empfehlen das Profil {{target}} für die beste Kompatibilität mit diesem Dateiformat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-Standard, im IFC-Schema des Projekts (Standard: IFC 4.3 ADD2). 4D-Verknüpfung mit BIM-Modellen.",
     "csvShort": "CSV (;)"

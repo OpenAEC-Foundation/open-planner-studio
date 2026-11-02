@@ -47,3 +47,29 @@ export function withSchedulingProfileNotice(
     dedupeKey: `scheduling-profile-applied:${importKey}`,
   };
 }
+
+/**
+ * Een P6 XML rekent bij het openen met het OPS-profiel, niet met de instellingen van P6 (eigenaar, 2026-10-29).
+ * Tijdelijk: na F6 krijgen de XML- en de XER-route dezelfde rekening en verdwijnt deze melding. Eén melding per
+ * bestand: als regel in het importverslag als dat er is, anders een eigen melding.
+ */
+export function withP6XmlProfileNotice(
+  results: readonly ImportResult[], importNotice: NotifyInput | undefined, importKey: string,
+): NotifyInput | undefined {
+  if (!results.some(result => result.p6xmlReport)) return importNotice;
+  const profile = BUILT_IN_PROFILE_BRANDS.ops;
+  if (importNotice) {
+    return {
+      ...importNotice,
+      detailLines: [...(importNotice.detailLines ?? []), { messageKey: 'notifications.p6XmlOpensAsOps', params: { profile } }],
+    };
+  }
+  return {
+    severity: 'info',
+    messageKey: 'notifications.p6XmlOpensAsOps',
+    params: { profile },
+    helpArticleId: SCHEDULING_PROFILE_HELP_ARTICLE_ID,
+    action: OPEN_PROJECT_INFO_ACTION,
+    dedupeKey: `p6xml-opens-as-ops:${importKey}`,
+  };
+}

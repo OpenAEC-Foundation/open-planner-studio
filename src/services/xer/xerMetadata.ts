@@ -8,6 +8,7 @@
 import type { ActivityCodeType, CustomFieldDef, CustomFieldType, CustomFieldValue } from '@/types/structure';
 import { formatDate, parseInstant } from '@/utils/dateUtils';
 import { parseXerNumber, type XerRow, type XerTables } from './xerTables';
+import { opsUdfFieldOf } from './xerOpsMarkers';
 import type {
   XerMetadataCatalog, XerMetadataIssue, XerMetadataIssueCode, XerMetadataProjectView,
   XerMetadataTaskProjection, XerTaskMetadata,
@@ -221,8 +222,13 @@ function mapUdfs(
   tables: XerTables, owners: ReadonlyMap<string, readonly TaskOwner[]>, projections: Map<string, XerMetadataTaskProjection>,
   issues: XerMetadataIssue[], counts: Record<XerMetadataIssueCode, number>,
 ): { definitions: CustomFieldDef[]; deferred: XerRow[]; unknown: XerRow[] } {
-  const typeRows = uniqueById(tables.tables.get('UDFTYPE')?.rows ?? [], 'udf_type_id', 'UDFTYPE',
-    'XER_UDF_MISSING_TYPE_ID', 'XER_UDF_DUPLICATE_TYPE_ID', issues, counts);
+  // De OPS-UDF's van een eigen export (`xerOpsMarkers.ts`) zijn geen eigen velden van de gebruiker: hun
+  // definities en waarden vallen weg, zoals de P6 XML-lezer ze ook niet als veld toont. Zonder zo'n
+  // definitie (elk bestand uit P6 zelf) verandert hier niets.
+  const allTypeRows = tables.tables.get('UDFTYPE')?.rows ?? [];
+  const opsTypeIds = new Set(allTypeRows.filter(row => opsUdfFieldOf(row)).map(row => row.cells.udf_type_id.trim()));
+  const typeRows = uniqueById(opsTypeIds.size > 0 ? allTypeRows.filter(row => !opsUdfFieldOf(row)) : allTypeRows,
+    'udf_type_id', 'UDFTYPE', 'XER_UDF_MISSING_TYPE_ID', 'XER_UDF_DUPLICATE_TYPE_ID', issues, counts);
   const known = new Map<string, { row: XerRow; type: CustomFieldType }>();
   const unknown: XerRow[] = [];
   for (const [id, row] of typeRows) {
@@ -235,6 +241,7 @@ function mapUdfs(
   for (const row of tables.tables.get('UDFVALUE')?.rows ?? []) {
     const typeId = row.cells.udf_type_id?.trim() ?? '';
     const definition = typeRows.get(typeId);
+    if (!definition && opsTypeIds.has(typeId)) continue;
     if (!definition) { addIssue(issues, counts, { code: 'XER_UDF_DANGLING_TYPE', table: 'UDFVALUE', line: row.line }); continue; }
     const entity = definition.cells.table_name?.trim().toUpperCase() || 'UNKNOWN';
     const entityId = (row.cells.fk_id || row.cells.task_id || '').trim();

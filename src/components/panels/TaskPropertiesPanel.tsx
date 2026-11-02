@@ -37,7 +37,7 @@ export function TaskPropertiesPanel() {
   const updateTask = useAppStore(s => s.updateTask);
   const setTaskWorkRule = useAppStore(s => s.setTaskWorkRule);
   const deleteTask = useAppStore(s => s.deleteTask);
-  const runCPM = useAppStore(s => s.runCPM);
+  const recalculate = useAppStore(s => s.recalculate);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
   // Voortgang: de actie dwingt de voortgangsinvarianten af — zie TaskProgressFields-docstring
   // voor waarom dit dedicated setters zijn (i.p.v. de generieke patch). `enterTaskProgress` is de
@@ -139,7 +139,7 @@ export function TaskPropertiesPanel() {
       <TaskCodesFieldsSection taskId={task.id} />
 
       <button
-        onClick={() => runCPM()}
+        onClick={() => recalculate()}
         className="btn btn--sm btn--primary mt-2"
         style={{ boxShadow: 'var(--shadow-glow)' }}
       >

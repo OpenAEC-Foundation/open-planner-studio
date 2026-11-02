@@ -388,6 +388,7 @@
     "mspdiDesc": "Se abre en Microsoft Project. Estructura WBS completa.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Para Oracle Primavera P6.",
+    "profileHint": "Su proyecto usa actualmente el perfil {{name}}. Recomendamos el perfil {{target}} para la mayor compatibilidad con este formato de archivo.",
     "ifcLabel": "IFC",
     "ifcDesc": "Estándar de BuildingSMART, en el esquema IFC del proyecto (predeterminado IFC 4.3 ADD2). Enlace 4D con modelos BIM.",
     "csvShort": "CSV (;)"

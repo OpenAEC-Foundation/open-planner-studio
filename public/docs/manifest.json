@@ -98,6 +98,14 @@
       "kind": "uitleg"
     },
     {
+      "id": "uitleg-verschuivingen",
+      "title": {
+        "nl": "Waarom een taak verschuift",
+        "en": "Why a task moves"
+      },
+      "kind": "uitleg"
+    },
+    {
       "id": "howto-pad-traceren",
       "title": {
         "nl": "Een pad traceren",

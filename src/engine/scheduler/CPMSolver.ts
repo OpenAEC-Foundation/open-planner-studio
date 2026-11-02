@@ -50,6 +50,12 @@ export interface CPMResult {
    */
   plannedFloorTraceByTaskId?: Readonly<Record<string, CPMPlannedFloorTrace>>;
   /**
+   * Optioneel, niet-persistent: wat de vroege datums van elke bladtaak bepaalde. Alleen gevuld met
+   * `CPMOptions.traceDateDrivers` (de uitleg na F5). Dit zijspoor beschrijft de beslissing en neemt
+   * er niet aan deel: `check-shift-explanation.ts` pint dat de rest van het resultaat gelijk blijft.
+   */
+  dateDriverByTaskId?: Record<string, TaskDateDriver>;
+  /**
    * Ids van driving relaties (P6-definitie): de door de relatie gegenereerde grens ís de
    * aangenomen early-datum van de opvolger (relationship free float = 0). Gelijkspel is
    * toegestaan — een opvolger kan meerdere driving voorgangers hebben. Rekenresultaat,
@@ -162,6 +168,39 @@ export interface CPMPlannedFloorTrace {
   boundaryPredecessorTaskCode?: string;
 }
 
+/**
+ * Wat de vroege datums van één taak bepaalde, zoals de voorwaartse pass het besliste:
+ *  - `relation`: de relatiegrens van deze voorganger(s), bij gelijkspel allemaal;
+ *  - `constraint`: een constraint van de taak (ook ALAP);
+ *  - `ownStart`: de eigen geplande start van een taak zonder voorganger;
+ *  - `plannedStart`: de geplande startvloer van een P6-taak;
+ *  - `projectStart`: de projectstart-vloer;
+ *  - `statusDate`: de statusdatum-vloer;
+ *  - `leveling`: de nivelleer-vertraging op de taak;
+ *  - `progress`: werkelijke datums of de hervatting van een gestarte taak;
+ *  - `manual`: een handmatig geplande taak op haar eigen datums;
+ *  - `hammock`: een hammock, afgeleid van haar drivers;
+ *  - `other`: iets anders (externe link, timephased venster, FF-eindgrens). De uitleg zegt dan niets.
+ */
+export type TaskDateDriver =
+  | { kind: 'relation'; predecessorIds: string[] }
+  | { kind: 'constraint' | 'ownStart' | 'plannedStart' | 'projectStart' | 'statusDate' | 'leveling'
+    | 'progress' | 'manual' | 'hammock' | 'other' };
+
+/** Vaste objecten: `forwardPass` draait ook in de nivelleerder, zonder spoor, en alloceert hier niets. */
+const DRIVER = {
+  constraint: { kind: 'constraint' },
+  ownStart: { kind: 'ownStart' },
+  plannedStart: { kind: 'plannedStart' },
+  projectStart: { kind: 'projectStart' },
+  statusDate: { kind: 'statusDate' },
+  leveling: { kind: 'leveling' },
+  progress: { kind: 'progress' },
+  manual: { kind: 'manual' },
+  hammock: { kind: 'hammock' },
+  other: { kind: 'other' },
+} as const satisfies Record<string, TaskDateDriver>;
+
 /** Voortgangs-opties. Leeg ⇒ geen statusdatum-gedrag. */
 export interface CPMOptions {
   dataDate?: string;                                     // ISO date; undefined ⇒ geen statusdatum-gedrag
@@ -183,6 +222,8 @@ export interface CPMOptions {
    *  `useProjectEndDateForFloat`-optie aan staat; anders blijft max(EF) leidend. Leeg of
    *  onparseerbaar mét de optie ⇒ exact het netwerkeinde (zie `withEffectiveProjectEndAnchor`). */
   projectEndDate?: string;
+  /** Vul `CPMResult.dateDriverByTaskId`. Alleen voor de uitleg na F5; verandert geen datum. */
+  traceDateDrivers?: boolean;
 }
 
 /**
@@ -413,6 +454,8 @@ export class CPMSolver {
   private options: CPMOptions;
   // Werkdag-gesnapte statusdatum, of null ⇒ geen statusdatum-gedrag. Gezet in solve().
   private dataDate: Date | null = null;
+  // Zijspoor voor `CPMResult.dateDriverByTaskId`; `null` buiten `solve()` met `traceDateDrivers`.
+  private dateDrivers: Record<string, TaskDateDriver> | null = null;
   /** De statusdatum zoals opgegeven, NIET gesnapt op de projectkalender (conventie C5: het punt van een
    *  voltooide CP_Phys-activiteit ligt in P6 op dit rauwe instant, ook buiten de werktijd). */
   private rawDataDate: Date | null = null;
@@ -1849,6 +1892,7 @@ export class CPMSolver {
     const guardResult = this.prepareSolve();
     if (guardResult) return guardResult;
 
+    this.dateDrivers = this.options.traceDateDrivers ? {} : null;
     const order = this.topologicalSort();
     const earlyDates = this.forwardPass(order);
     const lateDates = this.backwardPass(order, earlyDates);
@@ -1893,6 +1937,7 @@ export class CPMSolver {
     if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
       result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
     }
+    if (this.dateDrivers) result.dateDriverByTaskId = this.dateDrivers;
     if (this.backwardFloatTrace) {
       result.backwardFloatTrace = {
         projectEndSource: this.backwardFloatTrace.projectEndSource,
@@ -2040,6 +2085,7 @@ export class CPMSolver {
     results = new Map<string, { es: Date; ef: Date }>(),
     projectStart = this.forwardProjectStart(),
   ): Map<string, { es: Date; ef: Date }> {
+    const drivers = this.dateDrivers;
     for (const taskId of order) {
       const task = this.tasks.get(taskId)!;
       const cal = this.calendarFor(task);
@@ -2104,6 +2150,7 @@ export class CPMSolver {
         // werkdagen. De vier takken staan in `duration.ts`s `writeDerivedSpan`, gedeeld met de
         // verzameltaak-rollup (`applyCpmResult`).
         writeDerivedSpan(task, es, ef, cal);
+        if (drivers) drivers[taskId] = DRIVER.hammock;
         results.set(taskId, { es, ef });
         continue;
       }
@@ -2131,11 +2178,13 @@ export class CPMSolver {
         let es = this.parseIn(cal, task.time.scheduleStart);
         const ef = this.parseIn(cal, task.time.scheduleFinish);
         if (ef < es) es = ef;
+        if (drivers) drivers[taskId] = DRIVER.manual;
         results.set(taskId, { es, ef });
         continue;
       }
 
       let earlyStart: Date;
+      let driver: TaskDateDriver = DRIVER.other;
       // START_FINISH (`mpp14relations.mpp`/"Task 5"): een SF-vereiste-finish
       // ("niet eerder dan pred.START + lag") is een APARTE ondergrens op de EARLY FINISH, naast de
       // gewone `earlyStart`-druk die `forwardConstraint` hierboven al levert — zie
@@ -2146,6 +2195,7 @@ export class CPMSolver {
       // no-op). Blijft `null` bij `preds.length === 0` (een wortel-taak heeft geen
       // voorganger-relatie om een finish te eisen).
       let sfFinishFloor: Date | null = null;
+      let sfFinishFloorPredecessorId: string | null = null;
       // Gezet in de `noPreds`-tak hieronder zodra de taak-eigen `scheduleStart` een gedegenereerd
       // band-eind-anker is (zie `rootAnchorIsBandEnd`/`timephasedAnchorIsDegenerateResnap` daar) —
       // `timephasedFinish()` gebruikt deze vlag om `task.timephasedFinishFloor` in dat geval over te
@@ -2216,8 +2266,10 @@ export class CPMSolver {
         // Conventie C14 `p6AlapPositionedFromSuccessors`: een niet-gestarte ALAP-wortel heeft geen
         // eigen anker; haar vroege start is de statusdatum, en `positionAlapFromSuccessors` legt haar
         // daarna zo laat als haar opvolgers toestaan.
+        driver = DRIVER.ownStart;
         if (this.dataDate && this.isUnstartedAlapPositionedFromSuccessors(task, cal)) {
           earlyStart = this.snapOnOrAfter(cal, this.dataDate);
+          driver = DRIVER.statusDate;
         }
         // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken.
         const beforeConstraint = earlyStart;
@@ -2229,6 +2281,7 @@ export class CPMSolver {
         // docblok) al zelf correct toegepast; zonder wacht zou de her-snap die vrijstelling ongedaan
         // maken (`snapOnOrAfter` behandelt een band-eind-instant als "niet-werk").
         const constraintMoved = earlyStart.getTime() !== beforeConstraint.getTime();
+        if (drivers && (constraintMoved || this.hardPinStart(task, cal))) driver = this.constraintDriver(task);
         // Her-snap ná de constraint — spiegelt de voorganger-tak.
         // `applyForwardConstraint` levert een DAG-conceptuele grens (`nextWorkDay`/
         // `addWorkingDaysSigned`), in uur-modus een middernacht-instant die NIET op een
@@ -2286,7 +2339,10 @@ export class CPMSolver {
             this.relDeps, predResult, predTask, relSeq, task, this.relationEngineFor(predTask), cal,
             this.p6ZeroDurationUsesFinishBoundary(task, cal),
           );
-          if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) sfFinishFloor = finishFloor;
+          if (finishFloor && (!sfFinishFloor || finishFloor > sfFinishFloor)) {
+            sfFinishFloor = finishFloor;
+            sfFinishFloorPredecessorId = seq.predecessorId;
+          }
         }
         // C7: een niet-bindende FF naar de startmijlpaal krijgt de grens zonder dagsprong, zodat de
         // vrije speling tot de mijlpaal zelf telt. Een bindende (= maximale) relatie houdt de gewone
@@ -2294,6 +2350,7 @@ export class CPMSolver {
         for (const [seqId, c6Boundary, normalBoundary] of c6FloatBoundaries) {
           if (rawMax && normalBoundary < rawMax) this.seqConstraint.set(seqId, c6Boundary);
         }
+        const networkEarlyStart = earlyStart;
         // P6-bronsemantiek: target_start is alleen een aanvullende geplande vloer wanneer zowel
         // het geplande begin als einde meer dan één kalenderdag ná het netwerkvenster liggen. Dat
         // dubbele criterium voorkomt dat een lang targetvenster of een gewone volgende-bandstart
@@ -2372,8 +2429,12 @@ export class CPMSolver {
             }
           }
         }
+        const beforeConstraints = earlyStart;
         // `rawMax` (voorganger-druk) voedt de harde-pin-logicaschending-detectie.
         earlyStart = this.applyForwardConstraints(task, earlyStart, rawMax, cal);
+        if (drivers) {
+          driver = this.networkDriver(task, cal, preds, rawMax, networkEarlyStart, beforeConstraints, earlyStart);
+        }
         const preserveP6FinishBoundary = preds.some(sequence =>
           sequence.p6StartAtPredecessorFinishBoundary === true
           && this.seqConstraint.get(sequence.id)?.getTime() === earlyStart.getTime());
@@ -2404,6 +2465,7 @@ export class CPMSolver {
       //
       // Backward: GEEN aftrek in `subDuration` zelf; de DOORGIFTE naar de voorganger staat bij de
       // aanroepplek in `backwardPass`. Beide bronnen afwezig/0 ⇒ no-op.
+      const undelayedEarlyStart = earlyStart;
       if (task.levelingDelay) {
         earlyStart = this.shiftByLevelingDelay(cal, task, earlyStart, 1);
         // N2 geldt ook als een dagenvertraging samen met zijn minutenwaarde is vastgelegd.
@@ -2434,6 +2496,7 @@ export class CPMSolver {
           earlyStart = this.snapSuccessorEarlyStart(cal, earlyStart, task);
         }
       }
+      if (earlyStart.getTime() !== undelayedEarlyStart.getTime()) driver = DRIVER.leveling;
 
       // Voortgang: actual-pinning + data-date-vloer. dataDate === null ⇒ elke tak is
       // een no-op (backwards-compat). `earlyStart` is hier al de retained-logic voorganger-druk.
@@ -2456,6 +2519,7 @@ export class CPMSolver {
         if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
           for (const seq of preds) this.seqConstraint.delete(seq.id);
         }
+        if (drivers) drivers[taskId] = DRIVER.progress;
         results.set(taskId, { es: physicalPoint, ef: new Date(physicalPoint.getTime()) });
         continue;
       }
@@ -2504,6 +2568,7 @@ export class CPMSolver {
           if (this.options.schedulingOptions?.preserveActualDatesInBackwardPass === true) {
             for (const seq of preds) this.seqConstraint.delete(seq.id);
           }
+          if (drivers) drivers[taskId] = DRIVER.progress;
           results.set(taskId, { es, ef });
           continue;
         }
@@ -2725,7 +2790,21 @@ export class CPMSolver {
           // wordt geen P6 early/late-uitvoer gelezen. Andere formaten houden hun bestaande
           // actual-startweergave doordat alleen het XER-pad deze vlag zet.
           // C12, lopende taak (Roads A10660): dezelfde FF-grens op het restwerk.
+          const unboundedRemainingFinish = ef;
           ef = this.finishNotBeforeFinishFinishBound(preds, results, progressCal, ef);
+          if (drivers) {
+            const networkDrivesRest = !usedResumeOverride
+              && this.options.progressMode !== 'PROGRESS_OVERRIDE'
+              && remStart.getTime() === earlyStart.getTime()
+              && earlyStart > (dataDate ?? actualES);
+            if (ef.getTime() !== unboundedRemainingFinish.getTime()) driver = DRIVER.other;
+            else if (!networkDrivesRest) {
+              driver = !usedResumeOverride && dataDate && remStart.getTime() === dataDate.getTime()
+                ? DRIVER.statusDate
+                : DRIVER.progress;
+            }
+            drivers[taskId] = driver;
+          }
           const displayedEarlyStart =
             this.options.schedulingOptions?.p6UseRemainingStartForProgress === true
             ? remStart
@@ -2744,6 +2823,7 @@ export class CPMSolver {
         ) {
           // (3) NIET GESTART: statusdatum als ondergrens (remaining werk nooit in het verleden).
           earlyStart = dataDate;
+          driver = DRIVER.statusDate;
         }
       }
 
@@ -2772,6 +2852,9 @@ export class CPMSolver {
       let earlyFinish = !hardFinishPin && sfFinishFloor && sfFinishFloor > earlyFinishRaw
         ? sfFinishFloor
         : earlyFinishRaw;
+      if (drivers && earlyFinish !== earlyFinishRaw && sfFinishFloorPredecessorId) {
+        driver = { kind: 'relation', predecessorIds: [sfFinishFloorPredecessorId] };
+      }
       // Timephased-venster (zie `mppReader.ts`'s `deriveTimephasedWindowsForTasks`-moduleheader voor
       // het corpusbewijs, en `timephasedFinish()`'s docblok voor de precedentie t.o.v.
       // `sfFinishFloor`): het venster wint van de kale duur-gebaseerde `earlyFinishRaw` (ook als die
@@ -2780,7 +2863,10 @@ export class CPMSolver {
       // `tf === null`. De veldnaam ("Floor") dekt het override-gedrag niet; hernoemen raakt
       // Task/mppReader/moveProject/check-ifc-roundtrip.
       const tf = this.timephasedFinish(task, cal, hardFinishPin, sfFinishFloor, timephasedFinishFloorIsDegenerateResnap);
-      if (tf) earlyFinish = tf;
+      if (tf) {
+        earlyFinish = tf;
+        driver = DRIVER.other;
+      }
       // Dezelfde EF<ES-inversiewacht als de VOLTOOID- en IN-PROGRESS-tak: `tf` (laag 3, een
       // LETTERLIJK gelezen venster) kan vóór `earlyStart` liggen wanneer een voorganger-push of een
       // SNET/MSO-constraint `earlyStart` ná het geïmporteerde venster duwt. Hier is `earlyStart` het
@@ -2788,7 +2874,11 @@ export class CPMSolver {
       // verdedigend, gepind in cases-advanced-cpm.json.
       if (tf && earlyFinish < earlyStart) earlyFinish = earlyStart;
       // C12: de vroege finish niet in kloktijd vóór een FF-relatiegrens (geen harde finish-pin).
-      if (!hardFinishPin) earlyFinish = this.finishNotBeforeFinishFinishBound(preds, results, cal, earlyFinish);
+      if (!hardFinishPin) {
+        const unboundedFinish = earlyFinish;
+        earlyFinish = this.finishNotBeforeFinishFinishBound(preds, results, cal, earlyFinish);
+        if (earlyFinish.getTime() !== unboundedFinish.getTime()) driver = DRIVER.other;
+      }
 
       // XER/P6-grensvenster voor de zeldzame TT_FinMile-vorm waarin scheduleStart de eerste
       // bandstart en scheduleFinish het vorige bandeinde draagt. Alleen toepassen zolang de
@@ -2804,10 +2894,38 @@ export class CPMSolver {
         earlyFinish = this.p6PreviousCalendarFinishBoundary(task, earlyStart);
       }
 
+      if (drivers) drivers[taskId] = driver;
       results.set(taskId, { es: earlyStart, ef: earlyFinish });
     }
 
     return results;
+  }
+
+  /** De constraint die de datum bepaalde. Een externe link werkt op dezelfde plek, maar is geen
+   *  constraint van de taak; heeft de taak die, dan zegt het spoor niet wat er won. */
+  private constraintDriver(task: Task): TaskDateDriver {
+    return task.externalLinks?.length ? DRIVER.other : DRIVER.constraint;
+  }
+
+  /** Wat de start van een taak mét voorgangers bepaalde, vóór de nivelleer- en voortgangslagen. */
+  private networkDriver(
+    task: Task,
+    cal: CalendarEngine,
+    preds: Sequence[],
+    rawMax: Date | null,
+    networkEarlyStart: Date,
+    beforeConstraints: Date,
+    afterConstraints: Date,
+  ): TaskDateDriver {
+    if (this.hardPinStart(task, cal) || afterConstraints.getTime() !== beforeConstraints.getTime()) {
+      return this.constraintDriver(task);
+    }
+    if (beforeConstraints.getTime() !== networkEarlyStart.getTime()) return DRIVER.plannedStart;
+    if (!rawMax || rawMax.getTime() !== networkEarlyStart.getTime()) return DRIVER.projectStart;
+    const predecessorIds = preds
+      .filter(seq => this.seqConstraint.get(seq.id)?.getTime() === rawMax.getTime())
+      .map(seq => seq.predecessorId);
+    return { kind: 'relation', predecessorIds: [...new Set(predecessorIds)] };
   }
 
   /** Hammock-ES: de gewone forward-`max` over de START-drivers (SS/FS-voorgangers), met de
@@ -3379,6 +3497,7 @@ export class CPMSolver {
       if (task.manuallyScheduled) continue;   // uitsluiting (1) — zie docblok hierboven.
       if (fromSuccessors && this.isUnstartedAlapPositionedFromSuccessors(task, this.calendarFor(task))) {
         this.positionAlapFromSuccessors(taskId, earlyDates, lateDates);
+        if (this.dateDrivers) this.dateDrivers[taskId] = DRIVER.constraint;
         continue;
       }
       const early = earlyDates.get(taskId);
@@ -3389,6 +3508,7 @@ export class CPMSolver {
       const succs = this.successors.get(taskId) || [];
       if (!task.isHammock && !task.time.actualStart && task.time.completion === 0) {
         this.placeUnstartedAlap(taskId, task, cal, early, late, earlyDates);
+        if (this.dateDrivers) this.dateDrivers[taskId] = DRIVER.constraint;
         continue;
       }
       let ff = Infinity;
@@ -3409,6 +3529,7 @@ export class CPMSolver {
 
       early.es = cal.addWorkingDaysSigned(early.es, ff);
       early.ef = cal.addWorkingDaysSigned(early.ef, ff);
+      if (this.dateDrivers) this.dateDrivers[taskId] = DRIVER.constraint;
       for (const seq of succs) {
         const succTask = this.tasks.get(seq.successorId);
         if (!succTask) continue;

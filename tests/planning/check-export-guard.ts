@@ -110,6 +110,7 @@ const recentsVerwacht: Record<ExportFormat, boolean> = {
   csv: true,
   mspdi: true,
   p6: true,
+  xer: true,
   'progress-xlsx': false,
 };
 for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, boolean][]) {
