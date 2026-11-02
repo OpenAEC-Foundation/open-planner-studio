@@ -3,26 +3,18 @@ import i18n from '@/i18n/config';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
-import { isDocumentLeaveBlocked, isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
+import { isDocumentLeaveBlocked } from '@/hooks/keyboard/shortcutRegistry';
 import {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, type DroppedFile,
 } from '@/services/fileAccess/fileDrop';
 import { openDroppedFiles } from '@/state/fileDrop';
 
-/**
- * Dezelfde poort als Ctrl+O (`useKeyboardShortcuts`): geen documentwissel zolang een dialoog of een
- * niet-toegepaste Projectinfo-draft openstaat, of de start- of samenvattingsvraag wacht. Plus de
- * vragen van de opslagroute (site, IFC-schema), die `openFile` zelf ook tegenhouden.
- */
-export function isFileDropBlocked(): boolean {
-  const ui = useAppStore.getState().ui;
-  return isDocumentLeaveBlocked() || isGlobalShortcutFrozen(ui)
-    || ui.pendingSiteSave !== null || ui.pendingSiteOpen !== null || ui.pendingIfcSchemaQuestion !== null;
-}
-
+/** Dezelfde poort als Ctrl+O (`useKeyboardShortcuts`): geen documentwissel zolang een dialoog of
+ *  vraag openstaat (ook de site-, schema-, start- en samenvattingsvraag, zie `blockingDialogs.ts`) of
+ *  Backstage → Projectinfo een niet-toegepaste draft bewaakt. */
 function openDropped(files: DroppedFile[]): void {
   void openDroppedFiles(
-    useAppStore, files, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isFileDropBlocked,
+    useAppStore, files, buildImportLabels((key) => i18n.t(key, { ns: 'common' })), isDocumentLeaveBlocked,
   );
 }
 
@@ -61,7 +53,7 @@ export function useFileDrop(): void {
     const onDragOver = (event: DragEvent) => {
       if (!dragCarriesFiles(event.dataTransfer)) return;
       event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = isFileDropBlocked() ? 'none' : 'copy';
+      if (event.dataTransfer) event.dataTransfer.dropEffect = isDocumentLeaveBlocked() ? 'none' : 'copy';
     };
     const onDrop = (event: DragEvent) => {
       if (!event.dataTransfer || !dragCarriesFiles(event.dataTransfer)) return;
