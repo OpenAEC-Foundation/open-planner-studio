@@ -127,6 +127,7 @@ De lijst hieronder is een keuze, gegroepeerd naar onderwerp. Waar het niet staat
 ### Primavera P6 XML
 
 - **P6 XML-bestand geopend** (info) — *P6 XML-bestand geopend: N projectdocumenten.* Na het openen van een P6 XML-bestand.
+- **Rekenprofiel toegepast** (info) — *Dit project rekent als Primavera P6. …* Een P6 XML rekent als Primavera P6, net als een `.xer`. Heeft het bestand een verslag (meer projecten of een baseline), dan staat deze regel bovenaan in die melding.
 - **Niet overgenomen** (blijft staan) — *N relaties tussen projecten zijn niet als relatie overgenomen.* en *N activiteiten zonder project zijn niet ingelezen.* Controleer of je planning compleet is.
 - **Leeg of onbruikbaar** (fout) — er opent niets. Drie redenen: *In dit bestand staan geen activiteiten die de app kan lezen.*, *De activiteiten hebben geen ObjectId. …* en *Het bestand gebruikt XER-kolomnamen … Open de .xer zelf.*
 
