@@ -1376,7 +1376,7 @@ button.task-grid-relation-reference {
        critical  #DC2626  4.63 / 2.67 / 4.10 / 4.83
        normal    #2563EB  4.95 / 2.49 / 3.83 / 5.17
        milestone #7C3AED  5.46 / 2.26 / 3.47 / 5.70
-       baseline  #1F2937  14.06 / 1.14 / 1.35 / 14.68  (licht; donker en hoog contrast zetten een eigen tint)
+       baseline  #1F2937  14.06 / 1.14 / 1.35 / 14.68  (licht; donker en hoog contrast zetten een eigen, lichte tint)
      Die 3:1-eis is dus opgegeven op de donkere kaart; formeel is dat non-conform met WCAG 1.4.11 —
      bewust aanvaard voor licht en donker. De taakbalk tekent deze tinten effen; alleen het voltooide
      deel wordt grijs (`doneBarTones` in themePalette.ts). De speling (`--theme-bar-float`) is als enige WEL per thema
@@ -1436,15 +1436,18 @@ button.task-grid-relation-reference {
   /* Samenvattingsbalk, donker thema: lichtere leisteen (slate-400), 5,0:1 op de donkere kaart
      (#2E3239). Het merk-#475569 haalde daar maar 1,7 en viel samen met het grijs van voltooid werk. */
   --theme-bar-summary: #94A3B8;
-  /* Issue #741, besluit Ethan 2026-11-02: de drie baselines verschillen ook in helderheid, in
-     dezelfde volgorde als in het lichte thema: actief donkerst, dan vergelijking 2, dan
-     vergelijking 1. Gemeten (CIELAB L*, op de donkere kaart #2E3239 met L* 21):
-       actief          #6B7280  L* 47.9  contrast 2.66 op de kaart
-       vergelijking 2  #E879F9  L* 67.8  contrast 5.23 (fuchsia-400)
-       vergelijking 1  #67E8F9  L* 85.7  contrast 8.88 (cyaan-300; was cyaan-400 #22D3EE, L* 77.9)
-     Het actieve grijs blijft het merkgrijs van vóór #741; het lichte #1F2937 verdwijnt hier op de kaart. */
-  --theme-bar-baseline: #6B7280;
-  --theme-bar-baseline-compare-1: #67E8F9;
+  /* Issue #741, besluiten Ethan 2026-11-02: de drie baselines verschillen ook in helderheid, en
+     de actieve valt in elk thema het meest op. Op deze donkere kaart is hij dus het lichtst;
+     vergelijking 2 en vergelijking 1 worden stap voor stap donkerder (licht doet het omgekeerde).
+     Gemeten (CIELAB L*; kaart #2E3239 met L* 20.7; contrast WCAG op de kaart / op normaal-balk
+     #2563EB / op het grijs van een voltooide balk #4B566C):
+       actief          #D1D5DB  L* 85.1   8.74 / 3.51 / 5.01  (gray-300)
+       vergelijking 2  #E879F9  L* 67.8   5.23 / 2.10 / 3.00  (fuchsia-400)
+       vergelijking 1  #0891B2  L* 55.6   3.50 / 1.40 / 2.00  (cyaan-600, dezelfde tint als licht)
+     Stappen 17.4 en 12.2 L*. De strook ligt los onder de balk, dus het balkcontrast is een extra.
+     Niet wit: Ethan vond wit hier te fel (check van #780); de test houdt actief op L* 90 of lager. */
+  --theme-bar-baseline: #D1D5DB;
+  --theme-bar-baseline-compare-1: #0891B2;
   --theme-bar-baseline-compare-2: #E879F9;
   --theme-critical-text: #F87171;
   --theme-input-bg: #23262D;
@@ -1543,7 +1546,7 @@ button.task-grid-relation-reference {
      helderheidsstappen, actief #1F2937 (BRAND, L* 16.3), vergelijking 2 fuchsia-700 #A21CAF
      (L* 40.6, 6.06:1), vergelijking 1 cyaan-600 #0891B2 (L* 55.6, 3.53:1 op de kaart).
      De actieve staat hier expliciet: `:root` hoort bij het donkere blok, dus zonder deze regel
-     erft het lichte thema het donkere #6B7280. */
+     erft het lichte thema de donkere baselinekleur. */
   --theme-bar-baseline: #1F2937;
   --theme-bar-baseline-compare-1: #0891B2;
   --theme-bar-baseline-compare-2: #A21CAF;
@@ -1625,7 +1628,7 @@ button.task-grid-relation-reference {
        critical          #FF6B6B   7.13
        normal            #60A5FA   7.79
        milestone         #D9A6FF  10.23
-       baseline          #9CA3AF   7.80
+       baseline          #FFFFFF  19.80  (actieve baseline, #741: hier de lichtste van de drie)
      De taakbalk tekent deze tinten effen en maakt het voltooide deel grijs (`doneBarTones` in
      themePalette.ts); een aparte voortgangsvar is daardoor niet nodig.
      REIKWIJDTE, expliciet: deze vars sturen uitsluitend de CANVAS-renderers (Gantt, histogram,
@@ -1640,9 +1643,16 @@ button.task-grid-relation-reference {
   --theme-bar-critical: #FF6B6B;
   --theme-bar-normal: #60A5FA;
   --theme-bar-milestone: #D9A6FF;
-  --theme-bar-baseline: #9CA3AF;
-  /* Issue #391: vergelijkingsbaselines, hoog contrast: cyaan-300 en fuchsia-300. */
-  --theme-bar-baseline-compare-1: #67E8F9;
+  /* Issue #741, besluiten Ethan 2026-11-02: de actieve baseline valt het meest op, dus hier is hij
+     het lichtst; de vergelijkingen worden stap voor stap donkerder. Gemeten (CIELAB L*; contrast
+     op #0a0a0a / op normaal-balk #60A5FA / op het grijs van een voltooide balk #DAE2EC):
+       actief          #FFFFFF  L* 100.0  19.80 / 2.54 / 1.31
+       vergelijking 2  #F0ABFC  L*  78.9  11.25 / 1.45 / 1.35  (fuchsia-300)
+       vergelijking 1  #06B6D4  L*  68.2   8.15 / 1.05 / 1.86  (cyaan-500)
+     Stappen 21.1 en 10.7 L*. Elke lijn haalt de 7:1 van dit thema op de kaart; het lagere
+     balkcontrast is aanvaard, want de strook ligt los onder de balk. */
+  --theme-bar-baseline: #FFFFFF;
+  --theme-bar-baseline-compare-1: #06B6D4;
   --theme-bar-baseline-compare-2: #F0ABFC;
   /* Kritieke-pad-tekst: helder rood, >=4.5:1 op #0a0a0a/#000 (7.1–7.6:1). */
   --theme-critical-text: #FF6B6B;

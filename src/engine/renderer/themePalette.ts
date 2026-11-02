@@ -34,7 +34,7 @@ export const GANTT_TRACE_COLORS = {
 //   critical  #DC2626  4,63 / 2,67 / 4,10
 //   normal    #2563EB  4,95 / 2,49 / 3,83
 //   milestone #7C3AED  5,46 / 2,26 / 3,47
-//   baseline  #1F2937  14,06 / 1,14 / 1,35  (licht; donker en hoog contrast zetten een eigen tint)
+//   baseline  #1F2937  14,06 / 1,14 / 1,35  (licht; donker en hoog contrast zetten een eigen, lichte tint)
 // Noem het bij de naam in plaats van het weg te redeneren: op de donkere kaart zakken ze naar
 // 2,26-2,67 — dat is formeel non-conform met WCAG 1.4.11 (die kent geen grootte-uitzondering voor
 // grafische objecten), en in `mode: 'critical'` is de balkkleur de enige drager van "kritiek
@@ -238,7 +238,7 @@ export function readGanttPalette(): GanttPalette {
     milestone: v('--theme-bar-milestone', BRAND.milestone),
     float: v('--theme-bar-float', '#059669'),
     baseline: v('--theme-bar-baseline', BRAND.baseline),
-    // Vergelijkingsbaselines: per thema een eigen tint (licht donkerder, donker lichter), zie globals.css.
+    // Vergelijkingsbaselines: per thema een eigen tint; de actieve valt het meest op (#741), zie globals.css.
     baselineCompare1: v('--theme-bar-baseline-compare-1', '#0891B2'),
     baselineCompare2: v('--theme-bar-baseline-compare-2', '#A21CAF'),
     selected: v('--theme-accent', '#B45309'),
