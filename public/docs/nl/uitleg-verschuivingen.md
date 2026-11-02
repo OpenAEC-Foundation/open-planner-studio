@@ -18,7 +18,7 @@ De lijst kent deze redenen:
 
 - *Voorganger*: een relatie bepaalt de start. Je ziet de naam van de voorganger. Bepalen er meer voorgangers tegelijk de start, dan staat het aantal erbij.
 - *Kalender*: de start bleef gelijk of schoof door de kalender, en de kalender van de taak is sinds de vorige berekening veranderd.
-- *Vaste datum*: een constraint bepaalt de datum (zie [Constraints en deadlines](docs://uitleg-constraints)).
+- *Vaste datum*: een constraint bepaalt de datum (zie [Een constraint of deadline zetten](docs://howto-constraint-deadline-zetten)).
 - *Statusdatum*: de taak kan niet eerder lopen dan de statusdatum.
 - *Resource*: een nivelleringsvertraging bepaalt de start, of de duur veranderde door een andere toewijzing.
 - *Eigen duur gewijzigd*: de start bleef gelijk en de duur veranderde.
@@ -36,5 +36,5 @@ Taak A duurt 5 werkdagen en taak B volgt met een eind-start-relatie. B eindigt o
 - *Ongedaan maken* in de melding zet de datums van vóór de berekening terug, in één stap. Je bewerking blijft staan, en de planning geldt weer als verouderd. De knop verdwijnt zodra je iets anders aan de planning wijzigt.
 - Ctrl+Z na F5 werkt anders: dat neemt je laatste bewerking terug, samen met de berekening erna.
 - De lijst is een momentopname van de laatste berekening. Latere bewerkingen veranderen hem niet.
-- Bij nivelleren zie je het voorbeeld vooraf. Daarvoor is deze melding niet nodig (zie [Hoe nivelleren werkt](docs://uitleg-nivelleren)).
+- Bij nivelleren zie je het voorbeeld vooraf. Daarvoor is deze melding niet nodig (zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen)).
 - De reden noemt wat de datum nu bepaalt. Dat is niet altijd de eerste aanleiding: in een keten noemt elke taak haar eigen voorganger. Klik door de lijst om de keten te volgen.

@@ -4,7 +4,7 @@ Goal: have the holidays of a country, and possibly the construction holiday, fil
 
 ## When you need this
 
-Without holidays the app simply plans work on Christmas or King's Day. A new project already gets the Dutch holidays, as long as *Construction mode* is on. You generate again if you need another country or region, if you want to include the construction holiday, or if your project falls outside the years for which holidays were created. Those years matter: to the app a day outside them is simply a work day. How the app takes a holiday into account when counting, you can read in [Calendars and working days](docs://uitleg-kalenders).
+Without holidays the app simply plans work on Christmas or King's Day. A new project already gets the Dutch holidays, as long as *Construction mode* is on. You generate again if you need another country or region, if you want to include the construction holiday, or if your project falls outside the years for which holidays were created. Those years matter: to the app a day outside them is simply a work day. How the app takes a holiday into account when counting, you can read in [Calendar windows](docs://ref-kalenders).
 
 The **construction holiday** (*bouwvak*) is the collective holiday in the Dutch building industry, three weeks in summer. In the app it is off by default.
 
@@ -55,7 +55,6 @@ Choose *No holidays* under *Country* and click *Generate*. The list is then empt
 
 ## See also
 
-- [Calendars and working days](docs://uitleg-kalenders): how the app takes holidays and the construction holiday into account when counting work days.
 - [Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen): making a calendar of your own to put holidays in.
 - [Calendar windows](docs://ref-kalenders): all fields of the calendar windows.
 - [New project and Project settings](docs://ref-projectinfo): the holiday set for a new project.

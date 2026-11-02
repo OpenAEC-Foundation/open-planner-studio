@@ -64,7 +64,7 @@ While the window is open, no shortcut outside the window works, including *Undo*
 
 **A relation would create a cycle.** The relations of a summary task also apply to its subtasks. If a move would create a cycle because of that, the app refuses it, with the message *This move would create a cycle in the schedule (…)*. Nothing changes.
 
-**A relation between a task and its own phase.** If you put a task under a phase it already has a relation with, that relation stays, but no longer counts in the calculation. The app tells you. You can read more about relations on summary tasks in [Relations and lag](docs://uitleg-relaties).
+**A relation between a task and its own phase.** If you put a task under a phase it already has a relation with, that relation stays, but no longer counts in the calculation. The app tells you. You can read more about relations on summary tasks in [Adding relations](docs://howto-relaties-leggen).
 
 **The schedule is out of date.** A move to another phase can change dates. Press **Calculate** (F5). Just swapping the order within the same phase does not.
 

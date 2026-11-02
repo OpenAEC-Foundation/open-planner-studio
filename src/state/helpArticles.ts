@@ -12,25 +12,28 @@
 //
 // Sinds fase 4 (omschakelen) wijzen deze constanten naar de nieuwe artikelen. De id's van vóór fase 4
 // (`gids-taaktypes`, `gids-xer-import`, …) staan als alias in het manifest: uitgeleverde versies
-// sturen hun meldingen nog daarheen.
+// sturen hun meldingen nog daarheen. Sinds november 2026 bevat de Help alleen artikelen over hoe de
+// app werkt (besluit eigenaar, 2026-11-02); de constanten die naar een algemeen uitlegartikel wezen
+// (`uitleg-werkregels`, `uitleg-constraints`, `uitleg-relaties`, `uitleg-voortgang`) wijzen nu naar de
+// how-to bij de melding, en de oude id's zijn aliassen.
 //
 // Niet hier: de `docsId`'s in `src/services/updater/releaseHighlights.ts`. Die horen bij een
 // uitgebrachte versie en blijven letterlijk staan; poort 10 controleert ze apart.
 
 /** Werkregels (taaktypes): melding bij openen en de detailregel in de bestandsmelding. */
-export const TASK_TYPES_HELP_ARTICLE_ID = 'uitleg-werkregels';
+export const TASK_TYPES_HELP_ARTICLE_ID = 'howto-werkregel-kiezen';
 
 /** Rekenprofielen: de melding "dit project rekent als …" bij openen. */
 export const SCHEDULING_PROFILE_HELP_ARTICLE_ID = 'uitleg-rekenprofielen';
 
 /** Constraints: een nieuwe start die een SNET werd of door een andere constraint werd tegengehouden. */
-export const CONSTRAINTS_HELP_ARTICLE_ID = 'uitleg-constraints';
+export const CONSTRAINTS_HELP_ARTICLE_ID = 'howto-constraint-deadline-zetten';
 
 /** Relaties op samenvattingstaken: relaties die de hiërarchie uitsluit van de berekening. */
-export const HIERARCHY_RELATIONS_HELP_ARTICLE_ID = 'uitleg-relaties';
+export const HIERARCHY_RELATIONS_HELP_ARTICLE_ID = 'howto-structuur-aanpassen';
 
 /** Baselines en voortgang: statusdatum op vandaag gezet bij voortgang invoeren. */
-export const BASELINES_PROGRESS_HELP_ARTICLE_ID = 'uitleg-voortgang';
+export const BASELINES_PROGRESS_HELP_ARTICLE_ID = 'howto-voortgang-bijwerken';
 
 /** Structuur aanpassen: een taak met toewijzingen of een mijlpaal die subtaken krijgt. */
 export const STRUCTURE_HELP_ARTICLE_ID = 'howto-structuur-aanpassen';
@@ -52,12 +55,6 @@ export const EXPORT_LOSS_HELP_ARTICLE_ID = 'howto-exporteren';
 
 /** "Datums zoals opgeslagen": melding bij openen en de markering in het eigenschappenpaneel. */
 export const RECORDED_DATES_HELP_ARTICLE_ID = 'uitleg-datums-zoals-opgeslagen';
-
-/** Het Help-artikel "Goed plannen" voor mensen. Id en pad zijn publiek (§8.3): uitgeleverde
- *  versies (hun MCP-instructie en `planner_get_planning_guide`) en eerder geïnstalleerde skills linken
- *  ernaar — nooit hernoemen. Agents krijgen sinds oktober 2026 de aparte agentgids
- *  `public/agent/planning-guide.md`; verify:docs (poort 11) houdt de principes van beide gelijk. */
-export const PLANNING_GUIDE_ARTICLE_ID = 'gids-goed-plannen';
 
 /** ?-knop in de sneltoetsendialoog (proefplek van de contextuele hulp). */
 export const SHORTCUTS_HELP_ARTICLE_ID = 'ref-sneltoetsen';

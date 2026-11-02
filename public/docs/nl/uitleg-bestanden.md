@@ -104,8 +104,8 @@ Zonder die constraint komt ook het voorbeeld zelf uit op 2 juli 2027. Het versch
 - [Een bestand openen en opslaan](docs://howto-bestand-openen-en-opslaan): de stappen voor openen, opslaan en opslaan als.
 - [Exporteren](docs://howto-exporteren): een formaat kiezen en wat je te zien krijgt.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom een geïmporteerde planning andere datums kan tonen.
-- [Constraints en deadlines](docs://uitleg-constraints): wat een constraint doet, en dus wat er verdwijnt als hij ontbreekt.
-- [Relaties en lag](docs://uitleg-relaties): wat een lag is en hoe de app hem rekent.
+- [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen): wat een constraint doet, en dus wat er verdwijnt als hij ontbreekt.
+- [Relaties leggen](docs://howto-relaties-leggen): wat een lag is en hoe de app hem rekent.
 - [Een hammock maken](docs://howto-hammock): wat een hammock is, die een export als gewone taak schrijft.
 - [Codes en eigen velden](docs://howto-codes-en-velden): activiteitcodes en eigen velden, die alleen IFC bewaart.
 - [Externe relaties naar een ander project](docs://howto-externe-relaties): koppelingen die MS Project XML en P6 XML niet meenemen.

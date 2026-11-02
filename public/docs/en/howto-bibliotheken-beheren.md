@@ -4,9 +4,9 @@ Goal: create and delete resource libraries, put calendars in them, and export or
 
 ## When you need this
 
-The library is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. It is not synchronized. If you clear the site data in the browser, the library is gone; so export it as a backup. If a colleague wants to work with the same crews and rates, you also hand the library over as a file. If your organization has several operating companies with their own crews, you make a separate library for each one. For a new project you choose which library it uses.
+The library is not in your project files but in the app: in the desktop app in a file on this computer, in the browser in that browser's storage. It is not synchronized. If you clear the site data in the browser, the library is gone; so export it as a backup. If a colleague wants to work with the same crews and rates, you also hand the library over as a file. If your organization has several operating companies with their own crews, you make a separate library for each one. For a new project you choose which library it uses. In the app the list of a library is also called the *pool*.
 
-What a library is, you read in [The resource library](docs://uitleg-resourcebibliotheek). You do not edit the resources themselves here but in the resource panel, see [Using the resource library](docs://howto-resourcebibliotheek-gebruiken).
+You do not edit the resources themselves here but in the resource panel, see [Using the resource library](docs://howto-resourcebibliotheek-gebruiken).
 
 ## Steps
 
@@ -19,6 +19,8 @@ Choose *File › Library*. On the left is the list *Resource libraries*. On the 
 1. Click the plus above the list (*Add resource library*). A library *New resource library* is added, and it is selected straight away.
 2. Type the new name in the name field at the top of the right-hand part and press Enter, or click outside the field. The app does not accept an empty name.
 3. Click *Set as default* to have this library preselected for new projects from now on. The default library has a star in the list.
+
+The app creates the first library itself, with a name in the interface language: *My resource library* in English. If you switch language later, that name stays.
 
 ### Put a calendar in the library
 
@@ -78,6 +80,5 @@ The checkbox only works for the IFC export, not for the other export formats. Yo
 
 ## See also
 
-- [The resource library](docs://uitleg-resourcebibliotheek): how library and project relate to each other.
 - [Using the resource library](docs://howto-resourcebibliotheek-gebruiken): linking resources, assigning them and resolving deviations.
 - [Exporting](docs://howto-exporteren): the export formats, including IFC with a library file.

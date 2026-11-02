@@ -317,7 +317,15 @@ waaronder een dubbele constante voor `datums-zoals-opgeslagen`, Z). Poort 10 lee
 ### 8.3 Id's die niet mogen breken
 
 - `gids-goed-plannen`: publieke URL in de MCP-instructie van uitgeleverde versies en in geïnstalleerde
-  skills (Z). **Id en pad blijven.**
+  skills (Z). ~~**Id en pad blijven.**~~ Vervallen: het artikel is weg (besluit eigenaar, 2026-11-02:
+  de Help bevat alleen nog artikelen die beschrijven hoe de app werkt; algemeen planadvies hoort er niet
+  in). Het id is een alias in het manifest, zodat links uit uitgeleverde versies blijven werken. Het pad
+  `docs/en/gids-goed-plannen.md` op de site bestaat niet meer; agents krijgen de agentgids
+  `public/agent/planning-guide.md`. Datzelfde besluit haalde ook tien uitlegartikelen weg, elk met een alias:
+  `uitleg-kritiek-pad`, `uitleg-relaties`, `uitleg-constraints`, `uitleg-kalenders`,
+  `uitleg-dagen-en-uren`, `uitleg-werkregels`, `uitleg-nivelleren`, `uitleg-voortgang`,
+  `uitleg-resourcebibliotheek` en `uitleg-ai-koppeling`. Wat daarin over de app zelf stond, staat nu in
+  de how-to of referentie die erbij hoort.
 - Id's in meldingen en release-highlights van uitgeleverde versies: via `aliases` (§6.1).
 
 ## 9. Fasering

@@ -4,8 +4,8 @@
 //   (a) `initialize` draagt `instructions` mee (MCP-spec: clients zetten dat in hun systeemprompt);
 //   (b) de leestool `planner_get_planning_guide` levert de Engelse agentgids, de twee skills
 //       (`goed-plannen`, `progress-update`) en per skill een installatie-aanwijzing.
-// Daarnaast (c): het mutatiebewijs voor poort 11 van verify:docs — een nieuw principe in het
-// Help-artikel zonder tegenhanger in de agentgids maakt de poort rood.
+// Daarnaast (c): het mutatiebewijs voor poort 11 van verify:docs — een helpviewer-link in de
+// agentgids maakt de poort rood.
 //
 // De tool leest RUNTIME-ASSETS uit `public/` via `fetchTextAsset`. Headless is er geen server, dus
 // we zetten `globalThis.fetch` op een stub — precies de naad die `fetchTextAsset` openlaat (zijn
@@ -21,9 +21,7 @@ import { handleMcpMessage, MCP_INSTRUCTIONS } from '@/services/mcp/dispatcher';
 import { getTools, registerAllTools } from '@/services/mcp/toolRegistry';
 import { AGENT_GUIDE_PATH, AGENT_GUIDE_URL, AGENT_SKILLS, GUIDE_PUBLIC_BASE } from '@/services/mcp/tools/guideTools';
 import type { McpContext } from '@/services/mcp/contracts';
-import {
-  AGENT_GUIDE_FILE, PRINCIPLE_COUPLING, checkAgentGuideLinks, checkPrincipleCoupling, principleHeadings,
-} from '../../scripts/lib/agent-guide-coupling';
+import { AGENT_GUIDE_FILE, checkAgentGuideLinks } from '../../scripts/lib/agent-guide-links';
 import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from '../../scripts/lib/agent-skills-check';
 
 registerAllTools();
@@ -265,53 +263,14 @@ test('de tool levert precies de skills die in public/skills/ staan', () => {
   assertEq(AGENT_SKILLS.map((s) => s.name).sort(), dirs, 'AGENT_SKILLS ↔ public/skills/');
 });
 
-// --- (c) poort 11: de agentgids groeit niet los van het Help-artikel ------------------------------
+// --- (c) poort 11: de agentgids linkt alleen met volledige URL's ----------------------------------
 
-const sources = () => ({
-  nl: readFileSync(join(PUBLIC, 'docs', 'nl', 'gids-goed-plannen.md'), 'utf8'),
-  en: readFileSync(join(PUBLIC, 'docs', 'en', 'gids-goed-plannen.md'), 'utf8'),
-  agent: readFileSync(join(ROOT, AGENT_GUIDE_FILE), 'utf8'),
-});
-
-test('poort 11 is groen op de huidige teksten, en de tabel dekt alle negen principes', () => {
-  const src = sources();
-  assertEq(checkPrincipleCoupling(src), [], 'koppeling hoort nu in orde te zijn');
-  assertEq(checkAgentGuideLinks(src.agent), [], 'geen helpviewer-links in de agentgids');
-  assertEq(principleHeadings(src.en, 'How the app calculates with it')?.length, PRINCIPLE_COUPLING.length, 'aantal principes (en)');
-});
-
-test('mutatie: een nieuw principe in nl zonder tegenhanger ⇒ rood, met een melding die de weg wijst', () => {
-  const src = sources();
-  src.nl = src.nl.replace('### De duur schatten', '### Weerverlet apart houden\n\nTekst.\n\n### De duur schatten');
-  const diffs = checkPrincipleCoupling(src);
-  assertEq(diffs.length, 1, `precies één afwijking verwacht, kreeg ${JSON.stringify(diffs)}`);
-  assert(diffs[0].includes('Weerverlet apart houden') && diffs[0].includes('geen tegenhanger in de agentgids')
-    && diffs[0].includes('PRINCIPLE_COUPLING'), `melding onduidelijk: ${diffs[0]}`);
-});
-
-test('mutatie: een nieuw principe in en, of een hernoemde kop ⇒ rood', () => {
-  const added = sources();
-  added.en = added.en.replace('### Estimating duration', '### Keep weather delay separate\n\nText.\n\n### Estimating duration');
-  assert(checkPrincipleCoupling(added).some((d) => d.includes('Keep weather delay separate')), 'nieuwe en-kop niet gemeld');
-
-  const renamed = sources();
-  renamed.nl = renamed.nl.replace('### De duur schatten', '### Duur inschatten');
-  const diffs = checkPrincipleCoupling(renamed);
-  assert(diffs.some((d) => d.includes('Duur inschatten')), 'nieuwe naam niet gemeld');
-  assert(diffs.some((d) => d.includes('"De duur schatten" staat niet (meer)')), 'verdwenen tabelkop niet gemeld');
-});
-
-test('mutatie: een agentsectie zonder principe, een verdwenen sectie en een docs://-link ⇒ rood', () => {
-  const extra = sources();
-  extra.agent = extra.agent.replace('### Estimating duration', '### Something only agents get\n\nText.\n\n### Estimating duration');
-  assert(checkPrincipleCoupling(extra).some((d) => d.includes('Something only agents get') && d.includes('geen principe')),
-    'agentsectie zonder principe niet gemeld');
-
-  const gone = sources();
-  gone.agent = gone.agent.replace('## Principles and the tools for them', '## Principles');
-  assert(checkPrincipleCoupling(gone).some((d) => d.includes('principesectie')), 'verdwenen principesectie niet gemeld');
-
-  assertEq(checkAgentGuideLinks('See [Relations](docs://uitleg-relaties).').length, 1, 'docs://-link niet gemeld');
+test('poort 11: de agentgids is groen, en een docs://- of examples://-link wordt gemeld', () => {
+  const agent = readFileSync(join(ROOT, AGENT_GUIDE_FILE), 'utf8');
+  assertEq(checkAgentGuideLinks(agent), [], 'geen helpviewer-links in de agentgids');
+  assert(!agent.includes('gids-goed-plannen'), 'de agentgids wijst nog naar het verwijderde Help-artikel gids-goed-plannen');
+  assertEq(checkAgentGuideLinks('See [Relations](docs://howto-relaties-leggen).').length, 1, 'docs://-link niet gemeld');
+  assertEq(checkAgentGuideLinks('Open [the example](examples://03-kantoorgebouw-zuidas.ifc).').length, 1, 'examples://-link niet gemeld');
 });
 
 // --- (d) poort 9: frontmatter en skill-verzamelingen -------------------------------------------------

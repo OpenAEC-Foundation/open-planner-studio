@@ -6,7 +6,7 @@ Goal: decide which stretch of time a report covers, for example the coming four 
 
 The weekly meeting wants to know what happens in the coming four weeks. The monthly report covers June. Without a period you get the whole schedule on paper. Five reports therefore work with a *Reporting period:*: *Look-ahead*, *Progress report*, *Resource loading*, *Resource assignments* and the *Resource diagram*. The other reports have no period.
 
-The period is not tied to a calendar month, but to a **reference day**: the status date of your project (the day on which you measure progress, see [Progress, status date and baseline](docs://uitleg-voortgang)), or today if the project has no status date. *Next 4 weeks* counts from that day. If you move the status date, the window moves with it.
+The period is not tied to a calendar month, but to a **reference day**: the status date of your project (the day on which you measure progress, see [Updating progress](docs://howto-voortgang-bijwerken)), or today if the project has no status date. *Next 4 weeks* counts from that day. If you move the status date, the window moves with it.
 
 ## Steps
 
@@ -68,6 +68,6 @@ The period does not work the same in every report.
 ## See also
 
 - [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): the whole route from report type to PDF.
-- [Progress, status date and baseline](docs://uitleg-voortgang): what the status date is and why the app calculates with it.
+- [Updating progress](docs://howto-voortgang-bijwerken): what the status date is and why the app calculates with it.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do with the overloaded weeks from Resource loading.
 - [Report types](docs://ref-rapporttypes): all report types and their options.

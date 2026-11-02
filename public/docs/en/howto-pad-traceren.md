@@ -19,7 +19,7 @@ If you select another task while tracing, the path follows the new selection.
 ## Reading the result
 
 - Predecessors are gold, successors purple. In the Gantt the bars change colour, in the task list a stripe appears to the left of the row: solid for predecessors, dashed for successors. The chosen task has an outline.
-- A darker colour, in the task list a thicker stripe with bold text, marks the chain of **driving** relations: the relations that really determine the dates. What that means is explained in [Relations and lag](docs://uitleg-relaties).
+- A darker colour, in the task list a thicker stripe with bold text, marks the chain of **driving** relations: the relations that really determine the dates. What that means is explained in [Table columns](docs://ref-tabelkolommen).
 - All tasks outside the path are dimmed. Relation lines that do not belong to the path are fainter and dotted.
 
 ## Pitfalls and what the app does
@@ -34,6 +34,6 @@ If you select another task while tracing, the path follows the new selection.
 
 ## See also
 
-- [Relations and lag](docs://uitleg-relaties): why a relation is driving and how the app calculates a task's start date.
-- [Critical path and float](docs://uitleg-kritiek-pad): which chain decides the end of the project.
+- [Table columns](docs://ref-tabelkolommen): why a relation is driving and how the app calculates a task's start date.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): which chain decides the end of the project.
 - [Adding relations](docs://howto-relaties-leggen): adding a relation if you miss a connection in the path.

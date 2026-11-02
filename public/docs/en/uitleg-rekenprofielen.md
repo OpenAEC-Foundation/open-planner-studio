@@ -21,7 +21,7 @@ So the profile says how a package calculates. What you want for your project is 
 A convention is a switch: on or off. The profile decides which switches are on. A calculation option is a choice you make. You can see the difference in the app itself, in the block *Calculation profile and options*:
 
 - **Conventions** are under *Conventions of this profile*, grouped by subject, for example *Progress and completed work*, *Relationships and lag* and *Float and late dates*. This part is collapsed at first. Its heading shows how many conventions there are and, if the profile deviates, a label *changed: 1*. Click the heading to expand it. With a built-in profile, each line has a label *ON* or *OFF*. Those values are for information and cannot be changed. With a custom profile, each line has a checkbox, with the base value after it (*base: on* or *base: off*). If your choice differs from that, the line stands out and *back to base* appears. The i icon after a line shows the explanation of that convention. Point at it with the mouse, move to it with Tab, or tap it. Read that explanation first if you want to change a convention. If a convention only works with hour planning or only on tasks from a .xer file, a blue label next to it says so: *hour planning only* or *.xer tasks only*. Hour planning applies on the calendar used by the rule: a calendar with working blocks or a task duration in hours. Setting *Lag calendar* to *24-hour* only gives the lag hour precision. A convention that also uses the task or progress calendar still requires hour planning there. The explanation also names the other conditions, such as a status date and required conventions. An *ON* label therefore means the rule is enabled, not that every task meets its conditions.
-- **Calculation options** are under *Calculation options of this project*: among others *Critical definition*, *Float calculation*, *Open-ended tasks critical*, *Mark near-critical* and *Lag calendar*. They say what you want for this project, not how a package calculates. What they do is explained in [Critical path and float](docs://uitleg-kritiek-pad) and [Relations and lag](docs://uitleg-relaties).
+- **Calculation options** are under *Calculation options of this project*: among others *Critical definition*, *Float calculation*, *Open-ended tasks critical*, *Mark near-critical* and *Lag calendar*. They say what you want for this project, not how a package calculates. What they do is explained in [Calculation options and conventions](docs://ref-rekenopties-en-conventies).
 
 An example of each. "A task is critical if its total float is 0 or less" is a calculation option: you can set the threshold to 4, and then everything with 4 work days of float or less is critical. "Work that has not started moves to the status date" is a convention: Open Planner Studio and Primavera P6 do it, Microsoft Project does not.
 
@@ -65,7 +65,7 @@ The numbers were calculated with the app's calculation engine. You read them in 
 
 **Without a status date and without progress, the three profiles calculate this network the same.** *Pour foundation* runs from Monday 7 to Friday 11 June, *Lay walls* from Monday 14 to Friday 18 June and *Fit roof* on Monday 21 and Tuesday 22 June. The handover is Tuesday 22 June. *Order window frames* (Monday 7 to Wednesday 9 June) has 7 work days of total float.
 
-Now you record the status. The status date is Wednesday 9 June. The foundation started on Monday 7 June and stands at 60 %. The remaining work is therefore 2 work days (5 × 40 %). *Order window frames* has not started. How [progress and the status date](docs://uitleg-voortgang) work is in that article. Here the question is what the profile does with it.
+Now you record the status. The status date is Wednesday 9 June. The foundation started on Monday 7 June and stands at 60 %. The remaining work is therefore 2 work days (5 × 40 %). *Order window frames* has not started. How you enter progress and the status date is in [Updating progress](docs://howto-voortgang-bijwerken). Here the question is what the profile does with it.
 
 ### Open Planner Studio
 
@@ -95,7 +95,7 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 
 **A calculation option instead of a convention.** If you set *Critical definition* (*Total float ≤ threshold*) to a *Threshold (work days)* of 4 under Open Planner Studio, *Order window frames* becomes critical, because its total float is exactly 4. No date changes. A calculation option is your choice for the project and is independent of the profile.
 
-**A deadline that is missed.** Give *Fit roof* a deadline on Friday 18 June. Under Open Planner Studio the total float of *Fit roof* is then −1 work day and the free float is −1 as well. Under Primavera P6 the total float stays −1, but the free float becomes 0. That is what the convention *Free float never negative* does, in the group *Float and late dates*. Under Microsoft Project both are −2, because the handover falls a day later there. How a deadline works is in [Constraints and deadlines](docs://uitleg-constraints).
+**A deadline that is missed.** Give *Fit roof* a deadline on Friday 18 June. Under Open Planner Studio the total float of *Fit roof* is then −1 work day and the free float is −1 as well. Under Primavera P6 the total float stays −1, but the free float becomes 0. That is what the convention *Free float never negative* does, in the group *Float and late dates*. Under Microsoft Project both are −2, because the handover falls a day later there. How a deadline works is in [Task dialog and properties panel](docs://ref-taak-eigenschappen).
 
 ## Consequences and misunderstandings
 
@@ -114,10 +114,7 @@ Here the dates differ. Two conventions in the group *Progress as in Microsoft Pr
 ## See also
 
 - [Choosing or building a calculation profile](docs://howto-rekenprofiel-kiezen): choose, switch or build a profile.
-- [Progress, status date and baseline](docs://uitleg-voortgang): what the status date and the remaining work do, with the differences per profile.
 - [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen): choosing Retained Logic or Progress Override.
-- [Critical path and float](docs://uitleg-kritiek-pad): the calculation options for critical and float.
-- [Relations and lag](docs://uitleg-relaties): the calculation option *Lag calendar*.
 - [Files and formats](docs://uitleg-bestanden): what an export carries and what it does not.
 - [Exporting](docs://howto-exporteren): exporting a project.
 - [Updating progress](docs://howto-voortgang-bijwerken): entering percentage, actual start and status date.

@@ -64,7 +64,7 @@ Zolang het venster open is, werkt geen enkele sneltoets buiten het venster, ook 
 
 **Een relatie zou een kring maken.** De relaties van een samenvattingstaak gelden ook voor haar subtaken. Zou een verplaatsing daardoor een kring maken, dan weigert de app hem, met de melding *Deze verplaatsing zou een kring in de planning maken (…)*. Er verandert dan niets.
 
-**Een relatie tussen een taak en zijn eigen fase.** Zet je een taak onder een fase waarmee hij al een relatie heeft, dan blijft die relatie bestaan, maar hij telt niet meer mee in de berekening. De app meldt het. Over relaties op samenvattingstaken lees je meer in [Relaties en lag](docs://uitleg-relaties).
+**Een relatie tussen een taak en zijn eigen fase.** Zet je een taak onder een fase waarmee hij al een relatie heeft, dan blijft die relatie bestaan, maar hij telt niet meer mee in de berekening. De app meldt het. Over relaties op samenvattingstaken lees je meer in [Relaties leggen](docs://howto-relaties-leggen).
 
 **De planning is verouderd.** Een verplaatsing naar een andere fase kan datums veranderen. Druk op **Bereken** (F5). Puur van volgorde wisselen binnen dezelfde fase doet dat niet.
 
