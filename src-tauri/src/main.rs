@@ -102,3 +102,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running Open Planner Studio");
 }
+// Tijdelijk: meting van de CI-duur met een Rust-wijziging (PR #777); de volgende commit haalt dit weg.
