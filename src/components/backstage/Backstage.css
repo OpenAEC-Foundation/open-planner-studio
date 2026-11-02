@@ -66,7 +66,7 @@
 .backstage-nav-icon {
   display: inline-flex;
   width: 16px;
-  color: var(--theme-accent);
+  color: var(--theme-text-dim);
   flex-shrink: 0;
 }
 
@@ -133,7 +133,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--theme-accent);
+  color: var(--theme-text-dim);
   flex-shrink: 0;
 }
 .backstage-recent-info { flex: 1; min-width: 0; }
@@ -194,7 +194,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--theme-accent);
+  color: var(--theme-text-dim);
   border: 1px solid var(--theme-accent);
   border-radius: var(--radius-md);
   font-family: var(--font-code);

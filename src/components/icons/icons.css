@@ -37,6 +37,7 @@
    accentdeel in de hoofdkleur, anders verdwijnt het accent tegen de accentachtergrond. */
 .ribbon-btn.active .oa-icon,
 .ribbon-split-large.active .ribbon-split-bottom .oa-icon,
+.backstage-nav-item.active .oa-icon,
 .ribbon-btn.primary .oa-icon,
 .ribbon-btn.danger:hover .oa-icon,
 .ribbon-btn.disabled .oa-icon,

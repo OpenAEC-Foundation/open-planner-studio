@@ -16,7 +16,9 @@ const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
  * - Hoofdkleur `currentColor`, accent `var(--icon-accent)` (gezet in `icons.css` per thema; `oa-icon--mono`
  *   schakelt het accent uit). Een icoon met `semantic` kleurt mee met de statuskleur van het thema.
  * - Grijs is de basis, oranje het accent: een icoon is nooit helemaal oranje (Blueprint `docs/iconen.md`, "Grijs en
- *   oranje"). De Blueprint zet daarom geen `accent` meer op een heel icoon; dat veld wordt hier niet gebruikt.
+ *   oranje"). Geeft een plek het icoon de oranje tekstkleur, dan wordt het toch helemaal oranje; geef het icoon
+ *   daar een grijze tekstkleur (`text-text-secondary`). `tests/planning/check-icon-accent-text.ts` en
+ *   `tests/browser/icon-orange.spec.ts` bewaken dat.
  * - Standaard decoratief (`aria-hidden`); met `aria-label` of `title` wordt het een `role="img"`.
  * - `data-icon` draagt het id voor tests en de self-test-harness.
  */

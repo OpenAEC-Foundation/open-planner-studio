@@ -214,7 +214,7 @@ export function CalendarDialog() {
                     }
                     data-ops-calendar-row={cal.id}
                   >
-                    {isDefault && <Icon id="status.project-calendar" size={11} className="shrink-0 text-accent" />}
+                    {isDefault && <Icon id="status.project-calendar" size={11} className="shrink-0" />}
                     <span className="truncate flex-1">{cal.name || tCommon('calendar.library.new')}</span>
                     {calendarInvalid(cal) && (
                       <span role="img" className="shrink-0 text-red-600" title={tCommon('calendar.library.invalid')}

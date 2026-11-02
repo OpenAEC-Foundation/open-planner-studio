@@ -156,7 +156,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         title={t('siteFiles.open')}
                         data-ops-site-file-open
                       >
-                        <Icon id="file.type-other" size={15} className="text-accent mt-0.5 shrink-0" />
+                        <Icon id="file.type-other" size={15} className="text-text-secondary mt-0.5 shrink-0" />
                         <span className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-text-primary font-semibold !text-large truncate">{file.name}</span>
                           {modified && <span className="text-text-secondary">{modified}</span>}

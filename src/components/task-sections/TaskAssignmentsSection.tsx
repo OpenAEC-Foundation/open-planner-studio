@@ -255,8 +255,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       <span className="min-w-0 truncate font-medium" title={resName} data-ops-assignment-name>{resName}</span>
                       {curveMarked && (
                         <span
-                          className="inline-flex shrink-0 items-center"
-                          style={{ color: 'var(--theme-accent)' }}
+                          className="inline-flex shrink-0 items-center text-text-secondary"
                           title={`${t('properties.assignments.curve')}: ${curveLabel}`}
                           data-ops-assignment-curve-mark={curveValue}
                         >
@@ -363,7 +362,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                           title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.contour')}
                           data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
                         >
-                          <Icon id="assignment.hours-distribution" size={12} aria-hidden="true" className="shrink-0" />
+                          <Icon id="assignment.hours-distribution" size={12} aria-hidden="true" className={contoured ? 'shrink-0 text-text-secondary' : 'shrink-0'} />
                           <span className="truncate">{t('properties.assignments.contour')}</span>
                         </button>
                         {canMove && (

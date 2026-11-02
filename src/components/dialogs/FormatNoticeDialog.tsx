@@ -76,7 +76,7 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
           className="mt-3 self-start inline-flex items-center gap-1 text-small leading-4 text-accent hover:underline"
           data-ops-format-notice-read-more
         >
-          <Icon id="ui.help" size={13} aria-hidden />
+          <Icon id="ui.help" size={13} aria-hidden className="text-text-secondary" />
           {t('formatNotice.readMore')}
         </button>
       </div>

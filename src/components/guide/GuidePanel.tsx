@@ -280,7 +280,7 @@ export function GuidePanel() {
         >
           <Icon id="guide.expand" size={14} />
           <span data-ops-guide-progress>{progress}</span>
-          {view.done && <Icon id="status.success" size={12} className="guide-panel-done" data-ops-guide-done-badge />}
+          {view.done && <Icon id="status.success" size={12} data-ops-guide-done-badge />}
         </button>
       </div>
     );
