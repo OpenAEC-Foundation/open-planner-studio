@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { expect, test, type Page } from '@playwright/test';
+import { seedProject, state, test as appTest } from './fixtures/ops';
 
 let bundle: string;
 test.beforeAll(async () => {
@@ -101,4 +102,39 @@ test('celeditor: kandidaatkeuze met Enter of Escape bewerkt geen cel tijdens com
   await expect(page.locator('[data-cancels]')).toHaveText('1');
   await expect(page.locator('[data-focus-requests]')).toHaveText('2');
   await session.detach();
+});
+
+// Een aparte appopstelling bewaakt de document-/focuseffecten; de componentproef hierboven bewaakt
+// ook de precieze native toetsvlaggen. De bestaande TableEditor-meetroute blijft ongewijzigd.
+appTest('tabelinvoer: compositie behoudt de editor en maakt geen documentbewerking', async ({ page, ops: _ops }) => {
+  const [id] = await seedProject(page, [
+    { name: 'Oorspronkelijke naam', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
+  ]);
+  const before = await state(page);
+  await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
+  const cell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"] [data-grid-column-id="task.name"]`);
+  await cell.click();
+  await page.keyboard.press('Enter');
+  const input = cell.locator('input');
+  await expect(input).toBeFocused();
+  const ime = await page.context().newCDPSession(page);
+  for (const key of ['Enter', 'Escape']) {
+    await ime.send('Input.imeSetComposition', { text: '日本', selectionStart: 2, selectionEnd: 2 });
+    await page.keyboard.press(key);
+    await expect(input).toBeFocused();
+    expect((await state(page)).undoDepth).toBe(before.undoDepth);
+    expect((await state(page)).tasks.find(task => task.id === id)?.name).toBe('Oorspronkelijke naam');
+  }
+  await ime.send('Input.imeSetComposition', { text: '', selectionStart: 0, selectionEnd: 0 });
+  for (const key of ['Enter', 'Escape']) {
+    await ime.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: 229 });
+    await expect(input).toBeFocused();
+    expect((await state(page)).undoDepth).toBe(before.undoDepth);
+    await ime.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: 229 });
+  }
+  await ime.detach();
+  await input.fill('Naam na compositie');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => state(page).then(snapshot => snapshot.tasks.find(task => task.id === id)?.name)).toBe('Naam na compositie');
+  expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
 });

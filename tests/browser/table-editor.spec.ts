@@ -63,25 +63,6 @@ test('table surface: TableEditor navigeert, commit en Ctrl+Z via echte toetsen',
   await nameCell.click();
   await page.keyboard.press('Enter');
   await expect(nameCell.locator('input')).toBeVisible();
-  // Knownbug 594: Enter/Escape kiezen eerst een IME-kandidaat. De echte Chromium-compositie
-  // mag geen commit, annulering, focusverplaatsing of undo-event in het raster veroorzaken.
-  const composingInput = nameCell.locator('input');
-  const ime = await page.context().newCDPSession(page);
-  for (const key of ['Enter', 'Escape']) {
-    await ime.send('Input.imeSetComposition', { text: '日本', selectionStart: 2, selectionEnd: 2 });
-    await page.keyboard.press(key);
-    await expect(composingInput).toBeFocused();
-    expect((await state(page)).undoDepth).toBe(before.undoDepth);
-    expect((await state(page)).tasks.find(task => task.id === firstId)?.name).toBe('Oorspronkelijke naam');
-  }
-  await ime.send('Input.imeSetComposition', { text: '', selectionStart: 0, selectionEnd: 0 });
-  for (const key of ['Enter', 'Escape']) {
-    await ime.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: 229 });
-    await expect(composingInput).toBeFocused();
-    expect((await state(page)).undoDepth).toBe(before.undoDepth);
-    await ime.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: 229 });
-  }
-  await ime.detach();
   await page.keyboard.press('Escape');
   await expect(nameCell).toBeFocused();
   await page.keyboard.press('ArrowDown');

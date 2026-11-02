@@ -1437,6 +1437,14 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
+     verouderde vaste basis.** `.github/workflows/task-grid-published-selection.yml` neemt elke wijziging
+     aan `tests/browser/table-editor.spec.ts` mee en vergelijkt met `fbd4a3f9d` (versie 2026.43.0).
+     De verplichte `cmp base/package-lock.json head/package-lock.json` faalt op main-versie 2026.44.0,
+     vóór de meetproef begint. Bevestigd op PR #788, head `d6b4f8a04`, run `41449022992`: exit 1 bij
+     byte 56, regel 3. Voorstel: maak de historische prestatiemeting los van het gewone
+     regressiebestand, met een bewust gekozen vergelijkingsbasis en identieke meetfixture. — B
+
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
      zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
      mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
