@@ -1671,6 +1671,13 @@ en noem het in je rapport of PR-tekst.
      ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
      geen onderdeel van de geautomatiseerde vóór/na-poort. — B
 
+844. **VERVOLG: de regressiecheck voor de rapportletter bewijst geen echte subsetting.** De subsetter in
+     `tests/planning/check-report-font.ts:164` geeft het volledige bronfont terug. De check toont dus niet dat
+     HarfBuzz echt alleen de gebruikte tekens houdt, en hij test geen geregistreerde CJK-provider. Voorstel:
+     later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
+     (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
+     werkt. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
