@@ -30,6 +30,10 @@ on:
       - 'src/hooks/useSettingsBootstrap.ts'
       - 'src/utils/settingsStore.ts'
       - 'tests/planning/check-managed-linux.ts'
+      - 'tests/planning/check-managed-shutdown-writes.ts'
+      - 'tests/native/managed-shutdown-probe.rs'
+      - 'src/services/fileAccess/atomicWrite.ts'
+      - 'src/services/fileAccess/writeCoordinator.ts'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +44,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  shutdown-policy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: Bouw de native grensproef zonder GTK of Tauri
+        id: fixture
+        run: |
+          rustc --edition=2021 --test src-tauri/src/linux_shutdown.rs -o "$RUNNER_TEMP/ops-shutdown-tests"
+          rustc --edition=2021 tests/native/managed-shutdown-probe.rs -o "$RUNNER_TEMP/ops-native-shutdown"
+      - name: Native afsluitbeslissing bij een late of ontbrekende bevestiging
+        run: |
+          set +e
+          "$RUNNER_TEMP/ops-shutdown-tests" --nocapture > shutdown-policy.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> shutdown-policy.log
+          cat shutdown-policy.log
+          exit "$code"
+      - name: Echte symlink-write en herstel langer dan 25 seconden
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        env:
+          OPS_NATIVE_SHUTDOWN_PROBE: ${{ runner.temp }}/ops-native-shutdown
+        run: |
+          set +e
+          node scripts/run-ts.mjs tests/planning/check-managed-shutdown-writes.ts > shutdown-slow-io.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> shutdown-slow-io.log
+          cat shutdown-slow-io.log
+          exit "$code"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shutdown-policy-bewijs
+          path: shutdown-*.log
+          retention-days: 7
+
   appimage:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -81,7 +127,7 @@ jobs:
           exit "$code"
 
       - name: Native contracttests voor OpenAEC Linux
-        run: cargo test --release --manifest-path src-tauri/Cargo.toml linux_environment
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml linux_
 
       - name: Verify AppImage input-method modules
         run: |

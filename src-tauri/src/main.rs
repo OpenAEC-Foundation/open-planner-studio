@@ -5,6 +5,8 @@ mod commands;
 mod desktop_integration;
 #[cfg(target_os = "linux")]
 mod linux_environment;
+#[cfg(target_os = "linux")]
+mod linux_shutdown;
 mod mcp_bridge;
 
 use tauri::Manager;

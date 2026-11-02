@@ -1,6 +1,9 @@
 // Sols SIGTERM-proef: echte schrijfcoördinator en vervanger, met vertraagde truncate-then-write-I/O.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { lstat, mkdtemp, open, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createManagedShutdown } from '@/services/appQuit/managedShutdown';
 import { replaceUserFile, type UserFileFs } from '@/services/fileAccess/atomicWrite';
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
@@ -12,6 +15,127 @@ function deferred() {
   return { promise, release };
 }
 const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+async function nativeBoundaryProbe(mode: string) {
+  const binary = process.env.OPS_NATIVE_SHUTDOWN_PROBE;
+  assert.ok(binary, 'de native grensproef wordt alleen in CI gebouwd');
+  const directory = await mkdtemp(join(tmpdir(), 'ops-shutdown-boundary-'));
+  const target = join(directory, 'planning é.ifc');
+  const link = join(directory, 'koppeling.ifc');
+  const started = deferred();
+  const finishWrite = deferred();
+  const finishRecovery = deferred();
+  let content = 'oude planning';
+  await writeFile(target, content);
+  await symlink(target, link);
+  const fs: UserFileFs<string> = {
+    lstat: async path => {
+      const info = await lstat(path);
+      return { isSymlink: info.isSymbolicLink(), nlink: info.nlink, mode: info.mode };
+    },
+    createNew: async () => { throw new Error('de echte symlink moet direct geschreven worden'); },
+    write: async (path, data) => {
+      const file = await open(path, 'w'); // Echte truncate door een symlink, zoals de Tauri-terugval.
+      try {
+        await file.write(data.slice(0, 5));
+        content = await readFile(target, 'utf8');
+        started.release();
+        await finishWrite.promise;
+        await file.write(data.slice(5));
+        content = await readFile(target, 'utf8');
+      } finally {
+        await file.close();
+      }
+    },
+    rename, remove: path => rm(path),
+  };
+  const writing = runProjectFileWrite(() => replaceUserFile(fs, link, full));
+  await started.promise;
+  if (mode === 'native-slow-recovery') {
+    finishWrite.release();
+    await writing;
+  } else {
+    finishRecovery.release();
+  }
+
+  const began = performance.now();
+  const child = spawn(binary, [], { stdio: ['pipe', 'pipe', 'inherit'] });
+  let requests = 0;
+  let recoveryStarted = false;
+  let recoveryFlushed = false;
+  let confirmed = false;
+  let closed = false;
+  let timedOut = false;
+  let ioError: unknown;
+  let quitting: Promise<void> | undefined;
+  const snapshot = () => ({
+    projectWriteStillBusy: isProjectFileWriteBusy(), content, recoveryStarted, recoveryFlushed, confirmed,
+  });
+  let atOldBoundary: ReturnType<typeof snapshot> | undefined;
+  let boundaryElapsed = 0;
+  const shutdown = createManagedShutdown({
+    freeze: () => {}, finishInput: () => {},
+    flush: async () => {
+      recoveryStarted = true;
+      await finishRecovery.promise;
+      recoveryFlushed = true;
+    },
+    confirm: async () => {
+      confirmed = true;
+      if (!closed) child.stdin.end('complete\n');
+    },
+  });
+  child.on('error', error => { ioError = error; });
+  child.stdin.on('error', error => { ioError = error; });
+  let output = '';
+  child.stdout.setEncoding('utf8').on('data', (data: string) => {
+    output += data;
+    let newline: number;
+    while ((newline = output.indexOf('\n')) >= 0) {
+      const line = output.slice(0, newline);
+      output = output.slice(newline + 1);
+      if (line !== 'shutdown') continue;
+      requests++;
+      quitting ??= shutdown().catch((error: unknown) => { ioError = error; });
+      // Rust heeft dan 102 maal 250 ms gewacht, zonder afhankelijkheid van een Node-timer.
+      if (requests === 103) {
+        atOldBoundary = snapshot();
+        boundaryElapsed = performance.now() - began;
+        finishWrite.release();
+        finishRecovery.release();
+      }
+    }
+  });
+  const timeout = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 40_000);
+  try {
+    const atNativeExit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null; state: ReturnType<typeof snapshot> }>(resolve => {
+      child.once('close', (code, signal) => {
+        closed = true;
+        resolve({ code, signal, state: snapshot() });
+      });
+    });
+    console.log(JSON.stringify({ mode, requests, elapsedMs: performance.now() - began, atOldBoundary, atNativeExit }));
+    assert.equal(timedOut, false, 'de native afsluitroute moet na bevestiging afronden');
+    assert.equal(ioError, undefined);
+    assert.deepEqual(atNativeExit, {
+      code: 0, signal: null,
+      state: { projectWriteStillBusy: false, content: full, recoveryStarted: true, recoveryFlushed: true, confirmed: true },
+    }, 'Rust mag geen halfgeschreven doel of onvoltooide herstelronde afbreken');
+    assert.ok(boundaryElapsed >= 25_300, 'de echte native grens van 25 seconden moet verstreken zijn');
+    assert.deepEqual(atOldBoundary, mode === 'native-slow-recovery'
+      ? { projectWriteStillBusy: false, content: full, recoveryStarted: true, recoveryFlushed: false, confirmed: false }
+      : { projectWriteStillBusy: true, content: 'hele ', recoveryStarted: false, recoveryFlushed: false, confirmed: false });
+    assert.equal(await readFile(target, 'utf8'), full, 'het echte bestand achter de symlink is volledig');
+  } finally {
+    clearTimeout(timeout);
+    if (!closed) child.kill('SIGKILL');
+    finishWrite.release();
+    finishRecovery.release();
+    await writing;
+    await quitting;
+    await rm(directory, { recursive: true, force: true });
+  }
+}
 
 function delayedFs(mode: string) {
   const started = deferred();
@@ -51,11 +175,16 @@ const scenario = process.argv[2];
 if (!scenario) {
   let failed = 0;
   // Iedere proef gebruikt een eigen app-runtime: een bevestigde shutdown opent geen writes meer.
-  for (const mode of ['scope', 'symlink', 'temporary', 'dialog']) {
+  const modes = ['scope', 'symlink', 'temporary', 'dialog'];
+  // De gewone planning- en tijdzonerun blijft kort en heeft geen Rust-compiler nodig.
+  if (process.env.OPS_NATIVE_SHUTDOWN_PROBE) modes.push('native-slow-write', 'native-slow-recovery');
+  for (const mode of modes) {
     const result = spawnSync(process.execPath, [process.argv[1]!, mode], { stdio: 'inherit' });
     if (result.status !== 0) failed++;
   }
   assert.equal(failed, 0, 'alle SIGTERM-schrijfgrenzen moeten slagen');
+} else if (scenario.startsWith('native-')) {
+  await nativeBoundaryProbe(scenario);
 } else if (scenario === 'dialog') {
   const dialogStarted = deferred();
   let choose!: (path: string) => void;

@@ -142,19 +142,22 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                         let _ = tx.send(());
                     });
                     // Ook tijdens het opstarten: herhaal tot de webview zijn luisteraar heeft.
-                    for _ in 0..100 {
-                        let _ = app.emit("openaec://shutdown", ());
-                        if rx
-                            .recv_timeout(std::time::Duration::from_millis(250))
-                            .is_ok()
-                        {
+                    let confirmed = crate::linux_shutdown::wait_for_confirmation(
+                        &rx,
+                        crate::linux_shutdown::RETRY_INTERVAL,
+                        || {
+                            let _ = app.emit("openaec://shutdown", ());
+                        },
+                        |code| {
                             app.unlisten(listener);
-                            app.exit(0);
-                            return;
-                        }
+                            app.exit(code);
+                        },
+                    );
+                    if !confirmed {
+                        eprintln!(
+                            "[openaec] herstelopslag niet bevestigd; afsluiten met foutstatus"
+                        );
                     }
-                    eprintln!("[openaec] herstelopslag niet bevestigd; afsluiten met foutstatus");
-                    app.exit(1);
                 });
             }
             eprintln!("[openaec] managed={}", env.managed);
