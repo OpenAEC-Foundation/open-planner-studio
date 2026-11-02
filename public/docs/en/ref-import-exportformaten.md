@@ -66,7 +66,7 @@ Per file format: whether you can open, save and export it, what does and does no
 
 ## Primavera P6 XML
 
-**Open** — yes. The app recognises an `.xml` file as P6 XML by the root element `APIBusinessObjects`. Calculation profile: *Open Planner Studio*.
+**Open** — yes. The app recognises an `.xml` file as P6 XML by the root element `APIBusinessObjects`. Calculation profile: *Open Planner Studio*. A notification says that the project uses this profile, not the P6 settings.
 
 **Unreadable task dates.** The same rules apply as for MS Project XML: an unreadable date counts as missing and does not prevent the file from opening.
 

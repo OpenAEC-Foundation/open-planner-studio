@@ -32,7 +32,8 @@ de volgende markerloze regels samengevoegd als dat het veldental exact haalt, ma
 `ImportResult`-contract als de andere lezers, via `formatRegistry.ts` achter een dynamic import),
 `xerMultiProject.ts` (één bestand ⇒ meerdere documenten; baselineprojecten worden bij hun huidige
 project gematerialiseerd), `xerCalendarData.ts` (de `clndr_data`-decoder incl. herstelcodes),
-`xerScheduleOptions.ts` (SCHEDOPTIONS → `SchedulingOptions`, X5), `xerRecordedTimes.ts` (zie
+`xerScheduleOptions.ts` (SCHEDOPTIONS → `SchedulingOptions`, X5; een leeg of onbekend lagkalenderveld in een
+rij wordt de opvolger, eigenaar 2026-10-29; zonder rij geldt de profielstandaard), `xerRecordedTimes.ts` (zie
 hieronder) en de resource-/metadata-lezers. Het volledige plan met eigenaarsbesluiten, dossiers en
 de overdrachtsstand staat in `docs/superpowers/plans/2026-08-20-plan-xer-p6-lezer.md`; lees §4.1
 (de veldwhitelist met vier "bakken") vóór je een TASK-kolom aanraakt.

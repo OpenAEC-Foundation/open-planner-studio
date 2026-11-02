@@ -518,13 +518,15 @@ export function deriveXerScheduleOptions(
 
   const schedulingOptions: ProjectSchedulingOptions = {
     ...defaults.schedulingOptions,
+    // Leeg of onbekend ⇒ de kalender van de opvolger, zoals de P6-documentatie (eigenaar, 2026-10-29). Zonder
+    // SCHEDOPTIONS-rij hierboven geldt de profielstandaard.
     lagCalendar: enumValue<NonNullable<ProjectSchedulingOptions['lagCalendar']>>(
       row, 'sched_calendar_on_relationship_lag', {
       RCAL_PREDECESSOR: 'predecessor',
       RCAL_SUCCESSOR: 'successor',
       RCAL_24HOUR: '24hour',
       RCAL_PROJDEFAULT: 'projectDefault',
-    }, 'predecessor', fallbacks),
+    }, 'successor', fallbacks),
     totalFloatMode: enumValue<NonNullable<ProjectSchedulingOptions['totalFloatMode']>>(
       row, 'sched_float_type', {
       FT_SS: 'start',
