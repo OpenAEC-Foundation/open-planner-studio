@@ -51,7 +51,7 @@ for (const type of ['FINISH_START', 'START_START'] as const) {
 // A = één dag van 8 uur; B heeft dagen van 10 uur. 50% van A blijft 4 uur.
 for (const profile of ['p6', 'msproject'] as const) {
   for (const hours of [false, true]) {
-    for (const lagCalendar of ['predecessor', 'successor', 'projectDefault'] as const) {
+    for (const lagCalendar of ['predecessor', 'successor', 'projectDefault', '24hour'] as const) {
       const { store } = createAppStoreContext();
       const S = () => store.getState();
       const calendar = (id: string, end: number): WorkCalendar => {

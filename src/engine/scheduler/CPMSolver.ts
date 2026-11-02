@@ -1492,8 +1492,9 @@ export class CPMSolver {
     return date;
   }
 
-  /** WORKTIME-lag in MINUTEN in de voorganger-kalender: procent ⇒ uit `durationMinutesOf(pred)`;
-   *  `lagMinutes` ⇒ bron; anders `lagDays × pred-hoursPerDay × 60` (naakt getal = werkdagen). */
+  /** WORKTIME-lag in minuten: een percentage weegt de duur op de voorgangerkalender;
+   *  `lagMinutes` is de bron; anders telt `lagDays × hoursPerDay × 60` op de meegegeven lagkalender.
+   *  Alleen het verschuiven met die minuten gebruikt de lagkalender. */
   private resolveLagMinutes(seq: Sequence, predTask: Task, predEng: CalendarEngine): number {
     if (isFiniteNumber(seq.lagPercent)) {
       const predMin = isZeroDurationMilestone(predTask) ? 0 : durationMinutesOf(predTask, this.calendarFor(predTask));
