@@ -155,7 +155,7 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
 {
   const { fillRects, polys } = render(true, { baseline: true });
   const a = accents(fillRects);
-  const baseline = polys.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  const baseline = polys.find(sh => sh.fill === '#1F2937' && sh.h < 10);
   ok(a.length === 2, `baseline-combinatie: beide accentsegmenten aanwezig (got ${a.length})`);
   ok(!!baseline, 'baseline-combinatie: baseline aanwezig');
   if (a.length > 0 && baseline) {
@@ -166,7 +166,7 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
   }
   // Issue #391 + eigenaarsbesluit 2026-10-20: de baseline is even dik met of zonder accent
   // (regel uit fe70487a2); met beide aan wordt de balk lager. Beide uit `barLayout`.
-  const alone = render(false, { baseline: true }).polys.find(sh => sh.fill === '#6B7280' && sh.h < 10);
+  const alone = render(false, { baseline: true }).polys.find(sh => sh.fill === '#1F2937' && sh.h < 10);
   ok(!!alone && Math.abs(alone.h - barLayout(ROWH).baselineHeight) < 1e-9, 'baseline-hoogte zonder accent volgt barLayout');
   ok(!!baseline && Math.abs(baseline.h - barLayout(ROWH).baselineHeight) < 1e-9,
     `baseline-hoogte met accent is dezelfde als zonder (got ${baseline?.h})`);

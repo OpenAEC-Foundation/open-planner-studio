@@ -32,7 +32,7 @@ import { classifyTraceTask, isRelationOutsideTrace, type TaskTrace } from '@/eng
 import { ellipsize } from './textFit';
 import { barLayout, type BarLayout } from './rowGeometry';
 import {
-  baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenShortRuns,
+  BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenBars, widenShortRuns,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from './baselineStrip';
 import { canvasFont, type TextRole } from './textRoles';
@@ -1014,7 +1014,7 @@ export class GanttRenderer {
       const pos = baselineSpanX(entry, toX, zoom);
       if (!pos) continue;
       if (pos.kind === 'milestone') milestones.push({ slot: layer.slot, x: pos.x, moment: pos.moment });
-      // Echte grenzen: de minimumbreedte komt pas na de opdeling (`widenShortRuns`). Een strook
+      // Echte grenzen: de minimumbreedte komt pas bij het tekenen en de hover. Een strook
       // zonder breedte op de as (helemaal in niet-werktijd op de werkdag-as) wordt niet getekend.
       else if (pos.x2 > pos.x1) bars.push({ slot: layer.slot, x1: pos.x1, x2: pos.x2 });
     }
@@ -1022,8 +1022,8 @@ export class GanttRenderer {
     const diamonds = baselineDiamonds(milestones);
     if (pieces.length === 0 && diamonds.length === 0) return;
     const diamondSize = baselineDiamondSize(h);
-    paintBaselineStrip(this.ctx, pieces, diamonds, {
-      top, height: h, stripeWidth: this.bar.baselineStripeWidth, diamondSize,
+    paintBaselineStrip(this.ctx, widenBars(bars, 2), diamonds, {
+      top, height: h, blend: BASELINE_BLEND_PX, stripeWidth: this.bar.baselineStripeWidth, diamondSize,
       colorOf: slot => this.baselineColor(slot),
       visibleX: [0, this.opts.canvasWidth],
     });

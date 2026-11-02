@@ -705,6 +705,18 @@ en noem het in je rapport of PR-tekst.
      met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
      niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
      van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
+597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
+     (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
+     `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
+     Bij 800 × 600 px en een zeer lange baselinenaam is de tooltip ~582 px hoog en begint hij op 603 px, dus buiten
+     beeld. Voorstel: een maximale hoogte met scrollen, of de tooltip boven inkorten. Gevonden in de review van
+     #762 (GPT-6.1-Sol). — B
+600. **VERVOLG: geen blijvende test voor een lettertype dat later laadt in de statusbalk.**
+     `src/components/layout/StatusBar/useStatusFold.ts` meet opnieuw bij `document.fonts` `loadingdone`, maar
+     `tests/browser/statusbar-rows.spec.ts:173–190` wisselt alleen tekstgrootte en lettertype en lokt geen latere
+     fontload uit. Een losse browserproef bevestigt de werking; de repository bewaakt die route nog niet. Voorstel:
+     één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -1784,6 +1796,17 @@ en noem het in je rapport of PR-tekst.
      De uitkomsten zijn gelijk in tien combinaties. De helper en zijn import kunnen weg; in
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
+
+598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
+     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
+     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
+     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
+     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
+     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
+     `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
+     doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
+     opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 
 ## Wensen en open taken (geen bug)
 

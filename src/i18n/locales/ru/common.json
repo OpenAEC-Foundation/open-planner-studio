@@ -784,7 +784,11 @@
     "missedDeadlines": "{{count}} крайний срок(ов) просрочено",
     "violatedConstraints": "{{count}} ограничение(й) нарушено",
     "outOfSequence": "{{count}} связь(-ей) с нарушением последовательности",
-    "overallocated": "{{count}} ресурс(ов) с превышением доступности"
+    "overallocated": "{{count}} ресурс(ов) с превышением доступности",
+    "summary_one": "{{count}} предупреждение",
+    "summary_few": "{{count}} предупреждения",
+    "summary_many": "{{count}} предупреждений",
+    "summary_other": "{{count}} предупреждения"
   },
   "warnings": {
     "title": "Предупреждения",
