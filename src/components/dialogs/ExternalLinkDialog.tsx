@@ -4,14 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { X, Link2, FileDown } from 'lucide-react';
 import { Dialog, DialogHelpButton } from '@/components/common/Dialog';
 import type { Task, ExternalLink } from '@/types/task';
-import { externalSourceSide } from '@/engine/externalLinks';
+import { externalSourceSide, sourceAnchorDate } from '@/engine/externalLinks';
 import { formatExternalLagShort, parseExternalLagInput } from '@/engine/taskGrid/relationFormat';
 import { effectiveCalendarOf } from '@/utils/taskDuration';
 import { isHourModeCalendar } from '@/types/calendar';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
-import { computedFinish, computedStart } from '@/utils/taskDates';
 
 type Direction = ExternalLink['direction'];
 type RelType = ExternalLink['relType'];
@@ -171,12 +170,9 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   }, [existing, manual, openedDocumentId, parseExternalSource, sourceFile, tCommon]);
 
   const srcTask = source?.tasks.find((x) => x.id === sourceTaskId) ?? null;
-  // Dezelfde rekendatum als `sourceAnchorDate` (externalLinks.ts), niet de getoonde start.
-  const anchorPreview = srcTask
-    ? (externalSourceSide(direction, relType) === 'finish'
-        ? computedFinish(srcTask)
-        : computedStart(srcTask))
-    : manualAnchor;
+  // Hetzelfde anker als "Bron vernieuwen" (`sourceAnchorDate`): een rekendatum, niet de getoonde
+  // start; voor een externe opvolger de laatst toelaatbare datum van de brontaak.
+  const anchorPreview = srcTask ? sourceAnchorDate({ direction, relType }, srcTask) : manualAnchor;
 
   const parsedLag = parseExternalLagInput(lag);
   const originalSide = existing ? externalSourceSide(existing.direction, existing.relType) : null;

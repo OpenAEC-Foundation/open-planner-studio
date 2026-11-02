@@ -1,7 +1,7 @@
 import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide, isValidExternalLagValue, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { isRecord } from '@/utils/guards';
-import { computedStart, computedFinish } from '@/utils/taskDates';
+import { computedStart, computedFinish, finishIsActual, startIsActual } from '@/utils/taskDates';
 
 export { externalSourceSide };
 
@@ -21,8 +21,8 @@ export interface ExternalSourceDoc {
   /** Bestandspad — secundair match-anker/label wanneer de projectId (nog) niet overeenkomt. */
   filePath?: string;
   projectName?: string;
-  /** Brontaken; de anker-datum leest uit `time.earlyFinish`/`time.earlyStart` (val terug op de
-   *  schedule-datums als de vroege datums leeg zijn — een vers-geparsed bestand zonder herrekening). */
+  /** Brontaken; de anker-datum leest uit hun datums volgens {@link sourceAnchorDate}: de vroege voor
+   *  een voorganger, de late voor een opvolger. */
   tasks: Task[];
 }
 
@@ -42,11 +42,25 @@ export interface RefreshResult {
  * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
 export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
 
-/** De actuele anker-datum die `link` uit `srcTask` leest; leeg ⇒ geen bruikbare datum. BEWUST de
- *  REKENdatum (`computedStart`/`computedFinish`), niet de getoonde: het anker voedt de berekening van
- *  een ander document, en de getoonde start van een gestarte brontaak is haar werkelijke start. */
-export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
+/** De actuele anker-datum die `link` uit `srcTask` leest; leeg ⇒ geen bruikbare datum. BEWUST een
+ *  REKENdatum, niet de getoonde: het anker voedt de berekening van een ander document, en de getoonde
+ *  start van een gestarte brontaak is haar werkelijke start.
+ *
+ *  - Externe VOORGANGER: de vroege datum (`computedStart`/`computedFinish`). Hij duwt mijn taak.
+ *  - Externe OPVOLGER: de laatst toelaatbare datum, de late start (FS, SS) of de late finish (FF, SF).
+ *    Hij begrenst hoe laat mijn taak klaar mag zijn; zo rekent P6 als beide projecten open zijn
+ *    (External Late Finish). Besluit van Ethan, 2026-11-02 (voorstel 1 uit #792). Wie aan de
+ *    geplande datum vast wil houden, zet een datumbeperking.
+ *    Terugval op de vroege datum: als de brontaak geen late datum heeft, of als die kant van de
+ *    brontaak al als werkelijke datum vaststaat (gestart of klaar). Een gestarte taak houdt in de
+ *    berekening een late start ná haar werkelijke start; die speling bestaat niet meer. */
+export function sourceAnchorDate(link: Pick<ExternalLink, 'direction' | 'relType'>, srcTask: Task): string {
   const side = externalSourceSide(link.direction, link.relType);
+  if (link.direction === 'successor') {
+    const happened = side === 'finish' ? finishIsActual(srcTask) : startIsActual(srcTask);
+    const late = side === 'finish' ? srcTask.time.lateFinish : srcTask.time.lateStart;
+    if (!happened && late) return late;
+  }
   return side === 'finish'
     ? computedFinish(srcTask)
     : computedStart(srcTask);
