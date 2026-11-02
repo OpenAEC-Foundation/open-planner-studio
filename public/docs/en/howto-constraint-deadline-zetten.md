@@ -4,7 +4,7 @@ Goal: record a date agreement on a task, so the schedule takes it into account o
 
 ## When you need this
 
-The bricks are only delivered on 21 June, so the brickwork may not start earlier: a **constraint** *Start no earlier than*. The roof has to be closed before the builders' holiday, and you want to be warned if that does not work out: a **deadline**. The pour is fixed on a day because the concrete plant has promised it: *Must start on*. Which type fits when, and what the app does with it, is explained in [Constraints and deadlines](docs://uitleg-constraints).
+The bricks are only delivered on 21 June, so the brickwork may not start earlier: a **constraint** *Start no earlier than*. The roof has to be closed before the builders' holiday, and you want to be warned if that does not work out: a **deadline**. The pour is fixed on a day because the concrete plant has promised it: *Must start on*. What each type does in the calculation is in [Task dialog and properties panel](docs://ref-taak-eigenschappen).
 
 ## Steps
 
@@ -52,9 +52,9 @@ At *Constraint* choose *As soon as possible (ASAP)* again. That removes the seco
 
 ## See also
 
-- [Constraints and deadlines](docs://uitleg-constraints): what each type does, and the explanation of hard pin, negative float and deadline.
-- [Critical path and float](docs://uitleg-kritiek-pad): what negative float does to the critical path.
-- [Relations and lag](docs://uitleg-relaties): the relations a constraint sits alongside.
+- [Task dialog and properties panel](docs://ref-taak-eigenschappen): what each type does, and the explanation of hard pin, negative float and deadline.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): what negative float does to the critical path.
+- [Adding relations](docs://howto-relaties-leggen): the relations a constraint sits alongside.
 - [Notifications and warnings](docs://ref-meldingen): the warnings for a violated constraint or missed deadline.
 - [Refurbishment & Extension of a Family Home](examples://showcase-verbouwing-eengezinswoning.ifc): a permit constraint *Start no earlier than* on *Demolish existing extension* (14 May 2027) and a deadline that is met with room to spare.
 - [6 New Terraced Houses, De Akkers](examples://showcase-rijwoningen-de-akkers.ifc): a deliberately tight deadline on *Contractual project handover* (15 July 2027): after calculating, the finish is on 17 August and many tasks have negative float.

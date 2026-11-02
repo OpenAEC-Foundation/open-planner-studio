@@ -42,10 +42,9 @@
 //      — geen symlink, want Windows-CI —, zijn frontmatter heeft een `name` gelijk aan de mapnaam en een
 //      niet-lege `description`, `.gitignore` deelt de kopie, en een gedeelde map in `.claude/skills/`
 //      zonder bron is een wees (behalve de repo-skills; zie `scripts/lib/agent-skills-check.ts`).
-//   11. De agentgids (`public/agent/planning-guide.md`, geen Help-artikel) groeit niet los van het
-//      Help-artikel `gids-goed-plannen`: elk principe (`###` onder de principesectie, nl én en) heeft
-//      via de expliciete koppeltabel in `scripts/lib/agent-guide-coupling.ts` een tegenhanger in de
-//      agentgids, en omgekeerd; de agentgids bevat geen `docs://`-links (alleen volledige URL's).
+//   11. De agentgids (`public/agent/planning-guide.md`, geen Help-artikel) bestaat en bevat geen
+//      `docs://`-, `examples://`- of `project://`-links (alleen volledige URL's); zie
+//      `scripts/lib/agent-guide-links.ts`.
 //   10. Elk artikel-id dat de app gebruikt — elke stringexport van src/state/helpArticles.ts en elke
 //      `docsId` in src/services/updater/releaseHighlights.ts — bestaat in het manifest (als artikel
 //      of alias) en is in productie zichtbaar (geen draft). Een `#anker` erin moet in nl én en
@@ -65,7 +64,7 @@ import * as APP_HELP_ARTICLES from '@/state/helpArticles';
 import { RELEASE_HIGHLIGHT_CATALOG } from '@/services/updater/releaseHighlights';
 import { stripCode, subsetErrors } from './lib/docs-structure';
 import { checkOptionalDocLang, optionalLangReportLine } from './lib/docs-translations';
-import { AGENT_GUIDE_FILE, checkAgentGuideLinks, checkPrincipleCoupling } from './lib/agent-guide-coupling';
+import { AGENT_GUIDE_FILE, checkAgentGuideLinks } from './lib/agent-guide-links';
 import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from './lib/agent-skills-check';
 
 const ROOT = process.cwd();
@@ -546,8 +545,8 @@ function checkSkillCopies(diffs: string[]): void {
 }
 
 /**
- * Poort 11 — de agentgids groeit niet los van het Help-artikel "Goed plannen" (zie
- * `scripts/lib/agent-guide-coupling.ts` voor het waarom en de koppeltabel).
+ * Poort 11 — de agentgids bestaat en linkt alleen met volledige URL's (zie
+ * `scripts/lib/agent-guide-links.ts` voor het waarom).
  */
 function checkAgentGuide(diffs: string[]): void {
   const agentPath = join(ROOT, AGENT_GUIDE_FILE);
@@ -555,14 +554,7 @@ function checkAgentGuide(diffs: string[]): void {
     diffs.push(`ontbreekt: ${AGENT_GUIDE_FILE} (de agentgids die planner_get_planning_guide levert)`);
     return;
   }
-  const id = APP_HELP_ARTICLES.PLANNING_GUIDE_ARTICLE_ID;
-  const read = (lang: string) => {
-    const p = join(DOCS_DIR, lang, `${id}.md`);
-    return existsSync(p) ? readFileSync(p, 'utf8') : '';
-  };
-  const agent = readFileSync(agentPath, 'utf8');
-  diffs.push(...checkPrincipleCoupling({ nl: read('nl'), en: read('en'), agent }));
-  diffs.push(...checkAgentGuideLinks(agent));
+  diffs.push(...checkAgentGuideLinks(readFileSync(agentPath, 'utf8')));
 }
 
 /** Het alias-object van het manifest (leeg als het ontbreekt of geen object is; dat meldt poort 4). */
@@ -671,7 +663,7 @@ function main() {
   checkSupportingDocs(globalDiffs, manifest.articles.filter((a) => a.draft !== true).length);
   // 9. Elke agent-skill heeft één bron (zie checkSkillCopies).
   checkSkillCopies(globalDiffs);
-  // 11. De agentgids heeft voor elk principe van gids-goed-plannen een tegenhanger (zie checkAgentGuide).
+  // 11. De agentgids bestaat en heeft geen helpviewer-links (zie checkAgentGuide).
   checkAgentGuide(globalDiffs);
   // 4 (manifestniveau). Versie en aliassen.
   checkManifestV2(manifest, globalDiffs);

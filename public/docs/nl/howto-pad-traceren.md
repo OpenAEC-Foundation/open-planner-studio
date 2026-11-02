@@ -19,7 +19,7 @@ Selecteer je tijdens het traceren een andere taak, dan volgt het pad de nieuwe s
 ## Het resultaat lezen
 
 - Voorgangers staan in goud, opvolgers in paars. In de Gantt kleuren de balken, in de takenlijst staat links van de rij een streep: effen voor voorgangers, gestreept voor opvolgers. De gekozen taak heeft een omlijning.
-- Een donkerdere kleur, in de takenlijst een dikkere streep met vetgedrukte tekst, markeert de keten van **bepalende** relaties: de relaties die de datums werkelijk bepalen. Wat dat betekent, staat in [Relaties en lag](docs://uitleg-relaties).
+- Een donkerdere kleur, in de takenlijst een dikkere streep met vetgedrukte tekst, markeert de keten van **bepalende** relaties: de relaties die de datums werkelijk bepalen. Wat dat betekent, staat in [Tabelkolommen](docs://ref-tabelkolommen).
 - Alle taken buiten het pad zijn gedimd. Relatielijnen die niet bij het pad horen, zijn vager en gestippeld.
 
 ## Valkuilen en wat de app dan doet
@@ -34,6 +34,6 @@ Selecteer je tijdens het traceren een andere taak, dan volgt het pad de nieuwe s
 
 ## Zie ook
 
-- [Relaties en lag](docs://uitleg-relaties): waarom een relatie bepalend is en hoe de app de startdatum van een taak berekent.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): welke keten het einde van het project bepaalt.
+- [Tabelkolommen](docs://ref-tabelkolommen): waarom een relatie bepalend is en hoe de app de startdatum van een taak berekent.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): welke keten het einde van het project bepaalt.
 - [Relaties leggen](docs://howto-relaties-leggen): een relatie toevoegen als je in het pad een verbinding mist.

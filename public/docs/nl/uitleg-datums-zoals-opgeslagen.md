@@ -106,4 +106,4 @@ Wat als het anders is?
 - [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen): de stappen en meldingen bij een `.xer`-bestand.
 - [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen): de stappen en meldingen bij een `.mpp`-bestand.
 - [Herstellen na een crash](docs://howto-herstellen-na-een-crash): wat er met dit project gebeurt na een crash.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): hoe de app speling en kritiek rekent als ze wél rekent.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): hoe de app speling en kritiek rekent als ze wél rekent.

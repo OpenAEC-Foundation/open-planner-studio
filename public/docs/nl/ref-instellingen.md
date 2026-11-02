@@ -28,7 +28,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Duurweergave** — in welke eenheid de duur van een taak staat. In het OPS-profiel is dit veld grijs: elke taak toont zijn eigen maat. Onder P6 en MSP is de keuze actief. Keuze uit *Automatisch (eigen eenheid per taak)*, *Altijd dagen* en *Altijd uren*. Standaard: *Automatisch (eigen eenheid per taak)*. Effect: in het taakraster, de balklabels van de Gantt, de tooltip, de afdruk en de rapporten. Bij *Automatisch* toont een dagtaak dagen en een urentaak uren. Bij *Altijd dagen* of *Altijd uren* rekent de app om met de uren per dag van de taakkalender en zet, als de eenheid van de taak verschilt, de eigen eenheid erachter tussen haakjes, bijvoorbeeld `2,25d(18u)`. Alleen de weergave verandert; de taak houdt haar eigen eenheid. Waar: *Weergave*.
 
-**Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Weergave*, onder *Duurweergave*. Zie [Dagen en uren](docs://uitleg-dagen-en-uren).
+**Gemengde dag/uur-planning toestaan** — of je per taak de eenheid kiest. Standaard: aan. Effect: aan toont bij elke taak de keuzelijst *Duureenheid* naast de duur. Uit verbergt die keuzelijst. Waar: *Weergave*, onder *Duurweergave*. Zie [Een taak in uren plannen](docs://howto-taak-in-uren-plannen).
 
 **Documentwissel-stijl** — hoe je wisselt tussen geopende projecten. Keuze uit *Horizontale tabbladen*, *Verticale tabbladen* en *Pil*. Standaard: *Horizontale tabbladen*. Effect: bij *Horizontale tabbladen* staat een tabbalk onder het lint; bij *Verticale tabbladen* een projectbalk links; bij *Pil* een kleine projectknop in de titelbalk. Waar: *Weergave*.
 
@@ -36,7 +36,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 ### Onderdeel Gantt
 
-**Alleen werkbare dagen tonen** — comprimeert de tijd-as. Standaard: uit. Effect: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is. De sneltoetsen voor *Spring naar vandaag* en *Passend maken op project* tellen dan ook in werkdagen. Het rapport heeft een eigen vinkje met dezelfde naam, dat los van deze instelling staat. Waar: *Weergave*, onder *Gantt › Tijd-as*.
+**Alleen werkbare dagen tonen** — comprimeert de tijd-as. Standaard: uit. Effect: weekenden en feestdagen uit de projectkalender worden overgeslagen, zodat een taak van 5 werkdagen precies 5 kolommen breed is. Uit toont de Gantt de niet-werkdagen van de projectkalender grijs, ook onder een taak met een eigen kalender; een feestdagblok van drie dagen of meer krijgt zijn naam, bijvoorbeeld *Bouwvak (Noord)*. Aan vallen die grijze dagen en namen weg. De sneltoetsen voor *Spring naar vandaag* en *Passend maken op project* tellen dan ook in werkdagen. Het rapport heeft een eigen vinkje met dezelfde naam, dat los van deze instelling staat. Waar: *Weergave*, onder *Gantt › Tijd-as*.
 
 **Kwartieren tonen bij ver inzoomen** — extra fijne tijdschaal. Standaard: uit. Effect: je kunt verder inzoomen en de uurschaal krijgt een extra kwartierrij. Een urenbalk slepen kan dan op kwartieren snappen in plaats van op hele uren. Waar: *Weergave*, onder *Gantt › Kwartierzoom*.
 
@@ -56,7 +56,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Automatisch berekenen** — rekent de planning door zodra ze verouderd is. Standaard: uit. Effect: uit betekent dat je zelf op *Bereken* drukt (F5). Aan laat de app na een wijziging van taken, relaties of kalender de planning binnen een fractie van een seconde herberekenen. Tijdens een sleepgebaar of terwijl je in een veld typt, wacht de app en rekent hij één keer als je klaar bent. Na een mislukte berekening rekent hij pas opnieuw nadat je iets hebt gewijzigd. Waar: *Planning*, onder *Berekenen*.
 
-**Taaktypes gebruiken** — de taaktype- en werkvelden in de app. Standaard: uit. Effect: aan toont het veld *Taaktype* bij een taak en de kolom voor werk bij de toewijzingen, en maakt de tabelkolom *Taaktype* beschikbaar. Uit verbergt ze; de duur en de inzet blijven staan en het werk rekent mee. Een project dat al taaktype- of werkgegevens bevat, bijvoorbeeld uit een `.mpp`- of `.xer`-bestand, toont ze altijd, ook als de instelling uit staat. Waar: *Planning*, onder *Berekenen*. Zie [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
+**Taaktypes gebruiken** — de taaktype- en werkvelden in de app. Standaard: uit. Effect: aan toont het veld *Taaktype* bij een taak en de kolom voor werk bij de toewijzingen, en maakt de tabelkolom *Taaktype* beschikbaar. Uit verbergt ze; de duur en de inzet blijven staan en het werk rekent mee. Een project dat al taaktype- of werkgegevens bevat, bijvoorbeeld uit een `.mpp`- of `.xer`-bestand, toont ze altijd, ook als de instelling uit staat. Waar: *Planning*, onder *Berekenen*. Zie [Taaktype kiezen](docs://howto-werkregel-kiezen).
 
 ## Tabblad Geavanceerd
 
@@ -98,7 +98,7 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 
 **Spelingsband** — de speling als band achter niet-kritieke balken; niet bij voltooide taken. Standaard: aan. Waar: *Beeld › Balken › Spelingsband*.
 
-**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Balken › Balkkleuren*.
+**Balkkleuren** — waar de kleur van een balk van afhangt. Keuze uit *Kritiek pad*, *Per taak — automatisch* en *Op categorie*. Standaard: *Kritiek pad*. Daarin zijn kritieke balken standaard rood, bijna-kritieke amber en de andere blauw. Effect: geldt voor de Gantt en het rapport tegelijk. Waar: *Beeld › Balken › Balkkleuren*.
 
 **Histogram** — de histogramstrook onder de Gantt. Standaard: uit. Waar: *Resources › Histogram › Histogram*, *Beeld › Panelen › Histogram* of Ctrl+Shift+H. De hoogte van de strook (standaard 160 pixels, tussen 80 en 480) stel je in door de rand te slepen.
 
@@ -118,6 +118,5 @@ Deze keuzes bewaart de app ook op dit apparaat, maar je stelt ze in bij het onde
 
 - [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): de opties die bij een project horen.
 - [Een taak in uren plannen](docs://howto-taak-in-uren-plannen): de duur en de eenheidskeuze.
-- [Dagen en uren](docs://uitleg-dagen-en-uren): hoe de app dagen en uren telt.
-- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): wat *Taaktypes gebruiken* zichtbaar maakt.
+- [Taaktype kiezen](docs://howto-werkregel-kiezen): wat *Taaktypes gebruiken* zichtbaar maakt.
 - [Sneltoetsen](docs://ref-sneltoetsen): alle toetsen van de app, ook die voor zoomen en scrollen.

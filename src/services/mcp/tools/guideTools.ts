@@ -9,11 +9,11 @@
 //
 // AGENTGIDS ≠ HELP-ARTIKEL. Tot oktober 2026 leverde deze tool het Help-artikel voor mensen
 // (`public/docs/<taal>/gids-goed-plannen.md`). Een mens drukt op F5 en klikt in het lint; een agent
-// gebruikt tools en het rekenen gaat vanzelf. Daarom is er nu een aparte, Engelse agentgids
-// (`public/agent/planning-guide.md`) met per principe de tools. Het Help-artikel blijft voor mensen,
-// met id en pad ongewijzigd (oudere app-versies en hun MCP-instructie wijzen er nog naar).
-// `npm run verify:docs` (poort 11) bewaakt dat elk principe van het Help-artikel een tegenhanger in de
-// agentgids heeft.
+// gebruikt tools en het rekenen gaat vanzelf. Daarom is er een aparte, Engelse agentgids
+// (`public/agent/planning-guide.md`) met per principe de tools. Het Help-artikel is sinds november
+// 2026 weg (besluit eigenaar, 2026-11-02: de Help beschrijft alleen hoe de app werkt); het oude id is
+// een alias in het manifest. `npm run verify:docs` (poort 11) bewaakt dat de agentgids geen
+// helpviewer-links bevat.
 //
 // TAAL. Gids en skills zijn alleen Engels (alles wat de agent leest is Engels). De parameter
 // `language` blijft voor oudere clients geaccepteerd, maar verandert de inhoud niet.

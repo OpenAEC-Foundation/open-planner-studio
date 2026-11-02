@@ -1,6 +1,9 @@
 // check-docs-resources-voorbeelden.ts — pint de rekenvoorbeelden uit de gebruikersdocumentatie
-// van het domein Resources & werk (`public/docs/{nl,en}/uitleg-werkregels.md`,
-// `uitleg-nivelleren.md` en de bijbehorende how-to's).
+// van het domein Resources & werk (`howto-werkregel-kiezen`, `howto-overbezetting-oplossen`,
+// `howto-voortgang-bijwerken`, het veld *Taaktype* in `ref-taak-eigenschappen` en de tutorials). Tot
+// november 2026 stonden een deel van de voorbeelden in `uitleg-werkregels`, `uitleg-nivelleren` en
+// `uitleg-voortgang`; die gidsen zijn weg. De blokken hieronder noemen soms nog die oude gids; hun
+// getallen blijven bewust gepind als rekenpin (tutorial 5 en de how-to's gebruiken dezelfde stand).
 //
 // De artikelen noemen wat-als-getallen op het tutorialproject *Aanbouw woning* (stand na tutorial 4,
 // met de resources en toewijzingen van tutorial 5): oplevering 02-09 bij prioriteit Hoog, 25-08 →

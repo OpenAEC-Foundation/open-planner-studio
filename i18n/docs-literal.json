@@ -801,11 +801,6 @@
     "ref-instellingen": [
       "2.25d(18h)"
     ],
-    "uitleg-dagen-en-uren": [
-      "2.25d(18h)",
-      "16h",
-      "37h"
-    ],
     "ref-tabelkolommen": [
       "← 1.2",
       "→ 1.4",
@@ -827,7 +822,10 @@
       "predecessor → successor (FS+2d)"
     ],
     "ref-taak-eigenschappen": [
-      "code — description"
+      "code — description",
+      "16h",
+      "37h",
+      "40h"
     ],
     "ref-ai-tools": [
       "<project name>-<timestamp>.ifc"

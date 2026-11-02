@@ -237,7 +237,7 @@ test('toewijzingstabel: inzet 0.267 toont 0.27, past volledig in het veld op 125
 });
 
 // Gebruikstest #170, G3: de taaktypes-detailregel in de bestandsmelding (.mpp/XER) heeft een EIGEN
-// gidslink naar "Werkregels en werk"; de "Lees meer" van de melding zelf blijft naar het
+// gidslink naar "Taaktype kiezen"; de "Lees meer" van de melding zelf blijft naar het
 // bestand/rekenprofiel wijzen. Fixture: de melding zoals `applyOpenedImport` hem samenstelt.
 test('bestandsmelding: de werkregel-detailregel opent de werkregelgids, niet de rekenprofielgids', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
@@ -247,16 +247,16 @@ test('bestandsmelding: de werkregel-detailregel opent de werkregelgids, niet de 
       messageKey: 'notifications.schedulingProfileApplied',
       params: { profile: 'Primavera P6' },
       helpArticleId: 'uitleg-rekenprofielen',
-      detailLines: [{ messageKey: 'notifications.taskTypesUnlockedDetail', helpArticleId: 'uitleg-werkregels', linkKey: 'notifications.workRulesReadMore' }],
+      detailLines: [{ messageKey: 'notifications.taskTypesUnlockedDetail', helpArticleId: 'howto-werkregel-kiezen', linkKey: 'notifications.workRulesReadMore' }],
     });
   });
-  const link = page.locator('[data-ops-toast-detail-link="uitleg-werkregels"]');
+  const link = page.locator('[data-ops-toast-detail-link="howto-werkregel-kiezen"]');
   await expect(link).toBeVisible();
   await link.click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.backstageSection)).toBe('help');
   const titles = await page.evaluate(async () => {
     const m = await (await fetch(new URL('docs/manifest.json', document.baseURI))).json() as { articles: { id: string; title: Record<string, string> }[] };
-    return m.articles.find(a => a.id === 'uitleg-werkregels')!.title;
+    return m.articles.find(a => a.id === 'howto-werkregel-kiezen')!.title;
   });
   const active = page.locator('.help-toc-item.active');
   await expect(active).toHaveCount(1);
