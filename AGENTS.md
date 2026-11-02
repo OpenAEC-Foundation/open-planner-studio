@@ -110,7 +110,9 @@ Node 22 (see CI). Rust stable only for the `tauri:*` commands.
 Workflows outside `verify` (depth: `ci-release` and `mcp` rules): `headless-api.yml` (HTTP API, container, `cfn-lint`),
 `release-verify.yml` (checks a published release on clean runners: updater `.sig`s, digests, install, signatures),
 `mcpb.yml` (builds the Claude Desktop bundle and checks its manifest with the pinned official `mcpb validate`),
-`windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `mcp-real-app.yml` (MCP
+`windows-sign-check.yml` / `macos-sign-check.yml` (prove signing on a PR, without a tag), `appimage-im-check.yml`
+(builds only the AppImage and checks it ships the IBus/Fcitx input-method modules, issue #764; `release.yml` runs the
+same `scripts/check-appimage-im-modules.sh` before publishing), `mcp-real-app.yml` (MCP
 bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`, `docs/mcp-verificatie.md`.
 
 ## Testing pitfalls
