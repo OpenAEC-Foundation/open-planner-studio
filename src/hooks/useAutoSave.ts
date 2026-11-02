@@ -75,16 +75,20 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         await runRecoveryTick(recoveryDelta, state.activeDocumentId, recoveryDocs, serializer.serialize, enabled);
       } catch (err) {
         if (!enabled()) return;
-        if (notifyRecoveryError(err, useAppStore.getState().notify)) return;
-        console.error('Auto-save failed:', err);
-        // dedupeKey is hier niet optioneel: de auto-save probeert het elke ~10 s opnieuw, dus
-        // zonder samenvouwen levert één aanhoudende schrijffout zes meldingen per minuut op.
-        useAppStore.getState().notify({
-          severity: 'error',
-          messageKey: 'notifications.autoSaveFailed',
-          detail: (err as Error).message,
-          dedupeKey: 'autosave',
-        });
+        if (!notifyRecoveryError(err, useAppStore.getState().notify)) {
+          console.error('Auto-save failed:', err);
+          // dedupeKey is hier niet optioneel: de auto-save probeert het elke ~10 s opnieuw, dus
+          // zonder samenvouwen levert één aanhoudende schrijffout zes meldingen per minuut op.
+          useAppStore.getState().notify({
+            severity: 'error',
+            messageKey: 'notifications.autoSaveFailed',
+            detail: (err as Error).message,
+            dedupeKey: 'autosave',
+          });
+        }
+        // Een melding is geen geslaagde opslag: de expliciete flush vóór een update moet
+        // afwijzen, zodat de updater niet installeert of herstart met onbewaarde wijzigingen.
+        throw err;
       }
     };
 
@@ -105,7 +109,9 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
       timer = setTimeout(() => {
         timer = null;
         lastSaveAt = Date.now();
-        void runAutoSave();
+        // De ronde heeft de fout al gemeld. Alleen de periodieke aanroep vangt de afwijzing
+        // af; een gelijktijdige expliciete flush krijgt dezelfde fout wél terug.
+        void runAutoSave().catch(() => {});
       }, wait);
     });
 

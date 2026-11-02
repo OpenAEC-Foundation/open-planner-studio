@@ -1034,12 +1034,6 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
-    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
-    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
-    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
-    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
-
 261. **Recente bestanden in een sandbox-iframe zonder `allow-same-origin` tonen hoogstens het laatst geopende
     bestand, en na herladen niets.** Gezien bij #582. `src/services/fileAccess/recentFiles.ts` gebruikt de
     stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
@@ -1899,3 +1893,16 @@ en noem het in je rapport of PR-tekst.
      kalender `dag`. Voeg een geval toe met een nachtdienst: ma 00:00–06:00 en di–vr 22:00–06:00. Een anker op ma
      07:00, afgemeld op vr, moet za 06:00 worden. Breid de bestaande tabel `FIXED` uit; een nieuwe testlaag is niet
      nodig. Uit de review van #776 (GPT-6.1-Sol, op 710e547aa, BEVESTIGD, VERVOLG). — B
+
+620. **Een onbekende waarde in `<ScheduleOptions>` van een P6 XML geeft geen melding bij het openen.** De lezer
+     (`src/services/p6/p6xmlScheduleOptions.ts`) geeft zo'n waarde door aan `deriveXerScheduleOptions`; die valt terug
+     op de P6-standaard en noteert een terugval. Bij XER komt die terugval in de importmetadata; bij P6 XML gaat hij
+     verloren. Voorstel: de terugvallen als één regel in de openingsmelding. VERVOLG uit #775. — B
+
+621. **De P6 XML-lezer leest `SuspendDate`/`ResumeDate` en `ResourceList` nog niet.** Een XER draagt onderbreken en
+     hervatten (`p6SuspendResume`) en de resourcelijst wel. Een geopende P6 XML met een onderbroken activiteit rekent
+     daardoor anders dan dezelfde XER. De pariteitstest van #775 heeft geen onderbroken activiteit. VERVOLG uit #775. — S
+
+622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
+     Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel
+     rekent, tot de vertaalstraat ze bijwerkt (`i18n/ui-sources/` mist hun hash). VERVOLG uit #775. — B

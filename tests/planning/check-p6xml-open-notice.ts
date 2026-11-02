@@ -99,12 +99,13 @@ async function main(): Promise<void> {
   eq('6c B: actieve baseline', S().activeBaselineId?.startsWith('p6xml-baseline:200:201'), true);
   const p6Notices = S().ui.notifications.filter(n => n.messageKey.startsWith('notifications.p6xml'));
   eq('6d één verslag', p6Notices.map(n => [n.severity, n.messageKey, n.params]), [['info', 'notifications.p6xmlImportOpened', { count: 2 }]]);
-  eq('6e detailregels', p6Notices[0]?.detailLines?.map(l => [l.messageKey, l.params?.count]), [
+  // Sinds #775 rekent een P6 XML als Primavera P6, zoals een XER: de profielregel staat bovenaan, net als bij XER.
+  eq('6e detailregels', p6Notices[0]?.detailLines?.map(l => [l.messageKey, l.params?.count ?? l.params?.profile]), [
+    ['notifications.schedulingProfileApplied', 'Primavera P6'],
     ['notifications.xerImportProjectsSeen', 3],
     ['notifications.xerImportEmptyProjectsSkipped', 1],
     ['notifications.xerImportBaselinesMaterialized', 2],
     ['notifications.p6xmlImportCrossProjectRelations', 1],
-    ['notifications.p6XmlOpensAsOps', null],
   ]);
   // Integratie ronde 2 (#320 × #330): een relatie tussen projecten is niet overgenomen ⇒ de
   // openingsmelding blijft staan tot het kruisje (`STICKY_OPEN_NOTICE_KEYS`), blijft wel `info`.

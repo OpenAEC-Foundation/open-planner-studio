@@ -112,13 +112,30 @@ function categoriesOf(result: any): string[] {
   return [...(result.warnings[0]?.categories ?? [])];
 }
 
-function expectCategories(label: string, format: string, result: any, expected: readonly string[]) {
+const CATEGORY_ORDER = [
+  'exact-source-bytes', 'unknown-tables-and-fields', 'typed-diagnostics', 'baselines', 'udfs', 'activity-codes', 'notes',
+  'raw-curves-and-assignment-quantities', 'external-links', 'schedule-options-and-provenance',
+  'p6-relation-lag-degradation', 'constraints', 'manual-scheduling', 'hammock-tasks',
+] as const;
+/** #775: een P6 XML heropent als P6, zoals een XER. Een project met een ander profiel verliest bij die export dus
+ *  zijn rekenregels (de exportmelding zegt het ook). De gevallen hieronder gaan over iets anders; ze verwachten die
+ *  categorie er voor P6 XML bij. Een schoon P6-project zonder die categorie staat los getoetst. */
+function forFormat(format: string, expected: readonly string[]): string[] {
+  if (format !== 'p6' || store().project.schedulingProfile?.baseId === 'p6') return [...expected];
+  const all = new Set<string>([...expected, 'schedule-options-and-provenance']);
+  return CATEGORY_ORDER.filter(category => all.has(category));
+}
+
+function expectCategories(label: string, format: string, result: any, rawExpected: readonly string[]) {
+  const expected = forFormat(format, rawExpected);
+  const code = store().xerSourceArchive || store().xerImportMetadata
+    ? 'XER_ONLY_DATA_NOT_EXPRESSIBLE' : 'EXPORT_DATA_NOT_EXPRESSIBLE';
   expect(label, result?.ok === true
     && Array.isArray(result.warnings)
     && (expected.length === 0
       ? result.warnings.length === 0
       : result.warnings.length === 1
-        && result.warnings[0]?.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE'
+        && result.warnings[0]?.code === code
         && result.warnings[0]?.format === format
         && result.warnings[0]?.availability === 'supported-lossy'
         && JSON.stringify(categoriesOf(result)) === JSON.stringify(expected)));
@@ -164,6 +181,13 @@ for (const format of ['mspdi', 'p6'] as const) {
     format, await store().exportAs(format), []);
 }
 expect('een schoon niet-XER-project krijgt geen verliesmelding', dataLossNotifications().length === 0);
+// #775: met het P6-profiel verliest een schoon project bij een P6 XML-export niets; met het OPS-profiel alleen de
+// rekenregels (hierboven via forFormat).
+store().setProject({ schedulingProfile: builtInProfile('p6'), schedulingOptions: { totalFloatMode: 'finish' } });
+expectCategories('p6: een schoon project met het P6-profiel geeft geen verlieswaarschuwing (#775)',
+  'p6', await store().exportAs('p6'), []);
+expect('p6: met het P6-profiel ook geen schedule-categorie', categoriesOf(await store().exportAs('p6')).length === 0);
+resetProject('Schoon niet-XER');
 
 // #554: verlies hangt af van de gegevens, niet van de herkomst. Een native project (geen XER-archief,
 // geen XER-metadata) met een taaknotitie verliest die notitie in elke XML/CSV-export. De envelope draagt
@@ -182,7 +206,7 @@ resetProject('Native met notitie');
       && result.warnings.length === 1
       && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
       && result.warnings[0]?.format === format
-      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['notes']));
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(forFormat(format, ['notes'])));
     expect(`${format}: native project krijgt niet de XER-broninformatiemelding`,
       xerLossNotifications().length === 0);
     const dataLoss = dataLossNotifications();
@@ -260,7 +284,7 @@ resetProject('Native verzameltaak met constraints');
   const p6 = await store().exportAs('p6');
   const p6Xml = captures.at(-1) ?? '';
   expect("p6: constraints op een verzameltaak melden 'constraints' (review ronde 2)",
-    JSON.stringify(nativeLoss(p6)) === JSON.stringify(['constraints']));
+    JSON.stringify(nativeLoss(p6)) === JSON.stringify(forFormat('p6', ['constraints'])));
   const back = readP6XML(p6Xml).tasks.find(task => task.name === 'Fase');
   expect('p6: de verzameltaak leest zonder constraints terug (het verlies is echt)',
     back !== undefined && back.constraint === undefined && back.constraint2 === undefined);
@@ -283,7 +307,9 @@ resetProject('Native handmatig en hammock');
     const result = await store().exportAs(format);
     expect(`${format}: handmatige planning en hammock staan in de envelope (#554)`,
       result.ok === true && result.warnings[0]?.code === 'EXPORT_DATA_NOT_EXPRESSIBLE'
-      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(['manual-scheduling', 'hammock-tasks']));
+      && JSON.stringify(result.warnings[0]?.categories) === JSON.stringify(
+        // P6 XML schrijft een hammock als Level of Effort (#775): geen hammock-categorie.
+        forFormat(format, format === 'p6' ? ['manual-scheduling'] : ['manual-scheduling', 'hammock-tasks'])));
   }
   // XER schrijft een hammock als `TT_LOE` (#393, review ronde 9): geen hammock-categorie, wel handmatig.
   const xerResult = await store().exportAs('xer');
@@ -700,7 +726,8 @@ expect('MPP heeft geen misleidende exportadapter',
 void (() => xerExportTargetVerdict('mpp'));
 
 // ── C7 (rekenprofielen, spec v3.1 §7): het criterium is "overleeft het heropenen via het doelformaat".
-// Alle drie de doelformaten heropenen deze etappe als OPS; een P6-profiel overleeft dat niet.
+// CSV en MSPDI heropenen als OPS; een P6-profiel overleeft dat niet. P6 XML heropent als P6 (#775): daar
+// overleeft een OPS-profiel het niet (C7-03).
 // Mutatiebewijs: de profielregel in hasScheduleLoss weglaten ⇒ C7-01 rood.
 resetProject('Profiel zonder opties');
 store().setProject({ schedulingProfile: builtInProfile('p6') });
@@ -711,6 +738,9 @@ resetProject('OPS zonder opties');
 installXer(makeXerFixture({ sourceBytes: '%T\tTASK\r\n%F\ttask_id\r\n%R\tops\r\n%E' }));
 expect('C7-02 OPS-profiel zonder opties naar CSV ⇒ geen schedule-verlies',
   !categoriesOf(await store().exportAs('csv')).includes('schedule-options-and-provenance'));
+resetProject('OPS zonder opties naar P6 XML');
+expect('C7-03 OPS-profiel naar P6 XML ⇒ schedule-verlies (heropent als P6, #775)',
+  JSON.stringify(categoriesOf(await store().exportAs('p6'))) === JSON.stringify(['schedule-options-and-provenance']));
 
 // ── XER-export (#391): één melding van de XER-writer, nooit daarnaast de algemene XER-bronmelding.
 // De bronverliezen die geen writer terugschrijft (hier: een onbekende tabel) komen als één regel

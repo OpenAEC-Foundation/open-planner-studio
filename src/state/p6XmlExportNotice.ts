@@ -5,14 +5,15 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource, ResourceAssignment } from '@/types/resource';
-import { DEFAULT_WORK_RULE } from '@/types/workRule';
 import { isZeroDurationMilestone } from '@/engine/scheduler/duration';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { exportProfileAdvice } from './exportProfileAdvice';
+import { p6SchedulingRulesDiffer } from '@/services/p6SchedulingRules';
+import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { FORMAT_NOTICE_P6XML_HELP_ARTICLE_ID } from './helpArticles';
 
 export interface P6XmlLossInput {
-  readonly project: Partial<Pick<Project, 'schedulingProfile' | 'defaultWorkRule' | 'author' | 'company'>>;
+  readonly project: Partial<Pick<Project, 'schedulingProfile' | 'schedulingOptions' | 'progressMode' | 'defaultWorkRule' | 'author' | 'company'>>;
   readonly calendars: readonly WorkCalendar[];
   readonly tasks: readonly Task[];
   readonly sequences: readonly Sequence[];
@@ -49,8 +50,10 @@ export function exportP6XmlLossNotice(
 
   const advised = exportProfileAdvice('p6', project.schedulingProfile) !== null;
   fact('notifications.exportXerLossItem.schedulingRules', advised);
-  fact('notifications.exportP6XmlLossItem.schedulingOptions', !advised && categories.includes('schedule-options-and-provenance'));
-  fact('notifications.exportP6XmlLossItem.defaultWorkRule', !!project.defaultWorkRule && project.defaultWorkRule !== DEFAULT_WORK_RULE);
+  // De schrijver zet de rekenopties in `<ScheduleOptions>`, net als de XER-schrijver in SCHEDOPTIONS (#775). Alleen
+  // wat P6 niet kent, gaat verloren: dezelfde toets als de XER-export.
+  fact('notifications.exportP6XmlLossItem.schedulingOptions', !advised
+    && p6SchedulingRulesDiffer(project, effectiveSchedulingOptions(project), tasks));
   item('notifications.exportP6XmlLossItem.baselines', input.baselineCount);
   item('notifications.exportP6XmlLossItem.summaryRelations',
     sequences.filter(seq => summaryIds.has(seq.predecessorId) || summaryIds.has(seq.successorId)).length);
@@ -63,7 +66,6 @@ export function exportP6XmlLossNotice(
     seq.lagUnit === 'ELAPSEDTIME' && !(typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent))).length);
   item('notifications.exportXerLossItem.elapsedDurations', count(t => t.time.durationType === 'ELAPSEDTIME'));
   item('notifications.exportXerLossItem.manualTasks', count(t => !!t.manuallyScheduled));
-  item('notifications.exportP6XmlLossItem.hammocks', count(t => !!t.isHammock));
   item('notifications.exportXerLossItem.durationMilestones', count(t => t.isMilestone && !isZeroDurationMilestone(t)));
   item('notifications.exportXerLossItem.mandatoryMilestones', count(t => t.isMilestone && !!t.mandatory));
   item('notifications.exportXerLossItem.levelingDelays', count(t => (t.levelingDelay ?? 0) !== 0 || (t.levelingDelayMinutes ?? 0) !== 0));
