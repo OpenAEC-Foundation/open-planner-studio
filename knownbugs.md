@@ -1760,6 +1760,17 @@ en noem het in je rapport of PR-tekst.
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
 
+598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
+     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
+     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
+     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
+     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
+     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
+     `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
+     doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
+     opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
