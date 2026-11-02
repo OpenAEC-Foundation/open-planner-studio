@@ -1095,19 +1095,6 @@ en noem het in je rapport of PR-tekst.
      Het tijdsignaal telt in zo'n export niet meer; de vroegere 275 is in #591 opgelost. Gemeten met een probe
      bij het bijwerken van #591 met main. — B
 
-336. **Het bronbestand van een externe koppeling wordt zonder laadgrens gelezen.** `parseExternalSource`
-     (`fileSlice.ts:1385`) leest het bestand met de kale `readIFC`; het anker is dan een datum zonder tijd, en de
-     eigenaar normaliseert die naar de kant van de relatie (`externalAnchorField`, `minuteModel.ts:159`). Twee
-     gevolgen, gemeten met een script op `examples/showcase-groot-terrein-onderaannemer.ifc`:
-     (1) een mijlpaal heeft in de geopende bron één moment (D7), maar het anker valt aan de andere kant van de
-     dag: FS naar de startmijlpaal *Start of subcontractor site works* geeft `2027-03-01T16:00` (bron 07:00), SS
-     naar de eindmijlpaal *Site ready for main contractor paving* geeft `2027-04-06T07:00` (bron 16:00); gewone
-     taken en FS naar een eindmijlpaal kloppen. (2) `refreshExternalAnchors` vergelijkt het opgeslagen moment
-     `2027-04-06T16:00` met de kale `2027-04-06` en meldt `changed` bij een koppeling die al actueel is; dan maakt
-     `refreshExternalAnchorsFrom` een undo-stap en rekent opnieuw (vergelijk 241). Niet in de app-dialoog
-     nagespeeld (Tauri-route). Richting: lees de bron via de laadgrens, zoals `loadState`. Gevonden bij het
-     opnieuw genereren van de voorbeelden (PR #600). — B
-
 337. **De urentaken in De Vaart duren 5 werkdagen in plaats van 4 tot 8 uur.** `scripts/showcase-groot.ts:160-171`
      geeft vlechtwerk en stort per toren `durMinutes` (480, 360, 480, 240) op de uurkalender. `gen-core.ts:193` zet
      alleen `time.durationMinutes`; de taak blijft dagenmaat met de standaardduur 5 (`dur ?? 5`). Gemeten met een
