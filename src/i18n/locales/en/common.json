@@ -327,7 +327,9 @@
     "noWorkingDays": "The calendar has no working days set",
     "invalidDayDuration": "Invalid duration in days for task '{{task}}'",
     "invalidHourDuration": "Invalid duration in hours for task '{{task}}'",
-    "hourTaskWithoutWorkHours": "Hour task '{{task}}' has no valid working hours in its calendar",
+    "hourTaskWithoutWorkHours": "The calendar of hour task '{{task}}' has no valid working hours. In that calendar, check the working days, start, end and break.",
+    "taskWithoutWorkHours": "The calendar of task '{{task}}' has no valid working hours. In that calendar, check the working days, start, end and break.",
+    "noWorkingHours": "The project calendar has no valid working hours. In that calendar, check the start, end and break.",
     "invalidStartDate": "Invalid start date for task '{{task}}'"
   },
   "yes": "Yes",

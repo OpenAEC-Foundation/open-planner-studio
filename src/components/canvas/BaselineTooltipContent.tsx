@@ -5,9 +5,9 @@ import type { BaselineLayer, BaselineLayerSlot } from '@/types/baseline';
 
 /** Issue #391: CSS-kleur per baselineplaats; dezelfde thema-tokens als de tekenlaag. */
 export const BASELINE_SLOT_COLOR: Record<BaselineLayerSlot, string> = {
-  0: 'var(--theme-bar-baseline, #6B7280)',
+  0: 'var(--theme-bar-baseline, #1F2937)',
   1: 'var(--theme-bar-baseline-compare-1, #0891B2)',
-  2: 'var(--theme-bar-baseline-compare-2, #C026D3)',
+  2: 'var(--theme-bar-baseline-compare-2, #A21CAF)',
 };
 
 /** Klein rond kleurstrookje dat laat zien welke baseline (kleur) bedoeld is. */
