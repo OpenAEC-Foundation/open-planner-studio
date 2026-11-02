@@ -1,0 +1,97 @@
+name: CodeQL (advanced)
+
+# CodeQL met dezelfde talen en dezelfde querysuite als de standaardinstelling van GitHub (default setup), maar Rust
+# alleen als de Rust-kant of de pakketlijst wijzigt, en altijd op main en bij de wekelijkse run. Besluit Ethan
+# (2026-11-02, optie 1 uit PR #763): Rust kostte 4 tot 6 min per PR, ook bij een PR die geen Rust raakt.
+#
+# Deze workflow staat UIT tot iemand met beheerrechten twee dingen doet; GitHub verwerkt geen eigen CodeQL-analyse
+# zolang de standaardinstelling aanstaat:
+#   1. code scanning: default setup uitzetten (Settings → Code security, of
+#      `gh api -X PATCH repos/OpenAEC-Foundation/open-planner-studio/code-scanning/default-setup -f state=not-configured`);
+#   2. de repo-variabele OPS_CODEQL_ADVANCED op `true` zetten
+#      (`gh variable set OPS_CODEQL_ADVANCED --body true --repo OpenAEC-Foundation/open-planner-studio`).
+# Een overgeslagen Rust-analyse verschijnt als "Analyze (rust)" met status skipped.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '27 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: changes
+    if: vars.OPS_CODEQL_ADVANCED == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.diff.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Does this run touch Rust or the package list?
+        id: diff
+        run: node scripts/ci-changes.mjs "${{ github.event_name }}" .github/workflows/codeql.yml
+
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    if: vars.OPS_CODEQL_ADVANCED == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: default
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  # Een eigen job met een vaste naam: zo verschijnt een overgeslagen Rust-analyse onder zijn naam.
+  analyze-rust:
+    name: Analyze (rust)
+    needs: changes
+    if: vars.OPS_CODEQL_ADVANCED == 'true' && needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+          build-mode: none
+          queries: default
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:rust

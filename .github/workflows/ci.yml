@@ -48,7 +48,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # Raakt deze run de Rust-kant of de pakketlijst? Buiten een PR altijd ja. Besluit Ethan (2026-11-02, optie 1
+  # uit PR #763): de Windows- en macOS-build draaien alleen dan; de Ubuntu-build altijd. De regel staat in
+  # scripts/ci-changes.mjs, zodat CodeQL hem ook kan gebruiken.
+  changes:
+    name: changes
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.diff.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # De merge-commit van de PR en zijn eerste ouder, de basis.
+          fetch-depth: 2
+
+      - name: Does this run touch Rust or the package list?
+        id: diff
+        run: node scripts/ci-changes.mjs "${{ github.event_name }}" .github/workflows/ci.yml
+
+  # De Tauri-build, als drie eigen jobs met een vaste naam in plaats van één matrix. Een matrixjob die
+  # overslaat verschijnt als `build (${{ matrix.platform }})`; deze jobs verschijnen ook bij overslaan
+  # onder hun eigen naam, als "skipped". De stappen staan één keer, bij build-ubuntu (YAML-anker).
+  build-ubuntu:
+    name: build (ubuntu-22.04)
     # Niet in de browser-only runs (gepland, handmatig) en niet bij een ander label.
     if: >-
       (github.event_name == 'push' || github.event_name == 'pull_request')
@@ -56,17 +82,8 @@ jobs:
     # Bevinding O6: zonder limiet loopt een hangende job door tot de 6-uursgrens
     # van GitHub. De Tauri-build duurt normaal ~15-25 min per OS.
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'ubuntu-22.04'
-          - platform: 'windows-latest'
-          - platform: 'macos-latest'
-
-    runs-on: ${{ matrix.platform }}
-
-    steps:
+    runs-on: ubuntu-22.04
+    steps: &tauri-build-steps
       - uses: actions/checkout@v5
 
       - name: Setup Node.js
@@ -79,7 +96,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Rust targets (macOS universal)
-        if: matrix.platform == 'macos-latest'
+        if: runner.os == 'macOS'
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       # Bevinding O7: de Rust-afhankelijkheden compileerden bij elke run op alle
@@ -92,9 +109,28 @@ jobs:
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: 'src-tauri -> target'
+          # De drie builds zijn sinds 2026-11-02 eigen jobs. Zonder vaste sleutel zou de jobnaam in de
+          # cachesleutel komen en begon elke build één keer koud; `build` was de naam van de oude matrixjob.
+          shared-key: build
+
+      # De gedownloade .deb-pakketten blijven bewaard (besluit Ethan 2026-11-02): dat scheelt het downloaden,
+      # ongeveer 24 s. `apt-get update` en de installatie zelf blijven; is er intussen een nieuwere versie, dan
+      # haalt apt die gewoon op. De sleutel hangt aan de runner-image, die wekelijks wisselt.
+      - name: APT cache key (Ubuntu only)
+        if: runner.os == 'Linux'
+        id: apt-key
+        run: echo "key=apt-debs-v1-$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Restore APT package cache (Ubuntu only)
+        if: runner.os == 'Linux'
+        id: apt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/apt-cache
+          key: ${{ steps.apt-key.outputs.key }}
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         timeout-minutes: 10
         shell: bash
         run: |
@@ -125,10 +161,21 @@ jobs:
           fi
 
           # Eén installatiepoging: een timeout kan dpkg onderbreken; stop dan de job zonder herstel/retry.
-          if ! sudo timeout --verbose --kill-after=10s 5m apt-get "${apt_options[@]}" install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+          # De pakketten komen in ~/apt-cache/archives: wat daar al ligt, downloadt apt niet opnieuw.
+          mkdir -p "$HOME/apt-cache/archives/partial"
+          if ! sudo timeout --verbose --kill-after=10s 5m apt-get "${apt_options[@]}" -o Dir::Cache::archives="$HOME/apt-cache/archives" install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
             echo "::error::APT-installatie mislukt of overschrijdt 5 min; frontendinstallatie en build worden niet gestart."
             exit 1
           fi
+          # apt schrijft als root; de cache-actie leest als de runner-gebruiker.
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/apt-cache"
+
+      - name: Save APT package cache (Ubuntu only)
+        if: runner.os == 'Linux' && steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/apt-cache
+          key: ${{ steps.apt-key.outputs.key }}
 
       # Bevinding O2: `npm install` mag de lockfile bijwerken, dus CI valideerde
       # hem nooit — een out-of-sync lock glipte groen door en klapte pas op de
@@ -138,6 +185,29 @@ jobs:
 
       - name: Build Tauri app
         run: npm run tauri build -- --no-bundle
+
+
+  build-windows:
+    name: build (windows-latest)
+    needs: changes
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
+      && needs.changes.outputs.rust == 'true'
+    timeout-minutes: 45
+    runs-on: windows-latest
+    steps: *tauri-build-steps
+
+  build-macos:
+    name: build (macos-latest)
+    needs: changes
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'pull_request')
+      && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
+      && needs.changes.outputs.rust == 'true'
+    timeout-minutes: 45
+    runs-on: macos-latest
+    steps: *tauri-build-steps
 
   # De `verify`-poort in parallelle delen. `scripts/verify-parts.mjs` leest de stappen RECHTSTREEKS
   # uit `npm run verify` in package.json en deelt ze alleen in; een stap die daar niet is ingedeeld
@@ -160,19 +230,23 @@ jobs:
         include:
           - part: static
             name: static
-          # De planningssuite in drie jobs, elk met het volle aantal kernen: 21 min in één job op een
-          # trage runner. scripts/planning-pool.mjs verdeelt de checks op gemeten duur
+          # De planningssuite in vier jobs, elk met het volle aantal kernen: 21 min in één job op een
+          # trage runner, ~6 min in drie (PR #763), vier sinds besluit Ethan 2026-11-02.
+          # scripts/planning-pool.mjs verdeelt de checks op gemeten duur
           # (tests/planning/check-durations.json); samen dekken de shards alles, en de job `test` telt
           # dat na. Meer of minder shards: alleen deze regels aanpassen.
           - part: planning
-            name: planning 1-3
-            shard: 1/3
+            name: planning 1-4
+            shard: 1/4
           - part: planning
-            name: planning 2-3
-            shard: 2/3
+            name: planning 2-4
+            shard: 2/4
           - part: planning
-            name: planning 3-3
-            shard: 3/3
+            name: planning 3-4
+            shard: 3/4
+          - part: planning
+            name: planning 4-4
+            shard: 4/4
           - part: suites
             name: suites
 
@@ -273,22 +347,34 @@ jobs:
   # alleen groen als elk deel dat in deze run hoort groen is. Elk deel moet precies de verwachte
   # uitkomst hebben: een afgebroken deel is rood, en een deel dat onverwacht overslaat ook. Alleen
   # bij een ander label slaat ook deze job over: die run heeft niets om te beoordelen.
+  # Ook de builds: de Ubuntu-build altijd, Windows en macOS alleen als `changes` zegt dat Rust of de
+  # pakketlijst geraakt is. Een build die overslaat terwijl hij had moeten draaien, is hier rood.
   test:
     if: always() && (github.event.action != 'labeled' || github.event.label.name == 'browsertests')
-    needs: [verify, browser]
+    needs: [verify, browser, changes, build-ubuntu, build-windows, build-macos]
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: All verify parts green
+      - name: All verify parts and builds green
         env:
           VERIFY_RESULT: ${{ needs.verify.result }}
           VERIFY_EXPECTED: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped' }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           BROWSER_EXPECTED: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'browsertests')) && 'success' || 'skipped' }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          UBUNTU_RESULT: ${{ needs.build-ubuntu.result }}
+          BUILD_EXPECTED: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && 'success' || 'skipped' }}
+          WINDOWS_RESULT: ${{ needs.build-windows.result }}
+          MACOS_RESULT: ${{ needs.build-macos.result }}
+          RUST_EXPECTED: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && needs.changes.outputs.rust == 'true' && 'success' || 'skipped' }}
         run: |
           echo "verify: $VERIFY_RESULT (verwacht: $VERIFY_EXPECTED)"
           echo "browser: $BROWSER_RESULT (verwacht: $BROWSER_EXPECTED)"
-          test "$VERIFY_RESULT" = "$VERIFY_EXPECTED" && test "$BROWSER_RESULT" = "$BROWSER_EXPECTED"
+          echo "changes: $CHANGES_RESULT, build ubuntu: $UBUNTU_RESULT (verwacht: $BUILD_EXPECTED)"
+          echo "build windows: $WINDOWS_RESULT, build macos: $MACOS_RESULT (verwacht: $RUST_EXPECTED)"
+          test "$VERIFY_RESULT" = "$VERIFY_EXPECTED" && test "$BROWSER_RESULT" = "$BROWSER_EXPECTED" \
+            && test "$CHANGES_RESULT" = "$BUILD_EXPECTED" && test "$UBUNTU_RESULT" = "$BUILD_EXPECTED" \
+            && test "$WINDOWS_RESULT" = "$RUST_EXPECTED" && test "$MACOS_RESULT" = "$RUST_EXPECTED"
 
       # Elke planningscheck moet precies één keer gedraaid hebben, over alle shards samen. Een check die
       # wegvalt is hier rood, ook als elke shard groen is. Geen setup-node: de runner heeft Node, en dit

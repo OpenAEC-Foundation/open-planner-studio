@@ -300,7 +300,9 @@ async function commandRun(argv) {
     const dir = join(work, 'tmp', String(run.index));
     mkdirSync(dir, { recursive: true });
     run.log = join(logs, `${run.index}.log`);
-    const env = { ...process.env, TMPDIR: dir, TMP: dir, TEMP: dir };
+    // Eén compile-cache voor de hele run (besluit Ethan 2026-11-02): elke bundel draait tot zes keer, en vanaf
+    // de tweede keer slaat Node het compileren over. Node controleert elke cache-entry; een kapotte telt niet.
+    const env = { NODE_COMPILE_CACHE: join(work, 'compile-cache'), ...process.env, TMPDIR: dir, TMP: dir, TEMP: dir };
     if (run.zone !== BASE_ZONE) env.TZ = run.zone;
     for (const pair of run.item.env) {
       const at = pair.indexOf('=');
