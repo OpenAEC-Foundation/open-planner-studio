@@ -46,6 +46,18 @@ verwacht: [download]
 gekregen: [download, install, relaunch]
 ```
 
+De gerichte controles zijn ook na de merge van `main` uitgevoerd:
+
+| Controle | Uitkomst |
+| --- | --- |
+| `bash tests/planning/run.sh check-recovery-worker.ts check-recovery-content.ts check-app-quit.ts` | Exit 0; de herstelregressie slaagt, documentinhoud 59 controles en schoon afsluiten 18 controles. |
+| Dezelfde herstelregressie met `origin/main:src/hooks/useAutoSave.ts` | Exit 1 op de installatieblokkade; daarna de gerepareerde bron met `cp` teruggezet en bytegelijkheid gecontroleerd. |
+| `npm run typecheck` | Exit 0 voor app, scripts en tests. |
+| `node_modules/.bin/eslint src/hooks/useAutoSave.ts` | Exit 0. |
+| `npm run i18n:resolve` na de merge | Exit 0; de sleutelinhoud was al juist, niets gewijzigd. |
+| Vergelijking van de PR-bestandslijsten met de eigen diff | Alleen `knownbugs.md` overlapt: uitsluitend de verplichte verwijdering van 329. |
+| Vergelijking van alle oorspronkelijke meldingsnummers met dit document | Alle 46 aanwezig, zonder dubbelen en met de oorspronkelijke B/S-aanduiding. |
+
 ## Voor Ethan
 
 | Punt | Keuze en advies |
@@ -77,13 +89,16 @@ gekregen: [download, install, relaunch]
 | 476 (B) | Kies wanneer een eigen kopie van P6 een profieladvies krijgt; toon het advies alleen bij een relevant rekenverschil met het ingebouwde P6-profiel. |
 | 509 (B) | Geef akkoord op veranderende voorbeeldbestanden en hun geschreven ids; deel één bronopbouw tussen externe koppeling en bronbestand en laat de controle de echte ids vergelijken. |
 
-## Overgeslagen wegens botsing met een open PR
+## Overgeslagen wegens botsing met een uitgesloten PR
 
 De bestandslijsten van de vijf uitgesloten PR's zijn via GitHub opgehaald. De
 benodigde aanpassing raakt de onderstaande bestanden of routes. Ook waar een
 andere plek voor de fix denkbaar is, wordt het gedeelde punt hier niet tegelijk
 aangepakt. De verplichte verwijdering van het gerepareerde punt 329 uit
 `knownbugs.md` is de enige wijziging in dat gedeelde inventarisbestand.
+Tijdens dit werk is #781 gemerged in `main` (`dd9d7b46c`). Die main is zonder
+conflicten in deze branch gemerged; de afgesproken uitsluiting van die bestanden
+is voor de eigen reparatie aangehouden.
 
 | Punt | Botsing en reden |
 | --- | --- |
