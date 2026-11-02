@@ -53,7 +53,7 @@ import { CPMSolver, type CPMResult, type CPMOptions } from './CPMSolver';
 import {
   assignmentLoadOnPlacement, contourLookup, dayslotLoad, maxUnitsOn, taskLoadPlacement,
 } from './ResourceLoad';
-import { placementFollowsSpan, type PlacementResult } from './workPlacement';
+import { hasManualPlacement, placementFollowsSpan, type PlacementResult } from './workPlacement';
 import { createTaskEngineCache } from './taskEngineCache';
 import { isPinnedComplete, isPinnedInProgress } from './duration';
 import { workdayDateOfInstant } from '@/engine/calendar/workdayRules';
@@ -447,7 +447,7 @@ export function levelResources(
   // eigen datums in de solver en mogen daarom geen nivelleervertraging krijgen.
   const isCompletedTask = (task: Task): boolean => isPinnedComplete(task.time);
   const isInProgressTask = (task: Task): boolean => isPinnedInProgress(task.time);
-  const isImmovableTask = (task: Task): boolean => task.manuallyScheduled === true
+  const isImmovableTask = (task: Task): boolean => hasManualPlacement(task)
     || isCompletedTask(task) || isInProgressTask(task);
 
   // ── Vraag per kandidaat (spec §3.11, review ronde 2 punt 6) ────────────────────────────────────
@@ -683,7 +683,7 @@ export function levelResources(
     const startIso = baseEs(id);
     const start = parseInstant(startIso);
     const demand = demandAt(workById.get(id)!, start);
-    if (taskById.get(id)!.manuallyScheduled) fixedPoolConflicts.set(id, poolConflicts(demand.byRes, demand.days));
+    if (hasManualPlacement(taskById.get(id)!)) fixedPoolConflicts.set(id, poolConflicts(demand.byRes, demand.days));
     // `toPoolLedger: true` — een onverplaatsbare of out-of-scope taak bezet de
     // pool ECHT (ze is per definitie al geplaatst, dus geen "niet-plaatsbaar = geen cascade"-geval).
     // Een lopende taak boekt zo haar ene gezaghebbende plaatsing (de berekende spanne), dezelfde als
@@ -897,7 +897,7 @@ export function levelResources(
   // ook de eerst geboekte pin het conflict met een later geboekte pin terugkrijgt.
   // Geen tweede boeking: booked bevat de eigen vraag al. Nulvraag telt niet als conflict.
   // De vraag komt uit dezelfde gedeelde plaatsing als de boeking (`demandAt` op het boekingsmoment).
-  for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(id => inScope(id) && taskById.get(id)!.manuallyScheduled)]) {
+  for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(id => inScope(id) && hasManualPlacement(taskById.get(id)!))]) {
     const start = pinnedStartDate.get(taskId);
     if (!start) continue;
     const { days: occ, byRes } = demandAt(workById.get(taskId)!, start);
@@ -1205,7 +1205,7 @@ export function levelResources(
 
   /** Past de vraag op plaatsingsdag `i` van deze kandidaat op dag `iso`? Zelfde twee toetsen als
    *  `fits` (projectinzet én poolitem-grootboek), maar voor één dag en zonder reden-sturing. */
-  function dayFits(byRes: Map<string, number[]>, i: number, iso: string): boolean {
+  function dayFits(byRes: Map<string, number[]>, byPool: Map<string, number[]>, i: number, iso: string): boolean {
     for (const [resId, arr] of byRes) {
       if (i >= arr.length) continue; // geen vraag op deze dag voor deze resource
       const amt = arr[i];
@@ -1213,7 +1213,7 @@ export function levelResources(
       if (exceedsCapacity(bookedOn(resId, iso) + amt, capacityOf(resId, iso))) return false;
     }
     if (!ledger) return true;
-    for (const [poolId, demand] of demandByPool(byRes)) {
+    for (const [poolId, demand] of byPool) {
       const amount = demand[i] ?? 0;
       if (amount > 0 && exceedsCapacity(amount, ledger!.residualOn(poolId, iso))) return false;
     }
@@ -1252,7 +1252,8 @@ export function levelResources(
       // het plafond, terwijl de aaneengesloten scan op de STARTgrens stopte).
       // `dayFits` per dag in plaats van `fits`: dezelfde twee toetsen, maar zonder de reden-sturing
       // van `fits` (`poolBlockedOnly`) te raken — die beschrijft de aaneengesloten scan.
-      const index = candidate.days.findIndex((iso, i) => !dayFits(candidate.byRes, i, iso));
+      const byPool = demandByPool(candidate.byRes);
+      const index = candidate.days.findIndex((iso, i) => !dayFits(candidate.byRes, byPool, i, iso));
       // Venstergrens (het FINISH-plafond) — een gebruikerskeuze, GEEN horizon-uitputting. Past alles,
       // dan telt het einde van de plaatsing. Past een dag niet, dan telt die dag: alleen daar kan de
       // plaatsing nog veranderen, en elke pause schuift het einde verder op. Zo bereikt de scan de

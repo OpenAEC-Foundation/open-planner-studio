@@ -34,13 +34,14 @@ const solve = (tasks: Task[], sequences: Sequence[] = []) => solveProject({
 });
 function ledger(capacity: (iso: string) => number, poolOf: Record<string, string> = { r1: 'P', r2: 'P' }) {
   const booked = new Map<string, number>();
+  let poolLookups = 0;
   const result: LevelingPoolLedger = {
-    poolItemOf: id => poolOf[id] ?? null,
+    poolItemOf: id => { poolLookups++; return poolOf[id] ?? null; },
     residualOn: (id, iso) => Math.max(0, capacity(iso) - (booked.get(`${id}/${iso}`) ?? 0)),
     book: (id, iso, units) => booked.set(`${id}/${iso}`, (booked.get(`${id}/${iso}`) ?? 0) + units),
     horizonIso: null,
   };
-  return { result, booked };
+  return { result, booked, get poolLookups() { return poolLookups; } };
 }
 
 let failures = 0;
@@ -78,6 +79,17 @@ check('349: ook een onderbroken plaatsing telt de poolvraag per dag op', () => {
   assert.deepEqual(result.unresolved, {}, 'maandag en woensdag bieden samen een passende plaatsing');
   assert(result.gaps.A?.length, 'dinsdag met slechts één vrije eenheid vereist een onderbreking');
   for (const [key, units] of pool.booked) assert(units <= capacity(key.split('/')[1]), `${key}: overboeking`);
+});
+
+check('349: een lange onderbroken plaatsing groepeert de poolvraag eenmaal per kandidaat', () => {
+  const pool = ledger(iso => iso === '2026-06-02' ? 1 : 2);
+  const tasks = [task('A', undefined, 30)];
+  const result = levelResources(tasks, [], [res('r1'), res('r2')], [assign('A', 'r1'), assign('A', 'r2')],
+    calendar, [], solve(tasks), { constrainToFloat: false, allowSplits: true, overrunCeilingDays: 1, poolLedger: pool.result },
+    neutralSolveOptions());
+  assert.deepEqual(result.unresolved, {});
+  assert(result.gaps.A?.length, 'de te krappe dinsdag vereist een onderbreking');
+  assert(pool.poolLookups <= 20, `de poolkoppeling wordt niet voor elke dag opnieuw opgebouwd (${pool.poolLookups})`);
 });
 
 check('350: een tussenstap zonder resource bewaakt de plaatsingsvolgorde tot na herberekenen', () => {

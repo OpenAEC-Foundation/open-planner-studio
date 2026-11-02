@@ -51,6 +51,24 @@ test('355: effectieve scalaire werkblokken blijven geldig voor een urentaak, ook
   }
 });
 
+test('355: verwijderen blijft geweigerd als de scalaire kalender geen effectieve werkblokken oplevert', async () => {
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  S().setCalendar({
+    id: S().calendar.id, name: 'Afwijkende scalaire velden', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 9, hoursPerDay: 8, holidays: [],
+    workTime: makeBands([1, 2, 3, 4, 5], [{ start: 480, end: 960 }]),
+  });
+  const taskId = S().addTask({ name: 'Vier uur', time: createDefaultTaskTime('2026-06-01T08:00', 4, 'hours') });
+  S().runCPM();
+  const before = S().tasks.find(t => t.id === taskId)!.time.earlyFinish;
+  assertEq(before, '2026-06-01T12:00', 'voorwaarde: de expliciete blokken zijn geldig');
+  const result = await call('planner_update_calendar', { calendars: [{ id: S().calendar.id, workTime: null }] });
+  assert(!result.ok && result.code === 'VALIDATION', 'acht netto uren passen niet in de scalaire spanne van één uur');
+  assert(S().calendar.workTime, 'de geweigerde wijziging houdt de expliciete blokken');
+  assertEq(S().tasks.find(t => t.id === taskId)!.time.earlyFinish, before, 'de taak blijft onaangeroerd');
+});
+
 test('85: statusdatum en afgeleide voortgang zijn gelijk in een batch en in losse calls', async () => {
   const outcomes: unknown[] = [];
   for (const batch of [false, true]) {
