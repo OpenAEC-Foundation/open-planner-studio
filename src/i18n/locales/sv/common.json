@@ -662,7 +662,9 @@
     "missedDeadlines": "{{count}} måldatum passerades",
     "violatedConstraints": "{{count}} restriktion(er) bröts",
     "outOfSequence": "{{count}} samband med framdrift i fel ordning",
-    "overallocated": "{{count}} resurs(er) med överbeläggning"
+    "overallocated": "{{count}} resurs(er) med överbeläggning",
+    "summary_one": "{{count}} varning",
+    "summary_other": "{{count}} varningar"
   },
   "warnings": {
     "title": "Varningar",

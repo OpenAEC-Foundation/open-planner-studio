@@ -662,7 +662,9 @@
     "missedDeadlines": "Пропуснати крайни срокове: {{count}}",
     "violatedConstraints": "Нарушени ограничения: {{count}}",
     "outOfSequence": "Зависимости извън последователността: {{count}}",
-    "overallocated": "Свръхнатоварени ресурси: {{count}}"
+    "overallocated": "Свръхнатоварени ресурси: {{count}}",
+    "summary_one": "{{count}} предупреждение",
+    "summary_other": "{{count}} предупреждения"
   },
   "warnings": {
     "title": "Предупреждения",

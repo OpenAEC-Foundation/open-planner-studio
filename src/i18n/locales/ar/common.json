@@ -906,7 +906,13 @@
     "missedDeadlines": "المواعيد النهائية المتجاوزة: {{count}}",
     "violatedConstraints": "القيود المخالفة: {{count}}",
     "outOfSequence": "العلاقات خارج التسلسل: {{count}}",
-    "overallocated": "الموارد المحمَّلة بشكل زائد: {{count}}"
+    "overallocated": "الموارد المحمَّلة بشكل زائد: {{count}}",
+    "summary_zero": "{{count}} تحذير",
+    "summary_one": "تحذير واحد",
+    "summary_two": "تحذيران",
+    "summary_few": "{{count}} تحذيرات",
+    "summary_many": "{{count}} تحذيرًا",
+    "summary_other": "{{count}} تحذير"
   },
   "warnings": {
     "title": "التحذيرات",
