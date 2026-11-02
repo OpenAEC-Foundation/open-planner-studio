@@ -705,6 +705,18 @@ en noem het in je rapport of PR-tekst.
      met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
      niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
      van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
+597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
+     (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
+     `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
+     Bij 800 × 600 px en een zeer lange baselinenaam is de tooltip ~582 px hoog en begint hij op 603 px, dus buiten
+     beeld. Voorstel: een maximale hoogte met scrollen, of de tooltip boven inkorten. Gevonden in de review van
+     #762 (GPT-6.1-Sol). — B
+600. **VERVOLG: geen blijvende test voor een lettertype dat later laadt in de statusbalk.**
+     `src/components/layout/StatusBar/useStatusFold.ts` meet opnieuw bij `document.fonts` `loadingdone`, maar
+     `tests/browser/statusbar-rows.spec.ts:173–190` wisselt alleen tekstgrootte en lettertype en lokt geen latere
+     fontload uit. Een losse browserproef bevestigt de werking; de repository bewaakt die route nog niet. Voorstel:
+     één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 

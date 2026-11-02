@@ -601,7 +601,8 @@
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件",
     "outOfSequence": "順序違反の関係: {{count}} 件",
-    "overallocated": "{{count}} 件のリソースが過剰割り当て"
+    "overallocated": "{{count}} 件のリソースが過剰割り当て",
+    "summary_other": "警告 {{count}} 件"
   },
   "warnings": {
     "title": "警告",

@@ -784,7 +784,11 @@
     "missedDeadlines": "Premeškané termíny: {{count}}",
     "violatedConstraints": "Porušené obmedzenia: {{count}}",
     "outOfSequence": "Závislosti mimo poradia: {{count}}",
-    "overallocated": "Preťažené zdroje: {{count}}"
+    "overallocated": "Preťažené zdroje: {{count}}",
+    "summary_one": "{{count}} upozornenie",
+    "summary_few": "{{count}} upozornenia",
+    "summary_many": "{{count}} upozornení",
+    "summary_other": "{{count}} upozornení"
   },
   "warnings": {
     "title": "Upozornenia",
