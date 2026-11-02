@@ -2847,6 +2847,17 @@
     "commands.redo": "317d53d568d624a2",
     "commands.zoomIn": "38532e02dbabab1c",
     "commands.zoomOut": "f61db514902f41ec",
+    "native.window": "81827186feb6b06a",
+    "native.quit": "a5dd68fbb951e26b",
+    "native.about": "d8f1f44b19b7cf5a",
+    "native.services": "631c266243f4d095",
+    "native.hide": "aec35250995a3263",
+    "native.hideOthers": "414439f6f21ae12a",
+    "native.showAll": "cbb32f7ea642d4df",
+    "native.closeWindow": "bf910bca92a69036",
+    "native.cut": "08f8688ee1465ec6",
+    "native.fullscreen": "0d437514081c9047",
+    "native.bringAllToFront": "51f1f7bf243f7f34",
     "ribbon.calendarDialog.netHoursPerDay": "71f69c021582c154"
   }
 }

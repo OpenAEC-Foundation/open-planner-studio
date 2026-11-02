@@ -13,6 +13,8 @@ async function shot(page: Page, name: string): Promise<void> {
 test('titelbalk: geen Nieuw/Openen/Opslaan meer, wel Ongedaan/Opnieuw/Automatisch opslaan', async ({ page, ops: _ops }) => {
   const toolbar = page.locator('.quick-access-toolbar');
   await expect(toolbar).toBeVisible();
+  // Native vensterknoppen horen uitsluitend bij de desktopschil, ook op een Mac-browser.
+  await expect(page.locator('.window-controls')).toHaveCount(0);
   // Alleen nog de twee pijlen (en het tandwiel) als icoonknop.
   await expect(toolbar.locator('button.quick-access-btn')).toHaveCount(3);
   await expect(toolbar.locator('button[title="Save as..."]')).toHaveCount(0);
