@@ -18,7 +18,7 @@ import { expect, seedProject, test } from './fixtures/ops';
 
 const MONO_PLACES = [
   'button:disabled', '[aria-disabled="true"]', '.ribbon-btn.disabled', '.ribbon-btn.active', '.ribbon-btn.primary',
-  '.ribbon-split-large.active .ribbon-split-bottom', '.backstage-nav-item.active', '.ops-toast',
+  '.ribbon-split-large.active .ribbon-split-bottom', '.backstage-nav-item.active', '.btn--primary', '.ops-toast',
 ].join(', ');
 
 /** Zichtbare iconen die de regel breken, als "id in klasse-van-de-plek: fout". */
@@ -122,6 +122,25 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.locator('.backstage-nav-icon').first()).toBeVisible();
       expect.soft(await iconColourErrors(page), `Bestand › ${section}`).toEqual([]);
     }
+
+    // Menu Bestand › App-instellingen, elk tabblad (review van Sol op #765, ronde 2: de melding bij de taaktypes
+    // in Planning was helemaal oranje).
+    await setUI(page, { activeRibbonTab: 'file', backstageSection: 'settings' });
+    const tabs = page.locator('.settings-tab');
+    await expect(tabs.first()).toBeVisible();
+    let taskTypesNote = 0;
+    for (let i = 0; i < await tabs.count(); i++) {
+      await tabs.nth(i).click();
+      await expect(tabs.nth(i)).toHaveClass(/\bactive\b/);
+      taskTypesNote += await page.locator('[data-ops-setting-show-task-types-note] svg[data-icon]').count();
+      expect.soft(await iconColourErrors(page), `App-instellingen, tabblad ${i + 1}`).toEqual([]);
+    }
+    expect(taskTypesNote, 'de melding bij de taaktypes is gemeten').toBe(1);
+
+    // Help met een promptblok (knop Prompt kopiëren).
+    await page.evaluate(() => window.__OPS__!.store.getState().openHelpArticle('howto-ai-assistent-koppelen'));
+    await expect(page.locator('[data-help-prompt] svg[data-icon]').first()).toBeVisible();
+    expect.soft(await iconColourErrors(page), 'Help met een promptblok').toEqual([]);
   });
 }
 

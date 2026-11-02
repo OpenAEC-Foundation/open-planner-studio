@@ -27,8 +27,10 @@
 .oa-icon--text-secondary { color: var(--theme-text-dim); }
 
 /* Een melding (toast) heeft een rode of blauwe achtergrond met witte tekst. Oranje en de statuskleur vallen daar
-   weg, dus een icoon tekent daar helemaal in de witte tekstkleur, net als op een gevulde lintknop. */
-.ops-toast .oa-icon {
+   weg, dus een icoon tekent daar helemaal in de witte tekstkleur, net als op een gevulde lintknop. Een primaire knop
+   is ook een oranje vlak: daar verdwijnt het oranje deel, dus ook daar één kleur. */
+.ops-toast .oa-icon,
+.btn--primary .oa-icon {
   color: inherit;
   --icon-accent: currentColor;
 }

@@ -1736,7 +1736,9 @@ en noem het in je rapport of PR-tekst.
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
 
-590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Weghalen
+590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
+     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
+     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
      raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
 
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main

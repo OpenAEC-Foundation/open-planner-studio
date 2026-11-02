@@ -2430,8 +2430,10 @@ body {
 
 /* Inputs (DESIGN-SYSTEM.md §3.2) */
 /* Gekleurd mededelingsblok (eigenaarsvoorkeur "info in gekleurde blokken", gebruikstest #170 E5).
-   OPS-vormtaal: het vlak blijft neutraal; kleur zit in een smalle accentbalk en het icoon. Tint
-   per variant via `--ops-note-accent` (standaard de accentkleur; `--warning` = amber tekstkleur). */
+   OPS-vormtaal: het vlak blijft neutraal; kleur zit in een smalle accentbalk. Tint per variant via
+   `--ops-note-accent` (standaard de accentkleur; `--warning` = amber tekstkleur). Het icoon krijgt die tint
+   niet: grijs is de basis en oranje het accent, dus het houdt de grijze tekstkleur of zijn eigen statuskleur
+   (Blueprint `docs/iconen.md`, "Grijs en oranje"; review van Sol op #765, ronde 2). */
 .ops-note {
   display: flex;
   align-items: flex-start;
@@ -2448,7 +2450,6 @@ body {
 .ops-note > svg {
   flex-shrink: 0;
   margin-top: 1px;
-  color: var(--ops-note-accent, var(--theme-accent));
 }
 .ops-note--warning {
   --ops-note-accent: var(--theme-warning-text);
