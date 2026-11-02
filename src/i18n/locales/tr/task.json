@@ -594,7 +594,8 @@
     "customFieldSuffix": "kullanıcı alanı"
   },
   "tooltip": {
-    "status": "Durum"
+    "status": "Durum",
+    "baselineActive": "aktif"
   },
   "externalLinks": {
     "action": "Dış ilişki…",

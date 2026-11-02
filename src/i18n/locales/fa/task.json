@@ -594,7 +594,8 @@
     "customFieldSuffix": "فیلد سفارشی"
   },
   "tooltip": {
-    "status": "وضعیت"
+    "status": "وضعیت",
+    "baselineActive": "فعال"
   },
   "externalLinks": {
     "action": "رابطه خارجی…",

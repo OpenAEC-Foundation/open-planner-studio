@@ -234,6 +234,11 @@ export async function saveRibbonCompact(value: boolean): Promise<void> {
   await setSetting('ribbonCompact', value);
 }
 
+// Muiswiel boven de lint-tabs wisselt van tab (#688): paneelinstelling (3-plekken-regel), standaard aan.
+export async function saveRibbonWheelSwitchesTabs(value: boolean): Promise<void> {
+  await setSetting('ribbonWheelSwitchesTabs', value);
+}
+
 // Histogramstrook: zichtbaarheid + hoogte zijn view-state (net als
 // leftPanelWidth), geen instellingen — persist via dezelfde ops-prefix, geen 3-plekken-regel.
 export async function saveShowHistogram(value: boolean): Promise<void> {
@@ -338,6 +343,11 @@ function isLayoutOverlays(value: unknown): value is LayoutOverlays {
   if (!flags.every(flag => typeof o[flag] === 'boolean')) return false;
   const colors = o.barColors as Record<string, unknown> | null | undefined;
   if (!colors || typeof colors !== 'object') return false;
+  if (colors.colors !== undefined) {
+    if (!colors.colors || typeof colors.colors !== 'object' || Array.isArray(colors.colors)) return false;
+    const custom = colors.colors as Record<string, unknown>;
+    if (!['critical', 'nearCritical', 'normal'].every(key => custom[key] === undefined || (typeof custom[key] === 'string' && /^#[0-9a-f]{6}$/i.test(custom[key] as string)))) return false;
+  }
   if (colors.mode === 'critical' || colors.mode === 'auto') return true;
   const field = colors.field as Record<string, unknown> | null | undefined;
   return colors.mode === 'category' && !!field && typeof field === 'object' && typeof field.src === 'string';

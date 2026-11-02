@@ -537,7 +537,7 @@ function progressSheetBytes(
   return makeWorkbook({ rows: headerXml + body });
 }
 
-// ── taken + de STUB-planner (zelfde vorm als check-progress-import-csv.ts) ───────────────────
+// ── taken + de STUB-planner (zelfde vorm als check-progress-sheet-values.ts) ───────────────────
 let taskSeq = 0;
 function baseTask(id: string, start: string, durationDays: number): Task {
   taskSeq++;

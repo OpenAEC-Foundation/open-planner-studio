@@ -6,7 +6,7 @@ Elk rapport op het tabblad *Rapport*, met de opties die erbij horen: wat ze doen
 
 Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage* met de keuzelijst *Rapporttype*, het blok *Overzicht* met tellingen, het blok *Instellingen* of *Rapportopties* en onderaan de knop *Exporteer PDF*. Rechts staat het voorbeeld. Wat je in het voorbeeld ziet, komt in de PDF.
 
-**Rapporttype** — welk rapport je ziet. Keuze uit elf rapporten. Standaard: *Gantt-afdruk*. Waar: *Rapport*, bovenaan de kolom *Rapportage*.
+**Rapporttype** — welk rapport je ziet. Keuze uit twaalf rapporten. Standaard: *Gantt-afdruk*. Waar: *Rapport*, bovenaan de kolom *Rapportage*.
 
 **Exporteer PDF** — maakt de PDF. Effect: er komt alleen een PDF; de app stuurt niets naar een printer. Is de planning verouderd, dan rekent de app eerst door. Geeft de berekening een fout, bijvoorbeeld door een kring in de relaties, dan maakt de knop geen bestand en toont hij de fout. Waar: *Rapport*, onderaan de kolom *Rapportage*.
 
@@ -123,6 +123,26 @@ Waar het project staat op de statusdatum. Opties onder *Rapportopties*.
 **Near-critical ≤ (wd):** — Standaard: 5. Zoals bij de Look-ahead.
 
 Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baseline-einde*, *Prognose-einde*, *Δ einde (wd)*, *Gepland* (met *(baseline)* of *(huidige planning)*), *Werkelijk*, de tellingen *Voltooid*, *In uitvoering*, *Niet gestart*, *Achterstallig* en *Kritiek*. Gepland en werkelijk zijn gewogen naar de duur van de taken. Gepland meet tegen de baseline als er een actieve baseline is, anders tegen de huidige planning. De secties zijn *Voltooid in de afgelopen periode*, *In uitvoering*, *Start in de komende periode*, *Achterstallig* en *Kritieke open activiteiten*; een taak kan in meer dan één sectie staan. Elke sectie heeft dezelfde kolommen: *WBS*, *Naam*, *Baseline-einde*, *Prognose-einde*, *Volt.*, *Rest*, *TF (wd)*, *Kritiek* en *Status*. De status per rij is *Voltooid*, *In uitvoering*, *Niet gestart*, *Had moeten starten* of *Had moeten eindigen*.
+
+## Voortgangscurve
+
+Hoe het project ervoor staat, in één blad: vier kerncijfers, een S-curve van de voortgang en de taken met risico. Dit rapport heeft geen eigen opties, alleen *Papier:* en *Oriëntatie:*.
+
+Het blok *Overzicht* toont *Statusdatum*, *Baseline-einde*, *Prognose-einde* en *Δ einde (wd)*. Daaronder staan vier kerncijfers:
+
+- *Gereed* — de werkelijke voortgang, gewogen naar de duur van de taken. Eronder staat de geplande voortgang op de statusdatum. Zonder baseline komt *gepland* uit de huidige planning en staat er *(huidige planning)* achter. Het getal is rood als je achterloopt op de planning.
+- *Te laat* — open taken die volgens de planning al hadden moeten starten of eindigen, of die later eindigen dan de baseline. Eronder staat hoeveel daarvan kritiek zijn.
+- *Negatieve speling* — open taken met een totale speling onder nul. Eronder staat de grootste negatieve speling.
+- *Volgende mijlpaal* — de eerste open mijlpaal, met de datum en over hoeveel kalenderdagen. Ligt de mijlpaal al voor de statusdatum, dan staat er hoeveel dagen geleden, in rood.
+
+De S-curve toont de cumulatieve voortgang van 0 tot 100 %, gewogen naar duur:
+
+- *Gepland (baseline)* — gestippeld: de voortgang volgens de actieve baseline. Zonder baseline is er geen geplande lijn.
+- *Werkelijk* — doorgetrokken, tot de statusdatum. De app bewaart geen voortgang per week. De lijn is daarom een benadering: per taak loopt de voortgang gelijkmatig van de werkelijke start tot de huidige voltooiing.
+- *Doelband: vroegste tot laatste data* — het gebied tussen de voortgang als elke taak op haar vroegste data loopt, en als elke taak op haar laatste data loopt. Ligt *Werkelijk* onder de band, dan loop je achter op wat nog zonder vertraging kan. Is de planning nog niet berekend, dan is er geen band en staat er een lijn *Vroegste data*.
+- *Statusdatum* — een verticale lijn.
+
+De tabel *Risicotaken: te laat of negatieve speling* toont de open taken uit *Te laat* en *Negatieve speling*, de laagste speling eerst. De kolommen zijn *WBS*, *Naam*, *Baseline-einde*, *Prognose-einde*, *Δ einde (wd)*, *TF (wd)*, *Kritiek* en *Te laat*.
 
 ## Planningsgezondheid
 

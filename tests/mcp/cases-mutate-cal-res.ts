@@ -483,6 +483,26 @@ test('level_resources dryRun: store byte-identiek + VOLLEDIG LevelingResult in d
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'dryRun pusht geen undo-snapshot');
 });
 
+test('level_resources: botsende pins melden conflictdagen zonder verplichte zoekreden (322)', async () => {
+  const { a, b, r } = levelingFixture();
+  store.getState().updateTask(a, { priority: 1000 });
+  store.getState().updateTask(b, { priority: 1000 });
+  const movable = addTask('Verplaatsbaar', 1);
+  store.getState().assignResource(movable, r, 1);
+  store.getState().runCPM();
+  const before = JSON.stringify(createSnapshot(store.getState()));
+  const data = okData(await call('planner_level_resources', { constrainToFloat: false, dryRun: true }, makeCtx()));
+  for (const id of [a, b]) {
+    assert(data.unresolved[id].length > 0, 'pinconflictdagen staan in unresolved');
+    assertEq(data.unresolvedReasons[id], undefined, 'geen zoekreden verzonnen voor pin');
+  }
+  assert(data.warnings.some((w: string) => w.includes('Pinned tasks') && w.includes('no search reason')),
+    'waarschuwing legt ontbrekende zoekreden bij pins uit');
+  assert(data.warnings.some((w: string) => w.includes('`unresolved` for conflict dates')),
+    'waarschuwing verwijst naar de aanwezige conflictdagen');
+  assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'preview laat document ongewijzigd');
+});
+
 test('level_resources apply: delays geschreven, ÉÉN undo-stap, before/after gerapporteerd', async () => {
   const { b } = levelingFixture();
   const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;

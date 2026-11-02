@@ -32,7 +32,7 @@ You have two places.
 
 You can use a code type or custom field to filter, group and sort. You set that up with a layout: *View › Layout › New layout*. In the window, tick the parts you want to capture. With *Save* you get a button in *View › Layout* that you can click again later; with *Apply without saving* you only put it on screen now. When grouping, tasks without a value go under *(none)*.
 
-For the bar colour choose *View › Baselines & progress › Bar colors*, then *By category* and the code type. Each bar then gets the *Colour* of its value.
+For the bar colour choose *View › Bars › Bar colors*, then *By category* and the code type. Each bar then gets the *Colour* of its value.
 
 ## Pitfalls and what the app does
 

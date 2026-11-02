@@ -18,7 +18,7 @@ The resource panel is where you manage resources: who and what is available, wit
 
 The table of what this project uses. Each row is a resource. Changes to text and rate take effect as soon as you leave the field and count as one step under *Undo*.
 
-- **Color** — a colour picker. Default: the first free colour from the palette. Effect: the colour of the resource accent under the Gantt bars (*View › Baselines & progress › Resource accent*) and of the swatch in the dock.
+- **Color** — a colour picker. Default: the first free colour from the palette. Effect: the colour of the resource accent under the Gantt bars (*View › Bars › Resource accent*) and of the swatch in the dock.
 - **Name** — the name of the resource. An empty name is not kept; the field falls back to the old name.
 - **Type** — *Labor*, *Equipment*, *Material*, *Subcontractor* or *Crew*. Default for a new resource: *Labor*. Effect: *Material* has a *Unit* and does not count in the *All resources* sum of the histogram; leveling skips material. *Crew* can be chosen as the *Crew* of other resources. The other types calculate the same.
 - **Max units** — how much of the resource is available per day, a number above 0 (fractions are allowed). Default: 1. Effect: the capacity per day. If the load is higher, the resource is overallocated. The arrow next to it unfolds the *Time-phased capacity*; the number by the arrow is the number of steps.

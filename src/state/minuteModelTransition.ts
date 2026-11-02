@@ -4,7 +4,7 @@ import { snapshotOfPayload } from './snapshot';
 import { recordSessionHistoryDeltas } from './sessionHistory';
 import type { DocumentPayload } from './documentContract';
 import type { RecordedDates, RecordedTime } from '@/engine/scheduler/recordedDates';
-import { applyRecordedTimesToTasks, shiftedTaskIds } from '@/engine/scheduler/recordedDates';
+import { applyRecordedTimesToTasks, captureHammockDuration, shiftedTaskIds } from '@/engine/scheduler/recordedDates';
 import { cloneTasksForSolve } from '@/engine/scheduler/solveProject';
 import { DayClockCache, normalizeTaskDate, taskDateContext } from './migrations/minuteModel';
 import { shownStart, shownFinish } from '@/utils/taskDates';
@@ -41,6 +41,7 @@ export function currentRecordedTimes(payload: Pick<DocumentPayload, 'tasks'>): R
     times[t.id] = { start: shownStart(t), finish: shownFinish(t),
       lateStart: t.time.lateStart, lateFinish: t.time.lateFinish,
       totalFloat: t.time.totalFloat, freeFloat: t.time.freeFloat, isCritical: t.time.isCritical,
+      ...(t.isHammock ? { hammockDuration: captureHammockDuration(t) } : {}),
       // De getoonde minuten gaan mee: `applyRecordedTimesToTasks` neemt de minuten uit de vastlegging.
       ...(t.time.totalFloatMinutes !== undefined ? { totalFloatMinutes: t.time.totalFloatMinutes } : {}),
       ...(t.time.freeFloatMinutes !== undefined ? { freeFloatMinutes: t.time.freeFloatMinutes } : {}) };

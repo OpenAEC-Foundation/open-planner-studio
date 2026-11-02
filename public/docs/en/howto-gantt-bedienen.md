@@ -17,6 +17,13 @@ If the task has a predecessor, the app records the new start as the constraint *
 
 If you drag mostly up or down instead of sideways, you move the task to another row and the dates stay. The direction you choose in the first few pixels applies to the whole drag, so one gesture never changes dates and structure at the same time. See [Adjusting the structure](docs://howto-structuur-aanpassen).
 
+You move a milestone (the diamond) the same way: press on the diamond and drag sideways. It stays a milestone without duration. A milestone has no edges, so you cannot change its duration. Where the diamond lands depends on the zoom and on the side of the milestone:
+
+- If you see days, the diamond moves per working day. If it was at the end of a working day, it lands at the end again, also on a shorter day. If it was at the start, it lands at the start. If you let go on a day off, it moves on to the first working day in the direction you dragged.
+- If you see hours, the diamond moves per hour or per quarter of an hour, to the time under the mouse. If that time is outside working time, a milestone on the finish side goes back to the end of the working time before it. A milestone on the start side goes on to the start of the next working time.
+
+A finish milestone is on the finish side. In the scheduling profile *Open Planner Studio*, a milestone without predecessor and without successor is also on the finish side. Any other milestone with a predecessor is on the start side: the app records the new date as *SNET*, and that holds it there. So the diamond stays where you let go after *Calculate* (F5). You cannot drag a summary task: its dates follow from the tasks below it.
+
 ### Adjusting the duration
 
 1. Move the mouse to the right edge of the bar. The cursor becomes an arrow pointing left and right.
@@ -56,7 +63,7 @@ More about selecting is in [Selecting, deleting and undoing tasks](docs://howto-
 
 The further you zoom out, the fewer grid lines there are. At 8 pixels per day or more there is a line for every day, with a thicker line at the week boundary. Between 2 and 8 pixels per day only the week boundary remains. Below 2 pixels per day, at year level, only the month boundaries are left. Otherwise the canvas would become an even stripe pattern in which the bars disappear. The grey weekends and days off, and the week bands that are tinted alternately, stay at every level; they carry the week structure when the lines drop out. In the timeline header the week numbers and day numbers only appear when there is room for them, and from 40 pixels per day the weekday is shown before the day number as well.
 
-The task name is shown in the bar if it fits completely. If it does not fit, for example when you zoom out, the full name is shown to the right of the bar.
+The task name is shown in the bar if it fits completely. If it does not fit, for example when you zoom out, the full name is shown to the right of the bar. For a summary task the name is always shown to the right of the bar, even if it would fit.
 
 ### Looking at the details of a task
 

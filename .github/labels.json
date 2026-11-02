@@ -127,6 +127,16 @@
       "description": "Wayfinder-vraag: een kleine klus die het onderzoek verder helpt"
     },
     {
+      "name": "browsertests",
+      "color": "0e8a16",
+      "description": "Draait de browsersuite in de CI op deze PR, ook bij elke volgende push"
+    },
+    {
+      "name": "browsertests-reparatie",
+      "color": "b60205",
+      "description": "De reparatie van de browsertests loopt; zolang dit issue open is, wacht de release"
+    },
+    {
       "name": "good first issue",
       "color": "7057ff",
       "description": "Geschikt als eerste bijdrage aan het project"

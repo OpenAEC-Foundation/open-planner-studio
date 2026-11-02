@@ -23,7 +23,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **WBS** — de WBS-code. Bewerkbaar en verplicht, maar alleen-lezen zolang *WBS auto* aan staat.
 - **Werksoort** — de werksoort (*Bouw*, *Installatie*, *Sloop*, *Logistiek*, *Keuring/Inspectie*, *Verplaatsing*, *Renovatie*, *Onderhoud* of *Overig*). Bewerkbaar met een keuzelijst.
 - **Eigen werksoort** — de eigen werksoort uit het project, of een streepje. Bewerkbaar met een keuzelijst van de eigen werksoorten van het project.
-- **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. Hij wordt in het IFC-bestand bewaard, maar geen balk of rapport gebruikt hem; balkkleuren stel je in bij *Beeld › Baselines & voortgang › Balkkleuren*.
+- **Kleur** — de bewaarde kleur van de taak, als kleurcode zoals `#1a73e8`. Bewerkbaar met een kleurkiezer. Hij wordt in het IFC-bestand bewaard, maar geen balk of rapport gebruikt hem; balkkleuren stel je in bij *Beeld › Balken › Balkkleuren*.
 - **Aantekeningen** — de aantekeningen als `✓ tekst; ○ tekst`. Bewerkbaar zolang er hoogstens één aantekening is (je bewerkt dan de tekst ervan); bij meer aantekeningen alleen-lezen.
 
 ## Planning

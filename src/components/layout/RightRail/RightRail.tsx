@@ -6,9 +6,11 @@ import { inlineDirectionOf, panelWidthAtPointer, useSplitter } from '@/hooks/use
 import { TaskPropertiesPanel } from '@/components/panels/TaskPropertiesPanel';
 import { ResourcePanelCompact } from '@/components/panels/ResourcePanelCompact';
 import { WarningsPanel } from '@/components/panels/WarningsPanel';
+import { ScheduleShiftPanel } from '@/components/panels/ScheduleShiftPanel';
 import { HelpButton } from '@/components/common/HelpButton';
 import {
-  RESOURCE_PANEL_HELP_ARTICLE_ID, TASK_PROPERTIES_HELP_ARTICLE_ID, WARNINGS_HELP_ARTICLE_ID,
+  RESOURCE_PANEL_HELP_ARTICLE_ID, SCHEDULE_SHIFT_HELP_ARTICLE_ID, TASK_PROPERTIES_HELP_ARTICLE_ID,
+  WARNINGS_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 import {
   RIGHT_PANEL_MIN_WIDTH,
@@ -54,6 +56,9 @@ const AIActivityPanel = lazy(() => import('@/components/panels/AIActivityPanel')
  * waarschuwingensectie een vaste hoogte en verdeelt de stapel erboven de rest volgens het
  * model; staat alleen dit paneel aan, dan vult het de hele rail. Zelfde aan/uit-mechaniek
  * (lintknop Beeld → Panelen, statusbalk, ✕ in de kopbalk), zelfde `setUI`-invarianten.
+ *
+ * Het paneel Verschuivingen (#742, `showScheduleShiftPanel`) deelt die sectie: dezelfde hoogte en
+ * dezelfde sleepgrens. Staan beide aan, dan verdelen ze de sectie gelijk.
  */
 export function RightRail() {
   const { t } = useTranslation('common');
@@ -66,6 +71,7 @@ export function RightRail() {
   const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
   const propsHeight = useAppStore(s => s.ui.railPropertiesHeight);
   const showWarningsPanel = useAppStore(s => s.ui.showWarningsPanel);
+  const showScheduleShiftPanel = useAppStore(s => s.ui.showScheduleShiftPanel);
   const warningsHeight = useAppStore(s => s.ui.railWarningsHeight);
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
   const debugTerminalOpen = useAppStore(s => s.ui.debugTerminalOpen);
@@ -76,6 +82,8 @@ export function RightRail() {
    *  vervangt de hele werkruimte en komt hier niet langs — App.tsx rendert deze rail dan niet.) */
   const dockOn = showResourcePanel && resourcePanelDocked;
   const bothOn = showPropertiesPanel && dockOn;
+  /** Staat er iets in de sectie onder de stapel? */
+  const bottomOn = showWarningsPanel || showScheduleShiftPanel;
   /** Staat er iets in de stapel bóven het waarschuwingenpaneel? */
   const stackOn = showPropertiesPanel || dockOn;
   /** Aantal panelen in die stapel — bepaalt de ondergrens die de waarschuwingssectie moet laten. */
@@ -143,10 +151,12 @@ export function RightRail() {
   // paneel als er één aan staat, en anders het verzamelwoord "Panelen" (`menu:ribbon.panels`,
   // dezelfde term als de lintgroep waar de schakelaars staan).
   if (rightPanelCollapsed) {
-    const onCount = [showPropertiesPanel, dockOn, showWarningsPanel].filter(Boolean).length;
+    const onCount = [showPropertiesPanel, dockOn, showWarningsPanel, showScheduleShiftPanel].filter(Boolean).length;
     const label = onCount > 1
       ? tMenu('ribbon.panels')
-      : dockOn ? t('resource.compact.title') : showWarningsPanel ? t('warnings.title') : t('properties');
+      : dockOn
+        ? t('resource.compact.title')
+        : showWarningsPanel ? t('warnings.title') : showScheduleShiftPanel ? t('scheduleShift.title') : t('properties');
     return (
       <button
         onClick={() => setUI({ rightPanelCollapsed: false })}
@@ -189,7 +199,7 @@ export function RightRail() {
       // (vaste hoogte) zou een lage rail anders de hele stapel tot 0 px knijpen — de flex-basis van
       // deze wrapper is 0, dus zonder klem absorbeert hij álle negatieve ruimte (zie de meting in
       // `RailPanel` hieronder; die klem zit één niveau te diep om dit te vangen).
-      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: showWarningsPanel ? `${stackCount * 2}rem` : 0 }}>
+      <div ref={stackRef} className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: bottomOn ? `${stackCount * 2}rem` : 0 }}>
         {showPropertiesPanel && (
           <RailPanel
             id="properties"
@@ -267,7 +277,7 @@ export function RightRail() {
       </div>
       )}
 
-        {stackOn && showWarningsPanel && (
+        {stackOn && bottomOn && (
           // Grijpzone tussen de stapel en het waarschuwingenpaneel — zelfde vorm als de
           // stapelgrens hierboven (geen eigen balk, alleen een cursor).
           <div
@@ -278,13 +288,20 @@ export function RightRail() {
           </div>
         )}
 
+        {bottomOn && (
+          <div
+            className="flex flex-col overflow-hidden"
+            style={stackOn
+              ? { flex: '0 1 auto', height: warningsHeight, minHeight: '2rem' }
+              : { flex: '1 1 0', minHeight: '2rem' }}
+            data-ops-rail-bottom
+          >
         {showWarningsPanel && (
           <RailPanel
             id="warnings"
             title={t('warnings.title')}
             withTopBorder={stackOn}
-            fixedHeight={stackOn ? warningsHeight : undefined}
-            grow={!stackOn}
+            grow
             // Staat er niets boven, dan is dit de bovenste kopbalk en hoort de rail-knop hier.
             onCollapseRail={stackOn ? undefined : () => setUI({ rightPanelCollapsed: true })}
             collapseRailTitle={t('sidebar.collapseRail')}
@@ -304,6 +321,33 @@ export function RightRail() {
           >
             <WarningsPanel />
           </RailPanel>
+        )}
+        {showScheduleShiftPanel && (
+          <RailPanel
+            id="schedule-shift"
+            title={t('scheduleShift.title')}
+            withTopBorder={stackOn || showWarningsPanel}
+            grow
+            onCollapseRail={stackOn || showWarningsPanel ? undefined : () => setUI({ rightPanelCollapsed: true })}
+            collapseRailTitle={t('sidebar.collapseRail')}
+            actions={
+              <>
+              <HelpButton articleId={SCHEDULE_SHIFT_HELP_ARTICLE_ID} size={14} />
+              <button
+                onClick={() => setUI({ showScheduleShiftPanel: false })}
+                title={t('scheduleShift.close')}
+                className="p-0.5 hover:bg-surface-hover rounded text-text-secondary"
+                data-ops-shift-close
+              >
+                <X size={14} />
+              </button>
+              </>
+            }
+          >
+            <ScheduleShiftPanel />
+          </RailPanel>
+        )}
+          </div>
         )}
       </div>
 
@@ -356,7 +400,7 @@ function RailPanel({
       className={`flex flex-col overflow-hidden${withTopBorder ? ' border-t border-border' : ''}`}
       style={style}
       data-ops-rail-panel={id}
-      // Vast anker voor rondleiding en extensie-begeleiding: `rail:properties|resources|warnings`.
+      // Vast anker voor rondleiding en extensie-begeleiding: `rail:properties|resources|warnings|schedule-shift`.
       data-tour-anchor={`rail:${id}`}
     >
       <div className="flex items-center h-8 px-3 border-b border-border flex-shrink-0">

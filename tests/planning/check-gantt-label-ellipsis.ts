@@ -9,6 +9,9 @@
 // van de eigen uitgaande relatie, volledig tot OUTSIDE_MAX px en pas daarna met een ellips
 // (GanttRenderer `drawOutsideBarName`).
 //
+// Een samenvattingstaak (fase) draagt zijn naam ALTIJD rechts achter de balk, ook als hij erin zou
+// passen, en nooit op de balk zelf (issue #729).
+//
 // Deze check draait de ECHTE renderer met een opnemende ctx-stub (measureText = 6 px per teken, het
 // bestaande stubpatroon) en controleert per balk welke string er daadwerkelijk de `fillText` in ging.
 //
@@ -79,9 +82,15 @@ const time = {
 const kort: Task = { ...S().tasks[0], id: 'kort', name: KORT, time } as Task;
 const lang: Task = { ...S().tasks[0], id: 'lang', name: LANG, time } as Task;
 
+// Samenvattingen met dezelfde datums: een korte naam die IN de balk zou passen, en een lange.
+const sumKort: Task = { ...kort, id: 'sum-kort', isSummary: true } as Task;
+const sumLang: Task = { ...lang, id: 'sum-lang', isSummary: true } as Task;
+
 const rows: ViewRow[] = [
   { kind: 'task', rowKey: kort.id, task: kort, depth: 0, dimmed: false },
   { kind: 'task', rowKey: lang.id, task: lang, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: sumKort.id, task: sumKort, depth: 0, dimmed: false },
+  { kind: 'task', rowKey: sumLang.id, task: sumLang, depth: 0, dimmed: false },
 ];
 
 const W = 1200, H = 400, ROWH = 28, HDRH = 60, ZOOM = 24;
@@ -140,6 +149,38 @@ if (rectKort && rectLang) {
     // En het BEGIN van de naam blijft staan — dat was juist het leesprobleem.
     ok('het begin van de naam blijft leesbaar', LANG.startsWith(labelLang.text.slice(0, -1)));
   }
+}
+
+// ── Samenvatting: naam altijd achter de balk, nooit erop (issue #729) ──────────
+// `getTaskBarRect` geeft bewust niets voor een samenvatting (niet sleepbaar). Die tekent met dezelfde
+// `barGeometry` als een taakbalk; met dezelfde datums ligt hij dus recht onder 'kort', 2 en 3 rijen lager.
+ok('opzet: geen sleeprechthoek voor een samenvatting', renderer.getTaskBarRect('sum-kort') === null);
+const rijOnder = (r: { left: number; right: number; top: number; bottom: number }, n: number) =>
+  ({ ...r, top: r.top + n * ROWH, bottom: r.bottom + n * ROWH });
+if (rectKort && rectLang) {
+  ok(`opzet: rijhoogte ${ROWH} px (${rectLang.top - rectKort.top})`, rectLang.top - rectKort.top === ROWH);
+  const rectSumKort = rijOnder(rectKort, 2);
+  const rectSumLang = rijOnder(rectKort, 3);
+  const rijY = (r: { top: number; bottom: number }) => (t: TextCall) => t.y > r.top && t.y < r.bottom;
+  const teksten = (r: { top: number; bottom: number }) => texts.filter(rijY(r));
+  const fmt = (r: { top: number; bottom: number }) => JSON.stringify(teksten(r).map(t => [t.text.slice(0, 12), t.x]));
+  // Zelfde datums als de gewone taak 'kort', waar de korte naam wél in de balk staat.
+  ok('opzet: de korte naam zou in de samenvattingsbalk passen', KORT.length * CHAR_W <= (rectSumKort.right - rectSumKort.left) - 10);
+
+  const kortTeksten = teksten(rectSumKort);
+  ok(`samenvatting kort: precies één naam getekend (${fmt(rectSumKort)})`, kortTeksten.length === 1);
+  ok(
+    `samenvatting kort: naam rechts achter de balk, volledig (${fmt(rectSumKort)})`,
+    kortTeksten.some(t => t.text === KORT && Math.abs(t.x - (rectSumKort.right + OUTSIDE_GAP)) < 0.001),
+  );
+  ok('samenvatting kort: geen naam op de balk', !kortTeksten.some(t => t.x < rectSumKort.right));
+
+  const langTeksten = teksten(rectSumLang);
+  ok(`samenvatting lang: precies één naam getekend (${fmt(rectSumLang)})`, langTeksten.length === 1);
+  const sumLabel = langTeksten.find(t => Math.abs(t.x - (rectSumLang.right + OUTSIDE_GAP)) < 0.001);
+  ok(`samenvatting lang: naam rechts achter de balk (${fmt(rectSumLang)})`, sumLabel !== undefined && LANG.startsWith(sumLabel.text.slice(0, -1)));
+  ok('samenvatting lang: ellips pas na de maximale labelbreedte', sumLabel !== undefined && sumLabel.text.endsWith('…') && sumLabel.text.length * CHAR_W <= OUTSIDE_MAX);
+  ok('samenvatting lang: geen naam op de balk', !langTeksten.some(t => t.x < rectSumLang.right));
 }
 
 // ── Uitslag ─────────────────────────────────────────────────────────────────

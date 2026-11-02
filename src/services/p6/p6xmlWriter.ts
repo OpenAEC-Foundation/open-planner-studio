@@ -12,6 +12,7 @@ import { exportCalendarLayout, minutesToClock, taskMinutesForWrite } from '@/ser
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import { projectFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
+import { isOpsInternalProjectId, OPS_INTERNAL_PROJECT_ID_PREFIX } from '@/utils/opsInternalProjectId';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
 import { flattenOrder } from '@/utils/wbs';
 import type { CustomTaskType } from '@/types/taskType';
@@ -21,7 +22,7 @@ import {
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
-import { isElapsedTask, taskDurationUnit } from '@/engine/scheduler/duration';
+import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';
 import { effHoursPerDay } from '@/utils/taskDuration';
 import { computedStart, computedFinish } from '@/utils/taskDates';
 import {
@@ -58,7 +59,7 @@ const OPS_LITERAL_CALENDARS_UDF_OBJECT_ID = 900000007;
 // (21 waarden, MPXJ `XmlContextWriter.writeResourceCurves`) plus `<ResourceCurveObjectId>` op de
 // toewijzing; de naam hieronder is alleen het `<Name>`-veld van dat object. `<PlannedCurve>` is een
 // spreidingsstring (zie `contourIo.ts`), geen curvenaam.
-const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
+export const P6_CURVE_TO_NAME: Record<ResourceCurve, string | undefined> = {
   UNIFORM: undefined,
   FRONT_LOADED: 'Front Loaded',
   BACK_LOADED: 'Back Loaded',
@@ -86,7 +87,7 @@ export const P6_NAME_TO_CURVE: Record<string, ResourceCurve> = {
   'Turtle': 'TURTLE',
 };
 
-function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
+export function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Material' {
   switch (type) {
     case 'LABOR':
     case 'CREW':
@@ -117,7 +118,7 @@ const OPS_DESCRIPTION_TOPIC_OBJECT_ID = 900000002;
  *  op een gewijzigd percentage; P6 laat de status leiden). Een taak die nog loopt op 100 % (`STARTED`
  *  zonder werkelijk einde, zoals de IFC-writer haar herkent) blijft `In Progress`: P6 plant haar rest nog
  *  in (knownbug 114). Met `Completed` zag P6 haar als klaar. */
-function taskStatusToP6(task: Task): string {
+export function taskStatusToP6(task: Task): 'Completed' | 'In Progress' | 'Not Started' {
   const runningAtFull = task.status === 'STARTED' && !task.time.actualFinish;
   if (task.status === 'COMPLETED' || task.time.actualFinish || (task.time.completion >= 1 && !runningAtFull)) return 'Completed';
   if (task.status === 'STARTED' || task.time.actualStart || task.time.completion > 0) return 'In Progress';
@@ -133,7 +134,8 @@ function p6LabelForToken(token: string): string | undefined {
 }
 
 function taskTypeToP6(task: Task): string {
-  if (task.isMilestone) {
+  if (isZeroDurationMilestone(task)) {
+    // Een mijlpaal mét duur kent P6 niet: die blijft hieronder een gewone activiteit met zijn duur.
     // De expliciete soort bepaalt het P6-activitytype; automatisch ⇒ Start Milestone (P6's eigen
     // default bij import).
     return task.milestoneKind === 'FINISH' ? 'Finish Milestone' : 'Start Milestone';
@@ -185,7 +187,7 @@ function standardWorkWeekNode(cal: WorkCalendar): P6Node {
 /** Eén blok van 00:00 tot 24:00 schrijft P6 als `00:00`–`23:59`, en dat betekent in P6 (en in onze
  *  lezer) een VRIJE dag. Een werkende uitzondering van 24 uur gaat daarom als twee blokken
  *  (00:00–11:59 en 12:00–23:59); de lezer voegt aansluitende blokken weer samen. */
-function splitWholeDay(bands: readonly { start: number; end: number }[]): { start: number; end: number }[] {
+export function splitWholeDay(bands: readonly { start: number; end: number }[]): { start: number; end: number }[] {
   if (bands.length === 1 && bands[0].start === 0 && bands[0].end >= 1440) {
     return [{ start: 0, end: 720 }, { start: 720, end: bands[0].end }];
   }
@@ -237,6 +239,7 @@ function holidayOrExceptionsNode(cal: WorkCalendar): P6Node[] {
  *  - Dagenmaat (`lagDays`): dagen × de werktijd per dag van de lagkalender (I7), op de hele minuut, met het
  *    record `[dagen, minuten]` (ook hele dagen: de relatie heeft geen eigen markering). Kalendertijd in
  *    dagen telt in P6 net zo (P6 kent geen kalendertijd per relatie), met `[dagen, minuten, "ed"]`.
+ * De meldingen in de log staan hier; de rekenregel zelf is {@link p6RelationshipLag}.
  */
 function p6Lag(
   seq: Sequence,
@@ -245,19 +248,36 @@ function p6Lag(
   calendar: WorkCalendar,
   minutesPerLagDay: number,
 ): { hours: number; record?: LagRecord } {
+  const lag = p6RelationshipLag(seq, taskById, effCalByTask, calendar, minutesPerLagDay);
+  if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
+    console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${lag.minutes} minuten — P6 kent geen procent-lag.`);
+  } else if (seq.lagUnit === 'ELAPSEDTIME') {
+    console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+  }
+  return { hours: lag.hours, ...(lag.record ? { record: lag.record } : {}) };
+}
+
+/**
+ * De rekenregel van {@link p6Lag}, zonder meldingen: de lag in P6-uren en het lagrecord. Gedeeld met de
+ * XER-schrijver (`xerWriter.ts`), zodat de twee P6-formaten een lag op dezelfde manier schrijven; die telt
+ * zijn verlies zelf. `minutes`: bij een procent-lag de uitgebakken minuten.
+ */
+export function p6RelationshipLag(
+  seq: Sequence,
+  taskById: ReadonlyMap<string, Task>,
+  effCalByTask: ReadonlyMap<string, WorkCalendar>,
+  calendar: WorkCalendar,
+  minutesPerLagDay: number,
+): { hours: number; minutes?: number; record?: LagRecord } {
   const elapsed = seq.lagUnit === 'ELAPSEDTIME';
   if (typeof seq.lagPercent === 'number' && Number.isFinite(seq.lagPercent)) {
     const pred = taskById.get(seq.predecessorId);
     const predCal = pred ? effCalByTask.get(pred.id) ?? calendar : calendar;
     // De voorgangerduur is leidend, in minuten; nooit eerst naar hele dagen afronden (I6).
     const predHpd = pred?.time.durationType === 'ELAPSEDTIME' ? 24 : effHoursPerDay(predCal);
-    const predMinutes = pred && !pred.isMilestone ? taskMinutesForWrite(pred, predHpd) : 0;
+    const predMinutes = pred && !isZeroDurationMilestone(pred) ? taskMinutesForWrite(pred, predHpd) : 0;
     const minutes = Math.round(predMinutes * seq.lagPercent / 100);
-    console.warn(`P6-export: procent-lag (${seq.lagPercent}%) uitgebakken naar ${minutes} minuten — P6 kent geen procent-lag.`);
-    return { hours: minutes / 60 };
-  }
-  if (elapsed) {
-    console.warn('P6-export: kalenderdag-lag geëxporteerd als gewone lag-uren — P6 heeft geen lag-eenheid per relatie.');
+    return { hours: minutes / 60, minutes };
   }
   if (typeof seq.lagMinutes === 'number' && Number.isFinite(seq.lagMinutes)) {
     return {
@@ -657,7 +677,7 @@ export function writeP6XMLWithReport(
       // Taakkalender: effectieve kalender-ObjectId; onbekende/verwijderde calendarId valt terug op 1
       // (projectkalender).
       ...leaf('CalendarObjectId', (task.calendarId && calObjMap.get(task.calendarId)) || 1),
-      ...(durationTypeLabel && !task.isMilestone ? leaf('DurationType', durationTypeLabel) : []),
+      ...(durationTypeLabel && !isZeroDurationMilestone(task) ? leaf('DurationType', durationTypeLabel) : []),
       ...leaf('Id', task.wbsCode || task.id),
       ...leaf('Name', task.name),
       ...leaf('ObjectId', objId),
@@ -831,12 +851,8 @@ export function p6ProjectIdentity(
   };
 }
 
-const OPS_INTERNAL_PROJECT_ID_PREFIX = 'OPS:';
-
 /** Een project-Id dat de OPS-writer zelf maakte (geen code van de gebruiker; `p6ProjectIdentity`). */
-export function isOpsInternalProjectId(id: string): boolean {
-  return id.startsWith(OPS_INTERNAL_PROJECT_ID_PREFIX);
-}
+export { isOpsInternalProjectId };
 
 /**
  * Het interne project-id dat de writer tot en met v2026.9.0 als `<Id>` schreef (`leaf('Id', project.id)`),

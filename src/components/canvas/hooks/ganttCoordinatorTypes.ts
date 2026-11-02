@@ -4,6 +4,7 @@
 // Dit bestand bevat uitsluitend types. Het koppelt geen store, mount geen DOM en voert geen
 // domeinmutatie uit. Zo krijgt elke coördinator een smal contract in plaats van de hele
 // applicatiestaat als gemaksargument.
+import type { BaselineReach } from '@/types/baseline';
 import type {
   MouseEvent as ReactMouseEvent,
   RefObject,
@@ -18,6 +19,7 @@ import type {
 import type { GanttAxis } from '@/engine/renderer/timeAxis';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { ModifierMap, NotifyInput, PositionDivision, ScrollMode } from '@/state/slices/types';
+import type { HistorySessionMark } from '@/state/slices/historySlice';
 import type { Task } from '@/types/task';
 import type { DateNotation, SplitViewState, TimeNotation, ViewState } from '@/types/view';
 import type { WorkCalendar } from '@/types/calendar';
@@ -71,6 +73,9 @@ export interface GanttRendererHost {
 /** Concrete viewportwaarden en gerichte setters; geen taak- of planningsmutaties. */
 export interface GanttViewportCoordinatorInput {
   tasks: Task[];
+  /** Bereik van de getoonde baselines (actief + vergelijkingen): oorsprong en scrollbereik nemen
+   *  het mee, zodat elke getekende baselinestrook bereikbaar is. */
+  baselineReach?: BaselineReach;
   rows: ViewRow[];
   calendar: WorkCalendar;
   view: ViewState;
@@ -159,6 +164,9 @@ export interface GanttTooltipState {
   x: number;
   y: number;
   task: Task;
+  /** Issue #391: gezet als de muis op de baselinestrook staat: de baselines in dat stuk
+   *  (0 = actief, 1/2 = vergelijking). */
+  baselineSlots?: (0 | 1 | 2)[];
 }
 
 export interface GanttRelationPopoverState {
@@ -216,6 +224,9 @@ export interface GanttPointerCoordinatorInput {
   setTaskSplits: (taskId: string, pieces: SplitPiece[] | null, options?: { coalesceKey?: string }) => unknown;
   /** Esc midden in een splitsgebaar draait de lopende coalesce-stap terug. */
   undo: () => void;
+  historyMark: () => HistorySessionMark;
+  revertHistorySince: (mark: HistorySessionMark) => void;
+  endHistorySession: (mark: HistorySessionMark) => void;
   setScroll: (x: number, y: number) => void;
   openTask: (id: string) => void;
   clearHistogramTooltip: () => void;
@@ -234,6 +245,9 @@ export interface GanttPointerCoordinatorInput {
    *  volgt dan dezelfde regel als een getypte: SNET, of — bij een andere constraint — niets toepassen
    *  en melden (`src/engine/startEditConstraint.ts`). */
   isStartDrivenByPredecessor: (taskId: string) => boolean;
+  /** Zet de motor deze mijlpaal op het dageinde (B6, `isLooseDayEndMilestone`)? Dan landt een gesleepte
+   *  ruit zo dat F5 hem laat staan (`milestoneSitsAtFinish`, `milestoneDragLanding`). */
+  looseDayEndMilestone: (taskId: string) => boolean;
   /** Het ene meldkanaal en de datumnotatie voor die startmelding na het loslaten. */
   notify: (notification: NotifyInput) => void;
   dateNotation: DateNotation;

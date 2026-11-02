@@ -60,7 +60,10 @@ const tasks: Task[] = P6_CONSTRAINT_KINDS.map((k, i) => {
   return {
     ...structuredClone(template),
     id: `t${i}`, name: `T${i}`, wbsCode: `C${i}`, parentId: null, childIds: [], status: 'NOT_STARTED',
-    time: { ...structuredClone(template.time), completion: 0, actualStart: undefined, actualFinish: undefined },
+    time: {
+      ...structuredClone(template.time), completion: 0, actualStart: undefined, actualFinish: undefined,
+      ...(i === 7 || i === 8 ? { scheduleDuration: 0, durationMinutes: 0 } : {}),
+    },
     constraint: { type: k.type, ...(k.type === 'ALAP' ? {} : { date: D1 }), ...(k.hard ? { hard: true } : {}) },
     constraint2: { type: k2.type, ...(k2.type === 'ALAP' ? {} : { date: D2 }) },
     workRule: RULES[i % RULES.length],

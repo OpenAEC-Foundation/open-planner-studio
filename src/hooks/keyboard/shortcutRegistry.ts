@@ -168,7 +168,7 @@ export const SHORTCUTS: ShortcutDef[] = [
     // Zelfde tekst als de "Bereken"-ribbonknop (F5 doet exact dat).
     labelKey: 'menu:ribbon.calculate',
     allowInInput: true,
-    run: (store) => store.runCPM(),
+    run: (store) => store.recalculate(),
   },
   {
     id: 'file.save',

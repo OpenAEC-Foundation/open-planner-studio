@@ -23,13 +23,19 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 
 const overlays = RIBBON_TABS.beeld.find(group => group.id === 'overlays');
+const bars = RIBBON_TABS.beeld.find(group => group.id === 'bars');
 eq('Baselines & Progress-groep bestaat', !!overlays, true);
+// Issue #391: de balkweergave staat in een eigen groep "Balken".
+eq('Balken-groep bestaat, direct na Baselines & Progress',
+  RIBBON_TABS.beeld.findIndex(group => group.id === 'bars'),
+  RIBBON_TABS.beeld.findIndex(group => group.id === 'overlays') + 1);
 
 // Invarianten i.p.v. een vastgepinde indeling: een nieuwe knop in een stack met ruimte, of een
 // extra stack, mag deze test niet breken (voorheen moest elke toevoeging hier handmatig mee, zie
-// #130). Wat wél vast ligt: alles staat in verticale stacks binnen de linthoogte, de bestaande
+// #130). Wat wél vast ligt: stacks hebben hooguit drie knoppen binnen de linthoogte, de bestaande
 // knoppen blijven bestaan, en de paren die bij elkaar horen staan onder elkaar in één stack.
-const items = overlays?.items ?? [];
+// Enige uitzondering op "alles in stacks": de grote gesplitste knop Baseline-overlay (eigen kolom).
+const items = [...(overlays?.items ?? []), ...(bars?.items ?? [])];
 const stackOf = (id: string) =>
   items.find(item => item.kind === 'stack' && item.items.some(child => child.id === id));
 const idsIn = (id: string) => {
@@ -38,24 +44,29 @@ const idsIn = (id: string) => {
 };
 
 for (const item of items) {
+  if (item.id === 'toggleBaselineOverlay') {
+    eq('Baseline-overlay is een eigen (grote) kolom', item.kind, 'component');
+    continue;
+  }
   eq(`Item ${item.id} is een verticale stack (niets naast elkaar)`, item.kind, 'stack');
   eq(`Stack ${item.id} past binnen de vaste linthoogte (max drie)`, item.kind === 'stack' && item.items.length <= 3, true);
 }
 
-const allIds = items.flatMap(item => (item.kind === 'stack' ? item.items.map(child => child.id) : [item.id]));
-eq('Geen knop staat twee keer in de groep', new Set(allIds).size, allIds.length);
-for (const id of [
-  'toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine',
-  'screenColors', 'toggleResourceAccent', 'toggleFloatBand', 'toggleRelations',
-]) {
-  eq(`Knop ${id} staat in Baselines & Progress`, allIds.includes(id), true);
+const idsOf = (group: typeof overlays) =>
+  (group?.items ?? []).flatMap(item => (item.kind === 'stack' ? item.items.map(child => child.id) : [item.id]));
+const allIds = [...idsOf(overlays), ...idsOf(bars)];
+eq('Geen knop staat twee keer in de groepen', new Set(allIds).size, allIds.length);
+for (const id of ['toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine']) {
+  eq(`Knop ${id} staat in Baselines & Progress`, idsOf(overlays).includes(id), true);
+}
+for (const id of ['screenColors', 'toggleResourceAccent', 'toggleFloatBand', 'toggleRelations']) {
+  eq(`Knop ${id} staat in Balken`, idsOf(bars).includes(id), true);
 }
 
-const overlayIds = idsIn('toggleBaselineOverlay');
 eq(
-  'Baseline-, voortgangs- en statusdatumlijn staan in één stack, in leesvolgorde',
-  overlayIds.filter(id => ['toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine'].includes(id)),
-  ['toggleBaselineOverlay', 'toggleProgressLine', 'toggleStatusDateLine'],
+  'Voortgangs- en statusdatumlijn staan in één stack, in leesvolgorde',
+  idsIn('toggleProgressLine').filter(id => ['toggleProgressLine', 'toggleStatusDateLine'].includes(id)),
+  ['toggleProgressLine', 'toggleStatusDateLine'],
 );
 eq(
   'Balkkleuren en resource-accent staan onder elkaar in dezelfde stack',

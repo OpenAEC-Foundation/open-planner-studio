@@ -598,7 +598,8 @@
     "customFieldSuffix": "прилагођено поље"
   },
   "tooltip": {
-    "status": "Статус"
+    "status": "Статус",
+    "baselineActive": "активна"
   },
   "externalLinks": {
     "action": "Додај спољну везу…",

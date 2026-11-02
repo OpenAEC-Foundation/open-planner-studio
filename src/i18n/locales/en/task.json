@@ -594,7 +594,8 @@
     "customFieldSuffix": "custom field"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Status",
+    "baselineActive": "active"
   },
   "externalLinks": {
     "action": "External link…",

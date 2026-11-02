@@ -43,7 +43,7 @@ export function WarningsPanel() {
   const scheduleStale = useAppStore(s => s.scheduleStale);
   const activeTaskId = useAppStore(s => s.activeTaskId);
   const histogramResourceId = useAppStore(s => s.view.histogramResourceId);
-  const runCPM = useAppStore(s => s.runCPM);
+  const recalculate = useAppStore(s => s.recalculate);
 
   const warnings = useMemo(
     () => collectScheduleWarnings({ tasks, sequences, resources, cpmResult, resourceLoadResult }),
@@ -176,7 +176,7 @@ export function WarningsPanel() {
         )}
         {(scheduleStale || !cpmResult) && (
           <button
-            onClick={() => runCPM()}
+            onClick={() => recalculate()}
             className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-primary flex-shrink-0"
             title={tMenu('ribbon.calculateTitle')}
           >
