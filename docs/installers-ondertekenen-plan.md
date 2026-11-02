@@ -83,7 +83,17 @@ Snap en AUR volgen de hoofdrelease via eigen workflows en staan buiten die laats
 De [productpagina](https://open-aec.com/open-planner-studio/) toont bij het downloadblok nog
 `Download v2026.10.0`, terwijl het nieuws- en releaseblok `v2026.44.0` toont. De aangeboden varianten zijn
 Windows EXE, universal DMG, DEB, RPM, AppImage en Snap Store. De directe bestemmingen moeten bij de
-uitvoering opnieuw worden vastgelegd; alleen naar GitHub `latest` kijken is onvoldoende.
+uitvoering opnieuw worden vastgelegd; alleen naar GitHub `latest` kijken is onvoldoende. De HTML-links
+zijn tijdens dit onderzoek afzonderlijk uitgelezen, zonder de installatiebestanden te downloaden:
+
+| Downloadlink op de website | Vastgestelde bestemming op 2 november |
+| --- | --- |
+| Windows | [Open.Planner.Studio_2026.10.0_x64-setup.exe](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/download/v2026.10.0/Open.Planner.Studio_2026.10.0_x64-setup.exe) |
+| macOS | [Open.Planner.Studio_2026.10.0_universal.dmg](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/download/v2026.10.0/Open.Planner.Studio_2026.10.0_universal.dmg) |
+| Linux DEB | [Open.Planner.Studio_2026.10.0_amd64.deb](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/download/v2026.10.0/Open.Planner.Studio_2026.10.0_amd64.deb) |
+| Linux RPM | [Open.Planner.Studio-2026.10.0-1.x86_64.rpm](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/download/v2026.10.0/Open.Planner.Studio-2026.10.0-1.x86_64.rpm) |
+| Linux AppImage | [Open.Planner.Studio_2026.10.0_amd64.AppImage](https://github.com/OpenAEC-Foundation/open-planner-studio/releases/download/v2026.10.0/Open.Planner.Studio_2026.10.0_amd64.AppImage) |
+
 De oudere tags uit de audit mogen pas buiten scope vallen zodra geen aangeboden link ze meer gebruikt.
 Deze PR wijzigt de website niet.
 
@@ -208,3 +218,14 @@ Voor documentatiewerk is een rood/groen producttest niet van toepassing. De PR m
 bronverwijzingen en de gerichte documentcontroles vermelden; gewone PR-CI blijft afzonderlijk bewijs.
 De niet opnieuw uitgevoerde binaire verificatie, organisatie-secrettoegang, Store-assertions en een
 volgende concrete release blijven expliciet open.
+
+Uitgevoerde gerichte controles, zonder signing of productbuild:
+
+- Controle van alle relatieve Markdown-bronpaden, verplichte platformen/besluitnemers en afwezigheid
+  van sleutel-/certificaatblokken in dit document: exit 0.
+- `git diff --check` op de wijziging: exit 0.
+- Repositorysecretnamen, variabelenamen en omgevingenmetadata opvragen: exit 0; omgevingen: 0.
+- Organisatiesecretnamen opvragen: exit 1, HTTP 403. Dit is de hierboven vermelde bewijsgrens,
+  geen bewijs dat de voorziening ontbreekt.
+- Release- en verificatierun met job-/stapconclusies opvragen: exit 0. Er zijn geen certificaatlogs
+  gelezen en er is geen bestaande workflow opnieuw gestart.
