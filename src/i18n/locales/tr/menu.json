@@ -357,7 +357,10 @@
     "helpTutorialStep": "Eğitim {{number}} / {{total}}",
     "helpTutorialsEmpty": "Henüz hiç eğitim yüklenmedi. Eğitimleri katalogdan uzantı olarak yüklersiniz.",
     "helpTutorialsInstall": "Eğitimleri yükle",
-    "helpDraft": "taslak"
+    "helpDraft": "taslak",
+    "helpCopyPrompt": "İstemi kopyalayın",
+    "helpPromptCopied": "Kopyalandı. Şimdi istemi Claude'a yapıştırın.",
+    "helpPromptCopyFailed": "Kopyalanamadı. Aşağıdaki metni seçin ve kendiniz kopyalayın."
   },
   "export": {
     "progressFileSuffix": "ilerleme",

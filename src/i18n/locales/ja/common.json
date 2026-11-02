@@ -394,6 +394,8 @@
     "connect": "接続",
     "connectHint": "接続情報を表示します: エンドポイント、トークン、設定スニペット、接続用プロンプト。",
     "connectionDetailsTitle": "接続情報",
+    "setupPrompt": "Claude に任せる",
+    "setupPromptHint": "Claude Desktop と Claude Code 向けです。新しい会話にプロンプトを貼り付けてください。Claude が拡張機能を自分でインストールします。このためにトークンは必要ありません。",
     "endpoint": "エンドポイント",
     "endpointHint": "トランスポート: ストリーミング HTTP",
     "auth": "認証",

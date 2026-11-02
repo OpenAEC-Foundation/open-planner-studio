@@ -361,7 +361,10 @@
     "helpTutorialStep": "Kurz {{number}} z {{total}}",
     "helpTutorialsEmpty": "Zatím nejsou nainstalovány žádné kurzy. Nainstalujete je jako rozšíření z katalogu.",
     "helpTutorialsInstall": "Nainstalovat kurzy",
-    "helpDraft": "koncept"
+    "helpDraft": "koncept",
+    "helpCopyPrompt": "Zkopírovat prompt",
+    "helpPromptCopied": "Zkopírováno. Nyní vložte prompt do Claude.",
+    "helpPromptCopyFailed": "Zkopírování se nezdařilo. Vyberte text níže a zkopírujte ho sami."
   },
   "export": {
     "progressFileSuffix": "průběh",

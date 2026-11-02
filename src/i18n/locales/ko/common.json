@@ -394,6 +394,8 @@
     "connect": "연결",
     "connectHint": "연결 정보를 표시합니다: 엔드포인트, 토큰, 구성 스니펫, 연결 프롬프트.",
     "connectionDetailsTitle": "연결 정보",
+    "setupPrompt": "Claude에게 맡기기",
+    "setupPromptHint": "Claude Desktop과 Claude Code용입니다. 새 대화에 프롬프트를 붙여 넣으세요. 그러면 Claude가 확장 프로그램을 직접 설치합니다. 이 과정에는 토큰이 필요하지 않습니다.",
     "endpoint": "엔드포인트",
     "endpointHint": "전송: 스트리밍 HTTP",
     "auth": "인증",

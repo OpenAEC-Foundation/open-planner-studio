@@ -454,6 +454,8 @@
     "connect": "Свържи",
     "connectHint": "Показва данните за връзката: крайна точка, токен, фрагмент за конфигурация и подкана за свързване.",
     "connectionDetailsTitle": "Данни за връзката",
+    "setupPrompt": "Остави на Claude",
+    "setupPromptHint": "За Claude Desktop и Claude Code. Поставете промпта в нов разговор. След това Claude инсталира разширението сам. За него не ви е нужен токен.",
     "endpoint": "Крайна точка",
     "endpointHint": "Транспорт: streamable HTTP",
     "auth": "Удостоверяване",
