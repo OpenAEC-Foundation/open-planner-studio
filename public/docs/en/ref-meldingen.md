@@ -53,7 +53,8 @@ The bar at the bottom shows, from left to right:
 - *Circular dependency between tasks: {path}* — the relations form a cycle. The tasks are in the path; reverse or remove one relation.
 - *The calendar has no working days set* — give the calendar at least one working day, see [Calendar windows](docs://ref-kalenders).
 - *Invalid duration in days for task '{task}'* and *Invalid duration in hours for task '{task}'* — the duration of the task is not a valid number.
-- *Hour task '{task}' has no valid working hours in its calendar* — a task in hours on a calendar without working hours.
+- *The calendar of hour task '{task}' has no valid working hours* and *The calendar of task '{task}' has no valid working hours* — the task's calendar has no work blocks, and its start, end and break give no working time either. An example is a break that takes up the whole workday. The message adds what to check: the working days, start, end and break of that calendar, see [Calendar windows](docs://ref-kalenders).
+- *The project calendar has no valid working hours* — the same for the project calendar. Check its start, end and break there.
 - *Invalid start date for task '{task}'* — the start date of the task is not valid.
 
 ## The strips under the ribbon

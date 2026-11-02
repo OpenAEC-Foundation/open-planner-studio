@@ -1,7 +1,7 @@
 name: Claude Desktop-bundel
 
 # Bouwt de Claude Desktop-bundel (`npm run build:mcpb`) en controleert het manifest met de
-# officiële MCPB-CLI (`mcpb validate`, versie vast). De werking via stdio tegen de bridge toetst
+# officiële MCPB-CLI (`mcpb validate`, versie vast). De werking via stdio, met en zonder app, toetst
 # `tests/mcp/cases-mcpb.ts` in `npm test`; dit is alleen de schemacontrole, die een download van
 # de CLI vraagt en daarom niet in `verify` zit. Zie docs/mcp-verificatie.md.
 on:
@@ -11,7 +11,11 @@ on:
   pull_request:
     paths:
       - 'integrations/**'
+      - 'headless/mcp-server/**'
+      - 'src/services/mcp/discoveryContract.ts'
       - 'scripts/build-mcpb.mjs'
+      - 'scripts/build-mcp-server.mjs'
+      - 'scripts/lib/headless-bundle.mjs'
       - 'scripts/lib/third-party-notices.mjs'
       - 'src/services/zip/**'
       - 'package.json'

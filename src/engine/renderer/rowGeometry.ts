@@ -15,7 +15,7 @@ export interface BarLayout {
   accentHeight: number;
   /** Hoogte van de baselinestrook: altijd dezelfde, met of zonder accent. */
   baselineHeight: number;
-  /** Breedte (px, horizontaal gemeten) van één schuine band waar baselines overlappen. */
+  /** Breedte (px, horizontaal gemeten) van één schuine band in een ruit waar baselines samenvallen. */
   baselineStripeWidth: number;
 }
 
@@ -38,8 +38,9 @@ export const MIN_BAR_HEIGHT_PX = 6;
  *
  * Onder de balk ligt een vrije strook (`barOffset`, de balk staat in het midden van de rij): 1 px
  * lucht, dan het resource-accent, dan de baseline. Issue #391 (meerdere baselines): de
- * baselinestrook vult zonder accent de hele vrije strook (~5 px bij rijhoogte 32) zodat kleuren en
- * strepen te zien zijn. De schuine banden schalen mee met de rijhoogte (~3 px bij 32).
+ * baselinestrook vult zonder accent de hele vrije strook (~5 px bij rijhoogte 32), zodat de lijnen
+ * van issue #741 samen genoeg hoogte hebben. De schuine banden in een gedeelde mijlpaalruit schalen
+ * mee met de rijhoogte (~3 px bij 32).
  *
  * Accent én baselines samen (eigenaarsbesluit 2026-10-20, optie 2 van 3): de taakbalk wordt iets
  * lager, zodat accent en baselinestrook allebei hun eigen dikte houden. Zo blijft de regel uit

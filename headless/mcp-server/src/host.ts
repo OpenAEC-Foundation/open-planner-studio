@@ -14,7 +14,8 @@
 // tussen de transports (stdio, HTTP) en de toolafhandeling: rauwe JSON-RPC in, rauwe JSON-RPC uit.
 // Een schakelstuk komt daar vóór te staan en kiest per aanvraag tussen doorsturen naar de bridge van
 // de app (als die draait) en deze headless afhandeling. De transports hoeven daarvoor niet te veranderen.
-// Het slot ("weiger een bestand dat in de app open staat") zit in de bestandstoegang: `appLock.ts`.
+// Het slot ("schrijf geen bestand dat in de app open staat") zit in de schrijfroute van de bestandstoegang:
+// `appLock.ts`, met het register `open-files*.json` uit de mappen van `discoveryDirs`.
 //
 // EÉN HOST PER PROCES: `fileToolDeps` en `guideToolDeps` zijn module-globals van de tools.
 // Teksten die de agent leest zijn Engels; commentaar Nederlands.
@@ -33,7 +34,7 @@ import type { McpContext } from '@/services/mcp/contracts';
 import { createNodeFileFs } from './nodeFs';
 import { installXmlDomParser } from './xmlDom';
 import { createNodeBackupFs } from './backupFs';
-import type { IsPathOpenInApp } from './appLock';
+import { createAppLock, platformDiscoveryDirs, type AppLock } from './appLock';
 
 export interface HostOptions {
   /** Werkmap; moet bestaan. */
@@ -47,8 +48,11 @@ export interface HostOptions {
   /** Bestand dat bij de start als document opengaat (pad in de werkmap). Dat is een keuze van wie de
    *  server start, niet van de agent: het gebeurt vóór `readOnly` ingaat. */
   open?: string | null;
-  /** Slot-haak; standaard `isPathOpenInApp` uit `appLock.ts` (nu altijd `false`). */
-  isPathOpenInApp?: IsPathOpenInApp;
+  /** Mappen met het register van open bestanden van de desktop-app. Standaard de mappen van de app op dit
+   *  platform (`mcpDiscoveryDirs`), of `OPS_MCP_DISCOVERY_DIR`. */
+  discoveryDirs?: readonly string[];
+  /** Slot voor schrijfacties; standaard `createAppLock(discoveryDirs)`. Alleen tests vervangen het. */
+  isPathOpenInApp?: AppLock;
 }
 
 /** De naad voor een later schakelstuk: één JSON-RPC-bericht (rauw) met zijn context → het rauwe antwoord. */
@@ -73,6 +77,7 @@ export function headlessInstructions(root: string): string {
     'Headless mode: this server runs without the Open Planner Studio desktop app, on a schedule in memory.',
     `- Files: the file tools only read and write inside the working folder '${root}'. Where a tool description says "home folder", read "working folder": \`~/name.ifc\` is a file in it, and absolute paths must stay inside it.`,
     '- Saving: there is no save command and no auto-save. Write the active document with planner_export_ifc (pass `overwrite: true` to replace the file you opened). Changes that you do not export are lost when the server stops.',
+    '- Desktop app running: while the Open Planner Studio desktop app runs, the server does not replace an existing file, because the app may have it open; such a write fails with SCOPE. Save under a new file name. Reading still works.',
     '- There is no user interface: no dialogs, and nobody switches documents or edits next to you.',
   ].join('\n');
 }
@@ -118,7 +123,8 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
   // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
 
-  const fileFs = await createNodeFileFs(root, opts.isPathOpenInApp);
+  const appLock = opts.isPathOpenInApp ?? createAppLock(opts.discoveryDirs ?? platformDiscoveryDirs());
+  const fileFs = await createNodeFileFs(root, appLock);
   fileToolDeps.getFs = async () => fileFs;
   guideToolDeps.fetchImpl = embeddedAssetFetch(opts.assets);
   registerAllTools();
