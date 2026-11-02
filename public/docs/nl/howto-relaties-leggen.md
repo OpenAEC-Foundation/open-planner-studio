@@ -69,7 +69,7 @@ Wat je typt, vervangt de hele cel. Staan er al voorgangers in, typ die dan mee (
 Een lag typ je in het vak naast het type, bij elke manier hierboven. Een bestaande lag wijzig je in *Afhankelijkheden*: klik in het lagvak, typ de nieuwe waarde en druk op Enter.
 
 - `3` of `3d`: 3 werkdagen. Een weekend telt niet mee. De app toont `+3d`.
-- `3ed`: 3 kalenderdagen. Het weekend telt wel mee, zoals bij beton dat ook op zaterdag en zondag uithardt.
+- `3ed`: 3 kalenderdagen. Het weekend telt wel mee. Dit is de eenheid voor iets dat doorloopt zonder dat er gewerkt wordt, zoals beton dat ook op zaterdag en zondag uithardt.
 - `-1`: een negatieve lag (lead). De opvolger mag een dag eerder beginnen, zodat de taken overlappen.
 - `4u`: 4 werkuren. De app telt ze exact in werkuren, ook na een dagtaak. Eindigt de voorganger vrijdag om 16:00, dan begint de opvolger maandag om 11:00.
 - `1,5`: anderhalve werkdag. Een lag in dagen mag een breuk zijn.
@@ -93,7 +93,7 @@ Een nieuwe relatie verschuift nog geen balken; de statusbalk meldt *Verouderd â€
 
 **Een taak aan de eigen fase.** Een relatie tussen een taak en de samenvattende taak waar de taak zelf onder valt, kan niet. De app meldt *Een relatie tussen een taak en zijn eigen (voor)ouder-samenvattingstaak is niet toegestaan.*
 
-**Een relatie op een fase.** De app legt zo'n relatie voor de berekening op elke taak in de fase. Is de fase voorganger bij FS of FF, dan wacht de opvolger op de taak in de fase die het laatst klaar is. Bij SS of SF wacht hij op de taak die het laatst begint, niet op de start van de fase. Is de fase opvolger, dan moet elke taak in de fase zelf aan de relatie voldoen. Verplaats je een taak in of uit de fase, dan verandert ook welke relaties voor die taak gelden.
+**Een relatie op een fase.** De app legt zo'n relatie voor de berekening op elke taak in de fase. Is de fase voorganger bij FS of FF, dan wacht de opvolger op de taak in de fase die het laatst klaar is. Bij SS of SF wacht hij op de taak die het laatst begint, niet op de start van de fase. Wil je dat de opvolger meebeweegt met de start van de fase, leg de relatie dan op de taak die in de fase het eerst begint. Is de fase opvolger, dan moet elke taak in de fase zelf aan de relatie voldoen. Bij FF of SF geldt dat ook voor een taak die veel eerder klaar had kunnen zijn. Leg zo'n relatie liever op de taak die in de fase het laatst klaar is. Verplaats je een taak in of uit de fase, dan verandert ook welke relaties voor die taak gelden.
 
 **Dubbel.** Bestaat de relatie al, dan meldt de app *Deze relatie bestaat al* en verandert er niets.
 
