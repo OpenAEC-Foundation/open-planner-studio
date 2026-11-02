@@ -96,7 +96,7 @@ function IconReviewSheet({ mode }: { mode: Mode }) {
   return (
     <aside
       data-icon-sheet={mode}
-      className="fixed top-2 bottom-8 end-2 z-[9999] w-[520px] overflow-y-auto rounded-[8px] border border-border bg-surface p-4 !text-body text-text-primary shadow-[var(--shadow-lg)]"
+      className="fixed top-2 end-2 z-[9999] max-h-[calc(100vh-3rem)] w-[520px] overflow-y-auto rounded-[8px] border border-border bg-surface p-4 !text-body text-text-primary shadow-[var(--shadow-lg)]"
     >
       <div className="flex items-center justify-between gap-2">
         <strong className="!text-large">{mode === 'dock' ? 'Resourcedock: voorstellen' : 'Statusiconen'}</strong>
