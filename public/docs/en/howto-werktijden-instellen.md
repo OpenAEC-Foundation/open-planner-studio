@@ -50,7 +50,7 @@ A preset of your own is stored on this device, not in the project file.
 **Day buttons change the blocks.** If you turn a day off under *Work days*, the blocks of that day disappear. Turn it on again and it gets back the blocks it had when you opened the dialog (or after the last preset), or otherwise those of the first working day. *Mon–Fri* does that for Monday through Friday and removes the blocks of Saturday and Sunday. *Continuous (24/7)* replaces all blocks: every day gets 00:00 to 24:00.
 
 
-**No usable working times.** A calendar without blocks or without work days cannot carry a task in hours. The app then reports *This calendar has no valid working times. Check its working days and times.*
+**No usable working times.** A calendar without blocks gets its working time from the working days, start, end and break. If these give no working time, for example because the break takes up the whole workday, the calendar cannot carry any task. The calculation then stops with *The calendar of task '{task}' has no valid working hours* or *The project calendar has no valid working hours*. Then check the working days, start, end and break in that calendar.
 
 ## See also
 

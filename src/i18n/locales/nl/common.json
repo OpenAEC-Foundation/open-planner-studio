@@ -327,7 +327,9 @@
     "noWorkingDays": "De kalender heeft geen werkdagen ingesteld",
     "invalidDayDuration": "Ongeldige duur in dagen voor taak '{{task}}'",
     "invalidHourDuration": "Ongeldige duur in uren voor taak '{{task}}'",
-    "hourTaskWithoutWorkHours": "Urentaak '{{task}}' heeft geen geldige werktijden in zijn kalender",
+    "hourTaskWithoutWorkHours": "De kalender van urentaak '{{task}}' heeft geen geldige werktijden. Controleer in die kalender de werkdagen, het begin, het einde en de pauze.",
+    "taskWithoutWorkHours": "De kalender van taak '{{task}}' heeft geen geldige werktijden. Controleer in die kalender de werkdagen, het begin, het einde en de pauze.",
+    "noWorkingHours": "De projectkalender heeft geen geldige werktijden. Controleer in die kalender het begin, het einde en de pauze.",
     "invalidStartDate": "Ongeldige startdatum voor taak '{{task}}'"
   },
   "yes": "Ja",
@@ -751,7 +753,9 @@
     "missedDeadlines": "{{count}} deadline(s) overschreden",
     "violatedConstraints": "{{count}} constraint(s) geschonden",
     "outOfSequence": "{{count}} out-of-sequence-relatie(s)",
-    "overallocated": "{{count}} resource(s) overbezet"
+    "overallocated": "{{count}} resource(s) overbezet",
+    "summary_one": "{{count}} waarschuwing",
+    "summary_other": "{{count}} waarschuwingen"
   },
   "warnings": {
     "title": "Waarschuwingen",

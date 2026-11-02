@@ -55,7 +55,7 @@ export function isElapsedTask(task: Task): boolean {
 
 /** Minimaal contract dat een uur-bewuste kalender-engine vervult. */
 export interface DurationCalendar {
-  /** True ⇒ uur-kalender (`WorkCalendar.workTime` aanwezig); false ⇒ dag-kalender. */
+  /** True ⇒ de kalender heeft werkblokken (`CalendarEngine`: geldige werktijd). */
   readonly isHourMode: boolean;
   /** Netto werkuren per dag; de dag↔minuut-factor is `hoursPerDay × 60`. */
   readonly hoursPerDay: number;

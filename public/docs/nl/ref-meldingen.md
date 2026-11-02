@@ -18,6 +18,7 @@ De balk onderaan toont van links naar rechts:
 - **Kritiek pad: N taken, N werkdagen** — het aantal kritieke taken en de projectduur. Pas zichtbaar na een berekening.
 - **Einde:** — het projecteinde uit de berekening. Pas zichtbaar na een berekening; een leeg project heeft er geen.
 - **N deadline(s) overschreden**, **N constraint(s) geschonden**, **N out-of-sequence-relatie(s)** en **N resource(s) overbezet** — elk een knop met een waarschuwingsteken, alleen zichtbaar als de teller boven 0 staat en er een berekening is. Een klik opent het paneel *Waarschuwingen* (tooltip: *Waarschuwingenpaneel openen (details en navigatie)*). Sta je op het tabblad *IFC* of *Rapport*, dan springt de app daarbij naar *Start*, omdat de rechterkolom daar niet bestaat. De teller *resource(s) overbezet* ververst ook na wijzigingen aan resources en toewijzingen; de andere tellers veranderen pas na *Bereken*. De vier tellers zijn een selectie: wat het paneel meer toont (afgekapte lead, genegeerde relatie, hammock zonder eind-driver, afgekapte einddatum, planningsfout) staat niet in de statusbalk.
+- **N waarschuwing(en)** en de knop **⋯** — de statusbalk is altijd één regel. Past niet alles, dan valt hij samen, in deze volgorde: *Schaal* en *Zoom*, de namen van de baselines (de kleuren blijven), de vier tellers onder dit ene kopje, *Taken* en *Mijlpalen*, *Kritiek pad*, *Selectie*, *Einde*, *Niet opgeslagen* en *Verouderd*. Het kopje blijft altijd staan: de tooltip noemt de vier tellers en een klik opent het paneel *Waarschuwingen*. Wat verder verborgen is, staat in de tooltip van de knop **⋯**. Maak je het venster breder, dan komt alles terug.
 - **Verouderd — herbereken (F5)** — met een waarschuwingsteken (tooltip: *Planning verouderd — herbereken (F5)*). Zichtbaar zodra je iets wijzigde wat de planning raakt en je nog niet hebt herberekend. Staat *Automatisch berekenen* aan, dan blijft het weg, behalve als de berekening een fout gaf: dan blijft hij staan.
 - **Selectie: N taak/taken** — het aantal geselecteerde taken; alleen zichtbaar bij een selectie.
 - **Schaal:** en **Zoom: Npx/dag** — de tijdschaal van de tijdlijn en het zoomniveau. De schaal volgt uit de zoom.
@@ -52,7 +53,8 @@ De balk onderaan toont van links naar rechts:
 - *Kringverwijzing tussen taken: {pad}* — de relaties vormen een kring. De taken staan in het pad; draai of verwijder één relatie.
 - *De kalender heeft geen werkdagen ingesteld* — geef de kalender minstens één werkdag, zie [Kalendervensters](docs://ref-kalenders).
 - *Ongeldige duur in dagen voor taak '{taak}'* en *Ongeldige duur in uren voor taak '{taak}'* — de duur van de taak is geen geldig getal.
-- *Urentaak '{taak}' heeft geen geldige werktijden in zijn kalender* — een taak in uren op een kalender zonder werkuren.
+- *De kalender van urentaak '{taak}' heeft geen geldige werktijden* en *De kalender van taak '{taak}' heeft geen geldige werktijden* — de kalender van de taak heeft geen werkblokken, en zijn begin, einde en pauze geven ook geen werktijd. Een voorbeeld is een pauze die de hele werkdag beslaat. De melding zegt erbij wat je controleert: de werkdagen, het begin, het einde en de pauze van die kalender, zie [Kalendervensters](docs://ref-kalenders).
+- *De projectkalender heeft geen geldige werktijden* — hetzelfde voor de projectkalender. Controleer daar het begin, het einde en de pauze.
 - *Ongeldige startdatum voor taak '{taak}'* — de startdatum van de taak is niet geldig.
 
 ## De stroken onder het lint

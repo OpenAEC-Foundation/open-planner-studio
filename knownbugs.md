@@ -403,6 +403,17 @@ en noem het in je rapport of PR-tekst.
      `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+507. **De nivelleerder heeft drie dode dagtakken.** `ResourceLeveler.ts` rond regel 269, 290/297 en 843/848 kiest
+     nog een dagtak voor een taakkalender zonder werktijd (`isHourMode` onwaar). Sinds F6 (#733) stopt de
+     baseline-solve op regel 395 dan al (`taskWithoutWorkHours`) en keert de functie terug, dus die takken worden
+     niet meer bereikt. Ongeveer tien regels kunnen weg; de kalendertijd- en werkblokkenpaden blijven. Alleen
+     opruimen. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
+508. **Een kalender met een opgeslagen lege week stopt de berekening niet.** Een kalender met `workTime` maar zonder
+     enig werkblok (vijf werkdagen, zeven lege weekdagen) heeft `isHourMode` waar, dus de wachten van F6
+     (`taskWithoutWorkHours`, `noWorkingHours`) laten hem door. Een taak van 2,5 werkdagen krijgt dan
+     `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
+     Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
+     huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
 589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
      gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
      `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
@@ -585,29 +596,6 @@ en noem het in je rapport of PR-tekst.
      MCP weigert overlappende weekbanden (`calendarResourceTools.ts:273–278`), de kalendereditor niet
      (`WorkTimeEditor.tsx:60–67`). Voorstel: dit ene geval als vaste uitkomst in sectie 8h, met de echte
      celeditor. — B
-503. **Afmelden van een mijlpaal buiten de werkspanne van zijn werkdag: de geplande kloktijd blijft (keuze van de
-     bouwer).** Een handmatig anker of een import kan een mijlpaal buiten de werktijd zetten, bijvoorbeeld ma
-     18:00 bij ma–do 07:00–16:00 en vr 07:00–12:00. Afgemeld met alleen een datum houdt hij in #724 de
-     kloktijd: vr 5 jun wordt vr 18:00, wo 3 jun wordt wo 18:00. Het besluit B10 zegt "de tijd uit de
-     planning"; de aanvulling "einde blijft einde" gaat over een dagrand en de tweede aanvulling over een
-     moment midden in een dienst. Geen van beide noemt een moment buiten de werkspanne. Een eerdere versie van
-     fixronde 5 zette het ook op het einde van de dienst (vr 12:00, wo 16:00); dat is teruggedraaid omdat geen
-     besluit het vraagt. Getoetst in `tests/planning/check-mijlpaal-afmelden.ts` sectie 8h (gevallen `dag`, ma
-     18:00 en ma 05:00). Review ronde 6 van #724 (Sol): dit botst niet met de woorden van het besluit; geen
-     aanvulling noemt een moment buiten de dienst, en main geeft hier D7 (START en zonder soort vr 07:00, FINISH
-     vr 12:00). Geen aangetoonde fout. Voorstel: aan Ethan voorleggen of afmelden ook dan "klaar in die dienst"
-     betekent. — B
-504. **Afmelden van een mijlpaal: "begint de dienst later, dan het begin" is een uitwerking, geen besluit van
-     Ethan.** `milestoneMomentOn` (`src/engine/calendar/workdayRules.ts`, regel 4, rond regel 270) zet een
-     mijlpaal midden in de dienst op het begin van de dienst van de getypte dag als die dienst pas na de geplande
-     kloktijd begint. Dat is een uitwerking van de orkestrator (fixronde 5 van #724). B10 zegt "daartussen geldt
-     de geplande kloktijd"; de tweede aanvulling gaat alleen over een dienst die eerder eindigt. Voorbeeld:
-     ma 04:00–08:00, di–vr 07:00–16:00; een mijlpaal op ma 06:00, afgemeld met 02-06-2026, wordt di 07:00, waar
-     de woorden van B10 di 06:00 aanwijzen. Main geeft hier D7: START en zonder soort di 07:00, FINISH di 16:00.
-     Bij di–vr 22:00–06:00 wordt het di 22:00. De gids *Voortgang bijwerken* beschrijft dit al als gedrag.
-     Gevonden in review ronde 6 van #724 (Sol, VRAAG EIGENAAR). Voorstel: Ethan laten kiezen tussen de
-     geplande kloktijd houden (dan kan de tak `else if` van regel 4 weg, en de gidszin) en het begin van de
-     dienst (dan het besluit in de spec bij B10 zetten). — B
 
 448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
     alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
@@ -694,6 +682,18 @@ en noem het in je rapport of PR-tekst.
      met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
      niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
      van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
+597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
+     (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
+     `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
+     Bij 800 × 600 px en een zeer lange baselinenaam is de tooltip ~582 px hoog en begint hij op 603 px, dus buiten
+     beeld. Voorstel: een maximale hoogte met scrollen, of de tooltip boven inkorten. Gevonden in de review van
+     #762 (GPT-6.1-Sol). — B
+600. **VERVOLG: geen blijvende test voor een lettertype dat later laadt in de statusbalk.**
+     `src/components/layout/StatusBar/useStatusFold.ts` meet opnieuw bij `document.fonts` `loadingdone`, maar
+     `tests/browser/statusbar-rows.spec.ts:173–190` wisselt alleen tekstgrootte en lettertype en lokt geen latere
+     fontload uit. Een losse browserproef bevestigt de werking; de repository bewaakt die route nog niet. Voorstel:
+     één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
@@ -957,6 +957,13 @@ en noem het in je rapport of PR-tekst.
      werkelijke start blijven daar ongemoeid (status NOT_STARTED bij completion 1). Gemeten met een probe op de
      store-aanroep die de API doet. Voorstel: een eigen voortgangsactie in de extensie-API, of bewust zo laten en
      in de API-docs noemen. — B
+
+492. **Het manifest van de Claude Desktop-bundel belooft Node 18, maar de stand zonder app vraagt Node 22.**
+     `integrations/claude-desktop/manifest.json` zegt `compatibility.runtimes.node: ">=18.0.0"`; dat klopt voor het
+     schakelstuk. `headlessChild.ts` (`HEADLESS_MIN_NODE_MAJOR = 22`) weigert de stand zonder app onder Node 22,
+     met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
+     Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
+     in review ronde 1 van #734 (GPT-6.1-Sol). — B
 
 ## Bestanden en herstel
 
@@ -1339,6 +1346,13 @@ en noem het in je rapport of PR-tekst.
      review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
 
 ## Rondleiding, Help en extensie-gidsen
+
+493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
+     `**The tab *MCP* is gone.**`; de Help toont "*The tab MCP is gone.*", met de sterretjes erbij, en in de alinea
+     erboven loopt de cursief door ("…back to Off* and you can…"). De gidsen in `public/docs/en/` hebben 22 van zulke
+     regels (onder meer `howto-exporteren.md`, `howto-constraint-deadline-zetten.md`). De renderer is
+     `src/utils/miniMarkdown.tsx`. Gezien op een schermafbeelding van de dev-server bij #734; nl niet nagekeken.
+     Voorstel: de renderer laat nadruk in nadruk toe, of `verify:docs` weigert het. — B
 
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
@@ -1760,6 +1774,17 @@ en noem het in je rapport of PR-tekst.
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
 
+598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
+     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
+     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
+     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
+     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
+     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
+     `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
+     doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
+     opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1833,3 +1858,9 @@ en noem het in je rapport of PR-tekst.
      naar, en `src/services/p6/p6xmlWriter.ts` schrijft ze niet. Een resourcebeschrijving en de kleur van een taak of resource
      komen na heropenen niet terug. Voorstel: één regel, alleen bij aanwezige waarden. Uit de review van #766 (GPT-6.1-Sol),
      zelf geëxporteerd door de reviewer. — B
+
+601. **VERVOLG: de nieuwe buiten-dienstregel (503) is alleen op de dagkalender getoetst.** In
+     `tests/planning/check-mijlpaal-afmelden.ts`, sectie 8h, staan de gevallen ma 18:00 en ma 05:00 alleen op de
+     kalender `dag`. Voeg een geval toe met een nachtdienst: ma 00:00–06:00 en di–vr 22:00–06:00. Een anker op ma
+     07:00, afgemeld op vr, moet za 06:00 worden. Breid de bestaande tabel `FIXED` uit; een nieuwe testlaag is niet
+     nodig. Uit de review van #776 (GPT-6.1-Sol, op 710e547aa, BEVESTIGD, VERVOLG). — B

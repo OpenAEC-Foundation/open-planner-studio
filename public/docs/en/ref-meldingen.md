@@ -18,6 +18,7 @@ The bar at the bottom shows, from left to right:
 - **Critical path: N tasks, N work days** — the number of critical tasks and the project duration. Only visible after a calculation.
 - **End:** — the project finish from the calculation. Only visible after a calculation; an empty project has none.
 - **N deadline(s) missed**, **N constraint(s) violated**, **N out-of-sequence relation(s)** and **N resource(s) overallocated** — each a button with a warning sign, only visible when the counter is above 0 and there is a calculation. A click opens the *Warnings* panel (tooltip: *Open the Warnings panel (details and navigation)*). If you are on the *IFC* or *Report* tab, the app jumps to *Home* at the same time, because the right-hand column does not exist there. The *resource(s) overallocated* counter also refreshes after changes to resources and assignments; the other counters only change after *Calculate*. The four counters are a selection: what the panel shows in addition (truncated lead, ignored relation, hammock without a finish driver, capped finish date, schedule error) is not in the status bar.
+- **N warning(s)** and the **⋯** button — the status bar is always one line. If not everything fits, it folds up, in this order: *Scale* and *Zoom*, the baseline names (the colours stay), the four counters under this one heading, *Tasks* and *Milestones*, *Critical path*, *Selection*, *End*, *Unsaved* and *Out of date*. The heading always stays: its tooltip lists the four counters and a click opens the *Warnings* panel. Anything else that is hidden is in the tooltip of the **⋯** button. Make the window wider and everything comes back.
 - **Out of date — recalculate (F5)** — with a warning sign (tooltip: *Schedule out of date — recalculate (F5)*). Visible as soon as you change something that affects the schedule and have not recalculated. If *Calculate automatically* is on it stays away, except when the calculation gave an error: then it stays.
 - **Selection: N task(s)** — the number of selected tasks; only visible with a selection.
 - **Scale:** and **Zoom: Npx/day** — the time scale of the timeline and the zoom level. The scale follows from the zoom.
@@ -52,7 +53,8 @@ The bar at the bottom shows, from left to right:
 - *Circular dependency between tasks: {path}* — the relations form a cycle. The tasks are in the path; reverse or remove one relation.
 - *The calendar has no working days set* — give the calendar at least one working day, see [Calendar windows](docs://ref-kalenders).
 - *Invalid duration in days for task '{task}'* and *Invalid duration in hours for task '{task}'* — the duration of the task is not a valid number.
-- *Hour task '{task}' has no valid working hours in its calendar* — a task in hours on a calendar without working hours.
+- *The calendar of hour task '{task}' has no valid working hours* and *The calendar of task '{task}' has no valid working hours* — the task's calendar has no work blocks, and its start, end and break give no working time either. An example is a break that takes up the whole workday. The message adds what to check: the working days, start, end and break of that calendar, see [Calendar windows](docs://ref-kalenders).
+- *The project calendar has no valid working hours* — the same for the project calendar. Check its start, end and break there.
 - *Invalid start date for task '{task}'* — the start date of the task is not valid.
 
 ## The strips under the ribbon
