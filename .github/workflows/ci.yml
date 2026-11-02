@@ -241,24 +241,27 @@ jobs:
         include:
           - part: static
             name: static
-          # De planningssuite in vier jobs, elk met het volle aantal kernen: 21 min in één job op een
-          # trage runner, ~6 min in drie (PR #763), vier sinds besluit Ethan 2026-11-02.
+          # De planningssuite in vijf jobs, elk met het volle aantal kernen: 21 min in één job op een
+          # trage runner, ~6 min in drie (PR #763), vijf sinds besluit Ethan 2026-11-02 ("in meer stukken").
           # scripts/planning-pool.mjs verdeelt de checks op gemeten duur
           # (tests/planning/check-durations.json); samen dekken de shards alles, en de job `test` telt
           # dat na. Meer of minder shards: alleen deze regels aanpassen. De aanhalingstekens houden de regels
           # `shard: k/4` uniek voor de browsershards; tests/dev-server/browser-shards.test.mjs muteert die.
           - part: planning
-            name: planning 1-4
-            shard: '1/4'
+            name: planning 1-5
+            shard: '1/5'
           - part: planning
-            name: planning 2-4
-            shard: '2/4'
+            name: planning 2-5
+            shard: '2/5'
           - part: planning
-            name: planning 3-4
-            shard: '3/4'
+            name: planning 3-5
+            shard: '3/5'
           - part: planning
-            name: planning 4-4
-            shard: '4/4'
+            name: planning 4-5
+            shard: '4/5'
+          - part: planning
+            name: planning 5-5
+            shard: '5/5'
           - part: suites
             name: suites
 

@@ -25,7 +25,7 @@ heeft een eigen logbestand en een eigen `TMPDIR`. De uitvoer van de gewone run s
 van een zone zie je alleen de checks die daar rood zijn, met hun eigen uitvoer. De twee
 performance-poorten draaien alleen, als de rest klaar is. Een rode check houdt de rest niet tegen.
 
-In de CI draait de suite in vier jobs (`bash tests/planning/run.sh --shard=1/4` tot en met 4/4). De verdeling
+In de CI draait de suite in vijf jobs (`bash tests/planning/run.sh --shard=1/5` tot en met 5/5). De verdeling
 gaat op gemeten duur uit `check-durations.json`, langste eerst naar de lichtste job; alle runs van één
 check blijven in één job. Een check zonder meting krijgt de mediaan, dus een verouderd getal kost alleen
 balans en nooit dekking. Bijwerken: download de manifesten van een CI-run (`gh run download <run>`) en draai
@@ -34,7 +34,7 @@ balans en nooit dekking. Bijwerken: download de manifesten van een CI-run (`gh r
 **Elke check moet precies één keer draaien.** `expected-checks.txt` noemt elke controle en of hij in de
 matrix hoort (`matrix`) of niet (`los`). Klopt het plan niet met die lijst, in welke richting ook, dan is
 de run rood. Een volledige run telt daarna wat er echt gedraaid heeft; in de CI doet de job `test` dat
-over de vier jobs samen. Bij een nieuwe check of een bewuste wijziging werk je de lijst bij met
+over de vijf jobs samen. Bij een nieuwe check of een bewuste wijziging werk je de lijst bij met
 `bash tests/planning/run.sh --list-checks > tests/planning/expected-checks.txt`. Dat bundelt en draait
 niets.
 
