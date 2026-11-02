@@ -661,6 +661,17 @@ en noem het in je rapport of PR-tekst.
     kalenders (review ronde 3, punt 1). Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
     eigenaar. — B
 
+700. **Eén volledig bedekte dag schakelt de snelle dagtelling voor de hele kalender uit.**
+     `src/engine/scheduler/CalendarEngine.ts:1078` laat `measureLikeWorkDays` voor de hele kalender
+     onwaar blijven zodra één werkdag volledig door een nachtstaart is bedekt. Daardoor tellen
+     `nthMeasureWorkday` en `measureWorkdaysInRange` (`:1098`, `:1123`) ook ver buiten die uitzondering
+     dag voor dag. Een nachtuitzondering uit juni 2026 laat zo ook een afstand tussen 2027 en 2037
+     over 3.659 dagrecords lopen; met gevulde caches wordt die daglus per aanroep opnieuw doorlopen.
+     Dit vertraagt lange berekeningen van duur en speling. Voor later: verwerk volledig bedekte
+     uitzonderingsdagen als gerichte correctie op de weektelling en behoud het snelle pad voor
+     gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
+     in review ronde 2 van PR #787 op `a032c00ad`. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
