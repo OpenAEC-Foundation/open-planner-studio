@@ -9,26 +9,11 @@
  * `org.mpxj.primavera.schema` als gedragsreferentie; geen code overgenomen). De corpusbestanden dragen alleen de
  * P6-standaard; de andere labels komen uit het schema. `24-Hour Calendar` en `24 Hour Calendar` gelden allebei.
  */
-import type { BuiltInProfileId, EffectiveSchedulingOptions, Project } from '@/types/project';
+import type { BuiltInProfileId } from '@/types/project';
 import type { XerRow, XerTable } from '@/services/xer/xerTables';
 import {
   deriveXerScheduleOptions, indexXerScheduleOptions, type XerScheduleOptionsResult,
 } from '@/services/xer/xerScheduleOptions';
-
-/** De labels die de schrijver gebruikt (en de lezer terugleest). */
-export const P6XML_LAG_CALENDAR = {
-  predecessor: 'Predecessor Activity Calendar',
-  successor: 'Successor Activity Calendar',
-  '24hour': '24-Hour Calendar',
-  projectDefault: 'Project Default Calendar',
-} as const;
-export const P6XML_FLOAT_TYPE = {
-  start: 'Start Float = Late Start - Early Start',
-  finish: 'Finish Float = Late Finish - Early Finish',
-  smallest: 'Smallest of Start Float and Finish Float',
-} as const;
-export const P6XML_CRITICAL_PATH = { totalFloat: 'Critical Float', longestPath: 'Longest Path' } as const;
-export const P6XML_OUT_OF_SEQUENCE = { RETAINED_LOGIC: 'Retained Logic', PROGRESS_OVERRIDE: 'Progress Override' } as const;
 
 /** Een P6 XML-project opent met hetzelfde rekenprofiel als een XER. */
 export const P6XML_PROFILE_ID: BuiltInProfileId = 'p6';
@@ -159,36 +144,4 @@ export function deriveP6XmlScheduleOptions(
     numberFormat: { decimal: '.', group: null, source: 'default', currencyCode: '' },
   });
   return deriveXerScheduleOptions(index, projectId, context);
-}
-
-/** De rekenopties zoals de P6 XML-schrijver ze schrijft: de projectvelden en de kinderen van `<ScheduleOptions>`. */
-export function p6XmlScheduleOptionFields(
-  project: Pick<Project, 'progressMode' | 'endDate'>,
-  options: EffectiveSchedulingOptions,
-  hoursPerDay: number,
-): { project: Array<[string, string]>; schedule: Array<[string, string]> } {
-  const crit = options.criticalDefinition;
-  const critHours = crit?.mode === 'totalFloat' ? crit.thresholdHours ?? (crit.threshold ?? 0) * hoursPerDay : 0;
-  const flag = (value: boolean) => (value ? '1' : '0');
-  const floatPaths = options.floatPaths;
-  return {
-    project: [
-      ['CriticalActivityFloatLimit', String(critHours)],
-      ['CriticalActivityPathType', P6XML_CRITICAL_PATH[crit?.mode === 'longestPath' ? 'longestPath' : 'totalFloat']],
-    ],
-    schedule: [
-      ['CalculateFloatBasedOnFinishDate', flag(options.useProjectEndDateForFloat === true && !!project.endDate)],
-      ['ComputeTotalFloatType', P6XML_FLOAT_TYPE[options.totalFloatMode ?? 'finish']],
-      ['MakeOpenEndedActivitiesCritical', flag(options.makeOpenEndedCritical ?? false)],
-      ...(floatPaths ? [
-        ['MaximumMultipleFloatPaths', String(floatPaths.maxPaths)],
-        ['MultipleFloatPathsEnabled', flag(floatPaths.enabled)],
-        ['MultipleFloatPathsUseTotalFloat', flag(floatPaths.method === 'TOTAL_FLOAT')],
-      ] as Array<[string, string]> : []),
-      ['OutOfSequenceScheduleType', P6XML_OUT_OF_SEQUENCE[project.progressMode === 'PROGRESS_OVERRIDE' ? 'PROGRESS_OVERRIDE' : 'RETAINED_LOGIC']],
-      ['RelationshipLagCalendar', P6XML_LAG_CALENDAR[options.lagCalendar ?? 'predecessor']],
-      ['StartToStartLagCalculationType', flag((options.startToStartLagFrom ?? 'earlyStart') === 'earlyStart')],
-      ['UseExpectedFinishDates', flag(options.useExpectedFinishDates ?? false)],
-    ],
-  };
 }

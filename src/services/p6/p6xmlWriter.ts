@@ -21,7 +21,7 @@ import {
 } from '@/services/xmlInterchange';
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { p6ConstraintLabel } from './p6ConstraintTypes';
-import { p6XmlScheduleOptionFields } from './p6xmlScheduleOptions';
+import { p6XmlScheduleOptionFields } from './p6xmlScheduleOptionLabels';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { leaf, node, renderP6XmlWithReport, P6_ID_MAX_LENGTH, type P6Node } from './p6xmlSchemaOrder';
 import { isElapsedTask, isZeroDurationMilestone, taskDurationUnit } from '@/engine/scheduler/duration';

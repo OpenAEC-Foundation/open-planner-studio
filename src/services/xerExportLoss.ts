@@ -3,7 +3,10 @@ import type { XerImportMetadata } from './importTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
 import { mspdiCriticalSlackLimit } from './msproject/mspdiCriticalSlackLimit';
 import type { BuiltInProfileId, Project, ProjectSchedulingOptions } from '@/types/project';
-import { CONVENTION_KEYS, builtInConventions, resolveConventions } from '@/engine/scheduler/conventions/registry';
+import {
+  CONVENTION_KEYS, builtInConventions, effectiveSchedulingOptions, resolveConventions,
+} from '@/engine/scheduler/conventions/registry';
+import { p6SchedulingRulesDiffer } from './p6SchedulingRules';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { ResourceAssignment } from '@/types/resource';
@@ -43,7 +46,7 @@ export interface XerExportLossInput {
   readonly sourceArchive: XerSourceArchive | null;
   readonly importMetadata: XerImportMetadata | null;
   readonly project: Pick<Project, 'progressMode' | 'schedulingOptions' | 'schedulingProfile'>;
-  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint' | 'constraint2' | 'manuallyScheduled' | 'isHammock' | 'isSummary' | 'childIds'>[];
+  readonly tasks: readonly Pick<Task, 'activityCodes' | 'customFields' | 'notes' | 'externalLinks' | 'constraint' | 'constraint2' | 'manuallyScheduled' | 'isHammock' | 'isSummary' | 'childIds' | 'p6ExpectedFinish' | 'time'>[];
   readonly sequences: readonly Pick<Sequence, 'lagPercent' | 'lagUnit'>[];
   readonly assignments: readonly Pick<ResourceAssignment, 'curve' | 'unitsPerDay'>[];
   readonly activityCodeTypes: readonly ActivityCodeType[];
@@ -62,7 +65,9 @@ interface ExportCapabilities {
   /** Welke datumconstraints de writer schrijft. CSV heeft geen kolom; MSPDI kent één ConstraintType; P6 XML
    *  schrijft primair en secundair, maar alleen op een activiteit: een verzameltaak wordt een WBS-element. */
   readonly constraints: 'none' | 'primary' | 'activities';
-  readonly schedulingOptions: 'none' | 'critical-slack-limit';
+  /** Welke rekenopties de writer draagt. `p6`: de P6 XML-schrijver schrijft `<ScheduleOptions>` en de lezer
+   *  leidt ze af zoals bij een XER (#775); verlies is dan wat de P6-exporttoets meldt (`p6SchedulingRulesDiffer`). */
+  readonly schedulingOptions: 'none' | 'critical-slack-limit' | 'p6';
   /** Schrijft de writer taaknotities? (De XER-writer wel; de afvinkstatus meldt hij zelf.) */
   readonly notes: boolean;
   /** Schrijft de writer een hammock als hammock terug? (XER: `TT_LOE`; P6 XML: `Level of Effort`, #775.) */
@@ -111,7 +116,7 @@ const EXPORT_CAPABILITIES: Readonly<Record<Exclude<ExportFormat, 'ifc' | Progres
     percentLag: false,
     elapsedLag: false,
     constraints: 'activities',
-    schedulingOptions: 'none',
+    schedulingOptions: 'p6',
     notes: false,
     hammocks: true,
     reopenProfile: 'p6',
@@ -246,7 +251,12 @@ function hasScheduleProvenance(input: XerExportLossInput): boolean {
 }
 
 function hasScheduleLoss(capabilities: ExportCapabilities, input: XerExportLossInput): boolean {
-  if (hasScheduleProvenance(input) || input.project.progressMode !== undefined) return true;
+  if (hasScheduleProvenance(input)) return true;
+  // P6 XML draagt profiel, opties en voortgangsmodus zoals een XER: dezelfde toets als de exportmelding.
+  if (capabilities.schedulingOptions === 'p6') {
+    return p6SchedulingRulesDiffer(input.project, effectiveSchedulingOptions(input.project), input.tasks);
+  }
+  if (input.project.progressMode !== undefined) return true;
   // Rekenprofielen: een profiel dat niet overleeft wat de lezer van het doelformaat
   // voorstelt, is verlies — niet "er is iets gedefinieerd".
   const kept = resolveConventions(input.project.schedulingProfile);
@@ -300,7 +310,7 @@ function categoriesFor(
   }
   if (input.tasks.some(task => hasConstraintLoss(capabilities, task))) categories.push('constraints');
   // Handmatige planning schrijft geen writer: die taak gaat als gewone taak met berekende datums. Een
-  // hammock alleen CSV, MSPDI en P6 XML niet; de XER-writer schrijft hem als `TT_LOE`.
+  // hammock schrijven CSV en MSPDI niet; XER schrijft hem als `TT_LOE`, P6 XML als `Level of Effort` (#775).
   if (input.tasks.some(task => task.manuallyScheduled)) categories.push('manual-scheduling');
   if (!capabilities.hammocks && input.tasks.some(task => task.isHammock)) categories.push('hammock-tasks');
   return categories;

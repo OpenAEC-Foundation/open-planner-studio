@@ -9,7 +9,7 @@ import { builtInConventions, CONVENTION_KEYS, resolveConventions } from '@/engin
 export function p6SchedulingRulesDiffer(
   project: Pick<Project, 'schedulingProfile' | 'schedulingOptions' | 'progressMode'>,
   options: EffectiveSchedulingOptions,
-  tasks: readonly Task[],
+  tasks: readonly Pick<Task, 'p6ExpectedFinish' | 'time'>[],
 ): boolean {
   const own = resolveConventions(project.schedulingProfile);
   const p6 = builtInConventions('p6');
