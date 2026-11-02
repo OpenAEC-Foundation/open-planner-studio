@@ -191,6 +191,22 @@ async function refreshShell(path: string, text: string, links: ExternalLink[]) {
   return { result, task, anchors: Object.fromEntries(task.externalLinks!.map(l => [l.id, l.anchorDate])) };
 }
 
+/** IFCTASKTIME-argumenten met het vroege en het geplande paar, en naar keuze de late slots. */
+const tt = (o: { start: string; finish: string; days: number; lateStart?: string; lateFinish?: string }) => {
+  const a: string[] = new Array(IFC_TASKTIME_SLOTS.length).fill('$');
+  a[TASKTIME_SLOT.name] = "'T'";
+  a[TASKTIME_SLOT.dataOrigin] = '.PREDICTED.';
+  a[TASKTIME_SLOT.durationType] = '.WORKTIME.';
+  a[TASKTIME_SLOT.scheduleDuration] = `'P${o.days}D'`;
+  a[TASKTIME_SLOT.scheduleStart] = `'${o.start}'`;
+  a[TASKTIME_SLOT.scheduleFinish] = `'${o.finish}'`;
+  a[TASKTIME_SLOT.earlyStart] = `'${o.start}'`;
+  a[TASKTIME_SLOT.earlyFinish] = `'${o.finish}'`;
+  if (o.lateStart) a[TASKTIME_SLOT.lateStart] = `'${o.lateStart}'`;
+  if (o.lateFinish) a[TASKTIME_SLOT.lateFinish] = `'${o.lateFinish}'`;
+  return a.join(',');
+};
+
 // (5) Review #794 ronde 1, punt 1: een bronbestand ZONDER late datums, via het laadpad van de app.
 // Het laadpad rekent de bron door, dus de brontaak heeft daarna wél late datums. Die komen dan uit
 // onze berekening, niet uit het bestand; het anker moet de vroege datum blijven (het besluit).
@@ -199,20 +215,6 @@ async function refreshShell(path: string, text: string, links: ExternalLink[]) {
 // De datums kloppen met de berekening, dus de bron opent niet in "datums zoals opgeslagen".
 // (Een MSPDI-bron kan dit niet tonen: die lezer geeft bij elk inlezen nieuwe taak-id's, knownbug 837.)
 {
-  const tt = (o: { start: string; finish: string; days: number; lateStart?: string; lateFinish?: string }) => {
-    const a: string[] = new Array(IFC_TASKTIME_SLOTS.length).fill('$');
-    a[TASKTIME_SLOT.name] = "'T'";
-    a[TASKTIME_SLOT.dataOrigin] = '.PREDICTED.';
-    a[TASKTIME_SLOT.durationType] = '.WORKTIME.';
-    a[TASKTIME_SLOT.scheduleDuration] = `'P${o.days}D'`;
-    a[TASKTIME_SLOT.scheduleStart] = `'${o.start}'`;
-    a[TASKTIME_SLOT.scheduleFinish] = `'${o.finish}'`;
-    a[TASKTIME_SLOT.earlyStart] = `'${o.start}'`;
-    a[TASKTIME_SLOT.earlyFinish] = `'${o.finish}'`;
-    if (o.lateStart) a[TASKTIME_SLOT.lateStart] = `'${o.lateStart}'`;
-    if (o.lateFinish) a[TASKTIME_SLOT.lateFinish] = `'${o.lateFinish}'`;
-    return a.join(',');
-  };
   const foreignIfc = (late: { start: boolean; finish: boolean }) => {
     const rows = [
       { n: 2, name: 'Installatie', start: '2027-03-01', finish: '2027-03-05', days: 5, ls: '2027-03-15', lf: '2027-03-19' },
@@ -335,6 +337,76 @@ async function refreshShell(path: string, text: string, links: ExternalLink[]) {
   eq('6d fase B, haar blad droeg een late finish: FF op de late finish van de fase', withLate, lateFinish);
   const [withoutLate, , earlyFinish] = phaseFF({});
   eq('6e fase B, haar blad droeg geen late finish: FF op de vroege finish van de fase', withoutLate, earlyFinish);
+}
+
+// (7) Review #794 ronde 2: een fase MET eigen vastlegging telt per kant alleen die vastlegging; de
+// bladen tellen alleen als de fase zelf niets vastlegt. Bron: een IFC uit een ander pakket met
+// Fase (Installatie eronder), Leidingwerk en Oplevering, zoals sectie 5. Het kind Installatie draagt
+// altijd late slots (15–19 maart); de fase draagt er per variant wel of geen.
+{
+  const phaseIfc = (phase: 'own-none' | 'own-start' | 'own-both' | 'no-record') => {
+    const rows = [
+      { n: 2, name: 'Installatie', start: '2027-03-01', finish: '2027-03-05', days: 5, ls: '2027-03-15', lf: '2027-03-19' },
+      { n: 3, name: 'Leidingwerk', start: '2027-03-01', finish: '2027-03-19', days: 15, ls: '2027-03-01', lf: '2027-03-19' },
+      { n: 4, name: 'Oplevering', start: '2027-03-22', finish: '2027-03-22', days: 1, ls: '2027-03-22', lf: '2027-03-22' },
+    ];
+    const phaseTime = phase === 'no-record' ? [] : [`#15=IFCTASKTIME(${tt({
+      start: '2027-03-01', finish: '2027-03-05', days: 5,
+      ...(phase !== 'own-none' ? { lateStart: '2027-03-15' } : {}),
+      ...(phase === 'own-both' ? { lateFinish: '2027-03-19' } : {}),
+    })});`];
+    return [
+      'ISO-10303-21;', 'HEADER;', "FILE_NAME('X.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');", 'ENDSEC;', 'DATA;',
+      "#1=IFCPROJECT('gPhaseProj',$,'Installateur',$,$,$,$,$,$);",
+      ...rows.flatMap(r => [
+        `#${r.n + 10}=IFCTASKTIME(${tt({ start: r.start, finish: r.finish, days: r.days, lateStart: r.ls, lateFinish: r.lf })});`,
+        `#${r.n}=IFCTASK(${taskArgs({ guid: `gPh${r.n}`, name: r.name, wbs: `1.${r.n}`, taskTimeRef: `#${r.n + 10}` })});`,
+      ]),
+      ...phaseTime,
+      `#5=IFCTASK(${taskArgs({ guid: 'gPh5', name: 'Fase', wbs: '1', taskTimeRef: phase === 'no-record' ? '$' : '#15' })});`,
+      "#20=IFCRELSEQUENCE('gPhSeqA',$,$,$,#2,#4,$,.FINISH_START.,$);",
+      "#21=IFCRELSEQUENCE('gPhSeqB',$,$,$,#3,#4,$,.FINISH_START.,$);",
+      "#22=IFCRELNESTS('gPhNest',$,$,$,#5,(#2));",
+      'ENDSEC;', 'END-ISO-10303-21;',
+    ].join('\n');
+  };
+  const path = '/projecten/installateur-fase.ifc';
+  const run = async (phase: Parameters<typeof phaseIfc>[0]) => {
+    const text = phaseIfc(phase);
+    const source = await memorySource(path, text);
+    const fase = source.tasks.find(t => t.name === 'Fase')!;
+    const ref = { projectId: source.projectId, taskId: fase.id, filePath: path };
+    const links = TYPES.map(relType => ({ ...link('successor', relType), sourceRef: ref }));
+    return { fase, ...(await refreshShell(path, text, links)) };
+  };
+
+  const none = await run('own-none');
+  eq('7a de fase is een fase, met berekende late datums 15–19 maart (de val)',
+    [none.fase.childIds.length, none.fase.time.lateStart, none.fase.time.lateFinish], [1, '2027-03-15T07:00', '2027-03-19T16:00']);
+  eq('7b fase met eigen vastlegging zonder late datums: alle vier op de vroege datum, ook al droeg het kind ze',
+    none.anchors, {
+      'successor-FS': '2027-03-01T07:00', 'successor-SS': '2027-03-01T07:00',
+      'successor-FF': '2027-03-05T16:00', 'successor-SF': '2027-03-05T16:00',
+    });
+  eq('7c ...en de ruwbouw krijgt 0 werkdagen speling, niet 10', none.task.time.totalFloat, 0);
+
+  const onlyStart = await run('own-start');
+  eq('7d fase legt alleen een late start vast: FS/SS laat, FF/SF vroeg (het kind telt niet)', onlyStart.anchors, {
+    'successor-FS': '2027-03-15T07:00', 'successor-SS': '2027-03-15T07:00',
+    'successor-FF': '2027-03-05T16:00', 'successor-SF': '2027-03-05T16:00',
+  });
+
+  const both = await run('own-both');
+  eq('7e fase legt beide late datums vast: alle vier laat, en 10 werkdagen speling', [both.anchors, both.task.time.totalFloat], [{
+    'successor-FS': '2027-03-15T07:00', 'successor-SS': '2027-03-15T07:00',
+    'successor-FF': '2027-03-19T16:00', 'successor-SF': '2027-03-19T16:00',
+  }, 10]);
+
+  const derived = await run('no-record');
+  eq('7f fase zonder eigen vastlegging: haar kind droeg beide late datums, dus alle vier laat', derived.anchors, {
+    'successor-FS': '2027-03-15T07:00', 'successor-SS': '2027-03-15T07:00',
+    'successor-FF': '2027-03-19T16:00', 'successor-SF': '2027-03-19T16:00',
+  });
 }
 
 if (failures.length) {

@@ -53,8 +53,11 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
  * Per taak: droeg het bestand een late start en een late finish? Uit dezelfde vastlegging als
  * "datums zoals opgeslagen" (`captureRecordedDates`): bij IFC de gevulde slots (`recordedFields`),
  * bij XER, P6 XML, MSPDI, `.mpp` en CSV de rekenuitvoer van de bron (`recordedTimes`; een ontbrekende
- * as ontbreekt daar). Een verzameltaak zonder eigen vastlegging (de bronlezers bewaren alleen die van
- * bladtaken, `leafRecordedTimes`) telt een as als al haar bladen hem droegen.
+ * as ontbreekt daar). Een taak MET eigen vastlegging telt per as alleen die vastlegging, ook een
+ * verzameltaak: legt het bestand de fase vast zonder late finish, dan telt een late finish van haar
+ * kind niet (review PR #794 ronde 2). Alleen een verzameltaak ZONDER eigen vastlegging (de bronlezers
+ * van XER, P6 XML, MSPDI en `.mpp` bewaren alleen die van bladtaken, `leafRecordedTimes`) telt een as
+ * als al haar bladen hem droegen.
  */
 function lateDatesInFile(tasks: Task[], parsed: ImportResult): Record<string, LateDatesInFile> {
   const { times } = captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes);
@@ -63,12 +66,11 @@ function lateDatesInFile(tasks: Task[], parsed: ImportResult): Record<string, La
   const cache = new Map<string, Task[]>();
   const out: Record<string, LateDatesInFile> = {};
   for (const task of tasks) {
-    const mine = own(task);
-    if (task.childIds.length === 0 || (mine.start && mine.finish)) { out[task.id] = mine; continue; }
+    if (task.childIds.length === 0 || times[task.id]) { out[task.id] = own(task); continue; }
     const leaves = descendantLeaves(task, byId, cache).map(own);
     out[task.id] = {
-      start: mine.start || (leaves.length > 0 && leaves.every(leaf => leaf.start)),
-      finish: mine.finish || (leaves.length > 0 && leaves.every(leaf => leaf.finish)),
+      start: leaves.length > 0 && leaves.every(leaf => leaf.start),
+      finish: leaves.length > 0 && leaves.every(leaf => leaf.finish),
     };
   }
   return out;
