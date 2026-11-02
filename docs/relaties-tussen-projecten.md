@@ -1,7 +1,7 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
 Datum: 2 november 2026. Status: onderzoek en ontwerp, nog niets gebouwd. Ethan beslist over de keuzes in
-hoofdstuk 7. Tot zijn ja verandert er niets aan het IFC-formaat of aan wat de planner ziet.
+hoofdstuk 10. Tot zijn ja verandert er niets aan het IFC-formaat of aan wat de planner ziet.
 
 ## 1. Doel en grens
 
@@ -278,8 +278,8 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
    klaar zijn vóór de start, uiterlijk 15 maart 2027". In de Gantt staat een klein merkteken aan de balk. P6 heeft
    alleen een rapport, en alleen binnen één database.
 4. **Een conflict gaat naar beide planners.** Zet de installateur *Installatie* eerder dan de aannemer kan leveren,
-   dan ziet hij vóór het opslaan: "Na opslaan rekent Aannemer op een start 5 werkdagen eerder dan hun ruwbouw klaar
-   is." Na het opslaan krijgt de planner van de aannemer een melding met een link. De aannemer ziet na F5 ook zelf een
+   dan ziet hij vóór het opslaan: "Na opslaan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw van Aannemer
+   klaar is." Na het opslaan krijgt de planner van de aannemer een melding met een link. De aannemer ziet na F5 ook zelf een
    regel: "De externe opvolger *Installatie* (Installateur) begint 5 werkdagen voordat deze taak klaar is" (voorstel 2
    uit #792, knownbug 6). Geen enkel product in hoofdstuk 4 meldt actief aan de andere kant.
 5. **De herkomst van elk anker.** De tooltip zegt: "Anker uit versie 12 van Installateur.ifc, gelezen op 2 november
@@ -406,7 +406,7 @@ planner na F5, en de bronplanner als hij de afhankelijke projecten kent (7.3).
 
 ## 8. Contractvoorstellen voor de SuperCloud
 
-Elk voorstel staat ook als issue bij de SuperCloud (hoofdstuk 10). De namen van berichten en velden zijn een
+Elk voorstel staat ook als issue bij de SuperCloud (hoofdstuk 11). De namen van berichten en velden zijn een
 voorstel; de SuperCloud beslist.
 
 | | behoefte | waar (VERMOED voor de werkplek) | nu |
@@ -429,3 +429,165 @@ voorstel; de SuperCloud beslist.
 
 Toetsen: de rekenregels (verversen, gevolgen, conflict) in `tests/planning/`; de route in de browser met de nep-site
 (`?fakeSite=1`), uitgebreid met een tweede project, versies en de nieuwe hostberichten.
+
+## 10. Keuzes voor Ethan
+
+Op volgorde van belang. Per keuze: wat de planner ziet en doet, de opties, en mijn advies. Eerdere besluiten die
+meetellen:
+
+- **Een vast anker, geen berekening over twee documenten.** Ontwerp 2.9
+  (`docs/superpowers/specs/2026-07-06-2.9-research-domein.md` §3, juli 2026). Wie het besloot, staat er niet bij.
+- **Het anker van een externe opvolger is de late datum van de bron.** Ethan, 2 november 2026 (voorstel 1 uit #792,
+  gebouwd in #794).
+- **Automatisch opslaan staat uit voor een site-bestand**, omdat elke ronde een nieuwe versie zou maken
+  (`docs/platformbouw.md`, #309). Daarom stuurt OPS de koppelingen (C3) alleen mee bij Opslaan.
+- **De Rust-kant blijft dun**: elk nieuw command is publiek oppervlak (AGENTS.md). Dat telt bij keuze 6.
+
+### Keuze 1. Wat doet OPS als een bronproject een nieuwe versie heeft?
+
+Voorbeeld: de aannemer opent zijn planning. De installateur sloeg gisteren een nieuwe versie op.
+
+1. **Melding, gevolgen bekijken, één klik accepteren.** De aannemer ziet de balk "Installateur.ifc heeft een nieuwe
+   versie (12, Anna, 1 november 16:20). 2 koppelingen veranderen. [Bekijken]". *Bekijken* toont: "Accepteren verschuift
+   4 taken; het einde gaat van 18 juni naar 25 juni 2027". Hij klikt *Accepteren* of *Later*.
+2. **Automatisch overnemen.** OPS ververst de ankers en rekent zelf; de balk zegt achteraf "2 ankers bijgewerkt uit
+   versie 12; het einde ging van 18 juni naar 25 juni 2027. [Ongedaan maken]".
+3. **Alleen met de hand**, zoals nu: geen balk; de planner kiest zelf *Alle externe relaties vernieuwen*.
+
+Advies: optie 1 als standaard, met optie 2 als instelling per project. Een plan verschuift dan nooit zonder dat de
+planner het ziet, en wie dat wil, kan het automatisch laten gaan. MS Project kent dezelfde twee standen
+("Automatically accept new external data"), maar zonder de gevolgen te tonen.
+
+### Keuze 2. Ziet het bronproject wie ervan afhangt?
+
+Voorbeeld: de installateur opent zijn planning en ziet bij *Installatie*: "Aannemer rekent hierop: Ruwbouw moet klaar
+zijn vóór de start, uiterlijk 15 maart 2027".
+
+1. **Ja, met naam, taak en datum, voor iedereen die het bronproject mag lezen.** De koppeldialoog zegt dat vooraf: "De
+   planners van Installateur zien deze koppeling en de datum waarop je rekent."
+2. **Alleen een aantal** ("2 projecten hangen af van deze taak"); naam, taak en datum alleen voor wie ook het
+   afhankelijke project mag lezen.
+3. **Nee.** Alleen de afhankelijke kant weet ervan, zoals nu.
+
+Advies: optie 1. Een koppeling is een afspraak tussen twee partijen; de bron moet weten waarop de ander rekent, anders
+kan hij geen rekening houden met een verschuiving. Optie 2 is veiliger, maar dan ziet de installateur niet *wat* hij
+raakt. Dit raakt ook de SuperCloud (C3); zij moeten het beleid kunnen afdwingen.
+
+### Keuze 3. Wie krijgt een melding bij een conflict?
+
+Voorbeeld: de installateur zet *Installatie* eerder. Dan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw
+klaar is.
+
+1. **Beide planners.** De installateur ziet het vóór het opslaan; de aannemer krijgt na het opslaan een melding in de
+   SuperCloud (en na F5 een regel in zijn eigen plan).
+2. **Alleen de afhankelijke planner**, na F5 in zijn eigen plan.
+3. **Geen melding**, alleen negatieve speling (zoals nu).
+
+Advies: optie 1. Zonder cloud wordt het vanzelf optie 2, plus de bronplanner als hij de afhankelijke projecten kent
+(7.3).
+
+### Keuze 4. Mogen er drie velden bij in het IFC-formaat?
+
+Voorbeeld: de tooltip van een koppeling zegt "Anker uit versie 12 van Installateur.ifc, gelezen op 2 november 14:10".
+Daarvoor bewaart OPS per koppeling `sourceRef.siteFileId`, `sourceVersion` en `anchorReadAt` (5.4).
+
+1. **Ja, nu.** Oudere versies van OPS laten de velden staan.
+2. **Nee.** Dan is er geen herkomst, en in de SuperCloud alleen herkennen op project-id (een kopie met hetzelfde
+   project-id is dan niet te onderscheiden).
+
+Advies: optie 1. Zonder `siteFileId` werkt stand A niet goed, en zonder `sourceVersion` kan OPS niet zien of de bron
+nieuwer is.
+
+### Keuze 5. Waar komt het anker vandaan als de bron ook open staat, met niet-opgeslagen wijzigingen?
+
+Voorbeeld: één planner heeft *Fase 1.ifc* en *Fase 2.ifc* tegelijk open. Hij verschuift in fase 1 een taak en slaat
+nog niet op. Dan ververst hij fase 2.
+
+1. **Uit het opgeslagen bestand**, met de melding "Fase 1.ifc heeft niet-opgeslagen wijzigingen; het anker komt uit
+   de opgeslagen versie."
+2. **Uit het geopende document**, met de niet-opgeslagen wijziging erbij (dichter bij P6 met beide projecten open).
+
+Advies: optie 1. Dan komt het anker altijd uit iets wat de ander ook kan zien (uitgangspunt 3), en is de herkomst
+(keuze 4) altijd een echte versie.
+
+### Keuze 6. Zonder cloud: hoe merkt OPS een gewijzigde bron op?
+
+Voorbeeld: de installateur stuurt een nieuwe versie per mail; de aannemer zet die over de oude in zijn projectmap.
+
+1. **Bij openen en als het venster weer actief wordt**: OPS kijkt naar de wijzigingstijd van de bronbestanden en toont
+   de balk uit keuze 1.
+2. **De map live bewaken**: de balk verschijnt meteen, ook als het venster al actief is. Dat vraagt de `watch`-functie
+   van `tauri-plugin-fs` (een Rust-wijziging en extra rechten).
+3. **Alleen met de hand**, zoals nu.
+
+Advies: optie 1. Dat dekt het gewone geval zonder de Rust-kant te raken.
+
+### Keuze 7. Zonder cloud: afhankelijke projecten zoeken in een map?
+
+Voorbeeld: de installateur kiest *Afhankelijke projecten zoeken…* en de map `Projecten/Zuidas`. OPS vindt
+*Aannemer.ifc* met twee koppelingen naar zijn planning.
+
+1. **Ja, en OPS onthoudt de map per project** (een projectinstelling, dus in het IFC), zodat de controle bij elk openen
+   vanzelf gaat.
+2. **Ja, maar zonder onthouden**: elke keer de map kiezen.
+3. **Nee.**
+
+Advies: optie 1.
+
+### Keuze 8. *Project verplaatsen*: externe ankers meeschuiven? (voorstel 7 uit #792)
+
+Voorbeeld: de aannemer verschuift zijn hele project 2 weken. Nu schuiven de ankers mee, met een waarschuwing *externe
+ankers*.
+
+1. **Niet meer meeschuiven.** Het andere project beweegt niet mee; het anker blijft de datum van de bron.
+2. **Zoals nu**: meeschuiven met een waarschuwing.
+
+Advies: optie 1. Meeschuiven maakt het anker een datum die in geen enkel bronbestand staat. Met keuze 1 komt de echte
+datum toch terug bij de volgende versie.
+
+### Keuze 9. Externe lag in de lagkalender van het project? (voorstel 6 uit #792)
+
+Voorbeeld: het project rekent een relatielag in de kalender *24 uur*. Een interne lag van 2 dagen telt dan 48 uur, een
+externe lag nu 2 werkdagen in de kalender van de eigen taak.
+
+1. **Ja**: een externe lag telt zoals een interne. De gidszin "De werkdagen en de werktijd tellen in de kalender van je
+   eigen taak" verandert.
+2. **Nee**: zoals nu.
+
+Advies: optie 1. Een planner verwacht dat een lag overal hetzelfde telt.
+
+### Keuze 10. Een gestarte of klare bronkant: terugvallen op de vroege datum? (open vraag uit #794)
+
+Voorbeeld: *Installatie* is al gestart. Haar late start ligt in de berekening ná de werkelijke start; die speling
+bestaat niet meer. Gebouwd in #794: het anker valt dan terug op de vroege datum. De orkestrator zei: "Bouw tot zijn
+antwoord verder alsof hij ja zegt."
+
+1. **Ja**, zoals gebouwd.
+2. **Nee**: ook dan de late datum.
+
+Advies: optie 1.
+
+### Keuze 11. MCP-tools en de gidszin over fasen (voorstel 8 uit #792)
+
+Voorbeeld: de planner vraagt de AI-assistent "Welke taken hangen af van een ander project?" Nu ziet de assistent geen
+externe relaties.
+
+1. **Ja**: externe relaties in de leestools, een tool om te verversen, en de zin over fasen in de gids.
+2. **Nee.**
+
+Advies: optie 1.
+
+## 11. Issues bij de SuperCloud
+
+Volgt.
+
+## 12. Bronnen
+
+- Open Planner Studio: `docs/platformbouw.md`, `src/services/fileAccess/siteHost.ts`, `src/engine/externalLinks.ts`,
+  #706, #716, #753, #792, #794.
+- SuperCloud: OpenAEC-Foundation/OpenAEC-Blueprint#61; open-pdf-studio#694, #704; open-calc-studio#28, #30 en
+  `docs/supercloud.md`; open-office-studio `docs/supercloud.md`; open-bim-platform
+  `docs/superpowers/specs/2026-10-26-open-bim-platform-design.md`; openaec-storage `README.md` en
+  `openaec_storage/api.py` (main, 2 november 2026); ifcx-explorer `docs/reference/studio-integration-recon.md`.
+- Concurrentie: de links in hoofdstuk 4. Researcher-agents op Haiku 5.5 zochten de bronnen; de citaten met "(zelf
+  nagelezen)" heb ik in de ruwe pagina teruggevonden.
