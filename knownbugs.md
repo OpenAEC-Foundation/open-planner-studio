@@ -1233,16 +1233,6 @@ en noem het in je rapport of PR-tekst.
      ("het ingebouwde profiel Primavera P6"), of toon hem alleen als de conventies afwijken van P6. Review PR #393
      ronde 8 (VERVOLG). — B
 
-509. **De externe koppeling in het voorbeeld *De Vaart Apartment Complex* wijst naar ids die het meegeleverde
-     bronbestand niet heeft.** `buildGrootWithExternalSource` in `scripts/gen-core.ts` haalt project- en taak-id
-     uit een eigen bouw van het bronvoorbeeld; `generate-examples.ts` bouwt dat bronbestand daarna opnieuw, met
-     nieuwe ids. In `showcase-appartementencomplex.ifc` staat `proj-mvtzzksw9ms23`/`task-mvtzzkug0aeb11`, in
-     `showcase-groot-terrein-onderaannemer.ifc` komen die niet voor (op main idem, met andere ids). Bijwerken
-     via de echte `refreshExternalAnchors` vindt zo 0 koppelingen; het bevroren anker en het plan kloppen wel.
-     `verify-examples.ts` mist het, omdat die op taaknaam zoekt. Voorstel: gebruik dezelfde bouw voor de
-     koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
-     review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
-
 801. **Een groot IFC-bestand openen kost op de vaste 10.000-takenfixture circa 3,7 seconden.** De
      bestaande `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC
      7763, Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte bestandskeuze tot de Gantt klaar is:

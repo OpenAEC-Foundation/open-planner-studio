@@ -83,6 +83,27 @@ eq('3b het anker blijft gelijk', anchors(), [
 eq('3c geen nieuwe undo-stap bij een actuele koppeling', applied(), before);
 eq('3d het document blijft rekenkundig actueel', S().scheduleStale, false);
 
+// (4) Knownbug 509: de koppeling in De Vaart wijst naar het meegeleverde bronbestand. Verversen
+// vindt haar op project- en taak-id, en het bevroren anker klopt al.
+{
+  const grootPath = resolve(root, 'examples/showcase-appartementencomplex.ifc');
+  const groot = createAppStoreContext().store;
+  const parsedGroot = await readExternalSource(grootPath, nodeIo);
+  const linked = parsedGroot.tasks.filter(task => (task.externalLinks?.length ?? 0) > 0);
+  eq('4a De Vaart heeft één taak met een externe koppeling', linked.map(task => task.name), ['Car park paving']);
+  groot.setState({ parseExternalSource: async (filePath: string) => readExternalSource(filePath, nodeIo) });
+  groot.getState().newProject();
+  const own = groot.getState().addTask({ name: 'Car park paving' });
+  const original = linked[0].externalLinks![0];
+  groot.getState().updateTask(own, {
+    externalLinks: [{ ...original, sourceRef: { ...original.sourceRef, filePath: sourcePath } }],
+  });
+  const result = await groot.getState().refreshExternalAnchorsFrom(sourcePath);
+  eq('4b verversen vindt de koppeling op id', result, { refreshed: 1, missing: 0 });
+  eq('4c het opgeslagen anker is al het actuele anker',
+    groot.getState().tasks.find(task => task.id === own)!.externalLinks![0].anchorDate, original.anchorDate);
+}
+
 if (failures.length) {
   console.error(`XX external-source-load: ${failures.length}/${checks}\n${failures.join('\n')}`);
   process.exit(1);
