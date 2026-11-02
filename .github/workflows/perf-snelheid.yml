@@ -29,6 +29,7 @@ jobs:
         with:
           ref: ${{ env.HEAD_REVISION }}
           path: candidate
+          fetch-depth: 0
       - uses: actions/checkout@v5
         with:
           ref: ${{ env.BASE_REVISION }}
