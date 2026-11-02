@@ -229,6 +229,7 @@ check-mpp-relations.ts matrix
 check-mpp-summary-relations.ts matrix
 check-mpp-walk-units.ts matrix
 check-mspdi-baseline-export.ts matrix
+check-mspdi-cross-project.ts matrix
 check-mspdi-export-klok-capaciteit-drempel.ts matrix
 check-mspdi-export-kritiek-uren-melding.ts matrix
 check-mspdi-feestdagen.ts matrix

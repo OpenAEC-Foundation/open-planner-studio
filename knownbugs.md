@@ -1233,6 +1233,18 @@ en noem het in je rapport of PR-tekst.
      Ruwe gegevens en [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
 
+830. **Een MSPDI-relatie naar een taak in een ander project valt bij openen stil weg.** MS Project schrijft zo'n
+     relatie als `<PredecessorLink>` met `<CrossProject>1</CrossProject>` en `<CrossProjectName>` (pad + `\` +
+     taaknummer in het andere project); de externe taak zelf staat niet als `<Task>` in het bestand (MPXJ
+     `MSPDIWriter.writePredecessor`: "We'll just replicate what MS Project writes"). `readMSPDI` vindt de
+     voorganger-UID dan niet en slaat de link over (`mspdiReader.ts`, resolutie van `pendingLinks`); de
+     openingsmelding telt niets. Na opslaan of een MSPDI-export is de relatie weg. Nagespeeld met een probe: twee
+     taken en één CrossProject-link geven 0 relaties, 0 externe koppelingen en geen importverslag. Een UID die
+     samenvalt met een eigen taak gaf een verkeerde interne relatie; dat is in #792 opgelost
+     (`check-mspdi-cross-project.ts`). Voorstel: lees de link in als externe relatie; daarvoor is eerst een besluit
+     nodig over een koppeling zonder anker en zonder project-id (de dialoog en het klembord eisen beide nu). Zie
+     voorstel 3 in #792. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
