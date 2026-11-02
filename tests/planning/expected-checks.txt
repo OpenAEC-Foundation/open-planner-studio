@@ -390,6 +390,7 @@ check-task-trigger-changes.ts matrix
 check-tauri-refresh-evidence.ts matrix
 check-text-asset.ts matrix
 check-theme-bar-contrast.ts matrix
+check-theme-contrast.ts matrix
 check-theme-premirror.ts matrix
 check-time-notation.ts matrix
 check-today-label.ts matrix
