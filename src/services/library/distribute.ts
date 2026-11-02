@@ -456,6 +456,9 @@ export function computeDistribution(
     const levelOptions: LevelingOptions = {
       constrainToFloat: false,
       scopeTaskIds,
+      // Het schrijfplan slaat dit document over: de capaciteitstoets moet dezelfde bestaande
+      // vertragingen en gaten zien als de bezetting na toepassen.
+      ...(cannotMove ? { preserveExistingLeveling: true } : {}),
       ...(doc.ceilingWorkdays !== null ? { overrunCeilingDays: doc.ceilingWorkdays } : {}),
       allowSplits: options.allowSplits,
       poolLedger: makeLedgerForDoc(doc, horizonIso),

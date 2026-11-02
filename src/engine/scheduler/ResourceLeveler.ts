@@ -103,6 +103,9 @@ export interface LevelingOptions {
    *  hebben moeten blijven staan waar ze staan — anders lost een bibliotheekconflict zich op door
    *  het hele document te herschikken. */
   scopeTaskIds?: string[];
+  /** De aanroeper schrijft dit document niet. Behoud daarom bestaande vertragingen en gaten en
+   *  toets uitsluitend de huidige vaste last, inclusief conflicten binnen de opgegeven scope. */
+  preserveExistingLeveling?: boolean;
   /** Maximale uitloop van de projecteinddatum, in werkdagen t.o.v. de HUIDIGE (mét bestaande
    *  nivellering berekende) planning. De motor vertaalt dit naar
    *  een per-taak-venster `lateStart + N` op de TAAKkalender (ELAPSEDTIME: kalenderdagen, zelfde as
@@ -375,7 +378,7 @@ export function levelResources(
     const kept = gaps.filter(g => g.source !== 'leveling');
     return kept.length > 0 ? kept : undefined;
   };
-  const workTasks: Task[] = tasks.map(t => inScope(t.id)
+  const workTasks: Task[] = tasks.map(t => inScope(t.id) && !options.preserveExistingLeveling
     ? {
         ...t,
         levelingDelay: undefined,
@@ -558,7 +561,7 @@ export function levelResources(
   const fixedLoadIds: string[] = [];
   for (const t of tasks) {
     if (!hasDemand(t.id)) continue;             // geen vraag op geselecteerde renewables → niet verschuiven
-    if (!inScope(t.id)) { fixedLoadIds.push(t.id); continue; } // buiten scope — vóór alle andere checks
+    if (!inScope(t.id) || options.preserveExistingLeveling) { fixedLoadIds.push(t.id); continue; }
     if (isImmovableTask(t)) { fixedLoadIds.push(t.id); continue; } // voltooid/in uitvoering — vóór de pin-check
     if (t.priority === 1000) pinnedIds.push(t.id); // vastgepind
     else movableIds.push(t.id);
@@ -654,7 +657,7 @@ export function levelResources(
   };
   // Een tussenstap zonder vraag moet eerst haar voorgangers afwachten: anders kan een actieve
   // opvolger boeken vóór een nog te verschuiven voorouder. Deze tussenstappen boeken zelf niets.
-  const transitIds = tasks.filter(t => !hasDemand(t.id) && !isImmovableTask(t)
+  const transitIds = tasks.filter(t => !options.preserveExistingLeveling && !hasDemand(t.id) && !isImmovableTask(t)
     && predsOf.get(t.id)!.length > 0).map(t => t.id);
   const active = new Set<string>([...pinnedIds, ...movableIds, ...transitIds]);
   const sortedActive = [...active].sort(cmp);
@@ -683,7 +686,7 @@ export function levelResources(
     const startIso = baseEs(id);
     const start = parseInstant(startIso);
     const demand = demandAt(workById.get(id)!, start);
-    if (hasManualPlacement(taskById.get(id)!)) fixedPoolConflicts.set(id, poolConflicts(demand.byRes, demand.days));
+    if (inScope(id)) fixedPoolConflicts.set(id, poolConflicts(demand.byRes, demand.days));
     // `toPoolLedger: true` — een onverplaatsbare of out-of-scope taak bezet de
     // pool ECHT (ze is per definitie al geplaatst, dus geen "niet-plaatsbaar = geen cascade"-geval).
     // Een lopende taak boekt zo haar ene gezaghebbende plaatsing (de berekende spanne), dezelfde als
@@ -892,12 +895,12 @@ export function levelResources(
     remaining--;
   }
 
-  // Vastgepind of handmatig betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
+  // Een vaste taak betekent niet conflictvrij. Deze taken boeken onvoorwaardelijk en scannen
   // geen alternatief venster. Controleer na ALLE boekingen hun werkelijke vraagdagen, zodat
   // ook de eerst geboekte pin het conflict met een later geboekte pin terugkrijgt.
   // Geen tweede boeking: booked bevat de eigen vraag al. Nulvraag telt niet als conflict.
   // De vraag komt uit dezelfde gedeelde plaatsing als de boeking (`demandAt` op het boekingsmoment).
-  for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(id => inScope(id) && hasManualPlacement(taskById.get(id)!))]) {
+  for (const taskId of [...pinnedIds, ...fixedLoadIds.filter(inScope)]) {
     const start = pinnedStartDate.get(taskId);
     if (!start) continue;
     const { days: occ, byRes } = demandAt(workById.get(taskId)!, start);
