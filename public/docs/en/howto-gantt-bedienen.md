@@ -13,7 +13,7 @@ You see in the Gantt that the brickwork has to start two days later, or that the
 1. Press on the middle of a task bar and drag horizontally. Start and finish move together, in whole days; the duration stays the same.
 2. Let go. The bar stays at its new place. The schedule is then stale: press *Calculate* (F5), or let the app do it itself if *Calculate automatically* is on.
 
-If the task has a predecessor, the app records the new start as the constraint *Start no earlier than (SNET)*, and says so after you let go. Why that is, and what happens with another constraint, is in [Constraints and deadlines](docs://uitleg-constraints). If you drag back to the original start, the original constraint comes back too.
+If the task has a predecessor, the app records the new start as the constraint *Start no earlier than (SNET)*, and says so after you let go. Why that is, and what happens with another constraint, is in [Setting a constraint or deadline](docs://howto-constraint-deadline-zetten). If you drag back to the original start, the original constraint comes back too.
 
 If you drag mostly up or down instead of sideways, you move the task to another row and the dates stay. The direction you choose in the first few pixels applies to the whole drag, so one gesture never changes dates and structure at the same time. See [Adjusting the structure](docs://howto-structuur-aanpassen).
 
@@ -84,4 +84,4 @@ Hold the mouse still on a bar. A small card appears with the name of the task, *
 - [Right-click menus](docs://ref-contextmenus): the menus on a bar, a row and a group header.
 - [Keyboard shortcuts](docs://ref-sneltoetsen): the keys for zooming and for cancelling a gesture.
 - [App settings](docs://ref-instellingen): the scroll mode and the time axis.
-- [Constraints and deadlines](docs://uitleg-constraints): why a moved start becomes a constraint.
+- [Setting a constraint or deadline](docs://howto-constraint-deadline-zetten): why a moved start becomes a constraint.

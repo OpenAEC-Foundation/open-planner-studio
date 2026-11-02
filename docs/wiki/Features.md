@@ -34,13 +34,13 @@ bridge and automatic updates.
 - **Resource libraries** — resources and calendars live in a shared, organization-wide library that
   multiple projects draw from; a project shows what it actually uses, with per-item provenance
   (from the library, project-only, or orphaned) and a library/project view toggle. See
-  [The resource library](docs://uitleg-resourcebibliotheek) in the manual.
+  [Using the resource library](docs://howto-resourcebibliotheek-gebruiken) in the manual.
 - **Assignments** — assign resources to tasks, with time-phased max-units availability.
 - **Task types and work** — a work rule per task (fixed duration and units, fixed duration and
   work, fixed work, fixed units — the MS Project task types and P6 duration types) decides which
   corner of work = remaining duration × units moves when you edit another; remaining work per
   assignment is editable in hours. Hidden by default; a file that already carries task types shows
-  them. See [Work rules: duration, units and work](docs://uitleg-werkregels) in the manual.
+  them. See [Choosing a task type](docs://howto-werkregel-kiezen) in the manual.
 - **Histogram & leveling** — a resource histogram plus automatic leveling options, including
   leveling priority per task and leveling within slack only.
 - **Occupancy overview** — for multiple open projects drawing from the same library, a

@@ -4,7 +4,7 @@ Doel: een MCP-client laten meelezen en meewerken aan je planning, met zicht op w
 
 ## Wanneer je dit nodig hebt
 
-Je wilt dat een MCP-client je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-programma, de **MCP-client**, gereedschappen van een ander programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [MCP-tools](docs://ref-ai-tools); waarom de koppeling zo werkt, staat in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling).
+Je wilt dat een MCP-client je planning leest, analyseert of aanpast. Bijvoorbeeld een eerste opzet van een WBS laten maken, taken corrigeren of het kritieke pad laten uitleggen. Dat werkt via het **Model Context Protocol** (MCP): een standaard waarmee een AI-programma, de **MCP-client**, gereedschappen van een ander programma kan gebruiken. Open Planner Studio draait daarvoor een kleine server op je eigen computer, de **bridge**. Die biedt een reeks gereedschappen (tools) aan, allemaal met een naam die begint met `planner_`: taken lezen en wijzigen, relaties, resources, kalenders, baselines, documenten en bestanden. Welke dat zijn en wat ze weigeren, staat in [MCP-tools](docs://ref-ai-tools). De MCP-client werkt in het project dat je open hebt, niet in een kopie: een taak die hij toevoegt, zie je meteen in de Gantt. Hij gebruikt dezelfde berekening en dezelfde *Ongedaan*-geschiedenis als jij.
 
 De bridge werkt alleen in de desktop-app. Sta je de MCP-koppeling in de browser toe, dan zie je het tabblad *MCP* wel, maar de knop *Bridge starten* is grijs met de tekst *De bridge werkt alleen in de desktop-app.* De rest van dit artikel gaat over de desktop-app. In de browser zijn ook *Nu backup maken* en *Backup-map openen* grijs.
 
@@ -23,7 +23,7 @@ Zet je de MCP-koppeling uit, dan stopt de bridge en verdwijnt het tabblad *MCP*.
 1. Ga naar het tabblad *MCP* en klik bij *Server* op *Bridge starten*.
 2. Kijk naar de status naast de knop. Die zegt *Uit*, *Actief op poort 3877*, *Poort 3877 bezet* of *Fout*. Lukt het starten, dan staat er *Actief op poort 3877* en heet de knop *Bridge stoppen*. Bij *Poort 3877 bezet* of *Fout* blijft de knop *Bridge starten*; zie de valkuilen.
 
-De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat 3877. In de groep *Verbinding* kun je bij *Poort* een andere kiezen, maar alleen als de bridge gestopt is.
+De bridge luistert alleen op je eigen computer, op één poort. Standaard is dat 3877. In de groep *Verbinding* kun je bij *Poort* een andere kiezen, maar alleen als de bridge gestopt is. De verbinding is gewone HTTP op je eigen computer. De app stuurt zelf niets naar buiten. Wat de MCP-client met je planning doet, bijvoorbeeld wat zijn aanbieder ermee doet, valt buiten de app.
 
 ### 3. De MCP-client koppelen
 
@@ -104,9 +104,9 @@ De backups staan in de map `ai-backups` in de gegevensmap van de app. De app hou
 
 ### 6. De MCP-client goed laten plannen
 
-Een MCP-client plant pas goed als hij de planningsregels kent. Waarom dat nodig is en wat erin staat, lees je in [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling). Dit doe je zelf:
+Een MCP-client plant pas goed als hij de planningsregels kent. Dit doe je zelf:
 
-1. **Niets doen voor de kernregels.** Ze komen vanzelf mee bij het verbinden. Of je client ze in de systeemprompt zet, hangt van de client af.
+1. **Niets doen voor de kernregels.** Ze komen vanzelf mee bij het verbinden: de bridge stuurt ze in het veld `instructions` van de MCP-handdruk. Of je client ze in de systeemprompt zet, hangt van de client af.
 2. **De gids laten lezen.** De koppelprompt uit het venster *Verbindingsgegevens* vraagt de MCP-client de gids te lezen met de tool `planner_get_planning_guide`. Gebruik je de prompt niet, vraag het dan zelf: *Lees eerst de planningsgids met planner_get_planning_guide, voordat je iets wijzigt.* Je kunt de gids zelf lezen op `https://open-planner-studio.open-aec.com/agent/planning-guide.md`.
 3. **Optioneel: de skills installeren.** Dit werkt alleen met een MCP-client die skills ondersteunt. Zet `SKILL.md` van *goed-plannen* en *progress-update* in `.claude/skills/goed-plannen/SKILL.md` en `.claude/skills/progress-update/SKILL.md` in de projectmap waarin de MCP-client werkt, of onder `~/.claude/skills/` voor elk project.
 
@@ -120,7 +120,7 @@ Of de MCP-client de gids echt heeft gelezen, zie je in het *Activiteitenpaneel*:
 
 **De app weigert een aanroep van de MCP-client.** Bij *Pauzeren* en *Alleen lezen* weigert de app alle wijzigingen en blijft lezen mogelijk, ook met het doorrekenen van een verouderde planning. Zit je zelf midden in een bewerking, zoals een balk slepen of typen in een veld, dan krijgt de MCP-client de datums van vóór je bewerking met een melding dat ze verouderd zijn. Heb je een dialoog open, bijvoorbeeld de instellingen, een taakdialoog of het welkomstvenster, of staat de presentatiemodus aan, dan weigert de app alle aanroepen, ook het lezen, totdat je de dialoog sluit. De MCP-client krijgt dan een foutmelding met de interne naam van wat openstaat, bijvoorbeeld `showTaskDialog`. Alleen `planner_get_planning_guide` blijft werken, omdat die je planning niet leest.
 
-**Je wisselt van tabblad terwijl de MCP-client werkt.** De MCP-client werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project.
+**Je wisselt van tabblad terwijl de MCP-client werkt.** De MCP-client werkt op het document waarop zijn eerste wijziging landde. Wissel jij intussen van tabblad, dan weigert de app zijn volgende wijziging totdat hij bevestigt dat hij op het andere tabblad wil werken. Zo belandt er niets in het verkeerde project. Opent of dupliceert de MCP-client zelf een document, dan werkt hij daarna in dat nieuwe document.
 
 **De MCP-client schrijft of opent een bestand.** De MCP-client kan een planning als IFC-bestand wegschrijven en een planningsbestand openen als nieuw tabblad. Dat kan alleen binnen je gebruikersmap. Een bestaand bestand overschrijft hij alleen als hij daar uitdrukkelijk om vraagt.
 
@@ -158,7 +158,5 @@ Vóór de eerste wijziging per document maakt de server een MCP-backup, net als 
 ## Zie ook
 
 - [Feedback geven](docs://howto-feedback-geven): loopt de koppeling anders dan hier staat, meld het dan.
-- [Hoe de MCP-koppeling werkt](docs://uitleg-ai-koppeling): wat de koppeling is, waarom de MCP-client in je open project werkt en wat hij niet mag.
 - [MCP-tools](docs://ref-ai-tools): alle `planner_*`-tools per groep, de foutcodes en hoe lang backups bewaard blijven.
-- [Goed plannen](docs://gids-goed-plannen): de planningsprincipes; de MCP-client krijgt ze in een Engelse versie met de tools erbij.
 - [App-instellingen](docs://ref-instellingen): de MCP-instellingen.

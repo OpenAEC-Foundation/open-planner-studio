@@ -344,7 +344,7 @@ herkennen en "vervangen" voorstellen — op de EIGEN bibliotheek van de ontvange
 daarom altijd uit van een match: ze selecteren ALTIJD "toevoegen" voor, en `importPoolAsNewCompany`
 mint er ALTIJD een vers id voor (nooit het bestand-id, ook niet als dat toevallig lokaal vrij is). Voor
 de praktische consequentie hiervan (geen automatische herkenning voor de meeste eenpitter-gebruikers)
-zie de gebruikersgids (`public/docs/{nl,en}/uitleg-resourcebibliotheek.md` en de how-to's ernaast).
+zie de gebruikersgids (`public/docs/{nl,en}/howto-resourcebibliotheek-gebruiken.md` en `howto-bibliotheken-beheren.md`).
 
 Daarnaast valideert `isSafeFileCompanyId` (critreview F2) elk bestand-companyId vóór het als
 state-sleutel gebruikt wordt: `readPoolIFC` laat elke niet-lege string door, en een vijandig bestand

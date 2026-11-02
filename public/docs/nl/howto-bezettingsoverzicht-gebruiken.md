@@ -6,7 +6,7 @@ Doel: zien op welke dagen twee of meer geopende projecten samen meer van een res
 
 Je metselploeg staat in het ene project op de gevels en in het andere op de garages. Elk project vindt de ploeg netjes ingepland, want het histogram en de overbezetting van een project kijken alleen naar dat ene project. Pas als je de projecten naast elkaar legt, blijkt dat ze op dezelfde dagen samen meer vragen dan je metselaars hebt. Het bezettingsoverzicht doet dat naast elkaar leggen voor je.
 
-Het overzicht telt alleen resources die uit de resourcebibliotheek komen, in projecten die aan dezelfde bibliotheek gekoppeld zijn. Hoe dat rekent, lees je in [De resourcebibliotheek](docs://uitleg-resourcebibliotheek).
+Het overzicht telt alleen resources die uit de resourcebibliotheek komen, in projecten die aan dezelfde bibliotheek gekoppeld zijn.
 
 ## Stappen
 
@@ -43,7 +43,7 @@ Het overzicht laat het probleem zien, maar lost het niet op. Je hebt twee mogeli
 - Schuif een taak in een van de projecten, of geef haar minder eenheden per dag. Reken daarna dat project opnieuw door met F5.
 - Komt er echt een metselaar bij, zet dan *Max. eenheden* van de resource in de bibliotheek hoger. Dat doe je in *Resources › Beheer › Resources*, weergave *Bibliotheek*.
 
-*Nivelleren* in het lint helpt hier niet: dat kijkt naar de resources van het ene project waarin je staat, zie [Nivelleren](docs://uitleg-nivelleren).
+*Nivelleren* in het lint helpt hier niet: dat kijkt naar de resources van het ene project waarin je staat, zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 
 ## Valkuilen en wat de app dan doet
 
@@ -65,6 +65,6 @@ Het overzicht laat het probleem zien, maar lost het niet op. Je hebt twee mogeli
 
 ## Zie ook
 
-- [De resourcebibliotheek](docs://uitleg-resourcebibliotheek): hoe de bezetting wordt geteld, met een rekenvoorbeeld.
+- [Resourcepaneel](docs://ref-resourcepaneel): de weergave *Bezetting* per veld.
 - [De resourcebibliotheek gebruiken](docs://howto-resourcebibliotheek-gebruiken): projecten koppelen en resources toewijzen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): overbezetting binnen één project.

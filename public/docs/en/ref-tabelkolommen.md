@@ -31,7 +31,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 - **Milestone** — whether the task is a milestone. Editable. Turning it on makes the duration 0; the app refuses it for a summary task and for a task with assignments.
 - **Milestone type** — *Start milestone* or *Finish milestone*, or a dash for automatic. Only editable on a milestone.
 - **Mandatory milestone** — the flag *Mandatory (contractual)*. Only editable on a milestone.
-- **Leveling priority** — a whole number from 0 to 1000, default 500. Editable. 1000 pins the task for leveling.
+- **Leveling priority** — a whole number from 0 to 1000, default 500. Editable. 1000 pins the task for leveling (*Do Not Level* in MS Project).
 - **Split gaps** — the number of breaks, as `Split gaps: 2`, or a dash. Read-only; you edit them in the *Properties* panel.
 - **Task type** — the task type of the task; empty is the project default. Editable with a list, but empty and read-only on a milestone, summary task or hammock. Only visible in the picker when the task types are visible (*Use task types*, or the file carries task types).
 - **Hammock (derived duration)** — whether the task is a hammock. Editable, except on a milestone or summary task.
@@ -57,7 +57,7 @@ By default the table next to the Gantt shows *WBS*, *Task name* and *Duration*. 
 
 - **Predecessors** — the predecessors, as `WBS type±lag`, separated by `; `, for example `1.2 FS+2d`. Editable by typing the same form. You do not add an external relation here but with *Planning › Relations › Link › Add external relation…*.
 - **Successors** — the successors, in the same form. Editable.
-- **Driving** — the relations that determine the date of this task, as `← 1.2` (predecessor) or `→ 1.4` (successor). *Unknown* means no calculation is available, including in *Dates as recorded*. After a successful calculation, `—` means none of this task's relationships are driving. In *Predecessors* and *Successors*, a question mark shows the unknown status and a lightning bolt shows a driving relationship; without an icon, the internal relationship has been calculated and is not driving. Point at the task reference for an explanation. Read-only; after a change, previous results remain, outdated until *Calculate*.
+- **Driving** — the relations that determine the date of this task, as `← 1.2` (predecessor) or `→ 1.4` (successor). A relation is driving if it keeps the task from starting any earlier; with a tie there are several. External relations get no marking. *Unknown* means no calculation is available, including in *Dates as recorded*. After a successful calculation, `—` means none of this task's relationships are driving. In *Predecessors* and *Successors*, a question mark shows the unknown status and a lightning bolt shows a driving relationship; without an icon, the internal relationship has been calculated and is not driving. Point at the task reference for an explanation. Read-only; after a change, previous results remain, outdated until *Calculate*.
 - **Free float** (in the category *Relations*) — the free float per relation, as `← 1.2: 3d`. Not the same column as *Free float* under *Calculated*, which shows the float of the task itself. Read-only.
 - **Warnings** — warnings per relation, for example *Out of sequence* or *Not included in the calculation*. Read-only. See [Notifications and warnings](docs://ref-meldingen).
 
@@ -87,18 +87,18 @@ The progress columns follow the progress rules of the app: an actual date after 
 
 All columns in this category are read-only.
 
-- **Leveling delay** — how many working days leveling delayed the task; a dash if no leveling has been applied.
+- **Leveling delay** — how many working days, in the task's calendar, leveling makes the task start later than its relations require; a dash if no leveling has been applied. The delay is saved with the project file and counts at *Calculate* (F5) as waiting time before the start; later tasks move along through their relations.
 - **Early start** and **Early finish** — the earliest dates from the calculation. For a task that has started, they can differ from *Start* and *Finish*: the calculation profile *Primavera P6* puts the early start of a task that is in progress or complete on the status date.
 - **Late start** and **Late finish** — the latest dates on which the task may still begin or end without delaying the project.
 - **Free float** — the working days the task can slip without delaying a successor.
-- **Total float** — the working days the task can slip without delaying the project finish. Negative if a constraint or deadline cannot be met.
+- **Total float** — the working days the task can slip without delaying the project finish. The app counts in working days of the task's calendar; a weekend or public holiday does not count. Negative if a constraint or deadline cannot be met.
 - **Critical** — *Yes* if the task is on the critical path.
 - **Interfering float** — total float minus free float.
 - **Near critical** — *Yes* for a near-critical task. Only filled if *Mark near-critical* is on (*Project settings*, block *Calculation profile and options*); otherwise a dash.
 - **Float path** — the number of the float path, 1 for the most critical. Only filled if *Multiple float paths* is on; otherwise a dash.
 - **Recorded-dates source** — as long as the app shows the dates from the file: *Partly unrecorded* on a task for which the file does not contain everything. Only visible in the picker in that view. On an unrecorded axis, *Not recorded* appears in the late-date and float columns.
 
-See [Critical path and float](docs://uitleg-kritiek-pad).
+See [Calculation options and conventions](docs://ref-rekenopties-en-conventies).
 
 ## Baseline
 
@@ -106,7 +106,7 @@ For each baseline of the project, columns are added, with the name of the baseli
 
 - **Scheduled start**, **Scheduled finish** and **Duration** — the start, the finish and the duration as the baseline recorded them.
 - **Start variance** and **Finish variance** — the number of working days between the baseline and the displayed start or finish, in the calendar of the project; positive if the task is later.
-- **Duration variance** — the current duration minus the duration in the baseline, in working days.
+- **Duration variance** — the current duration minus the duration in the baseline, in working days. Progress does not change the planned duration: a task planned at 2 working days that took 3 has a finish variance of +1 and a duration variance of 0.
 
 ## Custom
 

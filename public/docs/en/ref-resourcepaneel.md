@@ -36,7 +36,7 @@ Without resources it says *No resources yet. Add one to get started.* If the pro
 
 ### Resources from the library
 
-A resource that comes from the library has a small library icon (*From the library*). Its *Name*, *Type*, *Rate/hour* and *Unit* are then plain text (*Library value — edit it in the Library view, or unlink this resource from the library.*), because the library decides what the resource is. *Color*, *Max units*, the capacity steps, *Calendar* and *Crew* stay editable, because the project decides how much and when. Two badges may appear: *differs — decide* (a click opens the *Link resource library* window) and *no longer in the library*, with the button *Remove from project*.
+A resource that comes from the library has a small library icon (*From the library*). Its *Name*, *Type*, *Rate/hour* and *Unit* are then plain text (*Library value — edit it in the Library view, or unlink this resource from the library.*), because the library decides what the resource is. *Color*, *Max units*, the capacity steps, *Calendar* and *Crew* stay editable, because the project decides how much and when. Changing those fields in the project does not count as a deviation from the library. The content of a calendar that came along with the resource does follow the library. Two badges may appear: *differs — decide* (a click opens the *Link resource library* window) and *no longer in the library*, with the button *Remove from project*.
 
 ## The Library view
 
@@ -83,4 +83,4 @@ Where you see it:
 - **Histogram** — the red parts of the bars and the red dot in the picker.
 - **Dock** — the triangle *Overallocated*.
 
-Leveling can resolve overallocation by letting tasks start later. By default the project finish date may move; with *smoothing* it stays within the float. Leveling does not resolve a resource that has to work on a day off. See [Leveling](docs://uitleg-nivelleren).
+Leveling can resolve overallocation by letting tasks start later. By default the project finish date may move; with *smoothing* it stays within the float. Leveling does not resolve a resource that has to work on a day off. See [Resolving overallocation](docs://howto-overbezetting-oplossen).

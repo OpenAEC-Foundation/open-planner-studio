@@ -120,7 +120,7 @@ These options are under *Calculation options of this project*, below the convent
 
 **Max. paths** — how many paths get a number. Default: 10. Effect: tasks outside the first *Max. paths* paths or ranks get no number. Where: *Calculation options of this project*, with *Multiple float paths*.
 
-**Lag calendar** — in which calendar a lag in working time counts. Choose from *Predecessor*, *Successor*, *24-hour* and *Project calendar*. Default: *Predecessor*. Effect: a lag of 2 days counts in the working days of the calendar you choose. Where: *Calculation options of this project*. See [Relations and lag](docs://uitleg-relaties).
+**Lag calendar** — in which calendar a lag in working time counts. Choose from *Predecessor*, *Successor*, *24-hour* and *Project calendar*. Default: *Predecessor*. Effect: a lag of 2 days counts in the working days of the calendar you choose. A lag in calendar days (`3ed`) always counts all days, whatever you choose. Where: *Calculation options of this project*. See [Adding relations](docs://howto-relaties-leggen).
 
 **Calculate SS lag from an in-progress predecessor from** — the variant of the convention *Elapsed SS lag from an in-progress predecessor does not count*. Choose from *Remaining start (P6: Early Start)* and *Data date (P6: Actual Start)*. Default: *Remaining start (P6: Early Start)*. Effect: for a start-to-start relation with a positive working-time lag from a predecessor in progress, the successor with *Remaining start (P6: Early Start)* starts at the start of the predecessor's remaining work plus the remaining lag. With *Data date (P6: Actual Start)* it starts at the data date plus the remaining lag, and the relation does not bound the predecessor in progress backward. The remaining lag is the lag minus the working time between the actual start and the data date, never less than 0. A lag of 0 or less, a lag in clock hours and a schedule in days keep the normal behaviour. The choice only works when the conventions *Elapsed SS lag from an in-progress predecessor does not count* and *In-progress task: early start = start of remaining work* are both on; otherwise the drop-down is disabled and it says *Only applies when the convention “…” is on.* If there is no hour planning on the chosen lag calendar, the drop-down is also disabled and it says *Only applies with hour planning: a calendar with working blocks or tasks in hours. This project has neither on the chosen lag calendar.* There is always hour planning with *24-hour*, with *Project calendar* if the project calendar has working blocks, and with *Predecessor* and *Successor* if a calendar of the project has working blocks or a task is in hours. Where: *Calculation options of this project*.
 
@@ -139,8 +139,7 @@ The block *Settings from the source file* shows the read-only calculation option
 - [Calculation profiles and conventions](docs://uitleg-rekenprofielen): why P6 and MS Project calculate differently and how a profile works.
 - [Choosing or building a calculation profile](docs://howto-rekenprofiel-kiezen): choose, switch or build a profile.
 - [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen): why an imported schedule can show other dates than your package.
-- [Critical path and float](docs://uitleg-kritiek-pad): what critical, total and free float mean.
-- [Relations and lag](docs://uitleg-relaties): lag and the calendar in which it counts.
-- [Progress, status date and baseline](docs://uitleg-voortgang): the status date that many conventions refer to.
+- [Adding relations](docs://howto-relaties-leggen): lag and the calendar in which it counts.
+- [Updating progress](docs://howto-voortgang-bijwerken): the status date that many conventions refer to.
 - [Import and export formats](docs://ref-import-exportformaten): which profile a file gets when it is opened.
 - [New project and Project settings](docs://ref-projectinfo): the other fields of Project settings and the New project window.

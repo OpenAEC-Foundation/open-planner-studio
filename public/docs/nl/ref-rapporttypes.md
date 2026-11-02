@@ -231,8 +231,8 @@ Vier tabelrapporten en het Resourcediagram werken met een *Rapportageperiode:*: 
 
 - [Een rapport maken en afdrukken](docs://howto-rapport-maken-en-afdrukken): het hele traject van rapporttype tot PDF.
 - [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen): stappen en voorbeelden.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat kritiek en near-critical betekenen.
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): de statusdatum en de baseline waar de rapporten mee rekenen.
+- [Rekenopties en conventies](docs://ref-rekenopties-en-conventies): wat kritiek en near-critical betekenen.
+- [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de statusdatum en de baseline waar de rapporten mee rekenen.
 - [Overbezetting oplossen](docs://howto-overbezetting-oplossen): wat je doet met de overbelaste weken uit de Resourcebelasting.
 - [Import- en exportformaten](docs://ref-import-exportformaten): PDF naast de andere formaten.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): twee baselines met voortgang en statusdatum, om het variance-rapport mee te bekijken.

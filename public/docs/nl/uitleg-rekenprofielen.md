@@ -21,7 +21,7 @@ Het profiel zegt dus hoe een pakket rekent. Wat jij voor je project wilt, zit er
 Een conventie is een schakelaar: aan of uit. Het profiel bepaalt welke schakelaars aan staan. Een reken-optie is een keuze van jou. Het verschil zie je in de app zelf, in het blok *Rekenprofiel en reken-opties*:
 
 - **Conventies** staan onder *Conventies van dit profiel*, gegroepeerd per onderwerp, bijvoorbeeld *Voortgang en voltooid werk*, *Relaties en lag* en *Speling en late datums*. Dit deel staat eerst ingeklapt. De kop toont hoeveel conventies er zijn en, als het profiel afwijkt, een label *afwijkend: 1*. Klik op de kop om het deel open te klappen. Bij een ingebouwd profiel staat voor elke regel een label *AAN* of *UIT*. Die waarden zijn er ter informatie en zijn niet te wijzigen. Bij een eigen profiel staat er een keuzevakje, met erachter de waarde van de basis (*basis: aan* of *basis: uit*). Wijkt jouw keuze daarvan af, dan valt de regel op en verschijnt *terug naar basis*. Het i-icoon achter een regel toont de uitleg van die conventie. Wijs het aan met de muis, ga erheen met Tab, of tik erop. Lees die uitleg eerst als je een conventie wilt omzetten. Werkt een conventie alleen bij uurplanning of alleen op taken uit een .xer-bestand, dan staat er een blauw label naast: *alleen bij uurplanning* of *alleen taken uit .xer*. Uurplanning geldt op de kalender waarop de regel rekent: een kalender met werkblokken of een taakduur in uren. De *Lag-kalender* op *24-uurs* maakt alleen de lag uurprecies. Een conventie die ook op de taak- of voortgangskalender rekent, vereist daar nog steeds uurplanning. De uitleg noemt ook de overige voorwaarden, zoals een statusdatum en vereiste andere conventies. Een label *AAN* betekent dus dat de regel is ingeschakeld, niet dat elke taak aan haar voorwaarden voldoet.
-- **Reken-opties** staan onder *Reken-opties van dit project*: onder andere *Kritiek-definitie*, *Speling-berekening*, *Open-eind-taken kritiek*, *Bijna-kritiek markeren* en *Lag-kalender*. Ze zeggen wat jij voor dit project wilt, niet hoe een pakket rekent. Wat ze doen staat in [Kritiek pad en speling](docs://uitleg-kritiek-pad) en [Relaties en lag](docs://uitleg-relaties).
+- **Reken-opties** staan onder *Reken-opties van dit project*: onder andere *Kritiek-definitie*, *Speling-berekening*, *Open-eind-taken kritiek*, *Bijna-kritiek markeren* en *Lag-kalender*. Ze zeggen wat jij voor dit project wilt, niet hoe een pakket rekent. Wat ze doen staat in [Rekenopties en conventies](docs://ref-rekenopties-en-conventies).
 
 Een voorbeeld van elk. "Een taak is kritiek als de totale speling 0 of minder is" is een reken-optie: je kunt de drempel op 4 zetten, en dan is alles met 4 werkdagen speling of minder kritiek. "Werk dat niet begonnen is, schuift naar de statusdatum" is een conventie: Open Planner Studio en Primavera P6 doen het, Microsoft Project niet.
 
@@ -65,7 +65,7 @@ De getallen zijn nagerekend met de rekenmotor van de app. Je leest ze in het pan
 
 **Zonder statusdatum en zonder voortgang rekenen de drie profielen dit netwerk hetzelfde.** *Fundering storten* loopt van maandag 7 tot en met vrijdag 11 juni, *Muren metselen* van maandag 14 tot en met vrijdag 18 juni en *Dak plaatsen* op maandag 21 en dinsdag 22 juni. De oplevering is dinsdag 22 juni. *Kozijnen bestellen* (maandag 7 tot en met woensdag 9 juni) heeft 7 werkdagen totale speling.
 
-Nu neem je de stand op. De statusdatum is woensdag 9 juni. De fundering is begonnen op maandag 7 juni en staat op 60 %. Het restwerk is dus 2 werkdagen (5 × 40 %). *Kozijnen bestellen* is nog niet begonnen. Hoe [voortgang en statusdatum](docs://uitleg-voortgang) werken, staat in dat artikel. Hier gaat het om wat het profiel ermee doet.
+Nu neem je de stand op. De statusdatum is woensdag 9 juni. De fundering is begonnen op maandag 7 juni en staat op 60 %. Het restwerk is dus 2 werkdagen (5 × 40 %). *Kozijnen bestellen* is nog niet begonnen. Hoe je voortgang en de statusdatum invoert, staat in [Voortgang bijwerken](docs://howto-voortgang-bijwerken). Hier gaat het om wat het profiel ermee doet.
 
 ### Open Planner Studio
 
@@ -95,7 +95,7 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 
 **Een reken-optie in plaats van een conventie.** Zet je onder Open Planner Studio bij *Kritiek-definitie* (*Totale speling ≤ drempel*) de *Drempel (werkdagen)* op 4, dan wordt *Kozijnen bestellen* kritiek, want de totale speling is precies 4. Geen enkele datum verandert. Een reken-optie is jouw keuze voor het project en staat los van het profiel.
 
-**Een deadline die niet gehaald wordt.** Geef *Dak plaatsen* een deadline op vrijdag 18 juni. Onder Open Planner Studio is de totale speling van *Dak plaatsen* dan −1 werkdag en de vrije speling ook −1. Onder Primavera P6 blijft de totale speling −1, maar de vrije speling wordt 0. Dat doet de conventie *Vrije speling nooit negatief*, in de groep *Speling en late datums*. Onder Microsoft Project zijn beide −2, omdat de oplevering daar een dag later valt. Hoe een deadline werkt, staat in [Constraints en deadlines](docs://uitleg-constraints).
+**Een deadline die niet gehaald wordt.** Geef *Dak plaatsen* een deadline op vrijdag 18 juni. Onder Open Planner Studio is de totale speling van *Dak plaatsen* dan −1 werkdag en de vrije speling ook −1. Onder Primavera P6 blijft de totale speling −1, maar de vrije speling wordt 0. Dat doet de conventie *Vrije speling nooit negatief*, in de groep *Speling en late datums*. Onder Microsoft Project zijn beide −2, omdat de oplevering daar een dag later valt. Hoe een deadline werkt, staat in [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen).
 
 ## Gevolgen en misverstanden
 
@@ -113,11 +113,8 @@ Hier verschillen de datums. Twee conventies in de groep *Voortgang zoals Microso
 
 ## Zie ook
 
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de statusdatum en het restwerk doen, met de verschillen per profiel.
 - [Een rekenprofiel kiezen of samenstellen](docs://howto-rekenprofiel-kiezen): een profiel kiezen, wisselen of zelf samenstellen.
 - [De voortgangsmodus kiezen](docs://howto-voortgangsmodus-kiezen): Retained Logic of Progress Override kiezen.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): de reken-opties voor kritiek en speling.
-- [Relaties en lag](docs://uitleg-relaties): de reken-optie *Lag-kalender*.
 - [Bestanden en formaten](docs://uitleg-bestanden): wat een export meeneemt en wat niet.
 - [Exporteren](docs://howto-exporteren): een project exporteren.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): percentage, werkelijke start en statusdatum invullen.

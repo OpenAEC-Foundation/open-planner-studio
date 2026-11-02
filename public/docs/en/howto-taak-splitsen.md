@@ -56,7 +56,7 @@ A connected MCP client sets breaks with the tool `planner_set_task_splits`, in t
 
 **A click with no effect.** A break cannot start on the first day of the task and not inside an existing pause. Each piece of work must also stay at least one work day long. If you click such a place, nothing happens, without a message.
 
-**A task with progress.** If the task has progress, a break can only start after the work that is already done. At 50% of 8 work days that is the fifth work day at the earliest. A click in the done part does nothing, and a task that is 100% complete can no longer be split. In the panel *Add break* is then disabled: that also applies if the middle of the longest piece falls in done work, for example at 75% of 8 work days.
+**A task with progress.** If the task has progress, a break can only start after the work that is already done. At 50% of 8 work days that is the fifth work day at the earliest. A click in the done part does nothing, and a task that is 100% complete can no longer be split. In the panel *Add break* is then disabled: that also applies if the middle of the longest piece falls in done work, for example at 75% of 8 work days. A pause in the part still to do stays in the remaining work: it starts on the status date and runs through the pause.
 
 **Leveling also creates breaks.** They show in the *Breaks* block with the label *leveling*. *Resources › Leveling › Clear leveling* removes them again. If you edit the breaks of such a task yourself, all its leveling pauses become yours and *Clear leveling* no longer removes them.
 
@@ -66,6 +66,5 @@ A connected MCP client sets breaks with the tool `planner_set_task_splits`, in t
 
 ## See also
 
-- [Critical path and float](docs://uitleg-kritiek-pad): how the schedule counts in work days and why the finish moves.
 - [Adding relations](docs://howto-relaties-leggen): another mode in the Gantt, which you use with a bar drag.
 - [Task dialog and properties panel](docs://ref-taak-eigenschappen): the Breaks section in the properties panel.

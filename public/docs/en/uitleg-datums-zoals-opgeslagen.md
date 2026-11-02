@@ -106,4 +106,4 @@ What if it is different?
 - [Opening a Primavera P6 file (.xer)](docs://howto-xer-openen): the steps and messages for a `.xer` file.
 - [Opening an MS Project file (.mpp)](docs://howto-mpp-openen): the steps and messages for a `.mpp` file.
 - [Recovering after a crash](docs://howto-herstellen-na-een-crash): what happens to this project after a crash.
-- [Critical path and float](docs://uitleg-kritiek-pad): how the app calculates float and criticality when it does calculate.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): how the app calculates float and criticality when it does calculate.

@@ -120,7 +120,7 @@ Deze opties staan onder *Reken-opties van dit project*, onder de conventies. Wij
 
 **Max. paden** — hoeveel paden genummerd worden. Standaard: 10. Effect: taken buiten de eerste *Max. paden* paden of rangen krijgen geen nummer. Waar: *Reken-opties van dit project*, bij *Meerdere speling-paden*.
 
-**Lag-kalender** — in welke kalender een lag in werktijd telt. Keuze uit *Voorganger*, *Opvolger*, *24-uurs* en *Projectkalender*. Standaard: *Voorganger*. Effect: een lag van 2 dagen telt in de werkdagen van de kalender die je kiest. Waar: *Reken-opties van dit project*. Zie [Relaties en lag](docs://uitleg-relaties).
+**Lag-kalender** — in welke kalender een lag in werktijd telt. Keuze uit *Voorganger*, *Opvolger*, *24-uurs* en *Projectkalender*. Standaard: *Voorganger*. Effect: een lag van 2 dagen telt in de werkdagen van de kalender die je kiest. Een lag in kalenderdagen (`3ed`) telt altijd alle dagen, welke keuze je ook maakt. Waar: *Reken-opties van dit project*. Zie [Relaties leggen](docs://howto-relaties-leggen).
 
 **SS-lag van een lopende voorganger rekenen vanaf** — de variant van de conventie *Verstreken SS-lag uit een lopende voorganger telt niet*. Keuze uit *Start van het restwerk (P6: Early Start)* en *Statusdatum (P6: Actual Start)*. Standaard: *Start van het restwerk (P6: Early Start)*. Effect: bij een start-startrelatie met een positieve lag in werktijd uit een lopende voorganger begint de opvolger bij *Start van het restwerk (P6: Early Start)* op de start van het restwerk van de voorganger plus de resterende lag. Bij *Statusdatum (P6: Actual Start)* begint hij op de statusdatum plus de resterende lag, en begrenst de relatie de lopende voorganger niet naar achteren. De resterende lag is de lag min de werktijd tussen de werkelijke start en de statusdatum, nooit minder dan 0. Een lag van 0 of minder, een lag in klokuren en een planning in dagen houden het gewone gedrag. De keuze werkt alleen als de conventies *Verstreken SS-lag uit een lopende voorganger telt niet* en *Lopende taak: vroege start = begin van het restwerk* allebei aan staan; anders is de keuzelijst uitgeschakeld en staat er *Werkt alleen als de conventie „…” aanstaat.* Is er op de gekozen lag-kalender geen uurplanning, dan is de keuzelijst ook uitgeschakeld en staat er *Werkt alleen bij uurplanning: een kalender met werkblokken of taken in uren. Dit project heeft geen van beide op de gekozen lag-kalender.* Uurplanning is er bij *24-uurs* altijd, bij *Projectkalender* als de projectkalender werkblokken heeft, en bij *Voorganger* en *Opvolger* als een kalender van het project werkblokken heeft of een taak in uren staat. Waar: *Reken-opties van dit project*.
 
@@ -139,8 +139,7 @@ Het blok *Instellingen uit het bronbestand* toont de alleen-lezen reken-opties d
 - [Rekenprofielen en conventies](docs://uitleg-rekenprofielen): waarom P6 en MS Project anders rekenen en hoe een profiel werkt.
 - [Een rekenprofiel kiezen of samenstellen](docs://howto-rekenprofiel-kiezen): een profiel kiezen, wisselen of zelf samenstellen.
 - [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen): waarom een geïmporteerde planning andere datums kan tonen dan je pakket.
-- [Kritiek pad en speling](docs://uitleg-kritiek-pad): wat kritiek, totale en vrije speling betekenen.
-- [Relaties en lag](docs://uitleg-relaties): lag en de kalender waarin hij telt.
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): de statusdatum waar veel conventies naar verwijzen.
+- [Relaties leggen](docs://howto-relaties-leggen): lag en de kalender waarin hij telt.
+- [Voortgang bijwerken](docs://howto-voortgang-bijwerken): de statusdatum waar veel conventies naar verwijzen.
 - [Import- en exportformaten](docs://ref-import-exportformaten): welk profiel een bestand bij het openen krijgt.
 - [Nieuw project en Projectinstellingen](docs://ref-projectinfo): de andere velden van Projectinstellingen en het venster Nieuw project.

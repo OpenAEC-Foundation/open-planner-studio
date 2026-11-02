@@ -28,7 +28,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Duration display** — in which unit the duration of a task is shown. In the OPS profile this field is disabled: each task shows its own unit. Under P6 and MSP the choice is active. Choose from *Automatic (native unit per task)*, *Always days* and *Always hours*. Default: *Automatic (native unit per task)*. Effect: in the task grid, the bar labels of the Gantt, the tooltip, the print and the reports. With *Automatic* a day task shows days and an hour task shows hours. With *Always days* or *Always hours* the app converts using the hours per day of the task calendar and, if the unit of the task differs, puts its own unit after it in brackets, for example `2.25d(18h)`. Only the display changes; the task keeps its own unit. Where: *Appearance*.
 
-**Allow mixed day/hour planning** — whether you choose the unit per task. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Appearance*, under *Duration display*. See [Days and hours](docs://uitleg-dagen-en-uren).
+**Allow mixed day/hour planning** — whether you choose the unit per task. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Appearance*, under *Duration display*. See [Plan a task in hours](docs://howto-taak-in-uren-plannen).
 
 **Document switch style** — how you switch between open projects. Choose from *Horizontal tabs*, *Vertical tabs* and *Pill*. Default: *Horizontal tabs*. Effect: *Horizontal tabs* puts a tab bar under the ribbon; *Vertical tabs* a project bar on the left; *Pill* a small project button in the title bar. Where: *Appearance*.
 
@@ -36,7 +36,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 ### Gantt section
 
-**Show only working days** — compresses the timeline axis. Default: off. Effect: weekends and holidays from the project calendar are skipped, so a task of 5 working days is exactly 5 columns wide. The shortcuts for *Jump to today* and *Fit to project* then also count in working days. The report has its own checkbox with the same name, which is independent of this setting. Where: *Appearance*, under *Gantt › Timeline axis*.
+**Show only working days** — compresses the timeline axis. Default: off. Effect: weekends and holidays from the project calendar are skipped, so a task of 5 working days is exactly 5 columns wide. When off, the Gantt shows the non-working days of the project calendar in grey, also under a task with a calendar of its own; a block of holidays three days wide or more gets its name, for example *Bouwvak (Noord)*. When on, those grey days and names are gone. The shortcuts for *Jump to today* and *Fit to project* then also count in working days. The report has its own checkbox with the same name, which is independent of this setting. Where: *Appearance*, under *Gantt › Timeline axis*.
 
 **Show quarter-hours when zoomed in far** — an extra fine time scale. Default: off. Effect: you can zoom in further and the hour scale gets an extra quarter-hour row. Dragging an hour bar can then snap to quarter-hours instead of whole hours. Where: *Appearance*, under *Gantt › Quarter-hour zoom*.
 
@@ -56,7 +56,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Calculate automatically** — recalculates the schedule as soon as it is out of date. Default: off. Effect: off means you press *Calculate* (F5) yourself. On makes the app recalculate the schedule within a fraction of a second after a change to tasks, relations or calendar. During a drag gesture or while you type in a field, the app waits and calculates once when you are done. After a failed calculation it only calculates again once you have changed something. Where: *Planning*, under *Calculation*.
 
-**Use task types** — the task type and work fields in the app. Default: off. Effect: on shows the *Task type* field on a task and the work column for the assignments, and makes the table column *Task type* available. Off hides them; duration and units stay and the work follows. A project that already contains task type or work data, for example from an `.mpp` or `.xer` file, always shows them, even if the setting is off. Where: *Planning*, under *Calculation*. See [Task types: duration, units and work](docs://uitleg-werkregels).
+**Use task types** — the task type and work fields in the app. Default: off. Effect: on shows the *Task type* field on a task and the work column for the assignments, and makes the table column *Task type* available. Off hides them; duration and units stay and the work follows. A project that already contains task type or work data, for example from an `.mpp` or `.xer` file, always shows them, even if the setting is off. Where: *Planning*, under *Calculation*. See [Choosing a task type](docs://howto-werkregel-kiezen).
 
 ## Advanced tab
 
@@ -98,7 +98,7 @@ The app also keeps these choices on this device, but you set them at the item it
 
 **Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Bars › Float band*.
 
-**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Bars › Bar colors*.
+**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. In it, critical bars are red by default, near-critical amber and the others blue. Effect: applies to the Gantt and the report at the same time. Where: *View › Bars › Bar colors*.
 
 **Histogram** — the histogram strip under the Gantt. Default: off. Where: *Resources › Histogram › Histogram*, *View › Panels › Histogram* or Ctrl+Shift+H. You set the height of the strip (default 160 pixels, between 80 and 480) by dragging its edge.
 
@@ -118,6 +118,5 @@ The app also keeps these choices on this device, but you set them at the item it
 
 - [Calculation options and conventions](docs://ref-rekenopties-en-conventies): the options that belong to a project.
 - [Plan a task in hours](docs://howto-taak-in-uren-plannen): duration and the unit selector.
-- [Days and hours](docs://uitleg-dagen-en-uren): how the app counts days and hours.
-- [Task types: duration, units and work](docs://uitleg-werkregels): what *Use task types* makes visible.
+- [Choosing a task type](docs://howto-werkregel-kiezen): what *Use task types* makes visible.
 - [Keyboard shortcuts](docs://ref-sneltoetsen): all keys of the app, including those for zooming and scrolling.
