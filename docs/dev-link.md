@@ -17,6 +17,8 @@ http://<host>:<poort>/?open=examples/03-kantoorgebouw-zuidas.ifc&theme=dark
   bewaart de app die keuze zoals altijd. `theme=` werkt ook zonder `open=`.
 - `help=<artikel-id>` opent Backstage › Help op dat artikel, met of zonder `open=`. Een anker zet je
   erachter als `%23<anker>`, bijv. `?help=howto-ai-assistent-koppelen%23snel-laat-claude-het-regelen`.
+  Het welkomstvenster van een nieuwe browser gaat dan voor deze keer dicht; het blijft niet als gezien
+  bewaard.
 
 ## Hoe het werkt
 

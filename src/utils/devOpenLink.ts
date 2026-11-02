@@ -68,7 +68,12 @@ export async function openDevLinkOnce(): Promise<void> {
         useAppStore.getState().setUI({ showProgressImportDialog: true });
       }
     }
-    if (help) useAppStore.getState().openHelpArticle(help);
+    if (help) {
+      // De link wil Help laten zien: het welkomstvenster van een nieuwe browser gaat voor deze keer
+      // dicht (niet bewaard als gezien, dus een gewone herlaad toont het weer).
+      useAppStore.getState().setUI({ showWelcomeDialog: false });
+      useAppStore.getState().openHelpArticle(help);
+    }
   } catch (err) {
     console.error('[dev-link]', err);
     useAppStore.getState().notify({
