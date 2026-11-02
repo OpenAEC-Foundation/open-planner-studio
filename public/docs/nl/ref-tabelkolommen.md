@@ -31,7 +31,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 - **Mijlpaal** — of de taak een mijlpaal is. Bewerkbaar. Aanzetten maakt de duur 0; de app weigert het bij een samenvattingstaak en bij een taak met toewijzingen.
 - **Soort mijlpaal** — *Startmijlpaal* of *Eindmijlpaal*, of een streepje voor automatisch. Alleen bij een mijlpaal te bewerken.
 - **Verplichte mijlpaal** — de vlag *Verplicht (contractueel)*. Alleen bij een mijlpaal te bewerken.
-- **Nivelleerprioriteit** — een geheel getal van 0 tot 1000, standaard 500. Bewerkbaar. 1000 zet de taak vast voor nivelleren.
+- **Nivelleerprioriteit** — een geheel getal van 0 tot 1000, standaard 500. Bewerkbaar. 1000 zet de taak vast voor nivelleren (*Do Not Level* in MS Project).
 - **Onderbrekingen** — het aantal onderbrekingen, als `Onderbrekingen: 2`, of een streepje. Alleen-lezen; bewerken doe je in het paneel *Eigenschappen*.
 - **Taaktype** — het taaktype van de taak; leeg is de projectstandaard. Bewerkbaar met een keuzelijst, maar leeg en alleen-lezen bij een mijlpaal, samenvattingstaak of hammock. Alleen zichtbaar in de kiezer als de taaktypes zichtbaar zijn (*Taaktypes gebruiken*, of het bestand draagt taaktypes).
 - **Hammock (afgeleide duur)** — of de taak een hammock is. Bewerkbaar, behalve bij een mijlpaal of samenvattingstaak.
@@ -57,7 +57,7 @@ Standaard toont de tabel naast de Gantt *WBS*, *Taaknaam* en *Duur*. De tabel op
 
 - **Voorgangers** — de voorgangers, als `WBS type±lag`, gescheiden door `; `, bijvoorbeeld `1.2 FS+2d`. Bewerkbaar door dezelfde vorm te typen. Een externe relatie voeg je niet hier toe maar met *Planning › Relaties › Relatie › Externe relatie toevoegen…*.
 - **Opvolgers** — de opvolgers, in dezelfde vorm. Bewerkbaar.
-- **Bepalend** — de relaties die de datum van deze taak bepalen, als `← 1.2` (voorganger) of `→ 1.4` (opvolger). *Onbekend* betekent dat er geen beschikbare berekening is, ook in *Datums zoals opgeslagen*. Na een geslaagde berekening betekent `—` dat geen relatie van deze taak bepalend is. In *Voorgangers* en *Opvolgers* toont een vraagteken de onbekende status, een bliksem een bepalende relatie; zonder icoon is de interne relatie berekend en niet bepalend. Aanwijzen van de taakreferentie geeft uitleg. Alleen-lezen; na een wijziging blijven de vorige resultaten staan, verouderd tot *Bereken*.
+- **Bepalend** — de relaties die de datum van deze taak bepalen, als `← 1.2` (voorganger) of `→ 1.4` (opvolger). Een relatie is bepalend als de taak door die relatie geen moment eerder kan beginnen; bij een gelijkspel zijn er meer. Externe relaties krijgen geen markering. *Onbekend* betekent dat er geen beschikbare berekening is, ook in *Datums zoals opgeslagen*. Na een geslaagde berekening betekent `—` dat geen relatie van deze taak bepalend is. In *Voorgangers* en *Opvolgers* toont een vraagteken de onbekende status, een bliksem een bepalende relatie; zonder icoon is de interne relatie berekend en niet bepalend. Aanwijzen van de taakreferentie geeft uitleg. Alleen-lezen; na een wijziging blijven de vorige resultaten staan, verouderd tot *Bereken*.
 - **Vrije speling** (in de categorie *Relaties*) — de vrije speling per relatie, als `← 1.2: 3d`. Niet dezelfde kolom als *Vrije speling* onder *Berekend*, die de speling van de taak zelf toont. Alleen-lezen.
 - **Meldingen** — waarschuwingen per relatie, bijvoorbeeld *Buiten volgorde* of *Niet meegerekend bij de berekening*. Alleen-lezen. Zie [Meldingen en waarschuwingen](docs://ref-meldingen).
 
@@ -87,18 +87,18 @@ De voortgangskolommen volgen de voortgangsregels van de app: een werkelijke datu
 
 Alle kolommen in deze categorie zijn alleen-lezen.
 
-- **Nivelleervertraging** — hoeveel werkdagen nivelleren de taak vertraagde; een streepje als er geen nivellering is toegepast.
+- **Nivelleervertraging** — hoeveel werkdagen, in de kalender van de taak, nivelleren de taak later laat beginnen dan haar relaties eisen; een streepje als er geen nivellering is toegepast. De vertraging wordt met het projectbestand bewaard en telt bij *Bereken* (F5) mee als wachttijd vóór de start; taken erna schuiven mee via hun relaties.
 - **Vroegste start** en **Vroegste einde** — de vroegste datums uit de berekening. Bij een gestarte taak kunnen die van *Start* en *Einde* verschillen: het rekenprofiel *Primavera P6* zet de vroegste start van een lopende of voltooide taak op de statusdatum.
 - **Laatste start** en **Laatste einde** — de laatste datums waarop de taak nog mag beginnen of eindigen zonder het project te vertragen.
 - **Vrije speling** — de werkdagen die de taak kan schuiven zonder een opvolger te vertragen.
-- **Totale speling** — de werkdagen die de taak kan schuiven zonder het projecteinde te vertragen. Negatief als een constraint of deadline niet haalbaar is.
+- **Totale speling** — de werkdagen die de taak kan schuiven zonder het projecteinde te vertragen. De app telt in werkdagen van de kalender van de taak; een weekend of feestdag telt niet mee. Negatief als een constraint of deadline niet haalbaar is.
 - **Kritiek** — *Ja* als de taak op het kritieke pad ligt.
 - **Interfererende speling** — totale speling min vrije speling.
 - **Bijna kritiek** — *Ja* voor een bijna-kritieke taak. Alleen gevuld als *Bijna-kritiek markeren* aan staat (*Projectinstellingen*, blok *Rekenprofiel en reken-opties*); anders een streepje.
 - **Spelingpad** — het nummer van het spelingpad, 1 voor het meest kritieke. Alleen gevuld als *Meerdere speling-paden* aan staat; anders een streepje.
 - **Herkomst (opgeslagen datums)** — zolang de app de datums uit het bestand toont: *Deels niet vastgelegd* bij een taak waarvan het bestand niet alles bevat. Alleen zichtbaar in de kiezer in die weergave. Bij een niet vastgelegde as staat *Niet vastgelegd* in de late-datum- en spelingkolommen.
 
-Zie [Kritiek pad en speling](docs://uitleg-kritiek-pad).
+Zie [Rekenopties en conventies](docs://ref-rekenopties-en-conventies).
 
 ## Baseline
 
@@ -106,7 +106,7 @@ Per baseline van het project komen er kolommen bij, met de naam van de baseline 
 
 - **Geplande start**, **Gepland einde** en **Duur** — de start, het einde en de duur zoals de baseline ze vastlegde.
 - **Startafwijking** en **Eindafwijking** — het aantal werkdagen tussen de baseline en de getoonde start of het getoonde einde, in de kalender van het project; positief als de taak later staat.
-- **Duurafwijking** — de huidige duur min de duur in de baseline, in werkdagen.
+- **Duurafwijking** — de huidige duur min de duur in de baseline, in werkdagen. Voortgang verandert de geplande duur niet: een taak die 2 werkdagen gepland stond en er 3 duurde, heeft een eindafwijking van +1 en een duurafwijking van 0.
 
 ## Aangepast
 

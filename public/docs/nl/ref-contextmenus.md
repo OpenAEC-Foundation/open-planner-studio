@@ -41,7 +41,7 @@ De items staan in deze volgorde. Een lijn tussen groepen is een scheidingslijn i
 
 **Voortgang ▸** — een submenu met 0%, 25%, 50%, 75% en 100%. De huidige waarde heeft een vinkje. Een samenvattingstaak heeft geen eigen voortgang: staat er een in het bereik, dan krijgen haar bladtaken het percentage. Zonder statusdatum zet de app die op vandaag, met een melding. Een taak die volgens de planning pas na de statusdatum begint en nog geen werkelijke start heeft, leidt eerst tot een vraag naar de werkelijke start; annuleer je die, dan verandert er niets. Zie [Voortgang bijwerken](docs://howto-voortgang-bijwerken).
 
-**Prioriteit ▸** — een submenu met *Laag* (100), *Normaal* (500) en *Hoog* (900), de nivelleerprioriteit van de taak. De huidige waarde heeft een vinkje. Zie [Nivelleren](docs://uitleg-nivelleren).
+**Prioriteit ▸** — een submenu met *Laag* (100), *Normaal* (500) en *Hoog* (900), de nivelleerprioriteit van de taak. De huidige waarde heeft een vinkje. Zie [Overbezetting oplossen](docs://howto-overbezetting-oplossen).
 
 **Pad traceren** — toont de voorgangers en opvolgers van deze taak. Is het traceren al aan, dan heet het item *Traceren stoppen*. Zie [Een pad traceren](docs://howto-pad-traceren).
 

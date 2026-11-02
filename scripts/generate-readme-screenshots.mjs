@@ -236,7 +236,7 @@ const SHOTS = {
   async 'help-viewer'(page) {
     await openExample(page, SHOWCASE);
     await dismissNotices(page);
-    await ops(page, () => window.__OPS__.store.getState().openHelpArticle('uitleg-kritiek-pad'));
+    await ops(page, () => window.__OPS__.store.getState().openHelpArticle('howto-relaties-leggen'));
     await page.waitForTimeout(1500);
   },
 };

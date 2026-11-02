@@ -231,8 +231,8 @@ Four table reports and the Resource diagram work with a *Reporting period:*: *Lo
 
 - [Making and printing a report](docs://howto-rapport-maken-en-afdrukken): the whole route from report type to PDF.
 - [Choosing the reporting period](docs://howto-rapportageperiode-kiezen): steps and examples.
-- [Critical path and float](docs://uitleg-kritiek-pad): what critical and near-critical mean.
-- [Progress, status date and baseline](docs://uitleg-voortgang): the status date and the baseline the reports work with.
+- [Calculation options and conventions](docs://ref-rekenopties-en-conventies): what critical and near-critical mean.
+- [Updating progress](docs://howto-voortgang-bijwerken): the status date and the baseline the reports work with.
 - [Resolving overallocation](docs://howto-overbezetting-oplossen): what to do with the overloaded weeks from Resource loading.
 - [Import and export formats](docs://ref-import-exportformaten): PDF next to the other formats.
 - [De Vaart Apartment Complex](examples://showcase-appartementencomplex.ifc): two baselines with progress and a status date, to look at the variance report.

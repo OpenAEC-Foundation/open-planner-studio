@@ -94,4 +94,4 @@ ontsluit stil), één keer per document (`taskTypesNotice.ts`); selector `taskTy
 (u)** met slotjes in de kop van `TaskAssignmentsSection` (één regel per resource; CSS `.assignment-list`
 in globals.css, kop en regels als subgrid), en de rasterkolommen `task.workRule` en
 `assignment.remainingWork` (alleen `available` wanneer ontsloten; `TaskColumnContext.taskTypesUnlocked`).
-Gidsen: `public/docs/{nl,en}/uitleg-werkregels.md` en `howto-werkregel-kiezen.md`; browserspec `tests/browser/work-rule.spec.ts`.
+Gidsen: `public/docs/{nl,en}/howto-werkregel-kiezen.md` en het veld *Taaktype* in `ref-taak-eigenschappen.md`; browserspec `tests/browser/work-rule.spec.ts`.

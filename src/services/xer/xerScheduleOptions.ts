@@ -293,7 +293,7 @@ function appendSourceRows(
  * niet stil gekozen: alle raw rijen blijven bewaard, een typed diagnose wordt uitgegeven en de
  * onzekere SCHEDOPTIONS-semantiek wordt voor dat project niet toegepast.
  */
-export function indexXerScheduleOptions(tables: XerTables): XerScheduleOptionsIndex {
+export function indexXerScheduleOptions(tables: Pick<XerTables, 'tables' | 'numberFormat'>): XerScheduleOptionsIndex {
   const sourceRows: XerScheduleOptionsSourceRow[] = [];
   const sourceRowIndexesByProject = new Map<string, number[]>();
   const projectCandidates = new Map<string, IndexedSourceRow[]>();

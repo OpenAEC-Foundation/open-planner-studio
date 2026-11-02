@@ -6,7 +6,7 @@ Doel: per taak instellen wat de app aanpast als je de duur, de inzet of het werk
 
 Je hebt resources op een taak gezet en je wilt dat de app op jouw manier meerekent. Een voorbeeld: de kraan is voor één dag gehuurd en die dag staat vast. Een ander voorbeeld: je weet dat er 160 uur metselwerk in zit en je wilt zien hoe lang het duurt met drie man in plaats van twee. Voor die twee situaties heb je een ander taaktype nodig.
 
-Het taaktype bepaalt welke van de drie grootheden duur, inzet en werk meebeweegt als je een andere wijzigt. De achtergrond en rekenvoorbeelden staan in [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels).
+Het taaktype bepaalt welke van de drie grootheden duur, inzet en werk meebeweegt als je een andere wijzigt.
 
 ## Stappen
 
@@ -45,6 +45,8 @@ Wil je het werk zelf wijzigen, typ dan de uren in het veld en druk op Enter. Een
 
 Kies je een taaktype, dan verandert er nog geen getal. Onder een taaktype dat werk beschermt, legt de app alleen het huidige werk vast, zodat *Werk (u)* een opgeslagen waarde heeft. Pas bij de volgende wijziging beslist het taaktype wat meebeweegt. Wijzig bijvoorbeeld de *Inzet* en kijk wat er met de duur en het werk gebeurt.
 
+Het taaktype rekent alleen bij een wijziging van de duur, de *Inzet*, het *Werk (u)*, een resource erbij of eraf, of de werktijd per dag van de kalender. **Bereken** (F5) verandert duur, inzet en werk niet. Het werk is duur × inzet × de werktijd per dag uit de kalender van de taak.
+
 Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — herbereken (F5)*. Druk op **Bereken** (F5), bijvoorbeeld via *Start › Planning › Bereken*, om de nieuwe datums te zien. Staat *Automatisch berekenen* aan (zelfde tabblad *Planning*, kopje *Berekenen*), dan doet de app dat zelf.
 
 ## Welk taaktype past
@@ -60,15 +62,14 @@ Verandert daardoor de duur van de taak, dan meldt de statusbalk *Verouderd — h
 
 **De duur verandert zonder dat ik hem wijzig.** Onder *Vast werk* en *Vaste inzet* volgt de duur uit inzet en werk. Wijzig je een van die twee of het aantal resources, dan past de app de duur aan. De app rondt de duur niet af: bij inzet 3 op 32 uur werk wordt de duur 10 uur en 40 minuten.
 
-**Het werk klopt niet precies met inzet × duur.** Dat kan bij een taak uit P6 of MS Project, als het bestand een ander restwerk bevat. In het veld *Werk (u)* staat dan een waarschuwingsteken, *Wijkt af van inzet × duur*. Het histogram volgt het opgeslagen werk. Een wijziging die je zelf maakt, geeft geen afwijking, want de app rondt niet af.
+**Het werk klopt niet precies met inzet × duur.** Dat kan bij een taak uit P6 of MS Project, als het bestand een ander restwerk bevat. In het veld *Werk (u)* staat dan een waarschuwingsteken, *Wijkt af van inzet × duur*. Het histogram volgt het opgeslagen werk. Een wijziging die je zelf maakt, geeft geen afwijking, want de app rondt niet af. Wijzig je de duur van zo'n taak, dan volgt de app het taaktype. Onder *Vaste duur en inzet* en *Vaste inzet* wordt het restwerk inzet × nieuwe restduur. De app meldt dan *Restwerk van ‘…’ opnieuw uitgerekend: …u → …u (de waarde kwam uit het bestand). Ctrl+Z zet het terug.* Onder *Vaste duur en werk* en *Vast werk* blijft het werk staan en past de inzet zich aan. De tooltip bij het waarschuwingsteken zegt per taak welk van de twee gebeurt.
 
 **Materiaal telt niet mee.** Bij een materiaalresource staat in *Werk (u)* een streepje. Materiaal stuurt de duur nooit.
 
-**Een taak met voortgang.** Het taaktype werkt op het resterende deel. *Werk (u)* toont dus alleen wat nog moet gebeuren.
+**Een taak met voortgang.** Het taaktype werkt op het resterende deel. *Werk (u)* toont dus alleen wat nog moet gebeuren. Maakt het taaktype de restduur korter, dan stijgt het percentage, want het gedane deel blijft gelijk.
 
 **Terugdraaien.** Een taaktype kiezen en elke wijziging die het taaktype doorrekent, is één stap voor *Ongedaan* (Ctrl+Z). Het gekozen taaktype verdwijnt dan weer, maar het veld *Taaktype* blijft in beeld.
 
 ## Zie ook
 
-- [Taaktypes: duur, inzet en werk](docs://uitleg-werkregels): hoe de app duur, inzet en werk koppelt, met rekenvoorbeelden.
 - [Resources toewijzen met een curve](docs://howto-resource-toewijzen): een resource op een taak zetten.

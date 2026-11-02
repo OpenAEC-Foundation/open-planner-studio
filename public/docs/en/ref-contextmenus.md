@@ -41,7 +41,7 @@ The items are in this order. A line between groups is a separator in the menu.
 
 **Progress ▸** — a submenu with 0%, 25%, 50%, 75% and 100%. The current value has a check mark. A summary task has no progress of its own: if there is one in the scope, its leaf tasks get the percentage. Without a status date the app sets it to today, with a message. A task that is planned to start only after the status date and has no actual start yet first leads to a question about the actual start; if you cancel it, nothing changes. See [Updating progress](docs://howto-voortgang-bijwerken).
 
-**Priority ▸** — a submenu with *Low* (100), *Normal* (500) and *High* (900), the leveling priority of the task. The current value has a check mark. See [Resource leveling](docs://uitleg-nivelleren).
+**Priority ▸** — a submenu with *Low* (100), *Normal* (500) and *High* (900), the leveling priority of the task. The current value has a check mark. See [Resolving overallocation](docs://howto-overbezetting-oplossen).
 
 **Trace path** — shows the predecessors and successors of this task. If tracing is already on, the item is called *Stop path tracing*. See [Tracing a path](docs://howto-pad-traceren).
 

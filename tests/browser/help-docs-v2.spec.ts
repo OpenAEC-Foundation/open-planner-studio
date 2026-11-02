@@ -289,8 +289,8 @@ test('UI in het Duits: een artikel buiten de de-index toont Engels met een meldi
   await expect(current(page)).toHaveAttribute('lang', 'de');
   await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
   // Een artikel buiten de index: Engels met de melding.
-  await page.locator('[data-help-article="uitleg-kritiek-pad"]').click();
-  await expect(current(page).locator('h1')).toHaveText('Critical path and float');
+  await page.locator('[data-help-article="uitleg-rekenprofielen"]').click();
+  await expect(current(page).locator('h1')).toHaveText('Calculation profiles and conventions');
   await expect(current(page)).toHaveAttribute('lang', 'en');
   await expect(page.locator('[data-help-lang-fallback]')).toContainText(
     'Dieser Artikel ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.');
@@ -301,10 +301,10 @@ test('UI in het Duits: een artikel buiten de de-index toont Engels met een meldi
 
   // Zelf Nederlands kiezen: Nederlandse tekst, geen melding meer.
   await select.selectOption('nl');
-  await expect(current(page).locator('h1')).toHaveText('Kritiek pad en speling');
+  await expect(current(page).locator('h1')).toHaveText('Rekenprofielen en conventies');
   await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
 
   // Zoeken werkt op de tekst in de gekozen docstaal.
-  await page.locator('.help-search').fill('interfererende speling');
-  await expect(page.locator('[data-help-article="uitleg-kritiek-pad"]')).toBeVisible();
+  await page.locator('.help-search').fill('andere datums opleveren');
+  await expect(page.locator('[data-help-article="uitleg-rekenprofielen"]')).toBeVisible();
 });

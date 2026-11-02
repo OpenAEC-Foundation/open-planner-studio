@@ -1,6 +1,6 @@
 # Planning well: guide for AI agents
 
-This guide is for an AI agent that builds or maintains a schedule in Open Planner Studio through the `planner_*` MCP tools. It follows the same principles as the Help article for people, *Planning well* (https://open-planner-studio.open-aec.com/docs/en/gids-goed-plannen.md), but for each principle it names the tools that apply it and what the app does when you call them. A person presses a key to recalculate and clicks through menus; you call tools, and the app recalculates for you.
+This guide is for an AI agent that builds or maintains a schedule in Open Planner Studio through the `planner_*` MCP tools. For each planning principle it names the tools that apply it and what the app does when you call them. A person presses a key to recalculate and clicks through menus; you call tools, and the app recalculates for you.
 
 Where this guide and a tool description disagree, the tool description wins: read it in `tools/list`, it comes straight from the code. Never guess a tool name or a parameter. The copy of this guide that `planner_get_planning_guide` returns belongs to the app version you are connected to; if it differs from the public URL, the copy from the tool wins.
 

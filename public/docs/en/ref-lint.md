@@ -79,7 +79,7 @@ The group has the *Link ▾* button with four actions and the *Split task* butto
 - **Add external relation…** — opens a window to add an external predecessor or successor to the selected task. Only available with exactly one task selected (otherwise *Select exactly one task*).
 - **Refresh all external relations** — refreshes the anchors of all external relations and reports in the menu how many were updated or are missing. Only available when the project has external relations (otherwise *This project has no external relations*).
 
-For the why of relations see [Creating relations](docs://howto-relaties-leggen) and [Relations and lag](docs://uitleg-relaties).
+How the app calculates with relations is in [Creating relations](docs://howto-relaties-leggen).
 
 ### Planning › Path tracing
 
@@ -104,7 +104,7 @@ You can have both on at once; a second click on a button turns that side off aga
 ### Planning › Baselines & progress
 
 - **Manage baselines…** — opens the baseline window. See [Saving and managing a baseline](docs://howto-baseline-opslaan-en-beheren).
-- **Status date** — the date up to which you measure progress. Type a date; the cross (*Clear status date*) removes it. If the project calendar has working-time blocks, the app calculates in hours and a time field shows next to the date (MS Project often stores 17:00). The time then counts: 12:00 instead of 17:00 gives half a day of different remaining work. Without working-time blocks the app calculates in whole days and there is no time field. Effect: progress is measured up to that date, and the status date line and progress line in the Gantt sit on it. See [Progress, status date and baseline](docs://uitleg-voortgang).
+- **Status date** — the date up to which you measure progress. Type a date; the cross (*Clear status date*) removes it. If the project calendar has working-time blocks, the app calculates in hours and a time field shows next to the date (MS Project often stores 17:00). The time then counts: 12:00 instead of 17:00 gives half a day of different remaining work. Without working-time blocks the app calculates in whole days and there is no time field. Effect: progress is measured up to that date, and the status date line and progress line in the Gantt sit on it. See [Updating progress](docs://howto-voortgang-bijwerken).
 - **Progress mode** — a choice between *Retained Logic* and *Progress Override*. Default: *Retained Logic*. Effect: with *Retained Logic* the remaining work of a started successor follows the relation; with *Progress Override* the remaining work starts on the status date, without waiting for the predecessor. See [Choosing the progress mode](docs://howto-voortgangsmodus-kiezen).
 
 In the collapsed ribbon these three sit behind one flag button titled *Baselines & progress*.
@@ -135,7 +135,7 @@ This group is also on *Table* and *Report*.
 
 ### Resources › Leveling
 
-- **Level…** — opens the *Level resources* window. See [Leveling](docs://uitleg-nivelleren).
+- **Level…** — opens the *Level resources* window. See [Resolving overallocation](docs://howto-overbezetting-oplossen).
 - **Clear leveling** — removes the delays and breaks that leveling applied. Disabled when no task has a leveling result.
 
 ### Resources › Overallocation

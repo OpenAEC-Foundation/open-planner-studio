@@ -53,4 +53,4 @@ A task that was in hours comes back as a day task, with its duration converted t
 
 - [Adjusting the structure](docs://howto-structuur-aanpassen): move or indent the inserted branch.
 - [Adding relations](docs://howto-relaties-leggen): create relations inside a branch yourself before you save it.
-- [Critical path and float](docs://uitleg-kritiek-pad): what happens to the inserted branch after Calculate.
+- [Why a task moves](docs://uitleg-verschuivingen): what happens to the inserted branch after Calculate.

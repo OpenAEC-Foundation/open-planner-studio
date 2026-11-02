@@ -22,7 +22,7 @@ runs as a desktop app on Windows, macOS and Linux, and directly in your browser.
 The manual is organised by what you want to do at that moment:
 
 - **How-to guides** — get one task done, step by step. Start with [Adding tasks and milestones](docs://howto-taken-en-mijlpalen-toevoegen), [Adding relations](docs://howto-relaties-leggen), [Creating and assigning a calendar](docs://howto-kalender-maken-en-toewijzen), [Managing resources](docs://howto-resources-beheren), [Updating progress](docs://howto-voortgang-bijwerken) and [Making and printing a report](docs://howto-rapport-maken-en-afdrukken); the sidebar lists them all.
-- **Explanation** — understand why the schedule comes out the way it does: [Planning well](docs://gids-goed-plannen), [Critical path and float](docs://uitleg-kritiek-pad), [Relations and lag](docs://uitleg-relaties), [Calendars and working days](docs://uitleg-kalenders), [Work rules: duration, units and work](docs://uitleg-werkregels), [Resource leveling](docs://uitleg-nivelleren), [Progress, status date and baseline](docs://uitleg-voortgang) and more.
+- **Explanation** — understand how the app calculates and stores your schedule: [Calculation profiles and conventions](docs://uitleg-rekenprofielen), [Why a task moves](docs://uitleg-verschuivingen), [Files and formats](docs://uitleg-bestanden) and [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
 - **Reference** — look something up: [The ribbon, tab by tab](docs://ref-lint), [Task dialog and properties panel](docs://ref-taak-eigenschappen), [Settings](docs://ref-instellingen), [Keyboard shortcuts](docs://ref-sneltoetsen), [Import and export formats](docs://ref-import-exportformaten) and more.
 - **[Changelog](Changelog)** — notable changes per release.
 

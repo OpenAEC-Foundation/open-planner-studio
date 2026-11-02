@@ -4,7 +4,7 @@ Doel: de voortgang die uitvoerders in een spreadsheet invullen in één keer in 
 
 ## Wanneer je dit nodig hebt
 
-Een onderaannemer of uitvoerder heeft de app niet, maar geeft elke week zijn stand door: hoeveel procent klaar, wanneer begonnen, wanneer klaar. Je stuurt hem een blad met je taken, hij vult drie kolommen in en stuurt het terug. De app leest daaruit alleen drie waarden per taak: voltooiing, werkelijke start en werkelijk einde. De rest van je planning blijft ongemoeid. Wat de app met die voortgang doet, lees je in [Voortgang, statusdatum en baseline](docs://uitleg-voortgang).
+Een onderaannemer of uitvoerder heeft de app niet, maar geeft elke week zijn stand door: hoeveel procent klaar, wanneer begonnen, wanneer klaar. Je stuurt hem een blad met je taken, hij vult drie kolommen in en stuurt het terug. De app leest daaruit alleen drie waarden per taak: voltooiing, werkelijke start en werkelijk einde. De rest van je planning blijft ongemoeid.
 
 ## Stappen
 
@@ -97,5 +97,4 @@ Wordt het hele bestand geweigerd, dan staat er een van deze meldingen in het ven
 
 ## Zie ook
 
-- [Voortgang, statusdatum en baseline](docs://uitleg-voortgang): wat de app met werkelijke datums en percentages rekent.
 - [Voortgang bijwerken](docs://howto-voortgang-bijwerken): voortgang in de app zelf invullen.
