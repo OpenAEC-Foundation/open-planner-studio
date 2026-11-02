@@ -1245,6 +1245,14 @@ en noem het in je rapport of PR-tekst.
      nodig over een koppeling zonder anker en zonder project-id (de dialoog en het klembord eisen beide nu). Zie
      voorstel 3 in #792. — B
 
+831. **Een externe relatie zonder anker kan niet door het klembordformaat van de relatiecel.** `parsePayload` in
+     `src/engine/taskGrid/relationFormat.ts` eist een geldig ISO-anker; `formatExternalRelationClipboard` schrijft
+     een leeg anker wel weg. Nagespeeld met een probe: een koppeling met `anchorDate: ''` geeft bij teruglezen
+     `invalidExternalPayload`. De app zelf maakt zo'n koppeling niet (de dialoog eist een anker); hij komt alleen
+     uit een vreemd of met de hand bewerkt IFC-bestand (`storedExternalLinks` laat een leeg anker door, omdat
+     het model "anker onbekend" kent). Of de relatiecel dan een bewerking weigert, is niet nagespeeld. Raakt ook
+     voorstel 3 in #792 (MSPDI-links zonder anker). — B (klembord), S (relatiecel)
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
