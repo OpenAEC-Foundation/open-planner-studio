@@ -20,14 +20,14 @@ test('tools(): de registry zonder de bestandstools', async () => {
   assert(names.includes('planner_add_tasks'), 'planner_add_tasks ontbreekt');
   assert(names.includes('planner_get_critical_path'), 'planner_get_critical_path ontbreekt');
   for (const name of SITE_APP_UNAVAILABLE_TOOLS) assert(!names.includes(name), `${name} hoort er niet bij`);
-  assertEq(names.length, getTools().length - SITE_APP_UNAVAILABLE_TOOLS.size);
+  assertEq(names.length, getTools().length - SITE_APP_UNAVAILABLE_TOOLS.size, 'aantal tools');
 });
 
 test('definitions(): dezelfde schema\'s als tools/list', async () => {
   const definitions = await app.definitions();
   const addTasks = definitions.find((d) => d.name === 'planner_add_tasks');
   assert(addTasks, 'planner_add_tasks ontbreekt');
-  assertEq(addTasks!.inputSchema, getTools().find((d) => d.name === 'planner_add_tasks')!.inputSchema);
+  assertEq(addTasks!.inputSchema, getTools().find((d) => d.name === 'planner_add_tasks')!.inputSchema, 'schema');
 });
 
 test('run(): taken met relaties in een batch, en het kritieke pad klopt', async () => {
@@ -48,11 +48,11 @@ test('run(): taken met relaties in een batch, en het kritieke pad klopt', async 
       },
     ],
   })) as { ok: boolean };
-  assertEq(batch.ok, true);
-  assertEq(useAppStore.getState().sequences.length, 1);
+  assertEq(batch.ok, true, 'batch');
+  assertEq(useAppStore.getState().sequences.length, 1, 'relaties');
 
   const path = (await app.run('planner_get_critical_path')) as { ok: boolean; data: { criticalTasks: { name: string }[] } };
-  assertEq(path.data.criticalTasks.map((t) => t.name), ['Fundering', 'Metselwerk']);
+  assertEq(path.data.criticalTasks.map((t) => t.name), ['Fundering', 'Metselwerk'], 'kritiek pad');
 });
 
 test('run(): de schemapoort van de dispatcher geldt ook hier', async () => {
