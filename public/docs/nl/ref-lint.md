@@ -228,9 +228,7 @@ Het tabblad toont in de werkruimte het IFC-paneel. Het lint heeft hier geen knop
 
 ## Rapport
 
-### Rapport › Rapportage
-
-- **Afdruk** — staat alleen op dit tabblad en doet hier niets, omdat *Rapport* al open is; de rapportkeuzes staan in het rapportscherm.
+Het tabblad toont in de werkruimte het rapportscherm, met de rapportkeuzes en *Exporteer PDF*. Het lint heeft hier alleen de groep *Voortgang*; die is dezelfde als op *Planning*.
 
 ## MCP
 
