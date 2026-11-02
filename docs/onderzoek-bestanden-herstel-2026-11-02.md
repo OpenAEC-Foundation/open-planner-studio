@@ -4,7 +4,7 @@ Onderzocht op branch `kb/bestanden`, vanaf schone basis
 `6386f95e6ca28b47c1ded7c085b74a1e15c2d87b`. De opdracht omvat de 46 punten onder
 *Bestanden en herstel* in `knownbugs.md`. Wijzigingen aan ontwerp, appteksten of wat
 bestanden lezen en schrijven vragen een keuze van Ethan. Bestanden uit PR's
-#765, #721, #779, #780 en #781 blijven buiten deze reparatie.
+#765, #721, #779, #780, #781 en #783 blijven buiten deze reparatie.
 
 De onderstaande afbakening is gebaseerd op de bestaande meldingen en de huidige
 broncode. Alleen punt 329 is in deze opdracht opnieuw met een test gereproduceerd;
@@ -70,7 +70,6 @@ De gerichte controles zijn ook na de merge van `main` uitgevoerd:
 | 150 (B) | Kies de waarschuwing over verlies bij openen in OPS v2026.9.0; vermeld ook de lege werkblokken en nulduur, naast het eerder aanvaarde kalenderverlies. |
 | 162 (B) | Kies hoe Opslaan met een alleen-lezen POSIX-doel omgaat; respecteer de ontbrekende schrijfbit vóór atomair vervangen en gebruik de bestaande opslagfoutroute. |
 | 261 (S) | Kies tussen een tijdelijke lijst en het verbergen van Recent in een sandbox; reproduceer eerst de iframe-route en behoud bij voorkeur een lijst in het geheugen voor de lopende sessie. |
-| 330 (B) | Kies de terugval bij ontbrekende `isDirty`-metadata in een herstelmanifest; gebruik de documentrecordwaarde vóór de standaardwaarde `true`, zonder een expliciete manifestwaarde te overschrijven. |
 | 256 (B) | Kies het invoercontract van de ruwe IFC-writer; normaliseer een kale planningsstart met zijn veldregel voordat deze als letterlijk moment wordt geschreven. |
 | 290 (S) | Kies wat een te lang MSPDI-maatrecord mag verliezen; bewijs eerst het gedrag in MS Project en maak overschrijding van 255 tekens zichtbaar vóór export. |
 | 295 (B) | Kies wanneer een IFC-dagenrecord na externe kalenderwijziging nog geldig is; controleer kalender en duurtype en val bij een mismatch terug op de geschreven urenmaat. |
@@ -91,7 +90,7 @@ De gerichte controles zijn ook na de merge van `main` uitgevoerd:
 
 ## Overgeslagen wegens botsing met een uitgesloten PR
 
-De bestandslijsten van de vijf uitgesloten PR's zijn via GitHub opgehaald. De
+De bestandslijsten van de zes uitgesloten PR's zijn via GitHub opgehaald. De
 benodigde aanpassing raakt de onderstaande bestanden of routes. Ook waar een
 andere plek voor de fix denkbaar is, wordt het gedeelde punt hier niet tegelijk
 aangepakt. De verplichte verwijdering van het gerepareerde punt 329 uit
@@ -104,6 +103,7 @@ is voor de eigen reparatie aangehouden.
 | --- | --- |
 | 97 (B) | #765 wijzigt `Dialog.tsx`, `SiteOpenDialog.tsx` en `SiteSaveDialog.tsx`; de dialoogstapeling vraagt daarnaast een ontwerpkeuze. |
 | 127 (B) | #781 wijzigt `fileSlice.ts`; dit punt gaat over de koppeling tussen IFC Toepassen en de laadactie in die slice. |
+| 330 (B) | #783 (`fix/recovery-dirty-fallback`) behandelt dit punt al en wijzigt `src/services/recovery/recoveryStore.ts` en `tests/planning/check-recovery-web-hold.ts`; die bestanden zijn hier niet aangepast. |
 | 291 (B) | #781 bezit `src/services/p6/p6xmlReader.ts`. |
 | 296 (B) | #781 bezit `p6xmlWriter.ts` en exportmeldingen; de voorgestelde fix wijzigt ook apptekst. |
 | 302 (S) | De gedeelde MSPDI/P6-exportregel raakt `p6xmlWriter.ts` in #781 en verandert geschreven projectdatums. |
