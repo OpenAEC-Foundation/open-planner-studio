@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures/ops';
+import { expect, seedProject, test } from './fixtures/ops';
 
 test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening weigert en presentatiehint noemt Esc', async ({ page, ops: _ops }) => {
   const startTab = page.locator('.ribbon-tab').first();
@@ -41,11 +41,26 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(false);
   await expect(startTab).toBeVisible();
 
-  // De hint is vertaald en Escape verlaat dezelfde modus weer; de storebrug leest uitsluitend de
-  // toestand terug.
+  // Een nog niet bevestigde duur moet bewaard blijven wanneer Presentatie het paneel verwijdert.
+  const [taskId] = await seedProject(page, [
+    { name: 'Presentatietaak', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
+  ]);
+  await page.evaluate(id => {
+    const s = window.__OPS__!.store.getState();
+    s.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    s.selectTask(id);
+  }, taskId);
+  const duration = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
+  await expect(duration).toHaveValue('5');
+  await duration.fill('7');
+  expect(await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, taskId)).toBe(5);
+
+  // De hint is vertaald en Escape verlaat dezelfde modus weer; de brug leest het resultaat.
   await page.getByRole('button', { name: /^(Presentation|Presentatie)$/ }).click();
   await expect(page.locator('text=/Esc.*F11|F11.*Esc/')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(true);
   await page.keyboard.press('Escape');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(false);
+  await expect(duration).toHaveValue('7');
+  expect(await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, taskId)).toBe(7);
 });

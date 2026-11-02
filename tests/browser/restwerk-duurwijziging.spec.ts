@@ -71,8 +71,16 @@ test('paneel: duur 80 → 72 h ⇒ restwerk 72 h, één melding; Ctrl+Z zet 320 
   const duration = page.locator('[data-ops-task-duration] [data-ops-duration-value]').first();
   await expect(duration).toHaveValue('80');
   await duration.click();
-  await duration.press('Control+a');
+  await duration.press('ControlOrMeta+a');
   await duration.pressSequentially('72');
+  // Rapport en Help delen de invoerpoort met het native menu: een draft blijft staan tot Enter.
+  for (const key of ['Control+p', 'F1']) {
+    await page.keyboard.press(key);
+    await expect(duration).toBeFocused();
+    await expect(duration).toHaveValue('72');
+    await expect.poll(() => workOf(page, taskId)).toEqual({ duration: 80 * H, rest: 80 * H, work: 320 * H });
+    expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab)).toBe('start');
+  }
   await duration.press('Enter');
 
   await expect.poll(() => workOf(page, taskId)).toEqual({ duration: 72 * H, rest: 72 * H, work: 72 * H });
