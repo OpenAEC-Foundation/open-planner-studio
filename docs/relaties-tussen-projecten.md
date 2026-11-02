@@ -446,6 +446,7 @@ meetellen:
   (`docs/superpowers/specs/2026-07-06-2.9-research-domein.md` §3, juli 2026). Wie het besloot, staat er niet bij.
 - **Het anker van een externe opvolger is de late datum van de bron.** Ethan, 2 november 2026 (voorstel 1 uit #792,
   gebouwd in #794).
+- **Een gestarte of klare bronkant geeft de vroege (echte) datum.** Ethan, 2 november 2026 (keuze 10 hieronder).
 - **Automatisch opslaan staat uit voor een site-bestand**, omdat elke ronde een nieuwe versie zou maken
   (`docs/platformbouw.md`, #309). Daarom stuurt OPS de koppelingen (C3) alleen mee bij Opslaan.
 - **De Rust-kant blijft dun**: elk nieuw command is publiek oppervlak (AGENTS.md). Dat telt bij keuze 6.
@@ -563,16 +564,17 @@ externe lag nu 2 werkdagen in de kalender van de eigen taak.
 
 Advies: optie 1. Een planner verwacht dat een lag overal hetzelfde telt.
 
-### Keuze 10. Een gestarte of klare bronkant: terugvallen op de vroege datum? (open vraag uit #794)
+### Keuze 10. Een gestarte of klare bronkant: terugvallen op de vroege datum? (besloten)
 
 Voorbeeld: *Installatie* is al gestart. Haar late start ligt in de berekening ná de werkelijke start; die speling
-bestaat niet meer. Gebouwd in #794: het anker valt dan terug op de vroege datum. De orkestrator zei: "Bouw tot zijn
-antwoord verder alsof hij ja zegt."
+bestaat niet meer. Gebouwd in #794: het anker valt dan terug op de vroege datum.
 
 1. **Ja**, zoals gebouwd.
 2. **Nee**: ook dan de late datum.
 
-Advies: optie 1.
+**Besluit:** Ethan koos optie 1 op 2 november 2026. Is die kant van de brontaak al begonnen of klaar, dan blijft het
+anker de vroege (echte) datum. Het besluit staat in de wiki van de orkestrator en in de PR-tekst van #794. De code
+verandert er niet door.
 
 ### Keuze 11. MCP-tools en de gidszin over fasen (voorstel 8 uit #792)
 
