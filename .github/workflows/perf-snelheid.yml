@@ -8,7 +8,8 @@ on:
       - 'scripts/measure-large-plans*'
       - 'docs/superpowers/evidence/resource-leveler-performance.mjs'
       - 'src/engine/scheduler/ResourceLeveler.ts'
-      - 'tests/planning/check-leveler-seam.ts'
+      - 'tests/planning/check-leveler-differential.ts'
+      - 'tests/planning/measure-leveler.ts'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +46,26 @@ jobs:
             docs/superpowers/evidence/resource-leveler-performance.mjs \
             --base "$BASE_REVISION" --sizes 1000,5000,10000 --warmups 2 --repeats 5 \
             --out evidence/leveler.json 2>&1 | tee evidence/leveler.log
+      - name: Vergelijk alle voorstellen van de bestaande profielmatrix met de echte basisbron
+        run: |
+          set -euo pipefail
+          source=src/engine/scheduler/ResourceLeveler.ts
+          cp "$source" "$RUNNER_TEMP/ResourceLeveler-candidate.ts"
+          trap 'cp "$RUNNER_TEMP/ResourceLeveler-candidate.ts" "$source"' EXIT
+          git show "$BASE_REVISION:$source" > "$source"
+          OPS_LEVELER_PARITY_OUT="$GITHUB_WORKSPACE/evidence/profielen-voor.json" \
+            bash tests/planning/run.sh check-leveler-differential.ts > evidence/profielen-voor.log 2>&1
+          cp "$RUNNER_TEMP/ResourceLeveler-candidate.ts" "$source"
+          OPS_LEVELER_PARITY_OUT="$GITHUB_WORKSPACE/evidence/profielen-na.json" \
+            bash tests/planning/run.sh check-leveler-differential.ts > evidence/profielen-na.log 2>&1
+          cmp evidence/profielen-voor.json evidence/profielen-na.json
+          sha256sum evidence/profielen-{voor,na}.json
+          cat evidence/profielen-{voor,na}.log
+          bash tests/planning/run.sh check-leveler-seam.ts check-leveler-splitmode.ts \
+            check-leveler-splits.ts check-leveler-pool-ledger.ts check-leveler-candidate-axis.ts \
+            check-leveler-forward.ts check-apply-leveling-scope.ts check-leveling-delay-units.ts \
+            > evidence/nivelleerchecks.log 2>&1
+          tail -12 evidence/nivelleerchecks.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

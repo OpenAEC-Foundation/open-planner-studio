@@ -281,13 +281,15 @@ async function oneRun(browser, baseUrl, dataset, ifcBuffer, repIndex) {
   const arm = (kind = null, a = {}) => ev(([k, x]) => window.__nm.arm(k, x), [kind, a]);
   const longest = (from, to) => ev(([f, t]) => window.__nm.longTasks(f, t).reduce((m, e) => Math.max(m, e.d), 0), [from, to]);
   // Buiten de tijdvensters: alle taakvelden, relaties, resources, toewijzingen, kalenders en het
-  // volledige CPM- en belastingresultaat. Sessiestand en document-ids zijn geen projectuitvoer.
+  // volledige CPM- en belastingresultaat. De IFC-lezer maakt per opening nieuwe assignment-ids;
+  // alleen die sessie-ids worden op lijstpositie gecanonicaliseerd, alle overige velden blijven staan.
   const recordState = async phase => {
     if (!PARITY) return;
     const text = await ev(() => {
       const s = window.__OPS__.store.getState();
       return JSON.stringify({ project: s.project, tasks: s.tasks, sequences: s.sequences,
-        resources: s.resources, assignments: s.assignments, calendar: s.calendar, calendars: s.calendars,
+        resources: s.resources, assignments: s.assignments.map((a, index) => ({ ...a, id: `assignment-${index}` })),
+        calendar: s.calendar, calendars: s.calendars,
         cpm: s.cpmResult, load: s.resourceLoadResult },
       (_key, value) => value instanceof Map || value instanceof Set ? [...value] : value);
     });

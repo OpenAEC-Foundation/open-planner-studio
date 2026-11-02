@@ -462,7 +462,7 @@ export function levelResources(
   // die spanne als geheel. Een niet-gestarte taak telt haar ACTUELE duur vanaf de kandidaat.
   //
   // `task` komt uit `workById` (de GESTRIPTE werkkopie): een leveling-gat uit een VORIGE
-  // nivellering is uitvoer, geen brondata. Cache per taak en startmoment (milliseconde): zuiver
+  // nivellering is uitvoer, geen brondata. Cache per taak en laatst gevraagd startmoment: zuiver
   // binnen één aanroep, BEHALVE dat de onderbreek-modus een taak nieuwe `splitGaps` geeft — die wist
   // daarna haar cache-entries (zie de aanroepplek).
   const placementOptions = cpmOptions.schedulingOptions;
@@ -519,18 +519,21 @@ export function levelResources(
     }
     return { days, byRes, placed: null };
   };
-  const demandCache = new Map<string, CandidateDemand>();
+  // De scan bezoekt steeds de volgende kandidaat; de boeking hergebruikt daarna de laatste.
+  // Bewaar per taak alleen die plaatsing. Alle afgewezen kandidaten vasthouden hield hun dagen,
+  // werkblokken en vraag-arrays tot het einde van de volledige nivellering in het geheugen.
+  const demandCache = new Map<string, { startMs: number; demand: CandidateDemand }>();
   const demandAt = (task: Task, startDate: Date): CandidateDemand => {
-    if (isNaN(startDate.getTime())) return { days: [], byRes: new Map(), placed: null }; // niet cachen
-    const key = `${task.id}|${startDate.getTime()}`;
-    const hit = demandCache.get(key);
-    if (hit) return hit;
+    const startMs = startDate.getTime();
+    if (isNaN(startMs)) return { days: [], byRes: new Map(), placed: null }; // niet cachen
+    const hit = demandCache.get(task.id);
+    if (hit?.startMs === startMs) return hit.demand;
     const result = computeDemand(task, startDate);
-    demandCache.set(key, result);
+    demandCache.set(task.id, { startMs, demand: result });
     return result;
   };
   const forgetDemand = (taskId: string): void => {
-    for (const key of [...demandCache.keys()]) if (key.startsWith(`${taskId}|`)) demandCache.delete(key);
+    demandCache.delete(taskId);
   };
 
   // Heeft de taak vraag op de geselecteerde renewables? Een toewijzing op een geselecteerde resource
