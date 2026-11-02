@@ -26,7 +26,8 @@ concurrency:
 
 jobs:
   core:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'perf/snelheid'
+    # Zwaar en bewust opt-in: een bewijscommit zonder productwijziging herhaalt de meting niet.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.body, '<!-- meet-snelheid -->')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     env:
@@ -79,7 +80,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   compare:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'perf/snelheid'
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.body, '<!-- meet-snelheid -->')
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     env:
