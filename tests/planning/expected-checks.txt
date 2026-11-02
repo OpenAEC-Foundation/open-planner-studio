@@ -155,6 +155,7 @@ check-ifc-dagenmaat.ts matrix
 check-ifc-dagkalender-hele-dag.ts matrix
 check-ifc-datumvorm.ts matrix
 check-ifc-empty-date-slots.ts matrix
+check-ifc-external-links.ts matrix
 check-ifc-globalid.ts matrix
 check-ifc-legacy-arity.ts matrix
 check-ifc-lopend-100.ts matrix
