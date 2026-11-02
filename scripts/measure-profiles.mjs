@@ -109,7 +109,7 @@ if (selected.has('msp')) {
   const goalRed = mpp.lines.filter((line) => line.includes('[GOAL_ZERO_DEVIATIONS')).length;
   record({
     profile: 'MS Project', part: 'mpp-fidelity (start/einde, 2 assen)', exit: String(mpp.exit),
-    counts: `${ok ? ok.replace(/^.*\((\d+)\)$/, '$1 checks') : '?'}; GOAL_ZERO-rood ${goalRed}; ${verdict.scanned} bestand(en) gescand`,
+    counts: `${ok?.match(/alle checks groen \((\d+)\)/)?.[1] ?? '?'} checks; GOAL_ZERO-rood ${goalRed}; ${verdict.scanned} bestand(en) gescand`,
     cells: 'n.v.t. — baseline op nul, elke tellingenpin is een cel-poort',
   }, verdict);
 }

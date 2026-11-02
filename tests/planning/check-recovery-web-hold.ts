@@ -175,6 +175,26 @@ for (const version of [null, 1, 2]) {
     await clearRecovery();
   }
 }
+// Knownbug 330: ook een documents-manifest kan de optionele dirty-metadata missen.
+// Lees dan de bewaarde recordvlag; alleen als beide ontbreken is de veilige terugval true.
+for (const version of [1, 2, 3, 4, 5]) {
+  for (const dirty of [false, true, undefined]) {
+    const record: Omit<typeof webRecord, 'isDirty'> & { isDirty?: boolean } = { ...webRecord };
+    if (dirty === undefined) delete record.isDirty;
+    else record.isDirty = dirty;
+    const metadata: Omit<typeof webManifest.documents[number], 'isDirty'> & { isDirty?: boolean } = {
+      ...webManifest.documents[0],
+    };
+    delete metadata.isDirty;
+    idb.store('records').set(record.id, record);
+    idb.store('records').set(webManifest.id, { ...webManifest, version, documents: [metadata] });
+    const before = webBytes();
+    eq(`documents v${version} zonder dirty, record=${dirty}: record of veilige terugval`,
+      (await loadRecovery()).docs.map(d => d.isDirty), [dirty ?? true]);
+    eq(`documents v${version} zonder dirty: lezen verandert geen herstelbytes`, webBytes(), before);
+    await clearRecovery();
+  }
+}
 // Moderne metadata is gezaghebbend, ook wanneer het oude record juist het omgekeerde zegt.
 for (const dirty of [false, true]) {
   idb.store('records').set(webRecord.id, { ...webRecord, isDirty: !dirty });

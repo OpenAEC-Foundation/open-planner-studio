@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -118,10 +119,31 @@ test('MS Project: nul gescande bestanden is rood, ook bij exit 0 en een OK-regel
   assert.equal(verdict.pass, false);
 });
 
-test('MS Project: gescande bestanden, exit 0 en OK-regel ⇒ GROEN', () => {
-  const verdict = classifyMsp({ exit: 0, lines: ['   . [crawl] 658 bestand(en) gescand', 'OK  mpp-fidelity: alle checks groen (2196)'] });
+test('MS Project: beide wortels gescand, exit 0 en OK-regel ⇒ GROEN', () => {
+  const verdict = classifyMsp({ exit: 0, lines: ['   . [corpus] 3 bestand(en) gescand',
+    '   . [crawl] 658 bestand(en) gescand', 'OK  mpp-fidelity: alle checks groen (2196)'] });
   assert.equal(verdict.status, 'GROEN');
-  assert.equal(verdict.scanned, 658);
+  assert.equal(verdict.scanned, 661);
+});
+
+test('MS Project: één ontbrekende of lege wortel blijft een gedeeltelijke meting', () => {
+  for (const [present, missing] of [['corpus', 'crawl'], ['crawl', 'corpus']]) {
+    for (const skipped of ['', `OK  mpp-fidelity: ${missing}lus overgeslagen`]) {
+      const verdict = classifyMsp({ exit: 0, lines: [
+        `   . [${present}] 3 bestand(en) gescand`, skipped, 'OK  mpp-fidelity: alle checks groen (703)',
+      ] });
+      assert.equal(verdict.status, `ROOD (gedeeltelijk gemeten: ${missing} overgeslagen)`);
+      assert.equal(verdict.pass, false);
+      assert.equal(verdict.scanned, 3);
+    }
+  }
+});
+
+test('MS Project: een fout naast twee gescande wortels wordt niet groen', () => {
+  const lines = ['   . [corpus] 3 bestand(en) gescand', '   . [crawl] 658 bestand(en) gescand',
+    'OK  mpp-fidelity: alle checks groen (2196)'];
+  assert.equal(classifyMsp({ exit: 1, lines }).pass, false);
+  assert.equal(classifyMsp({ exit: 0, lines: [...lines, 'XX onverwachte fout'] }).pass, false);
 });
 
 test('kindprocessen krijgen geen schrijf- of rapportmodus mee', () => {
@@ -147,4 +169,10 @@ test('scriptrun: MS Project-profiel met lege corpuspaden ⇒ ROOD (niet gemeten)
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stdout, /MS Project\s+\|.*\|\s+ROOD \(niet gemeten\)/);
   assert.match(result.stdout, /UITSLAG \(GERICHTE RUN — niet alle vangrails gedraaid\): ROOD/);
+  // Lees ook de werkelijke batterij-uitvoer: de losse check blijft corpusloos bruikbaar voor
+  // CI, maar mag zijn nulmeting niet verbergen achter alleen "alle checks groen" (#427).
+  const match = result.stdout.match(/msp-mpp-fidelity: exit 0 in \d+s — log (.+)/);
+  assert.ok(match, result.stdout);
+  const log = readFileSync(match[1], 'utf8');
+  assert.match(log, /OK  mpp-fidelity: alle checks groen \(\d+\); 0 \.mpp-bestand\(en\) gescand; corpus=0 \(overgeslagen\); crawl=0 \(overgeslagen\)/);
 });

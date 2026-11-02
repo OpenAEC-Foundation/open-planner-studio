@@ -1034,23 +1034,11 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
-    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
-    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
-    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
-    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
-
 261. **Recente bestanden in een sandbox-iframe zonder `allow-same-origin` tonen hoogstens het laatst geopende
     bestand, en na herladen niets.** Gezien bij #582. `src/services/fileAccess/recentFiles.ts` gebruikt de
     stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
     regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
     de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
-
-330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
-    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
-    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
-    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
-    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
 
 256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
      09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
@@ -1483,6 +1471,13 @@ en noem het in je rapport of PR-tekst.
 
 ## Tests
 
+781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
+     `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
+     `classifyMsp` nu rechtstreeks `mppScannedRoots` gebruikt. Een zoekactie in de
+     repo vindt alleen de functiedefinitie. Vervolg: verwijder de ongebruikte
+     functie met haar commentaar (vier regels). Bevestigd bij de broncontrole en
+     in Sols reviewronde 1 op `13a27c352`; geen blokkerende bevinding. — B
+
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
      zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
      mount klopt het thema; de flits is alleen in de browser op de dev-server en niet gemeten.
@@ -1667,14 +1662,6 @@ en noem het in je rapport of PR-tekst.
      Twee onafhankelijke broncontroles van het register; geen productfixronde.
      — B
 
-394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
-     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
-     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
-     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
-     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
-     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
-     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
-
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
      op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
@@ -1683,24 +1670,6 @@ en noem het in je rapport of PR-tekst.
      eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
-
-427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
-     `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
-     een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
-     ontbreekt of geen `.mpp`-bestand bevat (`:715–725`, `:731–741`). Dat staat in tussenregels (`:720`, `:735`),
-     maar de slotregel (`:888`) zegt toch "alle checks groen". Gemeten op aia09-mp50, waar de `/home/nozzit/…`-
-     paden niet bestaan:
-     - Geen van beide variabelen gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks
-       groen (678)", exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
-     - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
-       `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
-       met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
-     Op een machine waar de crawl op het vaste pad staat, wordt hij ook zonder `OPS_MPP_CRAWL` gescand. Wie
-     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
-     corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
-     gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
-     (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
-     van #712 (GPT-6.1-Sol), 2026-10-27. — B
 
 429. **De keuze van de eerste bekende hosttaal wordt niet bij een echte start getest.** A13 in
      `tests/planning/check-site-storage.ts:325` toetst alleen de lijst met ruwe taalbronnen van
@@ -1715,12 +1684,6 @@ en noem het in je rapport of PR-tekst.
      niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
      dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
      2026-10-28. — B
-432. **De regressietest van `monthLabel` dwingt de oorspronkelijke foutconditie niet af.** De nieuwe controles
-     in `tests/planning/check-reports.ts:467–479` erven de taal van het proces, en de CI zet geen niet-Engelse
-     taal (de matrix wisselt alleen tijdzones). Onder een Engelse standaardtaal geven oude en nieuwe code voor
-     `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
-     deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
-     Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
 442. **`tests/browser/gantt-histogram-rtl.spec.ts:153` faalt soms in CI (ar).** De test voegt 30 resources toe
      en klikt meteen op `strip.top + 150` in de kiezer. In run 40854256352 (job `verify (browser 3-4)`) op PR
      #722 bleef `histogramResourceId` daarna `null` in plaats van Resource 05 (time-out van 5 s). De schermafdruk
@@ -1728,12 +1691,6 @@ en noem het in je rapport of PR-tekst.
      `.mpp`-lezer en commentaar; de spec laadt geen `.mpp`. Lokaal op dezelfde kop slaagt de spec 24 van de 24
      keer (`--repeat-each 3`, alle vier talen). Vermoeden, niet bewezen: de klik valt vóór de lijst opnieuw is
      getekend, of de klikhoogte ligt op de rand van een rij. Gevonden bij #722 (2026-10-29). — S
-460. **Twee runs van *Download stats* tegelijk: de tweede publicatie mislukt.** `publish-stats-branch.sh`
-     haalt de top van `stats` op en pusht een opvolger zonder `--force`. Starten een geplande en een handmatige
-     run tegelijk, dan maken ze elk een opvolger van dezelfde top; de tweede push wordt geweigerd en die run
-     wordt rood. Er gaat niets verloren. Voorstel: één vaste `concurrency`-groep in
-     `.github/workflows/download-stats.yml` met `cancel-in-progress: false`. Gevonden in review van #725
-     (GPT-6.1-Sol), 2026-10-29. — B
 461. **Elke run van *Download stats* maakt een commit op `stats`, ook zonder nieuwe cijfers.** `generatedAt`
      (`scripts/download-stats.mjs:248`) verandert elke run, en `publish-stats-branch.sh` vergelijkt de hele
      boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
@@ -1752,13 +1709,6 @@ en noem het in je rapport of PR-tekst.
      Voorstel: vergelijk in deze vaste fixtures de volledige verwachte tijdstippen. Gevonden in review van #654
      (GPT-6.1-Sol), 2026-10-29. — B
 
-473. **`check-gantt-label-ellipsis` bewaakt de naam achter een gewone taak niet meer.** Sinds #731 staat er een
-     samenvatting met dezelfde lange naam en dezelfde balkpositie in de scène, en de zoekactie voor de gewone
-     taak (`tests/planning/check-gantt-label-ellipsis.ts:128`) kijkt niet naar de rij. Valt de buitennaam van
-     een gewone taak weg, dan vindt de check de naam van de samenvatting en blijft hij groen (in de review
-     nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
-     met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
-     2026-10-29. — B
 490. **Lint-muiswiel: de poort voor een openstaande vraag heeft geen teststap.** `useRibbonTabWheel.ts`
      wisselt niet als het bewaren van het actieve veld een vraag opent (`isBlockingDialogOpen`). De stap in
      `tests/browser/ribbon-toggles.spec.ts` toetst alleen een duur, en die opent geen vraag. Route die de
@@ -1790,20 +1740,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
-552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
-     alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
-     en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
-     `fail` en `gh pr checks` bleef exit 1. Alleen een rode `test` zonder eigen rood deel raakt uit beeld. Wordt
-     `test` ooit een verplichte check, kijk dan eerst opnieuw, want GitHub telt een overgeslagen check als
-     geslaagd. Voorstel: de lege run een andere jobnaam geven, of de `labeled`-trigger naar een eigen workflow
-     verplaatsen. — B
-
-553. **Het PR-sjabloon vraagt nog om een groene volledige `npm run verify`.** `.github/pull_request_template.md:16`
-     heeft het vinkje `npm run verify` green, terwijl de gewone PR-CI sinds #757 de browsersuite niet meer
-     draait en agents de volledige poort niet lokaal draaien. Voorstel: het vinkje vragen om groene PR-CI, en bij
-     werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
-     2026-10-30. — B
-
 561. **De voortgangscurve heeft geen browsertest op de getekende lijnen.** `tests/browser/table-reports.spec.ts`
      kijkt alleen of de vier kaarten en de grafiek er staan; de ligging zelf toetst `check-print-report.ts` op
      `layoutCurveChart` en de PDF-tekenaar. Een fout alleen in de SVG-weergave (`CurveChartView.tsx`) valt zo niet
@@ -1815,12 +1751,6 @@ en noem het in je rapport of PR-tekst.
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
 
-598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
-     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
-     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
-     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
-     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
-     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
      `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
      doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
