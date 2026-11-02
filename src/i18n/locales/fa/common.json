@@ -454,6 +454,8 @@
     "connect": "اتصال",
     "connectHint": "جزئیات اتصال را نشان می‌دهد: نقطهٔ پایانی، توکن، قطعهٔ پیکربندی و پرامپت اتصال.",
     "connectionDetailsTitle": "جزئیات اتصال",
+    "setupPrompt": "بگذارید Claude انجام دهد",
+    "setupPromptHint": "برای Claude Desktop و Claude Code. پرامپت را در یک گفتگوی جدید بچسبانید. سپس Claude خودش افزونه را نصب می‌کند. برای آن به توکن نیازی ندارید.",
     "endpoint": "نقطهٔ پایانی",
     "endpointHint": "انتقال: HTTP جریانی",
     "auth": "احراز هویت",

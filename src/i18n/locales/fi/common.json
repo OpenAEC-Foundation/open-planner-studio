@@ -454,6 +454,8 @@
     "connect": "Yhdistä",
     "connectHint": "Näyttää kytkentätiedot: päätepisteen, tokenin, asetuskatkelman ja yhdistämiskehotteen.",
     "connectionDetailsTitle": "Kytkentätiedot",
+    "setupPrompt": "Anna Claude hoitaa asian",
+    "setupPromptHint": "Claude Desktopille ja Claude Codelle. Liitä kehote uuteen keskusteluun. Claude asentaa laajennuksen itse. Siihen ei tarvita tunnusta.",
     "endpoint": "Päätepiste",
     "endpointHint": "Kuljetustapa: streamable HTTP",
     "auth": "Todennus",

@@ -514,6 +514,8 @@
     "connect": "Повежи",
     "connectHint": "Приказује податке за везу: крајњу тачку, токен, фрагмент конфигурације и упит за повезивање.",
     "connectionDetailsTitle": "Подаци за везу",
+    "setupPrompt": "Препусти то Claude-у",
+    "setupPromptHint": "За Claude Desktop и Claude Code. Налепите упутство у нови разговор. Claude проширење инсталира сам. Токен за то вам није потребан.",
     "endpoint": "Крајња тачка",
     "endpointHint": "Транспорт: streamable HTTP",
     "auth": "Аутентификација",

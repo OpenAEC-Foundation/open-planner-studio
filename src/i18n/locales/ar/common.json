@@ -694,6 +694,8 @@
     "connect": "اتصال",
     "connectHint": "يعرض تفاصيل الاتصال: نقطة النهاية، والرمز المميز، ومقتطف الإعداد، وموجّه الاتصال.",
     "connectionDetailsTitle": "تفاصيل الاتصال",
+    "setupPrompt": "دَعْ Claude يتولّى الأمر",
+    "setupPromptHint": "مخصّص لـ Claude Desktop و Claude Code. الصق الموجّه في محادثة جديدة. يثبّت Claude الإضافة بنفسه بعد ذلك. لا يلزمك رمز مميّز لذلك.",
     "endpoint": "نقطة النهاية",
     "endpointHint": "النقل: HTTP المتدفق",
     "auth": "المصادقة",

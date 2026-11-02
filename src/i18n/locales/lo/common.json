@@ -394,6 +394,8 @@
     "connect": "ເຊື່ອມຕໍ່",
     "connectHint": "ສະແດງລາຍລະອຽດການເຊື່ອມຕໍ່: endpoint, ໂທເຄັນ, ໂຄດການຕັ້ງຄ່າ ແລະ ຂໍ້ຄວາມຄຳສັ່ງເຊື່ອມຕໍ່.",
     "connectionDetailsTitle": "ລາຍລະອຽດການເຊື່ອມຕໍ່",
+    "setupPrompt": "ໃຫ້ Claude ຈັດການໃຫ້",
+    "setupPromptHint": "ສຳລັບ Claude Desktop ແລະ Claude Code. ວາງ prompt ໃນການສົນທະນາໃໝ່. ຈາກນັ້ນ Claude ຈະຕິດຕັ້ງ ສ່ວນເສີມ ດ້ວຍຕົນເອງ. ທ່ານບໍ່ຈຳເປັນຕ້ອງມີ ໂທເຄັນ ສຳລັບເລື່ອງນີ້.",
     "endpoint": "Endpoint",
     "endpointHint": "ການຮັບສົ່ງຂໍ້ມູນ: streamable HTTP",
     "auth": "ການຢືນຢັນຕົວຕົນ",

@@ -361,7 +361,10 @@
     "helpTutorialStep": "Навчальний посібник {{number}} з {{total}}",
     "helpTutorialsEmpty": "Навчальні посібники ще не встановлено. Ви встановлюєте їх як розширення з каталогу.",
     "helpTutorialsInstall": "Встановити навчальні посібники",
-    "helpDraft": "чернетка"
+    "helpDraft": "чернетка",
+    "helpCopyPrompt": "Копіювати промпт",
+    "helpPromptCopied": "Скопійовано. Тепер вставте промпт у Claude.",
+    "helpPromptCopyFailed": "Копіювання не вдалося. Виберіть текст нижче та скопіюйте його самостійно."
   },
   "export": {
     "progressFileSuffix": "прогрес",

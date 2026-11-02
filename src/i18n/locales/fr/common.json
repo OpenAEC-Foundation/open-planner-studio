@@ -514,6 +514,8 @@
     "connect": "Se connecter",
     "connectHint": "Affiche les détails de connexion : point de terminaison, jeton, extrait de configuration et invite de connexion.",
     "connectionDetailsTitle": "Détails de connexion",
+    "setupPrompt": "Laisser Claude le faire",
+    "setupPromptHint": "Pour Claude Desktop et Claude Code. Collez le prompt dans une nouvelle conversation. Claude installe alors lui-même l'extension. Vous n'avez pas besoin de jeton pour cela.",
     "endpoint": "Point de terminaison",
     "endpointHint": "Transport : HTTP streamable",
     "auth": "Authentification",

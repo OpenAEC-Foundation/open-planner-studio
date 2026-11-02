@@ -359,7 +359,10 @@
     "helpTutorialStep": "Лекција {{number}} од {{total}}",
     "helpTutorialsEmpty": "Лекције још нису инсталиране. Инсталирајте их као проширење из каталога.",
     "helpTutorialsInstall": "Инсталирај лекције",
-    "helpDraft": "нацрт"
+    "helpDraft": "нацрт",
+    "helpCopyPrompt": "Копирај промпт",
+    "helpPromptCopied": "Копирано. Сада налепите промпт у Claude.",
+    "helpPromptCopyFailed": "Копирање није успело. Изаберите текст испод и копирајте га сами."
   },
   "export": {
     "progressFileSuffix": "напредак",

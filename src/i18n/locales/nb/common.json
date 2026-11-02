@@ -454,6 +454,8 @@
     "connect": "Koble til",
     "connectHint": "Viser tilkoblingsdetaljene: endepunkt, token, konfigurasjonsutdrag og koblingsprompt.",
     "connectionDetailsTitle": "Tilkoblingsdetaljer",
+    "setupPrompt": "La Claude ordne det",
+    "setupPromptHint": "For Claude Desktop og Claude Code. Lim inn prompten i en ny samtale. Claude installerer utvidelsen selv. Du trenger ikke noe token til det.",
     "endpoint": "Endepunkt",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Autentisering",
