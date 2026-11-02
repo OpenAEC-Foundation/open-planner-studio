@@ -1,7 +1,6 @@
 import type { MeasuredDuration } from '@/utils/taskDuration';
 import type { Task } from '@/types/task';
 import { flattenOrder } from '@/utils/wbs';
-import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { descendantLeaves, isSummaryProgressDerived, summaryProgressOf } from '@/engine/scheduler/summaryProgress';
 import {
@@ -107,9 +106,9 @@ export function computeWbsSummary(ctx: ReportContext, opts: WbsSummaryOptions): 
       finish,
       baselineStart: bStart,
       baselineFinish: bFinish,
-      durationDays: isSummary
-        ? Math.max(0, projectEngine.workDaysBetween(parseDate(start), parseDate(finish)))
-        : durationDays(ctx, t),
+      // De rollup meet de fase al in de projectkalender, inclusief dagdelen. Een tweede,
+      // inclusieve dagtelling zou van een halve dag weer een hele dag maken.
+      durationDays: isSummary ? Math.max(0, t.time.scheduleDuration) : durationDays(ctx, t),
       ...(isSummary ? {} : { duration: durationMeasure(t) }),
       hoursPerDay: taskHoursPerDay(ctx, t),
       completion,

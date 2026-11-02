@@ -667,6 +667,35 @@ export class CalendarEngine {
     const hit = cache.days.get(dayMs);
     if (hit) return hit;
     cache.fills++;
+    const result = this.materializeDayBands(dayMs,
+      this.sourceBandsOn(dayMs), this.sourceBandsOn(dayMs - MS_PER_DAY));
+    cache.days.set(dayMs, result);
+    return result;
+  }
+
+  /** Een nachtstaart blijft bij haar startdag; de volgende dag krijgt alleen het nog niet
+   *  bedekte deel. De uitrol en de snelle dagtelling toetsen hiermee dezelfde dagbanden. */
+  private materializeDayBands(
+    dayMs: number,
+    bands: WorkTimeBands['byWeekday'][1],
+    previousBands: WorkTimeBands['byWeekday'][1],
+  ): BandInterval[] {
+    const previousDay = dayMs - MS_PER_DAY;
+    let coveredUntil = dayMs;
+    for (const band of previousBands) {
+      coveredUntil = Math.max(coveredUntil, previousDay + band.end * CalendarEngine.MS_PER_MIN);
+    }
+    const result: BandInterval[] = [];
+    for (const band of bands) {
+      const start = Math.max(coveredUntil, dayMs + band.start * CalendarEngine.MS_PER_MIN);
+      const end = dayMs + band.end * CalendarEngine.MS_PER_MIN;
+      if (end > start) result.push({ start, end });
+    }
+    return result;
+  }
+
+  /** De opgeslagen dagbanden, vóór het wegnemen van overlap met de vorige nacht. */
+  private sourceBandsOn(dayMs: number): { start: number; end: number }[] {
     const d = new Date(dayMs);
     const dayIdx = utcDayIndex(dayMs); // dayMs is altijd dag-uitgelijnd (aanroepers)
     const wd = isoDayOfWeek(d) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -680,12 +709,7 @@ export class CalendarEngine {
     } else {
       bands = this.calendar.workTime!.byWeekday[wd] ?? [];
     }
-    const result: BandInterval[] = bands.map((b) => ({
-      start: dayMs + b.start * CalendarEngine.MS_PER_MIN,
-      end: dayMs + b.end * CalendarEngine.MS_PER_MIN,
-    }));
-    cache.days.set(dayMs, result);
-    return result;
+    return bands;
   }
 
   /** De band die `tMs` bevat, of null. `leftOpen=false` ⇒ voorwaartse conventie `[start,end)`;
@@ -1036,22 +1060,30 @@ export class CalendarEngine {
     return { dayMs, offset: this.measureOffset(day, eMs), day };
   }
 
-  /** Telt de dagenmaat dezelfde werkdagen als `isWorkDay`? Ja als elke weekdag met werkminuten in
-   *  `workDays` staat (en andersom) en elke werkende uitzondering minuten heeft. Dan mag de rekenkundige
-   *  telling (`offsetOfNthWorkday`, `workDaysBetween`) hele dagen overslaan; een tegenstrijdige kalender
-   *  telt dag voor dag. Eén keer per engine bepaald. */
+  /** Telt de dagenmaat dezelfde werkdagen als `isWorkDay`? De overgebleven weekbanden moeten
+   *  overeenkomen met `workDays`, ook na overlap met de vorige nacht. Rond een werkende uitzondering
+   *  toetsen we de dag zelf én de dag erna. Alleen dan mogen selectie en afstandtelling hele dagen
+   *  rekenkundig overslaan; anders volgen beide de gematerialiseerde dagbanden. Eén keer per engine. */
   private measureLikeWorkDays(): boolean {
     if (this.measureLikeWorkDaysCache !== undefined) return this.measureLikeWorkDaysCache;
     const byWeekday = this.calendar.workTime?.byWeekday;
     let ok = byWeekday !== undefined;
     for (let wd = 1; ok && wd <= 7; wd++) {
-      const bands = byWeekday![wd as 1 | 2 | 3 | 4 | 5 | 6 | 7] ?? [];
-      const minutes = bands.reduce((s, b) => s + Math.max(0, b.end - b.start), 0);
-      if ((minutes > 0) !== this.workDayMask[wd]) ok = false;
+      const previousWd = (wd === 1 ? 7 : wd - 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+      const bands = this.materializeDayBands(0,
+        byWeekday![wd as 1 | 2 | 3 | 4 | 5 | 6 | 7] ?? [], byWeekday![previousWd] ?? []);
+      if ((bands.length > 0) !== this.workDayMask[wd]) ok = false;
     }
     if (ok) {
       for (const idx of this.workingExceptionDaySet) {
-        if (!(this.measureDay(idx * MS_PER_DAY).minutes > 0)) { ok = false; break; }
+        for (const affected of [idx, idx + 1]) {
+          const day = new Date(affected * MS_PER_DAY);
+          if ((this.measureDay(day.getTime()).minutes > 0) !== this.isWorkDay(day)) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) break;
       }
     }
     this.measureLikeWorkDaysCache = ok;

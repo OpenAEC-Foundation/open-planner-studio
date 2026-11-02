@@ -271,6 +271,24 @@ const summary = (m: DcmaMetric) => (m.result === 'na' ? [m.result, m.naReason] :
   eq('s5: na Herberekenen draait punt 12 weer', [S().datesAsRecorded, cp.result, cp.test?.name], [false, 'pass', 'Fundering']);
 }
 
+// Knownbug 344: toets de exacte duur aan 44 dagen, vóór afronding voor de weergave.
+for (const unit of ['days', 'hours'] as const) {
+  for (const days of [43.975, 44, 44.025]) {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01' });
+    const id = task('Grensduur', days);
+    const time = S().tasks.find(t => t.id === id)!.time;
+    S().updateTask(id, { time: { ...time, durationUnit: unit,
+      ...(unit === 'hours' ? { durationMinutes: days * 480 } : {}) } });
+    S().runCPM();
+    const want = days > 44 ? ['flag', 1, 1, 100] : ['pass', 0, 1, 0];
+    eq(`344 ${unit} ${days}: huidige duur exact`, summary(metric(dcmaOf(ctxFromStore()), 'highDuration')), want);
+    S().saveBaseline('Grensduur');
+    S().setActiveBaseline(S().baselines[0].id);
+    eq(`344 ${unit} ${days}: baseline exact`, summary(metric(dcmaOf(ctxFromStore()), 'highDuration')), want);
+  }
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────
 if (diffs.length) {
   for (const d of diffs) console.log(`XX ${d}`);

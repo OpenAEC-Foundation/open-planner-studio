@@ -18,6 +18,9 @@
 // (1204 afwijkingen); een feestdag op een weekdag de standaardblokken geven in `measureDay` maakt D rood
 // (11). A en B merken die tweede mutatie niet: op een kalender die als `isWorkDay` telt, slaan de lopers
 // de feestdag rekenkundig over (`measureLikeWorkDays`).
+import { createAppStoreContext } from '@/state/appStoreFactory';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { workdayDateOfInstant } from '@/engine/calendar/workdayRules';
 import { formatInstant, parseInstant, MS_PER_DAY } from '@/utils/dateUtils';
@@ -298,6 +301,60 @@ for (const c of ALL) {
   }
 }
 ok(`D: ${spanSamples} spannes getoetst`, spanSamples > 300);
+
+// PR #787, review ronde 1: een nachtstaart bedekt de volgende werkdag helemaal.
+// De dagenmaat mag die lege dag niet selecteren of meetellen. De twintig uur van de
+// nachtdienst tellen als één dag; de eerstvolgende dag met eigen resterende banden als de tweede.
+const REGRESSION_DAY: Band[] = [{ start: hm(8), end: hm(16) }];
+const REGRESSION_WEEK = week({ 1: REGRESSION_DAY, 2: REGRESSION_DAY, 3: REGRESSION_DAY, 4: REGRESSION_DAY, 5: REGRESSION_DAY });
+const LONG_NIGHT: Band[] = [{ start: hm(22), end: hm(42) }];
+const coveredDayCases = [
+  {
+    calendar: cal('nachtuitzondering bedekt dinsdag', [1, 2, 3, 4, 5], REGRESSION_WEEK, {
+      workingExceptions: [{ name: 'Nachtdienst', startDate: '2026-06-01', endDate: '2026-06-01', bands: LONG_NIGHT }],
+    }),
+    start: '2026-06-01T22:00', nextStart: '2026-06-03T08:00', finish: '2026-06-03T16:00',
+  },
+  {
+    calendar: cal('weekpatroon bedekt dinsdag', [1, 2, 3, 4, 5], {
+      byWeekday: { ...REGRESSION_WEEK.byWeekday, 1: LONG_NIGHT },
+    }),
+    start: '2026-06-01T22:00', nextStart: '2026-06-03T08:00', finish: '2026-06-03T16:00',
+  },
+  {
+    calendar: cal('zondaguitzondering bedekt maandag', [1, 2, 3, 4, 5], REGRESSION_WEEK, {
+      workingExceptions: [{ name: 'Nachtdienst', startDate: '2026-06-07', endDate: '2026-06-07', bands: LONG_NIGHT }],
+    }),
+    start: '2026-06-07T22:00', nextStart: '2026-06-09T08:00', finish: '2026-06-09T16:00',
+  },
+];
+function regression(label: string, run: () => unknown, want: unknown): void {
+  try { eq(label, run(), want); }
+  catch (error) { checks++; diffs.push(`${label}: onverwachte uitzondering ${String(error)}`); }
+}
+for (const c of coveredDayCases) {
+  const e = new CalendarEngine(c.calendar);
+  regression(`${c.calendar.id}: vooruit twee dagen`, () => fmt(e.addMeasuredWorkdays(at(c.start), 2)), c.finish);
+  regression(`${c.calendar.id}: terug twee dagen`, () => fmt(e.subtractMeasuredWorkdays(at(c.finish), 2)), c.start);
+  regression(`${c.calendar.id}: afstand tot volgende dag is één`, () => e.measuredWorkdaysBetween(at(c.start), at(c.nextStart)), 1);
+  regression(`${c.calendar.id}: omgekeerde afstand is min één`, () => e.measuredWorkdaysBetween(at(c.nextStart), at(c.start)), -1);
+  regression(`${c.calendar.id}: afstand tot einde is twee`, () => e.measuredWorkdaysBetween(at(c.start), at(c.finish)), 2);
+  regression(`${c.calendar.id}: F5 berekent twee dagen zonder uitzondering`, () => {
+    const { store } = createAppStoreContext();
+    store.setState(s => {
+      s.calendar = c.calendar;
+      s.project.startDate = c.start;
+      s.project.schedulingProfile = builtInProfile('ops');
+    });
+    const id = store.getState().addTask({ name: 'Twee dagen',
+      time: { ...createDefaultTaskTime(c.start, 2), durationUnit: 'days' } });
+    store.getState().runCPM();
+    const result = store.getState().cpmResult;
+    if (!result || result.error) throw new Error(`F5 gaf geen geldige uitkomst: ${JSON.stringify(result?.error)}`);
+    const time = store.getState().tasks.find(t => t.id === id)!.time;
+    return [time.earlyStart, time.earlyFinish, time.lateStart, time.lateFinish, time.totalFloatMinutes];
+  }, [c.start, c.finish, c.start, c.finish, 0]);
+}
 
 if (diffs.length > 0) {
   console.log(`XX dagenmaat-lopers: ${diffs.length} afwijking(en) van ${checks} checks`);

@@ -176,6 +176,9 @@ class ShiftReasoner {
     }
     for (const assignment of after) {
       if (before.some(item => item.id === assignment.id)) continue;
+      // De vorige basis kent het type van een later aangemaakte resource niet. De werkregel
+      // zou die anders als arbeid behandelen en zelfs materiaal een duur laten verklaren.
+      if (!basis.resources.some(resource => resource.id === assignment.resourceId)) return false;
       const captured = captureTriangle(replay, assignments, basis);
       const added = structuredClone(assignment);
       assignments.push(added);
