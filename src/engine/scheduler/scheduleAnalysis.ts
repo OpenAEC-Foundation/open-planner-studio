@@ -3,7 +3,7 @@ import type { SchedulingOptions } from '@/types/project';
 import type { Sequence } from '@/types/sequence';
 import type { CalendarEngine } from './CalendarEngine';
 import type { CpmBackwardFloatTrace, CpmFreeFloatSource, CPMResult, CPMTaskResult } from './CPMSolver';
-import { formatInstant, type DateMode } from '@/utils/dateUtils';
+import { formatInstant } from '@/utils/dateUtils';
 import { drivingPredecessorWalker } from './graphWalk';
 import { projectDurationOf } from './projectDuration';
 import { isElapsedTask, isZeroDurationMilestone } from './duration';
@@ -64,7 +64,6 @@ export interface ScheduleAnalysisInput {
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
   /** De late grens van een MSO/MFO/SNLT op een nulduurmijlpaal (`CPMSolver.milestoneLateMoment`), anders null. */
   milestoneLateMoment: (task: Task, c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
-  modeOf: (eng: CalendarEngine) => DateMode;
   /** Optionele XER-diagnose die de post-pass op haar eigen beslisplekken aanvult. */
   backwardFloatTrace?: CpmBackwardFloatTrace;
 }
@@ -82,7 +81,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     truncatedLeadIds, hardPinViolatedIds, hammockNoFinishDriverIds,
     projectEngine,
     calendarFor, progressCalendarFor, signedFloat, signedFloatMinutes, countsInWorkdays,
-    constraintInstant, snapOnOrAfter, snapOnOrBefore, milestoneLateMoment, modeOf,
+    constraintInstant, snapOnOrAfter, snapOnOrBefore, milestoneLateMoment,
     backwardFloatTrace, completedPhysicalPoints,
   } = input;
 
@@ -106,7 +105,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const succTask = tasks.get(seq.successorId);
     if (!cRaw || !succEarly || !succTask) continue;
     // Relatie-vrije-speling in de kalender van de OPVOLGER (diens vroegste start rekent daar).
-    // Uur-opvolger ⇒ fractionele-dag-float via `workMinutesBetween`; dag ⇒ integer.
+    // Fractionele-dag-float via `workMinutesBetween`.
     //
     // BEKENDE BEPERKING (niet gefixt): deze berekening is NIET durationType-bewust — ze rekent altijd
     // in WERKtijd, ook wanneer de OPVOLGER (`succTask`) ELAPSEDTIME is. `succEarly.es` van een
@@ -125,15 +124,10 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     // werkdagen (§3.4). Nul blijft nul in beide maten (geen werktijd ertussen), dus de driving-markering
     // verandert niet.
     const predTask = tasks.get(seq.predecessorId);
-    const relDays = succCal.isHourMode ? null : succCal.workDaysBetween(reqStart, succEarly.es) - 1;
-    const relMinutes = relDays === null
-      ? succCal.workMinutesBetween(reqStart, succEarly.es)
-      : relDays * succCal.hoursPerDay * 60;
-    const relFloat = relDays !== null
-      ? relDays
-      : predTask && countsInWorkdays(predTask)
-        ? succCal.measuredWorkdaysBetween(reqStart, succEarly.es)
-        : relMinutes / (succCal.hoursPerDay * 60);
+    const relMinutes = succCal.workMinutesBetween(reqStart, succEarly.es);
+    const relFloat = predTask && countsInWorkdays(predTask)
+      ? succCal.measuredWorkdaysBetween(reqStart, succEarly.es)
+      : relMinutes / (succCal.hoursPerDay * 60);
     sequenceFreeFloat[seq.id] = relFloat;
     sequenceFreeFloatMinutes[seq.id] = relMinutes;
     if (relFloat === 0) drivingSequenceIds.push(seq.id);
@@ -207,7 +201,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     let freeFloatMinutes = Infinity;
     let freeFloatSource: CpmFreeFloatSource = 'derivedFromSuccessor';
     const succs = successors.get(taskId) || [];
-    const inWorkdays = cal.isHourMode && countsInWorkdays(taskObj);
+    const inWorkdays = countsInWorkdays(taskObj);
     /** Werkminuten op de taakkalender van `a` naar `b`, en dezelfde afstand in de dagweergave. */
     const ownCalendarSpan = (a: Date, b: Date): { days: number; minutes: number } => {
       const minutes = cal.workMinutesBetween(a, b);
@@ -275,7 +269,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
         // Geen eigen voltooiingspoort: een voltooide voorganger heeft met A12 aan al ff 0 (zie verderop),
         // en zonder A12 blijft de relatiegrens staan (ff gedefinieerd).
-        if (ff === undefined && cal.isHourMode
+        if (ff === undefined
           && seq.type === 'FINISH_START'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const point = completedPhysicalPoints?.get(seq.successorId);
@@ -326,7 +320,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         return {
           es,
           ef: progressCal.prevWorkInstant(es),
-          mode: modeOf(progressCal),
         };
       })()
       : null;
@@ -447,7 +440,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
           : tf <= critThreshold;
 
     if (isCritical) criticalPath.push(taskId);
-    // Interfererende speling: ALTIJD berekend, getekend (fractioneel in uur-modus, erft
+    // Interfererende speling: ALTIJD berekend, getekend (fractioneel, erft
     // `signedFloat` via tf/ff). Niet geserialiseerd, niet in de digest.
     const interferingFloat = tf - freeFloat;
     // Near-critical: 0 < tf ≤ drempel; alleen wanneer de drempel gezet is (anders undefined
@@ -473,8 +466,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         const dW = moment ?? snapOnOrBefore(cal, cd);
         // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
         // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
-        const dS = moment ?? (cal.isHourMode
-          && !isElapsedTask(task) && !isZeroDurationMilestone(task)
+        const dS = moment ?? (!isElapsedTask(task) && !isZeroDurationMilestone(task)
           ? snapOnOrAfter(cal, cd)
           : dW);
         const ct = cc.type;
@@ -487,9 +479,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       if (dlW && early.ef > dlW) missedDeadlineTaskIds.push(taskId);
     }
 
-    // Serialisatie: de MODUS van de eigen kalender is de enige discriminator — dag-taak ⇒
-    // `formatDate`, uur-taak ⇒ `YYYY-MM-DDTHH:mm`.
-    const mode = completedDisplayWindow?.mode ?? modeOf(cal);
+    // Serialisatie: altijd `YYYY-MM-DDTHH:mm` (sinds F6 rekent elke solvekalender met werkblokken).
     const displayActualLateDecision = explainDisplayActualLateEligibility(taskObj, dataDate, so);
     const displayActualLate = displayActualLateDecision.eligible;
     // Zónder de vlag `p6CompletedLateFromRemainingWindow` pint de LATE zijde van een voltooide taak
@@ -519,10 +509,10 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       };
     }
     taskResults.set(taskId, {
-      earlyStart: formatInstant(completedDisplayWindow?.es ?? early.es, mode),
-      earlyFinish: formatInstant(completedDisplayWindow?.ef ?? early.ef, mode),
-      lateStart: formatInstant(pinLateToActualWindow ? early.es : late.ls, mode),
-      lateFinish: formatInstant(pinLateToActualWindow ? early.ef : late.lf, mode),
+      earlyStart: formatInstant(completedDisplayWindow?.es ?? early.es, 'hour'),
+      earlyFinish: formatInstant(completedDisplayWindow?.ef ?? early.ef, 'hour'),
+      lateStart: formatInstant(pinLateToActualWindow ? early.es : late.ls, 'hour'),
+      lateFinish: formatInstant(pinLateToActualWindow ? early.ef : late.lf, 'hour'),
       totalFloat: tf,
       freeFloat,
       totalFloatMinutes: tfMinutes,
@@ -662,9 +652,9 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     floatPathByTask,
     // Hammocks zonder finish-driver: waarschuwing (nul-lengte-terugval).
     hammockNoFinishDriverTaskIds: [...hammockNoFinishDriverIds],
-    // Projecteinde in de projectkalendermodus: dag-project ⇒ `formatDate`.
+    // Projecteinde als moment (`YYYY-MM-DDTHH:mm`).
     // Zonder early-resultaten leeg (zie `hasSchedule` hierboven) i.p.v. de epoch.
-    projectEnd: hasSchedule ? formatInstant(projectEnd, modeOf(projectEngine)) : '',
+    projectEnd: hasSchedule ? formatInstant(projectEnd, 'hour') : '',
     projectDuration,
   };
 }

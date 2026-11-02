@@ -403,6 +403,17 @@ en noem het in je rapport of PR-tekst.
      `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+507. **De nivelleerder heeft drie dode dagtakken.** `ResourceLeveler.ts` rond regel 269, 290/297 en 843/848 kiest
+     nog een dagtak voor een taakkalender zonder werktijd (`isHourMode` onwaar). Sinds F6 (#733) stopt de
+     baseline-solve op regel 395 dan al (`taskWithoutWorkHours`) en keert de functie terug, dus die takken worden
+     niet meer bereikt. Ongeveer tien regels kunnen weg; de kalendertijd- en werkblokkenpaden blijven. Alleen
+     opruimen. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
+508. **Een kalender met een opgeslagen lege week stopt de berekening niet.** Een kalender met `workTime` maar zonder
+     enig werkblok (vijf werkdagen, zeven lege weekdagen) heeft `isHourMode` waar, dus de wachten van F6
+     (`taskWithoutWorkHours`, `noWorkingHours`) laten hem door. Een taak van 2,5 werkdagen krijgt dan
+     `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
+     Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
+     huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
 589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
      gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
      `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
@@ -935,6 +946,13 @@ en noem het in je rapport of PR-tekst.
      store-aanroep die de API doet. Voorstel: een eigen voortgangsactie in de extensie-API, of bewust zo laten en
      in de API-docs noemen. — B
 
+492. **Het manifest van de Claude Desktop-bundel belooft Node 18, maar de stand zonder app vraagt Node 22.**
+     `integrations/claude-desktop/manifest.json` zegt `compatibility.runtimes.node: ">=18.0.0"`; dat klopt voor het
+     schakelstuk. `headlessChild.ts` (`HEADLESS_MIN_NODE_MAJOR = 22`) weigert de stand zonder app onder Node 22,
+     met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
+     Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
+     in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
@@ -1317,6 +1335,13 @@ en noem het in je rapport of PR-tekst.
 
 ## Rondleiding, Help en extensie-gidsen
 
+493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
+     `**The tab *MCP* is gone.**`; de Help toont "*The tab MCP is gone.*", met de sterretjes erbij, en in de alinea
+     erboven loopt de cursief door ("…back to Off* and you can…"). De gidsen in `public/docs/en/` hebben 22 van zulke
+     regels (onder meer `howto-exporteren.md`, `howto-constraint-deadline-zetten.md`). De renderer is
+     `src/utils/miniMarkdown.tsx`. Gezien op een schermafbeelding van de dev-server bij #734; nl niet nagekeken.
+     Voorstel: de renderer laat nadruk in nadruk toe, of `verify:docs` weigert het. — B
+
 68. **Een gidsstap die eenmaal "gedaan" is, blijft gedaan**, ook na wisselen naar een leeg project. Gezien bij
     tutorial 6 stap 8; niet uitgezocht of dat bedoeld is. — S
 404. **Commentaar bij het welkomstvenster mist de ontbrekende instelling.**
@@ -1606,16 +1631,6 @@ en noem het in je rapport of PR-tekst.
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
 
-393. **Een beschadigd numeriek kalender-id `NaN` krijgt bij opslaan onbedoeld koppelingen.**
-     `src/services/ifc/ifcWriter.ts:1465` en `:1473`: de kalenderindex gebruikt `Map.get`,
-     dat `NaN` aan zichzelf koppelt. De eerdere vergelijking met `===` deed dat niet.
-     Bij een kalender met `id: NaN` en taken/resources met `calendarId: NaN` schrijft de
-     nieuwe schrijver extra `IFCRELASSIGNSTOCONTROL`-relaties. Bij heropenen krijgen zij
-     daardoor een echte kalenderkoppeling. Een gewone gebruikersroute naar deze beschadigde
-     invoer is niet aangetoond. Richting: sla voor `Number.isNaN(cal.id)` alleen de
-     control-relaties over, na kalender en metadata; voeg een gerichte regressiecheck toe.
-     Vastgesteld door twee onafhankelijke broncontroles bij PR #641; niet uitgevoerd. — B
-
 427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
      `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
      een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
@@ -1746,6 +1761,17 @@ en noem het in je rapport of PR-tekst.
      De uitkomsten zijn gelijk in tien combinaties. De helper en zijn import kunnen weg; in
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
+
+598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
+     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
+     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
+     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
+     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
+     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
+     `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
+     doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
+     opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 
 ## Wensen en open taken (geen bug)
 

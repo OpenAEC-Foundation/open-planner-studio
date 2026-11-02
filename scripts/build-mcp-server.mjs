@@ -138,6 +138,7 @@ writeFileSync(join(outDir, 'README.md'), `# ${MCP_SERVER_PACKAGE_NAME}
 Headless MCP server of [Open Planner Studio](https://github.com/OpenAEC-Foundation/open-planner-studio), version ${appPkg.version}.
 The same \`planner_*\` tools as the MCP bridge in the desktop app, on a schedule in memory, with the files
 in one working folder. No desktop app, no browser. Node ${pkg.engines.node}, one file, no dependencies.
+While the Open Planner Studio desktop app runs, it does not replace an existing file (see \`--discovery-dir\`).
 
 \`\`\`bash
 node server.mjs --root /path/to/schedules                 # stdio (default)
