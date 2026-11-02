@@ -9,7 +9,8 @@ import type { EffectiveSchedulingOptions, Project } from '@/types/project';
 export const P6XML_LAG_CALENDAR = {
   predecessor: 'Predecessor Activity Calendar',
   successor: 'Successor Activity Calendar',
-  '24hour': '24-Hour Calendar',
+  // Het P6-schema staat `24 Hour Calendar` toe, zonder koppelteken (review Sol #781, punt 3); de lezer kent beide.
+  '24hour': '24 Hour Calendar',
   projectDefault: 'Project Default Calendar',
 } as const;
 export const P6XML_FLOAT_TYPE = {

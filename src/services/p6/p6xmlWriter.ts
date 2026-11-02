@@ -33,7 +33,7 @@ import {
   withElapsedUnit, writeDays, writeMinutes, type LagRecord, type WrittenAmount,
 } from '@/services/xmlDayMeasure';
 import { ELAPSED_MINUTES_PER_DAY, dayMeasureRecord } from '@/services/ifc/dayMeasureIo';
-import { P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN } from '@/engine/work/workRuleMapping';
+import { P6_DURATION_TYPE_NAME } from '@/engine/work/workRuleMapping';
 import { DEFAULT_WORK_RULE } from '@/types/workRule';
 
 /** P6-UDF die de OPS-taaktypemarker draagt; geëxporteerd voor de reader. */
@@ -128,14 +128,6 @@ export function taskStatusToP6(task: Task): 'Completed' | 'In Progress' | 'Not S
   return 'Not Started';
 }
 
-/** XER-token → PMXML-label, via de gedeelde tabel in `workRuleMapping.ts` (Oracle-datamap). */
-function p6LabelForToken(token: string): string | undefined {
-  for (const [rule, t] of Object.entries(XER_DURATION_TYPE_TOKEN) as [keyof typeof P6_DURATION_TYPE_NAME, string][]) {
-    if (t === token) return P6_DURATION_TYPE_NAME[rule];
-  }
-  return undefined;
-}
-
 function taskTypeToP6(task: Task): string {
   if (isZeroDurationMilestone(task)) {
     // Een mijlpaal mét duur kent P6 niet: die blijft hieronder een gewone activiteit met zijn duur.
@@ -146,8 +138,21 @@ function taskTypeToP6(task: Task): string {
   if (isSummaryTask(task)) return 'WBS Summary';
   // Een hammock is in P6 een Level of Effort, zoals `TT_LOE` in de XER; de lezer leest hem zo terug (#775).
   if (task.isHammock) return 'Level of Effort';
+  // Het P6-type uit de bron als dat een gewone activiteit is, zoals de XER-schrijver (review PR #393, punt 7). De
+  // motor onderscheidt ze: TT_Rsrc en TT_WBS vallen buiten C5 (review Sol #781).
+  if (task.p6ActivityType === 'TT_Rsrc') return 'Resource Dependent';
+  if (task.p6ActivityType === 'TT_WBS') return 'WBS Summary';
   return 'Task Dependent';
 }
+
+/** De voortgangssoort zoals de bron hem had (XER-schrijver: `complete_pct_type`), met de bijbehorende kolom. Een
+ *  taak zonder soort gaat als Physical, zoals voorheen. De motor leest de soort (B3/C5); als Physical
+ *  teruggelezen viel een voltooide Duration-taak op de statusdatum (review Sol #781, punt 1). */
+const P6_XML_PERCENT_COMPLETE: Readonly<Record<NonNullable<Task['p6CompletePctType']>, { label: string; column: string }>> = {
+  CP_Phys: { label: 'Physical', column: 'PhysicalPercentComplete' },
+  CP_Drtn: { label: 'Duration', column: 'DurationPercentComplete' },
+  CP_Units: { label: 'Units', column: 'UnitsPercentComplete' },
+};
 
 // ISO-dagnummer (1=maandag..7=zondag) -> P6/Engelse dagnaam. Geëxporteerd zodat de reader de naam
 // terug naar een ISO-dagnummer kan resolven.
@@ -594,11 +599,12 @@ export function writeP6XMLWithReport(
   for (const task of leafTasks) {
     const objId = taskObjMap.get(task.id)!;
     const wbsObjId = task.parentId ? taskObjMap.get(task.parentId) : undefined;
-    // <DurationType> uit de werkregel; zonder werkregel valt een taak met alleen een bewaard P6-token
-    // op dat token terug. Zonder beide schrijft de export niets.
-    const durationTypeLabel = task.workRule
-      ? P6_DURATION_TYPE_NAME[task.workRule]
-      : task.p6DurationType ? p6LabelForToken(task.p6DurationType) : undefined;
+    // <DurationType> uit de eigen werkregel. Een taak zonder eigen regel erft de projectstandaard
+    // (`ActivityDefaultDurationType`, = `effectiveWorkRule`) en krijgt geen veld; de lezer laat haar dan weer erven.
+    // Niet het oude P6-token uit de bron (`p6DurationType`): dat gaf de taak na heropenen een eigen regel, en kon een
+    // keuze voor *Projectstandaard* terugdraaien (zoals de XER-schrijver, review PR #393 punt 3; review Sol #781).
+    const percentComplete = P6_XML_PERCENT_COMPLETE[task.p6CompletePctType ?? 'CP_Phys'];
+    const durationTypeLabel = task.workRule ? P6_DURATION_TYPE_NAME[task.workRule] : undefined;
     // Uur-taak ⇒ PlannedDuration in uren uit de minuten (op de hele minuut; een breuk in minuten gaat als
     // `OPS_ExactMinutes`-record mee, T14). Dag-taak ⇒ werkdagen × de werktijd per dag van de
     // activiteitkalender (T13, "1 d = echte werktijd per dag", eigenaarsbesluit 2026-10-15), niet de
@@ -670,12 +676,15 @@ export function writeP6XMLWithReport(
       // (projectkalender).
       ...leaf('CalendarObjectId', (task.calendarId && calObjMap.get(task.calendarId)) || 1),
       ...(durationTypeLabel && !isZeroDurationMilestone(task) ? leaf('DurationType', durationTypeLabel) : []),
+      // Het verwachte einde (XER `expect_end_date`): de motor gebruikt het bij UseExpectedFinishDates (review Sol
+      // #781, punt 2).
+      ...leaf('ExpectedFinishDate', task.p6ExpectedFinish ? toXmlDateTime(task.p6ExpectedFinish) : undefined),
       ...leaf('Id', task.wbsCode || task.id),
       ...leaf('Name', task.name),
       ...leaf('ObjectId', objId),
-      // Voortgang zoals P6: soort Physical en het percentage als FRACTIE (0.5 = 50 %).
-      ...leaf('PercentCompleteType', 'Physical'),
-      ...(task.time.completion > 0 ? leaf('PhysicalPercentComplete', task.time.completion) : []),
+      // Voortgang zoals P6: de soort en het percentage als FRACTIE (0.5 = 50 %) in de kolom van die soort.
+      ...leaf('PercentCompleteType', percentComplete.label),
+      ...(task.time.completion > 0 ? leaf(percentComplete.column, task.time.completion) : []),
       ...leaf('PlannedDuration', plannedDur),
       // BEWUST de rekendatums (`computedStart`/`computedFinish`), niet de getoonde: P6's geplande
       // datums zijn niet de werkelijke; die staan apart in ActualStartDate/ActualFinishDate hierboven.

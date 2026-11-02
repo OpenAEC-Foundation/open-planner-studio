@@ -9,7 +9,10 @@
  *  P2  per activiteit vroege en late start en einde, totale en vrije speling, kritiek en de werkregel;
  *  P3  P6-eigen waarden in `<ScheduleOptions>` (zoals P6 ze schrijft) geven dezelfde opties als de
  *      overeenkomstige SCHEDOPTIONS-tokens in een XER;
- *  P4  een P6 XML zonder `<ScheduleOptions>` rekent met de P6-standaard, zoals een XER zonder SCHEDOPTIONS.
+ *  P4  een P6 XML zonder `<ScheduleOptions>` rekent met de P6-standaard, zoals een XER zonder SCHEDOPTIONS;
+ *  R   rondgang: een geopend P6-bestand als P6 XML exporteren en weer openen houdt de P6-velden die de motor
+ *      leest (voortgangssoort, verwacht einde, activiteittype) en geeft dezelfde datums (review Sol, #781);
+ *  S   de geschreven rekenoptielabels zijn waarden die het P6-schema toestaat (onafhankelijke lijst).
  */
 import './domStub';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -115,13 +118,16 @@ function at(iso: string | undefined): string {
 
 const FIELDS = ['earlyStart', 'earlyFinish', 'lateStart', 'lateFinish'] as const;
 
-/** Per activiteit de rekenuitkomst; samenvattingen (WBS, projectknoop) tellen niet. */
-function schedule(doc: Doc): Map<string, string> {
+/** Per activiteit de rekenuitkomst; samenvattingen (WBS, projectknoop) tellen niet. De sleutel is de
+ *  activiteitcode (P6 `Id`, XER `task_code`); een dubbele code maakt de toets rood in plaats van een
+ *  activiteit stil over te slaan (review Sol, #781, punt 4). */
+function schedule(doc: Doc, label = ''): Map<string, string> {
   const out = new Map<string, string>();
   for (const task of doc.tasks) {
     if (!isLeafTask(task)) continue;
     const t = task.time;
-    out.set(task.name, [
+    if (out.has(task.wbsCode)) failures.push(`${label}: dubbele activiteitcode '${task.wbsCode}'`);
+    out.set(task.wbsCode, [
       ...FIELDS.map(field => at(t[field])),
       t.totalFloat.toFixed(4), t.freeFloat.toFixed(4), String(t.isCritical), task.workRule ?? 'erft',
     ].join(' | '));
@@ -149,8 +155,8 @@ function compare(label: string, input: Doc): number {
   eq(`P1 ${label}: zelfde profiel, voortgangsmodus en opties`, optionsOf(viaXml), optionsOf(viaXer));
   eq(`P2a ${label}: XER rekent`, solve(viaXer), undefined);
   eq(`P2b ${label}: P6 XML rekent`, solve(viaXml), undefined);
-  const a = schedule(viaXer);
-  const b = schedule(viaXml);
+  const a = schedule(viaXer, `${label} XER`);
+  const b = schedule(viaXml, `${label} XML`);
   eq(`P2c ${label}: zelfde activiteiten`, [...b.keys()].sort(), [...a.keys()].sort());
   const differing: string[] = [];
   for (const [name, value] of a) {
@@ -163,7 +169,7 @@ function compare(label: string, input: Doc): number {
 
 // ── Synthetisch project: voortgang, een relatie op een andere kalender en afwijkende opties ──────
 
-function synthetic(options: ProjectSchedulingOptions, progressMode: Project['progressMode']): Doc {
+function synthetic(options: ProjectSchedulingOptions, progressMode: Project['progressMode'], extraTasks: Task[] = []): Doc {
   const project = {
     id: 'proj-775', name: 'Pariteit 775', description: '', startDate: '2026-03-02T07:00', endDate: '',
     calendarId: 'cal-a', createdAt: '2026-03-02', modifiedAt: '2026-03-02', author: '', company: '',
@@ -204,7 +210,7 @@ function synthetic(options: ProjectSchedulingOptions, progressMode: Project['pro
     seq('s6', 'e', 'g', 'FINISH_START'),
     seq('s7', 'a', 'f', 'FINISH_START'),
   ];
-  return { project, calendar: five, calendars: [four], tasks, sequences, resources: [], assignments: [] };
+  return { project, calendar: five, calendars: [four], tasks: [...tasks, ...extraTasks], sequences, resources: [], assignments: [] };
 }
 
 const VARIANTS: Array<{ label: string; options: ProjectSchedulingOptions; progressMode: Project['progressMode'] }> = [
@@ -319,6 +325,95 @@ for (const variant of VARIANTS) {
   const tableAt = lines.findIndex(line => line === '%T\tSCHEDOPTIONS');
   const xer = [...lines.slice(0, tableAt), ...lines.slice(tableAt + 3)].join('\r\n');
   eq('P4 zonder rekenopties: zelfde opties', optionsOf(openXml(xml)), optionsOf(openXer(xer)));
+}
+
+// ── R: rondgang P6 XML → P6 XML (review Sol, #781) ──────────────────────────────────────────────
+// Een P6-bestand (hier via XER geopend, zodat de herkomst echt is) als P6 XML exporteren en weer openen. De
+// motor leest de voortgangssoort (B3/C5), het verwachte einde (UseExpectedFinishDates) en het activiteittype
+// (TT_Rsrc en TT_WBS vallen buiten C5). Gooit de schrijver er een weg, dan verschuiven de datums.
+{
+  const extra = (id: string, name: string, days: number, fields: Partial<Task>, time: Partial<Task['time']>): Task => ({
+    id, name, description: '', wbsCode: id.toUpperCase(), taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
+    isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
+    time: { ...createDefaultTaskTime('2026-03-02', days), ...time }, ...fields,
+  });
+  const done = { actualStart: '2026-03-02T07:00', actualFinish: '2026-03-03T16:00', completion: 1 };
+  const cases: Task[] = [
+    // R1: voltooide Duration-taak. Als Physical teruggelezen valt hij onder C5: alle datums op de statusdatum.
+    extra('r1', 'Duur voltooid', 2, { status: 'COMPLETED', p6CompletePctType: 'CP_Drtn' }, done),
+    // R2: lopende taak met een verwacht einde (UseExpectedFinishDates aan): het einde volgt die datum.
+    extra('r2', 'Verwacht einde', 4, { status: 'STARTED', p6ExpectedFinish: '2026-03-20T16:00' },
+      { actualStart: '2026-03-09T07:00', completion: 0.5, remainingTime: 1 }),
+    // R3/R4: voltooid, Physical, maar Resource Dependent en WBS Summary: geen C5 (alleen TT_Task en mijlpalen).
+    extra('r3', 'Resource-afhankelijk', 2, { status: 'COMPLETED', p6CompletePctType: 'CP_Phys', p6ActivityType: 'TT_Rsrc' }, done),
+    extra('r4', 'WBS-samenvatting', 2, { status: 'COMPLETED', p6CompletePctType: 'CP_Phys', p6ActivityType: 'TT_WBS' }, done),
+    // R5: voltooide Units-taak.
+    extra('r5', 'Eenheden voltooid', 2, { status: 'COMPLETED', p6CompletePctType: 'CP_Units' }, done),
+    // R6: ALAP. De XML-schrijver schrijft de berekende datums als geplande datums (de XER-schrijver de geplande);
+    // de bron is bewust NIET genormaliseerd (`planned`), zodat dat verschil hier zou opvallen.
+    extra('r6', 'Zo laat mogelijk', 2, { constraint: { type: 'ALAP' } as Task['constraint'] }, {}),
+  ];
+  const fieldsOf = (doc: Doc) => new Map(doc.tasks.filter(isLeafTask).map(task => [task.wbsCode,
+    [task.p6CompletePctType ?? '-', task.p6ExpectedFinish ? at(task.p6ExpectedFinish) : '-', task.p6ActivityType ?? '-',
+      task.time.completion.toFixed(4)].join(' | ')]));
+  const raw = synthetic({ useExpectedFinishDates: true }, 'RETAINED_LOGIC', cases);
+  const source = openXer(xerText({ ...raw, calendar: withWorkBlocks(raw.calendar), calendars: raw.calendars.map(withWorkBlocks) }));
+  eq('R0 bron rekent', solve(source), undefined);
+  const back = openXml(xmlText(source));
+  eq('R0 rondgang rekent', solve(back), undefined);
+  const before = schedule(source, 'R bron');
+  const after = schedule(back, 'R rondgang');
+  const beforeFields = fieldsOf(source);
+  const afterFields = fieldsOf(back);
+  for (const testCase of cases) {
+    const code = testCase.wbsCode;
+    eq(`R ${testCase.name}: P6-velden (soort | verwacht einde | type | voortgang) blijven`, afterFields.get(code), beforeFields.get(code));
+    eq(`R ${testCase.name}: zelfde datums, speling en kritiek`, after.get(code), before.get(code));
+  }
+  const differing = [...before].filter(([code, value]) => after.get(code) !== value).map(([code]) => code);
+  eq('R alle activiteiten van de rondgang rekenen gelijk', differing, []);
+  // De bron moet de gevallen echt dragen, anders toetst R niets.
+  eq('R bron draagt de P6-velden', ['R1', 'R2', 'R3', 'R4', 'R5'].map(code => beforeFields.get(code)?.split(' | ').slice(0, 3).join(' | ')), [
+    `CP_Drtn | - | TT_Task`, `CP_Phys | ${at('2026-03-20T16:00')} | TT_Task`, 'CP_Phys | - | TT_Rsrc', 'CP_Phys | - | TT_WBS', 'CP_Units | - | TT_Task',
+  ]);
+  notes.push(`rondgang P6 XML: ${before.size} activiteiten, ${differing.length} wijken af`);
+}
+
+// ── S: geschreven labels tegen de waarden van het P6-schema ─────────────────────────────────────
+// Onafhankelijke lijst uit het P6-schema (Oracle PMXML `ScheduleOptionsType`/`ProjectType`/`ActivityType`, zoals
+// MPXJ `org.mpxj.primavera.schema` ze toestaat); niet uit de eigen schrijver of lezer. De lezer accepteert ook
+// varianten (`24-Hour Calendar`), dus een eigen rondgang vangt een fout label niet.
+{
+  const ALLOWED: Record<string, readonly string[]> = {
+    RelationshipLagCalendar: ['Predecessor Activity Calendar', 'Successor Activity Calendar', '24 Hour Calendar', 'Project Default Calendar'],
+    ComputeTotalFloatType: ['Start Float = Late Start - Early Start', 'Finish Float = Late Finish - Early Finish', 'Smallest of Start Float and Finish Float'],
+    OutOfSequenceScheduleType: ['Retained Logic', 'Progress Override', 'Actual Dates'],
+    CriticalActivityPathType: ['Critical Float', 'Longest Path'],
+    PercentCompleteType: ['Physical', 'Duration', 'Units', 'Scope'],
+    Type: ['Task Dependent', 'Resource Dependent', 'Level of Effort', 'Start Milestone', 'Finish Milestone', 'WBS Summary'],
+  };
+  const docs = [
+    ...VARIANTS.map(variant => synthetic(variant.options, variant.progressMode)),
+    synthetic({ lagCalendar: '24hour' }, 'RETAINED_LOGIC'),
+    synthetic({ lagCalendar: 'successor', criticalDefinition: { mode: 'longestPath' } }, 'PROGRESS_OVERRIDE'),
+  ];
+  const seen = new Set<string>();
+  for (const doc of docs) {
+    const xml = xmlText(doc);
+    const activities = [...xml.matchAll(/<Activity>([\s\S]*?)<\/Activity>/g)].map(m => m[1]).join('');
+    const scopes: Record<string, string> = {
+      RelationshipLagCalendar: xml, ComputeTotalFloatType: xml, OutOfSequenceScheduleType: xml, CriticalActivityPathType: xml,
+      PercentCompleteType: activities, Type: activities.replace(/<UDF>[\s\S]*?<\/UDF>/g, ''),
+    };
+    for (const [field, allowed] of Object.entries(ALLOWED)) {
+      for (const match of scopes[field].matchAll(new RegExp(`<${field}>([^<]*)</${field}>`, 'g'))) {
+        seen.add(`${field}=${match[1]}`);
+        if (!allowed.includes(match[1])) failures.push(`S ${field}: '${match[1]}' staat niet in het P6-schema`);
+        checks++;
+      }
+    }
+  }
+  eq('S de 24-uurslagkalender is geschreven en getoetst', seen.has('RelationshipLagCalendar=24 Hour Calendar'), true);
 }
 
 eq('P5 geen enkele activiteit wijkt af', differingTotal, 0);

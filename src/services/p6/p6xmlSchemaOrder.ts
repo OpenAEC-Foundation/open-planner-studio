@@ -71,10 +71,11 @@ const ORDER: Readonly<Record<string, readonly string[]>> = {
   NotebookTopic: ['AvailableForActivity', 'AvailableForEPS', 'AvailableForProject', 'AvailableForWBS', 'Name', 'ObjectId'],
   WBS: ['Code', 'Name', 'ObjectId', 'ParentObjectId', 'ProjectObjectId', 'SequenceNumber'],
   Activity: [
-    'ActualFinishDate', 'ActualStartDate', 'CalendarObjectId', 'DurationType', 'Id', 'Name', 'ObjectId',
+    'ActualFinishDate', 'ActualStartDate', 'CalendarObjectId', 'DurationPercentComplete', 'DurationType',
+    'ExpectedFinishDate', 'Id', 'Name', 'ObjectId',
     'PercentCompleteType', 'PhysicalPercentComplete', 'PlannedDuration', 'PlannedFinishDate', 'PlannedStartDate',
     'PrimaryConstraintDate', 'PrimaryConstraintType', 'ProjectObjectId', 'RemainingDuration',
-    'SecondaryConstraintDate', 'SecondaryConstraintType', 'Status', 'Type', 'WBSObjectId', 'UDF',
+    'SecondaryConstraintDate', 'SecondaryConstraintType', 'Status', 'Type', 'UnitsPercentComplete', 'WBSObjectId', 'UDF',
   ],
   ActivityNote: ['ActivityObjectId', 'Note', 'NotebookTopicObjectId', 'ObjectId', 'ProjectObjectId'],
   Relationship: [

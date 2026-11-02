@@ -37,7 +37,10 @@ expect('1 P6XML schrijft reguliere planningdata', xml.includes('<Activity>') && 
 // Sinds #775 zet de P6 XML-lezer zijn EIGEN P6-herkomst (ObjectId's en het activiteittype uit `<Type>`), zodat de
 // P6-regels in de motor gelden zoals bij een XER. De XER-identiteit en het XER-type van het origineel gaan niet mee.
 expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes-etappe)',
-  roundTripped?.p6DurationType === 'DT_FixedRate'
+  // Zonder eigen werkregel erft de taak de projectstandaard; de schrijver schrijft dan geen eigen <DurationType>
+  // (review Sol #781), en de lezer geeft haar het token van `ActivityDefaultDurationType`, zonder eigen regel.
+  roundTripped?.p6DurationType === XER_DURATION_TYPE_TOKEN[DEFAULT_WORK_RULE]
+  && roundTripped?.workRule === undefined
   && roundTripped?.p6ActivityType === 'TT_Task'
   && roundTripped?.p6ProjectId !== undefined && roundTripped?.p6ProjectId !== 'XER-PROJ'
   && roundTripped?.p6TaskId !== undefined && roundTripped?.p6TaskId !== 'XER-TASK');
