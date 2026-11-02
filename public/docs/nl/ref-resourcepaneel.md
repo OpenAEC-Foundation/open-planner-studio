@@ -18,7 +18,7 @@ Het resourcepaneel is waar je resources beheert: wie en wat er beschikbaar is, m
 
 De tabel met wat dit project gebruikt. Elke rij is een resource. Wijzigingen aan tekst en tarief gelden zodra je het veld verlaat en tellen als één stap onder *Ongedaan*.
 
-- **Kleur** — een kleurkiezer. Standaard: de eerste vrije kleur uit het palet. Effect: de kleur van het resource-accent onder de Gantt-balken (*Beeld › Baselines & voortgang › Resource-accent*) en van het vakje in de dock.
+- **Kleur** — een kleurkiezer. Standaard: de eerste vrije kleur uit het palet. Effect: de kleur van het resource-accent onder de Gantt-balken (*Beeld › Balken › Resource-accent*) en van het vakje in de dock.
 - **Naam** — de naam van de resource. Een lege naam wordt niet bewaard; het veld valt terug op de oude naam.
 - **Type** — *Arbeid*, *Materieel*, *Materiaal*, *Onderaannemer* of *Ploeg*. Standaard bij een nieuwe resource: *Arbeid*. Effect: *Materiaal* heeft een *Eenheid* en telt niet mee in de som *Alle resources* van het histogram; nivelleren slaat materiaal over. *Ploeg* kun je kiezen als *Ploeg* van andere resources. De overige typen rekenen hetzelfde.
 - **Max. eenheden** — hoeveel van de resource per dag beschikbaar is, een getal boven 0 (fracties mogen). Standaard: 1. Effect: de capaciteit per dag. Ligt de belasting hoger, dan is de resource overbezet. Het pijltje ernaast klapt de *Tijd-gefaseerde capaciteit* uit; het getal bij het pijltje is het aantal stappen.

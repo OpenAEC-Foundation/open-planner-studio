@@ -63,7 +63,8 @@ function digest(p: Parsed): string {
       .sort((a, b2) => JSON.stringify(a).localeCompare(JSON.stringify(b2))),
   })).sort((a, b) => a.name.localeCompare(b.name));
   const activeBaselineName = p.activeBaselineId ? ((p.baselines ?? []).find(b => b.id === p.activeBaselineId)?.name ?? null) : null;
-  return JSON.stringify({ tasks, seqs, res, asg, codes, fields, baselines, activeBaselineName });
+  const comparedBaselineNames = (p.comparedBaselineIds ?? []).map(id => (id ? (p.baselines ?? []).find(b => b.id === id)?.name ?? id : null));
+  return JSON.stringify({ tasks, seqs, res, asg, codes, fields, baselines, activeBaselineName, comparedBaselineNames });
 }
 
 interface Check { ok: boolean; msg: string }
@@ -178,6 +179,10 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   expect(diffs, gotCodeTypes.length === (spec.codeTypes?.length ?? 0), `codetypes: ${gotCodeTypes.length} ≠ ${spec.codeTypes?.length ?? 0}`);
   expect(diffs, gotFieldDefs.length === (spec.fields?.length ?? 0), `customfields: ${gotFieldDefs.length} ≠ ${spec.fields?.length ?? 0}`);
   expect(diffs, gotBaselines.length === (spec.baselines?.length ?? 0), `baselines: ${gotBaselines.length} ≠ ${spec.baselines?.length ?? 0}`);
+  const gotCompared = (parsed.comparedBaselineIds ?? []).filter((id): id is string => !!id)
+    .map(id => gotBaselines.find(b => b.id === id)?.name ?? id);
+  const expCompared = spec.comparedBaselineNames ?? [];
+  expect(diffs, JSON.stringify(gotCompared) === JSON.stringify(expCompared), `vergeleken baselines: ${JSON.stringify(gotCompared)} ≠ ${JSON.stringify(expCompared)}`);
 
   // 3. round-trip write→read→write stabiel (structureel data-fixpunt)
   // `writeIFC` neemt sinds pakket R één invoer-object (`WriteIFCInput`); een readIFC-resultaat
@@ -189,6 +194,7 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
     activityCodeTypes: parsed.activityCodeTypes, customFieldDefs: parsed.customFieldDefs,
     resourceCalendars: parsed.resourceCalendars,
     baselines: parsed.baselines, activeBaselineId: parsed.activeBaselineId,
+    comparedBaselineIds: parsed.comparedBaselineIds,
   });
   const parsed2 = readIFC(s2);
   expect(diffs, digest(parsed) === digest(parsed2), `round-trip niet stabiel (data verschilt na write→read→write)`);

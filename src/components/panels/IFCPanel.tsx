@@ -24,6 +24,7 @@ export function IFCPanel() {
   // (baselines verloren bij genereren/kopiëren vanuit de IFC-tab).
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
+  const comparedBaselineIds = useAppStore(s => s.comparedBaselineIds);
   // In de modus "datums zoals opgeslagen" schrijft de writer `$` op
   // de niet-vastgelegde assen — ook hier, anders toont/kopieert dit paneel de terugvallen als waarden.
   const recordedDates = useAppStore(s => s.recordedDates);
@@ -37,10 +38,10 @@ export function IFCPanel() {
   const generated = useMemo(() => {
     return writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
       recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds,
     }));
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
 
   const [content, setContent] = useState(generated);
   const [dirty, setDirty] = useState(false);
@@ -48,12 +49,12 @@ export function IFCPanel() {
   const handleGenerate = useCallback(() => {
     const ifc = writeIFC(buildWriteIFCInput({
       project, calendar, tasks, sequences, resources, assignments,
-      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId,
+      activityCodeTypes, customFieldDefs, customTaskTypes, calendars: resourceCalendars, baselines, activeBaselineId, comparedBaselineIds,
       recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds,
     }));
     setContent(ifc);
     setDirty(false);
-  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
+  }, [project, calendar, tasks, sequences, resources, assignments, activityCodeTypes, customFieldDefs, customTaskTypes, resourceCalendars, baselines, activeBaselineId, comparedBaselineIds, recordedDates, datesAsRecorded, minuteModelPending, ifcGlobalIds]);
 
   const handleApply = useCallback(() => {
     void (async () => {

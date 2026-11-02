@@ -1,13 +1,9 @@
-// DE ENIGE module van de voortgangsimport die van XLSX weet — precies
-// zoals `parseProgressCsv.ts` de enige is die van CSV weet. `sheetValues.ts`/`matchRows.ts`/
-// `buildPlan.ts` blijven bestandsformaat-agnostisch tegen het `ProgressSheet`-contract; deze lezer
-// levert exact hetzelfde returntype en raakt hen niet aan. Komt er ook maar één woord over ZIP, XML
+// DE ENIGE module van de voortgangsimport die van XLSX weet. `sheetValues.ts`/`matchRows.ts`/
+// `buildPlan.ts` werken tegen het `ProgressSheet`-contract. Komt er ook maar één woord over ZIP, XML
 // of `numFmt` voorbij de grens van dit bestand, dan is die naad kapot.
 //
 // Wat deze laag toevoegt bovenop de generieke `readXlsxSheet`:
-//  - **Kolomherkenning via de GEDEELDE `sheetColumns.ts`** — dezelfde aliassen en dezelfde
-//    instructiemarker-regel als de CSV-lezer. Kopiëren zou betekenen dat de twee lezers stil uit de
-//    pas lopen zodra er één alias bijkomt.
+//  - **Kolomherkenning via `sheetColumns.ts`.**
 //  - **Datumcellen worden ISO.** Een `numFmt`-datum draagt in het bestand een SERIEEL GETAL; dat
 //    wordt hier `YYYY-MM-DD` (met het `date1904`-stelsel van de werkmap). Daardoor geeft
 //    `detectDateOrder` `noAmbiguity` terug en verschijnt de dag/maand-vraag bij een `.xlsx` nooit —
@@ -17,7 +13,7 @@
 //  - **Percentage-opgemaakte cellen worden omgerekend.** Excel bewaart 45 % als `0.45` met een
 //    percentage-`numFmt`; de kolom is bij ons altijd een percentage, dus zonder deze
 //    omrekening zou "45 %" als 0,45 % binnenkomen.
-//  - Dezelfde `boundedCell`/`hasControlChar`-begrenzing en dezelfde bestandsbrede weigeringen.
+//  - De `boundedCell`/`hasControlChar`-begrenzing en de bestandsbrede weigeringen.
 //
 // `rowNumber` is hier LETTERLIJK het Excel-rijnummer (1-gebaseerd, kopregel inbegrepen) — het komt
 // uit het `r`-attribuut en niet uit een teller, want het is de sleutel van de handmatige

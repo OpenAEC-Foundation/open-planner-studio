@@ -594,7 +594,8 @@
     "customFieldSuffix": "egendefinert felt"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Status",
+    "baselineActive": "aktiv"
   },
   "externalLinks": {
     "action": "Legg til kobling mellom prosjekter…",

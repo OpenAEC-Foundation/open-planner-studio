@@ -15,8 +15,10 @@ function scan(dir: string): void {
       if (ts.isCallExpression(node)) {
         const callee = ts.isIdentifier(node.expression) ? node.expression.text
           : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : '';
-        if (['runCPM', 'solveProject', 'runInScratchDocument'].includes(callee)) {
-          const route = callee === 'runCPM' ? node.arguments.some(arg => /withinEvent:\s*true/.test(arg.getText(source))) ? 'bewerking' : 'bereken'
+        // `recalculate` (F5 en de knoppen, #742) is `runCPM()` plus de uitleg, dus ook route bereken.
+        if (['runCPM', 'recalculate', 'solveProject', 'runInScratchDocument'].includes(callee)) {
+          const route = callee === 'recalculate' ? 'bereken'
+            : callee === 'runCPM' ? node.arguments.some(arg => /withinEvent:\s*true/.test(arg.getText(source))) ? 'bewerking' : 'bereken'
             : callee;
           (actual[path] ??= []).push(route);
         }
@@ -31,6 +33,7 @@ const expected: Record<string, string[]> = {
   'src/components/dialogs/CalendarDialog.tsx': ['bewerking'],
   'src/components/layout/RecordedDatesNotice.tsx': ['bereken'],
   'src/components/panels/ReportPanel.tsx': ['bereken'],
+  'src/components/panels/ResourceOccupancyView.tsx': ['bereken'], // openen; slaat opgeslagen datums en pending minutenmigratie over
   'src/components/panels/TaskPropertiesPanel.tsx': ['bereken'],
   'src/components/panels/WarningsPanel.tsx': ['bereken'],
   'src/components/layout/Ribbon/ribbonConfig.tsx': ['bereken'],
@@ -51,7 +54,7 @@ const expected: Record<string, string[]> = {
   'src/state/slices/fileSlice.ts': ['bereken', 'bereken', 'bewerking', 'bewerking'],
   'src/state/slices/librarySlice.ts': ['runInScratchDocument'], // applyLeveling bezit het event
   'src/state/slices/projectSlice.ts': ['bewerking', 'bewerking'],
-  'src/state/slices/scheduleSlice.ts': ['solveProject', 'bewerking', 'bewerking'],
+  'src/state/slices/scheduleSlice.ts': ['solveProject', 'bereken', 'bereken', 'bewerking', 'bewerking'], // de twee bereken: `recalculate`, met en zonder Automatisch berekenen
   'src/state/slices/schedulingProfileSlice.ts': ['bewerking'],
   'src/utils/qaScenes.ts': ['bereken', 'bereken'], // alleen ontwikkeling (ook het F4b-testproject)
 };

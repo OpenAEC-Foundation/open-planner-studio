@@ -88,7 +88,7 @@ Inspringen, uitspringen en invoegen boven of onder een geselecteerde taak werken
 
 **Ctrl+Shift+H** — *Histogram*: zet het histogram aan of uit, net als de knop *Histogram* (*Resources › Histogram › Histogram* of *Beeld › Panelen › Histogram*). De app onthoudt je keuze.
 
-**Ctrl+Shift+L** — *Waarschuwingen*: zet het waarschuwingenpaneel aan of uit, net als de knop *Waarschuwingen* (*Beeld › Panelen › Waarschuwingen* of *Planning › Planning › Waarschuwingen*).
+**Ctrl+Shift+L** — *Waarschuwingspaneel*: zet het waarschuwingenpaneel aan of uit, net als de knop *Waarschuwingspaneel* (*Beeld › Panelen › Waarschuwingspaneel* of *Planning › Planning › Waarschuwingspaneel*).
 
 ## Navigatie
 

@@ -27,7 +27,7 @@ If the task has a predecessor, there is a shortcut for *Start no earlier than*: 
 ## Checking the result
 
 - In the Gantt there is a small diamond above the bar, at the start side for a start constraint and at the finish side for a finish constraint: blue for SNET and FNET, violet for SNLT, FNLT, MSO and MFO, red if the constraint is violated. A hard pin has a pin. A deadline is a downward arrow on the deadline date: green as long as the task is finished in time, red if it is late.
-- A violated constraint or missed deadline appears in the *Warnings* panel (*Planning › Schedule › Warnings*) and in the status bar. The *Total float* of the task and the tasks before it is then negative.
+- A violated constraint or missed deadline appears in the *Warnings* panel (*Planning › Schedule › Warnings panel*) and in the status bar. The *Total float* of the task and the tasks before it is then negative.
 - With an upper limit (*Start no later than*, *Finish no later than*) or a deadline, the absence of a warning means the schedule meets the date.
 
 ## Removing a constraint or deadline

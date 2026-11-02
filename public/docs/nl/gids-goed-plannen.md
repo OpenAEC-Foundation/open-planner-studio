@@ -148,7 +148,7 @@ Wil je dat *Dakwerk* op vrijdag 18 juni klaar is, zet daar dan een deadline. Er 
 - **Vergeten door te rekenen.** *Verouderd* in de statusbalk betekent dat je naar de vorige berekening kijkt.
 - **Geen baseline, of een baseline die pas na de start is vastgelegd.**
 - **Voortgang alleen als percentage**, zonder werkelijke datums en zonder statusdatum.
-- **Het paneel *Waarschuwingen* wegklikken zonder te lezen.** Daar staan de overschreden deadlines, de geschonden constraints, de out-of-sequence-relaties en de overbezette resources bij elkaar (*Planning › Planning › Waarschuwingen*).
+- **Het paneel *Waarschuwingen* wegklikken zonder te lezen.** Daar staan de overschreden deadlines, de geschonden constraints, de out-of-sequence-relaties en de overbezette resources bij elkaar (*Planning › Planning › Waarschuwingspaneel*).
 
 ## Zie ook
 

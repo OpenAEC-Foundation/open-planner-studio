@@ -590,7 +590,8 @@
     "customFieldSuffix": "自定义字段"
   },
   "tooltip": {
-    "status": "状态"
+    "status": "状态",
+    "baselineActive": "活动"
   },
   "externalLinks": {
     "action": "外部关系…",

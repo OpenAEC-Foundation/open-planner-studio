@@ -598,7 +598,8 @@
     "customFieldSuffix": "câmp particularizat"
   },
   "tooltip": {
-    "status": "Stare"
+    "status": "Stare",
+    "baselineActive": "activ"
   },
   "externalLinks": {
     "action": "Adăugare legătură între proiecte…",

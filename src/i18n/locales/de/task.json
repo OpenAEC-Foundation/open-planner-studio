@@ -594,7 +594,8 @@
     "customFieldSuffix": "Benutzerdefiniertes Feld"
   },
   "tooltip": {
-    "status": "Status"
+    "status": "Status",
+    "baselineActive": "Aktiv"
   },
   "externalLinks": {
     "action": "Externe Beziehung…",

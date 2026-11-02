@@ -148,7 +148,7 @@ If you want *Roofing* finished on Friday 18 June, put a deadline there. Nothing 
 - **Forgetting to calculate.** *Out of date* in the status bar means you are looking at the previous calculation.
 - **No baseline, or a baseline captured only after the start.**
 - **Progress recorded as a percentage only**, without actual dates and without a status date.
-- **Dismissing the *Warnings* panel without reading it.** That is where the missed deadlines, violated constraints, out-of-sequence relations and overallocated resources come together (*Planning › Schedule › Warnings*).
+- **Dismissing the *Warnings* panel without reading it.** That is where the missed deadlines, violated constraints, out-of-sequence relations and overallocated resources come together (*Planning › Schedule › Warnings panel*).
 
 ## See also
 

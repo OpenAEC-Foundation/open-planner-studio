@@ -194,6 +194,14 @@ await saveLayouts([presentation]);
 const overlayTrip = await loadLayouts();
 ok(JSON.stringify(overlayTrip[0]?.overlays) === JSON.stringify(presentation.overlays), 'het overlaydeel overleeft de opslag');
 
+const customLayout: Layout = { id: 'eigen-kleuren', name: 'Eigen kleuren', overlays: {
+  ...current.overlays!, barColors: { mode: 'critical', colors: { critical: '#112233', nearCritical: '#445566', normal: '#778899' } },
+} };
+await saveLayouts([customLayout]);
+const customTrip = await loadLayouts();
+ok(JSON.stringify(customTrip[0]?.overlays) === JSON.stringify(customLayout.overlays), 'eigen balkkleuren overleven layoutopslag');
+ok(JSON.stringify(applyLayoutParts(current, customTrip[0]!).overlays) === JSON.stringify(customLayout.overlays), 'layout toepassen herstelt eigen balkkleuren');
+
 storage.set('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [
   resourceDiagram,
   { id: 'kapot', name: 'Kapot', group: 'geen array' },

@@ -17,6 +17,13 @@ Heeft de taak een voorganger, dan legt de app de nieuwe start vast als constrain
 
 Sleep je overwegend omhoog of omlaag in plaats van opzij, dan verplaats je de taak naar een andere rij en blijven de datums staan. De richting die je in de eerste paar pixels kiest, geldt voor de hele sleepbeweging, dus één gebaar verandert nooit tegelijk datums en structuur. Zie [Structuur aanpassen](docs://howto-structuur-aanpassen).
 
+Een mijlpaal (de ruit) verplaats je op dezelfde manier: druk op de ruit en sleep opzij. Hij blijft een mijlpaal zonder duur. Een mijlpaal heeft geen randen, dus de duur aanpassen kan niet. Waar de ruit landt, hangt af van de zoom en van de kant van de mijlpaal:
+
+- Zie je dagen, dan gaat de ruit per werkdag. Stond hij aan het einde van een werkdag, dan landt hij weer aan het einde, ook op een kortere dag. Stond hij aan het begin, dan landt hij aan het begin. Laat je hem los op een vrije dag, dan schuift hij door naar de eerste werkdag in de richting waarin je sleepte.
+- Zie je uren, dan gaat de ruit per uur of per kwartier, naar het tijdstip onder de muis. Valt dat tijdstip buiten de werktijd, dan gaat een mijlpaal aan de eindkant terug naar het einde van de werktijd ervoor. Een mijlpaal aan de beginkant gaat door naar het begin van de volgende werktijd.
+
+Een eindmijlpaal staat aan de eindkant. In het rekenprofiel *Open Planner Studio* staat ook een mijlpaal zonder voorganger en zonder opvolger aan de eindkant. Een andere mijlpaal met een voorganger staat aan de beginkant: de app legt de nieuwe datum vast als *SNET*, en die houdt hem daar. Zo blijft de ruit na *Bereken* (F5) staan waar je hem losliet. Een samenvattingstaak kun je niet verslepen: haar datums volgen uit de taken eronder.
+
 ### De duur aanpassen
 
 1. Beweeg de muis naar de rechterrand van de balk. De cursor wordt een pijl naar links en rechts.
@@ -56,7 +63,7 @@ Meer over selecteren staat in [Taken selecteren, verwijderen en ongedaan maken](
 
 Hoe verder je uitzoomt, hoe minder rasterlijnen er staan. Bij 8 pixels per dag of meer staat er een lijn voor elke dag, met een dikkere lijn op de weekgrens. Tussen 2 en 8 pixels per dag blijft alleen de weekgrens over. Onder 2 pixels per dag, op jaarniveau, zijn het alleen nog de maandgrenzen. Anders zou het canvas een egaal streeppatroon worden waarin de balken verdwijnen. De grijze weekenden en vrije dagen, en de weekbanden die om en om getint zijn, blijven op elk niveau staan; zij dragen de weekstructuur als de lijnen wegvallen. In de tijdlijnkop verschijnen de weeknummers en dagnummers pas als er ruimte voor is, en vanaf 40 pixels per dag staat er ook de weekdag voor het dagnummer.
 
-De taaknaam staat in de balk als hij er helemaal in past. Past hij niet, bijvoorbeeld als je uitzoomt, dan staat de volledige naam rechts achter de balk.
+De taaknaam staat in de balk als hij er helemaal in past. Past hij niet, bijvoorbeeld als je uitzoomt, dan staat de volledige naam rechts achter de balk. Bij een samenvattingstaak staat de naam altijd rechts achter de balk, ook als hij erin zou passen.
 
 ### Details van een taak bekijken
 

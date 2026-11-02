@@ -1,7 +1,9 @@
 name: Deploy site
 
 # Deployt pas ná een geslaagde CI-run op `main`. Dit workflow draait zelf GEEN verify meer:
-# de uitkomst van `ci.yml` (alle verify-delen plus de Tauri-builds) is de poort. Eerder draaide
+# de uitkomst van `ci.yml` op die push (de verify-delen zonder browsersuite, plus de Tauri-builds) is
+# de poort. De geplande en handmatige browserruns van CI deployen niet: zie `concurrency` en de `if`
+# hieronder. Eerder draaide
 # hier een eigen, seriële `npm run verify`; dat duurde 31–45 min en haalde de grens van 45 min op
 # 2026-10-13 niet meer (run 38422479396: alle stappen groen, afgebroken 3 s voor het einde, deploy
 # overgeslagen), terwijl ci.yml dezelfde controles al parallel had gedraaid.
@@ -22,12 +24,17 @@ concurrency:
   # overzet. Twee snelle pushes achter elkaar braken met `true` de eerste run
   # middenin de overdracht af — resultaat: een half gedeployde site. Deploys
   # horen op elkaar te wachten, niet elkaar te annuleren.
-  group: deploy-site
+  # GitHub houdt per groep één wachtende run vast; een nieuwere run vervangt die. Alleen een run die
+  # echt deployt hoort daarom in `deploy-site`. Elke andere run (rode of geannuleerde CI, een oude commit,
+  # een geplande of handmatige browserrun) krijgt een eigen groep per run: in `deploy-site` zou hij een
+  # wachtende deploy verdringen en daarna zelf overslaan, en die commit ging dan niet live.
+  # Deze groep en de `if` op de job `deploy` eisen dezelfde drie voorwaarden: verander ze samen.
+  group: ${{ (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.sha == github.event.workflow_run.head_sha) && 'deploy-site' || format('deploy-site-overslaan-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
   deploy:
-    # De poort. Alle voorwaarden samen:
+    # De poort, gelijk aan de voorwaarde in `concurrency.group`: verander ze samen. Alle voorwaarden samen:
     #  - CI is geslaagd (een geannuleerde of rode run deployt niet);
     #  - de CI-run kwam uit een push op main, niet uit een pull request;
     #  - `github.sha` (bij `workflow_run` de punt van de standaardbranch op het moment dat deze run

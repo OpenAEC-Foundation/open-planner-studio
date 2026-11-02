@@ -4,11 +4,15 @@ import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { claimTaskTypesNotice, notifyTaskTypesUnlocked, notifyTaskTypesUnlockedClaimed, TASK_TYPES_DETAIL_LINE } from '../taskTypesNotice';
 import { taskTypesNeedNotice } from '../taskTypesVisibility';
 import { writeIFC, ifcObjectSeed } from '@/services/ifc/ifcWriter';
-import { writeCSV, writeProgressSheetCSV } from '@/services/csv/csvWriter';
+import { writeCSV } from '@/services/csv/csvWriter';
 import { CsvDateImportError } from '@/services/csv/csvReader';
 import { flattenOrder, inferWbsAutoNumberOnOpen } from '@/utils/wbs';
-import { writeMSPDI } from '@/services/msproject/mspdiWriter';
+import { writeMSPDIWithReport } from '@/services/msproject/mspdiWriter';
+import { mspdiDropsHourThreshold } from '@/services/msproject/mspdiCriticalSlackLimit';
 import { writeP6XMLWithReport } from '@/services/p6/p6xmlWriter';
+import type { XerWriteLoss } from '@/services/xerWriteTypes';
+import { exportXerLossNotice } from '@/state/xerExportNotice';
+import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
 import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable } from '@/services/fileAccess/siteHost';
@@ -18,15 +22,18 @@ import { withXerArchiveIssueNotice } from '@/state/xerArchiveIssueNotice';
 import { P6XmlImportError } from '@/services/p6/p6xmlErrors';
 import { withOpenNoticeSticky } from '@/state/openNoticeSticky';
 import { clearRefusals } from '@/state/refusalNotice';
-import { P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import {
+  EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
+} from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
-import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, type ExportFormat } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readFormatInput, readIFCWithXerReconstruction, writeXerExport, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
+import type { Project } from '@/types/project';
 import { refreshProjectCalendarCache } from '../syncProjectCalendar';
 import { stripLibraryOrigins } from '@/services/library/libraryOps';
 import { activeImportResult, isMultiDocumentImport, type ImportLabels, type ImportResult, type OpenedImport } from '@/services/importTypes';
@@ -319,7 +326,7 @@ export { type ExportFormat };
  * `tests/planning/check-export-guard.ts` loopt hem over álle `ExportFormat`-waarden.
  */
 export function exportGoesToRecents(format: ExportFormat): boolean {
-  return format !== 'progress-csv' && format !== 'progress-xlsx';
+  return format !== 'progress-xlsx';
 }
 
 /**
@@ -346,6 +353,29 @@ export function exportSplitsLostNotice(format: ExportFormat, tasks: readonly Tas
 export function exportP6TruncatedNotice(format: ExportFormat, truncated: number): NotifyInput | null {
   if (format !== 'p6' || truncated <= 0) return null;
   return { severity: 'info', messageKey: 'notifications.exportP6Truncated', params: { count: truncated } };
+}
+
+/**
+ * MSPDI en P6 XML vervangen een teken dat XML 1.0 niet toestaat door U+FFFD (`replaceInvalidXmlChars`, #588);
+ * de writer telt dat zelf. Hier wordt dat aantal een `info`-melding, zoals de andere verliesmeldingen.
+ */
+export function exportInvalidXmlCharsNotice(format: ExportFormat, replaced: number): NotifyInput | null {
+  if ((format !== 'mspdi' && format !== 'p6') || replaced <= 0) return null;
+  return { severity: 'info', messageKey: 'notifications.exportInvalidXmlChars', params: { count: replaced } };
+}
+
+/**
+ * MS Project XML kent de kritiek-drempel alleen in hele dagen (`CriticalSlackLimit`). Een drempel in uren
+ * (behalve 0 uur) gaat bij de export verloren; dat meldt `exportAs` na een geslaagde MSPDI-export, voor elk
+ * document, ook een eigen project (#561). Dezelfde beslissing als de writer en de verliesdetector
+ * (`mspdiCriticalSlackLimit`). Los geëxporteerd, zodat een test de regel zonder bestandsdialoog toetst.
+ */
+export function exportCriticalHoursLostNotice(
+  format: ExportFormat,
+  project: Pick<Project, 'schedulingOptions'>,
+): NotifyInput | null {
+  if (format !== 'mspdi' || !mspdiDropsHourThreshold(project.schedulingOptions?.criticalDefinition)) return null;
+  return { severity: 'info', messageKey: 'notifications.exportCriticalHoursLost' };
 }
 
 /** Resultaat van `exportAs`: bij een cyclische planning wordt de export afgebroken vóór de
@@ -1229,20 +1259,21 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       let payload: string | Uint8Array;
       let ext: string;
       let p6Truncated = 0;
+      let xerLoss: readonly XerWriteLoss[] | null = null;
+      let invalidXmlChars = 0;
       let filters: { name: string; extensions: string[] }[];
       let mime: string | undefined;
-      // Het slanke voortgangsblad krijgt een eigen bestandsnaamsuffix
-      // (`<projectnaam>-voortgang.csv`, i.p.v. `<projectnaam>.csv`) zodat het in de downloadmap
-      // meteen te onderscheiden is van de volle CSV-export — en waar mogelijk landt het ook echt
-      // in de downloadmap (preferDownloads hieronder).
+      // Het voortgangsblad krijgt een eigen bestandsnaamsuffix (`<projectnaam>-voortgang.xlsx`), en
+      // waar mogelijk landt het ook echt in de downloadmap (preferDownloads hieronder).
       let nameOverride: string | undefined;
 
       switch (format) {
         case 'progress-xlsx': {
-          // Zelfde i18n-reden als bij `progress-csv` hieronder: `@/i18n/config` heeft een
-          // randeffect bij het laden, dus dynamisch. De schrijver zelf ook — de ZIP/XLSX-laag
-          // hoort niet in de hoofdbundel (net als `mppReader`), en een statische import hier zou
-          // hem er stilzwijgend in trekken.
+          // Dynamische import: `@/i18n/config` initialiseert i18next en raakt DIRECT bij het laden
+          // al `document.documentElement.dir` aan (RTL-afhandeling) — een top-level import hier zou
+          // dat in `fileSlice.ts` trekken, en daarmee in ELKE headless test die `appStore` importeert.
+          // De schrijver zelf ook: de ZIP/XLSX-laag hoort niet in de hoofdbundel (net als
+          // `mppReader`), en een statische import hier zou hem er stilzwijgend in trekken.
           const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote, buildProgressXlsxValidationText }, { writeProgressSheetXLSX }] = await Promise.all([
             import('@/i18n/config'),
             import('@/i18n/progressHeaderNotes'),
@@ -1252,43 +1283,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           // Rijen in boomvolgorde: de store-volgorde is na een P6-/IFC-import
           // "samenvattingen eerst" — onleesbaar als rondgestuurd blad. Terugimport matcht op OPS Task ID.
           payload = await writeProgressSheetXLSX([...flattenOrder(state.tasks)], {
-            // `'xlsx'`: alleen de voltooiingskolom krijgt een eigen instructie (decimalen mogen
-            // hier wél, anders dan in de CSV) — zie `buildProgressHeaderNotes`.
-            headerNotes: buildProgressHeaderNotes(menuT, 'xlsx'),
+            headerNotes: buildProgressHeaderNotes(menuT),
             summaryNote: buildProgressSummaryNote(menuT),
             sheetName: menuT('export.progressXlsxSheetName'),
             validation: buildProgressXlsxValidationText(menuT),
-          });
+          }, { exportedAt: new Date().toISOString() });
           ext = 'xlsx';
           filters = [{ name: 'Excel Workbook', extensions: ['xlsx'] }];
           mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
-          break;
-        }
-        case 'progress-csv': {
-          // Dynamische import: `@/i18n/config` initialiseert i18next en
-          // raakt DIRECT bij het laden al `document.documentElement.dir` aan (RTL-afhandeling) —
-          // een top-level import hier zou dat in `fileSlice.ts` trekken, en daarmee in ELKE
-          // headless test die `appStore` importeert (vrijwel geen `check-*.ts`-batterij heeft een
-          // document-stub). Zelfde patroon als de Tauri-imports elders in deze
-          // slice: puur data-laden blijft synchroon, alles met een randeffect gaat achter een
-          // dynamic import.
-          const [{ default: i18n }, { buildProgressHeaderNotes, buildProgressSummaryNote }] = await Promise.all([
-            import('@/i18n/config'),
-            import('@/i18n/progressHeaderNotes'),
-          ]);
-          // `any`-sleutel: de i18next-`t` is op sleutel-literals getypeerd; `ImportLabelT` is
-          // precies de bestaande overloop-uitweg daarvoor (zie `importLabels.ts`).
-          const menuT: ImportLabelT = (key) => i18n.t(key, { ns: 'menu' });
-          payload = writeProgressSheetCSV(
-            [...flattenOrder(state.tasks)],
-            buildProgressHeaderNotes(menuT),
-            // Verzameltaken dragen hun "niet invullen" IN het
-            // blad zelf, i.p.v. pas bij terugimport als weigering op te duiken.
-            buildProgressSummaryNote(menuT),
-          );
-          ext = 'csv';
-          filters = [{ name: 'CSV Files', extensions: ['csv'] }];
           nameOverride = `${suggestedFileBase(state)}-${exportFileSuffix('progress')}.${ext}`;
           break;
         }
@@ -1313,14 +1315,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
           break;
         }
         case 'mspdi':
-          payload = writeMSPDI(
-            state.project, state.calendar, state.tasks,
-            state.sequences, state.resources, state.assignments, state.calendars,
-            // Baselines meegeven: de actieve baseline gaat naar MSPDI-slot 0. Zonder deze twee
-            // argumenten valt de writer terug op zijn defaults ([] / null) en gaat de baseline stil
-            // verloren bij export, terwijl de reader hem wél inleest.
-            state.baselines, state.activeBaselineId, state.customTaskTypes,
-          );
+          {
+            const written = writeMSPDIWithReport(
+              state.project, state.calendar, state.tasks,
+              state.sequences, state.resources, state.assignments, state.calendars,
+              // Baselines meegeven: de actieve baseline gaat naar MSPDI-slot 0. Zonder deze twee
+              // argumenten valt de writer terug op zijn defaults ([] / null) en gaat de baseline stil
+              // verloren bij export, terwijl de reader hem wél inleest.
+              state.baselines, state.activeBaselineId, state.customTaskTypes,
+            );
+            payload = written.xml;
+            invalidXmlChars = written.invalidXmlChars;
+          }
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
@@ -1333,10 +1339,31 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             );
             payload = written.xml;
             p6Truncated = written.truncated;
+            invalidXmlChars = written.invalidXmlChars;
           }
           ext = 'xml';
           filters = [{ name: 'XML Files', extensions: ['xml'] }];
           break;
+        case 'xer': {
+          // P6 Resource-ID's uit een eerdere XER-import gaan ongewijzigd terug (`rsrc_short_name`).
+          const resourceCodes = new Map<string, string>();
+          for (const source of state.xerSourceArchive?.readModel.resourceCatalog.rows.resources ?? []) {
+            const code = source.rawRow?.cells.rsrc_short_name?.trim();
+            if (code) resourceCodes.set(source.internalId, code);
+          }
+          const written = await writeXerExport({
+            project: state.project, calendar: state.calendar, calendars: state.calendars,
+            tasks: state.tasks, sequences: state.sequences, resources: state.resources, assignments: state.assignments,
+            baselineCount: state.baselines.length,
+            projectCode: documentProjectCode(state.project, state.xerImportMetadata),
+            resourceCodes,
+          });
+          payload = written.bytes;
+          xerLoss = written.loss;
+          ext = 'xer';
+          filters = [{ name: 'Primavera XER', extensions: ['xer'] }];
+          break;
+        }
         case 'ifc':
         default:
           // Een export vraagt niets; een open vraag die niet bij de kop past gaat niet mee (#336).
@@ -1347,8 +1374,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
-      // Beide voortgangsformaten openen waar mogelijk meteen in de downloadmap.
-      const dialogOpts = format === 'progress-csv' || format === 'progress-xlsx'
+      // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
+      const dialogOpts = format === 'progress-xlsx'
         ? { preferDownloads: true, mime }
         : undefined;
       const outcome = typeof payload === 'string'
@@ -1359,13 +1386,28 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!outcome) return { ok: true, warnings: [], cancelled: true };
       if (exportGoesToRecents(format)) await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
-      if (warnings.length > 0) {
+      // Eén verliesmelding per export. XER: de writer telt zelf per soort, plus de XER-broninformatie.
+      // Anders: de XER-melding noemt XER-broninformatie en hoort alleen bij een XER-document; een
+      // document zonder XER-herkomst krijgt de algemene melding (#554).
+      const lossFormat = format === 'mspdi' ? 'MSPDI' : format.toUpperCase();
+      if (xerLoss) {
+        const notice = exportXerLossNotice(xerLoss, warnings.flatMap(w => w.categories));
+        if (notice) get().notify(notice);
+      } else if (warnings.some(warning => warning.code === 'XER_ONLY_DATA_NOT_EXPRESSIBLE')) {
         get().notify({
           severity: 'info',
           messageKey: 'notifications.xerExportLoss',
-          params: { format: format === 'mspdi' ? 'MSPDI' : format.toUpperCase() },
+          params: { format: lossFormat },
           dedupeKey: `xer-export-loss:${state.activeDocumentId}:${format}`,
           helpArticleId: XER_IMPORT_HELP_ARTICLE_ID,
+        });
+      } else if (warnings.some(warning => warning.code === 'EXPORT_DATA_NOT_EXPRESSIBLE')) {
+        get().notify({
+          severity: 'info',
+          messageKey: 'notifications.exportDataLoss',
+          params: { format: lossFormat },
+          dedupeKey: `export-data-loss:${state.activeDocumentId}:${format}`,
+          helpArticleId: EXPORT_LOSS_HELP_ARTICLE_ID,
         });
       }
       // Alleen na een GESLAAGDE export (geannuleerde dialoog ⇒ hierboven al teruggekeerd).
@@ -1373,6 +1415,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (splitsLost) get().notify(splitsLost);
       const truncated = exportP6TruncatedNotice(format, p6Truncated);
       if (truncated) get().notify(truncated);
+      const invalidChars = exportInvalidXmlCharsNotice(format, invalidXmlChars);
+      if (invalidChars) get().notify(invalidChars);
+      const criticalHoursLost = exportCriticalHoursLostNotice(format, state.project);
+      if (criticalHoursLost) get().notify(criticalHoursLost);
+      if (!xerLoss?.some(loss => loss.code === 'schedulingRules')) {
+        const profileNotice = exportProfileNotice(format, state.project.schedulingProfile, name => (
+          i18next.isInitialized ? i18next.t('profiles.modified', { ns: 'common', name }) : name));
+        if (profileNotice) get().notify(profileNotice);
+      }
       return { ok: true, warnings };
     },
 

@@ -316,6 +316,10 @@ for (const [start, end, moment] of [
   f.S().updateTask(f.id, { isMilestone: true, milestoneKind: 'FINISH', time: {
     ...f.task().time, scheduleDuration: 0, durationMinutes: 0,
   } });
+  // Eerst doorrekenen: een afgemelde mijlpaal houdt de klokketijd uit de planning (besluit Ethan
+  // 2026-10-29). Zonder berekening draagt de omgezette taak nog haar oude start (22:00, het begin
+  // van het nachtblok). Na F5 staat de FINISH-mijlpaal op het blokeinde van de statuswerkdag.
+  f.S().runCPM();
   const label = `P4 ${route} ${start}–${end}`;
   let actual = f.task();
   if (route === 'MCP') {

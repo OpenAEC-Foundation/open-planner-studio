@@ -72,6 +72,41 @@ eq('undo houdt vlag', store.getState().minuteModelPending, true);
 eq('undo is niet verouderd', store.getState().scheduleStale, false);
 eq('save na undo zonder markering', readIFC(writeIFC(buildWriteIFCInput(store.getState()))).timeModel, undefined);
 eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.getState()))).recordedSourceFormat, undefined);
+// Knownbug 340: crashherstel hervat de expliciete modus na B5-undo, ook zonder bronformaat.
+{
+  const recoveredIfc = writeIFC(buildWriteIFCInput(store.getState()));
+  for (const active of [true, false]) {
+    const app = createAppStoreContext().store;
+    const restored = { ...readIFC(recoveredIfc), id: 'b5-herstel', filePath: null, isDirty: true, datesAsRecorded: true };
+    const other = { ...readIFC(externIfc('ander-herstel')), id: 'ander', filePath: null, isDirty: false, datesAsRecorded: false };
+    app.getState().restoreDocuments([restored, other], active ? restored.id : other.id);
+    const state = active ? capturePayload(app.getState()) : app.getState().documents.find(d => d.id === restored.id)!.payload!;
+    const label = active ? 'actief' : 'slapend';
+    eq(`340 ${label}: modus, open omzetting en niet verouderd`,
+      [state.datesAsRecorded, state.minuteModelPending, state.scheduleStale], [true, true, false]);
+    eq(`340 ${label}: getoonde datum behouden`, state.tasks.find(t => t.name === 'B')!.time.earlyStart, '2026-03-16T07:00');
+    eq(`340 ${label}: geen bronformaat verzonnen`, state.recordedDates?.sourceFormat, undefined);
+    eq(`340 ${label}: vastlegging bestaat`, Boolean(state.recordedDates?.times[state.tasks.find(t => t.name === 'B')!.id]), true);
+    const again = readIFC(writeIFC(buildWriteIFCInput(state)));
+    eq(`340 ${label}: opslaan houdt omzetting open`, again.timeModel, undefined);
+    eq(`340 ${label}: opslaan verzint geen bron`, again.recordedSourceFormat, undefined);
+    if (!active) {
+      app.getState().recalculateStaleSleepingDocuments();
+      eq('340 slapend: achtergrondberekening houdt de modus', app.getState().documents.find(d => d.id === restored.id)!.payload, state);
+      app.getState().switchDocument(restored.id);
+    }
+    app.getState().runCPM();
+    eq(`340 ${label}: expliciet Bereken rondt af`, [app.getState().datesAsRecorded, app.getState().minuteModelPending], [false, false]);
+    app.getState().undo();
+    eq(`340 ${label}: undo geeft modus en open omzetting terug`,
+      [app.getState().datesAsRecorded, app.getState().minuteModelPending], [true, true]);
+    // Dezelfde IFC zonder expliciete herstelvlag mag de modus niet opnieuw aanzetten.
+    const off = createAppStoreContext().store;
+    off.getState().restoreDocuments([{ ...restored, datesAsRecorded: false }, other], active ? restored.id : other.id);
+    const withoutMode = active ? capturePayload(off.getState()) : off.getState().documents.find(d => d.id === restored.id)!.payload!;
+    eq(`340 ${label}: expliciet uit blijft uit`, [withoutMode.datesAsRecorded, withoutMode.recordedDates], [false, null]);
+  }
+}
 const tx = createMcpTransactions(context);
 eq('MCP naam slaagt', tx.run(() => tx.draft.updateTaskFields(bId, { name: 'B gewijzigd' })).ok, true);
 eq('MCP naam houdt datums', bStart(), '2026-03-16T07:00');

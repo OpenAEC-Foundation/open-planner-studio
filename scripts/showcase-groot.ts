@@ -561,7 +561,8 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
   // (het tweede kritieke PAD komt niet hiervandaan maar uit de garage/terrein-stroom, zie de
   // toelichting bovenaan dit bestand), terwijl toren C (ongewijzigd) daardoor 3 werkdagen positieve
   // speling krijgt — precies binnen `nearCriticalThreshold` (near-critical, niet kritiek).
-  // activeBaselineName='Contract' houdt de variantie direct zichtbaar in de Gantt/VarianceReport.
+  // activeBaselineName='Contract' houdt de variantie direct zichtbaar in de Gantt/VarianceReport;
+  // de herbaseline staat ernaast in dezelfde baselinestrook (comparedBaselineNames).
   const baselines: NonNullable<ProjectSpec['baselines']> = [
     { name: 'Contract' },
     {
@@ -594,7 +595,8 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
       '(floatPaths), hourly scheduling for rebar fixing/pouring, all five resource types including a tower crane ' +
       '(EQUIPMENT) with a capacity step, all four relationship types (including START_FINISH), all six ' +
       'assignment curves, an external link to a separately delivered site file, two ' +
-      'baselines (Contract then Re-baseline after a variation order) and progress plus a status date.',
+      'baselines shown together in the Gantt (Contract, and a Re-baseline after a variation order) and ' +
+      'progress plus a status date.',
     tags: ['residential', 'large', 'advanced', 'kitchen-sink', 'near-critical', 'float-paths', 'hammock', 'hourly-scheduling', 'external-link', 'baseline'],
     calendar: { workDays: [1, 2, 3, 4, 5], name: 'Construction calendar NL (LARGE)' },
     calendars: { stort: STORT_KALENDER },
@@ -663,6 +665,7 @@ export function buildGrootSpec(ext: GrootExternalAnchor): ProjectSpec {
     links,
     baselines,
     activeBaselineName: 'Contract',
+    comparedBaselineNames: ['Re-baseline (variation order)'],
     // Statusdatum = "de torenkraan staat er net": het GEPLANDE einde van `kraan_op` — de laatste
     // schakel van de voortgangsketen hierboven. Bewust AFGELEID i.p.v. hardgecodeerd: een vaste
     // `statusDay` is anker-afhankelijk (`offset()` telt alleen weekenden weg, de projectkalender

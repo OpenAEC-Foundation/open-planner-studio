@@ -20,7 +20,7 @@ How do you choose?
 
 ## Checking the result
 
-- Click the message *N out-of-sequence relation(s)* in the status bar. The *Warnings* panel opens, also reachable through *Planning › Schedule › Warnings*. Every relation is in it with the text *Out of sequence: the successor's progress contradicts the relation*, for example *4.2 Plastering → 4.5 Painting (FS)*.
+- Click the message *N out-of-sequence relation(s)* in the status bar. The *Warnings* panel opens, also reachable through *Planning › Schedule › Warnings panel*. Every relation is in it with the text *Out of sequence: the successor's progress contradicts the relation*, for example *4.2 Plastering → 4.5 Painting (FS)*.
 - Look at the bar of the successor. Under Retained Logic it runs until after the finish of its predecessor. Under Progress Override it finishes earlier. In the example of the explanation that is Tuesday 27 July against Thursday 22 July.
 
 ## Pitfalls and what the app does

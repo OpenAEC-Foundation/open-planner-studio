@@ -7,7 +7,8 @@
 //      check-renderer-dateless.ts gebruikt om "hier is een balk getekend" vast te stellen.
 //   3. `getTaskBarBounds` (drag/resize-hittest) accepteert haar zoals elke andere balk-taak.
 // Ter controle draait een ECHTE (0-duur) mijlpaal in dezelfde scène mee: die moet het OUDE gedrag
-// behouden (durationText "0d", GEEN roundRect in haar rij, getTaskBarBounds weigert haar).
+// behouden (durationText "0d", GEEN roundRect in haar rij). Sinds issue #691 verplaatst ook zij, maar alleen
+// rond haar ruit en zonder randen; op de x van de mijlpaal-met-duur-balk ligt die ruit niet.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -174,7 +175,7 @@ if (renderError === null) {
   ok('echte mijlpaal (rij 2): GEEN balk-roundRect (blijft een ruit)', realMsBars.length === 0);
 
   // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
-  //    mijlpaal blijft geweigerd (geen visuele breedte om aan te slepen).
+  //    mijlpaal heeft alleen een verplaatsgreep rond haar ruit (issue #691).
   //    De x-coördinaat komt uit de balkgeometrie zelf en niet uit een vast getal: `newProject()`
   //    zet project- én viewstart op vandaag, en valt vandaag in een weekend dan schuift de solver
   //    de taak naar maandag, zodat de balk pas op x = 2 × zoom begint en een vaste x = 20 hem mist
@@ -185,8 +186,10 @@ if (renderError === null) {
   const hitX = rectWithDuration ? (rectWithDuration.left + rectWithDuration.right) / 2 : TTW + 20;
   const hitWithDuration = renderer.getTaskBarBounds(hitX, rowMidY(1));
   ok(`mijlpaal-met-duur: getTaskBarBounds accepteert haar (kreeg: ${JSON.stringify(hitWithDuration && { edge: hitWithDuration.edge })})`, hitWithDuration !== null && hitWithDuration.task.id === 'ms-met-duur' && hitWithDuration.edge === 'body');
-  const hitReal = renderer.getTaskBarBounds(hitX, rowMidY(2));
-  ok('echte mijlpaal: getTaskBarBounds weigert haar nog steeds', hitReal === null);
+  const realRect = renderer.getTaskBarRect('ms-echt');
+  const realHit = realRect && renderer.getTaskBarBounds((realRect.left + realRect.right) / 2, rowMidY(2));
+  ok(`echte mijlpaal: getTaskBarBounds geeft alleen een verplaatsgreep (kreeg: ${JSON.stringify(realHit && { edge: realHit.edge })})`,
+    realHit?.task.id === 'ms-echt' && realHit.edge === 'body');
 }
 
 if (diffs.length === 0) {

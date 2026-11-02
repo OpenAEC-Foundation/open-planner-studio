@@ -26,11 +26,13 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Time format** — how clock times appear in the app. Choose from *24-hour (13:00)* and *12-hour (1:00 PM)*. Default: *24-hour (13:00)*. Effect: the times in the calendar window, the date and time of tasks in hours (table, splits, messages) and the *Hour* timescale in the Gantt. In a time field you may type either form: *13:00*, *1300*, *13*, *1:00 PM* or *1 pm*. Midnight as the end of the day is *24:00* or *12:00 AM*. Files and calculations do not change: they stay 24-hour. Where: *Appearance*.
 
-**Duration display** — In the OPS profile this field is disabled: each task shows its own unit. Under P6 and MSP the choice is active. in which unit the duration of a task is shown. Choose from *Automatic (native unit per task)*, *Always days* and *Always hours*. Default: *Automatic (native unit per task)*. Effect: in the task grid, the bar labels of the Gantt, the tooltip, the print and the reports. With *Automatic* a day task shows days and an hour task shows hours. With *Always days* or *Always hours* the app converts using the hours per day of the task calendar and, if the unit of the task differs, puts its own unit after it in brackets, for example `2.25d(18h)`. Only the display changes; the task keeps its own unit. Where: *Appearance*.
+**Duration display** — in which unit the duration of a task is shown. In the OPS profile this field is disabled: each task shows its own unit. Under P6 and MSP the choice is active. Choose from *Automatic (native unit per task)*, *Always days* and *Always hours*. Default: *Automatic (native unit per task)*. Effect: in the task grid, the bar labels of the Gantt, the tooltip, the print and the reports. With *Automatic* a day task shows days and an hour task shows hours. With *Always days* or *Always hours* the app converts using the hours per day of the task calendar and, if the unit of the task differs, puts its own unit after it in brackets, for example `2.25d(18h)`. Only the display changes; the task keeps its own unit. Where: *Appearance*.
 
 **Allow mixed day/hour planning** — whether you choose the unit per task. Default: on. Effect: on shows the *Duration unit* drop-down next to the duration of every task. Off hides that drop-down. Where: *Appearance*, under *Duration display*. See [Days and hours](docs://uitleg-dagen-en-uren).
 
 **Document switch style** — how you switch between open projects. Choose from *Horizontal tabs*, *Vertical tabs* and *Pill*. Default: *Horizontal tabs*. Effect: *Horizontal tabs* puts a tab bar under the ribbon; *Vertical tabs* a project bar on the left; *Pill* a small project button in the title bar. Where: *Appearance*.
+
+**Switch tabs with the mouse wheel** — whether the mouse wheel over the ribbon tabs switches tabs. Default: on. Effect: on makes wheel down go to the next tab and wheel up to the previous one. Off makes the wheel do nothing there. Where: *Appearance*, under *Ribbon*. See [The ribbon, tab by tab](docs://ref-lint).
 
 ### Gantt section
 
@@ -86,17 +88,17 @@ An automatically detected update waits until the welcome screens and any active 
 
 The app also keeps these choices on this device, but you set them at the item itself, not in the settings panel.
 
-**Baseline overlay** — the active baseline as a thin bar under the task bar. Default: on. Where: *View › Baselines & progress › Baseline overlay*.
+**Baseline overlay** — the active baseline as a narrow strip under the task bar. Which baselines are also in the strip belongs to the project, not to this device. Default: on. Where: *View › Baselines & progress › Baseline overlay*.
 
 **Progress line** — the zigzag line of progress at the status date. Default: on. Effect: the line only appears when the project has a status date, and then replaces the separate status date line. Where: *View › Baselines & progress › Progress line*.
 
 **Status date line** — a dotted line at the status date. Default: on. Effect: if the progress line is on, it draws the marking itself. Where: *View › Baselines & progress › Status date line*.
 
-**Resource accent** — a thin stripe in the resource colour under the task bar. Default: off. Where: *View › Baselines & progress › Resource accent*.
+**Resource accent** — a thin stripe in the resource colour under the task bar. Default: off. Where: *View › Bars › Resource accent*.
 
-**Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Baselines & progress › Float band*.
+**Float band** — the float as a band behind non-critical bars; not for completed tasks. Default: on. Where: *View › Bars › Float band*.
 
-**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Baselines & progress › Bar colors*.
+**Bar colors** — what the colour of a bar depends on. Choose from *Critical path*, *Per task — automatic* and *By category*. Default: *Critical path*. Effect: applies to the Gantt and the report at the same time. Where: *View › Bars › Bar colors*.
 
 **Histogram** — the histogram strip under the Gantt. Default: off. Where: *Resources › Histogram › Histogram*, *View › Panels › Histogram* or Ctrl+Shift+H. You set the height of the strip (default 160 pixels, between 80 and 480) by dragging its edge.
 
