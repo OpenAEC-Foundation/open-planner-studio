@@ -711,6 +711,12 @@ en noem het in je rapport of PR-tekst.
      Bij 800 × 600 px en een zeer lange baselinenaam is de tooltip ~582 px hoog en begint hij op 603 px, dus buiten
      beeld. Voorstel: een maximale hoogte met scrollen, of de tooltip boven inkorten. Gevonden in de review van
      #762 (GPT-6.1-Sol). — B
+600. **VERVOLG: geen blijvende test voor een lettertype dat later laadt in de statusbalk.**
+     `src/components/layout/StatusBar/useStatusFold.ts` meet opnieuw bij `document.fonts` `loadingdone`, maar
+     `tests/browser/statusbar-rows.spec.ts:173–190` wisselt alleen tekstgrootte en lettertype en lokt geen latere
+     fontload uit. Een losse browserproef bevestigt de werking; de repository bewaakt die route nog niet. Voorstel:
+     één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
+     (GPT-6.1-Sol). — B
 
 ## Kalenders
 
