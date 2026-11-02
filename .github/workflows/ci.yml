@@ -180,7 +180,18 @@ jobs:
       # Bevinding O2: `npm install` mag de lockfile bijwerken, dus CI valideerde
       # hem nooit — een out-of-sync lock glipte groen door en klapte pas op de
       # productie-deploy (live.yml gebruikt al `npm ci`). Nu faalt CI hier.
+      # Op Ubuntu dezelfde node_modules-cache als de verify-jobs (sleutel op package.json én de lockfile, zie
+      # daar): `npm ci` draait zodra een van beide wijzigt. Windows en macOS installeren altijd.
+      - name: Restore node_modules (Ubuntu only)
+        if: runner.os == 'Linux'
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package.json', 'package-lock.json') }}
+
       - name: Install frontend dependencies (npm ci)
+        if: runner.os != 'Linux' || steps.node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Build Tauri app
@@ -260,14 +271,15 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      # node_modules uit de cache bij een ongewijzigde package-lock.json: `npm ci` kostte 25 tot 52 s per job.
-      # De build-jobs draaien `npm ci` wel altijd, dus de controle dat de lockfile klopt blijft op elke PR.
+      # node_modules uit de cache: `npm ci` kostte 25 tot 52 s per job. De sleutel hangt aan package.json én
+      # package-lock.json. Of `npm ci` slaagt, hangt alleen van die twee af; wijzigt er één, dan draait `npm ci`
+      # gewoon (en bewaart de cache pas na een geslaagde job). Zo blijft de lockfile-controle van bevinding O2.
       - name: Restore node_modules
         id: node-modules
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package.json', 'package-lock.json') }}
 
       - name: Install frontend dependencies (npm ci)
         if: steps.node-modules.outputs.cache-hit != 'true'
@@ -393,6 +405,12 @@ jobs:
       - name: Check out the expected list
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts/planning-pool.mjs
+            scripts/browser-shards.mjs
+            tests/planning/expected-checks.txt
+          sparse-checkout-cone-mode: false
 
       - name: Download planning manifests
         if: github.event_name == 'push' || github.event_name == 'pull_request'
