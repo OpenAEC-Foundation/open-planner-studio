@@ -289,8 +289,6 @@ def build(source, lock: dict, extra_ids: list[str], catalog_wanted: bool, only_i
         "export interface IconDef {",
         "  readonly s16: IconMaster;",
         "  readonly s24: IconMaster;",
-        "  /** Het hele icoon in de accentkleur (Blueprint: `whole_icon_accent`). */",
-        "  readonly accent?: true;",
         "  /** Statuskleur uit het thema (Blueprint: `semantic_color`). */",
         "  readonly semantic?: 'error' | 'success' | 'warning' | 'info' | 'text-secondary';",
         "}",
@@ -302,8 +300,6 @@ def build(source, lock: dict, extra_ids: list[str], catalog_wanted: bool, only_i
     lines += ["", "export const B2_ICONS: Readonly<Record<IconId, IconDef>> = {"]
     for icon_id, icon, masters in defs:
         flags = ""
-        if icon.get("whole_icon_accent"):
-            flags += " accent: true,"
         if icon.get("semantic_color"):
             flags += f" semantic: {ts_string(icon['semantic_color'])},"
         lines.append(f"  {ts_string(icon_id)}: {{{flags}")
