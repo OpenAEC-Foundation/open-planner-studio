@@ -122,3 +122,42 @@ Commando: `bash tests/planning/run.sh check-baseline-vergelijking.ts`.
 
 De typecheck vóór deze laatste testtoevoeging slaagde, exit 0. De definitieve
 controle van de samengevoegde head volgt in CI.
+
+## Controle op de samengevoegde head f122053d9
+
+Na de merge van main (`dd9d7b46c`) zijn de vier gerichte planningschecks opnieuw
+uitgevoerd: 23, 106, 380 en 8.083 controles groen; de gezamenlijke exitcode was 0.
+De drie gerichte Node-bestanden gaven samen 34 tests groen, exit 0. Ook
+`npm run typecheck` en de vergelijking van `--list-checks` met de verwachte lijst
+slaagden, exit 0. `i18n:resolve` meldde dat de merge per sleutel al klopte en
+wijzigde niets.
+
+De normale PR-CI op deze head slaagde (run 41450060763). Bij het toevoegen van het
+gewone label `bug` draaide ook de echte lege labelroute (run 41450394927). GitHub
+geeft die overgeslagen afsluitende job de expressietekst als naam, in plaats van
+`test`; de normale test-check bleef gescheiden. De naam `label zonder controles`
+is dus de uitkomst bij evaluatie van de expressie, niet de letterlijke weergave
+van deze overgeslagen job. Er is geen browserrun uitgevoerd.
+
+De afzonderlijke renderer-meetworkflow faalde vóór de meting; zie bijvangst 780.
+
+## 780 — renderer-meetroute accepteert een wijziging aan alleen de test
+
+Bevestigd door CI-run 41450060913 op f122053d9: de trigger start op de gewijzigde
+rendercachetest, maar de productbronlijst is leeg en de harde vergelijking met
+`GanttRenderer.ts` stopt de workflow vóór esbuild. Het punt is daarna als 780
+in het register vastgelegd.
+
+De nieuwe gerichte test voert de echte bundelstap uit tegen kleine tijdelijke
+Git-repo's. Alleen esbuild is vervangen door een teller. Op de oude workflow
+werden drie van de vijf tests rood, exit 1; de route met alleen een test strandde
+op de oorspronkelijke bronvoorwaarde. Er is geen lokale meetbuild gestart.
+
+De correctie laat een lege productbronlijst de snelheidsvergelijking expliciet
+overslaan. Met uitsluitend een rendererwijziging blijven beide bundels en de
+meting vereist; een andere of gecombineerde productwijziging blijft geweigerd.
+De meetstap en artifact-upload zijn gebonden aan het daadwerkelijk maken van
+beide bundels. De vijf tests bewaken deze routes, inclusief de twee voorwaarden
+in de echte YAML. De gewone PR-CI blijft de aangescherpte rendercachetest uitvoeren.
+
+Commando: `node --test tests/dev-server/renderer-performance.test.mjs`.

@@ -46,4 +46,6 @@ CI-uitkomsten of bronvermoedens zijn niet tot een bewezen oorzaak verheven.
 
 ## Nieuwe punten
 
-Geen nieuwe knownbugs uit reeks 780–799 toegevoegd.
+Bijvangst **780**: de renderer-meetworkflow wees een wijziging aan alleen de test af.
+Dit is in dezelfde PR geregistreerd en gerepareerd; het bewijs staat in `bewijs.md`.
+Er blijven geen nieuwe punten uit reeks 780–799 open.
