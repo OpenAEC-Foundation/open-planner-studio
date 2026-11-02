@@ -403,6 +403,17 @@ en noem het in je rapport of PR-tekst.
      `CPMSolver.ts` (rond regel 3009) herhalen dezelfde uitleg en dezelfde corpusvoorbeelden. Eén uitleg bij de tak die
      de walks maakt, met verwijzingen op de andere plekken, is genoeg (ongeveer 20–30 regels minder). Alleen opruimen;
      het gedrag verandert niet. Gevonden in de review van #722 (Sol, ronde 1, 2026-10-29). — B
+507. **De nivelleerder heeft drie dode dagtakken.** `ResourceLeveler.ts` rond regel 269, 290/297 en 843/848 kiest
+     nog een dagtak voor een taakkalender zonder werktijd (`isHourMode` onwaar). Sinds F6 (#733) stopt de
+     baseline-solve op regel 395 dan al (`taskWithoutWorkHours`) en keert de functie terug, dus die takken worden
+     niet meer bereikt. Ongeveer tien regels kunnen weg; de kalendertijd- en werkblokkenpaden blijven. Alleen
+     opruimen. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
+508. **Een kalender met een opgeslagen lege week stopt de berekening niet.** Een kalender met `workTime` maar zonder
+     enig werkblok (vijf werkdagen, zeven lege weekdagen) heeft `isHourMode` waar, dus de wachten van F6
+     (`taskWithoutWorkHours`, `noWorkingHours`) laten hem door. Een taak van 2,5 werkdagen krijgt dan
+     `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
+     Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
+     huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
 589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
      gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
      `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
@@ -1813,6 +1824,17 @@ en noem het in je rapport of PR-tekst.
      De uitkomsten zijn gelijk in tien combinaties. De helper en zijn import kunnen weg; in
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
+
+598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
+     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
+     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
+     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
+     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
+     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
+     `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
+     doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
+     opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 
 ## Wensen en open taken (geen bug)
 

@@ -50,7 +50,7 @@ Een eigen preset staat op dit apparaat, niet in het projectbestand.
 **Dagknoppen passen de blokken aan.** Zet je bij *Werkdagen* een dag uit, dan verdwijnen de blokken van die dag. Zet je hem weer aan, dan krijgt hij de blokken terug die hij had toen je het venster opende (of na de laatste preset), of anders die van de eerste werkdag. *Ma–vr* doet dat voor maandag tot en met vrijdag en haalt de blokken van zaterdag en zondag weg. *Continu (24/7)* vervangt alle blokken: elke dag krijgt 00:00 tot 24:00.
 
 
-**Geen bruikbare werktijden.** Een kalender zonder blokken of zonder werkdagen kan geen taak in uren dragen. De app meldt dan *Deze kalender heeft geen geldige werktijden. Controleer de werkdagen en werktijden.*
+**Geen bruikbare werktijden.** Een kalender zonder blokken krijgt zijn werktijd uit de werkdagen, het begin, het einde en de pauze. Geven die geen werktijd, bijvoorbeeld omdat de pauze de hele werkdag beslaat, dan kan de kalender geen enkele taak dragen. De berekening stopt dan met *De kalender van taak '{taak}' heeft geen geldige werktijden* of *De projectkalender heeft geen geldige werktijden*. Controleer dan in die kalender de werkdagen, het begin, het einde en de pauze.
 
 ## Zie ook
 

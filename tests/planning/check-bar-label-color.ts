@@ -69,7 +69,7 @@ const BALKTINTEN: [string, string][] = [
   ['kritiek', '#DC2626'],
   ['normaal', '#2563EB'],
   ['mijlpaal', '#7C3AED'],
-  ['baseline', '#6B7280'],
+  ['baseline', '#1F2937'],
 ];
 for (const [naam, hex] of BALKTINTEN) {
   expectLabel(`balktint ${naam}`, hex, BAR_LABEL_LIGHT, 4.5);
