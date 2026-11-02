@@ -222,14 +222,17 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
  *     getypte dag vóór die kloktijd, dan het einde van die dienst. Dat geldt overdag en 's nachts.
  *     Voorbeelden: ma–do 07:00–12:00 en 13:00–16:00, vr 07:00–12:00; ma 14:00, afgemeld op vr ⇒ vr 12:00.
  *     Ma–do 22:00–06:00, vr 22:00–02:00; di 05:00, afgemeld op vr ⇒ za 02:00.
- *  4. Uitwerking door de orkestrator (fixronde 5 van #724, niet letterlijk in het besluit): begint de dienst
+ *  4. Besluit van Ethan, 2 november 2026 (knownbug 504; geen uitwerking meer): begint de dienst
  *     van de getypte dag na die kloktijd, dan het begin van die dienst. Voorbeeld: ma 04:00–08:00, een
  *     mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00 ⇒ 07:00 die dag. Valt de kloktijd in
  *     de spanne van de getypte dag maar in de dienst van een andere werkdag, dan de rand van de getypte dag
  *     die het dichtst bij ligt (uitwerking door de orkestrator, fixronde 3).
- *  Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning. Een
- *  gepland moment buiten die spanne (een handmatig anker om 18:00 bij 07:00–16:00) houdt de kloktijd, zoals
- *  het besluit zelf zegt: ma 18:00, afgemeld op vr ⇒ vr 18:00.
+ *  Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning.
+ *  6. Besluit van Ethan, 2 november 2026 (knownbug 503): lag het geplande moment buiten die spanne (een
+ *     handmatig anker of een import), dan de dichtstbijzijnde rand van de dienst van de getypte dag: lag hij na
+ *     de dienst, dan het einde; lag hij ervoor, dan het begin. Voorbeeld: ma–do 07:00–16:00, vr 07:00–12:00;
+ *     "Oplevering" op ma 18:00, afgemeld op vr ⇒ vr 12:00; op ma 05:00 ⇒ vr 07:00.
+ *  Regel 4 en 6 zijn besluiten van Ethan van 2 november 2026 (504 en 503), geen uitwerking meer.
  *
  * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 501). Hier gaat ook "de dag
  * komt van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
@@ -268,7 +271,11 @@ export function milestoneMomentOn(clock: DayClock, planned: string, date: string
       && parseInstant(plannedStart).getTime() < at && at < parseInstant(plannedEnd).getTime();
     if (inside && end && t > parseInstant(end).getTime()) candidates = [end, start]; // 3: de dienst eindigt eerder
     else if (inside && start && t < parseInstant(start).getTime()) candidates = [start, end]; // 4: hij begint later
-    else candidates = [moment, ...(distance(end) < distance(start) ? [end, start] : [start, end])];
+    else if (!inside && plannedStart && plannedEnd) {
+      // 5b: buiten de werkspanne (een handmatig anker, een import): de dichtstbijzijnde rand van de dienst van
+      // de getypte dag. Lag hij erna, dan het einde; lag hij ervoor, dan het begin.
+      candidates = at >= parseInstant(plannedEnd).getTime() ? [end, start] : [start, end];
+    } else candidates = [moment, ...(distance(end) < distance(start) ? [end, start] : [start, end])];
   }
   return candidates.find(c => c !== null && milestoneWorkdayOf(clock, c, side) === date)
     ?? candidates.find(c => c !== null) ?? null;

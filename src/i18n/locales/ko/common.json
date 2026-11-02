@@ -601,7 +601,8 @@
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
     "outOfSequence": "순서 위반 관계: {{count}}건",
-    "overallocated": "리소스 {{count}}개 과다 할당"
+    "overallocated": "리소스 {{count}}개 과다 할당",
+    "summary_other": "경고 {{count}}개"
   },
   "warnings": {
     "title": "경고",

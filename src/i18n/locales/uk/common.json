@@ -784,7 +784,11 @@
     "missedDeadlines": "Пропущені крайні терміни: {{count}}",
     "violatedConstraints": "Порушені обмеження: {{count}}",
     "outOfSequence": "Залежності поза послідовністю: {{count}}",
-    "overallocated": "Ресурси з перенавантаженням: {{count}}"
+    "overallocated": "Ресурси з перенавантаженням: {{count}}",
+    "summary_one": "{{count}} попередження",
+    "summary_few": "{{count}} попередження",
+    "summary_many": "{{count}} попереджень",
+    "summary_other": "{{count}} попередження"
   },
   "warnings": {
     "title": "Попередження",

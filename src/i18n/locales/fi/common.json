@@ -662,7 +662,9 @@
     "missedDeadlines": "Ylitetyt tavoitepäivät: {{count}}",
     "violatedConstraints": "Rikotut rajoitteet: {{count}}",
     "outOfSequence": "Järjestyksestä poikkeavat riippuvuudet: {{count}}",
-    "overallocated": "Resurssien ylikuormitukset: {{count}}"
+    "overallocated": "Resurssien ylikuormitukset: {{count}}",
+    "summary_one": "{{count}} varoitus",
+    "summary_other": "{{count}} varoitusta"
   },
   "warnings": {
     "title": "Varoitukset",
