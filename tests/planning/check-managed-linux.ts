@@ -32,6 +32,9 @@ await openFileDialogTauri([]);
 await saveFileDialogTauri('planning.ifc', '', [], { preferDownloads: true });
 assert.equal((argumentsByCommand.get('plugin:dialog|open')?.options as { defaultPath: string }).defaultPath, '/openaec');
 assert.equal((argumentsByCommand.get('plugin:dialog|save')?.options as { defaultPath: string }).defaultPath, '/openaec/planning.ifc');
+await saveFileDialogTauri('/openaec/plannen/proef é.ifc', '', [{ name: 'IFC', extensions: ['ifc'] }]);
+assert.equal((argumentsByCommand.get('plugin:dialog|save')?.options as { defaultPath: string }).defaultPath,
+  '/openaec/proef é.ifc', 'Opslaan als voegt alleen de bestandsnaam aan de beheerde beginmap toe');
 console.log('OK openen en opslaan beginnen in de beheerde map, ook bij preferDownloads');
 
 const env = linuxEnvironment()!;
@@ -43,15 +46,17 @@ console.log('OK MCP leest de sessieconfiguratie zonder localStorage');
 const order: string[] = [];
 let release: (() => void) | undefined;
 const pending = new Promise<void>(resolve => { release = resolve; });
+let reachedFlush!: () => void;
+const flushing = new Promise<void>(resolve => { reachedFlush = resolve; });
 const shutdown = createManagedShutdown({
   finishInput: () => { order.push('invoer'); },
   freeze: () => { order.push('blokkeren'); },
-  flush: async () => { order.push('herstel'); await pending; },
+  flush: async () => { order.push('herstel'); reachedFlush(); await pending; },
   confirm: async () => { order.push('bevestigen'); },
 });
 const first = shutdown();
 assert.equal(first, shutdown(), 'herhaalde SIGTERM-events delen één herstelronde');
-await Promise.resolve();
+await flushing;
 assert.deepEqual(order, ['blokkeren', 'invoer', 'herstel']);
 release!();
 await first;

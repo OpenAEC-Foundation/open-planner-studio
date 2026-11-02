@@ -46,7 +46,7 @@ async function pickSavePathTauri(
   const directory = linuxEnvironment()?.directory;
   if (directory) {
     const { join } = await import('@tauri-apps/api/path');
-    defaultPath = await join(directory, defaultName);
+    defaultPath = await join(directory, basename(defaultName));
   } else if (opts?.preferDownloads) {
     try {
       const { downloadDir, join } = await import('@tauri-apps/api/path');

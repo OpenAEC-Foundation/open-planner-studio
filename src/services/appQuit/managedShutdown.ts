@@ -1,3 +1,5 @@
+import { stopUserFileWrites } from '@/services/fileAccess/writeCoordinator';
+
 /** SIGTERM vraagt herstelopslag, zonder een sluitvraag of het wissen van bestaande snapshots. */
 export function createManagedShutdown(deps: {
   finishInput: () => void | Promise<void>;
@@ -10,7 +12,9 @@ export function createManagedShutdown(deps: {
     if (running) return running;
     running = (async () => {
       deps.freeze();
+      const writesStopped = stopUserFileWrites();
       await deps.finishInput();
+      await writesStopped;
       await deps.flush();
       await deps.confirm();
     })();

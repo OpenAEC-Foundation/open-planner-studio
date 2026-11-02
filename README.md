@@ -76,7 +76,8 @@ download statistics and the extension catalogue/downloads, or send explicitly su
 to `open-feedback-studio.pages.dev`. Installed extensions may use their own network permissions.
 Fonts, help and examples are bundled for local use.
 
-In managed mode, `SIGTERM` blocks further interaction, waits for a running MCP operation and writes
+In managed mode, `SIGTERM` blocks further interaction, waits for a running MCP operation and user-file
+writes already in progress, then writes
 the latest unsaved work to the existing recovery store before exiting. Allow at least 30 seconds
 before forcing termination. A failed/unconfirmed recovery write gives a nonzero exit status.
 The release workflow tests the extracted AppImage without network or GPU under headless Wayland,

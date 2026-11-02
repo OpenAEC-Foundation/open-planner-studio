@@ -30,4 +30,11 @@ De zware IFC-serialisatie loopt op één herbruikbare Web Worker (`recoverySnaps
 
 ### Afsluiten van de app (schone exit)
 
+Beheerde Linux-sessie: `createManagedShutdown` sluit nieuwe gebruikersbestand-writes af en wacht
+de al begonnen I/O via `trackUserFileWrite`/`stopUserFileWrites` af vóór de laatste herstel-flush
+en bevestiging aan Rust. `replaceUserFile` bewaakt daarmee tekst én bytes, inclusief symlinks en
+de directe terugval. De wachtrij van `runProjectFileWrite` omvat óók dialoogkeuzes en wordt daarom
+niet als geheel afgewacht. Een late dialoogkeuze of nog wachtende schrijfbeurt mag na SIGTERM
+geen nieuwe write starten. Regressie: `check-managed-shutdown-writes.ts`.
+
 Op desktop vuurt de sluitknop, Alt+F4 of het OS-menu `CloseRequested`. `src/services/appQuit/appQuitController.ts` (store- en Tauri-vrij, alle randen geïnjecteerd; bedrading in `src/hooks/useAppCloseGuard.ts`) loopt alle open documenten langs `ui.pendingCloseDocId` (`CloseDocumentDialog`: Opslaan, Niet opslaan, Annuleren). Annuleren of een mislukte opslag breekt het afsluiten af. Is niets meer ongeopgeslagen, dan stopt de controller het crashherstel, ruimt hij de herstelsnapshots op (schone exit) en sluit hij het venster. Wie `useAutoSave` of `recoveryStore` wijzigt, raakt dit contract: zonder opruimen meldt de volgende start altijd "niet normaal afgesloten". Test: `tests/planning/check-app-quit.ts`.

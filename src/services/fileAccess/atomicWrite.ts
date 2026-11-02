@@ -16,6 +16,7 @@
  */
 
 import { generateId } from '@/utils/id';
+import { trackUserFileWrite } from './writeCoordinator';
 
 /** De drie bestandsoperaties die de schrijf-en-vervang nodig heeft — injecteerbaar voor tests. */
 export interface AtomicWriteFs {
@@ -105,7 +106,11 @@ export function isForbiddenPathError(err: unknown): boolean {
 /** Schrijf eerst via een exclusief aangemaakt, eigen halffabricaat; schrijf- en sluitfouten laten
  *  het doel dan onaangeroerd. Scope, gelinkte doelen en rename-fouten houden de directe terugval.
  *  Dit vergrendelt geen paden tegen latere link-/directorywissels of concurrerende doelwijzigingen. */
-export async function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: D): Promise<void> {
+export function replaceUserFile<D>(fs: UserFileFs<D>, path: string, data: D): Promise<void> {
+  return trackUserFileWrite(() => replaceUserFileNow(fs, path, data));
+}
+
+async function replaceUserFileNow<D>(fs: UserFileFs<D>, path: string, data: D): Promise<void> {
   let info: Awaited<ReturnType<UserFileFs<D>['lstat']>> | null = null;
   try {
     info = await fs.lstat(path);

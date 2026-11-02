@@ -203,6 +203,7 @@ check-leveling-input.ts los
 check-load-profile.ts matrix
 check-local-time-parsing.ts matrix
 check-managed-linux.ts matrix
+check-managed-shutdown-writes.ts matrix
 check-mijlpaal-afmelden.ts matrix
 check-milestone-drag.ts matrix
 check-milestone-duration-render.ts matrix

@@ -208,7 +208,8 @@ benaderen voor releasegegevens, downloadcijfers en de extensiecatalogus/download
 ingestuurde feedback gaat naar `open-feedback-studio.pages.dev`. Geïnstalleerde extensies kunnen
 hun eigen netwerkrechten gebruiken. Lettertypen, hulp en voorbeelden worden lokaal meegeleverd.
 
-Bij `SIGTERM` blokkeert de beheerde sessie verdere invoer, wacht zij een lopende MCP-actie af en
+Bij `SIGTERM` blokkeert de beheerde sessie verdere invoer, wacht zij een lopende MCP-actie en al
+begonnen schrijfacties naar gebruikersbestanden af en
 bewaart zij de laatste niet-opgeslagen wijzigingen via de bestaande herstelopslag. Geef minstens
 30 seconden vóór geforceerd stoppen. Een mislukte of onbevestigde herstelopslag geeft een foutstatus.
 De releaseworkflow test de uitgepakte AppImage zonder netwerk of GPU onder headless Wayland,
