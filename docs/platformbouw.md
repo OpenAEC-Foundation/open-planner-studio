@@ -160,6 +160,27 @@ Alleen als er een site is; zonder site verandert er niets.
 - Toetsen: `tests/planning/check-site-storage.ts` (contract, dispatch, opslagdoel, herstelmanifest) en
   `tests/browser/site-storage.spec.ts` (de paden hierboven, met een nep-host).
 
+## De assistent van de site
+
+In de platformbouw zet `src/main.tsx` `window.__OPDS_APP__` neer (`src/services/mcp/siteAppTools.ts`). De assistent van de
+site bedient de tool daarmee, via de brug van de site in het frame:
+
+```ts
+window.__OPDS_APP__ = {
+  tools(): Promise<string[]>;                      // de namen
+  definitions(): Promise<{ name; description; inputSchema }[]>;  // zoals tools/list
+  run(name, args?): Promise<unknown>;              // het structuredContent; een weigering wordt een fout `CODE: melding`
+};
+```
+
+Achter `run` zit dezelfde `handleMcpMessage` als achter de bridge: dezelfde namen, schema's, guards en uitvoering, op het
+open document. Er is geen tweede implementatie. De MCP-laag komt pas als aparte chunk binnen bij de eerste aanroep.
+`planner_export_ifc` en `planner_import_schedule` werken op een bestandssysteem en doen hier niet mee: openen en opslaan
+lopen via het hostcontract, door de gebruiker.
+
+`node scripts/run-ts.mjs scripts/export-mcp-tools.ts <bestand>` schrijft de definities als JSON, voor een host die er zijn
+tooldefinities van afleidt. Toetsen: `tests/mcp/cases-site-app-tools.ts`.
+
 ## Zelf proberen
 
 Op de dev-server (`npm run dev`) installeert `?fakeSite=1` een nep-site in IndexedDB (`ops-fake-site`), met

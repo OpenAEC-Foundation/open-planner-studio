@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 // laadt daarna de actieve taal-chunk vóór de eerste paint (geen Engelse flits).
 import { initLocale } from './i18n/config';
 import { appLog } from '@/services/debug/appLog';
+import { installSiteAppTools } from '@/services/mcp/siteAppTools';
+import { PLATFORM_BUILD } from '@/utils/buildFlags';
 import App from './App';
 
 // OpenAEC stylebook fonts (self-hosted via @fontsource, bundled with app for offline use)
@@ -20,6 +22,9 @@ import '@fontsource/jetbrains-mono/500.css';
 import './styles/globals.css';
 
 appLog.init();
+
+// De assistent van de site bedient de tool via dit koppelvlak (`window.__OPDS_APP__`): alleen in de platformbouw.
+if (PLATFORM_BUILD) installSiteAppTools();
 
 // Zelftesthaak (window.__OPS__) voor geautomatiseerd testen via Playwright MCP en de expliciete
 // productiebenchmark. Gewone productiebuilds zetten VITE_OPS_BENCH_BRIDGE niet en tree-shaken de
