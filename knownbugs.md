@@ -915,13 +915,6 @@ en noem het in je rapport of PR-tekst.
     `fbd4a3f9d`. Voorstel: de gedeelde `formatLagShort`/`parseLagInput` uit `src/utils/lagFormat.ts` gebruiken,
     en bij een nieuwe lag ook de eenheid schrijven. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
-355. **`planner_update_calendar` met `workTime: null` weigert, ook als de kalender dezelfde werkblokken houdt.**
-    `src/services/mcp/tools/calendarResourceTools.ts:940` weigert zodra een urentaak de kalender gebruikt
-    ("cannot remove concrete work blocks"). Op een gelijkwaardige scalaire kalender (07–16, pauze 12–13) blijft
-    dezelfde urentaak gewoon 07:00–11:00. Al op `fbd4a3f9d`. Voorstel: de uiteindelijke kalender toetsen op
-    geldige effectieve werkblokken, niet op de aanwezigheid van `workTime`. Gevonden in de aanval na #600
-    (GPT-6.1-Sol). — B
-
 362. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
     geeft `minuteModelConversion` mee. Staat de omzetting nog open, dan rekent een volgende leestool
     (`freshenScheduleForRead`) of muterende tool (de MCP-transactie) om, en `runCPM` meldt dat alleen via het
