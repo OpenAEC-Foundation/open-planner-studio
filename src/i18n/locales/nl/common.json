@@ -543,6 +543,8 @@
     "connect": "Verbinden",
     "connectHint": "Toont de verbindingsgegevens: endpoint, token, configuratiefragment en koppelprompt.",
     "connectionDetailsTitle": "Verbindingsgegevens",
+    "setupPrompt": "Laat Claude het regelen",
+    "setupPromptHint": "Voor Claude Desktop en Claude Code. Plak de prompt in een nieuw gesprek. Claude installeert de extensie dan zelf. Een token heb je er niet voor nodig.",
     "endpoint": "Endpoint",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Authenticatie",

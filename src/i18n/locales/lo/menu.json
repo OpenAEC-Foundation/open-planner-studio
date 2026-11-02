@@ -355,7 +355,10 @@
     "helpTutorialStep": "ບົດຮຽນທີ {{number}} ຈາກທັງໝົດ {{total}}",
     "helpTutorialsEmpty": "ຍັງບໍ່ໄດ້ຕິດຕັ້ງບົດຮຽນເທື່ອ. ທ່ານສາມາດຕິດຕັ້ງເປັນສ່ວນເສີມໄດ້ຈາກລາຍການສ່ວນເສີມ.",
     "helpTutorialsInstall": "ຕິດຕັ້ງບົດຮຽນ",
-    "helpDraft": "ຮ່າງ"
+    "helpDraft": "ຮ່າງ",
+    "helpCopyPrompt": "ຄັດລອກຄຳສັ່ງ",
+    "helpPromptCopied": "ຄັດລອກແລ້ວ. ກະລຸນາວາງຄຳສັ່ງໃນ Claude ດຽວນີ້.",
+    "helpPromptCopyFailed": "ການຄັດລອກບໍ່ສຳເລັດ. ກະລຸນາເລືອກຂໍ້ຄວາມດ້ານລຸ່ມ ແລ້ວຄັດລອກດ້ວຍຕົນທ່ານເອງ."
   },
   "export": {
     "progressFileSuffix": "ຄວາມຄືບໜ້າ",

@@ -454,6 +454,8 @@
     "connect": "Anslut",
     "connectHint": "Visar anslutningsuppgifterna: slutpunkt, token, konfigurationsfragment och anslutningsprompt.",
     "connectionDetailsTitle": "Anslutningsuppgifter",
+    "setupPrompt": "Låt Claude ordna det",
+    "setupPromptHint": "För Claude Desktop och Claude Code. Klistra in prompten i ett nytt samtal. Claude installerar sedan tillägget själv. Du behöver ingen token för det.",
     "endpoint": "Slutpunkt",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Autentisering",

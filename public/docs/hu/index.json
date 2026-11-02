@@ -47,7 +47,7 @@
 "howto-bibliotheken-beheren": {"title": "Erőforrástárak kezelése és megosztása"},
 "howto-bezettingsoverzicht-gebruiken": {"title": "A foglaltságáttekintés használata"},
 "howto-extensie-installeren": {"title": "Bővítmény telepítése és kezelése"},
-"howto-ai-assistent-koppelen": {"title": "AI-segítőtárs csatlakoztatása (MCP)"},
+"howto-ai-assistent-koppelen": {"title": "MCP-kliens csatlakoztatása"},
 "howto-feedback-geven": {"title": "Visszajelzés adása"},
 "howto-app-bijwerken": {"title": "Az alkalmazás frissítése"},
 "ref-lint": {"title": "A menüszalag, fülenként"},

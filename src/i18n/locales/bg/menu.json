@@ -357,7 +357,10 @@
     "helpTutorialStep": "Урок {{number}} от {{total}}",
     "helpTutorialsEmpty": "Все още няма инсталирани уроци. Инсталирайте ги като разширение от каталога.",
     "helpTutorialsInstall": "Инсталирай уроци",
-    "helpDraft": "чернова"
+    "helpDraft": "чернова",
+    "helpCopyPrompt": "Копирай промпта",
+    "helpPromptCopied": "Копирано. Сега поставете промпта в Claude.",
+    "helpPromptCopyFailed": "Копирането не успя. Изберете текста по-долу и го копирайте сами."
   },
   "export": {
     "progressFileSuffix": "напредък",

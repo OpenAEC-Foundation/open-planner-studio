@@ -22,7 +22,7 @@ import {
   articleState, avoidWords, blocksOf, buildDocsPackages, buildEnLabelIndex, classifyItalic, codesOf, decodeIfcString, docsReleaseGaps,
   docsStatus, hasStem, ifcNames, pairChanged, hasWord, italicsOf, joinSections, labelsDigest, linkSections, literalCandidates, literalNames,
   mergeArticle, normLabel, orderDocsSources, parseDocsIndex, quotedNames, renameDocLinks, renameInEntry, ribbonTabKey, sectionLabels,
-  serializeDocsIndex, titleOf, tutorialNames, RIBBON_TABS, SETTINGS_TAB_KEYS,
+  serializeDocsIndex, techTokens, titleOf, tutorialNames, RIBBON_TABS, SETTINGS_TAB_KEYS,
   type DocsLiteral, type DocsSources,
 } from '../../scripts/translate/docs';
 import { checkDocs, checkDocsArticle, checkUi } from '../../scripts/translate/gates';
@@ -768,6 +768,25 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+// ── 20. Codeblokken: een promptblok blijft er een, wordt vertaald en houdt zijn technische stukken ──
+{
+  const SRC = '# P\n\n## Quick\n\nCopy the prompt.\n\n```prompt\nInstall it from https://example.com/latest. Ask me first.\n\nIf you run in Claude Code:\n1. Read manifest.json: server.mcp_config, ${__dirname}.\n2. Run claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<working folder> -- node <unpacked folder>/server/index.mjs\n- Then /mcp shows it.\n```\n\n```\nclaude mcp add x -- node /path/to/server.mjs\n```\n';
+  const OUT = '# P\n\n## Quick\n\nKopiere den Prompt.\n\n```prompt\nInstalliere es von https://example.com/latest. Frag mich zuerst.\n\nWenn du in Claude Code läufst:\n1. Lies manifest.json: server.mcp_config, ${__dirname}.\n2. Führe claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<Arbeitsordner> -- node <entpackter Ordner>/server/index.mjs aus\n- Dann zeigt /mcp es.\n```\n\n```\nclaude mcp add x -- node /pfad/zu/server.mjs\n```\n';
+  const [q] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'p', md: SRC }], mode: 'missing', sources: {}, index, literal, concepts });
+  const res = (out: string) => checkDocs(q.pkg, q.src, out);
+  eq('20a promptblok vertaald, technische stukken letterlijk, "1." na een zin: groen', res(OUT).errors, []);
+  has('20b voorbeeldpad in een gewoon codeblok: alleen een waarschuwing', res(OUT).warnings, /codeblok 2 \(```\) wijkt af van de bron/);
+  has('20c ```prompt wordt ```: rood (Help verliest de knop)', res(OUT.replace('```prompt', '```')).errors, /codeblok 1 \(```prompt\) opent in de vertaling met ```/);
+  has('20d een URL in het promptblok veranderd: rood', res(OUT.replace('https://example.com/latest', 'https://example.de/latest')).errors, /"https:\/\/example\.com\/latest" staat 1× in de bron, 0×/);
+  has('20e servernaam vertaald: rood', res(OUT.replace('add open-planner-studio', 'add offener-planer-studio')).errors, /"open-planner-studio" staat 1×/);
+  has('20f ${…} vertaald: rood', res(OUT.replace('${__dirname}', '${__verzeichnis}')).errors, /"\$\{__dirname\}," staat|"\$\{__dirname\}" staat/);
+  has('20g twee regels samengevoegd: rood', res(OUT.replace('zuerst.\n\nWenn', 'zuerst. Wenn')).errors, /codeblok 1 \(```prompt\) heeft regels/);
+  has('20h lijstteken weg: rood', res(OUT.replace('- Dann', 'Dann')).errors, /heeft regels/);
+  eq('20i techTokens: URL zonder slotpunt, opties, ${…}, namen, commando\'s; geen gewone woorden',
+    techTokens('Run claude mcp list, see https://x.org/a. Use Node.js 22 with --scope user -e A_B=<my folder>/srv/i.mjs and open-planner-studio; then /mcp. Plain words-only here.'),
+    ['claude mcp list', 'https://x.org/a', 'Node.js', '--scope', '-e', 'A_B', '/srv/i.mjs', 'open-planner-studio', '/mcp']);
 }
 
 if (diffs.length === 0) {
