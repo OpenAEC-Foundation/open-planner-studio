@@ -40,6 +40,49 @@ Every release is on the [releases page](https://github.com/OpenAEC-Foundation/op
 
 Installed apps update themselves when a new version is out (Windows, macOS, `.deb`, `.rpm` and AppImage). The Snap version updates through the Snap Store.
 
+### OpenAEC Linux / SuperCloud
+
+The SuperCloud builds one shared **OpenAEC Linux** image and pins each tool's release, following
+[Blueprint #61](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/61). Planner supplies
+the release's x86_64 AppImage and its `.sig`; `SHA256SUMS` covers the release files. There is no
+separate Planner Docker image. Extract the AppImage while preparing the shared image (no FUSE):
+
+```sh
+chmod +x 'Open.Planner.Studio_<version>_amd64.AppImage'
+./'Open.Planner.Studio_<version>_amd64.AppImage' --appimage-extract
+OPENAEC_BEHEERD=1 OPENAEC_MAP=/openaec ./squashfs-root/AppRun /openaec/planning.ifc
+```
+
+Run as a regular user with a writable home and `/openaec`, in a Wayland session such as labwc.
+Keep the user's home or XDG data/config directories persistent for settings and crash recovery.
+The AppImage's own working directory stays intact so WebKit can find its helper processes.
+
+| Variable | Effect |
+| --- | --- |
+| `OPENAEC_BEHEERD=1` | Disables the native updater plugin, automatic/manual update checks and downloads, and automatic update notices. Uses software rendering without requiring a GPU. |
+| `OPENAEC_MAP` | Existing folder where Open, Save As and export dialogs start, including outside the user's home. |
+| `OPENAEC_MCP_POORT` + `OPENAEC_MCP_GEHEIM` | Optional: starts the app's MCP bridge on this fixed loopback port. Both are required; port 1–65535, secret 32–4096 visible ASCII characters. The environment secret is not saved in preferences or discovery files and is removed from the child-process environment. |
+| `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` | Standard Linux locations for persistent data/settings and caches. |
+
+Pass an optional startup file as the first argument to `AppRun`; relative paths resolve against the
+original launch folder. The bridge remains on `127.0.0.1`, inside the shared image's network
+namespace. It requires Bearer authentication and rejects every `Origin` header, including an empty
+one. Do not expose it as a public browser endpoint. No token or registry configuration is needed
+to build the application.
+
+Planner has no telemetry. Managed startup does not contact the update server. User actions may
+still access GitHub (`github.com`, `api.github.com`, `raw.githubusercontent.com`) for release details,
+download statistics and the extension catalogue/downloads, or send explicitly submitted feedback
+to `open-feedback-studio.pages.dev`. Installed extensions may use their own network permissions.
+Fonts, help and examples are bundled for local use.
+
+In managed mode, `SIGTERM` blocks further interaction, waits for a running MCP operation and writes
+the latest unsaved work to the existing recovery store before exiting. Allow at least 30 seconds
+before forcing termination. A failed/unconfirmed recovery write gives a nonzero exit status.
+The release workflow tests the extracted AppImage without network or GPU under headless Wayland,
+captures screenshots and adds the measured idle memory (PSS of the app and its child processes)
+to the release notes before publication. The same test runs on the unsigned PR artifact.
+
 ## Why use it?
 
 - **Free and open.** LGPL-3.0. No licence fees, no account, no lock-in.

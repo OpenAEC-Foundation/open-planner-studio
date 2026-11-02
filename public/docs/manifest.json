@@ -2,6 +2,14 @@
   "version": 2,
   "articles": [
     {
+      "id": "ref-beheerde-linux",
+      "title": {
+        "nl": "Beheerde Linux-sessie",
+        "en": "Managed Linux session"
+      },
+      "kind": "referentie"
+    },
+    {
       "id": "howto-relaties-leggen",
       "title": {
         "nl": "Relaties leggen",

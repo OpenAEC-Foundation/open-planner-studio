@@ -19,9 +19,19 @@ if (mode === 'recovery') {
     const path = `/proc/${pids[i]}/task/${pids[i]}/children`;
     if (existsSync(path)) pids.push(...readFileSync(path, 'utf8').trim().split(/\s+/).filter(Boolean).map(Number));
   }
-  const pss = pids.reduce((total, pid) => total + Number(readFileSync(`/proc/${pid}/smaps_rollup`, 'utf8').match(/^Pss:\s+(\d+)/m)?.[1] ?? 0), 0);
+  let rssFallback = 0;
+  const pss = pids.reduce((total, pid) => {
+    try { return total + Number(readFileSync(`/proc/${pid}/smaps_rollup`, 'utf8').match(/^Pss:\s+(\d+)/m)?.[1] ?? 0); }
+    catch {
+      // Een niet-dumpbaar sandboxproces laat smaps niet lezen; benoem de ruimere RSS-terugval.
+      const path = `/proc/${pid}/status`;
+      if (!existsSync(path)) return total;
+      rssFallback++;
+      return total + Number(readFileSync(path, 'utf8').match(/^VmRSS:\s+(\d+)/m)?.[1] ?? 0);
+    }
+  }, 0);
   assert.ok(pss > 0);
-  writeFileSync(join(out, 'geheugen.md'), `Geheugen zonder geopend bestand: **${(pss / 1024).toFixed(1)} MiB PSS** (${pids.length} processen, gedeelde pagina's proportioneel geteld).\n`);
+  writeFileSync(join(out, 'geheugen.md'), `Geheugen zonder geopend bestand: **${(pss / 1024).toFixed(1)} MiB** (${pids.length} processen, PSS; RSS-terugval voor ${rssFallback} processen zonder leesbare smaps).\n`);
 } else {
   const url = `http://127.0.0.1:${process.env.OPENAEC_MCP_POORT}/mcp`;
   const authorization = `Bearer ${process.env.OPENAEC_MCP_GEHEIM}`;
@@ -68,8 +78,37 @@ if (mode === 'recovery') {
   if (mode === 'idle') assert.equal(tasks.data.total, 0, 'rustmeting vereist een sessie zonder bestand');
   else {
     assert.ok(tasks.data.total > 0, 'startbestand is niet via de normale openroute geladen');
-    const changed = await tool('planner_add_tasks', { tasks: [{ tempId: 'tmp-sigterm', name: marker, duration: 1 }] });
+    const seed = 'Checkpoint-voor-SIGTERM-753';
+    const added = await tool('planner_add_tasks', { tasks: [{ tempId: 'tmp-sigterm', name: seed, duration: 1 }] });
+    assert.equal(added.ok, true, JSON.stringify(added));
+    // Eerst een bewezen periodieke snapshot; de volgende bewerking valt dan binnen de 10s-throttle.
+    let checkpoint = false;
+    for (let i = 0; i < 40; i++) {
+      if (existsSync(process.env.XDG_DATA_HOME)) {
+        checkpoint = walk(process.env.XDG_DATA_HOME).filter(p => p.endsWith('.ifc'))
+          .some(p => readFileSync(p, 'utf8').includes(seed));
+      }
+      if (checkpoint) break;
+      await delay(100);
+    }
+    assert.ok(checkpoint, 'periodieke herstelopslag leverde geen eerste checkpoint');
+    // De echte Ctrl+S-route schrijft buiten HOME naar OPENAEC_MAP, zonder de MCP-padgrens te verruimen.
+    execFileSync('wtype', ['-M', 'ctrl', '-k', 's', '-m', 'ctrl']);
+    const source = join(process.env.OPENAEC_MAP, 'plannen/proef é.ifc');
+    let saved = false;
+    for (let i = 0; i < 40; i++) {
+      saved = readFileSync(source, 'utf8').includes(seed);
+      if (saved) break;
+      await delay(100);
+    }
+    assert.ok(saved, 'Ctrl+S heeft het startbestand in OPENAEC_MAP niet opgeslagen');
+    const listed = await tool('planner_list_tasks', { limit: 1000 });
+    const task = listed.data.tasks.find(t => t.name === seed);
+    assert.ok(task);
+    const changed = await tool('planner_update_tasks', { updates: [{ id: task.id, fields: { name: marker } }] });
     assert.equal(changed.ok, true, JSON.stringify(changed));
+    const current = await tool('planner_list_tasks', { limit: 1000 });
+    assert.ok(current.data.tasks.some(t => t.name === marker), 'de laatste taakbewerking moet werkelijk zijn toegepast');
   }
   writeFileSync(join(out, `${mode}-mcp.txt`), `OK MCP-authenticatie, Origin-weigering en ${tasks.data.total} taken\n`);
 }

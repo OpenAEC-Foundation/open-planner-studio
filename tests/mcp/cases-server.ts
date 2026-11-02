@@ -462,6 +462,7 @@ test('stop wacht op de lopende tool voordat SIGTERM herstelopslag mag starten', 
   const stopping = controller.stop().then(() => { stopped = true; });
   await Promise.resolve();
   assert(!stopped, 'stop mag de lopende tool niet inhalen');
+  assert(!fake.invokeCalls.some(call => call.cmd === 'mcp_bridge_stop'), 'native stop wacht ook op de lopende tool');
   assertEq(fake.handlerCount('mcp://request'), 0, 'nieuwe requests zijn al afgemeld');
   release();
   await stopping;
