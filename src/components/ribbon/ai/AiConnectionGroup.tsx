@@ -111,7 +111,7 @@ export function AiConnectionGroup() {
         type="number"
         value={port}
         disabled={portLocked}
-        title={portLocked ? t('ai.portLockedHint') : undefined}
+        title={!managedConnection && portLocked ? t('ai.portLockedHint') : undefined}
         onChange={e => onPortChange(e.target.value)}
         className="!text-body"
         style={{ ...fieldStyle, width: 80, opacity: portLocked ? 0.6 : 1 }}
