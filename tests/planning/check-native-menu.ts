@@ -12,8 +12,9 @@ class FocusedInput {
   dataset: Record<string, string> = {};
   isConnected = true;
   blurs = 0;
+  onBlur?: () => void;
   closest() { return null; }
-  blur() { this.blurs++; }
+  blur() { this.blurs++; this.onBlur?.(); }
   focus() { /* Alleen focusherstel; geen nagebootste tekstgeschiedenis. */ }
 }
 g.HTMLElement = FocusedInput;
@@ -79,6 +80,32 @@ useAppStore.setState({ recalculate: () => { calculations++; } });
 runNativeShortcut('file.recalculate');
 assert.equal(input.blurs, 2);
 assert.equal(calculations, 1);
+
+// Native Opslaan als volgt de productie-sneltoets: commit eerst, lees daarna de verse store.
+// De blur schrijft dezelfde duurwijziging als een veld dat pas bij focusverlies commit.
+const setDuration = (duration: number) => {
+  const current = S().tasks.find(t => t.id === task)!;
+  S().updateTask(task, { time: { ...current.time, scheduleDuration: duration } });
+};
+setDuration(5);
+input.onBlur = () => { setDuration(7); };
+let savedDuration: number | undefined;
+useAppStore.setState({ saveFileAs: async () => {
+  savesAs++;
+  savedDuration = S().tasks.find(t => t.id === task)!.time.scheduleDuration;
+} });
+runNativeShortcut('file.saveAs');
+assert.equal(input.blurs, 3, 'Opslaan als commit het actieve invoerveld');
+assert.equal(savesAs, 2, 'Opslaan als voert de opslagactie precies één keer uit');
+assert.equal(savedDuration, 7, 'Opslaan als leest de gecommitteerde duur, niet de oude 5');
+
+// De wachtende-vraagpoort blijft sterker dan de invoeruitzondering voor Opslaan als.
+useAppStore.setState(s => ({ ui: { ...s.ui, pendingActualStartQuestion: {} as NonNullable<typeof s.ui.pendingActualStartQuestion> } }));
+runNativeShortcut('file.saveAs');
+assert.equal(input.blurs, 3);
+assert.equal(savesAs, 2);
+useAppStore.setState(s => ({ ui: { ...s.ui, pendingActualStartQuestion: null } }));
+input.onBlur = undefined;
 Object.defineProperty(document, 'activeElement', { value: null, configurable: true });
 runNativeShortcut('nav.reportTab');
 assert.equal(S().ui.activeRibbonTab, 'report', 'Rapport werkt buiten invoer');

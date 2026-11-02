@@ -14,8 +14,11 @@ export type NativeShortcutId = typeof NATIVE_SHORTCUT_IDS[number];
 
 export function runNativeShortcut(id: NativeShortcutId): void {
   if (isGlobalShortcutFrozen()) return;
-  const entry = SHORTCUTS.find(shortcut => shortcut.id === id);
-  if (!entry) return;
+  const shortcut = SHORTCUTS.find(shortcut => shortcut.id === id);
+  if (!shortcut) return;
+  // Opslaan als mag vanuit invoer, net als Cmd+Shift+S in de productie-voorpoort.
+  // Het dev/test-register laat die toets bewust niet toe; native menu's volgen productie.
+  const entry = id === 'file.saveAs' ? { ...shortcut, allowInInput: true } : shortcut;
   const target = document.activeElement;
   const typing = isTypingTarget(target, {
     key: entry.combo.key, ctrlKey: false, metaKey: !!entry.combo.mod,
