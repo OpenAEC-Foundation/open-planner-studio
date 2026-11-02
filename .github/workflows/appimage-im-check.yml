@@ -12,6 +12,23 @@ on:
       - '.github/workflows/appimage-im-check.yml'
       - '.github/workflows/release.yml'
       - 'scripts/check-appimage-im-modules.sh'
+      - '.github/workflows/openaec-linux-smoke.yml'
+      - 'packaging/linux-test/**'
+      - 'scripts/check-openaec-linux.sh'
+      - 'scripts/openaec-linux-probe.mjs'
+      - 'scripts/release-checksums*'
+      - 'src-tauri/**'
+      - 'src/utils/linuxEnvironment.ts'
+      - 'src/hooks/useLinuxEnvironment.ts'
+      - 'src/hooks/useUpdateCheck.ts'
+      - 'src/services/updater/updaterService.ts'
+      - 'src/services/fileAccess/tauriBackend.ts'
+      - 'src/services/appQuit/managedShutdown.ts'
+      - 'src/services/mcp/server.ts'
+      - 'src/hooks/useAiAutostart.ts'
+      - 'src/hooks/useSettingsBootstrap.ts'
+      - 'src/utils/settingsStore.ts'
+      - 'tests/planning/check-managed-linux.ts'
   workflow_dispatch:
 
 permissions:
@@ -48,7 +65,16 @@ jobs:
 
       # Zonder updater-artefacten: die vragen de signeersleutel, en die is hier niet nodig.
       - name: Build AppImage
-        run: npm run tauri -- build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}'
+        run: |
+          set +e
+          npm run tauri -- build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}' > appimage-build.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> appimage-build.log
+          tail -n 80 appimage-build.log
+          exit "$code"
+
+      - name: Native contracttests voor OpenAEC Linux
+        run: cargo test --manifest-path src-tauri/Cargo.toml linux_environment
 
       - name: Verify AppImage input-method modules
         run: |
@@ -65,3 +91,16 @@ jobs:
           path: src-tauri/target/release/bundle/appimage/*.AppImage
           retention-days: 7
           if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: appimage-build-log
+          path: appimage-build.log
+          retention-days: 7
+
+  openaec-linux:
+    needs: appimage
+    uses: ./.github/workflows/openaec-linux-smoke.yml
+    with:
+      appimage-artifact: appimage-im-check

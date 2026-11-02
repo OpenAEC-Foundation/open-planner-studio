@@ -1,0 +1,61 @@
+name: OpenAEC Linux AppImage
+
+# Dezelfde proef op het PR-artifact en op de echte, nog ongepubliceerde release-AppImage.
+on:
+  workflow_call:
+    inputs:
+      appimage-artifact:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.appimage-artifact }}
+          path: appimage
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Checksumregressie en SHA256SUMS van het ongepubliceerde AppImage-artifact
+        run: |
+          node --test scripts/release-checksums.test.mjs
+          node scripts/release-checksums.mjs appimage
+          (cd appimage && sha256sum --check SHA256SUMS)
+      - name: Testomgeving bouwen (geen productimage of publicatie)
+        run: docker build -t ops-linux-test packaging/linux-test
+      - name: AppImage onder Wayland als gewone gebruiker, zonder GPU of netwerk
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/openaec-linux
+          chmod 777 test-results/openaec-linux
+          APPIMAGE="$(find appimage -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE"
+          set +e
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --shm-size 256m \
+            --tmpfs /tmp:rw,nosuid,nodev,size=1g \
+            -v "$PWD:/src:ro" -v "$PWD/test-results/openaec-linux:/output:rw" \
+            ops-linux-test "/src/$APPIMAGE" /output > test-results/openaec-linux/proef.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> test-results/openaec-linux/proef.log
+          cat test-results/openaec-linux/proef.log
+          exit "$code"
+      - name: Geheugenmeting bij de run zetten
+        run: cat test-results/openaec-linux/geheugen.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: openaec-linux-bewijs
+          path: test-results/openaec-linux/
+          if-no-files-found: error
+          retention-days: 7

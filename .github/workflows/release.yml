@@ -320,6 +320,15 @@ jobs:
           test -n "$APPIMAGE" || { echo "::error::geen AppImage gebouwd" >&2; exit 1; }
           bash scripts/check-appimage-im-modules.sh "$APPIMAGE"
 
+      - name: AppImage klaarzetten voor de OpenAEC Linux-proef
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
       # tauri-action notariseert en stapelt alleen de app; de dmg eromheen wordt
       # alleen gesigneerd (en is hierboven al zo naar de draft geüpload). Daarom
       # notariseren en stapelen we de dmg zelf, met dezelfde API-key.
@@ -639,12 +648,18 @@ jobs:
           test -f "$ASSET"
           gh release upload "$VERSION" "$ASSET" --clobber --repo "$REPO"
 
+  openaec-linux:
+    needs: build-linux-mac
+    uses: ./.github/workflows/openaec-linux-smoke.yml
+    with:
+      appimage-artifact: release-appimage
+
   publish-release:
     timeout-minutes: 20
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [create-release, build-linux-mac, build-windows, build-mcpb]
+    needs: [create-release, build-linux-mac, build-windows, build-mcpb, openaec-linux]
 
     steps:
       - uses: actions/checkout@v5
@@ -655,6 +670,24 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+
+      - name: OpenAEC Linux-geheugenmeting downloaden
+        uses: actions/download-artifact@v4
+        with:
+          name: openaec-linux-bewijs
+          path: openaec-linux-bewijs
+
+      - name: Geheugen zonder bestand aan de releasenotes toevoegen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/release-notes.mjs "$VERSION" --format=body > release-body.md
+          printf '\n\n### OpenAEC Linux\n\n' >> release-body.md
+          cat openaec-linux-bewijs/geheugen.md >> release-body.md
+          gh release edit "$VERSION" --repo "$REPO" --notes-file release-body.md
 
       # Het `notes`-veld in latest.json is wat de updater-dialoog toont op het
       # moment dat de update wordt aangeboden. tauri-action laat het leeg, dus
@@ -706,6 +739,17 @@ jobs:
             echo "::error::verify-release.mjs gaf exit $status; de release blijft een draft"
             exit 1
           fi
+
+      - name: SHA256SUMS van de gecontroleerde releasebestanden maken
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/release-checksums.mjs "$RUNNER_TEMP/assets"
+          (cd "$RUNNER_TEMP/assets" && sha256sum --check SHA256SUMS)
+          gh release upload "$VERSION" "$RUNNER_TEMP/assets/SHA256SUMS" --repo "$REPO" --clobber
 
       - name: Publish release
         id: publish-release
