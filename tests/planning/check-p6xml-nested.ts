@@ -86,7 +86,7 @@ eq('6f B1030 eindmijlpaal', [byCode('B1030')?.isMilestone, byCode('B1030')?.mile
 eq('6g toewijzing op B1020', r.assignments[0]?.taskId, byCode('B1020')?.id);
 
 // (7) Rekenprofiel blijft OPS (besluit B28), ook voor echte P6 XML.
-eq('7 rekenprofiel', r.suggestedProfileId, 'ops');
+eq('7 rekenprofiel (P6 XML rekent als P6, #775)', r.suggestedProfileId, 'p6');
 
 // (8) Eigen round-trip: schrijven (P6-vorm: objecten binnen <Project>) → lezen geeft dezelfde aantallen en voortgang.
 function roundTrip(src: ImportResult): ImportResult {

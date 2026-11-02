@@ -245,9 +245,10 @@ for (const fmt of [MSPDI, P6XML]) {
     eq(`(1) ${tag}: ook na de laadgrens`, weekFields(loaded), WEEK_WANT);
     const solved = solve(load(fmt.read(weekText)));
     eq(`(1) ${tag}: A eindigt do 4 jun 16:00`, byName(solved, 'A')?.time.earlyFinish, '2026-06-04T16:00');
-    // B: 0,5 d dagenmaat is de helft van de vrijdag van 6 u (3 u); C: 240 min urenmaat is 4 u.
-    eq(`(1) ${tag}: B na FS 0,5 d dagenmaat vr 10:00, C na FS 240 min vr 11:00`,
-      [startOf(solved, 'B'), startOf(solved, 'C')], ['2026-06-05T10:00', '2026-06-05T11:00']);
+    // B: 0,5 d dagenmaat is de helft van de vrijdag van 6 u (3 u); C: 240 min urenmaat is 4 u. Een P6 XML opent
+    // met het P6-profiel, net als een XER (#775); daar telt de dagenmaat als urenmaat (zie (3)): B ook om 11:00.
+    eq(`(1) ${tag}: B na FS 0,5 d dagenmaat vr ${isMsp ? '10:00' : '11:00 (P6-profiel)'}, C na FS 240 min vr 11:00`,
+      [startOf(solved, 'B'), startOf(solved, 'C')], [isMsp ? '2026-06-05T10:00' : '2026-06-05T11:00', '2026-06-05T11:00']);
     const again = fmt.write(loaded);
     eq(`(1) ${tag}: tweede ronde dezelfde standaardvelden en records`,
       [['B', 'C', 'D'].map(s => fmt.lagOf(again, 'A', s)), ['B', 'C', 'D'].map(s => fmt.record(again, s, 'lags'))],
@@ -323,16 +324,23 @@ for (const fmt of [MSPDI, P6XML]) {
       eq(`(5) ${tag} lagkalender ${label}: terug als 0,5 d`, lagFields(seqByPair(read, 'A', 'B')), { lagDays: 0.5 });
       // Review #585 r1, punt 1: de lagkalender komt mee terug, dus de tweede export schrijft dezelfde lengte
       // en de doorrekening geeft dezelfde start van B.
-      eq(`(5) ${tag} lagkalender ${label}: de optie komt terug`, read.project.schedulingOptions?.lagCalendar, lagCalendar);
+      // P6 XML leest de optie uit <ScheduleOptions> zoals een XER uit SCHEDOPTIONS (#775): de standaard komt
+      // daar expliciet terug als 'predecessor', en het bestand opent met het P6-profiel.
+      eq(`(5) ${tag} lagkalender ${label}: de optie komt terug`, read.project.schedulingOptions?.lagCalendar,
+        isMsp ? lagCalendar : lagCalendar ?? 'predecessor');
       const loaded = load(read);
       eq(`(5) ${tag} lagkalender ${label}: tweede export dezelfde lengte`, fmt.lagOf(fmt.write(loaded), 'A', 'B'), fmt.lagOf(text, 'A', 'B'));
-      eq(`(5) ${tag} lagkalender ${label}: doorgerekend dezelfde start van B`, startOf(solve(loaded), 'B'), startOf(solve(p), 'B'));
+      eq(`(5) ${tag} lagkalender ${label}: doorgerekend dezelfde start van B`, startOf(solve(loaded), 'B'),
+        startOf(solve(isMsp ? p : withProfile(p, 'p6')), 'B'));
       // Zonder de optie in het bestand (een ander programma liet het veld weg): het record past alleen nog
-      // als de voorganger dezelfde minuten geeft. Anders wint het standaardveld, in de urenmaat.
+      // als de voorganger dezelfde minuten geeft. Anders wint het standaardveld, in de urenmaat. P6 XML draagt
+      // de optie op twee plaatsen (de UDF en <ScheduleOptions>, #775); zonder optie mist hij in allebei. Zonder
+      // <ScheduleOptions> geldt de profielstandaard (voorganger), zoals bij een XER zonder SCHEDOPTIONS-rij.
       const stripped = isMsp
         ? text.replace(/<ExtendedAttribute>\s*<FieldID>188744011<\/FieldID>\s*<Value>[^<]*<\/Value>\s*<\/ExtendedAttribute>/, '')
-        : text.replace(/<UDF>\s*<TypeObjectId>900000006<\/TypeObjectId>\s*<TextValue>[^<]*<\/TextValue>\s*<\/UDF>/, '');
-      ok(`(5) ${tag} lagkalender ${label}: opzet zonder optie`, lagCalendar === undefined ? stripped === text : stripped !== text);
+        : text.replace(/<UDF>\s*<TypeObjectId>900000006<\/TypeObjectId>\s*<TextValue>[^<]*<\/TextValue>\s*<\/UDF>/, '')
+          .replace(/<ScheduleOptions>[\s\S]*?<\/ScheduleOptions>/, '');
+      ok(`(5) ${tag} lagkalender ${label}: opzet zonder optie`, lagCalendar === undefined && isMsp ? stripped === text : stripped !== text);
       const strippedRead = fmt.read(stripped);
       eq(`(5) ${tag} lagkalender ${label}: zonder optie de lengte uit het standaardveld`, lagFields(seqByPair(strippedRead, 'A', 'B')),
         minutes === 240 ? { lagDays: 0.5 } : { lagDays: 0, lagMinutes: minutes });

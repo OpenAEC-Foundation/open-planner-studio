@@ -254,6 +254,7 @@ check-p6xml-open-notice.ts matrix
 check-p6xml-project-code.ts matrix
 check-p6xml-writer-labels.ts matrix
 check-p6xml-writer-p6.ts matrix
+check-p6xml-xer-parity.ts matrix
 check-paste-references.ts matrix
 check-placement-load.ts matrix
 check-print-bar-moments.ts matrix
