@@ -98,6 +98,28 @@ const bbox = (pts: [number, number][]) => {
   const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   return { x1: Math.min(...xs), x2: Math.max(...xs), y1: Math.min(...ys), y2: Math.max(...ys) };
 };
+/** Bemonster de uiteindelijke, ondoorzichtige kleur na ALLE vullingen (#598).
+ *  De punt-in-veelhoekregel leest alleen de getekende paden, geen baselineLanes-uitkomst. */
+function visibleColumn(fills: Fill[], x: number, top: number, height: number): (string | null)[] {
+  const contains = (pts: [number, number][], y: number) => {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  return Array.from({ length: 60 }, (_, i) => {
+    const y = top + (i + 0.5) * height / 60;
+    // De laatste vulling wint, precies als bij de Canvas-/PDF-tekenvolgorde.
+    for (let j = fills.length - 1; j >= 0; j--) {
+      if (contains(fills[j].pts, y)) return fills[j].color;
+    }
+    return null;
+  });
+}
+const bandsOf = (...colors: string[]) => colors.flatMap(color => Array<string>(60 / colors.length).fill(color));
+
 // ══ L. De lijnen ═══════════════════════════════════════════════════════════════════════════════
 const near = (a: number, b: number, tol = 1e-6) => Math.abs(a - b) <= tol;
 const laneAt = (lane: { x: number[]; top: number[]; bottom: number[] }, x: number) => {
@@ -262,6 +284,22 @@ const thickness = (lane: { x: number[]; top: number[]; bottom: number[] }, x: nu
       ok(!outside, `A ruit s=${s} w=${w}: geen streep buiten de ruit`);
     }
   }
+}
+// Zichtbaarheid na het over elkaar schilderen, onafhankelijk van de geometrie-orakels.
+{
+  const same = recordPainter();
+  paintBaselineStrip(same.d, [0, 1, 2].map(slot => ({ slot: slot as BaselineSlot, x1: 0, x2: 120 })), [], paintOpts);
+  eq(visibleColumn(same.fills, 60, 100, 6), bandsOf('k0', 'k1', 'k2'),
+    'L zichtbaar: drie gelijke baselines houden elk een derde van de hoogte');
+  const partial = recordPainter();
+  paintBaselineStrip(partial.d, [{ slot: 0, x1: 0, x2: 200 }, { slot: 1, x1: 100, x2: 300 }], [], paintOpts);
+  eq(visibleColumn(partial.fills, 50, 100, 6), bandsOf('k0'), 'L zichtbaar: voor de overlap alleen baseline 0');
+  eq(visibleColumn(partial.fills, 150, 100, 6), bandsOf('k0', 'k1'), 'L zichtbaar: midden in de overlap elk de helft');
+  eq(visibleColumn(partial.fills, 250, 100, 6), bandsOf('k1'), 'L zichtbaar: na de overlap alleen baseline 1');
+  // Halverwege de 24-px-opbouw is het gewicht 0,5 naast een gewicht van 1.
+  // De uiteindelijke kleuren delen de hoogte dus 2:1; bij afbouw is het omgekeerd.
+  eq(visibleColumn(partial.fills, 112, 100, 6), bandsOf('k0', 'k0', 'k1'), 'L zichtbaar: opbouw toont 2:1');
+  eq(visibleColumn(partial.fills, 188, 100, 6), bandsOf('k0', 'k1', 'k1'), 'L zichtbaar: afbouw toont 1:2');
 }
 // ══ M. De rijen uit de schets ══════════════════════════════════════════════════════════════════
 {
@@ -532,6 +570,24 @@ eq(screen[0]?.map(p => [p.base, p.stripes]), [
 eq(screen[1]?.map(p => [p.base, p.stripes]), [
   [P.baseline, [P.baselineCompare1]], [P.baselineCompare2, []],
 ], 'C mijlpaalrij: één gestreepte ruit op de gedeelde datum, één losse ruit');
+
+// Ook de twee echte aanroepers moeten na hun laatste baseline-laag alle drie kleuren tonen.
+{
+  const identical = [{ slot: 1 as const, overlay: overlay0 }, { slot: 2 as const, overlay: overlay0 }];
+  for (const [label, fills] of [
+    ['scherm', renderScreen([bar], overlay0, identical)],
+    ['afdruk', renderPrint([bar], overlay0, identical).fills],
+  ] as const) {
+    const mine = fills.filter(f => BASE_COLORS.has(f.color) && f.pts.length >= 3);
+    eq(mine.length, 3, `C zichtbaar ${label}: drie baseline-vullingen opgenomen`);
+    const boxes = mine.map(f => bbox(f.pts));
+    const top = Math.min(...boxes.map(b => b.y1));
+    const bottom = Math.max(...boxes.map(b => b.y2));
+    const x = (Math.min(...boxes.map(b => b.x1)) + Math.max(...boxes.map(b => b.x2))) / 2;
+    eq(visibleColumn(mine, x, top, bottom - top), bandsOf(P.baseline, P.baselineCompare1, P.baselineCompare2),
+      `C zichtbaar ${label}: elke baseline houdt een derde na alle tekenlagen`);
+  }
+}
 
 // ══ D. Baselines met tijd (urentaken) ═════════════════════════════════════════════════════════
 // Een baseline mét tijd staat op haar tijdstip, zoals de taakbalk (`barGeometry`): A 09:00–10:00 en

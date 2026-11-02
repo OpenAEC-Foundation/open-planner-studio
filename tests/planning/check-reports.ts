@@ -458,6 +458,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   // Reviewbevinding ronde 3: het maandlabel is Gregoriaans met Latijnse cijfers in élke taal —
   // zonder de unicode-extensies gaf `fa` "شهریور ۱۴۰۵" naast een ondertitel met 2026.
   {
+    eq('monthLabel: de test draait echt met Nederlands als systeemtaal',
+      new Intl.DateTimeFormat().resolvedOptions().locale.split('-')[0], 'nl');
     const persianDigits = /[\u06F0-\u06F9\u0660-\u0669]/;
     for (const loc of ['nl', 'en', 'fa', 'ar', 'ja', 'zh', 'ko', 'de', 'tr', 'pl']) {
       const label = makeMonthLabeler(loc)('2026-09-01');

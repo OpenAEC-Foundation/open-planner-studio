@@ -57,13 +57,16 @@ const probe = join(probeDir, 'theme-probe.mjs');
 execFileSync(esbuild, [join(root, 'src/utils/settingsStore.ts'), '--bundle', '--platform=node', '--format=esm',
   '--log-level=error', `--alias:@=${join(root, 'src')}`, '--define:import.meta.env.DEV=true',
   '--define:import.meta.env.PROD=false', `--outfile=${probe}`]);
-const probeTheme = (tauri: boolean) => execFileSync(process.execPath, ['--input-type=module', '-e', `
+const probeTheme = (tauri: boolean, theme = 'dark') => execFileSync(process.execPath, ['--input-type=module', '-e', `
   globalThis.localStorage = { getItem: () => 'light', setItem() {}, removeItem() {} };
-  globalThis.window = { location: { search: '?theme=dark' } ${tauri ? ', __TAURI_INTERNALS__: {}' : ''} };
+  globalThis.window = { location: { search: '?theme=${theme}' } ${tauri ? ', __TAURI_INTERNALS__: {}' : ''} };
   const { peekTheme, initTheme } = await import(${JSON.stringify(pathToFileURL(probe).href)});
   console.log(peekTheme() + ',' + await initTheme());`], { encoding: 'utf8' }).trim();
 check(probeTheme(false) === 'dark,dark', `browser-dev: ?theme=dark geeft dark (${probeTheme(false)})`);
 check(probeTheme(true) === 'light,light', `Tauri-dev: ?theme=dark negeert de link, bewaard light blijft (${probeTheme(true)})`);
+check(probeTheme(false, 'high-contrast') === 'high-contrast,high-contrast',
+  `browser-dev: ?theme=high-contrast geeft high-contrast (${probeTheme(false, 'high-contrast')})`);
+check(probeTheme(false, 'paars') === 'light,light', `browser-dev: onbekend ?theme negeert de link (${probeTheme(false, 'paars')})`);
 rmSync(probeDir, { recursive: true, force: true });
 check(/import\.meta\.env\.DEV && !isTauri\(\) &&[^\n]*\n\s*void import\(['"]@\/utils\/devOpenLink['"]\)/
   .test(readFileSync(join(root, 'src/App.tsx'), 'utf8')), 'App.tsx: ?open alleen met DEV en zonder Tauri');

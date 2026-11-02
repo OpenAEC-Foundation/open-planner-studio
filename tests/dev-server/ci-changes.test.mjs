@@ -32,6 +32,26 @@ import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, w
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
+
+test('een leeg label-event kan de laatste echte test-check niet overschrijven (552)', () => {
+  const yaml = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const job = yaml.match(/^  test:\n((?:[ \t]+[^\n]*\n|\n)*)/m)?.[1];
+  assert.ok(job, 'de afsluitende test-job bestaat');
+  // Deze naam gebruikt alleen veldlezingen, strings, ==/!= en &&/||: dezelfde betekenis
+  // in GitHub-expressies en JavaScript. Zonder eigen naam heet de job naar zijn id: test.
+  const expression = job.match(/^    name: \$\{\{ (.+) \}\}\s*$/m)?.[1] ?? "'test'";
+  const name = (eventName, event) => runInNewContext(expression, { github: { event_name: eventName, event } });
+  for (const action of ['opened', 'synchronize', 'reopened']) {
+    assert.equal(name('pull_request', { action }), 'test');
+  }
+  for (const event of ['push', 'schedule', 'workflow_dispatch']) assert.equal(name(event, {}), 'test');
+  assert.equal(name('pull_request', { action: 'labeled', label: { name: 'browsertests' } }), 'test');
+  for (const label of ['bug', 'documentation', 'agent-ticket']) {
+    assert.notEqual(name('pull_request', { action: 'labeled', label: { name: label } }), 'test',
+      `${label}: een overgeslagen lege run moet een andere checknaam hebben`);
+  }
+});
 
 const script = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'ci-changes.mjs');
 

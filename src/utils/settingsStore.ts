@@ -126,7 +126,7 @@ export const THEME_MIGRATION: Record<string, UITheme> = {
 function devSessionTheme(): UITheme | null {
   if (!import.meta.env.DEV || typeof window === 'undefined' || isTauri()) return null;
   const theme = new URLSearchParams(window.location.search).get('theme');
-  return theme === 'light' || theme === 'dark' ? theme : null;
+  return theme === 'light' || theme === 'dark' || theme === 'high-contrast' ? theme : null;
 }
 
 export async function initTheme(): Promise<UITheme> {

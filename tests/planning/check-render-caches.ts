@@ -20,6 +20,7 @@ g.Date = class extends RealDate {
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
 import { readGanttPalette } from '@/engine/renderer/themePalette';
+import { taskSplitSegments } from '@/engine/renderer/splitBarGeometry';
 import type { GanttRenderOptions } from '@/engine/renderer/GanttRenderer';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -157,6 +158,8 @@ function scene(count: number, rowHeight = 28, scrollY = 0, compressed = false, h
   };
 }
 
+let sampledSegments = 0;
+let sampledGaps = 0;
 function hitSnapshot(renderer: GanttRenderer, opts: GanttRenderOptions): string {
   const hits: unknown[] = [];
   // Rand, midden en vlak naast elk zichtbaar balkstuk/gat: dezelfde hit-test als een muisklik.
@@ -169,7 +172,29 @@ function hitSnapshot(renderer: GanttRenderer, opts: GanttRenderOptions): string 
     if (row.kind !== 'task') continue;
     const rect = renderer.getTaskBarRect(row.task.id);
     if (!rect) continue;
-    for (const x of [rect.left - 1, rect.left, rect.left + 1, (rect.left + rect.right) / 2, rect.right - 1, rect.right, rect.right + 1]) {
+    const xs = new Set([rect.left - 1, rect.left, rect.left + 1, (rect.left + rect.right) / 2, rect.right - 1, rect.right, rect.right + 1]);
+    // De volle balk heeft geen meetpunt bij een interne splitrand (#394). Leid de grenzen af
+    // uit taak en kalender, onafhankelijk van de rendercache die de hit-test zelf gebruikt.
+    const segments = taskSplitSegments(row.task, opts.effectiveCalById?.get(row.task.id) ?? opts.calendar,
+      opts.workdayDurationMeasure ?? true);
+    if (row.task.splitGaps?.length && segments && segments.length > 1) {
+      const bounds = segments.map((s, j) => ({
+        left: j === 0 ? rect.left : renderer.dateToX(s.start),
+        right: j === segments.length - 1 ? rect.right : renderer.dateToX(s.end),
+      }));
+      for (const [j, segment] of bounds.entries()) {
+        for (const edge of [segment.left, segment.right]) {
+          for (const offset of [-1, 0, 1]) xs.add(edge + offset);
+        }
+        xs.add((segment.left + segment.right) / 2);
+        sampledSegments++;
+        if (j > 0) {
+          xs.add((bounds[j - 1].right + segment.left) / 2);
+          sampledGaps++;
+        }
+      }
+    }
+    for (const x of [...xs].sort((a, b) => a - b)) {
       const hit = renderer.getTaskBarBounds(x, y);
       const gap = renderer.getSplitGapAt(x, y);
       hits.push([x, y, hit && [hit.task.id, hit.edge, hit.segmentIndex, hit.segmentCount], gap && [gap.task.id, gap.gapIndex, gap.segmentCount]]);
@@ -195,6 +220,8 @@ for (const count of [0, 1]) {
   ok(`rijbereik ${count} rijen: exacte tekenaanroepen`,
     JSON.stringify(rendererFor(opts).log) === JSON.stringify(rendererFor(opts, true).log));
 }
+ok('scrollmatrix bemonstert echte balkstukken', sampledSegments > 0);
+ok('scrollmatrix bemonstert echte interne pauzes', sampledGaps > 0);
 
 // Deterministisch werkbudget, geen tijdsdrempel: buitenbeeldrijen mogen niet alsnog per frame
 // bezocht worden. De losse CI-meting voert dezelfde fixture ook met de echte oude broncode uit.
