@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/perf-snelheid.yml'
       - 'scripts/measure-large-plans*'
+      - 'docs/superpowers/evidence/resource-leveler-performance.mjs'
+      - 'src/engine/scheduler/ResourceLeveler.ts'
+      - 'tests/planning/check-leveler-seam.ts'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +19,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  core:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'perf/snelheid'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      TZ: Europe/Amsterdam
+      BASE_REVISION: ${{ github.event.pull_request.base.sha || '6386f95e6ca28b47c1ded7c085b74a1e15c2d87b' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Kernmeting met exacte voorstel- en CPM-pariteit en CPU-profiel
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          lscpu > evidence/cpu.txt
+          node --cpu-prof --cpu-prof-dir=evidence --cpu-prof-name=leveler.cpuprofile \
+            docs/superpowers/evidence/resource-leveler-performance.mjs \
+            --base "$BASE_REVISION" --sizes 1000,5000,10000 --warmups 2 --repeats 5 \
+            --out evidence/leveler.json 2>&1 | tee evidence/leveler.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nivelleerkern-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
   compare:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'perf/snelheid'
     runs-on: ubuntu-22.04
@@ -54,15 +90,35 @@ jobs:
           lscpu > evidence/cpu.txt
           node --version > evidence/node.txt
           git -C candidate diff --name-only "$BASE_REVISION" HEAD -- src/ > evidence/productwijzigingen.txt
+          cmp baseline/package-lock.json candidate/package-lock.json
+          # Beide productbronnen krijgen exact dezelfde actuele meetwaarnemers.
+          cp candidate/scripts/measure-large-plans.mjs baseline/scripts/measure-large-plans.mjs
       - name: Bestaande grote-planningenroute, drie herhalingen per grootte
         run: |
           set -euo pipefail
           for revision in baseline candidate; do
             (cd "$revision" && npm run measure:large-plans -- \
-              --sizes 1000,5000,10000 --repeats 3 --skip autosave,recovery \
+              --sizes 1000,5000,10000 --repeats 3 --skip autosave,recovery --parity \
               --step-timeout-s 90 --out "$GITHUB_WORKSPACE/evidence/$revision.json") \
               2>&1 | tee "evidence/$revision.log"
           done
+      - name: Eis dezelfde invoer, volledige rekenuitvoer en opgeslagen IFC
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          base, head = [json.loads(Path(f'evidence/{name}.json').read_text()) for name in ('baseline', 'candidate')]
+          for a, b in zip(base['results'], head['results'], strict=True):
+              assert a['size'] == b['size']
+              assert a['dataset']['contentSha256'] == b['dataset']['contentSha256']
+              oracle = a['runs'][0]['parity']
+              assert set(oracle) == {'open', 'f5', 'levelApply', 'savedIfc'}, oracle
+              for run in a['runs'] + b['runs']:
+                  assert not run['notes'] and not run['errors'], run
+                  assert run['parity'] == oracle, (a['size'], run['rep'], run['parity'], oracle)
+                  assert all(run['phases'][phase]['ok'] for phase in ('open', 'scroll', 'zoom', 'f5', 'levelCalculate', 'levelApply', 'save'))
+              print(a['size'], 'taken: alle herhalingen hebben gelijke store-, CPM-, belasting- en IFC-hashes', oracle)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
