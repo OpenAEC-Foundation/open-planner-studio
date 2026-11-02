@@ -434,11 +434,13 @@ eq('133 side succ SS ⇒ start', externalSourceSide('successor', 'SS'), 'start')
 eq('134 side succ FF ⇒ finish', externalSourceSide('successor', 'FF'), 'finish');
 eq('135 side succ SF ⇒ finish', externalSourceSide('successor', 'SF'), 'finish');
 
-/** Brontaak met expliciete vroege datums (het anker leest earlyStart/earlyFinish, §4.5). */
-function srcTask(id: string, es: string, ef: string): Task {
+/** Brontaak met expliciete vroege en late datums. Een externe voorganger leest de vroege datum, een
+ *  externe opvolger de late (besluit van Ethan, 2026-11-02; `sourceAnchorDate`). */
+function srcTask(id: string, es: string, ef: string, ls = es, lf = ef): Task {
   const t = mkTask(id, 1);
   t.time.earlyStart = es; t.time.scheduleStart = es;
   t.time.earlyFinish = ef; t.time.scheduleFinish = ef;
+  t.time.lateStart = ls; t.time.lateFinish = lf;
   return t;
 }
 function extLink(
@@ -449,10 +451,10 @@ function extLink(
 }
 
 // (b) refreshExternalAnchors: elk relType leest de juiste brontaak-datum + zet sourceMissing=false.
-const SRC_ES = '2026-06-05', SRC_EF = '2026-06-08';
+const SRC_ES = '2026-06-05', SRC_EF = '2026-06-08', SRC_LS = '2026-06-12', SRC_LF = '2026-06-15';
 const source: ExternalSourceDoc = {
   projectId: 'SRC', filePath: '/tmp/src.ifc', projectName: 'Bronproject',
-  tasks: [srcTask('X', SRC_ES, SRC_EF)],
+  tasks: [srcTask('X', SRC_ES, SRC_EF, SRC_LS, SRC_LF)],
 };
 const refX = (): ExternalLink['sourceRef'] => ({ projectId: 'SRC', taskId: 'X' });
 const localMulti: Task = mkTask('L', 3, {
@@ -473,10 +475,10 @@ eq('136 ververs pred FS ⇒ bron.earlyFinish', byId.get('p-fs')!.anchorDate, SRC
 eq('137 ververs pred FF ⇒ bron.earlyFinish', byId.get('p-ff')!.anchorDate, SRC_EF);
 eq('138 ververs pred SS ⇒ bron.earlyStart', byId.get('p-ss')!.anchorDate, SRC_ES);
 eq('139 ververs pred SF ⇒ bron.earlyStart', byId.get('p-sf')!.anchorDate, SRC_ES);
-eq('140 ververs succ FS ⇒ bron.earlyStart', byId.get('s-fs')!.anchorDate, SRC_ES);
-eq('141 ververs succ SS ⇒ bron.earlyStart', byId.get('s-ss')!.anchorDate, SRC_ES);
-eq('142 ververs succ FF ⇒ bron.earlyFinish', byId.get('s-ff')!.anchorDate, SRC_EF);
-eq('143 ververs succ SF ⇒ bron.earlyFinish', byId.get('s-sf')!.anchorDate, SRC_EF);
+eq('140 ververs succ FS ⇒ bron.lateStart', byId.get('s-fs')!.anchorDate, SRC_LS);
+eq('141 ververs succ SS ⇒ bron.lateStart', byId.get('s-ss')!.anchorDate, SRC_LS);
+eq('142 ververs succ FF ⇒ bron.lateFinish', byId.get('s-ff')!.anchorDate, SRC_LF);
+eq('143 ververs succ SF ⇒ bron.lateFinish', byId.get('s-sf')!.anchorDate, SRC_LF);
 eq('144 ververs: alle 8 sourceMissing=false', (refreshed.tasks[0].externalLinks ?? []).every(l => l.sourceMissing === false), true);
 eq('145 ververs: refreshed-teller = 8', refreshed.refreshed, 8);
 eq('146 ververs: brontaak-naam gecanonicaliseerd', byId.get('p-fs')!.sourceRef.taskName, 'X');

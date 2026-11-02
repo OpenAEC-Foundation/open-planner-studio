@@ -6,7 +6,7 @@ Doel: een taak in dit project koppelen aan een taak in een ander projectbestand,
 
 Je aanbouw kan pas beginnen als het terrein bouwrijp is, en dat werk staat in het project van de aannemer. Of de installateur kan pas aan de slag als jouw ruwbouw klaar is, en hij plant in zijn eigen bestand. Een gewone relatie werkt alleen tussen taken in hetzelfde project. Een **externe relatie** verbindt een taak met een taak in een ander bestand.
 
-Een externe relatie rekent niet live met het andere project mee. De app slaat een vaste **ankerdatum** op: de datum van de externe taak op het moment van koppelen. De berekening gebruikt die datum als grens. Verandert het andere project, dan schuift er bij jou niets mee totdat je het anker vernieuwt.
+Een externe relatie rekent niet live met het andere project mee. De app slaat een vaste **ankerdatum** op: een datum van de externe taak op het moment van koppelen. Bij een externe voorganger is dat de geplande datum, bij een externe opvolger de laatste datum die het andere project toelaat. De berekening gebruikt die datum als grens. Verandert het andere project, dan schuift er bij jou niets mee totdat je het anker vernieuwt.
 
 ## Stappen
 
@@ -20,7 +20,7 @@ Een externe relatie rekent niet live met het andere project mee. De app slaat ee
 Welke datum je bij een handmatige koppeling als anker invult, hangt af van de richting en het type:
 
 - Bij een externe **voorganger** telt de eerste letter van het type: F betekent de einddatum van de externe taak, S de startdatum. Bij FS en FF vul je dus het einde in, bij SS en SF de start.
-- Bij een externe **opvolger** telt de tweede letter: S is de startdatum van de externe taak, F de einddatum. Bij FS en SS vul je dus de start in, bij FF en SF het einde.
+- Bij een externe **opvolger** telt de tweede letter: S is de start van de externe taak, F het einde. Vul de laatste datum in die het andere project toelaat: bij FS en SS de *Laatste start* van de externe taak, bij FF en SF haar *Laatste einde*.
 
 Plan je in uren (een taak op een kalender met werktijden), dan vraagt het veld *Ankerdatum* ook een tijdstip.
 
@@ -40,7 +40,7 @@ Voorbeeld: het terreinproject eindigt vrijdag 18 juni 2027. Je koppelt *Grondwer
 
 **Een externe voorganger is een ondergrens.** Begint je taak door zijn eigen voorgangers later dan het anker eist, dan wint die relatie. Het anker duwt alleen.
 
-**Een externe opvolger is een bovengrens.** Is het anker te krap, dan zie je dat als negatieve speling op je taak en de taken ervoor. Er komt geen aparte waarschuwing bij, dus let op de kolom *Totale speling*.
+**Een externe opvolger is een bovengrens.** Als anker neemt de app de *Laatste start* of het *Laatste einde* van de externe taak, niet de geplande datum. Zo telt de speling die de externe taak in haar eigen project heeft ook bij jou mee, net als in Primavera P6 met beide projecten open. Voorbeeld: *Installatie* staat gepland op maandag 1 maart 2027 en mag uiterlijk op maandag 15 maart beginnen. Je ruwbouw heeft een externe opvolger van type FS naar *Installatie*. Dan krijgt de ruwbouw 10 werkdagen speling, niet 0. Heeft het bronbestand geen late datums, of is die kant van de externe taak al gebeurd (begonnen of klaar), dan neemt de app de *Vroegste start* of het *Vroegste einde*. Wil je toch aan de geplande datum vasthouden, zet dan een deadline of een constraint op je taak. Is het anker te krap, dan zie je dat als negatieve speling op je taak en de taken ervoor. Er komt geen aparte waarschuwing bij, dus let op de kolom *Totale speling*.
 
 **Alleen een vaste lag.** Voor een externe relatie kun je geen lag in kalenderdagen of procenten opgeven; de app zegt *Externe relaties ondersteunen alleen een vaste lag in werkdagen of werktijd.* De werkdagen en de werktijd tellen in de kalender van je eigen taak. Een lag in uren telt bij elke taak, ook bij een taak in dagen: 2 uur na een anker om 07:00 is 09:00. Een breuk mag, bijvoorbeeld `0,5d`.
 

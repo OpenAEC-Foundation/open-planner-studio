@@ -1205,6 +1205,15 @@ en noem het in je rapport of PR-tekst.
      de benchmark (`runner.ts`) krijgen ook `leafTasksForSolve`. Een terugval naar een kale bladfilter op een van
      die plekken merkt de test niet op. Later: breid de test uit met een fase met een externe voorganger, via de
      store-acties nivelleren en *Project verplaatsen*. Uit de review van #792, ronde 1 (Sol). — S
+837. **"Bron vernieuwen" vindt een taak in een MSPDI-bron nooit terug.** De MSPDI-lezer geeft elke taak bij elk
+     inlezen een nieuw willekeurig id (`generateId('task')` in `mspdiReader.ts`), en het project ook. Een externe
+     koppeling bewaart het taak-id van de keer dat je hem legde (`sourceRef.taskId`); bij het volgende inlezen
+     bestaat dat id niet meer. De bron wordt wel gevonden (op het bestandspad), maar de koppeling krijgt
+     *Bron ontbreekt* en het anker blijft staan. Gezien in een test bij #794: vier koppelingen naar een MSPDI-bron
+     gaven `{ refreshed: 0, missing: 4 }`. Hetzelfde patroon staat in `mppReader.ts`, `p6xmlReader.ts` en
+     `csvReader.ts` (niet nagespeeld). Een IFC-bron (id uit `OPS_TaskIdentity` of de GlobalId) en een XER-bron hebben
+     er geen last van. Oplossing: een vast id per bron-UID, of in `linkMatchesSource`/`refreshExternalAnchors` ook
+     op een bron-sleutel (UID, naam) matchen. — B (MSPDI), S (`.mpp`, P6 XML, CSV)
 
 ## Rondleiding, Help en extensie-gidsen
 
