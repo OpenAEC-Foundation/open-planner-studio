@@ -78,13 +78,13 @@ export interface ScheduleSlice {
   levelingInput: (options: LevelingOptions) => LevelingInput | null;
   /** Commit een nivelleerresultaat: één undo-snapshot, schrijf `levelingDelay`s + `splitGaps`
    *  (idempotent — reset eerst álles binnen de scope, dan de nieuwe waarden) en her-draai CPM.
-   *  `write` is precies wat de verdeler levert (`Pick<LevelingResult, 'delays' | 'gaps'>`) — een
+   *  `write` is precies wat de verdeler levert (`Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>`) — een
    *  volle `LevelingResult` is hieraan toewijsbaar, dus bestaande aanroepers (LevelingDialog, MCP)
    *  blijven ongewijzigd werken. Met `opts.scopeTaskIds` (scope-behoudend toepassen) raken alleen
    *  de gescopete taken hun delay/gaten kwijt; taken buiten de scope zijn vaste last waarop het
    *  voorstel gerekend heeft en blijven ongemoeid. Afwezig ⇒ alle taken worden gereset. */
   applyLeveling: (
-    write: Pick<LevelingResult, 'delays' | 'gaps'>,
+    write: Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>,
     opts?: { scopeTaskIds?: string[] },
   ) => void;
   /** "Nivellering wissen": één undo-snapshot, zet alle `levelingDelay` terug op undefined,
@@ -331,10 +331,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     set((s) => {
       runtime.beginUndoable(s);
       // Scope-behoudend toepassen: de verdeler nivelleert per POOLITEM, dus een delay op een taak
-      // buiten de scope is VASTE LAST waarop het voorstel gerekend heeft. De nivelleerder rekent in
-      // hele werkdagen, dus de sub-dag-precisie van de VORIGE nivellering vervalt hier bewust —
-      // zichtbaar gebruikersverlies, geteld voor de melding hieronder. Zie `writeLevelingResult` in
-      // taskDefaults.ts.
+      // buiten de scope is VASTE LAST waarop het voorstel gerekend heeft. Nieuwe minuutvertragingen
+      // volgen het voorstel; alleen een voorstel zonder minutenprecisie verliest de oude
+      // sub-dag-precisie, geteld voor de melding hieronder. Zie `writeLevelingResult` in taskDefaults.ts.
       roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);
       // Wél de stale-vlag: dit is een datum-rakende mutatie, en `stale` is het signaal
       // waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat — in dezelfde producer

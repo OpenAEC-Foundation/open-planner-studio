@@ -1374,13 +1374,17 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (!task?.externalLinks || index < 0) return;
       found = true;
       const current = task.externalLinks[index];
-      const next: ExternalLink = { ...link, id: linkId };
-      if (sameExternalLink(current, next)) return;
+      // De no-op-toets leest dezelfde momenten als de write; een datum zonder tijd kan
+      // immers precies het al opgeslagen begin/einde van de taakwerkdag betekenen.
+      const next = normalizeTaskDates({
+        ...task,
+        externalLinks: task.externalLinks.map((candidate, candidateIndex) => (
+          candidateIndex === index ? { ...link, id: linkId } : candidate
+        )),
+      }, s);
+      if (sameExternalLink(current, next.externalLinks![index])) return;
       runtime.beginUndoable(s);
-      task.externalLinks = task.externalLinks.map((candidate, candidateIndex) => (
-        candidateIndex === index ? next : candidate
-      ));
-      Object.assign(task, normalizeTaskDates(task, s));
+      Object.assign(task, next);
       runtime.finishMutation(s, { stale: true });
       changed = true;
     });

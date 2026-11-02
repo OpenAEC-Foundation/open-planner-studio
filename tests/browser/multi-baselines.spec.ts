@@ -283,6 +283,21 @@ test('meerdere baselines: het menu past in het venster bij 30 baselines; de lijs
   expect(await compared(page)).toEqual([last, null]);
   const itemBox = (await item.boundingBox())!;
   expect(itemBox.y + itemBox.height).toBeLessThanOrEqual(hint.y + 1);
+
+  // Knownbug 448: Escape werkt vanuit het paneel en geeft focus aan het onderste knopdeel.
+  await item.focus();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator('[data-ops-baseline-menu-toggle]')).toBeFocused();
+
+  // Knownbug 452: ook onder de vroegere minimumhoogte van 120 px blijven kop en voet zichtbaar.
+  await page.setViewportSize({ width: 1280, height: 240 });
+  await page.locator('[data-ops-baseline-menu-toggle]').click();
+  await expect(menu).toBeVisible();
+  const lowHint = (await page.locator('[data-ops-baseline-menu-hint]').boundingBox())!;
+  expect(lowHint.y + lowHint.height).toBeLessThanOrEqual(240);
+  await item.click();
+  expect(await compared(page)).toEqual([null, null]);
 });
 
 test('meerdere baselines: resource-accent en baselines samen, licht en donker (alleen met OPS_QA_SHOTS)', async ({ browser }) => {

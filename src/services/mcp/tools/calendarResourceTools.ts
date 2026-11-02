@@ -51,7 +51,7 @@ import { markDocumentEdited } from '@/state/documentEdited';
 import type { ClearableProjectKey } from '@/state/projectPatch';
 import { holidayIssue, ISO_DATE_ONLY } from '@/utils/holidayRange';
 import {
-  calendarScalarBreakIssue, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
+  calendarScalarBreakIssue, effectiveWorkTimeBands, simpleBreakNetHours, simpleBreakPatch, type ScalarBreakIssue,
 } from '@/utils/effectiveWorkTime';
 
 /**
@@ -934,14 +934,15 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
       // Een lege lijst wist de werkende uitzonderingen; afwezig (niet `[]`) is de opslagvorm van de lezers.
       if (item.workingExceptions?.length === 0 && existing.workingExceptions !== undefined) dropKeys.push('workingExceptions');
 
-      // Een expliciete urentaak bewaart haar minuten onafhankelijk van de kalender. Zonder concrete
-      // banden kan de solver die minuten echter niet langs werkende tijd plaatsen. Weiger daarom
-      // vóór de mutatie: een rollback achteraf zou een halve kalenderwijziging kunnen laten lekken.
+      // Een urentaak heeft effectieve werkblokken nodig; die mogen ook uit de scalaire kalender
+      // volgen. Toets de uiteindelijke kalender vóór de mutatie, inclusief verwijderde sleutels.
       if (dropKeys.includes('workTime')) {
         const state = ctx.app.store.getState();
+        const resultingCalendar = { ...existing, ...updates };
+        for (const key of dropKeys) delete resultingCalendar[key];
         const hasAffectedHourTask = state.tasks.some((task) => task.time.durationUnit === 'hours'
           && (task.calendarId ?? state.calendar.id) === plan.targetId);
-        if (hasAffectedHourTask) {
+        if (hasAffectedHourTask && !effectiveWorkTimeBands(resultingCalendar)) {
           throw new McpStepError(
             'VALIDATION',
             `cannot remove concrete work blocks: calendar '${plan.targetId}' is used by an hour task`,

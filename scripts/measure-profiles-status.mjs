@@ -102,22 +102,34 @@ export function classifyP6({ exit, lines, strict = false }) {
   return red(`exit ${exit} zonder herkende faalregel`);
 }
 
-/** Aantal gescande `.mpp`-bestanden uit de `. [corpus|crawl] N bestand(en) gescand`-regels. */
-export function mppScannedFiles(lines) {
-  let total = 0;
+/** Dekking per effectieve wortel; een ontbrekende of lege lus is geen volledige meting. */
+function mppScannedRoots(lines) {
+  const roots = { corpus: 0, crawl: 0 };
   for (const line of lines) {
-    const match = line.match(/^\s+\. \[(?:corpus|crawl)\] (\d+) bestand\(en\) gescand$/);
-    if (match) total += Number(match[1]);
+    const match = line.match(/^\s+\. \[(corpus|crawl)\] (\d+) bestand\(en\) gescand$/);
+    if (match) roots[match[1]] += Number(match[2]);
   }
-  return total;
+  return roots;
+}
+
+/** Totaal gescande `.mpp`-bestanden, onafhankelijk van de dekking per wortel. */
+export function mppScannedFiles(lines) {
+  return Object.values(mppScannedRoots(lines)).reduce((sum, count) => sum + count, 0);
 }
 
 /** MS Project-oordeel: fail-closed — nul gescande bestanden is "niet gemeten", dus rood. */
 export function classifyMsp({ exit, lines }) {
   const failures = failureLines(lines);
-  const scanned = mppScannedFiles(lines);
+  const roots = mppScannedRoots(lines);
+  const scanned = roots.corpus + roots.crawl;
   const ok = lines.some((line) => line.startsWith('OK  mpp-fidelity: alle checks groen'));
   if (scanned === 0) return { status: 'ROOD (niet gemeten)', pass: false, failures, scanned };
-  if (exit === 0 && ok) return { status: 'GROEN', pass: true, failures, scanned };
-  return { status: `ROOD (${failures.length} faalregel(s))`, pass: false, failures, scanned };
+  if (exit !== 0 || !ok || failures.length > 0) {
+    return { status: `ROOD (${failures.length} faalregel(s))`, pass: false, failures, scanned };
+  }
+  const skipped = Object.keys(roots).filter(root => roots[root] === 0);
+  if (skipped.length > 0) {
+    return { status: `ROOD (gedeeltelijk gemeten: ${skipped.join(', ')} overgeslagen)`, pass: false, failures, scanned };
+  }
+  return { status: 'GROEN', pass: true, failures, scanned };
 }

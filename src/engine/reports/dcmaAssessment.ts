@@ -7,7 +7,7 @@ import { solveProject, cloneTasksForSolve } from '@/engine/scheduler/solveProjec
 import type { ProjectSolveOptions } from '@/engine/scheduler/solveInput';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import { isTaskActualPastStatusDate } from '@/engine/taskMutationRules';
-import { effHoursPerDay, effectiveCalendarOf } from '@/utils/taskDuration';
+import { effHoursPerDay, effectiveCalendarOf, taskDurationMinutes } from '@/utils/taskDuration';
 import { parseDate } from '@/utils/dateUtils';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import {
@@ -310,7 +310,13 @@ export function computeDcmaAssessment(ctx: ReportContext, logic: LogicIndex): Dc
     metrics.push(na(7, 'negativeFloat', floatNorm7, 'notCalculated'));
   }
   metrics.push(percentMetric(8, 'highDuration', { kind: 'maxPercent', value: MAX_PERCENT },
-    count(t => (baseMap.get(t.id)?.duration ?? durationDays(ctx, t)) > DCMA_DAYS), n));
+    count(t => {
+      const baselineDuration = baseMap.get(t.id)?.duration;
+      if (baselineDuration !== undefined) return baselineDuration > DCMA_DAYS;
+      const calendar = effectiveCalendarOf(t, ctx.calendar, ctx.calendars as WorkCalendar[]);
+      // Toets in minuten; het voortgangsgewicht durationDays rondt al op een tiende dag af.
+      return taskDurationMinutes(t, calendar) > DCMA_DAYS * effHoursPerDay(calendar) * 60;
+    }), n));
 
   const invalidNorm: DcmaNorm = { kind: 'maxPercent', value: 0 };
   if (!ctx.statusDate || !statusDay) {

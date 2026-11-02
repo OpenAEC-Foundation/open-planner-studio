@@ -193,42 +193,12 @@ en noem het in je rapport of PR-tekst.
      die afwijkt wel, maar niet een tweede kopie die mee verandert. Voorstel: één gedeelde functie voor de
      spanwijdte, en de afronding per dag gelijk aan die van de Gantt. Gevonden in F3c-fix-split. — B
 
-266. **Na een eenheidswissel op een lopende taak heeft de rest ruis van de drijvende komma.**
-     `durationEditProgress` (`src/engine/work/workRuleApply.ts:953`) rekent de rest als nieuwe duur ×
-     (1 − nieuw percentage). Een werktijdtaak van 2 d, 25 % gereed, met een nieuwe duur van 12 u (onder P6
-     en MSP ook "1,5d") krijgt zo 720 × (1 − 1/3) = 480,00000000000006 min in plaats van 480. De motor legde
-     het einde daardoor net voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Gemeten in
-     fixronde 4 van #584. Sinds fixronde 7 van #591 rekenen de kalenderwandelingen in hele ms, en is het einde
-     di 16:00; de vier rijen zijn uit `KNOWN_DRIFT` in `tests/planning/check-f4b-review-r3.ts`. De ruis in de
-     rest zelf is niet weggenomen (die fix raakt `durationEditProgress` niet; niet opnieuw gemeten). Voorstel:
-     de rest als nieuwe duur − verricht rekenen. — B
-
 317. **Bij een FINISH-mijlpaal vraagt de voortgangsinvoer om een werkelijke start.**
      `src/engine/progressEntry.ts:104` gebruikt een vaste `'start'`-kant. Voorbeeld: FINISH-mijlpaal do 06:00,
      het einde van de dienst wo 22:00–do 06:00, status wo, alleen 100 % invoeren: `planProgressEntry` weigert
      met `needsActualStart`, en de MCP-update weigert ook. Hetzelfde bij do 00:00 op een 24-uurskalender. Een
      ingevuld werkelijk einde werkt wel. Op `main` faalt dezelfde invoer ook. Voorstel: gebruik de bestaande
      mijlpaalkant. Gevonden in review #563 r2, nagespeeld in review r1 van #600. — B
-
-341. **Een maatwissel vervangt een expliciete restduur door de afleiding uit het percentage.**
-     `src/engine/work/workRuleApply.ts:990`: begintoestand 4 d, 50 % gereed, expliciet 1 d rest (toegelaten
-     import- of extensiedata); alleen wisselen naar 32 uur geeft `remainingMinutes = 960` (16 u) in plaats van
-     480 (8 u). De eenheidswisseltak rekent `totaal × (1 − percentage)` en laat de expliciete rest vallen. Undo
-     herstelt, redo verdubbelt opnieuw. Stond al zo op `fbd4a3f9d` (met Urenplanning aan). Voorstel: ook bij een
-     maatwissel de bestaande Δ-restregel in minuten toepassen; het percentage alleen als de expliciete rest
-     ontbreekt. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-343. **De WBS-samenvatting maakt van een halve dag één dag.** `src/engine/reports/wbsSummary.ts:111` rekent de
-    faseduur opnieuw met `workDaysBetween(parseDate(start), parseDate(finish))`. Een fase met één kind van 0,5 d
-    (1 juni 07:00–11:00) krijgt in de store terecht 0,5 d, maar in het WBS-rapport `durationDays: 1` en de kolom
-    toont 1 d. Bij een urentaak van 240 min stond het al zo op `fbd4a3f9d`. Voorstel: de al berekende
-    fasehoeveelheid in de projectkalender lezen. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-344. **DCMA vergelijkt een afgeronde duur met de grens van 44 dagen.** `src/engine/reports/dcmaAssessment.ts:313`
-    via `src/engine/scheduler/summaryProgress.ts:53`: een onvoltooide taak van 44,025 d (21.132 werkminuten; de
-    grens is 21.120) geeft "hoge duur 0/1, pass" in plaats van "1/1, flag", omdat 44,025 vooraf naar 44,0 wordt
-    afgerond. Bij een urentaak stond het al zo op `fbd4a3f9d`. Voorstel: exacte dagen of minuten vergelijken en
-    pas bij de weergave afronden. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
 
 358. **Een gestarte taak op 0 % die naar duur 0 gaat, houdt onder vast werk restwerk.**
      `src/engine/work/workRuleApply.ts:435-437` (`settleDurationEdit`), `durationEditProgress` (`:940`) en
@@ -261,15 +231,6 @@ en noem het in je rapport of PR-tekst.
      in deze vorm blijft staan in plaats van B te vertragen (wacht in `placeUnstartedAlap`, gepind in
      `check-alap-maatplaatsing.ts`). Voorstel: bewaar de startbovengrens bij de projectie naar de
      voorgangerkalender, met de bestaande grenshelpers. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-346. **Een procentlag weegt onder P6/MSP de duur van een dagvoorganger met de lagkalender in plaats van de
-     voorgangerkalender.** `src/engine/scheduler/CPMSolver.ts:1498`. A 1 d op 08:00–16:00 (480 min), B op
-     08:00–18:00 (600 min per dag), SS+50 %, lagkalender opvolger. Verwacht: 50 % van A is 240 min, dus B
-     begint ma 12:00. B begint 13:00: de motor rekent 50 % van 600 min. Met A als urentaak
-     (`durationMinutes` 480) begint B wel 12:00. `resolveLagMinutes` geeft de lagkalender ook aan
-     `durationMinutesOf` voor de duur van de voorganger. Al op `fbd4a3f9d`. Voorstel: reken het percentage
-     uit met de kalender van de voorganger en gebruik de lagkalender alleen voor de verschuiving. Gevonden
-     in de aanval na #600 (GPT-6.1-Sol). — B
 
 361. **Een gestarte ALAP-taak houdt de oude stap in hele werkdagen.** `src/engine/scheduler/CPMSolver.ts:3390`
      en `:3404` (`applyAlap`, de tak na `placeUnstartedAlap`). Kalender ma–vr 08:00–16:00 met een werkende
@@ -334,15 +295,6 @@ en noem het in je rapport of PR-tekst.
      aftrekken vanaf 12:00:00,028 verliest 28 ms, ook op main. Geen getoonde dag verspringt. Voorstel: de loper houdt
      het deel onder de minuut vast over daggrenzen; een gewone dagtaak in de regressie. Gevonden in review ronde 1 van
      #687 (GPT-6.1-Sol). — B
-
-395. **Een positieve duur die op nul ms rondt, is bij een rauw MS Project-werkeinde nog geen nulduur voor de
-     solver.** `src/engine/scheduler/CPMSolver.ts:1281–1284`: de wacht toetst `totalMinutes > 0` en verlegt een rauw
-     werkeinde eerst naar het begin van dezelfde dag; pas daarna behandelt de kalender de lengte als 0. Via de store:
-     MS Project-profiel, ma–vr 08–16, projectstart 1 juni 2026 08:00, worteltaak met eigen start vr 29 mei 16:00 en
-     duur 0,000001 min. Uitkomst: ES vr 16:00, EF vr 08:00 (een omgekeerde spanne), LS vr 16:00, speling 0. Een
-     letterlijke nulduur houdt ES en EF op vr 16:00. Op main dezelfde omgekeerde vroege spanne, plus LS do 16:00 en
-     −480 min speling; #694 veroorzaakt of verergert dit niet. Voorstel: de wacht toetst de lengte na de
-     ms-omzetting (`CalendarEngine.walkMs`). Gevonden in review ronde 1 van #694 (GPT-6.1-Sol). — B
 
 399. **Een contourperiode na een split-gat korter dan een halve ms kan een fantoomoverbezetting geven.**
      `src/engine/scheduler/workPlacement.ts` (`placementResidueAxis`): de rest buiten de afgeronde spanne loopt op de
@@ -414,22 +366,20 @@ en noem het in je rapport of PR-tekst.
      `earlyFinish === earlyStart` en staat in `cappedTaskIds`. Zo was het ook vóór F6; er is geen check voor.
      Voorstel: de lege week vastleggen in `check-schedule-errors.ts` en kiezen tussen dezelfde melding of de
      huidige cap. Gevonden in de review van #733 (Sol, ronde 1, 2026-10-29). — B
-589. **Nieuw materiaal kan ten onrechte de reden Resource opleveren.** `src/engine/scheduler/shiftExplanation.ts:179`
-     gebruikt de resources van vóór de vorige berekening. Een later aangemaakte materiaalresource ontbreekt daarin, en
-     `src/engine/work/workRuleApply.ts:595` behandelt die als arbeidsresource. Taak onder `FIXED_RATE`, tien dagen, één
-     arbeidsresource; handmatig verkort naar vijf dagen; nieuwe materiaalresource toegewezen: F5 meldt `resource` met
-     beide resources. De planning zelf blijft correct. Voorstel: geef geen reden Resource als een toegevoegde resource
-     ontbreekt in de vorige basis; gebruik dan `unknown`. Gevonden in de review van #752 (GPT-6.1-Sol). — B
+802. **Een nivelleervoorstel toepassen duurt bij 10.000 taken ruim twee seconden.** De bestaande
+     `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC 7763,
+     Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte klik op *Toepassen* tot de Gantt klaar is:
+     2.072,9 ms mediaan (2.057,0–2.095,9 ms, drie herhalingen). Dit is afzonderlijk van het maken van
+     het voorstel; de wijziging voor 800 richt zich alleen op dat laatste. Voorstel: eerst de
+     store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
+     [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
 
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B
 16. **Taken kopiëren** heeft geen zichtbare bediening; alleen Ctrl+C/V met de Gantt in focus. — B
 17. **Verwijderen zonder bevestiging**: `confirm.deleteTask` staat in de locales maar wordt nergens gebruikt. — S
-
-241. **Hetzelfde externe anker opnieuw invoeren als datum zonder tijd geeft een extra undo-stap en zet
-     de planning op verouderd.** `updateExternalLink` vergelijkt het ruwe anker, niet het genormaliseerde.
-     Gevonden in fixronde 1 van F2 (laadfix). — B
 
 281. **De motor rondt een externe lag in minuten nog af op hele dagen, maar alleen in dagmodus.** De invoer
      houdt sinds fixronde 1 van F4b de breuk ("0,5d" is een halve werkdag, ook bij een externe relatie;
@@ -597,21 +547,11 @@ en noem het in je rapport of PR-tekst.
      (`WorkTimeEditor.tsx:60–67`). Voorstel: dit ene geval als vaste uitkomst in sectie 8h, met de echte
      celeditor. — B
 
-448. **Lintmenu's sluiten niet met Escape.** De gedeelde `Popover` (`src/components/common/Popover.tsx`) sluit
-    alleen bij een klik buiten het menu (`useClickOutside`); Escape doet niets. Dat geldt voor elk lintmenu
-    dat `Popover` gebruikt, ook het menu *Toon in de Gantt* van Baseline-overlay (PR #403). Gezien in
-    `tests/browser/multi-baselines.spec.ts` (2026-10-20). Voorstel: Escape in `Popover` laten sluiten en
-    de focus terugzetten op de trigger. — B
 449. **Menu *Toon in de Gantt*: de toetsenbordfocus gaat niet het menu in.** Enter of ArrowDown op het pijltje
     van Baseline-overlay opent het menu, maar de focus blijft op de trigger, en de `menuitemcheckbox`-regels
     kennen geen pijltjesbediening (`src/components/layout/Ribbon/BaselineOverlaySplitButton.tsx`, geen
     focus- of toetsafhandeling). Vervolgpunt uit review ronde 1 van PR #403 (GPT-6.1-Sol). Voorstel: focus
     naar het eerste vinkje bij openen, pijltjes omhoog/omlaag, terug naar de trigger bij sluiten. — B
-583. **Scrollen verplaatst het paneel niet mee.** `src/components/common/Popover.tsx:102` volgt
-    vensterwijzigingen en paneelgrootte, maar geen scrollgebeurtenissen. Bij horizontaal scrollen komt het
-    menu los van zijn knop. Bestond al op main. Kleinste oplossing: sluit het paneel wanneer zijn
-    scrollcontainer verschuift. VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol),
-    2026-10-31. — B
 584. **`Ribbon.css` heeft onnodige regeleindewijzigingen.** `src/components/layout/Ribbon/Ribbon.css:1`: 894
     regels toegevoegd en 816 weg, terwijl 78 regels inhoudelijk zijn. Herstel de oorspronkelijke regeleinden.
     VERVOLG [BEVESTIGD] uit review #701 op `d13d4637a` (GPT-6.1-Sol), 2026-10-31. — B
@@ -620,15 +560,6 @@ en noem het in je rapport of PR-tekst.
     y=50 tot 52 in plaats van 55, dus het stuk verliest zijn strookhoogte. Vervolgpunt uit review ronde 1 van
     PR #403 (GPT-6.1-Sol). Voorstel: de straal begrenzen zonder de hoogte te verliezen (rechte kant bij
     smalle stukken). — B
-451. **Een baseline met een lege start breekt het bereik.** `baselineReach` (`src/types/baseline.ts`) slaat
-    een niet-datum over: `{start: '', finish: '2026-07-01'}` bij taken in oktober geeft `earliest: null`, dus
-    tijdas-oorsprong en rapportbereik nemen die baseline niet mee. De tekenfunctie valt wel terug. Vervolgpunt
-    uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: dezelfde terugvalregel als de tekenfunctie. — B
-452. **`Popover` met `fitViewport` loopt in een laag venster toch buiten beeld.** De hoogte heeft een vloer van
-    120 px (`src/components/common/Popover.tsx`, `Math.max(120, …)`); bij 30 baselines in 1280×240 eindigt
-    de voetregel van het menu *Toon in de Gantt* op y=247. Vervolgpunt uit review ronde 2 van PR #403
-    (GPT-6.1-Sol). Voorstel: de vloer laten vallen als er minder ruimte is, of het menu boven de trigger
-    openen. — B
 453. **Een baseline-ruit op de rapportgrens wordt gehalveerd.** In de afdruk (`printPreview.ts`) is de ruit
     van een baselinemijlpaal op het begin van het tijdvenster maar half te zien (mijlpaal op
     2026-10-20T00:00 bij een rapport vanaf 20 oktober). Vervolgpunt uit review ronde 2 van PR #403
@@ -651,12 +582,6 @@ en noem het in je rapport of PR-tekst.
     bereik, voor de losse overlay (`baselineOverlay`) en in de lagen (`buildBaselineLayers`). Geen
     gedragsfout, alleen opruimwerk. Vervolgpunt uit review ronde 2 van PR #403 (GPT-6.1-Sol). Voorstel: één
     opbouw, de rest afleiden uit de lagen. — B
-458. **De onderste punt van een baselineruit reageert niet op de hover.** Bij rijhoogte 32 en kophoogte 60 ligt
-    het ruitmidden op y=89,1 met halve diagonaal 4; de ruit loopt tot y=93,1, maar de rij eindigt op y=92.
-    Op (11,25; 92,7) ligt de muis in de getekende ruit, maar `getBaselineAt` (`GanttRenderer.ts`) zoekt
-    via de rij-index al in de volgende rij en geeft `null`. Vervolgpunt uit review ronde 5 van PR #403
-    (GPT-6.1-Sol). Voorstel: vormen die uit de aangrenzende rij steken ook als hitkandidaat nemen, zonder
-    de balkgeometrie te veranderen. — B
 593. **Typen-om-te-bewerken stuurt de eerste letter langs de invoermethode.** Een gekozen cel in selectiemodus
     is geen tekstveld, dus de webview zet de invoermethode (IBus, Fcitx, IME) uit. De eerste toets komt als kale
     letter binnen, `resolveTaskGridCommand` (`src/engine/taskGrid/navigation.ts:148`) opent er de editor mee, en
@@ -665,23 +590,6 @@ en noem het in je rapport of PR-tekst.
     eerste letter zo ook buiten de compositie. Gezien met v2026.44.0 (deb) en IBus Unikey onder Xvfb (issue
     #764). Omweg: eerst F2, Enter of dubbelklik, dan typen. Voorstel: in selectiemodus een verborgen tekstveld
     focussen dat de compositie opvangt (zoals spreadsheets doen); raakt het focusmodel en de toegankelijkheid. — B
-594. **Enter en Escape in de celeditor kijken niet naar compositie.** `GridEditorHost.tsx` (`onKeyDown`) legt bij
-    Enter vast en breekt bij Escape af, ook tijdens een IME-compositie. In Chromium (Windows-app, webversie)
-    heeft die keydown `key === 'Enter'` met `isComposing`; een Japanse of Chinese gebruiker die met Enter een
-    kandidaat kiest, sluit dan de cel. WebKitGTK geeft bij een toets die de invoermethode afhandelt
-    `key 'Unidentified'`, keyCode 229 (gemeten met Unikey), dus Linux raakt dit waarschijnlijk niet. Niet getest
-    in Chromium met een echte IME. Voorstel: `event.nativeEvent.isComposing || keyCode === 229` overslaan, zoals
-    `useDialogKeys.ts` al doet. — S
-595. **VERVOLG: de PR-check `appimage-im-check.yml` kan groen zijn terwijl de modules ontbreken.** De stap *Verify
-     AppImage input-method modules* (`.github/workflows/appimage-im-check.yml:57`) heeft geen `shell:` en draait dus
-     met `bash -e` zonder `pipefail`; `| tee` bepaalt dan de exitcode. Het script direct met een ontbrekend bestand
-     geeft exit 1, via de pipeline met `tee` exit 0 ondanks `::error::`. De releasecontrole in `release.yml` gebruikt
-     geen pipeline en faalt wel. Voorstel: `set -o pipefail` in de stap, of `| tee` weghalen. Gevonden in de review
-     van #772 (GPT-6.1-Sol). — B
-596. **VERVOLG: knownbugs 594 beschrijft `useDialogKeys.ts` te ruim.** 594 zegt "zoals `useDialogKeys.ts` al doet"
-     met `isComposing || keyCode === 229`. `useDialogKeys.ts:98` beschermt alleen Enter met `isComposing`; Escape
-     niet, en 229 staat nergens. De ontbrekende bescherming in `GridEditorHost.tsx:36` klopt wel. Voorstel: de tekst
-     van 594 preciezer maken. Gevonden in de review van #772 (GPT-6.1-Sol). — B
 597. **VERVOLG: een hoge tooltip van de statusbalk kan helemaal onder het venster vallen.** De ⋯-knop
      (`src/components/layout/StatusBar/StatusBar.tsx:155`) zet alle verborgen teksten in één tooltip.
      `src/components/common/Tooltip.tsx:234` zet een tooltip alleen boven het element als hij daar helemaal past.
@@ -695,16 +603,20 @@ en noem het in je rapport of PR-tekst.
      één vertraagde fontload toevoegen aan het bestaande scenario. Gevonden in ronde 2 van de review van #762
      (GPT-6.1-Sol). — B
 
+722. **Escape sluit meerdere lagen tegelijk bij geneste menu's of een dialoog boven een menu.**
+     De handler in `src/components/common/Popover.tsx:93` hangt aan `document` en controleert niet
+     welke laag de toets bezit. In de compacte groep Baselines: open het buitenste paneel, open
+     daarin de tweede `RibbonDropdown` en druk Escape; beide panelen verdwijnen. Ook: open een
+     menu, druk Ctrl+/ en daarna Escape; zowel de dialoog als het onderliggende menu sluiten.
+     Op de oude bron bleef dat menu staan. Bevestigd in Sols reviewronde 1 op `12812c103`
+     (GPT-6.1-Sol, xhigh); VERVOLG, geen BLOKKEERT. Voorstel voor later: behandel Escape alleen
+     in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
+     In deze PR uitsluitend geregistreerd, niet gebouwd. — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
     altijd gegenereerd. — B
-462. **Een nachtband en een werkende uitzondering op de dag erna tellen dubbel.** Kalender met vrijdag
-    22:00–06:00 (`workTime`, band tot minuut 1800) en een werkende zaterdaguitzondering 00:00–24:00: `CalendarEngine`
-    telt op zaterdag 1.800 werkminuten, terwijl de dag er maar 1.440 heeft (de ochtendstaart van vrijdag en de
-    uitzondering overlappen 00:00–06:00). Nagespeeld met `workMinutesBetween(za, zo)` = 1800. De XER-schrijver
-    (`xerWriter.ts`, `workOnDate`) verenigt de banden tot 1.440, zonder melding; zie de vervolgpunten van PR #393
-    (punt G). Voorstel: overlappende banden in de engine verenigen. — B
 466. **Een scalaire OPS-kalender komt na XER-export en heropenen terug als urenkalender, en rekent dan anders.**
     De XER-lezer leest kalenders met de gewone regels (`xerCalendarData.ts`, gelijk aan main): elke kalender met
     banden in `clndr_data` wordt een urenkalender (`workTime`). Een kalender die in OPS alleen begin, einde en
@@ -721,6 +633,17 @@ en noem het in je rapport of PR-tekst.
     review punt B van PR #393. De export meldt het wel: de verliesregel `calendarKinds` noemt het aantal
     kalenders (review ronde 3, punt 1). Het besluit (wachten op F6, of een markering op kalendernaam) ligt bij de
     eigenaar. — B
+
+700. **Eén volledig bedekte dag schakelt de snelle dagtelling voor de hele kalender uit.**
+     `src/engine/scheduler/CalendarEngine.ts:1078` laat `measureLikeWorkDays` voor de hele kalender
+     onwaar blijven zodra één werkdag volledig door een nachtstaart is bedekt. Daardoor tellen
+     `nthMeasureWorkday` en `measureWorkdaysInRange` (`:1098`, `:1123`) ook ver buiten die uitzondering
+     dag voor dag. Een nachtuitzondering uit juni 2026 laat zo ook een afstand tussen 2027 en 2037
+     over 3.659 dagrecords lopen; met gevulde caches wordt die daglus per aanroep opnieuw doorlopen.
+     Dit vertraagt lange berekeningen van duur en speling. Voor later: verwerk volledig bedekte
+     uitzonderingsdagen als gerichte correctie op de weektelling en behoud het snelle pad voor
+     gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
+     in review ronde 2 van PR #787 op `a032c00ad`. — B
 
 ## Bibliotheek, bezetting, extensies, AI
 
@@ -748,15 +671,6 @@ en noem het in je rapport of PR-tekst.
     er komt geen undo-stap, maar `shifts` meldt taak 1.2 `oldStart 2026-03-16 → newStart 2026-03-09` (het
     verschil tussen opgeslagen en herberekend). Een agent leest dat als effect van de nivellering. Dat `dryRun`
     hetzelfde meldt, is afgeleid (zelfde preview), niet nagespeeld. — B
-85. **Dezelfde voortgang geeft in één `planner_batch` een ander resultaat dan in losse calls.** Binnen een
-    batch rekent `recomputeMidBatch` alleen vóór een lees- of levelstap (`batchTool.ts:~320`), dus tussen
-    `planner_update_project` (statusdatum) en `planner_update_tasks` niet: de voortgang ziet de geplande
-    datums van vóór de statusdatum. Nagespeeld via de echte dispatcher (netwerk en datums als bij 81, alleen
-    percentages, geen datums): batch ⇒ Grondwerk werkelijk 7–11 juni, Fundering storten (50%) gestart op 10
-    juni, projecteinde donderdag 24 juni (+1); losse calls ⇒ Grondwerk werkelijk 11–11 juni, Fundering
-    storten geweigerd (geplande start na de statusdatum), projecteinde vrijdag 25 juni (+2). Met expliciete
-    werkelijke datums zijn beide routes gelijk (23 juni, +0). Voorstel: na een statusdatumwijziging binnen
-    een batch tussentijds herrekenen, of 81 oplossen zodat de afleiding niet van de route afhangt. — B
 88. **Feestdagen gegenereerd vóór de taken dekken een lang project niet.** Zonder rekenresultaat geeft
     `calendarSpan` geen projecteinde door en neemt `computeGenerateSpan` startjaar−1 t/m startjaar+3
     (`calendarResourceTools.ts:~585`, `generateCalendarHolidays.ts:~62`). Nagespeeld: start 7 juni 2027,
@@ -799,22 +713,6 @@ en noem het in je rapport of PR-tekst.
      `minuteModelPending: true`; na de timer staat B op 9 maart en is de vlag uit. Alleen met synchrone
      oproepen gereproduceerd. Richting: annuleer de lopende verlaatberekening bij historieherstel.
      Review ronde 2 van PR #559, deel B. — B
-
-257. **Type en commentaar van `applyLeveling` noemen de minuutvertraging niet.** `scheduleSlice.ts:69-72` en
-     `createMcpTransactions.ts:958` typen het voorstel als `Pick<LevelingResult, 'delays' | 'gaps'>`. Sinds F3c
-     draagt het voorstel ook `delayMinutes`, en `writeLevelingResult` (`utils/taskDefaults.ts`) schrijft die als
-     `levelingDelayMinutes`. Alle aanroepers geven het volledige resultaat door, dus de minuten komen aan. Een
-     aanroeper die zelf een object bouwt, verliest ze zonder typefout. Het commentaar in `applyLeveling`
-     (`scheduleSlice.ts:243`) zegt nog dat de nivelleerder in hele werkdagen rekent. Voorstel: `'delayMinutes'`
-     in beide types en het commentaar bijwerken. Gevonden bij F3c deel 3, alleen in de code gezien. — S
-
-259. **Een handmatig geplande taak krijgt een nivelleervertraging die de solver negeert.** De nivelleerder
-     behandelt alleen voltooide en lopende taken als onverplaatsbaar (`ResourceLeveler.ts:445`). De solver houdt
-     een handmatig geplande taak op haar eigen datums en leest geen nivelleervertraging (`CPMSolver.ts:2006`).
-     Na toepassen boekt de nivelleerder de taak dus op een andere plek dan het histogram haar toont.
-     `tests/library/check-distribute.ts` case 18 legt dit vast: vertraging 10, einde schuift 0. Voorstel: een
-     handmatig geplande taak als vaste last behandelen, zoals een lopende taak (dat verandert case 18).
-     Gevonden bij F3c deel 3. — B
 
 215. **Directory-durability bij headless opslaan blijft op Windows en nieuwe bovenmappen beperkt.**
     Linux/macOS synchroniseren nu de doelmap na `rename`, met een expliciete fout als dat mislukt nadat
@@ -878,28 +776,6 @@ en noem het in je rapport of PR-tekst.
     loslaten en verwijderen van een contour, en alle lezers via dezelfde koppelfunctie laten lopen. Gevonden in de
     aanval na #600 (GPT-6.1-Sol). — B
 
-349. **Twee projectresources op hetzelfde bibliotheekitem worden apart tegen dezelfde vrije capaciteit getoetst.**
-    `src/engine/scheduler/ResourceLeveler.ts:1137` (`fits`) vergelijkt de vraag van elke resource afzonderlijk met
-    de restcapaciteit van het poolitem; de som wordt pas daarna geboekt. Bibliotheekitem P heeft capaciteit 1; de
-    projectresources R1 en R2 (elk capaciteit 1) verwijzen allebei naar P. Eén taak vraagt op ma 1 juni 2026 één
-    eenheid van R1 en één van R2. `computeDistribution` geeft `blocked: null` en geen tekort, terwijl
-    `afterLoadByDay` op die dag 2 telt; het restprofiel wordt op 0 geklemd en verbergt de overschrijding.
-    `librarySlice.linkRecognizedItems` laat twee projectresources aan hetzelfde item koppelen, dus deze invoer kan
-    ontstaan. Al op `fbd4a3f9d`. Voorstel: de kandidaatvraag per bibliotheekitem en werkdag optellen vóór de
-    pooltoets, en die som ook bij onderbrekingen gebruiken (`:1058`); de projecttoets blijft daarnaast nodig.
-    Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-350. **Een tussenstap zonder resource maakt een afhankelijke taak te vroeg plaatsbaar.**
-    `src/engine/scheduler/ResourceLeveler.ts:660` telt een taak zonder vraag meteen als geplaatst; de wachtrij
-    (`:718`) wacht daardoor alleen op actieve voorgangers. Kalender ma–vr 08:00–16:00, capaciteit 1. A → M → B
-    met FS+0, elk één werkdag; A heeft prioriteit 500 en resource R, M heeft geen resource, B prioriteit 1000 en
-    resource R. Pin C bezet R op ma 1 juni 2026; D (prioriteit 400) vraagt R op do 4 juni. A moet naar dinsdag,
-    dus M naar woensdag en B naar donderdag. De nivelleerder boekt B al op woensdag, en D krijgt donderdag. Na
-    toepassen en herberekenen staat B ook op donderdag: het histogram telt daar 2 bij capaciteit 1, en
-    `unresolved` is leeg. Al op `fbd4a3f9d`. Voorstel: een actieve taak pas plaatsbaar maken als ook haar
-    transitieve actieve voorgangers via tussenstappen zonder resource geplaatst zijn, binnen de bestaande
-    plaatsingsvolgorde. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
 370. **Nivelleren van een grote planning is nog 2,8 keer trager dan vóór de urenomzetting.** De a12-planning
     (2.000 taken, 400 kraantaken) kostte 546 ms op `fbd4a3f9d`, 14.353 ms op `9a636ec69` en 1.539 ms na de fix
     in #665 (`src/engine/scheduler/ResourceLeveler.ts:309`, `:969`). De kandidaatopbouw per taak is weer
@@ -914,13 +790,6 @@ en noem het in je rapport of PR-tekst.
     `lagUnit: ELAPSEDTIME` staan; de opvolger begint dan ma 8 juni 07:00 in plaats van wo 10 juni. Al op
     `fbd4a3f9d`. Voorstel: de gedeelde `formatLagShort`/`parseLagInput` uit `src/utils/lagFormat.ts` gebruiken,
     en bij een nieuwe lag ook de eenheid schrijven. Gevonden in de aanval na #600 (GPT-6.1-Sol). — B
-
-355. **`planner_update_calendar` met `workTime: null` weigert, ook als de kalender dezelfde werkblokken houdt.**
-    `src/services/mcp/tools/calendarResourceTools.ts:940` weigert zodra een urentaak de kalender gebruikt
-    ("cannot remove concrete work blocks"). Op een gelijkwaardige scalaire kalender (07–16, pauze 12–13) blijft
-    dezelfde urentaak gewoon 07:00–11:00. Al op `fbd4a3f9d`. Voorstel: de uiteindelijke kalender toetsen op
-    geldige effectieve werkblokken, niet op de aanwezigheid van `workTime`. Gevonden in de aanval na #600
-    (GPT-6.1-Sol). — B
 
 362. **Een B5-omzetting bij een latere MCP-call staat niet in het antwoord.** Alleen `planner_import_schedule`
     geeft `minuteModelConversion` mee. Staat de omzetting nog open, dan rekent een volgende leestool
@@ -1034,23 +903,11 @@ en noem het in je rapport of PR-tekst.
     kenmerk alleen-lezen, dan faalt opslaan wel netjes (zelfde check, §1 en §2). Voorstel: bij een doel zonder
     schrijfbit eerst vragen of melden. Een besluit voor de eigenaar. — B
 
-329. **Een mislukte opslag in de herstelronde houdt de installatie van een update niet tegen.**
-    `src/hooks/useAutoSave.ts:72`: de geregistreerde herstelronde vangt opslagfouten zelf af en meldt ze, zonder
-    opnieuw te gooien. Zulke fouten bereiken de blokkade van #589 (stoppen als `flushRecoveryNow()` faalt) dus
-    niet. Dit stond al op `main`. Voorstel: de foutafhandeling van de periodieke auto-save scheiden van het
-    resultaat van een expliciete flush vóór installatie. Gevonden in review r1 van #589 (GPT-6.1-Sol). — B
-
 261. **Recente bestanden in een sandbox-iframe zonder `allow-same-origin` tonen hoogstens het laatst geopende
     bestand, en na herladen niets.** Gezien bij #582. `src/services/fileAccess/recentFiles.ts` gebruikt de
     stille `idb*`-helpers: `loadRecents` leest daar altijd een lege lijst, dus `addRecent` geeft alleen de nieuwe
     regel terug. Geen melding. Alleen in de code nagelopen, niet in de app nagespeeld. Voorstel: in die omgeving
     de lijst in het geheugen houden, of Recent daar verbergen (de site heeft een eigen bestandslijst). — S
-
-330. **Een herstelmanifest `documents` zonder `isDirty` markeert een schoon document als gewijzigd.**
-    `src/services/recovery/recoveryStore.ts:1361`: bij een geaccepteerd `documents`-manifest zonder `isDirty`, en
-    `isDirty: false` in het documentrecord, gaf de basis `false` en geeft de nieuwe expressie `true`. Zeldzaam; het
-    document vraagt dan onnodig om opslaan. Voorstel: bij ontbrekende manifestmetadata terugvallen op
-    `rec.isDirty`, vóór de standaardwaarde `true`. Gevonden in review r1 van #599 (GPT-6.1-Sol). — B
 
 256. **Een kale start op een letterlijke kalender schuift in de ruwe IFC-rondgang naar 07:00.** Kalender
      09:00–17:00 met letterlijke tijden. Een planningsstart zonder tijd wordt in de ruwe route
@@ -1345,6 +1202,15 @@ en noem het in je rapport of PR-tekst.
      koppeling en het weggeschreven bronbestand, en laat `verify-examples.ts` de ids vergelijken. Gevonden in
      review ronde 1 van #738 (GPT-6.1-Sol, met `refreshExternalAnchors` nagespeeld); de ids zelf nagekeken. — B
 
+801. **Een groot IFC-bestand openen kost op de vaste 10.000-takenfixture circa 3,7 seconden.** De
+     bestaande `measure:large-plans`-route meet op bron `6386f95e6`, GitHub `ubuntu-22.04`, AMD EPYC
+     7763, Node 22.23.4 en Chromium 151.0.7922.34 vanaf de echte bestandskeuze tot de Gantt klaar is:
+     3.660,1 ms mediaan (3.635,9–3.668,4 ms, drie herhalingen). Geen vergelijking met de historische
+     kantoor-pc-nulmeting: het betreft een andere runner en een nieuwere bron. Voorstel: deze
+     gebruikersroute eerst uitsplitsen in lezen, importnormalisatie, store en eerste tekening.
+     Ruwe gegevens en [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
+     staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -1481,7 +1347,35 @@ en noem het in je rapport of PR-tekst.
    verdwenen bestanden weg met `rsync --delete`, en een onbekend pad geeft HTTP 200 met de HTML van de app. Voorstel:
    houd beide oude URL's met een HTTP-redirect naar `/agent/planning-guide.md`. Gevonden in de review van #778. — B
 
+832. **VERVOLG: de Help in 26 talen noemt de verwijderde knop Afdruk en de groep Rapportage nog.** In #791
+     ging *Rapport › Afdruk* weg, en alleen de Nederlandse en Engelse Help zijn aangepast. De andere 26 talen
+     beschrijven de knop nog in `public/docs/<taal>/ref-lint.md` (sectie Rapport) en in
+     `public/docs/<taal>/howto-rapport-maken-en-afdrukken.md` (stap 6 en de valkuil over Afdruk en Ctrl+P),
+     bijvoorbeeld `public/docs/de/howto-rapport-maken-en-afdrukken.md:71` en `public/docs/de/ref-lint.md:230`.
+     Voorstel: via de vertaalstraat, vanuit de Nederlandse tekst. Uit de review van #791 (GPT-6.1-Sol, xhigh,
+     op `a60d2491e`, VERVOLG). — B
+
+833. **VERVOLG: de README-afbeelding van het rapportscherm toont de verwijderde knop Print.**
+     `README.md:59` toont `docs/images/readme/report-preview.png`. Daarop staan in het lint nog de knop *Print*
+     en de groep *Report*, die in #791 zijn verwijderd. Voorstel: de afbeelding opnieuw maken als #791 in main
+     zit. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`, VERVOLG). — B
+
 ## Tests
+
+720. **De taakselectiemeting start bij gewone aanvullingen aan de TableEditor-test, maar faalt op een
+     verouderde vaste basis.** `.github/workflows/task-grid-published-selection.yml` neemt elke wijziging
+     aan `tests/browser/table-editor.spec.ts` mee en vergelijkt met `fbd4a3f9d` (versie 2026.43.0).
+     De verplichte `cmp base/package-lock.json head/package-lock.json` faalt op main-versie 2026.44.0,
+     vóór de meetproef begint. Bevestigd op PR #788, head `d6b4f8a04`, run `41449022992`: exit 1 bij
+     byte 56, regel 3. Voorstel: maak de historische prestatiemeting los van het gewone
+     regressiebestand, met een bewust gekozen vergelijkingsbasis en identieke meetfixture. — B
+
+781. **De MPP-meethelper `mppScannedFiles` heeft geen aanroepers meer.**
+     `scripts/measure-profiles-status.mjs:116` exporteert deze functie nog, terwijl
+     `classifyMsp` nu rechtstreeks `mppScannedRoots` gebruikt. Een zoekactie in de
+     repo vindt alleen de functiedefinitie. Vervolg: verwijder de ongebruikte
+     functie met haar commentaar (vier regels). Bevestigd bij de broncontrole en
+     in Sols reviewronde 1 op `13a27c352`; geen blokkerende bevinding. — B
 
 409. **Het pre-paintscript negeert `?theme=` van de dev-link.** Met bewaard `light` en `?theme=dark`
      zet `index.html:31` eerst `data-theme=light`; de store-default (`peekTheme`) is dan `dark`. Na de
@@ -1667,14 +1561,6 @@ en noem het in je rapport of PR-tekst.
      Twee onafhankelijke broncontroles van het register; geen productfixronde.
      — B
 
-394. **De nieuwe scrollmatrix raakt interne randen van gesplitste balken niet gericht.**
-     `tests/planning/check-render-caches.ts:162`: `hitSnapshot` belooft meetpunten bij elk
-     zichtbaar balkstuk en elke pauze. De zeven x-posities komen uit de rechthoek van de
-     volledige balk. Interne segmentranden en pauzes worden daardoor niet afzonderlijk
-     bemonsterd. Voeg die punten toe aan de scrollmatrix voor de renderafhankelijke
-     splitscache. Bestaande splittests controleren zulke punten los van deze matrix.
-     Twee onafhankelijke broncontroles bij PR #643; geen productfout aangetoond. — B
-
 310. **De formaatvergelijking in de headless-servertest ziet een verschuiving binnen een dag niet.**
      `tests/mcp/cases-headless-server.ts:483` (`leafSchedule`) vergelijkt per bladtaak alleen de startdatum
      op dagniveau (`.slice(0, 10)`). Eindmomenten, de maat en exacte minuten vergelijkt de test niet, dus
@@ -1683,24 +1569,6 @@ en noem het in je rapport of PR-tekst.
      eindmomenten vergelijken, een fixture met de nieuwe maatrecords gebruiken, en `runCPM()` vervangen
      door een assert dat het openen al een verse, berekende stand geeft. Gevonden in review ronde 1 van
      PR #590 (GPT-6.1-Sol, VERVOLG). — B
-
-427. **De MS Project-meting eindigt groen als de crawlmap niet gescand wordt, ook in `measure:profiles`.**
-     `tests/planning/check-mpp-fidelity.ts` neemt `OPS_MPP_CORPUS` en `OPS_MPP_CRAWL`, of zonder die variabelen
-     een vast pad onder `/home/nozzit/…` (`:492–493`). Een lus wordt overgeslagen als die effectieve map
-     ontbreekt of geen `.mpp`-bestand bevat (`:715–725`, `:731–741`). Dat staat in tussenregels (`:720`, `:735`),
-     maar de slotregel (`:888`) zegt toch "alle checks groen". Gemeten op aia09-mp50, waar de `/home/nozzit/…`-
-     paden niet bestaan:
-     - Geen van beide variabelen gezet (ook als alleen `OPS_XER_CORPUS` gezet is): 0 bestanden, "alle checks
-       groen (678)", exit 0. `measure:profiles` noemt dit wel rood ("niet gemeten").
-     - Alleen `OPS_MPP_CORPUS` gezet: 3 bestanden, "alle checks groen (703)", exit 0. Ook `classifyMsp` in
-       `scripts/measure-profiles-status.mjs:116–122` geeft dan GROEN (`scanned: 3`). De 658 crawlbestanden,
-       met `timephased-cost-rollup.mpp` (knownbug 187), zijn dan niet gemeten.
-     Op een machine waar de crawl op het vaste pad staat, wordt hij ook zonder `OPS_MPP_CRAWL` gescand. Wie
-     alleen op de slotregel of de exitcode oordeelt, ziet zo een vals groen. De CI draait bewust zonder
-     corpus, dus een faal in de check zelf is niet de oplossing. Voorstel: de slotregel noemt het aantal
-     gescande bestanden en welke lus is overgeslagen; `measure:profiles` meldt een gedeeltelijke meting
-     (een lus overgeslagen) apart en niet als GROEN. Gevonden bij het onderzoek naar 187 en in review ronde 1
-     van #712 (GPT-6.1-Sol), 2026-10-27. — B
 
 429. **De keuze van de eerste bekende hosttaal wordt niet bij een echte start getest.** A13 in
      `tests/planning/check-site-storage.ts:325` toetst alleen de lijst met ruwe taalbronnen van
@@ -1715,12 +1583,6 @@ en noem het in je rapport of PR-tekst.
      niet. Voorstel: de platformroute eerst zonder host en zonder `ops-welcomeSeen` laten starten en controleren
      dat welkom, rondleiding en tutorialvraag dicht blijven. Gevonden in review van #717 (GPT-6.1-Sol),
      2026-10-28. — B
-432. **De regressietest van `monthLabel` dwingt de oorspronkelijke foutconditie niet af.** De nieuwe controles
-     in `tests/planning/check-reports.ts:467–479` erven de taal van het proces, en de CI zet geen niet-Engelse
-     taal (de matrix wisselt alleen tijdzones). Onder een Engelse standaardtaal geven oude en nieuwe code voor
-     `xx-YY` allebei Engels, dus het weghalen van de `supportedLocalesOf`-controle valt niet op. Voorstel: alleen
-     deze batterij één keer extra draaien onder `LANG=nl_NL.UTF-8`, en vooraf controleren dat `Intl` dan echt
-     Nederlands kiest. Gevonden in review van #696 (GPT-6.1-Sol), 2026-10-28. — B
 442. **`tests/browser/gantt-histogram-rtl.spec.ts:153` faalt soms in CI (ar).** De test voegt 30 resources toe
      en klikt meteen op `strip.top + 150` in de kiezer. In run 40854256352 (job `verify (browser 3-4)`) op PR
      #722 bleef `histogramResourceId` daarna `null` in plaats van Resource 05 (time-out van 5 s). De schermafdruk
@@ -1728,12 +1590,6 @@ en noem het in je rapport of PR-tekst.
      `.mpp`-lezer en commentaar; de spec laadt geen `.mpp`. Lokaal op dezelfde kop slaagt de spec 24 van de 24
      keer (`--repeat-each 3`, alle vier talen). Vermoeden, niet bewezen: de klik valt vóór de lijst opnieuw is
      getekend, of de klikhoogte ligt op de rand van een rij. Gevonden bij #722 (2026-10-29). — S
-460. **Twee runs van *Download stats* tegelijk: de tweede publicatie mislukt.** `publish-stats-branch.sh`
-     haalt de top van `stats` op en pusht een opvolger zonder `--force`. Starten een geplande en een handmatige
-     run tegelijk, dan maken ze elk een opvolger van dezelfde top; de tweede push wordt geweigerd en die run
-     wordt rood. Er gaat niets verloren. Voorstel: één vaste `concurrency`-groep in
-     `.github/workflows/download-stats.yml` met `cancel-in-progress: false`. Gevonden in review van #725
-     (GPT-6.1-Sol), 2026-10-29. — B
 461. **Elke run van *Download stats* maakt een commit op `stats`, ook zonder nieuwe cijfers.** `generatedAt`
      (`scripts/download-stats.mjs:248`) verandert elke run, en `publish-stats-branch.sh` vergelijkt de hele
      boom. Met de cron van elke 2 uur zijn dat 12 commits per dag. Voorstel: `generatedAt` buiten de
@@ -1752,13 +1608,6 @@ en noem het in je rapport of PR-tekst.
      Voorstel: vergelijk in deze vaste fixtures de volledige verwachte tijdstippen. Gevonden in review van #654
      (GPT-6.1-Sol), 2026-10-29. — B
 
-473. **`check-gantt-label-ellipsis` bewaakt de naam achter een gewone taak niet meer.** Sinds #731 staat er een
-     samenvatting met dezelfde lange naam en dezelfde balkpositie in de scène, en de zoekactie voor de gewone
-     taak (`tests/planning/check-gantt-label-ellipsis.ts:128`) kijkt niet naar de rij. Valt de buitennaam van
-     een gewone taak weg, dan vindt de check de naam van de samenvatting en blijft hij groen (in de review
-     nagespeeld: 23/23 groen, exit 0). Voorstel: ook de controles voor gewone taken op hun eigen rij filteren,
-     met de rijfilter die de samenvattingscontroles al gebruiken. Gevonden in review van #731 (GPT-6.1-Sol),
-     2026-10-29. — B
 490. **Lint-muiswiel: de poort voor een openstaande vraag heeft geen teststap.** `useRibbonTabWheel.ts`
      wisselt niet als het bewaren van het actieve veld een vraag opent (`isBlockingDialogOpen`). De stap in
      `tests/browser/ribbon-toggles.spec.ts` toetst alleen een duur, en die opent geen vraag. Route die de
@@ -1790,20 +1639,6 @@ en noem het in je rapport of PR-tekst.
      dezelfde twee controles ook na hover, na een klik op Bestand en bij 90% en 125% doen. Zet de controle voor
      het muiswiel in de bestaande route van #732. Gevonden in de review van #737 (GPT-6.1-Sol), 2026-10-29. — B
 
-552. **Een ander label ná afloop zet de check `test` op `skipping`.** Sinds #757 start elk label een run waarin
-     alle jobs overslaan, en `gh pr checks` toont dan die laatste `test`. Gemeten op #757 (`pass` werd `skipping`)
-     en op tijdelijke PR #758 (`fail` werd `skipping`). De echte fout bleef daar zichtbaar: `verify (static)` bleef
-     `fail` en `gh pr checks` bleef exit 1. Alleen een rode `test` zonder eigen rood deel raakt uit beeld. Wordt
-     `test` ooit een verplichte check, kijk dan eerst opnieuw, want GitHub telt een overgeslagen check als
-     geslaagd. Voorstel: de lege run een andere jobnaam geven, of de `labeled`-trigger naar een eigen workflow
-     verplaatsen. — B
-
-553. **Het PR-sjabloon vraagt nog om een groene volledige `npm run verify`.** `.github/pull_request_template.md:16`
-     heeft het vinkje `npm run verify` green, terwijl de gewone PR-CI sinds #757 de browsersuite niet meer
-     draait en agents de volledige poort niet lokaal draaien. Voorstel: het vinkje vragen om groene PR-CI, en bij
-     werk aan slepen, focus, dialogen of opslag om een browserrun. Gevonden in de review van #757 (GPT-6.1-Sol),
-     2026-10-30. — B
-
 561. **De voortgangscurve heeft geen browsertest op de getekende lijnen.** `tests/browser/table-reports.spec.ts`
      kijkt alleen of de vier kaarten en de grafiek er staan; de ligging zelf toetst `check-print-report.ts` op
      `layoutCurveChart` en de PDF-tekenaar. Een fout alleen in de SVG-weergave (`CurveChartView.tsx`) valt zo niet
@@ -1815,16 +1650,22 @@ en noem het in je rapport of PR-tekst.
      `src/engine/reports/progressReport.ts:154` blijft dan `eng.hasOwnWorkBlocks || (moment && eng.isHourMode)`.
      VERVOLG uit de review van #705 (GPT-6.1-Sol, xhigh). — B
 
-598. **VERVOLG: de tekenchecks van de baselinestrook bewaken de gedeelde hoogte onvoldoende.**
-     `tests/planning/check-baseline-vergelijking.ts:223` en `:418` kijken naar de vullingen zelf, niet naar wat na alle
-     tekenlagen zichtbaar blijft. De reviewer gaf in het geheugen elke lijn de volle strookhoogte; dan schildert de
-     laatste baseline de andere weg, en toch bleven alle 7.869 geometrie- en tekencontroles groen. Voorstel: controleer
-     de zichtbare kleurverdeling na alle tekenlagen. Drie gelijke baselines tonen elk een derde; toets daarnaast één
-     gedeeltelijke overlap en één overgang. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
 599. **VERVOLG: de opdeling van de baselinestrook wordt twee keer berekend.** `GanttRenderer.ts:1021` roept
      `widenShortRuns(baselineStripPieces(bars), 2)` aan, en `widenBars` (`src/engine/renderer/baselineStrip.ts:237`)
      doet daarbinnen dezelfde opdeling opnieuw. De uitkomst is gelijk; het is dubbel werk per rij. Voorstel: één keer
      opdelen en het resultaat aan beide doorgeven. Gevonden in de review van #751 (GPT-6.1-Sol, xhigh). — B
+
+803. **VERVOLG: de vóór/na-poort voor de nivelleeroptimalisatie mist enkele relevante paden.**
+     `tests/planning/check-leveler-differential.ts:57` genereert de 286 geldige projecten zonder
+     vastgepinde taken, voortgang, poolgrootboek, opgeslagen contouren of resourcecapaciteit die in de
+     tijd wisselt. `.github/workflows/perf-snelheid.yml:70` draait de bestaande gerichte batterijen
+     alleen op de kandidaat; daarvoor vergelijkt de poort dus geen volledige uitvoer met de basisbron.
+     Voorstel voor later: vergelijk ook die bestaande gerichte gevallen vóór en na, inclusief de
+     poolboekingen. Dit is een dekkingsgat, geen aangetoonde afwijking in het productgedrag. VERVOLG uit
+     review ronde 1 van PR 784 op `96b8431d8` door Sol (GPT-6.1-Sol, xhigh); geen BLOKKEERT. Sol
+     rapporteerde daarnaast 60 vergeleken voorstellen en 18 extra combinaties vóór/na, exact gelijk,
+     ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
+     geen onderdeel van de geautomatiseerde vóór/na-poort. — B
 
 ## Wensen en open taken (geen bug)
 
@@ -1918,3 +1759,18 @@ en noem het in je rapport of PR-tekst.
 622. **De dialoogtekst `formatNotice.formats.p6xml.limited` is verouderd in 26 talen.** #775 paste nl en en aan ("rekent als
      Primavera P6, met de rekenopties uit het bestand"). De andere talen zeggen nog dat het project met het OPS-profiel
      rekent, tot de vertaalstraat ze bijwerkt (`i18n/ui-sources/` mist hun hash). VERVOLG uit #775. — B
+
+630. **VERVOLG: `scripts/style-tokens.py` zonder opties controleert de vastgezette commit niet.** Zonder `--check`
+     of `--tag` leest het script alleen de tag uit `src/styles/openaec-tokens.lock.json` (r. 115–139). Daarna
+     schrijft het de CSS en het lockbestand opnieuw, ook als de tag nu naar een andere commit wijst. Een verplaatste
+     Blueprint-tag geeft zo stil andere kleuren. Fix: eerst de commit van de tag tegen de pin controleren en
+     stoppen bij een verschil; alleen `--tag` zet een andere commit vast. Uit de review van #721 (GPT-6.1-Sol, ronde 1,
+     op 33b8d17e2, BEVESTIGD, VERVOLG). — B
+
+834. **VERVOLG: de formulierroute in het lint wordt niet meer gebruikt.** Sinds #791 heeft geen lintknop nog
+     `form`. Toch staan er nog: `RibbonButtonSpec.form` (`src/components/layout/Ribbon/ribbonConfig.tsx:77`), de
+     doorgifte in `src/components/layout/Ribbon/RibbonTabContent.tsx:61` en `:69`, en de submit-tak in
+     `src/components/layout/Ribbon/ribbonPrimitives.tsx:111–145`. Verouderde verwijzingen naar *Rapport › Afdruk*:
+     het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
+     Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
+     VERVOLG). — B

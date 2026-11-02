@@ -22,6 +22,12 @@ on:
 permissions:
   contents: write
 
+# Elke trigger schrijft naar dezelfde stats-branch. Laat de vorige publicatie afronden
+# voordat een volgende run haar parent ophaalt; breek een lopende push nooit af (#460).
+concurrency:
+  group: download-stats
+  cancel-in-progress: false
+
 jobs:
   stats:
     runs-on: ubuntu-latest

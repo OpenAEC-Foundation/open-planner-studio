@@ -458,6 +458,8 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   // Reviewbevinding ronde 3: het maandlabel is Gregoriaans met Latijnse cijfers in élke taal —
   // zonder de unicode-extensies gaf `fa` "شهریور ۱۴۰۵" naast een ondertitel met 2026.
   {
+    eq('monthLabel: de test draait echt met Nederlands als systeemtaal',
+      new Intl.DateTimeFormat().resolvedOptions().locale.split('-')[0], 'nl');
     const persianDigits = /[\u06F0-\u06F9\u0660-\u0669]/;
     for (const loc of ['nl', 'en', 'fa', 'ar', 'ja', 'zh', 'ko', 'de', 'tr', 'pl']) {
       const label = makeMonthLabeler(loc)('2026-09-01');
@@ -922,6 +924,22 @@ eq('scenario: B rest = 6 wd (10 × 60%)', remainingDays(ctx, byId(B)), 6);
   }
   // Dagtaak: gewicht 10, fractie 0,2. Uur-taak: gewicht 2, fractie 0,375. Samen 2,75 van 12.
   near('voortgang gemengd: elke taak op haar eigen kalender', gepland(gemengd(dagCal, '2026-06-02', verlengd(), uurTaak())), 22.9, 0.05);
+}
+
+// Knownbug 343: de WBS-duur volgt de berekende fase, ook bij een deel van een dag.
+for (const unit of ['days', 'hours'] as const) {
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const parent = S().addTask({ name: 'Halve dag' });
+  const child = S().addTask({ name: 'Werk', parentId: parent });
+  const time = S().tasks.find(t => t.id === child)!.time;
+  S().updateTask(child, { time: { ...time, durationUnit: unit, scheduleDuration: 0.5,
+    ...(unit === 'hours' ? { durationMinutes: 240 } : {}) } });
+  S().runCPM();
+  ok(`343 ${unit}: berekening zonder fout`, !!S().cpmResult && !S().cpmResult!.error);
+  eq(`343 ${unit}: fase in de store is een halve dag`, S().tasks.find(t => t.id === parent)!.time.scheduleDuration, 0.5);
+  const row = computeWbsSummary(ctxFromStore(), { maxLevel: 0, includeActivities: true }).rows.find(r => r.taskId === parent)!;
+  eq(`343 ${unit}: rapport bewaart de halve dag`, row.durationDays, 0.5);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────────

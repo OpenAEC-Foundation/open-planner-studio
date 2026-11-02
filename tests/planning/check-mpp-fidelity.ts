@@ -885,7 +885,9 @@ if (!firstUsableFile) {
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
-  console.log(`OK  mpp-fidelity: alle checks groen (${checks})`);
+  console.log(`OK  mpp-fidelity: alle checks groen (${checks}); ${corpusFiles.length + crawlFiles.length} .mpp-bestand(en) gescand; `
+    + `corpus=${corpusFiles.length}${corpusScanned ? '' : ' (overgeslagen)'}; `
+    + `crawl=${crawlFiles.length}${crawlScanned ? '' : ' (overgeslagen)'}`);
   process.exit(0);
 } else {
   console.log(`XX  mpp-fidelity: ${diffs.length} afwijking(en) van ${checks}`);

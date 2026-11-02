@@ -52,6 +52,7 @@ jobs:
 
       - name: Verify AppImage input-method modules
         run: |
+          set -o pipefail
           APPIMAGE="$(find src-tauri/target/release/bundle/appimage -name '*.AppImage' -print -quit)"
           test -n "$APPIMAGE" || { echo "::error::geen AppImage gebouwd" >&2; exit 1; }
           bash scripts/check-appimage-im-modules.sh "$APPIMAGE" | tee -a "$GITHUB_STEP_SUMMARY"

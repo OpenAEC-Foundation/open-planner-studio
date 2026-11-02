@@ -15,9 +15,12 @@ import type { Task } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { WorkCalendar } from '@/types/calendar';
 import type { Resource, ResourceAssignment } from '@/types/resource';
+import { writeFileSync } from 'node:fs';
 
 const diffs: string[] = [];
 let checks = 0;
+const parityOut = process.env.OPS_LEVELER_PARITY_OUT;
+const parity: { rep: number; profile: string; input: string; reference: string; fast: string }[] = [];
 
 let seed = 0x1234567;
 const rnd = () => {
@@ -115,6 +118,7 @@ for (let rep = 0; rep < 300; rep++) {
   };
   const reference = run(false);
   const fast = run(true);
+  if (parityOut) parity.push({ rep, profile: baseId, input: JSON.stringify(p), reference, fast });
   checks++;
   if (reference !== fast) diffs.push(`rep ${rep}: ${reference.slice(0, 220)}\n       ≠ ${fast.slice(0, 220)}`);
 }
@@ -124,6 +128,7 @@ checks++;
 if (local < 100) diffs.push(`te weinig projecten zonder ALAP/hammock om de lokale invalidatie te toetsen: ${local}`);
 
 if (diffs.length === 0) {
+  if (parityOut) writeFileSync(parityOut, JSON.stringify(parity) + '\n');
   console.log(`OK  leveler-differential: alle checks groen (${checks}; ${withFeatures} met ALAP/hammock, ${local} lokaal)`);
   process.exit(0);
 } else {

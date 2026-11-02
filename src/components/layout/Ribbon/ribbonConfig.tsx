@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Play, Undo2, Redo2, ZoomIn, ZoomOut,
-  FileText, FolderOpen, Save, Printer, Trash2,
+  FileText, FolderOpen, Save, Trash2,
   Calendar, Settings, Info,
   Eye, EyeOff, SaveAll,
   Tags, ListOrdered, Hash,
@@ -176,12 +176,6 @@ const splitTaskButton: RibbonButtonSpec = {
 const calendarButton: RibbonButtonSpec = {
   kind: 'button', id: 'calendar', icon: <Calendar size={20} />, labelKey: 'menu:ribbon.calendar',
   use: uiAction({ showCalendarDialog: true }),
-};
-
-/** Afdrukvoorbeeld-knop — opent de Rapport-tab. */
-const printPreviewButton: RibbonButtonSpec = {
-  kind: 'button', id: 'printPreview', icon: <Printer size={20} />, labelKey: 'menu:ribbon.printPreview',
-  use: uiAction({ activeRibbonTab: 'report' }),
 };
 
 /**
@@ -511,7 +505,7 @@ const planningTab: RibbonTabConfig = [
 /**
  * Gedeelde item-specs: "Resources", "Resourcedock" en "Histogram" staan zowel op de
  * Resources-tab als onder Beeld → Panelen (bewust op beide). Eén definitie,
- * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`/`printPreviewButton`
+ * twee callsites, in lijn met `calcButton`/`relationDropdownItem`/`calendarButton`
  * hierboven.
  *
  * Naamgeving: de twee resourceknoppen doen ECHT iets anders — `openResourcePanel`
@@ -906,14 +900,9 @@ const ifcTab: RibbonTabConfig = [
   { id: 'ifc', labelKey: 'menu:ribbon.ifc', items: [{ kind: 'component', id: 'ifcInfo', Component: IfcInfo }] },
 ];
 
-const reportTab: RibbonTabConfig = [
-  // Op Rapport zelf voert Afdruk dezelfde PDF-export uit als de knop in het paneel.
-  {
-    id: 'reporting', labelKey: 'menu:ribbon.reporting',
-    items: [{ ...printPreviewButton, form: 'report-pdf-export', use: undefined }],
-  },
-  progressGroup,
-];
+// Geen knop Afdruk meer (Ethan, 29 oktober en 2 november 2026): die deed hetzelfde als Exporteer PDF in het
+// rapportpaneel. Ctrl+P en Bestand › Afdruk openen dit tabblad.
+const reportTab: RibbonTabConfig = [progressGroup];
 
 /** AI-tab — conditioneel zichtbaar (alleen bij `ui.aiMode`; zie Ribbon.tsx). Vier
  *  groepen, alle component-escape-hatches (eigen state, inputs, popover/confirm): verbinding,

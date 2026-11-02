@@ -974,12 +974,12 @@ function createMcpDraft(
    * `run()` hieronder).
    *
    * Zelfde vorm als de store-variant: `write` is
-   * `Pick<LevelingResult, 'delays' | 'gaps'>` (een volle `LevelingResult` blijft toewijsbaar) met een
+   * `Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>` (een volle `LevelingResult` blijft toewijsbaar) met een
    * optionele `opts.scopeTaskIds` die het resetten tot de gescopete taken beperkt. Het schrijven zelf
    * deelt deze variant met `scheduleSlice.ts`'s `applyLeveling` via `writeLevelingResult`
    * (taskDefaults.ts), zodat de twee niet uit elkaar kunnen lopen.
    */
-  applyLeveling(write: Pick<LevelingResult, 'delays' | 'gaps'>, opts?: { scopeTaskIds?: string[] }): void {
+  applyLeveling(write: Pick<LevelingResult, 'delays' | 'gaps' | 'delayMinutes'>, opts?: { scopeTaskIds?: string[] }): void {
     let roundedCount = 0;
     store.setState((s) => {
       roundedCount = writeLevelingResult(s.tasks, write, opts?.scopeTaskIds);

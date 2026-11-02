@@ -323,7 +323,10 @@ const ROADS_XER = [
   '%R\tC1\tStandaard 8u\tCA_Base\t8\t40\t',
   '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id\tlast_recalc_date\tplan_start_date\tcritical_path_type',
   '%R\tP1\tRoads\tC1\t2026-03-02\t2026-01-05\tCT_DrivPath',
-  '%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_use_expect_end_flag', '%R\tP1\tY',
+  // Knownbug 721: alleen de kritiek-definitie wijkt af. Een ontbrekende lagkalender in een aanwezige
+  // SCHEDOPTIONS-rij gebruikt de P6-terugval "successor", niet de profielstandaard "predecessor".
+  '%T\tSCHEDOPTIONS', '%F\tproj_id\tsched_use_expect_end_flag\tsched_calendar_on_relationship_lag',
+  '%R\tP1\tY\tRCAL_PREDECESSOR',
   '%T\tTASK',
   '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date',
   '%R\tT1\tP1\tC1\tA1\tNiet gestart\tTT_Task\tDT_FixedDUR\tTK_NotStart\t40\t40\t2026-01-05\t2026-01-09',
@@ -370,6 +373,8 @@ test('profielblok: afwijkende reken-opties tonen een blok met kruisje en een kno
 
   await openFile(page, 'roads.xer', ROADS_XER);
   await expect.poll(() => options(page)).toEqual({ crit: 'longestPath', expect: true });
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.schedulingOptions?.lagCalendar))
+    .toBe('predecessor');
   await toProjectInfo(page);
   const lines = notice.locator('[data-ops-options-deviation]');
   // Onder P6 precies één regel: Kritiek-definitie, met de huidige waarde en de standaard. De bronoptie
