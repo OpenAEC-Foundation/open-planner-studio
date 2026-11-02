@@ -6,7 +6,7 @@ import type { RecordedDatesState } from '@/engine/scheduler/recordedDates';
 import { cloneTasksForSolve, solveProject } from '@/engine/scheduler/solveProject';
 import type { TaskTime } from '@/types/task';
 import { solveInputFor, solveOptionsFor } from '@/engine/scheduler/solveInput';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import {
@@ -27,7 +27,6 @@ import { HOST_EVENTS } from '@/services/extensionEvents';
 import { notifyLevelingDelayRounded } from '../timephasedLossNotice';
 import { clearLevelingOutput, hasLevelingOutput, writeLevelingResult } from '@/utils/taskDefaults';
 import type { AppSliceFactory } from './types';
-import { isLeafTask } from '@/utils/taskHierarchy';
 
 /** TaskTime bevat alleen scalars. Vergelijk nul en -nul als dezelfde waarde, net als de
  *  Immer-setter: kalenderberekeningen kunnen -0 leveren zonder dat de planning verandert. */
@@ -293,8 +292,9 @@ export const createScheduleSlice: AppSliceFactory<ScheduleSlice> = (runtime) => 
     const s = get();
     const cpm = s.cpmResult;
     if (!cpm || cpm.error) return null;
-    // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM).
-    const leafTasks = s.tasks.filter(isLeafTask);
+    // De leveler werkt op leaf-taken (net als de CPM-pass in runCPM), met de externe relaties
+    // van hun fasen erbij (`leafTasksForSolve`).
+    const leafTasks = leafTasksForSolve(s.tasks);
     // Zelfde samenvattingsrelatie-propagatie als runCPM (zie daar): `ResourceLeveler` krijgt hier
     // alleen bladtaken door, dus de expansie moet vóór het leaf-filter gebeuren, met de VOLLEDIGE
     // taakboom (parentId/childIds) als bron — `ResourceLeveler` zelf blijft ongewijzigd, die kent

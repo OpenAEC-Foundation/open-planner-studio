@@ -7,7 +7,7 @@
 
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
+import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 // Hetzelfde terugschrijven als de app (`applyCpmResult`), geen eigen kopie: anders meet de
 // benchmark niet meer wat de app doet.
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
@@ -20,7 +20,6 @@ import type { ViewState } from '@/types/view';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { generateBenchmarkProject, type GeneratedProject } from './generateProject';
 import { formatBytes } from '@/utils/formatBytes';
-import { isLeafTask } from '@/utils/taskHierarchy';
 
 export type PhaseId = 'generate' | 'cpm' | 'ifcWrite' | 'ifcRead' | 'render';
 export const PHASE_ORDER: PhaseId[] = ['generate', 'cpm', 'ifcWrite', 'ifcRead', 'render'];
@@ -134,7 +133,7 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   // Leaf-taken = taken zonder kinderen; dit is EXACT het criterium dat de generator ook voor
   // `data.leafCount` gebruikt, zodat het gerapporteerde aantal overeenkomt met
   // wat de CPM-fase daadwerkelijk verwerkt.
-  const leafTasks = data.tasks.filter(isLeafTask);
+  const leafTasks = leafTasksForSolve(data.tasks);
   // Samenvattingsrelatie-propagatie (zie `scheduleSlice.runCPM`): de generator maakt vandaag alleen
   // bladtaak-naar-bladtaak relaties (`generateProject.ts`), dus dit is hier een no-op passthrough —
   // maar de benchmark-fase moet, net als elke andere CPMSolver-aanroeper, door dezelfde poort gaan

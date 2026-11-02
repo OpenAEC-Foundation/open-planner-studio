@@ -1,4 +1,4 @@
-import type { Task } from '@/types/task';
+import type { ExternalLink, Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { CPMResult } from './CPMSolver';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -438,4 +438,50 @@ export function foldSyntheticSequenceIds(result: CPMResult): void {
       : freeFloat;
   }
   result.sequenceFreeFloat = foldedFreeFloat;
+}
+
+/**
+ * De bladtaken voor de solver, met de externe relaties van hun verzameltaken erbij. Een externe
+ * relatie op een fase geldt voor elke bladtaak eronder, net als een gewone relatie op een fase
+ * (de kop van dit bestand): een externe VOORGANGER op een fase is een ondergrens voor elk blad
+ * (zoals "samenvatting als opvolger": EXACT bij FS/SS, conservatief bij FF/SF), een externe
+ * OPVOLGER een bovengrens voor elk blad (zoals "samenvatting als voorganger": EXACT bij FS/FF,
+ * conservatief bij SS/SF). Geneste fasen tellen allemaal mee.
+ *
+ * De solver kent alleen bladtaken; zonder deze stap telde een externe relatie op een fase niet mee.
+ * Elke aanroeper die `CPMSolver` met bladtaken voedt, haalt ze hier (net als de relaties uit
+ * `expandSummaryRelations`). Een blad zonder geërfde koppeling blijft hetzelfde object; een blad
+ * mét krijgt een ondiepe kopie, zodat de taak in de store haar eigen `externalLinks` houdt.
+ */
+export function leafTasksForSolve(tasks: readonly Task[]): Task[] {
+  return tasks.filter(isLeafTask).map(withInheritedExternalLinks(tasks));
+}
+
+/** De externe relaties die voor bladtaak `task` gelden: haar eigen, dan die van haar fasen (van
+ *  dichtbij naar ver). Voor het logica-rapport, dat een blad onder zo'n fase niet als "zonder
+ *  voorganger" mag tellen. */
+export function effectiveExternalLinks(tasks: readonly Task[]): (task: Task) => readonly ExternalLink[] {
+  const inherit = withInheritedExternalLinks(tasks);
+  return (task) => inherit(task).externalLinks ?? [];
+}
+
+function withInheritedExternalLinks(tasks: readonly Task[]): (task: Task) => Task {
+  // Snelle weg: zonder een fase met externe relaties verandert er niets (de gewone planning).
+  if (!tasks.some(t => !isLeafTask(t) && (t.externalLinks?.length ?? 0) > 0)) return task => task;
+  const byId = new Map(tasks.map(t => [t.id, t] as const));
+  return (task) => {
+    const inherited: ExternalLink[] = [];
+    // Cyclusvast, net als `leafDescendantsOf`: een kapotte ouderketen stopt hier.
+    const visited = new Set<string>([task.id]);
+    let parentId = task.parentId;
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = byId.get(parentId);
+      if (!parent) break;
+      if (parent.externalLinks?.length) inherited.push(...parent.externalLinks);
+      parentId = parent.parentId;
+    }
+    if (inherited.length === 0) return task;
+    return { ...task, externalLinks: [...(task.externalLinks ?? []), ...inherited] };
+  };
 }

@@ -50,8 +50,7 @@ import {
   type LevelingResult,
 } from '@/engine/scheduler/ResourceLeveler';
 import { maxUnitsOn } from '@/engine/scheduler/ResourceLoad';
-import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
-import { isLeafTask } from '@/utils/taskHierarchy';
+import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { computeLibraryOccupancy, solveClone, type OccupancyDocInput, type OccupancySolveInput } from './occupancy';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 
@@ -169,7 +168,7 @@ const defaultLevelRun: DistributionLevelRun = (doc, options) => {
   // met onterechte vertragingen als gevolg (audit 2026-09-26).
   const { sequences } = expandSummaryRelations(tasks, doc.levelInput.sequences);
   return levelResources(
-    tasks.filter(isLeafTask), sequences, doc.resources, doc.assignments,
+    leafTasksForSolve(tasks), sequences, doc.resources, doc.assignments,
     doc.calendar, doc.calendars, cpmResult, options,
     doc.levelInput.options,
   );
