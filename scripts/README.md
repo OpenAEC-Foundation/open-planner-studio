@@ -642,5 +642,6 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
   de commit van die tag en de SHA-256 staan in `src/styles/openaec-tokens.lock.json`. Zonder opties:
   opnieuw schrijven op de vastgezette tag; `--check`: exit 1 als de repo afwijkt (of de tag is
   verplaatst); `--tag <tag>`: andere tag vastzetten; `--latest`: print de nieuwste release-tag.
-  Alleen de Python-standaardbibliotheek; een `GITHUB_TOKEN` in de omgeving wordt meegestuurd.
+  Alleen de Python-standaardbibliotheek. De Blueprint is privé: zet een token met leesrecht
+  (`GITHUB_TOKEN` of `GH_TOKEN`, bijv. `GH_TOKEN=$(gh auth token)`), anders geeft GitHub 404.
   `globals.css` importeert het bestand en leidt `--theme-*` er per thema uit af (het brugblok).

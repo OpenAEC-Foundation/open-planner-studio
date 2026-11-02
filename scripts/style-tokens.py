@@ -13,8 +13,10 @@ Gebruik:
   python3 scripts/style-tokens.py --latest        # print de tag van de nieuwste Blueprint-release
 
 Het bestand wordt bij de commit van de tag opgehaald, niet bij de tagnaam: een verplaatste tag
-geeft zo een duidelijke fout in plaats van stil andere kleuren. Een `GITHUB_TOKEN` in de omgeving
-wordt meegestuurd (hogere limiet in CI), maar is niet nodig. Alleen de standaardbibliotheek.
+geeft zo een duidelijke fout in plaats van stil andere kleuren. Alles gaat via de GitHub-API, ook het
+bestand zelf (contents-API): de Blueprint is sinds 2026-11-02 privé, dus zonder token met leesrecht
+(`GITHUB_TOKEN` of `GH_TOKEN`, bijvoorbeeld `GH_TOKEN=$(gh auth token)`) geeft GitHub 404.
+Alleen de standaardbibliotheek.
 """
 from __future__ import annotations
 
@@ -33,28 +35,29 @@ LOCK = ROOT / "src/styles/openaec-tokens.lock.json"
 OWNER_REPO = "OpenAEC-Foundation/OpenAEC-Blueprint"
 SOURCE_PATH = "web/openaec-tokens.css"
 API = f"https://api.github.com/repos/{OWNER_REPO}"
-RAW = f"https://raw.githubusercontent.com/{OWNER_REPO}"
 
 
-def fetch(url: str, *, api: bool) -> bytes:
-    headers = {"User-Agent": "open-planner-studio-style-tokens"}
-    if api:
-        headers["Accept"] = "application/vnd.github+json"
-        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+def fetch(url: str, *, accept: str = "application/vnd.github+json") -> bytes:
+    headers = {"User-Agent": "open-planner-studio-style-tokens", "Accept": accept}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             return response.read()
     except urllib.error.HTTPError as error:
-        raise SystemExit(f"style-tokens: {url} gaf HTTP {error.code}") from error
+        hint = ""
+        if error.code == 404:
+            hint = (" (de Blueprint is privé: zet GH_TOKEN met leesrecht, bijv. GH_TOKEN=$(gh auth token))"
+                    if not token else " (bestaat de tag, en heeft het token leesrecht op de Blueprint?)")
+        raise SystemExit(f"style-tokens: {url} gaf HTTP {error.code}{hint}") from error
     except urllib.error.URLError as error:
         raise SystemExit(f"style-tokens: {url} niet bereikbaar ({error.reason})") from error
 
 
 def api_json(path: str) -> dict:
-    return json.loads(fetch(f"{API}/{path}", api=True))
+    return json.loads(fetch(f"{API}/{path}"))
 
 
 def latest_tag() -> str:
@@ -76,7 +79,7 @@ def tag_commit(tag: str) -> str:
 
 def build(tag: str) -> tuple[bytes, dict]:
     commit = tag_commit(tag)
-    data = fetch(f"{RAW}/{commit}/{SOURCE_PATH}", api=False)
+    data = fetch(f"{API}/contents/{SOURCE_PATH}?ref={commit}", accept="application/vnd.github.raw")
     lock = {
         "source": f"https://github.com/{OWNER_REPO}",
         "tag": tag,
