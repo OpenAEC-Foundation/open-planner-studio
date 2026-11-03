@@ -99,7 +99,9 @@ ok('alle items tonen dat de berekening stale is', items.every(item => item.stale
   const withProvenance: ExternalLink = { ...externalLink, sourceVersion: '12', anchorReadAt: '2026-11-02T14:10:00.000Z',
     sourceRef: { ...externalLink.sourceRef, siteFileId: 'site-1' } };
   const E = task('E', '2.2', 'Inrichten', [withProvenance]);
-  const index = buildTaskRelationIndex([E], [], {});
+  const index = buildTaskRelationIndex([E], [], {
+    drivingSequenceIds: [], sequenceFreeFloat: {}, truncatedLeadSequenceIds: [], outOfSequenceSequenceIds: [],
+  });
   const [item] = buildRelationCellItems({
     ownerTaskId: E.id, direction: 'predecessor', entries: taskRelations(index, E.id, 'predecessor'),
     context: { ...context, tasksById: new Map([[E.id, E]]), relationIndex: index },
