@@ -27,7 +27,8 @@ type SettingsTab = 'appearance' | 'planning' | 'advanced';
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
-  'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
+  // Licht volgt Blueprint v2026.45.0: titelbalk `frame`, paneel, accent en tekst (geen crème).
+  'light':         ['#F4F4F5', '#FFFFFF', '#D97706', '#2A2A31'],
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
 

@@ -1523,27 +1523,28 @@ button.task-grid-relation-reference {
      niet (vlakke panelen). `frame` is daarvoor te warm en te licht (wit op `frame` = 1,16:1), dus
      de werkruimte is het neutrale `pressed` (#E5E5E6, gelijk aan de oude #E5E5E8) en koppen en
      verzonken vlakken het neutrale `hover` (#F2F2F3, oud #F1F1F3). Geen crème in OPS (besluit van
-     Ethan, 2026-11-02, PR #721): titelbalk en documentbalk gebruiken níét het warme `frame`/`docbar`
-     (#F1EEEA) maar de neutrale waarden van main. De werkruimte zelf is de oude OPS-waarde #E5E5E8: `pressed`
+     Ethan, 2026-11-02, PR #721). Sinds Blueprint v2026.45.0 (OpenAEC-Blueprint #71) zijn `frame`,
+     `docbar`, `text` en `border` zelf neutraal grijs; titelbalk, documentbalk, tekst en rand volgen die
+     tokens weer. De werkruimte zelf is de oude OPS-waarde #E5E5E8: `pressed`
      (#E5E5E6) zakt voor tekst net onder de oude 11,33:1. */
   --theme-bg: #E5E5E8;
   --theme-surface: var(--oa-panel);
   --theme-surface-alt: var(--oa-hover);
   --theme-surface-elevated: var(--oa-raised);
-  /* Tijdelijk een eigen rand: --oa-border (#EAEAEA) haalt 1,20:1 op wit, dus de randen tussen
-     de vlakken vallen weg. #D4D4D8 is de neutrale rand van main (geen warm grijs: geen crème).
-     https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/44 */
-  --theme-border: #D4D4D8;
-  /* Rasterlijn: de oude OPS-waarde, 1,25:1 op wit (oud 1,22 op #FAFAFA). --oa-border haalt 1,20.
+  /* Rand tussen vlakken: `border` is sinds v2026.45.0 #D4D4D8, de neutrale rand van main
+     (1,48:1 op wit; https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/44). */
+  --theme-border: var(--oa-border);
+  /* Rasterlijn: de oude OPS-waarde, 1,25:1 op wit (oud 1,22 op #FAFAFA). --oa-border-subtle haalt 1,20.
      Zie ook https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/41 */
   --theme-border-light: #E4E4E7;
   --theme-control-border: var(--oa-border-strong);
   --theme-accent: var(--oa-accent);
   --theme-accent-hover: var(--oa-accent-hover);
   --theme-accent-on: var(--oa-text-on-accent);
-  /* Tekst en secundaire tekst: de oude OPS-waarden. --oa-text (#2A2A32) verschilt één stap;
-     --oa-text-secondary (#5F5F65) verlaagt secundaire tekst op de kaart van 6,86 naar 6,34:1. */
-  --theme-text: #2A2A31;
+  /* Tekst volgt `text` (#2A2A31 sinds v2026.45.0, 12,96:1 op de titelbalk). Secundaire tekst blijft
+     de oude OPS-waarde: --oa-text-secondary (#5F5F65) verlaagt die op de kaart van 6,86 naar 6,34:1,
+     en --oa-text-muted (#69696F) haalt op de documentbalk 4,50:1 tegen 5,90:1 nu. */
+  --theme-text: var(--oa-text);
   --theme-text-dim: #57575F;
   --theme-text-muted: var(--oa-text-secondary);
   /* Hover als alpha van --oa-text: een dichte --oa-hover zou op de koppen (zelf --oa-hover)
@@ -1565,16 +1566,16 @@ button.task-grid-relation-reference {
   --theme-bar-baseline-compare-1: #0891B2;
   --theme-bar-baseline-compare-2: #A21CAF;
   --theme-scrollbar-track: #E5E5E8;
-  /* --oa-border is op de baan bijna onzichtbaar; de uitgeschakelde tekstkleur wel. */
+  /* Een rand is op de baan bijna onzichtbaar; de uitgeschakelde tekstkleur niet. */
   --theme-scrollbar-thumb: var(--oa-text-disabled);
   --theme-ribbon-bg: var(--oa-panel);
   --theme-ribbon-tab-bg: var(--oa-panel);
   --theme-ribbon-content-bg: var(--oa-panel);
-  /* Neutraal zoals main, niet `docbar`/`frame` (#F1EEEA): geen crème, zie boven. */
-  --theme-docbar-bg: #E9E9EC;
+  /* Neutraal grijs: `docbar` #E9E9EC en `frame` #F4F4F5 sinds v2026.45.0, zie boven. */
+  --theme-docbar-bg: var(--oa-docbar);
   --theme-file-tab-bg: var(--oa-accent);
   --theme-file-tab-hover: var(--oa-accent-hover);
-  --theme-titlebar-bg: #F4F4F5;
+  --theme-titlebar-bg: var(--oa-frame);
   /* Alpha zoals main: `hover` (#F2F2F3) is op #F4F4F5 niet te zien. */
   --theme-titlebar-btn-hover: rgba(54, 54, 62, 0.08);
   --theme-titlebar-btn-active: rgba(54, 54, 62, 0.14);
