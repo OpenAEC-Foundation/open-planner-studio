@@ -226,6 +226,72 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     [[{ type: 'task', taskId: leaf }, linkId, 'Installatie', 'FS']]);
 }
 
+// (7) Review #810 ronde 2: kalendertijd (`ELAPSEDTIME`) buiten werktijd. Een anker buiten werktijd met lag nul
+// mag niet naar het volgende werkblok (ma 8 juni 08:00) schuiven: dan verdween een conflict van een uur.
+// - Het scenario van de review letterlijk: *Beton uitharden* duurt twee kalenderdagen, werkelijk van vr 5 juni
+//   16:00 tot zo 7 juni 16:00. FS/FF: anker zo 7 juni 15:00 ⇒ melding; zo 7 juni 16:00 ⇒ geen. SS/SF: werkelijke
+//   start zo 7 juni 09:00; anker zo 7 juni 08:00 ⇒ melding; zo 7 juni 09:00 ⇒ geen.
+// - Zonder voortgang: *Beton storten* ma 1 t/m do 4 juni, dan uitharden van vr 5 juni 08:00 tot zo 7 juni
+//   08:00. FS/FF: anker zo 7 juni 07:00 ⇒ melding; zo 7 juni 08:00 ⇒ geen. De late finish is het anker zelf
+//   (dezelfde grens in de backward pass).
+for (const base of ['ops', 'p6', 'msproject'] as const) {
+  const curing = (S: ReturnType<typeof storeFor>, pourDays: number) => {
+    const pour = S().addTask({ name: 'Beton storten', time: createDefaultTaskTime('2026-06-01', pourDays, 'days') });
+    const cure = S().addTask({
+      name: 'Beton uitharden',
+      time: { ...createDefaultTaskTime('2026-06-01', 2, 'days'), durationType: 'ELAPSEDTIME' },
+    });
+    S().addSequence({ predecessorId: pour, successorId: cure, type: 'FINISH_START', lagDays: 0 });
+    return cure;
+  };
+  const time = (S: ReturnType<typeof storeFor>, id: string) => {
+    const t = S().tasks.find(x => x.id === id)!.time;
+    return [t.earlyStart, t.earlyFinish];
+  };
+  const verdict = (tag: string, S: ReturnType<typeof storeFor>, cure: string, linkId: string, anchor: string, late: boolean) => {
+    eq(`${tag}: anker ${anchor} ⇒ ${late ? 'melding' : 'geen melding'}`,
+      S().cpmResult?.externalSuccessorViolations ?? [], late ? [{ taskId: cure, linkId }] : []);
+    eq(`${tag}: anker ${anchor} ⇒ ${late ? 'een' : 'geen'} regel in het paneel`, rows(S).length, late ? 1 : 0);
+  };
+  const CURE_CASES: { rel: ExternalRelationType; late: string; onTime: string }[] = [
+    { rel: 'FS', late: '2026-06-07T15:00', onTime: '2026-06-07T16:00' },
+    { rel: 'FF', late: '2026-06-07T15:00', onTime: '2026-06-07T16:00' },
+    { rel: 'SS', late: '2026-06-07T08:00', onTime: '2026-06-07T09:00' },
+    { rel: 'SF', late: '2026-06-07T08:00', onTime: '2026-06-07T09:00' },
+  ];
+  // Het scenario van de review, met de echte voortgangsacties.
+  for (const c of CURE_CASES) {
+    const tag = `7 ${base}/${c.rel}`;
+    const startSide = c.rel === 'SS' || c.rel === 'SF';
+    for (const [anchor, late] of [[c.late, true], [c.onTime, false]] as const) {
+      const S = storeFor(base, '2026-06-30');
+      const cure = curing(S, 5);
+      const linkId = S().addExternalLink(cure, linkFields(successor('x', c.rel, anchor)));
+      const [start, finish] = startSide ? ['2026-06-07T09:00', '2026-06-09T09:00'] : ['2026-06-05T16:00', '2026-06-07T16:00'];
+      eq(`${tag} opzet: werkelijke start`, S().setActualStart(cure, start), true);
+      eq(`${tag} opzet: werkelijk einde`, S().setActualFinish(cure, finish), true);
+      S().runCPM();
+      eq(`${tag} opzet: uitharden van ${start} tot ${finish}`, time(S, cure), [start, finish]);
+      verdict(tag, S, cure, linkId, anchor, late);
+    }
+  }
+  // Zonder voortgang: de vroege datums van de planning.
+  for (const rel of ['FS', 'FF'] as const) {
+    const tag = `7 ${base}/${rel} gepland`;
+    for (const [anchor, late] of [['2026-06-07T07:00', true], ['2026-06-07T08:00', false]] as const) {
+      const S = storeFor(base);
+      const cure = curing(S, 4);
+      const linkId = S().addExternalLink(cure, linkFields(successor('x', rel, anchor)));
+      S().runCPM();
+      eq(`${tag} opzet: uitharden van vr 5 juni 08:00 tot zo 7 juni 08:00`, time(S, cure),
+        ['2026-06-05T08:00', '2026-06-07T08:00']);
+      verdict(tag, S, cure, linkId, anchor, late);
+      // De backward pass rekent met hetzelfde ankermoment: de late finish is het anker zelf, niet ma 08:00.
+      eq(`${tag}: anker ${anchor} ⇒ late finish op het anker`, S().tasks.find(x => x.id === cure)?.time.lateFinish, anchor);
+    }
+  }
+}
+
 if (failures.length) {
   console.error(`XX external-successor-violation: ${failures.length}/${checks}\n${failures.join('\n')}`);
   process.exit(1);

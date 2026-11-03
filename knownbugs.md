@@ -372,6 +372,13 @@ en noem het in je rapport of PR-tekst.
      store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
      [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+854. **VERVOLG: de melding van een te krappe externe opvolger moet nog samen met de externe lagkalender van #808.**
+     Beide PR's wijzigen `src/engine/scheduler/CPMSolver.ts` en `public/docs/{nl,en}/ref-meldingen.md`. Na de
+     merge van de eerste werkt de tweede dit bij. `externalSuccessorAnchorMinusLag` rekent de lag dan met de
+     lagkalender van #808 (`externalLag`), net als de backward pass; de regel voor kalendertijd zonder lag blijft
+     staan. De gids `ref-meldingen` houdt beide meldingen (*Externe opvolger te krap* en *Externe lag in de eigen
+     kalender*) en noemt vijf tellers in de statusbalk. De tekst van de nieuwe regel in het paneel wacht nog op de
+     check door Ethan. Uit de review van #810 ronde 2 (GPT-6.1-Sol, xhigh, op `5f121e2a0`, VERVOLG). — B
 
 ## Tabel, invoer en bediening
 
