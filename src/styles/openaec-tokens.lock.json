@@ -1,7 +1,7 @@
 {
   "source": "https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint",
-  "tag": "v2026.44.1",
-  "commit": "83916c9633e1893f332904e2337f77833f0f757a",
+  "tag": "v2026.45.0",
+  "commit": "fe7c6c8a035a365d1f2944c82699d91267a68d3b",
   "path": "web/openaec-tokens.css",
-  "sha256": "dde368310cb354a119594aaae212ef4b94854998d472da0b0cec1524bb8fd085"
+  "sha256": "10741242a8c435e6697e7a45e0b4aa682d0da6ee7229a7aec181ec2afaa49121"
 }
