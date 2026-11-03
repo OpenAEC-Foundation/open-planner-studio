@@ -55,7 +55,7 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   await expect(tokenControl).toBeVisible();
   await page.evaluate(() => { (window as CopyLogWindow).__opsA1RejectNextCopy = true; });
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
-  await expect(tokenControl.locator('svg.lucide-check')).toHaveCount(0);
+  await expect(tokenControl.locator('svg[data-icon="status.success"]')).toHaveCount(0);
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
 
   await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();
@@ -112,4 +112,30 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
     if (compact) await page.keyboard.press('Escape');
   }
 
+  // De setup-prompt (extensie voor Claude, zonder token) staat bovenaan het venster, met dezelfde knop
+  // en tekst als in Help: één bron, het promptblok van het artikel. Uit elkaar gelopen ⇒ deze stap faalt.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ ribbonCompact: false }));
+  await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();
+  await expect(dialog).toBeVisible();
+  const setup = dialog.locator('[data-ops-ai-setup-prompt]');
+  const setupText = await setup.locator('[data-help-prompt] pre').textContent();
+  expect(setupText).toContain('Open Planner Studio');
+  expect(setupText).not.toContain(SYNTHETIC_TOKEN);
+  await setup.getByRole('button', { name: /^(Copy prompt|Prompt kopiëren)$/ }).click();
+  await expect(setup.getByRole('status')).toHaveText(/^(Copied|Gekopieerd)\./);
+  const afterDialog = await page.evaluate(() => (window as CopyLogWindow).__opsA1Copied!.slice());
+  expect(afterDialog[afterDialog.length - 1]).toBe(setupText);
+
+  // De ?-knop van het venster opent het artikel; Help toont en kopieert precies dezelfde prompt.
+  await dialog.locator('[data-ops-help-button="howto-ai-assistent-koppelen"]').click();
+  await expect(dialog).toHaveCount(0);
+  const article = page.locator('.help-article-body');
+  await expect(article).toHaveAttribute('data-help-current', 'howto-ai-assistent-koppelen');
+  const helpPrompt = article.locator('[data-help-prompt]');
+  expect(await helpPrompt.locator('pre').textContent()).toBe(setupText);
+  await helpPrompt.getByRole('button', { name: /^(Copy prompt|Prompt kopiëren)$/ }).click();
+  await expect(helpPrompt.getByRole('status')).toHaveText(/^(Copied|Gekopieerd)\./);
+  const afterHelp = await page.evaluate(() => (window as CopyLogWindow).__opsA1Copied!.slice());
+  expect(afterHelp).toHaveLength(afterDialog.length + 1);
+  expect(afterHelp[afterHelp.length - 1]).toBe(setupText);
 });

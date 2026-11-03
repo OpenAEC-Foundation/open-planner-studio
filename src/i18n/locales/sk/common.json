@@ -574,6 +574,8 @@
     "connect": "Pripojiť",
     "connectHint": "Zobrazuje údaje o pripojení: endpoint, token, úryvok konfigurácie a výzvu na pripojenie.",
     "connectionDetailsTitle": "Údaje o pripojení",
+    "setupPrompt": "Nechať to na Claude",
+    "setupPromptHint": "Pre Claude Desktop a Claude Code. Vložte prompt do novej konverzácie. Claude potom rozšírenie nainštaluje sám. Na to nepotrebujete žiadny token.",
     "endpoint": "Endpoint",
     "endpointHint": "Prenos: streamable HTTP",
     "auth": "Overenie",

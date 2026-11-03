@@ -355,7 +355,10 @@
     "helpTutorialStep": "튜토리얼 {{number}}/{{total}}",
     "helpTutorialsEmpty": "아직 설치된 튜토리얼이 없습니다. 카탈로그에서 확장 프로그램으로 설치합니다.",
     "helpTutorialsInstall": "튜토리얼 설치",
-    "helpDraft": "초안"
+    "helpDraft": "초안",
+    "helpCopyPrompt": "프롬프트 복사",
+    "helpPromptCopied": "복사되었습니다. 이제 Claude에 프롬프트를 붙여넣으세요.",
+    "helpPromptCopyFailed": "복사하지 못했습니다. 아래 텍스트를 선택한 뒤 직접 복사하세요."
   },
   "export": {
     "progressFileSuffix": "진행률",

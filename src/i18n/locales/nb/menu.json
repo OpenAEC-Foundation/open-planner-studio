@@ -357,7 +357,10 @@
     "helpTutorialStep": "Opplæring {{number}} av {{total}}",
     "helpTutorialsEmpty": "Ingen opplæringer er installert ennå. Du installerer dem som utvidelse fra katalogen.",
     "helpTutorialsInstall": "Installer opplæringer",
-    "helpDraft": "utkast"
+    "helpDraft": "utkast",
+    "helpCopyPrompt": "Kopier prompt",
+    "helpPromptCopied": "Kopiert. Lim inn prompten i Claude nå.",
+    "helpPromptCopyFailed": "Kopiering mislyktes. Merk teksten nedenfor og kopier den selv."
   },
   "export": {
     "progressFileSuffix": "fremdrift",

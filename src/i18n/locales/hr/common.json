@@ -514,6 +514,8 @@
     "connect": "Poveži",
     "connectHint": "Prikazuje podatke za povezivanje: krajnju točku, token, fragment konfiguracije i upit za povezivanje.",
     "connectionDetailsTitle": "Podaci za povezivanje",
+    "setupPrompt": "Prepusti to Claudeu",
+    "setupPromptHint": "Za Claude Desktop i Claude Code. Zalijepite upit u novi razgovor. Claude zatim sam instalira proširenje. Za to vam nije potreban token.",
     "endpoint": "Krajnja točka",
     "endpointHint": "Prijenos: streamable HTTP",
     "auth": "Autentifikacija",

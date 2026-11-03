@@ -361,7 +361,10 @@
     "helpTutorialStep": "Návod {{number}} z {{total}}",
     "helpTutorialsEmpty": "Návody ešte nie sú nainštalované. Nainštalujte ich ako rozšírenie z katalógu.",
     "helpTutorialsInstall": "Nainštalovať návody",
-    "helpDraft": "koncept"
+    "helpDraft": "koncept",
+    "helpCopyPrompt": "Kopírovať prompt",
+    "helpPromptCopied": "Skopírované. Teraz vložte prompt do Claude.",
+    "helpPromptCopyFailed": "Kopírovanie sa nepodarilo. Vyberte text nižšie a skopírujte ho sami."
   },
   "export": {
     "progressFileSuffix": "postup",

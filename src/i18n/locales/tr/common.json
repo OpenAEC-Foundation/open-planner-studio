@@ -454,6 +454,8 @@
     "connect": "Bağlan",
     "connectHint": "Bağlantı bilgilerini gösterir: uç nokta, token, yapılandırma parçası ve bağlantı istemi.",
     "connectionDetailsTitle": "Bağlantı bilgileri",
+    "setupPrompt": "Claude'a yaptırın",
+    "setupPromptHint": "Claude Desktop ve Claude Code için. İstemi yeni bir sohbete yapıştırın. Claude uzantıyı ardından kendisi kurar. Bunun için token'a ihtiyacınız yok.",
     "endpoint": "Uç nokta",
     "endpointHint": "Aktarım: akışlı HTTP",
     "auth": "Kimlik doğrulama",

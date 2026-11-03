@@ -454,6 +454,8 @@
     "connect": "Verbinden",
     "connectHint": "Zeigt die Verbindungsdaten: Endpunkt, Token, Konfigurationsausschnitt und Verbindungs-Prompt.",
     "connectionDetailsTitle": "Verbindungsdaten",
+    "setupPrompt": "Claude regeln lassen",
+    "setupPromptHint": "Für Claude Desktop und Claude Code. Fügen Sie den Prompt in einen neuen Chat ein. Claude installiert die Erweiterung dann selbst. Dafür benötigen Sie kein Token.",
     "endpoint": "Endpunkt",
     "endpointHint": "Transport: Streamable HTTP",
     "auth": "Authentifizierung",
