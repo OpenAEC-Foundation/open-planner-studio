@@ -111,6 +111,9 @@ export function ExternalSourceReviewDialog() {
     <Dialog
       onCancel={close}
       onConfirm={ready ? onAccept : undefined}
+      // Enter op een knop (*Later*, het kruisje, de help) doet wat die knop doet; alleen zonder knopfocus is
+      // Enter *Accepteren* (review #811: Enter op *Later* accepteerde de wijziging).
+      focusedButtonOwnsEnter
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-external-source-review-dialog': true }}
     >

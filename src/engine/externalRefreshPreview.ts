@@ -8,6 +8,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import type { CPMResult } from './scheduler/CPMSolver';
 import { cloneTasksForSolve, solveProject } from './scheduler/solveProject';
 import { solveInputFor, type SolveProjectFields } from './scheduler/solveInput';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 
 /** Eén koppeling die verandert: het anker schuift, of de brontaak staat niet meer in de bron (of weer wel). */
 export interface ExternalAnchorChange {
@@ -46,16 +47,20 @@ export interface ExternalRefreshDoc {
   sequences: Sequence[];
   calendar: WorkCalendar;
   calendars: WorkCalendar[];
+  /** De berekening die de planner nu ziet: de statusbalk toont er het projecteinde en de duur van. In de
+   *  weergave *Datums zoals opgeslagen* komt ze uit het bestand (`cpmResultFromRecorded`). */
+  cpmResult: CPMResult | null;
 }
 
 export interface ExternalRefreshPreview {
   changes: ExternalAnchorChange[];
-  /** Bladtaken waarvan de vroege start of het vroege einde verschuift. */
+  /** Bladtaken waarvan de getoonde start of het getoonde einde verschuift (`shownStart`/`shownFinish`). */
   shiftedTaskIds: string[];
-  /** Het projecteinde vóór en na accepteren (`''` zonder taken). */
+  /** Het projecteinde zoals de planner het nu ziet, en na accepteren. `endBefore` is `''` zonder berekening
+   *  (of na een fout); `endAfter` is `''` zonder taken. */
   endBefore: string;
   endAfter: string;
-  /** De projectduur in werkdagen vóór en na accepteren. */
+  /** De projectduur in werkdagen: zoals de planner haar nu ziet (0 zonder berekening), en na accepteren. */
   durationBefore: number;
   durationAfter: number;
   /** Een fout van de berekening (een kring e.d.); dan zijn de verschuivingen niet bekend. */
@@ -63,40 +68,37 @@ export interface ExternalRefreshPreview {
 }
 
 /**
- * Rekent het plan door zoals het nu is en zoals het na accepteren is, elk op een kopie (zoals F5, via
- * `solveInputFor`). Beide kanten rekenen opnieuw, zodat voor en na met dezelfde motor en dezelfde opties
- * gemeten zijn, ook als het plan verouderd is of de datums uit het bestand toont.
+ * Rekent het plan door zoals het na accepteren is, op een kopie (zoals F5, via `solveInputFor`), en zet dat
+ * naast wat de planner nu ziet: de getoonde datums van de taken en het projecteinde van de laatste berekening
+ * (`doc.cpmResult`). De oude kant rekent niet opnieuw (review #811): een plan dat verouderd is (een bewerking
+ * zonder F5) of de datums uit het bestand toont, gaf anders een beginstand die niet in de planning staat.
+ * Accepteren rekent hetzelfde door (`applyRefreshedTasks` → `runCPM`), dus het voorstel is wat er gebeurt.
  */
 export function previewExternalRefresh(doc: ExternalRefreshDoc, refreshed: Task[]): ExternalRefreshPreview {
   const changes = externalAnchorChanges(doc.tasks, refreshed);
-  const solve = (tasks: Task[]) => {
-    const copy = cloneTasksForSolve(tasks);
-    const result = solveProject(solveInputFor(doc.project, copy, doc.sequences, doc.calendar, doc.calendars));
-    return { copy, result };
-  };
-  const before = solve(doc.tasks);
-  const after = solve(refreshed);
-  const failed = before.result.error ? before.result : after.result.error ? after.result : null;
-  if (failed) {
+  const copy = cloneTasksForSolve(refreshed);
+  const result = solveProject(solveInputFor(doc.project, copy, doc.sequences, doc.calendar, doc.calendars));
+  if (result.error) {
     return {
       changes, shiftedTaskIds: [], endBefore: '', endAfter: '', durationBefore: 0, durationAfter: 0,
-      failed: { error: failed.error, errorInfo: failed.errorInfo },
+      failed: { error: result.error, errorInfo: result.errorInfo },
     };
   }
-  const beforeById = new Map(before.copy.map(task => [task.id, task] as const));
-  const shiftedTaskIds = after.copy
+  const nowById = new Map(doc.tasks.map(task => [task.id, task] as const));
+  const shiftedTaskIds = copy
     .filter(task => task.childIds.length === 0)
     .filter(task => {
-      const old = beforeById.get(task.id);
-      return !!old && (old.time.earlyStart !== task.time.earlyStart || old.time.earlyFinish !== task.time.earlyFinish);
+      const now = nowById.get(task.id);
+      return !!now && (shownStart(now) !== shownStart(task) || shownFinish(now) !== shownFinish(task));
     })
     .map(task => task.id);
+  const seen = doc.cpmResult && !doc.cpmResult.error ? doc.cpmResult : null;
   return {
     changes,
     shiftedTaskIds,
-    endBefore: before.result.projectEnd,
-    endAfter: after.result.projectEnd,
-    durationBefore: before.result.projectDuration,
-    durationAfter: after.result.projectDuration,
+    endBefore: seen?.projectEnd ?? '',
+    endAfter: result.projectEnd,
+    durationBefore: seen?.projectDuration ?? 0,
+    durationAfter: result.projectDuration,
   };
 }
