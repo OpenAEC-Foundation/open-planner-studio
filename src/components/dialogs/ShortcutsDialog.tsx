@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { SHORTCUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -69,7 +69,7 @@ export function ShortcutsDialog() {
             direct na het sluiten — geen Opslaan/Annuleren/Terug-vraag nodig. */}
         <DialogHeader
           title={t('shortcuts.title')}
-          icon={<Keyboard size={16} />}
+          icon={<Icon id="ui.shortcuts" size={16} />}
           onClose={close}
           help={{ articleId: SHORTCUTS_HELP_ARTICLE_ID }}
         />

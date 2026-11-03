@@ -11,7 +11,7 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CircleHelp, Zap } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
@@ -167,7 +167,7 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
               {item.driving && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--driving" title={t('relations.driving')}>
-                  <Zap size={10} aria-label={t('relations.driving')} />
+                  <Icon id="planning.driving" size={10} aria-label={t('relations.driving')} />
                 </span>
               )}
               {item.kind === 'internal' && item.driving === undefined && (
@@ -178,12 +178,12 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                   aria-label={t('properties.drivingUnknown')}
                   style={{ color: 'var(--theme-text-muted)' }}
                 >
-                  <CircleHelp size={10} aria-hidden />
+                  <Icon id="planning.driving-unknown" size={10} aria-hidden />
                 </span>
               )}
               {item.warnings.length > 0 && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--warning" title={relationWarningTexts(item, t).join(' · ')}>
-                  <AlertTriangle size={10} aria-label={t('relations.warnings')} />
+                  <Icon id="status.warning" size={10} aria-label={t('relations.warnings')} />
                 </span>
               )}
             </span>
@@ -413,7 +413,7 @@ export function RelationCellEditor({
                   placeholder="0d"
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
-                <button type="button" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+                <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
                 {focusedToken === index && sentenceFor(token.relType, relationSentenceName(task ?? { wbsCode: token.wbsCode }))}
               </div>
             );
@@ -465,7 +465,7 @@ export function RelationCellEditor({
                   if (lag) replaceToken(index, { ...token, external: { ...token.external, lag } });
                 }}
               />
-              <button type="button" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>×</button>
+              <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
               {focusedToken === index && sentenceFor(
                 token.external.relType,
                 token.external.sourceRef.taskName || token.external.sourceRef.taskId,

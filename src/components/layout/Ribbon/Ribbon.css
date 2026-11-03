@@ -231,6 +231,14 @@
   transform: scaleX(-1);
 }
 
+/* De punthaak achter het label van een lintknop met een menu (Mijlpaal, Relatie, Toewijzen, Filter, Baselines).
+   De punthaak zelf is 4 px hoog; de negatieve marge houdt de labelregel even hoog als zonder icoon. */
+.ribbon-label-caret {
+  display: inline-block;
+  vertical-align: middle;
+  margin-block: -4px;
+}
+
 .ribbon-btn:hover .ribbon-btn-label {
   color: var(--theme-text);
 }
@@ -556,10 +564,9 @@
 }
 
 .ribbon-relation-menu-mark {
-  width: 14px;
-  flex: 0 0 14px;
-  font-weight: 700;
-  text-align: center;
+  width: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
 }
 
 .ribbon-relation-menu-status {
@@ -703,8 +710,8 @@
 }
 
 .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-bottom .ribbon-btn-label {
