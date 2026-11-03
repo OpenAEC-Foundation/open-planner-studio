@@ -98,6 +98,10 @@ export interface CPMResult {
    *  maakt levert anders stil een onzin-datum. ZACHTE, niet-blokkerende waarschuwing: `error` blijft
    *  leeg, de overige taken rekenen normaal door. */
   cappedTaskIds?: string[];
+  /** OPTIONEEL: externe OPVOLGERS waarvan het anker te krap is: de vroegste datums van de eigen taak
+   *  passen niet meer vóór het anker (met de lag). Zonder deze lijst gaf dat alleen negatieve speling
+   *  (knownbug 6; voorstel 2 uit #792, `docs/relaties-tussen-projecten.md` 5.2 punt 4). Zachte melding. */
+  externalSuccessorViolations?: { taskId: string; linkId: string }[];
   /** OPTIONEEL: relatie-id's die de solver heeft genegeerd omdat voorganger of opvolger geen
    *  bladtaak is in de meegegeven set. Relaties op een WBS-samenvattingstaak herschrijft
    *  `expandSummaryRelations` vooraf naar bladrelaties; wat hier landt is dus een écht verweesd id,
@@ -1828,6 +1832,7 @@ export class CPMSolver {
     const lateDates = this.backwardPass(order, earlyDates);
     this.applyAlap(order, earlyDates, lateDates);
     const outOfSequenceSequenceIds = this.detectOutOfSequence(earlyDates);
+    const externalSuccessorViolations = this.detectExternalSuccessorViolations(earlyDates);
     // Resultaat-post-pass (geëxtraheerd naar `scheduleAnalysis.ts`): pure functie over de vaste
     // early/late-datums + de forward-pass-side-channels; de helpers zijn stateless en gebonden.
     const result = computeScheduleResults({
@@ -1863,6 +1868,7 @@ export class CPMSolver {
     // `elapsedAnchor`-hervattingspunt én de `ef`-restwerk-optelling), die allebei tegen de cap kunnen
     // lopen.
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
+    if (externalSuccessorViolations.length > 0) result.externalSuccessorViolations = externalSuccessorViolations;
     if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
       result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
     }
@@ -3238,6 +3244,33 @@ export class CPMSolver {
     // ongemoeid. `bg141-*` in `cases-hours-blokgrenzen.json`.
     if (isZeroDurationMilestone(task) || isElapsedTask(task)) return shifted;
     return this.snapOnOrBefore(eng, shifted);
+  }
+
+  /**
+   * Externe opvolgers met een te krap anker: de vroegste finish van de taak ligt ná de grens die de
+   * externe opvolger stelt (`externalBackwardBound`, dezelfde grens als in de backward pass). Op de
+   * werktijdas van de eigen taak, zodat een finish op een blokeinde en een grens op het volgende
+   * blokbegin geen schijnmelding geven; een ELAPSEDTIME-taak telt in kloktijd. Bij SS/SF is de grens
+   * een late finish die uit de late start volgt; bij een vaste duur is "te laat klaar" daar hetzelfde
+   * als "te laat begonnen".
+   */
+  private detectExternalSuccessorViolations(
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): { taskId: string; linkId: string }[] {
+    const out: { taskId: string; linkId: string }[] = [];
+    for (const task of this.tasks.values()) {
+      if (!task.externalLinks?.some(l => l.direction === 'successor')) continue;
+      const early = earlyDates.get(task.id);
+      if (!early) continue;
+      const eng = this.calendarFor(task);
+      for (const link of task.externalLinks) {
+        const bound = this.externalBackwardBound(task, link, eng);
+        if (!bound || early.ef.getTime() <= bound.getTime()) continue;
+        const late = isElapsedTask(task) || eng.workMinutesBetween(bound, early.ef) > 0;
+        if (late) out.push({ taskId: task.id, linkId: link.id });
+      }
+    }
+    return out;
   }
 
   /**

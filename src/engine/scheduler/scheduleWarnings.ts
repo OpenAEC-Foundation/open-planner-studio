@@ -24,6 +24,7 @@ export type ScheduleWarningKind =
   | 'scheduleError'
   | 'missedDeadline'
   | 'violatedConstraint'
+  | 'externalSuccessorViolated'
   | 'outOfSequence'
   | 'truncatedLead'
   | 'droppedSequence'
@@ -56,6 +57,16 @@ export interface ScheduleWarningFacts {
   /** Van `days`, het aantal met reden `non-working-day` (resourcekalender kent die dag geen
    *  werkdag). 0 betekent niet "geen reden bekend" maar "alle overbezette dagen zijn over-capacity". */
   nonWorkingDays?: number;
+  /** `externalSuccessorViolated`: de externe opvolger (naam van taak en project), het relatietype, het
+   *  anker (de laatst toelaatbare datum van de externe taak) en de vroege datum van de eigen taak die
+   *  ertegen botst (`start` bij SS/SF, `finish` bij FS/FF). */
+  externalTaskName?: string;
+  externalProjectName?: string;
+  /** De koppeling zelf (`Task.externalLinks[].id`), zodat het paneel de lag kan tonen. */
+  externalLinkId?: string;
+  relType?: 'FS' | 'SS' | 'FF' | 'SF';
+  anchor?: string;
+  start?: string;
 }
 
 export interface ScheduleWarning {
@@ -80,6 +91,8 @@ const KIND_ORDER: Record<ScheduleWarningKind, number> = {
   scheduleError: 0,
   missedDeadline: 1,
   violatedConstraint: 2,
+  // Direct na de geschonden constraints: een externe opvolger begrenst de taak zoals een constraint.
+  externalSuccessorViolated: 2.5,
   outOfSequence: 3,
   truncatedLead: 4,
   droppedSequence: 5,
@@ -92,6 +105,7 @@ const SEVERITY: Record<ScheduleWarningKind, ScheduleWarningSeverity> = {
   scheduleError: 'error',
   missedDeadline: 'warning',
   violatedConstraint: 'warning',
+  externalSuccessorViolated: 'warning',
   outOfSequence: 'warning',
   truncatedLead: 'warning',
   droppedSequence: 'warning',
@@ -173,6 +187,25 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
       pushTask('violatedConstraint', id, {
         constraintType: t.constraint?.type, constraintDate: t.constraint?.date,
       });
+    }
+    // Voorstel 2 uit #792 (knownbug 6): een externe opvolger met een te krap anker. Eén regel per
+    // koppeling, met het doel op de eigen taak.
+    for (const { taskId, linkId } of cpmResult.externalSuccessorViolations ?? []) {
+      const t = taskById.get(taskId);
+      const link = t?.externalLinks?.find(l => l.id === linkId);
+      const idx = taskIndex.get(taskId);
+      if (!t || !link || idx === undefined) continue;
+      const startSide = link.relType === 'SS' || link.relType === 'SF';
+      push({
+        id: `externalSuccessorViolated:${taskId}:${linkId}`, kind: 'externalSuccessorViolated',
+        severity: SEVERITY.externalSuccessorViolated, target: { type: 'task', taskId },
+        facts: {
+          externalTaskName: link.sourceRef.taskName || link.sourceRef.taskId,
+          externalProjectName: link.sourceRef.projectName || link.sourceRef.projectId,
+          externalLinkId: link.id, relType: link.relType, anchor: link.anchorDate,
+          ...(startSide ? { start: t.time.earlyStart } : { finish: t.time.earlyFinish }),
+        },
+      }, idx);
     }
     for (const id of cpmResult.outOfSequenceSequenceIds ?? []) pushSequence('outOfSequence', id);
     for (const id of cpmResult.truncatedLeadSequenceIds ?? []) pushSequence('truncatedLead', id);
