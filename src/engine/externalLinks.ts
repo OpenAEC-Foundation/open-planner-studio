@@ -122,6 +122,8 @@ export function refreshExternalAnchors(
   tasks: Task[],
   source: ExternalSourceDoc,
   matchScope: ExternalSourceMatchScope = 'project-or-path',
+  /** Koppelingen die deze verversing niet mag raken (`refreshFromSources`: een bronpad dat niet gelezen is). */
+  skip?: (link: ExternalLink) => boolean,
 ): RefreshResult {
   const srcById = new Map(source.tasks.map((t) => [t.id, t]));
   let refreshed = 0;
@@ -132,7 +134,7 @@ export function refreshExternalAnchors(
     if (!task.externalLinks || task.externalLinks.length === 0) return task;
     let taskChanged = false;
     const links = task.externalLinks.map((link): ExternalLink => {
-      if (!linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
+      if (skip?.(link) || !linkMatchesSource(link, source, matchScope)) return link; // andere bron ⇒ ongemoeid
 
       const srcTask = srcById.get(link.sourceRef.taskId);
       if (!srcTask) {
@@ -183,8 +185,17 @@ export function refreshExternalAnchors(
  * anders beide koppelingen verversen en de tweede beide opnieuw. Alleen in die aantoonbaar ambigue groep
  * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
  * zodat een verplaatst bestand werkt.
+ *
+ * `unreadPaths` (genormaliseerd, `normalizeExternalSourcePath`): bronpaden van deze actie die niet gelezen zijn
+ * (buiten de toegestane map, of onleesbaar). Een koppeling naar zo'n pad houdt haar anker en pad: anders zou
+ * de terugval op project-id haar het anker en het pad van een andere bron met hetzelfde project-id geven
+ * (review #813). Ze telt dan niet als ververst en niet als ontbrekend.
  */
-export function refreshFromSources(tasks: Task[], sources: readonly ExternalSourceDoc[]): RefreshResult {
+export function refreshFromSources(
+  tasks: Task[],
+  sources: readonly ExternalSourceDoc[],
+  unreadPaths: ReadonlySet<string> = new Set(),
+): RefreshResult {
   const pathsByProjectId = new Map<string, Set<string>>();
   for (const source of sources) {
     const projectId = source.projectId.trim();
@@ -198,6 +209,11 @@ export function refreshFromSources(tasks: Task[], sources: readonly ExternalSour
     [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
   );
 
+  const skip = unreadPaths.size === 0 ? undefined : (link: ExternalLink) => {
+    const path = normalizeExternalSourcePath(link.sourceRef.filePath ?? '');
+    return path !== null && unreadPaths.has(path);
+  };
+
   let out = tasks;
   let refreshed = 0;
   let missing = 0;
@@ -207,6 +223,7 @@ export function refreshFromSources(tasks: Task[], sources: readonly ExternalSour
       out,
       source,
       ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+      skip,
     );
     out = result.tasks;
     refreshed += result.refreshed;

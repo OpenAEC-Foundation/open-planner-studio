@@ -1550,9 +1550,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      for (const p of paths.values()) {
+      // Onleesbare bronpaden: hun koppelingen blijven staan, ook als een andere bron hetzelfde project-id
+      // heeft (`refreshFromSources`, review #813).
+      const unreadPaths = new Set<string>();
+      for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
-        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
+        if (!src) { unreadPaths.add(normalized); continue; } // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push({
           projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
           lateDatesInFile: src.lateDatesInFile,
@@ -1567,7 +1570,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `missing` begint bij `unusablePathCount` (zie hierboven): een link met een pad dat nooit een bron
       // kon worden telt mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar de
       // betreffende taak niet meer bevatte.
-      const result = refreshFromSources(get().tasks, sourceDocs);
+      const result = refreshFromSources(get().tasks, sourceDocs, unreadPaths);
       const { tasks, refreshed, changed: anyChanged } = result;
       const missing = unusablePathCount + result.missing;
 

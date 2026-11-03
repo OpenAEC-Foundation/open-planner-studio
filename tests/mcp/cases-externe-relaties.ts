@@ -343,4 +343,55 @@ test('refresh: zonder externe relaties leest de tool niets en verandert niets', 
   assertEq(appliedSteps(), steps, 'geen undo-stap');
 });
 
+// --- 5. Review #813: een geweigerde of onleesbare bron krijgt geen anker van een andere bron --------------
+//
+// Letterlijk: twee IFC-versies met hetzelfde project-id en dezelfde taak-id's. Bron A staat in de
+// gebruikersmap (Installatie klaar vr 5 maart 2027 16:00). Bron B staat erbuiten (anker vr 12 maart 2027
+// 16:00). De tool leest alleen A en meldt B als `outOfScope`. De koppeling naar B moet haar anker en pad
+// houden: de afhankelijke taak begint dan ma 15 maart, niet ma 8 maart. Hetzelfde voor een bron die niet te
+// lezen is (`unreadable`).
+const SOURCE_A = `${HOME}/projecten/Installateur-A.ifc`;
+const sourceA = createAppStoreContext().store;
+sourceA.getState().newProject();
+sourceA.getState().setProject({ startDate: '2027-03-01', name: 'Installateur' });
+const installA = sourceA.getState().addTask({ name: 'Installatie', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+sourceA.getState().runCPM();
+files.set(SOURCE_A, writeIFC(buildWriteIFCInput(sourceA.getState())));
+const readA = await readExternalSource(SOURCE_A, io);
+const installAId = readA.tasks.find(t => t.name === 'Installatie')!.id;
+assert(installAId === installA || !!installAId, 'bron A heeft Installatie');
+
+for (const [label, pathB] of [['outOfScope', '/elders/Installateur-B.ifc'], ['unreadable', `${HOME}/projecten/weg/Installateur-B.ifc`]] as const) {
+  test(`refresh: een ${label}-bron met hetzelfde project-id houdt haar anker en pad`, async () => {
+    S().newProject();
+    S().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
+    const viaA = S().addTask({ name: 'Via A', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+    const viaB = S().addTask({ name: 'Via B', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+    const ref = (filePath: string) => ({
+      projectId: readA.projectId, projectName: 'Installateur', taskId: installAId, taskName: 'Installatie', filePath,
+    });
+    const linkA = S().addExternalLink(viaA, {
+      direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-01T16:00', sourceMissing: false, sourceRef: ref(SOURCE_A),
+    });
+    const linkB = S().addExternalLink(viaB, {
+      direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-12T16:00', sourceMissing: false, sourceRef: ref(pathB),
+    });
+    S().runCPM();
+    const linkOf = (taskId: string, linkId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks!.find(l => l.id === linkId)!;
+    const startOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.time.earlyStart;
+    assertEq(startOf(viaB), '2027-03-15T07:00', 'opzet: Via B begint ma 15 maart');
+
+    const data = await ok('planner_refresh_external_links');
+    const statusOf = new Map(data.sources.map((x: any) => [x.path, x.status]));
+    assertEq(statusOf.get(SOURCE_A), 'read', 'bron A gelezen');
+    assertEq(statusOf.get(pathB), label, `bron B: ${label}`);
+    assertEq(linkOf(viaA, linkA).anchorDate, '2027-03-05T16:00', 'Via A: het anker uit bron A');
+    assertEq([linkOf(viaB, linkB).anchorDate, linkOf(viaB, linkB).sourceRef.filePath, linkOf(viaB, linkB).sourceMissing],
+      ['2027-03-12T16:00', pathB, false], 'Via B: anker en pad blijven');
+    assertEq(startOf(viaB), '2027-03-15T07:00', 'Via B begint nog steeds ma 15 maart');
+    assertEq(data.refreshed, 1, 'alleen de koppeling naar A is ververst');
+    assertEq(data.changes.map((c: any) => c.linkId), [linkA], 'alleen Via A staat in changes');
+  });
+}
+
 await run();

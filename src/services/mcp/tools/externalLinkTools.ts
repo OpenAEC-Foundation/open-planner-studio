@@ -29,7 +29,9 @@ export const externalLinkTools: McpToolDef[] = [
       '(it is not opened as a document), and updates for each link the anchor date and whether the source task ' +
       'is missing; all in one undoable change. A link without a file path (entered by hand) is refreshed only ' +
       'when another link reads the same source project; `manualLinks` counts them. FILE SCOPE: only source files inside the home folder (in the headless server: inside its ' +
-      'working folder). Returns per source file whether it was read (`sources`), the number of links ' +
+      'working folder). A link to a source file that was not read (outside that folder, or unreadable) keeps ' +
+      'its anchor and path, also when another source file has the same project id. Returns per source file ' +
+      'whether it was read (`sources`), the number of links ' +
       'refreshed and missing, and `changes`: the links whose anchor date or missing status changed ' +
       '(`anchorBefore` → `anchorAfter`). The schedule is recalculated afterwards, like in the app. A link on a ' +
       'summary task (phase) applies to every task in that phase.',
@@ -37,7 +39,8 @@ export const externalLinkTools: McpToolDef[] = [
     // Async (bestanden lezen vóór de transactie): past niet in een synchroon draaiboek.
     batchable: false,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
+    // Leest bestanden van de gebruiker, net als de bestandstools (`fileTools.ts`): `openWorldHint: true`.
+    annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true, openWorldHint: true },
     handler: async (_args, ctx): Promise<McpToolResult> => {
       // Vroeg weigeren (pauze, alleen-lezen, dialoog, ander document): dan leest de tool ook niets. De
       // guard bindt ook het documentanker (`expectedDocId`); wisselt de gebruiker van document terwijl de
@@ -69,12 +72,22 @@ export const externalLinkTools: McpToolDef[] = [
       const home = await fs.homeDir();
       const sources: ExternalSourceDoc[] = [];
       const report: SourceReport[] = [];
-      for (const filePath of paths.values()) {
+      // Bronpaden die niet gelezen zijn: hun koppelingen blijven staan (`refreshFromSources`, review #813).
+      const unreadPaths = new Set<string>();
+      for (const [normalized, filePath] of paths) {
         const scope = checkScope(home, filePath);
-        if (!scope.ok) { report.push({ path: filePath, status: 'outOfScope', reason: scope.reason }); continue; }
+        if (!scope.ok) {
+          unreadPaths.add(normalized);
+          report.push({ path: filePath, status: 'outOfScope', reason: scope.reason });
+          continue;
+        }
         try {
           const escaped = await fs.confine?.(scope.path);
-          if (escaped) { report.push({ path: filePath, status: 'outOfScope', reason: escaped }); continue; }
+          if (escaped) {
+            unreadPaths.add(normalized);
+            report.push({ path: filePath, status: 'outOfScope', reason: escaped });
+            continue;
+          }
           // Het pad uit de koppeling blijft de identiteit van de bron (herkennen bij verversen); lezen gaat
           // via het gecontroleerde pad.
           const source = await readExternalSource(filePath, {
@@ -84,6 +97,7 @@ export const externalLinkTools: McpToolDef[] = [
           sources.push(source);
           report.push({ path: filePath, status: 'read', projectName: source.projectName });
         } catch (e) {
+          unreadPaths.add(normalized);
           report.push({
             path: filePath,
             status: e instanceof ScopeEscapeError ? 'outOfScope' : 'unreadable',
@@ -94,7 +108,7 @@ export const externalLinkTools: McpToolDef[] = [
 
       return runMutateTool(ctx, 'mutate', () => {
         const s = ctx.app.store.getState();
-        const result = refreshFromSources(s.tasks, sources);
+        const result = refreshFromSources(s.tasks, sources, unreadPaths);
         const changes: Array<{ taskId: string; taskName: string; linkId: string; anchorBefore: string; anchorAfter: string; sourceMissing: boolean }> = [];
         if (result.changed) {
           const beforeById = new Map(s.tasks.map(task => [task.id, task] as const));

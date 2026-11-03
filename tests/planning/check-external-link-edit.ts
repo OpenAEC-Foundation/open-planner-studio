@@ -172,6 +172,33 @@ for (const ownCalendar of [false, true]) {
   eq('de wél absolute bron is gewoon ververst', relativePathResult.refreshed, 1);
 }
 
+// Review #813: *Alle externe relaties vernieuwen* met twee bronpaden en hetzelfde project-id, waarvan er één
+// niet te lezen is. De koppeling naar het onleesbare pad houdt haar anker en pad; zonder deze regel gaf de
+// terugval op project-id haar het anker en het pad van de andere bron.
+{
+  S().newProject();
+  const viaA = S().addTask({ name: 'Via A' });
+  const viaB = S().addTask({ name: 'Via B' });
+  const ref = (filePath: string) => ({ projectId: 'gedeelde-bron', taskId: 'Y', filePath });
+  S().updateTask(viaA, { externalLinks: [{
+    id: 'a', direction: 'predecessor', relType: 'FS', anchorDate: '2020-01-01T16:00', sourceRef: ref('/projecten/A.ifc'), sourceMissing: false,
+  }] });
+  S().updateTask(viaB, { externalLinks: [{
+    id: 'b', direction: 'predecessor', relType: 'FS', anchorDate: '2026-05-15T16:00', sourceRef: ref('/projecten/B.ifc'), sourceMissing: false,
+  }] });
+  useAppStore.setState({
+    parseExternalSource: async (filePath: string) => filePath === '/projecten/A.ifc'
+      ? { projectId: 'gedeelde-bron', projectName: 'Bron', filePath, tasks: [stubbedSourceTask('Y')] }
+      : null,
+  });
+  const result = await S().refreshAllExternalAnchors();
+  const linkOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  eq('#813 alleen bron A is gelezen en ververst', [result.sources, result.refreshed], [1, 1]);
+  ok('#813 Via A kreeg het anker uit bron A', linkOf(viaA).anchorDate !== '2020-01-01T16:00');
+  eq('#813 Via B houdt haar anker en pad (onleesbare bron)',
+    [linkOf(viaB).anchorDate, linkOf(viaB).sourceRef.filePath], ['2026-05-15T16:00', '/projecten/B.ifc']);
+}
+
 if (diffs.length) {
   console.error(`XX external-link-edit: ${diffs.length}/${checks} checks rood`);
   for (const diff of diffs) console.error(` - ${diff}`);
