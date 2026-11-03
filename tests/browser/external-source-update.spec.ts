@@ -3,6 +3,8 @@
 // de gevolgen, Later en Accepteren in de store) staan in `tests/planning/check-external-source-update.ts`;
 // hier de bedrading: openen geeft de balk, Bekijken opent het venster, Later haalt alles weg, een nieuwe
 // versie geeft bij terugkeer naar het venster weer een balk, Accepteren zet de ankers en Ctrl+Z zet ze terug.
+// Review #811: Enter op een knop doet wat die knop doet. Enter op het kruisje sluit alleen het venster, Enter
+// op *Later* haalt de balk weg; geen van beide accepteert. Enter op *Accepteren* accepteert.
 //
 // De fixtures zijn gewone IFC-bestanden van OPS: *Aannemer* heeft twee externe voorgangers naar
 // `/projecten/Installateur.ifc` met ankers uit een oudere versie (`sourceVersion` 1 november 2026);
@@ -17,7 +19,7 @@ const SOURCE_FILE = fileURLToPath(new URL('./fixtures/ifc/externe-bron/Installat
 const STRIP = '[data-ops-external-source-update]';
 const DIALOG = '[data-ops-external-source-review-dialog]';
 
-test('nieuwe versie van een bron: balk, Bekijken, Later, opnieuw bij een volgende versie, Accepteren en undo', async ({ page, ops: _ops }) => {
+test('nieuwe versie van een bron: balk, Bekijken, Enter op het kruisje en op Later, opnieuw bij een volgende versie, Accepteren en undo', async ({ page, ops: _ops }) => {
   test.setTimeout(120_000);
   // Het bronbestand krijgt een verse wijzigingstijd, ook als de checkout ouder is.
   const now = new Date();
@@ -43,11 +45,26 @@ test('nieuwe versie van een bron: balk, Bekijken, Later, opnieuw bij een volgend
   await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(2);
   await expect(dialog.locator('[data-ops-external-source-review-effects] div')).toHaveCount(2);
 
-  // Later in het venster ⇒ venster en balk weg, plan ongewijzigd.
-  await dialog.locator('[data-ops-external-source-review-later]').click();
+  const appliedSteps = () => page.evaluate(() => window.__OPS__!.store.getState().historyEvents.filter(e => e.state === 'applied').length);
+  const stepsBeforeKeys = await appliedSteps();
+
+  // Enter op het kruisje ⇒ alleen het venster dicht; de balk blijft, het plan ongewijzigd.
+  await dialog.getByRole('button', { name: 'Close', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  await expect(strip).toHaveCount(1);
+  expect(await anchors()).toEqual(oldAnchors);
+  expect(await appliedSteps()).toBe(stepsBeforeKeys);
+
+  // Enter op Later in het venster ⇒ venster en balk weg, plan ongewijzigd, geen stap in de geschiedenis.
+  await page.locator('[data-ops-external-source-review]').click();
+  await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(2);
+  await dialog.locator('[data-ops-external-source-review-later]').focus();
+  await page.keyboard.press('Enter');
   await expect(dialog).toHaveCount(0);
   await expect(strip).toHaveCount(0);
   expect(await anchors()).toEqual(oldAnchors);
+  expect(await appliedSteps()).toBe(stepsBeforeKeys);
 
   // Terug naar het venster met dezelfde versie ⇒ geen balk.
   await page.waitForTimeout(2_100);
@@ -63,15 +80,16 @@ test('nieuwe versie van een bron: balk, Bekijken, Later, opnieuw bij een volgend
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(strip).toHaveCount(1, { timeout: 15_000 });
 
-  // Accepteren ⇒ de nieuwe ankers, één undo-stap, balk en venster weg.
-  const steps = await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.filter(e => e.state === 'applied').length);
+  // Enter op Accepteren ⇒ de nieuwe ankers, één undo-stap, balk en venster weg.
+  const steps = await appliedSteps();
   await page.locator('[data-ops-external-source-review]').click();
   await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(2);
-  await dialog.locator('[data-ops-external-source-review-accept]').click();
+  await dialog.locator('[data-ops-external-source-review-accept]').focus();
+  await page.keyboard.press('Enter');
   await expect(dialog).toHaveCount(0);
   await expect(strip).toHaveCount(0);
   expect(await anchors()).toEqual(['Afbouw: 2027-03-23T16:00', 'Terreinafwerking: 2027-03-05T16:00']);
-  expect(await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.filter(e => e.state === 'applied').length)).toBe(steps + 1);
+  expect(await appliedSteps()).toBe(steps + 1);
 
   // Ctrl+Z ⇒ de oude ankers terug.
   await page.keyboard.press('ControlOrMeta+z');

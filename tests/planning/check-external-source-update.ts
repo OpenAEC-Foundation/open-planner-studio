@@ -5,17 +5,25 @@
 // Wat deze check vastlegt:
 // 1. `externalAnchorChanges` telt alleen een ander anker of een andere status *brontaak ontbreekt*; een
 //    nieuwe herkomst alleen telt niet.
-// 2. `previewExternalRefresh` rekent voor en na op een kopie: de taken die verschuiven, het einde en de duur.
+// 2. `previewExternalRefresh` rekent het voorstel op een kopie: de taken die verschuiven, het einde en de duur.
 //    Het plan zelf verandert niet.
 // 3. De store-route: dezelfde versie ⇒ niets lezen; een nieuwe versie zonder wijziging ⇒ één keer lezen en
 //    geen balk; een nieuwe versie met wijziging ⇒ een balk met versie, auteur en aantal; *Later* ⇒ weg tot
 //    de volgende versie; *Accepteren* ⇒ één undo-stap, de balk weg, het venster dicht; *Alle externe
 //    relaties vernieuwen* haalt de balk ook weg. Een kopie met hetzelfde project-id op een ander pad telt
 //    niet mee. Een bron die niet te lezen is, of een relatief pad, geeft geen balk.
+// 4. Review #811: het venster vergelijkt het voorstel met wat de planner nu ziet (de getoonde datums en het
+//    projecteinde van de statusbalk), ook als het plan verouderd is. Accepteren geeft precies het voorstel.
+// 5. Hetzelfde in de weergave *Datums zoals opgeslagen*: de beginstand zijn de datums uit het bestand.
 import { createAppStoreContext } from '@/state/appStore';
 import { externalAnchorChanges, previewExternalRefresh } from '@/engine/externalRefreshPreview';
-import { refreshExternalAnchors } from '@/engine/externalLinks';
+import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
+import { shownFinish, shownStart } from '@/utils/taskDates';
 import type { ExternalSourceRead } from '@/state/externalSource';
 import type { ExternalLink, Task } from '@/types/task';
 
@@ -175,6 +183,64 @@ const plan = () => {
   const readsBefore = reads.length;
   await S().checkExternalSources();
   eq('3u een bron zonder versie ⇒ niets gelezen, geen balk', [reads.length, updates()], [readsBefore, []]);
+}
+
+// De bron met de verschoven brontaak (anker 10 maart), en de getoonde datums van elke taak.
+const movedSource: ExternalSourceDoc = { projectId: 'installateur', filePath: PATH, tasks: [sourceTask('2027-03-10T16:00')] };
+type StoreGet = ReturnType<typeof plan>['S'];
+const shown = (S: StoreGet) => new Map(S().tasks.map(t => [t.id, `${shownStart(t)} – ${shownFinish(t)}`] as const));
+/** Het voorstel van het venster tegen wat Accepteren echt doet. */
+const proposalAndAccept = (tag: string, S: StoreGet) => {
+  const preview = previewExternalRefresh(S(), refreshExternalAnchors(S().tasks, movedSource, 'file-path').tasks);
+  const seen = { end: S().cpmResult?.projectEnd, duration: S().cpmResult?.projectDuration, dates: shown(S) };
+  eq(`${tag} het voorstel begint bij het einde dat de planner nu ziet`, preview.endBefore, seen.end);
+  eq(`${tag} … en bij de duur die de planner nu ziet`, preview.durationBefore, seen.duration);
+  eq(`${tag} Accepteren verandert het plan`, S().acceptExternalSourceUpdate(movedSource), true);
+  eq(`${tag} na Accepteren: het einde van het voorstel`, [S().cpmResult?.projectEnd, S().cpmResult?.projectDuration],
+    [preview.endAfter, preview.durationAfter]);
+  const after = shown(S);
+  const moved = [...after].filter(([id, dates]) => seen.dates.get(id) !== dates).map(([id]) => id).sort();
+  eq(`${tag} na Accepteren: precies de taken uit het voorstel verschoven`, moved, [...preview.shiftedTaskIds].sort());
+  return { preview, seen };
+};
+
+// (4) Review #811, het scenario letterlijk: B duurt 10 dagen in plaats van 3, zonder F5. Het plan houdt
+// projecteinde 17 maart. Het bronanker schuift naar 10 maart; na Accepteren eindigt het plan op 2 april. Het
+// venster zei "30 maart → 2 april" (twee nieuwe berekeningen); het moet "17 maart → 2 april" zeggen.
+{
+  const { S, z, a, b } = plan();
+  const timeB = S().tasks.find(t => t.id === b)!.time;
+  S().updateTask(b, { time: { ...timeB, scheduleDuration: 10 } });
+  eq('4 opzet: het plan is verouderd en toont nog einde 17 maart', [S().scheduleStale, S().cpmResult?.projectEnd],
+    [true, '2027-03-17T16:00']);
+  const { preview } = proposalAndAccept('4', S);
+  eq('4 het venster: van 17 maart naar 2 april', [preview.endBefore, preview.endAfter], ['2027-03-17T16:00', '2027-04-02T16:00']);
+  eq('4 het venster: tien werkdagen later (Goede Vrijdag en tweede paasdag zijn vrij)', preview.durationAfter - preview.durationBefore, 10);
+  eq('4 het venster: A en B verschuiven, Z niet', [...preview.shiftedTaskIds].sort(), [a, b].sort());
+  void z;
+}
+
+// (5) De weergave *Datums zoals opgeslagen*: het bestand legt voor B 17 t/m 19 maart vast; de app zou 15 t/m
+// 17 maart rekenen. De planner ziet einde 19 maart. Het voorstel begint daar, niet bij een nieuwe berekening.
+{
+  const { S } = plan();
+  const parsed = readIFC(writeIFC(buildWriteIFCInput(S())));
+  const times = captureRecordedDates(parsed.tasks, parsed.recordedFields).times;
+  const idB = parsed.tasks.find(t => t.name === 'B')!.id;
+  times[idB] = { ...times[idB], start: '2027-03-17T07:00', finish: '2027-03-19T16:00' };
+  S().newProject();
+  S().applyLoadedProject(
+    { ...parsed, recordedFields: undefined, recordedTimes: times, recordedTimesOrigin: 'xer' },
+    { filePath: null, recompute: true },
+  );
+  const idOf = (name: string) => S().tasks.find(t => t.name === name)!.id;
+  eq('5 opzet: de weergave staat aan en toont einde 19 maart', [S().datesAsRecorded, S().cpmResult?.projectEnd],
+    [true, '2027-03-19T16:00']);
+  const { preview } = proposalAndAccept('5', S);
+  eq('5 het venster: van 19 maart naar 22 maart', [preview.endBefore, preview.endAfter], ['2027-03-19T16:00', '2027-03-22T16:00']);
+  eq('5 het venster: één werkdag later', preview.durationAfter - preview.durationBefore, 1);
+  eq('5 het venster: A en B verschuiven, Z niet', [...preview.shiftedTaskIds].sort(), [idOf('A'), idOf('B')].sort());
+  eq('5 Accepteren verlaat de weergave', S().datesAsRecorded, false);
 }
 
 if (failures.length) {
