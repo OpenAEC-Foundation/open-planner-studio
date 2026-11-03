@@ -86,20 +86,12 @@ export async function saveToRefTauri(ref: FileRef, content: string): Promise<boo
 
 export async function readFromRefTauri(ref: FileRef): Promise<string | null> {
   if (ref.kind !== 'path') return null;
-  try {
-    const { readTextFile } = await import('@tauri-apps/plugin-fs');
-    return await readTextFile(ref.path);
-  } catch {
-    return null;
-  }
+  const { readTextFile } = await import('@tauri-apps/plugin-fs');
+  return readTextFile(ref.path);
 }
 
 export async function readBytesFromRefTauri(ref: FileRef): Promise<Uint8Array | null> {
   if (ref.kind !== 'path') return null;
-  try {
-    const { readFile } = await import('@tauri-apps/plugin-fs');
-    return await readFile(ref.path);
-  } catch {
-    return null;
-  }
+  const { readFile } = await import('@tauri-apps/plugin-fs');
+  return readFile(ref.path);
 }
