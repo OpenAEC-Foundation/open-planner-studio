@@ -1832,3 +1832,11 @@ en noem het in je rapport of PR-tekst.
      alle 28 talen staan `--scope user -e OPS_MCP_ROOT=` en ` -- node ` precies één keer. Voorstel: bewaak ook deze
      vaste delen, bijvoorbeeld de hele opdrachtregel vanaf `claude mcp`, en laat alleen de plaatsen voor paden
      (`<working folder>`, `<unpacked folder>`) vertaalbaar. — B
+
+842. **VERVOLG: dubbele Linux-ondertekening in het plan.** `docs/installers-ondertekenen-plan.md:175` en
+     `:189` combineren losse OpenPGP-handtekeningen voor DEB, RPM, AppImage en Snap met een ondertekend
+     overzicht van checksums voor alle bestanden, zonder te benoemen welke download- of controleroute
+     die losse handtekeningen nodig heeft. Voorstel: benoem die route, of laat de losse handtekeningen
+     weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
+     voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
+     review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B
