@@ -530,16 +530,29 @@ function forwardHour(
       // in de FS-tak: de MSP-conventie geldt dus BEWUST ook voor dat geval, geen no-op — gepind door
       // de tweelingcase msp-06b (idem, maar FS i.p.v. SF).
       if (succIsFinishMs && lagIsZero) return predDone;
-      if (succIsFinishMs) {
-        const back = deps.snapOnOrBefore(se, lagged);
-        // Beide kalenders moeten dit als dezelfde grens lezen, ook bij een lead en feestdagen.
-        if (back.getTime() === lagged.getTime()
-          || (se.nextWorkInstant(back).getTime() === lagged.getTime()
-            && lagEng.workMinutesBetween(back, lagged) === 0)) return back;
-      }
-      return se.nextWorkInstant(lagged);
+      return finishStartLaggedStart(deps, lagEng, se, lagged, succIsFinishMs);
     }
   }
+}
+
+/**
+ * FS met een echte lag: de vroegste start van de opvolger op de grens `lagged` (het moment na de lag, op de
+ * lagkalender). Een eindmijlpaal-opvolger mag op een geldig eindmoment van haar eigen kalender landen
+ * (`snapOnOrBefore`): `nextWorkInstant` sluit een blokeinde uit en zou haar naar het volgende blok duwen.
+ * Gedeeld met de externe voorganger (`CPMSolver.externalForwardBound`), zodat een externe FS met lag een
+ * eindmijlpaal net zo plaatst als een interne (review #808).
+ */
+export function finishStartLaggedStart(
+  deps: RelationDeps, lagEng: CalendarEngine, se: CalendarEngine, lagged: Date, succIsFinishMs: boolean,
+): Date {
+  if (succIsFinishMs) {
+    const back = deps.snapOnOrBefore(se, lagged);
+    // Beide kalenders moeten dit als dezelfde grens lezen, ook bij een lead en feestdagen.
+    if (back.getTime() === lagged.getTime()
+      || (se.nextWorkInstant(back).getTime() === lagged.getTime()
+        && lagEng.workMinutesBetween(back, lagged) === 0)) return back;
+  }
+  return se.nextWorkInstant(lagged);
 }
 
 /** De door een SF-relatie geëiste opvolger-FINISH (uur-modus) — gedeeld tussen `forwardHour`'s

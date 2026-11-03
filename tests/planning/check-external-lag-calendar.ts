@@ -13,9 +13,9 @@
 //   finish (`forwardFinishFloor`), die een externe koppeling niet kent (knownbug 846).
 // - `predecessor`/`successor`: de eigen kalender. Wijst de keuze naar de andere kant, dan is dat de
 //   terugval en staat de taak in de lijst; anders niet. Beide geven dezelfde datums, want beide rekenen
-//   met de eigen kalender, zoals vóór keuze 9. (Een vergelijking met een interne relatie hoort hier niet:
-//   bij een anker buiten de werktijd van de eigen kalender rekende een externe koppeling al anders,
-//   knownbug 847.)
+//   met de eigen kalender. Ook hier rekent de koppeling zoals een interne relatie met die kalender: de lag
+//   loopt altijd via dezelfde loper als intern (`shiftLagPred`, review #808; dat loste knownbug 847 op).
+//   Niet bij een externe SF-voorganger (knownbug 846).
 // - Lag 0: nooit een melding, en elke lagkalender geeft dezelfde datums.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
@@ -110,6 +110,10 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
             eq(`voorganger ${tag}: vroege datums zoals een interne relatie`,
               dates(external, 'L')?.slice(0, 2), dates(internal, 'L')?.slice(0, 2));
           }
+          if (!FOREIGN.includes(lagCalendar) && rel !== 'SF') {
+            eq(`voorganger ${tag}: eigen kalender, vroege datums zoals een interne relatie`,
+              dates(external, 'L')?.slice(0, 2), dates(internal, 'L')?.slice(0, 2));
+          }
           if (!FOREIGN.includes(lagCalendar)) {
             const other: LagCal = lagCalendar === 'predecessor' ? 'successor' : 'predecessor';
             eq(`voorganger ${tag}: eigen kalender, dezelfde datums als met ${other}`, dates(external, 'L'),
@@ -141,6 +145,8 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
             eq(`opvolger ${tag}: late datums zoals een interne relatie`,
               dates(external, 'L')?.slice(2), dates(internal, 'L')?.slice(2));
           } else {
+            eq(`opvolger ${tag}: eigen kalender, late datums zoals een interne relatie`,
+              dates(external, 'L')?.slice(2), dates(internal, 'L')?.slice(2));
             const other: LagCal = lagCalendar === 'predecessor' ? 'successor' : 'predecessor';
             eq(`opvolger ${tag}: eigen kalender, dezelfde datums als met ${other}`, dates(external, 'L'),
               dates(solve([task('L', '2026-06-01', 3, 'short', { externalLinks: [link] }), tail()], [], base, other), 'L'));
@@ -191,6 +197,80 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     tasks, sequences: [], resources: [], cpmResult: solve(tasks, [], 'ops', '24hour'), resourceLoadResult: null,
   });
   eq('paneel Waarschuwingen: geen regel bij 24-uurs', none.map(w => w.kind), []);
+}
+
+// ── Review #808, scenario 1 letterlijk: een externe FS met 6 uur lag naar een eindmijlpaal. ─────────────
+// Projectkalender ma–vr 08–16, eigen kalender 08–14, lagkalender *Projectkalender*. De externe voorganger
+// eindigt vr 12 juni 16:00; FS met 6 uur lag. Intern geeft dat ma 15 juni 14:00: een geldig eindmoment van
+// de mijlpaal. Extern gaf het di 16 juni 08:00 (P6/MS Project). Een mijlpaal zonder soort volgt bij FS de
+// gewone regel; ook die vergelijken we met intern, behalve onder OPS: daar zet regel B6 een mijlpaal zonder
+// interne voorganger op het einde van de dag, ook als een externe voorganger haar plaatst (knownbug 850).
+for (const base of ['ops', 'p6', 'msproject'] as const) {
+  for (const kind of ['FINISH', undefined] as const) {
+    const tag = `${base}/eindmijlpaal ${kind ?? 'zonder soort'}`;
+    const milestone = (extra: Partial<Task> = {}) => task('M', '2026-06-01', 0, 'short', {
+      isMilestone: true, ...(kind ? { milestoneKind: kind } : {}), ...extra,
+    });
+    const P = task('P', '2026-06-08', 5, 'project');
+    const internal = solve([head(), P, milestone(), tail()],
+      [{ id: 's', predecessorId: 'P', successorId: 'M', type: 'FINISH_START', lagDays: 0, lagMinutes: 360 } as Sequence],
+      base, 'projectDefault');
+    eq(`${tag}: opzet, de voorganger eindigt vr 12 juni 16:00`, internal.tasks.get('P')?.earlyFinish, '2026-06-12T16:00');
+    const link: ExternalLink = {
+      id: 'x', direction: 'predecessor', relType: 'FS', lagMinutes: 360, sourceMissing: false,
+      anchorDate: '2026-06-12T16:00', sourceRef: { projectId: 'ander', taskId: 'P' },
+    };
+    const external = solve([head(), milestone({ externalLinks: [link] }), tail()], [], base, 'projectDefault');
+    if (kind === 'FINISH' || base !== 'ops') {
+      eq(`${tag}: zoals een interne relatie`, dates(external, 'M')?.slice(0, 2), dates(internal, 'M')?.slice(0, 2));
+    }
+    if (kind === 'FINISH') {
+      eq(`${tag}: ma 15 juni 14:00`, external.tasks.get('M')?.earlyFinish, '2026-06-15T14:00');
+    }
+  }
+}
+
+// ── Review #808, scenario 2 letterlijk: met dezelfde kalender telt een dagenlag zoals intern. ───────────
+// OPS-profiel, ma–do 08–16 en vrijdag 08–12, lagkalender *Projectkalender*, de taak op de projectkalender
+// (dus dezelfde kalender). Anker do 11 juni 16:00, FS met 1 dag lag. Intern start de taak ma 15 juni 08:00;
+// extern gaf het 12:00, met een inhoudelijk gelijke kopie van de kalender wel 08:00. Nu geven alle drie
+// hetzelfde, ook met de lagkalender van de eigen taak (`predecessor`, de terugval).
+{
+  const FULL = [{ start: 480, end: 960 }];
+  const shortFriday: WorkCalendar = {
+    id: 'project', name: 'Project', description: '', workDays: [1, 2, 3, 4, 5],
+    workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
+    workTime: { byWeekday: { 1: FULL, 2: FULL, 3: FULL, 4: FULL, 5: [{ start: 480, end: 720 }], 6: [], 7: [] } },
+  };
+  const copy: WorkCalendar = { ...shortFriday, id: 'kopie', name: 'Kopie' };
+  const schedulingOptions = (lagCalendar: LagCal) => ({
+    ...effectiveSchedulingOptions({ schedulingProfile: { baseId: 'ops', id: 'ops', name: '', overrides: {} } }),
+    lagCalendar,
+  });
+  const run = (tasks: Task[], sequences: Sequence[], lagCalendar: LagCal) => {
+    const r = new CPMSolver(tasks, sequences, shortFriday, [copy], { schedulingOptions: schedulingOptions(lagCalendar) }).solve();
+    if (r.error) throw new Error(r.error);
+    return r;
+  };
+  const own = (calendarId?: string, extra: Partial<Task> = {}): Task => ({
+    ...task('L', '2026-06-01', 2, 'project'), ...(calendarId ? { calendarId } : {}), ...extra,
+  });
+  const first = (): Task => task('R', '2026-06-08', 1, 'project');
+  const P = task('P', '2026-06-08', 4, 'project');
+  const link: ExternalLink = {
+    id: 'x', direction: 'predecessor', relType: 'FS', lagDays: 1, sourceMissing: false,
+    anchorDate: '2026-06-11T16:00', sourceRef: { projectId: 'ander', taskId: 'P' },
+  };
+  for (const lagCalendar of ['projectDefault', 'predecessor'] as LagCal[]) {
+    const internal = run([first(), P, own()],
+      [{ id: 's', predecessorId: 'P', successorId: 'L', type: 'FINISH_START', lagDays: 1 } as Sequence], lagCalendar);
+    eq(`ops/korte vrijdag/${lagCalendar}: opzet, P eindigt do 11 juni 16:00`, internal.tasks.get('P')?.earlyFinish, '2026-06-11T16:00');
+    eq(`ops/korte vrijdag/${lagCalendar}: intern start L ma 15 juni 08:00`, internal.tasks.get('L')?.earlyStart, '2026-06-15T08:00');
+    const same = run([first(), own(undefined, { externalLinks: [link] })], [], lagCalendar);
+    eq(`ops/korte vrijdag/${lagCalendar}: extern, dezelfde kalender ⇒ ma 15 juni 08:00`, same.tasks.get('L')?.earlyStart, '2026-06-15T08:00');
+    const viaCopy = run([first(), own('kopie', { externalLinks: [link] })], [], lagCalendar);
+    eq(`ops/korte vrijdag/${lagCalendar}: extern, een gelijke kopie ⇒ dezelfde datum`, viaCopy.tasks.get('L')?.earlyStart, '2026-06-15T08:00');
+  }
 }
 
 if (failures.length) {

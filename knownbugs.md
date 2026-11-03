@@ -382,14 +382,23 @@ en noem het in je rapport of PR-tekst.
      externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
      Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
      (`docs/relaties-tussen-projecten.md`). — B
-847. **VERVOLG: een externe FF-opvolger met lag rekent anders als het anker buiten de werktijd van de eigen taak
-     valt.** `externalBackwardBound` (`CPMSolver.ts`) normaliseert het anker eerst vooruit
-     (`addWorkingMinutesSigned`) en trekt dan de lag af; een interne relatie trekt direct af
-     (`shiftLagPred` → `subtractWorkMinutes`). Gezien in `tests/planning/check-external-lag-calendar.ts` onder P6
-     en MS Project: anker vr 7 augustus 16:00, eigen kalender 08–14, lag 2 dagen ⇒ late finish wo 5 augustus
-     14:00 extern, do 6 augustus 08:00 intern (één blok verschil, dus ook in de speling). Ouder dan keuze 9:
-     het geldt met de kalender van de eigen taak. Voorstel: de lag-loper van een interne relatie gebruiken,
-     zoals keuze 9 nu doet voor een lagkalender van een andere kant. — B
+850. **VERVOLG: onder OPS staat een mijlpaal zonder soort na alleen een externe voorganger op het einde van de
+     dag.** Regel B6 (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts` in de voorwaartse stap, `noPreds`)
+     ziet een taak zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde. Een externe
+     voorganger telt daar niet mee. Gezien in `tests/planning/check-external-lag-calendar.ts`: projectkalender
+     08–16, eigen kalender 08–14, anker vr 12 juni 16:00, FS met 6 uur lag ⇒ intern di 16 juni 08:00, extern di
+     16 juni 14:00. Ouder dan keuze 9. Voorstel: een externe voorganger telt in B6 als voorganger. Gevonden bij de
+     fix van de review van #808. — B
+851. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
+     (`src/engine/scheduler/relationMath.ts`) heeft één aanroeper, de externe voorganger; de interne FF-tak in
+     `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
+     Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
+     en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
+852. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
+     `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
+     vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
+     één taak en ongedaan maken in de store ontbreken. Uit de review van #808 (GPT-6.1-Sol, xhigh, op
+     `446809cc2`, VERVOLG). — S
 
 ## Tabel, invoer en bediening
 
