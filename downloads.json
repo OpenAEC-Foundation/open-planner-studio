@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "github-releases",
   "repo": "OpenAEC-Foundation/open-planner-studio",
-  "generatedAt": "2026-11-03T20:02:22.121Z",
-  "downloads": 3405,
+  "generatedAt": "2026-11-03T22:01:53.168Z",
+  "downloads": 3409,
   "releases": [
     {
       "tag": "v2026.44.0",
@@ -11,36 +11,36 @@
       "prerelease": false,
       "os": {
         "windows": {
-          "install": 96,
+          "install": 98,
           "update": 119,
           "both": 0,
           "byKind": {
-            "exe": 96,
+            "exe": 98,
             "nsis.zip": 119
           }
         },
         "macos": {
-          "install": 14,
+          "install": 15,
           "update": 3,
           "both": 0,
           "byKind": {
-            "dmg": 14,
+            "dmg": 15,
             "app.tar.gz": 3
           }
         },
         "linux": {
           "install": 2,
           "update": 0,
-          "both": 49,
+          "both": 50,
           "byKind": {
             "snap": 2,
             "rpm": 3,
-            "AppImage": 30,
+            "AppImage": 31,
             "deb": 16
           }
         }
       },
-      "polls": 950
+      "polls": 968
     },
     {
       "tag": "v2026.43.0",
@@ -891,36 +891,36 @@
   ],
   "totals": {
     "windows": {
-      "install": 1993,
+      "install": 1995,
       "update": 443,
       "both": 0,
       "byKind": {
-        "exe": 1993,
+        "exe": 1995,
         "nsis.zip": 443
       }
     },
     "macos": {
-      "install": 308,
+      "install": 309,
       "update": 124,
       "both": 0,
       "byKind": {
-        "dmg": 308,
+        "dmg": 309,
         "app.tar.gz": 124
       }
     },
     "linux": {
       "install": 106,
       "update": 0,
-      "both": 998,
+      "both": 999,
       "byKind": {
         "snap": 106,
         "rpm": 152,
-        "AppImage": 486,
+        "AppImage": 487,
         "deb": 360
       }
     }
   },
-  "polls": 6431,
+  "polls": 6449,
   "unknown": [
     "v2026.44.0: open-planner-studio-2026.44.0.mcpb",
     "v2026.43.0: open-planner-studio-2026.43.0.mcpb",
