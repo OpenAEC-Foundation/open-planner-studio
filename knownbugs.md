@@ -1377,6 +1377,13 @@ en noem het in je rapport of PR-tekst.
      `README.md:59` toont `docs/images/readme/report-preview.png`. Daarop staan in het lint nog de knop *Print*
      en de groep *Report*, die in #791 zijn verwijderd. Voorstel: de afbeelding opnieuw maken als #791 in main
      zit. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`, VERVOLG). — B
+848. **VERVOLG: Project verplaatsen noemt alleen de kalender als het einde anders schuift.** Sinds keuze 8 schuift
+     een extern anker niet meer mee. Houdt alleen zo'n anker het projecteinde vast, dan zegt de dialoog toch dat
+     "de kalender (feestdagen, bouwvak, winterstop)" ingrijpt (`src/components/dialogs/MoveProjectDialog.tsx:75`,
+     sleutels `moveProject.*`), en `planner_move_project` zegt hetzelfde in `note`
+     (`src/services/mcp/tools/calendarResourceTools.ts:2247`). Voorstel: de uitleg algemeen maken (kalenders en
+     externe ankers), in nl en en tegelijk, en langs Ethan. Uit de review van #807 (GPT-6.1-Sol, xhigh, op
+     `33f2284bf`, VERVOLG). — B
 
 ## Tests
 
@@ -1698,6 +1705,12 @@ en noem het in je rapport of PR-tekst.
      later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
+849. **VERVOLG: Project verplaatsen is niet getest met een externe koppeling op een taak met een ontbrekende
+     kalender.** `tests/planning/cases-move-project.json` en `tests/planning/check-move-project.ts` testen nu
+     gemengde voorgangers (intern en extern), twee externe koppelingen, een harde pin en ongedaan maken. Een taak
+     waarvan de kalender niet meer bestaat (terugval op de projectkalender) samen met een extern anker ontbreekt
+     nog. Voorstel: één geval in `cases-move-project.json`. Uit de review van #807 (GPT-6.1-Sol, xhigh, op
+     `33f2284bf`, VERVOLG). — S
 
 ## Wensen en open taken (geen bug)
 

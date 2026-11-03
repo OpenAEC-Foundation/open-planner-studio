@@ -3243,7 +3243,8 @@ export class CPMSolver {
   /**
    * Vroege-zijde constraints. Een harde MSO/MFO-pin
    * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière) en registreert een
-   * logica-schending zodra die druk (`rawMax`, of null bij een worteltaak) later valt dan de pin
+   * logica-schending zodra die druk (`rawMax`, of null bij een worteltaak, plus de externe
+   * voorgangers) later valt dan de pin
    * — dán start de taak vóór z'n voorganger klaar is. Zonder pin stapelen de PRIMAIRE en
    * SECUNDAIRE forward-constraints (SNET/FNET/MSO/MFO) als max-ondergrenzen. `hard`/`constraint2`
    * afwezig ⇒ alleen de soft-tak.
@@ -3256,7 +3257,15 @@ export class CPMSolver {
       // feit heeft dat de pin AANTOONBAAR respecteert (gate hieronder). Een ECHTE schending —
       // actual wijkt af van de pin, of er is nog geen feit en de logica is structureel te laat —
       // blijft gewoon vuren.
-      if (rawMax && rawMax > pin && !this.hardPinRespectedByActual(task, eng)) {
+      // Een externe voorganger drukt net zo op de pin als een interne: start de taak door de pin vóór
+      // het anker van het andere project (bv. na Project verplaatsen: de pin schuift mee, het anker
+      // niet), dan is dat dezelfde schending (review #807).
+      let pressure = rawMax;
+      for (const link of task.externalLinks ?? []) {
+        const bound = this.externalForwardBound(task, link, eng);
+        if (bound && (!pressure || bound > pressure)) pressure = bound;
+      }
+      if (pressure && pressure > pin && !this.hardPinRespectedByActual(task, eng)) {
         this.hardPinViolatedIds.push(task.id);
       }
       return pin;

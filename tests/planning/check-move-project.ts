@@ -23,6 +23,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { collectScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -419,6 +420,57 @@ eq('155 round-trip: verschoven deadline identiek terug',
   back.tasks.map(t => normalizeTaskDates(t, S())).find(t => t.name === 'B')?.deadline, movedDeadline);
 eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
   [movedProject.start, movedConstraint], ['2026-09-07', "2026-09-14T07:00"]);
+
+// ── Review #807: een harde pin verbergt geen geschonden externe voorganger ──────
+// Scenario van de review, letterlijk: een taak met een interne en een externe FS-voorganger. De externe eindigt
+// op vrijdag 5 juni 16:00, de taak heeft een harde MSO-pin op maandag 8 juni: dat klopt allebei. Verplaats de
+// projectstart van 1 juni naar 25 mei. De pin schuift mee naar 1 juni, het anker blijft 5 juni (keuze 8). De taak
+// start dan vóór de externe voorganger klaar is: dat is een schending, net als bij een interne voorganger. Een
+// tweede externe koppeling (eerder anker) en ongedaan maken lopen mee.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const pre = S().addTask({ name: 'Grondwerk', time: createDefaultTaskTime('2026-06-01', 3) });
+  const pinnedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 2),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addSequence({ predecessorId: pre, successorId: pinnedTask, type: 'FINISH_START', lagDays: 0 });
+  const external = (anchorDate: string, taskId: string) => ({
+    direction: 'predecessor' as const, relType: 'FS' as const, lagDays: 0, anchorDate, sourceMissing: false,
+    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId, filePath: '/projecten/leverancier.ifc' },
+  });
+  S().addExternalLink(pinnedTask, external('2026-06-05T16:00', 'l-1'));
+  S().addExternalLink(pinnedTask, external('2026-05-29T16:00', 'l-2'));
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  const warnedTasks = () => collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id);
+  const anchors = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l => l.anchorDate);
+  const montageStart = () => S().tasks.find(t => t.id === pinnedTask)!.time.earlyStart;
+  eq('160 opzet: Montage start op de pin, ma 8 juni 07:00', montageStart(), '2026-06-08T07:00');
+  eq('161 opzet: geen schending', violated(), []);
+
+  const moved = S().moveProject('2026-05-25');
+  eq('162 verplaatst naar 25 mei', [moved.moved, S().project.startDate], [true, '2026-05-25']);
+  eq('163 de pin schuift mee: Montage start ma 1 juni 07:00', montageStart(), '2026-06-01T07:00');
+  eq('164 de ankers blijven staan', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+  eq('165 de externe voorganger is geschonden: Montage staat bij de geschonden constraints', violated(), [pinnedTask]);
+  eq('166 en het paneel Waarschuwingen toont het', warnedTasks(), [`violatedConstraint:${pinnedTask}`]);
+
+  S().undo();
+  S().runCPM();
+  eq('167 ongedaan maken: Montage weer op 8 juni', montageStart(), '2026-06-08T07:00');
+  eq('168 ongedaan maken: geen schending meer', violated(), []);
+  eq('169 ongedaan maken: de ankers zijn niet veranderd', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+
+  // Alleen de koppeling met het eerdere anker (29 mei): na verplaatsen naar 25 mei is er geen schending.
+  S().redo();
+  S().removeExternalLink(pinnedTask, S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].id);
+  S().runCPM();
+  eq('170 een extern anker vóór de pin is geen schending', violated(), []);
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
