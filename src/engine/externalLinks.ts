@@ -117,6 +117,28 @@ export function linkMatchesSource(
 }
 
 /**
+ * De herkomst van het anker (keuze 4) van een bestaande koppeling, op een nieuwe vorm van diezelfde
+ * koppeling. Routes die een koppeling opnieuw opbouwen uit een vorm zonder herkomst (de relatiecel: het
+ * klembordformaat v1 draagt `sourceVersion`, `anchorReadAt` en `siteFileId` niet) zetten haar zo terug.
+ * Dezelfde brontaak (project-id, taak-id en bestandspad) ⇒ de site-id blijft. Ook hetzelfde anker ⇒ versie
+ * en leestijd blijven: het anker komt dan nog steeds uit die versie van de bron. Een ander anker komt niet
+ * meer uit de bron, en dan valt de herkomst weg. Wat de nieuwe vorm zelf al draagt, wint.
+ */
+export function withKeptAnchorProvenance<T extends Omit<ExternalLink, 'id'>>(next: T, old: ExternalLink | undefined): T {
+  if (!old) return next;
+  const a = old.sourceRef;
+  const b = next.sourceRef;
+  if (a.projectId !== b.projectId || a.taskId !== b.taskId || (a.filePath ?? '') !== (b.filePath ?? '')) return next;
+  const out: T = { ...next };
+  if (a.siteFileId !== undefined && b.siteFileId === undefined) out.sourceRef = { ...b, siteFileId: a.siteFileId };
+  if (next.anchorDate === old.anchorDate) {
+    if (next.sourceVersion === undefined && old.sourceVersion !== undefined) out.sourceVersion = old.sourceVersion;
+    if (next.anchorReadAt === undefined && old.anchorReadAt !== undefined) out.anchorReadAt = old.anchorReadAt;
+  }
+  return out;
+}
+
+/**
  * Ververst alle externe links die naar `source` verwijzen met de actuele brontaak-datums.
  * Puur: muteert niets in-place; ongewijzigde taken/links behouden hun referentie (goedkope re-render).
  * Links naar een ándere bron blijven onaangeroerd. Match: projectId (fallback filePath); brontaak-match
@@ -159,8 +181,10 @@ export function refreshExternalAnchors(
       const nextAnchor = anchorDate || link.anchorDate;
       // Herkomst (keuze 4): het anker komt nu uit deze versie van de bron. Dezelfde versie en hetzelfde
       // anker ⇒ niets nieuws; dan blijft ook de oude leestijd staan, zodat verversen zonder wijziging het
-      // document niet verandert.
-      const sameProvenance = (source.version ?? undefined) === link.sourceVersion && nextAnchor === link.anchorDate;
+      // document niet verandert. Heeft de koppeling nog geen leestijd, dan neemt ze een nieuwe één keer
+      // over, ook als de versie onbekend is (beide `undefined`).
+      const sameProvenance = (source.version ?? undefined) === link.sourceVersion && nextAnchor === link.anchorDate
+        && (link.anchorReadAt !== undefined || source.readAt === undefined);
       // Geen daadwerkelijke wijziging ⇒ referentie behouden (byte-/render-stabiel).
       if (
         link.anchorDate === anchorDate &&

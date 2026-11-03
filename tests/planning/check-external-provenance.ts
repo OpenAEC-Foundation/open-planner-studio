@@ -10,11 +10,21 @@
 // 2. De dialoog (handmatige route) houdt de herkomst alleen als het anker uit de bron blijft staan.
 // 3. Een opgeslagen bestand houdt de velden; een veld dat geen tekst is, valt weg.
 // 4. De weergave: site-versie, bestandstijd, alleen leestijd of niets.
+// 5. De relatiecel (review Sol op #809): alleen de lag wijzigen houdt versie, leestijd en site-id, in de store
+//    en na opslaan en openen. Dezelfde tokens ⇒ geen wijziging. Een ander anker ⇒ geen versie en leestijd meer.
 import './domStub';
 import { refreshExternalAnchors, storedExternalLinks, externalAnchorProvenance, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { buildManualExternalLinkSubmission } from '@/components/dialogs/ExternalLinkDialog';
+import { buildTaskRelationIndex, taskRelations } from '@/engine/taskGrid/relationIndex';
+import { buildRelationCellItems } from '@/engine/taskGrid/relationCell';
+import type { ParsedRelationToken } from '@/engine/taskGrid/relationPlan';
+import { createAppStoreContext } from '@/state/appStore';
+import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { readIFC } from '@/services/ifc/ifcReader';
+import { writeIFC } from '@/services/ifc/ifcWriter';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { ExternalLink, Task } from '@/types/task';
+import type { RelationSetIntent, TaskColumnContext } from '@/types/taskGrid';
 
 let checks = 0;
 const failures: string[] = [];
@@ -69,6 +79,14 @@ const source = (extra: Partial<ExternalSourceDoc>): ExternalSourceDoc => ({
   const plain = refreshExternalAnchors(own, source({}));
   eq('1m een bron zonder versie en leestijd, anker gelijk ⇒ niets gewijzigd (zoals voorheen)', plain.changed, false);
 
+  // Een oudere koppeling zonder herkomst, een bron zonder versie: de leestijd komt er één keer bij.
+  const readOnce = refreshExternalAnchors(own, source({ readAt: '2026-11-05T08:00:00.000Z' }));
+  const l5 = readOnce.tasks[0].externalLinks![0];
+  eq('1p geen versie bekend, nog geen leestijd ⇒ de leestijd komt erbij', [readOnce.changed, l5.anchorReadAt, 'sourceVersion' in l5],
+    [true, '2026-11-05T08:00:00.000Z', false]);
+  const readTwice = refreshExternalAnchors(readOnce.tasks, source({ readAt: '2026-11-06T08:00:00.000Z' }));
+  eq('1q een volgende lezing zonder versie en met hetzelfde anker ⇒ niets gewijzigd', readTwice.changed, false);
+
   // Een koppeling naar een andere bron houdt haar herkomst.
   const other: ExternalLink = { ...link, id: 'y', sourceRef: { projectId: 'ander', taskId: 'z', filePath: '/p/ander.ifc' }, sourceVersion: '7', anchorReadAt: '2026-10-01T00:00:00.000Z' };
   const mixed = refreshExternalAnchors([task('L', '2027-03-08', [link, other])], source({ version: 'v9', readAt: '2026-11-02T00:00:00.000Z' }));
@@ -119,6 +137,67 @@ const source = (extra: Partial<ExternalSourceDoc>): ExternalSourceDoc => ({
     { kind: 'read', readAt: new Date('2026-11-02T14:10:00.000Z') });
   eq('4d niets bekend', externalAnchorProvenance({ sourceRef: { projectId: 'p', taskId: 't' } }), { kind: 'none' });
   eq('4e een bestandsversie die geen tijd is, zonder leestijd ⇒ niets', externalAnchorProvenance({ sourceRef: { projectId: 'p', taskId: 't' }, sourceVersion: 'onzin' }), { kind: 'none' });
+}
+
+// (5) De relatiecel, via dezelfde route als het taakraster: celitems → `runGridMutation` → IFC.
+{
+  const { store } = createAppStoreContext();
+  const S = () => store.getState();
+  S().newProject();
+  S().setProject({ startDate: '2027-03-08', name: 'Eigen' });
+  const owner = S().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2027-03-08', 5, 'days') });
+  const linkId = S().addExternalLink(owner, {
+    direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-05T16:00', sourceMissing: false,
+    sourceRef: { ...link.sourceRef, siteFileId: 'site-1' },
+    sourceVersion: '12', anchorReadAt: '2026-11-02T14:10:00.000Z',
+  });
+  S().runCPM();
+  const current = () => S().tasks.find(t => t.id === owner)!.externalLinks!.find(l => l.id === linkId)!;
+  const provenanceOf = (l: ExternalLink) => [l.sourceVersion, l.anchorReadAt, l.sourceRef.siteFileId];
+  const applied = () => S().historyEvents.filter(e => e.state === 'applied').length;
+  /** De tokens van de voorgangerscel, zoals de celeditor ze krijgt. */
+  const tokens = (): ParsedRelationToken[] => {
+    const st = S();
+    const index = buildTaskRelationIndex(st.tasks, st.sequences, st.cpmResult);
+    const context: TaskColumnContext = {
+      projectId: st.project.id, tasksById: new Map(st.tasks.map(t => [t.id, t])), relationIndex: index,
+      assignmentsByTaskId: new Map(), resourcesById: new Map(), baselinesById: new Map(), scheduleStale: st.scheduleStale,
+    };
+    return buildRelationCellItems({
+      ownerTaskId: owner, direction: 'predecessor', entries: taskRelations(index, owner, 'predecessor'), context,
+    }).map(item => item.parsedToken);
+  };
+  const setCell = (value: ParsedRelationToken[]) => {
+    const intent: RelationSetIntent = { kind: 'relation-set', taskId: owner, direction: 'predecessor', value };
+    return S().runGridMutation([intent]).ok;
+  };
+  const withExternal = (edit: (external: Extract<ParsedRelationToken, { kind: 'external' }>['external']) => object) =>
+    tokens().map(token => token.kind === 'external' ? { ...token, external: { ...token.external, ...edit(token.external) } } : token);
+
+  eq('5a opzet: de koppeling draagt versie, leestijd en site-id', provenanceOf(current()), ['12', '2026-11-02T14:10:00.000Z', 'site-1']);
+
+  // Dezelfde tokens terugzetten ⇒ niets gewijzigd, ook met een site-id (het token draagt die niet).
+  const steps = applied();
+  eq('5b dezelfde tokens ⇒ geslaagd', setCell(tokens()), true);
+  eq('5c en geen undo-stap', applied(), steps);
+  eq('5d en de herkomst staat er nog', provenanceOf(current()), ['12', '2026-11-02T14:10:00.000Z', 'site-1']);
+
+  // Alleen de lag: 0d → 1d.
+  eq('5e lag 0d → 1d ⇒ geslaagd', setCell(withExternal(() => ({ lag: { lagDays: 1 } }))), true);
+  eq('5f de lag is 1d', current().lagDays, 1);
+  eq('5g het anker is gelijk', current().anchorDate, '2027-03-05T16:00');
+  eq('5h de herkomst blijft in de store', provenanceOf(current()), ['12', '2026-11-02T14:10:00.000Z', 'site-1']);
+
+  // Opslaan en weer openen.
+  const opened = createAppStoreContext().store;
+  opened.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { filePath: null, recompute: true });
+  const reopened = opened.getState().tasks.find(t => t.name === 'Afbouw')!.externalLinks![0];
+  eq('5i na opslaan en openen: lag 1d en dezelfde herkomst', [reopened.lagDays, ...provenanceOf(reopened)],
+    [1, '12', '2026-11-02T14:10:00.000Z', 'site-1']);
+
+  // Een ander anker in de cel komt niet meer uit de bron: geen versie en leestijd meer, de site-id blijft.
+  eq('5j ander anker ⇒ geslaagd', setCell(withExternal(() => ({ anchorDate: '2027-03-09T16:00' }))), true);
+  eq('5k ander anker ⇒ geen versie en leestijd meer; de site-id blijft', provenanceOf(current()), [undefined, undefined, 'site-1']);
 }
 
 if (failures.length) {
