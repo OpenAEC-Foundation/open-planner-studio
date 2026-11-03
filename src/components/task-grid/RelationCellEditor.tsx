@@ -116,7 +116,7 @@ function ExternalRelationTooltipContent({ item }: { item: RelationCellItem }) {
   const timeNotation = useAppStore((s) => s.ui.timeNotation);
   if (item.parsedToken.kind !== 'external') return null;
   const external = item.parsedToken.external;
-  const provenance = provenanceText(external, t, i18n.language, timeNotation);
+  const provenance = item.provenance ? provenanceText(item.provenance, t, i18n.language, timeNotation) : null;
   return (
     <>
       <div className="tooltip-title">{external.sourceRef.taskName || external.sourceRef.taskId}</div>
