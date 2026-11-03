@@ -32,6 +32,7 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 - In the Gantt there is a grey ghost bar at the task. With a predecessor it ends on the anchor, with a successor it starts on it. A dashed border with the red label *outdated* means the source has not been read. With a manual link that is always the case.
 - Right-click a link in the column for *Edit external relationship…* and *Delete relationship*. If the link has a source file, *Refresh source* is there as well.
 - Choose *Link ▾ › Refresh all external relations* to read the source files again and update the anchors. That only works in the desktop app. If you only have manual links, the app says *No refreshable external sources (file path missing).* Press **Calculate** after a refresh.
+- Hover over the link to see where the anchor comes from. The line *Anchor origin* shows the modification time of the source file and when the app read the anchor, for example *source file of Nov 2, 2026 14:05, read on Nov 2, 2026 14:10*. So you can see afterwards which version of the other project your schedule used. If you fill in the anchor yourself, it has no origin and the line is missing.
 - If you change the type or direction so that the anchor needs another side of the external task (start instead of finish, or the other way round), the app asks for a new anchor with a manual link: *Choose a new anchor: the relationship type now uses the other side of the source task.* With a link that has a source file, the app reads the anchor again itself.
 
 ## Pitfalls and what the app does

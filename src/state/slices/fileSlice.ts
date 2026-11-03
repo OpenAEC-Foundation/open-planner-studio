@@ -1472,8 +1472,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     parseExternalSource: async (filePath: string, labels) => {
       if (!isTauri()) return null;
       try {
-        const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
-        return await readExternalSource(filePath, { readTextFile, readFile }, labels);
+        const { readTextFile, readFile, stat } = await import('@tauri-apps/plugin-fs');
+        // Herkomst (keuze 4): de wijzigingstijd VÓÓR het lezen. Verandert het bestand tijdens het lezen,
+        // dan is de bewaarde versie ouder dan de inhoud en meldt de volgende controle het als nieuw; nooit
+        // andersom. Lukt `stat` niet, dan blijft de versie onbekend.
+        const version = await stat(filePath).then(info => info.mtime?.toISOString(), () => undefined);
+        const source = await readExternalSource(filePath, { readTextFile, readFile }, labels);
+        return { ...source, ...(version ? { version } : {}), readAt: new Date().toISOString() };
       } catch (err) {
         console.error('parseExternalSource: kon bronbestand niet lezen:', err);
         return null;
@@ -1487,7 +1492,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
       const source: ExternalSourceDoc = {
         projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-        lateDatesInFile: src.lateDatesInFile,
+        lateDatesInFile: src.lateDatesInFile, version: src.version, readAt: src.readAt,
       };
       const result = refreshExternalAnchors(get().tasks, source);
       if (result.changed) {
@@ -1555,7 +1560,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push({
           projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-          lateDatesInFile: src.lateDatesInFile,
+          lateDatesInFile: src.lateDatesInFile, version: src.version, readAt: src.readAt,
         });
       }
 
