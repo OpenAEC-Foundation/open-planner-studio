@@ -96,10 +96,10 @@ eq('23 time.actualFinish schuift (R5)', st.time.actualFinish, '2026-06-10');
 eq('24 constraint.date schuift', st.constraint?.date, '2026-06-11');
 eq('25 constraint2.date schuift (fase 2.9 — het makkelijkst te vergeten veld)', st.constraint2?.date, '2026-06-27');
 eq('26 deadline schuift', st.deadline, '2026-07-02');
-eq('27 externalLinks[].anchorDate schuift (R6)', st.externalLinks?.[0].anchorDate, '2026-06-05');
 
 // NIET / AFGELEID
 eq('28 constraint.type blijft', st.constraint?.type, 'SNET');
+eq('27 externalLinks[].anchorDate blijft staan: een datum van het bronproject, dat niet meeschuift (keuze 8, 2026-11-03)', st.externalLinks?.[0].anchorDate, '2026-05-29');
 eq('29 externalLinks[].sourceMissing BLIJFT false (R6: betekent "bron onvindbaar", niet "anker verouderd")', st.externalLinks?.[0].sourceMissing, false);
 eq('30 externalLinks[].lagDays blijft (duur)', st.externalLinks?.[0].lagDays, 2);
 eq('31 externalLinks[].sourceRef blijft ongemoeid', st.externalLinks?.[0].sourceRef, baseTask.externalLinks![0].sourceRef);
@@ -119,8 +119,8 @@ eq('42 bron-taak ongemoeid (puur)', baseTask.time.scheduleStart, '2026-06-01');
 eq('43 bron-constraint ongemoeid (puur)', baseTask.constraint?.date, '2026-06-04');
 eq('44 time is ALTIJD een nieuw object, ook bij delta 0 (anders muteert de preview-solver de store)',
   shiftTask(baseTask, 0).time !== baseTask.time, true);
-eq('45 externalLinks is een nieuwe array bij delta 0',
-  shiftTask(baseTask, 0).externalLinks !== baseTask.externalLinks, true);
+eq('45 externalLinks: elke koppeling ongewijzigd, ook bij een grote delta (keuze 8)',
+  shiftTask(baseTask, 400).externalLinks, baseTask.externalLinks);
 
 // ASAP/ALAP hebben geen constraint-datum ⇒ no-op, geen crash.
 const asapTask: Task = { ...baseTask, constraint: { type: 'ASAP' }, constraint2: undefined };
@@ -204,6 +204,16 @@ const impact = computeMoveImpact(
   [{ id: 'cf-date', name: 'Keuringsdatum', type: 'date' }, { id: 'cf-text', name: 'Opmerking', type: 'text' }],
 );
 eq('80 taskCount telt alle taken met minstens één verschuifbare datum', impact.taskCount, 3);
+{
+  // Een taak met ALLEEN een externe koppeling (geen eigen datum) schuift niets: het anker blijft staan.
+  const onlyLink: Task = {
+    ...baseTask, id: 't4', constraint: undefined, constraint2: undefined, deadline: undefined, customFields: undefined,
+    time: { ...baseTask.time, scheduleStart: '', scheduleFinish: '', actualStart: undefined, actualFinish: undefined },
+  };
+  const linkImpact = computeMoveImpact([onlyLink], [], [], []);
+  eq('80b een taak met alleen een extern anker telt niet als verschoven (keuze 8)', linkImpact.taskCount, 0);
+  eq('80c maar de koppeling telt wel voor de waarschuwing', linkImpact.externalLinkCount, 1);
+}
 eq('81 constraintCount telt taken met een constraint-datum', impact.constraintCount, 2);
 eq('82 hardPinCount telt de harde pins (R4)', impact.hardPinCount, 1);
 eq('83 deadlineCount', impact.deadlineCount, 2);
