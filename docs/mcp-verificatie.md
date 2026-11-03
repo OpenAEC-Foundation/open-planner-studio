@@ -42,7 +42,7 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
 
 - `capabilities` is alleen `{ tools: {} }`. Er zijn geen resources en geen prompts; `resources/list` en
   `prompts/list` geven `-32601`.
-- 41 `planner_*`-tools (`src/services/mcp/tools/`). Elke tool draagt `readOnlyHint`, `destructiveHint`,
+- 42 `planner_*`-tools (`src/services/mcp/tools/`). Elke tool draagt `readOnlyHint`, `destructiveHint`,
   `idempotentHint` en `openWorldHint` (`tools/helpers.ts`; `planner_batch` is `destructiveHint: true`).
 - `initialize` geeft `instructions` mee (`MCP_INSTRUCTIONS` in `dispatcher.ts`): de kernregels voor goed plannen.
   De volledige gids komt via de tool `planner_get_planning_guide`.
@@ -123,7 +123,7 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
      voegde een taak toe. `claude mcp add --transport http … --header "Authorization: Bearer …"` schrijft
      hetzelfde fragment (`type: "http"`, `url`, `headers`).
    - `mcp-remote` 0.15.2 als stdio-brug (de route voor Claude Desktop), met `--header
-     "Authorization:${AUTH_HEADER}"` en het token in `env`: verbinding, 41 tools, leestool werkt, zowel met
+     "Authorization:${AUTH_HEADER}"` en het token in `env`: verbinding, 42 tools, leestool werkt, zowel met
      `localhost` als `127.0.0.1`, zonder `--allow-http`.
    - Claude Desktop met `mcp-remote` en het fragment uit de gids: getest door de eigenaar op 2026-10-23,
      tegen de desktop-app. De `.mcpb`-bundel zelf is nog niet in Claude Desktop geïnstalleerd (zie punt 4).
@@ -226,7 +226,7 @@ headless MCP-server (#572) op een werkmap. Dit is het schakelstuk uit het ontwer
   voorvoegsel `headless:` naar stderr. Zolang de app draait (`open-files.json` van een levend proces), vervangt de
   headless server geen bestaand bestand (slot in `headless/mcp-server/src/appLock.ts`, zie
   [Headless MCP-server](headless-mcp.md)).
-- **Dezelfde tools.** In beide standen gelden dezelfde 41 `planner_*`-tools, met dezelfde namen, beschrijvingen,
+- **Dezelfde tools.** In beide standen gelden dezelfde 42 `planner_*`-tools, met dezelfde namen, beschrijvingen,
   schema's en annotaties (getoetst). Geen tool heeft een scherm nodig; Gantt, dialogen, lint, afdrukken en PDF
   hebben geen tool, ook niet in de app. `initialize.instructions` is die van de planner, met een korte uitleg van
   de bundel erachter (`bundleInstructions`).

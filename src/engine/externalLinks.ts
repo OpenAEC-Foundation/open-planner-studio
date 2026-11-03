@@ -173,6 +173,49 @@ export function refreshExternalAnchors(
   return { tasks: anyChanged ? outTasks : tasks, refreshed, missing, changed: anyChanged };
 }
 
+/**
+ * Ververst de koppelingen uit meerdere bronnen in één keer: *Alle externe relaties vernieuwen*
+ * (`refreshAllExternalAnchors`) en de MCP-tool `planner_refresh_external_links`. Puur, net als
+ * `refreshExternalAnchors`; elke bron ververst zijn eigen koppelingen op het vorige resultaat.
+ *
+ * Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende bronpaden met zo'n
+ * gedeelde id in dezelfde actie, dan is project-id alleen niet langer onderscheidend: de eerste bron zou
+ * anders beide koppelingen verversen en de tweede beide opnieuw. Alleen in die aantoonbaar ambigue groep
+ * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
+ * zodat een verplaatst bestand werkt.
+ */
+export function refreshFromSources(tasks: Task[], sources: readonly ExternalSourceDoc[]): RefreshResult {
+  const pathsByProjectId = new Map<string, Set<string>>();
+  for (const source of sources) {
+    const projectId = source.projectId.trim();
+    const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
+    if (!projectId || sourcePath === null) continue;
+    const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
+    sourcePaths.add(sourcePath);
+    pathsByProjectId.set(projectId, sourcePaths);
+  }
+  const ambiguousProjectIds = new Set(
+    [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
+  );
+
+  let out = tasks;
+  let refreshed = 0;
+  let missing = 0;
+  let changed = false;
+  for (const source of sources) {
+    const result = refreshExternalAnchors(
+      out,
+      source,
+      ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+    );
+    out = result.tasks;
+    refreshed += result.refreshed;
+    missing += result.missing;
+    if (result.changed) changed = true;
+  }
+  return { tasks: out, refreshed, missing, changed };
+}
+
 const DIRECTIONS: readonly string[] = ['predecessor', 'successor'];
 const RELATION_TYPES: readonly string[] = ['FS', 'SS', 'FF', 'SF'];
 const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath'] as const;
