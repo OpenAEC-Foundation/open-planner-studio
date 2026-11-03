@@ -106,6 +106,7 @@ export function WarningsPanel() {
       case 'droppedSequence': return t('warnings.kind.droppedSequence');
       case 'hammockNoFinishDriver': return t('warnings.kind.hammockNoFinishDriver');
       case 'cappedTask': return t('warnings.kind.cappedTask');
+      case 'externalLagCalendar': return t('warnings.kind.externalLagCalendar');
       case 'overallocation': {
         const count = f.days ?? 0;
         const nonWorking = f.nonWorkingDays ?? 0;

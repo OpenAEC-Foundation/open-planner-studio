@@ -87,6 +87,7 @@ check-ext-parent.ts matrix
 check-ext-resourceids.ts matrix
 check-extension-lifecycle.ts matrix
 check-extension-validation.ts matrix
+check-external-lag-calendar.ts matrix
 check-external-lag-days.ts matrix
 check-external-link-dialog.ts matrix
 check-external-link-edit.ts matrix

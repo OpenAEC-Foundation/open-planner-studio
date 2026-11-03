@@ -374,6 +374,22 @@ en noem het in je rapport of PR-tekst.
      store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
      [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
+846. **VERVOLG: een externe SF-voorganger kent geen ondergrens voor de finish.** Een interne SF-relatie met lag
+     legt naast de startgrens ook een ondergrens op de finish (`forwardFinishFloor` in
+     `src/engine/scheduler/relationMath.ts`). Een externe SF-voorganger rekent alleen de startgrens
+     (`externalForwardBound` in `CPMSolver.ts`). Gezien in `tests/planning/check-external-lag-calendar.ts`: onder
+     P6, met lagkalender *24-uurs* en 2 dagen lag eindigt de taak met de interne relatie op wo 10 juni 08:00 en met de
+     externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
+     Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
+     (`docs/relaties-tussen-projecten.md`). — B
+847. **VERVOLG: een externe FF-opvolger met lag rekent anders als het anker buiten de werktijd van de eigen taak
+     valt.** `externalBackwardBound` (`CPMSolver.ts`) normaliseert het anker eerst vooruit
+     (`addWorkingMinutesSigned`) en trekt dan de lag af; een interne relatie trekt direct af
+     (`shiftLagPred` → `subtractWorkMinutes`). Gezien in `tests/planning/check-external-lag-calendar.ts` onder P6
+     en MS Project: anker vr 7 augustus 16:00, eigen kalender 08–14, lag 2 dagen ⇒ late finish wo 5 augustus
+     14:00 extern, do 6 augustus 08:00 intern (één blok verschil, dus ook in de speling). Ouder dan keuze 9:
+     het geldt met de kalender van de eigen taak. Voorstel: de lag-loper van een interne relatie gebruiken,
+     zoals keuze 9 nu doet voor een lagkalender van een andere kant. — B
 
 ## Tabel, invoer en bediening
 
