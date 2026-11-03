@@ -33,6 +33,7 @@ import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
 import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
+import { useExternalSourceWatch } from '@/hooks/useExternalSourceWatch';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
@@ -219,6 +220,8 @@ function AppContent() {
   useAutoCalcCPM();
   // Stap 1.5: een nieuwe versie van een bron opmerken bij openen en als het venster weer actief wordt.
   useExternalSourceCheck();
+  // Stap 1.6: in de desktop-app de map van elk bronbestand bewaken, zodat de balk meteen komt.
+  useExternalSourceWatch();
 
   // "Datums zoals opgeslagen": rekent één keer door zodra de modus via een BEWERKING
   // wordt verlaten — F5 en de strook zelf roepen runCPM al rechtstreeks aan, dit dekt de rest.
