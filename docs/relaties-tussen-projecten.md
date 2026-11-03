@@ -1,7 +1,7 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
-Datum: 2 november 2026. Status: onderzoek en ontwerp, nog niets gebouwd. Ethan beslist over de keuzes in
-hoofdstuk 10. Tot zijn ja verandert er niets aan het IFC-formaat of aan wat de planner ziet.
+Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026. Status: ontwerp met besluiten. Ethan besliste over
+alle keuzes in hoofdstuk 10. De bouw gaat in kleine PR's, in de volgorde van hoofdstuk 9.
 
 ## 1. Doel en grens
 
@@ -295,11 +295,11 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
   een melding als het anker verouderd is en verversen het plan later maakt.
 - **Voorstel 5** (verversen uit een geopend document, en een knop *Bronbestand kiezen…* in de browser): hoofdstuk 7.
 - **Voorstel 6** (lagkalender): een externe lag telt in de lagkalender die het project voor relaties kiest, net als
-  een interne lag. Geldt in beide standen. Keuze 9.
+  een interne lag. Geldt in beide standen. Besloten (keuze 9).
 - **Voorstel 7** (*Project verplaatsen*): externe ankers niet meer meeschuiven, want het andere project beweegt niet
-  mee. Keuze 8.
+  mee. Besloten (keuze 8).
 - **Voorstel 8** (MCP en de gidszin over fasen): punt 7 hierboven, en de zin "Kies je een fase, dan geldt de
-  koppeling voor elke taak in die fase" in de gids. Keuze 11.
+  koppeling voor elke taak in die fase" in de gids. Besloten (keuze 11).
 
 ### 5.4 Wat er in het IFC-formaat verandert
 
@@ -320,9 +320,12 @@ Twee randgevallen:
   koppeling (`ExternalLinkDialog.tsx`, `submit`). De nieuwe versie herkent de bron dan weer op project-id en pad,
   zoals nu.
 
-Het lijstje "wie hangt van mij af" komt niet
-in het IFC: in de SuperCloud houdt de host het bij, zonder cloud zoekt OPS het op (6.4 en 7.3). Alleen de map waarin
-OPS zonder cloud zoekt, kan een projectinstelling worden (keuze 7).
+Ethan keurde de drie velden goed op 3 november 2026 (keuze 4).
+
+Het lijstje "wie hangt van mij af" komt niet in het IFC: in de SuperCloud houdt de host het bij, zonder cloud zoekt OPS
+het op (6.4 en 7.3). Wel in het IFC komt de map waarin OPS zonder cloud zoekt: een projectinstelling, één per project
+(keuze 7, besloten op 3 november 2026). Ook die is optioneel; een oudere versie laat haar staan zoals de andere
+projectinstellingen.
 
 ## 6. Stand A: in de SuperCloud
 
@@ -356,7 +359,9 @@ leesrecht meer, dan krijgt de koppeling de status *Geen toegang tot de bron* en 
 
 Bij elke opslag stuurt OPS de host de lijst van zijn externe koppelingen per bronbestand mee (C3): eigen taak,
 brontaak, richting, type en anker. De host bewaart die per versie. Opent de installateur zijn planning, dan vraagt
-OPS de host "wie verwijst naar dit bestand?" en toont dat bij de taken (5.2 punt 3). Wie dat mag zien, is keuze 2.
+OPS de host "wie verwijst naar dit bestand?" en toont dat bij de taken (5.2 punt 3). Iedereen die het bronbestand mag
+lezen, ziet naam, taak en datum. De koppeldialoog zegt dat vooraf: "De planners van Installateur zien deze koppeling en
+de datum waarop je rekent." (keuze 2, besloten).
 
 ### 6.5 Een conflict melden
 
@@ -391,20 +396,24 @@ dat is niet gevonden.
   bestandshandvat (zoals bij de recente bestanden), zodat later opnieuw lezen één klik voor toestemming kost. In
   andere browsers kiest de planner het bestand opnieuw.
 - **Een geopend document** met hetzelfde project-id gaat voor (voorstel 5). Heeft dat document niet-opgeslagen
-  wijzigingen, dan neemt OPS het anker uit het opgeslagen bestand en zegt dat (keuze 5).
+  wijzigingen, dan neemt OPS het anker standaard uit het opgeslagen bestand en zegt dat. Als optie kan de planner met
+  het geopende document rekenen, met de niet-opgeslagen wijzigingen (keuze 5, besloten).
 
 ### 7.2 Een gewijzigde bron opmerken
 
-Bij het openen van een document en als het venster weer actief wordt, kijkt OPS naar de wijzigingstijd van elk
-bronbestand (desktop: `stat`; Chromium: `getFile().lastModified` met een handvat). Is de tijd anders dan
-`sourceVersion`, dan verschijnt dezelfde balk als in de SuperCloud. Een map live bewaken kan ook (de `watch`-functie
-van `tauri-plugin-fs`), maar dat vraagt een wijziging in de Rust-kant en in de rechten (keuze 6).
+In de desktop-app bewaakt OPS de map van elk bronbestand (de feature `watch` van `tauri-plugin-fs`, met de rechten
+`watch` en `unwatch`). Verandert een bronbestand, dan verschijnt de balk meteen, ook als het venster al actief is.
+Als vangnet kijkt OPS bij het openen van een document en als het venster weer actief wordt naar de wijzigingstijd van
+elk bronbestand (desktop: `stat`; Chromium: `getFile().lastModified` met een handvat). Is de tijd anders dan
+`sourceVersion`, dan verschijnt dezelfde balk als in de SuperCloud. In de browser is er geen bewaking; daar geldt
+alleen het vangnet (keuze 6, besloten).
 
 ### 7.3 Wie hangt van mij af
 
 Een knop *Afhankelijke projecten zoeken…* leest de IFC-bestanden in een gekozen map alleen-lezen en zoekt koppelingen
 naar dit project (op project-id). Geopende documenten tellen ook mee. Het resultaat staat bij de taken, net als in de
-SuperCloud. In de browser: een map kiezen in Chromium, of een paar bestanden kiezen in andere browsers.
+SuperCloud. In de browser: een map kiezen in Chromium, of een paar bestanden kiezen in andere browsers. OPS onthoudt de
+map als projectinstelling, zodat de controle bij elk openen vanzelf gaat (keuze 7, besloten).
 
 ### 7.4 Meldingen
 
@@ -425,22 +434,41 @@ voorstel; de SuperCloud beslist.
 | C5 | een ander bestand openen in een nieuw tabblad, met een plek in dat bestand | werkplek | niets (sandbox zonder popups) |
 | C6 | een gebeurtenis bij een nieuwe versie, voor een app op de server | Storage | niets (ook gevraagd door Open BIM Platform) |
 
-## 9. Bouwvolgorde (voorstel)
+## 9. Bouwvolgorde
 
-1. **Zonder iets van de SuperCloud, beide standen:** de balk, *Bekijken* met de gevolgen en *Accepteren*, de melding
-   na F5, verversen uit een geopend document, *Bronbestand kiezen…*, een bron in dezelfde map op de site, de herkomst
-   (5.4) en het opmerken bij openen en bij een actief venster.
+Stap 1 heeft niets van de SuperCloud nodig. Stap 2 tot en met 4 wachten op de contracten C1–C6 (hoofdstuk 8 en 11).
+
+1. **Zonder iets van de SuperCloud, beide standen.** Elk punt is een eigen kleine PR vanaf `main`, met tests:
+   1. *Project verplaatsen* schuift de externe ankers niet meer mee (keuze 8).
+   2. Een externe lag telt in de lagkalender van het project, met de terugval en de melding; de gidszin verandert
+      (keuze 9).
+   3. De herkomst: de drie velden in het IFC-formaat, gevuld bij verversen, en de tooltip "Anker uit …" (keuze 4).
+   4. De melding na F5 bij een geschonden externe opvolger (voorstel 2 uit #792).
+   5. De balk bij een nieuwe versie van een bron, met *Bekijken* (de gevolgen), *Accepteren* en *Later*; opmerken bij
+      openen en als het venster weer actief wordt (keuze 1, en keuze 6 als vangnet).
+   6. De map van een bron bewaken in de desktop-app (keuze 6, de feature `watch` van `tauri-plugin-fs`).
+   7. Verversen uit een geopend document: standaard het opgeslagen bestand met een melding, als optie het geopende
+      document (keuze 5, voorstel 5).
+   8. *Bronbestand kiezen…* in de browser (voorstel 5).
+   9. Een bron in dezelfde map op de site (stand A met het bestaande hostcontract, `siteFileId`).
+   10. De MCP-tools: externe relaties in de leestools, een tool om te verversen, en de gidszin over fasen (keuze 11).
+   11. *Afhankelijke projecten zoeken…* in een map die OPS per project onthoudt, en de waarschuwing vóór het opslaan
+       bij de bron (keuze 7, keuze 3 zonder cloud).
 2. **Met C1 en C2:** bronnen uit andere mappen en uit *Gedeeld met mij*, en de balk terwijl het plan open staat.
-3. **Met C3, C4 en C5:** wie hangt van mij af, de melding aan de andere planner, doorklikken.
+3. **Met C3, C4 en C5:** wie hangt van mij af (met de zin in de koppeldialoog van keuze 2), de melding aan de andere
+   planner (keuze 3), doorklikken.
 4. **Met C6:** de controle op de server, ook als de bron buiten OPS opgeslagen is.
 
 Toetsen: de rekenregels (verversen, gevolgen, conflict) in `tests/planning/`; de route in de browser met de nep-site
-(`?fakeSite=1`), uitgebreid met een tweede project, versies en de nieuwe hostberichten.
+(`?fakeSite=1`), uitgebreid met een tweede project, versies en de nieuwe hostberichten. Een stap met nieuw ontwerp of
+nieuwe tekst wacht op een controle door Ethan in de app, vóór de merge.
 
-## 10. Keuzes voor Ethan
+## 10. Keuzes voor Ethan (alle besloten)
 
-Op volgorde van belang. Per keuze: wat de planner ziet en doet, de opties, en mijn advies. Eerdere besluiten die
-meetellen:
+Op volgorde van belang. Per keuze: wat de planner ziet en doet, de opties, mijn advies en het besluit. Ethan besliste
+keuze 10 op 2 november 2026 en de andere keuzes op 3 november 2026. De orkestrator gaf ze door; ze staan ook in de wiki
+van de orkestrator (`wiki/besluiten/2026-11-03 …`, bij het onderwerp *Relaties tussen projecten*). Eerdere besluiten
+die meetellen:
 
 - **Een vast anker, geen berekening over twee documenten.** Ontwerp 2.9
   (`docs/superpowers/specs/2026-07-06-2.9-research-domein.md` §3, juli 2026). Wie het besloot, staat er niet bij.
@@ -466,6 +494,10 @@ Advies: optie 1 als standaard, met optie 2 als instelling per project. Een plan 
 planner het ziet, en wie dat wil, kan het automatisch laten gaan. MS Project kent dezelfde twee standen
 ("Automatically accept new external data"), maar zonder de gevolgen te tonen.
 
+**Besluit (3 november 2026, Ethan):** "Advies". Er verschijnt een balk met de versie, wie hem opsloeg en hoeveel
+koppelingen veranderen. *Bekijken* toont de gevolgen. De planner kiest *Accepteren* of *Later*. Er wordt niets
+automatisch overgenomen. Optie 2 als instelling per project komt er nu dus niet.
+
 ### Keuze 2. Ziet het bronproject wie ervan afhangt?
 
 Voorbeeld: de installateur opent zijn planning en ziet bij *Installatie*: "Aannemer rekent hierop: Ruwbouw moet klaar
@@ -481,6 +513,9 @@ Advies: optie 1. Een koppeling is een afspraak tussen twee partijen; de bron moe
 kan hij geen rekening houden met een verschuiving. Optie 2 is veiliger, maar dan ziet de installateur niet *wat* hij
 raakt. Dit raakt ook de SuperCloud (C3); zij moeten het beleid kunnen afdwingen.
 
+**Besluit (3 november 2026, Ethan):** optie 1. Naam, taak en datum zijn zichtbaar voor iedereen die het bronproject
+mag lezen. De koppeldialoog meldt dat vooraf.
+
 ### Keuze 3. Wie krijgt een melding bij een conflict?
 
 Voorbeeld: de installateur zet *Installatie* eerder. Dan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw
@@ -494,6 +529,8 @@ klaar is.
 Advies: optie 1. Zonder cloud wordt het vanzelf optie 2, plus de bronplanner als hij de afhankelijke projecten kent
 (7.3).
 
+**Besluit (3 november 2026, Ethan):** optie 1. Beide planners krijgen een melding.
+
 ### Keuze 4. Mogen er drie velden bij in het IFC-formaat?
 
 Voorbeeld: de tooltip van een koppeling zegt "Anker uit versie 12 van Installateur.ifc, gelezen op 2 november 14:10".
@@ -505,6 +542,8 @@ Daarvoor bewaart OPS per koppeling `sourceRef.siteFileId`, `sourceVersion` en `a
 
 Advies: optie 1. Zonder `siteFileId` werkt stand A niet goed, en zonder `sourceVersion` kan OPS niet zien of de bron
 nieuwer is.
+
+**Besluit (3 november 2026, Ethan):** optie 1, ja. Ethan keurt hiermee de drie velden in het IFC-formaat goed.
 
 ### Keuze 5. Waar komt het anker vandaan als de bron ook open staat, met niet-opgeslagen wijzigingen?
 
@@ -518,6 +557,9 @@ nog niet op. Dan ververst hij fase 2.
 Advies: optie 1. Dan komt het anker altijd uit iets wat de ander ook kan zien (uitgangspunt 3), en is de herkomst
 (keuze 4) altijd een echte versie.
 
+**Besluit (3 november 2026, Ethan):** "1, 2 als optie". Standaard komt het anker uit het opgeslagen bestand, met de
+melding. Rekenen met het geopende document (met de niet-opgeslagen wijzigingen) komt erbij als optie.
+
 ### Keuze 6. Zonder cloud: hoe merkt OPS een gewijzigde bron op?
 
 Voorbeeld: de installateur stuurt een nieuwe versie per mail; de aannemer zet die over de oude in zijn projectmap.
@@ -529,6 +571,11 @@ Voorbeeld: de installateur stuurt een nieuwe versie per mail; de aannemer zet di
 3. **Alleen met de hand**, zoals nu.
 
 Advies: optie 1. Dat dekt het gewone geval zonder de Rust-kant te raken.
+
+**Besluit (3 november 2026, Ethan):** optie 2, "Ja". OPS bewaakt de map van de bron, en de balk uit keuze 1 verschijnt
+meteen. Optie 1 blijft als vangnet: bij openen en bij terugkeer naar het venster kijkt OPS naar de wijzigingstijd.
+Hiervoor is de feature `watch` van `tauri-plugin-fs` nodig, met de rechten `watch` en `unwatch`. Dat is een
+plugin-feature, geen nieuw Rust-command.
 
 ### Keuze 7. Zonder cloud: afhankelijke projecten zoeken in een map?
 
@@ -542,6 +589,9 @@ Voorbeeld: de installateur kiest *Afhankelijke projecten zoeken…* en de map `P
 
 Advies: optie 1.
 
+**Besluit (3 november 2026, Ethan):** optie 1. OPS onthoudt de map per project, als projectinstelling in het
+IFC-bestand.
+
 ### Keuze 8. *Project verplaatsen*: externe ankers meeschuiven? (voorstel 7 uit #792)
 
 Voorbeeld: de aannemer verschuift zijn hele project 2 weken. Nu schuiven de ankers mee, met een waarschuwing *externe
@@ -553,6 +603,8 @@ ankers*.
 Advies: optie 1. Meeschuiven maakt het anker een datum die in geen enkel bronbestand staat. Met keuze 1 komt de echte
 datum toch terug bij de volgende versie.
 
+**Besluit (3 november 2026, Ethan):** optie 1. Externe ankers schuiven niet meer mee.
+
 ### Keuze 9. Externe lag in de lagkalender van het project? (voorstel 6 uit #792)
 
 Voorbeeld: het project rekent een relatielag in de kalender *24 uur*. Een interne lag van 2 dagen telt dan 48 uur, een
@@ -563,6 +615,13 @@ externe lag nu 2 werkdagen in de kalender van de eigen taak.
 2. **Nee**: zoals nu.
 
 Advies: optie 1. Een planner verwacht dat een lag overal hetzelfde telt.
+
+**Besluit (3 november 2026, Ethan):** "ik volg hier jouw advies", dus optie 1. Een externe lag telt in de lagkalender
+van het project (`lagCalendar`), net als een interne lag. De gidszin over "de kalender van je eigen taak" verandert.
+Eén geval vraagt een terugval: de lagkalender is *voorganger* (de standaard) en de voorganger staat in het andere
+project, of de lagkalender is *opvolger* en de opvolger staat daar. Die kalender staat niet in het eigen bestand. OPS
+telt de lag dan in de kalender van de eigen taak, zoals nu, en meldt dat. Ethan vroeg of dit een aparte optie moest
+worden; het antwoord is nee: de projectinstelling geldt overal.
 
 ### Keuze 10. Een gestarte of klare bronkant: terugvallen op de vroege datum? (besloten)
 
@@ -585,6 +644,9 @@ externe relaties.
 2. **Nee.**
 
 Advies: optie 1.
+
+**Besluit (3 november 2026, Ethan):** optie 1. De MCP-leestools geven externe relaties terug, er komt een tool om te
+verversen, en de gids krijgt de zin "Kies je een fase, dan geldt de koppeling voor elke taak in die fase".
 
 ## 11. Issues bij de SuperCloud
 
