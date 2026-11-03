@@ -1215,6 +1215,20 @@ en noem het in je rapport of PR-tekst.
      er geen last van. Oplossing: een vast id per bron-UID, of in `linkMatchesSource`/`refreshExternalAnchors` ook
      op een bron-sleutel (UID, naam) matchen. — B (MSPDI), S (`.mpp`, P6 XML, CSV)
 
+839. **VERVOLG: bestaande toegang tot een recent bestand komt na de update niet vanzelf terug.**
+     `src-tauri/src/main.rs:84`, `src/state/slices/fileSlice.ts:1631`. Een recent bestand buiten de vaste
+     rechten heeft na de update nog geen bewaarde toestemming: `persisted-scope` herstelt alleen eerder
+     opgeslagen scopes. De gebruiker ziet "Bestand openen mislukt". Herstel kan via Bestand → Openen,
+     door hetzelfde bestand opnieuw te kiezen. Voorstel: maak die herstelstap duidelijk in de melding
+     of de gids. Verleen geen rechten op basis van de recente lijst. Uit de review van #798 door Sol
+     (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
+
+840. **VERVOLG: kapotte items in Recent zijn niet met de hand te verwijderen.**
+     `src/state/slices/fileSlice.ts:1633`, `src/components/backstage/Backstage.tsx:283`. Een verwijderd
+     bestand blijft nu in Recent staan, en zowel Backstage als het lintmenu biedt alleen openen.
+     Voorstel: voeg later een kleine verwijderactie toe; houd het item bij een tijdelijke leesfout.
+     Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -1670,6 +1684,13 @@ en noem het in je rapport of PR-tekst.
      rapporteerde daarnaast 60 vergeleken voorstellen en 18 extra combinaties vóór/na, exact gelijk,
      ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
      geen onderdeel van de geautomatiseerde vóór/na-poort. — B
+
+841. **VERVOLG: de herstartreparatie voor Recent heeft alleen configuratiechecks.**
+     `tests/planning/check-recent-open.ts:126`, `tests/browser/recent-files.spec.ts:17`. De tests
+     controleren de registratie van `persisted-scope` en vervangen de native I/O-rand; een echte
+     appherstart met bewaarde toestemming is niet getest. Voorstel: leg één Windows-run vast met een
+     bestand buiten de vaste rechten. Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op
+     `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
 
 844. **VERVOLG: de regressiecheck voor de rapportletter bewijst geen echte subsetting.** De subsetter in
      `tests/planning/check-report-font.ts:164` geeft het volledige bronfont terug. De check toont dus niet dat

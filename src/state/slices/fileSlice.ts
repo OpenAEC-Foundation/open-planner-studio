@@ -1624,19 +1624,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await openRecentSiteFile(entry, labels);
         return;
       }
-      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard zit in `openAsDocument`.
-      const isBinary = readFormatForFile(entry.name).kind === 'binary';
-      const content = isBinary ? null : await readFromRef(entry.ref);
-      const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-      // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
-      // `bytes`; bij een tekstformaat is `bytes` altijd null — dan telt uitsluitend `content`.
-      // Null-pad: geweigerd/verdwenen → entry stil verwijderen.
-      if (isBinary ? bytes === null : content === null) {
-        const list = await removeRecent(entry.id);
-        set((s) => { s.recentFiles = list; });
-        return;
-      }
       try {
+        // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
+        // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
+        const isBinary = readFormatForFile(entry.name).kind === 'binary';
+        const content = isBinary ? null : await readFromRef(entry.ref);
+        const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+        if (isBinary ? bytes === null : content === null) {
+          get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
+          return;
+        }
         const parsed = await parseOpenedFile(
           { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
           labels,
