@@ -3247,12 +3247,14 @@ export class CPMSolver {
   }
 
   /**
-   * Externe opvolgers met een te krap anker: de vroegste finish van de taak ligt ná de grens die de
-   * externe opvolger stelt (`externalBackwardBound`, dezelfde grens als in de backward pass). Op de
-   * werktijdas van de eigen taak, zodat een finish op een blokeinde en een grens op het volgende
-   * blokbegin geen schijnmelding geven; een ELAPSEDTIME-taak telt in kloktijd. Bij SS/SF is de grens
-   * een late finish die uit de late start volgt; bij een vaste duur is "te laat klaar" daar hetzelfde
-   * als "te laat begonnen".
+   * Externe opvolgers met een te krap anker. FS/FF: de vroegste finish van de taak ligt ná de grens die de
+   * externe opvolger stelt (`externalBackwardBound`, dezelfde grens als in de backward pass). SS/SF: de
+   * START beslist (review #810): de start van de taak (de werkelijke start als die er is, anders de vroege)
+   * ligt ná het anker min de lag (`externalSuccessorStartBound`). Een finish uit de taakduur zou bij voortgang
+   * de verkeerde kant toetsen: een taak die op tijd begon maar lang duurde, gaf dan een melding, en een taak
+   * die te laat begon maar snel klaar was, niet. Alles op de werktijdas van de eigen taak, zodat een moment op
+   * een blokeinde en een grens op het volgende blokbegin geen schijnmelding geven; een ELAPSEDTIME-taak telt
+   * in kloktijd.
    */
   private detectExternalSuccessorViolations(
     earlyDates: Map<string, { es: Date; ef: Date }>,
@@ -3264,13 +3266,25 @@ export class CPMSolver {
       if (!early) continue;
       const eng = this.calendarFor(task);
       for (const link of task.externalLinks) {
-        const bound = this.externalBackwardBound(task, link, eng);
-        if (!bound || early.ef.getTime() <= bound.getTime()) continue;
-        const late = isElapsedTask(task) || eng.workMinutesBetween(bound, early.ef) > 0;
+        if (link.direction !== 'successor') continue;
+        const startSide = link.relType === 'SS' || link.relType === 'SF';
+        const bound = startSide ? this.externalSuccessorStartBound(link, eng) : this.externalBackwardBound(task, link, eng);
+        const actualStart = startSide && task.time.actualStart ? parseInstant(task.time.actualStart) : null;
+        const own = actualStart && !isNaN(actualStart.getTime()) ? actualStart : startSide ? early.es : early.ef;
+        if (!bound || own.getTime() <= bound.getTime()) continue;
+        const late = isElapsedTask(task) || eng.workMinutesBetween(bound, own) > 0;
         if (late) out.push({ taskId: task.id, linkId: link.id });
       }
     }
     return out;
+  }
+
+  /** De laatste start die een externe SS/SF-opvolger toelaat: het anker min de lag, op de kalender van de
+   *  eigen taak (dezelfde stap als in `externalBackwardBound`, vóór de vertaling naar een late finish). */
+  private externalSuccessorStartBound(link: ExternalLink, eng: CalendarEngine): Date | null {
+    const anchor = parseInstant(link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    return eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
   }
 
   /**

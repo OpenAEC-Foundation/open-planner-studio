@@ -2,6 +2,7 @@ import type { Task, ConstraintType } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import type { Resource } from '@/types/resource';
 import type { CPMResult, ScheduleErrorInfo } from './CPMSolver';
+import { effectiveExternalLinks } from './expandSummaryRelations';
 import type { ResourceLoadResult } from './ResourceLoad';
 
 /**
@@ -189,10 +190,12 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
       });
     }
     // Voorstel 2 uit #792 (knownbug 6): een externe opvolger met een te krap anker. Eén regel per
-    // koppeling, met het doel op de eigen taak.
+    // koppeling, met het doel op de eigen taak. Een koppeling op een fase geldt voor elke taak in die fase;
+    // de solver meldt haar bij de bladtaak, dus zoeken we ook in de geërfde koppelingen (review #810).
+    const linksOf = effectiveExternalLinks(tasks);
     for (const { taskId, linkId } of cpmResult.externalSuccessorViolations ?? []) {
       const t = taskById.get(taskId);
-      const link = t?.externalLinks?.find(l => l.id === linkId);
+      const link = t ? linksOf(t).find(l => l.id === linkId) : undefined;
       const idx = taskIndex.get(taskId);
       if (!t || !link || idx === undefined) continue;
       const startSide = link.relType === 'SS' || link.relType === 'SF';

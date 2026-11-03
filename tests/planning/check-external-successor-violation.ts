@@ -10,8 +10,13 @@
 // 3. Een externe voorganger geeft nooit deze melding; een taak met twee externe opvolgers krijgt alleen
 //    een regel voor de koppeling die te krap is.
 // 4. De regel in het paneel: soort, doel, ernst, de feiten en de volgorde ná de constraints.
+// 5. Review #810: bij SS en SF beslist de start, ook met voortgang (de echte voortgangsacties in de store).
+//    Te laat begonnen maar snel klaar ⇒ melding; op tijd begonnen maar lang bezig ⇒ geen melding.
+// 6. Review #810: een externe opvolger op een fase geeft een regel in het paneel bij de bladtaak.
+import './domStub';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
-import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
+import { createAppStoreContext } from '@/state/appStore';
 import { collectScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { Task, ExternalLink } from '@/types/task';
@@ -151,6 +156,74 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   eq('4f geen schending ⇒ geen regel', collectScheduleWarnings({
     tasks: ok.tasks, sequences: ok.sequences, resources: [], resourceLoadResult: null, cpmResult: ok.result,
   }).some(w => w.kind === 'externalSuccessorViolated'), false);
+}
+
+// Een store met de projectkalender ma–vr 08–16 en het gekozen profiel.
+const storeFor = (base: 'ops' | 'p6' | 'msproject', statusDate?: string) => {
+  const { store } = createAppStoreContext();
+  const S = () => store.getState();
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01', ...(statusDate ? { statusDate } : {}), schedulingProfile: builtInProfile(base) });
+  S().setCalendar({ ...calendar, id: S().calendar.id });
+  return S;
+};
+const linkFields = (link: ExternalLink) => { const { id: _id, ...fields } = link; return fields; };
+const rows = (S: ReturnType<typeof storeFor>) => collectScheduleWarnings({
+  tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult,
+  resourceLoadResult: null,
+}).filter(w => w.kind === 'externalSuccessorViolated');
+
+// (5) SS/SF met voortgang, het scenario van de review letterlijk: anker di 2 juni 08:00, taakduur 5 dagen.
+for (const base of ['ops', 'p6', 'msproject'] as const) {
+  for (const rel of ['SS', 'SF'] as const) {
+    const tag = `5 ${base}/${rel}`;
+    const run = (statusDate: string, progress: (S: ReturnType<typeof storeFor>, id: string) => void) => {
+      const S = storeFor(base, statusDate);
+      const a = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-06-01', 5, 'days') });
+      const linkId = S().addExternalLink(a, linkFields(successor('x', rel, '2026-06-02T08:00')));
+      progress(S, a);
+      S().runCPM();
+      return { S, a, linkId, found: (S().cpmResult?.externalSuccessorViolations ?? []).map(v => v.linkId === linkId) };
+    };
+    // Werkelijk gestart wo 3 juni 08:00, klaar wo 3 juni 16:00: te laat begonnen ⇒ melding.
+    const lateQuick = run('2026-06-30', (S, a) => {
+      eq(`${tag} opzet: start gezet`, S().setActualStart(a, '2026-06-03T08:00'), true);
+      eq(`${tag} opzet: einde gezet`, S().setActualFinish(a, '2026-06-03T16:00'), true);
+    });
+    eq(`${tag}: te laat begonnen, snel klaar ⇒ melding`, lateQuick.found, [true]);
+    eq(`${tag}: en een regel in het paneel`, rows(lateQuick.S).length, 1);
+    // Werkelijk gestart ma 1 juni 08:00, klaar ma 15 juni 16:00: op tijd begonnen ⇒ geen melding.
+    const earlyLong = run('2026-06-30', (S, a) => {
+      S().setActualStart(a, '2026-06-01T08:00');
+      S().setActualFinish(a, '2026-06-15T16:00');
+    });
+    eq(`${tag}: op tijd begonnen, lang bezig ⇒ geen melding`, earlyLong.found, []);
+    // Lopend: gestart ma 1 juni 08:00, 20 % klaar op statusdatum wo 10 juni: het einde schuift op, de start
+    // was op tijd ⇒ geen melding.
+    const running = run('2026-06-10', (S, a) => {
+      S().setActualStart(a, '2026-06-01T08:00');
+      S().setTaskProgress(a, 0.2);
+    });
+    eq(`${tag}: lopend, op tijd begonnen ⇒ geen melding`, running.found, []);
+  }
+}
+
+// (6) Een externe opvolger op een fase: de fase heeft een FS-opvolger met anker wo 3 juni 16:00, de bladtaak
+// is klaar vr 5 juni 16:00. De solver meldt het bij de bladtaak; het paneel toont dan ook een regel. Zonder
+// statusdatum: de taak is niet gestart.
+for (const base of ['ops', 'p6', 'msproject'] as const) {
+  const S = storeFor(base);
+  const phase = S().addTask({ name: 'Fase', time: createDefaultTaskTime('2026-06-01', 5, 'days') });
+  const leaf = S().addTask({ name: 'Blad', parentId: phase, time: createDefaultTaskTime('2026-06-01', 5, 'days') });
+  const linkId = S().addExternalLink(phase, linkFields(successor('x', 'FS', '2026-06-03T16:00')));
+  S().runCPM();
+  eq(`6 ${base}: opzet, de bladtaak is klaar vr 5 juni 16:00`, S().tasks.find(t => t.id === leaf)?.time.earlyFinish, '2026-06-05T16:00');
+  eq(`6 ${base}: de solver meldt de koppeling van de fase bij de bladtaak`,
+    S().cpmResult?.externalSuccessorViolations, [{ taskId: leaf, linkId }]);
+  const phaseRows = rows(S);
+  eq(`6 ${base}: één regel in het paneel, bij de bladtaak, met de feiten van de koppeling`,
+    phaseRows.map(w => [w.target, w.facts.externalLinkId, w.facts.externalTaskName, w.facts.relType]),
+    [[{ type: 'task', taskId: leaf }, linkId, 'Installatie', 'FS']]);
 }
 
 if (failures.length) {

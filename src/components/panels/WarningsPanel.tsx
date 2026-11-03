@@ -6,6 +6,7 @@ import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { constraintDateField, taskDateFieldSide } from '@/state/migrations/minuteModel';
 import { formatLagShort } from '@/utils/lagFormat';
 import { formatExternalLagShort } from '@/engine/taskGrid/relationFormat';
+import { effectiveExternalLinks } from '@/engine/scheduler/expandSummaryRelations';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import { localizeDecimalPoint } from '@/utils/reportNumber';
 import { SEQUENCE_TYPE_OPTIONS } from '@/types/sequence';
@@ -57,6 +58,7 @@ export function WarningsPanel() {
     for (const task of tasks) m.set(task.id, task);
     return m;
   }, [tasks]);
+  const linksOf = useMemo(() => effectiveExternalLinks(tasks), [tasks]);
   const seqById = useMemo(() => {
     const m = new Map<string, Sequence>();
     for (const seq of sequences) m.set(seq.id, seq);
@@ -105,7 +107,9 @@ export function WarningsPanel() {
       case 'externalSuccessorViolated': {
         const relType = f.relType ?? 'FS';
         const taskId = warningTaskId(w);
-        const link = taskId ? taskById.get(taskId)?.externalLinks?.find(l => l.id === f.externalLinkId) : undefined;
+        // Ook een geërfde koppeling van de fase erboven (review #810).
+        const owner = taskId ? taskById.get(taskId) : undefined;
+        const link = owner ? linksOf(owner).find(l => l.id === f.externalLinkId) : undefined;
         const lag = link
           ? localizeDecimalPoint(formatExternalLagShort(link, parseableHourSuffix(t('duration.suffixHour'))), i18n.language)
           : '';
