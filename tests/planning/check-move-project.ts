@@ -472,6 +472,97 @@ eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
   eq('170 een extern anker vóór de pin is geen schending', violated(), []);
 }
 
+// ── Review #807 ronde 2, scenario 1: een harde pin verbergt geen geschonden externe OPVOLGER ──────────
+// Letterlijk: projectstart 1 juni, taak van twee dagen, harde MSO-pin op 8 juni, externe FS-opvolger met
+// anker vr 12 juni 07:00. Verplaats de projectstart naar 8 juni: de taak loopt dan van ma 15 juni 07:00 tot
+// di 16 juni 16:00, het anker blijft 12 juni. De pin blijft winnen, maar de schending moet zichtbaar zijn.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const pinnedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 2),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addExternalLink(pinnedTask, {
+    direction: 'successor', relType: 'FS', lagDays: 0, anchorDate: '2026-06-12T07:00', sourceMissing: false,
+    sourceRef: { projectId: 'afnemer', projectName: 'Afnemer', taskId: 'o-1', filePath: '/projecten/afnemer.ifc' },
+  });
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  const montage = () => S().tasks.find(t => t.id === pinnedTask)!.time;
+  eq('171 opzet: Montage 8–9 juni, geen schending', [montage().earlyStart, montage().earlyFinish, violated()],
+    ['2026-06-08T07:00', '2026-06-09T16:00', []]);
+  S().moveProject('2026-06-08');
+  eq('172 na verplaatsen: Montage ma 15 juni 07:00 tot di 16 juni 16:00', [montage().earlyStart, montage().earlyFinish],
+    ['2026-06-15T07:00', '2026-06-16T16:00']);
+  eq('173 het anker blijft vr 12 juni 07:00', S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].anchorDate, '2026-06-12T07:00');
+  eq('174 de externe opvolger is geschonden: Montage staat bij de geschonden constraints', violated(), [pinnedTask]);
+  eq('175 en het paneel Waarschuwingen toont het', collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id), [`violatedConstraint:${pinnedTask}`]);
+  eq('176 de pin blijft winnen: speling 0', montage().totalFloat, 0);
+}
+
+// ── Review #807 ronde 2, scenario 2: een gestarte taak op de pin verbergt geen externe voorgangerschending ──
+// Letterlijk: harde MSO-pin en werkelijke start op ma 8 juni 07:00, voortgang 25 %, externe FS-voorganger met
+// anker vr 5 juni 16:00. Verplaats de projectstart van 1 juni naar 25 mei: pin en werkelijke start worden
+// ma 1 juni 07:00, het anker blijft 5 juni 16:00. De uitzondering "de werkelijke start volgt de pin" geldt
+// voor berekende interne druk, niet voor een extern anker.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-09' });
+  const startedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 4),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addExternalLink(startedTask, {
+    direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2026-06-05T16:00', sourceMissing: false,
+    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId: 'l-1', filePath: '/projecten/leverancier.ifc' },
+  });
+  eq('177 opzet: werkelijke start op de pin gezet', S().setActualStart(startedTask, '2026-06-08T07:00'), true);
+  eq('178 opzet: voortgang 25 %', S().setTaskProgress(startedTask, 0.25), true);
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  eq('179 opzet: geen schending (het anker ligt vóór de start)', violated(), []);
+  S().moveProject('2026-05-25');
+  const montage = S().tasks.find(t => t.id === startedTask)!;
+  eq('180 na verplaatsen: pin en werkelijke start op ma 1 juni 07:00',
+    [montage.constraint?.date, montage.time.actualStart, montage.time.earlyStart],
+    ['2026-06-01T07:00', '2026-06-01T07:00', '2026-06-01T07:00']);
+  eq('181 het anker blijft vr 5 juni 16:00', montage.externalLinks![0].anchorDate, '2026-06-05T16:00');
+  eq('182 de externe voorganger is geschonden', violated(), [startedTask]);
+  eq('183 en het paneel Waarschuwingen toont het', collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id), [`violatedConstraint:${startedTask}`]);
+}
+
+// ── Knownbug 849: een externe koppeling op een taak met een ontbrekende kalender ─────────────────────────
+// De taak wijst naar een kalender die niet meer bestaat; de solver valt terug op de projectkalender. Na
+// verplaatsen blijft het anker staan en rekent de taak zoals dezelfde taak zonder eigen kalender.
+{
+  const run = (calendarId?: string) => {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01' });
+    const id = S().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2026-06-01', 3) });
+    if (calendarId) useAppStore.setState(state => { state.tasks.find(t => t.id === id)!.calendarId = calendarId; });
+    S().addExternalLink(id, {
+      direction: 'predecessor', relType: 'FS', lagDays: 1, anchorDate: '2026-06-03T16:00', sourceMissing: false,
+      sourceRef: { projectId: 'leverancier', taskId: 'l-9', filePath: '/projecten/leverancier.ifc' },
+    });
+    S().runCPM();
+    S().moveProject('2026-05-25');
+    const t = S().tasks.find(x => x.id === id)!;
+    return { calendarId: t.calendarId, anchor: t.externalLinks![0].anchorDate, dates: [t.time.earlyStart, t.time.earlyFinish],
+      error: S().cpmResult?.error };
+  };
+  const missing = run('bestaat-niet');
+  const plain = run();
+  eq('184 opzet: de taak wijst naar een kalender die niet bestaat', missing.calendarId, 'bestaat-niet');
+  eq('185 verplaatsen rekent zonder fout', missing.error, undefined);
+  eq('186 het anker blijft staan', missing.anchor, '2026-06-03T16:00');
+  eq('187 de taak rekent zoals dezelfde taak op de projectkalender', missing.dates, plain.dates);
+}
+
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  move-project-check: alle checks groen (${checks})`);

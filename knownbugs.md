@@ -1705,12 +1705,6 @@ en noem het in je rapport of PR-tekst.
      later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
-849. **VERVOLG: Project verplaatsen is niet getest met een externe koppeling op een taak met een ontbrekende
-     kalender.** `tests/planning/cases-move-project.json` en `tests/planning/check-move-project.ts` testen nu
-     gemengde voorgangers (intern en extern), twee externe koppelingen, een harde pin en ongedaan maken. Een taak
-     waarvan de kalender niet meer bestaat (terugval op de projectkalender) samen met een extern anker ontbreekt
-     nog. Voorstel: één geval in `cases-move-project.json`. Uit de review van #807 (GPT-6.1-Sol, xhigh, op
-     `33f2284bf`, VERVOLG). — S
 
 ## Wensen en open taken (geen bug)
 

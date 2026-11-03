@@ -2200,7 +2200,8 @@ export class CPMSolver {
           earlyStart = this.snapOnOrAfter(cal, this.dataDate);
           driver = DRIVER.statusDate;
         }
-        // Geen voorganger-druk ⇒ rawMax null ⇒ een (root-)pin kan de logica niet breken.
+        // Geen interne voorganger-druk ⇒ rawMax null; een (root-)pin breekt de logica dan alleen tegen een
+        // externe voorganger (`applyForwardConstraints`).
         const beforeConstraint = earlyStart;
         earlyStart = this.applyForwardConstraints(task, earlyStart, null, cal);
         // Heeft de constraint-toepassing hierboven `earlyStart` daadwerkelijk VERPLAATST (een
@@ -3240,6 +3241,12 @@ export class CPMSolver {
     return this.snapOnOrBefore(eng, shifted);
   }
 
+  /** Registreer een harde pin die de logica breekt (`hardPinViolatedIds`), één keer per taak: de voorwaartse
+   *  en de achterwaartse stap kunnen allebei een schending vinden. */
+  private registerHardPinViolation(taskId: string): void {
+    if (!this.hardPinViolatedIds.includes(taskId)) this.hardPinViolatedIds.push(taskId);
+  }
+
   /**
    * Vroege-zijde constraints. Een harde MSO/MFO-pin
    * OVERSCHRIJFT de voorganger-druk onvoorwaardelijk (barrière) en registreert een
@@ -3259,15 +3266,15 @@ export class CPMSolver {
       // blijft gewoon vuren.
       // Een externe voorganger drukt net zo op de pin als een interne: start de taak door de pin vóór
       // het anker van het andere project (bv. na Project verplaatsen: de pin schuift mee, het anker
-      // niet), dan is dat dezelfde schending (review #807).
-      let pressure = rawMax;
-      for (const link of task.externalLinks ?? []) {
+      // niet), dan is dat dezelfde schending (review #807). De uitzondering van hierboven geldt alleen
+      // voor BEREKENDE interne druk: een extern anker is een vaste datum van de bron, dus ook een
+      // werkelijke start op de pin vóór dat anker is een schending (review #807, ronde 2).
+      const internalLate = !!rawMax && rawMax > pin && !this.hardPinRespectedByActual(task, eng);
+      const externalLate = (task.externalLinks ?? []).some(link => {
         const bound = this.externalForwardBound(task, link, eng);
-        if (bound && (!pressure || bound > pressure)) pressure = bound;
-      }
-      if (pressure && pressure > pin && !this.hardPinRespectedByActual(task, eng)) {
-        this.hardPinViolatedIds.push(task.id);
-      }
+        return !!bound && bound > pin;
+      });
+      if (internalLate || externalLate) this.registerHardPinViolation(task.id);
       return pin;
     }
     let es = earlyStart;
@@ -3296,7 +3303,18 @@ export class CPMSolver {
    */
   private applyBackwardBound(task: Task, lateFinish: Date, eng: CalendarEngine): Date {
     const pinFinish = this.hardPinFinish(task, eng);
-    if (pinFinish) return pinFinish;
+    if (pinFinish) {
+      // De pin wint ook van een externe opvolger, maar een anker dat vóór de gepinde finish ligt is een
+      // schending, net als een externe voorganger na de pin (review #807, ronde 2). Op de werktijdas van de
+      // taak: een grens op een blokeinde en een finish op het volgende blokbegin zijn hetzelfde punt.
+      const externalLate = (task.externalLinks ?? []).some(link => {
+        const bound = this.externalBackwardBound(task, link, eng);
+        return !!bound && bound < pinFinish
+          && (isElapsedTask(task) || eng.workMinutesBetween(bound, pinFinish) > 0);
+      });
+      if (externalLate) this.registerHardPinViolation(task.id);
+      return pinFinish;
+    }
     let lf = lateFinish;
     for (const cc of [task.constraint, task.constraint2]) {
       const bound = this.backwardBoundOf(task, cc, eng);
