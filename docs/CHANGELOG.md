@@ -6,6 +6,42 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.45.0 — 2026-11-05
+
+### Added
+
+- Progress-curve report with planned/actual curves and a status-date point, using the same calendar fraction for reports and progress calculations.
+- Shift explanations after F5, with a panel showing supported reasons and delivery effects.
+- XLSX progress round trips that preserve an export snapshot and show conflicts with intervening changes.
+- Calendar-aware milestone dragging with Escape cancellation, including undo and redo guards.
+- Experimental XER export with a loss report and task-level scheduling data; external relationships are read through the supported source-loading boundary.
+- Distinct baseline line and label styles for colour and monochrome comparisons and reports.
+
+### Changed
+
+- Replaced ribbon icons with the OpenAEC icon set and adopted neutral light/dark theme surfaces and baseline contrast.
+- Scheduling uses one working-time path; targeted changes reduce repeated allocation work during resource levelling and rendering work for large schedules.
+- P6 XML uses the same scheduling profile as XER, with explicit interoperability and export-loss notices.
+- The status bar keeps one row and moves overflow details into tooltips instead of shifting between rows.
+- The desktop assistant bundle offers one installation for the running app and the headless server, with a copyable setup prompt.
+- Release gates reuse the exact green main CI run and the required browser run; planning CI is sharded with coverage accounting.
+
+### Fixed
+
+- Preserved permission for recent files across restarts and reported read errors through the normal file-loading route.
+- Restored native macOS window decorations and menu actions while preserving pending field input and unsaved-work guards.
+- Included IBus/Fcitx input-method modules in Linux AppImages and strengthened installer signing and published-download verification.
+- Corrected calendar boundaries for night shifts, remaining durations, percentage lags, phase durations and supported external-successor constraints.
+- Protected current values during progress import and recovery storage failures before updates.
+- Kept ribbon menus within view and preserved editing during input composition and dropdown commits.
+- Made report fonts explicit with fallback to Inter for unsupported glyphs.
+
+### Documentation
+
+- Updated application guides for progress imports, shift explanations, assistant setup and supported exchange behaviour.
+- Kept known limitations explicit: XER export is experimental and unsupported relationships or fields are reported rather than silently promised as preserved.
+- Existing compatibility warning remains: update all workstations before exchanging new files with versions 2026.9.0 and older (known issue 150).
+
 ## v2026.44.0 — 2026-10-31
 
 ### Added
