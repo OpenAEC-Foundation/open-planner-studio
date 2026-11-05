@@ -1,8 +1,999 @@
 {
   "schema": 1,
   "product": "open-planner-studio",
-  "generated": "2026-10-31T08:36:59.698Z",
+  "generated": "2026-11-05T20:21:52.578Z",
   "releases": [
+    {
+      "version": "2026.45.0",
+      "tag": "v2026.45.0",
+      "stats": {
+        "daysSincePrevious": 5,
+        "commitsSincePrevious": 430,
+        "addedCodeLines": 26137
+      },
+      "highlights": {
+        "nl": {
+          "primary": {
+            "category": "RAPPORTEN",
+            "title": "Volg de voortgang in een curve",
+            "description": "Vergelijk geplande en werkelijke voortgang met een zichtbaar statusmoment.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANNING",
+              "title": "Zie waarom taken verschuiven",
+              "description": "Na F5 legt het paneel ondersteunde kalender- en resourceoorzaken uit.",
+              "icon": "tasks"
+            },
+            {
+              "category": "VOORTGANG",
+              "title": "Importeer met zicht op wijzigingen",
+              "description": "Het XLSX-voortgangsblad vergelijkt met de exportstand en toont conflicten.",
+              "icon": "import"
+            },
+            {
+              "category": "UITWISSELING",
+              "title": "Experimentele XER-export",
+              "description": "Exporteer met een expliciete melding van niet-ondersteunde gegevens.",
+              "icon": "import"
+            },
+            {
+              "category": "WEERGAVE",
+              "title": "Duidelijke thema’s en baselines",
+              "description": "Nieuwe OpenAEC-iconen, neutrale tinten en herkenbare baseline-lijnstijlen.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "en": {
+          "primary": {
+            "category": "REPORTS",
+            "title": "Track progress on a curve",
+            "description": "Compare planned and actual progress with a visible status-date point.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "SCHEDULING",
+              "title": "See why tasks move",
+              "description": "After F5, the panel explains supported calendar and resource causes.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PROGRESS",
+              "title": "Import with changes in view",
+              "description": "The XLSX progress workbook compares against its export snapshot and shows conflicts.",
+              "icon": "import"
+            },
+            {
+              "category": "INTERCHANGE",
+              "title": "Experimental XER export",
+              "description": "Export with an explicit notice about unsupported data.",
+              "icon": "import"
+            },
+            {
+              "category": "APPEARANCE",
+              "title": "Clearer themes and baselines",
+              "description": "New OpenAEC icons, neutral tones and distinct baseline line styles.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "fr": {
+          "primary": {
+            "category": "RAPPORTS",
+            "title": "Suivre la progression sur une courbe",
+            "description": "Comparez la progression prévue et réelle avec un repère à la date de suivi.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANIFICATION",
+              "title": "Comprendre les décalages des tâches",
+              "description": "Après F5, le panneau explique les causes prises en charge liées aux calendriers et aux ressources.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PROGRESSION",
+              "title": "Importer en voyant les modifications",
+              "description": "Le classeur XLSX compare les données à l’état exporté et montre les conflits.",
+              "icon": "import"
+            },
+            {
+              "category": "ÉCHANGE",
+              "title": "Export XER expérimental",
+              "description": "Exportez avec un avertissement explicite sur les données non prises en charge.",
+              "icon": "import"
+            },
+            {
+              "category": "AFFICHAGE",
+              "title": "Thèmes et références plus lisibles",
+              "description": "Nouvelles icônes OpenAEC, tons neutres et styles de ligne distincts pour les références.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "de": {
+          "primary": {
+            "category": "BERICHTE",
+            "title": "Fortschritt als Kurve verfolgen",
+            "description": "Vergleichen Sie geplanten und tatsächlichen Fortschritt mit einem sichtbaren Statuszeitpunkt.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANUNG",
+              "title": "Verschiebungen nachvollziehen",
+              "description": "Nach F5 erklärt das Fenster die unterstützten Kalender- und Ressourcenursachen.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FORTSCHRITT",
+              "title": "Änderungen beim Import erkennen",
+              "description": "Die XLSX-Fortschrittsdatei vergleicht mit dem Exportstand und zeigt Konflikte.",
+              "icon": "import"
+            },
+            {
+              "category": "AUSTAUSCH",
+              "title": "Experimenteller XER-Export",
+              "description": "Exportieren Sie mit einem ausdrücklichen Hinweis auf nicht unterstützte Daten.",
+              "icon": "import"
+            },
+            {
+              "category": "DARSTELLUNG",
+              "title": "Klarere Themen und Basispläne",
+              "description": "Neue OpenAEC-Symbole, neutrale Farben und unterscheidbare Basisplan-Linienstile.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "es": {
+          "primary": {
+            "category": "INFORMES",
+            "title": "Sigue el progreso en una curva",
+            "description": "Compara el progreso previsto y real con un punto visible en la fecha de estado.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANIFICACIÓN",
+              "title": "Comprende los cambios de fecha",
+              "description": "Tras F5, el panel explica las causas admitidas de calendario y recursos.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PROGRESO",
+              "title": "Importa teniendo en cuenta los cambios",
+              "description": "El libro XLSX compara los datos con el estado exportado y muestra conflictos.",
+              "icon": "import"
+            },
+            {
+              "category": "INTERCAMBIO",
+              "title": "Exportación XER experimental",
+              "description": "Exporta con un aviso explícito sobre los datos no compatibles.",
+              "icon": "import"
+            },
+            {
+              "category": "APARIENCIA",
+              "title": "Temas y líneas base más claros",
+              "description": "Nuevos iconos OpenAEC, tonos neutros y estilos de línea base diferenciados.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "zh": {
+          "primary": {
+            "category": "报告",
+            "title": "用曲线跟踪进度",
+            "description": "比较计划进度与实际进度，并显示状态日期标记。",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "计划",
+              "title": "了解任务为何移动",
+              "description": "按 F5 后，面板说明受支持的日历和资源原因。",
+              "icon": "tasks"
+            },
+            {
+              "category": "进度",
+              "title": "导入时查看变更",
+              "description": "XLSX 进度工作簿与导出时的快照比较并显示冲突。",
+              "icon": "import"
+            },
+            {
+              "category": "数据交换",
+              "title": "实验性 XER 导出",
+              "description": "导出时明确提示不受支持的数据。",
+              "icon": "import"
+            },
+            {
+              "category": "外观",
+              "title": "更清晰的主题和基线",
+              "description": "全新的 OpenAEC 图标、中性色调和不同的基线线型。",
+              "icon": "examples"
+            }
+          ]
+        },
+        "it": {
+          "primary": {
+            "category": "RAPPORTI",
+            "title": "Segui l’avanzamento con una curva",
+            "description": "Confronta avanzamento previsto e reale con un punto visibile alla data di stato.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PIANIFICAZIONE",
+              "title": "Scopri perché le attività si spostano",
+              "description": "Dopo F5, il pannello spiega le cause supportate legate a calendari e risorse.",
+              "icon": "tasks"
+            },
+            {
+              "category": "AVANZAMENTO",
+              "title": "Importa tenendo conto delle modifiche",
+              "description": "Il file XLSX confronta i dati con lo stato esportato e mostra i conflitti.",
+              "icon": "import"
+            },
+            {
+              "category": "SCAMBIO",
+              "title": "Esportazione XER sperimentale",
+              "description": "Esporta con un avviso esplicito sui dati non supportati.",
+              "icon": "import"
+            },
+            {
+              "category": "ASPETTO",
+              "title": "Temi e linee di base più chiari",
+              "description": "Nuove icone OpenAEC, toni neutri e stili di linea distinti per le linee di base.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "pt": {
+          "primary": {
+            "category": "RELATÓRIOS",
+            "title": "Acompanhe o progresso numa curva",
+            "description": "Compare o progresso planeado e real com um ponto visível na data de estado.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANEAMENTO",
+              "title": "Veja por que as tarefas se deslocam",
+              "description": "Após F5, o painel explica as causas suportadas de calendário e recursos.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PROGRESSO",
+              "title": "Importe tendo em conta as alterações",
+              "description": "O ficheiro XLSX compara os dados com o estado exportado e mostra conflitos.",
+              "icon": "import"
+            },
+            {
+              "category": "INTERCÂMBIO",
+              "title": "Exportação XER experimental",
+              "description": "Exporte com um aviso explícito sobre dados não suportados.",
+              "icon": "import"
+            },
+            {
+              "category": "APARÊNCIA",
+              "title": "Temas e linhas de base mais claros",
+              "description": "Novos ícones OpenAEC, tons neutros e estilos de linha de base distintos.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "pl": {
+          "primary": {
+            "category": "RAPORTY",
+            "title": "Śledź postęp na krzywej",
+            "description": "Porównuj planowany i rzeczywisty postęp z widocznym punktem daty stanu.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANOWANIE",
+              "title": "Sprawdź przyczyny przesunięć zadań",
+              "description": "Po F5 panel wyjaśnia obsługiwane przyczyny związane z kalendarzami i zasobami.",
+              "icon": "tasks"
+            },
+            {
+              "category": "POSTĘP",
+              "title": "Importuj z uwzględnieniem zmian",
+              "description": "Arkusz XLSX porównuje dane ze stanem eksportu i pokazuje konflikty.",
+              "icon": "import"
+            },
+            {
+              "category": "WYMIANA",
+              "title": "Eksperymentalny eksport XER",
+              "description": "Eksportuj z wyraźnym ostrzeżeniem o nieobsługiwanych danych.",
+              "icon": "import"
+            },
+            {
+              "category": "WYGLĄD",
+              "title": "Czytelniejsze motywy i plany bazowe",
+              "description": "Nowe ikony OpenAEC, neutralne kolory i różne style linii planów bazowych.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "tr": {
+          "primary": {
+            "category": "RAPORLAR",
+            "title": "İlerlemeyi bir eğri üzerinde izleyin",
+            "description": "Planlanan ve gerçekleşen ilerlemeyi görünür bir durum tarihi noktasıyla karşılaştırın.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANLAMA",
+              "title": "Görevlerin neden kaydığını görün",
+              "description": "F5 sonrasında panel, desteklenen takvim ve kaynak nedenlerini açıklar.",
+              "icon": "tasks"
+            },
+            {
+              "category": "İLERLEME",
+              "title": "Değişiklikleri görerek içe aktarın",
+              "description": "XLSX ilerleme dosyası dışa aktarım anındaki durumla karşılaştırır ve çakışmaları gösterir.",
+              "icon": "import"
+            },
+            {
+              "category": "VERİ ALIŞVERİŞİ",
+              "title": "Deneysel XER dışa aktarımı",
+              "description": "Desteklenmeyen veriler hakkında açık bir bildirimle dışa aktarın.",
+              "icon": "import"
+            },
+            {
+              "category": "GÖRÜNÜM",
+              "title": "Daha anlaşılır temalar ve temel planlar",
+              "description": "Yeni OpenAEC simgeleri, nötr tonlar ve farklı temel plan çizgi stilleri.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "ar": {
+          "primary": {
+            "category": "التقارير",
+            "title": "تتبّع التقدم على منحنى",
+            "description": "قارن التقدم المخطط والفعلي مع علامة واضحة عند تاريخ الحالة.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "الجدولة",
+              "title": "اعرف أسباب تغيّر مواعيد المهام",
+              "description": "بعد F5، توضح اللوحة أسباب التقويم والموارد المدعومة.",
+              "icon": "tasks"
+            },
+            {
+              "category": "التقدم",
+              "title": "استورد مع الاطلاع على التغييرات",
+              "description": "يقارن ملف تقدم XLSX بالنسخة وقت التصدير ويعرض التعارضات.",
+              "icon": "import"
+            },
+            {
+              "category": "تبادل البيانات",
+              "title": "تصدير XER تجريبي",
+              "description": "صدّر مع تنبيه صريح بشأن البيانات غير المدعومة.",
+              "icon": "import"
+            },
+            {
+              "category": "المظهر",
+              "title": "سمات وخطوط أساس أوضح",
+              "description": "أيقونات OpenAEC جديدة وألوان محايدة وأنماط خطوط أساس مميزة.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "ja": {
+          "primary": {
+            "category": "レポート",
+            "title": "曲線で進捗を追跡",
+            "description": "計画進捗と実績進捗を比較し、ステータス日時の位置を表示します。",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "スケジュール",
+              "title": "タスクが移動する理由を確認",
+              "description": "F5 の後、パネルに対応済みのカレンダーとリソースの原因を表示します。",
+              "icon": "tasks"
+            },
+            {
+              "category": "進捗",
+              "title": "変更を確認してインポート",
+              "description": "XLSX 進捗ブックをエクスポート時点と比較し、競合を表示します。",
+              "icon": "import"
+            },
+            {
+              "category": "データ交換",
+              "title": "試験的な XER エクスポート",
+              "description": "未対応データについて明示的に通知してエクスポートします。",
+              "icon": "import"
+            },
+            {
+              "category": "外観",
+              "title": "見やすいテーマとベースライン",
+              "description": "新しい OpenAEC アイコン、中間色、区別しやすいベースラインの線種。",
+              "icon": "examples"
+            }
+          ]
+        },
+        "ko": {
+          "primary": {
+            "category": "보고서",
+            "title": "곡선으로 진행 상황 추적",
+            "description": "계획 진행률과 실제 진행률을 비교하고 상태 날짜 지점을 표시합니다.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "일정",
+              "title": "작업이 이동하는 이유 확인",
+              "description": "F5 이후 패널에서 지원되는 달력 및 자원 관련 원인을 설명합니다.",
+              "icon": "tasks"
+            },
+            {
+              "category": "진행 상황",
+              "title": "변경 사항을 확인하며 가져오기",
+              "description": "XLSX 진행 통합 문서를 내보낸 시점과 비교하고 충돌을 표시합니다.",
+              "icon": "import"
+            },
+            {
+              "category": "데이터 교환",
+              "title": "실험적 XER 내보내기",
+              "description": "지원되지 않는 데이터를 명확히 알리고 내보냅니다.",
+              "icon": "import"
+            },
+            {
+              "category": "모양",
+              "title": "더 선명한 테마와 기준 계획",
+              "description": "새 OpenAEC 아이콘, 중립 색조와 구분되는 기준 계획 선 스타일.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "fa": {
+          "primary": {
+            "category": "گزارش‌ها",
+            "title": "پیشرفت را روی منحنی دنبال کنید",
+            "description": "پیشرفت برنامه‌ریزی‌شده و واقعی را با نشانگر تاریخ وضعیت مقایسه کنید.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "زمان‌بندی",
+              "title": "علت جابه‌جایی کارها را ببینید",
+              "description": "پس از F5، پنل علت‌های پشتیبانی‌شده مربوط به تقویم و منابع را توضیح می‌دهد.",
+              "icon": "tasks"
+            },
+            {
+              "category": "پیشرفت",
+              "title": "با آگاهی از تغییرات وارد کنید",
+              "description": "فایل پیشرفت XLSX با وضعیت هنگام صدور مقایسه می‌شود و تعارض‌ها را نشان می‌دهد.",
+              "icon": "import"
+            },
+            {
+              "category": "تبادل داده",
+              "title": "صدور آزمایشی XER",
+              "description": "با هشدار روشن درباره داده‌های پشتیبانی‌نشده صادر کنید.",
+              "icon": "import"
+            },
+            {
+              "category": "ظاهر",
+              "title": "پوسته‌ها و خطوط مبنای خواناتر",
+              "description": "آیکون‌های جدید OpenAEC، رنگ‌های خنثی و سبک‌های متمایز خط مبنا.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "ru": {
+          "primary": {
+            "category": "ОТЧЁТЫ",
+            "title": "Отслеживайте ход работ на кривой",
+            "description": "Сравнивайте плановый и фактический прогресс с отметкой даты состояния.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ПЛАНИРОВАНИЕ",
+              "title": "Узнайте причины сдвига задач",
+              "description": "После F5 панель объясняет поддерживаемые причины, связанные с календарями и ресурсами.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ПРОГРЕСС",
+              "title": "Импортируйте с учётом изменений",
+              "description": "Книга XLSX сравнивает данные со снимком при экспорте и показывает конфликты.",
+              "icon": "import"
+            },
+            {
+              "category": "ОБМЕН ДАННЫМИ",
+              "title": "Экспериментальный экспорт XER",
+              "description": "Экспортируйте с явным уведомлением о неподдерживаемых данных.",
+              "icon": "import"
+            },
+            {
+              "category": "ОФОРМЛЕНИЕ",
+              "title": "Более чёткие темы и базовые планы",
+              "description": "Новые значки OpenAEC, нейтральные тона и разные стили линий базовых планов.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "uk": {
+          "primary": {
+            "category": "ЗВІТИ",
+            "title": "Відстежуйте поступ на кривій",
+            "description": "Порівнюйте плановий і фактичний поступ із позначкою дати стану.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ПЛАНУВАННЯ",
+              "title": "Дізнайтеся причини зміщення завдань",
+              "description": "Після F5 панель пояснює підтримувані причини, пов’язані з календарями та ресурсами.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ПОСТУП",
+              "title": "Імпортуйте з урахуванням змін",
+              "description": "Книга XLSX порівнює дані зі знімком під час експорту та показує конфлікти.",
+              "icon": "import"
+            },
+            {
+              "category": "ОБМІН ДАНИМИ",
+              "title": "Експериментальний експорт XER",
+              "description": "Експортуйте з явним повідомленням про непідтримувані дані.",
+              "icon": "import"
+            },
+            {
+              "category": "ВИГЛЯД",
+              "title": "Чіткіші теми та базові плани",
+              "description": "Нові значки OpenAEC, нейтральні тони та різні стилі ліній базових планів.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "cs": {
+          "primary": {
+            "category": "SESTAVY",
+            "title": "Sledujte průběh na křivce",
+            "description": "Porovnejte plánovaný a skutečný průběh s viditelným bodem data stavu.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLÁNOVÁNÍ",
+              "title": "Zjistěte důvody posunu úkolů",
+              "description": "Po F5 panel vysvětlí podporované příčiny související s kalendáři a zdroji.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PRŮBĚH",
+              "title": "Importujte s přehledem o změnách",
+              "description": "Sešit XLSX porovná data se stavem při exportu a zobrazí konflikty.",
+              "icon": "import"
+            },
+            {
+              "category": "VÝMĚNA DAT",
+              "title": "Experimentální export XER",
+              "description": "Exportujte s výslovným upozorněním na nepodporovaná data.",
+              "icon": "import"
+            },
+            {
+              "category": "VZHLED",
+              "title": "Přehlednější motivy a směrné plány",
+              "description": "Nové ikony OpenAEC, neutrální odstíny a odlišné styly čar směrných plánů.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "sk": {
+          "primary": {
+            "category": "ZOSTAVY",
+            "title": "Sledujte priebeh na krivke",
+            "description": "Porovnajte plánovaný a skutočný priebeh s viditeľným bodom dátumu stavu.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLÁNOVANIE",
+              "title": "Zistite dôvody posunu úloh",
+              "description": "Po F5 panel vysvetlí podporované príčiny súvisiace s kalendármi a zdrojmi.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PRIEBEH",
+              "title": "Importujte s prehľadom o zmenách",
+              "description": "Zošit XLSX porovná údaje so stavom pri exporte a zobrazí konflikty.",
+              "icon": "import"
+            },
+            {
+              "category": "VÝMENA ÚDAJOV",
+              "title": "Experimentálny export XER",
+              "description": "Exportujte s výslovným upozornením na nepodporované údaje.",
+              "icon": "import"
+            },
+            {
+              "category": "VZHĽAD",
+              "title": "Prehľadnejšie motívy a základné plány",
+              "description": "Nové ikony OpenAEC, neutrálne odtiene a odlišné štýly čiar základných plánov.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "sr": {
+          "primary": {
+            "category": "ИЗВЕШТАЈИ",
+            "title": "Пратите напредак на кривој",
+            "description": "Упоредите планирани и стварни напредак уз видљиву тачку датума стања.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ПЛАНИРАЊЕ",
+              "title": "Сазнајте зашто се задаци померају",
+              "description": "После F5 панел објашњава подржане узроке везане за календаре и ресурсе.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАПРЕДАК",
+              "title": "Увезите уз преглед измена",
+              "description": "XLSX радна свеска пореди податке са стањем при извозу и приказује сукобе.",
+              "icon": "import"
+            },
+            {
+              "category": "РАЗМЕНА ПОДАТАКА",
+              "title": "Експериментални XER извоз",
+              "description": "Извезите уз јасно обавештење о неподржаним подацима.",
+              "icon": "import"
+            },
+            {
+              "category": "ИЗГЛЕД",
+              "title": "Јасније теме и основни планови",
+              "description": "Нове OpenAEC иконе, неутрални тонови и различити стилови линија основних планова.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "hr": {
+          "primary": {
+            "category": "IZVJEŠTAJI",
+            "title": "Pratite napredak na krivulji",
+            "description": "Usporedite planirani i stvarni napredak uz vidljivu točku datuma stanja.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANIRANJE",
+              "title": "Saznajte zašto se zadaci pomiču",
+              "description": "Nakon F5 ploča objašnjava podržane uzroke vezane uz kalendare i resurse.",
+              "icon": "tasks"
+            },
+            {
+              "category": "NAPREDAK",
+              "title": "Uvezite uz pregled promjena",
+              "description": "XLSX radna knjiga uspoređuje podatke sa stanjem pri izvozu i prikazuje sukobe.",
+              "icon": "import"
+            },
+            {
+              "category": "RAZMJENA PODATAKA",
+              "title": "Eksperimentalni XER izvoz",
+              "description": "Izvezite uz jasnu obavijest o nepodržanim podacima.",
+              "icon": "import"
+            },
+            {
+              "category": "IZGLED",
+              "title": "Jasnije teme i osnovni planovi",
+              "description": "Nove OpenAEC ikone, neutralni tonovi i različiti stilovi linija osnovnih planova.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "bg": {
+          "primary": {
+            "category": "ОТЧЕТИ",
+            "title": "Следете напредъка по крива",
+            "description": "Сравнете планирания и действителния напредък с видима точка за датата на състоянието.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ПЛАНИРАНЕ",
+              "title": "Вижте защо задачите се изместват",
+              "description": "След F5 панелът обяснява поддържаните причини, свързани с календари и ресурси.",
+              "icon": "tasks"
+            },
+            {
+              "category": "НАПРЕДЪК",
+              "title": "Импортирайте с преглед на промените",
+              "description": "Книгата XLSX сравнява данните със състоянието при експортиране и показва конфликти.",
+              "icon": "import"
+            },
+            {
+              "category": "ОБМЕН НА ДАННИ",
+              "title": "Експериментално експортиране в XER",
+              "description": "Експортирайте с изрично известие за неподдържаните данни.",
+              "icon": "import"
+            },
+            {
+              "category": "ОБЛИК",
+              "title": "По-ясни теми и базови планове",
+              "description": "Нови икони OpenAEC, неутрални тонове и различими стилове на линиите на базовите планове.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "hu": {
+          "primary": {
+            "category": "JELENTÉSEK",
+            "title": "Kövesse a haladást egy görbén",
+            "description": "Hasonlítsa össze a tervezett és tényleges haladást látható állapotdátum-jelöléssel.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ÜTEMEZÉS",
+              "title": "Lássa a feladatok eltolódásának okát",
+              "description": "F5 után a panel ismerteti a támogatott naptár- és erőforrásokokat.",
+              "icon": "tasks"
+            },
+            {
+              "category": "HALADÁS",
+              "title": "Importáljon a változások ismeretében",
+              "description": "Az XLSX-munkafüzet az exportált állapothoz hasonlít és megmutatja az ütközéseket.",
+              "icon": "import"
+            },
+            {
+              "category": "ADATCSERE",
+              "title": "Kísérleti XER-exportálás",
+              "description": "Exportáljon a nem támogatott adatokról szóló egyértelmű értesítéssel.",
+              "icon": "import"
+            },
+            {
+              "category": "MEGJELENÉS",
+              "title": "Áttekinthetőbb témák és alaptervek",
+              "description": "Új OpenAEC-ikonok, semleges árnyalatok és eltérő alaptervi vonalstílusok.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "ro": {
+          "primary": {
+            "category": "RAPOARTE",
+            "title": "Urmărește progresul pe o curbă",
+            "description": "Compară progresul planificat și real cu un punct vizibil la data de stare.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANIFICARE",
+              "title": "Vezi de ce se deplasează sarcinile",
+              "description": "După F5, panoul explică motivele acceptate legate de calendare și resurse.",
+              "icon": "tasks"
+            },
+            {
+              "category": "PROGRES",
+              "title": "Importă ținând cont de modificări",
+              "description": "Registrul XLSX compară datele cu starea de la export și arată conflictele.",
+              "icon": "import"
+            },
+            {
+              "category": "SCHIMB DE DATE",
+              "title": "Export XER experimental",
+              "description": "Exportă cu o notificare explicită privind datele neacceptate.",
+              "icon": "import"
+            },
+            {
+              "category": "ASPECT",
+              "title": "Teme și planuri de referință mai clare",
+              "description": "Pictograme OpenAEC noi, nuanțe neutre și stiluri de linie distincte pentru planurile de referință.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "sv": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Följ förloppet i en kurva",
+            "description": "Jämför planerat och faktiskt förlopp med en synlig punkt vid statusdatumet.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANERING",
+              "title": "Se varför uppgifter flyttas",
+              "description": "Efter F5 förklarar panelen de kalender- och resursorsaker som stöds.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FÖRLOPP",
+              "title": "Importera med överblick över ändringar",
+              "description": "XLSX-arbetsboken jämför med läget vid exporten och visar konflikter.",
+              "icon": "import"
+            },
+            {
+              "category": "DATAUTBYTE",
+              "title": "Experimentell XER-export",
+              "description": "Exportera med ett tydligt meddelande om data som inte stöds.",
+              "icon": "import"
+            },
+            {
+              "category": "UTSEENDE",
+              "title": "Tydligare teman och baslinjer",
+              "description": "Nya OpenAEC-ikoner, neutrala toner och olika linjestilar för baslinjer.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "nb": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Følg fremdriften i en kurve",
+            "description": "Sammenlign planlagt og faktisk fremdrift med et synlig punkt på statusdatoen.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANLEGGING",
+              "title": "Se hvorfor oppgaver flyttes",
+              "description": "Etter F5 forklarer panelet støttede årsaker knyttet til kalendere og ressurser.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FREMDRIFT",
+              "title": "Importer med oversikt over endringer",
+              "description": "XLSX-arbeidsboken sammenligner med tilstanden ved eksport og viser konflikter.",
+              "icon": "import"
+            },
+            {
+              "category": "DATAUTVEKSLING",
+              "title": "Eksperimentell XER-eksport",
+              "description": "Eksporter med en tydelig melding om data som ikke støttes.",
+              "icon": "import"
+            },
+            {
+              "category": "UTSEENDE",
+              "title": "Tydeligere temaer og grunnlinjer",
+              "description": "Nye OpenAEC-ikoner, nøytrale toner og ulike linjestiler for grunnlinjer.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "da": {
+          "primary": {
+            "category": "RAPPORTER",
+            "title": "Følg fremdriften på en kurve",
+            "description": "Sammenlign planlagt og faktisk fremdrift med et synligt punkt på statusdatoen.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "PLANLÆGNING",
+              "title": "Se hvorfor opgaver flyttes",
+              "description": "Efter F5 forklarer panelet understøttede årsager knyttet til kalendere og ressourcer.",
+              "icon": "tasks"
+            },
+            {
+              "category": "FREMDRIFT",
+              "title": "Importér med overblik over ændringer",
+              "description": "XLSX-projektmappen sammenligner med tilstanden ved eksport og viser konflikter.",
+              "icon": "import"
+            },
+            {
+              "category": "DATAUDVEKSLING",
+              "title": "Eksperimentel XER-eksport",
+              "description": "Eksportér med en tydelig meddelelse om data, der ikke understøttes.",
+              "icon": "import"
+            },
+            {
+              "category": "UDSEENDE",
+              "title": "Tydeligere temaer og basisplaner",
+              "description": "Nye OpenAEC-ikoner, neutrale toner og forskellige linjestile for basisplaner.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "fi": {
+          "primary": {
+            "category": "RAPORTIT",
+            "title": "Seuraa edistymistä käyrällä",
+            "description": "Vertaa suunniteltua ja toteutunutta edistymistä tilannepäivän näkyvän pisteen avulla.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "AIKATAULUTUS",
+              "title": "Näe tehtävien siirtymisen syyt",
+              "description": "F5:n jälkeen paneeli selittää tuetut kalentereihin ja resursseihin liittyvät syyt.",
+              "icon": "tasks"
+            },
+            {
+              "category": "EDISTYMINEN",
+              "title": "Tuo tiedot muutokset huomioiden",
+              "description": "XLSX-työkirja vertaa tietoja vientihetken tilanteeseen ja näyttää ristiriidat.",
+              "icon": "import"
+            },
+            {
+              "category": "TIEDONSIIRTO",
+              "title": "Kokeellinen XER-vienti",
+              "description": "Vie tiedot ja näytä selkeä ilmoitus tiedoista, joita ei tueta.",
+              "icon": "import"
+            },
+            {
+              "category": "ULKOASU",
+              "title": "Selkeämmät teemat ja perussuunnitelmat",
+              "description": "Uudet OpenAEC-kuvakkeet, neutraalit sävyt ja erottuvat perussuunnitelmien viivatyylit.",
+              "icon": "examples"
+            }
+          ]
+        },
+        "lo": {
+          "primary": {
+            "category": "ລາຍງານ",
+            "title": "ຕິດຕາມຄວາມຄືບໜ້າດ້ວຍເສັ້ນໂຄ້ງ",
+            "description": "ປຽບທຽບຄວາມຄືບໜ້າຕາມແຜນ ແລະ ຕົວຈິງ ພ້ອມຈຸດວັນທີສະຖານະ.",
+            "icon": "tasks",
+            "docsId": "howto-rapport-maken-en-afdrukken"
+          },
+          "secondary": [
+            {
+              "category": "ການວາງແຜນ",
+              "title": "ເບິ່ງເຫດຜົນທີ່ວຽກເລື່ອນ",
+              "description": "ຫຼັງຈາກ F5 ແຖບອະທິບາຍເຫດຜົນດ້ານປະຕິທິນ ແລະ ຊັບພະຍາກອນທີ່ຮອງຮັບ.",
+              "icon": "tasks"
+            },
+            {
+              "category": "ຄວາມຄືບໜ້າ",
+              "title": "ນຳເຂົ້າໂດຍເຫັນການປ່ຽນແປງ",
+              "description": "ປຶ້ມວຽກ XLSX ປຽບທຽບກັບສະພາບໃນຕອນສົ່ງອອກ ແລະ ສະແດງຂໍ້ຂັດແຍ່ງ.",
+              "icon": "import"
+            },
+            {
+              "category": "ການແລກປ່ຽນຂໍ້ມູນ",
+              "title": "ການສົ່ງອອກ XER ແບບທົດລອງ",
+              "description": "ສົ່ງອອກພ້ອມການແຈ້ງຢ່າງຊັດເຈນເຖິງຂໍ້ມູນທີ່ບໍ່ຮອງຮັບ.",
+              "icon": "import"
+            },
+            {
+              "category": "ຮູບລັກສະນະ",
+              "title": "ຮູບແບບ ແລະ ແຜນຖານທີ່ຊັດເຈນຂຶ້ນ",
+              "description": "ໄອຄອນ OpenAEC ໃໝ່ ສີເປັນກາງ ແລະ ແບບເສັ້ນແຜນຖານທີ່ແຕກຕ່າງກັນ.",
+              "icon": "examples"
+            }
+          ]
+        }
+      }
+    },
     {
       "version": "2026.44.0",
       "tag": "v2026.44.0",
