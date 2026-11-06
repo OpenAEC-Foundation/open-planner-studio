@@ -104,11 +104,15 @@ krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
   `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
 - Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
   (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
-- Geeft een wijzigende tool een koppeling terug die later niet meer op te vragen is (zoals de `created`-map
-  `tempId` → id), dan moet het compacte rapport (`compactChange` in `siteAppTools.ts`) haar bewaren, en moet
-  `newTempIds` haar meetellen, zodat `run` een te grote aanroep vóór uitvoering weigert. Al het andere in een
-  wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus niet buiten
-  dat rapport om.
+- Geeft een wijzigende tool een koppeling terug van een opgegeven label naar een nieuw id (zoals `created`,
+  `tempId` → id, of `calendars[].{requestedId, id}`), dan is die later niet meer op te vragen. Zet de tool dan in
+  `SITE_APP_ID_LINK_TOOLS` (`siteAppTools.ts`): `labels` (welke labels een aanroep aanmaakt, voor de controle vóór
+  uitvoering), `keep` (alleen de paren label → id) en `perLink` (de vaste JSON-tekens per paar). Noemt het schema
+  `tempId` of `requestedId`, dan eist `tests/mcp/cases-site-app-tools.ts` dat de tool in die lijst staat. Al het
+  andere in een wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus
+  niet buiten het compacte rapport (`compactChange`) om.
+- Een foutmelding gaat door `boundedFailure`: een lange keten `a → b → …` wordt een aantal plus een fragment. Een
+  foutmelding met een lange lijst in een andere vorm wordt in het midden ingekort; zet de kern dus vooraan.
 
 ## Het nieuwe mechanische vangnet
 

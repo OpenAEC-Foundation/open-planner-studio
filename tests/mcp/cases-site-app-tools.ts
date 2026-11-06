@@ -17,7 +17,10 @@ import {
   SITE_APP_UNAVAILABLE_TOOLS,
   SITE_APP_MAX_RESPONSE_CHARS,
   SITE_APP_REAL_ID_JSON_CHARS,
-  SITE_APP_REPORT_RESERVE_CHARS,
+  SITE_APP_REPORT_BASE_CHARS,
+  SITE_APP_REPORT_STEP_CHARS,
+  SITE_APP_MAX_ERROR_CHARS,
+  SITE_APP_ID_LINK_TOOLS,
   type SiteAppTools,
 } from '@/services/mcp/siteAppTools';
 
@@ -196,7 +199,9 @@ async function chain(app: SiteAppTools, n: number): Promise<string[]> {
     name: `Taak ${i} met een lange naam zodat het antwoord flink groeit`,
     duration: 1,
   }));
-  assertEq((await app.run('planner_add_tasks', { tasks }) as { ok: boolean }).ok, true, 'taken toegevoegd');
+  for (let i = 0; i < tasks.length; i += 300) {
+    assertEq((await app.run('planner_add_tasks', { tasks: tasks.slice(i, i + 300) }) as { ok: boolean }).ok, true, 'taken toegevoegd');
+  }
   const ids = useAppStore.getState().tasks.map((t) => t.id);
   for (let i = 0; i < ids.length - 1; i += 100) {
     const dependencies = [];
@@ -408,25 +413,126 @@ test('compact rapport: te veel nieuwe ids worden vóór uitvoering geweigerd, me
   assertEq(ok.ok, true, 'het maximum is uitgevoerd');
   assert(fits(ok), `het maximum past (${JSON.stringify(ok).length} tekens)`);
   assertEq(ok.data.steps?.map((st) => Object.keys(st.created ?? {}).length), [half, max - half], 'beide created-maps volledig');
-  const direct = await failure(app, 'planner_add_tasks', many('c', max + 1));
-  assertEq(direct?.code, 'te_groot', 'één meer dan het maximum, direct: geweigerd');
+  // Direct heeft een eigen, ruimer maximum (geen stapregels), berekend met de gemiddelde labellengte van die
+  // aanroep: het genoemde maximum past.
+  const big = await failure(app, 'planner_add_tasks', many('c', 1000));
+  assertEq(big?.code, 'te_groot', 'direct 1000: geweigerd');
+  const directMax = Number(/at most (\d+) new items/.exec(big!.message)?.[1]);
+  assert(directMax >= max, `direct maximum ${directMax} ≥ batchmaximum ${max}`);
+  const atMax = (await app.run('planner_add_tasks', many('c', directMax))) as Compacted;
+  assert(fits(atMax), `het directe maximum past (${JSON.stringify(atMax).length} tekens)`);
+  assertEq(Object.keys(atMax.data.created ?? {}).length, directMax, 'de volledige map');
 });
 
-test('compact rapport: de vaste ruimte voor 100 stappen met een lange toolnaam past binnen de reserve', async () => {
+test('compact rapport: de vaste ruimte past binnen de reserve van de echte aanroep (100 stappen, en één aanroep)', async () => {
   freshDocument();
   const app = install();
   await chain(app, 2);
   // 100 stappen zonder seqId: elke stap geeft een zachte weigering, samen te groot, dus een compact rapport.
+  const tool = 'planner_update_dependencies';
   const res = (await app.run('planner_batch', {
-    steps: Array.from({ length: 100 }, () => ({ tool: 'planner_update_dependencies', args: { updates: [{ fields: { lag: '1d' } }] } })),
+    steps: Array.from({ length: 100 }, () => ({ tool, args: { updates: [{ fields: { lag: '1d' } }] } })),
   })) as Compacted & { data: { steps: unknown[] } };
   assertEq(res.ok, true, 'geslaagd');
   assert(res.data.compacted, 'compact rapport');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(res.data.steps.length, 100, 'een regel per stap');
-  // De reserve dekt alles behalve de created-maps en de aanvullingen (weigeringen, restwerkregels).
+  // De reserve dekt alles behalve de koppelingen en de aanvullingen (weigeringen, restwerkregels).
+  const reserve = SITE_APP_REPORT_BASE_CHARS + 100 * (SITE_APP_REPORT_STEP_CHARS + tool.length);
   const fixed = JSON.stringify({ ...res, itemRejections: undefined }).length;
-  assert(fixed <= SITE_APP_REPORT_RESERVE_CHARS, `vaste ruimte ${fixed} > reserve ${SITE_APP_REPORT_RESERVE_CHARS}`);
+  assert(fixed <= reserve, `vaste ruimte ${fixed} > reserve ${reserve}`);
+
+  // Eén aanroep: alleen het vaste deel, zonder de created-map.
+  const single = (await app.run('planner_add_tasks', {
+    tasks: Array.from({ length: 300 }, (_, i) => ({ tempId: `tmp-s${i}`, name: `Taak ${i} met een lange naam zodat het antwoord flink groeit`, duration: 1 })),
+  })) as Compacted;
+  assert(single.data.compacted, 'compact rapport');
+  const singleFixed = JSON.stringify({ ...single, data: { ...single.data, created: undefined } }).length;
+  assert(singleFixed <= SITE_APP_REPORT_BASE_CHARS, `vaste ruimte ${singleFixed} > ${SITE_APP_REPORT_BASE_CHARS}`);
+});
+
+test('voorcontrole: de reserve hoort bij de echte aanroep; 123 taken met tempIds van 114 tekens passen (review ronde 3)', async () => {
+  freshDocument();
+  const app = install();
+  const tasks = Array.from({ length: 123 }, (_, i) => ({ tempId: `tmp-${String(i).padStart(3, '0')}-${'x'.repeat(106)}`, name: `T${i}`, duration: 1 }));
+  assertEq(tasks[0].tempId.length, 114, 'tempId van 114 tekens');
+  const res = (await app.run('planner_add_tasks', { tasks })) as Compacted;
+  assertEq(res.ok, true, 'niet vooraf geweigerd');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(Object.keys(res.data.created ?? {}).length, 123, 'alle 123 koppelingen');
+});
+
+test('koppelingen: de lijst met tools is gelijk aan de tools waarvan het schema tempId of requestedId noemt', () => {
+  const linking = getTools()
+    .filter((def) => def.name !== 'planner_batch' && /tempId|requestedId/.test(JSON.stringify(def.inputSchema)))
+    .map((def) => def.name)
+    .sort();
+  assertEq(Object.keys(SITE_APP_ID_LINK_TOOLS).sort(), linking, 'SITE_APP_ID_LINK_TOOLS');
+  assertEq(linking, ['planner_add_tasks', 'planner_manage_resources', 'planner_update_calendar'], 'de drie tools van nu');
+});
+
+/** Een nieuwe kalender in `planner_update_calendar`, met een vrij label als id. */
+const newCalendar = (label: string) => ({ id: label, create: true, name: 'Ploegendienst' });
+
+test('koppelingen: kalenders houden {requestedId, id} in een batch met een grote leesstap (review ronde 3)', async () => {
+  freshDocument();
+  const app = install();
+  await chain(app, 200);
+  const res = (await app.run('planner_batch', {
+    steps: [
+      { tool: 'planner_update_calendar', args: { calendars: [newCalendar('gevraagde-a'), newCalendar('gevraagde-b')] } },
+      { tool: 'planner_list_tasks', args: { limit: 200 } },
+    ],
+  })) as Compacted & { data: { steps: { status: string; calendars?: { requestedId: string; id: string }[] }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(res.data.compacted, 'compact rapport');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  const links = res.data.steps[0].calendars ?? [];
+  assertEq(links.map((l) => l.requestedId), ['gevraagde-a', 'gevraagde-b'], 'beide labels');
+  const calendarIds = new Set(useAppStore.getState().calendars.map((c) => c.id));
+  assert(links.every((l) => calendarIds.has(l.id)) && links[0].id !== links[1].id, 'twee verschillende echte kalenders');
+});
+
+test('koppelingen: veel nieuwe kalenders in één aanroep houden alle koppelingen, en te veel wordt vooraf geweigerd', async () => {
+  freshDocument();
+  const app = install();
+  const before = useAppStore.getState().calendars.length;
+  const res = (await app.run('planner_update_calendar', {
+    calendars: Array.from({ length: 200 }, (_, i) => newCalendar(`kal-${i}`)),
+  })) as Compacted & { data: { calendars?: { requestedId: string; id: string }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(res.data.compacted, 'compact rapport');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq((res.data.calendars ?? []).map((l) => l.requestedId), Array.from({ length: 200 }, (_, i) => `kal-${i}`), 'alle 200 koppelingen');
+  assertEq(useAppStore.getState().calendars.length, before + 200, '200 kalenders aangemaakt');
+
+  const tooMany = await failure(app, 'planner_update_calendar', {
+    calendars: Array.from({ length: 300 }, (_, i) => newCalendar(`kalender-met-een-lang-label-${i}-${'y'.repeat(40)}`)),
+  });
+  assertEq(tooMany?.code, 'te_groot', `kreeg ${tooMany?.message ?? 'geen fout'}`);
+  assert(tooMany!.message.includes('Nothing was changed'), 'niets veranderd');
+  assertEq(useAppStore.getState().calendars.length, before + 200, 'geen kalender bij');
+});
+
+test('foutpad: een CYCLE in een batch met 700 taken blijft binnen de grens, met code, terugrol en stapstatussen', async () => {
+  freshDocument();
+  const app = install();
+  const ids = await chain(app, 700);
+  const firstName = useAppStore.getState().tasks.find((t) => t.id === ids[0])!.name;
+  const fail = await failure(app, 'planner_batch', {
+    steps: [
+      { tool: 'planner_update_tasks', args: { updates: [{ id: ids[0], fields: { name: 'Nieuwe naam' } }] } },
+      { tool: 'planner_add_dependencies', args: { dependencies: [{ predecessorId: ids[699], successorId: ids[0], type: 'FS' }] } },
+    ],
+  });
+  assertEq(fail?.code, 'CYCLE', `code, kreeg ${fail?.message.slice(0, 200) ?? 'geen fout'}`);
+  assert(fail!.message.length <= SITE_APP_MAX_ERROR_CHARS, `melding past (${fail!.message.length} tekens)`);
+  assert(fail!.message.includes('items in total'), 'de kring is samengevat met een aantal');
+  assert(fail!.message.includes('1. planner_update_tasks — executed (rolled back)'), 'status van stap 1');
+  assert(fail!.message.includes('2. planner_add_dependencies — failed'), 'status van stap 2');
+  assert(fail!.message.includes('everything rolled back'), 'de terugrolmelding');
+  assertEq(useAppStore.getState().tasks.find((t) => t.id === ids[0])!.name, firstName, 'de naam is teruggerold');
+  assertEq(useAppStore.getState().sequences.length, 699, 'alle 699 relaties blijven');
 });
 
 await run();

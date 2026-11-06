@@ -192,12 +192,18 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
     `planner_analyze_delay`), één `part` van `planner_get_planning_guide` (de standaardwaarde `both` is te groot),
     `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
 - **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
-  al gedaan. Een te groot antwoord wordt één compact rapport: de status per stap, elke `created`-map (`tempId` → id),
-  de envelop zonder lijsten met een samenvatting van de restwerkcorrecties (`remainingWorkRecomputedSummary`),
-  aantallen in `compacted.counts`, en daarna de restwerkcorrecties en deelweigeringen die nog passen, per regel
-  ingekort. Eén eindcontrole op het hele antwoord, envelop inbegrepen. De `created`-maps zijn later niet terug te
-  vragen, dus die blijven altijd. Zouden ze alleen al te groot kunnen worden, dan weigert `run` vóór uitvoering met
-  `te_groot` en het maximum aantal nieuwe items per aanroep (met korte tempIds ongeveer 440).
+  al gedaan. Een te groot antwoord wordt één compact rapport: de status per stap, elke koppeling van een opgegeven
+  label naar een nieuw id, de envelop zonder lijsten met een samenvatting van de restwerkcorrecties
+  (`remainingWorkRecomputedSummary`), aantallen in `compacted.counts`, en daarna de restwerkcorrecties en
+  deelweigeringen die nog passen, per regel ingekort. Eén eindcontrole op het hele antwoord, envelop inbegrepen.
+  De koppelingen zijn later niet terug te vragen, dus die blijven altijd: `created` van `planner_add_tasks` en
+  `planner_manage_resources`, en `calendars[].{requestedId, id}` van `planner_update_calendar`
+  (`SITE_APP_ID_LINK_TOOLS`). Zouden ze samen met het rapport van deze aanroep niet passen, dan weigert `run` vóór
+  uitvoering met `te_groot` en het maximum aantal nieuwe items. De ruimte voor het rapport hangt af van de aanroep:
+  4.000 tekens plus een regel per batchstap.
+- **Foutantwoorden.** Ook een fout blijft binnen de grens. De code blijft, net als de terugrolmelding en het
+  staprapport van een batch. Een lange kring wordt een aantal plus een fragment; daarna blijven zo nodig het begin en
+  het eind van de melding over.
 - **Laden.** De dispatcher, de toolregistry en `server.ts` worden pas bij de eerste aanroep via `import()` opgehaald.
   Een aparte chunk is het nog niet: `App.tsx` (via `useAiAutostart`), de instellingen, het AI-tabblad van het lint en
   `AiConnectionDetailsDialog` importeren `server.ts` of de toolregistry statisch, ook in de platformbouw. De MCP-laag
