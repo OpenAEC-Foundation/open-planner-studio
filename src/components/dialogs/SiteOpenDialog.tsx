@@ -74,9 +74,14 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
 
   const cancel = () => answerSiteOpen(null);
   const openLatest = (file: SiteFileInfo) => answerSiteOpen({ kind: 'site', id: file.id });
-  const openVersion = (file: SiteFileInfo, version: SiteVersionInfo) => {
+  /** Is dit de nieuwste versie? Volgens `file.version` uit de lijst; geeft de lijst geen versie (de
+   *  SuperCloud-vorm, #818), dan de eerste uit `versions` (die is nieuwste eerst). */
+  const isLatest = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => (
+    file.version !== undefined ? version.version === file.version : index === 0
+  );
+  const openVersion = (file: SiteFileInfo, version: SiteVersionInfo, index: number) => {
     // De nieuwste versie uit de lijst is gewoon "het bestand openen", met de site als opslagdoel.
-    if (file.version !== undefined && version.version === file.version) {
+    if (isLatest(file, version, index)) {
       openLatest(file);
       return;
     }
@@ -178,8 +183,8 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                         {fileVersions.status === 'ready' && fileVersions.items.length === 0 && (
                           <div className="text-text-secondary">{t('siteFiles.versionsEmpty')}</div>
                         )}
-                        {fileVersions.status === 'ready' && fileVersions.items.map((version) => {
-                          const latest = file.version !== undefined && version.version === file.version;
+                        {fileVersions.status === 'ready' && fileVersions.items.map((version, index) => {
+                          const latest = isLatest(file, version, index);
                           const versionWhen = when(version.modified);
                           return (
                             <div key={version.version} className="flex items-center gap-2" data-ops-site-version={version.version}>
@@ -197,7 +202,7 @@ function SiteOpenDialogBody({ extensions }: { extensions: string[] }) {
                               </span>
                               <button
                                 className="btn btn--sm btn--secondary shrink-0"
-                                onClick={() => openVersion(file, version)}
+                                onClick={() => openVersion(file, version, index)}
                                 data-ops-site-version-open
                               >
                                 {latest ? t('siteFiles.open') : t('siteFiles.openCopy')}
