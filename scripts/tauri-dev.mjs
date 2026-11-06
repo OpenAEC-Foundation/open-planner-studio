@@ -12,10 +12,10 @@
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
 import process from 'node:process';
 import { worktreeRoot, worktreeSlug, allocatePort } from './dev-port.mjs';
 import { acquireGuardLock } from './dev-lock.mjs';
+import { nodeBin } from './node-bin.mjs';
 
 const root = worktreeRoot();
 if (!root) {
@@ -35,12 +35,11 @@ try {
 
 console.log(`\n  ▶ open-planner-studio dev — worktree "${instance}" → http://localhost:${port}/\n`);
 
-const binName = process.platform === 'win32' ? 'tauri.cmd' : 'tauri';
-const localBin = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', binName);
-const tauriBin = existsSync(localBin) ? localBin : binName;
 const config = JSON.stringify({ build: { devUrl: `http://localhost:${port}` } });
+const tauri = nodeBin(join(dirname(fileURLToPath(import.meta.url)), '..'), '@tauri-apps/cli', 'tauri.js', 'tauri', ['dev', '--config', config]);
 
-const child = spawn(tauriBin, ['dev', '--config', config], {
+const child = spawn(tauri.command, tauri.args, {
+  shell: tauri.shell,
   stdio: 'inherit',
   env: {
     ...process.env,
