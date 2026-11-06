@@ -46,7 +46,7 @@ import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
-import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { refreshExternalAnchors, refreshFromSources, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { readExternalSource, type ExternalSourceRead } from '../externalSource';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -1550,9 +1550,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      for (const p of paths.values()) {
+      // Onleesbare bronpaden: hun koppelingen blijven staan, ook als een andere bron hetzelfde project-id
+      // heeft (`refreshFromSources`, review #813).
+      const unreadPaths = new Set<string>();
+      for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
-        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
+        if (!src) { unreadPaths.add(normalized); continue; } // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push({
           projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
           lateDatesInFile: src.lateDatesInFile,
@@ -1563,42 +1566,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         return { refreshed: 0, missing: 0, sources: sourceDocs.length };
       }
 
-      // Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende
-      // bronpaden met zo'n gedeelde id in dezelfde bulkactie, dan is project-id alleen niet langer
-      // onderscheidend: de eerste bron zou anders beide links verversen en de tweede beide opnieuw.
-      // Alleen in die aantoonbaar ambigue groep eisen we daarom het genormaliseerde bronpad. Een
-      // gewone enkelbronverversing blijft project-id-primair, zodat een verplaatst bestand werkt.
-      const pathsByProjectId = new Map<string, Set<string>>();
-      for (const source of sourceDocs) {
-        const projectId = source.projectId.trim();
-        const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
-        if (!projectId || sourcePath === null) continue;
-        const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
-        sourcePaths.add(sourcePath);
-        pathsByProjectId.set(projectId, sourcePaths);
-      }
-      const ambiguousProjectIds = new Set(
-        [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
-      );
-
-      let tasks = get().tasks;
-      let refreshed = 0;
-      // Begint bij `unusablePathCount` (zie hierboven) — een link met een pad dat nooit een bron kon
-      // worden telt hier mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar
-      // de betreffende taak niet meer bevatte.
-      let missing = unusablePathCount;
-      let anyChanged = false;
-      for (const source of sourceDocs) {
-        const result = refreshExternalAnchors(
-          tasks,
-          source,
-          ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
-        );
-        tasks = result.tasks; // ketenen: elke bron ververst zijn eigen links op het vorige resultaat
-        refreshed += result.refreshed;
-        missing += result.missing;
-        if (result.changed) anyChanged = true;
-      }
+      // Alle bronnen samen, met de regel voor kopieën met hetzelfde project-id (`refreshFromSources`).
+      // `missing` begint bij `unusablePathCount` (zie hierboven): een link met een pad dat nooit een bron
+      // kon worden telt mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar de
+      // betreffende taak niet meer bevatte.
+      const result = refreshFromSources(get().tasks, sourceDocs, unreadPaths);
+      const { tasks, refreshed, changed: anyChanged } = result;
+      const missing = unusablePathCount + result.missing;
 
       if (anyChanged) {
         let applied = false;

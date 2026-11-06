@@ -313,7 +313,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
   `settings`, `extensions`, `library`, `help`.
 - 28 locales (`nl, en, fr, de, es, zh, it, pt, pl, tr, ar, ja, ko, fa, ru, uk, cs, sk, sr, hr, bg, hu, ro, sv, nb, da, fi, lo`), each with four namespaces;
   `ar`/`fa` are RTL; `sr` is Serbian in Cyrillic script; `no`/`nn` in the browser pick `nb`. A missing plural form falls back to English, not to `_other`.
-- MCP: The 41 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
+- MCP: The 42 `planner_*` tools live in `src/services/mcp/tools/`. New tool: `docs/recepten/mcp-tool.md`.
 
 ## Worktrees and self-testing
 

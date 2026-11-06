@@ -10,7 +10,7 @@ An external relation does not calculate live with the other project. The app sto
 
 ## Steps
 
-1. Select exactly one task in this project: the task that depends on the external task, or that the external task depends on.
+1. Select exactly one task in this project: the task that depends on the external task, or that the external task depends on. If you choose a phase, the link applies to every task in that phase.
 2. Choose *Home › Tasks › Link ▾ › Add external relation…*. The same menu is on *Planning › Relations* and on *Table › Tasks*. The item is only available if exactly one task is selected.
 3. In the window *External (cross-project) link* choose one of the two routes. With *Source file* you pick the project file under *Choose a recent file* and then the *Source task*; the app reads the file read-only, does not open it as a document, and takes over the anchor date itself. This route only works in the desktop app and only for a file in the list of recent files; otherwise the *Source file* button is disabled. With *Manual (fallback)* you fill in the *Project id* and *Task id* of the external task, optionally a *Task name (optional)*, and the *Anchor date*. In the browser version this is the only route.
 4. Under *Direction* choose whether the external task is your predecessor or your successor: *Predecessor (external → me)* or *Successor (me → external)*.
