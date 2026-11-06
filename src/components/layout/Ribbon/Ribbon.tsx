@@ -313,15 +313,14 @@ export function Ribbon() {
     'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report',
     ...(AI_MODE_AVAILABLE && aiMode ? (['ai'] as RibbonTab[]) : []),
   ];
-  const tabsRef = useRef<HTMLDivElement>(null);
-  useRibbonTabWheel(tabsRef, tabs, setActiveTab);
+  useRibbonTabWheel(containerRef, tabs, setActiveTab);
 
   const densityClass = density === 'compact' ? ' compact' : '';
 
   return (
     <div ref={containerRef} className={`ribbon-container${densityClass}`}>
       {/* Tabs — 'file' is de speciale amber backstage-tab links. */}
-      <div ref={tabsRef} className="ribbon-tabs" data-tour-anchor="ribbon-tabs">
+      <div className="ribbon-tabs" data-tour-anchor="ribbon-tabs">
         <button
           key="file"
           className={`ribbon-tab ribbon-tab--file ${activeTab === 'file' ? 'active' : ''}`}
