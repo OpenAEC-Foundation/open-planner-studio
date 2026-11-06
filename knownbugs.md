@@ -1716,6 +1716,13 @@ en noem het in je rapport of PR-tekst.
      één vaste combinatie van de 32- en 64-px-bestanden. Uit de review van #822 (GPT-6.1-Sol, xhigh, op
      `3d594a216`, VERVOLG). — B
 
+859. **VERVOLG: de browsertest van het muiswiel in het lint mist twee routes.**
+     `tests/browser/ribbon-toggles.spec.ts:71` test na het uitzetten van de instelling alleen boven de tabrij,
+     niet boven de lintknoppen. Ook een wielbeweging in een geopende, scrollbare keuzelijst wordt niet getest.
+     Een regressie op die plekken blijft zo onopgemerkt. Voorstel: beide handelingen toevoegen aan het
+     bestaande scenario. Alleen testdekking, geen fout gezien. Uit de review van #823, ronde 2
+     (GPT-6.1-Sol, xhigh, op `211c9aafd`, VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
