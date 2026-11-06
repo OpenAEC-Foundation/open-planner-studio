@@ -104,14 +104,18 @@ krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
   `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
 - Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
   (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
+- Geeft een wijzigende tool een nieuw veld terug (in `data` of de envelop), deel het dan in in
+  `SITE_APP_RESULT_FIELDS` (`siteAppTools.ts`): `keep` (statussen, nevenwijzigingen en waarschuwingen, alles wat
+  later niet terug te lezen is), `links` (alleen de paren label → id) of `drop` (wat een leestool opnieuw geeft,
+  zoals datums). Een veld zonder indeling blijft staan, maar de test in `tests/mcp/cases-site-app-tools.ts` roept
+  elke wijzigende tool echt aan en wordt rood. Kies bij twijfel `keep`.
 - Geeft een wijzigende tool een koppeling terug van een opgegeven label naar een nieuw id (zoals `created`,
   `tempId` → id, of `calendars[].{requestedId, id}`), dan is die later niet meer op te vragen. Zet de tool dan in
-  `SITE_APP_ID_LINK_TOOLS` (`siteAppTools.ts`): `labels` (welke labels een aanroep aanmaakt, voor de controle vóór
-  uitvoering), `keep` (alleen de paren label → id) en `perLink` (de vaste JSON-tekens per paar). Noemt het schema
-  `tempId` of `requestedId`, dan eist `tests/mcp/cases-site-app-tools.ts` dat de tool in die lijst staat. Al het
-  andere in een wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus
-  niet buiten het compacte rapport (`compactChange`) om.
-- Een foutmelding gaat door `boundedFailure`: een lange keten `a → b → …` wordt een aantal plus een fragment. Een
+  `SITE_APP_ID_LINK_TOOLS`: `labels` (welke labels een aanroep aanmaakt, voor de controle vóór uitvoering), `keep`
+  (alleen de paren label → id) en `perLink` (de vaste JSON-tekens per paar). Dat gebeurt niet vanzelf: voeg ook een
+  geval toe aan `LINK_CASES` in `tests/mcp/cases-site-app-tools.ts`, dat de echte invoer en de bewaarde uitvoer
+  toetst, direct en in een batch.
+- Een foutmelding (ook een JSON-RPC-fout) gaat door `boundedFailure`: een lange keten `a → b → …` wordt een aantal plus een fragment. Een
   foutmelding met een lange lijst in een andere vorm wordt in het midden ingekort; zet de kern dus vooraan.
 
 ## Het nieuwe mechanische vangnet

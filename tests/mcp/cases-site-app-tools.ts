@@ -21,6 +21,7 @@ import {
   SITE_APP_REPORT_STEP_CHARS,
   SITE_APP_MAX_ERROR_CHARS,
   SITE_APP_ID_LINK_TOOLS,
+  SITE_APP_RESULT_FIELDS,
   type SiteAppTools,
 } from '@/services/mcp/siteAppTools';
 
@@ -213,6 +214,8 @@ async function chain(app: SiteAppTools, n: number): Promise<string[]> {
   return ids;
 }
 
+const isObject = (value: unknown): value is object => value !== null && typeof value === 'object' && !Array.isArray(value);
+
 /** Past dit antwoord binnen de grens van het sitecontract? */
 const fits = (value: unknown) => JSON.stringify(value).length <= SITE_APP_MAX_RESPONSE_CHARS;
 
@@ -277,7 +280,7 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   const app = install();
   await chain(app, 200);
   const res = (await app.run('planner_batch', { steps: [{ tool: 'planner_list_tasks', args: { limit: 200 } }] })) as {
-    ok: boolean; data: { compacted?: { note: string }; steps: { status: string; data?: unknown; omitted?: string }[]; substeps?: unknown };
+    ok: boolean; data: { compacted?: { note: string; omitted: Record<string, number> }; steps: { status: string; data?: unknown }[]; substeps?: unknown };
   };
   assertEq(res.ok, true, 'geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
@@ -285,7 +288,7 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   assertEq(res.data.substeps, undefined, 'substeps weg');
   assertEq(res.data.steps[0].status, 'uitgevoerd', 'status van de stap blijft');
   assertEq(res.data.steps[0].data, undefined, 'de leesuitvoer is weg');
-  assertEq(res.data.steps[0].omitted, 'read output', 'zegt dat de leesuitvoer weg is');
+  assertEq(res.data.compacted?.omitted['steps[].(read output)'], 1, 'zegt dat de leesuitvoer weg is');
   assert(JSON.stringify(res.data.compacted).includes('call a read step on its own'), 'zegt hoe je hem volledig opvraagt');
 });
 
@@ -299,13 +302,13 @@ test('batch met een wijziging en een grote leesstap: de wijziging blijft geslaag
       { tool: 'planner_add_tasks', args: addTask('extra') },
       { tool: 'planner_list_tasks', args: { limit: 1000 } },
     ],
-  })) as { ok: boolean; data: { steps: { status: string; created?: Record<string, string>; omitted?: string }[] } };
+  })) as { ok: boolean; data: { compacted?: { omitted: Record<string, number> }; steps: { status: string; created?: Record<string, string> }[] } };
   assertEq(res.ok, true, 'de batch is geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(useAppStore.getState().tasks.length, before + 1, 'de wijziging is uitgevoerd');
   assertEq(res.data.steps.map((st) => st.status), ['uitgevoerd', 'uitgevoerd'], 'status per stap');
   assert(typeof res.data.steps[0].created?.['tmp-extra'] === 'string', 'de created-map van de wijziging blijft');
-  assertEq(res.data.steps[1].omitted, 'read output', 'de leesuitvoer is weg');
+  assertEq(res.data.compacted?.omitted['steps[].(read output)'], 1, 'de leesuitvoer is weg');
 });
 
 /** Uurtaken van 80 h met een toewijzing en een bewaard restwerk van 320 h (zoals na een XER-import), zoals in
@@ -341,7 +344,7 @@ function hourTasksWithRemainingWork(n: number): string[] {
 type Compacted = {
   ok: boolean;
   envelope: { remainingWorkRecomputed?: unknown[]; remainingWorkRecomputedSummary?: { count: number; tasks: number; beforeHours: number; afterHours: number } };
-  data: { compacted?: { counts: Record<string, number> }; created?: Record<string, string>; steps?: { status: string; created?: Record<string, string> }[] };
+  data: { compacted?: { omitted: Record<string, number>; shortened: Record<string, number> }; created?: Record<string, string>; steps?: { status: string; created?: Record<string, string>; data?: { created?: Record<string, string> } }[] };
   itemRejections?: { id: string; reason: string }[];
 };
 
@@ -356,7 +359,7 @@ test('compact rapport: 230 restwerkcorrecties in één planner_update_tasks blij
   assertEq(useAppStore.getState().assignments.filter((a) => a.remainingWorkMinutes === 72 * 60).length, 230, 'alle 230 uitgevoerd');
   assertEq(res.envelope.remainingWorkRecomputedSummary, { count: 230, tasks: 230, beforeHours: 230 * 320, afterHours: 230 * 72 }, 'samenvatting');
   assert((res.envelope.remainingWorkRecomputed?.length ?? 0) > 0, 'de eerste correcties die passen staan erbij');
-  assertEq(res.data.compacted?.counts.remainingWorkRecomputed, 230, 'aantal in counts');
+  assertEq(res.data.compacted?.shortened['envelope.remainingWorkRecomputed'], 230, 'het totaal in shortened');
 });
 
 test('compact rapport: 40 onbekende lange ids blijven binnen de grens, met het aantal weigeringen', async () => {
@@ -368,9 +371,11 @@ test('compact rapport: 40 onbekende lange ids blijven binnen de grens, met het a
   })) as Compacted;
   assertEq(res.ok, true, 'geslaagd (zachte weigeringen)');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
-  assertEq(res.data.compacted?.counts.itemRejections, 40, 'aantal weigeringen');
-  assert((res.itemRejections?.length ?? 0) > 0, 'de eerste weigeringen die passen staan erbij');
-  assert((res.itemRejections ?? []).every((r) => r.id.length <= 81 && r.reason.length <= 201), 'weigeringen ingekort per regel');
+  assert(res.data.compacted, 'compact rapport');
+  const kept = res.itemRejections?.length ?? 0;
+  assert(kept > 0, 'de eerste weigeringen die passen staan erbij');
+  assertEq(kept === 40 ? 40 : res.data.compacted?.shortened.itemRejections, 40, 'alle 40, of het totaal in shortened');
+  assert((res.itemRejections ?? []).every((r) => r.id.length <= 201 && r.reason.length <= 201), 'weigeringen ingekort per regel');
 });
 
 test('compact rapport: 300 taken in één planner_add_tasks houden de volledige created-map binnen de grens', async () => {
@@ -412,7 +417,9 @@ test('compact rapport: te veel nieuwe ids worden vóór uitvoering geweigerd, me
   })) as Compacted;
   assertEq(ok.ok, true, 'het maximum is uitgevoerd');
   assert(fits(ok), `het maximum past (${JSON.stringify(ok).length} tekens)`);
-  assertEq(ok.data.steps?.map((st) => Object.keys(st.created ?? {}).length), [half, max - half], 'beide created-maps volledig');
+  // Ingekort staat de map op de stap, onverkort in `data` van de stap.
+  const mapOf = (st: { created?: object; data?: { created?: object } }) => st.created ?? st.data?.created ?? {};
+  assertEq(ok.data.steps?.map((st) => Object.keys(mapOf(st)).length), [half, max - half], 'beide created-maps volledig');
   // Direct heeft een eigen, ruimer maximum (geen stapregels), berekend met de gemiddelde labellengte van die
   // aanroep: het genoemde maximum past.
   const big = await failure(app, 'planner_add_tasks', many('c', 1000));
@@ -437,9 +444,10 @@ test('compact rapport: de vaste ruimte past binnen de reserve van de echte aanro
   assert(res.data.compacted, 'compact rapport');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(res.data.steps.length, 100, 'een regel per stap');
-  // De reserve dekt alles behalve de koppelingen en de aanvullingen (weigeringen, restwerkregels).
+  // De reserve dekt het geraamte: alles behalve de koppelingen en de vulling (velden die blijven, weigeringen).
   const reserve = SITE_APP_REPORT_BASE_CHARS + 100 * (SITE_APP_REPORT_STEP_CHARS + tool.length);
-  const fixed = JSON.stringify({ ...res, itemRejections: undefined }).length;
+  const bare = (res.data.steps as { step: number; tool: string; status: string }[]).map(({ step, tool: t, status }) => ({ step, tool: t, status }));
+  const fixed = JSON.stringify({ ...res, itemRejections: undefined, data: { ...res.data, steps: bare } }).length;
   assert(fixed <= reserve, `vaste ruimte ${fixed} > reserve ${reserve}`);
 
   // Eén aanroep: alleen het vaste deel, zonder de created-map.
@@ -447,7 +455,7 @@ test('compact rapport: de vaste ruimte past binnen de reserve van de echte aanro
     tasks: Array.from({ length: 300 }, (_, i) => ({ tempId: `tmp-s${i}`, name: `Taak ${i} met een lange naam zodat het antwoord flink groeit`, duration: 1 })),
   })) as Compacted;
   assert(single.data.compacted, 'compact rapport');
-  const singleFixed = JSON.stringify({ ...single, data: { ...single.data, created: undefined } }).length;
+  const singleFixed = JSON.stringify({ ok: single.ok, envelope: single.envelope, data: { compacted: single.data.compacted } }).length;
   assert(singleFixed <= SITE_APP_REPORT_BASE_CHARS, `vaste ruimte ${singleFixed} > ${SITE_APP_REPORT_BASE_CHARS}`);
 });
 
@@ -460,15 +468,6 @@ test('voorcontrole: de reserve hoort bij de echte aanroep; 123 taken met tempIds
   assertEq(res.ok, true, 'niet vooraf geweigerd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(Object.keys(res.data.created ?? {}).length, 123, 'alle 123 koppelingen');
-});
-
-test('koppelingen: de lijst met tools is gelijk aan de tools waarvan het schema tempId of requestedId noemt', () => {
-  const linking = getTools()
-    .filter((def) => def.name !== 'planner_batch' && /tempId|requestedId/.test(JSON.stringify(def.inputSchema)))
-    .map((def) => def.name)
-    .sort();
-  assertEq(Object.keys(SITE_APP_ID_LINK_TOOLS).sort(), linking, 'SITE_APP_ID_LINK_TOOLS');
-  assertEq(linking, ['planner_add_tasks', 'planner_manage_resources', 'planner_update_calendar'], 'de drie tools van nu');
 });
 
 /** Een nieuwe kalender in `planner_update_calendar`, met een vrij label als id. */
@@ -533,6 +532,244 @@ test('foutpad: een CYCLE in een batch met 700 taken blijft binnen de grens, met 
   assert(fail!.message.includes('everything rolled back'), 'de terugrolmelding');
   assertEq(useAppStore.getState().tasks.find((t) => t.id === ids[0])!.name, firstName, 'de naam is teruggerold');
   assertEq(useAppStore.getState().sequences.length, 699, 'alle 699 relaties blijven');
+});
+
+test('veldindeling: elk veld uit een antwoord van elke wijzigende tool staat in SITE_APP_RESULT_FIELDS', async () => {
+  freshDocument();
+  const app = install();
+  const S = () => useAppStore.getState();
+  const seen = new Map<string, Set<string>>();
+  const note = (scope: string, key: string, tool: string) => {
+    const id = `${scope}.${key}`;
+    if (!seen.has(id)) seen.set(id, new Set());
+    seen.get(id)!.add(tool);
+  };
+  const tools = new Set<string>();
+  const call = async (name: string, args: Record<string, unknown> = {}) => {
+    const res = (await app.run(name, args)) as { envelope: object; data: unknown; itemRejections?: unknown };
+    tools.add(name);
+    for (const key of Object.keys(res.envelope)) note('envelope', key, name);
+    if (name === 'planner_batch') {
+      const data = res.data as { steps: { tool: string; data?: unknown }[] };
+      for (const key of Object.keys(data)) note('data', key, name);
+      for (const step of data.steps) for (const key of Object.keys((step.data ?? {}) as object)) note('data', key, step.tool);
+    } else if (isObject(res.data)) {
+      for (const key of Object.keys(res.data)) note('data', key, name);
+    }
+    return res as { data: Record<string, any> };
+  };
+  await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'A', duration: 2 }, { tempId: 'tmp-b', name: 'B', duration: 3 }, { tempId: 'tmp-c', name: 'C', duration: 1 }] });
+  const [A, B, C] = S().tasks.map((t) => t.id);
+  const r = await call('planner_manage_resources', { actions: [{ action: 'create', tempId: 'tmp-r', name: 'Timmerman', type: 'LABOR', maxUnits: 1 }] });
+  const R = r.data.created['tmp-r'];
+  await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: A, resourceId: R, unitsPerDay: 1 }, { action: 'add', taskId: 'bestaat-niet', resourceId: R, unitsPerDay: 1 }] });
+  await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-kind', name: 'Kind', duration: 1, parentId: A }] }); // A wordt een fase
+  await call('planner_update_tasks', { updates: [{ id: B, fields: { duration: 5 } }, { id: 'weg', fields: { name: 'x' } }] });
+  await call('planner_add_dependencies', { dependencies: [{ predecessorId: B, successorId: C, type: 'FS' }] });
+  const seq = S().sequences[0].id;
+  await call('planner_update_dependencies', { updates: [{ seqId: seq, lag: 1 }] });
+  await call('planner_set_task_splits', { taskId: B, interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] });
+  await call('planner_move_task', { id: C, newParentId: null, position: 0 });
+  await call('planner_update_calendar', { calendars: [{ id: 'kal-x', create: true, name: 'Ploeg' }] });
+  await call('planner_level_resources', {});
+  await call('planner_clear_leveling', {});
+  await call('planner_update_project', { name: 'Project X', statusDate: '2026-06-10' });
+  await call('planner_move_project', { newStartDate: '2026-07-01' });
+  const baselineId = (await call('planner_save_baseline', { name: 'BL1' })).data.baselineId as string;
+  await call('planner_rename_baseline', { baselineId, name: 'BL1' }); // dezelfde naam: `changed: false` met een reden
+  await call('planner_rename_baseline', { baselineId, name: 'BL1b' });
+  await call('planner_activate_baseline', { baselineId });
+  await call('planner_remove_dependencies', { ids: [seq] });
+  await call('planner_undo');
+  await call('planner_redo');
+  await call('planner_delete_baseline', { baselineId });
+  await call('planner_batch', {
+    steps: [
+      { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-z', name: 'Z', duration: 1 }] } },
+      { tool: 'planner_update_tasks', args: { updates: [{ id: B, fields: { name: 'B2' } }] } },
+      { tool: 'planner_list_tasks', args: { limit: 2 } },
+    ],
+  });
+  await call('planner_delete_tasks', { ids: [C] });
+  const first = S().activeDocumentId;
+  await call('planner_duplicate_document', { name: 'Kopie' });
+  await call('planner_new_document');
+  await call('planner_switch_document', { documentId: first });
+
+  // Elke wijzigende tool kwam aan bod (behalve de twee bestandstools, die hier niet werken).
+  const mutating = getTools()
+    .filter((def) => !def.annotations.readOnlyHint && !SITE_APP_UNAVAILABLE_TOOLS.has(def.name))
+    .map((def) => def.name)
+    .sort();
+  assertEq([...tools].sort(), mutating, 'elke wijzigende tool aangeroepen');
+  assert(seen.has('data.phaseTransitions'), 'het scenario raakt een faseovergang');
+  const classes = SITE_APP_RESULT_FIELDS as unknown as Record<string, Record<string, string>>;
+  const missing = [...seen.keys()].filter((id) => {
+    const [scope, key] = id.split('.');
+    return classes[scope]?.[key] === undefined;
+  });
+  assertEq(missing.map((id) => `${id} (${[...seen.get(id)!].join(', ')})`), [], 'velden zonder indeling');
+});
+
+/** Een bestaande taak met een toewijzing, en een bestaande mijlpaal. Geeft hun id's. */
+async function phaseSetup(app: SiteAppTools): Promise<{ withAssignment: string; milestone: string; resource: string }> {
+  const S = () => useAppStore.getState();
+  await app.run('planner_add_tasks', {
+    tasks: [{ tempId: 'tmp-bestaand', name: 'Bestaand werk', duration: 5 }, { tempId: 'tmp-mijlpaal', name: 'Mijlpaal', isMilestone: true }],
+  });
+  const withAssignment = S().tasks.find((t) => t.name === 'Bestaand werk')!.id;
+  const milestone = S().tasks.find((t) => t.name === 'Mijlpaal')!.id;
+  const res = (await app.run('planner_manage_resources', { actions: [{ action: 'create', tempId: 'tmp-ploeg', name: 'Ploeg', type: 'LABOR', maxUnits: 2 }] })) as { data: { created: Record<string, string> } };
+  const resource = res.data.created['tmp-ploeg'];
+  await app.run('planner_manage_assignments', { actions: [{ action: 'add', taskId: withAssignment, resourceId: resource, unitsPerDay: 1 }] });
+  return { withAssignment, milestone, resource };
+}
+
+/** De gewone batch uit de review van ronde 4: tien stappen, `n` nieuwe taken, de eerste twee als kind van een bestaande
+ *  taak (die daardoor een fase wordt), relaties, toewijzingen, en tot slot de uitkomst lezen. */
+function tenStepBatch(n: number, parents: { withAssignment: string; milestone: string; resource: string }, readLimit = 50) {
+  const tasks = Array.from({ length: n }, (_, i) => ({
+    tempId: `tmp-n${i}`,
+    name: `Nieuwe taak ${i}`,
+    duration: 2,
+    ...(i === 0 ? { parentId: parents.withAssignment } : i === 1 ? { parentId: parents.milestone } : {}),
+  }));
+  const chainDeps = (from: number, to: number) => Array.from({ length: to - from }, (_, k) => ({
+    predecessorId: `tmp-n${from + k}`, successorId: `tmp-n${from + k + 1}`, type: 'FS',
+  }));
+  const half = Math.floor(n / 2);
+  return {
+    steps: [
+      { tool: 'planner_add_tasks', args: { tasks } },
+      { tool: 'planner_add_dependencies', args: { dependencies: chainDeps(2, half) } },
+      { tool: 'planner_add_dependencies', args: { dependencies: chainDeps(half, n - 1) } },
+      { tool: 'planner_manage_assignments', args: { actions: [{ action: 'add', taskId: 'tmp-n2', resourceId: parents.resource, unitsPerDay: 1 }] } },
+      { tool: 'planner_manage_assignments', args: { actions: [{ action: 'add', taskId: 'tmp-n3', resourceId: parents.resource, unitsPerDay: 1 }] } },
+      { tool: 'planner_update_tasks', args: { updates: [{ id: 'tmp-n4', fields: { duration: 3 } }] } },
+      { tool: 'planner_update_tasks', args: { updates: [{ id: 'tmp-n5', fields: { name: 'Hernoemd' } }] } },
+      { tool: 'planner_update_tasks', args: { updates: [{ id: 'tmp-n6', fields: { duration: 4 } }] } },
+      { tool: 'planner_get_critical_path', args: {} },
+      { tool: 'planner_list_tasks', args: { limit: readLimit } },
+    ],
+  };
+}
+
+type PhaseReport = { phaseId: string; phaseName: string; milestoneCleared: boolean; assignmentsMovedTo?: { taskId: string; resourceIds: string[] } };
+
+function assertPhaseTransitions(list: PhaseReport[] | undefined, parents: { withAssignment: string; milestone: string; resource: string }, label: string) {
+  const S = () => useAppStore.getState();
+  const byPhase = new Map((list ?? []).map((t) => [t.phaseId, t]));
+  const moved = byPhase.get(parents.withAssignment);
+  assert(moved, `${label}: de overgang van de taak met toewijzing ontbreekt`);
+  const target = S().tasks.find((t) => t.name === 'Nieuwe taak 0')!.id;
+  assertEq(moved!.assignmentsMovedTo?.taskId, target, `${label}: doel van de verplaatsing`);
+  assertEq(moved!.assignmentsMovedTo?.resourceIds, [parents.resource], `${label}: aantal en welke toewijzingen`);
+  assertEq(moved!.milestoneCleared, false, `${label}: geen mijlpaal`);
+  assertEq(byPhase.get(parents.milestone)?.milestoneCleared, true, `${label}: de mijlpaalvlag van de mijlpaal`);
+}
+
+test('faseovergang: een gewone batch van tien stappen met 20 taken past volledig en meldt de overgangen (review ronde 4)', async () => {
+  freshDocument();
+  const app = install();
+  const parents = await phaseSetup(app);
+  const res = (await app.run('planner_batch', tenStepBatch(20, parents))) as { ok: boolean; data: { compacted?: unknown; substeps?: unknown; steps: { status: string; data?: { phaseTransitions?: PhaseReport[] } }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(res.data.compacted, undefined, 'niet ingekort');
+  assertEq(res.data.substeps, undefined, 'het activiteitenlog is eraf');
+  assert(res.data.steps.every((st) => st.status === 'uitgevoerd'), 'alle stappen uitgevoerd');
+  assertPhaseTransitions(res.data.steps[0].data?.phaseTransitions, parents, '20 taken');
+});
+
+test('faseovergang: dezelfde batch met 40 taken past zonder inkorten', async () => {
+  freshDocument();
+  const app = install();
+  const parents = await phaseSetup(app);
+  const res = (await app.run('planner_batch', tenStepBatch(40, parents))) as { ok: boolean; data: { compacted?: unknown; steps: { data?: { phaseTransitions?: PhaseReport[] } }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(res.data.compacted, undefined, 'niet ingekort');
+  assertPhaseTransitions(res.data.steps[0].data?.phaseTransitions, parents, '40 taken');
+});
+
+test('faseovergang: ook een ingekort antwoord houdt fase, doel, toewijzingen en mijlpaalvlag', async () => {
+  freshDocument();
+  const app = install();
+  await chain(app, 200);
+  const parents = await phaseSetup(app);
+  const res = (await app.run('planner_batch', tenStepBatch(20, parents, 200))) as { ok: boolean; data: { compacted?: unknown; steps: { phaseTransitions?: PhaseReport[]; created?: Record<string, string> }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(res.data.compacted, 'ingekort');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(Object.keys(res.data.steps[0].created ?? {}).length, 20, 'de created-map blijft');
+  assertPhaseTransitions(res.data.steps[0].phaseTransitions, parents, 'ingekort');
+});
+
+/** Per aanmaaktool: echte invoer (labels) en de bewaarde uitvoer (label → id), en hoe je het juiste item vindt. */
+const LINK_CASES: {
+  tool: string;
+  args: (labels: string[]) => Record<string, unknown>;
+  links: (data: Record<string, any>) => [string, string][];
+  nameOf: (id: string) => string | undefined;
+}[] = [
+  {
+    tool: 'planner_add_tasks',
+    args: (labels) => ({ tasks: labels.map((l) => ({ tempId: l, name: `naam ${l}`, duration: 1 })) }),
+    links: (data) => Object.entries(data.created ?? {}) as [string, string][],
+    nameOf: (id) => useAppStore.getState().tasks.find((t) => t.id === id)?.name,
+  },
+  {
+    tool: 'planner_manage_resources',
+    args: (labels) => ({ actions: labels.map((l) => ({ action: 'create', tempId: l, name: `naam ${l}`, type: 'LABOR', maxUnits: 1 })) }),
+    links: (data) => Object.entries(data.created ?? {}) as [string, string][],
+    nameOf: (id) => useAppStore.getState().resources.find((r) => r.id === id)?.name,
+  },
+  {
+    tool: 'planner_update_calendar',
+    args: (labels) => ({ calendars: labels.map((l) => ({ id: l, create: true, name: `naam ${l}` })) }),
+    links: (data) => ((data.calendars ?? []) as { requestedId: string; id: string }[]).map((c) => [c.requestedId, c.id]),
+    nameOf: (id) => useAppStore.getState().calendars.find((c) => c.id === id)?.name,
+  },
+];
+
+test('koppelingen per aanmaaktool: echte invoer en bewaarde uitvoer, direct en in een batch, ingekort', async () => {
+  assertEq(LINK_CASES.map((c) => c.tool).sort(), Object.keys(SITE_APP_ID_LINK_TOOLS).sort(), 'een geval per tool in SITE_APP_ID_LINK_TOOLS');
+  for (const c of LINK_CASES) {
+    // Direct: zoveel items dat het antwoord ingekort wordt.
+    freshDocument();
+    let app = install();
+    const many = Array.from({ length: 300 }, (_, i) => `tmp-l${i}`);
+    const direct = (await app.run(c.tool, c.args(many))) as { data: Record<string, any> };
+    assert(direct.data.compacted, `${c.tool} direct: ingekort`);
+    assert(fits(direct), `${c.tool} direct: past`);
+    const directLinks = c.links(direct.data);
+    assertEq(directLinks.map(([label]) => label).sort(), [...many].sort(), `${c.tool} direct: elk label`);
+    for (const [label, id] of directLinks) assertEq(c.nameOf(id), `naam ${label}`, `${c.tool} direct: ${label} wijst naar het juiste item`);
+
+    // In een batch, naast een grote leesstap.
+    freshDocument();
+    app = install();
+    await chain(app, 200);
+    const few = ['tmp-x1', 'tmp-x2'];
+    const batch = (await app.run('planner_batch', {
+      steps: [{ tool: c.tool, args: c.args(few) }, { tool: 'planner_list_tasks', args: { limit: 200 } }],
+    })) as { data: { compacted?: unknown; steps: Record<string, any>[] } };
+    assert(batch.data.compacted, `${c.tool} batch: ingekort`);
+    const batchLinks = c.links(batch.data.steps[0]);
+    assertEq(batchLinks.map(([label]) => label).sort(), few, `${c.tool} batch: elk label`);
+    for (const [label, id] of batchLinks) assertEq(c.nameOf(id), `naam ${label}`, `${c.tool} batch: ${label} wijst naar het juiste item`);
+
+    // De controle vooraf telt de labels van deze tool mee.
+    const tooMany = await failure(app, c.tool, c.args(Array.from({ length: 900 }, (_, i) => `tmp-te-veel-${i}`)));
+    assertEq(tooMany?.code, 'te_groot', `${c.tool}: te veel labels vooraf geweigerd`);
+  }
+});
+
+test('foutpad: ook een JSON-RPC-fout blijft binnen de grens en houdt zijn code', async () => {
+  const fail = await failure(install(), `planner_${'x'.repeat(60_000)}`);
+  assertEq(fail?.code, 'JSONRPC_-32602', 'code');
+  assert(fail!.message.length <= SITE_APP_MAX_ERROR_CHARS, `melding past (${fail!.message.length} tekens)`);
+  assert(fail!.message.startsWith('JSONRPC_-32602: Unknown tool: planner_xxx'), 'begin van de melding');
 });
 
 await run();

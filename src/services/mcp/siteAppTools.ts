@@ -188,8 +188,10 @@ interface IdLinkTool {
 }
 
 /**
- * ALLE tools die zo'n koppeling teruggeven. `tests/mcp/cases-site-app-tools.ts` houdt deze lijst gelijk aan de tools
- * waarvan het schema `tempId` of `requestedId` noemt, zodat een nieuwe tool niet ongemerkt wegvalt.
+ * De tools die zo'n koppeling teruggeven, nagelopen in november 2026 (#825, ronde 3 en 4). Geen automatische
+ * vangst: een nieuwe aanmaaktool met een eigen label moet hier bij. Een vergeten tool verliest zijn koppelingen niet
+ * stil (een veld buiten `SITE_APP_RESULT_FIELDS` blijft staan), maar telt dan niet mee in de controle vooraf.
+ * `tests/mcp/cases-site-app-tools.ts` toetst per tool de echte invoer en de bewaarde uitvoer, direct en in een batch.
  *   - `planner_add_tasks`: `created` (`tempId` → taak-id);
  *   - `planner_manage_resources`: `created` (`tempId` → resource-id, alleen bij `action: "create"`);
  *   - `planner_update_calendar`: `calendars[].{requestedId, id}` (alleen bij `created: true`).
@@ -262,18 +264,6 @@ const clip = (text: unknown, max: number): string => {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 };
 
-/** De lengtes van de lijsten in `data` (wat er weg is, als aantal). */
-function counts(data: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (isRecord(data)) {
-    for (const [key, value] of Object.entries(data)) {
-      if (Array.isArray(value)) out[key] = value.length;
-      else if (key !== 'created' && isRecord(value)) out[key] = Object.keys(value).length;
-    }
-  }
-  return out;
-}
-
 /** De koppelingen uit het antwoord van één tool, of niets. */
 const linksOf = (tool: string, data: unknown) => SITE_APP_ID_LINK_TOOLS[tool]?.keep(data);
 
@@ -308,95 +298,180 @@ function boundedFailure(code: string, error: string): SiteAppToolError {
   return new SiteAppToolError(code, text);
 }
 
+/**
+ * DE INDELING van elk veld dat een wijzigende tool kan teruggeven (envelop, `data`, en `data` van een batchstap).
+ *   - `keep`: blijft in het compacte rapport. Statussen, nevenwijzigingen en waarschuwingen, en alles wat later niet
+ *     meer terug te lezen is (verwijderde ids, faseovergangen, restwerkcorrecties).
+ *   - `links`: alleen de koppelingen label → id blijven (`SITE_APP_ID_LINK_TOOLS`), de rest mag weg.
+ *   - `drop`: mag weg; de assistent leest het opnieuw met een leestool (datums, rijen, wat hij zelf vroeg).
+ * Een veld dat NIET in deze lijst staat, blijft (ingekort): een nieuw veld valt dus nooit stil weg.
+ * `tests/mcp/cases-site-app-tools.ts` roept elke wijzigende tool echt aan en eist dat elk veld uit een antwoord hier
+ * staat. Een losse waarde (tekst, getal, ja/nee) blijft altijd, ook bij `drop`; de indeling telt voor lijsten en
+ * objecten. Een lange lijst die blijft, wordt de eerste regels die passen plus het totaal in `compacted.shortened`.
+ */
+export const SITE_APP_RESULT_FIELDS = {
+  envelope: {
+    activeDocumentId: 'keep', documentTitle: 'keep', scheduleStale: 'keep', paused: 'keep', readOnly: 'keep',
+    backupCreated: 'keep', timephasedGuidanceLost: 'keep', remainingWorkRecomputed: 'keep',
+    scheduleRecalculated: 'keep', datesAsRecorded: 'keep', scheduleNote: 'keep', scheduleError: 'keep',
+  },
+  data: {
+    // koppelingen label → id
+    created: 'links', calendars: 'links',
+    // nevenwijzigingen, waarschuwingen, wat weg is: blijft
+    phaseTransitions: 'keep', progressAdjusted: 'keep', warnings: 'keep', warning: 'keep', note: 'keep', hint: 'keep',
+    reason: 'keep', cappedTaskIds: 'keep', anchorsClamped: 'keep', hourMeasureTaskIds: 'keep', statusDateNote: 'keep',
+    statusDateEffect: 'keep', unresolved: 'keep', unresolvedReasons: 'keep', deleted: 'keep', deletedTaskIds: 'keep',
+    cascadedTaskIds: 'keep', deletedBaselineId: 'keep', deletedName: 'keep', deletedCreatedAt: 'keep',
+    deletedTaskCount: 'keep', removedAssignmentCount: 'keep', removedDependencyCount: 'keep', wasActive: 'keep',
+    remainingCount: 'keep', changed: 'keep', previousName: 'keep', previousActiveBaselineId: 'keep',
+    previousActiveBaselineName: 'keep', activeBaselineId: 'keep', activeBaselineName: 'keep', undone: 'keep',
+    redone: 'keep', undoDepth: 'keep', redoDepth: 'keep', cleared: 'keep', recomputed: 'keep', dryRun: 'keep',
+    constrainToFloat: 'keep', projectEnd: 'keep', projectEndBefore: 'keep', projectEndAfter: 'keep',
+    projectEndDelta: 'keep', deltaDays: 'keep', endDeltaDays: 'keep', newStartDate: 'keep', shiftBaselines: 'keep',
+    taskCount: 'keep', baselineId: 'keep', name: 'keep', documentId: 'keep', title: 'keep', projectName: 'keep',
+    taskId: 'keep', durationUnit: 'keep', scheduleDuration: 'keep', stepCount: 'keep',
+    // opnieuw te lezen met een leestool, of wat de assistent zelf vroeg: mag weg
+    tasks: 'drop', updated: 'drop', added: 'drop', removed: 'drop', moved: 'drop', resources: 'drop',
+    project: 'drop', interruptions: 'drop', shifts: 'drop', delays: 'drop',
+    // `planner_batch`: `steps` krijgt een eigen vorm, `rejections` staat ook in `itemRejections`, `substeps` is het
+    // activiteitenlog (al verwerkt; gaat er vóór de lengtemeting al af)
+    steps: 'keep', rejections: 'drop', substeps: 'drop',
+    // leesuitvoer van een leesstap in een batch (die gaat er als geheel af)
+    total: 'drop', has_more: 'drop', next_offset: 'drop',
+  },
+} as const satisfies Record<'envelope' | 'data', Record<string, 'keep' | 'links' | 'drop'>>;
+
+const fieldClass = (scope: 'envelope' | 'data', key: string): 'keep' | 'links' | 'drop' =>
+  (SITE_APP_RESULT_FIELDS[scope] as Record<string, 'keep' | 'links' | 'drop'>)[key] ?? 'keep';
+
+const isScalar = (value: unknown) => value === null || typeof value !== 'object';
+
+/** Een waarde ingekort: tekst tot 200 tekens, een lijst binnenin tot 5 regels plus een regel met het totaal. */
+function shorten(value: unknown): unknown {
+  if (typeof value === 'string') return clip(value, 200);
+  if (Array.isArray(value)) {
+    const head = value.slice(0, 5).map(shorten);
+    return value.length > 5 ? [...head, `… ${value.length - 5} more (${value.length} in total)`] : head;
+  }
+  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shorten(v)]));
+  return value;
+}
+
 interface BatchStep { step: number; tool: string; status: string; data?: unknown; error?: string }
 
+/** Iets wat in het rapport komt zolang het past: een veld in `into`, een lijst regel voor regel. */
+interface Fill { into: Record<string, unknown>; key: string; value: unknown; path: string }
+
 /**
- * Het compacte rapport van een te groot wijzigingsantwoord. Blijft: de status per stap, alle `created`-maps, de
- * envelop zonder lijsten, aantallen, en een samenvatting van de restwerkcorrecties. Daarna, zolang het past:
- * restwerkcorrecties en deelweigeringen, elk ingekort. Eén eindcontrole: past het dan nog niet, dan gaan die
- * aanvullingen en de lange teksten weg; de ids en de statussen blijven.
+ * Het compacte rapport van een te groot wijzigingsantwoord.
+ *   1. Het geraamte, dat altijd blijft: de status per stap, elke koppeling label → id, de envelop zonder lijsten
+ *      (met een samenvatting van de restwerkcorrecties), en `compacted` met wat er weg is.
+ *   2. Daarna, zolang het past: de velden die blijven (`SITE_APP_RESULT_FIELDS`, en elk veld dat er niet in staat),
+ *      per stap op volgorde; dan de restwerkcorrecties; dan de deelweigeringen. Een lijst regel voor regel, elke
+ *      regel ingekort (`shorten`); wat niet meer past, telt `compacted.shortened`.
+ *   3. Eén eindcontrole op het hele antwoord. Past het niet, dan alleen het geraamte.
  */
 function compactChange(name: string, result: McpToolOk, chars: number, getDef: (tool: string) => McpToolDef | undefined): McpToolOk {
   const { remainingWorkRecomputed: corrections = [], ...envelopeRest } = result.envelope;
-  const envelope = {
-    ...envelopeRest,
-    documentTitle: clip(envelopeRest.documentTitle, 200),
-    ...(envelopeRest.scheduleNote !== undefined ? { scheduleNote: clip(envelopeRest.scheduleNote, 500) } : {}),
-    ...(envelopeRest.scheduleError !== undefined ? { scheduleError: clip(envelopeRest.scheduleError, 500) } : {}),
-    ...(envelopeRest.backupCreated !== undefined ? { backupCreated: clip(envelopeRest.backupCreated, 300) } : {}),
-    ...(corrections.length > 0
-      ? {
-          remainingWorkRecomputedSummary: {
-            count: corrections.length,
-            tasks: new Set(corrections.map((c) => c.taskId)).size,
-            beforeHours: Math.round(corrections.reduce((sum, c) => sum + c.beforeHours, 0) * 100) / 100,
-            afterHours: Math.round(corrections.reduce((sum, c) => sum + c.afterHours, 0) * 100) / 100,
-          },
-        }
-      : {}),
-  } as McpToolOk['envelope'] & Record<string, unknown>;
-  const rejections = result.itemRejections ?? [];
+  const envelope: Record<string, unknown> = Object.fromEntries(
+    Object.entries(envelopeRest).map(([k, v]) => [k, typeof v === 'string' ? clip(v, k === 'documentTitle' ? 200 : 500) : v]),
+  );
+  if (corrections.length > 0) {
+    envelope.remainingWorkRecomputedSummary = {
+      count: corrections.length,
+      tasks: new Set(corrections.map((c) => c.taskId)).size,
+      beforeHours: Math.round(corrections.reduce((sum, c) => sum + c.beforeHours, 0) * 100) / 100,
+      afterHours: Math.round(corrections.reduce((sum, c) => sum + c.afterHours, 0) * 100) / 100,
+    };
+  }
+  const omitted: Record<string, number> = {};
+  const omit = (pattern: string) => { omitted[pattern] = (omitted[pattern] ?? 0) + 1; };
+  const shortened: Record<string, number> = {};
+  const fills: Fill[] = [];
+  /** Geraamte van één `data` (direct, of van een batchstap): koppelingen nu, de rest als vulling of weg. */
+  // `path` noemt de plek precies (voor `shortened`), `pattern` zonder stapnummer (voor de telling in `omitted`).
+  const skeleton = (tool: string, data: unknown, into: Record<string, unknown>, path: string, pattern: string, isRead: boolean) => {
+    if (!isRecord(data)) return;
+    if (isRead) { omit(`${pattern}(read output)`); return; }
+    Object.assign(into, linksOf(tool, data) ?? {});
+    for (const [key, value] of Object.entries(data)) {
+      const kind = fieldClass('data', key);
+      if (kind === 'links') continue;
+      if (kind === 'drop' && !isScalar(value)) { omit(`${pattern}${key}`); continue; }
+      fills.push({ into, key, value, path: `${path}${key}` });
+    }
+  };
   const isBatch = name === 'planner_batch';
-  const raw = result.data as Record<string, unknown> | null;
-  const steps = isBatch && Array.isArray(raw?.steps)
-    ? (raw.steps as BatchStep[]).map((step) => {
-        const links = linksOf(step.tool, step.data);
-        return {
-          step: step.step,
-          tool: step.tool,
-          status: step.status,
-          ...(links ?? {}),
-          ...(step.error !== undefined ? { error: clip(step.error, 300) } : {}),
-          ...(step.data !== undefined ? { omitted: getDef(step.tool)?.kind === 'read' ? 'read output' : 'details' } : {}),
-        };
-      })
-    : undefined;
-  const links = isBatch ? undefined : linksOf(name, raw);
-  const how =
-    'Every change in this answer succeeded. The full answer was too large, so it was shortened. Kept: ' +
-    (isBatch ? 'the status per step and every label → id link (`created`, `calendars`); ' : 'every label → id link (`created`, `calendars`); ') +
-    'lists are counted in `counts`. To read what was left out: call a read step on its own (outside planner_batch) ' +
-    'with the same arguments; read changed tasks with planner_list_tasks (`limit`, `offset`) or planner_get_task. ' +
-    (corrections.length > 0 ? 'Remaining-work corrections: see `remainingWorkRecomputedSummary`; the app also lists them. ' : '') +
-    (rejections.length > 0 ? 'Item rejections: `itemRejections` shows the first ones that fit, shortened. ' : '');
-  const build = (extraCorrections: unknown[], extraRejections: { id: string; reason: string }[], short: boolean): McpToolOk => ({
+  const raw = result.data;
+  const data: Record<string, unknown> = {};
+  if (isBatch && isRecord(raw)) {
+    const steps = (Array.isArray(raw.steps) ? (raw.steps as BatchStep[]) : []).map((step) => {
+      const out: Record<string, unknown> = { step: step.step, tool: step.tool, status: step.status };
+      if (step.error !== undefined) out.error = clip(step.error, 300);
+      skeleton(step.tool, step.data, out, `steps[${step.step}].`, 'steps[].', getDef(step.tool)?.kind === 'read');
+      return out;
+    });
+    data.steps = steps;
+    if (typeof raw.stepCount === 'number') data.stepCount = raw.stepCount;
+  } else {
+    skeleton(name, raw, data, '', '', false);
+  }
+  const rejections = result.itemRejections ?? [];
+  const compacted = {
+    originalChars: chars,
+    limit: SITE_APP_MAX_RESPONSE_CHARS,
+    note:
+      'Every change in this answer succeeded. The full answer was too large, so it was shortened. Always kept: the ' +
+      'status per step, every label → id link (`created`, `calendars`) and the side effects and warnings, as far as ' +
+      'they fit (see `shortened`: path → total). Left out (`omitted`: field → number of times): data you can read again, such as dates and the output of read ' +
+      'steps; call a read step on its own (outside planner_batch), and read tasks with planner_list_tasks (`limit`, ' +
+      '`offset`) or planner_get_task.',
+    omitted,
+    shortened,
+  };
+  const build = (full: boolean): McpToolOk => ({
     ok: true,
-    envelope: { ...envelope, ...(extraCorrections.length > 0 ? { remainingWorkRecomputed: extraCorrections } : {}) } as McpToolOk['envelope'],
-    data: {
-      compacted: {
-        originalChars: chars,
-        limit: SITE_APP_MAX_RESPONSE_CHARS,
-        note: short ? 'Every change in this answer succeeded; the answer was shortened to the ids and the status per step.' : how,
-        counts: { ...counts(raw), itemRejections: rejections.length, remainingWorkRecomputed: corrections.length },
-      },
-      ...(links ?? {}),
-      ...(steps ? { steps: short ? steps.map(({ error, omitted, ...kept }) => (void error, void omitted, kept)) : steps } : {}),
-    },
-    ...(extraRejections.length > 0 ? { itemRejections: extraRejections } : {}),
+    envelope: envelope as unknown as McpToolOk['envelope'],
+    data: { compacted: full ? compacted : { ...compacted, omitted: undefined, note: 'Every change in this answer succeeded; the answer was shortened to the ids and the status per step.' }, ...data },
   });
-  // Aanvullen zolang het past (ruim onder de grens, zodat de eindcontrole niet krap uitvalt).
+  // Vullen zolang het past, ruim onder de grens.
   const room = SITE_APP_MAX_RESPONSE_CHARS - 500;
-  const keptCorrections: unknown[] = [];
-  const keptRejections: { id: string; reason: string }[] = [];
-  let size = sizeOf(build([], [], false));
-  for (const c of corrections) {
-    const entry = { ...c, taskName: clip(c.taskName, 80) };
-    const add = sizeOf(entry) + 1;
-    if (size + add > room) break;
-    keptCorrections.push(entry);
+  let size = sizeOf(build(true)) + 200; // ruimte voor de `shortened`-regels
+  const fit = (fill: Fill) => {
+    if (Array.isArray(fill.value)) {
+      const list: unknown[] = [];
+      fill.into[fill.key] = list;
+      size += fill.key.length + 5;
+      for (const entry of fill.value) {
+        const short = shorten(entry);
+        const add = sizeOf(short) + 1;
+        if (size + add > room) { shortened[fill.path] = fill.value.length; return; }
+        list.push(short);
+        size += add;
+      }
+      return;
+    }
+    const short = shorten(fill.value);
+    const add = sizeOf(short) + fill.key.length + 4;
+    if (size + add > room) { shortened[fill.path] = 1; return; }
+    fill.into[fill.key] = short;
     size += add;
+  };
+  fills.forEach(fit);
+  if (corrections.length > 0) fit({ into: envelope, key: 'remainingWorkRecomputed', value: corrections, path: 'envelope.remainingWorkRecomputed' });
+  const top: Record<string, unknown> = {};
+  if (rejections.length > 0) fit({ into: top, key: 'itemRejections', value: rejections, path: 'itemRejections' });
+  const report: McpToolOk = { ...build(true), ...(top as Partial<McpToolOk>) };
+  // EINDCONTROLE op het hele antwoord. Past het niet, dan alleen het geraamte: de koppelingen blijven altijd
+  // (`linksTooLarge` houdt ze vóór uitvoering binnen het budget), net als de status per stap.
+  if (sizeOf(report) <= SITE_APP_MAX_RESPONSE_CHARS) return report;
+  for (const step of (data.steps as Record<string, unknown>[] | undefined) ?? []) {
+    for (const key of Object.keys(step)) if (!['step', 'tool', 'status', 'created', 'calendars'].includes(key)) delete step[key];
   }
-  for (const r of rejections) {
-    const entry = { id: clip(r.id, 80), reason: clip(r.reason, 200) };
-    const add = sizeOf(entry) + 1;
-    if (size + add > room) break;
-    keptRejections.push(entry);
-    size += add;
-  }
-  const report = build(keptCorrections, keptRejections, false);
-  // EINDCONTROLE op het hele antwoord. Past het niet (alleen bij heel veel stappen met lange fouten), dan zonder
-  // aanvullingen en foutteksten. De koppelingen blijven altijd: `linksTooLarge` houdt ze vóór uitvoering binnen het budget.
-  return sizeOf(report) <= SITE_APP_MAX_RESPONSE_CHARS ? report : build([], [], true);
+  for (const key of Object.keys(data)) if (!['steps', 'created', 'calendars', 'stepCount'].includes(key)) delete data[key];
+  delete envelope.remainingWorkRecomputed;
+  return build(false);
 }
 
 /**
@@ -472,10 +547,17 @@ function createSiteAppTools(loadDeps: () => Promise<SiteAppToolsDeps>): SiteAppT
         error?: { code?: number; message?: string };
       };
       if (response.error) {
-        throw new SiteAppToolError(`JSONRPC_${response.error.code ?? 'ERROR'}`, response.error.message ?? 'MCP error');
+        throw boundedFailure(`JSONRPC_${response.error.code ?? 'ERROR'}`, response.error.message ?? 'MCP error');
       }
-      const result = response.result?.structuredContent;
+      let result = response.result?.structuredContent;
       if (!result) throw new SiteAppToolError('JSONRPC_ERROR', 'MCP response without a result');
+      // `substeps` van een batch is het activiteitenlog; de verzoekafhandeling heeft het al verwerkt, en de assistent
+      // heeft er niets aan wat niet ook in `steps` staat. Het gaat er vóór de lengtemeting af.
+      if (name === 'planner_batch' && isRecord(result.data) && 'substeps' in result.data) {
+        const { substeps: _activity, ...rest } = result.data;
+        void _activity;
+        result = { ...result, data: rest } as McpToolResult;
+      }
       if (!result.ok) throw boundedFailure(result.code, result.error);
       const chars = sizeOf(result);
       if (chars <= SITE_APP_MAX_RESPONSE_CHARS) return result;
