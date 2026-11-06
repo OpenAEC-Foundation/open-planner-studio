@@ -11,7 +11,9 @@
  * - Het event `openaec-host-preferences` op het venster van de host meldt dat `taal` of `thema` op
  *   hetzelfde object veranderde.
  */
-import { candidateHosts } from './siteHost';
+import { candidateHosts, type SiteHostSettings } from './siteHost';
+
+export type { SiteHostSettings };
 
 /** Event waarmee de site meldt dat `taal` of `thema` op de host veranderde (#818). */
 export const SITE_HOST_PREFERENCES_EVENT = 'openaec-host-preferences';
@@ -20,13 +22,6 @@ export const SITE_HOST_PREFERENCES_EVENT = 'openaec-host-preferences';
  *  handkopie; `tests/planning/check-theme-premirror.ts` bewaakt dat ze gelijk blijven. */
 export const SITE_HOST_THEMES = ['light', 'dark'] as const;
 export type SiteHostTheme = typeof SITE_HOST_THEMES[number];
-
-/** De instellingenopslag van de host. */
-export interface SiteHostSettings {
-  get(key: string): Promise<unknown>;
-  set(key: string, value: unknown): Promise<unknown>;
-  delete(key: string): Promise<unknown>;
-}
 
 /** Lees één veld van de host. Een getter van een vreemd venster kan gooien; dat telt als "niets". */
 function field(host: Record<string, unknown>, name: string): unknown {

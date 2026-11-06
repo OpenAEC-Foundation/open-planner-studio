@@ -17,12 +17,18 @@ import { loadAllSettings } from '@/utils/settingsRegistry';
  * - `openaec-host-ready`: alleen als er bij de start nog geen host was. De tool leest dan de
  *   instellingen van de host (`settings`), past ze toe via `loadAllSettings` → `setUI`, kiest de taal
  *   opnieuw en neemt taal en thema van de host over. Daarna meldt hij zich af.
- * - Een late lezing van de instellingen (na de time-out bij de start) past de instellingen alsnog toe.
+ * - Een late lezing van de instellingen (na de time-out bij de start) past de instellingen alsnog toe:
+ *   `loadAllSettings` → `setUI`, `onLateSettings` (de taakgridvoorkeuren) en de taal. Een document dat al
+ *   open is, verandert niet: de bouwmodus geldt dan pas voor een nieuw project.
  *
  * Luistert op dezelfde vensters als `useSiteInitialFile` (`siteHostWindows`). Een luisteraar op een
  * same-origin parent verdwijnt niet met dit iframe; daarom ook afmelden bij `pagehide`.
  */
-export function useSiteHostPreferences(setUI: (patch: Partial<UIState>) => void): void {
+export function useSiteHostPreferences(
+  setUI: (patch: Partial<UIState>) => void,
+  /** Na het toepassen van instellingen die pas later van de host kwamen (late lezing of late host). */
+  onLateSettings?: () => void,
+): void {
   useEffect(() => {
     const targets = siteHostWindows();
     if (targets.length === 0) return;
@@ -46,6 +52,7 @@ export function useSiteHostPreferences(setUI: (patch: Partial<UIState>) => void)
         const patch = await loadAllSettings();
         if (disposed) return;
         setUI(patch);
+        onLateSettings?.();
         await initLocale();
       } catch (error) {
         console.warn('Instellingen van de host niet toegepast:', error);
@@ -93,5 +100,5 @@ export function useSiteHostPreferences(setUI: (patch: Partial<UIState>) => void)
     };
     window.addEventListener('pagehide', detach);
     return detach;
-  }, [setUI]);
+  }, [setUI, onLateSettings]);
 }

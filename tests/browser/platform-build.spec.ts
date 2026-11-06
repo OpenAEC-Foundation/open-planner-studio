@@ -180,7 +180,7 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   for (const ref of refs) expect(ref, `pad in index.html: ${ref}`).toMatch(/^\/tools\/planner\//);
   // Geen inline script (#818: de CSP van de SuperCloud laat alleen de eigen bundel toe). Het pre-paint-script
   // staat als klassiek script onder het basispad en is meegekopieerd.
-  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
   for (const [, attrs, body] of scripts) {
     expect(attrs, 'elk script heeft een src').toMatch(/\ssrc="/);
     expect(body.trim(), 'geen inline code').toBe('');

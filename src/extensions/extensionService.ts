@@ -17,7 +17,6 @@ import {
 } from './extensionLoader';
 import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
-import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 import { askExtensionConsent, type ConsentSource, type ConsentVerification, type ExtensionConsentRequest } from './consent';
 import { isTauri } from '@/utils/platform';
 import { EXTENSION_ZIP_LIMITS, parseZipEntries, type ZipEntry } from '@/services/zip/zipReader';
@@ -444,7 +443,6 @@ export async function removeExtension(
       if (key?.startsWith(prefix)) keysToRemove.push(key);
     }
     keysToRemove.forEach((k) => localStorage.removeItem(k));
-    noteSiteHostSettingChanged(); // ingebed ook bij de host wissen (#818)
   } catch { /* opslag geblokkeerd: niets op te ruimen */ }
 }
 

@@ -1236,16 +1236,11 @@ en noem het in je rapport of PR-tekst.
      opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets.
      Voorstel: laat `readLocal`/`writeLocal` in dat geval een map in het geheugen gebruiken. — S
 
-861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** `src/main.tsx` importeert `App`
-     statisch, dus de store maakt `ui.uiTheme` (`peekTheme()`) al vóór `hydrateSiteHostSettings()`. Het
-     pre-paint-script ziet de instellingen van de host ook nog niet (die komen async). Geeft de host `settings`
-     met `ops-theme = light` maar geen `thema`, dan start de tool donker en wordt hij licht zodra
-     `loadAllSettings` klaar is. Met `thema` op de host (de SuperCloud) gebeurt dit niet. — S
-
-862. **Twee frames van dezelfde gebruiker overschrijven elkaars instellingen bij de host.** De tool bewaart al
-     zijn `ops-`-instellingen onder één hostsleutel (`open-planner-studio:instellingen`) en schrijft steeds de
-     hele map. Het frame dat het laatst schrijft, wint; een wijziging uit het andere frame is dan weg.
-     Voorstel: lees de map vlak voor het schrijven opnieuw en voeg alleen de eigen wijzigingen samen. — S
+861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** Het pre-paint-script
+     (`public/theme-prepaint.js`) draait vóór de instellingen van de host er zijn (die komen async; `main.tsx`
+     wacht er hoogstens 1 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
+     geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
+     gebeurt dit niet. — S
 
 865. **De platformbouw toont de feedbackknop, terwijl de werkplek er zelf een heeft.** Het SuperCloud-contract
      (#818) vraagt een bundel zonder feedbackknop. `src/components/layout/TitleBar/TitleBar.tsx:207` toont hem

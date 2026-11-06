@@ -11,9 +11,14 @@ const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbou
 const FLOAT_BAND_FR = (JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as {
   ribbon: { toggleFloatBand: string };
 }).ribbon.toggleFloatBand;
-/** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen) en zijn ene sleutel. */
+/** Teksten van de baselinedialoog in het Frans (start) en Duits (na de live wissel). */
+const FR_MENU = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as { ribbon: { manageBaselines: string } };
+const FR_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
+const DE_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/de/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen): één hostsleutel per
+ *  `ops-`-sleutel. */
 const HOST_SETTINGS_STORE = 'test-host-settings';
-const HOST_SETTINGS_KEY = 'open-planner-studio:instellingen';
 
 test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewaart ze', async ({ page, ops: _ops }) => {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: true, uiTheme: 'dark' }));
@@ -65,9 +70,8 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       },
     };
   }, { ifc: IFC, store: HOST_SETTINGS_STORE });
-  const hostSettings = () => page.evaluate(({ store, key }) =>
-    (JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, Record<string, string> | undefined>)[key] ?? {},
-  { store: HOST_SETTINGS_STORE, key: HOST_SETTINGS_KEY });
+  const hostSettings = () => page.evaluate((store) =>
+    JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, string>, HOST_SETTINGS_STORE);
   let floatBandChoice: boolean | null = null;
   for (const round of ['host', 'host na herladen']) {
     await page.reload();
@@ -108,6 +112,18 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       expect(await hostSettings()).toMatchObject({ 'ops-theme': 'light', 'ops-locale': 'nl' });
       expect(Object.keys(await hostSettings())).not.toContain('ops-mcpToken');
 
+      // Een ingevulde baselinenaam overleeft een taalwissel van de host (review #827, punt 4): echte
+      // klikken via Planning → Baselines beheren, dan typen, dan wisselt de host van Frans naar Duits.
+      await page.locator('[data-ops-ribbon-tab="planning"]').click();
+      await page.getByRole('button', { name: new RegExp(`^${escapeRegExp(FR_MENU.ribbon.manageBaselines)}`) }).first().click();
+      // Het enige modale venster: de baselinedialoog (het taakpaneel heeft ook een veld "Nom").
+      const baselineDialog = page.getByRole('dialog');
+      await expect(baselineDialog).toHaveCount(1);
+      // Het veld voor een nieuwe baseline staat ná de lijst (het bestand heeft er al een, met hetzelfde label).
+      const baselineName = baselineDialog.getByRole('textbox', { name: FR_COMMON.baseline.dialog.name, exact: true }).last();
+      await expect(baselineName).toHaveValue(/^Référence \d+ — /);
+      await baselineName.fill('Contractfase vóór aanbesteding');
+
       // Live wissel (#818): de host verandert taal en thema op hetzelfde object en meldt dat.
       await page.evaluate(() => {
         const host = (window as unknown as { openaecHost: { taal: string; thema: string } }).openaecHost;
@@ -117,6 +133,12 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       });
       await expect(page.locator('html')).toHaveAttribute('lang', 'de');
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      // De dialoog is nu Duits, maar de getypte naam staat er nog.
+      await expect(baselineDialog.getByText(DE_COMMON.baseline.dialog.title, { exact: true }).first()).toBeVisible();
+      await expect(baselineDialog.getByRole('textbox', { name: DE_COMMON.baseline.dialog.name, exact: true }).last())
+        .toHaveValue('Contractfase vóór aanbesteding');
+      await page.keyboard.press('Escape');
+      expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.showBaselineDialog)).toBe(false);
       expect(await page.evaluate(() => [localStorage.getItem('ops-locale'), localStorage.getItem('ops-theme')]))
         .toEqual(['nl', 'light']);
     } else {
