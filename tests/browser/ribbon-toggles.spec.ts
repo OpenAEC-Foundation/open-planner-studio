@@ -18,7 +18,7 @@ async function wheelOver(page: Page, selector: string, deltaY: number): Promise<
 }
 
 test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart, UI-actieknop opent zijn dialoog herhaald', async ({ page, ops: _ops }) => {
-  // #688: wiel boven de tabrij. Omlaag = volgende tab, omhoog = vorige; bij Start stopt het
+  // #688: wiel boven het lint (tabrij en knoppen). Omlaag = volgende tab, omhoog = vorige; bij Start stopt het
   // (Bestand doet niet mee). Het wiel boven de lege rij zelf telt ook: de hele rij is het doel.
   expect(await activeTab(page)).toBe('start');
   await wheelOver(page, '.ribbon-tab[data-ops-ribbon-tab="resources"]', 100);
@@ -28,10 +28,11 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await wheelOver(page, '.ribbon-tabs', -100);
   await page.waitForTimeout(100);
   expect(await activeTab(page)).toBe('start');
-  // Boven de knoppen van het lint wisselt het wiel niet.
+  // Boven de knoppen van het lint wisselt het wiel ook: de hele lint is het doel.
   await wheelOver(page, '.ribbon-content', 100);
-  await page.waitForTimeout(100);
-  expect(await activeTab(page)).toBe('start');
+  await expect.poll(() => activeTab(page)).toBe('planning');
+  await wheelOver(page, '.ribbon-content', -100);
+  await expect.poll(() => activeTab(page)).toBe('start');
 
   // Een getypte, nog niet bevestigde waarde blijft bewaard, net als bij een klik op een tab:
   // Tabel → duur typen → wiel omlaag → IFC (daar verdwijnt het eigenschappenpaneel).

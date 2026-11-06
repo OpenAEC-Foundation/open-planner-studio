@@ -4,11 +4,11 @@ import type { RibbonTab } from '@/state/slices/types';
 import { isBlockingDialogOpen } from '@/state/blockingDialogs';
 
 /* ------------------------------------------------------------------------------------------------
- * Muiswiel boven de lint-tabs wisselt van tab (issue #688, Office-patroon)
+ * Muiswiel boven het lint wisselt van tab (issue #688, Office-patroon)
  * ------------------------------------------------------------------------------------------------
- * Alleen boven de rij met tabs (Bestand, Start, …); boven de knoppen van het lint doet het wiel
- * niets nieuws. Wiel omlaag = volgende tab (naar rechts), wiel omhoog = vorige tab. Aan het begin
- * en het einde stopt het; het loopt niet rond. Bestand doet niet mee: dat is geen lint-tab maar de
+ * Boven het hele lint: de rij met tabs (Bestand, Start, …) én de knoppen eronder. Een lijst in het
+ * lint die zelf kan scrollen, houdt het wiel voor zichzelf. Wiel omlaag = volgende tab (naar
+ * rechts), wiel omhoog = vorige tab. Aan het begin en het einde stopt het; het loopt niet rond. Bestand doet niet mee: dat is geen lint-tab maar de
  * Backstage. Staat de Backstage open, dan doet het wiel niets.
  *
  * Instelling `ui.ribbonWheelSwitchesTabs` (standaard aan) zet het uit.
@@ -32,8 +32,21 @@ export function ribbonTabAfterWheel(tabs: readonly RibbonTab[], active: RibbonTa
   return tabs[index + direction] ?? null;
 }
 
+/** Zit tussen `target` en `root` een element dat zelf verticaal kan scrollen in de wielrichting? */
+function scrollsItself(target: EventTarget | null, root: HTMLElement, deltaY: number): boolean {
+  for (let node = target instanceof Element ? target : null; node && node !== root; node = node.parentElement) {
+    if (!(node instanceof HTMLElement)) continue;
+    const overflowY = getComputedStyle(node).overflowY;
+    if ((overflowY !== 'auto' && overflowY !== 'scroll') || node.scrollHeight <= node.clientHeight) continue;
+    const atTop = node.scrollTop <= 0;
+    const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+    if (deltaY < 0 ? !atTop : !atBottom) return true;
+  }
+  return false;
+}
+
 export function useRibbonTabWheel(
-  tabsRef: RefObject<HTMLElement | null>,
+  ribbonRef: RefObject<HTMLElement | null>,
   tabs: readonly RibbonTab[],
   setActiveTab: (tab: RibbonTab) => void,
 ): void {
@@ -44,7 +57,7 @@ export function useRibbonTabWheel(
   });
 
   useEffect(() => {
-    const el = tabsRef.current;
+    const el = ribbonRef.current;
     if (!el) return;
     let accumulated = 0;
     let lastAt = 0;
@@ -53,6 +66,7 @@ export function useRibbonTabWheel(
       if (!useAppStore.getState().ui.ribbonWheelSwitchesTabs) return;
       // Ctrl/⌘ + wiel blijft van de browser (zoomen); horizontaal vegen doet niets.
       if (e.ctrlKey || e.metaKey || e.deltaY === 0) return;
+      if (scrollsItself(e.target, el, e.deltaY)) return;
       e.preventDefault();
       if (e.timeStamp - lastAt > IDLE_RESET_MS) accumulated = 0;
       lastAt = e.timeStamp;
@@ -75,5 +89,5 @@ export function useRibbonTabWheel(
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [tabsRef]);
+  }, [ribbonRef]);
 }
