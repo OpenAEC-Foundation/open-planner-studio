@@ -104,7 +104,8 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
         if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, 2);
         else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
       } else if (r.substitute === 'us-federal') {
-        // Federale regel (5 U.S.C. § 6103): zaterdag → vrijdag ervoor, zondag → maandag erna.
+        // Federale regel: zaterdag → vrijdag ervoor (5 U.S.C. § 6103(b)), zondag → maandag erna
+        // (Executive Order 11582, § 3(a)). Geldt voor maandag-t/m-vrijdagwerkers; zie de Help-tekst.
         if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, -1);
         else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
         // 1 januari op zaterdag valt op 31 december van het jaar ervoor; `generateHolidays` zet die
@@ -315,8 +316,10 @@ export const CH_SET: HolidaySet = {
 
 export const US_SET: HolidaySet = {
   // De 11 federale feestdagen (5 U.S.C. § 6103). Staatsfeestdagen verschillen sterk per staat en
-  // zitten er bewust niet in; Inauguration Day (20 januari, elke 4 jaar, alleen regio Washington DC)
-  // ook niet. Vaste datums volgen de federale regel: zaterdag → vrijdag, zondag → maandag.
+  // zitten er bewust niet in. Inauguration Day (20 januari, elke 4 jaar) ook niet: hij geldt alleen
+  // in de regio Washington DC (§ 6103(c)). Vaste datums volgen de federale regel: zaterdag →
+  // vrijdag, zondag → maandag. Private bedrijven zijn daar niet aan gebonden; de gebruiker past
+  // de lijst zo nodig aan.
   country: 'US',
   defs: [
     { id: 'us-new-year', name: "New Year's Day", rule: { kind: 'fixed', month: 1, day: 1, substitute: 'us-federal' } },
