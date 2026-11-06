@@ -93,7 +93,41 @@ interface SiteFileInfo { id: string; name: string; version?: string; modified?: 
 interface SiteVersionInfo { version: string; modified?: string; author?: string; label?: string }
 ```
 
-Afspraken:
+### De SuperCloud-vorm (#818)
+
+De OpenAEC SuperCloud zet de functies niet onder `storage`, maar direct op `window.openaecHost`:
+
+```ts
+interface HostFileRef { id: string; name: string; version: string | number }
+interface SuperCloudHost {
+  taal?: string; initialFileId?: string;
+  open(id: string, version?: string | number): Promise<HostFileRef & { readOnly: boolean; bytes: ArrayBuffer | Uint8Array }>;
+  save(bytes: Uint8Array, options: { id?: string; name?: string; expectedVersion?: string | number }): Promise<HostFileRef>;
+  list(): Promise<{ id: string; name: string; modified: string }[]>;
+  versions(id: string): Promise<{ version: string | number; modified: string; author?: string }[]>;
+}
+```
+
+De tool herkent beide vormen. Is `host.storage` geldig, dan wint die. Anders zet
+`src/services/fileAccess/superCloudHost.ts` de platte functies om naar `SiteStorage` (één adapter per
+hostobject). Wat er anders is:
+
+- Versies mogen een getal zijn. De tool werkt intern met tekst en geeft bij `expectedVersion` en
+  `open(id, version)` de waarde terug in de soort die de host gaf. Ids zijn altijd tekst.
+- Opslaan is `save(bytes, { id, expectedVersion })`, Opslaan als is `save(bytes, { name })`. Een vreemd
+  formaat weigert de host met `code: 'soort_niet_toegestaan'`; de tool toont dan *Opslaan mislukt* met de
+  tekst van de host.
+- `readOnly: true` bij `open`: de tool opent het bestand onder zijn eigen naam, zonder opslagdoel en
+  zonder basis, met een blijvende melding dat Opslaan een nieuw bestand maakt. Het bestand blijft in Recent.
+- Een conflict geeft een kopie: `save` met `id` geeft een ander `id` terug. De kopie wordt het opslagdoel,
+  het document telt als opgeslagen, en de tool meldt de naam van de kopie. Bij de `storage`-vorm blijft een
+  ander `id` een fout.
+- De fout `code: 'VERSION_CONFLICT'` (zo meldt Open Calc Studio een conflict) telt als `'conflict'`.
+- `list()` geeft geen versie per bestand. In *Openen van de site* geldt dan de eerste versie uit
+  `versions` (nieuwste eerst) als de nieuwste.
+- `initialFileId` en het event `openaec-host-ready` werken zoals bij de `storage`-vorm.
+
+Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
 
 - De tool kijkt op het moment van gebruik, eerst naar `window.openaecHost`, dan naar `window.parent.openaecHost`
   (alleen dezelfde origin). Staan er meer tools op één pagina, zet de host dan per tool op het venster van zijn
@@ -157,7 +191,8 @@ Alleen als er een site is; zonder site verandert er niets.
   snapshotrol `none`, niet in het IFC). Het opslagdoel komt uit één helper (`saveTargetRef`).
 - De twee dialogen (`SiteOpenDialog`, `SiteSaveDialog`) worden via `src/state/siteDialogBridge.ts` gevraagd,
   zodat de store geen componenten importeert. Ze liggen op `z-[90]`, boven de sluitvraag van een tabblad.
-- Toetsen: `tests/planning/check-site-storage.ts` (contract, dispatch, opslagdoel, herstelmanifest) en
+- Toetsen: `tests/planning/check-site-storage.ts` (contract, dispatch, opslagdoel, herstelmanifest, de
+  SuperCloud-adapter) en
   `tests/browser/site-storage.spec.ts` (de paden hierboven, met een nep-host).
 
 ## Zelf proberen
@@ -167,6 +202,9 @@ een paar voorbeeldbestanden; het eerste heeft twee versies. Alleen in de dev-bui
 
 - `?fakeSite=1&fakeSiteConflict=1`: elke nieuwe versie wordt geweigerd als conflict.
 - `?fakeSite=1&fakeSiteInitial=1`: de host vraagt het eerste bestand bij de start te openen.
+- `?fakeSite=1&fakeSiteShape=supercloud`: de nep-site heeft de SuperCloud-vorm (versies als getal). Daarbij
+  geeft `fakeSiteReadOnly=1` elk bestand alleen-lezen, en maakt `fakeSiteConflict=1` van elke nieuwe versie
+  een conflictkopie. Opslaan als met een andere extensie dan `.ifc` geeft `soort_niet_toegestaan`.
 
 De platformbouw zelf bekijk je met `npm run build:platform -- --base /tools/planner/` en een statische
 server die `dist-platform/` onder `/tools/planner/` serveert.
