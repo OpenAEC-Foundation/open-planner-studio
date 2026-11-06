@@ -381,6 +381,41 @@
           512,
           512
         ]
+      },
+      {
+        "path": "public/icon-64.png",
+        "size": [
+          64,
+          64
+        ]
+      },
+      {
+        "path": "public/icon-128.png",
+        "size": [
+          128,
+          128
+        ]
+      },
+      {
+        "path": "public/icon-192.png",
+        "size": [
+          192,
+          192
+        ]
+      },
+      {
+        "path": "public/icon-512.png",
+        "size": [
+          512,
+          512
+        ]
+      },
+      {
+        "path": "public/apple-touch-icon.png",
+        "size": [
+          180,
+          180
+        ]
       }
     ]
   }
