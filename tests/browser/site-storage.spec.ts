@@ -29,6 +29,9 @@ interface HostCall {
   extensions?: string[] | null;
   /** Alleen in de iframe-opzet: kwam de Blob van `save` uit het venster van de host of uit een ander? */
   realm?: 'host' | 'other';
+  /** Alleen in de SuperCloud-vorm: de `expectedVersion` van `save` (een getal) en of `bytes` een Uint8Array was. */
+  expectedVersion?: number | string | null;
+  bytes?: boolean;
 }
 
 /** Eén bestand `Planning.ifc` (id `p1`) met twee versies. */
@@ -50,9 +53,9 @@ const SEED: HostFile[] = [{
 async function installSiteHost(
   page: Page,
   seed: HostFile[],
-  options: { initialFileId?: string; lateMs?: number; onlyTop?: boolean } = {},
+  options: { initialFileId?: string; lateMs?: number; onlyTop?: boolean; shape?: 'storage' | 'supercloud' } = {},
 ): Promise<void> {
-  await page.addInitScript(({ key, seedFiles, initialFileId, lateMs, onlyTop }) => {
+  await page.addInitScript(({ key, seedFiles, initialFileId, lateMs, onlyTop, shape }) => {
     if (onlyTop && window !== window.top) return;
     interface V { version: string; data: string; author: string }
     interface F { id: string; name: string; versions: V[] }
@@ -111,7 +114,47 @@ async function installSiteHost(
         return [...find(read(), id).versions].reverse().map((v) => ({ version: v.version, author: v.author }));
       },
     };
-    const host = { storage, ...(initialFileId ? { initialFileId } : {}) };
+    // De SuperCloud-vorm (#818): de functies direct op de host, versies als GETAL, inhoud als bytes.
+    // Een conflict geeft geen fout maar een kopie naast het bestand.
+    const superCloud = {
+      async open(id: string, version?: number) {
+        log({ fn: 'open', id, version: version ?? null });
+        const f = find(read(), id);
+        const v = version === undefined ? latest(f) : f.versions.find((x) => Number(x.version) === version);
+        if (!v) throw new Error(`Versie ${version} bestaat niet.`);
+        return { id: f.id, name: f.name, version: Number(v.version), readOnly: version !== undefined, bytes: new TextEncoder().encode(v.data) };
+      },
+      async save(bytes: Uint8Array, opts: { id?: string; name?: string; expectedVersion?: number }) {
+        log({ fn: 'save', id: opts.id ?? null, name: opts.name, expectedVersion: opts.expectedVersion ?? null, bytes: bytes instanceof Uint8Array });
+        const text = new TextDecoder().decode(bytes);
+        const db = read();
+        const created = (name: string): F => {
+          db.seq += 1;
+          const f: F = { id: `nieuw-${db.seq}`, name, versions: [{ version: '1', data: text, author: 'Test' }] };
+          db.files.push(f);
+          return f;
+        };
+        let f: F;
+        if (opts.id === undefined) f = created(opts.name!);
+        else {
+          f = find(db, opts.id);
+          if (opts.expectedVersion !== undefined && opts.expectedVersion !== Number(latest(f).version)) {
+            f = created(f.name.replace(/\.ifc$/, ' (kopie).ifc'));
+          } else f.versions.push({ version: String(f.versions.length + 1), data: text, author: 'Test' });
+        }
+        write(db);
+        return { id: f.id, name: f.name, version: Number(latest(f).version) };
+      },
+      async list() {
+        log({ fn: 'list', extensions: null });
+        return read().files.map((f) => ({ id: f.id, name: f.name, modified: '2026-11-01T10:00:00Z' }));
+      },
+      async versions(id: string) {
+        log({ fn: 'versions', id });
+        return [...find(read(), id).versions].reverse().map((v) => ({ version: Number(v.version), modified: '2026-11-01T10:00:00Z', author: v.author }));
+      },
+    };
+    const host = { ...(shape === 'supercloud' ? superCloud : { storage }), ...(initialFileId ? { initialFileId } : {}) };
     if (lateMs === undefined) {
       (window as unknown as { openaecHost: unknown }).openaecHost = host;
       return;
@@ -121,7 +164,7 @@ async function installSiteHost(
       (window as unknown as { openaecHost: unknown }).openaecHost = host;
       window.dispatchEvent(new Event('openaec-host-ready'));
     }, lateMs);
-  }, { key: HOST_KEY, seedFiles: seed, initialFileId: options.initialFileId, lateMs: options.lateMs, onlyTop: !!options.onlyTop });
+  }, { key: HOST_KEY, seedFiles: seed, initialFileId: options.initialFileId, lateMs: options.lateMs, onlyTop: !!options.onlyTop, shape: options.shape ?? 'storage' });
 }
 
 /** Pas de opslag van de host aan (testscenario's: storing, bestand weg, kapotte versie). */
@@ -694,14 +737,57 @@ test('iframe: geen luisteraar blijft op de parent achter (iframe weg, of startbe
   expect((await hostCalls(page)).filter((c) => c.fn === 'open' && c.id === 'p1')).toHaveLength(1);
 });
 
-for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000]] as const) {
+for (const [label, lateMs, shape] of [
+  ['meteen', undefined, 'storage'],
+  ['pas na het laden', 3_000, 'storage'],
+  ['SuperCloud-vorm, pas na het laden', 3_000, 'supercloud'],
+] as const) {
   test(`startbestand van de host (${label}) opent als site-bestand`, async ({ page }) => {
-    await installSiteHost(page, SEED, { initialFileId: 'p1', lateMs });
+    await installSiteHost(page, SEED, { initialFileId: 'p1', lateMs, shape });
     await page.goto('/');
     await waitForOps(page);
     await expect.poll(() => doc(page).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
     expect((await doc(page)).filePath).toBe('Planning.ifc');
     expect((await hostCalls(page)).filter((c) => c.fn === 'open')).toEqual([{ fn: 'open', id: 'p1', version: null }]);
+    if (shape !== 'supercloud') return;
+
+    // De SuperCloud-vorm (#818) verder: de basis is tekst in de tool, een GETAL naar de host.
+    expect((await doc(page)).siteFileVersion).toBe('2');
+    await makeDirty(page, 'Werk in de SuperCloud');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(1);
+    expect((await saves(page))[0]).toEqual({ fn: 'save', id: 'p1', expectedVersion: 2, bytes: true });
+    await expect(saveDialog(page)).toHaveCount(0);
+    await expect.poll(() => doc(page)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
+
+    // Een collega sloeg intussen op: de host bewaart het werk in een kopie. Die wordt het doel.
+    await otherUserSaves(page, 'p1');
+    await makeDirty(page, 'Botsend werk');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
+    expect((await saves(page))[1]).toEqual({ fn: 'save', id: 'p1', expectedVersion: 3, bytes: true });
+    await expect.poll(() => doc(page)).toMatchObject({
+      siteFileId: 'nieuw-1', filePath: 'Planning (kopie).ifc', siteFileVersion: '1', isDirty: false,
+    });
+    await expect(page.locator('.ops-toast').filter({ hasText: 'Planning (kopie).ifc' })).toBeVisible();
+    expect(await lastNotification(page)).toMatchObject({ messageKey: 'notifications.siteSaveConflictCopy', name: 'Planning (kopie).ifc' });
+
+    // Ctrl+S schrijft daarna naar de kopie, zonder vraag.
+    await makeDirty(page, 'Verder in de kopie');
+    await page.keyboard.press('Control+s');
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(3);
+    expect((await saves(page))[2]).toEqual({ fn: 'save', id: 'nieuw-1', expectedVersion: 1, bytes: true });
+    await expect(saveDialog(page)).toHaveCount(0);
+
+    // Opslaan als: save(bytes, { name }), een nieuw bestand.
+    await page.keyboard.press('Control+Shift+s');
+    await expect(saveDialog(page)).toBeVisible();
+    await page.keyboard.type('Variant');
+    await saveDialog(page).locator('[data-ops-site-save-confirm]').click();
+    await expect(saveDialog(page)).toHaveCount(0);
+    await expect.poll(() => saves(page).then((s) => s.length)).toBe(4);
+    expect((await saves(page))[3]).toEqual({ fn: 'save', id: null, name: 'Variant.ifc', expectedVersion: null, bytes: true });
+    await expect.poll(() => doc(page)).toMatchObject({ siteFileId: 'nieuw-2', filePath: 'Variant.ifc', isDirty: false });
   });
 }
 
