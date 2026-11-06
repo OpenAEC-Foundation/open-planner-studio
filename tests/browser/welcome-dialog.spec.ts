@@ -7,6 +7,13 @@ import { resolve } from 'node:path';
 import { expect, test, waitForOps, waitForWelcomeCheck } from './fixtures/ops';
 
 const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
+/** De knop "Spelingsband" in het Frans: de host hieronder zet de taal op `fr`. */
+const FLOAT_BAND_FR = (JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as {
+  ribbon: { toggleFloatBand: string };
+}).ribbon.toggleFloatBand;
+/** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen) en zijn ene sleutel. */
+const HOST_SETTINGS_STORE = 'test-host-settings';
+const HOST_SETTINGS_KEY = 'open-planner-studio:instellingen';
 
 test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewaart ze', async ({ page, ops: _ops }) => {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: true, uiTheme: 'dark' }));
@@ -32,12 +39,18 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   // Ingebed (#716): bij werkende opslag is de host alleen genoeg, zonder `skipWelcome`. Niet een
   // opslagweigering of een eerder gezien venster beslist. Herladen doorloopt de echte bootstrap, zonder
   // setUI-ingreep. Er is dus ook geen taalvraag: de taal komt van de host.
-  await page.addInitScript((ifc) => {
+  // #818: de host geeft ook `thema` en `settings`. Zoals in een frame van de SuperCloud is de
+  // instelling `ops-showFloatBand` na herladen lokaal weg; alleen de host heeft hem nog.
+  await page.addInitScript(({ ifc, store }) => {
     localStorage.removeItem('ops-welcomeSeen');
     if (localStorage.getItem('test-no-host') === 'true') return;
+    localStorage.removeItem('ops-showFloatBand');
+    const read = (): Record<string, unknown> => JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, unknown>;
+    const write = (all: Record<string, unknown>) => sessionStorage.setItem(store, JSON.stringify(all));
     const file = { id: 'welcome-host', name: 'Planning.ifc', version: '1' };
     (window as unknown as { openaecHost: unknown }).openaecHost = {
       taal: 'fr',
+      thema: 'dark',
       initialFileId: file.id,
       storage: {
         list: async () => [file],
@@ -45,8 +58,17 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
         save: async () => { throw new Error('niet in deze test'); },
         versions: async () => [{ version: '1' }],
       },
+      settings: {
+        get: async (key: string) => read()[key] ?? null,
+        set: async (key: string, value: unknown) => { write({ ...read(), [key]: value }); return null; },
+        delete: async (key: string) => { const all = read(); delete all[key]; write(all); return null; },
+      },
     };
-  }, IFC);
+  }, { ifc: IFC, store: HOST_SETTINGS_STORE });
+  const hostSettings = () => page.evaluate(({ store, key }) =>
+    (JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, Record<string, string> | undefined>)[key] ?? {},
+  { store: HOST_SETTINGS_STORE, key: HOST_SETTINGS_KEY });
+  let floatBandChoice: boolean | null = null;
   for (const round of ['host', 'host na herladen']) {
     await page.reload();
     await waitForOps(page);
@@ -67,6 +89,43 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
     // De taal van de host wint van de bewaarde keuze (hierboven `nl`) en wordt niet bewaard.
     await expect(page.locator('html'), round).toHaveAttribute('lang', 'fr');
     expect(await page.evaluate(() => localStorage.getItem('ops-locale')), round).toBe('nl');
+    // Het thema van de host (#818) wint ook van de bewaarde keuze (hierboven `light`), zonder flits: het
+    // pre-paint-script en de store zeggen hetzelfde. Ook dat wordt niet bewaard.
+    await expect(page.locator('html'), round).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => [window.__OPS__!.store.getState().ui.uiTheme, localStorage.getItem('ops-theme')]), round)
+      .toEqual(['dark', 'light']);
+
+    const floatBand = page.getByRole('button', { name: new RegExp(`^${FLOAT_BAND_FR}`) });
+    if (round === 'host') {
+      // Een echte klik op Spelingsband: de instelling gaat gebundeld naar `settings` van de host.
+      await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+      const before = await page.evaluate(() => window.__OPS__!.store.getState().ui.showFloatBand);
+      await floatBand.click();
+      floatBandChoice = !before;
+      expect(await page.evaluate(() => localStorage.getItem('ops-showFloatBand'))).toBe(String(floatBandChoice));
+      await expect.poll(() => hostSettings().then((all) => all['ops-showFloatBand'])).toBe(String(floatBandChoice));
+      // Bewaarde keuzes van eerder in deze test gaan ook mee; het geheime MCP-token nooit.
+      expect(await hostSettings()).toMatchObject({ 'ops-theme': 'light', 'ops-locale': 'nl' });
+      expect(Object.keys(await hostSettings())).not.toContain('ops-mcpToken');
+
+      // Live wissel (#818): de host verandert taal en thema op hetzelfde object en meldt dat.
+      await page.evaluate(() => {
+        const host = (window as unknown as { openaecHost: { taal: string; thema: string } }).openaecHost;
+        host.taal = 'de-AT';
+        host.thema = 'light';
+        window.dispatchEvent(new Event('openaec-host-preferences'));
+      });
+      await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      expect(await page.evaluate(() => [localStorage.getItem('ops-locale'), localStorage.getItem('ops-theme')]))
+        .toEqual(['nl', 'light']);
+    } else {
+      // Na herladen was de instelling lokaal weg (zie het init-script); de host gaf hem terug.
+      await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+      expect(await page.evaluate(() => [window.__OPS__!.store.getState().ui.showFloatBand, localStorage.getItem('ops-showFloatBand')]))
+        .toEqual([floatBandChoice, String(floatBandChoice)]);
+      await expect.poll(() => floatBand.evaluate(el => el.classList.contains('active'))).toBe(floatBandChoice);
+    }
   }
   // Negatieve controle: dezelfde werkende opslag, maar zonder host komt welkom terug, in de bewaarde taal.
   await page.evaluate(() => localStorage.setItem('test-no-host', 'true'));

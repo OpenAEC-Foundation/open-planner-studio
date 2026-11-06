@@ -59,10 +59,28 @@
  * regiocode valt terug op de taal (`de-AT` wordt `de`). Kent de tool geen enkele, dan kiest hij zoals
  * buiten een host (bewaarde keuze, dan de browsertaal). De tool bewaart de taal van de host niet.
  *
- * Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt
- * voor het welkomstvenster bij de start en nog eens vlak voordat het zou openen (na de herstelvraag).
- * Een latere host verandert de taal niet en sluit een venster dat al open staat niet, ook niet met het
- * event `openaec-host-ready`.
+ * Zet de host vóór de tool start. De tool kiest de taal vóór de eerste weergave, en kijkt voor het
+ * welkomstvenster bij de start en nog eens vlak voordat het zou openen (na de herstelvraag). Een
+ * venster dat al open staat, sluit een latere host niet.
+ *
+ * ## Taal en thema tijdens de sessie, en instellingen (#818)
+ *
+ * Sinds #818 volgt de tool de host ook ná de start (dit vervangt "een latere host verandert de taal
+ * niet" uit #716):
+ *
+ * - `thema` (`'light'` of `'dark'`): de tool start in dat thema, als sessiethema (niet in
+ *   `ops-theme`). Het pre-paint-script `public/theme-prepaint.js` leest het al vóór de eerste paint.
+ * - Het event `openaec-host-preferences` (`SITE_HOST_PREFERENCES_EVENT`, op hetzelfde venster als
+ *   `openaec-host-ready`) meldt dat `taal` of `thema` op hetzelfde object veranderde. De tool neemt
+ *   dan over wat veranderde, zonder het te bewaren. Een keuze die de gebruiker in de app maakte,
+ *   blijft staan tot de host die waarde zelf wijzigt.
+ * - Komt de host pas later (`openaec-host-ready`), dan neemt de tool zijn taal en thema alsnog over.
+ * - `settings` (`get`, `set`, `delete`): de tool bewaart daar zijn `ops-`-instellingen, onder één
+ *   sleutel met een map. Bij de start leest hij ze in `localStorage` (korte time-out), daarna zet hij
+ *   elke wijziging gebundeld door. Details in `siteHostSettings.ts`.
+ *
+ * Code: `siteHostPreferences.ts` (lezen), `siteHostSettings.ts` (instellingen) en
+ * `src/hooks/useSiteHostPreferences.ts` (de luisteraars).
  *
  * ## De vier functies (de `storage`-vorm)
  *
@@ -157,6 +175,16 @@ export interface OpenAECHost {
   initialFileId?: string;
   /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
   taal?: string;
+  /** Het thema van de site: `'light'` of `'dark'` (#818). De tool start erin en volgt een wijziging
+   *  (`openaec-host-preferences`), zonder het te bewaren. Zie `siteHostPreferences.ts`. */
+  thema?: string;
+  /** Opslag voor de instellingen van de tool, als de browser zelf niets bewaart (#818). Zie
+   *  `siteHostSettings.ts`. */
+  settings?: {
+    get(key: string): Promise<unknown>;
+    set(key: string, value: unknown): Promise<unknown>;
+    delete(key: string): Promise<unknown>;
+  };
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
@@ -199,8 +227,9 @@ function readHost(read: () => unknown): Record<string, unknown> | null {
   }
 }
 
-/** De kandidaat-hosts in volgorde: eerst het eigen venster, dan de parent (alleen in een iframe). */
-function candidateHosts(): Record<string, unknown>[] {
+/** De kandidaat-hosts in volgorde: eerst het eigen venster, dan de parent (alleen in een iframe).
+ *  Geëxporteerd voor `siteHostPreferences.ts` (thema en instellingen, #818). */
+export function candidateHosts(): Record<string, unknown>[] {
   if (typeof window === 'undefined') return [];
   // Desktop (Tauri) heeft nooit een site. Zo blijft de desktop-app gegarandeerd zoals hij was, ook
   // als er ooit per ongeluk iets op `window.openaecHost` staat.

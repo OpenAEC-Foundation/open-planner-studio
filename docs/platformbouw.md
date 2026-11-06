@@ -14,6 +14,9 @@ letterlijk overnemen.
 | Geen eigen login | was al zo | — |
 | Openen en opslaan via de site (lijst, openen, opslaan, versies) | `FileRef` van de soort `site` | `src/services/fileAccess/siteHost.ts`, `siteBackend.ts` |
 | Eigen voorvoegsel in de browseropslag, geen sleutels of tokens | alles `ops-`; AI-token uit in de platformbouw | `src/utils/buildFlags.ts` |
+| Taal en thema van de host, ook tijdens de sessie (#818) | `taal`, `thema`, event `openaec-host-preferences` | `siteHostPreferences.ts`, `src/hooks/useSiteHostPreferences.ts` |
+| Instellingen bewaren zonder blijvende browseropslag (#818) | `settings` van de host | `src/services/fileAccess/siteHostSettings.ts` |
+| Geen inline script in de bundel (#818) | het pre-paint-script is een eigen bestand | `public/theme-prepaint.js` |
 | Versie op een tag, gebouwd door een script | `npm ci && npm run build:platform -- --base /pad/` op de tag | `scripts/build-platform.mjs` |
 
 ## De bouw
@@ -26,6 +29,10 @@ npm run build:platform -- --base /assets/openaec/planner/
 - `--base` is verplicht en begint en eindigt met `/`. Zonder geldig pad stopt het script met exit 2 en een
   voorbeeld. Alle URL's in de bundel beginnen met dat pad; eigen bestanden (`docs/`, `examples/`, het
   icoon) laadt de app via `import.meta.env.BASE_URL`.
+- `index.html` heeft geen inline script (#818): de Content-Security-Policy van de SuperCloud laat alleen de eigen
+  bundel toe. Het kleine script dat een themaflits voorkomt, is `public/theme-prepaint.js`, een klassiek en
+  blokkerend script in `<head>`. Vite kopieert het ongewijzigd uit `public/` en zet het pad in `index.html` op
+  de `base` van de bouw (`/pad/theme-prepaint.js`, of `./theme-prepaint.js` bij `--base ./`), net als het icoon.
 - Het script draait eerst `tsc`, net als `npm run build`, en bouwt daarna met `vite build --mode platform`.
 - De uitvoer staat in `dist-platform/`, met `dist-platform/.vite/manifest.json` (Vite `build.manifest`) en
   `dist-platform/mcp-tools.json` (de tooldefinities voor de assistent, zie hieronder).
@@ -60,8 +67,9 @@ De pagina die de tool toont, staat op een ander adres dan de bundel. Er zijn twe
 2. **Entry uit het manifest.** De pagina leest `.vite/manifest.json`, voegt de CSS en de entry-JS van
    `index.html` in, en zorgt voor een `<div id="root">` met een vaste hoogte. Let op: de CSS van de tool
    (Tailwind-basisstijlen) geldt dan voor de hele pagina, de tool zet `data-theme` op `<html>`, en het
-   kleine inline script uit `index.html` dat een themaflits voorkomt draait niet. Gebruik dit alleen op een
-   pagina die verder niets van de site toont.
+   script dat een themaflits voorkomt (`<basispad>theme-prepaint.js`) staat niet in het manifest; voeg het
+   zelf vóór de entry in als je die flits wilt voorkomen. Gebruik dit alleen op een pagina die verder niets
+   van de site toont.
 
 Opslag in de browser: alle sleutels in localStorage, sessionStorage en IndexedDB beginnen met `ops-`. De enige
 uitzondering is een oude sleutel `open-planner-studio-recent-files`, die de app alleen leest en daarna
@@ -79,6 +87,14 @@ interface OpenAECHost {
   initialFileId?: string;
   /** De taal van de site (bijv. `'nl'`); de tool start in die taal als hij hem kent (#716). */
   taal?: string;
+  /** Het thema van de site: `'light'` of `'dark'` (#818). */
+  thema?: string;
+  /** Opslag voor de instellingen van de tool (#818), als de browser zelf niets bewaart. */
+  settings?: {
+    get(key: string): Promise<unknown>;
+    set(key: string, value: unknown): Promise<unknown>;
+    delete(key: string): Promise<unknown>;
+  };
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
@@ -145,9 +161,27 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
   url (`#taal=nl`). De eerste taal die de tool kent, wint, ook boven een eerder bewaarde keuze; `de-AT` wordt
   `de`. Kent de tool geen enkele, dan kiest hij zoals buiten een host (bewaarde keuze, dan de browsertaal). De
   tool bewaart de taal van de host niet.
-- Zet de host vóór de tool start. De tool kiest de taal één keer, vóór de eerste weergave, en kijkt voor het
-  welkomstvenster bij de start en nog eens vlak voordat het zou openen. Een latere host verandert de taal niet
-  en sluit een venster dat al open staat niet.
+- Zet de host vóór de tool start. De tool kiest de taal vóór de eerste weergave, en kijkt voor het
+  welkomstvenster bij de start en nog eens vlak voordat het zou openen. Een venster dat al open staat, sluit een
+  latere host niet.
+- Het thema komt ook van de host (#818): `thema` is `light` of `dark`; een andere waarde telt niet. De tool start
+  in dat thema, ook al vóór de eerste paint (`theme-prepaint.js` leest `window.openaecHost.thema`), en bewaart
+  het niet: de eigen keuze in `ops-theme` blijft staan. Kiest de gebruiker in de tool een thema, dan geldt dat
+  voor de rest van de sessie; bij de volgende start wint de host weer, net als bij de taal.
+- Veranderen `taal` of `thema` op hetzelfde object, stuur dan het event `openaec-host-preferences` op het venster
+  waar de host staat (#818). De tool leest beide opnieuw en neemt over wat veranderde: de taal via de vertaling
+  (alleen een taal die de tool kent, `de-AT` wordt `de`), het thema in de weergave. Hij bewaart ze niet. Een
+  keuze die de gebruiker in de tool maakte, blijft staan tot de host die waarde zelf wijzigt. Dit vervangt het
+  gedrag van #716 ("een latere host verandert de taal niet"): zet de site de host pas na de start en stuurt ze
+  `openaec-host-ready`, dan neemt de tool taal, thema en instellingen alsnog over.
+- `settings` (optioneel, #818): de tool bewaart daar zijn `ops-`-instellingen, voor een frame waarin
+  `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Alles staat onder één
+  sleutel, `open-planner-studio:instellingen`, als een object met tekstwaarden (`{ "ops-theme": "light", … }`).
+  Bij de start leest de tool die sleutel één keer (hoogstens 1 s; daarna start hij gewoon en zet hij de waarden
+  later neer) en schrijft ze in `localStorage`. Elke wijziging gaat daarna gebundeld terug, met één `set` van de
+  hele map (`delete` gebruikt de tool niet). Niet mee: `ops-mcpPort`, `ops-mcpToken` en `ops-downloadStats`
+  (van één apparaat). Een fout van de host is nooit een crash: mislukt het lezen, dan schrijft de tool die sessie
+  niets terug, zodat hij de echte instellingen niet overschrijft.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het
@@ -195,6 +229,11 @@ Alleen als er een site is; zonder site verandert er niets.
 - Toetsen: `tests/planning/check-site-storage.ts` (contract, dispatch, opslagdoel, herstelmanifest, de
   SuperCloud-adapter) en
   `tests/browser/site-storage.spec.ts` (de paden hierboven, met een nep-host).
+- Taal, thema en instellingen van de host (#818): `tests/planning/check-site-host-preferences.ts` (thema- en
+  taalkeuze, inlezen en terugschrijven met een nep-host), `tests/planning/check-theme-premirror.ts` (geen inline
+  script; het pre-paint-script gedraagt zich als `peekTheme()`) en de host-ronden in
+  `tests/browser/welcome-dialog.spec.ts` (thema van de host, live wissel, een instelling die via `settings`
+  een herlaad overleeft).
 
 ## De assistent van de site
 

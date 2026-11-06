@@ -1229,6 +1229,24 @@ en noem het in je rapport of PR-tekst.
      Voorstel: voeg later een kleine verwijderactie toe; houd het item bij een tijdelijke leesfout.
      Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
 
+860. **Zonder vervanger voor `localStorage` bewaart de tool geen instellingen bij de host.** De route van #818
+     (`src/services/fileAccess/siteHostSettings.ts`) zet de waarden van `settings` in `localStorage` en leest ze
+     daar weer. De SuperCloud heeft een vervanger in het geheugen, dus daar werkt het. Een host zonder die
+     vervanger, in een sandbox zonder `allow-same-origin`, geeft een `SecurityError` bij elke toegang (zie de
+     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets.
+     Voorstel: laat `readLocal`/`writeLocal` in dat geval een map in het geheugen gebruiken. — S
+
+861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** `src/main.tsx` importeert `App`
+     statisch, dus de store maakt `ui.uiTheme` (`peekTheme()`) al vóór `hydrateSiteHostSettings()`. Het
+     pre-paint-script ziet de instellingen van de host ook nog niet (die komen async). Geeft de host `settings`
+     met `ops-theme = light` maar geen `thema`, dan start de tool donker en wordt hij licht zodra
+     `loadAllSettings` klaar is. Met `thema` op de host (de SuperCloud) gebeurt dit niet. — S
+
+862. **Twee frames van dezelfde gebruiker overschrijven elkaars instellingen bij de host.** De tool bewaart al
+     zijn `ops-`-instellingen onder één hostsleutel (`open-planner-studio:instellingen`) en schrijft steeds de
+     hele map. Het frame dat het laatst schrijft, wint; een wijziging uit het andere frame is dan weg.
+     Voorstel: lees de map vlak voor het schrijven opnieuw en voeg alleen de eigen wijzigingen samen. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
