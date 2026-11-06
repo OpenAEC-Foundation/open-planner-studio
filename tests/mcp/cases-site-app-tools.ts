@@ -8,12 +8,16 @@ import { useAppStore, test, assert, assertEq, run } from './harness';
 import { guideToolDeps } from '@/services/mcp/tools/guideTools';
 import { getTools } from '@/services/mcp/toolRegistry';
 import type { McpToolDef } from '@/services/mcp/contracts';
+import type { WorkCalendar } from '@/types/calendar';
+import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
   installSiteAppTools,
   siteAppToolDefinitions,
   siteAppToolsJson,
   SITE_APP_UNAVAILABLE_TOOLS,
   SITE_APP_MAX_RESPONSE_CHARS,
+  SITE_APP_REAL_ID_JSON_CHARS,
+  SITE_APP_REPORT_RESERVE_CHARS,
   type SiteAppTools,
 } from '@/services/mcp/siteAppTools';
 
@@ -268,7 +272,7 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   const app = install();
   await chain(app, 200);
   const res = (await app.run('planner_batch', { steps: [{ tool: 'planner_list_tasks', args: { limit: 200 } }] })) as {
-    ok: boolean; data: { compacted?: { note: string }; steps: { status: string; data?: unknown; dataOmitted?: string }[]; substeps?: unknown };
+    ok: boolean; data: { compacted?: { note: string }; steps: { status: string; data?: unknown; omitted?: string }[]; substeps?: unknown };
   };
   assertEq(res.ok, true, 'geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
@@ -276,7 +280,8 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   assertEq(res.data.substeps, undefined, 'substeps weg');
   assertEq(res.data.steps[0].status, 'uitgevoerd', 'status van de stap blijft');
   assertEq(res.data.steps[0].data, undefined, 'de leesuitvoer is weg');
-  assert(res.data.steps[0].dataOmitted?.includes('call planner_list_tasks on its own'), 'zegt hoe je hem volledig opvraagt');
+  assertEq(res.data.steps[0].omitted, 'read output', 'zegt dat de leesuitvoer weg is');
+  assert(JSON.stringify(res.data.compacted).includes('call a read step on its own'), 'zegt hoe je hem volledig opvraagt');
 });
 
 test('batch met een wijziging en een grote leesstap: de wijziging blijft geslaagd, nooit achteraf een fout', async () => {
@@ -289,36 +294,139 @@ test('batch met een wijziging en een grote leesstap: de wijziging blijft geslaag
       { tool: 'planner_add_tasks', args: addTask('extra') },
       { tool: 'planner_list_tasks', args: { limit: 1000 } },
     ],
-  })) as { ok: boolean; data: { steps: { status: string; data?: { created?: Record<string, string> }; dataOmitted?: string }[] } };
+  })) as { ok: boolean; data: { steps: { status: string; created?: Record<string, string>; omitted?: string }[] } };
   assertEq(res.ok, true, 'de batch is geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(useAppStore.getState().tasks.length, before + 1, 'de wijziging is uitgevoerd');
   assertEq(res.data.steps.map((st) => st.status), ['uitgevoerd', 'uitgevoerd'], 'status per stap');
-  assert(typeof res.data.steps[0].data?.created?.['tmp-extra'] === 'string', 'de created-map van de wijziging blijft');
-  assert(res.data.steps[1].dataOmitted?.includes('planner_list_tasks'), 'de leesstap zegt hoe je hem opvraagt');
+  assert(typeof res.data.steps[0].created?.['tmp-extra'] === 'string', 'de created-map van de wijziging blijft');
+  assertEq(res.data.steps[1].omitted, 'read output', 'de leesuitvoer is weg');
 });
 
-test('grote wijzigingen: direct en in een batch ingekort tot de status, de wijziging blijft staan', async () => {
+/** Uurtaken van 80 h met een toewijzing en een bewaard restwerk van 320 h (zoals na een XER-import), zoals in
+ *  cases-restwerk-duurwijziging.ts. Een duurwijziging rekent dat restwerk opnieuw uit en de envelop noemt elke
+ *  correctie (`remainingWorkRecomputed`). */
+function hourTasksWithRemainingWork(n: number): string[] {
+  const S = () => useAppStore.getState();
+  freshDocument();
+  const band = [{ start: 480, end: 960 }];
+  S().setProject({ startDate: '2024-01-09' });
+  S().setCalendar({
+    ...S().calendar, hoursPerDay: 8, workStartHour: 8, workEndHour: 16,
+    workTime: { byWeekday: { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] } },
+  } as WorkCalendar);
+  const resourceId = S().addResource({ name: 'Design Engineer', type: 'LABOR', description: '', maxUnits: 1 });
+  const ids: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = S().addTask({
+      name: `E-${1000 + i} met een gewone naam`,
+      time: { ...createDefaultTaskTime('2024-01-09T08:00', 10, 'hours'), durationUnit: 'hours', durationMinutes: 80 * 60 },
+    });
+    S().assignResource(t, resourceId, 1);
+    useAppStore.setState((st) => {
+      st.tasks.find((x) => x.id === t)!.time.remainingMinutes = 80 * 60;
+      st.assignments.find((a) => a.taskId === t)!.remainingWorkMinutes = 320 * 60;
+    });
+    ids.push(t);
+  }
+  S().runCPM();
+  return ids;
+}
+
+type Compacted = {
+  ok: boolean;
+  envelope: { remainingWorkRecomputed?: unknown[]; remainingWorkRecomputedSummary?: { count: number; tasks: number; beforeHours: number; afterHours: number } };
+  data: { compacted?: { counts: Record<string, number> }; created?: Record<string, string>; steps?: { status: string; created?: Record<string, string> }[] };
+  itemRejections?: { id: string; reason: string }[];
+};
+
+test('compact rapport: 230 restwerkcorrecties in één planner_update_tasks blijven binnen de grens, met samenvatting', async () => {
+  const ids = hourTasksWithRemainingWork(230);
+  const app = install();
+  const res = (await app.run('planner_update_tasks', {
+    updates: ids.map((id) => ({ id, fields: { duration: 72, durationUnit: 'hours' } })),
+  })) as Compacted;
+  assertEq(res.ok, true, 'geslaagd');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(useAppStore.getState().assignments.filter((a) => a.remainingWorkMinutes === 72 * 60).length, 230, 'alle 230 uitgevoerd');
+  assertEq(res.envelope.remainingWorkRecomputedSummary, { count: 230, tasks: 230, beforeHours: 230 * 320, afterHours: 230 * 72 }, 'samenvatting');
+  assert((res.envelope.remainingWorkRecomputed?.length ?? 0) > 0, 'de eerste correcties die passen staan erbij');
+  assertEq(res.data.compacted?.counts.remainingWorkRecomputed, 230, 'aantal in counts');
+});
+
+test('compact rapport: 40 onbekende lange ids blijven binnen de grens, met het aantal weigeringen', async () => {
+  freshDocument();
+  const app = install();
+  await app.run('planner_add_tasks', addTask('bestaat'));
+  const res = (await app.run('planner_update_tasks', {
+    updates: Array.from({ length: 40 }, (_, i) => ({ id: `onbekend-${i}-${'x'.repeat(1000)}`, fields: { name: 'n' } })),
+  })) as Compacted;
+  assertEq(res.ok, true, 'geslaagd (zachte weigeringen)');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(res.data.compacted?.counts.itemRejections, 40, 'aantal weigeringen');
+  assert((res.itemRejections?.length ?? 0) > 0, 'de eerste weigeringen die passen staan erbij');
+  assert((res.itemRejections ?? []).every((r) => r.id.length <= 81 && r.reason.length <= 201), 'weigeringen ingekort per regel');
+});
+
+test('compact rapport: 300 taken in één planner_add_tasks houden de volledige created-map binnen de grens', async () => {
+  freshDocument();
+  const app = install();
+  const tasks = Array.from({ length: 300 }, (_, i) => ({ tempId: `tmp-t${i}`, name: `Taak ${i} met een lange naam zodat het antwoord flink groeit`, duration: 1 }));
+  const res = (await app.run('planner_add_tasks', { tasks })) as Compacted;
+  assertEq(res.ok, true, 'geslaagd');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assert(res.data.compacted, 'het antwoord is compact');
+  const created = res.data.created ?? {};
+  assertEq(Object.keys(created).length, 300, 'de hele created-map');
+  const names = new Map(useAppStore.getState().tasks.map((t) => [t.id, t.name]));
+  for (let i = 0; i < 300; i++) assertEq(names.get(created[`tmp-t${i}`]), tasks[i].name, `tmp-t${i} wijst naar de juiste taak`);
+  // De grens voor één id is gemeten, niet geschat: elk echt id blijft eronder.
+  for (const id of Object.values(created)) {
+    assert(JSON.stringify(id).length <= SITE_APP_REAL_ID_JSON_CHARS, `id ${id} langer dan ${SITE_APP_REAL_ID_JSON_CHARS} in JSON`);
+  }
+});
+
+test('compact rapport: te veel nieuwe ids worden vóór uitvoering geweigerd, met het maximum, en dat maximum past', async () => {
   freshDocument();
   const app = install();
   const many = (prefix: string, n: number) => ({
     tasks: Array.from({ length: n }, (_, i) => ({ tempId: `tmp-${prefix}${i}`, name: `${prefix} ${i}`, duration: 1 })),
   });
-  const batch = (await app.run('planner_batch', {
+  const batch = await failure(app, 'planner_batch', {
     steps: ['a', 'b', 'c', 'd'].map((prefix) => ({ tool: 'planner_add_tasks', args: many(prefix, 250) })),
-  })) as { ok: boolean; data: { compacted?: unknown; steps: { status: string; dataOmitted?: string }[] } };
-  assertEq(batch.ok, true, 'batch geslaagd');
-  assert(fits(batch), `batch past (${JSON.stringify(batch).length} tekens)`);
-  assert(batch.data.compacted, 'batch meldt de inkorting');
-  assertEq(useAppStore.getState().tasks.length, 1000, 'alle 1000 taken staan erin');
-  assert(batch.data.steps.every((st) => st.status === 'uitgevoerd'), 'elke stap uitgevoerd');
-  assert(batch.data.steps.some((st) => st.dataOmitted?.includes('planner_list_tasks')), 'zegt waar je het resultaat leest');
+  });
+  assertEq(batch?.code, 'te_groot', `batch van 4 × 250: kreeg ${batch?.message ?? 'geen fout'}`);
+  assert(batch!.message.includes('Nothing was changed'), 'zegt dat er niets veranderde');
+  assertEq(useAppStore.getState().tasks.length, 0, 'de batch draaide niet');
+  const max = Number(/at most (\d+) new items/.exec(batch!.message)?.[1]);
+  assert(max >= 300, `maximum ${max} laat 300 toe`);
+  // Het genoemde maximum moet echt passen, met de volledige maps, ook verdeeld over stappen.
+  const half = Math.floor(max / 2);
+  const ok = (await app.run('planner_batch', {
+    steps: [{ tool: 'planner_add_tasks', args: many('a', half) }, { tool: 'planner_add_tasks', args: many('b', max - half) }],
+  })) as Compacted;
+  assertEq(ok.ok, true, 'het maximum is uitgevoerd');
+  assert(fits(ok), `het maximum past (${JSON.stringify(ok).length} tekens)`);
+  assertEq(ok.data.steps?.map((st) => Object.keys(st.created ?? {}).length), [half, max - half], 'beide created-maps volledig');
+  const direct = await failure(app, 'planner_add_tasks', many('c', max + 1));
+  assertEq(direct?.code, 'te_groot', 'één meer dan het maximum, direct: geweigerd');
+});
 
-  const direct = (await app.run('planner_add_tasks', many('e', 1000))) as { ok: boolean; data: { compacted?: unknown } };
-  assertEq(direct.ok, true, 'directe wijziging geslaagd');
-  assertEq(useAppStore.getState().tasks.length, 2000, 'de directe wijziging staat erin');
-  assert(fits(direct), `direct past (${JSON.stringify(direct).length} tekens)`);
-  assert(direct.data.compacted, 'de directe wijziging meldt de inkorting');
+test('compact rapport: de vaste ruimte voor 100 stappen met een lange toolnaam past binnen de reserve', async () => {
+  freshDocument();
+  const app = install();
+  await chain(app, 2);
+  // 100 stappen zonder seqId: elke stap geeft een zachte weigering, samen te groot, dus een compact rapport.
+  const res = (await app.run('planner_batch', {
+    steps: Array.from({ length: 100 }, () => ({ tool: 'planner_update_dependencies', args: { updates: [{ fields: { lag: '1d' } }] } })),
+  })) as Compacted & { data: { steps: unknown[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(res.data.compacted, 'compact rapport');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  assertEq(res.data.steps.length, 100, 'een regel per stap');
+  // De reserve dekt alles behalve de created-maps en de aanvullingen (weigeringen, restwerkregels).
+  const fixed = JSON.stringify({ ...res, itemRejections: undefined }).length;
+  assert(fixed <= SITE_APP_REPORT_RESERVE_CHARS, `vaste ruimte ${fixed} > reserve ${SITE_APP_REPORT_RESERVE_CHARS}`);
 });
 
 await run();

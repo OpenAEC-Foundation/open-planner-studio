@@ -24,11 +24,12 @@
 // in `definitions()`, en `run` weigert ze met `niet_in_browser: <tool>`, ook als stap van `planner_batch`.
 //
 // ANTWOORDGROOTTE. Het contract vraagt antwoorden van hoogstens zo'n 30.000 tekens; dat geldt voor elk antwoord van
-// `run`. Een leestool (`readOnlyHint`) die meer geeft, wordt geweigerd met `te_groot: …` en een uitweg die werkt:
-// `limit`/`offset` (ook op het kritieke pad, de baselinevergelijking en de vertraginganalyse), één `part` van de gids,
-// of `planner_list_tasks` in plaats van het overzicht. Een wijzigende tool of `planner_batch` krijgt nooit achteraf
-// een fout (de wijziging is al gedaan); dat antwoord wordt ingekort, met `compacted` en per batchstap hoe de
-// assistent de weggelaten uitvoer volledig opvraagt (`compactChange`).
+// `run`, envelop inbegrepen. Een leestool (`readOnlyHint`) die meer geeft, wordt geweigerd met `te_groot: …` en een
+// uitweg die werkt: `limit`/`offset` (ook op het kritieke pad, de baselinevergelijking en de vertraginganalyse), één
+// `part` van de gids, of `planner_list_tasks` in plaats van het overzicht. Een wijzigende tool of `planner_batch`
+// krijgt nooit achteraf een fout (de wijziging is al gedaan); dat antwoord wordt één compact rapport
+// (`compactChange`, zie "Grote wijzigingen"). Wat daarin moet blijven en niet zou passen, weigert `run` vóór
+// uitvoering (`createdTooLarge`).
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from './contracts';
 import { createRequestHandler, type McpResponseEvent } from './requestHandler';
 
@@ -140,103 +141,187 @@ function tooLarge(name: string, chars: number, def: McpToolDef | undefined): Sit
   );
 }
 
-/** Zoveel deelweigeringen blijven staan in een ingekort antwoord. */
-const KEPT_REJECTIONS = 20;
+// --- Grote wijzigingen ---------------------------------------------------------------------------
+//
+// Een wijzigende tool of `planner_batch` krijgt NOOIT achteraf een fout: de wijziging is al gedaan, en een fout zou
+// de assistent laten denken dat ze mislukte (en haar herhalen). Een te groot antwoord wordt daarom één compact
+// rapport (`compactChange`), met daarna één eindcontrole op het hele antwoord, envelop inbegrepen.
+//
+// Wat altijd blijft: de status per stap en de `created`-maps (`tempId` → echt id). Die koppeling is later niet meer
+// terug te vragen: de tool bewaart `tempId` niet in de taak. Omdat ze moet blijven, weigert `run` VÓÓR uitvoering
+// een aanroep waarvan de maps alleen al te groot kunnen worden (`createdTooLarge`), met de opdracht kleinere
+// porties te sturen. Al het andere wordt een aantal of een samenvatting, en wat er nog past van de restwerk-
+// correcties en de deelweigeringen komt erbij, ingekort per regel.
 
-/** Een lijst deelweigeringen ingekort, met het aantal dat wegviel. */
-function trimRejections(list: unknown): { kept: unknown; omitted: number } {
-  if (!Array.isArray(list) || list.length <= KEPT_REJECTIONS) return { kept: list, omitted: 0 };
-  return { kept: list.slice(0, KEPT_REJECTIONS), omitted: list.length - KEPT_REJECTIONS };
-}
-
-/** Velden van `data` die groter zijn dan `max` tekens vallen weg; hun namen blijven staan. */
-function dropLargeFields(data: unknown, max: number): { data: unknown; omitted: string[] } {
-  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    return sizeOf(data) > max ? { data: undefined, omitted: ['data'] } : { data, omitted: [] };
-  }
-  const kept: Record<string, unknown> = {};
-  const omitted: string[] = [];
-  for (const [key, value] of Object.entries(data)) {
-    if (sizeOf(value) > max) omitted.push(key);
-    else kept[key] = value;
-  }
-  return { data: kept, omitted };
-}
-
-interface BatchStep { step: number; tool: string; status: string; data?: unknown; error?: string; dataOmitted?: string }
+/** Zoveel tekens houdt het compacte rapport vrij voor alles behalve de `created`-maps (envelop, uitleg, een regel
+ *  per stap voor 100 stappen). Getoetst in tests/mcp/cases-site-app-tools.ts (`compact rapport: vaste ruimte`). */
+export const SITE_APP_REPORT_RESERVE_CHARS = 12_000;
 
 /**
- * Een te groot antwoord van een WIJZIGENDE tool of `planner_batch` inkorten, zonder fout: de wijziging is al
- * uitgevoerd, en een fout achteraf zou de assistent laten denken dat ze mislukte (en haar herhalen). In stappen,
- * tot het antwoord past:
- *   1. batch: `substeps` weg (die vorm is voor het activiteitenpaneel; de app heeft hem al gelogd);
- *   2. batch: de uitvoer van leesstappen weg, met per stap hoe de assistent hem volledig opvraagt;
- *   3. grote velden weg (batch: per stap; anders in `data`), met hun namen;
- *   4. batch: alle stapuitvoer weg, alleen de status per stap blijft;
- *   5. deelweigeringen ingekort tot de eerste 20, met het aantal dat wegviel.
- * `compacted` zegt bovenaan wat er gebeurde.
+ * Bovengrens voor één echt id in JSON, met aanhalingstekens. `generateId` (`src/utils/id.ts`) maakt
+ * `<voorvoegsel>-<tijd base36, 8><willekeurig, ≤4><teller>`: met `task`/`res` en een teller tot tien cijfers is dat
+ * hoogstens 27 tekens. De test meet de echte id's van 300 nieuwe taken en houdt ze onder deze grens.
+ */
+export const SITE_APP_REAL_ID_JSON_CHARS = 29;
+
+/** De `tempId`'s die deze aanroep zou aanmaken (direct of als stap van `planner_batch`). */
+function newTempIds(name: string, args: Record<string, unknown>): string[] {
+  const list = (value: unknown, key: string): unknown[] =>
+    value !== null && typeof value === 'object' && Array.isArray((value as Record<string, unknown>)[key])
+      ? ((value as Record<string, unknown>)[key] as unknown[])
+      : [];
+  const tempIdOf = (item: unknown) =>
+    item !== null && typeof item === 'object' && typeof (item as { tempId?: unknown }).tempId === 'string'
+      ? [(item as { tempId: string }).tempId]
+      : [];
+  if (name === 'planner_add_tasks') return list(args, 'tasks').flatMap(tempIdOf);
+  if (name === 'planner_manage_resources') {
+    return list(args, 'actions').filter((a) => (a as { action?: unknown })?.action === 'create').flatMap(tempIdOf);
+  }
+  if (name === 'planner_batch') {
+    return list(args, 'steps').flatMap((step) => {
+      const s = step as { tool?: unknown; args?: unknown };
+      return typeof s?.tool === 'string' && s.args !== null && typeof s.args === 'object'
+        ? newTempIds(s.tool, s.args as Record<string, unknown>)
+        : [];
+    });
+  }
+  return [];
+}
+
+/** De grootste lengte die de `created`-maps van deze `tempId`'s in JSON kunnen krijgen. */
+const createdMapBound = (tempIds: readonly string[]) =>
+  tempIds.reduce((sum, id) => sum + JSON.stringify(id).length + 1 + SITE_APP_REAL_ID_JSON_CHARS + 1, 0);
+
+/** Weigering vóór uitvoering als de `created`-maps het budget kunnen overschrijden; anders null. */
+function createdTooLarge(name: string, args: Record<string, unknown>): SiteAppToolError | null {
+  const tempIds = newTempIds(name, args);
+  const budget = SITE_APP_MAX_RESPONSE_CHARS - SITE_APP_REPORT_RESERVE_CHARS;
+  const bound = createdMapBound(tempIds);
+  if (bound <= budget) return null;
+  const perItem = bound / tempIds.length;
+  const max = Math.floor(budget / perItem);
+  return new SiteAppToolError(
+    'te_groot',
+    `${name} would create ${tempIds.length} items with a tempId; their tempId → id map alone could exceed the answer ` +
+      `limit of ${SITE_APP_MAX_RESPONSE_CHARS} characters. Nothing was changed. Send at most ${max} new items with ` +
+      'these tempIds per call (shorter tempIds allow more), in several calls.',
+  );
+}
+
+const clip = (text: unknown, max: number): string => {
+  const value = typeof text === 'string' ? text : JSON.stringify(text) ?? '';
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+};
+
+/** De lengtes van de lijsten in `data` (wat er weg is, als aantal). */
+function counts(data: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+    for (const [key, value] of Object.entries(data)) {
+      if (Array.isArray(value)) out[key] = value.length;
+      else if (key !== 'created' && value !== null && typeof value === 'object') out[key] = Object.keys(value).length;
+    }
+  }
+  return out;
+}
+
+/** De `created`-map van een resultaat, als die er is. */
+function createdOf(data: unknown): Record<string, string> | undefined {
+  const created = data !== null && typeof data === 'object' ? (data as { created?: unknown }).created : undefined;
+  return created !== null && typeof created === 'object' && !Array.isArray(created)
+    ? (created as Record<string, string>)
+    : undefined;
+}
+
+interface BatchStep { step: number; tool: string; status: string; data?: unknown; error?: string }
+
+/**
+ * Het compacte rapport van een te groot wijzigingsantwoord. Blijft: de status per stap, alle `created`-maps, de
+ * envelop zonder lijsten, aantallen, en een samenvatting van de restwerkcorrecties. Daarna, zolang het past:
+ * restwerkcorrecties en deelweigeringen, elk ingekort. Eén eindcontrole: past het dan nog niet, dan gaan die
+ * aanvullingen en de lange teksten weg; de ids en de statussen blijven.
  */
 function compactChange(name: string, result: McpToolOk, chars: number, getDef: (tool: string) => McpToolDef | undefined): McpToolOk {
-  const note = (done: string): McpToolOk['data'] => ({
-    compacted: {
-      originalChars: chars,
-      limit: SITE_APP_MAX_RESPONSE_CHARS,
-      note: `The change succeeded. The full answer was too large, so it was shortened: ${done}.`,
+  const { remainingWorkRecomputed: corrections = [], ...envelopeRest } = result.envelope;
+  const envelope = {
+    ...envelopeRest,
+    documentTitle: clip(envelopeRest.documentTitle, 200),
+    ...(envelopeRest.scheduleNote !== undefined ? { scheduleNote: clip(envelopeRest.scheduleNote, 500) } : {}),
+    ...(envelopeRest.scheduleError !== undefined ? { scheduleError: clip(envelopeRest.scheduleError, 500) } : {}),
+    ...(corrections.length > 0
+      ? {
+          remainingWorkRecomputedSummary: {
+            count: corrections.length,
+            tasks: new Set(corrections.map((c) => c.taskId)).size,
+            beforeHours: Math.round(corrections.reduce((sum, c) => sum + c.beforeHours, 0) * 100) / 100,
+            afterHours: Math.round(corrections.reduce((sum, c) => sum + c.afterHours, 0) * 100) / 100,
+          },
+        }
+      : {}),
+  } as McpToolOk['envelope'] & Record<string, unknown>;
+  const rejections = result.itemRejections ?? [];
+  const isBatch = name === 'planner_batch';
+  const raw = result.data as Record<string, unknown> | null;
+  const steps = isBatch && Array.isArray(raw?.steps)
+    ? (raw.steps as BatchStep[]).map((step) => {
+        const created = createdOf(step.data);
+        return {
+          step: step.step,
+          tool: step.tool,
+          status: step.status,
+          ...(created ? { created } : {}),
+          ...(step.error !== undefined ? { error: clip(step.error, 300) } : {}),
+          ...(step.data !== undefined ? { omitted: getDef(step.tool)?.kind === 'read' ? 'read output' : 'details' } : {}),
+        };
+      })
+    : undefined;
+  const created = isBatch ? undefined : createdOf(raw);
+  const how =
+    'Every change in this answer succeeded. The full answer was too large, so it was shortened. Kept: ' +
+    (isBatch ? 'the status per step and every `created` map; ' : 'the `created` map; ') +
+    'lists are counted in `counts`. To read what was left out: call a read step on its own (outside planner_batch) ' +
+    'with the same arguments; read changed tasks with planner_list_tasks (`limit`, `offset`) or planner_get_task. ' +
+    (corrections.length > 0 ? 'Remaining-work corrections: see `remainingWorkRecomputedSummary`; the app also lists them. ' : '') +
+    (rejections.length > 0 ? 'Item rejections: `itemRejections` shows the first ones that fit, shortened. ' : '');
+  const build = (extraCorrections: unknown[], extraRejections: { id: string; reason: string }[], short: boolean): McpToolOk => ({
+    ok: true,
+    envelope: { ...envelope, ...(extraCorrections.length > 0 ? { remainingWorkRecomputed: extraCorrections } : {}) } as McpToolOk['envelope'],
+    data: {
+      compacted: {
+        originalChars: chars,
+        limit: SITE_APP_MAX_RESPONSE_CHARS,
+        note: short ? 'Every change in this answer succeeded; the answer was shortened to the ids and the status per step.' : how,
+        counts: { ...counts(raw), itemRejections: rejections.length, remainingWorkRecomputed: corrections.length },
+      },
+      ...(created ? { created } : {}),
+      ...(steps ? { steps: short ? steps.map((step) => ({ step: step.step, tool: step.tool, status: step.status, ...(step.created ? { created: step.created } : {}) })) : steps } : {}),
     },
+    ...(extraRejections.length > 0 ? { itemRejections: extraRejections } : {}),
   });
-  const fits = (value: McpToolOk) => sizeOf(value) <= SITE_APP_MAX_RESPONSE_CHARS;
-  let out: McpToolOk = { ...result };
-  const done: string[] = [];
-  const withNote = (): McpToolOk => ({ ...out, data: { ...(note(done.join('; ')) as object), ...(out.data as object) } });
-
-  if (name === 'planner_batch' && out.data !== null && typeof out.data === 'object') {
-    const data = { ...(out.data as Record<string, unknown>) };
-    const steps = Array.isArray(data.steps) ? (data.steps as BatchStep[]).map((step) => ({ ...step })) : [];
-    delete data.substeps;
-    done.push('`substeps` left out');
-    out = { ...out, data: { ...data, steps } };
-    if (fits(withNote())) return withNote();
-
-    for (const step of steps) {
-      if (step.data !== undefined && getDef(step.tool)?.kind === 'read') {
-        delete step.data;
-        step.dataOmitted = `call ${step.tool} on its own (outside planner_batch) with the same arguments to read it in full`;
-      }
-    }
-    done.push('the output of read steps left out (see `dataOmitted` per step)');
-    if (fits(withNote())) return withNote();
-
-    for (const step of steps) {
-      if (step.data === undefined) continue;
-      const trimmed = dropLargeFields(step.data, 2_000);
-      if (trimmed.omitted.length > 0) {
-        step.data = trimmed.data;
-        step.dataOmitted = `fields left out: ${trimmed.omitted.join(', ')}; read the result with planner_list_tasks or planner_get_task`;
-      }
-    }
-    done.push('large fields of the other steps left out');
-    if (fits(withNote())) return withNote();
-
-    for (const step of steps) {
-      if (step.data === undefined) continue;
-      delete step.data;
-      step.dataOmitted = 'output left out; read the result with planner_list_tasks or planner_get_task';
-    }
-    done.push('all step output left out, only the status per step remains');
-  } else {
-    const trimmed = dropLargeFields(out.data, 2_000);
-    out = { ...out, data: trimmed.data };
-    done.push(`fields left out: ${trimmed.omitted.join(', ') || '(none)'}; read the result with planner_list_tasks or planner_get_task`);
+  // Aanvullen zolang het past (ruim onder de grens, zodat de eindcontrole niet krap uitvalt).
+  const room = SITE_APP_MAX_RESPONSE_CHARS - 500;
+  const keptCorrections: unknown[] = [];
+  const keptRejections: { id: string; reason: string }[] = [];
+  let size = sizeOf(build([], [], false));
+  for (const c of corrections) {
+    const entry = { ...c, taskName: clip(c.taskName, 80) };
+    const add = sizeOf(entry) + 1;
+    if (size + add > room) break;
+    keptCorrections.push(entry);
+    size += add;
   }
-  if (fits(withNote())) return withNote();
-
-  const top = trimRejections(out.itemRejections);
-  const data = { ...(out.data as Record<string, unknown>) };
-  const inner = trimRejections(data.rejections);
-  if (inner.omitted > 0) { data.rejections = inner.kept; data.rejectionsOmitted = inner.omitted; }
-  out = { ...out, data, ...(top.omitted > 0 ? { itemRejections: top.kept as McpToolOk['itemRejections'] } : {}) };
-  done.push(`only the first ${KEPT_REJECTIONS} item rejections kept`);
-  return withNote();
+  for (const r of rejections) {
+    const entry = { id: clip(r.id, 80), reason: clip(r.reason, 200) };
+    const add = sizeOf(entry) + 1;
+    if (size + add > room) break;
+    keptRejections.push(entry);
+    size += add;
+  }
+  const report = build(keptCorrections, keptRejections, false);
+  // EINDCONTROLE op het hele antwoord. Past het niet (alleen bij heel veel stappen met lange fouten), dan zonder
+  // aanvullingen en foutteksten. De ids blijven altijd: `createdTooLarge` houdt ze vóór uitvoering binnen het budget.
+  return sizeOf(report) <= SITE_APP_MAX_RESPONSE_CHARS ? report : build([], [], true);
 }
 
 /**
@@ -302,6 +387,8 @@ function createSiteAppTools(loadDeps: () => Promise<SiteAppToolsDeps>): SiteAppT
       if (blocked !== null) {
         throw new SiteAppToolError('niet_in_browser', `${blocked} — the user opens and saves files through the site`);
       }
+      const tooMany = createdTooLarge(name, args);
+      if (tooMany !== null) throw tooMany;
       const raw = await (await session())((id) =>
         JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }),
       );

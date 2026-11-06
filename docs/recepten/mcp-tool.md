@@ -104,6 +104,11 @@ krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
   `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
 - Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
   (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
+- Geeft een wijzigende tool een koppeling terug die later niet meer op te vragen is (zoals de `created`-map
+  `tempId` → id), dan moet het compacte rapport (`compactChange` in `siteAppTools.ts`) haar bewaren, en moet
+  `newTempIds` haar meetellen, zodat `run` een te grote aanroep vóór uitvoering weigert. Al het andere in een
+  wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus niet buiten
+  dat rapport om.
 
 ## Het nieuwe mechanische vangnet
 
