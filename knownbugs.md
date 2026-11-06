@@ -1247,6 +1247,41 @@ en noem het in je rapport of PR-tekst.
      hele map. Het frame dat het laatst schrijft, wint; een wijziging uit het andere frame is dan weg.
      Voorstel: lees de map vlak voor het schrijven opnieuw en voeg alleen de eigen wijzigingen samen. — S
 
+865. **De platformbouw toont de feedbackknop, terwijl de werkplek er zelf een heeft.** Het SuperCloud-contract
+     (#818) vraagt een bundel zonder feedbackknop. `src/components/layout/TitleBar/TitleBar.tsx:207` toont hem
+     altijd; de dialoog post naar `open-feedback-studio.pages.dev` (`src/services/feedback/feedbackService.ts:311`)
+     en opent een venster met `window.open` (`:477`). In de werkplek blokkeert de CSP het eerste en de sandbox
+     (zonder `allow-popups`) het tweede. Niet meteen weggehaald: stap 7 van de rondleiding
+     (`src/components/tour/tourSteps.ts:79`) wijst naar die knop. Zonder anker blijft de rondleiding op een
+     blokkerende laag staan (`TourOverlay.tsx:251`), en de rondleiding is ook ingebed te starten via
+     Instellingen. Voorstel: `FEEDBACK_AVAILABLE` in `buildFlags.ts`, knop en stap 7 samen uit. — S
+
+866. **Waarschuwingsiconen gebruiken `data:`-afbeeldingen; een CSP zonder `img-src data:` blokkeert ze.**
+     `src/styles/globals.css:2592` en `:2603` zetten een `mask` met een `data:image/svg+xml`-URL. Het contract
+     zegt alleen "de CSP laat alleen de eigen bundel toe". Laat de SuperCloud `data:` niet toe, dan verdwijnen
+     die iconen en meldt de browser een CSP-schending. De werkplektest in `tests/browser/platform-build.spec.ts`
+     staat `data:` bewust toe, omdat de echte CSP niet bekend is. Voorstel: de echte CSP navragen, of de
+     iconen als bestand in de bundel zetten. — S
+
+867. **PDF-rapporten hebben in de werkplek `'wasm-unsafe-eval'` nodig.** Het subsetten van lettertypen laadt
+     `hb-subset.wasm` met `WebAssembly.instantiate` (`src/services/pdf/hbSubset.ts:58`). Een CSP met alleen
+     `script-src 'self'` verbiedt dat in Chromium. Het contract noemt WASM in de bundel, maar niet de
+     CSP-regel ervoor. Niet getest: de werkplektest maakt geen PDF. Voorstel: de echte CSP navragen; anders een
+     terugval zonder subsetten. — S
+
+868. **"Wat is er nieuw" en "Controleren op updates" staan ook in de platformbouw.** Instellingen →
+     Geavanceerd toont beide knoppen (`src/components/settings/SettingsPanelContent.tsx:536` en `:542`). De
+     eerste haalt releasegegevens van `api.github.com` (`JustUpdatedDialog.tsx:53`, `releaseInfo.ts:189`) en
+     opent de changelog met `window.open` (`JustUpdatedDialog.tsx:22`); in de werkplek blokkeren CSP en sandbox
+     dat. De tweede doet in de browser niets (`updaterService.ts:82`). Het contract vraagt een bundel zonder
+     update-check. Voorstel: beide uit in de platformbouw, of gebundelde releasenotes tonen. — S
+
+869. **Exports als download werken niet in het frame uit de controle van het issue.** De controle gebruikt
+     `sandbox="allow-scripts allow-modals"`, zonder `allow-downloads`. Exports (PDF, CSV, Excel) en Opslaan
+     zonder host lopen via `<a download>`; Chromium blokkeert een download uit zo'n frame. De Calc-notitie noemt
+     `allow-scripts allow-downloads allow-modals`, en het contract zegt dat de SuperCloud downloads opvangt.
+     Niet getest. Voorstel: bij de SuperCloud navragen welk sandboxattribuut het echte frame heeft. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

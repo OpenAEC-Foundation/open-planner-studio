@@ -55,10 +55,26 @@ uitgeschakelde code weglaat:
 | `DEMO_START_EXAMPLE` | geen voorbeeldplanning bij de start (#310) | de tool start met een leeg document |
 | `EXTENSIONS_ENABLED` | geen catalogus, installatie, extensie-ribbon, importers of tutorialaanbod (#311) | een extensie draait zonder afscherming met de rechten van de ingelogde gebruiker |
 | `AI_MODE_AVAILABLE` | geen AI-modus, geen AI-tabblad, geen `ops-mcpToken` | de koppeling werkt alleen in de desktop-app, en het token zou leesbaar zijn voor elke tool op de origin |
+| `DOWNLOAD_STATS_AVAILABLE` | geen downloadcijfers in Instellingen → Geavanceerd (#818) | de cijfers komen van GitHub, en de werkplek van de SuperCloud laat geen netwerk buiten de bundel toe |
 
 `tests/browser/platform-build.spec.ts` bouwt één keer met `--base /tools/planner/`, serveert alleen dat
 subpad en toetst: het manifest, de paden in `index.html`, geen catalogus-URL in de JS, icoon, help en
 voorbeelden laden, de tool start leeg, en extensies en AI-modus ontbreken.
+
+Het laatste scenario in die spec is de controle uit #818, een benadering van de werkplek van de SuperCloud.
+Een ouderpagina (`/werkplek.html`) laadt de bundel in een frame met `sandbox="allow-scripts allow-modals"`.
+Het document in dat frame krijgt een strikte CSP (`default-src 'self'; script-src 'self'`, inline stijlen
+toegestaan) en de bestanden `Access-Control-Allow-Origin: *`. Vóór de start staan in het frame een nep-opslag
+in het geheugen en een nep-`window.openaecHost` in de platte vorm. Het scenario toetst met echte toetsen en
+klikken: het startbestand opent, taal en thema van de host, Ctrl+S (`{ id, expectedVersion }` met een getal),
+Opslaan als (`{ name }`), een instelling bij `settings.set`, nivelleren, en `window.__OPDS_APP__`
+(`definitions()` gelijk aan `mcp-tools.json`, een leestool, `niet_in_browser` voor `planner_export_ifc`).
+Over de hele route: geen consolefout, geen CSP-schending, geen verzoek buiten de bundel. De echte CSP en
+sandbox van de SuperCloud kunnen strenger zijn; zie knownbugs 866, 867 en 869.
+
+In zo'n frame weigert de browser een worker van de bundel al in de constructor (opaque origin). Nivelleren
+valt dan terug op de hoofdthread (`src/services/leveling/backgroundLeveling.ts`); het snapshot voor
+crashherstel deed dat al, en crashherstel staat daar toch uit (geen IndexedDB).
 
 ## Inbedden in een pagina van de site
 
