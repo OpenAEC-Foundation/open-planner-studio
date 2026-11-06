@@ -1699,6 +1699,13 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
 
+859. **VERVOLG: de browsertest van het muiswiel in het lint mist twee routes.**
+     `tests/browser/ribbon-toggles.spec.ts:71` test na het uitzetten van de instelling alleen boven de tabrij,
+     niet boven de lintknoppen. Ook een wielbeweging in een geopende, scrollbare keuzelijst wordt niet getest.
+     Een regressie op die plekken blijft zo onopgemerkt. Voorstel: beide handelingen toevoegen aan het
+     bestaande scenario. Alleen testdekking, geen fout gezien. Uit de review van #823, ronde 2
+     (GPT-6.1-Sol, xhigh, op `211c9aafd`, VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
