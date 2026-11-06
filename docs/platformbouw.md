@@ -187,20 +187,26 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
   - `niet_in_browser: <tool>`: `planner_export_ifc` en `planner_import_schedule` werken op een bestandssysteem. Ze staan
     niet in `definitions()` en worden geweigerd, ook als stap van `planner_batch` (dan draait de hele batch niet).
     Openen en opslaan lopen via het hostcontract, door de gebruiker.
-  - `te_groot: …`: een leestool met paginering (`limit` en `offset`: nu `planner_list_tasks`, `planner_list_resources`
-    en `planner_inspect_xer_provenance`) die meer dan 30.000 tekens zou geven. De melding noemt de parameters waarmee
-    de assistent kleiner vraagt. Tools zonder paginering en wijzigende tools krijgen geen grens.
+  - `te_groot: …`: een leestool die meer dan 30.000 tekens zou geven. De melding noemt een uitweg die werkt:
+    `limit` en `offset` (ook optioneel op `planner_get_critical_path`, `planner_compare_baseline` en
+    `planner_analyze_delay`), één `part` van `planner_get_planning_guide` (de standaardwaarde `both` is te groot),
+    `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
+- **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
+  al gedaan. Een te groot antwoord wordt ingekort tot het past. Bij een batch gaan eerst `substeps` weg, dan de uitvoer
+  van leesstappen (per stap zegt `dataOmitted` hoe de assistent hem volledig opvraagt), dan grote velden en zo nodig
+  alle stapuitvoer; de status per stap blijft. `compacted` bovenaan zegt wat er wegviel.
 - **Laden.** De dispatcher, de toolregistry en `server.ts` worden pas bij de eerste aanroep via `import()` opgehaald.
   Een aparte chunk is het nog niet: `App.tsx` (via `useAiAutostart`), de instellingen, het AI-tabblad van het lint en
   `AiConnectionDetailsDialog` importeren `server.ts` of de toolregistry statisch, ook in de platformbouw. De MCP-laag
-  zit dus in de hoofdbundel (knownbugs 850).
+  zit dus in de hoofdbundel (knownbugs 850). Een browsertest die `__OPDS_APP__` in een sandbox-frame aanroept, ontbreekt
+  nog (knownbugs 852).
 
 `npm run build:platform` schrijft de definities ook naar `dist-platform/mcp-tools.json`, naast de bundel, zodat de site ze
 kan controleren. Dat doet `scripts/export-mcp-tools.ts` met `siteAppToolsJson`, dezelfde pure functie als
 `definitions()`; los aan te roepen met `node scripts/run-ts.mjs scripts/export-mcp-tools.ts <bestand>`.
 
 Toetsen: `tests/mcp/cases-site-app-tools.ts` (via `installSiteAppTools` op een nepvenster: guards, documentanker,
-bestandstools direct en in `planner_batch`, foutcodes, grootte-grens, `mcp-tools.json`) en
+bestandstools direct en in `planner_batch`, foutcodes, grootte-grens en inkorten, `mcp-tools.json`) en
 `tests/browser/platform-build.spec.ts` (het bestand ligt naast de bundel).
 
 ## Zelf proberen
