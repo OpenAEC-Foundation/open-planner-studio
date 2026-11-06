@@ -154,7 +154,8 @@ test('voorinstelling Dag sleept per hele dag en Uur per uur', async ({ page, ops
   ] as const) {
     if (pixels === 1000 / 96) await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableQuarterHourZoom: true }));
     await scale.click();
-    await page.getByRole('button', { name: preset, exact: true }).click();
+    // De trigger heeft bij herhaald kiezen dezelfde naam als de optie; alleen de trigger heeft een pijlicoon.
+    await page.getByRole('button', { name: preset, exact: true }).filter({ hasNot: page.locator('[data-icon="ui.dropdown"]') }).click();
     await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(zoom);
     await paintedAfter(page, () => page.evaluate(taskId => {
       const s = window.__OPS__!.store.getState();
