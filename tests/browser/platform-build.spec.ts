@@ -136,6 +136,15 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   const refs = [...html.matchAll(/\s(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
   expect(refs.length).toBeGreaterThan(0);
   for (const ref of refs) expect(ref, `pad in index.html: ${ref}`).toMatch(/^\/tools\/planner\//);
+  // Geen inline script (#818: de CSP van de SuperCloud laat alleen de eigen bundel toe). Het pre-paint-script
+  // staat als klassiek script onder het basispad en is meegekopieerd.
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+  for (const [, attrs, body] of scripts) {
+    expect(attrs, 'elk script heeft een src').toMatch(/\ssrc="/);
+    expect(body.trim(), 'geen inline code').toBe('');
+  }
+  expect(html).toMatch(new RegExp(`<script src="${BASE}theme-prepaint\\.js"></script>`));
+  expect(existsSync(join(OUT_DIR, 'theme-prepaint.js'))).toBe(true);
 
   // Extensies uit (#311): de catalogus-URL zit nergens in de JS.
   const jsFiles = listFiles(OUT_DIR).filter((f) => f.endsWith('.js'));
