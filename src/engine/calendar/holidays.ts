@@ -10,11 +10,11 @@
 import type { Holiday } from '@/types/calendar';
 import { addCalendarDays, formatDate, isoDayOfWeek } from '@/utils/dateUtils';
 
-export type HolidayCountry = 'NL' | 'DE' | 'BE' | 'FR' | 'UK' | 'AT' | 'CH';
+export type HolidayCountry = 'NL' | 'DE' | 'BE' | 'FR' | 'UK' | 'AT' | 'CH' | 'US';
 
 export type HolidayRule =
   | { kind: 'fixed'; month: number; day: number; days?: number;
-      substitute?: 'nl-kingsday' | 'uk-monday' }
+      substitute?: 'nl-kingsday' | 'uk-monday' | 'us-federal' }
   | { kind: 'easter'; offset: number; days?: number }
   | { kind: 'nth-weekday'; month: number; weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       nth: 1 | 2 | 3 | 4 | 'last' }
@@ -30,6 +30,8 @@ export interface HolidayDef {
   optional?: boolean;
   /** Alleen genereren in lustrumjaren (jaar % 5 === 0) — NL Bevrijdingsdag. */
   lustrumOnly?: boolean;
+  /** Alleen genereren vanaf dit jaar (de feestdag bestaat pas sinds dan) — US Juneteenth (2021). */
+  fromYear?: number;
 }
 
 export interface HolidaySet {
@@ -101,6 +103,13 @@ function materialize(def: HolidayDef, y: number): Holiday | null {
         // Weekend → eerstvolgende maandag (New Year / Christmas Day, single-day).
         if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, 2);
         else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
+      } else if (r.substitute === 'us-federal') {
+        // Federale regel (5 U.S.C. § 6103): zaterdag → vrijdag ervoor, zondag → maandag erna.
+        if (isoDayOfWeek(d) === 6) d = addCalendarDays(d, -1);
+        else if (isoDayOfWeek(d) === 7) d = addCalendarDays(d, 1);
+        // 1 januari op zaterdag valt op 31 december van het jaar ervoor; `generateHolidays` zet die
+        // daar neer (`usNewYearObservedEve`), dus hier geen dubbele dag in het verkeerde jaar.
+        if (d.getUTCFullYear() !== y) return null;
       }
       return range(def.name, d, r.days ?? 1);
     }
@@ -128,6 +137,15 @@ function ukChristmasBoxing(y: number): Holiday[] {
   return [oneDay('Christmas Day', xmas), oneDay('Boxing Day', boxing)];
 }
 
+/**
+ * US New Year's Day op zaterdag 1 januari van `y + 1`: de federale vrije dag is dan vrijdag
+ * 31 december van `y`. Hoort bij jaar `y`, want dat jaar bevat de dag.
+ */
+function usNewYearObservedEve(y: number): Holiday[] {
+  if (isoDayOfWeek(utc(y + 1, 1, 1)) !== 6) return [];
+  return [oneDay("New Year's Day", utc(y, 12, 31))];
+}
+
 /** Expandeer een set naar concrete Holiday[] voor [fromYear..toYear] (inclusief). */
 export function generateHolidays(
   set: HolidaySet, region: string | undefined, fromYear: number, toYear: number,
@@ -139,10 +157,12 @@ export function generateHolidays(
         if (!region || !def.regions.includes(region)) continue;
       }
       if (def.lustrumOnly && y % 5 !== 0) continue;
+      if (def.fromYear !== undefined && y < def.fromYear) continue;
       const h = materialize(def, y);
       if (h) out.push(h);
     }
     if (set.country === 'UK') out.push(...ukChristmasBoxing(y));
+    if (set.country === 'US') out.push(...usNewYearObservedEve(y));
   }
   return out;
 }
@@ -293,9 +313,30 @@ export const CH_SET: HolidaySet = {
   ],
 };
 
+export const US_SET: HolidaySet = {
+  // De 11 federale feestdagen (5 U.S.C. § 6103). Staatsfeestdagen verschillen sterk per staat en
+  // zitten er bewust niet in; Inauguration Day (20 januari, elke 4 jaar, alleen regio Washington DC)
+  // ook niet. Vaste datums volgen de federale regel: zaterdag → vrijdag, zondag → maandag.
+  country: 'US',
+  defs: [
+    { id: 'us-new-year', name: "New Year's Day", rule: { kind: 'fixed', month: 1, day: 1, substitute: 'us-federal' } },
+    { id: 'us-mlk', name: 'Martin Luther King Jr. Day', rule: { kind: 'nth-weekday', month: 1, weekday: 1, nth: 3 } },
+    { id: 'us-presidents', name: "Washington's Birthday (Presidents' Day)", rule: { kind: 'nth-weekday', month: 2, weekday: 1, nth: 3 } },
+    { id: 'us-memorial', name: 'Memorial Day', rule: { kind: 'nth-weekday', month: 5, weekday: 1, nth: 'last' } },
+    // Juneteenth is federale feestdag sinds de wet van 17 juni 2021.
+    { id: 'us-juneteenth', name: 'Juneteenth', rule: { kind: 'fixed', month: 6, day: 19, substitute: 'us-federal' }, fromYear: 2021 },
+    { id: 'us-independence', name: 'Independence Day', rule: { kind: 'fixed', month: 7, day: 4, substitute: 'us-federal' } },
+    { id: 'us-labor', name: 'Labor Day', rule: { kind: 'nth-weekday', month: 9, weekday: 1, nth: 1 } },
+    { id: 'us-columbus', name: 'Columbus Day', rule: { kind: 'nth-weekday', month: 10, weekday: 1, nth: 2 } },
+    { id: 'us-veterans', name: 'Veterans Day', rule: { kind: 'fixed', month: 11, day: 11, substitute: 'us-federal' } },
+    { id: 'us-thanksgiving', name: 'Thanksgiving Day', rule: { kind: 'nth-weekday', month: 11, weekday: 4, nth: 4 } },
+    { id: 'us-christmas', name: 'Christmas Day', rule: { kind: 'fixed', month: 12, day: 25, substitute: 'us-federal' } },
+  ],
+};
+
 /** Alle landensets, geïndexeerd op land-code (voor de wizard/dialoog). */
 export const HOLIDAY_SETS: Record<HolidayCountry, HolidaySet> = {
-  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET,
+  NL: NL_SET, DE: DE_SET, BE: BE_SET, FR: FR_SET, UK: UK_SET, AT: AT_SET, CH: CH_SET, US: US_SET,
 };
 
 // ── Bouwvak-datatabel (opt-in, default GEEN) ──────────────────────────────────────────────────
