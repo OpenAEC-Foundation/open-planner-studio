@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 // laadt daarna de actieve taal-chunk vóór de eerste paint (geen Engelse flits).
 import { initLocale } from './i18n/config';
 import { appLog } from '@/services/debug/appLog';
+import { hydrateSiteHostSettings } from '@/services/fileAccess/siteHostSettings';
 import App from './App';
 
 // OpenAEC stylebook fonts (self-hosted via @fontsource, bundled with app for offline use)
@@ -50,7 +51,11 @@ if (iconSheet === 'status' || iconSheet === 'dock') {
 
 // Wacht tot de actieve taal geladen is voordat we renderen (voorkomt een Engelse flits).
 // Faalt de taal-load, dan valt i18next terug op de eager 'en'-resources en renderen we alsnog.
-initLocale()
+// Daarvóór (#818): ingebed met `settings` van de host de bewaarde `ops-`-instellingen in localStorage
+// zetten, zodat taal en instellingen een herlaad van het frame overleven. Wacht hoogstens even en
+// geeft nooit een fout; zonder host direct klaar.
+hydrateSiteHostSettings()
+  .then(() => initLocale())
   .catch(() => { /* taal-load faalde → en-fallback; toch renderen */ })
   .finally(() => {
     ReactDOM.createRoot(document.getElementById('root')!).render(

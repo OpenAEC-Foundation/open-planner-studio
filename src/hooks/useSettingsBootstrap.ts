@@ -8,6 +8,7 @@ import type { RecoveryState } from './useRecoveryRestore';
 import { bootstrapTaskGridPreferences } from '@/state/taskGridBootstrap';
 import { runsEmbedded } from '@/services/fileAccess/siteHost';
 import { appLog } from '@/services/debug/appLog';
+import { useSiteHostPreferences } from './useSiteHostPreferences';
 
 // Geen welkomstvenster (en dus geen taalvraag en geen rondleiding) als de tool ingebed draait (#716:
 // een host of de platformbouw), of als hij niet kan onthouden dat het al gezien is: zonder
@@ -23,6 +24,8 @@ const logWelcomeCheck = (outcome: string) => appLog.emit('event', 'welkomst', `w
 // welkomstdialoog. De welkomstcheck hangt af van de recovery-flow (zie hieronder).
 export function useSettingsBootstrap(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const setUI = useAppStore(s => s.setUI);
+  // Ingebed (#818): taal en thema van de host live volgen, en instellingen van een late host toepassen.
+  useSiteHostPreferences(setUI);
 
   useEffect(() => {
     // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan

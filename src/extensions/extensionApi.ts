@@ -15,6 +15,7 @@ import type { ExtImportResult, ExtFontProvider } from './extTypes';
 import type { AppStoreContext } from '@/state/appStore';
 import type { ImportLabels } from '@/services/importTypes';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 import { isSelfOrDescendant } from '@/state/taskTree';
 import { registerCjkFontProvider } from '@/services/pdf/fontRegistry';
 import {
@@ -361,6 +362,7 @@ export function createExtensionApi(
       },
       set<T>(key: string, value: T) {
         localStorage.setItem(settingsPrefix + key, JSON.stringify(value));
+        noteSiteHostSettingChanged(settingsPrefix + key); // ingebed ook bij de host bewaren (#818)
       },
     },
 

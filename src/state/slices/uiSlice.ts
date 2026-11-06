@@ -91,7 +91,7 @@ export function createDefaultUI(): UIState {
     showUpdateDialog: false,
     justUpdated: null,
     // Synchroon uit localStorage, zodat de default nooit afwijkt van wat het
-    // pre-paint-script in index.html al op <html> zette (headless valt peekTheme terug op 'dark').
+    // pre-paint-script (public/theme-prepaint.js) al op <html> zette (headless valt peekTheme terug op 'dark').
     uiTheme: peekTheme(),
     // Systeemkleurschema bij het bouwen van de store — synchroon, om dezelfde reden als hierboven:
     // bij voorkeur 'system' moet de eerste React-commit meteen het juiste thema kiezen. De

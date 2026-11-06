@@ -6,44 +6,10 @@
     <title>Open Planner Studio</title>
     <!-- Het goedgekeurde app-logo dient ook als favicon (scripts/generate-approved-icons.py). -->
     <link rel="icon" type="image/png" href="/icon.png" />
-    <script>
-      // Anti-thema-flits (issue #61): zet het opgeslagen thema op <html> vóór de eerste paint,
-      // als `data-theme` én `data-oa-theme` (OpenAEC-tokens 0.4).
-      // Zonder dit valt de eerste paint op de :root-default (dark) en klapt de app pas ná de
-      // React-mount (App.tsx → data-theme-effect) naar het gekozen thema — een zichtbare flits bij
-      // Light. Dit script is bewust een minimale spiegel van `initTheme()`
-      // (src/utils/settingsStore.ts): dezelfde sleutel (`ops-theme`), dezelfde 7→3-legacy-mapping,
-      // dezelfde default 'dark'. `initTheme()` blijft de bron van waarheid en persisteert de
-      // migratie daarna alsnog; App.tsx zet het attribuut opnieuw (idempotent).
-      // De 'system'-voorkeur wordt hier net zo opgelost als in `resolveUITheme`
-      // (src/utils/theme.ts): prefers-color-scheme → 'dark' of 'light'. Zonder dat zou juist de
-      // systeemvolger de flits terugkrijgen die dit script wegneemt.
-      (function () {
-        var theme = 'dark';
-        try {
-          var map = {
-            'default': 'dark', 'light': 'light', 'dark': 'dark', 'blue': 'dark',
-            'amber-navy': 'dark', 'warm-ember': 'dark',
-            'highContrast': 'high-contrast', 'high-contrast': 'high-contrast',
-            'system': 'system',
-          };
-          var saved = localStorage.getItem('ops-theme');
-          if (saved && Object.prototype.hasOwnProperty.call(map, saved)) theme = map[saved];
-          if (theme === 'system') {
-            var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            theme = dark ? 'dark' : 'light';
-          }
-        } catch (_e) { /* localStorage geblokkeerd ⇒ default dark, net als initTheme() */ }
-        // Alleen bereikbaar als matchMedia ontbreekt of gooit; 'light' spiegelt exact wat
-        // `resolveUITheme('system', false)` in TS doet, zodat er ook dán geen flits ontstaat.
-        if (theme === 'system') theme = 'light';
-        // Spiegel van `OA_THEME_FOR` (src/utils/theme.ts): de brugblokken in globals.css hangen aan
-        // `data-oa-theme`, dus zonder dit attribuut flitst licht alsnog donker.
-        var oaTheme = { 'dark': 'dark', 'light': 'light', 'high-contrast': 'high-contrast-dark' };
-        document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.setAttribute('data-oa-theme', oaTheme[theme] || 'dark');
-      })();
-    </script>
+    <!-- Anti-thema-flits (#61): een klassiek, blokkerend script vóór de eerste paint. Bewust geen inline
+         script (#818: de CSP van de SuperCloud laat alleen de eigen bundel toe); de uitleg staat in het
+         script zelf. Vite zet het pad op de `base` van de bouw, net als het icoon. -->
+    <script src="/theme-prepaint.js"></script>
   </head>
   <body class="bg-surface text-text-primary">
     <div id="root"></div>
