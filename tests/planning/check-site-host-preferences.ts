@@ -6,15 +6,17 @@
 //   B. `siteHostSettings`: alleen een object met `get`, `set` en `delete`.
 //   C. De taalkeuze ingebed (`embeddedLocale`): een regiocode valt terug, een onbekende taal telt niet.
 //   K. De sleutellijst: elke `ops-`-sleutel die de app schrijft of wist, staat in `HOST_PERSISTED_KEYS`
-//      of is bewust uitgesloten; elk register-item staat erin.
+//      of is bewust uitgesloten; elk register-item staat erin. De scanner ziet ook hernoemde en
+//      namespace-imports van de helpers (K8).
 //   S. Volgorde bij de start (review #827, punt 1): de statische imports van `main.tsx` bereiken de store
 //      niet, en een store die ná het hydrateren ontstaat, maakt de startkalender volgens de bouwmodus van
 //      de host.
 //   D. `createHostSettingsSync`: één hostsleutel per `ops-`-sleutel, bundelen, wissen met `delete`, geen
 //      schrijfactie zonder wijziging, opnieuw proberen na een fout van de host, en de scenario's uit de
-//      review: een fout bij lezen, valideren of neerzetten wordt nooit een wisactie (punt 3), een trage
-//      host verliest de kolomindeling niet aan een startwrite (punt 2, met de echte taakgridbootstrap) en
-//      twee frames draaien elkaars wijzigingen niet terug (punt 5).
+//      review: een fout bij lezen, valideren of neerzetten wordt nooit een wisactie (punt 3) en twee
+//      frames draaien elkaars wijzigingen niet terug (punt 5). Ronde 3: alleen lezen bij de start. Een
+//      trage host binnen de grens laadt; een host boven de grens, ook als hij later alsnog antwoordt,
+//      krijgt deze sessie geen enkele `set`/`delete`; net zo na een fout of een host die pas later kwam.
 //   E. De echte keten: `writeLocal`/`removeLocal` → host, en `initTheme`/`peekTheme` met het thema van
 //      de host zonder `ops-theme` te schrijven.
 //
@@ -39,13 +41,6 @@ const win: AnyRecord = {
 };
 win.parent = win;
 g.window = win;
-/** Genoeg van `StorageEvent` voor `siteHostSettings.ts` en de luisteraars. */
-g.StorageEvent = class {
-  readonly type: string; readonly key: string | null; readonly oldValue: string | null; readonly newValue: string | null;
-  constructor(type: string, init: { key?: string; oldValue?: string | null; newValue?: string | null }) {
-    this.type = type; this.key = init.key ?? null; this.oldValue = init.oldValue ?? null; this.newValue = init.newValue ?? null;
-  }
-};
 g.document = {
   documentElement: { dir: 'ltr', lang: 'en', setAttribute: () => undefined },
   addEventListener: () => undefined,
@@ -71,7 +66,6 @@ Object.defineProperty(g, 'localStorage', { configurable: true, writable: true, v
 const { siteHostTheme, siteHostSettings } = await import('@/services/fileAccess/siteHostPreferences');
 const {
   createHostSettingsSync, isHostPersistedKey, FLUSH_DELAY_MS, hydrateSiteHostSettings, flushSiteHostSettings,
-  onSiteHostSettingsHydrated,
 } = await import('@/services/fileAccess/siteHostSettings');
 const { HOST_PERSISTED_KEYS, HOST_EXCLUDED_KEYS, HOST_EXCLUDED_PREFIXES } = await import('@/services/fileAccess/siteHostSettingKeys');
 const { embeddedLocale } = await import('@/i18n/config');
@@ -290,10 +284,32 @@ eq('C4 zonder host geen taal van de host', embeddedLocale(), null);
     "  new Map().clear();",
     "}",
   ].join('\n'));
-  const found = findSettingWrites(fixture).map(site => `${site.line}:${site.key ?? '?'}`);
+  // VERVOLG 4 (review #827 ronde 2): hernoemde imports en namespace-imports, via `valueBindings()`.
+  fs.writeFileSync(path.join(fixture, 'src', 'b.ts'), [
+    "import { writeLocal as persist, removeLocal as wis } from '@/utils/settingsStore';",
+    "import * as settings from '@/utils/settingsStore';",
+    "import { HOST_KEY as K } from './c';",
+    "export function g(): void {",
+    "  persist('ops-hernoemd', '1');",
+    "  wis('ops-hernoemd-wis');",
+    "  settings.writeLocal('ops-namespace', '1');",
+    "  settings['setSetting']('ns-haak', 1);",
+    "  persist(K, '1');",
+    "  const p = persist; p('ops-x', '1');",
+    "  const q = settings.removeLocal; q('ops-y');",
+    "  settings.other('ops-geen');",
+    "}",
+  ].join('\n'));
+  fs.writeFileSync(path.join(fixture, 'src', 'c.ts'), "export const HOST_KEY = 'ops-uit-import';\n");
+  const all = findSettingWrites(fixture);
+  const found = all.filter(site => site.file === 'src/a.ts').map(site => `${site.line}:${site.key ?? '?'}`);
+  const foundB = all.filter(site => site.file !== 'src/a.ts').map(site => `${site.file}:${site.line}:${site.key ?? '?'}`);
   fs.rmSync(fixture, { recursive: true, force: true });
   eq('K7 de scanner vindt elke vorm, en negeert sessionStorage en Map.clear', found,
     ['4:ops-spatie', '5:ops-haak', '6:ops-alias', '7:ops-const', '8:ops-nieuw', '9:?', '10:?', '11:?']);
+  eq('K8 hernoemde en namespace-imports van de helpers', foundB, [
+    'src/b.ts:5:ops-hernoemd', 'src/b.ts:6:ops-hernoemd-wis', 'src/b.ts:7:ops-namespace', 'src/b.ts:8:ops-ns-haak',
+    'src/b.ts:9:ops-uit-import', 'src/b.ts:10:?', 'src/b.ts:11:?']);
 }
 
 // ── D. Synchronisatie met nephost en neptimers ─────────────────────────────────────────────────────
@@ -319,10 +335,10 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
     }
     await settle();
   };
-  /** Een schrijfactie zoals `writeLocal`: lokaal schrijven en melden (standaard van de gebruiker). */
-  const write = (key: string, value: string | null, origin: 'user' | 'start' = 'user') => {
+  /** Een schrijfactie zoals `writeLocal`: lokaal schrijven en melden. */
+  const write = (key: string, value: string | null) => {
     if (value === null) storage!.removeItem(key); else storage!.setItem(key, value);
-    sync.noteChanged(key, origin);
+    sync.noteChanged(key);
   };
   return { sync, timers, warnings, storage: storage!, run, write, setHost: (h: SiteHostSettings | null) => { host = h; } };
 }
@@ -332,6 +348,7 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
   eq('D1 geen host ⇒ geen-host', await h.sync.hydrate(), 'geen-host');
   h.write('ops-theme', 'light');
   eq('D1 geen host ⇒ geen timer na een wijziging', h.timers.length, 0);
+  eq('D1 geen host ⇒ geen melding nodig', h.sync.unavailable(), false);
 }
 
 {
@@ -390,6 +407,7 @@ for (const [label, opts] of [['weigert', { failGet: true }], ['gooit meteen', { 
   await h.run(FLUSH_DELAY_MS);
   await h.sync.flush();
   eq(`D10 get ${label} ⇒ nooit een schrijfactie`, host.writes(), []);
+  eq(`D10 get ${label} ⇒ de app meldt het`, h.sync.unavailable(), true);
 }
 for (const bad of [{ kapot: true }, 42, ['x']]) {
   const host = fakeHost({ 'ops-theme': 'light', 'ops-showFloatBand': bad });
@@ -455,87 +473,77 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     { 'ops-showFloatBand': 'true', 'ops-theme': 'light' });
 }
 
-// Punt 2 (ronde 1 en 2) en punt 1 (ronde 2), op de ECHTE module-instantie en via de echte schrijfroutes:
-// - D16: de standaardindeling van de taakgridbootstrap is een start-write; de late host wint ervan.
-// - D17: een gewone schrijfactie tijdens de lezing (een klik op Spelingsband) wint van de late host en
-//   gaat daarna naar de host.
-// - D18: de modulecache van de persoonlijke werksoorten ververst na de late lezing, zodat een nieuwe
-//   werksoort de bewaarde niet wist.
+// Ronde 3: lezen alleen bij de start, met een grens. De time-out van de harness is een neptimer: de
+// test laat hem pas aflopen met `run(1000)`.
 {
-  const { useAppStore } = await import('@/state/appStore');
-  const { bootstrapTaskGridPreferences } = await import('@/state/taskGridBootstrap');
-  const { saveShowFloatBand } = await import('@/utils/settingsStore');
-  const { getPersonalTaskTypes, addPersonalTaskType } = await import('@/services/taskTypes/personalTaskTypes');
-  // Een geldige, bewaarde indeling die van de standaard afwijkt.
-  setHosts();
-  browserStorage.removeItem('ops-taskGridPreferences');
-  await bootstrapTaskGridPreferences(useAppStore);
-  const saved = JSON.parse(browserStorage.getItem('ops-taskGridPreferences')!) as { surfaces: Record<string, { columns: { id: string }[] }> };
-  saved.surfaces['full-task-grid'].columns.reverse();
-  const savedText = JSON.stringify(saved);
-  const savedFirst = saved.surfaces['full-task-grid'].columns[0].id;
-  const kept = JSON.stringify([{ id: 'bewaard', name: 'Bewaard type' }]);
-
-  // Het frame herlaadt: lokaal is alles weg; de host heeft de indeling, Spelingsband aan en een
-  // bewaarde werksoort, en antwoordt traag.
-  browserStorage.clear();
-  const slow = fakeHost({ 'ops-taskGridPreferences': savedText, 'ops-showFloatBand': 'true', 'ops-personalTaskTypes': kept }, { hold: true });
-  setHosts({ settings: slow.settings });
-  let heard = 0;
-  const off = onSiteHostSettingsHydrated(() => { heard++; });
-  eq('D16 time-out bij de start', await hydrateSiteHostSettings(50), 'time-out');
-  eq('D16 de echte bootstrap migreert naar de standaard (een start-write)', await bootstrapTaskGridPreferences(useAppStore), 'migrated');
-  eq('D18 de werksoorten worden geladen vóór de host antwoordt', getPersonalTaskTypes(), []);
-  await saveShowFloatBand(false); // wat een klik op Spelingsband doet
-  await new Promise(resolve => setTimeout(resolve, FLUSH_DELAY_MS + 50));
-  eq('D16 zolang de lezing loopt: niets naar de host', slow.writes(), []);
-
-  slow.release();
+  // D16: een trage host binnen de grens. De start wacht, en laadt daarna gewoon.
+  const host = fakeHost({ 'ops-a': 'host', 'ops-showFloatBand': 'true' }, { hold: true });
+  const h = harness({ host: host.settings });
+  let done = false;
+  const pending = h.sync.hydrate(1000).then(outcome => { done = true; return outcome; });
   await settle();
-  await new Promise(resolve => setTimeout(resolve, FLUSH_DELAY_MS + 50));
-  await settle();
-  off();
-  eq('D16 de late lezing wint van de startwrite', browserStorage.getItem('ops-taskGridPreferences'), savedText);
-  eq('D17 de klik wint van de late host', browserStorage.getItem('ops-showFloatBand'), 'false');
-  eq('D16/D17 naar de host gaat alleen de klik', slow.writes(), [{ fn: 'set', key: 'ops-showFloatBand', value: 'false' }]);
-  eq('D16 de luisteraar hoort de late lezing', heard, 1);
-  eq('D16 opnieuw bootstrappen geeft de bewaarde indeling', await bootstrapTaskGridPreferences(useAppStore), 'valid');
-  const firstColumn = (useAppStore.getState().taskGridSurfaces as unknown as Record<string, { columns: { id: string }[] }>)['full-task-grid'].columns[0].id;
-  eq('D16 eerste kolom is die van de host', firstColumn, savedFirst);
-  eq('D18 na de late lezing kent de cache de bewaarde werksoort', getPersonalTaskTypes().map(t => t.name), ['Bewaard type']);
-  addPersonalTaskType('Nieuw type');
-  await new Promise(resolve => setTimeout(resolve, FLUSH_DELAY_MS + 50));
-  await settle();
-  eq('D18 een nieuwe werksoort wist de bewaarde niet, ook niet bij de host',
-    (JSON.parse(String(slow.stored()['ops-personalTaskTypes'])) as { name: string }[]).map(t => t.name).sort(), ['Bewaard type', 'Nieuw type']);
+  check('D16 de start wacht op de host', !done);
+  host.release();
+  eq('D16 binnen de grens ⇒ geladen', await pending, 'geladen');
+  eq('D16 de waarden van de host staan lokaal', h.storage.snapshot(), { 'ops-a': 'host', 'ops-showFloatBand': 'true' });
+  eq('D16 de time-out is opgeruimd', h.timers.filter(t => t.ms === 1000).length, 0);
+  h.write('ops-showFloatBand', 'false');
+  await h.run(FLUSH_DELAY_MS);
+  eq('D16 daarna gaat een wijziging naar de host', host.writes(), [{ fn: 'set', key: 'ops-showFloatBand', value: 'false' }]);
+  eq('D16 geen melding', h.sync.unavailable(), false);
 }
-
-// Punt 2 (ronde 2) in de losse synchronisatie: start-writes verliezen, gebruikerswrites winnen, ook wissen.
 {
-  const host = fakeHost({ 'ops-a': 'host', 'ops-b': 'host', 'ops-c': 'host' }, { hold: true });
+  // D17: een host boven de grens die daarna alsnog antwoordt. Geen enkele set/delete, en de keuzes van
+  // de sessie blijven staan.
+  const host = fakeHost({ 'ops-a': 'host', 'ops-b': 'host', 'ops-theme': 'dark' }, { hold: true });
   const h = harness({ host: host.settings });
   const pending = h.sync.hydrate(1000);
   await settle();
   await h.run(1000);
-  eq('D19 time-out', await pending, 'time-out');
-  h.write('ops-a', 'start', 'start');
-  h.write('ops-b', 'klik');
-  h.write('ops-c', null); // de gebruiker wist
-  h.write('ops-theme', 'start', 'start'); // de host heeft hem niet
+  eq('D17 boven de grens ⇒ time-out', await pending, 'time-out');
+  eq('D17 de app meldt het', h.sync.unavailable(), true);
+  h.write('ops-a', 'sessie');
+  h.write('ops-b', null);
+  h.write('ops-theme', 'light');
+  h.write('ops-c', 'nieuw');
   host.release();
   await settle();
   await h.run(FLUSH_DELAY_MS);
-  eq('D19 start verliest, de gebruiker wint (ook wissen)', h.storage.snapshot(), { 'ops-a': 'host', 'ops-b': 'klik', 'ops-theme': 'start' });
-  eq('D19 naar de host: de klik, de wisactie en de sleutel die de host niet had',
-    [...host.writes()].sort((x, y) => x.key.localeCompare(y.key)),
-    [{ fn: 'set', key: 'ops-b', value: 'klik' }, { fn: 'delete', key: 'ops-c' }, { fn: 'set', key: 'ops-theme', value: 'start' }]);
+  await h.sync.flush();
+  eq('D17 het late antwoord zet niets neer', h.storage.snapshot(), { 'ops-a': 'sessie', 'ops-c': 'nieuw', 'ops-theme': 'light' });
+  eq('D17 geen enkele set/delete naar de host', host.writes(), []);
+  eq('D17 geen bundeltimer', h.timers.length, 0);
+  eq('D17 een tweede hydrate leest niet opnieuw', [await h.sync.hydrate(1000), host.calls.filter(c => c.fn === 'get').length], ['fout', 6]);
+}
+{
+  // D18: een host die pas na de start kwam (`openaec-host-ready`): niets bewaren, wel melden.
+  const host = fakeHost({ 'ops-a': 'host' });
+  const h = harness();
+  eq('D18 bij de start nog geen host', await h.sync.hydrate(), 'geen-host');
+  h.setHost(host.settings);
+  h.sync.disable('later');
+  eq('D18 de app meldt het', h.sync.unavailable(), true);
+  h.write('ops-a', 'sessie');
+  await h.sync.flush();
+  eq('D18 geen lezing en geen schrijfactie', host.calls, []);
+}
+{
+  // D19: `disable` na een geslaagde lezing doet niets (een tweede ready-event van dezelfde host).
+  const host = fakeHost({});
+  const h = harness({ host: host.settings });
+  eq('D19 geladen', await h.sync.hydrate(), 'geladen');
+  h.sync.disable('later');
+  eq('D19 geen melding', h.sync.unavailable(), false);
+  h.write('ops-a', 'x');
+  await h.run(FLUSH_DELAY_MS);
+  eq('D19 bewaren blijft aan', host.writes(), [{ fn: 'set', key: 'ops-a', value: 'x' }]);
 }
 
 // ── E. De echte keten: writeLocal/removeLocal → de host uit S1 ─────────────────────────────────────
 {
   setHosts({ thema: 'light', settings: s1Host.settings });
-  // De echte instantie hoort nu bij de trage host van D16; lees de host van S1 opnieuw.
-  eq('E0 opnieuw hydrateren voor de host van S1', await hydrateSiteHostSettings(200), 'geladen');
+  // De echte instantie las de host van S1 bij de start; een tweede lezing doet niets.
+  eq('E0 een tweede hydrate leest niet opnieuw', await hydrateSiteHostSettings(200), 'al-geladen');
   await new Promise(resolve => setTimeout(resolve, FLUSH_DELAY_MS + 50));
   await settle();
   const before = s1Host.writes().length;

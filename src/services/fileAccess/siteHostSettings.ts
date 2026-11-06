@@ -12,37 +12,38 @@
  * heeft geen `list`; de tool vraagt bij de start de vaste lijst `HOST_PERSISTED_KEYS` op
  * (`siteHostSettingKeys.ts`, bewaakt door `check-site-host-preferences.ts`).
  *
- * 1. **Bij de start** (`hydrateSiteHostSettings`, in `main.tsx` vóór de store en `initLocale`): één
- *    `get` per sleutel. Een waarde moet tekst zijn (of `null`/`undefined`: niet bewaard). Alles goed?
- *    Dan zet de tool de waarden in `localStorage`. Wacht hoogstens `HYDRATE_TIMEOUT_MS`; daarna start
- *    de app gewoon.
- * 2. **Zolang de lezing loopt**, schrijft de tool niets naar de host, maar onthoudt hij per sleutel
- *    wie er schreef (`SettingWriteOrigin`). Een start-write (`'start'`: een migratie, of een
- *    standaardwaarde die een ontbrekende sleutel vult) verliest van de host. Een gewone schrijf- of
- *    wisactie (`'user'`, de standaard) wint van de host en gaat daarna naar de host. Een nieuwe
- *    start-write moet dus expliciet `'start'` meegeven; vergeten maakt hem een gebruikerswijziging,
- *    nooit een verlies van wat de gebruiker deed.
- *    Elke sleutel die de lezing lokaal veranderde, krijgt een `StorageEvent` op `window` (zoals een
- *    ander tabblad dat zou geven), zodat caches in het geheugen verversen vóór een volgende bewerking
- *    kan schrijven (`personalTaskTypes.ts`, `useStoredSettingRefresh`). Na een late lezing meldt de
- *    tool dat ook aan `onSiteHostSettingsHydrated`, zodat de app de instellingen in de store toepast.
- * 3. **Daarna** gaat elke schrijf- of wisactie op een blijvende sleutel (`noteSiteHostSettingChanged`)
- *    gebundeld naar de host: na `FLUSH_DELAY_MS` rust, en bij `pagehide` en een verborgen tabblad.
- *    Een lokale sleutel die de host nog niet had, gaat na de lezing één keer mee.
+ * **Alleen bij de start, nooit later** (besluit van de orkestrator in review #827, ronde 3). Drie
+ * reviewrondes vonden telkens een nieuw geval waarin een late lezing een keuze of lijst van de
+ * gebruiker terugdraaide. Daarom:
  *
- * **Fouten.** Eén fout bij lezen, een ongeldige waarde van de host, of een fout bij het neerzetten of
- * teruglezen in `localStorage` zet het bewaren uit voor de rest van de sessie. Zo wordt een fout nooit
- * een wisactie, en overschrijft de tool geen inhoud van de host die hij niet begreep. Een mislukte
- * `set`/`delete` bij de host probeert de volgende ronde opnieuw. Een fout is nooit een crash: alleen een
- * melding in de console. Zonder host of zonder `settings` doet deze module niets.
+ * 1. `main.tsx` wacht vóór hij de app laadt op `hydrateSiteHostSettings` (hoogstens
+ *    `HYDRATE_TIMEOUT_MS`): één `get` per sleutel. Een waarde moet tekst zijn (of `null`/`undefined`:
+ *    niet bewaard). Alles goed: de waarden gaan in `localStorage`, en daarna gaat elke schrijf- of
+ *    wisactie op een blijvende sleutel (`noteSiteHostSettingChanged`) gebundeld naar de host: na
+ *    `FLUSH_DELAY_MS` rust, en bij `pagehide` en een verborgen tabblad.
+ * 2. Antwoordt de host niet op tijd, of faalt het lezen, valideren of neerzetten, dan draait de sessie
+ *    zonder de instellingen van de host en schrijft hij **niets** naar de host, ook niet als het
+ *    antwoord later toch komt. Een host die pas na de start verschijnt (`openaec-host-ready`), krijgt
+ *    deze sessie evenmin iets (`disableSiteHostSettings`). `siteHostSettingsUnavailable()` zegt of
+ *    dat zo is; de app meldt het één keer (`useSiteHostPreferences`).
+ * 3. Een fout bij het teruglezen in `localStorage` tijdens het bewaren zet het bewaren ook uit; een
+ *    mislukte `set`/`delete` bij de host probeert de volgende ronde opnieuw.
+ *
+ * Een fout is nooit een crash: alleen een melding. Zonder host of zonder `settings` doet deze module
+ * niets.
  */
 import { siteHostSettings, type SiteHostSettings } from './siteHostPreferences';
 import { HOST_PERSISTED_KEYS, isHostPersistedKey } from './siteHostSettingKeys';
 
 export { isHostPersistedKey };
 
-/** Zo lang wacht de start hoogstens op de host. */
-export const HYDRATE_TIMEOUT_MS = 1000;
+/**
+ * Zo lang wacht de start hoogstens op de host: 5 s. De host is een brug in de pagina eromheen, dus een
+ * gewoon antwoord duurt milliseconden, ook met ~60 sleutels. Een koude site of een traag netwerk kan
+ * seconden kosten; 5 s vangt dat op zonder dat de gebruiker lang naar een leeg venster kijkt. Daarboven
+ * start de tool zonder de instellingen van de host (en zegt dat).
+ */
+export const HYDRATE_TIMEOUT_MS = 5000;
 
 /** Bundelt schrijfacties: één ronde na zoveel ms zonder nieuwe wijziging. */
 export const FLUSH_DELAY_MS = 400;
@@ -64,34 +65,29 @@ export interface HostSettingsSyncDeps {
   warn(message: string, error?: unknown): void;
   /** De sleutels die bij de host horen; standaard `HOST_PERSISTED_KEYS`. */
   keys?: readonly string[];
-  /** Meld dat de lezing deze sleutels lokaal veranderde (standaard: een `StorageEvent` per sleutel). */
-  changed?(changes: readonly { key: string; oldValue: string | null; newValue: string | null }[]): void;
 }
-
-/** Wie een instelling schreef: de gebruiker (standaard) of de startroute. Zie de kop van deze module. */
-export type SettingWriteOrigin = 'user' | 'start';
 
 export type HydrateOutcome = 'geen-host' | 'geladen' | 'time-out' | 'fout' | 'al-geladen';
 
 export interface HostSettingsSync {
   hydrate(timeoutMs?: number): Promise<HydrateOutcome>;
-  noteChanged(key?: string, origin?: SettingWriteOrigin): void;
+  noteChanged(key: string): void;
   flush(): Promise<void>;
-  onHydrated(listener: () => void): () => void;
+  /** Een host met `settings` die de tool deze sessie niet gebruikt (te laat, fout, of na de start). */
+  unavailable(): boolean;
+  /** Zet het bewaren uit voor deze sessie (een host die pas na de start kwam). */
+  disable(reason: string): void;
 }
 
 export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettingsSync {
   const keys = [...(deps.keys ?? HOST_PERSISTED_KEYS)].sort();
   const persisted = new Set(keys);
-  /** `idle`: nog geen host; `pending`: de lezing loopt; `synced`: bewaren staat aan; `off`: uit voor deze sessie. */
-  let phase: 'idle' | 'pending' | 'synced' | 'off' = 'idle';
+  /** `idle`: nog geen lezing; `reading`: de start wacht; `synced`: bewaren staat aan; `off`: uit voor deze sessie. */
+  let phase: 'idle' | 'reading' | 'synced' | 'off' = 'idle';
   let activeHost: SiteHostSettings | null = null;
   /** Wat de host heeft, per sleutel (`null` = niet bewaard), na de lezing en elke geslaagde schrijfactie. */
   const hostValues = new Map<string, string | null>();
   const dirty = new Set<string>();
-  /** Tijdens de lezing: sleutels die de gebruiker schreef of wiste (die winnen van de host). */
-  const userDuringRead = new Set<string>();
-  const listeners = new Set<() => void>();
   let timer: unknown = null;
   let chain: Promise<void> = Promise.resolve();
 
@@ -124,20 +120,11 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
   const apply = (host: SiteHostSettings, values: Map<string, string | null>): boolean => {
     const storage = deps.storage();
     if (!storage) {
-      // Zonder lokale opslag is er niets te bewaren of neer te zetten.
-      phase = 'off';
+      stop('Geen lokale opslag; de instellingen worden deze sessie niet bij de host bewaard');
       return false;
     }
-    const changes: { key: string; oldValue: string | null; newValue: string | null }[] = [];
     try {
-      for (const [key, value] of values) {
-        // De gebruiker schreef deze sleutel tijdens de lezing: zijn waarde wint en gaat zo naar de host.
-        if (value === null || userDuringRead.has(key)) continue;
-        const oldValue = storage.getItem(key);
-        if (oldValue === value) continue;
-        storage.setItem(key, value);
-        changes.push({ key, oldValue, newValue: value });
-      }
+      for (const [key, value] of values) if (value !== null) storage.setItem(key, value);
       hostValues.clear();
       for (const [key, value] of values) hostValues.set(key, value);
       dirty.clear();
@@ -146,13 +133,9 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
       stop('Instellingen van de host niet neergezet; ze worden deze sessie niet bij de host bewaard', error);
       return false;
     }
-    userDuringRead.clear();
     activeHost = host;
     phase = 'synced';
     if (dirty.size > 0) schedule();
-    if (changes.length > 0) {
-      try { deps.changed?.(changes); } catch (error) { deps.warn('Verversen na de instellingen van de host mislukt', error); }
-    }
     return true;
   };
 
@@ -195,20 +178,16 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     const host = deps.host();
     if (!host) return 'geen-host';
     if (phase === 'off') return 'fout';
-    if (host === activeHost && phase === 'synced') return 'al-geladen';
-    if (phase === 'pending') return 'al-geladen';
-    phase = 'pending';
-    userDuringRead.clear();
-    let timedOut = false;
+    if (phase !== 'idle') return 'al-geladen';
+    phase = 'reading';
     const settled = readHost(host).then(
       values => {
-        if (phase !== 'pending') return 'fout' as const;
-        if (!apply(host, values)) return 'fout' as const;
-        if (timedOut) for (const listener of listeners) listener();
-        return 'geladen' as const;
+        // Na de time-out telt een antwoord niet meer (`phase` is dan `off`).
+        if (phase !== 'reading') return 'time-out' as const;
+        return apply(host, values) ? 'geladen' as const : 'fout' as const;
       },
       error => {
-        if (phase === 'pending') stop('Instellingen van de host niet gelezen; ze worden deze sessie niet bij de host bewaard', error);
+        if (phase === 'reading') stop('Instellingen van de host niet gelezen; ze worden deze sessie niet bij de host bewaard', error);
         return 'fout' as const;
       },
     );
@@ -218,35 +197,24 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     });
     const outcome = await Promise.race([settled, timeout]);
     deps.clearTimer(handle);
-    if (outcome === 'time-out') timedOut = true;
+    if (outcome === 'time-out' && phase === 'reading') {
+      stop('De host antwoordde niet op tijd; de instellingen worden deze sessie niet bij de host bewaard');
+    }
     return outcome;
   };
 
-  const noteChanged = (key?: string, origin: SettingWriteOrigin = 'user') => {
-    if (phase === 'pending') {
-      // Niets naar de host; wel onthouden wat de gebruiker deed (zie de kop van deze module).
-      if (origin === 'user') {
-        if (key === undefined) for (const k of keys) userDuringRead.add(k);
-        else if (persisted.has(key)) userDuringRead.add(key);
-      }
-      return;
-    }
-    if (phase !== 'synced') return; // Zonder host of na een fout: niets naar de host.
-    if (key === undefined) {
-      for (const k of keys) dirty.add(k);
-    } else {
-      if (!persisted.has(key)) return;
-      dirty.add(key);
-    }
+  const noteChanged = (key: string) => {
+    if (phase !== 'synced' || !persisted.has(key)) return;
+    dirty.add(key);
     schedule();
   };
 
-  const onHydrated = (listener: () => void) => {
-    listeners.add(listener);
-    return () => { listeners.delete(listener); };
+  const disable = (reason: string) => {
+    if (phase === 'synced' || phase === 'off') return;
+    stop(reason);
   };
 
-  return { hydrate, noteChanged, flush, onHydrated };
+  return { hydrate, noteChanged, flush, unavailable: () => phase === 'off', disable };
 }
 
 function browserStorage(): SettingsStorageLike | null {
@@ -257,18 +225,8 @@ function browserStorage(): SettingsStorageLike | null {
   }
 }
 
-/** Een `StorageEvent` per sleutel, zoals een ander tabblad dat zou geven: modules die op `storage`
- *  luisteren (bijv. `personalTaskTypes.ts`, `useStoredSettingRefresh`) verversen dan hun kopie. */
-function dispatchStorageEvents(changes: readonly { key: string; oldValue: string | null; newValue: string | null }[]): void {
-  if (typeof window === 'undefined' || typeof StorageEvent === 'undefined') return;
-  for (const { key, oldValue, newValue } of changes) {
-    window.dispatchEvent(new StorageEvent('storage', { key, oldValue, newValue, url: window.location.href }));
-  }
-}
-
 const sync = createHostSettingsSync({
   storage: browserStorage,
-  changed: dispatchStorageEvents,
   host: siteHostSettings,
   setTimer: (fn, ms) => setTimeout(fn, ms),
   clearTimer: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -287,12 +245,12 @@ function installPageHooks(): void {
   });
 }
 
-/** Lees de instellingen van de host in `localStorage` (bij de start, of voor een host die later
- *  kwam). Wacht hoogstens `timeoutMs`; geeft nooit een fout. */
+/** Lees de instellingen van de host in `localStorage`. Alleen bij de start (`main.tsx`), vóór de app;
+ *  wacht hoogstens `timeoutMs` en geeft nooit een fout. */
 export async function hydrateSiteHostSettings(timeoutMs = HYDRATE_TIMEOUT_MS): Promise<HydrateOutcome> {
   try {
     const outcome = await sync.hydrate(timeoutMs);
-    if (outcome !== 'geen-host') installPageHooks();
+    if (outcome === 'geladen') installPageHooks();
     return outcome;
   } catch (error) {
     console.warn('Instellingen van de host niet gelezen:', error);
@@ -300,10 +258,9 @@ export async function hydrateSiteHostSettings(timeoutMs = HYDRATE_TIMEOUT_MS): P
   }
 }
 
-/** Een `ops-`-sleutel is geschreven of gewist; zonder host met `settings` doet dit niets. Zonder
- *  sleutel: kijk alle blijvende sleutels na (na een wisactie op een groep). */
-export function noteSiteHostSettingChanged(key?: string, origin: SettingWriteOrigin = 'user'): void {
-  sync.noteChanged(key, origin);
+/** Een `ops-`-sleutel is geschreven of gewist; doet alleen iets na een geslaagde lezing bij de start. */
+export function noteSiteHostSettingChanged(key: string): void {
+  sync.noteChanged(key);
 }
 
 /** Bewaar de openstaande wijzigingen nu bij de host. */
@@ -311,7 +268,12 @@ export function flushSiteHostSettings(): Promise<void> {
   return sync.flush();
 }
 
-/** Luister naar een late lezing (na de time-out van de start): de app past de instellingen dan toe. */
-export function onSiteHostSettingsHydrated(listener: () => void): () => void {
-  return sync.onHydrated(listener);
+/** Heeft de host `settings` die de tool deze sessie niet gebruikt? Dan meldt de app dat één keer. */
+export function siteHostSettingsUnavailable(): boolean {
+  return sync.unavailable();
+}
+
+/** Een host met `settings` die pas na de start kwam: deze sessie niets bij de host bewaren. */
+export function disableSiteHostSettings(): void {
+  if (siteHostSettings()) sync.disable('De host kwam pas na de start; de instellingen worden deze sessie niet bij de host bewaard');
 }

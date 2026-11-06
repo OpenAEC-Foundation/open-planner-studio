@@ -21,7 +21,6 @@ import { decodeFieldRef, encodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import type { LayoutOverlays } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
-import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf klassieke delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
@@ -97,10 +96,6 @@ export function LayoutsDialog() {
   // (zelfs alleen hernoemen) mag er niet stil de overlays van het scherm van nu bij stoppen. Pas als
   // de gebruiker hier een overlay omzet, gaan ze mee.
   const [overlaysStored, setOverlaysStored] = useState(true);
-
-  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): alleen de lijst
-  // verversen, niet wat de gebruiker hier invult. Opslaan schrijft dan de actuele lijst terug.
-  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
 
   useEffect(() => {
     let cancelled = false;

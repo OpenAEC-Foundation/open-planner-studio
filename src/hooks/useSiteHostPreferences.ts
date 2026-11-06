@@ -1,38 +1,43 @@
 import { useEffect } from 'react';
 import type { UIState } from '@/state/slices/types';
-import i18n, { embeddedLocale, initLocale, setLocale } from '@/i18n/config';
+import { useAppStore } from '@/state/appStore';
+import i18n, { embeddedLocale, setLocale } from '@/i18n/config';
 import { SITE_HOST_READY_EVENT, candidateHosts, siteHostWindows } from '@/services/fileAccess/siteHost';
 import { SITE_HOST_PREFERENCES_EVENT, siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
-import { hydrateSiteHostSettings, onSiteHostSettingsHydrated } from '@/services/fileAccess/siteHostSettings';
-import { loadAllSettings } from '@/utils/settingsRegistry';
+import { disableSiteHostSettings, siteHostSettingsUnavailable } from '@/services/fileAccess/siteHostSettings';
+
+/** Eén melding per sessie: ook bij een tweede mount (StrictMode) of een late host niet opnieuw. */
+let unavailableNoticeShown = false;
+function noticeIfSettingsUnavailable(): void {
+  if (unavailableNoticeShown || !siteHostSettingsUnavailable()) return;
+  unavailableNoticeShown = true;
+  useAppStore.getState().notify({
+    severity: 'info', messageKey: 'notifications.hostSettingsUnavailable', dedupeKey: 'host-settings-unavailable', sticky: true,
+  });
+}
 
 /**
- * Taal, thema en instellingen van de host tijdens de sessie (#818).
+ * Taal en thema van de host tijdens de sessie, en de melding over zijn instellingen (#818).
  *
  * - `openaec-host-preferences`: de host meldt dat `taal` of `thema` op hetzelfde object veranderde.
  *   De tool leest beide opnieuw en past alleen toe wat ten opzichte van de vorige waarde van de host
  *   veranderde: de taal via i18n (alleen een taal die de tool kent; `de-AT` wordt `de`), het thema via
  *   de store. Niets wordt bewaard: niet in `ops-locale` en niet in `ops-theme`. Zo blijft een keuze die
  *   de gebruiker in de app maakte staan zolang de host die waarde niet zelf wijzigt.
- * - `openaec-host-ready`: alleen als er bij de start nog geen host was. De tool leest dan de
- *   instellingen van de host (`settings`), past ze toe via `loadAllSettings` → `setUI`, kiest de taal
- *   opnieuw en neemt taal en thema van de host over. Daarna meldt hij zich af.
- * - Een late lezing van de instellingen (na de time-out bij de start) past de instellingen alsnog toe:
- *   `loadAllSettings` → `setUI`, `onLateSettings` (de taakgridvoorkeuren) en de taal. Een document dat al
- *   open is, verandert niet: de bouwmodus geldt dan pas voor een nieuw project.
+ * - `openaec-host-ready`: alleen als er bij de start nog geen host was. De tool neemt dan taal en thema
+ *   van de host over, maar leest zijn instellingen (`settings`) NIET: instellingen lezen gebeurt alleen
+ *   bij de start (`siteHostSettings.ts`). Deze sessie bewaart dan niets bij die host.
+ * - Heeft de host `settings` die de tool deze sessie niet gebruikt (te laat, een fout, of een host die
+ *   pas na de start kwam), dan één melding via het meldingenkanaal.
  *
  * Luistert op dezelfde vensters als `useSiteInitialFile` (`siteHostWindows`). Een luisteraar op een
  * same-origin parent verdwijnt niet met dit iframe; daarom ook afmelden bij `pagehide`.
  */
-export function useSiteHostPreferences(
-  setUI: (patch: Partial<UIState>) => void,
-  /** Na het toepassen van instellingen die pas later van de host kwamen (late lezing of late host). */
-  onLateSettings?: () => void,
-): void {
+export function useSiteHostPreferences(setUI: (patch: Partial<UIState>) => void): void {
   useEffect(() => {
+    noticeIfSettingsUnavailable();
     const targets = siteHostWindows();
     if (targets.length === 0) return;
-    let disposed = false;
     let lastTheme = siteHostTheme();
     let lastLocale = embeddedLocale();
 
@@ -47,29 +52,13 @@ export function useSiteHostPreferences(
       lastLocale = locale;
     };
 
-    const applySettings = async () => {
-      try {
-        const patch = await loadAllSettings();
-        if (disposed) return;
-        setUI(patch);
-        onLateSettings?.();
-        await initLocale();
-      } catch (error) {
-        console.warn('Instellingen van de host niet toegepast:', error);
-      }
-    };
-
     let readyAttached = false;
     const onReady = () => {
       if (candidateHosts().length === 0) return;
       detachReady();
-      void (async () => {
-        const outcome = await hydrateSiteHostSettings();
-        if (disposed) return;
-        if (outcome === 'geladen') await applySettings();
-        if (disposed) return;
-        applyPreferences();
-      })();
+      disableSiteHostSettings();
+      noticeIfSettingsUnavailable();
+      applyPreferences();
     };
     const detachReady = () => {
       if (!readyAttached) return;
@@ -79,7 +68,6 @@ export function useSiteHostPreferences(
       }
     };
 
-    const offHydrated = onSiteHostSettingsHydrated(() => { void applySettings(); });
     for (const target of targets) target.addEventListener(SITE_HOST_PREFERENCES_EVENT, applyPreferences);
     if (candidateHosts().length === 0) {
       readyAttached = true;
@@ -90,9 +78,7 @@ export function useSiteHostPreferences(
     const detach = () => {
       if (!attached) return;
       attached = false;
-      disposed = true;
       detachReady();
-      offHydrated();
       for (const target of targets) {
         try { target.removeEventListener(SITE_HOST_PREFERENCES_EVENT, applyPreferences); } catch { /* parent weg */ }
       }
@@ -100,5 +86,5 @@ export function useSiteHostPreferences(
     };
     window.addEventListener('pagehide', detach);
     return detach;
-  }, [setUI, onLateSettings]);
+  }, [setUI]);
 }

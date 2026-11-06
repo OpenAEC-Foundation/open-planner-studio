@@ -1233,12 +1233,13 @@ en noem het in je rapport of PR-tekst.
      (`src/services/fileAccess/siteHostSettings.ts`) zet de waarden van `settings` in `localStorage` en leest ze
      daar weer. De SuperCloud heeft een vervanger in het geheugen, dus daar werkt het. Een host zonder die
      vervanger, in een sandbox zonder `allow-same-origin`, geeft een `SecurityError` bij elke toegang (zie de
-     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets.
+     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets;
+     hij meldt alleen dat de instellingen deze sessie niet bewaard worden.
      Voorstel: laat `readLocal`/`writeLocal` in dat geval een map in het geheugen gebruiken. — S
 
 861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** Het pre-paint-script
      (`public/theme-prepaint.js`) draait vóór de instellingen van de host er zijn (die komen async; `main.tsx`
-     wacht er hoogstens 1 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
+     wacht er hoogstens 5 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
      geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
      gebeurt dit niet. — S
 

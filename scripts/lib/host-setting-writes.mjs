@@ -4,7 +4,10 @@
 //
 // Wat telt als schrijfplek (echte aanroepen, geen tekstzoektocht; spaties, commentaar en strings maken
 // niet uit):
-// - een aanroep van `writeLocal`, `removeLocal` of `setSetting` (die laatste schrijft `ops-<sleutel>`);
+// - een aanroep van `writeLocal`, `removeLocal` of `setSetting` (die laatste schrijft `ops-<sleutel>`),
+//   ook onder een andere naam (`import { writeLocal as persist }` → `persist(…)`) en via een
+//   namespace-import (`import * as settings` → `settings.writeLocal(…)` of `settings['writeLocal'](…)`);
+//   de importbindingen komen uit `valueBindings()` (`ts-imports.mjs`);
 // - een aanroep van `setItem` of `removeItem` op elk object, ook als `x['setItem'](…)`, behalve op
 //   `sessionStorage` (die overleeft geen herlaad en hoort niet bij de host); en `clear()` op een object
 //   waarvan de naam op `storage` eindigt (`localStorage`, `storage`, …): `clear` is ook een methode van
@@ -14,10 +17,10 @@
 //   die telt als schrijfplek met een onbekende sleutel.
 //
 // De sleutel is het eerste argument: een letterlijke tekst, of een `const` met een letterlijke tekst in
-// hetzelfde bestand (ook via één geïmporteerde `export const`). Anders is de sleutel onbekend
+// hetzelfde bestand (ook via één geïmporteerde `export const`, ook onder een andere naam). Anders is de sleutel onbekend
 // (`key: null`) en moet de plek in de toegestane lijst van de check staan, met bestand en functie.
 import { existsSync } from 'node:fs';
-import { parse, pathsFor, slash, sourceFiles, ts } from './ts-imports.mjs';
+import { parse, pathsFor, slash, sourceFiles, ts, valueBindings } from './ts-imports.mjs';
 import { join, relative } from 'node:path';
 
 const HELPERS = new Set(['writeLocal', 'removeLocal', 'setSetting']);
@@ -55,10 +58,10 @@ function constText(sourceFile, name, imports, depth = 0) {
   };
   visit(sourceFile);
   if (found !== null) return found;
-  const target = imports.get(name);
-  if (target && depth < 2) {
+  const binding = imports.get(name);
+  if (binding && binding.imported !== '*' && binding.imported !== 'default' && depth < 2) {
     for (const ext of ['.ts', '.tsx']) {
-      if (existsSync(target + ext)) return constText(parse(target + ext), name, new Map(), depth + 1);
+      if (existsSync(binding.target + ext)) return constText(parse(binding.target + ext), binding.imported, new Map(), depth + 1);
     }
   }
   return null;
@@ -88,14 +91,25 @@ export function findSettingWrites(root) {
   for (const file of sourceFiles(join(root, 'src'))) {
     const sourceFile = parse(file);
     const rel = slash(relative(root, file));
+    /** Lokale naam → { target, imported } van elke waarde-import. */
     const imports = new Map();
     for (const statement of sourceFile.statements) {
-      if (!ts.isImportDeclaration(statement) || !statement.importClause?.namedBindings) continue;
-      const bindings = statement.importClause.namedBindings;
-      if (!ts.isNamedImports(bindings)) continue;
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const target = normalizedModule(file, statement.moduleSpecifier.text);
-      for (const el of bindings.elements) imports.set(el.name.text, target);
+      for (const { imported, local } of valueBindings(statement.importClause)) imports.set(local, { target, imported });
     }
+    /** De helper achter een lokale naam: een import van een helper (ook hernoemd), of de eigen naam. */
+    const helperOf = (local) => {
+      const binding = imports.get(local);
+      if (binding) return HELPERS.has(binding.imported) ? binding.imported : null;
+      return HELPERS.has(local) ? local : null;
+    };
+    const isNamespace = (node) => ts.isIdentifier(node) && imports.get(node.text)?.imported === '*';
+    /** `settings.writeLocal` of `settings['writeLocal']` op een namespace-import: de helper, anders `null`. */
+    const namespaceHelper = (node) => {
+      const name = memberName(node);
+      return name && HELPERS.has(name) && isNamespace(node.expression) ? name : null;
+    };
     const add = (node, call, key) => sites.push({
       file: rel,
       line: sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1,
@@ -104,11 +118,14 @@ export function findSettingWrites(root) {
       key,
     });
     const visit = (node) => {
-      // Directe aanroep van een helper.
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && HELPERS.has(node.expression.text)) {
+      // Directe aanroep van een helper, ook hernoemd of via een namespace-import.
+      const helper = ts.isCallExpression(node)
+        ? (ts.isIdentifier(node.expression) ? helperOf(node.expression.text) : namespaceHelper(node.expression))
+        : null;
+      if (helper) {
         const raw = keyOf(node.arguments[0], sourceFile, imports);
-        const key = raw === null ? null : node.expression.text === 'setSetting' ? `ops-${raw}` : raw;
-        add(node, node.expression.text, key);
+        const key = raw === null ? null : helper === 'setSetting' ? `ops-${raw}` : raw;
+        add(node, helper, key);
         node.arguments.forEach(visit);
         return;
       }
@@ -130,7 +147,12 @@ export function findSettingWrites(root) {
       if (name && STORAGE_METHODS.has(name)) {
         if (countsAsStorage(name, node.expression.getText(sourceFile))) add(node, `alias ${node.getText(sourceFile)}`, null);
       }
-      if (ts.isIdentifier(node) && HELPERS.has(node.text)) {
+      // Een helper die als waarde wordt doorgegeven, ook via een namespace (`const f = settings.writeLocal`).
+      if (namespaceHelper(node)) {
+        add(node, `alias ${node.getText(sourceFile)}`, null);
+        return;
+      }
+      if (ts.isIdentifier(node) && helperOf(node.text)) {
         const p = node.parent;
         const declaration = (ts.isFunctionDeclaration(p) && p.name === node)
           || ts.isImportSpecifier(p) || ts.isExportSpecifier(p)
