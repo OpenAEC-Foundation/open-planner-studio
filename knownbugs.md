@@ -1698,6 +1698,23 @@ en noem het in je rapport of PR-tekst.
      later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
+855. **VERVOLG: `verify:icons` bewijst niet dat de uitvoerbestanden het goedgekeurde logo bevatten.**
+     `scripts/verify-approved-icons.mjs:33` controleert alleen de bron met een hash; de uitvoer krijgt
+     alleen controles op afmetingen en een paar headerbytes. Een volledig rode PNG van 512×512, een
+     afgebroken PNG van 24 bytes, een ICO van zes bytes of een ICNS met alleen `icns` geven allemaal
+     `verify:icons groen`. Voorstel: leg de hashes van de goedgekeurde uitvoer vast en controleer die; dan
+     kunnen de losse formaatcontroles grotendeels weg. Uit de review van #822 (GPT-6.1-Sol, xhigh, op
+     `3d594a216`, VERVOLG), in het geheugen nagespeeld. — B
+856. **VERVOLG: `verify:icons` mist een favicon-verwijzing met een andere attribuutvolgorde.**
+     `scripts/verify-approved-icons.mjs:49` vindt `<link rel="icon" href="…">`, maar niet
+     `<link href="/oud-logo.png" rel="icon" …>`; dan blijft de controle groen voor een bestand dat niet in
+     `icons.json` staat. De regex vraagt ook dubbele aanhalingstekens. Voorstel: lees de attributen los van
+     hun volgorde en aanhalingstekens, en controleer elke icoonverwijzing tegen de lijst. Uit de review van
+     #822 (GPT-6.1-Sol, xhigh, op `3d594a216`, VERVOLG), in het geheugen nagespeeld. — B
+857. **VERVOLG: ongebruikte tak voor `size > 32` in `AppLogo`.** `src/components/common/AppLogo.tsx:9`
+     kiest bij meer dan 32 px andere bestanden, maar de drie aanroepen gebruiken 18, 24 en 32 px. Voorstel:
+     één vaste combinatie van de 32- en 64-px-bestanden. Uit de review van #822 (GPT-6.1-Sol, xhigh, op
+     `3d594a216`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
