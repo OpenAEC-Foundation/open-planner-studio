@@ -1,9 +1,10 @@
 // Holiday-generator-checks (fase 2.8a, ontwerp §10.2). Onafhankelijk narekenen van de
 // feestdagen-engine: Pasen-jaartabel, Koningsdag-zondagregel, Bevrijdingsdag-lustrum,
-// UK-substituties, Buß- und Bettag (weekday-before), nth-weekday (last/first Monday).
+// UK-substituties, Buß- und Bettag (weekday-before), nth-weekday (last/first Monday),
+// US federale feestdagen (nth-weekday, zaterdag/zondag-substitutie, Juneteenth vanaf 2021).
 //
 // Draait via run.sh (esbuild-bundel, zoals harness.ts). Exit 0 = alles groen.
-import { easterSunday, generateHolidays, NL_SET, DE_SET, UK_SET } from '@/engine/calendar/holidays';
+import { easterSunday, generateHolidays, NL_SET, DE_SET, UK_SET, US_SET } from '@/engine/calendar/holidays';
 import { formatDate } from '@/utils/dateUtils';
 
 const diffs: string[] = [];
@@ -68,6 +69,45 @@ eq('buss- und bettag landelijk afwezig', has(generateHolidays(DE_SET, undefined,
 // 8) Regio-filter: DE Fronleichnam wél in BY, níét in BE (Berlin).
 eq('fronleichnam BY aanwezig', has(generateHolidays(DE_SET, 'BY', 2026, 2026), 'Fronleichnam'), true);
 eq('fronleichnam BE afwezig', has(generateHolidays(DE_SET, 'BE', 2026, 2026), 'Fronleichnam'), false);
+
+// 9) US federale feestdagen 2026: 11 stuks; nth-weekday-dagen en de vaste dagen met substitutie.
+{
+  const us = generateHolidays(US_SET, undefined, 2026, 2026);
+  eq('us 2026 aantal', us.length, 11);
+  eq('us mlk 2026 (3e ma jan)', startOf(us, 'Martin Luther King Jr. Day'), '2026-01-19');
+  eq('us presidents 2026 (3e ma feb)', startOf(us, "Washington's Birthday (Presidents' Day)"), '2026-02-16');
+  eq('us memorial 2026 (laatste ma mei)', startOf(us, 'Memorial Day'), '2026-05-25');
+  eq('us juneteenth 2026 (vr)', startOf(us, 'Juneteenth'), '2026-06-19');
+  eq('us independence 2026 (4/7=za→vr 3/7)', startOf(us, 'Independence Day'), '2026-07-03');
+  eq('us labor 2026 (1e ma sep)', startOf(us, 'Labor Day'), '2026-09-07');
+  eq('us columbus 2026 (2e ma okt)', startOf(us, 'Columbus Day'), '2026-10-12');
+  eq('us veterans 2026 (11/11=wo)', startOf(us, 'Veterans Day'), '2026-11-11');
+  eq('us thanksgiving 2026 (4e do nov)', startOf(us, 'Thanksgiving Day'), '2026-11-26');
+  eq('us christmas 2026 (vr)', startOf(us, 'Christmas Day'), '2026-12-25');
+}
+
+// 10) US substitutie in 2022: 1/1 op zaterdag hoort bij 31/12/2021 (en dus niet in 2022);
+//     Juneteenth 19/6/2022 (zo) → ma 20/6; Christmas 25/12/2022 (zo) → ma 26/12.
+{
+  const us2021 = generateHolidays(US_SET, undefined, 2021, 2021);
+  const newYears2021 = us2021.filter((h) => h.name === "New Year's Day").map((h) => h.startDate);
+  eq('us new year 2021: 1/1/2021 (vr) en observed 31/12/2021', newYears2021.join(','), '2021-01-01,2021-12-31');
+  const us2022 = generateHolidays(US_SET, undefined, 2022, 2022);
+  eq('us new year 2022 afwezig (za→vorig jaar)', has(us2022, "New Year's Day"), false);
+  eq('us juneteenth 2022 (zo→ma)', startOf(us2022, 'Juneteenth'), '2022-06-20');
+  eq('us christmas 2022 (zo→ma)', startOf(us2022, 'Christmas Day'), '2022-12-26');
+  eq('us 2022 aantal (New Year valt in 2021)', us2022.length, 10);
+  // Meerjaarsspanne 2021–2022 herhaalt niets: 31/12/2021 telt één keer, 2022 voegt geen nieuwjaar toe.
+  const span = generateHolidays(US_SET, undefined, 2021, 2022);
+  eq('us spanne nieuwjaar-dagen', span.filter((h) => h.name === "New Year's Day").length, 2);
+}
+
+// 11) US Juneteenth bestaat pas vanaf 2021; 1/1 op zondag (2023) → ma 2/1.
+{
+  eq('us juneteenth 2020 afwezig', has(generateHolidays(US_SET, undefined, 2020, 2020), 'Juneteenth'), false);
+  eq('us juneteenth 2021 (za→vr 18/6)', startOf(generateHolidays(US_SET, undefined, 2021, 2021), 'Juneteenth'), '2021-06-18');
+  eq('us new year 2023 (zo→ma)', startOf(generateHolidays(US_SET, undefined, 2023, 2023), "New Year's Day"), '2023-01-02');
+}
 
 if (diffs.length === 0) {
   console.log('OK  holidays-check: alle checks groen');
