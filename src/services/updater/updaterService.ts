@@ -55,6 +55,39 @@ export async function getInstallKind(): Promise<InstallKind> {
   }
 }
 
+/**
+ * Werkt de OpenAEC Installer deze app bij? Alleen op Windows, en alleen als de installer
+ * op de pc staat (OpenAEC-Blueprint#33). Dan controleert de app via het statusbestand
+ * van de installer (plugin `openaec-update`) en geeft hij "Downloaden en installeren"
+ * door: de installer wacht tot de app dicht is, werkt stil bij in dezelfde soort setup
+ * en start de app opnieuw. Zonder installer, op macOS en op Linux blijft de eigen
+ * updater hieronder, want die platforms kan de installer (nog) niet bijwerken.
+ */
+async function viaInstaller(): Promise<boolean> {
+  if (!isTauri()) return false;
+  try {
+    const { platform } = await import('@tauri-apps/plugin-os');
+    if (platform() !== 'windows') return false;
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<boolean>('plugin:openaec-update|installer_present');
+  } catch {
+    return false;
+  }
+}
+
+/** Een nieuwere versie volgens het statusbestand van de installer (plugin `openaec-update`). */
+interface InstallerUpdate {
+  latest: string;
+  current: string;
+}
+
+async function checkViaInstaller(): Promise<UpdateInfo | null> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const update = await invoke<InstallerUpdate | null>('plugin:openaec-update|check');
+  // De releasenotes staan niet in het statusbestand; na de update toont JustUpdatedDialog ze.
+  return update ? { version: update.latest, body: '' } : null;
+}
+
 export type UpdateStatus =
   | { kind: 'upToDate' }
   | { kind: 'available'; info: UpdateInfo }
@@ -85,6 +118,12 @@ export async function checkForUpdates(
   }
 
   try {
+    if (await viaInstaller()) {
+      const info = await checkViaInstaller();
+      onStatus?.(info ? { kind: 'available', info } : { kind: 'upToDate' });
+      return info;
+    }
+
     const { check } = await import('@tauri-apps/plugin-updater');
     const update = await check();
 
@@ -128,6 +167,20 @@ export async function downloadAndInstall(
     const installKind = await getInstallKind();
     if (installKind === 'aur' || installKind === 'snap') {
       onStatus?.({ kind: 'upToDate' });
+      return;
+    }
+
+    if (await viaInstaller()) {
+      if (!(await checkViaInstaller())) {
+        onStatus?.({ kind: 'upToDate' });
+        return;
+      }
+      // De app sluit zo meteen zonder sluitvraag: leg eerst een herstelsnapshot vast, net als
+      // vóór `install()` hieronder. Daarna neemt de installer het over en sluit de app.
+      await flushRecoveryNow();
+      onStatus?.({ kind: 'installing' });
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('plugin:openaec-update|update_now');
       return;
     }
 

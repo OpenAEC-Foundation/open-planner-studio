@@ -24,6 +24,7 @@
     "store:default",
     "os:default",
     "updater:default",
+    "openaec-update:default",
     "process:allow-restart",
     "process:allow-exit",
     "clipboard-manager:allow-write-image",
