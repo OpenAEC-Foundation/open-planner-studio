@@ -22,7 +22,9 @@ import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
-import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
+import { noteSiteHostSettingChanged, type SettingWriteOrigin } from '@/services/fileAccess/siteHostSettings';
+
+export type { SettingWriteOrigin };
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -58,11 +60,17 @@ export function readLocal(key: string): string | null {
 }
 
 let warnedSettingsWrite = false;
-export function writeLocal(key: string, value: string): void {
+/**
+ * Schrijf een instelling. `origin`: `'start'` voor een schrijfactie uit de startroute (migratie, of een
+ * standaardwaarde die een ontbrekende sleutel vult), zonder handeling van de gebruiker. Ingebed met
+ * `settings` van de host (#818) wint een late lezing van de host van zo'n schrijfactie, maar niet van
+ * een gewone (`'user'`, de standaard). Zie `siteHostSettings.ts`.
+ */
+export function writeLocal(key: string, value: string, origin: SettingWriteOrigin = 'user'): void {
   try {
     localStorage.setItem(key, value);
     // Ingebed met `settings` van de host (#818): ook daar bewaren, gebundeld.
-    noteSiteHostSettingChanged(key);
+    noteSiteHostSettingChanged(key, origin);
   } catch (error) {
     if (!warnedSettingsWrite) {
       warnedSettingsWrite = true;
@@ -84,14 +92,15 @@ export async function getSetting<T>(key: string): Promise<T | undefined> {
   try { return JSON.parse(raw) as T; } catch { return raw as unknown as T; }
 }
 
-export async function setSetting<T>(key: string, value: T): Promise<void> {
-  writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value));
+export async function setSetting<T>(key: string, value: T, origin: SettingWriteOrigin = 'user'): Promise<void> {
+  writeLocal(`ops-${key}`, typeof value === 'string' ? value : JSON.stringify(value), origin);
 }
 
 export async function syncSettingToLocalStorage(storeKey: string, localStorageKey: string): Promise<void> {
   const value = readLocal(`ops-${storeKey}`);
   if (value) {
-    writeLocal(localStorageKey, value);
+    // Bij de start (`initLocale`), geen handeling van de gebruiker.
+    writeLocal(localStorageKey, value, 'start');
   }
 }
 
@@ -153,8 +162,8 @@ export async function initTheme(): Promise<UITheme> {
 
   const migrated = THEME_MIGRATION[saved] ?? 'dark';
   if (migrated !== saved) {
-    // Persisteer de migratie zodat dit een eenmalige conversie is
-    writeLocal('ops-theme', migrated);
+    // Persisteer de migratie zodat dit een eenmalige conversie is (een start-write, #818)
+    writeLocal('ops-theme', migrated, 'start');
   }
   return migrated;
 }
@@ -326,8 +335,9 @@ export async function loadTaskGridPreferences(
 
 export async function saveTaskGridPreferences(
   preferences: PersistedTaskGridPreferencesV1,
+  origin: SettingWriteOrigin = 'user',
 ): Promise<void> {
-  await setSetting('taskGridPreferences', preferences);
+  await setSetting('taskGridPreferences', preferences, origin);
 }
 
 // Layouts: app-globaal in localStorage, géén Tauri-store. Parse-guard: corrupte JSON
@@ -463,16 +473,17 @@ export async function loadLayouts(): Promise<Layout[]> {
   if (await getSetting<boolean>('savedFiltersMigrated')) return layouts;
   const savedFilters = await loadSavedFilters();
   const merged = migrateSavedFilters(layouts, savedFilters);
-  if (merged.length !== layouts.length) await saveLayouts(merged);
-  await setSetting('savedFiltersMigrated', true);
+  // Een eenmalige migratie: start-writes (#818), ook als een dialoog dit pas later aanroept.
+  if (merged.length !== layouts.length) await saveLayouts(merged, 'start');
+  await setSetting('savedFiltersMigrated', true, 'start');
   return merged;
 }
 
-export async function saveLayouts(layouts: Layout[]): Promise<void> {
+export async function saveLayouts(layouts: Layout[], origin: SettingWriteOrigin = 'user'): Promise<void> {
   const normalized = normalizeLayouts(layouts);
   if (!normalized) return;
   const payload: PersistedTaskGridLayoutsV1 = { version: 1, layouts: normalized };
-  await setSetting('taskGridLayouts', payload);
+  await setSetting('taskGridLayouts', payload, origin);
 }
 
 // Opgeslagen filters: net als layouts app-breed op dit apparaat, maar bewust alleen
@@ -686,8 +697,9 @@ export async function loadLastVersion(): Promise<string | undefined> {
   return typeof v === 'string' && v ? v : undefined;
 }
 
+/** Alleen de updatecontrole bij de start schrijft dit: altijd een start-write (#818). */
 export async function saveLastVersion(value: string): Promise<void> {
-  await setSetting('lastVersion', value);
+  await setSetting('lastVersion', value, 'start');
 }
 
 // --- MCP-bridge / AI-modus. -------------------------------------------------------------------------

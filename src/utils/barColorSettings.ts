@@ -1,7 +1,7 @@
 import type { BarColorSelection } from '@/types/barColor';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import type { BuiltinFieldKey, FieldRef } from '@/types/view';
-import { getSetting, setSetting } from '@/utils/settingsStore';
+import { getSetting, setSetting, type SettingWriteOrigin } from '@/utils/settingsStore';
 
 const STORAGE_KEY = 'barColorSelection';
 
@@ -85,8 +85,8 @@ export function migrateLegacyBarColorSelection(
   return legacySelection(screenMode) ?? legacySelection(reportMode) ?? DEFAULT_BAR_COLOR_SELECTION;
 }
 
-export async function saveBarColorSelection(selection: BarColorSelection): Promise<void> {
-  await setSetting(STORAGE_KEY, selection);
+export async function saveBarColorSelection(selection: BarColorSelection, origin: SettingWriteOrigin = 'user'): Promise<void> {
+  await setSetting(STORAGE_KEY, selection, origin);
 }
 
 export async function loadBarColorSelection(): Promise<BarColorSelection> {
@@ -97,6 +97,7 @@ export async function loadBarColorSelection(): Promise<BarColorSelection> {
     await getSetting<unknown>('screenBarColorMode'),
     await getSetting<unknown>('reportSettings'),
   );
-  await saveBarColorSelection(migrated);
+  // Migratie of standaardwaarde bij het laden: een start-write (#818).
+  await saveBarColorSelection(migrated, 'start');
   return migrated;
 }

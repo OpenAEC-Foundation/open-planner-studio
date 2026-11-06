@@ -56,7 +56,9 @@ export async function bootstrapTaskGridPreferences(
   dependencies: TaskGridBootstrapDependencies = {},
 ): Promise<TaskGridBootstrapOutcome> {
   const load = dependencies.load ?? loadTaskGridSettings;
-  const save = dependencies.save ?? saveTaskGridPreferences;
+  // De standaardindeling die een ontbrekende sleutel vult, is een start-write (#818): een late lezing
+  // van de host wint ervan.
+  const save = dependencies.save ?? ((preferences: PersistedTaskGridPreferencesV1) => saveTaskGridPreferences(preferences, 'start'));
   const result = await load(sourceSnapshot(store.getState()).defaults);
   if (result.status === 'valid') {
     store.getState().hydrateTaskGridPreferences(result.value);

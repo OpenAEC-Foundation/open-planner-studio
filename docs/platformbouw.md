@@ -146,9 +146,12 @@ Afspraken:
   (`siteHostSettingKeys.ts`; het contract heeft geen `list`), met één `get` per sleutel; `null` of `undefined`
   betekent "niet bewaard". Hij doet dat vóór hij de app laadt, zodat ook het eerste document (bijv. de kalender
   van de bouwmodus) de instellingen van de host volgt. Hij wacht hoogstens 1 s. Komt het antwoord later, dan
-  wint de host voor elke sleutel die hij heeft, ook van wat de start intussen schreef, en past de tool de
-  instellingen alsnog toe; een document dat al open is, verandert niet. Zolang de lezing loopt, schrijft de tool
-  niets naar de host. Daarna gaat elke wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor
+  wint de host van wat de start intussen schreef (een migratie, of een standaardwaarde die een ontbrekende
+  sleutel vult), maar niet van wat de gebruiker intussen veranderde: die waarde blijft en gaat daarna naar de
+  host. De tool past de instellingen alsnog toe, en geeft per gewijzigde sleutel een `StorageEvent` (zoals een
+  ander tabblad), zodat lijsten in het geheugen (eigen werksoorten, layouts, presets, rapportopties) verversen
+  vóór een volgende bewerking ze terugschrijft. Een document dat al open is, verandert niet. Zolang de lezing
+  loopt, schrijft de tool niets naar de host. Daarna gaat elke wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor
   een gewiste. Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen
   van extensies (`ops-ext:`). Een fout van de host is nooit een crash. Eén fout bij het lezen, een waarde die
   geen tekst is, of een fout bij het neerzetten of teruglezen in `localStorage` zet het bewaren uit voor de

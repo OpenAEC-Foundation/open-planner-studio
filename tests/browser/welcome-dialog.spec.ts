@@ -64,7 +64,14 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
         versions: async () => [{ version: '1' }],
       },
       settings: {
-        get: async (key: string) => read()[key] ?? null,
+        // `test-host-hold`: de host antwoordt pas na `window.__testReleaseHost()` (een trage host).
+        get: (key: string) => {
+          if (sessionStorage.getItem('test-host-hold') !== 'true') return Promise.resolve(read()[key] ?? null);
+          const w = window as unknown as { __testHeld?: (() => void)[]; __testReleaseHost?: () => void };
+          w.__testHeld ??= [];
+          w.__testReleaseHost = () => { for (const release of w.__testHeld!.splice(0)) release(); };
+          return new Promise((resolve) => { w.__testHeld!.push(() => resolve(read()[key] ?? null)); });
+        },
         set: async (key: string, value: unknown) => { write({ ...read(), [key]: value }); return null; },
         delete: async (key: string) => { const all = read(); delete all[key]; write(all); return null; },
       },
@@ -149,6 +156,68 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       await expect.poll(() => floatBand.evaluate(el => el.classList.contains('active'))).toBe(floatBandChoice);
     }
   }
+  // Een trage host (review #827 ronde 2): de app start na de time-out en de gebruiker werkt al, terwijl
+  // de host nog niet antwoordde. Een klik op Spelingsband in die tijd blijft staan en gaat daarna naar de
+  // host; een bewaarde werksoort die pas daarna binnenkomt, is er meteen, en een nieuwe werksoort wist hem
+  // niet.
+  await page.evaluate((store) => {
+    const all = JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, string>;
+    all['ops-personalTaskTypes'] = JSON.stringify([{ id: 'bewaard', name: 'Bewaard type' }]);
+    // Spelingsband staat bij de host aan; lokaal is hij na herladen weg (init-script), dus de standaard (aan)
+    // geldt tot de host antwoordt, en de klik zet hem uit.
+    all['ops-showFloatBand'] = 'true';
+    sessionStorage.setItem(store, JSON.stringify(all));
+    sessionStorage.setItem('test-host-hold', 'true');
+  }, HOST_SETTINGS_STORE);
+  await page.reload();
+  await waitForOps(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
+  expect(await page.evaluate(() => localStorage.getItem('ops-personalTaskTypes')), 'de host antwoordde nog niet').toBeNull();
+  await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+  const floatBandSlow = page.getByRole('button', { name: new RegExp(`^${FLOAT_BAND_FR}`) });
+  const hostFloatBand = (await hostSettings())['ops-showFloatBand'];
+  await floatBandSlow.click();
+  const clicked = await page.evaluate(() => window.__OPS__!.store.getState().ui.showFloatBand);
+  expect([hostFloatBand, clicked], 'de klik zet uit wat de host aan heeft').toEqual(['true', false]);
+  // Het werksoortveld van een taak toont de (nog lege) eigen lijst: de cache is geladen.
+  const taskId = await page.evaluate(() => {
+    const store = window.__OPS__!.store.getState();
+    const id = store.tasks[0].id;
+    store.selectTask(id);
+    store.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    return id;
+  });
+  const taskTypeField = page.locator('[data-ops-task-type]');
+  await taskTypeField.getByRole('button').click();
+  await expect(page.getByRole('listbox')).not.toContainText('Bewaard type');
+  await page.keyboard.press('Escape');
+
+  // De host antwoordt.
+  await page.evaluate(() => {
+    sessionStorage.removeItem('test-host-hold');
+    (window as unknown as { __testReleaseHost?: () => void }).__testReleaseHost?.();
+  });
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-personalTaskTypes')))
+    .toBe(JSON.stringify([{ id: 'bewaard', name: 'Bewaard type' }]));
+  expect(await page.evaluate(() => [window.__OPS__!.store.getState().ui.showFloatBand, localStorage.getItem('ops-showFloatBand')]),
+    'de klik blijft staan').toEqual([clicked, String(clicked)]);
+  await expect.poll(() => hostSettings().then((all) => all['ops-showFloatBand'])).toBe(String(clicked));
+
+  // Werksoort → Nieuwe werksoort… → naam → Enter (de dialoog bevestigt met Enter).
+  await taskTypeField.getByRole('button').click();
+  await expect(page.getByRole('listbox')).toContainText('Bewaard type');
+  const options = page.getByRole('listbox').getByRole('option');
+  await options.nth((await options.count()) - 2).click();
+  const newTypeDialog = page.locator('[data-ops-new-task-type-dialog]');
+  await expect(newTypeDialog).toBeVisible();
+  await newTypeDialog.getByRole('textbox').fill('Nieuw type');
+  await page.keyboard.press('Enter');
+  await expect(newTypeDialog).toBeHidden();
+  await expect.poll(() => hostSettings().then((all) =>
+    (JSON.parse(all['ops-personalTaskTypes'] ?? '[]') as { name: string }[]).map((t) => t.name).sort()))
+    .toEqual(['Bewaard type', 'Nieuw type']);
+  expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find((t) => t.id === id)?.taskType, taskId)).toBe('USERDEFINED');
+
   // Negatieve controle: dezelfde werkende opslag, maar zonder host komt welkom terug, in de bewaarde taal.
   await page.evaluate(() => localStorage.setItem('test-no-host', 'true'));
   await page.reload();

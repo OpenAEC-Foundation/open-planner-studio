@@ -51,7 +51,7 @@ const indexHtml = fs.readFileSync(prepaintPath, 'utf8');
 
 // --- index.html: geen inline script, wel het externe pre-paint-script in <head> ---------------------
 // Commentaar weg tot er niets meer verandert (één ronde kan een nieuw `<!--` overlaten), dan elk
-// scripttag, ongeacht hoofdletters of spaties in de sluittag.
+// scripttag, ongeacht hoofdletters of iets extra in de sluittag (`</script foo>`).
 function withoutComments(html: string): string {
   let previous: string;
   let current = html;
@@ -62,7 +62,7 @@ function withoutComments(html: string): string {
   return current;
 }
 const htmlNoComments = withoutComments(indexHtmlSource);
-const scriptTags = [...htmlNoComments.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
+const scriptTags = [...htmlNoComments.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)];
 check('index.html heeft scripttags', scriptTags.length > 0);
 for (const [, attrs, body] of scriptTags) {
   check(`index.html: script met src en zonder inline code (${attrs.trim()})`, /\ssrc="[^"]+"/.test(attrs) && body.trim() === '');

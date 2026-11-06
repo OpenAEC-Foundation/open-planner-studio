@@ -15,10 +15,17 @@
  * 1. **Bij de start** (`hydrateSiteHostSettings`, in `main.tsx` vóór de store en `initLocale`): één
  *    `get` per sleutel. Een waarde moet tekst zijn (of `null`/`undefined`: niet bewaard). Alles goed?
  *    Dan zet de tool de waarden in `localStorage`. Wacht hoogstens `HYDRATE_TIMEOUT_MS`; daarna start
- *    de app gewoon. Komt het antwoord later, dan wint de host voor elke sleutel die hij heeft, ook van
- *    wat de start intussen schreef (migraties, standaardwaarden). Daarna meldt de tool dat aan
- *    `onSiteHostSettingsHydrated`, zodat de app ze toepast.
- * 2. **Zolang de lezing loopt**, schrijft de tool niets naar de host.
+ *    de app gewoon.
+ * 2. **Zolang de lezing loopt**, schrijft de tool niets naar de host, maar onthoudt hij per sleutel
+ *    wie er schreef (`SettingWriteOrigin`). Een start-write (`'start'`: een migratie, of een
+ *    standaardwaarde die een ontbrekende sleutel vult) verliest van de host. Een gewone schrijf- of
+ *    wisactie (`'user'`, de standaard) wint van de host en gaat daarna naar de host. Een nieuwe
+ *    start-write moet dus expliciet `'start'` meegeven; vergeten maakt hem een gebruikerswijziging,
+ *    nooit een verlies van wat de gebruiker deed.
+ *    Elke sleutel die de lezing lokaal veranderde, krijgt een `StorageEvent` op `window` (zoals een
+ *    ander tabblad dat zou geven), zodat caches in het geheugen verversen vóór een volgende bewerking
+ *    kan schrijven (`personalTaskTypes.ts`, `useStoredSettingRefresh`). Na een late lezing meldt de
+ *    tool dat ook aan `onSiteHostSettingsHydrated`, zodat de app de instellingen in de store toepast.
  * 3. **Daarna** gaat elke schrijf- of wisactie op een blijvende sleutel (`noteSiteHostSettingChanged`)
  *    gebundeld naar de host: na `FLUSH_DELAY_MS` rust, en bij `pagehide` en een verborgen tabblad.
  *    Een lokale sleutel die de host nog niet had, gaat na de lezing één keer mee.
@@ -57,18 +64,21 @@ export interface HostSettingsSyncDeps {
   warn(message: string, error?: unknown): void;
   /** De sleutels die bij de host horen; standaard `HOST_PERSISTED_KEYS`. */
   keys?: readonly string[];
+  /** Meld dat de lezing deze sleutels lokaal veranderde (standaard: een `StorageEvent` per sleutel). */
+  changed?(changes: readonly { key: string; oldValue: string | null; newValue: string | null }[]): void;
 }
+
+/** Wie een instelling schreef: de gebruiker (standaard) of de startroute. Zie de kop van deze module. */
+export type SettingWriteOrigin = 'user' | 'start';
 
 export type HydrateOutcome = 'geen-host' | 'geladen' | 'time-out' | 'fout' | 'al-geladen';
 
 export interface HostSettingsSync {
   hydrate(timeoutMs?: number): Promise<HydrateOutcome>;
-  noteChanged(key?: string): void;
+  noteChanged(key?: string, origin?: SettingWriteOrigin): void;
   flush(): Promise<void>;
   onHydrated(listener: () => void): () => void;
 }
-
-class HostSettingsError extends Error {}
 
 export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettingsSync {
   const keys = [...(deps.keys ?? HOST_PERSISTED_KEYS)].sort();
@@ -79,6 +89,8 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
   /** Wat de host heeft, per sleutel (`null` = niet bewaard), na de lezing en elke geslaagde schrijfactie. */
   const hostValues = new Map<string, string | null>();
   const dirty = new Set<string>();
+  /** Tijdens de lezing: sleutels die de gebruiker schreef of wiste (die winnen van de host). */
+  const userDuringRead = new Set<string>();
   const listeners = new Set<() => void>();
   let timer: unknown = null;
   let chain: Promise<void> = Promise.resolve();
@@ -103,7 +115,7 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
       const value = values[i];
       if (value === null || value === undefined) map.set(key, null);
       else if (typeof value === 'string') map.set(key, value);
-      else throw new HostSettingsError(`ongeldige waarde voor ${key} (${typeof value})`);
+      else throw new Error(`ongeldige waarde voor ${key} (${typeof value})`);
     });
     return map;
   };
@@ -116,8 +128,16 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
       phase = 'off';
       return false;
     }
+    const changes: { key: string; oldValue: string | null; newValue: string | null }[] = [];
     try {
-      for (const [key, value] of values) if (value !== null) storage.setItem(key, value);
+      for (const [key, value] of values) {
+        // De gebruiker schreef deze sleutel tijdens de lezing: zijn waarde wint en gaat zo naar de host.
+        if (value === null || userDuringRead.has(key)) continue;
+        const oldValue = storage.getItem(key);
+        if (oldValue === value) continue;
+        storage.setItem(key, value);
+        changes.push({ key, oldValue, newValue: value });
+      }
       hostValues.clear();
       for (const [key, value] of values) hostValues.set(key, value);
       dirty.clear();
@@ -126,9 +146,13 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
       stop('Instellingen van de host niet neergezet; ze worden deze sessie niet bij de host bewaard', error);
       return false;
     }
+    userDuringRead.clear();
     activeHost = host;
     phase = 'synced';
     if (dirty.size > 0) schedule();
+    if (changes.length > 0) {
+      try { deps.changed?.(changes); } catch (error) { deps.warn('Verversen na de instellingen van de host mislukt', error); }
+    }
     return true;
   };
 
@@ -174,6 +198,7 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     if (host === activeHost && phase === 'synced') return 'al-geladen';
     if (phase === 'pending') return 'al-geladen';
     phase = 'pending';
+    userDuringRead.clear();
     let timedOut = false;
     const settled = readHost(host).then(
       values => {
@@ -197,8 +222,16 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     return outcome;
   };
 
-  const noteChanged = (key?: string) => {
-    if (phase !== 'synced') return; // Tijdens de lezing en zonder host: niets naar de host.
+  const noteChanged = (key?: string, origin: SettingWriteOrigin = 'user') => {
+    if (phase === 'pending') {
+      // Niets naar de host; wel onthouden wat de gebruiker deed (zie de kop van deze module).
+      if (origin === 'user') {
+        if (key === undefined) for (const k of keys) userDuringRead.add(k);
+        else if (persisted.has(key)) userDuringRead.add(key);
+      }
+      return;
+    }
+    if (phase !== 'synced') return; // Zonder host of na een fout: niets naar de host.
     if (key === undefined) {
       for (const k of keys) dirty.add(k);
     } else {
@@ -224,8 +257,18 @@ function browserStorage(): SettingsStorageLike | null {
   }
 }
 
+/** Een `StorageEvent` per sleutel, zoals een ander tabblad dat zou geven: modules die op `storage`
+ *  luisteren (bijv. `personalTaskTypes.ts`, `useStoredSettingRefresh`) verversen dan hun kopie. */
+function dispatchStorageEvents(changes: readonly { key: string; oldValue: string | null; newValue: string | null }[]): void {
+  if (typeof window === 'undefined' || typeof StorageEvent === 'undefined') return;
+  for (const { key, oldValue, newValue } of changes) {
+    window.dispatchEvent(new StorageEvent('storage', { key, oldValue, newValue, url: window.location.href }));
+  }
+}
+
 const sync = createHostSettingsSync({
   storage: browserStorage,
+  changed: dispatchStorageEvents,
   host: siteHostSettings,
   setTimer: (fn, ms) => setTimeout(fn, ms),
   clearTimer: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
@@ -259,8 +302,8 @@ export async function hydrateSiteHostSettings(timeoutMs = HYDRATE_TIMEOUT_MS): P
 
 /** Een `ops-`-sleutel is geschreven of gewist; zonder host met `settings` doet dit niets. Zonder
  *  sleutel: kijk alle blijvende sleutels na (na een wisactie op een groep). */
-export function noteSiteHostSettingChanged(key?: string): void {
-  sync.noteChanged(key);
+export function noteSiteHostSettingChanged(key?: string, origin: SettingWriteOrigin = 'user'): void {
+  sync.noteChanged(key, origin);
 }
 
 /** Bewaar de openstaande wijzigingen nu bij de host. */
