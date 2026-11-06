@@ -1,0 +1,55 @@
+To: PPadmin@planningplanet.com
+Subject: Account approval and a question before posting
+
+Hello,
+
+I have just registered on Planning Planet as [username] and my account is awaiting approval.
+
+I maintain Open Planner Studio, a free, open-source (LGPL-3.0) scheduling application for construction, developed under the OpenAEC Foundation. There is no paid version, no licence and no account; it runs in the browser and as a desktop app.
+
+It opens P6 .xer and P6 XML files and calculates with P6 scheduling conventions. Once my account is approved, I would like to ask experienced P6 planners to test it on real schedules and report where the results differ from P6.
+
+Before I post, I want to check the forum rules with you, in particular rules 6 and 7. Is a single post introducing the tool and asking for testers allowed, and if so, in which forum? I will post it only once. The text I would post is below.
+
+Thank you,
+Ethan de Wit
+
+---
+
+Open Planner Studio: free, open-source CPM scheduler that opens .xer and .mpp files
+
+Hi all,
+
+I maintain Open Planner Studio, an open-source (LGPL-3.0) scheduling application for construction, part of the OpenAEC Foundation. It runs in the browser without install or account, and as a desktop app for Windows, macOS and Linux.
+
+I'm looking for planners who want to test it on real schedules.
+
+What may be relevant to you as a planner:
+
+- CPM: total/free/interfering float, FS/SS/FF/SF with lag, eight constraint types, near-critical threshold, multiple float paths, LOE tasks.
+- Opens P6 .xer and P6 XML, MS Project .mpp (2010–2021) and MSP XML. Current projects in a multi-project .xer open in separate tabs; cross-project relationships are not used in CPM.
+- Calculation profiles for P6 and MS Project conventions, with Retained Logic and Progress Override. P6 Actual Dates is not supported.
+- Imported files show the dates as the source program recorded them, and tell you how many tasks a recalculation would move.
+- Baselines, progress via an .xlsx/.csv sheet, resource levelling, eleven reports including a DCMA 14-point check.
+- Tests include 560 data-driven cases, 13 P6 reference cases and start/finish comparisons with MS Project data from 216 .mpp files.
+
+Not there yet:
+
+- Projects save to IFC 4.3. Export goes to P6 XML or MSP XML; .mpp cannot be written and .xer export is in development.
+- P6 XML export omits baselines, activity codes and custom fields, and converts LOE to standard activities.
+- .mpp import skips baselines, costs and custom fields.
+- No cost management and no 4D model linking yet.
+
+How you can help:
+
+- Test it on a real schedule and tell me where the dates differ from P6 or MS Project, or where your workflow gets stuck. The feedback button in the app works without a GitHub account.
+- Send anonymised .xer or .mpp files. Real files help most to improve the import: https://github.com/OpenAEC-Foundation/open-planner-studio/discussions/71
+- Request features that would make it usable for your projects, through the feedback button or in GitHub Discussions.
+- Contribute code through a pull request.
+
+Browser: https://open-planner-studio.open-aec.com/
+Download and source: https://github.com/OpenAEC-Foundation/open-planner-studio
+Discussions: https://github.com/OpenAEC-Foundation/open-planner-studio/discussions
+
+Thanks,
+Ethan de Wit
