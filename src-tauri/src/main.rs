@@ -79,6 +79,9 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // De kiezer verleent toegang buiten $HOME alleen voor deze sessie. Bewaar die
+        // toestemming voor Recent na een herstart; deze plugin moet ná fs staan.
+        .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

@@ -357,7 +357,10 @@
     "helpTutorialStep": "Opetusohjelma {{number}} / {{total}}",
     "helpTutorialsEmpty": "Opetusohjelmia ei ole vielä asennettu. Ne asennetaan laajennuksena luettelosta.",
     "helpTutorialsInstall": "Asenna opetusohjelmat",
-    "helpDraft": "luonnos"
+    "helpDraft": "luonnos",
+    "helpCopyPrompt": "Kopioi kehote",
+    "helpPromptCopied": "Kopioitu. Liitä kehote nyt Claudeen.",
+    "helpPromptCopyFailed": "Kopiointi ei onnistunut. Valitse alla oleva teksti ja kopioi se itse."
   },
   "export": {
     "progressFileSuffix": "edistyminen",

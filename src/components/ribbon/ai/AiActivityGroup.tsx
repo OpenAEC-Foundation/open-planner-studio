@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Activity } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 
@@ -15,7 +15,7 @@ export function AiActivityGroup() {
 
   return (
     <RibbonButton
-      icon={<Activity size={20} />}
+      icon={<Icon id="panel.ai-activity" size={24} />}
       label={t('aiActivity.panelButton')}
       active={open}
       onClick={() => setUI({ aiActivityOpen: !open })}

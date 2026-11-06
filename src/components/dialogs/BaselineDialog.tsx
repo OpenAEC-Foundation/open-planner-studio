@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Trash2 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -98,7 +98,7 @@ export function BaselineDialog() {
                     <td className="px-2 py-1">{displayDate(b.createdAt, notation) || '—'}</td>
                     <td className="px-2 py-1 text-center">
                       <button onClick={() => remove(b.id)} style={{ color: 'var(--error)' }} title={t('baseline.dialog.delete')}>
-                        <Trash2 size={12} />
+                        <Icon id="edit.delete" size={12} />
                       </button>
                     </td>
                   </tr>
@@ -111,8 +111,8 @@ export function BaselineDialog() {
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <span className="ui-card-header !text-small !leading-4">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
-              <div className="!text-body" style={{ color: 'var(--theme-warning-text)' }}>
-                ⚠ {t('baseline.dialog.staleHint')}
+              <div className="!text-body flex items-start gap-1" style={{ color: 'var(--theme-warning-text)' }} data-ops-baseline-stale-hint>
+                <Icon id="status.warning" size={16} /><span>{t('baseline.dialog.staleHint')}</span>
               </div>
             )}
             <div className="flex items-center gap-2">

@@ -514,6 +514,8 @@
     "connect": "Conectar",
     "connectHint": "Mostra os detalhes de ligação: ponto final, token, excerto de configuração e prompt de ligação.",
     "connectionDetailsTitle": "Detalhes de ligação",
+    "setupPrompt": "Deixe o Claude fazer",
+    "setupPromptHint": "Para o Claude Desktop e o Claude Code. Cole o prompt numa nova conversa. Depois, o Claude instala a extensão por si próprio. Não precisa de nenhum token para isso.",
     "endpoint": "Ponto final",
     "endpointHint": "Transporte: HTTP em streaming",
     "auth": "Autenticação",

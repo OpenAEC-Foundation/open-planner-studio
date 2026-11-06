@@ -1,7 +1,10 @@
 // Het bronbestand van een externe relatie inlezen, alleen-lezen, zonder het als document te openen.
 // Gedeeld door `fileSlice.parseExternalSource` (de dialoog, "Bron vernieuwen" en "Alle externe
 // relaties vernieuwen") en door de tests, die er een eigen `FormatIO` aan geven.
-import type { ExternalSourceDoc } from '@/engine/externalLinks';
+import type { ExternalSourceDoc, LateDatesInFile } from '@/engine/externalLinks';
+import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
+import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
+import type { Task } from '@/types/task';
 import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
@@ -25,6 +28,10 @@ export interface ExternalSourceRead extends ExternalSourceDoc {
  * argumenten als `fileSlice.applyLoadedProject`): opent de bron in de modus, dan telt hij met de
  * opgeslagen datums, anders met de berekening (review PR #792 ronde 1). Een cyclus in de bron laat
  * de datums staan zoals gelezen (`solveProject` schrijft dan niets terug).
+ *
+ * Die berekening geeft elke brontaak late datums, ook als het bestand ze niet had. Een externe
+ * opvolger rekent alleen met een late datum die het bestand zelf droeg; daarom onthoudt de bron per
+ * taak welke late as er in het bestand stond (`lateDatesInFile`, review PR #794 ronde 1).
  */
 export function externalSourceFromImport(parsed: ImportResult, filePath: string): ExternalSourceRead {
   const { result } = ensureUniqueImportIds(parsed);
@@ -38,7 +45,35 @@ export function externalSourceFromImport(parsed: ImportResult, filePath: string)
     projectName: prepared.project.name,
     filePath,
     tasks: prepared.tasks,
+    lateDatesInFile: lateDatesInFile(payload.tasks, parsed),
   };
+}
+
+/**
+ * Per taak: droeg het bestand een late start en een late finish? Uit dezelfde vastlegging als
+ * "datums zoals opgeslagen" (`captureRecordedDates`): bij IFC de gevulde slots (`recordedFields`),
+ * bij XER, P6 XML, MSPDI, `.mpp` en CSV de rekenuitvoer van de bron (`recordedTimes`; een ontbrekende
+ * as ontbreekt daar). Een taak MET eigen vastlegging telt per as alleen die vastlegging, ook een
+ * verzameltaak: legt het bestand de fase vast zonder late finish, dan telt een late finish van haar
+ * kind niet (review PR #794 ronde 2). Alleen een verzameltaak ZONDER eigen vastlegging (de bronlezers
+ * van XER, P6 XML, MSPDI en `.mpp` bewaren alleen die van bladtaken, `leafRecordedTimes`) telt een as
+ * als al haar bladen hem droegen.
+ */
+function lateDatesInFile(tasks: Task[], parsed: ImportResult): Record<string, LateDatesInFile> {
+  const { times } = captureRecordedDates(tasks, parsed.recordedFields, parsed.recordedTimes);
+  const own = (task: Task): LateDatesInFile => ({ start: !!times[task.id]?.lateStart, finish: !!times[task.id]?.lateFinish });
+  const byId = new Map(tasks.map(task => [task.id, task] as const));
+  const cache = new Map<string, Task[]>();
+  const out: Record<string, LateDatesInFile> = {};
+  for (const task of tasks) {
+    if (task.childIds.length === 0 || times[task.id]) { out[task.id] = own(task); continue; }
+    const leaves = descendantLeaves(task, byId, cache).map(own);
+    out[task.id] = {
+      start: leaves.length > 0 && leaves.every(leaf => leaf.start),
+      finish: leaves.length > 0 && leaves.every(leaf => leaf.finish),
+    };
+  }
+  return out;
 }
 
 /** Leest `filePath` via `io` met de lezer van zijn formaat en maakt er een bron van. Een meervoudige

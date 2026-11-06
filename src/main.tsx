@@ -20,6 +20,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 
 import './styles/globals.css';
+import './components/icons/icons.css';
 
 appLog.init();
 
@@ -43,6 +44,13 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fake
 const qaScene = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('qaScene') : null;
 if (qaScene) {
   void import('@/utils/qaScenes').then(({ runQaScene }) => runQaScene(qaScene)).catch(e => console.error(e));
+}
+
+// Iconenblad, alleen in DEV: `?iconen=status` (statusiconen) of `?iconen=dock` (voorstellen voor Resourcedock,
+// zie src/components/icons/dockProposal.ts). Tijdelijk: gaat eruit zodra Ethan een voorstel kiest.
+const iconSheet = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('iconen') : null;
+if (iconSheet === 'status' || iconSheet === 'dock') {
+  void import('@/components/icons/IconReviewSheet').then(({ mountIconReviewSheet }) => mountIconReviewSheet(iconSheet)).catch(e => console.error(e));
 }
 
 // Wacht tot de actieve taal geladen is voordat we renderen (voorkomt een Engelse flits).

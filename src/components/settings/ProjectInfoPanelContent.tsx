@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Check, Pencil, X } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { Select } from '@/components/common/Select';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { localTodayIso } from '@/utils/dateUtils';
@@ -502,7 +502,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                   title={tCommon('ok')}
                   data-ops-project-new-company-confirm
                 >
-                  <Check size={14} />
+                  <Icon id="input.confirm-draft" size={14} />
                 </button>
                 <button
                   type="button"
@@ -511,7 +511,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                   title={tCommon('cancel')}
                   data-ops-project-new-company-cancel
                 >
-                  <X size={14} />
+                  <Icon id="ui.close" size={14} />
                 </button>
               </div>
             )}
@@ -526,7 +526,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                   className="p-1 hover:bg-surface-hover rounded-[6px] shrink-0"
                   title={tCommon('companyLibrary.editItem')}
                 >
-                  <Pencil size={12} />
+                  <Icon id="object.rename" size={12} />
                 </button>
                 <button
                   type="button"
@@ -534,7 +534,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
                   className="p-1 hover:bg-surface-hover rounded-[6px] shrink-0"
                   title={tCommon('cancel')}
                 >
-                  <X size={12} />
+                  <Icon id="ui.close" size={12} />
                 </button>
               </div>
             )}

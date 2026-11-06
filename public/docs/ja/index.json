@@ -47,7 +47,7 @@
 "howto-bibliotheken-beheren": {"title": "リソースライブラリの管理と共有"},
 "howto-bezettingsoverzicht-gebruiken": {"title": "稼働状況の概要を使う"},
 "howto-extensie-installeren": {"title": "拡張機能のインストールと管理"},
-"howto-ai-assistent-koppelen": {"title": "AI アシスタントを接続する（MCP）"},
+"howto-ai-assistent-koppelen": {"title": "MCP クライアントを接続する"},
 "howto-feedback-geven": {"title": "フィードバックの送り方"},
 "howto-app-bijwerken": {"title": "アプリを更新する"},
 "ref-lint": {"title": "タブごとのリボン"},

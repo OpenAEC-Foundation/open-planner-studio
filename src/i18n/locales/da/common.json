@@ -454,6 +454,8 @@
     "connect": "Forbind",
     "connectHint": "Viser forbindelsesoplysningerne: endpoint, token, konfigurationsuddrag og forbindelsesprompt.",
     "connectionDetailsTitle": "Forbindelsesoplysninger",
+    "setupPrompt": "Lad Claude klare det",
+    "setupPromptHint": "Til Claude Desktop og Claude Code. Indsæt prompten i en ny samtale. Claude installerer så udvidelsen selv. Du behøver ikke et token til det.",
     "endpoint": "Endpoint",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Godkendelse",

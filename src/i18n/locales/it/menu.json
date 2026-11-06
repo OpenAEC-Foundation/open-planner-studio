@@ -359,7 +359,10 @@
     "helpTutorialStep": "Tutorial {{number}} di {{total}}",
     "helpTutorialsEmpty": "Non è ancora installato alcun tutorial. Li installi come estensione dal catalogo.",
     "helpTutorialsInstall": "Installa i tutorial",
-    "helpDraft": "bozza"
+    "helpDraft": "bozza",
+    "helpCopyPrompt": "Copia prompt",
+    "helpPromptCopied": "Copiato. Incolla ora il prompt in Claude.",
+    "helpPromptCopyFailed": "Copiare non è riuscito. Seleziona il testo qui sotto e copialo tu stesso."
   },
   "export": {
     "progressFileSuffix": "avanzamento",

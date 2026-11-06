@@ -359,7 +359,10 @@
     "helpTutorialStep": "Tutorialul {{number}} din {{total}}",
     "helpTutorialsEmpty": "Nu sunt instalate încă tutoriale. Instalați-le ca extensie din catalog.",
     "helpTutorialsInstall": "Instalare tutoriale",
-    "helpDraft": "ciornă"
+    "helpDraft": "ciornă",
+    "helpCopyPrompt": "Copiere prompt",
+    "helpPromptCopied": "Copiat. Lipiți acum promptul în Claude.",
+    "helpPromptCopyFailed": "Copierea nu a reușit. Selectați textul de mai jos și copiați-l manual."
   },
   "export": {
     "progressFileSuffix": "progres",

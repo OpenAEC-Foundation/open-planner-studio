@@ -2,6 +2,7 @@ import interRegularUrl from './fonts/Inter-Regular.ttf?url';
 import interBoldUrl from './fonts/Inter-Bold.ttf?url';
 import notoArabicRegularUrl from './fonts/NotoSansArabic-Regular.ttf?url';
 import notoArabicBoldUrl from './fonts/NotoSansArabic-Bold.ttf?url';
+import { INTER_PDF_FAMILY } from './reportFont';
 
 /**
  * Font-loader voor het gevendorde Inter (statische glyf-TTF, wght 400/700). Doel: de print-renderer
@@ -12,7 +13,7 @@ import notoArabicBoldUrl from './fonts/NotoSansArabic-Bold.ttf?url';
  * Alles is browser-only (FontFace, fetch) — geen Tauri-imports; werkt in de web- én de desktop-build.
  */
 
-const FAMILY = 'InterPDF';
+const FAMILY = INTER_PDF_FAMILY;
 
 /** Cache van de rauwe TTF-bytes per gewicht (voor de PDF-embedding én de FontFace-registratie). */
 const byteCache: Partial<Record<400 | 700, Uint8Array>> = {};

@@ -2,6 +2,7 @@ import type { Task, ExternalLink } from '@/types/task';
 import { externalSourceSide, isValidExternalLagValue, normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { isRecord } from '@/utils/guards';
 import { computedStart, computedFinish } from '@/utils/taskDates';
+import { isPinnedComplete } from '@/engine/scheduler/duration';
 
 export { externalSourceSide };
 
@@ -21,9 +22,20 @@ export interface ExternalSourceDoc {
   /** Bestandspad — secundair match-anker/label wanneer de projectId (nog) niet overeenkomt. */
   filePath?: string;
   projectName?: string;
-  /** Brontaken; de anker-datum leest uit `time.earlyFinish`/`time.earlyStart` (val terug op de
-   *  schedule-datums als de vroege datums leeg zijn — een vers-geparsed bestand zonder herrekening). */
+  /** Brontaken; de anker-datum leest uit hun datums volgens {@link sourceAnchorDate}: de vroege voor
+   *  een voorganger, de late voor een opvolger. */
   tasks: Task[];
+  /** Per brontaak-id: welke late datums het BESTAND zelf droeg. Nodig omdat de bronlezer de bron
+   *  doorrekent zoals openen (`readExternalSource`): daarna heeft elke taak late datums, ook als het
+   *  bestand ze niet had. Ontbreekt dit veld (een bron die de aanroeper zelf opbouwde), dan tellen de
+   *  late datums van `tasks`; ontbreekt alleen de taak, dan droeg het bestand voor haar niets. */
+  lateDatesInFile?: Readonly<Record<string, LateDatesInFile>>;
+}
+
+/** Of het bronbestand voor een taak een late start en een late finish droeg. */
+export interface LateDatesInFile {
+  start: boolean;
+  finish: boolean;
 }
 
 export interface RefreshResult {
@@ -42,11 +54,42 @@ export interface RefreshResult {
  * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
 export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
 
-/** De actuele anker-datum die `link` uit `srcTask` leest; leeg ⇒ geen bruikbare datum. BEWUST de
- *  REKENdatum (`computedStart`/`computedFinish`), niet de getoonde: het anker voedt de berekening van
- *  een ander document, en de getoonde start van een gestarte brontaak is haar werkelijke start. */
-export function sourceAnchorDate(link: ExternalLink, srcTask: Task): string {
+/** Is deze kant van de brontaak al gebeurd? Een gestarte kant heeft een werkelijke start (of de taak is
+ *  voltooid), een gebeurde finish hoort bij een voltooide taak. Voor een bladtaak is dat precies
+ *  `startIsActual`/`finishIsActual` (`taskDates.ts`). Een VERZAMELTAAK telt hier ook mee: die draagt na de
+ *  berekening de werkelijke datums en de voortgang van haar bladen (`writeSummaryProgress`); de
+ *  gedeelde helpers sluiten haar bewust uit, want het scherm leidt haar datums uit de kinderen af. */
+function sourceSideHappened(task: Task, side: 'start' | 'finish'): boolean {
+  const done = isPinnedComplete(task.time);
+  return side === 'finish' ? done : done || !!task.time.actualStart;
+}
+
+/** De actuele anker-datum die `link` uit `srcTask` leest; leeg ⇒ geen bruikbare datum. BEWUST een
+ *  REKENdatum, niet de getoonde: het anker voedt de berekening van een ander document, en de getoonde
+ *  start van een gestarte brontaak is haar werkelijke start.
+ *
+ *  - Externe VOORGANGER: de vroege datum (`computedStart`/`computedFinish`). Hij duwt mijn taak.
+ *  - Externe OPVOLGER: de laatst toelaatbare datum, de late start (FS, SS) of de late finish (FF, SF).
+ *    Hij begrenst hoe laat mijn taak klaar mag zijn; zo rekent P6 als beide projecten open zijn
+ *    (External Late Finish). Besluit van Ethan, 2026-11-02 (voorstel 1 uit #792). Wie aan de
+ *    geplande datum vast wil houden, zet een datumbeperking.
+ *    Terugval op de vroege datum:
+ *    - als het bronbestand voor die kant geen late datum droeg (`source.lateDatesInFile`), of de
+ *      brontaak er geen heeft;
+ *    - als die kant van de brontaak al gebeurd is (gestart of klaar, ook bij een fase,
+ *      {@link sourceSideHappened}). Een gestarte taak houdt in de berekening een late start ná haar
+ *      werkelijke start; die speling bestaat niet meer. */
+export function sourceAnchorDate(
+  link: Pick<ExternalLink, 'direction' | 'relType'>,
+  srcTask: Task,
+  source?: Pick<ExternalSourceDoc, 'lateDatesInFile'>,
+): string {
   const side = externalSourceSide(link.direction, link.relType);
+  if (link.direction === 'successor') {
+    const inFile = source?.lateDatesInFile ? source.lateDatesInFile[srcTask.id]?.[side] === true : true;
+    const late = side === 'finish' ? srcTask.time.lateFinish : srcTask.time.lateStart;
+    if (inFile && late && !sourceSideHappened(srcTask, side)) return late;
+  }
   return side === 'finish'
     ? computedFinish(srcTask)
     : computedStart(srcTask);
@@ -99,7 +142,7 @@ export function refreshExternalAnchors(
         return { ...link, sourceMissing: true };
       }
 
-      const anchorDate = sourceAnchorDate(link, srcTask);
+      const anchorDate = sourceAnchorDate(link, srcTask, source);
       refreshed++;
       const nextRef = {
         ...link.sourceRef,

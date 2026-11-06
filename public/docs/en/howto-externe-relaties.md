@@ -6,7 +6,7 @@ Goal: link a task in this project to a task in another project file, so your sch
 
 Your extension can only start once the site has been made ready for building, and that work is in the contractor's project. Or the installer can only start once your structure is finished, and he plans in his own file. An ordinary relation only works between tasks in the same project. An **external relation** links a task to a task in another file.
 
-An external relation does not calculate live with the other project. The app stores a fixed **anchor date**: the date of the external task at the moment you link it. The calculation uses that date as a limit. If the other project changes, nothing moves in yours until you refresh the anchor.
+An external relation does not calculate live with the other project. The app stores a fixed **anchor date**: a date of the external task at the moment you link it. With an external predecessor that is the planned date, with an external successor the latest date the other project allows. The calculation uses that date as a limit. If the other project changes, nothing moves in yours until you refresh the anchor.
 
 ## Steps
 
@@ -20,7 +20,7 @@ An external relation does not calculate live with the other project. The app sto
 Which date you enter as the anchor for a manual link depends on the direction and the type:
 
 - With an external **predecessor** the first letter of the type counts: F means the finish date of the external task, S the start date. With FS and FF you therefore enter the finish, with SS and SF the start.
-- With an external **successor** the second letter counts: S is the start date of the external task, F the finish date. With FS and SS you therefore enter the start, with FF and SF the finish.
+- With an external **successor** the second letter counts: S is the start of the external task, F the finish. Enter the latest date the other project allows: with FS and SS the *Late start* of the external task, with FF and SF its *Late finish*.
 
 If you plan in hours (a task on a calendar with working times), the *Anchor date* field also asks for a time.
 
@@ -40,7 +40,7 @@ Example: the site project finishes on Friday 18 June 2027. You link *Groundwork*
 
 **An external predecessor is a lower limit.** If your task starts later than the anchor demands because of its own predecessors, that relation wins. The anchor only pushes.
 
-**An external successor is an upper limit.** If the anchor is too tight, you see that as negative float on your task and the tasks before it. No separate warning appears with it, so keep an eye on the *Total float* column.
+**An external successor is an upper limit.** As the anchor the app takes the *Late start* or the *Late finish* of the external task, not the planned date. That way the float the external task has in its own project also counts in yours, as in Primavera P6 with both projects open. Example: *Installation* is planned for Monday 1 March 2027 and may start on Monday 15 March at the latest. Your structure has an external successor of type FS to *Installation*. Your structure then gets 10 working days of float, not 0. If the source file has no late dates, or that side of the external task has already happened (started or finished), the app takes the *Early start* or the *Early finish*. If you still want to hold on to the planned date, set a deadline or a constraint on your task. If the anchor is too tight, you see that as negative float on your task and the tasks before it. No separate warning appears with it, so keep an eye on the *Total float* column.
 
 **Only a fixed lag.** For an external relation you cannot give a lag in calendar days or percentages; the app says *External relationships only support a fixed lag in working days or working time.* The work days and the working time count in the calendar of your own task. A lag in hours counts for every task, also for a task in days: 2 hours after an anchor at 07:00 is 09:00. A fraction is allowed, for example `0.5d`.
 

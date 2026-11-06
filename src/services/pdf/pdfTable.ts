@@ -13,6 +13,7 @@
 import type { Draw2D } from './draw2d';
 import type { RenderReportResult } from '@/services/print/printPreview';
 import { ellipsize } from '@/engine/renderer/textFit';
+import { DEFAULT_REPORT_FONT_STACK } from './reportFont';
 import {
   CURVE_CHART_FOOTNOTE_HEIGHT, CURVE_CHART_HEIGHT, CURVE_CHART_LEGEND_HEIGHT, CURVE_CHART_WIDTH, type CurveChartSpec,
   drawCurveChart, drawCurveLegend, layoutCurveChart,
@@ -84,9 +85,8 @@ export interface PdfReportKpi {
   color?: string;
 }
 
-// Zelfde gevendorde Inter-familie als de Gantt-render (printPreview.ts) — deterministisch en
-// inbedbaar, zodat measureText/vector-embedding identiek zijn.
-const FONT_FAMILY = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+// De fontstack komt als parameter binnen (zelfde stack als de Gantt-render, `printPreview.ts`);
+// zonder parameter geldt het gevendorde Inter (`DEFAULT_REPORT_FONT_STACK`, uitleg in `reportFont.ts`).
 
 /** Print-kleurenschema — puur wit-op-papier, GEEN thema-afhankelijkheid (dit is het hele punt: de
  * DOM-screenshot moest een thema forceren, de vector-tekening hoeft dat niet). */
@@ -122,7 +122,9 @@ const BLOCK_GAP = 14;
 export type MeasureText = (text: string, font: string) => number;
 
 /** De letter van een kolomkop — `drawTable` tekent ermee en {@link fitColumnsToHeaders} meet ermee. */
-const COLUMN_HEADER_FONT = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
+function columnHeaderFont(fontStack: string): string {
+  return `bold ${HEADER_FONT_SIZE}px ${fontStack}`;
+}
 
 /**
  * Verbreed elke kolom die haar eigen KOP niet kwijt kan. De kolombreedtes in een spec zijn een
@@ -140,10 +142,15 @@ const COLUMN_HEADER_FONT = `bold ${HEADER_FONT_SIZE}px ${FONT_FAMILY}`;
  * een vrije-tekstkolom als "Naam" of "Resources" ook de bedoeling); alleen de kop krijgt de ruimte
  * die hij nodig heeft.
  */
-export function fitColumnsToHeaders<Row>(columns: PdfTableColumn<Row>[], measure: MeasureText): PdfTableColumn<Row>[] {
+export function fitColumnsToHeaders<Row>(
+  columns: PdfTableColumn<Row>[],
+  measure: MeasureText,
+  fontStack: string = DEFAULT_REPORT_FONT_STACK,
+): PdfTableColumn<Row>[] {
+  const headerFont = columnHeaderFont(fontStack);
   return columns.map(col => {
     // +1: afronding van subpixel-breedtes mag nooit nét een beletselteken uitlokken.
-    const needed = Math.ceil(measure(col.header, COLUMN_HEADER_FONT) + 2 * CELL_PAD_X + 1);
+    const needed = Math.ceil(measure(col.header, headerFont) + 2 * CELL_PAD_X + 1);
     return needed > col.width ? { ...col, width: needed } : col;
   });
 }
@@ -169,13 +176,14 @@ function drawTable<Row>(
   columns: PdfTableColumn<Row>[],
   rows: Row[],
   emptyText: string | undefined,
+  fontStack: string,
   breaks?: number[],
 ): number {
   const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
 
   // ---- Header-rij (bold, 2px onderlijn — spiegelt de DOM `2px solid var(--theme-border)`) ----
   let x = 0;
-  d2d.font = COLUMN_HEADER_FONT;
+  d2d.font = columnHeaderFont(fontStack);
   d2d.fillStyle = COLORS.textMuted;
   d2d.textBaseline = 'middle';
   const headerMidY = y + HEADER_HEIGHT / 2;
@@ -196,7 +204,7 @@ function drawTable<Row>(
   // ---- Data-rijen (of lege-staat) ----
   if (rows.length === 0) {
     d2d.fillStyle = COLORS.textDim;
-    d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+    d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
     d2d.textAlign = 'left';
     d2d.textBaseline = 'middle';
     d2d.fillText(emptyText ?? '', CELL_PAD_X, y + ROW_HEIGHT / 2);
@@ -209,7 +217,7 @@ function drawTable<Row>(
       for (const col of columns) {
         const bold = col.bold?.(row) ?? false;
         const color = col.color?.(row) ?? COLORS.text;
-        d2d.font = `${bold ? 'bold ' : ''}${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.font = `${bold ? 'bold ' : ''}${BODY_FONT_SIZE}px ${fontStack}`;
         d2d.fillStyle = color;
         d2d.textAlign = col.align;
         d2d.textBaseline = 'middle';
@@ -244,8 +252,9 @@ function drawTable<Row>(
 export function makeTableRenderReport<Row>(
   spec: PdfTableSpec<Row>,
   measure?: MeasureText,
+  fontStack: string = DEFAULT_REPORT_FONT_STACK,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
-  const columns = measure ? fitColumnsToHeaders(spec.columns, measure) : spec.columns;
+  const columns = measure ? fitColumnsToHeaders(spec.columns, measure, fontStack) : spec.columns;
   return (makeDraw2D) => {
     const tableWidth = columns.reduce((sum, c) => sum + c.width, 0);
     const titleH = spec.title ? TITLE_HEIGHT : 0;
@@ -261,7 +270,7 @@ export function makeTableRenderReport<Row>(
 
     if (spec.title) {
       d2d.fillStyle = COLORS.text;
-      d2d.font = `bold ${TITLE_FONT_SIZE}px ${FONT_FAMILY}`;
+      d2d.font = `bold ${TITLE_FONT_SIZE}px ${fontStack}`;
       d2d.textAlign = 'left';
       d2d.textBaseline = 'alphabetic';
       d2d.fillText(spec.title, 0, titleH - TITLE_BASELINE_GAP);
@@ -269,7 +278,7 @@ export function makeTableRenderReport<Row>(
     }
 
     const breakOffsets: number[] = [];
-    drawTable(d2d, y, columns, spec.rows, spec.emptyText, breakOffsets);
+    drawTable(d2d, y, columns, spec.rows, spec.emptyText, fontStack, breakOffsets);
 
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
@@ -288,9 +297,10 @@ export function makeTableRenderReport<Row>(
 export function makeSectionedRenderReport(
   spec: PdfSectionedReportSpec,
   measure?: MeasureText,
+  fontStack: string = DEFAULT_REPORT_FONT_STACK,
 ): (makeDraw2D: (w: number, h: number) => Draw2D) => RenderReportResult {
   const sections = measure
-    ? spec.sections.map(s => ({ ...s, columns: fitColumnsToHeaders(s.columns, measure) }))
+    ? spec.sections.map(s => ({ ...s, columns: fitColumnsToHeaders(s.columns, measure, fontStack) }))
     : spec.sections;
   return (makeDraw2D) => {
     const sectionWidths = sections.map(s => s.columns.reduce((sum, c) => sum + c.width, 0));
@@ -317,7 +327,7 @@ export function makeSectionedRenderReport(
     d2d.fillRect(0, 0, width, height);
 
     d2d.fillStyle = COLORS.text;
-    d2d.font = `bold ${TITLE_FONT_SIZE}px ${FONT_FAMILY}`;
+    d2d.font = `bold ${TITLE_FONT_SIZE}px ${fontStack}`;
     d2d.textAlign = 'left';
     d2d.textBaseline = 'alphabetic';
     d2d.fillText(spec.title, 0, TITLE_HEIGHT - TITLE_BASELINE_GAP);
@@ -325,14 +335,14 @@ export function makeSectionedRenderReport(
 
     if (spec.subtitle) {
       d2d.fillStyle = COLORS.textMuted;
-      d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+      d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
       d2d.textBaseline = 'middle';
       d2d.fillText(ellipsize(d2d, spec.subtitle, width), 0, y + SUBTITLE_HEIGHT / 2);
       y += SUBTITLE_HEIGHT;
     }
     for (const note of notes) {
       d2d.fillStyle = COLORS.note;
-      d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+      d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
       d2d.textBaseline = 'middle';
       d2d.fillText(ellipsize(d2d, note, width), 0, y + SUBTITLE_HEIGHT / 2);
       y += SUBTITLE_HEIGHT;
@@ -347,12 +357,12 @@ export function makeSectionedRenderReport(
         const midY = y + line * SUMMARY_LINE_HEIGHT + SUMMARY_LINE_HEIGHT / 2;
         d2d.textBaseline = 'middle';
         d2d.textAlign = 'left';
-        d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
         d2d.fillStyle = COLORS.textMuted;
         const label = ellipsize(d2d, item.label, colW * 0.6);
         d2d.fillText(label, x, midY);
         const labelW = d2d.measureText(label).width + CELL_PAD_X;
-        d2d.font = `bold ${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.font = `bold ${BODY_FONT_SIZE}px ${fontStack}`;
         d2d.fillStyle = item.color ?? COLORS.text;
         d2d.fillText(ellipsize(d2d, item.value, colW - labelW - CELL_PAD_X), x + labelW, midY);
       });
@@ -368,14 +378,14 @@ export function makeSectionedRenderReport(
         d2d.strokeRect(x + 0.5, y + 0.5, boxW - 1, KPI_HEIGHT - 1);
         d2d.textAlign = 'left';
         d2d.textBaseline = 'middle';
-        d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+        d2d.font = `${BODY_FONT_SIZE - 1}px ${fontStack}`;
         d2d.fillStyle = COLORS.textMuted;
         d2d.fillText(ellipsize(d2d, k.label, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 14);
-        d2d.font = `bold 18px ${FONT_FAMILY}`;
+        d2d.font = `bold 18px ${fontStack}`;
         d2d.fillStyle = k.color ?? COLORS.text;
         d2d.fillText(ellipsize(d2d, k.value, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 35);
         if (k.detail) {
-          d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+          d2d.font = `${BODY_FONT_SIZE - 1}px ${fontStack}`;
           d2d.fillStyle = COLORS.textMuted;
           d2d.fillText(ellipsize(d2d, k.detail, boxW - 2 * CELL_PAD_X), x + CELL_PAD_X, y + 54);
         }
@@ -385,13 +395,13 @@ export function makeSectionedRenderReport(
 
     if (spec.chart) {
       if (chartSpec) {
-        drawCurveChart(d2d, layoutCurveChart(chartSpec), 0, y, FONT_FAMILY);
+        drawCurveChart(d2d, layoutCurveChart(chartSpec), 0, y, fontStack);
         y += CURVE_CHART_HEIGHT;
-        drawCurveLegend(d2d, chartSpec, 0, y, width, FONT_FAMILY, COLORS.text);
+        drawCurveLegend(d2d, chartSpec, 0, y, width, fontStack, COLORS.text);
         y += CURVE_CHART_LEGEND_HEIGHT;
         if (chartSpec.footnote) {
           d2d.fillStyle = COLORS.textMuted;
-          d2d.font = `${BODY_FONT_SIZE - 1}px ${FONT_FAMILY}`;
+          d2d.font = `${BODY_FONT_SIZE - 1}px ${fontStack}`;
           d2d.textAlign = 'left';
           d2d.textBaseline = 'middle';
           d2d.fillText(ellipsize(d2d, chartSpec.footnote, width), 0, y + CURVE_CHART_FOOTNOTE_HEIGHT / 2);
@@ -399,7 +409,7 @@ export function makeSectionedRenderReport(
         }
       } else {
         d2d.fillStyle = COLORS.textDim;
-        d2d.font = `${BODY_FONT_SIZE}px ${FONT_FAMILY}`;
+        d2d.font = `${BODY_FONT_SIZE}px ${fontStack}`;
         d2d.textAlign = 'left';
         d2d.textBaseline = 'middle';
         d2d.fillText(ellipsize(d2d, spec.chart.emptyText ?? '', width), 0, y + SUBTITLE_HEIGHT / 2);
@@ -414,7 +424,7 @@ export function makeSectionedRenderReport(
     for (const s of sections) {
       if (s.heading) {
         d2d.fillStyle = COLORS.text;
-        d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${FONT_FAMILY}`;
+        d2d.font = `bold ${HEADER_FONT_SIZE + 1}px ${fontStack}`;
         d2d.textAlign = 'left';
         d2d.textBaseline = 'middle';
         d2d.fillText(ellipsize(d2d, s.heading, width), 0, y + SECTION_HEADING_HEIGHT / 2 + 4);
@@ -422,7 +432,7 @@ export function makeSectionedRenderReport(
       }
       // Een sectiekop mag niet los onderaan een pagina blijven staan: de breekpositie vóór de kop
       // vervalt zodra de kop getekend is (de laatste breek vóór de kop was het sectie-einde ervoor).
-      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText, breakOffsets);
+      y = drawTable(d2d, y, s.columns, s.rows, s.emptyText, fontStack, breakOffsets);
       y += SECTION_GAP;
       breakOffsets.push(y);
     }

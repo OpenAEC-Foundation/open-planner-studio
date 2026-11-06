@@ -1205,6 +1205,29 @@ en noem het in je rapport of PR-tekst.
      de benchmark (`runner.ts`) krijgen ook `leafTasksForSolve`. Een terugval naar een kale bladfilter op een van
      die plekken merkt de test niet op. Later: breid de test uit met een fase met een externe voorganger, via de
      store-acties nivelleren en *Project verplaatsen*. Uit de review van #792, ronde 1 (Sol). — S
+837. **"Bron vernieuwen" vindt een taak in een MSPDI-bron nooit terug.** De MSPDI-lezer geeft elke taak bij elk
+     inlezen een nieuw willekeurig id (`generateId('task')` in `mspdiReader.ts`), en het project ook. Een externe
+     koppeling bewaart het taak-id van de keer dat je hem legde (`sourceRef.taskId`); bij het volgende inlezen
+     bestaat dat id niet meer. De bron wordt wel gevonden (op het bestandspad), maar de koppeling krijgt
+     *Bron ontbreekt* en het anker blijft staan. Gezien in een test bij #794: vier koppelingen naar een MSPDI-bron
+     gaven `{ refreshed: 0, missing: 4 }`. Hetzelfde patroon staat in `mppReader.ts`, `p6xmlReader.ts` en
+     `csvReader.ts` (niet nagespeeld). Een IFC-bron (id uit `OPS_TaskIdentity` of de GlobalId) en een XER-bron hebben
+     er geen last van. Oplossing: een vast id per bron-UID, of in `linkMatchesSource`/`refreshExternalAnchors` ook
+     op een bron-sleutel (UID, naam) matchen. — B (MSPDI), S (`.mpp`, P6 XML, CSV)
+
+839. **VERVOLG: bestaande toegang tot een recent bestand komt na de update niet vanzelf terug.**
+     `src-tauri/src/main.rs:84`, `src/state/slices/fileSlice.ts:1631`. Een recent bestand buiten de vaste
+     rechten heeft na de update nog geen bewaarde toestemming: `persisted-scope` herstelt alleen eerder
+     opgeslagen scopes. De gebruiker ziet "Bestand openen mislukt". Herstel kan via Bestand → Openen,
+     door hetzelfde bestand opnieuw te kiezen. Voorstel: maak die herstelstap duidelijk in de melding
+     of de gids. Verleen geen rechten op basis van de recente lijst. Uit de review van #798 door Sol
+     (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
+
+840. **VERVOLG: kapotte items in Recent zijn niet met de hand te verwijderen.**
+     `src/state/slices/fileSlice.ts:1633`, `src/components/backstage/Backstage.tsx:283`. Een verwijderd
+     bestand blijft nu in Recent staan, en zowel Backstage als het lintmenu biedt alleen openen.
+     Voorstel: voeg later een kleine verwijderactie toe; houd het item bij een tijdelijke leesfout.
+     Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
 
 ## Rondleiding, Help en extensie-gidsen
 
@@ -1662,6 +1685,20 @@ en noem het in je rapport of PR-tekst.
      ook met pins, voortgang, contouren en wisselende capaciteit. Dat aanvullende reviewbewijs is
      geen onderdeel van de geautomatiseerde vóór/na-poort. — B
 
+841. **VERVOLG: de herstartreparatie voor Recent heeft alleen configuratiechecks.**
+     `tests/planning/check-recent-open.ts:126`, `tests/browser/recent-files.spec.ts:17`. De tests
+     controleren de registratie van `persisted-scope` en vervangen de native I/O-rand; een echte
+     appherstart met bewaarde toestemming is niet getest. Voorstel: leg één Windows-run vast met een
+     bestand buiten de vaste rechten. Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op
+     `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
+
+844. **VERVOLG: de regressiecheck voor de rapportletter bewijst geen echte subsetting.** De subsetter in
+     `tests/planning/check-report-font.ts:164` geeft het volledige bronfont terug. De check toont dus niet dat
+     HarfBuzz echt alleen de gebruikte tekens houdt, en hij test geen geregistreerde CJK-provider. Voorstel:
+     later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
+     (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
+     werkt. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
@@ -1727,6 +1764,11 @@ en noem het in je rapport of PR-tekst.
 571. **Overbodige hashes in `i18n/ui-sources/en.json`: `exportP6Truncated` en `p6xmlImportUnassignedActivities`.** Beide
      families hebben een juiste familiehash, plus losse `_one`- en `_other`-regels die `scripts/translate/ui.ts` niet leest. — B
 
+590. **`lucide-react` staat nog in `package.json` en `vite.config.ts`.** Geen bestand in `src` importeert het nog. Bij de
+     merge met main in #765 kwamen `Copy` en `Check` in `PromptBlock.tsx` toch terug (review van Sol, ronde 2); die zijn
+     weer OpenAEC-iconen, en ESLint weigert nu een nieuwe import (`no-restricted-imports` in `eslint.config.js`). Weghalen
+     raakt de lockfile en de gedeelde `node_modules`, dus dat gebeurt in een eigen PR. — B
+
 591. **`check-xer-schedule-options-corpus.ts` is rood op `expectedFinishDates`.** Met `OPS_XER_CORPUS` geeft de check op main
      (2f6bc4d82) 1 van 56 rood: "expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind".
      De CI ziet dit niet, want die draait zonder corpus. Gevonden bij fase 2 van #690; oorzaak niet onderzocht. — B
@@ -1769,3 +1811,32 @@ en noem het in je rapport of PR-tekst.
      het commentaar in `src/components/panels/ReportPanel.tsx:1699` en `tests/browser/table-reports.spec.ts:126`.
      Voorstel: weghalen bij een opruimronde. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`,
      VERVOLG). — B
+
+836. **VERVOLG: in 26 talen heten *Install* en *Working folder* van Claude Desktop soms anders.** De nl- en en-tekst
+     van `howto-ai-assistent-koppelen` (ook de setup-prompt) laten deze twee namen in het Engels. De vertaalstraat
+     (#779) vertaalde ze in de meeste talen: Duits *Installieren*, en de nalezer maakte de prompt daaraan gelijk; ja,
+     ru en bg vertaalden ook *Working folder*. *Working folder* is de titel uit `integrations/claude-desktop/manifest.json`
+     en blijft dus Engels in Claude Desktop. Voorbeeld uit de review van #779 (GPT-6.1-Sol, xhigh, op `d97f7693a`): de
+     Japanse prompt noemt `作業フォルダー`, maar de extensie toont `Working folder` (`manifest.json:37`). Of Claude
+     Desktop *Install* in die talen vertaalt, is niet nagegaan. Claude noemt de klik zelf, dus de installatie loopt
+     niet vast. Voorstel: zet de vaste externe namen (*Install*, *Working folder*) op de bestaande lijst met namen die
+     letterlijk blijven, `i18n/docs-literal.json` (`manual`), en haal het artikel opnieuw door de straat
+     (`prepare docs <taal> --ids howto-ai-assistent-koppelen`). — B
+
+838. **VERVOLG: de vertaalcontrole bewaakt de vaste delen van een opdracht in een promptblok maar gedeeltelijk.**
+     `techTokens` (`scripts/translate/docs.ts:223`, gebruikt in `scripts/translate/gates.ts:327`) houdt URL's,
+     opties, `claude mcp <opdracht>` en woorden met `.`, `/` of `_` vast. Losse woorden zoals `node` en `user` en de
+     losse `--` houdt hij niet vast. In de review van #779 (GPT-6.1-Sol, xhigh, op `d97f7693a`) gaf `-- node` →
+     `-- knoop` 0 fouten, en daarna `--scope user` → `--scope project` ook. Nagemeten op de en-opdracht uit stap 5
+     van de prompt: alle drie de varianten geven dezelfde tokens. De huidige vertalingen hebben deze fout niet: in
+     alle 28 talen staan `--scope user -e OPS_MCP_ROOT=` en ` -- node ` precies één keer. Voorstel: bewaak ook deze
+     vaste delen, bijvoorbeeld de hele opdrachtregel vanaf `claude mcp`, en laat alleen de plaatsen voor paden
+     (`<working folder>`, `<unpacked folder>`) vertaalbaar. — B
+
+842. **VERVOLG: dubbele Linux-ondertekening in het plan.** `docs/installers-ondertekenen-plan.md:175` en
+     `:189` combineren losse OpenPGP-handtekeningen voor DEB, RPM, AppImage en Snap met een ondertekend
+     overzicht van checksums voor alle bestanden, zonder te benoemen welke download- of controleroute
+     die losse handtekeningen nodig heeft. Voorstel: benoem die route, of laat de losse handtekeningen
+     weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
+     voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
+     review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B

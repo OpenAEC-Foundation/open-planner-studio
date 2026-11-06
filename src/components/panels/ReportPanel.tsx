@@ -1132,8 +1132,9 @@ export function ReportPanel() {
       // uit de hoofdbundle.
       let pdfBytes: Uint8Array;
       try {
-        const [{ paginateVectorToPdfBytes }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
+        const [{ paginateVectorToPdfBytes }, { subsetFont }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
           import('@/services/print/paginateVector'),
+          import('@/services/pdf/hbSubset'),
           getInterFontBytes(400),
           getInterFontBytes(700),
           getArabicFontBytes(400),
@@ -1146,6 +1147,7 @@ export function ReportPanel() {
             orientation,
             mode,
             baseDir: exportBaseDir,
+            subsetFont,
             // Kop per pagina herhalen + tijdlijn over N pagina's; voet per pagina.
             repeatHeader,
             repeatFooter,
@@ -1208,9 +1210,10 @@ export function ReportPanel() {
 
     let tablePdfBytes: Uint8Array;
     try {
-      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, { subsetFont }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
         import('@/services/print/paginateVector'),
         import('@/services/pdf/pdfTable'),
+        import('@/services/pdf/hbSubset'),
         getInterFontBytes(400),
         getInterFontBytes(700),
         getArabicFontBytes(400),
@@ -1232,7 +1235,7 @@ export function ReportPanel() {
         // Tabelrapporten: dezelfde kolomspec als de DOM-weergave, gesectioneerd.
         tablePdfBytes = await paginateVectorToPdfBytes(
           makeSectionedRenderReport(toPdfSpec(tableSpec), measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },
         );
@@ -1244,7 +1247,7 @@ export function ReportPanel() {
             rows: milestoneRows,
             emptyText: t('milestoneReport.empty'),
           }, measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },
         );
@@ -1256,7 +1259,7 @@ export function ReportPanel() {
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
           }, measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir },
+          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
           { regular, bold },
           { regular: arabicRegular, bold: arabicBold },
         );

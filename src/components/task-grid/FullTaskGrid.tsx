@@ -84,6 +84,7 @@ import type {
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
+import { Icon } from '@/components/icons';
 
 interface EditingCell {
   documentId: string;
@@ -975,7 +976,9 @@ export function TaskGridSurface({
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
             >
-              {collapsedTaskIds.includes(summary.id) ? '▸' : '▾'}
+              {collapsedTaskIds.includes(summary.id)
+                ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
+                : <Icon id="tree.collapse" size={16} />}
             </button>
           )}
           {body}

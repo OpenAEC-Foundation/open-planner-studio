@@ -355,7 +355,10 @@
     "helpTutorialStep": "教程 {{number}}/{{total}}",
     "helpTutorialsEmpty": "尚未安装任何教程。你可以从目录中以扩展的形式安装它们。",
     "helpTutorialsInstall": "安装教程",
-    "helpDraft": "草稿"
+    "helpDraft": "草稿",
+    "helpCopyPrompt": "复制提示词",
+    "helpPromptCopied": "已复制。请将提示词粘贴到 Claude 中。",
+    "helpPromptCopyFailed": "复制失败。请选中下方的文字并手动复制。"
   },
   "export": {
     "progressFileSuffix": "进度",

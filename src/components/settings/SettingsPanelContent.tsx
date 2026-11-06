@@ -9,7 +9,7 @@ import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNot
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
-import { Info } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
@@ -27,7 +27,8 @@ type SettingsTab = 'appearance' | 'planning' | 'advanced';
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
-  'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
+  // Licht volgt Blueprint v2026.45.0: titelbalk `frame`, paneel, accent en tekst (geen crème).
+  'light':         ['#F4F4F5', '#FFFFFF', '#D97706', '#2A2A31'],
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
 
@@ -406,7 +407,7 @@ export function SettingsPanelContent() {
                 <span>{t('settings.showTaskTypes')}</span>
               </label>
               <div className="ops-note" data-ops-setting-show-task-types-note>
-                <Info size={12} aria-hidden />
+                <Icon id="status.info" size={12} aria-hidden />
                 <span>{t('settings.showTaskTypesHint')}</span>
               </div>
             </div>

@@ -47,7 +47,7 @@ import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSa
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
-import { readExternalSource } from '../externalSource';
+import { readExternalSource, type ExternalSourceRead } from '../externalSource';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
@@ -484,7 +484,7 @@ export interface FileSlice {
   /** Read-only parse van een bronbestand voor externe koppelingen: geeft de
    *  projectidentiteit + taken terug ZONDER het als document te openen (hergebruikt de bestaande
    *  readers). null bij een leesfout/onbekend formaat/niet-Tauri. */
-  parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<{ projectId: string; projectName: string; filePath: string; tasks: Task[] } | null>;
+  parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron.
    *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
@@ -1487,6 +1487,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
       const source: ExternalSourceDoc = {
         projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
+        lateDatesInFile: src.lateDatesInFile,
       };
       const result = refreshExternalAnchors(get().tasks, source);
       if (result.changed) {
@@ -1554,6 +1555,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push({
           projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
+          lateDatesInFile: src.lateDatesInFile,
         });
       }
 
@@ -1622,19 +1624,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await openRecentSiteFile(entry, labels);
         return;
       }
-      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard zit in `openAsDocument`.
-      const isBinary = readFormatForFile(entry.name).kind === 'binary';
-      const content = isBinary ? null : await readFromRef(entry.ref);
-      const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-      // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
-      // `bytes`; bij een tekstformaat is `bytes` altijd null — dan telt uitsluitend `content`.
-      // Null-pad: geweigerd/verdwenen → entry stil verwijderen.
-      if (isBinary ? bytes === null : content === null) {
-        const list = await removeRecent(entry.id);
-        set((s) => { s.recentFiles = list; });
-        return;
-      }
       try {
+        // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
+        // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
+        const isBinary = readFormatForFile(entry.name).kind === 'binary';
+        const content = isBinary ? null : await readFromRef(entry.ref);
+        const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+        if (isBinary ? bytes === null : content === null) {
+          get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
+          return;
+        }
         const parsed = await parseOpenedFile(
           { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
           labels,

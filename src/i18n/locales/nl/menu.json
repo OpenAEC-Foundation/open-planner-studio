@@ -358,7 +358,10 @@
     "helpTutorialStep": "Tutorial {{number}} van {{total}}",
     "helpTutorialsEmpty": "Er zijn nog geen tutorials geïnstalleerd. Je installeert ze als extensie uit de catalogus.",
     "helpTutorialsInstall": "Tutorials installeren",
-    "helpDraft": "concept"
+    "helpDraft": "concept",
+    "helpCopyPrompt": "Prompt kopiëren",
+    "helpPromptCopied": "Gekopieerd. Plak de prompt nu in Claude.",
+    "helpPromptCopyFailed": "Kopiëren lukte niet. Selecteer de tekst hieronder en kopieer hem zelf."
   },
   "export": {
     "progressFileSuffix": "voortgang",
