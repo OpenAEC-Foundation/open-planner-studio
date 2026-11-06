@@ -1,7 +1,7 @@
 // Karakterisering van de gedeelde `use`-fabrieken in ribbonConfig: een gepersisteerde aan/uit-
 // knop (Beeld → spelingsband) wisselt de vlag én bewaart hem, en een knop die alleen UI-state zet
 // (Instellingen → Projectinfo) opent zijn dialoog — telkens opnieuw, ook na sluiten. Vooraf: het
-// muiswiel boven de tabs wisselt van tab (#688), boven de knoppen niet, en de instelling zet het uit.
+// muiswiel boven het lint wisselt van tab (#688), een horizontale veeg niet, en de instelling zet het uit.
 // Echte klikken en echte wielgebeurtenissen; de storebrug leest alleen de uitkomst.
 import { expect, seedProject, test } from './fixtures/ops';
 import { box, chooseLocale, LOCALE_CASES } from './fixtures/locale';
@@ -10,11 +10,11 @@ import type { Page } from '@playwright/test';
 const activeTab = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab);
 
 /** Eén wielklik (100 px, Chromium) met de muis boven het midden van `selector`. */
-async function wheelOver(page: Page, selector: string, deltaY: number): Promise<void> {
+async function wheelOver(page: Page, selector: string, deltaY: number, deltaX = 0): Promise<void> {
   const box = await page.locator(selector).first().boundingBox();
   if (!box) throw new Error(`${selector} niet zichtbaar`);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, deltaY);
+  await page.mouse.wheel(deltaX, deltaY);
 }
 
 test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart, UI-actieknop opent zijn dialoog herhaald', async ({ page, ops: _ops }) => {
@@ -32,6 +32,20 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await wheelOver(page, '.ribbon-content', 100);
   await expect.poll(() => activeTab(page)).toBe('planning');
   await wheelOver(page, '.ribbon-content', -100);
+  await expect.poll(() => activeTab(page)).toBe('start');
+  // Een vooral horizontale veeg (touchpad) wisselt geen tab en blijft van de browser: een smal
+  // lint scrolt er zijn verborgen knoppen mee in beeld. Planning is breed genoeg om te overlopen.
+  const size = page.viewportSize()!;
+  await page.locator('[data-ops-ribbon-tab="planning"]').click();
+  await page.setViewportSize({ width: 480, height: size.height });
+  const scroller = page.locator('.ribbon-content-scroll');
+  await expect.poll(() => scroller.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await scroller.evaluate(el => el.scrollLeft)).toBe(0);
+  await wheelOver(page, '.ribbon-content', 60, 150);
+  await expect.poll(() => scroller.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+  expect(await activeTab(page)).toBe('planning');
+  await page.setViewportSize(size);
+  await page.locator('[data-ops-ribbon-tab="start"]').click();
   await expect.poll(() => activeTab(page)).toBe('start');
 
   // Een getypte, nog niet bevestigde waarde blijft bewaard, net als bij een klik op een tab:
