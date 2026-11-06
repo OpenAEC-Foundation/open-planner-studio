@@ -9,7 +9,9 @@
 //   - een expliciet basispad (`--base`, verplicht): alle URL's in de bundel beginnen daarmee;
 //   - Vite-modus `platform`: leest `.env.platform` (bouwvlag, zie `src/utils/buildFlags.ts`), zet
 //     `build.manifest` aan en schrijft naar `dist-platform/` (zie `vite.config.ts`).
-// Eerst draait de typecheck, net als bij `npm run build` (`tsc && vite build`).
+// Eerst draait de typecheck, net als bij `npm run build` (`tsc && vite build`). Na de Vite-build schrijft het
+// script de tooldefinities voor de assistent van de site naar `dist-platform/mcp-tools.json`
+// (`scripts/export-mcp-tools.ts`, dezelfde bron als `window.__OPDS_APP__.definitions()`).
 //
 // Exitcode: 0 bij succes, 2 bij een fout argument, anders de exitcode van tsc of Vite.
 
@@ -71,7 +73,8 @@ delete BUILD_ENV.OPS_DEV_INSTANCE;
 for (const key of Object.keys(BUILD_ENV)) if (key.startsWith('VITE_')) delete BUILD_ENV[key];
 
 function run(bin, args) {
-  const result = spawnSync(path.join(ROOT, 'node_modules', '.bin', bin), args, { cwd: ROOT, stdio: 'inherit', env: BUILD_ENV });
+  const command = bin === 'node' ? process.execPath : path.join(ROOT, 'node_modules', '.bin', bin);
+  const result = spawnSync(command, args, { cwd: ROOT, stdio: 'inherit', env: BUILD_ENV });
   if (result.error) {
     console.error(`build-platform: ${bin} starten mislukt: ${result.error.message}`);
     process.exit(1);
@@ -92,7 +95,9 @@ function main() {
   run('tsc', []);
   console.log(`build-platform: vite build --mode platform --base ${parsed.base} → dist-platform/`);
   run('vite', ['build', '--mode', 'platform', '--base', parsed.base]);
-  console.log(`build-platform: klaar: dist-platform/ (manifest: dist-platform/.vite/manifest.json)`);
+  console.log(`build-platform: tooldefinities → dist-platform/mcp-tools.json`);
+  run('node', ['scripts/run-ts.mjs', 'scripts/export-mcp-tools.ts', 'dist-platform/mcp-tools.json']);
+  console.log(`build-platform: klaar: dist-platform/ (manifest: dist-platform/.vite/manifest.json, tools: dist-platform/mcp-tools.json)`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
