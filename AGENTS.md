@@ -187,7 +187,7 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **Platform build.** `npm run build:platform -- --base /pad/` builds the bundle the OpenAEC app on Frappe serves
   under a sub-path (Vite mode `platform`, `.env.platform`, `build.manifest`, `dist-platform/`); `npm run build` gets
   none of the platform switches. Differences go only through the constants in `src/utils/buildFlags.ts` (extensions, demo start and
-  AI mode are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
+  AI mode and download stats are off there) — never read `VITE_OPS_PLATFORM` directly. Own assets always via `import.meta.env.BASE_URL`.
   Detail: `docs/platformbouw.md`.
 - **Claude Desktop bundle = a switch plus the headless server.** `integrations/claude-desktop/` is an MCP Bundle
   (`.mcpb`, #730) with two programs. `server/index.mjs` (the switch, `src/proxy.ts`) reads `runtime.json` for
