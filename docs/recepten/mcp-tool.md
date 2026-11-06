@@ -92,6 +92,24 @@ document ooit achter, dan heeft de code gelijk.
   een draaiboek geschemavalideerd — niets extra's te doen, maar goed om te weten als je een
   `cases-batch.ts`-achtige regressie schrijft.
 
+## Grote antwoorden
+
+De assistent van de site (`window.__OPDS_APP__`, `src/services/mcp/siteAppTools.ts`) weigert een antwoord van een
+leestool boven 30.000 tekens met `te_groot` en noemt daarbij een uitweg. Een wijzigende tool of `planner_batch`
+krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
+
+- Geeft een leestool een lijst die met de planning meegroeit, geef hem dan `limit` en `offset`. Is de tool al
+  bekend zonder paginering, maak ze **optioneel**: zonder beide velden blijft het antwoord precies gelijk
+  (`optionalPage` en `OPTIONAL_PAGE_SCHEMA` in `tools/readTools.ts`, zoals bij `planner_get_critical_path`,
+  `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
+- Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
+  (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
+- Geeft een wijzigende tool een koppeling terug die later niet meer op te vragen is (zoals de `created`-map
+  `tempId` → id), dan moet het compacte rapport (`compactChange` in `siteAppTools.ts`) haar bewaren, en moet
+  `newTempIds` haar meetellen, zodat `run` een te grote aanroep vóór uitvoering weigert. Al het andere in een
+  wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus niet buiten
+  dat rapport om.
+
 ## Het nieuwe mechanische vangnet
 
 `tests/mcp/cases-toolregistry.ts` scant `src/services/mcp/tools/*.ts` op elke `name: 'planner_...'`-

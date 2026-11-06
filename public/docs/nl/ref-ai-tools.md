@@ -16,7 +16,7 @@ Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze
 - `planner_get_project_overview` (lezen) — de hele WBS-boom in één antwoord: per taak id, WBS, naam, duur, vroege datums, voortgang, kritiek, en de uitgaande relaties met hun relatie-id.
 - `planner_list_tasks` (lezen) — taken met filters (kritiek, status, datumvenster, taken zonder relaties) en paginering.
 - `planner_get_task` (lezen) — één taak in detail: datums, speling, voortgang, constraints, deadline, kalender, toewijzingen, voorgangers en opvolgers, onderbrekingen.
-- `planner_get_critical_path` (lezen) — de kritieke taken met hun totale speling, en de relaties die het pad bepalen.
+- `planner_get_critical_path` (lezen) — de kritieke taken met hun totale speling, en de relaties die het pad bepalen. Desgewenst per pagina (`limit`, `offset`).
 - `planner_list_resources` (lezen) — resources met capaciteit, tarief, kalender, ploeg, beschikbaarheid en een samenvatting van hun toewijzingen. Komt een resource uit een bibliotheek, dan staat erbij welke velden vastliggen.
 - `planner_get_resource_histogram` (lezen) — belasting tegenover capaciteit per resource, per dag, week of maand (standaard week). Zonder venster en zonder resources geeft hij een samenvatting per resource; met een venster of resources de volledige reeksen en de taken die een overbezetting veroorzaken.
 - `planner_get_calendars` (lezen) — alle kalenders met hun volledige definitie en door hoeveel taken en resources ze gebruikt worden.
@@ -24,8 +24,8 @@ Alle tools die een MCP-client via de bridge kan aanroepen, per groep, met wat ze
 ## Lezen: baselines en afwijking
 
 - `planner_list_baselines` (lezen) — de opgeslagen baselines en welke actief is.
-- `planner_compare_baseline` (lezen) — het huidige plan tegenover de actieve baseline: alleen de afwijkende taken en het verschil in projecteinde, in werkdagen op de huidige projectkalender. Zonder actieve baseline weigert hij.
-- `planner_analyze_delay` (lezen) — vertragingsanalyse tegen de actieve baseline: het verschil in oplevering en de kritieke taken die verschoven zijn. Zonder actieve baseline weigert hij.
+- `planner_compare_baseline` (lezen) — het huidige plan tegenover de actieve baseline: alleen de afwijkende taken en het verschil in projecteinde, in werkdagen op de huidige projectkalender. Desgewenst per pagina (`limit`, `offset`). Zonder actieve baseline weigert hij.
+- `planner_analyze_delay` (lezen) — vertragingsanalyse tegen de actieve baseline: het verschil in oplevering en de kritieke taken die verschoven zijn. Desgewenst per pagina (`limit`, `offset`). Zonder actieve baseline weigert hij.
 
 ## Taken en structuur
 

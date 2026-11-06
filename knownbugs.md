@@ -1923,17 +1923,26 @@ en noem het in je rapport of PR-tekst.
      in de hoofdbundel: `App.tsx` → `useAiAutostart.ts` → `server.ts` (dat bij het laden de tools registreert), en ook
      `SettingsPanelContent.tsx` (`applyAiModeLive`), `AiServerGroup.tsx` en `AiConnectionGroup.tsx` (`server.ts`, via
      `ribbonConfig.tsx`, ook als het AI-tabblad verborgen is) en `AiConnectionDetailsDialog.tsx` (`getTools` tijdens
-     het tekenen). `ensureMcpToken` in `AiConnectionGroup` en `getTools` in de dialoog lopen synchroon, dus een kleine
-     dynamische import in één bestand breekt het pad niet. Het contract (supercloud, "Lui laden") vraagt een aparte
-     chunk. Voorstel: laat de AI-onderdelen in `ribbonConfig.tsx`, `SettingsPanelContent.tsx` en `App.tsx` alleen
-     meedoen achter `AI_MODE_AVAILABLE` (`src/utils/buildFlags.ts`), en meet daarna met `build:platform` welke chunks er
-     ontstaan. Gevonden bij #818 met grep op de imports, zonder build. — B
+     het tekenen). `siteAppTools.ts` importeert zelf `requestHandler.ts` (en daarmee `activityLog.ts`) statisch.
+     `ensureMcpToken` in `AiConnectionGroup` en `getTools` in de dialoog lopen synchroon, dus een kleine dynamische
+     import in één bestand breekt het pad niet; een latere `import()` maakt een eerdere statische evaluatie niet
+     ongedaan. Het contract (supercloud, "Lui laden") vraagt een aparte chunk. Voorstel: laat de AI-onderdelen in
+     `ribbonConfig.tsx`, `SettingsPanelContent.tsx` en `App.tsx` alleen meedoen achter `AI_MODE_AVAILABLE`
+     (`src/utils/buildFlags.ts`), en meet daarna met `build:platform` welke chunks er ontstaan. Gevonden bij #818 met
+     grep op de imports, zonder build; bevestigd in de review van #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). — B
 
-851. **VERVOLG: leestools zonder paginering kunnen boven de 30.000 tekens van het sitecontract komen.** De grens
-     `te_groot` in `siteAppTools.ts` geldt alleen voor leestools met `limit` en `offset` (`planner_list_tasks`,
-     `planner_list_resources`, `planner_inspect_xer_provenance`). `planner_get_planning_guide` met `part: both` geeft
-     de agentgids en twee skills: samen ruim 43.000 tekens bron (`public/agent/planning-guide.md` 24.800,
-     `public/skills/*/SKILL.md` 7.815 en 10.452). `planner_get_critical_path`, `planner_compare_baseline`,
-     `planner_get_project_overview`, `planner_analyze_delay` en `planner_get_calendars` hebben geen filter of pagina;
-     op een grote planning is hun grootte niet gemeten. Voorstel: geef die tools een `limit`/`offset`, of laat de site
-     de gids als bestand lezen. Gevonden bij #818. — B (gids, uit de bestandsgrootte) / S (de andere tools)
+851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
+     van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
+     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
+     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
+     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
+     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
+     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
+     met `installSiteAppTools`. Voorstel: een `part` per skill, en `criticalPaths` alleen op de eerste pagina. — B
+
+852. **VERVOLG: geen browsertest roept `window.__OPDS_APP__` aan.** `tests/browser/platform-build.spec.ts` leest
+     alleen `dist-platform/mcp-tools.json` van schijf. De tests in `tests/mcp/cases-site-app-tools.ts` installeren het
+     object op een nepvenster; ze bewijzen de adapter en de guards, maar niet de installatie door `main.tsx` of een
+     `run()` in een frame met `sandbox="allow-scripts allow-modals"` (zonder `allow-same-origin`). Uit de review van
+     #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). Dit wordt opgepakt in PR #828; haal dit punt weg zodra die gemerged
+     is. — B
