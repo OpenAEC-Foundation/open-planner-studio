@@ -361,8 +361,9 @@ const WORKPLACE_TASK = 'Set up site';
 const FLOAT_BAND = (JSON.parse(readFileSync(join(ROOT, 'src/i18n/locales/en/menu.json'), 'utf8')) as {
   ribbon: { toggleFloatBand: string };
 }).ribbon.toggleFloatBand;
-/** De ene hostsleutel waaronder de tool zijn `ops-`-instellingen bewaart (`siteHostSettings.ts`). */
-const HOST_SETTINGS_KEY = 'open-planner-studio:instellingen';
+/** De instelling die het scenario omzet. De tool bewaart elke blijvende `ops-`-sleutel onder dezelfde naam
+ *  bij de host, met de tekst uit `localStorage` als waarde (`siteHostSettings.ts`). */
+const FLOAT_BAND_KEY = 'ops-showFloatBand';
 
 /**
  * Zet in het frame (en alleen daar) vóór de start wat de SuperCloud daar neerzet: opslag in het geheugen
@@ -575,17 +576,18 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect.poll(() => workplaceSaves(frame).then((saves) => saves.length)).toBe(3);
   expect((await workplaceSaves(frame))[2]).toMatchObject({ fn: 'save', id: null, name: 'Variant.ifc', expectedVersion: null, bytes: true });
 
-  // Een instelling die de gebruiker omzet, komt gebundeld bij `settings.set` van de host.
+  // Een instelling die de gebruiker omzet, komt gebundeld bij `settings.set` van de host, onder haar eigen
+  // sleutel. Bij de start vroeg de tool die sleutel op met `settings.get`.
+  expect((await workplaceCalls(frame)).some((call) => call.fn === 'settings.get' && call.key === FLOAT_BAND_KEY)).toBe(true);
   await frame.locator('[data-ops-ribbon-tab="beeld"]').click();
   const floatBand = frame.getByRole('button', { name: new RegExp(`^${FLOAT_BAND}`) });
   const wasActive = await floatBand.evaluate((element) => element.classList.contains('active'));
   await floatBand.click();
   await expect.poll(() => floatBand.evaluate((element) => element.classList.contains('active'))).toBe(!wasActive);
   await expect.poll(async () => {
-    const sets = (await workplaceCalls(frame)).filter((call) => call.fn === 'settings.set' && call.key === HOST_SETTINGS_KEY);
-    return (sets.at(-1)?.value as Record<string, unknown> | undefined)?.['ops-showFloatBand'];
+    const sets = (await workplaceCalls(frame)).filter((call) => call.fn === 'settings.set' && call.key === FLOAT_BAND_KEY);
+    return sets.at(-1)?.value;
   }).toBe(String(!wasActive));
-  expect((await workplaceCalls(frame)).some((call) => call.fn === 'settings.get' && call.key === HOST_SETTINGS_KEY)).toBe(true);
 
   // Nivelleren: het opaque frame weigert een worker van de bundel al in de constructor (`SecurityError`);
   // de berekening valt dan terug op de hoofdthread en levert gewoon een voorstel.
