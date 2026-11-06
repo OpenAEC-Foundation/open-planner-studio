@@ -5,6 +5,7 @@ import { documentProjectCode } from '@/utils/documentProjectCode';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
 import { Icon } from '@/components/icons';
+import { AppLogo } from '@/components/common/AppLogo';
 import { isMacPlatform } from '@/hooks/keyboard/shortcutFormat';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { canRedo, canUndo } from '@/state/sessionHistory';
@@ -148,7 +149,7 @@ export function TitleBar() {
       )}
       <div ref={leftRef} className="title-bar-left">
         <div className="quick-access-toolbar">
-          <img src={`${import.meta.env.BASE_URL}icon.png`} className="title-bar-app-icon" alt="Open Planner Studio" />
+          <AppLogo size={18} className="title-bar-app-icon" />
           <div className="quick-access-separator" />
 
           {/* Nieuw/Openen/Opslaan staan hier bewust niet (review 2026-10-06): ze staan al op Start en in
