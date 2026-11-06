@@ -32,7 +32,7 @@ A change takes effect immediately. There is no *Apply* button and no *Cancel*.
 
 **Document switch style** — how you switch between open projects. Choose from *Horizontal tabs*, *Vertical tabs* and *Pill*. Default: *Horizontal tabs*. Effect: *Horizontal tabs* puts a tab bar under the ribbon; *Vertical tabs* a project bar on the left; *Pill* a small project button in the title bar. Where: *Appearance*.
 
-**Switch tabs with the mouse wheel** — whether the mouse wheel over the ribbon tabs switches tabs. Default: on. Effect: on makes wheel down go to the next tab and wheel up to the previous one. Off makes the wheel do nothing there. Where: *Appearance*, under *Ribbon*. See [The ribbon, tab by tab](docs://ref-lint).
+**Switch tabs with the mouse wheel** — whether the mouse wheel over the ribbon (tabs and buttons) switches tabs. Default: on. Effect: on makes wheel down go to the next tab and wheel up to the previous one. Off makes the wheel do nothing there. Where: *Appearance*, under *Ribbon*. See [The ribbon, tab by tab](docs://ref-lint).
 
 ### Gantt section
 
