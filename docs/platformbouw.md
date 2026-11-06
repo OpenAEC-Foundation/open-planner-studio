@@ -27,7 +27,8 @@ npm run build:platform -- --base /assets/openaec/planner/
   voorbeeld. Alle URL's in de bundel beginnen met dat pad; eigen bestanden (`docs/`, `examples/`, het
   icoon) laadt de app via `import.meta.env.BASE_URL`.
 - Het script draait eerst `tsc`, net als `npm run build`, en bouwt daarna met `vite build --mode platform`.
-- De uitvoer staat in `dist-platform/`, met `dist-platform/.vite/manifest.json` (Vite `build.manifest`).
+- De uitvoer staat in `dist-platform/`, met `dist-platform/.vite/manifest.json` (Vite `build.manifest`) en
+  `dist-platform/mcp-tools.json` (de tooldefinities voor de assistent, zie hieronder).
 - De gewone `npm run build` en de live-deploy krijgen geen van de schakelaars hieronder. De code voor opslag
   via de site zit wel in elke bouw, maar doet alleen iets als een host aanwezig is; de desktop-app heeft nooit
   een host.
@@ -168,18 +169,39 @@ site bedient de tool daarmee, via de brug van de site in het frame:
 ```ts
 window.__OPDS_APP__ = {
   tools(): Promise<string[]>;                      // de namen
-  definitions(): Promise<{ name; description; inputSchema }[]>;  // zoals tools/list
+  definitions(): Promise<{ name; description; inputSchema; annotations }[]>;  // zoals tools/list
   run(name, args?): Promise<unknown>;              // het structuredContent; een weigering wordt een fout `CODE: melding`
 };
 ```
 
-Achter `run` zit dezelfde `handleMcpMessage` als achter de bridge: dezelfde namen, schema's, guards en uitvoering, op het
-open document. Er is geen tweede implementatie. De MCP-laag komt pas als aparte chunk binnen bij de eerste aanroep.
-`planner_export_ifc` en `planner_import_schedule` werken op een bestandssysteem en doen hier niet mee: openen en opslaan
-lopen via het hostcontract, door de gebruiker.
+Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createRequestHandler`), met daarachter
+`handleMcpMessage`: dezelfde namen, schema's, guards en uitvoering, op het open document. Er is geen tweede implementatie.
 
-`node scripts/run-ts.mjs scripts/export-mcp-tools.ts <bestand>` schrijft de definities als JSON, voor een host die er zijn
-tooldefinities van afleidt. Toetsen: `tests/mcp/cases-site-app-tools.ts`.
+- **Eén sessie, één documentanker.** Bij de eerste aanroep opent `__OPDS_APP__` één MCP-sessie. De eerste wijziging
+  bindt de sessie aan het actieve document. Wisselt de gebruiker daarna zelf van document, dan geeft elke volgende
+  wijziging `DOC_DRIFT`, tot de assistent met `planner_switch_document` expliciet een document kiest. Lezen mag door.
+  Ook pauze (`PAUSED`), alleen-lezen (`READ_ONLY`) en een open dialoog (`DIALOG_OPEN`) werken zoals bij de bridge.
+- **Fouten.** Elke fout heeft de vorm `CODE: melding`, en dezelfde code staat los in `error.code`. De codes zijn die van
+  de tools (`VALIDATION`, `NOT_FOUND`, `DOC_DRIFT`, …), `JSONRPC_<code>` voor een fout van de dispatcher (een onbekende
+  tool geeft `JSONRPC_-32602: Unknown tool: …`), en twee codes van het sitecontract:
+  - `niet_in_browser: <tool>`: `planner_export_ifc` en `planner_import_schedule` werken op een bestandssysteem. Ze staan
+    niet in `definitions()` en worden geweigerd, ook als stap van `planner_batch` (dan draait de hele batch niet).
+    Openen en opslaan lopen via het hostcontract, door de gebruiker.
+  - `te_groot: …`: een leestool met paginering (`limit` en `offset`: nu `planner_list_tasks`, `planner_list_resources`
+    en `planner_inspect_xer_provenance`) die meer dan 30.000 tekens zou geven. De melding noemt de parameters waarmee
+    de assistent kleiner vraagt. Tools zonder paginering en wijzigende tools krijgen geen grens.
+- **Laden.** De dispatcher, de toolregistry en `server.ts` worden pas bij de eerste aanroep via `import()` opgehaald.
+  Een aparte chunk is het nog niet: `App.tsx` (via `useAiAutostart`), de instellingen, het AI-tabblad van het lint en
+  `AiConnectionDetailsDialog` importeren `server.ts` of de toolregistry statisch, ook in de platformbouw. De MCP-laag
+  zit dus in de hoofdbundel (knownbugs 850).
+
+`npm run build:platform` schrijft de definities ook naar `dist-platform/mcp-tools.json`, naast de bundel, zodat de site ze
+kan controleren. Dat doet `scripts/export-mcp-tools.ts` met `siteAppToolsJson`, dezelfde pure functie als
+`definitions()`; los aan te roepen met `node scripts/run-ts.mjs scripts/export-mcp-tools.ts <bestand>`.
+
+Toetsen: `tests/mcp/cases-site-app-tools.ts` (via `installSiteAppTools` op een nepvenster: guards, documentanker,
+bestandstools direct en in `planner_batch`, foutcodes, grootte-grens, `mcp-tools.json`) en
+`tests/browser/platform-build.spec.ts` (het bestand ligt naast de bundel).
 
 ## Zelf proberen
 

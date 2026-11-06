@@ -1840,3 +1840,23 @@ en noem het in je rapport of PR-tekst.
      weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
      voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
      review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B
+
+850. **VERVOLG: de MCP-laag is in de platformbouw geen aparte chunk.** `src/services/mcp/siteAppTools.ts` haalt de
+     dispatcher, `server.ts` en de toolregistry pas bij de eerste aanroep op met `import()`. Maar ze staan al statisch
+     in de hoofdbundel: `App.tsx` → `useAiAutostart.ts` → `server.ts` (dat bij het laden de tools registreert), en ook
+     `SettingsPanelContent.tsx` (`applyAiModeLive`), `AiServerGroup.tsx` en `AiConnectionGroup.tsx` (`server.ts`, via
+     `ribbonConfig.tsx`, ook als het AI-tabblad verborgen is) en `AiConnectionDetailsDialog.tsx` (`getTools` tijdens
+     het tekenen). `ensureMcpToken` in `AiConnectionGroup` en `getTools` in de dialoog lopen synchroon, dus een kleine
+     dynamische import in één bestand breekt het pad niet. Het contract (supercloud, "Lui laden") vraagt een aparte
+     chunk. Voorstel: laat de AI-onderdelen in `ribbonConfig.tsx`, `SettingsPanelContent.tsx` en `App.tsx` alleen
+     meedoen achter `AI_MODE_AVAILABLE` (`src/utils/buildFlags.ts`), en meet daarna met `build:platform` welke chunks er
+     ontstaan. Gevonden bij #818 met grep op de imports, zonder build. — B
+
+851. **VERVOLG: leestools zonder paginering kunnen boven de 30.000 tekens van het sitecontract komen.** De grens
+     `te_groot` in `siteAppTools.ts` geldt alleen voor leestools met `limit` en `offset` (`planner_list_tasks`,
+     `planner_list_resources`, `planner_inspect_xer_provenance`). `planner_get_planning_guide` met `part: both` geeft
+     de agentgids en twee skills: samen ruim 43.000 tekens bron (`public/agent/planning-guide.md` 24.800,
+     `public/skills/*/SKILL.md` 7.815 en 10.452). `planner_get_critical_path`, `planner_compare_baseline`,
+     `planner_get_project_overview`, `planner_analyze_delay` en `planner_get_calendars` hebben geen filter of pagina;
+     op een grote planning is hun grootte niet gemeten. Voorstel: geef die tools een `limit`/`offset`, of laat de site
+     de gids als bestand lezen. Gevonden bij #818. — B (gids, uit de bestandsgrootte) / S (de andere tools)
