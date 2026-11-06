@@ -150,9 +150,8 @@ function tooLarge(name: string, chars: number, def: McpToolDef | undefined): Sit
 // Wat altijd blijft: de status per stap en elke koppeling van een opgegeven label naar een nieuw id
 // (`SITE_APP_ID_LINK_TOOLS`). Die koppeling is later niet meer terug te vragen: het label wordt niet opgeslagen.
 // Omdat ze moet blijven, weigert `run` VÓÓR uitvoering een aanroep waarvan de koppelingen samen met het rapport
-// niet zouden passen (`linksTooLarge`), met de opdracht kleinere porties te sturen. Al het andere wordt een aantal
-// of een samenvatting, en wat er nog past van de restwerkcorrecties en de deelweigeringen komt erbij, per regel
-// ingekort.
+// niet zouden passen (`linksTooLarge`), met de opdracht kleinere porties te sturen. Verder valt uit het antwoord
+// van een wijzigende tool geen veld weg; alleen lange lijsten houden hun eerste regels (zie `compactChange`).
 
 /**
  * Bovengrens voor één echt id in JSON, met aanhalingstekens. `generateId` (`src/utils/id.ts`) maakt
@@ -174,23 +173,24 @@ const listIn = (value: unknown, key: string): unknown[] =>
   isRecord(value) && Array.isArray(value[key]) ? (value[key] as unknown[]) : [];
 const stringIn = (item: unknown, key: string): string[] =>
   isRecord(item) && typeof item[key] === 'string' ? [item[key] as string] : [];
-const createdMap = (data: unknown): Record<string, unknown> | undefined =>
-  isRecord(data) && isRecord(data.created) ? { created: data.created } : undefined;
 
 /** Een tool die een koppeling van een opgegeven label naar een nieuw id teruggeeft. */
 interface IdLinkTool {
   /** De labels die deze aanroep zou aanmaken (een bovengrens: een label kan ook een bestaand item raken). */
   labels(args: unknown): string[];
-  /** Alleen de koppelingen uit het antwoord, als deel van het compacte rapport. */
-  keep(data: unknown): Record<string, unknown> | undefined;
+  /** Het veld van `data` waarin de koppelingen staan. */
+  field: 'created' | 'calendars';
+  /** Bij een lijstveld: de koppeling uit één regel (`{requestedId, id}`), of niets als de regel er geen is. Zo'n
+   *  regel blijft bij het inkorten van de lijst altijd staan, zo nodig alleen als koppeling. */
+  linkOf?(entry: unknown): unknown;
   /** Vaste JSON-tekens per koppeling, naast het label en het id. */
   perLink: number;
 }
 
 /**
- * De tools die zo'n koppeling teruggeven, nagelopen in november 2026 (#825, ronde 3 en 4). Geen automatische
- * vangst: een nieuwe aanmaaktool met een eigen label moet hier bij. Een vergeten tool verliest zijn koppelingen niet
- * stil (een veld buiten `SITE_APP_RESULT_FIELDS` blijft staan), maar telt dan niet mee in de controle vooraf.
+ * De tools die zo'n koppeling teruggeven, nagelopen in november 2026 (#825, ronde 3 tot 5). Geen automatische
+ * vangst: een nieuwe aanmaaktool met een eigen label moet hier bij. Vergeet je er een, dan telt hij niet mee in de
+ * controle vooraf, en kan een lange lijst met zijn koppelingen bij het inkorten regels verliezen.
  * `tests/mcp/cases-site-app-tools.ts` toetst per tool de echte invoer en de bewaarde uitvoer, direct en in een batch.
  *   - `planner_add_tasks`: `created` (`tempId` → taak-id);
  *   - `planner_manage_resources`: `created` (`tempId` → resource-id, alleen bij `action: "create"`);
@@ -199,24 +199,23 @@ interface IdLinkTool {
 export const SITE_APP_ID_LINK_TOOLS: Readonly<Record<string, IdLinkTool>> = {
   planner_add_tasks: {
     labels: (args) => listIn(args, 'tasks').flatMap((task) => stringIn(task, 'tempId')),
-    keep: createdMap,
+    field: 'created',
     perLink: 2, // "label":"id",
   },
   planner_manage_resources: {
     labels: (args) =>
       listIn(args, 'actions').filter((a) => isRecord(a) && a.action === 'create').flatMap((a) => stringIn(a, 'tempId')),
-    keep: createdMap,
+    field: 'created',
     perLink: 2,
   },
   planner_update_calendar: {
     labels: (args) =>
       listIn(args, 'calendars').filter((c) => isRecord(c) && c.create === true).flatMap((c) => stringIn(c, 'id')),
-    keep: (data) => {
-      const calendars = listIn(data, 'calendars')
-        .filter((row) => isRecord(row) && row.created === true && typeof row.requestedId === 'string')
-        .map((row) => ({ requestedId: (row as { requestedId: string }).requestedId, id: (row as { id: unknown }).id }));
-      return calendars.length > 0 ? { calendars } : undefined;
-    },
+    field: 'calendars',
+    linkOf: (row) =>
+      isRecord(row) && row.created === true && typeof row.requestedId === 'string'
+        ? { requestedId: row.requestedId, id: row.id }
+        : undefined,
     perLink: 23, // {"requestedId":label,"id":id},
   },
 };
@@ -264,8 +263,6 @@ const clip = (text: unknown, max: number): string => {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 };
 
-/** De koppelingen uit het antwoord van één tool, of niets. */
-const linksOf = (tool: string, data: unknown) => SITE_APP_ID_LINK_TOOLS[tool]?.keep(data);
 
 // --- Foutantwoorden ------------------------------------------------------------------------------
 
@@ -298,180 +295,151 @@ function boundedFailure(code: string, error: string): SiteAppToolError {
   return new SiteAppToolError(code, text);
 }
 
-/**
- * DE INDELING van elk veld dat een wijzigende tool kan teruggeven (envelop, `data`, en `data` van een batchstap).
- *   - `keep`: blijft in het compacte rapport. Statussen, nevenwijzigingen en waarschuwingen, en alles wat later niet
- *     meer terug te lezen is (verwijderde ids, faseovergangen, restwerkcorrecties).
- *   - `links`: alleen de koppelingen label → id blijven (`SITE_APP_ID_LINK_TOOLS`), de rest mag weg.
- *   - `drop`: mag weg; de assistent leest het opnieuw met een leestool (datums, rijen, wat hij zelf vroeg).
- * Een veld dat NIET in deze lijst staat, blijft (ingekort): een nieuw veld valt dus nooit stil weg.
- * `tests/mcp/cases-site-app-tools.ts` roept elke wijzigende tool echt aan en eist dat elk veld uit een antwoord hier
- * staat. Een losse waarde (tekst, getal, ja/nee) blijft altijd, ook bij `drop`; de indeling telt voor lijsten en
- * objecten. Een lange lijst die blijft, wordt de eerste regels die passen plus het totaal in `compacted.shortened`.
- */
-export const SITE_APP_RESULT_FIELDS = {
-  envelope: {
-    activeDocumentId: 'keep', documentTitle: 'keep', scheduleStale: 'keep', paused: 'keep', readOnly: 'keep',
-    backupCreated: 'keep', timephasedGuidanceLost: 'keep', remainingWorkRecomputed: 'keep',
-    scheduleRecalculated: 'keep', datesAsRecorded: 'keep', scheduleNote: 'keep', scheduleError: 'keep',
-  },
-  data: {
-    // koppelingen label → id
-    created: 'links', calendars: 'links',
-    // nevenwijzigingen, waarschuwingen, wat weg is: blijft
-    phaseTransitions: 'keep', progressAdjusted: 'keep', warnings: 'keep', warning: 'keep', note: 'keep', hint: 'keep',
-    reason: 'keep', cappedTaskIds: 'keep', anchorsClamped: 'keep', hourMeasureTaskIds: 'keep', statusDateNote: 'keep',
-    statusDateEffect: 'keep', unresolved: 'keep', unresolvedReasons: 'keep', deleted: 'keep', deletedTaskIds: 'keep',
-    cascadedTaskIds: 'keep', deletedBaselineId: 'keep', deletedName: 'keep', deletedCreatedAt: 'keep',
-    deletedTaskCount: 'keep', removedAssignmentCount: 'keep', removedDependencyCount: 'keep', wasActive: 'keep',
-    remainingCount: 'keep', changed: 'keep', previousName: 'keep', previousActiveBaselineId: 'keep',
-    previousActiveBaselineName: 'keep', activeBaselineId: 'keep', activeBaselineName: 'keep', undone: 'keep',
-    redone: 'keep', undoDepth: 'keep', redoDepth: 'keep', cleared: 'keep', recomputed: 'keep', dryRun: 'keep',
-    constrainToFloat: 'keep', projectEnd: 'keep', projectEndBefore: 'keep', projectEndAfter: 'keep',
-    projectEndDelta: 'keep', deltaDays: 'keep', endDeltaDays: 'keep', newStartDate: 'keep', shiftBaselines: 'keep',
-    taskCount: 'keep', baselineId: 'keep', name: 'keep', documentId: 'keep', title: 'keep', projectName: 'keep',
-    taskId: 'keep', durationUnit: 'keep', scheduleDuration: 'keep', stepCount: 'keep',
-    // opnieuw te lezen met een leestool, of wat de assistent zelf vroeg: mag weg
-    tasks: 'drop', updated: 'drop', added: 'drop', removed: 'drop', moved: 'drop', resources: 'drop',
-    project: 'drop', interruptions: 'drop', shifts: 'drop', delays: 'drop',
-    // `planner_batch`: `steps` krijgt een eigen vorm, `rejections` staat ook in `itemRejections`, `substeps` is het
-    // activiteitenlog (al verwerkt; gaat er vóór de lengtemeting al af)
-    steps: 'keep', rejections: 'drop', substeps: 'drop',
-    // leesuitvoer van een leesstap in een batch (die gaat er als geheel af)
-    total: 'drop', has_more: 'drop', next_offset: 'drop',
-  },
-} as const satisfies Record<'envelope' | 'data', Record<string, 'keep' | 'links' | 'drop'>>;
-
-const fieldClass = (scope: 'envelope' | 'data', key: string): 'keep' | 'links' | 'drop' =>
-  (SITE_APP_RESULT_FIELDS[scope] as Record<string, 'keep' | 'links' | 'drop'>)[key] ?? 'keep';
-
-const isScalar = (value: unknown) => value === null || typeof value !== 'object';
-
-/** Een waarde ingekort: tekst tot 200 tekens, een lijst binnenin tot 5 regels plus een regel met het totaal. */
-function shorten(value: unknown): unknown {
-  if (typeof value === 'string') return clip(value, 200);
-  if (Array.isArray(value)) {
-    const head = value.slice(0, 5).map(shorten);
-    return value.length > 5 ? [...head, `… ${value.length - 5} more (${value.length} in total)`] : head;
-  }
-  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shorten(v)]));
-  return value;
-}
-
 interface BatchStep { step: number; tool: string; status: string; data?: unknown; error?: string }
 
-/** Iets wat in het rapport komt zolang het past: een veld in `into`, een lijst regel voor regel. */
-interface Fill { into: Record<string, unknown>; key: string; value: unknown; path: string }
+/** Een lijst in het antwoord die bij het inkorten regels mag verliezen (de eerste blijven), met wat er blijft. */
+interface Shrinkable {
+  /** Waar de lijst staat, voor `compacted.shortened`. */
+  path: string;
+  into: Record<string, unknown>;
+  key: string;
+  list: unknown[];
+  /** Per regel: de koppeling die altijd blijft (bij `linkOf`), anders niets. */
+  linkOf?: (entry: unknown) => unknown;
+}
 
 /**
- * Het compacte rapport van een te groot wijzigingsantwoord.
- *   1. Het geraamte, dat altijd blijft: de status per stap, elke koppeling label → id, de envelop zonder lijsten
- *      (met een samenvatting van de restwerkcorrecties), en `compacted` met wat er weg is.
- *   2. Daarna, zolang het past: de velden die blijven (`SITE_APP_RESULT_FIELDS`, en elk veld dat er niet in staat),
- *      per stap op volgorde; dan de restwerkcorrecties; dan de deelweigeringen. Een lijst regel voor regel, elke
- *      regel ingekort (`shorten`); wat niet meer past, telt `compacted.shortened`.
- *   3. Eén eindcontrole op het hele antwoord. Past het niet, dan alleen het geraamte.
+ * Het compacte rapport van een te groot wijzigingsantwoord. Uit het antwoord van een wijzigende tool valt GEEN veld
+ * weg: de wijziging is gedaan, en wat het antwoord erover zegt (overgangen, gewiste waarden, waarschuwingen) is
+ * later vaak niet meer terug te lezen.
+ *   1. Weg: alleen de uitvoer van leesstappen in een batch (`readOnlyHint`; de assistent leest die opnieuw).
+ *   2. Past het dan nog niet: de lange lijsten in de wijzigingsantwoorden (in `data`, in elke batchstap, de
+ *      restwerkcorrecties in de envelop en de deelweigeringen) houden hun eerste regels, eerlijk verdeeld: elke lijst
+ *      regel voor regel om de beurt, zolang het past. `compacted.shortened` noemt per lijst het totaal en het aantal
+ *      weggelaten regels. Een koppeling label → id blijft altijd (`created` is geen lijst; een kalenderregel met
+ *      `created: true` blijft zo nodig als `{requestedId, id}`).
+ *   3. Eén eindcontrole op het hele antwoord. Past het dan nog niet (alleen bij heel lange losse teksten), dan het
+ *      geraamte: de status per stap en de koppelingen.
  */
 function compactChange(name: string, result: McpToolOk, chars: number, getDef: (tool: string) => McpToolDef | undefined): McpToolOk {
-  const { remainingWorkRecomputed: corrections = [], ...envelopeRest } = result.envelope;
-  const envelope: Record<string, unknown> = Object.fromEntries(
-    Object.entries(envelopeRest).map(([k, v]) => [k, typeof v === 'string' ? clip(v, k === 'documentTitle' ? 200 : 500) : v]),
-  );
-  if (corrections.length > 0) {
-    envelope.remainingWorkRecomputedSummary = {
-      count: corrections.length,
-      tasks: new Set(corrections.map((c) => c.taskId)).size,
-      beforeHours: Math.round(corrections.reduce((sum, c) => sum + c.beforeHours, 0) * 100) / 100,
-      afterHours: Math.round(corrections.reduce((sum, c) => sum + c.afterHours, 0) * 100) / 100,
-    };
-  }
-  const omitted: Record<string, number> = {};
-  const omit = (pattern: string) => { omitted[pattern] = (omitted[pattern] ?? 0) + 1; };
-  const shortened: Record<string, number> = {};
-  const fills: Fill[] = [];
-  /** Geraamte van één `data` (direct, of van een batchstap): koppelingen nu, de rest als vulling of weg. */
-  // `path` noemt de plek precies (voor `shortened`), `pattern` zonder stapnummer (voor de telling in `omitted`).
-  const skeleton = (tool: string, data: unknown, into: Record<string, unknown>, path: string, pattern: string, isRead: boolean) => {
-    if (!isRecord(data)) return;
-    if (isRead) { omit(`${pattern}(read output)`); return; }
-    Object.assign(into, linksOf(tool, data) ?? {});
-    for (const [key, value] of Object.entries(data)) {
-      const kind = fieldClass('data', key);
-      if (kind === 'links') continue;
-      if (kind === 'drop' && !isScalar(value)) { omit(`${pattern}${key}`); continue; }
-      fills.push({ into, key, value, path: `${path}${key}` });
+  const envelope: Record<string, unknown> = { ...result.envelope };
+  const data: Record<string, unknown> = isRecord(result.data) ? { ...result.data } : { value: result.data };
+  const top: { itemRejections?: unknown[] } = result.itemRejections ? { itemRejections: [...result.itemRejections] } : {};
+  const shrinkables: Shrinkable[] = [];
+  /** De lijsten van één wijzigingsantwoord (`data` direct, of van een batchstap); kopieën, zodat inkorten kan. */
+  const collect = (tool: string, into: Record<string, unknown>, path: string) => {
+    const links = SITE_APP_ID_LINK_TOOLS[tool];
+    for (const [key, value] of Object.entries(into)) {
+      if (!Array.isArray(value)) continue;
+      into[key] = [...value];
+      shrinkables.push({ path: `${path}${key}`, into, key, list: value, linkOf: links?.field === key ? links.linkOf : undefined });
     }
   };
-  const isBatch = name === 'planner_batch';
-  const raw = result.data;
-  const data: Record<string, unknown> = {};
-  if (isBatch && isRecord(raw)) {
-    const steps = (Array.isArray(raw.steps) ? (raw.steps as BatchStep[]) : []).map((step) => {
-      const out: Record<string, unknown> = { step: step.step, tool: step.tool, status: step.status };
-      if (step.error !== undefined) out.error = clip(step.error, 300);
-      skeleton(step.tool, step.data, out, `steps[${step.step}].`, 'steps[].', getDef(step.tool)?.kind === 'read');
-      return out;
+  let readSteps = 0;
+  if (name === 'planner_batch' && Array.isArray(data.steps)) {
+    data.steps = (data.steps as BatchStep[]).map((step) => {
+      if (step.data !== undefined && getDef(step.tool)?.annotations.readOnlyHint) {
+        readSteps += 1;
+        const { data: _read, ...rest } = step;
+        void _read;
+        return { ...rest, readOutputOmitted: true };
+      }
+      if (!isRecord(step.data)) return { ...step };
+      const stepData = { ...step.data };
+      collect(step.tool, stepData, `steps[${step.step}].`);
+      return { ...step, data: stepData };
     });
-    data.steps = steps;
-    if (typeof raw.stepCount === 'number') data.stepCount = raw.stepCount;
+    // `rejections` van de batch zelf is een lijst als elke andere.
+    if (Array.isArray(data.rejections)) {
+      const list = data.rejections as unknown[];
+      data.rejections = [...list];
+      shrinkables.push({ path: 'rejections', into: data, key: 'rejections', list });
+    }
   } else {
-    skeleton(name, raw, data, '', '', false);
+    collect(name, data, '');
   }
-  const rejections = result.itemRejections ?? [];
+  if (Array.isArray(envelope.remainingWorkRecomputed)) {
+    shrinkables.push({ path: 'envelope.remainingWorkRecomputed', into: envelope, key: 'remainingWorkRecomputed', list: [...(envelope.remainingWorkRecomputed as unknown[])] });
+  }
+  if (top.itemRejections) shrinkables.push({ path: 'itemRejections', into: top as Record<string, unknown>, key: 'itemRejections', list: top.itemRejections });
+
+  const shortened: Record<string, { total: number; omitted: number }> = {};
   const compacted = {
     originalChars: chars,
     limit: SITE_APP_MAX_RESPONSE_CHARS,
     note:
-      'Every change in this answer succeeded. The full answer was too large, so it was shortened. Always kept: the ' +
-      'status per step, every label → id link (`created`, `calendars`) and the side effects and warnings, as far as ' +
-      'they fit (see `shortened`: path → total). Left out (`omitted`: field → number of times): data you can read again, such as dates and the output of read ' +
-      'steps; call a read step on its own (outside planner_batch), and read tasks with planner_list_tasks (`limit`, ' +
-      '`offset`) or planner_get_task.',
-    omitted,
+      'Every change in this answer succeeded. The full answer was too large, so it was shortened. Nothing an editing ' +
+      'step returned was left out' +
+      (readSteps > 0 ? ', except the output of read steps (`readOutputOmitted`): call such a step on its own, outside planner_batch, to read it' : '') +
+      '. Long lists keep their first entries; `shortened` gives per list the total and how many were left out. ' +
+      'Read tasks again with planner_list_tasks (`limit`, `offset`) or planner_get_task.',
     shortened,
   };
-  const build = (full: boolean): McpToolOk => ({
+  const assemble = (): McpToolOk => ({
     ok: true,
     envelope: envelope as unknown as McpToolOk['envelope'],
-    data: { compacted: full ? compacted : { ...compacted, omitted: undefined, note: 'Every change in this answer succeeded; the answer was shortened to the ids and the status per step.' }, ...data },
+    data: { compacted, ...data },
+    ...(top.itemRejections ? { itemRejections: top.itemRejections as McpToolOk['itemRejections'] } : {}),
   });
-  // Vullen zolang het past, ruim onder de grens.
-  const room = SITE_APP_MAX_RESPONSE_CHARS - 500;
-  let size = sizeOf(build(true)) + 200; // ruimte voor de `shortened`-regels
-  const fit = (fill: Fill) => {
-    if (Array.isArray(fill.value)) {
-      const list: unknown[] = [];
-      fill.into[fill.key] = list;
-      size += fill.key.length + 5;
-      for (const entry of fill.value) {
-        const short = shorten(entry);
-        const add = sizeOf(short) + 1;
-        if (size + add > room) { shortened[fill.path] = fill.value.length; return; }
-        list.push(short);
+  if (sizeOf(assemble()) <= SITE_APP_MAX_RESPONSE_CHARS) return assemble();
+
+  // Inkorten. Eerst elke lijst tot zijn koppelingen; dan om de beurt een regel terug, zolang het past. `room` begint
+  // ruim onder de grens en zakt als `shortened` zelf de ruimte opeet (veel ingekorte lijsten).
+  const fill = (room: number): McpToolOk => {
+    for (const key of Object.keys(shortened)) delete shortened[key];
+    const kept = shrinkables.map((sh) => {
+      const links = sh.list.map((entry) => sh.linkOf?.(entry));
+      sh.into[sh.key] = links.filter((link) => link !== undefined);
+      return { sh, links, full: 0 };
+    });
+    let size = sizeOf(assemble());
+    let growing = true;
+    for (let i = 0; growing; i++) {
+      growing = false;
+      for (const k of kept) {
+        if (k.full !== i || i >= k.sh.list.length) continue;
+        const add = sizeOf(k.sh.list[i]) + 1 - (k.links[i] !== undefined ? sizeOf(k.links[i]) + 1 : 0);
+        if (size + add > room) continue;
         size += add;
+        k.full = i + 1;
+        growing = true;
       }
-      return;
     }
-    const short = shorten(fill.value);
-    const add = sizeOf(short) + fill.key.length + 4;
-    if (size + add > room) { shortened[fill.path] = 1; return; }
-    fill.into[fill.key] = short;
-    size += add;
+    for (const { sh, links, full } of kept) {
+      sh.into[sh.key] = [...sh.list.slice(0, full), ...links.slice(full).filter((link) => link !== undefined)];
+      const omitted = sh.list.length - full;
+      if (omitted > 0) shortened[sh.path] = { total: sh.list.length, omitted };
+    }
+    return assemble();
   };
-  fills.forEach(fit);
-  if (corrections.length > 0) fit({ into: envelope, key: 'remainingWorkRecomputed', value: corrections, path: 'envelope.remainingWorkRecomputed' });
-  const top: Record<string, unknown> = {};
-  if (rejections.length > 0) fit({ into: top, key: 'itemRejections', value: rejections, path: 'itemRejections' });
-  const report: McpToolOk = { ...build(true), ...(top as Partial<McpToolOk>) };
-  // EINDCONTROLE op het hele antwoord. Past het niet, dan alleen het geraamte: de koppelingen blijven altijd
-  // (`linksTooLarge` houdt ze vóór uitvoering binnen het budget), net als de status per stap.
-  if (sizeOf(report) <= SITE_APP_MAX_RESPONSE_CHARS) return report;
-  for (const step of (data.steps as Record<string, unknown>[] | undefined) ?? []) {
-    for (const key of Object.keys(step)) if (!['step', 'tool', 'status', 'created', 'calendars'].includes(key)) delete step[key];
+  let room = SITE_APP_MAX_RESPONSE_CHARS - 500;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const report = fill(room);
+    const over = sizeOf(report) - SITE_APP_MAX_RESPONSE_CHARS;
+    if (over <= 0) return report;
+    room -= over + 500;
   }
-  for (const key of Object.keys(data)) if (!['steps', 'created', 'calendars', 'stepCount'].includes(key)) delete data[key];
-  delete envelope.remainingWorkRecomputed;
-  return build(false);
+
+  // EINDCONTROLE mislukt: alleen het geraamte. De koppelingen blijven (`linksTooLarge` houdt ze vóór uitvoering
+  // binnen het budget), net als de status per stap.
+  const bare = (tool: string, d: unknown): Record<string, unknown> => {
+    const links = SITE_APP_ID_LINK_TOOLS[tool];
+    if (!links || !isRecord(d)) return {};
+    const value = d[links.field];
+    if (Array.isArray(value)) return { [links.field]: value.map((e) => links.linkOf?.(e)).filter((e) => e !== undefined) };
+    return value === undefined ? {} : { [links.field]: value };
+  };
+  const steps = Array.isArray(data.steps)
+    ? (data.steps as BatchStep[]).map((step) => ({ step: step.step, tool: step.tool, status: step.status, ...bare(step.tool, step.data) }))
+    : undefined;
+  return {
+    ok: true,
+    envelope: { activeDocumentId: result.envelope.activeDocumentId, documentTitle: clip(result.envelope.documentTitle, 200), scheduleStale: result.envelope.scheduleStale, paused: result.envelope.paused, readOnly: result.envelope.readOnly } as McpToolOk['envelope'],
+    data: {
+      compacted: { originalChars: chars, limit: SITE_APP_MAX_RESPONSE_CHARS, note: 'Every change in this answer succeeded; the answer was too large even shortened, so only the status per step and the label → id links remain. Read the result with the read tools.' },
+      ...(steps ? { steps } : bare(name, result.data)),
+    },
+  };
 }
 
 /**

@@ -21,7 +21,6 @@ import {
   SITE_APP_REPORT_STEP_CHARS,
   SITE_APP_MAX_ERROR_CHARS,
   SITE_APP_ID_LINK_TOOLS,
-  SITE_APP_RESULT_FIELDS,
   type SiteAppTools,
 } from '@/services/mcp/siteAppTools';
 
@@ -214,7 +213,6 @@ async function chain(app: SiteAppTools, n: number): Promise<string[]> {
   return ids;
 }
 
-const isObject = (value: unknown): value is object => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 /** Past dit antwoord binnen de grens van het sitecontract? */
 const fits = (value: unknown) => JSON.stringify(value).length <= SITE_APP_MAX_RESPONSE_CHARS;
@@ -280,7 +278,7 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   const app = install();
   await chain(app, 200);
   const res = (await app.run('planner_batch', { steps: [{ tool: 'planner_list_tasks', args: { limit: 200 } }] })) as {
-    ok: boolean; data: { compacted?: { note: string; omitted: Record<string, number> }; steps: { status: string; data?: unknown }[]; substeps?: unknown };
+    ok: boolean; data: { compacted?: { note: string }; steps: { status: string; data?: unknown; readOutputOmitted?: boolean }[]; substeps?: unknown };
   };
   assertEq(res.ok, true, 'geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
@@ -288,8 +286,8 @@ test('batch met een grote leesstap: geslaagd, ingekort, met hoe je de uitvoer vo
   assertEq(res.data.substeps, undefined, 'substeps weg');
   assertEq(res.data.steps[0].status, 'uitgevoerd', 'status van de stap blijft');
   assertEq(res.data.steps[0].data, undefined, 'de leesuitvoer is weg');
-  assertEq(res.data.compacted?.omitted['steps[].(read output)'], 1, 'zegt dat de leesuitvoer weg is');
-  assert(JSON.stringify(res.data.compacted).includes('call a read step on its own'), 'zegt hoe je hem volledig opvraagt');
+  assertEq(res.data.steps[0].readOutputOmitted, true, 'zegt dat de leesuitvoer weg is');
+  assert(res.data.compacted!.note.includes('call such a step on its own'), 'zegt hoe je hem volledig opvraagt');
 });
 
 test('batch met een wijziging en een grote leesstap: de wijziging blijft geslaagd, nooit achteraf een fout', async () => {
@@ -302,13 +300,13 @@ test('batch met een wijziging en een grote leesstap: de wijziging blijft geslaag
       { tool: 'planner_add_tasks', args: addTask('extra') },
       { tool: 'planner_list_tasks', args: { limit: 1000 } },
     ],
-  })) as { ok: boolean; data: { compacted?: { omitted: Record<string, number> }; steps: { status: string; created?: Record<string, string> }[] } };
+  })) as { ok: boolean; data: { steps: { status: string; data?: { created?: Record<string, string> }; readOutputOmitted?: boolean }[] } };
   assertEq(res.ok, true, 'de batch is geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(useAppStore.getState().tasks.length, before + 1, 'de wijziging is uitgevoerd');
   assertEq(res.data.steps.map((st) => st.status), ['uitgevoerd', 'uitgevoerd'], 'status per stap');
-  assert(typeof res.data.steps[0].created?.['tmp-extra'] === 'string', 'de created-map van de wijziging blijft');
-  assertEq(res.data.compacted?.omitted['steps[].(read output)'], 1, 'de leesuitvoer is weg');
+  assert(typeof res.data.steps[0].data?.created?.['tmp-extra'] === 'string', 'de created-map van de wijziging blijft');
+  assertEq(res.data.steps[1].readOutputOmitted, true, 'de leesuitvoer is weg');
 });
 
 /** Uurtaken van 80 h met een toewijzing en een bewaard restwerk van 320 h (zoals na een XER-import), zoals in
@@ -343,12 +341,12 @@ function hourTasksWithRemainingWork(n: number): string[] {
 
 type Compacted = {
   ok: boolean;
-  envelope: { remainingWorkRecomputed?: unknown[]; remainingWorkRecomputedSummary?: { count: number; tasks: number; beforeHours: number; afterHours: number } };
-  data: { compacted?: { omitted: Record<string, number>; shortened: Record<string, number> }; created?: Record<string, string>; steps?: { status: string; created?: Record<string, string>; data?: { created?: Record<string, string> } }[] };
+  envelope: { remainingWorkRecomputed?: { taskId: string; beforeHours: number; afterHours: number }[] };
+  data: { compacted?: { shortened: Record<string, { total: number; omitted: number }> }; created?: Record<string, string>; steps?: { status: string; created?: Record<string, string>; data?: { created?: Record<string, string> } }[] };
   itemRejections?: { id: string; reason: string }[];
 };
 
-test('compact rapport: 230 restwerkcorrecties in één planner_update_tasks blijven binnen de grens, met samenvatting', async () => {
+test('compact rapport: 230 restwerkcorrecties in één planner_update_tasks blijven binnen de grens, de eerste volledig', async () => {
   const ids = hourTasksWithRemainingWork(230);
   const app = install();
   const res = (await app.run('planner_update_tasks', {
@@ -357,9 +355,10 @@ test('compact rapport: 230 restwerkcorrecties in één planner_update_tasks blij
   assertEq(res.ok, true, 'geslaagd');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
   assertEq(useAppStore.getState().assignments.filter((a) => a.remainingWorkMinutes === 72 * 60).length, 230, 'alle 230 uitgevoerd');
-  assertEq(res.envelope.remainingWorkRecomputedSummary, { count: 230, tasks: 230, beforeHours: 230 * 320, afterHours: 230 * 72 }, 'samenvatting');
-  assert((res.envelope.remainingWorkRecomputed?.length ?? 0) > 0, 'de eerste correcties die passen staan erbij');
-  assertEq(res.data.compacted?.shortened['envelope.remainingWorkRecomputed'], 230, 'het totaal in shortened');
+  const kept = res.envelope.remainingWorkRecomputed ?? [];
+  assert(kept.length > 0, 'de eerste correcties die passen staan erbij');
+  assert(kept.every((c) => c.beforeHours === 320 && c.afterHours === 72), 'elke getoonde correctie is volledig');
+  assertEq(res.data.compacted?.shortened['envelope.remainingWorkRecomputed'], { total: 230, omitted: 230 - kept.length }, 'totaal en aantal weggelaten');
 });
 
 test('compact rapport: 40 onbekende lange ids blijven binnen de grens, met het aantal weigeringen', async () => {
@@ -374,8 +373,8 @@ test('compact rapport: 40 onbekende lange ids blijven binnen de grens, met het a
   assert(res.data.compacted, 'compact rapport');
   const kept = res.itemRejections?.length ?? 0;
   assert(kept > 0, 'de eerste weigeringen die passen staan erbij');
-  assertEq(kept === 40 ? 40 : res.data.compacted?.shortened.itemRejections, 40, 'alle 40, of het totaal in shortened');
-  assert((res.itemRejections ?? []).every((r) => r.id.length <= 201 && r.reason.length <= 201), 'weigeringen ingekort per regel');
+  assertEq(res.data.compacted?.shortened.itemRejections, { total: 40, omitted: 40 - kept }, 'totaal en aantal weggelaten');
+  assert((res.itemRejections ?? []).every((r) => r.id.length > 1000), 'elke getoonde weigering is volledig');
 });
 
 test('compact rapport: 300 taken in één planner_add_tasks houden de volledige created-map binnen de grens', async () => {
@@ -447,7 +446,8 @@ test('compact rapport: de vaste ruimte past binnen de reserve van de echte aanro
   // De reserve dekt het geraamte: alles behalve de koppelingen en de vulling (velden die blijven, weigeringen).
   const reserve = SITE_APP_REPORT_BASE_CHARS + 100 * (SITE_APP_REPORT_STEP_CHARS + tool.length);
   const bare = (res.data.steps as { step: number; tool: string; status: string }[]).map(({ step, tool: t, status }) => ({ step, tool: t, status }));
-  const fixed = JSON.stringify({ ...res, itemRejections: undefined, data: { ...res.data, steps: bare } }).length;
+  const { compacted, stepCount } = res.data as unknown as { compacted: unknown; stepCount: number };
+  const fixed = JSON.stringify({ ok: res.ok, envelope: res.envelope, data: { compacted, stepCount, steps: bare } }).length;
   assert(fixed <= reserve, `vaste ruimte ${fixed} > reserve ${reserve}`);
 
   // Eén aanroep: alleen het vaste deel, zonder de created-map.
@@ -455,7 +455,7 @@ test('compact rapport: de vaste ruimte past binnen de reserve van de echte aanro
     tasks: Array.from({ length: 300 }, (_, i) => ({ tempId: `tmp-s${i}`, name: `Taak ${i} met een lange naam zodat het antwoord flink groeit`, duration: 1 })),
   })) as Compacted;
   assert(single.data.compacted, 'compact rapport');
-  const singleFixed = JSON.stringify({ ok: single.ok, envelope: single.envelope, data: { compacted: single.data.compacted } }).length;
+  const singleFixed = JSON.stringify({ ok: single.ok, envelope: single.envelope, data: { compacted: single.data.compacted, projectEnd: '2026-01-01T00:00' } }).length;
   assert(singleFixed <= SITE_APP_REPORT_BASE_CHARS, `vaste ruimte ${singleFixed} > ${SITE_APP_REPORT_BASE_CHARS}`);
 });
 
@@ -482,11 +482,11 @@ test('koppelingen: kalenders houden {requestedId, id} in een batch met een grote
       { tool: 'planner_update_calendar', args: { calendars: [newCalendar('gevraagde-a'), newCalendar('gevraagde-b')] } },
       { tool: 'planner_list_tasks', args: { limit: 200 } },
     ],
-  })) as Compacted & { data: { steps: { status: string; calendars?: { requestedId: string; id: string }[] }[] } };
+  })) as Compacted & { data: { steps: { status: string; data?: { calendars?: { requestedId: string; id: string }[] } }[] } };
   assertEq(res.ok, true, 'geslaagd');
   assert(res.data.compacted, 'compact rapport');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
-  const links = res.data.steps[0].calendars ?? [];
+  const links = res.data.steps[0].data?.calendars ?? [];
   assertEq(links.map((l) => l.requestedId), ['gevraagde-a', 'gevraagde-b'], 'beide labels');
   const calendarIds = new Set(useAppStore.getState().calendars.map((c) => c.id));
   assert(links.every((l) => calendarIds.has(l.id)) && links[0].id !== links[1].id, 'twee verschillende echte kalenders');
@@ -532,83 +532,6 @@ test('foutpad: een CYCLE in een batch met 700 taken blijft binnen de grens, met 
   assert(fail!.message.includes('everything rolled back'), 'de terugrolmelding');
   assertEq(useAppStore.getState().tasks.find((t) => t.id === ids[0])!.name, firstName, 'de naam is teruggerold');
   assertEq(useAppStore.getState().sequences.length, 699, 'alle 699 relaties blijven');
-});
-
-test('veldindeling: elk veld uit een antwoord van elke wijzigende tool staat in SITE_APP_RESULT_FIELDS', async () => {
-  freshDocument();
-  const app = install();
-  const S = () => useAppStore.getState();
-  const seen = new Map<string, Set<string>>();
-  const note = (scope: string, key: string, tool: string) => {
-    const id = `${scope}.${key}`;
-    if (!seen.has(id)) seen.set(id, new Set());
-    seen.get(id)!.add(tool);
-  };
-  const tools = new Set<string>();
-  const call = async (name: string, args: Record<string, unknown> = {}) => {
-    const res = (await app.run(name, args)) as { envelope: object; data: unknown; itemRejections?: unknown };
-    tools.add(name);
-    for (const key of Object.keys(res.envelope)) note('envelope', key, name);
-    if (name === 'planner_batch') {
-      const data = res.data as { steps: { tool: string; data?: unknown }[] };
-      for (const key of Object.keys(data)) note('data', key, name);
-      for (const step of data.steps) for (const key of Object.keys((step.data ?? {}) as object)) note('data', key, step.tool);
-    } else if (isObject(res.data)) {
-      for (const key of Object.keys(res.data)) note('data', key, name);
-    }
-    return res as { data: Record<string, any> };
-  };
-  await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'A', duration: 2 }, { tempId: 'tmp-b', name: 'B', duration: 3 }, { tempId: 'tmp-c', name: 'C', duration: 1 }] });
-  const [A, B, C] = S().tasks.map((t) => t.id);
-  const r = await call('planner_manage_resources', { actions: [{ action: 'create', tempId: 'tmp-r', name: 'Timmerman', type: 'LABOR', maxUnits: 1 }] });
-  const R = r.data.created['tmp-r'];
-  await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: A, resourceId: R, unitsPerDay: 1 }, { action: 'add', taskId: 'bestaat-niet', resourceId: R, unitsPerDay: 1 }] });
-  await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-kind', name: 'Kind', duration: 1, parentId: A }] }); // A wordt een fase
-  await call('planner_update_tasks', { updates: [{ id: B, fields: { duration: 5 } }, { id: 'weg', fields: { name: 'x' } }] });
-  await call('planner_add_dependencies', { dependencies: [{ predecessorId: B, successorId: C, type: 'FS' }] });
-  const seq = S().sequences[0].id;
-  await call('planner_update_dependencies', { updates: [{ seqId: seq, lag: 1 }] });
-  await call('planner_set_task_splits', { taskId: B, interruptions: [{ afterWorkDays: 1, pauseDays: 1 }] });
-  await call('planner_move_task', { id: C, newParentId: null, position: 0 });
-  await call('planner_update_calendar', { calendars: [{ id: 'kal-x', create: true, name: 'Ploeg' }] });
-  await call('planner_level_resources', {});
-  await call('planner_clear_leveling', {});
-  await call('planner_update_project', { name: 'Project X', statusDate: '2026-06-10' });
-  await call('planner_move_project', { newStartDate: '2026-07-01' });
-  const baselineId = (await call('planner_save_baseline', { name: 'BL1' })).data.baselineId as string;
-  await call('planner_rename_baseline', { baselineId, name: 'BL1' }); // dezelfde naam: `changed: false` met een reden
-  await call('planner_rename_baseline', { baselineId, name: 'BL1b' });
-  await call('planner_activate_baseline', { baselineId });
-  await call('planner_remove_dependencies', { ids: [seq] });
-  await call('planner_undo');
-  await call('planner_redo');
-  await call('planner_delete_baseline', { baselineId });
-  await call('planner_batch', {
-    steps: [
-      { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-z', name: 'Z', duration: 1 }] } },
-      { tool: 'planner_update_tasks', args: { updates: [{ id: B, fields: { name: 'B2' } }] } },
-      { tool: 'planner_list_tasks', args: { limit: 2 } },
-    ],
-  });
-  await call('planner_delete_tasks', { ids: [C] });
-  const first = S().activeDocumentId;
-  await call('planner_duplicate_document', { name: 'Kopie' });
-  await call('planner_new_document');
-  await call('planner_switch_document', { documentId: first });
-
-  // Elke wijzigende tool kwam aan bod (behalve de twee bestandstools, die hier niet werken).
-  const mutating = getTools()
-    .filter((def) => !def.annotations.readOnlyHint && !SITE_APP_UNAVAILABLE_TOOLS.has(def.name))
-    .map((def) => def.name)
-    .sort();
-  assertEq([...tools].sort(), mutating, 'elke wijzigende tool aangeroepen');
-  assert(seen.has('data.phaseTransitions'), 'het scenario raakt een faseovergang');
-  const classes = SITE_APP_RESULT_FIELDS as unknown as Record<string, Record<string, string>>;
-  const missing = [...seen.keys()].filter((id) => {
-    const [scope, key] = id.split('.');
-    return classes[scope]?.[key] === undefined;
-  });
-  assertEq(missing.map((id) => `${id} (${[...seen.get(id)!].join(', ')})`), [], 'velden zonder indeling');
 });
 
 /** Een bestaande taak met een toewijzing, en een bestaande mijlpaal. Geeft hun id's. */
@@ -697,12 +620,12 @@ test('faseovergang: ook een ingekort antwoord houdt fase, doel, toewijzingen en 
   const app = install();
   await chain(app, 200);
   const parents = await phaseSetup(app);
-  const res = (await app.run('planner_batch', tenStepBatch(20, parents, 200))) as { ok: boolean; data: { compacted?: unknown; steps: { phaseTransitions?: PhaseReport[]; created?: Record<string, string> }[] } };
+  const res = (await app.run('planner_batch', tenStepBatch(20, parents, 200))) as { ok: boolean; data: { compacted?: unknown; steps: { data?: { phaseTransitions?: PhaseReport[]; created?: Record<string, string> } }[] } };
   assertEq(res.ok, true, 'geslaagd');
   assert(res.data.compacted, 'ingekort');
   assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
-  assertEq(Object.keys(res.data.steps[0].created ?? {}).length, 20, 'de created-map blijft');
-  assertPhaseTransitions(res.data.steps[0].phaseTransitions, parents, 'ingekort');
+  assertEq(Object.keys(res.data.steps[0].data?.created ?? {}).length, 20, 'de created-map blijft');
+  assertPhaseTransitions(res.data.steps[0].data?.phaseTransitions, parents, 'ingekort');
 });
 
 /** Per aanmaaktool: echte invoer (labels) en de bewaarde uitvoer (label → id), en hoe je het juiste item vindt. */
@@ -755,7 +678,7 @@ test('koppelingen per aanmaaktool: echte invoer en bewaarde uitvoer, direct en i
       steps: [{ tool: c.tool, args: c.args(few) }, { tool: 'planner_list_tasks', args: { limit: 200 } }],
     })) as { data: { compacted?: unknown; steps: Record<string, any>[] } };
     assert(batch.data.compacted, `${c.tool} batch: ingekort`);
-    const batchLinks = c.links(batch.data.steps[0]);
+    const batchLinks = c.links(batch.data.steps[0].data);
     assertEq(batchLinks.map(([label]) => label).sort(), few, `${c.tool} batch: elk label`);
     for (const [label, id] of batchLinks) assertEq(c.nameOf(id), `naam ${label}`, `${c.tool} batch: ${label} wijst naar het juiste item`);
 
@@ -770,6 +693,73 @@ test('foutpad: ook een JSON-RPC-fout blijft binnen de grens en houdt zijn code',
   assertEq(fail?.code, 'JSONRPC_-32602', 'code');
   assert(fail!.message.length <= SITE_APP_MAX_ERROR_CHARS, `melding past (${fail!.message.length} tekens)`);
   assert(fail!.message.startsWith('JSONRPC_-32602: Unknown tool: planner_xxx'), 'begin van de melding');
+});
+
+test('wijzigingsantwoord: niets valt weg, ook becameLiteral en clearedLagMinutes niet (review ronde 5)', async () => {
+  freshDocument();
+  const app = install();
+  const ids = await chain(app, 80);
+  const S = () => useAppStore.getState();
+  // Een gegenereerde kalender (een nieuwe kalender krijgt de NL-feestdagen met hun herkomst mee).
+  const created = (await app.run('planner_update_calendar', { calendars: [{ id: 'tmp-ploeg', create: true, name: 'Ploeg' }] })) as { data: { calendars: { id: string }[] } };
+  const calendarId = created.data.calendars[0].id;
+  assert(S().calendars.find((c) => c.id === calendarId)?.generation, 'voorwaarde: de kalender is gegenereerd');
+  // Een relatie zoals na een import: 0 dagen én 90 minuten lag.
+  const seq = S().sequences[0];
+  useAppStore.setState((st) => {
+    const target = st.sequences.find((x) => x.id === seq.id)!;
+    target.lagDays = 0;
+    target.lagMinutes = 90;
+  });
+  const res = (await app.run('planner_batch', {
+    steps: [
+      { tool: 'planner_update_calendar', args: { calendars: [{ id: calendarId, rawHolidays: [{ name: 'Sluiting', startDate: '2026-02-10', endDate: '2026-02-10' }] }] } },
+      { tool: 'planner_update_dependencies', args: { updates: [{ seqId: seq.id, lag: '0d' }] } },
+      { tool: 'planner_get_critical_path', args: {} },
+      { tool: 'planner_list_tasks', args: { limit: 80 } },
+    ],
+  })) as { ok: boolean; data: { compacted?: { note: string }; steps: { status: string; readOutputOmitted?: boolean; data?: Record<string, any> }[] } };
+  assertEq(res.ok, true, 'geslaagd');
+  assert(res.data.compacted, 'ingekort');
+  assert(fits(res), `past (${JSON.stringify(res).length} tekens)`);
+  const [calendar, dependency, path, list] = res.data.steps;
+  assertEq(calendar.data?.calendars?.[0]?.becameLiteral, true, 'becameLiteral blijft');
+  assertEq(calendar.data?.calendars?.[0]?.id, calendarId, 'de kalenderregel blijft');
+  assertEq(dependency.data?.updated?.[0]?.changes?.lag?.clearedLagMinutes, 90, 'clearedLagMinutes blijft');
+  assertEq(dependency.data?.updated?.[0]?.id, seq.id, 'de relatieregel blijft');
+  assertEq([path.readOutputOmitted, list.readOutputOmitted], [true, true], 'de leesuitvoer valt weg');
+  assert(res.data.compacted!.note.includes('call such a step on its own'), 'met hoe je hem opvraagt');
+  assert(!S().calendars.find((c) => c.id === calendarId)?.generation, 'de kalender is echt letterlijk geworden');
+  void ids;
+});
+
+test('wijzigingsantwoord: planner_level_resources({dryRun: true}) in een batch, ingekort gelijk aan onverkort', async () => {
+  freshDocument();
+  const app = install();
+  await chain(app, 200);
+  const S = () => useAppStore.getState();
+  const res = (await app.run('planner_manage_resources', { actions: [{ action: 'create', tempId: 'tmp-kraan', name: 'Kraan', type: 'LABOR', maxUnits: 1 }] })) as { data: { created: Record<string, string> } };
+  const kraan = res.data.created['tmp-kraan'];
+  const ids = S().tasks.map((t) => t.id);
+  // Twee parallelle taken op één kraan: overbelast, dus nivelleren heeft iets te zeggen (delayMinutes, gaps).
+  await app.run('planner_add_tasks', { tasks: [{ tempId: 'tmp-p1', name: 'Parallel 1', duration: 3 }, { tempId: 'tmp-p2', name: 'Parallel 2', duration: 3 }] });
+  const [p1, p2] = S().tasks.filter((t) => t.name.startsWith('Parallel')).map((t) => t.id);
+  await app.run('planner_manage_assignments', { actions: [p1, p2, ids[0]].map((taskId) => ({ action: 'add', taskId, resourceId: kraan, unitsPerDay: 1 })) });
+  // Dezelfde batch twee keer: met een kleine leesstap (past onverkort) en met een grote (wordt ingekort).
+  const run = (limit: number) => app.run('planner_batch', {
+    steps: [{ tool: 'planner_level_resources', args: { dryRun: true } }, { tool: 'planner_list_tasks', args: { limit } }],
+  }) as Promise<{ ok: boolean; data: { compacted?: unknown; steps: { data?: Record<string, unknown>; readOutputOmitted?: boolean }[] } }>;
+  const whole = await run(2);
+  assertEq(whole.data.compacted, undefined, 'met een kleine leesstap niet ingekort');
+  const batch = await run(200);
+  assertEq(batch.ok, true, 'geslaagd');
+  assert(batch.data.compacted, 'ingekort');
+  assert(fits(batch), 'past');
+  assertEq(batch.data.steps[1].readOutputOmitted, true, 'de leesuitvoer valt weg');
+  const alone = whole.data.steps[0].data ?? {};
+  const inBatch = batch.data.steps[0].data ?? {};
+  assert('delayMinutes' in inBatch && 'gaps' in inBatch, 'delayMinutes en gaps staan erin (review ronde 5, VERVOLG 2)');
+  assertEq(inBatch, alone, 'de nivelleeruitvoer is volledig, veld voor veld');
 });
 
 await run();

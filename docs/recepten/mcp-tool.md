@@ -104,11 +104,11 @@ krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
   `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
 - Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
   (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
-- Geeft een wijzigende tool een nieuw veld terug (in `data` of de envelop), deel het dan in in
-  `SITE_APP_RESULT_FIELDS` (`siteAppTools.ts`): `keep` (statussen, nevenwijzigingen en waarschuwingen, alles wat
-  later niet terug te lezen is), `links` (alleen de paren label → id) of `drop` (wat een leestool opnieuw geeft,
-  zoals datums). Een veld zonder indeling blijft staan, maar de test in `tests/mcp/cases-site-app-tools.ts` roept
-  elke wijzigende tool echt aan en wordt rood. Kies bij twijfel `keep`.
+- Uit het antwoord van een wijzigende tool valt op de site geen veld weg, ook niet als het te groot is. Alleen
+  lange lijsten houden dan hun eerste regels (`compacted.shortened` noemt per lijst het totaal en hoeveel er weg
+  zijn). Zet een nevenwijziging of waarschuwing (zoals `phaseTransitions`, `becameLiteral` of `clearedLagMinutes`)
+  dus gewoon in het antwoord; het hoeft nergens te worden ingedeeld. Zet een melding die altijd mee moet liever niet
+  als zoveelste regel achteraan een lange lijst: die regels vallen het eerst weg.
 - Geeft een wijzigende tool een koppeling terug van een opgegeven label naar een nieuw id (zoals `created`,
   `tempId` → id, of `calendars[].{requestedId, id}`), dan is die later niet meer op te vragen. Zet de tool dan in
   `SITE_APP_ID_LINK_TOOLS`: `labels` (welke labels een aanroep aanmaakt, voor de controle vóór uitvoering), `keep`

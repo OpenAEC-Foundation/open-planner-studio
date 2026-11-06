@@ -193,14 +193,16 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
     `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
 - **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
   al gedaan. Van een batch gaat eerst `substeps` af (het activiteitenlog, dat de app al verwerkt heeft); een gewone
-  batch van tien stappen met 20 tot 40 taken past daarna volledig. Is het antwoord dan nog te groot, dan wordt het één
-  compact rapport. Elk veld is daarvoor ingedeeld (`SITE_APP_RESULT_FIELDS`):
-  - altijd: de status per stap en elke koppeling van een opgegeven label naar een nieuw id (`created` van
-    `planner_add_tasks` en `planner_manage_resources`, `calendars[].{requestedId, id}` van `planner_update_calendar`);
-  - zolang het past: nevenwijzigingen en waarschuwingen, zoals `phaseTransitions`, verwijderde ids, de
-    restwerkcorrecties en de deelweigeringen. Een lange lijst wordt de eerste regels plus het totaal in
-    `compacted.shortened`. Een veld zonder indeling hoort hier ook bij;
-  - weg (`compacted.omitted`): wat een leestool opnieuw geeft, zoals datums en de uitvoer van leesstappen.
+  batch van tien stappen met 20 tot 40 taken past daarna volledig. Is het antwoord dan nog te groot, dan wordt het
+  ingekort, maar uit het antwoord van een wijzigende tool valt geen veld weg:
+  - weg: alleen de uitvoer van leesstappen in een batch (`readOutputOmitted: true`); de assistent roept zo'n stap los
+    aan om hem te lezen;
+  - past het dan nog niet, dan houden lange lijsten (in `data`, per batchstap, de restwerkcorrecties en de
+    deelweigeringen) om de beurt hun eerste regels. `compacted.shortened` noemt per lijst het totaal en hoeveel er weg
+    zijn;
+  - de koppelingen van een opgegeven label naar een nieuw id blijven altijd volledig: `created` van
+    `planner_add_tasks` en `planner_manage_resources`, en van `planner_update_calendar` elke regel met `created: true`
+    (zo nodig alleen als `{requestedId, id}`).
 
   Er is één eindcontrole op het hele antwoord, envelop inbegrepen. Zouden de koppelingen samen met het rapport van
   deze aanroep niet passen, dan weigert `run` vóór uitvoering met `te_groot` en het maximum aantal nieuwe items. De
