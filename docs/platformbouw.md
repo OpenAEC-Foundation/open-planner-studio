@@ -26,9 +26,13 @@ npm ci
 npm run build:platform -- --base /assets/openaec/planner/
 ```
 
-- `--base` is verplicht en begint en eindigt met `/`. Zonder geldig pad stopt het script met exit 2 en een
-  voorbeeld. Alle URL's in de bundel beginnen met dat pad; eigen bestanden (`docs/`, `examples/`, het
-  icoon) laadt de app via `import.meta.env.BASE_URL`.
+- `--base` is verplicht: een absoluut pad dat begint en eindigt met `/`, of `./` (#818, de vorm uit het
+  SuperCloud-contract). Zonder geldig pad stopt het script met exit 2 en een voorbeeld. Alle URL's in de
+  bundel beginnen met dat pad; eigen bestanden (`docs/`, `examples/`, het icoon) laadt de app via
+  `import.meta.env.BASE_URL`. Bij `./` is dat `./`: zulke adressen lossen op tegen het adres van het document.
+  De site moet `index.html` dan binnen de map van de bundel serveren (`…/planner/` of `…/planner/index.html`,
+  niet `…/planner` zonder slash). Workers en dynamische chunks gebruiken `import.meta.url` en werken met
+  beide vormen.
 - `index.html` heeft geen inline script (#818): de Content-Security-Policy van de SuperCloud laat alleen de eigen
   bundel toe. Het kleine script dat een themaflits voorkomt, is `public/theme-prepaint.js`, een klassiek en
   blokkerend script in `<head>`. Vite kopieert het ongewijzigd uit `public/` en zet het pad in `index.html` op

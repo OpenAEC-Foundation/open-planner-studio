@@ -6,7 +6,8 @@
 // De site serveert de bundel als statische bestanden onder een subpad en laadt hem vanaf een andere
 // pagina (via `index.html` in een iframe, of door de entry uit `.vite/manifest.json` in te voegen).
 // Daarom bouwt dit script altijd met:
-//   - een expliciet basispad (`--base`, verplicht): alle URL's in de bundel beginnen daarmee;
+//   - een expliciet basispad (`--base`, verplicht): alle URL's in de bundel beginnen daarmee, of `./`
+//     voor een relatieve bundel die onder elk subpad draait (SuperCloud, #818);
 //   - Vite-modus `platform`: leest `.env.platform` (bouwvlag, zie `src/utils/buildFlags.ts`), zet
 //     `build.manifest` aan en schrijft naar `dist-platform/` (zie `vite.config.ts`).
 // Eerst draait de typecheck, net als bij `npm run build` (`tsc && vite build`). Na de Vite-build schrijft het
@@ -47,10 +48,19 @@ export function parseArgs(argv) {
   return { base };
 }
 
-/** Een basispad begint en eindigt met `/` en bevat alleen gewone padsegmenten. */
+/**
+ * Een basispad is `./` (relatief, #818) of begint en eindigt met `/` en bevat alleen gewone padsegmenten.
+ *
+ * `./` is de vorm uit het SuperCloud-contract: dezelfde bundel draait dan onder elk subpad
+ * (`/werkplek/app/<tool>/` op elke klantsite). Vite maakt `import.meta.env.BASE_URL` dan `./`, dus elke
+ * `fetch(BASE_URL + "docs/…")` lost op tegen het adres van het document. Dat werkt alleen als de site
+ * `index.html` binnen de map van de bundel serveert (bijv. `/werkplek/app/planner/` of `…/index.html`).
+ * Andere relatieve vormen (`.`, `../x/`, `x/`) weigert het script: Vite kent alleen `./` en `''`.
+ */
 export function validateBase(base) {
+  if (base === './') return null;
   if (!base.startsWith('/') || !base.endsWith('/')) {
-    return `Het basispad moet met "/" beginnen en eindigen, maar is "${base}".`;
+    return `Het basispad moet "./" zijn, of met "/" beginnen en eindigen, maar is "${base}".`;
   }
   const segments = base.slice(1, -1);
   if (segments === '') return null;
