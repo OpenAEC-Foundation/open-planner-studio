@@ -139,14 +139,21 @@ Afspraken:
   keuze die de gebruiker in de tool maakte, blijft staan tot de host die waarde zelf wijzigt. Dit vervangt het
   gedrag van #716 ("een latere host verandert de taal niet"): zet de site de host pas na de start en stuurt ze
   `openaec-host-ready`, dan neemt de tool taal, thema en instellingen alsnog over.
-- `settings` (optioneel, #818): de tool bewaart daar zijn `ops-`-instellingen, voor een frame waarin
-  `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Alles staat onder één
-  sleutel, `open-planner-studio:instellingen`, als een object met tekstwaarden (`{ "ops-theme": "light", … }`).
-  Bij de start leest de tool die sleutel één keer (hoogstens 1 s; daarna start hij gewoon en zet hij de waarden
-  later neer) en schrijft ze in `localStorage`. Elke wijziging gaat daarna gebundeld terug, met één `set` van de
-  hele map (`delete` gebruikt de tool niet). Niet mee: `ops-mcpPort`, `ops-mcpToken` en `ops-downloadStats`
-  (van één apparaat). Een fout van de host is nooit een crash: mislukt het lezen, dan schrijft de tool die sessie
-  niets terug, zodat hij de echte instellingen niet overschrijft.
+- `settings` (optioneel, #818): de tool bewaart daar zijn blijvende `ops-`-instellingen, voor een frame waarin
+  `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Eén hostsleutel per
+  instelling, met dezelfde naam (`ops-theme`, `ops-showFloatBand`, …) en tekst als waarde. Twee frames die elk
+  een andere instelling wijzigen, draaien elkaar zo niet terug. De tool vraagt bij de start een vaste lijst op
+  (`siteHostSettingKeys.ts`; het contract heeft geen `list`), met één `get` per sleutel; `null` of `undefined`
+  betekent "niet bewaard". Hij doet dat vóór hij de app laadt, zodat ook het eerste document (bijv. de kalender
+  van de bouwmodus) de instellingen van de host volgt. Hij wacht hoogstens 1 s. Komt het antwoord later, dan
+  wint de host voor elke sleutel die hij heeft, ook van wat de start intussen schreef, en past de tool de
+  instellingen alsnog toe; een document dat al open is, verandert niet. Zolang de lezing loopt, schrijft de tool
+  niets naar de host. Daarna gaat elke wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor
+  een gewiste. Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen
+  van extensies (`ops-ext:`). Een fout van de host is nooit een crash. Eén fout bij het lezen, een waarde die
+  geen tekst is, of een fout bij het neerzetten of teruglezen in `localStorage` zet het bewaren uit voor de
+  rest van de sessie: zo wordt een fout nooit een wisactie, en overschrijft de tool niets wat hij niet begreep.
+  Een mislukte `set` of `delete` probeert hij bij de volgende wijziging opnieuw.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het

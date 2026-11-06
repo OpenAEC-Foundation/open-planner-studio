@@ -17,7 +17,7 @@ import {
 //  1. de resolutie zelf — 'system' mag NOOIT als `data-theme` naar buiten lekken;
 //  2. de opslag — 'system' is een geldige voorkeur en mag niet door de 7→3-legacymigratie naar
 //     'dark' worden weggemigreerd;
-//  3. de pre-paint-spiegel in index.html — die is een handmatige kopie van `resolveUITheme`, dus
+//  3. de pre-paint-spiegel in public/theme-prepaint.js (sinds #818, vroeger inline in index.html) — die is een handmatige kopie van `resolveUITheme`, dus
 //     een bronvergelijking is de enige poort die divergentie (= themaflits bij het opstarten) ziet.
 
 let failures = 0;
@@ -130,7 +130,8 @@ localStorage.clear();
 
 // --- 4. Bronpoorten: pre-paint-spiegel en CSS-blokken -------------------------------------------
 const repoFile = (rel: string) => readFileSync(fileURLToPath(new URL(`../../${rel}`, import.meta.url)), 'utf8');
-const indexHtml = repoFile('index.html');
+// Het pre-paint-script staat sinds #818 in een eigen bestand (geen inline script in index.html).
+const indexHtml = repoFile('public/theme-prepaint.js');
 ok(/'system':\s*'system'/.test(indexHtml), 'het pre-paint-script kent de systeemvoorkeur');
 ok(
   indexHtml.includes(`matchMedia('${SYSTEM_DARK_QUERY}')`),

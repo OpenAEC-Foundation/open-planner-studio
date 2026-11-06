@@ -50,13 +50,25 @@ const prepaintPath = path.join(process.cwd(), 'public/theme-prepaint.js');
 const indexHtml = fs.readFileSync(prepaintPath, 'utf8');
 
 // --- index.html: geen inline script, wel het externe pre-paint-script in <head> ---------------------
-const scriptTags = [...indexHtmlSource.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+// Commentaar weg tot er niets meer verandert (één ronde kan een nieuw `<!--` overlaten), dan elk
+// scripttag, ongeacht hoofdletters of spaties in de sluittag.
+function withoutComments(html: string): string {
+  let previous: string;
+  let current = html;
+  do {
+    previous = current;
+    current = current.replace(/<!--[\s\S]*?-->/g, '');
+  } while (current !== previous);
+  return current;
+}
+const htmlNoComments = withoutComments(indexHtmlSource);
+const scriptTags = [...htmlNoComments.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)];
 check('index.html heeft scripttags', scriptTags.length > 0);
 for (const [, attrs, body] of scriptTags) {
   check(`index.html: script met src en zonder inline code (${attrs.trim()})`, /\ssrc="[^"]+"/.test(attrs) && body.trim() === '');
 }
-const head = /<head>([\s\S]*?)<\/head>/.exec(indexHtmlSource.replace(/<!--[\s\S]*?-->/g, ''))?.[1] ?? '';
-const prepaintTag = /<script\b([^>]*)\ssrc="\/theme-prepaint\.js"([^>]*)>/.exec(head);
+const head = /<head>([\s\S]*?)<\/head\s*>/i.exec(htmlNoComments)?.[1] ?? '';
+const prepaintTag = /<script\b([^>]*)\ssrc="\/theme-prepaint\.js"([^>]*)>/i.exec(head);
 check('index.html laadt /theme-prepaint.js in <head>', prepaintTag !== null);
 check(
   'het pre-paint-script is klassiek en blokkerend (geen type="module", async of defer)',

@@ -55,9 +55,9 @@
  *   dan over wat veranderde, zonder het te bewaren. Een keuze die de gebruiker in de app maakte,
  *   blijft staan tot de host die waarde zelf wijzigt.
  * - Komt de host pas later (`openaec-host-ready`), dan neemt de tool zijn taal en thema alsnog over.
- * - `settings` (`get`, `set`, `delete`): de tool bewaart daar zijn `ops-`-instellingen, onder één
- *   sleutel met een map. Bij de start leest hij ze in `localStorage` (korte time-out), daarna zet hij
- *   elke wijziging gebundeld door. Details in `siteHostSettings.ts`.
+ * - `settings` (`get`, `set`, `delete`): de tool bewaart daar zijn blijvende `ops-`-instellingen, één
+ *   hostsleutel per `ops-`-sleutel. Bij de start leest hij ze in `localStorage` (korte time-out),
+ *   daarna zet hij elke wijziging gebundeld door. Details in `siteHostSettings.ts`.
  *
  * Code: `siteHostPreferences.ts` (lezen), `siteHostSettings.ts` (instellingen) en
  * `src/hooks/useSiteHostPreferences.ts` (de luisteraars).
@@ -135,6 +135,14 @@ export interface SiteStorage {
   versions(id: string): Promise<SiteVersionInfo[]>;
 }
 
+/** De instellingenopslag die de site kan aanbieden (#818): per sleutel een waarde. De tool bewaart er
+ *  tekst onder de naam van zijn `ops-`-sleutels; zie `siteHostSettings.ts`. */
+export interface SiteHostSettings {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<unknown>;
+  delete(key: string): Promise<unknown>;
+}
+
 /** Wat de site op `window.openaecHost` zet. */
 export interface OpenAECHost {
   storage?: SiteStorage;
@@ -147,11 +155,7 @@ export interface OpenAECHost {
   thema?: string;
   /** Opslag voor de instellingen van de tool, als de browser zelf niets bewaart (#818). Zie
    *  `siteHostSettings.ts`. */
-  settings?: {
-    get(key: string): Promise<unknown>;
-    set(key: string, value: unknown): Promise<unknown>;
-    delete(key: string): Promise<unknown>;
-  };
+  settings?: SiteHostSettings;
   /** Niet meer nodig (#716): elke host slaat het welkomstvenster al over. Blijft geldig. */
   skipWelcome?: boolean;
 }
