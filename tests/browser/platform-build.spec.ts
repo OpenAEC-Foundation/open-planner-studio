@@ -534,12 +534,16 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   expect(toolsFile.status()).toBe(200);
   expect(((await toolsFile.json()) as { name: string }[]).map((tool) => tool.name)).toEqual(assistant!.names);
 
-  // Een echte wijziging: een nieuwe taak in de taaktabel.
-  await frame.locator('[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key][data-grid-column-id="task.name"]').first().click();
+  // Een echte wijziging: een nieuwe taak in de taaktabel. Insert opent de naamcel van de nieuwe rij; het
+  // typen moet daar landen, niet in het naamveld van het eigenschappenpaneel (in de productiebundel won
+  // dat veld eerst de focus en bleef de cel leeg open).
+  const grid = frame.locator('[data-task-grid-surface-id="gantt-task-grid"]');
+  await grid.locator('[data-grid-row-key][data-grid-column-id="task.name"]').first().click();
   await page.keyboard.press('Insert');
+  await expect(grid.locator('input:focus')).toHaveCount(1);
   await page.keyboard.type('In de werkplek');
   await page.keyboard.press('Enter');
-  await expect(frame.getByText('In de werkplek', { exact: true }).first()).toBeVisible();
+  await expect(grid.getByText('In de werkplek', { exact: true }).first()).toBeVisible();
 
   // Ctrl+S: een nieuwe versie van hetzelfde bestand, met de geopende versie als GETAL.
   await page.keyboard.press('Control+s');
@@ -551,11 +555,12 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect(frame.locator('[data-ops-site-save-dialog]')).toHaveCount(0);
 
   // Nog een Ctrl+S na een wijziging: de basis is nu de versie die de host teruggaf (8).
-  await frame.getByText('In de werkplek', { exact: true }).first().click();
+  await grid.getByText('In de werkplek', { exact: true }).first().click();
   await page.keyboard.press('Insert');
+  await expect(grid.locator('input:focus')).toHaveCount(1);
   await page.keyboard.type('Tweede wijziging');
   await page.keyboard.press('Enter');
-  await expect(frame.getByText('Tweede wijziging', { exact: true }).first()).toBeVisible();
+  await expect(grid.getByText('Tweede wijziging', { exact: true }).first()).toBeVisible();
   await page.keyboard.press('Control+s');
   await expect.poll(() => workplaceSaves(frame).then((saves) => saves.length)).toBe(2);
   expect((await workplaceSaves(frame))[1]).toMatchObject({ id: 'f1', expectedVersion: 8 });
