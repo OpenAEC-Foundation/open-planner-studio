@@ -273,6 +273,70 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// ── Harde pin met een externe lag in een andere kalender (review #808 na de merge met #807) ─────────────
+// Een harde MSO-pin houdt zijn plaats, maar een geschonden externe koppeling blijft een schending. Ligt de
+// grens (anker min lag) buiten de werktijd van de taak, terwijl de lagkalender daar nog doortelt, dan
+// mocht de omzetting naar de kalender van de taak die grens niet op de pin laten vallen. Letterlijk uit
+// de review: ma–vr 08–16, taak van twee dagen, pin ma 8 juni 08:00, externe SS-opvolger met anker ma
+// 8 juni 08:00 en 1 dag lag in 24 uur. De opvolger mag dan pas di 9 juni 08:00 starten: een schending.
+// Elk geval heeft een tegenproef één stap verder (anker op de vroegst toegestane datum): geen schending.
+{
+  const pinAt = (date: string): TaskConstraint => ({ type: 'MSO', date, hard: true });
+  const succ = (id: string, relType: Rel, anchorDate: string, lag: Partial<ExternalLink> = {}): ExternalLink => ({
+    id, direction: 'successor', relType, anchorDate, sourceMissing: false, sourceRef: { projectId: 'ander', taskId: id }, ...lag,
+  });
+  const pred = (id: string, relType: Rel, anchorDate: string, lag: Partial<ExternalLink> = {}): ExternalLink => ({
+    ...succ(id, relType, anchorDate, lag), direction: 'predecessor',
+  });
+  const verdict = (t: Task, base: 'ops' | 'p6' | 'msproject', lagCalendar: LagCal) => {
+    const r = solve([t], [], base, lagCalendar);
+    const kinds = collectScheduleWarnings({ tasks: [t], sequences: [], resources: [], cpmResult: r, resourceLoadResult: null })
+      .map(w => w.kind);
+    return { violated: r.violatedConstraintTaskIds ?? [], panel: kinds.includes('violatedConstraint'), fallback: r.externalLagCalendarFallbackTaskIds ?? [] };
+  };
+  for (const base of ['ops', 'p6', 'msproject'] as const) {
+    // SS-opvolger, lag 1 dag in 24 uur.
+    const ss = (anchor: string, extra: Partial<Task> = {}) => task('L', '2026-06-01', 2, 'project', {
+      constraint: pinAt('2026-06-08T08:00'), externalLinks: [succ('s', 'SS', anchor, { lagDays: 1 })], ...extra,
+    });
+    const a = verdict(ss('2026-06-08T08:00'), base, '24hour');
+    eq(`${base}/pin/SS 24 uur: schending`, a.violated, ['L']);
+    eq(`${base}/pin/SS 24 uur: in het paneel Waarschuwingen`, a.panel, true);
+    eq(`${base}/pin/SS 24 uur: tegenproef anker di 9 juni 08:00`, verdict(ss('2026-06-09T08:00'), base, '24hour').violated, []);
+    // Kalendertijd hield de schending al; dat blijft zo.
+    const elapsed = ss('2026-06-08T08:00');
+    elapsed.time = { ...elapsed.time, durationType: 'ELAPSEDTIME' };
+    eq(`${base}/pin/SS 24 uur, ELAPSEDTIME: schending`, verdict(elapsed, base, '24hour').violated, ['L']);
+    // Startmijlpaal met een externe FS-opvolger, lag 1 dag in 24 uur.
+    const ms = (anchor: string) => task('L', '2026-06-01', 0, 'project', {
+      isMilestone: true, milestoneKind: 'START', constraint: pinAt('2026-06-08T08:00'),
+      externalLinks: [succ('s', 'FS', anchor, { lagDays: 1 })],
+    });
+    eq(`${base}/pin/startmijlpaal FS 24 uur: schending`, verdict(ms('2026-06-08T08:00'), base, '24hour').violated, ['L']);
+    eq(`${base}/pin/startmijlpaal FS 24 uur: tegenproef anker di 9 juni 08:00`, verdict(ms('2026-06-09T08:00'), base, '24hour').violated, []);
+    // Taakkalender 08–14, lagkalender de projectkalender (08–16), SS met 2 uur lag, pin di 9 juni 08:00.
+    const shortSs = (anchor: string) => task('L', '2026-06-01', 2, 'short', {
+      constraint: pinAt('2026-06-09T08:00'), externalLinks: [succ('s', 'SS', anchor, { lagMinutes: 120 })],
+    });
+    eq(`${base}/pin/SS projectkalender, taak 08–14: schending`, verdict(shortSs('2026-06-09T08:00'), base, 'projectDefault').violated, ['L']);
+    eq(`${base}/pin/SS projectkalender, taak 08–14: tegenproef anker di 9 juni 10:00`, verdict(shortSs('2026-06-09T10:00'), base, 'projectDefault').violated, []);
+    // De volgorde van de koppelingen telt niet: de melding van de lagkalender staat er ook als een eerdere
+    // koppeling al een schending gaf (review #808 na de merge met #807, VERVOLG).
+    const late = succ('a', 'FS', '2026-06-08T16:00');
+    const withLag = succ('b', 'FS', '2026-07-01T08:00', { lagDays: 1 });
+    for (const [label, links] of [['eerst de schending', [late, withLag]], ['eerst de lag', [withLag, late]]] as const) {
+      const r = verdict(task('L', '2026-06-01', 2, 'project', { constraint: pinAt('2026-06-08T08:00'), externalLinks: [...links] }), base, 'successor');
+      eq(`${base}/pin/opvolgers, ${label}: schending en melding`, [r.violated, r.fallback], [['L'], ['L']]);
+    }
+    const early = pred('a', 'FS', '2026-06-08T12:00');
+    const predLag = pred('b', 'FS', '2026-05-20T16:00', { lagDays: 1 });
+    for (const [label, links] of [['eerst de schending', [early, predLag]], ['eerst de lag', [predLag, early]]] as const) {
+      const r = verdict(task('L', '2026-06-01', 2, 'project', { constraint: pinAt('2026-06-08T08:00'), externalLinks: [...links] }), base, 'predecessor');
+      eq(`${base}/pin/voorgangers, ${label}: schending en melding`, [r.violated, r.fallback], [['L'], ['L']]);
+    }
+  }
+}
+
 if (failures.length) {
   console.error(`XX external-lag-calendar: ${failures.length}/${checks}\n${failures.slice(0, 40).join('\n')}`);
   process.exit(1);

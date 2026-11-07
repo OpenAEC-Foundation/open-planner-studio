@@ -3306,18 +3306,32 @@ export class CPMSolver {
   }
 
   /**
+   * Anker min de externe lag voor een externe SUCCESSOR-link: het rauwe moment op de lagkalender
+   * (`externalLag`), met de zijde van deze taak (`finishSide`: eerste teken F ⇒ mijn finish, S ⇒ mijn
+   * start). Eén berekening voor de late grens (`externalBackwardBound`) en de pincontrole
+   * (`applyBackwardBound`). Null voor een predecessor-link of een ongeldig anker.
+   */
+  private externalSuccessorShift(
+    task: Task, link: ExternalLink, eng: CalendarEngine,
+  ): { at: Date; foreign: boolean; lagEng: CalendarEngine; finishSide: boolean } | null {
+    if (link.direction !== 'successor') return null;
+    const anchor = parseInstant(link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const finishSide = link.relType === 'FS' || link.relType === 'FF';
+    return { ...this.externalLag(task, link, anchor, eng, -1), finishSide };
+  }
+
+  /**
    * Backward-bovengrens (late finish) van een externe SUCCESSOR-link. Spiegel van
    * `externalForwardBound`: `anchorDate` is de driving-datum van de externe opvolger. Het EERSTE
    * relType-teken bepaalt mijn zijde: FS/FF ⇒ LF-grens direct; SS/SF ⇒ LS-grens (via `finishFromStart`
    * naar mijn LF vertaald). Continue tijd ⇒ geen −1 dag. Retourneert null voor een predecessor-link.
    */
   private externalBackwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
-    if (link.direction !== 'successor') return null;
-    const anchor = parseInstant(link.anchorDate);
-    if (isNaN(anchor.getTime())) return null;
+    const shift = this.externalSuccessorShift(task, link, eng);
+    if (!shift) return null;
+    const { at: shifted, foreign, lagEng, finishSide } = shift;
     const rel = link.relType;
-    const finishSide = rel === 'FS' || rel === 'FF';   // eerste teken F ⇒ mijn finish; S ⇒ mijn start
-    const { at: shifted, foreign, lagEng } = this.externalLag(task, link, anchor, eng, -1);
     if (foreign) {
       // Zoals een interne relatie met lag, met deze taak als voorganger (`backwardHour`): SS/SF ⇒ de
       // rauwe late start; FS ⇒ het eindmoment op of vóór de grens; FF ⇒ een dagenmaat-taak het vorige
@@ -3367,11 +3381,14 @@ export class CPMSolver {
       // niet), dan is dat dezelfde schending (review #807). De uitzondering van hierboven geldt alleen
       // voor BEREKENDE interne druk: een extern anker is een vaste datum van de bron, dus ook een
       // werkelijke start op de pin vóór dat anker is een schending (review #807, ronde 2).
+      // Elke koppeling wordt berekend, ook na een eerste schending: de berekening registreert ook de
+      // melding van de lagkalender (`externalLag`), en die mag niet van de volgorde afhangen.
       const internalLate = !!rawMax && rawMax > pin && !this.hardPinRespectedByActual(task, eng);
-      const externalLate = (task.externalLinks ?? []).some(link => {
+      let externalLate = false;
+      for (const link of task.externalLinks ?? []) {
         const bound = this.externalForwardBound(task, link, eng);
-        return !!bound && bound > pin;
-      });
+        if (bound && bound > pin) externalLate = true;
+      }
       if (internalLate || externalLate) this.registerHardPinViolation(task.id);
       return pin;
     }
@@ -3403,13 +3420,21 @@ export class CPMSolver {
     const pinFinish = this.hardPinFinish(task, eng);
     if (pinFinish) {
       // De pin wint ook van een externe opvolger, maar een anker dat vóór de gepinde finish ligt is een
-      // schending, net als een externe voorganger na de pin (review #807, ronde 2). Op de werktijdas van de
-      // taak: een grens op een blokeinde en een finish op het volgende blokbegin zijn hetzelfde punt.
-      const externalLate = (task.externalLinks ?? []).some(link => {
-        const bound = this.externalBackwardBound(task, link, eng);
-        return !!bound && bound < pinFinish
-          && (isElapsedTask(task) || eng.workMinutesBetween(bound, pinFinish) > 0);
-      });
+      // schending, net als een externe voorganger na de pin (review #807, ronde 2). Vergelijk anker min lag
+      // met de pin aan dezelfde kant (SS/SF de start, FS/FF de finish), vóór de omzetting naar de kalender
+      // van de taak: die schuift een grens buiten de werktijd van de taak naar het volgende blokbegin,
+      // ook als de lagkalender daar nog doortelt (24 uur, of een projectkalender met een langere dag; review
+      // #808 na de merge met #807). Twee momenten zijn hetzelfde punt als er op de lagkalender geen
+      // werkminuut tussen zit; bij ELAPSEDTIME telt elk klokverschil. Elke koppeling wordt berekend, zoals
+      // in `applyForwardConstraints`.
+      const pinStart = this.hardPinStart(task, eng);
+      let externalLate = false;
+      for (const link of task.externalLinks ?? []) {
+        const shift = this.externalSuccessorShift(task, link, eng);
+        const pin = shift?.finishSide ? pinFinish : pinStart;
+        if (shift && pin && shift.at < pin
+          && (isElapsedTask(task) || shift.lagEng.workMinutesBetween(shift.at, pin) > 0)) externalLate = true;
+      }
       if (externalLate) this.registerHardPinViolation(task.id);
       return pinFinish;
     }
