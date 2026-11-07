@@ -578,7 +578,7 @@ npm run build:platform -- --base /assets/openaec/planner/
 
 | script | npm-script | doet |
 |---|---|---|
-| `build-platform.mjs` | `npm run build:platform` | eist `--base /pad/` (begint en eindigt met `/`; anders exit 2 met een voorbeeld), draait `tsc` zoals `npm run build`, en bouwt dan `vite build --mode platform --base <pad>`. De modus `platform` leest `.env.platform` (bouwvlag `VITE_OPS_PLATFORM=1`, zie `src/utils/buildFlags.ts`: geen demo-start, geen extensies, geen AI-modus), zet `build.manifest` aan en schrijft naar `dist-platform/` (met `dist-platform/.vite/manifest.json`). `OPS_DEV_INSTANCE` wordt gewist, zodat geen dev-slug in de bundel komt. De gewone `npm run build` blijft ongewijzigd |
+| `build-platform.mjs` | `npm run build:platform` | eist `--base /pad/` (begint en eindigt met `/`; anders exit 2 met een voorbeeld), draait `tsc` zoals `npm run build`, en bouwt dan `vite build --mode platform --base <pad>`. De modus `platform` leest `.env.platform` (bouwvlag `VITE_OPS_PLATFORM=1`, zie `src/utils/buildFlags.ts`: geen demo-start, geen extensies, geen AI-modus), zet `build.manifest` aan en schrijft naar `dist-platform/` (met `dist-platform/.vite/manifest.json`). Daarna schrijft `export-mcp-tools.ts` de tooldefinities voor de assistent van de site naar `dist-platform/mcp-tools.json`. `OPS_DEV_INSTANCE` wordt gewist, zodat geen dev-slug in de bundel komt. De gewone `npm run build` blijft ongewijzigd |
 
 Getest door `tests/browser/platform-build.spec.ts` (draait in `npm run test:browser`): die bouwt één
 keer met `--base /tools/planner/` en laadt de app vanaf dat subpad.
