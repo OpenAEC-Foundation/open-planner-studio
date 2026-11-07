@@ -22,7 +22,9 @@ import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
-import { noteSiteHostSettingChanged, type SettingWriteOrigin } from '@/services/fileAccess/siteHostSettings';
+import {
+  noteSiteHostSettingChanged, siteHostSettingWriteHeld, type SettingWriteOrigin,
+} from '@/services/fileAccess/siteHostSettings';
 
 export type { SettingWriteOrigin };
 import {
@@ -65,8 +67,13 @@ let warnedSettingsWrite = false;
  * van de gebruiker (een migratie, of een standaardwaarde die een ontbrekende sleutel vult). Dat telt
  * alleen ingebed, zolang de tool op een laat antwoord van de host wacht (#818, `SettingWriteOrigin` in
  * `siteHostSettings.ts`). Gewone schrijfacties laten het weg.
+ *
+ * Ingebed, terwijl de app een laat antwoord van de host toepast: een schrijfactie van de gebruiker op
+ * een sleutel die nog niet is toegepast, valt weg (`siteHostSettingWriteHeld`). Die komt van een oude
+ * kopie (bijv. een scrolltimer van vóór het antwoord) en zou de bewaarde waarde terugzetten.
  */
 export function writeLocal(key: string, value: string, origin: SettingWriteOrigin = 'user'): void {
+  if (origin === 'user' && siteHostSettingWriteHeld(key)) return;
   try {
     localStorage.setItem(key, value);
     // Ingebed met `settings` van de host (#818): ook daar bewaren, gebundeld.
@@ -80,6 +87,7 @@ export function writeLocal(key: string, value: string, origin: SettingWriteOrigi
 }
 
 export function removeLocal(key: string, origin: SettingWriteOrigin = 'user'): void {
+  if (origin === 'user' && siteHostSettingWriteHeld(key)) return; // zie `writeLocal`
   try {
     localStorage.removeItem(key);
     noteSiteHostSettingChanged(key, origin);

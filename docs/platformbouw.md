@@ -210,19 +210,26 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
   beschikbaar zijn, worden ze automatisch toegepast." (knop OK). Op de achtergrond wacht de tool verder:
   - Geen antwoord: de lezing blijft lopen. Er komt geen tweede verzoek naast.
   - Een afwijzing (of een waarde die geen tekst is): na 30 s een nieuwe poging, hoogstens 10 keer
-    (`RETRY_DELAY_MS`, `MAX_RETRIES`), steeds één verzoek tegelijk. Lukt het nooit, dan blijft de sessie
-    zonder bewaren; de pop-up heeft dat al gezegd.
+    (`RETRY_DELAY_MS`, `MAX_RETRIES`), steeds één verzoek per sleutel tegelijk. Wijst één sleutel af terwijl
+    een andere nog hangt, dan komt de pop-up meteen, maar de nieuwe poging pas als ook dat verzoek klaar is.
+    Lukt het nooit, dan blijft de sessie zonder bewaren; de pop-up heeft dat al gezegd.
   - Tijdens het wachten schrijft de tool **niets** naar de host: geen `set` en geen `delete`. Zo kan een lijst
     die de gebruiker intussen maakt (bijv. persoonlijke werksoorten) de bewaarde lijst nooit wissen.
   - Komt het antwoord alsnog, dan **winnen de bewaarde instellingen**. De tool zet de toestand die een gewone
     start met dat antwoord zou geven: een sleutel uit het antwoord krijgt die waarde; een sleutel die de
     gebruiker intussen wijzigde en die niet in het antwoord staat, gaat terug naar zijn standaard. Wat de app zelf
     bij de start invulde (bijv. de standaardindeling van de taakgrid), blijft staan, zoals bij een gewone start.
-    De tool past alles live toe, zonder herladen: de instellingen in de store, de taal, de taakgrid, en de lijsten
-    in open dialogen en panelen (via een `StorageEvent` per sleutel). De pop-up gaat dicht als hij nog open is.
-    Daarna één korte melding: "Je instellingen zijn geladen en toegepast.", met erachter "Wat je in de
-    tussentijd wijzigde, is teruggezet." als de gebruiker iets wijzigde dat daardoor terugging. Vanaf dan staat
-    het bewaren aan, zoals na een gewone start. Dit raakt alleen instellingen, nooit het document: een werksoort
+    De tool past alles live toe, zonder herladen: de instellingen in de store, de taakgrid, de taal, en de lijsten
+    in open dialogen en panelen (via een `StorageEvent` per sleutel). Opnieuw toegepast wordt elke sleutel die
+    veranderde én elke sleutel die de gebruiker wijzigde, ook als de bewaarde tekst gelijk is aan zijn keuze: bij
+    thema en taal gaan devlink en host voor, net als bij een gewone start. De pop-up gaat dicht als hij nog open
+    is. Zolang de tool toepast, schrijft hij nog niets naar de host, en valt een schrijfactie van de gebruiker op
+    een sleutel die nog niet is toegepast weg: zo zet een oude timer (bijv. de scrolltimer van de taakgrid) de
+    bewaarde waarde niet terug. De taakgrid gaat vóór de taal, want de taal kan een download kosten. Pas als
+    alles is toegepast, staat het bewaren aan (zoals na een gewone start), en volgt één korte melding: "Je
+    instellingen zijn geladen en toegepast.", met erachter "Wat je in de tussentijd wijzigde, is teruggezet."
+    als iets wat de gebruiker wijzigde daardoor terugging. Het late antwoord zet het thema niet via een keuze
+    van de gebruiker, dus het geeft geen tweede melding "Dit thema geldt tot je de planner opnieuw start". Dit raakt alleen instellingen, nooit het document: een werksoort
     die de gebruiker intussen maakte en aan een taak gaf, gaat uit de persoonlijke lijst, maar blijft in het
     document (de groep "Uit dit project" in de keuzelijst), en de taak houdt hem.
   - **Grens:** de bouwmodus bepaalt de kalender van het eerste document bij het maken van de store. Een laat
@@ -288,8 +295,9 @@ Alleen als er een site is; zonder site verandert er niets.
   taalkeuze, inlezen en terugschrijven met een nep-host), `tests/planning/check-theme-premirror.ts` (geen inline
   script; het pre-paint-script gedraagt zich als `peekTheme()`) en de host-ronden in
   `tests/browser/welcome-dialog.spec.ts` (thema van de host, live wissel, een instelling die via `settings`
-  een herlaad overleeft, en een host boven de grens: pop-up, een werksoort tijdens het wachten, het late
-  antwoord met de bewaarde werksoorten en de melding).
+  een herlaad overleeft, en een host boven de grens: pop-up, een werksoort, thema en taal tijdens het wachten,
+  het late antwoord met de bewaarde werksoorten, thema en taal van de host, en één themamelding). De late
+  toepassing met de echte store, `writeLocal` en de scrolltimer van de taakgrid staat in D24-D26 van de check.
 
 ## De assistent van de site
 

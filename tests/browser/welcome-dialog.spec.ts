@@ -23,6 +23,9 @@ const EN_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/local
   settingsDelay: { title: string; body: string };
 };
 const DE_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/de/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
+const NL_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/nl/common.json'), 'utf8')) as {
+  notifications: { hostThemeUntilRestart: string };
+};
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen): één hostsleutel per
  *  `ops-`-sleutel. */
@@ -278,6 +281,19 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await page.keyboard.press('Enter');
   await expect(newTypeDialog).toBeHidden();
   expect(await storedTypeNames()).toEqual(['Sessietype']);
+  // Elke themamelding die ooit in de store stond, met haar teller. Een melding verdwijnt na 10 s; zo telt
+  // de test ook na het late antwoord nog alles mee (review #835: na het late antwoord blijft het er één).
+  await page.evaluate(() => {
+    const seen = new Set<string>();
+    (window as unknown as { __testThemeNotices: Set<string> }).__testThemeNotices = seen;
+    const record = (state: { ui: { notifications: { id: string; messageKey: string; count: number }[] } }) => {
+      for (const n of state.ui.notifications) if (n.messageKey === 'notifications.hostThemeUntilRestart') seen.add(`${n.id}:${n.count}`);
+    };
+    record(window.__OPS__!.store.getState());
+    window.__OPS__!.store.subscribe(record);
+  });
+  const seenThemeNotices = () => page.evaluate(() =>
+    [...(window as unknown as { __testThemeNotices: Set<string> }).__testThemeNotices].map((entry) => Number(entry.split(':')[1])));
   // Het instellingenvenster openen mag via de brug; de keuzes zelf zijn echte klikken.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settingsDialog = page.getByRole('dialog');
@@ -286,16 +302,19 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   expect(await themeNotices(page), 'hetzelfde thema: geen themamelding').toEqual([]);
   // De eerste echte wissel: één melding dat dit thema tot de volgende start geldt. Een tweede wissel
   // geeft geen tweede melding (de teller blijft 1).
-  await settingsDialog.locator('[data-ops-theme-card="light"]').click();
-  await expect.poll(() => themeNotices(page)).toEqual([1]);
   await settingsDialog.locator('[data-ops-theme-card="high-contrast"]').click();
+  await expect.poll(() => themeNotices(page)).toEqual([1]);
+  // De laatste keuze is licht en Nederlands: precies wat de host bewaart (`ops-theme`, `ops-locale`).
+  await settingsDialog.locator('[data-ops-theme-card="light"]').click();
   expect(await themeNotices(page), 'geen tweede themamelding').toEqual([1]);
   await settingsDialog.getByRole('button', { name: FR_COMMON.settings.language, exact: true }).click();
-  await page.getByRole('option', { name: /English/ }).click();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  // De melding staat in beeld (nu in het Engels), via het gewone meldingenkanaal.
-  await expect(page.locator('.ops-toast', { hasText: EN_COMMON.notifications.hostThemeUntilRestart })).toHaveCount(1);
+  await page.getByRole('option', { name: /Nederlands/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
+  // De melding staat in beeld (nu in het Nederlands), via het gewone meldingenkanaal.
+  await expect(page.locator('.ops-toast', { hasText: NL_COMMON.notifications.hostThemeUntilRestart })).toHaveCount(1);
   await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => [localStorage.getItem('ops-theme'), localStorage.getItem('ops-locale')]),
+    'lokaal staat al wat de host bewaart').toEqual([hostBefore['ops-theme'], hostBefore['ops-locale']]);
   // Langer dan de bundeltijd (400 ms): tijdens het wachten geen enkele set/delete naar de host.
   await page.waitForTimeout(1_000);
   expect(await hostWrites(), 'geen enkele set/delete naar de host tijdens het wachten').toEqual([]);
@@ -331,7 +350,8 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
     'de werksoort staat nog in het document').toContain('Sessietype');
   await page.keyboard.press('Escape');
   // Thema en taal: de host geeft `thema: dark` en `taal: fr`, en die winnen zoals bij een gewone start.
-  // Lokaal staan weer de bewaarde keuzes.
+  // Lokaal staan de bewaarde keuzes. Die waren hier al gelijk aan wat de gebruiker koos; toch gaan
+  // thema en taal terug (review #833 ronde 1, punt 2: een gelijke opgeslagen waarde slaat dat niet over).
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await page.evaluate(() => [
@@ -340,6 +360,14 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
     localStorage.getItem('ops-locale'),
     window.__OPS__!.store.getState().ui.showFloatBand,
   ])).toEqual(['dark', hostBefore['ops-theme'], hostBefore['ops-locale'], false]);
+  // Het late antwoord zet het thema terug via de start-route, niet via een keuze van de gebruiker: geen
+  // tweede themamelding (review #835). Een volgende wissel van de gebruiker geeft er ook geen.
+  expect(await seenThemeNotices(), 'na het late antwoord nog steeds één themamelding').toEqual([1]);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
+  await page.getByRole('dialog').locator('[data-ops-theme-card="light"]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.keyboard.press('Escape');
+  expect(await seenThemeNotices(), 'een volgende wissel geeft geen tweede themamelding').toEqual([1]);
   await page.locator('[data-ops-ribbon-tab="beeld"]').click();
   await expect.poll(() => floatBandSlow.evaluate(el => el.classList.contains('active')), { message: 'Spelingsband volgt de host' }).toBe(false);
   // Daarna staat het bewaren aan: een klik op Spelingsband komt bij de host aan. Nooit een delete.
@@ -401,7 +429,7 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await page.reload();
   await waitForOps(page);
   await expect(dialog).toBeVisible();
-  // De bewaarde taal: Nederlands. De keuze Engels tijdens het wachten hierboven is teruggezet.
+  // De bewaarde taal: Nederlands (de host van de ronde hierboven gaf `de`, en die is niet bewaard).
   await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
   expect(await waitForWelcomeCheck(page)).toBe('welkomstcontrole: getoond');
 });

@@ -27,12 +27,15 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   const taskGridChecked = useRef(false);
   // Ingebed (#818): taal en thema van de host live volgen, en instellingen toepassen die pas na de start
   // van de host kwamen. Liep de taakgridbootstrap hieronder al, dan leest die de voorkeuren opnieuw (nu
-  // van de host). Vóór die bootstrap niet: hij wacht bewust op de herstelkeuze en leest dan zelf.
-  const reloadLateTaskGrid = useCallback((changed: ReadonlySet<string>) => {
-    if (!taskGridChecked.current || !changed.has('ops-taskGridPreferences')) return;
-    void bootstrapTaskGridPreferences(useAppStore).catch(error => {
+  // van de host); het bewaren gaat pas aan als dat klaar is. Vóór die bootstrap niet: hij wacht bewust
+  // op de herstelkeuze en leest dan zelf.
+  const reloadLateTaskGrid = useCallback(async (keys: ReadonlySet<string>) => {
+    if (!taskGridChecked.current || !keys.has('ops-taskGridPreferences')) return;
+    try {
+      await bootstrapTaskGridPreferences(useAppStore);
+    } catch (error) {
       console.error('Taakgridvoorkeuren van de host konden niet worden toegepast:', error);
-    });
+    }
   }, []);
   useSiteHostPreferences(setUI, reloadLateTaskGrid);
 

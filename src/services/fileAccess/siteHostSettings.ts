@@ -23,8 +23,9 @@
  *
  * 1. Antwoordt de host niet, dan blijft de lezing lopen; er komt geen tweede verzoek.
  * 2. Wijst de host af (of geeft hij een ongeldige waarde), dan probeert de module het opnieuw na
- *    `RETRY_DELAY_MS`, hoogstens `MAX_RETRIES` keer. Steeds één lopend verzoek. Lukt het nooit, dan
- *    blijft de sessie zonder bewaren; de pop-up heeft dat al gezegd.
+ *    `RETRY_DELAY_MS`, hoogstens `MAX_RETRIES` keer. Steeds één lopend verzoek per sleutel: een poging
+ *    is pas voorbij als elk verzoek ervan klaar is, ook als een ander verzoek al afwees (de start wacht
+ *    dan wel niet langer). Lukt het nooit, dan blijft de sessie zonder bewaren; de pop-up zei dat al.
  * 3. Tijdens het wachten schrijft de module **niets** naar de host: geen `set` en geen `delete`. Zo kan
  *    een lijst die de gebruiker intussen maakte (bijv. persoonlijke werksoorten) de bewaarde lijst nooit
  *    wissen. Wel onthoudt hij welke sleutels de gebruiker wijzigde (`SettingWriteOrigin` `'user'`).
@@ -33,11 +34,20 @@
  *    gebruiker wijzigde en die niet in het antwoord staat, gaat terug naar zijn waarde bij de start (in
  *    de SuperCloud is dat de standaard: de opslag van het frame is dan leeg). Wat de app zelf bij de
  *    start invulde (`'start'`, bijv. een standaardindeling), blijft staan, net als bij een gewone start.
- *    Daarna staat het bewaren aan, en meldt de module het aan de app (`takeLateSiteHostSettings`), die
- *    de instellingen live toepast en een korte melding geeft.
+ *    De module meldt het aan de app (`takeLateSiteHostSettings`). Die past de instellingen live toe:
+ *    elke sleutel die veranderde én elke sleutel die de gebruiker wijzigde (`refresh`), ook als de
+ *    opgeslagen tekst gelijk bleef. Zo krijgen thema en taal weer de voorrang van host en devlink, net
+ *    als bij een gewone start.
  *    Grens: dit gaat alleen over instellingen, nooit over het document. Een werksoort die de gebruiker
  *    tijdens het wachten maakte en aan een taak gaf, gaat uit de persoonlijke lijst, maar blijft in het
  *    document (de werksoorten "Uit dit project"); de taak houdt hem.
+ * 5. Zolang de app toepast (`applying`), schrijft de module nog niets naar de host, en slaat `writeLocal`
+ *    een schrijfactie van de gebruiker over op een sleutel die nog niet is toegepast
+ *    (`siteHostSettingWriteHeld`). Een oude timer met een oude kopie (bijv. de scrolltimer van de
+ *    taakgrid) zet de bewaarde waarde zo niet terug, lokaal noch bij de host. De app geeft elke sleutel
+ *    vrij zodra zijn kopie bijgewerkt is (`settleLateSiteHostSettings`), en daarna alles
+ *    (`releaseLateSiteHostSettings`). Pas dan staat het bewaren aan: wat lokaal anders is dan bij de
+ *    host, gaat één keer mee.
  *
  * Een host die pas na de start verschijnt (tijdens het laden van `App`, of met `openaec-host-ready`),
  * telt als een laat antwoord: `adoptLateSiteHostSettings` begint dan de lezing, met dezelfde regels.
@@ -113,9 +123,14 @@ export type HydrateOutcome = 'geen-host' | 'geladen' | 'time-out' | 'fout' | 'al
 
 /** Een laat antwoord dat in `localStorage` staat en dat de app nog live moet toepassen. */
 export interface LateSettingsApplied {
-  /** De sleutels waarvan de lokale waarde veranderde. */
+  /** De sleutels waarvan de lokale waarde veranderde (elk kreeg een `StorageEvent`). */
   changed: readonly string[];
-  /** Een wijziging van de gebruiker tijdens het wachten is teruggezet. */
+  /** De sleutels die de gebruiker tijdens het wachten wijzigde, ook als de waarde nu gelijk bleef. */
+  touched: readonly string[];
+  /** Wat de app live opnieuw moet toepassen: `changed` en `touched` samen, gesorteerd. Een gelijke
+   *  opgeslagen waarde kan toch een andere uitkomst geven: bij thema en taal gaan host en devlink voor. */
+  refresh: readonly string[];
+  /** De opgeslagen waarde van een sleutel die de gebruiker wijzigde, is teruggezet. */
   reverted: boolean;
 }
 
@@ -133,17 +148,33 @@ export interface HostSettingsSync {
   delayed(): boolean;
   /** Een laat antwoord dat de app nog niet toepaste; wist het. */
   takeApplied(): LateSettingsApplied | null;
+  /** Slaat `writeLocal` een schrijfactie van de gebruiker op deze sleutel over? Waar zolang de app een
+   *  laat antwoord toepast en de sleutel nog niet heeft vrijgegeven (zie de kop, punt 5). */
+  writeHeld(key: string): boolean;
+  /** De app heeft de kopieën van deze sleutels bijgewerkt: schrijfacties tellen weer. */
+  settle(keys: Iterable<string>): void;
+  /** De app is klaar met toepassen: het bewaren gaat aan. */
+  release(): void;
   subscribe(listener: (event: HostSettingsEvent) => void): () => void;
   /** Bewaren staat deze sessie uit door een lokale fout (geen opslag, neerzetten of teruglezen faalde). */
   unavailable(): boolean;
 }
 
+/**
+ * De sleutels die nu worden toegepast, over alle instanties (zie `siteHostSettingWriteHeld`). In de
+ * browser is er één instantie; de headless check maakt er meer en toetst zo de echte `writeLocal`.
+ */
+const heldWrites = new Set<ReadonlySet<string>>();
+
 export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettingsSync {
   const keys = [...(deps.keys ?? HOST_PERSISTED_KEYS)].sort();
   const persisted = new Set(keys);
-  /** `idle`: nog geen lezing; `reading`: de lezing loopt (de start of de app wacht); `synced`: bewaren
-   *  staat aan; `off`: uit voor deze sessie. */
-  let phase: 'idle' | 'reading' | 'synced' | 'off' = 'idle';
+  /** `idle`: nog geen lezing; `reading`: de lezing loopt (de start of de app wacht); `applying`: een
+   *  laat antwoord staat lokaal en de app past het toe (zie de kop, punt 5); `synced`: bewaren staat
+   *  aan; `off`: uit voor deze sessie. */
+  let phase: 'idle' | 'reading' | 'applying' | 'synced' | 'off' = 'idle';
+  /** Tijdens `applying`: de sleutels die de app nog niet heeft vrijgegeven. */
+  const held = new Set<string>();
   let offLocally = false;
   /** De host die gelezen wordt, en na een geslaagde lezing de host waarnaar de tool schrijft. */
   let activeHost: SiteHostSettings | null = null;
@@ -180,9 +211,15 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     resolve?.(outcome);
   };
 
+  const unhold = () => {
+    held.clear();
+    heldWrites.delete(held);
+  };
+
   const stop = (locally: boolean, message: string, error?: unknown) => {
     phase = 'off';
     offLocally = locally;
+    unhold();
     dirty.clear();
     touched.clear();
     clear(flushTimer); flushTimer = null;
@@ -210,12 +247,13 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     return map;
   };
 
-  /** Lees alle sleutels van de host. Gooit bij één fout of één ongeldige waarde. */
-  const readHost = async (host: SiteHostSettings): Promise<Map<string, string | null>> => {
-    const values = await Promise.all(keys.map(key => Promise.resolve().then(() => host.get(key))));
+  /** De antwoorden van één poging als waarden. Gooit bij één afwijzing of één ongeldige waarde. */
+  const toValues = (results: readonly PromiseSettledResult<unknown>[]): Map<string, string | null> => {
     const map = new Map<string, string | null>();
     keys.forEach((key, i) => {
-      const value = values[i];
+      const result = results[i];
+      if (result.status === 'rejected') throw result.reason;
+      const value = result.value;
       if (value === null || value === undefined) map.set(key, null);
       else if (typeof value === 'string') map.set(key, value);
       else throw new Error(`ongeldige waarde voor ${key} (${typeof value})`);
@@ -223,12 +261,19 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     return map;
   };
 
+  /** Wat lokaal anders is dan bij de host, gaat bij de volgende ronde mee. */
+  const markDirty = (storage: SettingsStorageLike) => {
+    dirty.clear();
+    for (const key of keys) if (storage.getItem(key) !== (hostValues.get(key) ?? null)) dirty.add(key);
+  };
+
   /**
-   * Zet de waarden van de host in `localStorage` (zie de kop, punt 4) en bepaal wat lokaal nog
-   * ontbreekt bij de host. Zonder wijziging van de gebruiker is dit precies de gewone start: alleen de
+   * Zet de waarden van de host in `localStorage` (zie de kop, punt 4). Op tijd (`late` onwaar): daarna
+   * staat het bewaren meteen aan, want de app is nog niet gestart. Laat: de app past eerst toe
+   * (`applying`, punt 5). Zonder wijziging van de gebruiker is dit precies de gewone start: alleen de
    * sleutels uit het antwoord veranderen.
    */
-  const apply = (host: SiteHostSettings, values: Map<string, string | null>): LateSettingsApplied | null => {
+  const apply = (host: SiteHostSettings, values: Map<string, string | null>, late: boolean): LateSettingsApplied | null => {
     const storage = deps.storage();
     if (!storage) {
       stop(true, 'Geen lokale opslag; de instellingen worden deze sessie niet bij de host bewaard');
@@ -252,21 +297,53 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
       }
       hostValues.clear();
       for (const [key, value] of values) hostValues.set(key, value);
-      dirty.clear();
-      for (const key of keys) if (storage.getItem(key) !== hostValues.get(key)) dirty.add(key);
+      if (!late) markDirty(storage);
     } catch (error) {
       stop(true, 'Instellingen van de host niet neergezet; ze worden deze sessie niet bij de host bewaard', error);
       return null;
     }
+    const changed = changes.map(change => change.key);
+    const touchedKeys = [...touched].sort();
+    const refresh = [...new Set([...changed, ...touchedKeys])].sort();
     touched.clear();
     activeHost = host;
-    phase = 'synced';
     isDelayed = false;
-    if (dirty.size > 0) schedule();
+    if (late) {
+      // Eerst toepassen (punt 5); `release` zet het bewaren aan.
+      phase = 'applying';
+      for (const key of refresh) held.add(key);
+      heldWrites.add(held);
+    } else {
+      phase = 'synced';
+      if (dirty.size > 0) schedule();
+    }
     if (changes.length > 0) {
       try { deps.changed?.(changes); } catch (error) { deps.warn('Verversen na de instellingen van de host mislukt', error); }
     }
-    return { changed: changes.map(change => change.key), reverted };
+    return { changed, touched: touchedKeys, refresh, reverted };
+  };
+
+  const settle = (settled: Iterable<string>) => {
+    if (phase !== 'applying') return;
+    for (const key of settled) held.delete(key);
+  };
+
+  const release = () => {
+    if (phase !== 'applying') return;
+    unhold();
+    const storage = deps.storage();
+    if (!storage) {
+      stop(true, 'Geen lokale opslag; de instellingen worden deze sessie niet bij de host bewaard');
+      return;
+    }
+    try {
+      markDirty(storage);
+    } catch (error) {
+      stop(true, 'Instelling niet terug te lezen; de instellingen worden deze sessie niet bij de host bewaard', error);
+      return;
+    }
+    phase = 'synced';
+    if (dirty.size > 0) schedule();
   };
 
   /** De pop-up hoort open: de start wacht niet langer (`outcome`), de module wel. */
@@ -283,7 +360,7 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     clear(delayTimer); delayTimer = null;
     clear(retryTimer); retryTimer = null;
     const late = settleStart === null;
-    const applied = apply(host, values);
+    const applied = apply(host, values, late);
     if (!applied) return;
     if (late) {
       pendingApplied = applied;
@@ -304,15 +381,30 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     retryTimer = deps.setTimer(() => { retryTimer = null; attempt(); }, RETRY_DELAY_MS);
   };
 
-  /** Eén lezing; nooit twee tegelijk. */
+  /**
+   * Eén lezing; nooit twee tegelijk. De poging is pas voorbij als elk verzoek klaar is: wijst één
+   * sleutel af terwijl een andere nog hangt, dan krijgt die andere geen tweede verzoek ernaast. De start
+   * wacht dan wel niet langer: de eerste afwijzing geeft meteen de pop-up.
+   */
   const attempt = () => {
     const host = activeHost;
     if (phase !== 'reading' || inFlight || !host) return;
     inFlight = true;
-    readHost(host).then(
-      values => { inFlight = false; onAnswer(host, values); },
-      error => { inFlight = false; onFailure(error); },
-    );
+    const requests = keys.map(key => Promise.resolve().then(() => host.get(key)));
+    for (const request of requests) {
+      request.catch(() => { if (phase === 'reading') markDelayed('fout'); });
+    }
+    void Promise.allSettled(requests).then(results => {
+      inFlight = false;
+      let values: Map<string, string | null>;
+      try {
+        values = toValues(results);
+      } catch (error) {
+        onFailure(error);
+        return;
+      }
+      onAnswer(host, values);
+    });
   };
 
   const begin = (host: SiteHostSettings, timeoutMs: number) => {
@@ -387,10 +479,11 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
     if (phase === 'synced') {
       dirty.add(key);
       schedule();
-    } else if (phase !== 'off' && origin === 'user') {
+    } else if ((phase === 'idle' || phase === 'reading') && origin === 'user') {
       // Nog geen antwoord: niets naar de host, wel onthouden (zie de kop, punt 3 en 4).
       touched.add(key);
     }
+    // `applying`: niets; `release` vergelijkt alle sleutels met de host (punt 5).
   };
 
   const takeApplied = () => {
@@ -405,7 +498,8 @@ export function createHostSettingsSync(deps: HostSettingsSyncDeps): HostSettings
   };
 
   return {
-    hydrate, adoptLateHost, noteChanged, flush, takeApplied, subscribe,
+    hydrate, adoptLateHost, noteChanged, flush, takeApplied, subscribe, settle, release,
+    writeHeld: (key: string) => phase === 'applying' && held.has(key),
     delayed: () => phase === 'reading' && isDelayed,
     unavailable: () => phase === 'off' && offLocally,
   };
@@ -494,6 +588,23 @@ export function siteHostSettingsDelayed(): boolean {
 /** Een laat antwoord dat al in `localStorage` staat en dat de app nog live moet toepassen; wist het. */
 export function takeLateSiteHostSettings(): LateSettingsApplied | null {
   return sync.takeApplied();
+}
+
+/** Slaat `writeLocal` een schrijfactie van de gebruiker op deze sleutel nu over? Zolang de app een laat
+ *  antwoord toepast en die sleutel nog niet vrijgaf (zie de kop, punt 5). */
+export function siteHostSettingWriteHeld(key: string): boolean {
+  for (const keys of heldWrites) if (keys.has(key)) return true;
+  return false;
+}
+
+/** De app werkte de kopieën van deze sleutels bij (store, taal, taakgrid). */
+export function settleLateSiteHostSettings(keys: Iterable<string>): void {
+  sync.settle(keys);
+}
+
+/** De app is klaar met het toepassen van een laat antwoord: het bewaren gaat aan. */
+export function releaseLateSiteHostSettings(): void {
+  sync.release();
 }
 
 /** Luister naar `vertraagd`, `toegepast` en `uit`; geeft de afmelding terug. */
