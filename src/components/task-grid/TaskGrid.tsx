@@ -6,6 +6,7 @@ import {
   moveTaskGridColumn,
   removeTaskGridColumn,
   resizeTaskGridColumn,
+  sameTaskGridColumns,
   setTaskGridColumnPinned,
 } from '@/engine/taskGrid/preferences';
 import type {
@@ -75,20 +76,6 @@ export interface TaskGridProps extends CoreProps {
   onChooserOpenChange?: (open: boolean) => void;
 }
 
-function sameColumns(
-  left: readonly TaskGridColumnPreference[],
-  right: readonly TaskGridColumnPreference[],
-): boolean {
-  return left.length === right.length && left.every((column, index) => {
-    const candidate = right[index];
-    return candidate !== undefined
-      && column.id === candidate.id
-      && column.width === candidate.width
-      && column.pinned === candidate.pinned
-      && (column.manualWidth === true) === (candidate.manualWidth === true);
-  });
-}
-
 export function TaskGrid({
   surfaceId,
   surfacePreferences,
@@ -143,7 +130,7 @@ export function TaskGrid({
     if (!allowAction()) return false;
     const before = preferencesRef.current.columns;
     const after = transform(before);
-    if (sameColumns(before, after)) return false;
+    if (sameTaskGridColumns(before, after)) return false;
     onCommitColumns(label, after);
     return true;
   };
@@ -169,9 +156,9 @@ export function TaskGrid({
           if (width !== null) widths.set(preference.id, width);
         }
         const current = preferencesRef.current.columns;
-        if (!sameColumns(current, before)) return;
+        if (!sameTaskGridColumns(current, before)) return;
         const after = applyAutoFitWidths(current, widths);
-        if (!sameColumns(current, after)) onApplyAutoFit(after);
+        if (!sameTaskGridColumns(current, after)) onApplyAutoFit(after);
       })();
     }, 250);
     return () => {
@@ -185,9 +172,9 @@ export function TaskGrid({
     if (!option || !onComputeAutoFitWidth || !allowAction()) return;
     const before = cloneColumns(preferencesRef.current.columns);
     const width = await onComputeAutoFitWidth(columnId);
-    if (width === null || !sameColumns(preferencesRef.current.columns, before)) return;
+    if (width === null || !sameTaskGridColumns(preferencesRef.current.columns, before)) return;
     const after = resizeTaskGridColumn(before, columnId, width, false);
-    if (sameColumns(before, after)) return;
+    if (sameTaskGridColumns(before, after)) return;
     onCommitColumns(labels.history.autoFitColumn(option.label), after);
   };
 
@@ -247,7 +234,7 @@ export function TaskGrid({
           if (!option) return;
           const current = preferencesRef.current.columns;
           const resized = resizeTaskGridColumn(current, columnId, after, true);
-          if (!sameColumns(current, resized)) {
+          if (!sameTaskGridColumns(current, resized)) {
             onCommitColumns(labels.history.resizeColumn(option.label), resized);
           }
         }}
@@ -265,7 +252,7 @@ export function TaskGrid({
         onOpenChange={onChooserOpenChange}
         beforeOpen={allowAction}
         // Dezelfde commitroute als elke andere kolomhandeling: één history-event, direct opgeslagen.
-        resetDisabled={sameColumns(surfacePreferences.columns, defaultColumns)}
+        resetDisabled={sameTaskGridColumns(surfacePreferences.columns, defaultColumns)}
         onReset={() => commitAction(labels.history.resetColumns, () => cloneColumns(defaultColumns))}
         onChoose={option => {
           const added = commitAction(

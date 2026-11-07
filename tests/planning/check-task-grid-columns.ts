@@ -8,6 +8,7 @@ import {
   recentAvailableTaskColumnIds,
   removeTaskGridColumn,
   resizeTaskGridColumn,
+  sameTaskGridColumns,
   setTaskGridColumnPinned,
   taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
@@ -94,6 +95,11 @@ eq('Automatisch aanpassen slaat een handmatige kolom over en klemt de rest op 40
   autoFitted.find(column => column.id === 'p-a')?.width,
   autoFitted.find(column => column.id === 'p-b')?.width,
 ], [123, 480, 40, initial.find(column => column.id === 'p-b')?.width]);
+eq('De gedeelde kolomvergelijking ziet manualWidth, ook bij gelijke breedte', [
+  sameTaskGridColumns(dragged, dragged),
+  sameTaskGridColumns(dragged, resizeTaskGridColumn(dragged, id('f-a'), 123, false)),
+  sameTaskGridColumns(initial, resizeTaskGridColumn(initial, id('f-a'), 123, false).map(c => ({ ...c, width: initial.find(i => i.id === c.id)!.width }))),
+], [true, false, true]);
 eq('manualWidth overleeft normalisatie (opslaan en laden); false of rommel verdwijnt',
   normalizeTaskGridColumnPreferences([
     { id: 'a', width: 100, pinned: false, manualWidth: true },

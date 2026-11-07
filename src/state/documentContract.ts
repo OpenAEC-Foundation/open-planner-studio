@@ -347,8 +347,9 @@ type AppGlobalKey =
   | 'catalogEntries' | 'catalogIssues' | 'catalogLoading' | 'catalogError' | 'catalogLastFetched'
   // Resourcebibliotheek: app-globaal, net als extensies (zie .claude/rules/library.md).
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
-  // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen.
-  | 'taskGridSurfaces' | 'recentTaskColumns';
+  // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen; de vlag zegt of ze al
+  // uit de opslag zijn geladen (sessiestand).
+  | 'taskGridSurfaces' | 'recentTaskColumns' | 'taskGridPreferencesLoaded';
 
 /**
  * Categorie 3 — afgeleid: geen bron van waarheid, wordt herberekend uit velden die wél in het

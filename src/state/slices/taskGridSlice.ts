@@ -28,7 +28,14 @@ export interface TaskGridSlice {
   taskGridSurfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
   /** Eén gedeelde MRU voor de pluskiezer op beide taakgridoppervlakken. */
   recentTaskColumns: TaskColumnId[];
+  /** Sessiestand, niet bewaard: de opgeslagen kolomvoorkeuren zijn gelezen en gehydrateerd
+   *  (`hydrateTaskGridPreferences`). Tot dan staan de standaardkolommen in de store en mag niets
+   *  automatisch worden weggeschreven, want dat overschrijft de echte voorkeuren. */
+  taskGridPreferencesLoaded: boolean;
   hydrateTaskGridPreferences: (preferences: PersistedTaskGridPreferencesV1) => void;
+  /** Automatisch gemeten kolombreedtes ("Kolommen automatisch aanpassen"): bewaard, maar geen eigen
+   *  undo-stap. Doet niets zolang de opgeslagen voorkeuren niet zijn geladen. */
+  applyAutoFitTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
   setTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
   /** Eén directe gebruikersactie: voorkeur en undo-record worden in dezelfde producer gepubliceerd. */
   commitTaskGridColumns: (
@@ -109,11 +116,13 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
   return {
     taskGridSurfaces: initial.surfaces,
     recentTaskColumns: initial.recent,
+    taskGridPreferencesLoaded: false,
 
     hydrateTaskGridPreferences: (preferences) => {
       const normalized = cloneTaskGridPreferences(preferences);
       markPreferencesReady();
       set((state) => {
+        state.taskGridPreferencesLoaded = true;
         state.taskGridSurfaces = normalized.surfaces;
         state.recentTaskColumns = normalized.recent;
         // Een oude actieve documentpayload kan deze key runtime nog dragen. De migratie heeft hem
@@ -132,6 +141,11 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         persisted = persistedTaskGridPreferences(state);
       });
       if (persisted) persistImmediately(persisted);
+    },
+
+    applyAutoFitTaskGridColumns: (surface, columns) => {
+      if (!get().taskGridPreferencesLoaded) return;
+      get().setTaskGridColumns(surface, columns);
     },
 
     commitTaskGridColumns: (surface, label, columns) => {

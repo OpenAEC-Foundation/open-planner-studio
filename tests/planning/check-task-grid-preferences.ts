@@ -4,6 +4,8 @@ import type { ColumnConfig, Layout, ViewState } from '@/types/view';
 import type { PersistedTaskGridPreferencesV1, TaskGridColumnPreference } from '@/types/taskGrid';
 import {
   TASK_GRID_COLUMN_MAX_WIDTH,
+  applyAutoFitWidths,
+  resizeTaskGridColumn,
   TASK_GRID_COLUMN_MIN_WIDTH,
   createDefaultTaskGridPreferences,
   defaultTaskGridSurfaceColumns,
@@ -403,6 +405,79 @@ historyStore.getState().commitTaskGridColumns(
 );
 eq('Een identieke kolomcommit schrijft geen history-event',
   historyStore.getState().historyEvents.length, eventCountBeforeNoOp);
+
+// Review #851, blokkade 1: "Kolommen automatisch aanpassen" mag vóór het laden van de opgeslagen
+// kolomvoorkeuren niets wegschrijven. Het raster staat al gemount terwijl de herstelkeuze (of een
+// trage lezing) nog loopt; automatisch aanpassen schreef na 250 ms de standaardkolommen weg over de
+// echte voorkeuren (naamkolom 333 px met `manualWidth` werd 240 px zonder markering).
+{
+  storage.clear();
+  const emptyFields = { projectId: '', activityCodeTypeIds: [], customFieldDefIds: [] };
+  const saved = createDefaultTaskGridPreferences(emptyFields);
+  const manualName = (columns: TaskGridColumnPreference[]) => columns.map(column =>
+    column.id === 'task.name' ? { ...column, width: 333, manualWidth: true } : column);
+  saved.surfaces['gantt-task-grid'].columns = manualName(saved.surfaces['gantt-task-grid'].columns);
+  saved.surfaces['full-task-grid'].columns = manualName(saved.surfaces['full-task-grid'].columns);
+  saved.recent = [taskColumnId('task.time.freeFloat')];
+  storage.setItem('ops-taskGridPreferences', JSON.stringify(saved));
+  const rawSaved = storage.getItem('ops-taskGridPreferences');
+  const autoStore = createAppStore();
+  eq('Vóór het laden staat taskGridPreferencesLoaded uit',
+    autoStore.getState().taskGridPreferencesLoaded, false);
+  const defaultWidths = autoStore.getState().taskGridSurfaces['full-task-grid'].columns.map(c => c.width);
+  const writesBeforeAuto = storage.writes;
+  // Het herstelvenster staat langer open dan de 250 ms van het meeteffect.
+  await new Promise(resolve => setTimeout(resolve, 300));
+  for (const surface of ['gantt-task-grid', 'full-task-grid'] as const) {
+    autoStore.getState().applyAutoFitTaskGridColumns(
+      surface, autoStore.getState().taskGridSurfaces[surface].columns.map(c => ({ ...c, width: 40 })),
+    );
+  }
+  eq('Automatisch aanpassen vóór het laden schrijft niets naar localStorage',
+    storage.writes, writesBeforeAuto);
+  eq('Automatisch aanpassen vóór het laden laat de opgeslagen voorkeur rauw staan',
+    storage.getItem('ops-taskGridPreferences'), rawSaved);
+  eq('Automatisch aanpassen vóór het laden verandert de standaardkolommen niet',
+    autoStore.getState().taskGridSurfaces['full-task-grid'].columns.map(c => c.width), defaultWidths);
+
+  eq('De echte bootstrap leest de opgeslagen voorkeur', await bootstrapTaskGridPreferences(autoStore), 'valid');
+  eq('Na het laden is de vlag aan', autoStore.getState().taskGridPreferencesLoaded, true);
+  eq('Na het laden staat de handmatige naamkolom in beide rasters nog op 333 px', [
+    autoStore.getState().taskGridSurfaces['gantt-task-grid'].columns.find(c => c.id === 'task.name'),
+    autoStore.getState().taskGridSurfaces['full-task-grid'].columns.find(c => c.id === 'task.name'),
+  ].map(c => `${c?.width}:${c?.manualWidth}`), ['333:true', '333:true']);
+  eq('Na het laden zijn de recente kolommen er nog', autoStore.getState().recentTaskColumns, saved.recent);
+
+  const fullColumns = autoStore.getState().taskGridSurfaces['full-task-grid'].columns;
+  autoStore.getState().applyAutoFitTaskGridColumns('full-task-grid', applyAutoFitWidths(
+    fullColumns, new Map(fullColumns.map(c => [c.id, 55] as const)),
+  ));
+  const afterAuto = JSON.parse(storage.getItem('ops-taskGridPreferences')!) as PersistedTaskGridPreferencesV1;
+  eq('Na het laden bewaart automatisch aanpassen de gemeten breedtes en laat de handmatige kolom staan',
+    afterAuto.surfaces['full-task-grid'].columns.map(c => `${c.id}:${c.width}${c.manualWidth ? '*' : ''}`).slice(0, 3),
+    ['task.wbsCode:55', 'task.name:333*', 'task.time.scheduleDuration:55']);
+  eq('Automatisch aanpassen schrijft geen undo-stap', autoStore.getState().historyEvents.length, 0);
+}
+
+// Review #851, blokkade 2: een dubbelklik op de rand wist `manualWidth` ook als de breedte gelijk
+// blijft (bijvoorbeeld 480). De history-vergelijking negeerde dat veld, zag "geen wijziging" en liet
+// de markering staan.
+{
+  const freeStore = createAppStore();
+  freeStore.getState().hydrateTaskGridPreferences(defaults);
+  const base = freeStore.getState().taskGridSurfaces['full-task-grid'].columns;
+  const dragged = resizeTaskGridColumn(base, taskColumnId('task.name'), 480, true);
+  freeStore.getState().commitTaskGridColumns('full-task-grid', 'Breedte gewijzigd', dragged);
+  const eventsAfterDrag = freeStore.getState().historyEvents.length;
+  const nameOf = () => freeStore.getState().taskGridSurfaces['full-task-grid'].columns.find(c => c.id === 'task.name');
+  eq('Slepen naar 480 px zet de markering', `${nameOf()?.width}:${nameOf()?.manualWidth}`, '480:true');
+  freeStore.getState().commitTaskGridColumns('full-task-grid', 'Optimale breedte',
+    resizeTaskGridColumn(dragged, taskColumnId('task.name'), 480, false));
+  eq('Dubbelklik bij gelijke breedte wist de markering', `${nameOf()?.width}:${nameOf()?.manualWidth}`, '480:undefined');
+  eq('Dubbelklik bij gelijke breedte is één undo-stap', freeStore.getState().historyEvents.length, eventsAfterDrag + 1);
+  freeStore.getState().undo();
+  eq('Undo van die dubbelklik zet de markering terug', `${nameOf()?.width}:${nameOf()?.manualWidth}`, '480:true');
+}
 
 store.setState((state) => {
   state.project.id = 'project:1';

@@ -170,6 +170,23 @@ export function normalizeTaskGridColumnPreferences(
   ];
 }
 
+/** De ene vergelijking van twee kolomlijsten (id, breedte, vastgezet en handmatige breedte), voor het
+ *  raster én de geschiedenis. Twee eigen lijsten met verschillende velden gaven eerder een
+ *  dubbelklik die `manualWidth` niet wiste (de geschiedenis zag "geen wijziging"). */
+export function sameTaskGridColumns(
+  left: readonly TaskGridColumnPreference[],
+  right: readonly TaskGridColumnPreference[],
+): boolean {
+  return left.length === right.length && left.every((column, index) => {
+    const candidate = right[index];
+    return candidate !== undefined
+      && column.id === candidate.id
+      && column.width === candidate.width
+      && column.pinned === candidate.pinned
+      && (column.manualWidth === true) === (candidate.manualWidth === true);
+  });
+}
+
 export function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
   return columns.map(columnPreference => ({ ...columnPreference }));
 }

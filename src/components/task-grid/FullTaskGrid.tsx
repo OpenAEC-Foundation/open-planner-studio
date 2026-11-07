@@ -341,8 +341,9 @@ export function TaskGridSurface({
   const notifyStructureLocked = useAppStore(state => state.notifyStructureLocked);
   const runGridMutation = useAppStore(state => state.runGridMutation);
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
-  const setTaskGridColumns = useAppStore(state => state.setTaskGridColumns);
-  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns);
+  const applyAutoFitTaskGridColumns = useAppStore(state => state.applyAutoFitTaskGridColumns);
+  // Pas aanpassen als de opgeslagen kolomvoorkeuren geladen zijn; eerder staan er standaardkolommen.
+  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns && state.taskGridPreferencesLoaded);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
   const constructionMode = useAppStore(state => state.ui.constructionMode);
@@ -954,8 +955,8 @@ export function TaskGridSurface({
 
   // Automatisch gemeten breedtes: wel bewaard, geen eigen undo-stap (de gebruiker koos ze niet).
   const applyAutoFit = useCallback(
-    (columns: readonly TaskGridColumnPreference[]) => setTaskGridColumns(surfaceId, columns),
-    [setTaskGridColumns, surfaceId],
+    (columns: readonly TaskGridColumnPreference[]) => applyAutoFitTaskGridColumns(surfaceId, columns),
+    [applyAutoFitTaskGridColumns, surfaceId],
   );
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {

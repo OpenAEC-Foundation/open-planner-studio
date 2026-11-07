@@ -604,6 +604,15 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+920. **VERVOLG: "Kolommen automatisch aanpassen" meet bij elke ronde alle taakrijen opnieuw.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) en `TaskGrid.tsx` (het effect met
+     `onComputeAutoFitWidth`). Elke meetronde verwerkt alle zichtbare taakrijen, ook bij een wijziging die geen
+     celtekst raakt, zoals een andere selectie. Past een meting een breedte aan, dan volgt een tweede volle ronde.
+     Bij 10.000 taken kost een warme ronde 211 tot 251 ms (Node, geen browser). De instelling staat standaard uit, en
+     de eerste ronde wacht 250 ms rust. Voorstel: koppel het meten aan wijzigingen van de inhoud (een versie van de
+     zichtbare celtekst per kolom in plaats van de identiteit van `computeAutoFitWidth`) en sla de tweede scan over
+     als de breedte al klopt. Uit de review van #851 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
