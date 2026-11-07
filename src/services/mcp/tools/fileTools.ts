@@ -251,7 +251,7 @@ export const fileTools: McpToolDef[] = [
     description:
       'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
       'Replaces a file only with `overwrite: true`. An export, not "save as": the document stays unsaved. Tell ' +
-      'the user the path. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
+      'the user the path; pass on `schemaNotice`. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
       'not provably different from it, is refused: choose a new file name or let the user save in the app.',
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch

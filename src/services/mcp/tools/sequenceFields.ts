@@ -187,5 +187,5 @@ export const LAG_SCHEMA = {
   type: ['number', 'string'],
   description:
     'Days (2, -1, "+2d"; a fraction such as 0.5 is kept; negative = lead) or "+50%" of the predecessor ' +
-    'duration. Other forms are refused. Replaces any other lag form of the relationship.',
+    'duration.',
 };

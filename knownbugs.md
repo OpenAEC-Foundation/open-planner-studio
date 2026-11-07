@@ -707,7 +707,7 @@ en noem het in je rapport of PR-tekst.
      gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
      in review ronde 2 van PR #787 op `a032c00ad`. — B
 
-912. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
+915. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
      `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen `0 ≤ start < 1440`, `end > start` en
      `end ≤ 2880`, met een eindig getal. Daardoor gaan `{start: 1439.5, end: 1440}` en `{start: 0, end: 0.5}`
      erdoor. Het oude bandschema op `main` (vóór PR #838) noemde `start` 0–1439 en `end` minimaal 1, maar de

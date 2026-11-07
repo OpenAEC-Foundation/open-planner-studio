@@ -552,7 +552,8 @@ const manageResources: BatchStepTool = {
   description:
     'Create (`name`), update (`id` + fields) or delete (`id`) resources; assign them with ' +
     'planner_manage_assignments. Omitted key = unchanged; `null` clears. Delete removes the resource\'s ' +
-    'assignments and needs `cascade: true` if it has any. A `tempId` on create maps to the real id in ' +
+    'assignments and needs `cascade: true` if it has any. Deleting a CREW also clears its members\' ' +
+    '`parentId`. A `tempId` on create maps to the real id in ' +
     '`created`, usable in later planner_batch steps. Library resources lock `name`, `type`, `description`, ' +
     '`costPerHour` and `unitOfMeasure`: offer a change in the library or unlinking.',
   kind: 'mutate',

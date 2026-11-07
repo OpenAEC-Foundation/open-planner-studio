@@ -29,7 +29,7 @@ landcodes, `shift`, `workRule`, `taskType` en de curves. Vier bewuste uitzonderi
   zonder getallen, met `start` buiten 0–1439, met `end` ≤ `start`, met `end` > 2880 en met overlap
   (`cases-uurkalender` test 3, ook met een negatieve start). Hij vangt niet alles wat het oude schema noemde: een
   gebroken minuut zoals `{start: 1439.5, end: 1440}` of `{start: 0, end: 0.5}` gaat erdoor. Dat is zo op `main` en
-  op deze branch; het staat als knownbug 912. De grenzen staan één keer in param `byWeekday`.
+  op deze branch; het staat als knownbug 915. De grenzen staan één keer in param `byWeekday`.
 - `byWeekday` noemt de zeven weekdagen niet meer elk als `properties` met hetzelfde dagschema; één dagschema staat nu
   als `additionalProperties` (fixronde 3). De beschrijving noemt de sleutels "1" … "7". De handler toetst de
   sleutels zelf (`workTimeReason`: onbekende sleutel en ontbrekende dag geweigerd). De schemapoort kent sinds
@@ -70,12 +70,12 @@ tool en de gids.
 | `workRule`: vier waarden met betekenis en MSP/P6-namen ("Fixed Units" betekent in MSP en P6 iets anders); wisselen verandert geen getal; `null` = projectstandaard; alleen gewone bladtaken | param `workRule` |
 | Veldbeschrijvingen van add_tasks en update_tasks.fields | dubbel: alleen bij add_tasks; update_tasks zegt "`fields` take the same fields as planner_add_tasks items" (`TASK_FIELD_SCHEMA_PROPERTIES_BARE`: zelfde schema zonder beschrijvingsTEKSTEN; het taakveld `description` blijft, fixronde 1, test `cases-taskfields`) |
 | Fase-overgang: toewijzingen gaan naar de eerste nieuwe subtaak (`phaseTransitions`) | `PHASE_TRANSITION_DOC` in add_tasks en move_task; dat een mijlpaal zijn vlag verliest en wanneer de aanroep faalt: antwoord |
-| Lag: getal of "+2d", fractie toegestaan, negatief = lead, "+50%" van de voorganger, andere vorm geweigerd; een lag zetten wist de andere lagvormen | param `lag` (test `cases-update-dependencies`: "fraction") |
+| Lag: getal of "+2d", fractie toegestaan, negatief = lead, "+50%" van de voorganger, andere vorm geweigerd; een lag zetten wist de andere lagvormen | param `lag`, zonder "Other forms are refused. Replaces any other lag form" (fixronde 4: een andere vorm wordt geweigerd met een reden, en één relatie heeft één lag; test `cases-update-dependencies` toetst nog "fraction") |
 | `LAG_DOC` in de toolbeschrijvingen | dubbel met param `lag`; de constante is weg |
 | Relatietype: lange of korte vorm (FS/FF/SS/SF) | schema: de enum noemt beide |
 | Verse planning bij leestools: eerst herberekenen, zonder undo-stap; `scheduleRecalculated: true` | één zin in tool get_project_info (de SuperCloud-export heeft geen instructies) + `MCP_INSTRUCTIONS`; `FRESH_NOTE` in zeven tools is weg (F1) |
 | Uitzonderingen op verse datums (`datesAsRecorded`, `scheduleStale` tijdens een bewerking, `scheduleError`) | antwoord: de envelop draagt dan `scheduleNote` of `scheduleError`. `datesAsRecorded` en `scheduleError` staan ook in `MCP_INSTRUCTIONS` |
-| Paginering: GEHELE `limit` 1–1000 (standaard 50), gehele `offset` ≥ 0; bij de optionele: een van beide zet paginering aan, geen van beide geeft alles | `optionalPageNote(lijst)` en tool list_tasks/list_resources (fixronde 1: het schema zegt `number`, `requirePageArgs` eist gehele getallen); `total`/`has_more`/`next_offset`: antwoord |
+| Paginering: GEHELE `limit` 1–1000 (standaard 50), gehele `offset` ≥ 0; bij de optionele: een van beide zet paginering aan, geen van beide geeft alles | `optionalPageNote` / `OPTIONAL_PAGE_SCHEMA`: "`limit` (integer 1–1000, default 50) and/or `offset` (integer ≥ 0) page …; omit both for all" (fixronde 4: "neither returns all" was dubbelzinnig; `optionalPage` geeft zonder beide sleutels de hele lijst) |
 | "One call = one undo step" bij de bulktools | tool manage_assignments (F34) en planner_batch; bij de andere bulktools weg: detail |
 | "Refused items are listed; valid ones apply" bij de bulktools | update_tasks: tool (F47); elders weg: antwoord (`itemRejections`) |
 
@@ -100,7 +100,7 @@ tool en de gids.
 | Onbekende sleutel en lege `progress` geweigerd | schema + antwoord |
 | Voortgang vraagt een statusdatum; vraag hem aan de gebruiker, kies hem nooit zelf | tool (fixronde 1: "never set automatically" beschreef de app, niet de agent; SuperCloud heeft geen instructies) |
 | Werkelijke start- en einddatums van de gebruiker doorgeven | tool (fixronde 1: stond alleen in de oude instructies, en die krijgt SuperCloud niet) + `MCP_INSTRUCTIONS` |
-| Actuals na de statusdatum geweigerd | tool + param `actualStart`/`actualFinish` |
+| Actuals na de statusdatum geweigerd | param `actualStart`/`actualFinish` ("≤ status date"); in de tool weg, dubbel (fixronde 4) |
 | `completion` > 0 leidt actualStart af, behalve als de geplande start na de statusdatum ligt: dan `actualStart` meegeven | tool |
 | Geen `duration` en geen `progress` op verzameltaken (afgeleid) | tool (F14, F46) |
 | Duurwijziging op een gestarte, niet afgeronde taak houdt het gedane werk (voorbeeld 10 d / 40 % → 12 d; `progressAdjusted`); korter dan het gedane werk wordt geweigerd | tool (F48; fixronde 3: "started, unfinished", zo werkt `workRuleApply.ts`) |
@@ -167,15 +167,15 @@ tool en de gids.
 | `holidays` vervangt exact; niet samen met `rawHolidays`/`holidaysMode`/`generate` | tool + param `holidays` |
 | Losse dagen beëindigen de koppeling met de generator (`becameLiteral`) | tool |
 | `create` zonder feestdagvelden erft de feestdagen van de app-standaard; geen feestdagen: `holidays: []` | tool (de route `generate: {country: "none"}` staat bij param `country`) |
-| Overzetten: object uit get_calendars letterlijk terug, met `create: true` om te kopiëren | tool |
+| Overzetten: object uit get_calendars letterlijk terug, met `create: true` om te kopiëren | tool get_calendars; bij update_calendar weg, dubbel (fixronde 4) |
 | Afgeleide leesvelden (`isProjectDefault`, `usedBy*`, `libraryOrigin`) genegeerd (`ignoredFields`) | antwoord; sinds fixronde 1 ook niet meer in het schema (ze leken schrijfbaar: "maak dit de projectkalender" via `isProjectDefault: true` deed niets) |
 | Dagkalender met pauze: `hoursPerDay` afgeleid; wijzig de uren of de pauze | tool; de weigering van een afwijkende waarde: antwoord |
 | Pauze buiten de werkdag of over de hele dag geweigerd | weg: antwoord |
 | `generate` óf `generation`; `generation` schrijft alleen herkomst | param `generation` |
 | `workTime` maakt een uurkalender, `null` terug naar dag | param `workTime` + tool |
 | Taakduren houden hun getal en eenheid; datums kunnen schuiven | tool (fixronde 3, tekst van Sol). De oude param-tekst van `workTime` ("this redefines the duration of every task") sprak de toolbeschrijving tegen en was verouderd; die zin is weg |
-| Bij `workTime` volgen `workDays` altijd en `hoursPerDay` tenzij bewust afwijkend; opgegeven `hoursPerDay` wint | tool |
-| Alleen `workDays` op uurkalender: nieuwe dag kopieert de banden van de eerste dag met banden (zo, ma … za) | param `workDays`; dat een vervallen dag zijn banden verliest volgt uit "geen werkdag" |
+| Bij `workTime` volgen `workDays` altijd; `hoursPerDay` alleen als hij gelijk was aan de modale dagsom van de oude banden (een bewuste afwijking zoals P6 `day_hr_cnt` blijft staan; een dagkalender volgt altijd); opgegeven `hoursPerDay` wint | tool (fixronde 4: "follow the bands unless `hoursPerDay` is given" klopte niet; code `calendarResourceTools.ts` bij `hoursPerDayForBlocks`, `subdayIo.ts`) |
+| Alleen `workDays` op uurkalender: nieuwe dag kopieert de banden van de eerste dag met banden (zo, ma … za) | weg (fixronde 4): detail. Het antwoord toont de banden niet; planner_get_calendars wel. Wie bepaalde uren wil, geeft `workTime` |
 | Terugval als geen dag banden heeft (eigen werkdag, dan 07–12 + 13–16) | weg: randgeval; zo'n kalender heeft geen werktijd en faalt al; wie banden wil, geeft `workTime` |
 | Ongebruikte kalenders overleven IFC opslaan + laden; geen taak nodig om hem te bewaren | weg (fixronde 3): detail, er gaat niets verloren en de aanroep verandert er niet door. Het behoud toetst `cases-uurkalender` |
 | Uurbanden per weekdag overleven IFC | weg: geruststelling zonder invloed op de aanroep |
@@ -211,7 +211,7 @@ tool en de gids.
 | `null` wist een veld; weggelaten sleutel blijft | tool |
 | `description` leegmaken met `""`, niet `null` | param `description` |
 | VERWIJDEREN wist ook alle toewijzingen; met toewijzingen alleen met `cascade: true` | tool |
-| Ploeglidmaatschap van de leden vervalt bij verwijderen | weg: antwoord (`orphanedCrewMemberIds`) |
+| Ploeglidmaatschap van de leden vervalt bij verwijderen | tool: "Deleting a CREW also clears its members' `parentId`" (fixronde 4: het antwoord meldt het pas achteraf, en een CREW zonder eigen toewijzingen gaat zonder `cascade` weg; code `purgeResource`) + antwoord (`orphanedCrewMemberIds`) |
 | `tempId` (`tmp-`/`tmp_`) bij `create`, echt id in `created`; latere batchstappen | tool + param `tempId` |
 | Bibliotheekresource: vijf velden vast; bied de gebruiker de twee routes | tool |
 | Wat het project bepaalt blijft schrijfbaar | weg: volgt uit de lijst vaste velden |
@@ -280,7 +280,7 @@ tool en de gids.
 | Export, geen "opslaan als"; document blijft onopgeslagen | tool |
 | Noem het pad aan de gebruiker | tool |
 | Bronbestand van een onschrijfbaar schema (IFC2X3), of een bestand dat niet aantoonbaar anders is, wordt niet overschreven: kies een nieuwe naam of laat de gebruiker in de app opslaan | tool (F40) |
-| `ifcSchema`, `schemaNotice` | weg: antwoord |
+| `ifcSchema`, `schemaNotice` | antwoord; tool: "pass on `schemaNotice`" (fixronde 4: bij een IFC2X3-bron schrijft de export IFC 4.3 ADD2, en alleen `schemaNotice` zegt dat) |
 | import_schedule: formaten; opent als nieuw actief document; niets samengevoegd | tool |
 | Verlies per formaat aan de gebruiker melden | tool |
 | `notice` doorgeven (o.a. herberekende oudere IFC) | tool; `minuteModelConversion`: antwoord |
@@ -293,7 +293,7 @@ tool en de gids.
 | regel | nieuwe plek |
 |---|---|
 | get_project_info: goede eerste aanroep; `criticalTasks` alleen bladtaken; `schedule.projectEnd` en `projectDuration` | tool (F2; test `cases-read`) |
-| `statusDate` = DATA DATE, kan het projecteinde bepalen | tool (test `cases-statusdatum`) |
+| `statusDate` = DATA DATE, kan het projecteinde bepalen | tool: "`statusDate` is the DATA DATE: it pushes unstarted work forward and can set the project end" (fixronde 4; test `cases-statusdatum` eist "DATA DATE") |
 | `schedulingOptions.leveling` uit een bronbestand wordt niet toegepast | tool |
 | `schedulingProfile`, `startToStartLagFrom` | weg: leesinformatie, geen aanroep |
 | get_project_overview: elke relatie één keer, één aanroep genoeg; `id` voor muterende tools; `parentId` voor de boom; `#seq` = seqId | tool (test `cases-stille-noops`: `id`) |
@@ -328,7 +328,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | Een falende stap ⇒ hele batch terug; weigeringen per item zacht (`rejections`) | tool |
 | tempId wordt in LATERE stappen van deze batch vervangen, nooit in vrije tekst | tool |
 | Args liggen vast: alleen een laatste leesstap is zinvol; ids vooraf opzoeken | tool (test `cases-batch`: "final") |
-| Uitgesloten: planner_batch, undo/redo, document- en bestandstools, planner_save_baseline | tool |
+| Uitgesloten: planner_batch, undo/redo, document- en bestandstools, planner_save_baseline, planner_get_planning_guide, planner_inspect_xer_provenance | tool (F6; fixronde 4: de laatste twee zijn `batchable: false` en ontbraken, nagelopen tegen `checkExclusions`) |
 | Rapport per stap bij een fout; "geen scripttaal" | weg: antwoord / volgt uit "args are fixed at submission" |
 
 ## planner_inspect_xer_provenance
@@ -357,8 +357,8 @@ principe in de agentgids.
 | Waarom (te fijn onbeheersbaar, te grof onstuurbaar) | weg: gids |
 | Relaties, geen vaste datums; FS standaard; elke taak een voorganger en opvolger; constraints alleen voor harde externe datums; nooit negatieve lag | instructies (test: "Finish-to-start", "negative lag") |
 | Hoogstens een paar procent constraints | weg: gids |
-| Geen aparte herbereken-stap; leestools frissen een verouderde planning op, zonder undo-stap; resultaat lezen met get_project_info en get_critical_path | instructies (test; F1) |
-| `datesAsRecorded`: datums uit het bestand; meld dat; de eerste wijziging rekent ze opnieuw | instructies (test) |
+| Geen aparte herbereken-stap; leestools frissen een verouderde planning op, zonder undo-stap; resultaat lezen met get_project_info en get_critical_path | instructies, kort: "Changes and reads recalculate by themselves" (test). De details (welke leestools, geen undo-stap, `scheduleRecalculated`) staan bij get_project_info (F1, fixronde 4) |
+| `datesAsRecorded`: datums uit het bestand; meld dat; de eerste wijziging rekent ze opnieuw | instructies: "say so when you report dates" (test). De rest zegt `scheduleNote` (`DATES_AS_RECORDED_NOTE`), die elke envelop met `datesAsRecorded` draagt (fixronde 4) |
 | `scheduleError`: eerst oplossen; een wijziging die het laat staan wordt teruggedraaid | instructies (test) |
 | Gebruik planner_batch voor een samenhangende reeks | dubbel: nu in tool planner_batch |
 | Voortgang vraagt de statusdatum van de gebruiker; nooit verzinnen | instructies (test: "status date") |
@@ -405,15 +405,15 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 
 ## Afstemming met PR #836: de 53 feiten uit `artifacts/818-gids-zuinig/feiten-in-tools.md`
 
-Stand: deze branch na fixronde 3. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
+Stand: deze branch na fixronde 4. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
 F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`; de zestien die Sol in council-ronde 2 van
 #836 noemde, zijn gemarkeerd met *.
 
 | # | status | plek |
 |---|---|---|
-| F1* | staat er | tool get_project_info ("This and every read … first recalculate a stale schedule (no undo step; `scheduleRecalculated: true`)") + `MCP_INSTRUCTIONS` |
+| F1* | staat er | tool get_project_info ("Reads of dates, float, critical path or load refresh a stale schedule first (no undo step; `scheduleRecalculated: true`)") + `MCP_INSTRUCTIONS` (kort) |
 | F2* | staat er | tool get_project_info (`schedule.projectEnd`, `projectDuration`, `criticalTasks`) |
-| F3* | staat er | tool planner_batch ("one backup") |
+| F3* | staat er | tool planner_batch ("one undo step, recalculation and backup"; "A failed step rolls back all") |
 | F4 | staat er | tool planner_batch (`tmp-…`) + schema `pattern` `^tmp[-_]` bij add_tasks |
 | F5 | staat er | tool planner_batch |
 | F6 | staat er | tool planner_batch |
@@ -457,8 +457,8 @@ F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`;
 | F44 | staat er | tool update_tasks |
 | F45 | staat er | param `actualStart`/`actualFinish` |
 | F46 | staat er | tool update_tasks |
-| F47* | staat er | tool update_tasks ("one id can be in both `updated` and `itemRejections`") |
-| F48* | staat er | tool update_tasks (`progressAdjusted`; "shorter than the work done is refused") |
+| F47* | staat er | tool update_tasks ("an id may be both `updated` and in `itemRejections`") |
+| F48* | staat er | tool update_tasks (`progressAdjusted`; "less than the work done is refused") |
 | F49* | staat er | tool compare_baseline (`late`/`early`/`new`/`dropped`) |
 | F50 | staat er | tool compare_baseline |
 | F51* | staat er | tool compare_baseline en analyze_delay ("refused without one") |

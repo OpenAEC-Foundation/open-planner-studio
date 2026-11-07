@@ -433,12 +433,11 @@ function checkExclusions(steps: ParsedStep[]): string | null {
 const batch: McpToolDef = {
   name: 'planner_batch',
   description:
-    'Run up to 100 tool steps in order as ONE change (one undo step, one recalculation, one backup); use it for a ' +
-    'coherent series. A failing step rolls back the WHOLE batch; per-item refusals are soft (`rejections`). ' +
-    'In LATER steps of this batch every string equal to a tempId (`tmp-…`) becomes the real id (not in free ' +
-    'text). Args ' +
-    'are fixed at submission, so only a final read step is useful: look up ids before. Not allowed as a ' +
-    'step: planner_batch, undo/redo, document and file tools, planner_save_baseline.',
+    'Up to 100 tool steps in order as ONE change: one undo step, recalculation and backup; use it for ' +
+    'coherent changes. A failed step rolls back all; item refusals are soft (`rejections`). Later steps ' +
+    'resolve exact tempIds (`tmp-…`) to real ids, except in free text. Args are fixed: read ids beforehand; ' +
+    'only a final read is useful. Excludes planner_batch, undo/redo, document/file tools, ' +
+    'planner_save_baseline, planner_get_planning_guide and planner_inspect_xer_provenance.',
   kind: 'batch',
   batchable: false,
   annotations: {

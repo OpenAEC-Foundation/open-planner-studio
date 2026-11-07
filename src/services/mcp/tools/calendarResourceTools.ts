@@ -981,10 +981,11 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
     return { data: { calendars: rows }, itemRejections: rejections };
 }
 
-/** Eén weekdag in het `workTime.byWeekday`-schema (7× identiek; `[]` = niet-werkende dag). Staat acht keer in
- *  het schema; daarom zo kaal mogelijk: `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818).
- *  De schemapoort toetst array-items niet (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven
- *  weigert elke ongeldige band met een reden (`cases-uurkalender.ts`, test 3). */
+/** Eén weekdag in het `workTime.byWeekday`-schema (`[]` = niet-werkende dag). Staat twee keer in het schema: als
+ *  `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`. Daarom zo kaal mogelijk:
+ *  `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818). De schemapoort toetst array-items niet
+ *  (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven weigert ongeldige banden met een reden
+ *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 915). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
   items: { type: 'object', required: ['start', 'end'] },
@@ -1025,10 +1026,10 @@ const updateCalendar: BatchStepTool = {
     '(ids are per document). Holidays: `generate` replaces the list with a country set, then `rawHolidays` ' +
     'adds days; `holidaysMode: "replace"` makes it exactly `rawHolidays`; `holidays` sets it exactly. Raw days ' +
     'end the generator link (`becameLiteral`). `create` without holiday fields inherits the app default ' +
-    'holidays; `holidays: []` = none. Pass a planner_get_calendars object back literally; `create: true` ' +
-    'copies it. DAY calendar with a break: `hoursPerDay` is derived; change hours or break. HOUR calendar ' +
-    '(`workTime`): `workDays` and `hoursPerDay` follow the bands unless `hoursPerDay` is given. Task durations ' +
-    'keep their number and unit; dates can move.',
+    'holidays; `holidays: []` = none. DAY calendar with a break: `hoursPerDay` is derived; change hours or ' +
+    'break. HOUR calendar (`workTime`): `workDays` follows the bands; `hoursPerDay` too, unless it differed ' +
+    'from the modal day sum of the old bands. A given `hoursPerDay` wins. Task durations keep their number and ' +
+    'unit; dates can move.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1050,8 +1051,7 @@ const updateCalendar: BatchStepTool = {
             workDays: {
               type: 'array',
               items: { type: 'integer', minimum: 1, maximum: 7 },
-              description: '1 = Monday … 7 = Sunday. On an HOUR calendar without `workTime` a new day copies the ' +
-                'bands of the first day with bands (Sun, Mon … Sat).',
+              description: '1 = Monday … 7 = Sunday.',
             },
             workStartHour: { type: 'number', description: 'HOURS (0–24).' },
             workEndHour: { type: 'number', description: 'HOURS (0–24).' },

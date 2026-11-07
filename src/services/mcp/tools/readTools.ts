@@ -1077,19 +1077,19 @@ const OPTIONAL_PAGE_SCHEMA = {
 const FLOAT_UNIT_NOTE = 'Float is in working days of the task calendar, also on hour tasks (ELAPSEDTIME: calendar days).';
 
 /** Zin in de beschrijving van zo'n tool; de schemavelden zelf dragen geen beschrijving meer. Het schema zegt
- *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. */
+ *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. Zonder beide
+ *  sleutels geeft `optionalPage` `null`, en de tool de hele lijst. */
 const optionalPageNote = (list: string): string =>
-  ` Integer \`limit\` 1–1000 (default 50) and/or integer \`offset\` ≥ 0 page over \`${list}\`; neither returns all.`;
+  ` \`limit\` (integer 1–1000, default 50) and/or \`offset\` (integer ≥ 0) page \`${list}\`; omit both for all.`;
 
 export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_info',
     description:
-      'Project metadata, counts (`criticalTasks`: leaf tasks only), status date, `schedule.projectEnd` and ' +
-      '`projectDuration`, calendars. A good first call. This and every read of dates, float, the critical path ' +
-      'or load first recalculate a stale schedule (no undo step; `scheduleRecalculated: true`). ' +
-      '`project.statusDate` is the DATA DATE: unstarted work is pushed to it, so it can set the project end. ' +
-      '`schedulingOptions.leveling` from a source file is not applied.',
+      'Project metadata, counts (`criticalTasks`: leaf tasks), calendars, status date, `schedule.projectEnd`/' +
+      '`projectDuration`. Reads of dates, float, critical path or load refresh a stale schedule first (no undo ' +
+      'step; `scheduleRecalculated: true`). `statusDate` is the DATA DATE: it pushes unstarted work forward and ' +
+      'can set the project end. Imported `schedulingOptions.leveling` is inactive.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

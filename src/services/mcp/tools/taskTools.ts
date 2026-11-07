@@ -439,14 +439,14 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    'Always send `durationUnit` with `duration` (omitted = days). A refused `fields` block changes nothing; ' +
-    '`progress` applies separately, so one id can be in both `updated` and `itemRejections`. ' +
-    `${TASK_FIELDS_DOC} \`progress\` needs the project \`statusDate\` (planner_update_project; ask the user, ` +
-    'never pick it); actuals after it are refused. Pass the user\'s actual dates; otherwise completion > 0 ' +
-    'takes actualStart from the planned start (refused if after the status date). No ' +
-    '`duration` or `progress` on summary tasks. A new duration on a started, unfinished task keeps the work ' +
-    'done (10 d at 40 % → 12 d: 8 d left, 33 %; `progressAdjusted`); less than the work done is refused. ' +
-    'Report `remainingWorkRecomputed`. A hypothetical delay is a duration or constraint change, not `progress`.',
+    'Always pair `duration` with `durationUnit` (omitted = days). Refused `fields` apply nothing; `progress` ' +
+    'is independent, so an id may be both `updated` and in `itemRejections`. ' +
+    `${TASK_FIELDS_DOC} \`progress\` needs the user's \`statusDate\` (planner_update_project; ask, never ` +
+    'invent it); pass the user\'s actual dates. Otherwise completion > 0 uses the planned start as ' +
+    'actualStart (refused after the status date). No `duration` or `progress` on summary tasks. On a ' +
+    'started, unfinished task a new duration keeps the work done (10 d at 40% → 12 d: 8 d left, 33%; ' +
+    '`progressAdjusted`); less than the work done is refused. Report `remainingWorkRecomputed`. Hypothetical ' +
+    'delay: change duration or constraint, not `progress`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

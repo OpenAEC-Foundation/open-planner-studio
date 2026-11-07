@@ -618,4 +618,4 @@ function withoutDescriptions(value: unknown): Record<string, unknown> {
 
 /** Eén zin voor in de beschrijving van `update_tasks`: welke routes NIET via `fields` lopen. */
 export const TASK_FIELDS_DOC =
-  '`status`, `parentId`, `resourceIds`: use `progress`, planner_move_task, planner_manage_assignments.';
+  '`status`/`parentId`/`resourceIds`: use `progress`/planner_move_task/planner_manage_assignments.';
