@@ -193,6 +193,7 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     });
     eq(`${tag}: te laat begonnen, snel klaar ⇒ melding`, lateQuick.found, [true]);
     eq(`${tag}: en een regel in het paneel`, rows(lateQuick.S).length, 1);
+    eq(`${tag}: de regel noemt de werkelijke start`, rows(lateQuick.S)[0]?.facts.start, '2026-06-03T08:00');
     // Werkelijk gestart ma 1 juni 08:00, klaar ma 15 juni 16:00: op tijd begonnen ⇒ geen melding.
     const earlyLong = run('2026-06-30', (S, a) => {
       S().setActualStart(a, '2026-06-01T08:00');
@@ -206,6 +207,16 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
       S().setTaskProgress(a, 0.2);
     });
     eq(`${tag}: lopend, op tijd begonnen ⇒ geen melding`, running.found, []);
+    // Review #810 ronde 3: lopend en te laat begonnen (wo 3 juni 08:00, 20 % op wo 10 juni) ⇒ melding. De regel
+    // noemt de werkelijke start, niet de vroege start (bij een lopende taak de statusdatum).
+    const runningLate = run('2026-06-10', (S, a) => {
+      S().setActualStart(a, '2026-06-03T08:00');
+      S().setTaskProgress(a, 0.2);
+    });
+    eq(`${tag}: lopend, te laat begonnen ⇒ melding`, runningLate.found, [true]);
+    const runningRows = rows(runningLate.S);
+    eq(`${tag}: lopend, te laat begonnen ⇒ een regel in het paneel`, runningRows.length, 1);
+    eq(`${tag}: lopend ⇒ de regel noemt de werkelijke start`, runningRows[0]?.facts.start, '2026-06-03T08:00');
   }
 }
 

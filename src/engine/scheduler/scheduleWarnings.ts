@@ -3,6 +3,7 @@ import type { Sequence } from '@/types/sequence';
 import type { Resource } from '@/types/resource';
 import type { CPMResult, ScheduleErrorInfo } from './CPMSolver';
 import { effectiveExternalLinks } from './expandSummaryRelations';
+import { parseInstant } from '@/utils/dateUtils';
 import type { ResourceLoadResult } from './ResourceLoad';
 
 /**
@@ -202,6 +203,10 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
       const idx = taskIndex.get(taskId);
       if (!t || !link || idx === undefined) continue;
       const startSide = link.relType === 'SS' || link.relType === 'SF';
+      // Dezelfde start als de detector (`detectExternalSuccessorViolations`): de werkelijke start als die
+      // geldig is, anders de vroege start. Bij een lopende taak is de vroege start de statusdatum (review #810).
+      const actualStart = startSide && t.time.actualStart && !isNaN(parseInstant(t.time.actualStart).getTime())
+        ? t.time.actualStart : undefined;
       push({
         id: `externalSuccessorViolated:${taskId}:${linkId}`, kind: 'externalSuccessorViolated',
         severity: SEVERITY.externalSuccessorViolated, target: { type: 'task', taskId },
@@ -209,7 +214,7 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
           externalTaskName: link.sourceRef.taskName || link.sourceRef.taskId,
           externalProjectName: link.sourceRef.projectName || link.sourceRef.projectId,
           externalLinkId: link.id, relType: link.relType, anchor: link.anchorDate,
-          ...(startSide ? { start: t.time.earlyStart } : { finish: t.time.earlyFinish }),
+          ...(startSide ? { start: actualStart ?? t.time.earlyStart } : { finish: t.time.earlyFinish }),
         },
       }, idx);
     }
