@@ -2195,8 +2195,9 @@ const moveProject: BatchStepTool = {
     'dates move along. This is the opposite of `planner_update_project.startDate` (which only sets the ' +
     'anchor for new tasks). Note: the CALENDARS deliberately do NOT move along — holidays and construction ' +
     'holiday lie on fixed dates, so the end date can jump by a DIFFERENT number of days than the shift ' +
-    'itself; the response reports both. Baselines stay put by default (a baseline exists to measure ' +
-    'deviation); with `shiftBaselines: true` they move along.',
+    'itself; the response reports both. The anchors of external (cross-project) links do NOT move either: ' +
+    'an anchor is a date of the other project, which does not move. Baselines stay put by default (a ' +
+    'baseline exists to measure deviation); with `shiftBaselines: true` they move along.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

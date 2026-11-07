@@ -1406,6 +1406,13 @@ en noem het in je rapport of PR-tekst.
      `README.md:59` toont `docs/images/readme/report-preview.png`. Daarop staan in het lint nog de knop *Print*
      en de groep *Report*, die in #791 zijn verwijderd. Voorstel: de afbeelding opnieuw maken als #791 in main
      zit. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`, VERVOLG). — B
+848. **VERVOLG: Project verplaatsen noemt alleen de kalender als het einde anders schuift.** Sinds keuze 8 schuift
+     een extern anker niet meer mee. Houdt alleen zo'n anker het projecteinde vast, dan zegt de dialoog toch dat
+     "de kalender (feestdagen, bouwvak, winterstop)" ingrijpt (`src/components/dialogs/MoveProjectDialog.tsx:75`,
+     sleutels `moveProject.*`), en `planner_move_project` zegt hetzelfde in `note`
+     (`src/services/mcp/tools/calendarResourceTools.ts:2247`). Voorstel: de uitleg algemeen maken (kalenders en
+     externe ankers), in nl en en tegelijk, en langs Ethan. Uit de review van #807 (GPT-6.1-Sol, xhigh, op
+     `33f2284bf`, VERVOLG). — B
 
 858. **VERVOLG: de Help belooft per jaar 11 Amerikaanse feestdagen, maar sommige jaren hebben er 10 of 12.**
      `public/docs/nl/howto-feestdagen-genereren.md:25` en de Engelse versie (regel 25) zeggen "per jaar de 11
