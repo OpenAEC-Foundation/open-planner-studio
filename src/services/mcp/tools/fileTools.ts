@@ -364,8 +364,8 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_import_schedule',
     description:
-      'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder as a ' +
-      'new active document; nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder in a ' +
+      'new active tab (an empty, unchanged active tab is reused); nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
       'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
       'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
       'document; rebuild calendars with planner_update_calendar.',
