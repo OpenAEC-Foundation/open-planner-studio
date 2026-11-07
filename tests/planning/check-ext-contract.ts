@@ -374,7 +374,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
   // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
   // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
   // (tests/planning/check-ext-help.ts).
-  eq('C8-04 contractversie 1.5.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix)', EXTENSION_API_VERSION, '1.5.0');
+  eq('C8-04 contractversie 1.6.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix + 1.5.0 selectie + 1.6.0 kosten)', EXTENSION_API_VERSION, '1.6.0');
   eq('C8 selectie-API vereist minor 1.5 op oudere host', checkApiCompatibility('1.5', '1.4.1').ok, false);
   eq('C8 oudere extensie blijft compatibel', checkApiCompatibility('1.4', EXTENSION_API_VERSION).ok, true);
   // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
