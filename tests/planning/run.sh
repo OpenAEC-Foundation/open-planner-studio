@@ -759,6 +759,14 @@ if [ "$RUN_HOLIDAYS" -eq 1 ]; then
     unset 'BUNDLES[-1]'
   fi
 
+  # #818: startvolgorde van de platformbouw met een host (het echte main.tsx, gebundeld als platformbouw).
+  # Bouwt zelf een esbuild-bundel en hangt niet van de tijdzone af: één keer, buiten de tijdzonematrix.
+  SITESTARTORDERCHECK="$DIR/.site-start-order.mjs"
+  if bundle_check "$DIR/check-site-start-order.ts" "$SITESTARTORDERCHECK"; then
+    node "$SITESTARTORDERCHECK" || STATUS=1
+    unset 'BUNDLES[-1]'
+  fi
+
   # X6: RSRC/RSRCRATE/TASKRSRC, immutable retained bronrijen en het X4b-aliasingcontract.
   # De check is datumvrij en draait daarom slechts eenmaal buiten de tijdzonematrix.
   XERRESOURCESCHECK="$DIR/.xer-resources.mjs"

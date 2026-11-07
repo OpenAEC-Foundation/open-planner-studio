@@ -349,6 +349,7 @@ check-shift-explanation.ts matrix
 check-short-hour-task-load.ts matrix
 check-shown-dates-formats.ts matrix
 check-site-host-preferences.ts matrix
+check-site-start-order.ts los
 check-site-storage.ts matrix
 check-solve-input.ts matrix
 check-split-bar-render.ts matrix
