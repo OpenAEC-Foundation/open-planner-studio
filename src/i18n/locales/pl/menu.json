@@ -155,6 +155,7 @@
     "barsGroup": "Paski",
     "manageBaselines": "Zarządzaj planem bazowym…",
     "statusDate": "Data statusu",
+    "statusDateValue": "Data statusu: {{date}}",
     "statusDateClear": "Wyczyść datę statusu",
     "statusDateTime": "Godzina daty statusu",
     "statusDateTimeLater": "Godzina później",
