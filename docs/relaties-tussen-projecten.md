@@ -1,7 +1,8 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
-Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026. Status: ontwerp met besluiten. Ethan besliste over
-alle keuzes in hoofdstuk 10. De bouw gaat in kleine PR's, in de volgorde van hoofdstuk 9.
+Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 7 november 2026. Status:
+ontwerp met besluiten; deel 1 in aanbouw. Ethan besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine
+PR's, in de volgorde van hoofdstuk 9. Wat al gebouwd is, staat in paragraaf 9.1.
 
 ## 1. Doel en grens
 
@@ -22,6 +23,8 @@ Daaruit volgen drie grenzen:
   OPS beter wordt.
 
 ## 2. Wat er nu is
+
+Dit hoofdstuk beschrijft de app vóór de bouw (2 november 2026). Wat sindsdien veranderde, staat in paragraaf 9.1.
 
 - **Model.** Een externe relatie (`ExternalLink`) koppelt een taak aan een taak in een ander project. Ze rekent op
   een vast **anker**: een datum van de brontaak op het moment van lezen. Er is geen berekening over twee documenten
@@ -460,8 +463,39 @@ Stap 1 heeft niets van de SuperCloud nodig. Stap 2 tot en met 4 wachten op de co
 4. **Met C6:** de controle op de server, ook als de bron buiten OPS opgeslagen is.
 
 Toetsen: de rekenregels (verversen, gevolgen, conflict) in `tests/planning/`; de route in de browser met de nep-site
-(`?fakeSite=1`), uitgebreid met een tweede project, versies en de nieuwe hostberichten. Een stap met nieuw ontwerp of
-nieuwe tekst wacht op een controle door Ethan in de app, vóór de merge.
+(`?fakeSite=1`), uitgebreid met een tweede project, versies en de nieuwe hostberichten.
+
+Teksten en controle: Trias kiest de teksten die de planner ziet, kort en zakelijk, in alle 28 talen van de app. Een
+controle door Ethan in de app vóór de merge is niet meer nodig (opdracht van Ethan via Trias, 7 november 2026: "waarom
+zou je het niet afmaken?"). Een echte productkeuze die dit ontwerp niet dekt, gaat wel naar Ethan.
+
+### 9.1 Stand van de bouw (7 november 2026)
+
+Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1–C6) en worden nu niet gebouwd.
+
+| Stap | Wat | PR | Stand |
+|---|---|---|---|
+| 1.1 | *Project verplaatsen* laat de externe ankers staan | #807 | gemerged in main |
+| 1.2 | Externe lag in de lagkalender | #808 | gemerged in main |
+| 1.3 | Herkomst van het anker | #809 | gemerged in main |
+| 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | open (niet gemerged) |
+| 1.5 | Balk bij een nieuwe versie van een bron | #811 | open (niet gemerged) |
+| 1.6 | De map van een bron bewaken (desktop) | #812 | open (niet gemerged), na #811 |
+| 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
+| 1.8 | *Bronbestand kiezen…* in de browser | — | nog niet gebouwd |
+| 1.9 | Een bron in dezelfde map op de site | — | nog niet gebouwd |
+| 1.10 | MCP-tools voor externe relaties | #813 | open (niet gemerged), na #811 |
+| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | — | nog niet gebouwd |
+
+Wat in de bouw anders liep dan hierboven staat:
+
+- **1.2.** Een harde MSO/MFO-pin met een externe opvolger telt een te late pin op de as van de lagkalender. De
+  melding van 1.4 gebruikt dezelfde regel. Een interne SS-keten met ELAPSEDTIME en lag 0 rekent nog niet zo; dat staat
+  als VERVOLG in `knownbugs.md` (punt 876).
+- **1.5.** Verandert er bij een nieuwe versie geen enkel anker, dan komt er geen balk (paragraaf 5.4 zei: *Bekijken*
+  vindt geen verschil en zet de velden goed). Een balk zonder gevolg is ruis. De herkomst wordt bijgewerkt bij de
+  volgende *Accepteren* of *Vernieuwen*.
+- **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), zoals de app.
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
