@@ -24,6 +24,8 @@ Open het tabblad *Rapport* (of druk op Ctrl+P). Links staat de kolom *Rapportage
 
 **Oriëntatie:** — liggend of staand. Keuze uit *Liggend* en *Staand*. Standaard: *Liggend*. Effect: zoals *Papier:*. Waar: dezelfde plek als *Papier:*.
 
+**Lettertype:** — de letter van alle tekst in het rapport. Keuze uit *Inter (standaard)*, *Liberation Sans (zoals Arial)*, *Carlito (zoals Calibri)* en *Liberation Serif (zoals Times New Roman)*. Standaard: Inter. Effect: voorbeeld en PDF gebruiken deze letter, en de PDF bevat hem, zodat hij op elke computer hetzelfde afdrukt. De letters naast Inter hebben dezelfde tekenbreedtes als het lettertype tussen haakjes. Een teken dat de gekozen letter mist, komt uit Inter. Net als bij *Papier:* is er één keuze voor alle rapporten; de app bewaart hem op dit apparaat en niet in het projectbestand. Waar: dezelfde plek als *Papier:*.
+
 ## Gantt-afdruk
 
 De planning als balkenplan, met een tabel links en een tijdlijn rechts, over meerdere pagina's als het moet. Het voorbeeld toont het papier met paginakop, tabel, tijdlijn en legenda. Het blok *Overzicht* telt *Taken:*, *Bladtaken:*, *Kritiek:* en *Relaties:*. Alle opties staan onder *Instellingen*.
@@ -126,7 +128,7 @@ Het blok *Overzicht* toont *Statusdatum*, *Periode*, *Vooruitblik t/m*, *Baselin
 
 ## Voortgangscurve
 
-Hoe het project ervoor staat, in één blad: vier kerncijfers, een S-curve van de voortgang en de taken met risico. Dit rapport heeft geen eigen opties, alleen *Papier:* en *Oriëntatie:*.
+Hoe het project ervoor staat, in één blad: vier kerncijfers, een S-curve van de voortgang en de taken met risico. Dit rapport heeft geen eigen opties, alleen *Papier:*, *Oriëntatie:* en *Lettertype:*.
 
 Het blok *Overzicht* toont *Statusdatum*, *Baseline-einde*, *Prognose-einde* en *Δ einde (wd)*. Daaronder staan vier kerncijfers:
 
