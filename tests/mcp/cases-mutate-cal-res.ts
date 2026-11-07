@@ -27,6 +27,7 @@ import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTool
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
+import { listedAnnotations } from '@/services/mcp/toolListing';
 import { createSnapshot } from '@/state/snapshot';
 import { shiftIso } from '@/engine/moveProject';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -727,20 +728,23 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
     assert(t.name.startsWith('planner_'), `prefix op ${t.name}`);
     assert(typeof t.description === 'string' && t.description.trim().length > 0, `description op ${t.name}`);
     assert(t.inputSchema && typeof t.inputSchema === 'object', `inputSchema op ${t.name}`);
-    const an = t.annotations;
-    assert(an && typeof an.readOnlyHint === 'boolean' && typeof an.destructiveHint === 'boolean'
-      && typeof an.idempotentHint === 'boolean' && typeof an.openWorldHint === 'boolean',
-      `vier annotaties op ${t.name}`);
-    assertEq(an.openWorldHint, false, `openWorldHint false op ${t.name}`);
+    // tools/list laat de MCP-standaardwaarden weg (`toolListing.ts`, #818); intern staan alle vier de vlaggen.
+    const def = calendarResourceTools.find((d) => d.name === t.name)!;
+    for (const k of ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'] as const) {
+      assertEq(typeof def.annotations[k], 'boolean', `annotatie ${k} intern op ${t.name}`);
+    }
+    assertEq(t.annotations, listedAnnotations(def.annotations), `tools/list-annotaties op ${t.name}`);
+    assertEq(t.annotations.openWorldHint, false, `openWorldHint false op ${t.name}`);
   }
-  assertEq(tools.find((t) => t.name === 'planner_update_calendar').annotations.destructiveHint, true,
+  // Een weggelaten destructiveHint is volgens de spec true.
+  assertEq(tools.find((t) => t.name === 'planner_update_calendar').annotations.destructiveHint ?? true, true,
     'update_calendar is destructief (spec §Naamgeving & annotaties)');
   // Reviewfix: spec r65 zet destructiveHint op een GESLOTEN lijst — clear_leveling hoort er niet bij.
-  assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
+  assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint ?? true, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
-  // clear_leveling wijst de AI erop dat level_resources zelfresettend is.
-  assert(/resets the delays ITSELF|pointless/i.test(tool('planner_clear_leveling').description),
-    'clear_leveling-beschrijving legt uit dat het vóór level_resources zinloos is');
+  // level_resources zegt zelf dat het eerdere nivellering wist; clear_leveling hoeft dat niet te herhalen (#818).
+  assert(/resets earlier leveling itself/i.test(tool('planner_level_resources').description),
+    'level_resources-beschrijving legt uit dat het zelf eerdere nivellering wist');
 });
 
 await run();

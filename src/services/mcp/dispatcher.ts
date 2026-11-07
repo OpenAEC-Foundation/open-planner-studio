@@ -6,10 +6,10 @@
 //
 // Guards (drift, pauze/alleen-lezen, AI-backup, transactie) zitten NIET hier — die draaien in een
 // hogere laag op de dispatch-grens. Deze laag routeert puur.
-import type { McpContext, McpToolResult, McpToolDef } from './contracts';
+import type { McpContext, McpToolResult } from './contracts';
 import { getTools, getTool } from './toolRegistry';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from './schemaValidate';
-import { AGENT_GUIDE_URL } from './tools/guideTools';
+import { toolListEntry } from './toolListing';
 
 /** serverInfo.name in de initialize-respons. */
 export const MCP_SERVER_NAME = 'open-planner-studio';
@@ -49,10 +49,10 @@ export const MCP_INSTRUCTIONS = [
   'You edit a real construction schedule in Open Planner Studio that a person will rely on.',
   '- Start from the milestones and the delivery date. Tasks take about a day to two weeks; summary tasks get no own duration.',
   '- Drive dates with relationships (Finish-to-start by default; every task has a predecessor and a successor, except the first task and the final milestone). Date constraints only for hard external dates the user gave; never a negative lag.',
-  '- Tools recalculate by themselves; read the result with planner_get_project_info and planner_get_critical_path. `datesAsRecorded`: the dates come from the imported file; say so, and know that your first change recalculates them. `scheduleError`: fix it first, a change that leaves it is rolled back.',
-  '- Progress needs the status date the user gives; never invent it.',
+  '- Changes recalculate by themselves, and reads of dates, float, the critical path or load first refresh a stale schedule (no undo step). Read the result with planner_get_project_info and planner_get_critical_path. `datesAsRecorded`: the dates come from the imported file; say so, and know that your first change recalculates them. `scheduleError`: fix it first, a change that leaves it is rolled back.',
+  '- Progress needs the status date the user gives; never invent it, and pass the actual dates the user gives.',
   '- End by telling the user what you assumed (durations, relationships, capacities, calendars, constraints and why) and what you did not do.',
-  `Guide and the skills goed-plannen and progress-update: \`planner_get_planning_guide\` or ${AGENT_GUIDE_URL}`,
+  'Before building, read `planner_get_planning_guide`; for progress, `part: "progress-update"`.',
 ].join('\n');
 
 /** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */
@@ -71,16 +71,6 @@ function errorMsg(id: JsonRpcId, code: number, message: string): string {
 }
 
 // --- Verpakkers ----------------------------------------------------------------------------------
-
-/** Eén list-item voor tools/list: naam, beschrijving, inputSchema en annotaties. */
-function toolListEntry(def: McpToolDef): object {
-  return {
-    name: def.name,
-    description: def.description,
-    inputSchema: def.inputSchema,
-    annotations: def.annotations,
-  };
-}
 
 /** Verpak een `McpToolResult` als MCP-tool-result (content-tekst + structuredContent + isError). */
 function wrapToolResult(result: McpToolResult): object {

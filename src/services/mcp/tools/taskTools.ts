@@ -439,13 +439,16 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    '`fields` take the same fields as planner_add_tasks items. A refused item changes nothing on that task. ' +
-    `${TASK_FIELDS_DOC} \`progress\` needs a project \`statusDate\` (planner_update_project; never set ` +
-    'automatically); actuals after it are refused. completion > 0 derives actualStart from the planned start ' +
-    'unless that lies after the status date: then pass `actualStart`. No `progress` on summary tasks (derived). ' +
-    'A new duration on a started task keeps the work done (10 d at 40 % → 12 d: 8 d left, 33 %). Report ' +
-    '`remainingWorkRecomputed` to the user. A hypothetical delay is a duration or constraint change, not ' +
-    '`progress`.',
+    '`fields` take the same fields as planner_add_tasks items; always send `durationUnit` with `duration` ' +
+    '(omitted = days). A refused `fields` block changes nothing; `progress` applies on its own, so one id ' +
+    'can be in both `updated` and `itemRejections`. ' +
+    `${TASK_FIELDS_DOC} \`progress\` needs a project \`statusDate\` (planner_update_project; ask the user, ` +
+    'never pick it yourself); actuals after it are refused. Pass the actual start and finish dates the user ' +
+    'gives; without `actualStart`, completion > 0 derives it from the planned start (refused if that lies after ' +
+    'the status date). No `duration` or `progress` on summary tasks (derived). A new duration on a started task ' +
+    'keeps the work done (10 d at 40 % → 12 d: 8 d left, 33 %; `progressAdjusted`); shorter than the work done ' +
+    'is refused. Report `remainingWorkRecomputed` to the user. A hypothetical delay is a duration or constraint ' +
+    'change, not `progress`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -697,7 +700,8 @@ function moveTaskCore(ctx: McpContext, p: { id: string; newParentId: string | nu
 const moveTask: BatchStepTool = {
   name: 'planner_move_task',
   description:
-    `Move a task under \`newParentId\` (null = root) at \`position\` (index among the siblings). ${PHASE_TRANSITION_DOC}`,
+    `Move a task under \`newParentId\` (null = root) at \`position\` (index among the siblings). Refused under ` +
+    `itself or a descendant, or when it creates a cycle. ${PHASE_TRANSITION_DOC}`,
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

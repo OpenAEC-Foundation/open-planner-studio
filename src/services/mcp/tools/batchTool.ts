@@ -433,7 +433,7 @@ function checkExclusions(steps: ParsedStep[]): string | null {
 const batch: McpToolDef = {
   name: 'planner_batch',
   description:
-    'Run up to 100 tool steps in order as ONE change (one undo step, one recalculation); use it for a ' +
+    'Run up to 100 tool steps in order as ONE change (one undo step, one recalculation, one backup); use it for a ' +
     'coherent series. A failing step rolls back the WHOLE batch; per-item refusals are soft (`rejections`). ' +
     'In LATER steps of this batch every string equal to a tempId (`tmp-…`) becomes the real id (not in free ' +
     'text). Args ' +

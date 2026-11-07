@@ -49,6 +49,22 @@ async function expectSchemaReject(name: string, args: unknown): Promise<string> 
 // =================================================================================================
 // 1) De validator zelf — per ondersteund trefwoord
 // =================================================================================================
+// Een validator die unieke enumwaarden eist (JSON Schema: "SHOULD be unique"), weigert anders het hele schema.
+// `planner_inspect_xer_provenance.collection` had `issues` twee keer (#818).
+test('elke enum in elk toolschema heeft unieke waarden', () => {
+  registerAllTools();
+  const dubbel: string[] = [];
+  const walk = (s: unknown, path: string): void => {
+    if (Array.isArray(s)) { s.forEach((x, i) => walk(x, `${path}[${i}]`)); return; }
+    if (s === null || typeof s !== 'object') return;
+    const o = s as Record<string, unknown>;
+    if (Array.isArray(o.enum) && new Set(o.enum.map((v) => JSON.stringify(v))).size !== o.enum.length) dubbel.push(path);
+    for (const [k, v] of Object.entries(o)) if (k !== 'enum') walk(v, `${path}.${k}`);
+  };
+  for (const t of getTools()) walk(t.inputSchema, t.name);
+  assertEq(dubbel, [], 'enums met een dubbele waarde');
+});
+
 test('validator: type-mismatch noemt pad én verwachting', () => {
   const schema = { type: 'object', properties: { duration: { type: 'number' } } };
   const err = validateToolArgs(schema, { duration: '10' });

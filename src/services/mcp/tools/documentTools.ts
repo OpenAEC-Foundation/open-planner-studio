@@ -228,7 +228,7 @@ export const documentTools: McpToolDef[] = [
     name: 'planner_switch_document',
     description:
       'Make another open document active. Also resolves DOC_DRIFT (the user switched tabs): confirm the target ' +
-      'here. Task, relationship and calendar ids are per document.',
+      'here.',
     kind: 'document',
     batchable: false,
     inputSchema: {

@@ -1055,10 +1055,9 @@ function analyzeDelay(s: AppState, args: PageArgs) {
 /** Leestool met berekende waarden: eerst een verouderde planning doorrekenen (zie de kop). */
 const FRESH = { freshSchedule: true } as const;
 
-/** Gedeelde zin in de beschrijving van elke leestool die zo doorrekent. */
-// Kort gehouden (#818): deze zin staat in zeven toolbeschrijvingen en gaat bij elke API-aanroep mee. De
-// uitzonderingen (`datesAsRecorded`, `scheduleStale`, `scheduleError`) legt de envelop zelf uit met `scheduleNote`.
-const FRESH_NOTE = ' Recalculates a stale schedule first.';
+// Dat een leestool een verouderde planning eerst doorrekent, staat één keer: bij planner_get_project_info (de
+// SuperCloud-export heeft geen MCP_INSTRUCTIONS) en in MCP_INSTRUCTIONS (#818). De uitzonderingen
+// (`datesAsRecorded`, `scheduleStale`, `scheduleError`) legt de envelop zelf uit met `scheduleNote`.
 
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
 
@@ -1072,16 +1071,20 @@ const OPTIONAL_PAGE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-/** Zin in de beschrijving van zo'n tool; de schemavelden zelf dragen geen beschrijving meer. */
-const OPTIONAL_PAGE_NOTE = ' Optional `limit` (1–1000)/`offset` paging; without both, the whole list.';
+/** Zin in de beschrijving van zo'n tool; de schemavelden zelf dragen geen beschrijving meer. Het schema zegt
+ *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. */
+const optionalPageNote = (list: string): string =>
+  ` Integer \`limit\` 1–1000 (default 50) and/or integer \`offset\` ≥ 0 page over \`${list}\`; neither returns all.`;
 
 export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_info',
     description:
-      'Project metadata, counts (`criticalTasks`: leaf tasks only), status date, project end, calendars. A ' +
-      'good first call. `project.statusDate` is the DATA DATE: unstarted work is pushed to it, so it can set ' +
-      'the project end. `schedulingOptions.leveling` from a source file is not applied.' + FRESH_NOTE,
+      'Project metadata, counts (`criticalTasks`: leaf tasks only), status date, `schedule.projectEnd` and ' +
+      '`projectDuration`, calendars. A good first call. This and every read of dates, float, the critical path ' +
+      'or load first recalculate a stale schedule (no undo step; `scheduleRecalculated: true`). ' +
+      '`project.statusDate` is the DATA DATE: unstarted work is pushed to it, so it can set the project end. ' +
+      '`schedulingOptions.leveling` from a source file is not applied.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1093,8 +1096,7 @@ export const readTools: McpToolDef[] = [
     description:
       'Whole WBS tree, compact, with every relationship once: one call gives structure and network. Use ' +
       '`id` in mutating tools and `parentId` (not `parent`) for the tree. In "→2.3 FS+2d #seq-7", `seq-7` is ' +
-      'the seqId for planner_update_dependencies/planner_remove_dependencies. `wbs` is read-only and derived; ' +
-      '`wbsCode` is not a writable field. Large; planner_list_tasks pages.' + FRESH_NOTE,
+      'the seqId for planner_update_dependencies/planner_remove_dependencies. Large; planner_list_tasks pages.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1104,10 +1106,10 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_list_tasks',
     description:
-      'Paged task list (`limit` 1–1000, default 50; `offset`); filters combine with AND: `kritiek` (critical; ' +
+      'Paged task list (integer `limit` 1–1000, default 50; integer `offset` ≥ 0); filters combine with AND: `kritiek` (critical; ' +
       'summary tasks count too, marked `summary: true`), `status`, `van`/`tot` (ISO dates; tasks overlapping ' +
       'the window, both inclusive), `zonder_relaties` (leaf tasks without relationships, also none on an ' +
-      'ancestor).' + FRESH_NOTE,
+      'ancestor).',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1129,11 +1131,11 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_task',
     description:
-      'Full detail of one task, with assignments and relationships. `interruptions` has the form ' +
-      'planner_set_task_splits accepts. `wbs` is read-only and derived; `wbsCode` is not a writable field. ' +
-      '`calendar.effectiveId` is written as `calendarId` (unless `calendar.isProjectDefault`). Not errors: with ' +
-      'NEGATIVE `totalFloat` the late dates lie before the early ones; a completed task whose `actualFinish` is ' +
-      'in non-working time ends on the working day before (`progress.actualFinishAdjusted`).' + FRESH_NOTE,
+      'Full detail of one task: early and late dates, total and free float, assignments, relationships. ' +
+      '`interruptions` has the form planner_set_task_splits accepts. `calendar.effectiveId` is written as ' +
+      '`calendarId` (unless `calendar.isProjectDefault`). Not errors: with NEGATIVE `totalFloat` the late dates ' +
+      'lie before the early ones; a completed task whose `actualFinish` is in non-working time ends on the ' +
+      'working day before (`progress.actualFinishAdjusted`).',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1149,8 +1151,7 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_critical_path',
     description:
       'Critical tasks in topological order with total float, and the driving relationships between them ' +
-      '(`drivingRelations`: null = unknown, [] = none).' + OPTIONAL_PAGE_NOTE + ' Pages run over ' +
-      '`criticalTasks`.' + FRESH_NOTE,
+      '(`drivingRelations`: null = unknown, [] = none).' + optionalPageNote('criticalTasks'),
     kind: 'read',
     batchable: true,
     inputSchema: OPTIONAL_PAGE_SCHEMA,
@@ -1160,7 +1161,7 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_list_resources',
     description:
-      'Paged resources (`limit` 1–1000, default 50; `offset`) with capacity and an assignment summary; field ' +
+      'Paged resources (integer `limit` 1–1000, default 50; integer `offset` ≥ 0) with capacity and an assignment summary; field ' +
       'names as in planner_manage_resources. `library.lockedFields` are the fields planner_manage_resources ' +
       'refuses on that row.',
     kind: 'read',
@@ -1180,8 +1181,8 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_resource_histogram',
     description:
       'Resource load against capacity. Without `resourceIds` and `van`/`tot` (ISO dates) a summary per ' +
-      'resource; with either, buckets per period (`load` = sum over the bucket). Week buckets snap to whole ' +
-      'ISO weeks (Mon–Sun), so days outside [van, tot] can count.' + FRESH_NOTE,
+      'resource (`peakLoad`, `overallocatedDayCount`); with either, buckets per period (`load` = sum over the ' +
+      'bucket). Week buckets snap to whole ISO weeks (Mon–Sun), so days outside [van, tot] can count.',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1202,8 +1203,8 @@ export const readTools: McpToolDef[] = [
     description:
       'All calendars with their complete definition. An object from here can be written back literally with ' +
       'planner_update_calendar, also into another document with `create: true` (ids are per document). To ' +
-      'align another document\'s PROJECT calendar, update its `projectDefaultId`; which calendar is the ' +
-      'default can only be changed in the app.',
+      'align another document\'s PROJECT calendar, write to the calendar whose id is its `projectDefaultId`; ' +
+      'which calendar is the default can only be changed in the app.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,
@@ -1213,9 +1214,9 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_compare_baseline',
     description:
-      'Tasks that deviate from the ACTIVE baseline, plus `projectEndDelta`. Deltas are working days on the ' +
-      'CURRENT project calendar: after a calendar change trust the direction, not the size.' +
-      OPTIONAL_PAGE_NOTE + ' Pages run over `deviations`.' + FRESH_NOTE,
+      'Tasks that deviate from the ACTIVE baseline (refused without one): `late`/`early`/`new`/`dropped`, plus ' +
+      '`projectEndDelta`. Deltas are working days on the CURRENT project calendar: after a calendar change ' +
+      'trust the direction, not the size.' + optionalPageNote('deviations'),
     kind: 'read',
     batchable: true,
     inputSchema: OPTIONAL_PAGE_SCHEMA,
@@ -1225,9 +1226,9 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_analyze_delay',
     description:
-      'Delay against the ACTIVE baseline. The delivery impact is `projectEndDelta` (working days); NEVER add ' +
-      'up the deltas of `criticalShifters` (that double-counts a cascade).' + OPTIONAL_PAGE_NOTE +
-      ' Pages run over `criticalShifters`.' + FRESH_NOTE,
+      'Delay against the ACTIVE baseline (refused without one). The delivery impact is `projectEndDelta` ' +
+      '(working days; `projectEndDeltaAvailable: false` = unknown, not 0); NEVER add up the deltas of ' +
+      '`criticalShifters` (that double-counts a cascade).' + optionalPageNote('criticalShifters'),
     kind: 'read',
     batchable: true,
     inputSchema: OPTIONAL_PAGE_SCHEMA,

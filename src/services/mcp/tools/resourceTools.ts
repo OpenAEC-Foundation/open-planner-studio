@@ -550,12 +550,11 @@ const EMPTY_DATA = { created: {}, resources: [], updated: [], deleted: [], remov
 const manageResources: BatchStepTool = {
   name: 'planner_manage_resources',
   description:
-    'Create (`name`), update (`id` + fields) or delete (`id`) resources; to link them to tasks use ' +
-    'planner_manage_assignments. `null` clears a field; an omitted key stays. DELETE also removes all ' +
-    'assignments of the resource, so it needs `cascade: true` while it has any. A `tempId` on `create` ' +
-    'returns the real id in `created`; later planner_batch steps may use the tempId. Library resources: `name`, ' +
-    '`type`, `description`, `costPerHour` and `unitOfMeasure` are locked; offer the user to change them in ' +
-    'the library or to unlink the resource.',
+    'Create (`name`), update (`id` + fields) or delete (`id`) resources; assign them with ' +
+    'planner_manage_assignments. Omitted key = unchanged; `null` clears. Delete removes the resource\'s ' +
+    'assignments and needs `cascade: true` if it has any. A `tempId` on create maps to the real id in ' +
+    '`created`, usable in later planner_batch steps. Library resources lock `name`, `type`, `description`, ' +
+    '`costPerHour` and `unitOfMeasure`: offer a change in the library or unlinking.',
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.

@@ -982,17 +982,12 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
 }
 
 /** Eén weekdag in het `workTime.byWeekday`-schema (7× identiek; `[]` = niet-werkende dag). Staat acht keer in
- *  het schema; daarom zonder beschrijving: `WORKTIME_SCHEMA` legt de banden één keer uit (#818). */
+ *  het schema; daarom zo kaal mogelijk: `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818).
+ *  De schemapoort toetst array-items niet (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven
+ *  weigert elke ongeldige band met een reden (`cases-uurkalender.ts`, test 3). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
-  items: {
-    type: 'object',
-    required: ['start', 'end'],
-    properties: {
-      start: { type: 'number', minimum: 0, maximum: 1439 },
-      end: { type: 'number', minimum: 1, maximum: 2880 },
-    },
-  },
+  items: { type: 'object', required: ['start', 'end'] },
 } as const;
 
 const WORKTIME_SCHEMA = {
@@ -1002,9 +997,9 @@ const WORKTIME_SCHEMA = {
     byWeekday: {
       type: 'object',
       description:
-        'All seven keys "1" (Mon) … "7" (Sun) are required. Per day ascending, non-overlapping bands in ' +
-        'MINUTES from midnight ([] = non-working); `end` > `start` and counts on past midnight (22:00–06:00 = ' +
-        '1320–1800).',
+        'All seven keys "1" (Mon) … "7" (Sun) are required. Per day ascending, non-overlapping bands ' +
+        '{start, end} in MINUTES from midnight ([] = non-working): `start` 0–1439, `end` > `start` and ≤ 2880 ' +
+        '(counts on past midnight: 22:00–06:00 = 1320–1800).',
       properties: {
         '1': WORKTIME_DAY_SCHEMA, '2': WORKTIME_DAY_SCHEMA, '3': WORKTIME_DAY_SCHEMA, '4': WORKTIME_DAY_SCHEMA,
         '5': WORKTIME_DAY_SCHEMA, '6': WORKTIME_DAY_SCHEMA, '7': WORKTIME_DAY_SCHEMA,
@@ -1027,16 +1022,16 @@ const HOLIDAY_ITEM_SCHEMA = {
 const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
-    'Change calendars, or create one with `create: true` and your own `id` label (use the returned real ' +
-    '`id`). Ids are per document: never reuse one from another document. HOLIDAYS: `generate` REPLACES the ' +
-    'list with a country set; `rawHolidays` ADDS days (existing ones stay); `holidaysMode: "replace"` makes the list exactly ' +
+    'Change calendars, or create one with `create: true` and your own `id` label (then use the returned `id`). ' +
+    'Ids are per document: never reuse one from another. Holidays: `generate` REPLACES the list with a country ' +
+    'set; `rawHolidays` ADDS days (existing ones stay); `holidaysMode: "replace"` makes the list exactly ' +
     '`rawHolidays` (the only way to remove one); `holidays` replaces it exactly. Raw days end the generator ' +
-    'link (`becameLiteral`). `create` without holiday fields inherits the app default holidays; for none pass ' +
-    '`holidays: []`. A planner_get_calendars object can be passed back literally (with `create: true` to ' +
-    'copy). A DAY calendar with a break derives `hoursPerDay` (working day − break): change the hours or the ' +
-    'break instead. With `workTime` (HOUR calendar) `workDays` follows the bands, and `hoursPerDay` too unless ' +
-    'it differed on purpose; a given `hoursPerDay` wins. Task durations are never converted; dates can move. ' +
-    'Unused calendars survive IFC save+reload; no need to attach a task.',
+    'link (`becameLiteral`). `create` without holiday fields inherits the app default holidays; `holidays: []` ' +
+    '= none. A planner_get_calendars object can be passed back literally (`create: true` copies it). DAY ' +
+    'calendar with a break: `hoursPerDay` is derived, change the hours or the break. HOUR calendar ' +
+    '(`workTime`): `workDays` and, unless deliberately different, `hoursPerDay` follow the bands; a given ' +
+    '`hoursPerDay` wins. Task durations are never converted; dates can move. Unused calendars survive IFC ' +
+    'save+reload.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1137,11 +1132,9 @@ const updateCalendar: BatchStepTool = {
                 generatedToYear: { type: 'integer' },
               },
             },
-            // Afgeleide leesvelden van get_calendars: mogen mee terugkomen en worden genegeerd (`ignoredFields`).
-            isProjectDefault: { type: 'boolean' },
-            usedByTasks: { type: 'integer' },
-            usedByResources: { type: 'integer' },
-            libraryOrigin: { type: 'object' },
+            // De afgeleide leesvelden van get_calendars (`CAL_READONLY_KEYS`) staan bewust NIET in het schema: ze
+            // zijn niet schrijfbaar. `items` heeft geen `additionalProperties: false`, dus een teruggestuurd object
+            // blijft geldig; de handler meldt ze als `ignoredFields` (#818).
           },
         },
       },
@@ -1424,7 +1417,8 @@ const manageAssignments: BatchStepTool = {
     '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + fields; `move`: `assignmentId` ' +
     'to `taskId`; `remove`: `assignmentId`. Only on leaf tasks (no milestone); a resource once per task. Under ' +
     'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the task DURATION; under ' +
-    'the default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. Read the task again for its duration.',
+    'the default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. Read the task again for its ' +
+    'duration. One call is one undo step.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1620,8 +1614,8 @@ const levelResources: BatchStepTool = {
   name: 'planner_level_resources',
   description:
     'Level resource overloads by delaying tasks. Default `constrainToFloat: true` stays within total float ' +
-    '(end fixed; some peaks may stay); `false` may move the end. Material is never leveled. Try `dryRun: ' +
-    'true` first. Resets earlier leveling itself, so reruns do not stack.',
+    '(end fixed; remaining peaks in `unresolved`); `false` may move the end (`projectEndDelta`). Material is ' +
+    'never leveled. Try `dryRun: true` first. Resets earlier leveling itself, so reruns do not stack.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1691,7 +1685,7 @@ function clearLevelingCore(ctx: McpContext): MutationOutcome {
 const clearLeveling: BatchStepTool = {
   name: 'planner_clear_leveling',
   description:
-    'Remove all leveling delays. Pointless before planner_level_resources, which resets the delays ITSELF.',
+    'Remove all leveling delays.',
   kind: 'mutate',
   batchable: true,
   // GEEN destructiveHint: die annotatie staat op een GESLOTEN lijst (delete_tasks,
@@ -1900,11 +1894,12 @@ const updateProject: BatchStepTool = {
   name: 'planner_update_project',
   description:
     'Change project details. `startDate` anchors NEW tasks and does not shift the schedule (set it before ' +
-    'planner_add_tasks); a later one only clamps unlinked root tasks forward (`anchorsClamped`). To shift the ' +
+    'planner_add_tasks); a later one only clamps root tasks without predecessor or constraint forward ' +
+    '(`anchorsClamped`). To shift the ' +
     'whole schedule use planner_move_project. `statusDate` is the DATA DATE: unstarted work (completion 0) ' +
     'cannot lie before it, so it moves the schedule and the project end even without progress; set it only ' +
     'to record progress (`statusDateEffect`). Clearing it makes recorded actuals inert. `endDate` enforces ' +
-    'nothing.',
+    'nothing but sets the span of generated holidays.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

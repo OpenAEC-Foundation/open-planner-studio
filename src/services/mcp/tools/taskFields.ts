@@ -544,10 +544,14 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     minimum: 0,
     description:
       'In `durationUnit` (default days = working days on the task calendar; a fraction such as 2.5 is kept). ' +
-      'FIXED_WORK tasks are stored in hours (days × hours per day). Milestone: 0. Summary task: derived, omit it.',
+      'FIXED_WORK tasks are stored in hours (days × hours per day). Milestone: 0 (more is refused). Summary task: ' +
+      'derived, omit it.',
   },
-  durationUnit: { type: 'string', enum: ['days', 'hours'], description: 'Send together with `duration`.' },
-  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'ELAPSEDTIME = calendar time (1 d = 24 h).' },
+  durationUnit: {
+    type: 'string', enum: ['days', 'hours'],
+    description: 'Always send it with `duration` (omitted = days). `hours` needs a task calendar with working hours.',
+  },
+  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'Default WORKTIME; ELAPSEDTIME = calendar time (1 d = 24 h).' },
   taskType: {
     type: 'string',
     enum: TASK_TYPES,
@@ -569,7 +573,7 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Leveling priority; default 500, 1000 = never shift.' },
   constraint: {
     type: ['object', 'null'],
-    description: 'null clears. `date` (ISO) is required except for ASAP/ALAP; `hard` (P6 Mandatory) only for ' +
+    description: 'The only way to fix a date; null clears. `date` (ISO) is required except for ASAP/ALAP; `hard` (P6 Mandatory) only for ' +
       'MSO/MFO. null/ASAP/ALAP also clear a secondary constraint; a type that cannot pair with it is refused.',
     properties: {
       type: { type: 'string', enum: ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] },
@@ -594,7 +598,9 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
 };
 
 /** Dezelfde properties zonder beschrijvingen, voor `update_tasks.fields`: de uitleg staat één keer, bij
- *  `add_tasks` (#818). Types, enums en grenzen blijven gelijk, dus het invoercontract ook. */
+ *  `add_tasks` (#818). Types, enums en grenzen blijven gelijk, dus het invoercontract ook. Let op: het
+ *  taakveld `description` heet ook zo; alleen een TEKST onder die sleutel is een beschrijving
+ *  (`cases-taskfields.ts` bewaakt dat alle velden blijven). */
 export const TASK_FIELD_SCHEMA_PROPERTIES_BARE: Record<string, unknown> = withoutDescriptions(TASK_FIELD_SCHEMA_PROPERTIES);
 
 function withoutDescriptions(value: unknown): Record<string, unknown> {
@@ -602,7 +608,9 @@ function withoutDescriptions(value: unknown): Record<string, unknown> {
     if (Array.isArray(v)) return v.map(strip);
     if (v === null || typeof v !== 'object') return v;
     return Object.fromEntries(
-      Object.entries(v as Record<string, unknown>).filter(([k]) => k !== 'description').map(([k, x]) => [k, strip(x)]),
+      Object.entries(v as Record<string, unknown>)
+        .filter(([k, x]) => !(k === 'description' && typeof x === 'string'))
+        .map(([k, x]) => [k, strip(x)]),
     );
   };
   return strip(value) as Record<string, unknown>;

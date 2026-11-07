@@ -48,6 +48,9 @@ const DIAGNOSTIC_COLLECTIONS = [
 const ALL_COLLECTIONS = [...RESOURCE_COLLECTIONS, ...METADATA_COLLECTIONS, ...DIAGNOSTIC_COLLECTIONS] as const;
 
 type Collection = typeof ALL_COLLECTIONS[number];
+/** De enum van `collection`: elke naam één keer (`issues` bestaat in twee secties; een validator die unieke
+ *  enumwaarden eist, weigert anders het hele schema). */
+const COLLECTION_ENUM: Collection[] = [...new Set<Collection>(ALL_COLLECTIONS)];
 
 interface XerProvenanceArgs {
   section?: unknown;
@@ -883,11 +886,11 @@ const inputSchema = {
   type: 'object',
   properties: {
     section: { type: 'string', enum: [...SECTIONS], description: 'Default summary.' },
-    collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Within resourceCatalog, metadataCatalog or diagnostics.' },
+    collection: { type: 'string', enum: COLLECTION_ENUM, description: 'Within resourceCatalog, metadataCatalog or diagnostics.' },
     projectId: { type: 'string', description: 'Required for taskSourceRowsByProject (`selector.availableProjectIds`).' },
     limit: { type: 'number', description: 'Default 50; rawSource ≤ 8 chunks, with includeRawRows ≤ 100.' },
     offset: { type: 'number' },
-    includeRawSource: { type: 'boolean', description: 'Required for rawSource.' },
+    includeRawSource: { type: 'boolean', description: 'Required for rawSource, together with `includeResourceNames`.' },
     includeRawRows: {
       type: 'boolean',
       description:
@@ -896,9 +899,7 @@ const inputSchema = {
     includeResourceNames: {
       type: 'boolean',
       default: false,
-      description:
-        'resourceCatalog and rawSource. Ask the user for permission first: names are personal data and go to ' +
-        'your AI provider.',
+      description: 'For resourceCatalog; also REQUIRED for rawSource. Needs the user\'s permission (see above).',
     },
   },
   additionalProperties: false,
