@@ -1303,10 +1303,20 @@ en noem het in je rapport of PR-tekst.
      maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
      host nog dezelfde taal vraagt. — B
 
-871. **Dubbele stappen in `useSiteHostPreferences`.** De inhaalcontrole bij de mount (het `else`-blok)
-     herhaalt de drie stappen van `onReady()`: `disableSiteHostSettings()`, de melding en
-     `applyPreferences()`. Voorstel: vervang het blok door `else onReady();` (zes regels minder). Gevonden in
-     review #827 ronde 5. — B
+880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
+     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
+     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
+     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
+     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
+     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
+     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
+     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
+
+881. **VERVOLG: de devlink-uitzondering van de themamelding wordt buiten de echte meldingsroute getest.**
+     `tests/planning/check-system-theme.ts:179` geeft de waarden zelf aan `hostThemeWinsNextStart`. Fixrichting: de
+     devbundelproef in `check-dev-open-link.ts` uitbreiden (hostthema, echte `?theme=light`, gebruikerswissel via
+     `applyTheme`, nul meldingen) en de twee injectieparameters van `hostThemeWinsNextStart` laten vallen. Uit de
+     review van #835 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;

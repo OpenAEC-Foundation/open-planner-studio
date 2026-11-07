@@ -27,6 +27,7 @@ import {
   SOURCE_ONLY_OPTION_KEYS, type ProfileChoice, type SchedulingSettingsDraft, type SourceOnlyOptionKey, type TotalFloatModeUi,
 } from '@/state/schedulingProfileDraft';
 import { refusalNotice } from '@/state/refusalNotice';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 interface SchedulingProfileSectionProps {
   /** 'wizard' = alleen de keuzelijst; een keuze past meteen de standaardopties van dat profiel toe.
@@ -98,6 +99,8 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   // Eigen sjablonen: app-globaal, buiten de store (profileStore). Lezen bij mount; na opslaan of
   // verwijderen opnieuw lezen, zodat de lijst gelijk is aan wat er gepersisteerd staat.
   const [templates, setTemplates] = useState(() => loadCustomProfiles());
+  // Nieuwere eigen profielen in de opslag (de host na de start, #818, of een ander tabblad).
+  useStoredSettingRefresh('ops-schedulingProfiles', () => setTemplates(loadCustomProfiles()));
   // Het conventiedeel is standaard ingeklapt (sessielokaal, geen draft-data); "Nieuw profiel" klapt
   // het open, want dan wil de gebruiker juist bewerken.
   const [conventionsOpen, setConventionsOpen] = useState(false);

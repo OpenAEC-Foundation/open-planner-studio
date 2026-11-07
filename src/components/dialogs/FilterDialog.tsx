@@ -15,6 +15,7 @@ import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 export type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
@@ -307,6 +308,8 @@ export function FilterDialog() {
     void loadLayouts().then(all => { if (!cancelled) setLayouts(all); });
     return () => { cancelled = true; };
   }, []);
+  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
   const fields = useMemo(() => filterFieldList(ctx), [ctx]);
