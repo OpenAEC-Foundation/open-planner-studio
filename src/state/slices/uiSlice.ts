@@ -142,6 +142,8 @@ export function createDefaultUI(): UIState {
     showLevelingDialog: false,
     showBaselineDialog: false,
     showMoveProjectDialog: false,
+    externalSourceUpdates: [],
+    externalSourceReview: null,
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,

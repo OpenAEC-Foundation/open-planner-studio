@@ -61,12 +61,13 @@ De balk onderaan toont van links naar rechts:
 
 ## De stroken onder het lint
 
-Een strook staat direct onder het lint, boven de werkruimte. Hij heeft een tekst en één knop. Een strook van een modus heeft geen kruisje; de andere sluit je met het kruisje. De vijf stroken:
+Een strook staat direct onder het lint, boven de werkruimte. Hij heeft een tekst en één knop; de strook bij een nieuwe versie van een bron heeft er twee. Een strook van een modus heeft geen kruisje. *Structuur vergrendeld* sluit je met het kruisje, een nieuwe versie van een bron met *Later*. De vijf stroken:
 
 - **Relatiemodus** — *Relatiemodus: sleep in de Gantt van de ene balk naar de andere om een relatie te leggen. Esc stopt.* Staat zolang de relatiemodus aan staat. Knop: *Stoppen*. Zie [Relaties leggen](docs://howto-relaties-leggen).
 - **Splits-modus** — *Klik op een balk op de dag waar de onderbreking begint en sleep naar rechts voor de lengte. Esc stopt.* Staat zolang *Taak splitsen* aan staat. Knop: *Stoppen*.
 - **Structuur vergrendeld** — *Niet beschikbaar tijdens filteren/groeperen/sorteren*. Verschijnt als inspringen of uitspringen wordt geweigerd omdat de takenlijst is gefilterd, gegroepeerd of gesorteerd. Knop: *Wissen*, die filter, groepering en sortering opheft.
 - **Datums zoals opgeslagen** — na het openen van een bestand waarvan herberekenen datums verschoof: *Herberekening verschoof N van de M taken ten opzichte van de datums in het bestand.* met de knop *Opgeslagen datums tonen*. Zolang de weergave aan staat: *Je ziet de datums zoals ze in het bestand staan …* met de knop *Herberekenen*. Zie [Datums zoals opgeslagen](docs://uitleg-datums-zoals-opgeslagen).
+- **Nieuwe versie van een bron** — *{bestand} heeft een nieuwe versie, opgeslagen op {datum en tijd} (auteur: {naam}). N koppelingen veranderen.* De auteur staat er alleen als de bron er een heeft. Verschijnt in de desktop-app als een bronbestand van een externe relatie een nieuwe versie heeft en daardoor een anker verandert. De app kijkt bij het openen van het document en als je terugkeert naar het venster. Er staat één strook per bronbestand. Knoppen: *Bekijken*, met de gevolgen en de knoppen *Accepteren* en *Later*, en *Later*. Zie [Externe relaties naar een ander project](docs://howto-externe-relaties).
 
 ## Meldingen
 

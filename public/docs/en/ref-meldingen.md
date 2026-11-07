@@ -61,12 +61,13 @@ The bar at the bottom shows, from left to right:
 
 ## The strips under the ribbon
 
-A strip sits directly under the ribbon, above the workspace. It has a text and one button. A strip for a mode has no cross; you close the others with the cross. The five strips:
+A strip sits directly under the ribbon, above the workspace. It has a text and one button; the strip for a new version of a source has two. A strip for a mode has no cross. You close *Structure locked* with the cross, and a new version of a source with *Later*. The five strips:
 
 - **Link mode** — *Link mode: drag from one bar to another in the Gantt to create a relation. Press Esc to stop.* It stays as long as link mode is on. Button: *Stop*. See [Adding relations](docs://howto-relaties-leggen).
 - **Split mode** — *Click a bar on the day the break starts and drag right for its length. Press Esc to stop.* It stays as long as *Split task* is on. Button: *Stop*.
 - **Structure locked** — *Not available while filtering/grouping/sorting*. It appears when indenting or outdenting is refused because the task list is filtered, grouped or sorted. Button: *Clear*, which removes the filter, grouping and sorting.
 - **Dates as recorded** — after opening a file where recalculating moved dates: *Recalculation moved N of M tasks away from the dates in the file.* with the button *Show recorded dates*. While the view is on: *You're viewing the dates as recorded in the file …* with the button *Recalculate*. See [Dates as recorded](docs://uitleg-datums-zoals-opgeslagen).
+- **New version of a source** — *{file} has a new version, saved on {date and time} (author: {name}). N links change.* The author only appears if the source has one. It appears in the desktop app when a source file of an external relation has a new version and an anchor changes because of it. The app checks when you open the document and when you return to the window. There is one strip per source file. Buttons: *Review*, with the effects and the buttons *Accept* and *Later*, and *Later*. See [External relations to another project](docs://howto-externe-relaties).
 
 ## Notifications
 
