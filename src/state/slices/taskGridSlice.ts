@@ -15,6 +15,7 @@ import {
   resolveLayoutColumnsForProject,
 } from '@/engine/taskGrid/preferences';
 import { saveTaskGridPreferences } from '@/utils/settingsStore';
+import type { SettingWriteOrigin } from '@/services/fileAccess/siteHostSettings';
 import type { ColumnConfig } from '@/types/view';
 import { recordGridPreferenceHistoryDelta } from '../sessionHistory';
 
@@ -95,9 +96,12 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
     scrollPersistenceTimer = null;
   };
 
-  const persistImmediately = (preferences: PersistedTaskGridPreferencesV1) => {
+  const persistImmediately = (
+    preferences: PersistedTaskGridPreferencesV1,
+    origin: SettingWriteOrigin = 'user',
+  ) => {
     cancelScheduledScrollPersistence();
-    void saveTaskGridPreferences(preferences);
+    void saveTaskGridPreferences(preferences, origin);
   };
 
   const scheduleScrollPersistence = () => {
@@ -148,7 +152,16 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
 
     applyAutoFitTaskGridColumns: (surface, columns) => {
       if (!get().taskGridPreferencesLoaded) return;
-      get().setTaskGridColumns(surface, columns);
+      const normalized = normalizeTaskGridColumnPreferences(columns);
+      if (normalized === null) return;
+      let persisted: PersistedTaskGridPreferencesV1 | null = null;
+      set((state) => {
+        state.taskGridSurfaces[surface].columns = normalized;
+        persisted = persistedTaskGridPreferences(state);
+      });
+      // Een gemeten breedte is geen keuze van de gebruiker (`'start'`, #818): ingebed telt ze niet als
+      // wijziging die bij een laat antwoord van de host teruggezet wordt.
+      if (persisted) persistImmediately(persisted, 'start');
     },
 
     commitTaskGridColumns: (surface, label, columns) => {
