@@ -4,7 +4,7 @@
 // voor die sessie (zie `devSessionTheme` in settingsStore.ts). `?tab=planning` opent die tab van het
 // lint. `?progressSheet=<pad>` opent daarna de voortgangsimport met dat blad al ingelezen. `?help=<artikel-id>`
 // (eventueel `%23<anker>`) opent Help op dat artikel. `?mcp=connect` opent de tab MCP met het venster
-// Verbindingsgegevens. Valt uit elke productiebouw: App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx
+// Verbindingsgegevens. `?flag=<id>[,<id>]` zet die feature flags aan voor deze paginalading (niet bewaard). Valt uit elke productiebouw: App.tsx, ProgressImportDialog.tsx en AiConnectionGroup.tsx
 // importeren deze module alleen dynamisch achter `import.meta.env.DEV`.
 // Uitleg: `docs/dev-link.md`.
 import i18n from '@/i18n/config';
@@ -14,6 +14,7 @@ import { openedFromFile } from '@/services/fileAccess/webBackend';
 import type { OpenedFile } from '@/services/fileAccess';
 import { binaryExtensions } from '@/services/formatRegistry';
 import type { RibbonTab } from '@/state/slices/types';
+import { FEATURE_FLAGS } from '@/utils/featureFlags';
 
 const RIBBON_TABS: readonly RibbonTab[] = ['file', 'start', 'planning', 'resources', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai'];
 
@@ -63,6 +64,13 @@ export function takeDevConnectionDetails(): boolean {
   return open;
 }
 
+/** `?flag=` → de bekende flag-id's uit die lijst; onbekende vallen stil weg. */
+export function devFeatureFlags(raw: string | null): string[] {
+  if (!raw) return [];
+  const known = new Set(FEATURE_FLAGS.map(flag => flag.id));
+  return raw.split(',').map(id => id.trim()).filter(id => known.has(id));
+}
+
 let started = false;
 
 /** Eén keer per paginalading (StrictMode draait effecten dubbel). Een fout komt als gewone melding. */
@@ -72,8 +80,14 @@ export async function openDevLinkOnce(): Promise<void> {
   const tab = RIBBON_TABS.find(t => t === params.get('tab'));
   const help = params.get('help');
   const mcp = params.get('mcp');
-  if (started || (!raw && !tab && !help && mcp !== 'connect')) return;
+  const flags = devFeatureFlags(params.get('flag'));
+  if (started || (!raw && !tab && !help && mcp !== 'connect' && flags.length === 0)) return;
   started = true;
+  if (flags.length > 0) {
+    // Alleen in de store, niet in `ops-featureFlags`: een gewone herlaad zonder `flag=` is weer de eigen keuze.
+    const current = useAppStore.getState().ui.featureFlags;
+    useAppStore.getState().setUI({ featureFlags: { ...current, ...Object.fromEntries(flags.map(id => [id, true])) } });
+  }
   try {
     if (raw) {
       await openDevFile(raw);
