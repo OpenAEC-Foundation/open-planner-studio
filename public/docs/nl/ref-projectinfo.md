@@ -40,6 +40,8 @@ De velden van het venster *Nieuw project* en van *Projectinstellingen*: wat elk 
 
 ## Alleen in Projectinstellingen
 
+**Standaardtaaktype** — kies *Vaste duur en inzet*, *Vaste duur en werk*, *Vast werk* of *Vaste inzet*. Zonder eigen projectkeuze geldt *Vaste duur en inzet*. Na *Toepassen* volgen alle bestaande en nieuwe taken op *Projectstandaard* deze keuze; taken met een eigen taaktype behouden hun keuze. De instelling wordt in het IFC-bestand bewaard en de wijziging is één stap in *Ongedaan*. Zie [Een taaktype kiezen](docs://howto-werkregel-kiezen).
+
 **IFC-schema bij opslaan** — welk IFC-schema in de kop van het opgeslagen bestand staat. Keuze uit *IFC 4.3 ADD2 (standaard)*, *IFC 4.3* en *IFC4*. Standaard: *IFC 4.3 ADD2 (standaard)*; bij een geopend IFC-bestand het schema van dat bestand. Effect: alleen de kop van het bestand verandert, niet de inhoud. Gebruik het om de planning samen te voegen met een bouwmodel in hetzelfde schema. Heeft een geopend bestand een ander schema dan de standaard, dan vraagt de app bij de eerste keer opslaan of je dat schema houdt; een keuze hier telt als antwoord. Een andere keuze hier is geen stap in *Ongedaan*: het schema hoort bij het bestand. Zie [Het IFC-schema kiezen](docs://howto-ifc-schema-kiezen).
 
 ## Alleen in het venster Nieuw project

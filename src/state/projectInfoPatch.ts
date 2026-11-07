@@ -4,11 +4,12 @@
 // wijziging" een eigen undo-stap, markeert de planning verouderd (want `startDate` zit altijd in de
 // patch) en verlaat "datums zoals opgeslagen".
 import { projectIfcSchema, type Project } from '@/types/project';
+import { DEFAULT_WORK_RULE } from '@/types/workRule';
 
 /** De metadatavelden die het formulier bewerkt. `ifcSchema` alleen bij bewerken (de wizard maakt een
  *  nieuw project, dat op de standaard begint). */
 export type ProjectInfoMetadata = Pick<
-  Project, 'name' | 'description' | 'author' | 'company' | 'startDate' | 'endDate' | 'defaultTaskDurationUnit'
+  Project, 'name' | 'description' | 'author' | 'company' | 'startDate' | 'endDate' | 'defaultTaskDurationUnit' | 'defaultWorkRule'
 > & Partial<Pick<Project, 'ifcSchema'>>;
 
 const FIELDS = ['name', 'description', 'author', 'company', 'startDate', 'endDate'] as const;
@@ -21,6 +22,10 @@ export function projectInfoPatch(current: Project, draft: ProjectInfoMetadata): 
   }
   if ((current.defaultTaskDurationUnit ?? 'days') !== (draft.defaultTaskDurationUnit ?? 'days')) {
     patch.defaultTaskDurationUnit = draft.defaultTaskDurationUnit;
+  }
+  // Het formulier biedt vier regels; een bestand zonder projectkeuze gebruikt de bestaande standaard.
+  if (draft.defaultWorkRule !== undefined && (current.defaultWorkRule ?? DEFAULT_WORK_RULE) !== draft.defaultWorkRule) {
+    patch.defaultWorkRule = draft.defaultWorkRule;
   }
   // Afwezig ≡ IFC4X3_ADD2 (issue #292): een project zonder veld dat op de standaard blijft, wijzigt niet.
   if (draft.ifcSchema !== undefined && projectIfcSchema(current) !== draft.ifcSchema) {
