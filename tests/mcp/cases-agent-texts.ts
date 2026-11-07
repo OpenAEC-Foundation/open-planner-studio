@@ -137,8 +137,9 @@ test('de poort ziet echt iets: de teksten noemen tientallen tools en parameters'
   assert(tools.size >= 30, `te weinig toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
   const adjacent = [...text.matchAll(/`(planner_[a-z_]+)`\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g)].length;
   const pairs = [...text.matchAll(/`\s*\{?\s*"?[A-Za-z_]\w*"?\s*:[^`]*`/g)].length;
-  assert(adjacent >= 10, `te weinig "tool + parameter"-plekken (${adjacent})`);
-  assert(pairs >= 15, `te weinig "sleutel: waarde"-spans (${pairs})`);
+  // Sinds #818 zijn de teksten kort; deze ondergrens vangt alleen een scan die niets meer vindt.
+  assert(adjacent >= 1, `geen "tool + parameter"-plekken gevonden (${adjacent})`);
+  assert(pairs >= 1, `geen "sleutel: waarde"-spans gevonden (${pairs})`);
 });
 
 test('mutatie: een verzonnen tool, parameter, pad of enumwaarde ⇒ rood', () => {

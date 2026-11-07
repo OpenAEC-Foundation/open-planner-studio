@@ -1,15 +1,15 @@
 ---
 name: progress-update
-description: Use when recording progress in an Open Planner Studio schedule via the planner_* MCP tools (status date, actuals, percent complete, variance). For building use goed-plannen.
+description: Record Open Planner Studio progress via planner_*. Building: goed-plannen.
 ---
 
 # Progress update with `planner_*`
 
 Facts come from the user, never from you: a guessed actual date is worse than none. `tools/list` wins for parameters.
 
-- Every change recalculates; report only numbers read after your last change. `scheduleStale` on a read: the user is mid-edit; read again.
-- `datesAsRecorded` ⇒ report the recorded dates first. `scheduleError` ⇒ fix first.
-- Guards `PAUSED`, `READ_ONLY`, `DIALOG_OPEN`, `DOC_DRIFT`: no retry loop, tell the user. Undo is shared with the user.
+- Every change recalculates; report only numbers read after your last change. `scheduleError` ⇒ fix first.
+- `datesAsRecorded`: your first change replaces the recorded dates (the end can move without progress): only with the user's explicit consent; compare in a `planner_duplicate_document` copy.
+- Guards `PAUSED`, `READ_ONLY`, `DIALOG_OPEN`, `DOC_DRIFT`: no retry loop, tell the user.
 
 ## 1. Orient
 
@@ -49,4 +49,4 @@ Example: hour task of 32 h, 25 % done (8 h), user says 32 h left ⇒ `{ "duratio
 
 ## 7. Report
 
-Status date; tasks recorded as started, finished, running; project end against the previous update and the baseline; critical path and what changed; where the delay sits (`criticalShifters`, not summed); missed deadlines and negative float; unreported tasks; out-of-sequence work; assumptions, and what you did not do (e.g. no new baseline: only on request after a scope change).
+Report: status date; started/finished/running tasks; end vs previous update/baseline; critical path and changes; delay location (`criticalShifters`, never sum); missed deadlines/negative float; unreported/out-of-sequence work; assumptions/omissions. New baseline only on request after scope change.

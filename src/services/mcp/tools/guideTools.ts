@@ -175,7 +175,7 @@ export const guideTools: McpToolDef[] = [
     description:
       'Planning rules (the guide) and skills, English only. Pick `part` by task: "goed-plannen" (default) = ' +
       'guide + skill for building or restructuring; "progress-update" = the self-contained skill for recording ' +
-      'progress. Read before building, restructuring or recording progress. Read-only.',
+      'progress. Read before building, restructuring or recording progress.',
     kind: 'read',
     batchable: false,
     inputSchema: {
@@ -190,9 +190,7 @@ export const guideTools: McpToolDef[] = [
         part: {
           type: 'string',
           enum: Object.keys(GUIDE_PARTS),
-          description:
-            '"goed-plannen" (default) = guide + that skill; "progress-update" = that skill only; "guide" = guide ' +
-            'only; "skill" = both skills; "both" = everything.',
+          description: '"guide" = guide only; "skill" = both skills; "both": legacy.',
         },
       },
     },
