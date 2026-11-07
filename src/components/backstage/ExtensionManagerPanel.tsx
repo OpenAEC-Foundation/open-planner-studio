@@ -350,7 +350,7 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
     <div className="ext-card">
       {/* Catalogus-iconen bewust niet als HTML renderen vóór installatie (injectie via externe JSON). */}
       <div className="ext-card-icon">
-        <Icon id="extension.item" size={24} />
+        <Icon id="extension.item" size={24} lucide={{ icon: 'Plus' }} />
       </div>
 
       <div className="ext-card-body">

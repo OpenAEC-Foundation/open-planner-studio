@@ -27,6 +27,7 @@ import {
   SOURCE_ONLY_OPTION_KEYS, type ProfileChoice, type SchedulingSettingsDraft, type SourceOnlyOptionKey, type TotalFloatModeUi,
 } from '@/state/schedulingProfileDraft';
 import { refusalNotice } from '@/state/refusalNotice';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 interface SchedulingProfileSectionProps {
   /** 'wizard' = alleen de keuzelijst; een keuze past meteen de standaardopties van dat profiel toe.
@@ -98,6 +99,8 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
   // Eigen sjablonen: app-globaal, buiten de store (profileStore). Lezen bij mount; na opslaan of
   // verwijderen opnieuw lezen, zodat de lijst gelijk is aan wat er gepersisteerd staat.
   const [templates, setTemplates] = useState(() => loadCustomProfiles());
+  // Nieuwere eigen profielen in de opslag (de host na de start, #818, of een ander tabblad).
+  useStoredSettingRefresh('ops-schedulingProfiles', () => setTemplates(loadCustomProfiles()));
   // Het conventiedeel is standaard ingeklapt (sessielokaal, geen draft-data); "Nieuw profiel" klapt
   // het open, want dan wil de gebruiker juist bewerken.
   const [conventionsOpen, setConventionsOpen] = useState(false);
@@ -396,7 +399,7 @@ export function SchedulingProfileSection({ mode, value, onChange }: SchedulingPr
         <button type="button" className="flex items-center gap-1.5 self-start text-left"
           aria-expanded={conventionsOpen} aria-controls="ops-scheduling-conventions-body"
           onClick={() => setConventionsOpen(open => !open)} data-ops-conventions-toggle>
-          {conventionsOpen ? <Icon id="tree.collapse" size={14} aria-hidden /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" aria-hidden />}
+          {conventionsOpen ? <Icon id="tree.collapse" size={14} aria-hidden /> : <Icon id="tree.expand" size={14} className="ops-icon-inline-flip" aria-hidden lucide={{ className: undefined }} />}
           <span className={labelCls}>{t('schedulingProfile.conventionsTitle')}</span>
           <span className="text-text-secondary" data-ops-conventions-count>({CONVENTIONS.length})</span>
           {deviatingTotal > 0 && (
