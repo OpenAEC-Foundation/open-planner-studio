@@ -545,6 +545,7 @@
   background: transparent;
   line-height: 1;
 }
+:where(:root[data-icons="lucide"]) .full-task-grid-disclosure { display: inline-block; }
 
 .full-task-grid-error {
   position: absolute;
@@ -2226,6 +2227,8 @@ body {
   max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
 }
+/* Zonder B2 (#844) heeft een melding geen statusicoon. */
+:where(:root[data-icons="lucide"]) .ops-toast { padding-inline-start: var(--sp-6); }
 
 /* Het statusicoon vóór de tekst (info of fout), zodat het verschil ook zonder kleur te zien is. Het staat op de
    eerste tekstregel: regelhoogte 1,4 × 12 px is ongeveer 17 px, het icoon 16 px. */
@@ -2452,6 +2455,8 @@ body {
   flex-shrink: 0;
   margin-top: 1px;
 }
+/* Zonder B2 (#844) de kleur van vóór #765. */
+:where(:root[data-icons="lucide"]) .ops-note > svg { color: var(--ops-note-accent, var(--theme-accent)); }
 .ops-note--warning {
   --ops-note-accent: var(--theme-warning-text);
 }

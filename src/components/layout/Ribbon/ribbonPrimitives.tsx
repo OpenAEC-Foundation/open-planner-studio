@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { Popover } from '@/components/common/Popover';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 /**
  * Gedeelde ribbon-primitives: zowel het declaratieve render-pad (RibbonTabContent) als de
@@ -46,7 +46,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
           }}
         >
           <span>{current?.label ?? value}</span>
-          <Icon id="ui.dropdown" size={16} />
+          {b2IconsOn() ? <Icon id="ui.dropdown" size={16} /> : <span className="!text-caption" style={{ opacity: 0.6 }}>▼</span>}
         </button>
       }
     >

@@ -165,7 +165,7 @@ export function RightRail() {
         style={{ width: 28 }}
         data-ops-rail-strip
       >
-        <Icon id="panel.right" size={14} className="text-text-secondary ops-icon-inline-flip" />
+        <Icon id="panel.right" size={14} className="text-text-secondary ops-icon-inline-flip" lucide={{ icon: 'ChevronRight' }} />
         <span
           className="!text-small font-semibold text-text-secondary uppercase tracking-wider"
           style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}

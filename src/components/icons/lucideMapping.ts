@@ -1,5 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Boxes, CheckCircle2, CircleCheck, CircleMinus, ClipboardCheck, Clock, FilePlus2, GitBranch, LifeBuoy,
+  OctagonAlert, PackageOpen, ShieldAlert,
+} from 'lucide-react';
+import {
   Activity, AlertCircle, AlertTriangle, ArrowDown, ArrowLeft, ArrowLeftRight, ArrowLeftToLine,
   ArrowRight, ArrowRightToLine, ArrowUp, ArrowUpDown, ArrowUpFromLine, ArrowUpRight, BarChart3,
   BookOpen, Building2, Calendar, CalendarClock, CalendarDays, CalendarRange, Check,
@@ -245,3 +249,14 @@ export const LUCIDE_ICONS = {
   'workspace.ribbon-collapse': ChevronUp, // src/components/layout/Ribbon/Ribbon.tsx:365
   'workspace.ribbon-expand': ChevronDown, // src/components/layout/Ribbon/Ribbon.tsx:365
 } satisfies Record<IconId, LucideIcon>;
+
+/**
+ * Oude vormen voor plekken die vóór B2 een andere vorm hadden dan de tabel hierboven: één id had daar soms
+ * meerdere oude vormen (zie de opmerkingen "ook …"). Een plek kiest er een met `<Icon lucide={{ icon: … }}>`.
+ */
+export const LUCIDE_SHAPES = {
+  AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, CircleCheck, CircleHelp, CircleMinus,
+  ClipboardCheck, Clock, Download, FileDown, FilePlus2, FileText, GitBranch, LayoutGrid, Library, LifeBuoy,
+  ListTree, OctagonAlert, PackageOpen, Plus, RefreshCw, ShieldAlert,
+} satisfies Record<string, LucideIcon>;
+export type LucideShape = keyof typeof LUCIDE_SHAPES;

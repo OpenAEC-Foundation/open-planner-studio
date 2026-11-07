@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -42,6 +42,7 @@ import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
@@ -242,6 +243,13 @@ function AppContent() {
   useEffect(() => {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
+
+  // Iconenfamilie op <html> (#844): zonder B2 gelden de CSS-regels van vóór #765 (`[data-icons="lucide"]`).
+  // Vóór de eerste paint, zodat er geen B2-kleur doorheen flitst.
+  const b2Icons = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  useLayoutEffect(() => {
+    document.documentElement.dataset.icons = b2Icons ? 'b2' : 'lucide';
+  }, [b2Icons]);
 
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
