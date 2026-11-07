@@ -59,6 +59,10 @@ export interface PopoverProps {
    * kiest welk deel scrolt (bv. een lijst tussen een vaste kop en voetregel).
    */
   fitViewport?: boolean;
+  /** Rol van het paneel, bijv. `'dialog'` voor een paneel met velden achter een knop met `aria-haspopup="dialog"`. */
+  panelRole?: 'dialog';
+  /** Toegankelijke naam van het paneel (hoort bij `panelRole`). */
+  panelAriaLabel?: string;
 }
 
 /**
@@ -81,15 +85,26 @@ function fitLeft(left: number, width: number): number {
 
 export function Popover({
   open, onClose, trigger, children, align = 'left', panelStyle, panelClassName, containerStyle, fitViewport = false,
+  panelRole, panelAriaLabel,
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const anchorRectRef = useRef<DOMRect | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // Sluiten door een klik ernaast of door scrollen gebeurt vóór de browser de focus verplaatst. Haal
+  // daarom eerst de focus uit het paneel: dan rondt een veld zijn invoer af (blur), net als in het
+  // lint zelf, en gaat een half gewijzigde datum niet verloren. Escape sluit zonder dit: annuleren.
+  const closeKeepingInput = () => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && panelRef.current?.contains(active)) active.blur();
+    closeRef.current();
+  };
+  const closeKeepingInputRef = useRef(closeKeepingInput);
+  closeKeepingInputRef.current = closeKeepingInput;
   // extraRef: het paneel leeft (via de portal) buiten `ref`'s DOM-subtree — zonder dit telt een
   // klik ín het paneel als "buiten" en sluit useClickOutside het meteen vóór het item-onClick vuurt.
-  useClickOutside(ref, onClose, open, { extraRef: panelRef });
+  useClickOutside(ref, closeKeepingInput, open, { extraRef: panelRef });
 
   useEffect(() => {
     if (!open) return;
@@ -114,7 +129,7 @@ export function Popover({
         // De browser kan de knop vóór de openende klik in beeld schuiven en het scrollevent pas
         // erna bezorgen. Sluit alleen als de knop sinds het plaatsen van dit paneel is verplaatst.
         if (anchor && current && (current.left !== anchor.left || current.right !== anchor.right || current.bottom !== anchor.bottom)) {
-          closeRef.current();
+          closeKeepingInputRef.current();
         }
       }
     };
@@ -169,7 +184,7 @@ export function Popover({
     <div ref={ref} style={{ position: 'relative', ...containerStyle }}>
       {trigger}
       {open && panelPos && createPortal(
-        <div ref={panelRef} className={panelClassName} style={{ ...BASE_PANEL_STYLE, ...panelPos, ...panelStyle, maxWidth }}>
+        <div ref={panelRef} role={panelRole} aria-label={panelAriaLabel} className={panelClassName} style={{ ...BASE_PANEL_STYLE, ...panelPos, ...panelStyle, maxWidth }}>
           {children}
         </div>,
         document.body,

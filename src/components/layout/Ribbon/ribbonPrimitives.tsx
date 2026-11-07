@@ -253,8 +253,10 @@ export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
   onClick: (viaKeyboard: boolean) => void;
 }) {
   return (
+    // Geen `active` (accentkleur) als het paneel open is: dat leest als een schakelaar die aan staat.
+    // Zoals Mijlpaal ▾ en Relatie ▾ blijft de knop neutraal; `aria-expanded` meldt de open stand.
     <button
-      className={open ? 'ribbon-btn active' : 'ribbon-btn'}
+      className="ribbon-btn"
       onClick={event => onClick(event.detail === 0)}
       title={title}
       aria-label={label}

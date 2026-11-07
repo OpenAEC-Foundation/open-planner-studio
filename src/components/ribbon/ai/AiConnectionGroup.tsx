@@ -186,6 +186,8 @@ export function AiConnectionGroup() {
       open={popoverOpen}
       onClose={() => setPopoverOpen(false)}
       align="right"
+      panelRole="dialog"
+      panelAriaLabel={tMenu('ribbon.aiConnection')}
       panelClassName="!text-body"
       panelStyle={{
         marginTop: 2, zIndex: 9999,
@@ -204,7 +206,8 @@ export function AiConnectionGroup() {
           // De naam van de groep (zoals in Office), niet "Verbinden": die knop staat al in het paneel
           // en opent iets anders.
           label={tMenu('ribbon.aiConnection')}
-          title={t('ai.connectHint')}
+          // Niet `ai.connectHint`: die beschrijft de knop Verbinden in het paneel, niet poort en token.
+          title={tMenu('ribbon.aiConnection')}
           open={popoverOpen}
           onClick={viaKeyboard => { setKeyboardOpen(viaKeyboard); setPopoverOpen(o => !o); }}
         />

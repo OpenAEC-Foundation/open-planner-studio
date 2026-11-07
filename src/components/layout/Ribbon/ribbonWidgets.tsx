@@ -115,8 +115,16 @@ export function BaselinesProgressGroupContent() {
           aria-hidden={statusDate ? undefined : true}
           disabled={!statusDate}
           tabIndex={statusDate ? undefined : -1}
-          onClick={() => setStatusDate(undefined)}
-          style={{ padding: b2IconsOn() ? 0 : 2, visibility: statusDate ? undefined : 'hidden' }}
+          onClick={event => {
+            // Met het toetsenbord gewist: de knop wordt onbedienbaar, dus de focus gaat naar het
+            // datumveld ernaast in plaats van naar `body` (anders valt hij uit de popover). Pas na de
+            // render: een veld met focus neemt de nieuwe (lege) waarde niet over.
+            const field = event.detail === 0 ? event.currentTarget.parentElement?.querySelector<HTMLInputElement>('input') : null;
+            setStatusDate(undefined);
+            if (field) setTimeout(() => field.focus(), 0);
+          }}
+          // `minWidth: 0`: een kleine knop is standaard 70 px breed; alleen het icoon past ruim in 22 px.
+          style={{ padding: b2IconsOn() ? 0 : 2, minWidth: 0, visibility: statusDate ? undefined : 'hidden' }}
         >
           <Icon id="planning.clear-status-date" size={16} lucide={{ size: 12 }} />
         </button>
@@ -155,6 +163,8 @@ export function BaselinesProgressGroupContent() {
       open={open}
       onClose={() => setOpen(false)}
       align="right"
+      panelRole="dialog"
+      panelAriaLabel={tMenu('ribbon.baselines')}
       panelStyle={{
         marginTop: 2, zIndex: 9999,
         padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,

@@ -141,6 +141,9 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect.poll(() => statusDate(page)).toBeUndefined();
   await expect(clear).toHaveCount(0); // onzichtbaar en buiten de toegankelijkheidsboom
   expect(await groupWidth()).toBe(widthWithDate);
+  // De wisknop is niet 70 px (de standaardbreedte van een kleine lintknop) maar alleen zijn icoon:
+  // anders bleef zonder datum een leeg vak van ruim 70 px tussen datum en voortgangsmodus staan.
+  expect(await ribbonGroup.locator('.ribbon-btn.small[aria-hidden="true"]').evaluate(el => el.getBoundingClientRect().width)).toBeLessThan(30);
   await page.evaluate((value) => window.__OPS__!.store.getState().setProject({ statusDate: value }), STATUS);
   await expect(clear).toBeVisible();
 
@@ -151,12 +154,32 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await trigger.focus();
   await page.keyboard.press('Enter');
   await expect(popoverField).toBeVisible();
+  // Het paneel is de dialoog die `aria-haspopup="dialog"` op de knop belooft, met de groepsnaam.
+  await expect(page.getByRole('dialog', { name: /^(Baselines & progress|Baselines & voortgang)$/ })).toBeVisible();
   await expect(popoverField.locator('input').first()).toBeFocused();
   for (let i = 0; i < 8; i++) await page.keyboard.press('Tab');
   expect(await panel.evaluate(el => el.contains(document.activeElement))).toBe(true);
+  // Wissen met het toetsenbord: de wisknop wordt onbedienbaar, dus de focus gaat naar het datumveld
+  // (niet naar body, buiten de popover).
+  await panel.getByRole('button', { name: /^(Clear status date|Statusdatum leegmaken)$/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => statusDate(page)).toBeUndefined();
+  await expect(popoverField.locator('input').first()).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(popoverField).toHaveCount(0);
   await expect(trigger).toBeFocused();
+
+  // Een klik naast de popover sluit hem en bewaart een gewijzigde datum, net als verlaten met Tab.
+  // Die klik sluit op mousedown, vóór de browser de focus verplaatst: zonder eerst de focus uit het
+  // paneel te halen verdween het veld vóór zijn blur, en bleef de oude datum staan.
+  await page.evaluate((value) => window.__OPS__!.store.getState().setProject({ statusDate: value }), STATUS);
+  await trigger.click();
+  await expect.poll(() => segmentValues(popoverField)).toEqual(expected);
+  await popoverField.locator('input').nth(order.indexOf('day')).click();
+  await page.keyboard.type('15');
+  await page.locator('.ribbon-group-label').first().click();
+  await expect(popoverField).toHaveCount(0);
+  await expect.poll(() => statusDate(page)).toBe('2026-07-15T17:00');
 });
 
 test('lint: Statusdatum aanklikken en verlaten zonder wijziging laat hem exact staan, zonder undo-stap', async ({ page, ops: _ops }) => {
