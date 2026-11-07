@@ -1022,13 +1022,12 @@ const HOLIDAY_ITEM_SCHEMA = {
 const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
-    'Change calendars, or create one with `create: true` and an own `id` label, then use the returned `id` ' +
-    '(ids are per document). `generate` replaces holidays; then `rawHolidays` adds (`holidaysMode: ' +
-    '"replace"`: exact list) and clears the generator link (`becameLiteral`). `create` without holiday fields ' +
-    'inherits the app default holidays; `holidays: []` = none. DAY calendar with a break: `hoursPerDay` is ' +
-    'derived; change hours or break. HOUR calendar (`workTime`): `workDays` follows the bands; `hoursPerDay` ' +
-    'too, unless it differed from the modal day sum of the old bands. A given `hoursPerDay` wins. Durations ' +
-    'keep their unit; dates can move, and under FIXED_RATE (`workRule`) other hours per day change day ' +
+    'Update calendars by document-local `id`; create an unknown id with `create: true`, then use the returned ' +
+    'id. `generate` replaces holidays; then `rawHolidays` adds (`holidaysMode: "replace"`: exact list) and ' +
+    'clears generation (`becameLiteral`). Create without holiday fields inherits app-default holidays; ' +
+    '`holidays: []` = none. DAY + break: `hoursPerDay` is derived; edit hours/break. HOUR: `workDays` ' +
+    'follows bands; `hoursPerDay` too unless it differed from the old modal band sum; explicit `hoursPerDay` ' +
+    'wins. Duration units stay; dates can move; under FIXED_RATE (`workRule`), changed hours/day change day ' +
     'durations.',
   kind: 'mutate',
   batchable: true,
