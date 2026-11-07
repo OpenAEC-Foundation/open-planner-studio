@@ -27,5 +27,6 @@ export const LAYOUT_ICON_KEYS = Object.keys(LAYOUT_ICONS) as LayoutIconKey[];
 
 export function layoutIcon(key: string | undefined, size = 24): ReactNode {
   const id = LAYOUT_ICONS[(key ?? 'layout') as LayoutIconKey] ?? LAYOUT_ICONS.layout;
-  return <Icon id={id} size={size} />;
+  // Vóór B2 stond het lint op 20 px (#765 maakte er 24 van).
+  return <Icon id={id} size={size} lucide={size === 24 ? { size: 20 } : undefined} />;
 }

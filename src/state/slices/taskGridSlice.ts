@@ -120,6 +120,9 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
 
     hydrateTaskGridPreferences: (preferences) => {
       const normalized = cloneTaskGridPreferences(preferences);
+      // Een geplande scrollwrite hoort bij de oude toestand en zou de net geladen voorkeuren
+      // terugzetten (bijv. een laat antwoord van de host, #818).
+      cancelScheduledScrollPersistence();
       markPreferencesReady();
       set((state) => {
         state.taskGridPreferencesLoaded = true;

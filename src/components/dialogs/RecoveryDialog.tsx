@@ -87,7 +87,7 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
                 key={entry.id}
                 className="flex items-start gap-2.5 bg-surface-hover border border-border rounded-[8px] p-3"
               >
-                <Icon id="file.type-project" size={15} className="text-text-secondary mt-0.5 shrink-0" />
+                <Icon id="file.type-project" size={15} className="text-text-secondary mt-0.5 shrink-0" lucide={{ className: 'text-accent mt-0.5 shrink-0' }} />
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                   <span className="text-text-primary font-semibold !text-large truncate">
                     {entry.name || t('project.untitled')}

@@ -74,6 +74,8 @@ export interface TaskGridProps extends CoreProps {
   onApplyAutoFit?: (columns: readonly TaskGridColumnPreference[]) => void;
   chooserOpen?: boolean;
   onChooserOpenChange?: (open: boolean) => void;
+  /** Zie `ColumnChooserProps.externalToggleSelector`. */
+  chooserExternalToggleSelector?: string;
 }
 
 export function TaskGrid({
@@ -92,6 +94,7 @@ export function TaskGrid({
   onApplyAutoFit,
   chooserOpen,
   onChooserOpenChange,
+  chooserExternalToggleSelector,
   ...coreProps
 }: TaskGridProps) {
   const [previewWidths, setPreviewWidths] = useState<ReadonlyMap<TaskColumnId, number>>(
@@ -250,6 +253,7 @@ export function TaskGrid({
         labels={labels.chooser}
         open={chooserOpen}
         onOpenChange={onChooserOpenChange}
+        externalToggleSelector={chooserExternalToggleSelector}
         beforeOpen={allowAction}
         // Dezelfde commitroute als elke andere kolomhandeling: één history-event, direct opgeslagen.
         resetDisabled={sameTaskGridColumns(surfacePreferences.columns, defaultColumns)}

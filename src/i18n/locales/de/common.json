@@ -13,6 +13,8 @@
     "dismiss": "Benachrichtigung schließen",
     "taskEditRevertBlocked": "Eine Änderung durch den MCP-Client oder eine Erweiterung kam dazwischen. Die davor vorgenommenen Vorgangsänderungen wurden nicht zurückgesetzt und bleiben als normale Schritte unter „Rückgängig“ erhalten.",
     "openFailed": "Datei konnte nicht geöffnet werden",
+    "fileDropRefused": "Nicht geöffnet: {{names}}. Die App öffnet nur IFC, XML, MPP, XER und CSV.",
+    "fileDropBlocked": "Nicht geöffnet: {{names}}. Schließen Sie zuerst das geöffnete Fenster.",
     "csvInvalidDate": "CSV nicht geöffnet: nicht erkennbares Datum „{{value}}“ in CSV-Zeile {{row}}, Spalte „{{column}}“. Verwenden Sie JJJJ-MM-TT, TT-MM-JJJJ oder TT/MM/JJJJ.",
     "extGuideCallbackFailed": "Ein Schritt der Erweiterung {{name}} ist fehlgeschlagen. Die Anleitung läuft weiter.",
     "extHelpProjectOpenFailed": "Die Projektdatei {{file}} der Erweiterung {{name}} konnte nicht geöffnet werden.",
@@ -1706,5 +1708,9 @@
     "blockedNoChild": "Verschieben ist nicht möglich: „{{phase}}“ bekommt keinen Teilvorgang, der eine Zuweisung tragen kann, nur Meilensteine oder Sammelvorgänge.",
     "actualWorkLost_one": "Auf der Zuweisung von {{resource}} ist bereits {{hours}} Stunde Ist-Arbeit erfasst. Beim Entfernen geht diese Arbeit verloren.",
     "actualWorkLost_other": "Auf der Zuweisung von {{resource}} sind bereits {{hours}} Stunden Ist-Arbeit erfasst. Beim Entfernen geht diese Arbeit verloren."
+  },
+  "fileDrop": {
+    "title": "Zum Öffnen loslassen",
+    "subtitle": "Projektdatei oder Import"
   }
 }

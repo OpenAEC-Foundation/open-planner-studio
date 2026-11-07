@@ -46,6 +46,7 @@ import {
   getSetting,
   initTheme,
   loadConstructionMode,
+  loadFeatureFlags,
   TASK_TABLE_MIN_WIDTH,
   TASK_TABLE_MAX_WIDTH,
   RIGHT_PANEL_MIN_WIDTH,
@@ -143,7 +144,10 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Verborgen experimentele functies: zichtbaarheid en keuzes staan los van elkaar.
   setting({ key: 'experimentalSettingsVisible', field: 'experimentalSettingsVisible', parse: parseBoolean }),
-  setting({ key: 'featureFlags', field: 'featureFlags', parse: parseFeatureFlagValues }),
+  setting({ key: 'featureFlags', field: 'featureFlags', parse: raw => {
+    const flags = parseFeatureFlagValues(raw);
+    return flags ? loadFeatureFlags(flags) : undefined;
+  } }),
 
   // AI-modus (MCP-bridge) — persistente spiegel die de conditionele AI-ribbontab voedt.
   setting({ key: 'aiMode', field: 'aiMode', parse: parseBoolean }),
@@ -261,6 +265,21 @@ export async function loadAllSettings(): Promise<Partial<UIState>> {
   }
 
   return patch;
+}
+
+/**
+ * Per `localStorage`-sleutel het `UIState`-veld dat `loadAllSettings` ermee vult: de drie afwijkers en
+ * elk register-item. Voor het live toepassen van instellingen die pas na de start binnenkwamen (#818,
+ * `useSiteHostPreferences`): alleen de velden van een veranderde sleutel krijgen opnieuw hun waarde.
+ */
+export function settingFieldsByStorageKey(): ReadonlyMap<string, keyof UIState> {
+  const map = new Map<string, keyof UIState>([
+    ['ops-theme', 'uiTheme'],
+    ['ops-constructionMode', 'constructionMode'],
+    ['ops-barColorSelection', 'barColorSelection'],
+  ]);
+  for (const d of SETTINGS) map.set(`ops-${d.key}`, d.field);
+  return map;
 }
 
 /** Gestructureerde bootstrap-afwijker naast het 1-op-1 UI-register: één versieerbare sleutel

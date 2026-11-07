@@ -270,7 +270,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
                   {recent.map((r) => <option key={r.id} value={r.path}>{r.name}</option>)}
                 </select>
               </label>
-              <p className="!text-small text-text-muted flex items-center gap-1"><Icon id="status.info" size={11} />{t('externalLinks.readOnlyNote')}</p>
+              <p className="!text-small text-text-muted flex items-center gap-1"><Icon id="status.info" size={11} lucide={{ icon: 'FileDown' }} />{t('externalLinks.readOnlyNote')}</p>
               {loading && <span className="text-text-muted">{t('externalLinks.loadingTasks')}</span>}
               {source && (
                 <label className="flex flex-col gap-1">

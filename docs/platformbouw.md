@@ -56,10 +56,14 @@ uitgeschakelde code weglaat:
 | `EXTENSIONS_ENABLED` | geen catalogus, installatie, extensie-ribbon, importers of tutorialaanbod (#311) | een extensie draait zonder afscherming met de rechten van de ingelogde gebruiker |
 | `AI_MODE_AVAILABLE` | geen AI-modus, geen AI-tabblad, geen `ops-mcpToken` | de koppeling werkt alleen in de desktop-app, en het token zou leesbaar zijn voor elke tool op de origin |
 | `DOWNLOAD_STATS_AVAILABLE` | geen downloadcijfers in Instellingen → Geavanceerd (#818) | de cijfers komen van GitHub, en de werkplek van de SuperCloud laat geen netwerk buiten de bundel toe |
+| `FEEDBACK_AVAILABLE` | geen feedbackknop in de titelbalk, geen feedbackdialoog, en de rondleiding zonder stap 7 (die naar de knop wees; stap 6 is dan de laatste) (#818) | de werkplek heeft een eigen feedbackknop; de dialoog post naar een externe dienst en opent een venster, en CSP en sandbox blokkeren beide |
+| `UPDATES_AVAILABLE` | geen *Controleren op updates* en geen *Wat is er nieuw* in Instellingen → Geavanceerd, geen updatedialoog en geen dialoog *Net bijgewerkt* (#818) | het contract vraagt een bundel zonder update-check; de releasegegevens komen van GitHub |
 
 `tests/browser/platform-build.spec.ts` bouwt één keer met `--base /tools/planner/`, serveert alleen dat
 subpad en toetst: het manifest, de paden in `index.html`, geen catalogus-URL in de JS, icoon, help en
-voorbeelden laden, de tool start leeg, en extensies en AI-modus ontbreken.
+voorbeelden laden, de tool start leeg, en extensies, AI-modus, downloadcijfers, feedbackknop en
+updateknoppen ontbreken. Het scenario met Backstage doorloopt ook de rondleiding vanuit Instellingen tot het
+einde: zes stappen, daarna geen laag meer over de app.
 
 Het laatste scenario in die spec is de controle uit #818, een benadering van de werkplek van de SuperCloud.
 Een ouderpagina (`/werkplek.html`) laadt de bundel in een frame met `sandbox="allow-scripts allow-modals"`.
@@ -193,30 +197,57 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
   (alleen een taal die de tool kent, `de-AT` wordt `de`), het thema in de weergave. Hij bewaart ze niet. Een
   keuze die de gebruiker in de tool maakte, blijft staan tot de host die waarde zelf wijzigt. Dit vervangt het
   gedrag van #716 ("een latere host verandert de taal niet"): zet de site de host pas na de start en stuurt ze
-  `openaec-host-ready`, dan neemt de tool taal en thema alsnog over. De instellingen (`settings`) niet: die
-  leest hij alleen bij de start (zie hieronder).
+  `openaec-host-ready`, dan neemt de tool taal en thema alsnog over, en leest hij de instellingen (`settings`)
+  als een laat antwoord (zie hieronder).
 - `settings` (optioneel, #818): de tool bewaart daar zijn blijvende `ops-`-instellingen, voor een frame waarin
   `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Eén hostsleutel per
   instelling, met dezelfde naam (`ops-theme`, `ops-showFloatBand`, …) en tekst als waarde. Twee frames die elk
-  een andere instelling wijzigen, draaien elkaar zo niet terug. De tool vraagt bij de start een vaste lijst op
+  een andere instelling wijzigen, draaien elkaar zo niet terug. De tool vraagt een vaste lijst op
   (`siteHostSettingKeys.ts`; het contract heeft geen `list`), met één `get` per sleutel; `null` of `undefined`
   betekent "niet bewaard". Hij doet dat vóór hij de app laadt, zodat ook het eerste document (bijv. de kalender
-  van de bouwmodus) de instellingen van de host volgt. **Hij leest ze alleen bij de start, en wacht daar
-  hoogstens 5 s op** (`HYDRATE_TIMEOUT_MS`; besluit van de orkestrator in review #827, ronde 3). In die tijd
-  blijft het venster leeg. Antwoordt de host op tijd, dan start de app met die waarden, en gaat daarna elke
-  wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor een gewiste. Antwoordt de host niet op
-  tijd, of faalt het lezen, dan start de app zonder de instellingen van de host en schrijft de tool deze
-  sessie **niets** naar de host, ook niet als het antwoord later toch komt. Hetzelfde geldt voor een host die
-  pas na de start komt (`openaec-host-ready`), ook als die verschijnt terwijl de app nog laadt: de app haalt
-  dat bij het starten in (taal en thema van de host, en de melding). De tool meldt dat één keer (een melding die blijft staan tot de
-  gebruiker hem sluit): wat de gebruiker deze sessie aan instellingen wijzigt, wordt niet bewaard. Het nadeel:
-  een trage host vertraagt de start, en boven de grens bewaart de sessie niets. Het voordeel: een late lezing
-  kan nooit een keuze of lijst van de gebruiker terugdraaien, of een lijst van de host overschrijven met een
-  verouderde kopie (drie reviewrondes vonden daar telkens een nieuw geval van). Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen
-  van extensies (`ops-ext:`). Een fout van de host is nooit een crash. Eén fout bij het lezen, een waarde die
-  geen tekst is, of een fout bij het neerzetten of teruglezen in `localStorage` zet het bewaren uit voor de
-  rest van de sessie: zo wordt een fout nooit een wisactie, en overschrijft de tool niets wat hij niet begreep.
-  Een mislukte `set` of `delete` probeert hij bij de volgende wijziging opnieuw.
+  van de bouwmodus) de instellingen van de host volgt. **De start wacht hoogstens 5 s** (`HYDRATE_TIMEOUT_MS`);
+  in die tijd blijft het venster leeg. Antwoordt de host op tijd, dan start de app met die waarden, en gaat
+  daarna elke wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor een gewiste.
+- **Te laat of een fout** (besluit van Ethan, 7 november 2026). Antwoordt de host niet binnen 5 s, of wijst hij
+  de lezing af, dan start de app met de standaardinstellingen en toont hij een pop-up: "Je instellingen konden
+  niet van de server worden geladen. Je werkt nu met de standaardinstellingen. Zodra je instellingen weer
+  beschikbaar zijn, worden ze automatisch toegepast." (knop OK). Op de achtergrond wacht de tool verder:
+  - Geen antwoord: de lezing blijft lopen. Er komt geen tweede verzoek naast.
+  - Een afwijzing (of een waarde die geen tekst is): na 30 s een nieuwe poging, hoogstens 10 keer
+    (`RETRY_DELAY_MS`, `MAX_RETRIES`), steeds één verzoek per sleutel tegelijk. Wijst één sleutel af terwijl
+    een andere nog hangt, dan komt de pop-up meteen, maar de nieuwe poging pas als ook dat verzoek klaar is.
+    Lukt het nooit, dan blijft de sessie zonder bewaren; de pop-up heeft dat al gezegd.
+  - Tijdens het wachten schrijft de tool **niets** naar de host: geen `set` en geen `delete`. Zo kan een lijst
+    die de gebruiker intussen maakt (bijv. persoonlijke werksoorten) de bewaarde lijst nooit wissen.
+  - Komt het antwoord alsnog, dan **winnen de bewaarde instellingen**. De tool zet de toestand die een gewone
+    start met dat antwoord zou geven: een sleutel uit het antwoord krijgt die waarde; een sleutel die de
+    gebruiker intussen wijzigde en die niet in het antwoord staat, gaat terug naar zijn standaard. Wat de app zelf
+    bij de start invulde (bijv. de standaardindeling van de taakgrid), blijft staan, zoals bij een gewone start.
+    De tool past alles live toe, zonder herladen: de instellingen in de store, de taakgrid, de taal, en de lijsten
+    in open dialogen en panelen (via een `StorageEvent` per sleutel). Opnieuw toegepast wordt elke sleutel die
+    veranderde én elke sleutel die de gebruiker wijzigde, ook als de bewaarde tekst gelijk is aan zijn keuze: bij
+    thema en taal gaan devlink en host voor, net als bij een gewone start. De pop-up gaat dicht als hij nog open
+    is. Zolang de tool toepast, schrijft hij nog niets naar de host, en valt een schrijfactie van de gebruiker op
+    een sleutel die nog niet is toegepast weg: zo zet een oude timer (bijv. de scrolltimer van de taakgrid) de
+    bewaarde waarde niet terug. De taakgrid gaat vóór de taal, want de taal kan een download kosten. Pas als
+    alles is toegepast, staat het bewaren aan (zoals na een gewone start), en volgt één korte melding: "Je
+    instellingen zijn geladen en toegepast.", met erachter "Wat je in de tussentijd wijzigde, is teruggezet."
+    als iets wat de gebruiker wijzigde daardoor terugging. Het late antwoord zet het thema niet via een keuze
+    van de gebruiker, dus het geeft geen tweede melding "Dit thema geldt tot je de planner opnieuw start". Dit raakt alleen instellingen, nooit het document: een werksoort
+    die de gebruiker intussen maakte en aan een taak gaf, gaat uit de persoonlijke lijst, maar blijft in het
+    document (de groep "Uit dit project" in de keuzelijst), en de taak houdt hem.
+  - **Grens:** de bouwmodus bepaalt de kalender van het eerste document bij het maken van de store. Een laat
+    antwoord verandert de kalender van het document dat al open is niet; de bouwmodus van de host geldt dan
+    pas voor een volgend nieuw document.
+  - Een host die pas na de start komt (`openaec-host-ready`), of die verschijnt terwijl de app nog laadt (de app
+    haalt dat bij het starten in), telt als een laat antwoord: de tool leest hem dan, met dezelfde regels. Antwoordt
+    zo'n host binnen 5 s, dan volgt alleen de melding; anders eerst de pop-up.
+
+  Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen van extensies
+  (`ops-ext:`); die leest, wijzigt en schrijft de tool nooit bij de host. Een fout van de host is nooit een crash.
+  Een fout bij het neerzetten of teruglezen in `localStorage`, of geen `localStorage`, zet het bewaren uit voor de
+  rest van de sessie, met één melding die blijft staan: zo wordt een fout nooit een wisactie, en overschrijft de
+  tool niets wat hij niet begreep. Een mislukte `set` of `delete` probeert hij bij de volgende wijziging opnieuw.
 - `list` krijgt de extensies zonder punt (`ifc`, `csv`, `xml`, `mpp`, `xer`). De site mag erop filteren; de
   tool filtert daarna zelf ook.
 - `open` zonder `version` geeft de nieuwste versie, met `file.version` erbij; zonder versie weigert de tool het
@@ -268,7 +299,9 @@ Alleen als er een site is; zonder site verandert er niets.
   taalkeuze, inlezen en terugschrijven met een nep-host), `tests/planning/check-theme-premirror.ts` (geen inline
   script; het pre-paint-script gedraagt zich als `peekTheme()`) en de host-ronden in
   `tests/browser/welcome-dialog.spec.ts` (thema van de host, live wissel, een instelling die via `settings`
-  een herlaad overleeft).
+  een herlaad overleeft, en een host boven de grens: pop-up, een werksoort, thema en taal tijdens het wachten,
+  het late antwoord met de bewaarde werksoorten, thema en taal van de host, en één themamelding). De late
+  toepassing met de echte store, `writeLocal` en de scrolltimer van de taakgrid staat in D24-D26 van de check.
 
 ## De assistent van de site
 

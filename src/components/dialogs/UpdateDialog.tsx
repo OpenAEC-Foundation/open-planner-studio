@@ -176,7 +176,7 @@ export function UpdateDialog() {
 
           {!busy && status?.kind === 'upToDate' && (
             <div className="flex items-center gap-2 text-text-secondary">
-              <Icon id="status.success" size={14} />
+              <Icon id="status.success" size={14} lucide={{ icon: 'CheckCircle2', className: 'text-accent' }} />
               <span>{t('updates.upToDate')}</span>
             </div>
           )}
@@ -184,7 +184,7 @@ export function UpdateDialog() {
           {status?.kind === 'available' && (
             <>
               <div className="flex items-center gap-2 text-text-primary font-medium">
-                <Icon id="status.update-available" size={14} className="text-text-secondary" />
+                <Icon id="status.update-available" size={14} className="text-text-secondary" lucide={{ className: 'text-accent' }} />
                 <span>{t('updates.available')}</span>
               </div>
               {status.info.body.trim().length > 0 && (
@@ -199,7 +199,7 @@ export function UpdateDialog() {
               {/* Snap: snapd/Snap Store werkt zelf bij — geen in-app installatie. */}
               {isSnap && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3">
-                  <Icon id="status.info" size={14} className="mt-0.5 shrink-0" />
+                  <Icon id="status.info" size={14} className="mt-0.5 shrink-0" lucide={{ icon: 'PackageOpen', className: 'text-accent mt-0.5 shrink-0' }} />
                   <span>{t('updates.snapNotice')}</span>
                 </div>
               )}
@@ -207,7 +207,7 @@ export function UpdateDialog() {
               {/* AUR: pacman beheert het pakket — bijwerken via yay/paru, geen in-app installatie. */}
               {isAur && (
                 <div className="flex items-start gap-2 text-text-secondary bg-surface-hover border border-border rounded-[8px] p-3" data-ops-update-package-manager-notice>
-                  <Icon id="status.info" size={14} className="mt-0.5 shrink-0" />
+                  <Icon id="status.info" size={14} className="mt-0.5 shrink-0" lucide={{ icon: 'PackageOpen', className: 'text-accent mt-0.5 shrink-0' }} />
                   <span>{t('updates.packageManagerNotice')}</span>
                 </div>
               )}
@@ -272,7 +272,7 @@ export function UpdateDialog() {
                     onClick={handleCopyCommand}
                     className="btn btn--sm btn--secondary flex items-center gap-1.5"
                   >
-                    {copied ? <Icon id="status.success" size={13} /> : <Icon id="edit.copy" size={13} />}
+                    {copied ? <Icon id="status.success" size={13} lucide={{ className: 'text-accent' }} /> : <Icon id="edit.copy" size={13} />}
                     {copied ? t('updates.copied') : t('updates.copyCommand')}
                   </button>
                 </div>

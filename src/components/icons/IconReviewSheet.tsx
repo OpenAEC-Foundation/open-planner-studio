@@ -136,6 +136,8 @@ function IconReviewSheet({ mode }: { mode: Mode }) {
 }
 
 export function mountIconReviewSheet(mode: Mode): void {
+  const state = useAppStore.getState();
+  state.setUI({ featureFlags: { ...state.ui.featureFlags, 'b2-icons': true } });
   const host = document.createElement('div');
   host.id = 'ops-icon-review-sheet';
   document.body.appendChild(host);

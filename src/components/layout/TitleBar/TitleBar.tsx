@@ -12,6 +12,7 @@ import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
 import { canWriteToRefWithoutPrompt, saveTargetRef } from '@/services/fileAccess';
 import { isFeatureEnabled } from '@/utils/featureFlags';
+import { FEEDBACK_AVAILABLE } from '@/utils/buildFlags';
 
 // Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
@@ -176,7 +177,7 @@ export function TitleBar() {
             disabled={questionPending || !undoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) undo(); }}
           >
-            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />
+            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
           </button>
           <button
             className="quick-access-btn"
@@ -184,7 +185,7 @@ export function TitleBar() {
             disabled={questionPending || !redoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) redo(); }}
           >
-            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" />
+            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
           </button>
 
           <div className="quick-access-separator" />
@@ -200,19 +201,25 @@ export function TitleBar() {
             <Icon id="ui.settings" size={16} />
           </button>
 
-          <div className="quick-access-separator" />
+          {/* Platformbouw (#818): geen feedbackknop; de werkplek heeft er zelf een. Stap 7 van de
+              rondleiding vervalt dan ook (`tourSteps.ts`). */}
+          {FEEDBACK_AVAILABLE && (
+            <>
+              <div className="quick-access-separator" />
 
-          {/* data-tour-anchor (tourstap 7): altijd zichtbaar bovenin,
-              geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
-              hier direct naar toe i.p.v. naar een externe GitHub-link. */}
-          <button
-            className="title-bar-feedback-btn"
-            data-tour-anchor="feedback-button"
-            disabled={questionPending}
-            onClick={() => setUI({ showFeedbackDialog: true })}
-          >
-            {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}
-          </button>
+              {/* data-tour-anchor (tourstap 7): altijd zichtbaar bovenin,
+                  geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
+                  hier direct naar toe i.p.v. naar een externe GitHub-link. */}
+              <button
+                className="title-bar-feedback-btn"
+                data-tour-anchor="feedback-button"
+                disabled={questionPending}
+                onClick={() => setUI({ showFeedbackDialog: true })}
+              >
+                {tCommon(FEEDBACK_LABEL_KEYS[feedbackLabelIdx])}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
