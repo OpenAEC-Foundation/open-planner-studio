@@ -10,7 +10,7 @@ The app calculates every date from the logic; a hand-fixed date stops warning wh
 
 ## Recalculation
 
-- No recalculate tool: every data change recalculates (`planner_batch` once, at its end); reads first recalculate a stale schedule. A call that changes nothing does not recalculate. To recalculate without a change: ask the user.
+- No recalculate tool: every data change recalculates (`planner_batch` once, at its end); reads first recalculate a stale schedule. A call that changes nothing does not recalculate; never change something only to force one: ask the user.
 - Report only numbers read after your last change (`planner_get_project_info`, `planner_get_critical_path`).
 - `datesAsRecorded`: the imported file's dates, not calculated. Say so with every date. Your first change replaces them: only on the user's explicit request, after reporting the file's dates if wanted. Compare with a calculation in a `planner_duplicate_document` copy.
 - `scheduleStale`: the user is mid-edit; read again before concluding.
