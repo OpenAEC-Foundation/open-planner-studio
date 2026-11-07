@@ -83,7 +83,8 @@ eq('Expliciete UNIFORM wordt naar de canonieke lege curve genormaliseerd',
 for (const [label, taskId, tokens, code] of [
   ['onbekende taak', 't-missing', [], 'assignmentTaskNotFound'],
   ['summary', 't-summary', [], 'assignmentTaskUnavailable'],
-  ['mijlpaal', 't-milestone', [], 'assignmentTaskUnavailable'],
+  // Sinds #815 mag een mijlpaal kostenresources dragen (en dus ook leeg); werk blijft geweigerd.
+  ['mijlpaal met werk', 't-milestone', [{ resourceId: 'r-a', unitsPerDay: 1 }], 'assignmentTaskUnavailable'],
   ['onbekende resource', 't-leaf', [{ resourceId: 'r-missing', unitsPerDay: 1 }], 'assignmentResourceNotFound'],
   ['dubbele resource', 't-leaf', [{ resourceId: 'r-a', unitsPerDay: 1 }, { resourceId: 'r-a', unitsPerDay: 2 }], 'assignmentDuplicateResource'],
 ] as const) {
