@@ -1,6 +1,6 @@
 # Plan: kostenresource (issue #815)
 
-Status: plan, nog niet gebouwd. Lees dit als *waarom en hoe*, niet als *wat er is*.
+Status: PR1 gebouwd op `feat/815-kostenresource`; PR2 en PR3 nog niet. Lees dit als *waarom en hoe*, niet als *wat er is*.
 
 ## Vraag
 
@@ -41,6 +41,28 @@ histogramkern, pool-JSON-compatibiliteit, gemiste UI- en rapportplekken, IFC-mot
 - Het resourcepaneel telt per kostenresource de bedragen van zijn toewijzingen op; het totaal telt mee.
 - Alleen een begroot bedrag. Werkelijke kosten (MSP ActualCost, P6 `act_cost`) vallen buiten deze PR's;
   imports tellen ze als verlies. Reden: het issue gaat over begroten; de app kent nog geen kostenvoortgang.
+
+## Afwijkingen bij de bouw van PR1 (2026-11-07)
+
+Bewust anders of preciezer dan hieronder, met de reden:
+
+- **Extensie-API 1.6.0.** `ExtResource.type` kent `'COST'` en `ExtAssignment` draagt `costAmount`
+  (`src/extensions/`). Reden: anders ziet een extensie een onbekend type of verliest ze het bedrag bij schrijven.
+- **Bibliotheekweigering als afwijking.** Is een typewissel over de COST-grens geblokkeerd, dan geeft
+  `applyResourceUpdate` de documentresource terug met een verse herkomststempel, zodat ze als *deviated* telt.
+  De expliciete routes (*Bijwerken*, afwijking oplossen met *bibliotheek*) melden `notifications.costTypeChangeRefused`.
+  Stille verversingen melden niets. Reden: zonder verse stempel zou de volgende verversing het opnieuw proberen.
+- **Lezers normaliseren.** De IFC-lezer wist werkvelden op een COST-toewijzing (inzet 1) en laat `costAmount` op een
+  werk- of materiaaltoewijzing vallen (`normalizeAssignmentForResource`).
+- **Bedragveld.** `UnitsInput` heeft een tweede vorm `AmountInput` (0 geldig, leeg wist het bedrag), zodat het
+  commitgedrag (Enter/blur, register voor openstaande invoer) één keer bestaat.
+- **Rapporten.** Resourcediagram en afdruk tonen in de kolom *Eenh./d* het bedrag (of —) en geen curve; het
+  rapport Resourcetoewijzingen toont het bedrag in de inzetkolom. Het belastingsrapport sluit COST uit via de
+  histogramkern.
+- **Kolom Totaal** staat in `src/utils/resourceCostTotals.ts`, zodat `check-resource-cost-hours.ts` de echte
+  formule toetst.
+- **Taakraster.** `costAmount` hoort bij de samengestelde kolom *Toegewezen resources* (`fieldCoverage.ts`);
+  geen eigen bedragkolom (zoals gepland).
 
 ## 1. Datamodel
 
