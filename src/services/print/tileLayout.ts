@@ -183,6 +183,60 @@ export function footerLayoutWidthFor(layout: Pick<TileLayout, 'repeatFooterPx' |
   return layout.repeatFooterPx > 0 ? layout.footerLayoutWidthPx : undefined;
 }
 
+/** De maten van een rapportrender die de tegeling nodig heeft (de velden van `RenderReportResult`). */
+export interface ReportTileDims {
+  width: number;
+  height: number;
+  tableWidth: number;
+  headerHeight: number;
+  footerHeight: number;
+  breakOffsets?: readonly number[];
+  forcedBreakOffsets?: readonly number[];
+}
+
+/** De keuzes van de afdruk die de tegeling bepalen. */
+export interface ReportTileOptions {
+  paperSize: PaperSize;
+  orientation: Orientation;
+  mode: PaginateMode;
+  repeatHeader: boolean;
+  repeatFooter: boolean;
+  timelineColumns?: number;
+  marginPt?: number;
+}
+
+/**
+ * De tegelinvoer van een rapportrender. Eén bron voor de vector-PDF (`paginateVectorToPdfBytes`) en het
+ * papier op het scherm (nieuw Rapport-tabblad, #817), zodat scherm en PDF dezelfde bladen tonen.
+ */
+export function reportTileInput(dims: ReportTileDims, opts: ReportTileOptions): TileLayoutInput {
+  return {
+    paperSize: opts.paperSize,
+    orientation: opts.orientation,
+    mode: opts.mode,
+    logicalWidth: dims.width,
+    logicalHeight: dims.height,
+    frozenColumnWidthPx: dims.tableWidth,
+    // De kop- en voetstrookhoogte komen uit de render zelf.
+    repeatHeaderHeightPx: opts.repeatHeader ? dims.headerHeight : 0,
+    repeatFooterHeightPx: opts.repeatFooter ? dims.footerHeight : 0,
+    timelineColumns: opts.timelineColumns,
+    marginPt: opts.marginPt,
+    breakOffsetsPx: dims.breakOffsets,
+    forcedBreakOffsetsPx: dims.forcedBreakOffsets,
+  };
+}
+
+/**
+ * De voetbreedte waarmee een tweede render nodig is, of `undefined`. Alleen als die breedte écht kleiner
+ * is dan de render: in fit-width met één kolom zijn ze analytisch gelijk, maar als floats soms 1e-13 uit
+ * elkaar (zie de toelichting in `paginateVectorToPdfBytes`).
+ */
+export function footerRelayoutWidth(layout: Pick<TileLayout, 'repeatFooterPx' | 'footerLayoutWidthPx'>, renderWidth: number): number | undefined {
+  const width = footerLayoutWidthFor(layout);
+  return width !== undefined && width < renderWidth - 0.5 ? width : undefined;
+}
+
 /** Volledig uitgerekende pagina-indeling; beide backends tekenen hier 1:1 uit. */
 export interface TileLayout {
   /** Papierbreedte in punten (honoreert oriëntatie). */

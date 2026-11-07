@@ -313,10 +313,12 @@ check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
 check-renderer-dateless.ts matrix
+check-report-columns.ts matrix
 check-report-font.ts matrix
 check-report-footer-setting.ts matrix
 check-report-name-column-setting.ts matrix
 check-report-resource-gantt-setting.ts matrix
+check-report-svg.ts matrix
 check-report-working-days-setting.ts matrix
 check-reports.ts matrix
 check-required-task-start.ts matrix
