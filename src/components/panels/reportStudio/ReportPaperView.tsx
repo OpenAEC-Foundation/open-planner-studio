@@ -20,7 +20,8 @@ interface HoverState { page: number; target: PaperTarget; column?: string }
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 6;
-const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6];
+/** Zoomstanden van het papier (−/+). Los van de Gantt-zoom (`ZOOM_STEP` in ganttViewport.ts): andere eenheid. */
+const PAPER_ZOOM_STOPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6];
 const PAGE_GAP = 20;
 const PAGES_PAD = 24;
 
@@ -107,7 +108,7 @@ export function ReportPaperView({
 
   const stepZoom = useCallback((dir: 1 | -1) => {
     setZoom(prev => {
-      const next = dir > 0 ? ZOOM_STEPS.find(z => z > prev + 0.001) ?? ZOOM_MAX : [...ZOOM_STEPS].reverse().find(z => z < prev - 0.001) ?? ZOOM_MIN;
+      const next = dir > 0 ? PAPER_ZOOM_STOPS.find(z => z > prev + 0.001) ?? ZOOM_MAX : [...PAPER_ZOOM_STOPS].reverse().find(z => z < prev - 0.001) ?? ZOOM_MIN;
       const node = viewportRef.current;
       if (node) {
         const rect = node.getBoundingClientRect();
