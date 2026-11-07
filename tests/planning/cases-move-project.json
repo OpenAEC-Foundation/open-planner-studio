@@ -163,7 +163,7 @@
     },
     {
       "id": "move-10",
-      "title": "R6 extern anker schuift mee: A heeft een externe FS-voorganger met anchorDate 2026-06-05. Na moveProject 2026-06-08 (Delta=+7) staat het anker op vrijdag 06-12 en start A op maandag 06-15. Het BRONproject schuift niet mee — dat is een preview-waarschuwing, geen state-wijziging.",
+      "title": "Keuze 8 (Ethan, 2026-11-03): een extern anker schuift NIET mee. A heeft een externe FS-voorganger met anchorDate vr 2026-06-05; zonder verschuiving A 06-08..06-12, B 06-15..06-17. moveProject 2026-06-15 (Delta=+14): het anker blijft 06-05 en houdt A niet meer tegen, dus A start op de nieuwe projectstart ma 06-15 (met meeschuiven was dat ma 06-22 geweest).",
       "tasks": [
         {
           "name": "A", "dur": 5,
@@ -172,14 +172,36 @@
         { "name": "B", "dur": 3 }
       ],
       "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
-      "afterCPM": [{ "moveProject": { "newStart": "2026-06-08" } }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-06-15" } }],
       "expect": {
         "tasks": {
           "A": { "es": "2026-06-15", "ef": "2026-06-19" },
           "B": { "es": "2026-06-22", "ef": "2026-06-24" }
         },
         "projectEnd": "2026-06-24",
-        "projectStartDate": "2026-06-08",
+        "projectStartDate": "2026-06-15",
+        "error": false
+      }
+    },
+    {
+      "id": "move-10b",
+      "title": "Keuze 8, eerder verplaatsen: zelfde net als move-10. moveProject 2026-05-25 (Delta=-7): het anker blijft vr 06-05, dus de externe voorganger houdt A op ma 06-08..06-12 en B blijft 06-15..06-17. Het projecteinde schuift niet mee, want het bronproject schuift niet. Met meeschuiven was A 06-01..06-05 geweest.",
+      "tasks": [
+        {
+          "name": "A", "dur": 5,
+          "externalLinks": [{ "direction": "predecessor", "relType": "FS", "anchorDate": "2026-06-05" }]
+        },
+        { "name": "B", "dur": 3 }
+      ],
+      "links": [{ "pred": "A", "succ": "B", "type": "FINISH_START" }],
+      "afterCPM": [{ "moveProject": { "newStart": "2026-05-25" } }],
+      "expect": {
+        "tasks": {
+          "A": { "es": "2026-06-08", "ef": "2026-06-12" },
+          "B": { "es": "2026-06-15", "ef": "2026-06-17" }
+        },
+        "projectEnd": "2026-06-17",
+        "projectStartDate": "2026-05-25",
         "error": false
       }
     },

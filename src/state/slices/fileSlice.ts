@@ -95,6 +95,10 @@ export function isActivePristine(s: AppState): boolean {
  * ("failed to open file at path: … Permission denied (os error 13)"); `(err as Error).message` gaf
  * daar `undefined` en de gebruiker zag alleen "Opslaan mislukt" zonder reden.
  */
+/** Hoe vaak `openOpenedFile` met `waitWhile` opnieuw kijkt. De poort van slepen leest ook de
+ *  dialoogstapel buiten de store (`isAnyDialogOpen`), dus een abonnement op de store is niet genoeg. */
+export const OPEN_WAIT_POLL_MS = 200;
+
 export function saveErrorDetail(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === 'string') return err;
@@ -460,9 +464,13 @@ export interface FileSlice {
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
   /** De rest van `openFile` zodra er een bestand is: herkennen, openen als document, meldingen,
-   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`), zodat die geen eigen
-   *  inleesroute heeft. */
-  openOpenedFile: (opened: OpenedFile, labels?: ImportLabels) => Promise<void>;
+   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`) en slepen en neerzetten
+   *  (`state/fileDrop.ts`), zodat die geen eigen inleesroute hebben. Met `waitWhile` wacht het
+   *  activeren na het herkennen zolang die waar geeft: slepen wacht daar tot geen dialoog meer
+   *  openstaat, want het lezen en herkennen gebeurt terwijl de planner verder werkt. */
+  openOpenedFile: (
+    opened: OpenedFile, labels?: ImportLabels, options?: { waitWhile?: () => boolean },
+  ) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
   saveFileForDocument: (documentId: string) => Promise<boolean>;
@@ -638,10 +646,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * in de recente bestanden. Een OUDERE versie opent als kopie zonder opslagdoel (naam met de versie
    * erin) en niet in de recente bestanden: zo overschrijft Ctrl+S nooit per ongeluk de nieuwste
    * versie. Gooit bij een lees- of parsefout.
+   *
+   * Geeft de site de nieuwste versie als ALLEEN-LEZEN (#818), dan opent het document zonder
+   * opslagdoel en zonder basis, onder zijn eigen naam, met een melding dat Opslaan een nieuw bestand
+   * maakt. Het blijft in de recente bestanden: het is het bestand zelf, geen oudere versie, en bij een
+   * volgende keer kan het weer schrijfbaar zijn.
    */
   const openSiteChoice = async (choice: Extract<SiteOpenChoice, { kind: 'site' }>, labels?: ImportLabels) => {
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+    if (choice.version === undefined && opened.readOnly) {
+      get().openAsDocument(parsed, { name: opened.name, ref: null });
+      offerFormatNotice(opened.name, opened.content);
+      await pushRecent({ kind: 'site', id: choice.id }, opened.name);
+      // Blijvend: de gebruiker moet weten dat Opslaan hier een nieuw bestand maakt.
+      get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: opened.name } });
+      return;
+    }
     if (choice.version === undefined) {
       // De gelezen versie wordt pas NA een geslaagde parse de basis, en alleen van dít document.
       get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
@@ -750,6 +771,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref?.kind === 'site' && siteStorageAvailable()) {
         siteName = documentFileName(state);
         const saved = await saveSiteFileVersion(ref.id, siteName, content, state.siteFileVersion);
+        if (saved.conflictCopy) {
+          // De SuperCloud bewaarde het werk na een conflict in een KOPIE (#818). Die kopie wordt het
+          // opslagdoel van dit document; het telt als opgeslagen, en de gebruiker hoort de naam.
+          const committed = commitSavedDocument(documentId, state, {
+            filePath: saved.name, fileHandle: null, siteFileId: saved.id, siteFileVersion: saved.version,
+          });
+          await pushRecent({ kind: 'site', id: saved.id }, saved.name);
+          get().notify({
+            // Blijvend: het werk staat nu onder een andere naam.
+            severity: 'info', sticky: true, messageKey: 'notifications.siteSaveConflictCopy',
+            params: { name: saved.name, original: siteName },
+          });
+          return committed;
+        }
         return commitSavedDocument(documentId, state, {
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
         });
@@ -1200,9 +1235,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (opened) await get().openOpenedFile(opened, labels);
     },
 
-    openOpenedFile: async (opened, labels) => {
+    openOpenedFile: async (opened, labels, options) => {
       try {
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+        // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
+        // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
+        if (options?.waitWhile) {
+          while (options.waitWhile()) await new Promise((resolve) => setTimeout(resolve, OPEN_WAIT_POLL_MS));
+        }
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
         // ook voor de meervoudige XER-vorm.

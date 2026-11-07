@@ -13,6 +13,8 @@
     "dismiss": "Luk meddelelse",
     "taskEditRevertBlocked": "En ændring fra MCP-klienten eller en udvidelse kom imellem. De opgaveændringer før den er ikke fortrudt og står som almindelige trin under Fortryd.",
     "openFailed": "Kunne ikke åbne filen",
+    "fileDropRefused": "Ikke åbnet: {{names}}. Appen åbner kun IFC, XML, MPP, XER og CSV.",
+    "fileDropBlocked": "Ikke åbnet: {{names}}. Luk det åbne vindue først.",
     "csvInvalidDate": "CSV er ikke åbnet: ugyldig dato „{{value}}“ i CSV-række {{row}}, kolonne „{{column}}“. Brug åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et trin fra udvidelsen {{name}} gav en fejl. Vejledningen fortsætter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} fra udvidelsen {{name}} kunne ikke åbnes.",
@@ -1251,14 +1253,11 @@
     "detailConstraints": "begrænsningsdatoer",
     "detailDeadlines": "deadlines",
     "detailActuals": "faktiske datoer",
-    "detailExternal": "eksterne ankre",
     "detailSteps": "kapacitetstrin",
     "warnActuals_one": "{{count}} opgave har faktisk start-/slutdato. Den forskydes med. Kontroller, at det er korrekt for et igangværende projekt.",
     "warnActuals_other": "{{count}} opgaver har faktiske start-/slutdatoer. Disse forskydes med. Kontroller, at det er korrekt for et igangværende projekt.",
     "warnHardPins_one": "{{count}} opgave har en hård Mandatory-pin. Den forskydes med.",
     "warnHardPins_other": "{{count}} opgaver har en hård Mandatory-pin. Disse pins forskydes med.",
-    "warnExternal_one": "{{count}} ekstern afhængighed: ankeret forskydes med, men kildeprojektet gør ikke. Opdater afhængigheden efter forskydningen.",
-    "warnExternal_other": "{{count}} eksterne afhængigheder: ankrene forskydes med, men kildeprojekterne gør ikke. Opdater afhængighederne efter forskydningen.",
     "warnHolidayGap": "De genererede helligdage i kalenderen “{{name}}” dækker {{from}}–{{to}}. Den forskudte tidsplan løber til {{year}}. Generér helligdagene igen.",
     "warnCustomDateFields_one": "{{count}} udfyldt brugerdefineret datofelt beholder sin dato.",
     "warnCustomDateFields_other": "{{count}} udfyldte brugerdefinerede datofelter beholder deres dato.",
@@ -1709,5 +1708,9 @@
     "blockedNoChild": "Flytning er ikke mulig: »{{phase}}« får ingen underopgave, der kan bære en tildeling, kun milepæle eller hovedopgaver.",
     "actualWorkLost_one": "Tildelingen af {{resource}} har allerede {{hours}} time faktisk arbejde. Hvis du fjerner den, går det arbejde tabt.",
     "actualWorkLost_other": "Tildelingen af {{resource}} har allerede {{hours}} timer faktisk arbejde. Hvis du fjerner den, går det arbejde tabt."
+  },
+  "fileDrop": {
+    "title": "Slip for at åbne",
+    "subtitle": "Projektfil eller import"
   }
 }

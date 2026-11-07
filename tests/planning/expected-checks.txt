@@ -32,6 +32,7 @@ check-bulk-scale.ts matrix
 check-calendar-arith.ts matrix
 check-calendar-breaks.ts matrix
 check-calendar-change-scale.ts matrix
+check-calendar-day-span.ts matrix
 check-calendar-dialog-commits.ts matrix
 check-calendar-hours.ts matrix
 check-calendar-mirror.ts matrix
@@ -110,6 +111,7 @@ check-f4b-voortgangsduur.ts matrix
 check-feature-flags.ts matrix
 check-fidelity-cells-gate.ts los
 check-fidelity-core.ts matrix
+check-file-drop.ts matrix
 check-first-start.ts matrix
 check-float-band-end.ts matrix
 check-float-remaining-text.ts matrix
@@ -149,6 +151,7 @@ check-i18n-plurals.ts matrix
 check-i18n-resolve.ts matrix
 check-i18n-tools.ts matrix
 check-icon-accent-text.ts matrix
+check-icon-family.ts matrix
 check-ifc-arity.ts matrix
 check-ifc-building-model-guard.ts matrix
 check-ifc-calendar-identity.ts matrix
@@ -349,6 +352,8 @@ check-settings-storage-blocked.ts matrix
 check-shift-explanation.ts matrix
 check-short-hour-task-load.ts matrix
 check-shown-dates-formats.ts matrix
+check-site-host-preferences.ts matrix
+check-site-start-order.ts los
 check-site-storage.ts matrix
 check-solve-input.ts matrix
 check-split-bar-render.ts matrix

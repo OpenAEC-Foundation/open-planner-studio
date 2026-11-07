@@ -13,6 +13,8 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification du client MCP ou d'une extension est intervenue entre-temps. Les modifications de tâche effectuées avant n'ont pas été annulées ; elles restent des étapes ordinaires sous « Annuler ».",
     "openFailed": "Échec de l'ouverture du fichier",
+    "fileDropRefused": "Non ouvert : {{names}}. L’application n’ouvre que les fichiers IFC, XML, MPP, XER et CSV.",
+    "fileDropBlocked": "Non ouvert : {{names}}. Fermez d’abord la fenêtre ouverte.",
     "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne CSV {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
@@ -1322,7 +1324,6 @@
     "detailConstraints": "dates de contrainte",
     "detailDeadlines": "échéances",
     "detailActuals": "dates réelles",
-    "detailExternal": "ancrages externes",
     "detailSteps": "paliers de capacité",
     "warnActuals_one": "{{count}} tâche a des dates de début/fin réelles ; elles se décalent aussi. Vérifiez que cela convient pour un projet en cours.",
     "warnActuals_many": "{{count}} tâches ont des dates de début/fin réelles ; elles se décalent aussi. Vérifiez que cela convient pour un projet en cours.",
@@ -1330,9 +1331,6 @@
     "warnHardPins_one": "{{count}} tâche a une contrainte Obligatoire stricte ; cet ancrage se décale aussi.",
     "warnHardPins_many": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
     "warnHardPins_other": "{{count}} tâches ont une contrainte Obligatoire stricte ; ces ancrages se décalent aussi.",
-    "warnExternal_one": "{{count}} relation externe : son ancrage se décale, mais pas le projet source. Actualisez la relation après le déplacement.",
-    "warnExternal_many": "{{count}} relations externes : leurs ancrages se décalent, mais pas les projets sources. Actualisez les relations après le déplacement.",
-    "warnExternal_other": "{{count}} relations externes : leurs ancrages se décalent, mais pas les projets sources. Actualisez les relations après le déplacement.",
     "warnHolidayGap": "Les jours fériés générés du calendrier « {{name}} » couvrent {{from}}–{{to}} ; le planning décalé va jusqu’à {{year}}. Régénérez les jours fériés.",
     "warnCustomDateFields_one": "{{count}} champ personnalisé de type date renseigné conserve sa date.",
     "warnCustomDateFields_many": "{{count}} champs personnalisés de type date renseignés conservent leur date.",
@@ -1791,5 +1789,9 @@
     "actualWorkLost_one": "L'affectation de {{resource}} comporte déjà {{hours}} heure de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_many": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_other": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail."
+  },
+  "fileDrop": {
+    "title": "Déposez pour ouvrir",
+    "subtitle": "Fichier de projet ou import"
   }
 }

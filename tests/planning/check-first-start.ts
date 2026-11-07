@@ -11,6 +11,8 @@
 //     offline, geen tutorial, niet gestart. Het host-event gaat pas uit NA de installatie.
 //  E. Met de echte loader: een net "geïnstalleerde" extensie met een trage (async) `onLoad` krijgt
 //     `host:tutorial-requested` pas als haar listener staat, en start de begeleiding.
+//  G. De gewone bouw (#818): feedbackknop, updateknoppen en stap 7 van de rondleiding blijven; alleen de
+//     platformbouw (`buildFlags.ts`) laat ze weg. De platformkant toetst `tests/browser/platform-build.spec.ts`.
 //  (De "Net bijgewerkt"-regel voor de eerste start staat in check-just-updated.ts.)
 //
 // Draait via run.sh. Exit 0 = alles groen.
@@ -32,6 +34,8 @@ import { tutorialsInOrder } from '@/utils/helpManifest';
 import type { CatalogEntry, ExtensionStatus } from '@/extensions/types';
 import type { InstallOutcome } from '@/extensions/extensionService';
 import type { TourUiSnapshot } from '@/state/slices/types';
+import { TOUR_STEPS } from '@/components/tour/tourSteps';
+import { FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { FetchTimeoutError, fetchWithIdleTimeout, fetchWithTimeout, readBodyBytes } from '@/services/fetchWithTimeout';
 
 const diffs: string[] = [];
@@ -415,6 +419,14 @@ function mock(o: MockOpts) {
     /fetchWithIdleTimeout\(entry\.downloadUrl,[^\n]*EXTENSION_DOWNLOAD_IDLE_TIMEOUT_MS/.test(service),
     /return readBodyBytes\(res, progress\);/.test(service),
   ], [true, true, true]);
+}
+
+// ── G. Gewone bouw: feedback, updates en stap 7 blijven (#818) ──────────────────────────────────
+{
+  // Deze bundel is een gewone bouw: `VITE_OPS_PLATFORM` is niet gezet.
+  eq('G1 FEEDBACK_AVAILABLE en UPDATES_AVAILABLE aan', [FEEDBACK_AVAILABLE, UPDATES_AVAILABLE], [true, true]);
+  eq('G2 de rondleiding heeft zeven stappen, de laatste wijst naar de feedbackknop',
+    [TOUR_STEPS.length, TOUR_STEPS[TOUR_STEPS.length - 1]?.anchor], [7, 'feedback-button']);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────

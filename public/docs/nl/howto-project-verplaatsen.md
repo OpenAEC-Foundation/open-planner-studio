@@ -30,13 +30,14 @@ De knop *Verplaatsen* is pas te gebruiken na een voorbeeld zonder fout, en als d
 
 ### Wat er meeschuift, en wat niet
 
-Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin, zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen)), deadlines, de statusdatum, de ankers van externe relaties en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
+Meegeschoven wordt: de start en het einde van elke taak, de werkelijke start en het werkelijke einde, de datums van constraints (ook van een harde Mandatory-pin, zie [Taakdialoog en eigenschappenpaneel](docs://ref-taak-eigenschappen)), deadlines, de statusdatum en de capaciteitsstappen van resources. Ook de projectstart en, als je die hebt ingevuld, de projecteinddatum verschuiven.
 
 Niet mee schuift:
 
 - de kalenders, dus feestdagen, bouwvak en winterstop;
 - baselines, tenzij je *Baselines mee verschuiven* aanzet;
-- een ingevuld eigen veld van het type *Datum*.
+- een ingevuld eigen veld van het type *Datum*;
+- de ankers van externe relaties.
 
 ## Valkuilen en wat de app dan doet
 
@@ -46,7 +47,7 @@ Niet mee schuift:
 
 **Een lopend project.** Werkelijke datums schuiven mee. Bij een project waarin je al voortgang hebt ingevoerd is dat niet altijd wat je wilt. De app waarschuwt: *Controleer of dat klopt voor een lopend project.*
 
-**Externe relaties.** Het anker in je eigen project schuift mee, het bronproject niet. Ververs de koppelingen na het verplaatsen met *Start › Taken › Relatie ▾ › Alle externe relaties vernieuwen*. Zie [Externe relaties naar een ander project](docs://howto-externe-relaties).
+**Externe relaties.** Het anker is een datum uit het andere project, en dat project verschuift niet mee. Daarom blijft het anker staan. Verplaats je je project eerder, dan kan een externe voorganger een taak op haar plek houden. Verplaats je het later, dan kan een externe opvolger negatieve speling geven. Het voorbeeld zegt hoeveel koppelingen er zijn. Zie [Externe relaties naar een ander project](docs://howto-externe-relaties).
 
 **Feestdagen die niet ver genoeg reiken.** Een kalender met gegenereerde feestdagen dekt een aantal jaren. Loopt de verplaatste planning daar voorbij, dan rekent de app in dat jaar zonder feestdagen. Het voorbeeld waarschuwt daarvoor, bijvoorbeeld: *De gegenereerde feestdagen van kalender “Bouwkalender NL” dekken 2025–2029; de verplaatste planning loopt tot 2030. Genereer de feestdagen opnieuw.* Verplaats eerst het project. Open daarna *Planning › Kalender › Kalender*: daar staat dan bij de feestdagen *Opnieuw genereren*. Bevestig met *Toepassen*, dan rekent de app opnieuw door. Het bereik van de nieuwe feestdagen volgt de projectdatums, dus opnieuw genereren vóór het verplaatsen helpt niet.
 

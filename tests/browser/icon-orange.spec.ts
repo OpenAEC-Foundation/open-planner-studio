@@ -16,6 +16,12 @@ import type { Page } from '@playwright/test';
 import { FORMAT_NOTICE_KINDS } from '@/services/formatNoticeKinds';
 import { expect, seedProject, test } from './fixtures/ops';
 
+test.beforeEach(async ({ page, ops: _ops }) => {
+  await page.evaluate(() => window.__OPS__!.icons.useB2());
+  await expect(page.locator('svg[data-icon]').first()).toBeVisible();
+  await expect(page.locator('svg[data-icon].lucide')).toHaveCount(0);
+});
+
 const MONO_PLACES = [
   'button:disabled', '[aria-disabled="true"]', '.ribbon-btn.disabled', '.ribbon-btn.active', '.ribbon-btn.primary',
   '.ribbon-split-large.active .ribbon-split-bottom', '.backstage-nav-item.active', '.btn--primary', '.ops-toast',

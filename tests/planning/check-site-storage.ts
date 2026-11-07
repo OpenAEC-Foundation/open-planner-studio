@@ -17,6 +17,11 @@
 //      conflict, een onvolledig antwoord, nieuw document naar de site, "Op deze pc…", openen van de
 //      nieuwste en van een oudere versie, Recent (alleen `not-found` ruimt op), twee tabbladen op één
 //      bestand plus een heropening — en ZONDER host geen enkele site-vraag.
+//   H. De SuperCloud-vorm (#818): de functies direct op de host. De adapter houdt de soort van de
+//      versie (getal blijft getal in `expectedVersion`), maakt ids tekst, geeft een conflictkopie
+//      door (alleen die vorm mag een ander id teruggeven), opent alleen-lezen zonder doel, zet
+//      `VERSION_CONFLICT` om naar `conflict`, laat `soort_niet_toegestaan` door, en `initialFileId`
+//      werkt met de platte host. Een geldige `storage` wint altijd.
 //
 // Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 
@@ -123,7 +128,7 @@ const {
   supportsRecentFiles,
 } = await import('@/services/fileAccess');
 const {
-  openSiteFile, saveNewSiteFile, saveSiteFileVersion, siteDataToText, listSiteFiles,
+  openSiteFile, saveNewSiteFile, saveSiteFileVersion, siteDataToText, listSiteFiles, listSiteVersions,
 } = await import('@/services/fileAccess/siteBackend');
 const { addRecent, loadRecents, sameRef } = await import('@/services/fileAccess/recentFiles');
 const {
@@ -749,6 +754,232 @@ const sameOriginParent = (extra: AnyRecord = {}): AnyRecord => ({ addEventListen
   eq('G15 Ctrl+S in B stuurt v2 mee en slaagt', [site.saves().at(-1)?.baseVersion, S().isDirty, S().siteFileVersion], ['v2', false, 'v3']);
   S().switchDocument(tabA);
   eq('G15 A houdt zijn eigen basis', S().siteFileVersion, 'v1');
+
+  resetSiteAskers();
+  clearHost();
+}
+
+// ═══ H. De SuperCloud-vorm ═════════════════════════════════════════════════════════════════════
+{
+  resetSiteAskers();
+  clearHost();
+  /** Een platte host zoals de SuperCloud: versies als GETAL, inhoud als bytes, conflict ⇒ kopie. */
+  interface FlatFile { id: number | string; name: string; versions: { version: number; data: string }[] }
+  const flatSite = (opts: { readOnly?: boolean; versionConflictError?: boolean } = {}) => {
+    const calls: { fn: string; args: unknown[] }[] = [];
+    const files = new Map<string, FlatFile>();
+    let seq = 0;
+    const latest = (f: FlatFile) => f.versions[f.versions.length - 1];
+    const ref = (f: FlatFile, v = latest(f)) => ({ id: f.id, name: f.name, version: v.version });
+    const host = {
+      initialFileId: undefined as string | undefined,
+      async open(id: string, version?: string | number) {
+        calls.push({ fn: 'open', args: version === undefined ? [id] : [id, version] });
+        const f = files.get(id);
+        if (!f) throw Object.assign(new Error(`Bestand ${id} bestaat niet.`), { code: 'not-found' });
+        const v = version === undefined ? latest(f) : f.versions.find((x) => x.version === version);
+        if (!v) throw new Error(`Versie ${String(version)} bestaat niet (soort ${typeof version}).`);
+        // Bewust een ArrayBuffer (geen Uint8Array): ook die vorm mag.
+        const bytes = new TextEncoder().encode(v.data);
+        return { ...ref(f, v), readOnly: version !== undefined || !!opts.readOnly, bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+      },
+      async save(bytes: Uint8Array, options: { id?: string; name?: string; expectedVersion?: string | number }) {
+        calls.push({ fn: 'save', args: [{ isBytes: ArrayBuffer.isView(bytes), ...options }] });
+        const text = new TextDecoder().decode(bytes);
+        if (options.id === undefined) {
+          if (!/\.ifc$/i.test(options.name ?? '')) throw { code: 'soort_niet_toegestaan', message: 'Alleen .ifc mag hier.' };
+          const f: FlatFile = { id: 100 + ++seq, name: options.name!, versions: [{ version: 1, data: text }] };
+          files.set(String(f.id), f);
+          return ref(f);
+        }
+        const f = files.get(options.id)!;
+        if (options.expectedVersion !== undefined && options.expectedVersion !== latest(f).version) {
+          if (opts.versionConflictError) throw Object.assign(new Error('Versie botst.'), { code: 'VERSION_CONFLICT' });
+          const copy: FlatFile = { id: 100 + ++seq, name: f.name.replace(/\.ifc$/, ' (kopie).ifc'), versions: [{ version: 1, data: text }] };
+          files.set(String(copy.id), copy);
+          return ref(copy);
+        }
+        f.versions.push({ version: latest(f).version + 1, data: text });
+        return ref(f);
+      },
+      async list() { calls.push({ fn: 'list', args: [] }); return [...files.values()].map((f) => ({ id: f.id, name: f.name, modified: '2026-11-01T10:00:00Z' })); },
+      async versions(id: string) {
+        calls.push({ fn: 'versions', args: [id] });
+        return [...files.get(id)!.versions].reverse().map((v) => ({ version: v.version, modified: '2026-11-01T10:00:00Z', author: 'Anna' }));
+      },
+    };
+    const put = (id: string, name: string, versions: string[]) => {
+      files.set(id, { id, name, versions: versions.map((data, i) => ({ version: i + 1, data })) });
+    };
+    const otherUserSaves = (id: string) => { const f = files.get(id)!; f.versions.push({ version: latest(f).version + 1, data: latest(f).data }); };
+    const saves = () => calls.filter((c) => c.fn === 'save').map((c) => c.args[0] as AnyRecord);
+    return { host, calls, files, put, latest, otherUserSaves, saves };
+  };
+
+  // H1 — herkenning: de platte host telt als opslag, één adapter per hostobject.
+  const flat = flatSite();
+  setHost(flat.host);
+  truthy('H1 platte host ⇒ opslag', isSiteStorage(getSiteStorage()));
+  eq('H1 platte host ⇒ beschikbaar', siteStorageAvailable(), true);
+  truthy('H1 één adapter per hostobject', getSiteStorage() === getSiteStorage());
+  truthy('H1 een andere host ⇒ een andere adapter', (setHost(flatSite().host), getSiteStorage()) !== (setHost(flat.host), getSiteStorage()));
+  setHost({ open: async () => null, save: async () => null, list: async () => [] });
+  eq('H1 drie van de vier functies ⇒ geen opslag', getSiteStorage(), null);
+  // Een geldige `storage` wint: de bestaande route blijft precies zoals hij was.
+  const classic = memorySite();
+  setHost({ ...flat.host, storage: classic.storage });
+  truthy('H1 geldige storage wint van de platte functies', getSiteStorage() === classic.storage);
+  setHost({ ...flat.host, storage: { list: 1 } });
+  truthy('H1 ongeldige storage ⇒ de platte functies', getSiteStorage() !== null && getSiteStorage() !== classic.storage);
+
+  // H2 — initialFileId met de platte host (ook via de parent).
+  setHost({ ...flat.host, initialFileId: 'p1' });
+  eq('H2 initialFileId met platte host', siteInitialFileId(), 'p1');
+  setHost({ initialFileId: 'p1', open: async () => null });
+  eq('H2 initialFileId zonder volledige platte host ⇒ null', siteInitialFileId(), null);
+  clearHost();
+  win.parent = sameOriginParent({ openaecHost: { ...flat.host, initialFileId: 'p9' } });
+  eq('H2 platte host op de parent ⇒ initialFileId', siteInitialFileId(), 'p9');
+  truthy('H2 platte host op de parent ⇒ opslag', getSiteStorage() !== null);
+  clearHost();
+
+  // H3 — de adapter: soort van de versie blijft, ids als tekst, alleen-lezen, foutcodes.
+  const ifcText = 'ISO-10303-21;';
+  const a = flatSite();
+  a.put('p1', 'Plan.ifc', [ifcText, ifcText]);
+  setHost(a.host);
+  const opened = await openSiteFile('p1');
+  eq('H3 open zonder versie ⇒ één argument', a.calls.at(-1)?.args, ['p1']);
+  eq('H3 open ⇒ versie als tekst', [opened.version, opened.file.version], ['2', '2']);
+  eq('H3 open ⇒ site-ref en schrijfbaar', [opened.ref, opened.readOnly], [{ kind: 'site', id: 'p1' }, false]);
+  eq('H3 bytes (ArrayBuffer) ⇒ tekst', opened.content, ifcText);
+  const saved = await saveSiteFileVersion('p1', 'Plan.ifc', 'NIEUW', '2');
+  eq('H3 save met id ⇒ expectedVersion als GETAL', a.saves().at(-1), { isBytes: true, id: 'p1', expectedVersion: 2 });
+  eq('H3 save ⇒ versie als tekst, geen kopie', saved, { id: 'p1', name: 'Plan.ifc', version: '3' });
+  // Een versie die de adapter niet kent, gaat als tekst (een host die tekst gebruikt, krijgt tekst).
+  // (Deze host vergelijkt streng: '77' is niet 3, dus hij maakt een kopie.)
+  const unknown = await saveSiteFileVersion('p1', 'Plan.ifc', 'X', '77');
+  eq('H3 onbekende versie ⇒ expectedVersion tekst', a.saves().at(-1)?.expectedVersion, '77');
+  eq('H3 onbekende versie ⇒ hier een kopie', unknown.conflictCopy, true);
+  const created = await saveNewSiteFile('Nieuw.ifc', 'NIEUW');
+  eq('H3 save zonder id ⇒ { name }', a.saves().at(-1), { isBytes: true, name: 'Nieuw.ifc' });
+  eq('H3 numeriek id ⇒ tekst', [created.id, created.version], ['102', '1']);
+  truthy('H3 numeriek id is echt tekst', typeof created.id === 'string');
+  const versions = await listSiteVersions('p1');
+  eq('H3 versions ⇒ tekst, nieuwste eerst', versions.map((v) => v.version), ['3', '2', '1']);
+  const older = await openSiteFile('p1', { version: '1' });
+  eq('H3 oudere versie ⇒ open met het GETAL', a.calls.filter((c) => c.fn === 'open').at(-1)?.args, ['p1', 1]);
+  eq('H3 oudere versie ⇒ geen ref en geen basis', [older.ref, older.version], [null, null]);
+  const listed = await listSiteFiles(['ifc']);
+  eq('H3 list ⇒ ids als tekst', listed.map((f) => f.id), ['p1', unknown.id, created.id]);
+  truthy('H3 list ⇒ elk id is tekst', listed.every((f) => typeof f.id === 'string'));
+  // Alleen-lezen: geen ref, geen basis, ook zonder versie geen fout.
+  const ro = flatSite({ readOnly: true });
+  ro.put('r1', 'Slot.ifc', [ifcText]);
+  setHost(ro.host);
+  const roOpened = await openSiteFile('r1');
+  eq('H3 alleen-lezen ⇒ geen ref, geen basis', [roOpened.ref, roOpened.version, roOpened.readOnly], [null, null, true]);
+  // Foutcodes.
+  await rejects('H3 soort_niet_toegestaan ⇒ fout met de tekst van de host', () => saveNewSiteFile('Plan.pdf', 'X'), /Alleen \.ifc/);
+  const vc = flatSite({ versionConflictError: true });
+  vc.put('p1', 'Plan.ifc', [ifcText, ifcText]);
+  setHost(vc.host);
+  await openSiteFile('p1');
+  vc.otherUserSaves('p1');
+  let vcErr: unknown = null;
+  try { await saveSiteFileVersion('p1', 'Plan.ifc', 'X', '2'); } catch (err) { vcErr = err; }
+  eq('H3 VERSION_CONFLICT ⇒ conflict', isSiteConflict(vcErr), true);
+  eq('H3 VERSION_CONFLICT ⇒ tekst blijft', (vcErr as Error)?.message, 'Versie botst.');
+  eq('H3 not-found gaat ongewijzigd door', await openSiteFile('weg').then(() => null, (err) => isSiteNotFound(err)), true);
+  // Conflictkopie: de adapter markeert het antwoord; de storage-vorm met een ander id blijft een fout.
+  const cc = flatSite();
+  cc.put('p1', 'Plan.ifc', [ifcText, ifcText]);
+  setHost(cc.host);
+  await openSiteFile('p1');
+  cc.otherUserSaves('p1');
+  const copy = await saveSiteFileVersion('p1', 'Plan.ifc', 'X', '2');
+  eq('H3 conflict ⇒ kopie met eigen id en naam', [copy.conflictCopy, copy.name, copy.version, copy.id !== 'p1'], [true, 'Plan (kopie).ifc', '1', true]);
+  const otherId = memorySite({ badAnswer: 'other-id' });
+  otherId.put('p1', 'Plan.ifc', [ifcText]);
+  setHost({ storage: otherId.storage });
+  await rejects('H3 storage-vorm: ander id blijft een fout', () => saveSiteFileVersion('p1', 'Plan.ifc', 'X', 'v1'), /ander bestand-id/);
+  await rejects('H3 storage-vorm: zelfgezette conflictCopy telt niet', async () => {
+    const forged = memorySite();
+    forged.put('p1', 'Plan.ifc', [ifcText]);
+    const storage = { ...forged.storage, save: async () => ({ id: 'ander', name: 'x.ifc', version: 'v9', conflictCopy: true }) };
+    setHost({ storage });
+    return saveSiteFileVersion('p1', 'Plan.ifc', 'X', 'v1');
+  }, /ander bestand-id/);
+
+  // H4 — de opslaanroute in de store met de platte host.
+  for (const n of [...S().ui.notifications]) S().dismissNotification(n.id);
+  const st = flatSite();
+  S().newProject();
+  S().setProject({ name: 'Super', startDate: '2026-08-03' });
+  S().addTask({ name: 'Fundering' });
+  const ifc = writeIFC(buildWriteIFCInput(S()));
+  st.put('p1', 'Super.ifc', [ifc, ifc]);
+  setHost({ ...st.host, initialFileId: 'p1' });
+  S().newProject();
+  eq('H4 openFromSite (startbestand) ⇒ true', await S().openFromSite(siteInitialFileId()!), true);
+  eq('H4 site-doel en basis als tekst', [S().siteFileId, S().siteFileVersion, S().filePath], ['p1', '2', 'Super.ifc']);
+  S().addTask({ name: 'Ruwbouw' });
+  await S().saveFile();
+  eq('H4 Ctrl+S ⇒ save(bytes, { id, expectedVersion: 2 })', st.saves().at(-1), { isBytes: true, id: 'p1', expectedVersion: 2 });
+  eq('H4 Ctrl+S ⇒ opgeslagen op v3', [S().isDirty, S().siteFileVersion], [false, '3']);
+  // Conflictkopie: de kopie wordt het doel, het document telt als opgeslagen, melding met de naam.
+  st.otherUserSaves('p1');
+  S().addTask({ name: 'Afbouw' });
+  await S().saveFile();
+  const copyNote = S().ui.notifications.at(-1);
+  eq('H4 conflict ⇒ melding met de kopienaam', [copyNote?.messageKey, copyNote?.params?.name, copyNote?.params?.original], ['notifications.siteSaveConflictCopy', 'Super (kopie).ifc', 'Super.ifc']);
+  truthy('H4 conflict ⇒ kopie is het doel', S().siteFileId !== 'p1' && st.files.has(String(S().siteFileId)));
+  eq('H4 conflict ⇒ opgeslagen onder de kopie', [S().filePath, S().siteFileVersion, S().isDirty], ['Super (kopie).ifc', '1', false]);
+  eq('H4 conflict ⇒ kopie in Recent', S().recentFiles[0]?.ref, { kind: 'site', id: S().siteFileId });
+  eq('H4 origineel ongemoeid', st.latest(st.files.get('p1')!).version, 4);
+  // Volgende Ctrl+S gaat naar de kopie.
+  const copyId = S().siteFileId;
+  S().addTask({ name: 'Oplevering' });
+  await S().saveFile();
+  eq('H4 daarna Ctrl+S naar de kopie', st.saves().at(-1), { isBytes: true, id: copyId, expectedVersion: 1 });
+  eq('H4 kopie op v2', [S().siteFileId, S().siteFileVersion], [copyId, '2']);
+  // Opslaan als ⇒ save(bytes, { name }); een vreemd formaat ⇒ saveFailed met de tekst van de host.
+  setSiteSaveAsker(async () => ({ kind: 'site', name: 'Variant.ifc' }));
+  await S().saveFileAs();
+  eq('H4 Opslaan als ⇒ { name }', st.saves().at(-1), { isBytes: true, name: 'Variant.ifc' });
+  eq('H4 Opslaan als ⇒ nieuw doel', [S().filePath, S().siteFileVersion, S().isDirty], ['Variant.ifc', '1', false]);
+  S().addTask({ name: 'PDF-poging' });
+  setSiteSaveAsker(async () => ({ kind: 'site', name: 'Variant.pdf' }));
+  await S().saveFileAs();
+  const kindNote = S().ui.notifications.at(-1);
+  eq('H4 soort_niet_toegestaan ⇒ saveFailed met de tekst', [kindNote?.messageKey, kindNote?.detail], ['notifications.saveFailed', 'Alleen .ifc mag hier.']);
+  eq('H4 soort_niet_toegestaan ⇒ blijft gewijzigd', S().isDirty, true);
+  // VERSION_CONFLICT in de store ⇒ de bestaande conflictmelding, document blijft gewijzigd.
+  const vcs = flatSite({ versionConflictError: true });
+  vcs.put('p1', 'Super.ifc', [ifc]);
+  setHost(vcs.host);
+  S().newDocument();
+  await S().openFromSite('p1');
+  vcs.otherUserSaves('p1');
+  S().addTask({ name: 'Botsing' });
+  await S().saveFile();
+  eq('H4 VERSION_CONFLICT ⇒ siteSaveConflict', S().ui.notifications.at(-1)?.messageKey, 'notifications.siteSaveConflict');
+  eq('H4 VERSION_CONFLICT ⇒ blijft gewijzigd op v1', [S().isDirty, S().siteFileId, S().siteFileVersion], [true, 'p1', '1']);
+  // Alleen-lezen in de store: geen doel, geen basis, melding; Ctrl+S vraagt een naam.
+  const ros = flatSite({ readOnly: true });
+  ros.put('r1', 'Slot.ifc', [ifc]);
+  setHost(ros.host);
+  S().newDocument();
+  eq('H4 alleen-lezen ⇒ openFromSite slaagt', await S().openFromSite('r1'), true);
+  eq('H4 alleen-lezen ⇒ geen doel, geen basis, eigen naam', [S().siteFileId, S().siteFileVersion, S().filePath], [null, null, 'Slot.ifc']);
+  eq('H4 alleen-lezen ⇒ melding', [S().ui.notifications.at(-1)?.messageKey, S().ui.notifications.at(-1)?.params?.name], ['notifications.siteFileReadOnly', 'Slot.ifc']);
+  eq('H4 alleen-lezen ⇒ in Recent', S().recentFiles[0]?.ref, { kind: 'site', id: 'r1' });
+  const asked: string[] = [];
+  setSiteSaveAsker(async (req) => { asked.push(req.defaultName); return null; });
+  S().addTask({ name: 'Bekeken' });
+  await S().saveFile();
+  eq('H4 alleen-lezen ⇒ Ctrl+S vraagt een naam (nieuw bestand)', asked, ['Slot.ifc']);
+  eq('H4 alleen-lezen ⇒ geen save naar r1', ros.saves().length, 0);
 
   resetSiteAskers();
   clearHost();

@@ -1,7 +1,7 @@
 import type { KeyboardEvent, MouseEvent, Ref } from 'react';
 import type { DocumentCard } from './useDocumentCards';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from './documentTabNavigation';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 interface DocumentTabControlProps {
   card: DocumentCard;
@@ -59,7 +59,7 @@ export function DocumentTabControl({
         aria-label={`${closeLabel} ${card.title}`}
         onClick={onClose}
       >
-        <Icon id="document.close" size={16} />
+        {b2IconsOn() ? <Icon id="document.close" size={16} /> : <span aria-hidden="true">×</span>}
       </button>
     </div>
   );

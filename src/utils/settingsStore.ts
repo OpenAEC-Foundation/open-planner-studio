@@ -17,10 +17,12 @@ import type {
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { LayoutOverlays } from '@/types/view';
-import type { FeatureFlagValues } from '@/utils/featureFlags';
+import { parseFeatureFlagValues, type FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
+import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -59,6 +61,8 @@ let warnedSettingsWrite = false;
 export function writeLocal(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
+    // Ingebed met `settings` van de host (#818): ook daar bewaren, gebundeld.
+    noteSiteHostSettingChanged(key);
   } catch (error) {
     if (!warnedSettingsWrite) {
       warnedSettingsWrite = true;
@@ -68,7 +72,10 @@ export function writeLocal(key: string, value: string): void {
 }
 
 export function removeLocal(key: string): void {
-  try { localStorage.removeItem(key); } catch { /* opslag geblokkeerd: niets te verwijderen */ }
+  try {
+    localStorage.removeItem(key);
+    noteSiteHostSettingChanged(key);
+  } catch { /* opslag geblokkeerd: niets te verwijderen */ }
 }
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
@@ -105,7 +112,7 @@ export async function saveTheme(theme: UITheme): Promise<void> {
 // Alle andere oude thema's vallen terug op 'dark'
 //
 // Geëxporteerd (bewust klein oppervlak) zodat `tests/planning/check-theme-premirror.ts` deze map
-// woord-voor-woord kan vergelijken met de handkopie in `index.html` — zonder deze export zou die
+// woord-voor-woord kan vergelijken met de handkopie in `public/theme-prepaint.js` — zonder deze export zou die
 // poort niet kunnen bewijzen dat de twee elkaar niet zijn ontgroeid.
 export const THEME_MIGRATION: Record<string, UITheme> = {
   'default': 'dark',
@@ -129,8 +136,28 @@ function devSessionTheme(): UITheme | null {
   return theme === 'light' || theme === 'dark' || theme === 'high-contrast' ? theme : null;
 }
 
+/** Het thema voor deze sessie zonder `ops-theme` te schrijven: eerst de dev-link, dan het thema van de
+ *  host als de tool ingebed draait (#818, `thema` op `window.openaecHost`). Het pre-paint-script
+ *  (`public/theme-prepaint.js`) kiest in dezelfde volgorde host → bewaarde voorkeur. Kiest de
+ *  gebruiker in de app een thema, dan geldt dat voor de rest van de sessie (`applyTheme` bewaart het
+ *  zoals altijd); bij de volgende start wint de host weer, net als bij de taal. */
+function sessionTheme(): UITheme | null {
+  return devSessionTheme() ?? siteHostTheme();
+}
+
+/** Kiest de volgende start het thema van de host (#818)? Dat is zo als de host nu een geldig `thema`
+ *  geeft en er geen dev-link-thema is (dat wint bij elke start, zie `sessionTheme`). Dan geldt een
+ *  themakeuze in de app alleen tot de volgende start. De parameters zijn er voor de headless check:
+ *  daar is `import.meta.env.DEV` altijd false. */
+export function hostThemeWinsNextStart(
+  devTheme: UITheme | null = devSessionTheme(),
+  hostTheme: UITheme | null = siteHostTheme(),
+): boolean {
+  return devTheme === null && hostTheme !== null;
+}
+
 export async function initTheme(): Promise<UITheme> {
-  const session = devSessionTheme();
+  const session = sessionTheme();
   if (session) return session;
   const saved = readLocal('ops-theme');
   if (!saved) return 'dark';
@@ -145,12 +172,12 @@ export async function initTheme(): Promise<UITheme> {
 
 /** Synchrone tegenhanger van `initTheme` voor de stóre-default: leest en migreert de
  *  opgeslagen themavoorkeur zonder te persisteren. Zo start `ui.uiTheme` met hetzelfde thema als
- *  het pre-paint-script in index.html en kan het `data-theme`-effect in App.tsx bij de eerste
+ *  het pre-paint-script (`public/theme-prepaint.js`) en kan het `data-theme`-effect in App.tsx bij de eerste
  *  commit nooit een verkeerde default terugzetten (een themaflits). Headless (Node,
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
-    const session = devSessionTheme();
+    const session = sessionTheme();
     if (session) return session;
     const saved = readLocal('ops-theme');
     if (!saved) return 'dark';
@@ -189,6 +216,28 @@ export async function saveExperimentalSettingsVisible(value: boolean): Promise<v
 
 export async function saveFeatureFlags(value: FeatureFlagValues): Promise<void> {
   await setSetting('featureFlags', value);
+}
+
+/** De iconenkeuze geldt vanaf de eerste render. De URL wijzigt alleen deze bestaande vlag. */
+export function loadFeatureFlags(stored?: FeatureFlagValues): FeatureFlagValues {
+  let flags: FeatureFlagValues = stored ?? {};
+  if (!stored) {
+    try {
+      flags = parseFeatureFlagValues(JSON.parse(readLocal('ops-featureFlags') ?? 'null')) ?? {};
+    } catch { /* Ongeldige opslag: alle experimentele functies uit. */ }
+  }
+  const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location?.search ?? '');
+  // Het ontwikkelblad beoordeelt B2. Ook de latere instellingen-hydratatie houdt die keuze vast.
+  const reviewSheet = import.meta.env.DEV ? params.get('iconen') : null;
+  const family = reviewSheet === 'status' || reviewSheet === 'dock' ? 'b2' : params.get('icons');
+  if (family === 'b2' || family === 'lucide') {
+    const enabled = family === 'b2';
+    if (flags['b2-icons'] !== enabled) {
+      flags = { ...flags, 'b2-icons': enabled };
+      writeLocal('ops-featureFlags', JSON.stringify(flags));
+    }
+  }
+  return flags;
 }
 
 // Breedte van de takentabel links in de Gantt (ui.leftPanelWidth); begrensd

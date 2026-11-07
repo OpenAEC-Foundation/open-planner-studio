@@ -42,7 +42,7 @@ export function NoticeStrip({
       data-ops-notice-tone={tone}
       {...stripProps}
     >
-      <Icon id={icon} size={14} className={`shrink-0 ${error ? '' : 'text-text-secondary'}`} style={error ? { color: 'var(--error)' } : undefined} />
+      <Icon id={icon} size={14} className={`shrink-0 ${error ? '' : 'text-text-secondary'}`} style={error ? { color: 'var(--error)' } : undefined} lucide={{ className: `shrink-0 ${error ? '' : 'text-accent'}` }} />
       <span className="flex-1">{text}</span>
       <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
         {actionLabel}
