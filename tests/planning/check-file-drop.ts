@@ -123,6 +123,8 @@ function dropFile(name: string, content: string | Error): DroppedFile {
 }
 const documentNames = () => S().getOpenDocuments().map((d) => d.title);
 const noticesOf = (key: string) => S().ui.notifications.filter((n) => n.messageKey === key);
+// De store houdt hoogstens `MAX_NOTIFICATIONS` (3) meldingen; tel daarom vanaf een lege lijst.
+const clearNotices = () => { for (const n of [...S().ui.notifications]) S().dismissNotification(n.id); };
 
 check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '5']) === '1, 2, 3, 4, 5'
   && fileNameList(['1', '2', '3', '4', '5', '6', '7']) === '1, 2, 3, 4, 5, …', 'de namen in de melding: hoogstens vijf');
@@ -159,7 +161,7 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 
 {
   // Alleen onbekende formaten: niets gelezen of geopend, wel één melding met alle namen.
-  for (const n of [...S().ui.notifications]) S().dismissNotification(n.id);
+  clearNotices();
   const before = documentNames();
   reads.length = 0;
   const outcome = await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x'), dropFile('notities', 'y')], labels, () => false);
@@ -182,6 +184,7 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 
 {
   // Poort dicht (dialoog open, wachtende vraag): niets gelezen, niets geopend.
+  clearNotices();
   const before = documentNames();
   reads.length = 0;
   const outcome = await openDroppedFiles(useAppStore, [dropFile('a.ifc', ifcA)], labels, () => true);
@@ -195,6 +198,7 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 
 {
   // Een bestand dat niet te lezen is: melding, en de rest gaat door.
+  clearNotices();
   const notes = S().ui.notifications.length;
   const before = S().documents.length;
   const outcome = await openDroppedFiles(useAppStore, [
@@ -209,6 +213,7 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 
 {
   // Een bestand met een bekende extensie maar kapotte inhoud: de openroute meldt het zelf.
+  clearNotices();
   const notes = S().ui.notifications.length;
   const before = S().documents.length;
   const outcome = await openDroppedFiles(useAppStore, [dropFile('kapot.ifc', 'geen ifc')], labels, () => false);
