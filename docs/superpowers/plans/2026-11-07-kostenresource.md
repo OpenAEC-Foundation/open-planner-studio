@@ -28,7 +28,9 @@ Nagegaan in de bronnen (researcher, 2026-11-07):
 - Niet bevestigd: de schaal van MSPDI `<Assignment><Cost>` (MPXJ deelt valuta door 100). Bewijzen met een
   fixture vóór PR2.
 
-Technische keuzes in dit plan zijn van de orkestrator; de reden staat erbij.
+Technische keuzes in dit plan zijn van de orkestrator; de reden staat erbij. Review ronde 1 (GPT-6.1-Sol,
+2026-11-07, oordeel nee) is verwerkt: MSPDI-writer naar PR2, bibliotheek- en mijlpaalroutes, tabel/purge,
+histogramkern, pool-JSON-compatibiliteit, gemiste UI- en rapportplekken, IFC-motivering.
 
 ## Gedrag
 
@@ -55,10 +57,23 @@ Technische keuzes in dit plan zijn van de orkestrator; de reden staat erbij.
 - Store: nieuwe actie `setAssignmentCost(id, amount | undefined)` in `resourceSlice` (undoable, `isDirty`,
   geen `scheduleStale`, zoals `setAssignmentContour`), lichaam in `assignmentMutations.ts`, MCP-tweeling in
   `createMcpTransactions.ts`. `acceptedAssignmentPatch`, `setAssignmentWork` en `contoursAfterEdit` weigeren
-  COST. `insertAssignment`/`removeAssignment`/`relocateAssignment` slaan voor COST `invalidate(task)` over.
+  COST. Geen `invalidate(task)` / `invalidateForAssignmentChange` voor COST op **elke** route:
+  `insertAssignment`, `removeAssignment`, `relocateAssignment`, het tabelpad (`assignmentPlan.ts:266`) en
+  `purgeResource` (`assignmentMutations.ts:139`). Die functie wist vensters, duur-walks en nivelleergaten
+  (`taskDefaults.ts:673`); een bedrag mag dat nooit veroorzaken. De tabel schrijft inzet/curve niet op COST.
 - Typewissel naar of van COST: geweigerd zolang de resource toewijzingen heeft. Zonder toewijzingen wist de
   wissel naar COST tarief, kalender, stappen, eenheid en ploeg, en zet `maxUnits` op 1. Reden: anders moet
   inzet/werk stil in een bedrag vertaald worden en terug.
+- Dezelfde regel geldt voor de bibliotheek (review ronde 1, punt 3): `updatePoolResource`
+  (`librarySlice.ts:665`), `applyResourceUpdate` (`libraryOps.ts:607`) en de verversing van slapende
+  documenten (`librarySlice.ts:1091`) kopiëren `type` nu letterlijk. Een overgang over de COST-grens op een
+  documentresource met toewijzingen wordt daar niet uitgevoerd: de documentresource houdt type, velden,
+  toewijzingen en bedragen, en staat daarna als bibliotheekafwijking (`type` zit al in `RESOURCE_DIFF_FIELDS`).
+  Ook bij openen, wisselen en herstel.
+- Mijlpalen (besluit Ethan): COST mag op een mijlpaal, op elke route: toevoegen (`resourceSlice.ts:165`),
+  "Verplaats naar…" (`moveCandidates.ts:35`, `resourceSlice.ts:279`), het tabelpad (`assignmentPlan`), MCP,
+  en taak → mijlpaal (`taskSlice.ts:1128` plus de UI-controle) als de taak alleen COST-toewijzingen heeft.
+  Bedrag en undo blijven behouden; werk- en materiaaltoewijzingen blijven op een mijlpaal geweigerd.
 - `resources` en `assignments` staan al in `DOCUMENT_FIELDS` en `IFC_SAVE_KEYS`; geen nieuw documentveld.
 
 ## 2. Plekken die op het type schakelen
@@ -66,13 +81,18 @@ Technische keuzes in dit plan zijn van de orkestrator; de reden staat erbij.
 | plek | COST |
 |---|---|
 | `ResourceLoad.ts:427-430` | toewijzing overslaan |
+| `ResourceLoad.ts:637` `computeHistogramReport` (eigen verdelingslus; ook MCP `readTools.ts:839`, ongescopeerd) | COST uitsluiten in de kern zelf, bij verdeling én gerapporteerde resources |
+| `ribbonWidgets.tsx:707` (linttoewijzer geeft inzet + curve) | voor COST geen inzet/curve |
+| `ResourcePanelCompact.tsx:61` | capaciteit niet bewerkbaar voor COST |
+| `resourceGantt.ts:216`, `printPreview.ts:453` (som inzet, "Eenh./d") | COST niet optellen; bedrag of "—" |
+| `public/skills/goed-plannen/SKILL.md:59` (+ kopie in `.claude/skills/`), MCP-toolbeschrijvingen | duurclaims per type bijwerken |
 | `ResourceLeveler.ts:237`, `LevelingDialog.tsx:34` | niet renewable |
 | `workRuleApply.ts:106-109, 595, 1200`; `mppReader.ts:1494` | `drivesDuration` via de helper |
 | `ganttRenderOptions.ts:130, 162`, `useGanttHistogramInteraction.ts:156` | niet in somrij en histogramkiezer |
 | `TaskAssignmentsSection.tsx` | bedragveld, zie §7 |
-| `taskColumnRegistry.ts:769, 1148-1229` | geen ⚠; inzet/curve/werk tonen "—" en weigeren invoer (celfout `assignmentCostResource`); nieuwe alleen-lezen kolom bedrag |
+| `taskColumnRegistry.ts:769, 1148-1229` | geen ⚠; inzet/curve/werk tonen "—" en weigeren invoer (celfout `assignmentCostResource`). Geen nieuwe bedragkolom (later) |
 | `filterEval.ts:86` | `'COST'` achteraan in `RESOURCE_TYPE_BAND_ORDER` |
-| `resourceGantt.ts`, `useTableReportSpec.tsx`, `App.tsx:226`, `ReportPanel.tsx:500`, `noneLabel.ts:18` | label `resource.type.cost` |
+| `useTableReportSpec.tsx`, `App.tsx:226`, `ReportPanel.tsx:500`, `noneLabel.ts:18` | label `resource.type.cost` |
 | `resourceLoading.ts`, `resourceAssignments.ts:83` (rapporten) | overslaan; rij toont het bedrag |
 | `distribute.ts:255, 330` | geen vraag; COST-poolitem geblokkeerd zoals materiaal |
 | `extTypes.ts`, `extMappers.ts` | `'COST'` en `costAmount` |
@@ -87,23 +107,31 @@ Technische keuzes in dit plan zijn van de orkestrator; de reden staat erbij.
   versie de duur gaan sturen. `RESOURCE_TYPE_TO_IFC` krijgt COST; de inverse sluit COST expliciet uit.
   `extractResources` leest `args[4] === 'COST'` + `.USERDEFINED.` op de materiaalentiteit als COST.
 - Bedrag: in het bestaande `OPS_Timephased`-blob onder `GUID#N` als `costAmount`
-  (`ifcWriter.ts:1892-1936`, lezer `ifcReader.ts:3405-3414, 3502-3515`). Niet native: `IfcRelAssignsToProcess`
-  draagt geen psets en `BaseCosts` laat in de schematabel geen type toe.
+  (`ifcWriter.ts:1892-1936`, lezer `ifcReader.ts:3405-3414, 3502-3515`). Reden: het bedrag hoort bij de
+  toewijzing, niet bij de resource, en `IfcRelAssignsToProcess` draagt geen psets. IFC kent op de resource wel
+  `BaseCosts` (`IfcAppliedValue`), maar dat is één bedrag per resource, niet per toewijzing. Grens: andere
+  IFC-lezers zien geen gestandaardiseerd toewijzingsbedrag. Geen eigen kostenmodel in IFC bouwen.
 - Oudere versie: ziet MATERIAL met inzet 1, negeert bedrag en markering, geen crash. Na opslaan daar zijn
   markering en bedrag weg. Restrisico: twee parallelle taken met dezelfde kostenresource geven daar
   overallocatie. Noemen in de releasenotes.
 - Schema's IFC4X3_ADD2, IFC4X3 en IFC4 kennen de entiteit en `USERDEFINED`; `check-ifc-schema.ts` toetst.
-- Bibliotheekpool (`OPS_Library`-JSON) neemt `'COST'` letterlijk mee.
+- Bibliotheekpool (`OPS_Library`-JSON, `libraryIfc.ts:53`) is autoritatief en wordt door oudere versies
+  letterlijk overgenomen (`libraryOps.ts:142, 288`); in v2026.44.0 telt een onbekend type als duursturend.
+  Daarom schrijft de pool-JSON een COST-resource als `type: 'MATERIAL'` plus een marker (bv.
+  `costResource: true`); de lezer zet dat terug naar COST. Een oudere versie ziet dan MATERIAL, net als bij
+  het projectbestand. Bewijzen tegen de code van v2026.44.0 (marker bewaard of gestript: beide veilig).
 
 ## 4. Import en export
 
-- PR1, schrijvers:
-  - MSPDI: `<Type>2</Type>` zonder MaxUnits/MaterialLabel/StandardRate; toewijzing `<Cost>` (schaal zoals
-    vastgesteld) en geen `<Work>`.
-  - XER en P6 XML: COST-resources en hun toewijzingen overslaan, met verliescode `costResources`
-    (`xerWriteTypes.ts` `LOSS_ORDER`, `p6XmlExportNotice.ts`).
+- PR1, schrijvers: MSPDI, XER en P6 XML slaan COST-resources en hun toewijzingen over, met een
+  verliesmelding (`costResources`; `xerWriteTypes.ts` `LOSS_ORDER`, `p6XmlExportNotice.ts`, en het
+  MSPDI-exportverlies). Reden (review ronde 1, punt 1 en 2): de huidige MSPDI-lezer maakt type 2 tot LABOR en
+  leest geen `<Cost>`, en de geldschaal is niet bewezen. Een export die de eigen app bij openen kapotleest
+  mag niet op main.
   - CSV schrijft geen resources; geen werk.
-- PR2, MS Project lezen: MSPDI `Type=2` → COST, bedrag uit `<Assignment><Cost>`; `.mpp` `isCost` → COST
+- PR2, MS Project lezen én schrijven: eerst een onafhankelijke fixture met bekende bedragen inclusief centen
+  (uit MS Project of MPXJ, niet uit de eigen writer) die de schaal van `<Cost>` vastlegt. Dan MSPDI-writer
+  `<Type>2</Type>` + `<Cost>` zonder `<Work>`, en lezer `Type=2` → COST, bedrag uit `<Assignment><Cost>`; `.mpp` `isCost` → COST
   (`mppEntities.ts:336-346`), `costResourceIds` weg; bedrag via `AssignmentField.COST` met een bytefixture,
   anders eerst als verlies tellen. Lost knownbug 441 op; 440 (tak "precies één toewijzing",
   `mppReader.ts:~1517`) filtert ook op `drivesDuration`.
@@ -145,19 +173,21 @@ Geen feature flag, mits PR1 compleet is (IFC-round-trip in dezelfde PR).
 | PR | inhoud | releasebaar |
 |---|---|---|
 | PR1 kern | §1, §2, §3, §5, §6, §7; schrijvers uit §4 | ja; import blijft als op main |
-| PR2 MS Project lezen | §4 PR2; knownbug 440 + 441 eruit | ja |
+| PR2 MS Project | §4 PR2 (fixture, writer en lezer); knownbug 440 + 441 eruit | ja |
 | PR3 P6-expenses | §4 PR3 | ja |
 
 ## 9. Tests
 
 - PR1: `check-ifc-roundtrip.ts` (`costAmount` in de `Required<ResourceAssignment>`-fixture, `RCost`,
   entiteit + markering, blob met alleen `costAmount`), `check-ifc-schema.ts`, nieuw `check-cost-resource.ts`
-  (geen belasting/histogram/nivelleren, duur onder FIXED_WORK onveranderd, niet stale, weigeringen, undo,
-  MSPDI-writer, XER/P6-verlies), `check-resource-cost-hours.ts`, `check-work-rule-store.ts`,
+  (geen belasting; histogramkern ongescopeerd, gescopeerd en gemengd; niet nivelleren; duur onder FIXED_WORK
+  onveranderd en sturing/datums behouden via paneel, tabel en purge; niet stale; weigeringen; bibliotheek-
+  overgang over de COST-grens; mijlpaalroutes; bedrag wijzigen → undo/redo → documentwissel → recovery, ook
+  met `0` en een gewist bedrag; MSPDI/XER/P6-exportverlies; pool-JSON met marker), `check-resource-cost-hours.ts`, `check-work-rule-store.ts`,
   `check-xer-export-loss.ts`, `check-p6xml-export-loss.ts`, `tests/library/check-occupancy.ts`,
   MCP `cases-resource-crud.ts`, `cases-assignment-invalidation.ts`, `cases-work-rule.ts`; browser: stap in
   het bestaande scenario van `resource-cost-total.spec.ts`. `expected-checks.txt` opnieuw.
-- PR2: `check-mpp-walk-units.ts`, `check-mpp-import.ts`, nieuw `check-mspdi-cost-resource.ts`,
+- PR2: de schaalfixture, `check-mpp-walk-units.ts`, `check-mpp-import.ts`, nieuw `check-mspdi-cost-resource.ts`,
   `check-work-rule-mapping.ts`.
 - PR3: `check-xer-writer.ts`, `check-xer-field-whitelist.ts`, `check-xer-p6xml-parity.ts`,
   `check-p6xml-writer-p6.ts`, `check-xer-export-loss.ts`, archieftoets.
