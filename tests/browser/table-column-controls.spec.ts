@@ -286,6 +286,14 @@ test('takenlijst naast de Gantt: eigen plus en eigen kolommen; het lint opent de
   await expect(chooser).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(chooser).toHaveCount(0);
+  // Met Resourcedock aan blijft de Tabel staan, dus ook dan sluit een tweede klik de kiezer.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showResourcePanel: true, resourcePanelDocked: true }));
+  await expect(shell(page, 'full-task-grid')).toBeVisible();
+  await columnsButton.click();
+  await expect(chooser).toBeVisible();
+  await columnsButton.click();
+  await expect(chooser).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showResourcePanel: false, resourcePanelDocked: false }));
 
   // Klassieke weergaveknoppen aan (legacy-instelling, als fixture): Beeld → Weergave → Kolommen… gaat
   // naar het tabblad Tabel en opent daar dezelfde kiezer.
