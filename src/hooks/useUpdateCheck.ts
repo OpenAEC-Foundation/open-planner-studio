@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
+import { UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { checkForUpdates, getInstallKind } from '@/services/updater/updaterService';
 import { loadLastVersion, saveLastVersion, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { detectJustUpdated } from '@/services/updater/releaseInfo';
@@ -46,7 +47,7 @@ export function useUpdateCheck(): void {
   useEffect(() => {
     if (updateChecked.current) return;
     updateChecked.current = true;
-    if (!isTauri()) return;
+    if (!UPDATES_AVAILABLE || !isTauri()) return;
     // Snap- en AUR-builds werkt de pakketbeheerder zelf bij (snapd, pacman) — de in-app
     // auto-check overslaan zodat we de gebruiker niet lastigvallen.
     getInstallKind()
@@ -68,7 +69,7 @@ export function useUpdateCheck(): void {
   useEffect(() => {
     if (justUpdatedChecked.current) return;
     justUpdatedChecked.current = true;
-    if (!isTauri()) return;
+    if (!UPDATES_AVAILABLE || !isTauri()) return;
     void (async () => {
       try {
         const { getVersion } = await import('@tauri-apps/api/app');

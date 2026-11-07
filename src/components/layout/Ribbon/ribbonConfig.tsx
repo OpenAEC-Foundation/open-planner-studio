@@ -511,9 +511,12 @@ const openResourcePanelButton: RibbonButtonSpec = {
     const showResourcePanel = useAppStore(s => s.ui.showResourcePanel);
     const resourcePanelDocked = useAppStore(s => s.ui.resourcePanelDocked);
     const { t } = useTranslation('menu');
+    const visible = showResourcePanel && !resourcePanelDocked;
     return {
-      onClick: () => setUI({ showResourcePanel: true, resourcePanelDocked: false }),
-      active: showResourcePanel && !resourcePanelDocked,
+      // Een tweede klik sluit het paneel weer, net als Resourcedock hiernaast (Ethan, 7 november 2026: een
+      // knop die een venster of paneel opent, sluit het bij een tweede klik).
+      onClick: () => setUI(visible ? { showResourcePanel: false } : { showResourcePanel: true, resourcePanelDocked: false }),
+      active: visible,
       title: t('ribbon.openResourcePanelTitle'),
     };
   },

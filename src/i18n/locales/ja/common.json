@@ -13,6 +13,8 @@
     "dismiss": "通知を閉じる",
     "taskEditRevertBlocked": "MCP クライアントまたは拡張機能による変更が途中で行われました。それ以前のタスク編集は元に戻されず、「元に戻す」の通常の手順として残っています。",
     "openFailed": "ファイルを開けませんでした",
+    "fileDropRefused": "開けませんでした: {{names}}。このアプリで開けるのは IFC、XML、MPP、XER、CSV だけです。",
+    "fileDropBlocked": "開けませんでした: {{names}}。先に開いているウィンドウを閉じてください。",
     "csvInvalidDate": "CSV を開けませんでした: CSV の {{row}} 行目、列「{{column}}」に読めない日付「{{value}}」があります。yyyy-mm-dd、dd-mm-yyyy、dd/mm/yyyy のいずれかで入力してください。",
     "extGuideCallbackFailed": "拡張機能 {{name}} のステップでエラーが発生しました。ガイドは続行します。",
     "extHelpProjectOpenFailed": "拡張機能 {{name}} のプロジェクトファイル {{file}} を開けませんでした。",
@@ -1625,5 +1627,9 @@
     "blockedDuplicate": "移動できません：「{{child}}」にはすでに {{resources}} が割り当てられています。",
     "blockedNoChild": "移動できません：「{{phase}}」に追加されるサブタスクは、マイルストーンかサマリータスクだけで、割り当てを持てません。",
     "actualWorkLost_other": "{{resource}} の割り当てには、すでに {{hours}} 時間の実績作業があります。削除すると、その実績作業は破棄されます。"
+  },
+  "fileDrop": {
+    "title": "ドロップして開く",
+    "subtitle": "プロジェクトファイルまたはインポート"
   }
 }

@@ -194,6 +194,9 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
+  | 'notifications.fileDropRefused'
+  | 'notifications.fileDropBlocked'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'
   | 'notifications.extHelpProjectOpenFailed'
@@ -232,6 +235,8 @@ export type NotificationMessageKey =
   // Ingebed (#818): de host heeft `settings`, maar die zijn deze sessie niet gelezen (te laat, een fout,
   // of een host die pas na de start kwam). Instellingen worden deze sessie dan niet bewaard.
   | 'notifications.hostSettingsUnavailable'
+  // Ingebed met een thema van de host (#818): een themakeuze in de app geldt tot de volgende start.
+  | 'notifications.hostThemeUntilRestart'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
