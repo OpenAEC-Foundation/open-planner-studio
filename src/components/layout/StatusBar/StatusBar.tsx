@@ -168,7 +168,7 @@ export function StatusBar() {
           title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
         >
-          <Icon id={AI_STATUS_ICON[aiServerStatus.state]} size={10} style={{ color: AI_STATUS_COLOR[aiServerStatus.state] }} lucide={{ fill: AI_STATUS_COLOR[aiServerStatus.state] }} />
+          <Icon id={AI_STATUS_ICON[aiServerStatus.state]} size={10} style={{ color: AI_STATUS_COLOR[aiServerStatus.state] }} lucide={{ icon: 'Circle', fill: AI_STATUS_COLOR[aiServerStatus.state] }} />
           <span>MCP</span>
         </button>
       )}

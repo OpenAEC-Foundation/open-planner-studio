@@ -92,7 +92,7 @@ export function AiServerGroup() {
       <span title={!tauri ? t('ai.desktopOnly') : undefined}>{toggleButton}</span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Icon id={AI_STATUS_ICON[status.state]} size={10} style={{ color: AI_STATUS_COLOR[status.state] }} lucide={{ fill: AI_STATUS_COLOR[status.state] }} />
+          <Icon id={AI_STATUS_ICON[status.state]} size={10} style={{ color: AI_STATUS_COLOR[status.state] }} lucide={{ icon: 'Circle', fill: AI_STATUS_COLOR[status.state] }} />
           <span className="ribbon-info">{statusText}</span>
         </div>
         {!tauri && (

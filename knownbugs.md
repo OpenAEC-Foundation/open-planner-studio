@@ -2021,3 +2021,9 @@ en noem het in je rapport of PR-tekst.
      overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
      kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
      eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+
+903. **VERVOLG: aparte `icons.useB2()` in de testbrug, alleen voor de kleurtest.** `src/utils/devBridge.ts:306` en
+     `:372` voegen een eigen doorgeefmethode toe die alleen `tests/browser/icon-orange.spec.ts` gebruikt. De bestaande
+     `store`-brug kan dezelfde vlag zetten (`__OPS__.store.getState().setUI({ featureFlags: … })`). Voorstel: de methode
+     weghalen en de test via `store` laten werken. Opruimen; het gedrag klopt. Uit de review van #844 (GPT-6.1-Sol,
+     xhigh, ronde 1, VERVOLG). — S

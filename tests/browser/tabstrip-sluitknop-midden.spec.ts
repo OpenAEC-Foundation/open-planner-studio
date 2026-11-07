@@ -25,7 +25,8 @@ async function offsets(page: Page): Promise<Offset[]> {
     const tab = group.querySelector('.ops-tab')!.getBoundingClientRect();
     const close = group.querySelector('.ops-tab-close')!;
     const button = close.getBoundingClientRect();
-    const glyph = close.querySelector('svg')!.getBoundingClientRect();
+    // Zonder B2 (#844) is het kruisje weer het ×-teken van vóór #765; met B2 een icoon.
+    const glyph = close.querySelector('span, svg')!.getBoundingClientRect();
     const mid = (r: DOMRect) => r.top + r.height / 2;
     const active = group.querySelector('.ops-tab')!.classList.contains('active');
     return {

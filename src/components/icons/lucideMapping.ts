@@ -255,7 +255,7 @@ export const LUCIDE_ICONS = {
  * meerdere oude vormen (zie de opmerkingen "ook …"). Een plek kiest er een met `<Icon lucide={{ icon: … }}>`.
  */
 export const LUCIDE_SHAPES = {
-  AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, CircleCheck, CircleHelp, CircleMinus,
+  AlertTriangle, Boxes, CheckCircle2, ChevronLeft, ChevronRight, Circle, CircleCheck, CircleHelp, CircleMinus,
   ClipboardCheck, Clock, Download, FileDown, FilePlus2, FileText, GitBranch, LayoutGrid, Library, LifeBuoy,
   ListTree, OctagonAlert, PackageOpen, Plus, RefreshCw, ShieldAlert,
 } satisfies Record<string, LucideIcon>;

@@ -46,7 +46,7 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
           }}
         >
           <span>{current?.label ?? value}</span>
-          {b2IconsOn() ? <Icon id="ui.dropdown" size={16} /> : <span className="!text-caption" style={{ opacity: 0.6 }}>▼</span>}
+          {b2IconsOn() ? <Icon id="ui.dropdown" size={16} /> : <span className="!text-caption" style={{ opacity: 0.6 }} data-icon="ui.dropdown">▼</span>}
         </button>
       }
     >

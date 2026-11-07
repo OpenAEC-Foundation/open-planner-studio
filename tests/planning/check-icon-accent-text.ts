@@ -125,11 +125,12 @@ function bareIcons(text: string, tag: Tag): string[] {
 const line = (text: string, index: number) => text.slice(0, index).split('\n').length;
 /**
  * Alleen wat met B2 aan geldt. Zonder B2 (#844) tekent de app de oude Lucide-iconen, met hun oude oranje: dat staat
- * in `lucide={{ … }}` op een icoon en in de tak `b2IconsOn() ? undefined : …`. Die tekst valt hier weg; de regels
+ * in `lucide={{ … }}` op een icoon en in de tak na `b2IconsOn() ? … :`. Die tekst valt hier weg; de regels
  * blijven op dezelfde plek, zodat de regelnummers kloppen.
  */
 function b2Only(text: string): string {
-  let out = text.replace(/b2IconsOn\(\) \? undefined : \{[^{}]*\}/g, m => 'undefined'.padEnd(m.length));
+  let out = text.replace(/b2IconsOn\(\) \? undefined : \{[^{}]*\}/g, m => 'undefined'.padEnd(m.length))
+    .replace(/b2IconsOn\(\) \? ('[^']*') : '[^']*'/g, (m, b2: string) => b2.padEnd(m.length));
   for (let i = out.indexOf(' lucide={'); i >= 0; i = out.indexOf(' lucide={', i + 1)) {
     let depth = 0;
     let j = i + ' lucide='.length;
