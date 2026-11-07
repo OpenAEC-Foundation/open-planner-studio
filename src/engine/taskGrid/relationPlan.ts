@@ -12,6 +12,7 @@ import {
 import { relationStructureVerdict } from '@/engine/scheduler/relationRules';
 import type { Sequence, SequenceType } from '@/types/sequence';
 import type { ExternalLink, Task } from '@/types/task';
+import { withKeptAnchorProvenance } from '@/engine/externalLinks';
 import type { GridResult } from '@/types/taskGrid';
 import { parseLagInput } from '@/utils/lagFormat';
 import {
@@ -234,8 +235,19 @@ function canonicalExternal(link: ExternalLink): string {
     relType: link.relType,
     ...exclusiveExternalLag(link),
     anchorDate: link.anchorDate,
-    sourceRef: link.sourceRef,
+    // Vaste volgorde: dezelfde bron met de velden in een andere volgorde (uit het klembordtoken, een
+    // verversing of een opgeslagen bestand) is geen wijziging.
+    sourceRef: {
+      projectId: link.sourceRef.projectId,
+      projectName: link.sourceRef.projectName,
+      taskId: link.sourceRef.taskId,
+      taskName: link.sourceRef.taskName,
+      filePath: link.sourceRef.filePath,
+      siteFileId: link.sourceRef.siteFileId,
+    },
     sourceMissing: link.sourceMissing,
+    sourceVersion: link.sourceVersion,
+    anchorReadAt: link.anchorReadAt,
   });
 }
 
@@ -677,8 +689,10 @@ function planRelationSetCore(
       externalAdditions.push(desired.link);
       continue;
     }
-    const next: ExternalLink = { ...desired.link, id: desired.assignedId };
     const old = oldExternalById.get(desired.assignedId);
+    // Het token (klembordformaat v1) draagt de herkomst van het anker niet; die komt van de bestaande
+    // koppeling, zolang brontaak en anker gelijk blijven (keuze 4). Anders wist alleen de lag wijzigen haar.
+    const next: ExternalLink = { ...withKeptAnchorProvenance(desired.link, old), id: desired.assignedId };
     if (!old || canonicalExternal(old) !== canonicalExternal(next)) {
       externalUpdates.push({ id: desired.assignedId, link: next });
     }

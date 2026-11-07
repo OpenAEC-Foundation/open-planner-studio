@@ -30,7 +30,7 @@ import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIFCWithXerReconstruction, writeXerExport, type ExportFormat } from '@/services/formatRegistry';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
-import type { AppSliceFactory, NotifyInput, NotificationDetailLine } from './types';
+import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
 import type { AppState } from '../appStore';
 import { isTauri } from '@/utils/platform';
 import type { Task } from '@/types/task';
@@ -47,6 +47,7 @@ import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSa
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSource, type ExternalSourceRead } from '../externalSource';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
@@ -485,6 +486,23 @@ export interface FileSlice {
    *  projectidentiteit + taken terug ZONDER het als document te openen (hergebruikt de bestaande
    *  readers). null bij een leesfout/onbekend formaat/niet-Tauri. */
   parseExternalSource: (filePath: string, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
+  /** De versie van een bronbestand: zijn wijzigingstijd (ISO). `undefined` als die niet te lezen is
+   *  (browser zonder toegang, bestand weg). Ook `parseExternalSource` neemt de versie hier vandaan. */
+  externalSourceVersion: (filePath: string) => Promise<string | undefined>;
+  /**
+   * Stap 1.5 (keuze 1 en het vangnet van keuze 6): kijkt per bron van het actieve document of de versie
+   * anders is dan in de koppelingen (`sourceVersion`). Zo ja, dan leest de app de bron en telt de
+   * koppelingen die veranderen (`externalAnchorChanges`). Verandert er minstens één, dan komt er een
+   * balk (`ui.externalSourceUpdates`). De app neemt niets over: dat doet alleen *Accepteren*.
+   * Een bron zonder wijziging, of een versie waarop de planner *Later* koos, leest de app in deze
+   * sessie niet opnieuw.
+   */
+  checkExternalSources: (labels?: ImportLabels) => Promise<void>;
+  /** *Later*: de balk van deze bron (`ExternalSourceUpdate.path`) gaat weg tot er weer een nieuwe versie is. */
+  dismissExternalSourceUpdate: (path: string) => void;
+  /** *Accepteren*: ververst de koppelingen naar deze bron (alleen op pad) als één undo-stap, met
+   *  herberekening, en haalt de balk weg. `false` als er niets veranderde. */
+  acceptExternalSourceUpdate: (source: ExternalSourceDoc) => boolean;
   /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron.
    *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
@@ -532,6 +550,111 @@ interface SaveDestination {
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
+  // ── Externe bronnen (stap 1.5) ────────────────────────────────────────────────────────────────
+  // Per document en bron de versie die de app al las zonder wijziging, of waarop de planner *Later*
+  // koos. Sessie-only en per storecontext.
+  const settledSourceVersions = new Map<string, string>();
+  const sourceKey = (documentId: string, path: string) => `${documentId}\u0000${path}`;
+  let sourceCheckRunning = false;
+  let sourceCheckAgain = false;
+
+  const sourceDocFromRead = (src: ExternalSourceRead): ExternalSourceDoc => ({
+    projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
+    lateDatesInFile: src.lateDatesInFile, version: src.version, readAt: src.readAt,
+  });
+
+  /** Ververste taken als één undo-stap in het document zetten, met herberekening. Wél een snapshot:
+   *  `finishMutation` verlaat de modus "datums zoals opgeslagen", en zonder snapshot is de modus dan
+   *  onherstelbaar weg (laden → modus → ankers verversen → weg, zonder weg terug). Bovendien breekt
+   *  het anders de snapshot-invariant: een undo van een OUDERE bewerking zou `datesAsRecorded: true`
+   *  terugzetten terwijl de ankers al ververst zijn. Een verversing verandert taakdatums en draait
+   *  meteen `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen. */
+  const applyRefreshedTasks = (targetDocumentId: string, tasks: Task[]): boolean => {
+    let applied = false;
+    set((s) => {
+      if (s.activeDocumentId !== targetDocumentId) return;
+      runtime.beginUndoable(s);
+      s.tasks = tasks.map(task => normalizeTaskDates(task, s));
+      runtime.finishMutation(s, { stale: true });
+      applied = true;
+    });
+    if (applied) {
+      get().recomputeViewRows();
+      get().runCPM({ withinEvent: true });
+    }
+    return applied;
+  };
+
+  /** Haalt de balk weg voor deze bronnen van dit document (na verversen of accepteren). */
+  const dropSourceUpdates = (documentId: string, paths: ReadonlySet<string>) => {
+    const ui = get().ui;
+    const next = ui.externalSourceUpdates.filter(u => u.documentId !== documentId || !paths.has(u.path));
+    if (next.length === ui.externalSourceUpdates.length) return;
+    get().setUI({
+      externalSourceUpdates: next,
+      ...(ui.externalSourceReview !== null && paths.has(ui.externalSourceReview) ? { externalSourceReview: null } : {}),
+    });
+  };
+
+  const fileNameOf = (filePath: string) => filePath.split(/[\\/]/).pop() || filePath;
+
+  const checkExternalSourcesOnce = async (labels?: ImportLabels) => {
+    const documentId = get().activeDocumentId;
+    // Per bron (genormaliseerd pad): het pad om mee te lezen en de versies in de koppelingen. Een
+    // koppeling zonder pad, of met een relatief pad, kan de app niet lezen (zie `refreshAllExternalAnchors`).
+    const sources = new Map<string, { filePath: string; versions: Set<string | undefined> }>();
+    for (const task of get().tasks) {
+      for (const link of task.externalLinks ?? []) {
+        const filePath = link.sourceRef.filePath;
+        if (!filePath) continue;
+        const path = normalizeExternalSourcePath(filePath);
+        if (path === null) continue;
+        const entry = sources.get(path) ?? { filePath, versions: new Set<string | undefined>() };
+        entry.versions.add(link.sourceVersion);
+        sources.set(path, entry);
+      }
+    }
+    const found = new Map<string, ExternalSourceUpdate>();
+    // Bronnen zonder balk: dezelfde versie als in de koppelingen, of al gelezen zonder wijziging.
+    const settled = new Set<string>();
+    for (const [path, { filePath, versions }] of sources) {
+      const version = await get().externalSourceVersion(filePath);
+      if (get().activeDocumentId !== documentId) return;
+      // Niet te lezen (geen toegang, bestand weg): een bestaande balk blijft staan, er komt geen nieuwe.
+      if (!version) continue;
+      if (versions.size === 1 && versions.has(version)) { settled.add(path); continue; }
+      const existing = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.path === path);
+      if (existing?.version === version) { found.set(path, existing); continue; }
+      if (settledSourceVersions.get(sourceKey(documentId, path)) === version) { settled.add(path); continue; }
+      const src = await get().parseExternalSource(filePath, labels);
+      if (get().activeDocumentId !== documentId) return;
+      if (!src) continue;
+      const tasks = get().tasks;
+      // Alleen de koppelingen die naar dít bestand wijzen: een kopie met hetzelfde project-id elders
+      // telt niet mee.
+      const result = refreshExternalAnchors(tasks, sourceDocFromRead(src), 'file-path');
+      const changedLinks = externalAnchorChanges(tasks, result.tasks).length;
+      const readVersion = src.version ?? version;
+      if (changedLinks === 0) {
+        settledSourceVersions.set(sourceKey(documentId, path), readVersion);
+        settled.add(path);
+        continue;
+      }
+      found.set(path, {
+        documentId, path, filePath, fileName: fileNameOf(filePath), version: readVersion,
+        ...(src.author ? { author: src.author } : {}), changedLinks,
+      });
+    }
+    const current = get().ui.externalSourceUpdates;
+    const next = [
+      ...current.filter(u => u.documentId !== documentId
+        || (sources.has(u.path) && !settled.has(u.path) && !found.has(u.path))),
+      ...found.values(),
+    ];
+    const same = next.length === current.length && next.every(u => current.includes(u));
+    if (!same) get().setUI({ externalSourceUpdates: next });
+  };
+
   // Voeg een geopend/opgeslagen bestand toe aan de recents (elke herbruikbare ref).
   const pushRecent = async (ref: FileRef | null, name: string) => {
     if (!ref) return; // fallback-web: geen herbruikbare ref → niet aan recents
@@ -1473,10 +1596,25 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!isTauri()) return null;
       try {
         const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
-        return await readExternalSource(filePath, { readTextFile, readFile }, labels);
+        // Herkomst (keuze 4): de wijzigingstijd VÓÓR het lezen. Verandert het bestand tijdens het lezen,
+        // dan is de bewaarde versie ouder dan de inhoud en meldt de volgende controle het als nieuw; nooit
+        // andersom. Lukt `stat` niet, dan blijft de versie onbekend.
+        const version = await get().externalSourceVersion(filePath);
+        const source = await readExternalSource(filePath, { readTextFile, readFile }, labels);
+        return { ...source, ...(version ? { version } : {}), readAt: new Date().toISOString() };
       } catch (err) {
         console.error('parseExternalSource: kon bronbestand niet lezen:', err);
         return null;
+      }
+    },
+
+    externalSourceVersion: async (filePath: string) => {
+      if (!isTauri()) return undefined;
+      try {
+        const { stat } = await import('@tauri-apps/plugin-fs');
+        return (await stat(filePath)).mtime?.toISOString();
+      } catch {
+        return undefined;
       }
     },
 
@@ -1485,32 +1623,45 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const src = await get().parseExternalSource(filePath, labels);
       if (!src) return null;
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
-      const source: ExternalSourceDoc = {
-        projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-        lateDatesInFile: src.lateDatesInFile,
-      };
-      const result = refreshExternalAnchors(get().tasks, source);
-      if (result.changed) {
-        let applied = false;
-        set((s) => {
-          if (s.activeDocumentId !== targetDocumentId) return;
-          // Wél een snapshot: `finishMutation` verlaat de modus "datums zoals opgeslagen", en
-          // zonder snapshot is de modus dan onherstelbaar weg (laden → modus → ankers verversen
-          // → weg, zonder weg terug). Bovendien breekt het anders de snapshot-invariant: een
-          // undo van een OUDERE bewerking zou `datesAsRecorded: true` terugzetten terwijl de
-          // ankers al ververst zijn. Deze verversing verandert taakdatums en draait meteen
-          // `runCPM` — een gewone, zichtbare datamutatie dus, en die hoort ongedaan te kunnen.
-          runtime.beginUndoable(s);
-          s.tasks = result.tasks.map(task => normalizeTaskDates(task, s));
-          runtime.finishMutation(s, { stale: true });
-          applied = true;
-        });
-        if (applied) {
-          get().recomputeViewRows();
-          get().runCPM({ withinEvent: true });
-        }
-      }
+      const result = refreshExternalAnchors(get().tasks, sourceDocFromRead(src));
+      // Snapshot en herberekening: zie `applyRefreshedTasks`.
+      if (result.changed) applyRefreshedTasks(targetDocumentId, result.tasks);
+      const path = normalizeExternalSourcePath(filePath);
+      if (path !== null) dropSourceUpdates(targetDocumentId, new Set([path]));
       return { refreshed: result.refreshed, missing: result.missing };
+    },
+
+    checkExternalSources: async (labels) => {
+      // Eén controle tegelijk; een verzoek tijdens een controle geeft één extra ronde erna.
+      if (sourceCheckRunning) { sourceCheckAgain = true; return; }
+      sourceCheckRunning = true;
+      try {
+        do {
+          sourceCheckAgain = false;
+          await checkExternalSourcesOnce(labels);
+        } while (sourceCheckAgain);
+      } catch (err) {
+        console.error('checkExternalSources:', err);
+      } finally {
+        sourceCheckRunning = false;
+      }
+    },
+
+    dismissExternalSourceUpdate: (path: string) => {
+      const documentId = get().activeDocumentId;
+      const update = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.path === path);
+      if (!update) return;
+      settledSourceVersions.set(sourceKey(documentId, path), update.version);
+      dropSourceUpdates(documentId, new Set([path]));
+    },
+
+    acceptExternalSourceUpdate: (source: ExternalSourceDoc) => {
+      const documentId = get().activeDocumentId;
+      const result = refreshExternalAnchors(get().tasks, source, 'file-path');
+      const applied = result.changed && applyRefreshedTasks(documentId, result.tasks);
+      const path = normalizeExternalSourcePath(source.filePath ?? '');
+      if (path !== null) dropSourceUpdates(documentId, new Set([path]));
+      return applied;
     },
 
     refreshAllExternalAnchors: async (labels) => {
@@ -1550,13 +1701,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
-      for (const p of paths.values()) {
+      const readPaths = new Set<string>();
+      for (const [normalizedPath, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
-        sourceDocs.push({
-          projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-          lateDatesInFile: src.lateDatesInFile,
-        });
+        sourceDocs.push(sourceDocFromRead(src));
+        readPaths.add(normalizedPath);
       }
 
       if (get().activeDocumentId !== targetDocumentId) {
@@ -1600,20 +1750,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         if (result.changed) anyChanged = true;
       }
 
-      if (anyChanged) {
-        let applied = false;
-        set((s) => {
-          if (s.activeDocumentId !== targetDocumentId) return;
-          runtime.beginUndoable(s);
-          s.tasks = tasks.map(task => normalizeTaskDates(task, s));
-          runtime.finishMutation(s, { stale: true });
-          applied = true;
-        });
-        if (applied) {
-          get().recomputeViewRows();
-          get().runCPM({ withinEvent: true });
-        }
-      }
+      if (anyChanged) applyRefreshedTasks(targetDocumentId, tasks);
+      dropSourceUpdates(targetDocumentId, readPaths);
       return { refreshed, missing, sources: sourceDocs.length };
     },
 
