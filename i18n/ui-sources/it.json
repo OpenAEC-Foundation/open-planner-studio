@@ -1442,6 +1442,7 @@
     "taskGrid.columns.explicitSummary": "4775650f60b75109",
     "taskGrid.columns.externalRelationData": "ce7be9bfe6b0daa4",
     "taskGrid.columns.floatPath": "748a5659f06c318a",
+    "taskGrid.columns.calendarDays": "342cbeaed67f377f",
     "taskGrid.columns.freeFloat": "2f87ca238190b822",
     "taskGrid.columns.hammock": "9cfe3c6b1f695c10",
     "taskGrid.columns.interferingFloat": "5b58ef42f49aa76f",

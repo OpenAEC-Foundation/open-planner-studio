@@ -273,11 +273,27 @@ test('takenlijst naast de Gantt: eigen plus en eigen kolommen; het lint opent de
 
   // Tabblad Tabel → Kolommen… opent de kiezer van de Tabel.
   await openTable(page);
-  await page.getByRole('button', { name: /^(Choose the columns of the Table view|Kolommen van de Tabel-weergave kiezen)$/ }).click();
+  const columnsButton = page.getByRole('button', { name: /^(Choose the columns of the Table view|Kolommen van de Tabel-weergave kiezen)$/ });
+  await columnsButton.click();
   await expect(chooser).toBeVisible();
   await expect(shell(page, 'full-task-grid').locator('.task-grid-add-column')).toHaveAttribute('aria-expanded', 'true');
+  // Een tweede klik op dezelfde lintknop sluit de kiezer weer, en een derde opent hem opnieuw
+  // (Ethan, 7 november 2026). Eerder sloot `mousedown` hem en opende de `click` hem meteen weer.
+  await columnsButton.click();
+  await expect(chooser).toHaveCount(0);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.showColumnsDialog)).toBe(false);
+  await columnsButton.click();
+  await expect(chooser).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(chooser).toHaveCount(0);
+  // Met Resourcedock aan blijft de Tabel staan, dus ook dan sluit een tweede klik de kiezer.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showResourcePanel: true, resourcePanelDocked: true }));
+  await expect(shell(page, 'full-task-grid')).toBeVisible();
+  await columnsButton.click();
+  await expect(chooser).toBeVisible();
+  await columnsButton.click();
+  await expect(chooser).toHaveCount(0);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showResourcePanel: false, resourcePanelDocked: false }));
 
   // Klassieke weergaveknoppen aan (legacy-instelling, als fixture): Beeld → Weergave → Kolommen… gaat
   // naar het tabblad Tabel en opent daar dezelfde kiezer.

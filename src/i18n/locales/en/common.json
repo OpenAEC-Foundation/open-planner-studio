@@ -90,6 +90,7 @@
     "recoveryReadFailed": "Recovered file could not be read",
     "recoveryRestoreFailed": "Restore failed",
     "hostSettingsUnavailable": "The site settings did not load. Settings you change in this session will not be saved.",
+    "hostThemeUntilRestart": "This theme applies until you restart the planner. After that, the planner follows the SuperCloud theme again.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",

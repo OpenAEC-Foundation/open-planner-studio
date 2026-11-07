@@ -628,6 +628,12 @@ en noem het in je rapport of PR-tekst.
      een dialoog die al vóór het neerzetten openstaat. Nodig: een browserstap met vertraagd lezen,
      tussentijds "Taak bewerken" openen en tekst typen, en daarna die tekst controleren. Uit review ronde
      2 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
+   (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
+   cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
+   uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
+   geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
+   terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
 
 ## Kalenders
 
@@ -1268,15 +1274,6 @@ en noem het in je rapport of PR-tekst.
      geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
      gebeurt dit niet. — S
 
-865. **De platformbouw toont de feedbackknop, terwijl de werkplek er zelf een heeft.** Het SuperCloud-contract
-     (#818) vraagt een bundel zonder feedbackknop. `src/components/layout/TitleBar/TitleBar.tsx:207` toont hem
-     altijd; de dialoog post naar `open-feedback-studio.pages.dev` (`src/services/feedback/feedbackService.ts:311`)
-     en opent een venster met `window.open` (`:477`). In de werkplek blokkeert de CSP het eerste en de sandbox
-     (zonder `allow-popups`) het tweede. Niet meteen weggehaald: stap 7 van de rondleiding
-     (`src/components/tour/tourSteps.ts:79`) wijst naar die knop. Zonder anker blijft de rondleiding op een
-     blokkerende laag staan (`TourOverlay.tsx:251`), en de rondleiding is ook ingebed te starten via
-     Instellingen. Voorstel: `FEEDBACK_AVAILABLE` in `buildFlags.ts`, knop en stap 7 samen uit. — S
-
 866. **Waarschuwingsiconen gebruiken `data:`-afbeeldingen; een CSP zonder `img-src data:` blokkeert ze.**
      `src/styles/globals.css:2592` en `:2603` zetten een `mask` met een `data:image/svg+xml`-URL. Het contract
      zegt alleen "de CSP laat alleen de eigen bundel toe". Laat de SuperCloud `data:` niet toe, dan verdwijnen
@@ -1289,13 +1286,6 @@ en noem het in je rapport of PR-tekst.
      `script-src 'self'` verbiedt dat in Chromium. Het contract noemt WASM in de bundel, maar niet de
      CSP-regel ervoor. Niet getest: de werkplektest maakt geen PDF. Voorstel: de echte CSP navragen; anders een
      terugval zonder subsetten. — S
-
-868. **"Wat is er nieuw" en "Controleren op updates" staan ook in de platformbouw.** Instellingen →
-     Geavanceerd toont beide knoppen (`src/components/settings/SettingsPanelContent.tsx:536` en `:542`). De
-     eerste haalt releasegegevens van `api.github.com` (`JustUpdatedDialog.tsx:53`, `releaseInfo.ts:189`) en
-     opent de changelog met `window.open` (`JustUpdatedDialog.tsx:22`); in de werkplek blokkeren CSP en sandbox
-     dat. De tweede doet in de browser niets (`updaterService.ts:82`). Het contract vraagt een bundel zonder
-     update-check. Voorstel: beide uit in de platformbouw, of gebundelde releasenotes tonen. — S
 
 869. **Exports als download werken niet in het frame uit de controle van het issue.** De controle gebruikt
      `sandbox="allow-scripts allow-modals"`, zonder `allow-downloads`. Exports (PDF, CSV, Excel) en Opslaan
@@ -2046,3 +2036,22 @@ en noem het in je rapport of PR-tekst.
      overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
      kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
      eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+
+885. **VERVOLG: `icon-orange.spec.ts` faalt in CI op twee onverwachte HTTP 403-meldingen in de console.**
+     `tests/browser/icon-orange.spec.ts:74` (licht en donker, "nooit helemaal oranje in meldingen, taakvelden,
+     dialogen en het menu Bestand"). In de handmatige browserrun 42393001546 op de branch van #841 faalden beide
+     scenario's op `console.error: Failed to load resource: the server responded with a status of 403 ()`, via de
+     foutcontrole in `tests/browser/fixtures/ops.ts:254`. Er faalde geen kleurcontrole. #841 raakt geen netwerkcode;
+     waarschijnlijk vraagt het menu Bestand een externe bron op die in CI 403 geeft. Niet nagegaan welke URL het is en
+     of de vrijdagrun op main hetzelfde laat zien. Voorstel: de URL uit de trace halen en het verzoek in de test
+     afvangen, of de 403 als bekende melding accepteren. Uit de review van #841 (GPT-6.1-Sol, xhigh, ronde 1,
+     BEVESTIGD, VERVOLG). — S
+
+886. **VERVOLG: geen regressiecontrole op de kleur van de scheidingslijn tussen de lintgroepen.**
+     `.ribbon-separator` (`src/components/layout/Ribbon/Ribbon.css`) tekent met `--theme-ribbon-separator`
+     (`src/styles/globals.css`, in elk themablok; #843). `tests/planning/check-theme-contrast.ts` meet de lijn niet
+     tegen het lintvlak, `check-system-theme.ts` controleert alleen dat elk thema een blok heeft, en geen
+     browserscenario leest de berekende kleur. Terug naar de oude rasterkleur (#30303A in donker, onzichtbaar op
+     #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
+     `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
+     `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B

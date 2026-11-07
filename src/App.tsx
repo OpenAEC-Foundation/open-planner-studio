@@ -8,7 +8,7 @@ import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
-import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
@@ -444,7 +444,8 @@ function AppContent() {
         {showSettingsDialog && <SettingsDialog />}
         {showCalendarDialog && <CalendarDialog />}
         {showStructureDialog && <StructureDialog />}
-        {showFeedbackDialog && <FeedbackDialog />}
+        {/* Feedback en updates ontbreken in de platformbouw (#818, `buildFlags.ts`). */}
+        {FEEDBACK_AVAILABLE && showFeedbackDialog && <FeedbackDialog />}
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
@@ -458,7 +459,7 @@ function AppContent() {
         {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
             toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
         {EXTENSIONS_ENABLED && showTutorialOffer && <TutorialOfferDialog />}
-        <UpdateDialog />
+        {UPDATES_AVAILABLE && <UpdateDialog />}
         <PoolImportDialog />
         {/* Voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
             gemount blijft en intern op `!open` teruggeeft. Bij deze dialoog is dat verschil van
@@ -497,7 +498,7 @@ function AppContent() {
         {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de
             welkomst nog op komst is, niet onder de rondleiding (z 9997, zou de dialoog onklikbaar
             maken) en niet onder de tutorialvraag. */}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
+        {UPDATES_AVAILABLE && justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
           && <JustUpdatedDialog />}
       </Suspense>
 

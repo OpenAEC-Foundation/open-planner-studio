@@ -1,6 +1,6 @@
 # Table columns
 
-The task table has 86 fixed columns, plus one column per activity code and custom field of the project and eight columns per baseline. This article says for each column what it shows, whether you can edit it and in what form the value is written. How to choose and arrange columns is in [Customizing table columns](docs://howto-tabelkolommen-aanpassen).
+The task table has 87 fixed columns, plus one column per activity code and custom field of the project and eight columns per baseline. This article says for each column what it shows, whether you can edit it and in what form the value is written. How to choose and arrange columns is in [Customizing table columns](docs://howto-tabelkolommen-aanpassen).
 
 ## Where you choose columns
 
@@ -96,6 +96,7 @@ All columns in this category are read-only.
 - **Interfering float** — total float minus free float.
 - **Near critical** — *Yes* for a near-critical task. Only filled if *Mark near-critical* is on (*Project settings*, block *Calculation profile and options*); otherwise a dash.
 - **Float path** — the number of the float path, 1 for the most critical. Only filled if *Multiple float paths* is on; otherwise a dash.
+- **Calendar days** — the number of calendar days from the day in *Start* up to and including the day in *Finish*, as a whole number such as `12`. Weekends and public holidays count. The app counts both days: a start and finish on the same day gives 1. A task of 10 working days from Monday 2 November to Friday 13 November 2026 has 12 calendar days. A milestone without duration gives 0. The same applies to any task without length, whose finish is not after its start, such as a task with duration 0 or a phase that holds only a milestone: such a task is a moment and counts no day. For a summary task, the span of its children counts. Without a start or finish, a dash appears. Copying gives the same number. This column is only a count. *Duration* counts in working time of the calendar. The duration type *Elapsed time* changes how the app calculates the task; this column changes nothing in the calculation.
 - **Recorded-dates source** — as long as the app shows the dates from the file: *Partly unrecorded* on a task for which the file does not contain everything. Only visible in the picker in that view. On an unrecorded axis, *Not recorded* appears in the late-date and float columns.
 
 See [Calculation options and conventions](docs://ref-rekenopties-en-conventies).
