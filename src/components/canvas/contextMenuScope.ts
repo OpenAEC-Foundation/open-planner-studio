@@ -2,7 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { appTaskBulkActions } from '@/state/taskBulkActions';
 import { addTaskNearSelection, insertTaskRelativeToScope } from '@/state/taskInsertActions';
 import type { Task } from '@/types/task';
-import { milestoneRefusal, taskMilestoneTransition, type MilestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { hasMilestoneBlockingAssignments, milestoneRefusal, taskMilestoneTransition, type MilestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { descendantLeaves } from '@/engine/scheduler/summaryProgress';
 import { isLeafTask } from '@/utils/taskHierarchy';
@@ -93,14 +93,14 @@ export const contextMenuBulk = {
     const isMilestone = !task.isMilestone;
     // Wordt mijlpaal: taken die de gedeelde regel weigert (fase, of toewijzingen) doen
     // niet mee; de rest van de reikwijdte wel, in één undo-stap. Eén melding per reden.
-    const { tasks, assignments } = useAppStore.getState();
+    const { tasks, assignments, resources } = useAppStore.getState();
     const refused: { id: string; name: string; refusal: MilestoneRefusal }[] = [];
     const scope = contextMenuOutlineScope(task.id).filter((id) => {
       const current = tasks.find(candidate => candidate.id === id);
       if (!isMilestone || !current || current.isMilestone) return true;
       const refusal = milestoneRefusal({
         hasChildren: current.childIds.length > 0,
-        hasAssignments: assignments.some(a => a.taskId === id),
+        hasAssignments: hasMilestoneBlockingAssignments(id, assignments, resources),
       });
       if (refusal) refused.push({ id, name: current.name, refusal });
       return !refusal;

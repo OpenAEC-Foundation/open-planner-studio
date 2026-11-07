@@ -11,7 +11,7 @@ import { localTodayIso } from '@/utils/dateUtils';
 import { planProgressEntry, type ProgressEdit, type ProgressEntryResult } from '@/engine/progressEntry';
 import { saveTaskDialog } from '@/state/taskDialogSave';
 import { shownStart, startIsActual } from '@/utils/taskDates';
-import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { milestoneRefusalNotices } from '@/state/structuralTransition';
 import { Select } from '@/components/common/Select';
 import { TaskDateTimeInput } from '@/components/common/TaskDateTimeInput';
@@ -190,7 +190,7 @@ export function TaskDialog() {
       const store = useAppStore.getState();
       const refusal = milestoneRefusal({
         hasChildren: editingTask.childIds.length > 0,
-        hasAssignments: store.assignments.some(a => a.taskId === editingTask.id),
+        hasAssignments: hasMilestoneBlockingAssignments(editingTask.id, store.assignments, store.resources),
       });
       if (refusal) {
         for (const notice of milestoneRefusalNotices([{ id: editingTask.id, name: editingTask.name, refusal }])) store.notify(notice);

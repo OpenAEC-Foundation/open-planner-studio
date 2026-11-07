@@ -72,6 +72,7 @@ import { markDocumentEdited } from '@/state/documentEdited';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
 import type { SplitPiece } from '@/engine/scheduler/splitEdit';
 import { interruptionsOf, planTaskSplits } from './splitFields';
+import { hasMilestoneBlockingAssignments } from '@/engine/taskMilestoneTransition';
 
 // De gedeelde post-transactie-helpers (okEnvelope/freshDates/projectEndInfo/enrichOk/okDirect) staan
 // in `./helpers.ts` — dezelfde conventie geldt voor de kalender-/resource-tools.
@@ -113,7 +114,7 @@ function fieldContext(
   return {
     currentIsMilestone: task?.isMilestone ?? false,
     hasChildren: isSummaryTask(task),
-    hasAssignments: task ? s.assignments.some((a) => a.taskId === task.id) : false,
+    hasAssignments: task ? hasMilestoneBlockingAssignments(task.id, s.assignments, s.resources) : false,
     currentConstraint2: task?.constraint2,
     // De projectkalender-id telt mee: op een vers document staat die alleen als cache in `s.calendar`
     // (`calendars` is dan leeg), maar hij is wel degelijk een geldige taak-kalender.

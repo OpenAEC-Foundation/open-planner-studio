@@ -28,7 +28,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { holidayEndDate } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
-import type { ResourceAssignment } from '@/types/resource';
+import type { Resource, ResourceAssignment } from '@/types/resource';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { p6SchedulingRulesDiffer } from '@/services/p6SchedulingRules';
@@ -511,12 +511,33 @@ function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { d
 
 // ── Schrijver ───────────────────────────────────────────────────────────────────────────────────
 
-export function writeXER(input: XerWriteInput): XerWriteResult {
-  const { project, calendar } = input;
+/** De invoer zonder kostenresources en hun toewijzingen (issue #815), plus het aantal weggelaten
+ *  kostenresources. Gedeeld met de P6 XML-schrijver. */
+export function withoutCostResources<T extends { resources: readonly Resource[]; assignments: readonly ResourceAssignment[] }>(
+  input: T,
+): { input: T; costResources: number } {
+  const costIds = new Set(input.resources.filter(r => r.type === 'COST').map(r => r.id));
+  if (costIds.size === 0) return { input, costResources: 0 };
+  return {
+    input: {
+      ...input,
+      resources: input.resources.filter(r => !costIds.has(r.id)),
+      assignments: input.assignments.filter(a => !costIds.has(a.resourceId)),
+    },
+    costResources: costIds.size,
+  };
+}
+
+export function writeXER(rawInput: XerWriteInput): XerWriteResult {
   const losses = new Map<XerWriteLossCode, number>();
   const lose = (code: XerWriteLossCode, count: number) => {
     if (count > 0) losses.set(code, (losses.get(code) ?? 0) + count);
   };
+  // Kostenresources (issue #815) en hun toewijzingen gaan niet mee: P6 kent geen kostenresource
+  // (alleen expenses per activiteit, PR3). Geteld als verlies, nooit stil.
+  const { input, costResources } = withoutCostResources(rawInput);
+  lose('costResources', costResources);
+  const { project, calendar } = input;
   const counter = { truncated: 0 };
 
   const tasks = [...flattenOrder([...input.tasks])];

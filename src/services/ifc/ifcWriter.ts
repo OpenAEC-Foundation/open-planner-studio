@@ -20,7 +20,7 @@ import {
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
 import {
-  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
+  IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC, COST_RESOURCE_OBJECT_TYPE,
 } from './ifcConstants';
 import { PSET, PER_TASK_PSETS, OPS_APP_VERSION, ifcStr, ifcJson, asciiJson, ifcTypedReal, stepReal, ifcDateValue } from './ifcPsets';
 import { ifcSchemaQuestionFor } from './ifcSchemaQuestion';
@@ -1729,7 +1729,11 @@ function writeResource(ctx: WriteContext, res: Resource, ownerHistId: number): v
   // alleen GlobalId, Name en Description, dus voor hem maakt het aantal niet uit.
   // PredefinedType `.NOTDEFINED.`: `.USERDEFINED.` (wat oudere versies bedoelden) eist een ObjectType
   // (regel CorrectPredefinedType), en OPS kent geen verfijning onder de vijf soorten.
-  const entity = `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,$,$,.NOTDEFINED.)`;
+  // Kostenresource (issue #815): materiaalentiteit met ObjectType 'COST' en `.USERDEFINED.` (route 1
+  // van `docs/ifc-round-trip.md`); de lezer zet die combinatie terug naar COST.
+  const entity = res.type === 'COST'
+    ? `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},${ifcStr(COST_RESOURCE_OBJECT_TYPE)},$,$,$,$,$,.USERDEFINED.)`
+    : `${entityName}(${ifcStr(objectGuid(ctx, 'res', res.id))},#${ownerHistId},${ifcStr(res.name)},${ifcStr(res.description)},$,$,$,$,$,$,.NOTDEFINED.)`;
   addLine(ctx, `res_${res.id}`, entity);
 }
 
@@ -1902,7 +1906,7 @@ function writeTimephasedMeta(
     const windows: Record<string, {
       workWindowStart?: string; workWindowFinish?: string; curveValues?: number[];
       plannedWorkMinutes?: number; actualWorkMinutes?: number; remainingWorkMinutes?: number;
-      plannedUnitsPerDay?: number;
+      plannedUnitsPerDay?: number; costAmount?: number;
     }> = {};
     list.forEach((a, index) => {
       // `curveValues` (de exacte 21-punts P6-/MSPDI-curve) reist in hetzelfde JSON-blob mee — een
@@ -1912,7 +1916,7 @@ function writeTimephasedMeta(
       // van `OPS_Assignments` blijft ongewijzigd.
       if (a.workWindowStart === undefined && a.workWindowFinish === undefined && a.curveValues === undefined
         && a.plannedWorkMinutes === undefined && a.actualWorkMinutes === undefined && a.remainingWorkMinutes === undefined
-        && a.plannedUnitsPerDay === undefined) return;
+        && a.plannedUnitsPerDay === undefined && a.costAmount === undefined) return;
       const resGuid = objectGuid(ctx, 'res', a.resourceId);
       const propName = `${resGuid}#${index}`;
       windows[propName] = {
@@ -1923,6 +1927,9 @@ function writeTimephasedMeta(
         ...(a.actualWorkMinutes !== undefined ? { actualWorkMinutes: a.actualWorkMinutes } : {}),
         ...(a.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: a.remainingWorkMinutes } : {}),
         ...(a.plannedUnitsPerDay !== undefined ? { plannedUnitsPerDay: a.plannedUnitsPerDay } : {}),
+        // Het begrote bedrag van een kostentoewijzing (issue #815): hoort bij de toewijzing, niet bij
+        // de resource, en `IfcRelAssignsToProcess` draagt geen psets — dus in hetzelfde blob.
+        ...(a.costAmount !== undefined ? { costAmount: a.costAmount } : {}),
       };
     });
     if (Object.keys(windows).length === 0) continue;

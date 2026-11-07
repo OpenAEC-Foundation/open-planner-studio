@@ -5,9 +5,10 @@ import type { Company, CompanyPool, CompanyLibrary } from '@/types/library';
 import { createNameMatcher } from '@/services/library/libraryOps';
 import { createDefaultLibrary, createEmptyPool, DEFAULT_COMPANY_ID } from '@/types/library';
 import { generateId } from '@/utils/id';
+import { clearCostResourceFields, isCostResource } from '@/types/resource';
 import { sameValue } from '@/utils/sameValue';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
-import { loadLibrary, saveLibrary, stripLibraryOrigins, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
+import { loadLibrary, saveLibrary, stripLibraryOrigins, bumpPool, makeOrigin, copyCalendarToProject, copyResourceToProject, diffCalendarVsPool, diffResourceVsPool, applyCalendarUpdate, applyResourceUpdate, resourceUpdateBlocked, writePoolIFC, isPoolNewer, computeCalendarHash, computeResourceHash, classifyCalendarOnOpen, classifyResourceOnOpen, matchByName, normalizePoolShape, resolveUniqueCompanyName, isReservedCompanyId, isSafeFileCompanyId, buildDemoLibrarySeed, migrateDemoLibrarySeed, DEMO_COMPANY_ID, DEMO_LIBRARY_SEED_VERSION, CALENDAR_DIFF_FIELDS as CALENDAR_DIFF_FIELDS_LOCAL, RESOURCE_DIFF_FIELDS as RESOURCE_DIFF_FIELDS_LOCAL } from '@/services/library';
 import { markScheduleStale } from '../transaction';
 import { refreshProjectCalendarCache, syncProjectCalendar } from '../syncProjectCalendar';
 import { appLog } from '@/services/debug/appLog';
@@ -354,6 +355,11 @@ export async function persistLibrary(
   }
 }
 
+/** Een typewissel naar of van COST op een resource met toewijzingen ging niet door (issue #815). */
+function notifyCostTypeChangeRefused(notify: (n: NotifyInput) => void): void {
+  notify({ severity: 'info', messageKey: 'notifications.costTypeChangeRefused', dedupeKey: 'cost-type-change-refused' });
+}
+
 /** Fire-and-forget-oproep voor de synchronische slice-acties. */
 function persist(get: () => LibraryPersistenceState): void {
   void persistLibrary(get);
@@ -668,6 +674,8 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       const idx = pool?.resources.findIndex(r => r.id === resourceId) ?? -1;
       if (!pool || idx < 0) return;
       Object.assign(pool.resources[idx], updates);
+      // Een kostenresource in de pool draagt geen tarief, kalender, eenheid, ploeg (issue #815).
+      if (isCostResource(pool.resources[idx])) clearCostResourceFields(pool.resources[idx]);
       s.pools[companyId] = bumpPool(pool);
     });
     persist(get);
@@ -877,6 +885,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
   },
 
   updateProjectResourceFromLibrary: (resourceId) => {
+    let refusedCostTypeChange = false;
     set((s) => {
       const idx = s.resources.findIndex(r => r.id === resourceId);
       const res = idx >= 0 ? s.resources[idx] : undefined;
@@ -889,10 +898,13 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       // No-op vóór beginUndoable: alleen 'changed' rechtvaardigt een mutatie — 'removed'
       // (origineel weg) én 'up-to-date' (al gelijk) leveren beide geen undo-stap op.
       if (diffResourceVsPool(snapRes, pool).status !== 'changed') return;
+      // Typewissel naar of van COST met toewijzingen: weigeren met melding (issue #815).
+      if (resourceUpdateBlocked(snapRes, pool, s.assignments)) { refusedCostTypeChange = true; return; }
       runtime.beginUndoable(s);
-      s.resources[idx] = applyResourceUpdate(snapRes, pool);
+      s.resources[idx] = applyResourceUpdate(snapRes, pool, s.assignments);
       runtime.finishMutation(s);
     });
+    if (refusedCostTypeChange) notifyCostTypeChangeRefused(get().notify);
     get().recomputeResourceLoad();
     get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
   },
@@ -1037,13 +1049,16 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       };
       const refreshResources = (
         ress: import('@/types/resource').Resource[],
+        assignments: readonly import('@/types/resource').ResourceAssignment[],
       ): { items: import('@/types/resource').Resource[]; resChanged: number } => {
         let resChanged = 0;
         const items = ress.map((res) => {
           if (res.libraryOrigin?.companyId !== companyId) return res;
           if (classifyResourceOnOpen(res, pool) !== 'behind') return res;
           resChanged++;
-          return applyResourceUpdate(res, pool);
+          // Een typewissel over de COST-grens met toewijzingen gaat niet door (issue #815): de
+          // resource blijft zoals hij is en staat daarna als afwijking (`applyResourceUpdate`).
+          return applyResourceUpdate(res, pool, assignments);
         });
         return { items, resChanged };
       };
@@ -1051,7 +1066,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
       // Actief document (top-level) — alleen als het aan dit bedrijf gekoppeld is.
       if (s.project.companyId === companyId) {
         const cals = refreshCalendars(s.calendars.map((c) => current(c)));
-        const ress = refreshResources(s.resources.map((r) => current(r)));
+        const ress = refreshResources(s.resources.map((r) => current(r)), s.assignments);
         const docChanged = cals.calChanged + ress.resChanged;
         // De redo-history-wis is ONVOORWAARDELIJK voor elk document dat
         // aan DIT bedrijf gebonden is, losgekoppeld van `docChanged` — een pool-bump (elke mutatie die
@@ -1089,7 +1104,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         const payload = doc.payload;
         if (payload.project.companyId !== companyId) continue;
         const cals = refreshCalendars(payload.calendars.map((c) => current(c)));
-        const ress = refreshResources(payload.resources.map((r) => current(r)));
+        const ress = refreshResources(payload.resources.map((r) => current(r)), payload.assignments);
         const docChanged = cals.calChanged + ress.resChanged;
         // Zelfde onvoorwaardelijke redo-wis-garantie voor elke SLAPENDE payload die aan dit
         // bedrijf gebonden is (zie toelichting bij de actieve-documenttak hierboven).
@@ -1202,7 +1217,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         const idx = s.resources.findIndex((r) => r.id === link.projectId);
         if (idx < 0) continue;
         const stamped = { ...current(s.resources[idx]), libraryOrigin: makeOrigin(pool, link.poolId) };
-        s.resources[idx] = applyResourceUpdate(stamped, pool); // stempelt + ververst + zet syncedHash
+        s.resources[idx] = applyResourceUpdate(stamped, pool, s.assignments); // stempelt + ververst + zet syncedHash
       }
       const calendarLinks = links.filter((link) => link.kind === 'calendar'
         && pool.calendars.some((c) => c.id === link.poolId)); // verdwenen kandidaat ⇒ stille skip
@@ -1250,6 +1265,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
     if (!companyId) return;
     if (choice === 'company') {
       // Neem poolwaarde over: gerichte niet-undoable verversing van dit ene item.
+      let refusedCostTypeChange = false;
       let settled = NO_CALENDAR_LIBRARY_SETTLE;
       let calendarRefreshed = false;
       set((s) => {
@@ -1259,7 +1275,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         if (ref.kind === 'resource') {
           const idx = s.resources.findIndex((r) => r.id === ref.projectId);
           if (idx < 0 || diffResourceVsPool(current(s.resources[idx]), pool).status !== 'changed') return;
-          s.resources[idx] = applyResourceUpdate(current(s.resources[idx]), pool);
+          // Typewissel naar of van COST met toewijzingen: weigeren met melding (issue #815).
+          if (resourceUpdateBlocked(current(s.resources[idx]), pool, s.assignments)) { refusedCostTypeChange = true; return; }
+          s.resources[idx] = applyResourceUpdate(current(s.resources[idx]), pool, s.assignments);
         } else {
           const idx = s.calendars.findIndex((c) => c.id === ref.projectId);
           if (idx < 0 || diffCalendarVsPool(current(s.calendars[idx]), pool).status !== 'changed') return;
@@ -1275,6 +1293,7 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         invalidateDocumentRedo(s, s.activeDocumentId);
       });
       if (calendarRefreshed) recountRecordedShift(set, get, [get().activeDocumentId]);
+      if (refusedCostTypeChange) notifyCostTypeChangeRefused(get().notify);
       notifyCalendarLibrarySettle(get().notify, get().activeDocumentId, settled);
       get().recomputeResourceLoad();
       get().recomputeViewRows();

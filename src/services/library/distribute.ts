@@ -38,6 +38,7 @@
 // DE KOSTENLABELS EN DE GEREEDSCHAPSSCHAKELAAR ZIJN GEEN APARTE API. "Alleen dit project laten
 // opschuiven kost +N werkdagen" en het prijskaartje van "onderbrekingen toestaan" zijn
 // `computeDistribution` opnieuw draaien met een andere rangorde resp. `allowSplits`.
+import { resourceIsLevelable } from '@/types/resource';
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { CompanyPool } from '@/types/library';
 import type { WorkCalendar } from '@/types/calendar';
@@ -252,7 +253,7 @@ function scopeHasDemand(doc: DistributionDocInput, scopeTaskIds: string[]): bool
   for (const a of doc.assignments) {
     if (!scopeSet.has(a.taskId) || a.unitsPerDay <= 0) continue;
     const res = resById.get(a.resourceId);
-    if (!res || res.type === 'MATERIAL') continue;
+    if (!res || !resourceIsLevelable(res)) continue;
     const task = tasksById.get(a.taskId);
     if (!task || task.isMilestone || task.childIds.length > 0) continue;
     if (task.time.scheduleDuration <= 0) continue;
@@ -327,7 +328,8 @@ export function computeDistribution(
   // "opgelost" oogt. Vóór al het rekenwerk, net als de UNCOUNTED_DOCUMENT-poort hierboven — de reden
   // ligt aan het POOLITEM, niet aan een specifiek document, dus `docIds` noemt iedereen die er
   // (volgens de bezetting) al op boekt.
-  if (poolItem.type === 'MATERIAL') {
+  // Een kostenresource (issue #815) nivelleert evenmin: zelfde blokkade als materiaal.
+  if (!resourceIsLevelable(poolItem)) {
     return { ...empty, blocked: { reason: 'MATERIAL_ITEM', docIds: row.docs.map(b => b.docId) } };
   }
 
