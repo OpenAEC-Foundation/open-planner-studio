@@ -643,6 +643,12 @@
     "notAvailableWeb": "Чтение исходных файлов доступно только в настольном приложении; используйте ручной вариант.",
     "source": "Источник",
     "sourceAvailable": "доступен при последней проверке",
+    "provenance": "Происхождение привязки",
+    "provenanceSite": "версия {{version}} источника, прочитано {{readAt}}",
+    "provenanceSiteNoRead": "версия {{version}} источника",
+    "provenanceFile": "исходный файл от {{modified}}, прочитано {{readAt}}",
+    "provenanceFileNoRead": "исходный файл от {{modified}}",
+    "provenanceRead": "прочитано {{readAt}}",
     "edit": "Изменить внешнюю зависимость…",
     "refreshSource": "Обновить источник",
     "deleteRelation": "Удалить связь"

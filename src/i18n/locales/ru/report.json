@@ -32,6 +32,7 @@
   "repeatHeader": "Повторять заголовок на каждой странице",
   "repeatFooter": "Повторять подвал на каждой странице",
   "reportFontScaleLabel": "Размер шрифта:",
+  "reportFontFamilyLabel": "Шрифт:",
   "timelineColumnsLabel": "Временная шкала на:",
   "timelineColumnsHint": "Только при автоподгонке",
   "timelineColumns_one": "{{count}} страница",
@@ -444,5 +445,11 @@
       "riskHeading": "Задачи под риском: просроченные или с отрицательным резервом времени",
       "riskEmpty": "Нет просроченных задач и задач с отрицательным резервом времени."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (по умолчанию)",
+    "liberationSans": "Liberation Sans (как Arial)",
+    "carlito": "Carlito (как Calibri)",
+    "liberationSerif": "Liberation Serif (как Times New Roman)"
   }
 }

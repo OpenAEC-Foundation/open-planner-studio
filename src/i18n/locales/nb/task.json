@@ -635,6 +635,12 @@
     "notAvailableWeb": "Kildefiler kan bare leses i skrivebordsappen. Bruk reserveløsningen.",
     "source": "Kilde",
     "sourceAvailable": "tilgjengelig ved siste kontroll",
+    "provenance": "Ankerets opphav",
+    "provenanceSite": "versjon {{version}} av kilden, lest {{readAt}}",
+    "provenanceSiteNoRead": "versjon {{version}} av kilden",
+    "provenanceFile": "kildefil fra {{modified}}, lest {{readAt}}",
+    "provenanceFileNoRead": "kildefil fra {{modified}}",
+    "provenanceRead": "lest {{readAt}}",
     "edit": "Rediger kobling mellom prosjekter…",
     "refreshSource": "Oppdater kilde",
     "deleteRelation": "Slett avhengighet"

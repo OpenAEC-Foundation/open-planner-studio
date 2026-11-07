@@ -32,6 +32,7 @@
   "repeatHeader": "تکرار سرصفحه در هر صفحه",
   "repeatFooter": "تکرار پانویس در هر صفحه",
   "reportFontScaleLabel": "اندازه قلم:",
+  "reportFontFamilyLabel": "قلم:",
   "timelineColumnsLabel": "خط زمانی روی:",
   "timelineColumnsHint": "تنها با تنظیم خودکار",
   "timelineColumns_one": "{{count}} صفحه",
@@ -435,5 +436,11 @@
       "riskHeading": "وظیفه‌ها در خطر: با تأخیر یا شناوری منفی",
       "riskEmpty": "هیچ وظیفه‌ای با تأخیر یا شناوری منفی نیست."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (پیش‌فرض)",
+    "liberationSans": "Liberation Sans (مانند Arial)",
+    "carlito": "Carlito (مانند Calibri)",
+    "liberationSerif": "Liberation Serif (مانند Times New Roman)"
   }
 }

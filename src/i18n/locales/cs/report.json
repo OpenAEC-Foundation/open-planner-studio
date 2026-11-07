@@ -32,6 +32,7 @@
   "repeatHeader": "Opakovat záhlaví na každé stránce",
   "repeatFooter": "Opakovat zápatí na každé stránce",
   "reportFontScaleLabel": "Velikost písma:",
+  "reportFontFamilyLabel": "Písmo:",
   "timelineColumnsLabel": "Časová osa na:",
   "timelineColumnsHint": "Jen při automatickém přizpůsobení",
   "timelineColumns_one": "{{count}} stránka",
@@ -444,5 +445,11 @@
       "riskHeading": "Rizikové úkoly: po termínu nebo záporná časová rezerva",
       "riskEmpty": "Žádné úkoly po termínu a žádná záporná časová rezerva."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (výchozí)",
+    "liberationSans": "Liberation Sans (jako Arial)",
+    "carlito": "Carlito (jako Calibri)",
+    "liberationSerif": "Liberation Serif (jako Times New Roman)"
   }
 }
