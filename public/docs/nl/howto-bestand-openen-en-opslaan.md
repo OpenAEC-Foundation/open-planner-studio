@@ -24,12 +24,13 @@ De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp`
 1. Sleep een of meer bestanden vanuit je bestandsbeheer of Finder naar het venster van de app.
 2. Tijdens het slepen ligt er een grijze laag over het venster, met *Laat los om te openen* en *Projectbestand of import*.
 3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
+4. Verschijnt na een bestand de uitleg over zijn formaat, dan opent het volgende bestand pas als je die uitleg sluit met *Begrepen*. Zo krijgt elk bestand zijn eigen uitleg.
 
 Een project met wijzigingen blijft in zijn eigen tabblad staan; slepen vervangt niets. Een gesleept IFC-bestand werkt daarna als een geopend bestand: *Opslaan* schrijft ernaar, behalve in browsers die alleen downloaden, zoals Firefox.
 
 Een bestand in een formaat dat de app niet kent, zoals een `.pdf`, opent niet. Je ziet dan de melding *Niet geopend: tekening.pdf. De app opent alleen IFC, XML, MPP, XER en CSV.* De andere bestanden uit dezelfde sleep openen gewoon.
 
-Staat er een venster of vraag open, dan opent slepen niets. In de browser toont de muisaanwijzer dan een verbodsteken. In de desktopapp verschijnt de melding *Niet geopend: plan.ifc. Sluit eerst het venster dat openstaat.*
+Staat er een venster of vraag open, dan opent slepen niets. Open je een venster terwijl de app een groot bestand nog leest, dan opent dat bestand pas als je het venster sluit. In de browser toont de muisaanwijzer dan een verbodsteken. In de desktopapp verschijnt de melding *Niet geopend: plan.ifc. Sluit eerst het venster dat openstaat.*
 
 ### Een recent project openen
 

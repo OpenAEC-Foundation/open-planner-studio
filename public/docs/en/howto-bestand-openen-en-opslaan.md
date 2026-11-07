@@ -24,12 +24,13 @@ The app opens `.ifc`, `.csv`, `.xml` (MS Project XML or Primavera P6 XML), `.mpp
 1. Drag one or more files from your file manager or Finder onto the app window.
 2. While you drag, a grey layer covers the window, with *Drop to open* and *Project file or import*.
 3. Release the mouse button. Each file opens as with *Open*: in its own tab, in the order in which you dragged them. The last file is then the active tab. If the current tab was empty and unchanged, the first file opens in it.
+4. If a file shows the explanation of its format, the next file opens only after you close that explanation with *Got it*. This way each file gets its own explanation.
 
 A project with changes stays in its own tab; dragging replaces nothing. A dragged IFC file then works like an opened file: *Save* writes to it, except in browsers that only download, such as Firefox.
 
 A file in a format that the app does not know, such as a `.pdf`, does not open. You then see the message *Not opened: drawing.pdf. The app only opens IFC, XML, MPP, XER and CSV.* The other files from the same drag open as usual.
 
-If a dialog or question is open, dragging opens nothing. In the browser, the mouse pointer then shows a no-entry sign. In the desktop app, the message *Not opened: plan.ifc. Close the open dialog first.* appears.
+If a dialog or question is open, dragging opens nothing. If you open a dialog while the app is still reading a large file, that file opens only when you close the dialog. In the browser, the mouse pointer then shows a no-entry sign. In the desktop app, the message *Not opened: plan.ifc. Close the open dialog first.* appears.
 
 ### Opening a recent project
 

@@ -6,8 +6,10 @@
 //  C. Desktop: `droppedFilesFromPaths` leest via dezelfde kern als de open-dialoog (pad als ref).
 //  D. `openDroppedFiles` tegen de echte store: volgorde, een project met wijzigingen blijft staan, een
 //     leeg tabblad wordt hergebruikt, geweigerde formaten worden nooit gelezen, een leesfout stopt de
-//     rest niet, en de poort (zoals Ctrl+O) wordt één keer gevraagd. Geen bestand verdwijnt zonder
-//     melding: een onbekend formaat en een dichte poort geven elk één melding met de namen.
+//     rest niet. De poort (zoals Ctrl+O) wordt bij het neerzetten gevraagd en opnieuw vlak vóór elk
+//     document: een dialoog die tijdens het lezen opent, of de formaatuitleg van het vorige bestand,
+//     laat het document wachten. Geen bestand verdwijnt zonder melding: een onbekend formaat en een
+//     dichte poort geven elk één melding met de namen.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -21,7 +23,8 @@ const {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, splitDroppedFiles,
 } = await import('@/services/fileAccess/fileDrop');
 type DroppedFile = import('@/services/fileAccess/fileDrop').DroppedFile;
-const { openDroppedFiles, fileNameList } = await import('@/state/fileDrop');
+const { openDroppedFiles, fileNameList, GATE_POLL_MS } = await import('@/state/fileDrop');
+const { isBlockingDialogOpen } = await import('@/state/blockingDialogs');
 const { useAppStore } = await import('@/state/appStore');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -126,6 +129,13 @@ const noticesOf = (key: string) => S().ui.notifications.filter((n) => n.messageK
 // De store houdt hoogstens `MAX_NOTIFICATIONS` (3) meldingen; tel daarom vanaf een lege lijst.
 const clearNotices = () => { for (const n of [...S().ui.notifications]) S().dismissNotification(n.id); };
 
+const closeFormatNotice = () => S().setUI({ pendingFormatNotice: null }); // "Begrepen" in de uitleg
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+async function until(ok: () => boolean, label: string): Promise<void> {
+  for (let i = 0; i < 100 && !ok(); i++) await sleep(20);
+  if (!ok()) check(false, `wachten op: ${label}`);
+}
+
 check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '5']) === '1, 2, 3, 4, 5'
   && fileNameList(['1', '2', '3', '4', '5', '6', '7']) === '1, 2, 3, 4, 5, …', 'de namen in de melding: hoogstens vijf');
 
@@ -139,12 +149,11 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   const before = S().documents.length;
   let gateCalls = 0;
   reads.length = 0;
-  const outcome = await openDroppedFiles(useAppStore, [
+  await openDroppedFiles(useAppStore, [
     dropFile('a.ifc', ifcA), dropFile('tekening.pdf', 'nooit gelezen'), dropFile('b.csv', csvB),
   ], labels, () => { gateCalls++; return false; });
-  check(gateCalls === 1, `de poort is één keer gevraagd (${gateCalls})`);
+  check(gateCalls === 3, `de poort is gevraagd bij het neerzetten en vlak vóór elk document (${gateCalls})`);
   check(same(reads, ['a.ifc', 'b.csv']), `alleen de bekende formaten zijn gelezen, in volgorde (${reads.join(', ')})`);
-  check(same(outcome, { blocked: false, opened: ['a.ifc', 'b.csv'], unreadable: [], refused: ['tekening.pdf'] }), `uitkomst ${JSON.stringify(outcome)}`);
   check(S().documents.length === before + 2, `twee nieuwe tabbladen (${before} → ${S().documents.length}: ${documentNames().join(' | ')})`);
   check(S().tasks.length === 1 && S().tasks[0].name === 'Taak B' && S().documents.at(-1)?.id === S().activeDocumentId,
     'het laatst neergezette bestand is actief, in het laatste tabblad');
@@ -153,10 +162,12 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   check(S().getOpenDocumentPayloads().some(({ payload }) => payload.project.name === 'Sleep-A' && payload.filePath === 'a.ifc'),
     'het IFC-bestand kreeg zijn opslagdoel (zoals Bestand → Openen)');
   check(S().filePath === null, 'het CSV-bestand kreeg geen opslagdoel (zoals Bestand → Openen)');
+  check(S().ui.pendingFormatNotice === 'csv', `de CSV krijgt de formaatuitleg, zoals bij Bestand → Openen (${S().ui.pendingFormatNotice})`);
   const refusedNotes = noticesOf('notifications.fileDropRefused');
   check(refusedNotes.length === 1 && refusedNotes[0].severity === 'error' && refusedNotes[0].params?.names === 'tekening.pdf'
     && refusedNotes[0].helpArticleId === 'howto-bestand-openen-en-opslaan',
   `het onbekende formaat is gemeld, met de naam en de gids (${JSON.stringify(refusedNotes)})`);
+  closeFormatNotice();
 }
 
 {
@@ -164,10 +175,9 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   clearNotices();
   const before = documentNames();
   reads.length = 0;
-  const outcome = await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x'), dropFile('notities', 'y')], labels, () => false);
+  await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x'), dropFile('notities', 'y')], labels, () => false);
   const refusedNotes = noticesOf('notifications.fileDropRefused');
-  check(reads.length === 0 && same(documentNames(), before) && same(outcome.refused, ['tekening.pdf', 'notities']),
-    'alleen onbekende formaten: niets gelezen of geopend');
+  check(reads.length === 0 && same(documentNames(), before), 'alleen onbekende formaten: niets gelezen of geopend');
   check(refusedNotes.length === 1 && refusedNotes[0].params?.names === 'tekening.pdf, notities',
     `één melding voor alle onbekende bestanden (${JSON.stringify(refusedNotes.map((n) => n.params))})`);
 }
@@ -183,42 +193,86 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
 }
 
 {
-  // Poort dicht (dialoog open, wachtende vraag): niets gelezen, niets geopend.
+  // Poort dicht bij het neerzetten (dialoog open, wachtende vraag): niets gelezen, niets geopend.
   clearNotices();
   const before = documentNames();
   reads.length = 0;
-  const outcome = await openDroppedFiles(useAppStore, [dropFile('a.ifc', ifcA)], labels, () => true);
-  check(outcome.blocked && reads.length === 0 && same(documentNames(), before), 'poort dicht: niets gelezen of geopend');
+  await openDroppedFiles(useAppStore, [dropFile('a.ifc', ifcA)], labels, () => true);
+  check(reads.length === 0 && same(documentNames(), before), 'poort dicht: niets gelezen of geopend');
   const blockedNotes = noticesOf('notifications.fileDropBlocked');
   check(blockedNotes.length === 1 && blockedNotes[0].severity === 'error' && blockedNotes[0].params?.names === 'a.ifc',
     `poort dicht: één melding met de naam (${JSON.stringify(blockedNotes)})`);
-  const empty = await openDroppedFiles(useAppStore, [], labels, () => { throw new Error('niet vragen'); });
-  check(!empty.blocked && empty.opened.length === 0, 'geen bestanden: de poort wordt niet gevraagd');
+  let asked = false;
+  await openDroppedFiles(useAppStore, [], labels, () => { asked = true; return true; });
+  check(!asked && same(documentNames(), before), 'geen bestanden: de poort wordt niet gevraagd');
+}
+
+{
+  // De planner opent "Taak bewerken" terwijl het bestand nog gelezen wordt (review #801). De
+  // documentwissel zou die dialoog sluiten en zijn invoer weggooien (`resetDocumentScopedUI`), dus het
+  // document wacht tot de dialoog dicht is. De poort is hier de echte dialoogtoets van de store.
+  clearNotices();
+  S().addTask({ name: 'In bewerking' });
+  const taskId = S().tasks.at(-1)!.id;
+  const before = S().documents.length;
+  const activeBefore = S().activeDocumentId;
+  let release: () => void = () => { throw new Error('read() is nog niet aangeroepen'); };
+  const slow: DroppedFile = {
+    name: 'traag.ifc',
+    read: () => new Promise((resolve) => { release = () => resolve({ name: 'traag.ifc', content: ifcA, ref: null }); }),
+  };
+  const done = openDroppedFiles(useAppStore, [slow], labels, () => isBlockingDialogOpen(S().ui));
+  S().setUI({ showTaskDialog: true, editingTaskId: taskId });
+  release();
+  await sleep(GATE_POLL_MS * 3);
+  check(S().documents.length === before && S().activeDocumentId === activeBefore
+    && S().ui.showTaskDialog && S().ui.editingTaskId === taskId,
+  'dialoog geopend tijdens het lezen: geen documentwissel, de dialoog blijft open met zijn taak');
+  S().setUI({ showTaskDialog: false, editingTaskId: null });
+  await done;
+  check(S().documents.length === before + 1 && S().project.name === 'Sleep-A', 'dialoog dicht: daarna opent het document');
+}
+
+{
+  // Twee CSV-bestanden: elk krijgt zijn eigen formaatuitleg. Het tweede wacht tot de planner de uitleg
+  // van het eerste sluit; anders overschreef het de ene plek `pendingFormatNotice` (review #801).
+  clearNotices();
+  closeFormatNotice();
+  const before = S().documents.length;
+  const done = openDroppedFiles(useAppStore, [dropFile('een.csv', csvB), dropFile('twee.csv', csvB)], labels, () => false);
+  await until(() => S().ui.pendingFormatNotice !== null, 'de uitleg van het eerste bestand');
+  await sleep(GATE_POLL_MS * 3);
+  check(S().documents.length === before + 1 && S().ui.pendingFormatNotice === 'csv',
+    `eerste CSV open met zijn uitleg; de tweede wacht (${before} → ${S().documents.length})`);
+  closeFormatNotice();
+  await done;
+  check(S().documents.length === before + 2 && S().ui.pendingFormatNotice === 'csv',
+    'na "Begrepen" opent de tweede CSV, met zijn eigen uitleg');
+  closeFormatNotice();
 }
 
 {
   // Een bestand dat niet te lezen is: melding, en de rest gaat door.
   clearNotices();
-  const notes = S().ui.notifications.length;
   const before = S().documents.length;
-  const outcome = await openDroppedFiles(useAppStore, [
+  reads.length = 0;
+  await openDroppedFiles(useAppStore, [
     dropFile('weg.ifc', new Error('Permission denied (os error 13)')), dropFile('b.csv', csvB),
   ], labels, () => false);
-  check(same(outcome.unreadable, ['weg.ifc']) && same(outcome.opened, ['b.csv']), `leesfout: ${JSON.stringify(outcome)}`);
-  const last = S().ui.notifications.at(-1);
-  check(S().ui.notifications.length === notes + 1 && last?.severity === 'error' && (last.detail ?? '').includes('os error 13'),
-    'de leesfout is gemeld, met de reden');
+  const errors = S().ui.notifications.filter((n) => n.severity === 'error');
+  check(same(reads, ['weg.ifc', 'b.csv']) && errors.length === 1 && (errors[0].detail ?? '').includes('os error 13'),
+    `de leesfout is gemeld, met de reden (${JSON.stringify(errors.map((n) => n.detail))})`);
   check(S().documents.length === before + 1, 'het volgende bestand is wel geopend');
+  closeFormatNotice();
 }
 
 {
   // Een bestand met een bekende extensie maar kapotte inhoud: de openroute meldt het zelf.
   clearNotices();
-  const notes = S().ui.notifications.length;
   const before = S().documents.length;
-  const outcome = await openDroppedFiles(useAppStore, [dropFile('kapot.ifc', 'geen ifc')], labels, () => false);
-  check(same(outcome.opened, ['kapot.ifc']) && S().documents.length === before, 'kapotte inhoud: geen nieuw tabblad');
-  check(S().ui.notifications.length === notes + 1 && S().ui.notifications.at(-1)?.severity === 'error', 'kapotte inhoud: één foutmelding van de openroute');
+  await openDroppedFiles(useAppStore, [dropFile('kapot.ifc', 'geen ifc')], labels, () => false);
+  check(S().documents.length === before, 'kapotte inhoud: geen nieuw tabblad');
+  check(S().ui.notifications.length === 1 && S().ui.notifications[0].severity === 'error', 'kapotte inhoud: één foutmelding van de openroute');
 }
 
 console.log(failures === 0 ? 'file-drop: alles groen' : `file-drop: ${failures} fout(en)`);

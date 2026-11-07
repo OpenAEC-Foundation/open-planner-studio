@@ -460,9 +460,13 @@ export interface FileSlice {
    *  `ImportLabels`); weglaten geeft de Engelse default. Geldt voor elk laadpad hieronder. */
   openFile: (labels?: ImportLabels) => Promise<void>;
   /** De rest van `openFile` zodra er een bestand is: herkennen, openen als document, meldingen,
-   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`), zodat die geen eigen
-   *  inleesroute heeft. */
-  openOpenedFile: (opened: OpenedFile, labels?: ImportLabels) => Promise<void>;
+   *  recents. Ook voor de dev-link `?open=` (`src/utils/devOpenLink.ts`) en slepen en neerzetten
+   *  (`state/fileDrop.ts`), zodat die geen eigen inleesroute hebben. `beforeActivate` draait na het
+   *  herkennen en vlak vóór het activeren van het document: slepen wacht daar tot geen dialoog meer
+   *  openstaat, want het lezen en herkennen gebeurt terwijl de planner verder werkt. */
+  openOpenedFile: (
+    opened: OpenedFile, labels?: ImportLabels, options?: { beforeActivate?: () => Promise<void> },
+  ) => Promise<void>;
   saveFile: () => Promise<void>;
   /** Bewaar exact het bedoelde document en meld of zijn ongewijzigde snapshot is vastgelegd. */
   saveFileForDocument: (documentId: string) => Promise<boolean>;
@@ -1227,9 +1231,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (opened) await get().openOpenedFile(opened, labels);
     },
 
-    openOpenedFile: async (opened, labels) => {
+    openOpenedFile: async (opened, labels, options) => {
       try {
         const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+        // Na deze wachttijd volgt het activeren zonder `await` ertussen: geen gebruikersactie kan
+        // tussen de laatste controle en de documentwissel een dialoog openen.
+        if (options?.beforeActivate) await options.beforeActivate();
 
         // Eén open-semantiek voor elk echt open-pad (tabblad, opslagdoel, gekoppeld laden),
         // ook voor de meervoudige XER-vorm.
