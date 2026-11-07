@@ -13,6 +13,8 @@
     "dismiss": "Bildirimi kapat",
     "taskEditRevertBlocked": "Bu sırada bir MCP-istemcisinden veya bir uzantıdan değişiklik geldi. Bundan önceki görev düzenlemeleri geri alınmadı ve Geri al altında normal adımlar olarak duruyor.",
     "openFailed": "Dosya açılamadı",
+    "fileDropRefused": "Açılmadı: {{names}}. Uygulama yalnızca IFC, XML, MPP, XER ve CSV dosyalarını açar.",
+    "fileDropBlocked": "Açılmadı: {{names}}. Önce açık pencereyi kapatın.",
     "csvInvalidDate": "CSV açılmadı: okunamayan tarih \"{{value}}\" CSV satır {{row}}, sütun \"{{column}}\" içinde. yyyy-aa-gg, gg-aa-yyyy veya gg/aa/yyyy biçimini kullanın.",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
     "extHelpProjectOpenFailed": "{{name}} uzantısının {{file}} proje dosyası açılamadı.",
@@ -1706,5 +1708,9 @@
     "blockedNoChild": "Taşıma mümkün değil: '{{phase}}' görevine atama taşıyabilen alt görev eklenmez; yalnızca kilometre taşı veya özet görev eklenir.",
     "actualWorkLost_one": "{{resource}} atamasında zaten {{hours}} saat gerçek iş kayıtlı. Atamayı kaldırırsanız bu iş silinir.",
     "actualWorkLost_other": "{{resource}} atamasında zaten {{hours}} saat gerçek iş kayıtlı. Atamayı kaldırırsanız bu iş silinir."
+  },
+  "fileDrop": {
+    "title": "Açmak için bırakın",
+    "subtitle": "Proje dosyası veya içe aktarma"
   }
 }

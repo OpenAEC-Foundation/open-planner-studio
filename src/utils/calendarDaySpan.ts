@@ -15,7 +15,9 @@ import { momentLabel, taskDateLabel } from '@/utils/taskDateLabel';
  * einde op de dagrand (ook 24:00 of een nachtploeg) hoort bij zijn werkdag, een moment midden op de dag bij
  * zijn klokdatum. Zonder kalender telt de kalendertijd-klok, dus een einde om 00:00 hoort bij de vorige dag.
  *
- * - Een nulduur-mijlpaal en elke taak waarvan het eindmoment niet na het startmoment ligt: 0.
+ * - Een nulduur-mijlpaal en elke taak waarvan het eindmoment niet na het startmoment ligt: 0. Zo'n taak
+ *   is een moment en telt geen dag, ook als ze niet als mijlpaal gemarkeerd is (een taak met duur 0, een
+ *   fase met alleen een mijlpaal). Besluit eigenaar 2026-11-07, na review PR #834: 0 naast "Duur 0d", niet 1.
  * - Een verzameltaak telt haar getoonde span; die volgt al uit de kinderen.
  * - Geen start of geen einde: `undefined` (de cel toont dan "—").
  *

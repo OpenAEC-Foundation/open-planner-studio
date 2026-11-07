@@ -13,6 +13,8 @@
     "dismiss": "Zatvori obavijest",
     "taskEditRevertBlocked": "Promjena od MCP-klijenta ili proširenja stigla je u međuvremenu. Izmjene zadataka prije nje nisu poništene i ostaju kao obični koraci pod Poništi.",
     "openFailed": "Otvaranje datoteke nije uspjelo",
+    "fileDropRefused": "Nije otvoreno: {{names}}. Aplikacija otvara samo IFC, XML, MPP, XER i CSV.",
+    "fileDropBlocked": "Nije otvoreno: {{names}}. Najprije zatvorite otvoreni prozor.",
     "csvInvalidDate": "CSV nije otvoren: nepoznat datum \"{{value}}\" u CSV retku {{row}}, stupcu \"{{column}}\". Upotrijebite gggg-mm-dd, dd-mm-gggg ili dd/mm/gggg.",
     "extGuideCallbackFailed": "Jedan korak proširenja {{name}} javio je grešku. Vodič se nastavlja.",
     "extHelpProjectOpenFailed": "Projektnu datoteku {{file}} iz proširenja {{name}} nije bilo moguće otvoriti.",
@@ -1787,5 +1789,9 @@
     "actualWorkLost_one": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sat stvarnog rada. Brisanjem se taj rad gubi.",
     "actualWorkLost_few": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sata stvarnog rada. Brisanjem se taj rad gubi.",
     "actualWorkLost_other": "Na dodjeli za {{resource}} već je evidentirano {{hours}} sati stvarnog rada. Brisanjem se taj rad gubi."
+  },
+  "fileDrop": {
+    "title": "Otpustite za otvaranje",
+    "subtitle": "Projektna datoteka ili uvoz"
   }
 }

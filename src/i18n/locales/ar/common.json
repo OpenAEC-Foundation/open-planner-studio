@@ -13,6 +13,8 @@
     "dismiss": "إغلاق الإشعار",
     "taskEditRevertBlocked": "جاء تغيير من عميل MCP أو من إضافة في أثناء ذلك. لم يتم التراجع عن تعديلات المهمة التي سبقته، وهي باقية كخطوات عادية ضمن «تراجع».",
     "openFailed": "تعذّر فتح الملف",
+    "fileDropRefused": "لم يُفتح: {{names}}. يفتح التطبيق ملفات IFC وXML وMPP وXER وCSV فقط.",
+    "fileDropBlocked": "لم يُفتح: {{names}}. أغلق النافذة المفتوحة أولًا.",
     "csvInvalidDate": "لم يُفتح ملف CSV: التاريخ «{{value}}» غير مفهوم في صف CSV {{row}}، عمود «{{column}}». استخدم yyyy-mm-dd أو dd-mm-yyyy أو dd/mm/yyyy.",
     "extGuideCallbackFailed": "فشلت خطوة من الإضافة {{name}}. يستمر الدليل.",
     "extHelpProjectOpenFailed": "تعذّر فتح ملف المشروع {{file}} من الإضافة {{name}}.",
@@ -2030,5 +2032,9 @@
     "actualWorkLost_few": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعات من العمل الفعلي. الحذف يفقد هذا العمل.",
     "actualWorkLost_many": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعة من العمل الفعلي. الحذف يفقد هذا العمل.",
     "actualWorkLost_other": "يحتوي تعيين {{resource}} بالفعل على {{hours}} ساعة من العمل الفعلي. الحذف يفقد هذا العمل."
+  },
+  "fileDrop": {
+    "title": "أفلِت للفتح",
+    "subtitle": "ملف مشروع أو استيراد"
   }
 }
