@@ -35,6 +35,9 @@
  *    start invulde (`'start'`, bijv. een standaardindeling), blijft staan, net als bij een gewone start.
  *    Daarna staat het bewaren aan, en meldt de module het aan de app (`takeLateSiteHostSettings`), die
  *    de instellingen live toepast en een korte melding geeft.
+ *    Grens: dit gaat alleen over instellingen, nooit over het document. Een werksoort die de gebruiker
+ *    tijdens het wachten maakte en aan een taak gaf, gaat uit de persoonlijke lijst, maar blijft in het
+ *    document (de werksoorten "Uit dit project"); de taak houdt hem.
  *
  * Een host die pas na de start verschijnt (tijdens het laden van `App`, of met `openaec-host-ready`),
  * telt als een laat antwoord: `adoptLateSiteHostSettings` begint dan de lezing, met dezelfde regels.

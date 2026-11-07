@@ -222,7 +222,9 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
     in open dialogen en panelen (via een `StorageEvent` per sleutel). De pop-up gaat dicht als hij nog open is.
     Daarna één korte melding: "Je instellingen zijn geladen en toegepast.", met erachter "Wat je in de
     tussentijd wijzigde, is teruggezet." als de gebruiker iets wijzigde dat daardoor terugging. Vanaf dan staat
-    het bewaren aan, zoals na een gewone start.
+    het bewaren aan, zoals na een gewone start. Dit raakt alleen instellingen, nooit het document: een werksoort
+    die de gebruiker intussen maakte en aan een taak gaf, gaat uit de persoonlijke lijst, maar blijft in het
+    document (de groep "Uit dit project" in de keuzelijst), en de taak houdt hem.
   - **Grens:** de bouwmodus bepaalt de kalender van het eerste document bij het maken van de store. Een laat
     antwoord verandert de kalender van het document dat al open is niet; de bouwmodus van de host geldt dan
     pas voor een volgend nieuw document.

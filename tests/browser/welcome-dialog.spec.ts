@@ -288,10 +288,29 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await expect.poll(lateNotices, { message: 'één melding, met "teruggezet"' }).toEqual(['geladen, teruggezet']);
   await expect(page.locator('.ops-toast', { hasText: EN_COMMON.notifications.settingsLoadedLateReverted })).toHaveCount(1);
   await expect(delayDialog).toHaveCount(0);
-  expect(await storedTypeNames(), 'de bewaarde werksoorten terug, de nieuwe weg').toEqual(['Bewaard type']);
+  expect(await storedTypeNames(), 'de bewaarde persoonlijke werksoorten terug, de nieuwe weg').toEqual(['Bewaard type']);
+  // De keuzelijst per groep. "Sessietype" gaat uit de persoonlijke werksoorten (die van de host winnen),
+  // maar blijft bij "Uit dit project": de taak kreeg hem bij het aanmaken, dus hij staat in het document
+  // (`ensureProjectTaskType`). Dat is documentdata en geen instelling; het late antwoord raakt het
+  // document niet, anders verdween er werk uit de planning.
   const lateTypes = await openTaskTypes();
   await expect(lateTypes).toContainText('Bewaard type');
-  await expect(lateTypes).not.toContainText('Sessietype');
+  const typeGroups = await lateTypes.getByRole('option').evaluateAll((elements) => {
+    const groups: Record<string, string[]> = {};
+    let group = '';
+    for (const element of elements) {
+      const value = element.getAttribute('data-value') ?? '';
+      if (value.startsWith('__ops_task_type_')) group = value;
+      else if (value.startsWith('custom:')) (groups[group] ??= []).push(element.textContent?.trim() ?? '');
+    }
+    return groups;
+  });
+  expect(typeGroups, 'persoonlijk: alleen de bewaarde; project: de werksoort van de taak blijft').toEqual({
+    __ops_task_type_group_personal__: ['Bewaard type'],
+    __ops_task_type_group_project__: ['Sessietype'],
+  });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().customTaskTypes.map((t) => t.name)),
+    'de werksoort staat nog in het document').toContain('Sessietype');
   await page.keyboard.press('Escape');
   // Thema en taal: de host geeft `thema: dark` en `taal: fr`, en die winnen zoals bij een gewone start.
   // Lokaal staan weer de bewaarde keuzes.
