@@ -545,6 +545,7 @@
   background: transparent;
   line-height: 1;
 }
+:where(:root[data-icons="lucide"]) .full-task-grid-disclosure { display: inline-block; }
 
 .full-task-grid-error {
   position: absolute;
@@ -2233,6 +2234,8 @@ body {
   max-width: min(500px, 100%);
   animation: toast-in 0.3s ease-out;
 }
+/* Zonder B2 (#844) heeft een melding geen statusicoon. */
+:where(:root[data-icons="lucide"]) .ops-toast { padding-inline-start: var(--sp-6); }
 
 /* Het statusicoon vóór de tekst (info of fout), zodat het verschil ook zonder kleur te zien is. Het staat op de
    eerste tekstregel: regelhoogte 1,4 × 12 px is ongeveer 17 px, het icoon 16 px. */
@@ -2329,6 +2332,50 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Slepen en neerzetten (issue #771): de laag over het hele venster zolang er een bestand boven de app
+   hangt. Licht grijs in het lichte thema (de werkruimtekleur, geen crème; Ethan, 7 november 2026),
+   de donkere werkruimte in het donkere thema; hoog contrast volgt via dezelfde tokens. Boven alles,
+   ook de rondleiding (9997): tijdens een sleep is dit het enige wat telt. De laag zelf vangt de
+   sleep-events; de kaart niet, zodat er geen extra dragenter/dragleave tussen laag en kaart ontstaat. */
+.file-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: color-mix(in srgb, var(--theme-bg) 80%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* Het neerzetvlak: een gestippelde accentrand rondom, binnen de rand van het venster. */
+.file-drop-overlay::before {
+  content: '';
+  position: absolute;
+  inset: var(--sp-4);
+  border: 2px dashed var(--theme-accent);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+.file-drop-overlay-card {
+  position: relative;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: min(360px, 100%);
+  padding: var(--sp-6) calc(var(--sp-6) * 1.5);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  text-align: center;
 }
 
 /* Onbepaalde voortgangsbalk (update-download zonder bekende totale grootte).
@@ -2459,6 +2506,8 @@ body {
   flex-shrink: 0;
   margin-top: 1px;
 }
+/* Zonder B2 (#844) de kleur van vóór #765. */
+:where(:root[data-icons="lucide"]) .ops-note > svg { color: var(--ops-note-accent, var(--theme-accent)); }
 .ops-note--warning {
   --ops-note-accent: var(--theme-warning-text);
 }

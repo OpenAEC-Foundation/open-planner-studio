@@ -194,6 +194,9 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
+  | 'notifications.fileDropRefused'
+  | 'notifications.fileDropBlocked'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'
   | 'notifications.extHelpProjectOpenFailed'

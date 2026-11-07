@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -42,6 +42,7 @@ import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
@@ -50,6 +51,7 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
+import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
 // Code-splitting: componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
@@ -243,6 +245,13 @@ function AppContent() {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
+  // Iconenfamilie op <html> (#844): zonder B2 gelden de CSS-regels van vóór #765 (`[data-icons="lucide"]`).
+  // Vóór de eerste paint, zodat er geen B2-kleur doorheen flitst.
+  const b2Icons = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  useLayoutEffect(() => {
+    document.documentElement.dataset.icons = b2Icons ? 'b2' : 'lucide';
+  }, [b2Icons]);
+
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
   // (die expliciet `calc(<n>px * var(--ui-font-scale, 1))` gebruiken). De familie overschrijft de
@@ -315,6 +324,8 @@ function AppContent() {
         {/* Gebruikersmeldingen — óók in de presentatiemodus: hier is verder geen
             chrome, dus een stille opslaafout mag juist niet onzichtbaar worden. */}
         <NotificationHost />
+        {/* Slepen en neerzetten: ook hier, anders opent de browser een gesleept bestand zelf. */}
+        <FileDropOverlay />
       </div>
     );
   }
@@ -522,6 +533,10 @@ function AppContent() {
         <NotificationHost />
         <TooltipHost />
       </div>
+
+      {/* Slepen en neerzetten (#771): de laag "Laat los om te openen". Buiten het `inert`-blok: een
+          inert element krijgt geen sleep-events. */}
+      <FileDropOverlay />
     </div>
   );
 }

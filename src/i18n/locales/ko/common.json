@@ -13,6 +13,8 @@
     "dismiss": "알림 닫기",
     "taskEditRevertBlocked": "MCP 클라이언트 또는 확장 프로그램의 변경이 그 사이에 들어왔습니다. 그 이전의 작업 편집은 되돌려지지 않았으며, 실행 취소 아래에 일반 단계로 남아 있습니다.",
     "openFailed": "파일을 열 수 없습니다",
+    "fileDropRefused": "열지 않았습니다: {{names}}. 이 앱은 IFC, XML, MPP, XER, CSV만 엽니다.",
+    "fileDropBlocked": "열지 않았습니다: {{names}}. 먼저 열려 있는 창을 닫으세요.",
     "csvInvalidDate": "CSV를 열지 않았습니다: CSV 행 {{row}}, 열 \"{{column}}\"의 날짜 \"{{value}}\"을(를) 인식할 수 없습니다. yyyy-mm-dd, dd-mm-yyyy 또는 dd/mm/yyyy 형식을 사용하세요.",
     "extGuideCallbackFailed": "확장 프로그램 {{name}}의 단계에서 오류가 발생했습니다. 안내는 계속됩니다.",
     "extHelpProjectOpenFailed": "확장 프로그램 {{name}}의 프로젝트 파일 {{file}}을(를) 열 수 없습니다.",
@@ -1625,5 +1627,9 @@
     "blockedDuplicate": "이동할 수 없습니다: '{{child}}'에 {{resources}} 할당이 이미 있습니다.",
     "blockedNoChild": "이동할 수 없습니다: '{{phase}}'에는 할당을 담을 수 있는 하위 작업이 생기지 않습니다. 마일스톤이나 요약 작업만 가능합니다.",
     "actualWorkLost_other": "{{resource}}의 할당에는 이미 실제 작업 {{hours}}시간이 기록되어 있습니다. 삭제하면 그 실제 작업이 사라집니다."
+  },
+  "fileDrop": {
+    "title": "놓아서 열기",
+    "subtitle": "프로젝트 파일 또는 가져오기"
   }
 }

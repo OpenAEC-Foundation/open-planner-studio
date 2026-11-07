@@ -905,7 +905,7 @@ function ResourceRow({
               title={t('resource.availabilityStepsEditor.title')}
               className="p-0.5 rounded hover:bg-surface-hover text-text-secondary flex-shrink-0"
             >
-              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" />}
+              {stepsOpen ? <Icon id="tree.collapse" size={13} /> : <Icon id="tree.expand" size={13} className="ops-icon-inline-flip" lucide={{ className: undefined }} />}
               {stepCount > 0 && <span className="!text-caption ml-0.5">{stepCount}</span>}
             </button>
           </div>

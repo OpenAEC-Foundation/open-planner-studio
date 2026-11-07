@@ -13,6 +13,8 @@
     "dismiss": "Bezárás",
     "taskEditRevertBlocked": "Az MCP-kliens vagy egy bővítmény közben módosított. A korábbi tevékenység-módosításokat nem vontuk vissza; ezek normál lépésekként maradnak a Visszavonás alatt.",
     "openFailed": "A fájl megnyitása sikertelen",
+    "fileDropRefused": "Nem nyílt meg: {{names}}. Az alkalmazás csak IFC, XML, MPP, XER és CSV fájlt nyit meg.",
+    "fileDropBlocked": "Nem nyílt meg: {{names}}. Először zárja be a megnyitott ablakot.",
     "csvInvalidDate": "CSV nem nyílt meg: felismerhetetlen dátum: „{{value}}” a CSV {{row}}. sorában, „{{column}}” oszlopban. Használja az éééé-hh-nn, nn-hh-éééé vagy nn/hh/éééé formátumot.",
     "extGuideCallbackFailed": "A(z) {{name}} bővítmény egyik lépése hibát jelzett. Az útmutató folytatódik.",
     "extHelpProjectOpenFailed": "A(z) {{name}} bővítmény projektfájlja ({{file}}) nem nyitható meg.",
@@ -1706,5 +1708,9 @@
     "blockedNoChild": "Az áthelyezés nem lehetséges: „{{phase}}” nem kap olyan altevékenységet, amely hozzárendelést képes hordozni, csak mérföldköveket vagy összefoglaló tevékenységeket.",
     "actualWorkLost_one": "A(z) {{resource}} hozzárendelésén már {{hours}} óra tényleges munka van rögzítve. A törlés ezt a munkát elveti.",
     "actualWorkLost_other": "A(z) {{resource}} hozzárendelésén már {{hours}} óra tényleges munka van rögzítve. A törlés ezt a munkát elveti."
+  },
+  "fileDrop": {
+    "title": "Engedje el a megnyitáshoz",
+    "subtitle": "Projektfájl vagy importálás"
   }
 }
