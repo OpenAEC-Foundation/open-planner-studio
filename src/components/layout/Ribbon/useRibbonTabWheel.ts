@@ -4,12 +4,14 @@ import type { RibbonTab } from '@/state/slices/types';
 import { isBlockingDialogOpen } from '@/state/blockingDialogs';
 
 /* ------------------------------------------------------------------------------------------------
- * Muiswiel boven de lint-tabs wisselt van tab (issue #688, Office-patroon)
+ * Muiswiel boven het lint wisselt van tab (issue #688, Office-patroon)
  * ------------------------------------------------------------------------------------------------
- * Alleen boven de rij met tabs (Bestand, Start, …); boven de knoppen van het lint doet het wiel
- * niets nieuws. Wiel omlaag = volgende tab (naar rechts), wiel omhoog = vorige tab. Aan het begin
- * en het einde stopt het; het loopt niet rond. Bestand doet niet mee: dat is geen lint-tab maar de
- * Backstage. Staat de Backstage open, dan doet het wiel niets.
+ * Boven het hele lint: de rij met tabs (Bestand, Start, …) én de knoppen eronder. Wiel omlaag =
+ * volgende tab (naar rechts), wiel omhoog = vorige tab. Aan het begin en het einde stopt het; het
+ * loopt niet rond. Bestand doet niet mee: dat is geen lint-tab maar de Backstage. Staat de
+ * Backstage open, dan doet het wiel niets. Een vooral horizontale veeg blijft van de browser, want
+ * een smal lint scrolt daarmee zijn verborgen knoppen in beeld. De keuzelijsten van het lint staan
+ * in een portal op `document.body`; hun wiel komt hier niet langs.
  *
  * Instelling `ui.ribbonWheelSwitchesTabs` (standaard aan) zet het uit.
  *
@@ -33,7 +35,7 @@ export function ribbonTabAfterWheel(tabs: readonly RibbonTab[], active: RibbonTa
 }
 
 export function useRibbonTabWheel(
-  tabsRef: RefObject<HTMLElement | null>,
+  ribbonRef: RefObject<HTMLElement | null>,
   tabs: readonly RibbonTab[],
   setActiveTab: (tab: RibbonTab) => void,
 ): void {
@@ -44,15 +46,16 @@ export function useRibbonTabWheel(
   });
 
   useEffect(() => {
-    const el = tabsRef.current;
+    const el = ribbonRef.current;
     if (!el) return;
     let accumulated = 0;
     let lastAt = 0;
     // Niet passief: anders kan preventDefault de pagina- of elementscroll niet tegenhouden.
     const onWheel = (e: WheelEvent) => {
       if (!useAppStore.getState().ui.ribbonWheelSwitchesTabs) return;
-      // Ctrl/⌘ + wiel blijft van de browser (zoomen); horizontaal vegen doet niets.
-      if (e.ctrlKey || e.metaKey || e.deltaY === 0) return;
+      // Ctrl/⌘ + wiel blijft van de browser (zoomen). Een vooral horizontale veeg blijft ook van de
+      // browser: een smal lint scrolt zo zijn verborgen knoppen in beeld.
+      if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
       e.preventDefault();
       if (e.timeStamp - lastAt > IDLE_RESET_MS) accumulated = 0;
       lastAt = e.timeStamp;
@@ -75,5 +78,5 @@ export function useRibbonTabWheel(
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [tabsRef]);
+  }, [ribbonRef]);
 }

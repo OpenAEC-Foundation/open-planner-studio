@@ -15,9 +15,10 @@ import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
+import { AppLogo } from '@/components/common/AppLogo';
 
 // Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
@@ -82,7 +83,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);
@@ -486,13 +487,15 @@ export function SettingsPanelContent() {
             {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
                 van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
                 tabblad — de gemiddelde gebruiker heeft er niets aan. */}
-            <div className="settings-section">
-              <h3>{t('settings.statsSection')}</h3>
-              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-              <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
-                {t('settings.statsOpen')}
-              </button>
-            </div>
+            {DOWNLOAD_STATS_AVAILABLE && (
+              <div className="settings-section" data-ops-settings-stats>
+                <h3>{t('settings.statsSection')}</h3>
+                <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+                <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
+                  {t('settings.statsOpen')}
+                </button>
+              </div>
+            )}
 
             {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
@@ -512,7 +515,8 @@ export function SettingsPanelContent() {
             <div className="settings-section">
               <h3>{t('settings.version')}</h3>
               <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
-              <div className="settings-row">
+              <div className="settings-row flex items-center gap-3">
+                <AppLogo size={32} />
                 <button
                   ref={versionRef}
                   type="button"
@@ -524,21 +528,26 @@ export function SettingsPanelContent() {
                   {__APP_VERSION__}
                 </button>
               </div>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                }}
-              >
-                {t('updates.checkButton')}
-              </button>
-              <button
-                className="settings-link"
-                onClick={() => { void openWhatsNew(); }}
-              >
-                {t('updates.justUpdated.whatsNewButton')}
-              </button>
+              {/* Platformbouw (#818): geen update-check en geen releasegegevens van GitHub. */}
+              {UPDATES_AVAILABLE && (
+                <>
+                  <button
+                    className="settings-link"
+                    onClick={() => {
+                      // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                      setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                    }}
+                  >
+                    {t('updates.checkButton')}
+                  </button>
+                  <button
+                    className="settings-link"
+                    onClick={() => { void openWhatsNew(); }}
+                  >
+                    {t('updates.justUpdated.whatsNewButton')}
+                  </button>
+                </>
+              )}
             </div>
             {experimentalSettingsVisible && (
               <div className="settings-section" data-ops-experimental-settings>

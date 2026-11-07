@@ -372,13 +372,46 @@ en noem het in je rapport of PR-tekst.
      store-commit, undo-opslag en herberekening tijdens toepassen apart profileren. Ruwe gegevens en
      [run 41447162487](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/41447162487)
      staan bij `docs/superpowers/evidence/2026-11-02-snelheid.md`. — B
-854. **VERVOLG: de melding van een te krappe externe opvolger moet nog samen met de externe lagkalender van #808.**
-     Beide PR's wijzigen `src/engine/scheduler/CPMSolver.ts` en `public/docs/{nl,en}/ref-meldingen.md`. Na de
-     merge van de eerste werkt de tweede dit bij. `externalSuccessorAnchorMinusLag` rekent de lag dan met de
-     lagkalender van #808 (`externalLag`), net als de backward pass; de regel voor kalendertijd zonder lag blijft
-     staan. De gids `ref-meldingen` houdt beide meldingen (*Externe opvolger te krap* en *Externe lag in de eigen
-     kalender*) en noemt vijf tellers in de statusbalk. De tekst van de nieuwe regel in het paneel wacht nog op de
-     check door Ethan. Uit de review van #810 ronde 2 (GPT-6.1-Sol, xhigh, op `5f121e2a0`, VERVOLG). — B
+846. **VERVOLG: een externe SF-voorganger kent geen ondergrens voor de finish.** Een interne SF-relatie met lag
+     legt naast de startgrens ook een ondergrens op de finish (`forwardFinishFloor` in
+     `src/engine/scheduler/relationMath.ts`). Een externe SF-voorganger rekent alleen de startgrens
+     (`externalForwardBound` in `CPMSolver.ts`). Gezien in `tests/planning/check-external-lag-calendar.ts`: onder
+     P6, met lagkalender *24-uurs* en 2 dagen lag eindigt de taak met de interne relatie op wo 10 juni 08:00 en met de
+     externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
+     Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
+     (`docs/relaties-tussen-projecten.md`). — B
+877. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+     (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
+     zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
+     mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
+     `tests/planning/check-external-lag-calendar.ts`: projectkalender 08–16, eigen kalender 08–14, anker vr 12 juni
+     16:00, FS met 6 uur lag ⇒ intern di 16 juni 08:00, extern di 16 juni 14:00. Een FINISH-mijlpaal: kalender
+     ma–vr 08–16, externe SS-voorganger, anker ma 8 juni 08:00, lag 2 dagen ⇒ intern wo 10 juni 08:00, extern wo
+     10 juni 16:00. Ouder dan keuze 9. Voorstel: een externe voorganger telt in B6 als voorganger. Gevonden bij de
+     fix van de review van #808; het tweede geval uit de review van #808 ronde 2 (GPT-6.1-Sol, xhigh, op
+     `2cdf664d0`, VERVOLG). — B
+874. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
+     (`src/engine/scheduler/relationMath.ts`) heeft één aanroeper, de externe voorganger; de interne FF-tak in
+     `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
+     Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
+     en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
+875. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
+     `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
+     vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
+     één taak en ongedaan maken in de store ontbreken. Uit de review van #808 (GPT-6.1-Sol, xhigh, op
+     `446809cc2`, VERVOLG). — S
+876. **VERVOLG: in een keten in kalendertijd verliest een interne SS-relatie met lag 0 de grens van een externe
+     opvolger.** Projectkalender ma–vr 08–16, geen pins. P duurt 1 uur kalendertijd (ELAPSEDTIME) en begint zo 7 juni
+     22:00. P heeft een interne SS-relatie met lag 0 naar L. L duurt 24 uur kalendertijd en heeft een externe
+     FS-opvolger met lag 0 en anker ma 8 juni 20:00, buiten de werktijd. L krijgt terecht −120 minuten speling. P
+     krijgt late start ma 08:00, +600 minuten speling, en is niet kritiek; P had uiterlijk zo 20:00 moeten beginnen.
+     Oorzaak: de interne SS-terugrekening (`src/engine/scheduler/relationMath.ts:615`, `shiftLagPred`) schuift de
+     grens bij lag 0 naar het volgende werkmoment, ook als de voorganger in kalendertijd telt. Fout onder OPS, P6 en
+     MS Project met de lagkalenders *Voorganger*, *Opvolger* en *Projectkalender*; met *24-uurs* klopt het. Ook zo op
+     main (`c26e8a226`): geen gevolg van #808. Een fix raakt de gewone relatierekening van alle profielen en vraagt
+     `measure:profiles` met het P6-corpus. Uit de review van #808 ronde 3 na de merge met #807 (GPT-6.1-Sol, xhigh,
+     op `d477ac542`; door Sol als BLOKKEERT gemeld, als bestaande schuld; Trias besloot op 7 november tot VERVOLG).
+     — B
 
 ## Tabel, invoer en bediening
 
@@ -608,6 +641,37 @@ en noem het in je rapport of PR-tekst.
      (GPT-6.1-Sol, xhigh); VERVOLG, geen BLOKKEERT. Voorstel voor later: behandel Escape alleen
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
+
+843. **Kolomkoppen verslepen werkt op Windows in de desktop-app mogelijk niet.** De herordening in
+     `src/components/task-grid/DataGridHeader.tsx:459` gebruikt HTML5-slepen (`draggable`, `drop` op
+     `window`). `src-tauri/tauri.conf.json` zet `dragDropEnabled: true`; dan zet wry 0.57.0 op Windows
+     `SetAllowExternalDrop(false)` en vervangt het de drop-target van WebView2 door een eigen target
+     (`webview2/drag_drop.rs`, `RevokeDragDrop` + `RegisterDragDrop`). De Tauri-documentatie zegt dat
+     HTML5-slepen op Windows `dragDropEnabled: false` vraagt. Afgeleid uit de bron bij #771, niet op
+     Windows nagespeeld. `dragDropEnabled` moet aan blijven voor het neerzetten van bestanden (alleen
+     zo krijgt de app het pad). Voorstel: de herordening met pointer-events, zoals `GuidePanel.tsx`. — S
+901. **Bestanden slepen: Esc, een verdwijnend element en de echte sleep zijn niet getest.** De browserstap
+     in `tests/browser/new-open-task-flow.spec.ts` stuurt zelfgemaakte `DragEvent`s met een `DataTransfer`
+     uit de pagina. Playwright kan geen bestand uit het besturingssysteem slepen, dus de onderhandeling
+     tussen besturingssysteem en browser (Esc tijdens het slepen, de cursor bij `dropEffect = 'none'`,
+     `getAsFileSystemHandle` van een echt gesleept bestand) en de sleep in de desktop-app (Tauri op Windows,
+     macOS en Linux) zijn niet nagespeeld. Ook niet: een element dat tijdens het slepen uit de pagina
+     verdwijnt en zo geen `dragleave` krijgt; de rusttijd van 1,5 s in `useFileDrop.ts` vangt dat op en is
+     wel getest. Uit review ronde 1 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+902. **Bestanden slepen: dat getypte invoer in "Taak bewerken" blijft staan, is niet in de browser
+     bewezen.** Opent de planner "Taak bewerken" terwijl een gesleept bestand nog gelezen wordt, dan
+     wacht het document tot de dialoog dicht is (`waitWhile` in `openOpenedFile`). `check-file-drop.ts`
+     bewijst dat met de echte `isBlockingDialogOpen`: document, dialoogvlag en taak blijven staan. Hij
+     mount geen dialoog en typt geen tekst. De browserstap in `new-open-task-flow.spec.ts` toetst alleen
+     een dialoog die al vóór het neerzetten openstaat. Nodig: een browserstap met vertraagd lezen,
+     tussentijds "Taak bewerken" openen en tekst typen, en daarna die tekst controleren. Uit review ronde
+     2 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
+   (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
+   cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
+   uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
+   geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
+   terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
 
 ## Kalenders
 
@@ -1234,6 +1298,87 @@ en noem het in je rapport of PR-tekst.
      Voorstel: voeg later een kleine verwijderactie toe; houd het item bij een tijdelijke leesfout.
      Uit de review van #798 door Sol (GPT-6.1-Sol, xhigh) op `fb6108fb4`; VERVOLG, geen BLOKKEERT. — B
 
+860. **Zonder vervanger voor `localStorage` bewaart de tool geen instellingen bij de host.** De route van #818
+     (`src/services/fileAccess/siteHostSettings.ts`) zet de waarden van `settings` in `localStorage` en leest ze
+     daar weer. De SuperCloud heeft een vervanger in het geheugen, dus daar werkt het. Een host zonder die
+     vervanger, in een sandbox zonder `allow-same-origin`, geeft een `SecurityError` bij elke toegang (zie de
+     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets;
+     hij meldt alleen dat de instellingen deze sessie niet bewaard worden.
+     Voorstel: laat `readLocal`/`writeLocal` in dat geval een map in het geheugen gebruiken. — S
+
+861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** Het pre-paint-script
+     (`public/theme-prepaint.js`) draait vóór de instellingen van de host er zijn (die komen async; `main.tsx`
+     wacht er hoogstens 5 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
+     geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
+     gebeurt dit niet. — S
+
+866. **Waarschuwingsiconen gebruiken `data:`-afbeeldingen; een CSP zonder `img-src data:` blokkeert ze.**
+     `src/styles/globals.css:2592` en `:2603` zetten een `mask` met een `data:image/svg+xml`-URL. Het contract
+     zegt alleen "de CSP laat alleen de eigen bundel toe". Laat de SuperCloud `data:` niet toe, dan verdwijnen
+     die iconen en meldt de browser een CSP-schending. De werkplektest in `tests/browser/platform-build.spec.ts`
+     staat `data:` bewust toe, omdat de echte CSP niet bekend is. Voorstel: de echte CSP navragen, of de
+     iconen als bestand in de bundel zetten. — S
+
+867. **PDF-rapporten hebben in de werkplek `'wasm-unsafe-eval'` nodig.** Het subsetten van lettertypen laadt
+     `hb-subset.wasm` met `WebAssembly.instantiate` (`src/services/pdf/hbSubset.ts:58`). Een CSP met alleen
+     `script-src 'self'` verbiedt dat in Chromium. Het contract noemt WASM in de bundel, maar niet de
+     CSP-regel ervoor. Niet getest: de werkplektest maakt geen PDF. Voorstel: de echte CSP navragen; anders een
+     terugval zonder subsetten. — S
+
+869. **Exports als download werken niet in het frame uit de controle van het issue.** De controle gebruikt
+     `sandbox="allow-scripts allow-modals"`, zonder `allow-downloads`. Exports (PDF, CSV, Excel) en Opslaan
+     zonder host lopen via `<a download>`; Chromium blokkeert een download uit zo'n frame. De Calc-notitie noemt
+     `allow-scripts allow-downloads allow-modals`, en het contract zegt dat de SuperCloud downloads opvangt.
+     Niet getest. Voorstel: bij de SuperCloud navragen welk sandboxattribuut het echte frame heeft. — S
+
+870. **Twee taalwissels van de host vlak na elkaar kunnen de app in de oude taal laten staan.**
+     `src/hooks/useSiteHostPreferences.ts` (`applyPreferences`) en `setLocale` in `src/i18n/config.ts`.
+     Nagespeeld in Chromium (review #827 ronde 5): de app start in het Duits. De host wisselt naar Frans,
+     en het laden van de Franse vertaling duurt even. Intussen wisselt de host terug naar Duits; die wissel
+     slaat de app over, want de taal is op dat moment nog Duits. Dan is het Frans geladen en zet `setLocale`
+     de app op Frans. Uitkomst: de host zegt Duits, de app toont Frans. Een herhaald event met Duits herstelt
+     het niet. De controle in `.then()` komt te laat: `setLocale` heeft de taal dan al gewijzigd. Voorstel:
+     maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
+     host nog dezelfde taal vraagt. — B
+
+880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
+     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
+     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
+     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
+     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
+     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
+     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
+     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
+
+881. **VERVOLG: de devlink-uitzondering van de themamelding wordt buiten de echte meldingsroute getest.**
+     `tests/planning/check-system-theme.ts:179` geeft de waarden zelf aan `hostThemeWinsNextStart`. Fixrichting: de
+     devbundelproef in `check-dev-open-link.ts` uitbreiden (hostthema, echte `?theme=light`, gebruikerswissel via
+     `applyTheme`, nul meldingen) en de twee injectieparameters van `hostThemeWinsNextStart` laten vallen. Uit de
+     review van #835 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+910. **VERVOLG: een nieuwe taalkeuze tijdens het toepassen van late hostinstellingen wordt niet bewaard.**
+     `src/utils/settingsStore.ts:76` (via `src/components/settings/settingControls.tsx:19`) gooit elke schrijfactie
+     van de gebruiker op een vastgehouden sleutel weg, ook een nieuwe keuze. Gemeten: het late antwoord bewaart Frans,
+     de gebruiker kiest Duits terwijl de app nog toepast (`applying`); zichtbaar is Duits, lokaal en bij de host
+     blijft het Frans. Alleen `ops-locale` heeft een lang venster: het duurt zo lang als de taaldownload, en die heeft
+     geen tijdslimiet. Richting: de taalkeuze onbedienbaar maken tijdens het toepassen, of een nieuwe taalkeuze apart
+     behandelen; geen algemene wachtrij, want die speelt ook oude timerwrites af. Uit de review van #833
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+911. **VERVOLG: `heldWrites` op moduleniveau koppelt losse sync-instanties.**
+     `src/services/fileAccess/siteHostSettings.ts:167` en `:595`: een tweede sync met een ander opslagobject blokkeert
+     de `writeLocal` van de eerste. Twee echte iframes delen dit niet (elk heeft eigen modulegeheugen), en productie
+     maakt één sync; alleen de tests maken er meer. Richting: één `held`-set per sync, en `writeLocal` vraagt
+     `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
+     VERVOLG). — B
+
+872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
+     laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
+     `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
+     subpad laadt (docs, voorbeelden, workers, `theme-prepaint.js`, het manifest), is niet getest. Voorstel: laat
+     de spec in CI ook de relatieve variant bouwen en draai dezelfde server en scenario's erop. Gevonden in de
+     review van #828. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
@@ -1382,6 +1527,20 @@ en noem het in je rapport of PR-tekst.
      `README.md:59` toont `docs/images/readme/report-preview.png`. Daarop staan in het lint nog de knop *Print*
      en de groep *Report*, die in #791 zijn verwijderd. Voorstel: de afbeelding opnieuw maken als #791 in main
      zit. Uit de review van #791 (GPT-6.1-Sol, xhigh, op `a60d2491e`, VERVOLG). — B
+848. **VERVOLG: Project verplaatsen noemt alleen de kalender als het einde anders schuift.** Sinds keuze 8 schuift
+     een extern anker niet meer mee. Houdt alleen zo'n anker het projecteinde vast, dan zegt de dialoog toch dat
+     "de kalender (feestdagen, bouwvak, winterstop)" ingrijpt (`src/components/dialogs/MoveProjectDialog.tsx:75`,
+     sleutels `moveProject.*`), en `planner_move_project` zegt hetzelfde in `note`
+     (`src/services/mcp/tools/calendarResourceTools.ts:2247`). Voorstel: de uitleg algemeen maken (kalenders en
+     externe ankers), in nl en en tegelijk, en langs Ethan. Uit de review van #807 (GPT-6.1-Sol, xhigh, op
+     `33f2284bf`, VERVOLG). — B
+
+858. **VERVOLG: de Help belooft per jaar 11 Amerikaanse feestdagen, maar sommige jaren hebben er 10 of 12.**
+     `public/docs/nl/howto-feestdagen-genereren.md:25` en de Engelse versie (regel 25) zeggen "per jaar de 11
+     federale feestdagen". Valt 1 januari op zaterdag, dan is de vrije dag 31 december van het jaar ervoor.
+     Zo geeft de generator terecht 12 regels voor 2021 en 10 voor 2022. Een planner kan dan denken dat er een
+     dag ontbreekt. Voorstel: "de 11 federale feestdagen", met één zin over nieuwjaar op 31 december van het
+     vorige jaar. Uit de review van #824 (GPT-6.1-Sol, xhigh, op `0efdaec39`, VERVOLG). — B
 
 ## Tests
 
@@ -1703,6 +1862,47 @@ en noem het in je rapport of PR-tekst.
      later één gerichte regressie met de echte `hb-subset.wasm` en CJK-tekst. Uit de review van #803
      (GPT-6.1-Sol, xhigh, op `ccfa8ae7f`, VERVOLG); Sol bevestigde zelf dat de terugval met echte subsetting
      werkt. — B
+855. **VERVOLG: `verify:icons` bewijst niet dat de uitvoerbestanden het goedgekeurde logo bevatten.**
+     `scripts/verify-approved-icons.mjs:33` controleert alleen de bron met een hash; de uitvoer krijgt
+     alleen controles op afmetingen en een paar headerbytes. Een volledig rode PNG van 512×512, een
+     afgebroken PNG van 24 bytes, een ICO van zes bytes of een ICNS met alleen `icns` geven allemaal
+     `verify:icons groen`. Voorstel: leg de hashes van de goedgekeurde uitvoer vast en controleer die; dan
+     kunnen de losse formaatcontroles grotendeels weg. Uit de review van #822 (GPT-6.1-Sol, xhigh, op
+     `3d594a216`, VERVOLG), in het geheugen nagespeeld. — B
+856. **VERVOLG: `verify:icons` mist een favicon-verwijzing met een andere attribuutvolgorde.**
+     `scripts/verify-approved-icons.mjs:49` vindt `<link rel="icon" href="…">`, maar niet
+     `<link href="/oud-logo.png" rel="icon" …>`; dan blijft de controle groen voor een bestand dat niet in
+     `icons.json` staat. De regex vraagt ook dubbele aanhalingstekens. Voorstel: lees de attributen los van
+     hun volgorde en aanhalingstekens, en controleer elke icoonverwijzing tegen de lijst. Uit de review van
+     #822 (GPT-6.1-Sol, xhigh, op `3d594a216`, VERVOLG), in het geheugen nagespeeld. — B
+857. **VERVOLG: ongebruikte tak voor `size > 32` in `AppLogo`.** `src/components/common/AppLogo.tsx:9`
+     kiest bij meer dan 32 px andere bestanden, maar de drie aanroepen gebruiken 18, 24 en 32 px. Voorstel:
+     één vaste combinatie van de 32- en 64-px-bestanden. Uit de review van #822 (GPT-6.1-Sol, xhigh, op
+     `3d594a216`, VERVOLG). — B
+
+859. **VERVOLG: de browsertest van het muiswiel in het lint mist twee routes.**
+     `tests/browser/ribbon-toggles.spec.ts:71` test na het uitzetten van de instelling alleen boven de tabrij,
+     niet boven de lintknoppen. Ook een wielbeweging in een geopende, scrollbare keuzelijst wordt niet getest.
+     Een regressie op die plekken blijft zo onopgemerkt. Voorstel: beide handelingen toevoegen aan het
+     bestaande scenario. Alleen testdekking, geen fout gezien. Uit de review van #823, ronde 2
+     (GPT-6.1-Sol, xhigh, op `211c9aafd`, VERVOLG). — B
+863. **VERVOLG: na crashherstel gaat een numerieke basisversie als tekst naar de SuperCloud, met een vals
+     conflict als gevolg.** `src/services/fileAccess/superCloudHost.ts:103` (vooral regel 115 en het gebruik
+     bij regel 168), daarnaast `src/state/documentContract.ts:90`. De oorspronkelijke soort van de versie staat
+     alleen in de tijdelijke cache van de adapter; het document en het herstelmanifest bewaren tekst.
+     Nagespeeld met de echte store: bestand openen op numerieke versie `1`, bewerken, een nieuwe adapter
+     zoals na herladen, document herstellen en opslaan. De host krijgt `{ id: "p1", expectedVersion: "1" }`.
+     Vergelijkt de host strikt met numerieke `1`, dan maakt hij een conflictkopie, hoewel niemand het
+     origineel wijzigde. Het werk blijft bewaard. Voorstel: haal de oorspronkelijke soort op als een
+     basisversie niet in de cache staat (bijv. via `versions(id)`), en houd de herstelde basis. Uit de
+     review van #826 (GPT-6.1-Sol, xhigh, op `80490a19d`, VERVOLG). — B
+864. **VERVOLG: *Openen van de site* raadt de nieuwste versie uit de volgorde van `versions`.**
+     `src/components/dialogs/SiteOpenDialog.tsx:77`. Zonder `file.version` (de SuperCloud-vorm) geldt de
+     eerste versie in de lijst als de nieuwste. Het SuperCloud-contract zegt niets over die volgorde. Bij
+     `versions = [1, 2]` krijgt versie 1 het label "nieuwste" en opent een klik de actuele versie. Niet
+     vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
+     contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
+     `80490a19d`, VERVOLG). — S
 
 ## Wensen en open taken (geen bug)
 
@@ -1845,3 +2045,84 @@ en noem het in je rapport of PR-tekst.
      weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
      voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
      review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B
+
+850. **VERVOLG: de MCP-laag is in de platformbouw geen aparte chunk.** `src/services/mcp/siteAppTools.ts` haalt de
+     dispatcher, `server.ts` en de toolregistry pas bij de eerste aanroep op met `import()`. Maar ze staan al statisch
+     in de hoofdbundel: `App.tsx` → `useAiAutostart.ts` → `server.ts` (dat bij het laden de tools registreert), en ook
+     `SettingsPanelContent.tsx` (`applyAiModeLive`), `AiServerGroup.tsx` en `AiConnectionGroup.tsx` (`server.ts`, via
+     `ribbonConfig.tsx`, ook als het AI-tabblad verborgen is) en `AiConnectionDetailsDialog.tsx` (`getTools` tijdens
+     het tekenen). `siteAppTools.ts` importeert zelf `requestHandler.ts` (en daarmee `activityLog.ts`) statisch.
+     `ensureMcpToken` in `AiConnectionGroup` en `getTools` in de dialoog lopen synchroon, dus een kleine dynamische
+     import in één bestand breekt het pad niet; een latere `import()` maakt een eerdere statische evaluatie niet
+     ongedaan. Het contract (supercloud, "Lui laden") vraagt een aparte chunk. Voorstel: laat de AI-onderdelen in
+     `ribbonConfig.tsx`, `SettingsPanelContent.tsx` en `App.tsx` alleen meedoen achter `AI_MODE_AVAILABLE`
+     (`src/utils/buildFlags.ts`), en meet daarna met `build:platform` welke chunks er ontstaan. Gevonden bij #818 met
+     grep op de imports, zonder build; bevestigd in de review van #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). — B
+
+851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
+     van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
+     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
+     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
+     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
+     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
+     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
+     met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
+     per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
+     aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
+     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Besluit Ethan
+     7 november 2026: de preflight blijft zoals hij is. Voorstel: een `part` per skill, en `criticalPaths` alleen op
+     de eerste pagina. — B
+
+853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
+     `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
+     gaat in zijn geheel weg, met de losse waarden erin. Is bijvoorbeeld de lijst `calendars` van
+     `planner_update_calendar` de grootste verzameling, dan kan `becameLiteral` van een latere regel wegvallen (met een
+     telling in `compacted.shortened`). In de gemeten batches gebeurt dat niet, omdat `unresolved` of een takenlijst
+     veel groter is. (2) Lange losse teksten komen pas aan de beurt als er geen verzameling meer is. Bij
+     `planner_update_project` met een naam van 40.000 tekens verdwijnt daardoor eerst de kleine lijst `updated`
+     (`["name"]`), en daarna wordt de naam ingekort. (3) Het vaste deel per batchstap (`SITE_APP_REPORT_STEP_CHARS`,
+     220 tekens, plus `SITE_APP_STEP_EXTRA_CHARS`) is alleen gemeten voor de tools in de tests (taken, resources,
+     kalenders, relaties, taakwijzigingen, nivelleren en leesstappen). Een andere wijzigende tool met veel vaste
+     velden kan meer nodig hebben. Een batch zonder labels heeft geen voorcontrole; die past alleen niet als de vaste
+     delen samen al boven de grens komen (bijvoorbeeld 100 stappen `planner_level_resources`, elk 264 tekens).
+     Voorstel: een lange tekst meenemen in de keuze van 'de grootste', en het vaste deel van elke wijzigende tool
+     meten in één test over de registry. — B
+
+854. **VERVOLG: `compactChange` kopieert het antwoord onnodig opnieuw en verplaatst de koppelingen op twee plekken.**
+     `src/services/mcp/siteAppTools.ts:374`. `run()` maakt het antwoord al los met `JSON.parse(raw)` (regel 551).
+     `compactChange()` kopieert envelop, data en afwijzingen daarna opnieuw als JSON; voor deze ene aanroeper is dat
+     overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
+     kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
+     eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+
+885. **VERVOLG: `icon-orange.spec.ts` faalt in CI op twee onverwachte HTTP 403-meldingen in de console.**
+     `tests/browser/icon-orange.spec.ts:74` (licht en donker, "nooit helemaal oranje in meldingen, taakvelden,
+     dialogen en het menu Bestand"). In de handmatige browserrun 42393001546 op de branch van #841 faalden beide
+     scenario's op `console.error: Failed to load resource: the server responded with a status of 403 ()`, via de
+     foutcontrole in `tests/browser/fixtures/ops.ts:254`. Er faalde geen kleurcontrole. #841 raakt geen netwerkcode;
+     waarschijnlijk vraagt het menu Bestand een externe bron op die in CI 403 geeft. Niet nagegaan welke URL het is en
+     of de vrijdagrun op main hetzelfde laat zien. Voorstel: de URL uit de trace halen en het verzoek in de test
+     afvangen, of de 403 als bekende melding accepteren. Uit de review van #841 (GPT-6.1-Sol, xhigh, ronde 1,
+     BEVESTIGD, VERVOLG). — S
+
+886. **VERVOLG: geen regressiecontrole op de kleur van de scheidingslijn tussen de lintgroepen.**
+     `.ribbon-separator` (`src/components/layout/Ribbon/Ribbon.css`) tekent met `--theme-ribbon-separator`
+     (`src/styles/globals.css`, in elk themablok; #843). `tests/planning/check-theme-contrast.ts` meet de lijn niet
+     tegen het lintvlak, `check-system-theme.ts` controleert alleen dat elk thema een blok heeft, en geen
+     browserscenario leest de berekende kleur. Terug naar de oude rasterkleur (#30303A in donker, onzichtbaar op
+     #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
+     `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
+     `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+903. **VERVOLG: aparte `icons.useB2()` in de testbrug, alleen voor de kleurtest.** `src/utils/devBridge.ts:306` en
+     `:372` voegen een eigen doorgeefmethode toe die alleen `tests/browser/icon-orange.spec.ts` gebruikt. De bestaande
+     `store`-brug kan dezelfde vlag zetten (`__OPS__.store.getState().setUI({ featureFlags: … })`). Voorstel: de methode
+     weghalen en de test via `store` laten werken. Opruimen; het gedrag klopt. Uit de review van #844 (GPT-6.1-Sol,
+     xhigh, ronde 1, VERVOLG). — S
+
+
+904. **VERVOLG: `icon-orange.spec.ts` zet B2 aan ná het laden.** `Icon` leest de vlag `b2-icons` met `getState()`,
+     zonder abonnement (`src/components/icons/Icon.tsx`). Een element dat al bestaat, zoals het icoon van Berekenen in
+     `ribbonConfig.tsx`, rendert na de wissel niet opnieuw en blijft Lucide. De `beforeEach` in
+     `tests/browser/icon-orange.spec.ts` wisselt de vlag na het laden en verwacht nul Lucide-iconen. Voorstel: open de
+     app in die test direct met `?icons=b2`; dan kan ook `icons.useB2()` (903) weg. Uit de review van #844
+     (GPT-6.1-Sol, xhigh, ronde 2, VERVOLG). — S

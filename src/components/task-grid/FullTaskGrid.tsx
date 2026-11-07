@@ -54,6 +54,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
 import {
   appendGhostRow,
@@ -84,7 +85,7 @@ import type {
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 interface EditingCell {
   documentId: string;
@@ -802,6 +803,11 @@ export function TaskGridSurface({
         name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
       });
       if (!id) return;
+      // Hier typt de gebruiker de naam in de cel (de editor hieronder). `insertTaskRelativeToScope` zet ook de
+      // naamfocus van het eigenschappenpaneel klaar; die zou de focus uit deze editor halen, afhankelijk van welk
+      // effect het laatst draait. Dan landt het typen in het paneel en blijft de cel leeg open (#818, gezien in
+      // de productiebundel). Eén eigenaar van de focus: de cel.
+      useAppStore.getState().setUI({ pendingTaskNameFocusId: null });
       const live = useAppStore.getState().viewRows.find(candidate => candidate.kind === 'task' && candidate.task.id === id);
       if (!live) return;
       selectTask(id, false);
@@ -976,9 +982,11 @@ export function TaskGridSurface({
               onPointerDown={event => event.stopPropagation()}
               onClick={event => { event.stopPropagation(); toggleCollapse(summary.id); }}
             >
-              {collapsedTaskIds.includes(summary.id)
-                ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
-                : <Icon id="tree.collapse" size={16} />}
+              {b2IconsOn()
+                ? (collapsedTaskIds.includes(summary.id)
+                  ? <Icon id="tree.expand" size={16} className="ops-icon-inline-flip" />
+                  : <Icon id="tree.collapse" size={16} />)
+                : (collapsedTaskIds.includes(summary.id) ? '▸' : '▾')}
             </button>
           )}
           {body}
@@ -1242,6 +1250,7 @@ export function TaskGridSurface({
         onChooserOpenChange={surfaceId === 'full-task-grid'
           ? open => setUI({ showColumnsDialog: open })
           : undefined}
+        chooserExternalToggleSelector={surfaceId === 'full-task-grid' ? COLUMNS_RIBBON_TOGGLE_SELECTOR : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
       {externalRelationMenu?.documentId === activeDocumentId && (

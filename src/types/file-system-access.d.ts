@@ -4,6 +4,7 @@
 // FileSystemWritableFileStream al, maar NIET:
 //   - Window.showOpenFilePicker / showSaveFilePicker
 //   - FileSystemHandle.queryPermission / requestPermission
+//   - DataTransferItem.getAsFileSystemHandle
 //   - de picker-optietypes
 // Zonder deze augmentatie faalt `npm run build`. We voegen uitsluitend de gebruikte
 // leden toe; @types/wicg-file-system-access wordt bewust NIET als dependency gekozen
@@ -39,6 +40,12 @@ interface FileSystemHandlePermissionDescriptor {
 interface FileSystemHandle {
   queryPermission?(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
   requestPermission?(descriptor?: FileSystemHandlePermissionDescriptor): Promise<PermissionState>;
+}
+
+// Slepen en neerzetten (issue #771): Chromium geeft voor een gesleept bestand een handle, net als de
+// bestandskiezer. Alleen synchroon binnen het drop-event te vragen; Firefox/Safari kennen hem niet.
+interface DataTransferItem {
+  getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 }
 
 interface Window {

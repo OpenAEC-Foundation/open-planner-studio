@@ -13,6 +13,7 @@
 // 5. Review #810: bij SS en SF beslist de start, ook met voortgang (de echte voortgangsacties in de store).
 //    Te laat begonnen maar snel klaar ⇒ melding; op tijd begonnen maar lang bezig ⇒ geen melding.
 // 6. Review #810: een externe opvolger op een fase geeft een regel in het paneel bij de bladtaak.
+// 8. Na #808: de grens telt de lag in de lagkalender, en het grenspunt geldt op die kalender (24 uur).
 import './domStub';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
@@ -289,6 +290,42 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
       // De backward pass rekent met hetzelfde ankermoment: de late finish is het anker zelf, niet ma 08:00.
       eq(`${tag}: anker ${anchor} ⇒ late finish op het anker`, S().tasks.find(x => x.id === cure)?.time.lateFinish, anchor);
     }
+  }
+}
+
+// 8. Na #808 telt de lag in de lagkalender van het project. De melding gebruikt dezelfde grens als de
+//    pincontrole: het anker min de lag op die kalender (`externalSuccessorShift`). Twee momenten zijn hetzelfde
+//    punt als er op de LAGkalender geen werkminuut tussen zit, niet op de kalender van de taak: anders valt een
+//    grens buiten de werktijd van de taak weg, terwijl de 24-uurskalender daar nog doortelt.
+{
+  const ra: Sequence = { id: 'ra', predecessorId: 'R', successorId: 'A', type: 'FINISH_START', lagDays: 0 } as Sequence;
+  const run = (tasks: Task[], sequences: Sequence[], base: 'ops' | 'p6' | 'msproject') => {
+    const schedulingOptions = {
+      ...effectiveSchedulingOptions({ schedulingProfile: { baseId: base, id: base, name: '', overrides: {} } }),
+      lagCalendar: '24hour' as const,
+    };
+    const result = new CPMSolver(tasks, sequences, calendar, [], { schedulingOptions }).solve();
+    if (result.error) throw new Error(result.error);
+    return { violations: (result.externalSuccessorViolations ?? []).map(v => `${v.taskId}/${v.linkId}`), result };
+  };
+  for (const base of ['ops', 'p6', 'msproject'] as const) {
+    // SS met 1 dag lag in 24 uur. A begint di 2 juni 08:00, dus de opvolger mag pas wo 3 juni 08:00 beginnen.
+    const ss = (anchor: string) => run(
+      [task('R', '2026-06-01', 1), task('A', '2026-06-01', 5, { externalLinks: [successor('x', 'SS', anchor, { lagDays: 1 })] })],
+      [ra], base);
+    eq(`${base}/24 uur/SS 1 dag: opzet, A begint di 2 juni 08:00`, ss('2026-06-03T08:00').result.tasks.get('A')?.earlyStart, '2026-06-02T08:00');
+    eq(`${base}/24 uur/SS 1 dag: anker wo 3 juni 07:00 ⇒ melding`, ss('2026-06-03T07:00').violations, ['A/x']);
+    eq(`${base}/24 uur/SS 1 dag: anker wo 3 juni 08:00 ⇒ geen melding`, ss('2026-06-03T08:00').violations, []);
+    // Startmijlpaal M na R (R eindigt ma 1 juni 16:00), externe FS-opvolger met 1 uur lag in 24 uur.
+    const ms = (anchor: string) => run(
+      [task('R', '2026-06-01', 1), task('M', '2026-06-01', 0, {
+        isMilestone: true, milestoneKind: 'START', externalLinks: [successor('y', 'FS', anchor, { lagMinutes: 60 })],
+      })],
+      [{ ...ra, id: 'rm', successorId: 'M' }], base);
+    const at = ms('2026-06-02T09:00').result.tasks.get('M')?.earlyFinish;
+    eq(`${base}/24 uur/startmijlpaal FS 1 uur: opzet, M op di 2 juni 08:00`, at, '2026-06-02T08:00');
+    eq(`${base}/24 uur/startmijlpaal FS 1 uur: anker di 08:00 ⇒ melding`, ms('2026-06-02T08:00').violations, ['M/y']);
+    eq(`${base}/24 uur/startmijlpaal FS 1 uur: anker di 09:00 ⇒ geen melding`, ms('2026-06-02T09:00').violations, []);
   }
 }
 

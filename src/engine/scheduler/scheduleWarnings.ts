@@ -31,6 +31,7 @@ export type ScheduleWarningKind =
   | 'droppedSequence'
   | 'hammockNoFinishDriver'
   | 'cappedTask'
+  | 'externalLagCalendar'
   | 'overallocation';
 
 export type ScheduleWarningSeverity = 'error' | 'warning';
@@ -99,7 +100,8 @@ const KIND_ORDER: Record<ScheduleWarningKind, number> = {
   droppedSequence: 5,
   hammockNoFinishDriver: 6,
   cappedTask: 7,
-  overallocation: 8,
+  externalLagCalendar: 8,
+  overallocation: 9,
 };
 
 const SEVERITY: Record<ScheduleWarningKind, ScheduleWarningSeverity> = {
@@ -112,6 +114,7 @@ const SEVERITY: Record<ScheduleWarningKind, ScheduleWarningSeverity> = {
   droppedSequence: 'warning',
   hammockNoFinishDriver: 'warning',
   cappedTask: 'warning',
+  externalLagCalendar: 'warning',
   overallocation: 'warning',
 };
 
@@ -215,6 +218,9 @@ export function collectScheduleWarnings(input: ScheduleWarningsInput): ScheduleW
     for (const id of cpmResult.droppedSequenceIds ?? []) pushSequence('droppedSequence', id);
     for (const id of cpmResult.hammockNoFinishDriverTaskIds ?? []) pushTask('hammockNoFinishDriver', id);
     for (const id of cpmResult.cappedTaskIds ?? []) pushTask('cappedTask', id);
+    // Keuze 9: de lag van een externe relatie telt in de kalender van de eigen taak, omdat de gekozen
+    // lagkalender in het andere project staat (`CPMSolver.externalLagEngine`).
+    for (const id of cpmResult.externalLagCalendarFallbackTaskIds ?? []) pushTask('externalLagCalendar', id);
   }
 
   if (resourceLoadResult) {

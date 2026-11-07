@@ -84,6 +84,7 @@
       "explicitSummary": "Attività di riepilogo esplicita",
       "externalRelationData": "Dati delle relazioni esterne",
       "floatPath": "Percorso margine",
+      "calendarDays": "Giorni naturali",
       "freeFloat": "Margine libero",
       "hammock": "Hammock (durata derivata)",
       "interferingFloat": "Margine interferente",
