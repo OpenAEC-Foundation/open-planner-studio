@@ -28,6 +28,7 @@ import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, isIsoDay, weeksToPreset,
 } from '@/engine/reports/reportingPeriod';
 import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
+import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontId } from '@/services/pdf/reportFont';
 
 /** localStorage-sleutel (wordt door `setSetting` geprefixt tot `ops-reportSettings`). */
 const STORAGE_KEY = 'reportSettings';
@@ -200,6 +201,9 @@ export interface ReportSettings {
   repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
+  /** Lettertype van alle rapporttekst (issue #770): een id uit het vaste setje in `reportFont.ts`.
+   *  Alleen deze voorkeur op het apparaat; het IFC-bestand weet er niets van. */
+  reportFontFamily: ReportFontId;
   /** Statuslijn in de export: drie opties. */
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
@@ -235,6 +239,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   repeatFooter: true,
   timelineColumns: 1,
   reportFontScale: 100,
+  // De letter van vóór de keuzelijst: een verse installatie en een oude opslag drukken ongewijzigd af.
+  reportFontFamily: DEFAULT_REPORT_FONT_ID,
   statusLine: 'none',
   followView: false,
   previewQuality: '200',
@@ -360,6 +366,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
     // `snapToChoice`: dezelfde "getal buiten de keuzelijst"-semantiek als de settings-loader.
     reportFontScale: snapToChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
+    // Een onbekende id (een letter die een latere versie toevoegde, of geprutst) ⇒ Inter.
+    reportFontFamily: parseEnum(REPORT_FONT_IDS, s.reportFontFamily) ?? d.reportFontFamily,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert

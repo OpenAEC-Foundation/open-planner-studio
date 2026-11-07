@@ -576,6 +576,10 @@ export async function saveAutoCalcCPM(value: boolean): Promise<void> {
   await setSetting('autoCalcCPM', value);
 }
 
+export async function saveAutoFitColumns(value: boolean): Promise<void> {
+  await setSetting('autoFitColumns', value);
+}
+
 // Bouwmodus (bouw-agnostische modus): app-instelling onder de 3-plekken-regel
 // (tandwiel/ribbontab/backstage delen SettingsPanelContent). AAN = huidige bouwgerichte app;
 // UIT = bouw-agnostisch (neutrale default-kalender, geen bouwvak/NL-feestdagen, alleen "Leeg"-

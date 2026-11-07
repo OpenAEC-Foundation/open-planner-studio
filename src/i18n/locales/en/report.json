@@ -32,6 +32,7 @@
   "repeatHeader": "Repeat header on each page",
   "repeatFooter": "Repeat footer on each page",
   "reportFontScaleLabel": "Font size:",
+  "reportFontFamilyLabel": "Font:",
   "timelineColumnsLabel": "Timeline over:",
   "timelineColumnsHint": "Only with auto-fit",
   "timelineColumns_one": "{{count}} page",
@@ -434,5 +435,11 @@
       "riskHeading": "Tasks at risk: late or negative float",
       "riskEmpty": "No late tasks and no negative float."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (default)",
+    "liberationSans": "Liberation Sans (like Arial)",
+    "carlito": "Carlito (like Calibri)",
+    "liberationSerif": "Liberation Serif (like Times New Roman)"
   }
 }

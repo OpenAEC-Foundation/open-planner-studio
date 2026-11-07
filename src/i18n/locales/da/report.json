@@ -32,6 +32,7 @@
   "repeatHeader": "Gentag sidehoved på hver side",
   "repeatFooter": "Gentag sidefod på hver side",
   "reportFontScaleLabel": "Skriftstørrelse:",
+  "reportFontFamilyLabel": "Skrifttype:",
   "timelineColumnsLabel": "Tidslinje over:",
   "timelineColumnsHint": "Kun ved automatisk tilpasning",
   "timelineColumns_one": "{{count}} side",
@@ -434,5 +435,11 @@
       "riskHeading": "Risikoopgaver: for sent eller negativ slæk",
       "riskEmpty": "Ingen opgaver for sent og ingen negativ slæk."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (standard)",
+    "liberationSans": "Liberation Sans (som Arial)",
+    "carlito": "Carlito (som Calibri)",
+    "liberationSerif": "Liberation Serif (som Times New Roman)"
   }
 }

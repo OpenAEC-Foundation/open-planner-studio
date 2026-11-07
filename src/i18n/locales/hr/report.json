@@ -32,6 +32,7 @@
   "repeatHeader": "Ponovi zaglavlje na svakoj stranici",
   "repeatFooter": "Ponovi podnožje na svakoj stranici",
   "reportFontScaleLabel": "Veličina slova:",
+  "reportFontFamilyLabel": "Font:",
   "timelineColumnsLabel": "Vremenska os na:",
   "timelineColumnsHint": "Samo uz prilagodbu papiru",
   "timelineColumns_one": "{{count}} stranica",
@@ -439,5 +440,11 @@
       "riskHeading": "Zadaci u riziku: kasni ili negativna vremenska rezerva",
       "riskEmpty": "Nema kasnih zadataka i nema negativne vremenske rezerve."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (zadano)",
+    "liberationSans": "Liberation Sans (kao Arial)",
+    "carlito": "Carlito (kao Calibri)",
+    "liberationSerif": "Liberation Serif (kao Times New Roman)"
   }
 }

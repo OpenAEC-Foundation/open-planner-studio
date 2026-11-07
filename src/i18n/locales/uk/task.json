@@ -643,6 +643,12 @@
     "notAvailableWeb": "Файли-джерела можна читати лише в настільному застосунку. Скористайтеся резервним варіантом.",
     "source": "Ресурс",
     "sourceAvailable": "доступне під час останньої перевірки",
+    "provenance": "Походження опорної дати",
+    "provenanceSite": "версія {{version}} ресурсу, прочитано {{readAt}}",
+    "provenanceSiteNoRead": "версія {{version}} ресурсу",
+    "provenanceFile": "файл-ресурс від {{modified}}, прочитано {{readAt}}",
+    "provenanceFileNoRead": "файл-ресурс від {{modified}}",
+    "provenanceRead": "прочитано {{readAt}}",
     "edit": "Редагувати зовнішню залежність…",
     "refreshSource": "Оновити ресурс",
     "deleteRelation": "Видалити залежність"
