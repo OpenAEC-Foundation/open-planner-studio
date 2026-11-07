@@ -639,6 +639,12 @@
     "notAvailableWeb": "Citirea fișierelor sursă este posibilă doar în aplicația desktop; folosiți rezerva manuală.",
     "source": "Sursă",
     "sourceAvailable": "disponibilă la ultima verificare",
+    "provenance": "Proveniența ancorei",
+    "provenanceSite": "versiunea {{version}} a sursei, citită la {{readAt}}",
+    "provenanceSiteNoRead": "versiunea {{version}} a sursei",
+    "provenanceFile": "fișier sursă din {{modified}}, citit la {{readAt}}",
+    "provenanceFileNoRead": "fișier sursă din {{modified}}",
+    "provenanceRead": "citit la {{readAt}}",
     "edit": "Editare legătură între proiecte…",
     "refreshSource": "Reîmprospătare sursă",
     "deleteRelation": "Ștergere dependență"

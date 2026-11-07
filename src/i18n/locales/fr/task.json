@@ -639,6 +639,12 @@
     "notAvailableWeb": "La lecture des fichiers source n'est possible que dans l'application de bureau ; utilisez la solution de secours manuelle.",
     "source": "Source",
     "sourceAvailable": "disponible lors de la dernière vérification",
+    "provenance": "Origine de l'ancrage",
+    "provenanceSite": "version {{version}} de la source, lue le {{readAt}}",
+    "provenanceSiteNoRead": "version {{version}} de la source",
+    "provenanceFile": "fichier source du {{modified}}, lu le {{readAt}}",
+    "provenanceFileNoRead": "fichier source du {{modified}}",
+    "provenanceRead": "lu le {{readAt}}",
     "edit": "Modifier la relation externe…",
     "refreshSource": "Actualiser la source",
     "deleteRelation": "Supprimer la relation"

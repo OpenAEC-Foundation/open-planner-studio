@@ -32,6 +32,7 @@
   "repeatHeader": "Üstbilgiyi her sayfada yinele",
   "repeatFooter": "Altbilgiyi her sayfada yinele",
   "reportFontScaleLabel": "Yazı boyutu:",
+  "reportFontFamilyLabel": "Yazı tipi:",
   "timelineColumnsLabel": "Zaman çizelgesi:",
   "timelineColumnsHint": "Yalnızca otomatik sığdırmada",
   "timelineColumns_one": "{{count}} sayfa",
@@ -434,5 +435,11 @@
       "riskHeading": "Riskli görevler: gecikmiş veya negatif bolluk",
       "riskEmpty": "Gecikmiş görev yok ve negatif bolluk yok."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (varsayılan)",
+    "liberationSans": "Liberation Sans (Arial gibi)",
+    "carlito": "Carlito (Calibri gibi)",
+    "liberationSerif": "Liberation Serif (Times New Roman gibi)"
   }
 }

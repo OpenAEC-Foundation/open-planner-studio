@@ -651,6 +651,12 @@
     "notAvailableWeb": "قراءة ملفات المصدر متاحة فقط في تطبيق سطح المكتب؛ استخدم البديل اليدوي.",
     "source": "المصدر",
     "sourceAvailable": "متاح عند آخر تحقق",
+    "provenance": "مصدر المرساة",
+    "provenanceSite": "الإصدار {{version}} من المصدر، قُرئ في {{readAt}}",
+    "provenanceSiteNoRead": "الإصدار {{version}} من المصدر",
+    "provenanceFile": "ملف المصدر بتاريخ {{modified}}، قُرئ في {{readAt}}",
+    "provenanceFileNoRead": "ملف المصدر بتاريخ {{modified}}",
+    "provenanceRead": "قُرئ في {{readAt}}",
     "edit": "تحرير العلاقة الخارجية…",
     "refreshSource": "تحديث المصدر",
     "deleteRelation": "حذف العلاقة"

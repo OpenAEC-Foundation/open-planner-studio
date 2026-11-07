@@ -52,6 +52,7 @@ import { ZOOM_STEP, DEFAULT_ZOOM } from '@/utils/ganttViewport';
 import { createRelationWithFeedback } from '@/state/relationActions';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /**
  * Ribbon-widgets: de "component-escape-hatch" uit de config-registry — de
@@ -987,6 +988,7 @@ export function LayoutGroupContent() {
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const reload = useCallback(() => { void loadLayouts().then(setLayouts); }, []);
   useEffect(() => { reload(); }, [reload]);
+  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
 
   // Ná het sluiten van de layouts-dialoog (mogelijke CRUD) de knoppenrij verversen.
   const prevOpenRef = useRef(showLayoutsDialog);
@@ -1236,6 +1238,7 @@ function SavedFilterDropdown() {
   const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
   const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
+  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
   const dialogOpen = showFilterDialog || showLayoutsDialog;
   const previousDialogOpen = useRef(dialogOpen);
   useEffect(() => {

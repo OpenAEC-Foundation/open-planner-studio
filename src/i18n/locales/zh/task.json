@@ -631,6 +631,12 @@
     "notAvailableWeb": "读取源文件仅在桌面应用中可用；请使用手动备用方式。",
     "source": "源",
     "sourceAvailable": "上次检查时可用",
+    "provenance": "锚点来源",
+    "provenanceSite": "源版本 {{version}}，读取于 {{readAt}}",
+    "provenanceSiteNoRead": "源版本 {{version}}",
+    "provenanceFile": "源文件（{{modified}}），读取于 {{readAt}}",
+    "provenanceFileNoRead": "源文件（{{modified}}）",
+    "provenanceRead": "读取于 {{readAt}}",
     "edit": "编辑外部关系…",
     "refreshSource": "刷新源",
     "deleteRelation": "删除关系"
