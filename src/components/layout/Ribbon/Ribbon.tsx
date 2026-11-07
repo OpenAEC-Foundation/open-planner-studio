@@ -35,6 +35,12 @@ import { applySetting } from '@/components/settings/applySetting';
  * Er is bewust GEEN React-state bij betrokken: het effect schrijft alleen `data-*`-attributen die
  * React niet beheert, dus een herberekening kan nooit een re-render of een lus veroorzaken.
  *
+ * Groepen met invoervelden (`RibbonCollapsible`) kunnen niet per knop krimpen: een datumveld of
+ * keuzelijst heeft geen icoonvorm. Zo'n groep klapt als één stap in tot één knop met popover
+ * (`data-ribbon-collapsed` op de groep). Die stappen komen ná alle knoppen: eerst worden gewone
+ * knoppen mini, pas daarna verdwijnen velden achter een klik. Een veld als de statusdatum blijft zo
+ * zo lang mogelijk direct bruikbaar.
+ *
  * De handmatige inklap-knop (`ui.ribbonCompact`) blijft daarbuiten: die maakt van het lint een
  * platte 40px-strip via de `.ribbon-container.compact`-CSS. In die stand degradeert de
  * automaat niets (alle markeringen worden gewist) en blijft horizontale scroll het vangnet.
@@ -45,6 +51,9 @@ const MINI_ITEM_ATTR = 'data-ribbon-mini-item';
 const GRID_ATTR = 'data-ribbon-grid';
 const AUTOTITLE_ATTR = 'data-ribbon-autotitle';
 const FULLY_MINI_ATTR = 'data-ribbon-fully-mini';
+const COLLAPSED_ATTR = 'data-ribbon-collapsed';
+/** Op de twee vormen van een `RibbonCollapsible` (`full` en `collapsed`). */
+const COLLAPSE_PART_ATTR = 'data-ribbon-collapse-part';
 
 /** Past de inhoud horizontaal binnen de zichtbare breedte? */
 const fitsWidth = (scroll: HTMLElement) => scroll.scrollWidth <= scroll.clientWidth + 1;
@@ -57,12 +66,29 @@ const fitsWidth = (scroll: HTMLElement) => scroll.scrollWidth <= scroll.clientWi
  */
 function collectRibbonButtons(scroll: HTMLElement): HTMLElement[] {
   return Array.from(scroll.querySelectorAll<HTMLElement>('.ribbon-btn')).filter(btn => {
+    // Knoppen in een inklapbare veldengroep krimpen niet los: die groep klapt als geheel in.
+    if (btn.closest(`[${COLLAPSE_PART_ATTR}]`)) return false;
     const icon = btn.querySelector('.ribbon-btn-icon');
     if (!icon || icon.childElementCount === 0) return false;
     const label = btn.querySelector('.ribbon-btn-label');
     return !!label && (label.textContent ?? '').trim().length > 0;
   });
 }
+
+/** Groepen met een `RibbonCollapsible`, in DOM-volgorde (links → rechts). */
+function collectCollapsibleGroups(scroll: HTMLElement): HTMLElement[] {
+  return Array.from(scroll.querySelectorAll<HTMLElement>('.ribbon-group'))
+    .filter(group => group.querySelector(`[${COLLAPSE_PART_ATTR}="full"]`) !== null);
+}
+
+/** Wat de automaat kan verkleinen: losse knoppen en inklapbare veldengroepen. */
+interface FitItems { buttons: HTMLElement[]; groups: HTMLElement[] }
+
+function collectFitItems(scroll: HTMLElement): FitItems {
+  return { buttons: collectRibbonButtons(scroll), groups: collectCollapsibleGroups(scroll) };
+}
+
+const fitItemCount = ({ buttons, groups }: FitItems) => buttons.length + groups.length;
 
 /**
  * Het directe kind van de groepsinhoud dat *uitsluitend* deze knop bevat (de knop zelf, of een
@@ -80,19 +106,35 @@ function soleGridItem(btn: HTMLElement, groupContent: Element): HTMLElement | nu
   return el.parentElement === groupContent ? el : null;
 }
 
-/** Markeer groepen waarvan alle automatisch verkleinbare knoppen mini zijn geworden. */
+/** Markeer groepen waarvan alle automatisch verkleinbare knoppen mini zijn geworden, en ingeklapte
+ *  veldengroepen (die tonen dan alleen hun popoverknop). */
 function syncFullyMiniGroups(scroll: HTMLElement): void {
   scroll.querySelectorAll<HTMLElement>('.ribbon-group').forEach(group => {
     const buttons = Array.from(group.querySelectorAll<HTMLElement>('.ribbon-btn'));
-    const fullyMini = buttons.length > 0 && buttons.every(btn => btn.hasAttribute(MINI_ATTR));
+    const fullyMini = group.querySelector(`[${COLLAPSE_PART_ATTR}]`)
+      ? group.hasAttribute(COLLAPSED_ATTR)
+      : buttons.length > 0 && buttons.every(btn => btn.hasAttribute(MINI_ATTR));
     if (fullyMini) group.setAttribute(FULLY_MINI_ATTR, '');
     else group.removeAttribute(FULLY_MINI_ATTR);
   });
 }
 
-/** Zet de laatste `k` knoppen (rechts → links) op mini en synchroniseert de grid-markeringen. */
-function applyMiniPlan(scroll: HTMLElement, buttons: HTMLElement[], k: number): void {
-  const firstMini = buttons.length - k;
+/**
+ * Voert stap `k` van het plan uit: eerst gaan de laatste knoppen (rechts → links) op mini; is `k`
+ * groter dan het aantal knoppen, dan klappen daarna de veldengroepen in (ook rechts → links).
+ * Synchroniseert ook de grid-markeringen.
+ */
+function applyMiniPlan(scroll: HTMLElement, { buttons, groups }: FitItems, k: number): void {
+  const firstMini = buttons.length - Math.min(k, buttons.length);
+  const firstCollapsed = groups.length - Math.max(0, Math.min(k - buttons.length, groups.length));
+  groups.forEach((group, i) => {
+    if (i >= firstCollapsed) group.setAttribute(COLLAPSED_ATTR, '');
+    else group.removeAttribute(COLLAPSED_ATTR);
+  });
+  // Een groep die geen inklapbare vorm meer heeft (handmatig compact) houdt geen oude markering.
+  scroll.querySelectorAll<HTMLElement>(`[${COLLAPSED_ATTR}]`).forEach(group => {
+    if (!groups.includes(group)) group.removeAttribute(COLLAPSED_ATTR);
+  });
   const grids = new Set<Element>();
   const items = new Set<Element>();
 
@@ -153,31 +195,34 @@ function useRibbonAutoFit(
   language: string,
   fontScale: number,
 ): void {
-  // Het toegepaste plan: hoeveel knoppen mini staan, en over hoeveel knoppen dat ging (die telling
+  // Het toegepaste plan: hoeveel stappen (knoppen mini, daarna groepen ingeklapt) uitgevoerd zijn, en
+  // over hoeveel knoppen en groepen dat ging (die telling
   // is de goedkope check of de inhoud tussentijds veranderd is).
   const plan = useRef({ count: -1, k: 0 });
 
   const measure = useCallback(() => {
     const scroll = scrollRef.current;
     if (!scroll) return;
-    const buttons = collectRibbonButtons(scroll);
-    plan.current = { count: buttons.length, k: 0 };
-    applyMiniPlan(scroll, buttons, 0);
+    const items = collectFitItems(scroll);
+    const total = fitItemCount(items);
+    plan.current = { count: total, k: 0 };
+    applyMiniPlan(scroll, items, 0);
     // Handmatig compact = platte 40px-strip; die stand blijft ongemoeid (en degradeert niet).
-    if (manualCompact || buttons.length === 0 || fitsWidth(scroll)) return;
+    if (manualCompact || total === 0 || fitsWidth(scroll)) return;
 
-    // Kleinste k waarbij het past. Meer knoppen op mini maakt de inhoud nooit breder, dus is de
-    // "past het?"-functie monotoon en mag de zoektocht binair: ~log2(n) metingen i.p.v. n.
+    // Kleinste k waarbij het past. Meer knoppen op mini of meer groepen ingeklapt maakt de inhoud
+    // nooit breder, dus is de "past het?"-functie monotoon en mag de zoektocht binair: ~log2(n)
+    // metingen i.p.v. n.
     let lo = 1;
-    let hi = buttons.length;
-    let best = buttons.length; // past het zelfs met alles op icoon niet → horizontale scroll
+    let hi = total;
+    let best = total; // past het zelfs met alles op icoon niet → horizontale scroll
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
-      applyMiniPlan(scroll, buttons, mid);
+      applyMiniPlan(scroll, items, mid);
       if (fitsWidth(scroll)) { best = mid; hi = mid - 1; } else { lo = mid + 1; }
     }
-    applyMiniPlan(scroll, buttons, best);
-    plan.current = { count: buttons.length, k: best };
+    applyMiniPlan(scroll, items, best);
+    plan.current = { count: total, k: best };
   }, [scrollRef, manualCompact]);
 
   // Herberekenen bij tabwissel (andere inhoud), bij het omzetten van de handmatige knop, bij een
@@ -211,14 +256,15 @@ function useRibbonAutoFit(
   useLayoutEffect(() => {
     const scroll = scrollRef.current;
     if (!scroll) return;
-    const buttons = collectRibbonButtons(scroll);
+    const items = collectFitItems(scroll);
+    const total = fitItemCount(items);
     const { count, k } = plan.current;
-    if (buttons.length !== count) { measure(); return; }
+    if (total !== count) { measure(); return; }
     // In de handmatige compacte strip degradeert de automaat niets (defensief: het plan staat daar
     // al op 0 omdat het omzetten van de knop een hermeting triggert).
-    const target = manualCompact ? 0 : Math.min(k, buttons.length);
-    applyMiniPlan(scroll, buttons, target);
-    if (!manualCompact && target < buttons.length && !fitsWidth(scroll)) measure();
+    const target = manualCompact ? 0 : Math.min(k, total);
+    applyMiniPlan(scroll, items, target);
+    if (!manualCompact && target < total && !fitsWidth(scroll)) measure();
   });
 }
 

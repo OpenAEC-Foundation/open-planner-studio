@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect, useRef } from 'react';
 import { Popover } from '@/components/common/Popover';
 import { Icon } from '@/components/icons';
 
@@ -185,6 +185,46 @@ export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
     >
       <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}>{icon}</span>
     </button>
+  );
+}
+
+/**
+ * Lintgroep met invoervelden die bij een smal venster als geheel inklapt (automatische inpassing,
+ * `useRibbonAutoFit` in Ribbon.tsx). Een veld kan niet tot een icoon krimpen zoals een knop; zonder
+ * deze vorm bleef het op volle breedte staan naast een losse mini-knop.
+ *
+ * Beide vormen staan altijd in de DOM: `full` (de gewone bediening) en `collapsed` (één knop met
+ * popover, meestal dezelfde popover als in de handmatig ingeklapte strip). De automaat kiest met
+ * `data-ribbon-collapsed` op de groep welke vorm zichtbaar is; dat gaat via CSS, zonder React-state,
+ * zodat de meting in één layout-effect blijft en niets knippert. Knoppen in deze vormen doen niet
+ * mee aan het per-knop verkleinen: de groep klapt als één stap in.
+ *
+ * `onHidden` sluit een open popover zodra de ingeklapte vorm verdwijnt (het venster werd breder),
+ * anders bleef het paneel hangen bij een onzichtbare knop.
+ */
+export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
+  full: React.ReactNode;
+  collapsed: React.ReactNode;
+  popoverOpen: boolean;
+  onHidden: () => void;
+}) {
+  const collapsedRef = useRef<HTMLDivElement>(null);
+  const hiddenRef = useRef(onHidden);
+  hiddenRef.current = onHidden;
+  useEffect(() => {
+    const el = collapsedRef.current;
+    if (!popoverOpen || !el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (el.getClientRects().length === 0) hiddenRef.current();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [popoverOpen]);
+  return (
+    <>
+      <div className="ribbon-collapse-full" data-ribbon-collapse-part="full">{full}</div>
+      <div ref={collapsedRef} data-ribbon-collapse-part="collapsed">{collapsed}</div>
+    </>
   );
 }
 

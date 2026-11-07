@@ -43,9 +43,39 @@ function expectedSegments(order: string[], parts: Record<string, string>): strin
   return order.map(kind => parts[kind]);
 }
 
-test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg)', async ({ page, ops: _ops }) => {
+test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg), ook in de ingeklapte groep bij een smal venster', async ({ page, ops: _ops }) => {
   const { group, order } = await openStatusDateField(page);
-  await expect.poll(() => segmentValues(group)).toEqual(expectedSegments(order, { day: '06', month: '07', year: '2026' }));
+  const expected = expectedSegments(order, { day: '06', month: '07', year: '2026' });
+  await expect.poll(() => segmentValues(group)).toEqual(expected);
+
+  // Smal venster: een veld kan niet tot een icoon krimpen, dus de groep klapt als geheel in tot één
+  // knop met popover (automatische inpassing). Geen los mini-icoontje naast velden op volle breedte.
+  const size = page.viewportSize()!;
+  const ribbonGroup = page.locator('[data-tour-anchor="ribbon-group:planning:baselines"]');
+  const trigger = ribbonGroup.getByRole('button', { name: /^(Baselines & progress|Baselines & voortgang)$/ });
+  await page.setViewportSize({ width: 760, height: size.height });
+  await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
+  await expect(ribbonGroup).toHaveAttribute('data-ribbon-fully-mini', '');
+  await expect(page.getByRole('group', { name: /^(Status date|Statusdatum)$/ })).toHaveCount(0);
+  await expect(trigger).toBeVisible();
+  await expect.poll(() => page.locator('.ribbon-content-scroll').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+
+  // De popover bevat dezelfde bediening en werkt: de statusdatum staat erin, de voortgangsmodus wisselt.
+  await trigger.click();
+  const popoverField = page.getByRole('group', { name: /^(Status date|Statusdatum)$/ });
+  await expect(popoverField).toHaveCount(1);
+  await expect.poll(() => segmentValues(popoverField)).toEqual(expected);
+  await page.getByRole('combobox', { name: /^(Progress mode|Voortgangsmodus)$/ }).selectOption('PROGRESS_OVERRIDE');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.progressMode)).toBe('PROGRESS_OVERRIDE');
+  await expect(popoverField).toBeVisible();
+
+  // Weer breed: de popover sluit (zijn knop is weg) en de velden staan weer in het lint.
+  await page.setViewportSize(size);
+  await expect(ribbonGroup).not.toHaveAttribute('data-ribbon-collapsed', '');
+  await expect(trigger).toBeHidden();
+  await expect(page.getByRole('group', { name: /^(Status date|Statusdatum)$/ })).toHaveCount(1);
+  await expect.poll(() => segmentValues(group)).toEqual(expected);
+  expect(await statusDate(page)).toBe(STATUS);
 });
 
 test('lint: Statusdatum aanklikken en verlaten zonder wijziging laat hem exact staan, zonder undo-stap', async ({ page, ops: _ops }) => {

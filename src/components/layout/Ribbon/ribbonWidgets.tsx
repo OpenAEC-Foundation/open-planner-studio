@@ -44,7 +44,7 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
-  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem,
+  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
@@ -61,13 +61,15 @@ import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
  */
 
 /**
- * Baselines & voortgang-groep: Save/Manage baseline-knoppen +
- * statusdatum + voortgangsmodus. In de normale lint-modus staan alle vier altijd
- * zichtbaar naast elkaar; in compacte modus is dat samen te
- * breed voor de Planning-tab (die met de andere groepen al bijna de volledige
- * 1280px in beslag neemt) — de vier controls overlappen dan buren en de inklap-pijl.
- * Daarom gaat de hele groep in compacte modus achter één knop met popover (zelfde
- * patroon als MilestoneDropdown/TemplatesDropdown hieronder).
+ * Baselines & voortgang-groep: knop Baselines beheren + statusdatum + voortgangsmodus.
+ *
+ * Volle breedte: de knop en beide velden staan naast elkaar. De groep heeft ook een ingeklapte
+ * vorm: één knop met een popover die dezelfde bediening bevat (zelfde patroon als
+ * MilestoneDropdown/TemplatesDropdown hieronder). Die vorm verschijnt
+ *  - bij het handmatig ingeklapte lint (`ui.ribbonCompact`): de vier bedieningen samen zijn te breed
+ *    voor de 40px-strip;
+ *  - bij een smal venster, via de automatische inpassing (`RibbonCollapsible`, `useRibbonAutoFit`):
+ *    een veld kan niet tot een icoon krimpen, dus de groep klapt als geheel in.
  */
 export function BaselinesProgressGroupContent() {
   const { t: tMenu } = useTranslation('menu');
@@ -116,31 +118,33 @@ export function BaselinesProgressGroupContent() {
     </div>
   );
 
-  const progressModeControl = (
+  const progressModeOptions: { value: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE'; label: string }[] = [
+    { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
+    { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
+  ];
+  // In de popover een native keuzelijst: een tweede geportalde RibbonDropdown binnen de popover
+  // is niet veilig (zie RibbonInlineSelect).
+  const progressModeControl = (inPopover: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
-      <RibbonDropdown
-        value={progressMode ?? 'RETAINED_LOGIC'}
-        options={[
-          { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
-          { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
-        ]}
-        onChange={v => setProgressMode(v as 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE')}
-      />
+      {inPopover ? (
+        <RibbonInlineSelect
+          value={progressMode ?? 'RETAINED_LOGIC'}
+          options={progressModeOptions}
+          onChange={setProgressMode}
+          ariaLabel={tMenu('ribbon.progressMode')}
+        />
+      ) : (
+        <RibbonDropdown
+          value={progressMode ?? 'RETAINED_LOGIC'}
+          options={progressModeOptions}
+          onChange={setProgressMode}
+        />
+      )}
     </div>
   );
 
-  if (!compact) {
-    return (
-      <>
-        <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
-        {statusDateControl}
-        {progressModeControl}
-      </>
-    );
-  }
-
-  return (
+  const popover = (
     <Popover
       open={open}
       onClose={() => setOpen(false)}
@@ -168,8 +172,25 @@ export function BaselinesProgressGroupContent() {
       </button>
       <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
       {statusDateControl}
-      {progressModeControl}
+      {progressModeControl(true)}
     </Popover>
+  );
+
+  if (compact) return popover;
+
+  return (
+    <RibbonCollapsible
+      popoverOpen={open}
+      onHidden={() => setOpen(false)}
+      full={
+        <>
+          <RibbonButton icon={<Icon id="planning.baselines" size={24} />} label={tMenu('ribbon.manageBaselines')} onClick={onManageBaselines} />
+          {statusDateControl}
+          {progressModeControl(false)}
+        </>
+      }
+      collapsed={popover}
+    />
   );
 }
 
