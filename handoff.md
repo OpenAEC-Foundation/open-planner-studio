@@ -335,7 +335,14 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
 ## Volgende stappen
 
 1. Klaar: council (ronde 8: 9/9/9), v9.
-2. Besluiten voor Ethan, één tegelijk: (1) namespace `ops::` of `openaec::planner::`; (2) `openaec::activity` meeschrijven.
+2. Besluiten voor Ethan, één tegelijk: (1) namespace `ops::` of `openaec::planner::` (voorgelegd 2026-11-07 ~21:55,
+   aanbeveling `ops::`); (2) `openaec::activity` meeschrijven. Ethan beslist in deze sessie, niet via Trias.
+3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
+   spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
+   ontwerp reviewen (docs-only) en merget bij ja en groene CI.
+4. Fase 0 op een eigen branch vanaf `main`, na de merge van #839. De PR van fase 0 mag eerder voorbereid worden, maar
+   gaat pas na die merge naar review.
+5. Weekendstop: van zaterdag 23:00 tot maandag 01:00 niets starten; stap afmaken, pushen, stoppen.
 3. Open besluiten §11 één voor één aan Ethan.
 4. Bouwen: fase 0 eerst. Kleine PR's naar `main`; worker (Opus medium) voor gewoon werk, expert (Opus xhigh) voor
    scanner/indeling, verliesbewaking en herstel. Review per PR door Sol (BLOKKEERT/VERVOLG). Geen zware runs lokaal.
