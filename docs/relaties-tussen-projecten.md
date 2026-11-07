@@ -479,7 +479,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.2 | Externe lag in de lagkalender | #808 | gemerged in main |
 | 1.3 | Herkomst van het anker | #809 | gemerged in main |
 | 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | gemerged in main |
-| 1.5 | Balk bij een nieuwe versie van een bron | #811 | open (niet gemerged) |
+| 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | open (niet gemerged), na #811 |
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
 | 1.8 | *Bronbestand kiezen…* in de browser | — | nog niet gebouwd |
@@ -497,8 +497,12 @@ Wat in de bouw anders liep dan hierboven staat:
   VERVOLG in `knownbugs.md` (punt 882).
 - **1.5.** Verandert er bij een nieuwe versie geen enkel anker, dan komt er geen balk (paragraaf 5.4 zei: *Bekijken*
   vindt geen verschil en zet de velden goed). Een balk zonder gevolg is ruis. De herkomst wordt bijgewerkt bij de
-  volgende *Accepteren* of *Vernieuwen*.
-- **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), zoals de app.
+  volgende *Accepteren* of *Vernieuwen*. Het venster *Bekijken* rekent opnieuw als de planner F5 drukt terwijl
+  het open staat.
+- **1.6.** De bewaking is niet getest in de echte desktop-app: een build op aia wacht op het besluit over de SSD
+  (14 november 2026). Het testplan staat als VERVOLG in `knownbugs.md` (punt 883).
+- **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), en haalt de
+  balk van 1.5 weg voor de bronnen die hij las, zoals de app.
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
