@@ -1,11 +1,13 @@
-# Indeling volgens ontwerp v5 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
-# Fase-0-voorproef (ontwerp #804 v5 §4.2). Draaien: python3 -I scripts/proef/classify-v5.py <bestand.ifc>
-import re, sys
+# Indeling volgens ontwerp v6 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Fase-0-voorproef (ontwerp #804 v6 §4.2). Draaien: python3 -I scripts/proef/classify-v6.py <bestand.ifc>
+# Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
+# tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
+import re, sys, os, glob
 from collections import defaultdict, Counter
 t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
-ents = {}
+ents, pos = {}, {}
 for m in re.finditer(r'^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);\s*$', t, re.M):
-    ents[int(m.group(1))] = (m.group(2), m.group(3))
+    ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = m.start()
 def split_args(s):
     out, depth, cur, ins, i = [], 0, '', False, 0
     while i < len(s):
@@ -40,12 +42,19 @@ IFCGEOMETRICREPRESENTATIONCONTEXT IFCCARTESIANPOINT IFCAXIS2PLACEMENT3D IFCAPPLI
 IFCCONSTRUCTIONMATERIALRESOURCE IFCCONSTRUCTIONPRODUCTRESOURCE IFCLABORRESOURCE IFCCREWRESOURCE IFCSUBCONTRACTRESOURCE
 IFCCONSTRUCTIONRESOURCE IFCTASKTIMERECURRING'''.split())
 RES = {k for k in W if k.endswith('RESOURCE')}
-REG = set('''OPS_ActivityCodes OPS_Analysis OPS_Assignments OPS_Baselines OPS_Calendar OPS_Constraints OPS_CustomFields
-OPS_DayMeasureDurations OPS_DayMeasureLags OPS_ExactMinutes OPS_ExternalLink OPS_Hammock OPS_ImportProvenance OPS_LagCalendar
-OPS_Leveling OPS_Library OPS_LiteralCalendars OPS_ManualScheduling OPS_Milestone OPS_MspTaskType OPS_Project OPS_ProjectSettings
-OPS_Resource OPS_Resume OPS_SchedulingOptions OPS_SchedulingProfile OPS_Sequences OPS_StructureMeta OPS_Summary
-OPS_TaskAppearance OPS_TaskDurationUnit OPS_TaskIdentity OPS_TaskNotes OPS_TaskSplits OPS_TaskTypes OPS_Timephased
-OPS_TimephasedContours OPS_TimephasedDurationWalks OPS_TimephasedWindow OPS_WorkRule OPS_XerDocument OPS_XerSourceArchive'''.split())
+SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src', 'services', 'ifc')
+code = {f: open(f, encoding='utf-8').read() for f in glob.glob(os.path.join(SRC, '*.ts'))}
+REG = set()
+for f in ('ifcPsets.ts', 'ifcWriter.ts'):
+    REG |= set(re.findall(r"'(OPS_[A-Za-z0-9]+)'", code[os.path.join(SRC, f)]))
+KNOWN = set()
+for c in code.values(): KNOWN |= set(re.findall(r"'([A-Za-z][A-Za-z0-9_]*)'", c))
+# Psets met propertynamen uit de data: de lezer leest elke property (OPS_Assignments: <resource-GlobalId>#n;
+# OPS_ActivityCodes: de naam van het codetype). Gemeten op alle eigen voorbeelden (ontwerp v6 §4.2).
+DATA_KEYED = {'OPS_Assignments', 'OPS_ActivityCodes'}
+def pname(i):  # Name van een property (arg 0) of property-template (arg 2)
+    k = 2 if ty[i].endswith('TEMPLATE') else 0
+    return args[i][k].strip("'") if k < len(args[i]) else ''
 # --- Stap 1: D (huidige lezerregels) ---
 sched = {i for i in ents if ty[i] == 'IFCWORKSCHEDULE'}
 base = {i for i in sched if '.BASELINE.' in args[i][-1]}
@@ -53,6 +62,7 @@ live = sched - base
 nest = defaultdict(list)
 for i in ents:
     if ty[i] == 'IFCRELNESTS': nest[r1(i, 4)] += rl(i, 5)
+def pname_raw(i): return args[i][0].strip("'")
 def tree(roots_):
     out, todo = set(), list(roots_)
     while todo:
@@ -69,21 +79,33 @@ def tasks_of(sc):
 live_tasks = tasks_of(live); base_tasks = tasks_of(base)
 alltasks = {i for i in ents if ty[i] == 'IFCTASK'}
 excl = (base_tasks - live_tasks) if live_tasks else set()
-plans = {i for i in ents if ty[i] == 'IFCWORKPLAN'}
+allplans = [i for i in ents if ty[i] == 'IFCWORKPLAN']
+plans = {min(allplans, key=lambda i: pos[i])} if allplans else set()  # de lezer kiest het eerste (ifcReader.ts:442)
 agg_sched = set()
 for i in ents:
     if ty[i] == 'IFCRELAGGREGATES' and r1(i, 4) in plans: agg_sched |= {x for x in rl(i, 5) if x in sched}
-has_ops_baselines = any(ty[i] == 'IFCPROPERTYSET' and name(i) == 'OPS_Baselines' for i in ents)
-own_base = {b for b in base & agg_sched if has_ops_baselines and not tasks_of({b})}
+# v6: een BASELINE-schema is alleen D als (Name, CreationDate) gelijk is aan (name, createdAt) van een item in OPS_Baselines
+bl_keys = set()
+for i in ents:
+    if ty[i] == 'IFCPROPERTYSET' and name(i) == 'OPS_Baselines':
+        for x in refs[i]:
+            if ty.get(x) == 'IFCPROPERTYSINGLEVALUE' and pname_raw(x) == 'Baselines':
+                bl_keys |= set(re.findall(r'"name":"((?:[^"\\]|\\.)*)","createdAt":"([^"]*)"', ents[x][1]))
+own_base = {b for b in base & agg_sched if (name(b), args[b][6].strip("'")) in bl_keys and not tasks_of({b})}
 D = plans | live | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
+D |= {i for i in ents if ty[i] == 'IFCRELSEQUENCE' and r1(i, 4) in D and r1(i, 5) in D}  # v6: IfcRelSequence is D
 proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
+# Bekende namen voor OPS_CustomFields: de property-templates onder het eigen template
+cf_names = set()
+for i in ents:
+    if ty[i] == 'IFCPROPERTYSETTEMPLATE' and name(i) == 'OPS_CustomFields':
+        cf_names |= {pname(x) for x in refs[i] if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE'}
 # --- Stap 2: R ---
 def ok(i):
     T = ty[i]
     if T == 'IFCRELNESTS': return r1(i, 4) in D and all(x in D for x in rl(i, 5))
     if T == 'IFCRELASSIGNSTOCONTROL': return r1(i, 6) in D and ty[r1(i, 6)] in ('IFCWORKSCHEDULE', 'IFCWORKCALENDAR') and all(x in D and (ty[x] == 'IFCTASK' or ty[x] in RES) for x in rl(i, 4)) and (ty[r1(i, 6)] == 'IFCWORKCALENDAR' or all(ty[x] == 'IFCTASK' for x in rl(i, 4)))
     if T == 'IFCRELASSIGNSTOPROCESS': return r1(i, 6) in D and all(x in D and ty[x] in RES for x in rl(i, 4))
-    if T == 'IFCRELSEQUENCE': return r1(i, 4) in D and r1(i, 5) in D
     if T == 'IFCRELAGGREGATES': return r1(i, 4) in plans and all(x in D and x in sched for x in rl(i, 5))
     if T == 'IFCRELDECLARES': return r1(i, 4) in proj and all(ty.get(x) == 'IFCPROPERTYSETTEMPLATE' and name(x) in REG for x in rl(i, 5))
     if T == 'IFCRELDEFINESBYPROPERTIES':
@@ -91,11 +113,18 @@ def ok(i):
     return False
 R = {i for i in ents if ty[i].startswith('IFCREL') and ok(i)}
 # --- Stap 3: Own ---
-Own, todo = set(), list(D | R)
+Own, todo, vreemd_lid = set(), list(D | R), set()
+PROPS = ('IFCPROPERTYSINGLEVALUE', 'IFCPROPERTYENUMERATEDVALUE', 'IFCSIMPLEPROPERTYTEMPLATE')
 while todo:
     x = todo.pop()
     if x in Own or ty.get(x) not in W: continue
-    Own.add(x); todo += refs[x]
+    Own.add(x)
+    if ty[x] in ('IFCPROPERTYSET', 'IFCPROPERTYSETTEMPLATE') and name(x) in REG:
+        known = cf_names if name(x) == 'OPS_CustomFields' else KNOWN
+        for r in refs[x]:  # v6: Own volgt alleen properties die de lezer leest; de rest is een vreemd lid
+            if ty.get(r) in PROPS and name(x) not in DATA_KEYED and pname(r) not in known: vreemd_lid.add(r)
+            else: todo.append(r)
+    else: todo += refs[x]
 # --- Stap 4: Ext ---
 Ext, todo = set(), [i for i in ents if i not in Own]
 seen = set()
@@ -110,6 +139,6 @@ P = D | R | (Own - Ext)
 C = (Own & Ext) - D - R
 A = {i for i in ents if i not in Own and any(r in P for r in refs[i])}
 V = set(ents) - P - C - A
-print(f"{sys.argv[1].split('/')[-1]}: {len(ents)} entiteiten | P {len(P)} C {len(C)} A {len(A)} V {len(V)}")
+print(f"{sys.argv[1].split('/')[-1]}: {len(ents)} entiteiten | P {len(P)} C {len(C)} A {len(A)} V {len(V)} | vreemde leden {len(vreemd_lid)}")
 for nm, S_ in (('C', C), ('A', A), ('V', V)):
     if S_: print('  ', nm, dict(Counter(ty[x] for x in S_).most_common(8)))

@@ -5,9 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp staat als versie 5 in draft PR #839 (commit `2ce2da8f7`). Vier rondes gaven nog geen 9. In ronde 5 gaven
-Opus 7, Sol 7 en Fable 8. De blokkades van ronde 5 zijn klein en gaan vooral over eigen bestanden zonder model:
-die moeten precies blijven zoals nu. Nu volgt versie 6, dan ronde 6. Daarna begint de bouw met fase 0.
+Het ontwerp staat als versie 6 in draft PR #839. Vijf rondes gaven nog geen 9; ronde 5 gaf Opus 7, Sol 7, Fable 8.
+Versie 6 verwerkt alle punten van ronde 5 (zie spec §12 "Na ronde 5"). Ronde 6 beoordeelt versie 6. Daarna begint de
+bouw met fase 0.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -65,6 +65,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 3 (v3) | 6 | 6 | 8 |
 | 4 (v4) | 7 | 6 | 7 |
 | 5 (v5) | 7 | 7 | 8 |
+| 6 (v6) | loopt | loopt | loopt |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -216,11 +217,14 @@ getalprecisie; grens zonder meting; inschatting te optimistisch; foute commit in
 - Ecosysteem: `ifcx_alpha`; namespace per programma (`ocss::`, `oses::`, `openbim::`, `openaec::`); ifcx-explorer
   `openaec::activity` + `openaec::links`; UUID v5 = GlobalId (128 bits). IFCCAD: alleen IFCX/CBOR, bewaart bronbytes.
 
-## Voorproef indeling (v5)
+## Voorproef indeling (v6)
 
-`scripts/proef/classify-v5.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 letterlijk uit. Uitkomst
-7 november: alle eigen voorbeeldbestanden 100 % P; vier IFC5-modellen (ook TeklaHouse, 19 MB) 100 % V; proefbestanden
-van de council (`scratchpad/r4/k*.ifc`, `scratchpad/proef/bonsai-achtig.ifc`) zonder `IfcTaskTime` in C. Basis voor fase 0.
+`scripts/proef/classify-v6.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 uit. Register uit de
+`OPS_*`-namen in `ifcPsets.ts`/`ifcWriter.ts`; bekende propertynamen = tekstliteralen in `src/services/ifc/` (benadering);
+`OPS_Assignments`/`OPS_ActivityCodes` hebben namen uit de data (alle properties eigen); `OPS_CustomFields` via template.
+Uitkomst 7 november: 35 eigen bestanden 100 % P zonder vreemde leden; 8 IFC5-modellen 100 % V; `prop.ifc` (Opus) en
+`onbekende-property.ifc` (Sol) geven een vreemd lid; `parallelle-relaties.ifc` (Sol) twee D-sequences; Fable's lege
+Bonsai-baseline (`scratchpad/r5/eigen-plus-bonsai-baseline.ifc`) is V. Basis voor fase 0.
 
 ## Omgeving en valkuilen
 
@@ -233,8 +237,8 @@ van de council (`scratchpad/r4/k*.ifc`, `scratchpad/proef/bonsai-achtig.ifc`) zo
 
 ## Volgende stappen
 
-1. Ronde 2 afwachten; cijfers hier en in PR #839.
-2. Verwerken, ronde 3, enz., tot elk lid ≥ 9.
+1. Ronde 6 afwachten; cijfers hier en in PR #839.
+2. Verwerken, volgende ronde, tot elk lid ≥ 9.
 3. Open besluiten §11 één voor één aan Ethan.
 4. Bouwen: fase 0 eerst. Kleine PR's naar `main`; worker (Opus medium) voor gewoon werk, expert (Opus xhigh) voor
    scanner/indeling, verliesbewaking en herstel. Review per PR door Sol (BLOKKEERT/VERVOLG). Geen zware runs lokaal.
