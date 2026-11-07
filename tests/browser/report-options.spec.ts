@@ -1,8 +1,8 @@
 // Rapportkarakterisering: de gebruiker wijzigt de kop en een concrete tekenoptie, waarna zowel de
 // levende preview als de echte PDF-export dezelfde actuele waarden moeten gebruiken.
 import { readFile } from 'node:fs/promises';
-import { PDFDocument } from 'pdf-lib';
-import { expect, seedProject, test } from './fixtures/ops';
+import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
+import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
 test('report options: preview en export gebruiken dezelfde actuele kop en legendaoptie', async ({ page, ops: _ops }) => {
@@ -253,4 +253,81 @@ test('report options: de datakolommen van de tabel schalen mee met hun inhoud', 
   expect(texts).toContainEqual(expect.stringMatching(/^(Duration|Duur)$/));
   expect(texts).toContainEqual(expect.stringMatching(/^(Start)$/));
   expect(texts).toContainEqual(expect.stringMatching(/^(End|Einde)$/));
+});
+
+// Rapportletter (issue #770): de gebruiker kiest Carlito. Preview en PDF gebruiken die letter (en
+// Inter alleen voor het vinkje dat Carlito mist), het blok van de tabelrapporten toont dezelfde
+// keuze, en na een herstart van de app staat Carlito er nog. Alleen een voorkeur op dit apparaat.
+test('report options: de gekozen rapportletter staat in preview en PDF en blijft na een herstart', async ({ page, ops: _ops }) => {
+  await seedProject(page, [
+    // Cyrillisch dekt Carlito zelf; het vinkje niet, dat komt in de PDF uit Inter.
+    { name: '✓ Lettertaak Фундамент', start: '2026-09-07', finish: '2026-10-16', durationDays: 30 },
+  ], 'Rapportletter');
+  await page.evaluate(() => {
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    const fonts: string[] = [];
+    CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
+      // Zie de eerste test: Gantt-paints ná het installeren van de haak horen niet bij het rapport.
+      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) fonts.push(this.font);
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+    Object.defineProperty(window, '__opsReportFonts', { configurable: true, value: fonts });
+  });
+  const drawnFonts = () => page.evaluate(() => (window as Window & { __opsReportFonts?: string[] }).__opsReportFonts ?? []);
+
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
+  await expect(preview).toHaveAttribute('src', /^blob:/, { timeout: 20_000 });
+
+  // Standaard de letter van vóór de keuzelijst.
+  const fontPicker = page.getByLabel(/^(Font:|Lettertype:)$/);
+  await expect(fontPicker).toContainText(/^Inter/);
+  await fontPicker.click();
+  await page.getByRole('option', { name: /^Carlito/ }).click();
+  await expect(fontPicker).toContainText(/^Carlito/);
+  await expect.poll(async () => (await drawnFonts()).some(font => font.includes('OpsReportCarlito')), { timeout: 20_000 }).toBe(true);
+
+  // De PDF bedt Carlito in (regular + bold) en tekent het vinkje uit Inter: vector, geen raster.
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
+  const download = await downloadPromise;
+  const pdfPath = await download.path();
+  expect(pdfPath).not.toBeNull();
+  const pdf = await PDFDocument.load(await readFile(pdfPath!));
+  const baseFonts: string[] = [];
+  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) baseFonts.push(String(obj.get(PDFName.of('BaseFont'))));
+  }
+  // pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>`, bv. `/Carlito-Regular-7098`.
+  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
+  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
+  expect(baseFonts).toContainEqual(expect.stringMatching(/Inter/));
+
+  // Eén keuze voor alle rapporten: het blok van een tabelrapport toont hem ook, en de tabel staat erin.
+  await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
+  await page.getByRole('option', { name: /^Look-ahead$/ }).click();
+  const tableFontPicker = page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/);
+  await expect(tableFontPicker).toContainText(/^Carlito/);
+  await expect(page.locator('[data-ops-table-report]')).toHaveCSS('font-family', /OpsReportCarlito/);
+
+  // Herstart van de app: de keuze komt terug uit de voorkeuren van het apparaat.
+  await page.reload();
+  await waitForOps(page);
+  const recovery = page.locator('[data-ops-recovery-dialog]');
+  const welcome = page.locator('[data-ops-welcome-dialog]');
+  await expect(recovery.or(welcome).first()).toBeAttached({ timeout: 15_000 });
+  if (await recovery.count() > 0) {
+    await recovery.getByRole('button', { name: /^(Don't restore|Niet herstellen)$/ }).click();
+    await expect(recovery).toHaveCount(0);
+  }
+  await waitForWelcomeDialog(page);
+  await page.evaluate(() => {
+    window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
+  });
+  await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
+  await expect(page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Carlito/);
+  await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
+  await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
+  await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Carlito/);
 });

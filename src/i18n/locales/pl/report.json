@@ -32,6 +32,7 @@
   "repeatHeader": "Powtarzaj nagłówek na każdej stronie",
   "repeatFooter": "Powtarzaj stopkę na każdej stronie",
   "reportFontScaleLabel": "Rozmiar czcionki:",
+  "reportFontFamilyLabel": "Czcionka:",
   "timelineColumnsLabel": "Oś czasu na:",
   "timelineColumnsHint": "Tylko przy automatycznym dopasowaniu",
   "timelineColumns_one": "{{count}} strona",
@@ -444,5 +445,11 @@
       "riskHeading": "Zadania zagrożone: opóźnione lub z ujemnym zapasem",
       "riskEmpty": "Brak opóźnionych zadań i brak ujemnego zapasu."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (domyślna)",
+    "liberationSans": "Liberation Sans (jak Arial)",
+    "carlito": "Carlito (jak Calibri)",
+    "liberationSerif": "Liberation Serif (jak Times New Roman)"
   }
 }

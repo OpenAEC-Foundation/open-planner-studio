@@ -314,6 +314,7 @@ check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
 check-renderer-dateless.ts matrix
+check-report-font-setting.ts matrix
 check-report-font.ts matrix
 check-report-footer-setting.ts matrix
 check-report-name-column-setting.ts matrix
