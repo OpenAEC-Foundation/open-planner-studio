@@ -1318,6 +1318,22 @@ en noem het in je rapport of PR-tekst.
      `applyTheme`, nul meldingen) en de twee injectieparameters van `hostThemeWinsNextStart` laten vallen. Uit de
      review van #835 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
 
+910. **VERVOLG: een nieuwe taalkeuze tijdens het toepassen van late hostinstellingen wordt niet bewaard.**
+     `src/utils/settingsStore.ts:76` (via `src/components/settings/settingControls.tsx:19`) gooit elke schrijfactie
+     van de gebruiker op een vastgehouden sleutel weg, ook een nieuwe keuze. Gemeten: het late antwoord bewaart Frans,
+     de gebruiker kiest Duits terwijl de app nog toepast (`applying`); zichtbaar is Duits, lokaal en bij de host
+     blijft het Frans. Alleen `ops-locale` heeft een lang venster: het duurt zo lang als de taaldownload, en die heeft
+     geen tijdslimiet. Richting: de taalkeuze onbedienbaar maken tijdens het toepassen, of een nieuwe taalkeuze apart
+     behandelen; geen algemene wachtrij, want die speelt ook oude timerwrites af. Uit de review van #833
+     (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+911. **VERVOLG: `heldWrites` op moduleniveau koppelt losse sync-instanties.**
+     `src/services/fileAccess/siteHostSettings.ts:167` en `:595`: een tweede sync met een ander opslagobject blokkeert
+     de `writeLocal` van de eerste. Twee echte iframes delen dit niet (elk heeft eigen modulegeheugen), en productie
+     maakt één sync; alleen de tests maken er meer. Richting: één `held`-set per sync, en `writeLocal` vraagt
+     `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
+     VERVOLG). — B
+
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
      `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
@@ -2015,15 +2031,9 @@ en noem het in je rapport of PR-tekst.
      met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
      per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
      aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
-     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Voorstel: een
-     `part` per skill, en `criticalPaths` alleen op de eerste pagina. — B
-
-852. **VERVOLG: geen browsertest roept `window.__OPDS_APP__` aan.** `tests/browser/platform-build.spec.ts` leest
-     alleen `dist-platform/mcp-tools.json` van schijf. De tests in `tests/mcp/cases-site-app-tools.ts` installeren het
-     object op een nepvenster; ze bewijzen de adapter en de guards, maar niet de installatie door `main.tsx` of een
-     `run()` in een frame met `sandbox="allow-scripts allow-modals"` (zonder `allow-same-origin`). Uit de review van
-     #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). Dit wordt opgepakt in PR #828; haal dit punt weg zodra die gemerged
-     is. — B
+     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Besluit Ethan
+     7 november 2026: de preflight blijft zoals hij is. Voorstel: een `part` per skill, en `criticalPaths` alleen op
+     de eerste pagina. — B
 
 853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
      `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
