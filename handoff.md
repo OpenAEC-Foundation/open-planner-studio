@@ -65,7 +65,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 3 (v3) | 6 | 6 | 8 |
 | 4 (v4) | 7 | 6 | 7 |
 | 5 (v5) | 7 | 7 | 8 |
-| 6 (v6) | loopt | loopt | loopt |
+| 6 (v6) | 7 | loopt | 8 |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -76,6 +76,34 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 6 — Opus 7 ("daarna 8 tot 9"), Fable 8; Sol loopt — te verwerken in v7
+
+Opus-proeven in `scratchpad/r6opus/` (`twee-werkplannen.ifc`, `sim-order.py`, `propnames.py`).
+Blokkeert:
+- (F1/O1) **Herkomst slaat om na één opslaan**: OwnerHistory is een verwijzingsslot → de writer zet overal zijn eigen
+  OPS-owner history (`ifcWriter.ts:185, 394, 1835`, `ifcTaskSlots.ts:326`) → ronde 2: werkplan 'Plan' wordt 'Proj',
+  Bonsai-relaties per resource worden per taak gegroepeerd (QuantityInProcess weg), Bonsai-Status wordt writerwaarde.
+  Voorstel (beide): OwnerHistory van een D/R-stuk van vreemde herkomst = constant `#`-slot (brontoken), doel start van
+  Ext → C. Test: vanaf opslaan 2 byte-gelijk aan opslaan 1; Bonsai-tests na twee rondes.
+- (O2) Ledenregel R van vreemde herkomst ("zelfde leden zolang ze bestaan") draait bewerkingen terug: taak een niveau
+  hoger (#34 Nests in bonsai-achtig), toewijzing verwijderd, andere kalender (`ifcReader.ts:3283-3293` kiest de laatste).
+  Voorstel: lid blijft alleen zolang het domein dezelfde relatie heeft (type + relating; ToProcess: paar taak/resource).
+- (O3) Eerste werkplan wisselt na opslaan: niet-P vóór P → tweede werkplan (V) komt eerst (proef: D {20} → {70}).
+  Voorstel: D-stukken op hun bronplek schrijven; alleen hulpstukken en R achteraan.
+Vervolg: (F2/O6) codering: kies per P-stuk op de app achter zijn eigen OwnerHistory-slot, los van klasse (oud01: OH is C
+door het project → nu verkeerd); (F3) index moet PredefinedType, Name+CreationDate van schema's en `Baselines`-JSON
+bevatten; BASELINE alleen D zonder taken (staat in script, niet in tekst); (F4/O4) twee lijsten: `IFC_SAVE_KEYS` (Pick,
+asserts `ifcSaveInput.ts:116-131`) en `IFC_DIRTY_KEYS` zonder `ifcSource` voor `sameIFCSource`, `commitSavedDocument`,
+`markAutoSaveVersionSaved` (`documentSlice.ts:598-602`), `recoveryDelta.ts:88`; `recoverySnapshotInput.ts:12` moet
+`ifcSource` weglaten (anders 150 MB naar worker per 10 s); (F5) writer-Nests voor nieuwe leden sluit leden in bewaarde
+relaties uit; (O5) `OPS_Project` niet in `PSET` (`ifcWriter.ts:413`, `ifcReader.ts:384`) → toevoegen + test "elke
+psetnaam van de writer staat in PSET"; (O7) controle "bestand vervangen" mist size/mtime in ifcSource en raakt eigen
+bestanden → alleen met `foreign`; AutoSave: één melding en stoppen; (O8) manifeststap best effort
+(`RecoveryStorageUnavailableError`, #582); (O9) baselinesleutel via `ifcDateTime(createdAt)` (`ifcWriter.ts:112-119,
+474`) en gedecodeerde Name; (O10) §4.4 r.224 tekstfout (lezer leest `IfcProject.Name`, `ifcReader.ts:1419`); IFCX-vorm
+van ifcSource/manifest/bron ontbreekt beschrijven; handleiding in fase 3–4; melding na crash zonder bron alleen als er
+echt vreemde tokens waren.
 
 ### Ronde 5 — Opus 7 ("daarna 8 tot 9"), Sol 7, Fable 8 — te verwerken in v6
 
