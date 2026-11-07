@@ -21,6 +21,8 @@ import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
+import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 import {
   legacyLayoutColumnsToTaskGridPreferences,
   normalizePersistedTaskGridPreferences,
@@ -59,6 +61,8 @@ let warnedSettingsWrite = false;
 export function writeLocal(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
+    // Ingebed met `settings` van de host (#818): ook daar bewaren, gebundeld.
+    noteSiteHostSettingChanged(key);
   } catch (error) {
     if (!warnedSettingsWrite) {
       warnedSettingsWrite = true;
@@ -68,7 +72,10 @@ export function writeLocal(key: string, value: string): void {
 }
 
 export function removeLocal(key: string): void {
-  try { localStorage.removeItem(key); } catch { /* opslag geblokkeerd: niets te verwijderen */ }
+  try {
+    localStorage.removeItem(key);
+    noteSiteHostSettingChanged(key);
+  } catch { /* opslag geblokkeerd: niets te verwijderen */ }
 }
 
 export async function getSetting<T>(key: string): Promise<T | undefined> {
@@ -105,7 +112,7 @@ export async function saveTheme(theme: UITheme): Promise<void> {
 // Alle andere oude thema's vallen terug op 'dark'
 //
 // Geëxporteerd (bewust klein oppervlak) zodat `tests/planning/check-theme-premirror.ts` deze map
-// woord-voor-woord kan vergelijken met de handkopie in `index.html` — zonder deze export zou die
+// woord-voor-woord kan vergelijken met de handkopie in `public/theme-prepaint.js` — zonder deze export zou die
 // poort niet kunnen bewijzen dat de twee elkaar niet zijn ontgroeid.
 export const THEME_MIGRATION: Record<string, UITheme> = {
   'default': 'dark',
@@ -129,8 +136,17 @@ function devSessionTheme(): UITheme | null {
   return theme === 'light' || theme === 'dark' || theme === 'high-contrast' ? theme : null;
 }
 
+/** Het thema voor deze sessie zonder `ops-theme` te schrijven: eerst de dev-link, dan het thema van de
+ *  host als de tool ingebed draait (#818, `thema` op `window.openaecHost`). Het pre-paint-script
+ *  (`public/theme-prepaint.js`) kiest in dezelfde volgorde host → bewaarde voorkeur. Kiest de
+ *  gebruiker in de app een thema, dan geldt dat voor de rest van de sessie (`applyTheme` bewaart het
+ *  zoals altijd); bij de volgende start wint de host weer, net als bij de taal. */
+function sessionTheme(): UITheme | null {
+  return devSessionTheme() ?? siteHostTheme();
+}
+
 export async function initTheme(): Promise<UITheme> {
-  const session = devSessionTheme();
+  const session = sessionTheme();
   if (session) return session;
   const saved = readLocal('ops-theme');
   if (!saved) return 'dark';
@@ -145,12 +161,12 @@ export async function initTheme(): Promise<UITheme> {
 
 /** Synchrone tegenhanger van `initTheme` voor de stóre-default: leest en migreert de
  *  opgeslagen themavoorkeur zonder te persisteren. Zo start `ui.uiTheme` met hetzelfde thema als
- *  het pre-paint-script in index.html en kan het `data-theme`-effect in App.tsx bij de eerste
+ *  het pre-paint-script (`public/theme-prepaint.js`) en kan het `data-theme`-effect in App.tsx bij de eerste
  *  commit nooit een verkeerde default terugzetten (een themaflits). Headless (Node,
  *  geen localStorage) valt dit terug op 'dark'; `initTheme` blijft de persisterende bron. */
 export function peekTheme(): UITheme {
   try {
-    const session = devSessionTheme();
+    const session = sessionTheme();
     if (session) return session;
     const saved = readLocal('ops-theme');
     if (!saved) return 'dark';

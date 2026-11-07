@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures/ops';
+import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import type { Page } from '@playwright/test';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { completeTour, freshStart, startTourFromWelcome, tutorialOffer } from './fixtures/onboarding';
@@ -205,7 +205,9 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
     await route.fulfill({ response, body });
   });
   await page.reload();
-  await expect.poll(() => page.evaluate(() => !!window.__OPS__)).toBe(true);
+  await waitForOps(page);
+  // Eerst het welkomstvenster laten komen, dan pas verbergen (zie `waitForWelcomeDialog`).
+  await waitForWelcomeDialog(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({
     showWelcomeDialog: false, showTourOverlay: false, showUpdateDialog: true,
   }));

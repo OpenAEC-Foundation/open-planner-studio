@@ -578,7 +578,7 @@ npm run build:platform -- --base /assets/openaec/planner/
 
 | script | npm-script | doet |
 |---|---|---|
-| `build-platform.mjs` | `npm run build:platform` | eist `--base /pad/` (begint en eindigt met `/`; anders exit 2 met een voorbeeld), draait `tsc` zoals `npm run build`, en bouwt dan `vite build --mode platform --base <pad>`. De modus `platform` leest `.env.platform` (bouwvlag `VITE_OPS_PLATFORM=1`, zie `src/utils/buildFlags.ts`: geen demo-start, geen extensies, geen AI-modus), zet `build.manifest` aan en schrijft naar `dist-platform/` (met `dist-platform/.vite/manifest.json`). `OPS_DEV_INSTANCE` wordt gewist, zodat geen dev-slug in de bundel komt. De gewone `npm run build` blijft ongewijzigd |
+| `build-platform.mjs` | `npm run build:platform` | eist `--base /pad/` (begint en eindigt met `/`; anders exit 2 met een voorbeeld), draait `tsc` zoals `npm run build`, en bouwt dan `vite build --mode platform --base <pad>`. De modus `platform` leest `.env.platform` (bouwvlag `VITE_OPS_PLATFORM=1`, zie `src/utils/buildFlags.ts`: geen demo-start, geen extensies, geen AI-modus), zet `build.manifest` aan en schrijft naar `dist-platform/` (met `dist-platform/.vite/manifest.json`). Daarna schrijft `export-mcp-tools.ts` de tooldefinities voor de assistent van de site naar `dist-platform/mcp-tools.json`. `OPS_DEV_INSTANCE` wordt gewist, zodat geen dev-slug in de bundel komt. De gewone `npm run build` blijft ongewijzigd |
 
 Getest door `tests/browser/platform-build.spec.ts` (draait in `npm run test:browser`): die bouwt één
 keer met `--base /tools/planner/` en laadt de app vanaf dat subpad.
@@ -631,11 +631,10 @@ Lokaal controleren: `node --test scripts/aur/render-pkgbuild.test.mjs` en
 
 - `run-ts.mjs` — de TypeScript-runner waarmee de `.ts`-scripts hierboven draaien (esbuild → Node).
   Alle `node scripts/run-ts.mjs scripts/x.ts`-aanroepen in `package.json` gaan hierlangs.
-- `generate-icon.mjs` — genereert het app-icoon uit code (het vorige logo, dat de app en de
-  installers weer gebruiken; besluit eigenaar 2026-10-29). **Draait niet zonder extra installatie:**
-  hij importeert `sharp`, en dat staat bewust niet in `package.json` (het is een zware native
-  dependency voor een handeling die je hooguit bij een rebranding doet). Wil je hem draaien:
-  `npm i --no-save sharp` en dan `node scripts/generate-icon.mjs`.
+- `generate-icon.mjs` — roept `generate-approved-icons.py` aan (Python 3 + Pillow). Dat script maakt
+  alle app-iconen (desktop, Windows ICO, macOS ICNS, Linux/snap, web, manifest, mobiel) uit het
+  goedgekeurde Snap Store-logo in `docs/branding/` en weigert te draaien als de bronhash afwijkt
+  (issue #820). Tekent niets meer zelf. `npm run verify:icons` controleert de uitkomst zonder Python.
 - `style-tokens.py` — haalt `web/openaec-tokens.css` (OpenAEC-tokens 0.4, `--oa-*` per
   `data-oa-theme`) uit de [OpenAEC-Blueprint](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint)
   op een release-tag en schrijft het byte-identiek naar `src/styles/openaec-tokens.css`. De tag,

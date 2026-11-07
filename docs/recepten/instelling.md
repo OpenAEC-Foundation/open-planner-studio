@@ -52,6 +52,10 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    stilzwijgend.
 5. **Roep `t(...)` aan voor elk zichtbaar label** (zie *i18n* in `.claude/rules/i18n.md` en
    `docs/recepten/i18n-sleutel.md`) — nooit hardgecodeerde tekst in het instellingenpaneel.
+6. **Zet de sleutel in `HOST_PERSISTED_KEYS`** (`src/services/fileAccess/siteHostSettingKeys.ts`), zodat
+   hij ingebed in de SuperCloud via `settings` van de host een herlaad overleeft (#818). Is de sleutel
+   van één apparaat of één instantie, zet hem dan in `HOST_EXCLUDED_KEYS`. `check-site-host-preferences.ts`
+   is rood voor een geschreven `ops-`-sleutel die in geen van beide staat.
 
 ## De drie bewuste afwijkers
 
@@ -103,3 +107,4 @@ alle drie aanwezig zijn.
 | Instellingen-ribbontab | `src/components/layout/Ribbon/ribbonConfig.tsx` (`instellingenTab`) |
 | Backstage → Instellingen | `src/components/backstage/Backstage.tsx` |
 | `UIState`-typedefinitie | `src/state/slices/types.ts` |
+| welke sleutels ingebed bij de host blijven (#818) | `src/services/fileAccess/siteHostSettingKeys.ts` |
