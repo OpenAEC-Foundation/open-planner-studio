@@ -589,7 +589,7 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     type: ['string', 'null'],
     enum: [...WORK_RULES, null],
     description:
-      'Task type: which part of work = remaining duration × units stays fixed, as the name says. ' +
+      'Task type: fixed factors in work = remaining duration × units. ' +
       'FIXED_DURATION_RATE (default) = MSP Fixed Duration; FIXED_DURATION_WORK = P6 Fixed Duration & Units; ' +
       'FIXED_WORK = MSP Fixed Work, P6 Fixed Units; FIXED_RATE = MSP Fixed Units, P6 Fixed Units/Time. ' +
       'Switching changes no number; null = project default. Ordinary leaf tasks only (no milestone, summary, ' +

@@ -52,7 +52,7 @@ export const MCP_INSTRUCTIONS = [
   '- Changes/reads recalculate; check the result with planner_get_project_info and planner_get_critical_path. `datesAsRecorded`: say so when you report dates. `scheduleError`: fix it first; a change that leaves it is rolled back.',
   '- Progress needs the status date the user gives; never invent it, and pass the actual dates the user gives.',
   '- Report what you assumed (durations, relationships, capacities, calendars, constraints and why) and what you omitted.',
-  'Before building, read `planner_get_planning_guide`; for progress, `part: "progress-update"`.',
+  'Before building or restructuring, read `planner_get_planning_guide`; for progress, `part: "progress-update"`.',
 ].join('\n');
 
 /** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */

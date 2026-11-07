@@ -1206,9 +1206,8 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_calendars',
     description:
-      'All calendars, complete. Write one back literally with planner_update_calendar, or into another document ' +
-      'with `create: true`. To align a document\'s PROJECT calendar, write to the calendar with id ' +
-      '`projectDefaultId`; the default itself only changes in the app.',
+      'Complete calendars; pass an object unchanged to planner_update_calendar (`create: true` in another ' +
+      'document). Edit the project calendar at id `projectDefaultId`; changing the default requires the app.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

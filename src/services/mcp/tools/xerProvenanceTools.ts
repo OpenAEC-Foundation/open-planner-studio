@@ -909,7 +909,7 @@ export const xerProvenanceTools: McpToolDef[] = [{
   name: 'planner_inspect_xer_provenance',
   description:
     'Read the retained P6/XER source of an imported file (not batchable). Without `includeRawRows` only ' +
-    'id/code/label fields show. Pages stay under 256 kB, EXCEPT rawSource (up to 8 base64 chunks). Resource ' +
+    'id/code/label fields show. Resource ' +
     'names are hidden: before `includeResourceNames: true`, ask the user for permission, because the names ' +
     'are personal data and go to your AI provider.',
   kind: 'read',

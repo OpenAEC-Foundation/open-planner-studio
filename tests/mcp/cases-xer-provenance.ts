@@ -470,7 +470,10 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
   // toolbeschrijving mag rawSource daar niet onder scharen.
   assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
-  assert(/EXCEPT rawSource/.test(getTool(TOOL)?.description ?? ''), 'beschrijving zondert rawSource uit van de 256 kB-grens');
+  // Sinds #818 noemt param `limit` de grootte van een rawSource-pagina; de algemene 256 kB-grens meldt het
+  // antwoord zelf (VALIDATION met de grens), dus die zin staat niet meer in de toolbeschrijving.
+  const limitDesc = String(((getTool(TOOL)?.inputSchema as any)?.properties?.limit?.description) ?? '');
+  assert(/rawSource ≤ 8 chunks of ~256 kB/.test(limitDesc), `param limit noemt de grootte van een rawSource-pagina: ${limitDesc}`);
 });
 
 test('invalid args worden runtime geweigerd zonder storemutatie', () => {

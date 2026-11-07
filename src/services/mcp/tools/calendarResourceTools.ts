@@ -1023,13 +1023,13 @@ const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
     'Change calendars, or create one with `create: true` and an own `id` label, then use the returned `id` ' +
-    '(ids are per document). Holidays: `generate` replaces the list with a country set, then `rawHolidays` ' +
-    'adds days; `holidaysMode: "replace"` makes it exactly `rawHolidays`. Raw days ' +
-    'end the generator link (`becameLiteral`). `create` without holiday fields inherits the app default ' +
-    'holidays; `holidays: []` = none. DAY calendar with a break: `hoursPerDay` is derived; change hours or ' +
-    'break. HOUR calendar (`workTime`): `workDays` follows the bands; `hoursPerDay` too, unless it differed ' +
-    'from the modal day sum of the old bands. A given `hoursPerDay` wins. Task durations keep their number and ' +
-    'unit; dates can move.',
+    '(ids are per document). `generate` replaces holidays; then `rawHolidays` adds (`holidaysMode: ' +
+    '"replace"`: exact list) and clears the generator link (`becameLiteral`). `create` without holiday fields ' +
+    'inherits the app default holidays; `holidays: []` = none. DAY calendar with a break: `hoursPerDay` is ' +
+    'derived; change hours or break. HOUR calendar (`workTime`): `workDays` follows the bands; `hoursPerDay` ' +
+    'too, unless it differed from the modal day sum of the old bands. A given `hoursPerDay` wins. Durations ' +
+    'keep their unit; dates can move, and under FIXED_RATE (`workRule`) other hours per day change day ' +
+    'durations.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1120,18 +1120,13 @@ const updateCalendar: BatchStepTool = {
               type: ['string', 'null'],
               enum: ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED', null],
             },
+            // Alleen de buitenvorm (#818): de binnenkant toetst de schemapoort niet (kalenders zijn array-items,
+            // DIEPTE-REGEL), en `generationReason` weigert een foute vorm met een reden die de sleutels en waarden
+            // noemt. Een agent schrijft het object letterlijk terug zoals planner_get_calendars het gaf.
             generation: {
               type: ['object', 'null'],
               description:
-                'Provenance only, as read; does NOT generate. Not with `generate`.',
-              required: ['ruleSetId', 'generatedFromYear', 'generatedToYear'],
-              properties: {
-                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'] },
-                region: { type: 'string' },
-                breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'] },
-                generatedFromYear: { type: 'integer' },
-                generatedToYear: { type: 'integer' },
-              },
+                'Provenance only, as read from planner_get_calendars; does NOT generate. Not with `generate`.',
             },
             // De afgeleide leesvelden van get_calendars (`CAL_READONLY_KEYS`) staan bewust NIET in het schema: ze
             // zijn niet schrijfbaar. `items` heeft geen `additionalProperties: false`, dus een teruggestuurd object
@@ -1415,12 +1410,12 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
 const manageAssignments: BatchStepTool = {
   name: 'planner_manage_assignments',
   description:
-    '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + `unitsPerDay`/`curve`/' +
-    '`remainingWorkMinutes` (other resource: remove + add); `move`: `assignmentId` ' +
-    'to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate resources. Under ' +
-    'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the DURATION (reread the ' +
-    'task); under the ' +
-    'default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. One call = one undo step.',
+    '`add`: `taskId`, `resourceId`, `unitsPerDay` (+ `curve`/`remainingWorkMinutes`); `update`: ' +
+    '`assignmentId` + `unitsPerDay`/`curve`/`remainingWorkMinutes` (other resource: remove + add); `move`: ' +
+    '`assignmentId` to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate ' +
+    'resources. Under FIXED_WORK/FIXED_RATE (`workRule`) units, `remainingWorkMinutes` or adding/removing a ' +
+    'resource change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units. One ' +
+    'call = one undo step.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -2053,7 +2048,7 @@ const moveProject: BatchStepTool = {
   name: 'planner_move_project',
   description:
     'Shift the whole schedule to start on `newStartDate`. Calendars stay, so the end can move by a different ' +
-    'number of days. Baselines move only with `shiftBaselines: true`.',
+    'number of days. External link anchors stay fixed. Baselines move only with `shiftBaselines: true`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
