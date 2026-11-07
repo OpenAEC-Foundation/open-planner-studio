@@ -487,6 +487,16 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   // Het startbestand van de host opent: een taak staat in de taaktabel.
   await expect(frame.getByText(WORKPLACE_TASK, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
   expect((await workplaceCalls(frame)).filter((call) => call.fn === 'open')).toEqual([{ fn: 'open', id: 'f1', version: null }]);
+  // De start wacht op de hostlezing (#827): alle `settings.get` komen vóór het openen van het startbestand
+  // (de app laadt pas daarna), en de start zelf schrijft niets terug naar de host.
+  {
+    const calls = await workplaceCalls(frame);
+    const firstOpen = calls.findIndex((call) => call.fn === 'open');
+    const gets = calls.map((call, index) => (call.fn === 'settings.get' ? index : -1)).filter((index) => index >= 0);
+    expect(gets.length).toBeGreaterThan(0);
+    expect(Math.max(...gets)).toBeLessThan(firstOpen);
+    expect(calls.filter((call) => call.fn === 'settings.set' && call.key === FLOAT_BAND_KEY)).toEqual([]);
+  }
 
   // Taal en thema van de host: Engels en licht, ook al is het systeem donker.
   await expect(frame.locator('html')).toHaveAttribute('lang', 'en');
