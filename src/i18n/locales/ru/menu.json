@@ -155,6 +155,7 @@
     "barsGroup": "Полосы",
     "manageBaselines": "Управлять базовыми планами…",
     "statusDate": "Дата отчета о состоянии",
+    "statusDateValue": "Дата отчета о состоянии: {{date}}",
     "statusDateClear": "Очистить дату отчета о состоянии",
     "statusDateTime": "Время даты отчета о состоянии",
     "statusDateTimeLater": "Время позже",

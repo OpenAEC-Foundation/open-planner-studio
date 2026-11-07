@@ -153,6 +153,7 @@
     "barsGroup": "نوارهای وظیفه",
     "manageBaselines": "مدیریت خطوط مبنا…",
     "statusDate": "تاریخ وضعیت",
+    "statusDateValue": "تاریخ وضعیت: {{date}}",
     "statusDateClear": "پاک کردن تاریخ وضعیت",
     "statusDateTime": "زمان تاریخ وضعیت",
     "statusDateTimeLater": "زمان دیرتر",

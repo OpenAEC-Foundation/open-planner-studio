@@ -154,6 +154,7 @@
     "barsGroup": "Barres",
     "manageBaselines": "Gérer les références…",
     "statusDate": "Date d'état",
+    "statusDateValue": "Date d'état : {{date}}",
     "statusDateClear": "Effacer la date d'état",
     "statusDateTime": "Heure de la date d'état",
     "statusDateTimeLater": "Heure plus tard",

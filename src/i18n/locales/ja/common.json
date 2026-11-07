@@ -605,6 +605,7 @@
     "missedDeadlines": "期限超過: {{count}} 件",
     "violatedConstraints": "制約違反: {{count}} 件",
     "outOfSequence": "順序違反の関係: {{count}} 件",
+    "externalSuccessors_other": "余裕不足の外部後続: {{count}} 件",
     "overallocated": "{{count}} 件のリソースが過剰割り当て",
     "summary_other": "警告 {{count}} 件"
   },
@@ -621,6 +622,10 @@
       "scheduleError": "スケジュールを計算できませんでした: {{message}}",
       "missedDeadline": "期限 {{deadline}} を超過 — 最早終了 {{finish}}",
       "violatedConstraint": "制約 {{constraint}} がロジックによって上書きされています（負のフロート）",
+      "externalSuccessorViolatedSF": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に終了するが、このタスクの開始は {{own}}",
+      "externalSuccessorViolatedFF": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に終了するが、このタスクの終了は {{own}}",
+      "externalSuccessorViolatedSS": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に開始するが、このタスクの開始は {{own}}",
+      "externalSuccessorViolatedFS": "外部後続 {{task}}（{{project}}、{{relation}}）に対して余裕不足: 遅くとも {{anchor}} に開始するが、このタスクの終了は {{own}}",
       "outOfSequence": "順序違反: 後続タスクの進捗が関係と矛盾しています",
       "truncatedLead": "リードがプロジェクト開始で切り詰められました — 関係が完全には守られていません",
       "droppedSequence": "関係を無視: 先行または後続が存在しないか、リーフタスクではありません",
