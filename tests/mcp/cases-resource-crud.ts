@@ -619,4 +619,98 @@ test('19e: capaciteitswijziging + ALLEEN een gebruikersgat (source: user) ⇒ GE
   assert(!hasLevelingWarning(warnings), `een gebruikersgat is brondata, geen nivellering: ${JSON.stringify(warnings)}`);
 });
 
+
+// =================================================================================================
+// 20) Kostenresource (issue #815): een vast bedrag per toewijzing, geen inzet/werk/belasting
+// =================================================================================================
+test('20a: COST aanmaken; tarief/capaciteit/eenheid/kalender/ploeg zacht geweigerd', async () => {
+  reset();
+  const id = await makeResource({ name: 'Leges', type: 'COST' });
+  const r = store.getState().resources.find((x) => x.id === id)!;
+  assertEq([r.type, r.maxUnits], ['COST', 1], 'COST met capaciteit 1');
+  for (const field of [{ costPerHour: 10 }, { maxUnits: 2 }, { unitOfMeasure: 'st' }]) {
+    const res = await call('planner_manage_resources', { actions: [{ action: 'update', id, ...field }] });
+    const reason = soleReason(res);
+    assert(/COST/.test(reason), `weigering noemt COST (${JSON.stringify(field)}): ${reason}`);
+  }
+  assertEq(store.getState().resources.find((x) => x.id === id)!.costPerHour, undefined, 'geen tarief op COST');
+});
+
+test('20b: typewissel over de COST-grens met toewijzingen geweigerd, zonder toewijzingen toegestaan', async () => {
+  reset();
+  const t = addTask('T');
+  const labor = await makeResource({ name: 'Timmerman', type: 'LABOR' });
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: t, resourceId: labor, unitsPerDay: 1 }] }));
+  const reason = soleReason(await call('planner_manage_resources', { actions: [{ action: 'update', id: labor, type: 'COST' }] }));
+  assert(/assignment/i.test(reason), `de reden noemt de toewijzingen: ${reason}`);
+  assertEq(store.getState().resources.find((x) => x.id === labor)!.type, 'LABOR', 'type blijft LABOR');
+  const spare = await makeResource({ name: 'Los', type: 'LABOR', costPerHour: 40 });
+  okData(await call('planner_manage_resources', { actions: [{ action: 'update', id: spare, type: 'COST' }] }));
+  const sp = store.getState().resources.find((x) => x.id === spare)!;
+  assertEq([sp.type, sp.costPerHour], ['COST', undefined], 'zonder toewijzing: COST, tarief gewist');
+});
+
+test('20c: manage_assignments: bedrag toevoegen, wijzigen, wissen; inzet/werk/curve geweigerd; mijlpaal toegestaan', async () => {
+  reset();
+  const t = addTask('Vergunning');
+  const ms = store.getState().addTask({ name: 'Oplevering' });
+  store.getState().updateTask(ms, { isMilestone: true });
+  const cost = await makeResource({ name: 'Leges', type: 'COST' });
+  const labor = await makeResource({ name: 'Timmerman', type: 'LABOR' });
+  okData(await call('planner_manage_assignments', { actions: [
+    { action: 'add', taskId: t, resourceId: cost, costAmount: 1250.55 },
+    { action: 'add', taskId: ms, resourceId: cost, costAmount: 0 },
+  ] }));
+  const onTask = store.getState().assignments.find((a) => a.taskId === t && a.resourceId === cost)!;
+  assertEq([onTask.unitsPerDay, onTask.costAmount], [1, 1250.55], 'add zonder unitsPerDay: inzet 1, bedrag');
+  assertEq(store.getState().assignments.find((a) => a.taskId === ms)?.costAmount, 0, 'kosten op een mijlpaal');
+  assert(/COST|unitsPerDay/.test(soleReason(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: t, resourceId: labor }] }))),
+    'werkresource zonder unitsPerDay geweigerd');
+  assert(/milestone/i.test(soleReason(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: ms, resourceId: labor, unitsPerDay: 1 }] }))),
+    'werkresource op een mijlpaal geweigerd');
+  for (const bad of [{ unitsPerDay: 2 }, { curve: 'BELL' }, { remainingWorkMinutes: 60 }, { costAmount: -1 }]) {
+    const reason = soleReason(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: onTask.id, ...bad }] }));
+    assert(reason.length > 0, `update ${JSON.stringify(bad)} geweigerd`);
+  }
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: onTask.id, costAmount: 99.5 }] }));
+  assertEq(store.getState().assignments.find((a) => a.id === onTask.id)?.costAmount, 99.5, 'update zet het bedrag');
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: onTask.id, costAmount: null }] }));
+  assertEq('costAmount' in store.getState().assignments.find((a) => a.id === onTask.id)!, false, '`null` wist het bedrag');
+  store.getState().undo();
+  assertEq(store.getState().assignments.find((a) => a.id === onTask.id)?.costAmount, 99.5, 'undo zet het bedrag terug');
+  // Werkresource met costAmount geweigerd.
+  okData(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: t, resourceId: labor, unitsPerDay: 1 }] }));
+  const laborA = store.getState().assignments.find((a) => a.taskId === t && a.resourceId === labor)!;
+  assert(/COST/.test(soleReason(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: laborA.id, costAmount: 5 }] }))),
+    'costAmount op een werkresource geweigerd');
+});
+
+test('20d: leestools: get_task geeft costAmount, list_resources totalCostAmount, histogram weigert COST', async () => {
+  reset();
+  const t = addTask('Vergunning');
+  const cost = await makeResource({ name: 'Leges', type: 'COST' });
+  const labor = await makeResource({ name: 'Timmerman', type: 'LABOR' });
+  okData(await call('planner_manage_assignments', { actions: [
+    { action: 'add', taskId: t, resourceId: cost, costAmount: 300 },
+    { action: 'add', taskId: t, resourceId: labor, unitsPerDay: 2 },
+  ] }));
+  const task = okData(await call('planner_get_task', { taskId: t }));
+  const row = (task.assignments as any[]).find((a) => a.resourceId === cost);
+  assertEq(row?.costAmount, 300, 'get_task geeft costAmount');
+  const list = okData(await call('planner_list_resources', {}));
+  const costRow = list.resources.find((r: any) => r.id === cost);
+  const laborRow = list.resources.find((r: any) => r.id === labor);
+  assertEq(costRow.totalCostAmount, 300, 'list_resources: totalCostAmount');
+  assertEq('totalCostAmount' in laborRow, false, 'werkresource heeft geen totalCostAmount');
+  let refused = '';
+  try {
+    const res = await call('planner_get_resource_histogram', { resourceIds: [cost] });
+    refused = res.ok ? '' : res.error;
+  } catch (e) { refused = e instanceof Error ? e.message : String(e); }
+  assert(/COST/.test(refused), `histogram op een COST-id geweigerd: ${refused}`);
+  const hist = okData(await call('planner_get_resource_histogram', {}));
+  const ids = JSON.stringify(hist);
+  assert(!ids.includes(cost), 'histogram zonder resourceIds laat COST weg');
+});
+
 await run();
