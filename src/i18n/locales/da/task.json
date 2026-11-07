@@ -635,6 +635,12 @@
     "notAvailableWeb": "Kildefiler kan kun læses i desktop-appen; brug den manuelle reserve.",
     "source": "Kilde",
     "sourceAvailable": "tilgængelig ved sidste kontrol",
+    "provenance": "Ankerets oprindelse",
+    "provenanceSite": "version {{version}} af kilden, læst {{readAt}}",
+    "provenanceSiteNoRead": "version {{version}} af kilden",
+    "provenanceFile": "kildefil fra {{modified}}, læst {{readAt}}",
+    "provenanceFileNoRead": "kildefil fra {{modified}}",
+    "provenanceRead": "læst {{readAt}}",
     "edit": "Rediger ekstern afhængighed…",
     "refreshSource": "Opdater kilde",
     "deleteRelation": "Slet afhængighed"

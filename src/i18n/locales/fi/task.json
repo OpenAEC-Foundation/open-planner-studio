@@ -635,6 +635,12 @@
     "notAvailableWeb": "Lähdetiedostojen lukeminen onnistuu vain työpöytäsovelluksessa. Käytä manuaalista vararatkaisua.",
     "source": "Lähde",
     "sourceAvailable": "saatavilla viimeisimmässä tarkistuksessa",
+    "provenance": "Ankkurin alkuperä",
+    "provenanceSite": "lähteen versio {{version}}, luettu {{readAt}}",
+    "provenanceSiteNoRead": "lähteen versio {{version}}",
+    "provenanceFile": "lähdetiedosto {{modified}}, luettu {{readAt}}",
+    "provenanceFileNoRead": "lähdetiedosto {{modified}}",
+    "provenanceRead": "luettu {{readAt}}",
     "edit": "Muokkaa ulkoista riippuvuutta…",
     "refreshSource": "Päivitä lähde",
     "deleteRelation": "Poista riippuvuus"
