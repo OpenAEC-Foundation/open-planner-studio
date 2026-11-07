@@ -9,6 +9,8 @@
     "notifications.dismiss": "28d0dca60333caa7",
     "notifications.taskEditRevertBlocked": "07ecbebe05c8ac1a",
     "notifications.openFailed": "2d90976b4b1e996e",
+    "notifications.fileDropRefused": "b893f4dd951e04d0",
+    "notifications.fileDropBlocked": "e2a22525222e5139",
     "notifications.csvInvalidDate": "1c1bb6703566a740",
     "notifications.extGuideCallbackFailed": "00f143941f2d5186",
     "notifications.extHelpProjectOpenFailed": "61338a874001bc54",
@@ -1358,6 +1360,8 @@
     "phaseAssignmentQuestion.blockedDuplicate": "60460454ecd69a7a",
     "phaseAssignmentQuestion.blockedNoChild": "5e8ed03dede45e3c",
     "phaseAssignmentQuestion.actualWorkLost": "41c83741fb8b3fac",
+    "fileDrop.title": "f0db16b7fad4eded",
+    "fileDrop.subtitle": "3e31ae0c814416a7",
     "calendar.worktime.derivedHpd": "a1b14da23f5c3a20"
   },
   "task": {

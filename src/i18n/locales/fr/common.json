@@ -13,6 +13,8 @@
     "dismiss": "Fermer la notification",
     "taskEditRevertBlocked": "Une modification du client MCP ou d'une extension est intervenue entre-temps. Les modifications de tâche effectuées avant n'ont pas été annulées ; elles restent des étapes ordinaires sous « Annuler ».",
     "openFailed": "Échec de l'ouverture du fichier",
+    "fileDropRefused": "Non ouvert : {{names}}. L’application n’ouvre que les fichiers IFC, XML, MPP, XER et CSV.",
+    "fileDropBlocked": "Non ouvert : {{names}}. Fermez d’abord la fenêtre ouverte.",
     "csvInvalidDate": "CSV non ouvert : date illisible « {{value}} » à la ligne CSV {{row}}, colonne « {{column}} ». Utilisez aaaa-mm-jj, jj-mm-aaaa ou jj/mm/aaaa.",
     "extGuideCallbackFailed": "Une étape de l’extension {{name}} a échoué. Le guide continue.",
     "extHelpProjectOpenFailed": "Le fichier de projet {{file}} de l’extension {{name}} n’a pas pu être ouvert.",
@@ -1787,5 +1789,9 @@
     "actualWorkLost_one": "L'affectation de {{resource}} comporte déjà {{hours}} heure de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_many": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail.",
     "actualWorkLost_other": "L'affectation de {{resource}} comporte déjà {{hours}} heures de travail réel. La supprimer fait perdre ce travail."
+  },
+  "fileDrop": {
+    "title": "Déposez pour ouvrir",
+    "subtitle": "Fichier de projet ou import"
   }
 }

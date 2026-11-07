@@ -13,6 +13,8 @@
     "dismiss": "Chiudi notifica",
     "taskEditRevertBlocked": "Una modifica del client MCP o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività fatte prima non sono state annullate e restano come normali passaggi sotto Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "fileDropRefused": "Non aperto: {{names}}. L’app apre solo IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Non aperto: {{names}}. Chiudi prima la finestra aperta.",
     "csvInvalidDate": "CSV non aperto: data non riconosciuta \"{{value}}\" nella riga CSV {{row}}, colonna \"{{column}}\". Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
     "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
     "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
@@ -1787,5 +1789,9 @@
     "actualWorkLost_one": "L'assegnazione di {{resource}} ha già {{hours}} ora di lavoro effettivo. Rimuovendola, quel lavoro va perso.",
     "actualWorkLost_many": "L'assegnazione di {{resource}} ha già {{hours}} ore di lavoro effettivo. Rimuovendola, quel lavoro va perso.",
     "actualWorkLost_other": "L'assegnazione di {{resource}} ha già {{hours}} ore di lavoro effettivo. Rimuovendola, quel lavoro va perso."
+  },
+  "fileDrop": {
+    "title": "Rilascia per aprire",
+    "subtitle": "File di progetto o importazione"
   }
 }

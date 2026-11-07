@@ -84,6 +84,10 @@ export interface ColumnChooserLabels {
   resetDefault: string;
 }
 
+/** De lintknop Kolommen (Tabel-tab, `data-ops-ribbon-item="tableColumns"`) zet de kiezer van de Tabel open
+ *  en dicht. Een klik daarop is dus geen klik naast de kiezer. */
+export const COLUMNS_RIBBON_TOGGLE_SELECTOR = '[data-ops-ribbon-item="tableColumns"]';
+
 export interface ColumnChooserProps {
   options: readonly TaskGridColumnOption[];
   recentIds: readonly TaskColumnId[];
@@ -97,6 +101,9 @@ export interface ColumnChooserProps {
   resetDisabled: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Selector van een knop buiten de tabel die de kiezer ook open en dicht zet (de lintknop
+   *  Kolommen). Een klik daarop telt niet als klik ernaast; die knop sluit de kiezer zelf. */
+  externalToggleSelector?: string;
 }
 
 /**
@@ -134,6 +141,7 @@ export function ColumnChooser({
   resetDisabled,
   open: controlledOpen,
   onOpenChange,
+  externalToggleSelector,
 }: ColumnChooserProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -159,7 +167,9 @@ export function ColumnChooser({
     if (restoreFocus) nextFrame(() => triggerRef.current?.focus());
   };
 
-  useClickOutside(triggerContainerRef, () => close(true), open, { escape: true, extraRef: panelRef });
+  useClickOutside(triggerContainerRef, () => close(true), open, {
+    escape: true, extraRef: panelRef, ignoreSelector: externalToggleSelector,
+  });
 
   useLayoutEffect(() => {
     if (!open) {
