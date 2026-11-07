@@ -1,5 +1,5 @@
-# Indeling volgens ontwerp v8 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
-# Fase-0-voorproef (ontwerp #804 v8 §4.2). Draaien: python3 -I scripts/proef/classify-v8.py <bestand.ifc>
+# Indeling volgens ontwerp v9 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc>
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
 import re, sys, os, glob
@@ -50,8 +50,7 @@ for f in ('ifcPsets.ts', 'ifcWriter.ts'):
 KNOWN = set()
 for c in code.values(): KNOWN |= set(re.findall(r"'([A-Za-z][A-Za-z0-9_]*)'", c))
 # v8: psets met sleutels uit de data. Een property is alleen eigen als de lezer haar gebruikt (ontwerp v8 §4.2):
-# OPS_Assignments: <GlobalId van een resource>#n (de k-de sleutel op n is eigen als die resource minstens k keer aan de
-# taak is toegewezen) of de kale GlobalId (oude writer, eigen als de resource aan de taak is toegewezen);
+# OPS_Assignments: elke sleutel in GlobalId-vorm, <GlobalId>#n of kaal (oude writer), is eigen;
 # OPS_ActivityCodes/OPS_CustomFields: namen uit de JSON in OPS_StructureMeta, met terugval op het eigen template.
 # OPS_Timephased (Windows) en OPS_TimephasedWindow (FinishFloor, StartAnchor) hebben vaste namen.
 GUID_KEYED = {'OPS_Assignments'}
@@ -121,7 +120,7 @@ for i in ents:
         for x in refs[i]:
             if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE':
                 en = r1(x, 7); ac_types[pname(x)] = set(strs(args[en][1])) if en in ents else set()
-if sm_ac is not None or sm_cf is not None:
+if sm_ac or sm_cf:  # de lezer valt terug op de templates als beide lijsten leeg zijn (ifcReader.ts:2219)
     ac_types, cf_names = (sm_ac or {}), (sm_cf or set())
 # pset -> objecten (via elke IfcRelDefinesByProperties) en toewijzingsparen (taak, resource-GlobalId) -> aantal
 pset_objs = defaultdict(set)
@@ -135,12 +134,8 @@ for i in ents:
 def prop_read(ps, pr):
     n = pname(pr); psn = name(ps)
     if psn in GUID_KEYED:  # de lezer zet de sleutels per GlobalId op volgorde van n in een wachtrij (ifcReader.ts:3455-3470)
-        m = re.fullmatch(r'(.+)#(\d+)', n)
-        if not m: return any(pairs[(t, n)] > 0 for t in pset_objs[ps])  # kale GlobalId (ifcReader.ts:3461, 3494)
-        same = sorted(int(re.fullmatch(r'(.+)#(\d+)', pname(q)).group(2)) for q in refs[ps]
-                      if ty.get(q) in PROPS and re.fullmatch(re.escape(m.group(1)) + r'#\d+', pname(q)))
-        k = same.index(int(m.group(2)))
-        return any(k < pairs[(t, m.group(1))] for t in pset_objs[ps])
+        # v9: elke sleutel in GlobalId-vorm (kaal of met #n) is eigen (ontwerp v9 §4.2)
+        return bool(re.fullmatch(r'[0-9A-Za-z_$]{22}(#\d+)?', n))
     if psn == 'OPS_ActivityCodes':
         v = strs(args[pr][2]) if len(args[pr]) > 2 else []
         return n in ac_types and bool(v) and v[0] in ac_types[n]

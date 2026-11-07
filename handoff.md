@@ -5,8 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp staat als versie 8 in draft PR #839. Ronde 7 gaf Opus 7, Sol 8, Fable 9 (eerste 9). Versie 8 verwerkt alle
-punten van ronde 7 (spec §12 "Na ronde 7"). Ronde 8 beoordeelt versie 8. Daarna begint de bouw met fase 0.
+Het ontwerp is klaar: in ronde 8 gaven Opus, Sol en Fable alle drie een 9. Versie 9 (draft PR #839) verwerkt hun kleine
+punten. Nu legt de sessie Ethan de twee open besluiten één voor één voor (namespace, `openaec::activity`). Daarna begint
+de bouw met fase 0: een proef op echte bestanden met de 100 %-P-poort.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -66,7 +67,9 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 5 (v5) | 7 | 7 | 8 |
 | 6 (v6) | 7 | 7 | 8 |
 | 7 (v7) | 7 | 8 | 9 |
-| 8 (v8) | 9 | loopt | 9 |
+| 8 (v8) | 9 | 9 | 9 |
+
+**Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -78,7 +81,11 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 8 — Opus 9, Fable 9 (geen blokkade); Sol loopt
+### Ronde 8 — Opus 9, Sol 9, Fable 9 (geen blokkade) — kleine punten verwerkt in v9
+
+Sol 9 (vervolg, proeven `scratchpad/r8sol/`): (S1) = F1/O2 lidmaatschap vreemd lid bewaken in controle 1 + route "laatste
+notitie wissen → opslaan → heropenen → opslaan"; (S2) voorproef volgde de lege terugval van `OPS_StructureMeta` niet
+(`ifcReader.ts:2219`; proef `lege-structuurmeta-met-templates.ifc` gaf 157 vreemde leden) → hersteld in `classify-v9.py`.
 
 Fable 9 (vervolg): (F1) vreemd lid raakt los als de writer de pset niet meer schrijft (lege pset overgeslagen,
 `ifcWriter.ts:694, 910`) → pset met vreemde leden toch schrijven; (F2) plek P-blok zonder P-stuk in de bron (model zonder
@@ -301,9 +308,9 @@ getalprecisie; grens zonder meting; inschatting te optimistisch; foute commit in
 - Ecosysteem: `ifcx_alpha`; namespace per programma (`ocss::`, `oses::`, `openbim::`, `openaec::`); ifcx-explorer
   `openaec::activity` + `openaec::links`; UUID v5 = GlobalId (128 bits). IFCCAD: alleen IFCX/CBOR, bewaart bronbytes.
 
-## Voorproef indeling (v8)
+## Voorproef indeling (v9)
 
-`scripts/proef/classify-v8.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 uit. Register uit de
+`scripts/proef/classify-v9.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 uit. Register uit de
 `OPS_*`-namen in `ifcPsets.ts`/`ifcWriter.ts`; bekende propertynamen = tekstliteralen in `src/services/ifc/` (benadering);
 `OPS_Assignments`/`OPS_ActivityCodes` hebben namen uit de data (alle properties eigen); `OPS_CustomFields` via template.
 Uitkomst 7 november: 35 eigen bestanden 100 % P zonder vreemde leden; 8 IFC5-modellen 100 % V; `prop.ifc` (Opus) en
@@ -313,7 +320,8 @@ codetypes; vreemde herkomst via `IfcOwnerHistory.OwningApplication` (argument 1!
 eigen bestanden 0 vreemde herkomst, Bonsai-voorbeeld 10; Sol's `dynamisch-*.ifc` elk 1 vreemd lid. v8: alleen
 `OPS_Assignments` dynamisch (ook kale GUID), `OPS_StructureMeta` eerst; ook `tests/planning/fixtures/*.ifc` (10) in de
 poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oude-writer-merged.ifc` heeft een model,
-`werkdag-einde-tussenwaarde.ifc` heeft bewust hernoemde properties → vreemde leden). Basis voor fase 0.
+`werkdag-einde-tussenwaarde.ifc` heeft bewust hernoemde properties → vreemde leden). v9: elke GlobalId-vormsleutel in
+`OPS_Assignments` eigen; `OPS_StructureMeta` alleen als een lijst niet leeg is (anders templates). Basis voor fase 0.
 
 ## Omgeving en valkuilen
 
@@ -326,8 +334,8 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
 
 ## Volgende stappen
 
-1. Ronde 6 afwachten; cijfers hier en in PR #839.
-2. Verwerken, volgende ronde, tot elk lid ≥ 9.
+1. Klaar: council (ronde 8: 9/9/9), v9.
+2. Besluiten voor Ethan, één tegelijk: (1) namespace `ops::` of `openaec::planner::`; (2) `openaec::activity` meeschrijven.
 3. Open besluiten §11 één voor één aan Ethan.
 4. Bouwen: fase 0 eerst. Kleine PR's naar `main`; worker (Opus medium) voor gewoon werk, expert (Opus xhigh) voor
    scanner/indeling, verliesbewaking en herstel. Review per PR door Sol (BLOKKEERT/VERVOLG). Geen zware runs lokaal.
