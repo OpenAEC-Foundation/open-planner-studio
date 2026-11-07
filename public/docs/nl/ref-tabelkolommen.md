@@ -1,6 +1,6 @@
 # Tabelkolommen
 
-De takentabel heeft 86 vaste kolommen, plus een kolom per activity code en eigen veld van het project en acht kolommen per baseline. In dit artikel staat per kolom wat hij toont, of je hem kunt bewerken en in welke vorm de waarde staat. Hoe je kolommen kiest en ordent, staat in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
+De takentabel heeft 87 vaste kolommen, plus een kolom per activity code en eigen veld van het project en acht kolommen per baseline. In dit artikel staat per kolom wat hij toont, of je hem kunt bewerken en in welke vorm de waarde staat. Hoe je kolommen kiest en ordent, staat in [Tabelkolommen aanpassen](docs://howto-tabelkolommen-aanpassen).
 
 ## Waar je kolommen kiest
 
@@ -96,6 +96,7 @@ Alle kolommen in deze categorie zijn alleen-lezen.
 - **Interfererende speling** — totale speling min vrije speling.
 - **Bijna kritiek** — *Ja* voor een bijna-kritieke taak. Alleen gevuld als *Bijna-kritiek markeren* aan staat (*Projectinstellingen*, blok *Rekenprofiel en reken-opties*); anders een streepje.
 - **Spelingpad** — het nummer van het spelingpad, 1 voor het meest kritieke. Alleen gevuld als *Meerdere speling-paden* aan staat; anders een streepje.
+- **Kalenderdagen** — het aantal kalenderdagen van de dag in *Start* tot en met de dag in *Einde*, als geheel getal zoals `12`. Weekenden en feestdagen tellen mee. De app telt beide dagen mee: start en einde op dezelfde dag geeft 1. Een taak van 10 werkdagen van maandag 2 november tot en met vrijdag 13 november 2026 heeft 12 kalenderdagen. Een mijlpaal zonder duur geeft 0, net als een taak waarvan het einde niet na de start ligt. Bij een samenvattingstaak telt de span van haar kinderen. Zonder start of einde staat er een streepje. Kopiëren geeft hetzelfde getal. Deze kolom is alleen een telling. *Duur* telt in werktijd van de kalender. Het duurtype *Verstreken tijd* verandert hoe de app de taak rekent; deze kolom verandert niets aan de berekening.
 - **Herkomst (opgeslagen datums)** — zolang de app de datums uit het bestand toont: *Deels niet vastgelegd* bij een taak waarvan het bestand niet alles bevat. Alleen zichtbaar in de kiezer in die weergave. Bij een niet vastgelegde as staat *Niet vastgelegd* in de late-datum- en spelingkolommen.
 
 Zie [Rekenopties en conventies](docs://ref-rekenopties-en-conventies).
