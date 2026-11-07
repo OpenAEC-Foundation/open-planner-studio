@@ -23,8 +23,6 @@ en noem het in je rapport of PR-tekst.
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
 4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
-6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
-   constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
@@ -382,7 +380,7 @@ en noem het in je rapport of PR-tekst.
      externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
      Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
      (`docs/relaties-tussen-projecten.md`). — B
-873. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+877. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
      (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
      zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
      mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
@@ -420,6 +418,15 @@ en noem het in je rapport of PR-tekst.
      verplaatsen kan die velden dus verliezen terwijl beide checks groen blijven. Voorstel: de drie waarden in de
      bestaande fixture zetten en ze controleren in het bestaande scenario met ongedaan maken. Uit de review van #809
      na de merge met #807 (GPT-6.1-Sol, xhigh, op `b570b2044`, VERVOLG). — S
+882. **VERVOLG: de melding bij een harde pin zegt "negatieve speling", ook als de pin staat en de speling nul is.**
+     `src/engine/scheduler/CPMSolver.ts:3478` (`registerHardPinViolation`) en `src/i18n/locales/nl/common.json:782`
+     (`warnings.kind.violatedConstraint`: "Constraint {{constraint}} wordt door de logica overschreden (negatieve
+     speling)"). Een harde MSO op di 2 juni 08:00 met een externe SS-opvolger (zelfde anker, één uur lag in de
+     24-uurskalender): de pin blijft staan, de taak staat in `violatedConstraintTaskIds`, de externe melding noemt de
+     koppeling, en de totale speling is 0 minuten. Beide meldingen zijn terecht: de pin doorbreekt de logica, de
+     externe melding noemt de koppeling. Alleen de tekst van de pinmelding klopt dan niet. Zo ook op main
+     (`7f0207182`). Oplossing: een tekst voor een pin die de logica doorbreekt, zonder "negatieve speling"; de
+     externe melding blijft. Uit de review van #810 ronde 3 (GPT-6.1-Sol, xhigh, op `568ce4a10`). — B
 
 ## Tabel, invoer en bediening
 
