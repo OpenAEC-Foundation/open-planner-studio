@@ -366,13 +366,10 @@ export function writeMSPDIWithReport(
     console.warn(`MSPDI-export: ${noteCount} taak-aantekening(en) weggelaten — MSPDI's native <Notes>-element is bewust niet gebruikt (lossy voor de checklist-vorm, §6).`);
   }
 
-  // MSPDI kent native <Manual> en <LevelingDelay>/<LevelingDelayFormat>, maar onze LEZER leest ze
-  // niet. Native schrijven zonder terug te lezen is een stille semantiek-omklap bij een round-trip
-  // (zie het ELAPSEDTIME/<DurationFormat>-geval hierboven) — daarom alleen warnen.
-  const manualCount = tasks.filter(t => t.manuallyScheduled).length;
-  if (manualCount > 0) {
-    console.warn(`MSPDI-export: ${manualCount} handmatig geplande taak/taken geëxporteerd zonder native <Manual> — MSPDI-lezer kent dat element nog niet (§6).`);
-  }
+  // MSPDI kent native <LevelingDelay>/<LevelingDelayFormat>, maar onze LEZER leest ze niet. Native
+  // schrijven zonder terug te lezen is een stille semantiek-omklap bij een round-trip (zie het
+  // ELAPSEDTIME/<DurationFormat>-geval hierboven) — daarom alleen warnen. `<Manual>` schrijft en leest
+  // de route wel (issue #814, bij de taak hieronder).
   const levelingPrecisionCount = tasks.filter(t => t.levelingDelayMinutes != null).length;
   if (levelingPrecisionCount > 0) {
     console.warn(`MSPDI-export: ${levelingPrecisionCount} taak/taken met sub-dag-nivelleervertraging (levelingDelayMinutes) geëxporteerd zonder native <LevelingDelay>/<LevelingDelayFormat> — MSPDI-lezer kent die elementen nog niet (§6).`);
@@ -608,6 +605,11 @@ export function writeMSPDIWithReport(
     lines.push(`${indent(3)}<UID>${uid}</UID>`);
     lines.push(`${indent(3)}<ID>${uid}</ID>`);
     lines.push(`${indent(3)}<Name>${escapeXml(task.name)}</Name>`);
+    // Handmatig gepland (issue #814): `<Manual>` plus het ankerpaar `<ManualStart>`/`<ManualFinish>`
+    // (hieronder, na `<Duration>`, de XSD-volgorde). De lezer leest dat paar terug als
+    // `scheduleStart`/`scheduleFinish`; `<Start>`/`<Finish>` blijven de getoonde datums.
+    const isManual = task.manuallyScheduled === true;
+    if (isManual) lines.push(`${indent(3)}<Manual>1</Manual>`);
     // <Type> (0/1/2) en <EffortDriven> uit de werkregel; een bewaard MSP-`effortDriven` wint
     // (`mspFromWorkRule`). Zonder werkregel valt een taak met alleen bewaarde MSP-velden op die velden
     // terug; zonder beide schrijft de export niets — MS Project neemt dan zijn default (Fixed Units).
@@ -618,6 +620,10 @@ export function writeMSPDIWithReport(
       lines.push(`${indent(3)}<Type>${MSPDI_TASK_TYPE_CODE[mspType.type]}</Type>`);
     }
     lines.push(`${indent(3)}<Duration>${durationTag}</Duration>`);
+    if (isManual) {
+      lines.push(`${indent(3)}<ManualStart>${dateTimeXmlText(task.time.scheduleStart)}</ManualStart>`);
+      lines.push(`${indent(3)}<ManualFinish>${dateTimeXmlText(task.time.scheduleFinish)}</ManualFinish>`);
+    }
     lines.push(`${indent(3)}<DurationFormat>${durationFormat}</DurationFormat>`);
     if (mspType && !isSummary) {
       lines.push(`${indent(3)}<EffortDriven>${mspType.effortDriven ? 1 : 0}</EffortDriven>`);

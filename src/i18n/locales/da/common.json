@@ -205,8 +205,6 @@
     "msProjectLostExternalTasks_other": "{{count}} eksterne opgaver fra et andet projekt er indlæst som almindelige opgaver.",
     "msProjectLostInactiveTasks_one": "{{count}} inaktiv opgave er indlæst som aktiv opgave og tæller med i beregningen.",
     "msProjectLostInactiveTasks_other": "{{count}} inaktive opgaver er indlæst som aktive opgaver og tæller med i beregningen.",
-    "msProjectLostManualTasks_one": "{{count}} manuelt planlagt opgave er indlæst som automatisk planlagt opgave.",
-    "msProjectLostManualTasks_other": "{{count}} manuelt planlagte opgaver er indlæst som automatisk planlagte opgaver.",
     "msProjectLostLevelingDelays_one": "Udjævningsforskydningen for {{count}} opgave er ikke overtaget.",
     "msProjectLostLevelingDelays_other": "Udjævningsforskydningerne for {{count}} opgaver er ikke overtaget.",
     "msProjectLostCriticalSlack_one": "Grænseværdien for kritisk fra filen (slæk op til {{count}} arbejdsdag) er ikke overtaget. Appen bruger grænseværdi 0.",

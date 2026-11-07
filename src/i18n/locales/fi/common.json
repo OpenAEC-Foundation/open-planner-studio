@@ -205,8 +205,6 @@
     "msProjectLostExternalTasks_other": "{{count}} ulkoista tehtävää toisesta projektista luettiin tavallisina tehtävinä.",
     "msProjectLostInactiveTasks_one": "{{count}} epäaktiivinen tehtävä luettiin aktiivisena tehtävänä, ja se on mukana laskennassa.",
     "msProjectLostInactiveTasks_other": "{{count}} epäaktiivista tehtävää luettiin aktiivisina tehtävinä, ja ne ovat mukana laskennassa.",
-    "msProjectLostManualTasks_one": "{{count}} manuaalisesti ajoitettu tehtävä luettiin automaattisesti ajoitettuna tehtävänä.",
-    "msProjectLostManualTasks_other": "{{count}} manuaalisesti ajoitettua tehtävää luettiin automaattisesti ajoitettuina tehtävinä.",
     "msProjectLostLevelingDelays_one": "Tasaamisviivettä ei tuotu {{count}} tehtävältä.",
     "msProjectLostLevelingDelays_other": "Tasaamisviiveitä ei tuotu {{count}} tehtävältä.",
     "msProjectLostCriticalSlack_one": "Kriittinen kynnysarvo tiedostosta (pelivara enintään {{count}} työpäivä) ei tuotu. Sovellus laskee kynnysarvolla 0.",
