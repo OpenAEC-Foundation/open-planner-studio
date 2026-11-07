@@ -71,6 +71,7 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   await expect(page.locator('.ops-select__menu [role="option"]')).toHaveCount(4);
   await page.locator('.ops-select__menu [data-value="FIXED_WORK"]').click();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
+  await test.info().attach('standaardtaaktype-in-projectinstellingen', { body: await projectDialog.screenshot(), contentType: 'image/png' });
   await projectDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
   await projectButton.click();
