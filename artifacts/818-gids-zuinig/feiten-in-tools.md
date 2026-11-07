@@ -5,7 +5,7 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`414aa2ab9`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
+`746c25804`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
@@ -51,11 +51,11 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 31 | `maxUnits` = capaciteit per werkdag (1 = één persoon of stuk) | `planner_manage_resources` | tools/list, schema `maxUnits` |
 | 32 | Toewijzen alleen op een bladtaak, één resource één keer per taak | `planner_manage_assignments` | tools/list, desc |
 | 33 | Onder `FIXED_WORK`/`FIXED_RATE` verandert een toewijzing de duur | `planner_manage_assignments` | tools/list, desc |
-| 34 | Toewijzingen gaan in bulk: één aanroep is één undo-stap | `planner_manage_assignments` | tools/list, desc ("One call is one undo step."). De gids houdt "all assignments in one `planner_manage_assignments`" |
+| 34 | Toewijzingen gaan in bulk: één aanroep is één undo-stap | `planner_manage_assignments` | tools/list, desc ("One call = one undo step."). De gids houdt "all assignments in one `planner_manage_assignments`" |
 | 35 | Het histogram geeft zonder argumenten een samenvatting per resource (`peakLoad`, `overallocatedDayCount`), met `resourceIds`/`van`/`tot` de details; `bucket` | `planner_get_resource_histogram` | tools/list, desc en schema `bucket` |
 | 36 | `constrainToFloat: true` houdt het einde vast (`unresolved`); `false` laat het schuiven (`projectEndDelta`) | `planner_level_resources` | tools/list, desc |
 | 37 | `drivingRelations`: `null` = onbekend, `[]` = geen | `planner_get_critical_path` | tools/list, desc |
-| 38 | De float van één taak (totaal en vrij), de vroege en late datums; float in werkdagen, ook bij een uurtaak | `planner_get_task`, `planner_get_critical_path` | deels: desc van `planner_get_task` noemt vroege en late datums en beide floats; de eenheid staat er niet. De gids houdt "Float is in working days, also on hour tasks." (gevraagd aan de bouwer van #838) |
+| 38 | De float van één taak (totaal en vrij), de vroege en late datums; float in werkdagen, ook bij een uurtaak | `planner_get_task`, `planner_get_critical_path` | tools/list, desc van beide ("Float is in working days of the task calendar, also on hour tasks (ELAPSEDTIME: calendar days)") |
 | 39 | `kritiek` telt ook samenvattingstaken (`summary: true`) | `planner_list_tasks` | tools/list, desc |
 | 40 | IFC-export overschrijft geen bron in een schema dat de app niet schrijft; export verandert het opslagdoel niet | `planner_export_ifc` | tools/list, desc |
 | 41 | Zonder statusdatum wordt elke voortgangsregel geweigerd | `planner_update_tasks` | tools/list, desc |
@@ -80,5 +80,5 @@ niet weg zonder het terug te zetten in de gids of een skill.
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij
-`datesAsRecorded`, de kalendervalkuil, de eenheid van float, "nooit optellen" bij vertraging, en de regels over
+`datesAsRecorded`, de kalendervalkuil, "nooit optellen" bij vertraging, en de regels over
 geraden werkelijke datums. Die leiden tot een foute planning als een agent ze mist.

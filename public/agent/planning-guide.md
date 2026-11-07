@@ -62,7 +62,7 @@
 
 ## Float
 
-Float is in working days, also on hour tasks. No near-critical flag: compare `totalFloat` yourself. A few days = near-critical, not safe. Over ~44 working days = usually a missing successor.
+No near-critical flag: compare `totalFloat` yourself. A few days = near-critical, not safe. Over ~44 working days = usually a missing successor.
 
 ## Baseline and progress
 
