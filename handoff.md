@@ -63,7 +63,17 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 1 (v1) | 6 | 6 | 7 |
 | 2 (v2) | 6 | 6 | 7 |
 | 3 (v3) | 6 | 6 | 8 |
-| 4 (v4) | 7 | loopt | loopt |
+| 4 (v4) | 7 | loopt | 7 |
+
+Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
+MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
+fix `classify-stop.py`); baseline-definitie: de lezer maakt nooit een baseline uit een schema (`extractBaselines`,
+`ifcReader.ts:3623-3660`, alleen `OPS_Baselines`-JSON) → BASELINE-schema is D alleen met `OPS_Baselines`-pset; anders vreemd en
+de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen tokens met `#` in letterlijke slots bewaren
+(Ext statisch); structurele A-rels (Nests/Aggregates/AssignsToControl met één vreemd lid) → dubbele decompositie, §4.6
+generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
+nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
+`formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
 ### Ronde 4 — Opus (7/10, "daarna 8 tot 9"), te verwerken in v5
 
