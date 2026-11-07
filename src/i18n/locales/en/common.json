@@ -87,6 +87,7 @@
     "recoveryStorageBlocked": "Recovery storage is temporarily blocked by another open connection. Existing copies are kept; this page will not create new recovery copies. Save your work yourself, close other tabs running this app and reload this page to try recovery again.",
     "recoveryReadFailed": "Recovered file could not be read",
     "recoveryRestoreFailed": "Restore failed",
+    "hostSettingsUnavailable": "The site settings did not load. Settings you change in this session will not be saved.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",

@@ -13,7 +13,11 @@ const FLOAT_BAND_FR = (JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/
 }).ribbon.toggleFloatBand;
 /** Teksten van de baselinedialoog in het Frans (start) en Duits (na de live wissel). */
 const FR_MENU = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/menu.json'), 'utf8')) as { ribbon: { manageBaselines: string } };
-const FR_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
+const FR_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/common.json'), 'utf8')) as {
+  baseline: { dialog: { name: string; title: string } }; settings: { language: string };
+};
+/** De melding in het Engels: zonder Franse vertaling toont de app het Engels. */
+const EN_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/en/common.json'), 'utf8')) as { notifications: { hostSettingsUnavailable: string } };
 const DE_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/de/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen): één hostsleutel per
@@ -21,6 +25,9 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 const HOST_SETTINGS_STORE = 'test-host-settings';
 
 test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewaart ze', async ({ page, ops: _ops }) => {
+  // Meer tijd dan de standaard 30 s: de rondes met een trage host wachten bewust 1,5 s en 7 s op de host,
+  // en de ronde met een host tijdens het laden herlaadt nog een keer.
+  test.setTimeout(120_000);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: true, uiTheme: 'dark' }));
   const dialog = page.locator('[data-ops-welcome-dialog]');
   await expect(dialog).toBeVisible();
@@ -50,12 +57,19 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
     localStorage.removeItem('ops-welcomeSeen');
     if (localStorage.getItem('test-no-host') === 'true') return;
     localStorage.removeItem('ops-showFloatBand');
+    localStorage.removeItem('ops-personalTaskTypes');
     const read = (): Record<string, unknown> => JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, unknown>;
     const write = (all: Record<string, unknown>) => sessionStorage.setItem(store, JSON.stringify(all));
+    /** Elke `set`/`delete` die de app doet, in volgorde (de test leest en wist deze lijst). */
+    const logWrite = (entry: string) => sessionStorage.setItem('test-host-writes',
+      JSON.stringify([...(JSON.parse(sessionStorage.getItem('test-host-writes') ?? '[]') as string[]), entry]));
     const file = { id: 'welcome-host', name: 'Planning.ifc', version: '1' };
-    (window as unknown as { openaecHost: unknown }).openaecHost = {
-      taal: 'fr',
-      thema: 'dark',
+    // `test-late-host`: de host komt pas met `window.__testInstallHost()` (een host die verschijnt terwijl
+    // de app laadt), met `taal: 'de'` en `thema: 'light'`.
+    const late = sessionStorage.getItem('test-late-host') === 'true';
+    const install = () => { (window as unknown as { openaecHost: unknown }).openaecHost = {
+      taal: late ? 'de' : 'fr',
+      thema: late ? 'light' : 'dark',
       initialFileId: file.id,
       storage: {
         list: async () => [file],
@@ -64,11 +78,23 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
         versions: async () => [{ version: '1' }],
       },
       settings: {
-        get: async (key: string) => read()[key] ?? null,
-        set: async (key: string, value: unknown) => { write({ ...read(), [key]: value }); return null; },
-        delete: async (key: string) => { const all = read(); delete all[key]; write(all); return null; },
+        // `test-host-delay`: de host antwoordt pas na zoveel ms (een trage host). Bij het eerste antwoord
+        // noteert hij of de app al gerenderd was (`__testRootAtAnswer`, aantal kinderen van #root).
+        get: (key: string) => {
+          const delay = Number(sessionStorage.getItem('test-host-delay') ?? '0');
+          if (!delay) return Promise.resolve(read()[key] ?? null);
+          return new Promise((resolve) => setTimeout(() => {
+            const w = window as unknown as { __testRootAtAnswer?: number };
+            w.__testRootAtAnswer ??= document.getElementById('root')?.childElementCount ?? -1;
+            resolve(read()[key] ?? null);
+          }, delay));
+        },
+        set: async (key: string, value: unknown) => { logWrite(`set ${key}`); write({ ...read(), [key]: value }); return null; },
+        delete: async (key: string) => { logWrite(`delete ${key}`); const all = read(); delete all[key]; write(all); return null; },
       },
-    };
+    }; };
+    if (late) (window as unknown as { __testInstallHost: () => void }).__testInstallHost = install;
+    else install();
   }, { ifc: IFC, store: HOST_SETTINGS_STORE });
   const hostSettings = () => page.evaluate((store) =>
     JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, string>, HOST_SETTINGS_STORE);
@@ -149,12 +175,158 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       await expect.poll(() => floatBand.evaluate(el => el.classList.contains('active'))).toBe(floatBandChoice);
     }
   }
+  // Een trage host (review #827 ronde 3, besluit van de orkestrator): de start wacht op de host, hoogstens
+  // 5 s (`HYDRATE_TIMEOUT_MS`). Binnen de grens start de app pas na het antwoord, met de bewaarde
+  // waarden. Daarboven start de app zonder de instellingen van de host, meldt dat één keer, en bewaart
+  // deze sessie niets bij de host, ook niet als de host later alsnog antwoordt.
+  const KEPT = JSON.stringify([{ id: 'bewaard', name: 'Bewaard type' }]);
+  await page.evaluate(({ store, kept }) => {
+    const all = JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, string>;
+    all['ops-personalTaskTypes'] = kept;
+    // Spelingsband staat standaard aan; de host bewaart hem uit.
+    all['ops-showFloatBand'] = 'false';
+    sessionStorage.setItem(store, JSON.stringify(all));
+  }, { store: HOST_SETTINGS_STORE, kept: KEPT });
+  const unavailableNotices = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .filter((n) => n.messageKey === 'notifications.hostSettingsUnavailable').map((n) => n.count));
+  const taskTypeField = page.locator('[data-ops-task-type]');
+  /** Selecteer de eerste taak en open het werksoortveld in het eigenschappenpaneel. */
+  const openTaskTypes = async () => {
+    await page.evaluate(() => {
+      const store = window.__OPS__!.store.getState();
+      store.selectTask(store.tasks[0].id);
+      store.setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
+    });
+    await taskTypeField.getByRole('button').click();
+    return page.getByRole('listbox');
+  };
+  const floatBandSlow = page.getByRole('button', { name: new RegExp(`^${FLOAT_BAND_FR}`) });
+
+  // Binnen de grens: de host antwoordt na 1,5 s.
+  await page.evaluate(() => sessionStorage.setItem('test-host-delay', '1500'));
+  await page.reload();
+  await waitForOps(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
+  expect(await page.evaluate(() => (window as unknown as { __testRootAtAnswer?: number }).__testRootAtAnswer),
+    'de app rendert pas na het antwoord van de host').toBe(0);
+  expect(await page.evaluate(() => [localStorage.getItem('ops-personalTaskTypes'), window.__OPS__!.store.getState().ui.showFloatBand]))
+    .toEqual([KEPT, false]);
+  await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+  await expect.poll(() => floatBandSlow.evaluate(el => el.classList.contains('active'))).toBe(false);
+  await expect(await openTaskTypes()).toContainText('Bewaard type');
+  await page.keyboard.press('Escape');
+  expect(await unavailableNotices(), 'binnen de grens geen melding').toEqual([]);
+
+  // Boven de grens: de host antwoordt na 7 s, dus na de time-out van 5 s.
+  const hostBefore = await hostSettings();
+  await page.evaluate(() => {
+    sessionStorage.setItem('test-host-delay', '7000');
+    sessionStorage.removeItem('test-host-writes');
+  });
+  await page.reload();
+  await waitForOps(page);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
+  // De melding, één keer, en hij blijft staan tot de gebruiker hem sluit.
+  await expect.poll(unavailableNotices).toEqual([1]);
+  await expect(page.locator('.ops-toast', { hasText: EN_COMMON.notifications.hostSettingsUnavailable })).toHaveCount(1);
+  // De sessie draait zonder de instellingen van de host: Spelingsband staat op de standaard (aan).
+  expect(await page.evaluate(() => [localStorage.getItem('ops-personalTaskTypes'), window.__OPS__!.store.getState().ui.showFloatBand]))
+    .toEqual([null, true]);
+
+  // De gebruiker werkt door, met echte klikken: Spelingsband, een nieuwe werksoort, thema en taal.
+  await page.locator('[data-ops-ribbon-tab="beeld"]').click();
+  await floatBandSlow.click();
+  expect(await page.evaluate(() => localStorage.getItem('ops-showFloatBand'))).toBe('false');
+  const list = await openTaskTypes();
+  await expect(list).not.toContainText('Bewaard type');
+  const options = list.getByRole('option');
+  await options.nth((await options.count()) - 2).click(); // Nieuwe werksoort…
+  const newTypeDialog = page.locator('[data-ops-new-task-type-dialog]');
+  await expect(newTypeDialog).toBeVisible();
+  await newTypeDialog.getByRole('textbox').fill('Sessietype');
+  await page.keyboard.press('Enter');
+  await expect(newTypeDialog).toBeHidden();
+  // Het instellingenvenster openen mag via de brug; de keuzes zelf zijn echte klikken.
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
+  const settingsDialog = page.getByRole('dialog');
+  await settingsDialog.locator('[data-ops-theme-card="high-contrast"]').click();
+  await settingsDialog.getByRole('button', { name: FR_COMMON.settings.language, exact: true }).click();
+  await page.getByRole('option', { name: /English/ }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.keyboard.press('Escape');
+
+  // De host antwoordt alsnog; wacht daarna langer dan de bundeltijd (400 ms).
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __testRootAtAnswer?: number }).__testRootAtAnswer),
+    { timeout: 15_000, message: 'de host antwoordt laat' }).toBeGreaterThan(0);
+  await page.waitForTimeout(1_000);
+  expect(await page.evaluate(() => sessionStorage.getItem('test-host-writes')), 'geen enkele set/delete naar de host').toBeNull();
+  expect(await hostSettings(), 'de host is onaangeroerd').toEqual(hostBefore);
+  // De keuzes van de sessie blijven staan; het late antwoord zette niets neer.
+  expect(await page.evaluate(() => [
+    window.__OPS__!.store.getState().ui.showFloatBand,
+    localStorage.getItem('ops-showFloatBand'),
+    window.__OPS__!.store.getState().ui.uiTheme,
+    localStorage.getItem('ops-theme'),
+    localStorage.getItem('ops-locale'),
+    (JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]') as { name: string }[]).map((t) => t.name),
+  ])).toEqual([false, 'false', 'high-contrast', 'high-contrast', 'en', ['Sessietype']]);
+  expect(await unavailableNotices(), 'nog steeds één melding').toEqual([1]);
+  await page.evaluate(() => sessionStorage.removeItem('test-host-delay'));
+
+  // Een host die verschijnt terwijl `App` laadt (review #827 ronde 4): na de lezing in `main.tsx` (nog
+  // geen host), vóór de React-mount. Zijn `openaec-host-ready` mist dus de luisteraar. De mount haalt
+  // het in: één melding, de taal (`de`) en het thema (`light`) van de host, en geen enkele `set`/`delete`.
+  let releaseApp!: () => void;
+  const appHeld = new Promise<void>((resolve) => { releaseApp = resolve; });
+  let appRequested!: () => void;
+  const appWanted = new Promise<void>((resolve) => { appRequested = resolve; });
+  const APP_MODULE = /\/src\/App\.tsx(\?|$)/;
+  await page.route(APP_MODULE, async (route) => { appRequested(); await appHeld; await route.continue(); });
+  await page.evaluate(() => {
+    sessionStorage.setItem('test-late-host', 'true');
+    sessionStorage.removeItem('test-host-writes');
+  });
+  const hostBeforeLate = await hostSettings();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await appWanted; // de lezing is voorbij: `main.tsx` vraagt `App` op
+  await page.evaluate(() => {
+    (window as unknown as { __testInstallHost: () => void }).__testInstallHost();
+    window.dispatchEvent(new Event('openaec-host-ready'));
+  });
+  releaseApp();
+  await waitForOps(page);
+  await page.unroute(APP_MODULE);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
+  await expect.poll(unavailableNotices).toEqual([1]);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  // Een werksoort via echte klikken: lokaal wel, bij de host niet.
+  const lateList = await openTaskTypes();
+  await expect(lateList).not.toContainText('Bewaard type');
+  const lateOptions = lateList.getByRole('option');
+  await lateOptions.nth((await lateOptions.count()) - 2).click(); // Neue Vorgangsart… / Nieuwe werksoort…
+  await expect(newTypeDialog).toBeVisible();
+  await newTypeDialog.getByRole('textbox').fill('Nieuw tijdens start');
+  await page.keyboard.press('Enter');
+  await expect(newTypeDialog).toBeHidden();
+  expect((JSON.parse(await page.evaluate(() => localStorage.getItem('ops-personalTaskTypes') ?? '[]')) as { name: string }[])
+    .map((t) => t.name)).toContain('Nieuw tijdens start');
+  // Een tweede ready-event verandert niets.
+  await page.evaluate(() => window.dispatchEvent(new Event('openaec-host-ready')));
+  await page.waitForTimeout(1_000);
+  expect(await page.evaluate(() => sessionStorage.getItem('test-host-writes')), 'geen enkele set/delete naar de host').toBeNull();
+  expect(await hostSettings(), 'de host is onaangeroerd').toEqual(hostBeforeLate);
+  expect(await unavailableNotices(), 'nog steeds één melding').toEqual([1]);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await page.evaluate(() => sessionStorage.removeItem('test-late-host'));
+
   // Negatieve controle: dezelfde werkende opslag, maar zonder host komt welkom terug, in de bewaarde taal.
   await page.evaluate(() => localStorage.setItem('test-no-host', 'true'));
   await page.reload();
   await waitForOps(page);
   await expect(dialog).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
+  // De bewaarde taal: Engels, gekozen in de sessie hierboven.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   expect(await waitForWelcomeCheck(page)).toBe('welkomstcontrole: getoond');
 });
 

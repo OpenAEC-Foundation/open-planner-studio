@@ -193,18 +193,26 @@ Afspraken (de `storage`-vorm; de SuperCloud-vorm volgt ze via de adapter):
   (alleen een taal die de tool kent, `de-AT` wordt `de`), het thema in de weergave. Hij bewaart ze niet. Een
   keuze die de gebruiker in de tool maakte, blijft staan tot de host die waarde zelf wijzigt. Dit vervangt het
   gedrag van #716 ("een latere host verandert de taal niet"): zet de site de host pas na de start en stuurt ze
-  `openaec-host-ready`, dan neemt de tool taal, thema en instellingen alsnog over.
+  `openaec-host-ready`, dan neemt de tool taal en thema alsnog over. De instellingen (`settings`) niet: die
+  leest hij alleen bij de start (zie hieronder).
 - `settings` (optioneel, #818): de tool bewaart daar zijn blijvende `ops-`-instellingen, voor een frame waarin
   `localStorage` na herladen leeg is (de SuperCloud: een vervanger in het geheugen). Eén hostsleutel per
   instelling, met dezelfde naam (`ops-theme`, `ops-showFloatBand`, …) en tekst als waarde. Twee frames die elk
   een andere instelling wijzigen, draaien elkaar zo niet terug. De tool vraagt bij de start een vaste lijst op
   (`siteHostSettingKeys.ts`; het contract heeft geen `list`), met één `get` per sleutel; `null` of `undefined`
   betekent "niet bewaard". Hij doet dat vóór hij de app laadt, zodat ook het eerste document (bijv. de kalender
-  van de bouwmodus) de instellingen van de host volgt. Hij wacht hoogstens 1 s. Komt het antwoord later, dan
-  wint de host voor elke sleutel die hij heeft, ook van wat de start intussen schreef, en past de tool de
-  instellingen alsnog toe; een document dat al open is, verandert niet. Zolang de lezing loopt, schrijft de tool
-  niets naar de host. Daarna gaat elke wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor
-  een gewiste. Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen
+  van de bouwmodus) de instellingen van de host volgt. **Hij leest ze alleen bij de start, en wacht daar
+  hoogstens 5 s op** (`HYDRATE_TIMEOUT_MS`; besluit van de orkestrator in review #827, ronde 3). In die tijd
+  blijft het venster leeg. Antwoordt de host op tijd, dan start de app met die waarden, en gaat daarna elke
+  wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor een gewiste. Antwoordt de host niet op
+  tijd, of faalt het lezen, dan start de app zonder de instellingen van de host en schrijft de tool deze
+  sessie **niets** naar de host, ook niet als het antwoord later toch komt. Hetzelfde geldt voor een host die
+  pas na de start komt (`openaec-host-ready`), ook als die verschijnt terwijl de app nog laadt: de app haalt
+  dat bij het starten in (taal en thema van de host, en de melding). De tool meldt dat één keer (een melding die blijft staan tot de
+  gebruiker hem sluit): wat de gebruiker deze sessie aan instellingen wijzigt, wordt niet bewaard. Het nadeel:
+  een trage host vertraagt de start, en boven de grens bewaart de sessie niets. Het voordeel: een late lezing
+  kan nooit een keuze of lijst van de gebruiker terugdraaien, of een lijst van de host overschrijven met een
+  verouderde kopie (drie reviewrondes vonden daar telkens een nieuw geval van). Niet mee: `ops-mcpPort`, `ops-mcpToken`, `ops-downloadStats` (van één apparaat) en de instellingen
   van extensies (`ops-ext:`). Een fout van de host is nooit een crash. Eén fout bij het lezen, een waarde die
   geen tekst is, of een fout bij het neerzetten of teruglezen in `localStorage` zet het bewaren uit voor de
   rest van de sessie: zo wordt een fout nooit een wisactie, en overschrijft de tool niets wat hij niet begreep.

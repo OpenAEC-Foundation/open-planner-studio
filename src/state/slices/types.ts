@@ -229,6 +229,9 @@ export type NotificationMessageKey =
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  // Ingebed (#818): de host heeft `settings`, maar die zijn deze sessie niet gelezen (te laat, een fout,
+  // of een host die pas na de start kwam). Instellingen worden deze sessie dan niet bewaard.
+  | 'notifications.hostSettingsUnavailable'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.

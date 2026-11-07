@@ -1233,12 +1233,13 @@ en noem het in je rapport of PR-tekst.
      (`src/services/fileAccess/siteHostSettings.ts`) zet de waarden van `settings` in `localStorage` en leest ze
      daar weer. De SuperCloud heeft een vervanger in het geheugen, dus daar werkt het. Een host zonder die
      vervanger, in een sandbox zonder `allow-same-origin`, geeft een `SecurityError` bij elke toegang (zie de
-     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets.
+     opaque-origin-test in `tests/browser/welcome-dialog.spec.ts`). Dan leest de tool niets en schrijft hij niets;
+     hij meldt alleen dat de instellingen deze sessie niet bewaard worden.
      Voorstel: laat `readLocal`/`writeLocal` in dat geval een map in het geheugen gebruiken. — S
 
 861. **Ingebed zonder `thema` kan het bewaarde thema van de host kort flitsen.** Het pre-paint-script
      (`public/theme-prepaint.js`) draait vóór de instellingen van de host er zijn (die komen async; `main.tsx`
-     wacht er hoogstens 1 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
+     wacht er hoogstens 5 s op vóór hij de app laadt). Geeft de host `settings` met `ops-theme = light` maar
      geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
      gebeurt dit niet. — S
 
@@ -1276,6 +1277,21 @@ en noem het in je rapport of PR-tekst.
      zonder host lopen via `<a download>`; Chromium blokkeert een download uit zo'n frame. De Calc-notitie noemt
      `allow-scripts allow-downloads allow-modals`, en het contract zegt dat de SuperCloud downloads opvangt.
      Niet getest. Voorstel: bij de SuperCloud navragen welk sandboxattribuut het echte frame heeft. — S
+
+870. **Twee taalwissels van de host vlak na elkaar kunnen de app in de oude taal laten staan.**
+     `src/hooks/useSiteHostPreferences.ts` (`applyPreferences`) en `setLocale` in `src/i18n/config.ts`.
+     Nagespeeld in Chromium (review #827 ronde 5): de app start in het Duits. De host wisselt naar Frans,
+     en het laden van de Franse vertaling duurt even. Intussen wisselt de host terug naar Duits; die wissel
+     slaat de app over, want de taal is op dat moment nog Duits. Dan is het Frans geladen en zet `setLocale`
+     de app op Frans. Uitkomst: de host zegt Duits, de app toont Frans. Een herhaald event met Duits herstelt
+     het niet. De controle in `.then()` komt te laat: `setLocale` heeft de taal dan al gewijzigd. Voorstel:
+     maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
+     host nog dezelfde taal vraagt. — B
+
+871. **Dubbele stappen in `useSiteHostPreferences`.** De inhaalcontrole bij de mount (het `else`-blok)
+     herhaalt de drie stappen van `onReady()`: `disableSiteHostSettings()`, de melding en
+     `applyPreferences()`. Voorstel: vervang het blok door `else onReady();` (zes regels minder). Gevonden in
+     review #827 ronde 5. — B
 
 ## Rondleiding, Help en extensie-gidsen
 

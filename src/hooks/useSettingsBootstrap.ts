@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { loadWelcomeSeen, localStorageAvailable, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { loadAllSettings } from '@/utils/settingsRegistry';
@@ -24,17 +24,9 @@ const logWelcomeCheck = (outcome: string) => appLog.emit('event', 'welkomst', `w
 // welkomstdialoog. De welkomstcheck hangt af van de recovery-flow (zie hieronder).
 export function useSettingsBootstrap(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const setUI = useAppStore(s => s.setUI);
-  const taskGridChecked = useRef(false);
-  // Ingebed (#818): taal en thema van de host live volgen, en instellingen van een late host toepassen.
-  // Kwam de host pas na de taakgridbootstrap, dan leest die zijn voorkeuren opnieuw (nu van de host).
-  // Vóór die bootstrap niet: hij wacht bewust op de herstelkeuze (zie hieronder) en leest dan zelf.
-  const reloadLateSettings = useCallback(() => {
-    if (!taskGridChecked.current) return;
-    void bootstrapTaskGridPreferences(useAppStore).catch(error => {
-      console.error('Taakgridvoorkeuren van de host konden niet worden toegepast:', error);
-    });
-  }, []);
-  useSiteHostPreferences(setUI, reloadLateSettings);
+  // Ingebed (#818): taal en thema van de host live volgen, en één melding als de instellingen van de
+  // host deze sessie niet bewaard worden.
+  useSiteHostPreferences(setUI);
 
   useEffect(() => {
     // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
@@ -66,6 +58,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   // eventuele oude actieve `view.columns` vastleggen uit het verkeerde document. Na herstel staat
   // hier eerst het werkelijk actieve document in de store; bij afwijzen/uitstellen blijft het lege
   // document terecht de bron. De ref maakt deze migratie exact eenmalig.
+  const taskGridChecked = useRef(false);
   useEffect(() => {
     if (taskGridChecked.current || !recoveryResolved || recovery !== null) return;
     taskGridChecked.current = true;

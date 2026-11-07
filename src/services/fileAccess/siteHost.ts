@@ -74,10 +74,14 @@
  *   `openaec-host-ready`) meldt dat `taal` of `thema` op hetzelfde object veranderde. De tool neemt
  *   dan over wat veranderde, zonder het te bewaren. Een keuze die de gebruiker in de app maakte,
  *   blijft staan tot de host die waarde zelf wijzigt.
- * - Komt de host pas later (`openaec-host-ready`), dan neemt de tool zijn taal en thema alsnog over.
+ * - Komt de host pas later (`openaec-host-ready`), dan neemt de tool zijn taal en thema alsnog over,
+ *   maar niet zijn instellingen.
  * - `settings` (`get`, `set`, `delete`): de tool bewaart daar zijn blijvende `ops-`-instellingen, één
- *   hostsleutel per `ops-`-sleutel. Bij de start leest hij ze in `localStorage` (korte time-out),
- *   daarna zet hij elke wijziging gebundeld door. Details in `siteHostSettings.ts`.
+ *   hostsleutel per `ops-`-sleutel. Hij leest ze ALLEEN bij de start, vóór de app laadt: de start wacht
+ *   daarop, hoogstens 5 s (`HYDRATE_TIMEOUT_MS`). Op tijd: elke wijziging gaat daarna gebundeld naar de
+ *   host. Te laat, een fout, of een host die pas na de start kwam: de sessie draait zonder de
+ *   instellingen van de host, schrijft niets naar de host (ook niet na een laat antwoord) en meldt dat
+ *   één keer. Details in `siteHostSettings.ts`.
  *
  * Code: `siteHostPreferences.ts` (lezen), `siteHostSettings.ts` (instellingen) en
  * `src/hooks/useSiteHostPreferences.ts` (de luisteraars).
