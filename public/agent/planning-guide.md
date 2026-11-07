@@ -56,6 +56,7 @@ A coherent series (WBS with relationships, phase with tasks and assignments) ⇒
 ## Calendars
 
 - Add foreseeable closures now (frost, Christmas shutdown); a later correction shifts everything.
+- `generate` covers through the year after the project end (the later of `endDate` and the calculated end): set `endDate` first when the user gave an end.
 - `generate` first, then `rawHolidays` (it adds; `generation` is then gone).
 - Project end past the generated years ⇒ the same `generate` again, then `rawHolidays` again (`generate` replaces them).
 - Resource calendar only if it really differs; it moves no task.
