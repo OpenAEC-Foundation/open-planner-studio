@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
-import { hitPaperRegion, type PaperRect, type PaperRegionId } from '@/services/print/reportPaper';
+import { hitPaperRegion, type PageRegions, type PaperRect, type PaperRegionId } from '@/services/print/reportPaper';
 import type { ReportPaperModel } from './useReportPaper';
 import { markReportPaperCommitted } from './studioPerf';
 
@@ -166,36 +166,36 @@ export function ReportPaperView({
     else if (e.key === '0') { e.preventDefault(); zoomTo(1); }
   };
 
-  const pagePoint = (e: { clientX: number; clientY: number; currentTarget: HTMLElement }) => {
+  // De bladen krijgen vaste handlers: zo slaat `memo` een blad over als alleen de zijbalk of de
+  // stand "wordt bijgewerkt" verandert. Bij 139 bladen scheelt dat per klik een volle render.
+  const live = useRef({ paper, onPick });
+  useLayoutEffect(() => {
+    live.current = { paper, onPick };
+  }, [paper, onPick]);
+
+  const hitAt = useCallback((pageIndex: number, e: { clientX: number; clientY: number; currentTarget: HTMLElement }) => {
+    const current = live.current.paper;
     const rect = e.currentTarget.getBoundingClientRect();
-    if (!layout || rect.width === 0) return null;
-    return {
-      x: ((e.clientX - rect.left) / rect.width) * layout.pageWidthPt,
-      y: ((e.clientY - rect.top) / rect.height) * layout.pageHeightPt,
-    };
-  };
+    if (!current || rect.width === 0) return null;
+    const x = ((e.clientX - rect.left) / rect.width) * current.layout.pageWidthPt;
+    const y = ((e.clientY - rect.top) / rect.height) * current.layout.pageHeightPt;
+    const hit = hitPaperRegion(current.pageRegions(pageIndex), x, y);
+    return hit ? { target: hit.id as PaperTarget, column: hit.column } : { target: 'page' as PaperTarget };
+  }, []);
 
-  const targetAt = (pageIndex: number, x: number, y: number): { target: PaperTarget; column?: string } => {
-    if (!paper) return { target: 'page' };
-    const hit = hitPaperRegion(paper.pageRegions(pageIndex), x, y);
-    return hit ? { target: hit.id, column: hit.column } : { target: 'page' };
-  };
-
-  const onPageMove = (pageIndex: number, e: React.MouseEvent<HTMLDivElement>) => {
-    const p = pagePoint(e);
-    if (!p) return;
-    const hit = targetAt(pageIndex, p.x, p.y);
+  const onPageMove = useCallback((pageIndex: number, e: React.MouseEvent<HTMLDivElement>) => {
+    const hit = hitAt(pageIndex, e);
+    if (!hit) return;
     setHover(prev => (prev && prev.page === pageIndex && prev.target === hit.target && prev.column === hit.column
       ? prev
       : { page: pageIndex, ...hit }));
-  };
+  }, [hitAt]);
 
-  const onPageClick = (pageIndex: number, e: React.MouseEvent<HTMLDivElement>) => {
-    const p = pagePoint(e);
-    if (!p) return;
-    const hit = targetAt(pageIndex, p.x, p.y);
-    onPick({ ...hit, anchor: { x: e.clientX, y: e.clientY } });
-  };
+  const onPageClick = useCallback((pageIndex: number, e: React.MouseEvent<HTMLDivElement>) => {
+    const hit = hitAt(pageIndex, e);
+    if (!hit) return;
+    live.current.onPick({ ...hit, anchor: { x: e.clientX, y: e.clientY } });
+  }, [hitAt]);
 
   const pages = useMemo(() => Array.from({ length: totalPages }, (_, i) => i), [totalPages]);
   const zoomLabel = `${Math.round(zoom * 100)} %`;
@@ -259,7 +259,9 @@ export function ReportPaperView({
                 width={pageWidth}
                 height={pageHeight}
                 svg={visible.has(index) ? paper.pageSvg(index) : null}
-                paper={paper}
+                regions={visible.has(index) ? paper.pageRegions(index) : null}
+                pageWidthPt={paper.layout.pageWidthPt}
+                pageHeightPt={paper.layout.pageHeightPt}
                 hover={hover && hover.page === index ? hover : null}
                 selected={selected}
                 regionLabel={regionLabel}
@@ -280,13 +282,18 @@ export function ReportPaperView({
 const REGION_ORDER: readonly PaperRegionId[] = ['header', 'columns', 'chart', 'footer'];
 
 const PaperPage = memo(function PaperPage({
-  index, width, height, svg, paper, hover, selected, regionLabel, columnLabel, onMove, onClick, onKeyPick, caption,
+  index, width, height, svg, regions, pageWidthPt: W, pageHeightPt: H, hover, selected, regionLabel, columnLabel,
+  onMove, onClick, onKeyPick, caption,
 }: {
   index: number;
   width: number;
   height: number;
   svg: string | null;
-  paper: ReportPaperModel;
+  /** De klikbare delen van dit blad; `null` zolang het blad niet in beeld is. Bewust geen heel
+   *  papiermodel als prop: React dev vergelijkt props diep, en dat kostte per blad seconden. */
+  regions: PageRegions | null;
+  pageWidthPt: number;
+  pageHeightPt: number;
   hover: HoverState | null;
   selected: { targets: PaperTarget[]; column?: string } | null;
   regionLabel: (target: PaperTarget) => string;
@@ -296,9 +303,6 @@ const PaperPage = memo(function PaperPage({
   onKeyPick: (pick: PaperPick) => void;
   caption: string;
 }) {
-  const W = paper.layout.pageWidthPt;
-  const H = paper.layout.pageHeightPt;
-  const regions = svg !== null ? paper.pageRegions(index) : null;
   const rectStyle = (r: PaperRect) => ({ left: pct(r.x, W), top: pct(r.y, H), width: pct(r.w, W), height: pct(r.h, H) });
 
   const hoverRects: PaperRect[] = [];

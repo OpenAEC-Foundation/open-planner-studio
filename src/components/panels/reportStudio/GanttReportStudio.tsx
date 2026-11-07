@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconId } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
@@ -26,8 +26,8 @@ import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './us
 import { useStudioPrintOptions } from './useStudioPrintOptions';
 import { useReportColumnDomain } from './useReportColumnDomain';
 import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, resolveReportColumns } from './reportColumns';
-import { useReportPaper } from './useReportPaper';
-import { ReportPaperView, type PaperPick, type PaperTarget } from './ReportPaperView';
+import type { PaperPick, PaperTarget } from './ReportPaperView';
+import { samePaperInfo, StudioPaper, type PaperInfo } from './StudioPaper';
 import { ColumnsEditor } from './ColumnsEditor';
 import { markReportInput } from './studioPerf';
 import './reportStudio.css';
@@ -135,10 +135,14 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     tasks, sequences, calendar, projectName, options,
     repeatHeader: settings.repeatHeader, repeatFooter: settings.repeatFooter, rtl,
   }), [tasks, sequences, calendar, projectName, options, settings.repeatHeader, settings.repeatFooter, rtl]);
-  const paper = useReportPaper(paperInput);
-  const totalPages = paper?.totalPages ?? 0;
+  // Het papier zelf rekent in `StudioPaper`; de zijbalk krijgt alleen de maten die hij toont.
+  const [paperInfo, setPaperInfo] = useState<PaperInfo | null>(null);
+  const onPaperInfo = useCallback((next: PaperInfo | null) => {
+    setPaperInfo(prev => (samePaperInfo(prev, next) ? prev : next));
+  }, []);
+  const totalPages = paperInfo?.totalPages ?? 0;
   const printable = printableWidthLogicalPx(settings.paperSize.toLowerCase() as 'a4', settings.orientation);
-  const tableShare = paper && paper.result.headerHeight > 0 ? paper.result.tableWidth / printable : null;
+  const tableShare = paperInfo && paperInfo.headerHeight > 0 ? paperInfo.tableWidth / printable : null;
 
   // ---- Stappen: open stap, zijbalk, zwevend venster --------------------------------------------------
   const [openStep, setOpenStep] = useState<StudioStepId | null>('columns');
@@ -181,7 +185,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     return () => window.removeEventListener('keydown', onKey);
   }, [rail, setSidebar]);
 
-  const onStepHeadKeyDown = (e: KeyboardEvent<HTMLButtonElement>, step: StudioStepId) => {
+  const onStepHeadKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, step: StudioStepId) => {
     const index = STEP_ORDER.indexOf(step);
     let next: StudioStepId | undefined;
     if (e.key === 'ArrowDown') next = STEP_ORDER[(index + 1) % STEP_ORDER.length];
@@ -191,7 +195,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     if (!next) return;
     e.preventDefault();
     headRefs.current.get(next)?.focus();
-  };
+  }, []);
+
+  const registerHead = useCallback((step: StudioStepId, el: HTMLButtonElement | null) => {
+    if (el) headRefs.current.set(step, el);
+    else headRefs.current.delete(step);
+  }, []);
 
   // ---- Export: één actie voor de zijbalk, de stap Opslaan en de zwevende knop ------------------------
   const [exportBusy, setExportBusy] = useState(false);
@@ -509,10 +518,10 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
             </StudioGroup>
             {totalPages >= MANY_PAGES ? (
               <StudioNotice dataKey="many-pages">{t('studio.page.manyPages', { count: totalPages })}</StudioNotice>
-            ) : paper ? (
+            ) : paperInfo ? (
               <StudioNotice tone="info" dataKey="pages">
-                {paper.layout.cols > 1
-                  ? t('studio.page.gridPages', { count: totalPages, rows: paper.layout.rows, cols: paper.layout.cols })
+                {paperInfo.cols > 1
+                  ? t('studio.page.gridPages', { count: totalPages, rows: paperInfo.rows, cols: paperInfo.cols })
                   : pagesText}
               </StudioNotice>
             ) : null}
@@ -602,23 +611,17 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   // ---- Markering op het papier ---------------------------------------------------------------------
   const activeStep = popover?.step ?? (rail ? null : openStep);
-  const selected = activeStep
-    ? { targets: STEP_TARGETS[activeStep], column: activeStep === 'columns' && focusColumn ? focusColumnPaperKey(focusColumn.id) : undefined }
-    : null;
+  const selectedColumn = activeStep === 'columns' && focusColumn ? focusColumnPaperKey(focusColumn.id) : undefined;
+  const selected = useMemo(
+    () => (activeStep ? { targets: STEP_TARGETS[activeStep], column: selectedColumn } : null),
+    [activeStep, selectedColumn],
+  );
 
-  // ---- Status in de werkbalk -----------------------------------------------------------------------
-  const status = paper ? (
-    <>
-      <strong>{pagesText}</strong>
-      <span>·</span>
-      <span>{paperLabel}</span>
-      <span>·</span>
-      <span>{t('studio.columns.summary', { count: resolved.columns.length })}</span>
-      <span>·</span>
-      <span>{settings.followView ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows })}</span>
-      {paper.stale && <span className="sr-only">{t('studio.updating')}</span>}
-    </>
-  ) : <span>{t('studio.loading')}</span>;
+  // ---- Status in de werkbalk (na het aantal pagina's, dat het papier zelf zet) ----------------------
+  const columnsSummary = t('studio.columns.summary', { count: resolved.columns.length });
+  const rowsSummary = settings.followView ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows });
+  const statusItems = useMemo(() => [paperLabel, columnsSummary, rowsSummary], [paperLabel, columnsSummary, rowsSummary]);
+  const paperActions = useMemo(() => (rail ? <HelpButton articleId={REPORT_HELP_ARTICLE_ID} /> : undefined), [rail]);
 
   const reportTypeSelect = (
     <Select
@@ -694,23 +697,18 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 const summary = summaries[step];
                 return (
                   <section key={step} className="rs-step" data-open={open ? 'true' : 'false'} data-rs-step={step} role="listitem">
-                    <button
-                      ref={el => { if (el) headRefs.current.set(step, el); else headRefs.current.delete(step); }}
-                      type="button"
-                      className="rs-step-head"
-                      aria-expanded={open}
-                      aria-controls={`rs-step-${step}`}
-                      onClick={() => toggleStep(step)}
-                      onKeyDown={e => onStepHeadKeyDown(e, step)}
-                      data-rs-step-head={step}
-                    >
-                      <span className="rs-step-num" data-changed={stepChanged(step) ? 'true' : undefined} aria-hidden="true">{i + 1}</span>
-                      <span className="min-w-0">
-                        <span className="rs-step-title block">{t(`studio.steps.${step}`)}</span>
-                        {!open && <span className="rs-step-summary block" data-warn={summary.warn ? 'true' : undefined} data-rs-summary={step}>{summary.text}</span>}
-                      </span>
-                      <Icon id="tree.expand" size={16} className="rs-chevron" />
-                    </button>
+                    <StepHead
+                      step={step}
+                      index={i}
+                      open={open}
+                      title={t(`studio.steps.${step}`)}
+                      summary={summary.text}
+                      warn={!!summary.warn}
+                      changed={stepChanged(step)}
+                      onToggle={toggleStep}
+                      onKeyDown={onStepHeadKeyDown}
+                      register={registerHead}
+                    />
                     {open && (
                       <div className="rs-step-body" id={`rs-step-${step}`} data-rs-step-body={step}>
                         {stepContent(step)}
@@ -739,15 +737,16 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         )}
       </aside>
 
-      <ReportPaperView
-        paper={paper}
+      <StudioPaper
+        input={paperInput}
         loading={!hydrated || !fontReady || !options}
         selected={selected}
         onPick={openStepFromPaper}
         regionLabel={regionLabel}
         columnLabel={columnLabelForPaper}
-        status={status}
-        actions={rail ? <HelpButton articleId={REPORT_HELP_ARTICLE_ID} /> : undefined}
+        statusItems={statusItems}
+        actions={paperActions}
+        onInfo={onPaperInfo}
       />
 
       {/* Zijbalk ingeklapt: exporteren via de zwevende knop linksonder (besluit eigenaar 7-11-2026). Dezelfde
@@ -798,6 +797,41 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     return BUILTIN_REPORT_COLUMNS[id] ?? id;
   }
 }
+
+/** De kop van één stap: nummer, titel en (dicht) de samenvatting. Apart en `memo`, zodat een klik in een
+ *  stap niet alle zes de koppen opnieuw rendert. */
+const StepHead = memo(function StepHead({ step, index, open, title, summary, warn, changed, onToggle, onKeyDown, register }: {
+  step: StudioStepId;
+  index: number;
+  open: boolean;
+  title: string;
+  summary: string;
+  warn: boolean;
+  changed: boolean;
+  onToggle: (step: StudioStepId) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLButtonElement>, step: StudioStepId) => void;
+  register: (step: StudioStepId, el: HTMLButtonElement | null) => void;
+}) {
+  return (
+    <button
+      ref={el => register(step, el)}
+      type="button"
+      className="rs-step-head"
+      aria-expanded={open}
+      aria-controls={`rs-step-${step}`}
+      onClick={() => onToggle(step)}
+      onKeyDown={e => onKeyDown(e, step)}
+      data-rs-step-head={step}
+    >
+      <span className="rs-step-num" data-changed={changed ? 'true' : undefined} aria-hidden="true">{index + 1}</span>
+      <span className="min-w-0">
+        <span className="rs-step-title block">{title}</span>
+        {!open && <span className="rs-step-summary block" data-warn={warn ? 'true' : undefined} data-rs-summary={step}>{summary}</span>}
+      </span>
+      <Icon id="tree.expand" size={16} className="rs-chevron" />
+    </button>
+  );
+});
 
 function ExportButton({ busy, onClick, label, busyLabel }: { busy: boolean; onClick: () => void; label: string; busyLabel: string }) {
   return (

@@ -17,7 +17,7 @@ import { renderReport, type PrintOptions, type RenderReportResult } from '@/serv
 import { computeTileLayout, footerLayoutWidthFor, footerRelayoutWidth, reportTileInput } from '@/services/print/tileLayout';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import {
-  fontPx, opsInWindow, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
+  fontPx, opsInWindow, opsToSvg, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
 } from '@/services/pdf/svgDraw2d';
 import { ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
@@ -216,6 +216,25 @@ for (const [label, options, rh, rf] of [
   const textOp: SvgOp = { k: 'text', x: 1, y: 2, text: 'a', font: 0, fill: '#000', anchor: 'start', b: [0, 0, 1, 1] };
   ok(opToSvg(textOp, 'f', true).includes('text-anchor="end"') && !opToSvg(textOp, 'f', false).includes('text-anchor'), 'rtl: start wordt end');
   ok(opToSvg({ ...textOp, anchor: 'middle' }, 'f', true).includes('text-anchor="middle"'), 'rtl: midden blijft midden');
+
+  // Samenvoegen: opeenvolgende lijnen met dezelfde stijl en dekkende rechthoeken met dezelfde kleur
+  // worden één <path>; volgorde, doorzichtige kleuren en andere stijlen blijven apart.
+  const line = (d: string, stroke = '#cccccc', lw = 1): SvgOp => ({ k: 'path', d, stroke, lw, b: [0, 0, 1, 1] });
+  const box = (x: number, w: number, fill = '#ff0000'): SvgOp => ({ k: 'rect', x, y: 0, w, h: 2, fill, b: [0, 0, 1, 1] });
+  const merged = opsToSvg([line('M0 0L1 0'), line('M0 1L1 1'), line('M0 2L1 2', '#000000'), textOp, box(0, 1), box(1, 1)], 'f');
+  ok(merged.length === 4, `samenvoegen: 2 lijnen + 1 lijn + tekst + 2 vlakken = 4 elementen (kreeg ${merged.length})`);
+  ok(merged[0] === '<path d="M0 0L1 0M0 1L1 1" fill="none" stroke="#cccccc" stroke-width="1"/>', `samenvoegen: lijnen achter elkaar in één pad (${merged[0]})`);
+  ok(merged[2].startsWith('<text'), 'samenvoegen: tekst houdt zijn plek in de volgorde');
+  ok(merged[3] === '<path d="M0 0h1v2h-1ZM1 0h1v2h-1Z" fill="#ff0000"/>', `samenvoegen: vlakken als subpaden met de klok mee (${merged[3]})`);
+  ok(opsToSvg([line('M0 0L1 0', 'rgba(0,0,0,0.5)'), line('M0 1L1 1', 'rgba(0,0,0,0.5)')], 'f').length === 2,
+    'samenvoegen: doorzichtige lijnen blijven los (overlap zou donkerder worden)');
+  ok(opsToSvg([line('M0 0L1 0', '#cccccc', 1), line('M0 1L1 1', '#cccccc', 2)], 'f').length === 2, 'samenvoegen: andere lijndikte blijft los');
+  const stubMetrics: SvgTextMetrics = { measure: () => 1, baselineShift: () => 0 };
+  const rec = new SvgRecordingDraw2D(10, 10, stubMetrics);
+  rec.fillStyle = '#ff0000';
+  rec.fillRect(2, 0, -1, 2);
+  const negRect = rec.ops[0];
+  ok(negRect?.k === 'rect' && negRect.x === 1 && negRect.w === 1, 'samenvoegen: de opname zet een negatieve breedte recht (geen gat door de draairichting)');
 
   // ── 4. Klikbare delen ────────────────────────────────────────────────────────────────────────
   const regions = reportPaperRegions(paper.result, layout, 0);

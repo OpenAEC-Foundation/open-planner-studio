@@ -280,13 +280,67 @@ export function opToSvg(op: SvgOp, classPrefix: string, rtl = false): string {
   }
 }
 
+/** Een kleur zonder doorzichtigheid: dan is één samengevoegd pad gelijk aan losse opdrachten. */
+function isOpaque(color: string | undefined): boolean {
+  if (!color) return false;
+  const c = color.trim().toLowerCase();
+  if (c === 'transparent' || c.startsWith('rgba') || c.startsWith('hsla')) return false;
+  if (c.startsWith('#')) return c.length === 4 || c.length === 7;
+  return true;
+}
+
+/** Sleutel waarop opeenvolgende opdrachten samen één `<path>` mogen worden, of `null`. */
+function mergeKey(op: SvgOp): string | null {
+  // Lijnen: één pad met meerdere subpaden tekent hetzelfde als losse paden (geen vulregel, dekkende kleur).
+  if (op.k === 'path' && op.stroke !== undefined && isOpaque(op.stroke)) return `s|${op.stroke}|${op.lw ?? 1}|${op.dash ?? ''}`;
+  // Gevulde rechthoeken: allemaal met de klok mee, dus ook overlappend geen gaten (nonzero).
+  if (op.k === 'rect' && op.stroke === undefined && isOpaque(op.fill)) return `f|${op.fill}`;
+  return null;
+}
+
+function mergedD(op: SvgOp): string {
+  if (op.k === 'path') return op.d;
+  // Een opgenomen rechthoek heeft altijd een positieve maat (`normRect` bij het opnemen), dus elk
+  // subpad draait met de klok mee en overlap slaat geen gat.
+  if (op.k === 'rect') return `M${n(op.x)} ${n(op.y)}h${n(op.w)}v${n(op.h)}h${n(-op.w)}Z`;
+  return '';
+}
+
+/**
+ * Opdrachten als SVG-elementen, in tekenvolgorde. Opeenvolgende lijnen met dezelfde stijl en
+ * opeenvolgende dekkende rechthoeken met dezelfde kleur worden één `<path>`: een Gantt-blad heeft
+ * honderden rasterlijnen en celranden, en minder elementen maakt het inlezen en tekenen in de browser
+ * veel sneller. De volgorde verandert niet, dus wat erboven lag blijft erboven liggen.
+ */
+export function opsToSvg(ops: readonly SvgOp[], classPrefix: string, rtl = false): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < ops.length) {
+    const op = ops[i];
+    const key = mergeKey(op);
+    if (key === null) { out.push(opToSvg(op, classPrefix, rtl)); i++; continue; }
+    let j = i + 1;
+    while (j < ops.length && mergeKey(ops[j]) === key) j++;
+    if (j - i === 1) { out.push(opToSvg(op, classPrefix, rtl)); i = j; continue; }
+    let d = '';
+    for (let k = i; k < j; k++) d += mergedD(ops[k]);
+    const paint = op.k === 'path'
+      ? { stroke: op.stroke, lw: op.lw, dash: op.dash }
+      : { fill: op.fill };
+    out.push(`<path d="${d}"${paintAttrs(paint)}/>`);
+    i = j;
+  }
+  return out;
+}
+
 /**
  * De letterklassen van een opname als CSS. `font` is de canvas-letter (`bold 9px InterPDF, …`); de
  * CSS-`font`-shorthand leest exact dezelfde schrijfwijze. Kerning staat uit, net als in de
  * canvas-backend en de PDF (die tellen advances zonder kerning); `white-space: pre` houdt spaties
- * zoals canvas ze tekent.
+ * zoals canvas ze tekent. `geometricPrecision`: zonder die regel zet Chromium kleine tekst (een blad op
+ * schermgrootte, 8 px × schaal) per teken op hele pixels, en dan vallen er gaten in woorden.
  */
 export function fontClassCss(fonts: readonly string[], classPrefix: string): string {
   return fonts.map((font, i) => `.${classPrefix}${i}{font:${font}}`).join('')
-    + 'text{font-kerning:none;white-space:pre}';
+    + 'text{font-kerning:none;white-space:pre;text-rendering:geometricPrecision}';
 }

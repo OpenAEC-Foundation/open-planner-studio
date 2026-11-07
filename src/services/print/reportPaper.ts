@@ -6,7 +6,7 @@
 
 import type { RenderReportResult } from '@/services/print/printPreview';
 import type { TileLayout } from '@/services/print/tileLayout';
-import { fontClassCss, opToSvg, opsInWindow, type RecordedReport } from '@/services/pdf/svgDraw2d';
+import { fontClassCss, opsInWindow, opsToSvg, type RecordedReport } from '@/services/pdf/svgDraw2d';
 
 /** Eén bronvenster van het rapport en waar het op het blad staat (punten vanaf linksboven). */
 export interface PageWindow {
@@ -89,7 +89,7 @@ export function reportPageSvg(
       `<svg x="${num(win.dstX)}" y="${num(win.dstY)}" width="${num(win.srcW * layout.scale)}" height="${num(win.srcH * layout.scale)}"`
         + ` viewBox="${num(win.srcX)} ${num(win.srcY)} ${num(win.srcW)} ${num(win.srcH)}" preserveAspectRatio="none" overflow="hidden">`,
     );
-    for (const id of ids) parts.push(opToSvg(rec.ops[id], prefix, options.rtl));
+    parts.push(...opsToSvg(ids.map(id => rec.ops[id]), prefix, options.rtl));
     parts.push('</svg>');
   }
   const label = pageLabel(layout, pageIndex);
