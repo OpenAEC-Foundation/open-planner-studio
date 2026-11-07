@@ -667,7 +667,7 @@
     "reviewNoChanges": "Ни одна зависимость больше не меняется. План остаётся без изменений.",
     "reviewLinksTitle": "Зависимости",
     "reviewColTask": "Задача",
-    "reviewColExternal": "Внешняя задача",
+    "reviewColExternal": "Исходная задача",
     "reviewColNow": "Текущая привязка",
     "reviewColAfter": "После принятия",
     "reviewMissing": "больше нет в источнике",
