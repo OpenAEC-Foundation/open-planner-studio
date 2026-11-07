@@ -153,6 +153,7 @@
     "barsGroup": "Balken",
     "manageBaselines": "Baselines verwalten…",
     "statusDate": "Statusdatum",
+    "statusDateValue": "Statusdatum: {{date}}",
     "statusDateClear": "Statusdatum leeren",
     "statusDateTime": "Uhrzeit des Statusdatums",
     "statusDateTimeLater": "Uhrzeit später",

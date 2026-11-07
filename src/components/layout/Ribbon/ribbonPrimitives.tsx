@@ -1,4 +1,5 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect, useRef, useCallback } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Popover } from '@/components/common/Popover';
 import { b2IconsOn, Icon } from '@/components/icons';
 
@@ -186,6 +187,104 @@ export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
       <span className="ribbon-btn-icon" style={{ width: 16, height: 16 }}>{icon}</span>
     </button>
   );
+}
+
+/**
+ * Lintgroep met invoervelden die bij een smal venster als geheel inklapt (automatische inpassing,
+ * `useRibbonAutoFit` in Ribbon.tsx). Een veld kan niet tot een icoon krimpen zoals een knop; zonder
+ * deze vorm bleef het op volle breedte staan naast een losse mini-knop.
+ *
+ * Beide vormen staan altijd in de DOM: `full` (de gewone bediening) en `collapsed` (één knop met
+ * popover, meestal dezelfde popover als in de handmatig ingeklapte strip). De automaat kiest met
+ * `data-ribbon-collapsed` op de groep welke vorm zichtbaar is; dat gaat via CSS, zonder React-state,
+ * zodat de meting in één layout-effect blijft en niets knippert. Knoppen in deze vormen doen niet
+ * mee aan het per-knop verkleinen: de groep klapt als één stap in.
+ *
+ * Zolang de popover open is (`popoverOpen`), houdt de automaat de groep ingeklapt; een breder
+ * venster sluit het paneel dus niet midden in het typen. `onHidden` is het vangnet: verdwijnt de
+ * ingeklapte vorm toch (bijv. de handmatige inklapknop), dan sluit de popover in plaats van te
+ * blijven hangen bij een onzichtbare knop.
+ *
+ * `RibbonCollapsedTrigger` is de knop van de ingeklapte vorm.
+ */
+export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
+  full: React.ReactNode;
+  collapsed: React.ReactNode;
+  popoverOpen: boolean;
+  onHidden: () => void;
+}) {
+  const collapsedRef = useRef<HTMLDivElement>(null);
+  const hiddenRef = useRef(onHidden);
+  hiddenRef.current = onHidden;
+  useEffect(() => {
+    const el = collapsedRef.current;
+    if (!popoverOpen || !el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (el.getClientRects().length === 0) hiddenRef.current();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [popoverOpen]);
+  return (
+    <>
+      <div className="ribbon-collapse-full" data-ribbon-collapse-part="full">{full}</div>
+      <div
+        ref={collapsedRef}
+        data-ribbon-collapse-part="collapsed"
+        data-ribbon-popover-open={popoverOpen ? '' : undefined}
+      >
+        {collapsed}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Knop van een ingeklapte veldengroep: zoals de andere lintknoppen met een menu (Mijlpaal ▾) een
+ * groot icoon, het label en ▾. De automatische inpassing maakt hem pas klein als zelfs dat niet
+ * meer past. `title` mag meer zeggen dan het label (bijv. de ingevulde statusdatum).
+ */
+export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  open: boolean;
+  /** `viaKeyboard`: geopend met Enter of spatie (een klik zonder muis heeft `detail === 0`). */
+  onClick: (viaKeyboard: boolean) => void;
+}) {
+  return (
+    // Geen `active` (accentkleur) als het paneel open is: dat leest als een schakelaar die aan staat.
+    // Zoals Mijlpaal ▾ en Relatie ▾ blijft de knop neutraal; `aria-expanded` meldt de open stand.
+    <button
+      className="ribbon-btn"
+      onClick={event => onClick(event.detail === 0)}
+      title={title}
+      aria-label={label}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+    >
+      <span className="ribbon-btn-icon">{icon}</span>
+      <span className="ribbon-btn-label">{label}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
+    </button>
+  );
+}
+
+/**
+ * Inhoud van de popover van een ingeklapte veldengroep. Geopend met het toetsenbord (`trap`): de
+ * focus gaat naar het eerste veld en Tab blijft in de popover tot Escape (die zet de focus terug op
+ * de knop), zoals `aria-haspopup="dialog"` belooft. Met de muis geopend blijft de focus waar hij is:
+ * een klik ernaast moet de focus niet terug naar de knop trekken.
+ */
+export function RibbonPopoverContent({ trap, children }: { trap: boolean; children: React.ReactNode }) {
+  return trap ? <FocusTrappedContent>{children}</FocusTrappedContent> : <>{children}</>;
+}
+
+function FocusTrappedContent({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const firstField = useCallback(() => ref.current?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled])') ?? null, []);
+  useFocusTrap(ref, firstField);
+  // `display: contents`: het paneel houdt zijn eigen flex-indeling.
+  return <div ref={ref} style={{ display: 'contents' }}>{children}</div>;
 }
 
 type MenuItemOverflow = 'wrap' | 'nowrap' | 'ellipsis';

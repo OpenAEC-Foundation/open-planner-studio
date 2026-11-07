@@ -23,8 +23,6 @@ en noem het in je rapport of PR-tekst.
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
 4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
-6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
-   constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
@@ -382,7 +380,7 @@ en noem het in je rapport of PR-tekst.
      externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
      Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
      (`docs/relaties-tussen-projecten.md`). — B
-873. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+877. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
      (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
      zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
      mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
@@ -420,6 +418,15 @@ en noem het in je rapport of PR-tekst.
      verplaatsen kan die velden dus verliezen terwijl beide checks groen blijven. Voorstel: de drie waarden in de
      bestaande fixture zetten en ze controleren in het bestaande scenario met ongedaan maken. Uit de review van #809
      na de merge met #807 (GPT-6.1-Sol, xhigh, op `b570b2044`, VERVOLG). — S
+882. **VERVOLG: de melding bij een harde pin zegt "negatieve speling", ook als de pin staat en de speling nul is.**
+     `src/engine/scheduler/CPMSolver.ts:3478` (`registerHardPinViolation`) en `src/i18n/locales/nl/common.json:782`
+     (`warnings.kind.violatedConstraint`: "Constraint {{constraint}} wordt door de logica overschreden (negatieve
+     speling)"). Een harde MSO op di 2 juni 08:00 met een externe SS-opvolger (zelfde anker, één uur lag in de
+     24-uurskalender): de pin blijft staan, de taak staat in `violatedConstraintTaskIds`, de externe melding noemt de
+     koppeling, en de totale speling is 0 minuten. Beide meldingen zijn terecht: de pin doorbreekt de logica, de
+     externe melding noemt de koppeling. Alleen de tekst van de pinmelding klopt dan niet. Zo ook op main
+     (`7f0207182`). Oplossing: een tekst voor een pin die de logica doorbreekt, zonder "negatieve speling"; de
+     externe melding blijft. Uit de review van #810 ronde 3 (GPT-6.1-Sol, xhigh, op `568ce4a10`). — B
 
 ## Tabel, invoer en bediening
 
@@ -680,6 +687,42 @@ en noem het in je rapport of PR-tekst.
    uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
    geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
    terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+920. **VERVOLG: "Kolommen automatisch aanpassen" meet bij elke ronde alle taakrijen opnieuw.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) en `TaskGrid.tsx` (het effect met
+     `onComputeAutoFitWidth`). Elke meetronde verwerkt alle zichtbare taakrijen, ook bij een wijziging die geen
+     celtekst raakt, zoals een andere selectie. Past een meting een breedte aan, dan volgt een tweede volle ronde.
+     Bij 10.000 taken kost een warme ronde 211 tot 251 ms (Node, geen browser). De instelling staat standaard uit, en
+     de eerste ronde wacht 250 ms rust. Voorstel: koppel het meten aan wijzigingen van de inhoud (een versie van de
+     zichtbare celtekst per kolom in plaats van de identiteit van `computeAutoFitWidth`) en sla de tweede scan over
+     als de breedte al klopt. Ronde 2 (Sol, op `5f6d3a428`) meette 10.000 taken × 9 kolommen = 90.000
+     celuitlezingen per warme ronde: 134 tot 142 ms in Node; ook een andere selectie start een ronde, en een
+     gewijzigde breedte start nog een volle ronde. Ronde 3 (Sol, op `c11dde182`): 146 tot 178 ms bij 10.000 taken
+     × 9 kolommen (Node). Richting: meten op gewijzigde celinhoud, en `getCell(...).value` als cache-identiteit
+     (`taskGridAutoFitValueVersion`) in plaats van de descriptor een tweede keer te lezen. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 1 tot en met 3, BEVESTIGD, VERVOLG). — B
+
+921. **VERVOLG: de `origin: 'start'` van automatisch gemeten kolombreedtes heeft geen eigen regressiecheck.**
+     `src/state/slices/taskGridSlice.ts` (`applyAutoFitTaskGridColumns`). Een gemeten breedte is geen keuze van de
+     gebruiker (#818), dus ze wordt met `'start'` bewaard. Dat een slepende gebruiker wél `'user'` is en dat een
+     laat hostantwoord een gemeten breedte niet terugzet, volgt uit `writeLocal` en `createHostSettingsSync`.
+     Vast in `check-site-host-preferences.ts` (D27) ligt alleen het venster waarin een laat antwoord is toegepast en de
+     store de oude kopie nog heeft: dan schrijft automatisch aanpassen niets. Niet vast: de uitkomst in het
+     wachtvenster vóór het antwoord (een `'start'`-sleutel geeft geen melding "teruggezet", een `'user'`-sleutel
+     wel). Dat vraagt de globale `sync` met een geïnstalleerde host in de check, buiten `createHostSettingsSync`. Voorstel:
+     een D-blok met `setHosts` en de echte `applyAutoFitTaskGridColumns` tijdens `phase === 'reading'`. Ronde 3 (Sol)
+     bewees het gedrag met een handmatige proef: automatisch aanpassen geeft `touched: false` en `reverted: false`, een
+     handmatige wijziging (slepen) beide `true`; daarna nemen beide de 777 van de host over. Die twee gevallen horen
+     in de check (`check-site-host-preferences.ts` rond D27); dan kan dit punt weg. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 2 en 3, BEVESTIGD, VERVOLG). — B
+
+922. **VERVOLG: de sleeppauze van "Kolommen automatisch aanpassen" begint pas bij de eerste beweging.**
+     `src/components/task-grid/TaskGrid.tsx` (`resizing`, `onResizeStart`). `onResizeStart` maakt de voorvertoning
+     (`previewWidths`) leeg, dus `resizing` (`previewWidths.size > 0`) blijft eerst `false` tot de eerste
+     `onResizePreview`. Een wachtende meting kan dan nog schrijven terwijl de greep al is ingedrukt, en een kolom
+     verspringt in die ene ogenblikken onder de muis. Zeldzaam: de meting moet precies tussen indrukken en de eerste
+     beweging aflopen. Voorstel: vul de voorvertoning bij de start met de kolom en haar huidige breedte. Dit verklaart
+     de ontbrekende cursor niet die de gebruiker meldde (de greep en `col-resize` zijn los van deze pauze). Uit de
+     review van #851 (GPT-6.1-Sol, xhigh, ronde 3, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 
@@ -1928,11 +1971,28 @@ en noem het in je rapport of PR-tekst.
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
 
-914. **`tests/browser/icon-orange.spec.ts` is rood op main sinds #844.** Vijf tests falen in de hulpfunctie op
-     regel 22: na `window.__OPS__.icons.useB2()` staan er nog 12 `svg[data-icon].lucide` op de pagina, en de test
-     verwacht 0. Bevestigd op een schone checkout van main `cde8f9ffb` (lokaal, alleen deze spec) en in de
-     browserrun `42406067128` van #837 (shard 1-4; de andere drie shards groen). #844 had geen browserrun (geen
-     label `browsertests`, geen handmatige start). Het komt niet uit #837: die PR raakt geen iconbestanden. — B
+915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
+     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
+     `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
+     op `321cb166a`, VERVOLG). — B
+930. **VERVOLG: de dev-server vertrouwt elk symlinkdoel in `node_modules`.** `vite.config.ts:35`. De allow-lijst kijkt
+     alleen of een ingang een symlink is. Een link naar `/` of naar een thuismap zet die hele map open via `/@fs/`
+     (gemeten: een bestand buiten de repo gaf 200, eerder 403). Via `/node_modules/<link>/...` kon dat al eerder, dus het
+     is geen nieuw lek, maar het blijft voor iedereen die de dev-server bereikt. Voorstel: alleen de echte paden van
+     de drie letterpakketten toevoegen (Inter, Space Grotesk, JetBrains Mono); dan kan de helper `linkedPackageRoots()`
+     weg. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+931. **VERVOLG: een gelinkt pakket binnen een gewone scopemap wordt gemist.** `vite.config.ts:37`. De scan kijkt alleen
+     naar directe ingangen van `node_modules`. Is `@fontsource` een gewone map met `inter` als link, dan blijft het
+     letterbestand 403. Een link van de hele `@fontsource`-map (zoals op aia) werkt wel. Voorstel: de concrete
+     pakketmappen resolven, zoals bij 930. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+950. **VERVOLG: drie knopgroepen die op een keuze lijken, worden regular.** Sinds #850 zijn gewone `.btn`-knoppen 400.
+     Sol noemt drie groepen die ook 400 worden: de datumvolgorde in `ProgressImportDialog.tsx:417` en `:420`,
+     "Bedrijfswaarden gebruiken" en "Bestandswaarden overnemen" in `LibraryLinkDialog.tsx:139` en `:140`, en de talen
+     onder "Lees in" in `HelpPanel.tsx:474`. Ze werken nog hetzelfde. Bewust zo gelaten: elke knop voert meteen een
+     actie uit en heeft geen blijvende gekozen stand (geen `aria-pressed`), dus het zijn gewone acties. De bronkeuzes
+     met een gekozen stand houden wel 600. Wil een planner ze toch vet, dan volstaat `fontWeight: 600` zoals bij de
+     bronkeuzes. Uit de review van #850 (GPT-6.1-Sol, xhigh, op `d40a68caa`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
@@ -2143,16 +2203,40 @@ en noem het in je rapport of PR-tekst.
      #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
-903. **VERVOLG: aparte `icons.useB2()` in de testbrug, alleen voor de kleurtest.** `src/utils/devBridge.ts:306` en
-     `:372` voegen een eigen doorgeefmethode toe die alleen `tests/browser/icon-orange.spec.ts` gebruikt. De bestaande
-     `store`-brug kan dezelfde vlag zetten (`__OPS__.store.getState().setUI({ featureFlags: … })`). Voorstel: de methode
-     weghalen en de test via `store` laten werken. Opruimen; het gedrag klopt. Uit de review van #844 (GPT-6.1-Sol,
-     xhigh, ronde 1, VERVOLG). — S
 
+940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
+     `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
+     render van het lint. Verandert alleen de inhoud van één groep van breedte, dan blijft de oude stand staan.
+     Gezien bij de statusdatum: na het wissen verdween het ×-knopje en bleef rechts 161 px leeg bij 1600 px (ook
+     op main). #845 lost dat voor deze groep op: het knopje houdt zijn plek. Het tijdveld bij een uurkalender
+     verandert de breedte nog wel, en een andere groep kan hetzelfde doen. Voorstel: een ResizeObserver op de
+     groepen, of opnieuw meten na een wijziging van een veld in het lint. Uit de council-rondes van #845
+     (GPT-6.1-Sol en Claude Opus 5.5, xhigh, ronde 2, VERVOLG). — S
 
-904. **VERVOLG: `icon-orange.spec.ts` zet B2 aan ná het laden.** `Icon` leest de vlag `b2-icons` met `getState()`,
-     zonder abonnement (`src/components/icons/Icon.tsx`). Een element dat al bestaat, zoals het icoon van Berekenen in
-     `ribbonConfig.tsx`, rendert na de wissel niet opnieuw en blijft Lucide. De `beforeEach` in
-     `tests/browser/icon-orange.spec.ts` wisselt de vlag na het laden en verwacht nul Lucide-iconen. Voorstel: open de
-     app in die test direct met `?icons=b2`; dan kan ook `icons.useB2()` (903) weg. Uit de review van #844
-     (GPT-6.1-Sol, xhigh, ronde 2, VERVOLG). — S
+941. **VERVOLG: in de popover van een ingeklapte veldengroep is de voortgangsmodus een native keuzelijst.**
+     `BaselinesProgressGroupContent` (`src/components/layout/Ribbon/ribbonWidgets.tsx`) toont in de popover
+     `RibbonInlineSelect`, omdat een tweede popover binnen een popover niet veilig sluit. De lijst ziet er per
+     besturingssysteem anders uit dan de andere lintmenu's. Voorstel: een menu-in-menu dat binnen de eerste
+     popover blijft. Uit de council-rondes van #845 (Claude Opus 5.5 en GPT-6.1-Sol, xhigh, ronde 1 en 2,
+     VERVOLG). — S
+
+942. **VERVOLG: bij het omslagpunt van de statusdatumgroep krijgen meer knoppen tegelijk hun label terug.**
+     Bij versmallen van 1160 naar 1140 px klapt de groep in, en de vrijgekomen ruimte gaat in één stap naar de
+     labels van vier groepen. Dat oogt als één sprong. De automaat zoekt na het inklappen bewust opnieuw de
+     beste knoppenstand (anders blijft er tot 357 px leeg). Op de AI-tab gebeurt hetzelfde: bij versmallen van
+     1000 naar 900 px groeit de groep Veiligheid van 202 px (alleen iconen) naar 378 px (met labels).
+     Voorstel: alleen aanpakken als planners erover vallen. Uit de council van #845 (Claude Opus 5.5, xhigh,
+     ronde 2 en 3, VERVOLG). — S
+
+943. **VERVOLG: een veldengroep met de focus erin blijft open, ook bij een grote stap smaller.**
+     `useRibbonAutoFit` laat een groep met de focus (of een open popover) in zijn stand, zodat halve invoer niet
+     verloren gaat. Bij een stap van 1600 naar 700 px tijdens het typen in de statusdatum loopt het lint tot
+     206 px over (horizontale scroll). Na het verlaten van het veld meet de automaat opnieuw. Voorstel: laat het
+     zo, of klap in en geef de focus door aan het veld in de popover. Uit de council van #845 (Claude Opus 5.5,
+     xhigh, ronde 2, VERVOLG). — S
+
+944. **VERVOLG: op een lintknop zie je niet waar de toetsenbordfocus staat.** `.ribbon-btn:focus { outline: none }`
+     (`src/components/layout/Ribbon/Ribbon.css:160`) haalt de focusrand weg, ook bij focus via het
+     toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
+     niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
+     council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S

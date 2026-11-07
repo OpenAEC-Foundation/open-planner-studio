@@ -152,6 +152,7 @@
     "barsGroup": "막대",
     "manageBaselines": "기준선 관리…",
     "statusDate": "상태 날짜",
+    "statusDateValue": "상태 날짜: {{date}}",
     "statusDateClear": "상태 날짜 지우기",
     "statusDateTime": "상태 날짜 시간",
     "statusDateTimeLater": "시간 늦추기",

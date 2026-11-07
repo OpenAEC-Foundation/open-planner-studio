@@ -152,6 +152,7 @@
     "barsGroup": "任务条",
     "manageBaselines": "管理基线…",
     "statusDate": "状态日期",
+    "statusDateValue": "状态日期：{{date}}",
     "statusDateClear": "清除状态日期",
     "statusDateTime": "状态日期的时间",
     "statusDateTimeLater": "时间推后",

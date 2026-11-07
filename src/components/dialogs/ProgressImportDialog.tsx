@@ -361,6 +361,7 @@ export function ProgressImportDialog() {
           onClick={() => choose(choice)}
           aria-pressed={selected === choice}
           className={`btn btn--sm ${selected === choice ? 'btn--primary' : 'btn--secondary'}`}
+          style={{ fontWeight: 600 }}
         >
           {t(choice === 'app' ? 'progressImport.sinceExport.keepApp' : 'progressImport.sinceExport.takeSheet')}
         </button>

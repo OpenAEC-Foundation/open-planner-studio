@@ -4,6 +4,7 @@ import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/task
 import type { LayoutOverlays, ViewState } from '@/types/view';
 import type { AppState } from './appStore';
 import { deriveViewRows } from './viewRows';
+import { sameTaskGridColumns } from '@/engine/taskGrid/preferences';
 import { computeReliableResourceLoad, type ResourceLoadResult } from '@/engine/scheduler/ResourceLoad';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -495,15 +496,7 @@ function sameGridSurfacePreferences(
   left: Readonly<TaskGridSurfacePreferences>,
   right: Readonly<TaskGridSurfacePreferences>,
 ): boolean {
-  return left.scrollX === right.scrollX
-    && left.columns.length === right.columns.length
-    && left.columns.every((column, index) => {
-      const candidate = right.columns[index];
-      return candidate !== undefined
-        && column.id === candidate.id
-        && column.width === candidate.width
-        && column.pinned === candidate.pinned;
-    });
+  return left.scrollX === right.scrollX && sameTaskGridColumns(left.columns, right.columns);
 }
 
 /** Registreer één persoonlijke gridwijziging; gelijke voor- en nastaat leveren bewust geen event. */
