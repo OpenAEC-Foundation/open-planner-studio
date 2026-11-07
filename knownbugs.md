@@ -1243,6 +1243,21 @@ en noem het in je rapport of PR-tekst.
      geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
      gebeurt dit niet. — S
 
+870. **Twee taalwissels van de host vlak na elkaar kunnen de app in de oude taal laten staan.**
+     `src/hooks/useSiteHostPreferences.ts` (`applyPreferences`) en `setLocale` in `src/i18n/config.ts`.
+     Nagespeeld in Chromium (review #827 ronde 5): de app start in het Duits. De host wisselt naar Frans,
+     en het laden van de Franse vertaling duurt even. Intussen wisselt de host terug naar Duits; die wissel
+     slaat de app over, want de taal is op dat moment nog Duits. Dan is het Frans geladen en zet `setLocale`
+     de app op Frans. Uitkomst: de host zegt Duits, de app toont Frans. Een herhaald event met Duits herstelt
+     het niet. De controle in `.then()` komt te laat: `setLocale` heeft de taal dan al gewijzigd. Voorstel:
+     maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
+     host nog dezelfde taal vraagt. — B
+
+871. **Dubbele stappen in `useSiteHostPreferences`.** De inhaalcontrole bij de mount (het `else`-blok)
+     herhaalt de drie stappen van `onReady()`: `disableSiteHostSettings()`, de melding en
+     `applyPreferences()`. Voorstel: vervang het blok door `else onReady();` (zes regels minder). Gevonden in
+     review #827 ronde 5. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
