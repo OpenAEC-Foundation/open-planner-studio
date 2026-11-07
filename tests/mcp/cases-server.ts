@@ -75,6 +75,25 @@ test('generateToken levert telkens een uniek 64-hex-token (32 crypto-random byte
   assert(a !== b, 'twee generaties mogen niet identiek zijn (crypto-random)');
 });
 
+test('de beheerde MCP-configuratie blijft sessiegebonden en regenereert geen schijn-token', async () => {
+  const before = backing.get('ops-mcpToken');
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+    __TAURI_INTERNALS__: {},
+    __OPS_LINUX__: { managed: true, directory: '/openaec', initialFile: null,
+      mcp: { port: 9123, token: 'synthetisch-beheerd-testtoken-1234567890' } },
+  } });
+  try {
+    const managedToken = ensureMcpToken();
+    const result = await regenerateAndApplyMcpToken(() => true);
+    assertEq(result, managedToken, 'een omgevingsgeheim blijft door de omgeving beheerd');
+    assertEq(backing.get('ops-mcpToken'), before, 'de oude persoonlijke voorkeur blijft intact');
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'window', previous);
+    else delete (globalThis as { window?: unknown }).window;
+  }
+});
+
 // --- (2) request-flow ----------------------------------------------------------------------------
 
 test('createRequestHandler draait de ECHTE dispatcher en emit {id, body} met het JSON-RPC-antwoord', async () => {
@@ -446,6 +465,28 @@ function makeFakeTauri(opts?: { failStart?: boolean; alreadyRunningOnce?: boolea
     dispatchCount: () => dispatchCount,
   };
 }
+
+test('stop wacht op de lopende tool voordat SIGTERM herstelopslag mag starten', async () => {
+  const fake = makeFakeTauri();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let handling = false;
+  fake.deps.handleMessage = async () => { handling = true; await pending; return '{"ok":true}'; };
+  const controller = createBridgeController(fake.deps);
+  await controller.start();
+  fake.fire('mcp://request', { id: 1, body: INIT_BODY });
+  await Promise.resolve();
+  assert(handling, 'de aanvraag moet werkelijk lopen');
+  let stopped = false;
+  const stopping = controller.stop().then(() => { stopped = true; });
+  await Promise.resolve();
+  assert(!stopped, 'stop mag de lopende tool niet inhalen');
+  assert(!fake.invokeCalls.some(call => call.cmd === 'mcp_bridge_stop'), 'native stop wacht ook op de lopende tool');
+  assertEq(fake.handlerCount('mcp://request'), 0, 'nieuwe requests zijn al afgemeld');
+  release();
+  await stopping;
+  assert(stopped, 'na afronden van de tool mag stop bevestigen');
+});
 
 test('start na een webview-herlaad ("draait al"): stop + tweede poging, geen port-busy (audit 2026-09-26)', async () => {
   const fake = makeFakeTauri({ alreadyRunningOnce: true });

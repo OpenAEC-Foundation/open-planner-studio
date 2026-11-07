@@ -561,6 +561,14 @@
         "en": "macOS window and menu bar"
       },
       "kind": "referentie"
+    },
+    {
+      "id": "ref-beheerde-linux",
+      "title": {
+        "nl": "Beheerde Linux-sessie",
+        "en": "Managed Linux session"
+      },
+      "kind": "referentie"
     }
   ],
   "aliases": {

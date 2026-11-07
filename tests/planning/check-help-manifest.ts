@@ -35,6 +35,12 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 
+const shippedManifest = JSON.parse(readFileSync('public/docs/manifest.json', 'utf8')) as HelpManifest;
+eq('standaard Help begint met de gewone gebruikersgids', visibleHelpArticles(shippedManifest, false)[0]?.id, 'howto-relaties-leggen');
+const managedIndex = shippedManifest.articles.findIndex(article => article.id === 'ref-beheerde-linux');
+ok('de beheerde Linux-referentie staat bij de overige referenties', managedIndex > 0
+  && shippedManifest.articles[managedIndex - 1]?.kind === 'referentie');
+
 const manifest: HelpManifest = {
   version: 2,
   articles: [

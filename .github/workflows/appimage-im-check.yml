@@ -12,6 +12,28 @@ on:
       - '.github/workflows/appimage-im-check.yml'
       - '.github/workflows/release.yml'
       - 'scripts/check-appimage-im-modules.sh'
+      - '.github/workflows/openaec-linux-smoke.yml'
+      - 'packaging/linux-test/**'
+      - 'scripts/check-openaec-linux.sh'
+      - 'scripts/openaec-linux-probe.mjs'
+      - 'scripts/openaec-linux-probe.test.mjs'
+      - 'scripts/release-checksums*'
+      - 'src-tauri/**'
+      - 'src/utils/linuxEnvironment.ts'
+      - 'src/hooks/useLinuxEnvironment.ts'
+      - 'src/hooks/useUpdateCheck.ts'
+      - 'src/services/updater/updaterService.ts'
+      - 'src/services/fileAccess/tauriBackend.ts'
+      - 'src/services/appQuit/managedShutdown.ts'
+      - 'src/services/mcp/server.ts'
+      - 'src/hooks/useAiAutostart.ts'
+      - 'src/hooks/useSettingsBootstrap.ts'
+      - 'src/utils/settingsStore.ts'
+      - 'tests/planning/check-managed-linux.ts'
+      - 'tests/planning/check-managed-shutdown-writes.ts'
+      - 'tests/native/managed-shutdown-probe.rs'
+      - 'src/services/fileAccess/atomicWrite.ts'
+      - 'src/services/fileAccess/writeCoordinator.ts'
   workflow_dispatch:
 
 permissions:
@@ -22,6 +44,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  shutdown-policy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: Bouw de native grensproef zonder GTK of Tauri
+        id: fixture
+        run: |
+          rustc --edition=2021 --test src-tauri/src/linux_shutdown.rs -o "$RUNNER_TEMP/ops-shutdown-tests"
+          rustc --edition=2021 tests/native/managed-shutdown-probe.rs -o "$RUNNER_TEMP/ops-native-shutdown"
+      - name: Native afsluitbeslissing bij een late of ontbrekende bevestiging
+        run: |
+          set +e
+          "$RUNNER_TEMP/ops-shutdown-tests" --nocapture > shutdown-policy.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> shutdown-policy.log
+          cat shutdown-policy.log
+          exit "$code"
+      - name: Echte symlink-write en herstel langer dan 25 seconden
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        env:
+          OPS_NATIVE_SHUTDOWN_PROBE: ${{ runner.temp }}/ops-native-shutdown
+        run: |
+          set +e
+          node scripts/run-ts.mjs tests/planning/check-managed-shutdown-writes.ts > shutdown-slow-io.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> shutdown-slow-io.log
+          cat shutdown-slow-io.log
+          exit "$code"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shutdown-policy-bewijs
+          path: shutdown-*.log
+          retention-days: 7
+
   appimage:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -37,6 +101,12 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust-cache voor de ongepubliceerde PR-proef
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: 'src-tauri -> target'
+          key: appimage-openaec-linux
+
       # Zelfde lijst als "Install dependencies (Ubuntu only)" in release.yml.
       - name: Install dependencies
         run: |
@@ -48,7 +118,16 @@ jobs:
 
       # Zonder updater-artefacten: die vragen de signeersleutel, en die is hier niet nodig.
       - name: Build AppImage
-        run: npm run tauri -- build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}'
+        run: |
+          set +e
+          npm run tauri -- build --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}' > appimage-build.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> appimage-build.log
+          tail -n 80 appimage-build.log
+          exit "$code"
+
+      - name: Native contracttests voor OpenAEC Linux
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml linux_
 
       - name: Verify AppImage input-method modules
         run: |
@@ -65,3 +144,16 @@ jobs:
           path: src-tauri/target/release/bundle/appimage/*.AppImage
           retention-days: 7
           if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: appimage-build-log
+          path: appimage-build.log
+          retention-days: 7
+
+  openaec-linux:
+    needs: appimage
+    uses: ./.github/workflows/openaec-linux-smoke.yml
+    with:
+      appimage-artifact: appimage-im-check

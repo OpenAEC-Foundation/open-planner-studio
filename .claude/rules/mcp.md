@@ -101,3 +101,9 @@ wachtrij, atomair, `0600`), meldingen via `onBridgeStarted`/`onBridgeStopped` in
 register via `src/hooks/useMcpDiscovery.ts`, opruimen bij afsluiten in `useAppCloseGuard`. Het proces-id komt
 uit het initialisatiescript `ops-process-info` in `main.rs` (geen command). Detail: `docs/mcp-ontdekking.md`;
 test `tests/mcp/cases-discovery.ts` en de echte-app-run.
+
+Beheerde Linux-sessie (Blueprint #61): de vaste poort en het omgevingsgeheim komen uit de
+native sessieconfiguratie; `loadMcpPort`/`loadMcpToken` lezen die vóór gebruikersvoorkeuren.
+Geen runtime.json met het omgevingsgeheim. De bridge blijft op loopback en weigert ook een
+lege Origin-header (Rust en headless spiegel). `stop()` meldt de luisteraars af en wacht de
+lopende tool af vóór de native stop; SIGTERM schrijft daarna pas een herstelsnapshot.

@@ -1,6 +1,7 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 
 export interface TauriOpenIO {
   readTextFile(path: string): Promise<string>;
@@ -25,7 +26,7 @@ export async function readOpenedTauriPath(
 
 export async function openFileDialogTauri(filters: FileFilter[], opts?: OpenDialogOpts): Promise<OpenedFile | null> {
   const { open } = await import('@tauri-apps/plugin-dialog');
-  const selected = await open({ multiple: false, filters });
+  const selected = await open({ multiple: false, filters, defaultPath: linuxEnvironment()?.directory ?? undefined });
   if (!selected) return null;
   const path = selected as string;
   const { readTextFile, readFile } = await import('@tauri-apps/plugin-fs');
@@ -42,7 +43,11 @@ async function pickSavePathTauri(
 ): Promise<string | null> {
   const { save } = await import('@tauri-apps/plugin-dialog');
   let defaultPath = defaultName;
-  if (opts?.preferDownloads) {
+  const directory = linuxEnvironment()?.directory;
+  if (directory) {
+    const { join } = await import('@tauri-apps/api/path');
+    defaultPath = await join(directory, basename(defaultName));
+  } else if (opts?.preferDownloads) {
     try {
       const { downloadDir, join } = await import('@tauri-apps/api/path');
       defaultPath = await join(await downloadDir(), defaultName);

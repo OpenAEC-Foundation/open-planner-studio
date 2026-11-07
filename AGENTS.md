@@ -202,7 +202,20 @@ bridge tests against the real Rust bridge). Docs: `docs/release-verificatie.md`,
 - **macOS shell.** `src-tauri/tauri.macos.conf.json` restores native window decorations; custom window buttons stay Windows/Linux-only. `useMacOSMenu` installs translated native menus and `nativeMenuActions` reuses shortcut actions/guards and pending-text commits. Native Quit goes through window close so the unsaved-document guard remains active. The ribbon stays available on every platform.
 - **Rust is thin.** Exactly three commands (`install_kind`, `mcp_bridge_start`, `mcp_bridge_stop`); every new
   command is public surface. File I/O: extend `src/services/fileAccess/`, not a Rust command. The command-less
-  plugin, `ops-process-info`, injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`). The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access across restarts for Recent. Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`).
+  plugin `ops-process-info` injects the process id for the MCP discovery files (`docs/mcp-ontdekking.md`).
+  The command-less `persisted-scope` plugin, registered after `fs`, preserves picker-granted file access
+  across restarts for Recent. On Linux,
+  `ops-linux-environment` supplies startup file, `OPENAEC_MAP` and managed-session settings (Blueprint #61),
+  and connects SIGTERM to the existing recovery flush after started user-file writes finish (without waiting
+  for file dialogs). New user-file writes are blocked during shutdown. Native exit requires explicit
+  confirmation; `linux_shutdown.rs` retries without a forced deadline, including during writes/recovery.
+  A host SIGKILL can still interrupt storage. `OPENAEC_BEHEERD=1` disables the updater in both layers;
+  optional `OPENAEC_MCP_POORT`/`OPENAEC_MCP_GEHEIM` start the loopback bridge without persisting the environment
+  secret. The shared-image contract, network use and start command are in README.md and README.nl.md.
+  `openaec-linux-smoke.yml` tests the extracted AppImage under headless Wayland without GPU or network, both
+  on a PR (via `appimage-im-check.yml`) and before release publication; memory goes into the release notes.
+  Started from an AppImage, `src-tauri/src/desktop_integration.rs` writes a menu entry and the logo to the user's
+  data folder at startup (no command; opt out with `OPS_NO_DESKTOP_INTEGRATION`, automatic in managed mode).
 - **Storage via the site.** `FileRef` has three kinds: `path` (Tauri), `handle` (Chromium web) and `site`. When the
   page that hosts the tool sets `window.openaecHost` (contract in `src/services/fileAccess/siteHost.ts`), Open, Save,
   Save As, Recent and crash recovery also work against the site (AutoSave deliberately not: every round would be a

@@ -4,11 +4,40 @@
 let busy = false;
 let tail: Promise<void> = Promise.resolve();
 
+// Los van de wachtrij met dialoogkeuzes: SIGTERM wacht alleen de daadwerkelijk begonnen I/O af.
+// De poort blijft daarna dicht, zodat een late native dialoogkeuze geen nieuw doel kan afkappen.
+let userWritesStopped = false;
+const activeUserWrites = new Set<Promise<void>>();
+
+function assertUserWritesAllowed(): void {
+  if (userWritesStopped) throw new Error('User file writes are stopped while the application is shutting down.');
+}
+
+export async function trackUserFileWrite<T>(write: () => Promise<T>): Promise<T> {
+  assertUserWritesAllowed();
+  let finish!: () => void;
+  const done = new Promise<void>(resolve => { finish = resolve; });
+  activeUserWrites.add(done);
+  try {
+    return await write();
+  } finally {
+    activeUserWrites.delete(done);
+    finish();
+  }
+}
+
+/** Sluit nieuwe schrijfacties af en wacht alle al begonnen gebruikersbestand-I/O af, ook bij fouten. */
+export async function stopUserFileWrites(): Promise<void> {
+  userWritesStopped = true;
+  while (activeUserWrites.size > 0) await Promise.all([...activeUserWrites]);
+}
+
 export function isProjectFileWriteBusy(): boolean {
   return busy;
 }
 
 export async function runProjectFileWrite<T>(work: () => Promise<T>): Promise<T> {
+  assertUserWritesAllowed();
   busy = true;
   let release: (() => void) | undefined;
   const turn = new Promise<void>((resolve) => { release = resolve; });
@@ -17,6 +46,7 @@ export async function runProjectFileWrite<T>(work: () => Promise<T>): Promise<T>
   tail = queued;
   await previous;
   try {
+    assertUserWritesAllowed(); // Ook een al wachtende poging mag na SIGTERM niet meer beginnen.
     return await work();
   } finally {
     release!();

@@ -170,3 +170,50 @@ LGPL-3.0. Zie [LICENSE](LICENSE).
 ## Handelsmerken
 
 Microsoft Project is een handelsmerk van Microsoft Corporation. Oracle Primavera P6 is een handelsmerk van Oracle. Open Planner Studio is een onafhankelijk project en is niet verbonden aan, goedgekeurd door of gesponsord door Microsoft of Oracle. Deze namen staan er alleen om bestandscompatibiliteit te beschrijven.
+## OpenAEC Linux / SuperCloud
+
+De SuperCloud bouwt volgens [Blueprint #61](https://github.com/OpenAEC-Foundation/OpenAEC-Blueprint/issues/61)
+één gezamenlijk **OpenAEC Linux**-image en kiest welke release van iedere tool daarin komt.
+Planner levert daarvoor de x86_64-AppImage met de bestaande `.sig`-handtekening en een vermelding
+in `SHA256SUMS`. Er komt geen afzonderlijk Planner-image.
+
+Pak de AppImage uit bij het voorbereiden van het gezamenlijke image; FUSE is niet nodig:
+
+```sh
+chmod +x 'Open.Planner.Studio_<versie>_amd64.AppImage'
+./'Open.Planner.Studio_<versie>_amd64.AppImage' --appimage-extract
+OPENAEC_BEHEERD=1 OPENAEC_MAP=/openaec ./squashfs-root/AppRun /openaec/planning.ifc
+```
+
+Draai als gewone gebruiker in een Wayland-sessie, bijvoorbeeld labwc, met een schrijfbare
+gebruikersmap en `/openaec`. Bewaar de gebruikersmap of de XDG-data/configmappen tussen sessies:
+daar staan de instellingen en herstelbestanden. De eigen werkmap van de AppImage blijft intact,
+zodat WebKit zijn hulpprocessen kan vinden.
+
+| Variabele | Werking |
+| --- | --- |
+| `OPENAEC_BEHEERD=1` | Geen native updater-plugin, automatische of handmatige updatecontrole, updatemelding of download. Software-rendering zonder verplichte GPU. |
+| `OPENAEC_MAP` | Bestaande map waarin Openen, Opslaan als en export beginnen, ook buiten de gebruikersmap. |
+| `OPENAEC_MCP_POORT` en `OPENAEC_MCP_GEHEIM` | Optioneel samen: start de app-bridge op deze vaste loopbackpoort. Poort 1–65535; geheim van 32–4096 zichtbare ASCII-tekens. Het omgevingsgeheim wordt niet als voorkeur of ontdekkingsbestand bewaard en niet aan kindprocessen doorgegeven. |
+| `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` | De gebruikelijke Linux-locaties voor data/instellingen en caches. |
+
+Het optionele eerste argument van `AppRun` is het startbestand. Een relatief pad wordt opgelost
+vanuit de oorspronkelijke startmap. MCP luistert op `127.0.0.1` binnen de netwerkruimte van het
+gezamenlijke image, vereist een Bearer-token en weigert iedere `Origin`-kop, ook een lege.
+Voor het bouwen zijn geen token of registry-instellingen nodig.
+
+Planner heeft geen telemetrie. Bij beheerd opstarten wordt de updateserver niet benaderd.
+Gebruikershandelingen kunnen GitHub (`github.com`, `api.github.com`, `raw.githubusercontent.com`)
+benaderen voor releasegegevens, downloadcijfers en de extensiecatalogus/downloads. Alleen bewust
+ingestuurde feedback gaat naar `open-feedback-studio.pages.dev`. Geïnstalleerde extensies kunnen
+hun eigen netwerkrechten gebruiken. Lettertypen, hulp en voorbeelden worden lokaal meegeleverd.
+
+Bij `SIGTERM` blokkeert de beheerde sessie verdere invoer, wacht zij een lopende MCP-actie en al
+begonnen schrijfacties naar gebruikersbestanden af en bewaart zij de laatste niet-opgeslagen
+wijzigingen via de bestaande herstelopslag. Planner sluit pas af nadat de app bevestigt dat dit
+voltooid is. Bij geblokkeerde I/O of herstel blijft het proces wachten, zonder harde native timeout.
+De host moet het proces laten afronden; een vaste gratieperiode garandeert dat niet.
+Een `SIGKILL` of geforceerde containerstop kan nog steeds een write afbreken of herstel verhinderen.
+De releaseworkflow test de uitgepakte AppImage zonder netwerk of GPU onder headless Wayland,
+bewaart schermafdrukken en zet het gemeten rustgeheugen (PSS van app en kindprocessen) vóór
+publicatie in de releasenotes. Dezelfde proef draait op het ongetekende PR-artifact.

@@ -87,6 +87,7 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
   const updater = loadModule<{ downloadAndInstall: (onStatus: (status: UpdateStatus) => void) => Promise<void> }>(
     'src/services/updater/updaterService.ts', {
       '@/utils/platform': { isTauri: () => true },
+      '@/utils/linuxEnvironment': { isManagedLinux: () => false },
       '@/services/githubRepo': { GITHUB_REPO: 'geen-netwerk' },
       '@/services/recovery/recoveryFlush': { flushRecoveryNow },
       '@tauri-apps/api/core': { invoke: async () => 'native' },

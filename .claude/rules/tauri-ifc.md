@@ -34,3 +34,17 @@ The application's persistence model is IFC 4.3 (buildingSMART). Loading a projec
 ### Bestandsschema per project
 
 Het IFC-schema is een projectinstelling: `Project.ifcSchema` (standaard `IFC4X3_ADD2`; ook `IFC4X3` en `IFC4`, keuze in Projectinstellingen). Schrijf nooit stil in een ander schema dan het gekozen schema. Bij het eerste EXPLICIETE opslaan (Opslaan, Ctrl+S, Opslaan als, ook "Opslaan" in de sluitvraag) van een bestand met een ander schema in de kop vraagt `src/services/ifc/ifcSchemaQuestion.ts` wat te doen; de UI beantwoordt de vraag via `src/state/ifcSchemaQuestionBridge.ts` (keuzelogica: `src/state/ifcSchemaChoice.ts`). De openstaande vraag woont op het project (`Project.ifcSchemaUnconfirmed`) en round-tript via `OPS_ProjectSettings`. Autosave, crashherstel, de MCP-backup en MCP-opslaan vragen niets en veranderen niets. Bewaking: `tests/planning/check-ifc-schema.ts` (tabel via `scripts/ifc-schema-table.py`, met de hand opnieuw te draaien na een nieuwe writer-entiteit; CI draait geen Python). Detail: `docs/ifc-round-trip.md` (§ Schemageldigheid).
+
+## Beheerde Linux-sessie (Blueprint #61)
+
+`linux_environment.rs` leest vóór GTK de omgeving en het startargument. De commandloze plugin
+`ops-linux-environment` zet de sessieconfiguratie in de webview, verleent alleen de opgegeven map
+en het startbestand fs-toegang en verbindt SIGTERM met de bestaande herstel-flush. De native
+afsluitfunctie in `linux_shutdown.rs` wacht zonder deadline op de expliciete bevestiging na alle
+begonnen writes en herstel; ook een verbroken bevestigingskanaal mag het proces niet afsluiten.
+Een SIGKILL door de host kan opslag nog steeds afbreken. Verander de
+AppRun-werkmap niet: WebKit zoekt daar zijn hulpprocessen. `OPENAEC_BEHEERD=1` laadt de updater-plugin
+niet; de TS-updater en opstartmeldingen hebben dezelfde poort. De omgevings-MCP-waarden blijven
+sessiegebonden, op loopback, zonder runtime.json met het omgevingsgeheim. README.nl.md bevat de
+variabelen en netwerkbestemmingen. De PR- en releaseproef gebruiken dezelfde uitgepakte AppImage
+onder headless labwc in `openaec-linux-smoke.yml`; alleen CI bouwt die.

@@ -104,10 +104,10 @@ fn is_authorized(auth_header: Option<&str>, expected_token: &str) -> bool {
     }
 }
 
-/// Is er een niet-lege `Origin`-header aanwezig? Zo ja ⇒ browser-afkomstig ⇒
+/// Is er een `Origin`-header aanwezig? Zo ja ⇒ browser-afkomstig ⇒
 /// weigeren (403). Legitieme MCP-clients sturen geen Origin.
 fn origin_present(origin_header: Option<&str>) -> bool {
-    matches!(origin_header, Some(v) if !v.is_empty())
+    origin_header.is_some()
 }
 
 /// Mag deze waarde als `Mcp-Session-Id` op een antwoord? De spec staat alleen
@@ -687,7 +687,7 @@ mod tests {
         assert!(origin_present(Some("http://evil.example")));
         assert!(origin_present(Some("null")));
         assert!(!origin_present(None));
-        assert!(!origin_present(Some("")));
+        assert!(origin_present(Some("")));
     }
 
     #[test]

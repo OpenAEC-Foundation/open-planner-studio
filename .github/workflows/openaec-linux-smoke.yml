@@ -1,0 +1,77 @@
+name: OpenAEC Linux AppImage
+
+# Dezelfde proef op het PR-artifact en op de echte, nog ongepubliceerde release-AppImage.
+on:
+  workflow_call:
+    inputs:
+      appimage-artifact:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.appimage-artifact }}
+          path: appimage
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Checksumregressie en SHA256SUMS van het ongepubliceerde AppImage-artifact
+        run: |
+          node --test scripts/release-checksums.test.mjs scripts/openaec-linux-probe.test.mjs
+          node scripts/release-checksums.mjs appimage
+          (cd appimage && sha256sum --check SHA256SUMS)
+      - name: Testomgeving bouwen (geen productimage of publicatie)
+        run: |
+          mkdir -p test-results/openaec-linux
+          set +e
+          docker build -t ops-linux-test packaging/linux-test > test-results/openaec-linux/docker-build.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> test-results/openaec-linux/docker-build.log
+          tail -n 80 test-results/openaec-linux/docker-build.log
+          exit "$code"
+      - name: AppImage onder Wayland als gewone gebruiker, zonder GPU of netwerk
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/openaec-linux
+          chmod 777 test-results/openaec-linux
+          APPIMAGE="$(find appimage -name '*.AppImage' -print -quit)"
+          test -n "$APPIMAGE"
+          container_args=(--rm --network none --read-only --cap-drop ALL
+            --security-opt no-new-privileges --shm-size 256m
+            -v "$PWD:/src:ro" -v "$PWD/test-results/openaec-linux:/output:rw")
+          set +e
+          # Hetzelfde script moet een niet-uitvoerbare tijdelijke map vroeg en duidelijk weigeren.
+          docker run "${container_args[@]}" --tmpfs /tmp:rw,noexec,nosuid,nodev,size=1g \
+            ops-linux-test "/src/$APPIMAGE" /output > test-results/openaec-linux/noexec-proef.log 2>&1
+          noexec_code=$?
+          echo "EXIT:$noexec_code" >> test-results/openaec-linux/noexec-proef.log
+          if [ "$noexec_code" -ne 78 ] || ! grep -q 'tijdelijke testmap staat op noexec' test-results/openaec-linux/noexec-proef.log; then
+            cat test-results/openaec-linux/noexec-proef.log
+            exit 1
+          fi
+          docker run "${container_args[@]}" --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g \
+            ops-linux-test "/src/$APPIMAGE" /output > test-results/openaec-linux/proef.log 2>&1
+          code=$?
+          echo "EXIT:$code" >> test-results/openaec-linux/proef.log
+          cat test-results/openaec-linux/proef.log
+          exit "$code"
+      - name: Geheugenmeting bij de run zetten
+        run: cat test-results/openaec-linux/geheugen.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: openaec-linux-bewijs
+          path: test-results/openaec-linux/
+          if-no-files-found: error
+          retention-days: 7

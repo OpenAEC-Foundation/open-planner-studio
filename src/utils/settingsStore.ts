@@ -20,6 +20,7 @@ import type { LayoutOverlays } from '@/types/view';
 import type { FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { linuxEnvironment } from '@/utils/linuxEnvironment';
 import { isTauri } from '@/utils/platform';
 import { siteHostTheme } from '@/services/fileAccess/siteHostPreferences';
 import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
@@ -728,6 +729,8 @@ export async function saveAiAutoBackup(value: boolean): Promise<void> {
 export const MCP_DEFAULT_PORT = 3877;
 
 export function loadMcpPort(): number {
+  const managed = linuxEnvironment()?.mcp;
+  if (managed) return managed.port;
   if (!localStorageAvailable()) return MCP_DEFAULT_PORT;
   const raw = readLocal('ops-mcpPort');
   if (raw === null) return MCP_DEFAULT_PORT;
@@ -737,12 +740,15 @@ export function loadMcpPort(): number {
 }
 
 export function saveMcpPort(value: number): void {
+  if (linuxEnvironment()?.mcp) return;
   if (!localStorageAvailable()) return;
   writeLocal('ops-mcpPort', JSON.stringify(Math.round(value)));
 }
 
 /** Bridge-Bearer-token. Default null (nog niet gegenereerd); `server.ensureMcpToken` vult 'm bij eerste start. */
 export function loadMcpToken(): string | null {
+  const managed = linuxEnvironment()?.mcp;
+  if (managed) return managed.token;
   // Platformbouw (#307): geen token in de gedeelde browseropslag, ook niet een oud token lezen.
   if (!AI_MODE_AVAILABLE || !localStorageAvailable()) return null;
   const raw = readLocal('ops-mcpToken');
@@ -750,6 +756,7 @@ export function loadMcpToken(): string | null {
 }
 
 export function saveMcpToken(value: string): void {
+  if (linuxEnvironment()?.mcp) return;
   if (!AI_MODE_AVAILABLE || !localStorageAvailable()) return;
   writeLocal('ops-mcpToken', value);
 }

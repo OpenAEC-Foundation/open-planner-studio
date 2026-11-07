@@ -36,6 +36,9 @@ serde_json = "1"
 # vóór alle andere plugins staan en wordt in dev-instanties bewust overgeslagen.
 tauri-plugin-single-instance = "2"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+signal-hook = "0.3"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

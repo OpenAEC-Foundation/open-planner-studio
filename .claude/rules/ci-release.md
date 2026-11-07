@@ -39,3 +39,18 @@ De webbuild levert daarnaast `public/release-highlights.json` mee — gegenereer
 `aur.yml` volgt een geslaagde `release.yml` (zoals `snap.yml`), vult `packaging/aur/PKGBUILD` in, test met `makepkg` + `namcap` in een `archlinux`-container en pusht naar de AUR alleen met het secret `AUR_SSH_PRIVATE_KEY`. De jobvoorwaarde weigert vóór checkout elke `workflow_run` uit een andere bronrepo of een ander bronevent dan `push` (met `v*`-prefix) en `workflow_dispatch`; de run moet geslaagd zijn. Wijzig het pakket in `packaging/aur/`, niet in de AUR-git.
 
 Besluit eigenaar, 2026-10-31: slaat `aur.yml` de push over omdat `AUR_SSH_PRIVATE_KEY` ontbreekt, dan is dat geen onafgerond werk en geen stopreden, ook niet voor een oudere tag. Het eindrapport zegt dat Arch nog geen pakket kreeg, en waarom. Een rode `aur.yml`, een mislukte push met secret of een pakket met de verkeerde versie stopt de release wel. Het vereiste bewijs staat in de `release`-skill, `referentie.md`, onder *Ontbrekend AUR-secret*.
+
+## OpenAEC Linux (Blueprint #61)
+
+Geen eigen productimage: de SuperCloud kiest een release-AppImage voor het gezamenlijke image.
+`appimage-im-check.yml` bouwt op een relevante PR de ongetekende AppImage en roept daarna
+`openaec-linux-smoke.yml` aan. De release gebruikt dezelfde proef met de echte release-AppImage;
+`publish-release` wacht erop. De proef draait als gewone gebruiker in een testcontainer zonder
+netwerk/GPU, onder headless labwc, en bewaart screenshots, MCP-/herstelbewijs en rustgeheugen.
+Het geheugen komt vóór publicatie in de releasebody. `release-checksums.mjs` schrijft SHA256SUMS
+van de bestanden die de draft-verificatie downloadde, naast de bestaande AppImage-.sig.
+De proef publiceert niets; alleen de reeds bestaande releasejob publiceert achter deze poort.
+De aparte job `shutdown-policy` in `appimage-im-check.yml` test dezelfde native afsluitfunctie
+zonder Tauri. Een echte symlink-write en een herstel-flush blijven elk langer dan de oude grens
+van 25 seconden bezig; pas hun voltooiing mag native exit 0 opleveren. De gewone planningscheck
+draait alleen de korte varianten. De native module draait ook mee met de AppImage-contracttests.
