@@ -32,6 +32,7 @@
   "repeatHeader": "Toista ylätunniste joka sivulla",
   "repeatFooter": "Toista alatunniste joka sivulla",
   "reportFontScaleLabel": "Fonttikoko:",
+  "reportFontFamilyLabel": "Fontti:",
   "timelineColumnsLabel": "Aikajana jakautuu:",
   "timelineColumnsHint": "Vain automaattisella sovituksella",
   "timelineColumns_one": "{{count}} sivu",
@@ -434,5 +435,11 @@
       "riskHeading": "Riskitehtävät: myöhässä tai negatiivinen pelivara",
       "riskEmpty": "Ei myöhässä olevia tehtäviä eikä negatiivista pelivaraa."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (oletus)",
+    "liberationSans": "Liberation Sans (kuten Arial)",
+    "carlito": "Carlito (kuten Calibri)",
+    "liberationSerif": "Liberation Serif (kuten Times New Roman)"
   }
 }

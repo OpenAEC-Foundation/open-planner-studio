@@ -32,6 +32,7 @@
   "repeatHeader": "Repetir cabeçalho em cada página",
   "repeatFooter": "Repetir rodapé em cada página",
   "reportFontScaleLabel": "Tamanho da fonte:",
+  "reportFontFamilyLabel": "Fonte:",
   "timelineColumnsLabel": "Cronograma em:",
   "timelineColumnsHint": "Apenas com ajuste automático",
   "timelineColumns_one": "{{count}} página",
@@ -439,5 +440,11 @@
       "riskHeading": "Tarefas em risco: em atraso ou folga negativa",
       "riskEmpty": "Nenhuma tarefa em atraso e nenhuma folga negativa."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (padrão)",
+    "liberationSans": "Liberation Sans (como Arial)",
+    "carlito": "Carlito (como Calibri)",
+    "liberationSerif": "Liberation Serif (como Times New Roman)"
   }
 }

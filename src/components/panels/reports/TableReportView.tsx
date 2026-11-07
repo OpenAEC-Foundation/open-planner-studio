@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, type CSSProperties } from 'react';
 import type { TableReportSpec, ReportSection } from './tableReportSpec';
 import { CurveChartView } from './CurveChartView';
 
@@ -54,12 +54,21 @@ function SectionTable({ s }: { s: ReportSection }) {
   );
 }
 
-export const TableReportView = forwardRef<HTMLDivElement, { spec: TableReportSpec }>(function TableReportView({ spec }, ref) {
+/**
+ * De rapportletter (issue #770) op een DOM-rapport: de letter zelf én de twee UI-fontvariabelen,
+ * zodat ook koppen met `font-family: var(--font-heading)` (`.ui-card-header`) hem tonen. Zo laat de
+ * schermweergave van mijlpalen, afwijkingen en de tabelrapporten dezelfde letter zien als de PDF.
+ */
+export function reportFontStyle(fontStack: string): CSSProperties {
+  return { fontFamily: fontStack, '--font-body': fontStack, '--font-heading': fontStack } as CSSProperties;
+}
+
+export const TableReportView = forwardRef<HTMLDivElement, { spec: TableReportSpec; fontStack: string }>(function TableReportView({ spec, fontStack }, ref) {
   return (
     <div
       ref={ref}
       className="bg-surface p-4"
-      style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1200 }}
+      style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1200, ...reportFontStyle(fontStack) }}
       data-ops-table-report={spec.fileSuffix}
     >
       <h3 className="ui-card-header !text-small !leading-4 mb-1">{spec.title}</h3>

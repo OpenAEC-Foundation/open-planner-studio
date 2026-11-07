@@ -32,6 +32,7 @@
   "repeatHeader": "各ページにヘッダーを繰り返す",
   "repeatFooter": "各ページにフッターを繰り返す",
   "reportFontScaleLabel": "文字サイズ：",
+  "reportFontFamilyLabel": "フォント：",
   "timelineColumnsLabel": "タイムライン：",
   "timelineColumnsHint": "自動調整時のみ",
   "timelineColumns_other": "{{count}} ページ",
@@ -429,5 +430,11 @@
       "riskHeading": "リスクのあるタスク: 遅延または負のフロート",
       "riskEmpty": "遅延タスクも負のフロートもありません。"
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter（標準）",
+    "liberationSans": "Liberation Sans（Arial 相当）",
+    "carlito": "Carlito（Calibri 相当）",
+    "liberationSerif": "Liberation Serif（Times New Roman 相当）"
   }
 }
