@@ -2019,3 +2019,11 @@ en noem het in je rapport of PR-tekst.
      overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
      kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
      eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+
+900. **VERVOLG: elk antwoord van `tools/call` draagt de data twee keer.** `wrapToolResult` in
+     `src/services/mcp/dispatcher.ts` zet hetzelfde resultaat als JSON-tekst in `content[0].text` en als
+     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 19.392 tekens data,
+     39.270 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
+     aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
+     Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
+     S (de tokenkosten per client)
