@@ -236,6 +236,8 @@
     "company": "Bedrijf",
     "startDate": "Startdatum",
     "endDate": "Einddatum",
+    "defaultWorkRule": "Standaardtaaktype",
+    "defaultWorkRuleHint": "Taken op ‘Projectstandaard’ volgen deze keuze. Taken met een eigen taaktype behouden hun keuze.",
     "calc": {
       "title": "Berekening",
       "subtitle": "Reken-opties voor dit project — horen bij het bestand, niet bij de app.",
