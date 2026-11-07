@@ -78,6 +78,7 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
           <button
             onClick={onConfirm}
             className={danger ? 'btn btn--sm btn--danger' : 'btn btn--sm btn--primary shadow-[var(--shadow-glow)]'}
+            style={{ fontWeight: 600 }}
           >
             {confirmLabel ?? t('delete')}
           </button>

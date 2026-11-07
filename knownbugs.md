@@ -23,8 +23,6 @@ en noem het in je rapport of PR-tekst.
 3. **Constraint en deadline op een fase** zijn invulbaar (paneel, Taak bewerken), maar de motor negeert ze. — B
 4. **Harde MFO ver vóór de eerste taak** kan een start vóór de projectstart geven. — S
 5. **Afgekapte lead** (FS −5 vanaf de eerste taak): vrije speling 2 bij totale speling 0 (vrij > totaal). — S
-6. **Externe opvolger met te krap anker** geeft alleen negatieve speling, geen melding over een geschonden
-   constraint. — B
 7. **Hammock zonder finish-driver**: de melding zegt "nul-lengte", het Duur-veld toont 1 dag. — S
 47. **Speling *Automatisch* telt voortgang alleen mét statusdatum.** MS Project rekent een gestarte taak ook
     zonder statusdatum met de finish-speling. Zonder statusdatum wijken *Automatisch* en *Kleinste* dus
@@ -382,7 +380,7 @@ en noem het in je rapport of PR-tekst.
      externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
      Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
      (`docs/relaties-tussen-projecten.md`). — B
-873. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+877. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
      (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
      zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
      mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
@@ -420,6 +418,22 @@ en noem het in je rapport of PR-tekst.
      verplaatsen kan die velden dus verliezen terwijl beide checks groen blijven. Voorstel: de drie waarden in de
      bestaande fixture zetten en ze controleren in het bestaande scenario met ongedaan maken. Uit de review van #809
      na de merge met #807 (GPT-6.1-Sol, xhigh, op `b570b2044`, VERVOLG). — S
+882. **VERVOLG: de melding bij een harde pin zegt "negatieve speling", ook als de pin staat en de speling nul is.**
+     `src/engine/scheduler/CPMSolver.ts:3478` (`registerHardPinViolation`) en `src/i18n/locales/nl/common.json:782`
+     (`warnings.kind.violatedConstraint`: "Constraint {{constraint}} wordt door de logica overschreden (negatieve
+     speling)"). Een harde MSO op di 2 juni 08:00 met een externe SS-opvolger (zelfde anker, één uur lag in de
+     24-uurskalender): de pin blijft staan, de taak staat in `violatedConstraintTaskIds`, de externe melding noemt de
+     koppeling, en de totale speling is 0 minuten. Beide meldingen zijn terecht: de pin doorbreekt de logica, de
+     externe melding noemt de koppeling. Alleen de tekst van de pinmelding klopt dan niet. Zo ook op main
+     (`7f0207182`). Oplossing: een tekst voor een pin die de logica doorbreekt, zonder "negatieve speling"; de
+     externe melding blijft. Uit de review van #810 ronde 3 (GPT-6.1-Sol, xhigh, op `568ce4a10`). — B
+884. **VERVOLG: geen test voor *Later* terwijl een broncontrole nog loopt.**
+     `src/state/slices/fileSlice.ts:632` (`checkExternalSourcesOnce`) zet een bestaande balk niet meer vast in `found`;
+     de eindfilter leest de actuele balken. Zo komt een balk waarop de planner tijdens de controle *Later* koos, niet
+     terug. `tests/planning/check-external-source-update.ts:147` wacht de controle helemaal af vóór *Later* en raakt
+     dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
+     *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
+     van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
 
 ## Tabel, invoer en bediening
 
@@ -1987,6 +2001,13 @@ en noem het in je rapport of PR-tekst.
      naar directe ingangen van `node_modules`. Is `@fontsource` een gewone map met `inter` als link, dan blijft het
      letterbestand 403. Een link van de hele `@fontsource`-map (zoals op aia) werkt wel. Voorstel: de concrete
      pakketmappen resolven, zoals bij 930. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+950. **VERVOLG: drie knopgroepen die op een keuze lijken, worden regular.** Sinds #850 zijn gewone `.btn`-knoppen 400.
+     Sol noemt drie groepen die ook 400 worden: de datumvolgorde in `ProgressImportDialog.tsx:417` en `:420`,
+     "Bedrijfswaarden gebruiken" en "Bestandswaarden overnemen" in `LibraryLinkDialog.tsx:139` en `:140`, en de talen
+     onder "Lees in" in `HelpPanel.tsx:474`. Ze werken nog hetzelfde. Bewust zo gelaten: elke knop voert meteen een
+     actie uit en heeft geen blijvende gekozen stand (geen `aria-pressed`), dus het zijn gewone acties. De bronkeuzes
+     met een gekozen stand houden wel 600. Wil een planner ze toch vet, dan volstaat `fontWeight: 600` zoals bij de
+     bronkeuzes. Uit de review van #850 (GPT-6.1-Sol, xhigh, op `d40a68caa`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
