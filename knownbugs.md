@@ -680,6 +680,42 @@ en noem het in je rapport of PR-tekst.
    uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
    geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
    terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+920. **VERVOLG: "Kolommen automatisch aanpassen" meet bij elke ronde alle taakrijen opnieuw.**
+     `src/components/task-grid/FullTaskGrid.tsx` (`computeAutoFitWidth`) en `TaskGrid.tsx` (het effect met
+     `onComputeAutoFitWidth`). Elke meetronde verwerkt alle zichtbare taakrijen, ook bij een wijziging die geen
+     celtekst raakt, zoals een andere selectie. Past een meting een breedte aan, dan volgt een tweede volle ronde.
+     Bij 10.000 taken kost een warme ronde 211 tot 251 ms (Node, geen browser). De instelling staat standaard uit, en
+     de eerste ronde wacht 250 ms rust. Voorstel: koppel het meten aan wijzigingen van de inhoud (een versie van de
+     zichtbare celtekst per kolom in plaats van de identiteit van `computeAutoFitWidth`) en sla de tweede scan over
+     als de breedte al klopt. Ronde 2 (Sol, op `5f6d3a428`) meette 10.000 taken × 9 kolommen = 90.000
+     celuitlezingen per warme ronde: 134 tot 142 ms in Node; ook een andere selectie start een ronde, en een
+     gewijzigde breedte start nog een volle ronde. Ronde 3 (Sol, op `c11dde182`): 146 tot 178 ms bij 10.000 taken
+     × 9 kolommen (Node). Richting: meten op gewijzigde celinhoud, en `getCell(...).value` als cache-identiteit
+     (`taskGridAutoFitValueVersion`) in plaats van de descriptor een tweede keer te lezen. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 1 tot en met 3, BEVESTIGD, VERVOLG). — B
+
+921. **VERVOLG: de `origin: 'start'` van automatisch gemeten kolombreedtes heeft geen eigen regressiecheck.**
+     `src/state/slices/taskGridSlice.ts` (`applyAutoFitTaskGridColumns`). Een gemeten breedte is geen keuze van de
+     gebruiker (#818), dus ze wordt met `'start'` bewaard. Dat een slepende gebruiker wél `'user'` is en dat een
+     laat hostantwoord een gemeten breedte niet terugzet, volgt uit `writeLocal` en `createHostSettingsSync`.
+     Vast in `check-site-host-preferences.ts` (D27) ligt alleen het venster waarin een laat antwoord is toegepast en de
+     store de oude kopie nog heeft: dan schrijft automatisch aanpassen niets. Niet vast: de uitkomst in het
+     wachtvenster vóór het antwoord (een `'start'`-sleutel geeft geen melding "teruggezet", een `'user'`-sleutel
+     wel). Dat vraagt de globale `sync` met een geïnstalleerde host in de check, buiten `createHostSettingsSync`. Voorstel:
+     een D-blok met `setHosts` en de echte `applyAutoFitTaskGridColumns` tijdens `phase === 'reading'`. Ronde 3 (Sol)
+     bewees het gedrag met een handmatige proef: automatisch aanpassen geeft `touched: false` en `reverted: false`, een
+     handmatige wijziging (slepen) beide `true`; daarna nemen beide de 777 van de host over. Die twee gevallen horen
+     in de check (`check-site-host-preferences.ts` rond D27); dan kan dit punt weg. Uit de review van #851
+     (GPT-6.1-Sol, xhigh, ronde 2 en 3, BEVESTIGD, VERVOLG). — B
+
+922. **VERVOLG: de sleeppauze van "Kolommen automatisch aanpassen" begint pas bij de eerste beweging.**
+     `src/components/task-grid/TaskGrid.tsx` (`resizing`, `onResizeStart`). `onResizeStart` maakt de voorvertoning
+     (`previewWidths`) leeg, dus `resizing` (`previewWidths.size > 0`) blijft eerst `false` tot de eerste
+     `onResizePreview`. Een wachtende meting kan dan nog schrijven terwijl de greep al is ingedrukt, en een kolom
+     verspringt in die ene ogenblikken onder de muis. Zeldzaam: de meting moet precies tussen indrukken en de eerste
+     beweging aflopen. Voorstel: vul de voorvertoning bij de start met de kolom en haar huidige breedte. Dit verklaart
+     de ontbrekende cursor niet die de gebruiker meldde (de greep en `col-resize` zijn los van deze pauze). Uit de
+     review van #851 (GPT-6.1-Sol, xhigh, ronde 3, BEVESTIGD, VERVOLG). — B
 
 ## Kalenders
 

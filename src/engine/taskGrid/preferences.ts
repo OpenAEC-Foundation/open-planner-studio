@@ -161,12 +161,30 @@ export function normalizeTaskGridColumnPreferences(
       width: Math.min(TASK_GRID_COLUMN_MAX_WIDTH,
         Math.max(TASK_GRID_COLUMN_MIN_WIDTH, Math.round(candidate.width))),
       pinned: candidate.pinned,
+      ...(candidate.manualWidth === true ? { manualWidth: true } : {}),
     });
   }
   return [
     ...result.filter(columnPreference => columnPreference.pinned),
     ...result.filter(columnPreference => !columnPreference.pinned),
   ];
+}
+
+/** De ene vergelijking van twee kolomlijsten (id, breedte, vastgezet en handmatige breedte), voor het
+ *  raster én de geschiedenis. Twee eigen lijsten met verschillende velden gaven eerder een
+ *  dubbelklik die `manualWidth` niet wiste (de geschiedenis zag "geen wijziging"). */
+export function sameTaskGridColumns(
+  left: readonly TaskGridColumnPreference[],
+  right: readonly TaskGridColumnPreference[],
+): boolean {
+  return left.length === right.length && left.every((column, index) => {
+    const candidate = right[index];
+    return candidate !== undefined
+      && column.id === candidate.id
+      && column.width === candidate.width
+      && column.pinned === candidate.pinned
+      && (column.manualWidth === true) === (candidate.manualWidth === true);
+  });
 }
 
 export function cloneColumns(columns: readonly TaskGridColumnPreference[]): TaskGridColumnPreference[] {
@@ -225,19 +243,40 @@ export function moveTaskGridColumn(
   return next;
 }
 
+/** `manual`: `true` na slepen aan de rand (de breedte blijft dan staan bij automatisch aanpassen),
+ *  `false` na optimale breedte (dubbelklik); weglaten laat de markering zoals ze was. */
 export function resizeTaskGridColumn(
   columns: readonly TaskGridColumnPreference[],
   id: TaskColumnId,
   width: number,
+  manual?: boolean,
 ): TaskGridColumnPreference[] {
   if (!Number.isFinite(width)) return cloneColumns(columns);
   const normalizedWidth = Math.max(
     TASK_GRID_COLUMN_MIN_WIDTH,
     Math.min(TASK_GRID_AUTOFIT_MAX_WIDTH, Math.round(width)),
   );
-  return columns.map(columnPreference => columnPreference.id === id
-    ? { ...columnPreference, width: normalizedWidth }
-    : { ...columnPreference });
+  return columns.map(columnPreference => {
+    if (columnPreference.id !== id) return { ...columnPreference };
+    const { manualWidth, ...rest } = columnPreference;
+    const keep = manual === undefined ? manualWidth === true : manual;
+    return { ...rest, width: normalizedWidth, ...(keep ? { manualWidth: true } : {}) };
+  });
+}
+
+/** Zet de breedte van elke kolom zonder `manualWidth` op de gemeten optimale breedte. Geeft
+ *  dezelfde array-inhoud terug als niets verandert. */
+export function applyAutoFitWidths(
+  columns: readonly TaskGridColumnPreference[],
+  widths: ReadonlyMap<TaskColumnId, number>,
+): TaskGridColumnPreference[] {
+  return columns.map(columnPreference => {
+    const fitted = widths.get(columnPreference.id);
+    if (columnPreference.manualWidth === true || fitted === undefined) return { ...columnPreference };
+    return { ...columnPreference, width: Math.max(
+      TASK_GRID_COLUMN_MIN_WIDTH, Math.min(TASK_GRID_AUTOFIT_MAX_WIDTH, Math.round(fitted)),
+    ) };
+  });
 }
 
 export function recentAvailableTaskColumnIds(
@@ -261,6 +300,9 @@ export interface ComputeTaskGridAutoFitWidthInput {
   rows: readonly TaskGridAutoFitRow[];
   cache: Map<string, number>;
   measureText: (text: string) => number;
+  /** Standaard `true`: de koptekst telt mee. Met `false` bepalen alleen de waarden de breedte
+   *  (de instelling "Kolommen automatisch aanpassen": een korte waarde onder een lange kop blijft smal). */
+  includeHeader?: boolean;
   horizontalPadding?: number;
   chunkSize?: number;
   yieldToMain?: () => Promise<void>;
@@ -291,7 +333,7 @@ export async function computeTaskGridAutoFitWidth(
   const padding = Math.max(0, input.horizontalPadding ?? 16);
   const chunkSize = Math.max(1, Math.floor(input.chunkSize ?? 250));
   const yieldToMain = input.yieldToMain ?? defaultAutoFitYield;
-  let widest = input.measureText(input.headerText);
+  let widest = input.includeHeader === false ? 0 : input.measureText(input.headerText);
 
   for (let start = 0; start < input.rows.length; start += chunkSize) {
     const end = Math.min(input.rows.length, start + chunkSize);
