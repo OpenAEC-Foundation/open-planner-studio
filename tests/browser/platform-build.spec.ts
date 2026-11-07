@@ -564,6 +564,8 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
 
   // Het startbestand van de host opent: een taak staat in de taaktabel.
   await expect(frame.getByText(WORKPLACE_TASK, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  // De host antwoordde binnen 5 s: geen pop-up over niet-geladen instellingen (#818).
+  await expect(frame.locator('[data-ops-settings-delay-dialog]')).toHaveCount(0);
   expect((await workplaceCalls(frame)).filter((call) => call.fn === 'open')).toEqual([{ fn: 'open', id: 'f1', version: null, assistant: 'object' }]);
 
   // Taal en thema van de host: Engels en licht, ook al is het systeem donker.
