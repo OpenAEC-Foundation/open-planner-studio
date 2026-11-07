@@ -58,7 +58,7 @@ eq('B: einde di 17-11', shownFinish(task(B)).slice(0, 10), '2026-11-17');
 eq('B: wo 4-11 t/m di 17-11 = 14', span(B), 14);
 eq('D: start en einde op één dag = 1', span(D), 1);
 eq('M: nulduur-mijlpaal = 0', span(M), 0);
-eq('E: kalendertijd ma 07:00 + 72 uur = do 07:00, ma t/m do = 4', span(E), 4);
+eq('E: kalendertijd 3 dagen = 3 kalenderdagen', span(E), 3);
 
 // ── Verzameltaak: P en B onder fase F; haar getoonde span is die van de kinderen ──
 S().indentTasks([P, B]);
@@ -111,7 +111,7 @@ eq('register: getal', descriptor?.valueKind, 'number');
 eq('register: labelsleutel', descriptor?.labelKey, 'taskGrid.columns.calendarDays');
 
 // ── Cel en kopieertekst zoals FullTaskGrid ze bouwt ──
-function cell(taskId: string): { text?: string; copyText?: string; readOnly?: boolean } {
+function cell(taskId: string, column = 'task.time.calendarDays'): { text?: string; copyText?: string; readOnly?: boolean } {
   const s = S();
   const adapter = createTaskGridAdapter({
     projectId: s.project.id, tasks: s.tasks, sequences: s.sequences, cpmResult: s.cpmResult,
@@ -127,12 +127,24 @@ function cell(taskId: string): { text?: string; copyText?: string; readOnly?: bo
     surfaceId: 'full-task-grid', rows: s.viewRows, selectedTaskIds: [],
   });
   const row = s.viewRows.find(r => r.kind === 'task' && r.task.id === taskId)!;
-  const c = adapter.getCell(row.rowKey, taskColumnId('task.time.calendarDays'));
+  const c = adapter.getCell(row.rowKey, taskColumnId(column));
   return { text: c?.text, copyText: c?.copyText, readOnly: c?.readOnly };
 }
 eq('cel A: kaal getal', cell(A), { text: '12', copyText: '12', readOnly: true });
 eq('cel M: mijlpaal 0', cell(M), { text: '0', copyText: '0', readOnly: true });
 eq('cel F: fase', cell(F).text, '16');
+
+// ── Het getal volgt de dagen die de cellen Start en Einde tonen (notatie dmy: dd-mm-jjjj) ──
+const cellDay = (text: string | undefined): number => {
+  const m = /^(\d{2})-(\d{2})-(\d{4})/.exec(text ?? '');
+  return m ? Date.UTC(+m[3], +m[2] - 1, +m[1]) / 86_400_000 : NaN;
+};
+for (const [name, id] of [['A', A], ['B', B], ['D', D], ['E', E], ['F', F]] as const) {
+  const startText = cell(id, 'task.time.start').text;
+  const finishText = cell(id, 'task.time.finish').text;
+  eq(`${name}: telling = Start-cel ${startText} t/m Einde-cel ${finishText}`,
+    span(id), cellDay(finishText) - cellDay(startText) + 1);
+}
 
 if (diffs.length) {
   for (const d of diffs) console.log(`XX ${d}`);
