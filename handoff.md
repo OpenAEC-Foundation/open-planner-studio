@@ -66,7 +66,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 5 (v5) | 7 | 7 | 8 |
 | 6 (v6) | 7 | 7 | 8 |
 | 7 (v7) | 7 | 8 | 9 |
-| 8 (v8) | loopt | loopt | loopt |
+| 8 (v8) | 9 | loopt | 9 |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -77,6 +77,26 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 8 — Opus 9, Fable 9 (geen blokkade); Sol loopt
+
+Fable 9 (vervolg): (F1) vreemd lid raakt los als de writer de pset niet meer schrijft (lege pset overgeslagen,
+`ifcWriter.ts:694, 910`) → pset met vreemde leden toch schrijven; (F2) plek P-blok zonder P-stuk in de bron (model zonder
+planning) → na het laatste stuk, vóór de staart; (F3) blokzin leest als volgorde → "het blok zoals de writer het zonder
+vreemd deel schrijft"; (F4) `:1397` eerste owner history = die van het model → test vergelijkt domeinveld, §4.4
+Author/Organization is voorwaarde (writer schrijft ze nu niet, `ifcWriter.ts:676-694`); (F5) `#n`-wachtrij bij gemengde
+A-rel na het blok (VERMOED); (F6) keten "property → pset" (pset heeft OwnerHistory).
+Opus 9 (vervolg; "punten 1–3 vóór de eerste PR van fase 1 in de tekst"; proef `scratchpad/r8opus/wachtrij.mts`):
+(O1) vreemd `GUID#n`-lid breekt wachtrij (lezer sorteert op n, `ifcReader.ts:3464, 3494`; merge 6 vs planOnly 3) en
+vreemde "Zone" wordt waarde zodra planner veld "Zone" maakt (`:2351`) → "bij opslaan vervalt elk vreemd lid dat de
+herkenner in de uitvoer als eigen zou lezen"; voor OPS_Assignments: elke GUID-vormsleutel is eigen; (O2) = F1
+(`ifcPsets.ts:487, 612, 637`); (O3) kaart en klassen van de nieuwe bron komen van de writer (wat hij als P schreef, met
+sessie-domein-ids), niet uit herindeling; "live-schema van eigen herkomst sluit baselinebomen altijd uit" (`:3610`);
+(O4) meer volgorde-afhankelijke lezing (`:284, 2412, 3279, 3494`) → writer nummert `#n` in leesvolgorde van de uitvoer;
+lijst toegestane normalisaties van `planningCanon` invullen; plek bewaarde vreemde R t.o.v. `assign_<taak>`;
+(O5) hulpstuk-ids: begin bij hoogste id van niet-P plus 1, sla D-ids over (vast punt); (O6) tekst: plek P-blok zonder
+P-stuk; §3 r.58 "op hun plek"; r.207 noemt classify-v7.py; keten r.441; `:1397`. Wat eruit kan: test met regelnummers
+→ `planningCanon` neemt volgorde en keuzes mee; k-de-sleutel + naambotsing → één regel; IFCX één globaal volgnummer.
 
 ### Ronde 7 — Opus 7 ("daarna 8 tot 9"), Sol 8, Fable 9 — verwerkt in v8 (spec §12 "Na ronde 7")
 
