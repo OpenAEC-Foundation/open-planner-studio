@@ -43,6 +43,7 @@ check-contour-unit-switch.ts matrix
 check-conventions-boundary.ts los
 check-conventions-p6-flags.ts matrix
 check-conventions-registry.ts matrix
+check-cost-resource.ts matrix
 check-count-labels-i18n.ts matrix
 check-cpm-writeback.ts matrix
 check-critical-bar-colors-route.ts matrix
