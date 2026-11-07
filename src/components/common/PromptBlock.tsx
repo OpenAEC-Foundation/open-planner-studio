@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Check, Copy } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { copyViaTextarea, useCopyFeedback } from '@/hooks/useCopyFeedback';
 import './PromptBlock.css';
 
@@ -24,7 +24,7 @@ export function PromptBlock({ text }: { text: string }) {
     <div className="help-prompt" data-help-prompt="">
       <div className="help-prompt-bar">
         <button type="button" className="btn btn--sm btn--primary help-prompt-copy" onClick={() => { void onCopy(); }}>
-          {copiedKey === 'copied' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+          {copiedKey === 'copied' ? <Icon id="status.success" size={14} /> : <Icon id="edit.copy" size={14} />}
           {t('backstage.helpCopyPrompt')}
         </button>
         <span className="help-prompt-status" role="status">

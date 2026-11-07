@@ -4,10 +4,9 @@ import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { useTranslation } from 'react-i18next';
 import { isTauri } from '@/utils/platform';
+import { Icon } from '@/components/icons';
+import { AppLogo } from '@/components/common/AppLogo';
 import { isMacPlatform } from '@/hooks/keyboard/shortcutFormat';
-import {
-  Undo2, Redo2, Minus, Square, Copy, X, Settings,
-} from 'lucide-react';
 import { SwitcherPill } from '@/components/layout/DocumentChrome/SwitcherPill';
 import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isGlobalShortcutFrozen } from '@/hooks/keyboard/shortcutRegistry';
@@ -150,7 +149,7 @@ export function TitleBar() {
       )}
       <div ref={leftRef} className="title-bar-left">
         <div className="quick-access-toolbar">
-          <img src={`${import.meta.env.BASE_URL}icon.png`} className="title-bar-app-icon" alt="Open Planner Studio" />
+          <AppLogo size={18} className="title-bar-app-icon" />
           <div className="quick-access-separator" />
 
           {/* Nieuw/Openen/Opslaan staan hier bewust niet (review 2026-10-06): ze staan al op Start en in
@@ -177,7 +176,7 @@ export function TitleBar() {
             disabled={questionPending || !undoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) undo(); }}
           >
-            <Undo2 size={16} />
+            <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />
           </button>
           <button
             className="quick-access-btn"
@@ -185,7 +184,7 @@ export function TitleBar() {
             disabled={questionPending || !redoAvailable}
             onClick={() => { if (!isGlobalShortcutFrozen()) redo(); }}
           >
-            <Redo2 size={16} />
+            <Icon id="edit.redo" size={16} className="ops-icon-inline-flip" />
           </button>
 
           <div className="quick-access-separator" />
@@ -198,7 +197,7 @@ export function TitleBar() {
             disabled={questionPending}
             onClick={() => setUI({ showSettingsDialog: true })}
           >
-            <Settings size={16} />
+            <Icon id="ui.settings" size={16} />
           </button>
 
           <div className="quick-access-separator" />
@@ -240,13 +239,13 @@ export function TitleBar() {
       {isTauri() && !isMacPlatform() && (
         <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>
-            <Minus size={14} />
+            <Icon id="window.minimize" size={14} />
           </button>
           <button className="window-btn" title={maximized ? tCommon('window.restore') : tCommon('window.maximize')} onClick={() => { void handleMaximize(); }}>
-            {maximized ? <Copy size={11} /> : <Square size={11} />}
+            {maximized ? <Icon id="window.restore" size={11} /> : <Icon id="window.maximize" size={11} />}
           </button>
           <button className="window-btn window-btn-close" title={tCommon('close')} onClick={() => { void handleClose(); }}>
-            <X size={14} />
+            <Icon id="window.close" size={14} />
           </button>
         </div>
       )}

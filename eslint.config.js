@@ -14,6 +14,9 @@
 //                           zelf (altijd truthy) wordt gebruikt in plaats van zijn resultaat.
 //   no-control-regex      — de klasse waar de NUL-byte in `visibleRows.ts` onder viel: een
 //                           stuurteken in een reguliere expressie is bijna altijd per ongeluk.
+//   no-restricted-imports — `lucide-react`: elk icoon gaat via `Icon` (`@/components/icons`), de OpenAEC
+//                           B2-iconen. Een merge bracht er twee Lucide-iconen terug (#765, ronde 2); die
+//                           hebben geen `data-icon`, dus de kleurtests zagen ze niet.
 //
 // Bewust NIET opgenomen:
 //   import/no-cycle       — `npm run verify:cycles` doet dit al, en beter: die kijkt naar de graaf
@@ -48,6 +51,9 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       'no-control-regex': 'error',
+      'no-restricted-imports': ['error', {
+        paths: [{ name: 'lucide-react', message: 'Gebruik <Icon id="…" /> uit @/components/icons (OpenAEC B2-iconen).' }],
+      }],
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'error',
     },

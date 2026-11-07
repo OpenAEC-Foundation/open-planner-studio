@@ -1,5 +1,5 @@
 import { expect, type Locator } from '@playwright/test';
-import { test, waitForOps } from './fixtures/ops';
+import { test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 const SYNTHETIC_TOKEN = 'a1-synthetic-token-not-a-secret';
 const SYNTHETIC_PORT = 4319;
@@ -40,6 +40,8 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   }, { token: SYNTHETIC_TOKEN, port: SYNTHETIC_PORT });
   await page.reload();
   await waitForOps(page);
+  // Eerst het welkomstvenster laten komen, dan pas verbergen (zie `waitForWelcomeDialog`).
+  await waitForWelcomeDialog(page);
 
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({
@@ -55,7 +57,7 @@ test('AI-verbindingsgegevens maskeren de UI maar kopiëren elke bruikbare echte 
   await expect(tokenControl).toBeVisible();
   await page.evaluate(() => { (window as CopyLogWindow).__opsA1RejectNextCopy = true; });
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
-  await expect(tokenControl.locator('svg.lucide-check')).toHaveCount(0);
+  await expect(tokenControl.locator('svg[data-icon="status.success"]')).toHaveCount(0);
   await tokenControl.getByRole('button', { name: /^(Copy|Kopiëren)$/ }).click();
 
   await page.getByRole('button', { name: /^(Connect|Verbinden)$/ }).click();

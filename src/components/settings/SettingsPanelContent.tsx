@@ -9,15 +9,16 @@ import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNot
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
 import { Select } from '@/components/common/Select';
-import { Info } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { ScrollZoomSettings } from '@/components/dialogs/ScrollZoomSettings';
 import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
+import { AppLogo } from '@/components/common/AppLogo';
 
 // Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
@@ -27,7 +28,8 @@ type SettingsTab = 'appearance' | 'planning' | 'advanced';
 // Representatieve kleurstalen per thema voor de visuele theme-picker.
 const THEME_SWATCHES: Record<ResolvedUITheme, string[]> = {
   'dark':          ['#2A2A32', '#36363E', '#D97706', '#FAFAF9'],
-  'light':         ['#FAFAF9', '#F5F5F4', '#D97706', '#36363E'],
+  // Licht volgt Blueprint v2026.45.0: titelbalk `frame`, paneel, accent en tekst (geen crème).
+  'light':         ['#F4F4F5', '#FFFFFF', '#D97706', '#2A2A31'],
   'high-contrast': ['#000000', '#0a0a0a', '#FFFF00', '#FFFFFF'],
 };
 
@@ -406,7 +408,7 @@ export function SettingsPanelContent() {
                 <span>{t('settings.showTaskTypes')}</span>
               </label>
               <div className="ops-note" data-ops-setting-show-task-types-note>
-                <Info size={12} aria-hidden />
+                <Icon id="status.info" size={12} aria-hidden />
                 <span>{t('settings.showTaskTypesHint')}</span>
               </div>
             </div>
@@ -485,13 +487,15 @@ export function SettingsPanelContent() {
             {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
                 van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
                 tabblad — de gemiddelde gebruiker heeft er niets aan. */}
-            <div className="settings-section">
-              <h3>{t('settings.statsSection')}</h3>
-              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-              <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
-                {t('settings.statsOpen')}
-              </button>
-            </div>
+            {DOWNLOAD_STATS_AVAILABLE && (
+              <div className="settings-section" data-ops-settings-stats>
+                <h3>{t('settings.statsSection')}</h3>
+                <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+                <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
+                  {t('settings.statsOpen')}
+                </button>
+              </div>
+            )}
 
             {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).
@@ -511,7 +515,8 @@ export function SettingsPanelContent() {
             <div className="settings-section">
               <h3>{t('settings.version')}</h3>
               <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
-              <div className="settings-row">
+              <div className="settings-row flex items-center gap-3">
+                <AppLogo size={32} />
                 <button
                   ref={versionRef}
                   type="button"

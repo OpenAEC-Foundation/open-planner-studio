@@ -638,10 +638,23 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * in de recente bestanden. Een OUDERE versie opent als kopie zonder opslagdoel (naam met de versie
    * erin) en niet in de recente bestanden: zo overschrijft Ctrl+S nooit per ongeluk de nieuwste
    * versie. Gooit bij een lees- of parsefout.
+   *
+   * Geeft de site de nieuwste versie als ALLEEN-LEZEN (#818), dan opent het document zonder
+   * opslagdoel en zonder basis, onder zijn eigen naam, met een melding dat Opslaan een nieuw bestand
+   * maakt. Het blijft in de recente bestanden: het is het bestand zelf, geen oudere versie, en bij een
+   * volgende keer kan het weer schrijfbaar zijn.
    */
   const openSiteChoice = async (choice: Extract<SiteOpenChoice, { kind: 'site' }>, labels?: ImportLabels) => {
     const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(), version: choice.version });
     const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+    if (choice.version === undefined && opened.readOnly) {
+      get().openAsDocument(parsed, { name: opened.name, ref: null });
+      offerFormatNotice(opened.name, opened.content);
+      await pushRecent({ kind: 'site', id: choice.id }, opened.name);
+      // Blijvend: de gebruiker moet weten dat Opslaan hier een nieuw bestand maakt.
+      get().notify({ severity: 'info', sticky: true, messageKey: 'notifications.siteFileReadOnly', params: { name: opened.name } });
+      return;
+    }
     if (choice.version === undefined) {
       // De gelezen versie wordt pas NA een geslaagde parse de basis, en alleen van dít document.
       get().openAsDocument(parsed, { name: opened.name, ref: opened.ref, siteFileVersion: opened.version });
@@ -750,6 +763,20 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (ref?.kind === 'site' && siteStorageAvailable()) {
         siteName = documentFileName(state);
         const saved = await saveSiteFileVersion(ref.id, siteName, content, state.siteFileVersion);
+        if (saved.conflictCopy) {
+          // De SuperCloud bewaarde het werk na een conflict in een KOPIE (#818). Die kopie wordt het
+          // opslagdoel van dit document; het telt als opgeslagen, en de gebruiker hoort de naam.
+          const committed = commitSavedDocument(documentId, state, {
+            filePath: saved.name, fileHandle: null, siteFileId: saved.id, siteFileVersion: saved.version,
+          });
+          await pushRecent({ kind: 'site', id: saved.id }, saved.name);
+          get().notify({
+            // Blijvend: het werk staat nu onder een andere naam.
+            severity: 'info', sticky: true, messageKey: 'notifications.siteSaveConflictCopy',
+            params: { name: saved.name, original: siteName },
+          });
+          return committed;
+        }
         return commitSavedDocument(documentId, state, {
           filePath: state.filePath ?? saved.name, fileHandle: null, siteFileId: ref.id, siteFileVersion: saved.version,
         });
@@ -1624,19 +1651,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         await openRecentSiteFile(entry, labels);
         return;
       }
-      // `kind` bepaalt de lees-tak (bytes vs tekst); de opslagdoel-guard zit in `openAsDocument`.
-      const isBinary = readFormatForFile(entry.name).kind === 'binary';
-      const content = isBinary ? null : await readFromRef(entry.ref);
-      const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
-      // Bij een binair formaat is `content` altijd null (niet gelezen) — dan telt uitsluitend
-      // `bytes`; bij een tekstformaat is `bytes` altijd null — dan telt uitsluitend `content`.
-      // Null-pad: geweigerd/verdwenen → entry stil verwijderen.
-      if (isBinary ? bytes === null : content === null) {
-        const list = await removeRecent(entry.id);
-        set((s) => { s.recentFiles = list; });
-        return;
-      }
       try {
+        // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
+        // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
+        const isBinary = readFormatForFile(entry.name).kind === 'binary';
+        const content = isBinary ? null : await readFromRef(entry.ref);
+        const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
+        if (isBinary ? bytes === null : content === null) {
+          get().notify({ severity: 'error', messageKey: 'notifications.openFailed', detail: entry.name });
+          return;
+        }
         const parsed = await parseOpenedFile(
           { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
           labels,

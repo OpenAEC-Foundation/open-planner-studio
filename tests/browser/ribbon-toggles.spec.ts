@@ -1,7 +1,7 @@
 // Karakterisering van de gedeelde `use`-fabrieken in ribbonConfig: een gepersisteerde aan/uit-
 // knop (Beeld → spelingsband) wisselt de vlag én bewaart hem, en een knop die alleen UI-state zet
 // (Instellingen → Projectinfo) opent zijn dialoog — telkens opnieuw, ook na sluiten. Vooraf: het
-// muiswiel boven de tabs wisselt van tab (#688), boven de knoppen niet, en de instelling zet het uit.
+// muiswiel boven het lint wisselt van tab (#688), een horizontale veeg niet, en de instelling zet het uit.
 // Echte klikken en echte wielgebeurtenissen; de storebrug leest alleen de uitkomst.
 import { expect, seedProject, test } from './fixtures/ops';
 import { box, chooseLocale, LOCALE_CASES } from './fixtures/locale';
@@ -10,15 +10,15 @@ import type { Page } from '@playwright/test';
 const activeTab = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab);
 
 /** Eén wielklik (100 px, Chromium) met de muis boven het midden van `selector`. */
-async function wheelOver(page: Page, selector: string, deltaY: number): Promise<void> {
+async function wheelOver(page: Page, selector: string, deltaY: number, deltaX = 0): Promise<void> {
   const box = await page.locator(selector).first().boundingBox();
   if (!box) throw new Error(`${selector} niet zichtbaar`);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, deltaY);
+  await page.mouse.wheel(deltaX, deltaY);
 }
 
 test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart, UI-actieknop opent zijn dialoog herhaald', async ({ page, ops: _ops }) => {
-  // #688: wiel boven de tabrij. Omlaag = volgende tab, omhoog = vorige; bij Start stopt het
+  // #688: wiel boven het lint (tabrij en knoppen). Omlaag = volgende tab, omhoog = vorige; bij Start stopt het
   // (Bestand doet niet mee). Het wiel boven de lege rij zelf telt ook: de hele rij is het doel.
   expect(await activeTab(page)).toBe('start');
   await wheelOver(page, '.ribbon-tab[data-ops-ribbon-tab="resources"]', 100);
@@ -28,10 +28,25 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await wheelOver(page, '.ribbon-tabs', -100);
   await page.waitForTimeout(100);
   expect(await activeTab(page)).toBe('start');
-  // Boven de knoppen van het lint wisselt het wiel niet.
+  // Boven de knoppen van het lint wisselt het wiel ook: de hele lint is het doel.
   await wheelOver(page, '.ribbon-content', 100);
-  await page.waitForTimeout(100);
-  expect(await activeTab(page)).toBe('start');
+  await expect.poll(() => activeTab(page)).toBe('planning');
+  await wheelOver(page, '.ribbon-content', -100);
+  await expect.poll(() => activeTab(page)).toBe('start');
+  // Een vooral horizontale veeg (touchpad) wisselt geen tab en blijft van de browser: een smal
+  // lint scrolt er zijn verborgen knoppen mee in beeld. Planning is breed genoeg om te overlopen.
+  const size = page.viewportSize()!;
+  await page.locator('[data-ops-ribbon-tab="planning"]').click();
+  await page.setViewportSize({ width: 480, height: size.height });
+  const scroller = page.locator('.ribbon-content-scroll');
+  await expect.poll(() => scroller.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await scroller.evaluate(el => el.scrollLeft)).toBe(0);
+  await wheelOver(page, '.ribbon-content', 60, 150);
+  await expect.poll(() => scroller.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+  expect(await activeTab(page)).toBe('planning');
+  await page.setViewportSize(size);
+  await page.locator('[data-ops-ribbon-tab="start"]').click();
+  await expect.poll(() => activeTab(page)).toBe('start');
 
   // Een getypte, nog niet bevestigde waarde blijft bewaard, net als bij een klik op een tab:
   // Tabel → duur typen → wiel omlaag → IFC (daar verdwijnt het eigenschappenpaneel).
@@ -93,7 +108,7 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
 
 test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mijlpaal toe', async ({ page, ops: _ops }) => {
   const before = await page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
-  await page.getByRole('button', { name: /^(Milestone|Mijlpaal) ▾$/ }).first().click();
+  await page.getByRole('button', { name: /^(Milestone|Mijlpaal)$/ }).click();
   await page.getByRole('button', { name: /^(Start milestone|Startmijlpaal)$/ }).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(before + 1);
   const added = await page.evaluate(() => {

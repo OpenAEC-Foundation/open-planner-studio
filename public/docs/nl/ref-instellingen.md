@@ -32,7 +32,7 @@ Een wijziging werkt direct. Er is geen knop *Toepassen* en geen *Annuleren*.
 
 **Documentwissel-stijl** — hoe je wisselt tussen geopende projecten. Keuze uit *Horizontale tabbladen*, *Verticale tabbladen* en *Pil*. Standaard: *Horizontale tabbladen*. Effect: bij *Horizontale tabbladen* staat een tabbalk onder het lint; bij *Verticale tabbladen* een projectbalk links; bij *Pil* een kleine projectknop in de titelbalk. Waar: *Weergave*.
 
-**Van tab wisselen met het muiswiel** — of het muiswiel boven de tabbladen van het lint van tabblad wisselt. Standaard: aan. Effect: aan laat wiel omlaag naar het volgende tabblad gaan en wiel omhoog naar het vorige. Uit laat het wiel daar niets doen. Waar: *Weergave*, onder *Lint*. Zie [Lint per tabblad](docs://ref-lint).
+**Van tab wisselen met het muiswiel** — of het muiswiel boven het lint (tabbladen en knoppen) van tabblad wisselt. Standaard: aan. Effect: aan laat wiel omlaag naar het volgende tabblad gaan en wiel omhoog naar het vorige. Uit laat het wiel daar niets doen. Waar: *Weergave*, onder *Lint*. Zie [Lint per tabblad](docs://ref-lint).
 
 ### Onderdeel Gantt
 

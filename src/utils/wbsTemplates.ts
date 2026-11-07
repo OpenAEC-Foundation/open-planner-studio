@@ -2,6 +2,7 @@ import type { Task } from '@/types/task';
 import { collectSubtreeIds } from '@/state/taskTree';
 import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 
 /**
  * WBS-templates (Asta "task pools"-model): een herbruikbare tak —
@@ -55,6 +56,7 @@ export function listWbsTemplates(): WbsTemplate[] {
 function persist(templates: WbsTemplate[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+    noteSiteHostSettingChanged(STORAGE_KEY); // ingebed ook bij de host bewaren (#818)
   } catch { /* quota/privémodus — sjabloon gaat dan niet verloren uit de UI-flow, alleen niet bewaard */ }
 }
 

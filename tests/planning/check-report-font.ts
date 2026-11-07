@@ -1,0 +1,256 @@
+/**
+ * De rapportletter als parameter, met terugval op Inter (issue #770) — regressiebatterij.
+ *
+ * ACHTERGROND. De rapporten (Gantt-afdruk, resourcediagram, tabelrapporten) tekenden altijd met het
+ * gevendorde Inter: de fontstack stond vast in `printPreview.ts` en `pdfTable.ts`, en de vector-
+ * pagineerder kende alleen de Inter-bytes. Voor een keuze van de rapportletter (#770) moet de stack
+ * een parameter worden, en de vector-PDF moet een letter aankunnen die een teken mist dat Inter wél
+ * heeft. Zonder terugval gooit de pagineerder dan `VectorUnsupportedError` en valt de HELE PDF terug
+ * op raster (geen selecteerbare tekst meer) — al om één `≤` of één Cyrillische taaknaam.
+ *
+ * Deze check bewaakt:
+ *   A. de fontstack: zonder optie exact de oude Inter-stack (dus een bestaand rapport tekent als
+ *      voorheen), mét optie overal de gegeven stack — in de Gantt-render, de tabel- en
+ *      sectierapporten en de meethulpen van het paneel (meten en tekenen op dezelfde letter);
+ *   B. de vector-pagineerder, headless met de echte TTF's: een letter zonder Cyrillisch faalt zonder
+ *      terugval, en slaagt mét terugval doordat alleen de ontbrekende tekens uit Inter komen; met
+ *      Inter als rapportletter verandert er niets, ook niet als de terugval meegegeven wordt.
+ *
+ * Testletter: Noto Sans Arabic uit de repo, als "rapportletter" die alleen cijfers en leestekens
+ * dekt — geen Latijnse letters, geen Cyrillisch, geen `≤`. Zo komt in één tekst een deel uit de
+ * rapportletter en een deel uit Inter. (Space Grotesk uit `docs/branding/` kan niet: pdf-lib leest bij
+ * volledig inbedden de breedte van élke glyph, en het lege laatste glyph van dat bestand laat de
+ * fontkit-parser vastlopen. Elk lettertype dat de app meelevert, moet daarom die leestest doorstaan.)
+ */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  PDFDocument, PDFDict, PDFName, PDFRawStream, PDFArray, PDFRef, decodePDFRawStream,
+} from 'pdf-lib';
+import {
+  renderReport, measureTableColumnWidths, buildPrintRows, nameCellFont, tableTextFont, curveCellFont,
+  type PrintOptions,
+} from '@/services/print/printPreview';
+import { makeSectionedRenderReport, makeTableRenderReport, type PdfSectionedReportSpec } from '@/services/pdf/pdfTable';
+import { paginateVectorToPdfBytes, VectorUnsupportedError, type ReportFontBytes } from '@/services/print/paginateVector';
+import { DEFAULT_REPORT_FONT_STACK } from '@/services/pdf/reportFont';
+import { readIFC } from '@/services/ifc/ifcReader';
+import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+let failures = 0;
+const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
+const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
+
+/** De stack zoals die vóór #770 letterlijk in `printPreview.ts` en `pdfTable.ts` stond. */
+const OLD_STACK = 'InterPDF, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const PROEF_STACK = '"ProefPDF", InterPDF, sans-serif';
+
+// ── Opnemende Draw2D: legt per fillText de actieve `font` vast ─────────────────────────────────
+function recorder(): { d2d: Draw2D; fonts: string[] } {
+  const fonts: string[] = [];
+  const st = { font: '10px x', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left' as TextAlign, textBaseline: 'alphabetic' as TextBaseline };
+  const d2d: Draw2D = {
+    get font() { return st.font; }, set font(v) { st.font = v; },
+    get fillStyle() { return st.fillStyle; }, set fillStyle(v) { st.fillStyle = v; },
+    get strokeStyle() { return st.strokeStyle; }, set strokeStyle(v) { st.strokeStyle = v; },
+    get lineWidth() { return st.lineWidth; }, set lineWidth(v) { st.lineWidth = v; },
+    get textAlign() { return st.textAlign; }, set textAlign(v) { st.textAlign = v; },
+    get textBaseline() { return st.textBaseline; }, set textBaseline(v) { st.textBaseline = v; },
+    setLineDash() {}, fillRect() {}, strokeRect() {}, beginPath() {}, moveTo() {}, lineTo() {},
+    closePath() {}, fill() {}, stroke() {}, roundRect() {},
+    fillText() { fonts.push(st.font); },
+    measureText(t: string) { return { width: t.length * 6 }; },
+  };
+  return { d2d, fonts };
+}
+
+/** Elke opgenomen font-string is `[bold ]<n>px <stack>` met precies deze stack. */
+function allOnStack(fonts: string[], stack: string): string | undefined {
+  const re = /^(bold )?\d+(\.\d+)?px /;
+  return fonts.find(f => !re.test(f) || f.replace(re, '') !== stack);
+}
+
+// ── Fixture: het echte voorbeeldproject ────────────────────────────────────────────────────────
+const project = readIFC(readFileSync(join(ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8'));
+const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
+  showCritical: true, showFloat: true, showDeps: true, showWeekends: true, showLegend: true,
+  showTaskNames: true, showCompletion: true, autoFit: true, customZoom: 22,
+  paperSize: 'A3', orientation: 'landscape', companyName: 'Bouwbedrijf',
+  locale: 'nl', calendars: [project.calendar], resources: project.resources, assignments: project.assignments,
+  projectStartDate: project.project.startDate, projectEndDate: project.project.endDate,
+  ...over,
+});
+const renderGantt = (make: (w: number, h: number) => Draw2D, over: Partial<PrintOptions> = {}, footerLayoutWidth?: number) =>
+  renderReport(make, project.tasks, project.sequences, project.calendar, project.project.name, baseOptions({ ...over, footerLayoutWidth }));
+
+const sectioned = (title: string): PdfSectionedReportSpec => ({
+  title,
+  subtitle: 'Near-critical: totale speling ≤ 5 werkdagen',
+  notes: ['Statusdatum ontbreekt'],
+  summary: [{ label: 'Taken', value: String(project.tasks.length) }, { label: 'Kritiek', value: '4' }],
+  kpis: [{ label: 'Gereed', value: '42%', detail: 'van het werk' }],
+  sections: [{
+    heading: 'Taken',
+    columns: [
+      { header: 'Naam', width: 200, align: 'left', text: (r: unknown) => (r as { n: string }).n },
+      { header: 'Speling (wd)', width: 70, align: 'right', text: () => '0', bold: () => true },
+    ],
+    rows: project.tasks.slice(0, 12).map(t => ({ n: t.name })),
+  }],
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('── A. fontstack als parameter');
+{
+  ok(DEFAULT_REPORT_FONT_STACK === OLD_STACK, `A0 standaardstack gewijzigd: ${DEFAULT_REPORT_FONT_STACK}`);
+
+  const def = recorder();
+  renderGantt(() => def.d2d);
+  ok(def.fonts.length > 50, `A1 Gantt tekende te weinig tekst (${def.fonts.length})`);
+  const offDef = allOnStack(def.fonts, OLD_STACK);
+  ok(offDef === undefined, `A1 Gantt zonder optie tekent niet op de oude Inter-stack: ${offDef}`);
+
+  const own = recorder();
+  renderGantt(() => own.d2d, { fontFamily: PROEF_STACK });
+  const offOwn = allOnStack(own.fonts, PROEF_STACK);
+  ok(offOwn === undefined, `A2 Gantt met fontFamily tekent niet overal op die stack: ${offOwn}`);
+  ok(own.fonts.length === def.fonts.length, `A2 Gantt met fontFamily tekent ander aantal teksten (${own.fonts.length} vs ${def.fonts.length})`);
+
+  const measured: string[] = [];
+  const measure = (text: string, font: string) => { measured.push(font); return text.length * 6; };
+  const sec = recorder();
+  makeSectionedRenderReport(sectioned('Kritiek pad'), measure, PROEF_STACK)(() => sec.d2d);
+  ok(sec.fonts.length > 20, `A3 sectierapport tekende te weinig tekst (${sec.fonts.length})`);
+  ok(allOnStack(sec.fonts, PROEF_STACK) === undefined, `A3 sectierapport tekent niet overal op de stack: ${allOnStack(sec.fonts, PROEF_STACK)}`);
+  ok(measured.length > 0 && allOnStack(measured, PROEF_STACK) === undefined, `A3 kolomkoppen niet gemeten op de stack: ${allOnStack(measured, PROEF_STACK)}`);
+
+  const secDef = recorder();
+  makeSectionedRenderReport(sectioned('Kritiek pad'))(() => secDef.d2d);
+  ok(allOnStack(secDef.fonts, OLD_STACK) === undefined, `A3 sectierapport zonder stack niet op Inter: ${allOnStack(secDef.fonts, OLD_STACK)}`);
+
+  measured.length = 0;
+  const tbl = recorder();
+  const s = sectioned('x').sections[0];
+  makeTableRenderReport({ title: 'Mijlpalen', columns: s.columns, rows: s.rows }, measure, PROEF_STACK)(() => tbl.d2d);
+  ok(allOnStack(tbl.fonts, PROEF_STACK) === undefined, `A4 tabelrapport tekent niet overal op de stack: ${allOnStack(tbl.fonts, PROEF_STACK)}`);
+  ok(measured.length > 0 && allOnStack(measured, PROEF_STACK) === undefined, `A4 tabelkoppen niet gemeten op de stack`);
+
+  measured.length = 0;
+  measureTableColumnWidths(buildPrintRows(project.tasks, undefined), { showCompletion: true, fontFamily: PROEF_STACK }, measure);
+  ok(measured.length > 0 && allOnStack(measured, PROEF_STACK) === undefined, `A5 kolommeting niet op de stack: ${allOnStack(measured, PROEF_STACK)}`);
+  measured.length = 0;
+  measureTableColumnWidths(buildPrintRows(project.tasks, undefined), { showCompletion: true }, measure);
+  ok(allOnStack(measured, OLD_STACK) === undefined, `A5 kolommeting zonder stack niet op Inter`);
+
+  ok(nameCellFont(true) === `bold 9px ${OLD_STACK}` && nameCellFont(false, PROEF_STACK) === `9px ${PROEF_STACK}`, 'A6 nameCellFont');
+  ok(tableTextFont(false) === `8px ${OLD_STACK}` && tableTextFont(true, PROEF_STACK) === `bold 9px ${PROEF_STACK}`, 'A6 tableTextFont');
+  ok(curveCellFont(true, PROEF_STACK) === `bold 9px ${PROEF_STACK}`, 'A6 curveCellFont');
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+console.log('── B. vector-pagineerder met een andere rapportletter');
+
+const ttf = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
+const INTER: ReportFontBytes = { regular: ttf('src/services/pdf/fonts/Inter-Regular.ttf'), bold: ttf('src/services/pdf/fonts/Inter-Bold.ttf') };
+const ARABIC: ReportFontBytes = { regular: ttf('src/services/pdf/fonts/NotoSansArabic-Regular.ttf'), bold: ttf('src/services/pdf/fonts/NotoSansArabic-Bold.ttf') };
+/** De testletter (zie de kop): dekt cijfers, spatie en leestekens, geen letters. */
+const SMAL = ARABIC;
+
+/** Identiteits-subsetter: het volle font is een geldige "subset" met dezelfde glyph-id's. Telt de aanroepen. */
+const subsetCalls: number[][] = [];
+const subsetFont = async (bytes: Uint8Array, cps: Iterable<number>) => { subsetCalls.push([...cps]); return bytes; };
+
+/** BaseFont-namen van de Type0-fonts in een PDF, plus de (gedecodeerde) content stream van pagina 1. */
+async function inspect(pdf: Uint8Array): Promise<{ fonts: string[]; page1: string; pages: number }> {
+  const doc = await PDFDocument.load(pdf);
+  const fonts: string[] = [];
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) {
+      fonts.push(String(obj.get(PDFName.of('BaseFont'))));
+    }
+  }
+  const contents = doc.getPage(0).node.Contents();
+  const refs = contents instanceof PDFArray ? contents.asArray() : [contents];
+  let page1 = '';
+  for (const r of refs) {
+    const stream = r instanceof PDFRef ? doc.context.lookup(r) : r;
+    if (stream instanceof PDFRawStream) page1 += Buffer.from(decodePDFRawStream(stream).decode()).toString('latin1');
+  }
+  return { fonts: fonts.sort(), page1, pages: doc.getPageCount() };
+}
+
+const tableOpts = { paperSize: 'a4' as const, orientation: 'portrait' as const, mode: 'fit-width' as const, subsetFont };
+const CYRILLIC_TITLE = 'Фундамент — график';
+
+{
+  // B1. Inter, geen terugval: zoals vóór #770 — vector, alleen de twee Inter-gewichten, geen subset.
+  subsetCalls.length = 0;
+  const pdf = await paginateVectorToPdfBytes(makeSectionedRenderReport(sectioned(CYRILLIC_TITLE)), tableOpts, INTER, ARABIC);
+  const r = await inspect(pdf);
+  ok(r.fonts.length === 2 && r.fonts.every(f => f.includes('Inter')), `B1 Inter-rapport heeft andere fonts: ${r.fonts.join(', ')}`);
+  ok(subsetCalls.length === 0, `B1 Inter-rapport riep de subsetter aan (${subsetCalls.length}×)`);
+}
+{
+  // B2. De smalle letter zonder terugval: letters en Cyrillisch zijn ongedekt ⇒ de hele PDF zou raster worden.
+  let err: unknown;
+  try {
+    await paginateVectorToPdfBytes(makeSectionedRenderReport(sectioned(CYRILLIC_TITLE), undefined, PROEF_STACK), tableOpts, SMAL, ARABIC);
+  } catch (e) { err = e; }
+  ok(err instanceof VectorUnsupportedError, `B2 smalle letter zonder terugval gooide geen VectorUnsupportedError (${String(err)})`);
+  if (err instanceof VectorUnsupportedError) {
+    ok(err.codepoints.includes(0x0424) && err.codepoints.includes(0x2264), `B2 'Ф' of '≤' staat niet bij de ongedekte tekens: ${err.codepoints.join(',')}`);
+  }
+}
+{
+  // B3. De smalle letter mét terugval op Inter: vector; alleen de ontbrekende tekens komen uit Inter.
+  subsetCalls.length = 0;
+  const pdf = await paginateVectorToPdfBytes(
+    makeSectionedRenderReport(sectioned(CYRILLIC_TITLE), undefined, PROEF_STACK),
+    { ...tableOpts, fallbackFonts: [{ id: 'inter', bytes: INTER }] }, SMAL, ARABIC,
+  );
+  const r = await inspect(pdf);
+  const smal = r.fonts.filter(f => f.includes('NotoSansArabic'));
+  const inter = r.fonts.filter(f => f.includes('Inter'));
+  ok(smal.length === 2 && inter.length === 2 && r.fonts.length === 4, `B3 verwachtte 2× de smalle letter + 2× Inter, kreeg: ${r.fonts.join(', ')}`);
+  ok(subsetCalls.length === 2, `B3 subsetter ${subsetCalls.length}× aangeroepen, verwachtte 2 (regular + bold)`);
+  const cps = new Set(subsetCalls[0] ?? []);
+  ok(cps.has(0x0424) && cps.has(0x2264) && cps.has(0x61), `B3 'Ф', '≤' of 'a' ontbreekt in de Inter-subset: ${[...cps].join(',')}`);
+  const ownChars = [...cps].filter(cp => cp === 0x20 || (cp >= 0x30 && cp <= 0x39));
+  ok(ownChars.length === 0, `B3 spatie/cijfers in de Inter-subset (horen bij de rapportletter): ${ownChars.join(',')}`);
+  ok(/\/F4 [\d.]+ Tf/.test(r.page1), 'B3 pagina 1 tekent niets met het terugvalfont F4');
+  ok(/\/F0 [\d.]+ Tf/.test(r.page1), 'B3 pagina 1 tekent niets met de rapportletter F0');
+}
+{
+  // B4. Inter mét (overbodige) terugval op Inter: niets verandert — geen extra font, geen subset.
+  subsetCalls.length = 0;
+  const pdf = await paginateVectorToPdfBytes(
+    makeSectionedRenderReport(sectioned(CYRILLIC_TITLE)),
+    { ...tableOpts, fallbackFonts: [{ id: 'inter', bytes: INTER }] }, INTER, ARABIC,
+  );
+  const r = await inspect(pdf);
+  ok(r.fonts.length === 2 && r.fonts.every(f => f.includes('Inter')), `B4 Inter + terugval heeft andere fonts: ${r.fonts.join(', ')}`);
+  ok(subsetCalls.length === 0, `B4 Inter + terugval riep de subsetter aan (${subsetCalls.length}×)`);
+}
+{
+  // B5. De Gantt-afdruk van het voorbeeldproject: met de smalle letter + terugval blijft hij vector en
+  // meerpagina, en tekent de render op de gegeven stack (dezelfde render als preview en raster).
+  const pdf = await paginateVectorToPdfBytes(
+    (make, footerLayoutWidth) => renderGantt(make, { fontFamily: PROEF_STACK }, footerLayoutWidth),
+    { paperSize: 'a4', orientation: 'landscape', mode: 'fit-width', repeatHeader: true, repeatFooter: true, subsetFont,
+      fallbackFonts: [{ id: 'inter', bytes: INTER }] },
+    SMAL, ARABIC,
+  );
+  const r = await inspect(pdf);
+  ok(r.pages >= 2, `B5 Gantt op A4 heeft maar ${r.pages} pagina('s)`);
+  ok(r.fonts.filter(f => f.includes('NotoSansArabic')).length === 2 && r.fonts.filter(f => f.includes('Inter')).length === 2,
+    `B5 Gantt heeft niet 2× de smalle letter + 2× Inter: ${r.fonts.join(', ')}`);
+}
+
+if (failures > 0) {
+  console.log(`XX check-report-font: ${failures} fout(en)`);
+  process.exit(1);
+}
+console.log('OK check-report-font: rapportletter als parameter + terugval op Inter');

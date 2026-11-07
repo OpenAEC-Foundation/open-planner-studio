@@ -184,7 +184,7 @@ for (const locale of LOCALE_CASES) {
       s.updateTask(s.tasks[0].id, { name: 'Grondwerk (gewijzigd)' });
     });
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(true);
-    const hint = page.getByTestId('gantt-histogram').getByText(/⚠/);
+    const hint = page.getByTestId('gantt-histogram').locator('[data-ops-histogram-stale-hint]');
     await expect(hint).toBeVisible();
     const hintBox = await box(hint);
     expect(hintBox.left).toBeGreaterThanOrEqual(timeline.left);

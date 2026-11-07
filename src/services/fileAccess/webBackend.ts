@@ -300,29 +300,25 @@ export async function saveToRefWithoutPromptWeb(ref: FileRef, content: string): 
  * Gedeelde permissie-dans voor een leesactie op een handle, voor `readFromRefWeb`/
  * `readBytesFromRefWeb`. Die verschillen alleen in hoe ze de uiteindelijke `File` naar het
  * resultaat vertalen (`.text()` vs. `new Uint8Array(await .arrayBuffer())`). `extract`
- * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission, try/catch → `null`)
+ * draagt dat verschil; de rest (kind-guard, queryPermission/requestPermission en lezen)
  * blijft één plek.
  *
  * Geen `openViaInput`-terugval hier: een handle-ref komt uit "recente bestanden" en `<input
  * type=file>` levert geen handle op om te heronthouden — een nieuwe kiezer zou een compleet
  * andere UX zijn dan "dit recente bestand heropenen". In een omgeving die FSA-reads blokkeert
  * (zie `featurePolicyBlocksFSA`/`platformRefusesReads`) kan een handle-ref dus per definitie
- * nooit gelezen worden; de bestaande stille `null`-afhandeling (aanroepers verwijderen de entry
- * dan gewoon uit de recente-bestandenlijst) is voor dát geval het juiste gedrag.
+ * nooit gelezen worden. Een weigering geeft `null`; een leesfout gaat met zijn reden naar de
+ * aanroeper, zodat Recent de bestaande foutmelding kan tonen zonder de entry te verwijderen.
  */
 async function readRefWeb<T>(ref: FileRef, extract: (file: File) => Promise<T>): Promise<T | null> {
   if (ref.kind !== 'handle') return null;
   const { handle } = ref;
   const opts: FileSystemHandlePermissionDescriptor = { mode: 'read' };
-  try {
-    if ((await handle.queryPermission?.(opts)) !== 'granted') {
-      if ((await handle.requestPermission?.(opts)) !== 'granted') return null;
-    }
-    const file = await handle.getFile();
-    return await extract(file);
-  } catch {
-    return null;
+  if ((await handle.queryPermission?.(opts)) !== 'granted') {
+    if ((await handle.requestPermission?.(opts)) !== 'granted') return null;
   }
+  const file = await handle.getFile();
+  return extract(file);
 }
 
 export function readFromRefWeb(ref: FileRef): Promise<string | null> {
