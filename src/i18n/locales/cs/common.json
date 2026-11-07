@@ -457,6 +457,8 @@
     "experimentalHide": "Skrýt",
     "demoTopbarAnimation": "Demo: animace v horní liště",
     "demoTopbarAnimationHint": "Jemný oranžový lesk přes horní lištu. Ukazuje, jak funguje experimentální přepínač.",
+    "lintIconenAccent": "Ikony pásu karet s oranžovým akcentem",
+    "lintIconenAccentHint": "Úkol dostane stejné plus jako Nový zdroj. Vyrovnat a Zrušit vyrovnání dostanou oranžovou část.",
     "tourHint": "Projděte si znovu úvodní prohlídku aplikace.",
     "theme": "Motiv",
     "themeHint": "Barevné schéma rozhraní.",

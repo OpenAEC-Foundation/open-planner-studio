@@ -337,6 +337,8 @@
     "experimentalHide": "Dölj",
     "demoTopbarAnimation": "Demo: animation i övre fältet",
     "demoTopbarAnimationHint": "En lugn orange glansvåg över det övre fältet. Visar hur en experimentell brytare fungerar.",
+    "lintIconenAccent": "Menyfliksikoner med orange accent",
+    "lintIconenAccentHint": "Uppgift får samma plus som Ny resurs. Utjämna och Ta bort utjämning får en orange del.",
     "tourHint": "Gå igenom appens introduktionsrundtur igen.",
     "theme": "Tema",
     "themeHint": "Gränssnittets färgschema.",

@@ -397,6 +397,8 @@
     "experimentalHide": "Ocultar",
     "demoTopbarAnimation": "Demo: animação no topo",
     "demoTopbarAnimationHint": "Um brilho laranja suave que percorre a barra superior. Mostra como funciona um interruptor experimental.",
+    "lintIconenAccent": "Ícones da faixa com destaque laranja",
+    "lintIconenAccentHint": "Tarefa recebe o mesmo sinal de mais que Novo recurso. Nivelar e Limpar nivelamento recebem uma parte laranja.",
     "tourHint": "Repita o tour introdutório da aplicação.",
     "theme": "Tema",
     "themeHint": "O esquema de cores da interface.",

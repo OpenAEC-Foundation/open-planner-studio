@@ -397,6 +397,8 @@
     "experimentalHide": "Ascundere",
     "demoTopbarAnimation": "Demo: animație în antet",
     "demoTopbarAnimationHint": "Un val luminos, portocaliu și discret, peste antet. Arată cum funcționează un comutator experimental.",
+    "lintIconenAccent": "Pictograme din panglică cu accent portocaliu",
+    "lintIconenAccentHint": "Activitate primește același plus ca Resursă nouă. Redistribuire și Ștergere redistribuire primesc o parte portocalie.",
     "tourHint": "Parcurgeți din nou turul de introducere al aplicației.",
     "theme": "Temă",
     "themeHint": "Schema de culori a interfeței.",

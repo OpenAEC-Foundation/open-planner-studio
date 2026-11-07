@@ -10,6 +10,7 @@ import { hasLevelingOutput } from '@/utils/taskDefaults';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import type { RibbonTab, UIState } from '@/state/slices/types';
 import { BaselineOverlaySplitButton } from './BaselineOverlaySplitButton';
+import { RibbonAccentIcon } from './RibbonAccentIcon';
 import {
   BaselinesProgressGroupContent, MilestoneDropdown, RelationDropdown, TemplatesDropdown, RecentFilesDropdown,
   ScreenColorsPopoverButton,
@@ -117,7 +118,7 @@ const calcButton: RibbonButtonSpec = {
 
 /** Taak-toevoegen-knop (start + table). */
 const addTaskButton: RibbonButtonSpec = {
-  kind: 'button', id: 'addTask', icon: <Icon id="task.add" size={24} />, labelKey: 'menu:ribbon.task',
+  kind: 'button', id: 'addTask', icon: <RibbonAccentIcon id="task.add" size={24} />, labelKey: 'menu:ribbon.task',
   use: () => {
     const { t } = useTranslation('task');
     const { t: tMenu } = useTranslation('menu');
@@ -625,11 +626,11 @@ const resourcesTab: RibbonTabConfig = [
     id: 'leveling', labelKey: 'menu:ribbon.leveling',
     items: [
       {
-        kind: 'button', id: 'levelResources', icon: <Icon id="resource.level" size={24} />, labelKey: 'menu:ribbon.levelResourcesDialog',
+        kind: 'button', id: 'levelResources', icon: <RibbonAccentIcon id="resource.level" size={24} />, labelKey: 'menu:ribbon.levelResourcesDialog',
         use: uiAction({ showLevelingDialog: true }),
       },
       {
-        kind: 'button', id: 'clearLeveling', icon: <Icon id="resource.clear-level" size={24} />, labelKey: 'menu:ribbon.clearLeveling',
+        kind: 'button', id: 'clearLeveling', icon: <RibbonAccentIcon id="resource.clear-level" size={24} />, labelKey: 'menu:ribbon.clearLeveling',
         use: () => {
           const clearLeveling = useAppStore(s => s.clearLeveling);
           // Houd deze conditie LETTERLIJK gelijk aan de no-op-guard in

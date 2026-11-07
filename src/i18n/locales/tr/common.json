@@ -337,6 +337,8 @@
     "experimentalHide": "Gizleyin",
     "demoTopbarAnimation": "Demo: üst çubukta animasyon",
     "demoTopbarAnimationHint": "Üst çubukta yumuşak bir turuncu parlama. Deneysel bir anahtarın nasıl çalıştığını gösterir.",
+    "lintIconenAccent": "Turuncu vurgulu şerit simgeleri",
+    "lintIconenAccentHint": "Görev, Yeni kaynak ile aynı artı işaretini alır. Dengele ve Dengelemeyi temizle turuncu bir parça alır.",
     "tourHint": "Uygulamanın tanıtım turunu tekrar yapın.",
     "theme": "Tema",
     "themeHint": "Arayüzün renk şeması.",

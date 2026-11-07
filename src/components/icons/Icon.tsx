@@ -29,16 +29,19 @@ export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children'
   /** Accent uitzetten: alles in `currentColor` (Style Repo `oa-icon--mono`). */
   mono?: boolean;
   title?: string;
+  /** Andere tekening voor dit id, alleen voor een tijdelijk voorstel achter een feature flag
+   *  (`ribbonAccentIcons.ts`). Zonder: de tekening uit de Blueprint. */
+  drawing?: Pick<IconDef, 's16' | 's24'>;
 }
 
-function masterFor(id: IconId, size: number): IconMaster {
-  const def = ICONS[id];
+function masterFor(id: IconId, size: number, drawing?: Pick<IconDef, 's16' | 's24'>): IconMaster {
+  const def = drawing ?? ICONS[id];
   return size <= 18 ? applyDockProposal(id, 16, def.s16) : applyDockProposal(id, 24, def.s24);
 }
 
-export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
+export function Icon({ id, size = 16, mono = false, className, style, title, drawing, ...rest }: IconProps) {
   const def = ICONS[id];
-  const master = masterFor(id, size);
+  const master = masterFor(id, size, drawing);
   const box = size <= 18 ? 16 : 24;
   const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
   // Geeft de plek zelf een tekstkleur op, dan gaat die voor op de statuskleur van het icoon.
@@ -66,7 +69,7 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
             <g className="oa-icon__m24">{renderParts(master)}</g>
             {/* De 16 px-master op het 24-raster (×1,5). `icons.css` toont hem waar het lint een groot icoon
                 op 16 px zet (mini-stand, ingeklapt lint); dan staat hij op ware grootte en blijft hij scherp. */}
-            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(applyDockProposal(id, 16, def.s16))}</g>
+            <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(masterFor(id, 16, drawing))}</g>
           </>
         )}
     </svg>

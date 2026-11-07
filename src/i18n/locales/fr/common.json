@@ -397,6 +397,8 @@
     "experimentalHide": "Masquer",
     "demoTopbarAnimation": "Démo : animation du bandeau",
     "demoTopbarAnimationHint": "Une douce vague lumineuse orange traverse le bandeau supérieur. Montre le fonctionnement d'un interrupteur expérimental.",
+    "lintIconenAccent": "Icônes du ruban avec accent orange",
+    "lintIconenAccentHint": "Tâche reçoit le même plus que Nouvelle ressource. Niveler et Effacer le nivellement reçoivent une partie orange.",
     "tourHint": "Refaites la visite guidée d'introduction de l'application.",
     "theme": "Thème",
     "themeHint": "Le schéma de couleurs de l'interface.",

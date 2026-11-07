@@ -429,6 +429,8 @@
     "experimentalHide": "Verbergen",
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
+    "lintIconenAccent": "Linticonen met oranje accent",
+    "lintIconenAccentHint": "Taak krijgt dezelfde plus als Nieuwe resource. Nivelleren en Nivellering wissen krijgen een oranje deel.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",

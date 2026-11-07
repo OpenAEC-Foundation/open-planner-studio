@@ -397,6 +397,8 @@
     "experimentalHide": "Sakrij",
     "demoTopbarAnimation": "Demo: animacija u gornjoj traci",
     "demoTopbarAnimationHint": "Nježan narančasti sjaj preko gornje trake. Pokazuje kako radi eksperimentalna sklopka.",
+    "lintIconenAccent": "Ikone vrpce s narančastim naglaskom",
+    "lintIconenAccentHint": "Zadatak dobiva isti plus kao Novi resurs. Razriješi i Ukloni uravnoteživanje dobivaju narančasti dio.",
     "tourHint": "Ponovno prođite uvodni obilazak aplikacije.",
     "theme": "Tema",
     "themeHint": "Shema boja sučelja.",

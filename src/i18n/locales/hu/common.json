@@ -337,6 +337,8 @@
     "experimentalHide": "Elrejtés",
     "demoTopbarAnimation": "Demó: animáció a felső sávban",
     "demoTopbarAnimationHint": "Egy finom narancssárga fényhullám fut végig a felső sávon. Megmutatja, hogyan működik egy kísérleti kapcsoló.",
+    "lintIconenAccent": "Szalagikonok narancssárga kiemeléssel",
+    "lintIconenAccentHint": "A Tevékenység ugyanazt a pluszt kapja, mint az Új erőforrás. A Kiegyenlítés és a Kiegyenlítés törlése narancssárga részt kap.",
     "tourHint": "Indítsa újra az alkalmazás bevezető bemutatóját.",
     "theme": "Téma",
     "themeHint": "A felület színsémája.",
