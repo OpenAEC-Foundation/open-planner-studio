@@ -23,7 +23,8 @@ const {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, splitDroppedFiles,
 } = await import('@/services/fileAccess/fileDrop');
 type DroppedFile = import('@/services/fileAccess/fileDrop').DroppedFile;
-const { openDroppedFiles, fileNameList, GATE_POLL_MS } = await import('@/state/fileDrop');
+const { openDroppedFiles, fileNameList } = await import('@/state/fileDrop');
+const { OPEN_WAIT_POLL_MS } = await import('@/state/slices/fileSlice');
 const { isBlockingDialogOpen } = await import('@/state/blockingDialogs');
 const { useAppStore } = await import('@/state/appStore');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
@@ -224,7 +225,7 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   const done = openDroppedFiles(useAppStore, [slow], labels, () => isBlockingDialogOpen(S().ui));
   S().setUI({ showTaskDialog: true, editingTaskId: taskId });
   release();
-  await sleep(GATE_POLL_MS * 3);
+  await sleep(OPEN_WAIT_POLL_MS * 3);
   check(S().documents.length === before && S().activeDocumentId === activeBefore
     && S().ui.showTaskDialog && S().ui.editingTaskId === taskId,
   'dialoog geopend tijdens het lezen: geen documentwissel, de dialoog blijft open met zijn taak');
@@ -241,13 +242,39 @@ check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '
   const before = S().documents.length;
   const done = openDroppedFiles(useAppStore, [dropFile('een.csv', csvB), dropFile('twee.csv', csvB)], labels, () => false);
   await until(() => S().ui.pendingFormatNotice !== null, 'de uitleg van het eerste bestand');
-  await sleep(GATE_POLL_MS * 3);
+  await sleep(OPEN_WAIT_POLL_MS * 3);
   check(S().documents.length === before + 1 && S().ui.pendingFormatNotice === 'csv',
     `eerste CSV open met zijn uitleg; de tweede wacht (${before} → ${S().documents.length})`);
   closeFormatNotice();
   await done;
   check(S().documents.length === before + 2 && S().ui.pendingFormatNotice === 'csv',
     'na "Begrepen" opent de tweede CSV, met zijn eigen uitleg');
+  closeFormatNotice();
+}
+
+{
+  // Twee neerzettingen tegelijk, waarvan het lezen in dezelfde beurt klaar is (review ronde 2): de
+  // laatste controle en het activeren gebeuren in één synchrone stap, dus de tweede ziet de uitleg van
+  // de eerste en wacht. Met de controle in een aparte `await` vóór het activeren gingen beide door.
+  clearNotices();
+  closeFormatNotice();
+  const before = S().documents.length;
+  const releases: (() => void)[] = [];
+  const slowCsv = (name: string): DroppedFile => ({
+    name,
+    read: () => new Promise((resolve) => { releases.push(() => resolve({ name, content: csvB, ref: null })); }),
+  });
+  const first = openDroppedFiles(useAppStore, [slowCsv('een.csv')], labels, () => false);
+  const second = openDroppedFiles(useAppStore, [slowCsv('twee.csv')], labels, () => false);
+  for (const release of releases) release();
+  await until(() => S().documents.length > before, 'het eerste document');
+  await sleep(OPEN_WAIT_POLL_MS * 3);
+  check(S().documents.length === before + 1 && S().ui.pendingFormatNotice === 'csv',
+    `twee neerzettingen tegelijk: de tweede wacht op de uitleg van de eerste (${before} → ${S().documents.length})`);
+  closeFormatNotice();
+  await Promise.all([first, second]);
+  check(S().documents.length === before + 2 && S().ui.pendingFormatNotice === 'csv',
+    'twee neerzettingen tegelijk: na "Begrepen" opent de tweede, met zijn eigen uitleg');
   closeFormatNotice();
 }
 

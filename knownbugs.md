@@ -620,6 +620,14 @@ en noem het in je rapport of PR-tekst.
      macOS en Linux) zijn niet nagespeeld. Ook niet: een element dat tijdens het slepen uit de pagina
      verdwijnt en zo geen `dragleave` krijgt; de rusttijd van 1,5 s in `useFileDrop.ts` vangt dat op en is
      wel getest. Uit review ronde 1 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+902. **Bestanden slepen: dat getypte invoer in "Taak bewerken" blijft staan, is niet in de browser
+     bewezen.** Opent de planner "Taak bewerken" terwijl een gesleept bestand nog gelezen wordt, dan
+     wacht het document tot de dialoog dicht is (`waitWhile` in `openOpenedFile`). `check-file-drop.ts`
+     bewijst dat met de echte `isBlockingDialogOpen`: document, dialoogvlag en taak blijven staan. Hij
+     mount geen dialoog en typt geen tekst. De browserstap in `new-open-task-flow.spec.ts` toetst alleen
+     een dialoog die al vóór het neerzetten openstaat. Nodig: een browserstap met vertraagd lezen,
+     tussentijds "Taak bewerken" openen en tekst typen, en daarna die tekst controleren. Uit review ronde
+     2 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
 
 ## Kalenders
 

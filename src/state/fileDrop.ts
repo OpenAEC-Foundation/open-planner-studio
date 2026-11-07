@@ -10,10 +10,6 @@ import type { ImportLabels } from '@/services/importTypes';
 import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
 import { importFailureNotice, saveErrorDetail } from '@/state/slices/fileSlice';
 
-/** Hoe vaak het wachten vóór het activeren kijkt of de poort weer open is. De poort leest ook de
- *  dialoogstapel buiten de store (`isAnyDialogOpen`), dus een abonnement op de store is niet genoeg. */
-export const GATE_POLL_MS = 200;
-
 /** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
  *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
 export function fileNameList(names: readonly string[]): string {
@@ -64,10 +60,7 @@ export async function openDroppedFiles(
       replaceOnDedupe: true,
     });
   }
-  const mustWait = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
-  const beforeActivate = async () => {
-    while (mustWait()) await new Promise((resolve) => setTimeout(resolve, GATE_POLL_MS));
-  };
+  const waitWhile = () => isBlocked() || store.getState().ui.pendingFormatNotice !== null;
   for (const file of openable) {
     let opened;
     try {
@@ -78,6 +71,6 @@ export async function openDroppedFiles(
       continue;
     }
     // `openOpenedFile` meldt een leesfout van het formaat zelf en gooit niet.
-    await store.getState().openOpenedFile(opened, labels, { beforeActivate });
+    await store.getState().openOpenedFile(opened, labels, { waitWhile });
   }
 }
