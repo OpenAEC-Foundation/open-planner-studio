@@ -199,8 +199,12 @@ export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
  * zodat de meting in één layout-effect blijft en niets knippert. Knoppen in deze vormen doen niet
  * mee aan het per-knop verkleinen: de groep klapt als één stap in.
  *
- * `onHidden` sluit een open popover zodra de ingeklapte vorm verdwijnt (het venster werd breder),
- * anders bleef het paneel hangen bij een onzichtbare knop.
+ * Zolang de popover open is (`popoverOpen`), houdt de automaat de groep ingeklapt; een breder
+ * venster sluit het paneel dus niet midden in het typen. `onHidden` is het vangnet: verdwijnt de
+ * ingeklapte vorm toch (bijv. de handmatige inklapknop), dan sluit de popover in plaats van te
+ * blijven hangen bij een onzichtbare knop.
+ *
+ * `RibbonCollapsedTrigger` is de knop van de ingeklapte vorm.
  */
 export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
   full: React.ReactNode;
@@ -223,8 +227,41 @@ export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
   return (
     <>
       <div className="ribbon-collapse-full" data-ribbon-collapse-part="full">{full}</div>
-      <div ref={collapsedRef} data-ribbon-collapse-part="collapsed">{collapsed}</div>
+      <div
+        ref={collapsedRef}
+        data-ribbon-collapse-part="collapsed"
+        data-ribbon-popover-open={popoverOpen ? '' : undefined}
+      >
+        {collapsed}
+      </div>
     </>
+  );
+}
+
+/**
+ * Knop van een ingeklapte veldengroep: zoals de andere lintknoppen met een menu (Mijlpaal ▾) een
+ * groot icoon, het label en ▾. De automatische inpassing maakt hem pas klein als zelfs dat niet
+ * meer past. `title` mag meer zeggen dan het label (bijv. de ingevulde statusdatum).
+ */
+export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  open: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={open ? 'ribbon-btn active' : 'ribbon-btn'}
+      onClick={onClick}
+      title={title}
+      aria-label={label}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+    >
+      <span className="ribbon-btn-icon">{icon}</span>
+      <span className="ribbon-btn-label">{label}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+    </button>
   );
 }
 

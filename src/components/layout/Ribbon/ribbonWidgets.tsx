@@ -18,7 +18,7 @@ import { supportsRecentFiles } from '@/services/fileAccess';
 import { siteStorageAvailable } from '@/services/fileAccess/siteHost';
 import { DateTextInput } from '@/components/common/DateTextInput';
 import { TimeInput, TIME_STEP_MINUTES } from '@/components/common/TimeInput';
-import { useTimeNotation } from '@/hooks/displayDate';
+import { useDisplayDate, useTimeNotation } from '@/hooks/displayDate';
 import { formatClock, parseClock } from '@/utils/displayTime';
 import { statusDateMinutes, withStatusTime } from '@/utils/statusDateTime';
 import { isHourModeCalendar } from '@/types/calendar';
@@ -44,7 +44,7 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
-  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible,
+  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible, RibbonCollapsedTrigger,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
@@ -83,6 +83,7 @@ export function BaselinesProgressGroupContent() {
   // Tijdveld alleen als de solver de tijd van de statusdatum gebruikt: projectkalender in uur-modus
   // (besluit orkestrator 2026-10-19: toon wat de motor gebruikt). De schakelaar Urenplanning telt niet.
   const showTime = useAppStore(s => isHourModeCalendar(s.calendar));
+  const displayDate = useDisplayDate();
 
   const onManageBaselines = () => setUI({ showBaselineDialog: true });
 
@@ -153,14 +154,26 @@ export function BaselinesProgressGroupContent() {
         marginTop: 2, zIndex: 9999,
         padding: 8, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200,
       }}
-      trigger={
+      trigger={compact ? (
         <RibbonCompactTrigger
           icon={<Icon id="planning.progress-menu" size={16} />}
           title={tMenu('ribbon.baselines')}
           ariaLabel={tMenu('ribbon.baselines')}
           onClick={() => setOpen(o => !o)}
         />
-      }
+      ) : (
+        // Automatisch ingeklapt (smal venster): een grote knop zoals Mijlpaal ▾. De tooltip noemt
+        // de ingevulde statusdatum, zodat zichtbaar blijft wat er achter de knop staat.
+        <RibbonCollapsedTrigger
+          icon={<Icon id="planning.progress-menu" size={24} />}
+          label={tMenu('ribbon.baselines')}
+          title={statusDate
+            ? `${tMenu('ribbon.baselines')}\n${tMenu('ribbon.statusDateValue', { date: showTime ? displayDate.dateTime(statusDate) : displayDate.date(statusDate) })}`
+            : tMenu('ribbon.baselines')}
+          open={open}
+          onClick={() => setOpen(o => !o)}
+        />
+      )}
     >
       <button
         className="ribbon-btn small"

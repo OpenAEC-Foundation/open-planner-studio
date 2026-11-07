@@ -154,6 +154,7 @@
     "barsGroup": "Bare",
     "manageBaselines": "Gestionare referințe…",
     "statusDate": "Data raportului de stare",
+    "statusDateValue": "Data raportului de stare: {{date}}",
     "statusDateClear": "Golire data raportului de stare",
     "statusDateTime": "Ora datei raportului de stare",
     "statusDateTimeLater": "Ora mai târziu",

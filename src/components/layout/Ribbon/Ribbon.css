@@ -501,8 +501,8 @@
 
 /* Groep met invoervelden (RibbonCollapsible): beide vormen staan in de DOM, de automatische
    inpassing kiest er één met `data-ribbon-collapsed` op de groep. De volle vorm gedraagt zich als
-   de groepsinhoud zelf (rij met 2px tussenruimte); de ingeklapte vorm is één knop met popover,
-   naast het gedraaide groepslabel (de groep staat dan ook op `data-ribbon-fully-mini`). */
+   de groepsinhoud zelf (rij met 2px tussenruimte); de ingeklapte vorm is één grote knop met ▾ en
+   een popover. */
 .ribbon-collapse-full {
   display: flex;
   gap: 2px;
@@ -510,6 +510,12 @@
 }
 .ribbon-group:not([data-ribbon-collapsed]) [data-ribbon-collapse-part="collapsed"],
 .ribbon-group[data-ribbon-collapsed] [data-ribbon-collapse-part="full"] {
+  display: none;
+}
+/* Ingeklapt met een grote knop: die knop draagt de naam van de groep al (zoals in Office), dus
+   het groepslabel eronder vervalt. Wordt de knop zelf klein, dan staat de groep op
+   `data-ribbon-fully-mini` en komt het label gedraaid terug. */
+.ribbon-group[data-ribbon-collapsed]:not([data-ribbon-fully-mini]) .ribbon-group-label {
   display: none;
 }
 

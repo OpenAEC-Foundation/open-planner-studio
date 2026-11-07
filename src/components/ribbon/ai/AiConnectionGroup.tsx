@@ -6,7 +6,7 @@ import { loadMcpPort, saveMcpPort } from '@/utils/settingsStore';
 import { ensureMcpToken, regenerateAndApplyMcpToken } from '@/services/mcp/server';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { AiConnectionDetailsDialog } from '@/components/dialogs/AiConnectionDetailsDialog';
-import { RibbonButton, RibbonCollapsible, RibbonCompactTrigger } from '@/components/layout/Ribbon/ribbonPrimitives';
+import { RibbonButton, RibbonCollapsedTrigger, RibbonCollapsible, RibbonCompactTrigger } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { Popover } from '@/components/common/Popover';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
@@ -189,14 +189,22 @@ export function AiConnectionGroup() {
         marginTop: 2, zIndex: 9999,
         padding: 8, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 260,
       }}
-      trigger={
+      trigger={compact ? (
         <RibbonCompactTrigger
           icon={<Icon id="ai.connection-menu" size={16} />}
           title={t('ai.connectHint')}
           ariaLabel={t('ai.connect')}
           onClick={() => setPopoverOpen(o => !o)}
         />
-      }
+      ) : (
+        <RibbonCollapsedTrigger
+          icon={<Icon id="ai.connection-menu" size={24} />}
+          label={t('ai.connect')}
+          title={t('ai.connectHint')}
+          open={popoverOpen}
+          onClick={() => setPopoverOpen(o => !o)}
+        />
+      )}
     >
       {portControl}
       {tokenControl}

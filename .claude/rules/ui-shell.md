@@ -21,7 +21,7 @@ The shell is a Microsoft Office-style ribbon (`src/components/layout/Ribbon`) pl
 
 Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `instellingen`, `table`, `ifc`, `report`, `ai` — die laatste verschijnt alleen als `ui.aiMode` aan staat. Relatieacties staan als dropdown in de taakgroepen van Start, Planning en Tabel; er is geen afzonderlijk Relaties-tabblad.
 
-Bij een smal venster maakt `useRibbonAutoFit` (`Ribbon.tsx`) lintknoppen van rechts naar links mini. Een lintgroep met invoervelden gebruikt `RibbonCollapsible` (`ribbonPrimitives.tsx`): die klapt als geheel in tot één knop met popover, pas nadat alle gewone knoppen mini zijn. Animeer op `.ribbon-btn` geen maten; de automaat meet direct na het zetten van `data-ribbon-mini`.
+Bij een smal venster maakt `useRibbonAutoFit` (`Ribbon.tsx`) lintknoppen van rechts naar links mini. Een lintgroep met invoervelden gebruikt `RibbonCollapsible` (`ribbonPrimitives.tsx`): die klapt als geheel in tot één grote knop met ▾ en popover, nadat de knoppen buiten de eerste groep mini zijn en vóór de knoppen van de eerste groep (zoals Bereken). Daarna zoekt de automaat de knoppenstand opnieuw, zodat de vrije ruimte terug gaat naar labels. Een groep met de focus erin of een open popover blijft in zijn stand. Animeer op `.ribbon-btn` geen maten; de automaat meet direct na het zetten van `data-ribbon-mini`.
 
 Backstage-secties (`BackstageSection`): `recent`, `examples`, `export`, `import`, `print`, `project-info`, `settings`, `extensions`, `library`, `help` — waarvan `help` een compleet documentatiesubsysteem is (zie `.claude/rules/docs-help.md`).
 
