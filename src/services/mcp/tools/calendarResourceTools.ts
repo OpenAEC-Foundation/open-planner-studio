@@ -1126,7 +1126,7 @@ const updateCalendar: BatchStepTool = {
             generation: {
               type: ['object', 'null'],
               description:
-                'Provenance only, as read from planner_get_calendars; does NOT generate. Not with `generate`.',
+                'Provenance only, as read from planner_get_calendars; does NOT generate; null clears it. Not with `generate`.',
             },
             // De afgeleide leesvelden van get_calendars (`CAL_READONLY_KEYS`) staan bewust NIET in het schema: ze
             // zijn niet schrijfbaar. `items` heeft geen `additionalProperties: false`, dus een teruggestuurd object

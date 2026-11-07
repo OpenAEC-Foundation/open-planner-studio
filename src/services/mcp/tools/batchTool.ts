@@ -459,7 +459,7 @@ const batch: McpToolDef = {
           type: 'object',
           required: ['tool'],
           properties: {
-            tool: { type: 'string', description: 'Full name, e.g. planner_add_tasks.' },
+            tool: { type: 'string' },
             args: { type: 'object' },
           },
         },

@@ -143,7 +143,7 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_list_documents',
     description:
-      'Open documents (tabs) with id, project end and which is active; to compare variants. `title` is a ' +
+      'Open documents (tabs) with id, project end and which is active. `title` is a ' +
       'display title, not the project name. Only the active document is recalculated; others may be ' +
       '`scheduleStale`.',
     kind: 'document',

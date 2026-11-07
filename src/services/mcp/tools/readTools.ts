@@ -1080,7 +1080,7 @@ const FLOAT_UNIT_NOTE = 'Float is in working days of the task calendar, also on 
  *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. Zonder beide
  *  sleutels geeft `optionalPage` `null`, en de tool de hele lijst. */
 const optionalPageNote = (list: string): string =>
-  ` \`limit\` (integer 1–1000, default 50) and/or \`offset\` (integer ≥ 0) page \`${list}\`; omit both for all.`;
+  ` Page \`${list}\` with integer \`limit\` 1–1000 (default 50) and/or \`offset\` ≥ 0; neither = all.`;
 
 export const readTools: McpToolDef[] = [
   {
