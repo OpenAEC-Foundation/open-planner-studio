@@ -5,9 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp is herschreven na council-ronde 1 (Opus 6, Sol 6, Fable 7) en staat als versie 2 in draft PR #839.
-Ronde 2 van de council beoordeelt nu versie 2. Daarna volgen rondes tot elk lid een 9 geeft. Dan begint de bouw,
-met fase 0: een proef op echte bestanden.
+Het ontwerp staat als versie 3 in draft PR #839. Ronde 1 en 2 gaven allebei Opus 6, Sol 6, Fable 7; de
+leden vonden steeds dezelfde soort gaten, en die zijn in versie 3 verwerkt. Ronde 3 beoordeelt nu versie 3. Daarna volgen
+rondes tot elk lid een 9 geeft. Dan begint de bouw, met fase 0: een proef op echte bestanden.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -61,9 +61,10 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | Ronde | Opus 5.5 (xhigh) | GPT-6.1-Sol (xhigh) | Fable 5.1 (high) |
 |---|---|---|---|
 | 1 (v1) | 6 | 6 | 7 |
-| 2 (v2) | 6 | loopt | loopt |
+| 2 (v2) | 6 | 6 | 7 |
+| 3 (v3) | loopt | loopt | loopt |
 
-### Ronde 2 — Opus (6/10), te verwerken in v3
+### Ronde 2 — Opus (6/10) — verwerkt in v3 (Sol 6 en Fable 7 vonden grotendeels hetzelfde; zie spec §12)
 
 Blokkeert: (1) klasse-regels maken van elk eigen bestand een bestand met vreemd deel (writer schrijft OwnerHistory-keten,
 units, context, IfcProject, `IFCRELAGGREGATES` plan→schema, templates; die staan niet in de P-lijst) → afsluiting =
