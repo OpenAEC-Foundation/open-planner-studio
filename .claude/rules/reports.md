@@ -84,6 +84,12 @@ uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bunde
 Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
 `reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
 als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
-canvas-stack (`reportFontStack`: de letter, dan `InterPDF`), de DOM-stack van de tabelrapporten
-(`reportDomFontStack`, via `reportFontStyle` op de kaart) en de bytes (`getReportFontBytes`); laden
-via `ensureReportFontLoaded(id)`, dat nooit afwijst. Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.
+fontstack (`reportFontStack`: de letter, dan `InterPDF`; dezelfde stack voor het canvas en, via
+`reportFontStyle`, voor de DOM-kaarten van mijlpalen, variance en tabelrapporten) en de bytes
+(`getReportFontBytes`); laden via `ensureReportFontLoaded(id)`, dat nooit afwijst. `fontLoader.ts`
+registreert elke letter als CSS-`@font-face`-regel (een `<style data-ops-report-font>`), geen losse
+`FontFace`: de raster-terugval van de tabelrapporten is een DOM-opname met `modern-screenshot`, en die
+neemt alleen `@font-face`-regels uit de stylesheets mee. Een export wacht tot de naam-, curve- en
+datakolommen op de gekozen letter gemeten zijn (`measuredOnChosenFont` in `ReportPanel`): direct na
+een wissel staan er nog breedtes van de vorige letter, en dan kapt de PDF namen af die wel passen.
+Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.

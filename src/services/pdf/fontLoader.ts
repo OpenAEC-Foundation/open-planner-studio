@@ -7,7 +7,7 @@ import { REPORT_FONTS, type ReportFontId } from './reportFont';
  * `measureText` in de preview identiek aan de pdf-lib-vector-export, die dezelfde TTF-bytes inbedt.
  *
  * Welke letters er zijn en onder welke familienaam staat in `reportFont.ts` (issue #770); dit
- * bestand haalt alleen bytes op en registreert ze. Alles is browser-only (FontFace, fetch) — geen
+ * bestand haalt bytes op en registreert de letters. Alles is browser-only (`@font-face`, fetch) — geen
  * Tauri-imports; werkt in de web- én de desktop-build.
  */
 
@@ -33,8 +33,9 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 }
 
 /**
- * Cache per bestand van de Promise op de rauwe bytes (voor de PDF-embedding én de FontFace-
- * registratie). Een Promise en geen bytes: twee gelijktijdige aanvragen delen één download. Een
+ * Cache per bestand van de Promise op de rauwe bytes voor de PDF-embedding. (Het canvas en de DOM
+ * laden hetzelfde bestand via de `@font-face`-regel hieronder.) Een Promise en geen bytes: twee
+ * gelijktijdige aanvragen delen één download. Een
  * mislukte download gaat uit de cache, zodat een volgende poging opnieuw probeert.
  */
 const byteCache = new Map<string, Promise<Uint8Array>>();
@@ -69,7 +70,7 @@ export function getInterFontBytes(weight: 400 | 700): Promise<Uint8Array> {
  * ({@link file://./bidiShape.ts}) geshapt en als apart CID-font (naast de rapportletter) ingebed.
  * Statische glyf-TTF's met GSUB/GPOS (zie `fonts/README.md`).
  *
- * Deze functie levert alléén de bytes voor de PDF-embedding; ze registreert geen canvas-`FontFace`.
+ * Deze functie levert alléén de bytes voor de PDF-embedding; ze registreert geen `@font-face`.
  */
 export function getArabicFontBytes(weight: 400 | 700): Promise<Uint8Array> {
   return cachedBytes(weight === 700 ? 'NotoSansArabic-Bold.ttf' : 'NotoSansArabic-Regular.ttf');
@@ -77,32 +78,47 @@ export function getArabicFontBytes(weight: 400 | 700): Promise<Uint8Array> {
 
 const faceLoads = new Map<ReportFontId, Promise<void>>();
 
-/** Registreert één rapportletter (400 en 700) als `FontFace` onder zijn eigen familienaam. */
+/**
+ * Registreert één rapportletter (400 en 700) als CSS-`@font-face`-regel onder zijn eigen familienaam,
+ * met de URL van het gevendorde bestand, en laadt beide gewichten.
+ *
+ * WAAROM een CSS-regel en geen `new FontFace(bytes)` (review Sol #837, ronde 1): de raster-terugval
+ * van de tabelrapporten is een DOM-opname met `modern-screenshot`, en die neemt alleen
+ * `CSSFontFaceRule`s uit de stylesheets mee — geen `FontFace`-objecten uit `document.fonts`. Met een
+ * losse `FontFace` toonde de opname dus een andere letter dan de preview. Een CSS-regel staat ook in
+ * `document.fonts`, dus het canvas meet en tekent er net zo op.
+ */
 function ensureFaces(id: ReportFontId): Promise<void> {
   let pending = faceLoads.get(id);
   if (pending) return pending;
-  const { family } = REPORT_FONTS[id];
+  const { family, files } = REPORT_FONTS[id];
+  const style = document.createElement('style');
+  style.dataset.opsReportFont = id;
+  style.textContent = ([[files.regular, 400], [files.bold, 700]] as const).map(([file, weight]) => (
+    `@font-face { font-family: "${family}"; src: url("${fontUrl(file)}") format("truetype"); `
+    + `font-weight: ${weight}; font-style: normal; font-display: block; }`
+  )).join('\n');
+  document.head.appendChild(style);
   pending = (async () => {
-    const [regular, bold] = await Promise.all([getReportFontBytes(id, 400), getReportFontBytes(id, 700)]);
-    // FontFace kopieert de buffer; een view op de gecachte Uint8Array is prima als bron.
-    const regularFace = new FontFace(family, regular as BufferSource, { weight: '400', style: 'normal' });
-    const boldFace = new FontFace(family, bold as BufferSource, { weight: '700', style: 'normal' });
-    await Promise.all([regularFace.load(), boldFace.load()]);
-    document.fonts.add(regularFace);
-    document.fonts.add(boldFace);
-    await Promise.all([
+    const [regular, bold] = await Promise.all([
       document.fonts.load(`9px "${family}"`),
       document.fonts.load(`bold 9px "${family}"`),
     ]);
+    // `load` geeft de faces die geladen zijn; leeg = de regel deed niets (bestand niet gevonden).
+    if (regular.length === 0 || bold.length === 0) throw new Error(`Rapportletter '${id}' niet geladen`);
   })();
-  pending.catch(() => { faceLoads.delete(id); });
+  pending.catch(() => {
+    // Weg met de regel en de cache: een mislukte face laadt nooit meer, een volgende poging begint schoon.
+    faceLoads.delete(id);
+    style.remove();
+  });
   faceLoads.set(id, pending);
   return pending;
 }
 
 /**
  * Zorgt dat de gekozen rapportletter én Inter (de terugval in elke rapportstack, zie
- * `reportFontStack`) als `FontFace` geregistreerd en geladen zijn, zodat `ctx.measureText`/`fillText`
+ * `reportFontStack`) als `@font-face` geregistreerd en geladen zijn, zodat `ctx.measureText`/`fillText`
  * de juiste glyf-metrics gebruiken. Idempotent per letter. Wacht ook op `document.fonts.ready` —
  * anders meet/tekent de eerste render op terugval-metrics.
  *

@@ -12,7 +12,7 @@ import { computeHighResScale } from '@/utils/miniPdf';
 import { paginateCanvasToPdfBytes, type PaginateOptions } from '@/services/print/paginate';
 import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
 import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes } from '@/services/pdf/fontLoader';
-import { reportDomFontStack, reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
+import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
@@ -329,7 +329,9 @@ export function ReportPanel() {
   // raster- en vector-export, zodat die drie nooit een verschillende tabel tekenen.
   const [truncateTaskNames, setTruncateTaskNames] = useState(DEFAULT_REPORT_SETTINGS.truncateTaskNames);
   const [taskNameColumnWidth, setTaskNameColumnWidth] = useState(DEFAULT_REPORT_SETTINGS.taskNameColumnWidth);
-  const [autoNameColumnWidth, setAutoNameColumnWidth] = useState<number | undefined>(undefined);
+  // Elke meting onthoudt op welke rapportletter ze gedaan is; zie `measuredOnChosenFont`.
+  const [autoNameColumn, setAutoNameColumn] = useState<{ font: ReportFontId; width: number } | undefined>(undefined);
+  const autoNameColumnWidth = autoNameColumn?.width;
   const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
@@ -367,8 +369,6 @@ export function ReportPanel() {
   // niet uit elkaar kunnen lopen. Een voorkeur op dit apparaat; het IFC-bestand blijft gelijk.
   const [reportFontFamily, setReportFontFamily] = useState<ReportFontId>(DEFAULT_REPORT_SETTINGS.reportFontFamily);
   const reportFont = reportFontStack(reportFontFamily);
-  // De DOM-weergave (mijlpalen, afwijkingen, tabelrapporten) toont dezelfde letter; zie `reportDomFontStack`.
-  const reportDomFont = reportDomFontStack(reportFontFamily);
   // Statuslijn in de export: letterlijk drie opties (geen / statusdatumlijn / voortgangslijn).
   const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
   // Volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
@@ -549,12 +549,12 @@ export function ReportPanel() {
     void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setAutoNameColumnWidth(NAME_COLUMN_WIDTH_DEFAULT); return; }
+      if (!ctx) { setAutoNameColumn({ font: reportFontFamily, width: NAME_COLUMN_WIDTH_DEFAULT }); return; }
       const rows = buildPrintRows(tasks, reportRows);
-      setAutoNameColumnWidth(measureTaskNameColumnWidth(rows, (text, bold) => {
+      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => {
         ctx.font = nameCellFont(bold, reportFont);
         return ctx.measureText(text).width;
-      }));
+      }) });
     });
     return () => { cancelled = true; };
   }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont]);
@@ -562,30 +562,32 @@ export function ReportPanel() {
   // Curvekolom van het resourcediagram: zo breed als de langste curvenaam die dít rapport toont,
   // gemeten op de geladen rapportletter — om dezelfde reden hier en niet in de
   // printlaag als de naamkolom hierboven.
-  const [curveColumnWidth, setCurveColumnWidth] = useState<number | undefined>(undefined);
+  const [curveColumn, setCurveColumn] = useState<{ font: ReportFontId; width: number | undefined } | undefined>(undefined);
+  const curveColumnWidth = curveColumn?.width;
+  const curveColumnNeeded = reportType === 'resourceGantt' && !!resourceGantt && resourceGanttOptions.showAssignmentColumns;
   const curveHeaderLabel = t('tableHeaders.curve');
   useEffect(() => {
-    if (reportType !== 'resourceGantt' || !resourceGantt || !resourceGanttOptions.showAssignmentColumns) {
-      setCurveColumnWidth(undefined);
+    if (!curveColumnNeeded || !resourceGantt) {
+      setCurveColumn(undefined);
       return;
     }
     let cancelled = false;
     void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setCurveColumnWidth(undefined); return; }
+      if (!ctx) { setCurveColumn({ font: reportFontFamily, width: undefined }); return; }
       const cellLabels = new Set<string>();
       for (const a of resourceGantt.assignmentByRowKey.values()) {
         cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
       }
       const measure = (font: string) => (text: string) => { ctx.font = font; return ctx.measureText(text).width; };
-      setCurveColumnWidth(Math.max(
+      setCurveColumn({ font: reportFontFamily, width: Math.max(
         measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true, reportFont))),
         measureCurveColumnWidth(cellLabels, measure(curveCellFont(false, reportFont))),
-      ));
+      ) });
     });
     return () => { cancelled = true; };
-  }, [reportType, resourceGantt, resourceGanttOptions.showAssignmentColumns, curveLabels, curveHeaderLabel, reportFontFamily, reportFont]);
+  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont]);
 
   // De vertaalde kolomkoppen: ÉÉN object voor de meting hieronder en voor de render, zodat een
   // kolom gemeten wordt op exact de kop die getekend wordt.
@@ -611,15 +613,16 @@ export function ReportPanel() {
   // Meten gebeurt hier en niet in de printlaag — zelfde reden als bij de naamkolom:
   // `measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte
   // uitrekenen dan de raster- en vector-render.
-  const [columnWidths, setColumnWidths] = useState<TableColumnWidths | undefined>(undefined);
+  const [measuredColumns, setMeasuredColumns] = useState<{ font: ReportFontId; widths: TableColumnWidths | undefined } | undefined>(undefined);
+  const columnWidths = measuredColumns?.widths;
   useEffect(() => {
     let cancelled = false;
     void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setColumnWidths(undefined); return; }
+      if (!ctx) { setMeasuredColumns({ font: reportFontFamily, widths: undefined }); return; }
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
-      setColumnWidths(measureTableColumnWidths(
+      setMeasuredColumns({ font: reportFontFamily, widths: measureTableColumnWidths(
         rows,
         {
           showCompletion, assignmentColumns, dateNotation, timeNotation, numberLocale: i18n.language, tableHeaders,
@@ -630,11 +633,20 @@ export function ReportPanel() {
           fontFamily: reportFont,
         },
         (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
-      ));
+      ) });
     });
     return () => { cancelled = true; };
   }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, timeNotation, i18n.language, tableHeaders,
     daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont]);
+
+  // Staan alle metingen die de Gantt-render gebruikt op de gekozen letter? Na het wisselen van letter
+  // lopen ze asynchroon (eerst het font laden); tot dan horen de breedtes bij de vórige letter. Een
+  // export in dat venster zou de nieuwe letter op oude breedtes tekenen en namen afkappen (review Sol
+  // #837, ronde 1). Daarom wacht `handleExportPDF` hierop, via dezelfde uitgestelde route als bij een
+  // verouderde planning. De tabelrapporten meten hun koppen zelf in `runExport`, na het laden.
+  const measuredOnChosenFont = measuredColumns?.font === reportFontFamily
+    && (truncateTaskNames || autoNameColumn?.font === reportFontFamily)
+    && (!curveColumnNeeded || curveColumn?.font === reportFontFamily);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -1322,6 +1334,8 @@ export function ReportPanel() {
       });
     });
   }, [runExport]);
+  // Zie `measuredOnChosenFont`: een Gantt-export wacht tot de breedtes bij de gekozen letter horen.
+  const exportWaitsForFont = isGanttLike && !measuredOnChosenFont;
   const handleExportPDF = useCallback(() => {
     const st = useAppStore.getState();
     if (st.scheduleStale) {
@@ -1329,13 +1343,17 @@ export function ReportPanel() {
       st.runCPM();
       return;
     }
+    if (exportWaitsForFont) {
+      exportPendingRef.current = true;
+      return;
+    }
     startExport();
-  }, [startExport]);
+  }, [startExport, exportWaitsForFont]);
   useEffect(() => {
-    if (!exportPendingRef.current || scheduleStale) return;
+    if (!exportPendingRef.current || scheduleStale || exportWaitsForFont) return;
     exportPendingRef.current = false;
     startExport();
-  }, [scheduleStale, startExport]);
+  }, [scheduleStale, exportWaitsForFont, startExport]);
 
   // Kritieke activiteiten (bladtaken): dezelfde teller als MCP get_project_info en de statusbalk.
   const criticalCount = countCriticalActivities(tasks);
@@ -1825,7 +1843,7 @@ export function ReportPanel() {
           </div>
         ) : tableSpec ? (
           <div className="h-full overflow-auto p-4">
-            <TableReportView ref={tableReportRef} spec={tableSpec} fontStack={reportDomFont} />
+            <TableReportView ref={tableReportRef} spec={tableSpec} fontStack={reportFont} />
           </div>
         ) : reportType === 'milestones' ? (
           <div className="h-full overflow-auto p-4">
@@ -1833,7 +1851,7 @@ export function ReportPanel() {
             <div
               ref={milestoneRef}
               className="bg-surface p-4"
-              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960, ...reportFontStyle(reportDomFont) }}
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960, ...reportFontStyle(reportFont) }}
             >
               <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('milestoneReport.title')}</h3>
               <MilestoneReport />
@@ -1845,7 +1863,7 @@ export function ReportPanel() {
             <div
               ref={varianceRef}
               className="bg-surface p-4"
-              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100, ...reportFontStyle(reportDomFont) }}
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100, ...reportFontStyle(reportFont) }}
             >
               <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('variance.title')}</h3>
               <VarianceReport />

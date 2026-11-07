@@ -1,7 +1,10 @@
 // Rapportkarakterisering: de gebruiker wijzigt de kop en een concrete tekenoptie, waarna zowel de
 // levende preview als de echte PDF-export dezelfde actuele waarden moeten gebruiken.
 import { readFile } from 'node:fs/promises';
-import { PDFDict, PDFDocument, PDFName } from 'pdf-lib';
+import { join } from 'node:path';
+import fontkit from '@pdf-lib/fontkit';
+import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream } from 'pdf-lib';
+import type { Download } from '@playwright/test';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
@@ -255,26 +258,102 @@ test('report options: de datakolommen van de tabel schalen mee met hun inhoud', 
   expect(texts).toContainEqual(expect.stringMatching(/^(End|Einde)$/));
 });
 
+/** De BaseFont van elk Type0-font in de PDF; pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>`. */
+function type0BaseFonts(pdf: PDFDocument): string[] {
+  const baseFonts: string[] = [];
+  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) baseFonts.push(String(obj.get(PDFName.of('BaseFont'))));
+  }
+  return baseFonts;
+}
+
+/**
+ * De tekst die de PDF met fontsleutel `fontKey` tekent, terugvertaald naar letters. De rapportletter
+ * staat volledig ingebed (glyph-id = CID, zie `paginateVector.ts`), dus de glyph-id's van het
+ * gevendorde bestand vertalen de hex-strings van `Tj` terug.
+ */
+async function pdfTextsInFont(pdf: PDFDocument, fontKey: string, fontFile: string): Promise<string[]> {
+  const font = fontkit.create(await readFile(join(process.cwd(), fontFile)));
+  const charOf = new Map<number, string>();
+  // Oplopend, zodat een glyph die meerdere tekens dekt (spatie en U+00A0) het laagste teken krijgt.
+  for (const cp of [...font.characterSet].sort((a, b) => a - b)) {
+    const gid = font.glyphForCodePoint(cp).id;
+    if (!charOf.has(gid)) charOf.set(gid, String.fromCodePoint(cp));
+  }
+  const usesKey = new RegExp(`/${fontKey} [\\d.]+ Tf`);
+  const texts: string[] = [];
+  for (const page of pdf.getPages()) {
+    const contents = page.node.Contents();
+    const streams = contents instanceof PDFArray ? contents.asArray().map(ref => pdf.context.lookup(ref)) : [contents];
+    for (const stream of streams) {
+      if (!(stream instanceof PDFRawStream)) continue;
+      const ops = Buffer.from(decodePDFRawStream(stream).decode()).toString('latin1');
+      for (const [, block] of ops.matchAll(/BT\s([\s\S]*?)\sET/g)) {
+        if (!usesKey.test(block)) continue;
+        for (const [, hex] of block.matchAll(/<([0-9A-Fa-f]*)>\s*Tj/g)) {
+          texts.push((hex.match(/.{4}/g) ?? []).map(h => charOf.get(parseInt(h, 16)) ?? '�').join(''));
+        }
+      }
+    }
+  }
+  return texts;
+}
+
 // Rapportletter (issue #770): de gebruiker kiest Carlito. Preview en PDF gebruiken die letter (en
-// Inter alleen voor het vinkje dat Carlito mist), het blok van de tabelrapporten toont dezelfde
-// keuze, en na een herstart van de app staat Carlito er nog. Alleen een voorkeur op dit apparaat.
+// Inter alleen voor het vinkje dat Carlito mist). Daarna kiest hij Liberation Sans en exporteert
+// meteen, terwijl die letter nog laadt. Het blok van de tabelrapporten toont dezelfde keuze, ook in
+// de raster-terugval, en na een herstart van de app staat de keuze er nog. Alleen een voorkeur op
+// dit apparaat.
 test('report options: de gekozen rapportletter staat in preview en PDF en blijft na een herstart', async ({ page, ops: _ops }) => {
-  await seedProject(page, [
+  const longName = 'Afwerking begane grond noordzijde';
+  const [letterTaskId] = await seedProject(page, [
     // Cyrillisch dekt Carlito zelf; het vinkje niet, dat komt in de PDF uit Inter.
     { name: '✓ Lettertaak Фундамент', start: '2026-09-07', finish: '2026-10-16', durationDays: 30 },
+    // De langste naam bepaalt de naamkolom als afkappen uit staat. In Liberation Sans is hij breder
+    // dan in Carlito.
+    { name: longName, start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
   ], 'Rapportletter');
+  await page.evaluate(() => {
+    // Zoals in table-reports.spec.ts: met deze statusdatum toont de look-ahead beide taken.
+    const s = window.__OPS__!.store.getState();
+    s.setStatusDate('2026-09-14');
+    s.runCPM();
+  });
   await page.evaluate(() => {
     const original = CanvasRenderingContext2D.prototype.fillText;
     const fonts: string[] = [];
+    const texts: string[] = [];
     CanvasRenderingContext2D.prototype.fillText = function fillText(text: string, x: number, y: number, maxWidth?: number) {
       // Zie de eerste test: Gantt-paints ná het installeren van de haak horen niet bij het rapport.
-      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) fonts.push(this.font);
+      if (!(this.canvas?.dataset.testid ?? '').startsWith('gantt-')) {
+        fonts.push(this.font);
+        texts.push(String(text));
+      }
       if (maxWidth === undefined) original.call(this, text, x, y);
       else original.call(this, text, x, y, maxWidth);
     };
     Object.defineProperty(window, '__opsReportFonts', { configurable: true, value: fonts });
+    Object.defineProperty(window, '__opsReportTexts', { configurable: true, value: texts });
   });
   const drawnFonts = () => page.evaluate(() => (window as Window & { __opsReportFonts?: string[] }).__opsReportFonts ?? []);
+  const drawnTexts = () => page.evaluate(() => (window as Window & { __opsReportTexts?: string[] }).__opsReportTexts ?? []);
+  // De gewichten die de browser van een letter echt geladen heeft. `ctx.font` en de berekende
+  // font-family tonen de gevraagde naam ook als de letter ontbreekt (review Sol #837, ronde 1).
+  const loadedWeights = (family: string) => page.evaluate(fam => Array.from(document.fonts as unknown as Iterable<FontFace>)
+    .filter(face => face.family.replace(/"/g, '') === fam && face.status === 'loaded')
+    .map(face => face.weight)
+    .sort(), family);
+  const exportButton = page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ });
+  const readPdf = async (download: Download): Promise<PDFDocument> => {
+    const pdfPath = await download.path();
+    expect(pdfPath).not.toBeNull();
+    return PDFDocument.load(await readFile(pdfPath!));
+  };
+  const exportPdf = async (): Promise<PDFDocument> => {
+    const downloadPromise = page.waitForEvent('download');
+    await exportButton.click();
+    return readPdf(await downloadPromise);
+  };
 
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const preview = page.locator('[data-tour-anchor="report-panel"] img').first();
@@ -286,30 +365,84 @@ test('report options: de gekozen rapportletter staat in preview en PDF en blijft
   await fontPicker.click();
   await page.getByRole('option', { name: /^Carlito/ }).click();
   await expect(fontPicker).toContainText(/^Carlito/);
+  await expect.poll(() => loadedWeights('OpsReportCarlito'), { timeout: 20_000 }).toEqual(['400', '700']);
   await expect.poll(async () => (await drawnFonts()).some(font => font.includes('OpsReportCarlito')), { timeout: 20_000 }).toBe(true);
 
   // De PDF bedt Carlito in (regular + bold) en tekent het vinkje uit Inter: vector, geen raster.
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: /^(Export PDF|Exporteer PDF)$/ }).click();
-  const download = await downloadPromise;
-  const pdfPath = await download.path();
-  expect(pdfPath).not.toBeNull();
-  const pdf = await PDFDocument.load(await readFile(pdfPath!));
-  const baseFonts: string[] = [];
-  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
-    if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) baseFonts.push(String(obj.get(PDFName.of('BaseFont'))));
-  }
-  // pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>`, bv. `/Carlito-Regular-7098`.
-  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
-  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
-  expect(baseFonts).toContainEqual(expect.stringMatching(/Inter/));
+  const carlitoFonts = type0BaseFonts(await exportPdf());
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
+  expect(carlitoFonts).toContainEqual(expect.stringMatching(/Inter/));
+
+  // Afkappen uit: de naamkolom krijgt de breedte van de langste naam, gemeten in Carlito.
+  await page.evaluate(() => { const t = (window as Window & { __opsReportTexts?: string[] }).__opsReportTexts; t?.splice(0, t.length); });
+  const srcBefore = await preview.getAttribute('src');
+  await page.locator('[data-ops-report-truncate-names]').uncheck();
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(srcBefore);
+  await expect.poll(async () => (await drawnTexts()).includes(longName), { timeout: 20_000 }).toBe(true);
+
+  // Wissel naar Liberation Sans en exporteer meteen, terwijl de letter nog laadt (review Sol #837,
+  // ronde 1). De test houdt de letter vast tot na de klik. De export moet wachten tot de kolommen op
+  // de nieuwe letter gemeten zijn; met de breedte uit Carlito kapte de PDF de lange naam af.
+  const heldFonts: string[] = [];
+  let releaseFonts = () => {};
+  const fontsReleased = new Promise<void>(resolve => { releaseFonts = resolve; });
+  const liberationSansFiles = /LiberationSans-(Regular|Bold)\.ttf/;
+  await page.route(liberationSansFiles, async route => {
+    heldFonts.push(route.request().url());
+    await fontsReleased;
+    await route.continue();
+  });
+  await fontPicker.click();
+  await page.getByRole('option', { name: /^Liberation Sans/ }).click();
+  await expect(fontPicker).toContainText(/^Liberation Sans/);
+  await expect.poll(() => heldFonts.length).toBeGreaterThan(0);
+  const lateDownload = page.waitForEvent('download');
+  await exportButton.click();
+  // De klik viel terwijl de letter nog niet geladen was; pas nu laat de test hem door.
+  expect(await loadedWeights('OpsReportLiberationSans')).toEqual([]);
+  releaseFonts();
+  const latePdf = await readPdf(await lateDownload);
+  await page.unroute(liberationSansFiles);
+  expect(type0BaseFonts(latePdf)).toContainEqual(expect.stringMatching(/^\/LiberationSans-\d+$/));
+  const lateTexts = await pdfTextsInFont(latePdf, 'F0', 'src/services/pdf/fonts/LiberationSans-Regular.ttf');
+  expect(lateTexts).toContain(longName);
+  expect(lateTexts.filter(text => text.endsWith('…') && longName.startsWith(text.slice(0, -1)))).toEqual([]);
 
   // Eén keuze voor alle rapporten: het blok van een tabelrapport toont hem ook, en de tabel staat erin.
   await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
   await page.getByRole('option', { name: /^Look-ahead$/ }).click();
   const tableFontPicker = page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/);
-  await expect(tableFontPicker).toContainText(/^Carlito/);
-  await expect(page.locator('[data-ops-table-report]')).toHaveCSS('font-family', /OpsReportCarlito/);
+  await expect(tableFontPicker).toContainText(/^Liberation Sans/);
+  const tableReport = page.locator('[data-ops-table-report]');
+  await expect(tableReport).toHaveCSS('font-family', /OpsReportLiberationSans/);
+
+  // Raster-terugval (review Sol #837, ronde 1): zonder CJK-letter in de app valt de vector-export van
+  // een CJK-naam terug op een DOM-opname (modern-screenshot). Die opname moet de gekozen letter
+  // meenemen. De haak leest alleen de SVG die de opname als afbeelding laadt.
+  await page.evaluate(() => {
+    const src = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
+    const shots: string[] = [];
+    Object.defineProperty(HTMLImageElement.prototype, 'src', {
+      configurable: true,
+      get(this: HTMLImageElement) { return src.get!.call(this) as string; },
+      set(this: HTMLImageElement, value: string) {
+        if (typeof value === 'string' && value.startsWith('data:image/svg+xml')) shots.push(decodeURIComponent(value.slice(value.indexOf(',') + 1)));
+        src.set!.call(this, value);
+      },
+    });
+    Object.defineProperty(window, '__opsDomShots', { configurable: true, value: shots });
+  });
+  await page.evaluate(id => { window.__OPS__!.store.getState().updateTask(id, { name: '施工 Lettertaak' }); }, letterTaskId);
+  await expect(tableReport).toContainText('施工 Lettertaak');
+  const rasterPdf = await exportPdf();
+  expect(type0BaseFonts(rasterPdf)).not.toContainEqual(expect.stringMatching(/LiberationSans/));
+  // Per opname: de families waarvan een `@font-face`-regel met ingebedde bytes in de SVG staat.
+  const shotFamilies = await page.evaluate(() => ((window as Window & { __opsDomShots?: string[] }).__opsDomShots ?? [])
+    .map(svg => [...svg.matchAll(/@font-face\s*\{([^}]*)\}/g)]
+      .filter(([, body]) => /url\(\s*["']?data:/.test(body))
+      .map(([, body]) => (/font-family:\s*["']?([^"';]+)/.exec(body)?.[1] ?? '').trim())));
+  expect(shotFamilies).toContainEqual(expect.arrayContaining(['OpsReportLiberationSans']));
 
   // Herstart van de app: de keuze komt terug uit de voorkeuren van het apparaat.
   await page.reload();
@@ -326,8 +459,8 @@ test('report options: de gekozen rapportletter staat in preview en PDF en blijft
     window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false });
   });
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
-  await expect(page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Carlito/);
+  await expect(page.locator('[data-ops-report-options]').getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
   await page.getByLabel(/^(Report type|Rapporttype)$/).first().click();
   await page.getByRole('option', { name: /^(Gantt chart|Gantt-afdruk)$/ }).click();
-  await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Carlito/);
+  await expect(page.getByLabel(/^(Font:|Lettertype:)$/)).toContainText(/^Liberation Sans/);
 });

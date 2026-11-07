@@ -49,7 +49,7 @@ inclusief de copyright-regel van The Noto Project Authors in
 ## De keuzelijst *Lettertype* (issue #770)
 
 Naast Inter levert de app drie rapportletters mee, voor de keuzelijst *Lettertype* op het tabblad
-Rapport. Welke letters er zijn, onder welke bestandsnaam en welke `FontFace`-familie, staat op één
+Rapport. Welke letters er zijn, onder welke bestandsnaam en welke `@font-face`-familie, staat op één
 plek: `REPORT_FONTS` in `../reportFont.ts`. `fontLoader.ts` haalt de bestanden op via die namen;
 `tests/planning/check-report-font.ts` leest dezelfde namen van schijf en maakt met elke letter een
 vector-PDF.

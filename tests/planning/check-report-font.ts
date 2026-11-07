@@ -40,7 +40,7 @@ import { makeSectionedRenderReport, makeTableRenderReport, type PdfSectionedRepo
 import { paginateVectorToPdfBytes, VectorUnsupportedError, type ReportFontBytes } from '@/services/print/paginateVector';
 import fontkit from '@pdf-lib/fontkit';
 import {
-  DEFAULT_REPORT_FONT_ID, DEFAULT_REPORT_FONT_STACK, REPORT_FONT_IDS, REPORT_FONTS, reportDomFontStack, reportFontStack,
+  DEFAULT_REPORT_FONT_ID, DEFAULT_REPORT_FONT_STACK, REPORT_FONT_IDS, REPORT_FONTS, reportFontStack,
 } from '@/services/pdf/reportFont';
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
@@ -285,8 +285,6 @@ ok(appLetters.size > 150, `C0 te weinig letters uit de taalbestanden gelezen (${
 
 ok(REPORT_FONT_IDS[0] === DEFAULT_REPORT_FONT_ID && DEFAULT_REPORT_FONT_ID === 'inter', `C0 standaardletter is niet Inter: ${DEFAULT_REPORT_FONT_ID}`);
 ok(reportFontStack('inter') === OLD_STACK, `C0 stack van 'inter' wijkt af van de oude stack: ${reportFontStack('inter')}`);
-ok(reportDomFontStack('inter') === 'InterPDF, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  `C0 DOM-stack van 'inter': ${reportDomFontStack('inter')}`);
 ok(new Set(REPORT_FONT_IDS.map(id => REPORT_FONTS[id].family)).size === REPORT_FONT_IDS.length, 'C0 twee letters delen een familienaam');
 
 /** Een Gantt met een taaknaam uit vijf talen plus een vinkje, dat geen van de drie nieuwe letters heeft. */

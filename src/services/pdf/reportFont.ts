@@ -15,13 +15,13 @@
 // dus `CIDFontType2` in pdf-lib) en dekt alle Latijnse en Cyrillische talen van de app; wat hij mist
 // (Arabisch, CJK, een enkel symbool) vangt de terugvalketen van `paginateVector.ts` op.
 
-/** De familienaam waaronder `fontLoader.ts` het gevendorde Inter als `FontFace` registreert. */
+/** De familienaam waaronder `fontLoader.ts` het gevendorde Inter als `@font-face`-regel registreert. */
 export const INTER_PDF_FAMILY = 'InterPDF';
 
 /**
  * De standaard-fontstack van alle rapporttekst op het canvas: eerst het gevendorde Inter (dezelfde
  * bytes die de vector-PDF inbedt, dus `measureText` in de preview is gelijk aan de export), daarna
- * de systeemletter als terugval zolang de `FontFace` nog niet geladen is.
+ * de systeemletter als terugval zolang de `@font-face` nog niet geladen is.
  *
  * De vector-backend (`PdfVectorDraw2D`) leest de familie uit deze string NIET: die tekent met de
  * fonts die de pagineerder inbedt. Wie een andere stack meegeeft, geeft dus ook de bytes van
@@ -39,7 +39,7 @@ export type ReportFontId = (typeof REPORT_FONT_IDS)[number];
 export const DEFAULT_REPORT_FONT_ID: ReportFontId = 'inter';
 
 export interface ReportFontDef {
-  /** De `FontFace`-familie in de browser. Bewust een eigen naam en niet "Liberation Sans": een
+  /** De `@font-face`-familie in de browser. Bewust een eigen naam en niet "Liberation Sans": een
    *  geïnstalleerde systeemletter met dezelfde naam mag nooit de plaats van de gevendorde bytes
    *  innemen, want de PDF bedt de gevendorde bytes in en de preview moet daarop meten. */
   family: string;
@@ -73,16 +73,4 @@ export function reportFontStack(id: ReportFontId): string {
   if (id === 'inter') return DEFAULT_REPORT_FONT_STACK;
   const def = REPORT_FONTS[id];
   return `"${def.family}", ${INTER_PDF_FAMILY}, ${def.generic}`;
-}
-
-/**
- * De fontstack voor de DOM-weergave van de tabelrapporten (mijlpalen, afwijkingen, de zeven
- * tabelrapporten). Gelijk aan {@link reportFontStack}, met het UI-Inter (`"Inter"`, @fontsource)
- * direct achter `InterPDF`. Reden: de raster-terugval van die export maakt een DOM-screenshot
- * (`modern-screenshot`), en die neemt alleen CSS-`@font-face`-regels mee, geen `FontFace`-objecten
- * uit `document.fonts`. Zonder `"Inter"` viel die terugval op een systeemletter; nu op Inter, zoals
- * vóór de keuzelijst.
- */
-export function reportDomFontStack(id: ReportFontId): string {
-  return reportFontStack(id).replace(`${INTER_PDF_FAMILY},`, `${INTER_PDF_FAMILY}, "Inter",`);
 }
