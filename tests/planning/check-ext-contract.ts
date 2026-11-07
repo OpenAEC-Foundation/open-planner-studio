@@ -142,6 +142,8 @@ const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
   // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
   'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+  // kostenresource (#815): het vaste bedrag
+  'costAmount',
 ] as const);
 
 // ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
@@ -481,6 +483,7 @@ const VOL_ASSIGNMENT = {
   workWindowStart: '2026-06-01T08:00', workWindowFinish: '2026-06-10T17:00',
   curveValues: [0, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 6.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5],
   plannedWorkMinutes: 4800, actualWorkMinutes: 1200, remainingWorkMinutes: 3000,
+  costAmount: 1250.5,
 } satisfies Required<ResourceAssignment>;
 
 // ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────
