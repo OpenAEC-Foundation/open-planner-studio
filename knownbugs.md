@@ -2061,3 +2061,17 @@ en noem het in je rapport of PR-tekst.
      aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
      Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
      S (de tokenkosten per client)
+
+903. **VERVOLG: aparte `icons.useB2()` in de testbrug, alleen voor de kleurtest.** `src/utils/devBridge.ts:306` en
+     `:372` voegen een eigen doorgeefmethode toe die alleen `tests/browser/icon-orange.spec.ts` gebruikt. De bestaande
+     `store`-brug kan dezelfde vlag zetten (`__OPS__.store.getState().setUI({ featureFlags: … })`). Voorstel: de methode
+     weghalen en de test via `store` laten werken. Opruimen; het gedrag klopt. Uit de review van #844 (GPT-6.1-Sol,
+     xhigh, ronde 1, VERVOLG). — S
+
+
+904. **VERVOLG: `icon-orange.spec.ts` zet B2 aan ná het laden.** `Icon` leest de vlag `b2-icons` met `getState()`,
+     zonder abonnement (`src/components/icons/Icon.tsx`). Een element dat al bestaat, zoals het icoon van Berekenen in
+     `ribbonConfig.tsx`, rendert na de wissel niet opnieuw en blijft Lucide. De `beforeEach` in
+     `tests/browser/icon-orange.spec.ts` wisselt de vlag na het laden en verwacht nul Lucide-iconen. Voorstel: open de
+     app in die test direct met `?icons=b2`; dan kan ook `icons.useB2()` (903) weg. Uit de review van #844
+     (GPT-6.1-Sol, xhigh, ronde 2, VERVOLG). — S

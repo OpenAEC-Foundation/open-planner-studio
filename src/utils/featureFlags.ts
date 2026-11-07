@@ -4,12 +4,20 @@ export interface FeatureFlag {
   id: string;
   nameKey: ParseKeys<'common'>;
   descriptionKey?: ParseKeys<'common'>;
+  /** Alleen via een ontwikkel-URL; geen zichtbare instelling. */
+  hidden?: boolean;
   /** Nieuwe IFC-data: geen checkbox zolang de opslag daarvan nog niet af is. */
   writesNewIfcData: boolean;
 }
 
 /** Voeg hier tijdelijke functies toe; de demo maakt de verborgen bediening zichtbaar toetsbaar. */
 export const FEATURE_FLAGS: FeatureFlag[] = [
+  {
+    id: 'b2-icons',
+    nameKey: 'settings.experimentalSection',
+    writesNewIfcData: false,
+    hidden: true,
+  },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {
     id: 'demo-topbar-animation',
