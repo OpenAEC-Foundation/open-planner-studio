@@ -8,6 +8,7 @@ import { effHoursPerDay, hourTaskScheduleDuration } from '@/utils/taskDuration';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { Baseline, BaselineTask } from '@/types/baseline';
 import { generateId } from '@/utils/id';
+import { sourceGuid } from '@/services/sourceKeys';
 import { parseInstant, parseDate, localTodayIso } from '@/utils/dateUtils';
 import { normalizeImportedProgress, deriveImportedWorkRules, rebuildImportedHierarchy, reconstructResourceIds } from '@/services/importNormalize';
 import { emptyMissingScheduleDates, isoDatePrefixOrToday, parseImportedInstant, resolveMissingScheduleDates } from '@/services/importDates';
@@ -332,10 +333,16 @@ export function readMSPDI(content: string): ImportResult {
   // v2026.9.0 de vingerafdruk van die writers (`isLegacyOpsMspdi`, alleen voor de tijdregel). De definitie
   // van `OPS_LiteralCalendars` zegt "sinds F5b: elke taakdatum met zijn echte tijd".
   const literalCalendarsEnabled = hasOpsFieldDefinition(root, OPS_LITERAL_CALENDARS_FIELD_ID, OPS_LITERAL_CALENDARS_NAME);
-  const timeRule = xmlTimeRule(durationUnitMarkerFieldId !== null || isLegacyOpsMspdi(root), literalCalendarsEnabled);
+  const writtenByOps = durationUnitMarkerFieldId !== null || isLegacyOpsMspdi(root);
+  const timeRule = xmlTimeRule(writtenByOps, literalCalendarsEnabled);
 
   // Parse project
   const project = parseProject(root, timeRule);
+  // Vaste id's (knownbug 837): het project op zijn `<GUID>` (direct kind, niet die van een taak), de
+  // taken hieronder op hun `<UID>`. Een bestand van OPS nummert de UID's op volgorde (`mspdiWriter.ts`)
+  // en draagt geen GUID: daar blijven de id's willekeurig.
+  const projectGuid = writtenByOps ? undefined : sourceGuid(directChildText(root, 'GUID'));
+  if (projectGuid) project.id = `mspdi-proj:${projectGuid}`;
   // De lagkalender (I7) staat in `OPS_LagCalendar` op de projectsamenvattingstaak (UID 0). Zonder dat veld
   // rekent de lezer met de standaard (de voorganger); een lagrecord dat met een andere lagkalender is
   // geschreven, telt dan niet (`lagRecordHolds`).
@@ -489,7 +496,7 @@ export function readMSPDI(content: string): ImportResult {
     const outlineLevel = getElementInt(te, 'OutlineLevel', 1);
     if (uid === 0 && outlineLevel === 0) continue;
 
-    const id = generateId('task');
+    const id = writtenByOps ? generateId('task') : `mspdi-uid:${uid}`;
     uidToId.set(uid, id);
     if (isXmlTrue(getElementText(te, 'ExternalTask'))) externalTaskUids.add(uid);
 
@@ -946,6 +953,7 @@ export function readMSPDI(content: string): ImportResult {
     activeBaselineId,
     // Rekenprofielen: MSPDI opent als OPS.
     suggestedProfileId: 'ops',
+    ...(projectGuid ? {} : { generatedProjectId: true as const }),
     // Alleen bladtaken — zie `leafRecordedTimes`.
     ...(() => {
       const leafTimes = leafRecordedTimes(tasks, recordedTimes);

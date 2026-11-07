@@ -297,6 +297,12 @@ export interface ImportResult {
    *  `applyRecordedDatesOnLoad` (`src/state/documentActivation.ts`) is de enige plek die op dit
    *  onderscheid let; `recordedDatesNoticeText.ts` kiest er alleen de WOORDKEUZE op. */
   recordedTimesOrigin?: RecordedTimesOrigin;
+  /** `true` ⇒ de lezer verzon het project-id (`generateId('proj')`): het bestand draagt geen vaste
+   *  projectsleutel (MSPDI zonder `<GUID>`, `.mpp`, CSV, een P6 XML van OPS of zonder sleutel). Bij elk
+   *  inlezen is het id dan anders. De bron van een externe relatie gebruikt dan het bestandspad als
+   *  project-id (`state/externalSource.ts`), zodat "Bron vernieuwen" niet bij elke keer een ander id
+   *  wegschrijft. IFC en XER dragen een vaste sleutel en laten dit weg. Knownbug 837. */
+  generatedProjectId?: true;
   /** "Ongewijzigd sinds import" (heropen-beleid). Alleen
    *  gevuld door `readIFC` uit het `OPS_ImportProvenance`-pset van een EIGEN IFC; `true` betekent
    *  dat het document tussen de oorspronkelijke import en dit opslaan geen enkele bewerking heeft
