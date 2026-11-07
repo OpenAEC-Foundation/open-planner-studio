@@ -25,8 +25,9 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 const HOST_SETTINGS_STORE = 'test-host-settings';
 
 test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewaart ze', async ({ page, ops: _ops }) => {
-  // Meer tijd dan de standaard 30 s: de rondes met een trage host wachten bewust 1,5 s en 7 s op de host.
-  test.setTimeout(90_000);
+  // Meer tijd dan de standaard 30 s: de rondes met een trage host wachten bewust 1,5 s en 7 s op de host,
+  // en de ronde met een host tijdens het laden herlaadt nog een keer.
+  test.setTimeout(120_000);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: true, uiTheme: 'dark' }));
   const dialog = page.locator('[data-ops-welcome-dialog]');
   await expect(dialog).toBeVisible();
@@ -63,9 +64,12 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
     const logWrite = (entry: string) => sessionStorage.setItem('test-host-writes',
       JSON.stringify([...(JSON.parse(sessionStorage.getItem('test-host-writes') ?? '[]') as string[]), entry]));
     const file = { id: 'welcome-host', name: 'Planning.ifc', version: '1' };
-    (window as unknown as { openaecHost: unknown }).openaecHost = {
-      taal: 'fr',
-      thema: 'dark',
+    // `test-late-host`: de host komt pas met `window.__testInstallHost()` (een host die verschijnt terwijl
+    // de app laadt), met `taal: 'de'` en `thema: 'light'`.
+    const late = sessionStorage.getItem('test-late-host') === 'true';
+    const install = () => { (window as unknown as { openaecHost: unknown }).openaecHost = {
+      taal: late ? 'de' : 'fr',
+      thema: late ? 'light' : 'dark',
       initialFileId: file.id,
       storage: {
         list: async () => [file],
@@ -88,7 +92,9 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
         set: async (key: string, value: unknown) => { logWrite(`set ${key}`); write({ ...read(), [key]: value }); return null; },
         delete: async (key: string) => { logWrite(`delete ${key}`); const all = read(); delete all[key]; write(all); return null; },
       },
-    };
+    }; };
+    if (late) (window as unknown as { __testInstallHost: () => void }).__testInstallHost = install;
+    else install();
   }, { ifc: IFC, store: HOST_SETTINGS_STORE });
   const hostSettings = () => page.evaluate((store) =>
     JSON.parse(sessionStorage.getItem(store) ?? '{}') as Record<string, string>, HOST_SETTINGS_STORE);
@@ -266,6 +272,53 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   ])).toEqual([false, 'false', 'high-contrast', 'high-contrast', 'en', ['Sessietype']]);
   expect(await unavailableNotices(), 'nog steeds één melding').toEqual([1]);
   await page.evaluate(() => sessionStorage.removeItem('test-host-delay'));
+
+  // Een host die verschijnt terwijl `App` laadt (review #827 ronde 4): na de lezing in `main.tsx` (nog
+  // geen host), vóór de React-mount. Zijn `openaec-host-ready` mist dus de luisteraar. De mount haalt
+  // het in: één melding, de taal (`de`) en het thema (`light`) van de host, en geen enkele `set`/`delete`.
+  let releaseApp!: () => void;
+  const appHeld = new Promise<void>((resolve) => { releaseApp = resolve; });
+  let appRequested!: () => void;
+  const appWanted = new Promise<void>((resolve) => { appRequested = resolve; });
+  const APP_MODULE = /\/src\/App\.tsx(\?|$)/;
+  await page.route(APP_MODULE, async (route) => { appRequested(); await appHeld; await route.continue(); });
+  await page.evaluate(() => {
+    sessionStorage.setItem('test-late-host', 'true');
+    sessionStorage.removeItem('test-host-writes');
+  });
+  const hostBeforeLate = await hostSettings();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await appWanted; // de lezing is voorbij: `main.tsx` vraagt `App` op
+  await page.evaluate(() => {
+    (window as unknown as { __testInstallHost: () => void }).__testInstallHost();
+    window.dispatchEvent(new Event('openaec-host-ready'));
+  });
+  releaseApp();
+  await waitForOps(page);
+  await page.unroute(APP_MODULE);
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().siteFileId), { timeout: 20_000 }).toBe('welcome-host');
+  await expect.poll(unavailableNotices).toEqual([1]);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  // Een werksoort via echte klikken: lokaal wel, bij de host niet.
+  const lateList = await openTaskTypes();
+  await expect(lateList).not.toContainText('Bewaard type');
+  const lateOptions = lateList.getByRole('option');
+  await lateOptions.nth((await lateOptions.count()) - 2).click(); // Neue Vorgangsart… / Nieuwe werksoort…
+  await expect(newTypeDialog).toBeVisible();
+  await newTypeDialog.getByRole('textbox').fill('Nieuw tijdens start');
+  await page.keyboard.press('Enter');
+  await expect(newTypeDialog).toBeHidden();
+  expect((JSON.parse(await page.evaluate(() => localStorage.getItem('ops-personalTaskTypes') ?? '[]')) as { name: string }[])
+    .map((t) => t.name)).toContain('Nieuw tijdens start');
+  // Een tweede ready-event verandert niets.
+  await page.evaluate(() => window.dispatchEvent(new Event('openaec-host-ready')));
+  await page.waitForTimeout(1_000);
+  expect(await page.evaluate(() => sessionStorage.getItem('test-host-writes')), 'geen enkele set/delete naar de host').toBeNull();
+  expect(await hostSettings(), 'de host is onaangeroerd').toEqual(hostBeforeLate);
+  expect(await unavailableNotices(), 'nog steeds één melding').toEqual([1]);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await page.evaluate(() => sessionStorage.removeItem('test-late-host'));
 
   // Negatieve controle: dezelfde werkende opslag, maar zonder host komt welkom terug, in de bewaarde taal.
   await page.evaluate(() => localStorage.setItem('test-no-host', 'true'));

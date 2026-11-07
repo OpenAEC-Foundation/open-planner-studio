@@ -152,7 +152,8 @@ Afspraken:
   wijziging gebundeld terug: `set` voor een nieuwe waarde, `delete` voor een gewiste. Antwoordt de host niet op
   tijd, of faalt het lezen, dan start de app zonder de instellingen van de host en schrijft de tool deze
   sessie **niets** naar de host, ook niet als het antwoord later toch komt. Hetzelfde geldt voor een host die
-  pas na de start komt (`openaec-host-ready`). De tool meldt dat één keer (een melding die blijft staan tot de
+  pas na de start komt (`openaec-host-ready`), ook als die verschijnt terwijl de app nog laadt: de app haalt
+  dat bij het starten in (taal en thema van de host, en de melding). De tool meldt dat één keer (een melding die blijft staan tot de
   gebruiker hem sluit): wat de gebruiker deze sessie aan instellingen wijzigt, wordt niet bewaard. Het nadeel:
   een trage host vertraagt de start, en boven de grens bewaart de sessie niets. Het voordeel: een late lezing
   kan nooit een keuze of lijst van de gebruiker terugdraaien, of een lijst van de host overschrijven met een
