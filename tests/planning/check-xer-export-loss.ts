@@ -769,6 +769,52 @@ expect('X-03 projectgegevens en XER-bronverlies als detailregel',
 expect('X-04 notities blijven buiten de XER-categorieën (de writer schrijft ze)',
   !categoriesOf(xerResult).includes('notes'));
 
+// Knownbug 483: één export kan méér verliesmeldingen geven dan de toaststapel kan tonen.
+// Toets de echte exportfunnel, niet alleen de losse meldingsbouwers.
+resetProject('Export met meerdere verliezen');
+const combinedTask = store().addTask({ name: 'A\u0001' + 'x'.repeat(300) });
+store().updateTask(combinedTask, {
+  notes: [{ id: 'combined-note', text: 'Blijft in IFC', done: false }],
+});
+store().setTaskSplits(combinedTask, [
+  { kind: 'work', minutes: 480 }, { kind: 'gap', minutes: 480, source: 'user' }, { kind: 'work', minutes: 480 },
+]);
+store().setProject({ schedulingOptions: { criticalDefinition: { mode: 'totalFloat', thresholdHours: 4 } } });
+for (const format of ['p6', 'mspdi'] as const) {
+  clearNotifications();
+  const result = await store().exportAs(format);
+  const primaryKey = format === 'p6' ? 'notifications.exportP6XmlLoss' : 'notifications.exportDataLoss';
+  const primary = store().ui.notifications.find(n => n.messageKey === primaryKey);
+  expect(`${format} 483: geslaagde export houdt verliesmelding met Lees meer zichtbaar`,
+    result.ok && !!primary?.helpArticleId);
+  const lines = primary?.detailLines ?? [];
+  for (const key of ['notifications.exportSplitsLost', 'notifications.exportInvalidXmlChars',
+    format === 'p6' ? 'notifications.exportP6Truncated' : 'notifications.exportCriticalHoursLost']) {
+    expect(`${format} 483: ${key} blijft precies één keer in hetzelfde verslag`,
+      lines.filter(line => line.messageKey === key).length === 1);
+    expect(`${format} 483: ${key} geen concurrerende toast`,
+      !store().ui.notifications.some(n => n.messageKey === key));
+  }
+  expect(`${format} 483: de envelope bewaart de notitie-waarschuwing`, categoriesOf(result).includes('notes'));
+  expect(`${format} 483: de onderbrekingstelling blijft behouden`,
+    lines.find(line => line.messageKey === 'notifications.exportSplitsLost')?.params?.count === 1);
+}
+// Dezelfde dedupe-sleutel mag na een volgende export geen verouderde detailregels laten staan.
+store().updateTask(combinedTask, { name: 'Schoon', splitGaps: undefined });
+store().setProject({ schedulingOptions: {} });
+await store().exportAs('mspdi');
+const latestLoss = dataLossNotifications()[0];
+expect('483: herhaalde export ververst detailregels en bewaart de hoofdgids',
+  latestLoss?.count === 2 && !!latestLoss.helpArticleId
+  && !latestLoss.detailLines?.some(line => line.messageKey === 'notifications.exportInvalidXmlChars'
+    || line.messageKey === 'notifications.exportCriticalHoursLost'));
+clearNotifications();
+failNextSave(new DOMException('geannuleerd', 'AbortError'));
+const combinedCancelled = await store().exportAs('p6');
+restoreDownloadSave();
+expect('483: annuleren toont geen gedeeltelijk samengesteld verslag',
+  combinedCancelled.ok && combinedCancelled.cancelled === true && store().ui.notifications.length === 0);
+
 if (failures.length === 0) {
   console.log(`OK  xer-export-loss: alle checks groen (${checks})`);
   process.exit(0);

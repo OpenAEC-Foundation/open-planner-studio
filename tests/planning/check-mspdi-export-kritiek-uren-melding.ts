@@ -50,7 +50,7 @@ async function exportWith(format: 'mspdi' | 'csv', definition: CriticalDefinitio
   S().runCPM();
   captured = null;
   const result = await S().exportAs(format);
-  const keys = S().ui.notifications.map(n => n.messageKey).filter(k => k === KEY);
+  const keys = S().ui.notifications.flatMap(n => [n, ...(n.detailLines ?? [])]).map(n => n.messageKey).filter(k => k === KEY);
   return { ok: result.ok, keys, xml: captured ?? '' };
 }
 
