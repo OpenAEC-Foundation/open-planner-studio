@@ -1936,11 +1936,11 @@ en noem het in je rapport of PR-tekst.
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
 
-914. **`tests/browser/icon-orange.spec.ts` is rood op main sinds #844.** Vijf tests falen in de hulpfunctie op
-     regel 22: na `window.__OPS__.icons.useB2()` staan er nog 12 `svg[data-icon].lucide` op de pagina, en de test
-     verwacht 0. Bevestigd op een schone checkout van main `cde8f9ffb` (lokaal, alleen deze spec) en in de
-     browserrun `42406067128` van #837 (shard 1-4; de andere drie shards groen). #844 had geen browserrun (geen
-     label `browsertests`, geen handmatige start). Het komt niet uit #837: die PR raakt geen iconbestanden. — B
+915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
+     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
+     `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
+     op `321cb166a`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
@@ -2157,17 +2157,3 @@ en noem het in je rapport of PR-tekst.
      aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
      Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
      S (de tokenkosten per client)
-
-903. **VERVOLG: aparte `icons.useB2()` in de testbrug, alleen voor de kleurtest.** `src/utils/devBridge.ts:306` en
-     `:372` voegen een eigen doorgeefmethode toe die alleen `tests/browser/icon-orange.spec.ts` gebruikt. De bestaande
-     `store`-brug kan dezelfde vlag zetten (`__OPS__.store.getState().setUI({ featureFlags: … })`). Voorstel: de methode
-     weghalen en de test via `store` laten werken. Opruimen; het gedrag klopt. Uit de review van #844 (GPT-6.1-Sol,
-     xhigh, ronde 1, VERVOLG). — S
-
-
-904. **VERVOLG: `icon-orange.spec.ts` zet B2 aan ná het laden.** `Icon` leest de vlag `b2-icons` met `getState()`,
-     zonder abonnement (`src/components/icons/Icon.tsx`). Een element dat al bestaat, zoals het icoon van Berekenen in
-     `ribbonConfig.tsx`, rendert na de wissel niet opnieuw en blijft Lucide. De `beforeEach` in
-     `tests/browser/icon-orange.spec.ts` wisselt de vlag na het laden en verwacht nul Lucide-iconen. Voorstel: open de
-     app in die test direct met `?icons=b2`; dan kan ook `icons.useB2()` (903) weg. Uit de review van #844
-     (GPT-6.1-Sol, xhigh, ronde 2, VERVOLG). — S
