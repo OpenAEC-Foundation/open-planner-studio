@@ -15,7 +15,7 @@ import {
   resolveLayoutColumnsForProject,
 } from '@/engine/taskGrid/preferences';
 import { saveTaskGridPreferences } from '@/utils/settingsStore';
-import type { SettingWriteOrigin } from '@/services/fileAccess/siteHostSettings';
+import { siteHostSettingWriteHeld, type SettingWriteOrigin } from '@/services/fileAccess/siteHostSettings';
 import type { ColumnConfig } from '@/types/view';
 import { recordGridPreferenceHistoryDelta } from '../sessionHistory';
 
@@ -29,11 +29,17 @@ export interface TaskGridSlice {
   taskGridSurfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
   /** Eén gedeelde MRU voor de pluskiezer op beide taakgridoppervlakken. */
   recentTaskColumns: TaskColumnId[];
-  /** Sessiestand, niet bewaard: de opgeslagen kolomvoorkeuren zijn gelezen en gehydrateerd
-   *  (`hydrateTaskGridPreferences`). Tot dan staan de standaardkolommen in de store en mag niets
-   *  automatisch worden weggeschreven, want dat overschrijft de echte voorkeuren. */
-  taskGridPreferencesLoaded: boolean;
-  hydrateTaskGridPreferences: (preferences: PersistedTaskGridPreferencesV1) => void;
+  /** Sessiestand, niet bewaard: mag de app zelf (zonder keuze van de gebruiker) kolomvoorkeuren
+   *  wegschrijven? Aan na een geldige of ontbrekende opgeslagen voorkeur (`hydrateTaskGridPreferences`).
+   *  Uit zolang de voorkeur niet gelezen is (de store heeft dan standaardkolommen) en uit na een
+   *  afgewezen voorkeur (`invalid-fallback`): die blijft rauw staan en een automatische schrijfactie
+   *  zou hem overschrijven. */
+  taskGridAutoWriteAllowed: boolean;
+  /** `autoWrite: false` voor de terugval op standaardkolommen na een afgewezen voorkeur. */
+  hydrateTaskGridPreferences: (
+    preferences: PersistedTaskGridPreferencesV1,
+    options?: { autoWrite?: boolean },
+  ) => void;
   /** Automatisch gemeten kolombreedtes ("Kolommen automatisch aanpassen"): bewaard, maar geen eigen
    *  undo-stap. Doet niets zolang de opgeslagen voorkeuren niet zijn geladen. */
   applyAutoFitTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
@@ -120,16 +126,16 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
   return {
     taskGridSurfaces: initial.surfaces,
     recentTaskColumns: initial.recent,
-    taskGridPreferencesLoaded: false,
+    taskGridAutoWriteAllowed: false,
 
-    hydrateTaskGridPreferences: (preferences) => {
+    hydrateTaskGridPreferences: (preferences, options) => {
       const normalized = cloneTaskGridPreferences(preferences);
       // Een geplande scrollwrite hoort bij de oude toestand en zou de net geladen voorkeuren
       // terugzetten (bijv. een laat antwoord van de host, #818).
       cancelScheduledScrollPersistence();
       markPreferencesReady();
       set((state) => {
-        state.taskGridPreferencesLoaded = true;
+        state.taskGridAutoWriteAllowed = options?.autoWrite !== false;
         state.taskGridSurfaces = normalized.surfaces;
         state.recentTaskColumns = normalized.recent;
         // Een oude actieve documentpayload kan deze key runtime nog dragen. De migratie heeft hem
@@ -151,7 +157,11 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
     },
 
     applyAutoFitTaskGridColumns: (surface, columns) => {
-      if (!get().taskGridPreferencesLoaded) return;
+      if (!get().taskGridAutoWriteAllowed) return;
+      // Ingebed, terwijl een laat antwoord van de host is toegepast maar de store nog de oude kopie
+      // heeft: een schrijfactie van die kopie zet de bewaarde waarde terug (zie `writeLocal`). De
+      // store wordt zo meteen opnieuw geladen, dan meet het raster opnieuw.
+      if (siteHostSettingWriteHeld('ops-taskGridPreferences')) return;
       const normalized = normalizeTaskGridColumnPreferences(columns);
       if (normalized === null) return;
       let persisted: PersistedTaskGridPreferencesV1 | null = null;

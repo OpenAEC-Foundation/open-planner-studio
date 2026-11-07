@@ -349,7 +349,7 @@ type AppGlobalKey =
   | 'companies' | 'defaultCompanyId' | 'pools' | 'libraryLoaded'
   // Taakgridkolommen, surface-scroll en MRU zijn persoonlijke instellingen; de vlag zegt of ze al
   // uit de opslag zijn geladen (sessiestand).
-  | 'taskGridSurfaces' | 'recentTaskColumns' | 'taskGridPreferencesLoaded';
+  | 'taskGridSurfaces' | 'recentTaskColumns' | 'taskGridAutoWriteAllowed';
 
 /**
  * Categorie 3 — afgeleid: geen bron van waarheid, wordt herberekend uit velden die wél in het

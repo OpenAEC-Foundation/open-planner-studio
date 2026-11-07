@@ -15,10 +15,15 @@ import type {
   TaskGridSurfaceId,
   TaskGridSurfacePreferences,
 } from '@/types/taskGrid';
+import { startAutoFitScheduler } from '@/engine/taskGrid/autoFitScheduler';
+import { isAutoCalcHeld, onAutoCalcReleased } from '@/state/editHold';
 import { ColumnChooser, type ColumnChooserLabels, type TaskGridColumnOption } from './ColumnChooser';
 import { DataGridCore, type DataGridCoreProps } from './DataGridCore';
 import { TASK_GRID_CHOOSER_STRIP } from '@/engine/taskGrid/scrollExtent';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
+
+/** Rust vóór een automatische meting (ms). */
+const AUTO_FIT_DELAY_MS = 250;
 
 export interface TaskGridHistoryLabels {
   addColumn: (label: string) => string;
@@ -143,31 +148,34 @@ export function TaskGrid({
 
   // Automatisch aanpassen (instelling): na een korte rust meten we alle kolommen zonder
   // `manualWidth` en schrijven de nieuwe breedtes weg. `onComputeAutoFitWidth` krijgt een nieuwe
-  // identiteit zodra rijen, tekst, taal of lettergrootte veranderen en is daarmee de trigger; tijdens
-  // het bewerken van een cel wacht de meting, dus een kolom beweegt niet onder de hand.
+  // identiteit zodra rijen, tekst, taal of lettergrootte veranderen en is daarmee de trigger. Tijdens
+  // het bewerken van een cel in dit raster (`autoFitPaused`), tijdens het slepen van een kolomrand en
+  // zolang een andere bewerking loopt (`holdAutoCalc`: het eigenschappenpaneel dat per toetsaanslag
+  // schrijft, een sleepgebaar) wacht de meting, zodat een kolom niet onder de hand beweegt; daarna
+  // volgt één nieuwe meting (`autoFitScheduler.ts`).
   useEffect(() => {
     if (!autoFitColumns || autoFitPaused || resizing || !onComputeAutoFitWidth || !onApplyAutoFit) return;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void (async () => {
+    return startAutoFitScheduler({
+      delayMs: AUTO_FIT_DELAY_MS,
+      isHeld: isAutoCalcHeld,
+      onReleased: onAutoCalcReleased,
+      run: async ({ isCancelled }) => {
         const before = cloneColumns(preferencesRef.current.columns);
         const widths = new Map<TaskColumnId, number>();
         for (const preference of before) {
           if (preference.manualWidth === true || !optionsById.has(preference.id)) continue;
           const width = await onComputeAutoFitWidth(preference.id);
-          if (cancelled) return;
+          if (isCancelled()) return 'done';
           if (width !== null) widths.set(preference.id, width);
         }
+        if (isAutoCalcHeld()) return 'blocked';
         const current = preferencesRef.current.columns;
-        if (!sameTaskGridColumns(current, before)) return;
+        if (!sameTaskGridColumns(current, before)) return 'done';
         const after = applyAutoFitWidths(current, widths);
         if (!sameTaskGridColumns(current, after)) onApplyAutoFit(after);
-      })();
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
+        return 'done';
+      },
+    });
   }, [autoFitColumns, autoFitPaused, resizing, onApplyAutoFit, onComputeAutoFitWidth, optionsById, surfacePreferences.columns]);
 
   const autoFitColumn = async (columnId: TaskColumnId) => {

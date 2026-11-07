@@ -422,8 +422,8 @@ eq('Een identieke kolomcommit schrijft geen history-event',
   storage.setItem('ops-taskGridPreferences', JSON.stringify(saved));
   const rawSaved = storage.getItem('ops-taskGridPreferences');
   const autoStore = createAppStore();
-  eq('Vóór het laden staat taskGridPreferencesLoaded uit',
-    autoStore.getState().taskGridPreferencesLoaded, false);
+  eq('Vóór het laden staat taskGridAutoWriteAllowed uit',
+    autoStore.getState().taskGridAutoWriteAllowed, false);
   const defaultWidths = autoStore.getState().taskGridSurfaces['full-task-grid'].columns.map(c => c.width);
   const writesBeforeAuto = storage.writes;
   // Het herstelvenster staat langer open dan de 250 ms van het meeteffect.
@@ -441,7 +441,7 @@ eq('Een identieke kolomcommit schrijft geen history-event',
     autoStore.getState().taskGridSurfaces['full-task-grid'].columns.map(c => c.width), defaultWidths);
 
   eq('De echte bootstrap leest de opgeslagen voorkeur', await bootstrapTaskGridPreferences(autoStore), 'valid');
-  eq('Na het laden is de vlag aan', autoStore.getState().taskGridPreferencesLoaded, true);
+  eq('Na het laden is de vlag aan', autoStore.getState().taskGridAutoWriteAllowed, true);
   eq('Na het laden staat de handmatige naamkolom in beide rasters nog op 333 px', [
     autoStore.getState().taskGridSurfaces['gantt-task-grid'].columns.find(c => c.id === 'task.name'),
     autoStore.getState().taskGridSurfaces['full-task-grid'].columns.find(c => c.id === 'task.name'),
@@ -457,6 +457,40 @@ eq('Een identieke kolomcommit schrijft geen history-event',
     afterAuto.surfaces['full-task-grid'].columns.map(c => `${c.id}:${c.width}${c.manualWidth ? '*' : ''}`).slice(0, 3),
     ['task.wbsCode:55', 'task.name:333*', 'task.time.scheduleDuration:55']);
   eq('Automatisch aanpassen schrijft geen undo-stap', autoStore.getState().historyEvents.length, 0);
+}
+
+// Review #851 ronde 2, blokkade 1: ook na een afgewezen voorkeur (onbekende versie, `invalid-fallback`)
+// mag "Kolommen automatisch aanpassen" niets schrijven. De in-memory terugval op standaardkolommen is
+// geen bewaarde voorkeur; schreef de automatiek hem weg, dan werd de afgewezen voorkeur stil
+// overschreven (versie 2 werd 1, handmatige breedtes en recente kolommen weg).
+{
+  storage.clear();
+  const saved = createDefaultTaskGridPreferences({ projectId: '', activityCodeTypeIds: [], customFieldDefIds: [] });
+  const manualName = (columns: TaskGridColumnPreference[]) => columns.map(column =>
+    column.id === 'task.name' ? { ...column, width: 333, manualWidth: true } : column);
+  saved.surfaces['gantt-task-grid'].columns = manualName(saved.surfaces['gantt-task-grid'].columns);
+  saved.surfaces['full-task-grid'].columns = manualName(saved.surfaces['full-task-grid'].columns);
+  saved.recent = [taskColumnId('task.time.freeFloat')];
+  const future = JSON.stringify({ ...saved, version: 2 });
+  storage.setItem('ops-taskGridPreferences', future);
+  const futureStore = createAppStore();
+  eq('Een onbekende voorkeursversie geeft invalid-fallback', await bootstrapTaskGridPreferences(futureStore), 'invalid-fallback');
+  eq('Na invalid-fallback staat de automatische schrijfvlag uit',
+    futureStore.getState().taskGridAutoWriteAllowed, false);
+  const writesBefore = storage.writes;
+  const widthsBefore = (['gantt-task-grid', 'full-task-grid'] as const)
+    .map(surface => futureStore.getState().taskGridSurfaces[surface].columns.map(c => c.width));
+  for (const surface of ['gantt-task-grid', 'full-task-grid'] as const) {
+    futureStore.getState().applyAutoFitTaskGridColumns(
+      surface, futureStore.getState().taskGridSurfaces[surface].columns.map(c => ({ ...c, width: 40 })),
+    );
+  }
+  eq('Automatisch aanpassen na invalid-fallback schrijft niets', storage.writes, writesBefore);
+  eq('De afgewezen voorkeur blijft rauw staan (versie 2, beide rasters, recente kolommen)',
+    storage.getItem('ops-taskGridPreferences'), future);
+  eq('De standaardkolommen in de store blijven ongewijzigd',
+    (['gantt-task-grid', 'full-task-grid'] as const)
+      .map(surface => futureStore.getState().taskGridSurfaces[surface].columns.map(c => c.width)), widthsBefore);
 }
 
 // Review #851, blokkade 2: een dubbelklik op de rand wist `manualWidth` ook als de breedte gelijk

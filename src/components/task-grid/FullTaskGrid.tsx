@@ -344,7 +344,7 @@ export function TaskGridSurface({
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
   const applyAutoFitTaskGridColumns = useAppStore(state => state.applyAutoFitTaskGridColumns);
   // Pas aanpassen als de opgeslagen kolomvoorkeuren geladen zijn; eerder staan er standaardkolommen.
-  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns && state.taskGridPreferencesLoaded);
+  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns && state.taskGridAutoWriteAllowed);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
   const constructionMode = useAppStore(state => state.ui.constructionMode);
