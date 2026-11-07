@@ -56,10 +56,14 @@ uitgeschakelde code weglaat:
 | `EXTENSIONS_ENABLED` | geen catalogus, installatie, extensie-ribbon, importers of tutorialaanbod (#311) | een extensie draait zonder afscherming met de rechten van de ingelogde gebruiker |
 | `AI_MODE_AVAILABLE` | geen AI-modus, geen AI-tabblad, geen `ops-mcpToken` | de koppeling werkt alleen in de desktop-app, en het token zou leesbaar zijn voor elke tool op de origin |
 | `DOWNLOAD_STATS_AVAILABLE` | geen downloadcijfers in Instellingen → Geavanceerd (#818) | de cijfers komen van GitHub, en de werkplek van de SuperCloud laat geen netwerk buiten de bundel toe |
+| `FEEDBACK_AVAILABLE` | geen feedbackknop in de titelbalk, geen feedbackdialoog, en de rondleiding zonder stap 7 (die naar de knop wees; stap 6 is dan de laatste) (#818) | de werkplek heeft een eigen feedbackknop; de dialoog post naar een externe dienst en opent een venster, en CSP en sandbox blokkeren beide |
+| `UPDATES_AVAILABLE` | geen *Controleren op updates* en geen *Wat is er nieuw* in Instellingen → Geavanceerd, geen updatedialoog en geen dialoog *Net bijgewerkt* (#818) | het contract vraagt een bundel zonder update-check; de releasegegevens komen van GitHub |
 
 `tests/browser/platform-build.spec.ts` bouwt één keer met `--base /tools/planner/`, serveert alleen dat
 subpad en toetst: het manifest, de paden in `index.html`, geen catalogus-URL in de JS, icoon, help en
-voorbeelden laden, de tool start leeg, en extensies en AI-modus ontbreken.
+voorbeelden laden, de tool start leeg, en extensies, AI-modus, downloadcijfers, feedbackknop en
+updateknoppen ontbreken. Het scenario met Backstage doorloopt ook de rondleiding vanuit Instellingen tot het
+einde: zes stappen, daarna geen laag meer over de app.
 
 Het laatste scenario in die spec is de controle uit #818, een benadering van de werkplek van de SuperCloud.
 Een ouderpagina (`/werkplek.html`) laadt de bundel in een frame met `sandbox="allow-scripts allow-modals"`.

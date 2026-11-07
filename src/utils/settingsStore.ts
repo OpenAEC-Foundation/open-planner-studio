@@ -145,6 +145,17 @@ function sessionTheme(): UITheme | null {
   return devSessionTheme() ?? siteHostTheme();
 }
 
+/** Kiest de volgende start het thema van de host (#818)? Dat is zo als de host nu een geldig `thema`
+ *  geeft en er geen dev-link-thema is (dat wint bij elke start, zie `sessionTheme`). Dan geldt een
+ *  themakeuze in de app alleen tot de volgende start. De parameters zijn er voor de headless check:
+ *  daar is `import.meta.env.DEV` altijd false. */
+export function hostThemeWinsNextStart(
+  devTheme: UITheme | null = devSessionTheme(),
+  hostTheme: UITheme | null = siteHostTheme(),
+): boolean {
+  return devTheme === null && hostTheme !== null;
+}
+
 export async function initTheme(): Promise<UITheme> {
   const session = sessionTheme();
   if (session) return session;
