@@ -174,6 +174,22 @@ export type ReportOrientation = 'landscape' | 'portrait';
 /** Alleen de rasterkwaliteit van de live preview; heeft bewust geen invloed op rapport/PDF-layout. */
 export type ReportPreviewQuality = '100' | '200' | '300';
 
+/**
+ * De kolommen van de Gantt-afdruk (issue #817 deel B), als id's uit het kolomregister van het
+ * taakraster (`taskColumnRegistry.ts`), in volgorde. De standaard is de vaste tabel van vóór #817:
+ * WBS, Taaknaam, Duur, Start, Einde en Voltooiing.
+ */
+export const REPORT_DEFAULT_COLUMNS: readonly string[] = [
+  'task.wbsCode', 'task.name', 'task.time.scheduleDuration', 'task.time.start', 'task.time.finish', 'task.time.completion',
+];
+/** De verplichte kolom: zonder taaknaam is een rij op papier niet te lezen. */
+export const REPORT_REQUIRED_COLUMN = 'task.name';
+/** Bovengrens van de kolomlijst; meer past nooit op een blad naast een tijdlijn. */
+export const REPORT_MAX_COLUMNS = 24;
+
+/** Stand van de zijbalk van het nieuwe Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
+export type ReportSidebarMode = 'open' | 'rail';
+
 export interface ReportSettings {
   reportType: ReportType;
   showCritical: boolean;
@@ -207,6 +223,14 @@ export interface ReportSettings {
   previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
+  /**
+   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Alleen het
+   * nieuwe Rapport-tabblad (feature flag `reportRedesign`) leest en schrijft dit veld; het oude paneel
+   * houdt zijn vaste tabel en laat het veld ongemoeid.
+   */
+  columns: string[];
+  /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
+  sidebar: ReportSidebarMode;
 }
 
 /**
@@ -240,7 +264,39 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
+  columns: [...REPORT_DEFAULT_COLUMNS],
+  sidebar: 'open',
 };
+
+/**
+ * De standaardkolommen bij een gegeven *Voltooiing tonen*: zo ziet een oude opgeslagen instelling
+ * zonder kolomlijst (Voltooiing uit) na de overstap precies dezelfde tabel als voorheen.
+ */
+export function defaultReportColumns(showCompletion: boolean): string[] {
+  return REPORT_DEFAULT_COLUMNS.filter(id => showCompletion || id !== 'task.time.completion');
+}
+
+/**
+ * Een opgeslagen kolomlijst: alleen niet-lege tekst-id's zonder stuurtekens, zonder dubbele, hoogstens
+ * {@link REPORT_MAX_COLUMNS}, en altijd met de taaknaam (vooraan als hij ontbrak). Geen bruikbare lijst ⇒
+ * `undefined`, zodat de aanroeper op de standaard terugvalt. Een id die in dit project niet bestaat
+ * blijft staan: in een ander project (met dat eigen veld) is hij weer geldig, en het paneel slaat hem
+ * bij het tekenen over.
+ */
+export function parseReportColumns(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids: string[] = [];
+  for (const value of raw) {
+    if (typeof value !== 'string' || value.length === 0 || value.length > 200) continue;
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f]/.test(value)) continue;
+    if (!ids.includes(value)) ids.push(value);
+    if (ids.length >= REPORT_MAX_COLUMNS) break;
+  }
+  if (ids.length === 0) return undefined;
+  if (!ids.includes(REPORT_REQUIRED_COLUMN)) ids.unshift(REPORT_REQUIRED_COLUMN);
+  return ids.slice(0, REPORT_MAX_COLUMNS);
+}
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
@@ -248,6 +304,7 @@ const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
 const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
+const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
@@ -367,6 +424,9 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
+    // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
+    columns: parseReportColumns(s.columns) ?? defaultReportColumns(parseBoolean(s.showCompletion) ?? d.showCompletion),
+    sidebar: parseEnum(SIDEBAR_MODES, s.sidebar) ?? d.sidebar,
   };
 }
 

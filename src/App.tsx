@@ -61,7 +61,7 @@ import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/Documen
 // Elke lazy-render zit in een <Suspense fallback={null}> — een dialoog/overlay die 1 frame later
 // verschijnt is prima.
 const IFCPanel = lazy(() => import('@/components/panels/IFCPanel').then(m => ({ default: m.IFCPanel })));
-const ReportPanel = lazy(() => import('@/components/panels/ReportPanel').then(m => ({ default: m.ReportPanel })));
+const ReportWorkspace = lazy(() => import('@/components/panels/ReportWorkspace').then(m => ({ default: m.ReportWorkspace })));
 const TaskDialog = lazy(() => import('@/components/dialogs/TaskDialog').then(m => ({ default: m.TaskDialog })));
 const ProjectInfoDialog = lazy(() => import('@/components/dialogs/ProjectInfoDialog').then(m => ({ default: m.ProjectInfoDialog })));
 const SettingsDialog = lazy(() => import('@/components/dialogs/SettingsDialog').then(m => ({ default: m.SettingsDialog })));
@@ -394,7 +394,7 @@ function AppContent() {
               <Suspense fallback={null}>
                 {activeTab === 'table' && <FullTaskGrid />}
                 {activeTab === 'ifc' && <IFCPanel />}
-                {activeTab === 'report' && <ReportPanel />}
+                {activeTab === 'report' && <ReportWorkspace />}
               </Suspense>
             )}
           </div>

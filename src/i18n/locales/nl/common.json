@@ -432,6 +432,8 @@
     "experimentalHide": "Verbergen",
     "demoTopbarAnimation": "Demo: animatie in de bovenbalk",
     "demoTopbarAnimationHint": "Een rustige oranje glansgolf in de bovenbalk. Laat zien hoe een experimentele schakelaar werkt.",
+    "featureReportRedesign": "Nieuw tabblad Rapport",
+    "featureReportRedesignHint": "De Gantt-afdruk met stappen in een zijbalk en een klikbaar papier. De andere rapporten blijven zoals ze zijn.",
     "tourHint": "Loop de introductie-rondleiding van de app nog eens door.",
     "theme": "Thema",
     "themeHint": "Het kleurenschema van de interface.",
