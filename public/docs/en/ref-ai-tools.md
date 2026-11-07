@@ -16,7 +16,7 @@ All tools an MCP client can call through the bridge, by group, with what they do
 - `planner_get_project_overview` (read) — the whole WBS tree in one response: per task id, WBS, name, duration, early dates, progress, critical, and the outgoing relations with their relation id.
 - `planner_list_tasks` (read) — tasks with filters (critical, status, date window, tasks without relations, tasks with or without external relations) and paging. An external relation counts as a relation, also when it is on the phase above.
 - `planner_get_task` (read) — one task in detail: dates, float, progress, constraints, deadline, calendar, assignments, predecessors and successors, interruptions, and the external relations: the task's own links and those of the phase above, with the anchor and the source.
-- `planner_get_critical_path` (read) — the critical tasks with their total float, and the relations that drive the path.
+- `planner_get_critical_path` (read) — the critical tasks with their total float, and the relations that drive the path. Optionally per page (`limit`, `offset`).
 - `planner_list_resources` (read) — resources with capacity, rate, calendar, crew, availability and a summary of their assignments. If a resource comes from a library, it shows which fields are fixed.
 - `planner_get_resource_histogram` (read) — load against capacity per resource, per day, week or month (week by default). With no window and no resources it gives a summary per resource; with a window or resources it gives the full series and the tasks that cause an overallocation.
 - `planner_get_calendars` (read) — all calendars with their full definition and how many tasks and resources use them.
@@ -24,8 +24,8 @@ All tools an MCP client can call through the bridge, by group, with what they do
 ## Read: baselines and variance
 
 - `planner_list_baselines` (read) — the saved baselines and which one is active.
-- `planner_compare_baseline` (read) — the current plan against the active baseline: only the tasks that differ and the difference in project end, in working days on the current project calendar. Without an active baseline it refuses.
-- `planner_analyze_delay` (read) — delay analysis against the active baseline: the difference in delivery and the critical tasks that have moved. Without an active baseline it refuses.
+- `planner_compare_baseline` (read) — the current plan against the active baseline: only the tasks that differ and the difference in project end, in working days on the current project calendar. Optionally per page (`limit`, `offset`). Without an active baseline it refuses.
+- `planner_analyze_delay` (read) — delay analysis against the active baseline: the difference in delivery and the critical tasks that have moved. Optionally per page (`limit`, `offset`). Without an active baseline it refuses.
 
 ## Tasks and structure
 

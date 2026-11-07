@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { displayDate } from '@/utils/displayDate';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -32,14 +32,20 @@ export function BaselineDialog() {
   }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
+  // Heeft de gebruiker de naam zelf aangeraakt? Dan vervangt een nieuwe defaultnaam (een taalwissel,
+  // ook van de host via `openaec-host-preferences`, #818) zijn invoer niet.
+  const [nameTouched, setNameTouched] = useState(false);
   // Lokale bevestigings-state i.p.v. `window.confirm()` (geen globale singleton).
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-  // Nieuwe default-naam wanneer het aantal baselines wijzigt (bv. na opslaan/verwijderen).
-  useEffect(() => { setNewName(defaultName); }, [defaultName]);
+  // Nieuwe default-naam wanneer het aantal baselines, de taal of de datumnotatie wijzigt, maar alleen
+  // zolang de gebruiker het veld niet aanraakte.
+  useEffect(() => { if (!nameTouched) setNewName(defaultName); }, [defaultName, nameTouched]);
 
   const save = () => {
     saveBaseline(newName.trim() || defaultName);
+    // Na opslaan begint het veld weer met de (nieuwe) defaultnaam.
+    setNameTouched(false);
   };
 
   const remove = (id: string) => {
@@ -111,14 +117,14 @@ export function BaselineDialog() {
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <span className="ui-card-header !text-small !leading-4">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
-              <div className="!text-body flex items-start gap-1" style={{ color: 'var(--theme-warning-text)' }} data-ops-baseline-stale-hint>
-                <Icon id="status.warning" size={16} /><span>{t('baseline.dialog.staleHint')}</span>
+              <div className={b2IconsOn() ? '!text-body flex items-start gap-1' : '!text-body'} style={{ color: 'var(--theme-warning-text)' }} data-ops-baseline-stale-hint>
+                {b2IconsOn() ? <><Icon id="status.warning" size={16} /><span>{t('baseline.dialog.staleHint')}</span></> : `⚠ ${t('baseline.dialog.staleHint')}`}
               </div>
             )}
             <div className="flex items-center gap-2">
               <input
                 value={newName}
-                onChange={e => setNewName(e.target.value)}
+                onChange={e => { setNewName(e.target.value); setNameTouched(true); }}
                 className="input !text-small !leading-4 !px-2.5 !py-1.5 flex-1"
                 aria-label={t('baseline.dialog.name')}
               />

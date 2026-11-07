@@ -635,6 +635,12 @@
     "notAvailableWeb": "A forrásfájlok olvasása csak az asztali alkalmazásban érhető el. Használja a kézi tartalékmegoldást.",
     "source": "Forrás",
     "sourceAvailable": "elérhető az utolsó ellenőrzéskor",
+    "provenance": "A horgony eredete",
+    "provenanceSite": "a forrás verziója: {{version}}, beolvasva: {{readAt}}",
+    "provenanceSiteNoRead": "a forrás verziója: {{version}}",
+    "provenanceFile": "forrásfájl ({{modified}}), beolvasva: {{readAt}}",
+    "provenanceFileNoRead": "forrásfájl ({{modified}})",
+    "provenanceRead": "beolvasva: {{readAt}}",
     "edit": "Projektközi kapcsolat szerkesztése…",
     "refreshSource": "Forrás frissítése",
     "deleteRelation": "Kapcsolat törlése"

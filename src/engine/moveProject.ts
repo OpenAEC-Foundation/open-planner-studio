@@ -102,9 +102,8 @@ const TASK_VERDICTS = {
                                     // finish vast op de OUDE datum
   timephasedStartAnchor: 'shift',  // idem — het RAUWE startanker-tegenhanger
   timephasedDurationWalks: 'shift', // array met een `anchor`-datum per item —
-                                    // zelfde motivering als `externalLinks` hieronder (array met een
-                                    // shiftbaar subveld); `resourceCalendarId` is een verwijzing,
-                                    // schuift niet mee
+                                    // array met een shiftbaar subveld (`anchor`);
+                                    // `resourceCalendarId` is een verwijzing, schuift niet mee
   timephasedContours: 'n/a',       // offset-gebaseerd (afterMinutes/minutes/workMinutes),
                                     // geen datum erin — zelfde taxonomie als splitGaps hierboven
   mspTaskType: 'n/a',              // MSP-eigen enum, geen datum
@@ -124,7 +123,8 @@ const TASK_VERDICTS = {
   constraint: 'shift',            // .date schuift; .type/.hard niet
   constraint2: 'shift',           // VERGEET DEZE NIET
   isHammock: 'n/a',               // duur wordt afgeleid uit de drivers; geen eigen datum die telt
-  externalLinks: 'shift',         // .anchorDate schuift; lag/sourceRef/sourceMissing niet
+  externalLinks: 'keep',          // zie EXTERNAL_LINK_VERDICTS: het anker is een datum van het
+                                    // bronproject, en dat schuift niet mee
   deadline: 'shift',
   calendarId: 'n/a',              // verwijzing; de kalender zelf schuift niet
   notes: 'n/a',                   // {id,text,done}
@@ -139,9 +139,16 @@ const TASK_CONSTRAINT_VERDICTS = {
 const EXTERNAL_LINK_VERDICTS = {
   id: 'n/a', direction: 'n/a', relType: 'n/a',
   lagDays: 'n/a', lagMinutes: 'n/a',
-  anchorDate: 'shift',
+  // Het anker is een datum uit het BRONproject. Dat project verschuift niet mee, dus het anker ook
+  // niet: meeschuiven gaf een datum die in geen enkel bronbestand staat. Besluit van Ethan,
+  // 2026-11-03 (keuze 8 in `docs/relaties-tussen-projecten.md`, voorstel 7 uit #792).
+  anchorDate: 'keep',
   sourceRef: 'n/a',
   sourceMissing: 'n/a',           // betekent "bron niet vindbaar", NIET "anker verouderd" — niet zetten
+  // Herkomst (keuze 4): de versie van de bron en het moment van lezen. Dat zijn feiten over de bron,
+  // geen planningsdatums; ze blijven staan.
+  sourceVersion: 'keep',
+  anchorReadAt: 'keep',
 } satisfies Record<keyof ExternalLink, MoveVerdict>;
 
 const PROJECT_VERDICTS = {
@@ -297,14 +304,7 @@ export function shiftTask(task: Task, delta: number): Task {
       ...w, anchor: shiftIso(w.anchor, delta),
     }));
   }
-  if (task.externalLinks) {
-    next.externalLinks = task.externalLinks.map((l) => ({
-      ...l,
-      anchorDate: shiftIso(l.anchorDate, delta),
-      // sourceMissing BEWUST ongemoeid: dat veld betekent "bron niet vindbaar", niet
-      // "anker verouderd"; misbruiken zou de ghost-weergave vervuilen.
-    }));
-  }
+  // `externalLinks` BEWUST ongemoeid (EXTERNAL_LINK_VERDICTS): het anker blijft de datum van de bron.
   reconcileP6SuspendResume(next);
   return next;
 }
@@ -359,7 +359,8 @@ export interface MoveImpact {
   /** Taken met een EIGEN actualStart en/of actualFinish. Een fase telt niet: haar werkelijke
    *  datums zijn afgeleid uit de bladen (`isSummaryProgressDerived`) en schuiven via hen mee. */
   actualCount: number;
-  /** Aantal externe koppelingen — anker schuift mee, bronproject niet. */
+  /** Aantal externe koppelingen met een anker. Het anker schuift NIET mee (keuze 8); de preview
+   *  waarschuwt dat het op de datum van het bronproject blijft. */
   externalLinkCount: number;
   availabilityStepCount: number;
   /** Ingevulde gebruikersvelden van type 'date' — deze schuiven BEWUST NIET. */
@@ -389,7 +390,7 @@ export function computeMoveImpact(
     const links = t.externalLinks?.filter((l) => isUsableIso(l.anchorDate)) ?? [];
     if (
       isUsableIso(t.time.scheduleStart) || isUsableIso(t.time.scheduleFinish) ||
-      hasConstraintDate || hasDeadline || hasActual || links.length > 0
+      hasConstraintDate || hasDeadline || hasActual
     ) impact.taskCount++;
     if (hasConstraintDate) impact.constraintCount++;
     if (t.constraint?.hard === true) impact.hardPinCount++;

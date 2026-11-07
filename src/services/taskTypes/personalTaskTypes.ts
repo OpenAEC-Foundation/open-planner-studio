@@ -1,6 +1,7 @@
 import type { CustomTaskType } from '@/types/taskType';
 import { generateId } from '@/utils/id';
 import { sameTaskTypeName } from './customTaskTypeRules';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 
 const KEY = 'ops-personalTaskTypes';
 let cached: CustomTaskType[] | null = null;
@@ -34,7 +35,10 @@ function load(): CustomTaskType[] {
 
 function save(next: CustomTaskType[]): void {
   cached = normalize(next);
-  try { localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* opslag kan geblokkeerd zijn */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(cached));
+    noteSiteHostSettingChanged(KEY); // ingebed ook bij de host bewaren (#818)
+  } catch { /* opslag kan geblokkeerd zijn */ }
   for (const listener of listeners) listener();
 }
 

@@ -32,6 +32,7 @@
   "repeatHeader": "Upprepa sidhuvud på varje sida",
   "repeatFooter": "Upprepa sidfot på varje sida",
   "reportFontScaleLabel": "Teckenstorlek:",
+  "reportFontFamilyLabel": "Typsnitt:",
   "timelineColumnsLabel": "Tidslinje över:",
   "timelineColumnsHint": "Endast med anpassning",
   "timelineColumns_one": "{{count}} sida",
@@ -434,5 +435,11 @@
       "riskHeading": "Riskuppgifter: försenade eller negativt slack",
       "riskEmpty": "Inga försenade uppgifter och inget negativt slack."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (standard)",
+    "liberationSans": "Liberation Sans (som Arial)",
+    "carlito": "Carlito (som Calibri)",
+    "liberationSerif": "Liberation Serif (som Times New Roman)"
   }
 }

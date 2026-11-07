@@ -26,8 +26,8 @@ export const externalLinkTools: McpToolDef[] = [
     description:
       'Refresh the anchors of the external relationships (links to a task in another project file) from their ' +
       'source files, like "Refresh all external relations" in the app. Reads every source file once, read-only ' +
-      '(it is not opened as a document), and updates for each link the anchor date and whether the source task ' +
-      'is missing; all in one undoable change. A link without a file path (entered by hand) is refreshed only ' +
+      '(it is not opened as a document), and updates for each link the anchor date, whether the source task ' +
+      'is missing, the source version (the file\'s modification time) and the read time; all in one undoable change. A link without a file path (entered by hand) is refreshed only ' +
       'when another link reads the same source project; `manualLinks` counts them. FILE SCOPE: only source files inside the home folder (in the headless server: inside its ' +
       'working folder). A link to a source file that was not read (outside that folder, or unreadable) keeps ' +
       'its anchor and path, also when another source file has the same project id. Returns per source file ' +
@@ -88,12 +88,17 @@ export const externalLinkTools: McpToolDef[] = [
             report.push({ path: filePath, status: 'outOfScope', reason: escaped });
             continue;
           }
+          // Herkomst (keuze 4, #809), zoals `parseExternalSource` in de app: de wijzigingstijd VÓÓR het
+          // lezen, dus bij een wijziging tijdens het lezen nooit een te nieuwe versie. Lukt `stat` niet,
+          // dan blijft de versie onbekend.
+          const version = await fs.stat(scope.path).then(info => info.mtime?.toISOString(), () => undefined);
           // Het pad uit de koppeling blijft de identiteit van de bron (herkennen bij verversen); lezen gaat
           // via het gecontroleerde pad.
-          const source = await readExternalSource(filePath, {
+          const read = await readExternalSource(filePath, {
             readTextFile: () => fs.readTextFile(scope.path),
             readFile: () => fs.readFile(scope.path),
           });
+          const source = { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
           sources.push(source);
           report.push({ path: filePath, status: 'read', projectName: source.projectName });
         } catch (e) {

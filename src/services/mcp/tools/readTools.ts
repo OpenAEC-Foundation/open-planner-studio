@@ -181,6 +181,23 @@ function paginate<T>(items: T[], args: PageArgs): Paged<T> {
   return { items: page, total: items.length, has_more, next_offset: has_more ? nextOffset : null };
 }
 
+/**
+ * OPTIONELE paginering (#818) voor een leestool die zonder `limit`/`offset` zijn hele lijst geeft
+ * (kritiek pad, baselinevergelijking, vertraginganalyse). Zonder beide sleutels: null, en de tool
+ * antwoordt precies als voorheen. Met minstens één: `paginate` (default limit 50). Zo heeft de
+ * assistent van de site, die antwoorden boven ~30.000 tekens weigert, een uitweg die echt werkt.
+ */
+function optionalPage<T>(items: T[], args: PageArgs): Paged<T> | null {
+  requirePageArgs(args);
+  if (args.limit === undefined && args.offset === undefined) return null;
+  return paginate(items, args);
+}
+
+/** De paginavelden die een gepagineerd antwoord naast zijn lijst draagt (zelfde namen als list_tasks). */
+function pageFields(page: Paged<unknown>) {
+  return { total: page.total, has_more: page.has_more, next_offset: page.next_offset };
+}
+
 /** Alle taak-id's die in minstens één relatie voorkomen (als voorganger óf opvolger) — basis voor
  *  de wees-detectie (`zonder_relaties`). */
 function idsInAnySequence(sequences: Sequence[]): Set<string> {
@@ -646,7 +663,8 @@ function getTask(s: AppState, args: GetTaskArgs) {
 
 // ── 5. planner_get_critical_path ─────────────────────────────────────────────────────────────────
 
-function getCriticalPath(s: AppState) {
+function getCriticalPath(s: AppState, args: PageArgs) {
+  requirePageArgs(args); // ook als er geen resultaat is: een foute pagina blijft een VALIDATION-fout
   const cpm = s.cpmResult;
   if (!cpm || cpm.error) {
     return {
@@ -680,12 +698,17 @@ function getCriticalPath(s: AppState) {
       totalFloat: unrecorded?.includes('totalFloat') ? null : (r?.totalFloat ?? 0),
     };
   });
+  // Optionele pagina over de kritieke taken; de relaties volgen de pagina via hun opvolger, zodat elke
+  // relatie op precies één pagina staat.
+  const page = optionalPage(criticalTasks, args);
+  const pageIds = page ? new Set(page.items.map((t) => t.id)) : null;
 
   // Driving-relaties GEFILTERD op paren waarvan BEIDE eindpunten kritiek zijn.
   const seqById = new Map(s.sequences.map((seq) => [seq.id, seq]));
   const drivingIds = knownDrivingSequenceIds(cpm);
   const drivingRelations = drivingIds?.map((id) => seqById.get(id))
     .filter((seq): seq is Sequence => !!seq && critSet.has(seq.predecessorId) && critSet.has(seq.successorId))
+    .filter((seq) => pageIds === null || pageIds.has(seq.successorId))
     .map((seq) => ({
       seqId: seq.id,
       predId: seq.predecessorId,
@@ -705,7 +728,8 @@ function getCriticalPath(s: AppState) {
     scheduleStale: s.scheduleStale,
     hasResult: true,
     projectEnd: cpm.projectEnd,
-    criticalTasks,
+    criticalTasks: page ? page.items : criticalTasks,
+    ...(page ? pageFields(page) : {}),
     drivingRelations,
     ...(drivingRelations === null ? {
       note: 'Driving relationships are unknown in Dates as recorded mode. Recalculate explicitly to determine them; ' +
@@ -977,7 +1001,7 @@ function getCalendars(s: AppState) {
 
 // ── 9. planner_compare_baseline ──────────────────────────────────────────────────────────────────
 
-function compareBaseline(s: AppState) {
+function compareBaseline(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
     // De weigering moet naar een BESTAANDE weg wijzen (de baselinetools in `baselineTools.ts`).
@@ -989,6 +1013,7 @@ function compareBaseline(s: AppState) {
   const currentEnd = s.cpmResult?.projectEnd || undefined;
   const variance = computeVariance(s.tasks, baseline, cal, currentEnd);
   const deviations = variance.rows.filter((r) => r.status !== 'onSchedule');
+  const page = optionalPage(deviations, args);
   return {
     baselineId: baseline.id,
     baselineName: baseline.name,
@@ -996,7 +1021,8 @@ function compareBaseline(s: AppState) {
     scheduleStale: s.scheduleStale,
     projectEndDelta: variance.projectEndDelta ?? null,
     deviationCount: deviations.length,
-    deviations: deviations.map(compactVarianceRow),
+    deviations: (page ? page.items : deviations).map(compactVarianceRow),
+    ...(page ? pageFields(page) : {}),
   };
 }
 
@@ -1019,7 +1045,7 @@ function compactVarianceRow(r: VarianceRow) {
 
 // ── 10. planner_analyze_delay ────────────────────────────────────────────────────────────────────
 
-function analyzeDelay(s: AppState) {
+function analyzeDelay(s: AppState, args: PageArgs) {
   const baseline = activeBaseline(s);
   if (!baseline) {
     throw new McpStepError('VALIDATION',
@@ -1049,6 +1075,7 @@ function analyzeDelay(s: AppState) {
     }));
 
   const hasDelta = variance.projectEndDelta !== undefined;
+  const page = optionalPage(shifters, args);
   return {
     baselineId: baseline.id,
     baselineName: baseline.name,
@@ -1061,7 +1088,8 @@ function analyzeDelay(s: AppState) {
       : { note: 'The baseline has no calculated project end — the delivery impact is unknown (not 0). Save a new ' +
           'baseline (planner_save_baseline recalculates the schedule first) to measure this.' }),
     criticalShifterCount: shifters.length,
-    criticalShifters: shifters,
+    criticalShifters: page ? page.items : shifters,
+    ...(page ? pageFields(page) : {}),
   };
 }
 
@@ -1080,6 +1108,21 @@ const FRESH_NOTE =
   '`scheduleNote`); and after a failed calculation as long as nothing changed (the error is in `scheduleError`).';
 
 const NO_ARGS_SCHEMA = { type: 'object', properties: {}, additionalProperties: false } as const;
+
+/** Schema van een leestool met alleen OPTIONELE paginering (#818): zonder beide velden de hele lijst. */
+const OPTIONAL_PAGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    limit: { type: 'number', description: 'Optional: number per page (1-1000). Without limit and offset the whole list is returned.' },
+    offset: { type: 'number', description: 'Optional: start index (default 0).' },
+  },
+  additionalProperties: false,
+} as const;
+
+/** Zin in de beschrijving van zo'n tool. */
+const OPTIONAL_PAGE_NOTE =
+  ' Optional pagination: `limit` (integer 1..1000) and `offset` (≥ 0); with either one the list is paged ' +
+  '(default limit 50) and the answer adds `total`, `has_more` and `next_offset`. Without both, the whole list.';
 
 export const readTools: McpToolDef[] = [
   {
@@ -1218,12 +1261,14 @@ export const readTools: McpToolDef[] = [
       'these tasks+relationships is client work. `pathsMode` reports the situation: "merged" (one merged ' +
       'critical path — the normal case) or "parallel". Separate parallel chains (`criticalPaths`) are ONLY ' +
       'included when floatPaths with method FREE_FLOAT is active; otherwise there is by definition one ' +
-      'merged path and `criticalPaths` is missing.' + FRESH_NOTE,
+      'merged path and `criticalPaths` is missing.' + OPTIONAL_PAGE_NOTE + ' The pages run over ' +
+      '`criticalTasks`; a page lists the driving relationships whose successor is on that page, and ' +
+      '`criticalPaths` stays complete.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'get_critical_path'); return getCriticalPath(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'get_critical_path'); return getCriticalPath(s, (args ?? {}) as PageArgs); }, FRESH),
   },
   {
     name: 'planner_list_resources',
@@ -1310,12 +1355,12 @@ export const readTools: McpToolDef[] = [
       'onSchedule: late/early/new/dropped) plus `projectEndDelta`. No active baseline ⇒ clean VALIDATION ' +
       'error. YARDSTICK DISCLOSURE: deltas are working days on the CURRENT project calendar — after a ' +
       'calendar change the yardstick itself has changed (take magnitudes with a grain of salt; direction and ' +
-      'selection stay reliable).' + FRESH_NOTE,
+      'selection stay reliable).' + OPTIONAL_PAGE_NOTE + ' The pages run over `deviations`.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'compare_baseline'); return compareBaseline(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'compare_baseline'); return compareBaseline(s, (args ?? {}) as PageArgs); }, FRESH),
   },
   {
     name: 'planner_analyze_delay',
@@ -1325,11 +1370,11 @@ export const readTools: McpToolDef[] = [
       'would double-count a cascade). The critical shifters (variance ∩ critical path) with their individual ' +
       'deltas serve as localisation/explanation, not to be added up. If the baseline has no calculated ' +
       'project end, the tool reports that explicitly (`projectEndDeltaAvailable:false`) instead of ' +
-      'suggesting 0.' + FRESH_NOTE,
+      'suggesting 0.' + OPTIONAL_PAGE_NOTE + ' The pages run over `criticalShifters`.' + FRESH_NOTE,
     kind: 'read',
     batchable: true,
-    inputSchema: NO_ARGS_SCHEMA,
+    inputSchema: OPTIONAL_PAGE_SCHEMA,
     annotations: READ_ANNOTATIONS,
-    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, [], 'analyze_delay'); return analyzeDelay(s); }, FRESH),
+    handler: (args, ctx) => runReadTool(ctx, (s) => { requireOnlyKeys(args, PAGE_KEYS, 'analyze_delay'); return analyzeDelay(s, (args ?? {}) as PageArgs); }, FRESH),
   },
 ];

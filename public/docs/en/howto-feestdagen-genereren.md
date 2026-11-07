@@ -14,13 +14,15 @@ The **construction holiday** (*bouwvak*) is the collective holiday in the Dutch 
 
 1. Choose *Planning › Calendar › Calendar* and pick on the left the calendar the holidays must go into.
 2. Click *Generate holidays…*. Under the button a block with the choices opens.
-3. Choose the *Country*: Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland, or *No holidays*. For a number of countries a *Region* list appears as well, for example a federal state in Germany. *National* leaves only the holidays that apply everywhere.
+3. Choose the *Country*: Netherlands, Germany, Belgium, France, United Kingdom, Austria, Switzerland, United States, or *No holidays*. For a number of countries a *Region* list appears as well, for example a federal state in Germany. *National* leaves only the holidays that apply everywhere.
 4. For the Netherlands, choose the *Construction holiday*: *None* (default), *North*, *Central* or *South*. The construction holiday appears as one period in the list, for example *Bouwvak (Noord)*, three weeks from Monday to Friday. You only see this choice if *Construction mode* is on.
 5. Under the choices is a summary, such as *21 holidays, 2026–2028*. Click it to see the dates.
 6. Click *Generate*. The *Holidays* list is now filled.
 7. Click *Apply*. The app recalculates the schedule right away.
 
 For the Netherlands the app puts Nieuwjaar, Goede Vrijdag, Pasen (two days), Koningsdag, Hemelvaart, Pinksteren (two days) and Kerst (25 and 26 December) in the list each year (New Year's Day, Good Friday, Easter, King's Day, Ascension Day, Whitsun and Christmas). If King's Day falls on a Sunday, it is on 26 April. Bevrijdingsdag (Liberation Day) is only in the list in lustrum years, such as 2025 and 2030.
+
+For the United States the app puts the 11 federal holidays in the list each year: New Year's Day, Martin Luther King Jr. Day, Washington's Birthday (Presidents' Day), Memorial Day, Juneteenth (from 2021), Independence Day, Labor Day, Columbus Day, Veterans Day, Thanksgiving Day and Christmas Day. If a fixed date falls on a Saturday, the day off is the Friday before; on a Sunday, it is the Monday after. So in 2026 Independence Day is on Friday 3 July. This is the rule for federal employees. Private companies do not have to follow it, and not every company gives all 11 days off; Columbus Day and Veterans Day in particular are often worked. Check the list with your client or union agreement and remove the days your project works. State holidays and Inauguration Day (only in the Washington DC area) are not included; add them yourself as a day off if your project needs them.
 
 The years follow the project period: from the year before the start date through the year after the later of the entered end date and the last calculated project end. If both are missing, up to three years after the start year. This also applies to *Generate holidays…* and *Regenerate* in the *Resource calendar* window. If you have changed tasks, press **Calculate** (F5) first to use their new end. You adjust the start and entered end date under *Settings › Project › Project settings*.
 

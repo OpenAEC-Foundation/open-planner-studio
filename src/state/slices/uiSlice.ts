@@ -1,7 +1,7 @@
 import type { UIState, AppSlice, AppNotification, NotifyInput } from './types';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { McpServerStatus } from '@/services/mcp/contracts';
-import { MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
+import { loadFeatureFlags, MCP_DEFAULT_PORT, peekTheme } from '@/utils/settingsStore';
 import { detectSystemPrefersDark } from '@/utils/theme';
 import { DEFAULT_BAR_COLOR_SELECTION } from '@/types/barColor';
 import { maxGanttZoom } from '@/engine/renderer/timelineTiers';
@@ -91,7 +91,7 @@ export function createDefaultUI(): UIState {
     showUpdateDialog: false,
     justUpdated: null,
     // Synchroon uit localStorage, zodat de default nooit afwijkt van wat het
-    // pre-paint-script in index.html al op <html> zette (headless valt peekTheme terug op 'dark').
+    // pre-paint-script (public/theme-prepaint.js) al op <html> zette (headless valt peekTheme terug op 'dark').
     uiTheme: peekTheme(),
     // Systeemkleurschema bij het bouwen van de store — synchroon, om dezelfde reden als hierboven:
     // bij voorkeur 'system' moet de eerste React-commit meteen het juiste thema kiezen. De
@@ -112,7 +112,7 @@ export function createDefaultUI(): UIState {
     modifierMap: { plain: 'vertical', ctrl: 'zoom', shift: 'horizontal' },
     debugTerminalEnabled: false,
     experimentalSettingsVisible: false,
-    featureFlags: {},
+    featureFlags: loadFeatureFlags(),
     debugTerminalOpen: false,
     documentChromeStyle: 'tabs',
     ribbonCompact: false,
@@ -175,6 +175,7 @@ export function createDefaultUI(): UIState {
     showShortcutsDialog: false,
     showBenchmarkDialog: false,
     showStatsDialog: false,
+    showSettingsDelayDialog: false,
     pendingExtensionConsent: null,
     pendingActualStartQuestion: null,
     pendingPhaseAssignmentQuestion: null,

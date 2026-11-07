@@ -39,7 +39,7 @@ function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: numbe
         }}
       >
         <span style={{ width: 12, flexShrink: 0, color: 'var(--dashboard-text-dim)' }}>
-          {hasDetail ? (expanded ? <Icon id="tree.collapse" size={12} /> : <Icon id="tree.expand" size={12} className="ops-icon-inline-flip" />) : null}
+          {hasDetail ? (expanded ? <Icon id="tree.collapse" size={12} /> : <Icon id="tree.expand" size={12} className="ops-icon-inline-flip" lucide={{ className: undefined }} />) : null}
         </span>
         {entry.ok
           ? <Icon id="status.success" size={12} style={{ flexShrink: 0, color: 'var(--success)' }} />

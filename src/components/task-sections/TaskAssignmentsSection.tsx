@@ -6,7 +6,7 @@ import type { ResourceCurve } from '@/types/resource';
 import { UnitsInput } from '@/components/common/UnitsInput';
 import { Select, type SelectOption } from '@/components/common/Select';
 import { decimalSeparatorOf, localizeDecimalPoint } from '@/utils/reportNumber';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { RESOURCE_CURVES, CURVE_KEY } from './shared';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import { assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -255,7 +255,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       <span className="min-w-0 truncate font-medium" title={resName} data-ops-assignment-name>{resName}</span>
                       {curveMarked && (
                         <span
-                          className="inline-flex shrink-0 items-center text-text-secondary"
+                          className={b2IconsOn() ? 'inline-flex shrink-0 items-center text-text-secondary' : 'inline-flex shrink-0 items-center'}
+                          style={b2IconsOn() ? undefined : { color: 'var(--theme-accent)' }}
                           title={`${t('properties.assignments.curve')}: ${curveLabel}`}
                           data-ops-assignment-curve-mark={curveValue}
                         >
@@ -362,7 +363,7 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                           title={contoured ? t('properties.assignments.contouredHint') : t('properties.assignments.contour')}
                           data-ops-assignment-contour={contoured ? 'contoured' : 'formula'}
                         >
-                          <Icon id="assignment.hours-distribution" size={12} aria-hidden="true" className={contoured ? 'shrink-0 text-text-secondary' : 'shrink-0'} />
+                          <Icon id="assignment.hours-distribution" size={12} aria-hidden="true" className={contoured ? 'shrink-0 text-text-secondary' : 'shrink-0'} lucide={{ className: 'shrink-0' }} />
                           <span className="truncate">{t('properties.assignments.contour')}</span>
                         </button>
                         {canMove && (

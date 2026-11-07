@@ -54,6 +54,8 @@ const HOME = '/home/tester';
 const SOURCE = `${HOME}/projecten/Installateur.ifc`;
 const OUTSIDE = '/elders/Sloper.ifc';
 const files = new Map<string, string>();
+// Wijzigingstijd per bestand: de bronversie die de tool in de koppeling zet (herkomst, #809).
+const mtimes = new Map<string, Date>();
 const reads: string[] = [];
 let onRead: (() => void) | null = null;
 
@@ -63,7 +65,7 @@ const fs: McpFileFs = {
   stat: async (p) => {
     const index = [...files.keys()].indexOf(p);
     if (index < 0) throw new Error(`ENOENT: ${p}`);
-    return { isFile: true, dev: 1, ino: index + 1 };
+    return { isFile: true, dev: 1, ino: index + 1, mtime: mtimes.get(p) ?? null };
   },
   writeTextFile: async (p, c) => { files.set(p, c); },
   readTextFile: async (p) => {
@@ -95,9 +97,11 @@ const testId = B().addTask({ name: 'Testen', time: createDefaultTaskTime('2027-0
 B().addSequence({ predecessorId: installId, successorId: testId, type: 'FINISH_START', lagDays: 0 });
 
 /** Reken de bron door en schrijf haar als IFC naar de nep-fs. */
+let sourceWrites = 0;
 function writeSource(): void {
   B().runCPM();
   files.set(SOURCE, writeIFC(buildWriteIFCInput(B())));
+  mtimes.set(SOURCE, new Date(Date.UTC(2027, 1, 1, 9, ++sourceWrites)));
 }
 
 const io = { readTextFile: (p: string) => fs.readTextFile(p), readFile: (p: string) => fs.readFile(p) };
@@ -155,8 +159,9 @@ function buildPlan(): void {
 }
 buildPlan();
 
-const anchorOf = (taskId: string, linkId: string) =>
-  S().tasks.find(t => t.id === taskId)!.externalLinks!.find(l => l.id === linkId)!.anchorDate;
+const linkOf = (taskId: string, linkId: string) =>
+  S().tasks.find(t => t.id === taskId)!.externalLinks!.find(l => l.id === linkId)!;
+const anchorOf = (taskId: string, linkId: string) => linkOf(taskId, linkId).anchorDate;
 const appliedSteps = () => S().historyEvents.filter(e => e.state === 'applied').length;
 
 // --- 1. planner_get_task --------------------------------------------------------------------------
@@ -285,6 +290,12 @@ test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigin
   assertEq(anchorOf(ids.vloer, ids.vloerLink), '2027-03-09T16:00', 'Vloer: einde Testen');
   assertEq(anchorOf(ids.gevel, ids.gevelLink), '2027-03-05T16:00', 'Gevel (zonder pad, zelfde bronproject): mee ververst');
   assertEq(anchorOf(ids.dak, ids.dakLink), '2027-03-01T16:00', 'Dak (buiten de thuismap): onveranderd');
+  // Herkomst (#809): de wijzigingstijd van de bron als versie, en de leestijd; zoals de app.
+  const afbouwLink = linkOf(ids.afbouw, ids.afbouwLink);
+  assertEq(afbouwLink.sourceVersion, mtimes.get(SOURCE)!.toISOString(), 'Afbouw: bronversie = wijzigingstijd');
+  assert(!!afbouwLink.anchorReadAt && !isNaN(Date.parse(afbouwLink.anchorReadAt)), 'Afbouw: leestijd gezet');
+  assertEq(linkOf(ids.gevel, ids.gevelLink).sourceVersion, mtimes.get(SOURCE)!.toISOString(), 'Gevel: zelfde bronversie');
+  assertEq(linkOf(ids.dak, ids.dakLink).sourceVersion, undefined, 'Dak (niet gelezen): geen bronversie');
   const changes = [...data.changes].sort((a: any, b: any) => a.taskName.localeCompare(b.taskName));
   assertEq(changes.map((c: any) => [c.taskName, c.anchorBefore, c.anchorAfter, c.sourceMissing]), [
     ['Afbouw', '2027-03-01T16:00', '2027-03-05T16:00', false],
@@ -319,6 +330,7 @@ test('refresh: een nieuwe versie van de bron schuift het anker; een verdwenen br
   const data = await ok('planner_refresh_external_links');
   // Installatie 7 werkdagen vanaf ma 1 maart ⇒ klaar op di 9 maart 16:00.
   assertEq(anchorOf(ids.afbouw, ids.afbouwLink), '2027-03-09T16:00', 'Afbouw volgt de nieuwe bron');
+  assertEq(linkOf(ids.afbouw, ids.afbouwLink).sourceVersion, mtimes.get(SOURCE)!.toISOString(), 'Afbouw: nieuwe bronversie');
   assert(data.changes.some((c: any) => c.linkId === ids.afbouwLink && c.anchorBefore === '2027-03-05T16:00'), 'change van Afbouw');
 
   // Een versie zonder Testen: de koppeling van Vloer houdt haar anker en krijgt sourceMissing.

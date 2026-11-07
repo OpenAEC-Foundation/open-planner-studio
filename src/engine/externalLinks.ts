@@ -30,6 +30,11 @@ export interface ExternalSourceDoc {
    *  bestand ze niet had. Ontbreekt dit veld (een bron die de aanroeper zelf opbouwde), dan tellen de
    *  late datums van `tasks`; ontbreekt alleen de taak, dan droeg het bestand voor haar niets. */
   lateDatesInFile?: Readonly<Record<string, LateDatesInFile>>;
+  /** De versie van de bron bij het lezen: het versienummer op de site of de wijzigingstijd van het
+   *  bestand (ISO, UTC). Afwezig ⇒ onbekend; de verversing schrijft dan geen versie. */
+  version?: string;
+  /** Wanneer de bron gelezen werd (ISO, UTC). Afwezig ⇒ de verversing schrijft geen leestijd. */
+  readAt?: string;
 }
 
 /** Of het bronbestand voor een taak een late start en een late finish droeg. */
@@ -112,6 +117,28 @@ export function linkMatchesSource(
 }
 
 /**
+ * De herkomst van het anker (keuze 4) van een bestaande koppeling, op een nieuwe vorm van diezelfde
+ * koppeling. Routes die een koppeling opnieuw opbouwen uit een vorm zonder herkomst (de relatiecel: het
+ * klembordformaat v1 draagt `sourceVersion`, `anchorReadAt` en `siteFileId` niet) zetten haar zo terug.
+ * Dezelfde brontaak (project-id, taak-id en bestandspad) ⇒ de site-id blijft. Ook hetzelfde anker ⇒ versie
+ * en leestijd blijven: het anker komt dan nog steeds uit die versie van de bron. Een ander anker komt niet
+ * meer uit de bron, en dan valt de herkomst weg. Wat de nieuwe vorm zelf al draagt, wint.
+ */
+export function withKeptAnchorProvenance<T extends Omit<ExternalLink, 'id'>>(next: T, old: ExternalLink | undefined): T {
+  if (!old) return next;
+  const a = old.sourceRef;
+  const b = next.sourceRef;
+  if (a.projectId !== b.projectId || a.taskId !== b.taskId || (a.filePath ?? '') !== (b.filePath ?? '')) return next;
+  const out: T = { ...next };
+  if (a.siteFileId !== undefined && b.siteFileId === undefined) out.sourceRef = { ...b, siteFileId: a.siteFileId };
+  if (next.anchorDate === old.anchorDate) {
+    if (next.sourceVersion === undefined && old.sourceVersion !== undefined) out.sourceVersion = old.sourceVersion;
+    if (next.anchorReadAt === undefined && old.anchorReadAt !== undefined) out.anchorReadAt = old.anchorReadAt;
+  }
+  return out;
+}
+
+/**
  * Ververst alle externe links die naar `source` verwijzen met de actuele brontaak-datums.
  * Puur: muteert niets in-place; ongewijzigde taken/links behouden hun referentie (goedkope re-render).
  * Links naar een ándere bron blijven onaangeroerd. Match: projectId (fallback filePath); brontaak-match
@@ -153,10 +180,18 @@ export function refreshExternalAnchors(
         taskName: srcTask.name,
         filePath: source.filePath ?? link.sourceRef.filePath,
       };
+      const nextAnchor = anchorDate || link.anchorDate;
+      // Herkomst (keuze 4): het anker komt nu uit deze versie van de bron. Dezelfde versie en hetzelfde
+      // anker ⇒ niets nieuws; dan blijft ook de oude leestijd staan, zodat verversen zonder wijziging het
+      // document niet verandert. Heeft de koppeling nog geen leestijd, dan neemt ze een nieuwe één keer
+      // over, ook als de versie onbekend is (beide `undefined`).
+      const sameProvenance = (source.version ?? undefined) === link.sourceVersion && nextAnchor === link.anchorDate
+        && (link.anchorReadAt !== undefined || source.readAt === undefined);
       // Geen daadwerkelijke wijziging ⇒ referentie behouden (byte-/render-stabiel).
       if (
         link.anchorDate === anchorDate &&
         link.sourceMissing === false &&
+        sameProvenance &&
         link.sourceRef.projectId === nextRef.projectId &&
         link.sourceRef.projectName === nextRef.projectName &&
         link.sourceRef.taskName === nextRef.taskName &&
@@ -165,7 +200,14 @@ export function refreshExternalAnchors(
         return link;
       }
       taskChanged = true;
-      return { ...link, anchorDate: anchorDate || link.anchorDate, sourceMissing: false, sourceRef: nextRef };
+      const next: ExternalLink = { ...link, anchorDate: nextAnchor, sourceMissing: false, sourceRef: nextRef };
+      if (!sameProvenance) {
+        delete next.sourceVersion;
+        delete next.anchorReadAt;
+        if (source.version !== undefined) next.sourceVersion = source.version;
+        if (source.readAt !== undefined) next.anchorReadAt = source.readAt;
+      }
+      return next;
     });
     if (!taskChanged) return task;
     anyChanged = true;
@@ -233,16 +275,44 @@ export function refreshFromSources(
   return { tasks: out, refreshed, missing, changed };
 }
 
+/** De herkomst van een anker (keuze 4) in een vorm die de tooltip toont. `site`: een versienummer op de
+ *  site (`sourceRef.siteFileId` gezet); `file`: de wijzigingstijd van het bronbestand; `read`: alleen de
+ *  leestijd is bekend; `none`: niets bekend (een oudere koppeling of een anker dat de planner invulde). */
+export type ExternalAnchorProvenance =
+  | { kind: 'site'; version: string; readAt?: Date }
+  | { kind: 'file'; modified: Date; readAt?: Date }
+  | { kind: 'read'; readAt: Date }
+  | { kind: 'none' };
+
+export function externalAnchorProvenance(
+  link: Pick<ExternalLink, 'sourceVersion' | 'anchorReadAt' | 'sourceRef'>,
+): ExternalAnchorProvenance {
+  const time = (iso: string | undefined): Date | undefined => {
+    if (!iso) return undefined;
+    const date = new Date(iso);
+    return isNaN(date.getTime()) ? undefined : date;
+  };
+  const readAt = time(link.anchorReadAt);
+  const withRead = readAt ? { readAt } : {};
+  if (link.sourceVersion) {
+    if (link.sourceRef.siteFileId) return { kind: 'site', version: link.sourceVersion, ...withRead };
+    const modified = time(link.sourceVersion);
+    if (modified) return { kind: 'file', modified, ...withRead };
+  }
+  return readAt ? { kind: 'read', readAt } : { kind: 'none' };
+}
+
 const DIRECTIONS: readonly string[] = ['predecessor', 'successor'];
 const RELATION_TYPES: readonly string[] = ['FS', 'SS', 'FF', 'SF'];
-const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath'] as const;
+const OPTIONAL_SOURCE_FIELDS = ['projectName', 'taskName', 'filePath', 'siteFileId'] as const;
+const OPTIONAL_PROVENANCE_FIELDS = ['sourceVersion', 'anchorReadAt'] as const;
 
 /**
  * De externe koppelingen uit een opgeslagen bestand (`OPS_ExternalLink`), in een vorm die de app
  * aankan. Een koppeling zonder geldige richting, type, anker (tekst) of bron (project-id als tekst,
  * taak-id niet leeg) valt weg: zulke data liet laden, rekenen en de relatiecel vastlopen. Een
  * ontbrekend of dubbel id krijgt een eigen id per taak, een ontbrekende bronstatus wordt "bron
- * ontbreekt", een ongeldige lag en een bronveld dat geen tekst is vervallen. Onbekende extra velden
+ * ontbreekt", een ongeldige lag en een bron- of herkomstveld dat geen tekst is vervallen. Onbekende extra velden
  * blijven staan, zodat een nieuwere versie van de app bij opslaan niets verliest.
  * Geen geldige koppeling ⇒ `undefined` (de taak heeft er dan geen).
  */
@@ -275,6 +345,7 @@ export function storedExternalLinks(value: unknown): ExternalLink[] | undefined 
     for (const key of ['lagDays', 'lagMinutes'] as const) {
       if (key in link && !isValidExternalLagValue(key, link[key])) delete link[key];
     }
+    for (const key of OPTIONAL_PROVENANCE_FIELDS) if (key in link && typeof link[key] !== 'string') delete link[key];
     links.push(link as unknown as ExternalLink);
   });
   return links.length > 0 ? links : undefined;
