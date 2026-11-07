@@ -44,7 +44,7 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { generateId } from '@/utils/id';
 import {
   RibbonButton, RibbonSmallButton, RibbonGroup, RibbonButtonStack, RibbonDropdown,
-  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible, RibbonCollapsedTrigger,
+  RibbonInlineSelect, RibbonCompactTrigger, RibbonMenuItem, RibbonCollapsible, RibbonCollapsedTrigger, RibbonPopoverContent,
   encodeFieldRef, decodeFieldRef,
 } from './ribbonPrimitives';
 import { useRibbonDensity } from './ribbonDensity';
@@ -74,6 +74,7 @@ import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 export function BaselinesProgressGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const compact = useRibbonDensity() !== 'full';
   const setUI = useAppStore(s => s.setUI);
   const statusDate = useAppStore(s => s.project.statusDate);
@@ -104,17 +105,21 @@ export function BaselinesProgressGroupContent() {
           }}
         />
         {showTime && <StatusDateTimeField statusDate={statusDate} onCommit={setStatusDate} />}
-        {statusDate && (
-          <button
-            className="ribbon-btn small"
-            title={tMenu('ribbon.statusDateClear')}
-            aria-label={tMenu('ribbon.statusDateClear')}
-            onClick={() => setStatusDate(undefined)}
-            style={{ padding: b2IconsOn() ? 0 : 2 }}
-          >
-            <Icon id="planning.clear-status-date" size={16} lucide={{ size: 12 }} />
-          </button>
-        )}
+        {/* De wisknop houdt ook zonder datum zijn plek (onzichtbaar en niet bedienbaar). Anders
+            hangt de groepsbreedte af van de waarde, en klapt de groep bij een vaste vensterbreedte
+            om door alleen een datum in te vullen of te wissen. */}
+        <button
+          className="ribbon-btn small"
+          title={statusDate ? tMenu('ribbon.statusDateClear') : undefined}
+          aria-label={tMenu('ribbon.statusDateClear')}
+          aria-hidden={statusDate ? undefined : true}
+          disabled={!statusDate}
+          tabIndex={statusDate ? undefined : -1}
+          onClick={() => setStatusDate(undefined)}
+          style={{ padding: b2IconsOn() ? 0 : 2, visibility: statusDate ? undefined : 'hidden' }}
+        >
+          <Icon id="planning.clear-status-date" size={16} lucide={{ size: 12 }} />
+        </button>
       </div>
     </div>
   );
@@ -171,21 +176,23 @@ export function BaselinesProgressGroupContent() {
             ? `${tMenu('ribbon.baselines')}\n${tMenu('ribbon.statusDateValue', { date: showTime ? displayDate.dateTime(statusDate) : displayDate.date(statusDate) })}`
             : tMenu('ribbon.baselines')}
           open={open}
-          onClick={() => setOpen(o => !o)}
+          onClick={viaKeyboard => { setKeyboardOpen(viaKeyboard); setOpen(o => !o); }}
         />
       )}
     >
-      <button
-        className="ribbon-btn small"
-        style={{ width: '100%' }}
-        onClick={() => { onManageBaselines(); setOpen(false); }}
-      >
-        <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} lucide={{ size: 14 }} /></span>
-        <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
-      </button>
-      <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
-      {statusDateControl}
-      {progressModeControl(true)}
+      <RibbonPopoverContent trap={!compact && keyboardOpen}>
+        <button
+          className="ribbon-btn small"
+          style={{ width: '100%' }}
+          onClick={() => { onManageBaselines(); setOpen(false); }}
+        >
+          <span className="ribbon-btn-icon"><Icon id="planning.baselines" size={16} lucide={{ size: 14 }} /></span>
+          <span className="ribbon-btn-label">{tMenu('ribbon.manageBaselines')}</span>
+        </button>
+        <div style={{ height: 1, background: 'var(--theme-border-light)', margin: '4px 0' }} />
+        {statusDateControl}
+        {progressModeControl(true)}
+      </RibbonPopoverContent>
     </Popover>
   );
 

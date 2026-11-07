@@ -131,6 +131,32 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
   await page.setViewportSize(size);
   await expect(ribbonGroup).not.toHaveAttribute('data-ribbon-collapsed', '');
+
+  // De groepsbreedte hangt niet af van de waarde: de wisknop houdt ook zonder datum zijn plek.
+  // Anders klapte de groep bij een vaste vensterbreedte om door alleen invullen of wissen.
+  const groupWidth = async () => (await ribbonGroup.boundingBox())!.width;
+  const widthWithDate = await groupWidth();
+  const clear = ribbonGroup.getByRole('button', { name: /^(Clear status date|Statusdatum leegmaken)$/ });
+  await clear.click();
+  await expect.poll(() => statusDate(page)).toBeUndefined();
+  await expect(clear).toHaveCount(0); // onzichtbaar en buiten de toegankelijkheidsboom
+  expect(await groupWidth()).toBe(widthWithDate);
+  await page.evaluate((value) => window.__OPS__!.store.getState().setProject({ statusDate: value }), STATUS);
+  await expect(clear).toBeVisible();
+
+  // Toetsenbord: Enter op de ingeklapte knop zet de focus in het eerste veld van de popover, Tab
+  // blijft in de popover, Escape zet de focus terug op de knop.
+  await page.setViewportSize({ width: 900, height: size.height });
+  await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  await expect(popoverField).toBeVisible();
+  await expect(popoverField.locator('input').first()).toBeFocused();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Tab');
+  expect(await panel.evaluate(el => el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(popoverField).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 test('lint: Statusdatum aanklikken en verlaten zonder wijziging laat hem exact staan, zonder undo-stap', async ({ page, ops: _ops }) => {

@@ -1,4 +1,5 @@
-import { useState, useId, useEffect, useRef } from 'react';
+import { useState, useId, useEffect, useRef, useCallback } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Popover } from '@/components/common/Popover';
 import { b2IconsOn, Icon } from '@/components/icons';
 
@@ -248,12 +249,13 @@ export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
   label: string;
   title: string;
   open: boolean;
-  onClick: () => void;
+  /** `viaKeyboard`: geopend met Enter of spatie (een klik zonder muis heeft `detail === 0`). */
+  onClick: (viaKeyboard: boolean) => void;
 }) {
   return (
     <button
       className={open ? 'ribbon-btn active' : 'ribbon-btn'}
-      onClick={onClick}
+      onClick={event => onClick(event.detail === 0)}
       title={title}
       aria-label={label}
       aria-haspopup="dialog"
@@ -263,6 +265,24 @@ export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
       <span className="ribbon-btn-label">{label}{b2IconsOn() ? <Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /> : ' ▾'}</span>
     </button>
   );
+}
+
+/**
+ * Inhoud van de popover van een ingeklapte veldengroep. Geopend met het toetsenbord (`trap`): de
+ * focus gaat naar het eerste veld en Tab blijft in de popover tot Escape (die zet de focus terug op
+ * de knop), zoals `aria-haspopup="dialog"` belooft. Met de muis geopend blijft de focus waar hij is:
+ * een klik ernaast moet de focus niet terug naar de knop trekken.
+ */
+export function RibbonPopoverContent({ trap, children }: { trap: boolean; children: React.ReactNode }) {
+  return trap ? <FocusTrappedContent>{children}</FocusTrappedContent> : <>{children}</>;
+}
+
+function FocusTrappedContent({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const firstField = useCallback(() => ref.current?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled])') ?? null, []);
+  useFocusTrap(ref, firstField);
+  // `display: contents`: het paneel houdt zijn eigen flex-indeling.
+  return <div ref={ref} style={{ display: 'contents' }}>{children}</div>;
 }
 
 type MenuItemOverflow = 'wrap' | 'nowrap' | 'ellipsis';
