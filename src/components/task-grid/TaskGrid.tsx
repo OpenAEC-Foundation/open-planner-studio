@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   addTaskGridColumn,
+  applyAutoFitWidths,
   cloneColumns,
   moveTaskGridColumn,
   removeTaskGridColumn,
@@ -64,6 +65,12 @@ export interface TaskGridProps extends CoreProps {
   beforeColumnAction?: () => boolean;
   /** De adapter scant alle actuele taak-occurrences en geeft null terug als de bron onderweg verdwijnt. */
   onComputeAutoFitWidth?: (columnId: TaskColumnId) => Promise<number | null>;
+  /** Instelling "Kolommen automatisch aanpassen". Kolommen met `manualWidth` blijven staan. */
+  autoFitColumns?: boolean;
+  /** Tijdelijk geen automatisch aanpassen, bijvoorbeeld tijdens het bewerken van een cel. */
+  autoFitPaused?: boolean;
+  /** Schrijft de automatisch gemeten breedtes weg: bewaard, maar geen eigen undo-stap. Moet stabiel zijn. */
+  onApplyAutoFit?: (columns: readonly TaskGridColumnPreference[]) => void;
   chooserOpen?: boolean;
   onChooserOpenChange?: (open: boolean) => void;
 }
@@ -77,7 +84,8 @@ function sameColumns(
     return candidate !== undefined
       && column.id === candidate.id
       && column.width === candidate.width
-      && column.pinned === candidate.pinned;
+      && column.pinned === candidate.pinned
+      && (column.manualWidth === true) === (candidate.manualWidth === true);
   });
 }
 
@@ -92,6 +100,9 @@ export function TaskGrid({
   onRecordRecentColumn,
   beforeColumnAction,
   onComputeAutoFitWidth,
+  autoFitColumns = false,
+  autoFitPaused = false,
+  onApplyAutoFit,
   chooserOpen,
   onChooserOpenChange,
   ...coreProps
@@ -137,13 +148,45 @@ export function TaskGrid({
     return true;
   };
 
+  // Tijdens het slepen van een kolomrand grijpt automatisch aanpassen niet in.
+  const resizing = previewWidths.size > 0;
+
+  // Automatisch aanpassen (instelling): na een korte rust meten we alle kolommen zonder
+  // `manualWidth` en schrijven de nieuwe breedtes weg. `onComputeAutoFitWidth` krijgt een nieuwe
+  // identiteit zodra rijen, tekst, taal of lettergrootte veranderen en is daarmee de trigger; tijdens
+  // het bewerken van een cel wacht de meting, dus een kolom beweegt niet onder de hand.
+  useEffect(() => {
+    if (!autoFitColumns || autoFitPaused || resizing || !onComputeAutoFitWidth || !onApplyAutoFit) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const before = cloneColumns(preferencesRef.current.columns);
+        const widths = new Map<TaskColumnId, number>();
+        for (const preference of before) {
+          if (preference.manualWidth === true || !optionsById.has(preference.id)) continue;
+          const width = await onComputeAutoFitWidth(preference.id);
+          if (cancelled) return;
+          if (width !== null) widths.set(preference.id, width);
+        }
+        const current = preferencesRef.current.columns;
+        if (!sameColumns(current, before)) return;
+        const after = applyAutoFitWidths(current, widths);
+        if (!sameColumns(current, after)) onApplyAutoFit(after);
+      })();
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [autoFitColumns, autoFitPaused, resizing, onApplyAutoFit, onComputeAutoFitWidth, optionsById, surfacePreferences.columns]);
+
   const autoFitColumn = async (columnId: TaskColumnId) => {
     const option = optionsById.get(columnId);
     if (!option || !onComputeAutoFitWidth || !allowAction()) return;
     const before = cloneColumns(preferencesRef.current.columns);
     const width = await onComputeAutoFitWidth(columnId);
     if (width === null || !sameColumns(preferencesRef.current.columns, before)) return;
-    const after = resizeTaskGridColumn(before, columnId, width);
+    const after = resizeTaskGridColumn(before, columnId, width, false);
     if (sameColumns(before, after)) return;
     onCommitColumns(labels.history.autoFitColumn(option.label), after);
   };
@@ -203,7 +246,7 @@ export function TaskGrid({
           setPreviewWidths(new Map());
           if (!option) return;
           const current = preferencesRef.current.columns;
-          const resized = resizeTaskGridColumn(current, columnId, after);
+          const resized = resizeTaskGridColumn(current, columnId, after, true);
           if (!sameColumns(current, resized)) {
             onCommitColumns(labels.history.resizeColumn(option.label), resized);
           }

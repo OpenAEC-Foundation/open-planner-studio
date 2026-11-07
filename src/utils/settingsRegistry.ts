@@ -186,6 +186,9 @@ export const SETTINGS: SettingDescriptor[] = [
   // Automatisch berekenen
   setting({ key: 'autoCalcCPM', field: 'autoCalcCPM', parse: parseBoolean }),
 
+  // Kolommen automatisch aanpassen (taakraster)
+  setting({ key: 'autoFitColumns', field: 'autoFitColumns', parse: parseBoolean }),
+
   // Datumnotatie
   setting({ key: 'dateNotation', field: 'dateNotation', parse: parseEnum(DATE_NOTATIONS) }),
   setting({ key: 'timeNotation', field: 'timeNotation', parse: parseEnum(TIME_NOTATIONS) }),

@@ -80,7 +80,7 @@ import type { GridMutationOptions } from '@/state/gridTransaction';
 import { localTodayIso } from '@/utils/dateUtils';
 import type {
   CellEditIntent, CellValidationError, GridIntent, GridResult, TaskColumnCategory, TaskColumnId,
-  TaskGridSurfaceId,
+  TaskGridColumnPreference, TaskGridSurfaceId,
 } from '@/types/taskGrid';
 import { askActualStart } from '@/state/actualStartQuestion';
 import { TASK_ROW_HEIGHT } from '@/engine/taskGrid/rowHeight';
@@ -341,6 +341,8 @@ export function TaskGridSurface({
   const notifyStructureLocked = useAppStore(state => state.notifyStructureLocked);
   const runGridMutation = useAppStore(state => state.runGridMutation);
   const commitTaskGridColumns = useAppStore(state => state.commitTaskGridColumns);
+  const setTaskGridColumns = useAppStore(state => state.setTaskGridColumns);
+  const autoFitColumns = useAppStore(state => state.ui.autoFitColumns);
   const setTaskGridScrollX = useAppStore(state => state.setTaskGridScrollX);
   const recordRecentTaskColumn = useAppStore(state => state.recordRecentTaskColumn);
   const constructionMode = useAppStore(state => state.ui.constructionMode);
@@ -926,6 +928,10 @@ export function TaskGridSurface({
     return computeTaskGridAutoFitWidth({
       columnId,
       headerText: option.label,
+      // Met de instelling "Kolommen automatisch aanpassen" aan telt de kop niet mee: de kop kapt
+      // af met een ellips (zoals bij de standaardbreedtes), de waarden bepalen de breedte. Ook de
+      // dubbelklik volgt dan deze regel, anders sprong de kolom na het loslaten weer terug.
+      includeHeader: !autoFitColumns,
       rows: rowIndex.taskRows.map(row => {
         const value = descriptor.read(row.task, adapter.context);
         const visibleText = adapter.getCell(row.rowKey, columnId)?.text ?? '';
@@ -944,7 +950,13 @@ export function TaskGridSurface({
       cache: autoFitCacheRef.current,
       measureText: text => context2d.measureText(text).width,
     });
-  }, [activeDocumentId, adapter, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+  }, [activeDocumentId, adapter, autoFitColumns, containerRef, nameLeadingWidth, rowIndex.taskRows, uiFontScale]);
+
+  // Automatisch gemeten breedtes: wel bewaard, geen eigen undo-stap (de gebruiker koos ze niet).
+  const applyAutoFit = useCallback(
+    (columns: readonly TaskGridColumnPreference[]) => setTaskGridColumns(surfaceId, columns),
+    [setTaskGridColumns, surfaceId],
+  );
 
   const getCell = useCallback((row: DataGridDataRowModel, column: { id: TaskColumnId; label: string }): DataGridCellModel => {
     const base = adapter.getCell(row.rowKey, column.id);
@@ -1243,6 +1255,9 @@ export function TaskGridSurface({
         onRecordRecentColumn={recordRecentTaskColumn}
         beforeColumnAction={finishEditing}
         onComputeAutoFitWidth={computeAutoFitWidth}
+        autoFitColumns={autoFitColumns}
+        autoFitPaused={editing !== null}
+        onApplyAutoFit={applyAutoFit}
         chooserOpen={surfaceId === 'full-task-grid' ? showColumnsDialog : undefined}
         onChooserOpenChange={surfaceId === 'full-task-grid'
           ? open => setUI({ showColumnsDialog: open })

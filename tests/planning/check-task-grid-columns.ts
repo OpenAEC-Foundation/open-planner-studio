@@ -1,6 +1,8 @@
 import {
   TASK_GRID_AUTOFIT_MAX_WIDTH,
   addTaskGridColumn,
+  applyAutoFitWidths,
+  normalizeTaskGridColumnPreferences,
   computeTaskGridAutoFitWidth,
   moveTaskGridColumn,
   recentAvailableTaskColumnIds,
@@ -74,6 +76,31 @@ eq('Resize gebruikt de UX-grenzen 40..480', [
   resizeTaskGridColumn(initial, id('f-a'), 9_000).find(column => column.id === 'f-a')?.width,
 ], [40, 480]);
 
+// Kolommen automatisch aanpassen: slepen markeert een kolom als handmatig, optimale breedte
+// (dubbelklik) wist die markering, en automatisch aanpassen laat een handmatige kolom ongemoeid.
+const dragged = resizeTaskGridColumn(initial, id('f-a'), 123, true);
+eq('Slepen zet manualWidth op die ene kolom',
+  dragged.map(column => `${column.id}:${column.width}:${column.manualWidth === true}`),
+  initial.map(column => `${column.id}:${column.id === 'f-a' ? 123 : column.width}:${column.id === 'f-a'}`));
+eq('Optimale breedte wist manualWidth (de sleutel verdwijnt, geen false)',
+  'manualWidth' in resizeTaskGridColumn(dragged, id('f-a'), 150, false).find(column => column.id === 'f-a')!,
+  false);
+eq('Resize zonder manual-argument laat de markering zoals ze was',
+  resizeTaskGridColumn(dragged, id('f-a'), 200).find(column => column.id === 'f-a')?.manualWidth, true);
+const autoFitted = applyAutoFitWidths(dragged, new Map([[id('f-a'), 300], [id('f-b'), 9_000], [id('p-a'), 10]]));
+eq('Automatisch aanpassen slaat een handmatige kolom over en klemt de rest op 40..480', [
+  autoFitted.find(column => column.id === 'f-a')?.width,
+  autoFitted.find(column => column.id === 'f-b')?.width,
+  autoFitted.find(column => column.id === 'p-a')?.width,
+  autoFitted.find(column => column.id === 'p-b')?.width,
+], [123, 480, 40, initial.find(column => column.id === 'p-b')?.width]);
+eq('manualWidth overleeft normalisatie (opslaan en laden); false of rommel verdwijnt',
+  normalizeTaskGridColumnPreferences([
+    { id: 'a', width: 100, pinned: false, manualWidth: true },
+    { id: 'b', width: 100, pinned: false, manualWidth: false },
+    { id: 'c', width: 100, pinned: false, manualWidth: 'ja' },
+  ])?.map(column => column.manualWidth === true), [true, false, false]);
+
 eq('MRU toont alleen nu beschikbare ids, behoudt volgorde en kapt af op tien',
   recentAvailableTaskColumnIds(
     [id('missing'), ...Array.from({ length: 12 }, (_, index) => id(`recent-${index}`))],
@@ -146,6 +173,18 @@ await computeTaskGridAutoFitWidth({
   cache: measureCache, measureText, chunkSize: 500, yieldToMain: async () => undefined,
 });
 eq('De per-rij/per-kolom/valueversion-cache voorkomt hermeting van alle datacellen', measured, 1);
+// Met de instelling "Kolommen automatisch aanpassen" telt de kop niet mee (20 px per teken).
+const shortRows = [{ rowKey: 'r1', valueVersion: 'v', text: 'Ja' }];
+const fitWith = (includeHeader?: boolean) => computeTaskGridAutoFitWidth({
+  columnId: id('task.time.isCritical'), headerText: 'Kritiek pad', rows: shortRows,
+  cache: new Map(), measureText: text => text.length * 5, includeHeader,
+});
+eq('Kop telt standaard mee: 11 tekens x 5 + 16 opvulling = 71', await fitWith(), 71);
+eq('Zonder kop bepaalt alleen de waarde de breedte, met ondergrens 40', await fitWith(false), 40);
+eq('Zonder kop volgt de breedte de breedste waarde: 20 tekens x 5 + 16 = 116', await computeTaskGridAutoFitWidth({
+  columnId: id('task.name'), headerText: 'Naam', rows: [{ rowKey: 'r1', valueVersion: 'v', text: 'x'.repeat(20) }],
+  cache: new Map(), measureText: text => text.length * 5, includeHeader: false,
+}), 116);
 eq('Auto-fit-cache-identiteit verandert met zichtbare tekst, font en document', [
   taskGridAutoFitValueVersion('WORKTIME', 'Werktijd', '12px sans-serif', 'doc-a'),
   taskGridAutoFitValueVersion('WORKTIME', 'Work time', '12px sans-serif', 'doc-a'),
