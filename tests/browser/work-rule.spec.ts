@@ -84,7 +84,7 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   await inheritedUnits.fill('2');
   await inheritedUnits.press('Enter');
   expect(await taskState(page, taskId)).toMatchObject({ duration: 1, units: 2, work: 16 * 60 });
-  await page.getByRole('button', { name: /^Start$/ }).click();
+  await page.getByRole('button', { name: /^(Home|Start)$/ }).click();
   await page.keyboard.press('Control+z');
   expect(await taskState(page, taskId)).toMatchObject({ duration: 2, units: 1, work: 16 * 60 });
   await page.keyboard.press('Control+z');
