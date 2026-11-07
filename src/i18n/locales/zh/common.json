@@ -605,6 +605,7 @@
     "missedDeadlines": "已超过 {{count}} 个期限",
     "violatedConstraints": "{{count}} 个限制被违反",
     "outOfSequence": "{{count}} 个乱序关系",
+    "externalSuccessors_other": "{{count}} 个外部后续任务时间过紧",
     "overallocated": "{{count}} 个资源过度分配",
     "summary_other": "{{count}} 个警告"
   },
@@ -621,6 +622,10 @@
       "scheduleError": "无法计算计划：{{message}}",
       "missedDeadline": "已错过截止日期 {{deadline}} — 最早完成 {{finish}}",
       "violatedConstraint": "限制 {{constraint}} 被逻辑覆盖（负浮时）",
+      "externalSuccessorViolatedSF": "外部后续任务 {{task}}（{{project}}，{{relation}}）时间过紧：它最晚于 {{anchor}} 完成，本任务要到 {{own}} 才开始",
+      "externalSuccessorViolatedFF": "外部后续任务 {{task}}（{{project}}，{{relation}}）时间过紧：它最晚于 {{anchor}} 完成，本任务要到 {{own}} 才完成",
+      "externalSuccessorViolatedSS": "外部后续任务 {{task}}（{{project}}，{{relation}}）时间过紧：它最晚于 {{anchor}} 开始，本任务要到 {{own}} 才开始",
+      "externalSuccessorViolatedFS": "外部后续任务 {{task}}（{{project}}，{{relation}}）时间过紧：它最晚于 {{anchor}} 开始，本任务要到 {{own}} 才完成",
       "outOfSequence": "顺序错误：后续任务的进度与关系矛盾",
       "truncatedLead": "提前量被项目开始截断 — 关系未被完全遵守",
       "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
