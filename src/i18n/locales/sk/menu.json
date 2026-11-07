@@ -237,6 +237,8 @@
     "company": "Spoločnosť",
     "startDate": "Dátum začiatku",
     "endDate": "Dátum dokončenia",
+    "defaultWorkRule": "Predvolený typ úlohy",
+    "defaultWorkRuleHint": "Úlohy nastavené na „Štandard projektu“ nasledujú túto voľbu. Úlohy s vlastným typom úlohy si ponechajú svoju voľbu.",
     "calc": {
       "title": "Výpočet",
       "subtitle": "Možnosti plánovania pre tento projekt. Ukladajú sa so súborom, nie s aplikáciou.",

@@ -236,6 +236,8 @@
     "company": "Azienda",
     "startDate": "Data di inizio",
     "endDate": "Data di fine",
+    "defaultWorkRule": "Tipo di attività predefinito",
+    "defaultWorkRuleHint": "Le attività impostate su ‘Predefinito del progetto’ seguono questa scelta. Le attività con un proprio tipo di attività mantengono la loro scelta.",
     "calc": {
       "title": "Calcolo",
       "subtitle": "Opzioni di pianificazione per questo progetto — memorizzate con il file, non con l'app.",

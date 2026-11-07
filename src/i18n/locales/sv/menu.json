@@ -235,6 +235,8 @@
     "company": "Företag",
     "startDate": "Startdatum",
     "endDate": "Slutdatum",
+    "defaultWorkRule": "Standarduppgiftstyp",
+    "defaultWorkRuleHint": "Uppgifter som står på ”Projektstandard” följer detta val. Uppgifter med en egen uppgiftstyp behåller sitt val.",
     "calc": {
       "title": "Beräkning",
       "subtitle": "Beräkningsinställningar för det här projektet – sparas med filen, inte i appen.",

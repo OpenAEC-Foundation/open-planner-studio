@@ -235,6 +235,8 @@
     "company": "Şirket",
     "startDate": "Başlangıç tarihi",
     "endDate": "Bitiş tarihi",
+    "defaultWorkRule": "Varsayılan görev türü",
+    "defaultWorkRuleHint": "‘Proje varsayılanı’ olarak ayarlanan görevler bu seçimi izler. Kendi görev türü olan görevler seçimlerini korur.",
     "calc": {
       "title": "Hesaplama",
       "subtitle": "Bu proje için zamanlama seçenekleri — uygulamayla değil, dosyayla birlikte saklanır.",

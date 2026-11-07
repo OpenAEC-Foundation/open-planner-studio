@@ -236,6 +236,8 @@
     "company": "Empresa",
     "startDate": "Data de início",
     "endDate": "Data de fim",
+    "defaultWorkRule": "Tipo de tarefa padrão",
+    "defaultWorkRuleHint": "As tarefas definidas como «Predefinição do projeto» seguem esta escolha. As tarefas com um tipo de tarefa próprio mantêm a sua escolha.",
     "calc": {
       "title": "Cálculo",
       "subtitle": "Opções de planeamento para este projeto — guardadas com o ficheiro, não com a aplicação.",

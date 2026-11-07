@@ -235,6 +235,8 @@
     "company": "Virksomhed",
     "startDate": "Startdato",
     "endDate": "Slutdato",
+    "defaultWorkRule": "Standardopgavetype",
+    "defaultWorkRuleHint": "Opgaver, der er sat til ‘Projektstandard’, følger dette valg. Opgaver med en egen opgavetype beholder deres valg.",
     "calc": {
       "title": "Beregning",
       "subtitle": "Beregningsindstillinger for dette projekt — gemmes med filen, ikke i appen.",
