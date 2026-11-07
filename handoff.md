@@ -63,7 +63,22 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 1 (v1) | 6 | 6 | 7 |
 | 2 (v2) | 6 | 6 | 7 |
 | 3 (v3) | 6 | 6 | 8 |
-| 4 (v4) | loopt | loopt | loopt |
+| 4 (v4) | 7 | loopt | loopt |
+
+### Ronde 4 — Opus (7/10, "daarna 8 tot 9"), te verwerken in v5
+
+Blokkeert (tekstfixes): (1) Ext mag niet door D ∪ R heen lopen (anders wordt de TaskTime en eigen owner history van een
+gekoppelde taak C en stapelt per opslaan een wees op; proef `scratchpad/r4/k1..k3.ifc`, fix `scratchpad/r4/classify-stop.py`);
+doelen van bewaarde slot-tokens blijven startpunt; test: twee keer opslaan met 4D-koppeling + vreemde pset = zelfde aantal
+stukken. (2) R-tabel: `IfcRelAssignsToControl` ook kalender → resources/taken (`ifcWriter.ts:1482, 1490`); script volgt de
+tabel niet (`classify-v4.py:77`), letterlijk geeft appartementencomplex P 4224 C 39 A 1 (`scratchpad/r4/classify-spec.py`).
+Vervolg: (3) script regel 71 (`D |= base_tasks`) eruit; D bevat alleen BASELINE-schema's die bij een item in
+`OPS_Baselines` horen. (4) R-relaties uit Bonsai/Synchro verliezen QuantityInProcess, UserDefinedSequenceType, Name/
+Description, Creators → R in `sourceSlots` of verlieslijst. (5) R-id via objectleden niet uniek → R houdt `#id` alleen als
+een niet-P-stuk ernaar wijst, sleutel (type, leden, psetnaam). (6) `sameIFCSource` kijkt alleen naar `IFC_SAVE_KEYS`;
+herstel (`recoveryDelta.ts:88`) → nieuwe sha via manifest-metadata; herstel moet kaart/sourceSlots/elementLinks opnieuw
+opbouwen. (7) "Onbekend schema geweigerd" alleen met vreemd deel. (8) MCP-backups houden per sha een modelkopie vast
+(`backupService.ts:170-181`) → meten of alleen de nieuwste. (9) `detached`: welke versie bij twee opslagen; id-botsing.
 
 ### Ronde 3 — Opus (6/10, "daarna 8 tot 9") — verwerkt in v4 (Sol 6 en Fable 8 vonden grotendeels hetzelfde; spec §12)
 
