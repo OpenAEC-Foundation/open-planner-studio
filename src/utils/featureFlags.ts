@@ -4,6 +4,8 @@ export interface FeatureFlag {
   id: string;
   nameKey: ParseKeys<'common'>;
   descriptionKey?: ParseKeys<'common'>;
+  /** Alleen via een ontwikkel-URL; geen zichtbare instelling. */
+  hidden?: boolean;
   /** Nieuwe IFC-data: geen checkbox zolang de opslag daarvan nog niet af is. */
   writesNewIfcData: boolean;
 }
@@ -22,6 +24,12 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     nameKey: 'settings.featureReportRedesign',
     descriptionKey: 'settings.featureReportRedesignHint',
     writesNewIfcData: false,
+  },
+  {
+    id: 'b2-icons',
+    nameKey: 'settings.experimentalSection',
+    writesNewIfcData: false,
+    hidden: true,
   },
   // Demo-flag: alleen titelbalkdecoratie, zonder nieuwe documentgegevens.
   {

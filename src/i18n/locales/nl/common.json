@@ -91,6 +91,8 @@
     "recoveryRestoreFailed": "Herstellen mislukt",
     "hostSettingsUnavailable": "De instellingen van de site zijn niet geladen. Wat je deze sessie aan instellingen wijzigt, wordt niet bewaard.",
     "hostThemeUntilRestart": "Dit thema geldt tot je de planner opnieuw start. Daarna volgt de planner weer het thema van de SuperCloud.",
+    "settingsLoadedLate": "Je instellingen zijn geladen en toegepast.",
+    "settingsLoadedLateReverted": "Je instellingen zijn geladen en toegepast. Wat je in de tussentijd wijzigde, is teruggezet.",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",
@@ -1870,5 +1872,9 @@
   "fileDrop": {
     "title": "Laat los om te openen",
     "subtitle": "Projectbestand of import"
+  },
+  "settingsDelay": {
+    "title": "Instellingen niet geladen",
+    "body": "Je instellingen konden niet van de server worden geladen. Je werkt nu met de standaardinstellingen. Zodra je instellingen weer beschikbaar zijn, worden ze automatisch toegepast."
   }
 }

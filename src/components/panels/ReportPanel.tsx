@@ -48,6 +48,7 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 
 
@@ -416,6 +417,11 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // die elk al pagina 0 (en soms 1) renderen voordat de laatste toestand wint.
   const [reportSettingsHydrated, setReportSettingsHydrated] = useState(false);
 
+  // Kwamen de instellingen van de host pas later binnen (#818), of veranderde een ander tabblad ze, dan
+  // opnieuw laden: anders schrijft de volgende wijziging deze verouderde set over de nieuwe heen.
+  const [reportSettingsReload, setReportSettingsReload] = useState(0);
+  useStoredSettingRefresh('ops-reportSettings', () => setReportSettingsReload(n => n + 1));
+
   useEffect(() => {
     let cancelled = false;
     void loadReportSettings().then(s => {
@@ -469,7 +475,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       setReportSettingsHydrated(true);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [reportSettingsReload]);
 
   // Opslaan bij elke wijziging. Geen debounce: `setSetting` is een enkele synchrone
   // localStorage-schrijf van een klein object — goedkoper dan de preview-render die bij dezelfde
