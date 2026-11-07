@@ -20,6 +20,10 @@ You use the planner inside the OpenAEC environment, on a site where you are alre
 
 **Someone else saved in the meantime.** The app then does not save and reports: *Not saved: '…' was changed on the site by someone else in the meantime.* Your changes are still in the app. Choose *Save As* to keep them as a new file.
 
+In the OpenAEC SuperCloud this works differently: there the site puts your work in a copy next to the file. The app reports the name of that copy. From then on, Ctrl+S saves to that copy. Your colleague's file stays as it was.
+
+**The file is read-only.** Sometimes you may not change a file on the site, for example because someone else is editing it. The app still opens it and reports that it is read-only. You can view and edit it. Saving creates a new file: the app asks for a name first.
+
 **The site cannot be reached.** You then see *Failed to save* with the reason from the site. Your changes stay in the app, and crash recovery keeps them too.
 
 **A file in Recent is no longer on the site.** The app then reports *'…' is no longer on the site* and removes it from the recent files. With any other error, the file stays in the list.

@@ -635,6 +635,12 @@
     "notAvailableWeb": "Kaynak dosyaları okumak yalnızca masaüstü uygulamasında mümkündür; manuel yedeği kullanın.",
     "source": "Kaynak",
     "sourceAvailable": "son kontrolde kullanılabilir",
+    "provenance": "Bağlantı noktasının kaynağı",
+    "provenanceSite": "kaynağın {{version}} sürümü, okunma: {{readAt}}",
+    "provenanceSiteNoRead": "kaynağın {{version}} sürümü",
+    "provenanceFile": "{{modified}} tarihli kaynak dosya, okunma: {{readAt}}",
+    "provenanceFileNoRead": "{{modified}} tarihli kaynak dosya",
+    "provenanceRead": "okunma: {{readAt}}",
     "edit": "Dış ilişkiyi düzenle…",
     "refreshSource": "Kaynağı yenile",
     "deleteRelation": "İlişkiyi sil"

@@ -20,6 +20,10 @@ Je gebruikt de planner binnen de OpenAEC-omgeving op een site waar je al bent in
 
 **Iemand anders sloeg intussen op.** Dan slaat de app niet op en meldt ze: *Niet opgeslagen: '…' is op de site intussen door iemand anders gewijzigd.* Je wijzigingen staan nog in de app. Kies *Opslaan als* om ze als nieuw bestand te bewaren.
 
+In de OpenAEC SuperCloud gaat dit anders: daar zet de site je werk in een kopie naast het bestand. De app meldt de naam van die kopie. Vanaf dan slaat Ctrl+S op in die kopie. Het bestand van je collega blijft zoals het was.
+
+**Het bestand is alleen-lezen.** Soms mag je een bestand op de site niet wijzigen, bijvoorbeeld omdat iemand anders het bewerkt. De app opent het dan toch en meldt dat het alleen-lezen is. Je kunt het bekijken en bewerken. Opslaan maakt een nieuw bestand: de app vraagt eerst een naam.
+
 **De site is niet bereikbaar.** Dan verschijnt *Opslaan mislukt* met de reden van de site erbij. Je wijzigingen blijven in de app staan en crashherstel bewaart ze ook.
 
 **Een bestand uit Recent staat niet meer op de site.** Dan meldt de app *'…' staat niet meer op de site* en haalt ze het uit de recente bestanden. Bij een andere fout blijft het bestand in de lijst staan.

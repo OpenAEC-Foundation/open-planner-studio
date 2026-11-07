@@ -13,6 +13,8 @@
     "dismiss": "关闭通知",
     "taskEditRevertBlocked": "一项 MCP 客户端或扩展的更改在此期间插入。之前的任务修改没有被还原，仍作为普通步骤保留在“撤销”中。",
     "openFailed": "打开文件失败",
+    "fileDropRefused": "未打开：{{names}}。本应用只能打开 IFC、XML、MPP、XER 和 CSV。",
+    "fileDropBlocked": "未打开：{{names}}。请先关闭当前打开的窗口。",
     "csvInvalidDate": "未打开 CSV：CSV 第 {{row}} 行、“{{column}}”列中的日期“{{value}}”无法识别。请使用 yyyy-mm-dd、dd-mm-yyyy 或 dd/mm/yyyy。",
     "extGuideCallbackFailed": "扩展 {{name}} 的一个步骤出错。引导将继续。",
     "extHelpProjectOpenFailed": "无法打开扩展 {{name}} 的项目文件 {{file}}。",
@@ -1180,11 +1182,9 @@
     "detailConstraints": "约束日期",
     "detailDeadlines": "截止日期",
     "detailActuals": "实际日期",
-    "detailExternal": "外部锚点",
     "detailSteps": "资源能力阶段",
     "warnActuals_other": "{{count}} 项任务有实际开始/完成日期，这些日期也会一同移动。请确认这对进行中的项目是否合适。",
     "warnHardPins_other": "{{count}} 项任务设有强制（硬）约束；该锚定日期也会一同移动。",
-    "warnExternal_other": "{{count}} 个外部关系：其锚点会一同移动，但源项目不会。移动后请刷新这些链接。",
     "warnHolidayGap": "日历“{{name}}”生成的节假日覆盖 {{from}}–{{to}}；移动后的计划延续至 {{year}}。请重新生成节假日。",
     "warnCustomDateFields_other": "{{count}} 个已填写的日期自定义字段将保持原有日期。",
     "warnPast": "新的开始日期位于过去。",
@@ -1627,5 +1627,9 @@
     "blockedDuplicate": "无法移动：“{{child}}”已经有 {{resources}}。",
     "blockedNoChild": "无法移动：“{{phase}}”不会获得能承载分配的子任务，只有里程碑或摘要任务。",
     "actualWorkLost_other": "{{resource}} 的分配已记录 {{hours}} 小时的实际工时。删除会丢弃这些工时。"
+  },
+  "fileDrop": {
+    "title": "松开即可打开",
+    "subtitle": "项目文件或导入"
   }
 }

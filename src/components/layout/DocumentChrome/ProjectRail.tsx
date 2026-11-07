@@ -16,7 +16,7 @@ export function ProjectRail() {
   return (
     <div className="ops-rail" data-ops-rail>
       <button className="ops-iconbtn ops-rail-grid" title={t('documents.allProjects')} onClick={openOverview}>
-        <Icon id="documents.overview" size={20} />
+        <Icon id="documents.overview" size={20} lucide={{ icon: 'LayoutGrid' }} />
       </button>
       <div className="ops-rail-sep" />
 
