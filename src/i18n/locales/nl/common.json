@@ -13,6 +13,8 @@
     "dismiss": "Melding sluiten",
     "taskEditRevertBlocked": "Een wijziging van de MCP-client of een extensie kwam tussendoor. De taakwijzigingen van daarvóór zijn niet teruggedraaid en staan als gewone stappen onder Ongedaan maken.",
     "openFailed": "Bestand openen mislukt",
+    "fileDropRefused": "Niet geopend: {{names}}. De app opent alleen IFC, XML, MPP, XER en CSV.",
+    "fileDropBlocked": "Niet geopend: {{names}}. Sluit eerst het venster dat openstaat.",
     "csvInvalidDate": "CSV niet geopend: onleesbare datum \"{{value}}\" op CSV-rij {{row}}, kolom \"{{column}}\". Gebruik jjjj-mm-dd, dd-mm-jjjj of dd/mm/jjjj.",
     "extGuideCallbackFailed": "Een stap van de extensie {{name}} gaf een fout. De begeleiding gaat door.",
     "extHelpProjectOpenFailed": "Het projectbestand {{file}} van de extensie {{name}} kon niet worden geopend.",
@@ -1864,6 +1866,10 @@
       "hammock": "Volgt de gekoppelde taken",
       "unknown": "Reden niet vastgesteld"
     }
+  },
+  "fileDrop": {
+    "title": "Laat los om te openen",
+    "subtitle": "Projectbestand of import"
   },
   "settingsDelay": {
     "title": "Instellingen niet geladen",

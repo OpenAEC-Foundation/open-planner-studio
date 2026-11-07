@@ -1149,11 +1149,19 @@ export function TimeScaleGroupContent() {
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
-  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount.
-  const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table' && !s.ui.showResourcePanel);
+  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount: alleen het
+  // volle, niet-gedockte resourcepaneel neemt de werkruimte over. Met Resourcedock aan staat de Tabel er gewoon.
+  const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table'
+    && !(s.ui.showResourcePanel && !s.ui.resourcePanelDocked));
+  const chooserOpen = useAppStore(s => s.ui.showColumnsDialog);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),
-    onClick: () => setUI({ activeRibbonTab: 'table', showColumnsDialog: true }),
+    // Een tweede klik sluit de kiezer weer (Ethan, 7 november 2026). De kiezer telt deze knop daarom
+    // niet als klik ernaast (`COLUMNS_RIBBON_TOGGLE_SELECTOR`); anders sloot `mousedown` hem en
+    // opende de `click` hem meteen opnieuw.
+    onClick: () => setUI(tableVisible && chooserOpen
+      ? { showColumnsDialog: false }
+      : { activeRibbonTab: 'table', showColumnsDialog: true }),
   };
 }
 
