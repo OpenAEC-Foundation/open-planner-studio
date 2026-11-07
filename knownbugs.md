@@ -612,6 +612,14 @@ en noem het in je rapport of PR-tekst.
      HTML5-slepen op Windows `dragDropEnabled: false` vraagt. Afgeleid uit de bron bij #771, niet op
      Windows nagespeeld. `dragDropEnabled` moet aan blijven voor het neerzetten van bestanden (alleen
      zo krijgt de app het pad). Voorstel: de herordening met pointer-events, zoals `GuidePanel.tsx`. — S
+901. **Bestanden slepen: Esc, een verdwijnend element en de echte sleep zijn niet getest.** De browserstap
+     in `tests/browser/new-open-task-flow.spec.ts` stuurt zelfgemaakte `DragEvent`s met een `DataTransfer`
+     uit de pagina. Playwright kan geen bestand uit het besturingssysteem slepen, dus de onderhandeling
+     tussen besturingssysteem en browser (Esc tijdens het slepen, de cursor bij `dropEffect = 'none'`,
+     `getAsFileSystemHandle` van een echt gesleept bestand) en de sleep in de desktop-app (Tauri op Windows,
+     macOS en Linux) zijn niet nagespeeld. Ook niet: een element dat tijdens het slepen uit de pagina
+     verdwijnt en zo geen `dragleave` krijgt; de rusttijd van 1,5 s in `useFileDrop.ts` vangt dat op en is
+     wel getest. Uit review ronde 1 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
 
 ## Kalenders
 
