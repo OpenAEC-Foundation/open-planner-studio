@@ -155,6 +155,7 @@
     "barsGroup": "Смуги",
     "manageBaselines": "Керувати базовими планами…",
     "statusDate": "Дата звітування про стан",
+    "statusDateValue": "Дата звітування про стан: {{date}}",
     "statusDateClear": "Очистити дату звітування про стан",
     "statusDateTime": "Час дати звітування про стан",
     "statusDateTimeLater": "Час пізніше",

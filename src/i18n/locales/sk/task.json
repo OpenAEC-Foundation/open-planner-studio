@@ -643,6 +643,12 @@
     "notAvailableWeb": "Čítanie zdrojových súborov je možné len v aplikácii pre počítač. Použite ručný záložný postup.",
     "source": "Zdroj",
     "sourceAvailable": "dostupný pri poslednej kontrole",
+    "provenance": "Pôvod kotvy",
+    "provenanceSite": "verzia {{version}} zdroja, načítané {{readAt}}",
+    "provenanceSiteNoRead": "verzia {{version}} zdroja",
+    "provenanceFile": "zdrojový súbor z {{modified}}, načítané {{readAt}}",
+    "provenanceFileNoRead": "zdrojový súbor z {{modified}}",
+    "provenanceRead": "načítané {{readAt}}",
     "edit": "Upraviť prepojenie medzi projektmi…",
     "refreshSource": "Obnoviť zdroj",
     "deleteRelation": "Odstrániť závislosť"

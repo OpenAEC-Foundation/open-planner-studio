@@ -32,6 +32,7 @@
   "repeatHeader": "ສະແດງຫົວຂໍ້ຊ້ຳທຸກໜ້າ",
   "repeatFooter": "ສະແດງທ້າຍໜ້າຊ້ຳທຸກໜ້າ",
   "reportFontScaleLabel": "ຂະໜາດຕົວອັກສອນ:",
+  "reportFontFamilyLabel": "ຟອນ:",
   "timelineColumnsLabel": "ເສັ້ນເວລາຂ້າມ:",
   "timelineColumnsHint": "ສະເພາະຕອນປັບພໍດີອັດຕະໂນມັດເທົ່ານັ້ນ",
   "timelineColumns_other": "{{count}} ໜ້າ",
@@ -429,5 +430,11 @@
       "riskHeading": "ໜ້າວຽກທີ່ມີຄວາມສ່ຽງ: ເກີນກຳນົດ ຫຼື ເວລາຜ່ອນຜັນຕິດລົບ",
       "riskEmpty": "ບໍ່ມີໜ້າວຽກເກີນກຳນົດ ແລະ ບໍ່ມີເວລາຜ່ອນຜັນຕິດລົບ."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (ເລີ່ມຕົ້ນ)",
+    "liberationSans": "Liberation Sans (ຄືກັບ Arial)",
+    "carlito": "Carlito (ຄືກັບ Calibri)",
+    "liberationSerif": "Liberation Serif (ຄືກັບ Times New Roman)"
   }
 }

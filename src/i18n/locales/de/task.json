@@ -635,6 +635,12 @@
     "notAvailableWeb": "Quelldateien lesen ist nur in der Desktop-App möglich; verwenden Sie den manuellen Fallback.",
     "source": "Quelle",
     "sourceAvailable": "bei der letzten Prüfung verfügbar",
+    "provenance": "Herkunft des Ankers",
+    "provenanceSite": "Version {{version}} der Quelle, gelesen am {{readAt}}",
+    "provenanceSiteNoRead": "Version {{version}} der Quelle",
+    "provenanceFile": "Quelldatei vom {{modified}}, gelesen am {{readAt}}",
+    "provenanceFileNoRead": "Quelldatei vom {{modified}}",
+    "provenanceRead": "gelesen am {{readAt}}",
     "edit": "Externe Beziehung bearbeiten…",
     "refreshSource": "Quelle aktualisieren",
     "deleteRelation": "Beziehung löschen"

@@ -640,6 +640,12 @@
     "notAvailableWeb": "La lettura dei file di origine è possibile solo nell'app desktop; usa la soluzione alternativa manuale.",
     "source": "Origine",
     "sourceAvailable": "disponibile all’ultimo controllo",
+    "provenance": "Provenienza dell'ancoraggio",
+    "provenanceSite": "versione {{version}} dell'origine, letta il {{readAt}}",
+    "provenanceSiteNoRead": "versione {{version}} dell'origine",
+    "provenanceFile": "file di origine del {{modified}}, letto il {{readAt}}",
+    "provenanceFileNoRead": "file di origine del {{modified}}",
+    "provenanceRead": "letto il {{readAt}}",
     "edit": "Modifica relazione esterna…",
     "refreshSource": "Aggiorna origine",
     "deleteRelation": "Elimina relazione"

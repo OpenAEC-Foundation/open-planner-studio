@@ -157,6 +157,7 @@
     "barsGroup": "أشرطة المهام",
     "manageBaselines": "إدارة خطوط الأساس…",
     "statusDate": "تاريخ الحالة",
+    "statusDateValue": "تاريخ الحالة: {{date}}",
     "statusDateClear": "مسح تاريخ الحالة",
     "statusDateTime": "وقت تاريخ الحالة",
     "statusDateTimeLater": "وقت لاحق",

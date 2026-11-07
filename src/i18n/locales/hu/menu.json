@@ -153,6 +153,7 @@
     "barsGroup": "Sávok",
     "manageBaselines": "Alapterv kezelése…",
     "statusDate": "Állapotdátum",
+    "statusDateValue": "Állapotdátum: {{date}}",
     "statusDateClear": "Állapotdátum törlése",
     "statusDateTime": "Az állapotdátum időpontja",
     "statusDateTimeLater": "Későbbi idő",

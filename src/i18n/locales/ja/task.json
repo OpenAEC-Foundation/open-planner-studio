@@ -631,6 +631,12 @@
     "notAvailableWeb": "ソースファイルの読み込みはデスクトップアプリでのみ可能です。手動フォールバックを使用してください。",
     "source": "ソース",
     "sourceAvailable": "前回の確認時に利用可能",
+    "provenance": "アンカーの出所",
+    "provenanceSite": "ソースのバージョン {{version}}、{{readAt}} に読み込み",
+    "provenanceSiteNoRead": "ソースのバージョン {{version}}",
+    "provenanceFile": "{{modified}} のソースファイル、{{readAt}} に読み込み",
+    "provenanceFileNoRead": "{{modified}} のソースファイル",
+    "provenanceRead": "{{readAt}} に読み込み",
     "edit": "外部関係を編集…",
     "refreshSource": "ソースを更新",
     "deleteRelation": "依存関係を削除"

@@ -190,6 +190,9 @@ export const SETTINGS: SettingDescriptor[] = [
   // Automatisch berekenen
   setting({ key: 'autoCalcCPM', field: 'autoCalcCPM', parse: parseBoolean }),
 
+  // Kolommen automatisch aanpassen (taakraster)
+  setting({ key: 'autoFitColumns', field: 'autoFitColumns', parse: parseBoolean }),
+
   // Datumnotatie
   setting({ key: 'dateNotation', field: 'dateNotation', parse: parseEnum(DATE_NOTATIONS) }),
   setting({ key: 'timeNotation', field: 'timeNotation', parse: parseEnum(TIME_NOTATIONS) }),
@@ -262,6 +265,21 @@ export async function loadAllSettings(): Promise<Partial<UIState>> {
   }
 
   return patch;
+}
+
+/**
+ * Per `localStorage`-sleutel het `UIState`-veld dat `loadAllSettings` ermee vult: de drie afwijkers en
+ * elk register-item. Voor het live toepassen van instellingen die pas na de start binnenkwamen (#818,
+ * `useSiteHostPreferences`): alleen de velden van een veranderde sleutel krijgen opnieuw hun waarde.
+ */
+export function settingFieldsByStorageKey(): ReadonlyMap<string, keyof UIState> {
+  const map = new Map<string, keyof UIState>([
+    ['ops-theme', 'uiTheme'],
+    ['ops-constructionMode', 'constructionMode'],
+    ['ops-barColorSelection', 'barColorSelection'],
+  ]);
+  for (const d of SETTINGS) map.set(`ops-${d.key}`, d.field);
+  return map;
 }
 
 /** Gestructureerde bootstrap-afwijker naast het 1-op-1 UI-register: één versieerbare sleutel

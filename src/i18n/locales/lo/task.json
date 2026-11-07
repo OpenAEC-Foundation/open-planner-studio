@@ -631,6 +631,12 @@
     "notAvailableWeb": "ການອ່ານໄຟລ໌ຕົ້ນທາງຮອງຮັບສະເພາະເທິງເດັສທັອບເທົ່ານັ້ນ; ກະລຸນາໃຊ້ການປ້ອນເອງ.",
     "source": "ຕົ້ນທາງ",
     "sourceAvailable": "ພົບເຫັນໃນການກວດສອບຫຼ້າສຸດ",
+    "provenance": "ທີ່ມາຂອງຈຸດຍຶດ",
+    "provenanceSite": "ສະບັບ {{version}} ຂອງຕົ້ນທາງ, ອ່ານເມື່ອ {{readAt}}",
+    "provenanceSiteNoRead": "ສະບັບ {{version}} ຂອງຕົ້ນທາງ",
+    "provenanceFile": "ໄຟລ໌ຕົ້ນທາງວັນທີ {{modified}}, ອ່ານເມື່ອ {{readAt}}",
+    "provenanceFileNoRead": "ໄຟລ໌ຕົ້ນທາງວັນທີ {{modified}}",
+    "provenanceRead": "ອ່ານເມື່ອ {{readAt}}",
     "edit": "ດັດແກ້ສາຍສຳພັນພາຍນອກ…",
     "refreshSource": "ໂຫຼດຕົ້ນທາງຄືນໃໝ່",
     "deleteRelation": "ລຶບສາຍພົວພັນ"
