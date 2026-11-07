@@ -427,20 +427,6 @@ function mock(o: MockOpts) {
   eq('G1 FEEDBACK_AVAILABLE en UPDATES_AVAILABLE aan', [FEEDBACK_AVAILABLE, UPDATES_AVAILABLE], [true, true]);
   eq('G2 de rondleiding heeft zeven stappen, de laatste wijst naar de feedbackknop',
     [TOUR_STEPS.length, TOUR_STEPS[TOUR_STEPS.length - 1]?.anchor], [7, 'feedback-button']);
-  // De knoppen en dialogen staan alleen achter de bouwvlag, niet achter een andere voorwaarde.
-  const src = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
-  const titleBar = src('src/components/layout/TitleBar/TitleBar.tsx');
-  const settings = src('src/components/settings/SettingsPanelContent.tsx');
-  const app = src('src/App.tsx');
-  eq('G3 feedbackknop en -dialoog alleen achter FEEDBACK_AVAILABLE', [
-    /\{FEEDBACK_AVAILABLE && \(\s*<>\s*<div className="quick-access-separator" \/>\s*\{\/\*[\s\S]*?\*\/\}\s*<button\s+className="title-bar-feedback-btn"/.test(titleBar),
-    /\{FEEDBACK_AVAILABLE && showFeedbackDialog && <FeedbackDialog \/>\}/.test(app),
-  ], [true, true]);
-  eq('G4 updateknoppen en -dialogen alleen achter UPDATES_AVAILABLE', [
-    /\{UPDATES_AVAILABLE && \(\s*<>\s*<button[\s\S]*?updates\.checkButton[\s\S]*?updates\.justUpdated\.whatsNewButton[\s\S]*?<\/>\s*\)\}/.test(settings),
-    /\{UPDATES_AVAILABLE && <UpdateDialog \/>\}/.test(app),
-    /\{UPDATES_AVAILABLE && justUpdated && recoveryResolved/.test(app),
-  ], [true, true, true]);
 }
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────────────────────

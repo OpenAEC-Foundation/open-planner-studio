@@ -84,9 +84,8 @@ const ALL_TOUR_STEPS: TourStep[] = [
   },
 ];
 
-/** Stap 7 wijst naar de feedbackknop. Die ontbreekt in de platformbouw (#818); zonder anker zou de
- *  rondleiding op de laatste stap blijven hangen (het overslaan gaat niet voorbij het einde). Daarom
- *  valt de stap hier weg, en is stap 6 daar de laatste. */
+/** Stap 7 wijst naar de feedbackknop, die in de platformbouw ontbreekt (#818). Daar valt de stap weg en
+ *  is stap 6 de laatste; anders zou de rondleiding op het ontbrekende anker wachten en afbreken. */
 export const TOUR_STEPS: TourStep[] = FEEDBACK_AVAILABLE
   ? ALL_TOUR_STEPS
   : ALL_TOUR_STEPS.filter(step => step.anchor !== 'feedback-button');
