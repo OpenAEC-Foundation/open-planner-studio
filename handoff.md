@@ -5,9 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp staat als versie 5 in draft PR #839 (commit `2ce2da8f7`). Vier rondes gaven nog geen 9. In ronde 5 gaf
-Fable 8 en Opus 7; Sol loopt nog. De blokkades van ronde 5 zijn klein en gaan vooral over eigen bestanden zonder model:
-die moeten precies blijven zoals nu. Na Sol komt versie 6, dan ronde 6. Daarna begint de bouw met fase 0.
+Het ontwerp staat als versie 5 in draft PR #839 (commit `2ce2da8f7`). Vier rondes gaven nog geen 9. In ronde 5 gaven
+Opus 7, Sol 7 en Fable 8. De blokkades van ronde 5 zijn klein en gaan vooral over eigen bestanden zonder model:
+die moeten precies blijven zoals nu. Nu volgt versie 6, dan ronde 6. Daarna begint de bouw met fase 0.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -64,7 +64,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 2 (v2) | 6 | 6 | 7 |
 | 3 (v3) | 6 | 6 | 8 |
 | 4 (v4) | 7 | 6 | 7 |
-| 5 (v5) | 7 | loopt | 8 |
+| 5 (v5) | 7 | 7 | 8 |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -76,7 +76,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 5 — Fable (8/10) en Opus (7/10, "daarna 8 tot 9"); Sol loopt — te verwerken in v6
+### Ronde 5 — Opus 7 ("daarna 8 tot 9"), Sol 7, Fable 8 — te verwerken in v6
 
 Beide via native Agent (Fable high, Opus xhigh). Opus-proeven in `scratchpad/r5/` (`sim.py`: drie opslagrondes, aantal
 stukken blijft gelijk na ronde 1; `prop.ifc`, `oud01.ifc`).
@@ -96,6 +96,15 @@ Blokkeert:
 - (O5) "Bron ontbreekt" alleen met vreemd deel: manifest `foreign: boolean`; zonder vreemd deel huidige route + melding.
 - (O6) Onbekende property in bekende pset: script laat hem weg (`scratchpad/r5/prop.ifc`). Kiezen: belofte schrappen
   (verlieslijst) of property-namen in de index en C. `OPS_CustomFields`-namen komen uit templates (`ifcReader.ts:2343-2357`).
+Sol (7/10, proeven in `scratchpad/r5sol/`), blokkeert: (S1) onbekende property in bekende pset wordt P via stap 3
+(`IfcPropertySingleValue` is een W-type; proef `#906 VendorSecretNote` aan `OPS_Calendar`) = O6; (S2) R-sleutel niet uniek:
+FS `#65` + SS `#67` tussen zelfde taken = één sleutel; writer groepeert toewijzingen per taak in één rel
+(`ifcWriter.ts:1830`), aparte QuantityInProcess past niet → bron-slots op bron-`#id`, sequences via domein-id
+(`ifcReader.ts:2062`), gegroepeerde rels beschrijven; (S3) codering: oude `0.1`-applicatie blijft C en bepaalt de
+decodeerkeuze bestandsbreed (`ifcReader.ts:1156`) = O7 → herkomst codering per stuk, oude P-tokens normaliseren, beide
+richtingen in de poort; (S4) gedeelde `OPS_Calendar` op kalender én wand → rel A, pset V → lezer mist `HoursPerDay=8`
+(leidt 9 af uit 07–16) → leesrecht los van schrijfrecht: bekende planningsproperties ook via gemengde propertyrel lezen;
+bewerking laat gedeeld deel intact.
 Vervolg: register in script wijkt af (zes XER/P6-markers geen pset; mist `OPS_P6Progress`, `ifcPsets.ts:77,707`) →
 genereren uit `ifcPsets.ts`; baselinesleutel vastleggen (GlobalId `guidOf(ctx,'baseline_ws_'+id)`, salt project-id
 `ifcWriter.ts:227-232`, terugval Name+CreationDate); MCP-backup: terugzetten = P uit backup + vreemd deel van het huidige
