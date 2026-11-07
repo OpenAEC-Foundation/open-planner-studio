@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
+import { resourceCostTotals } from '@/utils/resourceCostTotals';
 import { Icon } from '@/components/icons';
 import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, isCostResource, type Resource, type ResourceType, type AvailabilityStep } from '@/types/resource';
 import { localTodayIso } from '@/utils/dateUtils';
@@ -399,20 +400,11 @@ export function ResourcePanel() {
   // Puur een PROJECT-grootheid (leunt op resourceLoadResult van dit project) — de pool heeft hier
   // bewust geen equivalent (zie "Totaal" hieronder).
   // Een kostenresource (issue #815) telt de bedragen van zijn toewijzingen op; zonder enig bedrag "—".
-  const costByResource = useMemo(() => {
-    const map: Record<string, number | undefined> = {};
-    const costSums = new Map<string, number>();
-    for (const a of assignments) {
-      if (a.costAmount === undefined) continue;
-      costSums.set(a.resourceId, (costSums.get(a.resourceId) ?? 0) + a.costAmount);
-    }
-    for (const r of resources) {
-      if (isCostResource(r)) { map[r.id] = costSums.get(r.id); continue; }
-      const hours = resourceLoadResult?.hours[r.id];
-      map[r.id] = hours === undefined || r.costPerHour == null ? undefined : hours * r.costPerHour;
-    }
-    return map;
-  }, [resources, assignments, resourceLoadResult]);
+  // Kolom "Totaal": uren × tarief, of de som van de bedragen voor een kostenresource (#815).
+  const costByResource = useMemo(
+    () => resourceCostTotals(resources, assignments, resourceLoadResult?.hours),
+    [resources, assignments, resourceLoadResult],
+  );
 
   const grandTotal = useMemo(() => {
     const vals = Object.values(costByResource).filter((v): v is number => v !== undefined);
