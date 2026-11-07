@@ -2331,6 +2331,50 @@ body {
   }
 }
 
+/* Slepen en neerzetten (issue #771): de laag over het hele venster zolang er een bestand boven de app
+   hangt. Licht grijs in het lichte thema (de werkruimtekleur, geen crème; Ethan, 7 november 2026),
+   de donkere werkruimte in het donkere thema; hoog contrast volgt via dezelfde tokens. Boven alles,
+   ook de rondleiding (9997): tijdens een sleep is dit het enige wat telt. De laag zelf vangt de
+   sleep-events; de kaart niet, zodat er geen extra dragenter/dragleave tussen laag en kaart ontstaat. */
+.file-drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: color-mix(in srgb, var(--theme-bg) 80%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* Het neerzetvlak: een gestippelde accentrand rondom, binnen de rand van het venster. */
+.file-drop-overlay::before {
+  content: '';
+  position: absolute;
+  inset: var(--sp-4);
+  border: 2px dashed var(--theme-accent);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+}
+
+.file-drop-overlay-card {
+  position: relative;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: min(360px, 100%);
+  padding: var(--sp-6) calc(var(--sp-6) * 1.5);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  text-align: center;
+}
+
 /* Onbepaalde voortgangsbalk (update-download zonder bekende totale grootte).
    Een smal segment dat heen en weer loopt over de track. */
 @keyframes ops-indeterminate {

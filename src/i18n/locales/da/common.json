@@ -13,6 +13,8 @@
     "dismiss": "Luk meddelelse",
     "taskEditRevertBlocked": "En ændring fra MCP-klienten eller en udvidelse kom imellem. De opgaveændringer før den er ikke fortrudt og står som almindelige trin under Fortryd.",
     "openFailed": "Kunne ikke åbne filen",
+    "fileDropRefused": "Ikke åbnet: {{names}}. Appen åbner kun IFC, XML, MPP, XER og CSV.",
+    "fileDropBlocked": "Ikke åbnet: {{names}}. Luk det åbne vindue først.",
     "csvInvalidDate": "CSV er ikke åbnet: ugyldig dato „{{value}}“ i CSV-række {{row}}, kolonne „{{column}}“. Brug åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et trin fra udvidelsen {{name}} gav en fejl. Vejledningen fortsætter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} fra udvidelsen {{name}} kunne ikke åbnes.",
@@ -1706,5 +1708,9 @@
     "blockedNoChild": "Flytning er ikke mulig: »{{phase}}« får ingen underopgave, der kan bære en tildeling, kun milepæle eller hovedopgaver.",
     "actualWorkLost_one": "Tildelingen af {{resource}} har allerede {{hours}} time faktisk arbejde. Hvis du fjerner den, går det arbejde tabt.",
     "actualWorkLost_other": "Tildelingen af {{resource}} har allerede {{hours}} timer faktisk arbejde. Hvis du fjerner den, går det arbejde tabt."
+  },
+  "fileDrop": {
+    "title": "Slip for at åbne",
+    "subtitle": "Projektfil eller import"
   }
 }

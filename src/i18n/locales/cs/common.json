@@ -13,6 +13,8 @@
     "dismiss": "Zavřít oznámení",
     "taskEditRevertBlocked": "Mezitím přišla změna od klienta MCP nebo od rozšíření. Úpravy úkolů provedené dříve nebyly vráceny zpět a zůstávají jako běžné kroky pod položkou „Zpět“.",
     "openFailed": "Otevření souboru se nezdařilo",
+    "fileDropRefused": "Neotevřeno: {{names}}. Aplikace otevírá jen IFC, XML, MPP, XER a CSV.",
+    "fileDropBlocked": "Neotevřeno: {{names}}. Nejprve zavřete otevřené okno.",
     "csvInvalidDate": "CSV nelze otevřít: nerozpoznané datum „{{value}}“ na řádku CSV {{row}}, sloupec „{{column}}“. Použijte formát rrrr-mm-dd, dd-mm-rrrr nebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšíření {{name}} selhal. Průvodce pokračuje.",
     "extHelpProjectOpenFailed": "Soubor projektu {{file}} z rozšíření {{name}} se nepodařilo otevřít.",
@@ -1868,5 +1870,9 @@
     "actualWorkLost_few": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodiny skutečné práce. Odstraněním se tato práce zahodí.",
     "actualWorkLost_many": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodiny skutečné práce. Odstraněním se tato práce zahodí.",
     "actualWorkLost_other": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodin skutečné práce. Odstraněním se tato práce zahodí."
+  },
+  "fileDrop": {
+    "title": "Pusťte pro otevření",
+    "subtitle": "Soubor projektu nebo import"
   }
 }

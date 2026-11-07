@@ -12,7 +12,7 @@ import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
-import { extensionOf } from '@/utils/filePath';
+import { basename, extensionOf } from '@/utils/filePath';
 
 /** Invoer voor een reader: tekstformaten krijgen `text`, binaire formaten `bytes`. */
 export interface FormatInput { name: string; text?: string; bytes?: Uint8Array }
@@ -172,6 +172,17 @@ const READ_FORMATS: ReadFormat[] = [
 export function readFormatForFile(name: string): ReadFormat {
   const ext = extensionOf(name);
   return READ_FORMATS.find((f) => f.extensions.includes(ext)) ?? IFC_FORMAT;
+}
+
+/** Kan de app dit bestand openen? Strikt op de extensie, zonder de IFC-terugval van
+ *  `readFormatForFile`: een gesleept `tekening.pdf` of `notities` (geen punt) is géén IFC. Eén regel
+ *  voor de keuze openen of weigeren bij slepen en neerzetten (`fileAccess/fileDrop.ts`). */
+export function isReadableFileName(name: string): boolean {
+  const base = basename(name);
+  const dot = base.lastIndexOf('.');
+  if (dot < 0) return false;
+  const ext = base.slice(dot + 1).toLowerCase();
+  return READ_FORMATS.some((f) => f.extensions.includes(ext));
 }
 
 export function openDialogFilters(): FileFilter[] {

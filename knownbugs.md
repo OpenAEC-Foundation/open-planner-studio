@@ -604,6 +604,30 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+843. **Kolomkoppen verslepen werkt op Windows in de desktop-app mogelijk niet.** De herordening in
+     `src/components/task-grid/DataGridHeader.tsx:459` gebruikt HTML5-slepen (`draggable`, `drop` op
+     `window`). `src-tauri/tauri.conf.json` zet `dragDropEnabled: true`; dan zet wry 0.57.0 op Windows
+     `SetAllowExternalDrop(false)` en vervangt het de drop-target van WebView2 door een eigen target
+     (`webview2/drag_drop.rs`, `RevokeDragDrop` + `RegisterDragDrop`). De Tauri-documentatie zegt dat
+     HTML5-slepen op Windows `dragDropEnabled: false` vraagt. Afgeleid uit de bron bij #771, niet op
+     Windows nagespeeld. `dragDropEnabled` moet aan blijven voor het neerzetten van bestanden (alleen
+     zo krijgt de app het pad). Voorstel: de herordening met pointer-events, zoals `GuidePanel.tsx`. — S
+901. **Bestanden slepen: Esc, een verdwijnend element en de echte sleep zijn niet getest.** De browserstap
+     in `tests/browser/new-open-task-flow.spec.ts` stuurt zelfgemaakte `DragEvent`s met een `DataTransfer`
+     uit de pagina. Playwright kan geen bestand uit het besturingssysteem slepen, dus de onderhandeling
+     tussen besturingssysteem en browser (Esc tijdens het slepen, de cursor bij `dropEffect = 'none'`,
+     `getAsFileSystemHandle` van een echt gesleept bestand) en de sleep in de desktop-app (Tauri op Windows,
+     macOS en Linux) zijn niet nagespeeld. Ook niet: een element dat tijdens het slepen uit de pagina
+     verdwijnt en zo geen `dragleave` krijgt; de rusttijd van 1,5 s in `useFileDrop.ts` vangt dat op en is
+     wel getest. Uit review ronde 1 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
+902. **Bestanden slepen: dat getypte invoer in "Taak bewerken" blijft staan, is niet in de browser
+     bewezen.** Opent de planner "Taak bewerken" terwijl een gesleept bestand nog gelezen wordt, dan
+     wacht het document tot de dialoog dicht is (`waitWhile` in `openOpenedFile`). `check-file-drop.ts`
+     bewijst dat met de echte `isBlockingDialogOpen`: document, dialoogvlag en taak blijven staan. Hij
+     mount geen dialoog en typt geen tekst. De browserstap in `new-open-task-flow.spec.ts` toetst alleen
+     een dialoog die al vóór het neerzetten openstaat. Nodig: een browserstap met vertraagd lezen,
+     tussentijds "Taak bewerken" openen en tekst typen, en daarna die tekst controleren. Uit review ronde
+     2 van PR #801 door Sol (GPT-6.1-Sol, xhigh), VERVOLG. — S
 873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
    (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
    cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
