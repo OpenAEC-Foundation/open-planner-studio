@@ -307,6 +307,29 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     const elapsed = ss('2026-06-08T08:00');
     elapsed.time = { ...elapsed.time, durationType: 'ELAPSEDTIME' };
     eq(`${base}/pin/SS 24 uur, ELAPSEDTIME: schending`, verdict(elapsed, base, '24hour').violated, ['L']);
+    // Kalendertijd met lag 0: het echte ankermoment telt, ook buiten de werktijd (review #808 ronde 2 na de
+    // merge). Taak van 24 uur kalendertijd. MSO-pin ma 8 juni 08:00 ⇒ finish di 9 juni 08:00; een FS/FF-
+    // opvolger met anker ma 20:00 is 12 uur te vroeg. MFO-pin ma 8 juni 16:00 ⇒ start zo 7 juni 16:00; een
+    // SS/SF-opvolger met anker zo 12:00 is 4 uur te vroeg. Tegenproef: het anker precies op de taakgrens.
+    const day24 = (constraint: TaskConstraint, link: ExternalLink) => task('L', '2026-06-01', 1, 'project', {
+      time: { ...createDefaultTaskTime('2026-06-01', 24, 'hours'), durationType: 'ELAPSEDTIME' },
+      constraint, externalLinks: [link],
+    });
+    const mfo: TaskConstraint = { type: 'MFO', date: '2026-06-08T16:00', hard: true };
+    for (const lagCalendar of LAG_CALENDARS) {
+      for (const rel of ['FS', 'FF'] as const) {
+        eq(`${base}/${lagCalendar}/pin/ELAPSEDTIME ${rel} lag 0, anker ma 20:00: schending`,
+          verdict(day24(pinAt('2026-06-08T08:00'), succ('s', rel, '2026-06-08T20:00')), base, lagCalendar).violated, ['L']);
+        eq(`${base}/${lagCalendar}/pin/ELAPSEDTIME ${rel} lag 0, tegenproef anker di 08:00`,
+          verdict(day24(pinAt('2026-06-08T08:00'), succ('s', rel, '2026-06-09T08:00')), base, lagCalendar).violated, []);
+      }
+      for (const rel of ['SS', 'SF'] as const) {
+        eq(`${base}/${lagCalendar}/pin/ELAPSEDTIME MFO ${rel} lag 0, anker zo 12:00: schending`,
+          verdict(day24(mfo, succ('s', rel, '2026-06-07T12:00')), base, lagCalendar).violated, ['L']);
+        eq(`${base}/${lagCalendar}/pin/ELAPSEDTIME MFO ${rel} lag 0, tegenproef anker zo 16:00`,
+          verdict(day24(mfo, succ('s', rel, '2026-06-07T16:00')), base, lagCalendar).violated, []);
+      }
+    }
     // Startmijlpaal met een externe FS-opvolger, lag 1 dag in 24 uur.
     const ms = (anchor: string) => task('L', '2026-06-01', 0, 'project', {
       isMilestone: true, milestoneKind: 'START', constraint: pinAt('2026-06-08T08:00'),

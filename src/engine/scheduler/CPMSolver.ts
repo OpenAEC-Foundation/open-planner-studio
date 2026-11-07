@@ -3318,7 +3318,12 @@ export class CPMSolver {
     const anchor = parseInstant(link.anchorDate);
     if (isNaN(anchor.getTime())) return null;
     const finishSide = link.relType === 'FS' || link.relType === 'FF';
-    return { ...this.externalLag(task, link, anchor, eng, -1), finishSide };
+    const shift = this.externalLag(task, link, anchor, eng, -1);
+    // Kalendertijd telt elk klokverschil: bij lag 0 blijft het echte ankermoment staan, ook buiten de
+    // werktijd. `externalLag` geeft dan het volgende werkmoment, en een conflict buiten werktijd zou
+    // verdwijnen (review #808 ronde 2 na de merge met #807).
+    if (!shift.foreign && isElapsedTask(task)) return { at: anchor, foreign: false, lagEng: eng, finishSide };
+    return { ...shift, finishSide };
   }
 
   /**
