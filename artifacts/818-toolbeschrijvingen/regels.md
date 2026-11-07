@@ -29,7 +29,7 @@ landcodes, `shift`, `workRule`, `taskType` en de curves. Vijf bewuste uitzonderi
   zonder getallen, met `start` buiten 0–1439, met `end` ≤ `start`, met `end` > 2880 en met overlap
   (`cases-uurkalender` test 3, ook met een negatieve start). Hij vangt niet alles wat het oude schema noemde: een
   gebroken minuut zoals `{start: 1439.5, end: 1440}` of `{start: 0, end: 0.5}` gaat erdoor. Dat is zo op `main` en
-  op deze branch; het staat als knownbug 933. De grenzen staan één keer in param `byWeekday`.
+  op deze branch; het staat als knownbug 961. De grenzen staan één keer in param `byWeekday`.
 - `byWeekday` noemt de zeven weekdagen niet meer elk als `properties` met hetzelfde dagschema; één dagschema staat nu
   als `additionalProperties` (fixronde 3). De beschrijving noemt de sleutels "1" … "7". De handler toetst de
   sleutels zelf (`workTimeReason`: onbekende sleutel en ontbrekende dag geweigerd). De schemapoort kent sinds
@@ -197,7 +197,7 @@ tool en de gids.
 
 | regel | nieuwe plek |
 |---|---|
-| Velden per actie | tool. Fixronde 5: `update` noemt zijn velden (`unitsPerDay`/`curve`/`remainingWorkMinutes`; andere resource = remove + add), want de handler negeert een andere sleutel stil (knownbug 934). Fixronde 6: `add` noemt ook `curve`/`remainingWorkMinutes` |
+| Velden per actie | tool. Fixronde 5: `update` noemt zijn velden (`unitsPerDay`/`curve`/`remainingWorkMinutes`; andere resource = remove + add), want de handler negeert een andere sleutel stil (knownbug 962). Fixronde 6: `add` noemt ook `curve`/`remainingWorkMinutes` |
 | Alleen op bladtaken, geen mijlpalen, geen dubbele resources | tool |
 | Onder FIXED_WORK/FIXED_RATE veranderen eenheden of een extra resource de DUUR; onder de standaardregel zet `remainingWorkMinutes` de eenheden | tool: "units, `remainingWorkMinutes` or adding/removing a resource change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units" (fixronde 6: `remainingWorkMinutes` ontbrak in de lijst; `applyWorkEdit` rekent de duur opnieuw, test `cases-work-rule`. "otherwise" dekt ook FIXED_DURATION_WORK) |
 | Lees de taak opnieuw voor de nieuwe duur | tool |

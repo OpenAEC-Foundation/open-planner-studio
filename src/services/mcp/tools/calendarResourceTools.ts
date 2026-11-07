@@ -985,7 +985,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
  *  `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`. Daarom zo kaal mogelijk:
  *  `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818). De schemapoort toetst array-items niet
  *  (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven weigert ongeldige banden met een reden
- *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 933). */
+ *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 961). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
   items: { type: 'object', required: ['start', 'end'] },
@@ -1096,7 +1096,7 @@ const updateCalendar: BatchStepTool = {
                   description: '`none` clears the generated days.',
                 },
                 region: { type: 'string', description: 'State/region/canton; omitted = national.' },
-                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL construction holiday.' },
+                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL construction holiday; omitted = `geen` (none).' },
               },
             },
             holidaysMode: {
@@ -1414,8 +1414,8 @@ const manageAssignments: BatchStepTool = {
     '`assignmentId` + `unitsPerDay`/`curve`/`remainingWorkMinutes` (other resource: remove + add); `move`: ' +
     '`assignmentId` to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate ' +
     'resources. Under FIXED_WORK/FIXED_RATE (`workRule`) units, `remainingWorkMinutes` or adding/removing a ' +
-    'resource change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units. One ' +
-    'call = one undo step.',
+    'resource can change the DURATION (reread the task); otherwise `remainingWorkMinutes` sets the units. ' +
+    'MATERIAL never drives duration. One call = one undo step.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
