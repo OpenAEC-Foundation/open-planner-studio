@@ -2031,3 +2031,12 @@ en noem het in je rapport of PR-tekst.
      of de vrijdagrun op main hetzelfde laat zien. Voorstel: de URL uit de trace halen en het verzoek in de test
      afvangen, of de 403 als bekende melding accepteren. Uit de review van #841 (GPT-6.1-Sol, xhigh, ronde 1,
      BEVESTIGD, VERVOLG). — S
+
+886. **VERVOLG: geen regressiecontrole op de kleur van de scheidingslijn tussen de lintgroepen.**
+     `.ribbon-separator` (`src/components/layout/Ribbon/Ribbon.css`) tekent met `--theme-ribbon-separator`
+     (`src/styles/globals.css`, in elk themablok; #843). `tests/planning/check-theme-contrast.ts` meet de lijn niet
+     tegen het lintvlak, `check-system-theme.ts` controleert alleen dat elk thema een blok heeft, en geen
+     browserscenario leest de berekende kleur. Terug naar de oude rasterkleur (#30303A in donker, onzichtbaar op
+     #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
+     `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
+     `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
