@@ -2031,3 +2031,12 @@ en noem het in je rapport of PR-tekst.
      #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+887. **Het icoon van Relatie lijkt in het lint helemaal oranje.** Het lintmenu Relatie (`RelationDropdown`,
+     `src/components/layout/Ribbon/ribbonWidgets.tsx:400`, icoon `planning.relations-menu`). Gemeld door de bouwer van
+     de iconen-flag (7 november 2026): in de app en op het Blueprint-overzichtsblad oogt het icoon helemaal oranje. Dat
+     botst met de regel "een icoon is nooit helemaal oranje" (Blueprint `docs/iconen.md`, "Grijs en oranje"). In de
+     gegenereerde set heeft het icoon één oranje en één grijs deel; waarschijnlijk geeft de knop zelf een oranje
+     tekstkleur door, en dan tekent ook het grijze deel oranje (zie de kop van `src/components/icons/Icon.tsx`). Niet
+     nagemeten. Voorstel: de berekende kleur van beide delen meten; zit het in de knop, geef het icoon daar de grijze
+     tekstkleur (`text-text-secondary`), en neem de knop op in `tests/browser/icon-orange.spec.ts`. — S
