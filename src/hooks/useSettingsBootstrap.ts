@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { loadWelcomeSeen, localStorageAvailable, welcomeSeenAtStartup } from '@/utils/settingsStore';
 import { loadAllSettings } from '@/utils/settingsRegistry';
@@ -24,9 +24,20 @@ const logWelcomeCheck = (outcome: string) => appLog.emit('event', 'welkomst', `w
 // welkomstdialoog. De welkomstcheck hangt af van de recovery-flow (zie hieronder).
 export function useSettingsBootstrap(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const setUI = useAppStore(s => s.setUI);
-  // Ingebed (#818): taal en thema van de host live volgen, en één melding als de instellingen van de
-  // host deze sessie niet bewaard worden.
-  useSiteHostPreferences(setUI);
+  const taskGridChecked = useRef(false);
+  // Ingebed (#818): taal en thema van de host live volgen, en instellingen toepassen die pas na de start
+  // van de host kwamen. Liep de taakgridbootstrap hieronder al, dan leest die de voorkeuren opnieuw (nu
+  // van de host); het bewaren gaat pas aan als dat klaar is. Vóór die bootstrap niet: hij wacht bewust
+  // op de herstelkeuze en leest dan zelf.
+  const reloadLateTaskGrid = useCallback(async (keys: ReadonlySet<string>) => {
+    if (!taskGridChecked.current || !keys.has('ops-taskGridPreferences')) return;
+    try {
+      await bootstrapTaskGridPreferences(useAppStore);
+    } catch (error) {
+      console.error('Taakgridvoorkeuren van de host konden niet worden toegepast:', error);
+    }
+  }, []);
+  useSiteHostPreferences(setUI, reloadLateTaskGrid);
 
   useEffect(() => {
     // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
@@ -57,8 +68,7 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   // de store nog het lege startdocument; direct lezen zou daardoor de dynamische defaults en een
   // eventuele oude actieve `view.columns` vastleggen uit het verkeerde document. Na herstel staat
   // hier eerst het werkelijk actieve document in de store; bij afwijzen/uitstellen blijft het lege
-  // document terecht de bron. De ref maakt deze migratie exact eenmalig.
-  const taskGridChecked = useRef(false);
+  // document terecht de bron. De ref (bovenaan) maakt deze migratie exact eenmalig.
   useEffect(() => {
     if (taskGridChecked.current || !recoveryResolved || recovery !== null) return;
     taskGridChecked.current = true;
