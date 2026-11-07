@@ -550,12 +550,11 @@ const EMPTY_DATA = { created: {}, resources: [], updated: [], deleted: [], remov
 const manageResources: BatchStepTool = {
   name: 'planner_manage_resources',
   description:
-    'Create (`name`), update (`id` + fields) or delete (`id`) resources; assign them with ' +
-    'planner_manage_assignments. Omitted key = unchanged; `null` clears. Delete removes the resource\'s ' +
-    'assignments and needs `cascade: true` if it has any. Deleting a CREW also clears its members\' ' +
-    '`parentId`. A `tempId` on create maps to the real id in ' +
-    '`created`, usable in later steps of the same planner_batch. Library resources lock `name`, `type`, `description`, ' +
-    '`costPerHour` and `unitOfMeasure`: offer a change in the library or unlinking.',
+    'Create (`name`), update (`id` + fields) or delete (`id`) resources; assign with ' +
+    'planner_manage_assignments. Omitted = unchanged; null clears. Delete clears assignments (needs ' +
+    '`cascade: true` if any); deleting CREW clears members\' `parentId`. Create `tempId` maps in `created` ' +
+    'for later steps of this planner_batch. Library locks name/type/description/costPerHour/unitOfMeasure: ' +
+    'offer library change or unlinking.',
   kind: 'mutate',
   batchable: true,
   // Verwijderen wist toewijzingen (en dus werk) — dat is destructief.
