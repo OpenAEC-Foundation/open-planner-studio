@@ -24,6 +24,9 @@ import { readIFC } from '@/services/ifc/ifcReader';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { effectiveWorkRule } from '@/engine/work/workRuleApply';
 import { leftRecordedDatesMode, needsExitRecompute, type RecordedDatesObservation } from '@/state/recordedDatesExit';
+import { projectInfoPatch } from '@/state/projectInfoPatch';
+import { builtInProfile } from '@/engine/scheduler/conventions/registry';
+import { DEFAULT_WORK_RULE, WORK_RULES } from '@/types/workRule';
 
 let checks = 0;
 const errors: string[] = [];
@@ -188,6 +191,68 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   const events = S().historyEvents.length;
   S().setProject({ defaultWorkRule: 'FIXED_WORK' });
   eq('d6 dezelfde standaard: geen undo-stap', S().historyEvents.length, events);
+}
+
+// Issue #769: het formulier volgt dezelfde brug, ook wanneer het rekenprofiel tegelijk wijzigt.
+for (const withProfile of [false, true]) {
+  const context = createAppStoreContext();
+  const S = () => context.store.getState();
+  context.store.setState(s => { s.project.startDate = '2026-06-01'; s.calendar = WEEK; s.calendars = []; });
+  const id = S().addTask({ name: 'Metselwerk', time: createDefaultTaskTime('2026-06-01T07:00', 2) });
+  const own = S().addTask({ name: 'Eigen type', workRule: 'FIXED_DURATION_RATE', time: createDefaultTaskTime('2026-06-01T07:00', 2) });
+  const r = S().addResource({ name: 'Metselaar', type: 'LABOR', description: '', maxUnits: 2 });
+  S().assignResource(id, r, 1);
+  S().assignResource(own, r, 1);
+  S().runCPM();
+  const task = () => S().tasks.find(t => t.id === id)!;
+  const assignment = () => S().assignments.find(a => a.taskId === id)!;
+  const ownState = () => {
+    const t = S().tasks.find(t => t.id === own)!;
+    const a = S().assignments.find(a => a.taskId === own)!;
+    return [t.workRule, measure(t), a.unitsPerDay, a.remainingWorkMinutes ?? null];
+  };
+  const beforeOwn = ownState();
+  const beforeEvents = S().historyEvents.filter(e => e.state === 'applied').length;
+  const label = `p769 ${withProfile ? 'met profiel' : 'alleen standaard'}`;
+  const patch = projectInfoPatch(S().project, { ...S().project, defaultWorkRule: 'FIXED_WORK' });
+  eq(`${label}: formulier geeft de keuze door`, patch, { defaultWorkRule: 'FIXED_WORK' });
+  S().applyProjectInfo({ defaultWorkRule: 'FIXED_WORK' }, withProfile ? { profile: builtInProfile('msproject'), options: undefined } : undefined);
+  eq(`${label}: de bestaande taak erft vast werk en bewaart 16 uur`,
+    [S().project.defaultWorkRule, task().workRule, task().time.durationUnit, task().time.durationMinutes, assignment().remainingWorkMinutes],
+    ['FIXED_WORK', undefined, 'hours', 960, 960]);
+  eq(`${label}: een eigen type blijft staan`, ownState(), beforeOwn);
+  eq(`${label}: de projectwijziging is één undo-stap`, S().historyEvents.filter(e => e.state === 'applied').length, beforeEvents + 1);
+
+  S().updateAssignment(assignment().id, { unitsPerDay: 2 });
+  eq(`${label}: 16 uur, inzet 1 → 2: duur 8 uur, werk blijft 16 uur`,
+    [task().time.durationMinutes, assignment().remainingWorkMinutes, assignment().unitsPerDay], [480, 960, 2]);
+  S().undo();
+  eq(`${label}: inzetwijziging ongedaan`, [task().time.durationMinutes, assignment().unitsPerDay], [960, 1]);
+  S().undo();
+  eq(`${label}: projectkeuze ongedaan, eigen type blijft staan`,
+    [S().project.defaultWorkRule, task().time.durationUnit, ownState()], [undefined, 'days', beforeOwn]);
+  S().redo();
+
+  // Alle vier keuzes door de echte IFC-schrijver/lezer en de laadgrens, inclusief tweede opslag.
+  for (const rule of WORK_RULES) {
+    S().applyProjectInfo({ defaultWorkRule: rule }, undefined);
+    const reopened = createAppStoreContext();
+    reopened.store.getState().applyLoadedProject(readIFC(writeIFC(buildWriteIFCInput(S()))), { recompute: true });
+    const back = reopened.store.getState();
+    eq(`${label}: IFC bewaart ${rule} en de overerving`,
+      [back.project.defaultWorkRule, back.tasks.find(t => t.id === id)?.workRule, back.tasks.find(t => t.id === own)?.workRule],
+      [rule, undefined, 'FIXED_DURATION_RATE']);
+    eq(`${label}: tweede IFC-opslag bewaart ${rule}`, readIFC(writeIFC(buildWriteIFCInput(back))).project.defaultWorkRule, rule);
+    if (rule === 'FIXED_WORK') {
+      const a = back.assignments.find(a => a.taskId === id)!;
+      back.updateAssignment(a.id, { unitsPerDay: 2 });
+      eq(`${label}: heropend metselwerk blijft 16 uur bij inzet 2`,
+        [reopened.store.getState().tasks.find(t => t.id === id)?.time.durationMinutes, reopened.store.getState().assignments.find(x => x.id === a.id)?.remainingWorkMinutes],
+        [480, 960]);
+    }
+  }
+  eq(`${label}: de huidige keuze toepassen is geen wijziging`,
+    projectInfoPatch(S().project, { ...S().project, defaultWorkRule: S().project.defaultWorkRule ?? DEFAULT_WORK_RULE }), {});
 }
 
 // ── MCP ──────────────────────────────────────────────────────────────────────────

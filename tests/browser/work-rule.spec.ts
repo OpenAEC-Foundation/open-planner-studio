@@ -6,9 +6,9 @@ import { expect, seedProject, test } from './fixtures/ops';
 // "Toon taaktypes" aan); de geteste handelingen zijn echte keuzelijst- en invoerbewerkingen.
 // Asserties op de store (werkregel, werkveld, duur, undo) — geen canvaspixels.
 
-async function seedAssignedTask(page: Page): Promise<{ taskId: string; resourceId: string }> {
+async function seedAssignedTask(page: Page, durationDays = 4): Promise<{ taskId: string; resourceId: string }> {
   const [taskId] = await seedProject(page, [
-    { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
+    { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays },
   ]);
   return page.evaluate((id) => {
     const s = window.__OPS__!.store.getState();
@@ -52,7 +52,7 @@ function taskState(page: Page, taskId: string): Promise<{ workRule?: string; dur
 }
 
 test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in één stap', async ({ page, ops: _ops }) => {
-  const { taskId } = await seedAssignedTask(page);
+  const { taskId } = await seedAssignedTask(page, 2);
 
   const select = page.locator('[data-ops-work-rule]');
   await expect(select).toBeVisible();
@@ -60,25 +60,57 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   await expect(page.locator('[data-ops-assignment-lock-units]')).toHaveAttribute('data-ops-assignment-lock-units', 'locked');
   await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'derived');
 
-  // Vast werk kiezen: geen getal verandert, het restwerk (4 d × 8 u = 32 u) wordt vastgelegd.
+  // #769: de projectkeuze blijft een draft tot Toepassen en bestaande taken erven haar meteen.
+  await page.getByRole('button', { name: /^(Settings|Instellingen)$/ }).click();
+  const projectButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Project\s+settings|Project\u00ad?instellingen)$/ });
+  await projectButton.click();
+  const projectDialog = page.locator('[data-ops-project-dialog="info"]');
+  const defaultSelect = projectDialog.locator('[data-ops-default-work-rule] .ops-select__trigger');
+  await expect(defaultSelect).toBeVisible();
+  await defaultSelect.click();
+  await expect(page.locator('.ops-select__menu [role="option"]')).toHaveCount(4);
+  await page.locator('.ops-select__menu [data-value="FIXED_WORK"]').click();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
+  await projectDialog.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
+  await projectButton.click();
+  await defaultSelect.click();
+  await page.locator('.ops-select__menu [data-value="FIXED_WORK"]').click();
+  await projectDialog.locator('[data-ops-project-primary]').click();
+  await expect(projectDialog).toHaveCount(0);
+  await expect(select).toHaveAttribute('data-value', '');
+  await expect(select).toContainText(/Project.*(Vast werk|Fixed work)/i);
+  expect((await taskState(page, taskId)).work).toBe(16 * 60);
+  const inheritedUnits = page.locator('[data-ops-assignment-row]').first().locator('input').first();
+  await inheritedUnits.fill('2');
+  await inheritedUnits.press('Enter');
+  expect(await taskState(page, taskId)).toMatchObject({ duration: 1, units: 2, work: 16 * 60 });
+  await page.getByRole('button', { name: /^Start$/ }).click();
+  await page.keyboard.press('Control+z');
+  expect(await taskState(page, taskId)).toMatchObject({ duration: 2, units: 1, work: 16 * 60 });
+  await page.keyboard.press('Control+z');
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
+  await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'derived');
+
+  // Vast werk kiezen: geen getal verandert, het restwerk (2 d × 8 u = 16 u) wordt vastgelegd.
   await chooseWorkRule(page, page, 'FIXED_WORK');
   let st = await taskState(page, taskId);
   expect(st.workRule).toBe('FIXED_WORK');
-  expect(st.duration).toBe(4);
-  expect(st.work).toBe(4 * 8 * 60);
+  expect(st.duration).toBe(2);
+  expect(st.work).toBe(2 * 8 * 60);
   await expect(page.locator('[data-ops-work-rule-info]')).toHaveAttribute('data-ops-work-rule-info', 'FIXED_WORK');
   await expect(page.locator('[data-ops-assignment-lock-work]')).toHaveAttribute('data-ops-assignment-lock-work', 'locked');
   await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'stored');
 
-  // Werk 32 → 64 uur TYPEN (toets voor toets, review K5: pas op Enter committen — "6" onderweg mag
-  // geen eigen driehoekstap zijn): onder vast werk wordt de taak twee keer zo lang (8 d), inzet blijft 1.
+  // Werk 16 → 64 uur TYPEN (toets voor toets, review K5: pas op Enter committen — "6" onderweg mag
+  // geen eigen driehoekstap zijn): onder vast werk wordt de taak vier keer zo lang (8 d), inzet blijft 1.
   const workInput = page.locator('[data-ops-assignment-work] input');
-  await expect(workInput).toHaveValue('32');
+  await expect(workInput).toHaveValue('16');
   await workInput.click();
   await workInput.press('Control+a');
   await workInput.pressSequentially('64');
   st = await taskState(page, taskId);
-  expect(st.duration).toBe(4);
+  expect(st.duration).toBe(2);
   await workInput.press('Enter');
   st = await taskState(page, taskId);
   expect(st.duration).toBe(8);
