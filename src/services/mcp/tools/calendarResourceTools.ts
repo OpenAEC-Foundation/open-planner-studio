@@ -165,7 +165,7 @@ const CAL_READONLY_KEYS: string[] = [
 // binnen `runInMcpTransaction` en rolt de hele call terug met "Cannot read properties of undefined").
 
 /** Het ECHTE domein van `generate.country` (holidays.ts + generateCalendarHolidays.ts). */
-const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'];
+const GEN_COUNTRIES: GeneratorCountry[] = ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'];
 const BOUWVAK_CHOICES = ['geen', 'noord', 'midden', 'zuid'];
 
 // ── DE KALENDER MOET ÉCHT OVERZETBAAR ZIJN ────────────────────────────────────────────────────────
@@ -1155,7 +1155,7 @@ const updateCalendar: BatchStepTool = {
               properties: {
                 country: {
                   type: 'string',
-                  enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'none'],
+                  enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'],
                   description:
                     'Country code of the holiday set — UPPERCASE, exactly one of the listed values. `none` = ' +
                     'no holiday set: that CLEARS the generated days (and the provenance).',
@@ -1203,7 +1203,7 @@ const updateCalendar: BatchStepTool = {
                 'calendar becomes literal). Not together with `generate`.',
               required: ['ruleSetId', 'generatedFromYear', 'generatedToYear'],
               properties: {
-                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH'], description: 'Country set that produced the dates.' },
+                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'], description: 'Country set that produced the dates.' },
                 region: { type: 'string', description: 'Federal state/region/canton; omitted = national.' },
                 breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'], description: 'NL construction holiday (bouwvak); omitted = none.' },
                 generatedFromYear: { type: 'integer', description: 'First materialized year (incl.).' },

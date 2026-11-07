@@ -18,6 +18,7 @@ import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingContro
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
+import { AppLogo } from '@/components/common/AppLogo';
 
 // Drie tabs — Weergave (uiterlijk + Gantt-weergave), Planning (project-brede
 // planningsopties) en Geavanceerd (AI, debug, benchmark, rondleiding, versie);
@@ -512,7 +513,8 @@ export function SettingsPanelContent() {
             <div className="settings-section">
               <h3>{t('settings.version')}</h3>
               <p className="scrollzoom-hint">{t('settings.versionHint')}</p>
-              <div className="settings-row">
+              <div className="settings-row flex items-center gap-3">
+                <AppLogo size={32} />
                 <button
                   ref={versionRef}
                   type="button"
