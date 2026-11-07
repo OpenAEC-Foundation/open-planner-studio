@@ -50,6 +50,7 @@ import {
   type ParsedTaskDuration,
   type DurationInputContext,
 } from '@/utils/taskDurationInput';
+import { taskCalendarDaySpan } from '@/utils/calendarDaySpan';
 import { finishIsActual, shownStart, shownFinish, startIsActual } from '@/utils/taskDates';
 import {
   durationHoursPerDay, formatRemainingDurationText, formatTaskDurationText, formatWorkDaysText, type DurationTextFormat,
@@ -1052,6 +1053,9 @@ function fixedTimeColumns(): TaskColumnDescriptor[] {
     readonlyColumn({ id: 'task.time.interferingFloat', labelKey: 'taskGrid.columns.interferingFloat', category: 'computed', valueKind: 'duration', read: task => task.time.interferingFloat, format: (value, _task, ctx) => workDaysCellText(value, ctx) }),
     readonlyColumn({ id: 'task.time.isNearCritical', labelKey: 'taskGrid.columns.nearCritical', category: 'computed', valueKind: 'boolean', read: task => task.time.isNearCritical }),
     readonlyColumn({ id: 'task.time.floatPath', labelKey: 'taskGrid.columns.floatPath', category: 'computed', valueKind: 'number', read: task => task.time.floatPath }),
+    // Kalenderdagen (#817): de getoonde startdag t/m de getoonde einddag, weekenden en feestdagen
+    // inbegrepen; een kaal geheel getal in cel en klembord. Alleen een telling: zie `taskCalendarDaySpan`.
+    readonlyColumn({ id: 'task.time.calendarDays', labelKey: 'taskGrid.columns.calendarDays', category: 'computed', valueKind: 'number', defaultWidth: 90, read: (task, ctx) => taskCalendarDaySpan(task, ctx.effectiveCalendar?.(task)) }),
     // "Datums zoals opgeslagen" — badge die toont of de vastlegging van DEZE taak onvolledig is.
     // Bestaat uitsluitend in de modus (`ctx.recordedMark !== undefined` ⇒ `datesAsRecorded`, zie
     // `recordedGridBinding`) — op elk ander document is deze kolom onzichtbaar.

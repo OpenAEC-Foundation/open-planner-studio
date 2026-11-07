@@ -294,10 +294,11 @@ test('RTL: pijlen gespiegeld, klik schuift twee tabbladen, wiel schuift', async 
   const eBox = (await page.locator(endSel).boundingBox())!;
   expect(sBox.x + sBox.width).toBeLessThanOrEqual(vBox.x + 0.5);
   expect(sBox.x).toBeGreaterThan(eBox.x);
+  // Zonder B2 (#844) de Lucide-pijlen van vóór #765: in rechts-naar-links een andere vorm, geen spiegeling.
   await expect(page.locator(`${startSel} svg`)).toHaveAttribute('data-icon', 'tabs.scroll-start');
-  await expect(page.locator(`${startSel} svg`)).toHaveClass(/ops-icon-inline-flip/);
+  await expect(page.locator(`${startSel} svg`)).toHaveClass(/lucide-chevron-right/);
   await expect(page.locator(`${endSel} svg`)).toHaveAttribute('data-icon', 'tabs.scroll-end');
-  await expect(page.locator(`${endSel} svg`)).toHaveClass(/ops-icon-inline-flip/);
+  await expect(page.locator(`${endSel} svg`)).toHaveClass(/lucide-chevron-left/);
 
   // Elk sluitkruisje staat binnen zijn eigen tabblad, aan de logische eindkant (in RTL links).
   // Anders staat het naast de naam van het buurtabblad en sluit een klik het verkeerde project.

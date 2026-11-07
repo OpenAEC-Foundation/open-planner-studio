@@ -17,7 +17,7 @@ import type {
 import type { PersistedTaskGridPreferencesV1 } from '@/types/taskGrid';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { LayoutOverlays } from '@/types/view';
-import type { FeatureFlagValues } from '@/utils/featureFlags';
+import { parseFeatureFlagValues, type FeatureFlagValues } from '@/utils/featureFlags';
 import { migrateSavedFilters } from '@/engine/view/layoutPresets';
 import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
@@ -145,6 +145,17 @@ function sessionTheme(): UITheme | null {
   return devSessionTheme() ?? siteHostTheme();
 }
 
+/** Kiest de volgende start het thema van de host (#818)? Dat is zo als de host nu een geldig `thema`
+ *  geeft en er geen dev-link-thema is (dat wint bij elke start, zie `sessionTheme`). Dan geldt een
+ *  themakeuze in de app alleen tot de volgende start. De parameters zijn er voor de headless check:
+ *  daar is `import.meta.env.DEV` altijd false. */
+export function hostThemeWinsNextStart(
+  devTheme: UITheme | null = devSessionTheme(),
+  hostTheme: UITheme | null = siteHostTheme(),
+): boolean {
+  return devTheme === null && hostTheme !== null;
+}
+
 export async function initTheme(): Promise<UITheme> {
   const session = sessionTheme();
   if (session) return session;
@@ -205,6 +216,28 @@ export async function saveExperimentalSettingsVisible(value: boolean): Promise<v
 
 export async function saveFeatureFlags(value: FeatureFlagValues): Promise<void> {
   await setSetting('featureFlags', value);
+}
+
+/** De iconenkeuze geldt vanaf de eerste render. De URL wijzigt alleen deze bestaande vlag. */
+export function loadFeatureFlags(stored?: FeatureFlagValues): FeatureFlagValues {
+  let flags: FeatureFlagValues = stored ?? {};
+  if (!stored) {
+    try {
+      flags = parseFeatureFlagValues(JSON.parse(readLocal('ops-featureFlags') ?? 'null')) ?? {};
+    } catch { /* Ongeldige opslag: alle experimentele functies uit. */ }
+  }
+  const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location?.search ?? '');
+  // Het ontwikkelblad beoordeelt B2. Ook de latere instellingen-hydratatie houdt die keuze vast.
+  const reviewSheet = import.meta.env.DEV ? params.get('iconen') : null;
+  const family = reviewSheet === 'status' || reviewSheet === 'dock' ? 'b2' : params.get('icons');
+  if (family === 'b2' || family === 'lucide') {
+    const enabled = family === 'b2';
+    if (flags['b2-icons'] !== enabled) {
+      flags = { ...flags, 'b2-icons': enabled };
+      writeLocal('ops-featureFlags', JSON.stringify(flags));
+    }
+  }
+  return flags;
 }
 
 // Breedte van de takentabel links in de Gantt (ui.leftPanelWidth); begrensd

@@ -13,6 +13,8 @@
     "dismiss": "Închidere notificare",
     "taskEditRevertBlocked": "O modificare făcută de clientul MCP sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
     "openFailed": "Deschiderea fișierului a eșuat",
+    "fileDropRefused": "Nu s-a deschis: {{names}}. Aplicația deschide doar IFC, XML, MPP, XER și CSV.",
+    "fileDropBlocked": "Nu s-a deschis: {{names}}. Închideți mai întâi fereastra deschisă.",
     "csvInvalidDate": "CSV nu a fost deschis: dată nerecunoscută „{{value}}” în rândul CSV {{row}}, coloana „{{column}}”. Utilizați aaaa-ll-zz, zz-ll-aaaa sau zz/ll/aaaa.",
     "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
     "extHelpProjectOpenFailed": "Fișierul de proiect {{file}} din extensia {{name}} nu a putut fi deschis.",
@@ -1787,5 +1789,9 @@
     "actualWorkLost_one": "Atribuirea pentru {{resource}} are deja {{hours}} oră de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_few": "Atribuirea pentru {{resource}} are deja {{hours}} ore de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_other": "Atribuirea pentru {{resource}} are deja {{hours}} de ore de lucru real. Ștergerea elimină lucrul real."
+  },
+  "fileDrop": {
+    "title": "Eliberați pentru a deschide",
+    "subtitle": "Fișier de proiect sau import"
   }
 }

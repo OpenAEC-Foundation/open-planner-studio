@@ -84,6 +84,7 @@
       "explicitSummary": "Explicit summary task",
       "externalRelationData": "External relationship data",
       "floatPath": "Float path",
+      "calendarDays": "Calendar days",
       "freeFloat": "Free float",
       "hammock": "Hammock (derived duration)",
       "interferingFloat": "Interfering float",

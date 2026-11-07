@@ -12,7 +12,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { GANTT_TRACE_COLORS } from '@/engine/renderer/themePalette';
 import { relationTaskOptions } from '@/engine/taskGrid/relationCell';
 import { createRelationDraftWithFeedback } from '@/state/relationActions';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 interface HoverState { x: number; y: number; task: Task; }
 
@@ -194,7 +194,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   <Icon id="planning.driving-unknown" size={10} aria-hidden />
                 </span>
               ) : isDriving && (
-                <span title={t('properties.driving')} className="text-text-secondary">
+                <span title={t('properties.driving')} className={b2IconsOn() ? 'text-text-secondary' : undefined} style={b2IconsOn() ? undefined : { color: 'var(--theme-accent)' }}>
                   <Icon id="planning.driving" size={10} />
                 </span>
               )}
@@ -345,7 +345,7 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               data-ops-dependency-confirm
               disabled={!draft.otherTaskId}
               className="dependency-remove-button justify-self-center"
-              style={{ color: draft.otherTaskId ? 'var(--theme-text)' : 'var(--theme-text-muted)' }}
+              style={{ color: draft.otherTaskId ? (b2IconsOn() ? 'var(--theme-text)' : 'var(--theme-accent)') : 'var(--theme-text-muted)' }}
               onClick={commitDraft}
             >
               <Icon id="input.confirm-draft" size={10} />

@@ -15,7 +15,7 @@ import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags';
+import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 import { AppLogo } from '@/components/common/AppLogo';
@@ -83,7 +83,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);
@@ -528,21 +528,26 @@ export function SettingsPanelContent() {
                   {__APP_VERSION__}
                 </button>
               </div>
-              <button
-                className="settings-link"
-                onClick={() => {
-                  // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
-                  setUI({ showSettingsDialog: false, showUpdateDialog: true });
-                }}
-              >
-                {t('updates.checkButton')}
-              </button>
-              <button
-                className="settings-link"
-                onClick={() => { void openWhatsNew(); }}
-              >
-                {t('updates.justUpdated.whatsNewButton')}
-              </button>
+              {/* Platformbouw (#818): geen update-check en geen releasegegevens van GitHub. */}
+              {UPDATES_AVAILABLE && (
+                <>
+                  <button
+                    className="settings-link"
+                    onClick={() => {
+                      // Sluit de instellingen-dialog (web/gear) en open de update-dialog.
+                      setUI({ showSettingsDialog: false, showUpdateDialog: true });
+                    }}
+                  >
+                    {t('updates.checkButton')}
+                  </button>
+                  <button
+                    className="settings-link"
+                    onClick={() => { void openWhatsNew(); }}
+                  >
+                    {t('updates.justUpdated.whatsNewButton')}
+                  </button>
+                </>
+              )}
             </div>
             {experimentalSettingsVisible && (
               <div className="settings-section" data-ops-experimental-settings>
