@@ -1,5 +1,5 @@
-# Indeling volgens ontwerp v6 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
-# Fase-0-voorproef (ontwerp #804 v6 §4.2). Draaien: python3 -I scripts/proef/classify-v6.py <bestand.ifc>
+# Indeling volgens ontwerp v7 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Fase-0-voorproef (ontwerp #804 v7 §4.2). Draaien: python3 -I scripts/proef/classify-v7.py <bestand.ifc>
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
 import re, sys, os, glob
@@ -49,9 +49,11 @@ for f in ('ifcPsets.ts', 'ifcWriter.ts'):
     REG |= set(re.findall(r"'(OPS_[A-Za-z0-9]+)'", code[os.path.join(SRC, f)]))
 KNOWN = set()
 for c in code.values(): KNOWN |= set(re.findall(r"'([A-Za-z][A-Za-z0-9_]*)'", c))
-# Psets met propertynamen uit de data: de lezer leest elke property (OPS_Assignments: <resource-GlobalId>#n;
-# OPS_ActivityCodes: de naam van het codetype). Gemeten op alle eigen voorbeelden (ontwerp v6 §4.2).
-DATA_KEYED = {'OPS_Assignments', 'OPS_ActivityCodes'}
+# v7: psets met sleutels uit de data. Een property is alleen eigen als de lezer haar gebruikt (ontwerp v7 §4.2):
+# OPS_Assignments/OPS_Timephased: <GlobalId van een resource>#n; de k-de sleutel (op n) is eigen als die resource
+# minstens k keer aan de taak is toegewezen;
+# OPS_ActivityCodes: naam van een codetype uit het eigen template en eerste code uit zijn opsomming.
+GUID_KEYED = {'OPS_Assignments', 'OPS_Timephased', 'OPS_TimephasedWindow'}
 def pname(i):  # Name van een property (arg 0) of property-template (arg 2)
     k = 2 if ty[i].endswith('TEMPLATE') else 0
     return args[i][k].strip("'") if k < len(args[i]) else ''
@@ -96,10 +98,38 @@ D = plans | live | own_base | (alltasks - excl) | {i for i in ents if ty[i] in R
 D |= {i for i in ents if ty[i] == 'IFCRELSEQUENCE' and r1(i, 4) in D and r1(i, 5) in D}  # v6: IfcRelSequence is D
 proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
 # Bekende namen voor OPS_CustomFields: de property-templates onder het eigen template
-cf_names = set()
+cf_names, ac_types = set(), {}
+def strs(a): return re.findall(r"'((?:[^']|'')*)'", a)
 for i in ents:
     if ty[i] == 'IFCPROPERTYSETTEMPLATE' and name(i) == 'OPS_CustomFields':
         cf_names |= {pname(x) for x in refs[i] if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE'}
+    if ty[i] == 'IFCPROPERTYSETTEMPLATE' and name(i) == 'OPS_ActivityCodes':
+        for x in refs[i]:
+            if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE':
+                en = r1(x, 7); ac_types[pname(x)] = set(strs(args[en][1])) if en in ents else set()
+# pset -> objecten (via elke IfcRelDefinesByProperties) en toewijzingsparen (taak, resource-GlobalId) -> aantal
+pset_objs = defaultdict(set)
+for i in ents:
+    if ty[i] == 'IFCRELDEFINESBYPROPERTIES': pset_objs[r1(i, 5)] |= set(rl(i, 4))
+pairs = Counter()
+for i in ents:
+    if ty[i] == 'IFCRELASSIGNSTOPROCESS':
+        for x in rl(i, 4):
+            if ty.get(x) in RES: pairs[(r1(i, 6), args[x][0].strip("'"))] += 1
+def prop_read(ps, pr):
+    n = pname(pr); psn = name(ps)
+    if psn in GUID_KEYED:  # de lezer zet de sleutels per GlobalId op volgorde van n in een wachtrij (ifcReader.ts:3455-3470)
+        m = re.fullmatch(r'(.+)#(\d+)', n)
+        if not m: return False
+        same = sorted(int(re.fullmatch(r'(.+)#(\d+)', pname(q)).group(2)) for q in refs[ps]
+                      if ty.get(q) in PROPS and re.fullmatch(re.escape(m.group(1)) + r'#\d+', pname(q)))
+        k = same.index(int(m.group(2)))
+        return any(k < pairs[(t, m.group(1))] for t in pset_objs[ps])
+    if psn == 'OPS_ActivityCodes':
+        v = strs(args[pr][2]) if len(args[pr]) > 2 else []
+        return n in ac_types and bool(v) and v[0] in ac_types[n]
+    if psn == 'OPS_CustomFields': return n in cf_names
+    return n in KNOWN
 # --- Stap 2: R ---
 def ok(i):
     T = ty[i]
@@ -120,13 +150,19 @@ while todo:
     if x in Own or ty.get(x) not in W: continue
     Own.add(x)
     if ty[x] in ('IFCPROPERTYSET', 'IFCPROPERTYSETTEMPLATE') and name(x) in REG:
-        known = cf_names if name(x) == 'OPS_CustomFields' else KNOWN
-        for r in refs[x]:  # v6: Own volgt alleen properties die de lezer leest; de rest is een vreemd lid
-            if ty.get(r) in PROPS and name(x) not in DATA_KEYED and pname(r) not in known: vreemd_lid.add(r)
+        for r in refs[x]:  # v7: Own volgt alleen properties die de lezer gebruikt; de rest is een vreemd lid
+            if ty.get(r) in PROPS and ty[x] == 'IFCPROPERTYSET' and not prop_read(x, r): vreemd_lid.add(r)
             else: todo.append(r)
     else: todo += refs[x]
 # --- Stap 4: Ext ---
-Ext, todo = set(), [i for i in ents if i not in Own]
+# v7: herkomst. Een D/R-stuk waarvan de owner history niet naar de OPS-applicatie wijst, houdt die owner history
+# (constant #-slot); die is dus een startpunt van Ext en wordt C.
+def app_of(oh):
+    if ty.get(oh) != 'IFCOWNERHISTORY': return None
+    a = r1(oh, 1); return args[a][3].strip("'") if a in ents and len(args[a]) > 3 else None
+vreemde_herkomst = {i for i in D | R if len(args[i]) > 1 and app_of(r1(i, 1)) != 'OPS'}
+oh_starts = [r1(i, 1) for i in vreemde_herkomst if r1(i, 1) is not None]
+Ext, todo = set(), [i for i in ents if i not in Own] + oh_starts
 seen = set()
 while todo:
     x = todo.pop()
@@ -139,6 +175,6 @@ P = D | R | (Own - Ext)
 C = (Own & Ext) - D - R
 A = {i for i in ents if i not in Own and any(r in P for r in refs[i])}
 V = set(ents) - P - C - A
-print(f"{sys.argv[1].split('/')[-1]}: {len(ents)} entiteiten | P {len(P)} C {len(C)} A {len(A)} V {len(V)} | vreemde leden {len(vreemd_lid)}")
+print(f"{sys.argv[1].split('/')[-1]}: {len(ents)} entiteiten | P {len(P)} C {len(C)} A {len(A)} V {len(V)} | vreemde leden {len(vreemd_lid)} | vreemde herkomst {len(vreemde_herkomst)}")
 for nm, S_ in (('C', C), ('A', A), ('V', V)):
     if S_: print('  ', nm, dict(Counter(ty[x] for x in S_).most_common(8)))
