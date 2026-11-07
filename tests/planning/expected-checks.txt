@@ -150,6 +150,7 @@ check-i18n-plurals.ts matrix
 check-i18n-resolve.ts matrix
 check-i18n-tools.ts matrix
 check-icon-accent-text.ts matrix
+check-icon-family.ts matrix
 check-ifc-arity.ts matrix
 check-ifc-building-model-guard.ts matrix
 check-ifc-calendar-identity.ts matrix

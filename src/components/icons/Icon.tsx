@@ -1,13 +1,17 @@
-import type { SVGAttributes } from 'react';
+import type { CSSProperties, SVGAttributes } from 'react';
 import { B2_ICONS, type IconDef, type IconId, type IconMaster } from './b2/icons.generated';
 import { applyDockProposal } from './dockProposal';
+import { b2IconsOn } from './iconFamily';
+import { LUCIDE_ICONS, LUCIDE_SHAPES, type LucideShape } from './lucideMapping';
 
 export type { IconId };
 
 const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
 
 /**
- * Eén B2-icoon uit de OpenAEC Blueprint (huisstijl 0.4). Alle iconen van de app lopen hierlangs: één betekenis per
+ * Standaard de oude Lucide-vorm, maat en kleur van vóór B2 (#765); `b2-icons` kiest de OpenAEC Blueprint
+ * (huisstijl 0.4). Wijkt een plek af van de tabel, dan zegt de prop `lucide` hoe hij er vroeger uitzag.
+ * Alle iconen van de app lopen hierlangs: één betekenis per
  * icoon, dus de `id` is de FUNCTIE (`task.add`, `calendar.holiday-add`), niet de vorm (`Plus`).
  *
  * - Master zoals de Style Repo voorschrijft: tot en met 18 px de 16 px-tekening, daarboven de 24 px-tekening;
@@ -29,6 +33,23 @@ export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children'
   /** Accent uitzetten: alles in `currentColor` (Style Repo `oa-icon--mono`). */
   mono?: boolean;
   title?: string;
+  /** Hoe deze plek er vóór B2 uitzag, als dat afwijkt. Geldt alleen zonder B2; zie `LucideLegacy`. */
+  lucide?: LucideLegacy;
+}
+
+/**
+ * De oude Lucide-aanroep van één plek (vóór #765), voor wat daar afwijkt van de B2-aanroep. Zonder B2 gaat elk
+ * veld voor op de gewone prop; `className: undefined` en `style: undefined` halen die van de B2-aanroep weg.
+ * B2 negeert dit helemaal.
+ */
+export interface LucideLegacy {
+  /** De oude vorm, als die hier een andere was dan de vorm in `LUCIDE_ICONS`. */
+  icon?: LucideShape;
+  size?: number;
+  strokeWidth?: number;
+  fill?: string;
+  className?: string;
+  style?: CSSProperties;
 }
 
 function masterFor(id: IconId, size: number): IconMaster {
@@ -36,11 +57,32 @@ function masterFor(id: IconId, size: number): IconMaster {
   return size <= 18 ? applyDockProposal(id, 16, def.s16) : applyDockProposal(id, 24, def.s24);
 }
 
-export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
+export function Icon({ id, size = 16, mono = false, className, style, title, lucide, ...rest }: IconProps) {
+  const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
+  if (!b2IconsOn()) {
+    // Zonder B2 precies de oude aanroep: geen `oa-icon`, dus ook geen B2-CSS uit `icons.css`.
+    const old = lucide ?? {};
+    const Lucide = old.icon ? LUCIDE_SHAPES[old.icon] : LUCIDE_ICONS[id];
+    return (
+      <Lucide
+        size={old.size ?? size}
+        className={'className' in old ? old.className : className}
+        data-icon={id}
+        aria-hidden={decorative ? true : undefined}
+        role={decorative ? undefined : 'img'}
+        focusable="false"
+        style={'style' in old ? old.style : style}
+        {...(old.strokeWidth === undefined ? {} : { strokeWidth: old.strokeWidth })}
+        {...(old.fill === undefined ? {} : { fill: old.fill })}
+        {...rest}
+      >
+        {title ? <title>{title}</title> : null}
+      </Lucide>
+    );
+  }
   const def = ICONS[id];
   const master = masterFor(id, size);
   const box = size <= 18 ? 16 : 24;
-  const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
   // Geeft de plek zelf een tekstkleur op, dan gaat die voor op de statuskleur van het icoon.
   const ownColor = /(^|\s)text-/.test(className ?? '');
   const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic && !ownColor ? `oa-icon--${def.semantic}` : '', className ?? '']

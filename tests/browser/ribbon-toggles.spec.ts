@@ -108,7 +108,8 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
 
 test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mijlpaal toe', async ({ page, ops: _ops }) => {
   const before = await page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
-  await page.getByRole('button', { name: /^(Milestone|Mijlpaal)$/ }).click();
+  // Zonder B2 (#844) staat ▾ weer in het label, zoals vóór #765.
+  await page.getByRole('button', { name: /^(Milestone|Mijlpaal)( ▾)?$/ }).click();
   await page.getByRole('button', { name: /^(Start milestone|Startmijlpaal)$/ }).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(before + 1);
   const added = await page.evaluate(() => {
