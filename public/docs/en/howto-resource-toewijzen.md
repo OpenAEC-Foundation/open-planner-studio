@@ -16,7 +16,7 @@ You can assign a resource in two ways. The resource must already exist (see [Man
 
 ### Via the ribbon
 
-1. Select one task in the task list. It must be an ordinary task, not a milestone and not a phase.
+1. Select one task in the task list. It must be an ordinary task, not a phase. On a milestone the window only shows cost resources.
 2. Choose *Resources › Assignment › Assign ▾*.
 3. In the window, fill in the *Units/day* (default 1) and choose the *Curve* (default *Uniform*). They apply to the resource you pick now.
 4. Click the resource. The window closes and the assignment is there.
@@ -48,7 +48,7 @@ The curve only changes the distribution. The duration, the dates and the total s
 
 **A curve can push the peak above your units.** With a whole number as units, the app rounds the value per day to whole units, and the total stays the same. A bricklayer with units of 1 on the outer cavity leaf and the curve *Bell shaped* gives 0, 1, 2, 2, 1, 0. On the two middle days that is 2 units against *Max units* of 1. The histogram colors those days red and the resource counts as overallocated. Choose another curve, or spread the hours yourself (see [Adjusting the hour distribution](docs://howto-urenverdeling-aanpassen)). With units such as 0.5 the app rounds to hundredths. On a short task with whole units the shape therefore becomes coarse: over 10 days *Turtle* with units of 1 gives the distribution 0, 1, 1, 2, 2, 1, 1, 1, 1, 0, exactly the same as *Early peak*.
 
-**No milestone or phase.** The *Assign* button is then disabled, and *Properties* says *Assignments are not possible on milestones.* or *Assignments are not possible on summary tasks.*
+**No phase, and only cost on a milestone.** For a phase the *Assign* button is disabled, and *Properties* says *Assignments are not possible on summary tasks.* On a milestone you can only assign a cost resource; see [Assigning a fixed amount](docs://howto-vast-bedrag-toekennen).
 
 **A resource only once per task.** If the resource is already on the task, it is no longer in the list. If all resources are already on the task, the app says *All resources are already assigned.* If there is no resource yet, it says *Create resources first (Resources tab).*
 
