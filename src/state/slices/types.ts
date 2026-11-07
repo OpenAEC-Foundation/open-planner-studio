@@ -236,6 +236,8 @@ export type NotificationMessageKey =
   // vorm als de gebruiker intussen iets wijzigde dat daardoor terugging.
   | 'notifications.settingsLoadedLate'
   | 'notifications.settingsLoadedLateReverted'
+  // Ingebed met een thema van de host (#818): een themakeuze in de app geldt tot de volgende start.
+  | 'notifications.hostThemeUntilRestart'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.

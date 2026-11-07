@@ -4,6 +4,7 @@
 // dialoog en leest de uitkomst.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { Page } from '@playwright/test';
 import { expect, test, waitForOps, waitForWelcomeCheck } from './fixtures/ops';
 
 const IFC = readFileSync(resolve(process.cwd(), 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -16,9 +17,9 @@ const FR_MENU = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales
 const FR_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/fr/common.json'), 'utf8')) as {
   baseline: { dialog: { name: string; title: string } }; settings: { language: string };
 };
-/** Pop-up en melding in het Engels: zonder Franse vertaling toont de app het Engels. */
+/** Pop-up en meldingen in het Engels: zonder Franse vertaling toont de app het Engels. */
 const EN_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/en/common.json'), 'utf8')) as {
-  notifications: { settingsLoadedLate: string; settingsLoadedLateReverted: string };
+  notifications: { settingsLoadedLate: string; settingsLoadedLateReverted: string; hostThemeUntilRestart: string };
   settingsDelay: { title: string; body: string };
 };
 const DE_COMMON = JSON.parse(readFileSync(resolve(process.cwd(), 'src/i18n/locales/de/common.json'), 'utf8')) as { baseline: { dialog: { name: string; title: string } } };
@@ -26,6 +27,9 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
 /** Waar de nephost zijn instellingen bewaart (sessionStorage overleeft herladen): één hostsleutel per
  *  `ops-`-sleutel. */
 const HOST_SETTINGS_STORE = 'test-host-settings';
+/** De meldingen "dit thema geldt tot de volgende start" (#818) in de store, met hun teller. */
+const themeNotices = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+  .filter((n) => n.messageKey === 'notifications.hostThemeUntilRestart').map((n) => n.count));
 
 test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewaart ze', async ({ page, ops: _ops }) => {
   // Meer tijd dan de standaard 30 s: de rondes met een trage host wachten bewust 1,5 s en ruim 5 s op de
@@ -44,6 +48,8 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   await page.getByRole('option', { name: /^(Light|Licht)$/ }).click();
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('light');
   expect(await page.evaluate(() => localStorage.getItem('ops-theme'))).toBe('light');
+  // Zonder host geldt de keuze gewoon: geen melding over het thema van de host.
+  expect(await themeNotices(page), 'zonder host geen themamelding').toEqual([]);
 
   await dialog.getByRole('button', { name: /^(Language|Taal)$/ }).click();
   await page.getByRole('option', { name: /Nederlands/ }).click();
@@ -170,6 +176,8 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
       });
       await expect(page.locator('html')).toHaveAttribute('lang', 'de');
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+      // Een wissel van de host is geen keuze van de gebruiker: geen themamelding.
+      expect(await themeNotices(page), 'een hostwissel geeft geen themamelding').toEqual([]);
       // De dialoog is nu Duits, maar de getypte naam staat er nog.
       await expect(baselineDialog.getByText(DE_COMMON.baseline.dialog.title, { exact: true }).first()).toBeVisible();
       await expect(baselineDialog.getByRole('textbox', { name: DE_COMMON.baseline.dialog.name, exact: true }).last())
@@ -273,10 +281,20 @@ test('welkomstdialoog past taal, thema en automatisch berekenen live toe en bewa
   // Het instellingenvenster openen mag via de brug; de keuzes zelf zijn echte klikken.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settingsDialog = page.getByRole('dialog');
+  // Het thema van de host (`dark`) opnieuw kiezen is geen wissel: nog geen melding (#818).
+  await settingsDialog.locator('[data-ops-theme-card="dark"]').click();
+  expect(await themeNotices(page), 'hetzelfde thema: geen themamelding').toEqual([]);
+  // De eerste echte wissel: één melding dat dit thema tot de volgende start geldt. Een tweede wissel
+  // geeft geen tweede melding (de teller blijft 1).
+  await settingsDialog.locator('[data-ops-theme-card="light"]').click();
+  await expect.poll(() => themeNotices(page)).toEqual([1]);
   await settingsDialog.locator('[data-ops-theme-card="high-contrast"]').click();
+  expect(await themeNotices(page), 'geen tweede themamelding').toEqual([1]);
   await settingsDialog.getByRole('button', { name: FR_COMMON.settings.language, exact: true }).click();
   await page.getByRole('option', { name: /English/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // De melding staat in beeld (nu in het Engels), via het gewone meldingenkanaal.
+  await expect(page.locator('.ops-toast', { hasText: EN_COMMON.notifications.hostThemeUntilRestart })).toHaveCount(1);
   await page.keyboard.press('Escape');
   // Langer dan de bundeltijd (400 ms): tijdens het wachten geen enkele set/delete naar de host.
   await page.waitForTimeout(1_000);
