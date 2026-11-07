@@ -142,6 +142,13 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   expect(jsFiles.length).toBeGreaterThan(0);
   const withCatalog = jsFiles.filter((f) => readFileSync(f, 'utf8').includes(CATALOG_MARKER));
   expect(withCatalog, 'JS-bestanden met de catalogus-URL').toEqual([]);
+
+  // De tooldefinities voor de assistent van de site liggen naast de bundel (#818), zonder de bestandstools.
+  const tools = JSON.parse(readFileSync(join(OUT_DIR, 'mcp-tools.json'), 'utf8')) as { name: string }[];
+  const names = tools.map((tool) => tool.name);
+  expect(names).toContain('planner_add_tasks');
+  expect(names).not.toContain('planner_export_ifc');
+  expect(names).not.toContain('planner_import_schedule');
 });
 
 test('de app op het subpad: icoon, leeg document, geen MCP-tabblad, geen token', async ({ page }) => {

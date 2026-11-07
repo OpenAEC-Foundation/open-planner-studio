@@ -494,7 +494,7 @@
     "documentChromeHint": "Hoe je wisselt tussen geopende documenten.",
     "ribbonSection": "Lint",
     "ribbonWheelSwitchesTabs": "Van tab wisselen met het muiswiel",
-    "ribbonWheelSwitchesTabsHint": "Draai het muiswiel boven de tabs van het lint. Omlaag gaat naar de volgende tab, omhoog naar de vorige.",
+    "ribbonWheelSwitchesTabsHint": "Draai het muiswiel boven het lint, boven de tabs of de knoppen. Omlaag gaat naar de volgende tab, omhoog naar de vorige.",
     "documentChromeTabs": "Horizontale tabbladen",
     "documentChromeRail": "Verticale tabbladen",
     "documentChromeSwitcher": "Pil",
@@ -1065,6 +1065,7 @@
       "UK": "Verenigd Koninkrijk",
       "AT": "Oostenrijk",
       "CH": "Zwitserland",
+      "US": "Verenigde Staten",
       "none": "Geen feestdagen"
     },
     "preset": {
