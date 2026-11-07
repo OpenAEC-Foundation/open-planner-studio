@@ -13,6 +13,7 @@ uitsplitsing in materiaal en arbeid. Voorbeeld: een vergunning van € 2.500 op 
 |---|---|---|
 | Nieuw `ResourceType` `'COST'`; het bedrag staat **per toewijzing** (taak A € 2.500, taak B € 800 op dezelfde resource "Vergunningen"). Niet: één bedrag op de resource, en niet: een veld "Vaste kosten" op de taak. | Ethan, 2026-11-07 | sessie, optie 1 van 3 |
 | Doorgaan, omdat MS Project en P6 ongeveer hetzelfde doen. | Ethan, 2026-11-07 | sessie |
+| Een kostenresource mag op een mijlpaal staan (bv. "Leges € 1.200" op "Vergunning aangevraagd"). Werk- en materiaalresources blijven op een mijlpaal geweigerd; samenvattingstaken blijven voor alle types geweigerd. Niet: een korte neptaak voor het bedrag. | Ethan, 2026-11-07 | sessie, optie 1 van 2 |
 
 Nagegaan in de bronnen (researcher, 2026-11-07):
 
@@ -163,6 +164,7 @@ Geen feature flag, mits PR1 compleet is (IFC-round-trip in dezelfde PR).
 
 ## 10. Open
 
-- Kosten op mijlpalen: de store weigert nu elke toewijzing op een mijlpaal (`resourceSlice.ts:165`). Besluit
-  van Ethan nodig.
+- Kosten op mijlpalen: besloten (zie Besluiten). De weigering in `resourceSlice.ts:165` krijgt een
+  uitzondering voor COST op een mijlpaal; ook MCP (`planner_manage_assignments`), de UI-toevoegknop en de
+  importpaden moeten die regel volgen. PR1.
 - PR3: een taak met meer `PROJCOST`-rijen in dezelfde categorie. Besluit vóór PR3.
