@@ -1919,3 +1919,10 @@ en noem het in je rapport of PR-tekst.
      delen samen al boven de grens komen (bijvoorbeeld 100 stappen `planner_level_resources`, elk 264 tekens).
      Voorstel: een lange tekst meenemen in de keuze van 'de grootste', en het vaste deel van elke wijzigende tool
      meten in één test over de registry. — B
+
+854. **VERVOLG: `compactChange` kopieert het antwoord onnodig opnieuw en verplaatst de koppelingen op twee plekken.**
+     `src/services/mcp/siteAppTools.ts:374`. `run()` maakt het antwoord al los met `JSON.parse(raw)` (regel 551).
+     `compactChange()` kopieert envelop, data en afwijzingen daarna opnieuw als JSON; voor deze ene aanroeper is dat
+     overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
+     kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
+     eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
