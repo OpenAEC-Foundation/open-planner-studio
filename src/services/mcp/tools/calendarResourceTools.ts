@@ -1029,7 +1029,7 @@ const updateCalendar: BatchStepTool = {
   description:
     'Change calendars, or create one with `create: true` and your own `id` label (use the returned real ' +
     '`id`). Ids are per document: never reuse one from another document. HOLIDAYS: `generate` REPLACES the ' +
-    'list with a country set; `rawHolidays` ADDS days; `holidaysMode: "replace"` makes the list exactly ' +
+    'list with a country set; `rawHolidays` ADDS days (existing ones stay); `holidaysMode: "replace"` makes the list exactly ' +
     '`rawHolidays` (the only way to remove one); `holidays` replaces it exactly. Raw days end the generator ' +
     'link (`becameLiteral`). `create` without holiday fields inherits the app default holidays; for none pass ' +
     '`holidays: []`. A planner_get_calendars object can be passed back literally (with `create: true` to ' +

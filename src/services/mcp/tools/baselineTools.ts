@@ -275,7 +275,7 @@ function renameCore(ctx: McpContext, p: RenameArgs): MutationOutcome {
 const renameBaseline: BatchStepTool = {
   name: 'planner_rename_baseline',
   description:
-    'Rename a baseline (non-empty name).',
+    'Rename a baseline; the new name must not be empty.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
