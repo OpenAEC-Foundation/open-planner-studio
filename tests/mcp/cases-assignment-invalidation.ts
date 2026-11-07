@@ -141,4 +141,32 @@ for (const withMsp of [true, false]) {
   });
 }
 
+
+// Kostenresource (issue #815, review punt 3): een kostentoewijzing erbij, een bedrag, verwijderen,
+// verplaatsen en de resource wissen raken geen sturing en maken de planning niet verouderd.
+test('kostenresource via MCP: add/update/move/remove/delete wissen geen sturing en zetten geen stale', async () => {
+  const f = fixture(true);
+  const S = () => store.getState();
+  const cost = S().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+  S().runCPM();
+  const kept = [f.t1, f.t2].map(steering);
+  const check = (label: string) => {
+    assertEq([f.t1, f.t2].map(steering), kept, `${label}: sturing blijft`);
+    assertEq(notices(), [], `${label}: geen verliesmelding`);
+  };
+  await dispatch('planner_manage_assignments', { actions: [{ action: 'add', taskId: f.t1, resourceId: cost, costAmount: 100 }] });
+  check('add');
+  assertEq(S().scheduleStale, false, 'add: planning niet verouderd');
+  const a = S().assignments.find((x) => x.resourceId === cost)!;
+  await dispatch('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a.id, costAmount: 250 }] });
+  check('update');
+  await dispatch('planner_manage_assignments', { actions: [{ action: 'move', assignmentId: a.id, taskId: f.t2 }] });
+  check('move');
+  await dispatch('planner_manage_assignments', { actions: [{ action: 'remove', assignmentId: a.id }] });
+  check('remove');
+  await dispatch('planner_manage_assignments', { actions: [{ action: 'add', taskId: f.t2, resourceId: cost, costAmount: 1 }] });
+  await dispatch('planner_manage_resources', { actions: [{ action: 'delete', id: cost, cascade: true }] });
+  check('delete (cascade)');
+});
+
 await run();

@@ -171,6 +171,9 @@ export const ASSIGNMENT_FIELD_COVERAGE = {
   plannedWorkMinutes: field('technical', 'assignment.plannedWork'),
   actualWorkMinutes: field('technical', 'assignment.actualWork'),
   remainingWorkMinutes: field('technical', 'assignment.remainingWork'),
+  // Bedrag van een kostenresource (#815): reist mee in de toewijzingstokens van de resourcekolom;
+  // een eigen bedragkolom komt later.
+  costAmount: field('composite', 'assignment.resources'),
 } satisfies Record<keyof ResourceAssignment, FieldCoverage>;
 
 export const BASELINE_TASK_FIELD_COVERAGE = {

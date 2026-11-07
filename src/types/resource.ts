@@ -7,7 +7,70 @@ export function isValidUnits(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0;
 }
 
-export type ResourceType = 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW';
+export type ResourceType = 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW' | 'COST';
+
+/** Alle `ResourceType`-waarden, in de vaste weergavevolgorde (keuzelijsten, schema-enum). */
+export const RESOURCE_TYPES: readonly ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW', 'COST'];
+
+/** Kostenresource (issue #815): een vast, begroot bedrag per toewijzing (`costAmount`), zonder
+ *  tarief, capaciteit, kalender, eenheid, ploeg of werk. Telt nooit mee voor belasting,
+ *  overallocatie, histogram of nivelleren en stuurt nooit de duur. */
+export function isCostResource(r: Pick<Resource, 'type'> | undefined | null): boolean {
+  return r?.type === 'COST';
+}
+
+/** Stuurt een toewijzing aan deze resource de taakduur (werkregelbrug)? Materiaal en kosten niet.
+ *  Onbekende resource ⇒ telt als werkresource (het oude gedrag). Gebruik deze helper in plaats van
+ *  een losse `!== 'MATERIAL'`-toets. */
+export function resourceDrivesDuration(r: Pick<Resource, 'type'> | undefined | null): boolean {
+  return r ? r.type !== 'MATERIAL' && r.type !== 'COST' : true;
+}
+
+/** Heeft deze resource belasting (histogram, overallocatie, bezetting)? Alles behalve kosten. */
+export function resourceHasLoad(r: Pick<Resource, 'type'> | undefined | null): boolean {
+  return !isCostResource(r);
+}
+
+/** Kan deze resource genivelleerd worden (renewable)? Geen materiaal en geen kosten. */
+export function resourceIsLevelable(r: Pick<Resource, 'type'>): boolean {
+  return r.type !== 'MATERIAL' && r.type !== 'COST';
+}
+
+/** Geldig begroot bedrag van een kostentoewijzing: eindig en ≥ 0 (0 mag: "nog geen bedrag"
+ *  is `undefined`, "gratis" is 0). */
+export function isValidCostAmount(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0;
+}
+
+/** De velden die een kostenresource nooit draagt (tarief, kalender, stappen, eenheid, ploeg). Een
+ *  typewissel naar COST wist ze en zet `maxUnits` op 1 (`clearCostResourceFields`). */
+export const COST_RESOURCE_CLEARED_FIELDS = ['costPerHour', 'calendarId', 'availabilitySteps', 'unitOfMeasure', 'parentId'] as const;
+
+/** Wist in-place de velden die een kostenresource niet heeft en zet `maxUnits` op 1. */
+export function clearCostResourceFields(r: Resource): void {
+  for (const k of COST_RESOURCE_CLEARED_FIELDS) delete r[k];
+  delete r.availability;
+  r.maxUnits = 1;
+}
+
+/** De werkvelden die nooit op een toewijzing aan een kostenresource staan. Lezers wissen ze, de
+ *  store weigert ze. */
+export const COST_ASSIGNMENT_WORK_FIELDS = [
+  'plannedUnitsPerDay', 'curve', 'curveValues', 'workWindowStart', 'workWindowFinish',
+  'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
+] as const;
+
+/** Maakt in-place een toewijzing aan een kostenresource schoon: geen werkvelden, inzet vast 1, en
+ *  een ongeldig bedrag valt weg. Een toewijzing aan een andere resource verliest een `costAmount`. */
+export function normalizeAssignmentForResource(a: ResourceAssignment, resource: Pick<Resource, 'type'> | undefined): void {
+  if (isCostResource(resource)) {
+    for (const k of COST_ASSIGNMENT_WORK_FIELDS) delete a[k];
+    a.unitsPerDay = 1;
+    if (a.costAmount !== undefined && !isValidCostAmount(a.costAmount)) delete a.costAmount;
+  } else if (resource && a.costAmount !== undefined) {
+    delete a.costAmount;
+  }
+}
 
 export interface AvailabilityStep {
   /** ISO-datum: vanaf deze dag geldt maxUnits (P6 "Max Units/Time"-rijen, effective-dated). */
@@ -104,4 +167,9 @@ export interface ResourceAssignment {
    *  getal waar de werkdriehoek op werkt. Afwezig ⇒ afgeleid als restduur × `unitsPerDay`; een
    *  werkbeschermende regel legt het vast zodra ze het nodig heeft (`workTriangle.ts`). */
   remainingWorkMinutes?: number;
+  /** Het BEGROTE bedrag van deze toewijzing (issue #815), alleen op een toewijzing aan een
+   *  kostenresource (`type: 'COST'`). Eindig en ≥ 0; zelfde kale valuta als `costPerHour`. Afwezig ⇒
+   *  nog geen bedrag. Op een kostentoewijzing staat `unitsPerDay` vast op 1 en komt geen werkveld.
+   *  Round-tript in het `OPS_Timephased`-JSON-blob. */
+  costAmount?: number;
 }

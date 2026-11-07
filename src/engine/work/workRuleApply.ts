@@ -16,7 +16,7 @@
 // Geen store-import: de aanroeper bepaalt snapshot, `isDirty`, `scheduleStale` en meldingen.
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import { resourceDrivesDuration, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { Task, TaskTime } from '@/types/task';
 import { applyProgressInvariants, hourRemainingDays } from '@/engine/taskMutationRules';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
@@ -104,8 +104,13 @@ export function totalMinutesOf(task: Task, ctx: Pick<WorkRuleContext, 'hoursPerD
 }
 
 function drivesDuration(assignment: ResourceAssignment, ctx: WorkRuleContext): boolean {
-  const resource = ctx.resourceById?.(assignment.resourceId);
-  return resource ? resource.type !== 'MATERIAL' : true;
+  return resourceDrivesDuration(ctx.resourceById?.(assignment.resourceId));
+}
+
+/** Een toewijzing aan een kostenresource (issue #815) doet niet mee in de werkdriehoek: ze heeft
+ *  geen inzet, geen werk en stuurt nooit de duur. Onbekende resource ⇒ doet wel mee. */
+function inTriangle(resourceId: string, ctx: WorkRuleContext): boolean {
+  return ctx.resourceById?.(resourceId)?.type !== 'COST';
 }
 
 /** Stap 1: de resterende toestand van de taak als invoer voor de rekenkern. */
@@ -116,7 +121,7 @@ export function triangleStateOf(task: Task, assignments: readonly ResourceAssign
     remainingMinutes: remainingMinutesOf(task, ctx),
     slotMinutes: slotMinutesOf(ctx),
     assignments: assignments
-      .filter((a) => a.taskId === task.id)
+      .filter((a) => a.taskId === task.id && inTriangle(a.resourceId, ctx))
       .map((a): TriangleAssignment => ({
         id: a.id,
         unitsPerDay: a.unitsPerDay,
@@ -588,11 +593,13 @@ export function settleAssignmentAdded(
   added: ResourceAssignment,
 ): TriangleWriteBack {
   if (!captured) return NO_CHANGE;
+  // Kostentoewijzing (issue #815): geen inzet, geen werk, geen duur — de driehoek blijft gelijk.
+  if (!inTriangle(added.resourceId, captured.ctx)) return NO_CHANGE;
   const completed = settleCompletedWork(task, assignments, captured);
   if (completed) return completed;
   const resource = captured.ctx.resourceById?.(added.resourceId);
   const result = applyAssignmentAdded(captured.state, {
-    id: added.id, unitsPerDay: added.unitsPerDay, drivesDuration: resource ? resource.type !== 'MATERIAL' : true,
+    id: added.id, unitsPerDay: added.unitsPerDay, drivesDuration: resourceDrivesDuration(resource),
   });
   if (!result.ok) return NO_CHANGE;
   return applyTriangleResult(task, assignments, captured.state, result.state, captured.ctx, { actualWork: captured.actualWork });
@@ -1190,14 +1197,19 @@ export function settleAssignmentPlan(
   // naar rato met r2 gedeeld — hetzelfde als twee losse bewerkingen in die volgorde. Bewaakt in
   // `check-work-rule-store.ts` (sectie e).
   const order = { remove: 0, update: 1, add: 2 } as const;
+  // Een kostentoewijzing (issue #815) staat niet in de driehoek (`triangleStateOf`): een
+  // verwijdering of inzetstap op een id buiten de momentopname slaat de kern over.
+  const known = new Set(captured.state.assignments.map(a => a.id));
   for (const op of [...ops].sort((a, b) => order[a.kind] - order[b.kind])) {
+    if (op.kind !== 'add' && !known.has(op.assignmentId)) continue;
     let result;
     if (op.kind === 'remove') result = applyAssignmentRemoved(state, op.assignmentId);
     else if (op.kind === 'update') result = applyUnitsEdit(state, op.assignmentId, op.unitsPerDay);
     else {
+      if (!inTriangle(op.resourceId, captured.ctx)) continue;
       const resource = captured.ctx.resourceById?.(op.resourceId);
       result = applyAssignmentAdded(state, {
-        id: op.assignmentId, unitsPerDay: op.unitsPerDay, drivesDuration: resource ? resource.type !== 'MATERIAL' : true,
+        id: op.assignmentId, unitsPerDay: op.unitsPerDay, drivesDuration: resourceDrivesDuration(resource),
       });
     }
     if (!result.ok) return NO_CHANGE;

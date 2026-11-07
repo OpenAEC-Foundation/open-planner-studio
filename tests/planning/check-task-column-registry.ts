@@ -315,14 +315,16 @@ for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.
 }
 
 const assignedResources = registry.find(column => column.id === 'assignment.resources')!;
-eq('Assignmenteditor blijft gesloten op summary en mijlpaal', [
+// Sinds #815 mag een kostenresource op een mijlpaal: de editor staat daar open, de validatie weigert
+// er werk en materiaal (`assignmentMilestoneWork`, check-cost-resource.ts D11–D12).
+eq('Assignmenteditor gesloten op summary, open op mijlpaal (alleen kosten)', [
   (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
     { ...task, childIds: ['kind'] }, ctx,
   ),
   (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
     { ...task, isMilestone: true }, ctx,
   ),
-], [true, true]);
+], [true, false]);
 const workWindowStart = registry.find(column => column.id === 'assignment.workWindowStart')!;
 eq('Werkvenster toont resource-label en volledige waarde in plaats van alleen een telling',
   workWindowStart.format(workWindowStart.read(task, ctx), task, ctx),

@@ -110,6 +110,8 @@
     "mppSourceScheduleNotes_other": "This MS Project file contains {{count}} tasks with a split, leveled, or resource-driven schedule. They are imported and shown as such.",
     "exportSplitsLost_one": "{{count}} task with breaks was exported without its breaks: MS Project/P6 only know breaks as a work distribution.",
     "exportSplitsLost_other": "{{count}} tasks with breaks were exported without their breaks: MS Project/P6 only know breaks as a work distribution.",
+    "exportCostResourcesLost_one": "{{count}} cost resource was not exported, with its assignments and amounts: this format gets cost resources in a later version.",
+    "exportCostResourcesLost_other": "{{count}} cost resources were not exported, with their assignments and amounts: this format gets cost resources in a later version.",
     "exportP6Truncated_one": "{{count}} name or code was shortened to the length P6 allows.",
     "exportP6Truncated_other": "{{count}} names or codes were shortened to the length P6 allows.",
     "exportInvalidXmlChars_one": "{{count}} character that XML does not allow was replaced with � in the export.",
@@ -292,6 +294,8 @@
       "noteStatus_other": "{{count}} checked notes: the notes are included, the check marks are not",
       "resourceTypes_one": "{{count}} crew or subcontractor resource became labor",
       "resourceTypes_other": "{{count}} crew or subcontractor resources became labor",
+      "costResources_one": "{{count}} cost resource was left out, with its assignments and amounts",
+      "costResources_other": "{{count}} cost resources were left out, with their assignments and amounts",
       "libraryLinks_one": "{{count}} link to the resource library",
       "libraryLinks_other": "{{count}} links to the resource library",
       "holidayNames_one": "{{count}} name of a holiday (the day itself is included)",
@@ -324,7 +328,8 @@
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
       "projectDetails": "Project author and company"
-    }
+    },
+    "costTypeChangeRefused": "The resource library wants to switch the type between cost and another type. The resource has assignments in this project, so the type stays as it is. The resource now shows as deviating from the library."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -906,7 +911,8 @@
       "equipment": "Equipment",
       "material": "Material",
       "subcontractor": "Subcontractor",
-      "crew": "Crew"
+      "crew": "Crew",
+      "cost": "Cost"
     },
     "name": "Name",
     "typeLabel": "Type",
@@ -1031,7 +1037,9 @@
       "documents": "Documents",
       "selectHint": "Select a resource to see the histogram."
     },
-    "color": "Color"
+    "color": "Color",
+    "notForCost": "Does not apply to a cost resource: it only has a fixed amount per assignment.",
+    "costTypeLocked": "This resource has assignments. Remove them first to switch between a cost resource and another type."
   },
   "calendar": {
     "library": {

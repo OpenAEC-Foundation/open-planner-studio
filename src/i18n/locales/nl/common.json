@@ -110,6 +110,8 @@
     "mppSourceScheduleNotes_other": "Dit MS Project-bestand bevat {{count}} taken met een onderbroken, genivelleerde of resource-gedreven planning. Die worden als zodanig ingelezen en getoond.",
     "exportSplitsLost_one": "{{count}} taak met onderbrekingen is zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
     "exportSplitsLost_other": "{{count}} taken met onderbrekingen zijn zonder onderbrekingen geëxporteerd: MS Project/P6 kennen die alleen als urenverdeling.",
+    "exportCostResourcesLost_one": "{{count}} kostenresource is niet geëxporteerd, met haar toewijzingen en bedragen: dit formaat krijgt kostenresources pas in een volgende versie.",
+    "exportCostResourcesLost_other": "{{count}} kostenresources zijn niet geëxporteerd, met hun toewijzingen en bedragen: dit formaat krijgt kostenresources pas in een volgende versie.",
     "exportP6Truncated_one": "{{count}} naam of code is ingekort tot de lengte die P6 toestaat.",
     "exportP6Truncated_other": "{{count}} namen of codes zijn ingekort tot de lengte die P6 toestaat.",
     "exportInvalidXmlChars_one": "{{count}} teken dat in XML niet mag, is in de export vervangen door �.",
@@ -292,6 +294,8 @@
       "noteStatus_other": "{{count}} afgevinkte notities: de notities gaan mee, de vinkjes niet",
       "resourceTypes_one": "{{count}} resource van het type ploeg of onderaannemer is arbeid geworden",
       "resourceTypes_other": "{{count}} resources van het type ploeg of onderaannemer zijn arbeid geworden",
+      "costResources_one": "{{count}} kostenresource is weggelaten, met haar toewijzingen en bedragen",
+      "costResources_other": "{{count}} kostenresources zijn weggelaten, met hun toewijzingen en bedragen",
       "libraryLinks_one": "{{count}} koppeling met de resourcebibliotheek",
       "libraryLinks_other": "{{count}} koppelingen met de resourcebibliotheek",
       "holidayNames_one": "{{count}} naam van een vrije dag (de dag zelf gaat mee)",
@@ -324,7 +328,8 @@
       "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "projectDetails": "Auteur en bedrijf van het project"
-    }
+    },
+    "costTypeChangeRefused": "De resourcebibliotheek wil het type wisselen tussen kosten en een ander type. De resource heeft toewijzingen in dit project, dus het type blijft zoals het is. De resource staat nu als afwijkend van de bibliotheek."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -906,7 +911,8 @@
       "equipment": "Materieel",
       "material": "Materiaal",
       "subcontractor": "Onderaannemer",
-      "crew": "Ploeg"
+      "crew": "Ploeg",
+      "cost": "Kosten"
     },
     "name": "Naam",
     "typeLabel": "Type",
@@ -1031,7 +1037,9 @@
       "documents": "Documenten",
       "selectHint": "Selecteer een resource om het histogram te zien."
     },
-    "color": "Kleur"
+    "color": "Kleur",
+    "notForCost": "Geldt niet voor een kostenresource: die heeft alleen een vast bedrag per toewijzing.",
+    "costTypeLocked": "Deze resource heeft toewijzingen. Verwijder die eerst om te wisselen tussen een kostenresource en een ander type."
   },
   "calendar": {
     "library": {

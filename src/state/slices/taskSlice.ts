@@ -28,7 +28,7 @@ import type { WbsTemplate } from '@/utils/wbsTemplates';
 import {
   detachFromParent, attachToParent, isSelfOrDescendant, removeTaskSubtrees, siblingIds,
 } from '@/state/taskTree';
-import { milestoneRefusal } from '@/engine/taskMilestoneTransition';
+import { hasMilestoneBlockingAssignments, milestoneRefusal } from '@/engine/taskMilestoneTransition';
 import { refusalNotice } from '@/state/refusalNotice';
 import {
   applyPhaseTransitions, firstChildGains, milestoneRefusalNotices, phaseAssignmentQuestion, phaseRefusalNotice,
@@ -1127,7 +1127,7 @@ export const createTaskSlice: AppSliceFactory<TaskSlice> = (runtime) => (set, ge
       if (updates.isMilestone === true && !task.isMilestone) {
         const refusal = milestoneRefusal({
           hasChildren: isSummaryTask(task),
-          hasAssignments: s.assignments.some(a => a.taskId === id),
+          hasAssignments: hasMilestoneBlockingAssignments(id, s.assignments, s.resources),
         });
         if (refusal) {
           refusedNotices = milestoneRefusalNotices([{ id: task.id, name: task.name, refusal }]);

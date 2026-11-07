@@ -324,7 +324,8 @@ export interface ExtAvailabilityStep {
 export interface ExtResource {
   id: string;
   name: string;
-  type: 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW';
+  /** `COST` sinds 1.6.0: een kostenresource met een bedrag per toewijzing (`ExtAssignment.costAmount`). */
+  type: 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW' | 'COST';
   description: string;
   costPerHour?: number;
   /** Capaciteit per werkdag (1 = 100%). */
@@ -357,6 +358,8 @@ export interface ExtAssignment {
   actualWorkMinutes?: number;
   /** Sinds 1.3.0: resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
   remainingWorkMinutes?: number;
+  /** Sinds 1.6.0: begroot bedrag, alleen op een toewijzing aan een kostenresource (`type: 'COST'`). */
+  costAmount?: number;
 }
 
 // ── UI-contract: ribbontabbladen ──

@@ -1,4 +1,4 @@
-import { isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { isCostResource, isValidUnits, RESOURCE_CURVES, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { groupBy } from '@/utils/collections';
 import type { CellValidationError, GridResult, TaskAssignmentToken } from '@/types/taskGrid';
@@ -11,6 +11,8 @@ export type AssignmentPlanOperation =
       resourceId: string;
       unitsPerDay: number;
       curve?: ResourceCurve;
+      /** Alleen voor een kostenresource (issue #815): het bedrag dat bij plakken meereist. */
+      costAmount?: number;
     }
   | {
       kind: 'update';
@@ -88,11 +90,16 @@ export function planTaskAssignmentSet({
 }: PlanTaskAssignmentSetInput): GridResult<TaskAssignmentPlan, readonly CellValidationError[]> {
   const task = tasksById?.get(taskId) ?? tasks.find(candidate => candidate.id === taskId);
   if (!task) return failure('assignmentTaskNotFound', taskId);
-  if (task.isMilestone || task.childIds.length > 0) {
+  if (task.childIds.length > 0) {
     return failure('assignmentTaskUnavailable', taskId);
   }
 
   const resourceIndex = resourcesById ?? new Map(resources.map(resource => [resource.id, resource] as const));
+  // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
+  if (task.isMilestone && (tokens as readonly Partial<TaskAssignmentToken>[]).some(token =>
+    typeof token.resourceId !== 'string' || !isCostResource(resourceIndex.get(token.resourceId)))) {
+    return failure('assignmentTaskUnavailable', taskId);
+  }
   const current: ResourceAssignment[] = assignmentsForTask ? [...assignmentsForTask] : [];
   if (!assignmentsForTask) {
     for (const assignment of assignments) {
@@ -119,6 +126,11 @@ export function planTaskAssignmentSet({
       return failure('assignmentResourceNotFound', taskId, token);
     }
     if (!isValidUnits(token.unitsPerDay)) return failure('assignmentUnits', taskId, token);
+    // Kostenresource (issue #815): geen inzet (vast 1), geen curve en geen werk.
+    if (isCostResource(resourceIndex.get(token.resourceId))
+      && (token.unitsPerDay !== 1 || (token.curve !== undefined && token.curve !== 'UNIFORM') || token.remainingWorkMinutes !== undefined)) {
+      return failure('assignmentCostResource', taskId, token);
+    }
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
     }
@@ -146,6 +158,8 @@ export function planTaskAssignmentSet({
       tokenOperations.push({
         kind: 'add', taskId, resourceId: token.resourceId,
         unitsPerDay: token.unitsPerDay, curve: desiredCurve,
+        ...(isCostResource(resourceIndex.get(token.resourceId)) && typeof token.costAmount === 'number'
+          && Number.isFinite(token.costAmount) && token.costAmount >= 0 ? { costAmount: token.costAmount } : {}),
       });
       continue;
     }
@@ -168,7 +182,10 @@ export function planTaskAssignmentSet({
     }));
   const operations = [...removals, ...tokenOperations];
   const changed = operations.length > 0;
-  const membershipChanged = operations.some(operation => operation.kind !== 'update');
+  // Een kostentoewijzing erbij of eraf is geen "toewijzingen"-trigger (issue #815): ze wist geen
+  // MSP-sturing en geen nivelleergaten. Alleen een werk- of materiaaltoewijzing telt.
+  const membershipChanged = operations.some(operation => operation.kind !== 'update'
+    && !isCostResource(resourceIndex.get(operation.resourceId)));
   return {
     ok: true,
     value: {
@@ -245,6 +262,7 @@ export function applyTaskAssignmentPlan(
       const assignment: ResourceAssignment = {
         id: nextId(), taskId: operation.taskId, resourceId: operation.resourceId,
         unitsPerDay: operation.unitsPerDay, curve: operation.curve,
+        ...(operation.costAmount !== undefined ? { costAmount: operation.costAmount } : {}),
       };
       state.assignments.push(assignment);
       assignmentsById.set(assignment.id, assignment);

@@ -59,7 +59,8 @@ Check names and schemas in `tools/list`; never guess them.
 6. **Resources.** `planner_manage_resources`, `planner_manage_assignments`; read with
    `planner_list_resources` and `planner_get_resource_histogram`. Under the task type `FIXED_WORK` or
    `FIXED_RATE` (`workRule` on the task, or `defaultWorkRule` on the project), adding or removing a
-   resource or changing `unitsPerDay` changes the task duration. Level only once logic and durations
+   resource or changing `unitsPerDay` changes the task duration; a `COST` resource (a fixed `costAmount`,
+   also on a milestone) never does. Level only once logic and durations
    are in place, and only on request: `planner_level_resources` with `dryRun: true` first, then for
    real; `planner_clear_leveling` to undo it.
 7. **Read the result.** `planner_get_project_info` (project end, duration, number of critical tasks)

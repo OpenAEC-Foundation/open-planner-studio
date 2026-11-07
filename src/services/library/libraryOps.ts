@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import type { WorkCalendar } from '@/types/calendar';
-import type { Resource } from '@/types/resource';
+import { clearCostResourceFields, isCostResource, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { Company, CompanyPool, LibraryOrigin } from '@/types/library';
 import { DEFAULT_COMPANY_ID } from '@/types/library';
 import { DEMO_COMPANY_ID } from './demoLibrary';
@@ -604,14 +604,47 @@ export function applyCalendarUpdate(projectCal: WorkCalendar, pool: CompanyPool)
  *  `availability`, `calendarId` en `parentId` zijn PROJECTINZET en blijven daarom altijd van `target`
  *  (projectRes); anders overschrijft "bijwerken" stilzwijgend de eigen inzet van het project. Puur
  *  (nieuw object). */
-export function applyResourceUpdate(projectRes: Resource, pool: CompanyPool): Resource {
+export function applyResourceUpdate(
+  projectRes: Resource,
+  pool: CompanyPool,
+  assignments: readonly Pick<ResourceAssignment, 'resourceId'>[],
+): Resource {
   const id = projectRes.libraryOrigin?.libraryItemId;
   const source = id ? pool.resources.find((r) => r.id === id) : undefined;
   // Zelfde vangnet als applyCalendarUpdate — geen stille reductie tot id+herkomst.
   if (!source) {
     throw new Error(`applyResourceUpdate: pool-origineel niet gevonden voor resource "${projectRes.name}" (id=${projectRes.id}, libraryItemId=${id ?? 'ontbreekt'})`);
   }
+  // Typewissel over de COST-grens op een resource met toewijzingen (issue #815): niet uitvoeren.
+  // De documentresource houdt type, velden, toewijzingen en bedragen; de stempel volgt de nieuwe
+  // poolversie, zodat de resource als bibliotheekafwijking ('deviated') staat en de gebruiker kiest.
+  if (resourceUpdateBlocked(projectRes, pool, assignments)) {
+    const kept = structuredClone(projectRes);
+    kept.libraryOrigin = makeOrigin(pool, id!, computeResourceHash(source));
+    return kept;
+  }
   const patched = applyDiffFields(projectRes, source, RESOURCE_DIFF_FIELDS);
+  // Wordt de resource een kostenresource, dan vallen ook de projectinzetvelden weg (kalender,
+  // stappen, ploeg; max. eenheden 1).
+  if (isCostResource(patched)) clearCostResourceFields(patched);
   patched.libraryOrigin = makeOrigin(pool, id!, computeResourceHash(source));
   return patched;
+}
+
+/**
+ * Zou "bijwerken uit de bibliotheek" een typewissel naar of van COST doen op een projectresource met
+ * toewijzingen (issue #815)? Dat mag niet: inzet en werk zouden dan stil in een bedrag vertaald
+ * moeten worden en terug. Geldt voor elke route (bijwerken, verversen van actieve en slapende
+ * documenten, openen/wisselen/herstel, koppelen, afwijking oplossen).
+ */
+export function resourceUpdateBlocked(
+  projectRes: Resource,
+  pool: CompanyPool,
+  assignments: readonly Pick<ResourceAssignment, 'resourceId'>[],
+): boolean {
+  const id = projectRes.libraryOrigin?.libraryItemId;
+  const source = id ? pool.resources.find((r) => r.id === id) : undefined;
+  if (!source || source.type === projectRes.type) return false;
+  if (source.type !== 'COST' && projectRes.type !== 'COST') return false;
+  return assignments.some((a) => a.resourceId === projectRes.id);
 }

@@ -40,7 +40,7 @@ import {
   booleanArgReason, enrichOk, okDirectGuarded, parsedBatchStep, projectEndInfo, TEMP_ID_PATTERN, WRITE_ANNOTATIONS,
 } from './helpers';
 import type { AppState } from '@/state/appStore';
-import type { AvailabilityStep, Resource, ResourceType } from '@/types/resource';
+import { RESOURCE_TYPES as ALL_RESOURCE_TYPES, type AvailabilityStep, type Resource, type ResourceType } from '@/types/resource';
 // Bibliotheek-gating: EXACT dezelfde bronnen als het slot in `ResourcePanel`, zodat "wat de UI op
 // slot zet" en "wat deze tool weigert" nooit uiteen kunnen lopen (zie de noot bij `libraryLockReason`).
 import { RESOURCE_DIFF_FIELDS, isResourceFieldLocked } from '@/services/library/libraryOps';
@@ -51,7 +51,7 @@ type Rejection = { id: string; reason: string };
 type StoreState = AppState;
 
 /** Het volledige `ResourceType`-domein (types/resource.ts). Hoofdlettergevoelig, net als elders. */
-const RESOURCE_TYPES: ResourceType[] = ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'];
+const RESOURCE_TYPES: readonly ResourceType[] = ALL_RESOURCE_TYPES;
 
 /**
  * De SCHRIJFBARE velden. Bewust exact het oppervlak dat de mens in het resourcepaneel heeft
@@ -286,7 +286,24 @@ function classifyResources(
    * Verwijzings-checks die de simulatie nodig hebben (kalender, ploeg, meeteenheid-op-materiaal).
    * `selfId` is het (sim-)id van de resource zelf; `effectiveType` het type ná deze patch.
    */
-  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType): string | null => {
+  const referenceReason = (patch: FieldPatch, selfId: string, effectiveType: ResourceType, currentType?: ResourceType): string | null => {
+    // Kostenresource (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
+    // tarief, eenheid, kalender, stappen, ploeg of max. eenheden ≠ 1.
+    if (currentType !== undefined && patch.type !== undefined && patch.type !== currentType
+      && (currentType === 'COST' || patch.type === 'COST') && assignmentsOf(selfId).length > 0) {
+      return `resource '${selfId}' still has ${assignmentsOf(selfId).length} assignment(s); a type change to or from ` +
+        'COST is refused while it has assignments (units and work cannot be turned into an amount and back). ' +
+        'Remove the assignments first with planner_manage_assignments (`remove`).';
+    }
+    if (effectiveType === 'COST') {
+      const bad = (['costPerHour', 'unitOfMeasure', 'calendarId', 'availabilitySteps', 'parentId'] as const)
+        .filter((k) => patch[k] !== undefined);
+      if (patch.maxUnits !== undefined && patch.maxUnits !== 1) bad.push('maxUnits' as never);
+      if (bad.length > 0) {
+        return `a COST resource has no ${bad.join(', ')}: it carries a fixed amount per assignment ` +
+          '(planner_manage_assignments `costAmount`), no rate, capacity, calendar, unit or crew';
+      }
+    }
     if (patch.calendarId !== undefined) {
       const calId = patch.calendarId as string;
       if (!calendarIds.has(calId)) {
@@ -392,7 +409,7 @@ function classifyResources(
       const lockBad = libraryLockReason(s, item.id, fields);
       if (lockBad) { rejections.push({ id: item.id, reason: lockBad }); return; }
       const effectiveType = (fields.type as ResourceType) ?? cur.type;
-      const refBad = referenceReason(fields, cur.id, effectiveType);
+      const refBad = referenceReason(fields, cur.id, effectiveType, cur.type);
       if (refBad) { rejections.push({ id: item.id, reason: refBad }); return; }
       // Simulatie bijwerken zodat latere items tegen de NIEUWE stand valideren.
       cur.type = effectiveType;
@@ -555,7 +572,7 @@ const manageResources: BatchStepTool = {
     'creates/changes/deletes the resource. One `action` per item: `create` (required `name`, optional ' +
     '`tempId` + all fields), `update` (`id` + at least one field) or `delete` (`id`, and `cascade: true` as ' +
     'soon as it still has assignments). Fields: `name`, `type` (LABOR | EQUIPMENT | MATERIAL | SUBCONTRACTOR ' +
-    '| CREW, default LABOR), `description`, `maxUnits` (capacity per WORKING DAY; 1 = 100% = one ' +
+    '| CREW | COST, default LABOR), `description`, `maxUnits` (capacity per WORKING DAY; 1 = 100% = one ' +
     'person/piece, default 1), `costPerHour` (cost per HOUR), `unitOfMeasure` (only for MATERIAL), ' +
     '`calendarId` (existing library calendar; `null` = the project calendar), `parentId` (crew membership, ' +
     'must be a CREW resource; `null` = no crew) and `availabilitySteps` (time-phased capacity: `[{from: ' +
@@ -565,6 +582,11 @@ const manageResources: BatchStepTool = {
     'crew membership of its members are removed. As long as it still has assignments, `delete` is softly ' +
     'refused with the exact count; then confirm with `cascade: true`. The response reports per deleted ' +
     'resource exactly what went along (`removedAssignmentIds`, `affectedTaskIds`, `orphanedCrewMemberIds`). ' +
+    'A COST resource (e.g. "Permits") carries a fixed budgeted amount PER ASSIGNMENT (set it with ' +
+    'planner_manage_assignments `costAmount`); it has no `costPerHour`, `unitOfMeasure`, `calendarId`, ' +
+    '`availabilitySteps` or `parentId` and `maxUnits` stays 1 (other values are softly refused). It never ' +
+    'counts for load, overallocation, histogram or leveling and never drives the duration. A type change to ' +
+    'or from COST is refused while the resource has assignments. ' +
     'Pass a `tempId` (`tmp-...`) with `create` if you want to assign the new resource in a next ' +
     'planner_batch step — the real id comes back in `created`. Refused items come back in `itemRejections`; ' +
     'the valid items simply stay. RESOURCES INHERITED FROM THE RESOURCE LIBRARY: if a resource comes from a ' +
@@ -607,8 +629,8 @@ const manageResources: BatchStepTool = {
             name: { type: 'string', description: 'Display name; required for `create`.' },
             type: {
               type: 'string',
-              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW'],
-              description: 'Resource type (UPPERCASE). Default for `create`: LABOR.',
+              enum: ['LABOR', 'EQUIPMENT', 'MATERIAL', 'SUBCONTRACTOR', 'CREW', 'COST'],
+              description: 'Resource type (UPPERCASE). Default for `create`: LABOR. COST = a fixed amount per assignment, no rate or capacity.',
             },
             description: { type: 'string', description: 'Free description; "" empties it.' },
             maxUnits: {

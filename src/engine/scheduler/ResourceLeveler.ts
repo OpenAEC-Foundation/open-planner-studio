@@ -44,7 +44,7 @@
 import type { Task, TaskSplitGap } from '@/types/task';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import type { Sequence } from '@/types/sequence';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import { resourceIsLevelable, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
@@ -233,8 +233,9 @@ export function levelResources(
   // expliciete WBS-samenvatting nooit als nivelleer-/interne CPM-taak laten binnenglippen.
   tasks = tasks.filter(isLeafTask);
 
-  // Geselecteerde renewables: default alle non-material, anders de opgegeven ids ∩ non-material.
-  const renewable = resources.filter(r => r.type !== 'MATERIAL');
+  // Geselecteerde renewables: default alle non-material/non-cost, anders de opgegeven ids ∩ die set.
+  // Een kostenresource (issue #815) heeft geen belasting en wordt nooit genivelleerd.
+  const renewable = resources.filter(resourceIsLevelable);
   const selectedResources = options.resourceIds
     ? renewable.filter(r => options.resourceIds!.includes(r.id))
     : renewable;

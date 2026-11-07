@@ -96,6 +96,9 @@ export function resourceTypeToP6(type: ResourceType): 'Labor' | 'Nonlabor' | 'Ma
     case 'CREW':
       return 'Labor';
     case 'MATERIAL':
+    // Een kostenresource gaat niet naar P6 (de schrijvers laten hem weg, issue #815); materiaal is
+    // alleen de veilige terugval voor deze typetabel.
+    case 'COST':
       return 'Material';
     case 'EQUIPMENT':
     case 'SUBCONTRACTOR':
@@ -327,6 +330,13 @@ export function writeP6XMLWithReport(
   customTaskTypes: readonly CustomTaskType[] = [],
   projectCode: string | null | undefined = documentProjectCode(project),
 ): { xml: string; truncated: number; invalidXmlChars: number } {
+  // Kostenresources en hun toewijzingen gaan niet mee (issue #815): P6 kent geen kostenresource. De
+  // exportmelding telt ze (`exportP6XmlLossNotice`, regel `costResources`).
+  const costIds = new Set(resources.filter(r => r.type === 'COST').map(r => r.id));
+  if (costIds.size > 0) {
+    resources = resources.filter(r => !costIds.has(r.id));
+    assignments = assignments.filter(a => !costIds.has(a.resourceId));
+  }
   // Externe (cross-project) dependencies zijn in P6-XML niet uitdrukbaar buiten de
   // master/subproject-context ⇒ weggelaten (de ghost-weergave blijft in-app). Één warn.
   const extLinkCount = tasks.reduce((n, t) => n + (t.externalLinks?.length ?? 0), 0);

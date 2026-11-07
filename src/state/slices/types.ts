@@ -189,6 +189,11 @@ export type NotificationSeverity = 'error' | 'info';
  * Een release vereist volledige, actuele UI-vertalingen in alle 28 talen (`verify:translations`).
  */
 export type NotificationMessageKey =
+  // Bijwerken uit de bibliotheek zou een resource met toewijzingen naar of van een kostenresource
+  // laten wisselen (issue #815); dat gaat niet door.
+  | 'notifications.costTypeChangeRefused'
+  // MSPDI-export liet kostenresources weg (issue #815, deel 1). Parameter `count`.
+  | 'notifications.exportCostResourcesLost'
   // Dezelfde tekst als de hint bij de exportkeuze, na een geslaagde export (`exportProfileNotice`).
   | 'menu:export.profileHint'
   | 'notifications.minuteModelConverted'
