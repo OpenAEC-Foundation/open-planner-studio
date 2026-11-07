@@ -414,6 +414,12 @@ en noem het in je rapport of PR-tekst.
      `measure:profiles` met het P6-corpus. Uit de review van #808 ronde 3 na de merge met #807 (GPT-6.1-Sol, xhigh,
      op `d477ac542`; door Sol als BLOKKEERT gemeld, als bestaande schuld; Trias besloot op 7 november tot VERVOLG).
      — B
+878. **VERVOLG: *Project verplaatsen* is niet getest met de herkomstvelden van een externe koppeling.**
+     De fixture in `tests/planning/check-move-project.ts:81` heeft geen `sourceVersion`, `anchorReadAt` en
+     `sourceRef.siteFileId`, en `check-external-provenance.ts` verplaatst geen project. Een latere wijziging aan het
+     verplaatsen kan die velden dus verliezen terwijl beide checks groen blijven. Voorstel: de drie waarden in de
+     bestaande fixture zetten en ze controleren in het bestaande scenario met ongedaan maken. Uit de review van #809
+     na de merge met #807 (GPT-6.1-Sol, xhigh, op `b570b2044`, VERVOLG). — S
 
 ## Tabel, invoer en bediening
 
