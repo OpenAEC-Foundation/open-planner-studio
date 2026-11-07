@@ -631,6 +631,12 @@
     "notAvailableWeb": "소스 파일 읽기는 데스크톱 앱에서만 가능합니다. 수동 대체 방법을 사용하세요.",
     "source": "소스",
     "sourceAvailable": "마지막 확인 시 사용 가능",
+    "provenance": "앵커 출처",
+    "provenanceSite": "소스 버전 {{version}}, {{readAt}}에 읽음",
+    "provenanceSiteNoRead": "소스 버전 {{version}}",
+    "provenanceFile": "{{modified}} 소스 파일, {{readAt}}에 읽음",
+    "provenanceFileNoRead": "{{modified}} 소스 파일",
+    "provenanceRead": "{{readAt}}에 읽음",
     "edit": "외부 관계 편집…",
     "refreshSource": "소스 새로 고침",
     "deleteRelation": "관계 삭제"

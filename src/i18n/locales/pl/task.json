@@ -643,6 +643,12 @@
     "notAvailableWeb": "Odczyt plików źródłowych jest możliwy tylko w aplikacji desktopowej; użyj ręcznego rozwiązania zastępczego.",
     "source": "Źródło",
     "sourceAvailable": "dostępne podczas ostatniej kontroli",
+    "provenance": "Pochodzenie zakotwiczenia",
+    "provenanceSite": "wersja {{version}} źródła, odczytano {{readAt}}",
+    "provenanceSiteNoRead": "wersja {{version}} źródła",
+    "provenanceFile": "plik źródłowy z {{modified}}, odczytano {{readAt}}",
+    "provenanceFileNoRead": "plik źródłowy z {{modified}}",
+    "provenanceRead": "odczytano {{readAt}}",
     "edit": "Edytuj relację zewnętrzną…",
     "refreshSource": "Odśwież źródło",
     "deleteRelation": "Usuń relację"

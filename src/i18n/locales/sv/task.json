@@ -635,6 +635,12 @@
     "notAvailableWeb": "Källfiler kan bara läsas i desktopappen; använd den manuella reserven.",
     "source": "Källa",
     "sourceAvailable": "tillgänglig vid senaste kontroll",
+    "provenance": "Ankarets ursprung",
+    "provenanceSite": "version {{version}} av källan, läst {{readAt}}",
+    "provenanceSiteNoRead": "version {{version}} av källan",
+    "provenanceFile": "källfil från {{modified}}, läst {{readAt}}",
+    "provenanceFileNoRead": "källfil från {{modified}}",
+    "provenanceRead": "läst {{readAt}}",
     "edit": "Redigera externt samband…",
     "refreshSource": "Uppdatera källa",
     "deleteRelation": "Ta bort samband"

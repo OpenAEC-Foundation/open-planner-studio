@@ -636,6 +636,12 @@
     "notAvailableWeb": "Reading source files is desktop-only; use the manual fallback.",
     "source": "Source",
     "sourceAvailable": "available at last check",
+    "provenance": "Anchor origin",
+    "provenanceSite": "version {{version}} of the source, read on {{readAt}}",
+    "provenanceSiteNoRead": "version {{version}} of the source",
+    "provenanceFile": "source file of {{modified}}, read on {{readAt}}",
+    "provenanceFileNoRead": "source file of {{modified}}",
+    "provenanceRead": "read on {{readAt}}",
     "edit": "Edit external relationship…",
     "refreshSource": "Refresh source",
     "deleteRelation": "Delete relationship"
