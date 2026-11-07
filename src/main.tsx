@@ -24,9 +24,6 @@ import './components/icons/icons.css';
 
 appLog.init();
 
-// De assistent van de site bedient de tool via dit koppelvlak (`window.__OPDS_APP__`): alleen in de platformbouw.
-if (PLATFORM_BUILD) installSiteAppTools();
-
 // Ingebed met `settings` van de host (#818): eerst de bewaarde `ops-`-instellingen in localStorage
 // zetten, en pas DAARNA de app (en dus de store) laden. De store leest bij het maken al instellingen,
 // bijv. de bouwmodus voor de kalender van het eerste document; een statische import van `App` zou dat
@@ -51,7 +48,14 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fake
 hostSettingsReady
   .then(() => initLocale())
   .catch(() => { /* taal-load faalde → en-fallback; toch renderen */ })
-  .then(() => import('./App'))
+  .then(() => {
+    // De assistent van de site bedient de tool via `window.__OPDS_APP__` (alleen de platformbouw). Pas ná de
+    // instellingen van de host: de eerste aanroep laadt de MCP-laag en daarmee de store, en die leest bij het
+    // maken al instellingen (bouwmodus → startkalender). Vóór de app, zodat het koppelvlak er staat als de app
+    // het startbestand opent. Bewaakt door `tests/planning/check-site-start-order.ts`.
+    if (PLATFORM_BUILD) installSiteAppTools();
+    return import('./App');
+  })
   .then(({ default: App }) => {
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

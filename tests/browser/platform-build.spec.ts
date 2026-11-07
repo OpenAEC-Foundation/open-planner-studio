@@ -353,6 +353,7 @@ interface WorkplaceHostCall {
   text?: string;
   key?: string;
   value?: unknown;
+  assistant?: string;
 }
 
 const WORKPLACE_IFC = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
@@ -370,12 +371,24 @@ const FLOAT_BAND_KEY = 'ops-showFloatBand';
  * voor `localStorage`/`sessionStorage` (het opaque frame weigert de echte) en `window.openaecHost`. De
  * nep-host houdt elke aanroep bij op `window.__werkplek.calls`; CSP-schendingen komen in
  * `window.__werkplek.violations`.
+ *
+ * De host houdt bij de start `settings.get` en `open` vast tot de test ze vrijgeeft
+ * (`window.__werkplek.release('settings' | 'open')`), zodat de test kan kijken wat er tijdens de hostlezing en
+ * vóór het startbestand bestaat. De host bewaart `ops-constructionMode = 'false'` (bouwmodus uit).
  */
 async function installWorkplaceHost(page: Page): Promise<void> {
   await page.addInitScript((ifc) => {
     if (window.top === window) return;
     type Call = Record<string, unknown>;
-    const state = { calls: [] as Call[], violations: [] as string[] };
+    const waiting: Record<'settings' | 'open', (() => void)[]> = { settings: [], open: [] };
+    const holding = { settings: true, open: true };
+    const hold = (what: 'settings' | 'open') => (holding[what] ? new Promise<void>((resolve) => { waiting[what].push(resolve); }) : Promise.resolve());
+    const state = {
+      calls: [] as Call[],
+      violations: [] as string[],
+      waiting: (what: 'settings' | 'open') => waiting[what].length,
+      release: (what: 'settings' | 'open') => { holding[what] = false; for (const resolve of waiting[what].splice(0)) resolve(); },
+    };
     (window as unknown as { __werkplek: typeof state }).__werkplek = state;
     document.addEventListener('securitypolicyviolation', (event) => {
       state.violations.push(`${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`);
@@ -401,14 +414,15 @@ async function installWorkplaceHost(page: Page): Promise<void> {
     interface HostFile { id: string; name: string; version: number; bytes: Uint8Array }
     const files = new Map<string, HostFile>([['f1', { id: 'f1', name: 'Verbouwing.ifc', version: 7, bytes: new TextEncoder().encode(ifc) }]]);
     let seq = 0;
-    const hostSettings = new Map<string, unknown>();
+    const hostSettings = new Map<string, unknown>([['ops-constructionMode', 'false']]);
     const modified = '2026-11-06T10:00:00Z';
     (window as unknown as { openaecHost: unknown }).openaecHost = {
       taal: 'en',
       thema: 'light',
       initialFileId: 'f1',
       async open(id: string, version?: string | number) {
-        state.calls.push({ fn: 'open', id, version: version ?? null });
+        state.calls.push({ fn: 'open', id, version: version ?? null, assistant: typeof (window as unknown as { __OPDS_APP__?: unknown }).__OPDS_APP__ });
+        await hold('open');
         const file = files.get(id);
         if (!file) throw new Error(`Bestand ${id} bestaat niet.`);
         return { id: file.id, name: file.name, version: file.version, readOnly: false, bytes: file.bytes };
@@ -444,7 +458,7 @@ async function installWorkplaceHost(page: Page): Promise<void> {
         return file ? [{ version: file.version, modified, author: 'Test' }] : [];
       },
       settings: {
-        async get(key: string) { state.calls.push({ fn: 'settings.get', key }); return hostSettings.get(key) ?? null; },
+        async get(key: string) { state.calls.push({ fn: 'settings.get', key }); await hold('settings'); return hostSettings.get(key) ?? null; },
         async set(key: string, value: unknown) { state.calls.push({ fn: 'settings.set', key, value }); hostSettings.set(key, value); return null; },
         async delete(key: string) { state.calls.push({ fn: 'settings.delete', key }); hostSettings.delete(key); return null; },
       },
@@ -481,22 +495,50 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   const frame = await toolFrame(page);
 
   // Echt een opaque origin, en de nep-opslag van de SuperCloud staat er.
-  await expect(frame.locator('.title-bar')).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => frame.evaluate(() => (window as unknown as { __werkplek: { waiting(what: string): number } }).__werkplek.waiting('settings')), { timeout: 20_000 }).toBeGreaterThan(0);
   expect(await frame.evaluate(() => [self.origin, typeof window.localStorage.getItem])).toEqual(['null', 'function']);
 
-  // Het startbestand van de host opent: een taak staat in de taaktabel.
-  await expect(frame.getByText(WORKPLACE_TASK, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-  expect((await workplaceCalls(frame)).filter((call) => call.fn === 'open')).toEqual([{ fn: 'open', id: 'f1', version: null }]);
-  // De start wacht op de hostlezing (#827): alle `settings.get` komen vóór het openen van het startbestand
-  // (de app laadt pas daarna), en de start zelf schrijft niets terug naar de host.
+  // Tijdens de hostlezing (review #828): nog geen app en nog geen `window.__OPDS_APP__`. Een vroege aanroep
+  // zou de store maken met de standaardinstellingen. Staat het koppelvlak er toch, dan doen we wat een vroege
+  // assistent doet (`definitions()`); de kalender hieronder wordt dan rood.
+  const duringRead = await frame.evaluate(async () => {
+    const app = (window as unknown as { __OPDS_APP__?: { definitions(): Promise<unknown> } }).__OPDS_APP__;
+    if (app) await app.definitions().catch(() => null);
+    return { assistant: app !== undefined, rendered: (document.getElementById('root')?.childElementCount ?? 0) > 0 };
+  });
+  expect(duringRead).toEqual({ assistant: false, rendered: false });
+  await frame.evaluate(() => (window as unknown as { __werkplek: { release(what: string): void } }).__werkplek.release('settings'));
+
+  // De start wacht op de hostlezing (#827): alle `settings.get` komen vóór het openen van het startbestand. Bij
+  // het openen staat `window.__OPDS_APP__` er al.
+  await expect.poll(() => frame.evaluate(() => (window as unknown as { __werkplek: { waiting(what: string): number } }).__werkplek.waiting('open')), { timeout: 20_000 }).toBe(1);
   {
     const calls = await workplaceCalls(frame);
     const firstOpen = calls.findIndex((call) => call.fn === 'open');
     const gets = calls.map((call, index) => (call.fn === 'settings.get' ? index : -1)).filter((index) => index >= 0);
     expect(gets.length).toBeGreaterThan(0);
     expect(Math.max(...gets)).toBeLessThan(firstOpen);
-    expect(calls.filter((call) => call.fn === 'settings.set' && call.key === FLOAT_BAND_KEY)).toEqual([]);
+    expect(calls[firstOpen]).toEqual({ fn: 'open', id: 'f1', version: null, assistant: 'object' });
+    // De start mag sleutels die de host nog niet had één keer meesturen (#827), maar raakt de bouwmodus van de
+    // host en de instelling die de gebruiker straks omzet niet aan.
+    expect(calls.filter((call) => (call.fn === 'settings.set' || call.fn === 'settings.delete')
+      && (call.key === 'ops-constructionMode' || call.key === FLOAT_BAND_KEY))).toEqual([]);
   }
+  // De kalender die de app werkelijk maakte (het lege startdocument, vóór het startbestand): bouwmodus uit
+  // bij de host, dus de Standaardkalender zonder feestdagen.
+  const startCalendar = await frame.evaluate(async () => {
+    const app = (window as unknown as { __OPDS_APP__: { run(name: string, args?: object): Promise<unknown> } }).__OPDS_APP__;
+    const result = await app.run('planner_get_calendars', {}) as { data: { calendars: { name: string; holidays?: unknown[]; isProjectDefault?: boolean }[] } };
+    const calendar = result.data.calendars.find((candidate) => candidate.isProjectDefault);
+    return calendar ? [calendar.name, calendar.holidays?.length ?? 0] : null;
+  });
+  expect(startCalendar).toEqual(['Standaardkalender', 0]);
+  await frame.evaluate(() => (window as unknown as { __werkplek: { release(what: string): void } }).__werkplek.release('open'));
+  await expect(frame.locator('.title-bar')).toBeVisible({ timeout: 20_000 });
+
+  // Het startbestand van de host opent: een taak staat in de taaktabel.
+  await expect(frame.getByText(WORKPLACE_TASK, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  expect((await workplaceCalls(frame)).filter((call) => call.fn === 'open')).toEqual([{ fn: 'open', id: 'f1', version: null, assistant: 'object' }]);
 
   // Taal en thema van de host: Engels en licht, ook al is het systeem donker.
   await expect(frame.locator('html')).toHaveAttribute('lang', 'en');
