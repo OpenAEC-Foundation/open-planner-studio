@@ -14,9 +14,12 @@
 //   D. `createHostSettingsSync`: één hostsleutel per `ops-`-sleutel, bundelen, wissen met `delete`, geen
 //      schrijfactie zonder wijziging, opnieuw proberen na een fout van de host, en de scenario's uit de
 //      review: een fout bij lezen, valideren of neerzetten wordt nooit een wisactie (punt 3) en twee
-//      frames draaien elkaars wijzigingen niet terug (punt 5). Ronde 3: alleen lezen bij de start. Een
-//      trage host binnen de grens laadt; een host boven de grens, ook als hij later alsnog antwoordt,
-//      krijgt deze sessie geen enkele `set`/`delete`; net zo na een fout of een host die pas later kwam.
+//      frames draaien elkaars wijzigingen niet terug (punt 5). Een trage host binnen de grens laadt.
+//      Late toepassing (besluit van Ethan, 7 november 2026): boven de grens of na een afwijzing wacht de
+//      module verder en schrijft hij niets naar de host; een laat antwoord wint van wat de gebruiker
+//      intussen wijzigde, daarna staat het bewaren aan (D17); een host die pas na de start kwam telt als
+//      laat antwoord (D18); een afwijzing geeft een nieuwe poging na 30 s, nooit twee tegelijk, met een
+//      plafond (D20-D22); uitgesloten sleutels blijven buiten alles (D23).
 //   E. De echte keten: `writeLocal`/`removeLocal` → host, en `initTheme`/`peekTheme` met het thema van
 //      de host zonder `ops-theme` te schrijven.
 //
@@ -65,7 +68,8 @@ Object.defineProperty(g, 'localStorage', { configurable: true, writable: true, v
 
 const { siteHostTheme, siteHostSettings } = await import('@/services/fileAccess/siteHostPreferences');
 const {
-  createHostSettingsSync, isHostPersistedKey, FLUSH_DELAY_MS, hydrateSiteHostSettings, flushSiteHostSettings,
+  createHostSettingsSync, isHostPersistedKey, FLUSH_DELAY_MS, RETRY_DELAY_MS, MAX_RETRIES, hydrateSiteHostSettings,
+  flushSiteHostSettings,
 } = await import('@/services/fileAccess/siteHostSettings');
 const { HOST_PERSISTED_KEYS, HOST_EXCLUDED_KEYS, HOST_EXCLUDED_PREFIXES } = await import('@/services/fileAccess/siteHostSettingKeys');
 const { embeddedLocale } = await import('@/i18n/config');
@@ -97,12 +101,13 @@ function fakeHost(initial: Record<string, unknown> = {}, opts: { failGet?: boole
   const calls: { fn: string; key: string; value?: unknown }[] = [];
   const stored = new Map<string, unknown>(Object.entries(initial));
   let failWrites = false;
+  let failGet = opts.failGet ?? false;
   const held: (() => void)[] = [];
   const settings: SiteHostSettings = {
     get: (key) => {
       calls.push({ fn: 'get', key });
       if (opts.throwGet) throw new Error('kapot');
-      if (opts.failGet) return Promise.reject(new Error('netwerk'));
+      if (failGet) return Promise.reject(new Error('netwerk'));
       if (opts.hold) return new Promise(resolve => { held.push(() => resolve(stored.get(key) ?? null)); });
       return Promise.resolve(stored.get(key) ?? null);
     },
@@ -124,6 +129,8 @@ function fakeHost(initial: Record<string, unknown> = {}, opts: { failGet?: boole
     writes: () => calls.filter(c => c.fn !== 'get'),
     stored: () => Object.fromEntries([...stored.entries()].sort()),
     failWrites: (on: boolean) => { failWrites = on; },
+    failGet: (on: boolean) => { failGet = on; },
+    gets: () => calls.filter(c => c.fn === 'get').length,
     release: () => { for (const r of held.splice(0)) r(); },
   };
 }
@@ -318,6 +325,8 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
   let seq = 0;
   const timers: Timer[] = [];
   const warnings: string[] = [];
+  const events: string[] = [];
+  const changes: { key: string; oldValue: string | null; newValue: string | null }[] = [];
   const storage = options.storage === undefined ? new MemoryStorage() : options.storage;
   let host: SiteHostSettings | null = options.host ?? null;
   const sync = createHostSettingsSync({
@@ -327,7 +336,9 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
     clearTimer: (id) => { const i = timers.findIndex(t => t.id === id); if (i >= 0) timers.splice(i, 1); },
     warn: (message) => { warnings.push(message); },
     keys: options.keys ?? ['ops-a', 'ops-b', 'ops-c', 'ops-theme', 'ops-locale', 'ops-showFloatBand'],
+    changed: (list) => { changes.push(...list); },
   });
+  sync.subscribe(event => { events.push(event); });
   const run = async (ms: number) => {
     for (const t of timers.filter(x => x.ms === ms)) {
       timers.splice(timers.indexOf(t), 1);
@@ -336,11 +347,14 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
     await settle();
   };
   /** Een schrijfactie zoals `writeLocal`: lokaal schrijven en melden. */
-  const write = (key: string, value: string | null) => {
+  const write = (key: string, value: string | null, origin: 'user' | 'start' = 'user') => {
     if (value === null) storage!.removeItem(key); else storage!.setItem(key, value);
-    sync.noteChanged(key);
+    sync.noteChanged(key, origin);
   };
-  return { sync, timers, warnings, storage: storage!, run, write, setHost: (h: SiteHostSettings | null) => { host = h; } };
+  return {
+    sync, timers, warnings, events, changes, storage: storage!, run, write,
+    setHost: (h: SiteHostSettings | null) => { host = h; },
+  };
 }
 
 {
@@ -407,7 +421,8 @@ for (const [label, opts] of [['weigert', { failGet: true }], ['gooit meteen', { 
   await h.run(FLUSH_DELAY_MS);
   await h.sync.flush();
   eq(`D10 get ${label} ⇒ nooit een schrijfactie`, host.writes(), []);
-  eq(`D10 get ${label} ⇒ de app meldt het`, h.sync.unavailable(), true);
+  eq(`D10 get ${label} ⇒ de pop-up hoort open, geen melding over een lokale fout`, [h.sync.delayed(), h.sync.unavailable()], [true, false]);
+  eq(`D10 get ${label} ⇒ een nieuwe poging over 30 s`, h.timers.filter(t => t.ms === RETRY_DELAY_MS).length, 1);
 }
 for (const bad of [{ kapot: true }, 42, ['x']]) {
   const host = fakeHost({ 'ops-theme': 'light', 'ops-showFloatBand': bad });
@@ -493,50 +508,209 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D16 geen melding', h.sync.unavailable(), false);
 }
 {
-  // D17: een host boven de grens die daarna alsnog antwoordt. Geen enkele set/delete, en de keuzes van
-  // de sessie blijven staan.
+  // D17: een host boven de grens die daarna alsnog antwoordt (besluit van Ethan, 7 november 2026). Tijdens
+  // het wachten niets naar de host; daarna winnen de bewaarde instellingen en staat het bewaren aan.
   const host = fakeHost({ 'ops-a': 'host', 'ops-b': 'host', 'ops-theme': 'dark' }, { hold: true });
   const h = harness({ host: host.settings });
   const pending = h.sync.hydrate(1000);
   await settle();
   await h.run(1000);
   eq('D17 boven de grens ⇒ time-out', await pending, 'time-out');
-  eq('D17 de app meldt het', h.sync.unavailable(), true);
+  eq('D17 de pop-up hoort open', [h.sync.delayed(), h.events], [true, ['vertraagd']]);
+  eq('D17 geen melding over een lokale fout', h.sync.unavailable(), false);
   h.write('ops-a', 'sessie');
   h.write('ops-b', null);
   h.write('ops-theme', 'light');
   h.write('ops-c', 'nieuw');
-  host.release();
-  await settle();
+  h.write('ops-locale', 'en', 'start'); // een standaardwaarde die de app zelf invult
   await h.run(FLUSH_DELAY_MS);
   await h.sync.flush();
-  eq('D17 het late antwoord zet niets neer', h.storage.snapshot(), { 'ops-a': 'sessie', 'ops-c': 'nieuw', 'ops-theme': 'light' });
-  eq('D17 geen enkele set/delete naar de host', host.writes(), []);
-  eq('D17 geen bundeltimer', h.timers.length, 0);
-  eq('D17 een tweede hydrate leest niet opnieuw', [await h.sync.hydrate(1000), host.calls.filter(c => c.fn === 'get').length], ['fout', 6]);
+  eq('D17 tijdens het wachten geen enkele set/delete naar de host', host.writes(), []);
+  eq('D17 tijdens het wachten geen bundeltimer', h.timers.filter(t => t.ms === FLUSH_DELAY_MS).length, 0);
+  eq('D17 een tweede hydrate leest niet opnieuw', [await h.sync.hydrate(1000), host.gets()], ['al-geladen', 6]);
+  h.sync.adoptLateHost(1000);
+  eq('D17 nooit twee lezingen tegelijk', host.gets(), 6);
+
+  host.release();
+  await settle();
+  eq('D17 het late antwoord wint: waarden van de host, de eigen nieuwe sleutel terug naar de standaard',
+    h.storage.snapshot(), { 'ops-a': 'host', 'ops-b': 'host', 'ops-locale': 'en', 'ops-theme': 'dark' });
+  eq('D17 de app krijgt het te horen, met "teruggezet"', [h.events, h.sync.takeApplied()],
+    [['vertraagd', 'toegepast'], { changed: ['ops-a', 'ops-b', 'ops-c', 'ops-theme'], reverted: true }]);
+  eq('D17 maar één keer', h.sync.takeApplied(), null);
+  eq('D17 een StorageEvent-wijziging per sleutel, met oude en nieuwe waarde', h.changes, [
+    { key: 'ops-a', oldValue: 'sessie', newValue: 'host' },
+    { key: 'ops-b', oldValue: null, newValue: 'host' },
+    { key: 'ops-c', oldValue: 'nieuw', newValue: null },
+    { key: 'ops-theme', oldValue: 'light', newValue: 'dark' },
+  ]);
+  eq('D17 de pop-up hoeft niet meer', h.sync.delayed(), false);
+  await h.run(FLUSH_DELAY_MS);
+  eq('D17 daarna gaat wat de app zelf invulde één keer mee, zonder delete', host.writes(),
+    [{ fn: 'set', key: 'ops-locale', value: 'en' }]);
+  h.write('ops-showFloatBand', 'true');
+  await h.run(FLUSH_DELAY_MS);
+  eq('D17 en gaat een nieuwe wijziging naar de host', host.writes().at(-1), { fn: 'set', key: 'ops-showFloatBand', value: 'true' });
+  eq('D17 de host houdt zijn bewaarde waarden', host.stored(),
+    { 'ops-a': 'host', 'ops-b': 'host', 'ops-locale': 'en', 'ops-showFloatBand': 'true', 'ops-theme': 'dark' });
 }
 {
-  // D18: een host die pas na de start kwam (`openaec-host-ready`): niets bewaren, wel melden.
+  // D17b: een laat antwoord zonder wijziging van de gebruiker: gewoon toepassen, zonder "teruggezet".
+  // Een wijziging die toevallig gelijk is aan de bewaarde waarde telt ook niet als teruggezet.
+  const host = fakeHost({ 'ops-a': 'host', 'ops-theme': 'dark' }, { hold: true });
+  const h = harness({ host: host.settings });
+  const pending = h.sync.hydrate(1000);
+  await settle();
+  await h.run(1000);
+  await pending;
+  h.write('ops-theme', 'dark');
+  h.write('ops-c', 'standaard', 'start');
+  host.release();
+  await settle();
+  eq('D17b geen "teruggezet"', h.sync.takeApplied(), { changed: ['ops-a'], reverted: false });
+  eq('D17b wat de app zelf invulde, blijft staan', h.storage.snapshot(), { 'ops-a': 'host', 'ops-c': 'standaard', 'ops-theme': 'dark' });
+}
+{
+  // D17c: een sleutel die al vóór de start lokaal stond (geen opaque frame), daarna door de gebruiker
+  // gewijzigd en niet bij de host: terug naar de waarde bij de start, zoals een gewone start.
+  const storage = new MemoryStorage();
+  storage.setItem('ops-c', 'van-voor-de-start');
+  const host = fakeHost({}, { hold: true });
+  const h = harness({ storage, host: host.settings });
+  const pending = h.sync.hydrate(1000);
+  await settle();
+  await h.run(1000);
+  await pending;
+  h.write('ops-c', 'sessie');
+  host.release();
+  await settle();
+  eq('D17c terug naar de waarde bij de start', h.storage.snapshot(), { 'ops-c': 'van-voor-de-start' });
+  await h.run(FLUSH_DELAY_MS);
+  eq('D17c die gaat daarna naar de host, zoals bij een gewone start', host.writes(), [{ fn: 'set', key: 'ops-c', value: 'van-voor-de-start' }]);
+}
+{
+  // D18: een host die pas na de start kwam (tijdens het laden van `App`, of met `openaec-host-ready`):
+  // een laat antwoord. Wijzigingen van de gebruiker van vóór de host tellen mee.
   const host = fakeHost({ 'ops-a': 'host' });
   const h = harness();
   eq('D18 bij de start nog geen host', await h.sync.hydrate(), 'geen-host');
-  h.setHost(host.settings);
-  h.sync.disable('later');
-  eq('D18 de app meldt het', h.sync.unavailable(), true);
   h.write('ops-a', 'sessie');
-  await h.sync.flush();
-  eq('D18 geen lezing en geen schrijfactie', host.calls, []);
+  h.write('ops-b', 'eigen');
+  h.write('ops-c', 'standaard', 'start');
+  h.setHost(host.settings);
+  h.sync.adoptLateHost(1000);
+  await settle();
+  eq('D18 gelezen en toegepast, zonder pop-up', [h.events, h.sync.delayed()], [['toegepast'], false]);
+  eq('D18 de bewaarde waarde wint, de eigen sleutel gaat terug, wat de app invulde blijft',
+    h.storage.snapshot(), { 'ops-a': 'host', 'ops-c': 'standaard' });
+  eq('D18 met "teruggezet"', h.sync.takeApplied(), { changed: ['ops-a', 'ops-b'], reverted: true });
+  await h.run(FLUSH_DELAY_MS);
+  eq('D18 daarna staat het bewaren aan', host.writes(), [{ fn: 'set', key: 'ops-c', value: 'standaard' }]);
+  h.sync.adoptLateHost(1000);
+  await settle();
+  eq('D18 een tweede ready-event leest niet opnieuw', host.gets(), 6);
 }
 {
-  // D19: `disable` na een geslaagde lezing doet niets (een tweede ready-event van dezelfde host).
+  // D18b: een late host die niet binnen de grens antwoordt: dan alsnog de pop-up.
+  const host = fakeHost({ 'ops-a': 'host' }, { hold: true });
+  const h = harness();
+  await h.sync.hydrate();
+  h.setHost(host.settings);
+  h.sync.adoptLateHost(1000);
+  await settle();
+  eq('D18b binnen de grens nog geen pop-up', h.events, []);
+  await h.run(1000);
+  eq('D18b daarna wel', [h.events, h.sync.delayed()], [['vertraagd'], true]);
+  host.release();
+  await settle();
+  eq('D18b en het antwoord wordt toegepast', [h.events, h.storage.snapshot()], [['vertraagd', 'toegepast'], { 'ops-a': 'host' }]);
+}
+{
+  // D19: `adoptLateHost` na een geslaagde lezing doet niets (een tweede ready-event van dezelfde host).
   const host = fakeHost({});
   const h = harness({ host: host.settings });
   eq('D19 geladen', await h.sync.hydrate(), 'geladen');
-  h.sync.disable('later');
-  eq('D19 geen melding', h.sync.unavailable(), false);
+  eq('D19 bij de start geen late melding', [h.events, h.sync.takeApplied()], [[], null]);
+  h.sync.adoptLateHost(1000);
+  await settle();
+  eq('D19 geen tweede lezing', host.gets(), 6);
   h.write('ops-a', 'x');
   await h.run(FLUSH_DELAY_MS);
   eq('D19 bewaren blijft aan', host.writes(), [{ fn: 'set', key: 'ops-a', value: 'x' }]);
+}
+{
+  // D20: een afwijzing van de host: elke 30 s opnieuw, tot het lukt. Tijdens het wachten niets naar de host.
+  const host = fakeHost({ 'ops-a': '[{"id":"bewaard"}]' }, { failGet: true });
+  const h = harness({ host: host.settings });
+  eq('D20 afwijzing ⇒ fout, de start wacht niet langer', await h.sync.hydrate(1000), 'fout');
+  eq('D20 de pop-up hoort open', [h.sync.delayed(), h.events], [true, ['vertraagd']]);
+  eq('D20 geen time-outtimer meer', h.timers.filter(t => t.ms === 1000).length, 0);
+  h.write('ops-a', '[{"id":"nieuw"}]');
+  await h.run(RETRY_DELAY_MS);
+  eq('D20 de tweede poging leest opnieuw', host.gets(), 12);
+  eq('D20 nog een poging gepland, één keer', h.timers.filter(t => t.ms === RETRY_DELAY_MS).length, 1);
+  eq('D20 één pop-up, ook na de tweede afwijzing', h.events, ['vertraagd']);
+  host.failGet(false);
+  await h.run(RETRY_DELAY_MS);
+  eq('D20 de derde poging lukt: de bewaarde lijst wint', h.storage.snapshot(), { 'ops-a': '[{"id":"bewaard"}]' });
+  eq('D20 met "teruggezet"', [h.events, h.sync.takeApplied()], [['vertraagd', 'toegepast'], { changed: ['ops-a'], reverted: true }]);
+  eq('D20 de bewaarde lijst is nooit overschreven of gewist', host.writes(), []);
+  h.write('ops-b', 'x');
+  await h.run(FLUSH_DELAY_MS);
+  eq('D20 daarna staat het bewaren aan', host.writes(), [{ fn: 'set', key: 'ops-b', value: 'x' }]);
+}
+{
+  // D21: nooit twee verzoeken tegelijk: een poging die blijft hangen, krijgt geen tweede ernaast.
+  const host = fakeHost({ 'ops-a': 'host' }, { failGet: true });
+  const h = harness({ host: host.settings });
+  await h.sync.hydrate(1000);
+  host.failGet(false);
+  // Vanaf nu hangt `get`: houd de lezing vast.
+  const held = fakeHost({ 'ops-a': 'host' }, { hold: true });
+  host.settings.get = held.settings.get;
+  await h.run(RETRY_DELAY_MS);
+  eq('D21 de poging loopt', held.gets(), 6);
+  h.sync.adoptLateHost(1000);
+  eq('D21 geen tweede lezing ernaast', [held.gets(), h.timers.filter(t => t.ms === RETRY_DELAY_MS).length], [6, 0]);
+  held.release();
+  await settle();
+  eq('D21 het antwoord komt toch aan', h.storage.snapshot(), { 'ops-a': 'host' });
+}
+{
+  // D22: het plafond: na MAX_RETRIES nieuwe pogingen houdt de tool op. Geen schrijfactie, geen melding
+  // over een lokale fout (de pop-up zei het al).
+  const host = fakeHost({}, { failGet: true });
+  const h = harness({ host: host.settings });
+  await h.sync.hydrate(1000);
+  for (let i = 0; i < MAX_RETRIES; i++) await h.run(RETRY_DELAY_MS);
+  eq('D22 precies 1 + MAX_RETRIES lezingen', host.gets(), 6 * (1 + MAX_RETRIES));
+  eq('D22 daarna geen poging meer gepland', h.timers.length, 0);
+  eq('D22 uit, zonder lokale-foutmelding en zonder pop-uptoestand', [h.sync.unavailable(), h.sync.delayed(), h.events.at(-1)], [false, false, 'uit']);
+  h.write('ops-a', 'x');
+  await h.sync.flush();
+  eq('D22 geen enkele schrijfactie', host.writes(), []);
+  eq('D22 een late adopt start niets meer', (h.sync.adoptLateHost(1000), host.gets()), 6 * (1 + MAX_RETRIES));
+}
+{
+  // D23: uitgesloten sleutels (de echte lijst): nooit gelezen, nooit teruggezet, nooit geschreven.
+  const host = fakeHost({ 'ops-theme': 'dark', 'ops-mcpToken': 'van-de-host', 'ops-ext:demo:x': 'host' }, { hold: true });
+  const h = harness({ host: host.settings, keys: [...HOST_PERSISTED_KEYS] });
+  const pending = h.sync.hydrate(1000);
+  await settle();
+  await h.run(1000);
+  await pending;
+  for (const key of ['ops-mcpToken', 'ops-mcpPort', 'ops-downloadStats', 'ops-ext:demo:x']) h.write(key, 'lokaal');
+  h.write('ops-theme', 'light');
+  host.release();
+  await settle();
+  const asked = host.calls.filter(c => c.fn === 'get').map(c => c.key);
+  check('D23 geen uitgesloten sleutel gelezen', asked.every(key => isHostPersistedKey(key)) && asked.length === HOST_PERSISTED_KEYS.length);
+  eq('D23 uitgesloten sleutels blijven lokaal staan', ['ops-mcpToken', 'ops-mcpPort', 'ops-downloadStats', 'ops-ext:demo:x'].map(k => h.storage.getItem(k)),
+    ['lokaal', 'lokaal', 'lokaal', 'lokaal']);
+  eq('D23 alleen het thema gaat terug', h.sync.takeApplied(), { changed: ['ops-theme'], reverted: true });
+  await h.run(FLUSH_DELAY_MS);
+  await h.sync.flush();
+  check('D23 geen uitgesloten sleutel naar de host', host.writes().every(c => isHostPersistedKey(c.key)));
 }
 
 // ── E. De echte keten: writeLocal/removeLocal → de host uit S1 ─────────────────────────────────────

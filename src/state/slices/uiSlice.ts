@@ -175,6 +175,7 @@ export function createDefaultUI(): UIState {
     showShortcutsDialog: false,
     showBenchmarkDialog: false,
     showStatsDialog: false,
+    showSettingsDelayDialog: false,
     pendingExtensionConsent: null,
     pendingActualStartQuestion: null,
     pendingPhaseAssignmentQuestion: null,

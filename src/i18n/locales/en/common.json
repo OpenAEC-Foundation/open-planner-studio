@@ -88,6 +88,8 @@
     "recoveryReadFailed": "Recovered file could not be read",
     "recoveryRestoreFailed": "Restore failed",
     "hostSettingsUnavailable": "The site settings did not load. Settings you change in this session will not be saved.",
+    "settingsLoadedLate": "Your settings have been loaded and applied.",
+    "settingsLoadedLateReverted": "Your settings have been loaded and applied. Anything you changed in the meantime has been reverted.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
@@ -1861,5 +1863,9 @@
       "hammock": "Follows the linked tasks",
       "unknown": "Reason not established"
     }
+  },
+  "settingsDelay": {
+    "title": "Settings not loaded",
+    "body": "Your settings could not be loaded from the server. You are now working with the default settings. As soon as your settings are available again, they will be applied automatically."
   }
 }

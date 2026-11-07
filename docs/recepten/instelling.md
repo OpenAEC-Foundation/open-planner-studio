@@ -56,6 +56,12 @@ telkens erbij; loopt dit document ooit achter, dan heeft de code gelijk.
    hij ingebed in de SuperCloud via `settings` van de host een herlaad overleeft (#818). Is de sleutel
    van één apparaat of één instantie, zet hem dan in `HOST_EXCLUDED_KEYS`. `check-site-host-preferences.ts`
    is rood voor een geschreven `ops-`-sleutel die in geen van beide staat.
+   Schrijft de app de sleutel zelf, zonder keuze van de gebruiker (een migratie, of een standaardwaarde voor
+   een ontbrekende sleutel), geef dan `'start'` mee (`writeLocal(key, value, 'start')`,
+   `setSetting(key, value, 'start')`). Komen de instellingen van de host pas na de start, dan gaat een
+   wijziging van de gebruiker terug en meldt de app dat; een `'start'`-schrijfactie blijft staan en telt niet
+   mee voor die melding. Laadt een component de waarde één keer in zijn eigen state en schrijft het later de
+   hele waarde terug, gebruik dan `useStoredSettingRefresh` (`src/hooks/`).
 
 ## De drie bewuste afwijkers
 

@@ -1253,10 +1253,14 @@ en noem het in je rapport of PR-tekst.
      maak een oudere taalaanvraag ongeldig, en controleer na het laden en vóór `changeLanguage()` of de
      host nog dezelfde taal vraagt. — B
 
-871. **Dubbele stappen in `useSiteHostPreferences`.** De inhaalcontrole bij de mount (het `else`-blok)
-     herhaalt de drie stappen van `onReady()`: `disableSiteHostSettings()`, de melding en
-     `applyPreferences()`. Voorstel: vervang het blok door `else onReady();` (zes regels minder). Gevonden in
-     review #827 ronde 5. — B
+880. **Een rapporttab die tijdens het wachten op de host opengaat, geeft een te ruime melding.**
+     `src/components/panels/ReportPanel.tsx` (het opslaan-effect na het laden) schrijft de net geladen
+     rapportinstellingen meteen terug, zonder `'start'` (`SettingWriteOrigin`, #818). Opent de gebruiker het
+     Rapport-tabblad terwijl de tool nog op de instellingen van de host wacht, en heeft de host
+     `ops-reportSettings`, dan zegt de melding na het late antwoord ook "Wat je in de tussentijd wijzigde, is
+     teruggezet.", terwijl de gebruiker alleen het tabblad opende. Alleen de tekst klopt dan niet; de
+     instellingen van de host winnen gewoon. Voorstel: geef bij de eerste terugschrijfactie na het laden
+     `'start'` mee. Afgeleid uit de code bij de late toepassing van #818, niet nagespeeld. — S
 
 ## Rondleiding, Help en extensie-gidsen
 
