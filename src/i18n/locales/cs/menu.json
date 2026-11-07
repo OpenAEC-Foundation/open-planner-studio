@@ -155,6 +155,7 @@
     "barsGroup": "Pruhy",
     "manageBaselines": "Spravovat směrné plány…",
     "statusDate": "Datum stavu",
+    "statusDateValue": "Datum stavu: {{date}}",
     "statusDateClear": "Vymazat datum stavu",
     "statusDateTime": "Čas data stavu",
     "statusDateTimeLater": "Posunout čas později",

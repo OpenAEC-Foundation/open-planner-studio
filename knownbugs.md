@@ -1999,6 +1999,13 @@ en noem het in je rapport of PR-tekst.
      naar directe ingangen van `node_modules`. Is `@fontsource` een gewone map met `inter` als link, dan blijft het
      letterbestand 403. Een link van de hele `@fontsource`-map (zoals op aia) werkt wel. Voorstel: de concrete
      pakketmappen resolven, zoals bij 930. Uit de review van #853 (GPT-6.1-Sol, xhigh, op `b597182af`, VERVOLG). — B
+950. **VERVOLG: drie knopgroepen die op een keuze lijken, worden regular.** Sinds #850 zijn gewone `.btn`-knoppen 400.
+     Sol noemt drie groepen die ook 400 worden: de datumvolgorde in `ProgressImportDialog.tsx:417` en `:420`,
+     "Bedrijfswaarden gebruiken" en "Bestandswaarden overnemen" in `LibraryLinkDialog.tsx:139` en `:140`, en de talen
+     onder "Lees in" in `HelpPanel.tsx:474`. Ze werken nog hetzelfde. Bewust zo gelaten: elke knop voert meteen een
+     actie uit en heeft geen blijvende gekozen stand (geen `aria-pressed`), dus het zijn gewone acties. De bronkeuzes
+     met een gekozen stand houden wel 600. Wil een planner ze toch vet, dan volstaat `fontWeight: 600` zoals bij de
+     bronkeuzes. Uit de review van #850 (GPT-6.1-Sol, xhigh, op `d40a68caa`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
@@ -2209,3 +2216,40 @@ en noem het in je rapport of PR-tekst.
      #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
+     `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
+     render van het lint. Verandert alleen de inhoud van één groep van breedte, dan blijft de oude stand staan.
+     Gezien bij de statusdatum: na het wissen verdween het ×-knopje en bleef rechts 161 px leeg bij 1600 px (ook
+     op main). #845 lost dat voor deze groep op: het knopje houdt zijn plek. Het tijdveld bij een uurkalender
+     verandert de breedte nog wel, en een andere groep kan hetzelfde doen. Voorstel: een ResizeObserver op de
+     groepen, of opnieuw meten na een wijziging van een veld in het lint. Uit de council-rondes van #845
+     (GPT-6.1-Sol en Claude Opus 5.5, xhigh, ronde 2, VERVOLG). — S
+
+941. **VERVOLG: in de popover van een ingeklapte veldengroep is de voortgangsmodus een native keuzelijst.**
+     `BaselinesProgressGroupContent` (`src/components/layout/Ribbon/ribbonWidgets.tsx`) toont in de popover
+     `RibbonInlineSelect`, omdat een tweede popover binnen een popover niet veilig sluit. De lijst ziet er per
+     besturingssysteem anders uit dan de andere lintmenu's. Voorstel: een menu-in-menu dat binnen de eerste
+     popover blijft. Uit de council-rondes van #845 (Claude Opus 5.5 en GPT-6.1-Sol, xhigh, ronde 1 en 2,
+     VERVOLG). — S
+
+942. **VERVOLG: bij het omslagpunt van de statusdatumgroep krijgen meer knoppen tegelijk hun label terug.**
+     Bij versmallen van 1160 naar 1140 px klapt de groep in, en de vrijgekomen ruimte gaat in één stap naar de
+     labels van vier groepen. Dat oogt als één sprong. De automaat zoekt na het inklappen bewust opnieuw de
+     beste knoppenstand (anders blijft er tot 357 px leeg). Op de AI-tab gebeurt hetzelfde: bij versmallen van
+     1000 naar 900 px groeit de groep Veiligheid van 202 px (alleen iconen) naar 378 px (met labels).
+     Voorstel: alleen aanpakken als planners erover vallen. Uit de council van #845 (Claude Opus 5.5, xhigh,
+     ronde 2 en 3, VERVOLG). — S
+
+943. **VERVOLG: een veldengroep met de focus erin blijft open, ook bij een grote stap smaller.**
+     `useRibbonAutoFit` laat een groep met de focus (of een open popover) in zijn stand, zodat halve invoer niet
+     verloren gaat. Bij een stap van 1600 naar 700 px tijdens het typen in de statusdatum loopt het lint tot
+     206 px over (horizontale scroll). Na het verlaten van het veld meet de automaat opnieuw. Voorstel: laat het
+     zo, of klap in en geef de focus door aan het veld in de popover. Uit de council van #845 (Claude Opus 5.5,
+     xhigh, ronde 2, VERVOLG). — S
+
+944. **VERVOLG: op een lintknop zie je niet waar de toetsenbordfocus staat.** `.ribbon-btn:focus { outline: none }`
+     (`src/components/layout/Ribbon/Ribbon.css:160`) haalt de focusrand weg, ook bij focus via het
+     toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
+     niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
+     council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S

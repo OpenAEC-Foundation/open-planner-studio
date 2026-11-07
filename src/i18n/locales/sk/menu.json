@@ -155,6 +155,7 @@
     "barsGroup": "Pruhy",
     "manageBaselines": "Spravovať pôvodné plány…",
     "statusDate": "Dátum kontroly stavu",
+    "statusDateValue": "Dátum kontroly stavu: {{date}}",
     "statusDateClear": "Vymazať dátum kontroly stavu",
     "statusDateTime": "Čas dátumu kontroly stavu",
     "statusDateTimeLater": "Čas neskôr",
