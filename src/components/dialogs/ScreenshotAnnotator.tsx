@@ -537,7 +537,7 @@ export function ScreenshotAnnotator({
                 onClick={handleUndo}
                 disabled={shapes.length === 0}
               >
-                <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" />
+                <Icon id="edit.undo" size={16} className="ops-icon-inline-flip" lucide={{ className: undefined }} />
               </button>
               <button
                 className="feedback-ann-btn"

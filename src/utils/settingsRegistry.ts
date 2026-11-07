@@ -46,6 +46,7 @@ import {
   getSetting,
   initTheme,
   loadConstructionMode,
+  loadFeatureFlags,
   TASK_TABLE_MIN_WIDTH,
   TASK_TABLE_MAX_WIDTH,
   RIGHT_PANEL_MIN_WIDTH,
@@ -143,7 +144,10 @@ export const SETTINGS: SettingDescriptor[] = [
 
   // Verborgen experimentele functies: zichtbaarheid en keuzes staan los van elkaar.
   setting({ key: 'experimentalSettingsVisible', field: 'experimentalSettingsVisible', parse: parseBoolean }),
-  setting({ key: 'featureFlags', field: 'featureFlags', parse: parseFeatureFlagValues }),
+  setting({ key: 'featureFlags', field: 'featureFlags', parse: raw => {
+    const flags = parseFeatureFlagValues(raw);
+    return flags ? loadFeatureFlags(flags) : undefined;
+  } }),
 
   // AI-modus (MCP-bridge) — persistente spiegel die de conditionele AI-ribbontab voedt.
   setting({ key: 'aiMode', field: 'aiMode', parse: parseBoolean }),

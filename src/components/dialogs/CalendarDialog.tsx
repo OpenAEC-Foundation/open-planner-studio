@@ -214,7 +214,7 @@ export function CalendarDialog() {
                     }
                     data-ops-calendar-row={cal.id}
                   >
-                    {isDefault && <Icon id="status.project-calendar" size={11} className="shrink-0" />}
+                    {isDefault && <Icon id="status.project-calendar" size={11} className="shrink-0" lucide={{ fill: 'currentColor', className: 'shrink-0 text-accent' }} />}
                     <span className="truncate flex-1">{cal.name || tCommon('calendar.library.new')}</span>
                     {calendarInvalid(cal) && (
                       <span role="img" className="shrink-0 text-red-600" title={tCommon('calendar.library.invalid')}
@@ -251,7 +251,7 @@ export function CalendarDialog() {
                 <div className="flex items-center justify-between px-4 pt-3">
                   {localProjectId === selected.id ? (
                     <span className="!text-body font-medium text-accent flex items-center gap-1">
-                      <Icon id="status.project-calendar" size={11} />
+                      <Icon id="status.project-calendar" size={11} lucide={{ fill: 'currentColor' }} />
                       {tCommon('calendar.library.project')}
                     </span>
                   ) : (
