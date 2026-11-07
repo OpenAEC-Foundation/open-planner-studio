@@ -18,6 +18,10 @@ export interface UseClickOutsideOptions {
    *  hangt dan `ref` — bv. een `createPortal` naar `document.body` (zie Popover), waar `ref` alleen
    *  nog de trigger omvat. Zonder dit telt een klik ín het paneel als "buiten" en sluit het meteen. */
   extraRef?: RefObject<HTMLElement | null>;
+  /** CSS-selector van elementen die ook als "binnen" tellen: een knop elders in de DOM die hetzelfde
+   *  paneel open en dicht zet (bv. de lintknop Kolommen voor de kolomkiezer van de Tabel). Zonder dit
+   *  sluit `mousedown` op die knop het paneel en opent de `click` erna het meteen weer. */
+  ignoreSelector?: string;
 }
 
 /**
@@ -39,7 +43,7 @@ export function useClickOutside<T extends HTMLElement>(
   enabled = true,
   options: UseClickOutsideOptions = {},
 ): void {
-  const { escape = false, contextmenu = false, defer = false, extraRef } = options;
+  const { escape = false, contextmenu = false, defer = false, extraRef, ignoreSelector } = options;
 
   // Callback via ref: houdt 'm actueel zonder het effect (en z'n defer-timer) te resetten.
   const cbRef = useRef(onOutside);
@@ -57,7 +61,8 @@ export function useClickOutside<T extends HTMLElement>(
       // geteld), dus een klik op een optie is geen klik ernaast.
       const element = node instanceof Element ? node : node?.parentElement ?? null;
       const insideSelectMenu = element?.closest('.ops-select__menu') != null;
-      return !insideMain && !insideExtra && !insideSelectMenu;
+      const insideIgnored = ignoreSelector !== undefined && element?.closest(ignoreSelector) != null;
+      return !insideMain && !insideExtra && !insideSelectMenu && !insideIgnored;
     };
 
     const onPointer = (e: MouseEvent) => { if (isOutside(e.target)) cbRef.current(); };
@@ -80,5 +85,5 @@ export function useClickOutside<T extends HTMLElement>(
       document.removeEventListener('contextmenu', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [ref, enabled, escape, contextmenu, defer, extraRef]);
+  }, [ref, enabled, escape, contextmenu, defer, extraRef, ignoreSelector]);
 }
