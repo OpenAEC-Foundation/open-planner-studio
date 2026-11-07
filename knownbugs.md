@@ -382,7 +382,7 @@ en noem het in je rapport of PR-tekst.
      externe op di 9 juni 14:00. Daarom vergelijkt die check SF-voorgangers niet met een interne relatie.
      Voorstel: dezelfde finishvloer toepassen op een externe SF-voorganger. Gevonden bij keuze 9
      (`docs/relaties-tussen-projecten.md`). — B
-850. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
+873. **VERVOLG: onder OPS staat een mijlpaal na alleen een externe voorganger op het einde van de dag.** Regel B6
      (`milestoneWithoutPredecessorAtDayEnd`, `CPMSolver.ts:2770` in de voorwaartse stap, `noPreds`) ziet een taak
      zonder interne voorganger als een losse mijlpaal en zet haar op het blokeinde: een FINISH-mijlpaal, of een
      mijlpaal zonder opvolger. Een externe voorganger telt daar niet mee. Een mijlpaal zonder soort, gezien in
@@ -392,12 +392,12 @@ en noem het in je rapport of PR-tekst.
      10 juni 16:00. Ouder dan keuze 9. Voorstel: een externe voorganger telt in B6 als voorganger. Gevonden bij de
      fix van de review van #808; het tweede geval uit de review van #808 ronde 2 (GPT-6.1-Sol, xhigh, op
      `2cdf664d0`, VERVOLG). — B
-851. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
+874. **VERVOLG: de geëiste finish van een dagtaak na een FF-lag staat op twee plekken.** `dayTaskRequiredFinish`
      (`src/engine/scheduler/relationMath.ts`) heeft één aanroeper, de externe voorganger; de interne FF-tak in
      `forwardHour` houdt dezelfde twee stappen (`previousBlockEndIfSame`, dan `workdayFinishNotBefore`) apart.
      Voorstel: de interne tak laten aanroepen wat de externe gebruikt, met de batterijen `cases-hours-blokgrenzen`
      en `cases-advanced-cpm` als bewijs. Uit de review van #808 (GPT-6.1-Sol, xhigh, op `446809cc2`, VERVOLG). — B
-852. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
+875. **VERVOLG: de externe lagkalender is niet getest met verwijderen, meer koppelingen en ongedaan maken.**
      `tests/planning/check-external-lag-calendar.ts` test de vier lagkalenders, alle types, mijlpalen en een korte
      vrijdag met één koppeling op de solver. Een koppeling verwijderen (de melding verdwijnt), twee koppelingen op
      één taak en ongedaan maken in de store ontbreken. Uit de review van #808 (GPT-6.1-Sol, xhigh, op
