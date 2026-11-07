@@ -2087,8 +2087,10 @@ en noem het in je rapport of PR-tekst.
 922. **VERVOLG: bij het omslagpunt van de statusdatumgroep krijgen meer knoppen tegelijk hun label terug.**
      Bij versmallen van 1160 naar 1140 px klapt de groep in, en de vrijgekomen ruimte gaat in één stap naar de
      labels van vier groepen. Dat oogt als één sprong. De automaat zoekt na het inklappen bewust opnieuw de
-     beste knoppenstand (anders blijft er tot 357 px leeg). Voorstel: alleen aanpakken als planners erover
-     vallen. Uit de council van #845 (Claude Opus 5.5, xhigh, ronde 2, VERVOLG). — S
+     beste knoppenstand (anders blijft er tot 357 px leeg). Op de AI-tab gebeurt hetzelfde: bij versmallen van
+     1000 naar 900 px groeit de groep Veiligheid van 202 px (alleen iconen) naar 378 px (met labels).
+     Voorstel: alleen aanpakken als planners erover vallen. Uit de council van #845 (Claude Opus 5.5, xhigh,
+     ronde 2 en 3, VERVOLG). — S
 
 923. **VERVOLG: een veldengroep met de focus erin blijft open, ook bij een grote stap smaller.**
      `useRibbonAutoFit` laat een groep met de focus (of een open popover) in zijn stand, zodat halve invoer niet
@@ -2096,3 +2098,9 @@ en noem het in je rapport of PR-tekst.
      206 px over (horizontale scroll). Na het verlaten van het veld meet de automaat opnieuw. Voorstel: laat het
      zo, of klap in en geef de focus door aan het veld in de popover. Uit de council van #845 (Claude Opus 5.5,
      xhigh, ronde 2, VERVOLG). — S
+
+924. **VERVOLG: op een lintknop zie je niet waar de toetsenbordfocus staat.** `.ribbon-btn:focus { outline: none }`
+     (`src/components/layout/Ribbon/Ribbon.css:160`) haalt de focusrand weg, ook bij focus via het
+     toetsenbord. Na Escape in de popover van een ingeklapte groep staat de focus op de knop, maar dat zie je
+     niet. Dat zat al in main. Voorstel: een rand alleen bij `:focus-visible`, met een thematoken. Uit de
+     council van #845 (Claude Opus 5.5, xhigh, ronde 3, VERVOLG). — S
