@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { Popover } from '@/components/common/Popover';
 import { useAppStore } from '@/state/appStore';
 import { BASELINE_SLOT_COLOR } from '@/components/canvas/BaselineTooltipContent';
@@ -68,7 +68,7 @@ export function BaselineOverlaySplitButton() {
             data-ops-ribbon-item="toggleBaselineOverlay"
             onClick={() => setOverlays({ baseline: !showBaselineOverlay })}
           >
-            <span className="ribbon-btn-icon"><Icon id="planning.baseline-overlay" size={24} /></span>
+            <span className="ribbon-btn-icon"><Icon id="planning.baseline-overlay" size={24} lucide={{ size: 20 }} /></span>
             <span className="ribbon-btn-label ribbon-split-top-label">{label}</span>
           </button>
           {/* Onderste deel: label met ▾ (zoals de knop Relatie), opent het menu. */}
@@ -82,8 +82,17 @@ export function BaselineOverlaySplitButton() {
             onClick={() => setOpen(o => !o)}
           >
             {/* Breed: label met de punthaak erachter (zoals Relatie). Smal: alleen de losse punthaak. */}
-            <span className="ribbon-btn-label">{label}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
-            <Icon id="ui.dropdown" size={16} className="ribbon-split-caret" />
+            {b2IconsOn() ? (
+              <>
+                <span className="ribbon-btn-label">{label}<Icon id="ui.dropdown" size={16} className="ribbon-label-caret" /></span>
+                <Icon id="ui.dropdown" size={16} className="ribbon-split-caret" />
+              </>
+            ) : (
+              <>
+                <span className="ribbon-btn-label">{label} ▾</span>
+                <span className="ribbon-split-caret" aria-hidden="true">▾</span>
+              </>
+            )}
           </button>
         </div>
       }
@@ -124,7 +133,7 @@ export function BaselineOverlaySplitButton() {
                 }}
               >
                 <span className={`ribbon-check-box${checked ? ' is-checked' : ''}`} aria-hidden="true">
-                  {checked && <Icon id="selection.mark" size={11} />}
+                  {checked && <Icon id="selection.mark" size={11} lucide={{ strokeWidth: 3 }} />}
                 </span>
                 <span
                   className={`ribbon-check-strip${checked ? '' : ' is-empty'}`}
