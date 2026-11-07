@@ -81,6 +81,8 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   }
 
   // De popover bevat dezelfde bediening en werkt: de statusdatum staat erin, de voortgangsmodus wisselt.
+  await page.setViewportSize({ width: 900, height: size.height });
+  await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
   await trigger.click();
   const popoverField = page.getByRole('group', { name: /^(Status date|Statusdatum)$/ });
   await expect(popoverField).toHaveCount(1);
@@ -89,11 +91,22 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.progressMode)).toBe('PROGRESS_OVERRIDE');
   await expect(popoverField).toBeVisible();
 
-  // Weer breed terwijl de popover open is: hij blijft open (geen invoer kwijt midden in het werk).
-  // Na Escape staat de focus op de knop; pas als de focus weg is, staan de velden weer in het lint.
-  await page.setViewportSize(size);
+  // Weer breed terwijl de popover open is: hij blijft open (geen invoer kwijt midden in het werk), en
+  // het paneel schuift mee met zijn knop. Het lint verschuift de knop pas ná het resize-event; zonder
+  // nieuwe plaatsing bleef het paneel ruim 400 px links van de knop staan.
+  const panel = page.locator('div[style*="position: fixed"]').filter({ has: popoverField });
+  const horizontalOverlap = async () => {
+    const [p, t] = [await panel.boundingBox(), await trigger.boundingBox()];
+    return p && t ? Math.min(p.x + p.width, t.x + t.width) - Math.max(p.x, t.x) : -1;
+  };
+  expect(await horizontalOverlap()).toBeGreaterThan(0);
+  const triggerXAt900 = (await trigger.boundingBox())!.x;
+  await page.setViewportSize({ width: 1600, height: size.height });
   await expect(popoverField).toBeVisible();
   await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
+  await expect.poll(async () => (await trigger.boundingBox())!.x).toBeGreaterThan(triggerXAt900 + 100);
+  expect(await horizontalOverlap(), 'paneel staat onder zijn knop na verbreden').toBeGreaterThan(0);
+  // Na Escape staat de focus op de knop; pas als de focus weg is, staan de velden weer in het lint.
   await page.keyboard.press('Escape');
   await expect(popoverField).toHaveCount(0);
   await expect(trigger).toBeFocused();

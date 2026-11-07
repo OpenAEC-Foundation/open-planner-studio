@@ -3,6 +3,7 @@ import { useAppStore } from '@/state/appStore';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
+import { POPOVER_REPOSITION_EVENT } from '@/components/common/Popover';
 import { saveRibbonCompact } from '@/utils/settingsStore';
 import { RibbonTab } from '@/state/slices/types';
 import { RibbonTabContent } from './RibbonTabContent';
@@ -300,6 +301,10 @@ function findFitPlan(scroll: HTMLElement, items: FitItems): FitPlan {
   return { g, k, t: smallestFitting(0, triggers, t => fits({ g, k, t })) };
 }
 
+/** Een meting kan knoppen verschuiven; een open popover (bijv. van een ingeklapte veldengroep) moet
+ *  dan onder zijn knop blijven. Draait vóór de schilderbeurt, dus het paneel springt niet zichtbaar. */
+const repositionPopovers = () => window.dispatchEvent(new Event(POPOVER_REPOSITION_EVENT));
+
 /**
  * Meet en past de knop-degradatie toe. Retourneert niets: alles gebeurt imperatief op de DOM,
  * vóór de schilderbeurt.
@@ -323,9 +328,10 @@ function useRibbonAutoFit(
     plan.current = { signature: items.signature, plan: EMPTY_PLAN, fitted: true };
     applyFitPlan(scroll, items, EMPTY_PLAN);
     // Handmatig compact = platte 40px-strip; die stand blijft ongemoeid (en degradeert niet).
-    if (manualCompact || fitsWidth(scroll)) return;
+    if (manualCompact || fitsWidth(scroll)) { repositionPopovers(); return; }
     const best = findFitPlan(scroll, items);
     applyFitPlan(scroll, items, best);
+    repositionPopovers();
     // `fitted: false`: zelfs de kleinste stand past niet (horizontale scroll). Dan heeft opnieuw
     // meten na een render geen zin.
     plan.current = { signature: items.signature, plan: best, fitted: fitsWidth(scroll) };

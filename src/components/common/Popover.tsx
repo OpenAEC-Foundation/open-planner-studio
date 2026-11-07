@@ -61,6 +61,13 @@ export interface PopoverProps {
   fitViewport?: boolean;
 }
 
+/**
+ * Event op `window` waarmee een herindeling buiten het venster-`resize` om open panelen opnieuw laat
+ * plaatsen. Het lint verschuift zijn knoppen in een ResizeObserver, dus ná het `resize`-event: zonder
+ * dit event bleef een open paneel staan waar zijn knop vóór die herindeling stond.
+ */
+export const POPOVER_REPOSITION_EVENT = 'ops:popover-reposition';
+
 /** Ruimte (px) die tussen een paneel en de rand van het venster vrij blijft. */
 const VIEWPORT_MARGIN = 8;
 
@@ -139,11 +146,13 @@ export function Popover({
     };
     place();
     window.addEventListener('resize', place);
+    window.addEventListener(POPOVER_REPOSITION_EVENT, place);
     // Andere inhoud (een keuze die extra velden toont) kan het paneel breder maken.
     const observer = panelRef.current ? new ResizeObserver(place) : null;
     if (panelRef.current) observer?.observe(panelRef.current);
     return () => {
       window.removeEventListener('resize', place);
+      window.removeEventListener(POPOVER_REPOSITION_EVENT, place);
       observer?.disconnect();
     };
     // panelStyle.marginTop is een vaste waarde per site; een nieuw stijlobject per render mag de
