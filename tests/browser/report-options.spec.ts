@@ -299,8 +299,9 @@ test('report options: de gekozen rapportletter staat in preview en PDF en blijft
   for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
     if (obj instanceof PDFDict && obj.get(PDFName.of('Subtype')) === PDFName.of('Type0')) baseFonts.push(String(obj.get(PDFName.of('BaseFont'))));
   }
-  expect(baseFonts).toContainEqual(expect.stringMatching(/Carlito-Regular$/));
-  expect(baseFonts).toContainEqual(expect.stringMatching(/Carlito-Bold$/));
+  // pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>`, bv. `/Carlito-Regular-7098`.
+  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Regular-\d+$/));
+  expect(baseFonts).toContainEqual(expect.stringMatching(/^\/Carlito-Bold-\d+$/));
   expect(baseFonts).toContainEqual(expect.stringMatching(/Inter/));
 
   // Eén keuze voor alle rapporten: het blok van een tabelrapport toont hem ook, en de tabel staat erin.

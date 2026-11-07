@@ -320,8 +320,11 @@ for (const id of REPORT_FONT_IDS) {
   ok(stack.startsWith(id === 'inter' ? 'InterPDF' : `"${def.family}", InterPDF`), `C1 ${id}: stack begint niet met de letter en dan Inter: ${stack}`);
 
   const fallbackFonts = id === 'inter' ? [] : [{ id: 'inter', bytes: INTER }];
-  const isMain = (ps: string | null) => (f: string) => ps !== null && new RegExp(`^/([A-Z]{6}\\+)?${ps}$`).test(f);
-  const mainCount = (fonts: string[]) => fonts.filter(isMain(regularFk.postscriptName)).length + fonts.filter(isMain(boldFk.postscriptName)).length;
+  // pdf-lib noemt een ingebed font `/<PostScript-naam>-<getal>` (bv. `/Carlito-Regular-7098`). Inter heeft
+  // voor beide gewichten dezelfde PostScript-naam (`InterVariable`), dus tel elk font één keer.
+  const mainNames = [regularFk.postscriptName, boldFk.postscriptName].filter((ps): ps is string => ps !== null);
+  const isMain = (f: string) => mainNames.some(ps => new RegExp(`^/${ps}-\\d+$`).test(f));
+  const mainCount = (fonts: string[]) => fonts.filter(isMain).length;
   try {
     // C2. Gantt-afdruk: vector, meerpagina, F0/F1 is de gekozen letter, en het vinkje komt uit Inter.
     subsetCalls.length = 0;
