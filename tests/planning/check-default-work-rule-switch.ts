@@ -193,6 +193,18 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('d6 dezelfde standaard: geen undo-stap', S().historyEvents.length, events);
 }
 
+// Een expliciete projectkeuze ontsluit de bestaande taaktypevelden, net als een keuze op een taak.
+{
+  const context = createAppStoreContext();
+  const S = () => context.store.getState();
+  eq('p769: een leeg document begint zonder taaktypevelden', S().taskTypesVisible, false);
+  S().applyProjectInfo(projectInfoPatch(S().project, { ...S().project, defaultWorkRule: 'FIXED_WORK' }), undefined);
+  eq('p769: projectkeuze ontsluit de velden zonder de app-instelling te wijzigen',
+    [S().taskTypesVisible, S().ui.showTaskTypes], [true, false]);
+  S().undo();
+  eq('p769: undo wist de keuze en houdt de velden zichtbaar', [S().project.defaultWorkRule, S().taskTypesVisible], [undefined, true]);
+}
+
 // Issue #769: het formulier volgt dezelfde brug, ook wanneer het rekenprofiel tegelijk wijzigt.
 for (const withProfile of [false, true]) {
   const context = createAppStoreContext();

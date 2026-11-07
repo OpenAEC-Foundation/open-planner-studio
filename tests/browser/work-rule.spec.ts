@@ -53,12 +53,10 @@ function taskState(page: Page, taskId: string): Promise<{ workRule?: string; dur
 
 test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in één stap', async ({ page, ops: _ops }) => {
   const { taskId } = await seedAssignedTask(page, 2);
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showTaskTypes: false }));
 
   const select = page.locator('[data-ops-work-rule]');
-  await expect(select).toBeVisible();
-  // Standaard: projectstandaard (vaste duur en inzet) — de inzetkolom draagt het slotje.
-  await expect(page.locator('[data-ops-assignment-lock-units]')).toHaveAttribute('data-ops-assignment-lock-units', 'locked');
-  await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'derived');
+  await expect(select).toHaveCount(0);
 
   // #769: de projectkeuze blijft een draft tot Toepassen en bestaande taken erven haar meteen.
   await page.getByRole('button', { name: /^(Settings|Instellingen)$/ }).click();
@@ -92,6 +90,7 @@ test('werkregel kiezen, werk typen en inzet wijzigen volgen de regel; undo in é
   await page.keyboard.press('Control+z');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().project.defaultWorkRule)).toBeUndefined();
   await expect(page.locator('[data-ops-assignment-work]')).toHaveAttribute('data-ops-assignment-work', 'derived');
+  await expect(page.locator('[data-ops-assignment-lock-units]')).toHaveAttribute('data-ops-assignment-lock-units', 'locked');
 
   // Vast werk kiezen: geen getal verandert, het restwerk (2 d × 8 u = 16 u) wordt vastgelegd.
   await chooseWorkRule(page, page, 'FIXED_WORK');
