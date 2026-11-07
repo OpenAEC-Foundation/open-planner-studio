@@ -123,9 +123,9 @@ function narrowHint(name: string, def: McpToolDef | undefined): string {
     return `Ask for a smaller page with \`limit\` and \`offset\`${narrow}.`;
   }
   if (name === 'planner_get_planning_guide') {
-    // De skill goed-plannen verwijst alleen naar de gids; de regels staan in de gids zelf (#818, ronde 3).
+    // De regels staan in de gids zelf; de skill goed-plannen verwijst er alleen naar (#818).
     return (
-      'Ask for one part: `part: "goed-plannen"` (guide, for building) or `part: "progress-update"` (progress). ' +
+      'Ask for one part: `part: "guide"` (for building) or `part: "progress-update"` (progress). ' +
       `If the guide alone is too large, read it at ${AGENT_GUIDE_URL}.`
     );
   }

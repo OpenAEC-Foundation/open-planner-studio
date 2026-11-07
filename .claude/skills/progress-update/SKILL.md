@@ -25,14 +25,14 @@ Facts come from the user, never from you: a guessed actual date is worse than no
 
 Steps: `planner_update_project` `statusDate`, then `planner_update_tasks` with `progress` per leaf task.
 
-- Finished: `completion: 100` with both dates. Running: `completion` with `actualStart`. A missing date is guessed (100 % ⇒ finish = status date; `actualFinish` alone ⇒ start that day; running ⇒ a planned start): ask, or report the guess.
+- Finished: `completion: 100` with both dates. Running: `completion` with `actualStart`. Without a date the tool fills one in (100 % ⇒ finish = status date; `actualFinish` alone ⇒ start that day; running ⇒ a planned start): ask; leave that item unchanged until actuals are known.
 - Resolve every refusal with the user.
 
 ## 4. Remaining work
 
-Remaining = duration × (1 − completion). User's remaining differs ⇒ new `fields.duration` = work done + the user's remaining, with `fields.durationUnit` (the unit from `planner_get_task`).
+Remaining = duration × (1 − completion/100). If different: `fields.duration` = done + user remaining; `fields.durationUnit` from `planner_get_task`.
 
-32 h at 25 % = 8 h done; 32 h left ⇒ `{ "duration": 40, "durationUnit": "hours" }` (without unit: 40 days).
+32 h, 25% done, 32 h left ⇒ `duration: 40`, `durationUnit: "hours"` (no unit ⇒ 40 days).
 
 ## 5. Read the effect
 

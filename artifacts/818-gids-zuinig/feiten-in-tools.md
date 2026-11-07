@@ -5,25 +5,26 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`746c25804`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
+`f85cd894e`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
 - **alleen in het antwoord**: in de envelop, een veld, een foutmelding of een waarschuwing. Een agent ziet dat
   pas na de aanroep.
 - **initialize**: in `MCP_INSTRUCTIONS`, die bij het koppelen meegaat.
+- **alleen in de foutmelding**: een geval waarin de tool luid weigert; de melding zegt wat er mis is.
 
 "deels" betekent: een deel staat in `tools/list`, de rest staat erachter. Haal een feit met "tools/list" daar
 niet weg zonder het terug te zetten in de gids of een skill.
 
 | # | Feit | Tool | Waar nu |
 |---|---|---|---|
-| 1 | Een leestool rekent een verouderde planning eerst bij, zonder undo-stap; de envelop draagt dan `scheduleRecalculated: true` | elke leestool met berekende waarden | tools/list, desc van `planner_get_project_info` ("This and every read of dates, float, the critical path or load first recalculate a stale schedule (no undo step; `scheduleRecalculated: true`)"); ook initialize |
+| 1 | Een leestool rekent een verouderde planning eerst bij, zonder undo-stap; de envelop draagt dan `scheduleRecalculated: true` | elke leestool met berekende waarden | tools/list, desc van `planner_get_project_info` ("Reads of dates, float, critical path or load refresh a stale schedule first (no undo step; `scheduleRecalculated: true`)"); ook initialize |
 | 2 | De uitkomst staat in `schedule.projectEnd`, de projectduur en `criticalTasks` | `planner_get_project_info` | tools/list, desc |
 | 3 | Een batch is één undo-stap, één berekening, één backup; een fout draait alles terug | `planner_batch` | tools/list, desc |
 | 4 | Binnen een batch begint elk `tempId` met `tmp-`; latere stappen krijgen het echte id | `planner_batch` | tools/list, desc |
-| 5 | Een leesstap in een batch heeft alleen als laatste zin; ids vooraf opzoeken | `planner_batch` | tools/list, desc ("look up ids before") |
-| 6 | Uitgesloten als batchstap: `planner_batch`, undo/redo, document- en bestandstools, `planner_save_baseline` | `planner_batch`, `planner_save_baseline` | tools/list, desc van beide. Dat ook `planner_get_planning_guide` niet in een batch mag, staat nergens; de batch weigert hem |
+| 5 | Een leesstap in een batch heeft alleen als laatste zin; ids vooraf opzoeken | `planner_batch` | tools/list, desc ("read ids beforehand") |
+| 6 | Uitgesloten als batchstap: `planner_batch`, undo/redo, document- en bestandstools, `planner_save_baseline`, `planner_get_planning_guide`, `planner_inspect_xer_provenance` | `planner_batch`, `planner_save_baseline` | tools/list, desc van beide (`planner_get_planning_guide` sinds #838 `f85cd894e`; daarvoor alleen in de foutmelding) |
 | 7 | Hoogstens 100 stappen | `planner_batch` | tools/list, desc |
 | 8 | Een mijlpaal heeft duur 0; meer wordt geweigerd | `planner_add_tasks` | tools/list, schema `duration` ("Milestone: 0 (more is refused)") |
 | 9 | `milestoneKind`: `START`, `FINISH`, `null` = automatisch | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `milestoneKind` |
@@ -33,7 +34,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 13 | `tempId` begint met `tmp-` of `tmp_`; `parentId` = bestaand id of `tempId` uit dezelfde aanroep | `planner_add_tasks` | tools/list: desc (`parentId`), schema `tempId` (`tmp-foundation`), desc van `planner_batch` (`tmp-…`) |
 | 14 | Een samenvattingstaak krijgt geen duur | `planner_add_tasks`, `planner_update_tasks` | tools/list: schema `duration` ("Summary task: derived, omit it."), desc van `planner_update_tasks`; ook initialize |
 | 15 | `planner_delete_tasks` wist de hele subboom; `cascadedTaskIds` noemt wat mee ging | `planner_delete_tasks` | tools/list, desc |
-| 16 | Zonder `duration` krijgt een taak de standaardmaat (normaal 5 werkdagen) | `planner_add_tasks` | tools/list, desc |
+| 16 | Zonder `duration` krijgt een taak de standaardmaat (normaal 5 werkdagen) | `planner_add_tasks` | tools/list, desc. De gids houdt de regel: elke bladtaak een expliciete `duration` met `durationUnit` |
 | 17 | Een dagduur mag een breuk zijn; `FIXED_WORK` rekent in uren; uren vragen een kalender met werktijd | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `duration` en `durationUnit` |
 | 18 | `durationType`: `WORKTIME` (standaard) of `ELAPSEDTIME` | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `durationType` |
 | 19 | `lag` in dagen of in procenten van de voorganger | `planner_add_dependencies`, `planner_update_dependencies` | tools/list, schema `lag` |
@@ -77,6 +78,11 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 57 | Nivelleren: eerst `dryRun: true`; `planner_clear_leveling` maakt het ongedaan | `planner_level_resources`, `planner_clear_leveling` | tools/list, desc en schema `dryRun`. De gids houdt "alleen op verzoek" |
 | 58 | `DOC_DRIFT` los je op door het doel te bevestigen met `planner_switch_document` | `planner_switch_document` | tools/list, desc |
 | 59 | De hele WBS-boom in één `planner_add_tasks` | `planner_add_tasks` | tools/list, desc ("a nested WBS in one call"). De gids houdt "one `planner_batch`" |
+| 60 | Bij een open dialoog (`DIALOG_OPEN`) weigeren ook de leestools, behalve `planner_get_planning_guide` | elke leestool | alleen in de foutmelding ("A dialog is open (…); close it first …"). De gids noemt de guard |
+| 61 | Een mijlpaal is een taak met `isMilestone: true` (duur 0) | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `isMilestone` en `duration` |
+| 62 | Werk dat stopt en later doorgaat: één taak met onderbrekingen | `planner_set_task_splits` | tools/list, desc ("instead of splitting it into tasks") |
+| 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc; ook initialize (#838) |
+| 64 | Een leeg document met `planner_new_document`, een wat-als-variant met `planner_duplicate_document` | `planner_new_document`, `planner_duplicate_document` | tools/list, desc van beide |
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij

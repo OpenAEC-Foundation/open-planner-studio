@@ -292,13 +292,13 @@ test('de gids past, ook met de standaardwaarde van part; een te grote gids geeft
     const progress = (await install().run('planner_get_planning_guide', { part: 'progress-update' })) as { ok: boolean };
     assert(progress.ok && fits(progress), 'part progress-update past ook met een te grote gids');
     assert(existsSync(PUBLIC + AGENT_GUIDE_URL.slice(GUIDE_PUBLIC_BASE.length + 1)), 'de publieke URL hoort bij public/');
-    // (2) De voortgangsskill is te groot: `both` faalt, `goed-plannen` (gids voor het opbouwen) past.
+    // (2) De voortgangsskill is te groot: `both` faalt, `guide` (de gids, voor het opbouwen) past.
     guideToolDeps.fetchImpl = tooBig('skills/progress-update');
     const failBoth = await failure(install(), 'planner_get_planning_guide', { part: 'both' });
     assertEq(failBoth?.code, 'te_groot', `code bij both, kreeg: ${failBoth?.message ?? 'geen fout'}`);
-    assert(failBoth!.message.includes('part: "goed-plannen"'), `noemt de gids voor het opbouwen: ${failBoth!.message}`);
-    const build = (await install().run('planner_get_planning_guide', { part: 'goed-plannen' })) as { ok: boolean; data: { guide?: string } };
-    assert(build.ok && fits(build) && (build.data.guide?.length ?? 0) > 1000, 'part goed-plannen past en levert de gids');
+    assert(failBoth!.message.includes('part: "guide"'), `noemt de gids voor het opbouwen: ${failBoth!.message}`);
+    const build = (await install().run('planner_get_planning_guide', { part: 'guide' })) as { ok: boolean; data: { guide?: string } };
+    assert(build.ok && fits(build) && (build.data.guide?.length ?? 0) > 1000, 'part guide past en levert de gids');
   } finally {
     guideToolDeps.fetchImpl = real;
   }

@@ -70,9 +70,9 @@ export function publicAssetUrl(path: string): string {
 export type GuideLanguage = 'nl' | 'en';
 
 /**
- * Wat elk `part` levert. Eén part per taak (#818, council-ronde 1): een agent die gaat opbouwen haalt
- * de gids met `goed-plannen`, een voortgangsronde alleen `progress-update` (die skill is zelfstandig).
- * `guide`, `skill` en `both` blijven werken voor oudere clients.
+ * Wat elk `part` levert. Eén part per taak (#818): een agent die gaat opbouwen haalt de gids (`guide`, de
+ * standaard), een voortgangsronde alleen `progress-update` (die skill is zelfstandig). `goed-plannen` levert
+ * de gids plus die skill (om te installeren); `skill` en `both` blijven werken voor oudere clients.
  */
 export const GUIDE_PARTS = {
   'goed-plannen': { guide: true, skills: ['goed-plannen'] },
@@ -84,9 +84,10 @@ export const GUIDE_PARTS = {
 
 export type GuidePart = keyof typeof GUIDE_PARTS;
 
-/** Zonder `part`: gids + `goed-plannen`. Wie zonder keuze leest, gaat meestal opbouwen of herstructureren
- *  (zo noemt `MCP_INSTRUCTIONS` de tool); de gids wijst voor voortgang naar `part: "progress-update"`. */
-export const DEFAULT_GUIDE_PART: GuidePart = 'goed-plannen';
+/** Zonder `part`: alleen de gids. Wie zonder keuze leest, gaat meestal opbouwen of herstructureren (zo noemt
+ *  `MCP_INSTRUCTIONS` de tool, en daar staat ook `part: "progress-update"` voor voortgang). De gids heeft de hele
+ *  volgorde; de skill `goed-plannen` zegt alleen deze tool te lezen, dus die hoeft niet mee (#818, ronde 4). */
+export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
 
 /** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818). Het volle
  *  bestand (mét frontmatter, die het antwoord weglaat) komt van de publieke URL. */
@@ -187,8 +188,8 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Planning rules and skills. `part` by task: "goed-plannen" (default) = guide + skill, for building or ' +
-      'restructuring; "progress-update" = skill for recording progress.',
+      'Planning rules and skills. `part` by task: "guide" (default) = the guide, for building or restructuring; ' +
+      '"progress-update" = skill for recording progress.',
     kind: 'read',
     batchable: false,
     inputSchema: {
@@ -203,7 +204,7 @@ export const guideTools: McpToolDef[] = [
         part: {
           type: 'string',
           enum: Object.keys(GUIDE_PARTS),
-          description: '"guide" = guide only; "skill" = both skills; "both": legacy.',
+          description: '"goed-plannen" = guide + skill (to install); "skill"/"both": legacy.',
         },
       },
     },

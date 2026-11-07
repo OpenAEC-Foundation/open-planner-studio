@@ -119,9 +119,11 @@ test('planner_get_planning_guide staat geregistreerd, read-only en niet-batchabl
   assertEq(def!.kind, 'read', 'kind moet read zijn');
   assertEq(def!.annotations.readOnlyHint, true, 'readOnlyHint');
   assertEq(def!.batchable, false, 'een documentatie-tool hoort niet in een draaiboek');
-  for (const n of ['goed-plannen', 'progress-update', '`part`']) {
+  for (const n of ['"guide" (default)', 'progress-update', '`part`']) {
     assert(def!.description.includes(n), `tool-beschrijving noemt "${n}" niet`);
   }
+  const partDescription = (def!.inputSchema as { properties: { part: { description: string } } }).properties.part.description;
+  assert(partDescription.includes('goed-plannen'), `de part-beschrijving noemt goed-plannen niet: ${partDescription}`);
 });
 
 test('readingText: zonder frontmatter en eerste kop; de rest blijft', () => {
@@ -132,7 +134,7 @@ test('readingText: zonder frontmatter en eerste kop; de rest blijft', () => {
   assertEq(readingText('## Only H2\n'), '## Only H2\n', 'een H2 bovenaan blijft');
 });
 
-test('zonder argumenten: gids + goed-plannen, zonder frontmatter en kop, met één installatie-aanwijzing', async () => {
+test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook de skill en één installatie-aanwijzing', async () => {
   installFetch('stub');
   fetched.length = 0;
   const res = await call(makeMcpContext(), {});
@@ -140,18 +142,25 @@ test('zonder argumenten: gids + goed-plannen, zonder frontmatter en kop, met é�
   const data = res.structuredContent.data;
   assert(!('language' in data), 'geen veld `language`: de inhoud is altijd Engels');
   assertEq(data.languageNote, undefined, 'geen taalnotitie zonder taalverzoek');
-  assertEq(data.part, 'goed-plannen', 'default part');
+  assertEq(data.part, 'guide', 'default part: de gids heeft de hele volgorde (#818, ronde 4)');
   assertEq(data.guide, 'Start from the milestones.\n', 'gidstekst zonder kop');
-  assertEq(data.skills, [{ name: 'goed-plannen', text: 'Follow the guide.\n' }], 'alleen de opbouwskill, zonder frontmatter en kop');
+  assertEq(data.skills, undefined, 'geen skill bij de standaard');
+  assertEq(data.install, undefined, 'geen installatietekst zonder skill');
+  assertEq(fetched, ['/agent/planning-guide.md'], 'alleen de gids, nooit het Help-artikel');
+  // Met part goed-plannen: de gids plus de skill, om te installeren.
+  installFetch('stub');
+  fetched.length = 0;
+  const gp = (await call(makeMcpContext(), { part: 'goed-plannen' })).structuredContent.data;
+  assertEq(gp.skills, [{ name: 'goed-plannen', text: 'Follow the guide.\n' }], 'de opbouwskill, zonder frontmatter en kop');
   // Het oude veld `skill` (tweede kopie van goed-plannen) en de oude installatievelden zijn weg (#818).
-  assert(!('skill' in data), 'het oude veld `skill` is weg');
-  assertEq(data.install, SKILL_INSTALL_HINT, 'één installatietekst voor alle skills');
+  assert(!('skill' in gp), 'het oude veld `skill` is weg');
+  assertEq(gp.install, SKILL_INSTALL_HINT, 'één installatietekst voor alle skills');
   assertEq(
-    data.install,
+    gp.install,
     'From https://open-planner-studio.open-aec.com/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md',
     'installatietekst: het volle bestand van de publieke URL',
   );
-  assertEq([...fetched].sort(), ['/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md'], 'gids en opbouwskill, nooit het Help-artikel');
+  assertEq([...fetched].sort(), ['/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md'], 'gids en opbouwskill');
 });
 
 test('elk part levert precies zijn delen (één part per taak; oude waarden blijven werken)', async () => {
