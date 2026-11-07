@@ -1730,6 +1730,16 @@ en noem het in je rapport of PR-tekst.
      bestaande scenario. Alleen testdekking, geen fout gezien. Uit de review van #823, ronde 2
      (GPT-6.1-Sol, xhigh, op `211c9aafd`, VERVOLG). — B
 
+853. **VERVOLG: de hook die de map van een bronbestand bewaakt, wordt niet getest.**
+     `tests/planning/check-external-source-watch.ts` test alleen de pure functies in
+     `src/engine/externalSourceWatch.ts` (`parentDir`, `externalSourceWatchTargets`, `watchEventTouchesSource`).
+     De hook `src/hooks/useExternalSourceWatch.ts` zelf heeft geen test: met een lege hook blijven alle 15 controles
+     groen. Niet gedekt zijn dus: één `watch` per map, opnieuw bewaken als de set bronbestanden verandert, stoppen
+     bij het sluiten, een melding over een bronbestand die `checkExternalSources` start, en een leesmelding
+     (`access`) die niets doet. Voorstel: een test met een nep-`watch` voor `@tauri-apps/plugin-fs`, en de echte
+     controle in de desktop-app (bij Ethan). Uit de review van #812 (GPT-6.1-Sol, xhigh, op `526207f85`,
+     VERVOLG). — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

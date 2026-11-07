@@ -90,8 +90,11 @@ check-extension-validation.ts matrix
 check-external-lag-days.ts matrix
 check-external-link-dialog.ts matrix
 check-external-link-edit.ts matrix
+check-external-provenance.ts matrix
 check-external-relation-format.ts matrix
 check-external-source-load.ts matrix
+check-external-source-update.ts matrix
+check-external-source-watch.ts matrix
 check-external-successor-late.ts matrix
 check-external-summary.ts matrix
 check-f3b-production-compat.ts matrix

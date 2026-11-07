@@ -32,6 +32,8 @@ import { useSettingsBootstrap } from '@/hooks/useSettingsBootstrap';
 import { useDemoStartExample } from '@/hooks/useDemoStartExample';
 import { useSiteInitialFile } from '@/hooks/useSiteInitialFile';
 import { useAutoCalcCPM } from '@/hooks/useAutoCalcCPM';
+import { useExternalSourceCheck } from '@/hooks/useExternalSourceCheck';
+import { useExternalSourceWatch } from '@/hooks/useExternalSourceWatch';
 import { useExitRecordedDates } from '@/hooks/useExitRecordedDates';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useAppCloseGuard } from '@/hooks/useAppCloseGuard';
@@ -49,6 +51,7 @@ import { SplitModeNotice } from '@/components/layout/SplitModeNotice';
 import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
+import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
@@ -83,6 +86,7 @@ const FeedbackDialog = lazy(() => import('@/components/dialogs/FeedbackDialog').
 const LevelingDialog = lazy(() => import('@/components/dialogs/LevelingDialog').then(m => ({ default: m.LevelingDialog })));
 const BaselineDialog = lazy(() => import('@/components/dialogs/BaselineDialog').then(m => ({ default: m.BaselineDialog })));
 const MoveProjectDialog = lazy(() => import('@/components/dialogs/MoveProjectDialog').then(m => ({ default: m.MoveProjectDialog })));
+const ExternalSourceReviewDialog = lazy(() => import('@/components/dialogs/ExternalSourceReviewDialog').then(m => ({ default: m.ExternalSourceReviewDialog })));
 const ColumnsDialog = lazy(() => import('@/components/dialogs/ColumnsDialog').then(m => ({ default: m.ColumnsDialog })));
 const FilterDialog = lazy(() => import('@/components/dialogs/FilterDialog').then(m => ({ default: m.FilterDialog })));
 const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').then(m => ({ default: m.LayoutsDialog })));
@@ -127,6 +131,7 @@ function AppContent() {
   const showLevelingDialog = useAppStore(s => s.ui.showLevelingDialog);
   const showBaselineDialog = useAppStore(s => s.ui.showBaselineDialog);
   const showMoveProjectDialog = useAppStore(s => s.ui.showMoveProjectDialog);
+  const externalSourceReview = useAppStore(s => s.ui.externalSourceReview);
   const showProgressImportDialog = useAppStore(s => s.ui.showProgressImportDialog);
   const showColumnsDialog = useAppStore(s => s.ui.showColumnsDialog);
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
@@ -213,6 +218,10 @@ function AppContent() {
 
   // Automatisch berekenen: runCPM zodra de planning verouderd raakt (als de instelling aanstaat).
   useAutoCalcCPM();
+  // Stap 1.5: een nieuwe versie van een bron opmerken bij openen en als het venster weer actief wordt.
+  useExternalSourceCheck();
+  // Stap 1.6: in de desktop-app de map van elk bronbestand bewaken, zodat de balk meteen komt.
+  useExternalSourceWatch();
 
   // "Datums zoals opgeslagen": rekent één keer door zodra de modus via een BEWERKING
   // wordt verlaten — F5 en de strook zelf roepen runCPM al rechtstreeks aan, dit dekt de rest.
@@ -347,6 +356,9 @@ function AppContent() {
             `activeTab === 'file'`-vertakking (net als de meldingen hierboven), zodat de strook
             zichtbaar blijft in élke weergave — Gantt, tabel, rapport én Backstage. */}
         <RecordedDatesNotice />
+
+        {/* Nieuwe versie van een bron (stap 1.5): per bron een strook met Bekijken en Later. */}
+        <ExternalSourceNotice />
       </div>
 
       {/* Backstage view (File-tab actief) — neemt de volledige body over.
@@ -445,6 +457,7 @@ function AppContent() {
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
+        {externalSourceReview !== null && <ExternalSourceReviewDialog />}
         {showColumnsDialog && activeTab !== 'table' && <ColumnsDialog />}
         {showFilterDialog && <FilterDialog />}
         {showLayoutsDialog && <LayoutsDialog />}
