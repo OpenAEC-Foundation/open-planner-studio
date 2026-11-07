@@ -6,6 +6,43 @@ version has its own section (no gaps); the newest is at the top. It is deliberat
 running archive of every individual commit: within a version there is a curated description,
 grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentation`).
 
+## v2026.45.0 — 2026-11-07
+
+### Added
+
+- Calculate (F5) reports moved tasks and the change in the project finish. The Shifts panel explains the date driver for each task, links back to the Gantt and offers a guarded restoration of the dates from before that calculation.
+- The Progress curve report combines planned, early, late and approximate actual S-curves with progress indicators, late tasks, negative float and the next milestone. The actual curve interpolates from the current progress state; it is not a historical record of daily measurements.
+- Experimental Primavera P6 XER export includes scheduling-profile advice and an explicit loss report. Unsupported fields and definitions are listed instead of implying a lossless round trip; IFC remains the native editable project format.
+- The Claude Desktop MCP bundle chooses between the running desktop app and its own headless planner. The working folder is selected during installation; unsaved headless work and an explicit document choice guard switches between planners. A copyable setup prompt is available in Help and Connection details.
+- The calendar generator includes United States federal holidays, including observed dates and Juneteenth from 2021. This is the federal-employee set; private-company and state calendars still need checking.
+- macOS uses native window controls and translated application menus, with the same pending-input and unsaved-document guards as the app's shortcuts.
+
+### Changed
+
+- Excel progress sheets carry the state at export in a hidden column. Import compares the export, current app and returned sheet per field, preserves app-only changes and requires a choice for conflicting edits. Progress-sheet exchange now uses Excel only; CSV schedules remain a separate import/export format.
+- Primavera P6 XML opens with the same scheduling-profile derivation as XER. Its export reports unsupported properties, task types and definitions, and retains the supported scheduling data on reimport.
+- Baseline overlays differ in lightness as well as colour, including on monochrome printouts. Overlapping baselines each have their own line in the shared strip; the active baseline remains the calculation reference.
+- The interface uses the neutral OpenAEC grey palette, Blueprint icons and the approved Open Planner Studio logo throughout. The status bar keeps one row and folds information that does not fit into a compact item or tooltip.
+- The mouse wheel changes tabs above the whole ribbon. Predominantly horizontal gestures remain available for scrolling narrow ribbons, and pending field input is committed before a tab change.
+- Report rendering accepts a font parameter and fallback fonts for missing characters; the app continues to use Inter. The redundant Print button is removed from the Report ribbon; PDF export and the report workspace remain available.
+- Targeted large-plan improvements reduce repeated work in scheduling, resource loading, levelling, hierarchy updates and report curves. CI divides planning checks over five jobs and runs the browser suite weekly or on explicit request; the release gate requires the exact main push run and the latest valid Friday browser proof.
+
+### Fixed
+
+- Milestone dragging honours working-time boundaries and cancellation, including night shifts and midnight. Baseline extents and milestone hover hit areas follow the visible geometry.
+- Scheduling fixes preserve fractional remaining durations, apply percentage lags consistently and correct night-shift day selection and distance. Phase duration and the DCMA duration threshold use their intended boundaries.
+- Resource levelling and manual distribution share placement rules, respect fixed participants and retain progress-conflict reporting.
+- Recovery refuses an update when writing the recovery copy fails, and retains the saved dirty flag when older metadata is absent. Reopening a recent file retains granted desktop access and reports read errors.
+- External source refresh follows the normal load boundary and preserves recorded-date mode. External links no longer bind accidentally to an internal task; phase links and latest-successor bounds use the supported recorded dates.
+- Menu opening, selection commits and text composition no longer lose pending table input. Linux AppImages ship the IBus and Fcitx modules needed by input methods.
+- Invalid NaN calendar identifiers no longer create unintended IFC calendar links.
+
+### Documentation
+
+- Help now describes the app's own controls and behaviour. General planning advice has moved out of the in-app manual; existing article identifiers resolve through aliases.
+- New and revised guides cover calculation shifts, progress-sheet conflicts, S-curves, XER/P6 XML exchange, the Claude Desktop setup prompt, native macOS menus and United States holidays. Wiki feature descriptions follow the shipped behaviour.
+- All 28 interface languages are updated through the translation pipeline. Guide translations beyond Dutch and English remain a separate maintenance task.
+
 ## v2026.44.0 — 2026-10-31
 
 ### Added

@@ -8,6 +8,7 @@ bridge and automatic updates.
 ## Scheduling
 
 - **Critical Path Method (CPM)** — automatic calculation of early/late start and finish dates, total and free float, and the critical path.
+- **Calculation shifts** — after Calculate (F5), see which tasks moved and why, inspect the project-finish change and restore the previous dates while that calculation is still the latest change. See [Why a task shifts](docs://uitleg-verschuivingen).
 - **Work Breakdown Structure (WBS)** — a hierarchical task structure with collapsible summary tasks.
 - **Relations** — Finish-Start, Start-Start, Finish-Finish and Start-Finish dependencies, each with a
   lag or lead in work days; relations can attach to milestones, ordinary tasks and summary tasks. A
@@ -26,6 +27,7 @@ bridge and automatic updates.
 ## Calendars
 
 - **Work calendars** — configurable working days, start and finish times, breaks, holidays, the construction industry's collective holiday, and inspection moments.
+- **Holiday generator** — national and regional sets, including United States federal holidays with observed dates. Check the generated set against the project's actual working arrangements.
 - **Resource calendars** — per-resource availability.
 - **Days and hours** — hour planning is always available. Mix day and hour measures, including fractional days, on one time axis in minutes. Tasks can follow each other within a work day; the calendar and scheduling profile determine how the measure is counted.
 
@@ -60,6 +62,7 @@ bridge and automatic updates.
   Report and (once enabled) MCP, plus a Backstage file menu. Relation actions are available from the
   task groups instead of a separate Relations tab.
 - **Multi-document** — work on several projects at once and switch between them.
+- **Progress sheets** — exchange progress as Excel, compare the returned sheet with its export snapshot and the current plan, and resolve conflicting changes before applying them.
 
 ## IFC & interoperability
 
@@ -67,9 +70,10 @@ bridge and automatic updates.
 - **Planning IFC and building models** — edit the planning file separately, then combine it with a
   building model in another IFC tool. Opening an IFC that contains building-model objects is
   temporarily refused because saving a schedule does not preserve those objects.
-- **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, plus read-only
-  opening of native Microsoft Project `.mpp` and Primavera P6 `.xer` files (save the result as IFC;
-  the original `.xer` travels inside the IFC as a source archive).
+- **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, experimental
+  Primavera P6 XER export, and read-only opening of native Microsoft Project `.mpp` files. P6 XML
+  and XER export show explicit loss notices; save the editable project as IFC. An imported original
+  `.xer` travels inside the IFC as a source archive.
 
 ## MCP clients
 
@@ -94,6 +98,7 @@ bridge and automatic updates.
 
 ## Reporting
 
+- **Progress curve** — planned, early, late and approximate actual S-curves with progress indicators and risk tasks. The actual curve is reconstructed from current progress, not a stored daily history.
 - **Live print preview** — configurable report options right in the ribbon, including report font
   size, repeating the header on every page, and spreading the timeline over multiple pages; your
   choices are remembered between sessions.
@@ -104,6 +109,7 @@ bridge and automatic updates.
 ## Platform & experience
 
 - **Desktop & browser** — Windows, macOS and Linux desktop builds (Tauri 2) plus a full-featured browser version.
+- **macOS integration** — native window controls and translated menus share the app's document and pending-input guards. See [macOS window and menu bar](docs://ref-macos).
 - **System-aware appearance** — optionally follow the operating system or browser light/dark colour scheme, including live changes while the app remains open; High Contrast stays an explicit choice.
 - **Auto-save & crash recovery** — recovery snapshots are written about every ten seconds and can
   restore open work after an unexpected close. For an existing saved IFC file, you can separately
