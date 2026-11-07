@@ -77,6 +77,8 @@ eq('gestart: shownStart is de werkelijke start', shownStart(started), '2026-10-3
 eq('gestart: vr 30-10 t/m vr 13-11 = 15', taskCalendarDaySpan(started, standard), 15);
 
 // ── Einde niet na start: 0; geen start of einde: leeg ──
+// Besluit eigenaar 2026-11-07 (review PR #834): een taak zonder lengte is een moment en telt 0, niet 1,
+// ook zonder mijlpaalvinkje. Zo staat er geen 1 naast "Duur 0d".
 const flat: Task = { ...a, time: { ...a.time, earlyStart: '2026-11-03T10:00', earlyFinish: '2026-11-03T10:00' } };
 eq('einde gelijk aan start (geen mijlpaal) = 0', taskCalendarDaySpan(flat, standard), 0);
 const backwards: Task = { ...a, time: { ...a.time, earlyStart: '2026-11-05T10:00', earlyFinish: '2026-11-03T10:00' } };
