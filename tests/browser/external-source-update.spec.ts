@@ -5,6 +5,7 @@
 // versie geeft bij terugkeer naar het venster weer een balk, Accepteren zet de ankers en Ctrl+Z zet ze terug.
 // Review #811: Enter op een knop doet wat die knop doet. Enter op het kruisje sluit alleen het venster, Enter
 // op *Later* haalt de balk weg; geen van beide accepteert. Enter op *Accepteren* accepteert.
+// Review #811 ronde 2: F5 terwijl het venster open staat ⇒ het voorstel volgt de nieuwe berekening.
 //
 // De fixtures zijn gewone IFC-bestanden van OPS: *Aannemer* heeft twee externe voorgangers naar
 // `/projecten/Installateur.ifc` met ankers uit een oudere versie (`sourceVersion` 1 november 2026);
@@ -80,10 +81,33 @@ test('nieuwe versie van een bron: balk, Bekijken, Enter op het kruisje en op Lat
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(strip).toHaveCount(1, { timeout: 15_000 });
 
-  // Enter op Accepteren ⇒ de nieuwe ankers, één undo-stap, balk en venster weg.
-  const steps = await appliedSteps();
+  // F5 terwijl het venster open staat ⇒ het voorstel volgt de nieuwe berekening. Opzet (fixture): de bladtaak die
+  // het laatst eindigt, duurt twee keer zo lang, zonder herberekening; het venster vergelijkt dan eerst met de
+  // oude berekening.
+  await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    const last = S.tasks.filter(t => t.childIds.length === 0)
+      .reduce((a, b) => ((b.time.earlyFinish ?? '') > (a.time.earlyFinish ?? '') ? b : a));
+    S.updateTask(last.id, { time: { ...last.time, scheduleDuration: last.time.scheduleDuration * 2 } });
+  });
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(true);
+  const effectsText = () => dialog.locator('[data-ops-external-source-review-effects]').innerText();
   await page.locator('[data-ops-external-source-review]').click();
   await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(2);
+  const staleEffects = await effectsText();
+  await page.keyboard.press('F5');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  await expect.poll(effectsText).not.toBe(staleEffects);
+  const recalculatedEffects = await effectsText();
+  // Hetzelfde als een venster dat na de berekening opengaat.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.locator('[data-ops-external-source-review]').click();
+  await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(2);
+  await expect.poll(effectsText).toBe(recalculatedEffects);
+
+  // Enter op Accepteren ⇒ de nieuwe ankers, één undo-stap, balk en venster weg.
+  const steps = await appliedSteps();
   await dialog.locator('[data-ops-external-source-review-accept]').focus();
   await page.keyboard.press('Enter');
   await expect(dialog).toHaveCount(0);

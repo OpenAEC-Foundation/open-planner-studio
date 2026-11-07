@@ -566,11 +566,6 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   let sourceCheckRunning = false;
   let sourceCheckAgain = false;
 
-  const sourceDocFromRead = (src: ExternalSourceRead): ExternalSourceDoc => ({
-    projectId: src.projectId, filePath: src.filePath, projectName: src.projectName, tasks: src.tasks,
-    lateDatesInFile: src.lateDatesInFile, version: src.version, readAt: src.readAt,
-  });
-
   /** Ververste taken als één undo-stap in het document zetten, met herberekening. Wél een snapshot:
    *  `finishMutation` verlaat de modus "datums zoals opgeslagen", en zonder snapshot is de modus dan
    *  onherstelbaar weg (laden → modus → ankers verversen → weg, zonder weg terug). Bovendien breekt
@@ -632,7 +627,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!version) continue;
       if (versions.size === 1 && versions.has(version)) { settled.add(path); continue; }
       const existing = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.path === path);
-      if (existing?.version === version) { found.set(path, existing); continue; }
+      // Al een balk voor deze versie: niets te doen. De eindfilter laat de balk staan zolang hij er nog is;
+      // koos de planner intussen *Later*, dan komt hij niet terug (review #811 ronde 2).
+      if (existing?.version === version) continue;
       if (settledSourceVersions.get(sourceKey(documentId, path)) === version) { settled.add(path); continue; }
       const src = await get().parseExternalSource(filePath, labels);
       if (get().activeDocumentId !== documentId) return;
@@ -640,7 +637,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const tasks = get().tasks;
       // Alleen de koppelingen die naar dít bestand wijzen: een kopie met hetzelfde project-id elders
       // telt niet mee.
-      const result = refreshExternalAnchors(tasks, sourceDocFromRead(src), 'file-path');
+      const result = refreshExternalAnchors(tasks, src, 'file-path');
       const changedLinks = externalAnchorChanges(tasks, result.tasks).length;
       const readVersion = src.version ?? version;
       if (changedLinks === 0) {
@@ -1663,7 +1660,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const src = await get().parseExternalSource(filePath, labels);
       if (!src) return null;
       if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0 };
-      const result = refreshExternalAnchors(get().tasks, sourceDocFromRead(src));
+      const result = refreshExternalAnchors(get().tasks, src);
       // Snapshot en herberekening: zie `applyRefreshedTasks`.
       if (result.changed) applyRefreshedTasks(targetDocumentId, result.tasks);
       const path = normalizeExternalSourcePath(filePath);
@@ -1745,7 +1742,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       for (const [normalizedPath, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
-        sourceDocs.push(sourceDocFromRead(src));
+        sourceDocs.push(src);
         readPaths.add(normalizedPath);
       }
 

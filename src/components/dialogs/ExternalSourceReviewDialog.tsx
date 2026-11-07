@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { useAppStore } from '@/state/appStore';
@@ -16,7 +16,7 @@ import type { ExternalLink } from '@/types/task';
 type ReviewState =
   | { kind: 'reading' }
   | { kind: 'failed' }
-  | { kind: 'ready'; source: ExternalSourceDoc; preview: ExternalRefreshPreview };
+  | { kind: 'read'; source: ExternalSourceDoc };
 
 /**
  * *Bekijken* bij een nieuwe versie van een bron (keuze 1, Ethan 2026-11-03; stap 1.5 in
@@ -35,6 +35,10 @@ export function ExternalSourceReviewDialog() {
   ));
   const tasks = useAppStore(s => s.tasks);
   const calendar = useAppStore(s => s.calendar);
+  const project = useAppStore(s => s.project);
+  const sequences = useAppStore(s => s.sequences);
+  const calendars = useAppStore(s => s.calendars);
+  const cpmResult = useAppStore(s => s.cpmResult);
   const notation = useAppStore(s => s.ui.timeNotation);
   const taskDate = useTaskDateText();
   const dd = useDisplayDate();
@@ -58,14 +62,21 @@ export function ExternalSourceReviewDialog() {
       const src = await useAppStore.getState().parseExternalSource(filePath, buildImportLabels(tCommon));
       if (cancelled) return;
       if (!src) { setState({ kind: 'failed' }); return; }
-      const doc = useAppStore.getState();
-      if (doc.activeDocumentId !== documentId) return;
-      // Alleen de koppelingen naar dít bestand, net als de balk (`checkExternalSources`).
-      const refreshed = refreshExternalAnchors(doc.tasks, src, 'file-path');
-      setState({ kind: 'ready', source: src, preview: previewExternalRefresh(doc, refreshed.tasks) });
+      if (useAppStore.getState().activeDocumentId !== documentId) return;
+      setState({ kind: 'read', source: src });
     })();
     return () => { cancelled = true; };
   }, [filePath, documentId, version, tCommon]);
+
+  // Het voorstel volgt de stand van het document. Rekent de planner opnieuw (F5) terwijl het venster open
+  // staat, dan vergelijkt het met de nieuwe berekening, met de al gelezen bron (review #811 ronde 2).
+  const source = state.kind === 'read' ? state.source : null;
+  const preview = useMemo(() => {
+    if (!source) return null;
+    // Alleen de koppelingen naar dít bestand, net als de balk (`checkExternalSources`).
+    const refreshed = refreshExternalAnchors(tasks, source, 'file-path');
+    return previewExternalRefresh({ project, tasks, sequences, calendar, calendars, cpmResult }, refreshed.tasks);
+  }, [source, project, tasks, sequences, calendar, calendars, cpmResult]);
 
   if (!update) return null;
 
@@ -83,7 +94,7 @@ export function ExternalSourceReviewDialog() {
   const projectEnd = (value: string) => dd.dateTime(momentLabel(calendarClock(calendar), value, 'end'));
   const saved = formatLocalDateTime(new Date(update.version), i18n.language, notation);
 
-  const ready = state.kind === 'ready' && state.preview.changes.length > 0 ? state : null;
+  const ready = source && preview && preview.changes.length > 0 ? { source, preview } : null;
   const onAccept = () => {
     if (!ready) return;
     accept(ready.source);
@@ -133,7 +144,7 @@ export function ExternalSourceReviewDialog() {
         {state.kind === 'failed' && (
           <div style={{ color: 'var(--error)' }}>{t('externalLinks.reviewReadFailed')}</div>
         )}
-        {state.kind === 'ready' && state.preview.changes.length === 0 && (
+        {preview && preview.changes.length === 0 && (
           <div>{t('externalLinks.reviewNoChanges')}</div>
         )}
         {ready && (
@@ -189,7 +200,7 @@ export function ExternalSourceReviewDialog() {
         ) : (
           <button
             className="btn btn--sm btn--secondary"
-            onClick={() => (state.kind === 'ready' ? dismiss(update.path) : close())}
+            onClick={() => (state.kind === 'read' ? dismiss(update.path) : close())}
             data-ops-external-source-review-close
           >
             {tCommon('close')}
