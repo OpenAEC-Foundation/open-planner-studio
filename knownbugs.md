@@ -604,6 +604,13 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
+   (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
+   cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
+   uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
+   geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
+   terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
