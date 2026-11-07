@@ -357,7 +357,10 @@
     "helpTutorialStep": "Oktatóanyag {{number}} / {{total}}",
     "helpTutorialsEmpty": "Még nincs oktatóanyag telepítve. Ezeket bővítményként telepítheti a katalógusból.",
     "helpTutorialsInstall": "Oktatóanyagok telepítése",
-    "helpDraft": "vázlat"
+    "helpDraft": "vázlat",
+    "helpCopyPrompt": "Prompt másolása",
+    "helpPromptCopied": "Másolva. Illessze most be a promptot a Claude-ba.",
+    "helpPromptCopyFailed": "Nem sikerült a másolás. Jelölje ki lent a szöveget, és másolja ki maga."
   },
   "export": {
     "progressFileSuffix": "előrehaladás",

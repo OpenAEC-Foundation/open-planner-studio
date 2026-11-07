@@ -13,6 +13,8 @@
     "dismiss": "Chiudi notifica",
     "taskEditRevertBlocked": "Una modifica del client MCP o di un'estensione è intervenuta nel frattempo. Le modifiche all'attività fatte prima non sono state annullate e restano come normali passaggi sotto Annulla.",
     "openFailed": "Apertura del file non riuscita",
+    "fileDropRefused": "Non aperto: {{names}}. L’app apre solo IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Non aperto: {{names}}. Chiudi prima la finestra aperta.",
     "csvInvalidDate": "CSV non aperto: data non riconosciuta \"{{value}}\" nella riga CSV {{row}}, colonna \"{{column}}\". Usa aaaa-mm-gg, gg-mm-aaaa o gg/mm/aaaa.",
     "extGuideCallbackFailed": "Un passaggio dell’estensione {{name}} non è riuscito. La guida continua.",
     "extHelpProjectOpenFailed": "Impossibile aprire il file di progetto {{file}} dell’estensione {{name}}.",
@@ -514,6 +516,8 @@
     "connect": "Connetti",
     "connectHint": "Mostra i dettagli di connessione: endpoint, token, frammento di configurazione e prompt di connessione.",
     "connectionDetailsTitle": "Dettagli di connessione",
+    "setupPrompt": "Lascia fare a Claude",
+    "setupPromptHint": "Per Claude Desktop e Claude Code. Incolla il prompt in una nuova chat. Claude installa poi da solo l'estensione. Non ti serve nessun token per questo.",
     "endpoint": "Endpoint",
     "endpointHint": "Trasporto: HTTP in streaming",
     "auth": "Autenticazione",
@@ -1320,7 +1324,6 @@
     "detailConstraints": "date di vincolo",
     "detailDeadlines": "scadenze",
     "detailActuals": "date effettive",
-    "detailExternal": "ancoraggi esterni",
     "detailSteps": "scaglioni di capacità",
     "warnActuals_one": "{{count}} attività ha date effettive di inizio/fine; si spostano anch’esse. Verifica che sia corretto per un progetto in corso.",
     "warnActuals_many": "{{count}} attività hanno date effettive di inizio/fine; si spostano anch’esse. Verifica che sia corretto per un progetto in corso.",
@@ -1328,9 +1331,6 @@
     "warnHardPins_one": "{{count}} attività ha un vincolo Obbligatorio rigido; tale ancoraggio si sposta anch’esso.",
     "warnHardPins_many": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
     "warnHardPins_other": "{{count}} attività hanno un vincolo Obbligatorio rigido; tali ancoraggi si spostano anch’essi.",
-    "warnExternal_one": "{{count}} relazione esterna: il suo ancoraggio si sposta, ma il progetto di origine no. Aggiorna la relazione dopo lo spostamento.",
-    "warnExternal_many": "{{count}} relazioni esterne: i loro ancoraggi si spostano, ma i progetti di origine no. Aggiorna le relazioni dopo lo spostamento.",
-    "warnExternal_other": "{{count}} relazioni esterne: i loro ancoraggi si spostano, ma i progetti di origine no. Aggiorna le relazioni dopo lo spostamento.",
     "warnHolidayGap": "Le festività generate del calendario «{{name}}» coprono {{from}}–{{to}}; la pianificazione spostata arriva al {{year}}. Rigenera le festività.",
     "warnCustomDateFields_one": "{{count}} campo personalizzato di tipo data compilato mantiene la sua data.",
     "warnCustomDateFields_many": "{{count}} campi personalizzati di tipo data compilati mantengono la loro data.",
@@ -1789,5 +1789,9 @@
     "actualWorkLost_one": "L'assegnazione di {{resource}} ha già {{hours}} ora di lavoro effettivo. Rimuovendola, quel lavoro va perso.",
     "actualWorkLost_many": "L'assegnazione di {{resource}} ha già {{hours}} ore di lavoro effettivo. Rimuovendola, quel lavoro va perso.",
     "actualWorkLost_other": "L'assegnazione di {{resource}} ha già {{hours}} ore di lavoro effettivo. Rimuovendola, quel lavoro va perso."
+  },
+  "fileDrop": {
+    "title": "Rilascia per aprire",
+    "subtitle": "File di progetto o importazione"
   }
 }

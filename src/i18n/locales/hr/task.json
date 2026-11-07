@@ -639,6 +639,12 @@
     "notAvailableWeb": "Čitanje datoteka samo je u desktop-aplikaciji; upotrijebite ručnu rezervu.",
     "source": "Izvor",
     "sourceAvailable": "dostupno pri zadnjoj provjeri",
+    "provenance": "Podrijetlo referentnog datuma",
+    "provenanceSite": "verzija {{version}} izvora, učitano {{readAt}}",
+    "provenanceSiteNoRead": "verzija {{version}} izvora",
+    "provenanceFile": "izvorna datoteka od {{modified}}, učitano {{readAt}}",
+    "provenanceFileNoRead": "izvorna datoteka od {{modified}}",
+    "provenanceRead": "učitano {{readAt}}",
     "edit": "Uredi međuzavisnost projekata…",
     "refreshSource": "Osvježi izvor",
     "deleteRelation": "Ukloni ovisnost"

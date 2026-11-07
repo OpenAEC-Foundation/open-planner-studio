@@ -709,4 +709,56 @@ test('payload-meting: overview / list_tasks(p1) / histogram op 2500 taken (rappo
   assert(overview.tasks.length > 2000, 'overview bevat de volledige boom (ongelimiteerd)');
 });
 
+// =================================================================================================
+// Optionele paginering (#818) op het kritieke pad, de baselinevergelijking en de vertraginganalyse
+// =================================================================================================
+test('optionele limit/offset: zonder beide hetzelfde antwoord, met een pagina total/has_more/next_offset', () => {
+  cleanProject();
+  // Keten van 12 taken: alles kritiek, alles schuift na de verlenging van de eerste.
+  const ids: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    ids.push(S().addTask({ name: `K${i}`, isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 2) }));
+    if (i > 0) S().addSequence({ predecessorId: ids[i - 1], successorId: ids[i], type: 'FINISH_START', lagDays: 0 });
+  }
+  S().runCPM();
+  S().saveBaseline('BL-pagina');
+  const first = S().tasks.find((t) => t.id === ids[0])!;
+  S().updateTask(ids[0], { time: { ...first.time, scheduleDuration: 4 } });
+  S().runCPM();
+
+  const cases: [string, string, string | null][] = [
+    ['planner_get_critical_path', 'criticalTasks', 'drivingRelations'],
+    ['planner_compare_baseline', 'deviations', null],
+    ['planner_analyze_delay', 'criticalShifters', null],
+  ];
+  for (const [tool, list, relations] of cases) {
+    const all = callOk(tool);
+    assertEq(all.total, undefined, `${tool}: zonder pagina geen total (antwoord ongewijzigd)`);
+    assertEq(all.has_more, undefined, `${tool}: zonder pagina geen has_more`);
+    assertEq(all[list].length, 12, `${tool}: zonder pagina de hele lijst`);
+    const seen: unknown[] = [];
+    const seenRel: unknown[] = [];
+    let offset: number | null = 0;
+    let pages = 0;
+    while (offset !== null) {
+      const page = callOk(tool, { limit: 5, offset });
+      assertEq(page.total, 12, `${tool}: total`);
+      assert(page[list].length <= 5, `${tool}: hoogstens limit per pagina`);
+      seen.push(...page[list]);
+      if (relations) seenRel.push(...page[relations]);
+      offset = page.next_offset;
+      assertEq(page.has_more, offset !== null, `${tool}: has_more volgt next_offset`);
+      pages++;
+    }
+    assertEq(pages, 3, `${tool}: 12 in pagina's van 5`);
+    assertEq(seen, all[list], `${tool}: de pagina's samen = de hele lijst`);
+    if (relations) assertEq(seenRel, all[relations], `${tool}: elke relatie op precies één pagina`);
+    assertEq(callOk(tool, { offset: 10 })[list].length, 2, `${tool}: alleen offset pagineert ook (default limit 50)`);
+    const bad = callErr(tool, { limit: 0 });
+    assertEq(bad.ok ? '' : bad.code, 'VALIDATION', `${tool}: limit 0 is een VALIDATION-fout`);
+    const unknown = callErr(tool, { pagina: 1 });
+    assertEq(unknown.ok ? '' : unknown.code, 'VALIDATION', `${tool}: een onbekende sleutel blijft een VALIDATION-fout`);
+  }
+});
+
 await run();

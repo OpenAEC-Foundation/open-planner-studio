@@ -13,6 +13,8 @@
     "dismiss": "Close notification",
     "taskEditRevertBlocked": "A change by the MCP client or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, XML, MPP, XER and CSV.",
+    "fileDropBlocked": "Not opened: {{names}}. Close the open dialog first.",
     "csvInvalidDate": "CSV not opened: unrecognised date \"{{value}}\" in CSV row {{row}}, column \"{{column}}\". Use yyyy-mm-dd, dd-mm-yyyy or dd/mm/yyyy.",
     "extGuideCallbackFailed": "A step from the extension {{name}} failed. The guide continues.",
     "extHelpProjectOpenFailed": "The project file {{file}} from the extension {{name}} could not be opened.",
@@ -75,7 +77,9 @@
     "saveFailed": "Failed to save",
     "ambiguousThousands": "\"{{text}}\" is ambiguous: do you mean a decimal or thousands? Type decimals with \"{{separator}}\" (1{{separator}}5) and thousands without a separator (1500). The value was not changed.",
     "siteSaveConflict": "Not saved: '{{name}}' was changed on the site by someone else in the meantime. Your changes are still in the app. Choose Save As to keep them as a new file.",
+    "siteSaveConflictCopy": "'{{original}}' was changed on the site by someone else in the meantime. Your work is therefore saved in a copy: '{{name}}'. From now on, Save writes to that copy.",
     "siteFileGone": "'{{name}}' is no longer on the site. The file was removed from Recent.",
+    "siteFileReadOnly": "'{{name}}' is read-only on the site. You can view and edit it, but Save creates a new file on the site.",
     "savedViaDownload": "Saved as a download: '{{name}}' is now in your downloads folder. This environment does not let the app write directly to the location you picked.",
     "browserCannotOverwrite": "This browser does not let the app write back to '{{name}}'. That is why the app asks again where to put the file every time you save. This does not happen in Chrome, Edge or the desktop app.",
     "browserSavesAsDownload": "Saved as a download: '{{name}}' is in your downloads folder. This browser does not let the app write to a place of its own, so every save creates a new download. In Chrome, Edge or the desktop app, Save simply updates the same file.",
@@ -85,6 +89,10 @@
     "recoveryStorageBlocked": "Recovery storage is temporarily blocked by another open connection. Existing copies are kept; this page will not create new recovery copies. Save your work yourself, close other tabs running this app and reload this page to try recovery again.",
     "recoveryReadFailed": "Recovered file could not be read",
     "recoveryRestoreFailed": "Restore failed",
+    "hostSettingsUnavailable": "The site settings did not load. Settings you change in this session will not be saved.",
+    "hostThemeUntilRestart": "This theme applies until you restart the planner. After that, the planner follows the SuperCloud theme again.",
+    "settingsLoadedLate": "Your settings have been loaded and applied.",
+    "settingsLoadedLateReverted": "Your settings have been loaded and applied. Anything you changed in the meantime has been reverted.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
     "scheduleFailed": "Schedule could not be calculated",
@@ -464,6 +472,9 @@
     "weekStartMonday": "Monday",
     "weekStartSunday": "Sunday",
     "calculationSection": "Calculation",
+    "taskGridSection": "Task grid",
+    "autoFitColumns": "Fit columns automatically",
+    "autoFitColumnsHint": "Every column of the task grid fits its width to the values in that column, after opening and after each confirmed edit. A long column header is then cut off. If you drag a column yourself, it keeps your width until you double-click the column edge.",
     "autoCalcCPM": "Calculate automatically",
     "autoCalcCPMHint": "Automatically recalculates the schedule as soon as it becomes out of date, instead of waiting for F5.",
     "constructionModeSection": "Construction mode",
@@ -494,7 +505,7 @@
     "documentChromeHint": "How you switch between open documents.",
     "ribbonSection": "Ribbon",
     "ribbonWheelSwitchesTabs": "Switch tabs with the mouse wheel",
-    "ribbonWheelSwitchesTabsHint": "Turn the mouse wheel over the ribbon tabs. Down goes to the next tab, up to the previous one.",
+    "ribbonWheelSwitchesTabsHint": "Turn the mouse wheel over the ribbon, over the tabs or the buttons. Down goes to the next tab, up to the previous one.",
     "documentChromeTabs": "Horizontal tabs",
     "documentChromeRail": "Vertical tabs",
     "documentChromeSwitcher": "Pill",
@@ -543,6 +554,8 @@
     "connect": "Connect",
     "connectHint": "Shows the connection details: endpoint, token, configuration snippet and connection prompt.",
     "connectionDetailsTitle": "Connection details",
+    "setupPrompt": "Let Claude do it",
+    "setupPromptHint": "For Claude Desktop and Claude Code. Paste the prompt into a new chat. Claude then installs the extension itself. You do not need a token for it.",
     "endpoint": "Endpoint",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Authentication",
@@ -773,6 +786,7 @@
       "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
       "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
       "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
+      "externalLagCalendar": "External lag counts in this task's calendar: the calendar of the other side is not in this file",
       "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overallocated on {{count}} day(s) ({{first}} – {{last}}) — the resource does not work these day(s) per its calendar",
       "overallocationMixed": "Overallocated on {{count}} day(s) ({{first}} – {{last}}), of which {{nonWorking}} day(s) the resource does not work per its calendar"
@@ -1063,6 +1077,7 @@
       "UK": "United Kingdom",
       "AT": "Austria",
       "CH": "Switzerland",
+      "US": "United States",
       "none": "No holidays"
     },
     "preset": {
@@ -1338,14 +1353,13 @@
     "detailConstraints": "constraint dates",
     "detailDeadlines": "deadlines",
     "detailActuals": "actual dates",
-    "detailExternal": "external anchors",
     "detailSteps": "availability steps",
     "warnActuals_one": "{{count}} task has actual start/finish dates; these shift along. Check whether that is correct for a running project.",
     "warnActuals_other": "{{count}} tasks have actual start/finish dates; these shift along. Check whether that is correct for a running project.",
     "warnHardPins_one": "{{count}} task has a hard Mandatory pin; that pin shifts along.",
     "warnHardPins_other": "{{count}} tasks have a hard Mandatory pin; those pins shift along.",
-    "warnExternal_one": "{{count}} external link: its anchor shifts along, but the source project does not. Refresh the link after moving.",
-    "warnExternal_other": "{{count}} external links: their anchors shift along, but the source projects do not. Refresh the links after moving.",
+    "warnExternalKept_one": "{{count}} external link: its anchor stays on the date of the source project, because that project does not move.",
+    "warnExternalKept_other": "{{count}} external links: their anchors stay on the dates of the source projects, because those projects do not move.",
     "warnHolidayGap": "The generated holidays of calendar “{{name}}” cover {{from}}–{{to}}; the shifted schedule runs to {{year}}. Regenerate the holidays.",
     "warnCustomDateFields_one": "{{count}} filled-in custom date field keeps its date.",
     "warnCustomDateFields_other": "{{count}} filled-in custom date fields keep their date.",
@@ -1856,5 +1870,13 @@
       "hammock": "Follows the linked tasks",
       "unknown": "Reason not established"
     }
+  },
+  "fileDrop": {
+    "title": "Drop to open",
+    "subtitle": "Project file or import"
+  },
+  "settingsDelay": {
+    "title": "Settings not loaded",
+    "body": "Your settings could not be loaded from the server. You are now working with the default settings. As soon as your settings are available again, they will be applied automatically."
   }
 }

@@ -639,6 +639,12 @@
     "notAvailableWeb": "Ler ficheiros de origem só é possível na aplicação de ambiente de trabalho; use a alternativa manual.",
     "source": "Origem",
     "sourceAvailable": "disponível na última verificação",
+    "provenance": "Proveniência da ancoragem",
+    "provenanceSite": "versão {{version}} da origem, lida em {{readAt}}",
+    "provenanceSiteNoRead": "versão {{version}} da origem",
+    "provenanceFile": "ficheiro de origem de {{modified}}, lido em {{readAt}}",
+    "provenanceFileNoRead": "ficheiro de origem de {{modified}}",
+    "provenanceRead": "lido em {{readAt}}",
     "edit": "Editar relação externa…",
     "refreshSource": "Atualizar origem",
     "deleteRelation": "Eliminar relação"

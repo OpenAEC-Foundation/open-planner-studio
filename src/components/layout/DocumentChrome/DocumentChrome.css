@@ -108,7 +108,8 @@
   border-radius: 10px; background: transparent; border: 1.5px dashed var(--theme-control-border);
   cursor: pointer; color: var(--theme-text-dim); margin-top: 2px;
 }
-.ops-rail-add:hover { border-color: var(--theme-accent); color: var(--theme-accent); }
+.ops-rail-add:hover { border-color: var(--theme-accent); color: var(--theme-text); }
+:where(:root[data-icons="lucide"]) .ops-rail-add:hover { color: var(--theme-accent); }
 
 /* Rail flyout (hover) */
 .ops-flyout {

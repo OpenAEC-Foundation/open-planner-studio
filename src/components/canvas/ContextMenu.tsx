@@ -4,6 +4,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { isSummaryTask } from '@/utils/taskHierarchy';
+import { b2IconsOn, Icon } from '@/components/icons';
 
 export interface ContextMenuGroupInfo {
   key: string;
@@ -324,7 +325,9 @@ function MenuItem({
       data-ops-context-disabled={disabled || undefined}
     >
       {checked !== undefined && (
-        <span className="inline-block w-3 !text-small">{checked ? '✓' : ''}</span>
+        b2IconsOn()
+          ? <span className="inline-flex w-4 shrink-0">{checked ? <Icon id="menu.item-checked" size={16} /> : null}</span>
+          : <span className="inline-block w-3 !text-small">{checked ? '✓' : ''}</span>
       )}
       {label}
     </button>
@@ -347,7 +350,10 @@ function SubMenuTrigger({
     <div className="relative" onMouseEnter={onEnter}>
       <div className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-small leading-4 text-text-primary hover:bg-surface-hover transition-colors cursor-default select-none">
         <span>{label}</span>
-        <span className="text-text-secondary">{flip ? '◂' : '▸'}</span>
+        {/* Wijst naar de kant waar het submenu opent (`flip`: links), ook in rechts-naar-links. */}
+        {b2IconsOn()
+          ? <Icon id="menu.submenu" size={16} className={flip ? '-scale-x-100' : undefined} />
+          : <span className="text-text-secondary">{flip ? '◂' : '▸'}</span>}
       </div>
       {open && (
         <div

@@ -365,7 +365,10 @@
     "helpTutorialStep": "الدرس {{number}} من {{total}}",
     "helpTutorialsEmpty": "لم تُثبَّت أي دروس تعليمية بعد. تُثبِّتها كإضافة من الكتالوج.",
     "helpTutorialsInstall": "تثبيت الدروس التعليمية",
-    "helpDraft": "مسودة"
+    "helpDraft": "مسودة",
+    "helpCopyPrompt": "نسخ الموجّه",
+    "helpPromptCopied": "تم النسخ. الصق الموجّه الآن في Claude.",
+    "helpPromptCopyFailed": "تعذّر النسخ. حدّد النص أدناه وانسخه بنفسك."
   },
   "export": {
     "progressFileSuffix": "التقدم",

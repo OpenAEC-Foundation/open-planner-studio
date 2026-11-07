@@ -13,6 +13,8 @@
     "dismiss": "Fechar notificação",
     "taskEditRevertBlocked": "Uma alteração do cliente MCP ou de uma extensão ocorreu entretanto. As alterações da tarefa feitas antes não foram revertidas e continuam como passos normais em Desfazer.",
     "openFailed": "Falha ao abrir o ficheiro",
+    "fileDropRefused": "Não aberto: {{names}}. A aplicação só abre IFC, XML, MPP, XER e CSV.",
+    "fileDropBlocked": "Não aberto: {{names}}. Feche primeiro a janela aberta.",
     "csvInvalidDate": "CSV não aberto: data não reconhecida \"{{value}}\" na linha CSV {{row}}, coluna \"{{column}}\". Use aaaa-mm-dd, dd-mm-aaaa ou dd/mm/aaaa.",
     "extGuideCallbackFailed": "Um passo da extensão {{name}} falhou. O guia continua.",
     "extHelpProjectOpenFailed": "Não foi possível abrir o ficheiro de projeto {{file}} da extensão {{name}}.",
@@ -514,6 +516,8 @@
     "connect": "Conectar",
     "connectHint": "Mostra os detalhes de ligação: ponto final, token, excerto de configuração e prompt de ligação.",
     "connectionDetailsTitle": "Detalhes de ligação",
+    "setupPrompt": "Deixe o Claude fazer",
+    "setupPromptHint": "Para o Claude Desktop e o Claude Code. Cole o prompt numa nova conversa. Depois, o Claude instala a extensão por si próprio. Não precisa de nenhum token para isso.",
     "endpoint": "Ponto final",
     "endpointHint": "Transporte: HTTP em streaming",
     "auth": "Autenticação",
@@ -1320,7 +1324,6 @@
     "detailConstraints": "datas de restrição",
     "detailDeadlines": "prazos",
     "detailActuals": "datas reais",
-    "detailExternal": "âncoras externas",
     "detailSteps": "escalões de capacidade",
     "warnActuals_one": "{{count}} tarefa tem datas reais de início/fim; estas deslocam-se também. Verifique se isso está correto para um projeto em curso.",
     "warnActuals_many": "{{count}} tarefas têm datas reais de início/fim; estas deslocam-se também. Verifique se isso está correto para um projeto em curso.",
@@ -1328,9 +1331,6 @@
     "warnHardPins_one": "{{count}} tarefa tem uma restrição Obrigatória rígida; essa fixação desloca-se também.",
     "warnHardPins_many": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
     "warnHardPins_other": "{{count}} tarefas têm uma restrição Obrigatória rígida; essas fixações deslocam-se também.",
-    "warnExternal_one": "{{count}} relação externa: a sua âncora desloca-se, mas o projeto de origem não. Atualize a ligação após a mudança.",
-    "warnExternal_many": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
-    "warnExternal_other": "{{count}} relações externas: as suas âncoras deslocam-se, mas os projetos de origem não. Atualize as ligações após a mudança.",
     "warnHolidayGap": "Os feriados gerados do calendário «{{name}}» abrangem {{from}}–{{to}}; o planeamento deslocado vai até {{year}}. Volte a gerar os feriados.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de data preenchido mantém a sua data.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de data preenchidos mantêm a sua data.",
@@ -1789,5 +1789,9 @@
     "actualWorkLost_one": "A atribuição de {{resource}} já tem {{hours}} hora de trabalho real. Removê-la elimina esse trabalho.",
     "actualWorkLost_many": "A atribuição de {{resource}} já tem {{hours}} horas de trabalho real. Removê-la elimina esse trabalho.",
     "actualWorkLost_other": "A atribuição de {{resource}} já tem {{hours}} horas de trabalho real. Removê-la elimina esse trabalho."
+  },
+  "fileDrop": {
+    "title": "Largue para abrir",
+    "subtitle": "Ficheiro de projeto ou importação"
   }
 }

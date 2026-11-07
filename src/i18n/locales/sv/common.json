@@ -13,6 +13,8 @@
     "dismiss": "Stänga meddelandet",
     "taskEditRevertBlocked": "En ändring från MCP-klienten eller ett tillägg kom emellan. Uppgiftsändringarna som gjordes före den har inte ångrats och finns kvar som vanliga steg under Ångra.",
     "openFailed": "Det gick inte att öppna filen",
+    "fileDropRefused": "Öppnades inte: {{names}}. Appen öppnar bara IFC, XML, MPP, XER och CSV.",
+    "fileDropBlocked": "Öppnades inte: {{names}}. Stäng det öppna fönstret först.",
     "csvInvalidDate": "CSV:n öppnades inte: oläsbart datum ”{{value}}” på CSV-rad {{row}}, kolumn ”{{column}}”. Använd åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Ett steg från tillägget {{name}} gav ett fel. Guiden fortsätter.",
     "extHelpProjectOpenFailed": "Projektfilen {{file}} från tillägget {{name}} kunde inte öppnas.",
@@ -454,6 +456,8 @@
     "connect": "Anslut",
     "connectHint": "Visar anslutningsuppgifterna: slutpunkt, token, konfigurationsfragment och anslutningsprompt.",
     "connectionDetailsTitle": "Anslutningsuppgifter",
+    "setupPrompt": "Låt Claude ordna det",
+    "setupPromptHint": "För Claude Desktop och Claude Code. Klistra in prompten i ett nytt samtal. Claude installerar sedan tillägget själv. Du behöver ingen token för det.",
     "endpoint": "Slutpunkt",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Autentisering",
@@ -1249,14 +1253,11 @@
     "detailConstraints": "restriktionsdatum",
     "detailDeadlines": "måldatum",
     "detailActuals": "verkliga datum",
-    "detailExternal": "externa ankare",
     "detailSteps": "kapacitetssteg",
     "warnActuals_one": "{{count}} uppgift har verklig start och verkligt slut; de förskjuts med. Kontrollera att det stämmer för ett pågående projekt.",
     "warnActuals_other": "{{count}} uppgifter har verklig start och verkligt slut; de förskjuts med. Kontrollera att det stämmer för ett pågående projekt.",
     "warnHardPins_one": "{{count}} uppgift har en hård Mandatory-pin; den pinsen förskjuts med.",
     "warnHardPins_other": "{{count}} uppgifter har en hård Mandatory-pin; de pinsarna förskjuts med.",
-    "warnExternal_one": "{{count}} externt samband: ankaret förskjuts med, men inte källprojektet. Uppdatera sambandet efter att du har flyttat.",
-    "warnExternal_other": "{{count}} externa samband: deras ankare förskjuts med, men inte källprojekten. Uppdatera sambanden efter att du har flyttat.",
     "warnHolidayGap": "De genererade helgdagarna i kalendern “{{name}}” täcker {{from}}–{{to}}; den förskjutna tidsplanen sträcker sig till {{year}}. Generera helgdagarna igen.",
     "warnCustomDateFields_one": "{{count}} ifyllt anpassat datumfält behåller sitt datum.",
     "warnCustomDateFields_other": "{{count}} ifyllda anpassade datumfält behåller sina datum.",
@@ -1707,5 +1708,9 @@
     "blockedNoChild": "Det går inte att flytta: ”{{phase}}” får ingen underuppgift som kan bära en tilldelning, bara milstolpar eller sammanfattningsuppgifter.",
     "actualWorkLost_one": "Tilldelningen för {{resource}} har redan {{hours}} timme verkligt arbete. Om du tar bort den försvinner arbetet.",
     "actualWorkLost_other": "Tilldelningen för {{resource}} har redan {{hours}} timmar verkligt arbete. Om du tar bort den försvinner arbetet."
+  },
+  "fileDrop": {
+    "title": "Släpp för att öppna",
+    "subtitle": "Projektfil eller import"
   }
 }

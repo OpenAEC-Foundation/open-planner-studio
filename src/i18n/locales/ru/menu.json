@@ -361,7 +361,10 @@
     "helpTutorialStep": "Урок {{number}} из {{total}}",
     "helpTutorialsEmpty": "Уроки еще не установлены. Установите их как расширение из каталога.",
     "helpTutorialsInstall": "Установить обучающие материалы",
-    "helpDraft": "черновик"
+    "helpDraft": "черновик",
+    "helpCopyPrompt": "Копировать промпт",
+    "helpPromptCopied": "Скопировано. Теперь вставьте промпт в Claude.",
+    "helpPromptCopyFailed": "Не удалось скопировать. Выделите текст ниже и скопируйте его самостоятельно."
   },
   "export": {
     "progressFileSuffix": "ход выполнения",

@@ -231,6 +231,14 @@
   transform: scaleX(-1);
 }
 
+/* De punthaak achter het label van een lintknop met een menu (Mijlpaal, Relatie, Toewijzen, Filter, Baselines).
+   De punthaak zelf is 4 px hoog; de negatieve marge houdt de labelregel even hoog als zonder icoon. */
+.ribbon-label-caret {
+  display: inline-block;
+  vertical-align: middle;
+  margin-block: -4px;
+}
+
 .ribbon-btn:hover .ribbon-btn-label {
   color: var(--theme-text);
 }
@@ -556,8 +564,15 @@
 }
 
 .ribbon-relation-menu-mark {
+  width: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
+}
+/* Zonder B2 (#844) het vinkje als teken, zoals vóór #765. */
+:where(:root[data-icons="lucide"]) .ribbon-relation-menu-mark {
   width: 14px;
   flex: 0 0 14px;
+  display: inline;
   font-weight: 700;
   text-align: center;
 }
@@ -585,10 +600,11 @@
   white-space: nowrap;
 }
 
-/* Separator between groups */
+/* Scheidingslijn tussen de groepen. De kleur komt per thema uit `--theme-ribbon-separator` (globals.css): in donker
+   de randkleur van de huisstijl, in licht en hoog contrast de rasterlijn zoals eerst (Ethan, 7 november 2026). */
 .ribbon-separator {
   width: 1px;
-  background: var(--theme-border-light);
+  background: var(--theme-ribbon-separator);
   margin: 8px 2px;
   align-self: stretch;
 }
@@ -703,6 +719,10 @@
 }
 
 .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
+  width: 24px;
+  height: 24px;
+}
+:where(:root[data-icons="lucide"]) .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
   width: 20px;
   height: 20px;
 }

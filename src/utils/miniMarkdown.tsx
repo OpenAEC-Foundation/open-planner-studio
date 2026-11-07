@@ -8,7 +8,8 @@
 //   - koppen #, ##, ###
 //   - paragrafen (regels gescheiden door een lege regel)
 //   - **vet**, *cursief*, inline `code`
-//   - codeblokken (```)
+//   - codeblokken (```), en promptblokken (```prompt): een tekst om in een AI-assistent te plakken,
+//     getoond als leesbare tekst met de knop *Prompt kopiëren* (`PromptBlock`; `promptBlocksOf` leest ze)
 //   - ongeordende (- / *) en geordende (1.) lijsten
 //   - links: alléén `docs://<article-id>` of `docs://<article-id>#<anker>` (interne viewer-navigatie,
 //     het anker is de GitHub-vorm van een kop, zie `headingSlug` in helpManifest.ts) en
@@ -30,6 +31,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { createHeadingSlugger, resolveHelpImagePath } from '@/utils/helpManifest';
+import { PromptBlock } from '@/components/common/PromptBlock';
 
 /** Standaard: een `public/docs`-pad, `{lang}` = en. */
 function defaultResolveImage(src: string): string {
@@ -51,6 +53,8 @@ const HEADER_RE = /^(#{1,3})\s+(.*)$/;
 const UL_RE = /^[-*]\s+(.*)$/;
 const OL_RE = /^\d+\.\s+(.*)$/;
 const FENCE_RE = /^```/;
+/** Opent een promptblok in plaats van een codeblok. */
+const PROMPT_FENCE = '```prompt';
 /** Een regel met niets dan één afbeelding ⇒ blokafbeelding. */
 const IMAGE_LINE_RE = /^!\[([^\]]*)\]\(([^)]+)\)$/;
 
@@ -63,6 +67,36 @@ export function extractHeadings(source: string): string[] {
     if (m) headings.push(m[2].trim());
   }
   return headings;
+}
+
+/** Eén codeblok vanaf de openingsregel `lines[start]`: de openingsregel (getrimd), de regels ertussen
+ *  en de index na de sluitende ``` (ontbreekt die, dan het einde van de tekst). */
+function readFence(lines: string[], start: number): { opener: string; body: string; next: number } {
+  const body: string[] = [];
+  let i = start + 1;
+  while (i < lines.length && !FENCE_RE.test(lines[i].trim())) {
+    body.push(lines[i]);
+    i++;
+  }
+  return { opener: lines[start].trim(), body: body.join('\n'), next: i + 1 };
+}
+
+/**
+ * De promptblokken (```prompt) van een artikel, in volgorde, precies zoals `renderMiniMarkdown` ze
+ * toont. Een alinea of lijst slokt nooit een ```-regel op, dus elke ```-regel buiten een codeblok
+ * opent er een. Het venster Verbindingsgegevens haalt zo zijn prompt uit het Help-artikel.
+ */
+export function promptBlocksOf(source: string): string[] {
+  const lines = source.replace(/\r\n/g, '\n').split('\n');
+  const prompts: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!FENCE_RE.test(lines[i].trim())) { i++; continue; }
+    const fence = readFence(lines, i);
+    if (fence.opener === PROMPT_FENCE) prompts.push(fence.body);
+    i = fence.next;
+  }
+  return prompts;
 }
 
 function MiniMarkdownImage({ alt, src, resolveImage }: { alt: string; src: string; resolveImage?: (src: string) => string }) {
@@ -163,16 +197,15 @@ export function renderMiniMarkdown(source: string, handlers: MiniMarkdownHandler
 
     // Codeblok
     if (FENCE_RE.test(line.trim())) {
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !FENCE_RE.test(lines[i].trim())) {
-        codeLines.push(lines[i]);
-        i++;
+      const fence = readFence(lines, i);
+      i = fence.next;
+      if (fence.opener === PROMPT_FENCE) {
+        blocks.push(<PromptBlock key={`b${key++}`} text={fence.body} />);
+        continue;
       }
-      i++; // sluitende ``` overslaan (indien aanwezig)
       blocks.push(
         <pre className="help-code-block" key={`b${key++}`}>
-          <code>{codeLines.join('\n')}</code>
+          <code>{fence.body}</code>
         </pre>
       );
       continue;

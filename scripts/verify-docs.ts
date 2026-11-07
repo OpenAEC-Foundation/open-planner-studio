@@ -28,7 +28,7 @@
 //        het nieuwe id bestaat en is geen draft.
 //   5. Parser-compatibiliteit tegen de subset die src/utils/miniMarkdown.tsx ondersteunt (koppen
 //      #/##/### zonder nesting, paragrafen, single-level ongeordende/geordende lijsten, **vet**/
-//      *cursief*/`code`, ```-codeblokken, alleen docs://- en examples://-links, ![alt](pad)):
+//      *cursief*/`code`, ```-codeblokken (ook ```prompt), alleen docs://- en examples://-links, ![alt](pad)):
 //      waarschuwt op h4+, tabellen, blockquotes, horizontale lijnen, genest/ingesprongen
 //      lijst-items, voetnoten, reference-style links, raw HTML-tags (buiten inline-code) en
 //      linkschema's anders dan docs:///examples://. Afbeeldingen: niet-lege alt-tekst en een

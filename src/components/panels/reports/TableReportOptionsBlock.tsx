@@ -6,8 +6,9 @@ import {
   type TableReportPeriodKey,
 } from '@/utils/reportSettings';
 import type { ResourceLoadingBucket } from '@/engine/reports';
+import type { ReportFontId } from '@/services/pdf/reportFont';
 import { ReportingPeriodField } from './ReportingPeriodField';
-import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reportFormPrimitives';
+import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportFontSelect, ReportOptionsCard } from './reportFormPrimitives';
 
 /**
  * Optieblok van de tabelrapporten: per rapporttype alleen de knoppen die dat
@@ -25,6 +26,9 @@ interface Props {
   orientation: ReportOrientation;
   onPaperSize: (p: ReportPaperSize) => void;
   onOrientation: (o: ReportOrientation) => void;
+  /** De rapportletter (issue #770): één keuze voor alle rapporten, dus ook hier, naast het vel. */
+  fontFamily: ReportFontId;
+  onFontFamily: (font: ReportFontId) => void;
 }
 
 const range = (min: number, max: number): number[] => Array.from({ length: max - min + 1 }, (_, i) => min + i);
@@ -67,7 +71,7 @@ function NumberField({ id, value, min, max, onCommit, dataKey }: {
   );
 }
 
-export function TableReportOptionsBlock({ reportType, options, onChange, paperSize, orientation, onPaperSize, onOrientation }: Props) {
+export function TableReportOptionsBlock({ reportType, options, onChange, paperSize, orientation, onPaperSize, onOrientation, fontFamily, onFontFamily }: Props) {
   const { t } = useTranslation('report');
   const L = TABLE_REPORT_LIMITS;
 
@@ -181,6 +185,10 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
           <div className="flex flex-col gap-1 min-w-0">
             <label className="text-text-secondary" htmlFor="report-opt-orientation">{t('orientation')}</label>
             <OrientationSelect id="report-opt-orientation" className="w-full min-w-0" value={orientation} onChange={onOrientation} />
+          </div>
+          <div className="flex flex-col gap-1 min-w-0">
+            <label className="text-text-secondary" htmlFor="report-opt-font">{t('reportFontFamilyLabel')}</label>
+            <ReportFontSelect id="report-opt-font" className="w-full min-w-0" value={fontFamily} onChange={onFontFamily} />
           </div>
         </div>
         {body}

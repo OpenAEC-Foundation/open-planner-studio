@@ -13,6 +13,8 @@
     "dismiss": "Bildirimi kapat",
     "taskEditRevertBlocked": "Bu sırada bir MCP-istemcisinden veya bir uzantıdan değişiklik geldi. Bundan önceki görev düzenlemeleri geri alınmadı ve Geri al altında normal adımlar olarak duruyor.",
     "openFailed": "Dosya açılamadı",
+    "fileDropRefused": "Açılmadı: {{names}}. Uygulama yalnızca IFC, XML, MPP, XER ve CSV dosyalarını açar.",
+    "fileDropBlocked": "Açılmadı: {{names}}. Önce açık pencereyi kapatın.",
     "csvInvalidDate": "CSV açılmadı: okunamayan tarih \"{{value}}\" CSV satır {{row}}, sütun \"{{column}}\" içinde. yyyy-aa-gg, gg-aa-yyyy veya gg/aa/yyyy biçimini kullanın.",
     "extGuideCallbackFailed": "{{name}} uzantısının bir adımı başarısız oldu. Rehber devam ediyor.",
     "extHelpProjectOpenFailed": "{{name}} uzantısının {{file}} proje dosyası açılamadı.",
@@ -454,6 +456,8 @@
     "connect": "Bağlan",
     "connectHint": "Bağlantı bilgilerini gösterir: uç nokta, token, yapılandırma parçası ve bağlantı istemi.",
     "connectionDetailsTitle": "Bağlantı bilgileri",
+    "setupPrompt": "Claude'a yaptırın",
+    "setupPromptHint": "Claude Desktop ve Claude Code için. İstemi yeni bir sohbete yapıştırın. Claude uzantıyı ardından kendisi kurar. Bunun için token'a ihtiyacınız yok.",
     "endpoint": "Uç nokta",
     "endpointHint": "Aktarım: akışlı HTTP",
     "auth": "Kimlik doğrulama",
@@ -1249,14 +1253,11 @@
     "detailConstraints": "kısıtlamalar",
     "detailDeadlines": "son tarihler",
     "detailActuals": "gerçek tarihler",
-    "detailExternal": "dış çıpalar",
     "detailSteps": "kapasite kademeleri",
     "warnActuals_one": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarih de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnActuals_other": "{{count}} görevin gerçek başlangıç/bitiş tarihi var; bu tarihler de kayar. Devam eden bir proje için doğru olup olmadığını kontrol edin.",
     "warnHardPins_one": "{{count}} görevde katı Zorunlu kısıt var; bu sabitleme de kayar.",
     "warnHardPins_other": "{{count}} görevde katı Zorunlu kısıt var; bu sabitlemeler de kayar.",
-    "warnExternal_one": "{{count}} dış ilişki: çıpası kayar, ancak kaynak proje kaymaz. Taşımadan sonra bağlantıyı yenileyin.",
-    "warnExternal_other": "{{count}} dış ilişki: çıpaları kayar, ancak kaynak projeler kaymaz. Taşımadan sonra bağlantıları yenileyin.",
     "warnHolidayGap": "“{{name}}” takviminin oluşturulan tatilleri {{from}}–{{to}} aralığını kapsıyor; kaydırılan plan {{year}} yılına kadar sürüyor. Tatilleri yeniden oluşturun.",
     "warnCustomDateFields_one": "Doldurulmuş {{count}} özel tarih alanı tarihini korur.",
     "warnCustomDateFields_other": "Doldurulmuş {{count}} özel tarih alanı tarihlerini korur.",
@@ -1707,5 +1708,9 @@
     "blockedNoChild": "Taşıma mümkün değil: '{{phase}}' görevine atama taşıyabilen alt görev eklenmez; yalnızca kilometre taşı veya özet görev eklenir.",
     "actualWorkLost_one": "{{resource}} atamasında zaten {{hours}} saat gerçek iş kayıtlı. Atamayı kaldırırsanız bu iş silinir.",
     "actualWorkLost_other": "{{resource}} atamasında zaten {{hours}} saat gerçek iş kayıtlı. Atamayı kaldırırsanız bu iş silinir."
+  },
+  "fileDrop": {
+    "title": "Açmak için bırakın",
+    "subtitle": "Proje dosyası veya içe aktarma"
   }
 }

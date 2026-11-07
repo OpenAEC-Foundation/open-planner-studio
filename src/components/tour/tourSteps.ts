@@ -1,5 +1,6 @@
 import type { ParseKeys } from 'i18next';
 import { useAppStore } from '@/state/appStore';
+import { FEEDBACK_AVAILABLE } from '@/utils/buildFlags';
 
 export interface TourStep {
   /** Waarde van het `data-tour-anchor` attribuut op het ankerelement (zie de componenten die dit
@@ -16,7 +17,7 @@ export interface TourStep {
 // Stappenlijst + ankers bewust in ÉÉN bestand: een
 // toekomstige ribbon-/layout-refactor die een `data-tour-anchor` verplaatst of hernoemt moet
 // hier meegroeien. `TourOverlay` slaat een stap over (nooit een crash) als het anker ontbreekt.
-export const TOUR_STEPS: TourStep[] = [
+const ALL_TOUR_STEPS: TourStep[] = [
   {
     // Stap 1 — lint-tabs. Altijd zichtbaar (ook tijdens Backstage), dus geen prepare nodig.
     anchor: 'ribbon-tabs',
@@ -82,3 +83,9 @@ export const TOUR_STEPS: TourStep[] = [
     prepare: () => { /* knop staat altijd bovenin, geen voorbereiding nodig */ },
   },
 ];
+
+/** Stap 7 wijst naar de feedbackknop, die in de platformbouw ontbreekt (#818). Daar valt de stap weg en
+ *  is stap 6 de laatste; anders zou de rondleiding op het ontbrekende anker wachten en afbreken. */
+export const TOUR_STEPS: TourStep[] = FEEDBACK_AVAILABLE
+  ? ALL_TOUR_STEPS
+  : ALL_TOUR_STEPS.filter(step => step.anchor !== 'feedback-button');

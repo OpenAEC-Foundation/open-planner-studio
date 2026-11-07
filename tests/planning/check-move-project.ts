@@ -23,6 +23,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { collectScheduleWarnings } from '@/engine/scheduler/scheduleWarnings';
 
 const S = () => useAppStore.getState();
 const diffs: string[] = [];
@@ -96,10 +97,10 @@ eq('23 time.actualFinish schuift (R5)', st.time.actualFinish, '2026-06-10');
 eq('24 constraint.date schuift', st.constraint?.date, '2026-06-11');
 eq('25 constraint2.date schuift (fase 2.9 — het makkelijkst te vergeten veld)', st.constraint2?.date, '2026-06-27');
 eq('26 deadline schuift', st.deadline, '2026-07-02');
-eq('27 externalLinks[].anchorDate schuift (R6)', st.externalLinks?.[0].anchorDate, '2026-06-05');
 
 // NIET / AFGELEID
 eq('28 constraint.type blijft', st.constraint?.type, 'SNET');
+eq('27 externalLinks[].anchorDate blijft staan: een datum van het bronproject, dat niet meeschuift (keuze 8, 2026-11-03)', st.externalLinks?.[0].anchorDate, '2026-05-29');
 eq('29 externalLinks[].sourceMissing BLIJFT false (R6: betekent "bron onvindbaar", niet "anker verouderd")', st.externalLinks?.[0].sourceMissing, false);
 eq('30 externalLinks[].lagDays blijft (duur)', st.externalLinks?.[0].lagDays, 2);
 eq('31 externalLinks[].sourceRef blijft ongemoeid', st.externalLinks?.[0].sourceRef, baseTask.externalLinks![0].sourceRef);
@@ -119,8 +120,8 @@ eq('42 bron-taak ongemoeid (puur)', baseTask.time.scheduleStart, '2026-06-01');
 eq('43 bron-constraint ongemoeid (puur)', baseTask.constraint?.date, '2026-06-04');
 eq('44 time is ALTIJD een nieuw object, ook bij delta 0 (anders muteert de preview-solver de store)',
   shiftTask(baseTask, 0).time !== baseTask.time, true);
-eq('45 externalLinks is een nieuwe array bij delta 0',
-  shiftTask(baseTask, 0).externalLinks !== baseTask.externalLinks, true);
+eq('45 externalLinks: elke koppeling ongewijzigd, ook bij een grote delta (keuze 8)',
+  shiftTask(baseTask, 400).externalLinks, baseTask.externalLinks);
 
 // ASAP/ALAP hebben geen constraint-datum ⇒ no-op, geen crash.
 const asapTask: Task = { ...baseTask, constraint: { type: 'ASAP' }, constraint2: undefined };
@@ -204,6 +205,16 @@ const impact = computeMoveImpact(
   [{ id: 'cf-date', name: 'Keuringsdatum', type: 'date' }, { id: 'cf-text', name: 'Opmerking', type: 'text' }],
 );
 eq('80 taskCount telt alle taken met minstens één verschuifbare datum', impact.taskCount, 3);
+{
+  // Een taak met ALLEEN een externe koppeling (geen eigen datum) schuift niets: het anker blijft staan.
+  const onlyLink: Task = {
+    ...baseTask, id: 't4', constraint: undefined, constraint2: undefined, deadline: undefined, customFields: undefined,
+    time: { ...baseTask.time, scheduleStart: '', scheduleFinish: '', actualStart: undefined, actualFinish: undefined },
+  };
+  const linkImpact = computeMoveImpact([onlyLink], [], [], []);
+  eq('80b een taak met alleen een extern anker telt niet als verschoven (keuze 8)', linkImpact.taskCount, 0);
+  eq('80c maar de koppeling telt wel voor de waarschuwing', linkImpact.externalLinkCount, 1);
+}
 eq('81 constraintCount telt taken met een constraint-datum', impact.constraintCount, 2);
 eq('82 hardPinCount telt de harde pins (R4)', impact.hardPinCount, 1);
 eq('83 deadlineCount', impact.deadlineCount, 2);
@@ -409,6 +420,148 @@ eq('155 round-trip: verschoven deadline identiek terug',
   back.tasks.map(t => normalizeTaskDates(t, S())).find(t => t.name === 'B')?.deadline, movedDeadline);
 eq('156 de verschuiving is echt aangekomen (geen toevallig gelijke waarden)',
   [movedProject.start, movedConstraint], ['2026-09-07', "2026-09-14T07:00"]);
+
+// ── Review #807: een harde pin verbergt geen geschonden externe voorganger ──────
+// Scenario van de review, letterlijk: een taak met een interne en een externe FS-voorganger. De externe eindigt
+// op vrijdag 5 juni 16:00, de taak heeft een harde MSO-pin op maandag 8 juni: dat klopt allebei. Verplaats de
+// projectstart van 1 juni naar 25 mei. De pin schuift mee naar 1 juni, het anker blijft 5 juni (keuze 8). De taak
+// start dan vóór de externe voorganger klaar is: dat is een schending, net als bij een interne voorganger. Een
+// tweede externe koppeling (eerder anker) en ongedaan maken lopen mee.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const pre = S().addTask({ name: 'Grondwerk', time: createDefaultTaskTime('2026-06-01', 3) });
+  const pinnedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 2),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addSequence({ predecessorId: pre, successorId: pinnedTask, type: 'FINISH_START', lagDays: 0 });
+  const external = (anchorDate: string, taskId: string) => ({
+    direction: 'predecessor' as const, relType: 'FS' as const, lagDays: 0, anchorDate, sourceMissing: false,
+    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId, filePath: '/projecten/leverancier.ifc' },
+  });
+  S().addExternalLink(pinnedTask, external('2026-06-05T16:00', 'l-1'));
+  S().addExternalLink(pinnedTask, external('2026-05-29T16:00', 'l-2'));
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  const warnedTasks = () => collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id);
+  const anchors = () => S().tasks.find(t => t.id === pinnedTask)!.externalLinks!.map(l => l.anchorDate);
+  const montageStart = () => S().tasks.find(t => t.id === pinnedTask)!.time.earlyStart;
+  eq('160 opzet: Montage start op de pin, ma 8 juni 07:00', montageStart(), '2026-06-08T07:00');
+  eq('161 opzet: geen schending', violated(), []);
+
+  const moved = S().moveProject('2026-05-25');
+  eq('162 verplaatst naar 25 mei', [moved.moved, S().project.startDate], [true, '2026-05-25']);
+  eq('163 de pin schuift mee: Montage start ma 1 juni 07:00', montageStart(), '2026-06-01T07:00');
+  eq('164 de ankers blijven staan', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+  eq('165 de externe voorganger is geschonden: Montage staat bij de geschonden constraints', violated(), [pinnedTask]);
+  eq('166 en het paneel Waarschuwingen toont het', warnedTasks(), [`violatedConstraint:${pinnedTask}`]);
+
+  S().undo();
+  S().runCPM();
+  eq('167 ongedaan maken: Montage weer op 8 juni', montageStart(), '2026-06-08T07:00');
+  eq('168 ongedaan maken: geen schending meer', violated(), []);
+  eq('169 ongedaan maken: de ankers zijn niet veranderd', anchors(), ['2026-06-05T16:00', '2026-05-29T16:00']);
+
+  // Alleen de koppeling met het eerdere anker (29 mei): na verplaatsen naar 25 mei is er geen schending.
+  S().redo();
+  S().removeExternalLink(pinnedTask, S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].id);
+  S().runCPM();
+  eq('170 een extern anker vóór de pin is geen schending', violated(), []);
+}
+
+// ── Review #807 ronde 2, scenario 1: een harde pin verbergt geen geschonden externe OPVOLGER ──────────
+// Letterlijk: projectstart 1 juni, taak van twee dagen, harde MSO-pin op 8 juni, externe FS-opvolger met
+// anker vr 12 juni 07:00. Verplaats de projectstart naar 8 juni: de taak loopt dan van ma 15 juni 07:00 tot
+// di 16 juni 16:00, het anker blijft 12 juni. De pin blijft winnen, maar de schending moet zichtbaar zijn.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01' });
+  const pinnedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 2),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addExternalLink(pinnedTask, {
+    direction: 'successor', relType: 'FS', lagDays: 0, anchorDate: '2026-06-12T07:00', sourceMissing: false,
+    sourceRef: { projectId: 'afnemer', projectName: 'Afnemer', taskId: 'o-1', filePath: '/projecten/afnemer.ifc' },
+  });
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  const montage = () => S().tasks.find(t => t.id === pinnedTask)!.time;
+  eq('171 opzet: Montage 8–9 juni, geen schending', [montage().earlyStart, montage().earlyFinish, violated()],
+    ['2026-06-08T07:00', '2026-06-09T16:00', []]);
+  S().moveProject('2026-06-08');
+  eq('172 na verplaatsen: Montage ma 15 juni 07:00 tot di 16 juni 16:00', [montage().earlyStart, montage().earlyFinish],
+    ['2026-06-15T07:00', '2026-06-16T16:00']);
+  eq('173 het anker blijft vr 12 juni 07:00', S().tasks.find(t => t.id === pinnedTask)!.externalLinks![0].anchorDate, '2026-06-12T07:00');
+  eq('174 de externe opvolger is geschonden: Montage staat bij de geschonden constraints', violated(), [pinnedTask]);
+  eq('175 en het paneel Waarschuwingen toont het', collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id), [`violatedConstraint:${pinnedTask}`]);
+  eq('176 de pin blijft winnen: speling 0', montage().totalFloat, 0);
+}
+
+// ── Review #807 ronde 2, scenario 2: een gestarte taak op de pin verbergt geen externe voorgangerschending ──
+// Letterlijk: harde MSO-pin en werkelijke start op ma 8 juni 07:00, voortgang 25 %, externe FS-voorganger met
+// anker vr 5 juni 16:00. Verplaats de projectstart van 1 juni naar 25 mei: pin en werkelijke start worden
+// ma 1 juni 07:00, het anker blijft 5 juni 16:00. De uitzondering "de werkelijke start volgt de pin" geldt
+// voor berekende interne druk, niet voor een extern anker.
+{
+  S().newProject();
+  S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-09' });
+  const startedTask = S().addTask({
+    name: 'Montage', time: createDefaultTaskTime('2026-06-08', 4),
+    constraint: { type: 'MSO', date: '2026-06-08', hard: true },
+  });
+  S().addExternalLink(startedTask, {
+    direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2026-06-05T16:00', sourceMissing: false,
+    sourceRef: { projectId: 'leverancier', projectName: 'Leverancier', taskId: 'l-1', filePath: '/projecten/leverancier.ifc' },
+  });
+  eq('177 opzet: werkelijke start op de pin gezet', S().setActualStart(startedTask, '2026-06-08T07:00'), true);
+  eq('178 opzet: voortgang 25 %', S().setTaskProgress(startedTask, 0.25), true);
+  S().runCPM();
+  const violated = () => S().cpmResult?.violatedConstraintTaskIds ?? [];
+  eq('179 opzet: geen schending (het anker ligt vóór de start)', violated(), []);
+  S().moveProject('2026-05-25');
+  const montage = S().tasks.find(t => t.id === startedTask)!;
+  eq('180 na verplaatsen: pin en werkelijke start op ma 1 juni 07:00',
+    [montage.constraint?.date, montage.time.actualStart, montage.time.earlyStart],
+    ['2026-06-01T07:00', '2026-06-01T07:00', '2026-06-01T07:00']);
+  eq('181 het anker blijft vr 5 juni 16:00', montage.externalLinks![0].anchorDate, '2026-06-05T16:00');
+  eq('182 de externe voorganger is geschonden', violated(), [startedTask]);
+  eq('183 en het paneel Waarschuwingen toont het', collectScheduleWarnings({
+    tasks: S().tasks, sequences: S().sequences, resources: S().resources, cpmResult: S().cpmResult!, resourceLoadResult: null,
+  }).filter(w => w.kind === 'violatedConstraint').map(w => w.id), [`violatedConstraint:${startedTask}`]);
+}
+
+// ── Knownbug 849: een externe koppeling op een taak met een ontbrekende kalender ─────────────────────────
+// De taak wijst naar een kalender die niet meer bestaat; de solver valt terug op de projectkalender. Na
+// verplaatsen blijft het anker staan en rekent de taak zoals dezelfde taak zonder eigen kalender.
+{
+  const run = (calendarId?: string) => {
+    S().newProject();
+    S().setProject({ startDate: '2026-06-01' });
+    const id = S().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2026-06-01', 3) });
+    if (calendarId) useAppStore.setState(state => { state.tasks.find(t => t.id === id)!.calendarId = calendarId; });
+    S().addExternalLink(id, {
+      direction: 'predecessor', relType: 'FS', lagDays: 1, anchorDate: '2026-06-03T16:00', sourceMissing: false,
+      sourceRef: { projectId: 'leverancier', taskId: 'l-9', filePath: '/projecten/leverancier.ifc' },
+    });
+    S().runCPM();
+    S().moveProject('2026-05-25');
+    const t = S().tasks.find(x => x.id === id)!;
+    return { calendarId: t.calendarId, anchor: t.externalLinks![0].anchorDate, dates: [t.time.earlyStart, t.time.earlyFinish],
+      error: S().cpmResult?.error };
+  };
+  const missing = run('bestaat-niet');
+  const plain = run();
+  eq('184 opzet: de taak wijst naar een kalender die niet bestaat', missing.calendarId, 'bestaat-niet');
+  eq('185 verplaatsen rekent zonder fout', missing.error, undefined);
+  eq('186 het anker blijft staan', missing.anchor, '2026-06-03T16:00');
+  eq('187 de taak rekent zoals dezelfde taak op de projectkalender', missing.dates, plain.dates);
+}
 
 // ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {

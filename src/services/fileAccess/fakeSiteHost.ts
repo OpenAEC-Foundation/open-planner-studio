@@ -12,6 +12,14 @@
  *  - `fakeSiteInitial=1`: de host zet `initialFileId` op het eerste bestand (startbestand).
  *  - `skipWelcome=1`: de host zet `skipWelcome: true` (#583). Dat staat er meteen, nog vóór de
  *    database gevuld is, zodat de welkomstcheck (na de herstelcontrole) het in de regel al ziet.
+ *  - `fakeSiteShape=supercloud`: de host heeft de SuperCloud-vorm (#818): de functies direct op
+ *    `window.openaecHost`, versies als GETAL, inhoud als `bytes`. (`main.tsx` laadt de nep-site alleen
+ *    met `fakeSite=1`; daarom een aparte vlag.) In die vorm:
+ *     - `fakeSiteReadOnly=1`: `open` geeft `readOnly: true`, ook voor de nieuwste versie.
+ *     - `fakeSiteConflict=1`: elke nieuwe versie wordt een conflictkopie (een nieuw bestand met
+ *       "(kopie)" in de naam), zoals de SuperCloud doet. Een `expectedVersion` die niet de nieuwste
+ *       is, geeft ook een kopie.
+ *     - Opslaan als met een andere extensie dan `.ifc` weigert met `code: 'soort_niet_toegestaan'`.
  *
  * De host komt pas na het vullen van de database, dus via het event `openaec-host-ready` — precies de
  * route van een site die de host na het laden zet.
@@ -23,6 +31,7 @@ import {
 } from './siteHost';
 import { extensionOf } from '@/utils/filePath';
 import { generateId } from '@/utils/id';
+import { KIND_NOT_ALLOWED_CODE, type HostVersion } from './superCloudHost';
 
 const DB = 'ops-fake-site';
 const STORE = 'files';
@@ -121,6 +130,73 @@ const storage: SiteStorage = {
   },
 };
 
+// ── De SuperCloud-vorm (#818) ──────────────────────────────────────────────────────────────────
+
+/** Schrijf een nieuwe versie van een bestaand bestand weg. */
+async function pushVersion(file: FakeFile, text: string): Promise<void> {
+  const modified = new Date().toISOString();
+  file.versions.push({ version: String(Number(latest(file).version) + 1), modified, author: AUTHOR, data: text });
+  await putFile(file);
+}
+
+function hostRef(file: FakeFile, version = latest(file)) {
+  return { id: file.id, name: file.name, version: Number(version.version) };
+}
+
+/** De nep-site in de SuperCloud-vorm: dezelfde database, een andere vorm van de functies. */
+const superCloudFunctions = {
+  async open(id: string, version?: HostVersion) {
+    const file = await findFile(id);
+    const found = version === undefined ? latest(file) : file.versions.find((v) => Number(v.version) === Number(version));
+    if (!found) throw new Error(`Versie ${String(version)} van ${file.name} bestaat niet op de nep-site.`);
+    return {
+      ...hostRef(file, found),
+      readOnly: version !== undefined || flag('fakeSiteReadOnly'),
+      bytes: new TextEncoder().encode(found.data),
+    };
+  },
+
+  async save(bytes: Uint8Array, options: { id?: string; name?: string; expectedVersion?: HostVersion }) {
+    const text = new TextDecoder('utf-8').decode(bytes);
+    const modified = new Date().toISOString();
+    if (options.id === undefined) {
+      const name = options.name ?? 'Naamloos.ifc';
+      if (extensionOf(name) !== 'ifc') {
+        throw Object.assign(new Error(`De nep-site neemt geen .${extensionOf(name) || '?'}-bestanden aan voor deze tool.`), { code: KIND_NOT_ALLOWED_CODE });
+      }
+      const file: FakeFile = { id: newId(), name, versions: [{ version: '1', modified, author: AUTHOR, data: text }] };
+      await putFile(file);
+      return hostRef(file);
+    }
+    const file = await findFile(options.id);
+    const current = Number(latest(file).version);
+    if (flag('fakeSiteConflict') || (options.expectedVersion !== undefined && Number(options.expectedVersion) !== current)) {
+      // Zoals de SuperCloud: geen fout, maar een kopie naast het bestand.
+      const ext = /\.[^.]+$/.exec(file.name)?.[0] ?? '';
+      const copy: FakeFile = {
+        id: newId(),
+        name: `${ext ? file.name.slice(0, -ext.length) : file.name} (kopie)${ext}`,
+        versions: [{ version: '1', modified, author: AUTHOR, data: text }],
+      };
+      await putFile(copy);
+      return hostRef(copy);
+    }
+    await pushVersion(file, text);
+    return hostRef(file);
+  },
+
+  async list() {
+    return (await allFiles())
+      .sort((a, b) => latest(b).modified.localeCompare(latest(a).modified))
+      .map((f) => ({ id: f.id, name: f.name, modified: latest(f).modified }));
+  },
+
+  async versions(id: string) {
+    const file = await findFile(id);
+    return [...file.versions].reverse().map((v) => ({ version: Number(v.version), modified: v.modified, author: v.author }));
+  },
+};
+
 interface ExampleEntry { file: string; name: string; category?: string }
 
 /** Vul een lege nep-site met twee voorbeelden; het eerste krijgt twee versies. */
@@ -152,12 +228,15 @@ export async function installFakeSiteHost(): Promise<void> {
   } catch (err) {
     console.error('[nep-site] Startbestanden laden mislukt:', err);
   }
-  const host: OpenAECHost = { storage, ...(skipWelcome ? { skipWelcome: true } : {}) };
+  const superCloud = new URLSearchParams(window.location.search).get('fakeSiteShape') === 'supercloud';
+  const host: OpenAECHost = superCloud
+    ? { ...superCloudFunctions, ...(skipWelcome ? { skipWelcome: true } : {}) }
+    : { storage, ...(skipWelcome ? { skipWelcome: true } : {}) };
   if (flag('fakeSiteInitial')) {
     const first = (await storage.list())[0];
     if (first) host.initialFileId = first.id;
   }
   window.openaecHost = host;
   window.dispatchEvent(new Event(SITE_HOST_READY_EVENT));
-  console.info('[nep-site] window.openaecHost staat klaar (alleen DEV).');
+  console.info(`[nep-site] window.openaecHost staat klaar${superCloud ? ' in de SuperCloud-vorm' : ''} (alleen DEV).`);
 }

@@ -142,6 +142,8 @@
   white-space: pre;
 }
 
+/* Promptblok (```prompt): zie src/components/common/PromptBlock.css. */
+
 .help-link {
   background: none;
   border: none;

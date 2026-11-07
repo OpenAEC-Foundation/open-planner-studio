@@ -13,6 +13,8 @@
     "dismiss": "Lukk melding",
     "taskEditRevertBlocked": "En endring fra MCP-klienten eller en utvidelse kom imellom. Aktivitetsendringene fra før er ikke tilbakeført og står som vanlige steg under «Angre».",
     "openFailed": "Kunne ikke åpne fil",
+    "fileDropRefused": "Ikke åpnet: {{names}}. Appen åpner bare IFC, XML, MPP, XER og CSV.",
+    "fileDropBlocked": "Ikke åpnet: {{names}}. Lukk det åpne vinduet først.",
     "csvInvalidDate": "CSV ikke åpnet: ugjenkjennelig dato «{{value}}» på CSV-rad {{row}}, kolonne «{{column}}». Bruk åååå-mm-dd, dd-mm-åååå eller dd/mm/åååå.",
     "extGuideCallbackFailed": "Et steg fra utvidelsen {{name}} gav en feil. Veiledningen fortsetter.",
     "extHelpProjectOpenFailed": "Prosjektfilen {{file}} fra utvidelsen {{name}} kunne ikke åpnes.",
@@ -454,6 +456,8 @@
     "connect": "Koble til",
     "connectHint": "Viser tilkoblingsdetaljene: endepunkt, token, konfigurasjonsutdrag og koblingsprompt.",
     "connectionDetailsTitle": "Tilkoblingsdetaljer",
+    "setupPrompt": "La Claude ordne det",
+    "setupPromptHint": "For Claude Desktop og Claude Code. Lim inn prompten i en ny samtale. Claude installerer utvidelsen selv. Du trenger ikke noe token til det.",
     "endpoint": "Endepunkt",
     "endpointHint": "Transport: streamable HTTP",
     "auth": "Autentisering",
@@ -1249,14 +1253,11 @@
     "detailConstraints": "begrensningsdatoer",
     "detailDeadlines": "tidsfrister",
     "detailActuals": "faktiske datoer",
-    "detailExternal": "eksterne ankere",
     "detailSteps": "kapasitetstrinn",
     "warnActuals_one": "{{count}} aktivitet har faktiske start- og sluttdatoer; disse forskyves med. Kontroller at det stemmer for et pågående prosjekt.",
     "warnActuals_other": "{{count}} aktiviteter har faktiske start- og sluttdatoer; disse forskyves med. Kontroller at det stemmer for et pågående prosjekt.",
     "warnHardPins_one": "{{count}} aktivitet har en hard Mandatory-pin; den pinnen forskyves med.",
     "warnHardPins_other": "{{count}} aktiviteter har en hard Mandatory-pin; disse pinnene forskyves med.",
-    "warnExternal_one": "{{count}} kobling mellom prosjekter: ankeret forskyves med, men ikke kildeprosjektet. Oppdater koblingen etter flyttingen.",
-    "warnExternal_other": "{{count}} koblinger mellom prosjekter: ankerne forskyves med, men ikke kildeprosjektene. Oppdater koblingene etter flyttingen.",
     "warnHolidayGap": "De genererte helligdagene i kalenderen «{{name}}» dekker {{from}}–{{to}}; den forskjøvede tidsplanen går til {{year}}. Generer helligdagene på nytt.",
     "warnCustomDateFields_one": "{{count}} utfylt egendefinert datofelt beholder datoen sin.",
     "warnCustomDateFields_other": "{{count}} utfylte egendefinerte datofelt beholder datoene sine.",
@@ -1707,5 +1708,9 @@
     "blockedNoChild": "Flytting er ikke mulig: '{{phase}}' får ingen delaktivitet som kan ha en tilordning, bare milepæler eller hovedaktiviteter.",
     "actualWorkLost_one": "Tilordningen av {{resource}} har allerede {{hours}} time med faktisk arbeid. Fjerning kaster det arbeidet bort.",
     "actualWorkLost_other": "Tilordningen av {{resource}} har allerede {{hours}} timer med faktisk arbeid. Fjerning kaster det arbeidet bort."
+  },
+  "fileDrop": {
+    "title": "Slipp for å åpne",
+    "subtitle": "Prosjektfil eller import"
   }
 }

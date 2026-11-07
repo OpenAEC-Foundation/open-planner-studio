@@ -1,11 +1,14 @@
 import {
   TASK_GRID_AUTOFIT_MAX_WIDTH,
   addTaskGridColumn,
+  applyAutoFitWidths,
+  normalizeTaskGridColumnPreferences,
   computeTaskGridAutoFitWidth,
   moveTaskGridColumn,
   recentAvailableTaskColumnIds,
   removeTaskGridColumn,
   resizeTaskGridColumn,
+  sameTaskGridColumns,
   setTaskGridColumnPinned,
   taskGridAutoFitValueVersion,
 } from '@/engine/taskGrid/preferences';
@@ -20,6 +23,8 @@ import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { nextTaskGridMenuIndex } from '@/engine/taskGrid/menuNavigation';
 import { createEmptyGridSelection } from '@/engine/taskGrid/selection';
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
+import { startAutoFitScheduler } from '@/engine/taskGrid/autoFitScheduler';
+import { holdAutoCalc, isAutoCalcHeld, onAutoCalcReleased } from '@/state/editHold';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server.browser';
 
@@ -73,6 +78,107 @@ eq('Resize gebruikt de UX-grenzen 40..480', [
   resizeTaskGridColumn(initial, id('f-a'), -20).find(column => column.id === 'f-a')?.width,
   resizeTaskGridColumn(initial, id('f-a'), 9_000).find(column => column.id === 'f-a')?.width,
 ], [40, 480]);
+
+// Kolommen automatisch aanpassen: slepen markeert een kolom als handmatig, optimale breedte
+// (dubbelklik) wist die markering, en automatisch aanpassen laat een handmatige kolom ongemoeid.
+const dragged = resizeTaskGridColumn(initial, id('f-a'), 123, true);
+eq('Slepen zet manualWidth op die ene kolom',
+  dragged.map(column => `${column.id}:${column.width}:${column.manualWidth === true}`),
+  initial.map(column => `${column.id}:${column.id === 'f-a' ? 123 : column.width}:${column.id === 'f-a'}`));
+eq('Optimale breedte wist manualWidth (de sleutel verdwijnt, geen false)',
+  'manualWidth' in resizeTaskGridColumn(dragged, id('f-a'), 150, false).find(column => column.id === 'f-a')!,
+  false);
+eq('Resize zonder manual-argument laat de markering zoals ze was',
+  resizeTaskGridColumn(dragged, id('f-a'), 200).find(column => column.id === 'f-a')?.manualWidth, true);
+const autoFitted = applyAutoFitWidths(dragged, new Map([[id('f-a'), 300], [id('f-b'), 9_000], [id('p-a'), 10]]));
+eq('Automatisch aanpassen slaat een handmatige kolom over en klemt de rest op 40..480', [
+  autoFitted.find(column => column.id === 'f-a')?.width,
+  autoFitted.find(column => column.id === 'f-b')?.width,
+  autoFitted.find(column => column.id === 'p-a')?.width,
+  autoFitted.find(column => column.id === 'p-b')?.width,
+], [123, 480, 40, initial.find(column => column.id === 'p-b')?.width]);
+eq('De gedeelde kolomvergelijking ziet manualWidth, ook bij gelijke breedte', [
+  sameTaskGridColumns(dragged, dragged),
+  sameTaskGridColumns(dragged, resizeTaskGridColumn(dragged, id('f-a'), 123, false)),
+  sameTaskGridColumns(initial, resizeTaskGridColumn(initial, id('f-a'), 123, false).map(c => ({ ...c, width: initial.find(i => i.id === c.id)!.width }))),
+], [true, false, true]);
+// Review #851 ronde 2, blokkade 2: automatisch aanpassen wacht op een lopende bewerking (het
+// eigenschappenpaneel dat per toetsaanslag naar de store schrijft houdt `holdAutoCalc` vast) en meet
+// daarna één keer. Eigen klok en echte `editHold`.
+{
+  const timers: { fn: () => void; ms: number }[] = [];
+  const fire = async () => {
+    for (const timer of timers.splice(0)) timer.fn();
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+  };
+  const make = (run: () => Promise<'done' | 'blocked'>) => {
+    let runs = 0;
+    const cancel = startAutoFitScheduler({
+      delayMs: 250,
+      isHeld: isAutoCalcHeld,
+      onReleased: onAutoCalcReleased,
+      run: async () => { runs++; return run(); },
+      setTimer: (fn, ms) => { const t = { fn, ms }; timers.push(t); return t; },
+      clearTimer: handle => { const i = timers.indexOf(handle as typeof timers[number]); if (i >= 0) timers.splice(i, 1); },
+    });
+    return { cancel, runs: () => runs };
+  };
+
+  const plain = make(async () => 'done');
+  eq('Planner: zonder bewerking meet hij na de rust van 250 ms, één keer', [timers.length, timers[0]?.ms], [1, 250]);
+  await fire();
+  eq('Planner: één meting zonder bewerking', plain.runs(), 1);
+
+  const typing = holdAutoCalc(); // de gebruiker typt in het eigenschappenpaneel
+  const waiting = make(async () => 'done');
+  await fire();
+  eq('Planner: tijdens het typen geen meting', [waiting.runs(), isAutoCalcHeld()], [0, true]);
+  eq('Planner: tijdens het typen staat er geen nieuwe timer klaar', timers.length, 0);
+  typing(); // Enter of het veld verlaten
+  eq('Planner: na het typen volgt een nieuwe rustperiode', timers.length, 1);
+  await fire();
+  eq('Planner: na het typen precies één meting', waiting.runs(), 1);
+
+  let hold: (() => void) | null = null;
+  const midway = make(async () => {
+    if (!hold) { hold = holdAutoCalc(); return 'blocked'; } // een bewerking begint tijdens het meten
+    return 'done';
+  });
+  await fire();
+  eq('Planner: begint er onderweg een bewerking, dan wacht hij zonder timer', [midway.runs(), timers.length], [1, 0]);
+  hold!();
+  await fire();
+  eq('Planner: na die bewerking meet hij opnieuw', midway.runs(), 2);
+
+  let heldAtCheck: (() => void) | null = null;
+  const raced = make(async () => {
+    if (heldAtCheck === null) { heldAtCheck = () => undefined; return 'blocked'; } // al vrij vóór het wachten
+    return 'done';
+  });
+  await fire();
+  eq('Planner: was de blokkade al weg, dan plant hij direct opnieuw (geen eeuwig wachten)', [raced.runs(), timers.length], [1, 1]);
+  await fire();
+  eq('Planner: die tweede poging meet', raced.runs(), 2);
+
+  const cancelled = make(async () => 'done');
+  cancelled.cancel();
+  await fire();
+  eq('Planner: afbreken voor de timer afloopt meet niet', [cancelled.runs(), timers.length], [0, 0]);
+  const again = holdAutoCalc();
+  const cancelledWaiting = make(async () => 'done');
+  await fire();
+  cancelledWaiting.cancel();
+  again();
+  await fire();
+  eq('Planner: afbreken tijdens het wachten meet ook na het vrijgeven niet', [cancelledWaiting.runs(), timers.length], [0, 0]);
+}
+
+eq('manualWidth overleeft normalisatie (opslaan en laden); false of rommel verdwijnt',
+  normalizeTaskGridColumnPreferences([
+    { id: 'a', width: 100, pinned: false, manualWidth: true },
+    { id: 'b', width: 100, pinned: false, manualWidth: false },
+    { id: 'c', width: 100, pinned: false, manualWidth: 'ja' },
+  ])?.map(column => column.manualWidth === true), [true, false, false]);
 
 eq('MRU toont alleen nu beschikbare ids, behoudt volgorde en kapt af op tien',
   recentAvailableTaskColumnIds(
@@ -146,6 +252,18 @@ await computeTaskGridAutoFitWidth({
   cache: measureCache, measureText, chunkSize: 500, yieldToMain: async () => undefined,
 });
 eq('De per-rij/per-kolom/valueversion-cache voorkomt hermeting van alle datacellen', measured, 1);
+// Met de instelling "Kolommen automatisch aanpassen" telt de kop niet mee (20 px per teken).
+const shortRows = [{ rowKey: 'r1', valueVersion: 'v', text: 'Ja' }];
+const fitWith = (includeHeader?: boolean) => computeTaskGridAutoFitWidth({
+  columnId: id('task.time.isCritical'), headerText: 'Kritiek pad', rows: shortRows,
+  cache: new Map(), measureText: text => text.length * 5, includeHeader,
+});
+eq('Kop telt standaard mee: 11 tekens x 5 + 16 opvulling = 71', await fitWith(), 71);
+eq('Zonder kop bepaalt alleen de waarde de breedte, met ondergrens 40', await fitWith(false), 40);
+eq('Zonder kop volgt de breedte de breedste waarde: 20 tekens x 5 + 16 = 116', await computeTaskGridAutoFitWidth({
+  columnId: id('task.name'), headerText: 'Naam', rows: [{ rowKey: 'r1', valueVersion: 'v', text: 'x'.repeat(20) }],
+  cache: new Map(), measureText: text => text.length * 5, includeHeader: false,
+}), 116);
 eq('Auto-fit-cache-identiteit verandert met zichtbare tekst, font en document', [
   taskGridAutoFitValueVersion('WORKTIME', 'Werktijd', '12px sans-serif', 'doc-a'),
   taskGridAutoFitValueVersion('WORKTIME', 'Work time', '12px sans-serif', 'doc-a'),

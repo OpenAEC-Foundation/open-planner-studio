@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { X, Trash2 } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import {
   filterFieldList, fieldOptions, fieldKind, operatorsForKind, selectOptions,
@@ -15,6 +15,7 @@ import { loadLayouts, saveLayouts } from '@/utils/settingsStore';
 import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
 import type { FieldRef, FilterNode, FilterOperator, Layout } from '@/state/slices/types';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 export type GroupNode = Extract<FilterNode, { kind: 'group' }>;
 type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
@@ -180,7 +181,7 @@ function RuleEditor({
       </select>
       <RuleValueEditor rule={rule} ctx={ctx} onChange={onChange} />
       <button onClick={onRemove} title={t('delete')} style={{ color: 'var(--error)' }} className="flex-shrink-0">
-        <Trash2 size={13} />
+        <Icon id="edit.delete" size={13} />
       </button>
     </div>
   );
@@ -216,7 +217,7 @@ export function GroupEditor({
         </select>
         {depth > 0 && onRemove && (
           <button onClick={onRemove} title={t('delete')} style={{ color: 'var(--error)' }}>
-            <X size={13} />
+            <Icon id="list.item-remove" size={13} />
           </button>
         )}
       </div>
@@ -307,6 +308,8 @@ export function FilterDialog() {
     void loadLayouts().then(all => { if (!cancelled) setLayouts(all); });
     return () => { cancelled = true; };
   }, []);
+  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
   const fields = useMemo(() => filterFieldList(ctx), [ctx]);
@@ -384,7 +387,7 @@ export function FilterDialog() {
               className="btn btn--sm btn--secondary"
               style={{ color: selectedSavedFilterId ? 'var(--error)' : undefined }}
             >
-              <Trash2 size={13} />
+              <Icon id="edit.delete" size={13} />
             </button>
             <input
               value={savedFilterName}

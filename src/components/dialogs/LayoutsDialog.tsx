@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/state/appStore';
 import type { ParseKeys } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { GroupEditor, defaultGroup, type GroupNode } from './FilterDialog';
 import { LevelListEditor } from '@/components/viewControls/LevelListEditor';
 import { groupFieldList, sortFieldList, filterFieldList, fieldOptions } from '@/components/viewControls/fieldCatalog';
@@ -21,6 +21,7 @@ import { decodeFieldRef, encodeFieldRef } from '@/components/layout/Ribbon/ribbo
 import type { LayoutOverlays } from '@/types/view';
 import type { BarColorSelection } from '@/types/barColor';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
 /** Label- en tooltipsleutel per layoutdeel; de vijf klassieke delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
@@ -97,6 +98,10 @@ export function LayoutsDialog() {
   // de gebruiker hier een overlay omzet, gaan ze mee.
   const [overlaysStored, setOverlaysStored] = useState(true);
 
+  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): alleen de lijst
+  // verversen, niet wat de gebruiker hier invult. Opslaan schrijft dan de actuele lijst terug.
+  useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts); });
+
   useEffect(() => {
     let cancelled = false;
     void loadLayouts().then(all => {
@@ -155,7 +160,7 @@ export function LayoutsDialog() {
       data-tooltip-instant="true"
       style={{ color: 'var(--theme-text-dim)', display: 'inline-flex' }}
     >
-      <Info size={14} />
+      <Icon id="help.context-hint" size={14} />
     </span>
   );
 
