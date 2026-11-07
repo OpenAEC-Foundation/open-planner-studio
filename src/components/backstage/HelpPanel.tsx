@@ -38,6 +38,7 @@ import { applyDemoLibraryToShowcaseProject } from '@/state/demoLibraryShowcase';
 import { buildImportLabels } from '@/i18n/importLabels';
 import './HelpPanel.css';
 import { readLocal, removeLocal, writeLocal } from '@/utils/settingsStore';
+import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
 import { HELP_DOCS_LANG_KEY } from '@/utils/helpArticlePrompt';
 
@@ -94,8 +95,13 @@ export function HelpPanel() {
   // geen docstaal is, valt terug op Auto en wordt opgeruimd.
   const [docsLangOverride, setDocsLangOverride] = useState<HelpDocLang | null>(() => {
     const saved = readLocal(DOCS_LANG_KEY);
-    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY);
+    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY, 'start'); // opruimen, geen keuze
     return isHelpDocLang(saved) ? saved : null;
+  });
+  // Een nieuwere docstaal in de opslag (de host na de start, #818, of een ander tabblad): overnemen.
+  useStoredSettingRefresh(DOCS_LANG_KEY, () => {
+    const saved = readLocal(DOCS_LANG_KEY);
+    setDocsLangOverride(isHelpDocLang(saved) ? saved : null);
   });
   const uiDocs = resolveHelpDocLang(i18n.language, null);
   const { lang, fallback: uiLangFallback } = resolveHelpDocLang(i18n.language, docsLangOverride);
