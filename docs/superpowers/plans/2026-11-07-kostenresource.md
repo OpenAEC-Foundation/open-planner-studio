@@ -63,6 +63,14 @@ Bewust anders of preciezer dan hieronder, met de reden:
   formule toetst.
 - **Taakraster.** `costAmount` hoort bij de samengestelde kolom *Toegewezen resources* (`fieldCoverage.ts`);
   geen eigen bedragkolom (zoals gepland).
+- **Datums zoals opgeslagen (review 1).** Alleen een wijziging in het COST-lidmaatschap van `Task.resourceIds` is
+  datumneutraal (`recordedDateEditGate.ts`); een werktoewijzing verlaat de modus nog steeds. Toets:
+  `tests/mcp/cases-recorded-dates.ts` (MCP- en storeroutes, cascade).
+- **Contourkoppeling zonder COST (review 1).** Elke lijst gaat vóór `matchContoursToAssignments`,
+  `contourIndexForAssignment` of `contourLookup` door `contourSiblings` (`src/types/resource.ts`): belasting,
+  histogram, nivelleerder, contourdialoog, paneel, resourcediagram, rasterwaarschuwing, `setAssignmentContour` en de
+  werkregelbrug. Reden: de legacy-terugval telt de lijstlengte, dus een kostentoewijzing veranderde de betekenis van
+  een oude contour. Toets: blok I in `check-cost-resource.ts`.
 
 ## 1. Datamodel
 
