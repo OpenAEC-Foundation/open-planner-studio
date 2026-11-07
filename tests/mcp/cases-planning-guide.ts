@@ -98,7 +98,6 @@ test('de instructions bevatten de kernregels die een agent anders fout doet', ()
     'assumed',              // meld je aannames
     'planner_get_planning_guide',
     'progress-update',
-    'https://open-planner-studio.open-aec.com/agent/planning-guide.md',
   ];
   for (const n of needles) {
     assert(text.includes(n), `instructions missen "${n}"`);

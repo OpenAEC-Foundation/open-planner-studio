@@ -27,7 +27,6 @@ import { validate } from '@/state/mcpValidation';
 import { isAncestorRelation, relationKey } from '@/state/relationRules';
 import {
   ANCESTOR_RELATION_REJECTION,
-  LAG_DOC,
   LAG_SCHEMA,
   lagPatchOf,
   lagReport,
@@ -384,21 +383,9 @@ function affectedTaskIds(state: AppState, seqIds: string[], before: Map<string, 
 const updateDependencies: BatchStepTool = {
   name: 'planner_update_dependencies',
   description:
-    'CHANGE existing relationships by their sequence id — the route for "make it an SS", "set the lag to 2 ' +
-    'days" or "attach this relationship to another task". Use this instead of remove_dependencies + ' +
-    'add_dependencies: the sequence id stays valid and it is one undo step. The `seqId` appears in ' +
-    'get_project_overview / get_task after the `#` in the relationship notation ("→2.3 FS+2d #seq-7"). Per ' +
-    'item every field is OPTIONAL and only what is given changes (field merge): `type` ' +
-    '(FINISH_START|FINISH_FINISH|START_START|START_FINISH, or short FS/FF/SS/SF), `lag`, `predecessorId`, ' +
-    `\`successorId\`. ${LAG_DOC} A summary task (a task WITH subtasks) as the new predecessor/successor is ` +
-    'ALLOWED. Softly refused per item (the rest of the bulk carries on): an unknown `seqId`, an unknown ' +
-    'field (the refusal NAMES the key), an unknown task id, a relationship to itself, an ancestor ' +
-    'relationship (a new predecessor/successor that is the OWN ancestor summary task of the other end), a ' +
-    'change that would DUPLICATE an EXISTING relationship (same predecessor+successor+type), and an item ' +
-    'that changes nothing — the latter explicitly gets "there is nothing to change" instead of an `ok` ' +
-    'without effect. A CIRCULAR DEPENDENCY (possible as soon as you move an end point) is a hard error that ' +
-    'rolls back the whole call. Returns per changed relationship the real BEFORE/AFTER difference ' +
-    '(`changes`), the recalculated dates of the affected tasks and the new project end.',
+    'Change relationships by `seqId` (after `#` in the read tools); keeps the id, so use it instead of remove ' +
+    '+ add. Only given fields change. A summary task as new endpoint is ALLOWED. A link to an own ancestor ' +
+    'is refused; a cycle fails the whole call.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -408,20 +395,16 @@ const updateDependencies: BatchStepTool = {
       updates: {
         type: 'array',
         minItems: 1,
-        description: 'The relationships to change; one item per sequence id (duplicate seqIds are refused).',
         items: {
           type: 'object',
           required: ['seqId'],
           properties: {
-            seqId: {
-              type: 'string',
-              description: 'Sequence id of the relationship to change (the `#` suffix in the relationship notation of the read tools).',
-            },
+            seqId: { type: 'string' },
             // Gedeelde schema-fragmenten (sequenceFields.ts): identiek aan add_dependencies.
             type: SEQ_TYPE_SCHEMA,
             lag: LAG_SCHEMA,
-            predecessorId: { type: 'string', description: 'New predecessor (task id); omitted = unchanged.' },
-            successorId: { type: 'string', description: 'New successor (task id); omitted = unchanged.' },
+            predecessorId: { type: 'string' },
+            successorId: { type: 'string' },
           },
           additionalProperties: false,
         },

@@ -969,10 +969,11 @@ test('resourcenamen: toolbeschrijving laat de AI-client eerst de gebruiker om to
   assert(!!option, 'includeResourceNames staat in het invoerschema');
   assertEq(option.type, 'boolean', 'boolean');
   assertEq(option.default, false, 'standaard false');
-  for (const text of [tool.description, option.description as string]) {
-    assert(/ask the user for (explicit )?permission/i.test(text), 'toestemmingsinstructie aan de AI-client');
-    assert(/AI provider/i.test(text), 'legt uit waarom: namen gaan naar de AI-aanbieder');
-  }
+  // De regel staat één keer volledig, in de toolbeschrijving (eigenaarsbesluit 22-09); de optie verwijst ernaar (#818).
+  assert(/ask the user for (explicit )?permission/i.test(tool.description), 'toestemmingsinstructie aan de AI-client');
+  assert(/AI provider/i.test(tool.description), 'legt uit waarom: namen gaan naar de AI-aanbieder');
+  assert(/permission/i.test(option.description as string), 'de optie noemt de toestemming');
+  assert(/required for rawSource/i.test(option.description as string), 'de optie zegt dat rawSource haar ook vraagt');
 });
 
 await run();

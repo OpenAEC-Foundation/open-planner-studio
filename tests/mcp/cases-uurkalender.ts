@@ -231,6 +231,8 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
     { naam: 'gelijk begin en eind', workTime: week({ '1': [{ start: 480, end: 480 }] }), verwacht: /does not lie after/i },
     { naam: 'overlappende banden', workTime: week({ '2': [{ start: 480, end: 720 }, { start: 600, end: 960 }] }), verwacht: /overlap or are out of order/i },
     { naam: 'start buiten de dag', workTime: week({ '3': [{ start: 1500, end: 1600 }] }), verwacht: /falls outside the day/i },
+    // Het schema noemt de grenzen alleen nog in tekst (#818); de handler weigert ook een negatieve start.
+    { naam: 'negatieve start', workTime: week({ '3': [{ start: -30, end: 480 }] }), verwacht: /falls outside the day/i },
     { naam: 'eind voorbij 2880', workTime: week({ '4': [{ start: 1400, end: 3000 }] }), verwacht: /exceeds 2880/i },
     { naam: 'ontbrekende weekdag', workTime: { byWeekday: { '1': [{ start: 480, end: 960 }] } }, verwacht: /must contain ALL weekdays/i },
     { naam: 'verkeerde dagsleutel', workTime: week({ '8': [] }), verwacht: /unknown day key/i },

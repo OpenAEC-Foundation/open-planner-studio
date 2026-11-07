@@ -981,30 +981,25 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
     return { data: { calendars: rows }, itemRejections: rejections };
 }
 
-/** Eén weekdag in het `workTime.byWeekday`-schema (7× identiek; `[]` = niet-werkende dag). */
+/** Eén weekdag in het `workTime.byWeekday`-schema (7× identiek; `[]` = niet-werkende dag). Staat acht keer in
+ *  het schema; daarom zo kaal mogelijk: `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818).
+ *  De schemapoort toetst array-items niet (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven
+ *  weigert elke ongeldige band met een reden (`cases-uurkalender.ts`, test 3). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
-  description:
-    'Working-time bands of this weekday, ascending and non-overlapping. Empty list = non-working day.',
-  items: {
-    type: 'object',
-    required: ['start', 'end'],
-    properties: {
-      start: { type: 'number', minimum: 0, maximum: 1439, description: 'Start in MINUTES from midnight (07:00 = 420).' },
-      end: { type: 'number', minimum: 1, maximum: 2880, description: 'End in MINUTES from midnight of the START day; across midnight keeps counting (22:00→06:00 = 1800). Must be greater than `start`.' },
-    },
-  },
+  items: { type: 'object', required: ['start', 'end'] },
 } as const;
 
 const WORKTIME_SCHEMA = {
   type: ['object', 'null'],
-  description:
-    'HOUR calendar: working-time bands per ISO weekday in minutes from midnight. `null` = back to a DAY ' +
-    'calendar. NOTE: this redefines the duration of every task on this calendar (see the description).',
+  description: 'Makes an HOUR calendar; `null` = back to a DAY calendar.',
   properties: {
     byWeekday: {
       type: 'object',
-      description: 'All seven weekdays ("1" = Monday … "7" = Sunday) — a partial specification is refused.',
+      description:
+        'All seven keys "1" (Mon) … "7" (Sun) are required. Per day ascending, non-overlapping bands ' +
+        '{start, end} in MINUTES from midnight ([] = non-working): `start` 0–1439, `end` > `start` and ≤ 2880 ' +
+        '(counts on past midnight: 22:00–06:00 = 1320–1800).',
       properties: {
         '1': WORKTIME_DAY_SCHEMA, '2': WORKTIME_DAY_SCHEMA, '3': WORKTIME_DAY_SCHEMA, '4': WORKTIME_DAY_SCHEMA,
         '5': WORKTIME_DAY_SCHEMA, '6': WORKTIME_DAY_SCHEMA, '7': WORKTIME_DAY_SCHEMA,
@@ -1019,69 +1014,24 @@ const HOLIDAY_ITEM_SCHEMA = {
   required: ['name', 'startDate', 'endDate'],
   properties: {
     name: { type: 'string' },
-    startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
-    endDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
+    startDate: { type: 'string' },
+    endDate: { type: 'string', description: 'Inclusive.' },
   },
 } as const;
 
 const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
-    'Change or create work calendars (bulk — one call = one undo step). Per item: change an EXISTING ' +
-    'calendar id, or create an unknown id with `create: true` (an unknown id WITHOUT `create` is softly ' +
-    'refused). NOTE: calendar ids are PER DOCUMENT — an imported or other document rebuilds calendars via ' +
-    '`create`, it never reuses an id from another document. Holidays can be set in two ways: `generate` ' +
-    '(country/region/construction holiday — the generator materializes the days over the project span and ' +
-    'REPLACES the existing list) and/or `rawHolidays` (literal exceptions, e.g. frost days). NOTE — ' +
-    '`rawHolidays` ADDS by default: the given days are merged with the existing ones (deduplicated by date ' +
-    'range), nothing disappears. If you want to REMOVE a holiday or set the list exactly, pass ' +
-    '`holidaysMode: "replace"` — then the list becomes exactly `rawHolidays` (an EMPTY array clears all ' +
-    'holidays). An empty `rawHolidays` in add mode is softly refused, because it would do nothing. If raw ' +
-    'days are set, the generator provenance is cleared and the calendar is LITERAL from then on ' +
-    '(`becameLiteral: true` per item) — regenerating is then no longer possible. With `create: true` WITHOUT ' +
-    '`generate`/`rawHolidays`/`holidays` the new calendar inherits the holidays of the app default calendar ' +
-    '(in construction mode: the NL set); the response reports that per row as `holidaysFrom: "app-default"` ' +
-    'with `holidayCount`. If you want guaranteed NO holidays, pass `generate: { country: "none" }` or ' +
-    '`holidays: []`. TRANSFERRING A CALENDAR TO ANOTHER DOCUMENT: pass a calendar object from ' +
-    '`planner_get_calendars` back LITERALLY (with `create: true`). All read fields are accepted — `workTime` ' +
-    '(hour bands), `shift`, `generation` (provenance in the READ FORM: `ruleSetId`/`breakChoice`/years), ' +
-    '`holidays` (the complete list, which REPLACES the existing list exactly), the break pattern ' +
-    '`simpleBreakStartMinute`/`simpleBreakDurationMinutes` (minutes) and `workingExceptions` (working days, ' +
-    'replaces the list exactly). The derived read fields `isProjectDefault`/`usedByTasks`/`usedByResources` ' +
-    'and the library stamp `libraryOrigin` may come along but do nothing; the response reports them as ' +
-    '`ignoredFields`. BREAK: on a DAY calendar with a break, `hoursPerDay` is DERIVED from working day minus ' +
-    'break, just like the non-editable "Standard workday" in the calendar dialog. If you touch the break or ' +
-    'start/end, `hoursPerDay` follows automatically. More or fewer net hours means: change ' +
-    '`workStartHour`/`workEndHour` or `simpleBreakDurationMinutes`. A given `hoursPerDay` that does not ' +
-    'match working day minus break (to the minute) is softly refused, naming the fields you do need to ' +
-    'change; an equal value (as in a literal reading) does nothing. Without break fields (a legacy calendar) ' +
-    '`hoursPerDay` can simply be set. A break outside the working day or covering the whole day is softly ' +
-    'refused. Use `generate` (country/region/construction holiday) OR `generation` (provenance of days sent ' +
-    'along), never both — `generate` RUNS the generator over the project span of THIS document, `generation` ' +
-    'only writes the provenance. HOUR VS DAY CALENDAR: `workTime` turns it into an HOUR calendar (`null` ' +
-    'sets it back to DAY). A calendar change NEVER changes the chosen unit or native quantity of a task. ' +
-    'Start/finish distribution and project end can change, though; an hour task cannot be calculated without ' +
-    'concrete work blocks. The response reports a mode switch as `modeChangedFrom` and confirms with ' +
-    '`taskDurationsPreserved: true` that the task durations were not converted. `workDays` and `hoursPerDay` ' +
-    'follow the bands as soon as you pass `workTime` (as the calendar dialog does): `workDays` always, ' +
-    '`hoursPerDay` only if it was equal to the modal day sum of the bands before the change (on a DAY ' +
-    'calendar it always follows); a deliberate deviation (P6 `day_hr_cnt`) stays. If you pass them anyway, ' +
-    '`workDays` must not contradict the bands, and `hoursPerDay` wins. Passing ONLY `workDays` on an HOUR calendar ' +
-    'moves the bands along, as the weekday buttons in the calendar dialog do. New days are switched on ' +
-    'first, then the other days off. A day that becomes a working day gets a copy of the bands of the first ' +
-    'day with bands, searched in the order Sunday, Monday … Saturday; if no day has bands, it gets the ' +
-    "calendar's own single working day (`workStartHour`/`workEndHour` and break), and only if that gives " +
-    'nothing the standard day 07:00–12:00 + 13:00–16:00. A day that stops being a working day loses its ' +
-    'bands. `hoursPerDay` follows the new bands only if it was equal to the modal day sum of the bands ' +
-    'before the change; a deliberate deviation (P6 `day_hr_cnt`, e.g. bands 14:00–24:00 with 8 hours per day) stays. A ' +
-    '`hoursPerDay` you pass in the same item always wins. The working days are read from the ' +
-    'bands, so a calendar where they disagreed is repaired. KEEPING IN THE FILE (IFC): unused calendars survive IFC save+reload ' +
-    'even without task or resource assignments. There is no need to attach a task just to retain a calendar. ' +
-    'Hour bands survive IFC, also when they DIFFER PER ' +
-    'WEEKDAY (for example a short Friday). A calendar in which tasks no longer fit (e.g. a long holiday block) gives no ' +
-    'error but a prominent warning with `cappedTaskIds`. If, on the other hand, NO working time at all is ' +
-    'left (empty `workDays`, or `workTime` bands on no day at all), the recalculation fails and the whole ' +
-    'call is rolled back — a half calendar never ends up in the document.',
+    'Change calendars, or create one with `create: true` and your own `id` label (then use the returned `id`). ' +
+    'Ids are per document: never reuse one from another. Holidays: `generate` REPLACES the list with a country ' +
+    'set; `rawHolidays` ADDS days (existing ones stay); `holidaysMode: "replace"` makes the list exactly ' +
+    '`rawHolidays` (the only way to remove one); `holidays` replaces it exactly. Raw days end the generator ' +
+    'link (`becameLiteral`). `create` without holiday fields inherits the app default holidays; `holidays: []` ' +
+    '= none. A planner_get_calendars object can be passed back literally (`create: true` copies it). DAY ' +
+    'calendar with a break: `hoursPerDay` is derived, change the hours or the break. HOUR calendar ' +
+    '(`workTime`): `workDays` and, unless deliberately different, `hoursPerDay` follow the bands; a given ' +
+    '`hoursPerDay` wins. Task durations are never converted; dates can move. Unused calendars survive IFC ' +
+    'save+reload.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1092,128 +1042,99 @@ const updateCalendar: BatchStepTool = {
       calendars: {
         type: 'array',
         minItems: 1,
-        description: 'The calendars to change/create; everything in one transaction.',
         items: {
           type: 'object',
           required: ['id'],
           properties: {
-            id: { type: 'string', description: 'Existing calendar id; with `create: true` a freely chosen label (the real id comes back as `id`, your value as `requestedId`).' },
-            create: { type: 'boolean', description: 'Create the calendar if the id does not exist.' },
+            id: { type: 'string' },
+            create: { type: 'boolean' },
             name: { type: 'string' },
             description: { type: 'string' },
             workDays: {
               type: 'array',
               items: { type: 'integer', minimum: 1, maximum: 7 },
-              description: 'Working days as ISO weekday numbers (1 = Monday … 7 = Sunday). On an HOUR calendar ' +
-                'without `workTime` in the same item, the bands follow as in the calendar dialog: a new day ' +
-                'copies the first day with bands (order Sunday, Monday … Saturday), a dropped day loses its ' +
-                'bands. `hoursPerDay` follows the new bands only if it was equal to the modal day sum of the ' +
-                'bands before the change; a deliberate deviation stays. See the tool description for the fallbacks.',
+              description: '1 = Monday … 7 = Sunday. On an HOUR calendar without `workTime` a new day copies the ' +
+                'bands of the first day with bands (Sun, Mon … Sat).',
             },
-            workStartHour: { type: 'number', description: 'Start of the working day in HOURS (0–24), e.g. 7.' },
-            workEndHour: { type: 'number', description: 'End of the working day in HOURS (0–24), e.g. 16.' },
-            hoursPerDay: {
-              type: 'number',
-              description: 'Net working hours per working day (HOURS), e.g. 8. On a DAY calendar WITH a ' +
-                'break it is derived (working day minus break): a differing value is softly refused, an ' +
-                'equal one does nothing — change the working day or the break duration there. On an HOUR ' +
-                'calendar it may differ from the bands (P6 `day_hr_cnt`); changing `workDays` or `workTime` ' +
-                'without `hoursPerDay` keeps such a deviation.',
-            },
+            workStartHour: { type: 'number', description: 'HOURS (0–24).' },
+            workEndHour: { type: 'number', description: 'HOURS (0–24).' },
+            hoursPerDay: { type: 'number', description: 'Net hours.' },
             simpleBreakStartMinute: {
               type: 'integer', minimum: 0, maximum: 1439,
-              description: 'Start of the break on a DAY calendar, in MINUTES from midnight (12:30 = 750). Read field of get_calendars. The net hours (`hoursPerDay`) are derived from it, as in the calendar dialog.',
+              description: 'MINUTES from midnight (12:30 = 750).',
             },
             simpleBreakDurationMinutes: {
               type: 'integer', minimum: 0, maximum: 1440,
-              description: 'Break duration in MINUTES (0 = no break). Must fall within the working day and may not cover it completely. Read field of get_calendars.',
+              description: 'MINUTES; 0 = no break.',
             },
             workingExceptions: {
               type: 'array',
               description:
-                'Days that become WORKING (e.g. a make-up Saturday) — the COMPLETE list, exactly the read ' +
-                'field of planner_get_calendars; replaces the existing list (empty list = clear). Optionally ' +
-                'per exception `bands` in the same form as `workTime` (omitted = the normal working time of ' +
-                'the calendar).',
+                'Extra WORKING days; the complete list, replaces the existing one. `bands` as one `workTime` day; ' +
+                'omitted = normal hours.',
               items: {
                 type: 'object',
                 required: ['name', 'startDate', 'endDate'],
                 properties: {
                   name: { type: 'string' },
-                  startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
-                  endDate: { type: 'string', description: 'ISO date (YYYY-MM-DD), inclusive.' },
+                  startDate: { type: 'string' },
+                  endDate: { type: 'string', description: 'Inclusive.' },
                   bands: WORKTIME_DAY_SCHEMA,
                 },
               },
             },
             generate: {
               type: 'object',
-              description: 'Generator basis for holidays. Updating covers the year before the project start ' +
-                'through the year after the later of the entered and calculated project ends; without ' +
-                'either end, through start year + 3. Creating always uses start year - 1 through start year + 3.',
+              description: 'Covers project start year − 1 through the year after the project end (no end, or ' +
+                'on create: start year + 3).',
               required: ['country'],
               properties: {
                 country: {
                   type: 'string',
                   enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US', 'none'],
-                  description:
-                    'Country code of the holiday set — UPPERCASE, exactly one of the listed values. `none` = ' +
-                    'no holiday set: that CLEARS the generated days (and the provenance).',
+                  description: '`none` clears the generated days.',
                 },
-                region: { type: 'string', description: 'Federal state/region/canton; omitted = national.' },
-                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL only; default `geen` (none).' },
+                region: { type: 'string', description: 'State/region/canton; omitted = national.' },
+                bouwvak: { type: 'string', enum: ['geen', 'noord', 'midden', 'zuid'], description: 'NL construction holiday.' },
               },
             },
             holidaysMode: {
               type: 'string',
               enum: ['merge', 'replace'],
-              description:
-                '`merge` (default) = ADD `rawHolidays` to the existing holidays. `replace` = set the holiday ' +
-                'list exactly to `rawHolidays` — this is the ONLY way to remove a holiday; an empty ' +
-                '`rawHolidays` then clears them all.',
+              description: 'For `rawHolidays`; default merge.',
             },
             rawHolidays: {
               type: 'array',
-              description:
-                'Literal exceptions (frost days, company closure). ADDS by default (nothing disappears); ' +
-                'with `holidaysMode: "replace"` this list replaces the existing one completely. Raw days ' +
-                'clear the generator provenance.',
+              description: 'Days off (frost, company closure); ISO dates.',
               items: HOLIDAY_ITEM_SCHEMA,
             },
             holidays: {
               type: 'array',
               description:
-                'The COMPLETE holiday list — exactly the read field of planner_get_calendars. Replaces the ' +
-                'existing list precisely (empty list = no holidays). For transferring a calendar between ' +
-                'documents; combine with `generation` to take the provenance along too. Not together with ' +
-                '`rawHolidays`/`holidaysMode`/`generate`.',
+                'The complete list. Not with `rawHolidays`/`holidaysMode`/`generate`.',
               items: HOLIDAY_ITEM_SCHEMA,
             },
             workTime: WORKTIME_SCHEMA,
             shift: {
               type: ['string', 'null'],
               enum: ['FIRST', 'SECOND', 'THIRD', 'USERDEFINED', null],
-              description: 'Shift classification (IFC `PredefinedType`); `null` clears it. Read field of get_calendars.',
             },
             generation: {
               type: ['object', 'null'],
               description:
-                'Provenance metadata in the READ FORM of get_calendars — only records WHERE the holidays ' +
-                'sent along come from, and does NOT run the generator. `null` clears the provenance (the ' +
-                'calendar becomes literal). Not together with `generate`.',
+                'Provenance only, as read; does NOT generate. Not with `generate`.',
               required: ['ruleSetId', 'generatedFromYear', 'generatedToYear'],
               properties: {
-                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'], description: 'Country set that produced the dates.' },
-                region: { type: 'string', description: 'Federal state/region/canton; omitted = national.' },
-                breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'], description: 'NL construction holiday (bouwvak); omitted = none.' },
-                generatedFromYear: { type: 'integer', description: 'First materialized year (incl.).' },
-                generatedToYear: { type: 'integer', description: 'Last materialized year (incl.).' },
+                ruleSetId: { type: 'string', enum: ['NL', 'DE', 'BE', 'FR', 'UK', 'AT', 'CH', 'US'] },
+                region: { type: 'string' },
+                breakChoice: { type: 'string', enum: ['noord', 'midden', 'zuid'] },
+                generatedFromYear: { type: 'integer' },
+                generatedToYear: { type: 'integer' },
               },
             },
-            isProjectDefault: { type: 'boolean', description: 'DERIVED read field of get_calendars — may come along, is ignored (comes back as `ignoredFields`).' },
-            usedByTasks: { type: 'integer', description: 'DERIVED read field of get_calendars — may come along, is ignored.' },
-            usedByResources: { type: 'integer', description: 'DERIVED read field of get_calendars — may come along, is ignored.' },
-            libraryOrigin: { type: 'object', description: 'Library stamp from get_calendars (belongs to the SOURCE document) — may come along, is ignored (comes back as `ignoredFields`); linking to the library goes through the app.' },
+            // De afgeleide leesvelden van get_calendars (`CAL_READONLY_KEYS`) staan bewust NIET in het schema: ze
+            // zijn niet schrijfbaar. `items` heeft geen `additionalProperties: false`, dus een teruggestuurd object
+            // blijft geldig; de handler meldt ze als `ignoredFields` (#818).
           },
         },
       },
@@ -1493,22 +1414,11 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
 const manageAssignments: BatchStepTool = {
   name: 'planner_manage_assignments',
   description:
-    'Manage resource assignments in bulk (one call = one undo step). One `action` per item: `add` (`taskId`, ' +
-    '`resourceId`, `unitsPerDay` = units per WORKING DAY where 1 = 100% / one person, optionally `curve` and ' +
-    '`remainingWorkMinutes`), `update` (`assignmentId` + `unitsPerDay`, `curve` and/or ' +
-    '`remainingWorkMinutes`), `move` (`assignmentId` to another `taskId`) or `remove` (`assignmentId`). The ' +
-    'ids and field names are exactly those of the read tools (get_task/list_resources), so you can put them ' +
-    'straight back. TASK TYPE (`workRule` on the task — see planner_update_tasks): work = ' +
-    'remaining duration × units, and the rule determines which corner moves along. Under ' +
-    'FIXED_WORK/FIXED_RATE a `unitsPerDay` change or adding/removing a resource therefore changes the TASK ' +
-    'DURATION; `remainingWorkMinutes` (remaining work in work minutes, > 0) lengthens/shortens the task ' +
-    '(units protected) or changes the units (duration protected). Under the default rule FIXED_DURATION_RATE ' +
-    'a units change leaves the duration alone and `remainingWorkMinutes` only rewrites the units (U = W / ' +
-    'D). The response reports the project end; read the task again for the new duration. Assigning is only ' +
-    'possible on a LEAF TASK (no milestone, no summary task) and the same resource may only be on the same ' +
-    'task once — a second assignment would double-count the load and is softly refused, also when the ' +
-    'duplicate is within this one call. Refused items come back in `itemRejections`; the valid items simply ' +
-    'stay.',
+    '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + fields; `move`: `assignmentId` ' +
+    'to `taskId`; `remove`: `assignmentId`. Only on leaf tasks (no milestone); a resource once per task. Under ' +
+    'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the task DURATION; under ' +
+    'the default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. Read the task again for its ' +
+    'duration. One call is one undo step.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -1518,29 +1428,21 @@ const manageAssignments: BatchStepTool = {
       actions: {
         type: 'array',
         minItems: 1,
-        description: 'The assignment actions to run, in order.',
         items: {
           type: 'object',
           required: ['action'],
           properties: {
             action: { type: 'string', enum: ['add', 'update', 'move', 'remove'] },
-            taskId: { type: 'string', description: 'For `add`: the leaf task. For `move`: the NEW leaf task.' },
-            resourceId: { type: 'string', description: 'Only for `add`.' },
-            assignmentId: { type: 'string', description: 'For `update`/`move`/`remove`; exactly the id from the read tools.' },
-            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Units per WORKING DAY (1 = 100% = one person/piece; 0.5 = half a day).' },
-            curve: {
-              type: 'string',
-              enum: [...RESOURCE_CURVES],
-              description: 'Distribution curve over the duration (the eight MS Project/P6 shapes); omitted = UNIFORM.',
-            },
+            taskId: { type: 'string' },
+            resourceId: { type: 'string' },
+            assignmentId: { type: 'string' },
+            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: '1 = one person full time.' },
+            curve: { type: 'string', enum: [...RESOURCE_CURVES], description: 'Omitted = UNIFORM.' },
             remainingWorkMinutes: {
               type: 'number',
               exclusiveMinimum: 0,
               description:
-                'For `add` or `update`: REMAINING work of this assignment in WORK minutes (8 hours = 480). ' +
-                'The task type of the task (`workRule`) determines what moves along: the duration (FIXED_WORK/FIXED_RATE) ' +
-                'or the units (FIXED_DURATION_*). Only on an ordinary leaf task on working time; material ' +
-                'does not count towards the duration.',
+                'Remaining work in WORK minutes (8 h = 480).',
             },
           },
         },
@@ -1711,36 +1613,20 @@ function levelResourcesCore(ctx: McpContext, p: { options: LevelingOptions; dryR
 const levelResources: BatchStepTool = {
   name: 'planner_level_resources',
   description:
-    'Level resource peaks by shifting tasks within their float (or beyond it). `constrainToFloat: true` ' +
-    '(default) = smooth WITHIN the float: the project end date is sacred and peaks that cannot be resolved ' +
-    'stay. `constrainToFloat: false` = the end date may move; the response then reports that shift ' +
-    'prominently in `projectEndDelta` and `warnings`. With `resourceIds` you restrict it to certain ' +
-    'resources (material is always skipped); with `dryRun: true` you get a complete PREVIEW without changing ' +
-    'anything at all — recommended before you apply. The response always contains the complete result: ' +
-    '`delays` (applied delay in working days), `shifts` (every task whose start moves), `unresolved` + ' +
-    '`unresolvedReasons` (WHY a peak remained) and the project end before/after. Leveling first resets ' +
-    'itself completely, so running it again does not stack.',
+    'Level resource overloads by delaying tasks. Default `constrainToFloat: true` stays within total float ' +
+    '(end fixed; remaining peaks in `unresolved`); `false` may move the end (`projectEndDelta`). Material is ' +
+    'never leveled. Try `dryRun: true` first. Resets earlier leveling itself, so reruns do not stack.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
-      constrainToFloat: {
-        type: 'boolean',
-        description: 'true (default) = only shift within the total float, the end date stays sacred. false = the end date may shift.',
-      },
-      resourceIds: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Restrict to these resources; omitted = all renewable resources (material never counts).',
-      },
+      constrainToFloat: { type: 'boolean' },
+      resourceIds: { type: 'array', items: { type: 'string' }, description: 'Omitted = all renewable resources.' },
       dryRun: {
         type: 'boolean',
-        description:
-          'true = preview only: nothing is leveled and no undo step is created. Note: a schedule that has ' +
-          'not been calculated yet is still recalculated FIRST in that case (otherwise the before/after ' +
-          'dates would not be right); `recomputed` reports that.',
+        description: 'Preview only; changes nothing.',
       },
     },
   },
@@ -1799,9 +1685,7 @@ function clearLevelingCore(ctx: McpContext): MutationOutcome {
 const clearLeveling: BatchStepTool = {
   name: 'planner_clear_leveling',
   description:
-    'Clear all leveling delays, so every task is back on its unleveled date. Note: `planner_level_resources` ' +
-    'resets the delays ITSELF before it calculates — so running this tool beforehand is pointless. Only use ' +
-    'it to undo an earlier leveling without calculating a new one.',
+    'Remove all leveling delays.',
   kind: 'mutate',
   batchable: true,
   // GEEN destructiveHint: die annotatie staat op een GESLOTEN lijst (delete_tasks,
@@ -2009,31 +1893,13 @@ function updateProjectCore(
 const updateProject: BatchStepTool = {
   name: 'planner_update_project',
   description:
-    'Change project details: `name`, `description`, `author`, `company`, `statusDate` (the reporting date on ' +
-    'which progress is recorded — WITHOUT this date the progress path of update_tasks refuses), `endDate` ' +
-    '(the contractual/desired end date — pure metadata, it enforces NOTHING in the schedule; it does steer the span of ' +
-    'holidays generated by planner_update_calendar `generate`; an empty string clears it), `defaultWorkRule` (project default task type for tasks without their own `workRule`; null = ' +
-    'FIXED_DURATION_RATE), `progressMode` (RETAINED_LOGIC or PROGRESS_OVERRIDE — how the solver handles ' +
-    'out-of-sequence work; null = back to the default RETAINED_LOGIC) and `startDate`. An UNKNOWN field is ' +
-    'refused with the allowed list — nothing is ever silently thrown away. IMPORTANT about `startDate`: it ' +
-    'is the anchor for tasks still to be CREATED and does not shift the REST of the existing schedule — no ' +
-    'task FINISH moves along, except the finish of the clamped anchors themselves, which moves along ' +
-    'preserving duration. There is one targeted exception (edit protection, not a Δ shift): a ' +
-    'LATER `startDate` clamps existing task anchors that have no predecessor and no constraint and lie ' +
-    'before the new start date forward TO that date (the response reports `anchorsClamped`) — so a root task ' +
-    'does not silently stay hanging before the official project start after moving the start. A task with a ' +
-    'predecessor, a constraint, or a start after the new date stays untouched. If you want to shift the ' +
-    'WHOLE existing schedule (every anchor, every task) by Δ days, use `planner_move_project`. So set ' +
-    '`startDate` before add_tasks, not after. EQUALLY IMPORTANT about `statusDate`: it is NOT a passive ' +
-    'label but the DATA DATE from P6/MSP, and it RESCHEDULES the schedule. Work that has not started yet ' +
-    '(completion 0) may no longer lie before the status date and is pushed forward to that date; on a ' +
-    'schedule WITHOUT any progress EVERYTHING therefore moves along — including the first milestone — and ' +
-    'the project end jumps by the same amount, while `startDate` simply stays. So only set a status date ' +
-    'when you are actually going to record progress. The response reports the project end before AND after ' +
-    'this call under `statusDateEffect`, so you see that shift. `statusDate: null` (or an empty string) ' +
-    'clears the status date — do that deliberately: without a reporting date, actuals already recorded ' +
-    'become inert (the solver no longer pins to them) and calculated dates can shift on the next ' +
-    'recalculation.',
+    'Change project details. `startDate` anchors NEW tasks and does not shift the schedule (set it before ' +
+    'planner_add_tasks); a later one only clamps root tasks without predecessor or constraint forward ' +
+    '(`anchorsClamped`). To shift the ' +
+    'whole schedule use planner_move_project. `statusDate` is the DATA DATE: unstarted work (completion 0) ' +
+    'cannot lie before it, so it moves the schedule and the project end even without progress; set it only ' +
+    'to record progress (`statusDateEffect`). Clearing it makes recorded actuals inert. `endDate` enforces ' +
+    'nothing but sets the span of generated holidays.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -2044,30 +1910,23 @@ const updateProject: BatchStepTool = {
       description: { type: 'string' },
       author: { type: 'string' },
       company: { type: 'string' },
-      startDate: { type: 'string', description: 'ISO date (YYYY-MM-DD). Anchor for NEW tasks; does NOT shift existing tasks.' },
-      endDate: { type: 'string', description: 'Desired/contractual end date as an ISO date (YYYY-MM-DD); an empty string clears it. Metadata — enforces nothing in the schedule.' },
+      startDate: { type: 'string', description: 'YYYY-MM-DD.' },
+      endDate: { type: 'string', description: 'YYYY-MM-DD; "" clears.' },
       statusDate: {
         type: ['string', 'null'],
-        description:
-          'ISO date (YYYY-MM-DD) — with hour planning a time to the minute is allowed (YYYY-MM-DDTHH:mm) — ' +
-          'or null to clear it. This is the DATA DATE: unstarted work (completion 0) is pushed forward to ' +
-          'this date, so setting it shifts the whole schedule and the project end even without any progress.',
+        description: 'DATA DATE: YYYY-MM-DD, or YYYY-MM-DDTHH:mm in an hour schedule; null or "" clears.',
       },
       progressMode: {
         type: ['string', 'null'],
         enum: ['RETAINED_LOGIC', 'PROGRESS_OVERRIDE', null],
-        description: 'Progress scheduling mode; null = back to the default RETAINED_LOGIC.',
+        description: 'Out-of-sequence progress; null = RETAINED_LOGIC.',
       },
       defaultWorkRule: {
         type: ['string', 'null'],
         enum: [...WORK_RULES, null],
         description:
-          'Project default task type (`workRule`) for tasks without their own `workRule` — see ' +
-          'planner_update_tasks `fields.workRule` for the four values. null = the default ' +
-          'FIXED_DURATION_RATE. A FIXED_WORK task always has the hour measure: switching the default to ' +
-          'FIXED_WORK converts every task without its own `workRule` from the day measure to the hour measure ' +
-          '(days × working time per day; listed in `hourMeasureTaskIds`) and recalculates. Switching back ' +
-          'keeps the hour measure. Any other switch changes no number.',
+          'For tasks without own `workRule`; null = FIXED_DURATION_RATE. FIXED_WORK converts those tasks to ' +
+          'hours (also after switching back).',
       },
     },
     additionalProperties: false,
@@ -2191,21 +2050,16 @@ function moveProjectCore(ctx: McpContext, p: { newStartDate: string; shiftBaseli
 const moveProject: BatchStepTool = {
   name: 'planner_move_project',
   description:
-    'Shift the WHOLE existing schedule so that the project starts on `newStartDate`: all tasks and resource ' +
-    'dates move along. This is the opposite of `planner_update_project.startDate` (which only sets the ' +
-    'anchor for new tasks). Note: the CALENDARS deliberately do NOT move along — holidays and construction ' +
-    'holiday lie on fixed dates, so the end date can jump by a DIFFERENT number of days than the shift ' +
-    'itself; the response reports both. The anchors of external (cross-project) links do NOT move either: ' +
-    'an anchor is a date of the other project, which does not move. Baselines stay put by default (a ' +
-    'baseline exists to measure deviation); with `shiftBaselines: true` they move along.',
+    'Shift the whole schedule to start on `newStartDate`. Calendars stay, so the end can move by a different ' +
+    'number of days. Baselines move only with `shiftBaselines: true`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
     properties: {
-      newStartDate: { type: 'string', description: 'New project start as an ISO date (YYYY-MM-DD).' },
-      shiftBaselines: { type: 'boolean', description: 'Let saved baselines move along; default false.' },
+      newStartDate: { type: 'string', description: 'YYYY-MM-DD.' },
+      shiftBaselines: { type: 'boolean' },
     },
     required: ['newStartDate'],
   },
@@ -2267,17 +2121,13 @@ const moveProject: BatchStepTool = {
 const saveBaseline: McpToolDef = {
   name: 'planner_save_baseline',
   description:
-    'Record the current schedule as a baseline and make it active right away; later deviations are measured ' +
-    'against it with compare_baseline/analyze_delay. If the schedule is out of date OR has never been ' +
-    'calculated (e.g. after crash recovery), it is recalculated first so that the baseline is on fresh dates ' +
-    '(`recomputed` reports that). This tool can NOT run as a step in a batch: a baseline should be a ' +
-    'separate, deliberate measurement. Without `name` the baseline gets an incrementing default name.',
+    'Save the current schedule as the new active baseline. Not allowed in planner_batch.',
   kind: 'mutate',
   batchable: false,
   annotations: { ...WRITE_ANNOTATIONS },
   inputSchema: {
     type: 'object',
-    properties: { name: { type: 'string', description: 'Name of the baseline; omitted = "Baseline N".' } },
+    properties: { name: { type: 'string', description: 'Default "Baseline N".' } },
   },
   async handler(args, ctx) {
     const a = (args ?? {}) as { name?: unknown };

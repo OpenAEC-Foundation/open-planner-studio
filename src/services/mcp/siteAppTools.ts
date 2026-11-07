@@ -32,19 +32,15 @@
 // uitvoering (`linksTooLarge`). Ook een foutantwoord blijft binnen de grens (`boundedFailure`).
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from './contracts';
 import { createRequestHandler, type McpResponseEvent } from './requestHandler';
+import { toolListEntry, type ListedTool } from './toolListing';
 
 export const SITE_APP_UNAVAILABLE_TOOLS: ReadonlySet<string> = new Set(['planner_export_ifc', 'planner_import_schedule']);
 
 /** Zoveel tekens mag het antwoord van een leestool met paginering hoogstens hebben (het contract: ~30.000). */
 export const SITE_APP_MAX_RESPONSE_CHARS = 30_000;
 
-/** Een tooldefinitie zoals de site hem leest: dezelfde velden als een regel uit `tools/list`. */
-export interface SiteAppToolDefinition {
-  name: string;
-  description: string;
-  inputSchema: object;
-  annotations: McpToolDef['annotations'];
-}
+/** Een tooldefinitie zoals de site hem leest: precies een regel uit `tools/list` (`toolListing.ts`). */
+export type SiteAppToolDefinition = ListedTool;
 
 export interface SiteAppTools {
   /** De namen van de tools die hier werken. */
@@ -83,7 +79,7 @@ export class SiteAppToolError extends Error {
 export function siteAppToolDefinitions(defs: readonly McpToolDef[]): SiteAppToolDefinition[] {
   return defs
     .filter((def) => !SITE_APP_UNAVAILABLE_TOOLS.has(def.name))
-    .map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, annotations }));
+    .map(toolListEntry);
 }
 
 /** De inhoud van `mcp-tools.json` naast de platformbundel (`scripts/export-mcp-tools.ts`). */

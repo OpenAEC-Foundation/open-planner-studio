@@ -433,22 +433,12 @@ function checkExclusions(steps: ParsedStep[]): string | null {
 const batch: McpToolDef = {
   name: 'planner_batch',
   description:
-    'Run a RUNBOOK of at most 100 tool steps as ONE atomic change: one undo step for the user, one ' +
-    'recalculation, one backup. The steps run synchronously and in order in the active document. If one step ' +
-    'fails structurally (unknown tool, invalid args, circular dependency, open dialog), the WHOLE batch is ' +
-    'rolled back and the error reports per step what was executed, failed or not reached. Per-item refusals ' +
-    'inside a bulk step (e.g. one invalid progress line out of twenty) are soft: that step succeeds and the ' +
-    'refusals are listed at the top of the answer under `rejections`. TEMP IDS: inside a batch every tempId ' +
-    'MUST start with "tmp-" or "tmp_" (e.g. "tmp-foundation") — any other form makes the batch fail. An ' +
-    '`add_tasks` step yields a tempId→id map; every string value in LATER steps that is exactly such a ' +
-    'registered tempId is automatically replaced by the real id (also when deeply nested). Free text is ' +
-    'always left alone: under `name`, `description`, `notes`, `title`, `code`, `wbsCode` and the like ' +
-    'nothing is ever replaced. The map only applies INSIDE this batch; a next batch starts empty. READ ' +
-    'STEPS: only a FINAL read step is useful, because all args are fixed at the moment of submission; an ' +
-    'early read cannot feed later steps. So look up names→IDs with separate read calls BEFORE the batch. ' +
-    'EXCLUDED: planner_batch itself, undo/redo, the document and file tools (import/export) and ' +
-    'save_baseline — call those on their own. This is not a scripting language: no variables, conditions or ' +
-    'loops.',
+    'Run up to 100 tool steps in order as ONE change (one undo step, one recalculation, one backup); use it for a ' +
+    'coherent series. A failing step rolls back the WHOLE batch; per-item refusals are soft (`rejections`). ' +
+    'In LATER steps of this batch every string equal to a tempId (`tmp-…`) becomes the real id (not in free ' +
+    'text). Args ' +
+    'are fixed at submission, so only a final read step is useful: look up ids before. Not allowed as a ' +
+    'step: planner_batch, undo/redo, document and file tools, planner_save_baseline.',
   kind: 'batch',
   batchable: false,
   annotations: {
@@ -466,13 +456,12 @@ const batch: McpToolDef = {
         type: 'array',
         minItems: 1,
         maxItems: MAX_BATCH_STEPS,
-        description: 'The steps, in execution order. At most 100.',
         items: {
           type: 'object',
           required: ['tool'],
           properties: {
-            tool: { type: 'string', description: 'Name of the tool, including the `planner_` prefix.' },
-            args: { type: 'object', description: 'The args of that tool; omit for tools without args.' },
+            tool: { type: 'string', description: 'Full name, e.g. planner_add_tasks.' },
+            args: { type: 'object' },
           },
         },
       },
