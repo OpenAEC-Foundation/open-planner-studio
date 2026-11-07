@@ -63,7 +63,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 1 (v1) | 6 | 6 | 7 |
 | 2 (v2) | 6 | 6 | 7 |
 | 3 (v3) | 6 | 6 | 8 |
-| 4 (v4) | 7 | loopt | 7 |
+| 4 (v4) | 7 | 6 | 7 |
+| 5 (v5) | loopt | loopt | loopt |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -75,7 +76,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 4 — Opus (7/10, "daarna 8 tot 9"), te verwerken in v5
+### Ronde 4 — Opus (7/10, "daarna 8 tot 9") — verwerkt in v5 (Sol 6: ook ifcSource zonder vreemd deel, register i.p.v. OPS_-prefix, crash tussen opslaan en manifest; spec §12)
 
 Blokkeert (tekstfixes): (1) Ext mag niet door D ∪ R heen lopen (anders wordt de TaskTime en eigen owner history van een
 gekoppelde taak C en stapelt per opslaan een wees op; proef `scratchpad/r4/k1..k3.ifc`, fix `scratchpad/r4/classify-stop.py`);
@@ -174,10 +175,11 @@ getalprecisie; grens zonder meting; inschatting te optimistisch; foute commit in
 - Ecosysteem: `ifcx_alpha`; namespace per programma (`ocss::`, `oses::`, `openbim::`, `openaec::`); ifcx-explorer
   `openaec::activity` + `openaec::links`; UUID v5 = GlobalId (128 bits). IFCCAD: alleen IFCX/CBOR, bewaart bronbytes.
 
-## Voorproef indeling v4
+## Voorproef indeling (v5)
 
-`scripts/proef/classify-v4.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 letterlijk uit. Uitkomst
-7 november: alle eigen voorbeeldbestanden 100 % P; vier IFC5-modellen (ook TeklaHouse, 19 MB) 100 % V. Basis voor fase 0.
+`scripts/proef/classify-v5.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 letterlijk uit. Uitkomst
+7 november: alle eigen voorbeeldbestanden 100 % P; vier IFC5-modellen (ook TeklaHouse, 19 MB) 100 % V; proefbestanden
+van de council (`scratchpad/r4/k*.ifc`, `scratchpad/proef/bonsai-achtig.ifc`) zonder `IfcTaskTime` in C. Basis voor fase 0.
 
 ## Omgeving en valkuilen
 

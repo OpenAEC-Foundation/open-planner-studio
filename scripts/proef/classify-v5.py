@@ -1,5 +1,5 @@
-# Indeling volgens ontwerp v4 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
-# Fase-0-voorproef (ontwerp #804 v4 §4.2). Draaien: python3 -I scripts/proef/classify-v4.py <bestand.ifc>
+# Indeling volgens ontwerp v5 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Fase-0-voorproef (ontwerp #804 v5 §4.2). Draaien: python3 -I scripts/proef/classify-v5.py <bestand.ifc>
 import re, sys
 from collections import defaultdict, Counter
 t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
@@ -40,9 +40,15 @@ IFCGEOMETRICREPRESENTATIONCONTEXT IFCCARTESIANPOINT IFCAXIS2PLACEMENT3D IFCAPPLI
 IFCCONSTRUCTIONMATERIALRESOURCE IFCCONSTRUCTIONPRODUCTRESOURCE IFCLABORRESOURCE IFCCREWRESOURCE IFCSUBCONTRACTRESOURCE
 IFCCONSTRUCTIONRESOURCE IFCTASKTIMERECURRING'''.split())
 RES = {k for k in W if k.endswith('RESOURCE')}
+REG = set('''OPS_ActivityCodes OPS_Analysis OPS_Assignments OPS_Baselines OPS_Calendar OPS_Constraints OPS_CustomFields
+OPS_DayMeasureDurations OPS_DayMeasureLags OPS_ExactMinutes OPS_ExternalLink OPS_Hammock OPS_ImportProvenance OPS_LagCalendar
+OPS_Leveling OPS_Library OPS_LiteralCalendars OPS_ManualScheduling OPS_Milestone OPS_MspTaskType OPS_Project OPS_ProjectSettings
+OPS_Resource OPS_Resume OPS_SchedulingOptions OPS_SchedulingProfile OPS_Sequences OPS_StructureMeta OPS_Summary
+OPS_TaskAppearance OPS_TaskDurationUnit OPS_TaskIdentity OPS_TaskNotes OPS_TaskSplits OPS_TaskTypes OPS_Timephased
+OPS_TimephasedContours OPS_TimephasedDurationWalks OPS_TimephasedWindow OPS_WorkRule OPS_XerDocument OPS_XerSourceArchive'''.split())
 # --- Stap 1: D (huidige lezerregels) ---
 sched = {i for i in ents if ty[i] == 'IFCWORKSCHEDULE'}
-base = {i for i in sched if 'BASELINE' in ents[i][1]}
+base = {i for i in sched if '.BASELINE.' in args[i][-1]}
 live = sched - base
 nest = defaultdict(list)
 for i in ents:
@@ -62,25 +68,26 @@ def tasks_of(sc):
     return tree(todo)
 live_tasks = tasks_of(live); base_tasks = tasks_of(base)
 alltasks = {i for i in ents if ty[i] == 'IFCTASK'}
-excl = base_tasks if live_tasks else set()
+excl = (base_tasks - live_tasks) if live_tasks else set()
 plans = {i for i in ents if ty[i] == 'IFCWORKPLAN'}
 agg_sched = set()
 for i in ents:
     if ty[i] == 'IFCRELAGGREGATES' and r1(i, 4) in plans: agg_sched |= {x for x in rl(i, 5) if x in sched}
-D = plans | live | (base & agg_sched) | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
-if (base & agg_sched): D |= base_tasks  # eigen baselines: hun takenboom hoort bij de writer
+has_ops_baselines = any(ty[i] == 'IFCPROPERTYSET' and name(i) == 'OPS_Baselines' for i in ents)
+own_base = {b for b in base & agg_sched if has_ops_baselines and not tasks_of({b})}
+D = plans | live | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
 proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
 # --- Stap 2: R ---
 def ok(i):
     T = ty[i]
     if T == 'IFCRELNESTS': return r1(i, 4) in D and all(x in D for x in rl(i, 5))
-    if T == 'IFCRELASSIGNSTOCONTROL': return r1(i, 6) in D and all(x in D for x in rl(i, 4))
+    if T == 'IFCRELASSIGNSTOCONTROL': return r1(i, 6) in D and ty[r1(i, 6)] in ('IFCWORKSCHEDULE', 'IFCWORKCALENDAR') and all(x in D and (ty[x] == 'IFCTASK' or ty[x] in RES) for x in rl(i, 4)) and (ty[r1(i, 6)] == 'IFCWORKCALENDAR' or all(ty[x] == 'IFCTASK' for x in rl(i, 4)))
     if T == 'IFCRELASSIGNSTOPROCESS': return r1(i, 6) in D and all(x in D and ty[x] in RES for x in rl(i, 4))
     if T == 'IFCRELSEQUENCE': return r1(i, 4) in D and r1(i, 5) in D
     if T == 'IFCRELAGGREGATES': return r1(i, 4) in plans and all(x in D and x in sched for x in rl(i, 5))
-    if T == 'IFCRELDECLARES': return r1(i, 4) in proj and all(ty.get(x) == 'IFCPROPERTYSETTEMPLATE' and name(x).startswith('OPS_') for x in rl(i, 5))
+    if T == 'IFCRELDECLARES': return r1(i, 4) in proj and all(ty.get(x) == 'IFCPROPERTYSETTEMPLATE' and name(x) in REG for x in rl(i, 5))
     if T == 'IFCRELDEFINESBYPROPERTIES':
-        p = r1(i, 5); return all(x in D or x in proj for x in rl(i, 4)) and p is not None and ty.get(p) == 'IFCPROPERTYSET' and name(p).startswith('OPS_')
+        p = r1(i, 5); return all(x in D or x in proj for x in rl(i, 4)) and p is not None and ty.get(p) == 'IFCPROPERTYSET' and name(p) in REG
     return False
 R = {i for i in ents if ty[i].startswith('IFCREL') and ok(i)}
 # --- Stap 3: Own ---
@@ -97,6 +104,7 @@ while todo:
     if x in seen or x not in ents: continue
     seen.add(x)
     if x in Own: Ext.add(x)
+    if x in D or x in R: continue  # Ext stopt bij D ∪ R (die houden hun #id)
     todo += refs[x]
 P = D | R | (Own - Ext)
 C = (Own & Ext) - D - R
