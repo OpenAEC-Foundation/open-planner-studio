@@ -153,6 +153,7 @@
     "barsGroup": "Stolper",
     "manageBaselines": "Administrer grunnlinjer…",
     "statusDate": "Statusdato",
+    "statusDateValue": "Statusdato: {{date}}",
     "statusDateClear": "Tøm statusdato",
     "statusDateTime": "Tid for statusdato",
     "statusDateTimeLater": "Senere tid",

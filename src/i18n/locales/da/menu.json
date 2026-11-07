@@ -153,6 +153,7 @@
     "barsGroup": "Bjælker",
     "manageBaselines": "Administrer oprindelige planer…",
     "statusDate": "Statusdato",
+    "statusDateValue": "Statusdato: {{date}}",
     "statusDateClear": "Ryd statusdato",
     "statusDateTime": "Tid for statusdato",
     "statusDateTimeLater": "Senere tid",

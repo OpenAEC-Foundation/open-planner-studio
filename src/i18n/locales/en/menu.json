@@ -154,6 +154,7 @@
     "barsGroup": "Bars",
     "manageBaselines": "Manage baselines…",
     "statusDate": "Status date",
+    "statusDateValue": "Status date: {{date}}",
     "statusDateClear": "Clear status date",
     "statusDateTime": "Status date time",
     "statusDateTimeLater": "Later time",
