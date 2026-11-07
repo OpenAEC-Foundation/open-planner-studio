@@ -269,14 +269,32 @@ test('te_groot: het overzicht verwijst naar planner_list_tasks', async () => {
   assert(fits(await app.run('planner_list_tasks', { limit: 50 })), 'de uitweg past');
 });
 
-test('te_groot: de gids met de standaardwaarde van part; elk deel apart past', async () => {
-  const fail = await failure(install(), 'planner_get_planning_guide');
-  assertEq(fail?.code, 'te_groot', `code, kreeg: ${fail?.message ?? 'geen fout'}`);
-  assert(fail!.message.includes('part: "guide"') && fail!.message.includes('part: "skill"'), `noemt de uitweg: ${fail!.message}`);
-  for (const part of ['guide', 'skill']) {
-    const res = (await install().run('planner_get_planning_guide', { part })) as { ok: boolean; data: { missing?: unknown } };
-    assertEq(res.data.missing, undefined, `part ${part}: alles geladen`);
-    assert(fits(res), `part ${part} past (${JSON.stringify(res).length} tekens)`);
+test('de gids past, ook met de standaardwaarde van part; een te grote gids geeft te_groot met de uitweg', async () => {
+  // Sinds #818 zijn gids en skills kort genoeg: elk deel past, ook `both`.
+  for (const part of [undefined, 'goed-plannen', 'progress-update', 'guide', 'skill', 'both']) {
+    const res = (await install().run('planner_get_planning_guide', part ? { part } : {})) as { ok: boolean; data: { missing?: unknown } };
+    assertEq(res.data.missing, undefined, `part ${part ?? '(standaard)'}: alles geladen`);
+    assert(fits(res), `part ${part ?? '(standaard)'} past (${JSON.stringify(res).length} tekens)`);
+  }
+  // Groeit de gids ooit voorbij de grens, dan noemt de fout de uitweg: één deel per aanroep.
+  const real = guideToolDeps.fetchImpl;
+  // Alleen de gids is te groot; de skills blijven echt, zodat de uitweg zonder gids getoetst wordt.
+  guideToolDeps.fetchImpl = async (url) =>
+    url.includes('agent/planning-guide')
+      ? { ok: true, status: 200, text: async () => '# Planning guide\n\n' + 'x'.repeat(40_000) }
+      : real!(url);
+  try {
+    const fail = await failure(install(), 'planner_get_planning_guide');
+    assertEq(fail?.code, 'te_groot', `code, kreeg: ${fail?.message ?? 'geen fout'}`);
+    assert(fail!.message.includes('part: "guide"') && fail!.message.includes('part: "progress-update"'), `noemt de uitweg: ${fail!.message}`);
+    // De genoemde delen zonder gids passen ook met de te grote gids: de uitweg werkt echt.
+    assert(fail!.message.includes('part: "skill"'), `noemt de skills zonder gids: ${fail!.message}`);
+    for (const part of ['skill', 'progress-update']) {
+      const res = (await install().run('planner_get_planning_guide', { part })) as { ok: boolean };
+      assert(res.ok && fits(res), `part ${part} past ook met een te grote gids`);
+    }
+  } finally {
+    guideToolDeps.fetchImpl = real;
   }
 });
 

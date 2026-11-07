@@ -302,7 +302,7 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
     Openen en opslaan lopen via het hostcontract, door de gebruiker.
   - `te_groot: …`: een leestool die meer dan 30.000 tekens zou geven. De melding noemt een uitweg die werkt:
     `limit` en `offset` (ook optioneel op `planner_get_critical_path`, `planner_compare_baseline` en
-    `planner_analyze_delay`), één `part` van `planner_get_planning_guide` (de standaardwaarde `both` is te groot),
+    `planner_analyze_delay`), een kleiner `part` van `planner_get_planning_guide` (sinds #818 past elk part, ook `both`),
     `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
 - **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
   al gedaan. Van een batch gaat eerst `substeps` af (het activiteitenlog, dat de app al verwerkt heeft); een gewone
