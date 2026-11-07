@@ -172,49 +172,6 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   expect(afterDrop.tasks.length).toBeGreaterThan(0);
   await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
 });
-    await page.dispatchEvent('body', 'dragover', { dataTransfer });
-  };
-  await dragOverApp(pdf);
-  await expect(overlay).toBeVisible();
-  await expect(overlay).toContainText('Drop to open');
-  await expect(overlay).toContainText('Project file or import');
-  expect(await pdf.evaluate(transfer => transfer.dropEffect)).toBe('copy');
-  // Verlaten: een verse dragover vlak ervoor, zodat niet de rusttijd (1,5 s) de laag weghaalt.
-  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'dragover', { dataTransfer: pdf });
-  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'dragleave', { dataTransfer: pdf });
-  await expect(overlay).toBeHidden({ timeout: 1000 });
-
-  const beforeDrop = await state(page);
-  await dragOverApp(pdf);
-  await expect(overlay).toBeVisible();
-  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'drop', { dataTransfer: pdf });
-  await expect(overlay).toBeHidden({ timeout: 1000 });
-  const refused = page.locator('.ops-toast', { hasText: 'Not opened: tekening.pdf. The app only opens IFC, XML, MPP, XER and CSV.' });
-  await expect(refused).toBeVisible();
-  expect((await state(page)).documentIds).toEqual(beforeDrop.documentIds);
-  await refused.locator('[data-ops-toast-close]').click();
-
-  // Met een dialoog open: geen laag, en de browser krijgt "niet toegestaan" (dus geen drop).
-  await page.locator('[data-ops-tabstrip] .ops-tabstrip-add').click();
-  await expect(page.locator('[data-ops-new-or-open-project-dialog]')).toBeVisible();
-  const ifc = await dragged('gesleept.ifc', planning);
-  await dragOverApp(ifc);
-  expect(await ifc.evaluate(transfer => transfer.dropEffect)).toBe('none');
-  await expect(overlay).toBeHidden();
-  await page.dispatchEvent('body', 'dragleave', { dataTransfer: ifc });
-  await page.keyboard.press('Escape');
-  await expect(page.locator('[data-ops-new-or-open-project-dialog]')).toBeHidden();
-
-  await dragOverApp(ifc);
-  await expect(overlay).toBeVisible();
-  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'drop', { dataTransfer: ifc });
-  await expect(overlay).toBeHidden({ timeout: 1000 });
-  await expect.poll(() => state(page).then(s => s.documentIds.length)).toBe(beforeDrop.documentIds.length + 1);
-  const afterDrop = await state(page);
-  expect(afterDrop.activeDocumentId).not.toBe(beforeDrop.activeDocumentId);
-  expect(afterDrop.tasks.length).toBeGreaterThan(0);
-  await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
-});
 
 test('Taak toevoegen selecteert, onthult en richt de nieuwe taak zonder zoomwijziging', async ({ page, ops: _ops }) => {
   const [firstId] = await seedProject(page, [
