@@ -143,6 +143,24 @@ const taskRows = (page: Page) => page.locator('[data-grid-data-row="true"]:not([
 const navItem = (page: Page, label: string) =>
   page.locator('.backstage-sidebar .backstage-nav-item', { hasText: new RegExp(`^${label}$`) });
 
+/** Start de rondleiding met "Start tour" in Instellingen → Geavanceerd (dat tabblad staat open) en loop hem
+ *  tot het einde (#818): zes stappen, zonder de feedbackstap, en "Close" op de laatste. Daarna staat er geen
+ *  laag meer over de app: een echte klik op een ribbontab komt aan. `root` is de pagina of het frame. */
+async function walkTourFromSettings(root: Page | Frame): Promise<void> {
+  await root.locator('.backstage-main').getByRole('button', { name: 'Start tour' }).click();
+  const card = root.locator('[data-ops-tour-card]');
+  const titles = ['Ribbon tabs', 'Task table and Gantt chart', 'Properties panel', 'Histogram', 'Reports', 'Example projects'];
+  for (const [i, title] of titles.entries()) {
+    await expect(card.locator('span.font-semibold')).toHaveText(title);
+    const last = i === titles.length - 1;
+    await card.getByRole('button', { name: last ? 'Close' : 'Next', exact: true }).click();
+  }
+  await expect(card).toHaveCount(0);
+  await expect(root.getByText('Your feedback matters')).toHaveCount(0);
+  await root.locator('[data-ops-ribbon-tab="planning"]').click();
+  await expect(root.locator('[data-ops-ribbon-tab="planning"]')).toHaveClass(/active/);
+}
+
 test.describe.configure({ mode: 'serial' });
 test.use({ locale: 'en-US' });
 
@@ -250,6 +268,14 @@ test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen'
   await expect(page.locator('.backstage-main').getByText('MCP connection', { exact: true })).toHaveCount(0);
   // Geen downloadcijfers (#818): die komen van GitHub, en de werkplek laat geen netwerk buiten de bundel toe.
   await expect(page.locator('.backstage-main [data-ops-settings-stats]')).toHaveCount(0);
+  // Geen update-check en geen "Wat is er nieuw" (#818, knownbug 868); het versienummer staat er wel.
+  await expect(page.locator('.backstage-main [data-ops-settings-version]')).toBeVisible();
+  await expect(page.locator('.backstage-main').getByRole('button', { name: 'Check for updates' })).toHaveCount(0);
+  await expect(page.locator('.backstage-main').getByRole('button', { name: "What's new" })).toHaveCount(0);
+  // Geen feedbackknop in de titelbalk (#818, knownbug 865): de werkplek heeft er zelf een.
+  await expect(page.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
+
+  await walkTourFromSettings(page);
 
   expect(seen.sameOriginOutsideBase).toEqual([]);
   expect(seen.catalogRequests).toEqual([]);
@@ -652,6 +678,14 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect(leveling.getByText(/^Leveling failed/)).toHaveCount(0);
   await leveling.getByRole('button', { name: /^Cancel$/ }).click();
   await expect(leveling).toBeHidden();
+
+  // De rondleiding vanuit Instellingen, in het frame (#818): zonder feedbackknop loopt hij tot het einde,
+  // en daarna is de app weer bedienbaar.
+  await expect(frame.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
+  await frame.locator('.ribbon-tab--file').click();
+  await frame.locator('.backstage-sidebar .backstage-nav-item', { hasText: /^App settings$/ }).click();
+  await frame.locator('.backstage-main .settings-tab', { hasText: 'Advanced' }).click();
+  await walkTourFromSettings(frame);
 
   // Geen fout, geen CSP-schending en geen verzoek buiten de bundel, over de hele route.
   expect(await frame.evaluate(() => (window as unknown as { __werkplek: { violations: string[] } }).__werkplek.violations), 'CSP-schendingen').toEqual([]);
