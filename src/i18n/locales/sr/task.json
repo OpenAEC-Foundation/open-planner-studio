@@ -639,6 +639,12 @@
     "notAvailableWeb": "Читање изворних датотека је могуће само у апликацији за рачунар; користите ручну резерву.",
     "source": "Извор",
     "sourceAvailable": "доступан при последњој провери",
+    "provenance": "Порекло сидра",
+    "provenanceSite": "верзија {{version}} извора, учитано {{readAt}}",
+    "provenanceSiteNoRead": "верзија {{version}} извора",
+    "provenanceFile": "изворна датотека од {{modified}}, учитано {{readAt}}",
+    "provenanceFileNoRead": "изворна датотека од {{modified}}",
+    "provenanceRead": "учитано {{readAt}}",
     "edit": "Уреди спољну везу…",
     "refreshSource": "Освежи извор",
     "deleteRelation": "Избриши зависност"
