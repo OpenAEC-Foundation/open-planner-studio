@@ -1000,10 +1000,9 @@ const WORKTIME_SCHEMA = {
         'All seven keys "1" (Mon) … "7" (Sun) are required. Per day ascending, non-overlapping bands ' +
         '{start, end} in MINUTES from midnight ([] = non-working): `start` 0–1439, `end` > `start` and ≤ 2880 ' +
         '(counts on past midnight: 22:00–06:00 = 1320–1800).',
-      properties: {
-        '1': WORKTIME_DAY_SCHEMA, '2': WORKTIME_DAY_SCHEMA, '3': WORKTIME_DAY_SCHEMA, '4': WORKTIME_DAY_SCHEMA,
-        '5': WORKTIME_DAY_SCHEMA, '6': WORKTIME_DAY_SCHEMA, '7': WORKTIME_DAY_SCHEMA,
-      },
+      // Eén dagschema voor elke sleutel in plaats van zeven gelijke `properties` (#818). De handler toetst de
+      // sleutels "1".."7" zelf (`workTimeReason`).
+      additionalProperties: WORKTIME_DAY_SCHEMA,
     },
   },
 } as const;
@@ -1022,16 +1021,14 @@ const HOLIDAY_ITEM_SCHEMA = {
 const updateCalendar: BatchStepTool = {
   name: 'planner_update_calendar',
   description:
-    'Change calendars, or create one with `create: true` and your own `id` label (then use the returned `id`). ' +
-    'Ids are per document: never reuse one from another. Holidays: `generate` REPLACES the list with a country ' +
-    'set; `rawHolidays` ADDS days (existing ones stay); `holidaysMode: "replace"` makes the list exactly ' +
-    '`rawHolidays` (the only way to remove one); `holidays` replaces it exactly. Raw days end the generator ' +
-    'link (`becameLiteral`). `create` without holiday fields inherits the app default holidays; `holidays: []` ' +
-    '= none. A planner_get_calendars object can be passed back literally (`create: true` copies it). DAY ' +
-    'calendar with a break: `hoursPerDay` is derived, change the hours or the break. HOUR calendar ' +
-    '(`workTime`): `workDays` and, unless deliberately different, `hoursPerDay` follow the bands; a given ' +
-    '`hoursPerDay` wins. Task durations are never converted; dates can move. Unused calendars survive IFC ' +
-    'save+reload.',
+    'Change calendars, or create one with `create: true` and an own `id` label, then use the returned `id` ' +
+    '(ids are per document). Holidays: `generate` replaces the list with a country set, then `rawHolidays` ' +
+    'adds days; `holidaysMode: "replace"` makes it exactly `rawHolidays`; `holidays` sets it exactly. Raw days ' +
+    'end the generator link (`becameLiteral`). `create` without holiday fields inherits the app default ' +
+    'holidays; `holidays: []` = none. Pass a planner_get_calendars object back literally; `create: true` ' +
+    'copies it. DAY calendar with a break: `hoursPerDay` is derived; change hours or break. HOUR calendar ' +
+    '(`workTime`): `workDays` and `hoursPerDay` follow the bands unless `hoursPerDay` is given. Task durations ' +
+    'keep their number and unit; dates can move.',
   kind: 'mutate',
   batchable: true,
   // Een kalenderwijziging kan bestaande feestdagen/werkdagen (en daarmee de planning) overschrijven.
@@ -1415,10 +1412,10 @@ const manageAssignments: BatchStepTool = {
   name: 'planner_manage_assignments',
   description:
     '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + fields; `move`: `assignmentId` ' +
-    'to `taskId`; `remove`: `assignmentId`. Only on leaf tasks (no milestone); a resource once per task. Under ' +
-    'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the task DURATION; under ' +
-    'the default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. Read the task again for its ' +
-    'duration. One call is one undo step.',
+    'to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate resources. Under ' +
+    'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the DURATION (reread the ' +
+    'task); under the ' +
+    'default FIXED_DURATION_RATE `remainingWorkMinutes` sets the units. One call = one undo step.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

@@ -13,7 +13,6 @@ import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PROTOCOL_VERSION, MCP_INSTRUCTIONS, MCP_SERVER_NAME } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
-import { listedAnnotations } from '@/services/mcp/toolListing';
 import { externalClientChecks, type AppProbe } from '../externalClient';
 import { readOpenFilesFile, readRuntimeFile, MCP_DISCOVERY_DIR } from '@/services/mcp/discoveryContract';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -101,7 +100,7 @@ const checks = externalClientChecks({
     version: APP_VERSION,
     protocolVersion: DEFAULT_PROTOCOL_VERSION,
     instructions: MCP_INSTRUCTIONS,
-    tools: getTools().map((t) => ({ name: t.name, annotations: listedAnnotations(t.annotations) })),
+    tools: getTools().map((t) => ({ name: t.name, annotations: t.annotations })),
   },
 });
 for (const check of checks) test(`echte app: ${check.name}`, check.fn);

@@ -439,16 +439,14 @@ function updateTasksCore(ctx: McpContext, updates: { id: string; fields?: any; p
 const updateTasks: BatchStepTool = {
   name: 'planner_update_tasks',
   description:
-    '`fields` take the same fields as planner_add_tasks items; always send `durationUnit` with `duration` ' +
-    '(omitted = days). A refused `fields` block changes nothing; `progress` applies on its own, so one id ' +
-    'can be in both `updated` and `itemRejections`. ' +
-    `${TASK_FIELDS_DOC} \`progress\` needs a project \`statusDate\` (planner_update_project; ask the user, ` +
-    'never pick it yourself); actuals after it are refused. Pass the actual start and finish dates the user ' +
-    'gives; without `actualStart`, completion > 0 derives it from the planned start (refused if that lies after ' +
-    'the status date). No `duration` or `progress` on summary tasks (derived). A new duration on a started task ' +
-    'keeps the work done (10 d at 40 % → 12 d: 8 d left, 33 %; `progressAdjusted`); shorter than the work done ' +
-    'is refused. Report `remainingWorkRecomputed` to the user. A hypothetical delay is a duration or constraint ' +
-    'change, not `progress`.',
+    'Always send `durationUnit` with `duration` (omitted = days). A refused `fields` block changes nothing; ' +
+    '`progress` applies separately, so one id can be in both `updated` and `itemRejections`. ' +
+    `${TASK_FIELDS_DOC} \`progress\` needs the project \`statusDate\` (planner_update_project; ask the user, ` +
+    'never pick it); actuals after it are refused. Pass the user\'s actual dates; otherwise completion > 0 ' +
+    'takes actualStart from the planned start (refused if after the status date). No ' +
+    '`duration` or `progress` on summary tasks. A new duration on a started, unfinished task keeps the work ' +
+    'done (10 d at 40 % → 12 d: 8 d left, 33 %; `progressAdjusted`); less than the work done is refused. ' +
+    'Report `remainingWorkRecomputed`. A hypothetical delay is a duration or constraint change, not `progress`.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
@@ -465,6 +463,9 @@ const updateTasks: BatchStepTool = {
             id: { type: 'string' },
             fields: {
               type: 'object',
+              // Wie alleen deze tool laadt, ziet de uitleg per veld niet (#818): één verwijzing plus de valkuil.
+              description: 'Fields of planner_add_tasks items (meaning per field there); `constraint` fixes a ' +
+                'date, `deadline` does not.',
               properties: { ...TASK_FIELD_SCHEMA_PROPERTIES_BARE },
               additionalProperties: false,
             },
@@ -840,7 +841,7 @@ const addDependencies: BatchStepTool = {
   name: 'planner_add_dependencies',
   description:
     'Add relationships. A summary task as endpoint is ALLOWED (it applies to its leaf tasks). A link to an ' +
-    'own ancestor is refused; a cycle fails the whole call. To change one, use planner_update_dependencies.',
+    'own ancestor is refused; a cycle fails the whole call.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },

@@ -667,6 +667,16 @@ en noem het in je rapport of PR-tekst.
      gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
      in review ronde 2 van PR #787 op `a032c00ad`. — B
 
+912. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
+     `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen `0 ≤ start < 1440`, `end > start` en
+     `end ≤ 2880`, met een eindig getal. Daardoor gaan `{start: 1439.5, end: 1440}` en `{start: 0, end: 0.5}`
+     erdoor. Het oude bandschema op `main` (vóór PR #838) noemde `start` 0–1439 en `end` minimaal 1, maar de
+     schemapoort toetst de binnenkant van array-items niet (DIEPTE-REGEL in `schemaValidate.ts`). Dat schema
+     hield deze banden dus ook nooit tegen. PR #838 haalt de grenzen per veld uit het schema en noemt ze één keer
+     in de beschrijving van `byWeekday`. Wat een band met een gebroken minuut verderop doet (rekenen, IFC), is
+     niet nagegaan. Voor later: weiger een niet-geheel `start` of `end` in `bandListReason`, met een reden. Gezien
+     in council-ronde 2 van PR #838. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met

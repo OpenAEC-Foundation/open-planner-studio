@@ -8,7 +8,7 @@
 // SCOPE — bewust GEEN volledige JSON-Schema-implementatie en bewust GEEN dependency. De schema's
 // gebruiken samen een klein, gesloten stel trefwoorden (zie `SUPPORTED_KEYWORDS`). Wat we dekken:
 //   type (incl. de array-vorm `['string','null']`), enum, required, properties,
-//   additionalProperties (alleen `false`), items, minItems, maxItems,
+//   additionalProperties (`false`, of een schema voor elke niet-genoemde sleutel), items, minItems, maxItems,
 //   minimum, maximum, exclusiveMinimum, pattern.
 // Wat we BEWUST NIET dekken (en dus stil negeren i.p.v. half-verkeerd afdwingen): $ref/definities,
 // oneOf/anyOf/allOf/not, if/then/else, dependent*, patternProperties, propertyNames, contains,
@@ -228,6 +228,15 @@ function walk(schema: Json, value: Json, path: string, out: string[], deepArrayI
         walk(sub, value[key], joinPath(path, key), out, deepArrayItems);
       }
     }
+    // Een schema als `additionalProperties` geldt voor elke sleutel die `properties` niet noemt, zoals de
+    // weekdagsleutels van `workTime.byWeekday` (#818). Welke sleutels mogen, toetst de tool zelf.
+    if (isPlainObject(schema.additionalProperties)) {
+      const extra = schema.additionalProperties;
+      for (const key of Object.keys(value)) {
+        if ((props && Object.prototype.hasOwnProperty.call(props, key)) || value[key] === undefined) continue;
+        walk(extra, value[key], joinPath(path, key), out, deepArrayItems);
+      }
+    }
   }
 }
 
@@ -273,6 +282,7 @@ export function unsupportedKeywords(schema: unknown): string[] {
       if (!SUPPORTED_KEYWORDS.includes(k) && !DOC_KEYWORDS.includes(k)) found.add(k);
     }
     if (isPlainObject(s.properties)) for (const v of Object.values(s.properties)) visit(v);
+    if (isPlainObject(s.additionalProperties)) visit(s.additionalProperties);
     if (isPlainObject(s.items)) visit(s.items);
   };
   visit(schema);

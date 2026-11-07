@@ -15,7 +15,6 @@ import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
-import { listedAnnotations } from '@/services/mcp/toolListing';
 import { createSnapshot } from '@/state/snapshot';
 
 const store = useAppStore;
@@ -422,17 +421,14 @@ test('registratie: registerToolModules([taskTools]) ⇒ tools/list draagt prefix
     assert(typeof t.name === 'string' && t.name.startsWith('planner_'), `prefix op ${t.name}`);
     assert(typeof t.description === 'string' && t.description.trim().length > 0, `description op ${t.name}`);
     assert(t.inputSchema && typeof t.inputSchema === 'object', `inputSchema op ${t.name}`);
-    // tools/list laat de MCP-standaardwaarden weg (`toolListing.ts`, #818); intern staan alle vier de vlaggen.
-    const def = taskTools.find((d) => d.name === t.name)!;
-    for (const k of ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'] as const) {
-      assertEq(typeof def.annotations[k], 'boolean', `annotatie ${k} intern op ${t.name}`);
-    }
-    assertEq(t.annotations, listedAnnotations(def.annotations), `tools/list-annotaties op ${t.name}`);
+    const a = t.annotations;
+    assert(a && typeof a.readOnlyHint === 'boolean' && typeof a.destructiveHint === 'boolean'
+      && typeof a.idempotentHint === 'boolean' && typeof a.openWorldHint === 'boolean',
+      `vier annotaties op ${t.name}`);
   }
-  // Destructieve tools dragen destructiveHint (spec §Naamgeving & annotaties); weggelaten = true.
+  // Destructieve tools dragen destructiveHint (spec §Naamgeving & annotaties).
   const del = tools.find((t) => t.name === 'planner_delete_tasks');
-  assertEq(del.annotations.destructiveHint ?? true, true, 'delete_tasks is destructief');
-  assertEq(taskTools.find((d) => d.name === 'planner_delete_tasks')!.annotations.destructiveHint, true, 'ook intern');
+  assertEq(del.annotations.destructiveHint, true, 'delete_tasks is destructief');
 });
 
 // =================================================================================================

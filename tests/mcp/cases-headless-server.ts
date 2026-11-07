@@ -22,7 +22,6 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { MCP_INSTRUCTIONS, MCP_SERVER_NAME, MCP_SERVER_VERSION, DEFAULT_PROTOCOL_VERSION } from '@/services/mcp/dispatcher';
-import { listedAnnotations } from '@/services/mcp/toolListing';
 import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/tools/guideTools';
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
@@ -56,7 +55,7 @@ function publicAssets(): Record<string, string> {
 
 /** De registry zoals `tools/list` hem hoort te tonen (zelfde vorm als `toolListEntry` in de dispatcher). */
 const registryList = () => getTools().map((t) => ({
-  name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: listedAnnotations(t.annotations),
+  name: t.name, description: t.description, inputSchema: t.inputSchema, annotations: t.annotations,
 }));
 
 /** JSON met gesorteerde sleutels: de SDK-client valideert `tools/list` met zod en zet de sleutels van een
@@ -117,7 +116,7 @@ const checks = externalClientChecks({
     version: MCP_SERVER_VERSION,
     protocolVersion: DEFAULT_PROTOCOL_VERSION,
     instructions: `${MCP_INSTRUCTIONS}\n${headlessInstructions(host.root)}`,
-    tools: getTools().map((t) => ({ name: t.name, annotations: listedAnnotations(t.annotations) })),
+    tools: getTools().map((t) => ({ name: t.name, annotations: t.annotations })),
   },
 });
 for (const check of checks) test(`A in proces (HTTP, bridgecontract): ${check.name}`, check.fn);

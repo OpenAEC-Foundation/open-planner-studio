@@ -16,7 +16,6 @@ import {
   MCP_INSTRUCTIONS,
 } from '@/services/mcp/dispatcher';
 import { getTools } from '@/services/mcp/toolRegistry';
-import { listedAnnotations } from '@/services/mcp/toolListing';
 import type { McpToolDef } from '@/services/mcp/contracts';
 import { startBridgeMirror } from './bridgeMirror';
 import { externalClientChecks, type AppProbe } from './externalClient';
@@ -65,7 +64,7 @@ const checks = externalClientChecks(
       version: MCP_SERVER_VERSION,
       protocolVersion: DEFAULT_PROTOCOL_VERSION,
       instructions: MCP_INSTRUCTIONS,
-      tools: getTools().map((t) => ({ name: t.name, annotations: listedAnnotations(t.annotations) })),
+      tools: getTools().map((t) => ({ name: t.name, annotations: t.annotations })),
     },
   },
   {

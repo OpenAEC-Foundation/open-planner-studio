@@ -2,35 +2,19 @@
 // server, via `dispatcher.ts`) en in de SuperCloud-export (`siteAppTools.ts`). Eén plek, zodat beide kanalen
 // dezelfde vorm hebben (#818).
 //
-// ANNOTATIES ZONDER STANDAARDWAARDEN. De MCP-spec (ToolAnnotations) geeft elke hint een standaard:
-// `readOnlyHint` false, `destructiveHint` true, `idempotentHint` false, `openWorldHint` true. `destructiveHint`
-// en `idempotentHint` betekenen alleen iets als `readOnlyHint` false is. Een hint die gelijk is aan zijn
-// standaard, of die bij een leestool niets betekent, laten we hier weg: de betekenis blijft gelijk en elke
-// sessie spaart tekens. Intern (`def.annotations`) blijven alle vier de vlaggen staan; alleen de uitvoer is
-// korter. De Claude Desktop-bundel leest `readOnlyHint === true`, en dat blijft altijd staan.
+// ANNOTATIES ALTIJD VOLLEDIG. Alle vier de hints gaan mee, ook als een hint gelijk is aan de standaardwaarde
+// van de MCP-spec. Reden (council-ronde 2 op #838): Claude Code leest een ontbrekende `destructiveHint` en
+// `openWorldHint` als `false`, niet als de standaard uit de spec, en vraagt dan geen toestemming meer bij een
+// destructieve tool. Weglaten levert ook geen modeltokens op: een Anthropic-tooldefinitie heeft geen veld
+// `annotations`, en het SuperCloud-contract noemt alleen `name`, `description` en `inputSchema`.
 import type { McpToolAnnotations, McpToolDef } from './contracts';
-
-/** De annotaties zoals een client ze ziet: alleen de hints die van de standaard afwijken. */
-export type ListedAnnotations = Partial<McpToolAnnotations>;
 
 /** Een tooldefinitie zoals een client hem ziet. */
 export interface ListedTool {
   name: string;
   description: string;
   inputSchema: object;
-  annotations: ListedAnnotations;
-}
-
-export function listedAnnotations(a: McpToolAnnotations): ListedAnnotations {
-  const out: ListedAnnotations = {};
-  if (a.readOnlyHint) {
-    out.readOnlyHint = true;
-  } else {
-    if (!a.destructiveHint) out.destructiveHint = false;
-    if (a.idempotentHint) out.idempotentHint = true;
-  }
-  if (!a.openWorldHint) out.openWorldHint = false;
-  return out;
+  annotations: McpToolAnnotations;
 }
 
 /** Eén regel voor `tools/list` en voor de SuperCloud-export. */
@@ -39,6 +23,6 @@ export function toolListEntry(def: McpToolDef): ListedTool {
     name: def.name,
     description: def.description,
     inputSchema: def.inputSchema,
-    annotations: listedAnnotations(def.annotations),
+    annotations: def.annotations,
   };
 }

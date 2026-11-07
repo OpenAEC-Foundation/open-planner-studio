@@ -1071,6 +1071,11 @@ const OPTIONAL_PAGE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+// De eenheid van de speling (council-ronde 3 op #836). `CPMSolver.signedFloat`: werkdagen van de taakkalender
+// (dagenmaat, anders werkminuten ÷ (uren per dag × 60), dus ook bij een uurtaak); ELAPSEDTIME: kalenderdagen van
+// 24 uur (`signedElapsedSpan`). Test: `cases-uurkalender` (4 uur naast 8 uur ⇒ 0.5).
+const FLOAT_UNIT_NOTE = 'Float is in working days of the task calendar, also on hour tasks (ELAPSEDTIME: calendar days).';
+
 /** Zin in de beschrijving van zo'n tool; de schemavelden zelf dragen geen beschrijving meer. Het schema zegt
  *  `number`, de handler eist gehele getallen (`requirePageArgs`); daarom staat "integer" hier. */
 const optionalPageNote = (list: string): string =>
@@ -1131,11 +1136,11 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_task',
     description:
-      'Full detail of one task: early and late dates, total and free float, assignments, relationships. ' +
-      '`interruptions` has the form planner_set_task_splits accepts. `calendar.effectiveId` is written as ' +
-      '`calendarId` (unless `calendar.isProjectDefault`). Not errors: with NEGATIVE `totalFloat` the late dates ' +
-      'lie before the early ones; a completed task whose `actualFinish` is in non-working time ends on the ' +
-      'working day before (`progress.actualFinishAdjusted`).',
+      'One task in full: early/late dates, total and free float, assignments, relationships. ' + FLOAT_UNIT_NOTE +
+      ' `interruptions` is in planner_set_task_splits form; `calendar.effectiveId` is written as `calendarId` (unless ' +
+      '`calendar.isProjectDefault`). Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
+      'completed task with `actualFinish` in non-working time ends on the previous working day ' +
+      '(`progress.actualFinishAdjusted`).',
     kind: 'read',
     batchable: true,
     inputSchema: {
@@ -1151,7 +1156,7 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_critical_path',
     description:
       'Critical tasks in topological order with total float, and the driving relationships between them ' +
-      '(`drivingRelations`: null = unknown, [] = none).' + optionalPageNote('criticalTasks'),
+      '(`drivingRelations`: null = unknown, [] = none). ' + FLOAT_UNIT_NOTE + optionalPageNote('criticalTasks'),
     kind: 'read',
     batchable: true,
     inputSchema: OPTIONAL_PAGE_SCHEMA,
@@ -1201,10 +1206,9 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_calendars',
     description:
-      'All calendars with their complete definition. An object from here can be written back literally with ' +
-      'planner_update_calendar, also into another document with `create: true` (ids are per document). To ' +
-      'align another document\'s PROJECT calendar, write to the calendar whose id is its `projectDefaultId`; ' +
-      'which calendar is the default can only be changed in the app.',
+      'All calendars, complete. Write one back literally with planner_update_calendar, or into another document ' +
+      'with `create: true`. To align a document\'s PROJECT calendar, write to the calendar with id ' +
+      '`projectDefaultId`; the default itself only changes in the app.',
     kind: 'read',
     batchable: true,
     inputSchema: NO_ARGS_SCHEMA,

@@ -20,18 +20,28 @@ regels staan er allemaal nog.
 Het invoercontract is gelijk: geen naam, type, enum, `required`, `default` of `pattern` is veranderd, en de handlers
 weigeren precies wat ze eerst weigerden. De enums blijven volledig staan, ook de lange: de constrainttypen
 (`ASAP` … `MFO`), de bouwvakwaarden (`geen`/`noord`/`midden`/`zuid`), `bucket` (`dag`/`week`/`maand`), de
-landcodes, `shift`, `workRule`, `taskType` en de curves. Drie bewuste uitzonderingen in wat het schema TOONT (fixronde 1):
+landcodes, `shift`, `workRule`, `taskType` en de curves. Vier bewuste uitzonderingen in wat het schema TOONT
+(fixronde 1 en 3):
 
-- De uurbanden (`workTime.byWeekday.<dag>[]`, `workingExceptions[].bands[]`) tonen geen `minimum`/`maximum` meer.
-  De schemapoort toetste array-items nooit (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` weigert elke
-  ongeldige band met een reden (`cases-uurkalender` test 3, nu ook met een negatieve start). De grenzen staan één
-  keer in param `byWeekday`.
+- De uurbanden (`workTime.byWeekday.<dag>[]`, `workingExceptions[].bands[]`) tonen per veld geen `type: number`,
+  `minimum` en `maximum` meer. De schemapoort toetste de binnenkant van array-items nooit (DIEPTE-REGEL in
+  `schemaValidate.ts`), dus die grenzen hielden geen aanroep tegen. `bandListReason` weigert met een reden een band
+  zonder getallen, met `start` buiten 0–1439, met `end` ≤ `start`, met `end` > 2880 en met overlap
+  (`cases-uurkalender` test 3, ook met een negatieve start). Hij vangt niet alles wat het oude schema noemde: een
+  gebroken minuut zoals `{start: 1439.5, end: 1440}` of `{start: 0, end: 0.5}` gaat erdoor. Dat is zo op `main` en
+  op deze branch; het staat als knownbug 912. De grenzen staan één keer in param `byWeekday`.
+- `byWeekday` noemt de zeven weekdagen niet meer elk als `properties` met hetzelfde dagschema; één dagschema staat nu
+  als `additionalProperties` (fixronde 3). De beschrijving noemt de sleutels "1" … "7". De handler toetst de
+  sleutels zelf (`workTimeReason`: onbekende sleutel en ontbrekende dag geweigerd). De schemapoort kent sinds
+  fixronde 3 ook een schema als `additionalProperties` (test `cases-schemavalidatie`); bij planner_update_calendar
+  toetst hij die laag niet, want de kalenders zijn array-items.
 - De afgeleide leesvelden van planner_get_calendars (`isProjectDefault`, `usedByTasks`, `usedByResources`,
   `libraryOrigin`) staan niet meer in het schema van planner_update_calendar: ze leken schrijfbaar. `items` heeft geen
   `additionalProperties: false`, dus een teruggestuurd object blijft geldig; de handler meldt ze als `ignoredFields`.
 - `planner_inspect_xer_provenance.collection` noemde `issues` twee keer; nu één keer (zelfde verzameling waarden).
 
-`tools/list` en de SuperCloud-export laten annotaties met de MCP-standaardwaarde weg (zie § Annotaties).
+`tools/list` en de SuperCloud-export geven alle vier de annotaties door, precies zoals op `main` (fixronde 3; zie
+§ Annotaties).
 
 `planner_get_planning_guide` (in `guideTools.ts`) is niet aangeraakt: PR #836 (`docs/818-gids-zuinig`) herschrijft die
 tool en de gids.
@@ -85,7 +95,7 @@ tool en de gids.
 
 | regel | nieuwe plek |
 |---|---|
-| `fields` = dezelfde velden als add_tasks, zonder voortgang | tool |
+| `fields` = dezelfde velden als add_tasks, zonder voortgang | param `fields` (fixronde 3): "The fields of planner_add_tasks items (meaning per field there); `constraint` fixes a date, `deadline` does not". Wie alleen update_tasks laadt, ziet zo de valkuil en waar de uitleg staat |
 | Een geweigerd `fields`-blok verandert niets; `progress` werkt los daarvan, dus één id kan in `updated` én `itemRejections` staan | tool (F47; fixronde 1: "a refused item changes nothing on that task" klopte niet, test `cases-taskfields`) |
 | Onbekende sleutel en lege `progress` geweigerd | schema + antwoord |
 | Voortgang vraagt een statusdatum; vraag hem aan de gebruiker, kies hem nooit zelf | tool (fixronde 1: "never set automatically" beschreef de app, niet de agent; SuperCloud heeft geen instructies) |
@@ -93,7 +103,7 @@ tool en de gids.
 | Actuals na de statusdatum geweigerd | tool + param `actualStart`/`actualFinish` |
 | `completion` > 0 leidt actualStart af, behalve als de geplande start na de statusdatum ligt: dan `actualStart` meegeven | tool |
 | Geen `duration` en geen `progress` op verzameltaken (afgeleid) | tool (F14, F46) |
-| Duurwijziging op een lopende taak houdt het gedane werk (voorbeeld 10 d / 40 % → 12 d; `progressAdjusted`); korter dan het gedane werk wordt geweigerd | tool (F48) |
+| Duurwijziging op een gestarte, niet afgeronde taak houdt het gedane werk (voorbeeld 10 d / 40 % → 12 d; `progressAdjusted`); korter dan het gedane werk wordt geweigerd | tool (F48; fixronde 3: "started, unfinished", zo werkt `workRuleApply.ts`) |
 | Overschreven restwerk (`remainingWorkRecomputed`) aan de gebruiker melden | tool |
 | Toewijzingen volgen de duur per `workRule` | param `workRule` bij add_tasks (de vier regels) |
 | Hypothetische vertraging = duur of constraint, niet `progress` | tool |
@@ -118,7 +128,7 @@ tool en de gids.
 | Relatie naar een eigen voorouder geweigerd | tool add en update (test: "ancestor") |
 | Kring = harde fout, hele aanroep terug | tool add en update |
 | Onbekende ids, duplicaat, relatie met zichzelf, item zonder wijziging | weg: antwoord (zachte weigering per item) |
-| Wijzigen via update_dependencies (houdt het id), niet verwijderen + toevoegen | tool add, update en remove |
+| Wijzigen via update_dependencies (houdt het id), niet verwijderen + toevoegen | tool update en remove (fixronde 3: bij add weg, dubbel) |
 | `seqId` = deel na `#` in de leestools | tool update; het voorbeeld "→2.3 FS+2d #seq-7" staat bij get_project_overview |
 | Alleen opgegeven velden veranderen | tool update |
 | Dubbele seqIds geweigerd; antwoord `changes` | weg: antwoord |
@@ -150,9 +160,9 @@ tool en de gids.
 | Bestaand id, of `create: true` met eigen label; gebruik daarna het teruggegeven echte `id` | tool |
 | Onbekend id zonder `create` geweigerd | weg: antwoord |
 | Kalender-id's per document; nooit een id uit een ander document | tool |
-| `generate` VERVANGT de lijst | tool |
+| `generate` VERVANGT de lijst; daarna voegt `rawHolidays` toe | tool (fixronde 3: "then", zo werkt `calendarGenerate.ts:75–91`) |
 | `rawHolidays` VOEGT TOE, bestaande dagen blijven | tool (test `cases-stille-noops`: "add") |
-| `holidaysMode: "replace"`: lijst wordt exact `rawHolidays`, enige manier om te verwijderen | tool (test: "replace") + param `holidaysMode` |
+| `holidaysMode: "replace"`: lijst wordt exact `rawHolidays` | tool (test: "replace") + param `holidaysMode`. Fixronde 3: "the only way to remove one" is weg, want het klopte niet: `holidays` vervangt ook exact |
 | Lege `rawHolidays` in merge-modus geweigerd; `replace` met `[]` wist alles | weg: antwoord / volgt uit "exactly `rawHolidays`" |
 | `holidays` vervangt exact; niet samen met `rawHolidays`/`holidaysMode`/`generate` | tool + param `holidays` |
 | Losse dagen beëindigen de koppeling met de generator (`becameLiteral`) | tool |
@@ -163,17 +173,17 @@ tool en de gids.
 | Pauze buiten de werkdag of over de hele dag geweigerd | weg: antwoord |
 | `generate` óf `generation`; `generation` schrijft alleen herkomst | param `generation` |
 | `workTime` maakt een uurkalender, `null` terug naar dag | param `workTime` + tool |
-| Taakduren worden nooit omgerekend; datums kunnen schuiven | tool. De oude param-tekst van `workTime` ("this redefines the duration of every task") sprak de toolbeschrijving tegen en was verouderd; die zin is weg |
+| Taakduren houden hun getal en eenheid; datums kunnen schuiven | tool (fixronde 3, tekst van Sol). De oude param-tekst van `workTime` ("this redefines the duration of every task") sprak de toolbeschrijving tegen en was verouderd; die zin is weg |
 | Bij `workTime` volgen `workDays` altijd en `hoursPerDay` tenzij bewust afwijkend; opgegeven `hoursPerDay` wint | tool |
 | Alleen `workDays` op uurkalender: nieuwe dag kopieert de banden van de eerste dag met banden (zo, ma … za) | param `workDays`; dat een vervallen dag zijn banden verliest volgt uit "geen werkdag" |
 | Terugval als geen dag banden heeft (eigen werkdag, dan 07–12 + 13–16) | weg: randgeval; zo'n kalender heeft geen werktijd en faalt al; wie banden wil, geeft `workTime` |
-| Ongebruikte kalenders overleven IFC opslaan + laden; geen taak nodig om hem te bewaren | tool (test `cases-uurkalender`) |
+| Ongebruikte kalenders overleven IFC opslaan + laden; geen taak nodig om hem te bewaren | weg (fixronde 3): detail, er gaat niets verloren en de aanroep verandert er niet door. Het behoud toetst `cases-uurkalender` |
 | Uurbanden per weekdag overleven IFC | weg: geruststelling zonder invloed op de aanroep |
 | Taken passen niet meer (`cappedTaskIds`); geen werktijd over ⇒ hele aanroep terug | weg: antwoord |
 | `generate`-bereik in jaren | param `generate` |
 | Landcode exact uit de lijst; `none` wist gegenereerde dagen | schema enum + param `country` (test `cases-stille-noops`: "none") |
 | `bouwvak` alleen NL | param `bouwvak` + enum |
-| `byWeekday`: alle zeven sleutels verplicht; banden {start, end} in minuten, oplopend, niet overlappend; `[]` = vrije dag; `start` 0–1439, `end` > `start` en ≤ 2880, telt door na middernacht (voorbeeld) | param `byWeekday`, één keer. Het dagschema (8×) is nu alleen `{type: array, items: {type: object, required: [start, end]}}` |
+| `byWeekday`: alle zeven sleutels verplicht; banden {start, end} in minuten, oplopend, niet overlappend; `[]` = vrije dag; `start` 0–1439, `end` > `start` en ≤ 2880, telt door na middernacht (voorbeeld) | param `byWeekday`, één keer. Het dagschema is alleen `{type: array, items: {type: object, required: [start, end]}}`; het staat nog twee keer: als `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands` |
 | `workStartHour`/`workEndHour` in UREN, pauzevelden in MINUTEN | params |
 | `workingExceptions`: complete lijst, vervangt; `bands` optioneel | param `workingExceptions` |
 | Datums inclusief | param `endDate` van feestdag- en uitzonderingsitems |
@@ -183,13 +193,13 @@ tool en de gids.
 | regel | nieuwe plek |
 |---|---|
 | Velden per actie | tool |
-| Alleen op bladtaken, geen mijlpaal; een resource één keer per taak | tool |
+| Alleen op bladtaken, geen mijlpalen, geen dubbele resources | tool |
 | Onder FIXED_WORK/FIXED_RATE veranderen eenheden of een extra resource de DUUR; onder de standaardregel zet `remainingWorkMinutes` de eenheden | tool |
 | Lees de taak opnieuw voor de nieuwe duur | tool |
 | `unitsPerDay`: 1 = één persoon voltijd | param `unitsPerDay` |
 | `remainingWorkMinutes` in werkminuten | param; "alleen gewone bladtaak op werktijd, materiaal telt niet": antwoord / detail |
 | `curve` weggelaten = UNIFORM | param `curve` |
-| Dubbele resource ook binnen één aanroep geweigerd | volgt uit "a resource once per task" |
+| Dubbele resource ook binnen één aanroep geweigerd | volgt uit "no … duplicate resources" |
 | Eén aanroep = één undo-stap | tool (F34) |
 
 ## planner_manage_resources
@@ -291,6 +301,7 @@ tool en de gids.
 | Veldenlijst van de rij | weg: antwoord |
 | list_tasks: filters met AND; `kritiek` telt verzameltaken mee (`summary: true`); venster inclusief; `zonder_relaties` alleen bladtaken | tool (test `cases-read`) |
 | get_task: vroege en late datums, totale en vrije speling | tool (F38) |
+| get_task en get_critical_path: speling in werkdagen van de taakkalender, ook bij een uurtaak; ELAPSEDTIME in kalenderdagen | tool, één gedeelde zin `FLOAT_UNIT_NOTE` (fixronde 3, council-ronde 3 op #836: main zei het in de gids en in het voorbeeld van get_task; #836 haalt het uit de gids). Code: `CPMSolver.signedFloat`. Test `cases-uurkalender`: 4 uur naast 8 uur ⇒ `freeFloat` 0.5 |
 | get_task: `interruptions` in de vorm van set_task_splits; `effectiveId` → `calendarId`; negatieve speling; `actualFinishAdjusted` | tool (test `cases-statusdatum`) |
 | Verzameltaak leidt voortgang af | tool update_tasks |
 | MPP- en P6-bronvelden alleen-lezen | weg: schema (geen schrijfveld) |
@@ -355,26 +366,18 @@ principe in de agentgids.
 | Afsluiten met de aannames en wat je niet deed | instructies (test: "assumed") |
 | Gids en skills via planner_get_planning_guide; bij voortgang `part: "progress-update"` | instructies (test). De URL is weg: elke client heeft de tool. `progress-update` als `part` bestaat pas met PR #836; zonder #836 weigert de tool hem met de geldige waarden |
 
-## Annotaties (fixronde 1)
+## Annotaties (fixronde 3: terug zoals op `main`)
 
-`tools/list` (desktopbridge, headless server) en de SuperCloud-export gaan nu door één functie, `toolListEntry` in
-`src/services/mcp/toolListing.ts`. Die laat een hint weg die gelijk is aan de MCP-standaardwaarde (ToolAnnotations:
-`readOnlyHint` false, `destructiveHint` true, `idempotentHint` false, `openWorldHint` true), en bij een leestool ook
-`destructiveHint` en `idempotentHint`: die betekenen volgens de spec alleen iets als `readOnlyHint` false is. De
-betekenis is gelijk. Intern (`def.annotations`) staan alle vier de vlaggen nog; `siteAppTools.ts` en de
-Claude Desktop-bundel (die `readOnlyHint === true` leest) werken daar of op de blijvende `readOnlyHint: true`.
+`tools/list` (desktopbridge, headless server) en de SuperCloud-export gaan door één functie, `toolListEntry` in
+`src/services/mcp/toolListing.ts`. Die geeft alle vier de hints door, ook als een hint gelijk is aan de
+MCP-standaardwaarde. In fixronde 1 liet hij die weg; dat is teruggedraaid. Reden (council-ronde 2): Claude Code leest
+een ontbrekende `destructiveHint` en `openWorldHint` als `false`, niet als de standaard uit de spec. Weglaten
+veranderde dus wat een client doet, en het leverde geen modeltokens op: een Anthropic-tooldefinitie heeft geen veld
+`annotations`. De meting telt de annotaties daarom apart, niet als winst.
 
-| regel | nieuwe plek |
-|---|---|
-| Leestool: `readOnlyHint: true` | blijft in de uitvoer |
-| Muterende tool die niet destructief is: `destructiveHint: false` | blijft in de uitvoer |
-| Destructieve tool (`destructiveHint: true`) | weggelaten = true (spec) |
-| Idempotente muterende tool: `idempotentHint: true` | blijft in de uitvoer |
-| Alles binnen de app: `openWorldHint: false` | blijft in de uitvoer; `openWorldHint: true` (bestandstools) = standaard, weg |
-
-Tests: `cases-sync2-integration`, `cases-mutate-tasks`, `cases-mutate-cal-res`, `cases-protocol`, `cases-headless-server`,
-`cases-externe-client` en de echte-app-run (`tests/mcp/realApp/`) vergelijken nu met `listedAnnotations(def.annotations)`
-en toetsen intern nog alle vier de vlaggen.
+De tests over annotaties (`cases-sync2-integration`, `cases-mutate-tasks`, `cases-mutate-cal-res`, `cases-protocol`,
+`cases-headless-server`, `cases-externe-client`, de echte-app-run in `tests/mcp/realApp/`) en `docs/mcp-verificatie.md`
+zijn weer gelijk aan `main`.
 
 ## Headless en Claude Desktop-bundel (fixronde 1)
 
@@ -390,11 +393,11 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 | bundel: app met bridge, anders de planner zonder app op de werkmap; `~/plan.ifc`; geen autosave, bewaren met planner_export_ifc | `bundleInstructions` |
 | bundel: wisselt zelf bij openen of sluiten van de app en meldt dat in het volgende antwoord; daarna eerst het document opnieuw kiezen | `bundleInstructions` |
 
-## Voorstellen uit council-ronde 1 die ik niet letterlijk overnam
+## Voorstellen uit de council die ik niet letterlijk overnam
 
 | voorstel | wat ik deed | waarom |
 |---|---|---|
-| Kalendertekst van Sol (−360) | eigen kortere versie (−81 t.o.v. de vorige head) | Sols tekst zegt "`generate` replaces, then `rawHolidays` adds" (een volgorde die ik in de code niet heb nagelopen) en "Task units/quantities stay" (ik kon niet nagaan wat dat precies belooft; de code zegt: duren worden nooit omgerekend). Hij liet ook "never reuse an id from another document" en "the only way to remove one" weg; die regels voorkomen een foute aanroep |
+| Kalendertekst van Sol (−360) | ronde 1: eigen kortere versie (−81). Fixronde 3: Sols punten overgenomen na controle in de code | "`generate` replaces, then `rawHolidays` adds" klopt (`calendarGenerate.ts:75–91`). "Task durations keep their number and unit" zegt hetzelfde als "never converted". "Never reuse an id from another document" bleef staan. "The only way to remove one" is weg: het klopte niet |
 | Resourcetekst van Sol | bijna letterlijk | klopt met de code |
 | `wbs`-zin 2× | allebei weg | het schema biedt `wbs`/`wbsCode` niet aan en de handler weigert met de lijst; test `cases-stille-noops` toetst nu het schema |
 | `FRESH_NOTE` alleen in `MCP_INSTRUCTIONS` | ook één zin bij get_project_info | de SuperCloud-export heeft geen instructies (F1) |
@@ -402,7 +405,7 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 
 ## Afstemming met PR #836: de 53 feiten uit `artifacts/818-gids-zuinig/feiten-in-tools.md`
 
-Stand: deze branch na fixronde 1. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
+Stand: deze branch na fixronde 3. "tool" = beschrijving, "param" = parameterbeschrijving, "schema" = enum/grens/pattern.
 F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`; de zestien die Sol in council-ronde 2 van
 #836 noemde, zijn gemarkeerd met *.
 
@@ -441,11 +444,11 @@ F1–F52 stonden bij de vorige head (b0ef49262) deels niet meer in `tools/list`;
 | F31 | staat er | schema enum `action` + param `maxUnits` |
 | F32 | staat er | tool manage_assignments |
 | F33 | staat er | tool manage_assignments |
-| F34* | staat er | tool manage_assignments ("One call is one undo step") |
+| F34* | staat er | tool manage_assignments ("One call = one undo step") |
 | F35* | staat er | tool get_resource_histogram (`peakLoad`, `overallocatedDayCount`) + enum `bucket` |
 | F36* | staat er | tool level_resources (`unresolved`, `projectEndDelta`) |
 | F37 | staat er | tool get_critical_path |
-| F38* | staat er | tool get_task ("early and late dates, total and free float") |
+| F38* | staat er | tool get_task ("early/late dates, total and free float") |
 | F39 | staat er | tool list_tasks |
 | F40 | staat er | tool export_ifc ("choose a new file name or let the user save in the app") |
 | F41 | staat er | tool update_tasks + param `statusDate` |

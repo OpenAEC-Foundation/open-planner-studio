@@ -129,6 +129,15 @@ test('validator: enum, required, additionalProperties, minItems/maxItems, minimu
   assert(validateToolArgs({ type: 'object', properties: { t: { type: 'string', pattern: '^tmp[-_]' } } }, { t: 'A' })!.includes('pattern'), 'pattern');
   assert(validateToolArgs({ type: 'object', properties: { i: { type: 'integer' } } }, { i: 1.5 })!.includes('expected integer'), 'integer vs number');
   assertEq(validateToolArgs({ type: 'object', properties: { n: { type: 'number' } } }, { n: 2 }), null, 'een geheel getal is ook een number');
+  // `additionalProperties` als schema (#818, `workTime.byWeekday`): elke niet-genoemde sleutel volgt dat schema,
+  // een genoemde sleutel alleen zijn eigen schema.
+  const perSleutel = { type: 'object', properties: { vast: { type: 'string' } }, additionalProperties: { type: 'array' } };
+  assertEq(validateToolArgs(perSleutel, { vast: 'x', '1': [], '7': [] }), null, 'sleutels volgen het additionalProperties-schema');
+  const fout = validateToolArgs(perSleutel, { '3': 5 });
+  assert(fout !== null && fout.startsWith('3:') && fout.includes('expected array'), `pad en verwachting: ${fout}`);
+  assert(validateToolArgs(perSleutel, { vast: [] })!.includes('expected string'), 'een genoemde sleutel volgt zijn eigen schema');
+  assertEq(unsupportedKeywords({ type: 'object', additionalProperties: { type: 'array', minLength: 1 } }), ['minLength'],
+    'de trefwoordcontrole kijkt ook in een additionalProperties-schema');
 });
 
 test('validator: ontbrekende argumenten tellen als {} ⇒ nette required-melding, geen "kreeg undefined"', () => {

@@ -19,7 +19,6 @@ const backing = new Map<string, string>();
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { getTool, getTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
-import { listedAnnotations } from '@/services/mcp/toolListing';
 import { createBackupService } from '@/services/mcp/backup';
 // Het IMPORTEREN van server.ts draait `initMcpRuntime()` — precies het productiepad dat draad A en C
 // leggen. Niets uit deze import wordt hier aangeroepen; de side-effect ÍS wat we testen.
@@ -79,15 +78,12 @@ test('élke tool draagt planner_-prefix, een niet-lege description en alle VIER 
       typeof t.description === 'string' && t.description.trim() !== '',
       `tool '${t.name}' heeft een lege description (de AI kiest tools op beschrijving)`,
     );
-    // Intern draagt elke tool alle vier de hints; tools/list laat de MCP-standaardwaarden weg (`toolListing.ts`).
-    const def = getTool(t.name)!;
     for (const key of ANNOT) {
       assert(
-        typeof (def.annotations as unknown as Record<string, unknown>)[key] === 'boolean',
+        t.annotations !== undefined && typeof t.annotations[key] === 'boolean',
         `tool '${t.name}' mist de annotatie '${key}'`,
       );
     }
-    assertEq(t.annotations, listedAnnotations(def.annotations), `tools/list-annotaties van '${t.name}'`);
   }
 });
 

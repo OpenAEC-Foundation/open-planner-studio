@@ -42,10 +42,8 @@ legt vast wat de app als MCP-server levert, wat niet, en welke test het bewijst.
 
 - `capabilities` is alleen `{ tools: {} }`. Er zijn geen resources en geen prompts; `resources/list` en
   `prompts/list` geven `-32601`.
-- 41 `planner_*`-tools (`src/services/mcp/tools/`). Intern draagt elke tool `readOnlyHint`, `destructiveHint`,
-  `idempotentHint` en `openWorldHint` (`tools/helpers.ts`; `planner_batch` is `destructiveHint: true`). `tools/list`
-  en de SuperCloud-export laten een hint weg die gelijk is aan de MCP-standaardwaarde, of die bij een leestool niets
-  betekent (`toolListing.ts`); de betekenis is gelijk.
+- 41 `planner_*`-tools (`src/services/mcp/tools/`). Elke tool draagt `readOnlyHint`, `destructiveHint`,
+  `idempotentHint` en `openWorldHint` (`tools/helpers.ts`; `planner_batch` is `destructiveHint: true`).
 - `initialize` geeft `instructions` mee (`MCP_INSTRUCTIONS` in `dispatcher.ts`): de kernregels voor goed plannen.
   De volledige gids komt via de tool `planner_get_planning_guide`.
 

@@ -589,11 +589,11 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
     type: ['string', 'null'],
     enum: [...WORK_RULES, null],
     description:
-      'Task type: which part of work = remaining duration × units stays fixed. FIXED_DURATION_RATE (default; ' +
-      'MSP Fixed Duration): duration and units fixed. FIXED_DURATION_WORK (P6 Fixed Duration & Units): duration ' +
-      'and work fixed. FIXED_WORK (MSP Fixed Work, P6 Fixed Units): work fixed, more units shorten the task. ' +
-      'FIXED_RATE (MSP Fixed Units, P6 Fixed Units/Time): units fixed, more work lengthens it. Switching changes ' +
-      'no number. null = project default. Only on ordinary leaf tasks (not milestone, summary, hammock, ELAPSEDTIME).',
+      'Task type: what stays fixed in work = remaining duration × units. FIXED_DURATION_RATE (default; MSP ' +
+      'Fixed Duration): duration, units. FIXED_DURATION_WORK (P6 Fixed Duration & Units): duration, work. ' +
+      'FIXED_WORK (MSP Fixed Work, P6 Fixed Units): work; more units shorten. FIXED_RATE (MSP Fixed Units, P6 ' +
+      'Fixed Units/Time): units; more work lengthens. Switching changes no number; null = project default. ' +
+      'Ordinary leaf tasks only (no milestone, summary, hammock, ELAPSEDTIME).',
   },
 };
 
@@ -618,4 +618,4 @@ function withoutDescriptions(value: unknown): Record<string, unknown> {
 
 /** Eén zin voor in de beschrijving van `update_tasks`: welke routes NIET via `fields` lopen. */
 export const TASK_FIELDS_DOC =
-  '`status`, `parentId` and `resourceIds` go via `progress`, planner_move_task and planner_manage_assignments.';
+  '`status`, `parentId`, `resourceIds`: use `progress`, planner_move_task, planner_manage_assignments.';

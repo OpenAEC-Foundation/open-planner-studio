@@ -129,8 +129,7 @@ test('tools/list bevat de stubs met schema + annotations en alle namen dragen pl
   for (const t of tools) {
     assert(typeof t.name === 'string' && t.name.startsWith('planner_'), `naam mist planner_-prefix: ${t.name}`);
     assert(t.inputSchema != null && typeof t.inputSchema === 'object', `inputSchema ontbreekt op ${t.name}`);
-    // Weggelaten hints hebben hun MCP-standaardwaarde (`toolListing.ts`, #818); het object zelf is er altijd.
-    assert(t.annotations != null && typeof t.annotations === 'object', `annotations ontbreekt op ${t.name}`);
+    assert(t.annotations != null && typeof t.annotations.readOnlyHint === 'boolean', `annotations ontbreekt op ${t.name}`);
     assert(typeof t.description === 'string', `description ontbreekt op ${t.name}`);
   }
   const echo = tools.find((t) => t.name === 'planner_echo');
