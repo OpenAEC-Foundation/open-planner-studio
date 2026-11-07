@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 // laadt daarna de actieve taal-chunk vóór de eerste paint (geen Engelse flits).
 import { initLocale } from './i18n/config';
 import { appLog } from '@/services/debug/appLog';
+import { installSiteAppTools } from '@/services/mcp/siteAppTools';
+import { PLATFORM_BUILD } from '@/utils/buildFlags';
 import { hydrateSiteHostSettings } from '@/services/fileAccess/siteHostSettings';
 
 // OpenAEC stylebook fonts (self-hosted via @fontsource, bundled with app for offline use)
@@ -46,7 +48,14 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fake
 hostSettingsReady
   .then(() => initLocale())
   .catch(() => { /* taal-load faalde → en-fallback; toch renderen */ })
-  .then(() => import('./App'))
+  .then(() => {
+    // De assistent van de site bedient de tool via `window.__OPDS_APP__` (alleen de platformbouw). Pas ná de
+    // instellingen van de host: de eerste aanroep laadt de MCP-laag en daarmee de store, en die leest bij het
+    // maken al instellingen (bouwmodus → startkalender). Vóór de app, zodat het koppelvlak er staat als de app
+    // het startbestand opent. Bewaakt door `tests/planning/check-site-start-order.ts`.
+    if (PLATFORM_BUILD) installSiteAppTools();
+    return import('./App');
+  })
   .then(({ default: App }) => {
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

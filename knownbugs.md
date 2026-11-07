@@ -1900,3 +1900,58 @@ en noem het in je rapport of PR-tekst.
      weg waar het ondertekende overzicht volstaat. Zie [Debian apt-secure](https://manpages.debian.org/stable/apt/apt-secure.8.en.html)
      voor het onderscheid tussen ondertekende metadata met checksums en pakketondertekening. Uit de
      review van #799 (GPT-6.1-Sol, xhigh, op `b68158fa3`, VERVOLG); de twee planregels nagelezen. — B
+
+850. **VERVOLG: de MCP-laag is in de platformbouw geen aparte chunk.** `src/services/mcp/siteAppTools.ts` haalt de
+     dispatcher, `server.ts` en de toolregistry pas bij de eerste aanroep op met `import()`. Maar ze staan al statisch
+     in de hoofdbundel: `App.tsx` → `useAiAutostart.ts` → `server.ts` (dat bij het laden de tools registreert), en ook
+     `SettingsPanelContent.tsx` (`applyAiModeLive`), `AiServerGroup.tsx` en `AiConnectionGroup.tsx` (`server.ts`, via
+     `ribbonConfig.tsx`, ook als het AI-tabblad verborgen is) en `AiConnectionDetailsDialog.tsx` (`getTools` tijdens
+     het tekenen). `siteAppTools.ts` importeert zelf `requestHandler.ts` (en daarmee `activityLog.ts`) statisch.
+     `ensureMcpToken` in `AiConnectionGroup` en `getTools` in de dialoog lopen synchroon, dus een kleine dynamische
+     import in één bestand breekt het pad niet; een latere `import()` maakt een eerdere statische evaluatie niet
+     ongedaan. Het contract (supercloud, "Lui laden") vraagt een aparte chunk. Voorstel: laat de AI-onderdelen in
+     `ribbonConfig.tsx`, `SettingsPanelContent.tsx` en `App.tsx` alleen meedoen achter `AI_MODE_AVAILABLE`
+     (`src/utils/buildFlags.ts`), en meet daarna met `build:platform` welke chunks er ontstaan. Gevonden bij #818 met
+     grep op de imports, zonder build; bevestigd in de review van #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). — B
+
+851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
+     van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
+     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
+     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
+     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
+     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
+     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
+     met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
+     per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
+     aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
+     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Voorstel: een
+     `part` per skill, en `criticalPaths` alleen op de eerste pagina. — B
+
+852. **VERVOLG: geen browsertest roept `window.__OPDS_APP__` aan.** `tests/browser/platform-build.spec.ts` leest
+     alleen `dist-platform/mcp-tools.json` van schijf. De tests in `tests/mcp/cases-site-app-tools.ts` installeren het
+     object op een nepvenster; ze bewijzen de adapter en de guards, maar niet de installatie door `main.tsx` of een
+     `run()` in een frame met `sandbox="allow-scripts allow-modals"` (zonder `allow-same-origin`). Uit de review van
+     #825 (GPT-6.1-Sol, xhigh, ronde 1, VERVOLG). Dit wordt opgepakt in PR #828; haal dit punt weg zodra die gemerged
+     is. — B
+
+853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
+     `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
+     gaat in zijn geheel weg, met de losse waarden erin. Is bijvoorbeeld de lijst `calendars` van
+     `planner_update_calendar` de grootste verzameling, dan kan `becameLiteral` van een latere regel wegvallen (met een
+     telling in `compacted.shortened`). In de gemeten batches gebeurt dat niet, omdat `unresolved` of een takenlijst
+     veel groter is. (2) Lange losse teksten komen pas aan de beurt als er geen verzameling meer is. Bij
+     `planner_update_project` met een naam van 40.000 tekens verdwijnt daardoor eerst de kleine lijst `updated`
+     (`["name"]`), en daarna wordt de naam ingekort. (3) Het vaste deel per batchstap (`SITE_APP_REPORT_STEP_CHARS`,
+     220 tekens, plus `SITE_APP_STEP_EXTRA_CHARS`) is alleen gemeten voor de tools in de tests (taken, resources,
+     kalenders, relaties, taakwijzigingen, nivelleren en leesstappen). Een andere wijzigende tool met veel vaste
+     velden kan meer nodig hebben. Een batch zonder labels heeft geen voorcontrole; die past alleen niet als de vaste
+     delen samen al boven de grens komen (bijvoorbeeld 100 stappen `planner_level_resources`, elk 264 tekens).
+     Voorstel: een lange tekst meenemen in de keuze van 'de grootste', en het vaste deel van elke wijzigende tool
+     meten in één test over de registry. — B
+
+854. **VERVOLG: `compactChange` kopieert het antwoord onnodig opnieuw en verplaatst de koppelingen op twee plekken.**
+     `src/services/mcp/siteAppTools.ts:374`. `run()` maakt het antwoord al los met `JSON.parse(raw)` (regel 551).
+     `compactChange()` kopieert envelop, data en afwijzingen daarna opnieuw als JSON; voor deze ene aanroeper is dat
+     overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
+     kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
+     eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B

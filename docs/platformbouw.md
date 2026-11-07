@@ -34,7 +34,8 @@ npm run build:platform -- --base /assets/openaec/planner/
   blokkerend script in `<head>`. Vite kopieert het ongewijzigd uit `public/` en zet het pad in `index.html` op
   de `base` van de bouw (`/pad/theme-prepaint.js`, of `./theme-prepaint.js` bij `--base ./`), net als het icoon.
 - Het script draait eerst `tsc`, net als `npm run build`, en bouwt daarna met `vite build --mode platform`.
-- De uitvoer staat in `dist-platform/`, met `dist-platform/.vite/manifest.json` (Vite `build.manifest`).
+- De uitvoer staat in `dist-platform/`, met `dist-platform/.vite/manifest.json` (Vite `build.manifest`) en
+  `dist-platform/mcp-tools.json` (de tooldefinities voor de assistent, zie hieronder).
 - De gewone `npm run build` en de live-deploy krijgen geen van de schakelaars hieronder. De code voor opslag
   via de site zit wel in elke bouw, maar doet alleen iets als een host aanwezig is; de desktop-app heeft nooit
   een host.
@@ -213,6 +214,76 @@ Alleen als er een site is; zonder site verandert er niets.
   script; het pre-paint-script gedraagt zich als `peekTheme()`) en de host-ronden in
   `tests/browser/welcome-dialog.spec.ts` (thema van de host, live wissel, een instelling die via `settings`
   een herlaad overleeft).
+
+## De assistent van de site
+
+In de platformbouw zet `src/main.tsx` `window.__OPDS_APP__` neer (`src/services/mcp/siteAppTools.ts`). De assistent van de
+site bedient de tool daarmee, via de brug van de site in het frame:
+
+```ts
+window.__OPDS_APP__ = {
+  tools(): Promise<string[]>;                      // de namen
+  definitions(): Promise<{ name; description; inputSchema; annotations }[]>;  // zoals tools/list
+  run(name, args?): Promise<unknown>;              // het structuredContent; een weigering wordt een fout `CODE: melding`
+};
+```
+
+Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createRequestHandler`), met daarachter
+`handleMcpMessage`: dezelfde namen, schema's, guards en uitvoering, op het open document. Er is geen tweede implementatie.
+
+- **Eén sessie, één documentanker.** Bij de eerste aanroep opent `__OPDS_APP__` één MCP-sessie. De eerste wijziging
+  bindt de sessie aan het actieve document. Wisselt de gebruiker daarna zelf van document, dan geeft elke volgende
+  wijziging `DOC_DRIFT`, tot de assistent met `planner_switch_document` expliciet een document kiest. Lezen mag door.
+  Ook pauze (`PAUSED`), alleen-lezen (`READ_ONLY`) en een open dialoog (`DIALOG_OPEN`) werken zoals bij de bridge.
+- **Fouten.** Elke fout heeft de vorm `CODE: melding`, en dezelfde code staat los in `error.code`. De codes zijn die van
+  de tools (`VALIDATION`, `NOT_FOUND`, `DOC_DRIFT`, …), `JSONRPC_<code>` voor een fout van de dispatcher (een onbekende
+  tool geeft `JSONRPC_-32602: Unknown tool: …`), en twee codes van het sitecontract:
+  - `niet_in_browser: <tool>`: `planner_export_ifc` en `planner_import_schedule` werken op een bestandssysteem. Ze staan
+    niet in `definitions()` en worden geweigerd, ook als stap van `planner_batch` (dan draait de hele batch niet).
+    Openen en opslaan lopen via het hostcontract, door de gebruiker.
+  - `te_groot: …`: een leestool die meer dan 30.000 tekens zou geven. De melding noemt een uitweg die werkt:
+    `limit` en `offset` (ook optioneel op `planner_get_critical_path`, `planner_compare_baseline` en
+    `planner_analyze_delay`), één `part` van `planner_get_planning_guide` (de standaardwaarde `both` is te groot),
+    `planner_list_tasks` in plaats van `planner_get_project_overview`, of minder detail bij het histogram.
+- **Grote wijzigingen.** Een wijzigende tool of `planner_batch` krijgt nooit achteraf een fout, want de wijziging is
+  al gedaan. Van een batch gaat eerst `substeps` af (het activiteitenlog, dat de app al verwerkt heeft); een gewone
+  batch van tien stappen met 20 tot 40 taken past daarna volledig. Is het antwoord dan nog te groot, dan wordt het
+  ingekort, maar uit het antwoord van een wijzigende tool valt geen veld weg:
+  - eerst de koppelingen: de paren van een opgegeven label naar een nieuw id komen uit de oorspronkelijke uitvoer en
+    staan apart in `links` (`data.links` bij één aanroep, `steps[i].links` in een batch). Ze krimpen niet mee. Het gaat
+    om `created` van `planner_add_tasks` en `planner_manage_resources` (dat veld verhuist naar `links`), en om
+    `{requestedId, id}` van elke kalender met `created: true` uit `planner_update_calendar`;
+  - weg: alleen de uitvoer van een leesvariant in een batch (`readOutputOmitted: true`). Een leesvariant is een tool
+    met `readOnlyHint` of `kind: 'read'`, of een aanroep met `dryRun: true` bij een tool die dat kent (zoals
+    `planner_level_resources`). De assistent roept zo'n stap los aan om hem te lezen;
+  - past het dan nog niet, dan wordt steeds de grootste verzameling in het hele antwoord korter, op elke diepte. Een
+    verzameling is een lijst, of een object met minstens vijf sleutels die allemaal een cijfer bevatten (een map per
+    taak-id, zoals `unresolved` van de nivellering). Ze houdt haar eerste regels of sleutels; `compacted.shortened`
+    noemt per pad het totaal en hoeveel er weg zijn. Losse waarden blijven staan, dus kleine meldingen zoals
+    `phaseTransitions`, `becameLiteral` en `clearedLagMinutes` blijven er volledig in;
+  - is er geen verzameling meer en past het nog niet, dan worden lange losse teksten ingekort (ook in `shortened`).
+
+  Er is één eindcontrole op het hele antwoord, envelop inbegrepen. Zouden de koppelingen samen met het rapport van
+  deze aanroep niet passen, dan weigert `run` vóór uitvoering met `te_groot` en het maximum aantal nieuwe items. De
+  ruimte voor het rapport hangt af van de aanroep: 4.000 tekens plus per batchstap 220 tekens en de toolnaam, en voor
+  een tool met een groot vast deel meer (`SITE_APP_STEP_EXTRA_CHARS`, nu `planner_level_resources`). Een test toetst
+  dat een batch tot aan dat maximum altijd past en elke koppeling houdt.
+- **Foutantwoorden.** Ook een fout blijft binnen de grens, ook een JSON-RPC-fout. De code blijft, net als de terugrolmelding en het
+  staprapport van een batch. Een lange kring wordt een aantal plus een fragment; daarna blijven zo nodig het begin en
+  het eind van de melding over.
+- **Laden.** De dispatcher, de toolregistry en `server.ts` worden pas bij de eerste aanroep via `import()` opgehaald.
+  Een aparte chunk is het nog niet: `App.tsx` (via `useAiAutostart`), de instellingen, het AI-tabblad van het lint en
+  `AiConnectionDetailsDialog` importeren `server.ts` of de toolregistry statisch, ook in de platformbouw. De MCP-laag
+  zit dus in de hoofdbundel (knownbugs 850). Een browsertest die `__OPDS_APP__` in een sandbox-frame aanroept, ontbreekt
+  nog (knownbugs 852).
+
+`npm run build:platform` schrijft de definities ook naar `dist-platform/mcp-tools.json`, naast de bundel, zodat de site ze
+kan controleren. Dat doet `scripts/export-mcp-tools.ts` met `siteAppToolsJson`, dezelfde pure functie als
+`definitions()`; los aan te roepen met `node scripts/run-ts.mjs scripts/export-mcp-tools.ts <bestand>`.
+
+Toetsen: `tests/mcp/cases-site-app-tools.ts` (via `installSiteAppTools` op een nepvenster: guards, documentanker,
+bestandstools direct en in `planner_batch`, foutcodes, grootte-grens en inkorten, `mcp-tools.json`) en
+`tests/browser/platform-build.spec.ts` (het bestand ligt naast de bundel).
 
 ## Zelf proberen
 
