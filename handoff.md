@@ -5,9 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp staat als versie 3 in draft PR #839. Ronde 1 en 2 gaven allebei Opus 6, Sol 6, Fable 7; de
-leden vonden steeds dezelfde soort gaten, en die zijn in versie 3 verwerkt. Ronde 3 beoordeelt nu versie 3. Daarna volgen
-rondes tot elk lid een 9 geeft. Dan begint de bouw, met fase 0: een proef op echte bestanden.
+Het ontwerp staat als versie 5 in draft PR #839 (commit `2ce2da8f7`). Vier rondes gaven nog geen 9. In ronde 5 gaf
+Fable 8 en Opus 7; Sol loopt nog. De blokkades van ronde 5 zijn klein en gaan vooral over eigen bestanden zonder model:
+die moeten precies blijven zoals nu. Na Sol komt versie 6, dan ronde 6. Daarna begint de bouw met fase 0.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -64,7 +64,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 2 (v2) | 6 | 6 | 7 |
 | 3 (v3) | 6 | 6 | 8 |
 | 4 (v4) | 7 | 6 | 7 |
-| 5 (v5) | loopt | loopt | loopt |
+| 5 (v5) | 7 | loopt | 8 |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -75,6 +75,38 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 5 — Fable (8/10) en Opus (7/10, "daarna 8 tot 9"); Sol loopt — te verwerken in v6
+
+Beide via native Agent (Fable high, Opus xhigh). Opus-proeven in `scratchpad/r5/` (`sim.py`: drie opslagrondes, aantal
+stukken blijft gelijk na ronde 1; `prop.ifc`, `oud01.ifc`).
+Blokkeert:
+- (F1/O1) Eigen bestand zonder vreemd deel: nummering en slots zoals de huidige writer (vanaf #1, geen kaart, geen
+  brontokens), anders faalt de 100 %-P-poort. Opus: vier soorten slots — domein, afgeleid (altijd writer-waarde, bv.
+  `StatusTime` `ifcWriter.ts:1542`, `IfcTaskTime.Name`, Nests-naam `:1600`, werkplan/schema-datums `:447-449`, baseline
+  `:465-466`), constant (alleen hier brontoken), verwijzing; elk slot in elke descriptor een soort, test faalt zonder.
+  Tokens alleen uit huidige lay-out (oude: IfcTask 12 args `ifcReader.ts:1768`, resource 9 args `ifcWriter.ts:1728`,
+  LagTime `ifcReader.ts:1984`). Poortgeval: eigen bestand, statusdatum wijzigen, taak/baseline hernoemen = writer-uitvoer.
+- (O2) `ifcSource` buiten `IFCSaveSource` → 26 aanroepen moeten het met de hand doorgeven (`ifcSaveInput.ts:13,66-69,
+  116-126`). Voorstel: `buildWriteIFCInput(src, mode: 'merge'|'planOnly')` verplicht; eigen sleutellijst voor
+  `sameIFCSource`; schrijflaag weigert planOnly naar het eigen doel van een document met vreemd deel.
+- (O3) Projectnaam: regel geldt voor "project niet P", niet alleen C. Bonsai: project V bij openen, naam 'Proj'
+  (`ifcReader.ts:1414`), werkplan 'Plan' → na opslaan C → controle 2 faalt. Naam in `OPS_ProjectSettings.ProjectName`.
+- (O4) Gemengde relatie alleen als de relating in D zit; vreemde relating (bv. IfcCostItem → taken) = A met §4.7.
+- (O5) "Bron ontbreekt" alleen met vreemd deel: manifest `foreign: boolean`; zonder vreemd deel huidige route + melding.
+- (O6) Onbekende property in bekende pset: script laat hem weg (`scratchpad/r5/prop.ifc`). Kiezen: belofte schrappen
+  (verlieslijst) of property-namen in de index en C. `OPS_CustomFields`-namen komen uit templates (`ifcReader.ts:2343-2357`).
+Vervolg: register in script wijkt af (zes XER/P6-markers geen pset; mist `OPS_P6Progress`, `ifcPsets.ts:77,707`) →
+genereren uit `ifcPsets.ts`; baselinesleutel vastleggen (GlobalId `guidOf(ctx,'baseline_ws_'+id)`, salt project-id
+`ifcWriter.ts:227-232`, terugval Name+CreationDate); MCP-backup: terugzetten = P uit backup + vreemd deel van het huidige
+document (geen bron per sha); vaste lijst letterlijke `#`-slots noemen (`Usage`, `BaseCosts`, `BaseQuantity`); slots per
+naam via lay-outbewuste descriptor; één R-sleutel met psetnaam; `IfcRelSequence` D (domein-id, SS+FF tussen zelfde paar,
+`sequenceSlice.ts:79`); R-id-regel schrappen (geen attribuut wijst naar de zeven reltypen, VERMOED); detached-ids boven
+hulpstukken, soort "teruggezet" in wijzigingslijst; twee-keer-opslaan-test vergelijkt vanaf ronde 1; extra werkplannen
+gaan verloren (`ifcWriter.ts:452`) → verlieslijst; decodeerkeuze aan de app achter de eigen owner history van P
+(`ifcReader.ts:1156-1161`, `oud01.ifc`); `ifcSource` vervangen bij elk geslaagd schrijven los van dirty
+(`fileSlice.ts:576-594`), niet bij exportAs/zonder model; model op schijf vervangen → grootte+mtime check; corpus: project
+→ eigen owner history; gemengde `IfcRelDefinesByProperties` één zin.
 
 ### Ronde 4 — Opus (7/10, "daarna 8 tot 9") — verwerkt in v5 (Sol 6: ook ifcSource zonder vreemd deel, register i.p.v. OPS_-prefix, crash tussen opslaan en manifest; spec §12)
 
