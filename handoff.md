@@ -66,7 +66,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 4 (v4) | 7 | 6 | 7 |
 | 5 (v5) | 7 | 7 | 8 |
 | 6 (v6) | 7 | 7 | 8 |
-| 7 (v7) | loopt | loopt | loopt |
+| 7 (v7) | 7 | loopt | 9 |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -77,6 +77,32 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 7 — Opus 7 ("daarna 8 tot 9"), Fable 9; Sol loopt — te verwerken in v8
+
+Fable 9: geen blokkade. Vervolg: (F1) tegenspraak naam vreemde `IfcRelNests` (afgeleid vs bewaard slot) → bij vreemde
+herkomst brontoken; (F2) legacy kale-GUID-sleutel in `OPS_Assignments` (`ifcReader.ts:3461, 3494`); (F3) codering:
+terugval `OPS_`-psets zonder `IfcApplication` = letterlijk (`:1161, 3802-3808`) houden; (F4) pset heeft wel OwnerHistory;
+(F5) vervangen van `ifcSource` behoudt `detached`.
+Opus 7 (proeven `scratchpad/r7opus/`: volgorde.mts, kal.mts, kaal.mts, bonsaikal.mts). Blokkeert:
+- (O1) **D op bronplek breekt volgorde**: wortelvolgorde komt uit bestandsvolgorde `IFCTASK` (`ifcReader.ts:1749`;
+  Nests onder schema genegeerd `:2394`; WBS `taskTree.ts:94-98`, `taskSlice.ts:1497-1500`); projectkalender = eerste
+  `IFCWORKCALENDAR` (`ifcReader.ts:1449, 3256`, `ifcWriter.ts:418`). Proef: één IFCTASK verschuiven → "1. Preparation"
+  laatste; kalenders verwisselen → andere projectkalender. Voorstel: hele P-blok in writer-volgorde op de plek van het
+  eerste P-stuk van de bron (D houdt #id); test elke "eerste X"-keuze (`ifcReader.ts:267, 438-445, 1377-1378, 1397,
+  1449, 3256`) merge = planOnly; tests wortel verplaatsen, nieuwe wortel bovenaan, andere projectkalender, kind + WBS.
+- (O2) kale GUID-sleutels in `OPS_Assignments` (≤ v2026.7.3, `git show 87ebd4d46^:…ifcWriter.ts` r.638-641) → eigen
+  bestand krijgt vreemd deel (proef 77 vreemde leden) → herkenner neemt kale GlobalId van toegewezen resource; poort met
+  concrete oude tags per formaatwissel.
+- (O3) Ledenregel gooit Bonsai-kalendertoewijzing weg: lezer slaat rel naar eerste kalender over (`ifcReader.ts:3272`),
+  writer schrijft die nooit (`ifcWriter.ts:1452`) → `#64` in bonsai-achtig vervalt al bij openen+opslaan. Voorstel:
+  koppeling met projectkalender = "volgt projectkalender" (geen eigen calendarId).
+Vervolg: (O4) Bonsai hangt alleen wortels via Controls aan schema; writer alle taken (`ifcWriter.ts:549-553`) → fase 0;
+(O5) AutoSave stale-check (`useAutoSave.ts:155`) moet ook `ifcSource` identiek eisen; (O6) `detached` ook slots van
+vervallen vreemde R per koppeling; (O7) naambotsing vreemd lid ↔ nieuwe eigen property → vreemd lid vervalt; (O8)
+codetypen/velden komen uit JSON `OPS_StructureMeta` (`ifcReader.ts:2200-2219`), template is terugval → index; lege
+`createdAt` → CreationDate nu maar `ifcDateTime('')` = `$` (`ifcWriter.ts:113, 474`; `xerReader.ts:1239`); herkomst-slot
+= `OwningApplication`; IFCX `children` is map → volgorde in `ops::` (fase 3).
 
 ### Ronde 6 — Opus 7 ("daarna 8 tot 9"), Sol 7, Fable 8 — verwerkt in v7 (spec §12 "Na ronde 6")
 
