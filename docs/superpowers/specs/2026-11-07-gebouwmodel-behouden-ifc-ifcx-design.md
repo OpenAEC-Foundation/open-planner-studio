@@ -1,6 +1,6 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 7 (7 november 2026, na council-ronde 6). Wordt in dezelfde sessie gebouwd.
+Status: ontwerp, versie 8 (7 november 2026, na council-ronde 7). Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
 
@@ -91,7 +91,8 @@ schrijft de writer de kop zoals nu.
 **Index.** De scanner levert per stuk: `#id`, type (of "complex"), de uitgaande `#`-verwijzingen met hun
 argumentpositie, argument 0 als ruwe ASCII-tekst (de GlobalId van een `IfcRoot`), en een paar gedecodeerde velden die
 de indeling nodig heeft: de `Name` van psets, templates, properties en property-templates; `PredefinedType`, `Name` en
-`CreationDate` van werkschema's; de waarde van de property `Baselines` in `OPS_Baselines`; de waarden van
+`CreationDate` van werkschema's; de waarde van de property `Baselines` in `OPS_Baselines` en de JSON in
+`OPS_StructureMeta`; de waarden van
 `IfcPropertyEnumeratedValue` en `IfcPropertyEnumeration`; en de `ApplicationIdentifier` en `Version` van elke
 `IfcApplication`. Daaruit bouwt hij ook de **inkomende** verwijzingen (wie verwijst naar mij). De indeling is een pure
 functie van deze index en draait vóór de lezer. Een test eist dat de indeling geen ander veld leest.
@@ -107,9 +108,9 @@ maakt. Dezelfde functie gebruikt de lezer, zodat indeling en lezer niet uiteen k
 regels letterlijk over:
 
 - het werkplan dat de lezer kiest: het **eerste** `IfcWorkPlan` in het bestand (`ifcReader.ts:442, 1378`). Een tweede
-  werkplan is vreemd en blijft byte-gelijk (§4.5). De writer schrijft elk D-stuk op zijn bronplek (§4.10), dus het eerste
-  werkplan blijft na opslaan het eerste (Opus en Sol, ronde 6: in v6 kwam het vreemde werkplan na opslaan vooraan, en
-  koos de lezer het verkeerde). Hetzelfde geldt voor het eerste live-schema, dat de lezer ook op volgorde kiest;
+  werkplan is vreemd en blijft byte-gelijk (§4.5). De writer schrijft het hele P-blok op de plek van het eerste P-stuk
+  van de bron (§4.10). Het D-werkplan staat vóór elk ander werkplan, dus het blijft na opslaan het eerste (Opus en Sol,
+  ronde 6: in v6 kwam het vreemde werkplan na opslaan vooraan, en koos de lezer het verkeerde);
 - de werkschema's en taken zoals de lezer ze nu kiest: alle `IfcTask` buiten de baselinebomen (`ifcReader.ts:1749`);
   baselinebomen worden alleen uitgesloten als er een live-schema met minstens één taak is; anders zijn de
   baselinetaken de planning (`collectBaselineTaskStepIds`, `:3570-3612`, #336). Losse taken buiten een schema horen erbij;
@@ -122,7 +123,7 @@ regels letterlijk over:
   (`ifcWriter.ts:462-483`). Een `BASELINE`-schema is dus alleen D als zijn `Name` en `CreationDate` gelijk zijn aan
   `name` en `createdAt` van een item in `OPS_Baselines`, en er geen taken onder hangen. De vergelijking gebruikt de
   gedecodeerde `Name` en `ifcDateTime(createdAt)`, want de writer normaliseert de datum (`ifcWriter.ts:112-119, 472-474`;
-  een lege `createdAt` wordt "nu"). De GlobalId is
+  een lege `createdAt` wordt "nu"; dan vergelijkt de indeling alleen de `Name`). De GlobalId is
   geen goede sleutel: de writer neemt eerst een GlobalId uit de bron over en maakt bij een botsing een `#dupN`-variant
   (`issueGuid`, `ifcWriter.ts:244-258`). Een baseline van Bonsai, met of zonder takenboom, is geen D en blijft byte-gelijk.
 - Baseline herkennen: op het slot `PredefinedType` (`workControlSlots`, `ifcReader.ts:1113-1115`), niet op tekst elders
@@ -147,15 +148,21 @@ anders niet (`IfcRelSequence` is D, stap 1):
   onbekende `OPS_AndereTool` is geen R.
 - **Properties in het register.** Per pset zegt het register welke properties eigen zijn: de properties die de lezer
   echt gebruikt. Dat is een vaste lijst namen, of een herkenner voor sleutels uit de data:
-  - `OPS_Assignments`, `OPS_Timephased`, `OPS_TimephasedWindow`: `<GlobalId van een resource>#n`. De lezer zet de sleutels
-    per GlobalId op volgorde van `n` in een wachtrij en neemt er één per toewijzing van die resource aan de taak
-    (`ifcReader.ts:3455-3470, 3489`). De k-de sleutel is dus alleen eigen als die resource minstens k keer aan de taak
-    is toegewezen.
-  - `OPS_ActivityCodes`: de naam van een codetype uit het eigen template, met als eerste code een waarde uit de
-    opsomming van dat type (`ifcReader.ts:2225-2246, 2359-2366`).
-  - `OPS_CustomFields`: de naam van een veld uit het eigen template (`ifcReader.ts:2343-2357`).
+  - `OPS_Assignments` is de enige pset met sleutels uit de data. Twee vormen: `<GlobalId van een resource>#n` en, van
+    writers tot en met v2026.7.3, de kale GlobalId (`ifcReader.ts:3458-3462, 3494`). De lezer zet de `#n`-sleutels per
+    GlobalId op volgorde van `n` in een wachtrij en neemt er één per toewijzing van die resource aan de taak
+    (`ifcReader.ts:3455-3470, 3489`). De k-de `#n`-sleutel is dus alleen eigen als die resource minstens k keer aan de
+    taak is toegewezen; een kale sleutel is eigen als die resource aan de taak is toegewezen.
+  - `OPS_Timephased` heeft één vaste property `Windows`, met de sleutels in de JSON (`ifcReader.ts:3380-3390`).
+    `OPS_TimephasedWindow` heeft de vaste properties `FinishFloor` en `StartAnchor` (`ifcPsets.ts:628-636`). (Sol, ronde 7:
+    v7 behandelde ze als `#n`-psets, en een eigen fixture kreeg vreemde leden.)
+  - `OPS_ActivityCodes`: de naam van een codetype, met als eerste code een waarde van dat type. `OPS_CustomFields`: de
+    naam van een veld. De typen en velden komen uit de JSON in `OPS_StructureMeta`, met terugval op het eigen template,
+    in dezelfde voorrang als de lezer (`ifcReader.ts:2202-2246, 2343-2366`).
   - Dezelfde regel geldt voor property-templates in een template uit het register.
-  - Lezer en indeling gebruiken dezelfde herkenner. (Sol, ronde 6: met *alle* in v6 bleef een `VendorSecretNote` in
+  - Lezer en indeling gebruiken dezelfde herkenner.
+  - Een vreemd lid met een naam die de writer in die pset schrijft, vervalt (wijzigingslijst). Zo komen er nooit twee
+    properties met dezelfde naam in één pset, en blijft de wachtrij van `OPS_Assignments` eenduidig. (Sol, ronde 6: met *alle* in v6 bleef een `VendorSecretNote` in
     `OPS_Assignments` of `OPS_ActivityCodes` P en ging hij verloren.)
 - Het register bevat ook de psetnamen die alleen in `ifcWriter.ts` staan, zoals `OPS_Project` (`ifcWriter.ts:413`,
   `ifcReader.ts:384`); de bouw zet ze in `PSET`. Een test eist dat elke psetnaam die de writer schrijft in het register
@@ -251,8 +258,8 @@ Gevolgen:
 Een taak uit Bonsai of Synchro is P en wordt dus opnieuw geschreven. Wat de writer niet kent, mag daarbij niet stil
 verdwijnen.
 
-- **Herkomst.** Een object heeft *eigen herkomst* als zijn owner history naar een `IfcApplication` met identifier `'OPS'`
-  wijst (`ifcWriter.ts:393`); anders *vreemde herkomst* (ook bij `OwnerHistory = $`). Nieuwe objecten hebben eigen herkomst.
+- **Herkomst.** Een object heeft *eigen herkomst* als het slot `OwningApplication` van zijn owner history naar een
+  `IfcApplication` met identifier `'OPS'` wijst (`ifcWriter.ts:393`); anders *vreemde herkomst* (ook bij `OwnerHistory = $`). Nieuwe objecten hebben eigen herkomst.
 - **De herkomst blijft.** Bij een D- of R-stuk van vreemde herkomst is `OwnerHistory` een constant slot met een `#`: de
   writer schrijft het brontoken terug, en de owner history van het andere programma blijft als C staan (§4.2 stap 4). Zo
   heeft het object na elk opslaan, en na sluiten en opnieuw openen, nog steeds vreemde herkomst. De app past de owner
@@ -271,7 +278,7 @@ verdwijnen.
     herkomst: het brontoken als het domeinveld nog gelijk is aan wat de lezer eruit las, én het token in de codering van
     de uitvoer dezelfde waarde geeft; anders de waarde van de writer. Zo blijft een Bonsai-`Status` staan.
   - **Afgeleid**: de writer berekent het uit andere gegevens. Altijd de waarde van de writer. Voorbeelden:
-    `IfcTaskTime.StatusTime` (`ifcWriter.ts:1542`), `IfcTaskTime.Name`, de naam van `IfcRelNests` (`:1600`),
+    `IfcTaskTime.StatusTime` (`ifcWriter.ts:1542`), `IfcTaskTime.Name`, de naam van `IfcRelNests` bij eigen herkomst (`:1600`),
     StartTime/FinishTime/CreationDate van werkplan en werkschema (`:447-449`), naam en datums van de baselineschema's
     (`:465-466`), `IfcWorkPlan.Name` bij eigen herkomst. Zo blijft een statusdatum niet op de oude waarde staan (Opus,
     ronde 5: in v5 bevroor het brontoken de oude datum).
@@ -290,9 +297,13 @@ verdwijnen.
 - **Relaties van een ander programma.** Een R-stuk van vreemde herkomst wordt opnieuw geschreven met zijn bewaarde slots
   (GlobalId, OwnerHistory, Name, Description, `QuantityInProcess`). Welke leden erin staan, volgt uit de **huidige
   koppelingen in het domein**, niet uit het bestaan van de objecten:
-  - Een lid blijft alleen staan zolang het domein dezelfde koppeling heeft: hetzelfde type en dezelfde relating. Bij
-    `IfcRelAssignsToProcess`: het paar (taak, resource), zo vaak als het domein die toewijzing heeft. Bij
-    `IfcRelAssignsToControl`: dezelfde kalender of hetzelfde schema.
+  - Een lid blijft alleen staan zolang het domein dezelfde koppeling heeft, **zoals de lezer haar vertaalt**: hetzelfde
+    type en dezelfde relating. Bij `IfcRelAssignsToProcess`: het paar (taak, resource), zo vaak als het domein die
+    toewijzing heeft. Bij `IfcRelAssignsToControl` met een schema: hetzelfde schema. Met een kalender: dezelfde kalender;
+    is dat de projectkalender, dan slaat de lezer de relatie over (`ifcReader.ts:3272`) en is de koppeling "volgt de
+    projectkalender" (geen eigen `calendarId`). Het lid blijft dan staan zolang de taak of resource geen eigen kalender
+    heeft en die kalender de projectkalender blijft. (Opus, ronde 7: anders verviel de kalendertoewijzing van Bonsai al
+    bij openen en opslaan zonder wijziging.)
   - Een `IfcRelNests` volgt de ouder: de bewaarde relatie van een ouder krijgt de kinderen die die ouder nu heeft, in de
     volgorde van het domein. Komt er een kind bij of gaat er een weg, dan verandert alleen de ledenlijst.
   - Een lid zonder koppeling gaat eruit (wijzigingslijst niet nodig: het is P). Zonder leden vervalt de relatie.
@@ -357,15 +368,18 @@ Of een attribuut optioneel is, toetst de app niet zelf; `ifcopenshell.validate` 
 opslaan, via het meldingenkanaal: "3 gegevens van andere programma's hingen aan verwijderde taken of resources. Ze zijn
 aangepast of verwijderd."
 
-**Ongedaan maken na opslaan.** De app bewaart elk vervallen of gewijzigd vreemd stuk (oude bytes), en de `sourceSlots` en
-`elementLinks` van verdwenen objecten, in `ifcSource.detached`, zolang het document open is. Komt een object met dezelfde
+**Ongedaan maken na opslaan.** De app bewaart elk vervallen of gewijzigd vreemd stuk (oude bytes), en van verdwenen
+objecten de `sourceSlots`, de `elementLinks` en de `foreignMembers` (met de psetnaam waar elk vreemd lid bij hoorde), in
+`ifcSource.detached`, zolang het document open is. Ook de bewaarde slots van een vervallen relatie van een ander
+programma gaan erin, per koppeling (een toewijzing van Bonsai komt na Ctrl+Z terug met haar `QuantityInProcess` en
+GlobalId). (Sol en Opus, ronde 7.) Komt een object met dezelfde
 domein-id terug (Ctrl+Z, ook na opslaan), dan zet de writer bij het volgende opslaan die stukken terug, met de
 verwijzing naar het huidige `#id` van het object (wijzigingslijst). Zo verliest Ctrl+Z na opslaan niets. Na sluiten van
 het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbrengen.
 
 - Is hetzelfde stuk in twee opslagrondes bewaard, dan komt de oudste versie terug, met alleen de leden die nog bestaan.
 - De wijzigingslijst kent drie soorten: *gewijzigd*, *vervallen* en *teruggezet*. Teruggezette stukken staan direct na
-  het laatste bronstuk, vóór de R-stukken en hulpstukken (§4.10), met ids boven die van de hulpstukken (§4.3); verwijzingen tussen teruggezette stukken worden
+  het P-blok (§4.10), met ids boven die van de hulpstukken (§4.3); verwijzingen tussen teruggezette stukken worden
   meegenummerd. Controle 1 rekent ze mee als teruggezet.
 
 ### 4.8 `ifcSource`: waar de bron woont
@@ -382,7 +396,10 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   `set()` als het afronden van het opslaan, en los van de dirty-vlag: werkt de planner door tijdens een lange AutoSave,
   dan blijft het document gewijzigd (`commitSavedDocument`, `fileSlice.ts:576-594`), maar de bron is wel de uitvoer op
   schijf. Een export naar een ander doel (`exportAs`, Exporteren zonder gebouwmodel, pool-export) vervangt `ifcSource`
-  nooit; anders klopt de sha256 in het manifest niet meer met het eigen doel.
+  nooit; anders klopt de sha256 in het manifest niet meer met het eigen doel. Het vervangen neemt `detached` mee.
+- **AutoSave en een nieuwe bron.** De controle op een verouderde kandidaat (`useAutoSave.ts:155`) eist ook dat
+  `ifcSource` nog hetzelfde object is als waarop de kandidaat is gebouwd. Zo schrijft AutoSave geen uitvoer die op een
+  oudere bron is gebouwd nadat een handmatig opslaan een nieuwe bron maakte (Opus, ronde 7).
 - **De schrijver krijgt `ifcSource` via `IFCSaveSource`.** `IFCSaveSource` is een expliciete `Pick`, met compile-asserts
   gekoppeld aan `IFC_SAVE_KEYS` (`ifcSaveInput.ts:13, 116-126`). `ifcSource` komt in die `Pick`; dan kan geen van de 26
   aanroepen van `buildWriteIFCInput`/`buildExportIFCInput` het veld vergeten (Opus, ronde 5). `buildWriteIFCInput(src, mode)`
@@ -420,8 +437,9 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 5. **Codering van strings.** Nu kiest `stringsAreStepEncoded` voor het hele bestand op de eerste OPS-applicatie
    (`ifcReader.ts:1156-1161`). Nieuw: de keuze geldt **per stuk**. Een stuk met een `OwnerHistory`-slot volgt de applicatie
    achter dat slot, los van de klasse van die owner history: OPS met versie `'0.1'` = letterlijk, al het andere = de norm.
-   Een hulpstuk zonder owner history (pset, property, `IfcTaskTime`) volgt het D- of R-stuk waar het bij hoort; een stuk
-   dat bij geen enkel stuk hoort, volgt de norm. Voorbeelden: in `oud01.ifc` (Opus, ronde 5) wijzen het project en de
+   Een stuk zonder `OwnerHistory`-slot (property, `IfcTaskTime`, `IfcLagTime`) volgt het stuk dat ernaar verwijst
+   (property → pset → relatie → D-stuk); een stuk waar niemand naar verwijst, volgt de norm. Staat er in het hele bestand
+   geen `IfcApplication`, dan blijft de huidige terugval: met `OPS_`-psets letterlijk (`ifcReader.ts:1161, 3802-3808`). Voorbeelden: in `oud01.ifc` (Opus, ronde 5) wijzen het project en de
    taken naar een `'0.1'`-owner history die C is; de taken en hun psets worden toch letterlijk gelezen, zodat een `\` in
    een JSON-pset heel blijft (Fable en Opus, ronde 6). In `k2.ifc` (Sol) staat de planning op een `'0.2'`-owner history en
    de oude `'0.1'` alleen achter het project: de planning volgt de norm. De writer schrijft elke P-tekst in de huidige
@@ -429,11 +447,19 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
 
 ### 4.10 Vóór opslaan: de verliesbewaking
 
-De writer schrijft (met een vreemd deel): de kop en alle stukken in bronvolgorde, waarbij elk niet-P-stuk byte-gelijk
-blijft (A volgens de wijzigingslijst) en elk D-stuk dat nog bestaat **op zijn bronplek** opnieuw wordt geschreven. Een
-verdwenen D-stuk laat geen plek achter. Daarna komen de teruggezette stukken (§4.7), de R-stukken, de hulpstukken en de
-nieuwe D-stukken, en dan de staart. Zo verandert de volgorde van de D-stukken onderling en tegenover het vreemde deel
-niet, en kiest de lezer na opslaan hetzelfde eerste werkplan en live-schema.
+De writer schrijft (met een vreemd deel): de kop; de niet-P-stukken die in de bron vóór het eerste P-stuk staan; dan het
+hele **P-blok in de volgorde van de writer** (D-stukken met hun eigen `#id`, R, hulpstukken, nieuwe D-stukken); dan de
+teruggezette stukken (§4.7); dan de overige niet-P-stukken in bronvolgorde; dan de staart. Niet-P-stukken blijven
+byte-gelijk (A volgens de wijzigingslijst), en hun volgorde onderling verandert niet.
+
+Waarom het hele blok in writer-volgorde (Opus, ronde 7): de lezer haalt veel keuzes uit de bestandsvolgorde. De volgorde
+van de wortel-taken komt uit de volgorde van de `IFCTASK`-regels (`ifcReader.ts:1749`, `taskTree.ts:94-98`), de
+projectkalender is de eerste `IFCWORKCALENDAR` (`ifcReader.ts:1449, 3256`, `ifcWriter.ts:418`). Met D-stukken op hun
+bronplek (v7) kwam een nieuwe taak achteraan en bleef de oude projectkalender de eerste. In writer-volgorde maakt de
+samengevoegde uitvoer dezelfde keuzes als de uitvoer zonder vreemd deel. Het D-werkplan is het eerste werkplan van de
+bron, dus elk vreemd werkplan staat na het begin van het P-blok, en de lezer kiest na opslaan weer het D-werkplan. Een
+test eist voor elke "eerste X"-keuze van de lezer (`ifcReader.ts:267, 438-445, 1377-1378, 1397, 1449, 3256`) dezelfde
+uitkomst bij `merge` en `planOnly`.
 Daarna, vóór het wegschrijven, scant de app de uitvoer opnieuw met de scanner. Twee controles:
 
 1. **Vreemd deel.** Elk niet-P-stuk van de bron staat in de uitvoer met hetzelfde `#id`, dezelfde bytes en in dezelfde
@@ -580,7 +606,8 @@ Namespace `ops::` (open besluit 1). Elke eigen node krijgt ook `bsi::ifc::class`
 | Resource | `<res-uuid>` | `bsi::ifc::class` (resource-subtype), `ops::resource` |
 | Toewijzing, baseline, codes, overige projectdata | onder taak of plan | `ops::assignment`, `ops::baseline`, … |
 
-- WBS via `children` van plan en samenvattingstaken, alleen naar eigen paden.
+- WBS via `children` van plan en samenvattingstaken, alleen naar eigen paden. `children` is een map zonder vaste
+  volgorde; de volgorde van taken staat daarom expliciet in `ops::task` (een volgnummer onder de ouder).
 - De `ops::`-schema's worden met de hand geschreven, met volledige `objectRestrictions`. Een test valideert elke uitvoer
   van de voorbeeldprojecten met de validator van IFC5-development.
 
@@ -710,8 +737,12 @@ daarom staat alles achter de flags tot het compleet is.
   IFC2X3-planningsbestand en een IFC2X3-model, een samengevoegd bestand waarin het project naar de eigen owner history
   wijst, een bestand met twee werkplannen, en een oud eigen bestand (`'0.1'`) samengevoegd met een model. Plus `Hello Wall`, een groter IFC5-voorbeeld en IFCX-bestanden met een
   gemengde entry gevolgd door een vreemde `null`-child, een ontsnapte attribuutnaam en een groot geheel getal.
-- **Poort: eigen bestanden = 100 % P en uitvoer zoals nu.** Elk `public/examples/*.ifc`, de uitvoer van de writer voor
-  elk voorbeeldproject, en uitvoer van oudere release-tags geven na indeling alleen P, zonder vreemde leden. Voor elk
+- **Poort: eigen bestanden = 100 % P en uitvoer zoals nu.** Elk `public/examples/*.ifc`, de echte writer-uitvoer in
+  `tests/planning/fixtures/` (niet de fixtures met bewust hernoemde properties, zoals `werkdag-einde-tussenwaarde.ifc`, en
+  niet die met een model), de uitvoer van de writer voor elk voorbeeldproject, en uitvoer van oudere release-tags geven
+  na indeling alleen P, zonder vreemde leden en zonder vreemde herkomst. Oude tags minstens één per formaatwissel: tot en
+  met v2026.7.3 (kale sleutels in `OPS_Assignments`), vóór 2026-07-03 (`IfcTask` met 12 argumenten), vóór 2026-09-28
+  (`'0.1'`, letterlijke tekst). Voor elk
   zulk bestand is de uitvoer van de nieuwe route byte-gelijk aan `writeIFC(readIFC(bestand))` van de huidige code, met een
   vaste klok. Extra gevallen: eigen bestand, statusdatum wijzigen, taak en baseline hernoemen, een toewijzing toevoegen:
   weer byte-gelijk aan de huidige writer.
@@ -731,6 +762,16 @@ daarom staat alles achter de flags tot het compleet is.
     blijven, de kalender van een taak wijzigen, de volgorde van kinderen wijzigen: na herlezen klopt de planning en
     staat geen kind in twee `Nests`;
   - twee werkplannen: na opslaan, en na een tweede opslaan, is hetzelfde werkplan D (proeven van Opus en Sol, ronde 6);
+  - volgorde in een bestand met model: een wortel-taak verplaatsen, een nieuwe wortel bovenaan, een kind invoegen en de
+    WBS opnieuw nummeren, een andere projectkalender kiezen: na herlezen gelijk aan de uitvoer zonder vreemd deel
+    (proeven van Opus, ronde 7);
+  - een Bonsai-kalendertoewijzing naar de projectkalender blijft na openen en opslaan staan (`bonsai-achtig.ifc` `#64`);
+  - `OPS_Timephased`, `OPS_TimephasedWindow` en oude kale `OPS_Assignments`-sleutels in een eigen bestand: 100 % P; de
+    sturing wissen, opslaan en heropenen: de waarde is weg (proeven van Sol en Opus, ronde 7);
+  - een vreemd lid in `OPS_TaskNotes` en een in `OPS_Assignments` op dezelfde taak: taak verwijderen, opslaan, Ctrl+Z,
+    opslaan: elk lid hangt weer in zijn eigen pset (proef van Sol, ronde 7);
+  - een vreemd lid met een naam die de writer later zelf schrijft: het vreemde lid vervalt, met een melding;
+  - AutoSave na een handmatig opslaan schrijft niet op de oude bron;
   - een onbekende property in `OPS_Assignments` en in `OPS_ActivityCodes` blijft byte-gelijk (proeven van Sol, ronde 6);
   - `IfcRelAssignsToControl` van een `IfcCostItem` naar taken blijft A; een taak verwijderen volgt §4.7;
   - oud eigen bestand (`'0.1'`) met model, met een `\` in een JSON-pset en een `é` in een taaknaam: na openen, opslaan en
@@ -782,6 +823,11 @@ daarom staat alles achter de flags tot het compleet is.
 - Welke slots horen in de vaste lijst met `#`-tokens (§4.5), volgens het schema?
 - Wat doen IfcOpenShell en Bonsai met een owner history van een ander programma op een object dat zij wijzigen? Dat
   bevestigt of de keuze in §4.5 (owner history van een ander niet aanpassen) aansluit bij de praktijk.
+- Hangt Bonsai alleen wortel-taken via `IfcRelAssignsToControl` aan het schema? De writer wijst alle taken toe
+  (`ifcWriter.ts:549-553`). Fase 0 opent de uitvoer in Bonsai; toont die een kind dan ook als wortel, dan wordt de
+  koppeling bij een schema met een relatie van een ander programma "wortel-taak".
+- Schrijven IfcOpenShell of Bonsai meer dan één `IfcRelNests` per ouder? Dan moet §4.5 zeggen welke bewaarde relatie de
+  kinderen krijgt.
 
 ## 12. Council
 
@@ -793,6 +839,7 @@ daarom staat alles achter de flags tot het compleet is.
 | 4 (v4) | 7 | 6 | 7 |
 | 5 (v5) | 7 | 7 | 8 |
 | 6 (v6) | 7 | 7 | 8 |
+| 7 (v7) | 7 | 8 | 9 |
 
 Na ronde 1: één route met klassen; lezen en knippen als bytes; projectgegevens als context; tabel van alle routes;
 "bron ontbreekt"; IFCX-kop van een ander blijft; profielversie in `ops::document`; eigendom per attribuut; volgorde
@@ -847,6 +894,17 @@ deel, AutoSave stopt na één melding; manifest best effort; melding na herstel 
 IFCX (§6.6); handleiding in fase 3 en 4. Voorproef `classify-v7.py`: 35 eigen bestanden 100 % P zonder vreemde leden en
 zonder vreemde herkomst; 8 modellen 100 % V.
 
+Na ronde 7: het hele P-blok in writer-volgorde op de plek van het eerste P-stuk (de lezer haalt wortelvolgorde en
+projectkalender uit de bestandsvolgorde), met een test op elke "eerste X"-keuze; een koppeling met de projectkalender
+heet "volgt de projectkalender"; alleen `OPS_Assignments` heeft sleutels uit de data, ook de oude kale vorm;
+`OPS_Timephased` en `OPS_TimephasedWindow` hebben vaste namen; codetypen en velden uit `OPS_StructureMeta` met terugval op
+het template; een vreemd lid met een naam van de writer vervalt; `detached` bewaart `foreignMembers` en de slots van
+vervallen relaties van een ander, en blijft bij het vervangen van `ifcSource`; AutoSave eist dezelfde bron; codering per
+stuk met de huidige terugval zonder `IfcApplication`; naam van `IfcRelNests` alleen afgeleid bij eigen herkomst;
+baseline met lege `createdAt` op naam; herkomst via `OwningApplication`; IFCX-volgorde in `ops::task`; poort met de
+fixtures en concrete oude tags. Voorproef `classify-v8.py`: alle 35 eigen bestanden en de echte writer-uitvoer in
+`tests/planning/fixtures/` 100 % P; de proeven van Sol en Opus uit ronde 7 zoals bedoeld.
+
 ## 13. Bronnen
 
 - Issue #804 (DutchSailor, 2026-11-02); issue #748; issue #336; issue #292; PR #547 / commit `5b2812f94`.
@@ -856,7 +914,8 @@ zonder vreemde herkomst; 8 modellen 100 % V.
   1830-1838`; `ifcPsets.ts:77, 707`; `src/state/slices/sequenceSlice.ts:79`; `fileSlice.ts:576-594`;
   `src/state/ifcSaveInput.ts:13, 66-69, 116-137`; `ifcReader.ts:384, 2225-2246, 2359-2366, 3283-3293, 3455-3470, 3489`;
   `ifcWriter.ts:112-119, 185, 413, 1596-1600`; `src/state/slices/{documentSlice.ts:598-602, resourceSlice.ts:252}`;
-  `src/services/recovery/recoverySnapshotInput.ts:12`;
+  `src/services/recovery/recoverySnapshotInput.ts:12`; `ifcReader.ts:1449, 2202-2219, 3256, 3272, 3380-3390, 3458-3462`;
+  `ifcPsets.ts:628-636`; `ifcWriter.ts:418, 549-553`; `src/hooks/useAutoSave.ts:155`; `src/state/taskTree.ts:94-98`;
   `ifcTaskSlots.ts:94, 324-340`; `ifcWorkControlSlots.ts:45-86`; `ifcPsets.ts:381-394`; `ifcConstants.ts:52-56`;
   `src/state/documentContract.ts:298`; `src/state/snapshot.ts:180-189, 218`; `src/state/ifcSaveInput.ts:135`;
   `src/services/recovery/{recoverySnapshotInput.ts, recoveryManifest.ts:4, recoveryStore.ts:378}`;

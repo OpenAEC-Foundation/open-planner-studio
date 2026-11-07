@@ -1,5 +1,5 @@
-# Indeling volgens ontwerp v7 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
-# Fase-0-voorproef (ontwerp #804 v7 §4.2). Draaien: python3 -I scripts/proef/classify-v7.py <bestand.ifc>
+# Indeling volgens ontwerp v8 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Fase-0-voorproef (ontwerp #804 v8 §4.2). Draaien: python3 -I scripts/proef/classify-v8.py <bestand.ifc>
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
 import re, sys, os, glob
@@ -49,11 +49,12 @@ for f in ('ifcPsets.ts', 'ifcWriter.ts'):
     REG |= set(re.findall(r"'(OPS_[A-Za-z0-9]+)'", code[os.path.join(SRC, f)]))
 KNOWN = set()
 for c in code.values(): KNOWN |= set(re.findall(r"'([A-Za-z][A-Za-z0-9_]*)'", c))
-# v7: psets met sleutels uit de data. Een property is alleen eigen als de lezer haar gebruikt (ontwerp v7 §4.2):
-# OPS_Assignments/OPS_Timephased: <GlobalId van een resource>#n; de k-de sleutel (op n) is eigen als die resource
-# minstens k keer aan de taak is toegewezen;
-# OPS_ActivityCodes: naam van een codetype uit het eigen template en eerste code uit zijn opsomming.
-GUID_KEYED = {'OPS_Assignments', 'OPS_Timephased', 'OPS_TimephasedWindow'}
+# v8: psets met sleutels uit de data. Een property is alleen eigen als de lezer haar gebruikt (ontwerp v8 §4.2):
+# OPS_Assignments: <GlobalId van een resource>#n (de k-de sleutel op n is eigen als die resource minstens k keer aan de
+# taak is toegewezen) of de kale GlobalId (oude writer, eigen als de resource aan de taak is toegewezen);
+# OPS_ActivityCodes/OPS_CustomFields: namen uit de JSON in OPS_StructureMeta, met terugval op het eigen template.
+# OPS_Timephased (Windows) en OPS_TimephasedWindow (FinishFloor, StartAnchor) hebben vaste namen.
+GUID_KEYED = {'OPS_Assignments'}
 def pname(i):  # Name van een property (arg 0) of property-template (arg 2)
     k = 2 if ty[i].endswith('TEMPLATE') else 0
     return args[i][k].strip("'") if k < len(args[i]) else ''
@@ -100,6 +101,19 @@ proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
 # Bekende namen voor OPS_CustomFields: de property-templates onder het eigen template
 cf_names, ac_types = set(), {}
 def strs(a): return re.findall(r"'((?:[^']|'')*)'", a)
+import json
+sm_ac, sm_cf = None, None  # v8: OPS_StructureMeta is de autoritaire bron (ifcReader.ts:2202-2215)
+for i in ents:
+    if ty[i] == 'IFCPROPERTYSET' and name(i) == 'OPS_StructureMeta':
+        for x in refs[i]:
+            if ty.get(x) != 'IFCPROPERTYSINGLEVALUE': continue
+            m = re.search(r"IFCTEXT\('((?:[^']|'')*)'\)", ents[x][1])
+            if not m: continue
+            try: meta = json.loads(m.group(1).replace("''", "'").replace('\\\\', '\\'))
+            except Exception: continue
+            if isinstance(meta.get('activityCodeTypes'), list):
+                sm_ac = {t.get('name'): {v.get('code') for v in t.get('values', [])} for t in meta['activityCodeTypes']}
+            if isinstance(meta.get('customFieldDefs'), list): sm_cf = {d.get('name') for d in meta['customFieldDefs']}
 for i in ents:
     if ty[i] == 'IFCPROPERTYSETTEMPLATE' and name(i) == 'OPS_CustomFields':
         cf_names |= {pname(x) for x in refs[i] if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE'}
@@ -107,6 +121,8 @@ for i in ents:
         for x in refs[i]:
             if ty.get(x) == 'IFCSIMPLEPROPERTYTEMPLATE':
                 en = r1(x, 7); ac_types[pname(x)] = set(strs(args[en][1])) if en in ents else set()
+if sm_ac is not None or sm_cf is not None:
+    ac_types, cf_names = (sm_ac or {}), (sm_cf or set())
 # pset -> objecten (via elke IfcRelDefinesByProperties) en toewijzingsparen (taak, resource-GlobalId) -> aantal
 pset_objs = defaultdict(set)
 for i in ents:
@@ -120,7 +136,7 @@ def prop_read(ps, pr):
     n = pname(pr); psn = name(ps)
     if psn in GUID_KEYED:  # de lezer zet de sleutels per GlobalId op volgorde van n in een wachtrij (ifcReader.ts:3455-3470)
         m = re.fullmatch(r'(.+)#(\d+)', n)
-        if not m: return False
+        if not m: return any(pairs[(t, n)] > 0 for t in pset_objs[ps])  # kale GlobalId (ifcReader.ts:3461, 3494)
         same = sorted(int(re.fullmatch(r'(.+)#(\d+)', pname(q)).group(2)) for q in refs[ps]
                       if ty.get(q) in PROPS and re.fullmatch(re.escape(m.group(1)) + r'#\d+', pname(q)))
         k = same.index(int(m.group(2)))

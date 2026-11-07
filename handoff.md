@@ -5,9 +5,8 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp staat als versie 7 in draft PR #839. Zes rondes gaven nog geen 9; ronde 5 en 6 gaven allebei Opus 7,
-Sol 7, Fable 8. Versie 7 verwerkt alle punten van ronde 6 (spec §12 "Na ronde 6"). Ronde 7 beoordeelt versie 7. Daarna
-begint de bouw met fase 0.
+Het ontwerp staat als versie 8 in draft PR #839. Ronde 7 gaf Opus 7, Sol 8, Fable 9 (eerste 9). Versie 8 verwerkt alle
+punten van ronde 7 (spec §12 "Na ronde 7"). Ronde 8 beoordeelt versie 8. Daarna begint de bouw met fase 0.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -66,7 +65,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 4 (v4) | 7 | 6 | 7 |
 | 5 (v5) | 7 | 7 | 8 |
 | 6 (v6) | 7 | 7 | 8 |
-| 7 (v7) | 7 | loopt | 9 |
+| 7 (v7) | 7 | 8 | 9 |
+| 8 (v8) | loopt | loopt | loopt |
 
 Fable r4 liep via de native Agent-tool (model fable, effort high): de T3-taak faalde met "timed out while registering its
 MCP tools". Fable r4 (7/10), aanvullend op Opus: zelfde blokkade Ext door D (proef `scratchpad/proef/bonsai-achtig.ifc`,
@@ -78,12 +78,17 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 7 — Opus 7 ("daarna 8 tot 9"), Fable 9; Sol loopt — te verwerken in v8
+### Ronde 7 — Opus 7 ("daarna 8 tot 9"), Sol 8, Fable 9 — verwerkt in v8 (spec §12 "Na ronde 7")
 
 Fable 9: geen blokkade. Vervolg: (F1) tegenspraak naam vreemde `IfcRelNests` (afgeleid vs bewaard slot) → bij vreemde
 herkomst brontoken; (F2) legacy kale-GUID-sleutel in `OPS_Assignments` (`ifcReader.ts:3461, 3494`); (F3) codering:
 terugval `OPS_`-psets zonder `IfcApplication` = letterlijk (`:1161, 3802-3808`) houden; (F4) pset heeft wel OwnerHistory;
 (F5) vervangen van `ifcSource` behoudt `detached`.
+Sol 8 (proeven `scratchpad/r7sol/`, `bewijs.txt`). Blokkeert: (S1) herkenners fout: `OPS_Timephased` = één vaste
+property `Windows` (JSON, `ifcReader.ts:3380-3390`), `OPS_TimephasedWindow` = vast `FinishFloor`/`StartAnchor`
+(`ifcPsets.ts:628-636`), `OPS_Assignments` ook kale GUID; codetypen/velden uit `OPS_StructureMeta` vóór template
+(`ifcReader.ts:2202`); fixtures `tests/planning/fixtures/vast-werk-oude-writer.ifc`, `ifc-arity-oude-writer.ifc` faalden;
+(S2) `detached` mist `foreignMembers` (pset-identiteit) → Ctrl+Z hangt vreemd lid niet terug.
 Opus 7 (proeven `scratchpad/r7opus/`: volgorde.mts, kal.mts, kaal.mts, bonsaikal.mts). Blokkeert:
 - (O1) **D op bronplek breekt volgorde**: wortelvolgorde komt uit bestandsvolgorde `IFCTASK` (`ifcReader.ts:1749`;
   Nests onder schema genegeerd `:2394`; WBS `taskTree.ts:94-98`, `taskSlice.ts:1497-1500`); projectkalender = eerste
@@ -276,16 +281,19 @@ getalprecisie; grens zonder meting; inschatting te optimistisch; foute commit in
 - Ecosysteem: `ifcx_alpha`; namespace per programma (`ocss::`, `oses::`, `openbim::`, `openaec::`); ifcx-explorer
   `openaec::activity` + `openaec::links`; UUID v5 = GlobalId (128 bits). IFCCAD: alleen IFCX/CBOR, bewaart bronbytes.
 
-## Voorproef indeling (v7)
+## Voorproef indeling (v8)
 
-`scripts/proef/classify-v7.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 uit. Register uit de
+`scripts/proef/classify-v8.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 uit. Register uit de
 `OPS_*`-namen in `ifcPsets.ts`/`ifcWriter.ts`; bekende propertynamen = tekstliteralen in `src/services/ifc/` (benadering);
 `OPS_Assignments`/`OPS_ActivityCodes` hebben namen uit de data (alle properties eigen); `OPS_CustomFields` via template.
 Uitkomst 7 november: 35 eigen bestanden 100 % P zonder vreemde leden; 8 IFC5-modellen 100 % V; `prop.ifc` (Opus) en
 `onbekende-property.ifc` (Sol) geven een vreemd lid; `parallelle-relaties.ifc` (Sol) twee D-sequences; Fable's lege
 Bonsai-baseline (`scratchpad/r5/eigen-plus-bonsai-baseline.ifc`) is V. v7: herkenners voor `<GlobalId>#n` (wachtrij) en
 codetypes; vreemde herkomst via `IfcOwnerHistory.OwningApplication` (argument 1!) → owner history van een ander is C;
-eigen bestanden 0 vreemde herkomst, Bonsai-voorbeeld 10; Sol's `dynamisch-*.ifc` elk 1 vreemd lid. Basis voor fase 0.
+eigen bestanden 0 vreemde herkomst, Bonsai-voorbeeld 10; Sol's `dynamisch-*.ifc` elk 1 vreemd lid. v8: alleen
+`OPS_Assignments` dynamisch (ook kale GUID), `OPS_StructureMeta` eerst; ook `tests/planning/fixtures/*.ifc` (10) in de
+poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oude-writer-merged.ifc` heeft een model,
+`werkdag-einde-tussenwaarde.ifc` heeft bewust hernoemde properties → vreemde leden). Basis voor fase 0.
 
 ## Omgeving en valkuilen
 
