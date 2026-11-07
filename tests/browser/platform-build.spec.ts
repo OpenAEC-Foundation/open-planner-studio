@@ -250,6 +250,28 @@ test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen'
   await expect(page.locator('.backstage-main').getByText('MCP connection', { exact: true })).toHaveCount(0);
   // Geen downloadcijfers (#818): die komen van GitHub, en de werkplek laat geen netwerk buiten de bundel toe.
   await expect(page.locator('.backstage-main [data-ops-settings-stats]')).toHaveCount(0);
+  // Geen update-check en geen "Wat is er nieuw" (#818, knownbug 868); het versienummer staat er wel.
+  await expect(page.locator('.backstage-main [data-ops-settings-version]')).toBeVisible();
+  await expect(page.locator('.backstage-main').getByRole('button', { name: 'Check for updates' })).toHaveCount(0);
+  await expect(page.locator('.backstage-main').getByRole('button', { name: "What's new" })).toHaveCount(0);
+  // Geen feedbackknop in de titelbalk (#818, knownbug 865): de werkplek heeft er zelf een.
+  await expect(page.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
+
+  // De rondleiding vanuit Instellingen loopt tot het einde: zes stappen, zonder de feedbackstap, en
+  // "Close" op de laatste. Daarna staat er geen laag meer over de app.
+  await page.locator('.backstage-main').getByRole('button', { name: 'Start tour' }).click();
+  const card = page.locator('[data-ops-tour-card]');
+  const titles = ['Ribbon tabs', 'Task table and Gantt chart', 'Properties panel', 'Histogram', 'Reports', 'Example projects'];
+  for (const [i, title] of titles.entries()) {
+    await expect(card.locator('span.font-semibold')).toHaveText(title);
+    const last = i === titles.length - 1;
+    await card.getByRole('button', { name: last ? 'Close' : 'Next', exact: true }).click();
+  }
+  await expect(card).toHaveCount(0);
+  await expect(page.getByText('Your feedback matters')).toHaveCount(0);
+  // Geen blokkerende laag: een gewone klik op een ribbontab komt aan.
+  await page.locator('[data-ops-ribbon-tab="planning"]').click();
+  await expect(page.locator('[data-ops-ribbon-tab="planning"]')).toHaveClass(/active/);
 
   expect(seen.sameOriginOutsideBase).toEqual([]);
   expect(seen.catalogRequests).toEqual([]);
