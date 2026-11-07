@@ -23,7 +23,7 @@
 // verloren en of er een taakduur veranderde (⇒ de slice markeert de planning verouderd).
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import {
-  clearCostResourceFields, isCostResource, isValidCostAmount, isValidUnits, type Resource, type ResourceAssignment,
+  clearCostResourceFields, contourSiblings, costResourceIds, isCostResource, isValidCostAmount, isValidUnits, type Resource, type ResourceAssignment,
 } from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
@@ -333,7 +333,8 @@ export function contoursAfterEdit(
 ): { contours: TaskTimephasedContour[] | undefined } | null {
   // Een kostentoewijzing heeft geen urenverdeling (issue #815).
   if (isCostAssignment(s, assignment)) return null;
-  const siblings = s.assignments.filter(x => x.taskId === assignment.taskId);
+  // Zelfde koppellijst als histogram en nivelleerder: zonder kostentoewijzingen (`contourSiblings`).
+  const siblings = contourSiblings(s.assignments.filter(x => x.taskId === assignment.taskId), costResourceIds(s.resources));
   const idx = contourIndexForAssignment(task.timephasedContours, siblings, assignment.id);
   if (periods === null && idx < 0) return null;
   const list = task.timephasedContours ? [...task.timephasedContours] : [];

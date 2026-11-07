@@ -5,7 +5,7 @@
 // belasting/capaciteit/overallocatie over alle resources+toewijzingen). `distributeUnits` en
 // `assignmentDayUnits` blijven het dagslotcontract: de vorm van een curve of opgeslagen werk, en de
 // contourdialoog (F4b).
-import { resourceHasLoad, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
+import { contourSiblings, resourceHasLoad, type Resource, type ResourceAssignment, type ResourceCurve } from '@/types/resource';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import { groupBy } from '@/utils/collections';
 import { isLeafTask, isSummaryTask } from '@/utils/taskHierarchy';
@@ -640,13 +640,14 @@ export function computeHistogramReport(input: HistogramInput): HistogramReport {
     daily: Map<string, number>;
   }
   const perAssignment: AssignDaily[] = [];
-  const contourOf = contourLookup(assignments);
+  // Kostenresources (issue #815) hebben geen belasting: geen verdeling en geen rapportregel, ook
+  // ongescopeerd (MCP `planner_get_resource_histogram` zonder `resourceIds`). Ze doen ook niet mee
+  // aan de contourkoppeling (`contourSiblings`), net als in `computeResourceLoad`.
+  const costIds = costResourceIdSet(resources);
+  const contourOf = contourLookup(contourSiblings(assignments, costIds));
   const placedOf = taskPlacementCache(engineForTask, input.schedulingOptions);
   let firstLoadDay: string | undefined;
   let lastLoadDay: string | undefined;
-  // Kostenresources (issue #815) hebben geen belasting: geen verdeling en geen rapportregel, ook
-  // ongescopeerd (MCP `planner_get_resource_histogram` zonder `resourceIds`).
-  const costIds = costResourceIdSet(resources);
   for (const a of assignments) {
     if (costIds.has(a.resourceId)) continue;
     const task = taskById.get(a.taskId);

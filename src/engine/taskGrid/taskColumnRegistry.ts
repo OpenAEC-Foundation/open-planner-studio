@@ -792,7 +792,11 @@ function remainingWorkWarning(task: Task, ctx: TaskColumnContext): TaskCellWarni
   const own = assignments(task, ctx);
   if (own.length === 0) return null;
   const hoursPerDay = effectiveHoursPerDay(task, ctx);
-  const contourOf = matchContoursToAssignments(task.timephasedContours, own);
+  // Zonder kostentoewijzingen gekoppeld, dezelfde regel als `contourSiblings` (#815).
+  const contourOf = matchContoursToAssignments(
+    task.timephasedContours,
+    own.filter(a => !isCostResource(ctx.resourcesById.get(a.resourceId))),
+  );
   const hits: { name: string; stored: number; derived: number }[] = [];
   for (const assignment of own) {
     const resource = ctx.resourcesById.get(assignment.resourceId);

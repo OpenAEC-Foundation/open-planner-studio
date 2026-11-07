@@ -16,7 +16,7 @@
 // Geen store-import: de aanroeper bepaalt snapshot, `isDirty`, `scheduleStale` en meldingen.
 import type { WorkCalendar } from '@/types/calendar';
 import type { Project } from '@/types/project';
-import { resourceDrivesDuration, type Resource, type ResourceAssignment } from '@/types/resource';
+import { isCostResource, resourceDrivesDuration, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { Task, TaskTime } from '@/types/task';
 import { applyProgressInvariants, hourRemainingDays } from '@/engine/taskMutationRules';
 import { DEFAULT_WORK_RULE, type WorkRule } from '@/types/workRule';
@@ -107,6 +107,12 @@ function drivesDuration(assignment: ResourceAssignment, ctx: WorkRuleContext): b
   return resourceDrivesDuration(ctx.resourceById?.(assignment.resourceId));
 }
 
+/** De koppellijst voor de contour: zonder kostentoewijzingen, dezelfde regel als `contourSiblings`
+ *  (issue #815). Een kostentoewijzing mag de legacy-koppeling niet veranderen. */
+function contourOwn(own: readonly ResourceAssignment[], ctx: WorkRuleContext): ResourceAssignment[] {
+  return own.filter(a => !isCostResource(ctx.resourceById?.(a.resourceId)));
+}
+
 /** Een toewijzing aan een kostenresource (issue #815) doet niet mee in de werkdriehoek: ze heeft
  *  geen inzet, geen werk en stuurt nooit de duur. Onbekende resource ⇒ doet wel mee. */
 function inTriangle(resourceId: string, ctx: WorkRuleContext): boolean {
@@ -185,7 +191,7 @@ export function applyTriangleResult(
     changed.push(a.id);
   }
 
-  reconcileContourWork(task, assignments, changed);
+  reconcileContourWork(task, assignments, changed, ctx);
 
   let durationChanged = false;
   if (!opts?.skipDuration && Math.abs(after.remainingMinutes - before.remainingMinutes) > 1e-6) {
@@ -252,10 +258,15 @@ export function syncCompletionToRemaining(task: Task): void {
  * staan (de as volgt pas een duurwijziging, via `rescaleTaskContours`). Zonder contour, zonder
  * werkveld of bij een al kloppende som: niets.
  */
-function reconcileContourWork(task: Task, assignments: readonly ResourceAssignment[], changedIds: readonly string[]): void {
+function reconcileContourWork(
+  task: Task,
+  assignments: readonly ResourceAssignment[],
+  changedIds: readonly string[],
+  ctx: WorkRuleContext,
+): void {
   const contours = task.timephasedContours;
   if (!contours || contours.length === 0 || changedIds.length === 0) return;
-  const siblings = assignments.filter((a) => a.taskId === task.id);
+  const siblings = contourOwn(assignments.filter((a) => a.taskId === task.id), ctx);
   let next = contours;
   for (const id of changedIds) {
     const a = siblings.find((x) => x.id === id);
@@ -333,9 +344,10 @@ export function captureTriangle(task: Task, assignments: readonly ResourceAssign
   const totalMinutes = totalMinutesOf(task, ctx);
   const doneMinutes = Math.max(0, totalMinutes - state.remainingMinutes);
   const actualWork = new Map<string, number>();
+  const contourList = contourOwn(own, ctx);
   for (const a of own) {
     if (a.actualWorkMinutes !== undefined || !drivesDuration(a, ctx)) continue;
-    const idx = contourIndexForAssignment(task.timephasedContours, own, a.id);
+    const idx = contourIndexForAssignment(task.timephasedContours, contourList, a.id);
     const periods = idx < 0 ? [] : task.timephasedContours![idx].periods;
     const actuals = periods.filter(p => p.kind === 'actual');
     // Bestaande actual-periodes zijn feiten; zonder zulke periodes geldt de oude duur × inzet.
@@ -444,7 +456,7 @@ export function settleDurationEdit(task: Task, captured: CapturedTriangle | null
   // Alleen de toewijzingen van deze taak (uit de momentopname): de terugschrijfstap en het
   // afwijkcriterium zoeken dan in een handvol objecten, niet in alle toewijzingen van het project.
   const own = captured.assignments;
-  const deviating = deviatingStoredWork(task, own, captured.state);
+  const deviating = deviatingStoredWork(task, contourOwn(own, captured.ctx), captured.state);
   const written = applyTriangleResult(task, own, captured.state, result.state, captured.ctx, { skipDuration: true, actualWork: captured.actualWork });
   const recomputedWork: RecomputedRemainingWork[] = [];
   for (const before of deviating) {
@@ -508,7 +520,8 @@ function followRemainingOfUnstartedTask(task: Task, before: TaskTime): void {
 
 /** De werkresources van de taak waarvan het BEWAARDE restwerk vóór de bewerking afweek van
  *  inzet × restduur — hetzelfde criterium als het waarschuwingsteken (`assignmentWorkDeviation`):
- *  materiaal en een toewijzing met contour tellen niet mee. `own` = de toewijzingen van de taak. */
+ *  materiaal en een toewijzing met contour tellen niet mee. `own` = de koppellijst voor de contour:
+ *  de toewijzingen van de taak zonder kostentoewijzingen (`contourOwn`). */
 function deviatingStoredWork(
   task: Task,
   own: readonly ResourceAssignment[],
@@ -906,7 +919,7 @@ export function settleCalendarChange(
       timephasedLost = settleDurationAftermath(task, deps, slotWorkMinutes, captured.finishBasis);
     }
   }
-  reconcileContourWork(task, assignments, assignments.filter((a) => a.taskId === task.id).map((a) => a.id));
+  reconcileContourWork(task, assignments, assignments.filter((a) => a.taskId === task.id).map((a) => a.id), ctx);
   return { durationChanged, timephasedLost };
 }
 

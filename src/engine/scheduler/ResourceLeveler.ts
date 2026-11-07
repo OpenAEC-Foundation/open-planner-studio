@@ -44,7 +44,7 @@
 import type { Task, TaskSplitGap } from '@/types/task';
 import { exceedsCapacity } from '@/engine/scheduler/capacityTolerance';
 import type { Sequence } from '@/types/sequence';
-import { resourceIsLevelable, type Resource, type ResourceAssignment } from '@/types/resource';
+import { costResourceIds, contourSiblings, resourceIsLevelable, type Resource, type ResourceAssignment } from '@/types/resource';
 import type { WorkCalendar } from '@/types/calendar';
 import { CalendarEngine } from './CalendarEngine';
 import { LevelingQueue } from './levelingQueue';
@@ -479,8 +479,9 @@ export function levelResources(
   }
   // De contour wordt gekoppeld met ALLE toewijzingen van de taak, ook die op niet-geselecteerde
   // resources: de resourcefilter mag de betekenis van een (legacy-)contour niet veranderen (review
-  // F3b r1 P2 en r2 P3).
-  const contourOf = contourLookup(assignments);
+  // F3b r1 P2 en r2 P3). Alleen kostentoewijzingen vallen weg (issue #815, `contourSiblings`): die
+  // hebben geen urenverdeling en mogen de legacy-koppeling niet veranderen.
+  const contourOf = contourLookup(contourSiblings(assignments, costResourceIds(resources)));
   const spanView = (task: Task): Task => {
     if (!placementFollowsSpan(task)) return task;
     const base = baseline.tasks.get(task.id);

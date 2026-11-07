@@ -22,6 +22,10 @@ import { createAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { computeHistogramReport, computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
+import { levelResources } from '@/engine/scheduler/ResourceLeveler';
+import { contouredAssignmentIds } from '@/engine/contour/curveState';
+import { contourSiblings, costResourceIds } from '@/types/resource';
+import { legacyCpmOptions } from './legacySolveOptions';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshotInput';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -340,6 +344,60 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   S().unassignResource(costOf(S, t1, cost)!.id);
   const removed = S().tasks.find(t => t.id === t1)!.time.durationMinutes ?? S().tasks.find(t => t.id === t1)!.time.scheduleDuration;
   eq('H2 vast werk: kosten eraf verandert de duur niet', removed, before);
+}
+
+// ── I. Een kostentoewijzing verandert de koppeling van een oude contour niet (review 1, BLOKKEERT 2) ──
+// Eén werktoewijzing, capaciteit 1, een oude contour zonder `resourceId` (0,25 / 1,75 over twee dagen).
+// De legacy-terugval koppelt die contour alleen als de taak precies één toewijzing heeft. Een
+// kostentoewijzing erbij mag dat niet veranderen: belasting, histogram en nivelleerder zien vóór
+// en na hetzelfde, met de piek en de overbezetting op dag 2.
+{
+  const store = createAppStore();
+  const S = () => store.getState();
+  S().setProject({ startDate: '2026-06-01' });
+  const taskId = S().addTask({ name: 'Oud project', time: createDefaultTaskTime('2026-06-01', 2) });
+  const labor = S().addResource({ name: 'Timmerman', type: 'LABOR', maxUnits: 1, description: '' });
+  const cost = S().addResource({ name: 'Leges', type: 'COST', maxUnits: 1, description: '' });
+  S().assignResource(taskId, labor, 1);
+  S().runCPM();
+  store.setState(s => {
+    s.tasks.find(t => t.id === taskId)!.timephasedContours = [{ resourceUid: 7, periods: [
+      { afterMinutes: 0, minutes: 480, workMinutes: 120 },
+      { afterMinutes: 480, minutes: 480, workMinutes: 840 },
+    ] }];
+  });
+  const loadOf = () => {
+    const r = computeResourceLoad(S().resources, S().assignments, S().tasks, S().calendar, S().calendars, effectiveSchedulingOptions(S().project));
+    return { load: r.load[labor], over: r.overallocatedDays[labor] ?? [] };
+  };
+  const histogramOf = () => computeHistogramReport({
+    tasks: S().tasks, sequences: S().sequences, assignments: S().assignments, resources: S().resources,
+    calendar: S().calendar, calendars: S().calendars, cpmResult: S().cpmResult, bucket: 'dag',
+    schedulingOptions: effectiveSchedulingOptions(S().project),
+  }).resources.find(r => r.resourceId === labor)!.buckets.map(b => ({ day: b.start, load: b.load, peak: b.peakDayLoad, over: b.overallocatedDays }));
+  const levelOf = () => {
+    const r = levelResources(S().tasks, S().sequences, S().resources, S().assignments, S().calendar, S().calendars,
+      S().cpmResult!, { constrainToFloat: false }, legacyCpmOptions());
+    return { unresolved: r.unresolved, reasons: r.unresolvedReasons, overruns: r.intrinsicOverruns ?? {}, shifts: r.shifts };
+  };
+  const contouredOf = () => {
+    const task = S().tasks.find(t => t.id === taskId)!;
+    return [...contouredAssignmentIds(task, contourSiblings(S().assignments.filter(a => a.taskId === taskId), costResourceIds(S().resources)))];
+  };
+  const laborAssignment = costOf(S, taskId, labor)!;
+  const before = { load: loadOf(), histogram: histogramOf(), level: levelOf(), contoured: contouredOf() };
+  eq('I0 vóór kosten: belasting 0,25 / 1,75, dag 2 overbezet', before.load, { load: { '2026-06-01': 0.25, '2026-06-02': 1.75 }, over: ['2026-06-02'] });
+  eq('I0 vóór kosten: histogrampiek 1,75 op dag 2', before.histogram.map(b => b.peak), [0.25, 1.75]);
+  eq('I0 vóór kosten: nivelleerder ziet een conflict', Object.keys(before.level.unresolved), [taskId]);
+  eq('I0 vóór kosten: contour hoort bij de werktoewijzing', before.contoured, [laborAssignment.id]);
+  S().assignResource(taskId, cost, 1, undefined, 1250);
+  eq('I1 belasting blijft gelijk met kosten erbij', loadOf(), before.load);
+  eq('I2 histogram blijft gelijk met kosten erbij (piek en overbezetting)', histogramOf(), before.histogram);
+  eq('I3 nivelleerder blijft gelijk met kosten erbij', levelOf(), before.level);
+  eq('I4 contourkoppeling (paneel, resourcediagram) blijft gelijk', contouredOf(), before.contoured);
+  // De store-actie vindt de oude contour nog: loslaten verwijdert hem.
+  S().setAssignmentContour(laborAssignment.id, null);
+  eq('I5 loslaten vindt de oude contour ook met kosten erbij', S().tasks.find(t => t.id === taskId)!.timephasedContours ?? [], []);
 }
 
 if (diffs.length === 0) {

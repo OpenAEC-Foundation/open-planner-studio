@@ -31,6 +31,25 @@ export function resourceHasLoad(r: Pick<Resource, 'type'> | undefined | null): b
   return !isCostResource(r);
 }
 
+/** De ids van de kostenresources (issue #815). */
+export function costResourceIds(resources: readonly Pick<Resource, 'id' | 'type'>[]): Set<string> {
+  const ids = new Set<string>();
+  for (const r of resources) if (isCostResource(r)) ids.add(r.id);
+  return ids;
+}
+
+/** De toewijzingen die meedoen aan de contourkoppeling (`matchContoursToAssignments`,
+ *  `contourIndexForAssignment`, `contourLookup`): alles behalve kostentoewijzingen (issue #815). Een
+ *  kostentoewijzing heeft geen urenverdeling. De legacy-terugval van de koppeling telt de lengte van
+ *  de lijst, dus een kostentoewijzing erbij mag die lijst niet veranderen. Filter daarom ELKE lijst
+ *  vóór de koppeling met deze functie; een toewijzing naar een onbekende resource blijft erin. */
+export function contourSiblings<A extends Pick<ResourceAssignment, 'resourceId'>>(
+  assignments: readonly A[],
+  costIds: ReadonlySet<string>,
+): A[] {
+  return costIds.size === 0 ? [...assignments] : assignments.filter(a => !costIds.has(a.resourceId));
+}
+
 /** Kan deze resource genivelleerd worden (renewable)? Geen materiaal en geen kosten. */
 export function resourceIsLevelable(r: Pick<Resource, 'type'>): boolean {
   return r.type !== 'MATERIAL' && r.type !== 'COST';

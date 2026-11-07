@@ -1,5 +1,5 @@
 import type { Task } from '@/types/task';
-import { isCostResource, type Resource, type ResourceAssignment, type ResourceType } from '@/types/resource';
+import { contourSiblings, isCostResource, type Resource, type ResourceAssignment, type ResourceType } from '@/types/resource';
 import { encodeBandKey, encodeGroupedTaskRowKey, NONE_RAWKEY, type ViewRow } from '@/engine/view/visibleRows';
 import { RESOURCE_TYPE_BAND_ORDER, resourceTypeRank } from '@/engine/view/filterEval';
 import { type AssignmentCurveState, assignmentCurveState, contouredAssignmentIds } from '@/engine/contour/curveState';
@@ -206,7 +206,7 @@ export function computeResourceGanttRows(
   }
   const contouredIds = new Set<string>();
   for (const [taskId, list] of recordsByTask) {
-    for (const id of contouredAssignmentIds(leafById.get(taskId)!, list)) contouredIds.add(id);
+    for (const id of contouredAssignmentIds(leafById.get(taskId)!, contourSiblings(list, costIds))) contouredIds.add(id);
   }
   const curveOf = (a: ResourceAssignment): RowCurve => assignmentCurveState(a, contouredIds.has(a.id));
   let assignments = 0;

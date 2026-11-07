@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { refusalNotice } from '@/state/refusalNotice';
-import { isCostResource, type ResourceCurve } from '@/types/resource';
+import { contourSiblings, isCostResource, type ResourceCurve } from '@/types/resource';
 import { AmountInput, UnitsInput } from '@/components/common/UnitsInput';
 import { Select, type SelectOption } from '@/components/common/Select';
 import { decimalSeparatorOf, localizeDecimalPoint } from '@/utils/reportNumber';
@@ -131,9 +131,11 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   // Toewijzingen — leaf-only, geen samenvattingstaken; een mijlpaal alleen met kostenresources (#815).
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
   // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
-  const contouredIds = contouredAssignmentIds(task, taskAssignments);
+  // De koppellijst is zonder kostentoewijzingen, net als histogram en nivelleerder (#815).
+  const contourList = contourSiblings(taskAssignments, costResourceIds);
+  const contouredIds = contouredAssignmentIds(task, contourList);
   // De gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
-  const contourOf = matchContoursToAssignments(task.timephasedContours, taskAssignments);
+  const contourOf = matchContoursToAssignments(task.timephasedContours, contourList);
   const assignmentsDisabled = isSummaryTask(task);
   const milestone = !!task.isMilestone;
   const assignedResourceIds = new Set(taskAssignments.map(a => a.resourceId));
