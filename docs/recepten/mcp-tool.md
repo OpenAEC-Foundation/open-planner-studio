@@ -104,11 +104,27 @@ krijgt nooit achteraf een fout: dat antwoord wordt ingekort. Daarom:
   `planner_compare_baseline` en `planner_analyze_delay`). Dan vindt de site de uitweg vanzelf.
 - Heeft een leestool een andere uitweg (een deel, een filter, een andere tool), zet die dan in `narrowHint`
   (`siteAppTools.ts`), en toets in `tests/mcp/cases-site-app-tools.ts` dat de uitweg echt binnen de grens blijft.
-- Geeft een wijzigende tool een koppeling terug die later niet meer op te vragen is (zoals de `created`-map
-  `tempId` → id), dan moet het compacte rapport (`compactChange` in `siteAppTools.ts`) haar bewaren, en moet
-  `newTempIds` haar meetellen, zodat `run` een te grote aanroep vóór uitvoering weigert. Al het andere in een
-  wijzigingsantwoord mag een aantal of een samenvatting worden; zet een nieuwe lijst in de envelop dus niet buiten
-  dat rapport om.
+- Uit het antwoord van een wijzigende tool valt op de site geen veld weg, ook niet als het te groot is. Steeds de
+  grootste verzameling in het hele antwoord wordt korter, op elke diepte: een lijst, of een map met minstens vijf
+  id-sleutels (sleutels met een cijfer, zoals taak-id's). Ze houdt haar eerste regels; `compacted.shortened` noemt
+  per pad het totaal en hoeveel er weg zijn. Zet een nevenwijziging of waarschuwing (zoals `phaseTransitions`,
+  `becameLiteral` of `clearedLagMinutes`) dus gewoon in het antwoord, als losse waarde of in een kleine lijst; het
+  hoeft nergens te worden ingedeeld. Zet een melding die altijd mee moet niet als regel in een lange lijst: die
+  regels vallen het eerst weg. Gebruik als sleutel van een map per item een id; een map met gewone veldnamen krimpt
+  nooit.
+- Heeft een wijzigende tool een proefstand, noem die dan `dryRun` (boolean). Met `dryRun: true` geldt de aanroep als
+  leesvariant: in een batch valt zijn uitvoer weg als het antwoord te groot is (`readOutputOmitted`).
+- Geeft een wijzigende tool een koppeling terug van een opgegeven label naar een nieuw id (zoals `created`,
+  `tempId` → id, of `calendars[].{requestedId, id}`), dan is die later niet meer op te vragen. Zet de tool dan in
+  `SITE_APP_ID_LINK_TOOLS`: `labels` (welke labels een aanroep aanmaakt, voor de controle vóór uitvoering), `field`,
+  bij een lijstveld `linkOf` (de koppeling uit één regel) en `perLink` (de vaste JSON-tekens per paar). Bij inkorten
+  komen die koppelingen uit de oorspronkelijke uitvoer en staan ze apart in `links`. Dat gebeurt niet vanzelf: voeg
+  ook een geval toe aan `LINK_CASES` in `tests/mcp/cases-site-app-tools.ts`, dat de echte invoer en de bewaarde
+  uitvoer toetst, direct en in een batch.
+- Geeft een wijzigende tool veel vaste velden terug die niet krimpen (meer dan ongeveer 200 tekens), geef hem dan
+  extra ruimte in `SITE_APP_STEP_EXTRA_CHARS` en toets zijn stap met `assertShellsFit`.
+- Een foutmelding (ook een JSON-RPC-fout) gaat door `boundedFailure`: een lange keten `a → b → …` wordt een aantal plus een fragment. Een
+  foutmelding met een lange lijst in een andere vorm wordt in het midden ingekort; zet de kern dus vooraan.
 
 ## Het nieuwe mechanische vangnet
 
