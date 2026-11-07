@@ -153,6 +153,7 @@
     "barsGroup": "Palkit",
     "manageBaselines": "Hallitse perustason suunnitelmia…",
     "statusDate": "Raportointipäivä",
+    "statusDateValue": "Raportointipäivä: {{date}}",
     "statusDateClear": "Tyhjennä raportointipäivä",
     "statusDateTime": "Raportointipäivän aika",
     "statusDateTimeLater": "Myöhempi aika",

@@ -154,6 +154,7 @@
     "barsGroup": "Balken",
     "manageBaselines": "Baselines beheren…",
     "statusDate": "Statusdatum",
+    "statusDateValue": "Statusdatum: {{date}}",
     "statusDateClear": "Statusdatum leegmaken",
     "statusDateTime": "Tijd van de statusdatum",
     "statusDateTimeLater": "Tijd later",

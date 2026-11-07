@@ -80,7 +80,9 @@ export async function bootstrapTaskGridPreferences(
   }
 
   // Een bestaande maar corrupte/nieuwere raw key heeft voorrang op oude documentkolommen. De raw
-  // waarde blijft onaangeroerd; alleen de in-memory toestand valt veilig terug op defaults.
-  store.getState().hydrateTaskGridPreferences(fallback);
+  // waarde blijft onaangeroerd; alleen de in-memory toestand valt veilig terug op defaults. Ook geen
+  // automatische schrijfactie (`autoWrite: false`), anders overschrijft "Kolommen automatisch
+  // aanpassen" de afgewezen voorkeur met de teruggevallen standaardkolommen.
+  store.getState().hydrateTaskGridPreferences(fallback, { autoWrite: false });
   return 'invalid-fallback';
 }

@@ -154,6 +154,7 @@
     "barsGroup": "Barras",
     "manageBaselines": "Gestionar líneas base…",
     "statusDate": "Fecha de estado",
+    "statusDateValue": "Fecha de estado: {{date}}",
     "statusDateClear": "Borrar fecha de estado",
     "statusDateTime": "Hora de la fecha de estado",
     "statusDateTimeLater": "Hora posterior",
