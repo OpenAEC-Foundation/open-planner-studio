@@ -122,7 +122,7 @@ function narrowHint(name: string, def: McpToolDef | undefined): string {
     return `Ask for a smaller page with \`limit\` and \`offset\`${narrow}.`;
   }
   if (name === 'planner_get_planning_guide') {
-    return 'Ask for one part at a time: first `part: "guide"` (the agent guide), then `part: "skill"` (the two skills).';
+    return 'Ask for one part at a time: `part: "guide"`, then `part: "goed-plannen"` or `part: "progress-update"` (one skill each).';
   }
   if (name === 'planner_get_resource_histogram') {
     return 'Ask for less detail: one resource at a time in `resourceIds`, a shorter window with `van`/`tot`, or a coarser `bucket` ("maand").';

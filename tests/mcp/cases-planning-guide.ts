@@ -3,7 +3,7 @@
 // Twee kanalen, één doel: een externe AI-client hoeft niets te weten om goed te plannen.
 //   (a) `initialize` draagt `instructions` mee (MCP-spec: clients zetten dat in hun systeemprompt);
 //   (b) de leestool `planner_get_planning_guide` levert de Engelse agentgids, de twee skills
-//       (`goed-plannen`, `progress-update`) en per skill een installatie-aanwijzing.
+//       (`goed-plannen`, `progress-update`), één `part` per taak en één installatie-aanwijzing.
 // Daarnaast (c): het mutatiebewijs voor poort 11 van verify:docs — een helpviewer-link in de
 // agentgids maakt de poort rood.
 //
@@ -19,7 +19,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleMcpMessage, MCP_INSTRUCTIONS } from '@/services/mcp/dispatcher';
 import { getTools, registerAllTools } from '@/services/mcp/toolRegistry';
-import { AGENT_GUIDE_PATH, AGENT_GUIDE_URL, AGENT_SKILLS, GUIDE_PUBLIC_BASE } from '@/services/mcp/tools/guideTools';
+import {
+  AGENT_GUIDE_PATH, AGENT_GUIDE_URL, AGENT_SKILLS, GUIDE_PARTS, GUIDE_PUBLIC_BASE, SKILL_INSTALL_HINT, publicAssetUrl, skillAssetPath,
+} from '@/services/mcp/tools/guideTools';
 import type { McpContext } from '@/services/mcp/contracts';
 import { AGENT_GUIDE_FILE, checkAgentGuideLinks } from '../../scripts/lib/agent-guide-links';
 import { checkSkillFrontmatter, checkSkillSets, sharedClaudeSkills } from '../../scripts/lib/agent-skills-check';
@@ -116,12 +118,12 @@ test('planner_get_planning_guide staat geregistreerd, read-only en niet-batchabl
   assertEq(def!.kind, 'read', 'kind moet read zijn');
   assertEq(def!.annotations.readOnlyHint, true, 'readOnlyHint');
   assertEq(def!.batchable, false, 'een documentatie-tool hoort niet in een draaiboek');
-  for (const n of ['goed-plannen', 'progress-update', 'English', '`language`']) {
+  for (const n of ['goed-plannen', 'progress-update', '`part`', 'English']) {
     assert(def!.description.includes(n), `tool-beschrijving noemt "${n}" niet`);
   }
 });
 
-test('zonder argumenten: agentgids + beide skills, Engels, met installatie-aanwijzing per skill', async () => {
+test('zonder argumenten: gids + goed-plannen, Engels, met één installatie-aanwijzing', async () => {
   installFetch('stub');
   fetched.length = 0;
   const res = await call(makeMcpContext(), {});
@@ -129,25 +131,37 @@ test('zonder argumenten: agentgids + beide skills, Engels, met installatie-aanwi
   const data = res.structuredContent.data;
   assertEq(data.language, 'en', 'de inhoud is Engels');
   assertEq(data.languageNote, undefined, 'geen taalnotitie zonder taalverzoek');
-  assertEq(data.part, 'both', 'default part');
+  assertEq(data.part, 'goed-plannen', 'default part');
   assertEq(data.guide, GUIDE_BODY, 'gidstekst doorgegeven');
-  assertEq(data.skills, [
-    { name: 'goed-plannen', text: SKILL_BODIES['goed-plannen'] },
-    { name: 'progress-update', text: SKILL_BODIES['progress-update'] },
-  ], 'beide skills, in vaste volgorde');
+  assertEq(data.skills, [{ name: 'goed-plannen', text: SKILL_BODIES['goed-plannen'] }], 'alleen de opbouwskill');
   // Het oude veld `skill` (tweede kopie van goed-plannen) en de oude installatievelden zijn weg (#818).
   assert(!('skill' in data), 'het oude veld `skill` is weg');
-  assertEq(data.install.guideUrl, 'https://open-planner-studio.open-aec.com/agent/planning-guide.md', 'gids-URL');
-  assertEq(data.install.skills.map((s: any) => [s.name, s.installPathProject, s.installPathGlobal, s.url]), [
-    ['goed-plannen', '.claude/skills/goed-plannen/SKILL.md', '~/.claude/skills/goed-plannen/SKILL.md',
-      'https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md'],
-    ['progress-update', '.claude/skills/progress-update/SKILL.md', '~/.claude/skills/progress-update/SKILL.md',
-      'https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md'],
-  ], 'installatiepaden en URL\'s per skill');
-  assertEq(Object.keys(data.install).sort(), ['guideUrl', 'note', 'skills'], 'geen oude installatievelden');
-  assertEq([...fetched].sort(), [
-    '/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md', '/skills/progress-update/SKILL.md',
-  ], 'precies de drie assets, nooit het Help-artikel');
+  assertEq(data.install, SKILL_INSTALL_HINT, 'één installatietekst voor alle skills');
+  assertEq(data.install, '.claude/skills/<name>/SKILL.md (project) or ~/.claude/skills/<name>/SKILL.md (all projects)', 'installatietekst');
+  assertEq([...fetched].sort(), ['/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md'], 'gids en opbouwskill, nooit het Help-artikel');
+});
+
+test('elk part levert precies zijn delen (één part per taak; oude waarden blijven werken)', async () => {
+  const expected: Record<string, { guide: boolean; skills: string[] }> = {
+    'goed-plannen': { guide: true, skills: ['goed-plannen'] },
+    'progress-update': { guide: false, skills: ['progress-update'] },
+    guide: { guide: true, skills: [] },
+    skill: { guide: false, skills: ['goed-plannen', 'progress-update'] },
+    both: { guide: true, skills: ['goed-plannen', 'progress-update'] },
+  };
+  assertEq(Object.keys(GUIDE_PARTS).sort(), Object.keys(expected).sort(), 'de parts');
+  for (const [part, want] of Object.entries(expected)) {
+    installFetch('stub');
+    fetched.length = 0;
+    const res = await call(makeMcpContext(), { part });
+    assertEq(res.isError, false, `part ${part}: ${JSON.stringify(res.structuredContent)}`);
+    const data = res.structuredContent.data;
+    assertEq(data.guide, want.guide ? GUIDE_BODY : undefined, `part ${part}: gids`);
+    assertEq(data.skills?.map((s: any) => s.name), want.skills.length > 0 ? want.skills : undefined, `part ${part}: skills`);
+    assertEq(data.install, want.skills.length > 0 ? SKILL_INSTALL_HINT : undefined, `part ${part}: installatietekst alleen bij skills`);
+    const files = [...(want.guide ? [`/${AGENT_GUIDE_PATH}`] : []), ...want.skills.map((n) => `/skills/${n}/SKILL.md`)];
+    assertEq([...fetched].sort(), files.sort(), `part ${part}: alleen zijn eigen bestanden`);
+  }
 });
 
 test('language=nl wordt nog geaccepteerd, maar de inhoud blijft Engels (met notitie)', async () => {
@@ -161,16 +175,6 @@ test('language=nl wordt nog geaccepteerd, maar de inhoud blijft Engels (met noti
   assertEq(data.guide, GUIDE_BODY, 'agentgids, niet het Nederlandse Help-artikel');
   assertEq(fetched, ['/agent/planning-guide.md'], 'part=guide haalt alleen de agentgids');
   assert(fetched.every((u) => !u.includes('/docs/')), 'het Help-artikel mag niet meer opgehaald worden');
-});
-
-test('part=skill haalt alleen de twee skills', async () => {
-  installFetch('stub');
-  fetched.length = 0;
-  const res = await call(makeMcpContext(), { part: 'skill' });
-  const data = res.structuredContent.data;
-  assertEq(data.guide, undefined, 'gids mag ontbreken bij part=skill');
-  assertEq(data.skills.map((s: any) => s.name), ['goed-plannen', 'progress-update'], 'beide skills');
-  assert(fetched.every((u) => u.includes('/skills/')), `alleen skills verwacht, kreeg ${fetched.join(', ')}`);
 });
 
 test('de tool werkt in alleen-lezen-modus en gepauzeerd (lezen mag altijd)', async () => {
@@ -196,7 +200,7 @@ test('een onbekende parameter wordt geweigerd (additionalProperties: false)', as
 
 test('een onbereikbare asset geeft een Engelse NOT_FOUND met alle publieke download-URL\'s', async () => {
   installFetch('missing');
-  const res = await call(makeMcpContext(), { language: 'nl' });
+  const res = await call(makeMcpContext(), { language: 'nl', part: 'both' });
   assertEq(res.isError, true, 'ontbrekende asset ⇒ fout');
   assertEq(res.structuredContent.code, 'NOT_FOUND', 'nette code i.p.v. INTERNAL');
   const msg: string = res.structuredContent.error;
@@ -213,7 +217,7 @@ test('een onbereikbare asset geeft een Engelse NOT_FOUND met alle publieke downl
 
 test('één ontbrekende skill blokkeert de rest niet: ok, met `missing` en de publieke URL', async () => {
   installFetch('no-progress-skill');
-  const res = await call(makeMcpContext(), {});
+  const res = await call(makeMcpContext(), { part: 'both' });
   assertEq(res.isError, false, `een deel ontbreekt, de rest hoort te komen: ${JSON.stringify(res.structuredContent)}`);
   const data = res.structuredContent.data;
   assertEq(data.guide, GUIDE_BODY, 'de gids komt mee');
@@ -221,7 +225,6 @@ test('één ontbrekende skill blokkeert de rest niet: ok, met `missing` en de pu
   assertEq(data.missing.map((m: any) => [m.path, m.url]), [
     ['skills/progress-update/SKILL.md', 'https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md'],
   ], 'missing noemt het bestand en zijn publieke URL');
-  assertEq(data.install.skills.length, 2, 'de installatie-aanwijzing noemt nog steeds beide skills');
 });
 
 test('alles aanwezig: geen `missing`-veld', async () => {
@@ -233,7 +236,7 @@ test('alles aanwezig: geen `missing`-veld', async () => {
 test('de echte bestanden in public/ bestaan, en de tool levert precies die', async () => {
   installFetch('disk');
   fetched.length = 0;
-  const res = await call(makeMcpContext(), {});
+  const res = await call(makeMcpContext(), { part: 'both' });
   assertEq(res.isError, false, `echte assets moeten laden: ${JSON.stringify(res.structuredContent)}`);
   const data = res.structuredContent.data;
   assertEq(data.guide, readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8'), 'agentgids = public/agent/planning-guide.md');
@@ -245,13 +248,14 @@ test('de echte bestanden in public/ bestaan, en de tool levert precies die', asy
     assertEq(s.text, readFileSync(join(PUBLIC, 'skills', s.name, 'SKILL.md'), 'utf8'), `skill ${s.name} = public-bestand`);
     assertEq(s.text, readFileSync(join(ROOT, '.claude', 'skills', s.name, 'SKILL.md'), 'utf8'), `skill ${s.name} = .claude-kopie`);
   }
-  // Elke publieke URL hoort bij een bestand in public/ (de webbuild serveert public/ op de root).
-  const urls = [data.install.guideUrl, ...data.install.skills.map((s: any) => s.url)];
+  // Elke publieke URL (in `missing` en de foutmelding) hoort bij een bestand in public/ (de webbuild serveert
+  // public/ op de root).
+  const urls = [AGENT_GUIDE_URL, ...AGENT_SKILLS.map((s) => publicAssetUrl(skillAssetPath(s.name)))];
   for (const url of urls) {
     assert(url.startsWith(`${GUIDE_PUBLIC_BASE}/`), `URL buiten de publieke basis: ${url}`);
     assert(existsSync(join(PUBLIC, url.slice(GUIDE_PUBLIC_BASE.length + 1))), `geen bestand in public/ voor ${url}`);
   }
-  assertEq(AGENT_GUIDE_URL, data.install.guideUrl, 'AGENT_GUIDE_URL = de geleverde gids-URL');
+  assertEq(AGENT_GUIDE_URL, publicAssetUrl(AGENT_GUIDE_PATH), 'AGENT_GUIDE_URL = de publieke URL van de gids');
 });
 
 test('de tool levert precies de skills die in public/skills/ staan', () => {
