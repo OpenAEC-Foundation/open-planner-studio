@@ -985,7 +985,7 @@ function updateCalendarCore(ctx: McpContext, items: CalendarItem[]): MutationOut
  *  `additionalProperties` van `byWeekday` en bij `workingExceptions[].bands`. Daarom zo kaal mogelijk:
  *  `WORKTIME_SCHEMA` legt de banden en hun grenzen één keer uit (#818). De schemapoort toetst array-items niet
  *  (DIEPTE-REGEL in `schemaValidate.ts`); `bandListReason` hierboven weigert ongeldige banden met een reden
- *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 915). */
+ *  (`cases-uurkalender.ts`, test 3), maar laat een gebroken minuut door (knownbug 933). */
 const WORKTIME_DAY_SCHEMA = {
   type: 'array',
   items: { type: 'object', required: ['start', 'end'] },
@@ -1024,7 +1024,7 @@ const updateCalendar: BatchStepTool = {
   description:
     'Change calendars, or create one with `create: true` and an own `id` label, then use the returned `id` ' +
     '(ids are per document). Holidays: `generate` replaces the list with a country set, then `rawHolidays` ' +
-    'adds days; `holidaysMode: "replace"` makes it exactly `rawHolidays`; `holidays` sets it exactly. Raw days ' +
+    'adds days; `holidaysMode: "replace"` makes it exactly `rawHolidays`. Raw days ' +
     'end the generator link (`becameLiteral`). `create` without holiday fields inherits the app default ' +
     'holidays; `holidays: []` = none. DAY calendar with a break: `hoursPerDay` is derived; change hours or ' +
     'break. HOUR calendar (`workTime`): `workDays` follows the bands; `hoursPerDay` too, unless it differed ' +
@@ -1051,7 +1051,11 @@ const updateCalendar: BatchStepTool = {
             workDays: {
               type: 'array',
               items: { type: 'integer', minimum: 1, maximum: 7 },
-              description: '1 = Monday … 7 = Sunday.',
+              // Kopieerregel: `calendarFieldPatch` → `workDaysSetPatch` → `workDayTogglePatch` (`subdayIo.ts`) →
+              // `firstBlockedDay`. Het antwoord toont geen banden, dus de agent moet dit vooraf weten (#818).
+              description: '1 = Monday … 7 = Sunday. On an HOUR calendar, `workDays` alone clears removed days ' +
+                'and gives new days the bands of the first day with bands (Sun, Mon … Sat); use `workTime` to ' +
+                'choose hours.',
             },
             workStartHour: { type: 'number', description: 'HOURS (0–24).' },
             workEndHour: { type: 'number', description: 'HOURS (0–24).' },
@@ -1411,7 +1415,8 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
 const manageAssignments: BatchStepTool = {
   name: 'planner_manage_assignments',
   description:
-    '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + fields; `move`: `assignmentId` ' +
+    '`add`: `taskId`, `resourceId`, `unitsPerDay`; `update`: `assignmentId` + `unitsPerDay`/`curve`/' +
+    '`remainingWorkMinutes` (other resource: remove + add); `move`: `assignmentId` ' +
     'to `taskId`; `remove`: `assignmentId`. Leaf tasks only, no milestones or duplicate resources. Under ' +
     'FIXED_WORK/FIXED_RATE (`workRule`) units or adding/removing a resource change the DURATION (reread the ' +
     'task); under the ' +

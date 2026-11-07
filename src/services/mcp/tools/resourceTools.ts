@@ -554,7 +554,7 @@ const manageResources: BatchStepTool = {
     'planner_manage_assignments. Omitted key = unchanged; `null` clears. Delete removes the resource\'s ' +
     'assignments and needs `cascade: true` if it has any. Deleting a CREW also clears its members\' ' +
     '`parentId`. A `tempId` on create maps to the real id in ' +
-    '`created`, usable in later planner_batch steps. Library resources lock `name`, `type`, `description`, ' +
+    '`created`, usable in later steps of the same planner_batch. Library resources lock `name`, `type`, `description`, ' +
     '`costPerHour` and `unitOfMeasure`: offer a change in the library or unlinking.',
   kind: 'mutate',
   batchable: true,

@@ -29,7 +29,7 @@ landcodes, `shift`, `workRule`, `taskType` en de curves. Vier bewuste uitzonderi
   zonder getallen, met `start` buiten 0–1439, met `end` ≤ `start`, met `end` > 2880 en met overlap
   (`cases-uurkalender` test 3, ook met een negatieve start). Hij vangt niet alles wat het oude schema noemde: een
   gebroken minuut zoals `{start: 1439.5, end: 1440}` of `{start: 0, end: 0.5}` gaat erdoor. Dat is zo op `main` en
-  op deze branch; het staat als knownbug 915. De grenzen staan één keer in param `byWeekday`.
+  op deze branch; het staat als knownbug 933. De grenzen staan één keer in param `byWeekday`.
 - `byWeekday` noemt de zeven weekdagen niet meer elk als `properties` met hetzelfde dagschema; één dagschema staat nu
   als `additionalProperties` (fixronde 3). De beschrijving noemt de sleutels "1" … "7". De handler toetst de
   sleutels zelf (`workTimeReason`: onbekende sleutel en ontbrekende dag geweigerd). De schemapoort kent sinds
@@ -67,7 +67,7 @@ tool en de gids.
 | Constraint: `null` wist; `date` nodig behalve ASAP/ALAP; `hard` alleen MSO/MFO; null/ASAP/ALAP wissen ook de secundaire; ongeldig paar geweigerd | param `constraint`; de typen staan als enum |
 | `deadline` begrenst alleen de late finish | param `deadline` |
 | `calendarId`: bibliotheekkalender; `null` = projectkalender | param `calendarId` |
-| `workRule`: vier waarden met betekenis en MSP/P6-namen ("Fixed Units" betekent in MSP en P6 iets anders); wisselen verandert geen getal; `null` = projectstandaard; alleen gewone bladtaken | param `workRule` |
+| `workRule`: vier waarden met betekenis en MSP/P6-namen ("Fixed Units" betekent in MSP en P6 iets anders); wisselen verandert geen getal; `null` = projectstandaard; alleen gewone bladtaken | param `workRule`. Fixronde 5: kort, "which part … stays fixed, as the name says"; de lijst uitzonderingen blijft, want de code weigert daar niet: de enumcontrole in `taskFields.ts` laat een regel op een mijlpaal of verzameltaak door, en daar doet hij niets (`workRuleApplies`). Daarom ook "elsewhere it has no effect" |
 | Veldbeschrijvingen van add_tasks en update_tasks.fields | dubbel: alleen bij add_tasks; update_tasks zegt "`fields` take the same fields as planner_add_tasks items" (`TASK_FIELD_SCHEMA_PROPERTIES_BARE`: zelfde schema zonder beschrijvingsTEKSTEN; het taakveld `description` blijft, fixronde 1, test `cases-taskfields`) |
 | Fase-overgang: toewijzingen gaan naar de eerste nieuwe subtaak (`phaseTransitions`) | `PHASE_TRANSITION_DOC` in add_tasks en move_task; dat een mijlpaal zijn vlag verliest en wanneer de aanroep faalt: antwoord |
 | Lag: getal of "+2d", fractie toegestaan, negatief = lead, "+50%" van de voorganger, andere vorm geweigerd; een lag zetten wist de andere lagvormen | param `lag`, zonder "Other forms are refused. Replaces any other lag form" (fixronde 4: een andere vorm wordt geweigerd met een reden, en één relatie heeft één lag; test `cases-update-dependencies` toetst nog "fraction") |
@@ -85,7 +85,7 @@ tool en de gids.
 |---|---|
 | Geneste WBS in één aanroep; items in elke volgorde | tool |
 | `parentId` = bestaand id of tempId uit dezelfde aanroep; weggelaten = wortel | tool + param `parentId` |
-| `tempId` uniek in de aanroep; latere batchstappen mogen hem gebruiken | param `tempId` |
+| `tempId` uniek in de aanroep; latere batchstappen mogen hem gebruiken | param `tempId` ("later steps of the same planner_batch", fixronde 5: "later planner_batch steps" kon als een latere batch gelezen worden) |
 | `position` = index tussen de broers | param `position`; dat hij geklemd wordt: weg (de taak komt altijd ergens geldig) |
 | Zonder `duration`: projectstandaard (5 werkdagen; 5 uur bij uurmaat in het OPS-profiel) | tool, als "normally 5 working days": de agent hoort zelf een duur te geven |
 | Eén ongeldig item laat de hele aanroep falen (alles-of-niets) | tool |
@@ -149,7 +149,7 @@ tool en de gids.
 | Vervangt de lijst; `[]` wist | tool |
 | Posities op de WERK-as (voorbeeld) | tool |
 | Uurtaak: `afterWorkHours`/`pauseHours` | tool |
-| Alleen hele eenheden; taak wordt langer, werk blijft | tool |
+| Alleen hele eenheden; taak wordt langer, werk blijft | tool ("pauses extend duration", fixronde 5) |
 | Niet splitsbaar: mijlpaal, verzameltaak, hamer, ELAPSEDTIME, handmatig | tool |
 | Korter dan twee eenheden, niet-bewerkbare geïmporteerde splits, positie in gedaan werk, dag- en uursleutels mengen, alles-of-niets | weg: antwoord (fout met index en reden; er wordt niets geschreven) |
 
@@ -164,7 +164,7 @@ tool en de gids.
 | `rawHolidays` VOEGT TOE, bestaande dagen blijven | tool (test `cases-stille-noops`: "add") |
 | `holidaysMode: "replace"`: lijst wordt exact `rawHolidays` | tool (test: "replace") + param `holidaysMode`. Fixronde 3: "the only way to remove one" is weg, want het klopte niet: `holidays` vervangt ook exact |
 | Lege `rawHolidays` in merge-modus geweigerd; `replace` met `[]` wist alles | weg: antwoord / volgt uit "exactly `rawHolidays`" |
-| `holidays` vervangt exact; niet samen met `rawHolidays`/`holidaysMode`/`generate` | tool + param `holidays` |
+| `holidays` vervangt exact; niet samen met `rawHolidays`/`holidaysMode`/`generate` | param `holidays` ("The complete list"); in de tool weg, dubbel (fixronde 5) |
 | Losse dagen beëindigen de koppeling met de generator (`becameLiteral`) | tool |
 | `create` zonder feestdagvelden erft de feestdagen van de app-standaard; geen feestdagen: `holidays: []` | tool (de route `generate: {country: "none"}` staat bij param `country`) |
 | Overzetten: object uit get_calendars letterlijk terug, met `create: true` om te kopiëren | tool get_calendars; bij update_calendar weg, dubbel (fixronde 4) |
@@ -175,7 +175,7 @@ tool en de gids.
 | `workTime` maakt een uurkalender, `null` terug naar dag | param `workTime` + tool |
 | Taakduren houden hun getal en eenheid; datums kunnen schuiven | tool (fixronde 3, tekst van Sol). De oude param-tekst van `workTime` ("this redefines the duration of every task") sprak de toolbeschrijving tegen en was verouderd; die zin is weg |
 | Bij `workTime` volgen `workDays` altijd; `hoursPerDay` alleen als hij gelijk was aan de modale dagsom van de oude banden (een bewuste afwijking zoals P6 `day_hr_cnt` blijft staan; een dagkalender volgt altijd); opgegeven `hoursPerDay` wint | tool (fixronde 4: "follow the bands unless `hoursPerDay` is given" klopte niet; code `calendarResourceTools.ts` bij `hoursPerDayForBlocks`, `subdayIo.ts`) |
-| Alleen `workDays` op uurkalender: nieuwe dag kopieert de banden van de eerste dag met banden (zo, ma … za) | weg (fixronde 4): detail. Het antwoord toont de banden niet; planner_get_calendars wel. Wie bepaalde uren wil, geeft `workTime` |
+| Alleen `workDays` op uurkalender: nieuwe dag kopieert de banden van de eerste dag met banden (zo, ma … za) | param `workDays` (fixronde 5: in fixronde 4 ten onrechte weg; het antwoord toont geen banden, dus een agent die vrijdag naar zaterdag "verplaatst", geeft zaterdag stil de banden van maandag). Code: `calendarFieldPatch` → `workDaysSetPatch` → `workDayTogglePatch` → `firstBlockedDay` |
 | Terugval als geen dag banden heeft (eigen werkdag, dan 07–12 + 13–16) | weg: randgeval; zo'n kalender heeft geen werktijd en faalt al; wie banden wil, geeft `workTime` |
 | Ongebruikte kalenders overleven IFC opslaan + laden; geen taak nodig om hem te bewaren | weg (fixronde 3): detail, er gaat niets verloren en de aanroep verandert er niet door. Het behoud toetst `cases-uurkalender` |
 | Uurbanden per weekdag overleven IFC | weg: geruststelling zonder invloed op de aanroep |
@@ -192,7 +192,7 @@ tool en de gids.
 
 | regel | nieuwe plek |
 |---|---|
-| Velden per actie | tool |
+| Velden per actie | tool. Fixronde 5: `update` noemt zijn velden (`unitsPerDay`/`curve`/`remainingWorkMinutes`; andere resource = remove + add), want de handler negeert een andere sleutel stil (knownbug 934) |
 | Alleen op bladtaken, geen mijlpalen, geen dubbele resources | tool |
 | Onder FIXED_WORK/FIXED_RATE veranderen eenheden of een extra resource de DUUR; onder de standaardregel zet `remainingWorkMinutes` de eenheden | tool |
 | Lees de taak opnieuw voor de nieuwe duur | tool |
@@ -212,7 +212,7 @@ tool en de gids.
 | `description` leegmaken met `""`, niet `null` | param `description` |
 | VERWIJDEREN wist ook alle toewijzingen; met toewijzingen alleen met `cascade: true` | tool |
 | Ploeglidmaatschap van de leden vervalt bij verwijderen | tool: "Deleting a CREW also clears its members' `parentId`" (fixronde 4: het antwoord meldt het pas achteraf, en een CREW zonder eigen toewijzingen gaat zonder `cascade` weg; code `purgeResource`) + antwoord (`orphanedCrewMemberIds`) |
-| `tempId` (`tmp-`/`tmp_`) bij `create`, echt id in `created`; latere batchstappen | tool + param `tempId` |
+| `tempId` (`tmp-`/`tmp_`) bij `create`, echt id in `created`; latere batchstappen | tool ("later steps of the same planner_batch", fixronde 5) + param `tempId` |
 | Bibliotheekresource: vijf velden vast; bied de gebruiker de twee routes | tool |
 | Wat het project bepaalt blijft schrijfbaar | weg: volgt uit de lijst vaste velden |
 | `maxUnits` per WERKDAG, standaard 1; `type` standaard LABOR; `unitOfMeasure` alleen MATERIAL; `parentId` = CREW-resource; `availabilitySteps` | params |
@@ -326,7 +326,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | Max. 100 stappen | tool (test `cases-batch`: "100") + schema `maxItems` |
 | Eén undo-stap, één herberekening, één backup; gebruik voor een samenhangende reeks | tool (F3; de "wanneer"-zin stond eerst in `MCP_INSTRUCTIONS`) |
 | Een falende stap ⇒ hele batch terug; weigeringen per item zacht (`rejections`) | tool |
-| tempId wordt in LATERE stappen van deze batch vervangen, nooit in vrije tekst | tool |
+| tempId wordt in LATERE stappen van deze batch vervangen, nooit in vrije tekst | tool ("Later steps of this batch", fixronde 5) |
 | Args liggen vast: alleen een laatste leesstap is zinvol; ids vooraf opzoeken | tool (test `cases-batch`: "final") |
 | Uitgesloten: planner_batch, undo/redo, document- en bestandstools, planner_save_baseline, planner_get_planning_guide, planner_inspect_xer_provenance | tool (F6; fixronde 4: de laatste twee zijn `batchable: false` en ontbraken, nagelopen tegen `checkExclusions`) |
 | Rapport per stap bij een fout; "geen scripttaal" | weg: antwoord / volgt uit "args are fixed at submission" |
@@ -338,7 +338,7 @@ Aanvulling van de orkestrator: PR #836 haalde deze details uit de agentgids; ze 
 | Alleen-lezen, niet batchable | tool |
 | Zonder `includeRawRows` alleen id/code/label | tool |
 | Met `includeRawRows` vrije tekst; niet voor summary en rawSource | param `includeRawRows` |
-| Elke pagina onder 256 kB, BEHALVE rawSource (max. 8 chunks) | tool (test `cases-xer-provenance`: "EXCEPT rawSource") + param `limit` |
+| Elke pagina onder 256 kB, BEHALVE rawSource (max. 8 chunks van ~256 kB base64, samen ~2,1 MB) | tool (test `cases-xer-provenance`: "EXCEPT rawSource") + param `limit` ("8 chunks of ~256 kB", fixronde 5; chunk = 192 KiB bron) |
 | rawSource vraagt `includeRawSource: true` ÉN `includeResourceNames: true`; taskSourceRowsByProject vraagt `projectId` | params `includeRawSource` en `includeResourceNames` (fixronde 1: de tweede vlag was weg; `{section: "rawSource", includeRawSource: true}` werd geweigerd) |
 | Resourcenamen verborgen; eerst toestemming, want persoonsgegevens gaan naar de AI-aanbieder | tool; param `includeResourceNames` verwijst ernaar ("see above") |
 | Afkapgrenzen (200/2.000 tekens, 200 cellen), `archiveIssue`-codes, `sourcePresent` | weg: antwoord |
@@ -351,7 +351,7 @@ principe in de agentgids.
 
 | regel | nieuwe plek |
 |---|---|
-| Echte planning waar iemand op vertrouwt | instructies |
+| Echte planning waar iemand op vertrouwt | instructies ("people rely on", fixronde 5) |
 | Begin bij mijlpalen en opleverdatum | instructies (test: "milestone") |
 | Taken van een dag tot twee weken; verzameltaken geen eigen duur | instructies (test: "two weeks") |
 | Waarom (te fijn onbeheersbaar, te grof onstuurbaar) | weg: gids |
@@ -363,7 +363,7 @@ principe in de agentgids.
 | Gebruik planner_batch voor een samenhangende reeks | dubbel: nu in tool planner_batch |
 | Voortgang vraagt de statusdatum van de gebruiker; nooit verzinnen | instructies (test: "status date") |
 | Werkelijke start- en einddatums van de gebruiker doorgeven | instructies + tool update_tasks (fixronde 1: het was weg) |
-| Afsluiten met de aannames en wat je niet deed | instructies (test: "assumed") |
+| Afsluiten met de aannames en wat je niet deed | instructies: "Report what you assumed … and what you omitted" (test: "assumed") |
 | Gids en skills via planner_get_planning_guide; bij voortgang `part: "progress-update"` | instructies (test). De URL is weg: elke client heeft de tool. `progress-update` als `part` bestaat pas met PR #836; zonder #836 weigert de tool hem met de geldige waarden |
 
 ## Annotaties (fixronde 3: terug zoals op `main`)

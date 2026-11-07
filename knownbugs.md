@@ -713,7 +713,7 @@ en noem het in je rapport of PR-tekst.
      gewone dagen, nachtdiensten zonder bedekking en gedeeltelijke bedekking. Onafhankelijk gemeten
      in review ronde 2 van PR #787 op `a032c00ad`. — B
 
-915. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
+933. **`planner_update_calendar` neemt uurbanden met een gebroken minuut aan.** `bandListReason` in
      `src/services/mcp/tools/calendarResourceTools.ts` toetst alleen `0 ≤ start < 1440`, `end > start` en
      `end ≤ 2880`, met een eindig getal. Daardoor gaan `{start: 1439.5, end: 1440}` en `{start: 0, end: 0.5}`
      erdoor. Het oude bandschema op `main` (vóór PR #838) noemde `start` 0–1439 en `end` minimaal 1, maar de
@@ -911,6 +911,16 @@ en noem het in je rapport of PR-tekst.
      met een heldere fout ("…needs Node.js 22 or newer…"). Welke Node Claude Desktop meelevert, is niet nagegaan.
      Voorstel: dat nagaan, en het minimum in het manifest op 22 zetten als beide standen moeten werken. Gevonden
      in review ronde 1 van #734 (GPT-6.1-Sol). — B
+
+934. **VERVOLG: `planner_manage_assignments` met `update` negeert een meegestuurde `resourceId` stil.**
+     De `update`-tak in `src/services/mcp/tools/calendarResourceTools.ts` (`case 'update'`, rond regel 1275 en 1388)
+     leest alleen `unitsPerDay`, `curve` en `remainingWorkMinutes`. Een andere sleutel, zoals `resourceId` of
+     `taskId`, geeft geen weigering. Scenario: "vervang Jan door Piet op taak X, 0,5 per dag" als
+     `{action: "update", assignmentId, resourceId: "<piet>", unitsPerDay: 0.5}` geeft `ok: true`; Jan blijft staan
+     met 0,5. De schemapoort vangt het niet, want de acties zijn array-items (DIEPTE-REGEL in `schemaValidate.ts`).
+     PR #838 noemt de velden van `update` in de toolbeschrijving ("other resource: remove + add"); de handler blijft
+     zoals hij is. Fixrichting: weiger per item een sleutel die bij de actie niet hoort, met de lijst geldige velden.
+     Uit council-ronde 4 op #838 (Opus 5.5, BEVESTIGD met de echte dispatcher, VERVOLG). — B
 
 ## Bestanden en herstel
 

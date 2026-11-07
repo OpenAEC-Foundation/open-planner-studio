@@ -1099,7 +1099,7 @@ export const readTools: McpToolDef[] = [
   {
     name: 'planner_get_project_overview',
     description:
-      'Whole WBS tree, compact, with every relationship once: one call gives structure and network. Use ' +
+      'Whole WBS tree with every relationship, in one call. Use ' +
       '`id` in mutating tools and `parentId` (not `parent`) for the tree. In "→2.3 FS+2d #seq-7", `seq-7` is ' +
       'the seqId for planner_update_dependencies/planner_remove_dependencies. Large; planner_list_tasks pages.',
     kind: 'read',

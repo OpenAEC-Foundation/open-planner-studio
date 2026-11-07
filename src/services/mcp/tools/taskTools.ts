@@ -252,7 +252,8 @@ const addTasks: BatchStepTool = {
             tempId: {
               type: 'string',
               pattern: '^tmp[-_]',
-              description: 'Your own id, unique in the call, e.g. `tmp-foundation`; later planner_batch steps may use it.',
+              description: 'Your own id, unique in the call, e.g. `tmp-foundation`; later steps of the same ' +
+                'planner_batch may use it.',
             },
             parentId: { type: 'string', description: 'Omitted = root.' },
             position: { type: 'integer', description: 'Index among the siblings; clamped to the valid range.' },
@@ -1061,11 +1062,10 @@ function splitsReport(st: AppState, taskId: string) {
 const setTaskSplits: BatchStepTool = {
   name: 'planner_set_task_splits',
   description:
-    'Set the interruptions of one task (work stops and resumes later) instead of splitting it into tasks. ' +
-    'Replaces the list; [] clears. Positions count WORK from the task start, pauses excluded: ' +
-    '`{afterWorkDays: 5, pauseDays: 3}`; hour tasks use `afterWorkHours`/`pauseHours`. Whole units only; the ' +
-    'task gets longer by the pauses. Not for milestones, summary tasks, hammocks, ELAPSEDTIME or manually ' +
-    'scheduled tasks.',
+    'Replace one task\'s work interruptions ([] clears) instead of splitting the task. Positions exclude ' +
+    'pauses and count WORK from task start: `{afterWorkDays: 5, pauseDays: 3}`; hour tasks use ' +
+    '`afterWorkHours`/`pauseHours`. Whole units only; pauses extend duration. No milestones, summary tasks, ' +
+    'hammocks, ELAPSEDTIME or manually scheduled tasks.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },

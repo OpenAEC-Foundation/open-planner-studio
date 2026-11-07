@@ -794,9 +794,9 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
   return finalizeBounded({ section: 'taskSourceRowsByProject', projectId, ...envelope(paged, items) });
 }
 
-/** Bewust NIET door `finalizeBounded`/de 256 kB-responsgrens: één chunk is al ±256 kB base64, dus
- *  rawSource is per chunk-aantal begrensd (maxLimit 8 ≈ 2,1 MB). De toolbeschrijving zegt dat
- *  expliciet. */
+/** Bewust NIET door `finalizeBounded`/de 256 kB-responsgrens: één chunk is 192 KiB bron, dus 256 KiB
+ *  base64, en rawSource is daarom per chunk-aantal begrensd (maxLimit 8 ≈ 2,1 MB). De toolbeschrijving
+ *  noemt de uitzondering; param `limit` noemt de grootte per chunk. */
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource requires `includeRawSource: true`; source bytes can contain names and free notes.');
@@ -888,7 +888,7 @@ const inputSchema = {
     section: { type: 'string', enum: [...SECTIONS], description: 'Default summary.' },
     collection: { type: 'string', enum: COLLECTION_ENUM, description: 'Within resourceCatalog, metadataCatalog or diagnostics.' },
     projectId: { type: 'string', description: 'Required for taskSourceRowsByProject (`selector.availableProjectIds`).' },
-    limit: { type: 'number', description: 'Default 50; rawSource ≤ 8 chunks, with includeRawRows ≤ 100.' },
+    limit: { type: 'number', description: 'Default 50; rawSource ≤ 8 chunks of ~256 kB, with includeRawRows ≤ 100.' },
     offset: { type: 'number' },
     includeRawSource: { type: 'boolean', description: 'Required for rawSource, together with `includeResourceNames`.' },
     includeRawRows: {
@@ -899,7 +899,7 @@ const inputSchema = {
     includeResourceNames: {
       type: 'boolean',
       default: false,
-      description: 'For resourceCatalog; also REQUIRED for rawSource. Needs the user\'s permission (see above).',
+      description: 'For resourceCatalog; required for rawSource. Needs permission (see above).',
     },
   },
   additionalProperties: false,
