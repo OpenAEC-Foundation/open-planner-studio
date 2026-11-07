@@ -15,7 +15,7 @@ import '@/components/dialogs/SettingsDialog.css';
 import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
-import { AI_MODE_AVAILABLE } from '@/utils/buildFlags';
+import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE } from '@/utils/buildFlags';
 import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 import { AppLogo } from '@/components/common/AppLogo';
@@ -487,13 +487,15 @@ export function SettingsPanelContent() {
             {/* Statistieken: hoe vaak de app gedownload is, per OS en per release (publieke cijfers
                 van de stats-branch). Bewust een KNOP naast Benchmark in Geavanceerd en geen eigen
                 tabblad — de gemiddelde gebruiker heeft er niets aan. */}
-            <div className="settings-section">
-              <h3>{t('settings.statsSection')}</h3>
-              <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
-              <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
-                {t('settings.statsOpen')}
-              </button>
-            </div>
+            {DOWNLOAD_STATS_AVAILABLE && (
+              <div className="settings-section" data-ops-settings-stats>
+                <h3>{t('settings.statsSection')}</h3>
+                <p className="scrollzoom-hint">{t('settings.statsSectionHint')}</p>
+                <button className="settings-link" onClick={() => openFromSettings({ showStatsDialog: true })}>
+                  {t('settings.statsOpen')}
+                </button>
+              </div>
+            )}
 
             {/* [Rondleiding]: derde herstart-ingang naast de Ribbon Weergave-knop en de Backstage-NavItem;
                 zelfde actie, hergebruikt de bestaande tour-labels (geen nieuwe knoptekst-key nodig).

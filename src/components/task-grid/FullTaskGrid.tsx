@@ -802,6 +802,11 @@ export function TaskGridSurface({
         name: tTask('defaultTask', { defaultValue: 'Nieuwe taak' }),
       });
       if (!id) return;
+      // Hier typt de gebruiker de naam in de cel (de editor hieronder). `insertTaskRelativeToScope` zet ook de
+      // naamfocus van het eigenschappenpaneel klaar; die zou de focus uit deze editor halen, afhankelijk van welk
+      // effect het laatst draait. Dan landt het typen in het paneel en blijft de cel leeg open (#818, gezien in
+      // de productiebundel). Eén eigenaar van de focus: de cel.
+      useAppStore.getState().setUI({ pendingTaskNameFocusId: null });
       const live = useAppStore.getState().viewRows.find(candidate => candidate.kind === 'task' && candidate.task.id === id);
       if (!live) return;
       selectTask(id, false);

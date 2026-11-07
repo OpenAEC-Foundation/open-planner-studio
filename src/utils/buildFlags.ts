@@ -26,3 +26,8 @@ export const DEMO_START_EXAMPLE: boolean = !PLATFORM_BUILD;
  *  werkt alleen in Tauri, en het token zou in localStorage staan, leesbaar voor elke tool op
  *  dezelfde origin. */
 export const AI_MODE_AVAILABLE: boolean = !PLATFORM_BUILD;
+
+/** Downloadcijfers in Instellingen → Geavanceerd (`DownloadStatsSection`). Uit in de platformbouw (#818): de
+ *  cijfers komen van raw.githubusercontent.com, en de werkplek van de SuperCloud laat geen netwerk buiten de
+ *  bundel toe (CSP). */
+export const DOWNLOAD_STATS_AVAILABLE: boolean = !PLATFORM_BUILD;
