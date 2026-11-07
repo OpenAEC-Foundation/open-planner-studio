@@ -635,6 +635,12 @@
     "notAvailableWeb": "خواندن فایل‌های مبدأ فقط در برنامهٔ دسکتاپ ممکن است؛ از جایگزین دستی استفاده کنید.",
     "source": "منبع",
     "sourceAvailable": "در آخرین بررسی در دسترس بود",
+    "provenance": "منشأ لنگر",
+    "provenanceSite": "نسخهٔ {{version}} منبع، خوانده‌شده در {{readAt}}",
+    "provenanceSiteNoRead": "نسخهٔ {{version}} منبع",
+    "provenanceFile": "فایل مبدأ مورخ {{modified}}، خوانده‌شده در {{readAt}}",
+    "provenanceFileNoRead": "فایل مبدأ مورخ {{modified}}",
+    "provenanceRead": "خوانده‌شده در {{readAt}}",
     "edit": "ویرایش رابطه خارجی…",
     "refreshSource": "به‌روزرسانی منبع",
     "deleteRelation": "حذف رابطه"

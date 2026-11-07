@@ -635,6 +635,12 @@
     "notAvailableWeb": "Четенето на изходни файлове е възможно само в настолното приложение; използвайте ръчния вариант.",
     "source": "Източник",
     "sourceAvailable": "наличен при последната проверка",
+    "provenance": "Произход на котвата",
+    "provenanceSite": "версия {{version}} на източника, прочетено на {{readAt}}",
+    "provenanceSiteNoRead": "версия {{version}} на източника",
+    "provenanceFile": "изходен файл от {{modified}}, прочетено на {{readAt}}",
+    "provenanceFileNoRead": "изходен файл от {{modified}}",
+    "provenanceRead": "прочетено на {{readAt}}",
     "edit": "Редактирай междупроектната връзка…",
     "refreshSource": "Обнови източника",
     "deleteRelation": "Изтрий зависимостта"
