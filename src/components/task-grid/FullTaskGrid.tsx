@@ -54,6 +54,7 @@ import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { signedWorkDaysBetween } from '@/engine/variance';
 import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { endOfListPosition, insertTaskRelativeToScope } from '@/state/taskInsertActions';
+import { COLUMNS_RIBBON_TOGGLE_SELECTOR } from './ColumnChooser';
 import { withTransaction } from '@/state/batchTransaction';
 import {
   appendGhostRow,
@@ -1247,6 +1248,7 @@ export function TaskGridSurface({
         onChooserOpenChange={surfaceId === 'full-task-grid'
           ? open => setUI({ showColumnsDialog: open })
           : undefined}
+        chooserExternalToggleSelector={surfaceId === 'full-task-grid' ? COLUMNS_RIBBON_TOGGLE_SELECTOR : undefined}
       />
       {surfaceError && <div className="full-task-grid-error" role="alert">{surfaceError}</div>}
       {externalRelationMenu?.documentId === activeDocumentId && (
