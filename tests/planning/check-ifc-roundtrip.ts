@@ -320,8 +320,10 @@ const TM = {
   externalLinks: [{
     id: 'e1', direction: 'predecessor', relType: 'FS', lagDays: 2, lagMinutes: 120,
     anchorDate: '2026-07-01',
-    sourceRef: { projectId: 'p2', projectName: 'Ander project', taskId: 't9', taskName: 'Levering', filePath: '/x/ander.ifc' },
+    sourceRef: { projectId: 'p2', projectName: 'Ander project', taskId: 't9', taskName: 'Levering', filePath: '/x/ander.ifc', siteFileId: 'site-b7c1' },
     sourceMissing: false,
+    // Herkomst (keuze 4, Ethan 2026-11-03): versie van de bron en het moment van lezen.
+    sourceVersion: '12', anchorReadAt: '2026-11-02T14:10:00.000Z',
   } satisfies Required<ExternalLink>],
   deadline: '2026-07-22',
   calendarId: 'libcal',

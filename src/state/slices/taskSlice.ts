@@ -297,7 +297,10 @@ function sameExternalLink(left: ExternalLink, right: ExternalLink): boolean {
     && left.sourceRef.projectName === right.sourceRef.projectName
     && left.sourceRef.taskId === right.sourceRef.taskId
     && left.sourceRef.taskName === right.sourceRef.taskName
-    && left.sourceRef.filePath === right.sourceRef.filePath;
+    && left.sourceRef.filePath === right.sourceRef.filePath
+    && left.sourceRef.siteFileId === right.sourceRef.siteFileId
+    && left.sourceVersion === right.sourceVersion
+    && left.anchorReadAt === right.anchorReadAt;
 }
 
 /**

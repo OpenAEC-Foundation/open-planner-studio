@@ -641,6 +641,12 @@
     "notAvailableWeb": "Bronbestanden lezen kan alleen in de desktop-app; gebruik de handmatige fallback.",
     "source": "Bron",
     "sourceAvailable": "beschikbaar bij laatste controle",
+    "provenance": "Herkomst anker",
+    "provenanceSite": "versie {{version}} van de bron, gelezen op {{readAt}}",
+    "provenanceSiteNoRead": "versie {{version}} van de bron",
+    "provenanceFile": "bronbestand van {{modified}}, gelezen op {{readAt}}",
+    "provenanceFileNoRead": "bronbestand van {{modified}}",
+    "provenanceRead": "gelezen op {{readAt}}",
     "edit": "Externe relatie bewerken…",
     "refreshSource": "Bron vernieuwen",
     "deleteRelation": "Relatie verwijderen"

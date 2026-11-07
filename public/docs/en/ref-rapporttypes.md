@@ -24,6 +24,8 @@ Open the *Report* tab (or press Ctrl+P). On the left is the *Report* column with
 
 **Orientation:** — landscape or portrait. Choose from *Landscape* and *Portrait*. Default: *Landscape*. Effect: like *Paper:*. Where: the same place as *Paper:*.
 
+**Font:** — the font of all text in the report. Choose from *Inter (default)*, *Liberation Sans (like Arial)*, *Carlito (like Calibri)* and *Liberation Serif (like Times New Roman)*. Default: Inter. Effect: preview and PDF use this font, and the PDF contains it, so it prints the same on every computer. The fonts next to Inter have the same character widths as the font in brackets. A character the chosen font lacks comes from Inter. As with *Paper:*, there is one choice for all reports; the app keeps it on this device and not in the project file. Where: the same place as *Paper:*.
+
 ## Gantt chart
 
 The schedule as a bar chart, with a table on the left and a timeline on the right, over several pages if needed. The preview shows the paper with page header, table, timeline and legend. The block *Summary* counts *Tasks:*, *Leaf tasks:*, *Critical:* and *Relations:*. All options are under *Settings*.
@@ -126,7 +128,7 @@ The block *Summary* shows *Status date*, *Period*, *Look ahead until*, *Baseline
 
 ## Progress curve
 
-Where the project stands, on one sheet: four key figures, an S-curve of progress and the tasks at risk. This report has no options of its own, only *Paper:* and *Orientation:*.
+Where the project stands, on one sheet: four key figures, an S-curve of progress and the tasks at risk. This report has no options of its own, only *Paper:*, *Orientation:* and *Font:*.
 
 The *Overview* block shows *Status date*, *Baseline finish*, *Forecast finish* and *Δ finish (wd)*. Below it are four key figures:
 

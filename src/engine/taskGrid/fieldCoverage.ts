@@ -154,6 +154,8 @@ export const EXTERNAL_LINK_FIELD_COVERAGE = {
   anchorDate: field('technical', 'relation.externalTechnical'),
   sourceRef: field('technical', 'relation.externalTechnical'),
   sourceMissing: field('technical', 'relation.externalTechnical'),
+  sourceVersion: field('technical', 'relation.externalTechnical'),
+  anchorReadAt: field('technical', 'relation.externalTechnical'),
 } satisfies Record<keyof ExternalLink, FieldCoverage>;
 
 export const ASSIGNMENT_FIELD_COVERAGE = {
@@ -225,6 +227,7 @@ export const EXTERNAL_SOURCE_FIELD_COVERAGE = {
   taskId: field('technical', 'relation.externalTechnical'),
   taskName: field('technical', 'relation.externalTechnical'),
   filePath: field('technical', 'relation.externalTechnical'),
+  siteFileId: field('technical', 'relation.externalTechnical'),
 } satisfies Record<keyof ExternalSourceRef, FieldCoverage>;
 
 export interface NamedFieldCoverage {

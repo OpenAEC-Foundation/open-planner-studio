@@ -91,6 +91,7 @@ const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').th
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
 const StatsDialog = lazy(() => import('@/components/dialogs/StatsDialog').then(m => ({ default: m.StatsDialog })));
+const SettingsDelayDialog = lazy(() => import('@/components/dialogs/SettingsDelayDialog').then(m => ({ default: m.SettingsDelayDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
 const ProgressImportDialog = lazy(() => import('@/components/dialogs/ProgressImportDialog').then(m => ({ default: m.ProgressImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
@@ -136,6 +137,7 @@ function AppContent() {
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
   const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
+  const showSettingsDelayDialog = useAppStore(s => s.ui.showSettingsDelayDialog);
   const pendingFormatNotice = useAppStore(s => s.ui.pendingFormatNotice);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
@@ -463,6 +465,8 @@ function AppContent() {
         {showShortcutsDialog && <ShortcutsDialog />}
         {showBenchmarkDialog && <BenchmarkDialog />}
         {showStatsDialog && <StatsDialog />}
+        {/* Ingebed (#818): de instellingen van de host kwamen niet op tijd; de app wacht verder. */}
+        {showSettingsDelayDialog && <SettingsDelayDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
             toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}

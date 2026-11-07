@@ -28,7 +28,9 @@ appLog.init();
 // zetten, en pas DAARNA de app (en dus de store) laden. De store leest bij het maken al instellingen,
 // bijv. de bouwmodus voor de kalender van het eerste document; een statische import van `App` zou dat
 // vóór de host doen. Wacht hoogstens 5 s (`HYDRATE_TIMEOUT_MS`) en geeft nooit een fout; zonder `settings`
-// direct klaar. Alles
+// direct klaar. Te laat of een afwijzing: de app start met standaardinstellingen, en `siteHostSettings.ts`
+// wacht op de achtergrond verder (de app past een laat antwoord live toe, `useSiteHostPreferences`). Een
+// laat antwoord verandert de kalender van het eerste document niet meer. Alles
 // hieronder dat de store laadt, wacht hierop. `check-site-host-preferences.ts` bewaakt dat de statische
 // imports van dit bestand de store niet bereiken.
 const hostSettingsReady = hydrateSiteHostSettings();

@@ -89,9 +89,11 @@ check-ext-parent.ts matrix
 check-ext-resourceids.ts matrix
 check-extension-lifecycle.ts matrix
 check-extension-validation.ts matrix
+check-external-lag-calendar.ts matrix
 check-external-lag-days.ts matrix
 check-external-link-dialog.ts matrix
 check-external-link-edit.ts matrix
+check-external-provenance.ts matrix
 check-external-relation-format.ts matrix
 check-external-source-load.ts matrix
 check-external-successor-late.ts matrix
@@ -316,6 +318,7 @@ check-relations-panel-parity.ts matrix
 check-remaining-duration.ts matrix
 check-render-caches.ts matrix
 check-renderer-dateless.ts matrix
+check-report-font-setting.ts matrix
 check-report-font.ts matrix
 check-report-footer-setting.ts matrix
 check-report-name-column-setting.ts matrix

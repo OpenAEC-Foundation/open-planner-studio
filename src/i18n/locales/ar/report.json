@@ -32,6 +32,7 @@
   "repeatHeader": "تكرار الرأس في كل صفحة",
   "repeatFooter": "تكرار التذييل في كل صفحة",
   "reportFontScaleLabel": "حجم الخط:",
+  "reportFontFamilyLabel": "الخط:",
   "timelineColumnsLabel": "الجدول الزمني عبر:",
   "timelineColumnsHint": "فقط مع الملاءمة التلقائية",
   "timelineColumns_zero": "{{count}} صفحة",
@@ -454,5 +455,11 @@
       "riskHeading": "المهام المعرضة للخطر: متأخرة أو فائض سالب",
       "riskEmpty": "لا توجد مهام متأخرة ولا فائض سالب."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (افتراضي)",
+    "liberationSans": "Liberation Sans (مثل Arial)",
+    "carlito": "Carlito (مثل Calibri)",
+    "liberationSerif": "Liberation Serif (مثل Times New Roman)"
   }
 }

@@ -639,6 +639,12 @@
     "notAvailableWeb": "Leer archivos de origen solo es posible en la aplicación de escritorio; use la alternativa manual.",
     "source": "Origen",
     "sourceAvailable": "disponible en la última comprobación",
+    "provenance": "Procedencia del anclaje",
+    "provenanceSite": "versión {{version}} del origen, leída el {{readAt}}",
+    "provenanceSiteNoRead": "versión {{version}} del origen",
+    "provenanceFile": "archivo de origen del {{modified}}, leído el {{readAt}}",
+    "provenanceFileNoRead": "archivo de origen del {{modified}}",
+    "provenanceRead": "leído el {{readAt}}",
     "edit": "Editar relación externa…",
     "refreshSource": "Actualizar origen",
     "deleteRelation": "Eliminar relación"
