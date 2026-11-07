@@ -95,7 +95,10 @@ fn main() {
     builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init());
+        .plugin(tauri_plugin_fs::init())
+        // De kiezer verleent toegang buiten $HOME alleen voor deze sessie. Bewaar die
+        // toestemming voor Recent na een herstart; deze plugin moet ná fs staan.
+        .plugin(tauri_plugin_persisted_scope::init());
     #[cfg(target_os = "linux")]
     {
         builder = builder.plugin(linux_environment::plugin());

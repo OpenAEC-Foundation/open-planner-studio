@@ -212,7 +212,12 @@ export type NotificationMessageKey =
   // Opslag via de site (issue #309): de site weigerde omdat het bestand intussen verder is
   // (`code === 'conflict'`). Parameter `name`. Het document blijft gewijzigd.
   | 'notifications.siteSaveConflict'
+  // SuperCloud-vorm (#818): de host bewaarde het werk na een conflict in een kopie. Parameters `name`
+  // (de kopie, nu het opslagdoel) en `original`. Het document telt als opgeslagen.
+  | 'notifications.siteSaveConflictCopy'
   | 'notifications.siteFileGone'
+  // De site gaf de nieuwste versie als alleen-lezen (#818): geopend zonder opslagdoel. Parameter `name`.
+  | 'notifications.siteFileReadOnly'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   // Opslaan in een browser die niet terugschrijft — zie `browserSaveNotice.ts` (één keer per sessie).
@@ -224,6 +229,9 @@ export type NotificationMessageKey =
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  // Ingebed (#818): de host heeft `settings`, maar die zijn deze sessie niet gelezen (te laat, een fout,
+  // of een host die pas na de start kwam). Instellingen worden deze sessie dan niet bewaard.
+  | 'notifications.hostSettingsUnavailable'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.

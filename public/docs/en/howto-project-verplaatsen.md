@@ -30,13 +30,14 @@ The *Move* button only works after a preview without an error, and if the new da
 
 ### What shifts along, and what does not
 
-What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin, see [Task dialog and properties panel](docs://ref-taak-eigenschappen)), deadlines, the status date, the anchors of external relations and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
+What shifts: the start and finish of every task, the actual start and actual finish, the dates of constraints (also of a hard Mandatory pin, see [Task dialog and properties panel](docs://ref-taak-eigenschappen)), deadlines, the status date and the availability steps of resources. The project start and, if you have filled it in, the project end date shift too.
 
 What does not shift:
 
 - the calendars, so holidays, construction break and winter stop;
 - baselines, unless you turn on *Shift baselines too*;
-- a filled-in custom field of the type *Date*.
+- a filled-in custom field of the type *Date*;
+- the anchors of external relations.
 
 ## Pitfalls and what the app does
 
@@ -46,7 +47,7 @@ What does not shift:
 
 **A running project.** Actual dates shift along. In a project where you have already entered progress, that is not always what you want. The app warns: *Check whether that is correct for a running project.*
 
-**External relations.** The anchor in your own project shifts along, the source project does not. Refresh the links after moving with *Home › Tasks › Link ▾ › Refresh all external relations*. See [External relations to another project](docs://howto-externe-relaties).
+**External relations.** The anchor is a date from the other project, and that project does not move. So the anchor stays where it is. If you move your project earlier, an external predecessor can hold a task in place. If you move it later, an external successor can give negative float. The preview says how many links there are. See [External relations to another project](docs://howto-externe-relaties).
 
 **Holidays that do not reach far enough.** A calendar with generated holidays covers a number of years. If the moved schedule runs past that, the app calculates that year without holidays. The preview warns about it, for example: *The generated holidays of calendar “Bouwkalender NL” cover 2025–2029; the shifted schedule runs to 2030. Regenerate the holidays.* Move the project first. Then open *Planning › Calendar › Calendar*: next to the holidays it now says *Regenerate*. Confirm with *Apply* and the app recalculates. The range of the new holidays follows the project dates, so regenerating before the move does not help.
 
