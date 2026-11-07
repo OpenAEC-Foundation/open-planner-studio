@@ -159,7 +159,6 @@
     "msProjectLostSubprojects_other": "삽입된 프로젝트 {{count}}개를 다른 파일과의 연결 없이 일반 작업으로 읽었습니다.",
     "msProjectLostExternalTasks_other": "다른 프로젝트의 외부 작업 {{count}}개를 일반 작업으로 읽었습니다.",
     "msProjectLostInactiveTasks_other": "비활성 작업 {{count}}개를 활성 작업으로 읽었으며, 계산에 포함됩니다.",
-    "msProjectLostManualTasks_other": "수동 일정 작업 {{count}}개를 자동 일정 작업으로 읽었습니다.",
     "msProjectLostLevelingDelays_other": "작업 {{count}}개의 평준화 지연을 가져오지 않았습니다.",
     "msProjectLostCriticalSlack_other": "파일의 주공정 임계값(여유 최대 {{count}}근무일)을 가져오지 않았습니다. 앱은 임계값 0을 사용합니다.",
     "msProjectLostBaselines_other": "기준선 {{count}}개를 가져오지 않았습니다.",

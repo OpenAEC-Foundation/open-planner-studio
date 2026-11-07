@@ -210,8 +210,6 @@
     "msProjectLostExternalTasks_other": "{{count}} externe taken uit een ander project zijn als gewone taak ingelezen.",
     "msProjectLostInactiveTasks_one": "{{count}} inactieve taak is als actieve taak ingelezen en telt mee in de berekening.",
     "msProjectLostInactiveTasks_other": "{{count}} inactieve taken zijn als actieve taak ingelezen en tellen mee in de berekening.",
-    "msProjectLostManualTasks_one": "{{count}} handmatig geplande taak is als automatisch geplande taak ingelezen.",
-    "msProjectLostManualTasks_other": "{{count}} handmatig geplande taken zijn als automatisch geplande taak ingelezen.",
     "msProjectLostLevelingDelays_one": "De nivelleringsvertraging van {{count}} taak is niet overgenomen.",
     "msProjectLostLevelingDelays_other": "De nivelleringsvertraging van {{count}} taken is niet overgenomen.",
     "msProjectLostCriticalSlack_one": "De drempel voor kritiek uit het bestand (speling tot {{count}} werkdag) is niet overgenomen. De app rekent met drempel 0.",

@@ -205,8 +205,6 @@
     "msProjectLostExternalTasks_other": "{{count}} másik projektből származó külső tevékenység normál tevékenységként lett beolvasva.",
     "msProjectLostInactiveTasks_one": "Egy inaktív tevékenység aktív tevékenységként lett beolvasva, és beleszámít a számításba.",
     "msProjectLostInactiveTasks_other": "{{count}} inaktív tevékenység aktív tevékenységként lett beolvasva, és beleszámít a számításba.",
-    "msProjectLostManualTasks_one": "Egy kézzel ütemezett tevékenység automatikusan ütemezett tevékenységként lett beolvasva.",
-    "msProjectLostManualTasks_other": "{{count}} kézzel ütemezett tevékenység automatikusan ütemezett tevékenységként lett beolvasva.",
     "msProjectLostLevelingDelays_one": "Egy tevékenység kiegyenlítési késleltetése nem lett átvéve.",
     "msProjectLostLevelingDelays_other": "{{count}} tevékenység kiegyenlítési késleltetése nem lett átvéve.",
     "msProjectLostCriticalSlack_one": "A fájlból származó kritikus küszöbérték (tartalékidő legfeljebb egy munkanap) nem lett átvéve. Az alkalmazás 0 küszöbértékkel számol.",

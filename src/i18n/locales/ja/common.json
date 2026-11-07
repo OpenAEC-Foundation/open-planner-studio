@@ -159,7 +159,6 @@
     "msProjectLostSubprojects_other": "挿入されたプロジェクト {{count}} 件は、もう一方のファイルへのリンクがないまま、通常のタスクとして読み込まれました。",
     "msProjectLostExternalTasks_other": "別のプロジェクトの外部タスク {{count}} 件は、通常のタスクとして読み込まれました。",
     "msProjectLostInactiveTasks_other": "非アクティブなタスク {{count}} 件は、アクティブなタスクとして読み込まれ、計算に含まれます。",
-    "msProjectLostManualTasks_other": "手動スケジュールのタスク {{count}} 件は、自動スケジュールのタスクとして読み込まれました。",
     "msProjectLostLevelingDelays_other": "{{count}} 件のタスクの山崩し遅延は取り込まれませんでした。",
     "msProjectLostCriticalSlack_other": "ファイルのクリティカルのしきい値（{{count}} 稼働日までのフロート）は取り込まれませんでした。アプリはしきい値 0 で計算します。",
     "msProjectLostBaselines_other": "{{count}} 件のベースラインは取り込まれませんでした。",

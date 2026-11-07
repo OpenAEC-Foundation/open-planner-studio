@@ -328,7 +328,6 @@ export type NotificationMessageKey =
   | 'notifications.msProjectLostResourceRates'
   | 'notifications.msProjectLostSubprojects'
   | 'notifications.msProjectLostExternalTasks'
-  | 'notifications.msProjectLostManualTasks'
   | 'notifications.msProjectLostLevelingDelays'
   | 'notifications.msProjectLostInactiveTasks'
   | 'notifications.msProjectLostCriticalSlack'

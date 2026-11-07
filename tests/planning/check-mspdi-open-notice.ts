@@ -101,13 +101,13 @@ async function main(): Promise<void> {
     ['Fundering', 'Deelproject installaties', 'Oplevering (extern)', 'Reserve']);
   eq('1b verslag', result.msProjectReport, {
     format: 'mspdi', baselines: 2, baselineWorkCost: 0, assignmentBaselineDates: 0, customFields: 3, notes: 2, hyperlinks: 2, fixedCosts: 1, resourceRates: 2,
-    subprojects: 1, externalTasks: 1, manualTasks: 1, levelingDelays: 1, inactiveTasks: 1,
+    subprojects: 1, externalTasks: 1, levelingDelays: 1, inactiveTasks: 1,
   });
   // Wat de lezer wél overneemt, telt niet: de taakaantekening, baseline 0 en het standaardtarief.
   eq('1c taakaantekening overgenomen', result.tasks[0]?.description, 'Taakaantekening komt mee');
   eq('1d baseline 0 overgenomen', result.baselines?.length, 1);
   eq('1e standaardtarief overgenomen', result.resources.map(r => r.costPerHour), [undefined, 50, 120]);
-  eq('1f handmatige taak is automatisch gepland ingelezen', result.tasks[0]?.manuallyScheduled, undefined);
+  eq('1f handmatige taak is handmatig gepland ingelezen (#814)', result.tasks[0]?.manuallyScheduled, true);
 
   // (2) Eén melding, met per categorie een regel; geen rekenprofielregel (MSPDI opent als OPS).
   const notices = S().ui.notifications.filter(n => n.messageKey === 'notifications.msProjectImportLoss');
@@ -118,7 +118,6 @@ async function main(): Promise<void> {
     ['notifications.msProjectLostSubprojects', 1],
     ['notifications.msProjectLostExternalTasks', 1],
     ['notifications.msProjectLostInactiveTasks', 1],
-    ['notifications.msProjectLostManualTasks', 1],
     ['notifications.msProjectLostLevelingDelays', 1],
     ['notifications.msProjectLostExtraBaselines', 2],
     ['notifications.msProjectLostCustomFields', 3],
@@ -311,7 +310,7 @@ async function main(): Promise<void> {
   for (const loc of ['nl', 'en']) {
     const json = JSON.parse(readFileSync(new URL(`../../src/i18n/locales/${loc}/common.json`, import.meta.url), 'utf8')) as { notifications: Record<string, string> };
     for (const key of ['msProjectImportLoss', 'msProjectLostBaselineWorkCost_one', 'msProjectLostBaselineWorkCost_other', 'msProjectLostAssignmentBaselineDates_one', 'msProjectLostAssignmentBaselineDates_other', 'msProjectLostExtraBaselines_one', 'msProjectLostExtraBaselines_other',
-      'msProjectLostManualTasks_one', 'msProjectLostManualTasks_other', 'msProjectLostInactiveTasks_one', 'msProjectLostInactiveTasks_other']) {
+      'msProjectLostInactiveTasks_one', 'msProjectLostInactiveTasks_other']) {
       eq(`5 ${loc}: ${key}`, typeof json.notifications[key], 'string');
     }
   }
