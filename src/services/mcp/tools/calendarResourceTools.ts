@@ -1287,8 +1287,8 @@ const updateCalendar: BatchStepTool = {
 // =================================================================================================
 
 type AssignmentAction =
-  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
-  | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number }
+  | { action: 'add'; taskId: string; resourceId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null }
+  | { action: 'update'; assignmentId: string; unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null }
   | { action: 'move'; assignmentId: string; taskId: string }
   | { action: 'remove'; assignmentId: string };
 
@@ -1319,15 +1319,23 @@ function classifyAssignments(
           rejections.push({ id: label, reason: '`add` requires string `taskId` and `resourceId`' });
           return;
         }
-        if (!s.resources.some((r) => r.id === act.resourceId)) {
+        const resource = s.resources.find((r) => r.id === act.resourceId);
+        if (!resource) {
           rejections.push({ id: label, reason: `resource '${act.resourceId}' does not exist` });
+          return;
+        }
+        // Kostenresource (issue #815): alleen `costAmount`; inzet, curve en werk horen er niet bij.
+        const costBad = costAssignmentReason(resource.type === 'COST', act);
+        if (costBad) { rejections.push({ id: label, reason: costBad }); return; }
+        if (resource.type !== 'COST' && act.unitsPerDay === undefined) {
+          rejections.push({ id: label, reason: '`add` requires `unitsPerDay` (units per WORKING DAY) for a work or material resource' });
           return;
         }
         if (act.curve !== undefined && !isResourceCurve(act.curve)) {
           rejections.push({ id: label, reason: curveReason(act.curve) });
           return;
         }
-        const guard = validate.assignmentAllowed(simState(), act.taskId, act.resourceId, act.unitsPerDay);
+        const guard = validate.assignmentAllowed(simState(), act.taskId, act.resourceId, act.unitsPerDay ?? 1, resource);
         if (!guard.ok) {
           rejections.push({ id: label, reason: guard.reason });
           return;
@@ -1346,7 +1354,7 @@ function classifyAssignments(
           }
         }
         // Simulatie bijwerken: een volgende identieke `add` botst nu op de dubbeltelling-guard.
-        sim = [...sim, { id: `sim-${index}`, taskId: act.taskId, resourceId: act.resourceId, unitsPerDay: act.unitsPerDay }];
+        sim = [...sim, { id: `sim-${index}`, taskId: act.taskId, resourceId: act.resourceId, unitsPerDay: act.unitsPerDay ?? 1 }];
         plans.push({ index, action: act });
         return;
       }
@@ -1359,6 +1367,17 @@ function classifyAssignments(
         const hasUnits = act.unitsPerDay !== undefined;
         const hasCurve = act.curve !== undefined;
         const hasWork = act.remainingWorkMinutes !== undefined;
+        const isCost = s.resources.find((r) => r.id === cur.resourceId)?.type === 'COST';
+        const costBad = costAssignmentReason(isCost, act);
+        if (costBad) { rejections.push({ id: act.assignmentId, reason: costBad }); return; }
+        if (isCost) {
+          if (act.costAmount === undefined) {
+            rejections.push({ id: act.assignmentId, reason: 'no `costAmount` given (a COST assignment only has an amount)' });
+            return;
+          }
+          plans.push({ index, action: act });
+          return;
+        }
         if (!hasUnits && !hasCurve && !hasWork) {
           rejections.push({ id: act.assignmentId, reason: 'no `unitsPerDay`, `curve` or `remainingWorkMinutes` given' });
           return;
@@ -1398,8 +1417,9 @@ function classifyAssignments(
           rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' does not exist` });
           return;
         }
-        if (target.isMilestone || isSummaryTask(target)) {
-          rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' is a milestone/summary task; those carry no resources` });
+        const movingCost = s.resources.find((r) => r.id === cur.resourceId)?.type === 'COST';
+        if (isSummaryTask(target) || (target.isMilestone && !movingCost)) {
+          rejections.push({ id: act.assignmentId, reason: `target task '${act.taskId}' is a milestone/summary task; those carry no resources (a milestone only carries a COST resource)` });
           return;
         }
         // Move naar de taak waar hij (gesimuleerd) al staat: de dubbelcheck hieronder sluit `cur`
@@ -1433,6 +1453,31 @@ function classifyAssignments(
   return { plans, rejections };
 }
 
+/**
+ * De kostenregels van één `add`/`update` (issue #815). Op een kostenresource: alleen `costAmount`
+ * (eindig, ≥ 0, of `null` om te wissen); `unitsPerDay`, `curve` en `remainingWorkMinutes` worden
+ * geweigerd. Op een werk-/materiaalresource: geen `costAmount`. `null` ⇒ in orde.
+ */
+function costAssignmentReason(
+  isCost: boolean,
+  act: { unitsPerDay?: number; curve?: ResourceCurve; remainingWorkMinutes?: number; costAmount?: number | null },
+): string | null {
+  if (!isCost) {
+    return act.costAmount !== undefined
+      ? '`costAmount` only applies to an assignment to a COST resource; use `unitsPerDay` and `remainingWorkMinutes` for work'
+      : null;
+  }
+  const bad = (['unitsPerDay', 'curve', 'remainingWorkMinutes'] as const).filter((k) => act[k] !== undefined);
+  if (bad.length > 0) {
+    return `an assignment to a COST resource has no ${bad.join(', ')}; it only carries \`costAmount\` (a fixed budgeted amount)`;
+  }
+  if (act.costAmount !== undefined && act.costAmount !== null
+    && !(typeof act.costAmount === 'number' && Number.isFinite(act.costAmount) && act.costAmount >= 0)) {
+    return `invalid costAmount ${String(act.costAmount)} (a finite amount >= 0, or \`null\` to clear it)`;
+  }
+  return null;
+}
+
 /** Vormvalidatie van `manage_assignments`; string = foutboodschap. */
 function parseAssignments(args: unknown): AssignmentAction[] | string {
   const a = (args ?? {}) as { actions?: unknown };
@@ -1452,18 +1497,26 @@ function manageAssignmentsCore(ctx: McpContext, actions: AssignmentAction[]): Mu
     for (const { action } of plans) {
       switch (action.action) {
         case 'add': {
-          const id = ctx.transactions.draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay, action.curve);
+          const cost = typeof action.costAmount === 'number' ? action.costAmount : undefined;
+          const id = ctx.transactions.draft.assignResource(action.taskId, action.resourceId, action.unitsPerDay ?? 1, action.curve, cost);
           if (action.remainingWorkMinutes !== undefined) ctx.transactions.draft.setAssignmentWork(id, action.remainingWorkMinutes);
           added.push({
             assignmentId: id,
             taskId: action.taskId,
             resourceId: action.resourceId,
-            unitsPerDay: action.unitsPerDay,
+            unitsPerDay: action.unitsPerDay ?? 1,
             ...(action.curve ? { curve: action.curve } : {}),
+            ...(cost !== undefined ? { costAmount: cost } : {}),
           });
           break;
         }
         case 'update': {
+          if (action.costAmount !== undefined) {
+            // Kostentoewijzing: alleen het bedrag (`null` wist het). Geen datum, geen werkregel.
+            ctx.transactions.draft.setAssignmentCost(action.assignmentId, action.costAmount ?? undefined);
+            updated.push(action.assignmentId);
+            break;
+          }
           const patch: { unitsPerDay?: number; curve?: ResourceCurve } = {};
           if (action.unitsPerDay !== undefined) patch.unitsPerDay = action.unitsPerDay;
           if (action.curve !== undefined) patch.curve = action.curve;
@@ -1504,8 +1557,12 @@ const manageAssignments: BatchStepTool = {
     'DURATION; `remainingWorkMinutes` (remaining work in work minutes, > 0) lengthens/shortens the task ' +
     '(units protected) or changes the units (duration protected). Under the default rule FIXED_DURATION_RATE ' +
     'a units change leaves the duration alone and `remainingWorkMinutes` only rewrites the units (U = W / ' +
-    'D). The response reports the project end; read the task again for the new duration. Assigning is only ' +
-    'possible on a LEAF TASK (no milestone, no summary task) and the same resource may only be on the same ' +
+    'D). The response reports the project end; read the task again for the new duration. COST RESOURCES ' +
+    '(type COST, e.g. a permit): `add` without `unitsPerDay`, with an optional `costAmount` (fixed budgeted ' +
+    'amount, >= 0, same bare currency as `costPerHour`); `update` with `costAmount` (`null` clears it). They ' +
+    'have no `unitsPerDay`, `curve` or `remainingWorkMinutes`, never change the duration and never make the ' +
+    'schedule stale. Assigning is only possible on a LEAF TASK (no summary task; no milestone, except for a ' +
+    'COST resource, which may sit on a milestone) and the same resource may only be on the same ' +
     'task once — a second assignment would double-count the load and is softly refused, also when the ' +
     'duplicate is within this one call. Refused items come back in `itemRejections`; the valid items simply ' +
     'stay.',
@@ -1527,7 +1584,12 @@ const manageAssignments: BatchStepTool = {
             taskId: { type: 'string', description: 'For `add`: the leaf task. For `move`: the NEW leaf task.' },
             resourceId: { type: 'string', description: 'Only for `add`.' },
             assignmentId: { type: 'string', description: 'For `update`/`move`/`remove`; exactly the id from the read tools.' },
-            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Units per WORKING DAY (1 = 100% = one person/piece; 0.5 = half a day).' },
+            unitsPerDay: { type: 'number', exclusiveMinimum: 0, description: 'Units per WORKING DAY (1 = 100% = one person/piece; 0.5 = half a day). Required for `add` on a work or material resource; not on a COST resource.' },
+            costAmount: {
+              type: ['number', 'null'],
+              minimum: 0,
+              description: 'Only for an assignment to a COST resource: the fixed budgeted amount (>= 0, same bare currency as `costPerHour`). On `update`, `null` clears it.',
+            },
             curve: {
               type: 'string',
               enum: [...RESOURCE_CURVES],
@@ -1678,6 +1740,13 @@ function parseLeveling(
       return `unknown resource id(s): ${unknown.join(', ')} — leveling would then silently do nothing; get ` +
         'valid ids with planner_list_resources';
     }
+    // Een kostenresource heeft geen belasting en wordt nooit genivelleerd (issue #815).
+    const costIds = new Set(state.resources.filter((r) => r.type === 'COST').map((r) => r.id));
+    const cost = (a.resourceIds as string[]).filter((id) => costIds.has(id));
+    if (cost.length > 0) {
+      return `resource(s) ${cost.join(', ')} are COST resources: they have no load and are never leveled; ` +
+        'leave them out of `resourceIds`';
+    }
   }
   const constrainToFloat = a.constrainToFloat !== false; // default true (de hoofdroute)
   return {
@@ -1733,7 +1802,7 @@ const levelResources: BatchStepTool = {
       resourceIds: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Restrict to these resources; omitted = all renewable resources (material never counts).',
+        description: 'Restrict to these resources; omitted = all renewable resources (material and COST resources never count; a COST id is refused).',
       },
       dryRun: {
         type: 'boolean',
