@@ -450,8 +450,12 @@ function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableC
     start: task ? taskDateCellText(task, shownStart(task), 'start', options) : '',
     end: task ? taskDateCellText(task, shownFinish(task), 'end', options) : '',
     complete: task ? formatCompletion(task.time.completion) : '',
-    units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
-    curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
+    // Kostenresource (#815): het bedrag in de kolom Eenh./d (of "—"), geen curve.
+    units: !assignment ? ''
+      : assignment.cost ? (assignment.costAmount !== undefined ? formatReportNumber(assignment.costAmount, options.numberLocale) : '—')
+      : formatReportNumber(assignment.unitsPerDay, options.numberLocale),
+    curve: !assignment ? '' : assignment.cost || assignment.curve === null ? '—'
+      : (options.curveLabels?.[assignment.curve] ?? assignment.curve),
   };
 }
 
