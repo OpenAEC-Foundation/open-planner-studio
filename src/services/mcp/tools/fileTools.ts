@@ -249,26 +249,17 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_export_ifc',
     description:
-      'Write the ACTIVE document as an IFC file to `path`, in the IFC schema of the project (default IFC 4.3 ' +
-      'ADD2; the response reports it as `ifcSchema`). It is the native format: tasks, relationships, ' +
-      'calendars, resources, assignments, baselines and structure are all included. FILE SCOPE: only paths ' +
-      'inside the user\'s home folder; outside it a SCOPE error follows. An existing file is NOT overwritten ' +
-      'unless you explicitly pass `overwrite: true`. This does not change the schedule, nor the document\'s ' +
-      'save target: it stays "not saved" in the app — it is an export, not a "save as". Note: the path comes ' +
-      'from your arguments, not from a file dialog of the user; so always mention the chosen path in your ' +
-      'answer. If the document was opened from an IFC file in a schema the app cannot write (such as ' +
-      'IFC2X3), writing over that same file is refused, including case aliases and links (it would ' +
-      'silently change its file type). If file identity metadata cannot prove that an existing target ' +
-      'is different (including when the platform provides no file IDs), export is refused: choose a ' +
-      'new file name, or ask the user to save in the app and choose the schema. A confirmed different ' +
-      'or new target is written as IFC 4.3 ADD2 and the response says so in `schemaNotice`.',
+      'Write the ACTIVE document to `path` as IFC (complete, the native format), inside the home folder. ' +
+      'Replaces a file only with `overwrite: true`. An export, not "save as": the document stays unsaved. Tell ' +
+      'the user the path. Writing over the source file of an unwritable schema (e.g. IFC2X3), or over a file ' +
+      'not provably different from it, is refused: choose a new file name.',
     kind: 'other',
     batchable: false, // export_ifc/import_schedule zijn uitgesloten van batch
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absolute target path inside the home folder, e.g. /home/name/schedule.ifc (~ allowed)' },
-        overwrite: { type: 'boolean', description: 'true = replace an existing file (default false)' },
+        path: { type: 'string', description: 'Absolute, or starting with ~.' },
+        overwrite: { type: 'boolean' },
       },
       required: ['path'],
       additionalProperties: false,
@@ -373,36 +364,17 @@ export const fileTools: McpToolDef[] = [
   {
     name: 'planner_import_schedule',
     description:
-      'Read a schedule file from disk and open it as a DOCUMENT (tab). Supported: .ifc (native, complete), ' +
-      '.xml (Primavera P6 or MS Project MSPDI — the format is detected from the content), .csv, .xer ' +
-      '(Primavera P6, read-only) and .mpp (MS Project 2010-2021, MPP14, read-only — older formats and ' +
-      'password-protected files give an error asking to export as XML first). Nothing is merged into the ' +
-      'current plan: an empty and unchanged active tab is reused, otherwise a new tab is added; the result ' +
-      'becomes active and follow-up work lands there. LOSS PER FORMAT — tell the user: CSV contains NO ' +
-      'calendar (the document gets the default calendar, so dates can shift!) and no resources or ' +
-      'assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP contains no baselines/custom fields; ' +
-      'MSPDI is the richest after IFC. A file whose dates were not calculated in minutes (an IFC from an ' +
-      'older Open Planner Studio) is recalculated on opening; when that moves tasks, the document in `documents` carries ' +
-      '`minuteModelConversion` (`shiftedTasks`, `maxShiftWorkdays`) and `notice` says it — tell the user. ' +
-      'After a CSV/XML/MPP import the document has NO save target yet ' +
-      '(saving always writes IFC, so the source file is never overwritten); only an IFC import takes over ' +
-      'the source path. Use the `documents` inventory FROM THE RESPONSE for all opened documents; ' +
-      '`documentId` keeps pointing at the active document for compatibility. Whether the first project ' +
-      'landed in the existing tab or in a new tab depends on the state of the app. Calendar ids are per ' +
-      'document: rebuild a calendar in the imported document with update_calendar — pass a calendar object ' +
-      'from planner_get_calendars of the master document back LITERALLY (including `workTime` hour bands, ' +
-      '`shift`, `holidays` and `generation`) with `create: true`, or use the generator path (`generate`). ' +
-      'Then attach the tasks to the NEW id via `update_tasks.calendarId`; to align the PROJECT calendar of ' +
-      'the imported document, write the fields to the id from its own `projectDefaultId` (WHICH calendar is ' +
-      'the project default cannot be switched via the bridge). Never reuse an id from another document. FILE ' +
-      'SCOPE: only paths inside the home folder. The path comes from your arguments, not from a file dialog ' +
-      'of the user.',
+      'Open a schedule file (.ifc, .xml from P6 or MS Project, .csv, .xer, .mpp) inside the home folder as a ' +
+      'new active document; nothing is merged. Tell the user what is lost: CSV has no calendar (dates can ' +
+      'shift), resources or assignments; P6 XML maps Nonlabor resources to EQUIPMENT; MPP has no baselines or custom fields. ' +
+      'Also pass on `notice`. Use `documents` in the response (one file can open several). Ids are per ' +
+      'document; rebuild calendars with planner_update_calendar.',
     kind: 'other',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Absolute source path inside the home folder (.ifc / .xml / .csv / .mpp / .xer; ~ allowed)' },
+        path: { type: 'string', description: 'Absolute, or starting with ~.' },
       },
       required: ['path'],
       additionalProperties: false,

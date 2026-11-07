@@ -112,10 +112,7 @@ function listBaselinesCore(s: AppState) {
 const listBaselines: McpToolDef = {
   name: 'planner_list_baselines',
   description:
-    'List all saved baselines: id, name, moment saved, number of recorded tasks, recorded project end and ' +
-    'WHICH one is active. Use this to get the ids for planner_activate_baseline / planner_rename_baseline / ' +
-    'planner_delete_baseline, and to see what planner_compare_baseline and planner_analyze_delay measure ' +
-    'against. If there is no (active) baseline, `hint` says which tool fixes that.',
+    'List baselines with their ids and which one is active.',
   kind: 'read',
   batchable: true,
   annotations: READ_ANNOTATIONS,
@@ -193,10 +190,7 @@ function activateCore(ctx: McpContext, p: ActivateArgs): MutationOutcome {
 const activateBaseline: BatchStepTool = {
   name: 'planner_activate_baseline',
   description:
-    'Make an existing baseline the ACTIVE one — that is the one planner_compare_baseline and ' +
-    'planner_analyze_delay measure against. Pass `baselineId: null` to have no active baseline (those two ' +
-    'tools then refuse). Get ids with planner_list_baselines; an unknown id is refused. If the baseline was ' +
-    'already active, the answer reports `changed: false` and nothing changes (no extra undo step).',
+    'Make a baseline the active yardstick of planner_compare_baseline and planner_analyze_delay; `null` = none.',
   kind: 'mutate',
   batchable: true,
   // Idempotent: dezelfde baseline nogmaals activeren levert dezelfde toestand op.
@@ -204,10 +198,7 @@ const activateBaseline: BatchStepTool = {
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: {
-        type: ['string', 'null'],
-        description: 'Id of the baseline that should become active (planner_list_baselines), or null for no active baseline.',
-      },
+      baselineId: { type: ['string', 'null'] },
     },
     required: ['baselineId'],
     additionalProperties: false,
@@ -284,17 +275,15 @@ function renameCore(ctx: McpContext, p: RenameArgs): MutationOutcome {
 const renameBaseline: BatchStepTool = {
   name: 'planner_rename_baseline',
   description:
-    'Rename a saved baseline. Get `baselineId` with planner_list_baselines; an unknown id or an empty name ' +
-    'is refused. If the baseline already has the name, the answer reports `changed: false` and nothing ' +
-    'changes. The name does not have to be unique, but a clash is reported as a `warning`.',
+    'Rename a baseline (non-empty name).',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: { type: 'string', description: 'Id of the baseline to rename (planner_list_baselines).' },
-      name: { type: 'string', description: 'The new name; must not be empty.' },
+      baselineId: { type: 'string' },
+      name: { type: 'string' },
     },
     required: ['baselineId', 'name'],
     additionalProperties: false,
@@ -396,19 +385,14 @@ function deleteCore(ctx: McpContext, p: DeleteArgs): MutationOutcome {
 const deleteBaseline: BatchStepTool = {
   name: 'planner_delete_baseline',
   description:
-    'Delete ONE saved baseline (a baseline cannot be reconstructed afterwards — the user can undo it, ' +
-    'though). Get `baselineId` with planner_list_baselines; an unknown id is refused. NOTE: if you delete ' +
-    'the ACTIVE baseline, the active one falls back to the last remaining baseline, or to none if nothing is ' +
-    'left — the answer reports exactly what applies afterwards with `wasActive`, `activeBaselineId` and ' +
-    '`remainingCount`, because this shifts the yardstick of planner_compare_baseline and ' +
-    'planner_analyze_delay.',
+    'Delete a baseline; it cannot be rebuilt. Deleting the ACTIVE one activates the last remaining one.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS, destructiveHint: true },
   inputSchema: {
     type: 'object',
     properties: {
-      baselineId: { type: 'string', description: 'Id of the baseline to delete (planner_list_baselines).' },
+      baselineId: { type: 'string' },
     },
     required: ['baselineId'],
     additionalProperties: false,

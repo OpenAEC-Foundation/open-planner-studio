@@ -882,30 +882,23 @@ function inspect(state: AppState, rawArgs: unknown): unknown {
 const inputSchema = {
   type: 'object',
   properties: {
-    section: { type: 'string', enum: [...SECTIONS], description: 'Inspection part; default summary.' },
-    collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Paginated collection within resourceCatalog, metadataCatalog or diagnostics.' },
-    projectId: { type: 'string', description: 'Required explicit XER project selector for taskSourceRowsByProject.' },
-    limit: { type: 'number', description: 'Number of items/chunks; default 50, rawSource at most 8, includeRawRows at most 100.' },
-    offset: { type: 'number', description: 'Start index; default 0.' },
-    includeRawSource: { type: 'boolean', description: 'Must be true for the explicit rawSource section.' },
+    section: { type: 'string', enum: [...SECTIONS], description: 'Default summary.' },
+    collection: { type: 'string', enum: [...ALL_COLLECTIONS], description: 'Within resourceCatalog, metadataCatalog or diagnostics.' },
+    projectId: { type: 'string', description: 'Required for taskSourceRowsByProject (`selector.availableProjectIds`).' },
+    limit: { type: 'number', description: 'Default 50; rawSource ≤ 8 chunks, with includeRawRows ≤ 100.' },
+    offset: { type: 'number' },
+    includeRawSource: { type: 'boolean', description: 'Required for rawSource.' },
     includeRawRows: {
       type: 'boolean',
       description:
-        'Only for resourceCatalog/metadataCatalog/taskSourceRowsByProject/diagnostics: unlocks free-text ' +
-        'fields (notes, customFields, arbitrary XER columns) instead of leaving them out, with a lower page ' +
-        'limit (100), a cap of 200 cells/fields per row and per-cell truncation at 2,000 characters. Short ' +
-        'label/name fields stay visible ALWAYS but truncated at 200 characters, with or without this opt-in — ' +
-        'except resource names, which need includeResourceNames.',
+        'Also show free text (notes, custom fields, other XER columns); not for summary or rawSource.',
     },
     includeResourceNames: {
       type: 'boolean',
       default: false,
       description:
-        'Only for resourceCatalog and rawSource. Default false: resource names (P6 resources are often ' +
-        'people) are left out — `resources[].name` is replaced by `nameHidden: true`, RSRC source-row cells ' +
-        'stay closed even with includeRawRows, and rawSource is refused. Resource codes (`code`) are ' +
-        'ALWAYS visible. Before you set this to true, ask the user for permission: the names are personal ' +
-        'data and go to your AI provider. Only set it after the user agreed.',
+        'resourceCatalog and rawSource. Ask the user for permission first: names are personal data and go to ' +
+        'your AI provider.',
     },
   },
   additionalProperties: false,
@@ -914,33 +907,10 @@ const inputSchema = {
 export const xerProvenanceTools: McpToolDef[] = [{
   name: 'planner_inspect_xer_provenance',
   description:
-    'Bounded read-only inspection of retained Primavera P6/XER source semantics. `section` is summary ' +
-    '(source presence, byteLength, SHA-256, chunk count, selector, number format, SCHEDOPTIONS, import and ' +
-    'diagnostics counts), resourceCatalog, metadataCatalog, taskSourceRowsByProject, diagnostics or ' +
-    'rawSource. Catalog collections are explicitly named and paginated with `limit`, `offset`, `total`, ' +
-    '`has_more` and `next_offset`. `selector.availableProjectIds` (summary) is the union of opened document ' +
-    'views and every project with TASK rows (also empty/baseline-excluded ones) — exactly the projects that ' +
-    '`taskSourceRowsByProject` accepts. DENY-BY-DEFAULT for every string: only fields explicitly recognized ' +
-    'as id/code/label/enum token (names except resource names, ids, codes, units, currencyCode, …) stay visible without ' +
-    '`includeRawRows:true`, and then hard-truncated at 200 characters. Every other string — raw XER cells, ' +
-    'notes, `customFields` values, and also unknown or nested free text such as a task-note array — is ' +
-    'COMPLETELY INVISIBLE without the opt-in, and truncated at 2,000 characters with it. This applies to ' +
-    'every string in every section, including `summary` itself and `diagnostics/documentViews`. With the ' +
-    'opt-in a lower page limit (100) and a cap of 200 cells/fields per row apply; both cell VALUES and cell ' +
-    'NAMES (column headers from the source file) are truncated and count towards the response budget. Every ' +
-    'page — summary too — has a hard response limit (256 kB, measured in real UTF-8 bytes), EXCEPT ' +
-    'rawSource. rawSource explicitly requires `includeRawSource:true`, falls outside that 256 kB limit (one ' +
-    'chunk is already 192 KiB of source ≈ 256 kB base64) and is instead bounded to at most eight fixed ' +
-    'base64 chunks per answer (up to about 2.1 MB; choose a smaller `limit` for smaller answers); it reports ' +
-    'the privacy boundary. The tool only uses retained state, does not mutate the store, does not run CPM ' +
-    'and supports no write path. Without an archive, summary reports `sourcePresent:false` with ' +
-    '`archiveIssue` (`null`, or `{ code }` when an archive that was present turned out unusable on opening ' +
-    'and was left out — codes: schema-version, hash-mismatch, truncated, bytes-missing, metadata-invalid, ' +
-    'structure). RESOURCE NAMES: P6 resource names are usually names of people. By default they are left ' +
-    'out (resource codes stay visible); `includeResourceNames:true` shows them (resourceCatalog) and is ' +
-    'also required for rawSource. Before you set it, ask the user for permission and say why: the names ' +
-    'are personal data and go to your AI provider. Not batchable: call it on its own, never as a step in ' +
-    '`planner_batch`.',
+    'Read the retained P6/XER source of an imported file (not batchable). Without `includeRawRows` only ' +
+    'id/code/label fields show. Pages stay under 256 kB, EXCEPT rawSource (up to 8 base64 chunks). Resource ' +
+    'names are hidden: before `includeResourceNames: true`, ask the user for permission, because the names ' +
+    'are personal data and go to your AI provider.',
   kind: 'read',
   batchable: false,
   inputSchema,

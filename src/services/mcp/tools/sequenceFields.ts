@@ -176,26 +176,16 @@ export function parseLag(raw: unknown): { ok: true; value: ParsedLag } | { ok: f
 // Eén bron voor `add_dependencies` én `update_dependencies`, zodat de twee schema's niet uit elkaar
 // kunnen lopen. Gebruiken uitsluitend trefwoorden die `schemaValidate.ts` afdwingt.
 
+// De enum noemt lange en korte vorm al; een beschrijving zou alleen herhalen (#818).
 export const SEQ_TYPE_SCHEMA = {
   type: 'string',
   enum: [...SEQ_TYPES, ...SEQ_TYPE_SHORT],
-  description: 'Long form (FINISH_START, …) or the short form the read tools return (FS/FF/SS/SF).',
 };
 
+// De hele lag-uitleg staat hier, niet ook nog in de toolbeschrijvingen (#818).
 export const LAG_SCHEMA = {
   type: ['number', 'string'],
   description:
-    'Lag. As a number (2, -1) or as the read-side string ("+2d", "-1d", "2") = days in the DAY MEASURE: in ' +
-    'the OPS profile working days on the calendar (one working day counts as one day, whatever its hours), in ' +
-    'the P6 and MS Project profiles days × the working time per day. A fraction (0.5, "+0.5d") is allowed and ' +
-    'not rounded (negative = lead). As a percentage string ("+50%") = percentage of the PREDECESSOR DURATION, ' +
-    'in its measure and exact, re-evaluated on every recalculation. Any other form is refused — never ' +
-    'silently set to 0.',
+    'Days (2, -1, "+2d"; a fraction such as 0.5 is kept; negative = lead) or "+50%" of the predecessor ' +
+    'duration. Other forms are refused. Replaces any other lag form of the relationship.',
 };
-
-/** Gedeelde documentatiezin over de lag-notatie voor de tool-descriptions. */
-export const LAG_DOC =
-  '`lag` may be a number (2, -1), the read-side string ("+2d", "-1d", "2") or a percentage lag of the ' +
-  'predecessor duration ("+50%"); any other form is REFUSED instead of silently set to 0. Setting a lag ' +
-  'always clears the other lag representations (percentage ⇄ days ⇄ the minute lag read from IFC), so the ' +
-  'given value is really the effective one.';

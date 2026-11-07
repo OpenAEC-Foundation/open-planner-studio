@@ -143,21 +143,9 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_list_documents',
     description:
-      'All open documents (tabs), with per document: id, title, `isActive`, `isDirty`, task count, ' +
-      '`projectStart` (= project.startDate, the anchor the schedule is calculated from) and `projectEnd` ' +
-      '(the calculated project end). Two signals NOT to confuse: `notCalculated: true` means the document ' +
-      'has never been calculated (typically after crash recovery — only the active document is calculated ' +
-      'then) and therefore has no end date; `calculationError` means it was calculated but with an error ' +
-      '(circular dependency), so the end-date field is missing. `title` is a DISPLAY title: the file name ' +
-      'without extension, otherwise the project name, and for a project without a name "New schedule" ' +
-      '(numbered when there are several untitled documents: "New schedule (2)"). To know whether a project ' +
-      'name has really been set, read `project.name` via get_project_info. Use this tool to compare variants ' +
-      '(end dates side by side) and to find document ids for switch_document. FRESHNESS: an out-of-date ' +
-      'ACTIVE document is recalculated first, like F5 in the app (no undo step; the envelope then carries ' +
-      '`scheduleRecalculated: true`). Other open documents cannot be recalculated without switching to them: ' +
-      'such a row carries `scheduleStale: true`, and its `projectEnd` is the last calculated one. ' +
-      '`datesAsRecorded: true` on a row means its dates are the ones recorded in the imported file, not a ' +
-      'calculation; such a document is never recalculated by a read.',
+      'Open documents (tabs) with id, project end and which is active; to compare variants. `title` is a ' +
+      'display title, not the project name. Only the active document is recalculated; others may be ' +
+      '`scheduleStale`.',
     kind: 'document',
     batchable: false, // document-tools zijn uitgesloten van batch
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -167,11 +155,8 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_new_document',
     description:
-      'Open a NEW, EMPTY document in its own tab and make it active — the equivalent of File → New, but ' +
-      'deliberately WITHOUT the project wizard (an open dialog would block all follow-up tools). The new ' +
-      'document has no tasks, no file path and the default calendar; set project properties afterwards with ' +
-      'update_project. The drift anchor moves to the new document, so follow-up mutations land there. If you ' +
-      'want a COPY of the current schedule instead (what-if/variant), use duplicate_document.',
+      'Open a new empty document and make it active; later calls go there. For a copy use ' +
+      'planner_duplicate_document.',
     kind: 'document',
     batchable: false,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -194,22 +179,14 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_duplicate_document',
     description:
-      'Duplicate the ACTIVE document into a new tab and make that copy active — the route for what-if ' +
-      'scenarios and tender variants (never use undo as a what-if: you share that stack with the user). The ' +
-      'copy is fully detached: its own deep copy of all schedule data, an EMPTY file path (so a Ctrl+S by ' +
-      'the user does not overwrite the source file), a fresh undo stack and `isDirty: true`. Name: `name` if ' +
-      'given, otherwise "<project name> (variant N)" with the lowest free number — there is no separate ' +
-      'title field, so this is the project name. If the source has NO project name, the copy stays untitled ' +
-      'too (no name is invented) and the two can only be told apart by their display title: "New schedule" / ' +
-      '"New schedule (2)". The drift anchor moves to the copy: all follow-up steps land THERE, so switch ' +
-      'back explicitly to the base document before you make another variant (otherwise you get variants of ' +
-      'variants). The AI does not close variants: the user decides.',
+      'Copy the ACTIVE document into a new active tab, for what-if variants. Name: `name` or "<name> (variant ' +
+      'N)". Later calls go to the copy: switch back before making another variant. Leave closing to the user.',
     kind: 'document',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Project name for the copy; omitted ⇒ "<name> (variant N)"' },
+        name: { type: 'string' },
       },
       additionalProperties: false,
     },
@@ -250,17 +227,14 @@ export const documentTools: McpToolDef[] = [
   {
     name: 'planner_switch_document',
     description:
-      'Make another open document active (ids via list_documents). This is ALSO the way to resolve a ' +
-      'DOC_DRIFT error: if the user switched tabs themselves, mutating tools refuse until you confirm with ' +
-      'this tool WHICH document you mean. Switching to the already active document is allowed and changes ' +
-      'nothing. Note: task, relationship and calendar ids are PER DOCUMENT — ids from another document are ' +
-      'meaningless here.',
+      'Make another open document active. Also resolves DOC_DRIFT (the user switched tabs): confirm the target ' +
+      'here. Task, relationship and calendar ids are per document.',
     kind: 'document',
     batchable: false,
     inputSchema: {
       type: 'object',
       properties: {
-        documentId: { type: 'string', description: 'Document id from list_documents' },
+        documentId: { type: 'string' },
       },
       required: ['documentId'],
       additionalProperties: false,
