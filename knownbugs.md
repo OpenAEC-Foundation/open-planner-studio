@@ -1922,11 +1922,11 @@ en noem het in je rapport of PR-tekst.
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
 
-914. **`tests/browser/icon-orange.spec.ts` is rood op main sinds #844.** Vijf tests falen in de hulpfunctie op
-     regel 22: na `window.__OPS__.icons.useB2()` staan er nog 12 `svg[data-icon].lucide` op de pagina, en de test
-     verwacht 0. Bevestigd op een schone checkout van main `cde8f9ffb` (lokaal, alleen deze spec) en in de
-     browserrun `42406067128` van #837 (shard 1-4; de andere drie shards groen). #844 had geen browserrun (geen
-     label `browsertests`, geen handmatige start). Het komt niet uit #837: die PR raakt geen iconbestanden. — B
+915. **VERVOLG: `icon-orange.spec.ts` start de app twee keer per test.** `tests/browser/icon-orange.spec.ts:23`
+     laadt `/?icons=b2` opnieuw, nadat de fixture (`tests/browser/fixtures/ops.ts:234`) al `/` opende. Dat zijn vijf
+     extra appstarts voor vijf tests, zonder aangetoonde fout. Voorstel: geef de fixture een start-URL, standaard
+     `/`; dan vallen acht herhaalde opstartregels uit deze spec weg. Uit de review van #852 (GPT-6.1-Sol, xhigh,
+     op `321cb166a`, VERVOLG). — B
 
 ## Wensen en open taken (geen bug)
 
