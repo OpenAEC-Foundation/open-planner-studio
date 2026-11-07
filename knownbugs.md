@@ -604,6 +604,13 @@ en noem het in je rapport of PR-tekst.
      in de actieve laag, met één handler per Popover en regressietests voor deze twee routes.
      In deze PR uitsluitend geregistreerd, niet gebouwd. — B
 
+873. **VERVOLG: Kalenderdagen telt zonder kalender anders dan de datumcellen tonen.** `taskCalendarDaySpan`
+   (`src/utils/calendarDaySpan.ts`) valt zonder kalender terug op de kalendertijd-klok (`ELAPSED_CLOCK`); de
+   cellen Start en Einde tonen zonder kalender de ruwe waarde (`src/engine/taskGrid/editors.ts`). Voorbeeld
+   uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
+   geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
+   terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
+
 ## Kalenders
 
 22. **Goede Vrijdag en Bevrijdingsdag** hebben `optional: true`, maar dat wordt nergens gelezen: ze worden
@@ -1243,15 +1250,6 @@ en noem het in je rapport of PR-tekst.
      geen `thema`, dan is de pagina tot de eerste weergave donker. Met `thema` op de host (de SuperCloud)
      gebeurt dit niet. — S
 
-865. **De platformbouw toont de feedbackknop, terwijl de werkplek er zelf een heeft.** Het SuperCloud-contract
-     (#818) vraagt een bundel zonder feedbackknop. `src/components/layout/TitleBar/TitleBar.tsx:207` toont hem
-     altijd; de dialoog post naar `open-feedback-studio.pages.dev` (`src/services/feedback/feedbackService.ts:311`)
-     en opent een venster met `window.open` (`:477`). In de werkplek blokkeert de CSP het eerste en de sandbox
-     (zonder `allow-popups`) het tweede. Niet meteen weggehaald: stap 7 van de rondleiding
-     (`src/components/tour/tourSteps.ts:79`) wijst naar die knop. Zonder anker blijft de rondleiding op een
-     blokkerende laag staan (`TourOverlay.tsx:251`), en de rondleiding is ook ingebed te starten via
-     Instellingen. Voorstel: `FEEDBACK_AVAILABLE` in `buildFlags.ts`, knop en stap 7 samen uit. — S
-
 866. **Waarschuwingsiconen gebruiken `data:`-afbeeldingen; een CSP zonder `img-src data:` blokkeert ze.**
      `src/styles/globals.css:2592` en `:2603` zetten een `mask` met een `data:image/svg+xml`-URL. Het contract
      zegt alleen "de CSP laat alleen de eigen bundel toe". Laat de SuperCloud `data:` niet toe, dan verdwijnen
@@ -1264,13 +1262,6 @@ en noem het in je rapport of PR-tekst.
      `script-src 'self'` verbiedt dat in Chromium. Het contract noemt WASM in de bundel, maar niet de
      CSP-regel ervoor. Niet getest: de werkplektest maakt geen PDF. Voorstel: de echte CSP navragen; anders een
      terugval zonder subsetten. — S
-
-868. **"Wat is er nieuw" en "Controleren op updates" staan ook in de platformbouw.** Instellingen →
-     Geavanceerd toont beide knoppen (`src/components/settings/SettingsPanelContent.tsx:536` en `:542`). De
-     eerste haalt releasegegevens van `api.github.com` (`JustUpdatedDialog.tsx:53`, `releaseInfo.ts:189`) en
-     opent de changelog met `window.open` (`JustUpdatedDialog.tsx:22`); in de werkplek blokkeren CSP en sandbox
-     dat. De tweede doet in de browser niets (`updaterService.ts:82`). Het contract vraagt een bundel zonder
-     update-check. Voorstel: beide uit in de platformbouw, of gebundelde releasenotes tonen. — S
 
 869. **Exports als download werken niet in het frame uit de controle van het issue.** De controle gebruikt
      `sandbox="allow-scripts allow-modals"`, zonder `allow-downloads`. Exports (PDF, CSV, Excel) en Opslaan

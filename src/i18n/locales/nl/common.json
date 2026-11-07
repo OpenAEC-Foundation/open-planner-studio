@@ -88,6 +88,7 @@
     "recoveryReadFailed": "Hersteld bestand kon niet worden gelezen",
     "recoveryRestoreFailed": "Herstellen mislukt",
     "hostSettingsUnavailable": "De instellingen van de site zijn niet geladen. Wat je deze sessie aan instellingen wijzigt, wordt niet bewaard.",
+    "hostThemeUntilRestart": "Dit thema geldt tot je de planner opnieuw start. Daarna volgt de planner weer het thema van de SuperCloud.",
     "recoveryDocumentsSkipped_one": "{{count}} herstelbestand kon niet worden geladen en is overgeslagen.",
     "recoveryDocumentsSkipped_other": "{{count}} herstelbestanden konden niet worden geladen en zijn overgeslagen.",
     "scheduleFailed": "Planning kon niet worden berekend",

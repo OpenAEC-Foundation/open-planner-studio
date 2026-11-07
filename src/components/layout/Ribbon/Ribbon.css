@@ -610,10 +610,11 @@
   white-space: nowrap;
 }
 
-/* Separator between groups */
+/* Scheidingslijn tussen de groepen. De kleur komt per thema uit `--theme-ribbon-separator` (globals.css): in donker
+   de randkleur van de huisstijl, in licht en hoog contrast de rasterlijn zoals eerst (Ethan, 7 november 2026). */
 .ribbon-separator {
   width: 1px;
-  background: var(--theme-border-light);
+  background: var(--theme-ribbon-separator);
   margin: 8px 2px;
   align-self: stretch;
 }
