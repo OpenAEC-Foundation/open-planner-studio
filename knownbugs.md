@@ -1934,7 +1934,7 @@ en noem het in je rapport of PR-tekst.
      browserrun `42406067128` van #837 (shard 1-4; de andere drie shards groen). #844 had geen browserrun (geen
      label `browsertests`, geen handmatige start). Het komt niet uit #837: die PR raakt geen iconbestanden. — B
 
-853. **VERVOLG: de hook die de map van een bronbestand bewaakt, wordt niet getest.**
+879. **VERVOLG: de hook die de map van een bronbestand bewaakt, wordt niet getest.**
      `tests/planning/check-external-source-watch.ts` test alleen de pure functies in
      `src/engine/externalSourceWatch.ts` (`parentDir`, `externalSourceWatchTargets`, `watchEventTouchesSource`).
      De hook `src/hooks/useExternalSourceWatch.ts` zelf heeft geen test: met een lege hook blijven alle 15 controles
