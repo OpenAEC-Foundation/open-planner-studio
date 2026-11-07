@@ -62,7 +62,35 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 |---|---|---|---|
 | 1 (v1) | 6 | 6 | 7 |
 | 2 (v2) | 6 | 6 | 7 |
-| 3 (v3) | loopt | loopt | loopt |
+| 3 (v3) | 6 | loopt | loopt |
+
+### Ronde 3 — Opus (6/10, "daarna 8 tot 9"), te verwerken in v4
+
+Blokkeert: (1) §4.2 geeft voor eigen bestanden geen 100 % P (bewezen met script
+`scratchpad/r3proof/classify.py` op `public/examples/showcase-appartementencomplex.ifc`): psets/lagtijden niet vooruit
+bereikbaar; letterlijk worden alle wortels C; eigen baselines dragen geen `OPS_`-pset (`ifcWriter.ts:469-483`); resources
+zonder toewijzing vallen weg (lezer leest alle resources, `ifcReader.ts:~2428`); stap 3↔4 kring; `IfcRelDeclares`
+project→werkplan is volgens de regel P. → vaste-punt-berekening (a) domeinobjecten (werkplan, live-schema's + taken zoals
+de lezer kiest, álle resources en kalenders, eigen baselinekoppen), (b) P-rels (objectleden P of C-project; LagTime en
+owner history tellen niet als lid; `OPS_`-psets/templates), (c) Own = vooruit bereikbaar uit (a)+(b) binnen writer-typen,
+(d) Ext = vooruit bereikbaar uit alles buiten Own, (e) P = Own − Ext (domeinobjecten blijven P), C = Own ∩ Ext; 100 %-P-test
+als poort in fase 0. (2) C één niveau diep: gedeelde owner history → zijn PersonAndOrganization e.d. P zonder GlobalId →
+loze ref → C = hele afsluiting van Ext; doelen van bewaarde `domain:false`-tokens zijn startpunten van Ext. (3) Controle 2:
+`canon` sleutelt op wbsCode+naam (`check-ifc-roundtrip.ts:855-881`) en normaliseert de invoer (projectkalender uit
+`resourceCalendars`, `:929`) → vergelijk twee herlezingen: canon(read(samengevoegd)) === canon(read(writeIFC zonder vreemd
+deel)); `canon` naar `src/`. (4) Opslaan + Ctrl+Z verliest koppelingen/slots/psets (ifcSource `none`, `ifcGlobalIds` `data`)
+→ `ifcSource.detached` per sessie, terugzetten als GlobalId terugkomt; of besluit Ethan.
+Vervolg: (5) `selectPlanning` = huidige regel letterlijk incl. #336 (baseline is planning als live-schema leeg is; losse
+taken buiten schema). (6) Alleen Task/TaskTime hebben descriptors; work control alleen posities; kalender/resource/sequence
+zijn sjablonen (`ifcWriter.ts:1268, 1675`) → alle slots + waarde bij openen bewaren; vijf descriptortabellen in fase 2;
+LagTime zonder GlobalId. (7) Dubbele GlobalIds → koppel domein-id → bron-#id (`taskStepIdMap`, `resourceStepIdMap`);
+"geen dubbel #id" in controle 1. (8) sha256 wijzigt elk opslaan door tijdstempels (`ifcWriter.ts:394`) → browser niet elke
+keer 150 MB kopiëren (handle opnieuw lezen), backups opruimen, byte-test alleen op niet-P. (9) AutoSave kan blijven
+schrijven (`sameIFCSource`, `ifcSaveInput.ts:135`) → ifcSource vervangen in dezelfde `set()` die dirty wist. (10) IFCX:
+eigen deel van gemengde entry direct ná de entry, niet achteraan. (11) IFCX: "eigen pad" met `ops::x` van een ander;
+onbekende `ops::`-attributen; wanneer is een kop eigen. (12) IFC2X3-planningsbestanden van anderen openen nu wel (#292) →
+zonder `IfcProduct` de huidige route houden. (13) Route `openExampleFromString` (tekst), `devBridge.saveToPath`.
+(14) `openaec::links`-doelen zijn paden → `elementLinks.target`; oudere eigen bestanden uit release-tags in de corpus.
 
 ### Ronde 2 — Opus (6/10) — verwerkt in v3 (Sol 6 en Fable 7 vonden grotendeels hetzelfde; zie spec §12)
 
