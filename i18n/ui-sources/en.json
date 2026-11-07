@@ -68,6 +68,7 @@
     "notifications.recoveryStorageBlocked": "e405ecc25943f5d0",
     "notifications.recoveryReadFailed": "f0c59bf2764629f7",
     "notifications.recoveryRestoreFailed": "e955d8d5e451d23d",
+    "notifications.hostSettingsUnavailable": "efdca862087d36fa",
     "notifications.recoveryDocumentsSkipped": "1c84310a191b1dc2",
     "notifications.scheduleFailed": "33f25f4ce2c52391",
     "notifications.ifcParseFailed": "f0e94c553db63ee8",

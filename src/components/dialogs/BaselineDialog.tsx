@@ -32,14 +32,20 @@ export function BaselineDialog() {
   }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
+  // Heeft de gebruiker de naam zelf aangeraakt? Dan vervangt een nieuwe defaultnaam (een taalwissel,
+  // ook van de host via `openaec-host-preferences`, #818) zijn invoer niet.
+  const [nameTouched, setNameTouched] = useState(false);
   // Lokale bevestigings-state i.p.v. `window.confirm()` (geen globale singleton).
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-  // Nieuwe default-naam wanneer het aantal baselines wijzigt (bv. na opslaan/verwijderen).
-  useEffect(() => { setNewName(defaultName); }, [defaultName]);
+  // Nieuwe default-naam wanneer het aantal baselines, de taal of de datumnotatie wijzigt, maar alleen
+  // zolang de gebruiker het veld niet aanraakte.
+  useEffect(() => { if (!nameTouched) setNewName(defaultName); }, [defaultName, nameTouched]);
 
   const save = () => {
     saveBaseline(newName.trim() || defaultName);
+    // Na opslaan begint het veld weer met de (nieuwe) defaultnaam.
+    setNameTouched(false);
   };
 
   const remove = (id: string) => {
@@ -118,7 +124,7 @@ export function BaselineDialog() {
             <div className="flex items-center gap-2">
               <input
                 value={newName}
-                onChange={e => setNewName(e.target.value)}
+                onChange={e => { setNewName(e.target.value); setNameTouched(true); }}
                 className="input !text-small !leading-4 !px-2.5 !py-1.5 flex-1"
                 aria-label={t('baseline.dialog.name')}
               />
