@@ -5,7 +5,7 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`8aa866d0f`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
+`dca82ea0c`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
@@ -35,7 +35,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 14 | Een samenvattingstaak krijgt geen duur | `planner_add_tasks`, `planner_update_tasks` | tools/list: schema `duration` ("Summary task: derived, omit it."), desc van `planner_update_tasks`; ook initialize |
 | 15 | `planner_delete_tasks` wist de hele subboom; `cascadedTaskIds` noemt wat mee ging | `planner_delete_tasks` | tools/list, desc |
 | 16 | Zonder `duration` krijgt een taak de standaardmaat (normaal 5 werkdagen) | `planner_add_tasks` | tools/list, desc. De gids houdt de regel: elke bladtaak een expliciete `duration` met `durationUnit` |
-| 17 | Een dagduur mag een breuk zijn; `FIXED_WORK` rekent in uren; uren vragen een kalender met werktijd | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `duration` en `durationUnit` |
+| 17 | Een dagduur mag een breuk zijn; `FIXED_WORK` rekent in uren; uren vragen een kalender met werktijd | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `duration` en `durationUnit` ("Always send it with `duration` (omitted = days)"), desc van `planner_update_tasks`. De gids zegt dat sinds ronde 6 niet meer; hij houdt alleen "expliciet, eenheid teruglezen" |
 | 18 | `durationType`: `WORKTIME` (standaard) of `ELAPSEDTIME` | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `durationType` |
 | 19 | `lag` in dagen of in procenten van de voorganger | `planner_add_dependencies`, `planner_update_dependencies` | tools/list, schema `lag` |
 | 20 | Het `seqId` staat na `#` in `rels`; een relatie wijzig je met `planner_update_dependencies`, niet met verwijderen + toevoegen | `planner_get_project_overview`, `planner_update_dependencies` | tools/list, desc van beide |
@@ -53,7 +53,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 32 | Toewijzen alleen op een bladtaak, één resource één keer per taak | `planner_manage_assignments` | tools/list, desc |
 | 33 | Onder `FIXED_WORK`/`FIXED_RATE` verandert een toewijzing de duur | `planner_manage_assignments` | tools/list, desc |
 | 34 | Toewijzingen gaan in bulk: één aanroep is één undo-stap | `planner_manage_assignments` | tools/list, desc ("One call = one undo step."). De gids houdt "all assignments in one `planner_manage_assignments`" |
-| 35 | Het histogram geeft zonder argumenten een samenvatting per resource (`peakLoad`, `overallocatedDayCount`), met `resourceIds`/`van`/`tot` de details; `bucket` | `planner_get_resource_histogram` | tools/list, desc en schema `bucket` |
+| 35 | Het histogram geeft zonder argumenten een samenvatting per resource (`peakLoad`, `overallocatedDayCount`), met `resourceIds`/`van`/`tot` de details; `bucket` | `planner_get_resource_histogram` | tools/list, desc en schema `bucket`. Dát je het leest na het toewijzen, staat in de gids (§Order 5, §Check "overloads"; ronde 6): toewijzen boven `maxUnits` slaagt zonder waarschuwing |
 | 36 | `constrainToFloat: true` houdt het einde vast (`unresolved`); `false` laat het schuiven (`projectEndDelta`) | `planner_level_resources` | tools/list, desc |
 | 37 | `drivingRelations`: `null` = onbekend, `[]` = geen | `planner_get_critical_path` | tools/list, desc |
 | 38 | De float van één taak (totaal en vrij), de vroege en late datums; float in werkdagen, ook bij een uurtaak | `planner_get_task`, `planner_get_critical_path` | tools/list, desc van beide ("Float is in working days of the task calendar, also on hour tasks (ELAPSEDTIME: calendar days)") |
@@ -84,6 +84,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc; ook initialize (#838) |
 | 64 | Een leeg document met `planner_new_document`, een wat-als-variant met `planner_duplicate_document` | `planner_new_document`, `planner_duplicate_document` | tools/list, desc van beide |
 | 65 | Een kring na `scheduleError` breek je door een relatie te wijzigen of weg te halen | `planner_update_dependencies`, `planner_remove_dependencies` | tools/list: de tools zelf; dat een kring wordt geweigerd staat bij F22. De koppeling met `scheduleError` staat er niet letterlijk; weg uit de gids (besluit orkestrator, ronde 5: de toolnamen wijzen zichzelf) |
+| 66 | In één item van `planner_update_tasks` gaat `fields` vóór `progress`; een nieuwe duur samen met een nieuw percentage geeft dus een andere rest dan na elkaar (`updateTasksCore`, `taskTools.ts`) | `planner_update_tasks` | niet in tools/list (de desc zegt alleen dat `progress` los staat van `fields`). De skill progress-update houdt de volgorde: de duur na de voortgang (§4, ronde 6) |
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij

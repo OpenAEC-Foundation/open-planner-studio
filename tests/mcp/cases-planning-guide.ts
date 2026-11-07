@@ -121,7 +121,7 @@ test('planner_get_planning_guide staat geregistreerd, read-only en niet-batchabl
   assertEq(def!.batchable, false, 'een documentatie-tool hoort niet in een draaiboek');
   // De leesplicht staat in de toolbeschrijving: `MCP_INSTRUCTIONS` zegt alleen "Before building", en de baselineregel
   // (pas na akkoord) staat alleen in de gids (#818, ronde 5).
-  for (const n of ['read before building or restructuring', '"guide" (default)', 'progress-update', '`part`']) {
+  for (const n of ['Read before building or restructuring', '`part: "progress-update"`']) {
     assert(def!.description.includes(n), `tool-beschrijving noemt "${n}" niet`);
   }
   const partDescription = (def!.inputSchema as { properties: { part: { description: string } } }).properties.part.description;

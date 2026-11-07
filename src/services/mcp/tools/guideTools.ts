@@ -193,8 +193,9 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Planning rules; read before building or restructuring. `part`: "guide" (default); ' +
-      '"progress-update": recording progress.',
+      // Leesplicht plus beide routes: zonder `part` de gids (opbouwen, herstructureren), voor voortgang de skill
+      // (#818, ronde 6). De parts om te installeren staan bij `part`.
+      'Read before building or restructuring; for progress, `part: "progress-update"`.',
     kind: 'read',
     batchable: false,
     inputSchema: {
