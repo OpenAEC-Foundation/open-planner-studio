@@ -91,3 +91,37 @@ precies zoals het was. Aanzetten in de dev-server: `?flag=reportRedesign` in de 
   (`columns`), met terugval voor oude instellingen.
 - **Previewkwaliteit** is weg uit het nieuwe tabblad (SVG heeft geen rasterkwaliteit nodig).
 - **De andere elf rapporten** staan achter de keuze "Ander rapport" en openen het oude paneel.
+
+### Snelheid (gemeten 7 november 2026, dev-server)
+
+Gemeten met de prestatiemerken `ops-report:feedback` (klik tot het eerste frame met de nieuwe stand van
+de knop) en `ops-report:paper` (klik tot het eerste frame met het nieuwe papier), in headless Chromium
+op aia09-mp50 (belast, load 5 tot 40). Het is de dev-build: React draait daar in StrictMode (elke
+opname twee keer) en met extra controles. Een productiebuild is lokaal niet gemeten (te zwaar voor deze
+machine).
+
+| plan | terugkoppeling (mediaan / max) | papier (mediaan / max) | opname | één blad als SVG |
+|---|---|---|---|---|
+| 57 taken (`03-kantoorgebouw-zuidas.ifc`), 10 klikken | 35–37 / 43–47 ms | 92–100 / 114–131 ms | 5–6 ms | 3 ms |
+| 5000 taken (139 bladen A3), 3 klikken | 35 ms | 573–807 ms | 225–353 ms (×2) | 4–12 ms |
+
+Twee bevindingen tijdens het meten, beide opgelost:
+
+- Elk blad kreeg het hele papiermodel als prop. React vergelijkt in de dev-modus de oude en nieuwe
+  props diep; bij 139 bladen met honderdduizenden tekenopdrachten kostte één klik ruim 4 minuten. Het
+  model draagt de opname nu alleen in een closure, en een blad krijgt alleen zijn eigen maten en delen.
+- De muis- en klikhandlers van het papier waren bij elke render nieuw, dus elk blad rendert opnieuw.
+  Nu zijn ze vast. Terugkoppeling bij 5000 taken ging van 165–186 ms naar 35 ms.
+
+Het papier bij 5000 taken blijft rond een halve seconde: de opname (`renderReport` over 5000 rijen)
+kost de tijd, vooral de celteksten van de taaktabel. Dat is dezelfde render als de PDF.
+
+### Afwijkingen van het ontwerp
+
+- **Periode** zit niet in de stap Taken: `renderReport` slaat relaties over als er een tijdvenster is.
+  Zonder relaties is de Gantt-afdruk niet wat een planner verwacht.
+- **"Zoals de tabel"** neemt de kolommen van de tabel naast de Gantt (`gantt-task-grid`), niet van de
+  losse Tabel-weergave.
+- Geen B2-iconen voor greep, slot en papierstand: die bestaan niet. Greep = CSS-puntjes, ↑/↓ als tekst,
+  het slot is weg ("verplicht" als tekst).
+- De andere elf rapporten gebruiken het oude paneel.

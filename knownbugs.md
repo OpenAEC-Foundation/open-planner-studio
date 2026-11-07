@@ -1839,6 +1839,19 @@ en noem het in je rapport of PR-tekst.
      vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
      contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
      `80490a19d`, VERVOLG). — S
+905. **De dev-server geeft 403 op de UI-letters als `node_modules/@fontsource` een link naar een andere worktree
+     is.** `vite.config.ts:21` (`allowedFsRoots`) staat alleen de realpath van de bovenste `node_modules` toe. Op
+     aia09-mp50 wijst `node_modules` van een worktree naar `feat-691-mijlpaal-slepen/node_modules`, en daarin is
+     `@fontsource` weer een link naar `t3-5a40d67b/node_modules/@fontsource`. Vite weigert die bestanden ("outside
+     of Vite serving allow list", in het journaal van `ops-dev-3142.service`). De app valt dan terug op een
+     systeemletter en de console toont 403-fouten. Gezien bij #817 in headless Chromium; in de QA-scripts omzeild
+     met een `route`. Mogelijk verwant aan 885. Voorstel: in `allowedFsRoots` ook de realpath van gelinkte
+     pakketmappen onder `node_modules` toestaan. — B
+906. **VERVOLG: het nieuwe Rapport-tabblad bouwt de `PrintOptions` van de Gantt-afdruk opnieuw op.**
+     `src/components/panels/reportStudio/useStudioPrintOptions.ts` herhaalt de koppeling uit `ReportPanel.tsx`
+     (instellingen naar `PrintOptions`, kolommen meten, kalender). Een wijziging in de ene komt niet vanzelf in de
+     andere, zolang de flag `reportRedesign` bestaat. Voorstel: haal de oude Gantt-route uit `ReportPanel` weg in de
+     PR die de flag standaard aanzet, of zet beide op één gedeelde hook. Gezien bij de bouw van #817. — B
 
 ## Wensen en open taken (geen bug)
 
