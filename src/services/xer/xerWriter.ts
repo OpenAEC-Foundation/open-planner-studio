@@ -28,7 +28,7 @@ import type { WorkCalendar } from '@/types/calendar';
 import { holidayEndDate } from '@/types/calendar';
 import type { Task } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
-import type { Resource, ResourceAssignment } from '@/types/resource';
+import type { ResourceAssignment } from '@/types/resource';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { p6SchedulingRulesDiffer } from '@/services/p6SchedulingRules';
@@ -512,10 +512,8 @@ function writtenDurations(task: Task, cal: WorkCalendar, complete: boolean): { d
 // ── Schrijver ───────────────────────────────────────────────────────────────────────────────────
 
 /** De invoer zonder kostenresources en hun toewijzingen (issue #815), plus het aantal weggelaten
- *  kostenresources. Gedeeld met de P6 XML-schrijver. */
-export function withoutCostResources<T extends { resources: readonly Resource[]; assignments: readonly ResourceAssignment[] }>(
-  input: T,
-): { input: T; costResources: number } {
+ *  kostenresources. XER kent geen kostenresource; `writeXER` meldt het verlies. */
+function withoutCostResources(input: XerWriteInput): { input: XerWriteInput; costResources: number } {
   const costIds = new Set(input.resources.filter(r => r.type === 'COST').map(r => r.id));
   if (costIds.size === 0) return { input, costResources: 0 };
   return {

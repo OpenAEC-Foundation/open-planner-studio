@@ -23,7 +23,7 @@
 // verloren en of er een taakduur veranderde (⇒ de slice markeert de planning verouderd).
 import type { Task, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import {
-  clearCostResourceFields, contourSiblings, costResourceIds, isCostResource, isValidCostAmount, isValidUnits, type Resource, type ResourceAssignment,
+  clearCostResourceFields, COST_RESOURCE_CLEARED_FIELDS, contourSiblings, costResourceIds, isCostResource, isValidCostAmount, isValidUnits, type Resource, type ResourceAssignment,
 } from '@/types/resource';
 import { contourIndexForAssignment } from '@/engine/contour/contourEngine';
 import { nextFreePaletteColor } from '@/engine/renderer/resourcePalette';
@@ -117,9 +117,6 @@ export type CostResourcePatchRefusal =
   /** Tarief, kalender, stappen, eenheid, ploeg of max. eenheden ≠ 1 op een kostenresource. */
   | 'costResourceField';
 
-/** Velden die een kostenresource nooit draagt; `maxUnits` mag alleen 1 zijn. */
-const COST_REFUSED_KEYS = ['costPerHour', 'calendarId', 'availabilitySteps', 'unitOfMeasure', 'parentId'] as const;
-
 /**
  * De kostenregels op een resourcepatch (issue #815, plan §1): een typewissel over de COST-grens
  * mag niet zolang de resource toewijzingen heeft (anders zou inzet/werk stil in een bedrag vertaald
@@ -145,7 +142,8 @@ export function acceptedCostResourcePatch(
   const effectiveType = patch.type ?? resource.type;
   if (effectiveType === 'COST') {
     let dropped = false;
-    for (const key of COST_REFUSED_KEYS) {
+    // Velden die een kostenresource nooit draagt; `maxUnits` mag alleen 1 zijn.
+    for (const key of COST_RESOURCE_CLEARED_FIELDS) {
       if (patch[key] !== undefined) { drop(key); dropped = true; }
     }
     if ('maxUnits' in patch && patch.maxUnits !== 1) { drop('maxUnits'); dropped = true; }

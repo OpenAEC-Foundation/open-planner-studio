@@ -362,8 +362,8 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   S().runCPM();
   store.setState(s => {
     s.tasks.find(t => t.id === taskId)!.timephasedContours = [{ resourceUid: 7, periods: [
-      { afterMinutes: 0, minutes: 480, workMinutes: 120 },
-      { afterMinutes: 480, minutes: 480, workMinutes: 840 },
+      { kind: 'remaining', afterMinutes: 0, minutes: 480, workMinutes: 120 },
+      { kind: 'remaining', afterMinutes: 480, minutes: 480, workMinutes: 840 },
     ] }];
   });
   const loadOf = () => {
