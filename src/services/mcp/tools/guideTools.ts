@@ -3,9 +3,13 @@
 //
 // WAAROM EEN TOOL EN NIET ALLEEN `instructions`. De initialize-respons draagt de kernregels mee
 // (`MCP_INSTRUCTIONS` in `dispatcher.ts`), maar die tekst moet kort blijven — hij gaat in élke
-// systeemprompt mee. De volledige gids is duizenden woorden; die haalt een agent hier op wanneer hij
-// hem nodig heeft. Daarnaast levert deze tool de twee agent-SKILLS plus de aanwijzing waar hij die
-// zelf kan neerzetten, zodat ze ook in een vólgende sessie meekomen zonder dat de gebruiker iets doet.
+// systeemprompt mee. De volledige gids haalt een agent hier op wanneer hij hem nodig heeft. Daarnaast
+// levert deze tool de twee agent-SKILLS plus de aanwijzing waar hij die zelf kan neerzetten, zodat ze
+// ook in een vólgende sessie meekomen zonder dat de gebruiker iets doet.
+//
+// KORT. Agents betalen per token. Gids en skills zijn regels, geen lesstof: elk principe één keer, in
+// de gids; een skill noemt alleen de toolvolgorde en de stappen van zijn taak; parameters staan in
+// `tools/list` (besluit eigenaar, 2026-11-07, #818).
 //
 // AGENTGIDS ≠ HELP-ARTIKEL. Tot oktober 2026 leverde deze tool het Help-artikel voor mensen
 // (`public/docs/<taal>/gids-goed-plannen.md`). Een mens drukt op F5 en klikt in het lint; een agent
@@ -90,10 +94,9 @@ export interface PlanningGuidePayload {
   part: GuidePart;
   /** Markdowntekst van de agentgids (alleen bij part guide/both). */
   guide?: string;
-  /** Beide skills, met hun tekst (alleen bij part skill/both). */
+  /** Beide skills, met hun tekst (alleen bij part skill/both). Het oude veld `skill` (een tweede kopie van
+   *  `goed-plannen`) is weg: het kostte de agent elke keer duizenden tokens (besluit eigenaar, 2026-11-07). */
   skills?: { name: AgentSkillName; text: string }[];
-  /** De tekst van `goed-plannen` — hetzelfde als zijn `skills`-tekst; blijft voor oudere clients. */
-  skill?: string;
   /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
    *  rest komt gewoon mee — één ontbrekende skill blokkeert de gids niet. */
   missing?: MissingAsset[];
@@ -101,10 +104,6 @@ export interface PlanningGuidePayload {
   install: {
     guideUrl: string;
     skills: SkillInstallInfo[];
-    /** Velden van vóór de tweede skill (gelden voor `goed-plannen`); blijven voor oudere clients. */
-    skillPathProject: string;
-    skillPathGlobal: string;
-    skillUrl: string;
     note: string;
   };
 }
@@ -121,18 +120,10 @@ function skillInstall(name: AgentSkillName, purpose: string): SkillInstallInfo {
 
 /** Installatiepaden en absolute publieke download-URL's — dezelfde bestanden als de bundel-assets. */
 export function installInfo(): PlanningGuidePayload['install'] {
-  const skills = AGENT_SKILLS.map((s) => skillInstall(s.name, s.purpose));
-  const first = skills[0];
   return {
     guideUrl: AGENT_GUIDE_URL,
-    skills,
-    skillPathProject: first.installPathProject,
-    skillPathGlobal: first.installPathGlobal,
-    skillUrl: first.url,
-    note:
-      'Write each skill text to .claude/skills/<name>/SKILL.md inside the project you are working in, or to ' +
-      '~/.claude/skills/<name>/SKILL.md to have it in every project (see `skills` for both paths per skill). ' +
-      'The guide and the skills can also be downloaded directly from the URLs above.',
+    skills: AGENT_SKILLS.map((s) => skillInstall(s.name, s.purpose)),
+    note: 'To keep a skill for later sessions, write its text to installPathProject or installPathGlobal.',
   };
 }
 
@@ -154,7 +145,7 @@ function assetBase(): string {
 export async function loadPlanningGuide(
   part: GuidePart,
   fetchImpl?: TextAssetFetch,
-): Promise<Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill' | 'missing'>> {
+): Promise<Pick<PlanningGuidePayload, 'guide' | 'skills' | 'missing'>> {
   const base = assetBase();
   const missing: MissingAsset[] = [];
   const load = async (path: string): Promise<string | undefined> => {
@@ -165,7 +156,7 @@ export async function loadPlanningGuide(
       return undefined;
     }
   };
-  const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'skill' | 'missing'> = {};
+  const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'missing'> = {};
   if (part === 'guide' || part === 'both') {
     const guide = await load(AGENT_GUIDE_PATH);
     if (guide !== undefined) out.guide = guide;
@@ -177,8 +168,6 @@ export async function loadPlanningGuide(
       if (text !== undefined) skills.push({ name: s.name, text });
     }
     out.skills = skills;
-    const first = skills.find((s) => s.name === AGENT_SKILLS[0].name);
-    if (first) out.skill = first.text;
   }
   if (missing.length > 0) out.missing = missing;
   return out;
@@ -195,13 +184,10 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Fetch the Open Planner Studio planning guide for AI agents and/or the two agent skills. The guide gives ' +
-      'the planning principles with the planner_* tools that apply each of them, and how recalculation works ' +
-      'through the tools. The skills are `goed-plannen` (building or restructuring a schedule) and ' +
-      '`progress-update` (recording a weekly progress update). Read the guide BEFORE building or restructuring ' +
-      'a schedule. Also returns where to install each skill so it is available in later sessions, and the ' +
-      'public download URLs. A part that could not be loaded is listed under `missing` with its public URL. All content is English; `language` is still accepted for compatibility but does ' +
-      'not change the content. Read-only; touches no project data.',
+      'Planning rules for AI agents (the guide) and the two skills: `goed-plannen` (build or restructure a ' +
+      'schedule) and `progress-update` (record progress). Read the guide BEFORE building or restructuring. ' +
+      'Returns each skill\'s install paths and the public URLs; a part that did not load is under `missing`. ' +
+      'English only; `language` is accepted for compatibility and changes nothing. Read-only.',
     kind: 'read',
     batchable: false,
     inputSchema: {

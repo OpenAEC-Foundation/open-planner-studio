@@ -135,7 +135,8 @@ test('zonder argumenten: agentgids + beide skills, Engels, met installatie-aanwi
     { name: 'goed-plannen', text: SKILL_BODIES['goed-plannen'] },
     { name: 'progress-update', text: SKILL_BODIES['progress-update'] },
   ], 'beide skills, in vaste volgorde');
-  assertEq(data.skill, SKILL_BODIES['goed-plannen'], 'compat-veld `skill` = goed-plannen');
+  // Het oude veld `skill` (tweede kopie van goed-plannen) en de oude installatievelden zijn weg (#818).
+  assert(!('skill' in data), 'het oude veld `skill` is weg');
   assertEq(data.install.guideUrl, 'https://open-planner-studio.open-aec.com/agent/planning-guide.md', 'gids-URL');
   assertEq(data.install.skills.map((s: any) => [s.name, s.installPathProject, s.installPathGlobal, s.url]), [
     ['goed-plannen', '.claude/skills/goed-plannen/SKILL.md', '~/.claude/skills/goed-plannen/SKILL.md',
@@ -143,10 +144,7 @@ test('zonder argumenten: agentgids + beide skills, Engels, met installatie-aanwi
     ['progress-update', '.claude/skills/progress-update/SKILL.md', '~/.claude/skills/progress-update/SKILL.md',
       'https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md'],
   ], 'installatiepaden en URL\'s per skill');
-  // Compat-velden van vóór de tweede skill: ongewijzigd, voor goed-plannen.
-  assertEq(data.install.skillPathProject, '.claude/skills/goed-plannen/SKILL.md', 'projectpad (compat)');
-  assertEq(data.install.skillPathGlobal, '~/.claude/skills/goed-plannen/SKILL.md', 'globaal pad (compat)');
-  assertEq(data.install.skillUrl, 'https://open-planner-studio.open-aec.com/skills/goed-plannen/SKILL.md', 'skill-URL (compat)');
+  assertEq(Object.keys(data.install).sort(), ['guideUrl', 'note', 'skills'], 'geen oude installatievelden');
   assertEq([...fetched].sort(), [
     '/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md', '/skills/progress-update/SKILL.md',
   ], 'precies de drie assets, nooit het Help-artikel');
@@ -220,7 +218,6 @@ test('één ontbrekende skill blokkeert de rest niet: ok, met `missing` en de pu
   const data = res.structuredContent.data;
   assertEq(data.guide, GUIDE_BODY, 'de gids komt mee');
   assertEq(data.skills.map((s: any) => s.name), ['goed-plannen'], 'alleen de skill die laadde');
-  assertEq(data.skill, SKILL_BODIES['goed-plannen'], 'compat-veld blijft gevuld');
   assertEq(data.missing.map((m: any) => [m.path, m.url]), [
     ['skills/progress-update/SKILL.md', 'https://open-planner-studio.open-aec.com/skills/progress-update/SKILL.md'],
   ], 'missing noemt het bestand en zijn publieke URL');
