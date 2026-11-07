@@ -634,6 +634,7 @@
     "warnings.kind.droppedSequence": "e9d035b7db61e9d2",
     "warnings.kind.hammockNoFinishDriver": "dbebac066a373cca",
     "warnings.kind.cappedTask": "0816e4251945b7cb",
+    "warnings.kind.externalLagCalendar": "a438c365d103c869",
     "warnings.kind.overallocation": "f0714992b4cccd49",
     "warnings.kind.overallocationNonWorkingDay": "c0e993b75d5e8501",
     "warnings.kind.overallocationMixed": "79a422cc11790c6e",
