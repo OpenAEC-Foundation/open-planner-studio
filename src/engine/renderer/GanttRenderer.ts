@@ -1370,7 +1370,7 @@ export class GanttRenderer {
   }
 
   /** Taaknaam in een balk van `width` breed, afgekapt met een ellips; de clip op de balk blijft als
-   *  vangnet staan (`ellipsize` hoort er al binnen te passen). Gedeeld door taak- en hammockbalk. */
+   *  vangnet staan (`ellipsize` hoort er al binnen te passen). */
   private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number, indent = 0, split?: { x: number; color: string }): void {
     const ctx = this.ctx;
     // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
@@ -1768,7 +1768,8 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    if (width > 40) this.drawBarName(task.name, this.colors.text, x1, y, width, height, y + height * 0.2);
+    // Net als bij samenvattingstaken staat de naam altijd achter de dunne balk.
+    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2);
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
