@@ -142,6 +142,10 @@ const EXTERNAL_LINK_VERDICTS = {
   anchorDate: 'shift',
   sourceRef: 'n/a',
   sourceMissing: 'n/a',           // betekent "bron niet vindbaar", NIET "anker verouderd" — niet zetten
+  // Herkomst (keuze 4): de versie van de bron en het moment van lezen. Dat zijn feiten over de bron,
+  // geen planningsdatums; ze blijven staan.
+  sourceVersion: 'keep',
+  anchorReadAt: 'keep',
 } satisfies Record<keyof ExternalLink, MoveVerdict>;
 
 const PROJECT_VERDICTS = {
