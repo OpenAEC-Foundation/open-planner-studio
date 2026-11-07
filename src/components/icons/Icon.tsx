@@ -1,13 +1,17 @@
 import type { SVGAttributes } from 'react';
 import { B2_ICONS, type IconDef, type IconId, type IconMaster } from './b2/icons.generated';
 import { applyDockProposal } from './dockProposal';
+import { LUCIDE_ICONS } from './lucideMapping';
+import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 
 export type { IconId };
 
 const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
 
 /**
- * Eén B2-icoon uit de OpenAEC Blueprint (huisstijl 0.4). Alle iconen van de app lopen hierlangs: één betekenis per
+ * Standaard de oude Lucide-vorm; `b2-icons` kiest de OpenAEC Blueprint (huisstijl 0.4).
+ * Alle iconen van de app lopen hierlangs: één betekenis per
  * icoon, dus de `id` is de FUNCTIE (`task.add`, `calendar.holiday-add`), niet de vorm (`Plus`).
  *
  * - Master zoals de Style Repo voorschrijft: tot en met 18 px de 16 px-tekening, daarboven de 24 px-tekening;
@@ -37,10 +41,28 @@ function masterFor(id: IconId, size: number): IconMaster {
 }
 
 export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
+  const b2 = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
+  if (!b2) {
+    const Lucide = LUCIDE_ICONS[id];
+    return (
+      <Lucide
+        size={size}
+        className={['oa-icon', className ?? ''].filter(Boolean).join(' ')}
+        data-icon={id}
+        aria-hidden={decorative ? true : undefined}
+        role={decorative ? undefined : 'img'}
+        focusable="false"
+        style={style}
+        {...rest}
+      >
+        {title ? <title>{title}</title> : null}
+      </Lucide>
+    );
+  }
   const def = ICONS[id];
   const master = masterFor(id, size);
   const box = size <= 18 ? 16 : 24;
-  const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
   // Geeft de plek zelf een tekstkleur op, dan gaat die voor op de statuskleur van het icoon.
   const ownColor = /(^|\s)text-/.test(className ?? '');
   const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic && !ownColor ? `oa-icon--${def.semantic}` : '', className ?? '']

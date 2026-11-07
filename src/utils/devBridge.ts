@@ -302,6 +302,8 @@ async function startOpsTestPoller(): Promise<void> {
 export interface OpsDevBridge {
   /** Zustand-store: gebruik `.getState()`, `.setState()`, `.subscribe()`. */
   store: typeof useAppStore;
+  /** Iconencontrole: kies de familie alleen voor deze testsessie. */
+  icons: { useB2: () => void };
   /** In-memory log-bus: `.snapshot()` geeft gelogde regels + opgevangen fouten. */
   log: typeof appLog;
   /** Observer-only Gantt-naad voor echte browserinteractie; bevat bewust geen setter of dragfunctie. */
@@ -367,6 +369,12 @@ export function installDevBridge(): void {
   if (typeof window === 'undefined') return;
   window.__OPS__ = {
     store: useAppStore,
+    icons: {
+      useB2: () => {
+        const s = useAppStore.getState();
+        s.setUI({ featureFlags: { ...s.ui.featureFlags, 'b2-icons': true } });
+      },
+    },
     log: appLog,
     gantt: { taskBarPoint, taskSegmentCount, paintCount, lastSize, dateX },
     roundTrip,

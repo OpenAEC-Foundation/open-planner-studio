@@ -19,15 +19,25 @@
  * accentkleur als terugvalwaarde (`var(--ops-note-accent, var(--theme-accent))`).
  * Eigen kleur: een `text-…`-klasse of `color` in `style` op het icoon, of een statuskleur (`semantic`) in de tekening.
  */
+import './domStub';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { B2_ICONS } from '@/components/icons/b2/icons.generated';
+
+// Deze check bewaakt B2, ook nu de gewone app met Lucide begint.
+localStorage.setItem('ops-featureFlags', JSON.stringify({ 'b2-icons': true }));
+const { Icon } = await import('@/components/icons/Icon');
 
 const root = process.cwd();
 const ACCENT_CLASS = /(?<![\w-])text-(?:accent(?:-hover)?|\[var\(--[\w-]*accent[\w-]*\)\])(?![\w-])/;
 
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
+
+const probe = renderToStaticMarkup(createElement(Icon, { id: 'task.add', size: 24 }));
+if (probe.includes('lucide') || !probe.includes('oa-icon__m24')) fail('de kleurcheck moet met B2 aan draaien');
 
 function walk(dir: string, ext: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
