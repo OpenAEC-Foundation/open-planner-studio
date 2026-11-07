@@ -13,6 +13,8 @@
     "dismiss": "Cerrar notificación",
     "taskEditRevertBlocked": "Un cambio del cliente MCP o de una extensión se produjo entretanto. Las modificaciones de tarea anteriores no se revirtieron y quedan como pasos normales en «Deshacer».",
     "openFailed": "No se pudo abrir el archivo",
+    "fileDropRefused": "No abierto: {{names}}. La aplicación solo abre IFC, XML, MPP, XER y CSV.",
+    "fileDropBlocked": "No abierto: {{names}}. Cierre primero la ventana abierta.",
     "csvInvalidDate": "CSV no abierto: fecha no reconocida «{{value}}» en la fila CSV {{row}}, columna «{{column}}». Use aaaa-mm-dd, dd-mm-aaaa o dd/mm/aaaa.",
     "extGuideCallbackFailed": "Un paso de la extensión {{name}} ha fallado. La guía continúa.",
     "extHelpProjectOpenFailed": "No se pudo abrir el archivo de proyecto {{file}} de la extensión {{name}}.",
@@ -1322,7 +1324,6 @@
     "detailConstraints": "fechas de restricción",
     "detailDeadlines": "fechas límite",
     "detailActuals": "fechas reales",
-    "detailExternal": "anclajes externos",
     "detailSteps": "escalones de capacidad",
     "warnActuals_one": "{{count}} tarea tiene fechas reales de inicio/fin; se desplazan también. Compruebe si es correcto para un proyecto en curso.",
     "warnActuals_many": "{{count}} tareas tienen fechas reales de inicio/fin; se desplazan también. Compruebe si es correcto para un proyecto en curso.",
@@ -1330,9 +1331,6 @@
     "warnHardPins_one": "{{count}} tarea tiene una restricción Obligatoria estricta; ese anclaje se desplaza también.",
     "warnHardPins_many": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
     "warnHardPins_other": "{{count}} tareas tienen una restricción Obligatoria estricta; esos anclajes se desplazan también.",
-    "warnExternal_one": "{{count}} relación externa: su anclaje se desplaza, pero el proyecto de origen no. Actualice la relación después de mover.",
-    "warnExternal_many": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
-    "warnExternal_other": "{{count}} relaciones externas: sus anclajes se desplazan, pero los proyectos de origen no. Actualice las relaciones después de mover.",
     "warnHolidayGap": "Los festivos generados del calendario «{{name}}» cubren {{from}}–{{to}}; la planificación desplazada llega hasta {{year}}. Vuelva a generar los festivos.",
     "warnCustomDateFields_one": "{{count}} campo personalizado de fecha rellenado conserva su fecha.",
     "warnCustomDateFields_many": "{{count}} campos personalizados de fecha rellenados conservan su fecha.",
@@ -1791,5 +1789,9 @@
     "actualWorkLost_one": "La asignación de {{resource}} ya tiene {{hours}} hora de trabajo real. Eliminarla descarta ese trabajo.",
     "actualWorkLost_many": "La asignación de {{resource}} ya tiene {{hours}} horas de trabajo real. Eliminarla descarta ese trabajo.",
     "actualWorkLost_other": "La asignación de {{resource}} ya tiene {{hours}} horas de trabajo real. Eliminarla descarta ese trabajo."
+  },
+  "fileDrop": {
+    "title": "Suelte para abrir",
+    "subtitle": "Archivo de proyecto o importación"
   }
 }

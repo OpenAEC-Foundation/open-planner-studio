@@ -26,3 +26,20 @@ export const DEMO_START_EXAMPLE: boolean = !PLATFORM_BUILD;
  *  werkt alleen in Tauri, en het token zou in localStorage staan, leesbaar voor elke tool op
  *  dezelfde origin. */
 export const AI_MODE_AVAILABLE: boolean = !PLATFORM_BUILD;
+
+/** Downloadcijfers in Instellingen → Geavanceerd (`DownloadStatsSection`). Uit in de platformbouw (#818): de
+ *  cijfers komen van raw.githubusercontent.com, en de werkplek van de SuperCloud laat geen netwerk buiten de
+ *  bundel toe (CSP). */
+export const DOWNLOAD_STATS_AVAILABLE: boolean = !PLATFORM_BUILD;
+
+/** Feedbackknop in de titelbalk, de feedbackdialoog en stap 7 van de rondleiding (die naar de knop
+ *  wijst). Uit in de platformbouw (#818): de werkplek van de SuperCloud heeft een eigen feedbackknop. De
+ *  dialoog post naar een externe dienst en opent een venster; CSP en sandbox van de werkplek blokkeren
+ *  beide. */
+export const FEEDBACK_AVAILABLE: boolean = !PLATFORM_BUILD;
+
+/** Updates en releasegegevens: "Controleren op updates", "Wat is er nieuw", de updatedialoog en de
+ *  dialoog "Net bijgewerkt". Uit in de platformbouw (#818): het contract vraagt een bundel zonder
+ *  update-check. De site levert de versie; releasegegevens komen van GitHub, en de werkplek laat geen
+ *  netwerk buiten de bundel toe. */
+export const UPDATES_AVAILABLE: boolean = !PLATFORM_BUILD;

@@ -11,7 +11,7 @@ import {
   type Ref,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { HoverTooltip } from '@/components/canvas/HoverTooltip';
@@ -441,7 +441,7 @@ export function RelationCellEditor({
                   placeholder="0d"
                   onChange={event => replaceToken(index, { ...token, lagText: event.currentTarget.value })}
                 />
-                <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
+                <button type="button" className={b2IconsOn() ? 'inline-flex items-center justify-center' : undefined} aria-label={t('relations.removeInternal', { task: taskLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>{b2IconsOn() ? <Icon id="list.item-remove" size={16} /> : '×'}</button>
                 {focusedToken === index && sentenceFor(token.relType, relationSentenceName(task ?? { wbsCode: token.wbsCode }))}
               </div>
             );
@@ -493,7 +493,7 @@ export function RelationCellEditor({
                   if (lag) replaceToken(index, { ...token, external: { ...token.external, lag } });
                 }}
               />
-              <button type="button" className="inline-flex items-center justify-center" aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}><Icon id="list.item-remove" size={16} /></button>
+              <button type="button" className={b2IconsOn() ? 'inline-flex items-center justify-center' : undefined} aria-label={t('relations.removeExternal', { task: sourceLabel })} onKeyDown={controlKeyDown} onClick={() => removeToken(index)}>{b2IconsOn() ? <Icon id="list.item-remove" size={16} /> : '×'}</button>
               {focusedToken === index && sentenceFor(
                 token.external.relType,
                 token.external.sourceRef.taskName || token.external.sourceRef.taskId,

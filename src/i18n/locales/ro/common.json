@@ -13,6 +13,8 @@
     "dismiss": "Închidere notificare",
     "taskEditRevertBlocked": "O modificare făcută de clientul MCP sau de o extensie a intervenit între timp. Modificările activităților făcute înainte nu au fost anulate și rămân ca pași obișnuiți sub Anulare.",
     "openFailed": "Deschiderea fișierului a eșuat",
+    "fileDropRefused": "Nu s-a deschis: {{names}}. Aplicația deschide doar IFC, XML, MPP, XER și CSV.",
+    "fileDropBlocked": "Nu s-a deschis: {{names}}. Închideți mai întâi fereastra deschisă.",
     "csvInvalidDate": "CSV nu a fost deschis: dată nerecunoscută „{{value}}” în rândul CSV {{row}}, coloana „{{column}}”. Utilizați aaaa-ll-zz, zz-ll-aaaa sau zz/ll/aaaa.",
     "extGuideCallbackFailed": "Un pas al extensiei {{name}} a eșuat. Îndrumarea continuă.",
     "extHelpProjectOpenFailed": "Fișierul de proiect {{file}} din extensia {{name}} nu a putut fi deschis.",
@@ -1322,7 +1324,6 @@
     "detailConstraints": "datele de restricție",
     "detailDeadlines": "termenele limită",
     "detailActuals": "datele reale",
-    "detailExternal": "ancore externe",
     "detailSteps": "etape de capacitate",
     "warnActuals_one": "{{count}} activitate are început efectiv și sfârșit efectiv; acestea se deplasează odată cu proiectul. Verificați dacă acest lucru este corect pentru un proiect în derulare.",
     "warnActuals_few": "{{count}} activități au început efectiv și sfârșit efectiv; acestea se deplasează odată cu proiectul. Verificați dacă acest lucru este corect pentru un proiect în derulare.",
@@ -1330,9 +1331,6 @@
     "warnHardPins_one": "{{count}} activitate are un pin Mandatory strict; acest pin se deplasează odată cu proiectul.",
     "warnHardPins_few": "{{count}} activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
     "warnHardPins_other": "{{count}} de activități au pinuri Mandatory stricte; acestea se deplasează odată cu proiectul.",
-    "warnExternal_one": "{{count}} legătură între proiecte: ancora se deplasează odată cu proiectul, dar proiectul sursă nu. Actualizați legătura după deplasare.",
-    "warnExternal_few": "{{count}} legături între proiecte: ancorele se deplasează odată cu proiectul, dar proiectele sursă nu. Actualizați legăturile după deplasare.",
-    "warnExternal_other": "{{count}} de legături între proiecte: ancorele se deplasează odată cu proiectul, dar proiectele sursă nu. Actualizați legăturile după deplasare.",
     "warnHolidayGap": "Sărbătorile generate ale calendarului „{{name}}” acoperă {{from}}–{{to}}; planificarea deplasată continuă până în {{year}}. Regenerați sărbătorile.",
     "warnCustomDateFields_one": "{{count}} câmp de dată personalizat completat rămâne la data sa.",
     "warnCustomDateFields_few": "{{count}} câmpuri de dată personalizate completate rămân la datele lor.",
@@ -1791,5 +1789,9 @@
     "actualWorkLost_one": "Atribuirea pentru {{resource}} are deja {{hours}} oră de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_few": "Atribuirea pentru {{resource}} are deja {{hours}} ore de lucru real. Ștergerea elimină lucrul real.",
     "actualWorkLost_other": "Atribuirea pentru {{resource}} are deja {{hours}} de ore de lucru real. Ștergerea elimină lucrul real."
+  },
+  "fileDrop": {
+    "title": "Eliberați pentru a deschide",
+    "subtitle": "Fișier de proiect sau import"
   }
 }

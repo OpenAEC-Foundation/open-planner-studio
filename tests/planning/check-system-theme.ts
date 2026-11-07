@@ -17,8 +17,10 @@ import {
 //  1. de resolutie zelf — 'system' mag NOOIT als `data-theme` naar buiten lekken;
 //  2. de opslag — 'system' is een geldige voorkeur en mag niet door de 7→3-legacymigratie naar
 //     'dark' worden weggemigreerd;
-//  3. de pre-paint-spiegel in index.html — die is een handmatige kopie van `resolveUITheme`, dus
+//  3. de pre-paint-spiegel in public/theme-prepaint.js (sinds #818, vroeger inline in index.html) — die is een handmatige kopie van `resolveUITheme`, dus
 //     een bronvergelijking is de enige poort die divergentie (= themaflits bij het opstarten) ziet.
+//  Daarnaast (deel 5): de melding dat een eigen themakeuze ingebed met een hostthema maar tot de
+//  volgende start geldt (#818).
 
 let failures = 0;
 const ok = (condition: boolean, message: string) => {
@@ -130,7 +132,8 @@ localStorage.clear();
 
 // --- 4. Bronpoorten: pre-paint-spiegel en CSS-blokken -------------------------------------------
 const repoFile = (rel: string) => readFileSync(fileURLToPath(new URL(`../../${rel}`, import.meta.url)), 'utf8');
-const indexHtml = repoFile('index.html');
+// Het pre-paint-script staat sinds #818 in een eigen bestand (geen inline script in index.html).
+const indexHtml = repoFile('public/theme-prepaint.js');
 ok(/'system':\s*'system'/.test(indexHtml), 'het pre-paint-script kent de systeemvoorkeur');
 ok(
   indexHtml.includes(`matchMedia('${SYSTEM_DARK_QUERY}')`),
@@ -155,6 +158,60 @@ for (const { id } of UI_THEMES) {
     globalsCss.includes(`[data-oa-theme="${oa}"] {`) || globalsCss.includes(`[data-theme="${resolved}"] {`),
     `themakeuze ${id} lost op naar een bestaand [data-oa-theme="${oa}"]- of [data-theme="${resolved}"]-blok`,
   );
+}
+
+// --- 5. Melding "dit thema geldt tot de volgende start" (#818, besluit Ethan 2026-11-07) ----------
+// Ingebed met een thema van de host wint de host bij elke start. Kiest de gebruiker zelf een ander
+// thema (`applyTheme`, de enige route van ⚙, Instellingen-tab, Backstage en welkomstvenster), dan één
+// melding per sessie. Een wissel van de host en de start zetten `uiTheme` met `setUI` en melden niets.
+// Het dev-link-geval kan hier alleen via de parameters: in deze bundel is `import.meta.env.DEV` false.
+{
+  const hostWindow: Record<string, unknown> = { matchMedia: () => ({ matches: false }) };
+  hostWindow.parent = hostWindow;
+  g.window = hostWindow;
+  const { useAppStore } = await import('@/state/appStore');
+  const { applyTheme } = await import('@/components/settings/applySetting');
+  const { hostThemeWinsNextStart } = await import('@/utils/settingsStore');
+  const notices = () => useAppStore.getState().ui.notifications
+    .filter(n => n.messageKey === 'notifications.hostThemeUntilRestart');
+  useAppStore.getState().setUI({ uiTheme: 'dark' });
+
+  ok(hostThemeWinsNextStart(null, 'light'), 'hostthema zonder dev-link ⇒ de host wint bij de volgende start');
+  ok(!hostThemeWinsNextStart('dark', 'light'), 'dev-link-thema ⇒ de host wint niet, dus geen melding');
+  ok(!hostThemeWinsNextStart(null, null), 'geen hostthema ⇒ geen melding');
+
+  applyTheme('light');
+  ok(notices().length === 0, 'zonder host: geen melding');
+  ok(localStorage.getItem('ops-theme') === 'light', 'zonder host: de keuze wordt bewaard zoals altijd');
+
+  hostWindow.openaecHost = { taal: 'nl' };
+  applyTheme('dark');
+  ok(notices().length === 0, 'host zonder thema: geen melding');
+  hostWindow.openaecHost = { thema: 'blauw' };
+  applyTheme('light');
+  ok(notices().length === 0, 'host met een ongeldig thema: geen melding');
+
+  hostWindow.openaecHost = { thema: 'dark' };
+  // Zoals `useSiteHostPreferences` en `loadAllSettings` het doen: `setUI`, niet `applyTheme`.
+  useAppStore.getState().setUI({ uiTheme: 'dark' });
+  ok(notices().length === 0, 'een wissel van de host (setUI): geen melding');
+  applyTheme('dark');
+  ok(notices().length === 0, 'het actieve thema opnieuw kiezen is geen wissel: geen melding');
+
+  applyTheme('high-contrast');
+  const first = notices();
+  ok(first.length === 1 && first[0].severity === 'info' && first[0].count === 1,
+    'eerste themawissel door de gebruiker met hostthema: één infomelding');
+  ok(useAppStore.getState().ui.uiTheme === 'high-contrast' && localStorage.getItem('ops-theme') === 'high-contrast',
+    'met hostthema: de keuze geldt nu en wordt bewaard zoals altijd');
+
+  applyTheme('light');
+  applyTheme('system');
+  const after = notices();
+  ok(after.length === 1 && after[0].count === 1, 'een volgende wissel geeft geen tweede melding');
+
+  localStorage.clear();
+  if (originalWindow === undefined) delete g.window; else g.window = originalWindow;
 }
 
 if (failures > 0) {

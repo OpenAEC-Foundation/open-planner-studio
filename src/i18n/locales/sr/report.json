@@ -32,6 +32,7 @@
   "repeatHeader": "Понови заглавље на свакој страни",
   "repeatFooter": "Понови подножје на свакој страни",
   "reportFontScaleLabel": "Величина слова:",
+  "reportFontFamilyLabel": "Фонт:",
   "timelineColumnsLabel": "Временска оса преко:",
   "timelineColumnsHint": "Само уз аутоматско уклапање",
   "timelineColumns_one": "{{count}} страна",
@@ -439,5 +440,11 @@
       "riskHeading": "Задаци у ризику: касне или негативна временска резерва",
       "riskEmpty": "Нема задатака који касне и нема негативне временске резерве."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (подразумевано)",
+    "liberationSans": "Liberation Sans (као Arial)",
+    "carlito": "Carlito (као Calibri)",
+    "liberationSerif": "Liberation Serif (као Times New Roman)"
   }
 }

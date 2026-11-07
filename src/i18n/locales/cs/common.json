@@ -13,6 +13,8 @@
     "dismiss": "Zavřít oznámení",
     "taskEditRevertBlocked": "Mezitím přišla změna od klienta MCP nebo od rozšíření. Úpravy úkolů provedené dříve nebyly vráceny zpět a zůstávají jako běžné kroky pod položkou „Zpět“.",
     "openFailed": "Otevření souboru se nezdařilo",
+    "fileDropRefused": "Neotevřeno: {{names}}. Aplikace otevírá jen IFC, XML, MPP, XER a CSV.",
+    "fileDropBlocked": "Neotevřeno: {{names}}. Nejprve zavřete otevřené okno.",
     "csvInvalidDate": "CSV nelze otevřít: nerozpoznané datum „{{value}}“ na řádku CSV {{row}}, sloupec „{{column}}“. Použijte formát rrrr-mm-dd, dd-mm-rrrr nebo dd/mm/rrrr.",
     "extGuideCallbackFailed": "Krok rozšíření {{name}} selhal. Průvodce pokračuje.",
     "extHelpProjectOpenFailed": "Soubor projektu {{file}} z rozšíření {{name}} se nepodařilo otevřít.",
@@ -1393,7 +1395,6 @@
     "detailConstraints": "data omezení",
     "detailDeadlines": "konečné termíny",
     "detailActuals": "skutečné datumy",
-    "detailExternal": "externí kotvy",
     "detailSteps": "kroky kapacity",
     "warnActuals_one": "{{count}} úkol má skutečné zahájení a dokončení; ta se posunou spolu s ním. Zkontrolujte, zda je to správně u probíhajícího projektu.",
     "warnActuals_few": "{{count}} úkoly mají skutečné zahájení a dokončení; ta se posunou spolu s nimi. Zkontrolujte, zda je to správně u probíhajícího projektu.",
@@ -1403,10 +1404,6 @@
     "warnHardPins_few": "{{count}} úkoly mají pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
     "warnHardPins_many": "{{count}} úkolu mají pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
     "warnHardPins_other": "{{count}} úkolů má pevné ukotvení Mandatory; ukotvení se posunou spolu s nimi.",
-    "warnExternal_one": "{{count}} vazba mezi projekty: kotva se posune spolu s ní, ale zdrojový projekt ne. Po přesunu ji obnovte.",
-    "warnExternal_few": "{{count}} vazby mezi projekty: jejich kotvy se posunou spolu s nimi, ale zdrojové projekty ne. Po přesunu je obnovte.",
-    "warnExternal_many": "{{count}} vazby mezi projekty: jejich kotvy se posunou spolu s nimi, ale zdrojové projekty ne. Po přesunu je obnovte.",
-    "warnExternal_other": "{{count}} vazeb mezi projekty: jejich kotvy se posunou spolu s nimi, ale zdrojové projekty ne. Po přesunu je obnovte.",
     "warnHolidayGap": "Vygenerované svátky kalendáře „{{name}}“ pokrývají období {{from}}–{{to}}; přesunutý plán sahá do roku {{year}}. Vygenerujte svátky znovu.",
     "warnCustomDateFields_one": "{{count}} vyplněné uživatelské datumové pole zůstane na svém datu.",
     "warnCustomDateFields_few": "{{count}} vyplněná uživatelská datumová pole zůstanou na svém datu.",
@@ -1873,5 +1870,9 @@
     "actualWorkLost_few": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodiny skutečné práce. Odstraněním se tato práce zahodí.",
     "actualWorkLost_many": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodiny skutečné práce. Odstraněním se tato práce zahodí.",
     "actualWorkLost_other": "U přiřazení „{{resource}}“ je už zapsáno {{hours}} hodin skutečné práce. Odstraněním se tato práce zahodí."
+  },
+  "fileDrop": {
+    "title": "Pusťte pro otevření",
+    "subtitle": "Soubor projektu nebo import"
   }
 }

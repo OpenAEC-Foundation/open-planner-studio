@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useAppStore } from '@/state/appStore';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '@/components/icons';
+import { b2IconsOn, Icon } from '@/components/icons';
 import { scaleFromZoom } from '@/engine/renderer/timelineTiers';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { AI_STATUS_COLOR, AI_STATUS_ICON } from '@/components/ribbon/ai/AiServerGroup';
@@ -80,11 +80,11 @@ export function StatusBar() {
       key={key}
       onClick={openWarnings}
       title={title}
-      className="px-1 rounded hover:bg-surface-hover inline-flex items-center gap-1"
+      className={b2IconsOn() ? 'px-1 rounded hover:bg-surface-hover inline-flex items-center gap-1' : 'px-1 rounded hover:bg-surface-hover'}
       style={{ color: 'var(--theme-warning-text)' }}
       data-ops-status-warning={key}
     >
-      <Icon id="status.warning" size={16} />{label}
+      {b2IconsOn() ? <Icon id="status.warning" size={16} /> : '⚠ '}{label}
     </button>
   );
 
@@ -96,7 +96,7 @@ export function StatusBar() {
   const endText = cpmResult?.projectEnd ? `${t('status.end')} ${dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}` : '';
   // Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
   // Een fout houdt de vlag juist vast en blijft daarom zichtbaar.
-  const staleText = scheduleStale && (!autoCalcCPM || !!cpmResult?.error) ? t('status.scheduleStale') : '';
+  const staleText = scheduleStale && (!autoCalcCPM || !!cpmResult?.error) ? `${b2IconsOn() ? '' : '⚠ '}${t('status.scheduleStale')}` : '';
   const selectionText = selectedTaskIds.length > 0 ? t('status.selection', { count: selectedTaskIds.length }) : '';
   // Afgeleid uit zoom — kan niet desyncen van de getekende as.
   const scaleText = `${t('status.scale')} ${t(`ribbon.${scaleFromZoom(zoom)}`)}`;
@@ -140,8 +140,8 @@ export function StatusBar() {
         )
         : activeWarnings.map(w => warningButton(w.key, w.label, tCommon('warnings.openPanel')))}
       {staleText && !folded('stale') && (
-        <span className="inline-flex items-center gap-1" style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
-          <Icon id="status.warning" size={16} />{staleText}
+        <span className={b2IconsOn() ? 'inline-flex items-center gap-1' : undefined} style={{ color: 'var(--theme-warning-text)' }} title={tCommon('resource.histogram.staleHint')}>
+          {b2IconsOn() && <Icon id="status.warning" size={16} />}{staleText}
         </span>
       )}
       {selectionText && !folded('selection') && <span>{selectionText}</span>}
@@ -159,7 +159,7 @@ export function StatusBar() {
           data-ops-status-more
           className="flex items-center px-1.5 py-0.5 rounded hover:bg-surface-hover"
         >
-          <Icon id="status.more-hidden" size={16} />
+          <Icon id="status.more-hidden" size={16} lucide={{ size: 14 }} />
         </button>
       )}
       {aiMode && (
@@ -168,7 +168,7 @@ export function StatusBar() {
           title={tCommon('ai.statusDot', { status: tCommon(`ai.status${aiServerStatus.state === 'live' ? 'Live' : aiServerStatus.state === 'port-busy' ? 'PortBusy' : aiServerStatus.state === 'error' ? 'Error' : 'Off'}`, { port: aiServerStatus.port }) })}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-surface-hover text-text-secondary"
         >
-          <Icon id={AI_STATUS_ICON[aiServerStatus.state]} size={10} style={{ color: AI_STATUS_COLOR[aiServerStatus.state] }} />
+          <Icon id={AI_STATUS_ICON[aiServerStatus.state]} size={10} style={{ color: AI_STATUS_COLOR[aiServerStatus.state] }} lucide={{ icon: 'Circle', fill: AI_STATUS_COLOR[aiServerStatus.state] }} />
           <span>MCP</span>
         </button>
       )}

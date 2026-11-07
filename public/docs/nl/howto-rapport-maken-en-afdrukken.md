@@ -42,10 +42,11 @@ Het lint van het tabblad Rapport heeft geen Bereken-knop, maar F5 werkt hier gew
 
 ### 4. Stel het rapport af
 
-Onder *Instellingen* staan de keuzes voor de Gantt-afdruk en het Resourcediagram. Look-ahead, Kritiek & near-critical, Voortgangsrapport, Planningsgezondheid, Resourcebelasting, Resourcetoewijzingen en WBS-samenvatting hebben alleen *Papier:* en *Oriëntatie:*, plus een blok *Rapportopties* met de keuzes van dat rapport. Het Mijlpalen-overzicht en de Variance hebben geen eigen keuzes. Voor de periode van een rapport zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
+Onder *Instellingen* staan de keuzes voor de Gantt-afdruk en het Resourcediagram. Look-ahead, Kritiek & near-critical, Voortgangsrapport, Planningsgezondheid, Resourcebelasting, Resourcetoewijzingen en WBS-samenvatting hebben alleen *Papier:*, *Oriëntatie:* en *Lettertype:*, plus een blok *Rapportopties* met de keuzes van dat rapport. Het Mijlpalen-overzicht en de Variance hebben geen eigen keuzes. Voor de periode van een rapport zie [De rapportageperiode kiezen](docs://howto-rapportageperiode-kiezen).
 
 - *Papier:* en *Oriëntatie:* bepalen het vel. Standaard staat dit op A3 liggend, wat voor een bouwplanning handig is, maar niet elke printer drukt A3 af. Heb je een A4-printer, kies dan nu A4: de app legt de pagina's dan voor A4 op, in plaats van dat je ze later moet laten krimpen.
 - Bij het Resourcediagram geeft het vinkje *Elke resource op een nieuwe pagina* een blad per ploeg.
+- *Lettertype:* kiest de letter van alle rapporten: *Inter* (standaard), *Liberation Sans* (zoals Arial), *Carlito* (zoals Calibri) of *Liberation Serif* (zoals Times New Roman). De keuze geldt voor elk rapport, net als het papier.
 - *Lettergrootte:* (90% tot 125%) maakt tekst en tabel groter of kleiner. Een grotere letter laat minder ruimte over voor de tijdlijn.
 - *Volg weergave (filter, groepering, sortering)* staat alleen bij de Gantt-afdruk. Standaard komt de hele takenboom op papier. Met dit vinkje tekent het rapport precies de rijen die je op het scherm ziet, ook met ingeklapte fasen, bijvoorbeeld alleen de kritieke taken uit een layout. Hoe je zo'n weergave maakt, lees je in [Een layout maken en gebruiken](docs://howto-layouts-gebruiken).
 - *Baseline-overlay tonen* laat de actieve baseline naast de huidige balken zien. Met *Statuslijn:* kies je een *Statusdatumlijn* of een *Voortgangslijn*.
@@ -84,7 +85,7 @@ Open de PDF in je PDF-lezer en druk hem daar af. Print je een A3-PDF op een A4-p
 
 **Papier geldt op dit moment voor alle rapporten.** Er is één keuze voor *Papier:* en *Oriëntatie:*, gedeeld door alle rapporten. Het Mijlpalen-overzicht en de Variance hebben geen eigen papierkeuze: ze gebruiken wat je bij een ander rapport hebt ingesteld, standaard A3 liggend. Kies het papier dus eerst bij een rapport dat het aanbiedt, bijvoorbeeld de Gantt-afdruk, en ga dan terug.
 
-**De instellingen gelden voor alle projecten.** Papier, lettergrootte, periode en de andere keuzes onthoudt de app op dit apparaat, voor al je projecten. Ze horen niet bij het projectbestand.
+**De instellingen gelden voor alle projecten.** Papier, lettertype, lettergrootte, periode en de andere keuzes onthoudt de app op dit apparaat, voor al je projecten. Ze horen niet bij het projectbestand.
 
 ## Zie ook
 

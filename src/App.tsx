@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { setNoneLabelValue, setResourceTypeLabelsValue } from '@/utils/noneLabel';
 import { useResolvedUITheme, useSystemColorSchemeSync } from '@/hooks/useResolvedUITheme';
@@ -8,7 +8,7 @@ import { installConsentDialogAsker } from '@/extensions/consentBridge';
 import { installSiteDialogAskers } from '@/state/siteDialogBridge';
 import { installIfcSchemaAsker } from '@/state/ifcSchemaQuestionBridge';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
-import { EXTENSIONS_ENABLED } from '@/utils/buildFlags';
+import { EXTENSIONS_ENABLED, FEEDBACK_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
 import { isTauri } from '@/utils/platform';
 import { TitleBar } from '@/components/layout/TitleBar/TitleBar';
 import '@/components/layout/TitleBar/TitleBar.css';
@@ -44,6 +44,7 @@ import { useMcpDiscovery } from '@/hooks/useMcpDiscovery';
 import { useFullscreenSync } from '@/hooks/useFullscreenSync';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppStore } from '@/state/appStore';
+import { isFeatureEnabled } from '@/utils/featureFlags';
 import { UI_FONT_STACKS } from '@/utils/uiFont';
 import { StructureLockedNotice } from '@/components/layout/StructureLockedNotice';
 import { DependencyModeNotice } from '@/components/layout/DependencyModeNotice';
@@ -53,6 +54,7 @@ import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { ExternalSourceNotice } from '@/components/layout/ExternalSourceNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
+import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
 // Code-splitting: componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
@@ -93,6 +95,7 @@ const LayoutsDialog = lazy(() => import('@/components/dialogs/LayoutsDialog').th
 const ShortcutsDialog = lazy(() => import('@/components/dialogs/ShortcutsDialog').then(m => ({ default: m.ShortcutsDialog })));
 const BenchmarkDialog = lazy(() => import('@/components/dialogs/BenchmarkDialog').then(m => ({ default: m.BenchmarkDialog })));
 const StatsDialog = lazy(() => import('@/components/dialogs/StatsDialog').then(m => ({ default: m.StatsDialog })));
+const SettingsDelayDialog = lazy(() => import('@/components/dialogs/SettingsDelayDialog').then(m => ({ default: m.SettingsDelayDialog })));
 const PoolImportDialog = lazy(() => import('@/components/dialogs/PoolImportDialog').then(m => ({ default: m.PoolImportDialog })));
 const ProgressImportDialog = lazy(() => import('@/components/dialogs/ProgressImportDialog').then(m => ({ default: m.ProgressImportDialog })));
 const LibraryLinkDialog = lazy(() => import('@/components/dialogs/LibraryLinkDialog').then(m => ({ default: m.LibraryLinkDialog })));
@@ -139,6 +142,7 @@ function AppContent() {
   const showShortcutsDialog = useAppStore(s => s.ui.showShortcutsDialog);
   const showBenchmarkDialog = useAppStore(s => s.ui.showBenchmarkDialog);
   const showStatsDialog = useAppStore(s => s.ui.showStatsDialog);
+  const showSettingsDelayDialog = useAppStore(s => s.ui.showSettingsDelayDialog);
   const pendingFormatNotice = useAppStore(s => s.ui.pendingFormatNotice);
   const showWelcomeDialog = useAppStore(s => s.ui.showWelcomeDialog);
   const showTourOverlay = useAppStore(s => s.ui.showTourOverlay);
@@ -252,6 +256,13 @@ function AppContent() {
     applyThemeAttributes(document.documentElement, resolvedTheme);
   }, [resolvedTheme]);
 
+  // Iconenfamilie op <html> (#844): zonder B2 gelden de CSS-regels van vóór #765 (`[data-icons="lucide"]`).
+  // Vóór de eerste paint, zodat er geen B2-kleur doorheen flitst.
+  const b2Icons = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  useLayoutEffect(() => {
+    document.documentElement.dataset.icons = b2Icons ? 'b2' : 'lucide';
+  }, [b2Icons]);
+
   // Lettertype-interface toepassen: de schaal stuurt de rem-basis (html font-size),
   // zodat Tailwind-`text-*`-klassen van meestijgen EN de losse px-font-sizes in de chrome-css
   // (die expliciet `calc(<n>px * var(--ui-font-scale, 1))` gebruiken). De familie overschrijft de
@@ -324,6 +335,8 @@ function AppContent() {
         {/* Gebruikersmeldingen — óók in de presentatiemodus: hier is verder geen
             chrome, dus een stille opslaafout mag juist niet onzichtbaar worden. */}
         <NotificationHost />
+        {/* Slepen en neerzetten: ook hier, anders opent de browser een gesleept bestand zelf. */}
+        <FileDropOverlay />
       </div>
     );
   }
@@ -453,7 +466,8 @@ function AppContent() {
         {showSettingsDialog && <SettingsDialog />}
         {showCalendarDialog && <CalendarDialog />}
         {showStructureDialog && <StructureDialog />}
-        {showFeedbackDialog && <FeedbackDialog />}
+        {/* Feedback en updates ontbreken in de platformbouw (#818, `buildFlags.ts`). */}
+        {FEEDBACK_AVAILABLE && showFeedbackDialog && <FeedbackDialog />}
         {showLevelingDialog && <LevelingDialog />}
         {showBaselineDialog && <BaselineDialog />}
         {showMoveProjectDialog && <MoveProjectDialog />}
@@ -464,11 +478,13 @@ function AppContent() {
         {showShortcutsDialog && <ShortcutsDialog />}
         {showBenchmarkDialog && <BenchmarkDialog />}
         {showStatsDialog && <StatsDialog />}
+        {/* Ingebed (#818): de instellingen van de host kwamen niet op tijd; de app wacht verder. */}
+        {showSettingsDelayDialog && <SettingsDelayDialog />}
         {showWelcomeDialog && <WelcomeDialog />}
         {/* Tutorialvraag na een voltooide rondleiding (eenmalig, `state/onboarding.ts`). Vóór de
             toestemmingsdialoog gemount: die stapelt er bij "Ja" bovenop. */}
         {EXTENSIONS_ENABLED && showTutorialOffer && <TutorialOfferDialog />}
-        <UpdateDialog />
+        {UPDATES_AVAILABLE && <UpdateDialog />}
         <PoolImportDialog />
         {/* Voorwaardelijk gemount — anders dan PoolImportDialog, die permanent
             gemount blijft en intern op `!open` teruggeeft. Bij deze dialoog is dat verschil van
@@ -507,7 +523,7 @@ function AppContent() {
         {/* Pas na de hele eerste-startervaring (`isOnboardingActive`): niet in het venster waarin de
             welkomst nog op komst is, niet onder de rondleiding (z 9997, zou de dialoog onklikbaar
             maken) en niet onder de tutorialvraag. */}
-        {justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
+        {UPDATES_AVAILABLE && justUpdated && recoveryResolved && recovery === null && !showUpdateDialog && !onboardingActive
           && <JustUpdatedDialog />}
       </Suspense>
 
@@ -534,6 +550,10 @@ function AppContent() {
         <NotificationHost />
         <TooltipHost />
       </div>
+
+      {/* Slepen en neerzetten (#771): de laag "Laat los om te openen". Buiten het `inert`-blok: een
+          inert element krijgt geen sleep-events. */}
+      <FileDropOverlay />
     </div>
   );
 }

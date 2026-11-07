@@ -194,6 +194,9 @@ export type NotificationMessageKey =
   | 'notifications.minuteModelConverted'
   | 'notifications.minuteModelCalendarRepaired'
   | 'notifications.openFailed'
+  // Slepen en neerzetten (#771): een formaat dat de app niet opent, of een dialoog die openstaat.
+  | 'notifications.fileDropRefused'
+  | 'notifications.fileDropBlocked'
   | 'notifications.csvInvalidDate'
   | 'notifications.extGuideCallbackFailed'
   | 'notifications.extHelpProjectOpenFailed'
@@ -212,7 +215,12 @@ export type NotificationMessageKey =
   // Opslag via de site (issue #309): de site weigerde omdat het bestand intussen verder is
   // (`code === 'conflict'`). Parameter `name`. Het document blijft gewijzigd.
   | 'notifications.siteSaveConflict'
+  // SuperCloud-vorm (#818): de host bewaarde het werk na een conflict in een kopie. Parameters `name`
+  // (de kopie, nu het opslagdoel) en `original`. Het document telt als opgeslagen.
+  | 'notifications.siteSaveConflictCopy'
   | 'notifications.siteFileGone'
+  // De site gaf de nieuwste versie als alleen-lezen (#818): geopend zonder opslagdoel. Parameter `name`.
+  | 'notifications.siteFileReadOnly'
   | 'notifications.librarySaveFailed'
   | 'notifications.savedViaDownload'
   // Opslaan in een browser die niet terugschrijft — zie `browserSaveNotice.ts` (één keer per sessie).
@@ -224,6 +232,15 @@ export type NotificationMessageKey =
   | 'notifications.recoveryStorageBlocked'
   | 'notifications.recoveryReadFailed'
   | 'notifications.recoveryRestoreFailed'
+  // Ingebed (#818): de host heeft `settings`, maar een lokale fout (geen opslag, neerzetten of teruglezen
+  // faalde) zet het bewaren deze sessie uit.
+  | 'notifications.hostSettingsUnavailable'
+  // Ingebed (#818): de instellingen van de host kwamen pas na de start en zijn nu toegepast; de tweede
+  // vorm als de gebruiker intussen iets wijzigde dat daardoor terugging.
+  | 'notifications.settingsLoadedLate'
+  | 'notifications.settingsLoadedLateReverted'
+  // Ingebed met een thema van de host (#818): een themakeuze in de app geldt tot de volgende start.
+  | 'notifications.hostThemeUntilRestart'
   // Recovery-robuustheid (corrupt herstelbestand): `restoreDocuments` slaat een
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
@@ -768,6 +785,10 @@ export interface UIState {
   /** session — statistieken-dialoog (downloads per OS/release van de stats-branch) open; knop
    *  op Instellingen → Toepassing, naast Benchmark. Leest alleen, raakt de store niet aan. */
   showStatsDialog: boolean;
+  /** session — pop-up "Je instellingen konden niet worden geladen" (#818): de host antwoordde niet binnen
+   *  5 s of wees de lezing af. Gaat dicht met OK, of vanzelf als de instellingen alsnog binnenkomen
+   *  (`useSiteHostPreferences`). */
+  showSettingsDelayDialog: boolean;
   /** session — de lopende toestemmingsvraag bij het installeren van een extensie, of
    *  `null` als er geen vraag openstaat. Bevat de gegevens die de dialoog toont; het ANTWOORD gaat
    *  niet via de store maar via de resolver in `extensions/consent.ts` — een promise-resolver hoort

@@ -32,6 +32,7 @@
   "repeatHeader": "각 페이지에 머리글 반복",
   "repeatFooter": "각 페이지에 바닥글 반복",
   "reportFontScaleLabel": "글자 크기:",
+  "reportFontFamilyLabel": "글꼴:",
   "timelineColumnsLabel": "타임라인:",
   "timelineColumnsHint": "자동 맞춤일 때만",
   "timelineColumns_other": "{{count}}페이지",
@@ -429,5 +430,11 @@
       "riskHeading": "위험 작업: 지연 또는 음수 여유",
       "riskEmpty": "지연된 작업과 음수 여유가 없습니다."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (기본)",
+    "liberationSans": "Liberation Sans (Arial과 유사)",
+    "carlito": "Carlito (Calibri와 유사)",
+    "liberationSerif": "Liberation Serif (Times New Roman과 유사)"
   }
 }

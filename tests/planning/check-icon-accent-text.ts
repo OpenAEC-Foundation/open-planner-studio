@@ -19,15 +19,25 @@
  * accentkleur als terugvalwaarde (`var(--ops-note-accent, var(--theme-accent))`).
  * Eigen kleur: een `text-…`-klasse of `color` in `style` op het icoon, of een statuskleur (`semantic`) in de tekening.
  */
+import './domStub';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { B2_ICONS } from '@/components/icons/b2/icons.generated';
+
+// Deze check bewaakt B2, ook nu de gewone app met Lucide begint.
+localStorage.setItem('ops-featureFlags', JSON.stringify({ 'b2-icons': true }));
+const { Icon } = await import('@/components/icons/Icon');
 
 const root = process.cwd();
 const ACCENT_CLASS = /(?<![\w-])text-(?:accent(?:-hover)?|\[var\(--[\w-]*accent[\w-]*\)\])(?![\w-])/;
 
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
+
+const probe = renderToStaticMarkup(createElement(Icon, { id: 'task.add', size: 24 }));
+if (probe.includes('lucide') || !probe.includes('oa-icon__m24')) fail('de kleurcheck moet met B2 aan draaien');
 
 function walk(dir: string, ext: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -113,7 +123,26 @@ function bareIcons(text: string, tag: Tag): string[] {
 }
 
 const line = (text: string, index: number) => text.slice(0, index).split('\n').length;
-const sources = walk(path.join(root, 'src'), '.tsx').map(file => ({ file: path.relative(root, file), text: fs.readFileSync(file, 'utf8') }));
+/**
+ * Alleen wat met B2 aan geldt. Zonder B2 (#844) tekent de app de oude Lucide-iconen, met hun oude oranje: dat staat
+ * in `lucide={{ … }}` op een icoon en in de tak na `b2IconsOn() ? … :`. Die tekst valt hier weg; de regels
+ * blijven op dezelfde plek, zodat de regelnummers kloppen.
+ */
+function b2Only(text: string): string {
+  let out = text.replace(/b2IconsOn\(\) \? undefined : \{[^{}]*\}/g, m => 'undefined'.padEnd(m.length))
+    .replace(/b2IconsOn\(\) \? ('[^']*') : '[^']*'/g, (m, b2: string) => b2.padEnd(m.length));
+  for (let i = out.indexOf(' lucide={'); i >= 0; i = out.indexOf(' lucide={', i + 1)) {
+    let depth = 0;
+    let j = i + ' lucide='.length;
+    for (; j < out.length; j++) {
+      if (out[j] === '{') depth++;
+      else if (out[j] === '}' && --depth === 0) break;
+    }
+    out = out.slice(0, i) + out.slice(i, j + 1).replace(/[^\n]/g, ' ') + out.slice(j + 1);
+  }
+  return out;
+}
+const sources = walk(path.join(root, 'src'), '.tsx').map(file => ({ file: path.relative(root, file), text: b2Only(fs.readFileSync(file, 'utf8')) }));
 const styles = walk(path.join(root, 'src'), '.css').map(file => ({
   file: path.relative(root, file), text: fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''),
 }));
@@ -165,6 +194,8 @@ for (const { file, text } of styles) {
     const decls = [...rule[2].matchAll(/(?:^|;)\s*(color|fill|stroke)\s*:\s*([^;]+)/g)].filter(d => isAccent(d[2]));
     if (!decls.length) continue;
     for (const selector of rule[1].split(',')) {
+      // Regels voor de Lucide-stand (zonder B2, #844) gelden niet als B2 aan staat.
+      if (selector.includes('[data-icons="lucide"]')) continue;
       const compounds = selector.trim().split(/\s*[\s>+~]\s*/).filter(Boolean);
       const last = compounds[compounds.length - 1] ?? '';
       const onIcon = ICON_TAIL.test(last) || /\.oa-icon(?![\w-])/.test(last) || compounds.slice(0, -1).some(c => ICON_TAIL.test(c));

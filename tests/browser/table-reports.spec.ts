@@ -21,8 +21,14 @@ test('table reports: rapporttype kiezen rendert tabel, optie ververst live, PDF-
   // R1 knownbug 21: vanuit het volledige resourcepaneel moet Rapport zijn eigen werkruimte
   // openen; anders ontbreekt het formulier met Exporteer PDF dat de export verderop gebruikt.
   await page.locator('[data-ops-ribbon-tab="resources"]').click();
-  await page.locator('[data-tour-anchor="ribbon:resources:openResourcePanel"]').click();
+  const openResources = page.locator('[data-tour-anchor="ribbon:resources:openResourcePanel"]');
+  await openResources.click();
   const addResource = page.locator('[data-ops-resource-add]');
+  await expect(addResource).toBeVisible();
+  // Een tweede klik op Resources sluit het paneel weer, een derde opent het opnieuw (Ethan, 7 november 2026).
+  await openResources.click();
+  await expect(addResource).toHaveCount(0);
+  await openResources.click();
   await expect(addResource).toBeVisible();
   await page.locator('[data-ops-ribbon-tab="report"]').click();
   await expect(addResource).toHaveCount(0);

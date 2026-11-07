@@ -32,6 +32,7 @@
   "repeatHeader": "Kopfzeile auf jeder Seite wiederholen",
   "repeatFooter": "Fußzeile auf jeder Seite wiederholen",
   "reportFontScaleLabel": "Schriftgröße:",
+  "reportFontFamilyLabel": "Schriftart:",
   "timelineColumnsLabel": "Zeitleiste über:",
   "timelineColumnsHint": "Nur bei automatischer Anpassung",
   "timelineColumns_one": "{{count}} Seite",
@@ -434,5 +435,11 @@
       "riskHeading": "Gefährdete Vorgänge: verspätet oder negativer Puffer",
       "riskEmpty": "Keine verspäteten Vorgänge und kein negativer Puffer."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (Standard)",
+    "liberationSans": "Liberation Sans (wie Arial)",
+    "carlito": "Carlito (wie Calibri)",
+    "liberationSerif": "Liberation Serif (wie Times New Roman)"
   }
 }

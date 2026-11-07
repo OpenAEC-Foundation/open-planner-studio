@@ -32,6 +32,7 @@
   "repeatHeader": "Répéter l'en-tête sur chaque page",
   "repeatFooter": "Répéter le pied de page sur chaque page",
   "reportFontScaleLabel": "Taille de police :",
+  "reportFontFamilyLabel": "Police :",
   "timelineColumnsLabel": "Chronologie sur :",
   "timelineColumnsHint": "Uniquement avec ajustement automatique",
   "timelineColumns_one": "{{count}} page",
@@ -439,5 +440,11 @@
       "riskHeading": "Tâches à risque : en retard ou marge négative",
       "riskEmpty": "Aucune tâche en retard et aucune marge négative."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (par défaut)",
+    "liberationSans": "Liberation Sans (comme Arial)",
+    "carlito": "Carlito (comme Calibri)",
+    "liberationSerif": "Liberation Serif (comme Times New Roman)"
   }
 }

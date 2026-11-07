@@ -16,6 +16,7 @@
 import type { BuiltInProfileId, SchedulingProfile } from '@/types/project';
 import { sanitizeStoredSchedulingProfile } from '@/services/ifc/schedulingOptionsRead';
 import { builtInProfile as builtInProfileFromRegistry } from '@/engine/scheduler/conventions/registry';
+import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 
 export { displayNameKey } from '@/engine/scheduler/conventions/registry';
 
@@ -94,6 +95,8 @@ export function saveCustomProfiles(
   }
   try {
     storage.setItem(SCHEDULING_PROFILES_KEY, JSON.stringify(clean));
+    // Ingebed ook bij de host bewaren (#818); zonder host doet dit niets, ook niet met een testopslag.
+    noteSiteHostSettingChanged(SCHEDULING_PROFILES_KEY);
     return true;
   } catch (error) {
     console.warn(`[rekenprofielen] ${SCHEDULING_PROFILES_KEY} niet opgeslagen`, error);
