@@ -1729,6 +1729,23 @@ en noem het in je rapport of PR-tekst.
      Een regressie op die plekken blijft zo onopgemerkt. Voorstel: beide handelingen toevoegen aan het
      bestaande scenario. Alleen testdekking, geen fout gezien. Uit de review van #823, ronde 2
      (GPT-6.1-Sol, xhigh, op `211c9aafd`, VERVOLG). — B
+863. **VERVOLG: na crashherstel gaat een numerieke basisversie als tekst naar de SuperCloud, met een vals
+     conflict als gevolg.** `src/services/fileAccess/superCloudHost.ts:103` (vooral regel 115 en het gebruik
+     bij regel 168), daarnaast `src/state/documentContract.ts:90`. De oorspronkelijke soort van de versie staat
+     alleen in de tijdelijke cache van de adapter; het document en het herstelmanifest bewaren tekst.
+     Nagespeeld met de echte store: bestand openen op numerieke versie `1`, bewerken, een nieuwe adapter
+     zoals na herladen, document herstellen en opslaan. De host krijgt `{ id: "p1", expectedVersion: "1" }`.
+     Vergelijkt de host strikt met numerieke `1`, dan maakt hij een conflictkopie, hoewel niemand het
+     origineel wijzigde. Het werk blijft bewaard. Voorstel: haal de oorspronkelijke soort op als een
+     basisversie niet in de cache staat (bijv. via `versions(id)`), en houd de herstelde basis. Uit de
+     review van #826 (GPT-6.1-Sol, xhigh, op `80490a19d`, VERVOLG). — B
+864. **VERVOLG: *Openen van de site* raadt de nieuwste versie uit de volgorde van `versions`.**
+     `src/components/dialogs/SiteOpenDialog.tsx:77`. Zonder `file.version` (de SuperCloud-vorm) geldt de
+     eerste versie in de lijst als de nieuwste. Het SuperCloud-contract zegt niets over die volgorde. Bij
+     `versions = [1, 2]` krijgt versie 1 het label "nieuwste" en opent een klik de actuele versie. Niet
+     vastgesteld of de echte SuperCloud de nieuwste eerst levert. Voorstel: neem de volgorde op in het
+     contract, of bepaal de actuele versie expliciet. Uit de review van #826 (GPT-6.1-Sol, xhigh, op
+     `80490a19d`, VERVOLG). — S
 
 ## Wensen en open taken (geen bug)
 
