@@ -363,7 +363,7 @@ principe in de agentgids.
 | Relaties, geen vaste datums; FS standaard; elke taak een voorganger en opvolger; constraints alleen voor harde externe datums; nooit negatieve lag | instructies (test: "Finish-to-start", "negative lag") |
 | Hoogstens een paar procent constraints | weg: gids |
 | Geen aparte herbereken-stap; leestools frissen een verouderde planning op, zonder undo-stap; resultaat lezen met get_project_info en get_critical_path | instructies, kort: "Changes and reads recalculate by themselves" (test). De details (welke leestools, geen undo-stap, `scheduleRecalculated`) staan bij get_project_info (F1, fixronde 4) |
-| `datesAsRecorded`: datums uit het bestand; meld dat; de eerste wijziging rekent ze opnieuw | instructies: "say so when you report dates" (test). De rest zegt `scheduleNote` (`DATES_AS_RECORDED_NOTE`), die elke envelop met `datesAsRecorded` draagt (fixronde 4) |
+| `datesAsRecorded`: datums uit het bestand; meld dat; de eerste wijziging rekent ze opnieuw | instructies: "With `datesAsRecorded: true` in the envelope, say the dates are as recorded" (test; fixronde 6: de korte vorm las in de blinde proef als "noem dit altijd", twee van drie agents deden dat). De rest zegt `scheduleNote` (`DATES_AS_RECORDED_NOTE`), die elke envelop met `datesAsRecorded` draagt (fixronde 4) |
 | `scheduleError`: eerst oplossen; een wijziging die het laat staan wordt teruggedraaid | instructies (test) |
 | Gebruik planner_batch voor een samenhangende reeks | dubbel: nu in tool planner_batch |
 | Voortgang vraagt de statusdatum van de gebruiker; nooit verzinnen | instructies (test: "status date") |

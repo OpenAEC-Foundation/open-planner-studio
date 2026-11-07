@@ -957,6 +957,16 @@ en noem het in je rapport of PR-tekst.
      PR #838 noemt de velden van `update` in de toolbeschrijving ("other resource: remove + add"); de handler blijft
      zoals hij is. Fixrichting: weiger per item een sleutel die bij de actie niet hoort, met de lijst geldige velden.
      Uit council-ronde 4 op #838 (Opus 5.5, BEVESTIGD met de echte dispatcher, VERVOLG). — B
+951. **VERVOLG: `planner_move_project` geeft de kalender de schuld als een extern anker het einde vasthoudt.**
+     De `note` in `src/services/mcp/tools/calendarResourceTools.ts` (rond regel 2098) zegt bij elk verschil tussen
+     start- en eindverschuiving: "the calendar (holidays/construction holiday) intervenes". Scenario: Grondwerk 3 d →
+     Montage 2 d, Montage met een externe voorganger verankerd op 2026-06-05 16:00; `move_project` naar 2026-05-25
+     geeft `deltaDays: -7`, `endDeltaDays: 0` en die note. Het einde blijft staan door het externe anker (externe
+     ankers schuiven bewust niet mee), niet door de kalender. Een agent die de note doorgeeft, meldt de gebruiker een
+     verkeerde oorzaak. Fixrichting: noem in de note ook externe ankers en vaste beperkingen als mogelijke oorzaak, of
+     bepaal de oorzaak per taak. Verwant: geen leestool toont `externalLinks` (alleen `taskFields.ts` noemt ze), dus
+     een agent ziet een anker alleen aan zijn effect en kan de gebruiker de ankerdatum niet noemen. Uit de blinde
+     proef van fixronde 6 op #838 (BEVESTIGD met de echte dispatcher, VERVOLG). — B
 
 ## Bestanden en herstel
 
