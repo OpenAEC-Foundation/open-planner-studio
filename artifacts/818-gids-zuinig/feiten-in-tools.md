@@ -5,7 +5,7 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`f85cd894e`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
+`8aa866d0f`) hem maakt, samen met deze PR. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
@@ -29,7 +29,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 8 | Een mijlpaal heeft duur 0; meer wordt geweigerd | `planner_add_tasks` | tools/list, schema `duration` ("Milestone: 0 (more is refused)") |
 | 9 | `milestoneKind`: `START`, `FINISH`, `null` = automatisch | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `milestoneKind` |
 | 10 | `mandatory` is alleen een markering voor rapporten | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `mandatory` |
-| 11 | `endDate` dwingt niets af, maar zet de spanne van gegenereerde feestdagen | `planner_update_project`, `planner_update_calendar` | tools/list, desc van `planner_update_project` en schema `generate`. De gids houdt de volgorde: `endDate` vóór `generate` |
+| 11 | `endDate` dwingt niets af, maar zet de spanne van gegenereerde feestdagen | `planner_update_project`, `planner_update_calendar` | tools/list, desc van `planner_update_project` en schema `generate` (ook de dekking zonder einde of bij `create`: start year + 3). De gids houdt de volgorde: `endDate` vóór `generate` |
 | 12 | `startDate` verschuift geen bestaande taken; een latere trekt worteltaken naar voren (`anchorsClamped`); de hele planning verschuif je met `planner_move_project` | `planner_update_project` | tools/list, desc |
 | 13 | `tempId` begint met `tmp-` of `tmp_`; `parentId` = bestaand id of `tempId` uit dezelfde aanroep | `planner_add_tasks` | tools/list: desc (`parentId`), schema `tempId` (`tmp-foundation`), desc van `planner_batch` (`tmp-…`) |
 | 14 | Een samenvattingstaak krijgt geen duur | `planner_add_tasks`, `planner_update_tasks` | tools/list: schema `duration` ("Summary task: derived, omit it."), desc van `planner_update_tasks`; ook initialize |
@@ -47,7 +47,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 26 | `deadline` begrenst alleen het late einde | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `deadline` |
 | 27 | Welke kalender de projectstandaard is, kan niet via de tools wisselen | `planner_get_calendars` | tools/list, desc |
 | 28 | `generate` vervangt de feestdagenlijst; `rawHolidays` voegt toe en verbreekt de koppeling met de generator (`becameLiteral`); `holidaysMode: "replace"` = precies de lijst | `planner_update_calendar` | tools/list, desc en schema `holidaysMode`. De gids houdt de valkuil: na `rawHolidays` opnieuw `generate` wist de losse dagen |
-| 29 | `generate` neemt land, regio en voor NL `bouwvak` | `planner_update_calendar` | tools/list, schema `generate` |
+| 29 | `generate` neemt land, regio en voor NL `bouwvak`; zonder `bouwvak` maakt hij er geen | `planner_update_calendar` | tools/list, schema `generate` en `generate.bouwvak`. De gids noemt de bouwvak bij de sluitingen (ronde 5): wie hem vergeet, levert te vroeg op |
 | 30 | Een resourcekalender zet je met `calendarId` | `planner_manage_resources` | tools/list, schema `calendarId` |
 | 31 | `maxUnits` = capaciteit per werkdag (1 = één persoon of stuk) | `planner_manage_resources` | tools/list, schema `maxUnits` |
 | 32 | Toewijzen alleen op een bladtaak, één resource één keer per taak | `planner_manage_assignments` | tools/list, desc |
@@ -71,7 +71,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 50 | Delta's tellen in werkdagen van de huidige projectkalender | `planner_compare_baseline` | tools/list, desc |
 | 51 | Zonder actieve baseline weigeren vergelijken en vertraging analyseren | `planner_compare_baseline`, `planner_analyze_delay` | tools/list, desc ("refused without one"). De skill progress-update houdt de vraag aan de gebruiker |
 | 52 | `projectEndDeltaAvailable: false` = onbekend, niet nul | `planner_analyze_delay` | tools/list, desc |
-| 53 | Waar een skill te installeren is en de download-URL's | `planner_get_planning_guide` | alleen in het antwoord (`install`, `missing`) |
+| 53 | Waar een skill te installeren is en de download-URL's | `planner_get_planning_guide` | alleen in het antwoord (`install` bij `goed-plannen`, `skill` en `both`, met beide skillnamen; `missing`). De part-beschrijving noemt de installatieparts |
 | 54 | Undo is gedeeld met de gebruiker; een what-if gaat in een kopie | `planner_undo`, `planner_duplicate_document` | tools/list, desc van beide |
 | 55 | `scheduleStale` op een leesantwoord: de gebruiker bewerkt nog; lees later opnieuw | elke leestool | alleen in het antwoord (`scheduleNote`, `EDIT_IN_PROGRESS_NOTE` in `tools/runtime.ts`) |
 | 56 | `datesAsRecorded`: de datums komen uit het geïmporteerde bestand, niet uit een berekening | elke tool | initialize en het antwoord (`scheduleNote`, `DATES_AS_RECORDED_NOTE`). Gids en skill houden de toestemmingsregel |
@@ -83,6 +83,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 62 | Werk dat stopt en later doorgaat: één taak met onderbrekingen | `planner_set_task_splits` | tools/list, desc ("instead of splitting it into tasks") |
 | 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc; ook initialize (#838) |
 | 64 | Een leeg document met `planner_new_document`, een wat-als-variant met `planner_duplicate_document` | `planner_new_document`, `planner_duplicate_document` | tools/list, desc van beide |
+| 65 | Een kring na `scheduleError` breek je door een relatie te wijzigen of weg te halen | `planner_update_dependencies`, `planner_remove_dependencies` | tools/list: de tools zelf; dat een kring wordt geweigerd staat bij F22. De koppeling met `scheduleError` staat er niet letterlijk; weg uit de gids (besluit orkestrator, ronde 5: de toolnamen wijzen zichzelf) |
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij

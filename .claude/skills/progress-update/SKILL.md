@@ -1,6 +1,6 @@
 ---
 name: progress-update
-description: Record Open Planner Studio progress via planner_*; for building use goed-plannen.
+description: Record Open Planner Studio progress via planner_* (status date, actual dates, % complete); for building use goed-plannen.
 ---
 
 # Progress update with `planner_*`
@@ -13,7 +13,7 @@ Facts come from the user, never from you: a guessed actual date is worse than no
 
 ## 1. Orient
 
-- `planner_get_project_info`: previous `project.statusDate`, `schedule.projectEnd` (note it), `project.schedulingProfile.conventions.unstartedIgnoresStatusDate`.
+- `planner_get_project_info`: previous `project.statusDate`, `schedule.projectEnd`, `project.schedulingProfile.conventions.unstartedIgnoresStatusDate`; note the end and `planner_get_critical_path` for later.
 - `planner_list_baselines`: none active ⇒ ask the user: activate an older one (`planner_activate_baseline`) or save a new one? Never save one yourself: it would measure from today.
 
 ## 2. Ask the user
@@ -25,12 +25,12 @@ Facts come from the user, never from you: a guessed actual date is worse than no
 
 Steps: `planner_update_project` `statusDate`, then `planner_update_tasks` with `progress` per leaf task.
 
-- Finished: `completion: 100` with both dates. Running: `completion` with `actualStart`. Without a date the tool fills one in (100 % ⇒ finish = status date; `actualFinish` alone ⇒ start that day; running ⇒ a planned start): ask; leave that item unchanged until actuals are known.
+- Finished: `completion: 100`, `actualStart`, `actualFinish`; running: `completion`, `actualStart`. A missing date gets a tool guess: ask; leave that item unchanged until known.
 - Resolve every refusal with the user.
 
 ## 4. Remaining work
 
-Remaining = duration × (1 − completion/100). If different: `fields.duration` = done + user remaining; `fields.durationUnit` from `planner_get_task`.
+User's remaining ≠ duration × (1 − completion/100) ⇒ `fields.duration` = done + user remaining; `fields.durationUnit` from `planner_get_task`.
 
 32 h, 25% done, 32 h left ⇒ `duration: 40`, `durationUnit: "hours"` (no unit ⇒ 40 days).
 

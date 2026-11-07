@@ -72,15 +72,17 @@ export type GuideLanguage = 'nl' | 'en';
 /**
  * Wat elk `part` levert. Eén part per taak (#818): een agent die gaat opbouwen haalt de gids (`guide`, de
  * standaard), een voortgangsronde alleen `progress-update` (die skill is zelfstandig). `goed-plannen` levert
- * de gids plus die skill (om te installeren); `skill` en `both` blijven werken voor oudere clients.
+ * de gids plus die skill, `skill` beide skills: dat zijn de parts om te installeren, en alleen die krijgen
+ * `install` (een voortgangsronde betaalt die tekst niet elke keer; #818, ronde 5). `both` blijft werken voor
+ * oudere clients.
  */
 export const GUIDE_PARTS = {
-  'goed-plannen': { guide: true, skills: ['goed-plannen'] },
-  'progress-update': { guide: false, skills: ['progress-update'] },
-  guide: { guide: true, skills: [] },
-  skill: { guide: false, skills: ['goed-plannen', 'progress-update'] },
-  both: { guide: true, skills: ['goed-plannen', 'progress-update'] },
-} as const satisfies Record<string, { guide: boolean; skills: readonly AgentSkillName[] }>;
+  'goed-plannen': { guide: true, skills: ['goed-plannen'], install: true },
+  'progress-update': { guide: false, skills: ['progress-update'], install: false },
+  guide: { guide: true, skills: [], install: false },
+  skill: { guide: false, skills: ['goed-plannen', 'progress-update'], install: true },
+  both: { guide: true, skills: ['goed-plannen', 'progress-update'], install: true },
+} as const satisfies Record<string, { guide: boolean; skills: readonly AgentSkillName[]; install: boolean }>;
 
 export type GuidePart = keyof typeof GUIDE_PARTS;
 
@@ -90,9 +92,12 @@ export type GuidePart = keyof typeof GUIDE_PARTS;
 export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
 
 /** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818). Het volle
- *  bestand (mét frontmatter, die het antwoord weglaat) komt van de publieke URL. */
+ *  bestand (mét frontmatter, die het antwoord weglaat) komt van de publieke URL. De tekst noemt beide
+ *  skillnamen: bij `goed-plannen` komt alleen die skill mee, maar wie installeert, wil ook `progress-update`
+ *  (dat part zelf krijgt geen `install`). */
 export const SKILL_INSTALL_HINT =
-  `From ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md`;
+  `From ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md (<name>: ${AGENT_SKILLS.map((s) => s.name).join(', ')}) ` +
+  'to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md';
 
 /**
  * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met
@@ -117,7 +122,6 @@ export interface MissingAsset {
 export interface PlanningGuidePayload {
   /** Alleen gezet wanneer om een andere taal werd gevraagd (de inhoud is altijd Engels). */
   languageNote?: string;
-  part: GuidePart;
   /** Markdowntekst van de agentgids, als `readingText` (alleen bij een part met gids). */
   guide?: string;
   /** De skills van dit part, met hun tekst als `readingText`. Het oude veld `skill` (een tweede kopie van `goed-plannen`)
@@ -126,7 +130,8 @@ export interface PlanningGuidePayload {
   /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
    *  rest komt gewoon mee — één ontbrekende skill blokkeert de gids niet. */
   missing?: MissingAsset[];
-  /** Waar de agent een skill neerzet (alleen bij een part met skills). */
+  /** Waar de agent een skill neerzet (alleen bij de installatieparts, zie `GUIDE_PARTS`). Het veld `part` is
+   *  weg: de agent weet wat hij vroeg (#818, ronde 5). */
   install?: string;
 }
 
@@ -188,8 +193,8 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Planning rules and skills. `part` by task: "guide" (default) = the guide, for building or restructuring; ' +
-      '"progress-update" = skill for recording progress.',
+      'Planning rules; read before building or restructuring. `part`: "guide" (default); ' +
+      '"progress-update": recording progress.',
     kind: 'read',
     batchable: false,
     inputSchema: {
@@ -204,7 +209,7 @@ export const guideTools: McpToolDef[] = [
         part: {
           type: 'string',
           enum: Object.keys(GUIDE_PARTS),
-          description: '"goed-plannen" = guide + skill (to install); "skill"/"both": legacy.',
+          description: '"goed-plannen" (guide + skill) or "skill" (both skills): to install; "both": legacy.',
         },
       },
     },
@@ -224,8 +229,8 @@ export const guideTools: McpToolDef[] = [
             `Download instead: ${missing.map((m) => m.url).join(', ')}.`,
         );
       }
-      const data: PlanningGuidePayload = { part, ...texts };
-      if (texts.skills !== undefined) data.install = SKILL_INSTALL_HINT;
+      const data: PlanningGuidePayload = { ...texts };
+      if (GUIDE_PARTS[part].install) data.install = SKILL_INSTALL_HINT;
       if (a.language !== undefined && a.language !== 'en') {
         data.languageNote = 'English only; `language` is ignored.';
       }

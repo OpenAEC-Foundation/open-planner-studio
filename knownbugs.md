@@ -2198,8 +2198,8 @@ en noem het in je rapport of PR-tekst.
 
 900. **VERVOLG: elk antwoord van `tools/call` draagt de data twee keer.** `wrapToolResult` in
      `src/services/mcp/dispatcher.ts` zet hetzelfde resultaat als JSON-tekst in `content[0].text` en als
-     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 8.164 tekens data,
-     16.619 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
+     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 7.671 tekens data,
+     15.622 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
      aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
      Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
      S (de tokenkosten per client)

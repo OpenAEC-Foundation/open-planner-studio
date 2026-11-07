@@ -119,11 +119,15 @@ test('planner_get_planning_guide staat geregistreerd, read-only en niet-batchabl
   assertEq(def!.kind, 'read', 'kind moet read zijn');
   assertEq(def!.annotations.readOnlyHint, true, 'readOnlyHint');
   assertEq(def!.batchable, false, 'een documentatie-tool hoort niet in een draaiboek');
-  for (const n of ['"guide" (default)', 'progress-update', '`part`']) {
+  // De leesplicht staat in de toolbeschrijving: `MCP_INSTRUCTIONS` zegt alleen "Before building", en de baselineregel
+  // (pas na akkoord) staat alleen in de gids (#818, ronde 5).
+  for (const n of ['read before building or restructuring', '"guide" (default)', 'progress-update', '`part`']) {
     assert(def!.description.includes(n), `tool-beschrijving noemt "${n}" niet`);
   }
   const partDescription = (def!.inputSchema as { properties: { part: { description: string } } }).properties.part.description;
-  assert(partDescription.includes('goed-plannen'), `de part-beschrijving noemt goed-plannen niet: ${partDescription}`);
+  for (const n of ['goed-plannen', '"skill"', 'to install']) {
+    assert(partDescription.includes(n), `de part-beschrijving noemt ${n} niet: ${partDescription}`);
+  }
 });
 
 test('readingText: zonder frontmatter en eerste kop; de rest blijft', () => {
@@ -134,7 +138,7 @@ test('readingText: zonder frontmatter en eerste kop; de rest blijft', () => {
   assertEq(readingText('## Only H2\n'), '## Only H2\n', 'een H2 bovenaan blijft');
 });
 
-test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook de skill en één installatie-aanwijzing', async () => {
+test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook de skill en de installatie-aanwijzing', async () => {
   installFetch('stub');
   fetched.length = 0;
   const res = await call(makeMcpContext(), {});
@@ -142,7 +146,7 @@ test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook d
   const data = res.structuredContent.data;
   assert(!('language' in data), 'geen veld `language`: de inhoud is altijd Engels');
   assertEq(data.languageNote, undefined, 'geen taalnotitie zonder taalverzoek');
-  assertEq(data.part, 'guide', 'default part: de gids heeft de hele volgorde (#818, ronde 4)');
+  assert(!('part' in data), 'geen veld `part`: de agent weet wat hij vroeg (#818, ronde 5)');
   assertEq(data.guide, 'Start from the milestones.\n', 'gidstekst zonder kop');
   assertEq(data.skills, undefined, 'geen skill bij de standaard');
   assertEq(data.install, undefined, 'geen installatietekst zonder skill');
@@ -157,19 +161,20 @@ test('zonder argumenten: alleen de gids, zonder kop; met part goed-plannen ook d
   assertEq(gp.install, SKILL_INSTALL_HINT, 'één installatietekst voor alle skills');
   assertEq(
     gp.install,
-    'From https://open-planner-studio.open-aec.com/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md',
-    'installatietekst: het volle bestand van de publieke URL',
+    'From https://open-planner-studio.open-aec.com/skills/<name>/SKILL.md (<name>: goed-plannen, progress-update) ' +
+      'to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md',
+    'installatietekst: het volle bestand van de publieke URL, met beide skillnamen',
   );
   assertEq([...fetched].sort(), ['/agent/planning-guide.md', '/skills/goed-plannen/SKILL.md'], 'gids en opbouwskill');
 });
 
 test('elk part levert precies zijn delen (één part per taak; oude waarden blijven werken)', async () => {
-  const expected: Record<string, { guide: boolean; skills: string[] }> = {
-    'goed-plannen': { guide: true, skills: ['goed-plannen'] },
-    'progress-update': { guide: false, skills: ['progress-update'] },
-    guide: { guide: true, skills: [] },
-    skill: { guide: false, skills: ['goed-plannen', 'progress-update'] },
-    both: { guide: true, skills: ['goed-plannen', 'progress-update'] },
+  const expected: Record<string, { guide: boolean; skills: string[]; install: boolean }> = {
+    'goed-plannen': { guide: true, skills: ['goed-plannen'], install: true },
+    'progress-update': { guide: false, skills: ['progress-update'], install: false },
+    guide: { guide: true, skills: [], install: false },
+    skill: { guide: false, skills: ['goed-plannen', 'progress-update'], install: true },
+    both: { guide: true, skills: ['goed-plannen', 'progress-update'], install: true },
   };
   assertEq(Object.keys(GUIDE_PARTS).sort(), Object.keys(expected).sort(), 'de parts');
   for (const [part, want] of Object.entries(expected)) {
@@ -180,7 +185,8 @@ test('elk part levert precies zijn delen (één part per taak; oude waarden blij
     const data = res.structuredContent.data;
     assertEq(data.guide, want.guide ? readingText(GUIDE_BODY) : undefined, `part ${part}: gids`);
     assertEq(data.skills?.map((s: any) => s.name), want.skills.length > 0 ? want.skills : undefined, `part ${part}: skills`);
-    assertEq(data.install, want.skills.length > 0 ? SKILL_INSTALL_HINT : undefined, `part ${part}: installatietekst alleen bij skills`);
+    assertEq(data.install, want.install ? SKILL_INSTALL_HINT : undefined, `part ${part}: installatietekst alleen bij de installatieparts`);
+    assert(!('part' in data), `part ${part}: geen veld \`part\``);
     const files = [...(want.guide ? [`/${AGENT_GUIDE_PATH}`] : []), ...want.skills.map((n) => `/skills/${n}/SKILL.md`)];
     assertEq([...fetched].sort(), files.sort(), `part ${part}: alleen zijn eigen bestanden`);
   }
