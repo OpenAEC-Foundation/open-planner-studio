@@ -592,12 +592,11 @@
   white-space: nowrap;
 }
 
-/* Scheidingslijn tussen de groepen. De randkleur van de huisstijl (`--oa-border`, via `--theme-border`), dezelfde
-   als de onderrand van het lint. `--theme-border-light` (#30303A) lag in donker vrijwel gelijk aan het lintvlak
-   (#33333C) en viel weg (Ethan, 7 november 2026). */
+/* Scheidingslijn tussen de groepen. De kleur komt per thema uit `--theme-ribbon-separator` (globals.css): in donker
+   de randkleur van de huisstijl, in licht en hoog contrast de rasterlijn zoals eerst (Ethan, 7 november 2026). */
 .ribbon-separator {
   width: 1px;
-  background: var(--theme-border);
+  background: var(--theme-ribbon-separator);
   margin: 8px 2px;
   align-self: stretch;
 }
