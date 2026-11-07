@@ -83,7 +83,7 @@ export function SettingsPanelContent() {
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
   const experimentalSettingsVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const featureFlags = useAppStore(s => s.ui.featureFlags);
-  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.writesNewIfcData);
+  const availableFlags = FEATURE_FLAGS.filter(flag => !flag.hidden && !flag.writesNewIfcData);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const versionRef = useRef<HTMLButtonElement>(null);

@@ -43,7 +43,7 @@ export function HelpButton({ articleId, onOpen, disabled, size = 16 }: HelpButto
       title={label}
       data-ops-help-button={articleId}
     >
-      <Icon id="ui.help" size={size} />
+      <Icon id="ui.help" size={size} lucide={{ icon: 'CircleHelp' }} />
     </button>
   );
 }

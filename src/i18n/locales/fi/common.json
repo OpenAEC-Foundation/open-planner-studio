@@ -13,6 +13,8 @@
     "dismiss": "Sulje ilmoitus",
     "taskEditRevertBlocked": "Muutos MCP-asiakkaalta tai laajennuksesta tuli väliin. Sitä edeltäneitä tehtävämuutoksia ei palautettu. Ne jäävät tavallisina vaiheina kohtaan Kumoa.",
     "openFailed": "Avaaminen epäonnistui",
+    "fileDropRefused": "Ei avattu: {{names}}. Sovellus avaa vain IFC-, XML-, MPP-, XER- ja CSV-tiedostoja.",
+    "fileDropBlocked": "Ei avattu: {{names}}. Sulje ensin avoinna oleva ikkuna.",
     "csvInvalidDate": "CSV-tiedostoa ei avattu: tunnistamaton päivämäärä ”{{value}}” CSV-rivillä {{row}}, sarake ”{{column}}”. Käytä muotoa vvvv-kk-pp, pp-kk-vvvv tai pp/kk/vvvv.",
     "extGuideCallbackFailed": "Laajennuksen {{name}} vaihe aiheutti virheen. Opastus jatkuu.",
     "extHelpProjectOpenFailed": "Laajennuksen {{name}} projektitiedostoa {{file}} ei voitu avata.",
@@ -1706,5 +1708,9 @@
     "blockedNoChild": "Siirtäminen ei onnistu: ”{{phase}}” ei saa alitehtävää, joka voi kantaa resurssikohdistuksen. Alitehtävinä on vain välitavoitteita tai yhteenvetotehtäviä.",
     "actualWorkLost_one": "Resurssin {{resource}} resurssikohdistuksessa on jo {{hours}} tunti toteutunutta työmäärää. Poistaminen hävittää sen.",
     "actualWorkLost_other": "Resurssin {{resource}} resurssikohdistuksessa on jo {{hours}} tuntia toteutunutta työmäärää. Poistaminen hävittää sen."
+  },
+  "fileDrop": {
+    "title": "Pudota avataksesi",
+    "subtitle": "Projektitiedosto tai tuonti"
   }
 }

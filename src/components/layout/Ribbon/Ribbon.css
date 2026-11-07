@@ -592,6 +592,14 @@
   flex: 0 0 16px;
   display: inline-flex;
 }
+/* Zonder B2 (#844) het vinkje als teken, zoals vóór #765. */
+:where(:root[data-icons="lucide"]) .ribbon-relation-menu-mark {
+  width: 14px;
+  flex: 0 0 14px;
+  display: inline;
+  font-weight: 700;
+  text-align: center;
+}
 
 .ribbon-relation-menu-status {
   max-width: 300px;
@@ -737,6 +745,10 @@
 .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
   width: 24px;
   height: 24px;
+}
+:where(:root[data-icons="lucide"]) .ribbon-split-large > .ribbon-btn.ribbon-split-top[data-ribbon-mini] .ribbon-btn-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .ribbon-split-large:has(> .ribbon-split-top[data-ribbon-mini]) .ribbon-split-bottom .ribbon-btn-label {
