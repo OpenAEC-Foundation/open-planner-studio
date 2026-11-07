@@ -508,6 +508,9 @@ export interface FileSlice {
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
   /** *Later*: de balk van deze bron (`ExternalSourceUpdate.path`) gaat weg tot er weer een nieuwe versie is. */
   dismissExternalSourceUpdate: (path: string) => void;
+  /** Haalt de balk weg voor deze bronnen (genormaliseerde paden) van dit document, zonder ze als *Later* te
+   *  onthouden: na een verversing staan de ankers op de gelezen versie. Voor `planner_refresh_external_links`. */
+  dropExternalSourceUpdates: (documentId: string, paths: ReadonlySet<string>) => void;
   /** *Accepteren*: ververst de koppelingen naar deze bron (alleen op pad) als één undo-stap, met
    *  herberekening, en haalt de balk weg. `false` als er niets veranderde. */
   acceptExternalSourceUpdate: (source: ExternalSourceDoc) => boolean;
@@ -1691,6 +1694,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       settledSourceVersions.set(sourceKey(documentId, path), update.version);
       dropSourceUpdates(documentId, new Set([path]));
     },
+
+    dropExternalSourceUpdates: (documentId, paths) => dropSourceUpdates(documentId, paths),
 
     acceptExternalSourceUpdate: (source: ExternalSourceDoc) => {
       const documentId = get().activeDocumentId;

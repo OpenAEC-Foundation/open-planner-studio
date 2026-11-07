@@ -74,6 +74,8 @@ export const externalLinkTools: McpToolDef[] = [
       const report: SourceReport[] = [];
       // Bronpaden die niet gelezen zijn: hun koppelingen blijven staan (`refreshFromSources`, review #813).
       const unreadPaths = new Set<string>();
+      // Gelezen bronpaden: hun balk (#811) gaat weg na de verversing, zoals bij *Alle externe relaties vernieuwen*.
+      const readPaths = new Set<string>();
       for (const [normalized, filePath] of paths) {
         const scope = checkScope(home, filePath);
         if (!scope.ok) {
@@ -100,6 +102,7 @@ export const externalLinkTools: McpToolDef[] = [
           });
           const source = { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
           sources.push(source);
+          readPaths.add(normalized);
           report.push({ path: filePath, status: 'read', projectName: source.projectName });
         } catch (e) {
           unreadPaths.add(normalized);
@@ -114,6 +117,7 @@ export const externalLinkTools: McpToolDef[] = [
       return runMutateTool(ctx, 'mutate', () => {
         const s = ctx.app.store.getState();
         const result = refreshFromSources(s.tasks, sources, unreadPaths);
+        s.dropExternalSourceUpdates(s.activeDocumentId, readPaths);
         const changes: Array<{ taskId: string; taskName: string; linkId: string; anchorBefore: string; anchorAfter: string; sourceMissing: boolean }> = [];
         if (result.changed) {
           const beforeById = new Map(s.tasks.map(task => [task.id, task] as const));

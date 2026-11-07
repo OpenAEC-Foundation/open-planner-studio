@@ -23,6 +23,7 @@ import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import type { ExternalLink } from '@/types/task';
+import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 
 const S = () => useAppStore.getState();
 const ctxWith = (over: McpContextOverrides = {}): McpContext => makeMcpContext(appStoreContext, over);
@@ -274,8 +275,17 @@ test('refresh: DOC_DRIFT als het actieve document wisselt tijdens het lezen; het
 
 test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigingen', async () => {
   reads.length = 0;
+  // Een balk (#811) voor de bron en voor de bron buiten de thuismap: na de verversing is alleen die van de
+  // gelezen bron weg, zoals bij *Alle externe relaties vernieuwen*.
+  const bar = (filePath: string) => ({
+    documentId: S().activeDocumentId, path: normalizeExternalSourcePath(filePath)!, filePath,
+    fileName: filePath.split('/').pop()!, version: '2027-02-01T09:00:00.000Z', changedLinks: 1,
+  });
+  S().setUI({ externalSourceUpdates: [bar(SOURCE), bar(OUTSIDE)] });
   const steps = appliedSteps();
   const data = await ok('planner_refresh_external_links');
+  assertEq(S().ui.externalSourceUpdates.map(u => u.filePath), [OUTSIDE], 'balk van de gelezen bron weg, de andere blijft');
+  S().setUI({ externalSourceUpdates: [] });
   assertEq(reads.filter(p => p === SOURCE).length, 1, 'de bron is één keer gelezen');
   assert(!reads.includes(OUTSIDE), 'de bron buiten de thuismap is niet gelezen');
   const bySource = new Map(data.sources.map((s: any) => [s.path, s]));
