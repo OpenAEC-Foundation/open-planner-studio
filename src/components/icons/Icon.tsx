@@ -41,7 +41,8 @@ function masterFor(id: IconId, size: number): IconMaster {
 }
 
 export function Icon({ id, size = 16, mono = false, className, style, title, ...rest }: IconProps) {
-  const b2 = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, 'b2-icons'));
+  // Geen hook: Icon draait ook in tests met een eigen kopie van React. De vlag geldt vanaf het laden (`?icons=b2`).
+  const b2 = isFeatureEnabled(useAppStore.getState().ui.featureFlags, 'b2-icons');
   const decorative = !title && !rest['aria-label'] && !rest['aria-labelledby'];
   if (!b2) {
     const Lucide = LUCIDE_ICONS[id];
