@@ -13,6 +13,8 @@
     "dismiss": "Close notification",
     "taskEditRevertBlocked": "A change by the MCP client or an extension came in between. The task edits made before it were not reverted and remain as ordinary steps under Undo.",
     "openFailed": "Failed to open file",
+    "fileDropRefused": "Not opened: {{names}}. The app only opens IFC, XML, MPP, XER and CSV.",
+    "fileDropBlocked": "Not opened: {{names}}. Close the open dialog first.",
     "csvInvalidDate": "CSV not opened: unrecognised date \"{{value}}\" in CSV row {{row}}, column \"{{column}}\". Use yyyy-mm-dd, dd-mm-yyyy or dd/mm/yyyy.",
     "extGuideCallbackFailed": "A step from the extension {{name}} failed. The guide continues.",
     "extHelpProjectOpenFailed": "The project file {{file}} from the extension {{name}} could not be opened.",
@@ -1861,5 +1863,9 @@
       "hammock": "Follows the linked tasks",
       "unknown": "Reason not established"
     }
+  },
+  "fileDrop": {
+    "title": "Drop to open",
+    "subtitle": "Project file or import"
   }
 }

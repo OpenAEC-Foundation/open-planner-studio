@@ -3,6 +3,8 @@
 // Openen. Dat geeft per bestand hetzelfde gedrag: een nieuw tabblad (of het lege, ongewijzigde
 // actieve tabblad), het opslagdoel alleen voor IFC, de openingsmelding en de recente bestanden.
 // Een geopend project met wijzigingen blijft dus ongemoeid in zijn eigen tabblad staan.
+// Geen bestand verdwijnt zonder melding: een formaat dat de app niet opent en een neerzetting terwijl
+// een dialoog openstaat krijgen elk één melding met de bestandsnamen.
 import type { AppState } from '@/state/appStoreFactory';
 import type { ImportLabels } from '@/services/importTypes';
 import { splitDroppedFiles, type DroppedFile } from '@/services/fileAccess/fileDrop';
@@ -16,8 +18,15 @@ export interface FileDropOutcome {
   opened: string[];
   /** Namen van de bestanden die niet te lezen waren (de fout is al gemeld). */
   unreadable: string[];
-  /** Namen van de bestanden met een formaat dat de app niet opent (nog niet gemeld). */
+  /** Namen van de bestanden met een formaat dat de app niet opent (gemeld met één melding). */
   refused: string[];
+}
+
+/** De namen in de melding: hoogstens vijf, daarna "…", zodat een sleep met een hele map de melding
+ *  niet over het scherm laat lopen. Bestandsnamen blijven zoals ze zijn (geen vertaling). */
+export function fileNameList(names: readonly string[]): string {
+  const MAX = 5;
+  return names.length <= MAX ? names.join(', ') : `${names.slice(0, MAX).join(', ')}, …`;
 }
 
 interface FileDropStore {
@@ -38,9 +47,29 @@ export async function openDroppedFiles(
 ): Promise<FileDropOutcome> {
   const outcome: FileDropOutcome = { blocked: false, opened: [], unreadable: [], refused: [] };
   if (files.length === 0) return outcome;
-  if (isBlocked()) return { ...outcome, blocked: true };
+  if (isBlocked()) {
+    store.getState().notify({
+      severity: 'error',
+      messageKey: 'notifications.fileDropBlocked',
+      params: { names: fileNameList(files.map((f) => f.name)) },
+      dedupeKey: 'file-drop-blocked',
+      replaceOnDedupe: true,
+    });
+    return { ...outcome, blocked: true };
+  }
   const { openable, refused } = splitDroppedFiles(files);
   outcome.refused = refused;
+  // Vóór het openen: de melding staat er meteen, ook als het eerste bestand een uitlegvenster opent.
+  if (refused.length > 0) {
+    store.getState().notify({
+      severity: 'error',
+      messageKey: 'notifications.fileDropRefused',
+      params: { names: fileNameList(refused) },
+      helpArticleId: 'howto-bestand-openen-en-opslaan',
+      dedupeKey: 'file-drop-refused',
+      replaceOnDedupe: true,
+    });
+  }
   for (const file of openable) {
     let opened;
     try {

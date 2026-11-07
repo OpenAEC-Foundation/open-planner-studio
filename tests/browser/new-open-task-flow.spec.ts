@@ -95,6 +95,62 @@ test('document-plus kiest eerst nieuw of bestaand; annuleren verandert geen docu
   }
   await open(planning);
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBeGreaterThan(0);
+
+  // Slepen en neerzetten (#771): tijdens een sleep met bestanden ligt de laag over het venster; hij
+  // gaat weg bij het verlaten van het venster en bij loslaten. Een onbekend formaat geeft een melding
+  // en verandert geen document; een IFC-bestand opent in een nieuw tabblad. Playwright kan geen
+  // bestand uit het besturingssysteem slepen: dit zijn DragEvents met een echte DataTransfer.
+  const overlay = page.locator('[data-ops-file-drop-overlay]');
+  const dragged = (name: string, text: string) => page.evaluateHandle(([n, t]) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([t], n));
+    return transfer;
+  }, [name, text] as const);
+  const pdf = await dragged('tekening.pdf', '%PDF-1.7');
+  const dragOverApp = async (dataTransfer: typeof pdf) => {
+    await page.dispatchEvent('body', 'dragenter', { dataTransfer });
+    await page.dispatchEvent('body', 'dragover', { dataTransfer });
+  };
+  await dragOverApp(pdf);
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toContainText('Drop to open');
+  await expect(overlay).toContainText('Project file or import');
+  expect(await pdf.evaluate(transfer => transfer.dropEffect)).toBe('copy');
+  // Verlaten: een verse dragover vlak ervoor, zodat niet de rusttijd (1,5 s) de laag weghaalt.
+  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'dragover', { dataTransfer: pdf });
+  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'dragleave', { dataTransfer: pdf });
+  await expect(overlay).toBeHidden({ timeout: 1000 });
+
+  const beforeDrop = await state(page);
+  await dragOverApp(pdf);
+  await expect(overlay).toBeVisible();
+  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'drop', { dataTransfer: pdf });
+  await expect(overlay).toBeHidden({ timeout: 1000 });
+  const refused = page.locator('.ops-toast', { hasText: 'Not opened: tekening.pdf. The app only opens IFC, XML, MPP, XER and CSV.' });
+  await expect(refused).toBeVisible();
+  expect((await state(page)).documentIds).toEqual(beforeDrop.documentIds);
+  await refused.locator('[data-ops-toast-close]').click();
+
+  // Met een dialoog open: geen laag, en de browser krijgt "niet toegestaan" (dus geen drop).
+  await page.locator('[data-ops-tabstrip] .ops-tabstrip-add').click();
+  await expect(page.locator('[data-ops-new-or-open-project-dialog]')).toBeVisible();
+  const ifc = await dragged('gesleept.ifc', planning);
+  await dragOverApp(ifc);
+  expect(await ifc.evaluate(transfer => transfer.dropEffect)).toBe('none');
+  await expect(overlay).toBeHidden();
+  await page.dispatchEvent('body', 'dragleave', { dataTransfer: ifc });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-ops-new-or-open-project-dialog]')).toBeHidden();
+
+  await dragOverApp(ifc);
+  await expect(overlay).toBeVisible();
+  await page.dispatchEvent('[data-ops-file-drop-overlay]', 'drop', { dataTransfer: ifc });
+  await expect(overlay).toBeHidden({ timeout: 1000 });
+  await expect.poll(() => state(page).then(s => s.documentIds.length)).toBe(beforeDrop.documentIds.length + 1);
+  const afterDrop = await state(page);
+  expect(afterDrop.activeDocumentId).not.toBe(beforeDrop.activeDocumentId);
+  expect(afterDrop.tasks.length).toBeGreaterThan(0);
+  await expect(page.locator('[data-ops-tabstrip]')).toContainText('gesleept');
 });
 
 test('Taak toevoegen selecteert, onthult en richt de nieuwe taak zonder zoomwijziging', async ({ page, ops: _ops }) => {

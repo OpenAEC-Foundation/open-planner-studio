@@ -19,6 +19,18 @@ Een IFC-bestand geeft zijn bestandsnaam aan het tabblad. Een project uit een and
 
 De app opent `.ifc`, `.csv`, `.xml` (MS Project XML of Primavera P6 XML), `.mpp` en `.xer`. Voor de laatste twee staan aparte stappen in [Een MS Project-bestand (.mpp) openen](docs://howto-mpp-openen) en [Een Primavera P6-bestand (.xer) openen](docs://howto-xer-openen).
 
+### Een bestand naar de app slepen
+
+1. Sleep een of meer bestanden vanuit je bestandsbeheer of Finder naar het venster van de app.
+2. Tijdens het slepen ligt er een grijze laag over het venster, met *Laat los om te openen* en *Projectbestand of import*.
+3. Laat de muisknop los. Elk bestand opent zoals bij *Openen*: in een eigen tabblad, in de volgorde waarin je ze sleepte. Het laatste bestand is daarna het actieve tabblad. Was het huidige tabblad leeg en ongewijzigd, dan opent het eerste bestand daarin.
+
+Een project met wijzigingen blijft in zijn eigen tabblad staan; slepen vervangt niets. Een gesleept IFC-bestand werkt daarna als een geopend bestand: *Opslaan* schrijft ernaar, behalve in browsers die alleen downloaden, zoals Firefox.
+
+Een bestand in een formaat dat de app niet kent, zoals een `.pdf`, opent niet. Je ziet dan de melding *Niet geopend: tekening.pdf. De app opent alleen IFC, XML, MPP, XER en CSV.* De andere bestanden uit dezelfde sleep openen gewoon.
+
+Staat er een venster of vraag open, dan opent slepen niets. In de browser toont de muisaanwijzer dan een verbodsteken. In de desktopapp verschijnt de melding *Niet geopend: plan.ifc. Sluit eerst het venster dat openstaat.*
+
 ### Een recent project openen
 
 Kies *Start › Bestand › Recent* en klik op een bestand in de lijst, of kies *Bestand › Recent*. De lijst bewaart de laatste tien bestanden die je opende, opsloeg of exporteerde. Ook hier verschijnt na een bestand dat geen IFC is de uitleg over het formaat. De desktopapp toont bij elk bestand het pad, een browser alleen de naam.

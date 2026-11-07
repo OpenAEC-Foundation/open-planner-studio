@@ -50,6 +50,7 @@ import { isGanttWorkspaceVisible } from '@/state/ganttVisibility';
 import { isOnboardingActive } from '@/state/onboarding';
 import { RecordedDatesNotice } from '@/components/layout/RecordedDatesNotice';
 import { NotificationHost } from '@/components/layout/NotificationHost';
+import { FileDropOverlay } from '@/components/layout/FileDropOverlay';
 import { DOCUMENT_TABPANEL_ID, documentTabId } from '@/components/layout/DocumentChrome/documentTabNavigation';
 
 // Code-splitting: componenten die pas achter een `ui.show*`-vlag, een ribbontab of een
@@ -315,6 +316,8 @@ function AppContent() {
         {/* Gebruikersmeldingen — óók in de presentatiemodus: hier is verder geen
             chrome, dus een stille opslaafout mag juist niet onzichtbaar worden. */}
         <NotificationHost />
+        {/* Slepen en neerzetten: ook hier, anders opent de browser een gesleept bestand zelf. */}
+        <FileDropOverlay />
       </div>
     );
   }
@@ -521,6 +524,10 @@ function AppContent() {
         <NotificationHost />
         <TooltipHost />
       </div>
+
+      {/* Slepen en neerzetten (#771): de laag "Laat los om te openen". Buiten het `inert`-blok: een
+          inert element krijgt geen sleep-events. */}
+      <FileDropOverlay />
     </div>
   );
 }

@@ -6,7 +6,8 @@
 //  C. Desktop: `droppedFilesFromPaths` leest via dezelfde kern als de open-dialoog (pad als ref).
 //  D. `openDroppedFiles` tegen de echte store: volgorde, een project met wijzigingen blijft staan, een
 //     leeg tabblad wordt hergebruikt, geweigerde formaten worden nooit gelezen, een leesfout stopt de
-//     rest niet, en de poort (zoals Ctrl+O) wordt één keer gevraagd.
+//     rest niet, en de poort (zoals Ctrl+O) wordt één keer gevraagd. Geen bestand verdwijnt zonder
+//     melding: een onbekend formaat en een dichte poort geven elk één melding met de namen.
 //
 // Draait via run.sh. Exit 0 = alles groen.
 
@@ -20,7 +21,7 @@ const {
   dragCarriesFiles, droppedFilesFromDataTransfer, droppedFilesFromPaths, splitDroppedFiles,
 } = await import('@/services/fileAccess/fileDrop');
 type DroppedFile = import('@/services/fileAccess/fileDrop').DroppedFile;
-const { openDroppedFiles } = await import('@/state/fileDrop');
+const { openDroppedFiles, fileNameList } = await import('@/state/fileDrop');
 const { useAppStore } = await import('@/state/appStore');
 const { writeIFC } = await import('@/services/ifc/ifcWriter');
 const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -63,14 +64,17 @@ check(!dragCarriesFiles(null), 'geen DataTransfer telt niet');
     { kind: 'file', getAsFile: () => xerFile, getAsFileSystemHandle: () => { handleCalls++; return Promise.reject(new Error('geweigerd')); } },
     { kind: 'file', getAsFile: () => null, getAsFileSystemHandle: () => { handleCalls++; return Promise.resolve(null); } },
     { kind: 'file', getAsFile: () => csvFile, getAsFileSystemHandle: () => { handleCalls++; return Promise.resolve({ kind: 'directory', name: 'x' }); } },
+    // Een browser die synchroon gooit (bijv. een DataTransfer die niet uit een echte sleep komt).
+    { kind: 'file', getAsFile: () => ifcFile, getAsFileSystemHandle: () => { handleCalls++; throw new Error('InvalidStateError'); } },
   ];
   const dropped = droppedFilesFromDataTransfer({ types: ['Files'], items: items as never });
-  check(handleCalls === 3, `de handles zijn synchroon gevraagd, één per item met een bestand (${handleCalls})`);
-  check(same(dropped.map((f) => f.name), ['plan.ifc', 'p6.xer', 'lijst.csv']), 'tekst- en lege items vallen weg, volgorde blijft');
-  const [ifc, xer, csv] = await Promise.all(dropped.map((f) => f.read()));
+  check(handleCalls === 4, `de handles zijn synchroon gevraagd, één per item met een bestand (${handleCalls})`);
+  check(same(dropped.map((f) => f.name), ['plan.ifc', 'p6.xer', 'lijst.csv', 'plan.ifc']), 'tekst- en lege items vallen weg, volgorde blijft');
+  const [ifc, xer, csv, thrown] = await Promise.all(dropped.map((f) => f.read()));
   check(ifc.content === 'ISO-10303-21;' && ifc.ref?.kind === 'handle' && ifc.ref.handle === (ifcHandle as unknown), 'IFC: tekst, met de bestandshandle als ref');
   check(xer.content === '' && same(Array.from(xer.bytes ?? []), Array.from(xerBytes)) && xer.ref === null, 'XER: bytes; een geweigerde handle geeft ref null');
   check(csv.content === 'Name\n' && csv.ref === null, 'een maphandle is geen opslagdoel');
+  check(thrown.content === 'ISO-10303-21;' && thrown.ref === null, 'een handlevraag die synchroon gooit: het bestand komt toch, zonder ref');
 
   const fromFiles = droppedFilesFromDataTransfer({ types: ['Files'], items: [], files: [ifcFile] });
   check(fromFiles.length === 1 && (await fromFiles[0].read()).ref === null, 'zonder items (oudere browser): de bestandslijst, zonder ref');
@@ -118,6 +122,10 @@ function dropFile(name: string, content: string | Error): DroppedFile {
   };
 }
 const documentNames = () => S().getOpenDocuments().map((d) => d.title);
+const noticesOf = (key: string) => S().ui.notifications.filter((n) => n.messageKey === key);
+
+check(fileNameList(['a.pdf']) === 'a.pdf' && fileNameList(['1', '2', '3', '4', '5']) === '1, 2, 3, 4, 5'
+  && fileNameList(['1', '2', '3', '4', '5', '6', '7']) === '1, 2, 3, 4, 5, …', 'de namen in de melding: hoogstens vijf');
 
 {
   // Een project met wijzigingen staat open.
@@ -143,6 +151,23 @@ const documentNames = () => S().getOpenDocuments().map((d) => d.title);
   check(S().getOpenDocumentPayloads().some(({ payload }) => payload.project.name === 'Sleep-A' && payload.filePath === 'a.ifc'),
     'het IFC-bestand kreeg zijn opslagdoel (zoals Bestand → Openen)');
   check(S().filePath === null, 'het CSV-bestand kreeg geen opslagdoel (zoals Bestand → Openen)');
+  const refusedNotes = noticesOf('notifications.fileDropRefused');
+  check(refusedNotes.length === 1 && refusedNotes[0].severity === 'error' && refusedNotes[0].params?.names === 'tekening.pdf'
+    && refusedNotes[0].helpArticleId === 'howto-bestand-openen-en-opslaan',
+  `het onbekende formaat is gemeld, met de naam en de gids (${JSON.stringify(refusedNotes)})`);
+}
+
+{
+  // Alleen onbekende formaten: niets gelezen of geopend, wel één melding met alle namen.
+  for (const n of [...S().ui.notifications]) S().dismissNotification(n.id);
+  const before = documentNames();
+  reads.length = 0;
+  const outcome = await openDroppedFiles(useAppStore, [dropFile('tekening.pdf', 'x'), dropFile('notities', 'y')], labels, () => false);
+  const refusedNotes = noticesOf('notifications.fileDropRefused');
+  check(reads.length === 0 && same(documentNames(), before) && same(outcome.refused, ['tekening.pdf', 'notities']),
+    'alleen onbekende formaten: niets gelezen of geopend');
+  check(refusedNotes.length === 1 && refusedNotes[0].params?.names === 'tekening.pdf, notities',
+    `één melding voor alle onbekende bestanden (${JSON.stringify(refusedNotes.map((n) => n.params))})`);
 }
 
 {
@@ -161,6 +186,9 @@ const documentNames = () => S().getOpenDocuments().map((d) => d.title);
   reads.length = 0;
   const outcome = await openDroppedFiles(useAppStore, [dropFile('a.ifc', ifcA)], labels, () => true);
   check(outcome.blocked && reads.length === 0 && same(documentNames(), before), 'poort dicht: niets gelezen of geopend');
+  const blockedNotes = noticesOf('notifications.fileDropBlocked');
+  check(blockedNotes.length === 1 && blockedNotes[0].severity === 'error' && blockedNotes[0].params?.names === 'a.ifc',
+    `poort dicht: één melding met de naam (${JSON.stringify(blockedNotes)})`);
   const empty = await openDroppedFiles(useAppStore, [], labels, () => { throw new Error('niet vragen'); });
   check(!empty.blocked && empty.opened.length === 0, 'geen bestanden: de poort wordt niet gevraagd');
 }

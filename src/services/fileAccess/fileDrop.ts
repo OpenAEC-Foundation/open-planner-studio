@@ -30,6 +30,18 @@ export function dragCarriesFiles(dt: Pick<DataTransferLike, 'types'> | null | un
   return !!dt && Array.from(dt.types).includes('Files');
 }
 
+/** De handle van een gesleept bestand, of `null`. De `catch` voorkomt een onafgehandelde weigering
+ *  voor een bestand dat nooit gelezen wordt; de `try` vangt een browser die synchroon gooit (bijv.
+ *  een `DataTransfer` die niet uit een echte sleep komt). */
+function handleOf(item: Pick<DataTransferItem, 'getAsFileSystemHandle'>): Promise<FileSystemHandle | null> {
+  if (typeof item.getAsFileSystemHandle !== 'function') return Promise.resolve(null);
+  try {
+    return item.getAsFileSystemHandle().catch(() => null);
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
 function webDroppedFile(file: File, handle: Promise<FileSystemHandle | null>): DroppedFile {
   return {
     name: file.name,
@@ -58,11 +70,7 @@ export function droppedFilesFromDataTransfer(dt: DataTransferLike): DroppedFile[
       if (item.kind !== 'file') continue;
       const file = item.getAsFile();
       if (!file) continue;
-      const handle = typeof item.getAsFileSystemHandle === 'function'
-        // De `catch` voorkomt een onafgehandelde weigering voor een bestand dat nooit gelezen wordt.
-        ? item.getAsFileSystemHandle().catch(() => null)
-        : Promise.resolve(null);
-      out.push(webDroppedFile(file, handle));
+      out.push(webDroppedFile(file, handleOf(item)));
     }
     return out;
   }
