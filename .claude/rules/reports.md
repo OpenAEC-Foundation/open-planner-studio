@@ -80,4 +80,10 @@ niet uit de string maar tekent met de bytes die de pagineerder inbedt: geef `pag
 de bytes van dezelfde letter, plus `fallbackFonts` (Inter) voor tekens die die letter mist — zonder
 terugval valt de hele PDF om één `≤` of één Cyrillische naam terug op raster. De subsetter (`subsetFont`
 uit `hbSubset.ts`) komt als optie binnen, zodat de pagineerder headless te bundelen is; bewaking:
-`tests/planning/check-report-font.ts`.
+`tests/planning/check-report-font.ts`. De keuzelijst *Lettertype* (`ReportFontSelect`, naast Papier en
+Oriëntatie, dus ook in `TableReportOptionsBlock`) kiest één id uit het vaste setje `REPORT_FONTS` in
+`reportFont.ts` (Inter, Liberation Sans, Carlito, Liberation Serif; besluit Ethan 2026-11-07), bewaard
+als `reportFontFamily` in `ops-reportSettings` — nooit in het IFC-bestand. Uit die id volgen de
+canvas-stack (`reportFontStack`: de letter, dan `InterPDF`), de DOM-stack van de tabelrapporten
+(`reportDomFontStack`, via `reportFontStyle` op de kaart) en de bytes (`getReportFontBytes`); laden
+via `ensureReportFontLoaded(id)`, dat nooit afwijst. Een nieuwe letter: zie `src/services/pdf/fonts/README.md`.

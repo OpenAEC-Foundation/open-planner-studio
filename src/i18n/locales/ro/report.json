@@ -32,6 +32,7 @@
   "repeatHeader": "Repetare antet pe fiecare pagină",
   "repeatFooter": "Repetare subsol pe fiecare pagină",
   "reportFontScaleLabel": "Dimensiune text:",
+  "reportFontFamilyLabel": "Font:",
   "timelineColumnsLabel": "Cronologie pe:",
   "timelineColumnsHint": "Doar la potrivire automată",
   "timelineColumns_one": "{{count}} pagină",
@@ -439,5 +440,11 @@
       "riskHeading": "Activități cu risc: întârziate sau cu marjă negativă",
       "riskEmpty": "Nu există activități întârziate și nicio marjă negativă."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (implicit)",
+    "liberationSans": "Liberation Sans (ca Arial)",
+    "carlito": "Carlito (ca Calibri)",
+    "liberationSerif": "Liberation Serif (ca Times New Roman)"
   }
 }

@@ -14,7 +14,11 @@
  *      sectierapporten en de meethulpen van het paneel (meten en tekenen op dezelfde letter);
  *   B. de vector-pagineerder, headless met de echte TTF's: een letter zonder Cyrillisch faalt zonder
  *      terugval, en slaagt mét terugval doordat alleen de ontbrekende tekens uit Inter komen; met
- *      Inter als rapportletter verandert er niets, ook niet als de terugval meegegeven wordt.
+ *      Inter als rapportletter verandert er niets, ook niet als de terugval meegegeven wordt;
+ *   C. het vaste setje van de keuzelijst *Lettertype*: elk bestand is er en is leesbaar, elke letter
+ *      dekt zelf alle letters van de Latijnse en Cyrillische app-talen, en met elke letter maakt de
+ *      echte pagineerder zonder fout een vector-PDF (Gantt, tabelrapport, Arabisch van rechts naar
+ *      links), met die letter als F0/F1 en alleen een ontbrekend symbool uit Inter.
  *
  * Testletter: Noto Sans Arabic uit de repo, als "rapportletter" die alleen cijfers en leestekens
  * dekt — geen Latijnse letters, geen Cyrillisch, geen `≤`. Zo komt in één tekst een deel uit de
@@ -34,7 +38,10 @@ import {
 } from '@/services/print/printPreview';
 import { makeSectionedRenderReport, makeTableRenderReport, type PdfSectionedReportSpec } from '@/services/pdf/pdfTable';
 import { paginateVectorToPdfBytes, VectorUnsupportedError, type ReportFontBytes } from '@/services/print/paginateVector';
-import { DEFAULT_REPORT_FONT_STACK } from '@/services/pdf/reportFont';
+import fontkit from '@pdf-lib/fontkit';
+import {
+  DEFAULT_REPORT_FONT_ID, DEFAULT_REPORT_FONT_STACK, REPORT_FONT_IDS, REPORT_FONTS, reportDomFontStack, reportFontStack,
+} from '@/services/pdf/reportFont';
 import { readIFC } from '@/services/ifc/ifcReader';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 
@@ -247,6 +254,107 @@ const CYRILLIC_TITLE = 'Фундамент — график';
   ok(r.pages >= 2, `B5 Gantt op A4 heeft maar ${r.pages} pagina('s)`);
   ok(r.fonts.filter(f => f.includes('NotoSansArabic')).length === 2 && r.fonts.filter(f => f.includes('Inter')).length === 2,
     `B5 Gantt heeft niet 2× de smalle letter + 2× Inter: ${r.fonts.join(', ')}`);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// C. Het vaste setje van de keuzelijst *Lettertype* (issue #770, besluit Ethan 7 november 2026): elke
+// letter is een ongewijzigd upstreambestand in `src/services/pdf/fonts/`, onder de namen uit
+// `REPORT_FONTS` — dezelfde namen die `fontLoader.ts` in de app ophaalt.
+console.log('── C. elke letter uit het vaste setje');
+
+/** De talen van de app met een Latijns of Cyrillisch schrift: daar draagt de rapportletter zelf de tekst.
+ *  Arabisch/Perzisch (Noto Sans Arabic), CJK (fontproviders) en Lao lopen via de terugvalketen. */
+const OWN_SCRIPT_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'it', 'pt', 'pl', 'tr', 'ru', 'uk', 'cs', 'sk', 'sr', 'hr', 'bg', 'hu', 'ro', 'sv', 'nb', 'da', 'fi'];
+/** Alle LETTERS (Unicode-categorie L) in de teksten van die talen. Bewust alleen letters: een
+ *  symbool (✓, ⌘) dat een vertaler toevoegt mag uit Inter komen, maar een woord in het Pools of
+ *  Servisch mag nooit letters uit twee lettertypen mengen. */
+const appLetters = (() => {
+  const letters = new Map<number, string>();
+  const walk = (v: unknown, loc: string) => {
+    if (typeof v === 'string') { for (const ch of v) if (/\p{L}/u.test(ch)) letters.set(ch.codePointAt(0)!, loc); }
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) walk(x, loc);
+  };
+  for (const loc of OWN_SCRIPT_LOCALES) {
+    for (const ns of ['common', 'task', 'report', 'menu']) {
+      walk(JSON.parse(readFileSync(join(ROOT, `src/i18n/locales/${loc}/${ns}.json`), 'utf8')), loc);
+    }
+  }
+  return letters;
+})();
+ok(appLetters.size > 150, `C0 te weinig letters uit de taalbestanden gelezen (${appLetters.size})`);
+
+ok(REPORT_FONT_IDS[0] === DEFAULT_REPORT_FONT_ID && DEFAULT_REPORT_FONT_ID === 'inter', `C0 standaardletter is niet Inter: ${DEFAULT_REPORT_FONT_ID}`);
+ok(reportFontStack('inter') === OLD_STACK, `C0 stack van 'inter' wijkt af van de oude stack: ${reportFontStack('inter')}`);
+ok(reportDomFontStack('inter') === 'InterPDF, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  `C0 DOM-stack van 'inter': ${reportDomFontStack('inter')}`);
+ok(new Set(REPORT_FONT_IDS.map(id => REPORT_FONTS[id].family)).size === REPORT_FONT_IDS.length, 'C0 twee letters delen een familienaam');
+
+/** Een Gantt met een taaknaam uit vijf talen plus een vinkje, dat geen van de drie nieuwe letters heeft. */
+// Het vinkje vooraan: de naamkolom kapt een lange naam achteraan af.
+const MIXED_NAME = '✓ Fundering ąęłńśźż ğış țș őű čřž Фундамент Ђурђевић';
+const mixedTasks = project.tasks.map((t, i) => (i === 0 ? { ...t, name: MIXED_NAME } : t));
+const ganttWith = (stack: string) => (make: (w: number, h: number) => Draw2D, footerLayoutWidth?: number) =>
+  renderReport(make, mixedTasks, project.sequences, project.calendar, project.project.name, baseOptions({ fontFamily: stack, footerLayoutWidth }));
+const arabicSpec: PdfSectionedReportSpec = {
+  ...sectioned('مخطط المشروع — Kantoorgebouw'),
+  sections: [{ ...sectioned('x').sections[0], rows: [{ n: 'أعمال الأساسات' }, { n: 'Fundering' }] }],
+};
+
+for (const id of REPORT_FONT_IDS) {
+  const def = REPORT_FONTS[id];
+  let bytes: ReportFontBytes;
+  try {
+    bytes = { regular: ttf(`src/services/pdf/fonts/${def.files.regular}`), bold: ttf(`src/services/pdf/fonts/${def.files.bold}`) };
+  } catch (e) {
+    fail(`C1 ${id}: fontbestand ontbreekt (${String(e)})`);
+    continue;
+  }
+  // C1. fontkit leest beide gewichten, en de letter dekt zelf elke letter van de eigen-schrifttalen.
+  const regularFk = fontkit.create(bytes.regular);
+  const boldFk = fontkit.create(bytes.bold);
+  for (const [weight, fk] of [['regular', regularFk], ['bold', boldFk]] as const) {
+    const missing = [...appLetters].filter(([cp]) => !fk.hasGlyphForCodePoint(cp));
+    ok(missing.length === 0, `C1 ${id} ${weight} mist letters uit de app-talen: ${missing.map(([cp, loc]) => `${String.fromCodePoint(cp)} (${loc})`).join(', ')}`);
+  }
+  const stack = reportFontStack(id);
+  ok(stack.startsWith(id === 'inter' ? 'InterPDF' : `"${def.family}", InterPDF`), `C1 ${id}: stack begint niet met de letter en dan Inter: ${stack}`);
+
+  const fallbackFonts = id === 'inter' ? [] : [{ id: 'inter', bytes: INTER }];
+  const isMain = (ps: string | null) => (f: string) => ps !== null && new RegExp(`^/([A-Z]{6}\\+)?${ps}$`).test(f);
+  const mainCount = (fonts: string[]) => fonts.filter(isMain(regularFk.postscriptName)).length + fonts.filter(isMain(boldFk.postscriptName)).length;
+  try {
+    // C2. Gantt-afdruk: vector, meerpagina, F0/F1 is de gekozen letter, en het vinkje komt uit Inter.
+    subsetCalls.length = 0;
+    const gantt = await inspect(await paginateVectorToPdfBytes(
+      ganttWith(stack),
+      { paperSize: 'a4', orientation: 'landscape', mode: 'fit-width', repeatHeader: true, repeatFooter: true, subsetFont, fallbackFonts },
+      bytes, ARABIC,
+    ));
+    ok(gantt.pages >= 2, `C2 ${id}: Gantt op A4 heeft maar ${gantt.pages} pagina('s)`);
+    ok(mainCount(gantt.fonts) === 2, `C2 ${id}: Gantt bedt de letter niet in als regular + bold: ${gantt.fonts.join(', ')}`);
+    ok(/\/F0 [\d.]+ Tf/.test(gantt.page1), `C2 ${id}: pagina 1 tekent niets met de rapportletter F0`);
+    if (id === 'inter') {
+      ok(gantt.fonts.length === 2 && subsetCalls.length === 0, `C2 inter: extra fonts of subsets: ${gantt.fonts.join(', ')} (${subsetCalls.length}× subset)`);
+    } else {
+      const fromInter = new Set(subsetCalls.flat());
+      ok(gantt.fonts.length === 4 && fromInter.has(0x2713), `C2 ${id}: het vinkje komt niet uit Inter: ${gantt.fonts.join(', ')}; subset ${[...fromInter].map(cp => cp.toString(16)).join(',')}`);
+      const ownLetters = [...fromInter].filter(cp => /\p{L}/u.test(String.fromCodePoint(cp)));
+      ok(ownLetters.length === 0, `C2 ${id}: letters uit de taaknaam komen uit Inter in plaats van de rapportletter: ${ownLetters.map(cp => String.fromCodePoint(cp)).join('')}`);
+    }
+
+    // C3. Tabelrapport (Cyrillische titel, ≤ in de ondertitel) en een Arabisch rapport van rechts naar links.
+    const table = await inspect(await paginateVectorToPdfBytes(
+      makeSectionedRenderReport(sectioned(CYRILLIC_TITLE), undefined, stack), { ...tableOpts, fallbackFonts }, bytes, ARABIC,
+    ));
+    ok(mainCount(table.fonts) === 2, `C3 ${id}: tabelrapport bedt de letter niet in: ${table.fonts.join(', ')}`);
+    const rtl = await inspect(await paginateVectorToPdfBytes(
+      makeSectionedRenderReport(arabicSpec, undefined, stack), { ...tableOpts, baseDir: 'rtl', fallbackFonts }, bytes, ARABIC,
+    ));
+    ok(mainCount(rtl.fonts) === 2 && rtl.fonts.some(f => f.includes('NotoSansArabic')),
+      `C3 ${id}: Arabisch rapport mist de letter of Noto Sans Arabic: ${rtl.fonts.join(', ')}`);
+  } catch (e) {
+    fail(`C2/C3 ${id}: de vector-PDF faalt: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 if (failures > 0) {

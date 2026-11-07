@@ -32,6 +32,7 @@
   "repeatHeader": "Gjenta topptekst på hver side",
   "repeatFooter": "Gjenta bunntekst på hver side",
   "reportFontScaleLabel": "Skriftstørrelse:",
+  "reportFontFamilyLabel": "Skrifttype:",
   "timelineColumnsLabel": "Tidslinje over:",
   "timelineColumnsHint": "Bare ved autotilpasning",
   "timelineColumns_one": "{{count}} side",
@@ -434,5 +435,11 @@
       "riskHeading": "Aktiviteter i risiko: for sent eller negativ slakk",
       "riskEmpty": "Ingen aktiviteter for sent og ingen negativ slakk."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (standard)",
+    "liberationSans": "Liberation Sans (som Arial)",
+    "carlito": "Carlito (som Calibri)",
+    "liberationSerif": "Liberation Serif (som Times New Roman)"
   }
 }

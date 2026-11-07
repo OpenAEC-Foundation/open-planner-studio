@@ -1980,6 +1980,7 @@
     "repeatHeader": "4799eb8f9747f595",
     "repeatFooter": "39481554004d452b",
     "reportFontScaleLabel": "3dc4800c6614f82d",
+    "reportFontFamilyLabel": "2620953b9ceb0f12",
     "timelineColumnsLabel": "051289bf795e6c29",
     "timelineColumnsHint": "217bb5a8f81e442b",
     "timelineColumns": "dbfb16aac57bdc74",
@@ -2337,7 +2338,11 @@
     "tableReports.progressCurve.noBaselineNote": "03e86f8d184be237",
     "tableReports.progressCurve.noProgressNote": "6f46d0a6ba421611",
     "tableReports.progressCurve.riskHeading": "d6b6cd3a7d3a8f71",
-    "tableReports.progressCurve.riskEmpty": "7d7592edfd22cd5a"
+    "tableReports.progressCurve.riskEmpty": "7d7592edfd22cd5a",
+    "reportFontFamily.liberationSans": "05e2a9d626eaae43",
+    "reportFontFamily.carlito": "ccd5b419ee928080",
+    "reportFontFamily.liberationSerif": "a752f0d273ffc10e",
+    "reportFontFamily.inter": "02cbd34d883e5c14"
   },
   "menu": {
     "ribbon.start": "e9fe5cc8014381f0",
