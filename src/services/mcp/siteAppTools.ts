@@ -163,9 +163,19 @@ export const SITE_APP_REAL_ID_JSON_CHARS = 29;
 /** Vaste ruimte van het compacte rapport voor één aanroep: envelop (titel en notities ingekort), uitleg, aantallen. */
 export const SITE_APP_REPORT_BASE_CHARS = 4_000;
 
-/** Vaste ruimte per batchstap in het rapport, naast de naam van de tool (`step`, `status`, `omitted`, de haakjes
- *  van een koppelingsveld). */
-export const SITE_APP_REPORT_STEP_CHARS = 100;
+/** Vaste ruimte per batchstap in het rapport, naast de naam van de tool: `step`, `status`, de losse waarden van de
+ *  stap (zoals `projectEnd`), de haakjes van `links` en een regel in `compacted.shortened`. Getoetst in
+ *  tests/mcp/cases-site-app-tools.ts (`assertShellsFit`: het geraamte van elke stap in batches op het maximum van de
+ *  voorcontrole). Een tool met een groter geraamte krijgt extra ruimte in `SITE_APP_STEP_EXTRA_CHARS`. */
+export const SITE_APP_REPORT_STEP_CHARS = 220;
+
+/** Extra vaste ruimte voor een batchstap van een tool met een groot geraamte: losse waarden die niet krimpen, plus de
+ *  regels in `compacted.shortened` voor zijn verzamelingen. Gemeten in tests/mcp/cases-site-app-tools.ts
+ *  (`assertShellsFit`): planner_level_resources heeft een geraamte van 264 tekens en tot zes verzamelingen. */
+export const SITE_APP_STEP_EXTRA_CHARS: Readonly<Record<string, number>> = { planner_level_resources: 250 };
+
+/** De vaste ruimte voor één batchstap van `tool` in de voorcontrole. */
+export const siteAppStepReserve = (tool: string) => SITE_APP_REPORT_STEP_CHARS + tool.length + (SITE_APP_STEP_EXTRA_CHARS[tool] ?? 0);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -180,17 +190,17 @@ interface IdLinkTool {
   labels(args: unknown): string[];
   /** Het veld van `data` waarin de koppelingen staan. */
   field: 'created' | 'calendars';
-  /** Bij een lijstveld: de koppeling uit één regel (`{requestedId, id}`), of niets als de regel er geen is. Zo'n
-   *  regel blijft bij het inkorten van de lijst altijd staan, zo nodig alleen als koppeling. */
+  /** Bij een lijstveld: de koppeling uit één regel (`{requestedId, id}`), of niets als de regel er geen is. De
+   *  koppelingen komen bij het inkorten uit de oorspronkelijke regels en staan apart in `links`. */
   linkOf?(entry: unknown): unknown;
   /** Vaste JSON-tekens per koppeling, naast het label en het id. */
   perLink: number;
 }
 
 /**
- * De tools die zo'n koppeling teruggeven, nagelopen in november 2026 (#825, ronde 3 tot 5). Geen automatische
+ * De tools die zo'n koppeling teruggeven, nagelopen in november 2026 (#825, ronde 3 tot 6). Geen automatische
  * vangst: een nieuwe aanmaaktool met een eigen label moet hier bij. Vergeet je er een, dan telt hij niet mee in de
- * controle vooraf, en kan een lange lijst met zijn koppelingen bij het inkorten regels verliezen.
+ * controle vooraf, en krijgt hij bij het inkorten geen aparte `links`: zijn koppelingen kunnen dan regels verliezen.
  * `tests/mcp/cases-site-app-tools.ts` toetst per tool de echte invoer en de bewaarde uitvoer, direct en in een batch.
  *   - `planner_add_tasks`: `created` (`tempId` → taak-id);
  *   - `planner_manage_resources`: `created` (`tempId` → resource-id, alleen bij `action: "create"`);
@@ -236,7 +246,7 @@ function plannedCalls(name: string, args: unknown): { tool: string; args: unknow
 function linksTooLarge(name: string, args: unknown): SiteAppToolError | null {
   const calls = plannedCalls(name, args);
   const reserve = SITE_APP_REPORT_BASE_CHARS +
-    (name === 'planner_batch' ? calls.reduce((sum, c) => sum + SITE_APP_REPORT_STEP_CHARS + c.tool.length, 0) : 0);
+    (name === 'planner_batch' ? calls.reduce((sum, c) => sum + siteAppStepReserve(c.tool), 0) : 0);
   let links = 0;
   let bound = 0;
   for (const call of calls) {
@@ -257,11 +267,6 @@ function linksTooLarge(name: string, args: unknown): SiteAppToolError | null {
       `at most ${max} new items with these labels per call (shorter labels allow more), in several calls.`,
   );
 }
-
-const clip = (text: unknown, max: number): string => {
-  const value = typeof text === 'string' ? text : JSON.stringify(text) ?? '';
-  return value.length > max ? `${value.slice(0, max)}…` : value;
-};
 
 
 // --- Foutantwoorden ------------------------------------------------------------------------------
@@ -297,149 +302,182 @@ function boundedFailure(code: string, error: string): SiteAppToolError {
 
 interface BatchStep { step: number; tool: string; status: string; data?: unknown; error?: string }
 
-/** Een lijst in het antwoord die bij het inkorten regels mag verliezen (de eerste blijven), met wat er blijft. */
-interface Shrinkable {
-  /** Waar de lijst staat, voor `compacted.shortened`. */
+/** De koppelingen label → id uit de OORSPRONKELIJKE uitvoer van één tool, of niets. */
+function linksFrom(tool: string, data: unknown): Record<string, unknown> | undefined {
+  const links = SITE_APP_ID_LINK_TOOLS[tool];
+  if (!links || !isRecord(data)) return undefined;
+  const value = data[links.field];
+  if (links.linkOf) {
+    const pairs = Array.isArray(value) ? value.map((row) => links.linkOf!(row)).filter((pair) => pair !== undefined) : [];
+    return pairs.length > 0 ? { [links.field]: pairs } : undefined;
+  }
+  return isRecord(value) ? { [links.field]: value } : undefined;
+}
+
+/** Is deze aanroep een leesvariant? `readOnlyHint`, `kind: 'read'`, of `dryRun: true` bij een tool die dat kent. */
+function isReadCall(def: McpToolDef | undefined, args: unknown): boolean {
+  if (!def) return false;
+  if (def.annotations.readOnlyHint || def.kind === 'read') return true;
+  const properties = (def.inputSchema as { properties?: Record<string, unknown> }).properties ?? {};
+  return 'dryRun' in properties && isRecord(args) && args.dryRun === true;
+}
+
+/** Een verzameling in het antwoord: een lijst, of een object met veel sleutels die id's zijn (een map per taak-id). */
+interface Collection {
   path: string;
-  into: Record<string, unknown>;
-  key: string;
-  list: unknown[];
-  /** Per regel: de koppeling die altijd blijft (bij `linkOf`), anders niets. */
-  linkOf?: (entry: unknown) => unknown;
+  holder: Record<string, unknown> | unknown[];
+  key: string | number;
+  value: unknown[] | Record<string, unknown>;
+  size: number;
+}
+
+/** Een object is een map (en dus een verzameling) als het minstens 5 sleutels heeft en elke sleutel een cijfer bevat,
+ *  zoals taak-id's (`task-…12`). Gewone veldnamen hebben geen cijfers; zo'n object wordt nooit ingekort. */
+const isIdMap = (value: Record<string, unknown>) => {
+  const keys = Object.keys(value);
+  return keys.length >= 5 && keys.every((key) => /\d/.test(key));
+};
+
+/** Alle verzamelingen in `node`, op elke diepte. `steps` (de stapregels van een batch) en `links` doen niet mee. */
+function collections(node: unknown, path: string, holder: Record<string, unknown> | unknown[] | null, key: string | number, out: Collection[]): void {
+  if (Array.isArray(node)) {
+    if (holder && path !== 'data.steps') out.push({ path, holder, key, value: node, size: sizeOf(node) });
+    node.forEach((child, i) => collections(child, `${path}[${i}]`, node, i, out));
+  } else if (isRecord(node)) {
+    if (path.endsWith('.links') || path === 'data.compacted') return;
+    if (holder && isIdMap(node)) out.push({ path, holder, key, value: node, size: sizeOf(node) });
+    for (const [k, child] of Object.entries(node)) collections(child, path ? `${path}.${k}` : k, node, k, out);
+  }
 }
 
 /**
- * Het compacte rapport van een te groot wijzigingsantwoord. Uit het antwoord van een wijzigende tool valt GEEN veld
- * weg: de wijziging is gedaan, en wat het antwoord erover zegt (overgangen, gewiste waarden, waarschuwingen) is
- * later vaak niet meer terug te lezen.
- *   1. Weg: alleen de uitvoer van leesstappen in een batch (`readOnlyHint`; de assistent leest die opnieuw).
- *   2. Past het dan nog niet: de lange lijsten in de wijzigingsantwoorden (in `data`, in elke batchstap, de
- *      restwerkcorrecties in de envelop en de deelweigeringen) houden hun eerste regels, eerlijk verdeeld: elke lijst
- *      regel voor regel om de beurt, zolang het past. `compacted.shortened` noemt per lijst het totaal en het aantal
- *      weggelaten regels. Een koppeling label → id blijft altijd (`created` is geen lijst; een kalenderregel met
- *      `created: true` blijft zo nodig als `{requestedId, id}`).
- *   3. Eén eindcontrole op het hele antwoord. Past het dan nog niet (alleen bij heel lange losse teksten), dan het
- *      geraamte: de status per stap en de koppelingen.
+ * Het compacte antwoord bij een te groot wijzigingsantwoord. Uit het antwoord van een wijzigende tool valt geen veld
+ * weg; alleen verzamelingen worden korter.
+ *   1. De koppelingen label → id komen uit de OORSPRONKELIJKE uitvoer en staan apart (`links`, direct in `data` of
+ *      per batchstap). Ze doen niet mee met inkorten. `created` verhuist daarheen; kalenderregels blijven ook staan.
+ *   2. Een leesvariant in een batch (`isReadCall`) verliest haar uitvoer (`readOutputOmitted: true`).
+ *   3. Zolang het niet past: de GROOTSTE verzameling in het hele antwoord, op welke diepte ook, houdt haar eerste
+ *      regels of sleutels. Een verzameling is een lijst of een map per id (`isIdMap`). `compacted.shortened` noemt per
+ *      pad het totaal en het aantal weggelaten regels. Losse waarden blijven altijd; zo blijven kleine meldingen
+ *      (`phaseTransitions`, `becameLiteral`, `clearedLagMinutes`) staan terwijl de bulk krimpt.
+ *   4. Is er geen verzameling meer om in te korten en past het nog niet, dan worden lange losse teksten ingekort
+ *      (ook in `shortened`). Er verdwijnt geen veld. De voorcontrole (`linksTooLarge`) houdt de koppelingen en de
+ *      vaste ruimte per aanroep binnen het budget.
  */
-function compactChange(name: string, result: McpToolOk, chars: number, getDef: (tool: string) => McpToolDef | undefined): McpToolOk {
-  const envelope: Record<string, unknown> = { ...result.envelope };
-  const data: Record<string, unknown> = isRecord(result.data) ? { ...result.data } : { value: result.data };
-  const top: { itemRejections?: unknown[] } = result.itemRejections ? { itemRejections: [...result.itemRejections] } : {};
-  const shrinkables: Shrinkable[] = [];
-  /** De lijsten van één wijzigingsantwoord (`data` direct, of van een batchstap); kopieën, zodat inkorten kan. */
-  const collect = (tool: string, into: Record<string, unknown>, path: string) => {
-    const links = SITE_APP_ID_LINK_TOOLS[tool];
-    for (const [key, value] of Object.entries(into)) {
-      if (!Array.isArray(value)) continue;
-      into[key] = [...value];
-      shrinkables.push({ path: `${path}${key}`, into, key, list: value, linkOf: links?.field === key ? links.linkOf : undefined });
-    }
+function compactChange(
+  name: string,
+  args: unknown,
+  result: McpToolOk,
+  chars: number,
+  getDef: (tool: string) => McpToolDef | undefined,
+): McpToolOk {
+  const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+  const answer: { ok: true; envelope: Record<string, unknown>; data: Record<string, unknown>; itemRejections?: unknown[] } = {
+    ok: true,
+    envelope: clone(result.envelope) as unknown as Record<string, unknown>,
+    data: isRecord(result.data) ? clone(result.data) : { value: clone(result.data) },
+    ...(result.itemRejections ? { itemRejections: clone(result.itemRejections) } : {}),
   };
   let readSteps = 0;
-  if (name === 'planner_batch' && Array.isArray(data.steps)) {
-    data.steps = (data.steps as BatchStep[]).map((step) => {
-      if (step.data !== undefined && getDef(step.tool)?.annotations.readOnlyHint) {
+  const moveLinks = (tool: string, original: unknown, into: Record<string, unknown>, data: Record<string, unknown> | undefined) => {
+    const links = linksFrom(tool, original);
+    if (!links) return;
+    into.links = links;
+    if (data && SITE_APP_ID_LINK_TOOLS[tool]?.field === 'created') delete data.created; // verhuisd, niet weg
+  };
+  if (name === 'planner_batch' && Array.isArray(answer.data.steps)) {
+    const callArgs = listIn(args, 'steps');
+    const originals = (isRecord(result.data) && Array.isArray(result.data.steps) ? result.data.steps : []) as BatchStep[];
+    answer.data.steps = (answer.data.steps as BatchStep[]).map((step, i) => {
+      const out: Record<string, unknown> = { ...step };
+      const stepArgs = isRecord(callArgs[i]) ? (callArgs[i] as { args?: unknown }).args : undefined;
+      if (step.data !== undefined && isReadCall(getDef(step.tool), stepArgs)) {
+        delete out.data;
+        out.readOutputOmitted = true;
         readSteps += 1;
-        const { data: _read, ...rest } = step;
-        void _read;
-        return { ...rest, readOutputOmitted: true };
+        return out;
       }
-      if (!isRecord(step.data)) return { ...step };
-      const stepData = { ...step.data };
-      collect(step.tool, stepData, `steps[${step.step}].`);
-      return { ...step, data: stepData };
+      moveLinks(step.tool, originals[i]?.data, out, isRecord(out.data) ? out.data : undefined);
+      return out;
     });
-    // `rejections` van de batch zelf is een lijst als elke andere.
-    if (Array.isArray(data.rejections)) {
-      const list = data.rejections as unknown[];
-      data.rejections = [...list];
-      shrinkables.push({ path: 'rejections', into: data, key: 'rejections', list });
-    }
   } else {
-    collect(name, data, '');
+    const links = linksFrom(name, result.data);
+    if (links) {
+      if (SITE_APP_ID_LINK_TOOLS[name]?.field === 'created') delete answer.data.created;
+      answer.data.links = links;
+    }
   }
-  if (Array.isArray(envelope.remainingWorkRecomputed)) {
-    shrinkables.push({ path: 'envelope.remainingWorkRecomputed', into: envelope, key: 'remainingWorkRecomputed', list: [...(envelope.remainingWorkRecomputed as unknown[])] });
-  }
-  if (top.itemRejections) shrinkables.push({ path: 'itemRejections', into: top as Record<string, unknown>, key: 'itemRejections', list: top.itemRejections });
-
   const shortened: Record<string, { total: number; omitted: number }> = {};
   const compacted = {
     originalChars: chars,
     limit: SITE_APP_MAX_RESPONSE_CHARS,
     note:
-      'Every change in this answer succeeded. The full answer was too large, so it was shortened. Nothing an editing ' +
-      'step returned was left out' +
-      (readSteps > 0 ? ', except the output of read steps (`readOutputOmitted`): call such a step on its own, outside planner_batch, to read it' : '') +
-      '. Long lists keep their first entries; `shortened` gives per list the total and how many were left out. ' +
-      'Read tasks again with planner_list_tasks (`limit`, `offset`) or planner_get_task.',
+      'Every change in this answer succeeded. The full answer was too large, so it was shortened. No field an editing ' +
+      'step returned was left out; the label → id links are in `links`' +
+      (readSteps > 0 ? '. The output of read steps was left out (`readOutputOmitted`): call such a step on its own, outside planner_batch, to read it' : '') +
+      '. Long lists and maps keep their first entries; `shortened` gives per path the total and how many were left ' +
+      'out. Read tasks again with planner_list_tasks (`limit`, `offset`) or planner_get_task.',
     shortened,
   };
-  const assemble = (): McpToolOk => ({
-    ok: true,
-    envelope: envelope as unknown as McpToolOk['envelope'],
-    data: { compacted, ...data },
-    ...(top.itemRejections ? { itemRejections: top.itemRejections as McpToolOk['itemRejections'] } : {}),
-  });
-  if (sizeOf(assemble()) <= SITE_APP_MAX_RESPONSE_CHARS) return assemble();
+  const whole = () => ({ ...answer, data: { compacted, ...answer.data } }) as unknown as McpToolOk;
+  const over = () => sizeOf(whole()) - SITE_APP_MAX_RESPONSE_CHARS;
+  /** Voor de regel in `shortened`: ruim genoeg voor pad en getallen. */
+  const lineFor = (path: string) => (path in shortened ? 0 : path.length + 40);
 
-  // Inkorten. Eerst elke lijst tot zijn koppelingen; dan om de beurt een regel terug, zolang het past. `room` begint
-  // ruim onder de grens en zakt als `shortened` zelf de ruimte opeet (veel ingekorte lijsten).
-  const fill = (room: number): McpToolOk => {
-    for (const key of Object.keys(shortened)) delete shortened[key];
-    const kept = shrinkables.map((sh) => {
-      const links = sh.list.map((entry) => sh.linkOf?.(entry));
-      sh.into[sh.key] = links.filter((link) => link !== undefined);
-      return { sh, links, full: 0 };
-    });
-    let size = sizeOf(assemble());
-    let growing = true;
-    for (let i = 0; growing; i++) {
-      growing = false;
-      for (const k of kept) {
-        if (k.full !== i || i >= k.sh.list.length) continue;
-        const add = sizeOf(k.sh.list[i]) + 1 - (k.links[i] !== undefined ? sizeOf(k.links[i]) + 1 : 0);
-        if (size + add > room) continue;
-        size += add;
-        k.full = i + 1;
-        growing = true;
-      }
+  // 3. De grootste verzameling eerst, steeds opnieuw, tot het past.
+  let excess = over();
+  while (excess > 0) {
+    const found: Collection[] = [];
+    collections(answer, '', null, '', found);
+    const candidates = found.filter((c) => (Array.isArray(c.value) ? c.value.length : Object.keys(c.value).length) > 0);
+    if (candidates.length === 0) break;
+    const largest = candidates.reduce((a, b) => (b.size > a.size ? b : a));
+    const entries: [string | number, unknown][] = Array.isArray(largest.value)
+      ? largest.value.map((v, i) => [i, v])
+      : Object.entries(largest.value);
+    const need = excess + lineFor(largest.path);
+    let removed = 0;
+    let keep = entries.length;
+    while (keep > 0 && removed < need) {
+      keep -= 1;
+      const [k, v] = entries[keep];
+      removed += sizeOf(v) + 1 + (typeof k === 'string' ? JSON.stringify(k).length + 1 : 0);
     }
-    for (const { sh, links, full } of kept) {
-      sh.into[sh.key] = [...sh.list.slice(0, full), ...links.slice(full).filter((link) => link !== undefined)];
-      const omitted = sh.list.length - full;
-      if (omitted > 0) shortened[sh.path] = { total: sh.list.length, omitted };
-    }
-    return assemble();
-  };
-  let room = SITE_APP_MAX_RESPONSE_CHARS - 500;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const report = fill(room);
-    const over = sizeOf(report) - SITE_APP_MAX_RESPONSE_CHARS;
-    if (over <= 0) return report;
-    room -= over + 500;
+    const before = shortened[largest.path];
+    const total = before ? before.total : entries.length;
+    shortened[largest.path] = { total, omitted: total - keep };
+    const kept = Array.isArray(largest.value)
+      ? largest.value.slice(0, keep)
+      : Object.fromEntries(entries.slice(0, keep) as [string, unknown][]);
+    (largest.holder as Record<string | number, unknown>)[largest.key] = kept;
+    excess = over();
   }
 
-  // EINDCONTROLE mislukt: alleen het geraamte. De koppelingen blijven (`linksTooLarge` houdt ze vóór uitvoering
-  // binnen het budget), net als de status per stap.
-  const bare = (tool: string, d: unknown): Record<string, unknown> => {
-    const links = SITE_APP_ID_LINK_TOOLS[tool];
-    if (!links || !isRecord(d)) return {};
-    const value = d[links.field];
-    if (Array.isArray(value)) return { [links.field]: value.map((e) => links.linkOf?.(e)).filter((e) => e !== undefined) };
-    return value === undefined ? {} : { [links.field]: value };
-  };
-  const steps = Array.isArray(data.steps)
-    ? (data.steps as BatchStep[]).map((step) => ({ step: step.step, tool: step.tool, status: step.status, ...bare(step.tool, step.data) }))
-    : undefined;
-  return {
-    ok: true,
-    envelope: { activeDocumentId: result.envelope.activeDocumentId, documentTitle: clip(result.envelope.documentTitle, 200), scheduleStale: result.envelope.scheduleStale, paused: result.envelope.paused, readOnly: result.envelope.readOnly } as McpToolOk['envelope'],
-    data: {
-      compacted: { originalChars: chars, limit: SITE_APP_MAX_RESPONSE_CHARS, note: 'Every change in this answer succeeded; the answer was too large even shortened, so only the status per step and the label → id links remain. Read the result with the read tools.' },
-      ...(steps ? { steps } : bare(name, result.data)),
-    },
-  };
+  // 4. Alleen nog losse waarden en koppelingen: lange teksten inkorten (de langste eerst), zonder iets te verwijderen.
+  if (excess > 0) {
+    const texts: { holder: Record<string, unknown> | unknown[]; key: string | number; path: string; value: string }[] = [];
+    const walk = (node: unknown, path: string) => {
+      if (path.endsWith('.links') || path === 'data.compacted') return;
+      const children: [string | number, unknown][] = Array.isArray(node) ? node.map((v, i) => [i, v]) : isRecord(node) ? Object.entries(node) : [];
+      for (const [k, v] of children) {
+        const childPath = typeof k === 'number' ? `${path}[${k}]` : path ? `${path}.${k}` : k;
+        if (typeof v === 'string' && v.length > 200) texts.push({ holder: node as Record<string, unknown>, key: k, path: childPath, value: v });
+        else walk(v, childPath);
+      }
+    };
+    walk(answer, '');
+    texts.sort((a, b) => b.value.length - a.value.length);
+    for (const text of texts) {
+      if (excess <= 0) break;
+      const cut = Math.min(text.value.length - 200, excess + lineFor(text.path));
+      (text.holder as Record<string | number, unknown>)[text.key] = `${text.value.slice(0, text.value.length - cut)}…`;
+      shortened[text.path] = { total: text.value.length, omitted: cut };
+      excess = over();
+    }
+  }
+  // Eén eindmeting: `run` geeft dit antwoord terug. Past het nog niet, dan bestaat het alleen uit losse waarden en
+  // koppelingen; de voorcontrole voorkomt dat bij invoer onder haar maximum (getoetst).
+  return whole();
 }
 
 /**
@@ -535,7 +573,7 @@ function createSiteAppTools(loadDeps: () => Promise<SiteAppToolsDeps>): SiteAppT
       // Een leestool veranderde niets: weigeren is veilig, en de melding zegt hoe het kleiner kan.
       if (def?.annotations.readOnlyHint) throw tooLarge(name, chars, def);
       // Al het andere kan iets veranderd hebben: inkorten, nooit achteraf een fout.
-      return compactChange(name, result, chars, getDef);
+      return compactChange(name, args, result, chars, getDef);
     },
   };
 }

@@ -195,18 +195,25 @@ Achter `run` zit dezelfde verzoekafhandeling als achter de bridge (`createReques
   al gedaan. Van een batch gaat eerst `substeps` af (het activiteitenlog, dat de app al verwerkt heeft); een gewone
   batch van tien stappen met 20 tot 40 taken past daarna volledig. Is het antwoord dan nog te groot, dan wordt het
   ingekort, maar uit het antwoord van een wijzigende tool valt geen veld weg:
-  - weg: alleen de uitvoer van leesstappen in een batch (`readOutputOmitted: true`); de assistent roept zo'n stap los
-    aan om hem te lezen;
-  - past het dan nog niet, dan houden lange lijsten (in `data`, per batchstap, de restwerkcorrecties en de
-    deelweigeringen) om de beurt hun eerste regels. `compacted.shortened` noemt per lijst het totaal en hoeveel er weg
-    zijn;
-  - de koppelingen van een opgegeven label naar een nieuw id blijven altijd volledig: `created` van
-    `planner_add_tasks` en `planner_manage_resources`, en van `planner_update_calendar` elke regel met `created: true`
-    (zo nodig alleen als `{requestedId, id}`).
+  - eerst de koppelingen: de paren van een opgegeven label naar een nieuw id komen uit de oorspronkelijke uitvoer en
+    staan apart in `links` (`data.links` bij één aanroep, `steps[i].links` in een batch). Ze krimpen niet mee. Het gaat
+    om `created` van `planner_add_tasks` en `planner_manage_resources` (dat veld verhuist naar `links`), en om
+    `{requestedId, id}` van elke kalender met `created: true` uit `planner_update_calendar`;
+  - weg: alleen de uitvoer van een leesvariant in een batch (`readOutputOmitted: true`). Een leesvariant is een tool
+    met `readOnlyHint` of `kind: 'read'`, of een aanroep met `dryRun: true` bij een tool die dat kent (zoals
+    `planner_level_resources`). De assistent roept zo'n stap los aan om hem te lezen;
+  - past het dan nog niet, dan wordt steeds de grootste verzameling in het hele antwoord korter, op elke diepte. Een
+    verzameling is een lijst, of een object met minstens vijf sleutels die allemaal een cijfer bevatten (een map per
+    taak-id, zoals `unresolved` van de nivellering). Ze houdt haar eerste regels of sleutels; `compacted.shortened`
+    noemt per pad het totaal en hoeveel er weg zijn. Losse waarden blijven staan, dus kleine meldingen zoals
+    `phaseTransitions`, `becameLiteral` en `clearedLagMinutes` blijven er volledig in;
+  - is er geen verzameling meer en past het nog niet, dan worden lange losse teksten ingekort (ook in `shortened`).
 
   Er is één eindcontrole op het hele antwoord, envelop inbegrepen. Zouden de koppelingen samen met het rapport van
   deze aanroep niet passen, dan weigert `run` vóór uitvoering met `te_groot` en het maximum aantal nieuwe items. De
-  ruimte voor het rapport hangt af van de aanroep: 4.000 tekens plus een regel per batchstap.
+  ruimte voor het rapport hangt af van de aanroep: 4.000 tekens plus per batchstap 220 tekens en de toolnaam, en voor
+  een tool met een groot vast deel meer (`SITE_APP_STEP_EXTRA_CHARS`, nu `planner_level_resources`). Een test toetst
+  dat een batch tot aan dat maximum altijd past en elke koppeling houdt.
 - **Foutantwoorden.** Ook een fout blijft binnen de grens, ook een JSON-RPC-fout. De code blijft, net als de terugrolmelding en het
   staprapport van een batch. Een lange kring wordt een aantal plus een fragment; daarna blijven zo nodig het begin en
   het eind van de melding over.
