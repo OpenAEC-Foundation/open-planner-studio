@@ -751,6 +751,7 @@ export interface UIState {
   showClassicViewControls: boolean;          // persisted — LEGACY: losse Kolommen/Filter/Groeperen/Sorteren-knoppen op Beeld, default uit
   layoutDialogTargetId: string | null;       // session — de layout die bewerkt wordt; null = nieuwe layout
   autoCalcCPM: boolean;                      // persisted — runCPM automatisch bij scheduleStale i.p.v. handmatig (F5)
+  autoFitColumns: boolean;                   // persisted — taakrasterkolommen passen zich zelf aan de inhoud aan (behalve met de hand versleepte)
   constructionMode: boolean;                 // persisted — bouwmodus (AAN=bouwgericht, default); UIT=bouw-agnostisch
 
   dateNotation: DateNotation;                // persisted — weergavenotatie voor datums; opslag blijft ISO

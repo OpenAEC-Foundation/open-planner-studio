@@ -154,6 +154,7 @@
     "barsGroup": "Barre",
     "manageBaselines": "Gestisci baseline…",
     "statusDate": "Data di stato",
+    "statusDateValue": "Data di stato: {{date}}",
     "statusDateClear": "Cancella data di stato",
     "statusDateTime": "Ora della data di stato",
     "statusDateTimeLater": "Ora più tardi",

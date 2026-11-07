@@ -158,6 +158,7 @@ export function createDefaultUI(): UIState {
     layoutDialogTargetId: null,
     showClassicViewControls: false,
     autoCalcCPM: false,
+    autoFitColumns: false,
     // Bouwmodus: default AAN = bouwgerichte defaults/framing.
     // App.tsx hydrateert bij opstart uit localStorage (loadConstructionMode).
     constructionMode: true,

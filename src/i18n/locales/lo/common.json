@@ -605,6 +605,7 @@
     "missedDeadlines": "ກາຍກຳນົດສົ່ງ {{count}} ລາຍການ",
     "violatedConstraints": "ຜິດຕໍ່ເງື່ອນໄຂຜູກມັດ {{count}} ລາຍການ",
     "outOfSequence": "ສາຍສຳພັນຂ້າມລຳດັບ {{count}} ລາຍການ",
+    "externalSuccessors_other": "ໜ້າວຽກຖັດໄປພາຍນອກທີ່ແໜ້ນເກີນ {{count}} ລາຍການ",
     "overallocated": "ຊັບພະຍາກອນຖືກໃຊ້ເກີນກຳລັງ {{count}} ລາຍການ",
     "summary_other": "ຄຳເຕືອນ {{count}} ລາຍການ"
   },
@@ -621,6 +622,10 @@
       "scheduleError": "ບໍ່ສາມາດຄິດໄລ່ແຜນງານໄດ້: {{message}}",
       "missedDeadline": "ກາຍກຳນົດສົ່ງ {{deadline}} — ສຳເລັດໄວສຸດແມ່ນ {{finish}}",
       "violatedConstraint": "ເງື່ອນໄຂຜູກມັດ {{constraint}} ຖືກຂັດໂດຍຕາມຫຼັກເຫດຜົນ (float ຕິດລົບ)",
+      "externalSuccessorViolatedSF": "ແໜ້ນເກີນໄປສຳລັບໜ້າວຽກຖັດໄປພາຍນອກ {{task}} ({{project}}, {{relation}}): ມັນສຳເລັດຊ້າສຸດ {{anchor}}, ໜ້າວຽກນີ້ເລີ່ມພຽງແຕ່ {{own}}",
+      "externalSuccessorViolatedFF": "ແໜ້ນເກີນໄປສຳລັບໜ້າວຽກຖັດໄປພາຍນອກ {{task}} ({{project}}, {{relation}}): ມັນສຳເລັດຊ້າສຸດ {{anchor}}, ໜ້າວຽກນີ້ສຳເລັດພຽງແຕ່ {{own}}",
+      "externalSuccessorViolatedSS": "ແໜ້ນເກີນໄປສຳລັບໜ້າວຽກຖັດໄປພາຍນອກ {{task}} ({{project}}, {{relation}}): ມັນເລີ່ມຊ້າສຸດ {{anchor}}, ໜ້າວຽກນີ້ເລີ່ມພຽງແຕ່ {{own}}",
+      "externalSuccessorViolatedFS": "ແໜ້ນເກີນໄປສຳລັບໜ້າວຽກຖັດໄປພາຍນອກ {{task}} ({{project}}, {{relation}}): ມັນເລີ່ມຊ້າສຸດ {{anchor}}, ໜ້າວຽກນີ້ສຳເລັດພຽງແຕ່ {{own}}",
       "outOfSequence": "ຂ້າມລຳດັບ: ຄວາມຄືບໜ້າຂອງໜ້າວຽກຖັດໄປຂັດກັບສາຍສຳພັນທີ່ຕັ້ງໄວ້",
       "truncatedLead": "ໄລຍະນຳໜ້າ (Lead) ຖືກຕັດເນື່ອງຈາກວັນເລີ່ມໂຄງການ — ສາຍສຳພັນບໍ່ຖືກນຳໃຊ້ຢ່າງຄົບຖ້ວນ",
       "droppedSequence": "ລະເລີຍສາຍສຳພັນ: ໜ້າວຽກກ່ອນໜ້າ ຫຼື ໜ້າວຽກຖັດໄປຂາດຫາຍ ຫຼື ບໍ່ແມ່ນໜ້າວຽກຍ່ອຍສຸດທ້າຍ",

@@ -605,6 +605,7 @@
     "missedDeadlines": "기한 초과: {{count}}건",
     "violatedConstraints": "제약 조건 위반: {{count}}건",
     "outOfSequence": "순서 위반 관계: {{count}}건",
+    "externalSuccessors_other": "여유 부족 외부 후행: {{count}}건",
     "overallocated": "리소스 {{count}}개 과다 할당",
     "summary_other": "경고 {{count}}개"
   },
@@ -621,6 +622,10 @@
       "scheduleError": "일정을 계산할 수 없습니다: {{message}}",
       "missedDeadline": "기한 {{deadline}} 초과 — 빠른 완료 {{finish}}",
       "violatedConstraint": "제약 조건 {{constraint}}이(가) 논리에 의해 초과됨(음수 여유)",
+      "externalSuccessorViolatedSF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFF": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 종료, 이 작업은 {{own}}에야 종료",
+      "externalSuccessorViolatedSS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 시작",
+      "externalSuccessorViolatedFS": "외부 후행 {{task}}({{project}}, {{relation}})에 대해 여유 부족: 늦어도 {{anchor}}에 시작, 이 작업은 {{own}}에야 종료",
       "outOfSequence": "순서 위반: 후속 작업의 진행이 관계와 모순됩니다",
       "truncatedLead": "리드가 프로젝트 시작에 의해 잘림 — 관계가 완전히 적용되지 않음",
       "droppedSequence": "관계 무시됨: 선행 또는 후속 작업이 없거나 리프 작업이 아닙니다",
