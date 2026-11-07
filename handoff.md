@@ -62,9 +62,10 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 |---|---|---|---|
 | 1 (v1) | 6 | 6 | 7 |
 | 2 (v2) | 6 | 6 | 7 |
-| 3 (v3) | 6 | loopt | loopt |
+| 3 (v3) | 6 | 6 | 8 |
+| 4 (v4) | loopt | loopt | loopt |
 
-### Ronde 3 — Opus (6/10, "daarna 8 tot 9"), te verwerken in v4
+### Ronde 3 — Opus (6/10, "daarna 8 tot 9") — verwerkt in v4 (Sol 6 en Fable 8 vonden grotendeels hetzelfde; spec §12)
 
 Blokkeert: (1) §4.2 geeft voor eigen bestanden geen 100 % P (bewezen met script
 `scratchpad/r3proof/classify.py` op `public/examples/showcase-appartementencomplex.ifc`): psets/lagtijden niet vooruit
@@ -147,6 +148,11 @@ getalprecisie; grens zonder meting; inschatting te optimistisch; foute commit in
 - IFC5 (buildingSMART `1a63082`): `ifcx_alpha`; imports = lagen; later wins per attribuut; geen planningsschema's.
 - Ecosysteem: `ifcx_alpha`; namespace per programma (`ocss::`, `oses::`, `openbim::`, `openaec::`); ifcx-explorer
   `openaec::activity` + `openaec::links`; UUID v5 = GlobalId (128 bits). IFCCAD: alleen IFCX/CBOR, bewaart bronbytes.
+
+## Voorproef indeling v4
+
+`scripts/proef/classify-v4.py` (Python, alleen stdlib; draaien met `python3 -I`) voert §4.2 letterlijk uit. Uitkomst
+7 november: alle eigen voorbeeldbestanden 100 % P; vier IFC5-modellen (ook TeklaHouse, 19 MB) 100 % V. Basis voor fase 0.
 
 ## Omgeving en valkuilen
 
