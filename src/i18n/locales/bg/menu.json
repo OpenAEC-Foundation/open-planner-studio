@@ -153,6 +153,7 @@
     "barsGroup": "Ленти на задачи",
     "manageBaselines": "Управлявай базови линии…",
     "statusDate": "Дата на състоянието",
+    "statusDateValue": "Дата на състоянието: {{date}}",
     "statusDateClear": "Изчисти дата на състоянието",
     "statusDateTime": "Час на датата на състоянието",
     "statusDateTimeLater": "По-късен час",

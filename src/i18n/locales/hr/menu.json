@@ -154,6 +154,7 @@
     "barsGroup": "Trake",
     "manageBaselines": "Upravljaj temeljnim planovima…",
     "statusDate": "Datum stanja",
+    "statusDateValue": "Datum stanja: {{date}}",
     "statusDateClear": "Ukloni datum stanja",
     "statusDateTime": "Vrijeme datuma stanja",
     "statusDateTimeLater": "Vrijeme kasnije",

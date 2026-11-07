@@ -2416,7 +2416,7 @@ body {
   padding: var(--sp-3) var(--sp-6);
   font-family: var(--font-body);
   font-size: var(--text-body);
-  font-weight: 600;
+  font-weight: 400;
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
@@ -2431,6 +2431,7 @@ body {
 .btn--lg  { padding: var(--sp-4) var(--sp-8); font-size: var(--text-large); }
 
 .btn--primary {
+  font-weight: 600;
   background: var(--theme-accent);
   color: var(--theme-accent-on);
 }

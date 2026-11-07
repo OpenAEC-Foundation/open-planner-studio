@@ -153,6 +153,7 @@
     "barsGroup": "Balkar",
     "manageBaselines": "Hantera baslinjer…",
     "statusDate": "Rapportdatum",
+    "statusDateValue": "Rapportdatum: {{date}}",
     "statusDateClear": "Töm rapportdatum",
     "statusDateTime": "Tid för rapportdatum",
     "statusDateTimeLater": "Senare tid",

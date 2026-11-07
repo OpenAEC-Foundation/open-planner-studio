@@ -262,11 +262,12 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
               className={`btn btn--sm flex-1 ${!manual ? 'btn--primary' : ''}`}
               disabled={recent.length === 0}
               onClick={() => setManual(false)}
-              style={recent.length === 0 ? { opacity: 0.5 } : undefined}
+              style={{ fontWeight: 600, opacity: recent.length === 0 ? 0.5 : undefined }}
             >{t('externalLinks.sourceFile')}</button>
             <button
               className={`btn btn--sm flex-1 ${manual ? 'btn--primary' : ''}`}
               onClick={() => setManual(true)}
+              style={{ fontWeight: 600 }}
             >{t('externalLinks.manualTitle')}</button>
           </div>
 
