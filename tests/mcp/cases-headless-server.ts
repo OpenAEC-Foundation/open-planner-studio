@@ -677,7 +677,10 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
 test('B stdio: gids en beide skills komen uit de bundel (niets ontbreekt)', async () => {
   const data = await ok(stdio, 'planner_get_planning_guide', { part: 'both' });
   assertEq(data.missing, undefined, 'niets ontbreekt');
-  assertEq(data.guide, readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8'), 'gids = public/agent/planning-guide.md');
+  // Het antwoord laat de eerste kop van de gids weg (`readingText`, #818); de rest is het bestand.
+  const guideFile = readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8');
+  assertEq(guideFile.slice(guideFile.length - data.guide.length), data.guide, 'gids = public/agent/planning-guide.md');
+  assert(/^# [^\n]*\n+$/.test(guideFile.slice(0, guideFile.length - data.guide.length)), 'alleen de kop van de gids valt weg');
   assertEq(data.skills.map((s: { name: string }) => s.name), AGENT_SKILLS.map((s) => s.name), 'beide skills');
 });
 

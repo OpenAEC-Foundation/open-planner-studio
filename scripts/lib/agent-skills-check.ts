@@ -18,15 +18,64 @@ export function skillFrontmatter(text: string): string | null {
   return close === -1 ? null : lines.slice(1, close).join('\n');
 }
 
-/** Toets `name` (gelijk aan de mapnaam, niet leeg) en `description` (niet leeg) in de frontmatter. */
+/** Een gewone (ongequote) YAML-waarde mag niet met een YAML-teken beginnen. */
+const PLAIN_SCALAR_BAD_START = /^[[\]{},#&*!|>'"%@`]|^[-?:](\s|$)/;
+
+/** Eén waarde na `sleutel: `: gequote (`'…'` of `"…"`) of gewoon; een fout als tekst. */
+function yamlScalar(raw: string): { value: string } | { error: string } {
+  if (raw === '') return { value: '' };
+  if (raw.startsWith("'")) {
+    const m = /^'((?:[^']|'')*)'(?:[ \t]+#.*)?$/.exec(raw);
+    return m ? { value: m[1].replace(/''/g, "'") } : { error: 'een enkel-gequote waarde sluit niet goed af' };
+  }
+  if (raw.startsWith('"')) {
+    const m = /^"((?:[^"\\]|\\.)*)"(?:[ \t]+#.*)?$/.exec(raw);
+    if (!m) return { error: 'een dubbel-gequote waarde sluit niet goed af' };
+    try {
+      return { value: JSON.parse(`"${m[1]}"`) as string };
+    } catch {
+      return { error: 'een dubbel-gequote waarde heeft een onbekende escape' };
+    }
+  }
+  if (PLAIN_SCALAR_BAD_START.test(raw)) return { error: 'een gewone waarde begint met een YAML-teken; zet hem tussen aanhalingstekens' };
+  if (/:(\s|$)/.test(raw)) return { error: '": " in een gewone waarde is ongeldige YAML; gebruik een puntkomma of aanhalingstekens' };
+  if (/\s#/.test(raw)) return { error: '" #" begint in YAML een commentaar en kort de waarde in; gebruik aanhalingstekens' };
+  return { value: raw };
+}
+
+/**
+ * Lees de frontmatter als YAML: een platte lijst `sleutel: waarde`, elke waarde op één regel, gewoon of
+ * gequote. Dat is de vorm die Claude Code en de skill-lezers verwachten. Er zit geen YAML-parser in de repo
+ * en een nieuwe afhankelijkheid is het niet waard (#818); daarom deze strikte lezer. Wat hij niet kent
+ * (vervolgregels, `|`/`>`, lijsten), meldt hij als fout in plaats van het te raden.
+ */
+export function parseSkillFrontmatter(block: string): { values: Record<string, string>; errors: string[] } {
+  const values: Record<string, string> = {};
+  const errors: string[] = [];
+  block.split('\n').forEach((line, i) => {
+    const at = `frontmatterregel ${i + 1}`;
+    if (line.trim() === '' || /^\s*#/.test(line)) return;
+    const m = /^([A-Za-z_][\w-]*):(?:[ \t]+(.*))?$/.exec(line);
+    if (!m) {
+      errors.push(`${at} is geen "sleutel: waarde" op één regel (ongeldige of niet ondersteunde YAML): ${JSON.stringify(line)}`);
+      return;
+    }
+    const key = m[1];
+    if (Object.prototype.hasOwnProperty.call(values, key)) errors.push(`${at}: de sleutel ${key} staat er twee keer`);
+    const parsed = yamlScalar((m[2] ?? '').replace(/[ \t]+$/, ''));
+    if ('error' in parsed) errors.push(`${at} (${key}): ${parsed.error}`);
+    else values[key] = parsed.value;
+  });
+  return { values, errors };
+}
+
+/** Toets de frontmatter als YAML, `name` (gelijk aan de mapnaam, niet leeg) en `description` (niet leeg). */
 export function checkSkillFrontmatter(text: string, dirName: string, label: string): string[] {
   const fm = skillFrontmatter(text);
   if (fm === null) return [`${label}: geen frontmatter (een SKILL.md begint met een ---blok met name en description)`];
-  const diffs: string[] = [];
-  const field = (key: string) => {
-    const m = new RegExp(`^${key}:(.*)$`, 'm').exec(fm);
-    return m ? m[1].trim() : undefined;
-  };
+  const parsed = parseSkillFrontmatter(fm);
+  const diffs: string[] = parsed.errors.map((e) => `${label}: ${e}`);
+  const field = (key: string) => parsed.values[key]?.trim();
   const name = field('name');
   if (name === undefined || name === '') diffs.push(`${label}: frontmatter-name ontbreekt of is leeg (verwacht "${dirName}", de mapnaam)`);
   else if (name !== dirName) diffs.push(`${label}: frontmatter-name is "${name}", verwacht "${dirName}" (de mapnaam)`);

@@ -131,13 +131,13 @@ test('elke tool- en parameternaam in de agentteksten bestaat in de registry', ()
   assertEq(diffs, [], 'agentteksten wijken af van de tools');
 });
 
-test('de poort ziet echt iets: de teksten noemen tientallen tools en parameters', () => {
+test('de poort ziet echt iets: de teksten noemen tools en parameters', () => {
   const text = agentFiles().map((f) => readFileSync(f, 'utf8')).join('\n');
   const tools = new Set([...text.matchAll(/\bplanner_[a-z_]*[a-z]\b/g)].map((m) => m[0]));
-  assert(tools.size >= 30, `te weinig toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
   const adjacent = [...text.matchAll(/`(planner_[a-z_]+)`\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g)].length;
   const pairs = [...text.matchAll(/`\s*\{?\s*"?[A-Za-z_]\w*"?\s*:[^`]*`/g)].length;
-  // Sinds #818 zijn de teksten kort; deze ondergrens vangt alleen een scan die niets meer vindt.
+  // Sinds #818 zijn de teksten kort; deze ondergrenzen vangen alleen een scan die niets meer vindt.
+  assert(tools.size >= 1, `geen toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
   assert(adjacent >= 1, `geen "tool + parameter"-plekken gevonden (${adjacent})`);
   assert(pairs >= 1, `geen "sleutel: waarde"-spans gevonden (${pairs})`);
 });

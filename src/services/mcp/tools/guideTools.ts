@@ -8,8 +8,10 @@
 // ook in een vólgende sessie meekomen zonder dat de gebruiker iets doet.
 //
 // KORT. Agents betalen per token. Gids en skills zijn regels, geen lesstof: elk principe één keer, in
-// de gids; een skill noemt alleen de toolvolgorde en de stappen van zijn taak; parameters staan in
-// `tools/list` (besluit eigenaar, 2026-11-07, #818).
+// de gids (ook de volgorde); `goed-plannen` verwijst alleen naar de gids, `progress-update` is zelfstandig;
+// parameters staan in `tools/list` (besluit eigenaar, 2026-11-07, #818). Het antwoord laat de frontmatter
+// en de eerste kop weg (`readingText`): die zeggen de toolbeschrijving en `skills[].name` al. De volle
+// bestanden blijven de bron om te installeren (`install`).
 //
 // AGENTGIDS ≠ HELP-ARTIKEL. Tot oktober 2026 leverde deze tool het Help-artikel voor mensen
 // (`public/docs/<taal>/gids-goed-plannen.md`). Een mens drukt op F5 en klikt in het lint; een agent
@@ -86,10 +88,24 @@ export type GuidePart = keyof typeof GUIDE_PARTS;
  *  (zo noemt `MCP_INSTRUCTIONS` de tool); de gids wijst voor voortgang naar `part: "progress-update"`. */
 export const DEFAULT_GUIDE_PART: GuidePart = 'goed-plannen';
 
-/** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818): de paden per
- *  skill en de download-URL's kostten bij elke aanroep honderden tekens. De URL's staan nog in `missing`. */
+/** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818). Het volle
+ *  bestand (mét frontmatter, die het antwoord weglaat) komt van de publieke URL. */
 export const SKILL_INSTALL_HINT =
-  '.claude/skills/<name>/SKILL.md (project) or ~/.claude/skills/<name>/SKILL.md (all projects)';
+  `From ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md or ~/.claude/skills/<name>/SKILL.md`;
+
+/**
+ * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met
+ * de lege regels erna. Die zeggen niets wat de agent niet al weet (toolbeschrijving, `skills[].name`).
+ */
+export function readingText(markdown: string): string {
+  let text = markdown.replace(/\r\n/g, '\n');
+  const fm = /^---\n[\s\S]*?\n---\n/.exec(text);
+  if (fm) text = text.slice(fm[0].length);
+  text = text.replace(/^\n+/, '');
+  const h1 = /^# [^\n]*\n+/.exec(text);
+  if (h1) text = text.slice(h1[0].length);
+  return text;
+}
 
 export interface MissingAsset {
   path: string;
@@ -98,14 +114,12 @@ export interface MissingAsset {
 }
 
 export interface PlanningGuidePayload {
-  /** Taal van de inhoud: altijd `en`. */
-  language: 'en';
-  /** Alleen gezet wanneer om een andere taal werd gevraagd. */
+  /** Alleen gezet wanneer om een andere taal werd gevraagd (de inhoud is altijd Engels). */
   languageNote?: string;
   part: GuidePart;
-  /** Markdowntekst van de agentgids (alleen bij een part met gids). */
+  /** Markdowntekst van de agentgids, als `readingText` (alleen bij een part met gids). */
   guide?: string;
-  /** De skills van dit part, met hun tekst. Het oude veld `skill` (een tweede kopie van `goed-plannen`)
+  /** De skills van dit part, met hun tekst als `readingText`. Het oude veld `skill` (een tweede kopie van `goed-plannen`)
    *  is weg: het kostte de agent elke keer duizenden tokens (besluit eigenaar, 2026-11-07). */
   skills?: { name: AgentSkillName; text: string }[];
   /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
@@ -148,13 +162,13 @@ export async function loadPlanningGuide(
   const wanted = GUIDE_PARTS[part];
   if (wanted.guide) {
     const guide = await load(AGENT_GUIDE_PATH);
-    if (guide !== undefined) out.guide = guide;
+    if (guide !== undefined) out.guide = readingText(guide);
   }
   if (wanted.skills.length > 0) {
     const skills: { name: AgentSkillName; text: string }[] = [];
     for (const name of wanted.skills) {
       const text = await load(skillAssetPath(name));
-      if (text !== undefined) skills.push({ name, text });
+      if (text !== undefined) skills.push({ name, text: readingText(text) });
     }
     out.skills = skills;
   }
@@ -173,9 +187,8 @@ export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      'Planning rules (the guide) and skills, English only. Pick `part` by task: "goed-plannen" (default) = ' +
-      'guide + skill for building or restructuring; "progress-update" = the self-contained skill for recording ' +
-      'progress. Read before building, restructuring or recording progress.',
+      'Planning rules and skills. `part` by task: "goed-plannen" (default) = guide + skill, for building or ' +
+      'restructuring; "progress-update" = skill for recording progress.',
     kind: 'read',
     batchable: false,
     inputSchema: {
@@ -210,7 +223,7 @@ export const guideTools: McpToolDef[] = [
             `Download instead: ${missing.map((m) => m.url).join(', ')}.`,
         );
       }
-      const data: PlanningGuidePayload = { language: 'en', part, ...texts };
+      const data: PlanningGuidePayload = { part, ...texts };
       if (texts.skills !== undefined) data.install = SKILL_INSTALL_HINT;
       if (a.language !== undefined && a.language !== 'en') {
         data.languageNote = 'English only; `language` is ignored.';

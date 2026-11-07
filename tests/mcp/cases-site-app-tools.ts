@@ -2,10 +2,10 @@
 // Tauri. Elke test werkt via `installSiteAppTools` op een nepvenster, dus via de route die de platformbouw neerzet
 // (review PR #802, vervolg 1): de guards, het documentanker en de bestandstools worden daar getoetst, niet in een
 // verse context zonder documentbinding.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { useAppStore, test, assert, assertEq, run } from './harness';
-import { guideToolDeps } from '@/services/mcp/tools/guideTools';
+import { AGENT_GUIDE_URL, GUIDE_PUBLIC_BASE, guideToolDeps } from '@/services/mcp/tools/guideTools';
 import { getTools } from '@/services/mcp/toolRegistry';
 import type { McpToolDef } from '@/services/mcp/contracts';
 import type { WorkCalendar } from '@/types/calendar';
@@ -276,23 +276,29 @@ test('de gids past, ook met de standaardwaarde van part; een te grote gids geeft
     assertEq(res.data.missing, undefined, `part ${part ?? '(standaard)'}: alles geladen`);
     assert(fits(res), `part ${part ?? '(standaard)'} past (${JSON.stringify(res).length} tekens)`);
   }
-  // Groeit de gids ooit voorbij de grens, dan noemt de fout de uitweg: één deel per aanroep.
+  // Groeit een deel ooit voorbij de grens, dan noemt de fout de uitweg; elke genoemde uitweg werkt echt.
   const real = guideToolDeps.fetchImpl;
-  // Alleen de gids is te groot; de skills blijven echt, zodat de uitweg zonder gids getoetst wordt.
-  guideToolDeps.fetchImpl = async (url) =>
-    url.includes('agent/planning-guide')
-      ? { ok: true, status: 200, text: async () => '# Planning guide\n\n' + 'x'.repeat(40_000) }
+  const tooBig = (match: string) => async (url: string) =>
+    url.includes(match)
+      ? { ok: true, status: 200, text: async () => '# Big\n\n' + 'x'.repeat(40_000) }
       : real!(url);
   try {
+    // (1) De gids zelf is te groot: de voortgangsskill past nog, en de gids staat op zijn publieke URL.
+    guideToolDeps.fetchImpl = tooBig('agent/planning-guide');
     const fail = await failure(install(), 'planner_get_planning_guide');
     assertEq(fail?.code, 'te_groot', `code, kreeg: ${fail?.message ?? 'geen fout'}`);
-    assert(fail!.message.includes('part: "guide"') && fail!.message.includes('part: "progress-update"'), `noemt de uitweg: ${fail!.message}`);
-    // De genoemde delen zonder gids passen ook met de te grote gids: de uitweg werkt echt.
-    assert(fail!.message.includes('part: "skill"'), `noemt de skills zonder gids: ${fail!.message}`);
-    for (const part of ['skill', 'progress-update']) {
-      const res = (await install().run('planner_get_planning_guide', { part })) as { ok: boolean };
-      assert(res.ok && fits(res), `part ${part} past ook met een te grote gids`);
-    }
+    assert(fail!.message.includes('part: "progress-update"'), `noemt de voortgangsskill: ${fail!.message}`);
+    assert(fail!.message.includes(AGENT_GUIDE_URL), `noemt de publieke gids: ${fail!.message}`);
+    const progress = (await install().run('planner_get_planning_guide', { part: 'progress-update' })) as { ok: boolean };
+    assert(progress.ok && fits(progress), 'part progress-update past ook met een te grote gids');
+    assert(existsSync(PUBLIC + AGENT_GUIDE_URL.slice(GUIDE_PUBLIC_BASE.length + 1)), 'de publieke URL hoort bij public/');
+    // (2) De voortgangsskill is te groot: `both` faalt, `goed-plannen` (gids voor het opbouwen) past.
+    guideToolDeps.fetchImpl = tooBig('skills/progress-update');
+    const failBoth = await failure(install(), 'planner_get_planning_guide', { part: 'both' });
+    assertEq(failBoth?.code, 'te_groot', `code bij both, kreeg: ${failBoth?.message ?? 'geen fout'}`);
+    assert(failBoth!.message.includes('part: "goed-plannen"'), `noemt de gids voor het opbouwen: ${failBoth!.message}`);
+    const build = (await install().run('planner_get_planning_guide', { part: 'goed-plannen' })) as { ok: boolean; data: { guide?: string } };
+    assert(build.ok && fits(build) && (build.data.guide?.length ?? 0) > 1000, 'part goed-plannen past en levert de gids');
   } finally {
     guideToolDeps.fetchImpl = real;
   }
