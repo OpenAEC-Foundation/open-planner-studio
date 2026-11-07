@@ -98,6 +98,10 @@ export interface CPMResult {
    *  maakt levert anders stil een onzin-datum. ZACHTE, niet-blokkerende waarschuwing: `error` blijft
    *  leeg, de overige taken rekenen normaal door. */
   cappedTaskIds?: string[];
+  /** OPTIONEEL: externe OPVOLGERS waarvan het anker te krap is: de vroegste datums van de eigen taak
+   *  passen niet meer vóór het anker (met de lag). Zonder deze lijst gaf dat alleen negatieve speling
+   *  (knownbug 6; voorstel 2 uit #792, `docs/relaties-tussen-projecten.md` 5.2 punt 4). Zachte melding. */
+  externalSuccessorViolations?: { taskId: string; linkId: string }[];
   /** OPTIONEEL: relatie-id's die de solver heeft genegeerd omdat voorganger of opvolger geen
    *  bladtaak is in de meegegeven set. Relaties op een WBS-samenvattingstaak herschrijft
    *  `expandSummaryRelations` vooraf naar bladrelaties; wat hier landt is dus een écht verweesd id,
@@ -1828,6 +1832,7 @@ export class CPMSolver {
     const lateDates = this.backwardPass(order, earlyDates);
     this.applyAlap(order, earlyDates, lateDates);
     const outOfSequenceSequenceIds = this.detectOutOfSequence(earlyDates);
+    const externalSuccessorViolations = this.detectExternalSuccessorViolations(earlyDates);
     // Resultaat-post-pass (geëxtraheerd naar `scheduleAnalysis.ts`): pure functie over de vaste
     // early/late-datums + de forward-pass-side-channels; de helpers zijn stateless en gebonden.
     const result = computeScheduleResults({
@@ -1863,6 +1868,7 @@ export class CPMSolver {
     // `elapsedAnchor`-hervattingspunt én de `ef`-restwerk-optelling), die allebei tegen de cap kunnen
     // lopen.
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
+    if (externalSuccessorViolations.length > 0) result.externalSuccessorViolations = externalSuccessorViolations;
     if (Object.keys(this.plannedFloorTraceByTaskId).length > 0) {
       result.plannedFloorTraceByTaskId = { ...this.plannedFloorTraceByTaskId };
     }
@@ -3224,11 +3230,10 @@ export class CPMSolver {
    */
   private externalBackwardBound(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
     if (link.direction !== 'successor') return null;
-    const anchor = parseInstant(link.anchorDate);
-    if (isNaN(anchor.getTime())) return null;
+    const shifted = this.externalSuccessorAnchorMinusLag(task, link, eng);
+    if (!shifted) return null;
     const rel = link.relType;
     const finishSide = rel === 'FS' || rel === 'FF';   // eerste teken F ⇒ mijn finish; S ⇒ mijn start
-    const shifted = eng.addWorkingMinutesSigned(anchor, -this.externalLagMinutes(link, eng));
     if (!finishSide) return this.finishFromStart(eng, shifted, task);
     // FS/FF: de grens is een EINDmoment. `addWorkingMinutesSigned` normaliseert vooruit
     // (`nextWorkInstant`) en kan op een blokbegin landen (anker wo 08:00 ⇒ late finish wo 08:00).
@@ -3238,6 +3243,57 @@ export class CPMSolver {
     // ongemoeid. `bg141-*` in `cases-hours-blokgrenzen.json`.
     if (isZeroDurationMilestone(task) || isElapsedTask(task)) return shifted;
     return this.snapOnOrBefore(eng, shifted);
+  }
+
+  /**
+   * Externe opvolgers met een te krap anker. FS/FF: de vroegste finish van de taak ligt ná de grens die de
+   * externe opvolger stelt (`externalBackwardBound`, dezelfde grens als in de backward pass). SS/SF: de
+   * START beslist (review #810): de start van de taak (de werkelijke start als die er is, anders de vroege)
+   * ligt ná het anker min de lag (`externalSuccessorAnchorMinusLag`). Een finish uit de taakduur zou bij voortgang
+   * de verkeerde kant toetsen: een taak die op tijd begon maar lang duurde, gaf dan een melding, en een taak
+   * die te laat begon maar snel klaar was, niet. Alles op de werktijdas van de eigen taak, zodat een moment op
+   * een blokeinde en een grens op het volgende blokbegin geen schijnmelding geven; een ELAPSEDTIME-taak telt
+   * in kloktijd.
+   */
+  private detectExternalSuccessorViolations(
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): { taskId: string; linkId: string }[] {
+    const out: { taskId: string; linkId: string }[] = [];
+    for (const task of this.tasks.values()) {
+      if (!task.externalLinks?.some(l => l.direction === 'successor')) continue;
+      const early = earlyDates.get(task.id);
+      if (!early) continue;
+      const eng = this.calendarFor(task);
+      for (const link of task.externalLinks) {
+        if (link.direction !== 'successor') continue;
+        const startSide = link.relType === 'SS' || link.relType === 'SF';
+        const bound = startSide ? this.externalSuccessorAnchorMinusLag(task, link, eng) : this.externalBackwardBound(task, link, eng);
+        const actualStart = startSide && task.time.actualStart ? parseInstant(task.time.actualStart) : null;
+        const own = actualStart && !isNaN(actualStart.getTime()) ? actualStart : startSide ? early.es : early.ef;
+        if (!bound || own.getTime() <= bound.getTime()) continue;
+        const late = isElapsedTask(task) || eng.workMinutesBetween(bound, own) > 0;
+        if (late) out.push({ taskId: task.id, linkId: link.id });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Het anker van een externe opvolger min de lag, op de kalender van de eigen taak. Bij SS/SF is dit de
+   * laatste start die de opvolger toelaat; `externalBackwardBound` vertaalt het daarna naar een late finish.
+   * Eén berekening voor de melding en de backward pass. Kalendertijd (`ELAPSEDTIME`) zonder lag houdt het
+   * echte ankermoment: `addWorkingMinutesSigned` schuift een anker buiten werktijd ook bij nul minuten naar
+   * het volgende werkblok (zo 15:00 ⇒ ma 08:00), en een taak die in kloktijd loopt, verloor zo een conflict
+   * in het weekend (review #810 ronde 2). Met een lag telt de lag in werkminuten; vanaf een anker buiten
+   * werktijd geeft dat hetzelfde moment als vanaf het volgende werkblok. Een werktijdtaak houdt de
+   * normalisatie: tussen het anker en het volgende werkblok zit geen werktijd.
+   */
+  private externalSuccessorAnchorMinusLag(task: Task, link: ExternalLink, eng: CalendarEngine): Date | null {
+    const anchor = parseInstant(link.anchorDate);
+    if (isNaN(anchor.getTime())) return null;
+    const minutes = -this.externalLagMinutes(link, eng);
+    if (minutes === 0 && isElapsedTask(task)) return anchor;
+    return eng.addWorkingMinutesSigned(anchor, minutes);
   }
 
   /**
