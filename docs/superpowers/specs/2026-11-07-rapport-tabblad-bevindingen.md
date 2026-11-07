@@ -90,6 +90,9 @@ precies zoals het was. Aanzetten in de dev-server: `?flag=reportRedesign` in de 
   Gantt over. Taaknaam is verplicht. Standaard ongewijzigd. Bewaard per apparaat in `ops-reportSettings`
   (`columns`), met terugval voor oude instellingen.
 - **Previewkwaliteit** is weg uit het nieuwe tabblad (SVG heeft geen rasterkwaliteit nodig).
+- **Lettertype** (#770, kwam tijdens de bouw op main): de keuzelijst staat in de stap Pagina, boven de
+  lettergrootte. Papier, kolommeting en PDF gebruiken dezelfde letter; na een wissel blijft het papier op
+  de vorige letter tot de nieuwe geladen is, en een export wacht daarop.
 - **De andere elf rapporten** staan achter de keuze "Ander rapport" en openen het oude paneel.
 
 ### Snelheid (gemeten 7 november 2026, dev-server)

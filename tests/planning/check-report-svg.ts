@@ -22,6 +22,7 @@ import {
 import { ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
 import { readIFC } from '@/services/ifc/ifcReader';
+import { reportFontStack } from '@/services/pdf/reportFont';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -141,6 +142,8 @@ const variants: [string, PrintOptions][] = [
   ['met eigen kolom', baseOptions({ tableColumns: [
     { key: 'task.name', builtin: 'name' }, { key: 'x.kolom', header: 'Eigen <kop>', align: 'center', cells: new Map([[project.tasks[0].id, 'a & b']]) },
   ] })],
+  // Een andere rapportletter (#770): het papier neemt dezelfde fontstack op als canvas en PDF.
+  ['letter Carlito', baseOptions({ fontFamily: reportFontStack('carlito') })],
 ];
 for (const [label, options] of variants) {
   let svg: SvgRecordingDraw2D | undefined;
@@ -183,6 +186,10 @@ for (const [label, options, rh, rf] of [
 
 // ── 3. Een blad als SVG ────────────────────────────────────────────────────────────────────────
 {
+  const carlito = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name,
+    baseOptions({ fontFamily: reportFontStack('carlito') }), true, true, metrics);
+  ok(carlito.recording.fonts.length > 0 && carlito.recording.fonts.every(f => f.includes('"OpsReportCarlito", InterPDF')),
+    `letter: elke tekst op het papier in de gekozen letter, met Inter als terugval (${carlito.recording.fonts.join(' | ')})`);
   const options = baseOptions({ timelineColumns: 2, paperSize: 'A4' });
   const paper = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name, options, true, true, metrics);
   const { layout, recording } = paper;

@@ -545,6 +545,7 @@
       "fewer": "Minder pagina's",
       "more": "Meer pagina's",
       "dayWidth": "Breedte per dag",
+      "font": "Lettertype",
       "fontScale": "Lettergrootte",
       "manyPages_one": "Dit rapport wordt {{count}} pagina. Kies groter papier of minder pagina's naast elkaar.",
       "manyPages_other": "Dit rapport wordt {{count}} pagina's. Kies groter papier of minder pagina's naast elkaar.",

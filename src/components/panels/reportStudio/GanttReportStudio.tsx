@@ -6,6 +6,7 @@ import { Select } from '@/components/common/Select';
 import { HelpButton } from '@/components/common/HelpButton';
 import { REPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { ensureReportFontLoaded } from '@/services/pdf/fontLoader';
+import { DEFAULT_REPORT_FONT_ID, type ReportFontId } from '@/services/pdf/reportFont';
 import { saveBytesDialog } from '@/services/fileAccess';
 import { buildGanttReportPdf } from '@/services/print/exportGanttReportPdf';
 import { NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
@@ -21,6 +22,7 @@ import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldR
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { TaskColumnCategory } from '@/types/taskGrid';
 import { saveReportSettings, TABLE_REPORT_TYPES, type ReportSettings, type ReportType } from '@/utils/reportSettings';
+import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioSwitch } from './studioPrimitives';
 import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './useStudioSettings';
 import { useStudioPrintOptions } from './useStudioPrintOptions';
@@ -41,7 +43,7 @@ const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
   tasks: ['followView'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
-  page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontScale'],
+  page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
   headerFooter: ['repeatHeader', 'repeatFooter', 'showLegend'],
   export: [],
 };
@@ -97,12 +99,19 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const fileBase = documentFileBase(project.name, projectCode);
   const rtl = RTL_LOCALES.includes(i18n.language as Locale);
 
-  const [fontReady, setFontReady] = useState(false);
+  // De rapportletter (#770). Meten en tekenen gebeuren op de letter die al geladen is; na een wissel
+  // blijft het papier op de vorige letter staan tot de nieuwe geladen is (`ensureReportFontLoaded`
+  // wijst nooit af). Zo meet het papier nooit op een letter die nog niet in de browser staat.
+  const [loadedFont, setLoadedFont] = useState<ReportFontId | null>(null);
+  const chosenFont = settings.reportFontFamily;
   useEffect(() => {
+    if (!hydrated) return;
     let cancelled = false;
-    void ensureReportFontLoaded().then(() => { if (!cancelled) setFontReady(true); }, () => { if (!cancelled) setFontReady(true); });
+    void ensureReportFontLoaded(chosenFont).then(() => { if (!cancelled) setLoadedFont(chosenFont); });
     return () => { cancelled = true; };
-  }, []);
+  }, [hydrated, chosenFont]);
+  const fontReady = loadedFont !== null;
+  const fontPending = loadedFont !== chosenFont;
 
   // De bedrijfsnaam komt uit het project en wordt bewust niet per apparaat bewaard (zie reportSettings.ts).
   const [companyName, setCompanyName] = useState(project.company || '');
@@ -130,7 +139,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   );
 
   // ---- Papier ---------------------------------------------------------------------------------------
-  const options = useStudioPrintOptions(settings, companyName, resolved.columns, fontReady && hydrated);
+  const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null);
   const paperInput = useMemo(() => ({
     tasks, sequences, calendar, projectName, options,
     repeatHeader: settings.repeatHeader, repeatFooter: settings.repeatFooter, rtl,
@@ -206,8 +215,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
   const exportPendingRef = useRef(false);
-  const latest = useRef({ options, tasks, sequences, calendar, projectName, settings, fileBase });
-  latest.current = { options, tasks, sequences, calendar, projectName, settings, fileBase };
+  const latest = useRef({ options, tasks, sequences, calendar, projectName, settings, fileBase, loadedFont });
+  latest.current = { options, tasks, sequences, calendar, projectName, settings, fileBase, loadedFont };
 
   const runExport = useCallback(async () => {
     const cpm = useAppStore.getState().cpmResult;
@@ -224,6 +233,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       const bytes = await buildGanttReportPdf({
         tasks: cur.tasks, sequences: cur.sequences, calendar: cur.calendar, projectName: cur.projectName,
         options: cur.options, repeatHeader: cur.settings.repeatHeader, repeatFooter: cur.settings.repeatFooter,
+        // Dezelfde letter als waarop `options` gemeten is.
+        fontId: cur.loadedFont ?? DEFAULT_REPORT_FONT_ID,
       });
       await saveBytesDialog(`${cur.fileBase}-${t('fileSuffix.gantt')}.pdf`, bytes,
         [{ name: 'PDF Document', extensions: ['pdf'] }], { mime: 'application/pdf' });
@@ -243,14 +254,21 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       st.runCPM();
       return;
     }
+    // Net een andere letter gekozen: wachten tot hij geladen en gemeten is. Anders tekent de PDF de nieuwe
+    // letter op de breedtes van de vorige en kapt hij namen af (zelfde reden als `measuredOnChosenFont`
+    // in het oude paneel).
+    if (fontPending) {
+      exportPendingRef.current = true;
+      return;
+    }
     void runExport();
-  }, [exportBusy, runExport]);
+  }, [exportBusy, runExport, fontPending]);
 
   useEffect(() => {
-    if (!exportPendingRef.current || scheduleStale) return;
+    if (!exportPendingRef.current || scheduleStale || fontPending) return;
     exportPendingRef.current = false;
     void runExport();
-  }, [scheduleStale, runExport, options]);
+  }, [scheduleStale, fontPending, runExport, options]);
 
   // ---- Samenvattingen per stap ---------------------------------------------------------------------
   const paperLabel = t('studio.page.paperLabel', {
@@ -283,7 +301,14 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       text: statusLineWithoutDate ? t('studio.bars.summaryNoStatusDate') : (onBars.length ? onBars.join(' · ') : t('studio.bars.summaryNone')),
       warn: statusLineWithoutDate,
     },
-    page: { text: `${paperLabel} · ${pagesText}${settings.reportFontScale !== 100 ? ` · ${settings.reportFontScale} %` : ''}` },
+    page: {
+      text: [
+        paperLabel,
+        pagesText,
+        settings.reportFontFamily !== DEFAULT_REPORT_FONT_ID && t(`reportFontFamily.${settings.reportFontFamily}`),
+        settings.reportFontScale !== 100 && `${settings.reportFontScale} %`,
+      ].filter((v): v is string => typeof v === 'string').join(' · '),
+    },
     headerFooter: {
       text: settings.repeatHeader && settings.repeatFooter
         ? t('studio.headerFooter.summaryEvery')
@@ -506,6 +531,13 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   </div>
                 </div>
               )}
+            </StudioGroup>
+            <StudioGroup label={t('studio.page.font')}>
+              <ReportFontSelect
+                className="w-full min-w-0"
+                value={settings.reportFontFamily}
+                onChange={v => patch({ reportFontFamily: v }, 'reportFontFamily')}
+              />
             </StudioGroup>
             <StudioGroup label={t('studio.page.fontScale')}>
               <StudioSegmented

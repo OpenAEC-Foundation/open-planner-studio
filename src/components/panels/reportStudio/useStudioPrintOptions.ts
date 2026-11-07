@@ -14,6 +14,7 @@ import { knownDrivingSequenceIds } from '@/engine/scheduler/drivingInfo';
 import { createCanvasTextMetrics } from '@/services/pdf/canvasTextMetrics';
 import type { SvgTextMetrics } from '@/services/pdf/svgDraw2d';
 import type { ReportSettings } from '@/utils/reportSettings';
+import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 
 let sharedMetrics: SvgTextMetrics | null = null;
 /** Eén meetcanvas voor het hele tabblad (kolombreedtes én de SVG-opname): metingen worden onthouden. */
@@ -26,15 +27,16 @@ export function studioTextMetrics(): SvgTextMetrics {
  * De `PrintOptions` van de Gantt-afdruk voor het nieuwe Rapport-tabblad. Dezelfde velden en dezelfde
  * vertaalde teksten als het oude paneel (`ReportPanel.tsx`, type `gantt`), plus de kolomlijst
  * (`tableColumns`, issue #817 deel B). De kolombreedtes en (bij niet afkappen) de naamkolom worden hier
- * gemeten op het geladen Inter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
+ * gemeten op de geladen rapportletter — meten hoort in het paneel, niet in de printlaag (`reports.md`).
  *
- * `fontReady`: pas meten als het gevendorde Inter geladen is; daarvoor geeft de hook geen opties.
+ * `fontId`: de rapportletter die geladen is (#770); `null` zolang er nog geen letter geladen is, dan geeft
+ * de hook geen opties. Meten, tekenen en de PDF gebruiken dezelfde stack (`reportFontStack`).
  */
 export function useStudioPrintOptions(
   settings: ReportSettings,
   companyName: string,
   tableColumns: readonly PrintTableColumn[],
-  fontReady: boolean,
+  fontId: ReportFontId | null,
 ): PrintOptions | null {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
@@ -88,13 +90,15 @@ export function useStudioPrintOptions(
   }), [t]);
 
   const reportRows = settings.followView ? viewRows : undefined;
+  const fontReady = fontId !== null;
+  const fontStack = reportFontStack(fontId ?? 'inter');
 
   // Naamkolom: afkappen op de instelbare breedte, of zo breed als de langste naam (gemeten).
   const autoNameWidth = useMemo(() => {
     if (!fontReady || settings.truncateTaskNames) return undefined;
     const metrics = studioTextMetrics();
-    return measureTaskNameColumnWidth(buildPrintRows(tasks, reportRows), (text, bold) => metrics.measure(text, nameCellFont(bold)));
-  }, [fontReady, settings.truncateTaskNames, tasks, reportRows]);
+    return measureTaskNameColumnWidth(buildPrintRows(tasks, reportRows), (text, bold) => metrics.measure(text, nameCellFont(bold, fontStack)));
+  }, [fontReady, settings.truncateTaskNames, tasks, reportRows, fontStack]);
 
   // De datakolommen en de registerkolommen, gemeten op de koppen en cellen van dít rapport.
   const columnWidths = useMemo<TableColumnWidths | undefined>(() => {
@@ -105,11 +109,12 @@ export function useStudioPrintOptions(
       {
         showCompletion: settings.showCompletion, dateNotation, timeNotation, numberLocale: locale, tableHeaders,
         labels: { daySuffix }, durationDisplay, durationSuffixes, calendar, calendars, tableColumns,
+        fontFamily: fontStack,
       },
       (text, font) => metrics.measure(text, font),
     );
   }, [fontReady, tasks, reportRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
-    durationDisplay, durationSuffixes, calendar, calendars, tableColumns]);
+    durationDisplay, durationSuffixes, calendar, calendars, tableColumns, fontStack]);
 
   return useMemo<PrintOptions | null>(() => {
     if (!fontReady) return null;
@@ -163,6 +168,7 @@ export function useStudioPrintOptions(
       compressNonWorkdays: settings.compressNonWorkdays,
       timelineColumns: settings.timelineColumns,
       reportFontScale: settings.reportFontScale,
+      fontFamily: fontStack,
       drivingSequenceIds: knownDrivingSequenceIds(cpmResult),
       barColorSelection,
       activityCodeTypes: fieldCtx.activityCodeTypes,
@@ -199,5 +205,5 @@ export function useStudioPrintOptions(
     project.endDate, project.author, project.statusDate, dateNotation, timeNotation, weekStartDay, cpmResult, barColorSelection,
     fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, resources, assignments, baselineOverlay,
     baselineComparisons, baselineNames, reportRows, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
-    workdayDurationMeasure]);
+    workdayDurationMeasure, fontStack]);
 }
