@@ -17,14 +17,6 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     descriptionKey: 'settings.demoTopbarAnimationHint',
     writesNewIfcData: false,
   },
-  // Tijdelijk: nieuwe linticonen voor Taak, Nivelleren en Nivellering wissen (Ethan, 7 november 2026; zie
-  // `src/components/icons/ribbonAccentIcons.ts`). Alleen tekeningen, geen documentgegevens.
-  {
-    id: 'lint-iconen-accent',
-    nameKey: 'settings.lintIconenAccent',
-    descriptionKey: 'settings.lintIconenAccentHint',
-    writesNewIfcData: false,
-  },
 ];
 
 export type FeatureFlagValues = Record<string, boolean>;

@@ -277,8 +277,6 @@
     "experimentalHide": "隐藏",
     "demoTopbarAnimation": "演示：顶部栏动画",
     "demoTopbarAnimationHint": "顶部栏中有一道柔和的橙色光泽掠过。用于演示实验性开关的工作方式。",
-    "lintIconenAccent": "带橙色强调的功能区图标",
-    "lintIconenAccentHint": "“任务”使用与“新建资源”相同的加号。“平衡”和“清除平衡”带有橙色部分。",
     "tourHint": "重新查看应用的入门导览。",
     "theme": "主题",
     "themeHint": "界面的配色方案。",

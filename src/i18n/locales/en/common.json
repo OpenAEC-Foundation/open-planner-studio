@@ -430,8 +430,6 @@
     "experimentalHide": "Hide",
     "demoTopbarAnimation": "Demo: top bar animation",
     "demoTopbarAnimationHint": "A gentle orange shimmer across the top bar. Demonstrates how an experimental toggle works.",
-    "lintIconenAccent": "Ribbon icons with orange accent",
-    "lintIconenAccentHint": "Task gets the same plus as New resource. Level and Clear leveling get an orange part.",
     "tourHint": "Take the app's introductory tour again.",
     "theme": "Theme",
     "themeHint": "The interface's colour scheme.",

@@ -337,8 +337,6 @@
     "experimentalHide": "Skjul",
     "demoTopbarAnimation": "Demo: animation i topbjælken",
     "demoTopbarAnimationHint": "En rolig orange glans over topbjælken. Viser hvordan en eksperimentel kontakt virker.",
-    "lintIconenAccent": "Båndikoner med orange accent",
-    "lintIconenAccentHint": "Opgave får samme plus som Opret ressource. Udjævn og Ryd udjævning får en orange del.",
     "tourHint": "Gennemgå appens introduktionsrundvisning igen.",
     "theme": "Tema",
     "themeHint": "Interfacets farveskema.",

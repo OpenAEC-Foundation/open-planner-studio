@@ -397,8 +397,6 @@
     "experimentalHide": "Ocultar",
     "demoTopbarAnimation": "Demo: animación en la barra superior",
     "demoTopbarAnimationHint": "Un brillo naranja suave que recorre la barra superior. Muestra cómo funciona un interruptor experimental.",
-    "lintIconenAccent": "Iconos de la cinta con acento naranja",
-    "lintIconenAccentHint": "Tarea recibe el mismo signo más que Nuevo recurso. Nivelar y Borrar nivelación reciben una parte naranja.",
     "tourHint": "Vuelve a hacer el recorrido introductorio de la aplicación.",
     "theme": "Tema",
     "themeHint": "El esquema de color de la interfaz.",

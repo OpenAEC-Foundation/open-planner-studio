@@ -337,8 +337,6 @@
     "experimentalHide": "Piilota",
     "demoTopbarAnimation": "Demo: animaatio yläpalkissa",
     "demoTopbarAnimationHint": "Rauhallinen oranssi kiilto yläpalkin poikki. Näyttää, miten kokeellinen kytkin toimii.",
-    "lintIconenAccent": "Valintanauhan kuvakkeet oranssilla korostuksella",
-    "lintIconenAccentHint": "Tehtävä saa saman plussan kuin Uusi resurssi. Tasaa ja Poista tasaaminen saavat oranssin osan.",
     "tourHint": "Käy sovelluksen esittelykierros uudelleen.",
     "theme": "Teema",
     "themeHint": "Käyttöliittymän värimaailma.",

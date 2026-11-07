@@ -457,8 +457,6 @@
     "experimentalHide": "Ukryj",
     "demoTopbarAnimation": "Demo: animacja na górnym pasku",
     "demoTopbarAnimationHint": "Spokojna pomarańczowa fala połysku na górnym pasku. Pokazuje, jak działa eksperymentalny przełącznik.",
-    "lintIconenAccent": "Ikony wstążki z pomarańczowym akcentem",
-    "lintIconenAccentHint": "Zadanie otrzymuje ten sam plus co Nowy zasób. Bilansuj i Wyczyść bilansowanie otrzymują pomarańczowy element.",
     "tourHint": "Powtórz wprowadzającą wycieczkę po aplikacji.",
     "theme": "Motyw",
     "themeHint": "Schemat kolorów interfejsu.",

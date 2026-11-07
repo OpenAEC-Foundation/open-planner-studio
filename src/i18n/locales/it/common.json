@@ -397,8 +397,6 @@
     "experimentalHide": "Nascondi",
     "demoTopbarAnimation": "Demo: animazione barra superiore",
     "demoTopbarAnimationHint": "Un tenue bagliore arancione che scorre nella barra superiore. Mostra come funziona un interruttore sperimentale.",
-    "lintIconenAccent": "Icone della barra multifunzione con accento arancione",
-    "lintIconenAccentHint": "Attività riceve lo stesso più di Nuova risorsa. Livella e Cancella livellamento ricevono una parte arancione.",
     "tourHint": "Rifai il tour introduttivo dell'app.",
     "theme": "Tema",
     "themeHint": "Lo schema di colori dell'interfaccia.",

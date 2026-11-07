@@ -337,8 +337,6 @@
     "experimentalHide": "Ausblenden",
     "demoTopbarAnimation": "Demo: Animation in der oberen Leiste",
     "demoTopbarAnimationHint": "Ein sanfter oranger Glanzeffekt über die obere Leiste. Zeigt, wie ein experimenteller Schalter funktioniert.",
-    "lintIconenAccent": "Menüband-Symbole mit orangem Akzent",
-    "lintIconenAccentHint": "Vorgang erhält dasselbe Plus wie Neue Ressource. Abgleichen und Aufheben erhalten einen orangen Teil.",
     "tourHint": "Wiederhole die einführende Tour durch die App.",
     "theme": "Design",
     "themeHint": "Das Farbschema der Benutzeroberfläche.",

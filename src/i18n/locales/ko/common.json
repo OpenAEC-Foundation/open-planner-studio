@@ -277,8 +277,6 @@
     "experimentalHide": "숨기기",
     "demoTopbarAnimation": "데모: 상단 바 애니메이션",
     "demoTopbarAnimationHint": "상단 바에 차분한 주황색 빛줄기가 지나갑니다. 실험적 스위치가 어떻게 작동하는지 보여 줍니다.",
-    "lintIconenAccent": "주황색 강조가 있는 리본 아이콘",
-    "lintIconenAccentHint": "작업은 새 자원과 같은 더하기 기호를 사용합니다. 평준화와 평준화 지우기에는 주황색 부분이 있습니다.",
     "tourHint": "앱 소개 투어를 다시 진행합니다.",
     "theme": "테마",
     "themeHint": "인터페이스의 색상 구성.",

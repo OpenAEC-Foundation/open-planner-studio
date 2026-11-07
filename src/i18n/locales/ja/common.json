@@ -277,8 +277,6 @@
     "experimentalHide": "非表示",
     "demoTopbarAnimation": "デモ: 上部バーのアニメーション",
     "demoTopbarAnimationHint": "上部バーに穏やかなオレンジ色の光の帯が流れます。実験的な切り替えスイッチの動作を示します。",
-    "lintIconenAccent": "オレンジのアクセント付きリボンアイコン",
-    "lintIconenAccentHint": "「タスク」は「新規リソース」と同じプラスになります。「山崩し」と「山崩しを解除」にはオレンジの部分が付きます。",
     "tourHint": "アプリの紹介ツアーをもう一度行います。",
     "theme": "テーマ",
     "themeHint": "インターフェースの配色。",

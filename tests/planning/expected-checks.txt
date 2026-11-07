@@ -329,7 +329,6 @@ check-resource-type-view.ts matrix
 check-restduur-dagdelen.ts matrix
 check-resttempo.ts matrix
 check-restwerk-duurwijziging.ts matrix
-check-ribbon-accent-icons.ts matrix
 check-ribbon-overlays.ts matrix
 check-row-drag-intent.ts matrix
 check-run-ts-cleanup.ts matrix
