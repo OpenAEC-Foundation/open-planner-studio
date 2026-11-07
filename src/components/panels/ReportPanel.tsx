@@ -10,7 +10,8 @@ import { documentProjectCode } from '@/utils/documentProjectCode';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { paginateCanvasToPdfBytes } from '@/services/print/paginate';
 import { computeTileLayout, footerLayoutWidthFor } from '@/services/print/tileLayout';
-import { ensureInterLoaded, getInterFontBytes, getArabicFontBytes } from '@/services/pdf/fontLoader';
+import { ensureReportFontLoaded, getArabicFontBytes, getInterFontBytes, getReportFontBytes } from '@/services/pdf/fontLoader';
+import { reportFontStack, type ReportFontId } from '@/services/pdf/reportFont';
 import { RTL_LOCALES, type Locale } from '@/i18n/config';
 import { Select } from '@/components/common/Select';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
@@ -31,10 +32,10 @@ import { computeResourceGanttRows } from '@/engine/reports';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { ViewRow } from '@/engine/view/visibleRows';
-import { TableReportView } from './reports/TableReportView';
+import { reportFontStyle, TableReportView } from './reports/TableReportView';
 import { ReportingPeriodField, useResolvedPeriod } from './reports/ReportingPeriodField';
 import { TableReportOptionsBlock } from './reports/TableReportOptionsBlock';
-import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportOptionsCard } from './reports/reportFormPrimitives';
+import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportFontSelect, ReportOptionsCard } from './reports/reportFormPrimitives';
 import { useTableReportSpec } from './reports/useTableReportSpec';
 import { toPdfSpec } from './reports/tableReportSpec';
 import { useTaskIdDateText, type TaskIdDateText } from '@/hooks/displayDate';
@@ -324,7 +325,9 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // raster- en vector-export, zodat die drie nooit een verschillende tabel tekenen.
   const [truncateTaskNames, setTruncateTaskNames] = useState(DEFAULT_REPORT_SETTINGS.truncateTaskNames);
   const [taskNameColumnWidth, setTaskNameColumnWidth] = useState(DEFAULT_REPORT_SETTINGS.taskNameColumnWidth);
-  const [autoNameColumnWidth, setAutoNameColumnWidth] = useState<number | undefined>(undefined);
+  // Elke meting onthoudt op welke rapportletter ze gedaan is; zie `measuredOnChosenFont`.
+  const [autoNameColumn, setAutoNameColumn] = useState<{ font: ReportFontId; width: number } | undefined>(undefined);
+  const autoNameColumnWidth = autoNameColumn?.width;
   const [showBaselineOverlay, setShowBaselineOverlay] = useState(DEFAULT_REPORT_SETTINGS.showBaselineOverlay);
   const [autoFit, setAutoFit] = useState(DEFAULT_REPORT_SETTINGS.autoFit);
   const [customZoom, setCustomZoom] = useState(DEFAULT_REPORT_SETTINGS.customZoom);
@@ -357,6 +360,11 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // die stuurt de app-chrome aan, deze alleen het papier. Werkt relatief (tekst/tabel groeien, de
   // tijdlijn-zoom niet) — zie de afleiding bij `ReportMetrics` in printPreview.ts.
   const [reportFontScale, setReportFontScale] = useState(DEFAULT_REPORT_SETTINGS.reportFontScale);
+  // Lettertype van het rapport (issue #770): één id uit het vaste setje in `reportFont.ts`. De
+  // canvas-stack (meten én tekenen) en de bytes voor de vector-PDF volgen er allebei uit, zodat ze
+  // niet uit elkaar kunnen lopen. Een voorkeur op dit apparaat; het IFC-bestand blijft gelijk.
+  const [reportFontFamily, setReportFontFamily] = useState<ReportFontId>(DEFAULT_REPORT_SETTINGS.reportFontFamily);
+  const reportFont = reportFontStack(reportFontFamily);
   // Statuslijn in de export: letterlijk drie opties (geen / statusdatumlijn / voortgangslijn).
   const [statusLine, setStatusLine] = useState(DEFAULT_REPORT_SETTINGS.statusLine);
   // Volg weergave: export tekent exact de viewRows van het scherm (WYSIWYG).
@@ -450,6 +458,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       setRepeatFooter(s.repeatFooter);
       setTimelineColumns(s.timelineColumns);
       setReportFontScale(s.reportFontScale);
+      setReportFontFamily(s.reportFontFamily);
       setStatusLine(s.statusLine);
       setFollowView(s.followView);
       setPreviewQuality(s.previewQuality);
@@ -489,14 +498,14 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
-      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableReports: tableOptions,
       resourceGantt: resourceGanttOptions,
       ...studioFieldsRef.current,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, statusLine, followView, previewQuality,
+      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableOptions, resourceGanttOptions]);
 
   // Ná het opslaan-effect hierboven (zelfde commit, effecten lopen in volgorde): de keuze staat al in
@@ -545,53 +554,55 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // bij Volg weergave, anders `undefined` = de volledige takenboom.
   const reportRows = resourceGantt ? resourceGantt.rows : followView ? viewRows : undefined;
 
-  // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op het geladen
-  // Inter-font (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
+  // Afkappen uit ⇒ meet de langste naam op dezelfde rijen die het rapport tekent, op de geladen
+  // rapportletter (anders meet de eerste keer een fallback-font en kapt de echte render alsnog af).
   // De meting gebeurt hier en niet in de printlaag: `measurePrintReport` (paginering) heeft geen
   // canvas en zou anders een ándere tabelbreedte uitrekenen dan de raster-/vector-render.
   useEffect(() => {
     if (truncateTaskNames) return;
     let cancelled = false;
-    void ensureInterLoaded().then(() => {
+    void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setAutoNameColumnWidth(NAME_COLUMN_WIDTH_DEFAULT); return; }
+      if (!ctx) { setAutoNameColumn({ font: reportFontFamily, width: NAME_COLUMN_WIDTH_DEFAULT }); return; }
       const rows = buildPrintRows(tasks, reportRows);
-      setAutoNameColumnWidth(measureTaskNameColumnWidth(rows, (text, bold) => {
-        ctx.font = nameCellFont(bold);
+      setAutoNameColumn({ font: reportFontFamily, width: measureTaskNameColumnWidth(rows, (text, bold) => {
+        ctx.font = nameCellFont(bold, reportFont);
         return ctx.measureText(text).width;
-      }));
+      }) });
     });
     return () => { cancelled = true; };
-  }, [truncateTaskNames, tasks, reportRows]);
+  }, [truncateTaskNames, tasks, reportRows, reportFontFamily, reportFont]);
 
   // Curvekolom van het resourcediagram: zo breed als de langste curvenaam die dít rapport toont,
-  // gemeten op het geladen Inter-font — om dezelfde reden hier en niet in de
+  // gemeten op de geladen rapportletter — om dezelfde reden hier en niet in de
   // printlaag als de naamkolom hierboven.
-  const [curveColumnWidth, setCurveColumnWidth] = useState<number | undefined>(undefined);
+  const [curveColumn, setCurveColumn] = useState<{ font: ReportFontId; width: number | undefined } | undefined>(undefined);
+  const curveColumnWidth = curveColumn?.width;
+  const curveColumnNeeded = reportType === 'resourceGantt' && !!resourceGantt && resourceGanttOptions.showAssignmentColumns;
   const curveHeaderLabel = t('tableHeaders.curve');
   useEffect(() => {
-    if (reportType !== 'resourceGantt' || !resourceGantt || !resourceGanttOptions.showAssignmentColumns) {
-      setCurveColumnWidth(undefined);
+    if (!curveColumnNeeded || !resourceGantt) {
+      setCurveColumn(undefined);
       return;
     }
     let cancelled = false;
-    void ensureInterLoaded().then(() => {
+    void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setCurveColumnWidth(undefined); return; }
+      if (!ctx) { setCurveColumn({ font: reportFontFamily, width: undefined }); return; }
       const cellLabels = new Set<string>();
       for (const a of resourceGantt.assignmentByRowKey.values()) {
         cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
       }
       const measure = (font: string) => (text: string) => { ctx.font = font; return ctx.measureText(text).width; };
-      setCurveColumnWidth(Math.max(
-        measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true))),
-        measureCurveColumnWidth(cellLabels, measure(curveCellFont(false))),
-      ));
+      setCurveColumn({ font: reportFontFamily, width: Math.max(
+        measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true, reportFont))),
+        measureCurveColumnWidth(cellLabels, measure(curveCellFont(false, reportFont))),
+      ) });
     });
     return () => { cancelled = true; };
-  }, [reportType, resourceGantt, resourceGanttOptions.showAssignmentColumns, curveLabels, curveHeaderLabel]);
+  }, [curveColumnNeeded, resourceGantt, curveLabels, curveHeaderLabel, reportFontFamily, reportFont]);
 
   // De vertaalde kolomkoppen: ÉÉN object voor de meting hieronder en voor de render, zodat een
   // kolom gemeten wordt op exact de kop die getekend wordt.
@@ -617,28 +628,40 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // Meten gebeurt hier en niet in de printlaag — zelfde reden als bij de naamkolom:
   // `measurePrintReport` (paginering) heeft geen canvas en zou anders een ándere tabelbreedte
   // uitrekenen dan de raster- en vector-render.
-  const [columnWidths, setColumnWidths] = useState<TableColumnWidths | undefined>(undefined);
+  const [measuredColumns, setMeasuredColumns] = useState<{ font: ReportFontId; widths: TableColumnWidths | undefined } | undefined>(undefined);
+  const columnWidths = measuredColumns?.widths;
   useEffect(() => {
     let cancelled = false;
-    void ensureInterLoaded().then(() => {
+    void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (cancelled) return;
       const ctx = document.createElement('canvas').getContext('2d');
-      if (!ctx) { setColumnWidths(undefined); return; }
+      if (!ctx) { setMeasuredColumns({ font: reportFontFamily, widths: undefined }); return; }
       const rows = buildPrintRows(tasks, reportRows, assignmentColumns ? resourceGantt?.assignmentByRowKey : undefined);
-      setColumnWidths(measureTableColumnWidths(
+      setMeasuredColumns({ font: reportFontFamily, widths: measureTableColumnWidths(
         rows,
         {
           showCompletion, assignmentColumns, dateNotation, timeNotation, numberLocale: i18n.language, tableHeaders,
           labels: { daySuffix },
           // Precies wat de render in de Duur-cel tekent (zelfde velden als `options` hieronder).
           durationDisplay, durationSuffixes, calendar, calendars,
+          // Meten op dezelfde letter als de render (`options.fontFamily` hieronder).
+          fontFamily: reportFont,
         },
         (text, font) => { ctx.font = font; return ctx.measureText(text).width; },
-      ));
+      ) });
     });
     return () => { cancelled = true; };
   }, [tasks, reportRows, resourceGantt, assignmentColumns, showCompletion, dateNotation, timeNotation, i18n.language, tableHeaders,
-    daySuffix, durationDisplay, durationSuffixes, calendar, calendars]);
+    daySuffix, durationDisplay, durationSuffixes, calendar, calendars, reportFontFamily, reportFont]);
+
+  // Staan alle metingen die de Gantt-render gebruikt op de gekozen letter? Na het wisselen van letter
+  // lopen ze asynchroon (eerst het font laden); tot dan horen de breedtes bij de vórige letter. Een
+  // export in dat venster zou de nieuwe letter op oude breedtes tekenen en namen afkappen (review Sol
+  // #837, ronde 1). Daarom wacht `handleExportPDF` hierop, via dezelfde uitgestelde route als bij een
+  // verouderde planning. De tabelrapporten meten hun koppen zelf in `runExport`, na het laden.
+  const measuredOnChosenFont = measuredColumns?.font === reportFontFamily
+    && (truncateTaskNames || autoNameColumn?.font === reportFontFamily)
+    && (!curveColumnNeeded || curveColumn?.font === reportFontFamily);
 
   const milestoneRef = useRef<HTMLDivElement>(null);
   const varianceRef = useRef<HTMLDivElement>(null);
@@ -742,6 +765,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     compressNonWorkdays: reportCompressNonWorkdays,
     timelineColumns,
     reportFontScale,
+    // De canvas-stack van de gekozen rapportletter; zit zo ook in `previewOptionsSignature`.
+    fontFamily: reportFont,
     // Welke relaties BEPALEND (driving) zijn is een `CPMResult`-veld dat bewust niet
     // gepersisteerd wordt; de printlaag kan het dus niet zelf afleiden en krijgt het hier door.
     // Bij een cyclus (`cpmResult.error`) of vóór de eerste berekening blijft het `undefined`, en
@@ -783,7 +808,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     },
   }), [showCritical, showFloat, showDeps, showWeekends, showLegend, showTaskNames, showCompletion, showBaselineOverlay,
     autoFit, customZoom, paperSize, orientation, companyName, effectiveNameColumnWidth, t, locale, project.startDate,
-    project.endDate, project.author, dateNotation, timeNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale,
+    project.endDate, project.author, dateNotation, timeNotation, weekStartDay, reportCompressNonWorkdays, timelineColumns, reportFontScale, reportFont,
     cpmResult, barColorSelection, fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs,
     reportTaskTypeLabels, tTask, daySuffix, statusLine, statusDate, resources,
     assignments, baselineOverlay, baselineComparisons, baselineNames, reportRows, reportType, resourceGanttOptions.pageBreakPerResource, tasks.length,
@@ -1020,10 +1045,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       renderPage(anchor.index, true);
       if (anchor.index + 1 < total) renderPage(anchor.index + 1);
     };
-    // Wacht op het gevendorde Inter-font (family 'InterPDF') vóór de eerste render, zodat
-    // measureText/afkapping deterministisch is. ensureInterLoaded is idempotent; de
+    // Wacht op de gevendorde rapportletter (en Inter als terugval) vóór de eerste render, zodat
+    // measureText/afkapping deterministisch is. ensureReportFontLoaded is idempotent; de
     // cancelled-guard voorkomt dat een verouderde async-render na deps-wijziging/unmount nog toepast.
-    void ensureInterLoaded().then(() => {
+    void ensureReportFontLoaded(reportFontFamily).then(() => {
       if (!cancelled) debounceTimer = window.setTimeout(renderPreview, 100);
     });
     return release;
@@ -1032,7 +1057,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     // toevoegen zou iedere preview-state-update opnieuw laten rasteren.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportSettingsHydrated, isGanttLike, tasks, sequences, calendar, projectName, previewOptionsSignature,
-    repeatHeader, repeatFooter, previewCssWidth, previewQuality, replacePreviewPages]);
+    repeatHeader, repeatFooter, previewCssWidth, previewQuality, replacePreviewPages, reportFontFamily]);
 
   // Eén stabiele observer per layout. Een nieuwe afbeelding verandert zijn dependencies niet en kan
   // dus geen observer-rebuild/ping-pong veroorzaken. De queue dedupliceert callbacks.
@@ -1107,13 +1132,34 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     const exportBaseDir: 'ltr' | 'rtl' =
       RTL_LOCALES.includes((options.locale ?? '') as Locale) ? 'rtl' : 'ltr';
 
-    // Zorg dat het gevendorde Inter-font geladen is vóór de offscreen render, zodat ook de
-    // raster-export het deterministische Inter gebruikt (measureText-pariteit met de preview).
-    await ensureInterLoaded();
+    // Zorg dat de gevendorde rapportletter geladen is vóór de offscreen render, zodat ook de
+    // raster-export die letter gebruikt (measureText-pariteit met de preview).
+    await ensureReportFontLoaded(reportFontFamily);
+
+    // De bytes voor de vector-PDF: de gekozen letter, Noto Sans Arabic voor RTL, en bij elke andere
+    // letter dan Inter óók Inter als terugval voor de tekens die die letter mist (✓, een enkel
+    // symbool; zie `fallbackFonts` in paginateVector.ts). Zonder terugval valt de hele PDF om één
+    // zo'n teken terug op raster.
+    const loadVectorFonts = async () => {
+      const [regular, bold, arabicRegular, arabicBold, fallbackFonts] = await Promise.all([
+        getReportFontBytes(reportFontFamily, 400),
+        getReportFontBytes(reportFontFamily, 700),
+        getArabicFontBytes(400),
+        getArabicFontBytes(700),
+        reportFontFamily === 'inter'
+          ? Promise.resolve([])
+          : Promise.all([getInterFontBytes(400), getInterFontBytes(700)])
+            .then(([interRegular, interBold]) => [{ id: 'inter', bytes: { regular: interRegular, bold: interBold } }]),
+      ]);
+      return { main: { regular, bold }, arabic: { regular: arabicRegular, bold: arabicBold }, fallbackFonts };
+    };
 
     if (isGanttLike) {
-      // Vector-PDF met raster-terugval: één bouwfunctie voor dit paneel en het nieuwe Rapport-tabblad.
-      const pdfBytes = await buildGanttReportPdf({ tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter });
+      // Vector-PDF met raster-terugval: één bouwfunctie voor dit paneel en het nieuwe Rapport-tabblad,
+      // met de gekozen rapportletter (#770).
+      const pdfBytes = await buildGanttReportPdf({
+        tasks, sequences, calendar, projectName, options, repeatHeader, repeatFooter, fontId: reportFontFamily,
+      });
       await writePdf(pdfBytes, `${fileBase}-${reportType === 'resourceGantt' ? t('fileSuffix.resourceGantt') : t('fileSuffix.gantt')}.pdf`);
       return;
     }
@@ -1164,20 +1210,19 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
 
     let tablePdfBytes: Uint8Array;
     try {
-      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, { subsetFont }, regular, bold, arabicRegular, arabicBold] = await Promise.all([
+      const [{ paginateVectorToPdfBytes }, { makeTableRenderReport, makeSectionedRenderReport }, { subsetFont }, fonts] = await Promise.all([
         import('@/services/print/paginateVector'),
         import('@/services/pdf/pdfTable'),
         import('@/services/pdf/hbSubset'),
-        getInterFontBytes(400),
-        getInterFontBytes(700),
-        getArabicFontBytes(400),
-        getArabicFontBytes(700),
+        loadVectorFonts(),
       ]);
+      const vectorOpts = {
+        paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont, fallbackFonts: fonts.fallbackFonts,
+      } as const;
 
       // Kolomkoppen worden gemeten zoals de DOM-tabel zichzelf opmeet ("Duration (wd)" past in geen
-      // enkele taal in een vaste 70 px). De meting loopt
-      // op het geladen Inter — hetzelfde font dat de PDF inbedt — zodat wat hier past ook daar past.
-      await ensureInterLoaded();
+      // enkele taal in een vaste 70 px). De meting loopt op de geladen rapportletter — hetzelfde
+      // font dat de PDF inbedt — zodat wat hier past ook daar past. (Al geladen bovenaan `runExport`.)
       const headerCtx = document.createElement('canvas').getContext('2d');
       const measureHeader = headerCtx
         ? (text: string, font: string) => { headerCtx.font = font; return headerCtx.measureText(text).width; }
@@ -1188,10 +1233,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       if (tableSpec) {
         // Tabelrapporten: dezelfde kolomspec als de DOM-weergave, gesectioneerd.
         tablePdfBytes = await paginateVectorToPdfBytes(
-          makeSectionedRenderReport(toPdfSpec(tableSpec), measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
-          { regular, bold },
-          { regular: arabicRegular, bold: arabicBold },
+          makeSectionedRenderReport(toPdfSpec(tableSpec), measureHeader, reportFont),
+          vectorOpts,
+          fonts.main,
+          fonts.arabic,
         );
       } else if (reportType === 'milestones') {
         tablePdfBytes = await paginateVectorToPdfBytes(
@@ -1200,10 +1245,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             columns: buildMilestoneColumns(t, taskDate),
             rows: milestoneRows,
             emptyText: t('milestoneReport.empty'),
-          }, measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
-          { regular, bold },
-          { regular: arabicRegular, bold: arabicBold },
+          }, measureHeader, reportFont),
+          vectorOpts,
+          fonts.main,
+          fonts.arabic,
         );
       } else {
         tablePdfBytes = await paginateVectorToPdfBytes(
@@ -1212,10 +1257,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             columns: buildVarianceColumns(t, taskDate, locale),
             rows: varianceResult.rows,
             emptyText: t('variance.noBaseline'),
-          }, measureHeader),
-          { paperSize: lowerPaper, orientation, mode: 'fit-width', baseDir: exportBaseDir, subsetFont },
-          { regular, bold },
-          { regular: arabicRegular, bold: arabicBold },
+          }, measureHeader, reportFont),
+          vectorOpts,
+          fonts.main,
+          fonts.arabic,
         );
       }
     } catch (err) {
@@ -1225,7 +1270,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
 
     await writePdf(tablePdfBytes, `${fileBase}-${suffix}.pdf`);
   }, [reportType, isGanttLike, projectName, fileBase, tasks, sequences, calendar, options, paperSize, orientation,
-    repeatHeader, repeatFooter, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec]);
+    repeatHeader, repeatFooter, writePdf, t, taskDate, locale, milestoneRows, varianceResult, tableSpec,
+    reportFontFamily, reportFont]);
 
   // Guard: een stale planning eerst doorrekenen. NIET meteen daarna exporteren — `runExport`
   // leest `tasks`/`options`/`tableSpec` uit de closure van de HUIDIGE render, en die kent de
@@ -1247,6 +1293,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       });
     });
   }, [runExport]);
+  // Zie `measuredOnChosenFont`: een Gantt-export wacht tot de breedtes bij de gekozen letter horen.
+  const exportWaitsForFont = isGanttLike && !measuredOnChosenFont;
   const handleExportPDF = useCallback(() => {
     const st = useAppStore.getState();
     if (st.scheduleStale) {
@@ -1254,13 +1302,17 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       st.runCPM();
       return;
     }
+    if (exportWaitsForFont) {
+      exportPendingRef.current = true;
+      return;
+    }
     startExport();
-  }, [startExport]);
+  }, [startExport, exportWaitsForFont]);
   useEffect(() => {
-    if (!exportPendingRef.current || scheduleStale) return;
+    if (!exportPendingRef.current || scheduleStale || exportWaitsForFont) return;
     exportPendingRef.current = false;
     startExport();
-  }, [scheduleStale, startExport]);
+  }, [scheduleStale, exportWaitsForFont, startExport]);
 
   // Kritieke activiteiten (bladtaken): dezelfde teller als MCP get_project_info en de statusbalk.
   const criticalCount = countCriticalActivities(tasks);
@@ -1413,6 +1465,12 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             </ReportFieldRow>
             <ReportFieldRow label={t('orientation')}>
               <OrientationSelect className="flex-1 min-w-0" value={orientation} onChange={setOrientation} />
+            </ReportFieldRow>
+
+            {/* Lettertype van het rapport (issue #770): een vast setje vrije letters die elke PDF
+                inbedt. Preview, kolommeting en export volgen allemaal deze ene keuze. */}
+            <ReportFieldRow label={t('reportFontFamilyLabel')}>
+              <ReportFontSelect className="flex-1 min-w-0" value={reportFontFamily} onChange={setReportFontFamily} />
             </ReportFieldRow>
 
             {/* Lettergrootte van het rapport. Relatief bedoeld: bij een grotere
@@ -1649,6 +1707,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             orientation={orientation}
             onPaperSize={setPaperSize}
             onOrientation={setOrientation}
+            fontFamily={reportFontFamily}
+            onFontFamily={setReportFontFamily}
           />
         )}
 
@@ -1742,7 +1802,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
           </div>
         ) : tableSpec ? (
           <div className="h-full overflow-auto p-4">
-            <TableReportView ref={tableReportRef} spec={tableSpec} />
+            <TableReportView ref={tableReportRef} spec={tableSpec} fontStack={reportFont} />
           </div>
         ) : reportType === 'milestones' ? (
           <div className="h-full overflow-auto p-4">
@@ -1750,7 +1810,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             <div
               ref={milestoneRef}
               className="bg-surface p-4"
-              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960 }}
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 960, ...reportFontStyle(reportFont) }}
             >
               <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('milestoneReport.title')}</h3>
               <MilestoneReport />
@@ -1762,7 +1822,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
             <div
               ref={varianceRef}
               className="bg-surface p-4"
-              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100 }}
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-card)', maxWidth: 1100, ...reportFontStyle(reportFont) }}
             >
               <h3 className="ui-card-header !text-small !leading-4 mb-3">{t('variance.title')}</h3>
               <VarianceReport />

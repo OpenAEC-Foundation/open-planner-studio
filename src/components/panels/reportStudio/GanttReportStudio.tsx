@@ -5,7 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { Select } from '@/components/common/Select';
 import { HelpButton } from '@/components/common/HelpButton';
 import { REPORT_HELP_ARTICLE_ID } from '@/state/helpArticles';
-import { ensureInterLoaded } from '@/services/pdf/fontLoader';
+import { ensureReportFontLoaded } from '@/services/pdf/fontLoader';
 import { saveBytesDialog } from '@/services/fileAccess';
 import { buildGanttReportPdf } from '@/services/print/exportGanttReportPdf';
 import { NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
@@ -100,7 +100,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const [fontReady, setFontReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    void ensureInterLoaded().then(() => { if (!cancelled) setFontReady(true); }, () => { if (!cancelled) setFontReady(true); });
+    void ensureReportFontLoaded().then(() => { if (!cancelled) setFontReady(true); }, () => { if (!cancelled) setFontReady(true); });
     return () => { cancelled = true; };
   }, []);
 

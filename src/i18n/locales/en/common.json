@@ -785,6 +785,7 @@
       "droppedSequence": "Relation ignored: predecessor or successor is missing or is not a leaf task",
       "hammockNoFinishDriver": "Hammock without a finish driver (no FF/SF predecessor): its duration falls back to zero",
       "cappedTask": "Finish date capped: the calendar leaves no workable window for this task",
+      "externalLagCalendar": "External lag counts in this task's calendar: the calendar of the other side is not in this file",
       "overallocation": "Overallocated on {{count}} day(s) ({{first}} – {{last}})",
       "overallocationNonWorkingDay": "Overallocated on {{count}} day(s) ({{first}} – {{last}}) — the resource does not work these day(s) per its calendar",
       "overallocationMixed": "Overallocated on {{count}} day(s) ({{first}} – {{last}}), of which {{nonWorking}} day(s) the resource does not work per its calendar"

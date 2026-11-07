@@ -32,6 +32,7 @@
   "repeatHeader": "Kop op elke pagina herhalen",
   "repeatFooter": "Voet op elke pagina herhalen",
   "reportFontScaleLabel": "Lettergrootte:",
+  "reportFontFamilyLabel": "Lettertype:",
   "timelineColumnsLabel": "Tijdlijn over:",
   "timelineColumnsHint": "Alleen bij automatische passing",
   "timelineColumns_one": "{{count}} pagina",
@@ -434,6 +435,12 @@
       "riskHeading": "Risicotaken: te laat of negatieve speling",
       "riskEmpty": "Geen taken te laat en geen negatieve speling."
     }
+  },
+  "reportFontFamily": {
+    "inter": "Inter (standaard)",
+    "liberationSans": "Liberation Sans (zoals Arial)",
+    "carlito": "Carlito (zoals Calibri)",
+    "liberationSerif": "Liberation Serif (zoals Times New Roman)"
   },
   "studio": {
     "eyebrow": "Rapport",
