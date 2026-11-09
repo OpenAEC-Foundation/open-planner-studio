@@ -455,3 +455,134 @@ test('bronproject: afhankelijke projecten zoeken, het resultaat bij de taak en d
   await expect(warning).toHaveCount(0);
   await expect.poll(() => downloads).toBe(1);
 });
+
+// Stap 1.7 (keuze 5, vorm 1; §7.1 en §9 in `docs/relaties-tussen-projecten.md`): de bron staat ook als document open,
+// met niet-opgeslagen wijzigingen. Een eigen blok: de beginstand zijn twee documenten in de app (het eigen project
+// en de bron), en de route wisselt van document. De bron komt uit OPFS, zoals in het blok van stap 1.8; de kiezer
+// geeft dat handvat zowel bij *Bronbestand kiezen…* als bij *Openen*. De klikken en toetsen blijven echt; alleen de
+// wijziging in de bron is een fixture.
+test('bron ook geopend met niet-opgeslagen wijzigingen: melding, anker uit het bestand, rekenen met het geopende document en undo', async ({ page, ops: _ops }) => {
+  test.setTimeout(120_000);
+  await page.goto(`/?open=${DIR}/Aannemer.ifc`);
+  await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().cpmResult?.projectEnd ?? ''), { timeout: 30_000 }).not.toBe('');
+  await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
+  const sourceText = await (await page.request.get(`/${DIR}/Installateur.ifc`)).text();
+  await page.evaluate(async (text) => {
+    const root = await navigator.storage.getDirectory();
+    const handle = await root.getFileHandle('Installateur.ifc', { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
+    Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, writable: true, value: async () => [handle] });
+  }, sourceText);
+  const ownDocumentId = await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
+  const ownTaskId = await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    const task = S.tasks.find(t => t.childIds.length === 0 && !(t.externalLinks?.length))!;
+    S.selectTask(task.id);
+    return task.id;
+  });
+  const linkOf = () => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.externalLinks?.[0] ?? null, ownTaskId);
+
+  // Koppelen aan Installateur.ifc (zonder pad, zoals in de browser).
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Add external relation…' }).click();
+  const linkDialog = page.getByTestId('external-link-dialog');
+  await linkDialog.getByRole('button', { name: 'Source file', exact: true }).click();
+  await linkDialog.locator('[data-ops-external-source-choose]').click();
+  await expect(linkDialog.locator('[data-ops-external-source-chosen]')).toHaveText('Installateur.ifc');
+  await linkDialog.getByTestId('external-link-add').click();
+  await expect(linkDialog).toHaveCount(0);
+  const created = (await linkOf())!;
+  const savedAnchor = created.anchorDate;
+  expect(created.sourceVersion).toBeTruthy();
+
+  // Installateur.ifc ook openen (Ctrl+O, dezelfde kiezer) ⇒ een tweede document.
+  await page.keyboard.press('ControlOrMeta+o');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().documents.length), { timeout: 15_000 }).toBe(2);
+  const sourceDocumentId = await page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId);
+  expect(sourceDocumentId).not.toBe(ownDocumentId);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().project.name)).toBe('Installateur');
+
+  // Schoon geopend ⇒ vernieuwen zoals altijd, zonder melding.
+  const tab = (id: string) => page.locator(`[data-testid="document-tab"][data-ops-tab="${id}"]`);
+  const notice = page.locator('.ops-toast').filter({ hasText: 'Installateur.ifc has unsaved changes; the anchor comes from the saved version.' });
+  await tab(ownDocumentId).click();
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
+  await expect(page.locator('.ribbon-relation-menu-status')).toContainText('1 anchor(s) refreshed');
+  await page.waitForTimeout(500);
+  await expect(notice).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Fixture: in de bron duurt de brontaak twee keer zo lang, niet opgeslagen en niet herberekend.
+  await tab(sourceDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.name)).toBe('Installateur');
+  await page.evaluate((taskId) => {
+    const S = window.__OPS__!.store.getState();
+    const task = S.tasks.find(t => t.id === taskId)!;
+    S.updateTask(taskId, { time: { ...task.time, scheduleDuration: task.time.scheduleDuration * 2 } });
+  }, created.sourceRef.taskId);
+  const sourceState = () => page.evaluate((id) => {
+    const S = window.__OPS__!.store.getState();
+    const payload = S.activeDocumentId === id ? S : S.documents.find(d => d.id === id)!.payload!;
+    return { dirty: payload.isDirty, stale: payload.scheduleStale, tasks: JSON.stringify(payload.tasks.map(t => [t.id, t.time])) };
+  }, sourceDocumentId);
+  const sourceBefore = await sourceState();
+  expect(sourceBefore.dirty).toBe(true);
+
+  // Vernieuwen ⇒ het anker uit het opgeslagen bestand en de melding met de knop.
+  await tab(ownDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(ownDocumentId);
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
+  await expect(notice).toHaveCount(1, { timeout: 15_000 });
+  await page.keyboard.press('Escape');
+  expect((await linkOf())!.anchorDate).toBe(savedAnchor);
+
+  // De knop ⇒ het anker uit het geopende document, zonder versie, als één stap; de bron verandert niet.
+  const appliedSteps = () => page.evaluate(() => window.__OPS__!.store.getState().historyEvents.filter(e => e.state === 'applied').length);
+  const steps = await appliedSteps();
+  await notice.locator('[data-ops-notification-action="refreshFromOpenDocument"]').click();
+  await expect(page.locator('.ops-toast').filter({ hasText: 'The links to Installateur.ifc have been refreshed from the open document' })).toHaveCount(1, { timeout: 15_000 });
+  await expect(notice).toHaveCount(0);
+  const used = (await linkOf())!;
+  expect(used.anchorDate > savedAnchor).toBe(true);
+  expect(used.sourceVersion).toBeUndefined();
+  expect(typeof used.anchorReadAt).toBe('string');
+  expect(await appliedSteps()).toBe(steps + 1);
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
+  expect(await sourceState()).toEqual(sourceBefore);
+
+  // Ctrl+Z ⇒ het anker uit het opgeslagen bestand terug; Ctrl+Y ⇒ weer dat uit het geopende document.
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(async () => (await linkOf())!.anchorDate).toBe(savedAnchor);
+  await page.keyboard.press('ControlOrMeta+y');
+  await expect.poll(async () => (await linkOf())!.anchorDate).toBe(used.anchorDate);
+
+  // De bron opslaan (Ctrl+S, in hetzelfde OPFS-bestand) en terug naar het eigen project ⇒ de balk bij die versie,
+  // ook al blijft het anker gelijk. *Accepteren* zet de echte versie.
+  await tab(sourceDocumentId).click();
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.name)).toBe('Installateur');
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty), { timeout: 15_000 }).toBe(false);
+  const savedVersion = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const file = await (await root.getFileHandle('Installateur.ifc')).getFile();
+    return new Date(file.lastModified).toISOString();
+  });
+  await tab(ownDocumentId).click();
+  const strip = page.locator(`[data-ops-external-source-update="project:${created.sourceRef.projectId}"]`);
+  await expect(strip).toHaveCount(1, { timeout: 15_000 });
+  await expect(strip).toContainText('1 link changes.');
+  await strip.locator('[data-ops-external-source-review]').click();
+  const dialog = page.locator(DIALOG);
+  await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(1);
+  await expect(dialog.locator('[data-ops-external-source-review-version-only]')).toHaveCount(1);
+  await dialog.locator('[data-ops-external-source-review-accept]').click();
+  await expect(dialog).toHaveCount(0);
+  await expect(strip).toHaveCount(0);
+  const accepted = (await linkOf())!;
+  expect([accepted.anchorDate, accepted.sourceVersion]).toEqual([used.anchorDate, savedVersion]);
+});
