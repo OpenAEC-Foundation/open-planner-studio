@@ -1,4 +1,7 @@
-# Indeling volgens ontwerp v9 §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand met één entiteit per regel.
+# Indeling volgens ontwerp §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand (STEP).
+# Review #839: leest entiteiten ook over meer regels (splitst op ';' buiten tekst en commentaar), weigert invoer zonder
+# DATA-deel of zonder entiteiten (exit 1), en volgt de uitzondering "live-schema van eigen herkomst sluit baselinebomen
+# altijd uit" (spec §4.2 stap 1). Complexe instanties (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
 # Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc>
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
@@ -6,8 +9,37 @@ import re, sys, os, glob
 from collections import defaultdict, Counter
 t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
 ents, pos = {}, {}
-for m in re.finditer(r'^#(\d+)\s*=\s*([A-Z0-9_]+)\((.*)\);\s*$', t, re.M):
-    ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = m.start()
+def statements(text):  # (beginpositie, tekst) per ';'-statement, buiten '...' en /* ... */
+    out, i, start, n = [], 0, 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == "'":
+            i += 1
+            while i < n:
+                if text[i] == "'":
+                    if i + 1 < n and text[i+1] == "'": i += 2; continue
+                    break
+                i += 1
+        elif c == '/' and i + 1 < n and text[i+1] == '*':
+            j = text.find('*/', i + 2); i = n if j < 0 else j + 1
+        elif c == ';':
+            out.append((start, text[start:i])); start = i + 1
+        i += 1
+    return out
+md = re.search(r'\bDATA\s*;', t)
+if not md:
+    sys.exit(f"{sys.argv[1]}: geen DATA-deel gevonden; dit script leest alleen STEP-bestanden (ISO 10303-21)")
+for st, body in statements(t[md.end():]):
+    b = re.sub(r'/\*.*?\*/', '', body, flags=re.S).strip()
+    m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)\s*$', b, re.S)
+    if m:
+        ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = md.end() + st
+        continue
+    m = re.match(r'#(\d+)\s*=\s*\((.*)\)\s*$', b, re.S)
+    if m:
+        ents[int(m.group(1))] = ('COMPLEX', m.group(2)); pos[int(m.group(1))] = md.end() + st
+if not ents:
+    sys.exit(f"{sys.argv[1]}: 0 entiteiten gevonden; ongeschikte invoer")
 def split_args(s):
     out, depth, cur, ins, i = [], 0, '', False, 0
     while i < len(s):
@@ -80,7 +112,13 @@ def tasks_of(sc):
     return tree(todo)
 live_tasks = tasks_of(live); base_tasks = tasks_of(base)
 alltasks = {i for i in ents if ty[i] == 'IFCTASK'}
-excl = (base_tasks - live_tasks) if live_tasks else set()
+def app_of(oh):  # herkomst: de applicatie achter IfcOwnerHistory.OwningApplication (argument 1)
+    if ty.get(oh) != 'IFCOWNERHISTORY': return None
+    a = r1(oh, 1); return args[a][3].strip("'") if a in ents and len(args[a]) > 3 else None
+# Baselinebomen gaan eruit als er een live-schema met taken is (#336), en altijd als er een live-schema van eigen
+# herkomst is, ook zonder taken (spec §4.2 stap 1; review #839, Sol S3 / Terra T5).
+eigen_live = any(len(args[i]) > 1 and app_of(r1(i, 1)) == 'OPS' for i in live)
+excl = (base_tasks - live_tasks) if (live_tasks or eigen_live) else set()
 allplans = [i for i in ents if ty[i] == 'IFCWORKPLAN']
 plans = {min(allplans, key=lambda i: pos[i])} if allplans else set()  # de lezer kiest het eerste (ifcReader.ts:442)
 agg_sched = set()
@@ -168,9 +206,6 @@ while todo:
 # --- Stap 4: Ext ---
 # v7: herkomst. Een D/R-stuk waarvan de owner history niet naar de OPS-applicatie wijst, houdt die owner history
 # (constant #-slot); die is dus een startpunt van Ext en wordt C.
-def app_of(oh):
-    if ty.get(oh) != 'IFCOWNERHISTORY': return None
-    a = r1(oh, 1); return args[a][3].strip("'") if a in ents and len(args[a]) > 3 else None
 vreemde_herkomst = {i for i in D | R if len(args[i]) > 1 and app_of(r1(i, 1)) != 'OPS'}
 oh_starts = [r1(i, 1) for i in vreemde_herkomst if r1(i, 1) is not None]
 Ext, todo = set(), [i for i in ents if i not in Own] + oh_starts

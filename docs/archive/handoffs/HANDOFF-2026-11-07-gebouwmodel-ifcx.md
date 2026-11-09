@@ -1,12 +1,21 @@
 # Handoff — gebouwmodel behouden + IFCX (#804)
 
-**AFGEWERKT voor het ontwerp (PR #839).** Ontwerp v15: Opus en Sol gaven een 9 (ronde 13, 9 november 2026). De bouw
-(fase 0–4) loopt in eigen PR's vanaf `main`; dit draaiboek is alleen nog van historisch belang.
+**AFGEWERKT voor het ontwerp (PR #839).** Ontwerp v15: Opus en Sol gaven een 9 (ronde 13, 9 november 2026); v16 verwerkt
+fixronde 1 van de review van #839. De bouw (fase 0–4) loopt in eigen PR's vanaf `main`; dit draaiboek is alleen nog van
+historisch belang.
+
+> **Leeswijzer (historie).** Dit draaiboek groeide mee met het ontwerp. Delen ervan beschrijven een stand die later is
+> vervangen; de spec is de bron. In het bijzonder:
+> - de regels "Open besluiten voor Ethan" en stap 2 van "Volgende stappen" zijn afgehandeld: de besluiten van 9 november
+>   staan in de tabel Besluiten en in spec §5.2, §5.3, §5.5 en §11;
+> - de namespace `ops::` en het eigendom op namespace (in "Kern van ontwerp v2" en de rondes 1–8) zijn vervangen door
+>   `openaec::planning::` en `openaec::ops::`, met eigendom op domeinobject (spec §5.2, §6.2);
+> - de stand "Waar het staat" hieronder is die van vóór ronde 9.
 
 Bijgewerkt: zie git log van dit bestand. Dit bestand is de bron bij compactie en voor Trias. Houd het actueel bij elke stap.
 Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
-## Waar het staat (gewone taal)
+## Waar het staat (gewone taal; stand van vóór ronde 9)
 
 Ethan heeft de IFCX-keuzes genomen (9 november, op advies van Bjorn). Ontwerp v10 verwerkt ze; omdat het eigendom in
 IFCX daardoor anders werkt, beoordelen Opus en Sol de nieuwe delen in ronde 9. Daarna: handoff naar het archief, #839
@@ -33,8 +42,8 @@ op ready, merge door Trias, en dan fase 0.
 | Council voorlopig alleen Opus + Sol; Fable alleen op echt belangrijke momenten | Ethan, 2026-11-09 | deze sessie |
 | Namespace IFCX: `openaec::planning::` voor algemene planningsgegevens (taken, relaties, …); `openaec::ops::` voor app-eigen instellingen en weergaven. ifcx-explorer gaat ook `openaec::planning::activity` lezen. Later andere structuur: oude naam blijven lezen | Bjorn (maintainer IFCCAD/ifcx-explorer), 2026-11-09 08:52–09:30; Ethan: "volg dit" | chatbericht (schermafbeelding in de sessie) |
 
-Open besluiten voor Ethan: §11 van de spec (namespace `ops::`; `openaec::activity` meeschrijven). Eén voor één
-voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
+*(Historie, afgehandeld op 9 november 2026.)* Open besluiten voor Ethan: §11 van de spec (namespace `ops::`;
+`openaec::activity` meeschrijven). Eén voor één voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 
 ## Werk
 
@@ -42,7 +51,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 - Draft PR: https://github.com/OpenAEC-Foundation/open-planner-studio/pull/839 (gelinkt aan de thread).
 - Spec: `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`. v1 = `07968697d`, v2 = `270af9b96`.
 
-## Kern van ontwerp v2 (voor na compactie)
+## Kern van ontwerp v2 (historie: vervangen door de spec, zie de leeswijzer)
 
 - Eén route voor elk IFC-bestand. Lezen als **bytes**. Elk stuk (entiteit + tekst ervoor) in klasse
   **P** planning (opnieuw geschreven), **C** context (IfcProject, owner history, units: lezen, byte-gelijk),

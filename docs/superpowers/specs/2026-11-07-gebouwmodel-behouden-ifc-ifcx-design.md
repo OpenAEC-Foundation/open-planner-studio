@@ -1,7 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 15 (9 november 2026: besluiten van Ethan over IFCX en council-rondes 9 tot en met 13 verwerkt;
-Opus en Sol gaven een 9).
+Status: ontwerp, versie 16 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixronde 1 van de
+review van PR #839 door Sol en Terra, §12).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -160,12 +160,35 @@ anders niet (`IfcRelSequence` is D, stap 1):
     (`ifcReader.ts:3455-3470, 3489`). Regel: elke sleutel in GlobalId-vorm (kaal of met `#n`) is eigen, ook als het er
     meer zijn dan toewijzingen. Een andere naam (`VendorSecretNote`) is een vreemd lid. Een vreemde `#n`-sleutel zou de
     wachtrij verschuiven, want de lezer sorteert op `n` (`ifcReader.ts:3464, 3494`; proef van Opus, ronde 8).
+  - **Ongebruikte sleutels.** Een sleutel die de lezer niet gebruikt (meer `#n`-sleutels dan toewijzingen van die
+    resource aan de taak, of een kale sleutel naast `#n`-sleutels: de lezer neemt de kale alleen als de wachtrij leeg is,
+    `ifcReader.ts:3494-3496`) gaat nu bij opslaan verloren, want de writer schrijft één sleutel per toewijzing
+    (`ifcWriter.ts:1862-1875`; Terra, review #839). Regel: de app bewaart de waarde van elke ongebruikte sleutel als token
+    (`ifcSource.unusedKeys`, per taak en sleutel). De writer schrijft eerst de sleutels voor de toewijzingen en daarna
+    de ongebruikte. De writer nummert zijn sleutels met de plaats van de toewijzing in de lijst van de taak
+    (`${resGuid}#${index}`, `ifcWriter.ts:1871`). Een ongebruikte `#n`-sleutel houdt haar naam als `n` groter is dan elk
+    nummer dat de writer in deze pset schrijft; anders krijgt zij het eerstvolgende nummer daarboven (namen blijven uniek).
+    Een kale sleutel houdt haar naam. Zo neemt de
+    lezer per toewijzing weer de sleutel die de writer ervoor schreef, en schuift de wachtrij niet. De waarde blijft
+    byte-gelijk.
   - `OPS_Timephased` heeft één vaste property `Windows`, met de sleutels in de JSON (`ifcReader.ts:3380-3390`).
     `OPS_TimephasedWindow` heeft de vaste properties `FinishFloor` en `StartAnchor` (`ifcPsets.ts:628-636`). (Sol, ronde 7:
     v7 behandelde ze als `#n`-psets, en een eigen fixture kreeg vreemde leden.)
   - `OPS_ActivityCodes`: de naam van een codetype, met als eerste code een waarde van dat type. `OPS_CustomFields`: de
     naam van een veld. De typen en velden komen uit de JSON in `OPS_StructureMeta`, met terugval op het eigen template,
     in dezelfde voorrang als de lezer (`ifcReader.ts:2202-2246, 2343-2366`).
+  - **JSON in eigen properties.** Een aantal eigen properties bevat JSON, onder meer `OPS_StructureMeta`,
+    `Baselines` in `OPS_Baselines`, `Windows` in `OPS_Timephased`, de rekenopties en het rekenprofiel
+    (`ifcReader.ts:2211, 3396, 3656, 3791, 3874`). De lezer neemt daaruit alleen de sleutels die hij kent, en de writer
+    schrijft alleen die terug (voorbeeld: een extra `vendorCoordinationId` in `OPS_StructureMeta` gaat nu verloren,
+    `ifcReader.ts:2211-2213`, `ifcWriter.ts:789`; Sol, review #839). De property is P, dus `sourceSlots` en controle 1
+    zagen dat niet. Regel: het register noemt elke JSON-property met de sleutels die de lezer leest. Een **onbekende
+    JSON-sleutel** bewaart de app als ruw token (JSON-tokenizer van §6.1, na het decoderen van de STEP-tekst;
+    `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). Dat geldt op het hoogste niveau en in elk
+    object in een lijst: de app vindt het object terug aan de sleutel waarop de lezer het item herkent (`id`, `name`),
+    en zonder zo'n sleutel aan de positie, zolang de lijst even lang is. De writer zet de onbekende sleutels terug in
+    hetzelfde object, na de bekende sleutels, in hun oorspronkelijke volgorde. Bestaat het object niet meer (het item is
+    verwijderd, of de lijst zonder sleutel veranderde van lengte), dan vervallen ze met het object (§4.7).
   - Dezelfde regel geldt voor property-templates in een template uit het register.
   - Lezer en indeling gebruiken dezelfde herkenner.
   - Bij opslaan vervalt elk vreemd lid dat de herkenner in de uitvoer als eigen zou lezen (wijzigingslijst, met een
@@ -381,8 +404,12 @@ Of een attribuut optioneel is, toetst de app niet zelf; `ifcopenshell.validate` 
 opslaan, via het meldingenkanaal: "3 gegevens van andere programma's hingen aan verwijderde taken of resources. Ze zijn
 aangepast of verwijderd."
 
+Dezelfde regel geldt voor vreemde gegevens **binnen** een eigen stuk: de onbekende JSON-sleutels (§4.2) en de
+ongebruikte sleutels in `OPS_Assignments` horen bij hun object en vervallen met dat object. Ze staan dan ook op de
+wijzigingslijst (soort *vervallen*) en tellen mee in de melding.
+
 **Ongedaan maken na opslaan.** De app bewaart elk vervallen of gewijzigd vreemd stuk (oude bytes), en van verdwenen
-objecten de `sourceSlots`, de `elementLinks` en de `foreignMembers` (met de psetnaam waar elk vreemd lid bij hoorde), in
+objecten de `sourceSlots`, de `elementLinks`, de onbekende JSON-sleutels, de ongebruikte sleutels en de `foreignMembers` (met de psetnaam waar elk vreemd lid bij hoorde), in
 `ifcSource.detached`, zolang het document open is. Ook de bewaarde slots van een vervallen relatie van een ander
 programma gaan erin, per koppeling (een toewijzing van Bonsai komt na Ctrl+Z terug met haar `QuantityInProcess` en
 GlobalId). (Sol en Opus, ronde 7.) Komt een object met dezelfde
@@ -401,7 +428,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   Niet in undo (§4.7 regelt undo na opslaan).
 - Inhoud: de bronbytes (`Uint8Array`), sha256, de kopnaam van het schema (ook `IFC4X3_ADD1`/`TC1`), de stukkenindex
   (`Uint32Array`), de klasse per stuk, de kaart domein-id → bron-`#id`, de A-verwijzingen, `sourceSlots`,
-  `foreignMembers`, wat de lezer uit gemengde relaties las (§4.6), `elementLinks`, `detached`, `foreign` (is er een vreemd
+  `foreignMembers`, `jsonExtras` en `unusedKeys` (§4.2), wat de lezer uit gemengde relaties las (§4.6), `elementLinks`, `detached`, `foreign` (is er een vreemd
   deel), het aantal bewaarde vreemde tokens in constante slots, de grootte en wijzigingstijd van het bestand op het eigen
   doel (§4.10) en het totaal aantal vreemde objecten voor de melding.
 - **De nieuwe bron komt van de writer.** De klassen, de kaart domein-id → `#id`, `sourceSlots`, `foreignMembers` en
@@ -494,7 +521,8 @@ Daarna, vóór het wegschrijven, scant de app de uitvoer opnieuw met de scanner.
    volgorde, op de wijzigingslijst na (gewijzigd, vervallen, teruggezet). Er komt geen ander niet-P-stuk bij, en geen
    `#id` komt twee keer voor. Ook het lidmaatschap blijft: elk vreemd lid hangt in de uitvoer aan dezelfde
    (domeinobject, psetnaam) als in de bron, tenzij het object verdween of het lid volgens §4.2 verviel (Sol, ronde 8:
-   zonder deze eis zag controle 1 een losgeraakt vreemd lid niet). Directe
+   zonder deze eis zag controle 1 een losgeraakt vreemd lid niet). Net zo staat elke onbekende JSON-sleutel en elke
+   ongebruikte sleutel (§4.2) in de uitvoer met dezelfde waarde in hetzelfde object, tenzij het object verdween. Directe
    vergelijking van bytes. Deze controle vergelijkt de scan van de uitvoer met de index van de bron; ze vangt een fout
    van de writer. Een fout van de scanner zelf vangt controle 3.
 2. **Planning.** Twee herlezingen moeten gelijk zijn:
@@ -509,9 +537,16 @@ Daarna, vóór het wegschrijven, scant de app de uitvoer opnieuw met de scanner.
 
 Faalt een controle, dan schrijft de app niets. De melding biedt een uitweg: *Exporteren zonder gebouwmodel*.
 
-**Bestand buiten de app vervangen** (alleen met een vreemd deel). Vóór het overschrijven van het eigen doel vergelijkt de
-app grootte en wijzigingstijd van het bestand op schijf met die in `ifcSource`, en bij een verschil de sha256. Is het
-bestand vervangen (bijvoorbeeld door een nieuwe versie van de architect), dan schrijft de app niet. Bij Opslaan meldt hij
+**Bestand buiten de app vervangen** (alleen met een vreemd deel). Vóór het overschrijven van het eigen doel leest de app
+het bestand op schijf en vergelijkt zijn sha256 met die in `ifcSource`, altijd, ook als grootte en wijzigingstijd gelijk
+zijn: een synchronisatiemap kan een ander bestand met dezelfde grootte en tijd terugzetten (Terra, review #839). Tussen
+die controle en het schrijven: in Tauri schrijft de app naar een tijdelijk bestand naast het doel, vergelijkt vlak vóór
+het atomair hernoemen grootte en wijzigingstijd opnieuw met de waarden van de controle, en hernoemt alleen als ze gelijk
+zijn. In de browser met een bestands-handle doet de app dezelfde tweede vergelijking vlak vóór het sluiten van de
+schrijfstroom (`createWritable`: de browser zet de inhoud pas bij sluiten neer). Bij de site is `siteFileVersion` de
+controle. Wat overblijft, is een wijziging met dezelfde grootte en tijd in de milliseconden tussen de tweede vergelijking
+en het hernoemen. Het lezen kost tijd bij een groot model; fase 0 meet het (§4.13). Is het bestand vervangen
+(bijvoorbeeld door een nieuwe versie van de architect), dan schrijft de app niet. Bij Opslaan meldt hij
 het en biedt hij *Opslaan als* en *Opnieuw openen* aan. AutoSave naar het bestand geeft één melding en stopt voor dit
 document tot de planner kiest. Anders zou Ctrl+S het oude model terugschrijven. Zonder vreemd deel geldt de huidige
 route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5).
@@ -577,9 +612,15 @@ route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5)
 - Het manifest is **best effort**, zoals nu: is de herstelopslag niet beschikbaar (`RecoveryStorageUnavailableError`,
   #582, bijvoorbeeld in een sandbox-iframe) of geblokkeerd, dan slaat de app toch op, zonder de twee stappen. Een crash
   direct daarna kan dan tot "bron ontbreekt" leiden.
-- Herstel bouwt de rest van `ifcSource` (index, klassen, kaart, `sourceSlots`, `elementLinks`) opnieuw op door de bron
-  opnieuw te scannen en in te delen. Een object uit de snapshot zonder koppeling met de bron (bijvoorbeeld een tweede
-  object met een dubbele GlobalId, dat van de writer een nieuwe GlobalId kreeg) geldt als nieuw.
+- **De kaart domein-id → bron-`#id` gaat mee in de herstelsnapshot**, met de sha256 van de bron waar ze bij hoort. Ze is
+  klein (een id per object) en bevat geen bronbytes. Zonder haar kon herstel een object met een `-dup-N`-id niet aan
+  zijn bronstuk koppelen: na opslaan heeft dat object in de bron een nieuwe GlobalId, en een herlezing geeft dan een
+  ander id dan de sessie. Het object gold als nieuw, kreeg weer een nieuwe GlobalId, en vreemde verwijzingen ernaar
+  raakten los (Terra, review #839). Herstel gebruikt de kaart uit de snapshot als de sha256 gelijk is aan die van de
+  gevonden bron (`sha256` of `pendingSha256`, met de kaart die bij die waarde hoort). De rest van `ifcSource` (index,
+  klassen, `sourceSlots`, `foreignMembers`, `jsonExtras`, `unusedKeys`, `elementLinks`) bouwt herstel opnieuw op door de
+  bron te scannen en in te delen, gesleuteld op `#id` via de kaart. Alleen een object dat na het laatste opslaan in de
+  app is gemaakt, staat niet in de kaart; dat is ook echt nieuw.
 - **Tauri**: geen kopie. Herstel leest het oorspronkelijke pad opnieuw en controleert de sha256.
 - **Browser met een bestands-handle**: ook geen kopie; herstel leest via de handle en controleert de sha256.
 - **Browser zonder handle** (download, site, externe bron): een kopie in IndexedDB, één keer per sha256, asynchroon, vóór
@@ -755,7 +796,7 @@ is werk van fase 3 en staat in de schema's.
 Besluit (Ethan, 9 november 2026): de app opent een planning die een ander programma in `openaec::planning::` schreef, en
 de planner kan die bewerken. Voorbeeld: IFCCAD slaat een gebouw op met tien taken in `openaec::planning::activity`. De
 planner opent het bestand, ziet de tien taken in de Gantt, verschuift er een en slaat op. Wat de app niet kent, blijft
-staan.
+staan, zolang het object bestaat waar het bij hoort (§6.2).
 
 - **Welke objecten**: zoals `selectPlanning` in STEP (§4.2). Het eerste werkplan in bestandsvolgorde is de planning;
   elke activity wordt een taak, ongeacht het werkplan (zoals `ifcReader.ts:1749`). Een baseline verwijst naar levende
@@ -818,18 +859,30 @@ hetzelfde vóór en na opslaan, en na heropenen.
   werkplan, een losse `openaec::ops::task` zonder activity), een onbekend attribuut in de bekende namespaces,
   `openaec::activity`, `children`, `inherits` en `bsi::ifc::class`.
 - **Meer bijdragen van hetzelfde attribuut op één pad**: IFC5 laat het laatste hele attribuutobject winnen
-  (`compose.ts`). Alle bijdragen van een eigen attribuut op een pad zijn eigen. De lezer neemt de waarde van de laatste
-  bijdrage. De writer schrijft het attribuut één keer, op de plek van de **eerste** bijdrage; de andere bijdragen
-  vervallen. Zo verschuift een werkplan of taak niet achter een ander object, en blijft de volgorde bij heropenen gelijk.
-  De onbekende velden komen uit de laatste bijdrage.
+  (`compose.ts`). Alle bijdragen van een eigen attribuut op een pad zijn eigen; de lezer neemt de waarde van de laatste.
+  De eerdere bijdragen zijn **overschaduwd**: ze hebben geen effect, maar hun onbekende velden zijn gegevens van een ander
+  (Sol, review #839: de eerste bijdrage met `vendorCost`, de tweede met `vendorRevision`). De writer behandelt een
+  overschaduwde bijdrage daarom als een vreemde bijdrage: byte-gelijk op haar plek. De nieuwe waarde schrijft hij op de
+  plek van de laatste bijdrage, met de onbekende velden van die laatste bijdrage, zodat zij blijft winnen. Omdat de eerste
+  bijdrage blijft staan, verandert de volgorde van eerste entries niet (werkplan W1, W2 en nog een W1: W1 blijft de
+  planning).
+- **Onbekende velden horen bij hun object** (één regel voor bewerken en verwijderen; Sol en Terra, review #839).
+  Zolang het object bestaat, blijven ze staan: in de herschreven laatste bijdrage als tokens, in overschaduwde
+  bijdragen byte-gelijk. Verwijdert de planner het object, dan vervallen al zijn eigen bijdragen, ook de overschaduwde,
+  met hun onbekende velden. Een attribuut met alleen onbekende velden laten staan kan niet: dan is het pad bij heropenen
+  weer een planningspad en komt de taak terug. Dit is dezelfde regel als in STEP, waar een verwijderd object zijn
+  `sourceSlots`, onbekende JSON-sleutels en ongebruikte sleutels meeneemt (§4.7). Wat wel blijft: vreemde attributen op
+  hetzelfde pad (§4.7 regel 4). De vervallen onbekende velden staan op de wijzigingslijst (melding na opslaan, zoals
+  §4.7) en in `detached`: Ctrl+Z na opslaan zet de bijdragen terug, de overschaduwde direct vóór de eigen entry van het
+  object, in hun oude volgorde.
 - **Velden**: bekende velden schrijft de writer uit het domein in de vaste vorm (§5.3). Omdat de lezer elke andere vorm
   weigert, geeft een onveranderd veld dezelfde waarde; een brontoken per bekend veld is niet nodig. Per (pad, attribuut)
   bewaart de app alleen welke bekende velden afwezig waren, met hun domeinwaarde na openen (§5.3).
   Onbekende velden zijn byte-gelijke tokens in hetzelfde attribuut, in hun oorspronkelijke volgorde, na de bekende
-  velden. Vervalt het attribuut (object verwijderd), dan vervallen ze mee.
+  velden. Vervalt het object, dan vervallen ze mee (zie "Onbekende velden horen bij hun object").
 - Een entry zonder eigen bijdragen: **byte-gelijk**, op zijn plek.
-- Een entry met alleen eigen bijdragen: opnieuw geschreven, **op dezelfde plek** (als hij de eerste bijdrage van zijn
-  attributen bevat; anders vervalt hij).
+- Een entry met alleen eigen bijdragen: opnieuw geschreven, **op dezelfde plek**. Een overschaduwde bijdrage in die
+  entry blijft als token staan (zie hierboven).
 - Een gemengde entry: de app schrijft hem op zijn plek terug zonder de eigen bijdragen, en zet de eigen bijdragen in een
   eigen entry **direct erna**. De vreemde attribuutwaarden en de vreemde `children`/`inherits` zijn byte-gelijke tokens;
   alleen de omlijsting van de entry (accolades, komma's) wordt opnieuw gemaakt. Omdat de eigen entry direct na de
@@ -894,8 +947,8 @@ in dit bestand".
 `imports`, `schemas` en elke entry (§6.1), per entry de eigen en vreemde bijdragen (§6.2), per (pad, attribuut) de
 afwezige bekende velden met hun domeinwaarde na openen en de tokens van de onbekende velden (één structuur, §6.2), per
 domein-id het bronpad (§5.2),
-`elementLinks` (§6.4), `foreign`, grootte en wijzigingstijd. De tokens van onbekende velden, het bronpad en de
-`elementLinks` van een verwijderd object gaan ook in `detached` (undo na opslaan), zoals `sourceSlots` en `foreignMembers` bij STEP. `foreign` is waar als er een vreemde bijdrage of
+`elementLinks` (§6.4), `foreign`, grootte en wijzigingstijd. De tokens van onbekende velden, de bytes van
+overschaduwde bijdragen, het bronpad en de `elementLinks` van een verwijderd object gaan ook in `detached` (undo na opslaan), zoals `sourceSlots` en `foreignMembers` bij STEP. `foreign` is waar als er een vreemde bijdrage of
 een onbekend veld is, of als de kop van een ander is (§5.1); dat is dezelfde betekenis als bij STEP. Een onbekend veld in een
 `openaec::ops::`-attribuut maakt het bestand onleesbaar (§5.1). Manifest 6, de twee stappen bij opslaan, "bron
 ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden ongewijzigd.
@@ -918,7 +971,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6 en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand (§4.10), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, de kaart in de herstelsnapshot en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -960,6 +1013,15 @@ daarom staat alles achter de flags tot het compleet is.
     de planning gelijk volgens `planningCanon` (P-stukken mogen andere hulp-ids en tijdstempels hebben);
   - een onbekende property (`VendorSecretNote`) in `OPS_Calendar` en in `OPS_ProjectSettings` blijft byte-gelijk; een veld
     van `OPS_CustomFields` uit het eigen template wordt gelezen en geschreven;
+  - onbekende JSON-sleutels (Sol, review #839): een extra `vendorCoordinationId` op het hoogste niveau van
+    `OPS_StructureMeta` en een extra sleutel in één codetype en in één baseline-item blijven na opslaan, na een tweede
+    opslaan en na een wijziging van een ander codetype staan; het codetype verwijderen laat zijn sleutel vervallen
+    (wijzigingslijst), Ctrl+Z na opslaan zet hem terug; een groot geheel getal in zo'n sleutel blijft byte-gelijk;
+  - ongebruikte sleutels in `OPS_Assignments` (Terra, review #839): één toewijzing met twee sleutels voor dezelfde
+    resource; na opslaan staan beide er, de lezer neemt voor de toewijzing dezelfde waarde als vóór opslaan, en de
+    tweede waarde is byte-gelijk; een tweede toewijzing van die resource toevoegen schuift de ongebruikte sleutel naar
+    een hoger nummer en de lezer neemt voor beide toewijzingen de waarde die de writer schreef; ook met een kale sleutel
+    naast `#n`-sleutels;
   - een `OPS_Calendar` gedeeld door kalender en wand: herlezing geeft `HoursPerDay = 8`; na een wijziging van de kalender
     houdt de wand de oude pset, en de kalender heeft één `OPS_Calendar`;
   - FS en SS tussen hetzelfde paar taken: twee relaties, elk met eigen GlobalId en vertraging; een toewijzing per resource
@@ -1009,7 +1071,13 @@ daarom staat alles achter de flags tot het compleet is.
     `Decomposes`/`Nests` na opslaan, ook niet na een wijziging van de structuur;
   - een `LongDescription` op een taak in een verder eigen bestand blijft staan;
   - crash tussen wegschrijven en het bijwerken van het manifest: herstel vindt de bron via `pendingSha256`;
-  - herstel met bron op het oude pad, via een handle, met een kopie, en zonder bron ("bron ontbreekt" blokkeert opslaan).
+  - herstel met bron op het oude pad, via een handle, met een kopie, en zonder bron ("bron ontbreekt" blokkeert opslaan);
+  - herstel met dubbele GlobalIds (Terra, review #839): bron met twee taken met dezelfde GlobalId en een vreemde pset
+    op de tweede; openen, opslaan, bewerken, crash, herstel, opslaan: de tweede taak houdt haar GlobalId uit het eerste
+    opslaan en de vreemde pset hangt nog aan haar; ook met een crash tussen `pendingSha256` en `sha256`;
+  - bestand buiten de app vervangen (Terra, review #839): een ander bestand met dezelfde grootte en wijzigingstijd op het
+    doel; Opslaan schrijft niet en meldt het; een wijziging tussen de controle en het hernoemen (testhaak in de
+    schrijflaag) laat het doel ongemoeid.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon` (drie hebben
@@ -1025,8 +1093,10 @@ daarom staat alles achter de flags tot het compleet is.
   pad en haar `elementLinks` zijn terug; een baseline zetten, de taak verwijderen, opslaan (ook vanuit STEP met een
   vervallen baselinetaak): de projectcontrole van ifcx-explorer laadt het bestand; twee activities op
   `/planning/a/<uuid>` en `/planning/b/<uuid>`: twee taken, één verwijderen, heropenen: de andere blijft; twee
-  activity-bijdragen op één pad met verschillende onbekende velden en een class in de eerste entry: één bijdrage op de
-  plek van de eerste, met de onbekende velden van de laatste, de class blijft vreemd, ook na heropenen; werkplan W1, W2,
+  activity-bijdragen op één pad met verschillende onbekende velden (`vendorCost` in de eerste, `vendorRevision` in de
+  tweede) en een class in de eerste entry: na opslaan staat de eerste bijdrage byte-gelijk, de tweede is herschreven met
+  `vendorRevision`, de class blijft vreemd, ook na heropenen; dezelfde taak verwijderen: beide bijdragen vervallen, de
+  class blijft, de wijzigingslijst noemt de twee onbekende velden, en Ctrl+Z na opslaan zet beide terug; werkplan W1, W2,
   nog een bijdrage van W1: na opslaan en heropenen is W1 de planning; de app voegt geen class en geen import toe, en de
   kop van een andere bron blijft byte-gelijk; een onbekend `openaec::planning::`-attribuut geeft de melding;
   **volgorde** in een planning van een ander programma: een taak achteraan toevoegen, ertussen invoegen, verplaatsen,
@@ -1225,6 +1295,15 @@ de open plaatsen; baselinepaden in de kaart; intern id in `openaec::ops::task` a
 import-alternatief voor schema's; tests voor volgorde en crashherstel. Opus bevestigde versie 15 met een 9; daarna kwamen er alleen tekstpunten bij
 (algoritme voor de volgnummers, `-dup-N` ook voor ids uit `openaec::ops::task`, de vaste plaats op de lijst voor Bjorn).
 **Doel gehaald in ronde 13.**
+
+Na fixronde 1 van de review van PR #839 (versie 16; Sol en Terra, 9 november): onbekende JSON-sleutels in eigen
+properties blijven bewaard (`jsonExtras`); ongebruikte sleutels in `OPS_Assignments` blijven bewaard en schuiven achter
+de sleutels van de writer (`unusedKeys`); de kaart domein-id → bron-`#id` gaat mee in de herstelsnapshot; de controle op
+een vervangen bestand vergelijkt altijd de sha256 en controleert opnieuw vlak vóór het schrijven; in IFCX blijven
+overschaduwde bijdragen byte-gelijk staan, en onbekende velden horen bij hun object (één regel voor bewerken en
+verwijderen). Tests in §10. De voorproef `classify-v9.py` leest nu entiteiten over meer regels, weigert invoer zonder
+DATA-deel of zonder entiteiten (exit 1), en volgt de uitzondering voor een live-schema van eigen herkomst; op de 60
+eerdere proefbestanden geeft hij dezelfde uitkomst als ervoor.
 
 ## 13. Bronnen
 
