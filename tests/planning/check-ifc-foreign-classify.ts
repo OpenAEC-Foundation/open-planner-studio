@@ -307,6 +307,35 @@ for (const r of REFUSALS) {
   eq(`weigering ${r.label}: reden`, got instanceof StepScanError ? got.reason : 'geaccepteerd', r.reason);
 }
 
+// Brede relaties (review van #863, Sol en Terra): `push(...lijst)` liep vast bij 130.000–150.000 leden op de grens van
+// de call stack. Een live-schema en een baseline met elk één relatie naar 150.000 taken, en één ouder met 149.999
+// kinderen: de indeling moet zonder fout eindigen en alle taken als planning houden.
+{
+  const N = 150_000;
+  const first = 10;
+  const ids: string[] = [];
+  const lines: string[] = [
+    "#1=IFCWORKPLAN('wp',$,'Plan',$,$,$,'2026-01-01T00:00:00',$,$,$,$,'2026-01-01T00:00:00',$,.PLANNED.);",
+    "#2=IFCWORKSCHEDULE('live',$,'Live',$,$,$,'2026-01-01T00:00:00',$,$,$,$,'2026-01-01T00:00:00',$,.PLANNED.);",
+    "#3=IFCWORKSCHEDULE('base',$,'Base',$,$,$,'2026-01-01T00:00:00',$,$,$,$,'2026-01-01T00:00:00',$,.BASELINE.);",
+    '#4=IFCRELAGGREGATES(\'agg\',$,$,$,#1,(#2,#3));',
+  ];
+  for (let k = 0; k < N; k++) {
+    lines.push(`#${first + k}=IFCTASK('t${k}',$,'T${k}',$,$,$,$,$,$,.F.,$,$,.NOTDEFINED.);`);
+    ids.push(`#${first + k}`);
+  }
+  const all = ids.join(',');
+  lines.push(`#${first + N}=IFCRELASSIGNSTOCONTROL('ctl',$,$,$,(${all}),$,#2);`);
+  lines.push(`#${first + N + 1}=IFCRELNESTS('nb',$,$,$,#3,(${all}));`);
+  lines.push(`#${first + N + 2}=IFCRELNESTS('nt',$,$,$,#${first},(${ids.slice(1).join(',')}));`);
+  const wide = scanStep(bytesOf(stepFile(lines.join('\n'))));
+  let cls: Classification | undefined;
+  let fout = '';
+  try { cls = classify(wide); } catch (e) { fout = String(e); }
+  eq('brede relaties: de indeling eindigt zonder fout', fout, '');
+  eq('brede relaties: alle 150.000 taken zijn planning', cls?.selection.tasks.length, N);
+}
+
 // ── 2. De indeling leest alleen de velden van de index ─────────────────────────────────────────────────────────
 {
   const sample = scanStep(new Uint8Array(readFileSync(join(ROOT, 'tests/fixtures/ifc-foreign/bonsai-4d.ifc'))));

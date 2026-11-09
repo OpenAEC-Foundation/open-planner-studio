@@ -93,6 +93,12 @@ const TEMPLATE_NAMES: ReadonlySet<string> = new Set(OWN_TEMPLATE_NAMES);
 const RESOURCE_TYPES: ReadonlySet<string> = new Set(Object.keys(IFC_TO_RESOURCE_TYPE));
 
 /** Alle doelstukken op argumentpositie `arg`, ook verwijzingen naar een `#id` dat niet bestaat (-1). */
+/** Zet alle elementen van `src` achter `dst`. Geen `dst.push(...src)`: dat loopt bij een brede relatie (130.000 leden en
+ *  meer) vast op de grens van de call stack (`RangeError`; review van #863, Sol en Terra). */
+function pushAll(dst: number[], src: readonly number[]): void {
+  for (let k = 0; k < src.length; k++) dst.push(src[k]);
+}
+
 function targetsAt(index: StepIndex, i: number, arg: number): number[] {
   const out: number[] = [];
   for (let k = index.outStart(i); k < index.outEnd(i); k++) if (index.outArg(k) === arg) out.push(index.outTarget(k));
@@ -168,15 +174,19 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
         const relating = index.refAt(i, 4);
         if (relating < 0) continue;
         const related = index.refsAt(i, 5);
-        if (baseline[relating]) baselineRoots.push(...related);
-        else if (live[relating]) liveRoots.push(...related);
-        else nestedUnder.set(relating, [...(nestedUnder.get(relating) ?? []), ...related]);
+        if (baseline[relating]) pushAll(baselineRoots, related);
+        else if (live[relating]) pushAll(liveRoots, related);
+        else {
+          let kids = nestedUnder.get(relating);
+          if (!kids) nestedUnder.set(relating, kids = []);
+          pushAll(kids, related);
+        }
       } else if (t === 'IFCRELASSIGNSTOCONTROL') {
         const control = index.refAt(i, 6);
         if (control < 0) continue;
         const related = index.refsAt(i, 4);
-        if (baseline[control]) baselineRoots.push(...related);
-        else if (live[control]) liveRoots.push(...related);
+        if (baseline[control]) pushAll(baselineRoots, related);
+        else if (live[control]) pushAll(liveRoots, related);
       }
     }
     const tree = (roots: number[]): Set<number> => {
@@ -186,7 +196,7 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
         const id = todo.pop()!;
         if (seen.has(id)) continue;
         seen.add(id);
-        todo.push(...(nestedUnder.get(id) ?? []));
+        pushAll(todo, nestedUnder.get(id) ?? []);
       }
       return seen;
     };
@@ -423,11 +433,11 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
     // Resources (11 argumenten): Usage 7, BaseCosts 8, BaseQuantity 9. `IfcRelAssignsToProcess`: QuantityInProcess 7.
     // Werkplan en werkschema: Creators 7 (spec v20; de writer schrijft daar `$`, `ifcWriter.ts:208`).
     if (inD[i] && RESOURCE_TYPES.has(index.type(i)) && index.argCount(i) === 11) {
-      for (const arg of [7, 8, 9]) extStarts.push(...index.refsAt(i, arg));
+      for (const arg of [7, 8, 9]) pushAll(extStarts, index.refsAt(i, arg));
     } else if (inD[i] && (index.type(i) === 'IFCWORKPLAN' || index.type(i) === 'IFCWORKSCHEDULE')) {
-      extStarts.push(...index.refsAt(i, 7));
+      pushAll(extStarts, index.refsAt(i, 7));
     } else if (inR[i] && index.type(i) === 'IFCRELASSIGNSTOPROCESS') {
-      extStarts.push(...index.refsAt(i, 7));
+      pushAll(extStarts, index.refsAt(i, 7));
     }
   }
   const inExt = new Uint8Array(n);

@@ -449,14 +449,22 @@ met de bestaande `parseSTEP` (een kleine set; de lezer kent `IfcRelAssignsToProd
   of pset. Bij (b) houdt het vreemde object de oude pset.
 - Zo staat een taak of schema nooit in twee `Nests`/`Decomposes`-relaties (die zijn SET [0:1]), en krijgt een object
   nooit twee psets met dezelfde naam.
-- **Bewaarde relaties gaan voor** (v20). De writer maakt geen eigen `IfcRelAggregates` of `IfcRelNests` voor een D-object
-  dat al als lid in een bewaarde relatie (A of V) van hetzelfde type staat. Hij hangt aan het D-schema (eigen
-  `IfcRelAssignsToControl`) geen taak die zelf, of via een voorouder in het domein, in de `IfcRelAssignsToControl` of
-  `IfcRelNests` van een ander live-schema staat. Zo blijven de taken van een tweede schema van Bonsai in dat schema, en
-  komt een nieuwe taak zonder zo'n voorouder onder het D-schema. Voorbeeld (fase 0,
-  `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc`): het D-schema hangt al onder een vreemd werkplan;
-  de writer hangt het dan niet ook onder het D-werkplan. Grens: zet de planner een taak uit zo'n relatie onder een taak
-  van het D-schema, dan blijft ze lid van de bewaarde relatie (die is byte-gelijk, §4.7 geldt alleen bij verwijderen).
+- **Bewaarde relaties gaan voor** (v20), zolang de plek van het lid in het domein niet verandert. De writer maakt dan
+  geen eigen `IfcRelAggregates` of `IfcRelNests` voor een D-object dat al als lid in een bewaarde relatie (A of V) van
+  hetzelfde type staat. Hij hangt aan het D-schema (eigen `IfcRelAssignsToControl`) geen taak die zelf, of via een
+  voorouder in het domein, in de `IfcRelAssignsToControl` of `IfcRelNests` van een ander live-schema staat. Zo blijven de
+  taken van een tweede schema van Bonsai in dat schema, en komt een nieuwe taak zonder zo'n voorouder onder het D-schema.
+  Voorbeeld (fase 0, `tests/fixtures/ifc-foreign/council/r6opus-twee-werkplannen.na.ifc`): het D-schema hangt al onder
+  een vreemd werkplan; de writer hangt het dan niet ook onder het D-werkplan.
+- **Verplaatsen uit een bewaarde relatie** (review van #863, Terra). Krijgt een taak in het domein een andere ouder, of
+  wordt ze een wortel-taak of juist niet meer, en staat ze als lid in een bewaarde relatie die haar oude plek vastlegt
+  (de `IfcRelNests` of `IfcRelAssignsToControl` van een ander live-schema, of een andere bewaarde `IfcRelNests`), dan
+  haalt de writer haar uit die relatie en schrijft hij de nieuwe plek als eigen relatie. Hetzelfde geldt voor een schema
+  in een bewaarde `IfcRelAggregates` als het domein het onder een ander werkplan zet. Die wijziging van het vreemde
+  stuk staat in de wijzigingslijst (§4.7) en gaat mee met undo: Ctrl+Z zet het lid terug, ook na opslaan, zoals bij
+  `detached`. Houdt de relatie geen leden over, dan vervalt ze, ook via de wijzigingslijst. Zonder deze regel bleef de
+  taak in de oude relatie en schreef de writer geen eigen nest; na heropenen ontbrak dan de gekozen ouder, want de lezer
+  leidt `parentId` af uit taak-naar-taak-nesting (`ifcReader.ts:2393`).
 
 ### 4.7 Een P-object is verwijderd
 
@@ -1236,6 +1244,11 @@ daarom staat alles achter de flags tot het compleet is.
     is C;
   - `council/r6opus-twee-werkplannen.na.ifc` (het D-schema hangt onder een vreemd werkplan): na opslaan heeft geen object
     twee `Decomposes` of `Nests`;
+  - fase 2: in `bonsai-4d.ifc` een taak van het tweede schema onder een taak van het eerste zetten, opslaan, heropenen:
+    de taak heeft de gekozen ouder, staat niet meer in de relatie van het tweede schema (wijzigingslijst), en geen object
+    heeft twee `Nests`; Ctrl+Z en opnieuw opslaan zetten haar terug in de relatie van het tweede schema, byte-gelijk; een
+    wortel-taak van het tweede schema die een kind wordt, gaat ook uit de `IfcRelAssignsToControl` van dat schema
+    (review van #863, Terra);
   - een gemengde `IfcRelAggregates` werkplan→(live-schema, Bonsai-baseline) en een gemengde `IfcRelNests`: geen dubbele
     `Decomposes`/`Nests` na opslaan, ook niet na een wijziging van de structuur;
   - een `LongDescription` op een taak in een verder eigen bestand blijft staan;
@@ -1543,7 +1556,9 @@ Na de merge van #839 en na fase 0 (versie 20; PR #863, 9 november): de testeis "
 toch" geldt alleen waar het manifest vrijblijvend is (VERVOLG uit ronde 5); de eis voor herstelkandidaten staat in §8
 (fase 2). Drie besluiten van wrakko na fase 0 (§11): een oud eigen bestand met een los `IfcProject` gaat als model zonder
 planning; `Creators` is een constant `#`-slot; alleen het eerste live-schema is D, en de writer maakt geen eigen
-aggregatie, nest of schematoewijzing voor wat al in een bewaarde relatie staat. Ook rechtgezet: kale sleutels in
+aggregatie, nest of schematoewijzing voor wat al in een bewaarde relatie staat. Na ronde 1 van de review van #863
+(Terra): verplaatst de planner een taak, dan haalt de writer haar uit de bewaarde relatie en schrijft hij de nieuwe plek
+(wijzigingslijst, undo). Ook rechtgezet: kale sleutels in
 `OPS_Assignments` stonden in geen tag; meer psets hebben namen uit de data. Poort na de wijziging: 2607 checks groen, met
 de vergelijking met `classify-v9.py`.
 

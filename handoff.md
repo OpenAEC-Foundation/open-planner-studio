@@ -7,8 +7,9 @@ Dit bestand is de bron bij compactie en voor Trias. Houd het actueel bij elke st
 
 Het ontwerp voor #804 is gemerged in main via #839 en staat nu op versie 20. Fase 0 is gebouwd: een proef op echte
 bestanden die bewijst dat de app bij een eigen bestand precies het eigen deel herkent (de 100 %-P-poort), en die de
-vragen van §11 beantwoordt. Wrakko besliste over drie afwijkingen; die staan in de spec en in de poort. De PR (#863) is
-nog draft. Eerst moet de nieuwe workflow `ifc-foreign` een keer groen draaien; daarna start wrakko de review van Sol.
+vragen van §11 beantwoordt. Wrakko besliste over drie afwijkingen; die staan in de spec en in de poort. De meting tot
+300 MB draaide in CI. Ronde 1 van de review is verwerkt (Sol ja; Terra één specregel). De PR (#863) is nog draft; na een
+korte check van Sol op de fix-diff gaat hij op ready en volgt de merge.
 
 ## Bronnen
 
@@ -43,6 +44,14 @@ nog draft. Eerst moet de nieuwe workflow `ifc-foreign` een keer groen draaien; d
   live-schema D (plus live-schema's van eigen herkomst), `Creators` (arg 7 van werkplan/werkschema) is een startpunt van
   Ext; `classify-v9.py` hetzelfde. Poort lokaal met Python: 2607 checks, exit 0; typecheck en `verify:docs` groen.
   Verwijzingen naar het oude pad van de workflow bijgewerkt.
+- 2026-11-09: wrakko zette de workflow-patch erop (`e56238fc6`); CI en workflow groen. Meting in CI (run 42680518408):
+  scanner plus indeling bij 300 MB 5,4–6,5 s, geheugen 2,3–3 keer de bestandsgrootte; in het bewijsdocument.
+- 2026-11-09: review ronde 1 op `e56238fc6`. Sol: ja, geen BLOKKEERT (69 schrijfacties gelijk aan main). Terra: nee,
+  alleen om §4.6 (verplaatsen uit een bewaarde relatie).
+- 2026-11-09 20:30: ronde 1 verwerkt: §4.6 verplaatsen (writer haalt het lid uit de bewaarde relatie, wijzigingslijst,
+  undo) met test voor fase 2 in §10; `pushAll` in plaats van `push(...)` in `classify.ts`, met een test met 150.000
+  leden (faalt met de oude code: `RangeError`); `meet-scanner.mjs` eindigt met een foutcode als een meting mislukt;
+  bewijsdocument op v20; knownbug 1007 (ids boven 2^31−1). Poort met Python 2610 checks groen, typecheck groen.
 
 ## Vervolgpunten uit ronde 5 van #839 (comment op de PR)
 
@@ -57,12 +66,12 @@ nog draft. Eerst moet de nieuwe workflow `ifc-foreign` een keer groen draaien; d
 - **Workflow.** Wrakko zette hem op `.github/workflows/ifc-foreign.yml` (`15d5828be`). Het token op aia09-mp50 heeft
   geen `workflow`-scope, dus een wijziging daarin kan alleen wrakko pushen. Klaar voor hem: de patch
   `…/scratchpad/ifc-foreign-env.patch` (de regels "VOORSTEL" eruit, `inputs.mb` en `inputs.browsers` via `env:`).
-- De meting bij 150 en 300 MB en in WebKit draait alleen via `workflow_dispatch`; nog niet gestart.
+- Geen open punten voor fase 0 meer, behalve de korte check van Sol op de diff van ronde 1.
 - Afwijkingen 2 en 3: rechtgezet in spec v20. Afwijkingen 6, 7, 8 en 9: werk voor fase 1.
 - Knownbug 1006 (IfcOpenShell 0.9 en `FILE_SCHEMA(('IFC4X3'))`) staat op deze branch.
 
 ## Volgende stappen
 
-1. Wrakko past de workflow aan met de patch; de workflow draait groen op de laatste commit.
-2. Melden aan wrakko; hij start de review van Sol op #863 (code van fase 0 en spec-diff samen).
-3. Na de review: PR op ready, melden aan wrakko.
+1. CI en workflow groen op de push van ronde 1; melden aan wrakko.
+2. Wrakko doet een korte check van Sol op de diff van ronde 1.
+3. Daarna: PR op ready, merge door Trias; handoff naar `docs/archive/handoffs/` vóór de merge.

@@ -234,3 +234,13 @@ async function measureBrowser(name, file) {
 
 if (opts.out) writeFileSync(opts.out, `${JSON.stringify({ base: 'public/examples/showcase-appartementencomplex.ifc', node: process.version, results }, null, 2)}\n`);
 rmSync(work, { recursive: true, force: true });
+
+// Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
+// dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
+const failed = results.flatMap(row => ['node', ...browsers]
+  .filter(env => !row[env] || row[env].error !== undefined)
+  .map(env => `${row.mb} MB ${env}: ${row[env]?.error ?? 'geen resultaat'}`));
+if (failed.length > 0) {
+  console.error(`Mislukte metingen:\n  ${failed.join('\n  ')}`);
+  process.exitCode = 1;
+}
