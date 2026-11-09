@@ -55,6 +55,16 @@ function isWord(c: number): boolean {
 function isSpace(c: number): boolean {
   return c === CH_SPACE || (c >= CH_TAB && c <= CH_CR);
 }
+/** Witruimte en commentaar overslaan: de lezer strippt commentaar vóór hij entiteiten leest, dus
+ *  `#1= IFCTASK /* x *\/ (…);` is daar een gewone entiteit. */
+function skipBlank(b: Uint8Array, i: number): number {
+  const n = b.length;
+  for (;;) {
+    while (i < n && isSpace(b[i])) i++;
+    if (b[i] === CH_SLASH && b[i + 1] === CH_STAR) { i = skipQuotedOrComment(b, i); continue; }
+    return i;
+  }
+}
 
 /**
  * Staat `i` op het begin van een string (`'…'`, `''` = ontsnapte apostrof) of commentaar (`/* … *\/`),
@@ -368,8 +378,7 @@ export class StepIndex {
   #rawArgs(i: number): string[] | undefined {
     if (this.#kind[i] !== KIND_ENTITEIT || this.type(i) === COMPLEX_TYPE) return undefined;
     const b = this.#bytes;
-    let p = this.#entStart[i];
-    while (b[p] !== CH_LPAREN) p++;
+    const p = openParenOf(b, this.#entStart[i]);
     const argsStart = p + 1;
     // De sluithaak van de entiteit: het stuk eindigt op `;`, met daarvoor `)` en eventueel witruimte
     // of commentaar. Zoek terug naar de laatste `)` buiten commentaar door vooruit te tellen.
@@ -392,10 +401,7 @@ export class StepIndex {
   #rawArg0(i: number): string {
     if (this.#kind[i] !== KIND_ENTITEIT || this.type(i) === COMPLEX_TYPE) return '';
     const b = this.#bytes;
-    let p = this.#entStart[i];
-    while (b[p] !== CH_LPAREN) p++;
-    p++;
-    while (isSpace(b[p])) p++;
+    const p = skipBlank(b, openParenOf(b, this.#entStart[i]) + 1);
     if (b[p] !== CH_QUOTE) return '';
     const end = skipQuotedOrComment(b, p);
     let s = '';
@@ -507,6 +513,16 @@ const ROOT_TYPES_FOR_CODING: ReadonlySet<string> = new Set([
   'IFCLABORRESOURCE', 'IFCCONSTRUCTIONEQUIPMENTRESOURCE', 'IFCCONSTRUCTIONMATERIALRESOURCE',
   'IFCCONSTRUCTIONPRODUCTRESOURCE', 'IFCSUBCONTRACTRESOURCE', 'IFCCREWRESOURCE',
 ]);
+
+/** De `(` van de argumenten van een entiteit vanaf haar `#`: `#id`, `=`, type, met witruimte en commentaar ertussen. */
+function openParenOf(b: Uint8Array, at: number): number {
+  let i = at + 1;
+  while (isWord(b[i])) i++;
+  i = skipBlank(b, i);
+  i = skipBlank(b, i + 1); // na '='
+  while (isWord(b[i])) i++;
+  return skipBlank(b, i);
+}
 
 /** Argumenten op het hoogste niveau splitsen, quote-bewust (spiegel van `splitArgs` in de lezer). */
 function splitArgs(argsStr: string): string[] {
@@ -645,10 +661,9 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       lastIdStr = '';
       for (let k = idStart; k < i; k++) lastIdStr += String.fromCharCode(b[k]);
     }
-    while (i < n && isSpace(b[i])) i++;
+    i = skipBlank(b, i);
     if (b[i] !== CH_EQ) return -1;
-    i++;
-    while (i < n && isSpace(b[i])) i++;
+    i = skipBlank(b, i + 1);
     let complex = false;
     if (b[i] === CH_LPAREN) {
       complex = true;
@@ -658,7 +673,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       while (i < n && isWord(b[i])) i++;
       if (i === typeStart) return -1;
       lastType = internType(typeStart, i);
-      while (i < n && isSpace(b[i])) i++;
+      i = skipBlank(b, i);
       if (b[i] !== CH_LPAREN) return -1;
     }
     // Argumenten op haakdiepte; strings en commentaar overslaan. Bij een complexe instantie tellen de
@@ -705,12 +720,8 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       i++;
     }
     if (!closed) return -1;
-    // Witruimte en commentaar tussen `)` en `;` (de lezer strippt commentaar vooraf).
-    for (;;) {
-      while (i < n && isSpace(b[i])) i++;
-      if (b[i] === CH_SLASH && b[i + 1] === CH_STAR) { i = skipQuotedOrComment(b, i); continue; }
-      break;
-    }
+    // Witruimte en commentaar tussen `)` en `;`.
+    i = skipBlank(b, i);
     if (b[i] !== CH_SEMI) return -1;
     return i + 1;
   };
