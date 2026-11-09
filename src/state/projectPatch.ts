@@ -33,7 +33,7 @@ export interface ProjectPatchOutcome {
  * documentcontract). De klem-mechaniek zelf zit in `clampProjectStartAnchors`.
  */
 export function applyProjectPatch(
-  s: DefaultWorkRuleSwitchState & { sequences: Sequence[] },
+  s: DefaultWorkRuleSwitchState & { sequences: Sequence[]; taskTypesVisible: boolean },
   updates: Partial<Project>,
   clear: readonly ClearableProjectKey[] = [],
 ): ProjectPatchOutcome {
@@ -42,6 +42,8 @@ export function applyProjectPatch(
   Object.assign(s.project, updates);
   for (const key of clear) delete s.project[key];
   s.project.modifiedAt = new Date().toISOString();
+  // Een expliciete projectkeuze ontsluit de velden, net als een typekeuze op een taak.
+  if (updates.defaultWorkRule !== undefined) s.taskTypesVisible = true;
   // Een nieuwe projectstandaard voor het taaktype geldt meteen voor elke taak die hem erft.
   const measureChangedTaskIds = settleDefaultWorkRuleSwitch(s, previousDefault);
   const clampedAnchors = typeof updates.startDate !== 'string' ? 0 : clampProjectStartAnchors({

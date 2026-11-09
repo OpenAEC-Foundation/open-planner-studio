@@ -13,6 +13,7 @@ import { projectInfoPatch } from '@/state/projectInfoPatch';
 import { defaultTaskMeasureLocked } from '@/state/newTaskMeasure';
 import { BUILT_IN_PROFILE_BRANDS, profileBrand } from '@/state/schedulingProfileNotice';
 import { projectIfcSchema, type IfcSchemaId } from '@/types/project';
+import { DEFAULT_WORK_RULE, WORK_RULES, type WorkRule } from '@/types/workRule';
 import { computeGenerateSpan, type HolidayGenParams } from '@/engine/calendar/generateCalendarHolidays';
 import type { HolidayCountry } from '@/engine/calendar/holidays';
 import { WIZARD_PRESETS, SHIFT_PRESET_LABEL, shiftPresetPatch, type ShiftPresetKey } from '@/utils/shiftPresets';
@@ -33,10 +34,11 @@ const NEW_COMPANY_OPTION = '__new__';
 interface MetaDraft {
   name: string; description: string; author: string; company: string;
   startDate: string; endDate: string; defaultTaskDurationUnit: 'days' | 'hours';
+  defaultWorkRule: WorkRule;
   /** Issue #292: schema in de kop bij opslaan; afwezig in het project ≡ IFC4X3. */
   ifcSchema: IfcSchemaId;
 }
-const META_KEYS = ['name', 'description', 'author', 'company', 'startDate', 'endDate', 'defaultTaskDurationUnit', 'ifcSchema'] as const satisfies readonly (keyof MetaDraft)[];
+const META_KEYS = ['name', 'description', 'author', 'company', 'startDate', 'endDate', 'defaultTaskDurationUnit', 'defaultWorkRule', 'ifcSchema'] as const satisfies readonly (keyof MetaDraft)[];
 
 export interface ProjectInfoPanelContentHandle {
   /** Committeert de huidige draft — wizard ⇒ createNewProject + bibliotheek-koppeling; edit ⇒
@@ -123,6 +125,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const isNew = mode === 'wizard';
     const { t: tMenu } = useTranslation('menu');
     const { t: tCommon } = useTranslation('common');
+    const { t: tTask } = useTranslation('task');
     const project = useAppStore(s => s.project);
     const activeDocumentId = useAppStore(s => s.activeDocumentId);
     const activeRibbonTab = useAppStore(s => s.ui.activeRibbonTab);
@@ -139,6 +142,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     const [defaultTaskDurationUnit, setDefaultTaskDurationUnit] = useState<'days' | 'hours'>(
       isNew ? 'days' : (project.defaultTaskDurationUnit ?? 'days'),
     );
+    const [defaultWorkRule, setDefaultWorkRule] = useState<WorkRule>(project.defaultWorkRule ?? DEFAULT_WORK_RULE);
     // Issue #292: alleen bij bewerken zichtbaar; een nieuw project begint op de standaard (IFC4X3).
     const [ifcSchema, setIfcSchema] = useState<IfcSchemaId>(projectIfcSchema(isNew ? {} : project));
     // Rekenprofiel + reken-opties als DRAFT: net als Naam/Omschrijving een lokale kopie;
@@ -201,6 +205,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       setStartDate(p.startDate);
       setEndDate(p.endDate);
       setDefaultTaskDurationUnit(p.defaultTaskDurationUnit ?? 'days');
+      setDefaultWorkRule(p.defaultWorkRule ?? DEFAULT_WORK_RULE);
       setIfcSchema(projectIfcSchema(p));
       setSchedulingRaw({ profile: p.schedulingProfile, options: p.schedulingOptions });
       setCalcTouched(false);
@@ -224,16 +229,18 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
       name: project.name, description: project.description, author: project.author, company: project.company,
       startDate: project.startDate, endDate: project.endDate,
       defaultTaskDurationUnit: project.defaultTaskDurationUnit ?? 'days',
+      defaultWorkRule: project.defaultWorkRule ?? DEFAULT_WORK_RULE,
       ifcSchema: projectIfcSchema({ ifcSchema: project.ifcSchema }),
     }), [project.name, project.description, project.author, project.company, project.startDate, project.endDate,
-      project.defaultTaskDurationUnit, project.ifcSchema]);
+      project.defaultTaskDurationUnit, project.defaultWorkRule, project.ifcSchema]);
     const draftMeta = useMemo<MetaDraft>(
-      () => ({ name, description, author, company, startDate, endDate, defaultTaskDurationUnit, ifcSchema }),
-      [name, description, author, company, startDate, endDate, defaultTaskDurationUnit, ifcSchema],
+      () => ({ name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema }),
+      [name, description, author, company, startDate, endDate, defaultTaskDurationUnit, defaultWorkRule, ifcSchema],
     );
     const metaSetters = useMemo<Record<keyof MetaDraft, (value: never) => void>>(() => ({
       name: setName, description: setDescription, author: setAuthor, company: setCompany,
       startDate: setStartDate, endDate: setEndDate, defaultTaskDurationUnit: setDefaultTaskDurationUnit,
+      defaultWorkRule: setDefaultWorkRule,
       ifcSchema: setIfcSchema,
     }), []);
     // Wijzigde de store onder een VUILE rekenprofiel-draft? Dan zegt het blok dat eerlijk (Toepassen
@@ -297,7 +304,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
     // anders (`sameSettings`, zoals `applyProjectInfo`), de bibliotheek alleen na aanraken. De wizard
     // maakt een nieuw project en kent dus geen "niet toegepast".
     const dirty = !isNew && (
-      Object.keys(projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit, ifcSchema })).length > 0
+      Object.keys(projectInfoPatch(project, draftMeta)).length > 0
       || (calcTouched && !sameSettings({ profile: project.schedulingProfile, options: project.schedulingOptions }, scheduling))
       || pendingNewCompany
       || (companyTouched && linkedCompanyId !== (project.companyId ?? ''))
@@ -379,7 +386,7 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
         // modifiedAt), en samen met het rekenprofiel in ÉÉN undo-stap ("Projectinfo"). Toepassen
         // zonder wijziging doet dan niets: geen undo-stap, niet vuil, "datums zoals opgeslagen" blijft.
         applyProjectInfo(
-          projectInfoPatch(project, { name, description, author, company, startDate, endDate, defaultTaskDurationUnit, ifcSchema }),
+          projectInfoPatch(project, draftMeta),
           calcTouched ? scheduling : undefined,
         );
         // Bind/unbind ALLEEN als de gebruiker de select in DEZE mount aanraakte — dit is
@@ -583,6 +590,19 @@ export const ProjectInfoPanelContent = forwardRef<ProjectInfoPanelContentHandle,
               : tCommon('settings.defaultTaskDurationUnitHint')}
           </p>
         </div>
+
+        {!isNew && (
+          <div className="flex flex-col gap-1" data-ops-default-work-rule>
+            <label className="text-text-secondary font-medium">{tMenu('projectInfo.defaultWorkRule')}</label>
+            <Select
+              aria-label={tMenu('projectInfo.defaultWorkRule')}
+              value={defaultWorkRule}
+              onChange={value => setDefaultWorkRule(value as WorkRule)}
+              options={WORK_RULES.map(rule => ({ value: rule, label: tTask(`workRule.${rule}`) }))}
+            />
+            <p className="scrollzoom-hint">{tMenu('projectInfo.defaultWorkRuleHint')}</p>
+          </div>
+        )}
 
         {/* Issue #292: het schema in de kop bij opslaan. Alleen bij bewerken; Toepassen zet het (één
             undo-stap via applyProjectInfo/setProject, document gewijzigd) en telt als antwoord op de

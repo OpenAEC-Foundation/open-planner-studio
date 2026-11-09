@@ -240,6 +240,8 @@
     "company": "Companie",
     "startDate": "Data de început",
     "endDate": "Data de sfârșit",
+    "defaultWorkRule": "Tip de activitate implicit",
+    "defaultWorkRuleHint": "Activitățile cu valoarea implicită „Standard de proiect” urmează această alegere. Activitățile cu un tip de activitate propriu își păstrează alegerea.",
     "calc": {
       "title": "Calcul",
       "subtitle": "Opțiunile de calcul pentru acest proiect se păstrează în fișier, nu în aplicație.",

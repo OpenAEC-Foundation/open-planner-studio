@@ -239,6 +239,8 @@
     "company": "Company",
     "startDate": "Start Date",
     "endDate": "End Date",
+    "defaultWorkRule": "Default task type",
+    "defaultWorkRuleHint": "Tasks set to ‘Project default’ follow this choice. Tasks with their own task type keep their choice.",
     "calc": {
       "title": "Calculation",
       "subtitle": "Scheduling options for this project — stored with the file, not the app.",

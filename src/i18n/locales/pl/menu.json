@@ -241,6 +241,8 @@
     "company": "Firma",
     "startDate": "Data rozpoczęcia",
     "endDate": "Data zakończenia",
+    "defaultWorkRule": "Domyślny typ zadania",
+    "defaultWorkRuleHint": "Zadania ustawione na „Domyślna dla projektu” korzystają z tego wyboru. Zadania z własnym typem zadania zachowują swój wybór.",
     "calc": {
       "title": "Obliczenia",
       "subtitle": "Opcje harmonogramowania dla tego projektu — zapisywane wraz z plikiem, nie z aplikacją.",

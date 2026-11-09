@@ -240,6 +240,8 @@
     "company": "Entreprise",
     "startDate": "Date de début",
     "endDate": "Date de fin",
+    "defaultWorkRule": "Type de tâche par défaut",
+    "defaultWorkRuleHint": "Les tâches définies sur « Valeur par défaut du projet » suivent ce choix. Les tâches ayant leur propre type de tâche conservent leur choix.",
     "calc": {
       "title": "Calcul",
       "subtitle": "Options de planification pour ce projet — stockées avec le fichier, pas avec l'application.",

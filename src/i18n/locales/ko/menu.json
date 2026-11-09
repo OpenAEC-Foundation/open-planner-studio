@@ -238,6 +238,8 @@
     "company": "회사",
     "startDate": "시작일",
     "endDate": "종료일",
+    "defaultWorkRule": "기본 작업 유형",
+    "defaultWorkRuleHint": "‘프로젝트 기본값’으로 설정된 작업은 이 선택을 따릅니다. 자체 작업 유형이 있는 작업은 그 선택을 유지합니다.",
     "calc": {
       "title": "계산",
       "subtitle": "이 프로젝트의 일정 옵션 — 앱이 아닌 파일에 저장됩니다.",

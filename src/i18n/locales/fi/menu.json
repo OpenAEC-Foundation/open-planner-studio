@@ -239,6 +239,8 @@
     "company": "Yritys",
     "startDate": "Aloituspäivä",
     "endDate": "Loppupäivä",
+    "defaultWorkRule": "Oletustehtävätyyppi",
+    "defaultWorkRuleHint": "Tehtävät, joiden tehtävätyyppi on ”Projektin oletus”, noudattavat tätä valintaa. Tehtävät, joilla on oma tehtävätyyppi, säilyttävät oman valintansa.",
     "calc": {
       "title": "Laskenta",
       "subtitle": "Laskenta-asetukset tälle projektille — tallennetaan tiedostoon, ei sovellukseen.",
