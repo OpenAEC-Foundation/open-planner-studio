@@ -93,7 +93,7 @@ import { interruptionsOf, planTaskSplits } from './splitFields';
 // Die vorm is voor elke tool gelijk en staat daarom één keer in `helpers.ts` (`parsedBatchStep`).
 
 /** "Wordt fase" — gedeeld door add_tasks en move_task. */
-const PHASE_TRANSITION_DOC = 'A task that gets its first subtask passes its assignments to it (`phaseTransitions`).';
+const PHASE_TRANSITION_DOC = 'A task that gets its first subtask passes its assignments to the first eligible new leaf (`phaseTransitions`).';
 
 // =================================================================================================
 // planner_add_tasks
