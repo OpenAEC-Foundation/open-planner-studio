@@ -70,7 +70,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 6 (v6) | 7 | 7 | 8 |
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
-| 9 (v10) | 7 | … | — (Ethan: voorlopig zonder Fable) |
+| 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
+| 10 (v11) | … | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -84,7 +85,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 9 (v10, alleen IFCX-besluiten) — Opus 7, Sol loopt
+### Ronde 9 (v10, alleen IFCX-besluiten) — Opus 7, Sol 8 — verwerkt in v11
 
 Opus 7 (proeven `scratchpad/r9/opus/`: `adapter-proef.mjs`, `compose-proef.mjs`). STEP-deel klopt nog; fase 0–2 kan
 starten. Blokkeert voor fase 3–4: (O1) gedeelde velden hebben één vaste waardevorm (ifcx-explorer leest `start`/
@@ -103,6 +104,17 @@ Vervolg: afwezige velden blijven afwezig; werkschema zonder ops-attribuut; valid
 `openaec::activity` = oude naam? (Bjorn); `foreign` voor IFCX; rondgang via IFCCAD kost ops-gegevens; adapter
 ifcx-explorer schrijft ook `'OPS'` als applicatie (`adapters.ts:358`). Eruit: "van een ander programma", leeg
 marker-attribuut, "eigen pad"; één tokenstructuur per (pad, attribuut); controle 3 op platte knopen.
+
+Sol 8 (proef `scratchpad/r9/sol/proef-ontwerp.py`; STEP-proeven 915/138/1512 P). Blokkeert: (S1) = O3: merkteken
+`openaec::ops::` maakt eigendom van class en brontokens anders na opslaan/heropenen → stabiele regel + test openen →
+opslaan → sluiten → heropenen → opslaan. Vervolg: (S2) paden zonder UUID (`/planning/work-0..21`, nul werkplannen):
+bronpad behouden, stabiele domein-id, nieuw werkplan; positieve bewerkproef met omgezette fixture. Eruit: lege
+merk-attributen.
+
+v11 (2026-11-09): eigendom alleen op domeinobject; brontoken per veld altijd als onveranderd; één bron + vaste vorm per
+gedeeld veld, elke wijziging nieuwe naam; id = pad, GlobalId uit UUID of UUID v5; geen werkplan → nieuw; WBS als veld
+`parent` (geen `children`); controle 3 per pad (`FlattenCompositionInput`, `compose.ts:60`); importcontract (handmatig
+gepland, `recordedTimesOrigin 'ifcx'`); afwezig blijft afwezig; lijst voor Bjorn in §11.
 
 ### Ronde 8 — Opus 9, Sol 9, Fable 9 (geen blokkade) — kleine punten verwerkt in v9
 
@@ -366,7 +378,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
-   Opus: 7 (zie Ronde 9). Wacht op Sol; spec niet wijzigen tot Sol klaar is.
+   Ronde 9: Opus 7, Sol 8 → v11. **Ronde 10 loopt** (Opus + Sol op v11).
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
