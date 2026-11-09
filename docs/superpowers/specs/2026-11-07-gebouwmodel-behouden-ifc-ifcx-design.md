@@ -1,7 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
 Status: ontwerp, versie 19 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
-4 van de review van PR #839 door Sol en Terra, §12).
+4 van de review van PR #839 door Sol en Terra, §12; na de merge één testeis in §10 rechtgezet).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -1084,7 +1084,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11; in de eerste PR daarvan bewaart herstel elke volledige kandidaat met `pendingSha256` zolang die niet op het doel staat, ook bij een crash vóór stap 3, met een test voor een crash tijdens het herstel zelf: VERVOLG uit ronde 5 van #839, voor Terra blokkerend), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -1183,7 +1183,9 @@ daarom staat alles achter de flags tot het compleet is.
   - oud eigen bestand (`'0.1'`) met model, met een `\` in een JSON-pset en een `é` in een taaknaam: na openen, opslaan en
     herlezen dezelfde gegevens;
   - de herstelsnapshot en de MCP-backup bevatten geen bronbytes;
-  - de manifeststap faalt (`RecoveryStorageUnavailableError`): opslaan lukt toch;
+  - de manifeststap faalt (`RecoveryStorageUnavailableError`) op een route waar het manifest vrijblijvend is (zonder
+    vreemd deel, of in de browser): opslaan lukt toch. Bij het vervangen van een bestand met een vreemd deel in Tauri
+    stopt opslaan vóór stap 3; dat is test (i) hieronder (§4.10 stap 0, §4.14; VERVOLG uit ronde 5 van #839);
   - het bestand op schijf wordt vervangen terwijl een document met vreemd deel open is: opslaan schrijft niet en AutoSave
     stopt na één melding; bij een eigen bestand zonder vreemd deel verandert er niets;
   - MCP-backup van vóór een wijziging, na twee AutoSaves terugzetten: het model blijft;
