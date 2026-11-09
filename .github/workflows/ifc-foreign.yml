@@ -1,6 +1,3 @@
-# VOORSTEL: dit bestand hoort in .github/workflows/ifc-foreign.yml. De sessie van fase 0 kon het daar niet pushen: het
-# token heeft geen `workflow`-scope ("refusing to allow an OAuth App to create or update workflow"). Wie die scope heeft,
-# zet het met `git mv scripts/proef/ifc-foreign.yml .github/workflows/ifc-foreign.yml` op zijn plek.
 name: IFC vreemde inhoud (fase 0)
 
 # #804 fase 0 (ontwerp "Gebouwmodel behouden in IFC en IFCX", §8 en §10). Twee jobs:
@@ -90,16 +87,20 @@ jobs:
         run: npm ci
       - name: Browsers installeren
         if: inputs.browsers != ''
+        env:
+          BROWSERS: ${{ inputs.browsers }}
         run: |
-          for b in $(echo "${{ inputs.browsers }}" | tr ',' ' '); do
+          for b in $(echo "$BROWSERS" | tr ',' ' '); do
             if [ "$b" = chromium ]; then npx playwright install --with-deps --only-shell chromium; else npx playwright install --with-deps "$b"; fi
           done
       - name: Meten
         env:
           CI: 'true'
+          MB: ${{ inputs.mb }}
+          BROWSERS: ${{ inputs.browsers }}
         run: |
-          args="--mb=${{ inputs.mb }} --out=meting-scanner.json"
-          if [ -n "${{ inputs.browsers }}" ]; then args="$args --browser=${{ inputs.browsers }}"; fi
+          args="--mb=$MB --out=meting-scanner.json"
+          if [ -n "$BROWSERS" ]; then args="$args --browser=$BROWSERS"; fi
           node scripts/proef/meet-scanner.mjs $args
           {
             echo '### Meting scanner en indeling (#804 fase 0)'
