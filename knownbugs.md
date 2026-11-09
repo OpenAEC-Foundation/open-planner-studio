@@ -2410,3 +2410,18 @@ en noem het in je rapport of PR-tekst.
      alleen baselines (`handleSecondaryMouseMove`) en er is geen `onDoubleClick`: geen taaktooltip en geen taak openen,
      ook niet op de balk zelf. Dat zat al in main. Voorstel: hover en dubbelklik van het hoofdpaneel ook in het tweede
      paneel aansluiten. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD, VERVOLG). — B
+
+956. **VERVOLG: een dubbelklik op de tijdschaal kan een bedekte taaknaam openen.** `onDoubleClick` in
+     `src/components/canvas/hooks/useGanttPointerCoordinator.ts` controleert de grens van de kop niet, en
+     `GanttRenderer.getTaskNameAt` rekent de rij uit de y-positie, ook onder de kop. Na verticaal scrollen ligt de naam
+     van een taak dan onder de tijdschaal. Proef: 21 taken, rijhoogte 28, kophoogte 60, `scrollY=20`; een dubbelklik op
+     (53, 54) opent taak S. Op main opent daar niets. Voorstel: `if (y < headerHeight) return;` vóór de hit-tests,
+     met `headerHeight` in de afhankelijkheden van de callback. Uit de review van #842 (GPT-6.1-Sol, xhigh, ronde 5,
+     BEVESTIGD, VERVOLG). — B
+
+957. **VERVOLG: de naam van een hammock of samenvatting verdwijnt ineens bij de linkerrand.** `drawHammockBar` en
+     `drawSummaryBar` (`src/engine/renderer/GanttRenderer.ts`) stoppen bij `x2 < 0`, nog vóór de naam. Bij een balkeinde
+     op x = 0 begint de naam op x = 14; bij x = -1 tekent de functie niets meer, terwijl de naam op x = 13 nog zichtbaar
+     zou zijn. Bij horizontaal scrollen springt de naam dus weg. Een gewone taakbalk heeft dit minder, want daar telt de
+     spelingsband mee. Voorstel: laat de grens ook de naamruimte meetellen (`x2 + ARROW_STUB + OUTSIDE_LABEL_GAP +
+     naambreedte < 0`), of teken de naam los van de balk. Uit de review van #842 (Terra, ronde 5, BEVESTIGD, VERVOLG). — B
