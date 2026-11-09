@@ -218,7 +218,9 @@
     "screenColorsMissingField": "این فیلد در این پروژه وجود ندارد. دسته‌بندی کار به‌طور موقت استفاده می‌شود.",
     "screenColorsHint": "خارج از حالت مسیر بحرانی، حاشیه قرمز مسیر بحرانی را نشان می‌دهد.",
     "addLayout": "چیدمان جدید",
-    "toggleRelations": "خطوط رابطه"
+    "toggleRelations": "خطوط رابطه",
+    "relationFindDependents": "یافتن پروژه‌های وابسته…",
+    "relationFindDependentsHint": "جستجو در یک پوشه برای پروژه‌هایی که با این برنامه رابطه خارجی دارند."
   },
   "ifc": {
     "title": "ویرایشگر IFC",

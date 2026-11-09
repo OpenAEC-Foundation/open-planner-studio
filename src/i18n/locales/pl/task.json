@@ -717,5 +717,11 @@
     "timeHint": "Puste: początek lub koniec dnia roboczego. Z godziną: dokładnie ten moment.",
     "later": "Kwadrans później",
     "earlier": "Kwadrans wcześniej"
+  },
+  "dependents": {
+    "title": "Projekty zależne",
+    "successor": "Następnik tam",
+    "predecessor": "Poprzednik tam",
+    "anchor": "używa {{date}}"
   }
 }

@@ -218,7 +218,9 @@
     "screenColorsMissingField": "Bu alan bu projede yok. Geçici olarak iş kategorisi kullanılıyor.",
     "screenColorsHint": "Kritik yol modu dışında kırmızı çerçeve kritik yolu işaret eder.",
     "addLayout": "Yeni düzen",
-    "toggleRelations": "İlişki çizgileri"
+    "toggleRelations": "İlişki çizgileri",
+    "relationFindDependents": "Bağımlı projeleri bul…",
+    "relationFindDependentsHint": "Bir klasörde bu planlamaya dış ilişkisi olan projeleri ara."
   },
   "ifc": {
     "title": "IFC Düzenleyici",

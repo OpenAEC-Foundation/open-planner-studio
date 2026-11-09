@@ -434,6 +434,45 @@ en noem het in je rapport of PR-tekst.
      dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
      *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
      van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
+975. **VERVOLG: *Afhankelijke projecten zoeken…* leest geen submappen.** Stap 1.11 leest alleen de `.ifc`-bestanden
+     direct in de gekozen map (`src/services/fileAccess/dependentFolder.ts`, `readDependentFolder`). Staan de
+     projecten van andere partijen elk in een eigen submap, dan vindt de app ze niet. Bewust zo gebouwd (opdracht
+     stap 1.11). Voorstel: een vinkje *Ook submappen*, met een grens op diepte en aantal bestanden. — S
+976. **VERVOLG: afhankelijke projecten zitten niet in de MCP-tools.** De zoekactie, het resultaat bij de taak en de
+     waarschuwing vóór opslaan bestaan alleen in de app. `planner_*` kan niet zoeken en ziet het resultaat niet; MCP
+     slaat op zonder waarschuwing (zoals AutoSave). Buiten stap 1.11 gehouden (opdracht). Voorstel: een leestool
+     die per taak de gevonden koppelingen geeft, en een veld in de opslaantools met de te krappe ankers. — S
+977. **VERVOLG: in Chromium zoekt de app bij openen alleen met blijvende maptoegang.** Het maphandvat staat per
+     project-id in IndexedDB; op de achtergrond leest de app het alleen bij `queryPermission` = `granted`
+     (`src/state/dependentProjectsSearch.ts`, `autoSearchDependentProjects`). Na een herstart van de browser is dat
+     meestal `prompt`, en dan gebeurt er niets tot de planner opnieuw zoekt. De knop opent dan de mapkiezer, die bij
+     de onthouden map begint. Voorstel: bij `prompt` een kleine balk *Afhankelijke projecten opnieuw zoeken* die met
+     één klik `requestPermission` vraagt. — S
+978. **VERVOLG: *Afhankelijke projecten zoeken…* is niet getest in de echte desktop-app.** De Tauri-route (mapkiezer
+     met `directory: true`, `readDir` en `readTextFile` op een map buiten de thuismap, `persisted-scope` na een
+     herstart, het pad als `OPS_ProjectSettings/DependentProjectsFolder`) is alleen gebouwd en getypecheckt. Getest
+     zijn de regels (`check-dependent-projects.ts`), de rondgang van het pad (`check-ifc-roundtrip.ts`) en de
+     browserroute met een stub van `showDirectoryPicker` (`external-source-update.spec.ts`). Testplan: map kiezen,
+     opslaan, app herstarten, het project openen en zien dat het blok *Afhankelijke projecten* vanzelf gevuld
+     wordt; ook met een map op een andere schijf. — S
+979. **VERVOLG: het zoekresultaat van afhankelijke projecten veroudert stil.** Het resultaat is van het moment van
+     zoeken (bij openen of met de knop). Slaat de andere planner daarna een nieuwe versie op, of vernieuwt hij zijn
+     ankers, dan rekent de waarschuwing vóór opslaan nog met de oude ankers, tot er opnieuw gezocht wordt. Zonder
+     cloud krijgt de andere planner ook geen bericht (keuze 3: alleen met de SuperCloud, deel 3). Voorstel: de
+     gevonden bestanden opnieuw lezen vlak vóór de waarschuwing (wijzigingstijd vergelijken), of de map bewaken
+     zoals stap 1.6. — S
+995. **VERVOLG: een mislukte controle vóór opslaan valt stil terug op de oude datums.** `settleDependentAnchors`
+     (`fileSlice.ts`) vangt elke fout bij schrijven, teruglezen of doorrekenen van de kopie af en vergelijkt dan met
+     de huidige taken: de vergelijking die zonder F5 een te krap anker mist (review #857, ronde 1). Met een
+     ingespoten leesfout (vijf naar tien dagen, opslaan zonder F5): geen vraag, het bestand wordt geschreven, geen
+     melding (review #857, ronde 2). Geen gewoon project gevonden dat die fout vanzelf geeft. Voorstel: in die
+     fouttak niet vergelijken, maar melden dat de controle niet kon. — B
+996. **VERVOLG: gewoon opslaan kost extra tijd zodra er afhankelijke projecten gevonden zijn.** De controle vóór
+     opslaan schrijft het IFC, leest het terug en rekent het door op een kopie; daarna schrijft de opslagroute het
+     IFC nog eens. Gemeten in Node, 1000 taken: 486 ms extra (review #857, ronde 2); geschat bij 10.000 taken
+     ongeveer 2 s, op de hoofdthread. Het loopt alleen met minstens één gevonden koppeling, maar dan bij elke opslag
+     met de hand, ook als geen anker verandert. Voorstel: één IFC-tekst maken, die controleren en dezelfde tekst
+     wegschrijven, met een controle dat de documentstand na de asynchrone stappen nog geldt. — B
 
 ## Tabel, invoer en bediening
 

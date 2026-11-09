@@ -36,6 +36,20 @@ Voorbeeld: het terreinproject eindigt vrijdag 18 juni 2027. Je koppelt *Grondwer
 - Houd je muis boven de koppeling om te zien waar het anker vandaan komt. Op de regel *Herkomst anker* staat de wijzigingstijd van het bronbestand en wanneer de app het anker las, bijvoorbeeld *bronbestand van 2 nov 2026 14:05, gelezen op 2 nov 2026 14:10*. Zo zie je achteraf op welke versie van het andere project je planning rekende. Vul je het anker zelf in, dan heeft het geen herkomst en ontbreekt de regel.
 - Wijzig je het type of de richting zodat het anker een andere kant van de externe taak nodig heeft (start in plaats van einde, of andersom), dan vraagt de app bij een handmatige koppeling om een nieuw anker: *Kies een nieuw anker: het relatietype gebruikt nu de andere zijde van de brontaak.* Bij een koppeling met bronbestand leest de app het anker zelf opnieuw.
 
+## Wie hangt van jouw planning af
+
+Een externe relatie staat in het project dat de datum nodig heeft. Plan je zelf het bronproject, dan zie je dus niet vanzelf wie van jouw taken afhangt. Daarvoor zoek je de afhankelijke projecten op.
+
+1. Kies *Relatie ▾ › Afhankelijke projecten zoeken…*.
+2. Kies de map met de projectbestanden van de andere partijen, bijvoorbeeld `Projecten/Zuidas`. De app leest de IFC-bestanden direct in die map alleen-lezen, zonder submappen. In een browser zonder mapkiezer (zoals Firefox of Safari) kies je in plaats daarvan een of meer bestanden.
+3. De app meldt het resultaat, bijvoorbeeld *Afhankelijke projecten: 2. Koppelingen naar dit project: 3.* Geopende documenten tellen ook mee, met hun niet-opgeslagen wijzigingen. Het eigen bestand telt niet mee.
+
+De app herkent een koppeling aan het Project-id van dit project, niet aan het bestandspad. Selecteer een taak: in het eigenschappenpaneel staat onder *Afhankelijkheden* het blok *Afhankelijke projecten*. Per koppeling zie je het project en de taak daar, of die taak jouw *Opvolger daar* of *Voorganger daar* is, het type en de datum waarop dat project rekent.
+
+De app onthoudt de map bij dit project. In de desktop-app staat het pad als projectinstelling in het IFC-bestand; sla het project dus op. In Chrome en Edge onthoudt de browser de map. Open je het project later, dan zoekt de app vanzelf opnieuw, op de achtergrond en zonder melding. In de browser gebeurt dat alleen als je de browser blijvende toegang tot de map gaf; anders kies je de map opnieuw.
+
+**Waarschuwing vóór het opslaan.** Heb je de afhankelijke projecten gezocht en kies je daarna *Opslaan* of *Opslaan als*, dan rekent de app voor elke gevonden koppeling de datum opnieuw uit je huidige planning. Wordt die datum krapper voor het andere project, dan zie je eerst het venster *Ankers van andere projecten worden krapper*, met per koppeling het project, de *Taak daar*, de *Taak hier* en *Anker: oud → nieuw*. Krapper betekent: is jouw taak hun voorganger, dan een latere datum; is jouw taak hun opvolger, dan een eerdere datum. Meer ruimte geeft geen waarschuwing. Kies *Toch opslaan* of *Annuleren*. Automatisch opslaan en crashherstel vragen dit niet. De andere planner krijgt geen bericht; hij ziet de nieuwe datum pas als hij zijn externe relaties vernieuwt.
+
 ## Valkuilen en wat de app dan doet
 
 **Het andere project schuift niet mee.** Verandert de externe taak van datum, dan blijft je planning op het oude anker rekenen tot je de nieuwe versie accepteert, het anker vernieuwt of het anker aanpast. Bij de handmatige route pas je de ankerdatum zelf aan, via rechtsklik op de koppeling en *Externe relatie bewerken…*.
