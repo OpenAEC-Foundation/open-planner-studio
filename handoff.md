@@ -1,77 +1,60 @@
-# Handoff — #804 fase 0: haalbaarheidsproef
+# Handoff — #804 fase 1: lezen, schrijven en controles
 
-Dit bestand is de bron bij compactie en voor Trias. Houd het actueel bij elke stap. Gaat vóór de merge naar
-`docs/archive/handoffs/`.
+Dit bestand is de bron bij compactie en voor Trias. Houd het actueel bij elke stap. Gaat vóór de merge van de laatste PR
+van fase 1 naar `docs/archive/handoffs/` (bij fase 0 ging dat mis: zie `HANDOFF-2026-11-09-804-fase0.md`).
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp voor #804 is gemerged in main via #839 en staat nu op versie 20. Fase 0 is gebouwd: een proef op echte
-bestanden die bewijst dat de app bij een eigen bestand precies het eigen deel herkent (de 100 %-P-poort), en die de
-vragen van §11 beantwoordt. Wrakko besliste over drie afwijkingen; die staan in de spec en in de poort. De meting tot
-300 MB draaide in CI. Ronde 1 van de review is verwerkt (Sol ja; Terra één specregel). De PR (#863) is nog draft; na een
-korte check van Sol op de fix-diff gaat hij op ready en volgt de merge.
+Het ontwerp (versie 20) en fase 0 zijn gemerged in main. Fase 0 bewees dat de app bij een eigen bestand precies het eigen
+deel herkent. Fase 1 bouwt het echte openen en opslaan van een IFC-bestand met een gebouwmodel, achter een flag: eerst
+lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat, verandert er niets voor de planner.
 
 ## Bronnen
 
-- Ontwerp: `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` (gemerged in main, `b51e6eaa1`).
-  Fase 0: §8, §10 (corpus en poort), §11 (vragen).
-- Uitkomsten van fase 0: `docs/superpowers/evidence/2026-11-ifc-fase0.md` (poort, antwoorden op §11, afwijkingen).
-- Draaiboek van de ontwerpsessie: `docs/archive/handoffs/HANDOFF-2026-11-07-gebouwmodel-ifcx.md`.
-- Voorproef in Python: `scripts/proef/classify-v9.py`.
+- Ontwerp: `docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md` (v20). Fase 1: §8, en §4.1–4.4,
+  §4.8–4.10, §4.12, §4.13, §10.
+- Uitkomst van fase 0: `docs/superpowers/evidence/2026-11-ifc-fase0.md` (afwijkingen 6–9 zijn werk voor fase 1).
+- Handoff van fase 0: `docs/archive/handoffs/HANDOFF-2026-11-09-804-fase0.md`.
+- Code van fase 0: `src/services/ifc/foreign/` (scanner, indeling), poort `tests/planning/check-ifc-foreign-classify.ts`.
 
 ## Afspraken
 
 | Afspraak | Wie, wanneer |
 |---|---|
-| Fase 0 op een eigen branch vanaf `main`; review pas na de merge van #839 | Trias (wrakko), 2026-11-07 |
+| Elke fase op een eigen branch vanaf `main`; Sol reviewt per PR, Trias start de review en merget | wrakko, 2026-11-09 |
 | Geen Fable, ook niet als subagent of in een council, tot Fable 5.5 uit is; een council draait met Opus en Sol | Ethan, 2026-11-09 |
-| `place_file_exclusive(from, to)` mag in fase 2, met de voorwaarden in §11; in fase 0 geen Rust-commando | wrakko, 2026-11-09 |
-| Na fase 0: (a) oud eigen bestand met los `IfcProject` als model zonder planning; (b) `Creators` constant `#`-slot; (c) alleen het eerste live-schema is D. Technisch, volgt uit Ethans besluit; geen council-ronde | wrakko, 2026-11-09 |
-| Review per PR door Sol (BLOKKEERT/VERVOLG); VERVOLG naar `knownbugs.md` | werkwijze |
-| Geen zware runs lokaal (volledige suite, Rust, veel Playwright, metingen van grote bestanden): CI | AGENTS.md |
+| `place_file_exclusive(from, to)` pas in fase 2, met de voorwaarden in §11; in fase 1 geen Rust-commando | wrakko, 2026-11-09 |
+| Een wijziging in `.github/workflows/` pusht Trias: het token op aia09-mp50 heeft geen `workflow`-scope | wrakko, 2026-11-09 |
+| VERVOLG uit een review naar `knownbugs.md` op de PR-branch; 1007 is gebruikt door #863 | werkwijze |
+| Geen zware runs lokaal: CI | AGENTS.md |
+
+## Verdeling van fase 1 (3 PR's, elk achter de flag)
+
+1. **1a lezen** (branch `feat/804-fase1a-lezen`): openen als bytes op elke route, scanner en indeling in een Worker,
+   `ifcSource` in het document, de lezer met C-context (planning uit een bestand met model), de weigering blijft zonder
+   flag. Met flag en een vreemd deel: openen mag, opslaan wordt geweigerd met een melding tot 1c. Ook: afwijking 6
+   (`readIFC` volgt `selectPlanning`, ook de uitzondering voor een eigen live-schema), afwijking 7 (wat de app doet als de
+   scanner een bestand weigert dat `readIFC` wel opent), knownbug 1007 (ids boven 2^31−1).
+2. **1b schrijven**: de writer met behouden ids (§4.3, §4.4, §4.10 opbouw van de uitvoer), afwijking 8 (writer en lezer
+   gebruiken dezelfde constanten als het register).
+3. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
 
 ## Werk
 
-- Branch `feat/804-fase0-proef`, worktree `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase0-proef`.
-  `node_modules` is een link naar `kb-tests/node_modules` (zelfde package-lock).
-- 2026-11-09 17:35: worktree gemaakt; bouwer (expert, Opus xhigh) gestart.
-- 2026-11-09: #839 gemerged in main (`b51e6eaa1`); main gemerged in deze branch (`80412090e`).
-- 2026-11-09: bouwer klaar. PR #863 (draft), head `4983003e6`, CI groen (browserdeel en builds voor macOS/Windows bewust
-  overgeslagen). Poort lokaal: 2607 checks, exit 0. `ifcOrigin` en `idExceptions` niet gebouwd: §8 zet ze in fase 2.
-- 2026-11-09 19:49: spec §10 rechtgezet (testeis "manifeststap faalt" alleen waar het manifest vrijblijvend is);
-  vervolgpunt 1 van ronde 5 in de fase-2-rij van §8 gezet.
-- 2026-11-09 20:01: besluiten van wrakko (a)–(c) verwerkt als spec v20. Code: `selectPlanning` maakt alleen het eerste
-  live-schema D (plus live-schema's van eigen herkomst), `Creators` (arg 7 van werkplan/werkschema) is een startpunt van
-  Ext; `classify-v9.py` hetzelfde. Poort lokaal met Python: 2607 checks, exit 0; typecheck en `verify:docs` groen.
-  Verwijzingen naar het oude pad van de workflow bijgewerkt.
-- 2026-11-09: wrakko zette de workflow-patch erop (`e56238fc6`); CI en workflow groen. Meting in CI (run 42680518408):
-  scanner plus indeling bij 300 MB 5,4–6,5 s, geheugen 2,3–3 keer de bestandsgrootte; in het bewijsdocument.
-- 2026-11-09: review ronde 1 op `e56238fc6`. Sol: ja, geen BLOKKEERT (69 schrijfacties gelijk aan main). Terra: nee,
-  alleen om §4.6 (verplaatsen uit een bewaarde relatie).
-- 2026-11-09 20:30: ronde 1 verwerkt: §4.6 verplaatsen (writer haalt het lid uit de bewaarde relatie, wijzigingslijst,
-  undo) met test voor fase 2 in §10; `pushAll` in plaats van `push(...)` in `classify.ts`, met een test met 150.000
-  leden (faalt met de oude code: `RangeError`); `meet-scanner.mjs` eindigt met een foutcode als een meting mislukt;
-  bewijsdocument op v20; knownbug 1007 (ids boven 2^31−1). Poort met Python 2610 checks groen, typecheck groen.
+- 2026-11-09: #863 gemerged in main (`2a66df33c`). Branch `feat/804-fase1a-lezen` vanaf die commit, worktree
+  `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1a`; `node_modules` is een link naar
+  `kb-tests/node_modules` (package-lock gelijk op het versienummer na).
+- 2026-11-09: handoff van fase 0 naar het archief; verplaatstest in §10 aangescherpt (VERVOLG 1 uit ronde 2 van #863).
 
-## Vervolgpunten uit ronde 5 van #839 (comment op de PR)
+## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
-1. Fase 2, eerste PR van de schrijfroute: herstel bewaart elke volledige kandidaat met `pendingSha256` zolang die niet
-   op het doel staat, ook bij een crash vóór stap 3 (§4.10, restbestanden na een crash), met een test voor een crash
-   tijdens het herstel zelf. Terra zag dit als blokkerend. Staat in §8, rij fase 2.
-2. §10: de testeis "de manifeststap faalt: opslaan lukt toch" botste met §4.10 stap 0 en test (i). Rechtgezet op deze
-   branch.
-
-## Open
-
-- **Workflow.** Wrakko zette hem op `.github/workflows/ifc-foreign.yml` (`15d5828be`). Het token op aia09-mp50 heeft
-  geen `workflow`-scope, dus een wijziging daarin kan alleen wrakko pushen. Klaar voor hem: de patch
-  `…/scratchpad/ifc-foreign-env.patch` (de regels "VOORSTEL" eruit, `inputs.mb` en `inputs.browsers` via `env:`).
-- Geen open punten voor fase 0 meer, behalve de korte check van Sol op de diff van ronde 1.
-- Afwijkingen 2 en 3: rechtgezet in spec v20. Afwijkingen 6, 7, 8 en 9: werk voor fase 1.
-- Knownbug 1006 (IfcOpenShell 0.9 en `FILE_SCHEMA(('IFC4X3'))`) staat op deze branch.
+1. De verplaatstest in §10 had een relatie met één lid en lege attributen. Aangescherpt in deze PR (twee leden, `Name`
+   en `Description`, behoud na verplaatsen, opslaan, heropenen en undo).
+2. `ifc-foreign.yml`: samenvatting en upload liepen niet na een meetfout. Patch aan Trias gegeven (eigen stap
+   "Samenvatting" en `if: always()`); Trias pusht hem.
 
 ## Volgende stappen
 
-1. CI en workflow groen op de push van ronde 1; melden aan wrakko.
-2. Wrakko doet een korte check van Sol op de diff van ronde 1.
-3. Daarna: PR op ready, merge door Trias; handoff naar `docs/archive/handoffs/` vóór de merge.
+1. Bouwer (expert, Opus xhigh) bouwt 1a; draft PR met groene CI.
+2. Review door Sol (Trias start hem), fixrondes, merge.
+3. Dan 1b en 1c op eigen branches vanaf `main`.

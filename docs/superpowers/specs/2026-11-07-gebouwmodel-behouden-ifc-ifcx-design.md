@@ -1248,7 +1248,10 @@ daarom staat alles achter de flags tot het compleet is.
     de taak heeft de gekozen ouder, staat niet meer in de relatie van het tweede schema (wijzigingslijst), en geen object
     heeft twee `Nests`; Ctrl+Z en opnieuw opslaan zetten haar terug in de relatie van het tweede schema, byte-gelijk; een
     wortel-taak van het tweede schema die een kind wordt, gaat ook uit de `IfcRelAssignsToControl` van dat schema
-    (review van #863, Terra);
+    (review van #863, Terra). De relatie in de proef heeft minstens twee leden en een ingevulde `Name` en `Description`.
+    Na verplaatsen, opslaan en heropenen staat het andere lid er nog in, en blijven GlobalId, owner history, `Name` en
+    `Description` van de relatie byte-gelijk; na Ctrl+Z en opnieuw opslaan is de hele relatie weer byte-gelijk aan de
+    bron (VERVOLG uit ronde 2 van #863, Sol);
   - een gemengde `IfcRelAggregates` werkplan→(live-schema, Bonsai-baseline) en een gemengde `IfcRelNests`: geen dubbele
     `Decomposes`/`Nests` na opslaan, ook niet na een wijziging van de structuur;
   - een `LongDescription` op een taak in een verder eigen bestand blijft staan;
