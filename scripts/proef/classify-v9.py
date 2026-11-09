@@ -1,10 +1,12 @@
 # Indeling volgens ontwerp §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand (STEP).
-# Review #839: leest entiteiten ook over meer regels (splitst op ';' buiten tekst en commentaar), weigert invoer zonder
-# DATA-deel of zonder entiteiten (exit 1), en volgt de uitzondering "live-schema van eigen herkomst sluit baselinebomen
-# altijd uit" (spec §4.2 stap 1). Complexe instanties (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
+# Review #839: één scanner die tekst kent (ook '' en commentaar binnen tekst) voor statements, secties en entiteiten;
+# entiteiten mogen over meer regels lopen. Weigert (exit 1) invoer zonder STEP-kop of END-ISO-10303-21, met tekst of
+# commentaar zonder einde, een DATA-deel zonder ENDSEC, een onbekend statement in DATA, of zonder entiteiten. Volgt de
+# uitzondering "live-schema van eigen herkomst sluit baselinebomen altijd uit" (spec §4.2 stap 1). Complexe instanties
+# (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
 # Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc> [--json]
-# Overgenomen uit PR #839 (commit c0e7eabb4, ontwerp v16). Fase 0 voegt alleen `--json` toe: de klasse per #id, voor de
-# vergelijking met de TS-indeling in tests/planning/check-ifc-foreign-classify.ts. De indeling zelf is ongewijzigd.
+# Fase 0 (#804) voegt alleen `--json` toe: de klasse per #id, voor de vergelijking met de TS-indeling in
+# tests/planning/check-ifc-foreign-classify.ts. De indeling zelf is die van PR #839 (ontwerp v17, commit 35268d437).
 # Benaderingen: het register komt uit de 'OPS_*'-namen in ifcPsets.ts/ifcWriter.ts; de bekende propertynamen zijn alle
 # tekstliteralen in src/services/ifc/*.ts (een ruime overmaat). De bouw haalt beide uit één bron in de code.
 import re, sys, os, glob
@@ -13,37 +15,51 @@ AS_JSON = '--json' in sys.argv[1:]
 if AS_JSON: sys.argv.remove('--json')
 t = open(sys.argv[1], encoding='utf-8', errors='replace').read()
 ents, pos = {}, {}
-def statements(text):  # (beginpositie, tekst) per ';'-statement, buiten '...' en /* ... */
-    out, i, start, n = [], 0, 0, len(text)
+def fout(msg):
+    sys.exit(f"{sys.argv[1]}: {msg}; ongeschikte of onvolledige invoer")
+def statements(text):
+    # Eén scanner voor het hele bestand: kent '...' (met ''), en /* ... */ buiten tekst. Geeft per ';'-statement de
+    # beginpositie en de tekst zonder commentaar. Commentaar binnen tekst blijft tekst ('/*vendor*/OPS').
+    out, buf, i, n, start, in_str = [], [], 0, len(text), None, False
     while i < n:
         c = text[i]
-        if c == "'":
-            i += 1
-            while i < n:
-                if text[i] == "'":
-                    if i + 1 < n and text[i+1] == "'": i += 2; continue
-                    break
-                i += 1
-        elif c == '/' and i + 1 < n and text[i+1] == '*':
-            j = text.find('*/', i + 2); i = n if j < 0 else j + 1
-        elif c == ';':
-            out.append((start, text[start:i])); start = i + 1
-        i += 1
+        if in_str:
+            buf.append(c)
+            if c == "'":
+                if i + 1 < n and text[i+1] == "'": buf.append("'"); i += 2; continue
+                in_str = False
+            i += 1; continue
+        if c == '/' and i + 1 < n and text[i+1] == '*':
+            j = text.find('*/', i + 2)
+            if j < 0: fout('commentaar zonder einde')
+            i = j + 2; continue
+        if c == ';':
+            out.append((start if start is not None else i, ''.join(buf).strip())); buf, start = [], None
+            i += 1; continue
+        if start is None and not c.isspace(): start = i
+        if c == "'": in_str = True
+        buf.append(c); i += 1
+    if in_str: fout('tekst zonder einde')
+    if ''.join(buf).strip(): fout('laatste statement zonder ;')
     return out
-md = re.search(r'\bDATA\s*;', t)
-if not md:
-    sys.exit(f"{sys.argv[1]}: geen DATA-deel gevonden; dit script leest alleen STEP-bestanden (ISO 10303-21)")
-for st, body in statements(t[md.end():]):
-    b = re.sub(r'/\*.*?\*/', '', body, flags=re.S).strip()
-    m = re.match(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)\s*$', b, re.S)
+sts = statements(t)
+kw = [x for _, x in sts]
+if not kw or kw[0] != 'ISO-10303-21': fout('geen STEP-kop (ISO-10303-21;)')
+if kw[-1] != 'END-ISO-10303-21': fout('geen END-ISO-10303-21;')
+in_data = False
+for st, body in sts:
+    if body == 'DATA' or re.fullmatch(r'DATA\s*\(.*\)', body, re.S): in_data = True; continue
+    if body == 'ENDSEC': in_data = False; continue
+    if not in_data: continue
+    m = re.fullmatch(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)', body, re.S)
     if m:
-        ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = md.end() + st
-        continue
-    m = re.match(r'#(\d+)\s*=\s*\((.*)\)\s*$', b, re.S)
+        ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = st; continue
+    m = re.fullmatch(r'#(\d+)\s*=\s*\((.*)\)', body, re.S)
     if m:
-        ents[int(m.group(1))] = ('COMPLEX', m.group(2)); pos[int(m.group(1))] = md.end() + st
-if not ents:
-    sys.exit(f"{sys.argv[1]}: 0 entiteiten gevonden; ongeschikte invoer")
+        ents[int(m.group(1))] = ('COMPLEX', m.group(2)); pos[int(m.group(1))] = st; continue
+    fout(f'onbekend statement in DATA: {body[:40]!r}')
+if in_data: fout('DATA zonder ENDSEC')
+if not ents: fout('0 entiteiten')
 def split_args(s):
     out, depth, cur, ins, i = [], 0, '', False, 0
     while i < len(s):
