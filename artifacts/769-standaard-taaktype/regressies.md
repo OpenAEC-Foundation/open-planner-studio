@@ -67,3 +67,40 @@ op commit `66c5dccb715a67ffd28b6e52d902dde0a049efa8`.
 De route gebruikt echte klikken en invoer voor Annuleren, Toepassen,
 inzet 1 → 2 en Ctrl+Z. Opslaan en heropenen loopt in de gerichte
 kerntest door de echte IFC-schrijver, IFC-lezer en documentlaadactie.
+
+## Browserpoort na release v2026.45.0
+
+Op 9 november faalde in
+[CI-run 42698303687, browserdeel 3](https://github.com/OpenAEC-Foundation/open-planner-studio/actions/runs/42698303687/job/129436213967)
+de bestaande welkomsttest: 178 tests geslaagd, één mislukt. Die test
+verwachtte nog Engelse terugvalteksten voor de popup over vertraagde
+hostinstellingen. De Franse vertalingen zijn sinds de release aanwezig;
+de app toonde correct Frans bij de Franse hosttaal.
+
+Dezelfde fout is eerst gereproduceerd in een afzonderlijke, tijdelijke
+worktree op main `2a66df33c8854e296b638a3f0d39379280d1afb6`, met Node
+v24.22.0 en Playwright 1.62.1. De SHA-256 van de ongewijzigde test was op
+main en de featurebranch gelijk:
+`808701a81d6314529db158169a84a7bab246b04f36e0867808ae97303516a835`.
+
+Beide gerichte runs gebruikten afzonderlijk
+`flock /tmp/ops-zwaar.lock nice -n 19` en dezelfde selectie:
+
+```bash
+node scripts/run-browser-tests.mjs tests/browser/welcome-dialog.spec.ts --grep 'welkomstdialoog past taal'
+```
+
+```text
+Main: verwacht "Settings not loaded", ontvangt "Paramètres non chargés…"
+1 failed
+EXIT:1
+
+Na correctie van de testverwachtingen:
+1 passed (48.6s)
+EXIT:0
+```
+
+De bestaande route controleert nu de popup en de melding na het late
+hostantwoord tegen de Franse vertalingen. Er is geen nieuwe test of
+productgedrag toegevoegd. De app-tekst en instellingen zijn niet gewijzigd.
+De testrunner heeft de tijdelijke testservers na beide runs beëindigd.
