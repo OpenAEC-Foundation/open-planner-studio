@@ -534,87 +534,88 @@ export function parseProgress(raw: unknown): ProgressParseResult {
 
 /** De schema-properties van de allowlist — gedeeld door `add_tasks`-items en `update_tasks.fields`,
  *  zodat schema en runtime-validatie niet uit elkaar kunnen lopen. */
+// Beschrijvingen zijn bewust kort (#818): ze gaan bij elke API-aanroep mee. Zet hier alleen wat een foute
+// aanroep of een foute planning voorkomt; wat de naam of het type al zegt, blijft weg.
 export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
-  name: { type: 'string', description: 'Task name (not empty).' },
+  name: { type: 'string' },
   description: { type: 'string' },
   duration: {
     type: 'number',
     minimum: 0,
     description:
-      'Task duration in the MEASURE of `durationUnit`. Without `durationUnit` it is in days and the task gets ' +
-      'the DAY MEASURE (backward compatible). Day measure: working days on the task calendar; a fraction is ' +
-      'allowed and kept exactly (2.5 = two and a half working days). In the OPS profile one working ' +
-      'day counts as one day, whatever its hours; in the P6 and MS Project profiles days × the working time ' +
-      'per day. Hour measure: working hours (1.5 = 1 h 30 min). A FIXED_WORK task (`workRule`) always has the ' +
-      'hour measure: days are converted at the working time per day (3 d = 24 h at 8 h/day). Milestone ⇒ ' +
-      'must be 0. Summary task ⇒ derived and read-only; omit duration.',
+      'In `durationUnit` (default days = working days on the task calendar; a fraction such as 2.5 is kept). ' +
+      'FIXED_WORK tasks are stored in hours (days × hours per day). Milestone: 0 (more is refused). Summary task: ' +
+      'derived, omit it.',
   },
   durationUnit: {
-    type: 'string',
-    enum: ['days', 'hours'],
-    description: 'The persistent MEASURE of the task: `days` = day measure, `hours` = hour measure. Always give ' +
-      'it together with `duration`. A FIXED_WORK task stays in the hour measure (`days` is converted). The ' +
-      'hour measure needs a task calendar with working time.',
+    type: 'string', enum: ['days', 'hours'],
+    description: 'Always send it with `duration` (omitted = days). `hours` needs a task calendar with working hours.',
   },
-  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'WORKTIME = working time on the task calendar (default), ELAPSEDTIME = calendar time (1 d = 24 h).' },
+  durationType: { type: 'string', enum: ['WORKTIME', 'ELAPSEDTIME'], description: 'Default WORKTIME; ELAPSEDTIME = calendar time (1 d = 24 h).' },
   taskType: {
     type: 'string',
     enum: TASK_TYPES,
-    description: 'Work category of the task (shown in the app as "Work category"; IFC `PredefinedType`). Not the ' +
-      'scheduling task type: that is `workRule`.',
+    description: 'Work category (IFC PredefinedType), not the scheduling task type (`workRule`).',
   },
   customTaskType: {
     type: 'object',
-    description: 'Custom work category (shown in the app as "Custom work category"): OPS custom type with a stable id and project snapshot name; sets taskType to USERDEFINED. An existing id cannot change its name.',
+    description: 'Own work category; sets taskType USERDEFINED. An existing id keeps its name.',
     properties: { id: { type: 'string' }, name: { type: 'string' } },
     required: ['id', 'name'], additionalProperties: false,
   },
   isMilestone: {
     type: 'boolean',
     description:
-      'Milestone: true sets the duration to 0 right away (not allowed on a summary task or a task with ' +
-      'assignments). false leaves the duration at 0 until you send `duration` in the same or a later call.',
+      'true sets duration 0 (not on a summary task or a task with assignments); false keeps 0 until you send `duration`.',
   },
-  milestoneKind: { type: ['string', 'null'], enum: ['START', 'FINISH', null], description: 'Anchor of the milestone; null = automatic.' },
-  mandatory: { type: 'boolean', description: 'Mandatory (contractual) milestone — marker for reporting.' },
-  priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Leveling priority (default 500; 1000 = never shift).' },
+  milestoneKind: { type: ['string', 'null'], enum: ['START', 'FINISH', null], description: 'null = automatic.' },
+  mandatory: { type: 'boolean', description: 'Reporting marker only.' },
+  priority: { type: 'integer', minimum: 0, maximum: 1000, description: 'Leveling priority; default 500, 1000 = never shift.' },
   constraint: {
     type: ['object', 'null'],
-    description: 'Date constraint; null clears it. `date` is required except for ASAP/ALAP; `hard` only for ' +
-      'MSO/MFO. null, ASAP and ALAP also clear an existing secondary constraint; a date type that does not ' +
-      'form a valid pair with that secondary one is refused.',
+    description: 'The only way to fix a date; null clears. `date` (ISO) is required except for ASAP/ALAP; `hard` (P6 Mandatory) only for ' +
+      'MSO/MFO. null/ASAP/ALAP also clear a secondary constraint; a type that cannot pair with it is refused.',
     properties: {
       type: { type: 'string', enum: ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'] },
-      date: { type: 'string', description: 'ISO date (YYYY-MM-DD).' },
-      hard: { type: 'boolean', description: 'P6 Mandatory pin; only for MSO/MFO.' },
+      date: { type: 'string' },
+      hard: { type: 'boolean' },
     },
     required: ['type'],
     additionalProperties: false,
   },
-  deadline: { type: ['string', 'null'], description: 'Soft deadline (ISO date); only bounds the late finish. null clears it.' },
-  calendarId: { type: ['string', 'null'], description: 'Task calendar from the library (planner_get_calendars); null = project calendar.' },
+  deadline: { type: ['string', 'null'], description: 'Soft (ISO date); only bounds the late finish. null clears.' },
+  calendarId: { type: ['string', 'null'], description: 'Library calendar (planner_get_calendars); null = project calendar.' },
   workRule: {
     type: ['string', 'null'],
     enum: [...WORK_RULES, null],
     description:
-      'Task type (`workRule`; shown in the app as "Task type") of the task: which corner of work = remaining duration × units stays fixed when ' +
-      'another changes. FIXED_DURATION_RATE (default, MSP "Fixed Duration", not effort-driven): duration and ' +
-      'units stay, the work follows. FIXED_DURATION_WORK (P6 "Fixed Duration & Units"): duration and work ' +
-      'stay, the units follow. FIXED_WORK (MSP "Fixed Work", P6 "Fixed Units"): the work stays; more units ' +
-      'or an extra resource make the task shorter. FIXED_RATE (MSP "Fixed Units" effort-driven, P6 "Fixed ' +
-      'Units/Time"): the units stay; more work makes the task longer. Switching only the rule changes no ' +
-      'number at all. null = back to the project default (planner_update_project `defaultWorkRule`). Only ' +
-      'works on ordinary leaf tasks (not on milestones, summary tasks, hammocks or ELAPSEDTIME tasks).',
+      'Task type: what stays fixed in work = remaining duration × units. ' +
+      'FIXED_DURATION_RATE (default) = MSP Fixed Duration; FIXED_DURATION_WORK = P6 Fixed Duration & Units; ' +
+      'FIXED_WORK = MSP Fixed Work, P6 Fixed Units; FIXED_RATE = MSP Fixed Units, P6 Fixed Units/Time. ' +
+      'Switching changes no number; null = project default. No effect on milestones, summary, hammock or ' +
+      'ELAPSEDTIME tasks.',
   },
 };
 
-/** Eén regel voor in tool-beschrijvingen: welke velden er zijn en dat de rest hard weigert. */
+/** Dezelfde properties zonder beschrijvingen, voor `update_tasks.fields`: de uitleg staat één keer, bij
+ *  `add_tasks` (#818). Types, enums en grenzen blijven gelijk, dus het invoercontract ook. Let op: het
+ *  taakveld `description` heet ook zo; alleen een TEKST onder die sleutel is een beschrijving
+ *  (`cases-taskfields.ts` bewaakt dat alle velden blijven). */
+export const TASK_FIELD_SCHEMA_PROPERTIES_BARE: Record<string, unknown> = withoutDescriptions(TASK_FIELD_SCHEMA_PROPERTIES);
+
+function withoutDescriptions(value: unknown): Record<string, unknown> {
+  const strip = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(strip);
+    if (v === null || typeof v !== 'object') return v;
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .filter(([k, x]) => !(k === 'description' && typeof x === 'string'))
+        .map(([k, x]) => [k, strip(x)]),
+    );
+  };
+  return strip(value) as Record<string, unknown>;
+}
+
+/** Eén zin voor in de beschrijving van `update_tasks`: welke routes NIET via `fields` lopen. */
 export const TASK_FIELDS_DOC =
-  `Allowed fields: ${TASK_FIELD_NAMES.join(', ')}. Any other key is REFUSED with a reason (never silently ` +
-  'ignored) and leaves the whole item unchanged. `duration` follows `durationUnit` (`days` or `hours`; ' +
-  'without a unit the backward-compatible day rule stays). A summary task duration is derived from its subtasks ' +
-  'and cannot be set; omit duration on new parents that have children in the same add_tasks call. Give both together to change the unit ' +
-  'deliberately; the `time` branch itself, `status`, `parentId` and `resourceIds` are deliberately not ' +
-  'settable here (use `progress`, planner_move_task and planner_manage_assignments respectively). `workRule` ' +
-  'sets the task type (work = remaining duration × units; see the field description) — remaining work per ' +
-  'assignment is set with planner_manage_assignments.';
+  '`status`/`parentId`/`resourceIds`: use `progress`/planner_move_task/planner_manage_assignments.';

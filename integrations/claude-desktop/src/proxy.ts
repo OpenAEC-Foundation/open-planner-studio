@@ -196,11 +196,10 @@ export const UNKNOWN_OUTCOME_MESSAGE = 'The connection to the Open Planner Studi
 
 /** Uitleg achter de instructies van de planner, in beide standen. */
 export function bundleInstructions(root: string | null): string {
-  return '\n\nAbout this extension: requests go to the Open Planner Studio desktop app while it runs with its MCP bridge started. '
-    + `Otherwise the extension starts the planner without the app, which works on files in ${inFolder(root)}: a path like `
-    + '~/plan.ifc is a file in that folder, there is no auto-save, and you keep changes by writing them with planner_export_ifc. '
-    + 'The extension switches by itself when the app opens or closes, and says so in the next tool answer. After a switch, '
-    + 'choose the document again before you change anything.';
+  return '\n\nThis extension uses the Open Planner Studio app while its MCP bridge runs; otherwise a planner without the app on '
+    + `files in ${inFolder(root)} (~/plan.ifc is a file there; no auto-save: keep changes with planner_export_ifc). It `
+    + 'switches by itself when the app opens or closes and says so in the next tool answer; then choose the document again '
+    + 'before you change anything.';
 }
 
 export interface PlannerProxyOptions {

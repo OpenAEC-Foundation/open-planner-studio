@@ -551,11 +551,11 @@ test('H6: elke overview-rij draagt `id` (== Task.id), zodat mutatietools er dire
 test('H6/L4: de beschrijvingen benoemen de naamdrift lezen↔schrijven', () => {
   const ov = getTool('planner_get_project_overview')!.description;
   assert(/\bid\b/.test(ov), 'overview-description moet de id-velden benoemen');
-  const gt = getTool('planner_get_task')!.description;
-  for (const description of [ov, gt]) {
-    assert(/wbs.*read-only.*derived/i.test(description), 'WBS is afgeleid en alleen-lezen, geen schrijfalias');
-    assert(/wbsCode.*not a writable field/i.test(description), 'wbsCode mag niet als schrijfveld worden aangeboden');
-  }
+  // Sinds #818 zonder eigen zin in de leestools: het schema biedt `wbs`/`wbsCode` niet als schrijfveld aan, en
+  // `fields` heeft `additionalProperties: false` (de handler weigert met de lijst toegestane velden).
+  const fields = (getTool('planner_update_tasks')!.inputSchema as any).properties.updates.items.properties.fields;
+  assertEq(fields.additionalProperties, false, 'fields kent geen extra sleutels');
+  for (const k of ['wbs', 'wbsCode']) assert(!(k in fields.properties), `${k} is geen schrijfveld van update_tasks`);
 });
 
 // =================================================================================================

@@ -24,17 +24,18 @@ grouped by whichever category applies (`Added`, `Changed`, `Fixed`, `Documentati
 
 - Excel progress sheets carry the state at export in a hidden column. Import compares the export, current app and returned sheet per field, preserves app-only changes and requires a choice for conflicting edits. Progress-sheet exchange now uses Excel only; CSV schedules remain a separate import/export format.
 - Primavera P6 XML opens with the same scheduling-profile derivation as XER. Its export reports unsupported properties, task types and definitions, and retains the supported scheduling data on reimport.
-- Baseline overlays differ in lightness as well as colour, including on monochrome printouts. Overlapping baselines each have their own line in the shared strip; the active baseline remains the calculation reference.
+- Baseline overlays differ in lightness as well as colour, including on monochrome printouts. Overlapping baselines each have their own line in the shared strip; the active baseline remains the calculation reference. Critical-path colours for critical, near-critical and ordinary tasks can be chosen in the Gantt; reports and saved layouts use the same choices.
 - The interface uses the neutral OpenAEC grey palette and the approved Open Planner Studio logo. The OpenAEC icon set remains behind an experimental flag that is disabled by default. The status bar keeps one row and folds information that does not fit into a compact item or tooltip.
 - The mouse wheel changes tabs above the whole ribbon. Predominantly horizontal gestures remain available for scrolling narrow ribbons, and pending field input is committed before a tab change.
 - Reports offer Inter, Liberation Sans, Carlito and Liberation Serif. The preview, column measurement and PDF export use the selected bundled font, with fallback fonts for missing characters. The redundant Print button is removed from the Report ribbon; PDF export and the report workspace remain available.
 - Embedded planners support SuperCloud file versions, read-only files and conflict copies. They follow host language and theme changes, store preferences through the host settings service and expose planning tools to the site’s assistant. The standalone browser and desktop file routes remain available.
 - Ribbon groups with fields collapse into a popover in narrow windows; ordinary action buttons use regular text while primary and destructive actions retain their emphasis.
+- MCP tool descriptions and planning guides are more compact. Tool facts remain in their tool contracts, and the desktop bridge, headless server and hosting-site export share complete tool annotations. Calendar dictionaries are also validated against their value schema.
 - Targeted large-plan improvements reduce repeated work in scheduling, resource loading, levelling, hierarchy updates and report curves. CI divides planning checks over five jobs and runs the browser suite weekly or on explicit request; the release gate requires the exact main push run and the latest valid Friday browser proof.
 
 ### Fixed
 
-- Milestone dragging honours working-time boundaries and cancellation, including night shifts and midnight. Baseline extents and milestone hover hit areas follow the visible geometry.
+- Milestone dragging honours working-time boundaries and cancellation, including night shifts and midnight. Baseline extents and milestone hover hit areas follow the visible geometry. Hammock and summary-task names remain readable near the right edge; clicking their text selects the task without starting a drag.
 - Scheduling fixes preserve fractional remaining durations, apply percentage lags consistently and correct night-shift day selection and distance. Phase duration and the DCMA duration threshold use their intended boundaries.
 - Resource levelling and manual distribution share placement rules, respect fixed participants and retain progress-conflict reporting.
 - Recovery refuses an update when writing the recovery copy fails, and retains the saved dirty flag when older metadata is absent. Reopening a recent file retains granted desktop access and reports read errors.
