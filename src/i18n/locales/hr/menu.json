@@ -240,6 +240,8 @@
     "company": "Tvrtka",
     "startDate": "Datum početka",
     "endDate": "Datum završetka",
+    "defaultWorkRule": "Zadana vrsta zadatka",
+    "defaultWorkRuleHint": "Zadaci postavljeni na ‘Standard projekta’ slijede ovaj izbor. Zadaci s vlastitom vrstom zadatka zadržavaju svoj izbor.",
     "calc": {
       "title": "Izračun",
       "subtitle": "Opcije izračuna za ovaj projekt spremaju se uz datoteku, ne uz aplikaciju.",

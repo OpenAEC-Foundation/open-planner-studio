@@ -239,6 +239,8 @@
     "company": "Cég",
     "startDate": "Kezdési dátum",
     "endDate": "Befejezési dátum",
+    "defaultWorkRule": "Alapértelmezett tevékenységtípus",
+    "defaultWorkRuleHint": "A(z) „Projektalapbeállítás” értékre állított tevékenységek ezt a választást követik. A saját tevékenységtípussal rendelkező tevékenységek megtartják a választásukat.",
     "calc": {
       "title": "Számítás",
       "subtitle": "Ütemezési beállítások ehhez a projekthez — a fájlban tárolódnak, nem az alkalmazásban.",

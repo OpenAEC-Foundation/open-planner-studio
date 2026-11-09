@@ -239,6 +239,8 @@
     "company": "Unternehmen",
     "startDate": "Startdatum",
     "endDate": "Enddatum",
+    "defaultWorkRule": "Standard-Vorgangsart",
+    "defaultWorkRuleHint": "Vorgänge mit ‚Projektstandard‘ übernehmen diese Auswahl. Vorgänge mit einer eigenen Vorgangsart behalten ihre Auswahl.",
     "calc": {
       "title": "Berechnung",
       "subtitle": "Terminplanungsoptionen für dieses Projekt — werden mit der Datei gespeichert, nicht mit der App.",

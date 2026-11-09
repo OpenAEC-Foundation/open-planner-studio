@@ -238,6 +238,8 @@
     "company": "公司",
     "startDate": "开始日期",
     "endDate": "结束日期",
+    "defaultWorkRule": "默认任务类型",
+    "defaultWorkRuleHint": "设为‘项目默认’的任务会沿用此选项。设有自己任务类型的任务会保留其选择。",
     "calc": {
       "title": "计算",
       "subtitle": "此项目的排程选项 — 随文件保存，而非随应用保存。",

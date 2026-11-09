@@ -6,7 +6,7 @@ import { PROJECT_INFO_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import type { Project } from '@/types/project';
 import { splitIfcSchemaPatch } from '@/state/ifcSchemaChoice';
 import { countShiftedTasks, type RecordedTime } from '@/engine/scheduler/recordedDates';
-import { clampProjectStartAnchors } from '@/engine/scheduler/projectStartAnchorClamp';
+import { applyProjectPatch } from '@/state/projectPatch';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import {
   copyProfile, hasValidProfileName, normalizeOptions, normalizeProfile, sameSettings, type SchedulingSettingsDraft,
@@ -62,15 +62,8 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
     let clampedAnchors = 0;
     set((s) => {
       runtime.beginUndoable(s, { label: hasMetadata ? 'Projectinfo' : 'Rekenprofiel' });
-      const prevStartDate = s.project.startDate;
-      if (hasMetadata) Object.assign(s.project, metadata);
-      // Zelfde projectstart-klem als `setProject`: alleen bij een echte startdatumwijziging.
-      if (typeof metadata.startDate === 'string' && metadata.startDate !== prevStartDate) {
-        clampedAnchors = clampProjectStartAnchors({
-          tasks: s.tasks, sequences: s.sequences, calendar: s.calendar, calendars: s.calendars,
-          prevStartDate, nextStartDate: metadata.startDate,
-        });
-      }
+      // Ook een gelijktijdige projectstandaard volgt de werkregelbrug van `setProject`.
+      if (hasMetadata) clampedAnchors = applyProjectPatch(s, metadata).clampedAnchors;
       s.project.schedulingProfile = profile ? { ...copyProfile(profile), name: profile.name.trim() } : undefined;
       s.project.schedulingOptions = options;
       s.project.modifiedAt = new Date().toISOString();

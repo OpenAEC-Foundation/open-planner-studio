@@ -241,6 +241,8 @@
     "company": "Firma",
     "startDate": "Datum zahájení",
     "endDate": "Datum dokončení",
+    "defaultWorkRule": "Výchozí typ úkolu",
+    "defaultWorkRuleHint": "Úkoly nastavené na „Výchozí pro projekt“ se řídí touto volbou. Úkoly s vlastním typem úkolu si zachovají svou volbu.",
     "calc": {
       "title": "Výpočet",
       "subtitle": "Možnosti výpočtu pro tento projekt. Patří k souboru, ne k aplikaci.",

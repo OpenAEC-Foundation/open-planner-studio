@@ -27,9 +27,9 @@ Dit is een instelling van de app, niet van het projectbestand. Bevat een bestand
 3. Wil je weten wat een keuze doet? In de open keuzelijst staat achter elke keuze een i-icoon. Wijs het aan, klik of tik erop voor de uitleg. Klik je op het i-icoon, dan kiest de app dat taaktype nog niet.
 4. Naast het gesloten veld staat ook een i-icoon. Dat legt het taaktype uit dat nu geldt, bijvoorbeeld *De duur volgt uit het werk en de inzet.* Bij *Projectstandaard* is dat het taaktype tussen de haakjes.
 
-*Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat het taaktype dat het project nu als standaard heeft. Er is in de app geen knop om die projectstandaard te wijzigen: hij komt uit een import (bijvoorbeeld uit MS Project of Primavera P6) of uit de MCP-koppeling. Wil je voor één taak een ander taaktype, kies dat dan hier.
+*Projectstandaard* is de eerste keuze en staat er standaard. Tussen de haakjes staat het taaktype dat het project nu als standaard heeft. Kies bij *Instellingen › Projectinstellingen › Standaardtaaktype* een van de vier taaktypes en klik op *Toepassen*. Elke bestaande en nieuwe taak op *Projectstandaard* volgt die keuze. Taken met een eigen taaktype behouden hun keuze. De projectstandaard wordt in het IFC-bestand bewaard. Wil je voor één taak een ander taaktype, kies dat dan hier.
 
-Zet de MCP-koppeling de projectstandaard op *Vast werk*, dan wordt elke taak die de standaard volgt een taak in uren, want vast werk is altijd een taak in uren. Een taak van 5 werkdagen wordt dan 40 uur. De datums blijven gelijk.
+Zet je de projectstandaard op *Vast werk*, dan wordt elke gewone taak op werktijd die de standaard volgt een taak in uren. Bij 8 uur per werkdag wordt 2 dagen met inzet 1 zo 16 uur werk. Verhoog je de inzet daarna naar 2, dan wordt de duur 8 uur en blijft het werk 16 uur. Met Ctrl+Z draai je de inzetwijziging of de projectkeuze terug.
 
 Je kunt het taaktype ook in de tabel kiezen. Klik op de **+** rechts in de kop van de takenlijst (*Kolom toevoegen*) en kies onder *Planning* de kolom *Taaktype*.
 
