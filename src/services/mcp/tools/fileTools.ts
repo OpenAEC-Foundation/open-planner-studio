@@ -47,7 +47,9 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
-import { ifcSaveBlocked, isOpenForeignSourceTarget } from '@/state/ifcForeignGuard';
+import { scanTargetPathTauri } from '@/services/fileAccess/tauriBackend';
+import type { TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
+import { ifcSaveBlocked, refusedWriteTarget } from '@/state/ifcForeignGuard';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804 fase 1a: IFC-uitvoer van een document met een vreemd deel is nog geweigerd (`state/ifcForeignGuard.ts`). */
@@ -58,6 +60,10 @@ const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model o
 const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source file of an open document that also ` +
   'contains a building model or data from other programs. Writing here would replace that content with only the ' +
   'schedule. Export to another path.';
+
+/** #804 fixronde 2: het bestaande bestand op het pad bevat zelf een gebouwmodel (flag `ifcForeignContent` aan). */
+const BUILDING_MODEL_TARGET_REFUSAL = (path: string) => `'${path}' already contains a building model. Writing here ` +
+  'would replace the model with only the schedule. Export to another path.';
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -77,6 +83,11 @@ export interface McpFileFs extends FileIdentityFs {
    * harde grens (zie punt 1 bovenaan), en het gedrag van de app verandert dus niet.
    */
   confine?(path: string): Promise<string | null>;
+  /**
+   * Optioneel (#804 fixronde 2): een bestaand bestand als stroom lezen voor de doelcontrole (bevat het een
+   * gebouwmodel?); `null` = niet leesbaar. Zonder deze functie is het doel niet leesbaar en mag het schrijven door.
+   */
+  scanTarget?(path: string): Promise<TargetModelScan | null>;
 }
 
 /** Echte (Tauri-)fs; dynamisch geïmporteerd binnen een `isTauri()`-tak — spiegel van
@@ -96,6 +107,7 @@ async function realFs(): Promise<McpFileFs> {
     stat: (p) => stat(p),
     readTextFile: (p) => readTextFile(p),
     readFile: (p) => readFile(p),
+    scanTarget: (p) => scanTargetPathTauri(p),
     writeTextFile: async (p, content) => {
       const dir = p.replace(/\\/g, '/').replace(/\/[^/]*$/, '');
       if (dir) await mkdir(dir, { recursive: true }); // no-op wanneer de map al bestaat
@@ -330,8 +342,12 @@ export const fileTools: McpToolDef[] = [
       const checked = ctx.app.store.getState();
       const refused = await refuseSilentSchemaChange(ctx, fs, path);
       // Fixronde 1: niet over het bronbestand van een document met een vreemd deel (ook een ander open document, en ook
-      // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven.
-      const foreignTarget = await isOpenForeignSourceTarget(checked, { kind: 'path', path }, async () => fs);
+      // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven. Fixronde 2: met
+      // de flag aan ook niet over een bestaand bestand met een gebouwmodel (dezelfde doelcontrole als Opslaan als).
+      const foreignTarget = await refusedWriteTarget(checked, { kind: 'path', path }, {
+        identityFs: async () => fs,
+        readers: () => (fs.scanTarget ? { scanPath: (p: string) => fs.scanTarget!(p) } : {}),
+      });
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
       const identityBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
       if (identityBlocked) return identityBlocked;
@@ -343,7 +359,8 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'The document save target or IFC schema changed during the file identity check. Retry the export.');
       }
       if (refused) return refused;
-      if (foreignTarget) return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
+      if (foreignTarget === 'open-source') return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
+      if (foreignTarget === 'building-model') return toolError(ctx, 'VALIDATION', BUILDING_MODEL_TARGET_REFUSAL(path));
       if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.

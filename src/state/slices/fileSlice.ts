@@ -15,7 +15,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, writeTargetReaders, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -35,7 +35,7 @@ import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, p
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import {
   IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, ifcSaveBlocked,
-  isOpenForeignSourceTarget,
+  refusedWriteTarget,
 } from '../ifcForeignGuard';
 import { foreignSourceMarkFor } from '@/services/ifc/foreign/foreignSourceMark';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
@@ -502,8 +502,9 @@ export interface FileSlice {
   exportProjectWithPool: () => Promise<ExportResult>;
   /**
    * #804 fase 1a, fixronde 1: de doelcontrole voor elke opslag- of exportdialoog (`CheckedSaveDialogOpts.refuseTarget`).
-   * Weigert het bronbestand van een open document met een vreemd deel, met de melding voor `purpose` ("op te slaan" of
-   * "naar te exporteren"). Ook voor de dialogen buiten de store (bibliotheek, rapport).
+   * Weigert het bronbestand van een open document met een vreemd deel, en (fixronde 2, met de flag) een bestaand doel dat
+   * zelf een gebouwmodel bevat; met de melding voor `purpose` ("op te slaan" of "naar te exporteren"). Ook voor de
+   * dialogen buiten de store (bibliotheek, rapport).
    */
   foreignTargetCheck: (purpose: 'save' | 'export') => SaveTargetCheck;
   /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
@@ -690,9 +691,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
-  /** Fixronde 1: weigert het doel als het de bron is van een open document met een vreemd deel (zie `foreignTargetCheck`). */
+  /** Fixronde 1 en 2: weigert het doel als het de bron is van een open document met een vreemd deel, of (met de flag) als
+   *  het bestaande doel zelf een gebouwmodel bevat (zie `refusedWriteTarget`). */
   const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
-    if (!(await isOpenForeignSourceTarget(get(), target, fileIdentityFs))) return false;
+    if (!(await refusedWriteTarget(get(), target, { identityFs: fileIdentityFs, readers: writeTargetReaders }))) return false;
     get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
     return true;
   };

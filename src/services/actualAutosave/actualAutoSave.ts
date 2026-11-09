@@ -45,8 +45,9 @@ export function createActualAutoSaveController(deps: {
   canWrite: (ref: FileRef) => Promise<boolean>;
   /** Stil naar het bestaande doel schrijven; false betekent geen beschikbaar schrijfdoel,
    *  `'stale'` dat de inhoud intussen gewijzigd is (niets geschreven, geen fout — een nieuwe ronde
-   *  pakt de actuele inhoud op). */
-  write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean | 'stale'>;
+   *  pakt de actuele inhoud op), `'refused'` dat de doelcontrole het doel weigerde (#804 fixronde 2: niets
+   *  geschreven, het document blijft gewijzigd; de aanroeper heeft het al gemeld). */
+  write: (candidate: ActualAutoSaveCandidate, content: string) => Promise<boolean | 'stale' | 'refused'>;
   /** Wist dirty uitsluitend wanneer exact deze bronversie nog actueel is. */
   markSavedIfUnchanged: (candidate: ActualAutoSaveCandidate) => void;
   onFailure: (candidate: ActualAutoSaveCandidate, error: unknown) => void;
@@ -67,6 +68,10 @@ export function createActualAutoSaveController(deps: {
           if (!await deps.canWrite(candidate.ref)) continue;
           const content = deps.serialize(candidate);
           const written = await deps.write(candidate, content);
+          if (written === 'refused') {
+            // Geweigerd doel: geen write, geen "opgeslagen", geen tweede foutmelding.
+            continue;
+          }
           if (written === 'stale') {
             // De bron veranderde terwijl we op een eerdere write of `canWrite` wachtten: dat is
             // geen onschrijfbaar bestand (audit 2026-09-26 — het gaf een valse foutmelding), maar

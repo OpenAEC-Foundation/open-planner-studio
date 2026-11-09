@@ -21,7 +21,9 @@ export function installNodeFileIpc() {
     renameError: null as unknown,
     removeError: null as unknown,
     directWriteError: null as unknown,
+    readError: null as unknown,
   };
+  let bytesRead = 0;
   const invoke = async (command: string, args: Record<string, unknown> | Uint8Array,
     ipcOptions?: { headers?: Record<string, string> }) => {
     const a = args as Record<string, unknown>;
@@ -80,6 +82,20 @@ export function installNodeFileIpc() {
         h.written += written;
         return written;
       }
+      case 'plugin:fs|read': {
+        // plugin-fs 2.5.1 `FileHandle.read`: de gelezen bytes, met het aantal als 8 bytes big-endian erachter (0 = EOF).
+        const h = handles.get(Number(a.rid));
+        if (!h) throw new Error('Onbekende bestandshandle');
+        if (faults.readError !== null) throw faults.readError;
+        const len = Number(a.len);
+        const out = new Uint8Array(len + 8);
+        const n = fs.readSync(h.fd, out, 0, len, null);
+        bytesRead += n;
+        const result = new Uint8Array(n + 8);
+        result.set(out.subarray(0, n));
+        new DataView(result.buffer).setBigUint64(n, BigInt(n));
+        return result;
+      }
       case 'plugin:resources|close': {
         const rid = Number(a.rid);
         const h = handles.get(rid);
@@ -115,6 +131,8 @@ export function installNodeFileIpc() {
   return {
     calls, faults,
     openHandles: () => handles.size,
+    /** Zoveel bytes las `plugin:fs|read` in totaal. */
+    bytesRead: () => bytesRead,
     dispose: () => {
       for (const h of handles.values()) fs.closeSync(h.fd);
       handles.clear();

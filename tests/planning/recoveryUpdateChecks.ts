@@ -72,6 +72,8 @@ export async function checkRecoveryUpdateFlush(failWrites: (error?: Error) => vo
     '@/services/recovery/recoveryFlush': { registerRecoveryFlush },
     '@/services/fileAccess': {},
     '@/services/actualAutosave/actualAutoSave': {},
+    // #804 fixronde 2: de controller van de werkelijke AutoSave staat in een eigen module; dat effect monteert hier niet.
+    '@/services/actualAutosave/fileAutoSave': {},
     '@/services/fileAccess/writeCoordinator': {},
     '@/state/recoveryManifestNotice': { notifyRecoveryError },
     // #804 fase 1a: het herstelmanifest kiest het opslagdoel met de echte guard (productiecode).

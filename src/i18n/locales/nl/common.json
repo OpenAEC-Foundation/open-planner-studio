@@ -78,6 +78,7 @@
     "ifcForeignSaveBlocked": "Dit bestand bevat een gebouwmodel; opslaan is nog niet mogelijk.",
     "ifcForeignTargetSave": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
     "ifcForeignTargetExport": "Dit bestand bevat ook een gebouwmodel. Kies een ander bestand om naar te exporteren.",
+    "ifcForeignTargetAutoSave": "Automatisch opslaan is gestopt: dit bestand bevat ook een gebouwmodel. Kies een ander bestand om op te slaan.",
     "ambiguousThousands": "\"{{text}}\" is dubbelzinnig: bedoel je een decimaal getal of duizendtallen? Typ decimalen met \"{{separator}}\" (1{{separator}}5) en duizendtallen zonder scheidingsteken (1500). De waarde is niet gewijzigd.",
     "siteSaveConflict": "Niet opgeslagen: '{{name}}' is op de site intussen door iemand anders gewijzigd. Je wijzigingen staan nog in de app. Kies Opslaan als om ze als nieuw bestand te bewaren.",
     "siteSaveConflictCopy": "'{{original}}' is op de site intussen door iemand anders gewijzigd. Je werk staat daarom in een kopie: '{{name}}'. Opslaan schrijft vanaf nu naar die kopie.",

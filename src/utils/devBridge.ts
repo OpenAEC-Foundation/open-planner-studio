@@ -2,7 +2,8 @@ import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
-import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
+import { ifcSaveBlocked, refusedWriteTarget, type WriteTargetDeps } from '@/state/ifcForeignGuard';
+import { fileIdentityFs, writeTargetReaders } from '@/services/fileAccess';
 import {
   parseOpenedFile,
   readIFCWithXerReconstruction,
@@ -84,15 +85,29 @@ async function roundTrip() {
   return { bytes: content.length, before, after, lossless };
 }
 
-/** Niveau 2 — schrijf de huidige state als IFC naar een expliciet pad (dialoog omzeild). Tauri-only. */
-async function saveToPath(path: string) {
+/** Niveau 2 — schrijf de huidige state als IFC naar een expliciet pad (dialoog omzeild), met een eigen schrijver. */
+export async function saveToPathWithIO(
+  path: string,
+  io: { writeTextFile: (path: string, content: string) => Promise<void> },
+  targetDeps: WriteTargetDeps = { identityFs: fileIdentityFs, readers: writeTargetReaders },
+) {
   const s = useAppStore.getState();
   // #804 fase 1a (§4.12): een document met een vreemd deel schrijft deze dev-route niet; de writer liet het model weg.
   if (ifcSaveBlocked(s)) throw new Error('saveToPath: het document heeft een vreemd deel (gebouwmodel); opslaan is nog niet mogelijk.');
+  // #804 fixronde 2: dezelfde doelcontrole als Opslaan als, vóór de write. Het pad is de bron van een open document met
+  // een vreemd deel, of een bestaande IFC met een gebouwmodel (flag aan): dan schrijft deze route niet.
+  if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
+    throw new Error('saveToPath: dit bestand bevat een gebouwmodel; kies een ander pad.');
+  }
   const content = writeIFC(buildWriteIFCInput(s));
-  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-  await writeTextFile(path, content);
+  await io.writeTextFile(path, content);
   return { path, bytes: content.length };
+}
+
+/** Niveau 2 — `saveToPathWithIO` met de schrijver van plugin-fs. Tauri-only. */
+async function saveToPath(path: string) {
+  const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+  return saveToPathWithIO(path, { writeTextFile });
 }
 
 /** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie via de

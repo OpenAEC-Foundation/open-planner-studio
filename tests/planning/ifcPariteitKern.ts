@@ -13,9 +13,16 @@
 // bestandslaag van de browser (`showSaveFilePicker` → `createWritable`), met een handle in het geheugen als naad: die API
 // bestaat op main ook. Vaste klok, een vaste reeks "willekeurige" getallen en dezelfde volgorde van `generateId` maken de
 // uitvoer deterministisch; de tijdzone zet de aanroeper (Europe/Amsterdam).
+//
+// Fixronde 2 (VERVOLG van Terra): ook Ctrl+S naar een BESTAAND doel, per route: een handle met de bytes van het bestand,
+// een Tauri-pad (de echte plugin-JS met nep-IPC naar Node-fs, `nodeFileIpc.ts`) en een site-bestand (`window.openaecHost`
+// in het geheugen). Per actie ook de aanroepen naar buiten, in volgorde: zo ziet de check dat de branch met de flag uit
+// het doel niet extra leest.
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
+import { installNodeFileIpc } from './nodeFileIpc';
 
 export interface ParityInput {
   name: string;
@@ -34,6 +41,22 @@ export interface ParityOutput {
   notices: ParityNotice[];
   /** De echte acties Opslaan en Opslaan als (alleen na een geslaagd openen). */
   actions?: ParityAction[];
+  /** Fixronde 2: Ctrl+S naar een bestaand doel, per route (alleen na een geslaagd openen). */
+  targetActions?: ParityTargetAction[];
+}
+
+/** Uitkomst van Ctrl+S naar een bestaand doel. */
+export interface ParityTargetAction {
+  route: 'handle' | 'pad' | 'site';
+  outcome: 'klaar' | 'hangt';
+  /** Wat in het doel kwam, in volgorde (leeg: het doel bleef zoals het was). */
+  writes: string[];
+  filePath: string | null;
+  isDirty: boolean;
+  notices: ParityNotice[];
+  /** De aanroepen naar buiten tijdens Ctrl+S, in volgorde, zonder paden (handle-methoden, IPC-commando's met opties,
+   *  site-functies). */
+  calls: string[];
 }
 
 /** Uitkomst van één echte opslagactie. */
@@ -60,24 +83,117 @@ export interface ParityRun {
 
 const FIXED_NOW = Date.UTC(2026, 10, 9, 12, 0, 0);
 
-/** Een FSA-handle in het geheugen: wat `createWritable` krijgt, komt in `writes`. */
-function memoryHandle(name: string, writes: string[]): unknown {
-  let data = '';
+/** Een FSA-handle in het geheugen: wat `createWritable` krijgt, komt in `writes`. `calls` (fixronde 2) telt de methoden. */
+function memoryHandle(name: string, writes: string[], initial = '', calls: string[] = []): unknown {
+  let data = initial;
   const handle = {
     kind: 'file', name,
-    isSameEntry: async (other: unknown) => other === handle,
-    getFile: async () => new File([data], name),
+    isSameEntry: async (other: unknown) => { calls.push('isSameEntry'); return other === handle; },
+    getFile: async () => { calls.push('getFile'); return new File([data], name); },
     createWritable: async () => {
+      calls.push('createWritable');
       let buffer = '';
       return {
         write: async (chunk: unknown) => { buffer += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk as Uint8Array); },
         close: async () => { data = buffer; writes.push(buffer); },
       };
     },
-    queryPermission: async () => 'granted',
-    requestPermission: async () => 'granted',
+    queryPermission: async () => { calls.push('queryPermission'); return 'granted'; },
+    requestPermission: async () => { calls.push('requestPermission'); return 'granted'; },
   };
   return handle;
+}
+
+type ParityStore = { getState(): { saveFile(): Promise<void>; filePath: string | null; isDirty: boolean;
+  ui: { notifications: { id: string }[] };
+  openOpenedFile(file: { name: string; content: string; ref: unknown }): Promise<unknown> } };
+
+/** Wacht op `run`, hoogstens 10 s. */
+async function within(run: Promise<unknown>): Promise<'klaar' | 'hangt'> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const outcome = await Promise.race([
+    run.then(() => 'klaar' as const),
+    new Promise<'hangt'>((resolve) => { timer = setTimeout(() => resolve('hangt'), 10_000); }),
+  ]);
+  clearTimeout(timer);
+  return outcome;
+}
+
+/** Fixronde 2: open `input` met een bestaand doel van `route`, en druk Ctrl+S. */
+async function runExistingTarget(store: ParityStore, route: ParityTargetAction['route'], input: ParityInput): Promise<ParityTargetAction> {
+  const g = globalThis as unknown as { window: Record<string, unknown> };
+  const browserWindow = g.window;
+  const calls: string[] = [];
+  const writes: string[] = [];
+  let finish: () => void = () => {};
+  let ref: unknown;
+  let ipc: ReturnType<typeof installNodeFileIpc> | null = null;
+  let mark = 0;
+  /** De tijdelijke map van de Tauri-route: in de uitkomst `<map>`, zodat die gelijk is tussen runs. */
+  let dirOf = '';
+  if (route === 'handle') {
+    browserWindow.showOpenFilePicker = () => { throw new Error('niet in de pariteitsproef'); };
+    browserWindow.showSaveFilePicker = async () => { calls.push('showSaveFilePicker'); throw new DOMException('geannuleerd', 'AbortError'); };
+    ref = { kind: 'handle', handle: memoryHandle(input.name, writes, input.text, calls) };
+    finish = () => { delete browserWindow.showSaveFilePicker; delete browserWindow.showOpenFilePicker; };
+  } else if (route === 'pad') {
+    const dir = mkdtempSync(join(tmpdir(), 'ops-pariteit-pad-'));
+    dirOf = dir;
+    const path = join(dir, input.name);
+    writeFileSync(path, input.text);
+    const fileIpc = installNodeFileIpc();
+    ipc = fileIpc;
+    g.window.parent = g.window;
+    const internals = g.window.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+    const inner = internals.invoke;
+    internals.invoke = async (command, args, options) => {
+      if (command === 'plugin:dialog|save') { calls.push(command); return null; }
+      if (!command.startsWith('plugin:fs|') && !command.startsWith('plugin:resources|')) { calls.push(command); return null; }
+      return inner(command, args, options);
+    };
+    ref = { kind: 'path', path };
+    finish = () => {
+      // De bestandsmodus volgt de umask van de machine: in de uitkomst alleen of hij er is.
+      for (const c of fileIpc.calls.slice(mark)) {
+        calls.push(c.options ? `${c.command} ${JSON.stringify(c.options).replace(/"mode":\d+/, '"mode":"<umask>"')}` : c.command);
+      }
+      const after = readFileSync(path, 'utf8');
+      if (after !== input.text) writes.push(after);
+      fileIpc.dispose();
+      g.window = browserWindow;
+      rmSync(dir, { recursive: true, force: true });
+    };
+  } else {
+    browserWindow.openaecHost = { storage: {
+      list: async () => { calls.push('list'); return []; },
+      open: async (id: string) => { calls.push(`open ${id}`); return { file: { id, name: input.name, version: 'v1' }, data: input.text }; },
+      save: async (request: { id?: string; name: string; data: Blob }) => {
+        calls.push(`save ${request.id ?? '-'}`);
+        writes.push(await request.data.text());
+        return { id: request.id ?? 'nieuw', name: request.name, version: 'v2' };
+      },
+      versions: async (id: string) => { calls.push(`versions ${id}`); return [{ version: 'v1' }]; },
+    } };
+    ref = { kind: 'site', id: 'S1' };
+    finish = () => { delete browserWindow.openaecHost; };
+  }
+  try {
+    await store.getState().openOpenedFile({ name: input.name, content: input.text, ref });
+    // Alleen de aanroepen van Ctrl+S tellen, niet die van het openen.
+    calls.length = 0;
+    mark = ipc?.calls.length ?? 0;
+    const before = new Set(store.getState().ui.notifications.map(n => n.id));
+    const outcome = await within(store.getState().saveFile());
+    const state = store.getState();
+    const neutral = (text: string) => (dirOf ? text.split(dirOf).join('<map>') : text);
+    return {
+      route, outcome, writes, filePath: state.filePath === null ? null : neutral(state.filePath), isDirty: state.isDirty, calls,
+      notices: state.ui.notifications.filter(n => !before.has(n.id))
+        .map(({ id: _id, ...rest }) => JSON.parse(neutral(JSON.stringify(rest))) as ParityNotice),
+    };
+  } finally {
+    finish();
+  }
 }
 
 /** De echte opslagactie op `store`, met een handle in het geheugen als gekozen bestand. */
@@ -174,6 +290,12 @@ export async function runParity(inputs: readonly ParityInput[]): Promise<ParityR
         await runAction(store, 'saveFile', input.name),
         await runAction(store, 'saveFileAs', `kopie-${input.name}`),
       ];
+      // Fixronde 2: Ctrl+S naar een bestaand doel, elke route in een verse store.
+      result.targetActions = [];
+      for (const route of ['handle', 'pad', 'site'] as const) {
+        reseed(0x804);
+        result.targetActions.push(await runExistingTarget(createAppStoreContext().store as unknown as ParityStore, route, input));
+      }
     }
     results.push(result);
   }
@@ -212,6 +334,16 @@ export interface ParityFixtureEntry {
     filePath: string | null;
     isDirty: boolean;
     meldingen: ParityNotice[];
+  }[];
+  /** Fixronde 2: Ctrl+S naar een bestaand doel, per route, met de aanroepen naar buiten. */
+  doelacties?: {
+    route: ParityTargetAction['route'];
+    uitkomst: ParityTargetAction['outcome'];
+    writes: { sha256: string; lengte: number }[];
+    filePath: string | null;
+    isDirty: boolean;
+    meldingen: ParityNotice[];
+    aanroepen: string[];
   }[];
 }
 
@@ -257,6 +389,10 @@ export async function parityFixture(root: string, basis: string): Promise<{ fixt
         actie: a.action, uitkomst: a.outcome, dialogen: a.pickerCalls,
         writes: a.writes.map(w => ({ sha256: sha256(w), lengte: w.length })),
         filePath: a.filePath, isDirty: a.isDirty, meldingen: a.notices,
+      })) } : {}),
+      ...(r.targetActions ? { doelacties: r.targetActions.map(a => ({
+        route: a.route, uitkomst: a.outcome, writes: a.writes.map(w => ({ sha256: sha256(w), lengte: w.length })),
+        filePath: a.filePath, isDirty: a.isDirty, meldingen: a.notices, aanroepen: a.calls,
       })) } : {}),
     };
     r.actions?.forEach((a, i) => a.writes.forEach((w, j) => saved.set(`${pad}.${a.action}-${i}-${j}.ifc`, w)));

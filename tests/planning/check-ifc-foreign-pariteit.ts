@@ -10,7 +10,10 @@
 //  - dezelfde meldingen na het openen, en dezelfde keuze tekst of bytes in de bestandslaag (`binaryExtensions()`);
 //  - (fixronde 1, VERVOLG van Terra) een eigen voorbeeld: de echte acties Opslaan en Opslaan als, met guards en de
 //    bestandslaag van de browser (handle in het geheugen), geven dezelfde dialogen, dezelfde bytes (SHA-256 en lengte),
-//    hetzelfde opslagdoel en dezelfde meldingen als op main.
+//    hetzelfde opslagdoel en dezelfde meldingen als op main;
+//  - (fixronde 2, VERVOLG van Terra) een eigen voorbeeld: Ctrl+S naar een bestaand doel, per route (handle, Tauri-pad
+//    via de echte plugin-JS, site), geeft dezelfde bytes, hetzelfde doel, dezelfde meldingen én dezelfde aanroepen naar
+//    buiten als op main: met de flag uit leest de branch het doel niet extra.
 // Bij een verschil schrijft de check de uitvoer van de branch naar een tijdelijke map; `--uitvoer <map>` van het script
 // geeft die van main, om te diffen.
 //
@@ -49,6 +52,7 @@ let outDir: string | undefined;
 let own = 0;
 let refused = 0;
 let actions = 0;
+let targetActions = 0;
 for (const want of fixture.bestanden) {
   const have = got.bestanden.find(b => b.pad === want.pad);
   if (!have) continue;
@@ -61,12 +65,20 @@ for (const want of fixture.bestanden) {
   eq(`${want.pad}: meldingen`, have.meldingen, want.meldingen);
   eq(`${want.pad}: wat Opslaan schrijft (sha256, lengte)`, [have.opslaanSha256, have.opslaanLengte], [want.opslaanSha256, want.opslaanLengte]);
   eq(`${want.pad}: de echte acties Opslaan en Opslaan als`, have.acties, want.acties);
+  eq(`${want.pad}: Ctrl+S naar een bestaand doel (handle, pad, site)`, have.doelacties, want.doelacties);
   if (want.filePath !== null) {
     // Niet leeg: beide acties kwamen tot de dialoog en schreven precies één keer.
     checks++;
     const real = (want.acties ?? []).every(a => a.uitkomst === 'klaar' && a.dialogen === 1 && a.writes.length === 1 && !a.isDirty);
     if (!real || want.acties?.length !== 2) diffs.push(`${want.pad}: de fixture heeft geen twee geslaagde opslagacties`);
     else actions += 2;
+    // Niet leeg: elke route schreef zonder dialoog precies één keer naar het bestaande doel.
+    checks++;
+    const targets = (want.doelacties ?? []).every(a => a.uitkomst === 'klaar' && a.writes.length === 1 && !a.isDirty
+      && !a.aanroepen.some(c => c.includes('showSaveFilePicker') || c.includes('dialog')));
+    if (!targets || want.doelacties?.map(a => a.route).join() !== 'handle,pad,site') {
+      diffs.push(`${want.pad}: de fixture heeft geen drie geslaagde Ctrl+S-acties naar een bestaand doel`);
+    } else targetActions += 3;
   }
   if (have.opslaanSha256 !== want.opslaanSha256 && saved.has(want.pad)) {
     outDir ??= mkdtempSync(join(tmpdir(), 'ops-pariteit-branch-'));
@@ -89,5 +101,6 @@ if (diffs.length > 0) {
   process.exit(1);
 }
 console.log(`OK  ifc-foreign-pariteit: alle checks groen (${checks}; ${own} eigen bestanden byte-gelijk aan main ${fixture.basis}, `
-  + `${actions} echte opslagacties gelijk, ${refused} modelbestanden met dezelfde weigering)`);
+  + `${actions} echte opslagacties en ${targetActions} Ctrl+S naar een bestaand doel gelijk, ${refused} modelbestanden met `
+  + 'dezelfde weigering)');
 process.exit(0);

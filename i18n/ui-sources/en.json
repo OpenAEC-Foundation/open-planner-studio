@@ -59,6 +59,7 @@
     "notifications.ifcForeignSaveBlocked": "c30a9297b2aad3f3",
     "notifications.ifcForeignTargetSave": "96b40bd32c7d3022",
     "notifications.ifcForeignTargetExport": "e39ac01908f9c039",
+    "notifications.ifcForeignTargetAutoSave": "7aba3205bb2cb02b",
     "notifications.ambiguousThousands": "7046ee19ecb23d1c",
     "notifications.siteSaveConflict": "4ef4b3599adbfacb",
     "notifications.siteSaveConflictCopy": "5836d3d37e819170",

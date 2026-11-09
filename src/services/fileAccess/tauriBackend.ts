@@ -2,11 +2,35 @@ import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, S
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import type { FileIdentityFs } from './fileIdentity';
+import { scanTargetChunks, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
 
 /** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
 export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
   const { stat } = await import('@tauri-apps/plugin-fs');
   return { stat: (path) => stat(path) };
+}
+
+/**
+ * Een bestaand pad als stroom lezen voor de doelcontrole (#804 fixronde 2): stukken van 1 MiB via plugin-fs
+ * `open`/`read` (toegestaan via `fs:allow-home-read-recursive`, dat `read-all` bevat), tot de uitkomst vaststaat.
+ * `null` als het bestand niet te openen is (bestaat nog niet, geen rechten): dan is het doel niet leesbaar.
+ */
+export async function scanTargetPathTauri(path: string): Promise<TargetModelScan | null> {
+  const { open } = await import('@tauri-apps/plugin-fs');
+  let handle: Awaited<ReturnType<typeof open>>;
+  try {
+    handle = await open(path, { read: true });
+  } catch {
+    return null;
+  }
+  const buffer = new Uint8Array(1 << 20);
+  return scanTargetChunks(
+    async () => {
+      const n = await handle.read(buffer);
+      return n === null ? null : buffer.subarray(0, n);
+    },
+    async () => { try { await handle.close(); } catch { /* al dicht */ } },
+  );
 }
 
 export interface TauriOpenIO {

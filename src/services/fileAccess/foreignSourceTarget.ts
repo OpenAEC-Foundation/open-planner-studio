@@ -10,8 +10,13 @@
 //  - site: hetzelfde `siteFileId`.
 // Is niet vast te stellen of het doel hetzelfde bestand is (een download, een fout bij lezen), dan telt het als een ander
 // bestand: het nieuwe bestand mag.
+//
+// Fixronde 2: daarnaast controleert de app het gekozen bestaande doel zelf (`targetHoldsBuildingModel`): een IFC met
+// een gebouwmodel krijgt geen planning eroverheen, ook als het geen bron van een open document is (een gewijzigde
+// modelversie na herstel, of een modelbestand dat niet open is).
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
+import { scanTargetBlob, scanTargetBytes, type TargetModelScan } from '@/services/ifc/foreign/targetModelScan';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { compareFilePaths, type FileIdentityFs } from './fileIdentity';
 import type { FileRef } from './index';
@@ -42,6 +47,39 @@ async function sameContent(handle: FileSystemFileHandle, mark: ForeignSourceMark
     const file = await handle.getFile();
     if (file.size !== mark.byteLength) return false;
     return (await precomputeSha256(new Uint8Array(await file.arrayBuffer()))) === mark.sha256;
+  } catch {
+    return false;
+  }
+}
+
+/** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
+export interface TargetReaders {
+  /** Een bestaand pad als stroom lezen (Tauri); `null` = niet leesbaar (bijv. bestaat nog niet). */
+  scanPath?: (path: string) => Promise<TargetModelScan | null>;
+  /** Een bestand op de site lezen; `null` = niet leesbaar. */
+  readSite?: (id: string) => Promise<Uint8Array | null>;
+}
+
+/**
+ * Bevat het gekozen bestaande doel een gebouwmodel (een IFC met `IfcProduct`/`IfcTypeProduct`)? Leest als stroom en
+ * stopt bij de eerste modelentiteit (`targetModelScan.ts`).
+ *
+ * Niet leesbaar (een download in de browser, geen handle, een pad dat nog niet bestaat, een leesfout): dan `false`, en
+ * het schrijven mag door. Besluit Trias (wrakko, 9 november 2026): wat de app niet kan lezen, kan hij niet beoordelen,
+ * en een nieuw bestand mag altijd.
+ */
+export async function targetHoldsBuildingModel(target: FileRef, readers: TargetReaders = {}): Promise<boolean> {
+  try {
+    switch (target.kind) {
+      case 'handle':
+        return (await scanTargetBlob(await target.handle.getFile())) === 'model';
+      case 'path':
+        return readers.scanPath ? (await readers.scanPath(target.path)) === 'model' : false;
+      case 'site': {
+        const bytes = readers.readSite ? await readers.readSite(target.id) : null;
+        return bytes ? scanTargetBytes(bytes) === 'model' : false;
+      }
+    }
   } catch {
     return false;
   }

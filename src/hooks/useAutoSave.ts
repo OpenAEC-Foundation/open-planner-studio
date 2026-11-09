@@ -1,21 +1,16 @@
 import { useEffect, type MutableRefObject } from 'react';
 import { appStoreContext, useAppStore } from '@/state/appStore';
 import { isTauri } from '@/utils/platform';
-import { writeIFC } from '@/services/ifc/ifcWriter';
-import { ifcSchemaBlocksSilentWrite } from '@/services/ifc/ifcSchemaQuestion';
-import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { RecoveryDeltaTracker, type RecoverySourceDocument } from '@/services/recovery/recoveryDelta';
 import { runRecoveryTick } from '@/services/recovery/recoverySnapshot';
 import { recoveryStorageUnavailable } from '@/services/recovery/recoveryStore';
 import { createRecoverySnapshotSerializer } from '@/services/recovery/recoverySnapshotSerializer';
 import { createRecoveryTickQueue } from '@/services/recovery/recoveryTickQueue';
 import { registerRecoveryFlush } from '@/services/recovery/recoveryFlush';
-import { canWriteToRefWithoutPrompt, saveTargetRef, saveToRefWithoutPrompt } from '@/services/fileAccess';
-import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSaveController, type ActualAutoSaveCandidate } from '@/services/actualAutosave/actualAutoSave';
-import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
-import { sameIFCSource } from '@/state/ifcSaveInput';
+import { actualAutoSaveDelay } from '@/services/actualAutosave/actualAutoSave';
+import { createFileAutoSaveController } from '@/services/actualAutosave/fileAutoSave';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
-import { IFC_FOREIGN_SAVE_BLOCKED_NOTICE, ifcSaveBlocked, recoverySaveTarget } from '@/state/ifcForeignGuard';
+import { recoverySaveTarget } from '@/state/ifcForeignGuard';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -127,54 +122,11 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
   // Echte AutoSave is een APART mechanisme: recovery hierboven blijft alle gewijzigde documenten
   // snapshotten, ook wanneer deze keuze uitstaat of een document nog nooit is opgeslagen.
   useEffect(() => {
-    // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
-    const foreignNotified = new Set<string>();
-    const controller = createActualAutoSaveController({
-      listCandidates: (): ActualAutoSaveCandidate[] => {
-        // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
-        // documenten. Geen bestand overschrijven vóór die blokkerende fase klaar is.
-        if (!autoSaveEnabled.current || isProjectFileWriteBusy()) return [];
-        return useAppStore.getState().getOpenDocumentPayloads().map(({ id, payload }) => {
-          // Eén afleiding van het opslagdoel, dezelfde als Opslaan. Een site-bestand valt hier
-          // bewust af: automatisch opslaan naar de site staat uit (elke ronde zou een nieuwe versie
-          // maken, besluit #309). Alleen Opslaan schrijft naar de site; crashherstel loopt gewoon door.
-          const target = saveTargetRef(payload);
-          const ref = target?.kind === 'site' ? null : target;
-          // Schemavraag (issue #292): staat die open voor een schema dat de app niet schrijft (IFC2X3),
-          // dan zou automatisch opslaan het bestandstype stil veranderen. Dan wacht het bestand op het
-          // eerste expliciete opslaan, met de vraag. Crashherstel loopt gewoon door.
-          // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
-          // nog weg). Crashherstel loopt door.
-          const foreignBlocked = ifcSaveBlocked(payload);
-          if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
-            foreignNotified.add(id);
-            useAppStore.getState().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
-          }
-          const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project) && !foreignBlocked;
-          return { id, enabled, dirty: payload.isDirty, ref, source: payload };
-        });
-      },
-      serialize: candidate => writeIFC(buildWriteIFCInput(candidate.source)),
-      canWrite: canWriteToRefWithoutPrompt,
-      write: (candidate, content) => runProjectFileWrite(async () => {
-        // Wachten op een handmatige write mag nooit alsnog een inmiddels oude autosave-inhoud
-        // laten overschrijven. Kijk dus OPNIEUW onder de exclusieve lock.
-        const current = useAppStore.getState().getOpenDocumentPayloads().find((d) => d.id === candidate.id)?.payload;
-        if (!current) return false;
-        if (!sameIFCSource(candidate.source, current)) return 'stale';
-        return saveToRefWithoutPrompt(candidate.ref!, content);
-      }),
-      markSavedIfUnchanged: candidate => useAppStore.getState().markAutoSaveVersionSaved(candidate.id, candidate.source),
-      onFailure: (_candidate, error) => {
-        console.error('Werkelijke AutoSave mislukt:', error);
-        useAppStore.getState().notify({
-          severity: 'error',
-          messageKey: error instanceof AutoSaveTargetUnavailableError
-            ? 'notifications.autoSaveNotWritable' : 'notifications.autoSaveFailed',
-          detail: error instanceof AutoSaveTargetUnavailableError ? undefined : (error as Error).message,
-          dedupeKey: 'actual-autosave',
-        });
-      },
+    // De controller (kandidaten, doelcontrole, write) staat in `fileAutoSave.ts`, zodat een test hem met de echte store
+    // en bestandslaag kan draaien (#804 fixronde 2). Deze hook plant alleen de rondes.
+    const controller = createFileAutoSaveController({
+      getState: () => useAppStore.getState(),
+      enabled: () => autoSaveEnabled.current,
     });
 
     let timer: ReturnType<typeof setTimeout> | null = null;

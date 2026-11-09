@@ -316,7 +316,8 @@ await (async () => {
   const calls = [...slice.matchAll(/await settleDependentAnchors\(\)/g)].map(m => m.index ?? -1);
   eq('8b … in writeActiveDocument en saveActiveDocumentAs',
     [calls[0] > writeStart && calls[0] < asStart, calls[1] > asStart], [true, true]);
-  for (const p of ['src/hooks/useAutoSave.ts', 'src/services/recovery/recoveryStore.ts', 'src/services/mcp/tools/fileTools.ts']) {
+  for (const p of ['src/hooks/useAutoSave.ts', 'src/services/actualAutosave/fileAutoSave.ts', 'src/services/recovery/recoveryStore.ts',
+    'src/services/mcp/tools/fileTools.ts']) {
     eq(`8c ${p} vraagt niets`, /settleDependentAnchors|askDependentAnchors/.test(read(p)), false);
   }
 }

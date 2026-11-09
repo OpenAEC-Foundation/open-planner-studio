@@ -9,10 +9,16 @@
 //   3. BLOKKEERT 3: na crashherstel (snapshot, manifest, lezen, herstellen) heeft het document het kenmerk van de bron,
 //      zonder bronbytes en zonder handle; Opslaan als en een export naar het oude bestand weigeren, een ander bestand
 //      krijgt alleen de planning; een oude snapshot zonder kenmerk werkt zoals altijd;
-//   4. het kenmerk in het documentcontract: buiten undo, mee bij wissel en kopie, niet in een gewone opslag.
+//   4. het kenmerk in het documentcontract: buiten undo, mee bij wissel en kopie, niet in een gewone opslag;
+//   5. fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf. Een IFC met een gebouwmodel
+//      krijgt geen planning eroverheen: na herstel ook een gewijzigde modelversie (Sol: één ander byte, een extra
+//      commentaarregel), een modelbestand dat niet open is, en bij AutoSave (twee documenten, één doel: model intact, A
+//      gewijzigd, precies één melding, geen nieuwe poging). Een bestaand CSV, een eigen IFC en een doel dat de app niet
+//      kan lezen, mogen. Per route (handle, Tauri-pad via plugin-fs `read`, site) en voor de dev-bridge; met de flag uit
+//      geen inhoudscontrole.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,7 +73,8 @@ const showcase = fileBytes('public/examples/showcase-verbouwing-eengezinswoning.
 const SAVE_BLOCKED = 'notifications.ifcForeignSaveBlocked';
 const TARGET_SAVE = 'notifications.ifcForeignTargetSave';
 const TARGET_EXPORT = 'notifications.ifcForeignTargetExport';
-const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT];
+const TARGET_AUTOSAVE = 'notifications.ifcForeignTargetAutoSave';
+const MODEL_KEYS = [SAVE_BLOCKED, TARGET_SAVE, TARGET_EXPORT, TARGET_AUTOSAVE];
 
 // Alleen in deze test: de flag bruikbaar maken, zoals in `check-ifc-foreign-open.ts`.
 FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!.writesNewIfcData = false;
@@ -78,23 +85,35 @@ function fakeHandle(name: string, initial: Uint8Array) {
   let data = initial;
   const writes: string[] = [];
   let writables = 0;
+  let permissionQueries = 0;
+  let unreadable = false;
   const handle = {
     kind: 'file' as const,
     name,
     isSameEntry: async (other: unknown) => other === handle,
-    getFile: async () => new File([data as BlobPart], name),
+    getFile: async () => {
+      if (unreadable) throw new DOMException('niet leesbaar', 'NotReadableError');
+      return new File([data as BlobPart], name);
+    },
     createWritable: async () => {
       writables++;
       let buffer = '';
       return {
         write: async (chunk: unknown) => { buffer += typeof chunk === 'string' ? chunk : dec(chunk as Uint8Array); },
-        close: async () => { data = enc.encode(buffer); writes.push(buffer); },
+        close: async () => { data = enc.encode(buffer); writes.push(buffer); unreadable = false; },
       };
     },
-    queryPermission: async () => 'granted' as const,
+    queryPermission: async () => { permissionQueries++; return 'granted' as const; },
     requestPermission: async () => 'granted' as const,
   };
-  return { handle: handle as unknown as FileSystemFileHandle, writes, writables: () => writables, text: () => dec(data) };
+  return {
+    handle: handle as unknown as FileSystemFileHandle, writes, writables: () => writables, text: () => dec(data),
+    /** Een ander programma vervangt het bestand. */
+    replace: (bytes: Uint8Array) => { data = bytes; },
+    permissionQueries: () => permissionQueries,
+    /** `getFile()` faalt tot de eerste write (fixronde 2: een doel dat de app vóór het schrijven niet kan lezen). */
+    unreadableUntilWrite: () => { unreadable = true; },
+  };
 }
 type FakeHandle = ReturnType<typeof fakeHandle>;
 
@@ -211,9 +230,10 @@ for (const action of ['saveFile', 'saveFileAs'] as const) {
 // ── 2b. BLOKKEERT 2, site (SuperCloud / `window.openaecHost`) ──────────────────────────────────────────────────
 {
   const saves: { id?: string; name: string }[] = [];
+  // Fixronde 2: de app leest een bestaand site-doel; S1 is het modelbestand, S2 een eigen planning.
   const storage = {
     list: async () => [],
-    open: async (id: string) => ({ file: { id, name: 'bonsai-4d.ifc', version: 'v1' }, data: bonsai }),
+    open: async (id: string) => ({ file: { id, name: 'bonsai-4d.ifc', version: 'v1' }, data: id === 'S1' ? bonsai : showcase }),
     save: async (request: { id?: string; name: string; data: Blob }) => {
       saves.push({ id: request.id, name: request.name });
       return { id: request.id ?? 'nieuw', name: request.name, version: 'v2' };
@@ -449,6 +469,297 @@ let oldRecoveryText = '';
   // Een ander bestand openen op een eigen doel geeft geen kenmerk (geen vreemd deel).
   await open('showcase.ifc', showcase, null, store);
   eq('contract: een eigen bestand zonder model heeft geen kenmerk', S().foreignSourceMark, null);
+}
+
+// ── 5. Fixronde 2 (review van #864, ronde 2): de app leest het gekozen bestaande doel zelf ─────────────────────────
+// Besluit Trias (wrakko, 9 november 2026): bevat een bestaand doel dat de app kan lezen een gebouwmodel (een IFC met
+// `IfcProduct`/`IfcTypeProduct`), dan schrijft de app niet. Niet leesbaar ⇒ schrijven mag. Alleen met de flag aan.
+const modelIfc4 = fileBytes('tests/fixtures/ifc-foreign/model-ifc4.ifc');
+/** Sol's twee scenario's na herstel: dezelfde lengte met één ander byte, en een extra commentaarregel. */
+const oneByteChanged = (() => {
+  const copy = bonsai.slice();
+  const at = dec(bonsai).indexOf("FILE_NAME('") + "FILE_NAME('".length;
+  copy[at] = copy[at] === 0x62 ? 0x63 : 0x62;
+  return copy;
+})();
+const extraComment = (() => {
+  const text = dec(bonsai);
+  const at = text.indexOf('DATA;') + 'DATA;'.length;
+  return enc.encode(`${text.slice(0, at)}\n/* een extra regel van een ander programma */${text.slice(at)}`);
+})();
+const noticeCount = (store: Store, key: string) =>
+  store.getState().ui.notifications.filter(n => n.messageKey === key).reduce((sum, n) => sum + n.count, 0);
+const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
+
+// ── 5a. Na herstel (browser): een gewijzigde modelversie, een ander modelbestand, CSV, een eigen IFC, niet leesbaar ──
+{
+  const parsed = await readIfcFromText(recoveryText, {}, { ifcBytes: true });
+  const store = createAppStoreContext().store;
+  store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  store.getState().restoreDocuments([recoveryInputFromParsed(parsed, {
+    id: 'hersteld', filePath: null, foreignSource: { filePath: 'bonsai-4d.ifc', siteFileId: null }, isDirty: true, datesAsRecorded: false,
+  })], 'hersteld');
+  const R = () => store.getState();
+  const mark = R().foreignSourceMark!;
+  eq('herstel 2: het kenmerk van bonsai-4d.ifc', [mark.sha256, mark.handle], [sha(bonsai), null]);
+  for (const [label, bytes] of [['één ander byte, zelfde lengte', oneByteChanged], ['een extra commentaarregel', extraComment]] as const) {
+    const target = fakeHandle('bonsai-4d.ifc', bytes);
+    eq(`herstel 2, ${label}: de identiteitscontrole van ronde 1 ziet een ander bestand`, [
+      bytes.length === bonsai.length || label.includes('commentaar'), sha(bytes) !== sha(bonsai),
+      await isForeignSourceTarget({ kind: 'handle', handle: target.handle }, [mark]),
+    ], [true, true, false]);
+    pick = target;
+    await R().saveFileAs();
+    const csv = await R().exportAs('csv');
+    eq(`herstel 2, ${label}: Opslaan als en export geweigerd, het model is er nog`,
+      [target.writables(), csv, target.text() === dec(bytes)], [0, { ok: true, warnings: [], cancelled: true }, true]);
+  }
+  eq('herstel 2: met de meldingen "op te slaan" en "naar te exporteren"',
+    [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) > 0], [true, true]);
+  const otherModel = fakeHandle('ander-model.ifc', modelIfc4);
+  pick = otherModel;
+  await R().saveFileAs();
+  eq('herstel 2: een modelbestand dat niet open is, geweigerd', [otherModel.writables(), R().fileHandle], [0, null]);
+  const csvFile = fakeHandle('planning.csv', enc.encode(OLD_CONTENT));
+  pick = csvFile;
+  const csvAllowed = await R().exportAs('csv');
+  eq('herstel 2: een bestaand CSV als doel mag', [csvAllowed.ok && !('cancelled' in csvAllowed && csvAllowed.cancelled),
+    csvFile.writes.length, csvFile.text().includes('OUDE-INHOUD')], [true, 1, false]);
+  const ownIfc = fakeHandle('eigen.ifc', showcase);
+  pick = ownIfc;
+  await R().saveFileAs();
+  eq('herstel 2: een bestaande eigen IFC (geen model) mag', [ownIfc.writes.length, R().fileHandle === ownIfc.handle], [1, true]);
+  // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+  const locked = fakeHandle('vergrendeld.ifc', modelIfc4);
+  locked.unreadableUntilWrite();
+  pick = locked;
+  await R().saveFileAs();
+  eq('herstel 2: een doel dat de app niet kan lezen, mag', [locked.writes.length, R().fileHandle === locked.handle], [1, true]);
+  pick = null;
+}
+
+// ── 5b. Met de flag uit: geen inhoudscontrole (de app blijft byte-gelijk aan main) ─────────────────────────────────
+{
+  reseed(0x804);
+  const store = createAppStoreContext().store;
+  await store.getState().openOpenedFile({ name: 'showcase.ifc', content: dec(showcase), ref: null });
+  const target = fakeHandle('ander-model.ifc', modelIfc4);
+  pick = target;
+  await store.getState().saveFileAs();
+  eq('flag uit: Opslaan als naar een modelbestand schrijft, zoals op main', [target.writes.length, noticeKeys(store)], [1, []]);
+  pick = null;
+}
+
+// ── 5c. BLOKKEERT 1: AutoSave, twee documenten en één doel (Sol's proef) ────────────────────────────────────────────
+{
+  const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+  const shared = fakeHandle('planning.ifc', showcase);
+  const store = await open('planning.ifc', showcase, { kind: 'handle', handle: shared.handle });
+  const S = () => store.getState();
+  const aId = S().activeDocumentId;
+  S().setAutoSaveToFile(true);
+  // Een ander programma vervangt het bestand door een versie met model; de planner opent die als document B.
+  shared.replace(bonsai);
+  await open('planning.ifc', bonsai, { kind: 'handle', handle: shared.handle }, store);
+  const bId = S().activeDocumentId;
+  ok('AutoSave: B is het modelbestand, met een vreemd deel en dezelfde handle',
+    bId !== aId && S().ifcSource?.foreign === true && S().foreignSourceMark?.handle === shared.handle);
+  S().switchDocument(aId);
+  S().addTask({ name: 'Werk in A' });
+  const payloadA = () => S().getOpenDocumentPayloads().find(d => d.id === aId)!.payload;
+  ok('AutoSave: A staat aan en is gewijzigd', payloadA().autoSaveToFile && payloadA().isDirty);
+  const controller = createFileAutoSaveController({ getState: S, enabled: () => true });
+  await controller.flush();
+  eq('AutoSave: niets geschreven, het model is er nog, A blijft gewijzigd, precies één melding',
+    [shared.writables(), shared.text() === dec(bonsai), payloadA().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [0, true, true, 1]);
+  ok('AutoSave: de melding is rood en een weigering',
+    S().ui.notifications.some(n => n.messageKey === TARGET_AUTOSAVE && n.severity === 'error' && n.refusal === true));
+  // Daarna probeert AutoSave niet opnieuw naar dat doel: geen permissievraag, geen write, geen tweede melding.
+  const queries = shared.permissionQueries();
+  S().addTask({ name: 'Nog meer werk in A' });
+  await controller.flush();
+  await controller.flush();
+  eq('AutoSave: geen nieuwe poging naar dat doel', [shared.permissionQueries() - queries, shared.writables(),
+    noticeCount(store, TARGET_AUTOSAVE)], [0, 0, 1]);
+  // De planner slaat zelf op, in een ander bestand: AutoSave gaat daar verder.
+  const fresh = fakeHandle('planning-2.ifc', new Uint8Array());
+  pick = fresh;
+  await S().saveFileAs();
+  pick = null;
+  S().addTask({ name: 'Na opslaan' });
+  await controller.flush();
+  eq('AutoSave: na Opslaan als in een ander bestand weer actief', [fresh.writes.length, payloadA().isDirty, shared.writables(),
+    noticeCount(store, TARGET_AUTOSAVE)], [2, false, 0, 1]);
+}
+{
+  const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+  // Het eigen bestand van een document wordt buiten de app een modelbestand (dat niet open is).
+  const own = fakeHandle('eigen.ifc', showcase);
+  const store = await open('eigen.ifc', showcase, { kind: 'handle', handle: own.handle });
+  store.getState().setAutoSaveToFile(true);
+  own.replace(modelIfc4);
+  store.getState().addTask({ name: 'Werk' });
+  await createFileAutoSaveController({ getState: () => store.getState(), enabled: () => true }).flush();
+  eq('AutoSave: een eigen doel dat nu een model bevat: niets geschreven, gewijzigd, één melding',
+    [own.writables(), own.text() === dec(modelIfc4), store.getState().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [0, true, true, 1]);
+  // Niet leesbaar ⇒ AutoSave mag.
+  const locked = fakeHandle('eigen-3.ifc', showcase);
+  const store3 = await open('eigen-3.ifc', showcase, { kind: 'handle', handle: locked.handle });
+  store3.getState().setAutoSaveToFile(true);
+  locked.replace(modelIfc4);
+  locked.unreadableUntilWrite();
+  store3.getState().addTask({ name: 'Werk' });
+  await createFileAutoSaveController({ getState: () => store3.getState(), enabled: () => true }).flush();
+  eq('AutoSave: een doel dat de app niet kan lezen, mag', [locked.writes.length, store3.getState().isDirty, noticeKeys(store3)], [1, false, []]);
+  // Met de flag uit: AutoSave schrijft zoals op main.
+  const plainTarget = fakeHandle('eigen-2.ifc', showcase);
+  reseed(0x804);
+  const plain = createAppStoreContext().store;
+  await plain.getState().openOpenedFile({ name: 'eigen-2.ifc', content: dec(showcase), ref: { kind: 'handle', handle: plainTarget.handle } });
+  plain.getState().setAutoSaveToFile(true);
+  plainTarget.replace(modelIfc4);
+  plain.getState().addTask({ name: 'Werk' });
+  await createFileAutoSaveController({ getState: () => plain.getState(), enabled: () => true }).flush();
+  eq('AutoSave met de flag uit: schrijft zoals op main', [plainTarget.writes.length, plain.getState().isDirty, noticeKeys(plain)], [1, false, []]);
+}
+
+// ── 5d. Tauri: het doel als stroom via plugin-fs `read` (echte plugin-JS, nep-IPC naar Node-fs) ─────────────────────
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-doel2-'));
+  const modelPath = join(dir, 'ander-model.ifc');
+  writeFileSync(modelPath, modelIfc4);
+  // Een groot modelbestand: het model vooraan, daarna ruim 4 MiB eigenschappen. De lezer stopt na het eerste stuk.
+  const bigPath = join(dir, 'groot-model.ifc');
+  const bonsaiText = dec(bonsai);
+  const endsec = bonsaiText.lastIndexOf('ENDSEC;');
+  writeFileSync(bigPath, bonsaiText.slice(0, endsec)
+    + "#900000=IFCPROPERTYSINGLEVALUE('Vulling',$,IFCLABEL('x'),$);\n".repeat(75_000) + bonsaiText.slice(endsec));
+  const csvPath = join(dir, 'planning.csv');
+  writeFileSync(csvPath, OLD_CONTENT);
+  const ownPath = join(dir, 'eigen.ifc');
+  writeFileSync(ownPath, showcase);
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc();
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let dialogAnswer: string | null = null;
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const innerInvoke = internals.invoke;
+  internals.invoke = async (command, args, options) => {
+    if (command === 'plugin:dialog|save') return dialogAnswer;
+    return innerInvoke(command, args, options);
+  };
+  try {
+    reseed(0x804);
+    const store = createAppStoreContext().store;
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
+    const S = () => store.getState();
+    eq('Tauri 2: een eigen bestand, zonder vreemd deel', [S().filePath, S().foreignSourceMark], [ownPath, null]);
+    dialogAnswer = modelPath;
+    await S().saveFileAs();
+    eq('Tauri 2: Opslaan als naar een modelbestand dat niet open is, geweigerd', [sha(readFileSync(modelPath)), S().filePath],
+      [sha(modelIfc4), ownPath]);
+    ok('Tauri 2: met de melding "op te slaan"', noticeCount(store, TARGET_SAVE) > 0);
+    const before = ipc.bytesRead();
+    dialogAnswer = bigPath;
+    const t0 = performance.now();
+    await S().saveFileAs();
+    const ms = performance.now() - t0;
+    const read = ipc.bytesRead() - before;
+    const bigSize = statSync(bigPath).size;
+    eq('Tauri 2: een groot modelbestand geweigerd na één stuk van 1 MiB', [read > 0 && read <= (1 << 20), bigSize > (4 << 20),
+      S().filePath], [true, true, ownPath]);
+    console.log(`..  Tauri: Opslaan als naar een modelbestand van ${(bigSize / 1048576).toFixed(1)} MiB geweigerd in `
+      + `${ms.toFixed(0)} ms (${read} bytes gelezen)`);
+    dialogAnswer = csvPath;
+    const csv = await S().exportAs('csv');
+    ok('Tauri 2: een bestaand CSV als doel mag', csv.ok && !('cancelled' in csv && csv.cancelled)
+      && !readFileSync(csvPath, 'utf8').includes('OUDE-INHOUD'));
+    // Ctrl+S: een ander programma maakt van het eigen bestand een modelbestand.
+    writeFileSync(ownPath, modelIfc4);
+    S().addTask({ name: 'Werk na de wissel' });
+    await S().saveFile();
+    eq('Tauri 2: Ctrl+S naar het eigen bestand met nu een model geweigerd', [sha(readFileSync(ownPath)), S().isDirty],
+      [sha(modelIfc4), true]);
+    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    ipc.faults.readError = new Error('Input/output error (os error 5)');
+    await S().saveFile();
+    ipc.faults.readError = null;
+    eq('Tauri 2: een doel dat de app niet kan lezen, mag', [readFileSync(ownPath, 'utf8').includes('Werk na de wissel'), S().isDirty],
+      [true, false]);
+    eq('Tauri 2: de lezer sluit elk bestand', ipc.openHandles(), 0);
+    ok('Tauri 2: de lezer las via plugin-fs read', ipc.calls.some(c => c.command === 'plugin:fs|read'));
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 5e. Site: het bestaande site-bestand lezen ───────────────────────────────────────────────────────────────────
+{
+  const saves: string[] = [];
+  const siteData: Record<string, Uint8Array> = { M1: modelIfc4, O1: showcase };
+  win.openaecHost = { storage: {
+    list: async () => [],
+    open: async (id: string) => {
+      if (!(id in siteData)) throw new Error('niet gevonden');
+      return { file: { id, name: `${id}.ifc`, version: 'v1' }, data: siteData[id] };
+    },
+    save: async (request: { id?: string; name: string }) => {
+      saves.push(request.id ?? 'nieuw');
+      return { id: request.id ?? 'nieuw', name: request.name, version: 'v2' };
+    },
+    versions: async () => [{ version: 'v1' }],
+  } };
+  const store = await open('showcase.ifc', showcase, null);
+  const S = () => store.getState();
+  S().addTask({ name: 'Eigen werk' });
+  store.setState(s => { s.siteFileId = 'M1'; s.siteFileVersion = 'v1'; s.filePath = 'M1.ifc'; });
+  await S().saveFile();
+  eq('site 2: Ctrl+S naar een site-bestand met een model geweigerd', [saves, noticeCount(store, TARGET_SAVE) > 0, S().isDirty],
+    [[], true, true]);
+  store.setState(s => { s.siteFileId = 'O1'; s.siteFileVersion = 'v1'; s.filePath = 'O1.ifc'; });
+  await S().saveFile();
+  eq('site 2: een site-bestand zonder model krijgt de nieuwe versie', saves, ['O1']);
+  store.setState(s => { s.siteFileId = 'X1'; s.siteFileVersion = 'v1'; s.filePath = 'X1.ifc'; });
+  S().addTask({ name: 'Meer werk' });
+  await S().saveFile();
+  eq('site 2: een site-bestand dat de app niet kan lezen, mag', saves, ['O1', 'X1']);
+  delete win.openaecHost;
+}
+
+// ── 5f. Dev-bridge `saveToPath`: dezelfde doelcontrole vóór de write ─────────────────────────────────────────────────
+{
+  // De dev-bridge laadt de i18n-config (taalrichting op `document`): een kleine stub, alleen voor dit deel.
+  (globalThis as unknown as { document?: unknown }).document ??= { documentElement: { dir: '', lang: '' } };
+  const { useAppStore } = await import('@/state/appStore');
+  const { saveToPathWithIO } = await import('@/utils/devBridge');
+  const G = () => useAppStore.getState();
+  useAppStore.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+  reseed(0x804);
+  await G().openOpenedFile({ name: 'bron.ifc', content: '', bytes: bonsai, ref: { kind: 'path', path: '/werk/bron.ifc' } });
+  ok('dev-bridge: de bron heeft een vreemd deel', G().foreignSourceMark?.filePath === '/werk/bron.ifc');
+  G().newDocument();
+  G().addTask({ name: 'Eigen werk' });
+  const written: string[] = [];
+  const io = { writeTextFile: async (p: string) => { written.push(p); } };
+  const deps = {
+    identityFs: async () => undefined,
+    readers: () => ({ scanPath: async (p: string) => (p === '/werk/model.ifc' ? 'model' as const : p === '/werk/eigen.ifc' ? 'no-model' as const : null) }),
+  };
+  const attempt = async (p: string) => {
+    try { await saveToPathWithIO(p, io, deps); return 'geschreven'; } catch (e) { return (e as Error).message; }
+  };
+  const bronResult = await attempt('/werk/bron.ifc');
+  const modelResult = await attempt('/werk/model.ifc');
+  eq('dev-bridge: niet naar de bron van een open document en niet naar een modelbestand',
+    [bronResult.includes('gebouwmodel'), modelResult.includes('gebouwmodel'), written], [true, true, []]);
+  eq('dev-bridge: een eigen of nieuw bestand mag', [await attempt('/werk/eigen.ifc'), await attempt('/werk/nieuw.ifc'), written],
+    ['geschreven', 'geschreven', ['/werk/eigen.ifc', '/werk/nieuw.ifc']]);
+  useAppStore.setState(s => { s.ui.featureFlags = {}; });
+  eq('dev-bridge met de flag uit: een modelbestand mag, zoals op main', [await attempt('/werk/model.ifc'), written.length], ['geschreven', 3]);
 }
 
 console.error = realError;

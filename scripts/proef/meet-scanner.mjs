@@ -9,6 +9,14 @@
 // Met --browser=chromium[,webkit] ook in Playwright (alleen tijd; Chromium ook de JS-heap): fetch als ArrayBuffer,
 // scanner, indeling en `crypto.subtle.digest('SHA-256')`.
 //
+// #804 fixronde 2: ook de doelcontrole vóór Opslaan als, een export en AutoSave (`targetModelScan.ts`): bevat het
+// bestaande doel een gebouwmodel? Gemeten op drie bestanden van dezelfde grootte (`target` in de uitvoer):
+//   - `model`: het model staat direct na de planning (de lezer stopt vroeg);
+//   - `none`: geen model, het slechtste geval (de lezer leest alles);
+//   - `end`: hetzelfde, met één wand vlak voor het einde (alles gelezen, uitkomst "model").
+// In Node als stroom in stukken van 1 MiB (zoals de Tauri-route met plugin-fs `read`) en als `Blob`-stroom van
+// `fs.openAsBlob` (zoals de `File` van een FSA-handle); in de browser als `Blob` van `fetch`.
+//
 // Lokaal alleen tot en met 50 MB (AGENTS.md, server load). Groter alleen in CI (`CI=true`), via de handmatige job in
 // .github/workflows/ifc-foreign.yml.
 //
@@ -82,10 +90,42 @@ console.log(JSON.stringify({
 }));
 `);
 execFileSync(ESBUILD, [join(work, 'node-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-node.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
+writeFileSync(join(work, 'target-entry.ts'), `
+import { closeSync, openAsBlob, openSync, readSync } from 'node:fs';
+import { scanTargetBlob, scanTargetChunks } from '@/services/ifc/foreign/targetModelScan';
+const file = process.argv[2];
+const t = () => performance.now();
+// Als stroom in stukken van 1 MiB, zoals de Tauri-route (plugin-fs \`open\` + \`read\`).
+const fd = openSync(file, 'r');
+const buffer = new Uint8Array(1 << 20);
+let bytesRead = 0;
+let t0 = t();
+const result = await scanTargetChunks(async () => {
+  const n = readSync(fd, buffer, 0, buffer.length, null);
+  bytesRead += n;
+  return n === 0 ? null : buffer.subarray(0, n);
+}, () => closeSync(fd));
+const streamMs = t() - t0;
+// Als Blob-stroom, zoals de File van een FSA-handle.
+const blob = await openAsBlob(file);
+t0 = t();
+const blobResult = await scanTargetBlob(blob);
+const blobMs = t() - t0;
+console.log(JSON.stringify({ result, bytesRead, streamMs, blobResult, blobMs,
+  maxRssMB: Math.round(process.resourceUsage().maxRSS / 1024) }));
+`);
+execFileSync(ESBUILD, [join(work, 'target-entry.ts'), ...ESBUILD_COMMON, '--platform=node', '--format=esm', `--outfile=${join(work, 'meet-target.mjs')}`], { cwd: ROOT, stdio: 'inherit' });
 if (browsers.length > 0) {
   writeFileSync(join(work, 'browser-entry.ts'), `
 import { scanStep } from '@/services/ifc/foreign/stepScanner';
 import { classify } from '@/services/ifc/foreign/classify';
+import { scanTargetBlob } from '@/services/ifc/foreign/targetModelScan';
+(window as unknown as { __meetTarget: (url: string) => Promise<unknown> }).__meetTarget = async (url: string) => {
+  const blob = await (await fetch(url)).blob();
+  const t0 = performance.now();
+  const result = await scanTargetBlob(blob);
+  return { result, blobMs: performance.now() - t0 };
+};
 (window as unknown as { __meet: (url: string) => Promise<unknown> }).__meet = async (url: string) => {
   const heap = () => (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize;
   let t0 = performance.now();
@@ -119,7 +159,10 @@ function guid(n) {
   for (let i = 0; i < 21; i++) { s = GUID_CHARS[v % 64] + s; v = Math.floor(v / 64); }
   return `3${s}`;
 }
-function makeFile(targetMb, path) {
+// `variant`: 'model' (het model direct na de planning), 'none' (geen IfcProduct: de wanden worden eigenschappen) of
+// 'end' (als 'none', met één wand vlak voor het einde).
+function makeFile(targetMb, path, variant = 'model') {
+  const model = variant === 'model';
   const base = readFileSync(BASE, 'utf8');
   const end = base.lastIndexOf('ENDSEC;');
   const ids = [...base.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1]));
@@ -138,12 +181,14 @@ function makeFile(targetMb, path) {
   };
   out(base.slice(0, end));
   const site = next++, building = next++, storey = next++;
-  out(`#${site}=IFCSITE('${guid(1)}',#${oh},'Terrein',$,$,$,$,$,.ELEMENT.,$,$,$,$,$);\n`);
-  out(`#${building}=IFCBUILDING('${guid(2)}',#${oh},'Gebouw',$,$,$,$,$,.ELEMENT.,$,$,$);\n`);
-  out(`#${storey}=IFCBUILDINGSTOREY('${guid(3)}',#${oh},'Begane grond',$,$,$,$,$,.ELEMENT.,0.);\n`);
-  out(`#${next++}=IFCRELAGGREGATES('${guid(4)}',#${oh},$,$,#${project},(#${site}));\n`);
-  out(`#${next++}=IFCRELAGGREGATES('${guid(5)}',#${oh},$,$,#${site},(#${building}));\n`);
-  out(`#${next++}=IFCRELAGGREGATES('${guid(6)}',#${oh},$,$,#${building},(#${storey}));\n`);
+  if (model) {
+    out(`#${site}=IFCSITE('${guid(1)}',#${oh},'Terrein',$,$,$,$,$,.ELEMENT.,$,$,$,$,$);\n`);
+    out(`#${building}=IFCBUILDING('${guid(2)}',#${oh},'Gebouw',$,$,$,$,$,.ELEMENT.,$,$,$);\n`);
+    out(`#${storey}=IFCBUILDINGSTOREY('${guid(3)}',#${oh},'Begane grond',$,$,$,$,$,.ELEMENT.,0.);\n`);
+    out(`#${next++}=IFCRELAGGREGATES('${guid(4)}',#${oh},$,$,#${project},(#${site}));\n`);
+    out(`#${next++}=IFCRELAGGREGATES('${guid(5)}',#${oh},$,$,#${site},(#${building}));\n`);
+    out(`#${next++}=IFCRELAGGREGATES('${guid(6)}',#${oh},$,$,#${building},(#${storey}));\n`);
+  }
   const target = targetMb * 1048576;
   let wall = 0;
   let group = [];
@@ -156,18 +201,20 @@ function makeFile(targetMb, path) {
       + `#${a}=IFCAXIS2PLACEMENT3D(#${p},$,$);\n#${lp}=IFCLOCALPLACEMENT($,#${a});\n`
       + `#${c0}=IFCCARTESIANPOINT((0.,0.));\n#${c1}=IFCCARTESIANPOINT((5.,0.));\n#${pl}=IFCPOLYLINE((#${c0},#${c1}));\n`
       + `#${sr}=IFCSHAPEREPRESENTATION(#${ctx},'Axis','Curve2D',(#${pl}));\n#${pds}=IFCPRODUCTDEFINITIONSHAPE($,$,(#${sr}));\n`
-      + `#${w}=IFCWALL('${guid(100 + wall * 3)}',#${oh},'Wand ${wall}',$,$,#${lp},#${pds},$,.STANDARD.);\n`
+      + (model ? `#${w}=IFCWALL('${guid(100 + wall * 3)}',#${oh},'Wand ${wall}',$,$,#${lp},#${pds},$,.STANDARD.);\n`
+        : `#${w}=IFCPROPERTYSINGLEVALUE('Wand ${wall}',$,IFCLABEL('${guid(100 + wall * 3)}'),$);\n`)
       + `#${v1}=IFCPROPERTYSINGLEVALUE('IsExternal',$,IFCBOOLEAN(.F.),$);\n`
       + `#${v2}=IFCPROPERTYSINGLEVALUE('Reference',$,IFCIDENTIFIER('W-${wall}'),$);\n`
       + `#${ps}=IFCPROPERTYSET('${guid(101 + wall * 3)}',#${oh},'Pset_WallCommon',$,(#${v1},#${v2}));\n`
       + `#${rel}=IFCRELDEFINESBYPROPERTIES('${guid(102 + wall * 3)}',#${oh},$,$,(#${w}),#${ps});\n`);
     group.push(w);
-    if (group.length === 1000) {
+    if (group.length === 1000 && model) {
       out(`#${next++}=IFCRELCONTAINEDINSPATIALSTRUCTURE('${guid(10_000_000 + wall)}',#${oh},$,$,(${group.map(x => `#${x}`).join(',')}),#${storey});\n`);
       group = [];
     }
   }
-  if (group.length) out(`#${next++}=IFCRELCONTAINEDINSPATIALSTRUCTURE('${guid(10_000_000 + wall + 1)}',#${oh},$,$,(${group.map(x => `#${x}`).join(',')}),#${storey});\n`);
+  if (variant === 'end') out(`#${next++}=IFCWALL('${guid(3)}',#${oh},'Laatste wand',$,$,$,$,$,.STANDARD.);\n`);
+  if (group.length && model) out(`#${next++}=IFCRELCONTAINEDINSPATIALSTRUCTURE('${guid(10_000_000 + wall + 1)}',#${oh},$,$,(${group.map(x => `#${x}`).join(',')}),#${storey});\n`);
   out(tail);
   const b = Buffer.from(parts.join(''));
   writeSync(fd, b);
@@ -190,11 +237,24 @@ for (const mb of sizes) {
   }
   const row = results[results.length - 1];
   for (const browser of browsers) row[browser] = await measureBrowser(browser, file);
+  // De doelcontrole (fixronde 2) op drie varianten van dezelfde grootte.
+  row.target = {};
+  for (const variant of ['model', 'none', 'end']) {
+    const vfile = variant === 'model' ? file : join(work, `synthetisch-${mb}mb-${variant}.ifc`);
+    if (variant !== 'model') makeFile(mb, vfile, variant);
+    const t = spawnSync(process.execPath, [join(work, 'meet-target.mjs'), vfile], { encoding: 'utf8', maxBuffer: 1 << 24 });
+    const entry = { size: statSync(vfile).size };
+    entry.node = t.status === 0 ? JSON.parse(t.stdout.trim().split('\n').pop())
+      : { error: (t.stderr || '').trim().split('\n').slice(-3).join(' ') };
+    for (const browser of browsers) entry[browser] = await measureBrowser(browser, vfile, '__meetTarget');
+    row.target[variant] = entry;
+    if (variant !== 'model') rmSync(vfile, { force: true });
+  }
   rmSync(file, { force: true });
   console.log(JSON.stringify(row));
 }
 
-async function measureBrowser(name, file) {
+async function measureBrowser(name, file, fn = '__meet') {
   let pw;
   try {
     pw = await import('playwright');
@@ -223,7 +283,7 @@ async function measureBrowser(name, file) {
     browser = await pw[name].launch();
     const page = await browser.newPage();
     await page.goto(url);
-    return await page.evaluate(() => window.__meet('/data.ifc'));
+    return await page.evaluate(f => window[f]('/data.ifc'), fn);
   } catch (e) {
     return { error: String(e.message).split('\n')[0] };
   } finally {
@@ -237,9 +297,19 @@ rmSync(work, { recursive: true, force: true });
 
 // Het resultaatbestand komt er altijd, ook met fouten erin. Maar mislukte een gevraagde meting (Node of een browser),
 // dan eindigt het script met een foutcode, zodat de job in CI rood wordt (review van #863, Sol en Terra).
-const failed = results.flatMap(row => ['node', ...browsers]
-  .filter(env => !row[env] || row[env].error !== undefined)
-  .map(env => `${row.mb} MB ${env}: ${row[env]?.error ?? 'geen resultaat'}`));
+const failed = results.flatMap(row => [
+  ...['node', ...browsers]
+    .filter(env => !row[env] || row[env].error !== undefined)
+    .map(env => `${row.mb} MB ${env}: ${row[env]?.error ?? 'geen resultaat'}`),
+  // De doelcontrole moet ook de juiste uitkomst geven: model vooraan en achteraan "model", zonder model "no-model".
+  ...Object.entries(row.target ?? {}).flatMap(([variant, entry]) => ['node', ...browsers].flatMap(env => {
+    const want = variant === 'none' ? 'no-model' : 'model';
+    const got = entry[env];
+    if (!got || got.error !== undefined) return [`${row.mb} MB doel ${variant} ${env}: ${got?.error ?? 'geen resultaat'}`];
+    const results = env === 'node' ? [got.result, got.blobResult] : [got.result];
+    return results.every(r => r === want) ? [] : [`${row.mb} MB doel ${variant} ${env}: ${results.join('/')} ≠ ${want}`];
+  })),
+]);
 if (failed.length > 0) {
   console.error(`Mislukte metingen:\n  ${failed.join('\n  ')}`);
   process.exitCode = 1;

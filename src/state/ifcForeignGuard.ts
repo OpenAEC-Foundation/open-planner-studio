@@ -4,7 +4,8 @@
 // melding via het meldingenkanaal. Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-import { isForeignSourceTarget } from '@/services/fileAccess/foreignSourceTarget';
+import { isForeignSourceTarget, targetHoldsBuildingModel, type TargetReaders } from '@/services/fileAccess/foreignSourceTarget';
+import { ifcForeignContentEnabled, type FeatureFlagValues } from '@/utils/featureFlags';
 import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import type { FileRef } from '@/services/fileAccess';
 import type { DocumentPayload } from './documentContract';
@@ -52,6 +53,13 @@ export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
   dedupeKey: 'ifc-foreign-target-export',
 });
 
+/** De weigering van AutoSave (fixronde 2): "Automatisch opslaan is gestopt: … Kies een ander bestand om op te slaan."
+ *  AutoSave toont hem één keer per document per sessie (`fileAutoSave.ts`). */
+export const IFC_FOREIGN_TARGET_AUTOSAVE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetAutoSave',
+  dedupeKey: 'ifc-foreign-target-autosave',
+});
+
 /** De kenmerken van alle open documenten die uit een bestand met een vreemd deel kwamen (ook na crashherstel). */
 export function openForeignSourceMarks(s: {
   getOpenDocumentPayloads(): readonly { readonly payload: Pick<DocumentPayload, 'foreignSourceMark'> }[];
@@ -79,4 +87,36 @@ export async function isOpenForeignSourceTarget(
     fs = undefined;
   }
   return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
+}
+
+/** Wat de doelcontrole nodig heeft: de open documenten en de flag. */
+export interface WriteTargetState {
+  getOpenDocumentPayloads(): readonly { readonly payload: Pick<DocumentPayload, 'foreignSourceMark'> }[];
+  readonly ui: { readonly featureFlags: Readonly<FeatureFlagValues> };
+}
+
+/** De naden van de doelcontrole: bestandsidentiteit en de lezers van een bestaand doel, per platform. */
+export interface WriteTargetDeps {
+  identityFs: () => Promise<FileIdentityFs | undefined>;
+  readers: () => TargetReaders;
+}
+
+/**
+ * De doelcontrole van elke schrijfroute (Opslaan, Opslaan als, export, AutoSave, dev-bridge, MCP-export), vlak vóór het
+ * schrijven. Weigert:
+ *  1. het bronbestand van een open document met een vreemd deel (fixronde 1: handle, pad of bestandsidentiteit,
+ *     site-id; na herstel ook dezelfde lengte en SHA-256 als die bron);
+ *  2. met de flag `ifcForeignContent` aan: een bestaand doel dat zelf een gebouwmodel bevat (fixronde 2, besluit Trias,
+ *     wrakko 9 november 2026; `targetHoldsBuildingModel`). Een niet-leesbaar doel mag. Met de flag uit blijft dit weg,
+ *     zodat de app byte-gelijk aan main blijft.
+ * Meldt niets: de aanroeper kiest de melding. Geeft de reden van de weigering, of `null` als het schrijven mag.
+ */
+export async function refusedWriteTarget(
+  s: WriteTargetState,
+  target: FileRef,
+  deps: WriteTargetDeps,
+): Promise<'open-source' | 'building-model' | null> {
+  if (await isOpenForeignSourceTarget(s, target, deps.identityFs)) return 'open-source';
+  if (!ifcForeignContentEnabled(s.ui.featureFlags)) return null;
+  return (await targetHoldsBuildingModel(target, deps.readers())) ? 'building-model' : null;
 }

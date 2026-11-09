@@ -1,9 +1,11 @@
 import { isTauri } from '@/utils/platform';
 import {
   openFileDialogTauri, saveFileDialogTauri, saveBytesDialogTauri, saveToRefTauri, readFromRefTauri, readBytesFromRefTauri,
-  fileIdentityFsTauri,
+  fileIdentityFsTauri, scanTargetPathTauri,
 } from './tauriBackend';
 import type { FileIdentityFs } from './fileIdentity';
+import type { TargetReaders } from './foreignSourceTarget';
+import { readSiteSourceFile } from './siteBackend';
 import {
   openFileDialogWeb, saveFileDialogWeb, saveBytesDialogWeb, saveToRefWeb, saveToRefWithoutPromptWeb, canWriteToRefWithoutPromptWeb, readFromRefWeb, readBytesFromRefWeb,
 } from './webBackend';
@@ -129,6 +131,15 @@ export function openFileDialog(filters: FileFilter[], opts?: OpenDialogOpts): Pr
 /** De bestandsidentiteit voor `compareFilePaths`: in Tauri plugin-fs `stat`, in de browser geen (#804 fixronde 1). */
 export function fileIdentityFs(): Promise<FileIdentityFs | undefined> {
   return isTauri() ? fileIdentityFsTauri() : Promise.resolve(undefined);
+}
+
+/** De lezers van een bestaand doel voor de doelcontrole (#804 fixronde 2): in Tauri het pad als stroom, met site-opslag
+ *  het site-bestand. In de browser leest de controle de handle zelf (`getFile()`). */
+export function writeTargetReaders(): TargetReaders {
+  return {
+    ...(isTauri() ? { scanPath: scanTargetPathTauri } : {}),
+    ...(siteStorageAvailable() ? { readSite: async (id: string) => (await readSiteSourceFile(id)).bytes() } : {}),
+  };
 }
 
 /** Opslaan-als / export via picker. `null` = geannuleerd. */

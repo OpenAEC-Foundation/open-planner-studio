@@ -23,6 +23,7 @@ import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { installNodeFileIpc } from '../planning/nodeFileIpc';
 import { FEATURE_FLAGS } from '@/utils/featureFlags';
+import { scanTargetBytes } from '@/services/ifc/foreign/targetModelScan';
 import { fileURLToPath } from 'node:url';
 import { writeUserTextFileTauri, USER_FILE_TMP_SUFFIX } from '@/services/fileAccess/atomicWrite';
 // T8-spec-review (B1): CFB-/Props-boilerplate NIET opnieuw uitschrijven — hergebruik de gedeelde
@@ -1031,7 +1032,7 @@ test('import_schedule: IFC neemt het bronpad over als opslagdoel, CSV NIET (Ctrl
 // #804 fase 1a: een document met een vreemd deel (gebouwmodel) gaat nog niet naar IFC; met de flag `ifcForeignContent`
 // leest import_schedule IFC als bytes, zoals Bestand → Openen.
 test('export_ifc: weigert een document met een vreemd deel, en import_schedule leest met de flag als bytes (#804 fase 1a)', async () => {
-  installFakeFs();
+  const fakeFs = installFakeFs();
   resetToSingleEmptyDocument();
   loadSmallProject('Met model');
   const flag = FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!;
@@ -1073,7 +1074,32 @@ test('export_ifc: weigert een document met een vreemd deel, en import_schedule l
     assertEq(files.get(bonsaiPath), new TextDecoder().decode(bonsai), 'het modelbestand is niet veranderd');
     await callOk('planner_export_ifc', { path: target, overwrite: true });
     assert(files.get(target)?.startsWith('ISO-10303-21') === true, 'zonder vreemd deel schrijft export_ifc');
+
+    // Fixronde 2: met de flag ook niet over een bestaand bestand met een gebouwmodel dat niet open is (de app leest het
+    // doel als stroom). Een bestaande eigen IFC mag; een doel dat de app niet kan lezen ook.
+    const otherModelPath = `${HOME}/ander-model.ifc`;
+    const otherModel = new Uint8Array(readFileSync(join(MCP_ROOT, 'tests/fixtures/ifc-foreign/model-ifc4.ifc')));
+    setBinaryFile(otherModelPath, otherModel);
+    const scanned: string[] = [];
+    fakeFs.scanTarget = async (p) => {
+      scanned.push(p);
+      const bytes = binFiles.get(p) ?? (files.has(p) ? new TextEncoder().encode(files.get(p)!) : undefined);
+      return bytes ? scanTargetBytes(bytes) : null;
+    };
+    const modelError = await callErr('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assertEq(modelError.code, 'VALIDATION', 'een bestaand modelbestand ⇒ validatiefout');
+    assert(modelError.error.includes('already contains a building model') && modelError.error.includes('another path'),
+      'de Engelse fout zegt waarom en wat wel kan');
+    assertEq(binFiles.get(otherModelPath), otherModel, 'het modelbestand is niet veranderd');
+    assertEq(scanned.includes(otherModelPath), true, 'de app las het doel');
+    await callOk('planner_export_ifc', { path: target, overwrite: true });
+    assertEq(scanned.includes(target), true, 'een bestaande eigen IFC: gelezen, en hij mag');
+    // Niet leesbaar ⇒ schrijven mag door (besluit wrakko, 9 november 2026).
+    fakeFs.scanTarget = async () => { throw new Error('leesfout'); };
+    await callOk('planner_export_ifc', { path: otherModelPath, overwrite: true });
+    assert(files.get(otherModelPath)?.startsWith('ISO-10303-21') === true, 'een doel dat de app niet kan lezen, mag');
   } finally {
+    delete fakeFs.scanTarget;
     flag.writesNewIfcData = true;
     useAppStore.setState((s) => { s.ui.featureFlags = {}; });
   }
