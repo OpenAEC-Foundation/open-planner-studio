@@ -75,10 +75,12 @@ Bewust anders of preciezer dan hieronder, met de reden:
   over (ook 0 en leeg) als `update` met `cost` op dezelfde id; de andere toewijzingkolommen geven het bestaande
   bedrag mee. Toets: blok J in `check-cost-resource.ts`. De datumpoort bepaalt het kostenlidmaatschap per stand
   (vóór en na apart).
-- **Hele taken plakken (review 3, besluit orkestrator 2026-11-09).** Het taakklembord draagt `costResourceIds` (de
+- **Hele taken plakken (review 3, besluit orkestrator 2026-11-09).** Het taakklembord draagt `resourceKinds` (de
   soort van de bronresource). `pasteTasks` slaat een toewijzing over als die soort niet past bij het type van de
   doelresource, of als een geplakte mijlpaal werk zou dragen; de resource gaat ook uit `resourceIds`. Eén melding
-  (`notifications.assignmentsSkippedOnPaste`) noemt het aantal; de rest van de plakactie gaat door. Toets: blok K in
+  (`notifications.assignmentsSkippedOnPaste`) noemt het aantal; de rest van de plakactie gaat door. Een bronresource
+  die bij kopiëren ontbrak, heeft een onbekende soort (`resourceKinds` zonder die id) en wordt ook gemeld overgeslagen.
+  Toets: blok K in
   `check-cost-resource.ts`.
 - **Rasterklembord (review 4, besluit orkestrator 2026-11-09).** Elk toewijzingstoken draagt `resourceKind`
   (`cost`/`work`) van de bronresource. Past die niet bij het doeltype, dan weigert het raster met de celfout

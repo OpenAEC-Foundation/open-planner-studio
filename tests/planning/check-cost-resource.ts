@@ -573,6 +573,26 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
     eq('K5 werk op een geplakte mijlpaal: overgeslagen', S().assignments.filter(x => x.taskId === t.id), []);
     eq('K5 mijlpaal: melding', skippedNotices(S), [1]);
   }
+  // K6: de bronresource ontbrak bij kopiëren (bv. via een extensie): de soort is onbekend, dus de
+  // toewijzing wordt niet geplakt en wel gemeld (review 4, VERVOLG 1).
+  {
+    const { store, S, target, R, vergunning, metselwerk, W } = twoDocuments('COST', 'LABOR');
+    store.setState(s => {
+      s.resources = s.resources.filter(r => r.id !== R);
+      s.assignments.push({ id: 'asgn-wees', taskId: vergunning, resourceId: R, unitsPerDay: 1, costAmount: 1250.55 });
+      s.tasks.find(t => t.id === vergunning)!.resourceIds = [R];
+    });
+    S().copyTasks([vergunning, metselwerk]);
+    eq('K6 voorwaarde: geen soort voor de ontbrekende resource', S().taskClipboard?.resourceKinds[R], undefined);
+    S().switchDocument(target);
+    const roots = S().pasteTasks();
+    const t = pasted(S, roots, 'Vergunning');
+    eq('K6 onbekende soort: niet geplakt', S().assignments.filter(x => x.taskId === t.id), []);
+    eq('K6 onbekende soort: resource uit resourceIds', t.resourceIds, []);
+    eq('K6 onbekende soort: melding', skippedNotices(S), [1]);
+    eq('K6 passende werktoewijzing komt mee',
+      S().assignments.filter(x => x.taskId === pasted(S, roots, 'Metselwerk').id).map(x => x.resourceId), [W]);
+  }
 }
 
 // ── L. Rasterklembord: de soort van de bronresource moet passen bij het doeltype (review 4) ───────────
