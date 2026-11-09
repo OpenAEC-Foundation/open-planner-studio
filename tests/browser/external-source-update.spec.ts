@@ -299,6 +299,8 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
       files.clear();
       files.put({ id: 'site-aannemer', name: 'Aannemer.ifc', versions: [{ version: '1', modified: new Date(now).toISOString(), author: 'Nep-site', data: own }] });
       files.put({ id: 'site-installateur', name: 'Installateur.ifc', versions: [{ version: '1', modified: new Date(now - 86_400_000).toISOString(), author: 'Nep-site', data: source }] });
+      // Een tweede bron in dezelfde map (review #859 ronde 1: een snelle wissel van bron).
+      files.put({ id: 'site-tweede', name: 'Tweede.ifc', versions: [{ version: '1', modified: new Date(now - 2 * 86_400_000).toISOString(), author: 'Nep-site', data: source }] });
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -325,11 +327,35 @@ test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe 
   const picker = linkDialog.locator('[data-ops-external-site-source]');
   await expect(picker).toBeEnabled();
   // Het eigen project staat niet in de lijst; *Bronbestand kiezen…* is er met een site niet.
-  await expect(picker.locator('option')).toHaveText(['—', 'Installateur.ifc']);
+  await expect(picker.locator('option')).toHaveText(['—', 'Installateur.ifc', 'Tweede.ifc']);
   await expect(linkDialog.locator('[data-ops-external-source-choose]')).toHaveCount(0);
+  const addButton = linkDialog.getByTestId('external-link-add');
   await picker.selectOption({ label: 'Installateur.ifc' });
-  await expect(linkDialog.getByTestId('external-link-add')).toBeEnabled();
-  await linkDialog.getByTestId('external-link-add').click();
+  await expect(addButton).toBeEnabled();
+  // Review #859 ronde 1: de planner kiest snel een andere bron en die lezing duurt. Zolang de nieuwe bron niet
+  // gelezen is, kan hij niets toevoegen: anders zou de koppeling de vorige bron, taak en het vorige anker krijgen.
+  // De nep-site houdt `open` voor Tweede.ifc vast tot de test hem loslaat.
+  await page.evaluate(() => {
+    const storage = (window.openaecHost as { storage: { open: (id: string, version?: string) => Promise<unknown> } }).storage;
+    const open = storage.open.bind(storage);
+    const w = window as unknown as { __releaseSiteOpen?: () => void };
+    const gate = new Promise<void>((resolve) => { w.__releaseSiteOpen = resolve; });
+    storage.open = async (id, version) => {
+      if (id === 'site-tweede') await gate;
+      return open(id, version);
+    };
+  });
+  await picker.selectOption({ label: 'Tweede.ifc' });
+  await expect(addButton).toBeDisabled();
+  await page.keyboard.press('Enter');
+  await expect(linkDialog).toHaveCount(1);
+  expect(await linkOf()).toBeNull();
+  await page.evaluate(() => (window as unknown as { __releaseSiteOpen: () => void }).__releaseSiteOpen());
+  await expect(addButton).toBeEnabled();
+  // Terug naar Installateur.ifc; de rest van de route werkt met die bron.
+  await picker.selectOption({ label: 'Installateur.ifc' });
+  await expect(addButton).toBeEnabled();
+  await addButton.click();
   await expect(linkDialog).toHaveCount(0);
   const created = (await linkOf())!;
   expect(created.sourceRef.siteFileId).toBe('site-installateur');

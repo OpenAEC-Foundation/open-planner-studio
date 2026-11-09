@@ -342,8 +342,12 @@ export function refreshFromSources(
     [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
   );
 
+  // Alleen een koppeling die via haar pad leest: een koppeling met een site-id leest via de site, ook als ze nog
+  // een oud pad draagt (review #859 ronde 1).
   const skip = readPaths === undefined ? undefined : (link: ExternalLink) => {
-    const path = normalizeExternalSourcePath(link.sourceRef.filePath ?? '');
+    const locator = externalSourceLocatorOf(link.sourceRef);
+    if (locator?.kind !== 'path') return false;
+    const path = normalizeExternalSourcePath(locator.filePath);
     return path !== null && !readPaths.has(path);
   };
 
