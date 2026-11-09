@@ -591,8 +591,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     (`EINVAL`) `link()` + `unlink()`; op macOS `renamex_np` met `RENAME_EXCL`; op Windows `MoveFileExW` zonder
     `MOVEFILE_REPLACE_EXISTING`. Het controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen
     een `from` en `to` in dezelfde map, met als `from` of `to` een eigen hulpbestand (`save-<id>.ops-save.tmp` of
-    `<naam>.ops-vorige-<id>`). Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*); de
-    eigenaar moet het goedkeuren (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
+    `<naam>.ops-vorige-<id>`). Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
+    wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
     `writeFile(doel, bytes, { createNew: true })`. Die is exclusief maar niet atomair: een crash tijdens het schrijven
     laat een half bestand op het pad van de planner. Die route blijft als terugval als het commando meldt dat het
     bestandssysteem geen exclusieve verplaatsing kent (sommige netwerkmappen), met de grens hieronder.
@@ -1071,7 +1071,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -1200,7 +1200,8 @@ daarom staat alles achter de flags tot het compleet is.
     opruimen: herstel verwijdert `.ops-vorige` met de juiste sha256 en maakt van een andere een conflictkopie; een
     `.ops-vorige` met een ander id blijft staan; (f) een gelinkt doel, buiten de scope, en een falende stap 3 schrijven
     niets (geen directe terugval); (g) `place_file_exclusive` weigert een pad buiten de scope, een `from` dat geen eigen
-    hulpbestand is, en een bestaand doel, op Linux, macOS en Windows in CI; (h) de terugval `createNew` weigert een
+    hulpbestand is, en een bestaand doel, in CI op Linux met en zonder `RENAME_NOREPLACE` (de route `link`+`unlink`), macOS
+    en Windows; het bestaande doel blijft byte-gelijk en de fout komt terug; (h) de terugval `createNew` weigert een
     bestaand doel. Browser: een wijziging vóór de controle bij `close()` stopt het opslaan.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
@@ -1254,11 +1255,13 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
 2. **`openaec::activity` meeschrijven**: vervalt; ifcx-explorer leest `openaec::planning::activity` (§5.3).
 3. **Planning van een ander programma in `openaec::planning::`**: openen en bewerken (§5.5).
 
-**Besluit voor de eigenaar of Trias** (vóór de PR in fase 2 die de schrijfroute bouwt):
+**Besluit over het Rust-commando** (wrakko, 9 november 2026): het smalle commando `place_file_exclusive(from, to)`
+(§4.10) mag in fase 2. Het is een technische keuze; de planner merkt alleen dat opslaan veiliger is. Voorwaarden:
 
-- het Rust-commando `place_file_exclusive` (§4.10). Het is nieuw publiek oppervlak, naast de drie commando's van nu.
-  Zonder dit commando blijft alleen de terugval `createNew`: ook exclusief, maar een crash tijdens het schrijven laat
-  een half bestand op het pad van de planner.
+- precies één doel: exclusief plaatsen in dezelfde map, met de scopecontrole; geen algemene bestands-API;
+- tests per platform in de CI (Linux met en zonder `RENAME_NOREPLACE`, macOS, Windows): een bestaand doel blijft
+  onaangeroerd en de fout komt terug;
+- Sol reviewt de Rust-code apart in fase 2.
 
 **Afstemmen met Bjorn** (via Ethan, vóór de eerste writer-PR van fase 3; §5.3):
 
@@ -1456,7 +1459,7 @@ geen stap meer een bestaand bestand: een nieuw, smal Rust-commando `place_file_e
 (`RENAME_NOREPLACE`, `RENAME_EXCL`, `MoveFileExW` zonder vervangen), met `createNew` als terugval; staat er weer een
 bestand op het doel, dan stopt opslaan en blijven alle bestanden staan. Het fout- en herstelpad en het opruimen van
 eigen restbestanden (op id en sha256 uit het manifest) zijn beschreven; per route staat de echte garantie. Het commando
-vraagt goedkeuring (§11). De voorproef `classify-v9.py` weigert een `#id` dat twee keer voorkomt en controleert de
+is goedgekeurd onder voorwaarden (wrakko, 9 november 2026, §11). De voorproef `classify-v9.py` weigert een `#id` dat twee keer voorkomt en controleert de
 volgorde van de secties (HEADER met ENDSEC, dan DATA); 13 oude proefbestanden uit ronde 5 zonder `ENDSEC` na de HEADER
 weigert hij nu terecht, de andere 44 geven dezelfde uitkomst.
 
