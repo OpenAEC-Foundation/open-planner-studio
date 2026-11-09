@@ -96,6 +96,7 @@ check-external-provenance.ts matrix
 check-external-relation-format.ts matrix
 check-external-source-load.ts matrix
 check-external-source-update.ts matrix
+check-external-source-watch.ts matrix
 check-external-successor-late.ts matrix
 check-external-successor-violation.ts matrix
 check-external-summary.ts matrix
