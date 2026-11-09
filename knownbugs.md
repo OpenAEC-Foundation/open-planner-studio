@@ -448,6 +448,35 @@ en noem het in je rapport of PR-tekst.
      desktop. Omgekeerd toont het rechtsklikmenu van de relatiecel *Bron vernieuwen* alleen bij een koppeling met pad
      (`src/components/task-grid/FullTaskGrid.tsx`), dus een koppeling zonder pad vernieuwt de planner alleen via
      *Alle externe relaties vernieuwen*. — B
+980. **VERVOLG: een bron op de site zonder leesrecht krijgt geen blijvende status *Geen toegang tot de bron*.**
+     Stap 1.9 (§6.3 in `docs/relaties-tussen-projecten.md`). Lukt `open(id)` niet (`not-found`, geen recht,
+     netwerk), dan houdt de koppeling haar anker en telt *Alle externe relaties vernieuwen* de bron als niet
+     gelezen (`refreshAllExternalAnchors` in `src/state/slices/fileSlice.ts`). Een status die blijft staan na
+     opslaan en heropenen vraagt een nieuw veld in het IFC-formaat (`OPS_ExternalLink`); dat is niet gebouwd.
+     Voorstel: een veld `sourceAccess` naast `sourceMissing`, met een tekst in de tooltip en de Gantt. — S
+981. **VERVOLG: stap 1.9 kent alleen de bronnen die de host bij `list` teruggeeft.**
+     De route *Project op de site* (`ExternalLinkDialog.tsx`) toont wat `list({ extensions: ['ifc'] })` geeft;
+     in de werkplek is dat de map van het geopende bestand. Bronnen uit een andere map of uit *Gedeeld met mij*
+     (C1), een bericht van de host bij een nieuwe versie (C2, nu vraagt de app `versions(id)` bij openen en bij
+     terugkeer naar het venster), wie van mij afhangt (C3), een melding aan de andere planner (C4) en doorklikken
+     (C5) wachten op de SuperCloud (deel 2 en 3 van §9). — S
+982. **VERVOLG: stap 1.9 is niet getest met de echte werkplek of de SuperCloud-vorm van de host.**
+     De browsertest (`tests/browser/external-source-update.spec.ts`, blok *bron op de site*) gebruikt de nep-site
+     in de `storage`-vorm. Niet getest: de SuperCloud-vorm (`fakeSiteShape=supercloud`, versies als getal via
+     `superCloudHost.ts`), een `open` met `readOnly: true` of zonder versie, en hoe de werkplekbrug `list` en
+     `versions` invult (VERMOED in §3.3). Controle: dezelfde route met `?fakeSite=1&fakeSiteShape=supercloud`, en
+     één keer in de werkplek met twee projecten in één map. — S
+983. **VERVOLG: een koppeling op de site mist *Bron vernieuwen* in het rechtsklikmenu.**
+     Net als een koppeling zonder pad (punt 971) toont `src/components/task-grid/FullTaskGrid.tsx` *Bron
+     vernieuwen* alleen bij een koppeling met pad. Een koppeling op de site vernieuwt de planner via de balk of via
+     *Alle externe relaties vernieuwen*. Voorstel: één actie per bronplek (`ExternalSourceLocator`) in de store, en
+     het menu-item voor elke plek die de app kan lezen. — B
+984. **VERVOLG: een koppeling op de site is in de desktop-app en via MCP niet te vernieuwen.**
+     De desktop-app en de headless MCP-server hebben geen site (`getSiteStorage` geeft daar `null`). Daar houdt een
+     koppeling met `siteFileId` haar anker: *Alle externe relaties vernieuwen* telt haar als niet gelezen, en
+     `planner_refresh_external_links` (`src/services/mcp/tools/externalLinkTools.ts`) slaat haar over en telt haar
+     als `siteLinks`. Een bron met pad of uit de browser raakt haar niet, ook niet bij hetzelfde project-id
+     (`linkMatchesSource`). Voorstel, als dat gewenst is: een MCP-tool in de site-app die de site leest. — B
 972. **VERVOLG: de toestemmingsvraag bij vernieuwen komt pas na het lezen van de andere bronnen.**
      `refreshAllExternalAnchors` leest eerst de bronnen met pad en dan per bron zonder pad het handvat
      (`requestPermission`). Chromium vraagt voor `requestPermission` een recente gebruikersactie (ongeveer 5 s).

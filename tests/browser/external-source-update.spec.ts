@@ -266,3 +266,131 @@ test('bronbestand kiezen in de browser: koppelen zonder pad, balk bij een nieuwe
   expect((await linkOf())!.anchorDate).toBe(freshAnchor);
   await expect(page.locator('[data-ops-external-sources-choose]')).toHaveCount(0);
 });
+
+// Stap 1.9 (§6.1–6.3 in `docs/relaties-tussen-projecten.md`): een bron in dezelfde map op de site. Een eigen blok:
+// de beginstand is de app op de nep-site (`?fakeSite=1`), met het eigen project als startbestand. De nep-site
+// krijgt vooraf twee projecten: *Aannemer* (het eigen project) en *Installateur* (de bron). Een nieuwe versie van
+// de bron slaat de test op via de host, zoals een andere planner dat op de site doet. De klikken blijven echte
+// klikken.
+test('bron op de site: koppelen aan een project op de site, balk bij een nieuwe versie, vernieuwen en een bron die weg is', async ({ page, ops }) => {
+  test.setTimeout(120_000);
+  // Aan het eind is de bron weg van de site: de app logt dat lezen mislukte en telt de bron als niet gelezen.
+  ops.acceptError(/parseExternalSiteSource: kon de bron op de site niet lezen: site-installateur/);
+  const own = await (await page.request.get(`/${DIR}/Aannemer.ifc`)).text();
+  const source = await (await page.request.get(`/${DIR}/Installateur.ifc`)).text();
+  // De nep-site vullen vóór hij start (zonder `fakeSite` opent de app die database niet).
+  await page.goto('/');
+  await page.evaluate(async ({ own, source }) => {
+    const now = Date.now();
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open('ops-fake-site', 1);
+      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains('files')) req.result.createObjectStore('files', { keyPath: 'id' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('files', 'readwrite');
+      const files = tx.objectStore('files');
+      files.clear();
+      files.put({ id: 'site-aannemer', name: 'Aannemer.ifc', versions: [{ version: '1', modified: new Date(now).toISOString(), author: 'Nep-site', data: own }] });
+      files.put({ id: 'site-installateur', name: 'Installateur.ifc', versions: [{ version: '1', modified: new Date(now - 86_400_000).toISOString(), author: 'Nep-site', data: source }] });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, { own, source });
+  // Het nieuwste bestand (Aannemer) is het startbestand.
+  await page.goto('/?fakeSite=1&fakeSiteInitial=1');
+  await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().siteFileId ?? null), { timeout: 30_000 }).toBe('site-aannemer');
+  await expect.poll(() => page.evaluate(() => window.__OPS__?.store.getState().cpmResult?.projectEnd ?? ''), { timeout: 30_000 }).not.toBe('');
+
+  const ownTaskId = await page.evaluate(() => {
+    const S = window.__OPS__!.store.getState();
+    const task = S.tasks.find(t => t.childIds.length === 0 && !(t.externalLinks?.length))!;
+    S.selectTask(task.id);
+    return task.id;
+  });
+  const linkOf = () => page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.externalLinks?.[0] ?? null, ownTaskId);
+
+  // Koppelen: Link ▾ → Add external relation… → Project on the site → Installateur.ifc → Add link.
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Add external relation…' }).click();
+  const linkDialog = page.getByTestId('external-link-dialog');
+  await linkDialog.getByRole('button', { name: 'Project on the site', exact: true }).click();
+  const picker = linkDialog.locator('[data-ops-external-site-source]');
+  await expect(picker).toBeEnabled();
+  // Het eigen project staat niet in de lijst; *Bronbestand kiezen…* is er met een site niet.
+  await expect(picker.locator('option')).toHaveText(['—', 'Installateur.ifc']);
+  await expect(linkDialog.locator('[data-ops-external-source-choose]')).toHaveCount(0);
+  await picker.selectOption({ label: 'Installateur.ifc' });
+  await expect(linkDialog.getByTestId('external-link-add')).toBeEnabled();
+  await linkDialog.getByTestId('external-link-add').click();
+  await expect(linkDialog).toHaveCount(0);
+  const created = (await linkOf())!;
+  expect(created.sourceRef.siteFileId).toBe('site-installateur');
+  expect(created.sourceRef.filePath).toBeUndefined();
+  expect(created.sourceRef.projectName).toBe('Installateur');
+  expect(created.sourceVersion).toBe('1');
+  expect(typeof created.anchorReadAt).toBe('string');
+  const freshAnchor = created.anchorDate;
+  // De bron is alleen gelezen, niet als document geopend.
+  expect(await page.evaluate(() => window.__OPS__!.store.getState().documents.length)).toBe(1);
+
+  // Opzet: het anker komt uit een oudere versie; een andere planner slaat versie 2 van de bron op.
+  const makeOld = () => page.evaluate((id) => {
+    const S = window.__OPS__!.store.getState();
+    const link = S.tasks.find(t => t.id === id)!.externalLinks![0];
+    S.updateTask(id, { externalLinks: [{ ...link, anchorDate: '2027-01-04T07:00' }] });
+  }, ownTaskId);
+  const focusWindow = async () => {
+    await page.waitForTimeout(2_100);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  };
+  await makeOld();
+  await page.evaluate(async (text) => {
+    const host = window.openaecHost as { storage: { save: (r: { id: string; name: string; data: Blob; baseVersion: string }) => Promise<unknown> } };
+    await host.storage.save({ id: 'site-installateur', name: 'Installateur.ifc', data: new Blob([text]), baseVersion: '1' });
+  }, source);
+  await focusWindow();
+  const strip = page.locator('[data-ops-external-source-update="site:site-installateur"]');
+  await expect(strip).toHaveCount(1, { timeout: 15_000 });
+  await expect(strip).toContainText('Installateur.ifc has a new version on the site (version 2, saved by Nep-site).');
+  // De koppelingen met pad (uit de fixture) leest de browser niet: alleen deze balk.
+  await expect(page.locator(STRIP)).toHaveCount(1);
+
+  // Bekijken → Accepteren ⇒ het anker en de versie uit de site, alleen voor deze koppeling.
+  await strip.locator('[data-ops-external-source-review]').click();
+  const dialog = page.locator(DIALOG);
+  await expect(dialog).toContainText('Version 2 on the site, saved by Nep-site.');
+  await expect(dialog.locator('[data-ops-external-source-review-links] tbody tr')).toHaveCount(1);
+  await dialog.locator('[data-ops-external-source-review-accept]').click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(STRIP)).toHaveCount(0);
+  expect(await linkOf()).toMatchObject({ anchorDate: freshAnchor, sourceVersion: '2', sourceRef: { siteFileId: 'site-installateur' } });
+
+  // Alle externe relaties vernieuwen leest de site; de bron met pad niet. Geen *Bronbestanden kiezen…* op een site.
+  await makeOld();
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
+  const status = page.locator('.ribbon-relation-menu-status');
+  await expect(status).toContainText('1 anchor(s) refreshed');
+  await expect(status).toContainText('1 source not read.');
+  expect((await linkOf())!.anchorDate).toBe(freshAnchor);
+  await expect(page.locator('[data-ops-external-sources-choose]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // De bron is weg van de site (`not-found`): niet gelezen, geteld, en het anker blijft.
+  await makeOld();
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    const req = indexedDB.open('ops-fake-site', 1);
+    req.onsuccess = () => {
+      const tx = req.result.transaction('files', 'readwrite');
+      tx.objectStore('files').delete('site-installateur');
+      tx.oncomplete = () => { req.result.close(); resolve(); };
+    };
+  }));
+  await page.getByRole('button', { name: 'Link', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Refresh all external relations' }).click();
+  await expect(status).toContainText('2 sources not read.');
+  expect((await linkOf())!.anchorDate).toBe('2027-01-04T07:00');
+});
