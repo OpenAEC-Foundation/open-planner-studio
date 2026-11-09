@@ -482,7 +482,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
-| 1.8 | *Bronbestand kiezen…* in de browser | #858 | open (niet gemerged) |
+| 1.8 | *Bronbestand kiezen…* in de browser | #858 | gemerged in main |
 | 1.9 | Een bron in dezelfde map op de site | #859 | open (niet gemerged), na #858 |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
 | 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | #857 | gemerged in main |
@@ -501,6 +501,12 @@ Wat in de bouw anders liep dan hierboven staat:
   het open staat.
 - **1.6.** De bewaking is niet getest in de echte desktop-app: een build op aia wacht op het besluit over de SSD
   (14 november 2026). Het testplan staat als VERVOLG in `knownbugs.md` (punt 883).
+- **1.8.** De knop *Bronbestand kiezen…* staat ook in de desktop-app (de bestandskiezer, niet alleen een recent
+  bestand, §7.1). In de browser heeft een koppeling geen pad; ze herkent haar bron op project-id, en Chromium onthoudt
+  het handvat per project-id. Twee bronbestanden met hetzelfde project-id zijn in de browser dus niet te onderscheiden
+  (VERVOLG, `knownbugs.md` punt 974). Bij *Alle externe relaties vernieuwen* vraagt de app alle toestemmingen in één
+  keer na de klik. Een bron die niet gelezen is, kiest de planner opnieuw met *Bronbestanden kiezen…* in het
+  Relatie-menu. De desktoproute is niet getest in de echte app (punt 970).
 - **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), en haalt de
   balk van 1.5 weg voor de bronnen die hij las, zoals de app. Alleen een koppeling naar een bron die echt gelezen is,
   wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
