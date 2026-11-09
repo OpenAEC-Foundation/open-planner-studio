@@ -1459,6 +1459,8 @@ en noem het in je rapport of PR-tekst.
      `csvReader.ts` (niet nagespeeld). Een IFC-bron (id uit `OPS_TaskIdentity` of de GlobalId) en een XER-bron hebben
      er geen last van. Oplossing: een vast id per bron-UID, of in `linkMatchesSource`/`refreshExternalAnchors` ook
      op een bron-sleutel (UID, naam) matchen. — B (MSPDI), S (`.mpp`, P6 XML, CSV)
+     Buiten scope sinds 2 november: alleen IFC van OPS. Het blijft een bekend punt, geen werk voor nu; het
+     geparkeerde werk staat in draft-PR #796. Zie `docs/relaties-tussen-projecten.md`.
 
 839. **VERVOLG: bestaande toegang tot een recent bestand komt na de update niet vanzelf terug.**
      `src-tauri/src/main.rs:84`, `src/state/slices/fileSlice.ts:1631`. Een recent bestand buiten de vaste
