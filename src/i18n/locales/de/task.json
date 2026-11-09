@@ -698,5 +698,11 @@
     "timeHint": "Leer: Beginn oder Ende des Arbeitstags. Mit einer Uhrzeit: genau dieser Zeitpunkt.",
     "later": "Eine Viertelstunde später",
     "earlier": "Eine Viertelstunde früher"
+  },
+  "dependents": {
+    "title": "Abhängige Projekte",
+    "successor": "Nachfolger dort",
+    "predecessor": "Vorgänger dort",
+    "anchor": "rechnet mit {{date}}"
   }
 }

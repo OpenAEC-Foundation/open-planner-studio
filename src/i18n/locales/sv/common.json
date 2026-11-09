@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardkostnaderna för {{count}} resurser har inte tagits över.",
     "minuteModelConverted_one": "{{document}}: {{count}} uppgift har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
     "minuteModelConverted_other": "{{document}}: {{count}} uppgifter har efter omvandlingen ett annat start- eller slutdatum; den största förskjutningen är {{days}} arbetsdagar. Ctrl+Z återställer de sparade datumen.",
-    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden."
+    "minuteModelCalendarRepaired": "Kalendern ”{{calendar}}” har reparerats: slutet eller rasten stämde inte med den sparade arbetstiden.",
+    "dependentProjectsFound": "Beroende projekt: {{projects}}. Kopplingar till detta projekt: {{links}}.",
+    "dependentProjectsNone": "Inga projekt med ett externt samband till denna tidplan hittades.",
+    "dependentProjectsFailed": "Mappen med beroende projekt kunde inte läsas."
   },
   "scheduleErrors": {
     "cycle": "Cirkulärt samband mellan uppgifter: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Släpp för att öppna",
     "subtitle": "Projektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankardatum i andra projekt blir snävare",
+    "body": "Dessa projekt räknar med ett datum från denna tidplan. Efter sparandet får de ett snävare datum när de uppdaterar sina externa samband.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deras aktivitet",
+    "colOwnTask": "Aktivitet här",
+    "colAnchor": "Ankardatum: gammalt → nytt",
+    "saveAnyway": "Spara ändå",
+    "cancel": "Avbryt"
   }
 }

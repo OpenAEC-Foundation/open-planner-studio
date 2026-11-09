@@ -698,5 +698,11 @@
     "timeHint": "Tomt: start eller slut på arbejdsdagen. Med et klokkeslæt: præcis det tidspunkt.",
     "later": "Et kvarter senere",
     "earlier": "Et kvarter tidligere"
+  },
+  "dependents": {
+    "title": "Afhængige projekter",
+    "successor": "Efterfølgende opgave dér",
+    "predecessor": "Foregående opgave dér",
+    "anchor": "regner med {{date}}"
   }
 }

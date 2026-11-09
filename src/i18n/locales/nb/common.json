@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardsatsene for {{count}} ressurser er ikke overtatt.",
     "minuteModelConverted_one": "{{document}}: {{count}} aktivitet har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
     "minuteModelConverted_other": "{{document}}: {{count}} aktiviteter har en annen start eller slutt etter konverteringen; den største forskyvningen er {{days}} arbeidsdager. Ctrl+Z setter de lagrede datoene tilbake.",
-    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden."
+    "minuteModelCalendarRepaired": "Kalenderen «{{calendar}}» er reparert: slutten eller pausen passet ikke til den lagrede arbeidstiden.",
+    "dependentProjectsFound": "Avhengige prosjekter: {{projects}}. Koblinger til dette prosjektet: {{links}}.",
+    "dependentProjectsNone": "Fant ingen prosjekter med en ekstern kobling til denne planen.",
+    "dependentProjectsFailed": "Mappen med avhengige prosjekter kunne ikke leses."
   },
   "scheduleErrors": {
     "cycle": "Sirkulær avhengighet mellom aktiviteter: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Slipp for å åpne",
     "subtitle": "Prosjektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankerdatoer i andre prosjekter blir strammere",
+    "body": "Disse prosjektene regner med en dato fra denne planen. Etter lagring får de en strammere dato når de oppdaterer koblingene mellom prosjekter.",
+    "colProject": "Prosjekt",
+    "colTheirTask": "Deres aktivitet",
+    "colOwnTask": "Aktivitet her",
+    "colAnchor": "Ankerdato: gammel → ny",
+    "saveAnyway": "Lagre likevel",
+    "cancel": "Avbryt"
   }
 }

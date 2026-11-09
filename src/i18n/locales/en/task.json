@@ -699,5 +699,11 @@
     "timeHint": "Empty: the start or end of the workday. With a time: exactly that moment.",
     "later": "A quarter of an hour later",
     "earlier": "A quarter of an hour earlier"
+  },
+  "dependents": {
+    "title": "Dependent projects",
+    "successor": "Successor there",
+    "predecessor": "Predecessor there",
+    "anchor": "uses {{date}}"
   }
 }

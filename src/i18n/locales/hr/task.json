@@ -713,5 +713,11 @@
     "timeHint": "Prazno: početak ili završetak radnog dana. Uz navedeno vrijeme: točno taj trenutak.",
     "later": "Četvrt sata kasnije",
     "earlier": "Četvrt sata ranije"
+  },
+  "dependents": {
+    "title": "Ovisni projekti",
+    "successor": "Nasljednik tamo",
+    "predecessor": "Prethodnik tamo",
+    "anchor": "računa na {{date}}"
   }
 }

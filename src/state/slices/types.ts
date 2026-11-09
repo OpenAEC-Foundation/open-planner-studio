@@ -39,6 +39,7 @@ import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
 import type { ExternalSourceLocator } from '@/engine/externalLinks';
+import type { DependentLink, TightAnchor } from '@/engine/dependentProjects';
 
 /** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
  *  (XER-broninformatie die geen writer terugschrijft, uit `detectXerExportLoss`), of een definitie
@@ -448,7 +449,11 @@ export type NotificationMessageKey =
   // *Taak* met een selectie buiten boommodus (filter/groepering/sortering): de taak staat achteraan
   // in plaats van onder de selectie — `addTaskNearSelection` in state/taskInsertActions.ts
   // (eigenaarsbesluit 2026-10-19 5a). Rode weigering met de actie `clearViewArrangement`.
-  | 'notifications.taskAddedAtEnd';
+  | 'notifications.taskAddedAtEnd'
+  // *Afhankelijke projecten zoeken…* (stap 1.11): het resultaat na een zoekactie met de hand.
+  | 'notifications.dependentProjectsFound'
+  | 'notifications.dependentProjectsNone'
+  | 'notifications.dependentProjectsFailed';
 
 /** Het actielabel van een melding is een i18n-sleutel in `common`. `view.filter.clear` ("Wissen")
  *  is hetzelfde label als op de strook `StructureLockedNotice`. */
@@ -597,6 +602,14 @@ export interface PhaseAssignmentQuestion {
  * Een bron van het actieve document met een nieuwe versie (keuze 1, Ethan 2026-11-03; stap 1.5). De balk onder
  * het lint toont er één per bron, met *Bekijken* en *Later*. Sessie-only: na herstarten kijkt de app opnieuw.
  */
+/** Het zoekresultaat *Afhankelijke projecten* van één document (stap 1.11). */
+export interface DependentProjectsResult {
+  documentId: string;
+  /** Het project-id waarop gezocht is; een ander id (bijv. na Opslaan als kopie) telt niet. */
+  projectId: string;
+  links: DependentLink[];
+}
+
 export interface ExternalSourceUpdate {
   /** Het document waar de koppelingen in staan; de balk staat alleen bij dat document. */
   documentId: string;
@@ -736,6 +749,11 @@ export interface UIState {
   externalSourceUpdates: ExternalSourceUpdate[];
   /** session — het venster *Bekijken* voor deze bron (`ExternalSourceUpdate.key`) staat open. */
   externalSourceReview: string | null;
+  /** session — het laatste zoekresultaat *Afhankelijke projecten* per document (stap 1.11). Afgeleide
+   *  data, geen projectdata: niet in `DOCUMENT_FIELDS` en niet in het IFC-bestand. */
+  dependentProjects: DependentProjectsResult[];
+  /** session — de vraag vóór opslaan: deze ankers van afhankelijke projecten worden te krap. */
+  pendingDependentAnchorWarning: TightAnchor[] | null;
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt

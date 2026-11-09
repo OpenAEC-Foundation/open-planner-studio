@@ -59,6 +59,9 @@ import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelation
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
+import { tightDependentAnchors } from '@/engine/dependentProjects';
+import { dependentAnchorsAsSaved } from '../dependentCandidates';
+import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
 import { msProjectImportNotice } from '../msProjectImportNotice';
@@ -933,7 +936,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    *  naamveld van "Opslaan op de site" zou anders na het antwoord nog een versie schrijven. Zonder
    *  site zijn beide vlaggen altijd `null`. Ook de schemavraag bij opslaan telt mee (issue #292). */
   const siteQuestionOpen = () => get().ui.pendingSiteSave !== null || get().ui.pendingSiteOpen !== null
-    || get().ui.pendingIfcSchemaQuestion !== null;
+    || get().ui.pendingIfcSchemaQuestion !== null || get().ui.pendingDependentAnchorWarning !== null;
 
   /** Uitleg na het openen van een ander formaat dan IFC (`services/formatNotice.ts`). Alleen de
    *  open-routes die de GEBRUIKER start roepen dit aan (Bestand → Openen, Recente bestanden, Openen
@@ -972,10 +975,39 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return true;
   };
 
+  /**
+   * De waarschuwing vóór opslaan bij de bron (stap 1.11, keuze 3 zonder cloud). Is er voor dit document
+   * een zoekresultaat *Afhankelijke projecten*, dan rekent de app per gevonden koppeling het anker opnieuw
+   * zoals het afhankelijke project het straks uit het opgeslagen bestand leest (`dependentAnchorsAsSaved`:
+   * schrijven, lezen en doorrekenen op een kopie; review #857 ronde 1). Ook zonder F5 ziet de vraag zo de
+   * datums die de afnemer krijgt; het geopende document zelf rekent niet. Wordt er een te krap, dan vraagt de app eerst:
+   * *Toch opslaan* of *Annuleren* (`false`: niets opslaan). Alleen Opslaan en Opslaan als door de planner;
+   * automatisch opslaan, crashherstel en MCP komen hier niet langs.
+   */
+  const settleDependentAnchors = async (): Promise<boolean> => {
+    const before = get();
+    const result = before.ui.dependentProjects.find(r => r.documentId === before.activeDocumentId);
+    if (!result || result.projectId !== before.project.id || result.links.length === 0) return true;
+    let tight;
+    try {
+      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before)));
+    } catch (err) {
+      // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
+      console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
+      tight = tightDependentAnchors(result.links, before.tasks);
+    }
+    if (tight.length === 0) return true;
+    const documentId = before.activeDocumentId;
+    if (!(await askDependentAnchors(tight))) return false;
+    // De dialoog blokkeert een documentwissel; dit is het vangnet.
+    return get().activeDocumentId === documentId;
+  };
+
   let saveAttemptSequence = 0;
   const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
     if (expectedDocumentId && expectedDocumentId !== get().activeDocumentId) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
+    if (!(await settleDependentAnchors())) return false;
     const state = get();
     const documentId = state.activeDocumentId;
     if (expectedDocumentId && expectedDocumentId !== documentId) return false;
@@ -1076,6 +1108,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
     if (!(await settleIfcSchemaQuestion())) return;
+    if (!(await settleDependentAnchors())) return;
     const state = get();
     const documentId = state.activeDocumentId;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit

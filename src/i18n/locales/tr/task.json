@@ -698,5 +698,11 @@
     "timeHint": "Boş bırakırsanız iş günü başlangıcı veya bitişi kullanılır. Saat girerseniz tam o an kullanılır.",
     "later": "Çeyrek saat sonra",
     "earlier": "Çeyrek saat önce"
+  },
+  "dependents": {
+    "title": "Bağımlı projeler",
+    "successor": "Oradaki ardıl",
+    "predecessor": "Oradaki öncül",
+    "anchor": "{{date}} tarihini kullanır"
   }
 }
