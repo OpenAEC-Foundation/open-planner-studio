@@ -484,7 +484,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
 | 1.8 | *Bronbestand kiezen…* in de browser | — | in aanbouw |
 | 1.9 | Een bron in dezelfde map op de site | — | nog niet gebouwd |
-| 1.10 | MCP-tools voor externe relaties | #813 | open (niet gemerged) |
+| 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
 | 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | — | in aanbouw |
 
 Wat in de bouw anders liep dan hierboven staat:
@@ -502,7 +502,9 @@ Wat in de bouw anders liep dan hierboven staat:
 - **1.6.** De bewaking is niet getest in de echte desktop-app: een build op aia wacht op het besluit over de SSD
   (14 november 2026). Het testplan staat als VERVOLG in `knownbugs.md` (punt 883).
 - **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), en haalt de
-  balk van 1.5 weg voor de bronnen die hij las, zoals de app.
+  balk van 1.5 weg voor de bronnen die hij las, zoals de app. Alleen een koppeling naar een bron die echt gelezen is,
+  wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
+  het lezen naar een ander bronbestand zet, houdt haar nieuwe pad en anker.
 
 ## 10. Keuzes voor Ethan (alle besloten)
 
