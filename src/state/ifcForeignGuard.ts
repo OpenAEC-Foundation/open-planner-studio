@@ -3,6 +3,11 @@
 // Opslaan, Opslaan als, de IFC-export, de AutoSave naar het bestand, MCP-opslaan en `devBridge.saveToPath`, met één
 // melding via het meldingenkanaal. Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
+import { isForeignSourceTarget } from '@/services/fileAccess/foreignSourceTarget';
+import type { FileIdentityFs } from '@/services/fileAccess/fileIdentity';
+import type { FileRef } from '@/services/fileAccess';
+import type { DocumentPayload } from './documentContract';
 import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
@@ -29,4 +34,49 @@ export function recoverySaveTarget(p: {
 }): { filePath: string | null; siteFileId: string | null; siteFileVersion: string | null } {
   if (ifcSaveBlocked(p)) return { filePath: null, siteFileId: null, siteFileVersion: null };
   return { filePath: p.filePath, siteFileId: p.siteFileId, siteFileVersion: p.siteFileId ? p.siteFileVersion : null };
+}
+
+// Fixronde 1 (BLOKKEERT 2 en 3): het gekozen doel van Opslaan als, Opslaan of een export is het bronbestand van een open
+// document met een vreemd deel. Dan schreef de app alleen planning (of CSV, XML, ...) over het modelbestand. Deze
+// weigering blijft ook na fase 1c bestaan: dan bewaart Opslaan het vreemde deel wel, maar alleen in het eigen document.
+
+/** De weigering bij Opslaan en Opslaan als: "Kies een ander bestand om op te slaan." */
+export const IFC_FOREIGN_TARGET_SAVE_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetSave',
+  dedupeKey: 'ifc-foreign-target-save',
+});
+
+/** De weigering bij een export: "Kies een ander bestand om naar te exporteren." */
+export const IFC_FOREIGN_TARGET_EXPORT_NOTICE: NotifyInput = refusalNotice({
+  messageKey: 'notifications.ifcForeignTargetExport',
+  dedupeKey: 'ifc-foreign-target-export',
+});
+
+/** De kenmerken van alle open documenten die uit een bestand met een vreemd deel kwamen (ook na crashherstel). */
+export function openForeignSourceMarks(s: {
+  getOpenDocumentPayloads(): readonly { readonly payload: Pick<DocumentPayload, 'foreignSourceMark'> }[];
+}): ForeignSourceMark[] {
+  const out: ForeignSourceMark[] = [];
+  for (const { payload } of s.getOpenDocumentPayloads()) if (payload.foreignSourceMark) out.push(payload.foreignSourceMark);
+  return out;
+}
+
+/**
+ * Is `target` het bronbestand van een open document met een vreemd deel? Zonder zo'n document (het gewone geval) geen
+ * werk: geen bestandsidentiteit, geen lezen van het doel.
+ */
+export async function isOpenForeignSourceTarget(
+  s: Parameters<typeof openForeignSourceMarks>[0],
+  target: FileRef,
+  identityFs: () => Promise<FileIdentityFs | undefined>,
+): Promise<boolean> {
+  const marks = openForeignSourceMarks(s);
+  if (marks.length === 0) return false;
+  let fs: FileIdentityFs | undefined;
+  try {
+    fs = target.kind === 'path' ? await identityFs() : undefined;
+  } catch {
+    fs = undefined;
+  }
+  return isForeignSourceTarget(target, marks, fs ? { identityFs: fs } : {});
 }

@@ -24,6 +24,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
+import { parseForeignSourceFingerprint, type ForeignSourceFingerprint } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
@@ -251,6 +252,7 @@ export function readIFC(
   const ownAuthored = isOpsAuthoredIfc(entities);
   const importPristine = ownAuthored ? extractImportPristine(entities, entityMap) : undefined;
   const recordedSourceFormat = ownAuthored ? extractRecordedSourceFormat(entities, entityMap) : undefined;
+  const recoveryForeignSource = ownAuthored ? extractRecoveryForeignSource(entities, entityMap) : undefined;
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
@@ -428,6 +430,7 @@ export function readIFC(
       : { recordedTimesOrigin: ownAuthored ? 'ifc-own' as const : 'ifc' as const }),
     ...(importPristine !== undefined ? { importPristine } : {}),
     ...(recordedSourceFormat ? { recordedSourceFormat } : {}),
+    ...(recoveryForeignSource ? { recoveryForeignSource } : {}),
     ...(xerSourceArchive ? { xerSourceArchive } : {}),
     ...(xerSourceProjectId ? { xerSourceProjectId } : {}),
     // `xerOrigin` is eerlijk: alleen gezet wanneer er ook echt archiefmetadata (`xer`) is. Een
@@ -3841,6 +3844,31 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
     }
   }
   return false;
+}
+
+/**
+ * `OPS_RecoveryForeignSource` (spiegel van de writer, alleen in een herstel-IFC; #804 fase 1a, fixronde 1): de
+ * vingerafdruk van een bron met een vreemd deel. Soepel gelezen: een onvolledige of ongeldige pset telt als afwezig (een
+ * oude snapshot zonder kenmerk werkt zoals altijd).
+ */
+function extractRecoveryForeignSource(
+  entities: StepEntity[],
+  entityMap: Map<string, StepEntity>,
+): ForeignSourceFingerprint | undefined {
+  for (const e of entities) {
+    if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.RecoveryForeignSource) continue;
+    let sha256: unknown;
+    let byteLength: unknown;
+    for (const propRef of parseRefs(e.args[4] || '')) {
+      const prop = entityMap.get(propRef);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      const name = stripQuotes(prop.args[0] || '');
+      if (name === 'Sha256') sha256 = parseTypedValue(prop.args[2] || '');
+      else if (name === 'ByteLength') byteLength = parseTypedValue(prop.args[2] || '');
+    }
+    return parseForeignSourceFingerprint(sha256, byteLength) ?? undefined;
+  }
+  return undefined;
 }
 
 /**

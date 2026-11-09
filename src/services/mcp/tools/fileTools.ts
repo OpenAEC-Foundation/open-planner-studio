@@ -47,12 +47,17 @@ import type { McpContext, McpToolAnnotations, McpToolDef, McpToolResult } from '
 import { writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
 import { compareFilePaths, type FileIdentityFs } from '@/services/fileAccess/fileIdentity';
 import { saveTargetRef } from '@/services/fileAccess';
-import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
+import { ifcSaveBlocked, isOpenForeignSourceTarget } from '@/state/ifcForeignGuard';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 /** #804 fase 1a: IFC-uitvoer van een document met een vreemd deel is nog geweigerd (`state/ifcForeignGuard.ts`). */
 const FOREIGN_CONTENT_REFUSAL = 'The active document contains a building model or data from other programs. The app cannot ' +
   'save or export it as IFC yet, because the IFC would lose that content. Other export formats still work.';
+
+/** #804 fase 1a, fixronde 1: het pad is het bronbestand van een open document met een vreemd deel. Blijft na fase 1c. */
+const FOREIGN_SOURCE_TARGET_REFUSAL = (path: string) => `'${path}' is the source file of an open document that also ` +
+  'contains a building model or data from other programs. Writing here would replace that content with only the ' +
+  'schedule. Export to another path.';
 
 // --- fs-naad -------------------------------------------------------------------------------------
 
@@ -324,6 +329,9 @@ export const fileTools: McpToolDef[] = [
       if (lateBlocked) return lateBlocked;
       const checked = ctx.app.store.getState();
       const refused = await refuseSilentSchemaChange(ctx, fs, path);
+      // Fixronde 1: niet over het bronbestand van een document met een vreemd deel (ook een ander open document, en ook
+      // na crashherstel, via het kenmerk). Pad of bestandsidentiteit, zoals de schemacontrole hierboven.
+      const foreignTarget = await isOpenForeignSourceTarget(checked, { kind: 'path', path }, async () => fs);
       // Identiteit opvragen is ook async: pauze, dialoog en documentdrift winnen nog steeds.
       const identityBlocked = postAwaitGuards(ctx) ?? guardNonTransactional(ctx);
       if (identityBlocked) return identityBlocked;
@@ -335,6 +343,7 @@ export const fileTools: McpToolDef[] = [
         return toolError(ctx, 'VALIDATION', 'The document save target or IFC schema changed during the file identity check. Retry the export.');
       }
       if (refused) return refused;
+      if (foreignTarget) return toolError(ctx, 'VALIDATION', FOREIGN_SOURCE_TARGET_REFUSAL(path));
       if (ifcSaveBlocked(state)) return toolError(ctx, 'VALIDATION', FOREIGN_CONTENT_REFUSAL);
       // Gedeelde state→writer-invoer (dezelfde bron als opslaan/auto-save), zodat deze route nooit
       // stil velden kan laten vallen. Een export: zonder een open schemavraag die niet bij de kop past.

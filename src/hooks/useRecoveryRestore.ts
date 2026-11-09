@@ -84,7 +84,7 @@ export function useRecoveryRestore(): RecoveryRestore {
             // met de `xerArchiveIssue`-melding ("openen met melding"), net als elk onbruikbaar archief.
             // #804 fase 1a: met de flag `ifcForeignContent` via de bytes-route (de herstelkopie is eigen tekst, dus
             // `TextEncoder`). De kopie heeft nooit een vreemd deel: dat zat niet in de snapshot, en het herstelmanifest
-            // gaf zo'n document geen opslagdoel (`recoverySaveTarget`).
+            // gaf zo'n document geen opslagdoel (`recoverySaveTarget`). Wel het kenmerk (fixronde 1): zie `foreignSource`.
             const parsed = await readIfcFromText(
               d.ifc, buildImportLabels(startupTRef.current),
               {
@@ -102,6 +102,9 @@ export function useRecoveryRestore(): RecoveryRestore {
               // manifest ⇒ `null`.
               siteFileId: d.siteFileId ?? null,
               siteFileVersion: d.siteFileVersion ?? null,
+              // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel; met de vingerafdruk uit de snapshot
+              // wordt dat het kenmerk (`payloadFromInput`). Ouder manifest ⇒ `null`.
+              foreignSource: d.foreignSource ?? null,
               isDirty: d.isDirty,
               datesAsRecorded: d.datesAsRecorded,
             }));

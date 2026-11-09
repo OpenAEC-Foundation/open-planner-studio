@@ -13,6 +13,7 @@ import type { XerResourceCatalog } from './xer/xerResources';
 import type { XerResourceIssue, XerTaskResourceSource } from './xer/xerResourceTypes';
 import type { XerMetadataCatalog } from './xer/xerMetadataTypes';
 import type { XerSourceArchive } from './xerSourceArchive';
+import type { ForeignSourceFingerprint } from './ifc/foreign/foreignSourceMark';
 import type { IfcSource } from './ifc/foreign/ifcSource';
 
 export type XerSourceEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252' | 'windows-1251' | 'windows-1253' | 'windows-1256';
@@ -334,6 +335,9 @@ export interface ImportResult {
   /** Alleen de IFC-bytes-route (#804 fase 1a, flag `ifcForeignContent`): de bron met indeling (§4.8). Afwezig op de
    *  route zonder flag, bij een ander formaat en als de bytes-route terugvalt op de huidige route (afwijking 7). */
   ifcSource?: IfcSource;
+  /** Alleen `readIFC` op een herstel-IFC (#804 fase 1a, fixronde 1): de pset `OPS_RecoveryForeignSource`, de vingerafdruk
+   *  van een bron met een vreemd deel. Alleen crashherstel schrijft hem; een gewone opslag niet. Nooit schrijfinvoer. */
+  recoveryForeignSource?: ForeignSourceFingerprint;
   /** Selector uit OPS_XerDocument; bronproject binnen een self-contained IFC. */
   xerSourceProjectId?: string;
   /**

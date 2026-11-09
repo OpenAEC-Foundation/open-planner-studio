@@ -1,6 +1,13 @@
 import type { FileFilter, FileRef, OpenDialogOpts, OpenedFile, SaveDialogOpts, SaveOutcome } from './index';
 import { basename, ensureExtension, extensionOf } from '@/utils/filePath';
 import { writeUserBytesTauri, writeUserTextFileTauri } from '@/services/fileAccess/atomicWrite';
+import type { FileIdentityFs } from './fileIdentity';
+
+/** De bestandsidentiteit van plugin-fs (`stat`: dev en ino) voor `compareFilePaths` (#804 fixronde 1). */
+export async function fileIdentityFsTauri(): Promise<FileIdentityFs> {
+  const { stat } = await import('@tauri-apps/plugin-fs');
+  return { stat: (path) => stat(path) };
+}
 
 export interface TauriOpenIO {
   readTextFile(path: string): Promise<string>;
@@ -63,6 +70,8 @@ export async function saveFileDialogTauri(
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
+  // #804 fixronde 1: het gekozen pad vóór het schrijven controleren (bijv. het bronbestand van een gebouwmodel).
+  if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
   await writeUserTextFileTauri(savedPath, content);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }
@@ -74,6 +83,7 @@ export async function saveBytesDialogTauri(
 ): Promise<SaveOutcome | null> {
   const savedPath = await pickSavePathTauri(defaultName, filters, opts);
   if (!savedPath) return null;
+  if (await opts?.refuseTarget?.({ kind: 'path', path: savedPath })) return null;
   await writeUserBytesTauri(savedPath, bytes);
   return { ref: { kind: 'path', path: savedPath }, name: basename(savedPath) };
 }

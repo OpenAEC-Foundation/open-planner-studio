@@ -435,6 +435,8 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // De IFC-bron reist mee, zoals het XER-archief: onveranderlijk en gedeeld. Een kopie van een document met een
       // vreemd deel heeft dat deel dus ook (opslaan weigert in fase 1a; in 1c schrijft de kopie het mee).
       ifcSource: src.ifcSource,
+      // Het kenmerk ook: de kopie mag het modelbestand evenmin overschrijven met alleen planning.
+      foreignSourceMark: src.foreignSourceMark,
       taskTypesVisible: src.taskTypesVisible,
       // Een kopie is per definitie geen ongewijzigde import meer.
       importPristine: false,

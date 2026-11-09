@@ -212,6 +212,8 @@ export type NotificationMessageKey =
   | 'notifications.saveFailed'
   // #804 fase 1a: opslaan van een document met een gebouwmodel is nog geweigerd (`state/ifcForeignGuard.ts`).
   | 'notifications.ifcForeignSaveBlocked'
+  | 'notifications.ifcForeignTargetSave'
+  | 'notifications.ifcForeignTargetExport'
   // Inzet/werk (blok Toewijzingen): "1,500" in en of "1.500" in nl is dubbelzinnig (1500 of 1,5)
   // en wordt geweigerd. Parameters `text` (de getypte invoer) en `separator` (decimaalteken van de
   // taal; de vertaling toont het voorbeeld als 1{{separator}}5).

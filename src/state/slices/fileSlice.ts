@@ -15,7 +15,7 @@ import { exportXerLossNotice } from '@/state/xerExportNotice';
 import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
-import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
+import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, fileIdentityFs, type FileRef, type OpenedFile, type SaveOutcome, type SaveTargetCheck } from '@/services/fileAccess';
 import {
   isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
 } from '@/services/fileAccess/siteHost';
@@ -33,7 +33,11 @@ import {
 import { formatNoticeToShow } from '@/services/formatNotice';
 import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
-import { IFC_FOREIGN_SAVE_BLOCKED_NOTICE, ifcSaveBlocked } from '../ifcForeignGuard';
+import {
+  IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, ifcSaveBlocked,
+  isOpenForeignSourceTarget,
+} from '../ifcForeignGuard';
+import { foreignSourceMarkFor } from '@/services/ifc/foreign/foreignSourceMark';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -496,6 +500,12 @@ export interface FileSlice {
    *  ernaast. Géén embed. No-op op de pool-kant als het project niet aan een bedrijf gebonden is.
    *  Geeft hetzelfde `ExportResult` terug als `exportAs` — inclusief de cyclusguard. */
   exportProjectWithPool: () => Promise<ExportResult>;
+  /**
+   * #804 fase 1a, fixronde 1: de doelcontrole voor elke opslag- of exportdialoog (`CheckedSaveDialogOpts.refuseTarget`).
+   * Weigert het bronbestand van een open document met een vreemd deel, met de melding voor `purpose` ("op te slaan" of
+   * "naar te exporteren"). Ook voor de dialogen buiten de store (bibliotheek, rapport).
+   */
+  foreignTargetCheck: (purpose: 'save' | 'export') => SaveTargetCheck;
   /** App-globale MRU-lijst van recente bestanden. Async gehydrateerd bij opstart. */
   recentFiles: RecentEntry[];
   /** Lees de recents uit IndexedDB (met eenmalige localStorage-migratie) in de store. */
@@ -674,9 +684,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
 
   /** Weigert de IFC-uitvoer van het actieve document (fase 1a: een vreemd deel) en meldt dat. */
-  const refuseForeignIfcWrite = (): boolean => {
-    if (!ifcSaveBlocked(get())) return false;
+  const refuseForeignIfcWrite = (state: AppState = get()): boolean => {
+    if (!ifcSaveBlocked(state)) return false;
     get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+    return true;
+  };
+
+  /** Fixronde 1: weigert het doel als het de bron is van een open document met een vreemd deel (zie `foreignTargetCheck`). */
+  const foreignTargetCheck = (purpose: 'save' | 'export'): SaveTargetCheck => async (target) => {
+    if (!(await isOpenForeignSourceTarget(get(), target, fileIdentityFs))) return false;
+    get().notify(purpose === 'save' ? IFC_FOREIGN_TARGET_SAVE_NOTICE : IFC_FOREIGN_TARGET_EXPORT_NOTICE);
     return true;
   };
 
@@ -1052,13 +1069,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   let saveAttemptSequence = 0;
   const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
-    if (expectedDocumentId && expectedDocumentId !== get().activeDocumentId) return false;
+    // Fixronde 1 (BLOKKEERT 1): het document van de start. Wisselt het actieve document tijdens het wachten (de
+    // schemavraag, de afhankelijke projecten met een luie import), dan stopt opslaan stil, zoals bij een verwacht id.
+    const startDocumentId = get().activeDocumentId;
+    if (expectedDocumentId && expectedDocumentId !== startDocumentId) return false;
     if (refuseForeignIfcWrite()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
     if (!(await settleDependentAnchors())) return false;
     const state = get();
     const documentId = state.activeDocumentId;
-    if (expectedDocumentId && expectedDocumentId !== documentId) return false;
+    if (documentId !== startDocumentId) return false;
+    // Opnieuw op de momentopname die de app echt schrijft: niets mag tijdens het wachten een vreemd deel binnenbrengen.
+    if (refuseForeignIfcWrite(state)) return false;
     const content = writeIFC(buildWriteIFCInput(state));
     // Gezet zolang er naar de SITE geschreven wordt: dan meldt de catch een sitefout (met conflict-
     // melding) in plaats van de gewone opslaanfout. Zonder site blijft hij `null`.
@@ -1077,6 +1099,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     try {
       const ref = saveTargetRef(state);
+      // Fixronde 1: het eigen doel is de bron van een (ander) open document met een vreemd deel. Vóór elke write: site,
+      // pad en handle.
+      if (ref && await foreignTargetCheck('save')(ref)) return false;
       // Een site-doel: een nieuwe versie van dat bestand, met de basis van DIT document. De net
       // geschreven versie wordt zijn nieuwe basis. Is de site-opslag weg (bijv. een hersteld
       // site-document buiten de site), dan geldt het als "geen doel" en loopt de gewone route.
@@ -1132,6 +1157,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         `${suggestedFileBase(state)}.ifc`,
         content,
         [{ name: 'IFC Files', extensions: ['ifc'] }],
+        { refuseTarget: foreignTargetCheck('save') },
       );
       if (!outcome) return false;
       const saved = commitSavedDocument(documentId, state, localDestination(outcome));
@@ -1155,11 +1181,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
+    // Fixronde 1 (BLOKKEERT 1): zie `writeActiveDocument`.
+    const startDocumentId = get().activeDocumentId;
     if (refuseForeignIfcWrite()) return;
     if (!(await settleIfcSchemaQuestion())) return;
     if (!(await settleDependentAnchors())) return;
     const state = get();
     const documentId = state.activeDocumentId;
+    if (documentId !== startDocumentId) return;
+    if (refuseForeignIfcWrite(state)) return;
     // Gedeelde helper: één plek voor het state→IFC-options-object, zodat dit
     // pad geen velden kan laten vallen.
     const content = writeIFC(buildWriteIFCInput(state));
@@ -1183,6 +1213,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         state.filePath ?? `${suggestedFileBase(state)}.ifc`,
         content,
         [{ name: 'IFC Files', extensions: ['ifc'] }],
+        { refuseTarget: foreignTargetCheck('save') },
       );
       if (!outcome) return;
       commitSavedDocument(documentId, state, localDestination(outcome));
@@ -1222,6 +1253,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // blijft de bron van het document staan. Anders verdween het vreemde deel uit de bewaking, en schreef Ctrl+S het
       // modelbestand over met alleen planning.
       const inheritsTarget = opts.filePath === undefined && opts.fileHandle === undefined && opts.siteFileId === undefined;
+      const ownSource = payload.ifcSource;
       if (!payload.ifcSource && inheritsTarget) payload.ifcSource = current.ifcSource;
       if (editing) {
         // InternalProjectId kan in de tekst gewijzigd zijn. De reader sleutelt deze drie
@@ -1266,6 +1298,12 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         : opts.siteFileVersion !== undefined
           ? opts.siteFileVersion
           : (opts.siteFileId !== undefined ? null : current.siteFileVersion);
+      // Fixronde 1: het kenmerk van een bron met een vreemd deel, met het doel van die bron (pad, handle, site-bestand).
+      // Een eigen bron geeft een nieuw kenmerk; zonder eigen bron op hetzelfde doel blijft het kenmerk van het document
+      // (ook na crashherstel, als `ifcSource` al weg is).
+      payload.foreignSourceMark = ownSource
+        ? foreignSourceMarkFor(ownSource, { filePath: payload.filePath, siteFileId: payload.siteFileId, fileHandle: payload.fileHandle })
+        : inheritsTarget ? current.foreignSourceMark : null;
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);
@@ -1739,9 +1777,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
       const defaultName = nameOverride ?? `${suggestedFileBase(state)}.${ext}`;
       // Het voortgangsblad opent waar mogelijk meteen in de downloadmap.
+      // Fixronde 1 (BLOKKEERT 2): elk formaat weigert het bronbestand van een document met een vreemd deel.
+      const refuseTarget = foreignTargetCheck('export');
       const dialogOpts = format === 'progress-xlsx'
-        ? { preferDownloads: true, mime }
-        : undefined;
+        ? { preferDownloads: true, mime, refuseTarget }
+        : { refuseTarget };
       const outcome = typeof payload === 'string'
         ? await saveFileDialog(defaultName, payload, filters, dialogOpts)
         : await saveBytesDialog(defaultName, payload, filters, dialogOpts);
@@ -1810,7 +1850,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // 1. Het project zelf (bevat altijd al alle gebruikte items). Een export: zie `buildExportIFCInput`.
       const projectContent = writeIFC(buildExportIFCInput(state));
       const base = suggestedFileBase(state);
-      const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
+      const refuseTarget = foreignTargetCheck('export');
+      const outcome = await saveFileDialog(`${base}.ifc`, projectContent, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
       if (!outcome) return { ok: true, warnings: [], cancelled: true }; // dialoog geannuleerd — geen fout
       await pushRecent(outcome.ref, outcome.name);
       noticeIfDownloaded(outcome);
@@ -1819,12 +1860,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (!companyId) return { ok: true, warnings: [] };
       const poolContent = state.exportPoolIFC(companyId);
       if (!poolContent) return { ok: true, warnings: [] };
-      const poolOutcome = await saveFileDialog(`${base}-${exportFileSuffix('library')}.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }]);
+      const poolOutcome = await saveFileDialog(`${base}-${exportFileSuffix('library')}.ifc`, poolContent, [{ name: 'IFC Files', extensions: ['ifc'] }], { refuseTarget });
       // Het projectbestand bestaat dan al; annuleren van het tweede bestand is geen voltooide export.
       if (!poolOutcome) return { ok: true, warnings: [], cancelled: true };
       noticeIfDownloaded(poolOutcome);
       return { ok: true, warnings: [] };
     },
+
+    foreignTargetCheck,
 
     recentFiles: [],
 

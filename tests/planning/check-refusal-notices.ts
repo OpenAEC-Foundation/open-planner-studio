@@ -168,6 +168,8 @@ const REFUSAL_KEYS = [
   'phaseRefusedNoAssignableChild', 'phaseRefusedDuplicateResource', 'taskEditRevertBlocked', 'pasteSkippedReadOnly',
   'relationsSkippedOnInsert', 'schedulingTemplateLimit', 'phaseQuestionOutdated', 'ambiguousThousands',
   'ifcForeignSaveBlocked',
+  'ifcForeignTargetSave',
+  'ifcForeignTargetExport',
 ];
 const NOT_A_REFUSAL: Record<string, string> = {
   mppInvalidContainer: 'echte importfout (ongeldige bestandsstructuur), geen documentgebonden bewerkingsweigering',

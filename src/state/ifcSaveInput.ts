@@ -32,7 +32,10 @@ export type IFCSaveSource = Pick<
 >
   & Partial<Pick<DocumentPayload,
     | 'xerImportMetadata' | 'xerSourceArchive' | 'xerSourceProjectId' | 'importPristine'
-    | 'recordedDates' | 'datesAsRecorded'>>;
+    | 'recordedDates' | 'datesAsRecorded'
+    // #804 fase 1a, fixronde 1: alleen de herstelsnapshot schrijft de vingerafdruk (`recoverySnapshotInput`);
+    // `buildWriteIFCInput` leest dit veld niet, dus een gewone opslag en de MCP-backup blijven gelijk aan main.
+    | 'foreignSourceMark'>>;
 
 /**
  * "Datums zoals opgeslagen": in de modus draagt `task.time` op de
@@ -117,7 +120,7 @@ const IFC_SAVE_KEYS = [
   'project', 'calendar', 'tasks', 'sequences', 'resources', 'assignments',
   'activityCodeTypes', 'customFieldDefs', 'customTaskTypes', 'calendars', 'baselines', 'activeBaselineId', 'comparedBaselineIds',
   'xerImportMetadata', 'xerSourceArchive', 'xerSourceProjectId', 'importPristine',
-  'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds',
+  'recordedDates', 'datesAsRecorded', 'minuteModelPending', 'ifcGlobalIds', 'foreignSourceMark',
 ] as const;
 
 type MissingSaveKey = Exclude<keyof IFCSaveSource, typeof IFC_SAVE_KEYS[number]>;

@@ -19,6 +19,7 @@ import {
 } from '@/services/subdayIo';
 import { effectiveWorkTimeBands } from '@/utils/effectiveWorkTime';
 import type { ImportResult, RecordedSourceFormat } from '@/services/importTypes';
+import type { ForeignSourceFingerprint } from './foreign/foreignSourceMark';
 import {
   IFC_TIME_ANCHOR, FIELD_MEASURE, RESOURCE_TYPE_TO_IFC,
 } from './ifcConstants';
@@ -331,6 +332,12 @@ export type WriteIFCInput = ImportResult & {
    * `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`.
    */
   xerSourceArchiveStorage?: 'embedded' | 'recovery-reference';
+  /**
+   * #804 fase 1a (fixronde 1): de vingerafdruk van een bron met een vreemd deel (pset `OPS_RecoveryForeignSource`).
+   * UITSLUITEND voor crashherstel-snapshots (`recoverySnapshotInput`): zo weet het herstelde document dat het uit een
+   * modelbestand kwam, zonder de bronbytes. Opslaan, export en de MCP-backup schrijven hem nooit (`buildWriteIFCInput`).
+   */
+  recoveryForeignSource?: ForeignSourceFingerprint;
 };
 
 export function writeIFC(input: WriteIFCInput): string {
@@ -352,6 +359,7 @@ export function writeIFC(input: WriteIFCInput): string {
     recordedSourceFormat = undefined,
     ifcGlobalIds = undefined,
     xerSourceArchiveStorage = 'embedded',
+    recoveryForeignSource = undefined,
   } = input;
   const writeView = minuteModelWriteView({ tasks: sourceTasks, calendar, resourceCalendars, baselines: sourceBaselines });
   const { tasks, baselines } = writeView;
@@ -433,6 +441,13 @@ export function writeIFC(input: WriteIFCInput): string {
     addLine(ctx, '_time_model_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'time_model_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
   }
   writeXerSourceArchive(ctx, ownerHistId, xerSourceArchive, xer?.sourceProjectId ?? xerSourceProjectId, xerSourceArchiveStorage);
+  if (recoveryForeignSource) {
+    // Alleen in een herstelsnapshot (zie `WriteIFCInput.recoveryForeignSource`): lengte en SHA-256, geen bytes.
+    const sha = addLine(ctx, '_recovery_foreign_sha', `IFCPROPERTYSINGLEVALUE('Sha256',$,IFCTEXT(${ifcStr(recoveryForeignSource.sha256)}),$)`);
+    const length = addLine(ctx, '_recovery_foreign_len', `IFCPROPERTYSINGLEVALUE('ByteLength',$,IFCINTEGER(${recoveryForeignSource.byteLength}),$)`);
+    const pset = addLine(ctx, '_recovery_foreign_pset', `IFCPROPERTYSET(${ifcStr(guidOf(ctx, 'recovery_foreign'))},#${ownerHistId},${ifcStr(PSET.RecoveryForeignSource)},$,(#${sha},#${length}))`);
+    addLine(ctx, '_recovery_foreign_rel', `IFCRELDEFINESBYPROPERTIES(${ifcStr(guidOf(ctx, 'recovery_foreign_rel'))},#${ownerHistId},$,$,(${ref(ctx, '_project')}),#${pset})`);
+  }
 
   // Calendar (projectkalender — altijd de EERSTE IFCWORKCALENDAR in het bestand; vaste conventie
   // die de reader aanhoudt om 'm van de bibliotheek-kalenders hieronder te onderscheiden).

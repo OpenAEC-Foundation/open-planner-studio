@@ -103,6 +103,9 @@ export const PSET = {
   XerSourceArchive: 'OPS_XerSourceArchive',
   /** Selector welk XER-PROJECT het zelfstandige IFC-document vertegenwoordigt. */
   XerDocument: 'OPS_XerDocument',
+  /** #804 fixronde 1: alleen in een crashherstel-snapshot. Het document kwam uit een IFC-bestand met een vreemd deel;
+   *  lengte en SHA-256 van die bron, zonder bytes. */
+  RecoveryForeignSource: 'OPS_RecoveryForeignSource',
   /** Relatie-eigen XER-herkomst, als een geldige pset op de IfcWorkSchedule met relationele GUIDs.
    *  IFC laat een IfcPropertySet niet rechtstreeks aan IfcRelSequence hangen; de GUIDs maken de
    *  koppeling toch exact, zonder een schema-ongeldige relatie te serialiseren. */
@@ -849,6 +852,7 @@ export const OWN_PSET_PROPERTY_NAMES: Readonly<Record<string, readonly string[]>
     'ByteChunkCount', 'DiagnosticsByteLength', 'DiagnosticsSha256', 'DiagnosticsChunkCount',
   ],
   [PSET.XerDocument]: ['ArchiveSha256', 'SourceProjectId'],
+  [PSET.RecoveryForeignSource]: ['Sha256', 'ByteLength'],
   [PSET.Sequences]: ['P6StartAtPredecessorFinishBoundarySequenceGuids', DAY_MEASURE_LAGS_PROP, EXACT_MINUTE_LAGS_PROP],
   [PSET.Calendar]: [
     'LiteralTimes', 'RuleSetId', 'Region', 'BreakChoice', 'GeneratedFromYear', 'GeneratedToYear', 'LibraryOrigin',
