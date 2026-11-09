@@ -525,6 +525,21 @@ en noem het in je rapport of PR-tekst.
      twee bronnen zonder pad, alleen A kiezen ⇒ B blijft geteld en *Bronbestanden kiezen…* blijft; daarna B kiezen
      ⇒ de knop verdwijnt (review #858, ronde 2). Voorstel: het bestaande browserblok in
      `tests/browser/external-source-update.spec.ts` zo uitbreiden. — B
+992. **VERVOLG: de balk op de site kan een versie noemen die de app niet las.** In de controle op nieuwe versies
+     (`fileSlice.ts`, rond regel 782) krijgt de balk op de site de versie uit `versions(id)`, ook als `open(id)` een
+     oudere versie met een ander anker gaf. *Later* zet dan die nieuwere versie op afgehandeld, en de volgende
+     controle leest de echte nieuwe versie niet meer: geen balk (review #859, ronde 2, nagebootst: koppeling op
+     versie 0, `versions` geeft 2, `open` geeft 1). Alleen de tak zonder ankerwijziging onthoudt de echt gelezen
+     versie. Treedt alleen op als de site op `versions` en `open` verschillende antwoorden geeft. Voorstel: balk en
+     afhandeling aan de gelezen versie koppelen, of de balk uitstellen tot beide antwoorden gelijk zijn. — B
+993. **VERVOLG: na een mislukte keuze van bestand B in de browser blijft bestand A gekozen.** In
+     `ExternalLinkDialog.tsx` (`chooseFile`, bij `chosen.kind === 'failed'`) zet OPS alleen de foutmelding; `picked`
+     blijft A. Na het kiezen kan de planner met Enter A bewaren, bij toevoegen en bij bewerken (review #859, ronde 2;
+     ook al zo in #858). A.ifc blijft zichtbaar als keuze, dus de planner ziet wat hij bewaart. Voorstel: bij een
+     leesfout van B de oude keuze wissen; bij annuleren de oude keuze houden. — B
+994. **VERVOLG: dode site-tak in `sourceVersionAt`.** `sourceVersionAt` (`fileSlice.ts`, rond regel 714) heeft een
+     tak voor een bron op de site, maar de enige aanroeper handelt die bron al apart af (review #859, ronde 2).
+     Voorstel: de tak schrappen; de helper voor pad en project blijft. — B
 995. **VERVOLG: een mislukte controle vóór opslaan valt stil terug op de oude datums.** `settleDependentAnchors`
      (`fileSlice.ts`) vangt elke fout bij schrijven, teruglezen of doorrekenen van de kopie af en vergelijkt dan met
      de huidige taken: de vergelijking die zonder F5 een te krap anker mist (review #857, ronde 1). Met een
