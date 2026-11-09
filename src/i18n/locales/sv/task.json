@@ -84,6 +84,7 @@
       "explicitSummary": "Explicit sammanfattningsuppgift",
       "externalRelationData": "Data för externt samband",
       "floatPath": "Slackväg",
+      "calendarDays": "Kalenderdagar",
       "freeFloat": "Fritt slack",
       "hammock": "Hängmatta (härledd varaktighet)",
       "interferingFloat": "Störande slack",

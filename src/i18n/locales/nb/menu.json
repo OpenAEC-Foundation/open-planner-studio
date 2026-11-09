@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Advarselspanel",
+    "scheduleShiftPanel": "Forskyvninger",
     "prevResource": "Forrige",
     "nextResource": "Neste",
     "leveling": "Utjevning",
@@ -324,7 +325,7 @@
     "exportTitle": "Eksporter",
     "exportSubtitle": "Velg et format. Prosjektet blir konvertert og lagret.",
     "progressImportCardTitle": "Oppdater fremdrift fra regneark",
-    "progressImportCardDesc": "Les inn et tilbakesendt CSV- eller XLSX-regneark og oppdater fullføringsgrad, faktisk start og faktisk slutt.",
+    "progressImportCardDesc": "Les inn et tilbakesendt Excel-regneark (.xlsx) og oppdater fullføringsgrad, faktisk start og faktisk slutt.",
     "printTitle": "Skriv ut",
     "printSubtitle": "Åpne rapportskjermen for utskriftsforhåndsvisning og innstillinger.",
     "openPrintPreview": "Åpne forhåndsvisning",
@@ -392,6 +393,9 @@
     "mspdiDesc": "Åpnes i Microsoft Project. Fullstendig WBS-struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "For Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "For Oracle Primavera P6, som .xer-fil.",
+    "experimentalBadge": "Eksperimentell",
     "profileHint": "Prosjektet ditt bruker nå {{name}}-profilen. Vi anbefaler {{target}}-profilen for best kompatibilitet med dette filformatet.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standard, i IFC-skjemaet for prosjektet (standard IFC 4.3 ADD2). 4D-kobling med BIM-modeller.",
@@ -446,5 +450,18 @@
     "redo": "Gjør om",
     "zoomIn": "Zoom inn",
     "zoomOut": "Zoom ut"
+  },
+  "native": {
+    "window": "Vindu",
+    "quit": "Avslutt Open Planner Studio",
+    "about": "Om Open Planner Studio",
+    "services": "Tjenester",
+    "hide": "Skjul Open Planner Studio",
+    "hideOthers": "Skjul andre",
+    "showAll": "Vis alle",
+    "closeWindow": "Lukk vindu",
+    "cut": "Klipp ut",
+    "fullscreen": "Slå fullskjerm av/på",
+    "bringAllToFront": "Flytt alle til forgrunnen"
   }
 }

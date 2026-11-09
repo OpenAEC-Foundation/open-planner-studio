@@ -15,7 +15,7 @@ The site cabin stands there for as long as the building goes on, from the first 
 5. Look in the *Properties* panel under *Hammock (derived duration)*: there you see *Start driver* with the task and the type, and *Finish driver* with the task and the type. A driver is a task the hammock takes its start or finish from.
 6. Press **Calculate** (F5), for example through *Home › Schedule › Calculate*. The hammock now runs from the start of the start driver to the finish of the finish driver, and *Duration* shows the derived duration.
 
-In the Gantt a hammock is a thin teal bar with a hook at both ends.
+In the Gantt a hammock is a thin teal bar with a hook at both ends. The name appears after the bar. Click it to select the task. Near the right edge, the name shifts left so it remains readable.
 
 Example: *Site cabin* gets SS from *Groundwork* (Monday 7 June 2027) and FF from *Roofing* (done Wednesday 23 June). After **Calculate** the hammock runs from Monday 7 to Wednesday 23 June: 13 work days. If the brickwork runs 2 work days late, the end of *Roofing* becomes Friday 25 June and the hammock grows along to 15 work days.
 

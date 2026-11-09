@@ -140,6 +140,7 @@
     "histogram": "Istogramma",
     "toggleHistogram": "Istogramma",
     "warningsPanel": "Pannello avvisi",
+    "scheduleShiftPanel": "Attività spostate",
     "prevResource": "Precedente",
     "nextResource": "Successiva",
     "leveling": "Livellamento",
@@ -326,7 +327,7 @@
     "exportTitle": "Esporta",
     "exportSubtitle": "Scegli un formato. Il progetto verrà convertito e salvato.",
     "progressImportCardTitle": "Aggiorna l'avanzamento da un foglio",
-    "progressImportCardDesc": "Leggi un foglio CSV o XLSX restituito e aggiorna completamento, inizio effettivo e fine effettiva.",
+    "progressImportCardDesc": "Leggi un foglio Excel restituito (.xlsx) e aggiorna completamento, inizio effettivo e fine effettiva.",
     "printTitle": "Stampa",
     "printSubtitle": "Apri la schermata del rapporto per l'anteprima di stampa e le impostazioni.",
     "openPrintPreview": "Apri anteprima di stampa",
@@ -394,6 +395,9 @@
     "mspdiDesc": "Apribile in Microsoft Project. Struttura WBS completa.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Per Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Per Oracle Primavera P6, come file .xer.",
+    "experimentalBadge": "Sperimentale",
     "profileHint": "Il tuo progetto usa ora il profilo {{name}}. Ti consigliamo di usare il profilo {{target}} per la migliore compatibilità con questo formato di file.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, nello schema IFC del progetto (predefinito IFC 4.3 ADD2). Collegamento 4D con modelli BIM.",
@@ -448,5 +452,18 @@
     "redo": "Ripeti",
     "zoomIn": "Ingrandisci",
     "zoomOut": "Riduci"
+  },
+  "native": {
+    "window": "Finestra",
+    "quit": "Esci da Open Planner Studio",
+    "about": "Informazioni su Open Planner Studio",
+    "services": "Servizi",
+    "hide": "Nascondi Open Planner Studio",
+    "hideOthers": "Nascondi altri",
+    "showAll": "Mostra tutto",
+    "closeWindow": "Chiudi finestra",
+    "cut": "Taglia",
+    "fullscreen": "Schermo intero",
+    "bringAllToFront": "Porta tutto in primo piano"
   }
 }

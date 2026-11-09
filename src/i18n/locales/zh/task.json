@@ -84,6 +84,7 @@
       "explicitSummary": "显式摘要任务",
       "externalRelationData": "外部关系数据",
       "floatPath": "浮时路径",
+      "calendarDays": "日历天",
       "freeFloat": "自由浮时",
       "hammock": "吊床任务（派生工期）",
       "interferingFloat": "干扰浮时",

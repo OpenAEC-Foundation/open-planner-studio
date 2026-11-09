@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Advarselspanel",
+    "scheduleShiftPanel": "Forskudte opgaver",
     "prevResource": "Forrige",
     "nextResource": "Næste",
     "leveling": "Udjævning",
@@ -324,7 +325,7 @@
     "exportTitle": "Eksportér",
     "exportSubtitle": "Vælg et format. Projektet konverteres og gemmes.",
     "progressImportCardTitle": "Opdater fremdrift fra et regneark",
-    "progressImportCardDesc": "Indlæs et tilbagesendt CSV- eller XLSX-ark og opdater færdiggørelsesgrad, faktisk startdato og faktisk slutdato.",
+    "progressImportCardDesc": "Indlæs et tilbagesendt Excel-ark (.xlsx) og opdater færdiggørelsesgrad, faktisk startdato og faktisk slutdato.",
     "printTitle": "Udskriv",
     "printSubtitle": "Åbn rapportskærmen for forhåndsvisning og indstillinger.",
     "openPrintPreview": "Åbn forhåndsvisning",
@@ -392,6 +393,9 @@
     "mspdiDesc": "Kan åbnes i Microsoft Project. Fuld WBS-struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Til Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Til Oracle Primavera P6, som .xer-fil.",
+    "experimentalBadge": "Eksperimentel",
     "profileHint": "Dit projekt bruger lige nu profilen {{name}}. Vi anbefaler profilen {{target}} for bedst mulig kompatibilitet med dette filformat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-standard, i projektets IFC-skema (standard IFC 4.3 ADD2). 4D-kobling med BIM-modeller.",
@@ -446,5 +450,18 @@
     "redo": "Gentag",
     "zoomIn": "Zoom ind",
     "zoomOut": "Zoom ud"
+  },
+  "native": {
+    "window": "Vindue",
+    "quit": "Afslut Open Planner Studio",
+    "about": "Om Open Planner Studio",
+    "services": "Tjenester",
+    "hide": "Skjul Open Planner Studio",
+    "hideOthers": "Skjul andre",
+    "showAll": "Vis alle",
+    "closeWindow": "Luk vindue",
+    "cut": "Klip",
+    "fullscreen": "Skift fuldskærm",
+    "bringAllToFront": "Bring alle til forgrunden"
   }
 }

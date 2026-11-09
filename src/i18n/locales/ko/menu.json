@@ -140,6 +140,7 @@
     "histogram": "히스토그램",
     "toggleHistogram": "히스토그램",
     "warningsPanel": "경고 패널",
+    "scheduleShiftPanel": "작업 이동",
     "prevResource": "이전",
     "nextResource": "다음",
     "leveling": "평준화",
@@ -322,7 +323,7 @@
     "exportTitle": "내보내기",
     "exportSubtitle": "형식을 선택하세요. 프로젝트가 변환되어 저장됩니다.",
     "progressImportCardTitle": "시트에서 진행률 업데이트",
-    "progressImportCardDesc": "반송된 CSV 또는 XLSX 시트를 읽어 완료율, 실제 시작, 실제 완료를 업데이트합니다.",
+    "progressImportCardDesc": "반송된 Excel 시트(.xlsx)를 읽어 완료율, 실제 시작, 실제 완료를 업데이트합니다.",
     "printTitle": "인쇄",
     "printSubtitle": "인쇄 미리보기 및 설정을 위해 보고서 화면을 엽니다.",
     "openPrintPreview": "인쇄 미리보기 열기",
@@ -390,6 +391,9 @@
     "mspdiDesc": "Microsoft Project에서 열 수 있습니다. 전체 WBS 구조.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6용.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6 형식의 .xer 파일로 저장합니다.",
+    "experimentalBadge": "실험적",
     "profileHint": "현재 프로젝트는 {{name}} 프로필을 사용하고 있습니다. 이 파일 형식과 가장 잘 호환되도록 {{target}} 프로필을 사용하는 것을 권장합니다.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 표준, 프로젝트의 IFC 스키마 기준 (기본값 IFC 4.3 ADD2). BIM 모델과의 4D 연동.",
@@ -444,5 +448,18 @@
     "redo": "다시 실행",
     "zoomIn": "확대",
     "zoomOut": "축소"
+  },
+  "native": {
+    "window": "창",
+    "quit": "Open Planner Studio 종료",
+    "about": "Open Planner Studio 정보",
+    "services": "서비스",
+    "hide": "Open Planner Studio 숨기기",
+    "hideOthers": "기타 숨기기",
+    "showAll": "모두 보기",
+    "closeWindow": "창 닫기",
+    "cut": "잘라내기",
+    "fullscreen": "전체 화면 켜기/끄기",
+    "bringAllToFront": "모두 앞으로 가져오기"
   }
 }

@@ -84,6 +84,7 @@
       "explicitSummary": "Eksplicit hovedopgave",
       "externalRelationData": "Data for ekstern afhængighed",
       "floatPath": "Slækssti",
+      "calendarDays": "Kalenderdage",
       "freeFloat": "Tilladt slæk",
       "hammock": "Hængekøje (afledt varighed)",
       "interferingFloat": "Interfererende slæk",

@@ -62,7 +62,9 @@
     "saveFailed": "保存失败",
     "ambiguousThousands": "“{{text}}”有歧义：是小数还是千位数？小数请用“{{separator}}”（1{{separator}}5），千位数请不加分隔符（1500）。数值未更改。",
     "siteSaveConflict": "未保存：站点上的“{{name}}”已被他人修改。你的更改仍在应用中。请选择“另存为”，将其保存为新文件。",
+    "siteSaveConflictCopy": "“{{original}}”在站点上已被其他人修改。因此，你的工作保存到了副本中：“{{name}}”。从现在起，保存会写入该副本。",
     "siteFileGone": "“{{name}}”已不在站点上。该文件已从“最近”中移除。",
+    "siteFileReadOnly": "“{{name}}”在站点上为只读。你可以查看和编辑，但保存会在站点上创建一个新文件。",
     "savedViaDownload": "已保存为下载文件：“{{name}}”现在位于您的下载文件夹中。当前环境不允许应用直接写入您选择的位置。",
     "browserCannotOverwrite": "此浏览器不允许应用写回“{{name}}”。因此每次保存时，应用都会再次询问文件的保存位置。在 Chrome、Edge 或桌面应用中不会出现这种情况。",
     "browserSavesAsDownload": "已作为下载保存：“{{name}}”位于你的下载文件夹中。此浏览器不允许应用写入自选位置，因此每次保存都会生成一个新的下载。在 Chrome、Edge 或桌面应用中，保存只会更新同一个文件。",
@@ -72,6 +74,10 @@
     "recoveryStorageBlocked": "恢复存储暂时被另一个打开的连接占用。现有副本会保留；此页面不会创建新的恢复副本。请自行保存工作，关闭其他运行本应用的标签页，然后重新加载此页面以再次尝试恢复。",
     "recoveryReadFailed": "无法读取恢复的文件",
     "recoveryRestoreFailed": "恢复失败",
+    "hostSettingsUnavailable": "站点的设置未加载。你在本次会话中更改的设置不会被保存。",
+    "hostThemeUntilRestart": "此主题在你重新启动规划器之前有效。之后，规划器会再次跟随 SuperCloud 的主题。",
+    "settingsLoadedLate": "你的设置已加载并应用。",
+    "settingsLoadedLateReverted": "你的设置已加载并应用。你在此期间所做的更改已被还原。",
     "recoveryDocumentsSkipped_other": "有 {{count}} 个恢复文件无法加载，已被跳过。",
     "scheduleFailed": "无法计算计划",
     "ifcParseFailed": "无法读取 IFC",
@@ -89,6 +95,8 @@
     "exportP6Truncated_other": "{{count}} 个名称或代码已缩短为 P6 允许的长度。",
     "exportInvalidXmlChars_other": "导出时，{{count}} 个 XML 不允许的字符已替换为 �。",
     "exportCriticalHoursLost": "导出为 MS Project XML 时，以小时计的关键阈值会丢失：MS Project 只支持以整天计的阈值。",
+    "exportXerLoss": "XER 导出已保存。以下内容未能包含或未完全包含：",
+    "exportP6XmlLoss": "P6 XML 导出已保存。以下内容未能包含或未完全包含：",
     "projectStartAnchorsClamped_other": "{{count}} 个任务随项目开始日期移动。",
     "mppTimephasedSteeringLost_other": "此次编辑后，MS Project 的工时分布不再驱动 {{count}} 项任务；原始分布仍保留在文件中。",
     "readMore": "了解更多",
@@ -175,6 +183,54 @@
     "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。",
     "minuteModelConverted_other": "{{document}}: {{count}} 个任务在转换后的开始或完成日期不同; 最大偏移为 {{days}} 个工作日. 按 Ctrl+Z 恢复已记录的日期.",
     "minuteModelCalendarRepaired": "日历 “{{calendar}}” 已修复: 结束时间或休息时间与已保存的工作时间不符.",
+    "exportXerLossItem": {
+      "schedulingRules": "计算规则：P6 使用自身规则，因此日期和浮时可能有所不同。为与此文件格式获得最佳兼容性，建议使用 Primavera P6 配置文件。",
+      "calendarKinds_other": "{{count}} 个没有自身工作时段的日历在重新打开后会获得工作时段（小时计划）：日期和浮时可能因此不同。",
+      "baselines_other": "{{count}} 个基线（XER 将基线保存为单独的项目）",
+      "summaryRelations_other": "{{count}} 个与摘要任务相关的关系已转换为其下方任务之间的关系",
+      "summaryAssignments_other": "摘要任务上的 {{count}} 个资源分配",
+      "summaryConstraints_other": "{{count}} 个摘要任务上的约束（P6 在那里没有约束）",
+      "percentLags_other": "{{count}} 个百分比延隔已变为固定延隔",
+      "elapsedLags_other": "{{count}} 个以日历天计的延隔已转换为工作时间",
+      "elapsedDurations_other": "{{count}} 个以日历天计工期的任务按工作时间计算",
+      "manualTasks_other": "{{count}} 个手动计划的任务在 P6 中将自动计划",
+      "durationMilestones_other": "{{count}} 个带工期的里程碑已变为普通活动（P6 没有带工期的里程碑）",
+      "mandatoryMilestones_other": "{{count}} 个强制里程碑将失去“强制”标记（P6 没有这种标记）",
+      "levelingDelays_other": "{{count}} 个资源平衡延迟",
+      "splits_other": "{{count}} 个带有中断或自有工时分布的任务：这些内容将丢失",
+      "deadlines_other": "{{count}} 个截止日期",
+      "externalLinks_other": "{{count}} 个外部关系",
+      "activityCodes_other": "{{count}} 个带活动代码的任务：这些代码将丢失",
+      "customFields_other": "{{count}} 个带自定义字段的任务：这些值将丢失",
+      "activityCodeDefinitions": "活动代码的定义（及其取值）将丢失",
+      "customFieldDefinitions": "自定义字段的定义将丢失",
+      "customTaskTypes_other": "{{count}} 个带自定义任务类型的任务",
+      "taskCategories_other": "{{count}} 个带类别（如设计或采购）的任务",
+      "priorities_other": "{{count}} 个优先级已取整到 P6 级别",
+      "taskDescriptions_other": "{{count}} 个任务描述",
+      "summaryNotes_other": "{{count}} 个摘要任务上的备注",
+      "noteStatus_other": "{{count}} 个已勾选的备注：备注会保留，勾选标记不会",
+      "resourceTypes_other": "{{count}} 个班组或分包商资源已变为人工资源",
+      "libraryLinks_other": "{{count}} 个与资源库的链接",
+      "holidayNames_other": "{{count}} 个假日名称（日期本身会保留）",
+      "projectDetails": "项目描述、作者和公司",
+      "truncatedNames_other": "{{count}} 个名称或代码已按 P6 允许的长度截短",
+      "changedIds_other": "{{count}} 个空白或重复的 WBS 代码获得了新的活动 ID",
+      "nonLatinText_other": "{{count}} 个字符无法放入 Windows-1252：文件已以 UTF-8 保存。导入 P6 后请检查文本。",
+      "sourceDetails": "原始 XER 文件中应用不使用的数据，例如未知表和原始曲线"
+    },
+    "exportP6XmlLossItem": {
+      "schedulingOptions": "项目计算设置：P6 使用自身设置，因此日期和浮时可能有所不同",
+      "baselines_other": "{{count}} 个基线",
+      "summaryRelations_other": "{{count}} 个与摘要任务相关的关系：P6 不支持这些关系",
+      "hammocks_other": "{{count}} 个吊床任务已变为普通任务",
+      "suspendResume_other": "{{count}} 个带有暂停或恢复日期的任务：这些日期将丢失",
+      "priorities_other": "{{count}} 个任务优先级将丢失",
+      "notes_other": "{{count}} 条备注",
+      "resourceTypes_other": "{{count}} 个属于班组或分包商类型的资源将获得 P6 类型：其自身类型将丢失",
+      "capacitySteps_other": "{{count}} 个具有产能阶梯的资源：仅固定产能会被包含",
+      "projectDetails": "项目作者和公司"
+    },
     "dependentProjectsFound": "依赖项目：{{projects}}。指向此项目的链接：{{links}}。",
     "dependentProjectsNone": "未找到与此进度计划有外部关系的项目。",
     "dependentProjectsFailed": "无法读取依赖项目所在的文件夹。"
@@ -184,7 +240,9 @@
     "noWorkingDays": "日历中未设置工作日",
     "invalidDayDuration": "任务“{{task}}”的天数工期无效",
     "invalidHourDuration": "任务“{{task}}”的小时工期无效",
-    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间",
+    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间。请在该日历中检查工作日、开始时间、结束时间和休息时间。",
+    "taskWithoutWorkHours": "任务 '{{task}}' 的日历没有有效的工作时间。请在该日历中检查工作日、开始时间、结束时间和休息时间。",
+    "noWorkingHours": "项目日历没有有效的工作时间。请在该日历中检查开始时间、结束时间和休息时间。",
     "invalidStartDate": "任务“{{task}}”的开始日期无效"
   },
   "yes": "是",
@@ -320,6 +378,9 @@
     "weekStartMonday": "星期一",
     "weekStartSunday": "星期日",
     "calculationSection": "计算",
+    "taskGridSection": "任务表",
+    "autoFitColumns": "自动调整列宽",
+    "autoFitColumnsHint": "任务表的每一列会在打开后以及每次确认编辑后，将宽度调整为该列中的值。此时，过长的列标题会被截断。如果你自行拖动某一列，它会保持你设定的宽度，直到你双击列边缘。",
     "autoCalcCPM": "自动计算",
     "autoCalcCPMHint": "计划过期时自动重新计算，无需等待按 F5。",
     "constructionModeSection": "施工模式",
@@ -350,7 +411,7 @@
     "documentChromeHint": "在已打开的文档之间切换的方式。",
     "ribbonSection": "功能区",
     "ribbonWheelSwitchesTabs": "用鼠标滚轮切换功能区标签",
-    "ribbonWheelSwitchesTabsHint": "在功能区标签上转动鼠标滚轮。向下转到下一个标签，向上转到上一个标签。",
+    "ribbonWheelSwitchesTabsHint": "在功能区、标签或按钮上转动鼠标滚轮。向下转到下一个标签，向上转到上一个标签。",
     "documentChromeTabs": "横向标签页",
     "documentChromeRail": "纵向标签页",
     "documentChromeSwitcher": "胶囊",
@@ -634,6 +695,7 @@
       "droppedSequence": "关系被忽略：前置或后续任务缺失或不是叶任务",
       "hammockNoFinishDriver": "吊床任务没有完成驱动（无 FF/SF 前置任务）：其工期回落为零",
       "cappedTask": "完成日期被截断：日历没有为此任务留下可工作的窗口",
+      "externalLagCalendar": "外部延隔计入此任务的日历：另一侧的日历不在此文件中",
       "overallocation": "{{count}} 天过度分配（{{first}} – {{last}}）",
       "overallocationNonWorkingDay": "{{count}} 天过度分配（{{first}} – {{last}}）—— 该资源根据其日历在这些天不工作",
       "overallocationMixed": "{{count}} 天过度分配（{{first}} – {{last}}），其中 {{nonWorking}} 天该资源根据其日历不工作"
@@ -918,6 +980,7 @@
       "UK": "英国",
       "AT": "奥地利",
       "CH": "瑞士",
+      "US": "美国",
       "none": "无假日"
     },
     "preset": {
@@ -1193,6 +1256,7 @@
     "detailSteps": "资源能力阶段",
     "warnActuals_other": "{{count}} 项任务有实际开始/完成日期，这些日期也会一同移动。请确认这对进行中的项目是否合适。",
     "warnHardPins_other": "{{count}} 项任务设有强制（硬）约束；该锚定日期也会一同移动。",
+    "warnExternalKept_other": "{{count}} 个外部关系：锚点保留在源项目的日期上，因为这些项目不会随之移动。",
     "warnHolidayGap": "日历“{{name}}”生成的节假日覆盖 {{from}}–{{to}}；移动后的计划延续至 {{year}}。请重新生成节假日。",
     "warnCustomDateFields_other": "{{count}} 个已填写的日期自定义字段将保持原有日期。",
     "warnPast": "新的开始日期位于过去。",
@@ -1274,7 +1338,7 @@
   "progressImport": {
     "title": "从表格更新进度",
     "chooseFile": "选择文件…",
-    "intro": "请选择一份返回的 CSV 或 XLSX 表格。应用只读取完成度、实际开始日期和实际完成日期，你计划的其余部分保持不变。",
+    "intro": "请选择一份返回的 XLSX 表格。应用只读取完成度、实际开始日期和实际完成日期，你计划的其余部分保持不变。",
     "summaryApplied": "已应用：{{applied}}",
     "summaryNoop": "未变化：{{noop}}",
     "summaryNeedsLink": "等待关联：{{needsLink}}",
@@ -1308,7 +1372,8 @@
       "noKeyColumn": "此文件没有“OPS Task ID”或“WBS”列，无法将行与任务关联。",
       "noProgressColumns": "此文件没有完成度、实际开始或实际完成中的任何一列。",
       "unreadable": "此文件无法作为进度表读取。",
-      "encrypted": "此文件受密码保护，无法读取。"
+      "encrypted": "此文件受密码保护，无法读取。",
+      "csvNotSupported": "进度表只能作为 Excel 文件读取。请在 Excel 中打开此 CSV，将其保存为 .xlsx，然后重新选择文件。"
     },
     "reason": {
       "unmatched": "未找到此行对应的任务。",
@@ -1328,6 +1393,27 @@
       "completion": "完成度",
       "actualStart": "实际开始",
       "actualFinish": "实际完成"
+    },
+    "sinceExport": {
+      "exportedAt": "表格导出于 {{date}}。",
+      "summaryConflicts": "冲突：{{conflicts}}，待选择：{{open}}",
+      "summaryAppNewer": "仅在应用中更改：{{kept}}",
+      "summaryPlannedShift": "导出后计划已移动：{{shifted}}",
+      "missingState": "没有导出状态的行：{{rows}}。应用无法看出这些行自导出后发生了什么变化，因此只会将表格与当前计划比较。",
+      "sectionConflicts": "冲突：在应用和表格中都已更改",
+      "conflictIntro": "自导出后，这些值在两个地方发生了更改。请为每行选择保留哪个值。每行都有选择后才能应用。",
+      "conflictField": "{{field}}：导出时为 {{exported}}，应用中为 {{app}}，表格中为 {{sheet}}",
+      "keepApp": "保留应用中的值",
+      "takeSheet": "采用表格中的值",
+      "allRows": "所有行：",
+      "chooseFirst": "请先为每个冲突选择应用或表格。",
+      "sectionAppNewer": "自导出后仅在应用中更改",
+      "keptField": "{{field}}：导出时为 {{exported}}，现在为 {{app}}。表格不会更改此项。",
+      "shiftedField": "{{field}} 自导出后已移动：{{exported}} → {{current}}",
+      "plannedField": {
+        "start": "计划的开始",
+        "finish": "计划的完成"
+      }
     }
   },
   "conventions": {
@@ -1603,7 +1689,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "应用导入了 WBS 和任务，以及关系、约束、日历、资源、分配、进度和状态日期。基线项目会成为其所属项目的一个基线。",
-        "limited": "截止日期、活动代码、自定义字段和备注不会被导入。项目使用 Open Planner Studio 配置文件计算，而不是 Primavera P6。",
+        "limited": "截止日期、活动代码、自定义字段和备注不会被导入。项目按 Primavera P6 计算，使用文件中的计算选项。",
         "save": "保存会写入一个新的 IFC 文件，你的 XML 文件不会改变。可以通过 导出 › Primavera P6 XML 写回。"
       },
       "csv": {
@@ -1636,9 +1722,46 @@
     "blockedNoChild": "无法移动：“{{phase}}”不会获得能承载分配的子任务，只有里程碑或摘要任务。",
     "actualWorkLost_other": "{{resource}} 的分配已记录 {{hours}} 小时的实际工时。删除会丢弃这些工时。"
   },
+  "scheduleShift": {
+    "title": "已移动的任务",
+    "close": "关闭已移动的任务",
+    "notice_other": "{{count}} 个任务已移动",
+    "deliveryLater_other": "项目完成延后 {{days}} 个工作日",
+    "deliveryEarlier_other": "项目完成提前 {{days}} 个工作日",
+    "deliveryUnchanged": "项目完成未更改",
+    "why": "为什么？",
+    "undo": "撤销",
+    "finishChange": "完成 {{from}} → {{to}}",
+    "goTo": "前往：{{target}}",
+    "showMore_other": "再显示 {{count}} 个任务",
+    "emptyNoRun": "请按“计算”（F5）。之后此处会显示哪些任务已移动，以及原因。",
+    "emptyNoShift": "上次计算没有移动任何任务。",
+    "reason": {
+      "predecessor": "前置任务：{{name}}",
+      "predecessorMore_other": "前置任务：{{name}} 及另外 {{count}} 个",
+      "calendar": "日历：{{name}}",
+      "constraint": "固定日期：{{constraint}}",
+      "constraintPlain": "固定日期",
+      "statusDate": "状态日期：{{date}}",
+      "resource": "资源：{{names}}",
+      "resourceLeveling": "资源平衡",
+      "duration": "自身工期已更改",
+      "ownStart": "自身开始日期",
+      "plannedStart": "计划的开始",
+      "projectStart": "项目开始",
+      "progress": "进度：实际日期或剩余工期",
+      "manual": "手动计划的",
+      "hammock": "跟随所链接的任务",
+      "unknown": "未确定原因"
+    }
+  },
   "fileDrop": {
     "title": "松开即可打开",
     "subtitle": "项目文件或导入"
+  },
+  "settingsDelay": {
+    "title": "设置未加载",
+    "body": "无法从服务器加载你的设置。你目前使用的是默认设置。一旦你的设置重新可用，就会自动应用。"
   },
   "dependentAnchorWarning": {
     "title": "其他项目的锚点变得更紧",

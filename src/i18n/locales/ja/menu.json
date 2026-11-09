@@ -140,6 +140,7 @@
     "histogram": "ヒストグラム",
     "toggleHistogram": "ヒストグラム",
     "warningsPanel": "警告パネル",
+    "scheduleShiftPanel": "タスクのずれ",
     "prevResource": "前へ",
     "nextResource": "次へ",
     "leveling": "山崩し",
@@ -322,7 +323,7 @@
     "exportTitle": "エクスポート",
     "exportSubtitle": "形式を選択してください。プロジェクトが変換されて保存されます。",
     "progressImportCardTitle": "シートから進捗を更新",
-    "progressImportCardDesc": "返送されたCSVまたはXLSXシートを読み込み、完了率、実績開始日、実績終了日を更新します。",
+    "progressImportCardDesc": "返送されたExcelシート（.xlsx）を読み込み、完了率、実績開始日、実績終了日を更新します。",
     "printTitle": "印刷",
     "printSubtitle": "レポート画面を開いて印刷プレビューと設定を確認します。",
     "openPrintPreview": "印刷プレビューを開く",
@@ -390,6 +391,9 @@
     "mspdiDesc": "Microsoft Project で開けます。完全な WBS 構造。",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6 用。",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6 用です。.xer ファイルとして出力します。",
+    "experimentalBadge": "実験的",
     "profileHint": "現在のプロジェクトは {{name}} プロファイルを使用しています。このファイル形式との互換性を最も高めるには、{{target}} プロファイルの使用をお勧めします。",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART 標準。プロジェクトの IFC スキーマ（既定は IFC 4.3 ADD2）。BIM モデルとの 4D 連携。",
@@ -444,5 +448,18 @@
     "redo": "やり直し",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
+  },
+  "native": {
+    "window": "ウインドウ",
+    "quit": "Open Planner Studio を終了",
+    "about": "Open Planner Studio について",
+    "services": "サービス",
+    "hide": "Open Planner Studio を隠す",
+    "hideOthers": "ほかを隠す",
+    "showAll": "すべて表示",
+    "closeWindow": "ウインドウを閉じる",
+    "cut": "カット",
+    "fullscreen": "フルスクリーン表示の切り替え",
+    "bringAllToFront": "すべてを前面に表示"
   }
 }

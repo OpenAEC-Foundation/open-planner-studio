@@ -8,12 +8,14 @@ bridge and automatic updates.
 ## Scheduling
 
 - **Critical Path Method (CPM)** — automatic calculation of early/late start and finish dates, total and free float, and the critical path.
+- **Calculation shifts** — after Calculate (F5), see which tasks moved and why, inspect the project-finish change and restore the previous dates while that calculation is still the latest change. See [Why a task shifts](docs://uitleg-verschuivingen).
 - **Work Breakdown Structure (WBS)** — a hierarchical task structure with collapsible summary tasks.
 - **Relations** — Finish-Start, Start-Start, Finish-Finish and Start-Finish dependencies, each with a
   lag or lead in work days; relations can attach to milestones, ordinary tasks and summary tasks. A
   relation on a summary task is applied to each of its leaf tasks. A task cannot be linked to itself
   or to its own summary (ancestor); a relation on a summary without any leaf tasks is flagged as
   *no effect*.
+- **External project links** — use anchor dates from another project file or a project on the hosting site. Review changed anchors before accepting a new source version, inspect their origin and find projects that depend on your schedule. See [External relations to another project](docs://howto-externe-relaties).
 - **Constraints** — start/finish constraints (such as Start No Earlier Than) for permits, deliveries and fixed dates.
 - **Milestones** — start, finish and mandatory inspection milestones.
 - **Baselines & progress** — capture baselines and track progress against them. Compare the active baseline and two earlier baselines together in the Gantt and in print.
@@ -26,6 +28,7 @@ bridge and automatic updates.
 ## Calendars
 
 - **Work calendars** — configurable working days, start and finish times, breaks, holidays, the construction industry's collective holiday, and inspection moments.
+- **Holiday generator** — national and regional sets, including United States federal holidays with observed dates. Check the generated set against the project's actual working arrangements.
 - **Resource calendars** — per-resource availability.
 - **Days and hours** — hour planning is always available. Mix day and hour measures, including fractional days, on one time axis in minutes. Tasks can follow each other within a work day; the calendar and scheduling profile determine how the measure is counted.
 
@@ -52,14 +55,17 @@ bridge and automatic updates.
 - **Interactive Gantt chart** — a Canvas timeline paired with an accessible DOM task grid: drag & drop (including reordering or
   reparenting tasks by dragging their row vertically), zoom, a compressed working-days axis, week
   numbers and day names in the header, dependency arrows and hit-testing.
+- **Open by dropping files** — drop supported planning files into the window to use the normal guarded file-open route.
 - **Table view** — a spreadsheet-style editor over the same model: one click selects a cell; use
   F2, Enter or typing to edit it. Arrow keys and Tab/Shift+Tab navigate cells, while Alt+Left and
   Alt+Right outdent and indent tasks.
+- **Table columns** — automatic content-based sizing, remembered manual widths and a Calendar days column alongside working durations.
 - **Context menus** — right-click tasks for quick actions.
 - **Office-style ribbon** — tabs for Start, Planning, Resources, View, Settings, Table, IFC,
   Report and (once enabled) MCP, plus a Backstage file menu. Relation actions are available from the
   task groups instead of a separate Relations tab.
 - **Multi-document** — work on several projects at once and switch between them.
+- **Progress sheets** — exchange progress as Excel, compare the returned sheet with its export snapshot and the current plan, and resolve conflicting changes before applying them.
 
 ## IFC & interoperability
 
@@ -67,9 +73,10 @@ bridge and automatic updates.
 - **Planning IFC and building models** — edit the planning file separately, then combine it with a
   building model in another IFC tool. Opening an IFC that contains building-model objects is
   temporarily refused because saving a schedule does not preserve those objects.
-- **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, plus read-only
-  opening of native Microsoft Project `.mpp` and Primavera P6 `.xer` files (save the result as IFC;
-  the original `.xer` travels inside the IFC as a source archive).
+- **Import/export** — CSV, Microsoft Project XML and Primavera P6 XML adapters, experimental
+  Primavera P6 XER export, and read-only opening of native Microsoft Project `.mpp` files. P6 XML
+  and XER export show explicit loss notices; save the editable project as IFC. An imported original
+  `.xer` travels inside the IFC as a source archive.
 
 ## MCP clients
 
@@ -77,7 +84,7 @@ bridge and automatic updates.
   assistant connects to the project you have open, reads it and edits it live, with every change
   visible immediately and undoable with Ctrl+Z.
 - **Broad tool coverage** — reading, scheduling, resource/calendar/baseline setup and document
-  management, 41 tools in total, all prefixed `planner_`.
+  management, 42 tools in total, all prefixed `planner_`.
 - **Batch scripting** — an assistant can submit a whole sequence of steps as one script, which lands
   in your undo history as a single step.
 - **Safety controls** — pause, read-only mode, automatic per-document backup before the first
@@ -94,7 +101,8 @@ bridge and automatic updates.
 
 ## Reporting
 
-- **Live print preview** — configurable report options right in the ribbon, including report font
+- **Progress curve** — planned, early, late and approximate actual S-curves with progress indicators and risk tasks. The actual curve is reconstructed from current progress, not a stored daily history.
+- **Live print preview** — configurable report options in the report workspace, including the font family and report font
   size, repeating the header on every page, and spreading the timeline over multiple pages; your
   choices are remembered between sessions.
 - **Vector PDF export** — stays crisp at any zoom level and keeps text selectable and searchable, for
@@ -104,6 +112,8 @@ bridge and automatic updates.
 ## Platform & experience
 
 - **Desktop & browser** — Windows, macOS and Linux desktop builds (Tauri 2) plus a full-featured browser version.
+- **Site hosting** — integrated file versions and preferences, live host language and theme changes, and planning tools for the hosting site’s assistant.
+- **macOS integration** — native window controls and translated menus share the app's document and pending-input guards. See [macOS window and menu bar](docs://ref-macos).
 - **System-aware appearance** — optionally follow the operating system or browser light/dark colour scheme, including live changes while the app remains open; High Contrast stays an explicit choice.
 - **Auto-save & crash recovery** — recovery snapshots are written about every ten seconds and can
   restore open work after an unexpected close. For an existing saved IFC file, you can separately
