@@ -464,7 +464,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     <PaperBanner
       tone="warn"
       dataKey="stale"
-      action={<button type="button" className="rs-btn" onClick={() => recalculateReport()} data-rs-recalculate>{t('studio.stale.action')}</button>}
+      action={<button type="button" className="btn btn--secondary btn--sm" onClick={() => recalculateReport()} data-rs-recalculate>{t('studio.stale.action')}</button>}
     >
       {t('studio.stale.text')}
     </PaperBanner>
@@ -567,10 +567,10 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         : t('studio.page.manyPagesScale', { count: totalPages });
   const manyPagesAction = !paperInfo ? null : paperInfo.cols <= 1
     ? (source.kind === 'all' && viewRows.length < tasks.length ? (
-      <button type="button" className="rs-link" onClick={() => chooseSource({ kind: 'view' })}>{t('studio.tasks.view')}</button>
+      <button type="button" className="ops-textlink" onClick={() => chooseSource({ kind: 'view' })}>{t('studio.tasks.view')}</button>
     ) : null)
     : !settings.autoFit && atMinDayWidth ? (
-      <button type="button" className="rs-link" onClick={() => patch({ autoFit: true }, 'autoFit')}>{t('studio.page.fitWidth')}</button>
+      <button type="button" className="ops-textlink" onClick={() => patch({ autoFit: true }, 'autoFit')}>{t('studio.page.fitWidth')}</button>
     ) : null;
 
   // ---- Stapinhoud: één bron voor de zijbalk en het zwevende venster -----------------------------
@@ -608,7 +608,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 tone="info"
                 dataKey="layout-bar-colors"
                 actions={(
-                  <button type="button" className="rs-link" onClick={() => { markReportInput('barColor'); setOverlays({ barColors: layoutBarColors }); }}>
+                  <button type="button" className="ops-textlink" onClick={() => { markReportInput('barColor'); setOverlays({ barColors: layoutBarColors }); }}>
                     {t('studio.tasks.barColorsApply')}
                   </button>
                 )}
@@ -637,6 +637,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   value={resourceOptions.period}
                   onChange={next => patchResourceOptions({ period: next }, 'period')}
                   dataKey="resourceGanttPeriod"
+                  compact
                 />
                 <p className="rs-hint" data-rs-resource-counts>
                   {[
@@ -661,11 +662,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <StudioNotice
                 dataKey="table-wide"
                 actions={settings.truncateTaskNames && settings.taskNameColumnWidth > NAME_COLUMN_WIDTH_MIN + 20 ? (
-                  <button type="button" className="rs-link" onClick={() => patch({ taskNameColumnWidth: Math.max(NAME_COLUMN_WIDTH_MIN, settings.taskNameColumnWidth - 40) }, 'name-narrower')}>
+                  <button type="button" className="ops-textlink" onClick={() => patch({ taskNameColumnWidth: Math.max(NAME_COLUMN_WIDTH_MIN, settings.taskNameColumnWidth - 40) }, 'name-narrower')}>
                     {t('studio.columns.narrowerName')}
                   </button>
                 ) : !settings.truncateTaskNames ? (
-                  <button type="button" className="rs-link" onClick={() => patch({ truncateTaskNames: true }, 'truncate')}>
+                  <button type="button" className="ops-textlink" onClick={() => patch({ truncateTaskNames: true }, 'truncate')}>
                     {t('studio.columns.truncateInstead')}
                   </button>
                 ) : null}
@@ -734,7 +735,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <div className="rs-field-row">
                 <span className="rs-field-label">{t('studio.bars.colors')}</span>
                 <Select
-                  className="rs-select w-full min-w-0"
+                  className="w-full min-w-0 !py-1.5 !px-2.5"
                   aria-label={t('studio.bars.colors')}
                   value={barColorSelection.mode}
                   onChange={value => {
@@ -752,7 +753,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               </div>
               {barColorSelection.mode === 'category' && barColorControl.effective.mode === 'category' && (
                 <Select
-                  className="rs-select w-full min-w-0"
+                  className="w-full min-w-0 !py-1.5 !px-2.5"
                   aria-label={t('barColorFieldLabel')}
                   value={encodeFieldRef(barColorControl.effective.field)}
                   onChange={value => { markReportInput('barColor'); setOverlays({ barColors: { mode: 'category', field: decodeFieldRef(value), colors: barColorSelection.colors } }); }}
@@ -785,7 +786,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   dataKey="no-status-date"
                   actions={(
                     <>
-                      <button type="button" className="rs-link" onClick={() => chooseStatusDate(localTodayIso())}
+                      <button type="button" className="ops-textlink" onClick={() => chooseStatusDate(localTodayIso())}
                         data-rs-status-today>
                         {t('studio.bars.statusDateToday')}
                       </button>
@@ -795,7 +796,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                           value=""
                           onCommit={v => { if (v) chooseStatusDate(v); }}
                           ariaLabel={t('studio.bars.statusDateOther')}
-                          className="rs-date"
+                          className="input !text-small !leading-4 !px-2.5 !py-1.5"
                         />
                       </span>
                     </>
@@ -838,7 +839,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 <StudioNotice
                   dataKey="table-wide-page"
                   actions={(
-                    <button type="button" className="rs-link" onClick={() => { markReportInput('step'); openStepDirect('columns'); }}>
+                    <button type="button" className="ops-textlink" onClick={() => { markReportInput('step'); openStepDirect('columns'); }}>
                       {t('studio.page.toColumns')}
                     </button>
                   )}
@@ -898,7 +899,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
             </StudioGroup>
             <StudioGroup label={t('studio.page.font')}>
               <ReportFontSelect
-                className="rs-select w-full min-w-0"
+                className="w-full min-w-0 !py-1.5 !px-2.5"
                 value={settings.reportFontFamily}
                 onChange={v => patch({ reportFontFamily: v }, 'reportFontFamily')}
               />
@@ -917,7 +918,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           <>
             <div className="rs-field">
               <label className="rs-field-label" htmlFor="rs-company">{t('studio.headerFooter.company')}</label>
-              <input id="rs-company" className="rs-input" value={companyName}
+              <input id="rs-company" className="input !text-small !leading-4 !px-2.5 !py-1.5" value={companyName}
                 onChange={e => {
                   markReportInput('company');
                   // Na Standaard een eigen naam getypt: die wint, ongedaan maken zou hem stil wissen.
@@ -955,7 +956,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       <div className="rs-step-foot" data-rs-step-foot={step}>
         <button
           type="button"
-          className="rs-link"
+          className="ops-textlink"
           disabled={isDefault}
           onClick={() => {
             const label = t(`studio.steps.${step}`);
@@ -1001,7 +1002,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   const reportTypeSelect = (
     <Select
-      className="rs-select w-full min-w-0"
+      className="w-full min-w-0 !py-1.5 !px-2.5"
       aria-label={t('reportType.label')}
       value="gantt"
       onChange={v => {
@@ -1109,7 +1110,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 <span className="rs-foot-label">{t('studio.export.file')}</span>
                 <span className="rs-foot-name">{fileName}</span>
               </div>
-              <button type="submit" className="rs-primary" aria-busy={exportBusy} title={exportTitle} data-rs-export>
+              <button type="submit" className="btn btn--primary w-full" aria-busy={exportBusy} title={exportTitle} data-rs-export>
                 {exportIcon}
                 {exportLabel}
               </button>
@@ -1125,7 +1126,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         <button
           ref={fabRef}
           type="button"
-          className="rs-fab"
+          className="btn btn--primary rs-fab"
           onClick={exportPdf}
           aria-busy={exportBusy}
           title={exportTitle}

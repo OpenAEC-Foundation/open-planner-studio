@@ -128,10 +128,10 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
   }, [dataKey]);
 
   return (
-    <div ref={ref} className="rs-pop" role="dialog" aria-label={title} style={{ left: pos.left, top: pos.top }} data-rs-popover={dataKey}>
+    <div ref={ref} className="rs-pop ui-pop" role="dialog" aria-label={title} style={{ left: pos.left, top: pos.top }} data-rs-popover={dataKey}>
       <div className="rs-pop-head">
         <span className="rs-step-title flex-1">{title}</span>
-        <button type="button" className="rs-link" onClick={onOpenInSidebar}>{openInSidebarLabel}</button>
+        <button type="button" className="ops-textlink" onClick={onOpenInSidebar}>{openInSidebarLabel}</button>
         <button type="button" className="rs-icon-btn" onClick={onClose} aria-label={closeLabel} title={closeLabel} data-rs-pop-close>
           <Icon id="ui.close" size={16} />
         </button>
@@ -148,9 +148,9 @@ export function UndoToast({ text, undoLabel, onUndo, onDismiss }: { text: string
     return () => window.clearTimeout(timer);
   }, [text, onDismiss]);
   return (
-    <div className="rs-undo" role="status" data-rs-undo>
+    <div className="ops-toast toast-info rs-undo" role="status" data-rs-undo>
       <span>{text}</span>
-      <button type="button" onClick={onUndo} data-rs-undo-button>{undoLabel}</button>
+      <button type="button" className="ops-textlink" onClick={onUndo} data-rs-undo-button>{undoLabel}</button>
     </div>
   );
 }

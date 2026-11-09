@@ -625,3 +625,78 @@ bij een groepering op resource; met de flag uit verandert er niets.
   `verify:store-boundaries`, `verify:conventions`, `verify:gantt-boundaries`.
 - Help nl+en: `howto-rapport-maken-en-afdrukken` (drie punten in het deel over het nieuwe tabblad, de zin over
   Previewkwaliteit), `ref-rapporttypes`, `howto-rapportageperiode-kiezen`, `howto-layouts-gebruiken`.
+
+### Deel 2: de stijl van de app
+
+**Eerst gekeken.** Schermafbeeldingen van de app in licht en donker (`qa/817-rapport/r5/voor/`): het lint Beeld met
+het menu van een layoutknop, de layoutdialoog, het eigenschappenpaneel, het lint Instellingen, de Backstage en het
+tabblad zelf. Wat de app doet en het tabblad niet: overal vierkante vinkjes (geen schuifjes); koppen in kleine
+hoofdletters in de kopletter (`.ui-card-header`, "EIGENSCHAPPEN", "TAAK", "TIJD"); veldlabels in kleine
+hoofdletters ("NAAM", "START"); knoppen `.btn`; meldingen als `.ops-note` (neutraal vlak met een accentbalk);
+"actief" als een effen accentvlak (de actieve lintknop); popovers op `--theme-dropdown-bg` met `--shadow-pop`.
+
+**Besluit (bouwer, Opus 5.5, 9 november 2026): per onderdeel het onderdeel van de app.** De indeling, het gedrag,
+de toetsen en de `data-rs-*`-haken bleven gelijk. Ethan beoordeelt de tabel bij zijn check.
+
+| onderdeel | was | wordt | waarom |
+|---|---|---|---|
+| knop ("Nu doorrekenen", "Zoals de tabel", "Kolom toevoegen") | `.rs-btn`; "Kolom toevoegen" met een stippelrand | `.btn .btn--secondary .btn--sm` | de kleine knoppen van de layoutdialoog ("+ regel") en het eigenschappenpaneel |
+| hoofdknop "PDF exporteren" | `.rs-primary` | `.btn .btn--primary`, volle breedte | de hoofdknop van een dialoog ("Opslaan") |
+| tekstlink ("Standaard", acties in een melding, "In de zijbalk") | `.rs-link`, oranje | `.ops-textlink`: onderstreept, in de kleur van de plek | "Lees meer" in een toast en in het paneel |
+| keuzelijst | `Select` met een eigen opvulling (`.rs-select`) | `Select`, dicht met `!py-1.5 !px-2.5`; ook de periode onder *Per resource* (`ReportingPeriodField` kreeg `compact`; het oude paneel blijft gelijk) | zoals de velden in het eigenschappenpaneel (`.input !px-2.5`) |
+| invoerveld (Bedrijf, datum bij de statuslijn) | `.rs-input`; het datumveld had geen rand (`DateTextInput` verwacht `.input` van de plek) | `.input !text-small !leading-4 !px-2.5 !py-1.5`, precies het veld van het eigenschappenpaneel | idem |
+| schakelaar | eigen schuifje (`role="switch"`) | het vinkje van de app (`input[type=checkbox]`, `globals.css`) in een regel zoals `.settings-checkbox-row` | de app heeft nergens schuifjes; Instellingen, de layoutdialoog en het paneel gebruiken vinkjes |
+| segmenten (papier, stand, statuslijn, passen, lettergrootte) | eigen; actief = verhoogd vlak met een accentrand | blijft eigen; rand en veld van `Select`, actief = `--theme-active` met `--theme-accent-on` | de app heeft geen segmentknop; "actief" volgt de actieve lintknop (`.ribbon-btn.active`) |
+| keuzekaart (Taken) | eigen kaart met `--rs-soft` | rand en gekozen stand van `.settings-theme-card` (de themakeuze in Instellingen); een layout is een korte kaart op één regel | dezelfde soort keuze: één uit een paar kaarten |
+| kop van een stap | eigen | indeling blijft; de titel in de kopletter (`--font-heading`, zoals `.settings-subhead`); het nummer van de open stap blijft een effen accent | de indeling is door de council goedgekeurd |
+| kop van een groep ("OP DE BALKEN", "PER RESOURCE") | eigen hoofdletterkop | `.ui-card-header` | de kop van het eigenschappenpaneel en zijn delen |
+| veldlabel ("Statuslijn", "Balkkleuren") | eigen, kleine zinsletter | zoals `Field` in het eigenschappenpaneel: klein, hoofdletters, `--theme-text-muted` | idem |
+| melding in een stap | `.rs-warn`: gekleurd vlak met rand | `.ops-note` met `--warning` of `--info`; fout met een accentbalk in `--error` | het meldingsblok van de app ("info in gekleurde blokken") |
+| balk boven het papier (niet doorgerekend, fout) | eigen gekleurde balk | `.ops-note` over de volle breedte | idem |
+| "Ongedaan maken" | zwarte pil | `.ops-toast.toast-info`, klein in de werkbalk, met `.ops-textlink` | de melding van het meldingskanaal |
+| zwevend venster | eigen: `--theme-surface`, `--radius-lg`, inzoomen | de popover van de app (`Popover`: `--theme-dropdown-bg`, rand, `--radius-md`) plus `.ui-pop` | het layoutmenu en de lijst van `Select` |
+| kolomkiezer | eigen lijst | het menu van `Select` (`--theme-dropdown-bg`, `--shadow-pop`); de opties zijn `.ops-select__option` met `is-highlighted` | dezelfde soort lijst als een keuzelijst |
+| zwevende knop | eigen pil | `.btn .btn--primary`; alleen plaats, hoogte (40 px) en schaduw eigen | de plaats en de hoogte bepalen de vrije strook onder het papier (`FAB_RESERVE`) |
+| werkbalk boven het papier | eigen | blijft eigen; randen `--theme-border` | de app heeft geen werkbalk boven een werkvlak |
+| zoomknoppen, "Hele blad", "Breedte" | eigen; actief = zachte tint met een accentrand | de knoppen blijven; actief = `--theme-active` | de actieve lintknop |
+| randknoppen (ingeklapt) | eigen; actief = zachte tint | indeling als een kleine lintknop; actief = `--theme-active` met `--theme-accent-on`; de stip wordt daar de tekstkleur | idem |
+| kolomrij, sleepgreep, papier, gebieden, paginakop | eigen | blijft eigen | de app heeft hier niets voor; het papier is wit in elk thema |
+
+Eigen tokens: `--rs-soft`, `--rs-soft-strong`, `--rs-line` en `--rs-ease` zijn weg. Over blijven de breedtes
+`--rs-sidebar-w` en `--rs-rail-w` (de zwevende knop rekent ermee), `--rs-page-w`/`--rs-page-h` (de maat van een
+blad, gezet in de TSX) en `--rs-scroll-bg` (de afdekkleur van de scrollschaduw, in de zijbalk en in het venster
+verschillend). `reportStudio.css` ging van 1069 naar 892 regels. Een icoon op een effen accentvlak tekent in één
+kleur, zoals op de actieve lintknop (`--icon-accent: currentColor`); `check-icon-accent-text.ts` blijft groen.
+
+Een actieve knop blijft onder de muis actief, zoals op het lint: de regels voor "actief" staan onderaan
+`reportStudio.css`, na de hover-regels. In de eerste schermafbeeldingen won de hover nog (een net aangeklikt segment
+leek grijs).
+
+**Bewijs deel 2.**
+
+- Alle stappen in beeld, opnieuw gemeten (`qa/817-rapport/r5/shots-studio.mjs`, uitkomst in
+  `qa/817-rapport/r5/na/stappen-in-beeld.json`). Per open stap: hoogte van het scrollvak / nodig. Op alle drie de
+  maten, licht en donker gelijk: alle vijf stapkoppen, de stapvoet en *PDF exporteren* in beeld; ingeklapt past het
+  zwevende venster van *Balken* in het scherm.
+
+  | venster | Taken | Kolommen | Balken | Pagina | Kop en voet |
+  |---|---|---|---|---|---|
+  | 1600×900 | 193/193 | 363/363 | 382/382 | 310/310 | 197/197 |
+  | 1366×768 | 193/193 | 286/363 | 286/382 | 281/310 | 197/197 |
+  | 1280×720 | 193/193 | 238/363 | 238/382 | 233/310 | 197/197 |
+
+  Vorige ronde (fixronde na council ronde 1): 1600×900 Kolommen 359, Balken 369, Pagina 307, Kop en voet 194; het
+  scrollvak 289 px op 1366×768 en 241 px op 1280×720. Het vinkje en de dichte velden zijn een paar pixels hoger dan
+  het schuifje; *Taken* is hoger door de layouts uit deel 1.
+- Snelheid (`scripts/measure-report-paper.mjs`, plan van 5000 taken, dev-server), om en om gemeten: twee rondes met
+  de bestanden van vóór deel 2 (`e6c751bef`, tijdelijk teruggezet en met `cp` hersteld) en twee met de nieuwe stijl.
+  Mediaan in ms, vóór → na: sprong 172 → 146, zoom-in 131 → 134, zoom-out 236 → 207, kolom erbij 151 → 150, kolom weg
+  152 → 150, papier 183 → 168, speling 178 → 169. Geen achteruitgang; de spreiding tussen twee runs is ongeveer 50 ms
+  (de machine was druk). Uitkomsten in `qa/817-rapport/r5/snelheid-ab/`.
+- Schermafbeeldingen in `qa/817-rapport/r5/na/`: per thema en maat de open stappen (`open-*`), ingeklapt
+  (`ingeklapt-*`) en ingeklapt met het zwevende venster (`ingeklapt-venster-*`); op 1600×900 het Resourcediagram via
+  de layout (`resourcediagram-*`, `resourcediagram-opties-*`), de kolomkiezer, een melding, *Ongedaan maken*, en de
+  app ernaast (`app-eigenschappen-*`, `app-instellingen-*`, `naast-voor-*`, `naast-na-*`). De beelden van vóór staan in
+  `qa/817-rapport/r5/voor/`.
+- Groen: `typecheck`, `lint:fast`, `verify:text-roles`, `check-icon-accent-text.ts`, `check-theme-contrast.ts`,
+  `check-icon-family.ts`, `report-studio.spec.ts` en `resource-gantt-report.spec.ts`.

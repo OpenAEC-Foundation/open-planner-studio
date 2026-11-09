@@ -19,19 +19,17 @@ export function StudioSwitch({ checked, onChange, label, sub, title, disabled, d
   dataKey?: string;
 }) {
   return (
-    <label className="rs-switch" title={title} data-rs-switch={dataKey}>
+    <label className="rs-check" title={title} data-rs-switch={dataKey}>
       <input
         type="checkbox"
-        role="switch"
         checked={checked}
         disabled={disabled}
         onChange={e => onChange(e.target.checked)}
         data-rs-option={dataKey}
       />
-      <span className="rs-switch-track" aria-hidden="true" />
-      <span className="rs-switch-label">
+      <span className="rs-check-label">
         {label}
-        {sub && <span className="rs-switch-sub">{sub}</span>}
+        {sub && <span className="rs-hint block">{sub}</span>}
       </span>
     </label>
   );
@@ -124,7 +122,7 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
     <div className="rs-choices" role="radiogroup" aria-label={ariaLabel} onKeyDown={onKeyDown}>
       {options.map((option, i) => (
         <Fragment key={option.value}>
-          {option.groupLabel && <div className="rs-group-label rs-choices-label" aria-hidden="true">{option.groupLabel}</div>}
+          {option.groupLabel && <div className="ui-card-header rs-group-label rs-choices-label" aria-hidden="true">{option.groupLabel}</div>}
           <button
             ref={el => { refs.current[i] = el; }}
             type="button"
@@ -179,6 +177,9 @@ export function StudioStepScroll({ className, children, ...rest }: {
   );
 }
 
+/** De tint van een melding: het blok `.ops-note` van de app, met de accentbalk in de kleur van de toon. */
+const NOTE_TONE = { warn: 'ops-note--warning', info: 'ops-note--info', error: 'rs-note--error' } as const;
+
 /** Melding in de stap waar je hem oplost, direct onder de keuze die hem geeft, met optionele acties. */
 export function StudioNotice({ tone = 'warn', children, actions, dataKey }: {
   tone?: 'warn' | 'info' | 'error';
@@ -194,11 +195,11 @@ export function StudioNotice({ tone = 'warn', children, actions, dataKey }: {
     if (stepMounted?.current) ref.current?.scrollIntoView({ block: 'nearest' });
   }, [stepMounted]);
   return (
-    <div ref={ref} className="rs-warn" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'} data-rs-notice={dataKey}>
-      <Icon id={iconId} size={14} />
-      <div>
-        {children}
-        {actions && <div className="rs-warn-actions">{actions}</div>}
+    <div ref={ref} className={`ops-note ${NOTE_TONE[tone]} rs-note`} role={tone === 'error' ? 'alert' : 'status'} data-rs-notice={dataKey}>
+      <Icon id={iconId} size={14} aria-hidden />
+      <div className="ops-note-lines">
+        <span>{children}</span>
+        {actions && <div className="rs-note-actions">{actions}</div>}
       </div>
     </div>
   );
@@ -209,7 +210,7 @@ export function StudioGroup({ label, children }: { label?: ReactNode; children: 
   const id = useId();
   return (
     <div className="rs-group" role="group" aria-labelledby={label ? id : undefined}>
-      {label && <div className="rs-group-label" id={id}>{label}</div>}
+      {label && <div className="ui-card-header rs-group-label" id={id}>{label}</div>}
       {children}
     </div>
   );
@@ -226,8 +227,8 @@ export function PaperBanner({ tone, children, action, dataKey }: {
   dataKey: string;
 }) {
   return (
-    <div className="rs-banner" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'} data-rs-banner={dataKey}>
-      <Icon id={tone === 'error' ? 'status.error' : 'status.warning'} size={16} />
+    <div className={`ops-note ${NOTE_TONE[tone]} rs-banner`} role={tone === 'error' ? 'alert' : 'status'} data-rs-banner={dataKey}>
+      <Icon id={tone === 'error' ? 'status.error' : 'status.warning'} size={16} aria-hidden />
       <span className="rs-banner-text">{children}</span>
       {action}
     </div>

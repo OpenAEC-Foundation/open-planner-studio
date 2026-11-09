@@ -1,14 +1,13 @@
 /* Het nieuwe Rapport-tabblad (feature flag `reportRedesign`, issue #817): zijbalk met stappen links,
    het interactieve papier rechts. Alleen themavariabelen en de zes tekstrollen; het papier zelf blijft
-   wit in elk thema. */
+   wit in elk thema. De bediening gebruikt de onderdelen van de app (#817, ronde 5): `.btn`, `.input`,
+   `Select`, het app-vinkje, `.ops-note`, `.ops-textlink`, `.ui-card-header`, `.ui-pop`, `.ops-toast` en de
+   opties van `Select` in de kolomkiezer. "Actief" is overal het effen accent van het lint (`--theme-active`).
+   Wat hier staat, is de indeling van het tabblad en wat de app niet heeft (stappen, segmenten, papier). */
 
 .rs-root {
   --rs-sidebar-w: 328px;
   --rs-rail-w: 64px;
-  --rs-soft: color-mix(in srgb, var(--theme-accent) 10%, transparent);
-  --rs-soft-strong: color-mix(in srgb, var(--theme-accent) 18%, transparent);
-  --rs-line: var(--theme-border);
-  --rs-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   display: flex;
   flex: 1;
   min-width: 0;
@@ -28,8 +27,8 @@
   flex-direction: column;
   min-height: 0;
   background: var(--theme-surface);
-  border-inline-end: 1px solid var(--rs-line);
-  transition: flex-basis 160ms var(--rs-ease), width 160ms var(--rs-ease);
+  border-inline-end: 1px solid var(--theme-border);
+  transition: flex-basis 160ms ease, width 160ms ease;
 }
 .rs-sidebar[data-mode='rail'] {
   flex-basis: var(--rs-rail-w);
@@ -44,7 +43,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 8px 8px 12px;
-  border-bottom: 1px solid var(--rs-line);
+  border-bottom: 1px solid var(--theme-border);
 }
 .rs-sidebar[data-mode='rail'] .rs-sidebar-head {
   padding: 10px 0;
@@ -65,13 +64,6 @@
 }
 .rs-icon-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
 .rs-icon-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
-/* Ingedrukt: oranje rand en zachte achtergrond; het icoon blijft grijs met oranje accent (nooit helemaal
-   oranje, check-icon-accent-text). */
-.rs-icon-btn[aria-pressed='true'] {
-  background: var(--rs-soft);
-  color: var(--theme-text);
-  border-color: color-mix(in srgb, var(--theme-accent) 55%, transparent);
-}
 .rs-icon-btn:disabled { opacity: 0.4; pointer-events: none; }
 
 .rs-steps {
@@ -98,7 +90,7 @@
   display: flex;
   flex-direction: column;
   background: var(--theme-surface-alt);
-  border-color: var(--rs-line);
+  border-color: var(--theme-border);
 }
 .rs-step[data-open='true'] > .rs-step-head { flex: none; }
 .rs-step[data-open='true'] > .rs-step-body {
@@ -111,13 +103,15 @@
    afdekkende verlopen scrollen mee (`local`) en verbergen de schaduw aan het begin en aan het eind. */
 .rs-step[data-open='true'] > .rs-step-body,
 .rs-pop-scroll {
+  --rs-scroll-bg: var(--theme-surface);
   background:
-    linear-gradient(var(--theme-surface) 40%, transparent) top / 100% 20px no-repeat local,
-    linear-gradient(transparent, var(--theme-surface) 60%) bottom / 100% 20px no-repeat local,
+    linear-gradient(var(--rs-scroll-bg) 40%, transparent) top / 100% 20px no-repeat local,
+    linear-gradient(transparent, var(--rs-scroll-bg) 60%) bottom / 100% 20px no-repeat local,
     radial-gradient(farthest-side at 50% 0, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) top / 100% 8px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, color-mix(in srgb, var(--theme-text) 22%, transparent), transparent) bottom / 100% 8px no-repeat scroll,
-    var(--theme-surface);
+    var(--rs-scroll-bg);
 }
+.rs-pop-scroll { --rs-scroll-bg: var(--theme-dropdown-bg); }
 
 .rs-step-head {
   display: grid;
@@ -194,6 +188,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+  font-family: var(--font-heading);
   font-size: var(--text-large);
   line-height: 16px;
   font-weight: 600;
@@ -214,7 +209,7 @@
 .rs-step-summary[data-warn='true'] { color: var(--theme-warning-text); }
 .rs-chevron {
   color: var(--theme-text-muted);
-  transition: transform 140ms var(--rs-ease);
+  transition: transform 140ms ease;
 }
 .rs-step[data-open='true'] .rs-chevron { transform: rotate(90deg); }
 [dir='rtl'] .rs-chevron { transform: scaleX(-1); }
@@ -235,21 +230,13 @@
   justify-content: space-between;
   gap: 8px;
   padding: 3px 12px 4px;
-  border-top: 1px solid var(--rs-line);
+  border-top: 1px solid var(--theme-border);
 }
 .rs-pop .rs-step-foot { padding: 6px 14px 8px; }
 
-.rs-link {
-  font-size: var(--text-body);
-  line-height: 16px;
-  color: var(--theme-accent);
-  background: transparent;
-  padding: 2px 0;
-  border-radius: var(--radius-sm);
-}
-.rs-link:hover { text-decoration: underline; }
-.rs-link:disabled { color: var(--theme-text-muted); text-decoration: none; cursor: default; }
-.rs-link:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
+/* `.ops-textlink` van de app ("Standaard", acties in een melding): uitgeschakeld zonder streep. */
+.rs-root .ops-textlink:disabled,
+.rs-pop .ops-textlink:disabled { opacity: 0.45; text-decoration: none; }
 
 .rs-next {
   display: inline-flex;
@@ -267,69 +254,28 @@
 
 /* Groepjes binnen een stap */
 .rs-group { display: flex; flex-direction: column; gap: 4px; }
-.rs-group-label {
-  font-size: var(--text-caption);
-  line-height: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--theme-text-muted);
-  font-weight: 600;
-}
+/* Kop van een groep (ook in de kolomkiezer): `.ui-card-header` van de app. */
+.rs-group-label { line-height: 14px; }
 .rs-hint {
   font-size: var(--text-small);
   line-height: 14px;
   color: var(--theme-text-dim);
 }
 
-/* Schakelaar (aan/uit) */
-.rs-switch {
+/* Aan/uit: het vinkje van de app (`input[type=checkbox]` in globals.css), in een regel zoals
+   `.settings-checkbox-row`. Regels onder elkaar staan dicht op elkaar: zo past een hele stap op een gewoon scherm. */
+.rs-check {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 22px;
-  padding: 2px 6px;
-  margin-inline: -6px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
   font-size: var(--text-body);
   line-height: 16px;
+  cursor: pointer;
 }
-.rs-switch:hover { background: var(--theme-hover); }
-/* Schakelaars onder elkaar staan dicht op elkaar (24 px per regel): zo past een hele stap op een gewoon scherm. */
-.rs-switch + .rs-switch { margin-top: -2px; }
-.rs-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.rs-switch-track {
-  position: relative;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 16px;
-  border-radius: var(--radius-full);
-  background: var(--theme-control-border, var(--theme-border));
-  transition: background-color 120ms var(--rs-ease);
-}
-.rs-switch-track::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  inset-inline-start: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-full);
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: inset-inline-start 120ms var(--rs-ease);
-}
-.rs-switch input:checked + .rs-switch-track { background: var(--theme-accent); }
-.rs-switch input:checked + .rs-switch-track::after { inset-inline-start: 14px; }
-.rs-switch input:focus-visible + .rs-switch-track { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
-.rs-switch input:disabled + .rs-switch-track { opacity: 0.45; }
-.rs-switch-label { flex: 1; min-width: 0; }
-.rs-switch-sub { display: block; font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
-@media (prefers-reduced-motion: reduce) {
-  .rs-switch-track, .rs-switch-track::after { transition: none; }
-}
+.rs-check-label { flex: 1; min-width: 0; }
 
-/* Gesegmenteerde keuze */
+/* Gesegmenteerde keuze (de app heeft er geen): de rand en het veld van `Select`, actief zoals het lint. */
 .rs-seg {
   display: inline-grid;
   grid-auto-flow: column;
@@ -337,8 +283,8 @@
   padding: 2px;
   gap: 2px;
   border-radius: var(--radius-md);
-  background: var(--theme-surface);
-  border: 1px solid var(--rs-line);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-control-border);
   width: 100%;
 }
 .rs-seg button {
@@ -356,31 +302,33 @@
   white-space: nowrap;
 }
 .rs-seg button:hover { color: var(--theme-text); background: var(--theme-hover); }
-.rs-seg button[aria-checked='true'] {
-  color: var(--theme-text);
-  background: var(--theme-surface-elevated, var(--theme-surface-alt));
-  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--theme-accent);
-  font-weight: 600;
-}
+.rs-seg button[aria-checked='true'] { font-weight: 600; }
 .rs-seg button:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 .rs-seg button:disabled { opacity: 0.45; pointer-events: none; }
 
-/* Keuzekaart (Taken) */
+/* Keuzekaart (Taken): de kaart van de themakeuze in Instellingen (`.settings-theme-card`): rand van een veld,
+   gekozen met een accentrand en een lichte accenttint. Een layout is een korte kaart op één regel. */
+.rs-choices { display: flex; flex-direction: column; gap: 6px; }
+.rs-choices-label { margin-top: 6px; }
 .rs-choice {
   display: grid;
   grid-template-columns: 18px 1fr auto;
   gap: 2px 10px;
   align-items: start;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--rs-line);
+  border: 1.5px solid var(--theme-control-border);
   background: var(--theme-surface);
   text-align: start;
   color: inherit;
   width: 100%;
 }
-.rs-choice:hover { border-color: var(--theme-text-muted); }
-.rs-choice[aria-checked='true'] { border-color: var(--theme-accent); background: var(--rs-soft); }
+.rs-choice[data-compact='true'] { align-items: center; padding-block: 5px; }
+.rs-choice:hover { border-color: var(--theme-accent); }
+.rs-choice[aria-checked='true'] {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, var(--theme-surface));
+}
 .rs-choice:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 .rs-radio {
   margin-top: 1px;
@@ -400,7 +348,15 @@
   border-radius: var(--radius-full);
   background: var(--theme-accent);
 }
-.rs-choice-title { font-size: var(--text-body); line-height: 16px; font-weight: 600; }
+.rs-choice-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: 16px;
+  font-weight: 600;
+}
 .rs-choice-text { grid-column: 2 / 4; font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
 .rs-count {
   font-size: var(--text-small);
@@ -409,31 +365,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Melding in een stap */
-.rs-warn {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-small);
-  line-height: 15px;
-  color: var(--theme-text);
-  background: color-mix(in srgb, var(--theme-warning-text) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--theme-warning-text) 35%, transparent);
-}
-.rs-warn svg { color: var(--theme-warning-text); margin-top: 1px; }
-.rs-warn[data-tone='info'] {
-  background: var(--rs-soft);
-  border-color: color-mix(in srgb, var(--theme-accent) 30%, transparent);
-}
-.rs-warn[data-tone='info'] svg { color: var(--theme-text-dim); }
-.rs-warn[data-tone='error'] {
-  background: color-mix(in srgb, var(--error) 10%, transparent);
-  border-color: color-mix(in srgb, var(--error) 40%, transparent);
-}
-.rs-warn[data-tone='error'] svg { color: var(--error); }
-.rs-warn-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+/* Melding in een stap: `.ops-note` van de app. Fout heeft daar geen eigen tint. */
+.rs-note { margin-top: 0; }
+.rs-note--error { --ops-note-accent: var(--error); }
+.rs-note-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 
 /* Kolommenlijst */
 .rs-cols { display: flex; flex-direction: column; gap: 2px; }
@@ -446,7 +381,7 @@
   padding: 3px 4px 3px 6px;
   border-radius: var(--radius-sm);
   background: var(--theme-surface);
-  border: 1px solid var(--rs-line);
+  border: 1px solid var(--theme-border);
   font-size: var(--text-body);
   line-height: 16px;
   outline: none;
@@ -454,13 +389,13 @@
 }
 .rs-col:focus-visible, .rs-col[data-focus='true'] { box-shadow: 0 0 0 2px var(--theme-accent); border-color: transparent; }
 .rs-col[data-dragging='true'] { opacity: 0.45; }
-.rs-col[data-flash='true'] { animation: rs-flash 1.2s var(--rs-ease); }
+.rs-col[data-flash='true'] { animation: rs-flash 1.2s ease; }
 @keyframes rs-flash {
-  0%, 30% { background: var(--rs-soft-strong); }
+  0%, 30% { background: color-mix(in srgb, var(--theme-accent) 18%, var(--theme-surface)); }
   100% { background: var(--theme-surface); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rs-col[data-flash='true'] { animation: none; background: var(--rs-soft); }
+  .rs-col[data-flash='true'] { animation: none; background: color-mix(in srgb, var(--theme-accent) 10%, var(--theme-surface)); }
 }
 .rs-drop-line {
   height: 2px;
@@ -480,28 +415,14 @@
 .rs-col-actions .rs-icon-btn { width: 24px; height: 24px; }
 .rs-col:not(:hover):not(:focus-within):not([data-focus='true']) .rs-col-actions .rs-icon-btn[data-reveal] { opacity: 0; }
 
-.rs-add {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 28px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--theme-text-muted);
-  color: var(--theme-text-dim);
-  background: transparent;
-  font-size: var(--text-body);
-  line-height: 16px;
-}
-.rs-add:hover { color: var(--theme-text); border-color: var(--theme-accent); background: var(--rs-soft); }
-.rs-add:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-add { justify-content: flex-start; }
 
+/* Kolomkiezer: het menu van `Select` (`.ops-select__menu`), met dezelfde opties (`.ops-select__option`). */
 .rs-picker {
-  border: 1px solid var(--rs-line);
+  border: 1px solid var(--theme-border);
   border-radius: var(--radius-md);
-  background: var(--theme-surface);
-  box-shadow: var(--shadow-md);
+  background: var(--theme-dropdown-bg);
+  box-shadow: var(--shadow-pop);
   overflow: hidden;
 }
 .rs-picker-search {
@@ -509,7 +430,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--rs-line);
+  border-bottom: 1px solid var(--theme-border);
   color: var(--theme-text-muted);
 }
 .rs-picker-search input {
@@ -523,74 +444,16 @@
   line-height: 18px;
 }
 .rs-picker-list { max-height: 248px; overflow-y: auto; padding: 4px; }
-.rs-picker-cat {
-  padding: 8px 6px 3px;
-  font-size: var(--text-caption);
-  line-height: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--theme-text-muted);
-  font-weight: 600;
-}
-.rs-picker-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-body);
-  line-height: 16px;
-  text-align: start;
-  color: inherit;
-  background: transparent;
-}
-.rs-picker-item[data-active='true'] { background: var(--rs-soft); }
-.rs-picker-item[data-in-grid='true'] small { color: var(--theme-text-muted); }
+.rs-picker-cat { padding: 8px 6px 3px; }
+.rs-picker-item { width: 100%; min-height: 28px; text-align: start; }
 .rs-picker-empty { padding: 10px; font-size: var(--text-small); color: var(--theme-text-dim); }
 
-.rs-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--rs-line);
-  background: var(--theme-surface);
-  color: var(--theme-text);
-  font-size: var(--text-body);
-  line-height: 16px;
-}
-.rs-btn:hover { background: var(--theme-hover); }
-.rs-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
-.rs-btn:disabled { opacity: 0.5; pointer-events: none; }
-
-.rs-primary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  background: var(--theme-accent);
-  color: var(--theme-accent-on);
-  font-size: var(--text-large);
-  line-height: 16px;
-  font-weight: 600;
-  box-shadow: var(--shadow-glow, none);
-}
-.rs-primary:hover { background: var(--theme-accent-hover); }
-.rs-primary:focus-visible { outline: 2px solid var(--theme-text); outline-offset: 2px; }
-.rs-primary[aria-busy='true'] { opacity: 0.8; cursor: progress; }
+/* Bezig met exporteren (de knoppen zijn `.btn--primary`). */
+.rs-root .btn[aria-busy='true'] { opacity: 0.85; cursor: progress; }
 
 .rs-sidebar-foot {
   padding: 8px 12px 10px;
-  border-top: 1px solid var(--rs-line);
+  border-top: 1px solid var(--theme-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -653,11 +516,6 @@
   line-height: 12px;
 }
 .rs-rail-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
-.rs-rail-btn[aria-expanded='true'] {
-  background: var(--rs-soft);
-  color: var(--theme-text);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 55%, transparent);
-}
 .rs-rail-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
 .rs-rail-btn[data-changed='true']::after,
 .rs-rail-btn[data-warn='true']::after {
@@ -673,7 +531,8 @@
 /* Een stap met een melding: de stip in de waarschuwingskleur, ook als de stap gewijzigd is. */
 .rs-rail-btn[data-warn='true']::after { background: var(--theme-warning-text); }
 
-/* Zwevend venster (stap naast het papier of naast de rand) */
+/* Zwevend venster (stap naast het papier of naast de rand): de popover van de app (`Popover`: achtergrond
+   `--theme-dropdown-bg`, rand, `--radius-md`; schaduw via `.ui-pop`). */
 .rs-pop {
   position: fixed;
   z-index: 60;
@@ -681,24 +540,17 @@
   max-height: min(560px, calc(100vh - 32px));
   display: flex;
   flex-direction: column;
-  background: var(--theme-surface);
+  background: var(--theme-dropdown-bg);
   color: var(--theme-text);
-  border: 1px solid var(--rs-line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-pop);
-  animation: rs-pop-in 120ms var(--rs-ease);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
 }
-@keyframes rs-pop-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
-  to { opacity: 1; transform: none; }
-}
-@media (prefers-reduced-motion: reduce) { .rs-pop { animation: none; } }
 .rs-pop-head {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 10px 8px 14px;
-  border-bottom: 1px solid var(--rs-line);
+  border-bottom: 1px solid var(--theme-border);
 }
 .rs-pop-scroll { flex: 0 1 auto; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
 
@@ -716,7 +568,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--rs-line);
+  border-bottom: 1px solid var(--theme-border);
   background: var(--theme-bg);
   font-size: var(--text-body);
   line-height: 16px;
@@ -750,7 +602,7 @@
   gap: 2px;
   padding: 2px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--rs-line);
+  border: 1px solid var(--theme-border);
   background: var(--theme-surface);
 }
 .rs-zoom-value {
@@ -762,7 +614,7 @@
   color: var(--theme-text-dim);
   padding: 4px 2px;
 }
-.rs-zoom-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--rs-line); }
+.rs-zoom-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--theme-border); }
 .rs-fit-btn {
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -775,11 +627,6 @@
 }
 .rs-fit-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
 .rs-fit-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
-.rs-fit-btn[aria-pressed='true'] {
-  background: var(--rs-soft);
-  color: var(--theme-text);
-  border-color: color-mix(in srgb, var(--theme-accent) 55%, transparent);
-}
 
 /* Het papiervlak: de stippen staan op de omhulling, zodat de vrije strook voor de zwevende knop (onder het
    scrollvak) er hetzelfde uitziet als de rest. */
@@ -919,111 +766,57 @@
   outline-offset: -2px;
 }
 
-.rs-empty {
-  margin: auto;
-  max-width: 360px;
-  text-align: center;
-  color: var(--theme-text-dim);
-  font-size: var(--text-body);
-  line-height: 18px;
-  padding: 32px;
-}
 
-/* In de werkbalk boven het papier, tussen de stand en de zoomknoppen: zo dekt hij nooit een blad af. */
-.rs-undo {
+/* "Ongedaan maken": de melding van de app (`.ops-toast.toast-info`, `.ops-textlink`), klein in de werkbalk boven
+   het papier, tussen de stand en de zoomknoppen: zo dekt hij nooit een blad af. */
+.ops-toast.rs-undo {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 6px 4px 12px;
-  border-radius: var(--radius-full);
-  background: var(--theme-text);
-  color: var(--theme-bg);
+  max-width: none;
+  padding: 4px 8px 4px 12px;
   font-size: var(--text-body);
   line-height: 16px;
   white-space: nowrap;
-  animation: rs-pop-in 120ms var(--rs-ease);
+  box-shadow: none;
 }
-.rs-undo button {
-  color: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  background: transparent;
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
-}
-.rs-undo button:focus-visible { outline: 2px solid var(--theme-accent); }
+.rs-undo .ops-textlink { font-weight: 600; padding: 2px 4px; border-radius: var(--radius-sm); }
+.rs-undo .ops-textlink:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
 
-.rs-kbd {
-  display: inline-block;
-  min-width: 16px;
-  padding: 0 4px;
-  border-radius: 4px;
-  border: 1px solid var(--rs-line);
-  background: var(--theme-surface);
-  color: var(--theme-text-dim);
-  font-size: var(--text-caption);
-  line-height: 14px;
-  text-align: center;
-}
 
-.rs-input {
-  width: 100%;
-  min-height: 28px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--theme-control-border, var(--theme-border));
-  background: var(--theme-input-bg, var(--theme-surface));
-  color: var(--theme-text);
-  font-size: var(--text-body);
-  line-height: 18px;
-}
-.rs-input:focus { outline: 2px solid var(--theme-accent); outline-offset: -1px; border-color: transparent; }
 .rs-field { display: flex; flex-direction: column; gap: 4px; }
-.rs-field-label { font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
+/* Veldlabel zoals in het eigenschappenpaneel (`Field` in task-sections/shared.tsx): klein, hoofdletters. */
+.rs-field-label {
+  font-size: var(--text-small);
+  line-height: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--theme-text-muted);
+}
 .rs-range { display: flex; align-items: center; gap: 8px; }
 .rs-inline-date { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* Keuzelijsten in de zijbalk: even hoog als de gesegmenteerde keuzes, zodat een stap op een gewoon scherm past. */
-.ops-select__trigger.rs-select { padding-block: 6px; padding-inline: 10px; }
 /* Label en bediening op één regel (balkkleuren, tijdlijn over, auteur). */
 .rs-field-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .rs-field-row > .rs-field-label { flex: none; }
 .rs-range input[type='range'] { flex: 1; min-width: 0; accent-color: var(--theme-accent); }
 .rs-range output { min-width: 44px; white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
-.rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--rs-line); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
+.rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--theme-border); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
 .rs-stepper output { min-width: 64px; text-align: center; font-size: var(--text-body); line-height: 16px; font-variant-numeric: tabular-nums; }
 
 /* Zijbalk ingeklapt: de knop "PDF exporteren" zweeft linksonder in het werkvlak, dezelfde actie als de
    knop onderaan de open zijbalk (besluit eigenaar 7-11-2026). Raakt een blad zijn hoek, dan stopt het
    scrollvak boven een vrije strook (`FAB_RESERVE`, `ReportPaperView`); zo bedekt hij nooit inhoud.
    Afstand tot de rand = `FAB_INSET` in GanttReportStudio.tsx. */
-.rs-fab {
+.btn.rs-fab {
   position: absolute;
   inset-inline-start: calc(var(--rs-rail-w) + 16px);
   bottom: 14px;
   z-index: 15;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   height: 40px;
   padding: 0 18px 0 14px;
   font-size: var(--text-large);
-  line-height: 16px;
-  font-weight: 600;
-  white-space: nowrap;
-  border-radius: var(--radius-full);
-  background: var(--theme-accent);
-  color: var(--theme-accent-on);
   box-shadow: var(--shadow-lg);
-  transition: transform 120ms var(--rs-ease), background-color 120ms var(--rs-ease);
-}
-.rs-fab:hover { background: var(--theme-accent-hover); transform: translateY(-1px); }
-.rs-fab:active { transform: translateY(0); }
-.rs-fab:focus-visible { outline: 2px solid var(--theme-text); outline-offset: 3px; }
-.rs-fab[aria-busy='true'] { cursor: progress; opacity: 0.85; }
-@media (prefers-reduced-motion: reduce) {
-  .rs-fab { transition: none; }
 }
 
 /* Sleepgreep: zes stippen (B2 heeft geen greepicoon). */
@@ -1040,30 +833,43 @@
 .rs-panel-icon { transform: scaleX(-1); }
 [dir='rtl'] .rs-panel-icon { transform: none; }
 
-/* Balk boven het papier: de planning is niet doorgerekend, of heeft een fout. */
-.rs-banner {
-  display: flex;
+/* Balk boven het papier (de planning is niet doorgerekend, of heeft een fout): `.ops-note` over de hele breedte. */
+.ops-note.rs-banner {
   align-items: center;
   gap: 10px;
+  margin: 0;
   padding: 6px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-warning-text) 35%, transparent);
-  background: color-mix(in srgb, var(--theme-warning-text) 10%, var(--theme-bg));
+  border-radius: 0;
+  border-bottom: 1px solid var(--theme-border);
   color: var(--theme-text);
   font-size: var(--text-body);
   line-height: 16px;
 }
-.rs-banner > svg { flex: none; color: var(--theme-warning-text); }
 .rs-banner-text { flex: 1; min-width: 0; }
-.rs-banner .rs-btn { flex: none; }
-.rs-banner[data-tone='error'] {
-  border-bottom-color: color-mix(in srgb, var(--error) 40%, transparent);
-  background: color-mix(in srgb, var(--error) 10%, var(--theme-bg));
-}
-.rs-banner[data-tone='error'] > svg { color: var(--error); }
+.rs-banner .btn { flex: none; }
 /* Exporteren met een fout in de planning: de balk licht even op. */
-.rs-banner-pulse { animation: rs-banner-pulse 900ms var(--rs-ease); }
+.rs-banner-pulse { animation: rs-banner-pulse 900ms ease; }
 @keyframes rs-banner-pulse {
   0%, 35% { filter: brightness(0.92); }
   100% { filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { .rs-banner-pulse { animation: none; } }
+
+/* ---- Actief ------------------------------------------------------------------------------------ */
+
+/* Ingedrukt en "actief" in de werkbalk, de segmenten en de rand: zoals een actieve lintknop (`.ribbon-btn.active`),
+   een effen accentvlak met de tekstkleur daarop. Het icoon tekent daar in één kleur (zoals in `icons.css`). Staat
+   onderaan, na de hover-regels: zoals op het lint blijft een actieve knop ook onder de muis actief. */
+.rs-icon-btn[aria-pressed='true'],
+.rs-fit-btn[aria-pressed='true'],
+.rs-seg button[aria-checked='true'],
+.rs-rail-btn[aria-expanded='true'] {
+  background: var(--theme-active);
+  border-color: var(--theme-active-border);
+  color: var(--theme-accent-on);
+}
+.rs-icon-btn[aria-pressed='true'] .oa-icon,
+.rs-seg button[aria-checked='true'] .oa-icon,
+.rs-rail-btn[aria-expanded='true'] .oa-icon { --icon-accent: currentColor; }
+.rs-rail-btn[aria-expanded='true'] .rs-rail-num { color: inherit; }
+.rs-rail-btn[aria-expanded='true']::after { background: var(--theme-accent-on); }

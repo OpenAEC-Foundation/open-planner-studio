@@ -127,13 +127,13 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
         />
       ) : (
         <div className="rs-cols-tools">
-          <button ref={addRef} type="button" className="rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
+          <button ref={addRef} type="button" className="btn btn--secondary btn--sm rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
             <Icon id="table.column-add-menu" size={14} />
             {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : t('studio.columns.add')}
           </button>
           <button
             type="button"
-            className="rs-btn"
+            className="btn btn--secondary btn--sm"
             onClick={() => onChange(reportColumnsFromGrid(gridIds, new Set(available.map(column => String(column.id)))), 'columns-like-grid')}
             title={t('studio.columns.likeGridHint')}
             data-rs-like-grid
@@ -290,7 +290,7 @@ function ColumnPicker({ ids, available, gridSet, categoryLabel, onPick, onClose 
           const inGrid = gridSet.has(String(option.id));
           const group = inGrid ? '__grid' : option.category;
           const header = group !== lastGroup
-            ? <div className="rs-picker-cat" key={`g-${group}`}>{inGrid ? t('studio.columns.inGrid') : categoryLabel(option.category)}</div>
+            ? <div className="ui-card-header rs-group-label rs-picker-cat" key={`g-${group}`}>{inGrid ? t('studio.columns.inGrid') : categoryLabel(option.category)}</div>
             : null;
           lastGroup = group;
           return [
@@ -301,7 +301,7 @@ function ColumnPicker({ ids, available, gridSet, categoryLabel, onPick, onClose 
               role="option"
               id={`rs-pick-${index}`}
               aria-selected={index === active}
-              className="rs-picker-item"
+              className={`ops-select__option rs-picker-item${index === active ? ' is-highlighted' : ''}`}
               data-active={index === active ? 'true' : undefined}
               data-index={index}
               data-rs-pick={String(option.id)}

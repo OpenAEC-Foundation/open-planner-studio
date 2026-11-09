@@ -36,6 +36,11 @@ interface Props {
   onChange: (next: ReportingPeriod) => void;
   /** `data-ops-report-option`-sleutel voor tests. */
   dataKey: string;
+  /**
+   * Dicht, zoals een veld in het eigenschappenpaneel: het label klein en in hoofdletters (`Field`), de keuzelijst
+   * met de opvulling van de andere keuzelijsten in de zijbalk van het nieuwe Rapport-tabblad (#817).
+   */
+  compact?: boolean;
 }
 
 /** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`.
@@ -51,7 +56,7 @@ export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   }, [period, tasks, statusDate, today]);
 }
 
-export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
+export function ReportingPeriodField({ id, value, onChange, dataKey, compact = false }: Props) {
   const { t } = useTranslation('report');
   const dd = useDisplayDate();
   const resolved = useResolvedPeriod(value);
@@ -120,10 +125,16 @@ export function ReportingPeriodField({ id, value, onChange, dataKey }: Props) {
       {/* Label bóven de keuzelijst: naast een `w-32`-label blijven bij de standaardkolom 53 px over
           en leest élke preset als "Hele pr…". */}
       <div className="flex flex-col gap-1 min-w-0">
-        <label className="text-text-secondary" htmlFor={id}>{t('tableReports.options.reportingPeriod')}</label>
+        <label
+          className={compact ? '!text-small uppercase tracking-wide' : 'text-text-secondary'}
+          style={compact ? { color: 'var(--theme-text-muted)' } : undefined}
+          htmlFor={id}
+        >
+          {t('tableReports.options.reportingPeriod')}
+        </label>
         <Select
           id={id}
-          className="w-full min-w-0"
+          className={compact ? 'w-full min-w-0 !py-1.5 !px-2.5' : 'w-full min-w-0'}
           aria-label={t('tableReports.options.reportingPeriod')}
           value={value.preset}
           onChange={v => changePreset(v as ReportingPeriodPreset)}
