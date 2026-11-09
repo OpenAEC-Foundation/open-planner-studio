@@ -6,6 +6,8 @@
 import { expect, seedProject, test } from './fixtures/ops';
 
 test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk inklappen', async ({ page, ops: _ops }) => {
+  // Deze route loopt door alle stappen, layouts en een rapportwissel (~20–22 s lokaal); ruimte voor drukte in CI.
+  test.slow();
   await seedProject(page, [
     { name: 'Fundering storten', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Wanden metselen', start: '2026-09-21', finish: '2026-10-09', durationDays: 15 },
