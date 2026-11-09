@@ -351,7 +351,10 @@
     "minuteModelConverted_few": "{{document}}: {{count}} úkoly mají po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
     "minuteModelConverted_many": "{{document}}: {{count}} úkolu má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
     "minuteModelConverted_other": "{{document}}: {{count}} úkolů má po převodu jiný začátek nebo dokončení; největší posun (v pracovních dnech): {{days}}. Ctrl+Z vrátí uložené datumy zpět.",
-    "minuteModelCalendarRepaired": "Kalendář „{{calendar}}“ byl opraven: dokončení nebo přestávka neodpovídaly uložené pracovní době."
+    "minuteModelCalendarRepaired": "Kalendář „{{calendar}}“ byl opraven: dokončení nebo přestávka neodpovídaly uložené pracovní době.",
+    "dependentProjectsFound": "Závislé projekty: {{projects}}. Vazby na tento projekt: {{links}}.",
+    "dependentProjectsNone": "Nebyly nalezeny žádné projekty s vazbou na tento harmonogram.",
+    "dependentProjectsFailed": "Složku se závislými projekty nelze přečíst."
   },
   "scheduleErrors": {
     "cycle": "Cyklus závislostí mezi úkoly: {{path}}",
@@ -1882,5 +1885,15 @@
   "fileDrop": {
     "title": "Pusťte pro otevření",
     "subtitle": "Soubor projektu nebo import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Kotevní data jiných projektů se zpřísňují",
+    "body": "Tyto projekty počítají s datem z tohoto harmonogramu. Po uložení dostanou přísnější datum, jakmile obnoví své vazby mezi projekty.",
+    "colProject": "Projekt",
+    "colTheirTask": "Jejich úkol",
+    "colOwnTask": "Úkol zde",
+    "colAnchor": "Kotevní datum: staré → nové",
+    "saveAnyway": "Přesto uložit",
+    "cancel": "Zrušit"
   }
 }

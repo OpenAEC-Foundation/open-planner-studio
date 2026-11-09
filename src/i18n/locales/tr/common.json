@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "{{count}} kaynağın ücretleri aktarılmadı.",
     "minuteModelConverted_one": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
     "minuteModelConverted_other": "{{document}}: Dönüştürme sonrası {{count}} görevde başlangıç veya bitiş değişti; en büyük kayma {{days}} iş günü. Ctrl+Z kaydedilen tarihleri geri yükler.",
-    "minuteModelCalendarRepaired": "'{{calendar}}' takvimi onarıldı: bitiş veya mola, kayıtlı çalışma saatleri ile uyuşmuyordu."
+    "minuteModelCalendarRepaired": "'{{calendar}}' takvimi onarıldı: bitiş veya mola, kayıtlı çalışma saatleri ile uyuşmuyordu.",
+    "dependentProjectsFound": "Bağımlı projeler: {{projects}}. Bu projeye bağlantılar: {{links}}.",
+    "dependentProjectsNone": "Bu planlamaya dış ilişkisi olan proje bulunamadı.",
+    "dependentProjectsFailed": "Bağımlı projelerin bulunduğu klasör okunamadı."
   },
   "scheduleErrors": {
     "cycle": "Görevler arasında döngüsel ilişki: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Açmak için bırakın",
     "subtitle": "Proje dosyası veya içe aktarma"
+  },
+  "dependentAnchorWarning": {
+    "title": "Diğer projelerin bağlantı noktaları daralıyor",
+    "body": "Bu projeler bu planlamadaki bir tarihe dayanır. Kaydettikten sonra dış ilişkilerini yenilediklerinde daha dar bir tarih alırlar.",
+    "colProject": "Proje",
+    "colTheirTask": "Oradaki görev",
+    "colOwnTask": "Buradaki görev",
+    "colAnchor": "Bağlantı noktası: eski → yeni",
+    "saveAnyway": "Yine de kaydet",
+    "cancel": "İptal"
   }
 }

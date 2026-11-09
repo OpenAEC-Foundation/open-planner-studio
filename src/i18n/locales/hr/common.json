@@ -292,7 +292,10 @@
     "minuteModelConverted_one": "{{document}}: {{count}} zadatak ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
     "minuteModelConverted_few": "{{document}}: {{count}} zadatka imaju nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
     "minuteModelConverted_other": "{{document}}: {{count}} zadataka ima nakon pretvorbe drugačiji početak ili završetak; najveći pomak iznosi {{days}} radnih dana. Ctrl+Z vraća spremljene datume.",
-    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu."
+    "minuteModelCalendarRepaired": "Kalendar „{{calendar}}“ je popravljen: završetak ili pauza nisu odgovarali spremljenom radnom vremenu.",
+    "dependentProjectsFound": "Ovisni projekti: {{projects}}. Veze prema ovom projektu: {{links}}.",
+    "dependentProjectsNone": "Nisu pronađeni projekti s vanjskom vezom prema ovom planu.",
+    "dependentProjectsFailed": "Mapu s ovisnim projektima nije moguće pročitati."
   },
   "scheduleErrors": {
     "cycle": "Kružna ovisnost između zadataka: {{path}}",
@@ -1800,5 +1803,15 @@
   "fileDrop": {
     "title": "Otpustite za otvaranje",
     "subtitle": "Projektna datoteka ili uvoz"
+  },
+  "dependentAnchorWarning": {
+    "title": "Referentni datumi drugih projekata postaju tješnji",
+    "body": "Ovi projekti računaju na datum iz ovog plana. Nakon spremanja dobivaju tješnji datum kada osvježe svoje međuzavisnosti.",
+    "colProject": "Projekt",
+    "colTheirTask": "Njihov zadatak",
+    "colOwnTask": "Zadatak ovdje",
+    "colAnchor": "Referentni datum: stari → novi",
+    "saveAnyway": "Ipak spremi",
+    "cancel": "Odustani"
   }
 }

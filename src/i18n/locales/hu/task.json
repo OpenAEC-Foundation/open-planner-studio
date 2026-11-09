@@ -691,5 +691,11 @@
     "timeHint": "Üresen hagyva: a munkanap eleje vagy vége. Időponttal: pontosan ez a pillanat.",
     "later": "Negyedórával később",
     "earlier": "Negyedórával korábban"
+  },
+  "dependents": {
+    "title": "Függő projektek",
+    "successor": "Ottani utód",
+    "predecessor": "Ottani előd",
+    "anchor": "ezzel számol: {{date}}"
   }
 }
