@@ -1616,6 +1616,16 @@ en noem het in je rapport of PR-tekst.
      Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
      Gevonden in #804 fase 0. — B
 
+1011. **Eis voor #804 fase 1c: een onbekend schema met een vreemd deel gaat stil verloren bij opslaan.** Met de flag
+     `ifcForeignContent` neemt `readIfcBytesDetailed` bij een schema buiten `FOREIGN_CONTENT_SCHEMAS` (en zonder
+     schema in de kop) de huidige route, zonder `ifcSource` (`src/services/ifc/foreign/ifcBytesRoute.ts:36, 83-84`).
+     Zonder `IfcProduct` opent zo'n bestand dan zoals op main, en opslaan schrijft alleen de planning: vreemde
+     gegevens (een planning van een ander programma, onbekende psets) gaan stil verloren. Dat is niet slechter dan
+     main, en in 1a weigert de app opslaan nog niet op deze route. Ontwerp §4.11 zegt: "met een vreemd deel
+     geweigerd". Eis (wrakko, 9 november 2026): zodra 1c opslaan met een vreemd deel aanzet, mag geen vreemd deel stil
+     verloren gaan, ook niet bij een onbekend schema; anders is 1c niet klaar. Richting: deel ook dit bestand in, en
+     weiger of meld zoals §4.11. Uit #864 (fase 1a). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

@@ -38,6 +38,8 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 2. **1b schrijven**: de writer met behouden ids (§4.3, §4.4, §4.10 opbouw van de uitvoer), afwijking 8 (writer en lezer
    gebruiken dezelfde constanten als het register).
 3. **1c controles**: controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan, opslaan aan achter de flag.
+   **Eis voor 1c** (wrakko, 9 november 2026; knownbug 1011): zodra opslaan aan gaat, mag geen vreemd deel stil
+   verloren gaan, ook niet bij een onbekend schema (§4.11). Anders is 1c niet klaar.
 
 ## Werk
 
@@ -64,6 +66,9 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 
 ## Volgende stappen
 
-1. CI groen op #864; melden aan Trias met de drie open vragen.
+1. Antwoorden van wrakko (9 november 2026): rode weigermelding blijft; onbekend schema zonder model mag in 1a, eis voor
+   1c (knownbug 1011); kopie deelt de bron en houdt de weigering; poort `check-xer-chunk-boundary.ts` goed. Review door
+   Sol (xhigh) en Terra (proef) op de laatste commit door de orkestrator; vragen over wat de planner ziet eerst naar
+   wrakko; merge met `--match-head-commit`, merge-commit melden.
 2. Review door Sol (Trias start hem), fixrondes, merge.
 3. Dan 1b en 1c op eigen branches vanaf `main`.
