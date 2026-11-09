@@ -559,6 +559,12 @@ en noem het in je rapport of PR-tekst.
      met pad op het genormaliseerde pad van het document. `check-external-open-source.ts` toetst dat met een nep-lezer
      en de browsertest met een bron zonder pad (OPFS). Niet getoetst: twee bestanden open in de Tauri-app, met een pad
      in een andere schrijfwijze (hoofdletters op Windows, een symbolische link). — S
+989. **VERVOLG: een wachtende keuze-melding verschijnt pas bij de volgende melding of het volgende kruisje.**
+     `showWaitingNotifications` (`src/state/slices/uiSlice.ts`) draait in `notify` en `dismissNotification`. Haalt
+     andere code meldingen rechtstreeks uit `ui.notifications` (weigeringen bij een documentwissel in
+     `refusalNotice.ts`, de verschuivingsmelding in `scheduleSlice.ts`), dan blijft een wachtende keuze
+     (`holdUntilRoom`, review #860) staan tot er weer een melding komt of weggaat. Er gaat niets verloren. Voorstel:
+     die plekken via één helper laten lopen die daarna `showWaitingNotifications` aanroept. — S
 
 ## Tabel, invoer en bediening
 
