@@ -30,6 +30,7 @@
 // krijgt nooit achteraf een fout (de wijziging is al gedaan); dat antwoord wordt één compact rapport
 // (`compactChange`, zie "Grote wijzigingen"). Wat daarin moet blijven en niet zou passen, weigert `run` vóór
 // uitvoering (`linksTooLarge`). Ook een foutantwoord blijft binnen de grens (`boundedFailure`).
+import { AGENT_GUIDE_URL } from './tools/guideTools';
 import type { McpContext, McpToolDef, McpToolOk, McpToolResult } from './contracts';
 import { createRequestHandler, type McpResponseEvent } from './requestHandler';
 
@@ -122,7 +123,11 @@ function narrowHint(name: string, def: McpToolDef | undefined): string {
     return `Ask for a smaller page with \`limit\` and \`offset\`${narrow}.`;
   }
   if (name === 'planner_get_planning_guide') {
-    return 'Ask for one part at a time: first `part: "guide"` (the agent guide), then `part: "skill"` (the two skills).';
+    // De regels staan in de gids zelf; de skill goed-plannen verwijst er alleen naar (#818).
+    return (
+      'Ask for one part: `part: "guide"` (for building) or `part: "progress-update"` (progress). ' +
+      `If the guide alone is too large, read it at ${AGENT_GUIDE_URL}.`
+    );
   }
   if (name === 'planner_get_resource_histogram') {
     return 'Ask for less detail: one resource at a time in `resourceIds`, a shorter window with `van`/`tot`, or a coarser `bucket` ("maand").';
