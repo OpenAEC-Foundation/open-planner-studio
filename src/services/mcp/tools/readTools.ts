@@ -1183,9 +1183,10 @@ export const readTools: McpToolDef[] = [
     name: 'planner_get_task',
     description:
       'One task in full: early/late dates, total and free float, assignments, relationships. ' + FLOAT_UNIT_NOTE +
-      ' `externalLinks`: links to a task in another project file, with the frozen `anchorDate` and ' +
-      '`sourceMissing`; refresh with planner_refresh_external_links. A link on a summary task (phase) applies to ' +
-      'every task in it (`inheritedExternalLinks`, with `fromTaskId`). `interruptions` is in ' +
+      ' `externalLinks`: links to a task in another project file, with the frozen `anchorDate`; ' +
+      '`sourceMissing: true` = source task not found, the link keeps its anchor. Refresh with ' +
+      'planner_refresh_external_links. A link on a summary task (phase) applies to every task in it ' +
+      '(`inheritedExternalLinks`, with `fromTaskId`). `interruptions` is in ' +
       'planner_set_task_splits form; `calendar.effectiveId` is written as `calendarId` (unless ' +
       '`calendar.isProjectDefault`). Not errors: NEGATIVE `totalFloat` puts late dates before early ones; a ' +
       'completed task with `actualFinish` in non-working time ends on the previous working day ' +

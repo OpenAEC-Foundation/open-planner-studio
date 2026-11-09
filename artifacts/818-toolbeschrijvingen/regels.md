@@ -308,7 +308,7 @@ tool en de gids.
 | get_task: vroege en late datums, totale en vrije speling | tool (F38) |
 | get_task en get_critical_path: speling in werkdagen van de taakkalender, ook bij een uurtaak; ELAPSEDTIME in kalenderdagen | tool, één gedeelde zin `FLOAT_UNIT_NOTE` (fixronde 3, council-ronde 3 op #836: main zei het in de gids en in het voorbeeld van get_task; #836 haalt het uit de gids). Code: `CPMSolver.signedFloat`. Test `cases-uurkalender`: 4 uur naast 8 uur ⇒ `freeFloat` 0.5 |
 | get_task: `interruptions` in de vorm van set_task_splits; `effectiveId` → `calendarId`; negatieve speling; `actualFinishAdjusted` | tool (test `cases-statusdatum`) |
-| get_task: `externalLinks` (koppelingen naar een taak in een ander projectbestand) met richting, type, wachttijd, bevroren `anchorDate`, `sourceMissing` en bron (#797) | tool: "`externalLinks`: links to a task in another project file, with the frozen `anchorDate` and `sourceMissing`". Richting, type, wachttijd en bron: weg, zelfverklarende velden in het antwoord. Gedeeld contract met #836: deze regel blijft in de tool |
+| get_task: `externalLinks` (koppelingen naar een taak in een ander projectbestand) met richting, type, wachttijd, bevroren `anchorDate`, `sourceMissing` en bron (#797) | tool: "`externalLinks`: links to a task in another project file, with the frozen `anchorDate`; `sourceMissing: true` = source task not found, the link keeps its anchor" (de betekenis van `sourceMissing` op verzoek van council-ronde 7 van #836; `src/types/task.ts`: de koppeling rekent dan op het gecachte anker). Richting, type, wachttijd en bron: weg, zelfverklarende velden in het antwoord. Gedeeld contract met #836: deze regel blijft in de tool |
 | get_task: een koppeling op een fase geldt voor elke taak in die fase; zo'n taak toont haar onder `inheritedExternalLinks`, met de fase in `fromTaskId`/`fromWbs` (#797) | tool: "A link on a summary task (phase) applies to every task in it (`inheritedExternalLinks`, with `fromTaskId`)". `fromWbs`: weg, zelfverklarend. Gedeeld contract met #836 |
 | get_task: ververs de ankers met planner_refresh_external_links (#797) | tool |
 | get_task (main, #797): verzameltaak leidt voortgang af; MPP- en P6-bronvelden; `wbs`/`wbsCode`; de twee datums die fout lijken | zoals de rijen hierboven (fixronde 1–6); de merge nam de korte tekst |
@@ -396,7 +396,7 @@ principe in de agentgids.
 | Voortgang vraagt de statusdatum van de gebruiker; nooit verzinnen | instructies (test: "status date") |
 | Werkelijke start- en einddatums van de gebruiker doorgeven | instructies + tool update_tasks (fixronde 1: het was weg) |
 | Afsluiten met de aannames en wat je niet deed | instructies: "Report what you assumed … and omitted" (test: "assumed"; fixronde 7: Sols "Report assumptions … and omissions" laat dat woord vallen) |
-| Gids en skills via planner_get_planning_guide; bij voortgang `part: "progress-update"` | instructies (test). De URL is weg: elke client heeft de tool. `progress-update` als `part` bestaat pas met PR #836; zonder #836 weigert de tool hem met de geldige waarden. Fixronde 6: "Before building or restructuring" (zo gold de leesplicht op main) |
+| Gids en skills via planner_get_planning_guide; bij voortgang `part: "progress-update"` | instructies: "Before building or restructuring, read `planner_get_planning_guide`." (test). De URL is weg: elke client heeft de tool. Fixronde 6: "Before building or restructuring" (zo gold de leesplicht op main). Na council-ronde 7 van #836: "; for progress, `part: "progress-update"`" is weg uit de instructies, want de beschrijving van planner_get_planning_guide in #836 zegt het al; de test eist het woord niet meer in de instructies |
 
 ## Annotaties (fixronde 3: terug zoals op `main`)
 
@@ -433,7 +433,7 @@ Deze teksten komen per sessie bovenop `MCP_INSTRUCTIONS`.
 | Resourcetekst van Sol | bijna letterlijk | klopt met de code |
 | `wbs`-zin 2× | allebei weg | het schema biedt `wbs`/`wbsCode` niet aan en de handler weigert met de lijst; test `cases-stille-noops` toetst nu het schema |
 | `FRESH_NOTE` alleen in `MCP_INSTRUCTIONS` | ook één zin bij get_project_info | de SuperCloud-export heeft geen instructies (F1) |
-| Laatste regel `MCP_INSTRUCTIONS`: `part: "progress-update"` | overgenomen | die `part`-waarde bestaat pas met PR #836. Zonder #836 weigert de tool hem met de geldige waarden (geen stille fout) |
+| Laatste regel `MCP_INSTRUCTIONS`: `part: "progress-update"` | overgenomen, later weer weg | stond er tot council-ronde 7 van #836; nu zegt alleen de gidstool (#836) het. Zo hangt deze PR niet meer van de `part`-waarde van #836 af |
 
 ## Afstemming met PR #836: de 53 feiten uit `artifacts/818-gids-zuinig/feiten-in-tools.md`
 
