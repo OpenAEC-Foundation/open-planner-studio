@@ -2021,3 +2021,17 @@ en noem het in je rapport of PR-tekst.
      overbodig. Voorstel: haal eerst de koppelingen uit het ingelezen antwoord en kort datzelfde antwoord daarna in. Dan
      kan de lijst `originals` weg. Gebruik ook `moveLinks` voor de losse aanroep, want de `else`-tak doet hetzelfde nog
      eens. Opruimen; het gedrag klopt. Uit de review van #825 (GPT-6.1-Sol, xhigh, ronde 7, BEVESTIGD, VERVOLG). — B
+
+953. **VERVOLG: een externe opvolger kan de naam achter een balk bedekken.** `drawTaskBars` tekent de externe
+     ghost-balken (`drawExternalGhosts`) ná de balk en zijn naam (`src/engine/renderer/GanttRenderer.ts`, de lus in
+     `drawTaskBars`). Begint een externe opvolger vlak achter de balk, dan ligt de half doorzichtige ghost over het begin
+     van de naam. Dit geldt voor elke naam die `drawOutsideBarName` rechts achter een balk zet: taak, samenvatting en
+     hammock. Het is dus niet nieuw met #842. Voorstel: teken de naam ná de ghosts, of laat de naam voorbij een externe
+     opvolger beginnen. Uit de review van #842 (Terra, VERVOLG). — S
+
+954. **VERVOLG: geen browsertest klikt op de naam achter een balk.** Sinds #842 herkennen klik, dubbelklik en tooltip
+     ook de naam rechts achter de balk (`GanttRenderer.getTaskNameAt`, gebruikt in `useGanttPointerCoordinator.ts` en
+     `GanttCanvas.tsx`). `tests/planning/check-gantt-label-ellipsis.ts` bewijst de hittest in de renderer, maar niet de
+     koppeling met de echte muis: een klik op de naam selecteert de taak, een dubbelklik opent hem, een mousedown op de
+     naam start geen sleep, pan of kaderselectie. Voorstel: één stap in een bestaand Gantt-scenario met een hammock.
+     Uit de review van #842 (GPT-6.1-Sol, xhigh, VERVOLG). — B

@@ -218,7 +218,8 @@ export function useGanttPointerCoordinator(
     const y = event.clientY - rect.top;
     if (y < headerHeight) return;
 
-    const task = renderer.getRelationSourceAt(x, y);
+    // Ook de naam rechts achter de balk hoort bij de taak (`getTaskNameAt`).
+    const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
     if (!task) {
       deselectAll();
       return;
@@ -235,7 +236,7 @@ export function useGanttPointerCoordinator(
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const task = renderer.getRelationSourceAt(x, y);
+    const task = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
     if (task) openTask(task.id);
   }, [canvasRef, rendererRef, openTask]);
 
@@ -378,6 +379,12 @@ export function useGanttPointerCoordinator(
       selectTask(gapHit.task.id, false);
       return;
     }
+    // De naam rechts achter de balk is geen grijpvlak, maar ook geen achtergrond: geen sleep, pan
+    // of kaderselectie. De click-handler selecteert de taak (ook met Ctrl/Cmd of Shift).
+    if (!hit && renderer.getTaskNameAt(x, y)) {
+      event.preventDefault();
+      return;
+    }
 
     if (hit) {
       // 5. Ctrl/Cmd op een balk is selectie; de latere click-handler voert de toggle uit.
@@ -471,14 +478,14 @@ export function useGanttPointerCoordinator(
       setHoverCursor('default');
       return;
     }
-    const hoveredTask = renderer.getRelationSourceAt(x, y);
+    const hoveredTask = renderer.getRelationSourceAt(x, y) ?? renderer.getTaskNameAt(x, y);
     if (hoveredTask) {
       setTooltip({ x: event.clientX, y: event.clientY, task: hoveredTask });
     } else {
       setTooltip(null);
     }
-    // Een pauze is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
-    if (renderer.getSplitGapAt(x, y)) {
+    // Een pauze of een naam is geen grijpvlak én geen achtergrond: gewone cursor, geen pan-grijphand.
+    if (renderer.getSplitGapAt(x, y) || renderer.getTaskNameAt(x, y)) {
       setHoverCursor('default');
       return;
     }

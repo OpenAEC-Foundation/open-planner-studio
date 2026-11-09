@@ -371,6 +371,10 @@ export class GanttRenderer {
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
+  /** Horizontale plek van de naam die de laatste render RECHTS ACHTER een balk tekende
+   *  (`drawOutsideBarName`), per taak-id. Zo herkennen klik, dubbelklik en tooltip ook de naam
+   *  (`getTaskNameAt`); de sleepgrepen van de balk blijven even groot. */
+  private outsideNameSpans = new Map<string, { left: number; right: number }>();
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
@@ -1299,6 +1303,7 @@ export class GanttRenderer {
 
   private drawTaskBars(): void {
     this.baselineHits.clear();
+    this.outsideNameSpans.clear();
     const { barHeight, barOffset } = this.bar;
 
     // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
@@ -1403,16 +1408,26 @@ export class GanttRenderer {
    * anders loopt die pijllijn dwars door de naam. Volledig tot `OUTSIDE_LABEL_MAX` px (daarna een
    * ellips) en nooit voorbij de canvasrand. Een smalle rand in de achtergrondkleur houdt de tekst
    * leesbaar boven de spelingsband en de relatiepijlen.
+   *
+   * Is er rechts te weinig ruimte (balk vlak bij of voorbij de rand, door inzoomen, schuiven of een
+   * lange balk), dan schuift de naam mee naar links tot hij tegen de canvasrand staat, over het eind
+   * van de balk heen. Hij springt dus niet naar de linkerkant van de balk (geen wisselen tussen links
+   * en rechts, eigenaar 10-10-2026) en verdwijnt ook niet. De afdruk valt wel terug naar links
+   * (`printPreview.drawBarLabel`); daar schuift niets.
    */
-  private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
+  private drawOutsideBarName(taskId: string, name: string, color: string, barRight: number, textY: number): void {
     const ctx = this.ctx;
-    const x = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
-    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - x - 4);
+    const edge = this.opts.canvasWidth - 4;
+    const preferredX = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
+    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, edge - 4);
     if (maxWidth < 16) return;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     const label = this.ellipsize(name, maxWidth);
     if (!label) return;
+    const labelWidth = ctx.measureText(label).width;
+    const x = Math.max(4, Math.min(preferredX, edge - labelWidth));
+    this.outsideNameSpans.set(taskId, { left: x, right: x + labelWidth });
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
@@ -1722,7 +1737,7 @@ export class GanttRenderer {
         }
       } else {
         if (isDone && greyTones && width >= checkSize * 2.2 + 10) drawCheck(x1 + (width - checkSize * 2.2) / 2);
-        this.drawOutsideBarName(task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
+        this.drawOutsideBarName(task.id, task.name, isDone ? this.colors.textSecondary : this.colors.text, x1 + width, textY);
       }
     }
     return resourceAccentHeight;
@@ -1769,7 +1784,7 @@ export class GanttRenderer {
     }
 
     // Net als bij samenvattingstaken staat de naam altijd achter de dunne balk.
-    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2);
+    this.drawOutsideBarName(task.id, task.name, this.colors.text, x1 + width, y + height / 2);
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -1820,7 +1835,7 @@ export class GanttRenderer {
 
     // Naam ALTIJD rechts achter de balk, ook als hij erin zou passen (issue #729): op de dunne
     // fasebalk is een naam slecht leesbaar, en zo staat hij op dezelfde plek als op de afdruk.
-    this.drawOutsideBarName(task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2);
+    this.drawOutsideBarName(task.id, task.name, completion >= 1 ? this.colors.textSecondary : this.colors.text, x1 + width, y + height / 2);
   }
 
   /** Schermpositie (canvas-x) van de mijlpaal-ruit voor `task`, of `null` als er niets is om op te
@@ -2532,6 +2547,16 @@ export class GanttRenderer {
   getTaskAtY(canvasY: number): Task | null {
     const row = this.getRowAtY(canvasY);
     return row?.kind === 'task' ? row.task : null;
+  }
+
+  /** Hit test: staat `canvasX`/`canvasY` op de naam die de laatste render rechts achter de balk
+   *  tekende (`drawOutsideBarName`)? Alleen voor selectie, openen en tooltip; sleep- en
+   *  relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`). */
+  getTaskNameAt(canvasX: number, canvasY: number): Task | null {
+    const task = this.getTaskAtY(canvasY);
+    if (!task) return null;
+    const span = this.outsideNameSpans.get(task.id);
+    return span && canvasX >= span.left && canvasX <= span.right ? task : null;
   }
 
   /** Hit test: get the row index for a Y position */

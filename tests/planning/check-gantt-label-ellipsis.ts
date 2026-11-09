@@ -187,6 +187,86 @@ if (rectKort && rectLang) {
   ok('samenvatting lang: geen naam op de balk', !langTeksten.some(t => t.x < rectSumLang.right));
 }
 
+// ── Hammock: naam altijd achter de dunne balk, ook bij een smalle balk en bij de canvasrand ──
+// Een hammock tekende zijn naam vroeger OP de dunne balk en alleen bij een balk breder dan 40 px.
+// Nu staat hij rechts achter de balk (`drawOutsideBarName`). Is daar te weinig ruimte, dan schuift de
+// naam tegen de rechterrand van het canvas, over het eind van de balk; hij verdwijnt niet en springt
+// niet naar links. Ook klik, dubbelklik en tooltip herkennen de naam (`getTaskNameAt`), zonder dat de
+// sleep- of relatiegreep groter wordt.
+{
+  const tijd = (start: string, finish: string) => ({
+    ...time,
+    scheduleStart: start, scheduleFinish: finish,
+    earlyStart: start, earlyFinish: finish, lateStart: start, lateFinish: finish,
+  });
+  const NAAM = 'Bouwkeet';
+  const hamSmal: Task = { ...kort, id: 'ham-smal', name: NAAM, isHammock: true, time: tijd('2026-01-05', '2026-01-05') } as Task;
+  const hamRand: Task = { ...kort, id: 'ham-rand', name: NAAM, isHammock: true, time: tijd('2026-01-26', '2026-01-28') } as Task;
+  const hamVoorbij: Task = { ...kort, id: 'ham-voorbij', name: NAAM, isHammock: true, time: tijd('2026-01-20', '2026-03-02') } as Task;
+  const sumRand: Task = { ...kort, id: 'sum-rand', name: NAAM, isSummary: true, time: tijd('2026-01-26', '2026-01-28') } as Task;
+  const smalRows: ViewRow[] = [hamSmal, hamRand, hamVoorbij, sumRand]
+    .map(t => ({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: false }));
+  const SMAL_W = 600;
+  const { ctx: ctx2, texts: texts2 } = makeCtx();
+  const r2 = new GanttRenderer(ctx2, {
+    rows: smalRows,
+    sequences: [],
+    calendar: st.calendar,
+    view: { ...st.view, scrollX: 0, scrollY: 0, zoom: ZOOM, viewStartDate: FIXED_START },
+    selectedTaskIds: [],
+    showStatusDateLine: false,
+    showProgressLine: false,
+    canvasWidth: SMAL_W,
+    canvasHeight: H,
+    rowHeight: ROWH,
+    headerHeight: HDRH,
+  });
+  r2.render();
+  const rSmal = r2.getTaskBarRect('ham-smal');
+  const rRand = r2.getTaskBarRect('ham-rand');
+  const rVoorbij = r2.getTaskBarRect('ham-voorbij');
+  ok('hammock: alle drie de balken hebben een geometrie', rSmal !== null && rRand !== null && rVoorbij !== null);
+  if (rSmal && rRand && rVoorbij) {
+    const rSum = rijOnder(rRand, 2);
+    const naamW = NAAM.length * CHAR_W;
+    const opRij = (r: { top: number; bottom: number }) => texts2.filter(rijY(r));
+    const fmt2 = (r: { top: number; bottom: number }) => JSON.stringify(opRij(r).map(t => [t.text, t.x]));
+    const midY = (r: { top: number; bottom: number }) => (r.top + r.bottom) / 2;
+
+    // Smal: vroeger geen naam (balk ≤ 40 px), nu volledig achter de balk.
+    ok(`hammock smal: opzet balk ≤ 40 px (${rSmal.right - rSmal.left})`, rSmal.right - rSmal.left <= 40);
+    const smalTeksten = opRij(rSmal);
+    ok(`hammock smal: precies één naam, rechts achter de balk (${fmt2(rSmal)})`,
+      smalTeksten.length === 1 && smalTeksten[0].text === NAAM && Math.abs(smalTeksten[0].x - (rSmal.right + OUTSIDE_GAP)) < 0.001);
+
+    // Bij de rand: rechts te weinig ruimte, dus tegen de canvasrand, volledig, niet links van de balk.
+    const randGevallen: [string, { left: number; right: number; top: number; bottom: number }][] = [
+      ['hammock bij de rand', rRand], ['hammock voorbij de rand', rVoorbij], ['samenvatting bij de rand', { ...rSum, right: rRand.right }],
+    ];
+    ok(`opzet: rechts van de randbalk is te weinig ruimte (${rRand.right + OUTSIDE_GAP + naamW} > ${SMAL_W - 4})`,
+      rRand.right + OUTSIDE_GAP + naamW > SMAL_W - 4 && rRand.right < SMAL_W);
+    ok(`opzet: de lange hammock loopt voorbij de canvasrand (${rVoorbij.right})`, rVoorbij.right > SMAL_W);
+    for (const [label, r] of randGevallen) {
+      const t = opRij(r);
+      ok(`${label}: precies één naam, volledig (${fmt2(r)})`, t.length === 1 && t[0].text === NAAM);
+      ok(`${label}: naam eindigt tegen de canvasrand (${fmt2(r)})`, t.length === 1 && Math.abs(t[0].x + naamW - (SMAL_W - 4)) < 0.001);
+      ok(`${label}: naam begint niet links van de balk (${fmt2(r)})`, t.length === 1 && (r === rVoorbij || t[0].x + naamW > r.right));
+    }
+
+    // Interactie: de naam hoort bij de taak voor selectie, openen en tooltip …
+    const naamX = rSmal.right + OUTSIDE_GAP + naamW / 2;
+    ok('naam-hittest: midden van de naam geeft de hammock', r2.getTaskNameAt(naamX, midY(rSmal))?.id === 'ham-smal');
+    ok('naam-hittest: voorbij de naam geeft niets', r2.getTaskNameAt(rSmal.right + OUTSIDE_GAP + naamW + 5, midY(rSmal)) === null);
+    ok('naam-hittest: de naam op de randbalk telt ook', r2.getTaskNameAt(SMAL_W - 10, midY(rRand))?.id === 'ham-rand');
+    ok('naam-hittest: de naam van de samenvatting telt ook', r2.getTaskNameAt(SMAL_W - 10, midY(rSum))?.id === 'sum-rand');
+    // … maar wordt geen sleep- of relatiegreep.
+    ok('naam is geen sleepgreep', r2.getTaskBarBounds(naamX, midY(rSmal)) === null);
+    ok('naam is geen relatiegreep', r2.getRelationSourceAt(naamX, midY(rSmal)) === null);
+  }
+  // De eerste scène tekende geen naam ver weg: daar herkent de hittest ook niets.
+  ok('naam-hittest: lege rij geeft niets', renderer.getTaskNameAt(5, HDRH + ROWH * 10) === null);
+}
+
 // ── Uitslag ─────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  gantt-label-ellipsis: alle checks groen (${checks})`);
