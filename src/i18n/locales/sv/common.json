@@ -336,7 +336,7 @@
     "noWorkingDays": "Kalendern har inga arbetsdagar inställda",
     "invalidDayDuration": "Ogiltig varaktighet i dagar för uppgift '{{task}}'",
     "invalidHourDuration": "Ogiltig varaktighet i timmar för uppgift '{{task}}'",
-    "hourTaskWithoutWorkHours": "Timuppgift '{{task}}' har inga giltiga arbetstider i sin kalender",
+    "hourTaskWithoutWorkHours": "Kalendern för timuppgiften ”{{task}}” har inga giltiga arbetstider. Kontrollera arbetsdagarna, starten, slutet och rasten i den kalendern.",
     "taskWithoutWorkHours": "Kalendern för uppgiften ”{{task}}” har inga giltiga arbetstider. Kontrollera i den kalendern arbetsdagarna, starten, slutet och rasten.",
     "noWorkingHours": "Projektkalendern har inga giltiga arbetstider. Kontrollera i den kalendern starten, slutet och rasten.",
     "invalidStartDate": "Ogiltigt startdatum för uppgift '{{task}}'"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Hur du byter mellan öppna dokument.",
     "ribbonSection": "Menyfliksområde",
     "ribbonWheelSwitchesTabs": "Byt menyflik med mushjulet",
-    "ribbonWheelSwitchesTabsHint": "Rulla med mushjulet över menyflikarna. Nedåt går till nästa flik, uppåt till den föregående.",
+    "ribbonWheelSwitchesTabsHint": "Rulla med mushjulet över menyfliksområdet, flikarna eller knapparna. Nedåt går till nästa flik, uppåt till den föregående.",
     "documentChromeTabs": "Horisontella flikar",
     "documentChromeRail": "Vertikala flikar",
     "documentChromeSwitcher": "Kapsel",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Uppdatera framdrift från ett kalkylblad",
     "chooseFile": "Välj fil…",
-    "intro": "Välj ett tillbaka skickat CSV- eller XLSX-blad. Appen läser bara slutförandegrad, verklig start och verkligt slut. Resten av din tidsplan förblir oförändrad.",
+    "intro": "Välj ett tillbaka skickat Excel-blad (.xlsx). Appen läser bara slutförandegrad, verklig start och verkligt slut. Resten av din tidsplan förblir oförändrad.",
     "summaryApplied": "Tillämpat: {{applied}}",
     "summaryNoop": "Oförändrat: {{noop}}",
     "summaryNeedsLink": "Väntar på länk: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Appen tog över WBS och uppgifterna, med samband, restriktioner, kalendrar, resurser, tilldelningar, framdrift och rapportdatumet. Ett baslinjeprojekt blir en baslinje för projektet som det hör till.",
-        "limited": "Måldatum, uppgiftskoder, egna fält och anteckningar följer inte med. Projektet beräknar med profilen ”Open Planner Studio”, inte som ”Primavera P6”.",
+        "limited": "Måldatum, uppgiftskoder, egna fält och anteckningar följer inte med. Projektet beräknar som Primavera P6, med beräkningsalternativen från filen.",
         "save": "Spara skriver en ny IFC-fil: din XML-fil ändras inte. Du kan skriva tillbaka med Exportera › ”Primavera P6 XML”."
       },
       "csv": {

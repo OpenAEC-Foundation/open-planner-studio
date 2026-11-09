@@ -325,7 +325,7 @@
     "exportTitle": "Eksportér",
     "exportSubtitle": "Vælg et format. Projektet konverteres og gemmes.",
     "progressImportCardTitle": "Opdater fremdrift fra et regneark",
-    "progressImportCardDesc": "Indlæs et tilbagesendt CSV- eller XLSX-ark og opdater færdiggørelsesgrad, faktisk startdato og faktisk slutdato.",
+    "progressImportCardDesc": "Indlæs et tilbagesendt Excel-ark (.xlsx) og opdater færdiggørelsesgrad, faktisk startdato og faktisk slutdato.",
     "printTitle": "Udskriv",
     "printSubtitle": "Åbn rapportskærmen for forhåndsvisning og indstillinger.",
     "openPrintPreview": "Åbn forhåndsvisning",

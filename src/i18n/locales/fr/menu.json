@@ -327,7 +327,7 @@
     "exportTitle": "Exporter",
     "exportSubtitle": "Choisissez un format. Le projet sera converti et enregistré.",
     "progressImportCardTitle": "Mettre à jour l'avancement depuis une feuille",
-    "progressImportCardDesc": "Lisez une feuille CSV ou XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
+    "progressImportCardDesc": "Lisez une feuille XLSX renvoyée et mettez à jour l'avancement, le début réel et la fin réelle.",
     "printTitle": "Imprimer",
     "printSubtitle": "Ouvrez l'écran de rapport pour l'aperçu avant impression et les paramètres.",
     "openPrintPreview": "Ouvrir l'aperçu avant impression",

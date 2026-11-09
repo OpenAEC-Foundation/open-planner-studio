@@ -528,7 +528,7 @@
     "noWorkingDays": "W kalendarzu nie ustawiono dni roboczych",
     "invalidDayDuration": "Nieprawidłowy czas trwania w dniach dla zadania '{{task}}'",
     "invalidHourDuration": "Nieprawidłowy czas trwania w godzinach dla zadania '{{task}}'",
-    "hourTaskWithoutWorkHours": "Zadanie godzinowe '{{task}}' nie ma prawidłowych godzin pracy w swoim kalendarzu",
+    "hourTaskWithoutWorkHours": "Kalendarz zadania godzinowego '{{task}}' nie ma prawidłowych godzin pracy. Sprawdź w tym kalendarzu dni robocze, początek, koniec i przerwę.",
     "taskWithoutWorkHours": "Kalendarz zadania '{{task}}' nie ma prawidłowych godzin pracy. Sprawdź w tym kalendarzu dni robocze, początek, koniec i przerwę.",
     "noWorkingHours": "Kalendarz projektu nie ma prawidłowych godzin pracy. Sprawdź w tym kalendarzu początek, koniec i przerwę.",
     "invalidStartDate": "Nieprawidłowa data rozpoczęcia dla zadania '{{task}}'"
@@ -702,7 +702,7 @@
     "documentChromeHint": "Sposób przełączania między otwartymi dokumentami.",
     "ribbonSection": "Wstążka",
     "ribbonWheelSwitchesTabs": "Przełączaj karty kółkiem myszy",
-    "ribbonWheelSwitchesTabsHint": "Obracaj kółko myszy nad rzędem kart wstążki. W dół przechodzi do następnej karty, w górę do poprzedniej.",
+    "ribbonWheelSwitchesTabsHint": "Obracaj kółko myszy nad wstążką, nad kartami lub nad przyciskami. W dół przechodzi do następnej karty, w górę do poprzedniej.",
     "documentChromeTabs": "Karty poziome",
     "documentChromeRail": "Karty pionowe",
     "documentChromeSwitcher": "Pigułka",
@@ -1677,7 +1677,7 @@
   "progressImport": {
     "title": "Aktualizuj postęp z arkusza",
     "chooseFile": "Wybierz plik…",
-    "intro": "Wybierz zwrócony arkusz CSV lub XLSX. Aplikacja odczytuje tylko ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie — reszta harmonogramu pozostaje bez zmian.",
+    "intro": "Wybierz zwrócony arkusz Excel (.xlsx). Aplikacja odczytuje tylko ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie — reszta harmonogramu pozostaje bez zmian.",
     "summaryApplied": "Zastosowano: {{applied}}",
     "summaryNoop": "Bez zmian: {{noop}}",
     "summaryNeedsLink": "Czeka na powiązanie: {{needsLink}}",
@@ -2034,7 +2034,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Aplikacja przejęła WBS, zadania, relacje, ograniczenia, kalendarze, zasoby, przydziały, postęp oraz datę statusu. Projekt z planem bazowym staje się planem bazowym projektu, do którego należy.",
-        "limited": "Terminy ostateczne, kody czynności, pola niestandardowe i notatki nie są uwzględniane. Projekt oblicza według profilu Open Planner Studio, a nie jak Primavera P6.",
+        "limited": "Terminy ostateczne, kody czynności, pola niestandardowe i notatki nie są uwzględniane. Projekt oblicza jak Primavera P6, z opcjami obliczeń z pliku.",
         "save": "Zapis tworzy nowy plik IFC: twój plik XML się nie zmienia. Zapisać z powrotem możesz przez Eksport › Primavera P6 XML."
       },
       "csv": {

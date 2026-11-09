@@ -325,7 +325,7 @@
     "exportTitle": "Exportálás",
     "exportSubtitle": "Válasszon formátumot. A projekt át lesz alakítva és mentve lesz.",
     "progressImportCardTitle": "Előrehaladás frissítése táblázatból",
-    "progressImportCardDesc": "Olvassa be a visszaküldött CSV- vagy XLSX-táblázatot, és frissítse az elkészültséget, a tényleges kezdést és a tényleges befejezést.",
+    "progressImportCardDesc": "Olvassa be a visszaküldött Excel-táblázatot (.xlsx), és frissítse az elkészültséget, a tényleges kezdést és a tényleges befejezést.",
     "printTitle": "Nyomtatás",
     "printSubtitle": "Nyissa meg a jelentésnézetet a nyomtatási előnézethez és a beállításokhoz.",
     "openPrintPreview": "Nyomtatási előnézet megnyitása",

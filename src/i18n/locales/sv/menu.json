@@ -325,7 +325,7 @@
     "exportTitle": "Exportera",
     "exportSubtitle": "Välj ett format. Projektet konverteras och sparas.",
     "progressImportCardTitle": "Uppdatera framdrift från ett blad",
-    "progressImportCardDesc": "Läs in ett returnerat CSV- eller XLSX-blad och uppdatera slutförandegrad, verklig start och verkligt slut.",
+    "progressImportCardDesc": "Läs in ett returnerat Excel-blad (.xlsx) och uppdatera slutförandegrad, verklig start och verkligt slut.",
     "printTitle": "Skriv ut",
     "printSubtitle": "Öppna rapporten för utskriftsförhandsvisning och inställningar.",
     "openPrintPreview": "Öppna förhandsgranskning",

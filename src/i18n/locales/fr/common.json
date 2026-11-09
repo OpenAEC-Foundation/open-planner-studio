@@ -432,7 +432,7 @@
     "noWorkingDays": "Aucun jour ouvré n'est défini dans le calendrier",
     "invalidDayDuration": "Durée en jours non valide pour la tâche '{{task}}'",
     "invalidHourDuration": "Durée en heures non valide pour la tâche '{{task}}'",
-    "hourTaskWithoutWorkHours": "La tâche en heures '{{task}}' n'a pas d'horaires de travail valides dans son calendrier",
+    "hourTaskWithoutWorkHours": "Le calendrier de la tâche en heures '{{task}}' n'a pas d'horaires de travail valides. Vérifiez dans ce calendrier les jours ouvrés, le début, la fin et la pause.",
     "taskWithoutWorkHours": "Le calendrier de la tâche « {{task}} » n'a pas d'horaires de travail valides. Dans ce calendrier, vérifiez les jours ouvrés, le début, la fin et la pause.",
     "noWorkingHours": "Le calendrier du projet n'a pas d'horaires de travail valides. Dans ce calendrier, vérifiez le début, la fin et la pause.",
     "invalidStartDate": "Date de début non valide pour la tâche '{{task}}'"
@@ -605,7 +605,7 @@
     "documentChromeHint": "Comment vous basculez entre les documents ouverts.",
     "ribbonSection": "Ruban",
     "ribbonWheelSwitchesTabs": "Changer d'onglet avec la molette de la souris",
-    "ribbonWheelSwitchesTabsHint": "Faites tourner la molette de la souris au-dessus des onglets du ruban. Vers le bas, passez à l'onglet suivant ; vers le haut, à l'onglet précédent.",
+    "ribbonWheelSwitchesTabsHint": "Faites tourner la molette de la souris au-dessus du ruban, des onglets ou des boutons. Vers le bas, passez à l'onglet suivant ; vers le haut, à l'onglet précédent.",
     "documentChromeTabs": "Onglets horizontaux",
     "documentChromeRail": "Onglets verticaux",
     "documentChromeSwitcher": "Pastille",
@@ -1564,7 +1564,7 @@
   "progressImport": {
     "title": "Mettre à jour l'avancement depuis une feuille",
     "chooseFile": "Choisir un fichier…",
-    "intro": "Choisissez une feuille CSV ou XLSX renvoyée. L'application lit uniquement l'avancement, le début réel et la fin réelle — le reste de votre planning reste inchangé.",
+    "intro": "Choisissez une feuille Excel renvoyée (.xlsx). L'application lit uniquement l'avancement, le début réel et la fin réelle — le reste de votre planning reste inchangé.",
     "summaryApplied": "Appliqué : {{applied}}",
     "summaryNoop": "Inchangé : {{noop}}",
     "summaryNeedsLink": "En attente de liaison : {{needsLink}}",
@@ -1919,7 +1919,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "L'application a repris le WBS et les tâches, avec les relations, contraintes, calendriers, ressources, affectations, avancement et la date d'état. Un projet de référence devient une référence du projet auquel il appartient.",
-        "limited": "Les échéances, codes d'activité, champs personnalisés et notes ne sont pas inclus. Le projet calcule avec le profil Open Planner Studio, et non comme Primavera P6.",
+        "limited": "Les échéances, codes d'activité, champs personnalisés et notes ne sont pas inclus. Le projet calcule comme Primavera P6, avec les options de calcul du fichier.",
         "save": "Enregistrer crée un nouveau fichier IFC : votre fichier XML ne change pas. Vous pouvez le réécrire avec Exporter › Primavera P6 XML."
       },
       "csv": {

@@ -336,7 +336,7 @@
     "noWorkingDays": "Kalenterissa ei ole asetettu työpäiviä",
     "invalidDayDuration": "Virheellinen kesto päivinä tehtävälle '{{task}}'",
     "invalidHourDuration": "Virheellinen kesto tunteina tehtävälle '{{task}}'",
-    "hourTaskWithoutWorkHours": "Tuntitehtävällä '{{task}}' ei ole kelvollisia työtunteja kalenterissaan",
+    "hourTaskWithoutWorkHours": "Tuntitehtävällä {{task}} ei ole kelvollisia työtunteja kalenterissaan. Tarkista kyseisestä kalenterista työpäivät, alku, loppu ja tauko.",
     "taskWithoutWorkHours": "Tehtävän ”{{task}}” kalenterissa ei ole kelvollisia työtunteja. Tarkista siinä kalenterissa työpäivät, alku, loppu ja tauko.",
     "noWorkingHours": "Projektin kalenterissa ei ole kelvollisia työtunteja. Tarkista siinä kalenterissa alku, loppu ja tauko.",
     "invalidStartDate": "Virheellinen aloituspäivä tehtävälle '{{task}}'"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Miten avattujen asiakirjojen välillä vaihdetaan.",
     "ribbonSection": "Valintanauha",
     "ribbonWheelSwitchesTabs": "Välilehden vaihto hiiren rullalla",
-    "ribbonWheelSwitchesTabsHint": "Käännä hiiren rullaa valintanauhan välilehti -kohdan päällä. Alas siirtyy seuraavaan välilehteen, ylös edelliseen.",
+    "ribbonWheelSwitchesTabsHint": "Käännä hiiren rullaa valintanauhan, välilehtien tai painikkeiden päällä. Alas siirtyy seuraavaan välilehteen, ylös edelliseen.",
     "documentChromeTabs": "Vaakasuuntaiset välilehdet",
     "documentChromeRail": "Pystysuuntaiset välilehdet",
     "documentChromeSwitcher": "Kapseli",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Tuo edistyminen taulukosta",
     "chooseFile": "Valitse tiedosto…",
-    "intro": "Valitse palautettu CSV- tai XLSX-taulukko. Sovellus lukee vain valmiusasteen, toteutuneen alkamispäivän ja toteutuneen valmistumispäivän. Muu aikataulu pysyy ennallaan.",
+    "intro": "Valitse palautettu Excel-taulukko (.xlsx). Sovellus lukee vain valmiusasteen, toteutuneen alkamispäivän ja toteutuneen valmistumispäivän. Muu aikataulu pysyy ennallaan.",
     "summaryApplied": "Sovellettu: {{applied}}",
     "summaryNoop": "Ennallaan: {{noop}}",
     "summaryNeedsLink": "Odottaa linkitystä: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Mukaan otettiin WBS ja tehtävät sekä riippuvuudet, rajoitteet, kalenterit, resurssit, resurssikohdistukset, edistyminen ja raportointipäivä. Perustasoprojekti siirtyy sen projektin perustasoon, johon se kuuluu.",
-        "limited": "Tavoitepäiviä, tehtäväkoodeja, mukautettuja kenttiä ja huomautuksia ei oteta mukaan. Projektia lasketaan profiililla ”Open Planner Studio”, ei profiililla ”Primavera P6”.",
+        "limited": "Tavoitepäiviä, tehtäväkoodeja, mukautettuja kenttiä ja huomautuksia ei oteta mukaan. Projektia lasketaan profiililla ”Primavera P6”, tiedoston laskentavaihtoehdoilla.",
         "save": "Tallennus kirjoittaa uuden IFC-tiedoston: XML-tiedosto ei muutu. Takaisin kirjoittaminen onnistuu komennolla Vie › Primavera P6 XML."
       },
       "csv": {

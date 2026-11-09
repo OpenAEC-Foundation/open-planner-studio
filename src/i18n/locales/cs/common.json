@@ -528,7 +528,7 @@
     "noWorkingDays": "Kalendář nemá nastaveny žádné pracovní dny",
     "invalidDayDuration": "Neplatná doba trvání v dnech pro úkol '{{task}}'",
     "invalidHourDuration": "Neplatná doba trvání v hodinách pro úkol '{{task}}'",
-    "hourTaskWithoutWorkHours": "Hodinový úkol '{{task}}' nemá v kalendáři platné pracovní hodiny",
+    "hourTaskWithoutWorkHours": "Hodinový úkol „{{task}}“ nemá v kalendáři platné pracovní hodiny. Zkontrolujte v tomto kalendáři pracovní dny, začátek, konec a přestávku.",
     "taskWithoutWorkHours": "Kalendář úkolu „{{task}}“ nemá platné pracovní hodiny. Zkontrolujte v tomto kalendáři pracovní dny, začátek, konec a přestávku.",
     "noWorkingHours": "Projektový kalendář nemá platné pracovní hodiny. Zkontrolujte v tomto kalendáři začátek, konec a přestávku.",
     "invalidStartDate": "Neplatné datum začátku pro úkol '{{task}}'"
@@ -702,7 +702,7 @@
     "documentChromeHint": "Jak přepínáte mezi otevřenými dokumenty.",
     "ribbonSection": "Pás karet",
     "ribbonWheelSwitchesTabs": "Přepínat záložky kolečkem myši",
-    "ribbonWheelSwitchesTabsHint": "Otočte kolečkem myši nad záložkami pásu karet. Dolů přejdete na další záložku, nahoru na předchozí.",
+    "ribbonWheelSwitchesTabsHint": "Otočte kolečkem myši nad pásem karet, nad záložkami nebo nad tlačítky. Dolů přejdete na další záložku, nahoru na předchozí.",
     "documentChromeTabs": "Vodorovné karty",
     "documentChromeRail": "Svislé karty",
     "documentChromeSwitcher": "Pilulka",
@@ -1677,7 +1677,7 @@
   "progressImport": {
     "title": "Aktualizovat průběh z tabulky",
     "chooseFile": "Vybrat soubor…",
-    "intro": "Vyberte vrácený list CSV nebo XLSX. Aplikace čte pouze procento dokončení, skutečné zahájení a skutečné dokončení. Zbytek vašeho plánu zůstane beze změny.",
+    "intro": "Vyberte vrácený list Excelu (.xlsx). Aplikace čte pouze procento dokončení, skutečné zahájení a skutečné dokončení. Zbytek vašeho plánu zůstane beze změny.",
     "summaryApplied": "Použito: {{applied}}",
     "summaryNoop": "Beze změny: {{noop}}",
     "summaryNeedsLink": "Čeká na propojení: {{needsLink}}",
@@ -2034,7 +2034,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Aplikace převzala WBS a úkoly, se závislostmi, omezeními, kalendáři, zdroji, přiřazeními, průběhem a datem stavu. Směrný projekt se stane směrným plánem projektu, ke kterému patří.",
-        "limited": "Konečné termíny, kódy aktivit, vlastní pole a poznámky se nepřevezmou. Projekt počítá s profilem Open Planner Studio, nikoli jako Primavera P6.",
+        "limited": "Konečné termíny, kódy aktivit, vlastní pole a poznámky se nepřevezmou. Projekt počítá jako Primavera P6, s možnostmi výpočtu ze souboru.",
         "save": "Uložením se zapíše nový soubor IFC: váš soubor XML se nemění. Zpětný zápis je možný v nabídce Export › Primavera P6 XML."
       },
       "csv": {

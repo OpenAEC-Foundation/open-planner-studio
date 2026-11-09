@@ -333,7 +333,7 @@
     "exportTitle": "تصدير",
     "exportSubtitle": "اختر صيغة. سيتم تحويل المشروع وحفظه.",
     "progressImportCardTitle": "تحديث التقدّم من ورقة بيانات",
-    "progressImportCardDesc": "اقرأ ورقة CSV أو XLSX مُعادة وحدّث نسبة الإنجاز والبداية الفعلية والنهاية الفعلية.",
+    "progressImportCardDesc": "اقرأ ورقة Excel (.xlsx) مُعادة وحدّث نسبة الإنجاز والبداية الفعلية والنهاية الفعلية.",
     "printTitle": "طباعة",
     "printSubtitle": "افتح شاشة التقرير لمعاينة الطباعة والإعدادات.",
     "openPrintPreview": "فتح معاينة الطباعة",

@@ -240,7 +240,7 @@
     "noWorkingDays": "日历中未设置工作日",
     "invalidDayDuration": "任务“{{task}}”的天数工期无效",
     "invalidHourDuration": "任务“{{task}}”的小时工期无效",
-    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间",
+    "hourTaskWithoutWorkHours": "小时任务“{{task}}”的日历中没有有效的工作时间。请在该日历中检查工作日、开始时间、结束时间和休息时间。",
     "taskWithoutWorkHours": "任务 '{{task}}' 的日历没有有效的工作时间。请在该日历中检查工作日、开始时间、结束时间和休息时间。",
     "noWorkingHours": "项目日历没有有效的工作时间。请在该日历中检查开始时间、结束时间和休息时间。",
     "invalidStartDate": "任务“{{task}}”的开始日期无效"
@@ -411,7 +411,7 @@
     "documentChromeHint": "在已打开的文档之间切换的方式。",
     "ribbonSection": "功能区",
     "ribbonWheelSwitchesTabs": "用鼠标滚轮切换功能区标签",
-    "ribbonWheelSwitchesTabsHint": "在功能区标签上转动鼠标滚轮。向下转到下一个标签，向上转到上一个标签。",
+    "ribbonWheelSwitchesTabsHint": "在功能区、标签或按钮上转动鼠标滚轮。向下转到下一个标签，向上转到上一个标签。",
     "documentChromeTabs": "横向标签页",
     "documentChromeRail": "纵向标签页",
     "documentChromeSwitcher": "胶囊",
@@ -1338,7 +1338,7 @@
   "progressImport": {
     "title": "从表格更新进度",
     "chooseFile": "选择文件…",
-    "intro": "请选择一份返回的 CSV 或 XLSX 表格。应用只读取完成度、实际开始日期和实际完成日期，你计划的其余部分保持不变。",
+    "intro": "请选择一份返回的 XLSX 表格。应用只读取完成度、实际开始日期和实际完成日期，你计划的其余部分保持不变。",
     "summaryApplied": "已应用：{{applied}}",
     "summaryNoop": "未变化：{{noop}}",
     "summaryNeedsLink": "等待关联：{{needsLink}}",
@@ -1689,7 +1689,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "应用导入了 WBS 和任务，以及关系、约束、日历、资源、分配、进度和状态日期。基线项目会成为其所属项目的一个基线。",
-        "limited": "截止日期、活动代码、自定义字段和备注不会被导入。项目使用 Open Planner Studio 配置文件计算，而不是 Primavera P6。",
+        "limited": "截止日期、活动代码、自定义字段和备注不会被导入。项目按 Primavera P6 计算，使用文件中的计算选项。",
         "save": "保存会写入一个新的 IFC 文件，你的 XML 文件不会改变。可以通过 导出 › Primavera P6 XML 写回。"
       },
       "csv": {

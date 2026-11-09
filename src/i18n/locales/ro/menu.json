@@ -327,7 +327,7 @@
     "exportTitle": "Exportare",
     "exportSubtitle": "Alegeți un format. Aplicația convertește și salvează proiectul.",
     "progressImportCardTitle": "Actualizare progres din foaie de calcul",
-    "progressImportCardDesc": "Citiți o foaie CSV sau XLSX returnată și actualizați procentul de finalizare, începutul efectiv și sfârșitul efectiv.",
+    "progressImportCardDesc": "Citiți o foaie Excel (.xlsx) returnată și actualizați procentul de finalizare, începutul efectiv și sfârșitul efectiv.",
     "printTitle": "Imprimare",
     "printSubtitle": "Deschideți ecranul rapoartelor pentru previzualizare la imprimare și setări.",
     "openPrintPreview": "Deschidere previzualizare la imprimare",

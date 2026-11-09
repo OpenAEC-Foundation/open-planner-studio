@@ -325,7 +325,7 @@
     "exportTitle": "Vienti",
     "exportSubtitle": "Valitse muoto. Projekti muunnetaan ja tallennetaan.",
     "progressImportCardTitle": "Päivitä edistyminen taulukosta",
-    "progressImportCardDesc": "Lue palautettu CSV- tai XLSX-taulukko ja päivitä valmiusaste, toteutunut alkamispäivä ja toteutunut valmistumispäivä.",
+    "progressImportCardDesc": "Lue palautettu Excel-taulukko (.xlsx) sisään ja päivitä valmiusaste, toteutunut alkamispäivä ja toteutunut valmistumispäivä.",
     "printTitle": "Tulostus",
     "printSubtitle": "Avaa raporttinäkymä tulostuksen esikatselua ja asetuksia varten.",
     "openPrintPreview": "Avaa tulostuksen esikatselu",

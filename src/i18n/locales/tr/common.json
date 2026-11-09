@@ -336,7 +336,7 @@
     "noWorkingDays": "Takvimde tanımlı iş günü yok",
     "invalidDayDuration": "'{{task}}' görevi için geçersiz gün cinsinden süre",
     "invalidHourDuration": "'{{task}}' görevi için geçersiz saat cinsinden süre",
-    "hourTaskWithoutWorkHours": "'{{task}}' saat görevinin takviminde geçerli çalışma saatleri yok",
+    "hourTaskWithoutWorkHours": "'{{task}}' saat görevinin takviminde geçerli çalışma saatleri yok. Bu takvimde iş günlerini, başlangıcı, bitişi ve molayı kontrol edin.",
     "taskWithoutWorkHours": "'{{task}}' görevinin takvimi geçerli çalışma saatlerine sahip değil. Bu takvimde iş günlerini, başlangıcı, bitişi ve molayı kontrol edin.",
     "noWorkingHours": "Proje takvimi geçerli çalışma saatlerine sahip değil. Bu takvimde başlangıcı, bitişi ve molayı kontrol edin.",
     "invalidStartDate": "'{{task}}' görevi için geçersiz başlangıç tarihi"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Açık belgeler arasında nasıl geçiş yaptığınız.",
     "ribbonSection": "Şerit",
     "ribbonWheelSwitchesTabs": "Fare tekerleğiyle şerit sekmeleri arasında geçiş",
-    "ribbonWheelSwitchesTabsHint": "Fare tekerleğini şerit sekmelerinin üzerinde çevirin. Aşağı doğru bir sonraki sekmeye, yukarı doğru bir önceki sekmeye geçer.",
+    "ribbonWheelSwitchesTabsHint": "Fare tekerleğini şeridin, sekmelerin veya düğmelerin üzerinde çevirin. Aşağı doğru bir sonraki sekmeye, yukarı doğru bir önceki sekmeye geçer.",
     "documentChromeTabs": "Yatay sekmeler",
     "documentChromeRail": "Dikey sekmeler",
     "documentChromeSwitcher": "Hap",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Bir tablodan ilerlemeyi güncelle",
     "chooseFile": "Dosya seç…",
-    "intro": "Geri gönderilen bir CSV veya XLSX sayfası seçin. Uygulama yalnızca tamamlanma, gerçek başlangıç ve gerçek bitişi okur; planlamanızın geri kalanı değişmez.",
+    "intro": "Geri gönderilen bir Excel sayfası (.xlsx) seçin. Uygulama yalnızca tamamlanma, gerçek başlangıç ve gerçek bitişi okur; planlamanızın geri kalanı değişmez.",
     "summaryApplied": "Uygulandı: {{applied}}",
     "summaryNoop": "Değişmedi: {{noop}}",
     "summaryNeedsLink": "Eşleştirme bekliyor: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Uygulama WBS'yi ve görevleri aldı. İlişkiler, kısıtlamalar, takvimler, kaynaklar, atamalar, ilerleme ve durum tarihi de alındı. Bir temel plan projesi, ait olduğu projenin temel planı olur.",
-        "limited": "Son tarihler, etkinlik kodları, özel alanlar ve notlar aktarılmaz. Proje, Open Planner Studio profiliyle hesaplanır, Primavera P6 gibi değil.",
+        "limited": "Son tarihler, etkinlik kodları, özel alanlar ve notlar aktarılmaz. Proje, Primavera P6 olarak hesaplanır, dosyadaki hesaplama seçenekleriyle.",
         "save": "Kaydet yeni bir IFC dosyası yazar: XML dosyanız değişmez. Geri yazmak için Dışa aktar › Primavera P6 XML seçeneğini kullanın."
       },
       "csv": {

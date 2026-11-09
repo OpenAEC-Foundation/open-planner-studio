@@ -325,7 +325,7 @@
     "exportTitle": "Eksporter",
     "exportSubtitle": "Velg et format. Prosjektet blir konvertert og lagret.",
     "progressImportCardTitle": "Oppdater fremdrift fra regneark",
-    "progressImportCardDesc": "Les inn et tilbakesendt CSV- eller XLSX-regneark og oppdater fullføringsgrad, faktisk start og faktisk slutt.",
+    "progressImportCardDesc": "Les inn et tilbakesendt Excel-regneark (.xlsx) og oppdater fullføringsgrad, faktisk start og faktisk slutt.",
     "printTitle": "Skriv ut",
     "printSubtitle": "Åpne rapportskjermen for utskriftsforhåndsvisning og innstillinger.",
     "openPrintPreview": "Åpne forhåndsvisning",

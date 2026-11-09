@@ -327,7 +327,7 @@
     "exportTitle": "Izvoz",
     "exportSubtitle": "Odaberite format. Projekt će se pretvoriti i spremiti.",
     "progressImportCardTitle": "Ažuriraj napredak iz tablice",
-    "progressImportCardDesc": "Učitajte vraćenu CSV ili XLSX tablicu i ažurirajte dovršenost, stvarni početak i stvarni završetak.",
+    "progressImportCardDesc": "Učitajte vraćenu Excel tablicu (.xlsx) i ažurirajte dovršenost, stvarni početak i stvarni završetak.",
     "printTitle": "Ispis",
     "printSubtitle": "Otvorite zaslon izvješća za pregled ispisa i postavke.",
     "openPrintPreview": "Otvori pregled ispisa",

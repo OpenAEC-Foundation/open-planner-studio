@@ -432,7 +432,7 @@
     "noWorkingDays": "Kalendar nema postavljene radne dane",
     "invalidDayDuration": "Neispravno trajanje u danima za zadatak '{{task}}'",
     "invalidHourDuration": "Neispravno trajanje u satima za zadatak '{{task}}'",
-    "hourTaskWithoutWorkHours": "Zadatak u satima '{{task}}' nema valjanih radnih sati u svom kalendaru",
+    "hourTaskWithoutWorkHours": "Kalendar zadatka u satima '{{task}}' nema valjanih radnih sati. Provjerite u tom kalendaru radne dane, početak, završetak i pauzu.",
     "taskWithoutWorkHours": "Kalendar zadatka '{{task}}' nema valjanih radnih sati. Provjerite u tom kalendaru radne dane, početak, završetak i pauzu.",
     "noWorkingHours": "Kalendar projekta nema valjanih radnih sati. Provjerite u tom kalendaru početak, završetak i pauzu.",
     "invalidStartDate": "Neispravan datum početka za zadatak '{{task}}'"
@@ -605,7 +605,7 @@
     "documentChromeHint": "Kako se prebacujete između otvorenih dokumenata.",
     "ribbonSection": "Vrpca",
     "ribbonWheelSwitchesTabs": "Mijenjanje kartica kotačićem miša",
-    "ribbonWheelSwitchesTabsHint": "Okrenite kotačić miša iznad kartica vrpce. Prema dolje ide na sljedeću karticu vrpce, prema gore na prethodnu.",
+    "ribbonWheelSwitchesTabsHint": "Okrenite kotačić miša iznad vrpce, iznad kartica ili iznad gumba. Prema dolje ide na sljedeću karticu, prema gore na prethodnu.",
     "documentChromeTabs": "Vodoravne kartice",
     "documentChromeRail": "Okomite kartice",
     "documentChromeSwitcher": "Pilula",
@@ -1564,7 +1564,7 @@
   "progressImport": {
     "title": "Ažuriranje napretka iz lista",
     "chooseFile": "Odaberi datoteku…",
-    "intro": "Odaberite vraćeni CSV ili XLSX list. Aplikacija čita samo dovršenost, stvarni početak i stvarni završetak. Ostatak vašeg rasporeda ostaje nepromijenjen.",
+    "intro": "Odaberite vraćeni Excel list (.xlsx). Aplikacija čita samo dovršenost, stvarni početak i stvarni završetak. Ostatak vašeg rasporeda ostaje nepromijenjen.",
     "summaryApplied": "Primijenjeno: {{applied}}",
     "summaryNoop": "Nepromijenjeno: {{noop}}",
     "summaryNeedsLink": "Čeka povezivanje: {{needsLink}}",
@@ -1919,7 +1919,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Aplikacija je preuzela WBS i zadatke, s ovisnostima, ograničenjima, kalendarima, resursima, dodjelama, napretkom i datumom stanja. Projekt temeljnog plana postaje temeljni plan projekta kojem pripada.",
-        "limited": "Rokovi za dovršetak, šifre zadatka, prilagođena polja i bilješke nisu uključeni. Projekt računa s profilom Open Planner Studio, a ne kao Primavera P6.",
+        "limited": "Rokovi za dovršetak, šifre zadatka, prilagođena polja i bilješke nisu uključeni. Projekt računa kao Primavera P6, s opcijama izračuna iz datoteke.",
         "save": "Spremi zapisuje novu IFC datoteku: vaša XML datoteka se ne mijenja. Zapisivanje natrag moguće je u izborniku Izvoz › Primavera P6 XML."
       },
       "csv": {

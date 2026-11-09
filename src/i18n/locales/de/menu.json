@@ -325,7 +325,7 @@
     "exportTitle": "Exportieren",
     "exportSubtitle": "Format auswählen. Das Projekt wird konvertiert und gespeichert.",
     "progressImportCardTitle": "Fortschritt aus einer Tabelle aktualisieren",
-    "progressImportCardDesc": "Lesen Sie ein zurückgesandtes CSV- oder XLSX-Blatt ein und aktualisieren Sie Fertigstellung, Ist-Anfang und Ist-Ende.",
+    "progressImportCardDesc": "Lesen Sie ein zurückgesandtes Excel-Blatt (.xlsx) ein und aktualisieren Sie Fertigstellung, Ist-Anfang und Ist-Ende.",
     "printTitle": "Drucken",
     "printSubtitle": "Berichtsansicht für Druckvorschau und Einstellungen öffnen.",
     "openPrintPreview": "Druckvorschau öffnen",

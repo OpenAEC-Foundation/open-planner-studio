@@ -336,7 +336,7 @@
     "noWorkingDays": "Kalenderen har ingen arbejdsdage angivet",
     "invalidDayDuration": "Ugyldig varighed i dage for opgave '{{task}}'",
     "invalidHourDuration": "Ugyldig varighed i timer for opgave '{{task}}'",
-    "hourTaskWithoutWorkHours": "Timeopgave '{{task}}' har ingen gyldige arbejdstimer i sin kalender",
+    "hourTaskWithoutWorkHours": "Kalenderen for timeopgaven '{{task}}' har ingen gyldige arbejdstimer. Kontrollér arbejdsdagene, starttiden, sluttiden og pausen i den kalender.",
     "taskWithoutWorkHours": "Kalenderen for opgaven „{{task}}“ har ingen gyldige arbejdstimer. Kontroller arbejdsdage, start, slut og pause i den kalender.",
     "noWorkingHours": "Projektkalenderen har ingen gyldige arbejdstimer. Kontroller start, slut og pause i den kalender.",
     "invalidStartDate": "Ugyldig startdato for opgave '{{task}}'"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Sådan skifter du mellem åbne dokumenter.",
     "ribbonSection": "Bånd",
     "ribbonWheelSwitchesTabs": "Skift båndfaner med musehjulet",
-    "ribbonWheelSwitchesTabsHint": "Drej musehjulet over båndfanerne. Nedad går til næste fane, opad til den forrige.",
+    "ribbonWheelSwitchesTabsHint": "Drej musehjulet over båndet, over fanerne eller knapperne. Nedad går til næste fane, opad til den forrige.",
     "documentChromeTabs": "Vandrette faner",
     "documentChromeRail": "Lodrette faner",
     "documentChromeSwitcher": "Pille",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Opdater fremdrift fra et ark",
     "chooseFile": "Vælg fil…",
-    "intro": "Vælg et returneret CSV- eller XLSX-ark. Appen læser kun færdiggørelsesgrad, faktisk startdato og faktisk slutdato — resten af din tidsplan forbliver uændret.",
+    "intro": "Vælg et returneret Excel-ark (.xlsx). Appen læser kun færdiggørelsesgrad, faktisk startdato og faktisk slutdato — resten af din tidsplan forbliver uændret.",
     "summaryApplied": "Anvendt: {{applied}}",
     "summaryNoop": "Uændret: {{noop}}",
     "summaryNeedsLink": "Venter på sammenkædning: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Appen overtog WBS og opgaverne, med afhængigheder, begrænsninger, kalendere, ressourcer, tildelinger, fremdrift og statusdatoen. Et projekt med oprindelig plan bliver en oprindelig plan for det projekt, det hører til.",
-        "limited": "Deadlines, opgavekoder, brugerdefinerede felter og noter følger ikke med. Projektet beregner med profilen »Open Planner Studio«, ikke som »Primavera P6«.",
+        "limited": "Deadlines, opgavekoder, brugerdefinerede felter og noter følger ikke med. Projektet beregner som »Primavera P6«, med beregningsindstillingerne fra filen.",
         "save": "Gem skriver en ny IFC-fil: din XML-fil ændres ikke. Du kan skrive tilbage med Eksporter › »Primavera P6 XML«."
       },
       "csv": {

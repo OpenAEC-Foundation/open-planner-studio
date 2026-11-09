@@ -432,7 +432,7 @@
     "noWorkingDays": "O calendário não tem dias úteis definidos",
     "invalidDayDuration": "Duração em dias inválida para a tarefa '{{task}}'",
     "invalidHourDuration": "Duração em horas inválida para a tarefa '{{task}}'",
-    "hourTaskWithoutWorkHours": "A tarefa horária '{{task}}' não tem horário de trabalho válido no seu calendário",
+    "hourTaskWithoutWorkHours": "O calendário da tarefa horária '{{task}}' não tem horário de trabalho válido. Verifique nesse calendário os dias úteis, o início, o fim e a pausa.",
     "taskWithoutWorkHours": "O calendário da tarefa '{{task}}' não tem horários de trabalho válidos. Verifique nesse calendário os dias úteis, o início, o fim e a pausa.",
     "noWorkingHours": "O calendário do projeto não tem horários de trabalho válidos. Verifique nesse calendário o início, o fim e a pausa.",
     "invalidStartDate": "Data de início inválida para a tarefa '{{task}}'"
@@ -605,7 +605,7 @@
     "documentChromeHint": "Como você alterna entre documentos abertos.",
     "ribbonSection": "Friso",
     "ribbonWheelSwitchesTabs": "Mudar de separador com a roda do rato",
-    "ribbonWheelSwitchesTabsHint": "Rode a roda do rato sobre os separadores do friso. Para baixo vai para o separador seguinte, para cima para o anterior.",
+    "ribbonWheelSwitchesTabsHint": "Rode a roda do rato sobre o friso, sobre os separadores ou sobre os botões. Para baixo vai para o separador seguinte, para cima para o anterior.",
     "documentChromeTabs": "Separadores horizontais",
     "documentChromeRail": "Separadores verticais",
     "documentChromeSwitcher": "Pílula",
@@ -1564,7 +1564,7 @@
   "progressImport": {
     "title": "Atualizar o progresso a partir de uma planilha",
     "chooseFile": "Escolher ficheiro…",
-    "intro": "Escolha uma folha CSV ou XLSX devolvida. A aplicação só lê conclusão, início real e fim real — o resto do seu planeamento permanece inalterado.",
+    "intro": "Escolha uma folha Excel devolvida (.xlsx). A aplicação só lê conclusão, início real e fim real — o resto do seu planeamento permanece inalterado.",
     "summaryApplied": "Aplicado: {{applied}}",
     "summaryNoop": "Inalterado: {{noop}}",
     "summaryNeedsLink": "Aguardando ligação: {{needsLink}}",
@@ -1919,7 +1919,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "A aplicação importou a WBS e as tarefas, com relações, restrições, calendários, recursos, atribuições, progresso e a data de estado. Um projeto de linha de base torna-se uma linha de base do projeto a que pertence.",
-        "limited": "Os prazos, os códigos de atividade, os campos personalizados e as notas não são incluídos. O projeto calcula com o perfil Open Planner Studio, e não como Primavera P6.",
+        "limited": "Os prazos, os códigos de atividade, os campos personalizados e as notas não são incluídos. O projeto calcula como Primavera P6, com as opções de cálculo do ficheiro.",
         "save": "Guardar escreve um novo ficheiro IFC: o seu ficheiro XML não muda. Pode voltar a escrever com Exportar › Primavera P6 XML."
       },
       "csv": {

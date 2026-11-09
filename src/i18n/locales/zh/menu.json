@@ -323,7 +323,7 @@
     "exportTitle": "导出",
     "exportSubtitle": "选择格式，项目将被转换并保存。",
     "progressImportCardTitle": "从表格更新进度",
-    "progressImportCardDesc": "读取返回的 CSV 或 XLSX 表格，更新完成度、实际开始日期和实际完成日期。",
+    "progressImportCardDesc": "读取返回的 Excel 表格（.xlsx），更新完成度、实际开始日期和实际完成日期。",
     "printTitle": "打印",
     "printSubtitle": "打开报告界面进行打印预览和设置。",
     "openPrintPreview": "打开打印预览",

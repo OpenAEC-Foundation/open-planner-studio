@@ -240,7 +240,7 @@
     "noWorkingDays": "カレンダーに稼働日が設定されていません",
     "invalidDayDuration": "タスク「{{task}}」の日単位の期間が無効です",
     "invalidHourDuration": "タスク「{{task}}」の時間単位の期間が無効です",
-    "hourTaskWithoutWorkHours": "時間タスク「{{task}}」のカレンダーに有効な稼働時間がありません",
+    "hourTaskWithoutWorkHours": "時間タスク「{{task}}」のカレンダーに有効な稼働時間がありません。そのカレンダーで稼働日、開始時刻、終了時刻、休憩を確認してください。",
     "taskWithoutWorkHours": "タスク '{{task}}' のカレンダーに有効な稼働時間がありません。そのカレンダーで、稼働日、開始、終了、休憩を確認してください。",
     "noWorkingHours": "プロジェクトカレンダーに有効な稼働時間がありません。そのカレンダーで、開始、終了、休憩を確認してください。",
     "invalidStartDate": "タスク「{{task}}」の開始日が無効です"
@@ -411,7 +411,7 @@
     "documentChromeHint": "開いているドキュメントの切り替え方法。",
     "ribbonSection": "リボン",
     "ribbonWheelSwitchesTabs": "マウスホイールでタブを切り替える",
-    "ribbonWheelSwitchesTabsHint": "リボンタブの上でマウスホイールを回します。下に回すと次のタブ、上に回すと前のタブに進みます。",
+    "ribbonWheelSwitchesTabsHint": "リボン、タブ、またはボタンの上でマウスホイールを回します。下に回すと次のタブ、上に回すと前のタブに進みます。",
     "documentChromeTabs": "横タブ",
     "documentChromeRail": "縦タブ",
     "documentChromeSwitcher": "ピル",
@@ -1338,7 +1338,7 @@
   "progressImport": {
     "title": "シートから進捗を更新",
     "chooseFile": "ファイルを選択…",
-    "intro": "返送された CSV または XLSX のシートを選択してください。アプリが読み取るのは完了率、実績開始日、実績終了日だけです。それ以外のスケジュールは変わりません。",
+    "intro": "返送された Excel シート(.xlsx)を選択してください。アプリが読み取るのは完了率、実績開始日、実績終了日だけです。それ以外のスケジュールは変わりません。",
     "summaryApplied": "適用済み: {{applied}}",
     "summaryNoop": "変更なし: {{noop}}",
     "summaryNeedsLink": "紐付け待ち: {{needsLink}}",
@@ -1689,7 +1689,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "アプリは、WBS とタスクを、関係、制約、カレンダー、リソース、割り当て、進捗、状態日とともに取り込みました。ベースラインプロジェクトは、それが属するプロジェクトのベースラインになります。",
-        "limited": "期限、アクティビティコード、カスタムフィールド、メモは取り込まれません。プロジェクトは Open Planner Studio プロファイルで計算されます。Primavera P6 としては計算されません。",
+        "limited": "期限、アクティビティコード、カスタムフィールド、メモは取り込まれません。プロジェクトは Primavera P6 として、ファイルの計算オプションを使って計算されます。",
         "save": "保存すると新しい IFC ファイルが書き込まれます。XML ファイルは変更されません。書き戻しは「エクスポート › Primavera P6 XML」から行えます。"
       },
       "csv": {

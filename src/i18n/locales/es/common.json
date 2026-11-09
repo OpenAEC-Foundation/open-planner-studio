@@ -432,7 +432,7 @@
     "noWorkingDays": "El calendario no tiene días laborables configurados",
     "invalidDayDuration": "Duración en días no válida para la tarea '{{task}}'",
     "invalidHourDuration": "Duración en horas no válida para la tarea '{{task}}'",
-    "hourTaskWithoutWorkHours": "La tarea horaria '{{task}}' no tiene un horario laboral válido en su calendario",
+    "hourTaskWithoutWorkHours": "La tarea horaria '{{task}}' no tiene horarios de trabajo válidos en su calendario. Compruebe en ese calendario los días laborables, el inicio, el fin y la pausa.",
     "taskWithoutWorkHours": "El calendario de la tarea '{{task}}' no tiene horarios de trabajo válidos. En ese calendario, revise los días laborables, el inicio, el fin y la pausa.",
     "noWorkingHours": "El calendario del proyecto no tiene horarios de trabajo válidos. En ese calendario, revise el inicio, el fin y la pausa.",
     "invalidStartDate": "Fecha de inicio no válida para la tarea '{{task}}'"
@@ -605,7 +605,7 @@
     "documentChromeHint": "Cómo cambias entre documentos abiertos.",
     "ribbonSection": "Cinta",
     "ribbonWheelSwitchesTabs": "Cambiar de pestaña con la rueda del ratón",
-    "ribbonWheelSwitchesTabsHint": "Gire la rueda del ratón sobre las pestañas de la cinta. Hacia abajo va a la siguiente pestaña; hacia arriba, a la anterior.",
+    "ribbonWheelSwitchesTabsHint": "Gire la rueda del ratón sobre la cinta, sobre las pestañas o sobre los botones. Hacia abajo va a la siguiente pestaña; hacia arriba, a la anterior.",
     "documentChromeTabs": "Pestañas horizontales",
     "documentChromeRail": "Pestañas verticales",
     "documentChromeSwitcher": "Píldora",
@@ -1564,7 +1564,7 @@
   "progressImport": {
     "title": "Actualizar avance desde una hoja",
     "chooseFile": "Elegir archivo…",
-    "intro": "Elija una hoja CSV o XLSX devuelta. La aplicación solo lee la finalización, el inicio real y el fin real. El resto de su planificación no cambia.",
+    "intro": "Elija una hoja de Excel devuelta (.xlsx). La aplicación solo lee la finalización, el inicio real y el fin real. El resto de su planificación no cambia.",
     "summaryApplied": "Aplicado: {{applied}}",
     "summaryNoop": "Sin cambios: {{noop}}",
     "summaryNeedsLink": "Esperando vínculo: {{needsLink}}",
@@ -1919,7 +1919,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "La aplicación importó la WBS y las tareas, con relaciones, restricciones, calendarios, recursos, asignaciones, avance y la fecha de estado. Un proyecto de línea base pasa a ser una línea base del proyecto al que pertenece.",
-        "limited": "Las fechas límite, los códigos de actividad, los campos personalizados y las notas no se incluyen. El proyecto calcula con el perfil Open Planner Studio, no como Primavera P6.",
+        "limited": "Las fechas límite, los códigos de actividad, los campos personalizados y las notas no se incluyen. El proyecto calcula como Primavera P6, con las opciones de cálculo del archivo.",
         "save": "Al guardar se escribe un archivo IFC nuevo: su archivo XML no cambia. Puede volver a escribirlo con Exportar › Primavera P6 XML."
       },
       "csv": {

@@ -329,7 +329,7 @@
     "exportTitle": "Export",
     "exportSubtitle": "Vyberte formát. Projekt bude převeden a uložen.",
     "progressImportCardTitle": "Aktualizovat průběh z tabulky",
-    "progressImportCardDesc": "Načtěte vrácenou tabulku CSV nebo XLSX a aktualizujte procento dokončení, skutečné zahájení a skutečné dokončení.",
+    "progressImportCardDesc": "Načtěte vrácenou tabulku XLSX a aktualizujte procento dokončení, skutečné zahájení a skutečné dokončení.",
     "printTitle": "Tisk",
     "printSubtitle": "Otevřete obrazovku sestav pro náhled tisku a nastavení.",
     "openPrintPreview": "Otevřít náhled tisku",

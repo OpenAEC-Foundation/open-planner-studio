@@ -327,7 +327,7 @@
     "exportTitle": "Exportar",
     "exportSubtitle": "Escolha um formato. O projeto será convertido e guardado.",
     "progressImportCardTitle": "Atualizar o progresso a partir de uma planilha",
-    "progressImportCardDesc": "Leia uma folha de cálculo CSV ou XLSX devolvida e atualize a conclusão, o início real e o fim real.",
+    "progressImportCardDesc": "Leia uma folha de cálculo XLSX devolvida e atualize a conclusão, o início real e o fim real.",
     "printTitle": "Imprimir",
     "printSubtitle": "Abra o ecrã de relatório para pré-visualização e definições de impressão.",
     "openPrintPreview": "Abrir pré-visualização",

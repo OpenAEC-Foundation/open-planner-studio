@@ -327,7 +327,7 @@
     "exportTitle": "Esporta",
     "exportSubtitle": "Scegli un formato. Il progetto verrà convertito e salvato.",
     "progressImportCardTitle": "Aggiorna l'avanzamento da un foglio",
-    "progressImportCardDesc": "Leggi un foglio CSV o XLSX restituito e aggiorna completamento, inizio effettivo e fine effettiva.",
+    "progressImportCardDesc": "Leggi un foglio Excel restituito (.xlsx) e aggiorna completamento, inizio effettivo e fine effettiva.",
     "printTitle": "Stampa",
     "printSubtitle": "Apri la schermata del rapporto per l'anteprima di stampa e le impostazioni.",
     "openPrintPreview": "Apri anteprima di stampa",

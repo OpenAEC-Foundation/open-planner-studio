@@ -325,7 +325,7 @@
     "exportTitle": "Dışa aktarma",
     "exportSubtitle": "Bir biçim seçin. Proje dönüştürülerek kaydedilecek.",
     "progressImportCardTitle": "Bir tablodan ilerlemeyi güncelle",
-    "progressImportCardDesc": "Geri gönderilen bir CSV veya XLSX tablosunu okuyun ve tamamlanma, gerçek başlangıç ile gerçek bitişi güncelleyin.",
+    "progressImportCardDesc": "Geri gönderilen bir XLSX tablosunu okuyun ve şu alanları güncelleyin: tamamlanma, gerçek başlangıç, gerçek bitiş.",
     "printTitle": "Yazdır",
     "printSubtitle": "Baskı önizleme ve ayarlar için rapor ekranını açın.",
     "openPrintPreview": "Baskı önizlemeyi aç",

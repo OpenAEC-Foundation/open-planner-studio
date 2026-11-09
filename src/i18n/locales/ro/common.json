@@ -432,7 +432,7 @@
     "noWorkingDays": "Calendarul nu are zile lucrătoare setate",
     "invalidDayDuration": "Durată în zile nevalidă pentru activitatea „{{task}}”",
     "invalidHourDuration": "Durată în ore nevalidă pentru activitatea „{{task}}”",
-    "hourTaskWithoutWorkHours": "Activitatea pe ore „{{task}}” nu are ore de lucru valide în calendarul său",
+    "hourTaskWithoutWorkHours": "Calendarul pentru activitatea pe ore „{{task}}” nu are ore de lucru valide. Verificați în acest calendar zilele lucrătoare, începutul, sfârșitul și pauza.",
     "taskWithoutWorkHours": "Calendarul activității „{{task}}” nu are ore de lucru valide. Verificați în acest calendar zilele lucrătoare, începutul, sfârșitul și pauza.",
     "noWorkingHours": "Calendarul proiectului nu are ore de lucru valide. Verificați în acest calendar începutul, sfârșitul și pauza.",
     "invalidStartDate": "Dată de început nevalidă pentru activitatea „{{task}}”"
@@ -605,7 +605,7 @@
     "documentChromeHint": "Cum comutați între documentele deschise.",
     "ribbonSection": "Panglică",
     "ribbonWheelSwitchesTabs": "Comutare între file cu rotița mouse-ului",
-    "ribbonWheelSwitchesTabsHint": "Derulați rotița mouse-ului peste filele de panglică. În jos treceți la fila următoare, în sus la cea anterioară.",
+    "ribbonWheelSwitchesTabsHint": "Derulați rotița mouse-ului peste panglică, peste file sau peste butoane. În jos treceți la fila următoare, în sus la cea anterioară.",
     "documentChromeTabs": "File orizontale",
     "documentChromeRail": "File verticale",
     "documentChromeSwitcher": "Pastilă",
@@ -1564,7 +1564,7 @@
   "progressImport": {
     "title": "Actualizare progres dintr-o foaie de calcul",
     "chooseFile": "Alegere fișier…",
-    "intro": "Alegeți o foaie CSV sau XLSX returnată. Aplicația citește doar procentul de finalizare, începutul efectiv și sfârșitul efectiv. Restul planificării dumneavoastră rămâne neschimbat.",
+    "intro": "Alegeți o foaie Excel returnată (.xlsx). Aplicația citește doar procentul de finalizare, începutul efectiv și sfârșitul efectiv. Restul planificării dumneavoastră rămâne neschimbat.",
     "summaryApplied": "Aplicat: {{applied}}",
     "summaryNoop": "Neschimbat: {{noop}}",
     "summaryNeedsLink": "În așteptarea legării: {{needsLink}}",
@@ -1919,7 +1919,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Aplicația a preluat WBS și activitățile, cu dependențe, restricții, calendare, resurse, atribuiri, progres și data raportului de stare. Un proiect de referință devine o referință a proiectului căruia îi aparține.",
-        "limited": "Termenele limită, coduri de activitate, câmpuri particularizate și notele nu sunt incluse. Proiectul calculează cu profilul Open Planner Studio, nu ca Primavera P6.",
+        "limited": "Termenele limită, coduri de activitate, câmpuri particularizate și notele nu sunt incluse. Proiectul calculează ca Primavera P6, cu opțiunile de calcul din fișier.",
         "save": "Salvarea scrie un fișier IFC nou: fișierul XML nu se modifică. Scrierea înapoi este posibilă cu „Export › Primavera P6 XML”."
       },
       "csv": {

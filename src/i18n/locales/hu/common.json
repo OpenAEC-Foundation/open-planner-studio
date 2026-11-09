@@ -336,7 +336,7 @@
     "noWorkingDays": "A naptárban nincs munkanap beállítva",
     "invalidDayDuration": "Érvénytelen időtartam napokban a(z) '{{task}}' tevékenységnél",
     "invalidHourDuration": "Érvénytelen, órában megadott időtartam a(z) „{{task}}” tevékenységnél",
-    "hourTaskWithoutWorkHours": "A(z) '{{task}}' óraalapú tevékenység naptárában nincsenek érvényes munkaórák",
+    "hourTaskWithoutWorkHours": "A(z) „{{task}}” óraalapú tevékenység naptárában nincsenek érvényes munkaórák. Ellenőrizze ebben a naptárban a munkanapokat, a kezdést, a véget és a szünetet.",
     "taskWithoutWorkHours": "A(z) „{{task}}” tevékenység naptárának nincs érvényes munkaideje. Ellenőrizze abban a naptárban a munkanapokat, a kezdést, a véget és a szünetet.",
     "noWorkingHours": "A projektnaptárnak nincs érvényes munkaideje. Ellenőrizze abban a naptárban a kezdést, a véget és a szünetet.",
     "invalidStartDate": "Érvénytelen kezdődátum a(z) '{{task}}' tevékenységnél"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Ahogy a megnyitott dokumentumok között vált.",
     "ribbonSection": "Menüszalag",
     "ribbonWheelSwitchesTabs": "Menüszalag-lapok váltása egérgörgővel",
-    "ribbonWheelSwitchesTabsHint": "Forgassa az egérgörgőt a menüszalag-lapok fölött. Lefelé a következő lapra, felfelé az előzőre lép.",
+    "ribbonWheelSwitchesTabsHint": "Forgassa az egérgörgőt a menüszalag, a menüszalag-lapok vagy a gombok fölött. Lefelé a következő lapra, felfelé az előzőre lép.",
     "documentChromeTabs": "Vízszintes lapok",
     "documentChromeRail": "Függőleges lapok",
     "documentChromeSwitcher": "Kapszula",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Előrehaladás frissítése táblázatból",
     "chooseFile": "Fájl kiválasztása…",
-    "intro": "Válasszon ki egy visszaküldött CSV- vagy XLSX-táblázatot. Az alkalmazás csak az elkészültséget, a tényleges kezdést és a tényleges befejezést olvassa be. A többi ütemezés változatlan marad.",
+    "intro": "Válasszon ki egy visszaküldött Excel-munkalapot (.xlsx). Az alkalmazás csak az elkészültséget, a tényleges kezdést és a tényleges befejezést olvassa be. A többi ütemezés változatlan marad.",
     "summaryApplied": "Alkalmazva: {{applied}}",
     "summaryNoop": "Változatlan: {{noop}}",
     "summaryNeedsLink": "Összekapcsolásra vár: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Az alkalmazás átvette a WBS-t és a tevékenységeket, a kapcsolatokkal, korlátozásokkal, naptárakkal, erőforrásokkal, hozzárendelésekkel, előrehaladással és az állapotdátummal együtt. Egy alapterv-projekt abban a projektben lesz alapterv, amelyhez tartozik.",
-        "limited": "Határidők, tevékenységkódok, egyéni mezők és megjegyzések nem kerülnek át. A projekt az Open Planner Studio profil szerint számol, nem a Primavera P6 szerint.",
+        "limited": "Határidők, tevékenységkódok, egyéni mezők és megjegyzések nem kerülnek át. A projekt a Primavera P6 szerint számol, a fájl számítási beállításaival.",
         "save": "A Mentés új IFC-fájlt ír: az XML-fájl nem változik. Visszaírás az Exportálás › Primavera P6 XML menüponttal lehetséges."
       },
       "csv": {

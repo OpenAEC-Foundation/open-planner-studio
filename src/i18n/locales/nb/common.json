@@ -336,7 +336,7 @@
     "noWorkingDays": "Kalenderen har ingen arbeidsdager angitt",
     "invalidDayDuration": "Ugyldig varighet i dager for aktiviteten '{{task}}'",
     "invalidHourDuration": "Ugyldig varighet i timer for aktiviteten '{{task}}'",
-    "hourTaskWithoutWorkHours": "Timebasert aktivitet '{{task}}' har ingen gyldige arbeidstimer i kalenderen sin",
+    "hourTaskWithoutWorkHours": "Kalenderen til timebasert aktivitet '{{task}}' har ingen gyldige arbeidstimer. Kontroller arbeidsdagene, starten, slutten og pausen i den kalenderen.",
     "taskWithoutWorkHours": "Kalenderen for aktiviteten «{{task}}» har ingen gyldige arbeidstimer. Sjekk i den kalenderen arbeidsdagene, starten, slutten og pausen.",
     "noWorkingHours": "Prosjektkalenderen har ingen gyldige arbeidstimer. Sjekk i den kalenderen starten, slutten og pausen.",
     "invalidStartDate": "Ugyldig startdato for aktiviteten '{{task}}'"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Hvordan du bytter mellom åpne dokumenter.",
     "ribbonSection": "Bånd",
     "ribbonWheelSwitchesTabs": "Bytt båndfane med musehjulet",
-    "ribbonWheelSwitchesTabsHint": "Snu musehjulet over båndfanene. Ned går til neste, opp til forrige.",
+    "ribbonWheelSwitchesTabsHint": "Snu musehjulet over båndet, over båndfanene eller knappene. Ned går til neste, opp til forrige.",
     "documentChromeTabs": "Vannrette faner",
     "documentChromeRail": "Loddrette faner",
     "documentChromeSwitcher": "Pille",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Oppdater fremdrift fra et regneark",
     "chooseFile": "Velg fil…",
-    "intro": "Velg et tilbakesendt CSV- eller XLSX-ark. Appen leser bare fullføringsgrad, faktisk start og faktisk slutt — resten av tidsplanen din forblir uendret.",
+    "intro": "Velg et tilbakesendt Excel-ark (.xlsx). Appen leser bare fullføringsgrad, faktisk start og faktisk slutt — resten av tidsplanen din forblir uendret.",
     "summaryApplied": "Brukt: {{applied}}",
     "summaryNoop": "Uendret: {{noop}}",
     "summaryNeedsLink": "Venter på kobling: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Appen tok over WBS og aktivitetene, med avhengigheter, begrensninger, kalendere, ressurser, tilordninger, fremdrift og statusdato. Et grunnlinjeprosjekt blir en grunnlinje for prosjektet det tilhører.",
-        "limited": "Tidsfrister, aktivitetskoder, egendefinerte felt og notater følger ikke med. Prosjektet regner med profilen Open Planner Studio, ikke som Primavera P6.",
+        "limited": "Tidsfrister, aktivitetskoder, egendefinerte felt og notater følger ikke med. Prosjektet regner som Primavera P6, med beregningsalternativene fra filen.",
         "save": "Lagre skriver en ny IFC-fil: XML-filen din endres aldri. Du kan skrive tilbake med Eksporter › Primavera P6 XML."
       },
       "csv": {

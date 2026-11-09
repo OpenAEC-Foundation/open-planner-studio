@@ -336,7 +336,7 @@
     "noWorkingDays": "Im Kalender sind keine Arbeitstage festgelegt",
     "invalidDayDuration": "Ungültige Dauer in Tagen für Vorgang '{{task}}'",
     "invalidHourDuration": "Ungültige Dauer in Stunden für Vorgang '{{task}}'",
-    "hourTaskWithoutWorkHours": "Stundenvorgang '{{task}}' hat in seinem Kalender keine gültigen Arbeitszeiten",
+    "hourTaskWithoutWorkHours": "Der Kalender des Stundenvorgangs '{{task}}' hat keine gültigen Arbeitszeiten. Prüfen Sie in diesem Kalender die Arbeitstage, den Beginn, das Ende und die Pause.",
     "taskWithoutWorkHours": "Der Kalender von Vorgang „{{task}}“ hat keine gültigen Arbeitszeiten. Prüfen Sie in diesem Kalender die Arbeitstage, den Beginn, das Ende und die Pause.",
     "noWorkingHours": "Der Projektkalender hat keine gültigen Arbeitszeiten. Prüfen Sie in diesem Kalender den Beginn, das Ende und die Pause.",
     "invalidStartDate": "Ungültiges Startdatum für Vorgang '{{task}}'"
@@ -508,7 +508,7 @@
     "documentChromeHint": "Wie du zwischen geöffneten Dokumenten wechselst.",
     "ribbonSection": "Menüband",
     "ribbonWheelSwitchesTabs": "Mit dem Mausrad Registerkarten wechseln",
-    "ribbonWheelSwitchesTabsHint": "Drehen Sie das Mausrad über den Menüband-Registerkarten. Nach unten geht es zur nächsten Registerkarte, nach oben zur vorherigen.",
+    "ribbonWheelSwitchesTabsHint": "Drehen Sie das Mausrad über dem Menüband, über den Registerkarten oder über den Schaltflächen. Nach unten geht es zur nächsten Registerkarte, nach oben zur vorherigen.",
     "documentChromeTabs": "Horizontale Registerkarten",
     "documentChromeRail": "Vertikale Registerkarten",
     "documentChromeSwitcher": "Pille",
@@ -1451,7 +1451,7 @@
   "progressImport": {
     "title": "Fortschritt aus einer Tabelle aktualisieren",
     "chooseFile": "Datei wählen…",
-    "intro": "Wählen Sie ein zurückgesendetes CSV- oder XLSX-Blatt. Die App liest nur Fertigstellung, Ist-Anfang und Ist-Ende — der Rest Ihres Terminplans bleibt unverändert.",
+    "intro": "Wählen Sie ein zurückgesendetes Excel-Blatt (.xlsx). Die App liest nur Fertigstellung, Ist-Anfang und Ist-Ende — der Rest Ihres Terminplans bleibt unverändert.",
     "summaryApplied": "Angewendet: {{applied}}",
     "summaryNoop": "Unverändert: {{noop}}",
     "summaryNeedsLink": "Wartet auf Verknüpfung: {{needsLink}}",
@@ -1804,7 +1804,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "Die App übernahm den PSP und die Vorgänge, mit Beziehungen, Einschränkungen, Kalendern, Ressourcen, Zuweisungen, Fortschritt und dem Statusdatum. Ein Baseline-Projekt wird zu einer Baseline des Projekts, zu dem es gehört.",
-        "limited": "Stichtage, Aktivitätscodes, benutzerdefinierte Felder und Notizen werden nicht übernommen. Das Projekt rechnet mit dem Profil Open Planner Studio, nicht als Primavera P6.",
+        "limited": "Stichtage, Aktivitätscodes, benutzerdefinierte Felder und Notizen werden nicht übernommen. Das Projekt rechnet als Primavera P6, mit den Berechnungsoptionen aus der Datei.",
         "save": "Speichern schreibt eine neue IFC-Datei: Ihre XML-Datei bleibt unverändert. Zurückschreiben ist möglich über Exportieren › Primavera P6 XML."
       },
       "csv": {

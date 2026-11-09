@@ -329,7 +329,7 @@
     "exportTitle": "Eksport",
     "exportSubtitle": "Wybierz format. Projekt zostanie przekonwertowany i zapisany.",
     "progressImportCardTitle": "Aktualizuj postęp z arkusza",
-    "progressImportCardDesc": "Wczytaj zwrócony arkusz CSV lub XLSX i zaktualizuj ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie.",
+    "progressImportCardDesc": "Wczytaj zwrócony arkusz Excel (.xlsx) i zaktualizuj ukończenie, rzeczywiste rozpoczęcie i rzeczywiste zakończenie.",
     "printTitle": "Drukowanie",
     "printSubtitle": "Otwórz ekran raportu, aby wyświetlić podgląd wydruku i ustawienia.",
     "openPrintPreview": "Otwórz podgląd wydruku",

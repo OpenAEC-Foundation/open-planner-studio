@@ -323,7 +323,7 @@
     "exportTitle": "エクスポート",
     "exportSubtitle": "形式を選択してください。プロジェクトが変換されて保存されます。",
     "progressImportCardTitle": "シートから進捗を更新",
-    "progressImportCardDesc": "返送されたCSVまたはXLSXシートを読み込み、完了率、実績開始日、実績終了日を更新します。",
+    "progressImportCardDesc": "返送されたExcelシート（.xlsx）を読み込み、完了率、実績開始日、実績終了日を更新します。",
     "printTitle": "印刷",
     "printSubtitle": "レポート画面を開いて印刷プレビューと設定を確認します。",
     "openPrintPreview": "印刷プレビューを開く",

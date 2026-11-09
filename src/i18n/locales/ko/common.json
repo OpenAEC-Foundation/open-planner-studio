@@ -240,7 +240,7 @@
     "noWorkingDays": "달력에 근무일이 설정되어 있지 않습니다",
     "invalidDayDuration": "작업 '{{task}}'의 일 단위 기간이 올바르지 않습니다",
     "invalidHourDuration": "작업 '{{task}}'의 시간 단위 기간이 올바르지 않습니다",
-    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다",
+    "hourTaskWithoutWorkHours": "시간 작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다. 그 달력에서 근무일, 시작 시간, 종료 시간, 휴식 시간을 확인하세요.",
     "taskWithoutWorkHours": "작업 '{{task}}'의 달력에 유효한 근무 시간이 없습니다. 그 달력에서 근무일, 시작, 종료, 휴식 시간을 확인하세요.",
     "noWorkingHours": "프로젝트 달력에 유효한 근무 시간이 없습니다. 그 달력에서 시작, 종료, 휴식 시간을 확인하세요.",
     "invalidStartDate": "작업 '{{task}}'의 시작일이 올바르지 않습니다"
@@ -411,7 +411,7 @@
     "documentChromeHint": "열린 문서 사이를 전환하는 방식입니다.",
     "ribbonSection": "리본",
     "ribbonWheelSwitchesTabs": "마우스 휠로 탭 전환",
-    "ribbonWheelSwitchesTabsHint": "리본 탭 위에서 마우스 휠을 돌리세요. 아래로 돌리면 다음 탭, 위로 돌리면 이전 탭으로 이동합니다.",
+    "ribbonWheelSwitchesTabsHint": "리본, 탭 또는 버튼 위에서 마우스 휠을 돌리세요. 아래로 돌리면 다음 탭, 위로 돌리면 이전 탭으로 이동합니다.",
     "documentChromeTabs": "가로 탭",
     "documentChromeRail": "세로 탭",
     "documentChromeSwitcher": "알약",
@@ -1338,7 +1338,7 @@
   "progressImport": {
     "title": "시트에서 진행률 업데이트",
     "chooseFile": "파일 선택…",
-    "intro": "반송된 CSV 또는 XLSX 시트를 선택하세요. 앱은 완료율, 실제 시작, 실제 완료만 읽습니다. 나머지 일정은 변경되지 않습니다.",
+    "intro": "반송된 Excel 시트(.xlsx)를 선택하세요. 앱은 완료율, 실제 시작, 실제 완료만 읽습니다. 나머지 일정은 변경되지 않습니다.",
     "summaryApplied": "적용됨: {{applied}}",
     "summaryNoop": "변경 없음: {{noop}}",
     "summaryNeedsLink": "연결 대기 중: {{needsLink}}",
@@ -1689,7 +1689,7 @@
       "p6xml": {
         "name": "Primavera P6 XML",
         "kept": "앱은 WBS와 작업을 가져왔습니다. 관계, 제약 조건, 달력, 리소스, 할당, 진행률, 상태 날짜도 함께 가져왔습니다. 기준선 프로젝트는 속한 프로젝트의 기준선이 됩니다.",
-        "limited": "기한, 활동 코드, 사용자 지정 필드, 메모는 포함되지 않습니다. 이 프로젝트는 Open Planner Studio 프로필로 계산하며, Primavera P6 프로필로는 계산하지 않습니다.",
+        "limited": "기한, 활동 코드, 사용자 지정 필드, 메모는 포함되지 않습니다. 이 프로젝트는 Primavera P6 방식으로 계산하며, 파일의 계산 옵션을 사용합니다.",
         "save": "저장하면 새 IFC 파일이 만들어집니다. XML 파일은 바뀌지 않습니다. 다시 기록하려면 내보내기 › Primavera P6 XML을 사용하세요."
       },
       "csv": {
