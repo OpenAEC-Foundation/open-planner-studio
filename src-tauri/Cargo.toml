@@ -7,7 +7,7 @@ edition = "2021"
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
+tauri-plugin-fs = { version = "2", features = ["watch"] }
 # Past bij de vergrendelde fs 2.5.0; geen fs-upgrade nodig om gekozen paden te onthouden.
 tauri-plugin-persisted-scope = "=2.3.6"
 tauri-plugin-store = "2"
