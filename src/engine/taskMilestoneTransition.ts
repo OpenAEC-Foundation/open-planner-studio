@@ -2,15 +2,6 @@ import type { Task } from '@/types/task';
 import { isCostResource, type Resource, type ResourceAssignment } from '@/types/resource';
 
 /**
- * Mag een toewijzing aan `resource` op een mijlpaal staan? Alleen een kostenresource (issue #815,
- * besluit Ethan 2026-11-07: bv. "Leges € 1.200" op "Vergunning aangevraagd"). Werk- en
- * materiaaltoewijzingen blijven op een mijlpaal geweigerd; samenvattingstaken weigeren alle types.
- */
-export function resourceAllowedOnMilestone(resource: Pick<Resource, 'type'> | undefined | null): boolean {
-  return isCostResource(resource);
-}
-
-/**
  * Heeft de taak toewijzingen die een mijlpaal NIET mag dragen (alles behalve kosten)? De invoer
  * `hasAssignments` van {@link milestoneRefusal}. Een toewijzing aan een onbekende resource telt
  * mee (het oude, strengere gedrag).

@@ -12,7 +12,6 @@ import {
   contoursAfterEdit, insertAssignment, insertResource, isCostAssignment, purgeResource, relocateAssignment,
   removeAssignment, settleCostResourceFields,
 } from '../assignmentMutations';
-import { resourceAllowedOnMilestone } from '@/engine/taskMilestoneTransition';
 import {
   commitTrianglePlan, planWorkEdit,
   captureCalendarChange, settleCalendarChange, settleDurationAftermath, syncAssignmentWorkToContour,
@@ -185,7 +184,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       const resource = s.resources.find(r => r.id === resourceId);
       if (!resource) return;
       // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
-      if (task.isMilestone && !resourceAllowedOnMilestone(resource)) return;
+      // Een mijlpaal draagt alleen kostenresources (issue #815, besluit Ethan 2026-11-07).
+      if (task.isMilestone && !isCostResource(resource)) return;
       // Weigeren: 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
       const cost = isCostResource(resource);

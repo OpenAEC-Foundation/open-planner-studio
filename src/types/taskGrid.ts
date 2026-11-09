@@ -108,8 +108,7 @@ export interface TaskAssignmentToken {
   /** Resterend werk in werkminuten — alleen de kolom
    *  `assignment.remainingWork` zet 'm; `gridTransaction.ts` voert hem via de werkdriehoek uit. */
   remainingWorkMinutes?: number;
-  /** Alleen bij een kostenresource (issue #815): het begrote bedrag, zodat het bij plakken naar een
-   *  andere taak meereist. Op dezelfde taak verandert de cel het bedrag nooit. */
+  /** Alleen bij een kostenresource (issue #815): het begrote bedrag, zodat het bij plakken meereist. */
   costAmount?: number;
 }
 
