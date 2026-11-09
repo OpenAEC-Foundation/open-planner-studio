@@ -565,6 +565,27 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
    een JSON-pset heel blijft (Fable en Opus, ronde 6). In `k2.ifc` (Sol) staat de planning op een `'0.2'`-owner history en
    de oude `'0.1'` alleen achter het project: de planning volgt de norm. De writer schrijft elke P-tekst in de huidige
    codering; tokens uit een stuk met de oude codering hergebruikt hij niet (§4.5).
+6. **Terugval naar de huidige route (v21, fase 1a; afwijking 7).** De bytes-route valt terug op de route van nu: de bytes
+   als UTF-8-tekst naar `readIFC`, met de modelweigering en zonder `ifcSource`. Dat gebeurt in vier gevallen
+   (`src/services/ifc/foreign/ifcBytesRoute.ts:77-96`):
+   - de bron is groter dan 300 MiB (`IFC_BYTES_ROUTE_MAX_BYTES`, §4.13);
+   - de scanner weigert de bytes (§4.1), ook als `readIFC` het bestand wel opent;
+   - de kopnaam is geen van de herkende namen van §4.11;
+   - de lezer kiest andere taken, resources, kalenders, een ander werkplan of een ander werkschema dan `selectPlanning`
+     (een controle na het lezen).
+
+   De uitkomst is dan precies die van de app zonder flag. Waarom: de scanner is strenger dan `readIFC` (bijvoorbeeld bij
+   een dubbel `#id` of een `#id` boven 2147483647, knownbug 1007). Een bestand dat nu opent, mag met de flag niet
+   geweigerd worden. Een model dat de scanner niet kan indelen, kan de writer niet byte-gelijk bewaren; dat blijft dus
+   geweigerd. Voorbeeld: een eigen bestand met een losse `#2147483648=IFCPERSON(...)` opent zoals nu, zonder bron, en
+   opslaan mag. `bonsai-4d.ifc` met dezelfde regel krijgt de modelweigering. Met `#2147483647` gaan beide door de
+   bytes-route. Gevolg voor §4.11: een onbekend schema met een vreemd deel zonder `IfcProduct` opent zoals nu (zonder
+   bron, dus zonder bewaking); met een model blijft het geweigerd. Test: `tests/planning/check-ifc-foreign-open.ts`,
+   deel 7.
+
+   Uitwerking van punt 4 in fase 1a: de lezer krijgt ook het stuk van het enige `IfcProject` als dat V is (§4.2,
+   Gevolgen; `projectContext` in `src/services/ifc/foreign/foreignScan.ts:81`), maar niet zijn eenheden en context. Zo
+   houdt een eigen bestand van v2026.7.2 met de flag zijn projectnaam.
 
 ### 4.10 Vóór opslaan: de verliesbewaking
 
