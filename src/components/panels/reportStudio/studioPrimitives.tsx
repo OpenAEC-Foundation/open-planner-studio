@@ -5,8 +5,8 @@ import { Icon, type IconId } from '@/components/icons';
 // gewoon formulierelement (checkbox, radiogroep) met toetsenbordbediening: Tab, Spatie/Enter en de
 // pijltjes in een keuzegroep.
 
-/** Aan/uit-schakelaar: een echte checkbox, getekend als schakelaar. */
-export function StudioSwitch({ checked, onChange, label, sub, title, disabled, dataKey }: {
+/** Aan/uit-schakelaar: het vinkje van de app (een echte checkbox). */
+export function StudioSwitch({ checked, onChange, label, sub, title, disabled, dataKey, focusSeq }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: ReactNode;
@@ -17,10 +17,19 @@ export function StudioSwitch({ checked, onChange, label, sub, title, disabled, d
   disabled?: boolean;
   /** `data-rs-option` voor tests en het papier. */
   dataKey?: string;
+  /** Een nieuw getal zet de focus op dit vinkje (een klik op het deel van het papier dat het aanzet). */
+  focusSeq?: number;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusSeq === undefined) return;
+    ref.current?.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: 'nearest' });
+  }, [focusSeq]);
   return (
     <label className="rs-check" title={title} data-rs-switch={dataKey}>
       <input
+        ref={ref}
         type="checkbox"
         checked={checked}
         disabled={disabled}

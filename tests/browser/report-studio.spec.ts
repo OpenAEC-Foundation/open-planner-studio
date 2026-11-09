@@ -265,6 +265,21 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-option="showDeps"]')).not.toBeChecked();
   await expect.poll(async () => (await saved()).reportType).toBe('resourceGantt');
   expect(await screen()).toEqual(screenBefore);
+  // Eenh./d en Curve staan op het papier achter de taaknaam (Per resource). De samenvatting van Kolommen telt
+  // ze mee; het label boven het blad heet zoals de kop, en een klik gaat naar de schakelaar die ze aan- en
+  // uitzet (fixronde na council ronde 5: het label was "Kolommen · units" en de klik opende Kolommen).
+  await expect(page.locator('[data-rs-summary="columns"]')).toHaveText(/^3\D.*(Units\/d|Eenh\.\/d).*Curve/);
+  const unitsHead = page0.locator('text', { hasText: /^(Units\/d|Eenh\.\/d)$/ }).first();
+  await unitsHead.hover();
+  await expect(page.locator('[data-rs-region-label]')).toHaveText(/^(Columns|Kolommen) · (Units\/d|Eenh\.\/d)$/);
+  await unitsHead.click();
+  await expect(page.locator('[data-rs-step-body="tasks"]')).toBeVisible();
+  await expect(page.locator('[data-rs-option="showAssignmentColumns"]')).toBeFocused();
+  // In Kolommen staat waar je ze vindt, met een knop ernaartoe.
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await page.locator('[data-rs-to-resource-options]').click();
+  await expect(page.locator('[data-rs-option="showAssignmentColumns"]')).toBeFocused();
+  await page.locator('[data-rs-step-head="bars"]').click();
 
   // Een eigen layout uit een ander venster (dezelfde `StorageEvent` als de host): alleen één taak. Het papier
   // volgt de layout ook als die daarna verandert, zonder nieuwe keuze.
@@ -295,6 +310,90 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
     .some(n => n.messageKey === 'notifications.reportLayoutGone'))).toBe(true);
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
+
+  // Een layout kiezen verandert alleen de rijen; kolommen en balkopties neem je over met een knop (fixronde na
+  // council ronde 5, de scenario's van Opus en Sol). Eigen stand: de zes standaardkolommen plus Kalenderdagen,
+  // en Afhankelijkheden uit. De layout "Korte tabel" heeft drie kolommen, relatielijnen aan, speling uit, een
+  // basislijn en een voortgangslijn.
+  await page.locator('[data-rs-step-head="columns"]').click();
+  await page.locator('[data-rs-reset="columns"]').click();
+  await page.locator('[data-rs-add-column]').click();
+  await page.keyboard.type(calendarDays);
+  await expect(page.locator('[data-rs-pick]').first()).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-rs-column]')).toHaveCount(7);
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await page.locator('[data-rs-switch="showDeps"]').click();
+  const own = async () => {
+    const s = await saved();
+    return { columns: s.columns, showDeps: s.showDeps, showFloat: s.showFloat, showBaselineOverlay: s.showBaselineOverlay, statusLine: s.statusLine };
+  };
+  await expect.poll(async () => (await own()).showDeps).toBe(false);
+  const ownBefore = await own();
+  expect(ownBefore).toMatchObject({ showFloat: true, showBaselineOverlay: false, statusLine: 'none' });
+  expect(ownBefore.columns).toHaveLength(7);
+  const shortColumns = ['task.wbsCode', 'task.name', 'task.time.scheduleDuration'];
+  await storeLayouts([{
+    id: 'layout-kort', name: 'Korte tabel', icon: 'flag',
+    columns: shortColumns.map(id => ({ id, width: 80, pinned: false })),
+    group: [{ field: { src: 'builtin', key: 'taskType' }, dir: 'asc' }],
+    showRelations: true,
+    overlays: { baseline: true, progressLine: true, statusDateLine: false, resourceAccent: false, floatBand: false, barColors: { mode: 'critical' } },
+  }]);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  const shortTable = page.locator('[data-rs-layout="layout-kort"]');
+  const allTasks = page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]');
+  // Opus: de layout kiezen en terug naar Alle taken laat de zeven kolommen staan, zonder "Ongedaan maken".
+  await shortTable.click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('layout-kort');
+  expect(await own()).toEqual(ownBefore);
+  await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-notice="layout-own"]')).toBeVisible();
+  await expect(page.locator('[data-rs-layout-hint]')).toBeVisible();
+  await allTasks.click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('');
+  expect(await own()).toEqual(ownBefore);
+  // Opus: met de pijltjes door alle keuzes (elk pijltje kiest meteen), ook over de layout: niets verandert.
+  await allTasks.focus();
+  for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(key);
+  await expect.poll(async () => (await saved()).followView).toBe(true);
+  expect(await own()).toEqual(ownBefore);
+  // Sol: met de layout gekozen een eigen keuze in Balken (Speling), dan opnieuw op dezelfde layout klikken:
+  // die klik doet niets, ook niet opnieuw overnemen.
+  await shortTable.click();
+  await expect.poll(async () => (await saved()).layoutId).toBe('layout-kort');
+  await page.locator('[data-rs-step-head="bars"]').click();
+  const floatBefore = (await saved()).showFloat;
+  await page.locator('[data-rs-switch="showFloat"]').click();
+  await expect.poll(async () => (await saved()).showFloat).toBe(!floatBefore);
+  const beforeSecondClick = await saved();
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await shortTable.click();
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await expect(page.locator('[data-rs-step-body="bars"]')).toBeVisible();
+  expect(await saved()).toEqual(beforeSecondClick);
+  await expect(page.locator('[data-rs-undo]')).toHaveCount(0);
+  await page.locator('[data-rs-switch="showFloat"]').click();
+  await expect.poll(own).toEqual(ownBefore);
+  // "Kolommen overnemen": alleen de kolommen, met één Ongedaan maken voor alleen dat deel. De keuze van de
+  // layout blijft staan, ook na Ongedaan maken.
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-take-over="columns"]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(shortColumns);
+  expect(await own()).toMatchObject({ showDeps: false, showFloat: true, statusLine: 'none' });
+  await expect(page.locator('[data-rs-take-over="columns"]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-take-over="bars"]')).toBeVisible();
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(async () => (await saved()).columns).toEqual(ownBefore.columns);
+  expect((await saved()).layoutId).toBe('layout-kort');
+  await expect(page.locator('[data-rs-take-over="columns"]')).toBeVisible();
+  // "Balkopties overnemen": relatielijnen, basislijn, speling en statuslijn; Ongedaan maken zet ze terug.
+  await page.locator('[data-rs-take-over="bars"]').click();
+  await expect.poll(own).toEqual({ ...ownBefore, showDeps: true, showFloat: false, showBaselineOverlay: true, statusLine: 'progress' });
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(own).toEqual(ownBefore);
+  expect((await saved()).layoutId).toBe('layout-kort');
+  expect(await screen()).toEqual(screenBefore);
 });
 
 // Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt

@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Icon } from '@/components/icons';
 import type { ReportStudioStep } from '@/utils/reportSettings';
 
@@ -55,11 +55,21 @@ export const StepHead = memo(function StepHead({ step, index, open, title, summa
   );
 });
 
+/** Rand tussen het venster en de rand van het scherm, en de hoogste hoogte van het venster. */
+const POP_MARGIN = 12;
+const POP_MAX_H = 560;
+/** Ruimte tussen het venster en de zwevende exportknop eronder. */
+const POP_AVOID_GAP = 8;
+
 /**
  * Klein venster met een stap, naast de rand of naast het aangeklikte deel van het papier. `children` is de
  * stapinhoud (met eigen scrollvak) plus de stapvoet, die zo altijd onderaan in beeld blijft.
+ *
+ * `avoidRef`: een element dat het venster vrij laat (de zwevende exportknop linksonder). Ligt het venster
+ * in de breedte boven die knop, dan eindigt het erboven en wordt het zo nodig lager (knownbug 947): zo blijft
+ * exporteren bereikbaar zonder het venster te sluiten.
  */
-export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, onOpenInSidebar, children, dataKey }: {
+export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, onOpenInSidebar, children, dataKey, avoidRef }: {
   anchor: { x: number; y: number };
   title: string;
   closeLabel: string;
@@ -68,9 +78,10 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
   onOpenInSidebar: () => void;
   children: ReactNode;
   dataKey: string;
+  avoidRef?: RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number }>({ left: anchor.x + 12, top: anchor.y });
+  const [pos, setPos] = useState<{ left: number; top: number; maxHeight?: number }>({ left: anchor.x + 12, top: anchor.y });
   const returnFocus = useRef<Element | null>(null);
   // De sluitfunctie via een ref: een nieuwe functie bij elke render mag het effect hieronder niet opnieuw
   // laten lopen. Dat zette de focus na elke toetsaanslag terug (typen "abc" gaf "a").
@@ -85,13 +96,19 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
     if (!node) return;
     const place = () => {
       const w = node.offsetWidth;
-      const h = node.offsetHeight;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      let left = anchor.x + 12;
-      if (left + w > vw - 12) left = Math.max(12, anchor.x - w - 12);
-      const top = Math.min(Math.max(12, anchor.y - 24), Math.max(12, vh - h - 12));
-      setPos(prev => (prev.left === left && prev.top === top ? prev : { left, top }));
+      let left = anchor.x + POP_MARGIN;
+      if (left + w > vw - POP_MARGIN) left = Math.max(POP_MARGIN, anchor.x - w - POP_MARGIN);
+      // De onderkant: de rand van het scherm, of de bovenkant van de knop als het venster erboven ligt.
+      const avoid = avoidRef?.current?.getBoundingClientRect();
+      const overAvoid = !!avoid && avoid.width > 0 && left < avoid.right + POP_AVOID_GAP && left + w > avoid.left - POP_AVOID_GAP;
+      const bottom = overAvoid ? Math.min(vh - POP_MARGIN, avoid.top - POP_AVOID_GAP) : vh - POP_MARGIN;
+      const maxHeight = Math.max(160, Math.min(POP_MAX_H, bottom - POP_MARGIN));
+      // De hoogte met de nieuwe grens: de CSS houdt het venster op `maxHeight`, de stapinhoud scrolt erin.
+      const h = Math.min(node.offsetHeight, maxHeight);
+      const top = Math.min(Math.max(POP_MARGIN, anchor.y - 24), Math.max(POP_MARGIN, bottom - h));
+      setPos(prev => (prev.left === left && prev.top === top && prev.maxHeight === maxHeight ? prev : { left, top, maxHeight }));
     };
     place();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
@@ -101,7 +118,7 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
       observer?.disconnect();
       window.removeEventListener('resize', place);
     };
-  }, [anchor.x, anchor.y, dataKey]);
+  }, [anchor.x, anchor.y, dataKey, avoidRef]);
 
   // Eén keer per geopende stap: de focus op het eerste bedienelement van de stap (niet op "In de zijbalk"),
   // terug naar waar hij vandaan kwam bij sluiten. Heeft de stap zelf al iets gefocust (de kolom die op het
@@ -128,7 +145,7 @@ export function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onC
   }, [dataKey]);
 
   return (
-    <div ref={ref} className="rs-pop ui-pop" role="dialog" aria-label={title} style={{ left: pos.left, top: pos.top }} data-rs-popover={dataKey}>
+    <div ref={ref} className="rs-pop ui-pop" role="dialog" aria-label={title} style={{ left: pos.left, top: pos.top, maxHeight: pos.maxHeight }} data-rs-popover={dataKey}>
       <div className="rs-pop-head">
         <span className="rs-step-title flex-1">{title}</span>
         <button type="button" className="ops-textlink" onClick={onOpenInSidebar}>{openInSidebarLabel}</button>

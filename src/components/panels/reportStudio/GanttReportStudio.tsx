@@ -114,6 +114,11 @@ const TABLE_SHARE_WARN = 0.4;
 const MANY_PAGES = 12;
 /** De aan/uit-opties van het Resourcediagram, in de volgorde van het oude paneel (`RESOURCE_GANTT_TOGGLES`). */
 const RESOURCE_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByType', 'showAssignmentColumns'] as const;
+/** De toewijzingskolommen van Per resource op het papier (`tableColumnSlots` in printPreview.ts). */
+const ASSIGNMENT_COLUMN_KEYS: ReadonlySet<string> = new Set(['units', 'curve']);
+/** Wat de knoppen "Kolommen overnemen" en "Balkopties overnemen" uit een layout halen (`layoutReportPatch`). */
+const LAYOUT_COLUMN_KEYS: readonly StudioSettingKey[] = ['columns'];
+const LAYOUT_BAR_KEYS: readonly StudioSettingKey[] = ['showDeps', 'showBaselineOverlay', 'showFloat', 'statusLine'];
 
 interface PopoverState { step: StudioStepId; anchor: { x: number; y: number }; from: 'rail' | 'paper' }
 
@@ -246,23 +251,32 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
   const availableColumnIds = useMemo(() => new Set(domain.availableColumns.map(column => String(column.id))), [domain.availableColumns]);
 
-  // Een keuze in de stap Taken. Een layout brengt ook zijn kolommen en schakelaars mee (één stap
-  // "Ongedaan maken"); alleen wat echt verandert telt.
+  // Een keuze in de stap Taken verandert alleen de rijen (fixronde na council ronde 5): kolommen en
+  // balkopties van een layout neemt de planner over met een knop (`takeOverFromLayout`). Zo verliest wie
+  // een layout uitprobeert, met de muis of met de pijltjes, nooit zijn eigen kolommen. Een klik op de keuze
+  // die al gekozen is, doet niets.
   const chooseSource = useCallback((next: ReportTaskSource) => {
-    const base = taskSourcePatch(next);
-    const layout = next.kind === 'layout' ? layouts.find(l => l.id === next.id) : undefined;
-    const extra = layout ? layoutReportPatch(layout, availableColumnIds) : {};
-    const changed = (Object.keys(extra) as StudioSettingKey[])
-      .filter(key => JSON.stringify(settings[key]) !== JSON.stringify(extra[key]));
-    if (!layout || changed.length === 0) {
-      patch(base, 'taskSource');
-      return;
-    }
-    const columns = changed.includes('columns');
-    const bars = changed.some(key => key !== 'columns');
-    const text = t(columns && bars ? 'studio.tasks.appliedBoth' : columns ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout: layout.name });
-    applyWithUndo('tasks', { ...base, ...Object.fromEntries(changed.map(key => [key, extra[key]])) }, text);
-  }, [layouts, availableColumnIds, settings, patch, applyWithUndo, t]);
+    if (taskSourceKey(next) === sourceKey) return;
+    patch(taskSourcePatch(next), 'taskSource');
+  }, [sourceKey, patch]);
+
+  // Wat de gekozen layout anders heeft dan het rapport, per deel dat je met een knop overneemt.
+  const layoutDiff = useMemo(() => {
+    if (!chosenLayout) return null;
+    const extra = layoutReportPatch(chosenLayout, availableColumnIds);
+    const differs = (key: StudioSettingKey) => key in extra && JSON.stringify(settings[key]) !== JSON.stringify(extra[key]);
+    const pick = (keys: readonly StudioSettingKey[]): Partial<ReportSettings> | null => {
+      const changed = keys.filter(differs);
+      return changed.length > 0 ? Object.fromEntries(changed.map(key => [key, extra[key]])) as Partial<ReportSettings> : null;
+    };
+    return { name: chosenLayout.name, columns: pick(LAYOUT_COLUMN_KEYS), bars: pick(LAYOUT_BAR_KEYS) };
+  }, [chosenLayout, availableColumnIds, settings]);
+  // Eén deel overnemen, met één stap "Ongedaan maken" voor alleen dat deel (de keuze van de layout blijft).
+  const takeOverFromLayout = useCallback((part: 'columns' | 'bars') => {
+    const values = layoutDiff?.[part];
+    if (!layoutDiff || !values) return;
+    applyWithUndo('tasks', values, t(part === 'columns' ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout: layoutDiff.name }));
+  }, [layoutDiff, applyWithUndo, t]);
   const patchResourceOptions = useCallback((next: Partial<ResourceGanttReportOptions>, input: string) => {
     patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
   }, [patch, resourceOptions]);
@@ -290,6 +304,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   openStepRef.current = openStep;
   const setOpenStep = useCallback((step: StudioStepId | null) => remember({ studioStep: step ?? 'none' }), [remember]);
   const [focusColumn, setFocusColumn] = useState<{ id: string; seq: number } | null>(null);
+  // Een klik op Eenh./d of Curve op het papier: de focus op de schakelaar die ze aan en uit zet (Taken ›
+  // Per resource). Die kolommen staan niet in de stap Kolommen.
+  const [focusOption, setFocusOption] = useState<{ key: string; seq: number } | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const closePopover = useCallback(() => setPopover(null), []);
   const rail = settings.sidebar === 'rail';
@@ -297,12 +314,14 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const fabRef = useRef<HTMLButtonElement>(null);
 
   const openStepFromPaper = useCallback((pick: PaperPick) => {
-    const step = TARGET_STEP[pick.target];
+    const assignmentColumn = pick.target === 'columns' && !!pick.column && ASSIGNMENT_COLUMN_KEYS.has(pick.column);
+    const step = assignmentColumn ? 'tasks' : TARGET_STEP[pick.target];
     markReportInput('paper-click');
     // Wie op het papier klikt, kent de aanwijzing: die hoeft niet meer.
     remember({ paperHintSeen: true });
     // Een klik op een kolom zet de focus op die rij; een klik elders op het papier vergeet een eerdere kolom.
-    setFocusColumn(pick.column ? { id: paperKeyToId(pick.column), seq: Date.now() } : null);
+    setFocusColumn(pick.column && !assignmentColumn ? { id: paperKeyToId(pick.column), seq: Date.now() } : null);
+    setFocusOption(assignmentColumn ? { key: 'showAssignmentColumns', seq: Date.now() } : null);
     if (rail) {
       setPopover({ step, anchor: pick.anchor, from: 'paper' });
     } else {
@@ -315,6 +334,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   // dan geen focus meer (die nam de focus weg van de kop of van het eerste bedienelement).
   const openStepDirect = useCallback((step: StudioStepId | null) => {
     setFocusColumn(null);
+    setFocusOption(null);
     setOpenStep(step);
   }, [setOpenStep]);
 
@@ -498,6 +518,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     settings.statusLine !== 'none' && t('studio.bars.short.statusLine'),
   ].filter((v): v is string => typeof v === 'string');
 
+  // Per resource met Eenh./d en Curve: twee kolommen achter de taaknaam, buiten de stap Kolommen. De
+  // samenvatting telt ze mee, want ze staan op het papier (tenzij ze daar niet passen).
+  const assignmentColumnsShown = !!resourceResult && resourceOptions.showAssignmentColumns && !paperInfo?.assignmentColumnsDropped;
+  const assignmentLabels = [t('tableHeaders.unitsPerDay'), t('tableHeaders.curve')];
+  const paperColumnLabels = resolved.columns.flatMap(c => {
+    const label = c.builtin ? labelForId(c.key) : c.header ?? c.key;
+    return assignmentColumnsShown && c.builtin === 'name' ? [label, ...assignmentLabels] : [label];
+  });
+  const paperColumnCount = paperColumnLabels.length;
   const tableTooWide = tableShare !== null && tableShare > TABLE_SHARE_WARN;
   const sharePct = Math.round((tableShare ?? 0) * 100);
   const statusLineWithoutDate = settings.statusLine !== 'none' && !project.statusDate;
@@ -505,11 +534,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     tasks: { text: rowsSummary },
     columns: {
       text: tableTooWide
-        ? t('studio.columns.summaryWide', { count: resolved.columns.length, share: sharePct })
-        : t('studio.columns.summaryList', {
-          count: resolved.columns.length,
-          list: resolved.columns.map(c => (c.builtin ? labelForId(c.key) : c.header)).join(listSep),
-        }),
+        ? t('studio.columns.summaryWide', { count: paperColumnCount, share: sharePct })
+        : t('studio.columns.summaryList', { count: paperColumnCount, list: paperColumnLabels.join(listSep) }),
       warn: tableTooWide,
     },
     bars: {
@@ -536,9 +562,10 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   const regionLabel = useCallback((target: PaperTarget) => t(`studio.region.${target}`), [t]);
   const columnLabelForPaper = useCallback((key: string) => {
-    const id = paperKeyToId(key);
-    return labelForId(id);
-  }, [paperKeyToId, labelForId]);
+    if (key === 'units') return t('tableHeaders.unitsPerDay');
+    if (key === 'curve') return t('tableHeaders.curve');
+    return labelForId(paperKeyToId(key));
+  }, [paperKeyToId, labelForId, t]);
 
   // Breedtes in millimeter op papier: de tabel staat op 0,75 pt per logische px, maal de lettergrootte.
   const mm = (px: number, fmt: Intl.NumberFormatOptions) => t('studio.mm', { value: (px * MM_PER_PX).toLocaleString(i18n.language, fmt) });
@@ -603,6 +630,28 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               ]}
             />
             {chosenLayout && <p className="rs-hint" data-rs-layout-hint>{t('studio.tasks.layoutHint')}</p>}
+            {layoutDiff && (layoutDiff.columns || layoutDiff.bars) && (
+              <StudioNotice
+                tone="info"
+                dataKey="layout-own"
+                actions={(
+                  <>
+                    {layoutDiff.columns && (
+                      <button type="button" className="ops-textlink" onClick={() => takeOverFromLayout('columns')} data-rs-take-over="columns">
+                        {t('studio.tasks.takeColumns')}
+                      </button>
+                    )}
+                    {layoutDiff.bars && (
+                      <button type="button" className="ops-textlink" onClick={() => takeOverFromLayout('bars')} data-rs-take-over="bars">
+                        {t('studio.tasks.takeBars')}
+                      </button>
+                    )}
+                  </>
+                )}
+              >
+                {t(layoutDiff.columns && layoutDiff.bars ? 'studio.tasks.layoutOwnBoth' : layoutDiff.columns ? 'studio.tasks.layoutOwnColumns' : 'studio.tasks.layoutOwnBars')}
+              </StudioNotice>
+            )}
             {barColorsDiffer && layoutBarColors && (
               <StudioNotice
                 tone="info"
@@ -629,6 +678,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                       onChange={v => patchResourceOptions({ [key]: v }, key)}
                       label={t(`resourceGantt.${key}`)}
                       dataKey={key}
+                      focusSeq={focusOption?.key === key ? focusOption.seq : undefined}
                     />
                   );
                 })}
@@ -684,6 +734,26 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               labelFor={labelForId}
               categoryLabel={categoryLabel}
             />
+            {assignmentColumnsShown && (
+              <p className="rs-hint" data-rs-assignment-columns-hint>
+                {t('studio.columns.assignmentHint', { units: assignmentLabels[0], curve: assignmentLabels[1] })}{' '}
+                <button
+                  type="button"
+                  className="ops-textlink"
+                  onClick={() => {
+                    markReportInput('step');
+                    setFocusColumn(null);
+                    const seq = Date.now();
+                    if (popover) setPopover({ ...popover, step: 'tasks' });
+                    else setOpenStep('tasks');
+                    setFocusOption({ key: 'showAssignmentColumns', seq });
+                  }}
+                  data-rs-to-resource-options
+                >
+                  {t('studio.columns.toResourceOptions')}
+                </button>
+              </p>
+            )}
             {resolved.missing.length > 0 && (
               <StudioNotice tone="info" dataKey="columns-missing">
                 {t('studio.columns.missing', { count: resolved.missing.length })}
@@ -996,7 +1066,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   // ---- Werkbalk boven het papier: het aantal pagina's (dat zet het papier zelf). Met de zijbalk open
   // staan papier, kolommen en taken in de stappen; ingeklapt staan ze hier, omdat de rand ze niet toont.
-  const columnsSummary = t('studio.columns.summary', { count: resolved.columns.length });
+  const columnsSummary = t('studio.columns.summary', { count: paperColumnCount });
   const statusItems = useMemo(() => (rail ? [paperLabel, columnsSummary, rowsSummary] : []), [rail, paperLabel, columnsSummary, rowsSummary]);
   const paperActions = useMemo(() => (rail ? <HelpButton articleId={REPORT_HELP_ARTICLE_ID} /> : undefined), [rail]);
 
@@ -1050,6 +1120,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   onClick={e => {
                     markReportInput('step');
                     setFocusColumn(null);
+                    setFocusOption(null);
                     const rect = e.currentTarget.getBoundingClientRect();
                     setPopover(prev => (prev?.step === step ? null : { step, anchor: { x: rect.right + 8, y: rect.top }, from: 'rail' }));
                   }}
@@ -1163,6 +1234,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           onClose={closePopover}
           onOpenInSidebar={() => { const step = popover.step; setPopover(null); setOpenStep(step); patch({ sidebar: 'open' }, 'sidebar'); }}
           dataKey={popover.step}
+          avoidRef={fabRef}
         >
           <StudioStepScroll className="rs-step-body rs-pop-scroll" data-rs-pop-body>
             {stepContent(popover.step)}

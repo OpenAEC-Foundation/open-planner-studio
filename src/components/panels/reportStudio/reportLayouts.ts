@@ -41,9 +41,9 @@ export function taskSourceFromKey(key: string): ReportTaskSource {
 }
 
 /**
- * Wat een layout bij het kiezen naar de stappen Kolommen en Balken brengt (#861). De rijen volgen de layout
- * live; deze velden neemt het rapport één keer over, met één stap "Ongedaan maken", en daarna zijn ze van de
- * planner.
+ * Wat een layout naar de stappen Kolommen en Balken kan brengen (#861). De rijen volgen de layout live; deze
+ * velden neemt het rapport alleen over als de planner op "Kolommen overnemen" of "Balkopties overnemen" klikt
+ * (fixronde na council ronde 5), elk met één stap "Ongedaan maken". Een keuze wisselen verandert ze nooit.
  * - `columns` → de kolommen van het rapport (de taaknaam blijft verplicht). Geen kolommen ⇒ ongemoeid.
  * - `showRelations` → Afhankelijkheden, behalve bij een groepering waarin een taak onder meer banden staat:
  *   daar staan de relatielijnen toch uit, en de keuze voor een gewone afdruk blijft bewaard.

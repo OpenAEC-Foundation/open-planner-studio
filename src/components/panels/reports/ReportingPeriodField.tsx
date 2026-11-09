@@ -4,6 +4,7 @@ import { Select } from '@/components/common/Select';
 import { useAppStore } from '@/state/appStore';
 import { useDisplayDate } from '@/hooks/displayDate';
 import { localTodayIso } from '@/utils/dateUtils';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import {
   REPORTING_PERIOD_PRESETS, type ReportingPeriod, type ReportingPeriodPreset, type ResolvedPeriod,
   isIsoDay, projectSpan, referenceDayOf, resolveReportingPeriod,
@@ -15,7 +16,8 @@ import {
  * de berekende datums alleen-lezen als tekst in de datumnotatie van de app (`useDisplayDate`, net
  * als de rapportondertitel); bij *Aangepast* worden het bewerkbare `<input type="date">`-velden —
  * bewust de native invoer en niet `DateTextInput`, omdat hier een kalenderkiezer gewenst is; de
- * browser toont daarin zijn eigen locale-notatie. Een omgekeerd bereik (tot < van) of een leeg/
+ * browser toont daarin zijn eigen locale-notatie. Uitzondering: `compact` (het nieuwe Rapport-tabblad)
+ * gebruikt `DateTextInput`, zodat dat tabblad één soort datumveld heeft. Een omgekeerd bereik (tot < van) of een leeg/
  * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
  * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
  * datums vallen; wisselen náár *Aangepast* start met de datums van de preset die op dat moment gold.
@@ -37,8 +39,10 @@ interface Props {
   /** `data-ops-report-option`-sleutel voor tests. */
   dataKey: string;
   /**
-   * Dicht, zoals een veld in het eigenschappenpaneel: het label klein en in hoofdletters (`Field`), de keuzelijst
-   * met de opvulling van de andere keuzelijsten in de zijbalk van het nieuwe Rapport-tabblad (#817).
+   * Dicht, zoals een veld in het eigenschappenpaneel: de labels klein en in hoofdletters zonder dubbele punt
+   * (`Field`, `.rs-field-label`), de keuzelijst met de opvulling van de andere keuzelijsten en bij *Aangepast*
+   * het datumveld van de app (`DateTextInput`), zoals de statusdatum in hetzelfde tabblad. Alleen in de
+   * zijbalk van het nieuwe Rapport-tabblad (#817; fixronde na council ronde 5).
    */
   compact?: boolean;
 }
@@ -88,19 +92,40 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
     const draft = which === 'from' ? draftFrom : draftTo;
     const setDraft = which === 'from' ? setDraftFrom : setDraftTo;
     const label = t(which === 'from' ? 'tableReports.options.periodFrom' : 'tableReports.options.periodTo');
+    const labelClass = compact ? 'rs-field-label flex-shrink-0' : 'text-text-secondary flex-shrink-0';
     if (!isCustom) {
       return (
-        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: '11rem' }}>
-          <span className="text-text-secondary flex-shrink-0" data-ops-report-period-label={which}>{label}</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: compact ? undefined : '11rem' }}>
+          <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
           <span className="flex-1 min-w-0 truncate" data-ops-report-option={`${dataKey}.${which}`} data-ops-readonly>
             {dd.date(which === 'from' ? resolved.from : resolved.to)}
           </span>
         </div>
       );
     }
+    if (compact) {
+      // Het datumveld van de app: het commit pas bij Enter of bij het verlaten, en alleen een bestaande datum.
+      return (
+        <span className="flex items-center gap-2 min-w-0 flex-1">
+          <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
+          <span className="flex-1 min-w-0" data-ops-report-option={`${dataKey}.${which}`}>
+            <DateTextInput
+              value={draft}
+              ariaLabel={label}
+              onCommit={next => {
+                setDraft(next);
+                if (which === 'from') commitCustom(next, draftTo); else commitCustom(draftFrom, next);
+              }}
+              className="input w-full !text-small !leading-4 !px-2.5 !py-1.5"
+              style={invalid ? { borderColor: 'var(--error)' } : undefined}
+            />
+          </span>
+        </span>
+      );
+    }
     return (
       <label className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: '11rem' }}>
-        <span className="text-text-secondary flex-shrink-0" data-ops-report-period-label={which}>{label}</span>
+        <span className={labelClass} data-ops-report-period-label={which}>{label}</span>
         <input
           type="date"
           value={draft}
@@ -125,17 +150,13 @@ export function ReportingPeriodField({ id, value, onChange, dataKey, compact = f
       {/* Label bóven de keuzelijst: naast een `w-32`-label blijven bij de standaardkolom 53 px over
           en leest élke preset als "Hele pr…". */}
       <div className="flex flex-col gap-1 min-w-0">
-        <label
-          className={compact ? '!text-small uppercase tracking-wide' : 'text-text-secondary'}
-          style={compact ? { color: 'var(--theme-text-muted)' } : undefined}
-          htmlFor={id}
-        >
-          {t('tableReports.options.reportingPeriod')}
+        <label className={compact ? 'rs-field-label' : 'text-text-secondary'} htmlFor={id}>
+          {compact ? t('studio.reportingPeriod') : t('tableReports.options.reportingPeriod')}
         </label>
         <Select
           id={id}
           className={compact ? 'w-full min-w-0 !py-1.5 !px-2.5' : 'w-full min-w-0'}
-          aria-label={t('tableReports.options.reportingPeriod')}
+          aria-label={compact ? t('studio.reportingPeriod') : t('tableReports.options.reportingPeriod')}
           value={value.preset}
           onChange={v => changePreset(v as ReportingPeriodPreset)}
           options={REPORTING_PERIOD_PRESETS.map(p => ({ value: p, label: t(`tableReports.periodPresets.${p}`) }))}

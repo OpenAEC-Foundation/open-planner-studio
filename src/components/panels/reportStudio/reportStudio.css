@@ -628,15 +628,14 @@
 .rs-fit-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
 .rs-fit-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 
-/* Het papiervlak: de stippen staan op de omhulling, zodat de vrije strook voor de zwevende knop (onder het
-   scrollvak) er hetzelfde uitziet als de rest. */
+/* Het papiervlak: effen, zoals de werkvlakken van de app (Backstage, het oude rapportvoorbeeld). De kleur
+   staat op de omhulling, zodat de vrije strook voor de zwevende knop (onder het scrollvak) er hetzelfde
+   uitziet als de rest. */
 .rs-viewport-wrap {
   flex: 1;
   min-height: 0;
   position: relative;
-  background:
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--theme-text-muted) 22%, transparent) 1px, transparent 0) 0 0 / 18px 18px,
-    var(--theme-bg);
+  background: var(--theme-bg);
 }
 .rs-viewport {
   position: absolute;

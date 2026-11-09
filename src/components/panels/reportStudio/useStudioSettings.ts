@@ -21,11 +21,11 @@ export interface StudioSettingsApi {
    */
   resetFields: (scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => void;
   /**
-   * Zet meerdere velden in één keer, als één stap die ongedaan te maken is (een layout kiezen, #861). `text`
-   * is de melding met "Ongedaan maken".
+   * Zet meerdere velden in één keer, als één stap die ongedaan te maken is (kolommen of balkopties van een
+   * layout overnemen, #861). `text` is de melding met "Ongedaan maken".
    */
   applyWithUndo: (scope: string, next: Partial<ReportSettings>, text: string) => void;
-  /** De laatste "Standaard" (of toegepaste layout) met zijn stap en naam, zolang hij nog ongedaan te maken is. */
+  /** De laatste "Standaard" (of overgenomen deel van een layout) met zijn stap en naam, zolang hij nog ongedaan te maken is. */
   lastReset: { scope: string; label: string; text?: string } | null;
   undoReset: () => void;
   dismissReset: () => void;
@@ -34,7 +34,7 @@ export interface StudioSettingsApi {
 interface PendingReset {
   scope: string;
   label: string;
-  /** Eigen meldingstekst (een toegepaste layout); zonder tekst "… staat weer op de standaard". */
+  /** Eigen meldingstekst (een overgenomen deel van een layout); zonder tekst "… staat weer op de standaard". */
   text?: string;
   /** Alleen de velden die Standaard terugzette, met hun waarde van vóór Standaard. */
   previous: Partial<ReportSettings>;

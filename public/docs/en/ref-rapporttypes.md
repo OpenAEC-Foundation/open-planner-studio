@@ -80,7 +80,7 @@ The schedule as a bar chart, with a table on the left and a timeline on the righ
 
 The same bars as the Gantt chart, grouped per resource: who does what and when. The block *Summary* counts *Resources:*, *Assignments:* and *Without resource:* (with a period also *Outside the period:*). The diagram shares all options of the Gantt chart, except *Follow view (filter, grouping, sort)*, *Critical path* and *Dependencies*: the rows do not come from the screen, a task can appear under several resources, and the relations are not drawn there. The checkbox *Critical path* is hidden and on. This comes with the options of the Gantt chart under *Settings*, with these four checkboxes and the period:
 
-With the new Report tab the Resource diagram is no longer a report of its own, but a layout in the *Tasks* step of the Gantt chart. The four checkboxes and the period are there under *Per resource*. See [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental).
+With the new Report tab the Resource diagram is no longer a report of its own, but a layout in the *Tasks* step of the Gantt chart. The four checkboxes and the period are there under *Per resource*. You switch the *Units/d* and *Curve* columns on or off there; they are not in the *Columns* step. See [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental).
 
 **Each resource on a new page** — Default: off. Effect: each resource starts on a new page, so you can hand out a sheet per crew or employee. Off gives one continuous document.
 
