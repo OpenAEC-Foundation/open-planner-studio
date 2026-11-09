@@ -73,7 +73,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
 | 10 (v11) | 8 | 8 | — |
 | 11 (v12) | 8 | 8 | — |
-| 12 (v13) | 8 | … | — |
+| 12 (v13) | 8 | 8 | — |
+| 13 (v14) | … | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -87,7 +88,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 12 (v13) — Opus 8, Sol loopt
+### Ronde 12 (v13) — Opus 8, Sol 8 — verwerkt in v14
 
 Opus 8 (`scratchpad/r12/opus/v13-proef.mjs`). Fase 0–2 ja. Blokkeert §5–6 (twee zinnen): (1) Ctrl+Z na opslaan zet taak
 op nieuw pad (UUIDv5 niet terug te rekenen; `detached` mist bronpad) → `detached` bewaart bronpad per domein-id; writer:
@@ -98,6 +99,15 @@ ná heropenen: kan niet). (2) eigen baseline naar nooit-bronpad → `MISSING_REF
 attribuutnamen, geen children/inherits; (6) `-dup-N` bij gelijke 128 bits; (7) melding bij onbekend
 `openaec::planning::`-attribuut; (8) tekst: r.809, "de de", §12-volgorde, "Beide besluiten" (drie), `\/`-ontsnapping en
 andere documenten bij Grens. Eruit: laatste→eerste; lege entry voor eigen baselines.
+
+Sol 8 (`scratchpad/r12/sol/bewijs.txt`, `bewijs-eerste-opslag.txt`). Blokkeert: (S1) `/planning/a/<uuid>` en
+`/planning/b/<uuid>` krijgen hetzelfde domein-id → `removeTaskSubtrees` wist beide (2 → 0) → id uit het hele pad.
+Vervolg: (S2) bytezoektocht mist `"\u002fplanning\/work-0"` → gedecodeerde tekenreeksen; (S3) lege entry dekt eerste
+opslag niet (baseline naar taak die nooit bronpad was) → opgelost via baseline = tekst; (S4) test "geen uitvoer bevat
+class" → "app voegt geen class toe".
+
+v14 (2026-11-09): id uit hele pad; `detached` met bronpad; baseline-taakveld tekst; eerste bijdrage; `cal-default`;
+controle 1 voor eigen entries; gedecodeerde tekenreeksen; melding onbekend planning-attribuut; §12 in volgorde.
 
 ### Ronde 11 (v12) — Opus 8, Sol 8 — verwerkt in v13
 
@@ -445,7 +455,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
-   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. Ronde 11: Opus 8, Sol 8 → v13. **Ronde 12 loopt** (Opus + Sol op v13).
+   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. Ronde 11: Opus 8, Sol 8 → v13. Ronde 12: Opus 8, Sol 8 → v14. **Ronde 13 loopt** (Opus + Sol op v14).
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
