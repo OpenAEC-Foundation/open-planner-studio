@@ -129,6 +129,11 @@ Zelfde meting, 5000 taken (139 bladen A3), schakelaar "Speling tonen", 6 klikken
 | vóór (na de gedeelde tekstmeting van punt 1) | 48 / 49 ms | 602 / 644 ms | 218–272 ms (×2) |
 | na de caches (celteksten, datumbereik) | 39 / 55 ms | 286–337 ms | 152–188 ms |
 | na het rijvenster en de vaste bladenlijst | 40 / 42 ms | 134 / 167 ms | 15–43 ms |
+| na alle punten van de fixronde | 42 / 42 ms | 136 / 158 ms | — |
+
+Na alle punten ook gemeten: papierformaat A2 ↔ A3 bij 5000 taken (6 klikken) terugkoppeling 38 / 43 ms,
+papier 202 / 212 ms (een andere bladindeling, dus ook nieuwe bladen in beeld); 57 taken, "Speling tonen"
+(8 klikken) terugkoppeling 39 / 45 ms, papier 87 / 99 ms.
 
 Wat het verschil maakt:
 
