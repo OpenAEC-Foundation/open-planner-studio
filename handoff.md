@@ -5,9 +5,9 @@ Gaat vóór de merge van de laatste PR naar `docs/archive/handoffs/`.
 
 ## Waar het staat (gewone taal)
 
-Het ontwerp is klaar: in ronde 8 gaven Opus, Sol en Fable alle drie een 9. Versie 9 (draft PR #839) verwerkt hun kleine
-punten. Nu legt de sessie Ethan de twee open besluiten één voor één voor (namespace, `openaec::activity`). Daarna begint
-de bouw met fase 0: een proef op echte bestanden met de 100 %-P-poort.
+Ethan heeft de IFCX-keuzes genomen (9 november, op advies van Bjorn). Ontwerp v10 verwerkt ze; omdat het eigendom in
+IFCX daardoor anders werkt, beoordelen Opus en Sol de nieuwe delen in ronde 9. Daarna: handoff naar het archief, #839
+op ready, merge door Trias, en dan fase 0.
 
 ## Doel van de sessie (Ethan, 2026-11-07)
 
@@ -70,6 +70,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 6 (v6) | 7 | 7 | 8 |
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
+| 9 (v10) | … | … | — (Ethan: voorlopig zonder Fable) |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -341,8 +342,10 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    aanbeveling `ops::`) → **besloten 2026-11-09**: advies Bjorn volgen (zie Besluiten). Gevolg: besluit 2 (afgeleide
    kopie `openaec::activity`) vervalt, want ifcx-explorer leest straks `openaec::planning::activity`. Eigendom in IFCX kan
    niet meer op namespace (gedeeld): eigen pad = pad met een `openaec::ops::`-attribuut (uit te werken in §5.2/§6.2).
-   Nieuwe vraag aan Ethan (2026-11-09): planning van een ander programma in `openaec::planning::` openen en bewerken?
-   (was buiten scope, §1, sinds ronde 2). Daarna spec bijwerken, en Opus + Sol één ronde over de IFCX-delen.
+   Besluit 3 (Ethan, 2026-11-09, optie 1): planning van een ander programma in `openaec::planning::` openen en bewerken.
+   Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
+   **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
+   Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
