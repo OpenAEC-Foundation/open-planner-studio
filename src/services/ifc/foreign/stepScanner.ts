@@ -7,8 +7,9 @@
  *
  * De scanner knipt een STEP-bestand in **stukken**. Een stuk is een entiteit-instantie van `#` tot en met
  * de `;` die haar afsluit, plus alle tekst ervóór sinds het vorige stuk (witruimte, regeleinden, ook
- * CRLF, en commentaar). De kop (alles vóór `DATA;`), het token `DATA;` zelf en de staart (alles na de
- * laatste entiteit, met `ENDSEC;` en `END-ISO-10303-21;`) zijn aparte stukken. Elk byte van de bron
+ * CRLF, en commentaar). De kop (alles vóór het eerste `DATA;`), elk `DATA;`-statement (met de tekst ervóór, bij
+ * een tweede DATA-sectie dus ook de `ENDSEC;` van de vorige) en de staart (alles na de laatste entiteit, met
+ * `ENDSEC;` en `END-ISO-10303-21;`) zijn aparte stukken. Elk byte van de bron
  * valt in precies één stuk, en de stukken staan in bronvolgorde.
  *
  * De scanner leest bytes (`Uint8Array`): alle STEP-syntaxis is ASCII. Hij decodeert geen tekst die de
@@ -17,11 +18,16 @@
  * argumentpositie en de inkomende verwijzingen. Daarnaast een klein aantal gedecodeerde velden
  * (zie `StepIndex`), lui en alleen op aanvraag.
  *
- * De regels voor de sectiegrens, quotes (`''`) en commentaar volgen `parseSTEP` in `ifcReader.ts`, zodat
- * scanner en lezer dezelfde entiteiten zien. Bekende verschillen met de lezer: de lezer slaat een
- * complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
+ * Ongeschikte invoer weigert de scanner met een `StepScanError`, met dezelfde regels als de voorproef
+ * `scripts/proef/classify-v9.py` (ontwerp v18): geen `ISO-10303-21;` vooraan of `END-ISO-10303-21;` achteraan,
+ * tekst of commentaar zonder einde, een laatste statement zonder `;`, secties in een andere volgorde (HEADER met
+ * ENDSEC, dan een of meer DATA-secties met ENDSEC), een onbekend statement, een `#id` dat twee keer voorkomt, of geen
+ * entiteiten. Sleutelwoorden en typenamen staan in hoofdletters (ISO 10303-21). Daarmee is de scanner strenger dan
+ * `parseSTEP` in `ifcReader.ts`: die zoekt `DATA;` hoofdletterongevoelig, valt bij een ongebalanceerde apostrof terug
+ * op een regel-verankerde zoektocht, en laat bij een dubbel `#id` de laatste winnen. Quotes (`''`) en commentaar
+ * volgen wel dezelfde regels, zodat scanner en lezer op geldige invoer dezelfde entiteiten zien. Bekend verschil: de
+ * lezer slaat een complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
  */
-import { IfcParseError } from '../ifcErrors';
 import { decodeStepText } from '../ifcReader';
 
 /** Het type van een complexe instantie `#n=(A(..)B(..));`. */
@@ -55,6 +61,13 @@ function isWord(c: number): boolean {
 function isSpace(c: number): boolean {
   return c === CH_SPACE || (c >= CH_TAB && c <= CH_CR);
 }
+/** Teken van een typenaam: `[A-Z0-9_]` (ISO 10303-21 schrijft hoofdletters voor). */
+function isUpperWord(c: number): boolean {
+  return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || c === 95;
+}
+function isDigit(c: number): boolean {
+  return c >= 48 && c <= 57;
+}
 /** Witruimte en commentaar overslaan: de lezer strippt commentaar vóór hij entiteiten leest, dus
  *  `#1= IFCTASK /* x *\/ (…);` is daar een gewone entiteit. */
 function skipBlank(b: Uint8Array, i: number): number {
@@ -87,43 +100,6 @@ function skipQuotedOrComment(b: Uint8Array, i: number): number {
       if (b[j] === CH_STAR && b[j + 1] === CH_SLASH) return j + 2;
     }
     return n;
-  }
-  return -1;
-}
-
-/** ASCII-hoofdletterongevoelige match van `token` (in hoofdletters) op positie `i`. */
-function startsWithCI(b: Uint8Array, i: number, token: string): boolean {
-  if (i + token.length > b.length) return false;
-  for (let k = 0; k < token.length; k++) {
-    let c = b[i + k];
-    if (c >= 0x61 && c <= 0x7a) c -= 0x20;
-    if (c !== token.charCodeAt(k)) return false;
-  }
-  return true;
-}
-
-/**
- * Begin van `DATA;`, met dezelfde twee pogingen als `indexOfDataSection` in de lezer: eerst quote- en
- * commentaarbewust, dan regel-verankerd (oude eigen bestanden met een ongebalanceerde apostrof in
- * `FILE_NAME`). -1 als er geen is.
- */
-function indexOfDataSection(b: Uint8Array): number {
-  for (let i = 0; i < b.length;) {
-    const c = b[i];
-    if (c === CH_QUOTE || c === CH_SLASH) {
-      const skip = skipQuotedOrComment(b, i);
-      if (skip >= 0) { i = skip; continue; }
-    }
-    if ((c === 0x44 || c === 0x64) && startsWithCI(b, i, 'DATA;')) return i;
-    i++;
-  }
-  // Regel-verankerd: begin van de tekst of na een regeleinde, dan spaties/tabs, dan `DATA;`. De lezer
-  // gebruikt `/^[ \t]*DATA;/im`; in JavaScript begint een regel ook na `\r`.
-  for (let i = 0; i < b.length; i++) {
-    if (i !== 0 && b[i - 1] !== CH_LF && b[i - 1] !== CH_CR) continue;
-    let j = i;
-    while (j < b.length && (b[j] === CH_SPACE || b[j] === CH_TAB)) j++;
-    if (startsWithCI(b, j, 'DATA;')) return j;
   }
   return -1;
 }
@@ -173,9 +149,7 @@ export class StepIndex {
   readonly #typeCode: Int32Array;
   readonly #typeNames: readonly string[];
   readonly #idNum: Int32Array;
-  readonly #idStr: Map<number, string>;
   readonly #byNum: Int32Array | Map<number, number>;
-  readonly #byStr: Map<string, number>;
   readonly #outOff: Int32Array;
   readonly #outTarget: Int32Array;
   readonly #outArg: Int32Array;
@@ -192,19 +166,16 @@ export class StepIndex {
   readonly entityCount: number;
   /** Regeleinde van de bron: CRLF als het eerste regeleinde een CRLF is. */
   readonly lineEnding: '\r\n' | '\n';
-  /** Aantal `#id`'s dat twee keer voorkomt (de laatste wint, zoals `entityMap` in de lezer). */
-  readonly duplicateIdCount: number;
   /** Aantal verwijzingen naar een `#id` dat niet bestaat. */
   readonly danglingRefCount: number;
 
   /** @internal Alleen `scanStep` maakt een index. */
   constructor(parts: {
     bytes: Uint8Array; kind: Uint8Array; start: Int32Array; end: Int32Array; entStart: Int32Array;
-    typeCode: Int32Array; typeNames: string[]; idNum: Int32Array; idStr: Map<number, string>;
-    byNum: Int32Array | Map<number, number>; byStr: Map<string, number>;
+    typeCode: Int32Array; typeNames: string[]; idNum: Int32Array; byNum: Int32Array | Map<number, number>;
     outOff: Int32Array; outTarget: Int32Array; outArg: Int32Array;
     inOff: Int32Array; inSource: Int32Array; inArg: Int32Array;
-    lineEnding: '\r\n' | '\n'; duplicateIdCount: number; danglingRefCount: number;
+    lineEnding: '\r\n' | '\n'; danglingRefCount: number;
   }) {
     this.#bytes = parts.bytes;
     this.#kind = parts.kind;
@@ -214,9 +185,7 @@ export class StepIndex {
     this.#typeCode = parts.typeCode;
     this.#typeNames = parts.typeNames;
     this.#idNum = parts.idNum;
-    this.#idStr = parts.idStr;
     this.#byNum = parts.byNum;
-    this.#byStr = parts.byStr;
     this.#outOff = parts.outOff;
     this.#outTarget = parts.outTarget;
     this.#outArg = parts.outArg;
@@ -228,7 +197,6 @@ export class StepIndex {
     for (let i = 0; i < this.count; i++) if (parts.kind[i] === KIND_ENTITEIT) entities++;
     this.entityCount = entities;
     this.lineEnding = parts.lineEnding;
-    this.duplicateIdCount = parts.duplicateIdCount;
     this.danglingRefCount = parts.danglingRefCount;
   }
 
@@ -247,13 +215,13 @@ export class StepIndex {
   /** Het `#id` zonder `#` (`'12'`), of '' voor kop, `DATA;` en staart. */
   id(i: number): string {
     const n = this.#idNum[i];
-    if (n >= 0) return String(n);
-    return this.#idStr.get(i) ?? '';
+    return n >= 0 ? String(n) : '';
   }
   /** Het stuk met dit `#id` (zonder `#`), of -1. */
   chunkOf(id: string): number {
-    if (/^\d+$/.test(id) && id.length < 10) return this.#lookupNum(Number(id));
-    return this.#byStr.get(id) ?? -1;
+    if (!/^\d{1,10}$/.test(id)) return -1;
+    const n = Number(id);
+    return n <= 0x7fffffff ? this.#lookupNum(n) : -1;
   }
   #lookupNum(n: number): number {
     const t = this.#byNum;
@@ -481,7 +449,7 @@ export class StepIndex {
 
 /** De publieke velden en methoden van `StepIndex`: wat de indeling mag lezen (§4.2). */
 export const STEP_INDEX_FIELDS: ReadonlySet<string> = new Set([
-  'count', 'entityCount', 'lineEnding', 'duplicateIdCount', 'danglingRefCount',
+  'count', 'entityCount', 'lineEnding', 'danglingRefCount',
   'kind', 'isEntity', 'start', 'end', 'entityStart', 'type', 'id', 'chunkOf',
   'outStart', 'outEnd', 'outTarget', 'outArg', 'inStart', 'inEnd', 'inSource', 'inArg', 'refsAt', 'refAt',
   'argCount', 'globalId', 'name', 'templateType', 'workControl', 'propertyText', 'enumValues', 'application',
@@ -579,17 +547,83 @@ function stripComments(text: string): string {
   return out + text.slice(from);
 }
 
+/** Waarom de scanner invoer weigert. Dezelfde regels als `scripts/proef/classify-v9.py` (ontwerp v18). */
+export type StepScanReason =
+  /** Geen `ISO-10303-21;` als eerste statement, of geen `HEADER;` direct erna. */
+  | 'geen-kop'
+  /** Het laatste statement is niet `END-ISO-10303-21;`. */
+  | 'geen-einde'
+  | 'tekst-zonder-einde'
+  | 'commentaar-zonder-einde'
+  /** Tekst na de laatste `;` die geen witruimte of commentaar is. */
+  | 'statement-zonder-puntkomma'
+  /** HEADER of DATA zonder ENDSEC, of een statement buiten een sectie. */
+  | 'sectievolgorde'
+  /** Een statement dat in deze sectie niet past (geen entiteit in DATA, geen kopentiteit in HEADER). */
+  | 'onbekend-statement'
+  | 'dubbel-id'
+  | 'geen-entiteiten';
+
+/** Ongeschikte of onvolledige STEP-invoer. `at` is de byte-positie van het statement, of -1. */
+export class StepScanError extends Error {
+  readonly reason: StepScanReason;
+  readonly at: number;
+  constructor(reason: StepScanReason, message: string, at = -1) {
+    super(message);
+    this.name = 'StepScanError';
+    this.reason = reason;
+    this.at = at;
+    Object.setPrototypeOf(this, StepScanError.prototype);
+  }
+}
+
+/** Einde van tekst of commentaar vanaf `i` (zoals `skipQuotedOrComment`), maar gooit als het niet afgesloten is.
+ *  -1 als `i` niet op tekst of commentaar staat. */
+function skipQuotedOrCommentStrict(b: Uint8Array, i: number): number {
+  const n = b.length;
+  const c = b[i];
+  if (c === CH_QUOTE) {
+    for (let j = i + 1; j < n; j++) {
+      if (b[j] !== CH_QUOTE) continue;
+      if (b[j + 1] === CH_QUOTE) { j++; continue; }
+      return j + 1;
+    }
+    throw new StepScanError('tekst-zonder-einde', 'Tekst zonder einde.', i);
+  }
+  if (c === CH_SLASH && b[i + 1] === CH_STAR) {
+    for (let j = i + 2; j + 1 < n; j++) {
+      if (b[j] === CH_STAR && b[j + 1] === CH_SLASH) return j + 2;
+    }
+    throw new StepScanError('commentaar-zonder-einde', 'Commentaar zonder einde.', i);
+  }
+  return -1;
+}
+/** Witruimte en commentaar overslaan; gooit bij commentaar zonder einde. */
+function skipBlankStrict(b: Uint8Array, i: number): number {
+  const n = b.length;
+  for (;;) {
+    while (i < n && isSpace(b[i])) i++;
+    if (b[i] === CH_SLASH && b[i + 1] === CH_STAR) { i = skipQuotedOrCommentStrict(b, i); continue; }
+    return i;
+  }
+}
+
+const S_BEGIN = 0;   // verwacht ISO-10303-21
+const S_HEADER = 1;  // verwacht HEADER
+const S_KOP = 2;     // in de HEADER-sectie
+const S_TUSSEN = 3;  // tussen secties
+const S_DATA = 4;    // in een DATA-sectie
+const S_EINDE = 5;   // na END-ISO-10303-21
+
 /**
- * Scan een STEP-bestand. Gooit `IfcParseError('no-data-section')` als er geen `DATA;` is, net als de
- * lezer. Alle andere tekst die geen entiteit is, hoort bij het volgende stuk (of de staart).
+ * Scan een STEP-bestand. Gooit `StepScanError` bij ongeschikte invoer (zie de kop van dit bestand). De volgorde van
+ * de controles is die van `classify-v9.py`, zodat beide dezelfde reden geven: eerst tekst, commentaar en de laatste
+ * `;` (over het hele bestand), dan het eerste statement, het laatste, `HEADER`, en de secties in bronvolgorde
+ * (met dubbele `#id`'s op hun plek), en tot slot een open sectie en nul entiteiten.
  */
 export function scanStep(bytes: Uint8Array): StepIndex {
   const b = bytes;
   const n = b.length;
-  const dataAt = indexOfDataSection(b);
-  if (dataAt < 0) {
-    throw new IfcParseError('no-data-section', "Onleesbaar IFC-bestand: de verplichte 'DATA;'-sectiegrens ontbreekt.");
-  }
   const estimate = Math.max(64, Math.floor(n / 60));
   const kind = new IntBuf(estimate);
   const start = new IntBuf(estimate);
@@ -597,10 +631,8 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const entStart = new IntBuf(estimate);
   const typeCode = new IntBuf(estimate);
   const idNum = new IntBuf(estimate);
-  const idStr = new Map<number, string>();
   const outOff = new IntBuf(estimate + 1);
-  const refRaw = new IntBuf(estimate * 3); // numeriek doel-id, of -2 - index in refStr
-  const refStr: string[] = [];
+  const refRaw = new IntBuf(estimate * 3); // doel-`#id`, of -1 als het niet in een Int32 past
   const outArg = new IntBuf(estimate * 3);
   const typeNames: string[] = [''];
   const typeIndex = new Map<string, number>([['', 0]]);
@@ -612,11 +644,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   };
   const internType = (from: number, to: number): number => {
     let s = '';
-    for (let k = from; k < to; k++) {
-      let c = b[k];
-      if (c >= 0x61 && c <= 0x7a) c -= 0x20;
-      s += String.fromCharCode(c);
-    }
+    for (let k = from; k < to; k++) s += String.fromCharCode(b[k]);
     let code = typeIndex.get(s);
     if (code === undefined) {
       code = typeNames.length;
@@ -632,35 +660,24 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     return code;
   })();
 
-  pushChunk(KIND_KOP, 0, dataAt, -1, 0, -1);
-  pushChunk(KIND_DATA, dataAt, dataAt + 5, -1, 0, -1);
-
-  /** Lees een entiteit vanaf de `#` op `at`; geef de index na de `;` terug, of -1. Schrijft verwijzingen
-   *  pas weg als de entiteit compleet is. */
+  /** Lees een entiteit `#n=TYPE(…);` of `#n=(A(…)B(…));` vanaf de `#` op `at`. Geeft de index na de `;` terug,
+   *  of -1 als het statement die vorm niet heeft (dan bepaalt `statementEnd` het einde en de reden). Schrijft
+   *  verwijzingen pas weg als de entiteit compleet is. */
   const pendingRefs: number[] = [];
   const pendingArgs: number[] = [];
-  const pendingStr: string[] = [];
   let lastId = -1;
-  let lastIdStr = '';
   let lastType = 0;
   const readEntity = (at: number): number => {
-    pendingRefs.length = 0; pendingArgs.length = 0; pendingStr.length = 0;
+    pendingRefs.length = 0; pendingArgs.length = 0;
     let i = at + 1;
-    const idStart = i;
-    let numeric = true;
     let idValue = 0;
-    while (i < n && isWord(b[i])) {
-      const c = b[i];
-      if (c >= 48 && c <= 57 && numeric && idValue < 0x0ccccccc) idValue = idValue * 10 + (c - 48);
-      else numeric = false;
+    while (i < n && isDigit(b[i])) {
+      idValue = idValue * 10 + (b[i] - 48);
+      if (idValue > 0x7fffffff) return -1;
       i++;
     }
-    if (i === idStart) return -1;
-    if (numeric) { lastId = idValue; lastIdStr = ''; } else {
-      lastId = -1;
-      lastIdStr = '';
-      for (let k = idStart; k < i; k++) lastIdStr += String.fromCharCode(b[k]);
-    }
+    if (i === at + 1 || isWord(b[i])) return -1;
+    lastId = idValue;
     i = skipBlank(b, i);
     if (b[i] !== CH_EQ) return -1;
     i = skipBlank(b, i + 1);
@@ -670,13 +687,13 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       lastType = complexCode;
     } else {
       const typeStart = i;
-      while (i < n && isWord(b[i])) i++;
-      if (i === typeStart) return -1;
+      while (i < n && isUpperWord(b[i])) i++;
+      if (i === typeStart || isWord(b[i])) return -1;
       lastType = internType(typeStart, i);
       i = skipBlank(b, i);
       if (b[i] !== CH_LPAREN) return -1;
     }
-    // Argumenten op haakdiepte; strings en commentaar overslaan. Bij een complexe instantie tellen de
+    // Argumenten op haakdiepte; tekst en commentaar overslaan. Bij een complexe instantie tellen de
     // argumenten van de componenten door (component 1: 0..k, component 2: k+1..).
     let depth = 0;
     let arg = 0;
@@ -694,24 +711,17 @@ export function scanStep(bytes: Uint8Array): StepIndex {
         if (complex && depth === 1) arg++;
         if (depth === 0) { i++; closed = true; break; }
       } else if (c === CH_COMMA && depth === argDepth) arg++;
-      else if (c === CH_HASH && depth >= 1) {
+      else if (c === CH_SEMI) return -1; // `;` buiten tekst sluit het statement: haakjes niet in balans
+      else if (c === CH_HASH) {
+        // Een verwijzing is `#` met cijfers (zoals `#(\d+)` in de voorproef).
         let j = i + 1;
-        let refNumeric = true;
         let refValue = 0;
-        while (j < n && isWord(b[j])) {
-          const d = b[j];
-          if (d >= 48 && d <= 57 && refNumeric && refValue < 0x0ccccccc) refValue = refValue * 10 + (d - 48);
-          else refNumeric = false;
+        while (j < n && isDigit(b[j])) {
+          if (refValue <= 0x7fffffff) refValue = refValue * 10 + (b[j] - 48);
           j++;
         }
         if (j > i + 1) {
-          if (refNumeric) pendingRefs.push(refValue);
-          else {
-            let s = '';
-            for (let k = i + 1; k < j; k++) s += String.fromCharCode(b[k]);
-            pendingRefs.push(-2 - pendingStr.length);
-            pendingStr.push(s);
-          }
+          pendingRefs.push(refValue > 0x7fffffff ? -1 : refValue);
           pendingArgs.push(arg);
         }
         i = j;
@@ -720,88 +730,186 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       i++;
     }
     if (!closed) return -1;
-    // Witruimte en commentaar tussen `)` en `;`.
     i = skipBlank(b, i);
     if (b[i] !== CH_SEMI) return -1;
     return i + 1;
   };
 
-  let pending = dataAt + 5; // begin van het volgende stuk
-  for (let i = pending; i < n;) {
-    const c = b[i];
-    if (c === CH_QUOTE || c === CH_SLASH) {
-      const skip = skipQuotedOrComment(b, i);
-      if (skip >= 0) { i = skip; continue; }
+  /** Positie van de `;` die het statement vanaf `from` sluit (buiten tekst en commentaar), of -1 als die er niet
+   *  is. Zet `lastSig` op het laatste byte ervóór dat geen witruimte of commentaar is. */
+  let lastSig = -1;
+  const statementEnd = (from: number): number => {
+    lastSig = -1;
+    for (let i = from; i < n;) {
+      const c = b[i];
+      if (c === CH_QUOTE || c === CH_SLASH) {
+        const skip = skipQuotedOrCommentStrict(b, i);
+        if (skip >= 0) { if (c === CH_QUOTE) lastSig = skip - 1; i = skip; continue; }
+      }
+      if (c === CH_SEMI) return i;
+      if (!isSpace(c)) lastSig = i;
+      i++;
     }
-    if (c === CH_HASH) {
+    return -1;
+  };
+  const keywordEnd = (from: number): number => {
+    let k = from;
+    while (k < n && (isUpperWord(b[k]) || b[k] === 0x2d)) k++;
+    return k;
+  };
+  const keywordIs = (from: number, to: number, word: string): boolean => {
+    if (to - from !== word.length) return false;
+    for (let k = 0; k < word.length; k++) if (b[from + k] !== word.charCodeAt(k)) return false;
+    return true;
+  };
+
+  // Uitgestelde fouten, in de rangorde van de voorproef: [0] het eerste statement, [1] HEADER, [2] de eerste fout
+  // in de secties. Na de eerste fout zoekt de scanner alleen nog statementgrenzen (tekst, commentaar, laatste `;`,
+  // en of het laatste statement END-ISO-10303-21 is).
+  let headIssue: StepScanError | undefined;
+  let headerIssue: StepScanError | undefined;
+  let sectionIssue: StepScanError | undefined;
+  let state = S_BEGIN;
+  let stateAtEnd = S_BEGIN;
+  let statements = 0;
+  let lastIsEnd = false;
+  let pending = 0;
+  let firstData = true;
+  let i = 0;
+  for (;;) {
+    i = skipBlankStrict(b, i);
+    if (i >= n) break;
+    const st = i;
+    statements++;
+    const skimming = headIssue !== undefined || headerIssue !== undefined || sectionIssue !== undefined;
+    if (!skimming && state === S_DATA && b[i] === CH_HASH) {
       const next = readEntity(i);
       if (next > 0) {
-        const chunk = pushChunk(KIND_ENTITEIT, pending, next, i, lastType, lastId);
-        if (lastId < 0) idStr.set(chunk, lastIdStr);
-        for (let k = 0; k < pendingRefs.length; k++) {
-          const r = pendingRefs[k];
-          if (r <= -2) {
-            refRaw.push(-2 - refStr.length);
-            refStr.push(pendingStr[-2 - r]);
-          } else refRaw.push(r);
-          outArg.push(pendingArgs[k]);
-        }
+        pushChunk(KIND_ENTITEIT, pending, next, i, lastType, lastId);
+        for (let k = 0; k < pendingRefs.length; k++) { refRaw.push(pendingRefs[k]); outArg.push(pendingArgs[k]); }
         pending = next;
         i = next;
+        lastIsEnd = false;
         continue;
       }
-      i++;
-      continue;
     }
-    // `ENDSEC;` op codeniveau sluit de datasectie (zelfde test als `parseSTEP`: hoofdletters).
-    if (c === 0x45 && b[i + 1] === 0x4e && b[i + 2] === 0x44 && b[i + 3] === 0x53 && b[i + 4] === 0x45
-      && b[i + 5] === 0x43 && b[i + 6] === CH_SEMI) {
-      break;
+    const semi = statementEnd(st);
+    if (semi < 0) {
+      throw new StepScanError('statement-zonder-puntkomma', 'Het laatste statement heeft geen ;.', st);
     }
-    i++;
+    const kwEnd = keywordEnd(st);
+    const after = skipBlank(b, kwEnd);
+    const bare = after === semi;
+    const withParams = !bare && b[after] === CH_LPAREN && lastSig >= 0 && b[lastSig] === CH_RPAREN;
+    const isEnd = bare && keywordIs(st, kwEnd, 'END-ISO-10303-21');
+    lastIsEnd = isEnd;
+    i = semi + 1;
+    if (skimming) continue;
+    const isData = keywordIs(st, kwEnd, 'DATA') && (bare || withParams);
+    const isEndsec = bare && keywordIs(st, kwEnd, 'ENDSEC');
+    switch (state) {
+      case S_BEGIN:
+        if (bare && keywordIs(st, kwEnd, 'ISO-10303-21')) state = S_HEADER;
+        else headIssue = new StepScanError('geen-kop', 'Geen STEP-kop (ISO-10303-21;).', st);
+        break;
+      case S_HEADER:
+        if (bare && keywordIs(st, kwEnd, 'HEADER')) state = S_KOP;
+        else headerIssue = new StepScanError('geen-kop', 'Geen HEADER; na ISO-10303-21;.', st);
+        break;
+      case S_KOP: {
+        if (isEndsec) { state = S_TUSSEN; break; }
+        if (isEnd) { stateAtEnd = state; state = S_EINDE; break; }
+        if ((bare && keywordIs(st, kwEnd, 'HEADER')) || isData) {
+          sectionIssue = new StepScanError('sectievolgorde', 'HEADER zonder ENDSEC.', st);
+          break;
+        }
+        // Kopentiteit: `[A-Z][A-Z0-9_]*\s*\(.*\)`.
+        let ok = withParams && b[st] >= 65 && b[st] <= 90;
+        for (let k = st; ok && k < kwEnd; k++) if (b[k] === 0x2d) ok = false;
+        if (!ok) sectionIssue = new StepScanError('onbekend-statement', 'Onbekend statement in HEADER.', st);
+        break;
+      }
+      case S_TUSSEN:
+        if (isData) {
+          state = S_DATA;
+          if (firstData) {
+            pushChunk(KIND_KOP, 0, st, -1, 0, -1);
+            pending = st;
+            firstData = false;
+          }
+          pushChunk(KIND_DATA, pending, i, -1, 0, -1);
+          pending = i;
+        } else if (isEnd) { stateAtEnd = state; state = S_EINDE; }
+        else sectionIssue = new StepScanError('sectievolgorde', 'Statement buiten een sectie.', st);
+        break;
+      case S_DATA:
+        if (isEndsec) state = S_TUSSEN;
+        else if (isEnd) { stateAtEnd = state; state = S_EINDE; }
+        else sectionIssue = new StepScanError('onbekend-statement', 'Onbekend statement in DATA.', st);
+        break;
+      case S_EINDE:
+        // END-ISO-10303-21 was niet het laatste statement: de voorproef behandelt het dan als gewoon statement in
+        // de sectie waar het stond.
+        sectionIssue = stateAtEnd === S_KOP
+          ? new StepScanError('sectievolgorde', 'HEADER zonder ENDSEC.', st)
+          : stateAtEnd === S_DATA
+            ? new StepScanError('onbekend-statement', 'Onbekend statement in DATA.', st)
+            : new StepScanError('sectievolgorde', 'Statement buiten een sectie.', st);
+        break;
+    }
   }
+  if (statements === 0) throw new StepScanError('geen-kop', 'Geen STEP-kop (ISO-10303-21;).');
+  if (headIssue) throw headIssue;
+  if (!lastIsEnd) throw new StepScanError('geen-einde', 'Geen END-ISO-10303-21;.');
+  if (headerIssue) throw headerIssue;
   pushChunk(KIND_STAART, pending, n, -1, 0, -1);
   outOff.push(refRaw.length);
 
-  const count = kind.length;
+  const total = kind.length;
   const idNumArr = idNum.done();
-  // `#id` → stuk. Dicht als de ids compact genoeg zijn, anders een Map.
+  // `#id` → stuk. Dicht als de ids compact genoeg zijn, anders een Map. Na een sectiefout leest de scanner geen
+  // entiteiten meer, dus een gevonden dubbel `#id` staat altijd vóór die fout (de voorproef meldt de eerste).
   let maxId = 0;
-  for (let i = 0; i < count; i++) if (idNumArr[i] > maxId) maxId = idNumArr[i];
-  let duplicateIdCount = 0;
+  for (let k = 0; k < total; k++) if (idNumArr[k] > maxId) maxId = idNumArr[k];
+  let firstDuplicate = -1;
   let byNum: Int32Array | Map<number, number>;
-  if (maxId <= count * 8 + 1024) {
+  if (maxId <= total * 8 + 1024) {
     const t = new Int32Array(maxId + 1).fill(-1);
-    for (let i = 0; i < count; i++) {
-      const v = idNumArr[i];
+    for (let k = 0; k < total && firstDuplicate < 0; k++) {
+      const v = idNumArr[k];
       if (v < 0) continue;
-      if (t[v] >= 0) duplicateIdCount++;
-      t[v] = i;
+      if (t[v] >= 0) firstDuplicate = k;
+      else t[v] = k;
     }
     byNum = t;
   } else {
     const m = new Map<number, number>();
-    for (let i = 0; i < count; i++) {
-      const v = idNumArr[i];
+    for (let k = 0; k < total && firstDuplicate < 0; k++) {
+      const v = idNumArr[k];
       if (v < 0) continue;
-      if (m.has(v)) duplicateIdCount++;
-      m.set(v, i);
+      if (m.has(v)) firstDuplicate = k;
+      else m.set(v, k);
     }
     byNum = m;
   }
-  const byStr = new Map<string, number>();
-  for (const [chunk, s] of idStr) {
-    if (byStr.has(s)) duplicateIdCount++;
-    byStr.set(s, chunk);
+  const entStartArr = entStart.done();
+  if (firstDuplicate >= 0) {
+    throw new StepScanError('dubbel-id', `#${idNumArr[firstDuplicate]} komt twee keer voor.`, entStartArr[firstDuplicate]);
   }
-  const lookup = (v: number): number => (byNum instanceof Int32Array ? (v < byNum.length ? byNum[v] : -1) : (byNum.get(v) ?? -1));
+  if (sectionIssue) throw sectionIssue;
+  if (state === S_EINDE && stateAtEnd === S_KOP) throw new StepScanError('sectievolgorde', 'HEADER zonder ENDSEC.');
+  if (state === S_EINDE && stateAtEnd === S_DATA) throw new StepScanError('sectievolgorde', 'DATA zonder ENDSEC.');
+  let entityCount = 0;
+  for (let k = 0; k < total; k++) if (idNumArr[k] >= 0) entityCount++;
+  if (entityCount === 0) throw new StepScanError('geen-entiteiten', 'Het bestand heeft geen entiteiten.');
 
+  const lookup = (v: number): number => (byNum instanceof Int32Array ? (v < byNum.length ? byNum[v] : -1) : (byNum.get(v) ?? -1));
   const raw = refRaw.done();
   const outTarget = new Int32Array(raw.length);
   let danglingRefCount = 0;
   for (let k = 0; k < raw.length; k++) {
     const v = raw[k];
-    const t = v >= 0 ? lookup(v) : (byStr.get(refStr[-2 - v]) ?? -1);
+    const t = v >= 0 ? lookup(v) : -1;
     outTarget[k] = t;
     if (t < 0) danglingRefCount++;
   }
@@ -809,19 +917,19 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const outArgArr = outArg.done();
 
   // Inkomend: tellen, prefixsom, vullen (CSR).
-  const inOff = new Int32Array(count + 1);
+  const inOff = new Int32Array(total + 1);
   for (let k = 0; k < outTarget.length; k++) if (outTarget[k] >= 0) inOff[outTarget[k] + 1]++;
-  for (let i = 0; i < count; i++) inOff[i + 1] += inOff[i];
-  const fill = inOff.slice(0, count);
-  const inSource = new Int32Array(inOff[count]);
-  const inArg = new Int32Array(inOff[count]);
-  for (let i = 0; i < count; i++) {
-    for (let k = outOffArr[i]; k < outOffArr[i + 1]; k++) {
-      const t = outTarget[k];
+  for (let k = 0; k < total; k++) inOff[k + 1] += inOff[k];
+  const fill = inOff.slice(0, total);
+  const inSource = new Int32Array(inOff[total]);
+  const inArg = new Int32Array(inOff[total]);
+  for (let k = 0; k < total; k++) {
+    for (let r = outOffArr[k]; r < outOffArr[k + 1]; r++) {
+      const t = outTarget[r];
       if (t < 0) continue;
       const at = fill[t]++;
-      inSource[at] = i;
-      inArg[at] = outArgArr[k];
+      inSource[at] = k;
+      inArg[at] = outArgArr[r];
     }
   }
 
@@ -829,14 +937,14 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const lf = b.indexOf(CH_LF);
   if (lf > 0 && b[lf - 1] === CH_CR) lineEnding = '\r\n';
 
-  const kindArr = new Uint8Array(count);
+  const kindArr = new Uint8Array(total);
   const kinds = kind.done();
-  for (let i = 0; i < count; i++) kindArr[i] = kinds[i];
+  for (let k = 0; k < total; k++) kindArr[k] = kinds[k];
 
   return new StepIndex({
-    bytes: b, kind: kindArr, start: start.done(), end: end.done(), entStart: entStart.done(),
-    typeCode: typeCode.done(), typeNames, idNum: idNumArr, idStr, byNum, byStr,
+    bytes: b, kind: kindArr, start: start.done(), end: end.done(), entStart: entStartArr,
+    typeCode: typeCode.done(), typeNames, idNum: idNumArr, byNum,
     outOff: outOffArr, outTarget, outArg: outArgArr, inOff, inSource, inArg,
-    lineEnding, duplicateIdCount, danglingRefCount,
+    lineEnding, danglingRefCount,
   });
 }

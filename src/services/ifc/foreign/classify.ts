@@ -102,6 +102,14 @@ function targetsAt(index: StepIndex, i: number, arg: number): number[] {
   return out;
 }
 
+/** Eigen herkomst (§4.5): de owner history (argument 1) wijst met `OwningApplication` naar de applicatie `'OPS'`. */
+function hasOwnOrigin(index: StepIndex, i: number): boolean {
+  const oh = index.refAt(i, 1);
+  if (oh < 0 || index.type(oh) !== 'IFCOWNERHISTORY') return false;
+  const app = index.refAt(oh, 1);
+  return app >= 0 && index.application(app)?.identifier === 'OPS';
+}
+
 /** Is dit werkschema een baseline? Op het slot `PredefinedType` (`workControlSlots`), zoals de lezer. */
 function isBaselineSchedule(index: StepIndex, i: number): boolean {
   const wc = index.workControl(i);
@@ -118,8 +126,11 @@ function isBaselineSchedule(index: StepIndex, i: number): boolean {
  *  - elke `IfcRelSequence` tussen twee taken in D;
  *  - alle live-schema's en de eigen baselinekoppen (§4.2).
  *
- * Bekende afwijking van het ontwerp: §4.2 noemt nog één uitzondering (een live-schema van eigen herkomst
- * sluit baselinebomen altijd uit, ook zonder taken). Die regel zit niet in de lezer; fase 0 volgt de lezer.
+ * Plus de ene uitzondering uit §4.2 (Opus, ronde 8): een live-schema van **eigen herkomst** sluit de baselinebomen
+ * altijd uit, ook zonder taken. Anders werd een Bonsai-baselineboom D nadat de planner alle taken wiste, en verdween
+ * hij bij het volgende opslaan. Die regel zit nog niet in `readIFC`: op zo'n bestand kiest `selectPlanning` andere
+ * taken dan de lezer van nu. Fase 1 moet de lezer dezelfde regel geven (de poort toont het verschil op
+ * `fix1-leeg-live.ifc` uit het corpus).
  */
 export function selectPlanning(index: StepIndex): PlanningSelection {
   const n = index.count;
@@ -182,7 +193,8 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
       return seen;
     };
     const liveTree = tree(liveRoots);
-    if (liveTree.size > 0) for (const id of tree(baselineRoots)) if (!liveTree.has(id)) excluded[id] = 1;
+    const ownLive = schedules.some(sc => live[sc] && hasOwnOrigin(index, sc));
+    if (liveTree.size > 0 || ownLive) for (const id of tree(baselineRoots)) if (!liveTree.has(id)) excluded[id] = 1;
   }
   const tasks = allTasks.filter(i => !excluded[i]);
   for (const i of tasks) inD[i] = 1;
@@ -401,11 +413,9 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
   const extStarts: number[] = [];
   for (let i = 0; i < n; i++) {
     if (!inD[i] && !inR[i]) continue;
-    const oh = index.refAt(i, 1);
-    const app = isType(oh, 'IFCOWNERHISTORY') ? index.refAt(oh, 1) : -1;
-    const identifier = app >= 0 ? index.application(app)?.identifier : undefined;
-    if (identifier !== 'OPS') {
+    if (!hasOwnOrigin(index, i)) {
       foreignOrigin.push(i);
+      const oh = index.refAt(i, 1);
       if (oh >= 0) extStarts.push(oh);
     }
     // Constante slots met een `#`-token (§4.5): het brontoken blijft staan, dus zijn doel is context.
