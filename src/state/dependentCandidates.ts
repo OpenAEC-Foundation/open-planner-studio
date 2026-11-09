@@ -5,26 +5,31 @@ import type { DependentCandidate, DependentLink } from '@/engine/dependentProjec
 import { findDependentLinks } from '@/engine/dependentProjects';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels } from '@/services/importTypes';
-import type { DocumentPayload } from './documentContract';
+import { ensureUniqueImportIds } from '@/services/importNormalize';
+import { payloadFromImport, type DocumentPayload } from './documentContract';
 import type { DependentProjectsResult } from './slices/types';
 import { basename } from '@/utils/filePath';
 
 /**
- * Een IFC-bestand als kandidaat, alleen-lezen: de lezer van het formaat, zonder het als document te
- * openen en zonder door te rekenen (alleen het project-id en de koppelingen tellen). Een bestand dat
- * de lezer weigert (geen planning, een gebouwmodel, kapot) ⇒ `null`.
+ * Een IFC-bestand als kandidaat, alleen-lezen: de lezer van het formaat en dezelfde laadgrens als
+ * openen (`payloadFromImport`: unieke id's en de omzetting naar het minutenmodel, die ook de ankers
+ * van de koppelingen omzet), zonder het als document te openen en zonder door te rekenen. Zonder die
+ * omzetting is een anker uit een dagenbestand een datum (`2027-03-05`) in plaats van het moment
+ * waarop dat project rekent, en gaf de waarschuwing vóór opslaan een valse melding. Een bestand dat de
+ * lezer weigert (geen planning, een gebouwmodel, kapot) ⇒ `null`.
  */
 export async function candidateFromIfcText(
   name: string, text: string, labels?: ImportLabels,
 ): Promise<DependentCandidate | null> {
   try {
-    const parsed = activeImportResult(await parseOpenedFile({ name, text }, labels));
+    const { result } = ensureUniqueImportIds(activeImportResult(await parseOpenedFile({ name, text }, labels)));
+    const payload = payloadFromImport(result, name);
     return {
-      projectId: parsed.project.id,
-      projectName: parsed.project.name,
+      projectId: payload.project.id,
+      projectName: payload.project.name,
       fileName: basename(name),
       opened: false,
-      tasks: parsed.tasks,
+      tasks: payload.tasks,
     };
   } catch {
     return null;
