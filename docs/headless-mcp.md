@@ -246,7 +246,7 @@ agent kiest die map niet.
 
 ## Tool-inventaris
 
-41 tools. Alle 41 staan in `tools/list`, met dezelfde namen, beschrijvingen, schema's en annotaties
+42 tools. Alle 42 staan in `tools/list`, met dezelfde namen, beschrijvingen, schema's en annotaties
 als in de app (`tests/mcp/cases-headless-server.ts` vergelijkt ze). Er zijn geen uitzonderingen.
 
 | groep | tools | stand |
@@ -261,9 +261,10 @@ als in de app (`tests/mcp/cases-headless-server.ts` vergelijkt ze). Er zijn geen
 | documenten | `new_document`, `switch_document`, `duplicate_document`, `undo`, `redo` | headless |
 | batch | `batch` | headless |
 | bestanden | `export_ifc`, `import_schedule` | met adapter: Node `fs` in de werkmap |
+| externe relaties | `refresh_external_links` | met adapter: Node `fs` in de werkmap (leest alleen bronnen daarbinnen) |
 | gids | `get_planning_guide` | met adapter: teksten ingebed in de bundel |
 
-Samen: 38 headless, 3 met adapter, 0 niet van toepassing. (Alle namen beginnen met `planner_`.)
+Samen: 38 headless, 4 met adapter, 0 niet van toepassing. (Alle namen beginnen met `planner_`.)
 
 Wat er niet is, omdat het een scherm nodig heeft: Gantt, dialogen, lint, afdrukken en PDF. Daarvoor
 bestaat geen tool, ook niet in de app.

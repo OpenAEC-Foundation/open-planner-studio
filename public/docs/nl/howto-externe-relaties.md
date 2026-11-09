@@ -10,7 +10,7 @@ Een externe relatie rekent niet live met het andere project mee. De app slaat ee
 
 ## Stappen
 
-1. Selecteer precies één taak in dit project: de taak die van de externe taak afhangt, of waar de externe taak van afhangt.
+1. Selecteer precies één taak in dit project: de taak die van de externe taak afhangt, of waar de externe taak van afhangt. Kies je een fase, dan geldt de koppeling voor elke taak in die fase.
 2. Kies *Start › Taken › Relatie ▾ › Externe relatie toevoegen…*. Hetzelfde menu staat op *Planning › Relaties* en op *Tabel › Taken*. Het item is alleen beschikbaar als er precies één taak geselecteerd is.
 3. Kies in het venster *Externe (cross-project) koppeling* een van de twee routes. Bij *Bronbestand* kies je bij *Kies een recent bestand* het projectbestand en daarna de *Brontaak*; de app leest het bestand alleen-lezen in, opent het niet als document, en neemt de ankerdatum zelf over. Deze route werkt alleen in de desktop-app en alleen voor een bestand in de lijst van recente bestanden; anders is de knop *Bronbestand* uitgeschakeld. Bij *Handmatig (fallback)* vul je het *Project-id* en *Taak-id* van de externe taak in, eventueel een *Taaknaam (optioneel)*, en de *Ankerdatum*. Dit is in de browserversie de enige route.
 4. Kies bij *Richting* of de externe taak je voorganger of je opvolger is: *Voorganger (extern → mij)* of *Opvolger (ik → extern)*.

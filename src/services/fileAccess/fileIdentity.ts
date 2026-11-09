@@ -3,6 +3,9 @@ export interface FileIdentityInfo {
   isFile: boolean;
   dev: number | null;
   ino: number | null;
+  /** Wijzigingstijd, als die bekend is (plugin-fs `FileInfo.mtime`). De MCP-tool
+   *  `planner_refresh_external_links` gebruikt hem als bronversie (keuze 4, #809). */
+  mtime?: Date | null;
 }
 
 /** De bestaande plugin-fs-naad, injecteerbaar zonder Tauri-runtime. */
