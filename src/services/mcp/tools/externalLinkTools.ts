@@ -15,6 +15,7 @@ import { readExternalSource } from '@/state/externalSource';
 import { checkScope, fileToolDeps, type McpFileFs } from './fileTools';
 import { guardNonTransactional, runMutateTool, toolError } from './runtime';
 import { WRITE_ANNOTATIONS } from './helpers';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 
 type SourceReport =
   | { path: string; status: 'read'; projectName: string }
@@ -93,10 +94,11 @@ export const externalLinkTools: McpToolDef[] = [
           const version = await fs.stat(scope.path).then(info => info.mtime?.toISOString(), () => undefined);
           // Het pad uit de koppeling blijft de identiteit van de bron (herkennen bij verversen); lezen gaat
           // via het gecontroleerde pad.
+          // #804 fase 1a: met de flag `ifcForeignContent` leest een IFC-bron als bytes, zoals `parseExternalSource`.
           const read = await readExternalSource(filePath, {
             readTextFile: () => fs.readTextFile(scope.path),
             readFile: () => fs.readFile(scope.path),
-          });
+          }, undefined, { ifcBytes: ifcForeignContentEnabled(ctx.app.store.getState().ui.featureFlags) });
           const source = { ...read, ...(version ? { version } : {}), readAt: new Date().toISOString() };
           sources.push(source);
           readPaths.add(normalized);
