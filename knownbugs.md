@@ -1550,6 +1550,14 @@ en noem het in je rapport of PR-tekst.
      `sync.writeHeld(key)` aan de echte singleton. Uit de review van #833 (GPT-6.1-Sol, xhigh, ronde 2, BEVESTIGD,
      VERVOLG). — B
 
+960. **VERVOLG: `?icons=` telt tijdens het wachten op hostinstellingen als gebruikerswijziging.** [gemeld door de
+     bouwer van #833, niet nagespeeld] Sinds #844 roepen `createDefaultUI()` en het registeritem `featureFlags`
+     `loadFeatureFlags()` aan; met `?icons=b2` of `?icons=lucide` schrijft die `ops-featureFlags` met herkomst
+     `'user'`. Tijdens het wachten (#833) telt dat als een wijziging door de gebruiker, dus de melding na het late
+     antwoord kan onterecht "teruggezet" zeggen; tijdens het toepassen valt de schrijfactie weg (de store toont de
+     URL-keuze wel). De URL zet de keuze bij elke start opnieuw. Richting: schrijf een URL-afgeleide vlag met herkomst
+     `'start'`. — S
+
 872. **VERVOLG: de relatieve bouw (`--base ./`) wordt nergens als bundel gecontroleerd.** `scripts/build-platform.mjs`
      laat `./` sinds #828 toe, maar `tests/browser/platform-build.spec.ts` bouwt alleen met `/tools/planner/`;
      `tests/dev-server/build-platform-args.test.mjs` toetst alleen de argumenten. Of de bundel met `./` onder een
@@ -2305,17 +2313,15 @@ en noem het in je rapport of PR-tekst.
 
 851. **VERVOLG: wat er na de antwoordgrens van de site nog krap of ongepagineerd is.** Sinds #825 blijft elk antwoord
      van `window.__OPDS_APP__.run()` binnen 30.000 tekens: een leestool geeft `te_groot` met een uitweg, een wijziging
-     wordt ingekort. Drie restpunten: (1) `planner_get_planning_guide` met `part: "skill"` geeft 28.062 tekens, dicht
-     bij de grens; groeit een skill, dan heeft de site geen kleiner deel meer. Dat komt mede doordat de tekst van
-     `goed-plannen` er twee keer in staat (`skills[0].text` en het oude veld `skill`). (2) `criticalPaths` (alleen bij
-     floatPaths met FREE_FLOAT) blijft op elke pagina van `planner_get_critical_path` compleet. (3)
-     `planner_get_project_overview` heeft bewust geen paginering; de uitweg is `planner_list_tasks`. Gemeten in #825
-     met `installSiteAppTools`. (4) De controle vóór uitvoering (`linksTooLarge`) rekent met bovengrenzen: 29 tekens
-     per id, en elke `create: true` van `planner_update_calendar` telt als nieuw, ook als het id al bestaat. Een
-     aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij had gepast; een kleinere portie werkt wel. De
-     vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen door een reserve per aanroep. Besluit Ethan
-     7 november 2026: de preflight blijft zoals hij is. Voorstel: een `part` per skill, en `criticalPaths` alleen op
-     de eerste pagina. — B
+     wordt ingekort. Drie restpunten: (1) `criticalPaths` (alleen bij floatPaths met FREE_FLOAT) blijft op elke pagina
+     van `planner_get_critical_path` compleet. (2) `planner_get_project_overview` heeft bewust geen paginering; de
+     uitweg is `planner_list_tasks`. Gemeten in #825 met `installSiteAppTools`. (3) De controle vóór uitvoering
+     (`linksTooLarge`) rekent met bovengrenzen: 29 tekens per id, en elke `create: true` van `planner_update_calendar`
+     telt als nieuw, ook als het id al bestaat. Een aanroep vlak onder de grens wordt dus soms geweigerd, terwijl hij
+     had gepast; een kleinere portie werkt wel. De vaste reserve van 12.000 tekens uit ronde 2 is in ronde 3 vervangen
+     door een reserve per aanroep. Besluit Ethan 7 november 2026: de preflight blijft zoals hij is. Voorstel:
+     `criticalPaths` alleen op de eerste pagina. Het oude punt over de grootte van `planner_get_planning_guide` is
+     opgelost in #818. — B
 
 853. **VERVOLG: restpunten van het inkorten na fixronde 6 (#825).** Het compacte wijzigingsantwoord van
      `window.__OPDS_APP__.run()` kort steeds de grootste verzameling in. Drie restpunten: (1) Een regel van een lijst
@@ -2357,6 +2363,14 @@ en noem het in je rapport of PR-tekst.
      #33333C) zou dus niet opvallen. Voorstel: in het bestaande themawisselscenario de achtergrond van
      `.ribbon-separator` controleren voor donker, licht en hoog contrast, of een contrastpaar toevoegen aan
      `check-theme-contrast.ts`. Uit de review van #843 (GPT-6.1-Sol, xhigh, ronde 1, BEVESTIGD, VERVOLG). — B
+
+900. **VERVOLG: elk antwoord van `tools/call` draagt de data twee keer.** `wrapToolResult` in
+     `src/services/mcp/dispatcher.ts` zet hetzelfde resultaat als JSON-tekst in `content[0].text` en als
+     `structuredContent`. Gemeten in #818 op `planner_get_planning_guide` met `part: "both"`: 7.325 tekens data,
+     14.925 tekens over de lijn. De MCP-spec vraagt die tekstkopie voor oudere clients ("SHOULD"); of een client beide
+     aan het model geeft, verschilt per client en is niet nagegaan. Voorstel: meet per client (Claude Code, Claude
+     Desktop, SuperCloud) wat het model krijgt, en kies dan of de tekstkopie korter kan. — B (het dubbele antwoord),
+     S (de tokenkosten per client)
 
 940. **VERVOLG: het lint meet niet opnieuw als één groep zonder lintrender van breedte verandert.**
      `useRibbonAutoFit` (`src/components/layout/Ribbon/Ribbon.tsx`) meet bij een vensterwijziging en bij een
@@ -2500,6 +2514,53 @@ en noem het in je rapport of PR-tekst.
      omdat het de knipcontour negeert). Dat zat al in de tijdasrenderer (`drawTimelineHeader` in
      `src/services/print/printPreview.ts`). Voorstel: een label dat maar voor een klein deel past, weglaten of
      binnen de rand schuiven. — B
+
+964. **VERVOLG: de notitie bij "datums zoals opgeslagen" gaat mee in elke envelop.** `buildEnvelope`
+     (`src/services/mcp/tools/runtime.ts:120–125`) zet `scheduleNote = DATES_AS_RECORDED_NOTE` (361 tekens) in
+     elk antwoord zolang `datesAsRecorded` aan staat. Gemeten in #836 met de echte dispatcher: zo'n antwoord is
+     over de lijn ongeveer 750 tekens langer (`planner_get_project_info` 4.226 → 4.978, `planner_list_documents`
+     822 → 1.680), want de envelop staat er twee keer in (punt 900). Een XER-sessie van 30 aanroepen kost zo ruim
+     22.000 tekens over de lijn, ongeveer 11.000 als data. Voorstel: de tekst één keer per document, daarna alleen
+     de vlag `datesAsRecorded: true`. Uit council-ronde 7 van #836 (Claude Opus 5.5, xhigh, BEVESTIGD). — B
+
+958. **VERVOLG: na een bereikte mijlpaal start de opvolger op de dag dat de voorganger pas eindigt.** Gezien in
+     proef (h) van #836, met de echte dispatcher. Keten Ruwbouw → mijlpaal "Ruwbouw gereed" → Dak dicht, alle drie
+     FS; statusdatum 14 april 2027. Ruwbouw kreeg `actualFinish: "2027-04-14"` en eindigt op 14 april 16:00. De
+     mijlpaal kreeg `completion: 100` en `actualFinish: "2027-04-14"` (zonder tijd) en staat op 14 april 07:00.
+     Dak dicht start daardoor op 14 april 07:00, terwijl de gebruiker "het dak begint morgen" zei. Vóór de update
+     stond de mijlpaal op de werkdag ná Ruwbouw (7 april 07:00, na 6 april 16:00). Vermoeden: een datum zonder tijd wordt bij een
+     mijlpaal het begin van de dag, bij een taak het einde. Niet nagegaan in de code. Voorstel: bij een mijlpaal met
+     een FS-voorganger die dezelfde dag eindigt, de datum zonder tijd op het einde van die dag zetten, of melden.
+     — B (de start op 14 april, twee keer gezien), S (de oorzaak)
+
+959. **VERVOLG: het overzicht en het kritieke pad tonen geen `deadline`, dus een agent vindt de oorzaak van negatieve
+     float niet.** Een taak krijgt negatieve float door een `deadline` verderop in de keten. Alleen
+     `planner_get_task` geeft het veld (`src/services/mcp/tools/readTools.ts:645`). De rij van
+     `planner_get_project_overview` (`:354–377`), van `planner_list_tasks` (`:459–478`) en van
+     `planner_get_critical_path` (`:688–699`) heeft geen `deadline`, en `planner_list_tasks` heeft er geen filter
+     voor (`:133`). Zo ook op #838 `fb3ee39c6`. Gezien in proef (j) van #836, twee runs met de echte dispatcher:
+     Ruwbouw en Dak dicht hadden float −1 door de `deadline` op Dak dicht. Run 1 las alleen Ruwbouw en schreef
+     "Er staat nergens een deadline"; run 2 meldde de −1, maar zocht de deadline niet op. Voor `constraint` en
+     `constraint2` geldt hetzelfde (`:643–644`). In proef (k) van #836 had B een FNLT; run 1 en 2 lazen alleen
+     taak A en schreven dat er geen deadline of constraint was. Sinds fixronde 10 leest de agent elke taak met negatieve
+     float en haar opvolgers (`progress-update` §5); zo vond hij de FNLT wel (run 3 en 4). Voorstel: `deadline` en
+     `constraint` in de rij van het overzicht of van het kritieke pad. Besluit orkestrator: dit nummer, in #836; het
+     is een gedragswijziging in een tool, geen tekst. — B
+
+1003. **VERVOLG: de controle van de skillkop laat een `description` door die geen tekst is.** `checkSkillFrontmatter`
+     (`scripts/lib/agent-skills-check.ts:43`) leest elke waarde als tekst. `description: null`, `true` of `123` geeft
+     daardoor geen fout, terwijl een echte YAML-lezer er `null`, een boolean of een getal van maakt. De twee huidige
+     skills hebben een geldige tekstwaarde; de controle bewijst dus minder dan ze belooft. Voorstel: eis een niet-lege
+     tekst tussen aanhalingstekens (of een vast formaat met twee tekstvelden) en voeg deze drie gevallen als
+     negatieve test toe. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
+
+1004. **VERVOLG: bij `te_groot` op de voortgangsskill wijst de uitweg niet naar die skill.** Is `part: "progress-update"`
+     te groot voor de SuperCloud-limiet, dan adviseert de melding in `src/services/mcp/siteAppTools.ts:125` hetzelfde
+     part opnieuw, en de enige download-URL is die van de opbouwgids. `part: "guide"` past wel, maar bevat geen
+     voortgangsregels. De test (`tests/mcp/cases-site-app-tools.ts:295`) controleert bij een te grote voortgangsskill
+     alleen de opbouwroute. Nagespeeld met een voortgangsskill van 40.000 tekens. Met de huidige bestanden (±2.800
+     tekens) gebeurt dit niet. Voorstel: noem ook de publieke URL van `skills/progress-update/SKILL.md` en test de
+     uitweg vanuit dat part. Uit de eindreview van #836 (GPT-6.1-Sol, xhigh, BEVESTIGD, VERVOLG). — B
 
 953. **VERVOLG: een externe opvolger kan de naam achter een balk bedekken.** `drawTaskBars` tekent de externe
      ghost-balken (`drawExternalGhosts`) ná de balk en zijn naam (`src/engine/renderer/GanttRenderer.ts`, de lus in
