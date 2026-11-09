@@ -540,6 +540,17 @@ export interface FileSlice {
    */
   parseExternalProjectSource: (projectId: string, opts: { prompt: boolean }, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
   /**
+   * Stap 1.8: leest meerdere bronnen zonder pad na een klik (*Alle externe relaties vernieuwen*). Alle
+   * toestemmingsvragen starten tegelijk, meteen na de klik en vóór het lezen: Chromium eist bij elke
+   * `requestPermission` een recente gebruikersactie (ongeveer 5 s). Zou de app wachten op het antwoord op de
+   * eerste vraag, of op het lezen van de eerste bron, dan kan de tweede vraag te laat komen (review #858). Per
+   * project-id de gelezen bron, of `null` (geen handvat, geweigerd, leesfout).
+   */
+  readExternalProjectSources: (projectIds: readonly string[], labels?: ImportLabels) => Promise<Map<string, ExternalSourceRead | null>>;
+  /** De onthouden handvatten per project-id (browser zonder host); leeg op de desktop en met een site-host.
+   *  Een eigen actie, zodat de tests nep-handvatten kunnen geven. */
+  externalSourceHandles: () => Promise<Map<string, FileSystemFileHandle>>;
+  /**
    * Stap 1.9: de projecten op de site die de koppeldialoog als bron aanbiedt: wat de host bij
    * `list({ extensions: ['ifc'] })` teruggeeft ("dezelfde map"), zonder het eigen geopende bestand. `null`
    * zonder host of als de site de lijst weigert.
@@ -627,6 +638,8 @@ export interface ChosenFilesRefresh {
   sources: number;
   /** Gekozen bestanden die niet te lezen waren, of bij geen koppeling zonder pad van dit plan horen. */
   unmatched: number;
+  /** De project-id's van de gelezen bronnen; de rest van de eerder niet gelezen bronnen blijft open. */
+  readProjectIds: string[];
 }
 
 /** Wat *Bronbestand kiezen…* opleverde (`chooseExternalSourceFile`). */
@@ -702,9 +715,19 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   };
 
   /** Het onthouden handvat van een bron zonder pad (browser zonder host). */
-  const sourceHandleFor = async (projectId: string): Promise<FileSystemFileHandle | null> => {
-    if (isTauri() || siteStorageAvailable()) return null;
-    return (await loadExternalSourceHandles()).get(projectId) ?? null;
+  const sourceHandleFor = async (projectId: string): Promise<FileSystemFileHandle | null> =>
+    (await get().externalSourceHandles()).get(projectId) ?? null;
+
+  /** Leest een gekozen of onthouden bestand als bron van dit project; een ander project of een leesfout ⇒ `null`. */
+  const readProjectFile = async (projectId: string, file: File, labels?: ImportLabels): Promise<ExternalSourceRead | null> => {
+    try {
+      const source = await readExternalSourceFile(file, labels);
+      // Een ander project achter het handvat (het bestand is vervangen door een ander plan): niet deze bron.
+      return source.projectId === projectId ? source : null;
+    } catch (err) {
+      console.error('readExternalSourceFile: kon bronbestand niet lezen:', err);
+      return null;
+    }
   };
 
   const fileNameOf = (filePath: string) => filePath.split(/[\\/]/).pop() || filePath;
@@ -1836,15 +1859,27 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const handle = await sourceHandleFor(projectId);
       if (!handle) return null;
       const file = await fileFromHandleWeb(handle, opts.prompt);
-      if (!file) return null;
-      try {
-        const source = await readExternalSourceFile(file, labels);
-        // Een ander project achter het handvat (het bestand is vervangen door een ander plan): niet deze bron.
-        return source.projectId === projectId ? source : null;
-      } catch (err) {
-        console.error('parseExternalProjectSource: kon bronbestand niet lezen:', err);
-        return null;
+      return file ? readProjectFile(projectId, file, labels) : null;
+    },
+
+    externalSourceHandles: async () => {
+      if (isTauri() || siteStorageAvailable()) return new Map();
+      return loadExternalSourceHandles();
+    },
+
+    readExternalProjectSources: async (projectIds, labels) => {
+      const handles = await get().externalSourceHandles();
+      // Eerst alle toestemmingen, tegelijk; pas daarna lezen (zie de interface).
+      const files = await Promise.all(projectIds.map((projectId) => {
+        const handle = handles.get(projectId);
+        return handle ? fileFromHandleWeb(handle, true) : Promise.resolve(null);
+      }));
+      const out = new Map<string, ExternalSourceRead | null>();
+      for (const [index, projectId] of projectIds.entries()) {
+        const file = files[index];
+        out.set(projectId, file ? await readProjectFile(projectId, file, labels) : null);
       }
+      return out;
     },
 
     listExternalSiteSources: async () => {
@@ -1939,21 +1974,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         sourceDocs.push(source);
         if (handle) await rememberExternalSourceHandle(source.projectId, handle);
       }
-      if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0, sources: 0, unmatched };
-      let tasks = get().tasks;
-      let refreshed = 0;
-      let missing = 0;
-      let changed = false;
-      for (const source of sourceDocs) {
-        const result = refreshExternalAnchors(tasks, source, 'project-without-path');
-        tasks = result.tasks;
-        refreshed += result.refreshed;
-        missing += result.missing;
-        if (result.changed) changed = true;
-      }
+      const readProjectIds = [...new Set(sourceDocs.map(source => source.projectId))];
+      if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0, sources: 0, unmatched, readProjectIds: [] };
+      // Alle bronnen zijn zonder pad: `refreshFromSources` raakt dan alleen koppelingen zonder pad.
+      const { tasks, refreshed, missing, changed } = refreshFromSources(get().tasks, sourceDocs);
       if (changed) applyRefreshedTasks(targetDocumentId, tasks);
-      dropSourceUpdates(targetDocumentId, new Set(sourceDocs.map(source => externalSourceKey({ kind: 'project', projectId: source.projectId })!)));
-      return { refreshed, missing, sources: sourceDocs.length, unmatched };
+      dropSourceUpdates(targetDocumentId, new Set(readProjectIds.map(projectId => externalSourceKey({ kind: 'project', projectId })!)));
+      return { refreshed, missing, sources: sourceDocs.length, unmatched, readProjectIds };
     },
 
     refreshAllExternalAnchors: async (labels) => {
@@ -2008,22 +2035,30 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Hun balk (#811) gaat weg (`dropSourceUpdates`).
       const readPaths = new Set<string>();
       let unread = 0;
+      // Eerst de bronnen zonder pad: hun toestemmingsvragen moeten meteen na de klik starten, alle tegelijk
+      // (`readExternalProjectSources`). Geweigerd, geen handvat of een andere browser ⇒ niet gelezen; de planner
+      // kan het bestand opnieuw kiezen.
+      const readKeys = new Set<string>();
+      const unreadProjectIds: string[] = [];
+      const projectSources = projectIds.size > 0
+        ? await get().readExternalProjectSources([...projectIds], labels)
+        : new Map<string, ExternalSourceRead | null>();
+      const projectDocs: ExternalSourceDoc[] = [];
+      for (const projectId of projectIds) {
+        const src = projectSources.get(projectId) ?? null;
+        if (!src) { unread++; unreadProjectIds.push(projectId); continue; }
+        projectDocs.push(src);
+        readKeys.add(externalSourceKey({ kind: 'project', projectId })!);
+      }
       for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) { unread++; continue; } // onleesbaar/geen Tauri ⇒ deze bron telt als niet gelezen
         sourceDocs.push(src);
         readPaths.add(normalized);
       }
-      // De klik op de knop is de gebruikersactie: een handvat met toestemming `prompt` mag de browser vragen.
-      // Geweigerd, geen handvat of een andere browser ⇒ niet gelezen; de planner kan het bestand opnieuw kiezen.
-      const readKeys = new Set(readPaths);
-      const unreadProjectIds: string[] = [];
-      for (const projectId of projectIds) {
-        const src = await get().parseExternalProjectSource(projectId, { prompt: true }, labels);
-        if (!src) { unread++; unreadProjectIds.push(projectId); continue; }
-        sourceDocs.push(src);
-        readKeys.add(externalSourceKey({ kind: 'project', projectId })!);
-      }
+      for (const path of readPaths) readKeys.add(path);
+      // Na de bronnen met pad, zoals voorheen: een bron zonder pad ververst daarna alleen koppelingen zonder pad.
+      sourceDocs.push(...projectDocs);
       // Op de site de nieuwste versie. Geen host, geen recht, weg of netwerk ⇒ niet gelezen: de koppeling houdt
       // haar anker (`refreshFromSources`) en telt mee in `unread`.
       for (const siteFileId of siteFileIds) {

@@ -477,11 +477,6 @@ en noem het in je rapport of PR-tekst.
      `planner_refresh_external_links` (`src/services/mcp/tools/externalLinkTools.ts`) slaat haar over en telt haar
      als `siteLinks`. Een bron met pad of uit de browser raakt haar niet, ook niet bij hetzelfde project-id
      (`linkMatchesSource`). Voorstel, als dat gewenst is: een MCP-tool in de site-app die de site leest. — B
-972. **VERVOLG: de toestemmingsvraag bij vernieuwen komt pas na het lezen van de andere bronnen.**
-     `refreshAllExternalAnchors` leest eerst de bronnen met pad en dan per bron zonder pad het handvat
-     (`requestPermission`). Chromium vraagt voor `requestPermission` een recente gebruikersactie (ongeveer 5 s).
-     Bij veel of trage bronnen kan die tijd om zijn; de bron telt dan als niet gelezen en de planner kiest het
-     bestand opnieuw. Niet gemeten. Mogelijke oplossing: eerst alle toestemmingen vragen, dan pas lezen. — S
 973. **VERVOLG: onthouden handvatten van bronbestanden worden nooit opgeruimd.**
      `src/services/fileAccess/externalSourceHandles.ts` bewaart per project-id één handvat in IndexedDB
      (`ops-external-sources`). Een handvat blijft staan als geen enkele koppeling het project nog gebruikt, en

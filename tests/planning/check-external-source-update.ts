@@ -20,12 +20,16 @@
 //    *Accepteren* raken alleen koppelingen zonder pad; *Alle externe relaties vernieuwen* leest zo'n bron met
 //    toestemmingsvraag, telt een bron die niet gelezen is, en een niet-gelezen bron houdt haar anker en pad.
 //    `readExternalSourceFile` geeft een bron zonder pad, met `lastModified` als versie.
-// 8. Stap 1.9 (een bron op de site): een koppeling met `siteFileId` leest haar bron via de site. De sleutel is
+// 8. Review #858: Chromium eist bij elke `requestPermission` een recente klik. Twee bronnen met toestemming
+//    `prompt`: beide vragen starten meteen na de klik, niet na het antwoord op de eerste vraag.
+// 9. Review #858: na *Bronbestanden kiezen…* met een deel van de bestanden blijven de andere bronnen open.
+// 10. Review #858: een geblokkeerde IndexedDB laat vernieuwen niet hangen; een later geopende verbinding sluit.
+// 11. Stap 1.9 (een bron op de site): een koppeling met `siteFileId` leest haar bron via de site. De sleutel is
 //    `site:<id>`. Een bron op de site raakt alleen koppelingen met datzelfde site-id, nooit een koppeling met
 //    een pad of een ander site-id, ook niet bij hetzelfde project-id; andersom raakt geen andere bron een
 //    koppeling met een site-id. De balk vergelijkt de nieuwste versie uit `versions(id)` met `sourceVersion`
 //    en noemt het label en wie opsloeg. Vernieuwen leest `open(id)`; niet gelezen ⇒ het anker blijft, geteld.
-// 9. `readExternalSiteSource` geeft een bron zonder pad, met het site-id en de versie op de site.
+// 12. `readExternalSiteSource` geeft een bron zonder pad, met het site-id en de versie op de site.
 import { createAppStoreContext } from '@/state/appStore';
 import { externalAnchorChanges, previewExternalRefresh } from '@/engine/externalRefreshPreview';
 import {
@@ -34,6 +38,8 @@ import {
 } from '@/engine/externalLinks';
 import { readExternalSiteSource, readExternalSourceFile } from '@/state/externalSource';
 import type { SiteVersionInfo } from '@/services/fileAccess/siteHost';
+import { remainingUnreadSources } from '@/engine/externalLinks';
+import { idbGetAll } from '@/utils/idb';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -303,6 +309,11 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     externalSourceVersion: async () => undefined,
     parseExternalSource: async (filePath: string) => { pathReads.push(filePath); return null; },
     externalProjectSourceVersion: async (projectId: string) => (projectId === 'installateur' && handleGranted ? handleVersion : undefined),
+    // Vernieuwen leest alle bronnen zonder pad in één keer, met toestemmingsvraag (§8 toetst de echte route).
+    readExternalProjectSources: async (projectIds: readonly string[]) => {
+      prompts.push(true);
+      return new Map(projectIds.map(id => [id, id === 'installateur' ? handleSource() : null] as const));
+    },
     parseExternalProjectSource: async (projectId: string, opts: { prompt: boolean }) => {
       prompts.push(opts.prompt);
       return projectId === 'installateur' && (handleGranted || opts.prompt) ? handleSource() : null;
@@ -350,7 +361,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   ], ['2027-03-10T16:00', '2027-03-05T16:00', PATH]);
   S().undo();
   // Geweigerd: niet gelezen, geteld, en het anker blijft.
-  store.setState({ parseExternalProjectSource: async () => null });
+  store.setState({ readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, null] as const)) });
   const refused = await S().refreshAllExternalAnchors();
   eq('6r geweigerd ⇒ beide bronnen niet gelezen, de bron zonder pad kan opnieuw gekozen worden', [
     refused.sources, refused.unread, refused.unreadProjectIds, refused.refreshed,
@@ -364,7 +375,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     parseExternalSource: async (filePath: string) => ({
       projectId: 'installateur', projectName: 'Installateur', filePath, tasks: [sourceTask('2027-03-08T16:00')], version: 'pad-v2',
     }),
-    parseExternalProjectSource: async () => handleSource(),
+    readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, handleSource()] as const)),
   });
   const both = await S().refreshAllExternalAnchors();
   eq('6t beide bronnen gelezen', [both.sources, both.unread], [2, 0]);
@@ -388,14 +399,99 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('7d de taken zijn gelezen', read.tasks.map(t => t.name).sort(), ['A', 'B', 'Z']);
 }
 
-// (8) Stap 1.9: een bron op de site, herkend op het site-id.
+// (8) Twee bronnen zonder pad, elk met toestemming `prompt`. Model van Chromium: een vraag later dan
+// ACTIVATION_MS na de klik geeft een `SecurityError`; de planner doet ANSWER_MS over elk antwoord.
+{
+  const ACTIVATION_MS = 60;
+  const ANSWER_MS = 150;
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const sourceText = (id: string) => {
+    const { S } = plan();
+    S().setProject({ id, name: id });
+    return writeIFC(buildWriteIFCInput(S()));
+  };
+  const sourceTaskId = (text: string) => readIFC(text).tasks.find(t => t.name === 'B')!.id;
+  let clickAt = 0;
+  const requests: Array<[string, number, string]> = [];
+  const fakeHandle = (id: string, text: string) => ({
+    kind: 'file', name: `${id}.ifc`,
+    queryPermission: async () => 'prompt',
+    requestPermission: async () => {
+      const at = Date.now() - clickAt;
+      if (at > ACTIVATION_MS) {
+        requests.push([id, at, 'SecurityError']);
+        throw new DOMException('Must be handling a user gesture to show a permission request.', 'SecurityError');
+      }
+      requests.push([id, at, 'gevraagd']);
+      await sleep(ANSWER_MS);
+      return 'granted';
+    },
+    getFile: async () => ({
+      name: `${id}.ifc`, lastModified: Date.UTC(2026, 10, 9, 9, 0),
+      text: async () => text, arrayBuffer: async () => new TextEncoder().encode(text).buffer,
+    }),
+  });
+  const textA = sourceText('bron-a');
+  const textB = sourceText('bron-b');
+  const { store, S, a, b } = plan();
+  const old = '2027-01-04T07:00';
+  const ext = (projectId: string, taskId: string): ExternalLink => ({
+    id: `x-${projectId}`, direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: old, sourceMissing: false,
+    sourceRef: { projectId, projectName: projectId, taskId, taskName: 'B' },
+  });
+  S().updateTask(a, { externalLinks: [ext('bron-a', sourceTaskId(textA))] });
+  S().updateTask(b, { externalLinks: [ext('bron-b', sourceTaskId(textB))] });
+  store.setState({
+    externalSourceHandles: async () => new Map([
+      ['bron-a', fakeHandle('bron-a', textA)], ['bron-b', fakeHandle('bron-b', textB)],
+    ] as unknown as Array<[string, FileSystemFileHandle]>),
+  });
+  clickAt = Date.now();
+  const result = await S().refreshAllExternalAnchors();
+  eq('8a beide vragen binnen de activatietijd', requests.map(([id, , state]) => [id, state]),
+    [['bron-a', 'gevraagd'], ['bron-b', 'gevraagd']]);
+  eq('8b beide bronnen gelezen', [result.sources, result.unread, result.unreadProjectIds], [2, 0, []]);
+  const anchorOfTask = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  eq('8c beide ankers ververst', [anchorOfTask(a).anchorDate !== old, anchorOfTask(b).anchorDate !== old], [true, true]);
+}
+
+// (9) A en B niet gelezen; de planner kiest alleen A opnieuw ⇒ B blijft open.
+{
+  eq('9a alleen A gekozen ⇒ B blijft open', remainingUnreadSources(['bron-a', 'bron-b'], ['bron-a']), ['bron-b']);
+  eq('9b een gekozen bestand dat niet openstond, verandert niets', remainingUnreadSources(['bron-b'], ['bron-c']), ['bron-b']);
+  eq('9c alles gekozen ⇒ niets open', remainingUnreadSources(['bron-a'], ['bron-a']), []);
+}
+
+// (10) Een geblokkeerde openaanvraag: `idbGetAll` geeft meteen een lege lijst; opent de verbinding later toch,
+// dan sluit de app haar.
+{
+  const g = globalThis as unknown as { indexedDB?: unknown };
+  const before = g.indexedDB;
+  const req: { onblocked?: () => void; onsuccess?: () => void; onupgradeneeded?: () => void; onerror?: () => void; result?: unknown } = {};
+  g.indexedDB = { open: () => { setTimeout(() => req.onblocked?.(), 0); return req; } };
+  try {
+    const outcome = await Promise.race([
+      idbGetAll('ops-test-geblokkeerd', 'store'),
+      new Promise(resolve => setTimeout(() => resolve('hangt'), 1000)),
+    ]);
+    eq('10a geblokkeerd ⇒ een lege lijst, geen wachten', outcome, []);
+    let closed = false;
+    req.result = { close: () => { closed = true; } };
+    req.onsuccess?.();
+    eq('10b een later geopende verbinding sluit', closed, true);
+  } finally {
+    g.indexedDB = before;
+  }
+}
+
+// (11) Stap 1.9: een bron op de site, herkend op het site-id.
 {
   const siteLink = (id: string, siteFileId: string, anchorDate: string, sourceVersion?: string): ExternalLink => {
     const base = link(id, undefined, anchorDate, sourceVersion);
     return { ...base, sourceRef: { ...base.sourceRef, siteFileId } };
   };
-  // 8a–8f: de pure regels.
-  eq('8a plek en sleutel: site:<id>; het site-id wint ook boven een pad', [
+  // 11a–11f: de pure regels.
+  eq('11a plek en sleutel: site:<id>; het site-id wint ook boven een pad', [
     externalSourceLocatorOf({ projectId: 'installateur', siteFileId: ' s1 ' }),
     externalSourceLocatorOf({ projectId: 'installateur', filePath: PATH, siteFileId: 's1' }),
     externalSourceLocatorOf({ projectId: 'installateur', siteFileId: '  ' }),
@@ -403,8 +499,8 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
     externalSourceKeyOfDoc({ projectId: 'installateur', siteFileId: 's1' }),
   ], [{ kind: 'site', siteFileId: 's1' }, { kind: 'site', siteFileId: 's1' }, { kind: 'project', projectId: 'installateur' }, 'site:s1', 'site:s1']);
   const siteSource: ExternalSourceDoc = { projectId: 'installateur', siteFileId: 's1', tasks: [sourceTask('2027-03-10T16:00')], version: '3' };
-  eq('8b de scope van een bron op de site', [externalSourceScope(siteSource), externalSourceScopeOf({ kind: 'site', siteFileId: 's1' })], ['site-file', 'site-file']);
-  eq('8c een bron op de site raakt alleen koppelingen met hetzelfde site-id', [
+  eq('11b de scope van een bron op de site', [externalSourceScope(siteSource), externalSourceScopeOf({ kind: 'site', siteFileId: 's1' })], ['site-file', 'site-file']);
+  eq('11c een bron op de site raakt alleen koppelingen met hetzelfde site-id', [
     linkMatchesSource(siteLink('s', 's1', 'x'), siteSource, 'site-file'),
     linkMatchesSource(siteLink('t', 's2', 'x'), siteSource, 'site-file'),
     linkMatchesSource(link('p', PATH, 'x'), siteSource, 'site-file'),
@@ -412,7 +508,7 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   ], [true, false, false, false]);
   const pathSource: ExternalSourceDoc = { projectId: 'installateur', filePath: PATH, tasks: [sourceTask('2027-03-08T16:00')] };
   const browserSource: ExternalSourceDoc = { projectId: 'installateur', tasks: [sourceTask('2027-03-08T16:00')] };
-  eq('8d geen andere bron raakt een koppeling met een site-id, ook niet bij hetzelfde project-id', [
+  eq('11d geen andere bron raakt een koppeling met een site-id, ook niet bij hetzelfde project-id', [
     linkMatchesSource(siteLink('s', 's1', 'x'), pathSource, 'project-or-path'),
     linkMatchesSource(siteLink('s', 's1', 'x'), pathSource, 'file-path'),
     linkMatchesSource(siteLink('s', 's1', 'x'), browserSource, 'project-without-path'),
@@ -425,10 +521,10 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   }));
   const all = refreshFromSources(tasks, [siteSource, pathSource, browserSource]);
   const anchors = (list: Task[]) => list.map(t => `${t.id}:${t.externalLinks![0].anchorDate}:${t.externalLinks![0].sourceVersion ?? '-'}`);
-  eq('8e elke koppeling krijgt het anker van haar eigen bron; s2 is niet gelezen en houdt haar anker', anchors(all.tasks), [
+  eq('11e elke koppeling krijgt het anker van haar eigen bron; s2 is niet gelezen en houdt haar anker', anchors(all.tasks), [
     'own-s1:2027-03-10T16:00:3', 'own-s2:2027-03-05T16:00:2', 'own-p:2027-03-08T16:00:-', 'own-n:2027-03-08T16:00:-',
   ]);
-  eq('8f het site-id blijft op de koppeling, zonder pad', [all.tasks[0].externalLinks![0].sourceRef.siteFileId, all.tasks[0].externalLinks![0].sourceRef.filePath], ['s1', undefined]);
+  eq('11f het site-id blijft op de koppeling, zonder pad', [all.tasks[0].externalLinks![0].sourceRef.siteFileId, all.tasks[0].externalLinks![0].sourceRef.filePath], ['s1', undefined]);
 
   // De store-route. A wijst via de site naar s1; C met pad naar hetzelfde project; E naar een andere site-bron s2.
   const { store, S, a } = plan();
@@ -464,27 +560,27 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   const anchorOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
 
   await S().checkExternalSources();
-  eq('8g dezelfde versie op de site ⇒ niets gelezen, geen balk', [siteReads, updates()], [[], []]);
+  eq('11g dezelfde versie op de site ⇒ niets gelezen, geen balk', [siteReads, updates()], [[], []]);
   site.set('s1', { versions: [{ version: '2', label: 'v2', author: 'Anna de Vries' }, { version: '1' }], finish: '2027-03-10T16:00', readable: true });
   await S().checkExternalSources();
-  eq('8h nieuwe versie op de site ⇒ één keer gelezen, een balk met sleutel site:s1, label en wie opsloeg', [siteReads, updates()], [['s1'], [{
+  eq('11h nieuwe versie op de site ⇒ één keer gelezen, een balk met sleutel site:s1, label en wie opsloeg', [siteReads, updates()], [['s1'], [{
     key: 'site:s1', locator: { kind: 'site', siteFileId: 's1' }, fileName: 's1.ifc', version: '2', siteVersionLabel: 'v2',
     author: 'Anna de Vries', changedLinks: 1,
   }]]);
-  eq('8i de koppeling met pad is niet via het pad gelezen', pathReads, []);
+  eq('11i de koppeling met pad is niet via het pad gelezen', pathReads, []);
   S().dismissExternalSourceUpdate('site:s1');
   await S().checkExternalSources();
-  eq('8j Later ⇒ weg, en niet terug bij dezelfde versie', [siteReads.length, updates()], [1, []]);
+  eq('11j Later ⇒ weg, en niet terug bij dezelfde versie', [siteReads.length, updates()], [1, []]);
   site.set('s1', { versions: [{ version: '3' }], finish: '2027-03-10T16:00', readable: true });
   await S().checkExternalSources();
-  eq('8k een volgende versie zonder label en auteur ⇒ het versienummer en de projectauteur', updates().map(u => [u.siteVersionLabel, u.author]), [['3', 'Projectauteur']]);
+  eq('11k een volgende versie zonder label en auteur ⇒ het versienummer en de projectauteur', updates().map(u => [u.siteVersionLabel, u.author]), [['3', 'Projectauteur']]);
   S().setUI({ externalSourceReview: 'site:s1' });
-  eq('8l Accepteren met een bron op de site verandert het plan', S().acceptExternalSourceUpdate(siteRead('s1')), true);
-  eq('8m alleen de koppeling naar s1 krijgt het nieuwe anker en de versie; de andere houden hun anker', [
+  eq('11l Accepteren met een bron op de site verandert het plan', S().acceptExternalSourceUpdate(siteRead('s1')), true);
+  eq('11m alleen de koppeling naar s1 krijgt het nieuwe anker en de versie; de andere houden hun anker', [
     anchorOf(a).anchorDate, anchorOf(a).sourceVersion, anchorOf(a).sourceRef.siteFileId, anchorOf(a).sourceRef.filePath,
     anchorOf(c).anchorDate, anchorOf(e).anchorDate,
   ], ['2027-03-10T16:00', '3', 's1', undefined, '2027-03-05T16:00', '2027-03-05T16:00']);
-  eq('8n de balk is weg en het venster dicht', [updates(), S().ui.externalSourceReview], [[], null]);
+  eq('11n de balk is weg en het venster dicht', [updates(), S().ui.externalSourceReview], [[], null]);
 
   // Alle externe relaties vernieuwen: s1 is niet meer te lezen (bijv. geen recht of not-found); s2 wel, met een
   // nieuw anker. De bron met pad leest de browser niet.
@@ -493,9 +589,9 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   site.set('s2', { versions: [{ version: '2' }], finish: '2027-03-09T16:00', readable: true });
   siteReads.length = 0;
   const res = await S().refreshAllExternalAnchors();
-  eq('8o vernieuwen leest elke bron op de site één keer', [...siteReads].sort(), ['s1', 's2']);
-  eq('8p de uitslag: één bron gelezen, de bron op de site en de bron met pad niet', [res.sources, res.unread, res.unreadProjectIds, res.refreshed], [1, 2, [], 1]);
-  eq('8q de niet gelezen bron houdt haar anker; s2 krijgt het hare; de koppeling met pad blijft', [
+  eq('11o vernieuwen leest elke bron op de site één keer', [...siteReads].sort(), ['s1', 's2']);
+  eq('11p de uitslag: één bron gelezen, de bron op de site en de bron met pad niet', [res.sources, res.unread, res.unreadProjectIds, res.refreshed], [1, 2, [], 1]);
+  eq('11q de niet gelezen bron houdt haar anker; s2 krijgt het hare; de koppeling met pad blijft', [
     anchorOf(a).anchorDate, anchorOf(a).sourceVersion, anchorOf(e).anchorDate, anchorOf(e).sourceVersion, anchorOf(c).anchorDate,
   ], ['2027-03-05T16:00', '1', '2027-03-09T16:00', '2', '2027-03-05T16:00']);
 
@@ -503,12 +599,12 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   store.setState({ externalSiteSourceVersion: async () => undefined, parseExternalSiteSource: async () => null });
   site.set('s1', { versions: [{ version: '9' }], finish: '2027-03-20T16:00', readable: true });
   await S().checkExternalSources();
-  eq('8r zonder site ⇒ geen balk', updates(), []);
+  eq('11r zonder site ⇒ geen balk', updates(), []);
   const none = await S().refreshAllExternalAnchors();
-  eq('8s zonder site ⇒ de bronnen op de site tellen als niet gelezen, de ankers blijven', [none.sources, none.unread, anchorOf(a).anchorDate], [0, 3, '2027-03-05T16:00']);
+  eq('11s zonder site ⇒ de bronnen op de site tellen als niet gelezen, de ankers blijven', [none.sources, none.unread, anchorOf(a).anchorDate], [0, 3, '2027-03-05T16:00']);
 }
 
-// (9) Een bron van de site: geen pad, het site-id en de versie op de site.
+// (12) Een bron van de site: geen pad, het site-id en de versie op de site.
 {
   const { S } = plan();
   S().setProject({ id: 'proj-bron', name: 'Bron' });
@@ -516,11 +612,11 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   const read = await readExternalSiteSource({
     id: 'site-7', name: 'Bron.ifc', version: '12', text: async () => text, bytes: async () => new TextEncoder().encode(text),
   });
-  eq('9a geen pad, wel het site-id, de bestandsnaam en het project-id', [read.filePath, read.siteFileId, read.fileName, read.projectId], [undefined, 'site-7', 'Bron.ifc', 'proj-bron']);
-  eq('9b de versie is de versie op de site, met een leestijd', [read.version, typeof read.readAt], ['12', 'string']);
-  eq('9c de sleutel van deze bron is site:<id>', externalSourceKeyOfDoc(read), 'site:site-7');
+  eq('12a geen pad, wel het site-id, de bestandsnaam en het project-id', [read.filePath, read.siteFileId, read.fileName, read.projectId], [undefined, 'site-7', 'Bron.ifc', 'proj-bron']);
+  eq('12b de versie is de versie op de site, met een leestijd', [read.version, typeof read.readAt], ['12', 'string']);
+  eq('12c de sleutel van deze bron is site:<id>', externalSourceKeyOfDoc(read), 'site:site-7');
   const noVersion = await readExternalSiteSource({ id: 'site-7', name: 'Bron.ifc', text: async () => text, bytes: async () => new Uint8Array() });
-  eq('9d zonder versie van de site ⇒ geen versie', noVersion.version, undefined);
+  eq('12d zonder versie van de site ⇒ geen versie', noVersion.version, undefined);
 }
 
 if (failures.length) {

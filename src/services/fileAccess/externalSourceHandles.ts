@@ -11,16 +11,14 @@ const STORE = 'handles';
 interface StoredSourceHandle {
   /** Het project-id van de bron. */
   id: string;
-  name: string;
   handle: FileSystemFileHandle;
-  savedAt: number;
 }
 
 /** Onthoudt het handvat van de bron met dit project-id; een ouder handvat voor dat project vervalt. */
 export async function rememberExternalSourceHandle(projectId: string, handle: FileSystemFileHandle): Promise<void> {
   const id = projectId.trim();
   if (!id) return;
-  const entry: StoredSourceHandle = { id, name: handle.name, handle, savedAt: Date.now() };
+  const entry: StoredSourceHandle = { id, handle };
   await idbPut(DB, STORE, entry);
 }
 
