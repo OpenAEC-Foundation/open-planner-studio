@@ -131,7 +131,8 @@ test('planner_get_planning_guide staat geregistreerd, read-only en niet-batchabl
 });
 
 test('readingText: zonder frontmatter en eerste kop; de rest blijft', () => {
-  assertEq(readingText('---\nname: a\ndescription: d\n---\n\n# Title\n\nBody.\n\n## Sub\n'), 'Body.\n\n## Sub\n', 'frontmatter en H1 weg, H2 blijft');
+  assertEq(readingText('---\nname: a\ndescription: d\n---\n\n# Title\n\nBody.\n\n## Sub\n'), 'Body.\n## Sub\n', 'frontmatter en H1 weg, H2 blijft');
+  assertEq(readingText('# G\n\n- a\n\n\n## B\n\n- b\n- c\n'), '- a\n## B\n- b\n- c\n', 'lege regels worden één regeleinde; kop en lijst blijven');
   assertEq(readingText('# Guide\n\n# Second\nText\n'), '# Second\nText\n', 'alleen de eerste kop');
   assertEq(readingText('---\r\nname: a\r\n---\r\nBody\r\n'), 'Body\n', 'CRLF');
   assertEq(readingText('Plain text\n# Not first\n'), 'Plain text\n# Not first\n', 'zonder frontmatter en kop: ongewijzigd');

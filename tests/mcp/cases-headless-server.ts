@@ -22,7 +22,7 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { getTools } from '@/services/mcp/toolRegistry';
 import { MCP_INSTRUCTIONS, MCP_SERVER_NAME, MCP_SERVER_VERSION, DEFAULT_PROTOCOL_VERSION } from '@/services/mcp/dispatcher';
-import { AGENT_GUIDE_PATH, AGENT_SKILLS, skillAssetPath } from '@/services/mcp/tools/guideTools';
+import { AGENT_GUIDE_PATH, AGENT_SKILLS, readingText, skillAssetPath } from '@/services/mcp/tools/guideTools';
 import { createHeadlessHost, headlessInstructions } from '../../headless/mcp-server/src/host';
 import { startHttpTransport } from '../../headless/mcp-server/src/http';
 import { parseOptions, isLoopbackHost } from '../../headless/mcp-server/src/options';
@@ -677,10 +677,10 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
 test('B stdio: gids en beide skills komen uit de bundel (niets ontbreekt)', async () => {
   const data = await ok(stdio, 'planner_get_planning_guide', { part: 'both' });
   assertEq(data.missing, undefined, 'niets ontbreekt');
-  // Het antwoord laat de eerste kop van de gids weg (`readingText`, #818); de rest is het bestand.
+  // Het antwoord is het bestand als leestekst (`readingText`, #818): zonder de eerste kop en zonder lege regels.
   const guideFile = readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8');
-  assertEq(guideFile.slice(guideFile.length - data.guide.length), data.guide, 'gids = public/agent/planning-guide.md');
-  assert(/^# [^\n]*\n+$/.test(guideFile.slice(0, guideFile.length - data.guide.length)), 'alleen de kop van de gids valt weg');
+  assertEq(data.guide, readingText(guideFile), 'gids = public/agent/planning-guide.md als leestekst');
+  assert(guideFile.includes('\n\n') && !data.guide.includes('\n\n'), 'het bestand houdt zijn lege regels; het antwoord niet');
   assertEq(data.skills.map((s: { name: string }) => s.name), AGENT_SKILLS.map((s) => s.name), 'beide skills');
 });
 

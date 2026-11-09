@@ -102,6 +102,8 @@ export const SKILL_INSTALL_HINT =
 /**
  * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met
  * de lege regels erna. Die zeggen niets wat de agent niet al weet (toolbeschrijving, `skills[].name`).
+ * Lege regels worden één regeleinde: koppen (`## `) en lijsten (`- `) blijven herkenbaar, en het scheelt
+ * tekens in elk antwoord (#818, ronde 9). Het bestand zelf (om te installeren) blijft zoals het is.
  */
 export function readingText(markdown: string): string {
   let text = markdown.replace(/\r\n/g, '\n');
@@ -110,7 +112,7 @@ export function readingText(markdown: string): string {
   text = text.replace(/^\n+/, '');
   const h1 = /^# [^\n]*\n+/.exec(text);
   if (h1) text = text.slice(h1[0].length);
-  return text;
+  return text.replace(/\n{2,}/g, '\n');
 }
 
 export interface MissingAsset {

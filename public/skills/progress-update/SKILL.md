@@ -8,14 +8,15 @@ description: Record Open Planner Studio progress via planner_* (status date, act
 User facts only; never guess actual dates. `tools/list` wins.
 
 - Every change recalculates; report only numbers read after your last change. `scheduleError` ⇒ fix first.
-- `datesAsRecorded`: your first change replaces the recorded dates (the end can move without progress): only with the user's explicit consent; compare in a planner_duplicate_document copy.
+- `datesAsRecorded`: change nothing without the user's explicit consent (compare in a planner_duplicate_document copy).
 - Guards `PAUSED`, `READ_ONLY`, `DIALOG_OPEN`, `DOC_DRIFT`: no retry loop, tell the user.
 
 ## 1. Orient
 
 - Before editing, record planner_get_project_info (`statusDate`, `projectEnd`, `unstartedIgnoresStatusDate`) and planner_get_critical_path.
 - Links to other project files (`statistics.externalRelations`): then planner_refresh_external_links (a change); report its `changes` and `sourceMissing`.
-- planner_list_baselines: none active ⇒ ask: activate older (planner_activate_baseline) or save new? Never save unasked; it measures from now.
+- planner_list_baselines: none active ⇒ ask: activate older (planner_activate_baseline) or save new? Never save unasked.
+- One active: a new one only after a real scope change. Asked without a scope change ⇒ say the delay so far vanishes from the comparison; wait for confirmation.
 
 ## 2. Ask the user
 
@@ -31,12 +32,12 @@ Steps: planner_update_project `statusDate`, then planner_update_tasks with `prog
 
 ## 4. Remaining work
 
-User's remaining ≠ duration × (1 − completion/100) ⇒ `fields.duration` = done + user remaining; `fields.durationUnit` from planner_get_task. Set it after the progress (a later item or step): one item applies `fields` first.
+User's remaining ≠ duration × (1 − completion/100): after progress, set `fields.duration` = done + remaining and `durationUnit` from planner_get_task in a later item/step (`fields` runs first).
 
 ## 5. Check and report
 
-- Report planner_get_project_info end vs before, planner_get_critical_path changes; planner_compare_baseline + planner_analyze_delay for end vs baseline and delay location (`criticalShifters`, never sum).
-- Task with negative `schedule.totalFloat`: read planner_get_task; a `deadline` there is missed. Report it.
+- Report end/critical-path changes (planner_get_project_info, planner_get_critical_path); baseline variance (planner_compare_baseline); delay (planner_analyze_delay).
+- Negative `schedule.totalFloat`: a `deadline` on that task or a later one in its chain no longer fits; find it with planner_get_task and report it.
 - Reached milestones need `completion: 100`, `actualFinish`; otherwise they move to the status date.
 - Report out-of-sequence work (started, FS predecessor unfinished); change `progressMode` only on request.
 - Status date; started/finished/running tasks; unreported work; assumptions/omissions.

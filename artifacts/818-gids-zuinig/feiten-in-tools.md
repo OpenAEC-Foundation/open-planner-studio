@@ -5,7 +5,7 @@ PR #836 (#818) haalt deze feiten uit de agentgids (`public/agent/planning-guide.
 feiten horen in de toolbeschrijving, regels over meerdere tools in de gids.
 
 De kolom "Waar nu" geldt voor `tools/list` zoals PR #838 (`perf/818-toolbeschrijvingen-zuinig`, head
-`041dfc399`) hem maakt, samen met deze PR. Alle rijen zijn op die head nagelopen (fixronde 8). Er zijn drie soorten plekken:
+`ff8568054`; `fb3ee39c6` verandert daarna alleen de zin over fase-overgangen) hem maakt, samen met deze PR. Alle rijen zijn nagelopen op `041dfc399` (fixronde 8); op `fb3ee39c6` (fixronde 9) opnieuw de citaten en de rijen die de wijzigingen sinds `041dfc399` raken. Er zijn drie soorten plekken:
 
 - **tools/list**: in de beschrijving van de tool ("desc") of van een parameter ("schema `x`"). Een agent ziet
   dat vóór de eerste aanroep.
@@ -31,8 +31,8 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 10 | `mandatory` is alleen een markering voor rapporten | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `mandatory` |
 | 11 | `endDate` dwingt niets af, maar zet de spanne van gegenereerde feestdagen | `planner_update_project`, `planner_update_calendar` | tools/list, desc van `planner_update_project` en schema `generate` (ook de dekking zonder einde of bij `create`: start year + 3). De gids houdt de volgorde: `endDate` vóór `generate` |
 | 12 | `startDate` verschuift geen bestaande taken; een latere trekt worteltaken naar voren (`anchorsClamped`); de hele planning verschuif je met `planner_move_project` | `planner_update_project` | tools/list, desc |
-| 13 | `tempId` begint met `tmp-` of `tmp_`; `parentId` = bestaand id of `tempId` uit dezelfde aanroep | `planner_add_tasks` | tools/list: desc (`parentId`), schema `tempId` (patroon `^tmp[-_]`, voorbeeld `tmp-foundation`), desc van `planner_batch` (`tmp-…`) |
-| 14 | Een samenvattingstaak krijgt geen duur | `planner_add_tasks`, `planner_update_tasks` | tools/list: schema `duration` ("Summary task: derived, omit it."), desc van `planner_update_tasks`; ook initialize |
+| 13 | `tempId` begint met `tmp-` of `tmp_`; `parentId` = bestaand id of `tempId` uit dezelfde aanroep | `planner_add_tasks` | tools/list: desc (`parentId`), schema `tempId` (patroon `^tmp[-_]`, "Unique in the call, e.g. `tmp-foundation`."; latere stappen noemt het sinds `ff8568054` niet meer), desc van `planner_batch` ("Later steps of this batch resolve exact tempIds (`tmp-…`)") |
+| 14 | Een samenvattingstaak krijgt geen duur | `planner_add_tasks`, `planner_update_tasks` | tools/list: schema `duration` van `planner_add_tasks` ("Summary task: derived, omit it.") en desc van `planner_update_tasks` ("No `duration` or `progress` on summary tasks."); niet meer in initialize (sinds #838 `ff8568054`) |
 | 15 | `planner_delete_tasks` wist de hele subboom; `cascadedTaskIds` noemt wat mee ging | `planner_delete_tasks` | tools/list, desc |
 | 16 | Zonder `duration` krijgt een taak de standaardmaat (normaal 5 werkdagen) | `planner_add_tasks` | tools/list, desc. De gids houdt de regel: elke bladtaak een expliciete `duration` met `durationUnit` |
 | 17 | Een dagduur mag een breuk zijn; `FIXED_WORK` rekent in uren; uren vragen een kalender met werktijd | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `duration` en `durationUnit` ("Always send it with `duration` (omitted = days)"), desc van `planner_update_tasks`. De gids zegt dat sinds ronde 6 niet meer; hij houdt alleen "expliciet, eenheid teruglezen" |
@@ -80,7 +80,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 59 | De hele WBS-boom in één `planner_add_tasks` | `planner_add_tasks` | tools/list, desc ("a nested WBS in one call"). De gids houdt "one `planner_batch`" |
 | 60 | Bij een open dialoog (`DIALOG_OPEN`) weigeren ook de leestools, behalve `planner_get_planning_guide` | elke leestool | alleen in de foutmelding ("A dialog is open (…); close it first …"). De gids noemt de guard |
 | 61 | Een mijlpaal is een taak met `isMilestone: true` (duur 0) | `planner_add_tasks`, `planner_update_tasks` | tools/list, schema `isMilestone` en `duration` |
-| 62 | Werk dat stopt en later doorgaat: één taak met onderbrekingen | `planner_set_task_splits` | tools/list, desc ("instead of splitting it into tasks") |
+| 62 | Werk dat stopt en later doorgaat: één taak met onderbrekingen | `planner_set_task_splits` | tools/list, desc ("instead of splitting the task") |
 | 63 | Voor voortgang `part: "progress-update"` | `planner_get_planning_guide` | tools/list, desc (`src/services/mcp/tools/guideTools.ts`). Niet meer in initialize: #838 haalt die herhaling weg (sinds `a25c9f173`) |
 | 64 | Een leeg document met `planner_new_document`, een wat-als-variant met `planner_duplicate_document` | `planner_new_document`, `planner_duplicate_document` | tools/list, desc van beide |
 | 65 | Een kring na `scheduleError` breek je door een relatie te wijzigen of weg te halen | `planner_update_dependencies`, `planner_remove_dependencies` | tools/list: de tools zelf; dat een kring wordt geweigerd staat bij F22. De koppeling met `scheduleError` staat er niet letterlijk; weg uit de gids (besluit orkestrator, ronde 5: de toolnamen wijzen zichzelf) |

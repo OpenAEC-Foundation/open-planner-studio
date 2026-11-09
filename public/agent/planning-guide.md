@@ -7,24 +7,22 @@
 1. Read the target before editing: planner_list_documents, planner_get_project_info, planner_get_project_overview.
 2. Before tasks: planner_update_project (name, `startDate`, user-given `endDate`); planner_get_calendars → planner_update_calendar.
 3. Milestones, then WBS, durations, relationships, constraints: one planner_batch (planner_add_tasks by `tempId`, then planner_add_dependencies).
-4. Resources: planner_manage_resources, then all assignments in one planner_manage_assignments.
+4. planner_manage_resources, then all assignments in one planner_manage_assignments.
 5. Read: planner_get_project_info, planner_get_critical_path, planner_get_task (float), planner_get_resource_histogram (load).
 6. planner_save_baseline only after user approval, before work; later only for a real scope change, beside the first. No `statusDate` while building.
 
 ## Recalculation
 
-- Changes recalculate; no-op calls do not. No recalculate tool: never make a dummy change to force one; ask the user.
+- No recalculate tool; no-op calls don't recalculate. Never force one with a dummy change: ask the user.
 - Report only numbers read after your last change.
-- `datesAsRecorded`: say so with every date. Your first change replaces them (the end can move): only with the user's explicit consent; compare in a planner_duplicate_document copy.
+- `datesAsRecorded`: say so with every date; change nothing without the user's explicit consent.
+- What-if: in a planner_duplicate_document copy.
 - `scheduleError`: fix it first; a change that leaves it is rolled back.
 - Guards `PAUSED`, `READ_ONLY`, `DIALOG_OPEN`, `DOC_DRIFT`: no retry loop, tell the user.
 
-## WBS
+## Tasks and durations
 
 - Tasks ~1 day–2 weeks; >a few % above ~2 months = too coarse. Exceptions: lead times, continuous supervision.
-
-## Durations
-
 - Normal pace, available crew, no margin. Reserve: visible buffer before handover; weather: a task or days off in the calendar.
 - ~180 workable days/year already exclude holidays, shutdown and weather: count each once.
 - Every leaf: explicit `duration` + `durationUnit`; existing task: read the unit with planner_get_task.
@@ -47,7 +45,7 @@
 ## Calendars
 
 - Add foreseeable closures now (NL: `bouwvak`; frost, Christmas shutdown); a later correction shifts everything.
-- `generate` after `endDate`, then `rawHolidays`. End past the generated years ⇒ both again: `generate` replaces all holidays.
+- User-given `endDate` first, then `generate`, then `rawHolidays`. End past the generated years ⇒ both again: `generate` replaces all holidays.
 - Resource calendar only if it really differs; it moves no task.
 
 ## Resources
@@ -61,4 +59,4 @@ Near-critical (no flag): `totalFloat` of a few days, not safe. Over ~44 working 
 
 ## Check, then report
 
-Check all rules. Report assumptions (durations, granularity, added links, capacities, calendars, constraints/reasons), omissions, user checks; schedule basis (productivity, calendar, lead-time sources, who approved); end/critical path; negative float/missed deadlines/overloads.
+Report assumptions (durations, granularity, added links, capacities, calendars, constraints/reasons, productivity, lead-time sources, who approved), omissions, user checks; end/critical path; negative float/missed deadlines/overloads.
