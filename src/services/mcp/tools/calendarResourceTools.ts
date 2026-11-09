@@ -1889,13 +1889,11 @@ function updateProjectCore(
 const updateProject: BatchStepTool = {
   name: 'planner_update_project',
   description:
-    'Change project details. `startDate` anchors NEW tasks and does not shift the schedule (set it before ' +
-    'planner_add_tasks); a later one only clamps root tasks without predecessor or constraint forward ' +
-    '(`anchorsClamped`). To shift the ' +
-    'whole schedule use planner_move_project. `statusDate` is the DATA DATE: unstarted work (completion 0) ' +
-    'cannot lie before it, so it moves the schedule and the project end even without progress; set it only ' +
-    'to record progress (`statusDateEffect`). Clearing it makes recorded actuals inert. `endDate` enforces ' +
-    'nothing but sets the span of generated holidays.',
+    'Change project details. Set `startDate` before planner_add_tasks: it anchors new tasks; a later start ' +
+    'clamps roots without predecessor/constraint forward (`anchorsClamped`), leaving the rest. Shift all ' +
+    'with planner_move_project. `statusDate` (DATA DATE) pushes unstarted work (completion 0) forward, ' +
+    'moving the end even without progress; set it only for progress (`statusDateEffect`). Clearing it ' +
+    'makes actuals inert. `endDate` enforces nothing; it can extend generated-holiday coverage.',
   kind: 'mutate',
   batchable: true,
   annotations: { ...WRITE_ANNOTATIONS },
