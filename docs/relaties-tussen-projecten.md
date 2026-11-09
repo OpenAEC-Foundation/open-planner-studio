@@ -212,6 +212,21 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   dates to calculate late dates of activities." GEZIEN (zelf nagelezen):
   [Oracle P6 Help 90519](https://docs.oracle.com/cd/G18294_01/p6help/en/90519.htm). Daar ook: "Ignore relationships
   to and from other projects option — Determines whether to ignore activity relationships between projects."
+- **Automatisch herberekenen is een instelling.** "Schedule automatically when a change affects dates: Mark to
+  calculate the schedule each time a significant change is made to an activity, relationship, or resource. If you
+  clear this checkbox, changes to activities are reflected in the schedule after you calculate the schedule." GEZIEN
+  (zelf nagelezen, 9 november 2026):
+  [Oracle P6, General tab - Schedule Options](https://docs.oracle.com/cd/G48902_01/client_help/en_US/general_tab_-_schedule_options_dialog_box.htm).
+  Twee projecten openen is dus niet genoeg voor direct doorrekenen; dat gebeurt alleen met deze instelling aan.
+- **Relaties bij de activiteit.** "If multiple projects are open, you can create external relationships. You can also
+  create new relationships and view or configure existing predecessor or successor relationships, from the
+  Relationships detail window." GEZIEN (zelf nagelezen, 9 november 2026):
+  [Oracle P6 Help 8004](https://docs.oracle.com/cd/G18294_01/p6help/en/8004.htm).
+- **Zonder server.** P6 Professional kan zelfstandig draaien: "With embedded SQLite database as the data store, a
+  standalone install becomes a true single-user system. Data is stored in a single file on the client workstation's
+  disk". GEZIEN (zelf nagelezen, 9 november 2026):
+  [Oracle P6 Professional, Standalone Database FAQ](https://docs.oracle.com/cd/F88968_01/English/Installing/p6_pro_install_config_standalone/89396.htm).
+  P6 EPPM werkt met een server.
 - **Gesloten projecten** tellen mee via *External Early Start* / *External Late Finish*, die als beperkingen werken.
   GEZIEN in #792 (Eastwood Harris). Bij export naar XER blijven ze bewaard: "the module will preserve the external
   activity dates". GEZIEN via de ophaaltool:
@@ -220,7 +235,8 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
   activities that are predecessors or successors to the selected project, providing visibility into cross project
   impacts." GEZIEN (zelf nagelezen):
   [Oracle P6 EPPM Reporting 62944](https://docs.oracle.com/cd/G18294_01/English/Admin/p6_eppm_reporting/62944.htm).
-  Beide projecten staan in dezelfde database, dus de bron kan de relatie zien. Een melding: niet gevonden.
+  Beide projecten staan in dezelfde database, dus de bron kan de relatie zien, ook bij de activiteit als de projecten
+  open staan (zie hierboven). Een melding: niet gevonden.
 - **Valkuil.** Een gesloten project met relaties kan negatieve speling geven die de planner niet begrijpt. VERMOED:
   forum ([Planning Planet](https://planningplanet.com/comment/78388)).
 - **Primavera Cloud.** Relaties tussen projecten bestaan in het datamodel ("The unique ID of the project that owns the
@@ -249,19 +265,20 @@ nagekeken. De bronnen uit #792 (hoofdstuk 3) gelden nog.
 
 | wat | MS Project (bestanden) | Project Server | P6 | OPS op 2 november 2026 |
 |---|---|---|---|---|
-| bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | live als beide open zijn; anders opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
-| zien wat er in het eigen plan verschuift vóór accepteren | niet vastgesteld (de help noemt "effects on your schedule") | niet gevonden | n.v.t. (rekent direct) | nee |
-| bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | niet vastgesteld (de bron toont alleen de afnemer die een gewijzigde levering ziet) | ja, rapport *Cross Project Relationships* | nee |
+| bron verandert → eigen plan weet het | bij openen, dialoog *Links Between Projects* | bij openen, rood uitroepteken | geopende projecten rekenen samen, direct als *Schedule automatically when a change affects dates* aanstaat; gesloten projecten via opgeslagen externe datums | alleen na *Bron vernieuwen* (desktop) |
+| zien wat er in het eigen plan verschuift vóór accepteren | niet vastgesteld (de help noemt "effects on your schedule") | niet gevonden | niet gevonden | nee |
+| bron ziet wie ervan afhangt | VERMOED: spooktaak als de bron de link kent | niet vastgesteld (de bron toont alleen de afnemer die een gewijzigde levering ziet) | ja: het rapport *Cross Project Relationships* (EPPM), en met de projecten open het venster *Relationships* | nee |
 | melding aan de andere planner | niet gevonden | bij openen een rood uitroepteken; een SharePoint-alert op de lijst met leveringen is in te stellen; een conflictmelding: niet gevonden | niet gevonden | nee |
-| werkt zonder server | ja | nee | nee (database) | ja |
+| werkt zonder server | ja | nee | Professional: ja, met een lokale SQLite-database voor één gebruiker; EPPM: nee | ja |
 | werkt in de browser | nee | deels (PWA) | EPPM web | alleen handmatig |
 
-De kolom *OPS op 2 november 2026* is de stand bij het onderzoek, vóór de bouw van deel 1. Wat sindsdien gebouwd is,
-staat in paragraaf 9.1.
+De kolom *P6* geldt voor P6 Professional en P6 EPPM samen; waar ze verschillen, staat de uitvoering erbij. De kolom
+*OPS op 2 november 2026* is de stand bij het onderzoek, vóór de bouw van deel 1. Wat sindsdien gebouwd is, staat in
+paragraaf 9.1.
 
 Geen enkel product dat ik vond, meldt een conflict actief aan de andere planner. Daar kan OPS beter zijn. Of een
-product vóór het accepteren toont wat er in het eigen plan verschuift, is alleen bij P6 duidelijk (nee, P6 rekent
-direct). Bij MS Project noemt de help wel "effects on your schedule"; wat dat precies is, is niet vastgesteld (4.1).
+product vóór het accepteren toont wat er in het eigen plan verschuift, is niet vastgesteld. Bij MS Project noemt de
+help wel "effects on your schedule"; wat dat precies is, weten we niet (4.1). Bij P6 vonden we zo'n stap niet.
 
 ## 5. Ontwerp: wat in beide standen geldt
 
@@ -270,8 +287,8 @@ direct). Bij MS Project noemt de help wel "effects on your schedule"; wat dat pr
 1. **Het anker blijft.** Elke externe relatie houdt haar anker in het IFC. De berekening gebruikt alleen dat anker.
    Zo rekent een plan overal hetzelfde, ook zonder netwerk, en verschuift een plan nooit stil door werk van een ander.
 2. **De eigenaar blijft eigenaar.** OPS verandert nooit het andere project. Een conflict geeft een melding aan de
-   planners, geen wijziging in andermans plan. Daarom rekent OPS niet live over twee projecten zoals P6: in de
-   SuperCloud horen de projecten vaak bij verschillende bedrijven.
+   planners, geen wijziging in andermans plan. Daarom rekent OPS geopende projecten niet samen door, zoals P6 dat
+   kan: in de SuperCloud horen de projecten vaak bij verschillende bedrijven.
 3. **De bron is de laatst opgeslagen versie.** Het anker komt uit wat de andere planner opsloeg: zijn officiële
    planning, niet zijn halve werk.
 4. **Eén route voor verversen.** Bron lezen (door de laadgrens), vergelijken, de gevolgen tonen, accepteren als één
@@ -292,11 +309,12 @@ Elk punt met een voorbeeld. *Aannemer.ifc* hangt af van *Installateur.ifc*: de r
 2. **Eerst de gevolgen, dan accepteren.** *Bekijken* toont per koppeling het oude en het nieuwe anker, en wat er in
    het eigen plan verschuift: "Accepteren verschuift 4 taken. Het einde van het project gaat van 18 juni naar
    25 juni 2027 (+5 werkdagen)." Daarna *Accepteren* (één undo-stap, met herberekening) of *Later*. Of MS Project bij
-   het openen ook de verschuiving in het eigen plan toont, is niet vastgesteld (4.1); P6 rekent meteen door zonder
-   voorbeeld.
+   het openen ook de verschuiving in het eigen plan toont, is niet vastgesteld (4.1). P6 rekent geopende projecten
+   samen door, direct als die instelling aanstaat; een voorbeeld vóór accepteren vonden we daar niet (4.2).
 3. **De bron ziet wie ervan afhangt.** De installateur ziet bij *Installatie*: "Aannemer rekent hierop: Ruwbouw moet
-   klaar zijn vóór de start, uiterlijk 15 maart 2027". In de Gantt staat een klein merkteken aan de balk. P6 heeft
-   alleen een rapport, en alleen binnen één database.
+   klaar zijn vóór de start, uiterlijk 15 maart 2027". In de Gantt staat een klein merkteken aan de balk. P6 toont
+   relaties tussen projecten in een rapport en, met de projecten open, bij de activiteit; beide binnen één database
+   (4.2).
 4. **Een conflict gaat naar beide planners.** Zet de installateur *Installatie* eerder dan de aannemer kan leveren,
    dan ziet hij vóór het opslaan: "Na opslaan moet *Installatie* al starten 5 werkdagen vóórdat de ruwbouw van Aannemer
    klaar is." Na het opslaan krijgt de planner van de aannemer een melding met een link. De aannemer ziet na F5 ook zelf een
