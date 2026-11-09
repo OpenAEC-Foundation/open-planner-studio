@@ -79,7 +79,7 @@ het canvas: dat rondt bij kleine letters af (Chromium op Linux: "Stakeholder man
 en dan kapte de PDF datums af die het scherm voluit toonde. Niet fontkit-`layout`/`widthOfTextAtSize`:
 GSUB kost bij Inter ruim 1 ms per tekst. Het verschil met de getekende glyphs (Inter "->", Carlito "ti")
 is klein en zit in papier én PDF. `check-report-svg.ts` (sectie 5) vergelijkt per tekstitem papier en
-echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas (knownbug 963).
+echte PDF. De canvas-backend (oude rasterpreview, raster-terugval) meet nog met het canvas (knownbug 968).
 
 **Rijvenster voor het papier** (issue #817). `renderReport` neemt een optioneel laatste argument
 `rowWindow` (`ReportRowWindowRequest`): het krijgt het renderresultaat (maten liggen vast vóór het tekenen)

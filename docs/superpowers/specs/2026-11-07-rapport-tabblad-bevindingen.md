@@ -206,5 +206,5 @@ Council ronde 1: Opus 7,0, GPT-6.1-Sol 7,0, Fable 7,5 (doel 8,5 per lid). Beslui
     Kolommen. Wie in Pagina A4 staand kiest, zag hem niet. Nu staat hij ook in Pagina, met "Kolommen
     aanpassen".
 
-Nieuwe VERVOLG-punten: `knownbugs.md` 960–964.
+Nieuwe VERVOLG-punten: `knownbugs.md` 965–969 (eerst 960–964; omgenummerd omdat die nummers met een andere PR botsten).
 
