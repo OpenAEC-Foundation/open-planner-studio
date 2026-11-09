@@ -15,6 +15,7 @@ import { AutoSaveTargetUnavailableError, actualAutoSaveDelay, createActualAutoSa
 import { isProjectFileWriteBusy, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
+import { IFC_FOREIGN_SAVE_BLOCKED_NOTICE, ifcSaveBlocked, recoverySaveTarget } from '@/state/ifcForeignGuard';
 
 // Auto-save GETHROTTLED op ~10 s (bewust geen debounce): bij een reeks wijzigingen
 // schrijven we een recovery-snapshot HOOGSTENS eens per `AUTOSAVE_INTERVAL_MS`, óók tijdens
@@ -59,11 +60,10 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
         const recoveryDocs: RecoverySourceDocument[] = docs.map(({ id, payload }) => ({
           id,
           source: payload,
-          filePath: payload.filePath,
-          // Het site-doel en de versie waarop DIT document rust: crashherstel zet ze terug, zodat
-          // Ctrl+S na herstel weer naar de site schrijft mét conflictcontrole.
-          siteFileId: payload.siteFileId,
-          siteFileVersion: payload.siteFileId ? payload.siteFileVersion : null,
+          // Pad, site-doel en de versie waarop DIT document rust: crashherstel zet ze terug, zodat
+          // Ctrl+S na herstel weer naar hetzelfde doel schrijft (site: mét conflictcontrole). Met een
+          // vreemd deel (#804 fase 1a) geen doel: de snapshot heeft het gebouwmodel niet.
+          ...recoverySaveTarget(payload),
           isDirty: payload.isDirty,
           // "Datums zoals opgeslagen" is een weergavestand, geen IFC-inhoud: hij reist als
           // manifestmetadata mee zodat crashherstel hem terugzet i.p.v. hem te raden.
@@ -127,6 +127,8 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
   // Echte AutoSave is een APART mechanisme: recovery hierboven blijft alle gewijzigde documenten
   // snapshotten, ook wanneer deze keuze uitstaat of een document nog nooit is opgeslagen.
   useEffect(() => {
+    // #804 fase 1a: één melding per document als AutoSave aanstaat maar het vreemde deel opslaan verhindert.
+    const foreignNotified = new Set<string>();
     const controller = createActualAutoSaveController({
       listCandidates: (): ActualAutoSaveCandidate[] => {
         // Tijdens de herstelkeuze bestaat de live state nog niet betrouwbaar uit de gekozen
@@ -141,7 +143,14 @@ export function useAutoSave(autoSaveEnabled: MutableRefObject<boolean>): void {
           // Schemavraag (issue #292): staat die open voor een schema dat de app niet schrijft (IFC2X3),
           // dan zou automatisch opslaan het bestandstype stil veranderen. Dan wacht het bestand op het
           // eerste expliciete opslaan, met de vraag. Crashherstel loopt gewoon door.
-          const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project);
+          // #804 fase 1a: een document met een vreemd deel schrijft niet naar het bestand (de writer laat het model
+          // nog weg). Crashherstel loopt door.
+          const foreignBlocked = ifcSaveBlocked(payload);
+          if (foreignBlocked && payload.autoSaveToFile && payload.isDirty && !foreignNotified.has(id)) {
+            foreignNotified.add(id);
+            useAppStore.getState().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+          }
+          const enabled = payload.autoSaveToFile && !ifcSchemaBlocksSilentWrite(payload.project) && !foreignBlocked;
           return { id, enabled, dirty: payload.isDirty, ref, source: payload };
         });
       },

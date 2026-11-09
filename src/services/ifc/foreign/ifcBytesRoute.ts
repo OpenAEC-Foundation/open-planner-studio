@@ -20,7 +20,7 @@
  */
 import type { ImportLabels, ImportResult } from '@/services/importTypes';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
-import { readIFCWithXerReconstruction } from '../ifcReadWithXer';
+import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '../ifcReadWithXer';
 import { readFileSchemaName } from '../ifcReader';
 import { ifcObjectSeed } from '../ifcWriter';
 import type { ForeignScanResult } from './foreignScan';
@@ -48,7 +48,8 @@ export interface IfcBytesRead {
   fallback?: IfcBytesFallback;
 }
 
-export type IfcBytesRouteOptions = ForeignScanRunOptions;
+/** De Worker-keuze voor tests, en de herstelnaad voor een XER-archiefverwijzing (crashherstel, zoals de huidige route). */
+export type IfcBytesRouteOptions = ForeignScanRunOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'>;
 
 /** Open IFC-bytes via de bytes-route (`readIfcBytesDetailed`); de open-routes gebruiken deze vorm. */
 export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {}, opts: IfcBytesRouteOptions = {}): Promise<ImportResult> {
@@ -56,8 +57,16 @@ export async function readIfcBytes(bytes: Uint8Array, labels: ImportLabels = {},
 }
 
 /** De huidige route: de bytes als UTF-8-tekst (zoals `readTextFile` en `File.text()`), met de modelweigering. */
-async function currentRoute(bytes: Uint8Array, labels: ImportLabels, fallback: IfcBytesFallback): Promise<IfcBytesRead> {
-  return { result: await readIFCWithXerReconstruction(new TextDecoder('utf-8').decode(bytes), labels), fallback };
+async function currentRoute(
+  bytes: Uint8Array, labels: ImportLabels, opts: IfcBytesRouteOptions, fallback: IfcBytesFallback,
+): Promise<IfcBytesRead> {
+  const text = new TextDecoder('utf-8').decode(bytes);
+  return { result: await readIFCWithXerReconstruction(text, labels, xerOptions(opts)), fallback };
+}
+
+/** Alleen de herstelnaad gaat naar de lezer; de Worker-keuze niet. */
+function xerOptions(opts: IfcBytesRouteOptions): IfcReadWithXerOptions {
+  return opts.resolveXerArchiveReference ? { resolveXerArchiveReference: opts.resolveXerArchiveReference } : {};
 }
 
 export async function readIfcBytesDetailed(
@@ -65,14 +74,14 @@ export async function readIfcBytesDetailed(
   labels: ImportLabels = {},
   opts: IfcBytesRouteOptions = {},
 ): Promise<IfcBytesRead> {
-  if (bytes.length > IFC_BYTES_ROUTE_MAX_BYTES) return currentRoute(bytes, labels, { kind: 'te-groot', size: bytes.length });
+  if (bytes.length > IFC_BYTES_ROUTE_MAX_BYTES) return currentRoute(bytes, labels, opts, { kind: 'te-groot', size: bytes.length });
   const scan = await runForeignScan(bytes, opts);
-  if (!scan.ok) return currentRoute(bytes, labels, { kind: 'scanner', reason: scan.reason, message: scan.message });
+  if (!scan.ok) return currentRoute(bytes, labels, opts, { kind: 'scanner', reason: scan.reason, message: scan.message });
 
   const readerText = new TextDecoder('utf-8').decode(readerBytes(bytes, scan));
   const schemaName = readFileSchemaName(readerText);
   if (schemaName === undefined || !FOREIGN_CONTENT_SCHEMAS.has(schemaName)) {
-    return currentRoute(bytes, labels, { kind: 'schema', schemaName });
+    return currentRoute(bytes, labels, opts, { kind: 'schema', schemaName });
   }
 
   const idOf = (chunk: number) => String(scan.chunkIds[chunk]);
@@ -81,10 +90,10 @@ export async function readIfcBytesDetailed(
   const planningTaskStepIds = new Set(Array.from(scan.selection.tasks, idOf));
   const stepIdsOut: Record<string, string> = {};
   const result = await readIFCWithXerReconstruction(readerText, labels, {
-    literalStepIds, planningTaskStepIds, skipBuildingModelGuard: true, stepIdsOut,
+    ...xerOptions(opts), literalStepIds, planningTaskStepIds, skipBuildingModelGuard: true, stepIdsOut,
   });
   const mismatch = selectionMismatch(scan, stepIdsOut, result.project.id);
-  if (mismatch) return currentRoute(bytes, labels, { kind: 'selectie', field: mismatch });
+  if (mismatch) return currentRoute(bytes, labels, opts, { kind: 'selectie', field: mismatch });
 
   const { C, A, V } = scan.counts;
   const foreignObjectCount = C + A + V;

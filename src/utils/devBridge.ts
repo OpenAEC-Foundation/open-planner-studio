@@ -2,6 +2,7 @@ import { useAppStore } from '@/state/appStore';
 import { appLog } from '@/services/debug/appLog';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
+import { ifcSaveBlocked } from '@/state/ifcForeignGuard';
 import {
   parseOpenedFile,
   readIFCWithXerReconstruction,
@@ -86,6 +87,8 @@ async function roundTrip() {
 /** Niveau 2 — schrijf de huidige state als IFC naar een expliciet pad (dialoog omzeild). Tauri-only. */
 async function saveToPath(path: string) {
   const s = useAppStore.getState();
+  // #804 fase 1a (§4.12): een document met een vreemd deel schrijft deze dev-route niet; de writer liet het model weg.
+  if (ifcSaveBlocked(s)) throw new Error('saveToPath: het document heeft een vreemd deel (gebouwmodel); opslaan is nog niet mogelijk.');
   const content = writeIFC(buildWriteIFCInput(s));
   const { writeTextFile } = await import('@tauri-apps/plugin-fs');
   await writeTextFile(path, content);

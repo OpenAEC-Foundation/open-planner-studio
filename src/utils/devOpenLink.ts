@@ -15,6 +15,7 @@ import { useAppStore } from '@/state/appStore';
 import { openedFromFile } from '@/services/fileAccess/webBackend';
 import type { OpenedFile } from '@/services/fileAccess';
 import { binaryExtensions } from '@/services/formatRegistry';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import type { RibbonTab } from '@/state/slices/types';
 import { readExternalSource } from '@/state/externalSource';
 
@@ -44,7 +45,9 @@ async function fetchDevFile(param: string, raw: string, extensions: readonly str
 }
 
 async function openDevFile(raw: string): Promise<void> {
-  const opened = await fetchDevFile('open', raw, binaryExtensions());
+  // #804 fase 1a: met de flag `ifcForeignContent` leest IFC als bytes, zoals Bestand → Openen.
+  const ifcBytes = ifcForeignContentEnabled(useAppStore.getState().ui.featureFlags);
+  const opened = await fetchDevFile('open', raw, binaryExtensions({ ifcBytes }));
   await useAppStore.getState().openOpenedFile(opened, buildImportLabels((key) => i18n.t(key, { ns: 'common' })));
 }
 

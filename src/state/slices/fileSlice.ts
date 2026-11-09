@@ -31,7 +31,9 @@ import {
   EXPORT_LOSS_HELP_ARTICLE_ID, P6XML_IMPORT_HELP_ARTICLE_ID, RECORDED_DATES_HELP_ARTICLE_ID, XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 import { formatNoticeToShow } from '@/services/formatNotice';
-import { openDialogFilters, binaryExtensions, readFormatForFile, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIFCWithXerReconstruction, writeXerExport, type ExportFormat } from '@/services/formatRegistry';
+import { openDialogFilters, binaryExtensions, readFormatForFile, readsAsBytes, parseOpenedFile, importErrorMessageKey, saveTargetFor, readIfcFromText, writeXerExport, type ExportFormat, type FormatReadOptions } from '@/services/formatRegistry';
+import { ifcForeignContentEnabled } from '@/utils/featureFlags';
+import { IFC_FOREIGN_SAVE_BLOCKED_NOTICE, ifcSaveBlocked } from '../ifcForeignGuard';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -667,6 +669,17 @@ interface SaveDestination {
 }
 
 export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, get) => {
+  /** De leeskeuze van een open-actie (#804 fase 1a): met de flag `ifcForeignContent` leest IFC als bytes. Eén keer per
+   *  actie gelezen, zodat bestandslaag en lezer dezelfde keuze maken. */
+  const formatReadOptions = (): FormatReadOptions => ({ ifcBytes: ifcForeignContentEnabled(get().ui.featureFlags) });
+
+  /** Weigert de IFC-uitvoer van het actieve document (fase 1a: een vreemd deel) en meldt dat. */
+  const refuseForeignIfcWrite = (): boolean => {
+    if (!ifcSaveBlocked(get())) return false;
+    get().notify(IFC_FOREIGN_SAVE_BLOCKED_NOTICE);
+    return true;
+  };
+
   // ── Externe bronnen (stap 1.5) ────────────────────────────────────────────────────────────────
   // Per document en bron de versie die de app al las zonder wijziging, of waarop de planner *Later*
   // koos. Sessie-only en per storecontext.
@@ -724,7 +737,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Leest een gekozen of onthouden bestand als bron van dit project; een ander project of een leesfout ⇒ `null`. */
   const readProjectFile = async (projectId: string, file: File, labels?: ImportLabels): Promise<ExternalSourceRead | null> => {
     try {
-      const source = await readExternalSourceFile(file, labels);
+      const source = await readExternalSourceFile(file, labels, formatReadOptions());
       // Een ander project achter het handvat (het bestand is vervangen door een ander plan): niet deze bron.
       return source.projectId === projectId ? source : null;
     } catch (err) {
@@ -921,8 +934,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    * volgende keer kan het weer schrijfbaar zijn.
    */
   const openSiteChoice = async (choice: Extract<SiteOpenChoice, { kind: 'site' }>, labels?: ImportLabels) => {
-    const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(), version: choice.version });
-    const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+    const readOptions = formatReadOptions();
+    const opened = await openSiteFile(choice.id, { binaryExtensions: binaryExtensions(readOptions), version: choice.version });
+    const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, readOptions);
     if (choice.version === undefined && opened.readOnly) {
       get().openAsDocument(parsed, { name: opened.name, ref: null });
       offerFormatNotice(opened.name, opened.content);
@@ -1039,6 +1053,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   let saveAttemptSequence = 0;
   const writeActiveDocument = (expectedDocumentId?: string): Promise<boolean> => runProjectFileWrite(async () => {
     if (expectedDocumentId && expectedDocumentId !== get().activeDocumentId) return false;
+    if (refuseForeignIfcWrite()) return false;
     if (!(await settleIfcSchemaQuestion())) return false;
     if (!(await settleDependentAnchors())) return false;
     const state = get();
@@ -1140,6 +1155,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
   /** Opslaan als (Ctrl+Shift+S / Bestand → Opslaan als). */
   const saveActiveDocumentAs = (): Promise<void> => runProjectFileWrite(async () => {
+    if (refuseForeignIfcWrite()) return;
     if (!(await settleIfcSchemaQuestion())) return;
     if (!(await settleDependentAnchors())) return;
     const state = get();
@@ -1202,6 +1218,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Dubbele id's uit een kapot of vreemd bestand eerst uniek maken; de store sleutelt op id.
       const { result: uniqueParsed, renamed: duplicateIds } = ensureUniqueImportIds(parsed);
       const payload = payloadFromImport(uniqueParsed, filePath);
+      // #804 fase 1a: vervangt dit de inhoud op hetzelfde opslagdoel (IFC-paneel, `loadState`) zonder eigen bron, dan
+      // blijft de bron van het document staan. Anders verdween het vreemde deel uit de bewaking, en schreef Ctrl+S het
+      // modelbestand over met alleen planning.
+      const inheritsTarget = opts.filePath === undefined && opts.fileHandle === undefined && opts.siteFileId === undefined;
+      if (!payload.ifcSource && inheritsTarget) payload.ifcSource = current.ifcSource;
       if (editing) {
         // InternalProjectId kan in de tekst gewijzigd zijn. De reader sleutelt deze drie
         // ankers op dat ingelezen id, terwijl de editor de sessie-identiteit hieronder behoudt.
@@ -1524,7 +1545,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
             return;
           }
         }
-        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions() });
+        opened = await openFileDialog(openDialogFilters(), { binaryExtensions: binaryExtensions(formatReadOptions()) });
       } catch (err) {
         console.error('Failed to open file:', err);
         get().notify(importFailureNotice(err, saveErrorDetail(err)));
@@ -1535,7 +1556,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openOpenedFile: async (opened, labels, options) => {
       try {
-        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels);
+        const parsed = await parseOpenedFile({ name: opened.name, text: opened.content, bytes: opened.bytes }, labels, formatReadOptions());
         // De laatste controle en het activeren gebeuren in één synchrone stap: niets (een klik, een
         // tweede neerzetting) kan ertussen een dialoog openen of een formaatuitleg zetten.
         if (options?.waitWhile) {
@@ -1575,6 +1596,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // gezet én task.time nog op de oude waarden — een guard die alleen op scheduleStale kijkt
       // zou de export in dat geval wél met verouderde datums doorlaten. De guard staat vóór de
       // eerste await (saveFileDialog), zodat er niets half gebeurt.
+      // Fase 1a (#804): een IFC-export zou het vreemde deel weglaten. Geweigerd, met de melding; telt als geannuleerd.
+      // De andere formaten dragen alleen planning en blijven mogelijk.
+      if (format === 'ifc' && refuseForeignIfcWrite()) return { ok: true, warnings: [], cancelled: true };
       if (get().scheduleStale) get().runCPM();
       const cpmFailure = get().cpmResult;
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
@@ -1776,6 +1800,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     exportProjectWithPool: async (): Promise<ExportResult> => {
       // Zelfde stale/cyclus-guard als `exportAs`: dit pad schrijft óók de CPM-uitvoer weg, dus een
       // stale of cyclische planning mag hier evenmin stil worden geëxporteerd.
+      // Fase 1a (#804): geen IFC zonder het vreemde deel; telt als geannuleerd, de melding zegt waarom.
+      if (refuseForeignIfcWrite()) return { ok: true, warnings: [], cancelled: true };
       if (get().scheduleStale) get().runCPM();
       const cpmFailure = get().cpmResult;
       if (cpmFailure?.error) return { ok: false, error: cpmFailure.error, errorInfo: cpmFailure.errorInfo };
@@ -1815,7 +1841,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         // dan is de bewaarde versie ouder dan de inhoud en meldt de volgende controle het als nieuw; nooit
         // andersom. Lukt `stat` niet, dan blijft de versie onbekend.
         const version = await get().externalSourceVersion(filePath);
-        const source = await readExternalSource(filePath, { readTextFile, readFile }, labels);
+        const source = await readExternalSource(filePath, { readTextFile, readFile }, labels, formatReadOptions());
         return { ...source, ...(version ? { version } : {}), readAt: new Date().toISOString() };
       } catch (err) {
         console.error('parseExternalSource: kon bronbestand niet lezen:', err);
@@ -1941,7 +1967,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     parseExternalSiteSource: async (siteFileId, labels) => {
       if (isTauri() || !siteStorageAvailable()) return null;
       try {
-        return await readExternalSiteSource(await readSiteSourceFile(siteFileId), labels);
+        return await readExternalSiteSource(await readSiteSourceFile(siteFileId), labels, formatReadOptions());
       } catch (err) {
         console.error('parseExternalSiteSource: kon de bron op de site niet lezen:', siteFileId, err);
         return null;
@@ -1969,7 +1995,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const picked = await pickFilesWeb(SOURCE_FILE_FILTERS, false);
         if (!picked) return { kind: 'cancelled' };
         const [{ file, handle }] = picked;
-        return { kind: 'file', source: await readExternalSourceFile(file, labels), handle };
+        return { kind: 'file', source: await readExternalSourceFile(file, labels, formatReadOptions()), handle };
       } catch (err) {
         console.error('chooseExternalSourceFile:', err);
         return { kind: 'failed' };
@@ -1999,7 +2025,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       for (const { file, handle } of picked) {
         let source: ExternalSourceRead;
         try {
-          source = await readExternalSourceFile(file, labels);
+          source = await readExternalSourceFile(file, labels, formatReadOptions());
         } catch (err) {
           console.error('refreshExternalAnchorsFromChosenFiles: kon bestand niet lezen:', file.name, err);
           unmatched++;
@@ -2130,7 +2156,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       try {
         // Ook lezen hoort bij de foutafhandeling: een verdwenen bestand of verlopen toegang
         // mag geen stille verwijdering uit Recent opleveren. Een volgende poging blijft mogelijk.
-        const isBinary = readFormatForFile(entry.name).kind === 'binary';
+        const readOptions = formatReadOptions();
+        const isBinary = readsAsBytes(entry.name, readOptions);
         const content = isBinary ? null : await readFromRef(entry.ref);
         const bytes = isBinary ? await readBytesFromRef(entry.ref) : null;
         if (isBinary ? bytes === null : content === null) {
@@ -2140,6 +2167,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         const parsed = await parseOpenedFile(
           { name: entry.name, text: content ?? undefined, bytes: bytes ?? undefined },
           labels,
+          readOptions,
         );
 
         // Zelfde open-semantiek als openFile: tabblad, opslagdoel (`saveTargetFor`) en gekoppeld
@@ -2169,7 +2197,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
 
     openExampleFromString: async (content: string, name: string, labels) => {
       try {
-        const parsed = await readIFCWithXerReconstruction(content, labels);
+        // Voorbeelden blijven tekst (§4.9 punt 1); met de flag gaan ze via de bytes-route met `TextEncoder`.
+        const parsed = await readIfcFromText(content, labels, formatReadOptions());
 
         // Zelfde multi-document-gedrag als openFile: hergebruik het actieve
         // tabblad alleen als dat nog leeg en ongewijzigd is, anders nieuw tabblad.

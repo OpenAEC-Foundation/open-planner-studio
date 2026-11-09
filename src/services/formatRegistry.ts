@@ -4,11 +4,11 @@
 
 import type { XerWriteInput, XerWriteResult } from '@/services/xerWriteTypes';
 import type { BuiltInProfileId } from '@/types/project';
-import { readIFCWithXerReconstruction } from '@/services/ifc/ifcReadWithXer';
+import { readIFCWithXerReconstruction, type IfcReadWithXerOptions } from '@/services/ifc/ifcReadWithXer';
 import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
-import type { ImportLabels, OpenedImport } from '@/services/importTypes';
+import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { basename, extensionOf } from '@/utils/filePath';
 
@@ -133,13 +133,30 @@ const IFC_FORMAT: ReadFormat = {
   id: 'ifc', extensions: ['ifc'], kind: 'text', filterName: 'IFC Files', canBeSaveTarget: true,
   read: async (i, labels, opts) => {
     if (!opts?.ifcBytes) return readIFCWithXerReconstruction(i.text ?? '', labels);
-    // Flag `ifcForeignContent` (#804 fase 1a): de bytes-route, lui geladen (scanner en indeling blijven buiten de
-    // hoofdbundel). Een route die nog tekst gaf (voorbeelden, §4.9 punt 1) gaat via `TextEncoder`; dat is byte-gelijk
-    // voor geldige UTF-8.
-    const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
-    return readIfcBytes(i.bytes ?? new TextEncoder().encode(i.text ?? ''), labels);
+    // Flag `ifcForeignContent` (#804 fase 1a): de bytes-route. Een route die toch tekst gaf, gaat via `TextEncoder`.
+    return i.bytes ? readIfcViaBytesRoute(i.bytes, labels) : readIfcFromText(i.text ?? '', labels, opts);
   },
 };
+
+/** IFC-bytes via de bytes-route (#804 fase 1a), lui geladen: scanner en indeling blijven buiten de hoofdbundel. */
+async function readIfcViaBytesRoute(
+  bytes: Uint8Array, labels?: ImportLabels, options: Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'> = {},
+): Promise<ImportResult> {
+  const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
+  return readIfcBytes(bytes, labels, options.resolveXerArchiveReference ? { resolveXerArchiveReference: options.resolveXerArchiveReference } : {});
+}
+
+/**
+ * IFC uit een route die tekst heeft (voorbeelden, crashherstel, §4.9 punt 1). Zonder `opts.ifcBytes` precies
+ * `readIFCWithXerReconstruction`; met de flag via de bytes-route met `TextEncoder` (byte-gelijk voor geldige UTF-8).
+ */
+export function readIfcFromText(
+  text: string, labels?: ImportLabels, opts?: FormatReadOptions & Pick<IfcReadWithXerOptions, 'resolveXerArchiveReference'>,
+): Promise<ImportResult> {
+  const xer = opts?.resolveXerArchiveReference ? { resolveXerArchiveReference: opts.resolveXerArchiveReference } : {};
+  if (!opts?.ifcBytes) return readIFCWithXerReconstruction(text, labels, xer);
+  return readIfcViaBytesRoute(new TextEncoder().encode(text), labels, xer);
+}
 
 // Volgorde = filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp,xer).
 const READ_FORMATS: ReadFormat[] = [
