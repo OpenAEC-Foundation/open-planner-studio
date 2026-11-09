@@ -663,6 +663,7 @@
     "reviewReading": "Quelle wird gelesen…",
     "reviewReadFailed": "Die Quelle konnte nicht gelesen werden. Der Terminplan bleibt unverändert.",
     "reviewNoChanges": "Keine Verknüpfung ändert sich mehr. Der Terminplan bleibt unverändert.",
+    "reviewVersionOnly": "Ein Anker, der gleich bleibt, stammte nicht aus einer gespeicherten Version. Akzeptieren legt diese Version als Herkunft fest.",
     "reviewLinksTitle": "Verknüpfungen",
     "reviewColTask": "Vorgang",
     "reviewColExternal": "Externer Vorgang",

@@ -655,6 +655,7 @@
     "reviewReading": "소스를 읽는 중…",
     "reviewReadFailed": "소스를 읽을 수 없습니다. 일정은 그대로 유지됩니다.",
     "reviewNoChanges": "더 이상 변경되는 링크가 없습니다. 일정은 그대로 유지됩니다.",
+    "reviewVersionOnly": "그대로 유지되는 앵커는 저장된 버전에서 온 것이 아닙니다. 수락하면 이 버전이 출처로 기록됩니다.",
     "reviewLinksTitle": "링크",
     "reviewColTask": "작업",
     "reviewColExternal": "외부 작업",

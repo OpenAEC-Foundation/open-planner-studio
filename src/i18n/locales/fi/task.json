@@ -663,6 +663,7 @@
     "reviewReading": "Luetaan lähdettä…",
     "reviewReadFailed": "Lähdettä ei voitu lukea. Aikataulu pysyy ennallaan.",
     "reviewNoChanges": "Mikään riippuvuus ei enää muutu. Aikataulu pysyy ennallaan.",
+    "reviewVersionOnly": "Ennallaan pysyvä ankkuri ei tullut tallennetusta versiosta. Hyväksy kirjaa tämän version sen alkuperäksi.",
     "reviewLinksTitle": "Riippuvuudet",
     "reviewColTask": "Tehtävä",
     "reviewColExternal": "Ulkoinen tehtävä",

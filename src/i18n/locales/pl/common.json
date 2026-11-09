@@ -121,6 +121,9 @@
     "recoveryDocumentsSkipped_few": "{{count}} pliki odzyskiwania nie mogły zostać wczytane i zostały pominięte.",
     "recoveryDocumentsSkipped_many": "{{count}} plików odzyskiwania nie mogło zostać wczytanych i zostało pominiętych.",
     "recoveryDocumentsSkipped_other": "{{count}} pliku odzyskiwania nie mogło zostać wczytane i zostało pominięte.",
+    "externalOpenSourceUnsaved": "Plik {{file}} ma niezapisane zmiany; zakotwiczenie pochodzi z zapisanej wersji.",
+    "externalOpenSourceUsed": "Łącza do pliku {{file}} zostały odświeżone z otwartego dokumentu, z niezapisanymi zmianami.",
+    "externalOpenSourceGone": "Nie odświeżono: plik {{file}} został zamknięty lub zapisany albo aktywny jest inny dokument.",
     "scheduleFailed": "Nie udało się obliczyć harmonogramu",
     "ifcParseFailed": "Nie udało się odczytać pliku IFC",
     "templateSaved": "Gałąź zapisana jako szablon '{{name}}'",
@@ -235,7 +238,8 @@
     "schedulingProfileShifted_other": "Po zastosowaniu przesunięto {{count}} zadania.",
     "actions": {
       "openProjectInfo": "Otwórz profil obliczeń",
-      "openHelp": "Otwórz pomoc"
+      "openHelp": "Otwórz pomoc",
+      "useOpenDocument": "Użyj otwartego dokumentu"
     },
     "xerArchiveUnusable": "Archiwum źródłowe XER w tym pliku jest bezużyteczne i zostało pominięte; sam projekt otwarto w całości.",
     "xerArchiveUnusableLine": "Archiwum źródłowe XER w tym pliku było bezużyteczne i zostało pominięte.",

@@ -663,6 +663,7 @@
     "reviewReading": "Læser kilden…",
     "reviewReadFailed": "Kilden kunne ikke læses. Planen forbliver uændret.",
     "reviewNoChanges": "Ingen afhængigheder ændres længere. Planen forbliver uændret.",
+    "reviewVersionOnly": "Et anker, der forbliver det samme, kom ikke fra en gemt version. Godkend registrerer denne version som oprindelse.",
     "reviewLinksTitle": "Afhængigheder",
     "reviewColTask": "Opgave",
     "reviewColExternal": "Ekstern opgave",

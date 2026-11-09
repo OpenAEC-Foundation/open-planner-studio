@@ -663,6 +663,7 @@
     "reviewReading": "Läser källan…",
     "reviewReadFailed": "Källan kunde inte läsas. Schemat förblir oförändrat.",
     "reviewNoChanges": "Inga samband ändras längre. Schemat förblir oförändrat.",
+    "reviewVersionOnly": "Ett ankare som förblir detsamma kom inte från en sparad version. Godkänn registrerar den här versionen som dess ursprung.",
     "reviewLinksTitle": "Samband",
     "reviewColTask": "Uppgift",
     "reviewColExternal": "Extern uppgift",

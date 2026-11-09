@@ -679,6 +679,7 @@
     "reviewReading": "Odczytywanie źródła…",
     "reviewReadFailed": "Nie udało się odczytać źródła. Harmonogram pozostaje bez zmian.",
     "reviewNoChanges": "Żadne łącze już się nie zmienia. Harmonogram pozostaje bez zmian.",
+    "reviewVersionOnly": "Zakotwiczenie, które się nie zmienia, nie pochodziło z zapisanej wersji. Akceptuj zapisuje tę wersję jako jego pochodzenie.",
     "reviewLinksTitle": "Łącza",
     "reviewColTask": "Zadanie",
     "reviewColExternal": "Zadanie zewnętrzne",

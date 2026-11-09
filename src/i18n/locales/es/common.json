@@ -105,6 +105,9 @@
     "recoveryDocumentsSkipped_one": "{{count}} archivo de recuperación no se pudo cargar y se omitió.",
     "recoveryDocumentsSkipped_many": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
     "recoveryDocumentsSkipped_other": "{{count}} archivos de recuperación no se pudieron cargar y se omitieron.",
+    "externalOpenSourceUnsaved": "{{file}} tiene cambios sin guardar; el anclaje procede de la versión guardada.",
+    "externalOpenSourceUsed": "Los enlaces a {{file}} se han actualizado desde el documento abierto, con los cambios sin guardar.",
+    "externalOpenSourceGone": "No actualizado: {{file}} se ha cerrado o guardado, o hay otro documento activo.",
     "scheduleFailed": "No se pudo calcular la planificación",
     "ifcParseFailed": "No se pudo leer el IFC",
     "templateSaved": "Rama guardada como plantilla '{{name}}'",
@@ -199,7 +202,8 @@
     "schedulingProfileShifted_other": "Tras aplicar, se movieron {{count}} tareas.",
     "actions": {
       "openProjectInfo": "Abrir perfil de cálculo",
-      "openHelp": "Abrir ayuda"
+      "openHelp": "Abrir ayuda",
+      "useOpenDocument": "Usar el documento abierto"
     },
     "xerArchiveUnusable": "El archivo de origen XER de este fichero no se puede usar y se ha omitido; el proyecto en sí se ha abierto por completo.",
     "xerArchiveUnusableLine": "El archivo de origen XER de este fichero no se podía usar y se ha omitido.",

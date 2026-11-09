@@ -105,6 +105,9 @@
     "recoveryDocumentsSkipped_one": "{{count}} fișier de restaurare nu a putut fi încărcat și a fost omis.",
     "recoveryDocumentsSkipped_few": "{{count}} fișiere de restaurare nu au putut fi încărcate și au fost omise.",
     "recoveryDocumentsSkipped_other": "{{count}} de fișiere de restaurare nu au putut fi încărcate și au fost omise.",
+    "externalOpenSourceUnsaved": "{{file}} are modificări nesalvate; ancora provine din versiunea salvată.",
+    "externalOpenSourceUsed": "Legăturile către {{file}} au fost reîmprospătate din documentul deschis, cu modificările nesalvate.",
+    "externalOpenSourceGone": "Nereîmprospătat: {{file}} a fost închis sau salvat, ori este activ alt document.",
     "scheduleFailed": "Planificarea nu a putut fi calculată",
     "ifcParseFailed": "Fișierul IFC nu a putut fi citit",
     "templateSaved": "Ramura a fost salvată ca șablon „{{name}}”",
@@ -199,7 +202,8 @@
     "schedulingProfileShifted_other": "După aplicare, {{count}} de activități au fost deplasate.",
     "actions": {
       "openProjectInfo": "Deschidere profil de calcul",
-      "openHelp": "Deschidere ajutor"
+      "openHelp": "Deschidere ajutor",
+      "useOpenDocument": "Folosește documentul deschis"
     },
     "xerArchiveUnusable": "Arhiva sursă XER din acest fișier nu este utilizabilă și a fost omisă; proiectul în sine a fost deschis complet.",
     "xerArchiveUnusableLine": "Arhiva sursă XER din acest fișier nu era utilizabilă și a fost omisă.",

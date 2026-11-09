@@ -9,6 +9,7 @@ import { subscribeDialogStack } from '@/hooks/useDialogKeys';
 import { leaveBackstageGuarded } from '@/components/backstage/backstageLeaveGuard';
 import { clearViewArrangement } from '@/state/viewArrangement';
 import { canUndoScheduleShift, openScheduleShiftPanel } from '@/state/scheduleShift';
+import { buildImportLabels } from '@/i18n/importLabels';
 import {
   measureToastPlacement, samePlacement, subscribeToastLayout, toastAvoidElements, type ToastPlacement,
 } from './toastPlacement';
@@ -150,6 +151,16 @@ export function NotificationHost() {
       // documentwissel wist weigeringen (`clearRefusals`, 5b).
       clearViewArrangement(useAppStore.getState());
       dismissNotification(n.id);
+      return;
+    }
+    if (action.kind === 'refreshFromOpenDocument') {
+      // Stap 1.7 (vorm 1): alleen deze ene verversing; de uitslag komt als eigen melding.
+      dismissNotification(n.id);
+      const { kind: _kind, labelKey: _label, ...request } = action;
+      void _kind; void _label;
+      void useAppStore.getState().refreshExternalAnchorsFromOpenDocument(
+        request, buildImportLabels(t),
+      );
       return;
     }
     if (action.kind === 'undoScheduleShift') {

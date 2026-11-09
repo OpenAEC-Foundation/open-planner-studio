@@ -664,6 +664,7 @@
     "reviewReading": "Reading the source…",
     "reviewReadFailed": "The source could not be read. The schedule stays as it is.",
     "reviewNoChanges": "No link changes any more. The schedule stays as it is.",
+    "reviewVersionOnly": "An anchor that stays the same did not come from a saved version. Accept records this version as its origin.",
     "reviewLinksTitle": "Links",
     "reviewColTask": "Task",
     "reviewColExternal": "External task",

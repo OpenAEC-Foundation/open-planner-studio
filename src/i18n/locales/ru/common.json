@@ -121,6 +121,9 @@
     "recoveryDocumentsSkipped_few": "{{count}} файла восстановления не загружены и пропущены.",
     "recoveryDocumentsSkipped_many": "{{count}} файлов восстановления не загружены и пропущены.",
     "recoveryDocumentsSkipped_other": "{{count}} файла восстановления не загружено и пропущено.",
+    "externalOpenSourceUnsaved": "В {{file}} есть несохранённые изменения; привязка берётся из сохранённой версии.",
+    "externalOpenSourceUsed": "Зависимости от {{file}} обновлены из открытого документа, с несохранёнными изменениями.",
+    "externalOpenSourceGone": "Не обновлено: {{file}} закрыт или сохранён, либо активен другой документ.",
     "scheduleFailed": "Не удалось рассчитать график",
     "ifcParseFailed": "Не удалось прочитать IFC",
     "templateSaved": "Ветка сохранена как шаблон «{{name}}»",
@@ -235,7 +238,8 @@
     "schedulingProfileShifted_other": "После применения {{count}} задачи сдвинулись.",
     "actions": {
       "openProjectInfo": "Открыть профиль расчета",
-      "openHelp": "Открыть справку"
+      "openHelp": "Открыть справку",
+      "useOpenDocument": "Использовать открытый документ"
     },
     "xerArchiveUnusable": "Исходный архив XER в этом файле непригоден и пропущен; сам проект открыт полностью.",
     "xerArchiveUnusableLine": "Исходный архив XER в этом файле был непригоден и пропущен.",

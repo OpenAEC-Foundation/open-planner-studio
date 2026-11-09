@@ -73,6 +73,9 @@
     "recoveryReadFailed": "복구된 파일을 읽을 수 없습니다",
     "recoveryRestoreFailed": "복원하지 못했습니다",
     "recoveryDocumentsSkipped_other": "복구 파일 {{count}}개를 불러올 수 없어 건너뛰었습니다.",
+    "externalOpenSourceUnsaved": "{{file}}에 저장되지 않은 변경 사항이 있습니다. 앵커는 저장된 버전에서 가져옵니다.",
+    "externalOpenSourceUsed": "{{file}}에 대한 링크를 저장되지 않은 변경 사항을 포함하여 열린 문서에서 새로 고쳤습니다.",
+    "externalOpenSourceGone": "새로 고치지 않음: {{file}}이(가) 닫혔거나 저장되었거나 다른 문서가 활성 상태입니다.",
     "scheduleFailed": "일정을 계산할 수 없습니다",
     "ifcParseFailed": "IFC를 읽을 수 없습니다",
     "templateSaved": "분기가 '{{name}}' 템플릿으로 저장되었습니다",
@@ -127,7 +130,8 @@
     "schedulingProfileShifted_other": "적용 후 작업 {{count}}개가 이동했습니다.",
     "actions": {
       "openProjectInfo": "계산 프로필 열기",
-      "openHelp": "도움말 열기"
+      "openHelp": "도움말 열기",
+      "useOpenDocument": "열린 문서 사용"
     },
     "xerArchiveUnusable": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다. 프로젝트 자체는 모두 열렸습니다.",
     "xerArchiveUnusableLine": "이 파일의 XER 원본 아카이브는 사용할 수 없어 제외했습니다.",

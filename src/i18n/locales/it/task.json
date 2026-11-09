@@ -672,6 +672,7 @@
     "reviewReading": "Lettura dell'origine…",
     "reviewReadFailed": "Impossibile leggere l'origine. La pianificazione resta invariata.",
     "reviewNoChanges": "Nessun collegamento cambia più. La pianificazione resta invariata.",
+    "reviewVersionOnly": "Un ancoraggio che resta uguale non proveniva da una versione salvata. Accetta registra questa versione come provenienza.",
     "reviewLinksTitle": "Collegamenti",
     "reviewColTask": "Attività",
     "reviewColExternal": "Attività esterna",

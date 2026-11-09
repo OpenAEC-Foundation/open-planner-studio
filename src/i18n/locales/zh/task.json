@@ -655,6 +655,7 @@
     "reviewReading": "正在读取源…",
     "reviewReadFailed": "无法读取源。计划保持不变。",
     "reviewNoChanges": "已没有链接需要更改。计划保持不变。",
+    "reviewVersionOnly": "保持不变的锚点并非来自已保存的版本。接受会将此版本记录为其来源。",
     "reviewLinksTitle": "链接",
     "reviewColTask": "任务",
     "reviewColExternal": "外部任务",

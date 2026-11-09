@@ -671,6 +671,7 @@
     "reviewReading": "Lecture de la source…",
     "reviewReadFailed": "Impossible de lire la source. Le planning reste inchangé.",
     "reviewNoChanges": "Plus aucune relation ne change. Le planning reste inchangé.",
+    "reviewVersionOnly": "Un ancrage qui ne change pas ne provenait pas d'une version enregistrée. Accepter enregistre cette version comme origine.",
     "reviewLinksTitle": "Relations",
     "reviewColTask": "Tâche",
     "reviewColExternal": "Tâche externe",

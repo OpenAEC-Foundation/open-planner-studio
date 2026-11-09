@@ -95,6 +95,9 @@
     "settingsLoadedLateReverted": "Your settings have been loaded and applied. Anything you changed in the meantime has been reverted.",
     "recoveryDocumentsSkipped_one": "{{count}} recovery file could not be loaded and was skipped.",
     "recoveryDocumentsSkipped_other": "{{count}} recovery files could not be loaded and were skipped.",
+    "externalOpenSourceUnsaved": "{{file}} has unsaved changes; the anchor comes from the saved version.",
+    "externalOpenSourceUsed": "The links to {{file}} have been refreshed from the open document, including the unsaved changes.",
+    "externalOpenSourceGone": "Not refreshed: {{file}} has been closed or saved, or another document is active.",
     "scheduleFailed": "Schedule could not be calculated",
     "ifcParseFailed": "IFC could not be read",
     "templateSaved": "Branch saved as template '{{name}}'",
@@ -171,7 +174,8 @@
     "schedulingProfileShifted_other": "After applying, {{count}} tasks moved.",
     "actions": {
       "openProjectInfo": "Open calculation profile",
-      "openHelp": "Open Help"
+      "openHelp": "Open Help",
+      "useOpenDocument": "Use the open document"
     },
     "xerArchiveUnusable": "The XER source archive in this file is unusable and was left out; the project itself opened in full.",
     "xerArchiveUnusableLine": "The XER source archive in this file was unusable and has been left out.",

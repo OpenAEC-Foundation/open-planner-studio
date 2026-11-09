@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "Visszaállítás sikertelen",
     "recoveryDocumentsSkipped_one": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
     "recoveryDocumentsSkipped_other": "{{count}} visszaállítási fájl nem tölthető be, ezért ki lett hagyva.",
+    "externalOpenSourceUnsaved": "A(z) {{file}} nem mentett módosításokat tartalmaz; a horgony a mentett verzióból származik.",
+    "externalOpenSourceUsed": "A(z) {{file}} felé mutató kapcsolatok frissültek a megnyitott dokumentumból, a nem mentett módosításokkal együtt.",
+    "externalOpenSourceGone": "Nem frissült: a(z) {{file}} bezárult vagy mentésre került, vagy másik dokumentum aktív.",
     "scheduleFailed": "Az ütemezés nem számítható ki",
     "ifcParseFailed": "Az IFC nem olvasható be",
     "templateSaved": "Ág mentve sablonként: „{{name}}”",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "Az alkalmazás után {{count}} tevékenység tolódott el.",
     "actions": {
       "openProjectInfo": "Számítási profil megnyitása",
-      "openHelp": "Súgó megnyitása"
+      "openHelp": "Súgó megnyitása",
+      "useOpenDocument": "A megnyitott dokumentum használata"
     },
     "xerArchiveUnusable": "Az XER-forrásarchívum ebben a fájlban használhatatlan, ezért kimaradt; maga a projekt teljes egészében megnyílt.",
     "xerArchiveUnusableLine": "Az XER-forrásarchívum ebben a fájlban használhatatlan volt, ezért kimaradt.",

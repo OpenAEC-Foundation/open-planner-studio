@@ -105,6 +105,9 @@
     "recoveryDocumentsSkipped_one": "{{count}} file di ripristino non è stato caricato ed è stato ignorato.",
     "recoveryDocumentsSkipped_many": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
     "recoveryDocumentsSkipped_other": "{{count}} file di ripristino non sono stati caricati e sono stati ignorati.",
+    "externalOpenSourceUnsaved": "{{file}} ha modifiche non salvate; l'ancoraggio proviene dalla versione salvata.",
+    "externalOpenSourceUsed": "I collegamenti a {{file}} sono stati aggiornati dal documento aperto, con le modifiche non salvate.",
+    "externalOpenSourceGone": "Non aggiornato: {{file}} è stato chiuso o salvato, oppure è attivo un altro documento.",
     "scheduleFailed": "Impossibile calcolare la programmazione",
     "ifcParseFailed": "Impossibile leggere l'IFC",
     "templateSaved": "Ramo salvato come modello '{{name}}'",
@@ -199,7 +202,8 @@
     "schedulingProfileShifted_other": "Dopo l’applicazione sono state spostate {{count}} attività.",
     "actions": {
       "openProjectInfo": "Apri profilo di calcolo",
-      "openHelp": "Apri la guida"
+      "openHelp": "Apri la guida",
+      "useOpenDocument": "Usa il documento aperto"
     },
     "xerArchiveUnusable": "L'archivio sorgente XER di questo file è inutilizzabile ed è stato omesso; il progetto stesso è stato aperto per intero.",
     "xerArchiveUnusableLine": "L'archivio sorgente XER di questo file era inutilizzabile ed è stato omesso.",

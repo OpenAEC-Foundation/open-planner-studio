@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "Gendannelse mislykkedes",
     "recoveryDocumentsSkipped_one": "{{count}} genoprettelsesfil kunne ikke indlæses og blev sprunget over.",
     "recoveryDocumentsSkipped_other": "{{count}} genoprettelsesfiler kunne ikke indlæses og blev sprunget over.",
+    "externalOpenSourceUnsaved": "{{file}} har ændringer, der ikke er gemt; ankeret kommer fra den gemte version.",
+    "externalOpenSourceUsed": "Afhængighederne til {{file}} er opdateret fra det åbne dokument, med de ændringer, der ikke er gemt.",
+    "externalOpenSourceGone": "Ikke opdateret: {{file}} er lukket eller gemt, eller et andet dokument er aktivt.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
     "ifcParseFailed": "IFC kunne ikke læses",
     "templateSaved": "Gren gemt som skabelon '{{name}}'",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "Efter anvendelsen er {{count}} opgaver forskudt.",
     "actions": {
       "openProjectInfo": "Åbn beregningsprofil",
-      "openHelp": "Åbn Hjælp"
+      "openHelp": "Åbn Hjælp",
+      "useOpenDocument": "Brug det åbne dokument"
     },
     "xerArchiveUnusable": "XER-kildearkivet i denne fil er ubrugeligt og er udeladt. Selve projektet er fuldt åbnet.",
     "xerArchiveUnusableLine": "XER-kildearkivet i denne fil var ubrugeligt og er udeladt.",

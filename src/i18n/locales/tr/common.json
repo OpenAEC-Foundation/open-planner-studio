@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "Geri yükleme başarısız",
     "recoveryDocumentsSkipped_one": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
     "recoveryDocumentsSkipped_other": "{{count}} kurtarma dosyası yüklenemedi ve atlandı.",
+    "externalOpenSourceUnsaved": "{{file}} kaydedilmemiş değişiklikler içeriyor; bağlantı noktası kaydedilmiş sürümden alınır.",
+    "externalOpenSourceUsed": "{{file}} bağlantıları, kaydedilmemiş değişikliklerle birlikte açık belgeden yenilendi.",
+    "externalOpenSourceGone": "Yenilenmedi: {{file}} kapatıldı veya kaydedildi ya da başka bir belge etkin.",
     "scheduleFailed": "Planlama hesaplanamadı",
     "ifcParseFailed": "IFC okunamadı",
     "templateSaved": "Dal, '{{name}}' şablonu olarak kaydedildi",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "Uygulamadan sonra {{count}} görev kaydı.",
     "actions": {
       "openProjectInfo": "Hesaplama profilini aç",
-      "openHelp": "Yardımı aç"
+      "openHelp": "Yardımı aç",
+      "useOpenDocument": "Açık belgeyi kullan"
     },
     "xerArchiveUnusable": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumda ve dışarıda bırakıldı; projenin kendisi eksiksiz açıldı.",
     "xerArchiveUnusableLine": "Bu dosyadaki XER kaynak arşivi kullanılamaz durumdaydı ve dışarıda bırakıldı.",

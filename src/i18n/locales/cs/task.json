@@ -679,6 +679,7 @@
     "reviewReading": "Načítání zdroje…",
     "reviewReadFailed": "Zdroj se nepodařilo načíst. Plán zůstává beze změny.",
     "reviewNoChanges": "Žádná vazba se už nemění. Plán zůstává beze změny.",
+    "reviewVersionOnly": "Kotva, která zůstává stejná, nepocházela z uložené verze. Přijmout zaznamená tuto verzi jako její původ.",
     "reviewLinksTitle": "Vazby",
     "reviewColTask": "Úkol",
     "reviewColExternal": "Externí úkol",

@@ -6,7 +6,7 @@ import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
 import { externalSourceScope, refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
-import { previewExternalRefresh, type ExternalRefreshPreview } from '@/engine/externalRefreshPreview';
+import { externalVersionOnlyChanges, previewExternalRefresh, type ExternalRefreshPreview } from '@/engine/externalRefreshPreview';
 import { externalSourceSide } from '@/engine/taskGrid/relationFormat';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { calendarClock, momentLabel } from '@/utils/taskDateLabel';
@@ -79,7 +79,11 @@ export function ExternalSourceReviewDialog() {
     // Alleen de koppelingen naar dít bestand, of zonder pad naar dit project, net als de balk
     // (`checkExternalSources`) en *Accepteren*.
     const refreshed = refreshExternalAnchors(tasks, source, externalSourceScope(source));
-    return previewExternalRefresh({ project, tasks, sequences, calendar, calendars, cpmResult }, refreshed.tasks);
+    return {
+      ...previewExternalRefresh({ project, tasks, sequences, calendar, calendars, cpmResult }, refreshed.tasks),
+      // Koppelingen met hetzelfde anker die de versie van deze bron als herkomst krijgen (stap 1.7).
+      versionOnly: externalVersionOnlyChanges(tasks, refreshed.tasks),
+    };
   }, [source, project, tasks, sequences, calendar, calendars, cpmResult]);
 
   if (!update) return null;
@@ -100,7 +104,8 @@ export function ExternalSourceReviewDialog() {
   const siteVersion = update.siteVersionLabel;
   const saved = siteVersion !== undefined ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
 
-  const ready = source && preview && preview.changes.length > 0 ? { source, preview } : null;
+  const rows = preview ? [...preview.changes, ...preview.versionOnly] : [];
+  const ready = source && preview && rows.length > 0 ? { source, preview } : null;
   const onAccept = () => {
     if (!ready) return;
     accept(ready.source);
@@ -154,7 +159,7 @@ export function ExternalSourceReviewDialog() {
         {state.kind === 'failed' && (
           <div style={{ color: 'var(--error)' }}>{t('externalLinks.reviewReadFailed')}</div>
         )}
-        {preview && preview.changes.length === 0 && (
+        {preview && rows.length === 0 && (
           <div>{t('externalLinks.reviewNoChanges')}</div>
         )}
         {ready && (
@@ -172,7 +177,7 @@ export function ExternalSourceReviewDialog() {
                 </tr>
               </thead>
               <tbody>
-                {ready.preview.changes.map(change => (
+                {rows.map(change => (
                   <tr key={`${change.taskId}:${change.linkId}`} className="border-t border-border">
                     <td className="py-1 pe-2">{taskLabel(change.taskId)}</td>
                     <td className="py-1 pe-2">
@@ -188,6 +193,9 @@ export function ExternalSourceReviewDialog() {
                 ))}
               </tbody>
             </table>
+            {ready.preview.versionOnly.length > 0 && (
+              <div data-ops-external-source-review-version-only>{t('externalLinks.reviewVersionOnly')}</div>
+            )}
             <span className="!text-small uppercase tracking-wide pt-1" style={{ color: 'var(--theme-text-muted)' }}>
               {t('externalLinks.reviewEffectsTitle')}
             </span>

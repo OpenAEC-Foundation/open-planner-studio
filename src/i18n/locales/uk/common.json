@@ -121,6 +121,9 @@
     "recoveryDocumentsSkipped_few": "{{count}} файли відновлення не вдалося завантажити, тому їх пропущено.",
     "recoveryDocumentsSkipped_many": "{{count}} файлів відновлення не вдалося завантажити, тому їх пропущено.",
     "recoveryDocumentsSkipped_other": "{{count}} файла відновлення не вдалося завантажити, тому їх пропущено.",
+    "externalOpenSourceUnsaved": "У {{file}} є незбережені зміни; опорна дата береться зі збереженої версії.",
+    "externalOpenSourceUsed": "Залежності від {{file}} оновлено з відкритого документа, з незбереженими змінами.",
+    "externalOpenSourceGone": "Не оновлено: {{file}} закрито або збережено, або активний інший документ.",
     "scheduleFailed": "Не вдалося розрахувати графік",
     "ifcParseFailed": "Не вдалося прочитати IFC",
     "templateSaved": "Гілку збережено як шаблон «{{name}}»",
@@ -235,7 +238,8 @@
     "schedulingProfileShifted_other": "Після застосування зміщено {{count}} завдання.",
     "actions": {
       "openProjectInfo": "Відкрити профіль обчислень",
-      "openHelp": "Відкрити довідку"
+      "openHelp": "Відкрити довідку",
+      "useOpenDocument": "Використати відкритий документ"
     },
     "xerArchiveUnusable": "Архів джерела XER у цьому файлі непридатний і його пропущено; сам проєкт відкрито повністю.",
     "xerArchiveUnusableLine": "Архів джерела XER у цьому файлі був непридатний і його пропущено.",

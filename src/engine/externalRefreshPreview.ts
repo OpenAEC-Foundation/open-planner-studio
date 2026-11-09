@@ -41,6 +41,32 @@ export function externalAnchorChanges(before: readonly Task[], after: readonly T
   return out;
 }
 
+/**
+ * De koppelingen waarvan alleen de herkomst een echte versie krijgt: het anker en de status *brontaak ontbreekt*
+ * blijven gelijk, maar het anker kwam niet uit een opgeslagen versie (wel een leestijd, geen `sourceVersion`) en
+ * na verversen wel. Zo'n anker komt uit een geopend document met niet-opgeslagen wijzigingen (stap 1.7, keuze 5)
+ * of uit een lezing zonder versie. Is de bron daarna opgeslagen, dan meldt de balk die versie (stap 1.5), en
+ * *Accepteren* zet haar als herkomst (keuze 4). Een oudere koppeling zonder leestijd telt niet: daar wist de app
+ * nooit waar het anker vandaan kwam.
+ */
+export function externalVersionOnlyChanges(before: readonly Task[], after: readonly Task[]): ExternalAnchorChange[] {
+  const beforeById = new Map(before.map(task => [task.id, task] as const));
+  const out: ExternalAnchorChange[] = [];
+  for (const task of after) {
+    const previous = beforeById.get(task.id);
+    if (!previous || previous === task) continue;
+    const previousLinks = new Map((previous.externalLinks ?? []).map(link => [link.id, link] as const));
+    for (const link of task.externalLinks ?? []) {
+      const old = previousLinks.get(link.id);
+      if (!old || old === link) continue;
+      if (old.anchorDate !== link.anchorDate || old.sourceMissing !== link.sourceMissing) continue;
+      if (old.sourceVersion !== undefined || old.anchorReadAt === undefined || link.sourceVersion === undefined) continue;
+      out.push({ taskId: task.id, linkId: link.id, link, before: { anchorDate: old.anchorDate, sourceMissing: old.sourceMissing } });
+    }
+  }
+  return out;
+}
+
 export interface ExternalRefreshDoc {
   project: SolveProjectFields;
   tasks: Task[];

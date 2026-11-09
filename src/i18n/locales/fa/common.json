@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "بازیابی ناموفق بود",
     "recoveryDocumentsSkipped_one": "{{count}} فایل بازیابی بارگذاری نشد و نادیده گرفته شد.",
     "recoveryDocumentsSkipped_other": "{{count}} فایل بازیابی بارگذاری نشد و نادیده گرفته شد.",
+    "externalOpenSourceUnsaved": "{{file}} تغییرات ذخیره‌نشده دارد؛ لنگر از نسخهٔ ذخیره‌شده گرفته می‌شود.",
+    "externalOpenSourceUsed": "پیوندها به {{file}} از سند باز، همراه با تغییرات ذخیره‌نشده، به‌روز شدند.",
+    "externalOpenSourceGone": "به‌روز نشد: {{file}} بسته یا ذخیره شده است، یا سند دیگری فعال است.",
     "scheduleFailed": "محاسبهٔ برنامه ممکن نشد",
     "ifcParseFailed": "خواندن IFC ناموفق بود",
     "templateSaved": "شاخه به عنوان الگوی «{{name}}» ذخیره شد",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "پس از اعمال، {{count}} کار جابه‌جا شد.",
     "actions": {
       "openProjectInfo": "باز کردن پروفایل محاسبه",
-      "openHelp": "باز کردن راهنما"
+      "openHelp": "باز کردن راهنما",
+      "useOpenDocument": "استفاده از سند باز"
     },
     "xerArchiveUnusable": "آرشیو منبع XER در این فایل قابل استفاده نیست و کنار گذاشته شد؛ خود پروژه به‌طور کامل باز شد.",
     "xerArchiveUnusableLine": "آرشیو منبع XER در این فایل قابل استفاده نبود و کنار گذاشته شد.",

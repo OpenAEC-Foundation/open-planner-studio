@@ -121,6 +121,9 @@
     "recoveryDocumentsSkipped_few": "{{count}} súbory na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_many": "{{count}} súboru na obnovenie sa nepodarilo načítať a boli preskočené.",
     "recoveryDocumentsSkipped_other": "{{count}} súborov na obnovenie sa nepodarilo načítať a boli preskočené.",
+    "externalOpenSourceUnsaved": "{{file}} má neuložené zmeny; kotva pochádza z uloženej verzie.",
+    "externalOpenSourceUsed": "Prepojenia na {{file}} boli obnovené z otvoreného dokumentu, vrátane neuložených zmien.",
+    "externalOpenSourceGone": "Neobnovené: {{file}} bol zatvorený alebo uložený, alebo je aktívny iný dokument.",
     "scheduleFailed": "Plán sa nepodarilo prepočítať",
     "ifcParseFailed": "IFC sa nepodarilo prečítať",
     "templateSaved": "Vetva uložená ako šablóna „{{name}}“",
@@ -235,7 +238,8 @@
     "schedulingProfileShifted_other": "Po použití bolo posunutých {{count}} úloh.",
     "actions": {
       "openProjectInfo": "Otvoriť profil výpočtu",
-      "openHelp": "Otvoriť pomoc"
+      "openHelp": "Otvoriť pomoc",
+      "useOpenDocument": "Použiť otvorený dokument"
     },
     "xerArchiveUnusable": "Zdrojový archív XER v tomto súbore nie je použiteľný a bol vynechaný; samotný projekt bol otvorený úplne.",
     "xerArchiveUnusableLine": "Zdrojový archív XER v tomto súbore nebol použiteľný a bol vynechaný.",

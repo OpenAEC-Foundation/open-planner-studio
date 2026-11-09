@@ -247,6 +247,14 @@ export type NotificationMessageKey =
   // document over waarvan de solve gooit (bv. cyclische WBS-relatie) i.p.v. het hele herstel te
   // blokkeren; deze melding vertelt hoeveel er zijn overgeslagen. Meervoud, `count`.
   | 'notifications.recoveryDocumentsSkipped'
+  // Stap 1.7 (keuze 5, vorm 1): een bron staat ook als document open, met niet-opgeslagen wijzigingen.
+  // Parameter `file`. De knop *Rekenen met het geopende document* is de actie `refreshFromOpenDocument`.
+  | 'notifications.externalOpenSourceUnsaved'
+  // Na die knop: de koppelingen naar `file` zijn ververst uit het geopende document. Parameter `file`.
+  | 'notifications.externalOpenSourceUsed'
+  // Na die knop, als het geopende document intussen gesloten of opgeslagen is, of een ander document actief
+  // is: niets ververst. Parameter `file`.
+  | 'notifications.externalOpenSourceGone'
   | 'notifications.scheduleFailed'
   | 'notifications.ifcParseFailed'
   | 'notifications.templateSaved'
@@ -462,7 +470,8 @@ export type NotificationActionLabelKey =
   | 'notifications.actions.openHelp'
   | 'view.filter.clear'
   | 'scheduleShift.why'
-  | 'scheduleShift.undo';
+  | 'scheduleShift.undo'
+  | 'notifications.actions.useOpenDocument';
 
 /** Een SERIALISEERBARE vervolgactie op een melding (geen functies in de store). `NotificationHost`
  *  voert hem uit en sluit daarna de melding; nieuwe soorten krijgen een eigen `kind`.
@@ -476,7 +485,18 @@ export type NotificationAction =
   | { kind: 'openBackstageSection'; section: BackstageSection; labelKey: NotificationActionLabelKey }
   | { kind: 'clearViewArrangement'; labelKey: NotificationActionLabelKey }
   | { kind: 'showScheduleShift'; labelKey: NotificationActionLabelKey }
-  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey };
+  | { kind: 'undoScheduleShift'; labelKey: NotificationActionLabelKey }
+  /** Stap 1.7 (keuze 5, vorm 1): *Rekenen met het geopende document*, alleen voor deze ene verversing. Ververst
+   *  in `targetDocumentId` de koppelingen naar de bron op `locator` uit het geopende document `sourceDocumentId`
+   *  (`refreshExternalAnchorsFromOpenDocument`). */
+  | {
+    kind: 'refreshFromOpenDocument';
+    labelKey: NotificationActionLabelKey;
+    targetDocumentId: string;
+    sourceDocumentId: string;
+    locator: ExternalSourceLocator;
+    fileName: string;
+  };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
  * gebruikerszichtbaar en dus via dezelfde gesloten sleutelunie en i18n-keten getypeerd. */
@@ -629,7 +649,8 @@ export interface ExternalSourceUpdate {
   siteVersionLabel?: string;
   /** De auteur uit de projectgegevens van de bron, als die er is. */
   author?: string;
-  /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt). Altijd ≥ 1. */
+  /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt), plus de koppelingen waarvan
+   *  alleen de herkomst een echte versie krijgt (`externalVersionOnlyChanges`, stap 1.7). Altijd ≥ 1. */
   changedLinks: number;
 }
 

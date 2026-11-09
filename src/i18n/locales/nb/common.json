@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "Gjenoppretting mislyktes",
     "recoveryDocumentsSkipped_one": "{{count}} gjenopprettingsfil kunne ikke lastes og er hoppet over.",
     "recoveryDocumentsSkipped_other": "{{count}} gjenopprettingsfiler kunne ikke lastes og er hoppet over.",
+    "externalOpenSourceUnsaved": "{{file}} har ulagrede endringer; ankeret kommer fra den lagrede versjonen.",
+    "externalOpenSourceUsed": "Koblingene til {{file}} er oppdatert fra det åpne dokumentet, med de ulagrede endringene.",
+    "externalOpenSourceGone": "Ikke oppdatert: {{file}} er lukket eller lagret, eller et annet dokument er aktivt.",
     "scheduleFailed": "Tidsplanen kunne ikke beregnes",
     "ifcParseFailed": "IFC kunne ikke leses",
     "templateSaved": "Gren lagret som mal '{{name}}'",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "Etter bruk er {{count}} aktiviteter forskjøvet.",
     "actions": {
       "openProjectInfo": "Åpne beregningsprofil",
-      "openHelp": "Åpne hjelp"
+      "openHelp": "Åpne hjelp",
+      "useOpenDocument": "Bruk det åpne dokumentet"
     },
     "xerArchiveUnusable": "XER-kildearkivet i denne filen er ubrukelig og er utelatt; prosjektet selv er åpnet fullt ut.",
     "xerArchiveUnusableLine": "XER-kildearkivet i denne filen var ubrukelig og er utelatt.",

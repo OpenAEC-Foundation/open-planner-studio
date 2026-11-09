@@ -89,6 +89,9 @@
     "recoveryRestoreFailed": "Kunde inte återställa",
     "recoveryDocumentsSkipped_one": "{{count}} återställningsfil kunde inte läsas in och hoppades över.",
     "recoveryDocumentsSkipped_other": "{{count}} återställningsfiler kunde inte läsas in och hoppades över.",
+    "externalOpenSourceUnsaved": "{{file}} har osparade ändringar; ankaret kommer från den sparade versionen.",
+    "externalOpenSourceUsed": "Sambanden till {{file}} har uppdaterats från det öppna dokumentet, med de osparade ändringarna.",
+    "externalOpenSourceGone": "Inte uppdaterat: {{file}} har stängts eller sparats, eller ett annat dokument är aktivt.",
     "scheduleFailed": "Tidsplanen kunde inte beräknas",
     "ifcParseFailed": "IFC kunde inte läsas",
     "templateSaved": "Gren sparad som mall '{{name}}'",
@@ -163,7 +166,8 @@
     "schedulingProfileShifted_other": "Efter tillämpning har {{count}} uppgifter flyttats.",
     "actions": {
       "openProjectInfo": "Öppna beräkningsprofil",
-      "openHelp": "Öppna hjälp"
+      "openHelp": "Öppna hjälp",
+      "useOpenDocument": "Använd det öppna dokumentet"
     },
     "xerArchiveUnusable": "XER-källarkivet i den här filen är oanvändbart och har utelämnats. Projektet självt öppnades helt.",
     "xerArchiveUnusableLine": "XER-källarkivet i den här filen var oanvändbart och har utelämnats.",
