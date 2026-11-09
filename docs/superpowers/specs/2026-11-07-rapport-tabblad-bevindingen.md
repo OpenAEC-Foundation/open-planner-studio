@@ -520,3 +520,108 @@ de instellingen uit ronde 1 was bevestigd, ook bij een late host. De UI bleef on
    namen, de Chinese naam ook op het canvas) en punt 2 (bewaren en laden). Geen nieuwe testlaag. WebKit draait niet
    in de browsersuite; de WebKit-getallen hierboven komen uit dezelfde meting als Sols proef (Python-GI met
    WebKitGTK 2.52.6, tegen de dev-server).
+
+## Layouts en stijl (9 november 2026)
+
+Twee besluiten van Ethan, uitgewerkt door de orkestrator in de brief van 9 november 2026: (1) een layout toepassen
+op de Gantt-afdruk, zodat het rapporttype Resourcediagram weg kan zonder iets te verliezen (#861); (2) de stijl van
+de rest van de app overnemen. Gebouwd door de implementatie-subagent (Opus 5.5). Ethan beoordeelt de besluiten
+hieronder bij zijn check.
+
+### Deel 1: een layout op de Gantt-afdruk (#861)
+
+**Wat de planner ziet.** De stap *Taken* heeft drie soorten keuzes in één radiogroep: *Alle taken*, *Zoals de
+weergave*, en onder het kopje *Layouts* dezelfde layouts als op het lint (naam en icoon uit `layoutIcon`, zoals
+`LayoutGroupContent`): het meegeleverde *Resourcediagram*, eigen layouts en opgeslagen filters. Bij een layout staat
+het aantal rijen en de zin "De rijen volgen de layout …". Groepeert de layout op resource, dan verschijnt de groep
+*Per resource* met de vier schakelaars van het oude rapport, de periode en de tellingen. *Ander rapport* heeft geen
+Resourcediagram meer (`GanttReportStudio.tsx`, keuzelijst rapporttype; `ReportPanel.tsx` laat het met de flag weg).
+
+**Besluiten van de orkestrator, uitgevoerd zoals gevraagd.** Eén keuze tegelijk; de layout geldt alleen voor het
+rapport; het rapport onthoudt hem bij id en volgt hem live; verwijderd ⇒ terug naar *Alle taken* met een melding;
+`timeScale` telt niet; groeperen op resource gebruikt `computeResourceGanttRows`; de resource-opties staan er alleen
+bij een groepering op resource; met de flag uit verandert er niets.
+
+**Besluiten van de bouwer (Opus 5.5, 9 november 2026), met reden.**
+
+1. **Een deel dat de layout niet draagt, staat zoals bij *Alle taken*** (geen filter, de WBS-boom, geen sortering).
+   Op het scherm betekent een ontbrekend deel "laat met rust"; voor het rapport zou dat "neem het scherm over"
+   worden, en dan hangt de afdruk af van wat er toevallig op het scherm staat. Dat botst met "de layout geldt
+   alleen voor het rapport". Voorbeeld: de layout *Alleen kritiek* (alleen een filter) geeft de kritieke taken in de
+   WBS-boom, ook als het scherm op resource groepeert. `computeLayoutReportRows` in
+   `src/engine/reports/layoutReport.ts`.
+2. **Rijen volgen de layout live; kolommen en schakelaars neemt het rapport één keer over, bij het kiezen.** De
+   brief zegt dat de planner daarna in *Kolommen* verder kan aanpassen; live overnemen zou die aanpassing bij elke
+   wijziging van de layout wissen. Het overnemen is één stap *Ongedaan maken* boven het papier, met de tekst
+   "<layout>: kolommen en balken overgenomen." (`applyWithUndo` in `useStudioSettings.ts`, `chooseSource` in
+   `GanttReportStudio.tsx`). Alleen wat echt verandert telt; verandert er niets, dan is er ook geen
+   ongedaan-maakstap. `layoutReportPatch` in `reportLayouts.ts`: `columns` → de rapportkolommen (de taaknaam blijft
+   verplicht, onbekende kolommen vallen weg); `showRelations` → *Afhankelijkheden*; `overlays` → basislijn,
+   speling en statuslijn (voortgangslijn gaat voor statusdatumlijn).
+3. **Balkkleuren gaan niet vanzelf mee.** De keuze *Balkkleuren* is één instelling voor rapport én scherm
+   (`ui.barColorSelection`; de Help zegt dat al). Vanzelf overnemen zou het scherm veranderen, en dat mag niet.
+   Kleurt de gekozen layout anders, dan toont de stap *Taken* een melding met de knop *Balkkleuren overnemen*.
+   Alternatief: een eigen balkkleur voor het rapport; dat is een nieuwe instelling en een grotere wijziging. Ethan
+   beoordeelt dit.
+4. **De resourcekleur (`resourceAccent`) heeft geen tegenhanger op papier**, en de tijdschaal telt niet (het
+   rapport heeft een eigen paginaschaal in *Pagina*). Beide staan in de Help.
+5. **Welke groepering de resourcebouwer gebruikt.** Bij [resource] en [resourcetype, resource] bouwt
+   `computeResourceGanttRows` de rijen, met het filter en de sortering van de layout: dat is precies het oude
+   rapport (identiteit, volgnummers, surrogaat, app-taal, bladtaken, n banden per taak, de vier opties en de
+   periode). Een aflopende groepering keert de banden om (`bandsDescending`, `typesDescending` in
+   `resourceGantt.ts`). Een lege sortering of [start oplopend] geeft de volgorde van de bouwer zelf; een andere
+   sortering gaat mee via `sortTasks` (`visibleRows.ts`, nu geëxporteerd). Elke andere groepering met een resource
+   erin, bijvoorbeeld [fase, resource], gaat door de rijen van het scherm, met banden op naam. Dat is zeldzaam; het
+   staat als VERVOLG in het eindrapport.
+6. **Relatielijnen uit en *Kritiek pad* aan bij elke groepering op resource of resourcetype**, zoals het oude
+   rapport: een taak staat dan onder meer banden. Dat geldt voor een layout en ook voor *Zoals de weergave* als het
+   scherm zo groepeert. In *Balken* zijn beide schakelaars dan uitgeschakeld, met de uitleg "Een taak staat onder
+   elke resource die eraan werkt …". De eigen keuze van de planner blijft bewaard voor een gewone afdruk
+   (`studioRowPrintFields` in `studioRowSource.ts`).
+7. **Het Resourcediagram wordt bewaard als `reportType: 'resourceGantt'`, niet als layout-id.** Zo opent een
+   bewaarde keuze voor het oude rapporttype met de flag aan als de Gantt-afdruk met deze layout en met de bewaarde
+   opties (`resourceGantt`), en toont het oude paneel met de flag uit nog steeds het Resourcediagram. Er is geen
+   migratie nodig (`reportTaskSource` / `taskSourcePatch` in `reportLayouts.ts`). Een eigen layout staat in het
+   nieuwe veld `layoutId` van `ops-reportSettings` (tekst, hoogstens 200 tekens, `parseReportLayoutId`). Het oude
+   paneel schrijft `layoutId` ongewijzigd terug.
+8. **Terugval bij een verwijderde layout** pas nadat de eigen layouts gelezen zijn, anders telt een nog niet
+   geladen layout als verwijderd. De melding gaat via het meldingskanaal: "De layout van het rapport bestaat niet
+   meer. Het rapport toont weer alle taken." Ververst bij een wijziging uit een ander venster of de host
+   (`StorageEvent` op `ops-taskGridLayouts`) en na het sluiten van de layoutdialoog (`useReportLayouts.ts`).
+9. **De app-instelling Previewkwaliteit is weg.** Met de flag aan is er geen rasterrapport meer: de Gantt-afdruk
+   en het Resourcediagram zijn SVG-papier, de andere rapporten zijn tabellen. Dit vervangt punt 10 van de fixronde
+   na council ronde 3 en punt 2 van de fixronde na code-review 2. Weg: `reportPreviewQuality` uit het register, de
+   store, `HOST_PERSISTED_KEYS`, het instellingenpaneel, `check-first-start.ts` C7, twee i18n-sleutels en de
+   regel in `ref-instellingen.md`. Met de flag uit houdt het oude paneel zijn eigen keuze boven het voorbeeld,
+   zoals op main. Een host die `ops-reportPreviewQuality` nog bewaart, houdt een sleutel die niemand meer leest.
+10. **De bestandsnaam** krijgt bij een groepering op resource het achtervoegsel van het oude rapport
+    (`-resourcediagram.pdf`).
+
+**Bewijs.**
+
+- `tests/planning/check-report-layouts.ts` (nieuw). Plan: twee resources met dezelfde naam ("Jan", " jan "), een
+  naamloze resource, een taak met drie resources, twee records van één resource op één taak (eenheden opgeteld,
+  curve onbekend), een mijlpaal, een hammock, een taak zonder resource en een toewijzing aan een onbekende
+  resource. Voor alle 16 standen van de vier opties, zonder en met periode (32 varianten), zijn bij de oude en de
+  nieuwe weg gelijk: de rijen (soort, sleutel, label, diepte, telling, taak), de toewijzing per rij, de tellingen,
+  de printvelden en de bladen (`measurePrintReport` plus dezelfde tegeling als papier en PDF, met de gedwongen
+  bladovergangen). De nieuwe weg begint bij de bewaarde keuze (`reportTaskSource`), net als het tabblad. Daarna:
+  filter en sortering van een eigen layout, aflopende banden, [resourcetype, resource], een layout met alleen een
+  filter, en wat een layout aan kolommen en schakelaars meebrengt. Rood bij een mutatie (kopie in `/tmp`, met `cp`
+  teruggezet): `resourceBandShape` altijd `null` ⇒ "nieuw: de resourcebouwer bouwt de rijen", rijen, toewijzingen,
+  tellingen en bladen rood; de periode niet doorgeven ⇒ alle varianten met periode rood; geen blad per resource ⇒
+  printvelden en bladen rood bij `pageBreakPerResource`.
+- `tests/browser/report-studio.spec.ts`, eerste blok (zelfde start en doel: een afdruk instellen), nieuwe stappen:
+  *Resourcediagram* kiezen in *Taken*; de tellingen (2 resources, 3 toewijzingen, 0 zonder resource); banden
+  "Ploeg A (2)" en "Kraan (1)" op het papier; *Elke resource op een nieuwe pagina* geeft twee bladen; in *Balken*
+  de uitleg en *Afhankelijkheden* uitgeschakeld; bewaard als `reportType: 'resourceGantt'`; filter, groepering,
+  sortering en rijen van het scherm ongewijzigd. Daarna een eigen layout uit een ander venster (`StorageEvent`):
+  kiezen, wijzigen (het papier volgt zonder nieuwe keuze), verwijderen (terug naar *Alle taken*, met de melding).
+  Groen lokaal (één spec).
+- Groen: `check-reports.ts`, `check-report-resource-gantt-setting.ts`, `check-first-start.ts`,
+  `check-layout-presets.ts`, `check-report-svg.ts`, `check-report-columns.ts`, `check-print-report.ts`, de vier
+  `check-report-*-setting.ts`, `check-view-row-key.ts`, `check-site-host-preferences.ts`, `check-feature-flags.ts`;
+  `typecheck`, `lint:fast`, `verify:i18n`, `verify:docs`, `verify:text-roles`, `verify:cycles`,
+  `verify:store-boundaries`, `verify:conventions`, `verify:gantt-boundaries`.
+- Help nl+en: `howto-rapport-maken-en-afdrukken` (drie punten in het deel over het nieuwe tabblad, de zin over
+  Previewkwaliteit), `ref-rapporttypes`, `howto-rapportageperiode-kiezen`, `howto-layouts-gebruiken`.

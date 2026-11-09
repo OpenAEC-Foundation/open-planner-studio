@@ -87,8 +87,9 @@ function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   return resolveField(field, task, ctx);
 }
 
-/** Stabiele multi-key sort. `sort: []` ⇒ oorspronkelijke volgorde behouden. */
-function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
+/** Stabiele multi-key sort. `sort: []` ⇒ oorspronkelijke volgorde behouden. Ook gebruikt door het
+ *  Rapport-tabblad (#861) voor de taken binnen een resourceband (`layoutReport.ts`). */
+export function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
   if (sort.length === 0) return tasks;
   return tasks
     .map((t, i) => [t, i] as const)

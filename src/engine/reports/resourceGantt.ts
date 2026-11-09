@@ -76,6 +76,15 @@ export interface ResourceGanttRowsOptions {
   typeLabels?: Partial<Record<ResourceType, string>>;
   /** Tijdvenster (opgeloste rapportageperiode, ISO-dagen inclusief). Afwezig = hele project. */
   window?: ResolvedPeriod;
+  /**
+   * Volgorde van de taken binnen een band (afwezig = op start, zie `sortByStart`). Een layout in het
+   * Rapport-tabblad (#861) met een eigen sortering geeft die hier mee; de bouwer blijft dezelfde.
+   */
+  sortTasks?: (tasks: Task[]) => Task[];
+  /** Resourcebanden aflopend (de groepering `desc` van een layout). Standaard oplopend. */
+  bandsDescending?: boolean;
+  /** Typebanden in omgekeerde vaste volgorde (alleen bij `groupByType`). Standaard de vaste volgorde. */
+  typesDescending?: boolean;
 }
 
 export interface ResourceGanttRowsResult {
@@ -226,6 +235,8 @@ export function computeResourceGanttRows(
     .map((r, index) => ({ id: r.id, index, label: labels.get(r.id) ?? r.id, tasks: tasksByResource.get(r.id) }))
     .filter((b): b is typeof b & { tasks: Map<string, Task> } => b.tasks !== undefined)
     .sort((a, b) => collator.compare(a.label, b.label) || a.index - b.index);
+  if (opts.bandsDescending) bands.reverse();
+  const orderTasks = opts.sortTasks ?? sortByStart;
 
   const rows: ViewRow[] = [];
   const assignmentByRowKey = new Map<string, RowAssignment>();
@@ -237,7 +248,7 @@ export function computeResourceGanttRows(
       kind: 'group', rowKey: key, key, label: band.label, count: band.tasks.size,
       depth: path.length, levelIndex: path.length, collapsed: false,
     });
-    for (const task of sortByStart([...band.tasks.values()])) {
+    for (const task of orderTasks([...band.tasks.values()])) {
       const rowKey = encodeGroupedTaskRowKey(groupPath, task.id);
       rows.push({ kind: 'task', rowKey, task, depth: path.length + 1, dimmed: false });
       const load = loadByResourceTask.get(`${band.id}\u0000${task.id}`);
@@ -254,6 +265,7 @@ export function computeResourceGanttRows(
     const rank = resourceTypeRank;
     // Typen in de vaste volgorde; binnen een type blijft de collator-volgorde van `bands`.
     const types = [...new Set(bands.map(b => typeOf.get(b.id) as ResourceType))].sort((a, b) => rank(a) - rank(b));
+    if (opts.typesDescending) types.reverse();
     for (const type of types) {
       const members = bands.filter(b => typeOf.get(b.id) === type);
       const raw = typeRawKey(type);
@@ -268,7 +280,7 @@ export function computeResourceGanttRows(
     for (const band of bands) pushBand(band, []);
   }
 
-  const unassigned = sortByStart(leaves.filter(t => !assignedTaskIds.has(t.id)));
+  const unassigned = orderTasks(leaves.filter(t => !assignedTaskIds.has(t.id)));
   if (opts.includeUnassigned && unassigned.length > 0) {
     rows.push({
       kind: 'group', rowKey: NONE_BAND_KEY, key: NONE_BAND_KEY, label: opts.noneLabel,

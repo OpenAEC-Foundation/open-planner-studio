@@ -487,7 +487,18 @@
       "summaryAll_one": "All tasks ({{count}} row)",
       "summaryAll_other": "All tasks ({{count}} rows)",
       "summaryView_one": "As in the view ({{count}} row)",
-      "summaryView_other": "As in the view ({{count}} rows)"
+      "summaryView_other": "As in the view ({{count}} rows)",
+      "layouts": "Layouts",
+      "summaryLayout_one": "{{layout}} ({{count}} row)",
+      "summaryLayout_other": "{{layout}} ({{count}} rows)",
+      "layoutHint": "The rows follow the layout: when you change the layout, the report changes with it. The screen does not change.",
+      "appliedColumns": "{{layout}}: columns applied.",
+      "appliedBars": "{{layout}}: bars applied.",
+      "appliedBoth": "{{layout}}: columns and bars applied.",
+      "barColorsDiffer": "This layout colours the bars differently. The bar colours apply to the report and to the screen.",
+      "barColorsApply": "Apply bar colours",
+      "resourceGroup": "Per resource",
+      "typeLevelFromLayout": "The layout already groups by resource type."
     },
     "columns": {
       "summary_one": "{{count}} column",
@@ -545,7 +556,8 @@
         "statusLine": "Status line"
       },
       "summaryNone": "Bars only",
-      "summaryNoStatusDate": "Status line on, but there is no status date"
+      "summaryNoStatusDate": "Status line on, but there is no status date",
+      "relationsOffBands": "A task appears under every resource that works on it. That is why relation lines are off, and Critical path only colours the bars."
     },
     "page": {
       "paper": "Paper",

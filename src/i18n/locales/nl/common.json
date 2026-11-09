@@ -329,7 +329,8 @@
     },
     "dependentProjectsFound": "Afhankelijke projecten: {{projects}}. Koppelingen naar dit project: {{links}}.",
     "dependentProjectsNone": "Geen projecten gevonden met een externe relatie naar deze planning.",
-    "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen."
+    "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen.",
+    "reportLayoutGone": "De layout van het rapport bestaat niet meer. Het rapport toont weer alle taken."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -463,8 +464,6 @@
     "durationDisplayHours": "Altijd uren",
     "barSplitMode": "Taakbalken bij onderbrekingen",
     "barSplitModeHint": "Alleen voor urentaken: balken opsplitsen rond pauzes en niet-werktijd. Echte taakonderbrekingen blijven altijd zichtbaar.",
-    "reportSection": "Rapporten",
-    "reportPreviewQualityHint": "Hoe scherp de voorbeelden van het resourcediagram op het scherm staan. Hoger is scherper maar trager. De Gantt-afdruk staat altijd scherp en de PDF verandert niet.",
     "barSplitNever": "Nooit opsplitsen",
     "barSplitSelection": "Opsplitsen bij selectie",
     "barSplitAlways": "Altijd opsplitsen",

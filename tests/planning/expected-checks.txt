@@ -325,6 +325,7 @@ check-report-columns.ts matrix
 check-report-font-setting.ts matrix
 check-report-font.ts matrix
 check-report-footer-setting.ts matrix
+check-report-layouts.ts matrix
 check-report-name-column-setting.ts matrix
 check-report-resource-gantt-setting.ts matrix
 check-report-svg.ts matrix

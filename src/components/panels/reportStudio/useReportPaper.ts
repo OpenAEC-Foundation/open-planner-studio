@@ -20,6 +20,8 @@ export interface ReportPaperModel {
   headerHeight: number;
   /** Breedte van één dag op de tijdas (logische px), voor de start van "Vaste schaal". */
   dayWidth: number;
+  /** De toewijzingskolommen (Resourcediagram) waren gevraagd maar passen niet naast de tijdlijn. */
+  assignmentColumnsDropped: boolean;
   /** Eén blad als SVG-tekst (berekend bij de eerste vraag, daarna onthouden). */
   pageSvg: (pageIndex: number) => string;
   /** De klikbare delen van één blad (idem). */
@@ -104,6 +106,7 @@ export function useReportPaper(input: ReportPaperInput, visibleHint: { readonly 
         tableWidth: result.tableWidth,
         headerHeight: result.headerHeight,
         dayWidth: result.dayWidth ?? 0,
+        assignmentColumnsDropped: result.assignmentColumnsDropped === true,
         pageSvg: (pageIndex: number) => {
           let svg = svgCache.get(pageIndex);
           if (svg === undefined) {

@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useAppStore } from '@/state/appStore';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
-import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, ReportPreviewQualitySetting, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
-import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveReportPreviewQuality, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
+import { ResolvedUITheme, UI_THEMES, DocumentChromeStyle, DateNotation, TimeNotation, DurationDisplay, BarSplitMode, UIFontFamily, UI_FONT_FAMILIES, UI_FONT_SCALES, type UIState } from '@/state/slices/types';
+import { saveZoomSettings, saveDebugTerminalEnabled, saveDocumentChromeStyle, saveShowClassicViewControls, saveConstructionMode, saveDateNotation, saveTimeNotation, saveShowTaskTypes, saveAllowMixedDayHour, saveDurationDisplay, saveBarSplitMode, saveCompressNonWorkdays, saveUIFontFamily, saveUIFontScale, saveAiAutostart, saveFormatNoticeHidden, saveRibbonWheelSwitchesTabs, saveAutoFitColumns } from '@/utils/settingsStore';
 import { FORMAT_NOTICE_KINDS, withFormatNoticeShown } from '@/services/formatNoticeKinds';
 import { applyAiModeLive } from '@/services/mcp/server';
 import { isTauri } from '@/utils/platform';
@@ -16,7 +16,7 @@ import './SettingsPanelContent.css';
 import { applyAutoCalcCPM, applySetting, applyTheme } from './applySetting';
 import { LanguageSelect, SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 import { AI_MODE_AVAILABLE, DOWNLOAD_STATS_AVAILABLE, UPDATES_AVAILABLE } from '@/utils/buildFlags';
-import { FEATURE_FLAGS, isFeatureEnabled, REPORT_REDESIGN_FLAG } from '@/utils/featureFlags';
+import { FEATURE_FLAGS, isFeatureEnabled } from '@/utils/featureFlags';
 import { saveExperimentalSettingsVisible, saveFeatureFlags } from '@/utils/settingsStore';
 import { AppLogo } from '@/components/common/AppLogo';
 
@@ -52,7 +52,6 @@ const FONT_FAMILY_LABEL_KEYS = {
  */
 export function SettingsPanelContent() {
   const { t } = useTranslation('common');
-  const { t: tReport } = useTranslation('report');
   const setUI = useAppStore(s => s.setUI);
   const currentTheme = useAppStore(s => s.ui.uiTheme);
   // Zolang de systeemschakelaar aanstaat is er geen eigen keuze om te tonen: de kaarten staan uit
@@ -80,7 +79,6 @@ export function SettingsPanelContent() {
   const allowMixedDayHour = useAppStore(s => s.ui.allowMixedDayHour);
   const durationDisplay = useAppStore(s => s.ui.durationDisplay);
   const barSplitMode = useAppStore(s => s.ui.barSplitMode);
-  const reportPreviewQuality = useAppStore(s => s.ui.reportPreviewQuality);
   const aiMode = useAppStore(s => s.ui.aiMode);
   const aiAutostart = useAppStore(s => s.ui.aiAutostart);
   const compressNonWorkdays = useAppStore(s => s.ui.compressNonWorkdays);
@@ -367,29 +365,6 @@ export function SettingsPanelContent() {
             </div>
 
             <ScrollZoomSettings />
-
-            {/* Alleen met het nieuwe Rapport-tabblad: daar is de previewkwaliteit een app-instelling. Het
-                papier van de Gantt-afdruk is vector en heeft geen kwaliteitskeuze nodig (besluit eigenaar
-                7-11-2026); de keuze geldt voor de rapporten met een rasterpreview. */}
-            {isFeatureEnabled(featureFlags, REPORT_REDESIGN_FLAG) && (
-              <>
-                <h3 className="settings-subhead">{t('settings.reportSection')}</h3>
-                <div className="settings-section" data-ops-setting="reportPreviewQuality">
-                  <h3>{tReport('previewQuality.label')}</h3>
-                  <Select
-                    aria-label={tReport('previewQuality.label')}
-                    value={reportPreviewQuality}
-                    onChange={v => applySetting('reportPreviewQuality', v as ReportPreviewQualitySetting, saveReportPreviewQuality)}
-                    options={[
-                      { value: '100', label: tReport('previewQuality.standard') },
-                      { value: '200', label: tReport('previewQuality.high') },
-                      { value: '300', label: tReport('previewQuality.maximum') },
-                    ]}
-                  />
-                  <p className="scrollzoom-hint">{t('settings.reportPreviewQualityHint')}</p>
-                </div>
-              </>
-            )}
           </div>
         )}
 

@@ -30,6 +30,7 @@ import {
   type ReportSettings, type ReportType, type ResourceGanttReportOptions, type TableReportOptions,
 } from '@/utils/reportSettings';
 import { computeResourceGanttRows } from '@/engine/reports';
+import { useCurveLabels, useResourceTypeLabels } from './reports/useResourceGanttLabels';
 import { countCriticalActivities } from '@/engine/scheduler/scheduleAnalysis';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import type { ViewRow } from '@/engine/view/visibleRows';
@@ -372,13 +373,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const [followView, setFollowView] = useState(DEFAULT_REPORT_SETTINGS.followView);
   // Alleen de rasterkwaliteit. Deze waarde gaat bewust NIET in PrintOptions: PDF en paginering
   // mogen nooit veranderen door hoe scherp iemand de preview op zijn scherm leest.
-  const [ownPreviewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
-  // Met het nieuwe Rapport-tabblad (feature flag `reportRedesign`) is de kwaliteit een app-instelling
-  // (Instellingen → Weergave → Rapporten, besluit eigenaar 7-11-2026); dit paneel toont dan geen eigen keuze
-  // en bewaart zijn eigen waarde ongewijzigd voor het oude tabblad.
+  const [previewQuality, setPreviewQuality] = useState(DEFAULT_REPORT_SETTINGS.previewQuality);
+  // Met het nieuwe Rapport-tabblad (feature flag `reportRedesign`) toont dit paneel alleen de rapporten zonder
+  // rasterpreview: de Gantt-afdruk en het Resourcediagram (een layout, #861) staan op het vectorpapier.
   const redesign = useAppStore(s => isFeatureEnabled(s.ui.featureFlags, REPORT_REDESIGN_FLAG));
-  const appPreviewQuality = useAppStore(s => s.ui.reportPreviewQuality);
-  const previewQuality = redesign ? appPreviewQuality : ownPreviewQuality;
 
   // Instellingenkolom horizontaal sleepbaar. Zelfde generieke
   // sleeppatroon als de rechterpaneel-splitter in App.tsx en de tabel/chart-splitter in
@@ -423,9 +421,10 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // Velden die alleen het nieuwe Rapport-tabblad (feature flag `reportRedesign`) gebruikt: dit paneel
   // toont ze niet, maar schrijft ze ongewijzigd terug, anders wist een bezoek aan een ander rapporttype
   // de kolomkeuze van de Gantt-afdruk.
-  const studioFieldsRef = useRef<Pick<ReportSettings, 'columns' | 'sidebar' | 'studioStep' | 'paperHintSeen'>>({
+  const studioFieldsRef = useRef<Pick<ReportSettings, 'columns' | 'sidebar' | 'studioStep' | 'paperHintSeen' | 'layoutId'>>({
     columns: DEFAULT_REPORT_SETTINGS.columns, sidebar: DEFAULT_REPORT_SETTINGS.sidebar,
     studioStep: DEFAULT_REPORT_SETTINGS.studioStep, paperHintSeen: DEFAULT_REPORT_SETTINGS.paperHintSeen,
+    layoutId: DEFAULT_REPORT_SETTINGS.layoutId,
   });
   // De preview is veel duurder dan het kleine settings-object. Wacht daarom met de
   // eerste rastertaak tot alle opgeslagen opties in één React-batch zijn toegepast.
@@ -472,7 +471,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       setPreviewQuality(s.previewQuality);
       setTableOptions(s.tableReports);
       setResourceGanttOptions(s.resourceGantt);
-      studioFieldsRef.current = { columns: s.columns, sidebar: s.sidebar, studioStep: s.studioStep, paperHintSeen: s.paperHintSeen };
+      studioFieldsRef.current = { columns: s.columns, sidebar: s.sidebar, studioStep: s.studioStep, paperHintSeen: s.paperHintSeen, layoutId: s.layoutId };
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {
@@ -506,14 +505,14 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
     void saveReportSettings({
       reportType, showCritical, showFloat, showDeps, showWeekends, compressNonWorkdays: reportCompressNonWorkdays, showLegend,
       showTaskNames, showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom,
-      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality: ownPreviewQuality,
+      paperSize, orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableReports: tableOptions,
       resourceGantt: resourceGanttOptions,
       ...studioFieldsRef.current,
     }).catch(() => {});
   }, [reportType, showCritical, showFloat, showDeps, showWeekends, reportCompressNonWorkdays, showLegend, showTaskNames,
       showCompletion, truncateTaskNames, taskNameColumnWidth, showBaselineOverlay, autoFit, customZoom, paperSize,
-      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, ownPreviewQuality,
+      orientation, repeatHeader, repeatFooter, timelineColumns, reportFontScale, reportFontFamily, statusLine, followView, previewQuality,
       tableOptions, resourceGanttOptions]);
 
   // Ná het opslaan-effect hierboven (zelfde commit, effecten lopen in volgorde): de keuze staat al in
@@ -529,20 +528,9 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   const noneLabel = tTask('structure.none');
   // De bandvolgorde volgt de app-taal (nooit de OS-taal van de afdrukker: zelfde vel, zelfde nummering).
   // Typelabels voor de optionele typelaag: dezelfde sleutels als het resourcepaneel.
-  const resourceTypeLabels = useMemo(() => ({
-    LABOR: tCommon('resource.type.labor'), CREW: tCommon('resource.type.crew'),
-    SUBCONTRACTOR: tCommon('resource.type.subcontractor'), EQUIPMENT: tCommon('resource.type.equipment'),
-    MATERIAL: tCommon('resource.type.material'),
-  }), [tCommon]);
+  const resourceTypeLabels = useResourceTypeLabels();
   // Vertaalde curvenamen voor de toewijzingskolommen: dezelfde sleutels als het taakraster.
-  const curveLabels = useMemo(() => ({
-    UNIFORM: tCommon('resource.curve.uniform'), FRONT_LOADED: tCommon('resource.curve.frontLoaded'),
-    BACK_LOADED: tCommon('resource.curve.backLoaded'), BELL: tCommon('resource.curve.bell'),
-    EARLY_PEAK: tCommon('resource.curve.earlyPeak'), LATE_PEAK: tCommon('resource.curve.latePeak'),
-    DOUBLE_PEAK: tCommon('resource.curve.doublePeak'), TURTLE: tCommon('resource.curve.turtle'),
-    // Dezelfde twee toestanden als het eigenschappenpaneel: contour op de taak, geïmporteerde curve.
-    contoured: tTask('properties.assignments.contoured'), imported: tTask('properties.assignments.importedCurve'),
-  }), [tCommon, tTask]);
+  const curveLabels = useCurveLabels();
   // Rapportageperiode als tijdvenster: dezelfde oplossing als het control toont; bij
   // *Hele project* geen venster.
   const resourceGanttPeriod = useResolvedPeriod(resourceGanttOptions.period);
@@ -1364,7 +1352,8 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
           onChange={v => setReportType(v as ReportType)}
           options={[
             { value: 'gantt', label: t('reportType.gantt') },
-            { value: 'resourceGantt', label: t('reportType.resourceGantt') },
+            // Met het nieuwe tabblad is het Resourcediagram een layout van de Gantt-afdruk (#861).
+            ...(redesign ? [] : [{ value: 'resourceGantt', label: t('reportType.resourceGantt') }]),
             { value: 'milestones', label: t('reportType.milestones') },
             { value: 'variance', label: t('reportType.variance') },
             ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: t(`reportType.${type}`) })),

@@ -229,6 +229,13 @@ export interface ReportSettings {
   statusLine: 'none' | 'statusDate' | 'progress';
   /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
+  /**
+   * De layout waarvan het nieuwe Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
+   * ("Alle taken" of "Zoals de weergave", via `followView`). Het oude paneel leest dit veld niet. De
+   * meegeleverde layout Resourcediagram staat hier niet: die keuze is `reportType: 'resourceGantt'`, zodat
+   * het oude paneel (flag uit) dan ook het Resourcediagram toont.
+   */
+  layoutId: string;
   previewQuality: ReportPreviewQuality;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
@@ -279,6 +286,7 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportFontFamily: DEFAULT_REPORT_FONT_ID,
   statusLine: 'none',
   followView: false,
+  layoutId: '',
   previewQuality: '200',
   tableReports: { ...DEFAULT_TABLE_REPORT_OPTIONS },
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
@@ -316,6 +324,14 @@ export function parseReportColumns(raw: unknown): string[] | undefined {
   if (ids.length === 0) return undefined;
   if (!ids.includes(REPORT_REQUIRED_COLUMN)) ids.unshift(REPORT_REQUIRED_COLUMN);
   return ids.slice(0, REPORT_MAX_COLUMNS);
+}
+
+/** Een opgeslagen layout-id: tekst zonder stuurtekens, hoogstens 200 tekens; anders geen layout. */
+export function parseReportLayoutId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || raw.length > 200) return undefined;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(raw)) return undefined;
+  return raw;
 }
 
 /** Toegestane waarden voor de keuzelijsten — 1-op-1 met de opties in `ReportPanel`. */
@@ -443,6 +459,7 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     reportFontFamily: parseEnum(REPORT_FONT_IDS, s.reportFontFamily) ?? d.reportFontFamily,
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
+    layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
     // Een opgeslagen `previewZoom` (oudere versie) wordt bewust genegeerd: de preview verandert
     // niet van CSS-formaat. Alleen een geldige kwaliteitswaarde heeft effect.
     previewQuality: parseEnum(PREVIEW_QUALITIES, s.previewQuality) ?? d.previewQuality,

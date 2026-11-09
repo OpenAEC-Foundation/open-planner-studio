@@ -225,6 +225,76 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(studio).toBeVisible();
   await expect(page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A1"]')).toHaveAttribute('aria-checked', 'true');
   expect(await saved()).toMatchObject({ reportType: 'gantt', paperSize: 'A1', columns: ['task.name'], orientation: 'portrait' });
+
+  // Een layout in de stap Taken (#861). Het meegeleverde Resourcediagram maakt de afdruk per resource, zoals
+  // het oude rapporttype; het scherm houdt zijn eigen groepering en rijen. De resources zijn een fixture.
+  await page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    const id = (name: string) => s.tasks.find(task => task.name === name)!.id;
+    const ploeg = s.addResource({ name: 'Ploeg A', type: 'CREW', description: '', maxUnits: 1 });
+    const kraan = s.addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 });
+    s.assignResource(id('Fundering storten'), ploeg, 1);
+    s.assignResource(id('Wanden metselen'), ploeg, 1);
+    s.assignResource(id('Wanden metselen'), kraan, 1);
+    window.__OPS__!.store.getState().runCPM();
+  });
+  const screen = () => page.evaluate(() => {
+    const s = window.__OPS__!.store.getState();
+    return { filter: s.view.filter, group: s.view.group, sort: s.view.sort, rows: s.viewRows.map(row => row.rowKey) };
+  });
+  const screenBefore = await screen();
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-layout="builtin:resource-diagram"]').click();
+  await expect(page.locator('[data-rs-layout="builtin:resource-diagram"]')).toHaveAttribute('aria-checked', 'true');
+  // Twee resources, drie toewijzingen (Wanden metselen staat onder beide), geen taak zonder resource.
+  await expect(page.locator('[data-rs-resource-counts]')).toHaveText(/:\s*2\D+:\s*3\D+:\s*0$/);
+  // Op het papier een band per resource, met het aantal taken: Ploeg A (2) en Kraan (1).
+  await expect(page0.locator('text', { hasText: /^Ploeg A \(2\)$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^Kraan \(1\)$/ }).first()).toBeAttached();
+  // Een blad per resource: twee bladen.
+  const pageBreak = page.locator('[data-rs-switch="pageBreakPerResource"]');
+  await pageBreak.click();
+  await expect(pageBreak.locator('input')).toBeChecked();
+  await expect(page.locator('[data-preview-page]')).toHaveCount(2);
+  await pageBreak.click();
+  await expect(page.locator('[data-preview-page]')).toHaveCount(1);
+  // Relatielijnen staan uit, met uitleg in Balken; de keuze voor een gewone afdruk blijft bewaard.
+  await page.locator('[data-rs-step-head="bars"]').click();
+  await expect(page.locator('[data-rs-relations-off]')).toBeVisible();
+  await expect(page.locator('[data-rs-option="showDeps"]')).toBeDisabled();
+  await expect(page.locator('[data-rs-option="showDeps"]')).not.toBeChecked();
+  await expect.poll(async () => (await saved()).reportType).toBe('resourceGantt');
+  expect(await screen()).toEqual(screenBefore);
+
+  // Een eigen layout uit een ander venster (dezelfde `StorageEvent` als de host): alleen één taak. Het papier
+  // volgt de layout ook als die daarna verandert, zonder nieuwe keuze.
+  const storeLayouts = (layouts: unknown[]) => page.evaluate(list => {
+    const oldValue = localStorage.getItem('ops-taskGridLayouts');
+    const newValue = JSON.stringify({ version: 1, layouts: list });
+    localStorage.setItem('ops-taskGridLayouts', newValue);
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ops-taskGridLayouts', oldValue, newValue, storageArea: localStorage, url: location.href }));
+  }, layouts);
+  const onlyTask = (name: string) => ({
+    id: 'layout-rapport', name: 'Een taak',
+    filter: { kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'eq', value: name },
+  });
+  await storeLayouts([onlyTask('Fundering storten')]);
+  await page.locator('[data-rs-step-head="tasks"]').click();
+  await page.locator('[data-rs-layout="layout-rapport"]').click();
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^Wanden metselen$/ })).toHaveCount(0);
+  await expect(page.locator('[data-rs-resource-counts]')).toHaveCount(0);
+  await storeLayouts([onlyTask('Wanden metselen')]);
+  await expect(page0.locator('text', { hasText: /^Wanden metselen$/ }).first()).toBeAttached();
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ })).toHaveCount(0);
+  expect(await saved()).toMatchObject({ reportType: 'gantt', layoutId: 'layout-rapport', followView: false });
+  expect(await screen()).toEqual(screenBefore);
+  // Verwijderd: terug naar Alle taken, met een melding.
+  await storeLayouts([]);
+  await expect(page.locator('[data-rs-step-body="tasks"] [data-rs-value="all"]')).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
+    .some(n => n.messageKey === 'notifications.reportLayoutGone'))).toBe(true);
+  await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
 });
 
 // Een Arabische taaknaam bij naamweergave Volledig (review Sol #847). De meting van het papier en de PDF komt

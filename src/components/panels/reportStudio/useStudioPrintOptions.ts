@@ -4,9 +4,12 @@ import { useAppStore } from '@/state/appStore';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 import { useFieldCatalogCtx } from '@/components/viewControls/useFieldCatalogCtx';
 import {
-  buildPrintRows, createTableColumnMeasureCache, measureTableColumnWidths, measureTaskNameColumnWidth, nameCellFont,
+  buildPrintRows, createTableColumnMeasureCache, curveCellFont, measureCurveColumnWidth, measureTableColumnWidths,
+  measureTaskNameColumnWidth, nameCellFont,
   type PrintOptions, type PrintTableColumn, type TableColumnWidths, type TableHeaderLabels,
 } from '@/services/print/printPreview';
+import { studioRowPrintFields, type StudioRowSource } from './studioRowSource';
+import { useCurveLabels } from '@/components/panels/reports/useResourceGanttLabels';
 import { getLocalizedMonths, getLocalizedMonthsShort } from '@/i18n/dateFormat';
 import { durationSuffixesFrom } from '@/utils/taskDuration';
 import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays } from '@/types/baseline';
@@ -37,6 +40,7 @@ export function useStudioPrintOptions(
   companyName: string,
   tableColumns: readonly PrintTableColumn[],
   font: StudioFont | null,
+  rowSource: StudioRowSource,
 ): PrintOptions | null {
   const { t } = useTranslation('report');
   const { t: tCommon, i18n } = useTranslation('common');
@@ -49,7 +53,6 @@ export function useStudioPrintOptions(
   const timeNotation = useAppStore(s => s.ui.timeNotation);
   const weekStartDay = useAppStore(s => s.ui.weekStartDay);
   const cpmResult = useAppStore(s => s.cpmResult);
-  const viewRows = useAppStore(s => s.viewRows);
   const resources = useAppStore(s => s.resources);
   const assignments = useAppStore(s => s.assignments);
   const baselines = useAppStore(s => s.baselines);
@@ -89,12 +92,37 @@ export function useStudioPrintOptions(
     completion: t('tableHeaders.completion', { defaultValue: 'Volt.' }),
   }), [t]);
 
-  const reportRows = settings.followView ? viewRows : undefined;
+  const reportRows = rowSource.rows;
+  const resource = rowSource.resource;
+  const rowFields = useMemo(
+    () => studioRowPrintFields(rowSource, { showDeps: settings.showDeps, showCritical: settings.showCritical }),
+    [rowSource, settings.showDeps, settings.showCritical],
+  );
   const fontReady = font !== null;
   const fontStack = reportFontStack(font?.id ?? 'inter');
   const metrics = font?.metrics ?? null;
+  // Resourcediagram: eenheden per dag en curve van de band op de taak als twee kolommen achter de naam.
+  const assignmentColumns = !!rowFields.assignmentColumns;
+  const rowAssignments = rowFields.rowAssignments;
+  const curveLabels = useCurveLabels();
+  const curveHeaderLabel = t('tableHeaders.curve');
 
-  const printRows = useMemo(() => buildPrintRows(tasks, reportRows), [tasks, reportRows]);
+  const printRows = useMemo(
+    () => buildPrintRows(tasks, reportRows, assignmentColumns ? rowAssignments : undefined),
+    [tasks, reportRows, assignmentColumns, rowAssignments],
+  );
+
+  // De curvekolom zo breed als de langste curvenaam die dít rapport toont (zoals het oude paneel).
+  const curveColumnWidth = useMemo(() => {
+    if (!metrics || !assignmentColumns || !rowAssignments) return undefined;
+    const cellLabels = new Set<string>();
+    for (const a of rowAssignments.values()) cellLabels.add(a.curve === null ? '—' : (curveLabels[a.curve] ?? a.curve));
+    const measure = (font: string) => (text: string) => metrics.measure(text, font);
+    return Math.max(
+      measureCurveColumnWidth([curveHeaderLabel], measure(curveCellFont(true, fontStack))),
+      measureCurveColumnWidth(cellLabels, measure(curveCellFont(false, fontStack))),
+    );
+  }, [metrics, assignmentColumns, rowAssignments, curveLabels, curveHeaderLabel, fontStack]);
 
   // Naamkolom: afkappen op de instelbare breedte, of zo breed als de langste naam (gemeten).
   const autoNameWidth = useMemo(() => {
@@ -108,7 +136,7 @@ export function useStudioPrintOptions(
     () => createTableColumnMeasureCache(),
     // De afhankelijkheden zijn bewust de invoer van de meting, op de kolomlijst na.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [metrics, printRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
+    [metrics, printRows, settings.showCompletion, assignmentColumns, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
       durationDisplay, durationSuffixes, calendar, calendars, fontStack],
   );
 
@@ -118,24 +146,22 @@ export function useStudioPrintOptions(
     return measureTableColumnWidths(
       printRows,
       {
-        showCompletion: settings.showCompletion, dateNotation, timeNotation, numberLocale: locale, tableHeaders,
+        showCompletion: settings.showCompletion, assignmentColumns, dateNotation, timeNotation, numberLocale: locale, tableHeaders,
         labels: { daySuffix }, durationDisplay, durationSuffixes, calendar, calendars, tableColumns,
         fontFamily: fontStack,
       },
       (text, font) => metrics.measure(text, font),
       measureCache,
     );
-  }, [metrics, printRows, settings.showCompletion, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
+  }, [metrics, printRows, settings.showCompletion, assignmentColumns, dateNotation, timeNotation, locale, tableHeaders, daySuffix,
     durationDisplay, durationSuffixes, calendar, calendars, tableColumns, fontStack, measureCache]);
 
   return useMemo<PrintOptions | null>(() => {
     if (!fontReady) return null;
     return {
-      showCritical: settings.showCritical,
       showFloat: settings.showFloat,
       showWeekends: settings.showWeekends,
       showLegend: settings.showLegend,
-      showDeps: settings.showDeps,
       showTaskNames: settings.showTaskNames,
       showCompletion: settings.showCompletion,
       showBaselineOverlay: settings.showBaselineOverlay,
@@ -146,7 +172,10 @@ export function useStudioPrintOptions(
       companyName,
       taskNameColumnWidth: settings.truncateTaskNames ? settings.taskNameColumnWidth : (autoNameWidth ?? settings.taskNameColumnWidth),
       labels: {
-        noTasks: t('noTasks'),
+        // Resourcediagram zonder toewijzing: zeg wat er ontbreekt (zelfde teksten als het oude paneel).
+        noTasks: resource && tasks.length > 0
+          ? (resource.result.counts.inPeriod === 0 && resource.result.counts.outsidePeriod > 0 ? t('resourceGantt.emptyPeriod') : t('resourceGantt.empty'))
+          : t('noTasks'),
         printed: t('printed'),
         legend: {
           criticalPath: t('legend.criticalPath'),
@@ -194,7 +223,10 @@ export function useStudioPrintOptions(
       baselineOverlay,
       baselineComparisons,
       baselineNames,
-      rows: reportRows,
+      // Rijen, relaties, kritiek pad en de Resourcediagram-velden uit de stap Taken (`studioRowPrintFields`).
+      ...rowFields,
+      curveLabels,
+      curveColumnWidth,
       columnWidths,
       tableColumns,
       numberLocale: locale,
@@ -209,13 +241,13 @@ export function useStudioPrintOptions(
     };
     // Alleen de velden die op het papier staan: de zijbalkstand of de kolomlijst zelf (die via
     // `tableColumns` binnenkomt) mag geen nieuwe opname veroorzaken.
-  }, [fontReady, settings.showCritical, settings.showFloat, settings.showWeekends, settings.showLegend, settings.showDeps,
+  }, [fontReady, settings.showFloat, settings.showWeekends, settings.showLegend,
     settings.showTaskNames, settings.showCompletion, settings.showBaselineOverlay, settings.autoFit, settings.customZoom,
     settings.paperSize, settings.orientation, settings.truncateTaskNames, settings.taskNameColumnWidth,
     settings.compressNonWorkdays, settings.timelineColumns, settings.reportFontScale, settings.statusLine,
     companyName, autoNameWidth, t, tTask, tableHeaders, daySuffix, locale, project.startDate,
     project.endDate, project.author, project.statusDate, dateNotation, timeNotation, weekStartDay, cpmResult, barColorSelection,
     fieldCtx.activityCodeTypes, fieldCtx.customFieldDefs, taskTypeLabels, resources, assignments, baselineOverlay,
-    baselineComparisons, baselineNames, reportRows, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
-    workdayDurationMeasure, fontStack]);
+    baselineComparisons, baselineNames, columnWidths, tableColumns, durationDisplay, durationSuffixes, calendars,
+    workdayDurationMeasure, fontStack, rowFields, resource, curveLabels, curveColumnWidth, tasks.length]);
 }

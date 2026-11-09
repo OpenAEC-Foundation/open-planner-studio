@@ -329,7 +329,8 @@
     },
     "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
     "dependentProjectsNone": "No projects found with an external relation to this schedule.",
-    "dependentProjectsFailed": "The folder with dependent projects could not be read."
+    "dependentProjectsFailed": "The folder with dependent projects could not be read.",
+    "reportLayoutGone": "The report's layout no longer exists. The report shows all tasks again."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -463,8 +464,6 @@
     "durationDisplayHours": "Always hours",
     "barSplitMode": "Task bars at interruptions",
     "barSplitModeHint": "For hour tasks only: split bars around breaks and non-working time. Actual task interruptions remain visible regardless of this setting.",
-    "reportSection": "Reports",
-    "reportPreviewQualityHint": "How sharp the previews of the resource chart look on screen. Higher is sharper but slower. The Gantt print is always sharp and the PDF does not change.",
     "barSplitNever": "Never split",
     "barSplitSelection": "Split when selected",
     "barSplitAlways": "Always split",

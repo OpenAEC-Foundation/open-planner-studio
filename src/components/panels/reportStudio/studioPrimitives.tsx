@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon, type IconId } from '@/components/icons';
 
 // Bouwstenen van de stappen in de zijbalk van het nieuwe Rapport-tabblad. Elk onderdeel is een
@@ -89,10 +89,24 @@ export function StudioSegmented<T extends string>({ value, options, onChange, ar
   );
 }
 
-/** Keuzekaart in een radiogroep (stap Taken): titel, uitleg en een aantal rechts. */
+/** Eén keuze in de stap Taken. `text` maakt er een kaart van; zonder `text` is het een regel (een layout). */
+export interface ChoiceOption<T extends string> {
+  value: T;
+  title: ReactNode;
+  text?: ReactNode;
+  count?: ReactNode;
+  /** Icoon vóór de titel (de layouts, met hetzelfde icoon als op het lint). */
+  icon?: ReactNode;
+  /** Kopje vóór deze keuze (bijv. "Layouts"); hoort bij dezelfde radiogroep, dus de pijltjes lopen door. */
+  groupLabel?: ReactNode;
+  /** `data-rs-layout` voor tests. */
+  dataLayout?: string;
+}
+
+/** Keuzes in één radiogroep (stap Taken): pijltjes kiezen, Tab verlaat de groep. */
 export function StudioChoiceGroup<T extends string>({ value, options, onChange, ariaLabel }: {
   value: T;
-  options: readonly { value: T; title: ReactNode; text: ReactNode; count?: ReactNode }[];
+  options: readonly ChoiceOption<T>[];
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
@@ -107,24 +121,28 @@ export function StudioChoiceGroup<T extends string>({ value, options, onChange, 
     refs.current[next]?.focus();
   };
   return (
-    <div className="flex flex-col gap-2" role="radiogroup" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+    <div className="rs-choices" role="radiogroup" aria-label={ariaLabel} onKeyDown={onKeyDown}>
       {options.map((option, i) => (
-        <button
-          key={option.value}
-          ref={el => { refs.current[i] = el; }}
-          type="button"
-          role="radio"
-          aria-checked={option.value === value}
-          tabIndex={i === index ? 0 : -1}
-          className="rs-choice"
-          onClick={() => onChange(option.value)}
-          data-rs-value={option.value}
-        >
-          <span className="rs-radio" aria-hidden="true" />
-          <span className="rs-choice-title">{option.title}</span>
-          <span className="rs-count">{option.count}</span>
-          <span className="rs-choice-text">{option.text}</span>
-        </button>
+        <Fragment key={option.value}>
+          {option.groupLabel && <div className="rs-group-label rs-choices-label" aria-hidden="true">{option.groupLabel}</div>}
+          <button
+            ref={el => { refs.current[i] = el; }}
+            type="button"
+            role="radio"
+            aria-checked={option.value === value}
+            tabIndex={i === index ? 0 : -1}
+            className="rs-choice"
+            data-compact={option.text ? undefined : 'true'}
+            onClick={() => onChange(option.value)}
+            data-rs-value={option.value}
+            data-rs-layout={option.dataLayout}
+          >
+            <span className="rs-radio" aria-hidden="true" />
+            <span className="rs-choice-title">{option.icon}{option.title}</span>
+            <span className="rs-count">{option.count}</span>
+            {option.text && <span className="rs-choice-text">{option.text}</span>}
+          </button>
+        </Fragment>
       ))}
     </div>
   );

@@ -487,7 +487,18 @@
       "summaryAll_one": "Alle taken ({{count}} rij)",
       "summaryAll_other": "Alle taken ({{count}} rijen)",
       "summaryView_one": "Zoals de weergave ({{count}} rij)",
-      "summaryView_other": "Zoals de weergave ({{count}} rijen)"
+      "summaryView_other": "Zoals de weergave ({{count}} rijen)",
+      "layouts": "Layouts",
+      "summaryLayout_one": "{{layout}} ({{count}} rij)",
+      "summaryLayout_other": "{{layout}} ({{count}} rijen)",
+      "layoutHint": "De rijen volgen de layout: wijzig je de layout, dan verandert het rapport mee. Het scherm verandert niet.",
+      "appliedColumns": "{{layout}}: kolommen overgenomen.",
+      "appliedBars": "{{layout}}: balken overgenomen.",
+      "appliedBoth": "{{layout}}: kolommen en balken overgenomen.",
+      "barColorsDiffer": "Deze layout kleurt de balken anders. De balkkleuren gelden voor het rapport en voor het scherm.",
+      "barColorsApply": "Balkkleuren overnemen",
+      "resourceGroup": "Per resource",
+      "typeLevelFromLayout": "De layout groepeert al op resourcetype."
     },
     "columns": {
       "summary_one": "{{count}} kolom",
@@ -545,7 +556,8 @@
         "statusLine": "Statuslijn"
       },
       "summaryNone": "Alleen balken",
-      "summaryNoStatusDate": "Statuslijn aan, maar er is geen statusdatum"
+      "summaryNoStatusDate": "Statuslijn aan, maar er is geen statusdatum",
+      "relationsOffBands": "Een taak staat onder elke resource die eraan werkt. Daarom staan de relatielijnen uit, en kleurt Kritiek pad alleen de balken."
     },
     "page": {
       "paper": "Papier",

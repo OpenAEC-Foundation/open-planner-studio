@@ -33,6 +33,17 @@ import { PaperBanner, StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmen
 import { StepHead, StepPopover, UndoToast } from './studioChrome';
 import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './useStudioSettings';
 import { useStudioPrintOptions, type StudioFont } from './useStudioPrintOptions';
+import type { StudioRowSource } from './studioRowSource';
+import {
+  layoutReportPatch, reportTaskSource, taskSourceFromKey, taskSourceKey, taskSourcePatch, type ReportTaskSource,
+} from './reportLayouts';
+import { useReportLayouts } from './useReportLayouts';
+import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
+import { isFilterOnlyLayout } from '@/engine/view/layoutPresets';
+import { layoutIcon } from '@/components/viewControls/layoutIcons';
+import { ReportingPeriodField, useResolvedPeriod } from '@/components/panels/reports/ReportingPeriodField';
+import { useResourceTypeLabels } from '@/components/panels/reports/useResourceGanttLabels';
+import type { ResourceGanttReportOptions } from '@/utils/reportSettings';
 import { useReportColumnDomain } from './useReportColumnDomain';
 import { BUILTIN_REPORT_COLUMNS, isDefaultReportColumns, resolveReportColumns } from './reportColumns';
 import type { PaperPick, PaperTarget } from './ReportPaperView';
@@ -72,7 +83,9 @@ const daySliderValue = (pos: number) => REPORT_MIN_DAY_WIDTH * (REPORT_MAX_ZOOM 
 
 /** Welke velden "Standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
-  tasks: ['followView'],
+  // De keuze (alle taken, weergave of layout; `reportType` draagt het Resourcediagram) en de opties van
+  // het Resourcediagram.
+  tasks: ['followView', 'layoutId', 'reportType', 'resourceGantt'],
   columns: ['columns', 'truncateTaskNames', 'taskNameColumnWidth'],
   bars: ['showTaskNames', 'showCompletion', 'showFloat', 'showBaselineOverlay', 'showDeps', 'showCritical', 'statusLine', 'showWeekends', 'compressNonWorkdays'],
   page: ['paperSize', 'orientation', 'autoFit', 'customZoom', 'timelineColumns', 'reportFontFamily', 'reportFontScale'],
@@ -99,6 +112,8 @@ const TARGET_STEP: Record<PaperTarget, StudioStepId> = {
 const TABLE_SHARE_WARN = 0.4;
 /** Vanaf zoveel bladen meldt de stap Pagina dat het veel papier wordt. */
 const MANY_PAGES = 12;
+/** De aan/uit-opties van het Resourcediagram, in de volgorde van het oude paneel (`RESOURCE_GANTT_TOGGLES`). */
+const RESOURCE_TOGGLES = ['pageBreakPerResource', 'includeUnassigned', 'groupByType', 'showAssignmentColumns'] as const;
 
 interface PopoverState { step: StudioStepId; anchor: { x: number; y: number }; from: 'rail' | 'paper' }
 
@@ -114,13 +129,14 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const { t: tCommon, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const api = useStudioSettings();
-  const { settings, patch, remember, hydrated } = api;
+  const { settings, patch, remember, hydrated, applyWithUndo } = api;
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
   const calendar = useAppStore(s => s.calendar);
   const project = useAppStore(s => s.project);
   const viewRows = useAppStore(s => s.viewRows);
+  const viewGroup = useAppStore(s => s.view.group);
   const scheduleStale = useAppStore(s => s.scheduleStale);
   const scheduleError = useAppStore(s => s.cpmResult?.error);
   const scheduleErrorInfo = useAppStore(s => s.cpmResult?.errorInfo);
@@ -128,10 +144,13 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const setOverlays = useAppStore(s => s.setOverlays);
   const gridColumns = useAppStore(s => s.taskGridSurfaces['gantt-task-grid'].columns);
+  const resources = useAppStore(s => s.resources);
+  const assignments = useAppStore(s => s.assignments);
+  const activityCodeTypes = useAppStore(s => s.activityCodeTypes);
+  const customFieldDefs = useAppStore(s => s.customFieldDefs);
   const projectCode = useAppStore(s => documentProjectCode(s.project, s.xerImportMetadata));
   const projectName = nameWithProjectCode(project.name, projectCode) || tCommon('project.untitled');
   const fileBase = documentFileBase(project.name, projectCode);
-  const fileName = `${fileBase}-${t('fileSuffix.gantt')}.pdf`;
   const rtl = RTL_LOCALES.includes(i18n.language as Locale);
   const listSep = t('studio.listSep');
 
@@ -184,8 +203,72 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     [tTask],
   );
 
+  // ---- Taken: alle taken, zoals de weergave, of een layout (#861) -----------------------------------
+  const { layouts, loaded: layoutsLoaded } = useReportLayouts();
+  const source = reportTaskSource(settings);
+  const sourceKey = taskSourceKey(source);
+  const chosenLayout = source.kind === 'layout' ? layouts.find(layout => layout.id === source.id) ?? null : null;
+  // Een verwijderde layout: terug naar alle taken, met een melding. Pas als de eigen layouts gelezen zijn.
+  useEffect(() => {
+    if (!hydrated || !layoutsLoaded || source.kind !== 'layout' || chosenLayout) return;
+    remember(taskSourcePatch({ kind: 'all' }));
+    useAppStore.getState().notify({ severity: 'info', messageKey: 'notifications.reportLayoutGone' });
+  }, [hydrated, layoutsLoaded, source.kind, chosenLayout, remember]);
+
+  const resourceOptions = settings.resourceGantt;
+  const resolvedPeriod = useResolvedPeriod(resourceOptions.period);
+  const bandShape = chosenLayout ? resourceBandShape(chosenLayout.group) : null;
+  const periodWindow = bandShape && resourceOptions.period.preset !== 'project' ? resolvedPeriod : undefined;
+  const noneLabel = tTask('structure.none');
+  const resourceTypeLabels = useResourceTypeLabels();
+  const locale = i18n.language;
+  const layoutRows = useMemo(() => (chosenLayout ? computeLayoutReportRows(chosenLayout, {
+    tasks,
+    ctx: { activityCodeTypes, customFieldDefs, resources, assignments, noneLabel, resourceTypeLabels },
+  }, {
+    includeUnassigned: resourceOptions.includeUnassigned, groupByType: resourceOptions.groupByType,
+    window: periodWindow, locale, typeLabels: resourceTypeLabels,
+  }) : null), [chosenLayout, tasks, activityCodeTypes, customFieldDefs, resources, assignments, noneLabel,
+    resourceTypeLabels, resourceOptions.includeUnassigned, resourceOptions.groupByType, periodWindow, locale]);
+  const rowSource = useMemo<StudioRowSource>(() => (layoutRows ? {
+    rows: layoutRows.rows,
+    multiBand: layoutRows.multiBand,
+    resource: layoutRows.resource ? { result: layoutRows.resource, options: resourceOptions, window: periodWindow } : null,
+  } : {
+    // Zoals de weergave: precies de rijen van het scherm. Groepeert het scherm op resource, dan staan de
+    // relatielijnen ook hier uit, net als bij een layout.
+    rows: source.kind === 'view' ? viewRows : undefined,
+    multiBand: source.kind === 'view' && groupIsMultiBand(viewGroup),
+    resource: null,
+  }), [layoutRows, resourceOptions, periodWindow, source.kind, viewRows, viewGroup]);
+  const multiBand = rowSource.multiBand;
+  const resourceResult = rowSource.resource?.result ?? null;
+  const fileName = `${fileBase}-${t(resourceResult ? 'fileSuffix.resourceGantt' : 'fileSuffix.gantt')}.pdf`;
+  const availableColumnIds = useMemo(() => new Set(domain.availableColumns.map(column => String(column.id))), [domain.availableColumns]);
+
+  // Een keuze in de stap Taken. Een layout brengt ook zijn kolommen en schakelaars mee (één stap
+  // "Ongedaan maken"); alleen wat echt verandert telt.
+  const chooseSource = useCallback((next: ReportTaskSource) => {
+    const base = taskSourcePatch(next);
+    const layout = next.kind === 'layout' ? layouts.find(l => l.id === next.id) : undefined;
+    const extra = layout ? layoutReportPatch(layout, availableColumnIds) : {};
+    const changed = (Object.keys(extra) as StudioSettingKey[])
+      .filter(key => JSON.stringify(settings[key]) !== JSON.stringify(extra[key]));
+    if (!layout || changed.length === 0) {
+      patch(base, 'taskSource');
+      return;
+    }
+    const columns = changed.includes('columns');
+    const bars = changed.some(key => key !== 'columns');
+    const text = t(columns && bars ? 'studio.tasks.appliedBoth' : columns ? 'studio.tasks.appliedColumns' : 'studio.tasks.appliedBars', { layout: layout.name });
+    applyWithUndo('tasks', { ...base, ...Object.fromEntries(changed.map(key => [key, extra[key]])) }, text);
+  }, [layouts, availableColumnIds, settings, patch, applyWithUndo, t]);
+  const patchResourceOptions = useCallback((next: Partial<ResourceGanttReportOptions>, input: string) => {
+    patch({ resourceGantt: { ...resourceOptions, ...next } }, input);
+  }, [patch, resourceOptions]);
+
   // ---- Papier ---------------------------------------------------------------------------------------
-  const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null);
+  const options = useStudioPrintOptions(settings, companyName, resolved.columns, hydrated ? loadedFont : null, rowSource);
   const paperMetrics = loadedFont?.metrics ?? null;
   const paperInput = useMemo(() => ({
     tasks, sequences, calendar, projectName, options, metrics: paperMetrics,
@@ -368,7 +451,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const { undoReset, dismissReset } = api;
   const undoNotice = useMemo(() => (lastReset ? (
     <UndoToast
-      text={t('studio.resetDone', { step: lastReset.label })}
+      text={lastReset.text ?? t('studio.resetDone', { step: lastReset.label })}
       undoLabel={t('studio.undo')}
       onUndo={undoReset}
       onDismiss={dismissReset}
@@ -398,11 +481,16 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     paper: settings.paperSize,
     orientation: t(settings.orientation === 'landscape' ? 'studio.page.landscape' : 'studio.page.portrait').toLocaleLowerCase(i18n.language),
   });
-  const shownRows = settings.followView ? viewRows.length : tasks.length;
-  const rowsSummary = settings.followView ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows });
+  const shownRows = layoutRows ? layoutRows.rows.length : source.kind === 'view' ? viewRows.length : tasks.length;
+  const rowsSummary = chosenLayout ? t('studio.tasks.summaryLayout', { layout: chosenLayout.name, count: shownRows })
+    : source.kind === 'view' ? t('studio.tasks.summaryView', { count: shownRows }) : t('studio.tasks.summaryAll', { count: shownRows });
+  // Bij een groepering waarin een taak onder meer banden staat, gelden de geforceerde waarden (zie
+  // `useStudioPrintOptions`): geen relaties, Kritiek pad aan.
+  const effectiveDeps = multiBand ? false : settings.showDeps;
+  const effectiveCritical = multiBand ? true : settings.showCritical;
   const onBars = [
-    settings.showCritical && t('studio.bars.short.critical'),
-    settings.showDeps && t('studio.bars.short.relations'),
+    effectiveCritical && t('studio.bars.short.critical'),
+    effectiveDeps && t('studio.bars.short.relations'),
     settings.showFloat && t('studio.bars.short.float'),
     settings.showCompletion && t('studio.bars.short.completion'),
     settings.showTaskNames && t('studio.bars.short.names'),
@@ -478,8 +566,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       : atMinDayWidth ? t('studio.page.manyPagesScaleMin', { count: totalPages })
         : t('studio.page.manyPagesScale', { count: totalPages });
   const manyPagesAction = !paperInfo ? null : paperInfo.cols <= 1
-    ? (!settings.followView && viewRows.length < tasks.length ? (
-      <button type="button" className="rs-link" onClick={() => patch({ followView: true }, 'followView')}>{t('studio.tasks.view')}</button>
+    ? (source.kind === 'all' && viewRows.length < tasks.length ? (
+      <button type="button" className="rs-link" onClick={() => chooseSource({ kind: 'view' })}>{t('studio.tasks.view')}</button>
     ) : null)
     : !settings.autoFit && atMinDayWidth ? (
       <button type="button" className="rs-link" onClick={() => patch({ autoFit: true }, 'autoFit')}>{t('studio.page.fitWidth')}</button>
@@ -492,18 +580,80 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
 
   const stepContent = (step: StudioStepId): ReactNode => {
     switch (step) {
-      case 'tasks':
+      case 'tasks': {
+        const layoutBarColors = chosenLayout?.overlays?.barColors;
+        const barColorsDiffer = !!layoutBarColors && JSON.stringify(layoutBarColors) !== JSON.stringify(barColorSelection);
         return (
-          <StudioChoiceGroup
-            ariaLabel={t('studio.tasks.title')}
-            value={settings.followView ? 'view' : 'all'}
-            onChange={v => patch({ followView: v === 'view' }, 'followView')}
-            options={[
-              { value: 'all', title: t('studio.tasks.all'), text: t('studio.tasks.allText'), count: tasks.length },
-              { value: 'view', title: t('studio.tasks.view'), text: t('studio.tasks.viewText'), count: viewRows.length },
-            ]}
-          />
+          <>
+            <StudioChoiceGroup
+              ariaLabel={t('studio.tasks.title')}
+              value={sourceKey}
+              onChange={key => chooseSource(taskSourceFromKey(key))}
+              options={[
+                { value: 'all', title: t('studio.tasks.all'), text: t('studio.tasks.allText'), count: tasks.length },
+                { value: 'view', title: t('studio.tasks.view'), text: t('studio.tasks.viewText'), count: viewRows.length },
+                ...layouts.map((layout, i) => ({
+                  value: taskSourceKey({ kind: 'layout', id: layout.id }),
+                  title: layout.name,
+                  icon: layoutIcon(layout.icon ?? (isFilterOnlyLayout(layout) ? 'filter' : undefined), 16),
+                  count: chosenLayout?.id === layout.id ? shownRows : undefined,
+                  groupLabel: i === 0 ? t('studio.tasks.layouts') : undefined,
+                  dataLayout: layout.id,
+                })),
+              ]}
+            />
+            {chosenLayout && <p className="rs-hint" data-rs-layout-hint>{t('studio.tasks.layoutHint')}</p>}
+            {barColorsDiffer && layoutBarColors && (
+              <StudioNotice
+                tone="info"
+                dataKey="layout-bar-colors"
+                actions={(
+                  <button type="button" className="rs-link" onClick={() => { markReportInput('barColor'); setOverlays({ barColors: layoutBarColors }); }}>
+                    {t('studio.tasks.barColorsApply')}
+                  </button>
+                )}
+              >
+                {t('studio.tasks.barColorsDiffer')}
+              </StudioNotice>
+            )}
+            {resourceResult && bandShape && (
+              <StudioGroup label={t('studio.tasks.resourceGroup')}>
+                {RESOURCE_TOGGLES.map(key => {
+                  const fromLayout = key === 'groupByType' && bandShape.typeLevel;
+                  return (
+                    <StudioSwitch
+                      key={key}
+                      checked={fromLayout ? true : resourceOptions[key]}
+                      disabled={fromLayout}
+                      title={fromLayout ? t('studio.tasks.typeLevelFromLayout') : undefined}
+                      onChange={v => patchResourceOptions({ [key]: v }, key)}
+                      label={t(`resourceGantt.${key}`)}
+                      dataKey={key}
+                    />
+                  );
+                })}
+                <ReportingPeriodField
+                  id="rs-resource-period"
+                  value={resourceOptions.period}
+                  onChange={next => patchResourceOptions({ period: next }, 'period')}
+                  dataKey="resourceGanttPeriod"
+                />
+                <p className="rs-hint" data-rs-resource-counts>
+                  {[
+                    `${t('resourceGantt.resources')} ${resourceResult.counts.resources}`,
+                    `${t('resourceGantt.assignments')} ${resourceResult.counts.assignments}`,
+                    `${t('resourceGantt.unassigned')} ${resourceResult.counts.unassignedTasks}`,
+                    ...(periodWindow ? [`${t('resourceGantt.outsidePeriod')} ${resourceResult.counts.outsidePeriod}`] : []),
+                  ].join(listSep)}
+                </p>
+                {paperInfo?.assignmentColumnsDropped && resourceOptions.showAssignmentColumns && (
+                  <StudioNotice tone="info" dataKey="assignment-columns-dropped">{t('resourceGantt.columnsDropped')}</StudioNotice>
+                )}
+              </StudioGroup>
+            )}
+          </>
         );
+      }
       case 'columns':
         return (
           <>
@@ -613,8 +763,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <p className="rs-hint">{t('studio.bars.colorHint')}</p>
             </StudioGroup>
             <StudioGroup label={t('studio.bars.lines')}>
-              <StudioSwitch checked={settings.showDeps} onChange={v => patch({ showDeps: v }, 'showDeps')} label={t('showDependencies')} dataKey="showDeps" />
-              <StudioSwitch checked={settings.showCritical} onChange={v => patch({ showCritical: v }, 'showCritical')} label={t('showCriticalPath')} title={t('studio.bars.criticalSub')} dataKey="showCritical" />
+              <StudioSwitch checked={effectiveDeps} disabled={multiBand} onChange={v => patch({ showDeps: v }, 'showDeps')} label={t('showDependencies')} dataKey="showDeps" />
+              <StudioSwitch checked={effectiveCritical} disabled={multiBand} onChange={v => patch({ showCritical: v }, 'showCritical')} label={t('showCriticalPath')} title={t('studio.bars.criticalSub')} dataKey="showCritical" />
+              {multiBand && <p className="rs-hint" data-rs-relations-off>{t('studio.bars.relationsOffBands')}</p>}
               <div className="rs-field">
                 <span className="rs-field-label">{t('studio.bars.statusLine')}</span>
                 <StudioSegmented
@@ -859,7 +1010,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       }}
       options={[
         { value: 'gantt', label: t('reportType.gantt') },
-        { value: 'resourceGantt', label: `${t('studio.otherReport')}: ${t('reportType.resourceGantt')}` },
+        // Het Resourcediagram is geen eigen rapport meer: de layout Resourcediagram in de stap Taken (#861).
         { value: 'milestones', label: `${t('studio.otherReport')}: ${t('reportType.milestones')}` },
         { value: 'variance', label: `${t('studio.otherReport')}: ${t('reportType.variance')}` },
         ...TABLE_REPORT_TYPES.map(type => ({ value: type, label: `${t('studio.otherReport')}: ${t(`reportType.${type}`)}` })),

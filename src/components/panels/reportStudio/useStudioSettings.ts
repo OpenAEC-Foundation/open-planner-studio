@@ -20,8 +20,13 @@ export interface StudioSettingsApi {
    * zet bij ongedaan maken wat buiten deze instellingen valt terug (de bedrijfsnaam).
    */
   resetFields: (scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => void;
-  /** De laatste "Standaard" met zijn stap en naam, zolang hij nog ongedaan te maken is. */
-  lastReset: { scope: string; label: string } | null;
+  /**
+   * Zet meerdere velden in één keer, als één stap die ongedaan te maken is (een layout kiezen, #861). `text`
+   * is de melding met "Ongedaan maken".
+   */
+  applyWithUndo: (scope: string, next: Partial<ReportSettings>, text: string) => void;
+  /** De laatste "Standaard" (of toegepaste layout) met zijn stap en naam, zolang hij nog ongedaan te maken is. */
+  lastReset: { scope: string; label: string; text?: string } | null;
   undoReset: () => void;
   dismissReset: () => void;
 }
@@ -29,17 +34,20 @@ export interface StudioSettingsApi {
 interface PendingReset {
   scope: string;
   label: string;
+  /** Eigen meldingstekst (een toegepaste layout); zonder tekst "… staat weer op de standaard". */
+  text?: string;
   /** Alleen de velden die Standaard terugzette, met hun waarde van vóór Standaard. */
   previous: Partial<ReportSettings>;
   restoreExtra?: () => void;
 }
 
-/** Staan deze velden op de standaard? Arrays (kolommen) worden per element vergeleken. */
+/** Staan deze velden op de standaard? Arrays (kolommen) en objecten (de Resourcediagram-opties) op inhoud. */
 export function fieldsAreDefault(settings: ReportSettings, keys: readonly StudioSettingKey[]): boolean {
   return keys.every(key => {
     const a = settings[key];
     const b = DEFAULT_REPORT_SETTINGS[key];
     if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => v === b[i]);
+    if (a && b && typeof a === 'object' && typeof b === 'object') return JSON.stringify(a) === JSON.stringify(b);
     return a === b;
   });
 }
@@ -125,10 +133,22 @@ export function useStudioSettings(): StudioSettingsApi {
     for (const key of keys) {
       (previous as Record<string, unknown>)[key] = current[key];
       const value = DEFAULT_REPORT_SETTINGS[key];
-      (next as Record<string, unknown>)[key] = Array.isArray(value) ? [...value] : value;
+      (next as Record<string, unknown>)[key] = Array.isArray(value) ? [...value]
+        : value && typeof value === 'object' ? structuredClone(value) : value;
     }
     setLastReset({ scope, label, previous, restoreExtra });
     setSettings(next);
+  }, []);
+
+  const applyWithUndo = useCallback((scope: string, nextValues: Partial<ReportSettings>, text: string) => {
+    markReportInput('apply');
+    const current = settingsRef.current;
+    const previous: Partial<ReportSettings> = {};
+    for (const key of Object.keys(nextValues) as StudioSettingKey[]) {
+      (previous as Record<string, unknown>)[key] = current[key];
+    }
+    setLastReset({ scope, label: scope, text, previous });
+    setSettings({ ...current, ...nextValues });
   }, []);
 
   // Precies de stand van vóór Standaard, alleen voor de velden die Standaard terugzette: een later gekozen
@@ -145,11 +165,11 @@ export function useStudioSettings(): StudioSettingsApi {
   const dismissReset = useCallback(() => setLastReset(null), []);
 
   const lastResetInfo = useMemo(
-    () => (lastReset ? { scope: lastReset.scope, label: lastReset.label } : null),
+    () => (lastReset ? { scope: lastReset.scope, label: lastReset.label, text: lastReset.text } : null),
     [lastReset],
   );
   return {
-    settings, hydrated, patch, remember, resetFields,
+    settings, hydrated, patch, remember, resetFields, applyWithUndo,
     lastReset: lastResetInfo,
     undoReset, dismissReset,
   };

@@ -16,7 +16,7 @@ If you work with a relative choice, such as *Next 4 weeks* or *Last month*, set 
 
 ### 2. Choose a report with a period
 
-Open the *Report* tab and choose one of the five reports at *Report type*. The *Reporting period:* list is under *Report options*. For the Resource diagram it is under *Settings*, below the four checkboxes of that report.
+Open the *Report* tab and choose one of the five reports at *Report type*. The *Reporting period:* list is under *Report options*. For the Resource diagram it is under *Settings*, below the four checkboxes of that report. In the new Report tab it is in the *Tasks* step, under *Per resource*, when you choose the Resource diagram or another layout per resource there.
 
 Each report remembers its own period. These are the initial values:
 

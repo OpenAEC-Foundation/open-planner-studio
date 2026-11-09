@@ -11,13 +11,16 @@ export interface PaperInfo {
   tableWidth: number;
   headerHeight: number;
   dayWidth: number;
+  /** De toewijzingskolommen (Resourcediagram) passen niet naast de tijdlijn en staan er niet op. */
+  assignmentColumnsDropped: boolean;
 }
 
 export function samePaperInfo(a: PaperInfo | null, b: PaperInfo | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   return a.totalPages === b.totalPages && a.rows === b.rows && a.cols === b.cols
-    && a.tableWidth === b.tableWidth && a.headerHeight === b.headerHeight && a.dayWidth === b.dayWidth;
+    && a.tableWidth === b.tableWidth && a.headerHeight === b.headerHeight && a.dayWidth === b.dayWidth
+    && a.assignmentColumnsDropped === b.assignmentColumnsDropped;
 }
 
 interface StudioPaperProps {
@@ -61,10 +64,11 @@ export const StudioPaper = memo(function StudioPaper({
   const tableWidth = paper?.tableWidth ?? 0;
   const headerHeight = paper?.headerHeight ?? 0;
   const dayWidth = paper?.dayWidth ?? 0;
+  const assignmentColumnsDropped = paper?.assignmentColumnsDropped ?? false;
   const hasPaper = paper !== null;
   useEffect(() => {
-    onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight, dayWidth } : null);
-  }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight, dayWidth]);
+    onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight, dayWidth, assignmentColumnsDropped } : null);
+  }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight, dayWidth, assignmentColumnsDropped]);
 
   // Het aantal pagina's staat alleen hier. Lopen de bladen ook naast elkaar, dan met de indeling erbij.
   const status = useMemo(() => (hasPaper ? (

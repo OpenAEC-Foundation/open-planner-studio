@@ -31,7 +31,6 @@ import {
   TIME_NOTATIONS,
   DURATION_DISPLAYS,
   BAR_SPLIT_MODES,
-  REPORT_PREVIEW_QUALITIES,
   UI_FONT_FAMILIES,
   UI_FONT_SCALES,
 } from '@/state/slices/types';
@@ -82,16 +81,6 @@ function parseClampedInt(min: number, max: number) {
  *  gedrag gedefinieerd is. */
 function parseNumberChoice(allowed: readonly number[]) {
   return (raw: unknown): number | undefined => snapToChoice(allowed, raw);
-}
-
-/**
- * Previewkwaliteit: een van de keuzes `'100'`, `'200'` of `'300'`. `saveReportPreviewQuality` bewaart de
- * tekst `300`, en de algemene lader (`getSetting`) leest dat als JSON: het getal 300. `parseEnum` alleen
- * verwierp dat getal, dus na herladen stond de store weer op `'200'` (review Sol #847, ronde 2; ook via de
- * late host, die dezelfde lader gebruikt). Daarom eerst een van de drie getallen terug naar zijn tekst.
- */
-function parseReportPreviewQuality(raw: unknown) {
-  return parseEnumValue(REPORT_PREVIEW_QUALITIES, typeof raw === 'number' ? String(raw) : raw);
 }
 
 /** Feedback-e-mailadres: alleen een tekst van max 254 tekens (de servergrens); leeg mag. */
@@ -219,9 +208,6 @@ export const SETTINGS: SettingDescriptor[] = [
   setting({ key: 'allowMixedDayHour', field: 'allowMixedDayHour', parse: parseBoolean }),
   setting({ key: 'durationDisplay', field: 'durationDisplay', parse: parseEnum(DURATION_DISPLAYS) }),
   setting({ key: 'barSplitMode', field: 'barSplitMode', parse: parseEnum(BAR_SPLIT_MODES) }),
-
-  // Previewkwaliteit van de rasterrapporten (nieuwe Rapport-tabblad, issue #817).
-  setting({ key: 'reportPreviewQuality', field: 'reportPreviewQuality', parse: parseReportPreviewQuality }),
 
   // «alleen werkbare dagen tonen» — globale weergavevoorkeur, exact
   // het barSplitMode-patroon (1 sleutel → 1 UIState-veld).
