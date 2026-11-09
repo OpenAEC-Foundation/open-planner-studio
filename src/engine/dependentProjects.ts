@@ -1,6 +1,6 @@
 import type { ExternalLink, Task } from '@/types/task';
 import { parseInstant } from '@/utils/dateUtils';
-import { sourceAnchorDate } from '@/engine/externalLinks';
+import { sourceAnchorDate, type ExternalSourceDoc } from '@/engine/externalLinks';
 
 /**
  * Stap 1.11 van "relaties tussen projecten" (keuze 7 en keuze 3 zonder cloud,
@@ -130,18 +130,24 @@ export interface TightAnchor extends DependentLink {
 }
 
 /**
- * De koppelingen uit `links` waarvan het anker, opnieuw berekend uit de huidige taken van dit project
- * (`sourceAnchorDate`, dezelfde regel als *Vernieuwen* in het afhankelijke project), te krap wordt
- * ({@link isAnchorTighter}). Een eigen taak die niet meer bestaat geeft geen regel: er is geen nieuw
+ * De koppelingen uit `links` waarvan het anker, opnieuw berekend uit `tasks` (`sourceAnchorDate`, dezelfde
+ * regel als *Vernieuwen* in het afhankelijke project), te krap wordt ({@link isAnchorTighter}). Geef hier
+ * de bron zoals het afhankelijke project hem leest: de taken én `lateDatesInFile` van
+ * `externalSourceFromImport` op het bestand dat opgeslagen gaat worden (review #857 ronde 1, zie
+ * `dependentAnchorsAsSaved`). Een eigen taak die niet meer bestaat geeft geen regel: er is geen nieuw
  * anker, en het afhankelijke project ziet bij vernieuwen "bron ontbreekt".
  */
-export function tightDependentAnchors(links: readonly DependentLink[], tasks: readonly Task[]): TightAnchor[] {
+export function tightDependentAnchors(
+  links: readonly DependentLink[],
+  tasks: readonly Task[],
+  source?: Pick<ExternalSourceDoc, 'lateDatesInFile'>,
+): TightAnchor[] {
   const byId = new Map(tasks.map(t => [t.id, t] as const));
   const out: TightAnchor[] = [];
   for (const link of links) {
     const task = byId.get(link.ownTaskId);
     if (!task) continue;
-    const next = sourceAnchorDate(link, task);
+    const next = sourceAnchorDate(link, task, source);
     if (!isAnchorTighter(link.direction, link.anchorDate, next)) continue;
     out.push({ ...link, ownTaskName: task.name, newAnchorDate: next });
   }

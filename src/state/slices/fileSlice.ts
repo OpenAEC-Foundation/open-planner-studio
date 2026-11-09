@@ -55,6 +55,7 @@ import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerEx
 import { runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { askIfcSchema, ifcSchemaQuestionFor } from '@/services/ifc/ifcSchemaQuestion';
 import { tightDependentAnchors } from '@/engine/dependentProjects';
+import { dependentAnchorsAsSaved } from '../dependentCandidates';
 import { askDependentAnchors } from '../dependentAnchorQuestion';
 import { applyIfcSchemaChoice } from '../ifcSchemaChoice';
 import { withSchedulingProfileNotice } from '../schedulingProfileNotice';
@@ -868,7 +869,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /**
    * De waarschuwing vóór opslaan bij de bron (stap 1.11, keuze 3 zonder cloud). Is er voor dit document
    * een zoekresultaat *Afhankelijke projecten*, dan rekent de app per gevonden koppeling het anker opnieuw
-   * uit de huidige taken (`tightDependentAnchors`). Wordt er een te krap, dan vraagt de app eerst:
+   * zoals het afhankelijke project het straks uit het opgeslagen bestand leest (`dependentAnchorsAsSaved`:
+   * schrijven, lezen en doorrekenen op een kopie; review #857 ronde 1). Ook zonder F5 ziet de vraag zo de
+   * datums die de afnemer krijgt; het geopende document zelf rekent niet. Wordt er een te krap, dan vraagt de app eerst:
    * *Toch opslaan* of *Annuleren* (`false`: niets opslaan). Alleen Opslaan en Opslaan als door de planner;
    * automatisch opslaan, crashherstel en MCP komen hier niet langs.
    */
@@ -876,7 +879,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     const before = get();
     const result = before.ui.dependentProjects.find(r => r.documentId === before.activeDocumentId);
     if (!result || result.projectId !== before.project.id || result.links.length === 0) return true;
-    const tight = tightDependentAnchors(result.links, before.tasks);
+    let tight;
+    try {
+      tight = await dependentAnchorsAsSaved(result.links, writeIFC(buildWriteIFCInput(before)));
+    } catch (err) {
+      // Het eigen bestand niet terug te lezen: dan de huidige taken, zoals ze op het scherm staan.
+      console.warn('Afhankelijke projecten: bron als opgeslagen niet te lezen:', err);
+      tight = tightDependentAnchors(result.links, before.tasks);
+    }
     if (tight.length === 0) return true;
     const documentId = before.activeDocumentId;
     if (!(await askDependentAnchors(tight))) return false;

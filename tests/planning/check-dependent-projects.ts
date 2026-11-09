@@ -18,7 +18,10 @@
 //    slaat niets op; een ander project-id (resultaat van vóór *Opslaan als* kopie) telt niet.
 // 8. De route zit alleen in Opslaan en Opslaan als: AutoSave, crashherstel en MCP vragen niets.
 import { readFileSync } from 'node:fs';
-import { createAppStoreContext } from '@/state/appStore';
+import { createAppStoreContext, useAppStore } from '@/state/appStore';
+import { autoSearchDependentProjects } from '@/state/dependentProjectsSearch';
+import { externalSourceFromImport } from '@/state/externalSource';
+import { readIFC } from '@/services/ifc/ifcReader';
 import {
   findDependentLinks, isAnchorTighter, summarizeDependentLinks, tightDependentAnchors,
   type DependentCandidate, type DependentLink,
@@ -224,6 +227,83 @@ await (async () => {
     console.error = consoleError;
     resetDependentAnchorAsker();
   }
+})();
+
+// (7B) Review #857 ronde 1, bevinding 1: de vraag vergelijkt met de bron zoals het afhankelijke project
+// hem leest. De brontaak duurt 5 dagen en eindigt op vrijdag 5 maart 16:00; het afhankelijke project rekent
+// daarop. De duur gaat naar 10 dagen, ZONDER F5. De bronleesroute rekent het opgeslagen bestand door en geeft
+// 12 maart 16:00: krapper. Opslaan én Opslaan als moeten het vragen; het geopende document rekent niet.
+await (async () => {
+  const { store } = createAppStoreContext();
+  const S = () => store.getState();
+  S().newProject();
+  S().setProject({ startDate: '2027-03-01', name: 'Installateur' });
+  const b1 = S().addTask({ name: 'Installatie', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+  S().runCPM();
+  const task = () => S().tasks.find(t => t.id === b1)!;
+  eq('7B-a uitgangspunt: einde vrijdag 5 maart 16:00', task().time.earlyFinish, '2027-03-05T16:00');
+  S().setUI({ dependentProjects: [{
+    documentId: S().activeDocumentId, projectId: S().project.id,
+    links: [{ projectId: 'aannemer', projectName: 'Aannemer', taskId: 'a1', taskName: 'Afbouw', ownTaskId: b1, linkId: 'x',
+      direction: 'predecessor', relType: 'FS', anchorDate: '2027-03-05T16:00' }],
+  }] });
+  S().updateTask(b1, { time: { ...task().time, scheduleDuration: 10 } });
+  eq('7B-b de planning is verouderd, het scherm toont nog 5 maart', [S().scheduleStale, task().time.earlyFinish], [true, '2027-03-05T16:00']);
+  // Wat de afnemer krijgt: de bestaande bronleesroute op precies dit bestand.
+  const read = externalSourceFromImport(await readIFC(writeIFC(buildWriteIFCInput(S()))), '/p/Installateur.ifc');
+  eq('7B-c de bronleesroute rekent het bestand door: 12 maart 16:00',
+    read.tasks.find(t => t.id === b1)?.time.earlyFinish, '2027-03-12T16:00');
+  const asked: string[][] = [];
+  setDependentAnchorAsker(async (anchors) => { asked.push(anchors.map(x => `${x.linkId}:${x.anchorDate}→${x.newAnchorDate}`)); return false; });
+  try {
+    await S().saveFile();
+    eq('7B-d Opslaan zonder F5 vraagt het, met het anker van de afnemer', asked, [['x:2027-03-05T16:00→2027-03-12T16:00']]);
+    await S().saveFileAs();
+    eq('7B-e Opslaan als ook', asked.length, 2);
+    eq('7B-f het geopende document is niet herberekend', [S().scheduleStale, task().time.earlyFinish], [true, '2027-03-05T16:00']);
+  } finally {
+    resetDependentAnchorAsker();
+  }
+})();
+
+// (9) Review #857 ronde 1, bevinding 2: een tabwissel tijdens de automatische zoektocht schakelt hem niet
+// uit. Het resultaat wordt dan weggegooid; bij terugwisselen zoekt de app opnieuw en plaatst het alsnog.
+await (async () => {
+  const S = () => useAppStore.getState();
+  S().newProject();
+  S().setProject({ startDate: '2027-03-01', name: 'Installateur' });
+  const b1 = S().addTask({ name: 'Installatie', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+  S().runCPM();
+  const docA = S().activeDocumentId;
+  const pid = S().project.id;
+  // Het afhankelijke project, als bestand in de map.
+  const dep = createAppStoreContext().store;
+  dep.getState().newProject();
+  dep.getState().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
+  const a1 = dep.getState().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2027-03-01', 3, 'days') });
+  dep.getState().updateTask(a1, { externalLinks: [link('x', pid, b1, 'predecessor', '2027-03-05T16:00')] });
+  const text = writeIFC(buildWriteIFCInput(dep.getState()));
+  let reads = 0;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(r => { release = r; });
+  const slow = {
+    resolveRef: async () => ({ kind: 'files' as const, files: [] }),
+    read: async () => { reads++; await gate; return [{ name: 'Aannemer.ifc', text }]; },
+  };
+  const resultFor = (id: string) => S().ui.dependentProjects.find(r => r.documentId === id)?.links.length ?? 0;
+  const running = autoSearchDependentProjects(undefined, slow);
+  for (let i = 0; i < 50 && reads === 0; i++) await Promise.resolve();
+  eq('9a de zoektocht leest', reads, 1);
+  S().newDocument();
+  release();
+  await running;
+  eq('9b na een tabwissel tijdens het lezen: geen resultaat bij A', resultFor(docA), 0);
+  S().switchDocument(docA);
+  const fast = { resolveRef: slow.resolveRef, read: async () => { reads++; return [{ name: 'Aannemer.ifc', text }]; } };
+  await autoSearchDependentProjects(undefined, fast);
+  eq('9c terug bij A: de app zoekt opnieuw en plaatst het resultaat', [reads, resultFor(docA)], [2, 1]);
+  await autoSearchDependentProjects(undefined, fast);
+  eq('9d daarna niet nog eens', reads, 2);
 })();
 
 // (8) Alleen Opslaan en Opslaan als.

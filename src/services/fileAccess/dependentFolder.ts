@@ -7,8 +7,7 @@
 //    de recente bestanden hun handvat bewaren. Op de achtergrond leest OPS hem alleen met toestemming
 //    `granted` (`queryPermission`); de knop opent de mapkiezer, die bij de onthouden map begint.
 //  - Andere browsers: een paar bestanden kiezen; niets onthouden.
-import { idbDelete, idbGetAll, idbPut } from '@/utils/idb';
-import { basename } from '@/utils/filePath';
+import { idbGetAll, idbPut } from '@/utils/idb';
 
 const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -76,13 +75,6 @@ export async function pickDependentFolder(
   return files ? { kind: 'files', files } : null;
 }
 
-/** De naam van de map of de bestanden, voor de tekst. */
-export function dependentFolderLabel(ref: DependentFolderRef): string {
-  if (ref.kind === 'path') return basename(ref.path) || ref.path;
-  if (ref.kind === 'handle') return ref.handle.name;
-  return ref.files.map(f => f.name).join(', ');
-}
-
 function joinPath(dir: string, name: string): string {
   const sep = dir.includes('\\') && !dir.includes('/') ? '\\' : '/';
   return dir.endsWith(sep) ? `${dir}${name}` : `${dir}${sep}${name}`;
@@ -140,10 +132,6 @@ export async function rememberedDependentFolderHandle(projectId: string): Promis
   if (!projectId || typeof indexedDB === 'undefined') return null;
   const all = await idbGetAll<StoredFolder>(DB, STORE);
   return all.find(entry => entry.id === projectId)?.handle ?? null;
-}
-
-export async function forgetDependentFolderHandle(projectId: string): Promise<void> {
-  await idbDelete(DB, STORE, projectId);
 }
 
 /**

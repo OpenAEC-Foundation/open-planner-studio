@@ -2,7 +2,8 @@
 // documenten, in de vorm die `findDependentLinks` leest. Zonder store, zodat de planningstests het
 // headless kunnen draaien; de zoekroute zelf staat in `dependentProjectsSearch.ts`.
 import type { DependentCandidate, DependentLink } from '@/engine/dependentProjects';
-import { findDependentLinks } from '@/engine/dependentProjects';
+import { findDependentLinks, tightDependentAnchors, type TightAnchor } from '@/engine/dependentProjects';
+import { externalSourceFromImport } from './externalSource';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
@@ -70,4 +71,20 @@ export function withDependentResult(
   openDocumentIds: ReadonlySet<string>,
 ): DependentProjectsResult[] {
   return [...list.filter(r => r.documentId !== next.documentId && openDocumentIds.has(r.documentId)), next];
+}
+
+/**
+ * De te krappe ankers zoals het afhankelijke project ze ziet na dit opslaan (review #857 ronde 1). Het
+ * afhankelijke project leest het opgeslagen bestand met de bronleesroute (`readExternalSource`): lezen,
+ * de laadgrens van openen en een berekening zoals bij openen (`externalSourceFromImport`). Is de planning
+ * hier niet herberekend (bijv. een langere duur zonder F5), dan rekent die route de nieuwe datums toch
+ * door. Daarom vergelijkt de waarschuwing met precies die route, op de tekst die opgeslagen gaat worden.
+ * Alles gebeurt op een kopie: het geopende document wordt niet herberekend (handmatig rekencontract).
+ */
+export async function dependentAnchorsAsSaved(
+  links: readonly DependentLink[], ifcText: string, labels?: ImportLabels,
+): Promise<TightAnchor[]> {
+  const name = 'opslaan.ifc';
+  const source = externalSourceFromImport(activeImportResult(await parseOpenedFile({ name, text: ifcText }, labels)), name);
+  return tightDependentAnchors(links, source.tasks, source);
 }

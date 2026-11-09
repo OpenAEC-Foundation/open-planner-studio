@@ -9,19 +9,20 @@ import { summarizeDependentLinks } from '@/engine/dependentProjects';
 import type { ImportLabels } from '@/services/importTypes';
 import {
   dependentFolderPermission, pickDependentFolder, readDependentFolder, rememberDependentFolderHandle,
-  rememberedDependentFolderHandle, type DependentFolderRef,
+  rememberedDependentFolderHandle, type DependentFolderFile, type DependentFolderRef,
 } from '@/services/fileAccess/dependentFolder';
 import { candidateFromIfcText, candidatesFromOpenDocuments, dependentLinksFrom, withDependentResult } from './dependentCandidates';
 import type { DependentCandidate } from '@/engine/dependentProjects';
 
 const isTauri = () => '__TAURI_INTERNALS__' in window;
 
-/** Leest de map en zet het resultaat bij `documentId`. `false` als het document intussen niet meer
+/** Leest de map en zet het resultaat bij `documentId`. `null` als het document intussen niet meer
  *  actief is of het project-id veranderde: dan blijft het resultaat weg. */
 async function searchIn(
   ref: DependentFolderRef, documentId: string, projectId: string, labels?: ImportLabels,
+  read: (ref: DependentFolderRef) => Promise<DependentFolderFile[]> = readDependentFolder,
 ): Promise<{ projects: number; links: number } | null> {
-  const files = await readDependentFolder(ref);
+  const files = await read(ref);
   const candidates: DependentCandidate[] = [];
   for (const file of files) {
     const candidate = await candidateFromIfcText(file.name, file.text, labels);
@@ -81,33 +82,49 @@ export async function searchDependentProjectsManually(labels?: ImportLabels): Pr
     });
 }
 
-/** Documenten waarvoor de achtergrondzoektocht in deze sessie al liep (document-id + project-id). */
+/** Documenten (document-id + project-id) waarvoor de achtergrondzoektocht in deze sessie een resultaat
+ *  plaatste. Pas na het plaatsen: een zoektocht die afbreekt (tabwissel tijdens het lezen) of mislukt,
+ *  telt niet, zodat de volgende keer dat het document actief is opnieuw gezocht wordt (review #857). */
 const autoSearched = new Set<string>();
+/** Zoektochten die nu lopen; een tweede start voor hetzelfde document wacht niet en doet niets. */
+const autoSearching = new Set<string>();
+
+/** Naden voor de tests: waar de map vandaan komt en hoe hij gelezen wordt. */
+export interface AutoSearchDeps {
+  resolveRef?: (project: { id: string; dependentProjectsFolder?: string }) => Promise<DependentFolderRef | null>;
+  read?: (ref: DependentFolderRef) => Promise<DependentFolderFile[]>;
+}
+
+async function defaultAutoRef(project: { id: string; dependentProjectsFolder?: string }): Promise<DependentFolderRef | null> {
+  if (isTauri()) {
+    return project.dependentProjectsFolder ? { kind: 'path', path: project.dependentProjectsFolder } : null;
+  }
+  const handle = await rememberedDependentFolderHandle(project.id);
+  return handle && await dependentFolderPermission(handle) ? { kind: 'handle', handle } : null;
+}
 
 /**
  * Bij het openen van een document (of de eerste keer dat het actief is): zoekt vanzelf, op de
  * achtergrond en zonder vraag, als er een onthouden map is. Desktop: het pad uit het project.
  * Chromium: een onthouden handvat met toestemming `granted`; anders niets (toestemming vragen mag alleen
- * bij een klik). Geen melding; een fout blijft stil.
+ * bij een klik). Geen melding; een fout blijft stil. Eén keer per document en project-id per sessie,
+ * geteld vanaf een geplaatst resultaat.
  */
-export async function autoSearchDependentProjects(labels?: ImportLabels): Promise<void> {
+export async function autoSearchDependentProjects(labels?: ImportLabels, deps: AutoSearchDeps = {}): Promise<void> {
   const s = useAppStore.getState();
   const documentId = s.activeDocumentId;
   const projectId = s.project.id;
   const key = `${documentId}\u0000${projectId}`;
-  if (!projectId || autoSearched.has(key)) return;
-  autoSearched.add(key);
+  if (!projectId || autoSearched.has(key) || autoSearching.has(key)) return;
+  autoSearching.add(key);
   try {
-    let ref: DependentFolderRef | null = null;
-    if (isTauri()) {
-      const path = s.project.dependentProjectsFolder;
-      if (path) ref = { kind: 'path', path };
-    } else {
-      const handle = await rememberedDependentFolderHandle(projectId);
-      if (handle && await dependentFolderPermission(handle)) ref = { kind: 'handle', handle };
-    }
-    if (ref) await searchIn(ref, documentId, projectId, labels);
+    const ref = await (deps.resolveRef ?? defaultAutoRef)(s.project);
+    if (!ref) return;
+    const placed = await searchIn(ref, documentId, projectId, labels, deps.read);
+    if (placed) autoSearched.add(key);
   } catch (err) {
     console.warn('Afhankelijke projecten: zoeken op de achtergrond mislukt:', err);
+  } finally {
+    autoSearching.delete(key);
   }
 }
