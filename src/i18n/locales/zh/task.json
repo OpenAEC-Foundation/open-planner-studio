@@ -678,5 +678,11 @@
     "timeHint": "留空：工作日的开始或结束。填写时间：精确到该时刻。",
     "later": "晚一刻钟",
     "earlier": "早一刻钟"
+  },
+  "dependents": {
+    "title": "依赖项目",
+    "successor": "对方的后续任务",
+    "predecessor": "对方的前置任务",
+    "anchor": "使用 {{date}}"
   }
 }

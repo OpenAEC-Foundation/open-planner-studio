@@ -222,7 +222,9 @@
     "screenColorsMissingField": "هذا الحقل غير موجود في هذا المشروع. تُستخدم فئة العمل مؤقتًا.",
     "screenColorsHint": "خارج وضع المسار الحرج، يشير الإطار الأحمر إلى المسار الحرج.",
     "addLayout": "تخطيط جديد",
-    "toggleRelations": "خطوط العلاقات"
+    "toggleRelations": "خطوط العلاقات",
+    "relationFindDependents": "البحث عن المشاريع التابعة…",
+    "relationFindDependentsHint": "البحث في مجلد عن مشاريع لها علاقة خارجية بهذا الجدول الزمني."
   },
   "ifc": {
     "title": "محرر IFC",
