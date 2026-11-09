@@ -72,7 +72,8 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 8 (v8) | 9 | 9 | 9 |
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
 | 10 (v11) | 8 | 8 | — |
-| 11 (v12) | 8 | … | — |
+| 11 (v12) | 8 | 8 | — |
+| 12 (v13) | … | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -86,7 +87,7 @@ generaliseren naar vier reltypen; script trekt live-taken niet af van baselinebo
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
 
-### Ronde 11 (v12) — Opus 8, Sol loopt
+### Ronde 11 (v12) — Opus 8, Sol 8 — verwerkt in v13
 
 Opus 8 (proef `scratchpad/r11/opus/v12-proef.mjs`, nabouw `graph.rs` + IFC5 `Validate`). Fase 0–2 ja. Blokkeert fase 3:
 (B1) baseline-uitzondering gooit eigen taken weg (eigen baseline verwijst naar levende taken, `src/types/baseline.ts:2-5`,
@@ -100,6 +101,17 @@ per document, weigering alleen op domeinpaden, leesregel bij automatisch gepland
 `openaec::ops::`-schemanaam per hoofdversie (`SCHEMA_CONFLICT`), `CHECKSUM_MISMATCH` (`package.rs:100`) bij Grens.
 Eruit: class/import, baseline-uitzondering, aparte children/inherits-regel, controle 3 (volgt uit controle 1), waarden na
 openen alleen voor afwezige velden.
+
+Sol 8 (`scratchpad/r11/sol/proef-v12.cjs`, `bewijs.txt`). Blokkeert: (S1) = B1 baseline-uitsluiting
+(`baselineSlice.ts:48`); (S2) = B4 schema per attribuutnaam; (S3) = B3 lege entry ook voor verwijzingen in attribuutwaarden
+(`openaec::links` `Reference`, `graph.rs:153-176`). Vervolg: (S4) class-eigendom slaat om bij dubbele bijdragen (entry 1
+class+activity, entry 2 activity) → vervalt met "class altijd vreemd".
+
+v13 (2026-11-09): elke activity een taak; geen class, geen import; schema's per naam; lege entry per verwijderd pad dat
+als tekenreeks in de uitvoer staat; ops-attribuut alleen als het afwijkt; domein-id = UUID (v5 van pad), bronpad in
+`ifcSource`; weigering alleen op domeinpaden; automatisch geplande taak die elders verschoof → handmatig; oude naam
+terug onder oude naam; ops-naam per hoofdversie; compositiecontrole bij opslaan eruit (test met flattener); test met
+projectcontrole ifcx-explorer in CI.
 
 ### Ronde 10 (v11) — Opus 8, Sol 8 — verwerkt in v12
 
@@ -421,7 +433,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
-   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. **Ronde 11 loopt** (Opus + Sol op v12).
+   Ronde 9: Opus 7, Sol 8 → v11. Ronde 10: Opus 8, Sol 8 → v12. Ronde 11: Opus 8, Sol 8 → v13. **Ronde 12 loopt** (Opus + Sol op v13).
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
