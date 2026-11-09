@@ -19,6 +19,8 @@
 // 8. Review #860: na de knop is de gelezen opgeslagen versie afgehandeld (4i); *Bronbestanden kiezen…* geeft dezelfde
 //    melding (9); een keuze blijft bewaard als de stapel vol is (10); een lopende controle publiceert geen balk voor
 //    een versie die intussen afgehandeld is, ook op de site (11, 12); wissen en samenvouwen vullen de stapel aan (13).
+// 9. Review #860 ronde 3: een controle die een oudere versie las, publiceert niets meer als een route de bron intussen
+//    veranderde (de teller per document en bron), met pad en op de site (14, 15), en tijdens *Later*/*Accepteren* (16).
 import { createAppStoreContext } from '@/state/appStore';
 import { externalVersionOnlyChanges } from '@/engine/externalRefreshPreview';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -484,6 +486,110 @@ const gateFirstRead = <F extends (...args: never[]) => Promise<unknown>>(read: F
   }
   await S().refreshAllExternalAnchors();
   eq('13c samenvouwen bij nog eens vernieuwen ⇒ de wachtende keuze verschijnt', [choices(), S().ui.waitingNotifications.length], [1, 0]);
+}
+
+// (14) Review #860 ronde 3: een controle die een OUDERE opgeslagen versie las. De controle leest v2 en wacht; intussen
+// slaat de bron v3 op, vernieuwen leest v3 en de knop handelt v3 af. Daarna komt de oude controle terug: geen balk
+// voor v2, en het anker blijft op 10 maart (zonder de teller zette *Accepteren* het terug naar 5 maart).
+{
+  const s = await app();
+  const { S, store, a } = s;
+  editSource(s);
+  s.disk.version = 'v2';
+  const gated = gateFirstRead(S().parseExternalSource);
+  store.setState({ parseExternalSource: gated.wrapped });
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  s.disk.version = 'v3';
+  await S().refreshAllExternalAnchors();
+  const request = await choose(S);
+  eq('14a de knop handelt v3 af, het anker uit het geopende document', [request?.savedVersion, linkOf(S, a).anchorDate], ['v3', '2027-03-10T16:00']);
+  gated.release();
+  await checking;
+  eq('14b de oude controle (v2) publiceert geen balk; het anker blijft',
+    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [[], '2027-03-10T16:00']);
+  await S().checkExternalSources();
+  eq('14c ook een volgende controle niet', S().ui.externalSourceUpdates.length, 0);
+}
+
+// (15) Hetzelfde op de site.
+{
+  const s = await app('project');
+  const { S, store, a } = s;
+  S().switchDocument(s.sourceDocumentId);
+  store.setState({ siteFileId: 'site-bron', siteFileVersion: 'v1' });
+  S().switchDocument(s.targetDocumentId);
+  const task = S().tasks.find(t => t.id === a)!;
+  S().updateTask(a, { externalLinks: task.externalLinks!.map(l => ({ ...l, sourceRef: { ...l.sourceRef, siteFileId: 'site-bron' } })) });
+  const diskRead = S().parseExternalSource;
+  const siteRead = async (id: string) => {
+    const read = await diskRead(PATH);
+    const { filePath: _path, ...rest } = read!;
+    void _path;
+    return { ...rest, siteFileId: id };
+  };
+  const gated = gateFirstRead(siteRead);
+  store.setState({ parseExternalSiteSource: gated.wrapped, externalSiteSourceVersion: async () => ({ version: s.disk.version }) });
+  editSource(s);
+  s.disk.version = 'v2';
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  s.disk.version = 'v3';
+  await S().refreshAllExternalAnchors();
+  const request = await choose(S);
+  eq('15a op de site: de knop handelt v3 af', [request?.savedVersion, linkOf(S, a).anchorDate], ['v3', '2027-03-10T16:00']);
+  gated.release();
+  await checking;
+  eq('15b op de site: de oude controle (v2) publiceert geen balk; het anker blijft',
+    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [[], '2027-03-10T16:00']);
+}
+
+// (16) Een controle die loopt tijdens *Later* of *Accepteren*. De bron is opgeslagen met de wijziging (v2) ⇒ een
+// balk. Daarna slaat ze dezelfde inhoud nog eens op (v3); een controle leest v3 en wacht.
+const savedSource = async () => {
+  const s = await app();
+  const { S } = s;
+  editSource(s);
+  S().switchDocument(s.sourceDocumentId);
+  S().runCPM();
+  s.disk.text = writeIFC(buildWriteIFCInput(S()));
+  s.disk.version = 'v2';
+  S().markAutoSaveVersionSaved(s.sourceDocumentId, S());
+  S().switchDocument(s.targetDocumentId);
+  await S().checkExternalSources();
+  return s;
+};
+{
+  // *Later* op v2 tijdens de controle: v2 komt niet terug, v3 is een nieuwe versie en krijgt de balk.
+  const s = await savedSource();
+  const { S, store, a } = s;
+  eq('16a voorwaarde: een balk voor v2', S().ui.externalSourceUpdates.map(u => u.version), ['v2']);
+  s.disk.version = 'v3';
+  const gated = gateFirstRead(S().parseExternalSource);
+  store.setState({ parseExternalSource: gated.wrapped });
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  S().dismissExternalSourceUpdate(S().ui.externalSourceUpdates[0]?.key ?? '');
+  gated.release();
+  await checking;
+  eq('16b Later tijdens de controle: alleen de nieuwe versie v3, het anker onveranderd',
+    [S().ui.externalSourceUpdates.map(u => u.version), linkOf(S, a).anchorDate], [['v3'], '2027-03-05T16:00']);
+}
+{
+  // *Accepteren* van v2 tijdens de controle: daarna geen balk, want v3 verandert niets aan het anker.
+  const s = await savedSource();
+  const { S, store, a } = s;
+  const v2 = await S().readExternalSourceAt(S().ui.externalSourceUpdates[0]!.locator);
+  s.disk.version = 'v3';
+  const gated = gateFirstRead(S().parseExternalSource);
+  store.setState({ parseExternalSource: gated.wrapped });
+  const checking = S().checkExternalSources();
+  await gated.hasStarted;
+  eq('16c Accepteren tijdens de controle lukt', [S().acceptExternalSourceUpdate({ ...v2!, version: 'v2' }), S().ui.externalSourceUpdates.length], [true, 0]);
+  gated.release();
+  await checking;
+  eq('16d na de controle geen balk; het anker blijft op v2',
+    [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], [0, '2027-03-10T16:00', 'v2']);
 }
 
 if (failures.length > 0) {

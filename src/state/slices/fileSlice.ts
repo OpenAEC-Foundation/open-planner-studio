@@ -691,6 +691,13 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // koos. Sessie-only en per storecontext.
   const settledSourceVersions = new Map<string, string>();
   const sourceKey = (documentId: string, key: string) => `${documentId}\u0000${key}`;
+  // Per document en bron een teller (review #860 ronde 3). Elke route die de uitgangssituatie van een bron
+  // verandert, hoogt hem op via `dropSourceUpdates`: *Alle externe relaties vernieuwen*, *Bron vernieuwen*,
+  // *Bronbestanden kiezen…*, *Rekenen met het geopende document*, *Accepteren*, *Later* en MCP. Een controle
+  // legt de tellers vast vóór haar eerste `await`; is een teller daarna veranderd, dan gooit ze haar uitkomst
+  // voor die bron weg. Zo publiceert een oudere controle geen balk voor een versie die intussen achterhaald is.
+  const sourceGenerations = new Map<string, number>();
+  const sourceGeneration = (documentId: string, key: string) => sourceGenerations.get(sourceKey(documentId, key)) ?? 0;
   let sourceCheckRunning = false;
   let sourceCheckAgain = false;
 
@@ -719,6 +726,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   /** Haalt de balk weg voor deze bronnen (`ExternalSourceUpdate.key`) van dit document (na verversen of
    *  accepteren). */
   const dropSourceUpdates = (documentId: string, keys: ReadonlySet<string>) => {
+    for (const key of keys) sourceGenerations.set(sourceKey(documentId, key), sourceGeneration(documentId, key) + 1);
     const ui = get().ui;
     const next = ui.externalSourceUpdates.filter(u => u.documentId !== documentId || !keys.has(u.key));
     if (next.length === ui.externalSourceUpdates.length) return;
@@ -812,6 +820,10 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         sources.set(key, entry);
       }
     }
+    // De tellers vóór de eerste `await` (zie `sourceGenerations`).
+    const generations = new Map([...sources.keys()].map(key => [key, sourceGeneration(documentId, key)]));
+    const stale = (key: string) => sourceGeneration(documentId, key) !== generations.get(key);
+    let discarded = false;
     const found = new Map<string, ExternalSourceUpdate>();
     // Bronnen zonder balk: dezelfde versie als in de koppelingen, of al gelezen zonder wijziging.
     const settled = new Set<string>();
@@ -832,6 +844,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const src = await get().readExternalSourceAt(locator, labels);
       if (get().activeDocumentId !== documentId) return;
       if (!src) continue;
+      // Intussen veranderde een route deze bron: de gelezen uitkomst is achterhaald (geen balk, niets afgehandeld).
+      if (stale(key)) { discarded = true; continue; }
       const tasks = get().tasks;
       // Alleen de koppelingen naar dít bestand (met pad of site-id), of zonder pad naar dit project: een kopie
       // met hetzelfde project-id elders telt niet mee.
@@ -860,14 +874,15 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
         changedLinks,
       });
     }
-    // Vlak vóór het publiceren (review #860 ronde 2): een versie die tijdens deze controle afgehandeld werd (de
-    // knop *Rekenen met het geopende document* of *Later*) krijgt geen balk meer.
-    // De lezing hierboven wacht op het bestand of de site; intussen kan de planner gekozen hebben.
-    for (const [key, update] of found) {
-      if (settledSourceVersions.get(sourceKey(documentId, key)) !== update.version) continue;
+    // Vlak vóór het publiceren: een bron waarvan de teller tijdens deze controle veranderde, houdt de stand die
+    // de route zette. Een volgende ronde leest haar opnieuw, met de nieuwe stand als uitgangssituatie.
+    for (const key of sources.keys()) {
+      if (!stale(key)) continue;
+      discarded = true;
       found.delete(key);
-      settled.add(key);
+      settled.delete(key);
     }
+    if (discarded) sourceCheckAgain = true;
     const current = get().ui.externalSourceUpdates;
     const next = [
       ...current.filter(u => u.documentId !== documentId
