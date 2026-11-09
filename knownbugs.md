@@ -1605,6 +1605,17 @@ en noem het in je rapport of PR-tekst.
      nagespeeld: het eerste fontverzoek laten mislukken en de export daarna laten slagen. Uit de review van #837
      (GPT-6.1-Sol, xhigh, ronde 2, op `dd8f60b0c`, VERMOED zekerheid hoog, VERVOLG). — S
 
+1006. **IfcOpenShell 0.9 opent een bestand met `FILE_SCHEMA(('IFC4X3'))` niet.** De writer van v2026.9.0 en ouder
+     schreef die kop. `ifcopenshell.open` (0.9.0.post1) weigert hem met "Unsupported schema"; met `IFC4X3_ADD2` in de
+     kop opent hetzelfde bestand wel. Onze eigen lezer opent beide. Opent een gebruiker zo'n oud bestand, dan vraagt
+     het eerste expliciete opslaan of het naar `IFC4X3_ADD2` gaat (#292, `ifcSchemaQuestion.ts`). Kiest de gebruiker
+     "schema houden", dan blijft de kop `IFC4X3` en kan Bonsai of een IfcOpenShell-script het bestand niet openen. De uitleg
+     bij `IFC_SCHEMAS` (`src/types/project.ts:515-520`) noemt juist samenvoegen met IfcOpenShell `MergeProjects` als
+     reden voor die keuze. Nagespeeld in `scripts/proef/maak-corpus.py` (de bron van `oud-eigen-0.1-plus-model.ifc`
+     opent daarom via een tijdelijke kopie met `IFC4X3_ADD2`). Niet nagegaan: andere pakketten dan IfcOpenShell.
+     Richting: zeg bij de keuze "schema houden" voor `IFC4X3` dat IfcOpenShell en Bonsai die kop niet openen.
+     Gevonden in #804 fase 0. — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

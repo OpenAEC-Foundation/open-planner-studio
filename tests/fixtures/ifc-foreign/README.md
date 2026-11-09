@@ -3,8 +3,9 @@
 Testbestanden voor de scanner en de indeling van ontwerp "Gebouwmodel behouden in IFC en IFCX"
 (`docs/superpowers/specs/2026-11-07-gebouwmodel-behouden-ifc-ifcx-design.md`, §10). De poort
 `tests/planning/check-ifc-foreign-classify.ts` legt per bestand de indeling vast. De workflow
-`.github/workflows/ifc-foreign.yml` valideert de geldige bestanden met IfcOpenShell, controleert dat het script ze
-byte-gelijk opnieuw maakt, en vergelijkt de TS-indeling met `scripts/proef/classify-v9.py`.
+`scripts/proef/ifc-foreign.yml` (een voorstel; hoort in `.github/workflows/`) valideert de geldige bestanden met
+IfcOpenShell, controleert dat het script ze byte-gelijk opnieuw maakt, en vergelijkt de TS-indeling met
+`scripts/proef/classify-v9.py`. De uitkomsten van fase 0 staan in `docs/superpowers/evidence/2026-11-ifc-fase0.md`.
 
 ## Herkomst en licentie
 
