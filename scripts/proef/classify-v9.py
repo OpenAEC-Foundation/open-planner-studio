@@ -1,7 +1,8 @@
 # Indeling volgens ontwerp §4.2 (D, R, Own, Ext -> P/C/A/V) op een IFC-bestand (STEP).
 # Review #839: één scanner die tekst kent (ook '' en commentaar binnen tekst) voor statements, secties en entiteiten;
 # entiteiten mogen over meer regels lopen. Weigert (exit 1) invoer zonder STEP-kop of END-ISO-10303-21, met tekst of
-# commentaar zonder einde, een DATA-deel zonder ENDSEC, een onbekend statement in DATA, of zonder entiteiten. Volgt de
+# commentaar zonder einde, secties in een andere volgorde (ook HEADER of DATA zonder ENDSEC), een onbekend statement,
+# een `#id` dat twee keer voorkomt, of zonder entiteiten. Volgt de
 # uitzondering "live-schema van eigen herkomst sluit baselinebomen altijd uit" (spec §4.2 stap 1). Complexe instanties
 # (#n=(A()B())) telt hij als type COMPLEX, zonder verdere indeling.
 # Fase-0-voorproef (ontwerp #804 v9 §4.2). Draaien: python3 -I scripts/proef/classify-v9.py <bestand.ifc>
@@ -42,19 +43,29 @@ sts = statements(t)
 kw = [x for _, x in sts]
 if not kw or kw[0] != 'ISO-10303-21': fout('geen STEP-kop (ISO-10303-21;)')
 if kw[-1] != 'END-ISO-10303-21': fout('geen END-ISO-10303-21;')
-in_data = False
-for st, body in sts:
-    if body == 'DATA' or re.fullmatch(r'DATA\s*\(.*\)', body, re.S): in_data = True; continue
-    if body == 'ENDSEC': in_data = False; continue
-    if not in_data: continue
+# Secties in vaste volgorde: ISO-10303-21; HEADER; <kop> ENDSEC; dan een of meer DATA; <entiteiten> ENDSEC; dan
+# END-ISO-10303-21. Elke afwijking (ontbrekende ENDSEC, statement buiten een sectie) is ongeschikte invoer.
+if len(kw) < 2 or kw[1] != 'HEADER': fout('geen HEADER; na ISO-10303-21;')
+staat = 'kop'
+for st, body in sts[2:-1]:
+    if staat == 'kop':
+        if body == 'ENDSEC': staat = 'tussen'; continue
+        if body in ('HEADER', 'END-ISO-10303-21') or body == 'DATA' or re.fullmatch(r'DATA\s*\(.*\)', body, re.S):
+            fout(f'HEADER zonder ENDSEC (gevonden: {body[:20]!r})')
+        if not re.fullmatch(r'[A-Z][A-Z0-9_]*\s*\(.*\)', body, re.S): fout(f'onbekend statement in HEADER: {body[:40]!r}')
+        continue
+    if staat == 'tussen':
+        if body == 'DATA' or re.fullmatch(r'DATA\s*\(.*\)', body, re.S): staat = 'data'; continue
+        fout(f'statement buiten een sectie: {body[:40]!r}')
+    if body == 'ENDSEC': staat = 'tussen'; continue
     m = re.fullmatch(r'#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*)\)', body, re.S)
-    if m:
-        ents[int(m.group(1))] = (m.group(2), m.group(3)); pos[int(m.group(1))] = st; continue
-    m = re.fullmatch(r'#(\d+)\s*=\s*\((.*)\)', body, re.S)
-    if m:
-        ents[int(m.group(1))] = ('COMPLEX', m.group(2)); pos[int(m.group(1))] = st; continue
-    fout(f'onbekend statement in DATA: {body[:40]!r}')
-if in_data: fout('DATA zonder ENDSEC')
+    m2 = None if m else re.fullmatch(r'#(\d+)\s*=\s*\((.*)\)', body, re.S)
+    if not (m or m2): fout(f'onbekend statement in DATA: {body[:40]!r}')
+    n_id = int((m or m2).group(1))
+    if n_id in ents: fout(f'#{n_id} komt twee keer voor')
+    ents[n_id] = (m.group(2), m.group(3)) if m else ('COMPLEX', m2.group(2)); pos[n_id] = st
+if staat == 'kop': fout('HEADER zonder ENDSEC')
+if staat == 'data': fout('DATA zonder ENDSEC')
 if not ents: fout('0 entiteiten')
 def split_args(s):
     out, depth, cur, ins, i = [], 0, '', False, 0
