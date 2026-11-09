@@ -73,7 +73,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 9 (v10) | 7 | 8 | — (Ethan: voorlopig zonder Fable) |
 | 10 (v11) | 8 | 8 | — |
 | 11 (v12) | 8 | 8 | — |
-| 12 (v13) | … | … | — |
+| 12 (v13) | 8 | … | — |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -86,6 +86,18 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 12 (v13) — Opus 8, Sol loopt
+
+Opus 8 (`scratchpad/r12/opus/v13-proef.mjs`). Fase 0–2 ja. Blokkeert §5–6 (twee zinnen): (1) Ctrl+Z na opslaan zet taak
+op nieuw pad (UUIDv5 niet terug te rekenen; `detached` mist bronpad) → `detached` bewaart bronpad per domein-id; writer:
+`ifcSource` → `detached` → nieuw pad; test verwijderen → opslaan → Ctrl+Z → opslaan → heropenen (r.986-988 deed Ctrl+Z
+ná heropenen: kan niet). (2) eigen baseline naar nooit-bronpad → `MISSING_REFERENCE` → baseline-taakveld `String`, niet
+`Reference` (of lege entry voor elk pad dat een eigen verwijzing noemt). Vervolg: (3) eerste i.p.v. laatste bijdrage
+(anders wordt W2 de planning); (4) projectkalender `cal-default` in IFCX; (5) controle 1: eigen entries alleen eigen
+attribuutnamen, geen children/inherits; (6) `-dup-N` bij gelijke 128 bits; (7) melding bij onbekend
+`openaec::planning::`-attribuut; (8) tekst: r.809, "de de", §12-volgorde, "Beide besluiten" (drie), `\/`-ontsnapping en
+andere documenten bij Grens. Eruit: laatste→eerste; lege entry voor eigen baselines.
 
 ### Ronde 11 (v12) — Opus 8, Sol 8 — verwerkt in v13
 
