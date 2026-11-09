@@ -46,7 +46,7 @@ import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
-import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { refreshExternalAnchors, refreshFromSources, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
 import { readExternalSource, type ExternalSourceRead } from '../externalSource';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
@@ -510,6 +510,9 @@ export interface FileSlice {
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
   /** *Later*: de balk van deze bron (`ExternalSourceUpdate.path`) gaat weg tot er weer een nieuwe versie is. */
   dismissExternalSourceUpdate: (path: string) => void;
+  /** Haalt de balk weg voor deze bronnen (genormaliseerde paden) van dit document, zonder ze als *Later* te
+   *  onthouden: na een verversing staan de ankers op de gelezen versie. Voor `planner_refresh_external_links`. */
+  dropExternalSourceUpdates: (documentId: string, paths: ReadonlySet<string>) => void;
   /** *Accepteren*: ververst de koppelingen naar deze bron (alleen op pad) als één undo-stap, met
    *  herberekening, en haalt de balk weg. `false` als er niets veranderde. */
   acceptExternalSourceUpdate: (source: ExternalSourceDoc) => boolean;
@@ -1715,6 +1718,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       dropSourceUpdates(documentId, new Set([path]));
     },
 
+    dropExternalSourceUpdates: (documentId, paths) => dropSourceUpdates(documentId, paths),
+
     acceptExternalSourceUpdate: (source: ExternalSourceDoc) => {
       const documentId = get().activeDocumentId;
       const result = refreshExternalAnchors(get().tasks, source, 'file-path');
@@ -1761,54 +1766,29 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // `refreshExternalAnchors` (die muteert niets in-place) over de takenlijst KETENEN, en pas
       // daarna één keer schrijven. Levert meteen één `runCPM` in plaats van N.
       const sourceDocs: ExternalSourceDoc[] = [];
+      // Gelezen bronpaden. Alleen hun koppelingen worden ververst: een koppeling naar een onleesbare bron,
+      // of een koppeling die de planner tijdens het lezen naar een ander bronbestand zette, houdt haar anker
+      // en pad, ook als een gelezen bron hetzelfde project-id heeft (`refreshFromSources`, review #813).
+      // Hun balk (#811) gaat weg (`dropSourceUpdates`).
       const readPaths = new Set<string>();
-      for (const [normalizedPath, p] of paths) {
+      for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
         if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
         sourceDocs.push(src);
-        readPaths.add(normalizedPath);
+        readPaths.add(normalized);
       }
 
       if (get().activeDocumentId !== targetDocumentId) {
         return { refreshed: 0, missing: 0, sources: sourceDocs.length };
       }
 
-      // Een IFC-kopie bewaart terecht zijn persistente project-id. Staan twee verschillende
-      // bronpaden met zo'n gedeelde id in dezelfde bulkactie, dan is project-id alleen niet langer
-      // onderscheidend: de eerste bron zou anders beide links verversen en de tweede beide opnieuw.
-      // Alleen in die aantoonbaar ambigue groep eisen we daarom het genormaliseerde bronpad. Een
-      // gewone enkelbronverversing blijft project-id-primair, zodat een verplaatst bestand werkt.
-      const pathsByProjectId = new Map<string, Set<string>>();
-      for (const source of sourceDocs) {
-        const projectId = source.projectId.trim();
-        const sourcePath = normalizeExternalSourcePath(source.filePath ?? '');
-        if (!projectId || sourcePath === null) continue;
-        const sourcePaths = pathsByProjectId.get(projectId) ?? new Set<string>();
-        sourcePaths.add(sourcePath);
-        pathsByProjectId.set(projectId, sourcePaths);
-      }
-      const ambiguousProjectIds = new Set(
-        [...pathsByProjectId].filter(([, sourcePaths]) => sourcePaths.size > 1).map(([projectId]) => projectId),
-      );
-
-      let tasks = get().tasks;
-      let refreshed = 0;
-      // Begint bij `unusablePathCount` (zie hierboven) — een link met een pad dat nooit een bron kon
-      // worden telt hier mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar
-      // de betreffende taak niet meer bevatte.
-      let missing = unusablePathCount;
-      let anyChanged = false;
-      for (const source of sourceDocs) {
-        const result = refreshExternalAnchors(
-          tasks,
-          source,
-          ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
-        );
-        tasks = result.tasks; // ketenen: elke bron ververst zijn eigen links op het vorige resultaat
-        refreshed += result.refreshed;
-        missing += result.missing;
-        if (result.changed) anyChanged = true;
-      }
+      // Alle bronnen samen, met de regel voor kopieën met hetzelfde project-id (`refreshFromSources`).
+      // `missing` begint bij `unusablePathCount` (zie hierboven): een link met een pad dat nooit een bron
+      // kon worden telt mee als "ontbrekend", net als een link waarvan de bron wél gelezen werd maar de
+      // betreffende taak niet meer bevatte.
+      const result = refreshFromSources(get().tasks, sourceDocs, readPaths);
+      const { tasks, refreshed, changed: anyChanged } = result;
+      const missing = unusablePathCount + result.missing;
 
       if (anyChanged) applyRefreshedTasks(targetDocumentId, tasks);
       dropSourceUpdates(targetDocumentId, readPaths);

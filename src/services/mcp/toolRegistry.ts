@@ -17,6 +17,7 @@ import { registerToolModules } from './toolIndex';
 import { readTools } from './tools/readTools';
 import { taskTools } from './tools/taskTools';
 import { dependencyTools } from './tools/dependencyTools';
+import { externalLinkTools } from './tools/externalLinkTools';
 import { calendarResourceTools } from './tools/calendarResourceTools';
 import { resourceTools } from './tools/resourceTools';
 import { baselineTools } from './tools/baselineTools';
@@ -37,6 +38,8 @@ const MODULES: McpToolDef[][] = [
   // Direct ná taskTools: samen vormen add_/update_/remove_dependencies de volledige levensloop van
   // een relatie, en zo staan ze ook naast elkaar in `tools/list` (waar de AI ze leest).
   dependencyTools,
+  // Externe relaties (naar een taak in een ander projectbestand) verversen: naast de gewone relaties.
+  externalLinkTools,
   calendarResourceTools,
   resourceTools,
   // Baselinebeheer staat direct ná de module waar `save_baseline` woont: samen vormen ze de
