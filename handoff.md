@@ -28,6 +28,7 @@ de bouw met fase 0: een proef op echte bestanden met de 100 %-P-poort.
 | Doel = volledig bouwen in deze sessie | Ethan, 2026-11-07 | correctie in deze sessie |
 | Handoff.md constant bijhouden | Ethan, 2026-11-07 | deze sessie |
 | Council voorlopig alleen Opus + Sol; Fable alleen op echt belangrijke momenten | Ethan, 2026-11-09 | deze sessie |
+| Namespace IFCX: `openaec::planning::` voor algemene planningsgegevens (taken, relaties, …); `openaec::ops::` voor app-eigen instellingen en weergaven. ifcx-explorer gaat ook `openaec::planning::activity` lezen. Later andere structuur: oude naam blijven lezen | Bjorn (maintainer IFCCAD/ifcx-explorer), 2026-11-09 08:52–09:30; Ethan: "volg dit" | chatbericht (schermafbeelding in de sessie) |
 
 Open besluiten voor Ethan: §11 van de spec (namespace `ops::`; `openaec::activity` meeschrijven). Eén voor één
 voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
@@ -337,8 +338,11 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
 
 1. Klaar: council (ronde 8: 9/9/9), v9.
 2. Besluiten voor Ethan, één tegelijk: (1) namespace `ops::` of `openaec::planner::` (voorgelegd 2026-11-07 ~21:55,
-   aanbeveling `ops::`); Ethan heeft dit op 2026-11-09 voorgelegd aan de maintainer van IFCCAD en wacht op diens oordeel.
-   (2) `openaec::activity` meeschrijven. Ethan beslist in deze sessie, niet via Trias.
+   aanbeveling `ops::`) → **besloten 2026-11-09**: advies Bjorn volgen (zie Besluiten). Gevolg: besluit 2 (afgeleide
+   kopie `openaec::activity`) vervalt, want ifcx-explorer leest straks `openaec::planning::activity`. Eigendom in IFCX kan
+   niet meer op namespace (gedeeld): eigen pad = pad met een `openaec::ops::`-attribuut (uit te werken in §5.2/§6.2).
+   Nieuwe vraag aan Ethan (2026-11-09): planning van een ander programma in `openaec::planning::` openen en bewerken?
+   (was buiten scope, §1, sinds ronde 2). Daarna spec bijwerken, en Opus + Sol één ronde over de IFCX-delen.
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
