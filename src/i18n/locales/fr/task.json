@@ -725,5 +725,11 @@
     "timeHint": "Vide : le début ou la fin du jour ouvré. Avec une heure : exactement ce moment.",
     "later": "Un quart d'heure plus tard",
     "earlier": "Un quart d'heure plus tôt"
+  },
+  "dependents": {
+    "title": "Projets dépendants",
+    "successor": "Successeur là-bas",
+    "predecessor": "Prédécesseur là-bas",
+    "anchor": "utilise {{date}}"
   }
 }

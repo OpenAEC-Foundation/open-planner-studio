@@ -691,5 +691,11 @@
     "timeHint": "비워 두면 근무일의 시작 또는 끝입니다. 시간을 입력하면 정확히 그 시점입니다.",
     "later": "15분 뒤",
     "earlier": "15분 전"
+  },
+  "dependents": {
+    "title": "종속 프로젝트",
+    "successor": "상대 쪽 후속 작업",
+    "predecessor": "상대 쪽 선행 작업",
+    "anchor": "{{date}} 사용"
   }
 }

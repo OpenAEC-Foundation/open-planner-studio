@@ -708,5 +708,11 @@
     "timeHint": "Tyhjä: työpäivän alku tai loppu. Kellonajalla: täsmälleen tuo hetki.",
     "later": "Neljännestunti myöhemmin",
     "earlier": "Neljännestunti aiemmin"
+  },
+  "dependents": {
+    "title": "Riippuvaiset projektit",
+    "successor": "Seuraaja siellä",
+    "predecessor": "Edeltäjä siellä",
+    "anchor": "käyttää päivämäärää {{date}}"
   }
 }

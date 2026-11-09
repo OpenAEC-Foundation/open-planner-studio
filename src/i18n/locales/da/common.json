@@ -233,7 +233,10 @@
     "msProjectLostResourceRates_other": "Standardsatserne for {{count}} ressourcer er ikke overtaget.",
     "minuteModelConverted_one": "{{document}}: {{count}} opgave har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
     "minuteModelConverted_other": "{{document}}: {{count}} opgaver har efter konverteringen en anden start eller slutdato; den største forskydning er {{days}} arbejdsdage. Ctrl+Z gendanner de gemte datoer.",
-    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid."
+    "minuteModelCalendarRepaired": "Kalender „{{calendar}}“ er repareret: slutningen eller pausen passede ikke til den gemte arbejdstid.",
+    "dependentProjectsFound": "Afhængige projekter: {{projects}}. Koblinger til dette projekt: {{links}}.",
+    "dependentProjectsNone": "Der blev ikke fundet projekter med en ekstern afhængighed til denne tidsplan.",
+    "dependentProjectsFailed": "Mappen med afhængige projekter kunne ikke læses."
   },
   "scheduleErrors": {
     "cycle": "Cirkulær afhængighed mellem opgaver: {{path}}",
@@ -1718,5 +1721,15 @@
   "fileDrop": {
     "title": "Slip for at åbne",
     "subtitle": "Projektfil eller import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankerdatoer i andre projekter bliver strammere",
+    "body": "Disse projekter regner med en dato fra denne tidsplan. Efter lagring får de en strammere dato, når de opdaterer deres eksterne afhængigheder.",
+    "colProject": "Projekt",
+    "colTheirTask": "Deres opgave",
+    "colOwnTask": "Opgave her",
+    "colAnchor": "Ankerdato: gammel → ny",
+    "saveAnyway": "Gem alligevel",
+    "cancel": "Annuller"
   }
 }

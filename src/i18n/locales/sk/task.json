@@ -742,5 +742,11 @@
     "timeHint": "Prázdne: začiatok alebo koniec pracovného dňa. S časom: presne ten okamih.",
     "later": "O štvrťhodinu neskôr",
     "earlier": "O štvrťhodinu skôr"
+  },
+  "dependents": {
+    "title": "Závislé projekty",
+    "successor": "Nasledujúca úloha tam",
+    "predecessor": "Predchádzajúca úloha tam",
+    "anchor": "počíta s {{date}}"
   }
 }

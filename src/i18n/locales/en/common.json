@@ -326,7 +326,10 @@
       "capacitySteps_one": "{{count}} resource with capacity steps: only the fixed capacity is included",
       "capacitySteps_other": "{{count}} resources with capacity steps: only the fixed capacity is included",
       "projectDetails": "Project author and company"
-    }
+    },
+    "dependentProjectsFound": "Dependent projects: {{projects}}. Links to this project: {{links}}.",
+    "dependentProjectsNone": "No projects found with an external relation to this schedule.",
+    "dependentProjectsFailed": "The folder with dependent projects could not be read."
   },
   "scheduleErrors": {
     "cycle": "Circular dependency between tasks: {{path}}",
@@ -1884,5 +1887,15 @@
   "settingsDelay": {
     "title": "Settings not loaded",
     "body": "Your settings could not be loaded from the server. You are now working with the default settings. As soon as your settings are available again, they will be applied automatically."
+  },
+  "dependentAnchorWarning": {
+    "title": "Anchors of other projects get tighter",
+    "body": "These projects depend on a date from this schedule. After saving, they get a tighter date when they refresh their external relations.",
+    "colProject": "Project",
+    "colTheirTask": "Their task",
+    "colOwnTask": "Task here",
+    "colAnchor": "Anchor: old → new",
+    "saveAnyway": "Save anyway",
+    "cancel": "Cancel"
   }
 }

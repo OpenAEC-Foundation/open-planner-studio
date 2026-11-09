@@ -726,5 +726,11 @@
     "timeHint": "Vuoto: l'inizio o la fine del giorno lavorativo. Con un orario: esattamente quel momento.",
     "later": "Un quarto d'ora dopo",
     "earlier": "Un quarto d'ora prima"
+  },
+  "dependents": {
+    "title": "Progetti dipendenti",
+    "successor": "Successore lì",
+    "predecessor": "Predecessore lì",
+    "anchor": "usa {{date}}"
   }
 }
