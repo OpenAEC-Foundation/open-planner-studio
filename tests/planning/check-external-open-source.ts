@@ -105,14 +105,14 @@ const PATH = '/projecten/Installateur.ifc';
 // Twee documenten in één app: eerst de bron *Installateur* (Installatie, 5 werkdagen vanaf 1 maart), dan het
 // afhankelijke project *Aannemer* (A wacht FS op Installatie, B volgt A). De bron "ligt" op `PATH`: de lezer van
 // de store krijgt de opgeslagen tekst (`saved`), met de versie `savedVersion`.
-const app = async () => {
+const app = async (kind: 'path' | 'project' = 'path') => {
   const { store } = createAppStoreContext();
   const S = () => store.getState();
   S().newProject();
   S().setProject({ startDate: '2027-03-01', name: 'Installateur' });
   const install = S().addTask({ name: 'Installatie', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
   S().runCPM();
-  store.setState({ filePath: PATH, isDirty: false });
+  store.setState({ filePath: kind === 'path' ? PATH : 'Installateur.ifc', isDirty: false });
   const sourceDocumentId = S().activeDocumentId;
   const sourceProjectId = S().project.id;
   const disk = { text: writeIFC(buildWriteIFCInput(S())), version: 'v1', reads: 0 };
@@ -133,7 +133,10 @@ const app = async () => {
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   const ext: ExternalLink = {
     id: 'x', direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-05T16:00', sourceMissing: false,
-    sourceRef: { projectId: sourceProjectId, projectName: 'Installateur', taskId: install, taskName: 'Installatie', filePath: PATH },
+    sourceRef: {
+      projectId: sourceProjectId, projectName: 'Installateur', taskId: install, taskName: 'Installatie',
+      ...(kind === 'path' ? { filePath: PATH } : {}),
+    },
     sourceVersion: 'v1', anchorReadAt: '2027-01-01T00:00:00.000Z',
   };
   S().updateTask(a, { externalLinks: [ext] });
@@ -164,8 +167,8 @@ const editSource = (s: App) => {
   const s = await app();
   const { S, a } = s;
   const result = await S().refreshAllExternalAnchors();
-  eq('2a schoon: geen melding, het anker uit het bestand', [result.unsavedOpenSources, actionsOf(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
-    [[], 0, '2027-03-05T16:00', 'v1']);
+  eq('2a schoon: geen melding, het anker uit het bestand', [result.refreshed, actionsOf(S).length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
+    [1, 0, '2027-03-05T16:00', 'v1']);
 }
 
 // (3)–(5) Niet-opgeslagen wijzigingen, de knop en daarna opslaan.
@@ -180,10 +183,10 @@ const editSource = (s: App) => {
 
   // *Alle externe relaties vernieuwen*: het anker uit het opgeslagen bestand, met zijn versie; een melding.
   s.disk.version = 'v2';
-  const result = await S().refreshAllExternalAnchors();
+  await S().refreshAllExternalAnchors();
   eq('3b het anker uit het opgeslagen bestand, met de versie', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-05T16:00', 'v2']);
-  eq('3c de uitslag noemt de bron', result.unsavedOpenSources.map(u => [u.key, u.sourceDocumentId, u.fileName]),
-    [[normalizeExternalSourcePath(PATH), s.sourceDocumentId, 'Installateur.ifc']]);
+  eq('3c de knop wijst naar de bron, met de gelezen versie', actionsOf(S).map(n => [n.action.sourceDocumentId, n.action.locator, n.action.fileName, n.action.savedVersion]),
+    [[s.sourceDocumentId, { kind: 'path', filePath: PATH }, 'Installateur.ifc', 'v2']]);
   const notes = actionsOf(S);
   eq('3d één melding met de knop', notes.map(n => [n.message, n.params, n.action.labelKey]),
     [['notifications.externalOpenSourceUnsaved', { file: 'Installateur.ifc' }, 'notifications.actions.useOpenDocument']]);
@@ -193,7 +196,7 @@ const editSource = (s: App) => {
   // *Bron vernieuwen* van één bron geeft dezelfde melding.
   for (const n of S().ui.notifications) S().dismissNotification(n.id);
   const one = await S().refreshExternalAnchorsFrom(PATH);
-  eq('3f Bron vernieuwen: dezelfde melding', [one?.unsavedOpenSources.length, actionsOf(S).length], [1, 1]);
+  eq('3f Bron vernieuwen: dezelfde melding', [one?.refreshed, actionsOf(S).length], [1, 1]);
 
   // De knop.
   const action = actionsOf(S)[0].action as Extract<NotificationAction, { kind: 'refreshFromOpenDocument' }>;
@@ -215,6 +218,14 @@ const editSource = (s: App) => {
   eq('4g Ctrl+Z ⇒ het anker uit het opgeslagen bestand terug', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-05T16:00', 'v2']);
   S().redo();
   eq('4h Ctrl+Y ⇒ weer het anker uit het geopende document', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-10T16:00', undefined]);
+
+  // (4i) Review #860, punt 1: heen en terug naar het brontabblad zonder op te slaan ⇒ geen balk. De opgeslagen
+  // versie (v2) is afgehandeld; anders bood de balk haar als "nieuw" aan en zette *Accepteren* het anker terug.
+  S().switchDocument(s.sourceDocumentId);
+  S().switchDocument(s.targetDocumentId);
+  await S().checkExternalSources();
+  eq('4i dezelfde opgeslagen versie ⇒ geen balk, het anker blijft', [S().ui.externalSourceUpdates.length, linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion],
+    [0, '2027-03-10T16:00', undefined]);
 
   // (5) De planner slaat de bron op (dezelfde inhoud) ⇒ de balk meldt die versie, ook al blijft het anker gelijk.
   S().switchDocument(s.sourceDocumentId);
@@ -274,6 +285,91 @@ const editSource = (s: App) => {
   await run('6a gesloten:', (s) => s.S().closeDocument(s.sourceDocumentId));
   await run('6b opgeslagen:', (s) => s.S().markAutoSaveVersionSaved(s.sourceDocumentId, sourcePayload(s)));
   await run('6c een ander actief document:', (s) => s.S().switchDocument(s.sourceDocumentId));
+}
+
+// (9) Review #860, punt 2: *Bronbestanden kiezen…* (browser, een bron zonder pad, geen onthouden handvat). De
+// gekozen bron is gelezen; staat ze ook open met niet-opgeslagen wijzigingen, dan dezelfde melding met de knop.
+{
+  const s = await app('project');
+  const { S, a } = s;
+  editSource(s);
+  const g = globalThis as unknown as { window?: Record<string, unknown> };
+  const hadWindow = 'window' in g;
+  const before = g.window;
+  g.window = {
+    ...(before ?? {}),
+    showOpenFilePicker: async () => [{
+      kind: 'file', name: 'Installateur.ifc',
+      getFile: async () => new File([s.disk.text], 'Installateur.ifc', { lastModified: Date.parse('2027-01-02T00:00:00.000Z') }),
+    }],
+  };
+  try {
+    const result = await S().refreshExternalAnchorsFromChosenFiles();
+    eq('9a het gekozen bestand is gelezen, het anker uit het opgeslagen bestand', [result?.sources, linkOf(S, a).anchorDate], [1, '2027-03-05T16:00']);
+    eq('9b de melding met de knop, met de versie van het gekozen bestand', actionsOf(S).map(n => [n.message, n.action.locator, n.action.savedVersion]),
+      [['notifications.externalOpenSourceUnsaved', { kind: 'project', projectId: S().documents.find(d => d.id === s.sourceDocumentId)!.payload!.project.id }, '2027-01-02T00:00:00.000Z']]);
+    const action = actionsOf(S)[0]?.action as Extract<NotificationAction, { kind: 'refreshFromOpenDocument' }> | undefined;
+    if (action) {
+      const { kind: _k, labelKey: _l, ...request } = action;
+      void _k; void _l;
+      await S().refreshExternalAnchorsFromOpenDocument(request);
+    }
+    eq('9c de knop ⇒ het anker uit het geopende document', [linkOf(S, a).anchorDate, linkOf(S, a).sourceVersion], ['2027-03-10T16:00', undefined]);
+  } finally {
+    if (hadWindow) g.window = before; else delete g.window;
+  }
+}
+
+// (10) Review #860, punt 3: een keuze blijft tot de planner haar afhandelt, ook als er meer meldingen zijn dan de
+// stapel toont (drie). Vier keuzes ⇒ drie zichtbaar, één wacht; het kruisje ⇒ de wachtende verschijnt. Een fout
+// die daarna komt, duwt de oudste keuze naar de wachtrij in plaats van haar weg te gooien.
+{
+  const { store } = createAppStoreContext();
+  const S = () => store.getState();
+  const choice = (n: number) => S().notify({
+    severity: 'info', messageKey: 'notifications.externalOpenSourceUnsaved', params: { file: `Bron${n}.ifc` },
+    sticky: true, holdUntilRoom: true, dedupeKey: `keuze-${n}`, replaceOnDedupe: true,
+  });
+  const shown = () => S().ui.notifications.map(n => n.params?.file ?? n.messageKey);
+  const waiting = () => S().ui.waitingNotifications.map(n => n.params?.file);
+  for (const n of [1, 2, 3, 4]) choice(n);
+  eq('10a vier keuzes ⇒ drie zichtbaar, de vierde wacht', [shown(), waiting()], [['Bron1.ifc', 'Bron2.ifc', 'Bron3.ifc'], ['Bron4.ifc']]);
+  choice(4);
+  eq('10b dezelfde keuze opnieuw ⇒ nog steeds één keer', [shown().length, waiting()], [3, ['Bron4.ifc']]);
+  S().dismissNotification(S().ui.notifications[0].id);
+  eq('10c het kruisje ⇒ de wachtende keuze verschijnt', [shown(), waiting()], [['Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc'], []]);
+  S().notify({ severity: 'error', messageKey: 'notifications.saveFailed' });
+  eq('10d een fout ⇒ zichtbaar; de oudste keuze wacht', [shown(), waiting()], [['Bron3.ifc', 'Bron4.ifc', 'notifications.saveFailed'], ['Bron2.ifc']]);
+  S().dismissNotification(S().ui.notifications[2].id);
+  eq('10e de fout weg ⇒ de keuze terug', [shown(), waiting()], [['Bron3.ifc', 'Bron4.ifc', 'Bron2.ifc'], []]);
+
+  // Via de echte route: vier geopende, gewijzigde bronnen (met pad) ⇒ vier knoppen, geen enkele verloren.
+  const s = await app();
+  const { S: T } = s;
+  const extra: string[] = [];
+  for (const n of [2, 3, 4]) {
+    const path = `/projecten/Bron${n}.ifc`;
+    T().switchDocument(s.sourceDocumentId);
+    T().newDocument();
+    T().setProject({ startDate: '2027-03-01', name: `Bron${n}` });
+    const t = T().addTask({ name: 'Werk', time: createDefaultTaskTime('2027-03-01', 5, 'days') });
+    s.store.setState({ filePath: path });
+    const projectId = T().project.id;
+    extra.push(path);
+    T().switchDocument(s.targetDocumentId);
+    T().updateTask(s.b, { externalLinks: [...(T().tasks.find(x => x.id === s.b)!.externalLinks ?? []), {
+      id: `x${n}`, direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-05T16:00', sourceMissing: false,
+      sourceRef: { projectId, taskId: t, filePath: path },
+    }] });
+  }
+  editSource(s);
+  for (const n of T().ui.notifications) T().dismissNotification(n.id);
+  // De nep-lezer geeft voor elk pad de tekst van Installateur; dat volstaat: het gaat om de meldingen.
+  await T().refreshAllExternalAnchors();
+  const files = () => [...T().ui.notifications, ...T().ui.waitingNotifications]
+    .filter(n => n.action?.kind === 'refreshFromOpenDocument').map(n => n.params?.file).sort();
+  eq('10f vier geopende, gewijzigde bronnen ⇒ vier keuzes bewaard', files(), ['Bron2.ifc', 'Bron3.ifc', 'Bron4.ifc', 'Installateur.ifc']);
+  void extra;
 }
 
 if (failures.length > 0) {

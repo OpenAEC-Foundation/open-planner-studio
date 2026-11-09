@@ -496,6 +496,9 @@ export type NotificationAction =
     sourceDocumentId: string;
     locator: ExternalSourceLocator;
     fileName: string;
+    /** De versie van het opgeslagen bestand dat de verversing las (review #860): na de knop is die versie
+     *  afgehandeld, zodat de balk haar niet als nieuw aanbiedt. */
+    savedVersion?: string;
   };
 
 /** Een vertaalde detailregel onder een toast. Anders dan `detail` is deze tekst altijd
@@ -563,6 +566,10 @@ export interface AppNotification {
    *  een openingsmelding waarbij de app data invulde, verving, repareerde of wegliet — zie
    *  `state/openNoticeSticky.ts` voor de regel. Geen fout: de kleur blijft die van een info. */
   sticky?: boolean;
+  /** Een keuze die de planner zelf afhandelt (met de knop of het kruisje), zoals *Rekenen met het geopende
+   *  document* (stap 1.7). Zo'n melding wordt nooit weggeduwd: is de stapel vol, dan wacht ze in
+   *  `UIState.waitingNotifications` en verschijnt ze zodra er ruimte is. Alleen samen met `sticky`. */
+  holdUntilRoom?: boolean;
   /** Een WEIGERING: de app heeft een handeling van de gebruiker niet uitgevoerd (eigenaarsbesluit
    *  2026-10-17). Maak hem alleen via `state/refusalNotice.ts`. Een weigering is rood en blijft
    *  staan, maar duwt bij een volle stapel nooit een echte fout of een blijvende info weg. */
@@ -953,6 +960,8 @@ export interface UIState {
    *  (niet per document): `UIState` wordt als geheel niet geswapt — `collapsedTaskIds` is de énige
    *  uitzondering die per document meegaat, dus `documentContract.ts` blijft ongemoeid. */
   notifications: AppNotification[];
+  /** session — meldingen met `holdUntilRoom` die nog op ruimte in `notifications` wachten, oudste eerst. */
+  waitingNotifications: AppNotification[];
   /** session — eenmalig verzoek om Backstage → Help te openen op een SPECIFIEK artikel ("lees
    *  meer"-link vanuit een melding of het eigenschappenpaneel). Gezet door
    *  `openHelpArticle`, geconsumeerd (en direct weer op `null` gezet) door `HelpPanel` — zelfde
