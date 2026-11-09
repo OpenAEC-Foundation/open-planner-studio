@@ -1,6 +1,6 @@
 import { current, isDraft } from 'immer';
 import type { Task } from '@/types/task';
-import { isCostResource } from '@/types/resource';
+import { costResourceIds } from '@/types/resource';
 import type { AppStoreContext } from './appStore';
 import type { Snapshot } from './snapshot';
 import { sameValue } from '@/utils/sameValue';
@@ -33,8 +33,9 @@ export function recordedDateRuleChange(context: AppStoreContext, task: Task, req
 /**
  * `resourceIds` zonder de kostenresources (#815). Een kostentoewijzing erbij of eraf verandert alleen
  * dát lidmaatschap; ze raakt geen datum, geen werk en geen sturing, dus de opgeslagen datums blijven.
- * Een werk- of materiaalresource blijft wél datumrelevant. Ids van zowel vóór als ná de stap tellen
- * mee, zodat ook het wissen van een kostenresource (cascade) neutraal is.
+ * Een werk- of materiaalresource blijft wél datumrelevant. De oude stand filtert met de kostenresources
+ * van vóór de stap, de nieuwe met die van erna: zo is het wissen van een kostenresource (cascade)
+ * neutraal, en telt een resource die in de stap van COST naar werk gaat en wordt toegewezen wél mee.
  */
 function withoutCostMembership(task: Task, costIds: ReadonlySet<string>): Task {
   if (costIds.size === 0 || !task.resourceIds.some(id => costIds.has(id))) return task;
@@ -48,11 +49,12 @@ export function keepsRecordedDates(context: AppStoreContext): boolean {
   if (!gate?.snapshot.datesAsRecorded || !state.datesAsRecorded) return false;
   const before = gate.snapshot;
   if (before.tasks.length !== state.tasks.length) return false;
-  const costIds = new Set([...before.resources, ...state.resources].filter(isCostResource).map(r => r.id));
+  const oldCostIds = costResourceIds(before.resources);
+  const newCostIds = costResourceIds(state.resources);
   if (!state.tasks.every((task, i) => before.tasks[i].id === task.id
     && changesOnlyDateNeutralFields(
-      withoutCostMembership(gate.expected.get(task.id)!, costIds),
-      withoutCostMembership(task, costIds),
+      withoutCostMembership(gate.expected.get(task.id)!, oldCostIds),
+      withoutCostMembership(task, newCostIds),
     ))) return false;
   const { tasks: _oldTasks, ...oldInput } = planningInputOf(before);
   const { tasks: _newTasks, ...newInput } = planningInputOf(state);

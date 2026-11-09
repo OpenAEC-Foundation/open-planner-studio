@@ -339,6 +339,31 @@ test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vÃ³Ã
     await manage([{ action: 'add', taskId: bId, resourceId: 'work-x', unitsPerDay: 1 }]);
     assertEq(S().datesAsRecorded, false, 'een werktoewijzing verlaat de modus (ongewijzigd gedrag)');
   });
+
+  // Review ronde 2: het kostenlidmaatschap geldt per stand. Een COST-resource zonder toewijzingen die in
+  // dezelfde batch werk wordt en wordt toegewezen, is een werktoewijzing: de poort gaat af. Een cascade-
+  // verwijdering van een kostenresource in een batch blijft neutraal.
+  test('planner_batch: COST naar werk en toewijzen verlaat de modus, kosten wissen met cascade niet', async () => {
+    const batch = async (steps: unknown[]) => {
+      const res = await getTool('planner_batch')!.handler({ steps }, makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId })) as McpToolResult;
+      assert(res.ok, `planner_batch: ${JSON.stringify(res)}`);
+    };
+    const { bId } = costMode('batch-cost-to-work');
+    await batch([
+      { tool: 'planner_manage_resources', args: { actions: [{ action: 'update', id: COST, type: 'LABOR' }] } },
+      { tool: 'planner_manage_assignments', args: { actions: [{ action: 'add', taskId: bId, resourceId: COST, unitsPerDay: 1 }] } },
+    ]);
+    assertEq(S().resources.find((r) => r.id === COST)?.type, 'LABOR', 'voorwaarde: de typewissel lukte');
+    assertEq(S().datesAsRecorded, false, 'een werktoewijzing na de typewissel verlaat de modus');
+
+    const { bId: b2 } = costMode('batch-cost-cascade');
+    await manage([{ action: 'add', taskId: b2, resourceId: COST, costAmount: 5 }]);
+    const before = stand();
+    await batch([
+      { tool: 'planner_manage_resources', args: { actions: [{ action: 'delete', id: COST, cascade: true }] } },
+    ]);
+    assertEq(stand(), before, 'kosten wissen met cascade in een batch houdt de datums');
+  });
 }
 
 await run();
