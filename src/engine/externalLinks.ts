@@ -96,6 +96,13 @@ export function externalSourceKeyOfDoc(source: Pick<ExternalSourceDoc, 'projectI
   return locator ? externalSourceKey(locator) : null;
 }
 
+/** De bronnen zonder pad die na *Bronbestanden kiezen…* nog niet gelezen zijn (review #858): de eerder niet
+ *  gelezen project-id's min die van de gekozen bestanden. */
+export function remainingUnreadSources(unreadProjectIds: readonly string[], readProjectIds: readonly string[]): string[] {
+  const read = new Set(readProjectIds);
+  return unreadProjectIds.filter(projectId => !read.has(projectId));
+}
+
 /** Welke koppelingen één gelezen bron mag verversen bij de balk (*Bekijken*, *Accepteren*): met pad alleen
  *  de koppelingen naar dat pad; zonder pad alleen de koppelingen zonder pad met hetzelfde project-id. */
 export function externalSourceScope(source: Pick<ExternalSourceDoc, 'filePath'>): ExternalSourceMatchScope {

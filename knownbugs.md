@@ -448,11 +448,6 @@ en noem het in je rapport of PR-tekst.
      desktop. Omgekeerd toont het rechtsklikmenu van de relatiecel *Bron vernieuwen* alleen bij een koppeling met pad
      (`src/components/task-grid/FullTaskGrid.tsx`), dus een koppeling zonder pad vernieuwt de planner alleen via
      *Alle externe relaties vernieuwen*. — B
-972. **VERVOLG: de toestemmingsvraag bij vernieuwen komt pas na het lezen van de andere bronnen.**
-     `refreshAllExternalAnchors` leest eerst de bronnen met pad en dan per bron zonder pad het handvat
-     (`requestPermission`). Chromium vraagt voor `requestPermission` een recente gebruikersactie (ongeveer 5 s).
-     Bij veel of trage bronnen kan die tijd om zijn; de bron telt dan als niet gelezen en de planner kiest het
-     bestand opnieuw. Niet gemeten. Mogelijke oplossing: eerst alle toestemmingen vragen, dan pas lezen. — S
 973. **VERVOLG: onthouden handvatten van bronbestanden worden nooit opgeruimd.**
      `src/services/fileAccess/externalSourceHandles.ts` bewaart per project-id één handvat in IndexedDB
      (`ops-external-sources`). Een handvat blijft staan als geen enkele koppeling het project nog gebruikt, en
