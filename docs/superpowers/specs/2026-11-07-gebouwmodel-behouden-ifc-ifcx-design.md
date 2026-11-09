@@ -1,7 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 18 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
-3 van de review van PR #839 door Sol en Terra, §12).
+Status: ontwerp, versie 19 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 tot en met
+4 van de review van PR #839 door Sol en Terra, §12).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -204,17 +204,22 @@ anders niet (`IfcRelSequence` is D, stap 1):
       sleutel). Alleen een item met onbekende sleutels krijgt een merk. De lezer zet het als optioneel veld
       `ifcOrigin` op het domeinitem, met als waarde zijn herkomst in de bron: domein-id, property, pad en positie op het
       moment van lezen (bijvoorbeeld `task-ifc-…/Splits/[0]`). Het merk reist mee met het item: door bewerken
-      (`rescaleSplitGaps` en de andere bewerkingen maken een nieuw item met `{...g}`, en een test eist dat elke bewerking
-      op zo'n lijst het merk houdt), door undo (het staat in de domeindata) en door herstel (hieronder). Een kopie (taak
-      dupliceren, plakken) krijgt geen merk. Maakt een bewerking uit één item er twee, dan dragen beide het merk en stopt
-      opslaan (hieronder). Gelijke
+      (`rescaleSplitGaps` maakt een nieuw item met `{...g}`; bewerkingen die de lijst opnieuw opbouwen, geven het merk
+      expliciet door: `toSplitPieces`/`fromSplitPieces` (`splitEdit.ts:39-67`), `rescaleContourForDuration`
+      (`contourEngine.ts:349-369`) en `buildEditedContourPeriods` (`contourEdit.ts:96`); een test eist dat elke
+      bewerking op zo'n lijst het merk houdt), door undo (het staat in de domeindata) en door herstel (hieronder).
+      Verplaatsen (een onderbreking of periode op de as verschuiven) houdt het merk; een kopie (taak dupliceren, plakken)
+      krijgt geen merk. Maakt een bewerking uit één item er twee (splitsen), dan dragen beide het merk; voegt ze twee items
+      met een merk samen, dan houdt het nieuwe item geen van beide. In beide gevallen stopt opslaan (hieronder). Gelijke
       waarden gelden nooit als bewijs van dezelfde identiteit; de app paart niet op waarden en niet op volgorde.
       De writer zet de onbekende sleutels van merk M (`ifcSource.jsonExtras[M]`) terug in het item met merk M. Een
       gewoon opslaan schrijft het merk zelf niet, dus zonder vreemd deel blijft de uitvoer byte-gelijk aan nu. De
       herstelsnapshot schrijft het wel, als interne sleutel `"opsOrigin"` in het item; de lezer van het herstel zet het
       terug op het domeinitem en laat de sleutel weg. Na opslaan houdt de nieuwe `ifcSource` de sleutels onder M; wijkt
       de herkomst van een item in de nieuwe bron af van M, dan komt het paar (M, nieuwe herkomst) in `idExceptions`
-      (§4.14). `planningCanon` en de MCP-uitvoer negeren `ifcOrigin`.
+      (§4.14). `ifcOrigin` lekt nergens uit: `planningCanon` negeert het, de MCP-tools halen het weg uit wat ze teruggeven
+      (ook de ruwe lijsten van `readTools.ts:539-547`), en geen export (CSV, MSPDI, XER, pool, *Exporteren zonder
+      gebouwmodel*) schrijft het.
   - **Geen veilige koppeling: opslaan stopt.** Elk merk in `ifcSource.jsonExtras` waarvan het domeinobject nog bestaat,
     moet in de uitvoer precies één keer voorkomen. Ontbreekt het (de planner verwijderde de onderbreking met het merk,
     of een bewerking maakte er twee items van), of komt het twee keer voor, dan schrijft de writer niet stil. Hetzelfde
@@ -587,17 +592,21 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   (`tauri-plugin-fs-2.5.1/src/commands.rs:830`); er is geen exclusieve variant en geen harde link. Alleen `writeFile` en
   `open` kennen `createNew`.
   - **Keuze: één smal Rust-commando `place_file_exclusive(from, to)`.** Het plaatst een bestand onder een nieuwe naam en
-    faalt als die naam al bestaat: op Linux `renameat2` met `RENAME_NOREPLACE`, en als het bestandssysteem dat niet kent
-    (`EINVAL`) `link()` + `unlink()`; op macOS `renamex_np` met `RENAME_EXCL`; op Windows `MoveFileExW` zonder
-    `MOVEFILE_REPLACE_EXISTING`. Het controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen
-    een `from` en `to` in dezelfde map, met als `from` of `to` een eigen hulpbestand (`save-<id>.ops-save.tmp` of
-    `<naam>.ops-vorige-<id>`). Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*); de
-    eigenaar moet het goedkeuren (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
-    `writeFile(doel, bytes, { createNew: true })`. Die is exclusief maar niet atomair: een crash tijdens het schrijven
-    laat een half bestand op het pad van de planner. Die route blijft als terugval als het commando meldt dat het
-    bestandssysteem geen exclusieve verplaatsing kent (sommige netwerkmappen), met de grens hieronder.
+    faalt als die naam al bestaat, in één atomaire hernoemstap: op Linux `renameat2` met `RENAME_NOREPLACE`, op macOS
+    `renamex_np` met `RENAME_EXCL`, op Windows `MoveFileExW` zonder `MOVEFILE_REPLACE_EXISTING`. Kent het
+    bestandssysteem zo'n stap niet (`EINVAL`, `ENOTSUP`, bijvoorbeeld op sommige netwerkschijven), dan geeft het de fout
+    *niet ondersteund* en verplaatst het niets. Er is geen terugval met `link()` + `unlink()`: die liet een nieuw bestand
+    verdwijnen dat tussen de twee aanroepen op het doel kwam (Sol, review #839, ronde 4, met echte bestanden). Het
+    commando controleert beide paden tegen de fs-scope van plugin-fs, en het accepteert alleen twee paden in dezelfde
+    map waarvan er precies één een eigen hulpbestand is (`save-<id>.ops-save.tmp` of `<naam>.ops-vorige-<id>`): in stap
+    3 is dat `to`, in stap 4 `from`. Het is het vierde commando en dus publiek oppervlak (AGENTS.md, *Rust is thin*);
+    wrakko keurde het goed onder voorwaarden (§11). Waarom niet alleen plugin-fs: de enige exclusieve route daar is
+    `writeFile(…, { createNew: true })`, en die kan een bestaand doel niet opzij zetten. Geeft het commando *niet
+    ondersteund*, dan laat de app het doel staan en biedt hij *Opslaan als* aan; Opslaan als naar een nieuwe naam maakt
+    het bestand met `createNew`.
   - **Stappen.** 0: het manifest krijgt `pendingReplace: { id, vorigeSha256, pendingSha256 }`, samen met `pendingSha256`
-    (§4.14). 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
+    (§4.14). Kan de app dat niet veilig vastleggen (herstelopslag niet beschikbaar of geblokkeerd), dan stopt opslaan
+    hier: zonder `pendingReplace` vindt herstel de restbestanden niet terug. De melding biedt *Opslaan als* aan. 1: de uitvoer naar `save-<id>.ops-save.tmp` via `createNew` (zoals nu). 2: het doel opnieuw lezen en de
     sha256 van de inhoud vergelijken; anders stopt opslaan (eerste punt hierboven). 3: het doel exclusief verplaatsen
     naar `<naam>.ops-vorige-<id>`. 4: het tijdelijke bestand exclusief verplaatsen naar het doel. 5: de sha256 van
     `.ops-vorige` narekenen. Gelijk aan `vorigeSha256`: verwijderen. Anders (een programma schreef via een open handle in
@@ -612,15 +621,18 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
     `pendingReplace` heeft, zoekt de app alleen naar `save-<id>.ops-save.tmp` en `<naam>.ops-vorige-<id>` met het id uit
     het manifest; een bestand met een ander id raakt hij niet aan. Heeft het doel `pendingSha256` (opslaan was klaar) en
     `.ops-vorige` de `vorigeSha256`, dan verwijdert hij `.ops-vorige`. Ontbreekt het doel (crash tussen stap 3 en 4), dan
-    zet hij `.ops-vorige` exclusief terug en verwijdert hij het tijdelijke bestand; herstel neemt dan de oude bron met de
-    oude `sha256`. Een `.ops-vorige` met een andere sha256 wordt een conflictkopie, met een melding. Het tijdelijke
-    bestand (eigen id, met `createNew` gemaakt) verwijdert hij zodra het doel `sha256` of `pendingSha256` heeft.
+    zet hij `.ops-vorige` exclusief terug; herstel neemt dan de oude bron met de oude `sha256`. Het tijdelijke bestand
+    bevat de volledige nieuwe planning, en de herstelsnapshot kan tot 10 s achterlopen (`useAutoSave.ts:19-27`). Daarom
+    verplaatst de app het exclusief naar `<naam> (herstelkopie <datum tijd>).ifc`, meldt het pad, en laat het staan tot
+    de planner na herstel weer heeft opgeslagen of de kopie zelf weggooit (Sol, ronde 4). Een `.ops-vorige` met een andere sha256 wordt een conflictkopie, met een melding. Het tijdelijke
+    bestand (eigen id, met `createNew` gemaakt) verwijdert hij in de andere gevallen zodra het doel `sha256` of
+    `pendingSha256` heeft.
   - **Garantie.** Met het commando vervangt of verwijdert de app geen versie van het bestand die hij niet zelf
     gecontroleerd heeft: elke versie die op het doelpad stond, staat daarna nog als bestand (op het doel, als
     `.ops-vorige` of als conflictkopie), of opslaan stopt. Grens: een programma dat via een al open handle in het oude
-    bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Met de
-    terugval `createNew` geldt dezelfde exclusiviteit, maar een crash tijdens het schrijven laat een half bestand op het
-    doel; de vorige versie en de volledige uitvoer staan dan als bestand ernaast, en herstel noemt de paden.
+    bestand schrijft na de controle in stap 5 en vóór het verwijderen; dat venster is één systeemaanroep lang. Op een
+    bestandssysteem zonder atomaire exclusieve hernoemstap overschrijft de app het bestand niet; daar is alleen
+    *Opslaan als* mogelijk.
   - Met een vreemd deel is er geen directe terugval: bij een gelinkt doel (symlink, harde link), buiten de fs-scope, of
     als een stap faalt, schrijft de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in
     `atomicWrite.ts:105-116, 155-160` past niet bij deze garantie). Zonder vreemd deel blijft de huidige route.
@@ -696,7 +708,8 @@ overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (
   niet tot "bron ontbreekt".
 - Het manifest is **best effort**, zoals nu: is de herstelopslag niet beschikbaar (`RecoveryStorageUnavailableError`,
   #582, bijvoorbeeld in een sandbox-iframe) of geblokkeerd, dan slaat de app toch op, zonder de twee stappen. Een crash
-  direct daarna kan dan tot "bron ontbreekt" leiden.
+  direct daarna kan dan tot "bron ontbreekt" leiden. Uitzondering: het vervangen van een bestand met een vreemd deel in
+  Tauri stopt zonder `pendingReplace` (§4.10, stap 0).
 - **Uitzonderingen op de id-kaart, per sha256 in het manifest** (Terra ronde 1; Sol en Terra ronde 2: een kaart in de
   herstelsnapshot liep achter, want na opslaan komt er geen nieuwe snapshot). Herstel bouwt de kaart domein-id →
   bron-`#id` opnieuw op door de bron te scannen; de lezer leidt het domein-id af uit de GlobalId of `OPS_TaskIdentity`.
@@ -1071,7 +1084,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand en de exclusieve schrijfroute met `place_file_exclusive` (§4.10; Rust-code apart gereviewd door Sol, §11), herkomstmerken (`ifcOrigin`, §4.2), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -1126,7 +1139,10 @@ daarom staat alles achter de flags tot het compleet is.
     zet hem op de wijzigingslijst; AutoSave en MCP stoppen ook. Verder: een tweede onderbreking toevoegen en de volgorde
     van twee onderbrekingen verwisselen: `vendorReason` blijft bij zijn eigen item; undo na een bewerking en na opslaan
     zet het merk terug; crash en herstel na een bewerking: het merk staat weer op hetzelfde item; een taak dupliceren:
-    de kopie heeft geen merk; twee items met hetzelfde `id` in de bron worden op merk gekoppeld; `Windows` met een extra
+    de kopie heeft geen merk; twee items met hetzelfde `id` in de bron worden op merk gekoppeld; splitsen en samenvoegen
+    van onderbrekingen via `toSplitPieces`/`fromSplitPieces`, een contour bewerken (`buildEditedContourPeriods`) en de duur
+    wijzigen met een contour (`rescaleContourForDuration`): het merk blijft bij zijn item, of opslaan stopt; een
+    onderbreking verplaatsen houdt het merk, kopiëren niet; geen MCP-uitvoer en geen export bevat `ifcOrigin`; `Windows` met een extra
     sleutel bij de tweede
     toewijzing: de eerste toewijzing verwijderen, opslaan: de sleutel staat bij dezelfde toewijzing onder haar nieuwe
     nummer; een test faalt als een JSON-property of lijst in het register geen identiteit heeft;
@@ -1199,9 +1215,13 @@ daarom staat alles achter de flags tot het compleet is.
     (d) crash tussen stap 3 en 4: herstel zet `.ops-vorige` terug en neemt de oude bron; (e) crash na stap 4 vóór het
     opruimen: herstel verwijdert `.ops-vorige` met de juiste sha256 en maakt van een andere een conflictkopie; een
     `.ops-vorige` met een ander id blijft staan; (f) een gelinkt doel, buiten de scope, en een falende stap 3 schrijven
-    niets (geen directe terugval); (g) `place_file_exclusive` weigert een pad buiten de scope, een `from` dat geen eigen
-    hulpbestand is, en een bestaand doel, op Linux, macOS en Windows in CI; (h) de terugval `createNew` weigert een
-    bestaand doel. Browser: een wijziging vóór de controle bij `close()` stopt het opslaan.
+    niets (geen directe terugval); (g) `place_file_exclusive` weigert een pad buiten de scope, twee paden in verschillende
+    mappen, twee paden waarvan geen of allebei een eigen hulpbestand zijn, en een bestaand doel; in CI op Linux met
+    `RENAME_NOREPLACE`, op Linux zonder (gesimuleerd: het commando geeft *niet ondersteund*, verplaatst niets, en de app
+    biedt *Opslaan als*), op macOS en op Windows; het bestaande doel blijft byte-gelijk en de fout komt terug; (h) het
+    tegenvoorbeeld van Sol uit ronde 4: een sync zet tijdens stap 3 een nieuwe versie op het doel; die versie staat na
+    afloop nog op schijf; (i) de herstelopslag is niet beschikbaar: opslaan stopt vóór stap 3; (j) crash tussen stap 3
+    en 4: de nieuwe planning staat als herstelkopie naast het doel, met de melding. Browser: een wijziging vóór de controle bij `close()` stopt het opslaan.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon` (drie hebben
@@ -1254,11 +1274,14 @@ De besluiten zijn genomen (Ethan, 9 november 2026):
 2. **`openaec::activity` meeschrijven**: vervalt; ifcx-explorer leest `openaec::planning::activity` (§5.3).
 3. **Planning van een ander programma in `openaec::planning::`**: openen en bewerken (§5.5).
 
-**Besluit voor de eigenaar of Trias** (vóór de PR in fase 2 die de schrijfroute bouwt):
+**Besluit over het Rust-commando** (wrakko, 9 november 2026): het smalle commando `place_file_exclusive(from, to)`
+(§4.10) mag in fase 2. Het is een technische keuze; de planner merkt alleen dat opslaan veiliger is. Voorwaarden:
 
-- het Rust-commando `place_file_exclusive` (§4.10). Het is nieuw publiek oppervlak, naast de drie commando's van nu.
-  Zonder dit commando blijft alleen de terugval `createNew`: ook exclusief, maar een crash tijdens het schrijven laat
-  een half bestand op het pad van de planner.
+- precies één doel: exclusief plaatsen in dezelfde map, met de scopecontrole; geen algemene bestands-API;
+- tests per platform in de CI (Linux met `RENAME_NOREPLACE`, macOS, Windows): een bestaand doel blijft onaangeroerd en
+  de fout komt terug. Zonder `RENAME_NOREPLACE` weigert het commando, en biedt de app *Opslaan als* (aangepast na ronde 4
+  van de review: de terugval `link()` + `unlink()` is geschrapt, §4.10);
+- Sol reviewt de Rust-code apart in fase 2.
 
 **Afstemmen met Bjorn** (via Ethan, vóór de eerste writer-PR van fase 3; §5.3):
 
@@ -1456,9 +1479,15 @@ geen stap meer een bestaand bestand: een nieuw, smal Rust-commando `place_file_e
 (`RENAME_NOREPLACE`, `RENAME_EXCL`, `MoveFileExW` zonder vervangen), met `createNew` als terugval; staat er weer een
 bestand op het doel, dan stopt opslaan en blijven alle bestanden staan. Het fout- en herstelpad en het opruimen van
 eigen restbestanden (op id en sha256 uit het manifest) zijn beschreven; per route staat de echte garantie. Het commando
-vraagt goedkeuring (§11). De voorproef `classify-v9.py` weigert een `#id` dat twee keer voorkomt en controleert de
+is goedgekeurd onder voorwaarden (wrakko, 9 november 2026, §11). De voorproef `classify-v9.py` weigert een `#id` dat twee keer voorkomt en controleert de
 volgorde van de secties (HEADER met ENDSEC, dan DATA); 13 oude proefbestanden uit ronde 5 zonder `ENDSEC` na de HEADER
 weigert hij nu terecht, de andere 44 geven dezelfde uitkomst.
+
+Na fixronde 4 van de review van PR #839 (versie 19; Sol en Terra, 9 november): de terugval `link()` + `unlink()` is
+geschrapt, want die liet een nieuw bestand verdwijnen; zonder atomaire exclusieve hernoemstap laat de app het doel
+staan en biedt hij *Opslaan als*. Na een crash tussen stap 3 en 4 blijft de nieuwe planning als herstelkopie staan.
+Bewerkingen die een lijst opnieuw opbouwen, geven het herkomstmerk door, en MCP en export laten het weg. Het commando
+eist dat precies één pad een eigen hulpbestand is. Zonder vastgelegd `pendingReplace` stopt het vervangen vóór stap 3.
 
 ## 13. Bronnen
 
