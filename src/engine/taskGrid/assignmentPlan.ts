@@ -137,6 +137,13 @@ export function planTaskAssignmentSet({
     if (token.curve !== undefined && !RESOURCE_CURVES.includes(token.curve)) {
       return failure('assignmentCurve', taskId, token);
     }
+    // Zelfde regel als `validateAssignmentTokens` (issue #815): de soort van de bron moet passen bij
+    // het doeltype, en zonder soort hoort een bedrag alleen op een kostenresource.
+    const targetIsCost = isCostResource(resourceIndex.get(token.resourceId));
+    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== targetIsCost
+      : token.costAmount !== undefined && !targetIsCost) {
+      return failure('assignmentKindMismatch', taskId, token.resourceId);
+    }
     const desiredCurve = token.curve === 'UNIFORM' ? undefined : token.curve;
     if (desiredResourceIds.has(token.resourceId)) {
       return failure('assignmentDuplicateResource', taskId, token.resourceId);

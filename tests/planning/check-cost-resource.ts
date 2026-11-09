@@ -75,6 +75,26 @@ function steering(task: Task) {
 }
 const KEPT = { gaps: [LEVELING_GAP], floor: '2026-06-10T17:00', anchor: '2026-06-01T08:00', walks: 1 };
 
+/** Een rasteromgeving voor één cel *Toegewezen resources* van `taskId` (klembordtests J en L). */
+function gridEnv(S: () => ReturnType<Store['getState']>, taskId: string): TaskGridClipboardEnvironment {
+  const column = taskColumnId('assignment.resources');
+  const s = S();
+  const byTask = new Map<string, ResourceAssignment[]>();
+  for (const x of s.assignments) byTask.set(x.taskId, [...(byTask.get(x.taskId) ?? []), x]);
+  const descriptors = buildTaskColumnRegistry({ projectId: s.project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [] });
+  const task = s.tasks.find(t => t.id === taskId)!;
+  const rowIndex = createTaskGridRowIndex([{ kind: 'task', rowKey: taskId, task, depth: 0, dimmed: false }]);
+  const selection = updateGridSelection(createEmptyGridSelection(), { rowKey: taskId, columnId: column }, rowIndex, [column], 'replace');
+  return {
+    selection, rowIndex, columns: [column], descriptors: new Map(descriptors.map(d => [d.id, d])), dateNotation: 'dmy',
+    context: {
+      projectId: s.project.id, tasksById: new Map(s.tasks.map(t => [t.id, t])),
+      relationIndex: buildTaskRelationIndex(s.tasks, s.sequences, s.cpmResult), assignmentsByTaskId: byTask,
+      resourcesById: new Map(s.resources.map(r => [r.id, r])), baselinesById: new Map(), scheduleStale: s.scheduleStale,
+    },
+  };
+}
+
 function intent(taskId: string, tokens: readonly TaskAssignmentToken[]): AssignmentSetIntent {
   return { kind: 'assignment-set', taskId, columnId: taskColumnId('assignment.resources'), tokens };
 }
@@ -413,24 +433,7 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   const { store, S, t1: a, t2: b, cost, labor } = fixture();
   // Alleen de kostenresource op A, zodat het plakken geen werktoewijzing meeneemt.
   S().unassignResource(costOf(S, a, labor)!.id);
-  const column = taskColumnId('assignment.resources');
-  const env = (taskId: string): TaskGridClipboardEnvironment => {
-    const s = S();
-    const byTask = new Map<string, ResourceAssignment[]>();
-    for (const x of s.assignments) byTask.set(x.taskId, [...(byTask.get(x.taskId) ?? []), x]);
-    const descriptors = buildTaskColumnRegistry({ projectId: s.project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [] });
-    const task = s.tasks.find(t => t.id === taskId)!;
-    const rowIndex = createTaskGridRowIndex([{ kind: 'task', rowKey: taskId, task, depth: 0, dimmed: false }]);
-    const selection = updateGridSelection(createEmptyGridSelection(), { rowKey: taskId, columnId: column }, rowIndex, [column], 'replace');
-    return {
-      selection, rowIndex, columns: [column], descriptors: new Map(descriptors.map(d => [d.id, d])), dateNotation: 'dmy',
-      context: {
-        projectId: s.project.id, tasksById: new Map(s.tasks.map(t => [t.id, t])),
-        relationIndex: buildTaskRelationIndex(s.tasks, s.sequences, s.cpmResult), assignmentsByTaskId: byTask,
-        resourcesById: new Map(s.resources.map(r => [r.id, r])), baselinesById: new Map(), scheduleStale: s.scheduleStale,
-      },
-    };
-  };
+  const env = (taskId: string) => gridEnv(S, taskId);
   S().assignResource(a, cost, 1, undefined, 1250.55);
   S().assignResource(b, cost, 1, undefined, 800);
   S().runCPM();
@@ -569,6 +572,104 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
     const t = pasted(S, roots, 'Vergunning');
     eq('K5 werk op een geplakte mijlpaal: overgeslagen', S().assignments.filter(x => x.taskId === t.id), []);
     eq('K5 mijlpaal: melding', skippedNotices(S), [1]);
+  }
+}
+
+// ── L. Rasterklembord: de soort van de bronresource moet passen bij het doeltype (review 4) ───────────
+// Het raster weigert onverenigbare invoer met een celfout, zoals `assignmentMilestoneWork`. De cel
+// *Toegewezen resources* draagt per token de soort van de bron. Past die niet bij het type van de
+// doelresource, dan weigert het plakken met `assignmentKindMismatch` en verandert er niets.
+{
+  type Get = () => ReturnType<Store['getState']>;
+  /** Plakt de cel van `from` op `to` (eventueel in een ander document) en geeft de foutcodes terug. */
+  const pasteCell = (S: Get, from: string, to: string, beforePaste?: () => void): string[] => {
+    const copied = copyTaskGridSelection(gridEnv(S, from));
+    if (!copied.ok) throw new Error(JSON.stringify(copied));
+    beforePaste?.();
+    const plan = planTaskGridPaste(copied.value, gridEnv(S, to));
+    if (!plan.ok) return plan.errors.map(e => e.code);
+    const result = S().runGridMutation([plan.value]);
+    return result.ok ? [] : result.errors.map(e => e.code);
+  };
+  function twoDocs(sourceType: 'COST' | 'LABOR', targetType: 'COST' | 'LABOR') {
+    const store = createAppStore();
+    const S = () => store.getState();
+    S().setProject({ startDate: '2026-06-01' });
+    S().addTask({ name: 'Bron', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addTask({ name: 'Doel', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addResource({ name: 'Wisselend', type: 'LABOR', description: '', maxUnits: 1 });
+    const base = serializeRecoverySnapshot(S());
+    S().applyLoadedProject(readIFC(base), { filePath: null, recompute: true });
+    const target = S().activeDocumentId;
+    const R = S().resources[0].id;
+    if (targetType === 'COST') S().updateResource(R, { type: 'COST' });
+    S().newDocument();
+    S().applyLoadedProject(readIFC(base), { filePath: null, recompute: true });
+    if (sourceType === 'COST') S().updateResource(R, { type: 'COST' });
+    const bron = S().tasks.find(t => t.name === 'Bron')!.id;
+    const doel = S().tasks.find(t => t.name === 'Doel')!.id;
+    return { S, target, R, bron, doel };
+  }
+  const amounts: [string, number | undefined][] = [['1250,55', 1250.55], ['0', 0], ['leeg', undefined]];
+  for (const [label, amount] of amounts) {
+    // L1: kosten → werk over twee documenten.
+    {
+      const { S, target, R, bron, doel } = twoDocs('COST', 'LABOR');
+      S().assignResource(bron, R, 1, undefined, amount);
+      const errors = pasteCell(S, bron, doel, () => S().switchDocument(target));
+      eq(`L1 ${label} kosten → werk tussen documenten: celfout`, errors, ['assignmentKindMismatch']);
+      eq(`L1 ${label} kosten → werk: geen toewijzing gemaakt`, S().assignments.filter(a => a.taskId === doel), []);
+    }
+    // L3: binnen één document na een typewissel van kosten naar werk.
+    {
+      const { S, R, bron, doel } = twoDocs('COST', 'COST');
+      S().assignResource(bron, R, 1, undefined, amount);
+      const errors = pasteCell(S, bron, doel, () => {
+        S().unassignResource(costOf(S, bron, R)!.id);
+        S().updateResource(R, { type: 'LABOR' });
+      });
+      eq(`L3 ${label} zelfde document, kosten → werk: celfout`, errors, ['assignmentKindMismatch']);
+      eq(`L3 ${label} zelfde document: geen toewijzing gemaakt`, S().assignments.filter(a => a.taskId === doel), []);
+    }
+    // L5: kosten → kosten: het bedrag komt mee.
+    {
+      const { S, target, R, bron, doel } = twoDocs('COST', 'COST');
+      S().assignResource(bron, R, 1, undefined, amount);
+      eq(`L5 ${label} kosten → kosten: plakken lukt`, pasteCell(S, bron, doel, () => S().switchDocument(target)), []);
+      eq(`L5 ${label} kosten → kosten: bedrag mee`, S().assignments.filter(a => a.taskId === doel).map(a => a.costAmount ?? 'leeg'), [amount ?? 'leeg']);
+    }
+  }
+  // L2: werk (inzet 1) → kosten over twee documenten.
+  {
+    const { S, target, R, bron, doel } = twoDocs('LABOR', 'COST');
+    S().assignResource(bron, R, 1);
+    eq('L2 werk → kosten tussen documenten: celfout', pasteCell(S, bron, doel, () => S().switchDocument(target)), ['assignmentKindMismatch']);
+    eq('L2 werk → kosten: geen toewijzing gemaakt', S().assignments.filter(a => a.taskId === doel), []);
+  }
+  // L4: binnen één document na een typewissel van werk naar kosten.
+  {
+    const { S, R, bron, doel } = twoDocs('LABOR', 'LABOR');
+    S().assignResource(bron, R, 1);
+    const errors = pasteCell(S, bron, doel, () => {
+      S().unassignResource(costOf(S, bron, R)!.id);
+      S().updateResource(R, { type: 'COST' });
+    });
+    eq('L4 zelfde document, werk → kosten: celfout', errors, ['assignmentKindMismatch']);
+  }
+  // L6: werk → werk: plakken lukt.
+  {
+    const { S, target, R, bron, doel } = twoDocs('LABOR', 'LABOR');
+    S().assignResource(bron, R, 1);
+    eq('L6 werk → werk: plakken lukt', pasteCell(S, bron, doel, () => S().switchDocument(target)), []);
+    eq('L6 werk → werk: toewijzing staat er', S().assignments.filter(a => a.taskId === doel).map(a => a.resourceId), [R]);
+  }
+  // L7: een token zonder soort (tekst, ouder token) met een bedrag op een werkresource: geweigerd.
+  {
+    const { S, R, doel } = twoDocs('LABOR', 'LABOR');
+    const r = S().runGridMutation([intent(doel, [{ resourceId: R, unitsPerDay: 1, costAmount: 12 }])]);
+    eq('L7 bedrag zonder soort op werk: geweigerd', r.ok ? [] : r.errors.map(e => e.code), ['assignmentKindMismatch']);
+    const ok = S().runGridMutation([intent(doel, [{ resourceId: R, unitsPerDay: 1 }])]);
+    eq('L7 zonder soort en zonder bedrag op werk: lukt', ok.ok, true);
   }
 }
 

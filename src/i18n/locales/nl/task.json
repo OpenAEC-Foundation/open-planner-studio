@@ -212,6 +212,7 @@
       "assignmentCurve": "Kies een bekende belastingscurve.",
       "assignmentCostResource": "Een kostenresource heeft alleen een bedrag: geen inzet, curve of werk.",
       "assignmentMilestoneWork": "Op een mijlpaal kan alleen een kostenresource staan.",
+      "assignmentKindMismatch": "Deze toewijzing past niet bij deze resource: de resource is hier een ander soort (kosten of werk).",
       "assignmentTaskNotFound": "De taak van deze toewijzing bestaat niet meer.",
       "assignmentTaskUnavailable": "Toewijzingen zijn op deze taak niet te bewerken.",
       "tsvQuote": "De geplakte tekst bevat niet-afgesloten aanhalingstekens.",

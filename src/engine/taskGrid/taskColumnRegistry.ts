@@ -14,6 +14,7 @@ import type {
   GridWriteIntent,
   RecordedTaskAxis,
   TaskCellWarning,
+  TaskAssignmentResourceKind,
   TaskAssignmentToken,
   TaskColumnCategory,
   TaskColumnContext,
@@ -608,7 +609,14 @@ function assignmentTokens(task: Task, ctx: TaskColumnContext): TaskAssignmentTok
     curve: assignment.curve,
     // Het bedrag reist mee bij plakken naar een andere taak (issue #815).
     ...(assignment.costAmount !== undefined ? { costAmount: assignment.costAmount } : {}),
+    ...resourceKindOf(assignment, ctx),
   }));
+}
+
+/** De soort van de resource van deze toewijzing, als die resource bekend is (issue #815). */
+function resourceKindOf(assignment: Pick<ResourceAssignment, 'resourceId'>, ctx: TaskColumnContext): { resourceKind?: TaskAssignmentResourceKind } {
+  const resource = ctx.resourcesById.get(assignment.resourceId);
+  return resource ? { resourceKind: isCostResource(resource) ? 'cost' : 'work' } : {};
 }
 
 /** Is dit een toewijzing aan een kostenresource (issue #815)? Die heeft geen inzet, curve of werk:
@@ -674,6 +682,15 @@ function validateAssignmentTokens(
       || token.remainingWorkMinutes !== undefined)) {
       return failure('assignmentCostResource', raw);
     }
+    // De soort van de bron moet passen bij het type van de doelresource (issue #815). Zonder soort:
+    // een bedrag hoort alleen op een kostenresource, zodat er nooit stil een bedrag verdwijnt.
+    if (token.resourceKind !== undefined && token.resourceKind !== 'cost' && token.resourceKind !== 'work') {
+      return failure(code, raw);
+    }
+    if (token.resourceKind !== undefined ? (token.resourceKind === 'cost') !== isCost
+      : token.costAmount !== undefined && !isCost) {
+      return failure('assignmentKindMismatch', token.resourceId);
+    }
     // Een mijlpaal draagt alleen kostentoewijzingen (besluit Ethan 2026-11-07).
     if (task.isMilestone && !isCost) return failure('assignmentMilestoneWork', token.resourceId);
     if (resourceIds.has(token.resourceId)) return failure('assignmentDuplicateResource', token.resourceId);
@@ -700,6 +717,7 @@ function validateAssignmentTokens(
       unitsPerDay: token.unitsPerDay,
       ...(token.curve ? { curve: token.curve } : {}),
       ...(typeof token.costAmount === 'number' ? { costAmount: token.costAmount } : {}),
+      ...(token.resourceKind !== undefined ? { resourceKind: token.resourceKind } : {}),
       // Het werk reist mee bij plakken naar een andere taak.
       ...(token.remainingWorkMinutes !== undefined ? { remainingWorkMinutes: token.remainingWorkMinutes } : {}),
     });
@@ -777,6 +795,7 @@ function assignmentWorkTokens(task: Task, ctx: TaskColumnContext): TaskAssignmen
     ...(isCostAssignment(assignment, ctx)
       ? {}
       : { remainingWorkMinutes: assignment.remainingWorkMinutes ?? remaining * assignment.unitsPerDay }),
+    ...resourceKindOf(assignment, ctx),
   }));
 }
 

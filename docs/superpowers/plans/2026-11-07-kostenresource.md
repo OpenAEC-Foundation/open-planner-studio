@@ -80,6 +80,10 @@ Bewust anders of preciezer dan hieronder, met de reden:
   doelresource, of als een geplakte mijlpaal werk zou dragen; de resource gaat ook uit `resourceIds`. Eén melding
   (`notifications.assignmentsSkippedOnPaste`) noemt het aantal; de rest van de plakactie gaat door. Toets: blok K in
   `check-cost-resource.ts`.
+- **Rasterklembord (review 4, besluit orkestrator 2026-11-09).** Elk toewijzingstoken draagt `resourceKind`
+  (`cost`/`work`) van de bronresource. Past die niet bij het doeltype, dan weigert het raster met de celfout
+  `assignmentKindMismatch` (geen overslaan met melding: in het raster is een celfout de regel). Een token zonder
+  soort met een bedrag op een werkresource wordt ook geweigerd. `planTaskAssignmentSet` toetst hetzelfde. Toets: blok L.
 
 ## 1. Datamodel
 

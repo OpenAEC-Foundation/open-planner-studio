@@ -110,7 +110,15 @@ export interface TaskAssignmentToken {
   remainingWorkMinutes?: number;
   /** Alleen bij een kostenresource (issue #815): het begrote bedrag, zodat het bij plakken meereist. */
   costAmount?: number;
+  /** De soort van de bronresource toen de cel gelezen werd (issue #815). Het klembord is app-globaal:
+   *  in een ander document (of na een typewissel) kan dezelfde id een ander type hebben. Past de soort
+   *  niet bij het doeltype, dan weigert de validatie met `assignmentKindMismatch`. Afwezig (getypte
+   *  tekst, een ouder token) ⇒ alleen het doeltype telt. */
+  resourceKind?: TaskAssignmentResourceKind;
 }
+
+/** Kosten of werk (werk = alles behalve een kostenresource, ook materiaal). */
+export type TaskAssignmentResourceKind = 'cost' | 'work';
 
 /** Eén al geparseerde domeinwrite. Paste groepeert deze writes, maar mag zichzelf niet nesten. */
 export type GridWriteIntent = CellEditIntent | RelationSetIntent | AssignmentSetIntent;

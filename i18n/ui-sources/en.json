@@ -1691,6 +1691,7 @@
     "taskGrid.validation.assignmentCurve": "a78a9aa9f2269398",
     "taskGrid.validation.assignmentCostResource": "00862b468e2d3d24",
     "taskGrid.validation.assignmentMilestoneWork": "5ce6d92827779cc9",
+    "taskGrid.validation.assignmentKindMismatch": "80af86c012ce7fd1",
     "taskGrid.validation.assignmentTaskNotFound": "27a8f80846f68457",
     "taskGrid.validation.assignmentTaskUnavailable": "62f1f72e6d686252",
     "taskGrid.validation.tsvQuote": "08d103f3e2149dee",

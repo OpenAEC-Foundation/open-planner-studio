@@ -212,6 +212,7 @@
       "assignmentCurve": "Choose a known load curve.",
       "assignmentCostResource": "A cost resource only has an amount: no units, curve or work.",
       "assignmentMilestoneWork": "A milestone can only have cost resources.",
+      "assignmentKindMismatch": "This assignment does not fit this resource: the resource is a different kind here (cost or work).",
       "assignmentTaskNotFound": "The task of this assignment no longer exists.",
       "assignmentTaskUnavailable": "Assignments cannot be edited on this task.",
       "tsvQuote": "The pasted text has unbalanced quotes.",
