@@ -6,14 +6,14 @@
 
 1. Read the target before editing: planner_list_documents, planner_get_project_info, planner_get_project_overview.
 2. Before tasks: planner_update_project (name, `startDate`, user-given `endDate`); planner_get_calendars → planner_update_calendar.
-3. Milestones, then WBS, durations, relationships, constraints: one planner_batch (planner_add_tasks by `tempId`, then planner_add_dependencies).
+3. Milestones, then WBS, durations, relationships, constraints: one planner_batch.
 4. planner_manage_resources, then all assignments in one planner_manage_assignments.
 5. Read: planner_get_project_info, planner_get_critical_path, planner_get_task (float), planner_get_resource_histogram (load).
 6. planner_save_baseline only after user approval, before work; later only for a real scope change, beside the first. No `statusDate` while building.
 
 ## Recalculation
 
-- No recalculate tool; no-op calls don't recalculate. Never force one with a dummy change: ask the user.
+- No recalculate tool; no-op won't recalculate. No dummy change: ask the user.
 - Report only numbers read after your last change.
 - `datesAsRecorded`: say so with every date; change nothing without the user's explicit consent.
 - What-if: in a planner_duplicate_document copy.
@@ -40,7 +40,7 @@
 
 - Only for hard external dates from the user (permit, closure, connection); ≤ a few % of tasks. Never to place work ("in May"): use links or duration.
 - `hard: true` only on the user's explicit request.
-- Watch a date (e.g. handover) with `deadline`: moves nothing, gives negative float once it no longer fits.
+- Watch a date (e.g. handover) with `deadline`: moves nothing, gives negative float once it no longer fits (a late constraint too).
 
 ## Calendars
 

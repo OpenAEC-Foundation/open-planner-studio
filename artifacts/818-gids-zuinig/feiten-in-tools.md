@@ -66,7 +66,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 45 | Werkelijke datums niet na de statusdatum; einde niet vóór start; `null` wist | `planner_update_tasks` | tools/list, schema `actualStart`, `actualFinish` |
 | 46 | Een samenvattingstaak krijgt geen voortgang | `planner_update_tasks` | tools/list, desc |
 | 47 | Geweigerde regels: de geldige gaan door; één taak kan zowel bijgewerkt als geweigerd zijn | `planner_update_tasks`, `planner_batch` | tools/list, desc van beide |
-| 48 | Duurwijziging op een lopende taak: gedaan werk blijft (`progressAdjusted`); korter dan gedaan ⇒ geweigerd | `planner_update_tasks` | tools/list, desc. De skill progress-update houdt de rekenregel "nieuwe duur = gedaan + rest" |
+| 48 | Duurwijziging op een lopende taak: gedaan werk blijft (`progressAdjusted`); korter dan gedaan ⇒ geweigerd | `planner_update_tasks` | tools/list, desc. De skill progress-update houdt de rekenregel "nieuwe duur = gedaan + rest", en sinds ronde 10 ook "`completion` = gedaan ÷ huidige duur" en "het gedane werk blijft" (proef k2: zonder die regel rekende de agent het percentage tegen de nieuwe duur) |
 | 49 | Afwijkingen per taak: `late`/`early`/`new`/`dropped`, delta's in werkdagen | `planner_compare_baseline` | tools/list, desc |
 | 50 | Delta's tellen in werkdagen van de huidige projectkalender | `planner_compare_baseline` | tools/list, desc |
 | 51 | Zonder actieve baseline weigeren vergelijken en vertraging analyseren | `planner_compare_baseline`, `planner_analyze_delay` | tools/list, desc ("refused without one"). De skill progress-update houdt de vraag aan de gebruiker |
