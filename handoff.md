@@ -45,6 +45,15 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
   `/home/aia09/.t3/worktrees/open-planner-studio/feat-804-fase1a`; `node_modules` is een link naar
   `kb-tests/node_modules` (package-lock gelijk op het versienummer na).
 - 2026-11-09: handoff van fase 0 naar het archief; verplaatstest in §10 aangescherpt (VERVOLG 1 uit ronde 2 van #863).
+- 2026-11-09: Trias zette de workflow-patch erop (`0231a2d91`, eigen stap "Samenvatting", `if: always()`); verdeling
+  1a/1b/1c akkoord; eisen: flag uit = main byte-gelijk (met test), melding kort en neutraal; knownbugs 1011–1015.
+- 2026-11-09: bouwer (expert, Opus xhigh, geen subagents) klaar. Draft PR #864, flag `ifcForeignContent`. Bytes-route op
+  de open-routes, Worker met terugval, `ifcSource` zonder fase-2-velden, lezer volgt `selectPlanning` (afwijking 6 weg),
+  opslaan geweigerd met een vreemd deel, §4.9 punt 6 (afwijking 7), knownbug 1007 opgelost. Nieuw
+  `check-ifc-foreign-open.ts` (481 checks, 66 eigen bestanden byte-gelijk met en zonder flag). Poort
+  `check-xer-chunk-boundary.ts` staat ook een luie XER-import in `ifcReadWithXer.ts` toe (door Sol na te kijken).
+  Open vragen van de bouwer: rode weigermelding (`refusalNotice`), onbekend schema zonder `IfcProduct` opent zoals nu
+  (afwijking van §4.11), een kopie deelt de bron en houdt de weigering.
 
 ## Vervolgpunten uit ronde 2 van #863 (comment op de PR)
 
@@ -55,6 +64,6 @@ lezen, dan schrijven, dan de controles vóór opslaan. Zolang de flag uit staat,
 
 ## Volgende stappen
 
-1. Bouwer (expert, Opus xhigh) bouwt 1a; draft PR met groene CI.
+1. CI groen op #864; melden aan Trias met de drie open vragen.
 2. Review door Sol (Trias start hem), fixrondes, merge.
 3. Dan 1b en 1c op eigen branches vanaf `main`.
