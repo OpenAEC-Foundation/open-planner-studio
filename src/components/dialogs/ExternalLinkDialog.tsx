@@ -224,7 +224,10 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
 
   useEffect(() => {
     let cancelled = false;
-    if (manual || !sourceFile) { setSource(null); setSourceTaskId(''); return; }
+    // Een andere keuze: de vorige bron geldt niet meer (review #859 ronde 1). Anders bleef *Koppeling toevoegen*
+    // met de vorige bron, taak en het vorige anker beschikbaar zolang de nieuwe bron gelezen werd.
+    setSource(null);
+    if (manual || !sourceFile) { setSourceTaskId(''); setLoading(false); return; }
     setLoading(true);
     void parseExternalSource(sourceFile, buildImportLabels(tCommon)).then((res) => {
       if (cancelled || !externalLinkDialogDocumentIsCurrent(
@@ -243,7 +246,9 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   useEffect(() => {
     let cancelled = false;
     setSiteReadFailed(false);
-    if (!siteMode || manual || !siteFileId) { setSiteSource(null); return; }
+    // Een andere keuze: de vorige bron geldt niet meer (zie het effect hierboven).
+    setSiteSource(null);
+    if (!siteMode || manual || !siteFileId) { setSiteLoading(false); return; }
     setSiteLoading(true);
     void parseExternalSiteSource(siteFileId, buildImportLabels(tCommon)).then((res) => {
       if (cancelled || !externalLinkDialogDocumentIsCurrent(openedDocumentId, useAppStore.getState().activeDocumentId)) return;
@@ -267,6 +272,11 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   }, [existing, siteFiles]);
 
   const srcTask = source?.tasks.find((x) => x.id === sourceTaskId) ?? null;
+  // De gelezen bron hoort bij de keuze van nu, en er wordt niets meer gelezen of gekozen (review #859 ronde 1):
+  // een gekozen bestand (browser), het gekozen project op de site, of het gekozen pad.
+  const sourceIsCurrent = !loading && !choosing && !siteLoading && (picked
+    ? source === picked.source
+    : siteMode ? source?.siteFileId === siteFileId : source?.filePath === sourceFile);
   // Hetzelfde anker als "Bron vernieuwen" (`sourceAnchorDate`): een rekendatum, niet de getoonde
   // start; voor een externe opvolger de laatst toelaatbare datum van de brontaak.
   const anchorPreview = srcTask ? sourceAnchorDate({ direction, relType }, srcTask, source ?? undefined) : manualAnchor;
@@ -280,7 +290,7 @@ export function ExternalLinkDialog({ taskId, linkId, onClose }: { taskId: string
   const canAdd = !!ownerTask && (!linkId || !!existing) && parsedLag !== null && (manual
     ? manualProjectId.trim() !== '' && manualTaskId.trim() !== '' && manualAnchor.trim() !== ''
       && ((!sideChanged && !manualIdentityChanged) || manualAnchorTouched)
-    : !!srcTask);
+    : !!srcTask && sourceIsCurrent);
   const hourMode = ownerHourMode;
 
   /** Bewaart de koppeling en sluit; `false` = niets bewaard (dan blijft de dialoog open). */

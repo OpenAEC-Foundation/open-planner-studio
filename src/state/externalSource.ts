@@ -8,6 +8,7 @@ import type { Task } from '@/types/task';
 import { parseOpenedFile, readFormatInput, type FormatIO } from '@/services/formatRegistry';
 import { activeImportResult, type ImportLabels, type ImportResult } from '@/services/importTypes';
 import { ensureUniqueImportIds } from '@/services/importNormalize';
+import type { SiteSourceFile } from '@/services/fileAccess/siteBackend';
 import { payloadFromImport } from './documentContract';
 import { applyRecordedDatesOnLoad, prepareLoadedPayload } from './documentActivation';
 
@@ -124,22 +125,12 @@ export async function readExternalSourceFile(file: ExternalSourceFile, labels?: 
   };
 }
 
-/** Een bron die de app van de site las (`open(id)`, stap 1.9): het id, de naam, de gelezen versie en de inhoud. */
-export interface ExternalSiteSourceFile {
-  id: string;
-  name: string;
-  /** De gelezen versie (`file.version`). Afwezig ⇒ onbekend; de koppeling krijgt dan geen versie. */
-  version?: string;
-  text(): Promise<string>;
-  bytes(): Promise<Uint8Array>;
-}
-
 /**
  * Leest een bron van de site (stap 1.9), alleen-lezen, door dezelfde laadgrens als openen. De bron heeft geen
  * pad: de koppeling herkent haar op het vaste id op de site (`siteFileId`). De versie is de versie op de site;
  * de leestijd is nu. Fouten gaan naar de aanroeper.
  */
-export async function readExternalSiteSource(file: ExternalSiteSourceFile, labels?: ImportLabels): Promise<ExternalSourceRead> {
+export async function readExternalSiteSource(file: SiteSourceFile, labels?: ImportLabels): Promise<ExternalSourceRead> {
   const io: FormatIO = { readTextFile: () => file.text(), readFile: () => file.bytes() };
   const input = await readFormatInput(file.name, io);
   const { filePath: _path, ...read } = externalSourceFromImport(activeImportResult(await parseOpenedFile(input, labels)), file.name);

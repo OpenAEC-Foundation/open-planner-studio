@@ -604,6 +604,41 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('11s zonder site ⇒ de bronnen op de site tellen als niet gelezen, de ankers blijven', [none.sources, none.unread, anchorOf(a).anchorDate], [0, 3, '2027-03-05T16:00']);
 }
 
+// (13) Review #859 ronde 1: een koppeling met een site-id die nog een oud pad draagt, leest via de site; het oude
+// pad houdt haar niet tegen bij vernieuwen. En: geeft `open(id)` een oudere versie dan `versions(id)` (de site loopt
+// achter), dan handelt de app de gelezen versie af en leest de volgende controle opnieuw.
+{
+  const base = link('x', '/oud/Bron.ifc', '2027-03-05T16:00', '1');
+  const oldPathSiteLink: ExternalLink = { ...base, sourceRef: { ...base.sourceRef, siteFileId: 's1' } };
+  const task: Task = { ...sourceTask('2027-03-05T16:00'), id: 'own', name: 'Eigen', externalLinks: [oldPathSiteLink] };
+  const siteDoc: ExternalSourceDoc = { projectId: 'installateur', siteFileId: 's1', tasks: [sourceTask('2027-03-10T16:00')], version: '2' };
+  const res = refreshFromSources([task], [siteDoc], new Set());
+  eq('13a een site-koppeling met een oud, niet gelezen pad wordt ververst uit de site', [
+    res.refreshed, res.tasks[0].externalLinks![0].anchorDate, res.tasks[0].externalLinks![0].sourceVersion,
+  ], [1, '2027-03-10T16:00', '2']);
+
+  const { store, S, a } = plan();
+  const siteBase = link('x', undefined, '2027-03-05T16:00', '1');
+  S().updateTask(a, { externalLinks: [{ ...siteBase, sourceRef: { ...siteBase.sourceRef, siteFileId: 's1' } }] });
+  S().runCPM();
+  let openVersion = '1';
+  let openFinish = '2027-03-05T16:00';
+  let reads = 0;
+  store.setState({
+    externalSiteSourceVersion: async () => ({ version: '2' }),
+    parseExternalSiteSource: async (id: string) => {
+      reads++;
+      return { projectId: 'installateur', projectName: 'Installateur', siteFileId: id, fileName: 'Bron.ifc', tasks: [sourceTask(openFinish)], version: openVersion };
+    },
+  });
+  await S().checkExternalSources();
+  eq('13b versions zegt 2, open geeft nog 1 zonder wijziging ⇒ gelezen, geen balk', [reads, S().ui.externalSourceUpdates.length], [1, 0]);
+  openVersion = '2';
+  openFinish = '2027-03-10T16:00';
+  await S().checkExternalSources();
+  eq('13c daarna geeft open versie 2 met een ander anker ⇒ opnieuw gelezen, een balk', [reads, S().ui.externalSourceUpdates.map(u => u.key)], [2, ['site:s1']]);
+}
+
 // (12) Een bron van de site: geen pad, het site-id en de versie op de site.
 {
   const { S } = plan();

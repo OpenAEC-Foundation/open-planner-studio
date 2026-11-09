@@ -778,7 +778,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // Op de site telt de versie uit `versions(id)`: de balk vergelijkt daarmee, ook als `open` geen versie gaf.
       const readVersion = locator.kind === 'site' ? version : src.version ?? version;
       if (changedLinks === 0) {
-        settledSourceVersions.set(sourceKey(documentId, key), readVersion);
+        // Afgehandeld is de versie die de app echt las. Gaf `open(id)` een andere versie dan `versions(id)` (de
+        // site loopt achter), dan leest de volgende controle opnieuw (review #859 ronde 1).
+        settledSourceVersions.set(sourceKey(documentId, key), src.version ?? version);
         settled.add(key);
         continue;
       }
