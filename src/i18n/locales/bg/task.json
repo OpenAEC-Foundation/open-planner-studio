@@ -604,6 +604,10 @@
     "pickRecent": "Избери скорошен файл",
     "noRecent": "Няма скорошни файлове",
     "readOnlyNote": "Изходният файл се зарежда само за четене — той не се отваря като документ.",
+    "siteProject": "Проект в сайта",
+    "siteProjectPick": "Изберете проект в сайта",
+    "siteNoProjects": "Няма други проекти в сайта.",
+    "siteListFailed": "Сайтът не върна списък с проекти.",
     "loadingTasks": "Зареждане на задачи…",
     "sourceTask": "Изходна задача",
     "direction": "Посока",
@@ -645,11 +649,17 @@
     "newVersion_other": "{{file}} има нова версия, запазена на {{saved}}. Променят се {{count}} връзки.",
     "newVersionAuthor_one": "{{file}} има нова версия, запазена на {{saved}} (автор: {{author}}). Променя се {{count}} връзка.",
     "newVersionAuthor_other": "{{file}} има нова версия, запазена на {{saved}} (автор: {{author}}). Променят се {{count}} връзки.",
+    "newVersionSite_one": "{{file}} има нова версия в сайта (версия {{version}}). Променя се {{count}} връзка.",
+    "newVersionSite_other": "{{file}} има нова версия в сайта (версия {{version}}). Променят се {{count}} връзки.",
+    "newVersionSiteAuthor_one": "{{file}} има нова версия в сайта (версия {{version}}, запазена от {{author}}). Променя се {{count}} връзка.",
+    "newVersionSiteAuthor_other": "{{file}} има нова версия в сайта (версия {{version}}, запазена от {{author}}). Променят се {{count}} връзки.",
     "review": "Преглед",
     "later": "По-късно",
     "reviewTitle": "Нова версия на {{file}}",
     "reviewSaved": "Запазено на {{saved}}.",
     "reviewSavedAuthor": "Запазено на {{saved}}. Автор: {{author}}.",
+    "reviewSavedSite": "Версия {{version}} в сайта.",
+    "reviewSavedSiteAuthor": "Версия {{version}} в сайта, запазена от {{author}}.",
     "reviewReading": "Четене на източника…",
     "reviewReadFailed": "Източникът не можа да бъде прочетен. Графикът остава непроменен.",
     "reviewNoChanges": "Вече не се променя нито една връзка. Графикът остава непроменен.",
@@ -673,7 +683,14 @@
     "reviewAccept": "Приемане",
     "edit": "Редактирай междупроектната връзка…",
     "refreshSource": "Обнови източника",
-    "deleteRelation": "Изтрий зависимостта"
+    "deleteRelation": "Изтрий зависимостта",
+    "chooseSourceFile": "Избор на изходен файл…",
+    "chooseSourceFiles": "Избор на изходни файлове…",
+    "chooseSourceFailed": "Този файл не може да бъде прочетен.",
+    "unreadSources_one": "{{count}} източник не е прочетен.",
+    "unreadSources_other": "{{count}} източника не са прочетени.",
+    "chosenUnmatched_one": "{{count}} избран файл не принадлежи към нито една междупроектна връзка в този план.",
+    "chosenUnmatched_other": "{{count}} избрани файла не принадлежат към нито една междупроектна връзка в този план."
   },
   "split": {
     "gapDays_one": "{{count}} работен ден прекъсване",
@@ -691,5 +708,11 @@
     "timeHint": "Празно: началото или завършването на работния ден. С час: точно този момент.",
     "later": "15 минути по-късно",
     "earlier": "15 минути по-рано"
+  },
+  "dependents": {
+    "title": "Зависими проекти",
+    "successor": "Последовател там",
+    "predecessor": "Предшественик там",
+    "anchor": "разчита на {{date}}"
   }
 }

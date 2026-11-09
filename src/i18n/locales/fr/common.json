@@ -292,7 +292,10 @@
     "minuteModelConverted_one": "{{document}} : {{count}} tâche a un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
     "minuteModelConverted_many": "{{document}} : {{count}} de tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
     "minuteModelConverted_other": "{{document}} : {{count}} tâches ont un autre début ou une autre fin après la conversion ; le plus grand écart est de {{days}} jours ouvrés. Ctrl+Z rétablit les dates enregistrées.",
-    "minuteModelCalendarRepaired": "Le calendrier « {{calendar}} » a été réparé : la fin ou la pause ne correspondait pas aux horaires de travail enregistrés."
+    "minuteModelCalendarRepaired": "Le calendrier « {{calendar}} » a été réparé : la fin ou la pause ne correspondait pas aux horaires de travail enregistrés.",
+    "dependentProjectsFound": "Projets dépendants : {{projects}}. Liens vers ce projet : {{links}}.",
+    "dependentProjectsNone": "Aucun projet trouvé ayant une relation externe avec ce planning.",
+    "dependentProjectsFailed": "Impossible de lire le dossier des projets dépendants."
   },
   "scheduleErrors": {
     "cycle": "Dépendance circulaire entre les tâches : {{path}}",
@@ -1800,5 +1803,15 @@
   "fileDrop": {
     "title": "Déposez pour ouvrir",
     "subtitle": "Fichier de projet ou import"
+  },
+  "dependentAnchorWarning": {
+    "title": "Les ancrages d'autres projets se resserrent",
+    "body": "Ces projets dépendent d'une date de ce planning. Après l'enregistrement, ils obtiennent une date plus serrée dès qu'ils actualisent leurs relations externes.",
+    "colProject": "Projet",
+    "colTheirTask": "Leur tâche",
+    "colOwnTask": "Tâche ici",
+    "colAnchor": "Ancrage : ancien → nouveau",
+    "saveAnyway": "Enregistrer quand même",
+    "cancel": "Annuler"
   }
 }

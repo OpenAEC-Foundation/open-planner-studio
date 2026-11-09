@@ -174,7 +174,10 @@
     "msProjectLostFixedCosts_other": "{{count}} 个任务的固定成本未导入。",
     "msProjectLostResourceRates_other": "{{count}} 个资源的费率未导入。",
     "minuteModelConverted_other": "{{document}}: {{count}} 个任务在转换后的开始或完成日期不同; 最大偏移为 {{days}} 个工作日. 按 Ctrl+Z 恢复已记录的日期.",
-    "minuteModelCalendarRepaired": "日历 “{{calendar}}” 已修复: 结束时间或休息时间与已保存的工作时间不符."
+    "minuteModelCalendarRepaired": "日历 “{{calendar}}” 已修复: 结束时间或休息时间与已保存的工作时间不符.",
+    "dependentProjectsFound": "依赖项目：{{projects}}。指向此项目的链接：{{links}}。",
+    "dependentProjectsNone": "未找到与此进度计划有外部关系的项目。",
+    "dependentProjectsFailed": "无法读取依赖项目所在的文件夹。"
   },
   "scheduleErrors": {
     "cycle": "任务之间存在循环依赖：{{path}}",
@@ -1636,5 +1639,15 @@
   "fileDrop": {
     "title": "松开即可打开",
     "subtitle": "项目文件或导入"
+  },
+  "dependentAnchorWarning": {
+    "title": "其他项目的锚点变得更紧",
+    "body": "这些项目依赖于此进度计划中的一个日期。保存后，它们在刷新外部关系时会得到更紧的日期。",
+    "colProject": "项目",
+    "colTheirTask": "对方任务",
+    "colOwnTask": "本方任务",
+    "colAnchor": "锚点：旧 → 新",
+    "saveAnyway": "仍然保存",
+    "cancel": "取消"
   }
 }

@@ -608,6 +608,10 @@
     "pickRecent": "Изаберите недавну датотеку",
     "noRecent": "Нема недавних датотека",
     "readOnlyNote": "Изворна датотека се учитава само за читање — не отвара се као документ.",
+    "siteProject": "Пројекат на сајту",
+    "siteProjectPick": "Изаберите пројекат на сајту",
+    "siteNoProjects": "На сајту нема других пројеката.",
+    "siteListFailed": "Сајт није вратио листу пројеката.",
     "loadingTasks": "Учитавање задатака…",
     "sourceTask": "Изворни задатак",
     "direction": "Смер",
@@ -651,11 +655,19 @@
     "newVersionAuthor_one": "{{file}} има нову верзију, сачувану {{saved}} (аутор: {{author}}). Мења се {{count}} веза.",
     "newVersionAuthor_few": "{{file}} има нову верзију, сачувану {{saved}} (аутор: {{author}}). Мењају се {{count}} везе.",
     "newVersionAuthor_other": "{{file}} има нову верзију, сачувану {{saved}} (аутор: {{author}}). Мења се {{count}} веза.",
+    "newVersionSite_one": "{{file}} има нову верзију на сајту (верзија {{version}}). Мења се {{count}} веза.",
+    "newVersionSite_few": "{{file}} има нову верзију на сајту (верзија {{version}}). Мењају се {{count}} везе.",
+    "newVersionSite_other": "{{file}} има нову верзију на сајту (верзија {{version}}). Мења се {{count}} веза.",
+    "newVersionSiteAuthor_one": "{{file}} има нову верзију на сајту (верзија {{version}}, сачувао/ла: {{author}}). Мења се {{count}} веза.",
+    "newVersionSiteAuthor_few": "{{file}} има нову верзију на сајту (верзија {{version}}, сачувао/ла: {{author}}). Мењају се {{count}} везе.",
+    "newVersionSiteAuthor_other": "{{file}} има нову верзију на сајту (верзија {{version}}, сачувао/ла: {{author}}). Мења се {{count}} веза.",
     "review": "Прегледај",
     "later": "Касније",
     "reviewTitle": "Нова верзија {{file}}",
     "reviewSaved": "Сачувано {{saved}}.",
     "reviewSavedAuthor": "Сачувано {{saved}}. Аутор: {{author}}.",
+    "reviewSavedSite": "Верзија {{version}} на сајту.",
+    "reviewSavedSiteAuthor": "Верзија {{version}} на сајту, сачувао/ла: {{author}}.",
     "reviewReading": "Учитавање извора…",
     "reviewReadFailed": "Извор није могао да се учита. План остаје непромењен.",
     "reviewNoChanges": "Ниједна веза се више не мења. План остаје непромењен.",
@@ -682,7 +694,16 @@
     "reviewAccept": "Прихвати",
     "edit": "Уреди спољну везу…",
     "refreshSource": "Освежи извор",
-    "deleteRelation": "Избриши зависност"
+    "deleteRelation": "Избриши зависност",
+    "chooseSourceFile": "Изабери изворну датотеку…",
+    "chooseSourceFiles": "Изабери изворне датотеке…",
+    "chooseSourceFailed": "Ова датотека не може да се прочита.",
+    "unreadSources_one": "{{count}} извор није прочитан.",
+    "unreadSources_few": "{{count}} извора нису прочитана.",
+    "unreadSources_other": "{{count}} извора није прочитано.",
+    "chosenUnmatched_one": "{{count}} изабрана датотека не припада ниједној спољној вези у овом плану.",
+    "chosenUnmatched_few": "{{count}} изабране датотеке не припадају ниједној спољној вези у овом плану.",
+    "chosenUnmatched_other": "{{count}} изабраних датотека не припада ниједној спољној вези у овом плану."
   },
   "split": {
     "gapDays_one": "{{count}} радни дан прекид",
@@ -704,5 +725,11 @@
     "timeHint": "Празно: почетак или крај радног дана. Са унетим временом: тачно тај тренутак.",
     "later": "Четврт сата касније",
     "earlier": "Четврт сата раније"
+  },
+  "dependents": {
+    "title": "Зависни пројекти",
+    "successor": "Наследник тамо",
+    "predecessor": "Претходник тамо",
+    "anchor": "рачуна на {{date}}"
   }
 }

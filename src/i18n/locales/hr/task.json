@@ -608,6 +608,10 @@
     "pickRecent": "Odaberite nedavnu datoteku",
     "noRecent": "Nema nedavnih datoteka",
     "readOnlyNote": "Izvorna datoteka učitava se samo za čitanje — ne otvara se kao dokument.",
+    "siteProject": "Projekt na stranici",
+    "siteProjectPick": "Odaberite projekt na stranici",
+    "siteNoProjects": "Na stranici nema drugih projekata.",
+    "siteListFailed": "Stranica nije vratila popis projekata.",
     "loadingTasks": "Učitavanje zadataka…",
     "sourceTask": "Izvorni zadatak",
     "direction": "Smjer",
@@ -651,11 +655,19 @@
     "newVersionAuthor_one": "{{file}} ima novu verziju, spremljenu {{saved}} (autor: {{author}}). Mijenja se {{count}} međuzavisnost.",
     "newVersionAuthor_few": "{{file}} ima novu verziju, spremljenu {{saved}} (autor: {{author}}). Mijenjaju se {{count}} međuzavisnosti.",
     "newVersionAuthor_other": "{{file}} ima novu verziju, spremljenu {{saved}} (autor: {{author}}). Mijenja se {{count}} međuzavisnosti.",
+    "newVersionSite_one": "{{file}} ima novu verziju na stranici (verzija {{version}}). Mijenja se {{count}} međuzavisnost.",
+    "newVersionSite_few": "{{file}} ima novu verziju na stranici (verzija {{version}}). Mijenjaju se {{count}} međuzavisnosti.",
+    "newVersionSite_other": "{{file}} ima novu verziju na stranici (verzija {{version}}). Mijenja se {{count}} međuzavisnosti.",
+    "newVersionSiteAuthor_one": "{{file}} ima novu verziju na stranici (verzija {{version}}, spremio/la: {{author}}). Mijenja se {{count}} međuzavisnost.",
+    "newVersionSiteAuthor_few": "{{file}} ima novu verziju na stranici (verzija {{version}}, spremio/la: {{author}}). Mijenjaju se {{count}} međuzavisnosti.",
+    "newVersionSiteAuthor_other": "{{file}} ima novu verziju na stranici (verzija {{version}}, spremio/la: {{author}}). Mijenja se {{count}} međuzavisnosti.",
     "review": "Pregledaj",
     "later": "Kasnije",
     "reviewTitle": "Nova verzija {{file}}",
     "reviewSaved": "Spremljeno {{saved}}.",
     "reviewSavedAuthor": "Spremljeno {{saved}}. Autor: {{author}}.",
+    "reviewSavedSite": "Verzija {{version}} na stranici.",
+    "reviewSavedSiteAuthor": "Verzija {{version}} na stranici, spremio/la: {{author}}.",
     "reviewReading": "Učitavanje izvora…",
     "reviewReadFailed": "Izvor se nije mogao učitati. Plan ostaje nepromijenjen.",
     "reviewNoChanges": "Nijedna se međuzavisnost više ne mijenja. Plan ostaje nepromijenjen.",
@@ -682,7 +694,16 @@
     "reviewAccept": "Prihvati",
     "edit": "Uredi međuzavisnost projekata…",
     "refreshSource": "Osvježi izvor",
-    "deleteRelation": "Ukloni ovisnost"
+    "deleteRelation": "Ukloni ovisnost",
+    "chooseSourceFile": "Odaberi izvornu datoteku…",
+    "chooseSourceFiles": "Odaberi izvorne datoteke…",
+    "chooseSourceFailed": "Ova se datoteka ne može pročitati.",
+    "unreadSources_one": "{{count}} izvor nije pročitan.",
+    "unreadSources_few": "{{count}} izvora nisu pročitana.",
+    "unreadSources_other": "{{count}} izvora nije pročitano.",
+    "chosenUnmatched_one": "{{count}} odabrana datoteka ne pripada nijednoj međuzavisnosti projekata u ovom planu.",
+    "chosenUnmatched_few": "{{count}} odabrane datoteke ne pripadaju nijednoj međuzavisnosti projekata u ovom planu.",
+    "chosenUnmatched_other": "{{count}} odabranih datoteka ne pripada nijednoj međuzavisnosti projekata u ovom planu."
   },
   "split": {
     "gapDays_one": "Prekid: {{count}} radni dan",
@@ -704,5 +725,11 @@
     "timeHint": "Prazno: početak ili završetak radnog dana. Uz navedeno vrijeme: točno taj trenutak.",
     "later": "Četvrt sata kasnije",
     "earlier": "Četvrt sata ranije"
+  },
+  "dependents": {
+    "title": "Ovisni projekti",
+    "successor": "Nasljednik tamo",
+    "predecessor": "Prethodnik tamo",
+    "anchor": "računa na {{date}}"
   }
 }

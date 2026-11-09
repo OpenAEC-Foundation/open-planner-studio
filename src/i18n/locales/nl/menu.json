@@ -219,7 +219,9 @@
     "screenColorsMissingField": "Dit veld bestaat niet in dit project. Werksoort wordt tijdelijk gebruikt.",
     "screenColorsHint": "Buiten Kritiek pad markeert een rode rand het kritieke pad.",
     "addLayout": "Nieuwe layout",
-    "toggleRelations": "Relatielijnen"
+    "toggleRelations": "Relatielijnen",
+    "relationFindDependents": "Afhankelijke projecten zoeken…",
+    "relationFindDependentsHint": "Zoek in een map naar projecten met een externe relatie naar deze planning."
   },
   "ifc": {
     "title": "IFC-editor",

@@ -326,7 +326,10 @@
       "capacitySteps_one": "{{count}} resource met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "capacitySteps_other": "{{count}} resources met capaciteitsstappen: alleen de vaste capaciteit gaat mee",
       "projectDetails": "Auteur en bedrijf van het project"
-    }
+    },
+    "dependentProjectsFound": "Afhankelijke projecten: {{projects}}. Koppelingen naar dit project: {{links}}.",
+    "dependentProjectsNone": "Geen projecten gevonden met een externe relatie naar deze planning.",
+    "dependentProjectsFailed": "De map met afhankelijke projecten kon niet worden gelezen."
   },
   "scheduleErrors": {
     "cycle": "Kringverwijzing tussen taken: {{path}}",
@@ -1888,5 +1891,15 @@
   "settingsDelay": {
     "title": "Instellingen niet geladen",
     "body": "Je instellingen konden niet van de server worden geladen. Je werkt nu met de standaardinstellingen. Zodra je instellingen weer beschikbaar zijn, worden ze automatisch toegepast."
+  },
+  "dependentAnchorWarning": {
+    "title": "Ankers van andere projecten worden krapper",
+    "body": "Deze projecten rekenen op een datum uit deze planning. Na het opslaan krijgen ze een krappere datum zodra ze hun externe relaties vernieuwen.",
+    "colProject": "Project",
+    "colTheirTask": "Taak daar",
+    "colOwnTask": "Taak hier",
+    "colAnchor": "Anker: oud → nieuw",
+    "saveAnyway": "Toch opslaan",
+    "cancel": "Annuleren"
   }
 }

@@ -88,8 +88,8 @@ const checks = externalClientChecks(
 );
 for (const check of checks) test(`SDK-client: ${check.name}`, check.fn);
 
-test('tools/list telt 41 tools (feit in AGENTS.md en .claude/rules/mcp.md)', () => {
-  assertEq(getTools().length, 41, 'aantal planner_*-tools');
+test('tools/list telt 42 tools (feit in AGENTS.md en .claude/rules/mcp.md)', () => {
+  assertEq(getTools().length, 42, 'aantal planner_*-tools');
 });
 
 test('afsluiten', async () => {

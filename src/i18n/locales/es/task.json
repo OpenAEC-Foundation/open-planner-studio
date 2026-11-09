@@ -608,6 +608,10 @@
     "pickRecent": "Elegir un archivo reciente",
     "noRecent": "Sin archivos recientes",
     "readOnlyNote": "El archivo de origen se lee solo en modo lectura — no se abre como documento.",
+    "siteProject": "Proyecto en el sitio",
+    "siteProjectPick": "Elija un proyecto en el sitio",
+    "siteNoProjects": "No hay otros proyectos en el sitio.",
+    "siteListFailed": "El sitio no devolvió ninguna lista de proyectos.",
     "loadingTasks": "Cargando tareas…",
     "sourceTask": "Tarea de origen",
     "direction": "Dirección",
@@ -651,11 +655,19 @@
     "newVersionAuthor_one": "{{file}} tiene una nueva versión, guardada el {{saved}} (autor: {{author}}). Cambia {{count}} enlace.",
     "newVersionAuthor_many": "{{file}} tiene una nueva versión, guardada el {{saved}} (autor: {{author}}). Cambian {{count}} enlaces.",
     "newVersionAuthor_other": "{{file}} tiene una nueva versión, guardada el {{saved}} (autor: {{author}}). Cambian {{count}} enlaces.",
+    "newVersionSite_one": "{{file}} tiene una nueva versión en el sitio (versión {{version}}). Cambia {{count}} enlace.",
+    "newVersionSite_many": "{{file}} tiene una nueva versión en el sitio (versión {{version}}). Cambian {{count}} enlaces.",
+    "newVersionSite_other": "{{file}} tiene una nueva versión en el sitio (versión {{version}}). Cambian {{count}} enlaces.",
+    "newVersionSiteAuthor_one": "{{file}} tiene una nueva versión en el sitio (versión {{version}}, guardada por {{author}}). Cambia {{count}} enlace.",
+    "newVersionSiteAuthor_many": "{{file}} tiene una nueva versión en el sitio (versión {{version}}, guardada por {{author}}). Cambian {{count}} enlaces.",
+    "newVersionSiteAuthor_other": "{{file}} tiene una nueva versión en el sitio (versión {{version}}, guardada por {{author}}). Cambian {{count}} enlaces.",
     "review": "Revisar",
     "later": "Más tarde",
     "reviewTitle": "Nueva versión de {{file}}",
     "reviewSaved": "Guardada el {{saved}}.",
     "reviewSavedAuthor": "Guardada el {{saved}}. Autor: {{author}}.",
+    "reviewSavedSite": "Versión {{version}} en el sitio.",
+    "reviewSavedSiteAuthor": "Versión {{version}} en el sitio, guardada por {{author}}.",
     "reviewReading": "Leyendo el origen…",
     "reviewReadFailed": "No se pudo leer el origen. La planificación no cambia.",
     "reviewNoChanges": "Ya no cambia ningún enlace. La planificación no cambia.",
@@ -682,7 +694,16 @@
     "reviewAccept": "Aceptar",
     "edit": "Editar relación externa…",
     "refreshSource": "Actualizar origen",
-    "deleteRelation": "Eliminar relación"
+    "deleteRelation": "Eliminar relación",
+    "chooseSourceFile": "Elegir archivo de origen…",
+    "chooseSourceFiles": "Elegir archivos de origen…",
+    "chooseSourceFailed": "No se puede leer este archivo.",
+    "unreadSources_one": "{{count}} origen no leído.",
+    "unreadSources_many": "{{count}} orígenes no leídos.",
+    "unreadSources_other": "{{count}} orígenes no leídos.",
+    "chosenUnmatched_one": "{{count}} archivo elegido no corresponde a ningún enlace externo de este plan.",
+    "chosenUnmatched_many": "{{count}} archivos elegidos no corresponden a ningún enlace externo de este plan.",
+    "chosenUnmatched_other": "{{count}} archivos elegidos no corresponden a ningún enlace externo de este plan."
   },
   "split": {
     "gapDays_one": "{{count}} día laborable de pausa",
@@ -704,5 +725,11 @@
     "timeHint": "Vacío: el inicio o el fin del día laborable. Con una hora: exactamente ese momento.",
     "later": "Un cuarto de hora más tarde",
     "earlier": "Un cuarto de hora antes"
+  },
+  "dependents": {
+    "title": "Proyectos dependientes",
+    "successor": "Sucesora allí",
+    "predecessor": "Predecesora allí",
+    "anchor": "usa {{date}}"
   }
 }

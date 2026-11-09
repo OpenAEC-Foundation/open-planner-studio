@@ -144,6 +144,8 @@ export function createDefaultUI(): UIState {
     showMoveProjectDialog: false,
     externalSourceUpdates: [],
     externalSourceReview: null,
+    dependentProjects: [],
+    pendingDependentAnchorWarning: null,
     showBaselineOverlay: true,
     showProgressLine: true,
     showStatusDateLine: true,
