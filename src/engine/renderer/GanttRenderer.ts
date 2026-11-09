@@ -35,7 +35,7 @@ import {
   BASELINE_BLEND_PX, baselineDiamonds, baselineDiamondSize, baselineSpanX, baselineStripPieces, paintBaselineStrip, widenBars, widenShortRuns,
   type BaselineBar, type BaselineMilestone, type BaselineSlot,
 } from './baselineStrip';
-import { canvasFont, type TextRole } from './textRoles';
+import { canvasFont, TEXT_ROLE_PX, type TextRole } from './textRoles';
 import { shownStart, shownFinish, floatBandEnd } from '@/utils/taskDates';
 
 /** `firstRowIndexByTask` per rijenlijst (die komt bevroren uit de store): de renderer wordt per
@@ -371,6 +371,14 @@ export class GanttRenderer {
    *  stuk en een pauze op het scherm hetzelfde betekenen als onder de muis. Per `render()` geleegd;
    *  een balk die niet getekend is (buiten beeld) staat er niet in en valt terug op de volle extent. */
   private splitSegmentsByTask = new Map<string, { x1: number; x2: number }[]>();
+  /** Tekstvlak (canvas-px) van de naam die de laatste render RECHTS ACHTER een balk tekende
+   *  (`drawOutsideBarName`), per RIJ-index, net als `baselineHits`: bij groeperen op resource staat
+   *  dezelfde taak in meer rijen, elk met een eigen naam. Zo herkennen klik, dubbelklik en tooltip
+   *  ook de naam (`getTaskNameAt`). Alleen het vlak van de tekst zelf, niet de hele rij: boven en
+   *  onder de naam blijven balkgrepen, baselinestrook en achtergrond bereikbaar. */
+  private outsideNameSpans = new Map<number, { left: number; right: number; top: number; bottom: number }>();
+  /** Rij-index die `drawTaskBars` nu tekent; `drawOutsideBarName` bewaart zijn tekstvlak daaronder. */
+  private drawingRowIndex = -1;
   /** Balk-, accent- en baselinehoogte binnen één rij (`rowGeometry.ts`) — één bron voor tekenen,
    *  hit-testen en de sleep-duurbadge. */
   private readonly bar: BarLayout;
@@ -1299,6 +1307,7 @@ export class GanttRenderer {
 
   private drawTaskBars(): void {
     this.baselineHits.clear();
+    this.outsideNameSpans.clear();
     const { barHeight, barOffset } = this.bar;
 
     // Path tracing: betrokken taken krijgen de trace-tint (driving-keten sterker), de rest dimt.
@@ -1321,6 +1330,7 @@ export class GanttRenderer {
       }
       const task = row.task;
       const isSelected = this.opts.selectedTaskIds.includes(task.id);
+      this.drawingRowIndex = i;
 
       let overrideColor: string | undefined;
       let dimmed = false;
@@ -1370,7 +1380,7 @@ export class GanttRenderer {
   }
 
   /** Taaknaam in een balk van `width` breed, afgekapt met een ellips; de clip op de balk blijft als
-   *  vangnet staan (`ellipsize` hoort er al binnen te passen). Gedeeld door taak- en hammockbalk. */
+   *  vangnet staan (`ellipsize` hoort er al binnen te passen). */
   private drawBarName(name: string, color: string, x1: number, y: number, width: number, height: number, textY: number, indent = 0, split?: { x: number; color: string }): void {
     const ctx = this.ctx;
     // Zelfde rol als de rastertekst links (`.task-grid-core`: `--text-body`).
@@ -1403,16 +1413,31 @@ export class GanttRenderer {
    * anders loopt die pijllijn dwars door de naam. Volledig tot `OUTSIDE_LABEL_MAX` px (daarna een
    * ellips) en nooit voorbij de canvasrand. Een smalle rand in de achtergrondkleur houdt de tekst
    * leesbaar boven de spelingsband en de relatiepijlen.
+   *
+   * Is er rechts te weinig ruimte (balk vlak bij of voorbij de rand, door inzoomen, schuiven of een
+   * lange balk), dan schuift de naam mee naar links tot hij tegen de canvasrand staat, over het eind
+   * van de balk heen. Hij springt dus niet naar de linkerkant van de balk (geen wisselen tussen links
+   * en rechts, eigenaar 10-10-2026) en verdwijnt ook niet. De afdruk valt wel terug naar links
+   * (`printPreview.drawBarLabel`); daar schuift niets.
    */
   private drawOutsideBarName(name: string, color: string, barRight: number, textY: number): void {
     const ctx = this.ctx;
-    const x = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
-    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, this.opts.canvasWidth - x - 4);
+    const edge = this.opts.canvasWidth - 4;
+    const preferredX = barRight + GanttRenderer.ARROW_STUB + OUTSIDE_LABEL_GAP;
+    const maxWidth = Math.min(OUTSIDE_LABEL_MAX, edge - 4);
     if (maxWidth < 16) return;
     ctx.font = this.font('body');
     ctx.textBaseline = 'middle';
     const label = this.ellipsize(name, maxWidth);
     if (!label) return;
+    const labelWidth = ctx.measureText(label).width;
+    // Geen ondergrens: ligt de balk links buiten beeld, dan gaat de naam mee (`labelWidth` is
+    // hooguit `edge - 4`, dus de rechtergrens houdt de naam nooit links van x = 4 vast).
+    const x = Math.min(preferredX, edge - labelWidth);
+    // Tekst staat op `textBaseline = 'middle'`: het tekstvlak ligt een halve lettergrootte (+1 px)
+    // boven en onder `textY`.
+    const half = Math.ceil(Math.round(TEXT_ROLE_PX.body * (this.opts.fontScale ?? 1)) / 2) + 1;
+    this.outsideNameSpans.set(this.drawingRowIndex, { left: x, right: x + labelWidth, top: textY - half, bottom: textY + half });
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineWidth = OUTSIDE_LABEL_KNOCKOUT;
@@ -1768,7 +1793,8 @@ export class GanttRenderer {
       ctx.stroke();
     }
 
-    if (width > 40) this.drawBarName(task.name, this.colors.text, x1, y, width, height, y + height * 0.2);
+    // Net als bij samenvattingstaken staat de naam altijd achter de dunne balk.
+    this.drawOutsideBarName(task.name, this.colors.text, x1 + width, y + height / 2);
   }
 
   private drawSummaryBar(task: Task, y: number, height: number, isSelected: boolean, overrideColor?: string): void {
@@ -2531,6 +2557,20 @@ export class GanttRenderer {
   getTaskAtY(canvasY: number): Task | null {
     const row = this.getRowAtY(canvasY);
     return row?.kind === 'task' ? row.task : null;
+  }
+
+  /** Hit test: staat `canvasX`/`canvasY` in het tekstvlak van de naam die de laatste render rechts
+   *  achter de balk tekende (`drawOutsideBarName`)? Alleen voor selectie, openen, menu en tooltip;
+   *  sleep- en relatiegrepen lezen deze naam bewust niet (`getTaskBarBounds`, `getRelationSourceAt`).
+   *  Boven en onder de tekst geeft hij niets, ook binnen de rij. */
+  getTaskNameAt(canvasX: number, canvasY: number): Task | null {
+    const rowIndex = this.getRowIndex(canvasY);
+    const row = this.rows[rowIndex];
+    if (row?.kind !== 'task') return null;
+    const task = row.task;
+    const span = this.outsideNameSpans.get(rowIndex);
+    return span && canvasX >= span.left && canvasX <= span.right && canvasY >= span.top && canvasY <= span.bottom
+      ? task : null;
   }
 
   /** Hit test: get the row index for a Y position */
