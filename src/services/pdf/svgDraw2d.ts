@@ -148,7 +148,7 @@ export class SvgRecordingDraw2D implements Draw2D {
     const baselineY = y + this.metrics.baselineShift(this.font, this.textBaseline);
     const anchor = this.textAlign === 'center' ? 'middle' : this.textAlign === 'right' ? 'end' : 'start';
     const x0 = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
-    const size = fontPx(this.font);
+    const size = this.fontSize(this.font);
     this.ops.push({
       k: 'text', x, y: baselineY, text, font: this.fontId(this.font), fill: this.fillStyle, anchor,
       // Ruime omhullende: boven de basislijn één letterhoogte, eronder een derde.
@@ -158,6 +158,13 @@ export class SvgRecordingDraw2D implements Draw2D {
 
   measureText(text: string): { width: number } {
     return { width: this.metrics.measure(text, this.font) };
+  }
+
+  private readonly fontSizes = new Map<string, number>();
+  private fontSize(font: string): number {
+    let size = this.fontSizes.get(font);
+    if (size === undefined) { size = fontPx(font); this.fontSizes.set(font, size); }
+    return size;
   }
 
   private fontId(font: string): number {

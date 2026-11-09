@@ -211,6 +211,7 @@ export interface ReportTextMetrics {
  */
 export function createReportTextMetrics(fonts: ReportMeasureFonts): ReportTextMetrics {
   const widths = new Map<string, Map<string, number>>();
+  const shifts = new Map<string, { middle: number; bottom: number }>();
   return {
     measure(text, font) {
       let perFont = widths.get(font);
@@ -225,8 +226,17 @@ export function createReportTextMetrics(fonts: ReportMeasureFonts): ReportTextMe
       return width;
     },
     baselineShift(font, baseline) {
-      const { bold, size } = parseReportFont(font);
-      return reportBaselineShift(fonts, bold, size, baseline);
+      if (baseline === 'alphabetic') return 0;
+      let perFont = shifts.get(font);
+      if (!perFont) {
+        const { bold, size } = parseReportFont(font);
+        perFont = {
+          middle: reportBaselineShift(fonts, bold, size, 'middle'),
+          bottom: reportBaselineShift(fonts, bold, size, 'bottom'),
+        };
+        shifts.set(font, perFont);
+      }
+      return perFont[baseline];
     },
   };
 }

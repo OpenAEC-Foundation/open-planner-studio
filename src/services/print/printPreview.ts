@@ -561,15 +561,77 @@ function customCellText(row: PrintRow, spec: PrintTableColumn | undefined): stri
   return task ? (spec?.cells?.get(task.id) ?? '') : '';
 }
 
+/** De celteksten die alleen van de taak en de opmaak afhangen (niet van een toewijzing). */
+type TaskOwnCellTexts = Pick<TaskTableCellTexts, 'wbs' | 'duration' | 'start' | 'end' | 'complete'>;
+
+const NO_TASK_CELLS: TaskOwnCellTexts = { wbs: '', duration: '', start: '', end: '', complete: '' };
+
+/**
+ * Celteksten per BEVROREN taak, per opmaak (notatie, taal, kalenders). De datumcellen kosten bij een grote
+ * planning de meeste tijd van een render (kalenderrekening per cel; gemeten 9 november 2026 bij 5000
+ * taken: ruim de helft van een papieropname), en het rapport maakt dezelfde teksten bij elke
+ * instellingenwijziging en bij de kolommeting opnieuw. Alleen een bevroren taak (Immer: alles uit de
+ * store) is gegarandeerd ongewijzigd; een losse taak (een check, een import) rekent elke keer, dus daar
+ * verandert niets. Een paar opmaken tegelijk (oud en nieuw tabblad, meting en render) passen erin.
+ */
+/** De dagen van één taak voor het datumbereik (ms, UTC-middernacht; `NaN` = ongeldig of geen band). */
+interface TaskDayRange { start: number; finish: number; lastBandDay: number }
+
+const dayRangeCache = new WeakMap<Task, TaskDayRange>();
+
+/**
+ * De begindag van de getoonde start en het getoonde einde, en de laatste dag van de spelingsband
+ * (`floatBandEnd` geeft het exclusieve einde; `finish` is net als het bereik de BEGINdag van de laatste
+ * getekende dag). Een bevroren taak uit de store verandert niet meer, dus zijn uitkomst blijft geldig;
+ * bij 5000 taken scheelt dat per klik ±15 ms. Een NaN telt in de vergelijkingen niet mee, net als de
+ * Invalid Date van `parseDate` vroeger.
+ */
+function taskDayRange(task: Task): TaskDayRange {
+  const cached = dayRangeCache.get(task);
+  if (cached) return cached;
+  const bandEnd = floatBandEnd(task, true);
+  const range: TaskDayRange = {
+    start: parseDate(shownStart(task)).getTime(),
+    finish: parseDate(shownFinish(task)).getTime(),
+    lastBandDay: bandEnd ? addCalendarDays(bandEnd, -1).getTime() : NaN,
+  };
+  if (Object.isFrozen(task)) dayRangeCache.set(task, range);
+  return range;
+}
+
+const cellTextCaches: { calendar?: WorkCalendar; calendars?: readonly WorkCalendar[]; key: string; map: WeakMap<Task, TaskOwnCellTexts> }[] = [];
+
+function cellTextCacheFor(options: CellTextOptions): WeakMap<Task, TaskOwnCellTexts> {
+  const key = JSON.stringify([options.dateNotation, options.timeNotation, options.numberLocale, options.durationDisplay,
+    options.durationSuffixes, options.labels?.daySuffix]);
+  const hit = cellTextCaches.find(c => c.calendar === options.calendar && c.calendars === options.calendars && c.key === key);
+  if (hit) return hit.map;
+  const entry = { calendar: options.calendar, calendars: options.calendars, key, map: new WeakMap<Task, TaskOwnCellTexts>() };
+  cellTextCaches.unshift(entry);
+  if (cellTextCaches.length > 4) cellTextCaches.pop();
+  return entry.map;
+}
+
+function taskOwnCellTexts(task: Task, options: CellTextOptions): TaskOwnCellTexts {
+  const cache = Object.isFrozen(task) ? cellTextCacheFor(options) : undefined;
+  const cached = cache?.get(task);
+  if (cached) return cached;
+  const texts: TaskOwnCellTexts = {
+    wbs: task.wbsCode || '',
+    duration: durationCellText(task, options),
+    start: taskDateCellText(task, shownStart(task), 'start', options),
+    end: taskDateCellText(task, shownFinish(task), 'end', options),
+    complete: formatCompletion(task.time.completion),
+  };
+  cache?.set(task, texts);
+  return texts;
+}
+
 function taskTableCellTexts(row: PrintRow, options: CellTextOptions): TaskTableCellTexts {
   const task = row.kind === 'task' ? row.task : undefined;
   const assignment = row.assignment;
   return {
-    wbs: task?.wbsCode || '',
-    duration: task ? durationCellText(task, options) : '',
-    start: task ? taskDateCellText(task, shownStart(task), 'start', options) : '',
-    end: task ? taskDateCellText(task, shownFinish(task), 'end', options) : '',
-    complete: task ? formatCompletion(task.time.completion) : '',
+    ...(task ? taskOwnCellTexts(task, options) : NO_TASK_CELLS),
     units: assignment ? formatReportNumber(assignment.unitsPerDay, options.numberLocale) : '',
     curve: assignment ? (assignment.curve === null ? '—' : (options.curveLabels?.[assignment.curve] ?? assignment.curve)) : '',
   };
@@ -1054,6 +1116,13 @@ function drawBarLabel(
 /**
  * Het resultaat van een print-render: de logische (CSS-px) afmetingen + de bevroren-kolombreedte.
  */
+/**
+ * Een rijvenster voor `renderReport`: krijgt de maten van het rapport (die liggen vast vóór er getekend
+ * wordt) en geeft het bereik in logische px van de rijen die getekend moeten worden, of `null` voor alles.
+ * Alleen voor het papier op het scherm (#817): een blad heeft genoeg aan zijn eigen rijen.
+ */
+export type ReportRowWindowRequest = (result: RenderReportResult) => { y0: number; y1: number } | null;
+
 export interface RenderReportResult {
   width: number;
   height: number;
@@ -1131,6 +1200,7 @@ export function renderReport(
   calendar: WorkCalendar,
   projectName: string,
   options: PrintOptions,
+  rowWindow?: ReportRowWindowRequest,
 ): RenderReportResult {
   // Alle maatvoering loopt via dit object — de tekenhelpers lezen de module-constanten niet
   // rechtstreeks (zie {@link ReportMetrics} voor het waarom van relatief-schalen).
@@ -1175,23 +1245,21 @@ export function renderReport(
   }
 
   // Compute date range
-  let minDate = new Date(8640000000000000);
-  let maxDate = new Date(0);
-  for (const t of flatTasks) {
-    const s = parseDate(shownStart(t));
-    const f = parseDate(shownFinish(t));
-    if (s < minDate) minDate = s;
-    if (f > maxDate) maxDate = f;
-
+  let minMs = 8640000000000000;
+  let maxMs = 0;
+  // Over de taken uit de store, niet over de kopieën in `flatTasks`: alleen een bevroren taak komt uit
+  // de cache van `taskDayRange`.
+  for (const row of printRows) {
+    if (row.kind !== 'task') continue;
+    const days = taskDayRange(row.task);
+    if (days.start < minMs) minMs = days.start;
+    if (days.finish > maxMs) maxMs = days.finish;
     // Include float in date range: de laatste dag van de spelingsband (= "Laatste einde"), met
-    // dezelfde helper als de tekening hieronder — `f` is net als `maxDate` de BEGINdag van de
-    // laatste getekende dag, de helper geeft het exclusieve einde.
-    const bandEnd = options.showFloat ? floatBandEnd(t, true) : null;
-    if (bandEnd) {
-      const lastBandDay = addCalendarDays(bandEnd, -1);
-      if (lastBandDay > maxDate) maxDate = lastBandDay;
-    }
+    // dezelfde helper als de tekening hieronder (zie `taskDayRange`).
+    if (options.showFloat && days.lastBandDay > maxMs) maxMs = days.lastBandDay;
   }
+  let minDate = new Date(minMs);
+  let maxDate = new Date(maxMs);
 
   // De baselinestrook hoort in het automatische bereik: een vergelijkingsbaseline die ver vóór of
   // na de huidige taken ligt, valt anders onder de tabel of buiten het blad (issue #391).
@@ -1300,6 +1368,41 @@ export function renderReport(
 
   const cols = m.cols;
 
+  // De maten van het rapport liggen hier al vast: niets hierna hangt van het tekenen af. Het papier op
+  // het scherm (#817) leidt er de bladindeling uit af en vraagt alleen de rijen van de bladen in beeld.
+  // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
+  // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
+  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen. De voet (legenda) is één blok; die
+  // volgt de laatste rijgrens.
+  const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
+  // Resourcediagram: een gedwongen overgang vóór elke bandrij ná de eerste — de
+  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
+  const forcedBreakOffsets = options.pageBreakBeforeGroups
+    // Een band direct ónder een band (typelaag) blijft bij zijn ouder: anders zou de typekop
+    // alleen op een verder leeg vel staan.
+    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
+    : undefined;
+  const result: RenderReportResult = {
+    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
+    footerHeight: m.footerHeight,
+    projectHeaderHeight: m.projectHeaderHeight,
+    tableColumnBounds: cols.list.map(col => ({ key: col.key, x: col.x, w: col.w })),
+    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
+    ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
+  };
+
+  // Rijvenster (alleen het papier op het scherm): welke rijen getekend worden. Een rij met een rij marge
+  // rond het venster, plus altijd de eerste en de laatste rij: hun randen raken de herhaalde kop en voet,
+  // en die moeten op elk blad gelijk zijn. Al het andere (kop, tijdas, raster over de hele hoogte,
+  // weekenden, statuslijn, voet) tekent altijd. Zonder venster tekent alles, zoals altijd.
+  const win = rowWindow ? rowWindow(result) : null;
+  const rowCount = printRows.length;
+  const rowDrawn = (i: number): boolean => {
+    if (!win || i <= 0 || i >= rowCount - 1) return true;
+    const top = rowToY(i);
+    return top < win.y1 + m.rowHeight && top + m.rowHeight > win.y0 - m.rowHeight;
+  };
+
   // ==================== DRAW ====================
 
   // Background
@@ -1342,7 +1445,7 @@ export function renderReport(
 
   // Alternating row backgrounds in chart area
   for (let i = 0; i < printRows.length; i++) {
-    if (i % 2 === 0) {
+    if (i % 2 === 0 && rowDrawn(i)) {
       d2d.fillStyle = 'rgba(249, 250, 251, 0.3)';
       d2d.fillRect(m.tableWidth, rowToY(i), chartWidth, m.rowHeight);
     }
@@ -1379,6 +1482,8 @@ export function renderReport(
 
   // Horizontal grid lines in chart area
   for (let i = 0; i <= printRows.length; i++) {
+    // De lijn op rijgrens i hoort bij rij i en rij i − 1.
+    if (!rowDrawn(Math.min(i, rowCount - 1)) && !rowDrawn(i - 1)) continue;
     const y = rowToY(i);
     d2d.strokeStyle = PRINT_COLORS.grid;
     d2d.lineWidth = 0.3;
@@ -1515,6 +1620,7 @@ export function renderReport(
   );
 
   for (let i = 0; i < printRows.length; i++) {
+    if (!rowDrawn(i)) continue;
     const row = printRows[i];
     const y = rowToY(i) + barOffset;
 
@@ -1791,7 +1897,8 @@ export function renderReport(
     printRows.forEach((r, idx) => {
       if (r.kind === 'task' && r.task) { rowIndexOf.set(r.task.id, idx); tasksById.set(r.task.id, r.task); }
     });
-    drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf);
+    drawDependencies(d2d, m, tasksById, sequences, dateToX, rowToY, zoom, options, rowIndexOf,
+      win ? (lo, hi) => rowDrawn(lo) || rowDrawn(hi) || (rowToY(lo) < win.y1 + m.rowHeight && rowToY(hi) + m.rowHeight > win.y0 - m.rowHeight) : undefined);
   }
 
   for (const job of barLabelJobs) {
@@ -1809,31 +1916,12 @@ export function renderReport(
   );
 
   // ---- TASK TABLE ----
-  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar });
+  drawTaskTable(d2d, m, printRows, canvasHeight, cols, { ...options, calendar }, rowDrawn);
 
   // ---- FOOTER ----
   drawFooter(d2d, m, canvasWidth, canvasHeight, projectName, options, printRows);
 
-  // Tabelbreedte en kophoogte gaan GESCHAALD terug: de pagineerder bevriest exact deze kolom en
-  // herhaalt exact deze strook per pagina, dus die moeten de rapport-lettergrootte volgen.
-  // Onder elke taakrij mag een pagina eindigen — nooit erdoorheen. De voet (legenda) is één blok; die
-  // volgt de laatste rijgrens.
-  const breakOffsets = printRows.map((_, i) => m.totalHeaderHeight + (i + 1) * m.rowHeight);
-  // Resourcediagram: een gedwongen overgang vóór elke bandrij ná de eerste — de
-  // bovenrand van rij i is de onderrand van rij i-1, dus exact een bestaande breekpositie.
-  const forcedBreakOffsets = options.pageBreakBeforeGroups
-    // Een band direct ónder een band (typelaag) blijft bij zijn ouder: anders zou de typekop
-    // alleen op een verder leeg vel staan.
-    ? printRows.flatMap((row, i) => (row.kind === 'group' && i > 0 && printRows[i - 1].kind !== 'group' ? [m.totalHeaderHeight + i * m.rowHeight] : []))
-    : undefined;
-  return {
-    width: canvasWidth, height: canvasHeight, tableWidth: m.tableWidth, headerHeight: m.totalHeaderHeight,
-    footerHeight: m.footerHeight,
-    projectHeaderHeight: m.projectHeaderHeight,
-    tableColumnBounds: cols.list.map(col => ({ key: col.key, x: col.x, w: col.w })),
-    breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
-    ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
-  };
+  return result;
 }
 
 
@@ -2467,6 +2555,8 @@ function drawTaskTable(
   canvasHeight: number,
   cols: ColPositions,
   options: PrintOptions & CellTextOptions,
+  /** Het rijvenster van `renderReport`: een rij buiten het venster tekent niet. */
+  rowDrawn: (i: number) => boolean,
 ) {
   const chartBottom = canvasHeight - m.footerHeight;
   // Cel-padding: schaalt mee met de kolombreedtes, anders vreet een grotere letter de padding op.
@@ -2478,6 +2568,7 @@ function drawTaskTable(
 
   // Task rows
   for (let i = 0; i < printRows.length; i++) {
+    if (!rowDrawn(i)) continue;
     const row = printRows[i];
     const y = m.totalHeaderHeight + i * m.rowHeight;
     const textY = y + m.rowHeight / 2;
@@ -2628,6 +2719,8 @@ function drawDependencies(
   options: PrintOptions,
   /** Volg-weergave: alleen paren met béide endpoints zichtbaar; óók de rij-index-bron. */
   rowIndexOf: Map<string, number>,
+  /** Rijvenster: tekent de relatie tussen de rijen `lo` en `hi` (lo ≤ hi)? Ontbreekt ⇒ alles. */
+  spanDrawn?: (lo: number, hi: number) => boolean,
 ) {
   d2d.lineWidth = 1.2;
 
@@ -2641,6 +2734,8 @@ function drawDependencies(
     if (!pred || !succ) continue;
     const predIdx = rowIndexOf.get(seq.predecessorId)!;
     const succIdx = rowIndexOf.get(seq.successorId)!;
+    // De hele lijn (knik en goot) blijft tussen de rijen van voorganger en opvolger.
+    if (spanDrawn && !spanDrawn(Math.min(predIdx, succIdx), Math.max(predIdx, succIdx))) continue;
     const predY = rowToY(predIdx) + m.rowHeight / 2;
     const succY = rowToY(succIdx) + m.rowHeight / 2;
 

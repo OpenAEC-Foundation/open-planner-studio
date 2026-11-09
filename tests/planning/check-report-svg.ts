@@ -15,6 +15,10 @@
 //     datum wordt in de PDF afgekapt. Voor #817 mat het papier met het canvas van de browser; dat rondt
 //     bij kleine letters af (9 november 2026: "Stakeholder management" 115 tegen 109,0 in de PDF), dus
 //     het papier kapte namen af die de PDF voluit toonde, en de PDF kapte datums af ("30-03-2027 0…").
+//  6. Alleen de rijen van de bladen in beeld: het papier tekent bij een klik alleen de rijen van de
+//     bladen die gevraagd worden (`createReportPaperRecorder`, rijvenster in `renderReport`). Elk blad uit
+//     zo'n gedeeltelijke opname is byte voor byte gelijk aan hetzelfde blad uit de volledige opname, met
+//     dezelfde bladindeling.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -25,7 +29,7 @@ import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import {
   opsInWindow, opsToSvg, opToSvg, SvgRecordingDraw2D, type SvgOp, type SvgTextMetrics,
 } from '@/services/pdf/svgDraw2d';
-import { ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
+import { createReportPaperRecorder, ganttTileOptions, recordReportPaper } from '@/services/print/reportPaperModel';
 import { hitPaperRegion, pageLabel, pageWindows, reportPageSvg, reportPaperRegions } from '@/services/print/reportPaper';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { reportFontStack } from '@/services/pdf/reportFont';
@@ -400,6 +404,65 @@ for (const [label, options, rh, rf] of [
       ok(svgTexts.some(t => /^\d{2}-\d{2}-\d{4}/.test(t.text)), 'standaard: er staan datums in de tabel');
     }
     if (fullNames) ok(svgTexts.some(t => t.text === renamed.get(leaves[1].id)), `${label}: met "Volledig" staat de lange naam er heel`);
+  }
+}
+
+// ── 6. Alleen de rijen van de bladen in beeld ────────────────────────────────────────────────────
+{
+  // Een groter plan: het voorbeeld zes keer, met eigen id's, ouders en relaties (±340 rijen, veel bladen).
+  const copies = 6;
+  const bigTasks: Task[] = [];
+  const bigSequences = [];
+  for (let k = 0; k < copies; k++) {
+    const id = (v: string) => `${v}~${k}`;
+    for (const t of project.tasks) {
+      bigTasks.push({ ...t, id: id(t.id), parentId: t.parentId ? id(t.parentId) : null, childIds: t.childIds.map(id), name: `${t.name} ${k + 1}` });
+    }
+    for (const q of project.sequences) bigSequences.push({ ...q, id: id(q.id), predecessorId: id(q.predecessorId), successorId: id(q.successorId) });
+  }
+  // Een relatie van de eerste naar de laatste taak: een lange lijn door alle bladen heen.
+  bigSequences.push({ ...project.sequences[0], id: 'lang', predecessorId: bigTasks[1].id, successorId: bigTasks[bigTasks.length - 1].id });
+  const cases: [string, PrintOptions, boolean][] = [
+    ['A3 liggend', baseOptions(), true],
+    ['A4 staand, tijdlijn over 3', baseOptions({ paperSize: 'A4', orientation: 'portrait', timelineColumns: 3 }), true],
+    ['vaste schaal, voortgangslijn, zonder herhaling', baseOptions({ autoFit: false, customZoom: 14, statusLine: 'progress' }), false],
+  ];
+  for (const [label, options, repeat] of cases) {
+    const full = recordReportPaper(bigTasks, bigSequences, project.calendar, project.project.name, options, repeat, repeat, metrics);
+    const total = full.layout.rows * full.layout.cols;
+    const middle = Math.floor(full.layout.rows / 2) * full.layout.cols;
+    const rec = createReportPaperRecorder(bigTasks, bigSequences, project.calendar, project.project.name, options, repeat, repeat, metrics, [middle]);
+    ok(total >= 6, `${label}: genoeg bladen om te vergelijken (${total})`);
+    ok(JSON.stringify(rec.layout) === JSON.stringify(full.layout), `${label}: dezelfde bladindeling als de volledige opname`);
+    ok(rec.passes === full.passes, `${label}: evenveel renders voor de maten (${rec.passes} ↔ ${full.passes})`);
+    ok(JSON.stringify(rec.result) === JSON.stringify(full.result), `${label}: dezelfde maten als de volledige opname`);
+    const partOps = rec.recordingFor([middle]).ops.length;
+    ok(partOps < full.recording.ops.length * 0.6, `${label}: de eerste opname tekent alleen de rijen in beeld (${partOps} van ${full.recording.ops.length} opdrachten)`);
+    let diffs = 0;
+    const firstDiff: string[] = [];
+    for (let page = 0; page < total; page++) {
+      const want = reportPageSvg(full.recording, full.layout, page, { pageLabelFont: '8px InterPDF, sans-serif' });
+      const got = reportPageSvg(rec.recordingFor([page]), rec.layout, page, { pageLabelFont: '8px InterPDF, sans-serif' });
+      if (want !== got) {
+        diffs++;
+        if (firstDiff.length === 0) {
+          let at = 0;
+          while (at < want.length && want[at] === got[at]) at++;
+          firstDiff.push(`blad ${page + 1}: vanaf teken ${at}: "${want.slice(at, at + 90)}" ↔ "${got.slice(at, at + 90)}"`);
+        }
+      }
+    }
+    ok(diffs === 0, `${label}: ${diffs} van ${total} bladen anders dan in de volledige opname. ${firstDiff.join('')}`);
+    // Een groep bladen in één keer, daarna komt elk blad uit die ene opname.
+    const fresh = createReportPaperRecorder(bigTasks, bigSequences, project.calendar, project.project.name, options, repeat, repeat, metrics, [0]);
+    // Bladen naast elkaar delen hun rijen; tel dus per bladrij (rij 1 tot en met de laatste).
+    const secondRow = fresh.layout.cols;
+    ok(fresh.layout.rows >= 3, `${label}: de proef heeft minstens drie bladrijen (${fresh.layout.rows})`);
+    const batch = fresh.recordingFor([secondRow, total - 1]);
+    ok(
+      fresh.recordingFor([total - 1]) === batch && fresh.recordingFor([secondRow]) === batch && fresh.recordingFor([secondRow + fresh.layout.cols]) === batch,
+      `${label}: een blad uit een eerdere opname rekent niet opnieuw`,
+    );
   }
 }
 

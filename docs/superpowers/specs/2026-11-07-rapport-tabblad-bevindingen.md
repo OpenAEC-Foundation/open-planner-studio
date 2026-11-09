@@ -119,6 +119,34 @@ Twee bevindingen tijdens het meten, beide opgelost:
 Het papier bij 5000 taken blijft rond een halve seconde: de opname (`renderReport` over 5000 rijen)
 kost de tijd, vooral de celteksten van de taaktabel. Dat is dezelfde render als de PDF.
 
+### Snelheid na council ronde 1 (gemeten 9 november 2026, dev-server)
+
+Zelfde meting, 5000 taken (139 bladen A3), schakelaar "Speling tonen", 6 klikken, 1600×900:
+
+| stand | terugkoppeling (mediaan / max) | papier (mediaan / max) | opname |
+|---|---|---|---|
+| vóór (na de gedeelde tekstmeting van punt 1) | 48 / 49 ms | 602 / 644 ms | 218–272 ms (×2) |
+| na de caches (celteksten, datumbereik) | 39 / 55 ms | 286–337 ms | 152–188 ms |
+| na het rijvenster en de vaste bladenlijst | 40 / 42 ms | 134 / 167 ms | 15–43 ms |
+
+Wat het verschil maakt:
+
+- **Rijvenster** (`createReportPaperRecorder`, `reportPaperModel.ts`). Eén render levert de maten en de
+  bladindeling (die liggen vast vóór er getekend wordt), maar tekent alleen de rijen van de bladen in
+  beeld (`ReportRowWindowRequest` in `renderReport`). Een blad dat later in beeld komt, krijgt dan pas
+  zijn rijen. Bij 5000 taken tekent een klik ±80 rijen in plaats van 5000. Bewaakt in
+  `check-report-svg.ts` (sectie 6): elk blad uit een gedeeltelijke opname is gelijk aan hetzelfde blad
+  uit de volledige, ook met een relatie over veel bladen.
+- **Caches per bevroren taak**: de celteksten van de taaktabel en het datumbereik. Een taak uit de store
+  is bevroren (Immer), dus zijn uitkomst blijft geldig.
+- **Eén opname per invoer**: React StrictMode rekende de opname in de dev-modus twee keer.
+- **De bladenlijst rendert niet bij elke klik**: de vlag "wordt bijgewerkt" staat los van het model.
+
+Wat overblijft (±130 ms): één frame wachten zodat de knop eerst tekent, de React-render van het papier en
+het opbouwen van twee SVG-bladen met duizenden tekstelementen door de browser (±35 ms stijl en layout).
+De terugkoppeling blijft onder 50 ms. Een productiebuild is niet gemeten; React in StrictMode en de
+dev-controles kosten daar niets.
+
 ### Afwijkingen van het ontwerp
 
 - **Periode** zit niet in de stap Taken: `renderReport` slaat relaties over als er een tijdvenster is.

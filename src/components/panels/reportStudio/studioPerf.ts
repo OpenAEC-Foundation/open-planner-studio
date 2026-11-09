@@ -4,8 +4,9 @@
 // `performance.measure` (lees ze met `performance.getEntriesByName(...)`, bijv. vanuit Playwright):
 //  - `ops-report:feedback` — van de klik tot het eerste frame met de nieuwe stand van de bediening;
 //  - `ops-report:paper`    — van de klik tot het eerste frame met het bijgewerkte papier.
-// Daarnaast meten `ops-report:record` (de render naar de SVG-opname) en `ops-report:svg` (de bladen
-// in beeld als SVG-tekst) de twee rekenstappen apart. Meten kost vrijwel niets; het staat altijd aan.
+// Daarnaast meten `ops-report:record` (de render voor maten en bladindeling, met de rijen van de bladen
+// in beeld), `ops-report:record-rows` (de rijen van een blad dat later in beeld komt) en `ops-report:svg`
+// (een blad als SVG-tekst) de rekenstappen apart. Meten kost vrijwel niets; het staat altijd aan.
 
 let pending: { name: string; start: number; feedbackDone: boolean } | null = null;
 
@@ -39,7 +40,7 @@ export function markReportPaperCommitted(): void {
 }
 
 /** Meet een synchrone rekenstap. */
-export function timeReportStep<T>(name: 'ops-report:record' | 'ops-report:svg', run: () => T): T {
+export function timeReportStep<T>(name: 'ops-report:record' | 'ops-report:record-rows' | 'ops-report:svg', run: () => T): T {
   const start = performance.now();
   const result = run();
   measure(name, start, '');

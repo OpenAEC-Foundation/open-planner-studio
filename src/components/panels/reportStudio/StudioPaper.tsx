@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useReportPaper, type ReportPaperInput } from './useReportPaper';
 import { ReportPaperView, type PaperPick, type PaperTarget } from './ReportPaperView';
@@ -41,7 +41,10 @@ export const StudioPaper = memo(function StudioPaper({
   input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo,
 }: StudioPaperProps) {
   const { t } = useTranslation('report');
-  const paper = useReportPaper(input);
+  // De bladen in beeld: de volgende opname tekent meteen hun rijen (en de rest pas bij scrollen).
+  const visibleHint = useRef<readonly number[]>([0, 1]);
+  const onVisible = useCallback((pages: readonly number[]) => { visibleHint.current = pages; }, []);
+  const { paper, stale } = useReportPaper(input, visibleHint);
 
   const totalPages = paper?.totalPages ?? 0;
   const rows = paper?.layout.rows ?? 0;
@@ -53,7 +56,6 @@ export const StudioPaper = memo(function StudioPaper({
     onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight } : null);
   }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight]);
 
-  const stale = paper?.stale ?? false;
   const status = useMemo(() => (hasPaper ? (
     <>
       <strong>{t('studio.pages', { count: totalPages })}</strong>
@@ -70,6 +72,7 @@ export const StudioPaper = memo(function StudioPaper({
   return (
     <ReportPaperView
       paper={paper}
+      stale={stale}
       loading={loading}
       selected={selected}
       onPick={onPick}
@@ -77,6 +80,7 @@ export const StudioPaper = memo(function StudioPaper({
       columnLabel={columnLabel}
       status={status}
       actions={actions}
+      onVisible={onVisible}
     />
   );
 });

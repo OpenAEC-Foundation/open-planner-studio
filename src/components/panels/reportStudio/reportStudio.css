@@ -729,6 +729,10 @@
   cursor: pointer;
 }
 .rs-page > .rs-page-svg, .rs-page > .rs-page-svg > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* Een blad heeft zijn maat van buiten: de browser hoeft bij een nieuw blad (duizenden tekstelementen) de
+   rest van het papier niet opnieuw op te bouwen. */
+.rs-page-wrap { contain: layout style; }
+.rs-page > .rs-page-svg { contain: strict; }
 .rs-page-skeleton {
   position: absolute;
   inset: 0;

@@ -40,9 +40,11 @@ function pct(v: number, of: number): string {
  * leeg vel van de juiste maat, zodat ook een planning van honderden bladen direct scrolt.
  */
 export function ReportPaperView({
-  paper, loading, selected, onPick, regionLabel, columnLabel, status, actions,
+  paper, stale, loading, selected, onPick, regionLabel, columnLabel, status, actions, onVisible,
 }: {
   paper: ReportPaperModel | null;
+  /** De getoonde opname hoort bij oudere instellingen (de nieuwe wordt gemaakt). */
+  stale: boolean;
   loading: boolean;
   /** Het deel dat bij de open stap hoort; staat gemarkeerd op elk blad in beeld. */
   selected: { targets: PaperTarget[]; column?: string } | null;
@@ -53,6 +55,8 @@ export function ReportPaperView({
   status: ReactNode;
   /** Rechts naast de zoomknoppen. */
   actions?: ReactNode;
+  /** De bladen in (of vlak bij) beeld, na elke wijziging. */
+  onVisible?: (pages: readonly number[]) => void;
 }) {
   const { t } = useTranslation('report');
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -157,8 +161,8 @@ export function ReportPaperView({
 
   // Meting: het papier met de nieuwe stand is vastgelegd.
   useLayoutEffect(() => {
-    if (paper && !paper.stale) markReportPaperCommitted();
-  }, [paper]);
+    if (paper && !stale) markReportPaperCommitted();
+  }, [paper, stale]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
@@ -199,12 +203,45 @@ export function ReportPaperView({
   }, [hitAt]);
 
   const pages = useMemo(() => Array.from({ length: totalPages }, (_, i) => i), [totalPages]);
+  // Eén vaste functie in plaats van een vertaalde tekst per blad: bij 139 bladen kostte dat per render
+  // 139 vertalingen, ook voor bladen die `memo` overslaat.
+  const captionFor = useCallback((index: number) => t('studio.paper.sheet', { index: index + 1, total: totalPages }), [t, totalPages]);
+  const visiblePages = useMemo(() => [...visible].sort((a, b) => a - b), [visible]);
+  useEffect(() => { onVisible?.(visiblePages); }, [onVisible, visiblePages]);
+  // De bladen hangen niet af van `stale` of de werkbalk: zo kost een klik in de zijbalk geen render van
+  // honderd bladen (`memo` per blad slaat ze over, maar ook de lijst zelf kostte bij 139 bladen ±25 ms).
+  const pageNodes = useMemo(() => {
+    if (!paper || loading) return null;
+    // Eén render voor de rijen van alle bladen in beeld, vóór de bladen hun SVG vragen.
+    paper.prepare(visiblePages);
+    return pages.map(index => (
+      <PaperPage
+        key={index}
+        index={index}
+        width={pageWidth}
+        height={pageHeight}
+        svg={visible.has(index) ? paper.pageSvg(index) : null}
+        regions={visible.has(index) ? paper.pageRegions(index) : null}
+        pageWidthPt={paper.layout.pageWidthPt}
+        pageHeightPt={paper.layout.pageHeightPt}
+        hover={hover && hover.page === index ? hover : null}
+        selected={selected}
+        regionLabel={regionLabel}
+        columnLabel={columnLabel}
+        onMove={onPageMove}
+        onClick={onPageClick}
+        onKeyPick={onPick}
+        caption={captionFor}
+      />
+    ));
+  }, [paper, loading, pages, visible, visiblePages, pageWidth, pageHeight, hover, selected, regionLabel, columnLabel,
+    onPageMove, onPageClick, onPick, captionFor]);
   const zoomLabel = `${Math.round(zoom * 100)} %`;
 
   return (
     <div className="rs-paper-area">
       <div className="rs-toolbar" data-rs-toolbar>
-        <div className="rs-status" data-busy={paper?.stale || loading ? 'true' : 'false'} aria-live="polite" data-rs-status>
+        <div className="rs-status" data-busy={stale || loading ? 'true' : 'false'} aria-live="polite" data-rs-status>
           <span className="rs-status-dot" aria-hidden="true" />
           {status}
         </div>
@@ -253,26 +290,7 @@ export function ReportPaperView({
             style={cols > 1 ? { display: 'grid', gridTemplateColumns: `repeat(${cols}, ${pageWidth}px)`, justifyContent: 'center', columnGap: PAGE_GAP, rowGap: PAGE_GAP + 8 } : undefined}
             onMouseLeave={() => setHover(null)}
           >
-            {pages.map(index => (
-              <PaperPage
-                key={index}
-                index={index}
-                width={pageWidth}
-                height={pageHeight}
-                svg={visible.has(index) ? paper.pageSvg(index) : null}
-                regions={visible.has(index) ? paper.pageRegions(index) : null}
-                pageWidthPt={paper.layout.pageWidthPt}
-                pageHeightPt={paper.layout.pageHeightPt}
-                hover={hover && hover.page === index ? hover : null}
-                selected={selected}
-                regionLabel={regionLabel}
-                columnLabel={columnLabel}
-                onMove={onPageMove}
-                onClick={onPageClick}
-                onKeyPick={onPick}
-                caption={t('studio.paper.sheet', { index: index + 1, total: totalPages })}
-              />
-            ))}
+            {pageNodes}
           </div>
         )}
       </div>
@@ -302,7 +320,7 @@ const PaperPage = memo(function PaperPage({
   onMove: (page: number, e: React.MouseEvent<HTMLDivElement>) => void;
   onClick: (page: number, e: React.MouseEvent<HTMLDivElement>) => void;
   onKeyPick: (pick: PaperPick) => void;
-  caption: string;
+  caption: (index: number) => string;
 }) {
   const rectStyle = (r: PaperRect) => ({ left: pct(r.x, W), top: pct(r.y, H), width: pct(r.w, W), height: pct(r.h, H) });
 
@@ -332,7 +350,7 @@ const PaperPage = memo(function PaperPage({
 
   return (
     <div className="rs-page-wrap" style={{ width, height }} data-rs-page={index}>
-      <div className="rs-page-caption" aria-hidden="true">{caption}</div>
+      <div className="rs-page-caption" aria-hidden="true">{caption(index)}</div>
       <div
         className="rs-page"
         style={{ width: '100%', height: '100%' }}
