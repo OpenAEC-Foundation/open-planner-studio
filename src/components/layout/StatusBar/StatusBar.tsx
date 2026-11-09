@@ -68,6 +68,7 @@ export function StatusBar() {
     { key: 'missedDeadlines', count: cpmResult.missedDeadlineTaskIds?.length ?? 0 },
     { key: 'violatedConstraints', count: cpmResult.violatedConstraintTaskIds?.length ?? 0 },
     { key: 'outOfSequence', count: cpmResult.outOfSequenceSequenceIds?.length ?? 0 },
+    { key: 'externalSuccessors', count: cpmResult.externalSuccessorViolations?.length ?? 0 },
     { key: 'overallocated', count: overallocatedCount },
   ] as const : [];
   const activeWarnings = warnings.filter(w => w.count > 0).map(w => ({

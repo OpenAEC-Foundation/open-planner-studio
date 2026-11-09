@@ -7,6 +7,8 @@ interface NoticeStripProps {
   text: ReactNode;
   actionLabel: string;
   onAction: () => void;
+  /** Een tweede, gewone knop naast de primaire (bv. *Later*). */
+  secondaryAction?: { label: string; onAction: () => void; props?: Record<string, unknown> };
   /** Weglaten = geen kruisje: een MODUS mag niet wegklikbaar zijn zonder hem te verlaten. */
   onDismiss?: () => void;
   role?: 'status' | 'alert';
@@ -24,7 +26,7 @@ interface NoticeStripProps {
  * RecordedDatesNotice.
  */
 export function NoticeStrip({
-  icon, text, actionLabel, onAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
+  icon, text, actionLabel, onAction, secondaryAction, onDismiss, role, tone = 'accent', stripProps, actionProps, dismissProps,
 }: NoticeStripProps) {
   const { t } = useTranslation('common');
   const error = tone === 'error';
@@ -47,6 +49,11 @@ export function NoticeStrip({
       <button onClick={() => onAction()} className="btn btn--sm btn--primary" {...actionProps}>
         {actionLabel}
       </button>
+      {secondaryAction && (
+        <button onClick={() => secondaryAction.onAction()} className="btn btn--sm btn--secondary" {...secondaryAction.props}>
+          {secondaryAction.label}
+        </button>
+      )}
       {onDismiss && (
         <button
           onClick={() => onDismiss()}

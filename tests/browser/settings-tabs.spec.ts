@@ -26,6 +26,8 @@ const SECTION_HEADINGS: RegExp[][] = [
     /^(Duration display|Duurweergave)$/,
     /^(Document switch style|Documentwissel-stijl)$/,
     /^(Ribbon|Lint)$/,
+    // #851: Kolommen automatisch aanpassen staat in een eigen sectie Taakraster.
+    /^(Task grid|Taakraster)$/,
     /^Gantt$/,
     /^(Timeline axis|Tijd-as)$/,
     /^(Quarter-hour zoom|Kwartierzoom)$/,

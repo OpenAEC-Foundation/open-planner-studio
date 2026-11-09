@@ -597,6 +597,27 @@ export interface PhaseAssignmentQuestion {
   items: PhaseAssignmentQuestionItem[];
 }
 
+/**
+ * Een bron van het actieve document met een nieuwe versie (keuze 1, Ethan 2026-11-03; stap 1.5). De balk onder
+ * het lint toont er één per bron, met *Bekijken* en *Later*. Sessie-only: na herstarten kijkt de app opnieuw.
+ */
+export interface ExternalSourceUpdate {
+  /** Het document waar de koppelingen in staan; de balk staat alleen bij dat document. */
+  documentId: string;
+  /** Het genormaliseerde pad (`normalizeExternalSourcePath`): de sleutel per bron. */
+  path: string;
+  /** Het pad zoals het in de koppeling staat; daarmee leest de app de bron. */
+  filePath: string;
+  /** De bestandsnaam voor de tekst ("Installateur.ifc"). */
+  fileName: string;
+  /** De versie van de bron: de wijzigingstijd van het bestand (ISO). */
+  version: string;
+  /** De auteur uit de projectgegevens van de bron, als die er is. */
+  author?: string;
+  /** Hoeveel koppelingen een ander anker krijgen (of een brontaak die ontbreekt). Altijd ≥ 1. */
+  changedLinks: number;
+}
+
 export interface UIState {
   showTaskDialog: boolean;
   editingTaskId: string | null;
@@ -713,6 +734,10 @@ export interface UIState {
   showLevelingDialog: boolean;              // session — nivelleer-dialoog open
   showBaselineDialog: boolean;              // session — baseline-dialoog open
   showMoveProjectDialog: boolean;           // session — "Project verplaatsen…"-dialoog open
+  /** session — bronnen met een nieuwe versie (de balk onder het lint, stap 1.5). */
+  externalSourceUpdates: ExternalSourceUpdate[];
+  /** session — het venster *Bekijken* voor deze bron (`ExternalSourceUpdate.path`) staat open. */
+  externalSourceReview: string | null;
   showBaselineOverlay: boolean;             // persisted — baseline-onderbalk in de Gantt
   showProgressLine: boolean;                // persisted — voortgangslijn in de Gantt
   showStatusDateLine: boolean;              // persisted — statusdatumlijn in de Gantt

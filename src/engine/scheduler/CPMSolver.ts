@@ -104,6 +104,10 @@ export interface CPMResult {
    *  maakt levert anders stil een onzin-datum. ZACHTE, niet-blokkerende waarschuwing: `error` blijft
    *  leeg, de overige taken rekenen normaal door. */
   cappedTaskIds?: string[];
+  /** OPTIONEEL: externe OPVOLGERS waarvan het anker te krap is: de vroegste datums van de eigen taak
+   *  passen niet meer vóór het anker (met de lag). Zonder deze lijst gaf dat alleen negatieve speling
+   *  (knownbug 6; voorstel 2 uit #792, `docs/relaties-tussen-projecten.md` 5.2 punt 4). Zachte melding. */
+  externalSuccessorViolations?: { taskId: string; linkId: string }[];
   /** OPTIONEEL: taak-ids met een externe koppeling met lag ≠ 0 waarvan de lagkalender van het project
    *  (`schedulingOptions.lagCalendar`) de kalender van de ANDERE kant is: de voorganger bij een externe
    *  voorganger, de opvolger bij een externe opvolger. Die kalender staat in een ander bestand; de lag telt
@@ -1850,6 +1854,7 @@ export class CPMSolver {
     const lateDates = this.backwardPass(order, earlyDates);
     this.applyAlap(order, earlyDates, lateDates);
     const outOfSequenceSequenceIds = this.detectOutOfSequence(earlyDates);
+    const externalSuccessorViolations = this.detectExternalSuccessorViolations(earlyDates);
     // Resultaat-post-pass (geëxtraheerd naar `scheduleAnalysis.ts`): pure functie over de vaste
     // early/late-datums + de forward-pass-side-channels; de helpers zijn stateless en gebonden.
     const result = computeScheduleResults({
@@ -1885,6 +1890,7 @@ export class CPMSolver {
     // `elapsedAnchor`-hervattingspunt én de `ef`-restwerk-optelling), die allebei tegen de cap kunnen
     // lopen.
     if (this.cappedTaskIds.length > 0) result.cappedTaskIds = [...new Set(this.cappedTaskIds)];
+    if (externalSuccessorViolations.length > 0) result.externalSuccessorViolations = externalSuccessorViolations;
     if (this.externalLagCalendarFallbackIds.size > 0) {
       result.externalLagCalendarFallbackTaskIds = [...this.externalLagCalendarFallbackIds];
     }
@@ -3363,6 +3369,40 @@ export class CPMSolver {
   private registerHardPinViolation(taskId: string): void {
     if (!this.hardPinViolatedIds.includes(taskId)) this.hardPinViolatedIds.push(taskId);
   }
+
+  /**
+   * Externe opvolgers met een te krap anker: dezelfde regel als de pincontrole in `applyBackwardBound`. De
+   * grens is het anker min de lag (`externalSuccessorShift`, de lag in de lagkalender van #808). FS/FF: de
+   * vroegste finish van de taak ligt ná die grens. SS/SF: de START beslist (review #810): de start van de
+   * taak (de werkelijke start als die er is, anders de vroege). Een finish uit de taakduur zou bij voortgang
+   * de verkeerde kant toetsen: een taak die op tijd begon maar lang duurde, gaf dan een melding, en een taak
+   * die te laat begon maar snel klaar was, niet. Twee momenten zijn hetzelfde punt als er op de lagkalender
+   * geen werkminuut tussen zit, zodat een moment op een blokeinde en een grens op het volgende blokbegin geen
+   * schijnmelding geven; een ELAPSEDTIME-taak telt in kloktijd, en houdt bij lag 0 het echte ankermoment.
+   */
+  private detectExternalSuccessorViolations(
+    earlyDates: Map<string, { es: Date; ef: Date }>,
+  ): { taskId: string; linkId: string }[] {
+    const out: { taskId: string; linkId: string }[] = [];
+    for (const task of this.tasks.values()) {
+      if (!task.externalLinks?.some(l => l.direction === 'successor')) continue;
+      const early = earlyDates.get(task.id);
+      if (!early) continue;
+      const eng = this.calendarFor(task);
+      for (const link of task.externalLinks) {
+        if (link.direction !== 'successor') continue;
+        const shift = this.externalSuccessorShift(task, link, eng);
+        if (!shift) continue;
+        const actualStart = !shift.finishSide && task.time.actualStart ? parseInstant(task.time.actualStart) : null;
+        const own = actualStart && !isNaN(actualStart.getTime()) ? actualStart : shift.finishSide ? early.ef : early.es;
+        if (own.getTime() <= shift.at.getTime()) continue;
+        const late = isElapsedTask(task) || shift.lagEng.workMinutesBetween(shift.at, own) > 0;
+        if (late) out.push({ taskId: task.id, linkId: link.id });
+      }
+    }
+    return out;
+  }
+
 
   /**
    * Vroege-zijde constraints. Een harde MSO/MFO-pin
