@@ -2430,6 +2430,42 @@ en noem het in je rapport of PR-tekst.
      planner kan zo een maand verkeerd lezen. Gezien door Opus 5.5 in council ronde 4 van #817. Voorstel: het label
      afkappen op de breedte van de eigen cel (of afkorten, bijv. "Feb"), en het volgende label altijd tonen. — B
 
+932. **VERVOLG: in de SVG van Chromium telt de afwijking bij een leesteken na een Arabisch woord op.** Chromium geeft een
+     leesteken direct na een Arabisch woord het script van dat woord; de kerning met de Latijnse letter erna valt weg.
+     Eén `أعمال “gereed”` tekent ~0,36 px breder dan gemeten. Twaalf herhalingen in één taaknaam meten in Inter 753,473 px
+     en tekenen 757,781 px; de SVG-naam eindigt op x=792,814 bij kolomlijn 792 (Carlito: 731,262 bij 730). WebKitGTK en het
+     oude canvas blijven binnen de kolom. Een vaste marge verschuift alleen de grens (`svgDraw2d.ts` rond 661,
+     `printPreview.ts` rond 523). Uit code-review ronde 3 van #847 (GPT-6.1-Sol, xhigh, op `dc06b8e8c`, VERVOLG).
+     Voorstel: de claim in het besluitenbestand beperken en deze herhaling in de geometriecontrole opnemen. — B
+
+933. **VERVOLG: tekst met ZWJ of ZWNJ wordt ruimer gemeten dan getekend.** `AV\u200cAV أعمال AV\u200dAV` meet in
+     Liberation Serif 72,753 px; Chromium tekent op canvas 71,594 px, WebKitGTK op canvas en SVG 70,433 px.
+     `AV\u200dAVأعمال` meet in Inter 44,325 px, Chromium tekent 43,710 px. De meting is ruimer, dus er loopt niets over,
+     maar `.claude/rules/reports.md` (rond 94) zegt te stellig dat alleen de Chromium-SVG afwijkt (`bidiShape.ts` rond 208
+     en 408, `reportTextMeasure.ts` rond 148). Bestaande schuld, niet nieuw. Uit code-review ronde 3 van #847
+     (GPT-6.1-Sol, xhigh, VERVOLG). Voorstel: de werkelijke glyphplaatsing toetsen bij het verdere fontwerk. — B
+
+934. **De tekstlaag van een PDF-rapport is niet trouw aan de bron voor Arabisch en voor sommige ligaturen.**
+     `pdfVectorDraw2d.ts:547–571` zet de geshapte glyphs rechtstreeks in de PDF (vooral regel 566). `pdftotext` geeft de
+     Arabische naam dan niet als de oorspronkelijke tekst terug, en met Carlito wordt `bouwlogistiek` in een gemengde naam
+     `bouwlogis ek`. Op het blad staat het woord wel goed; kopiëren en zoeken in de PDF gaan mis. Zat al in main en
+     verandert niet door #847 (24 PDF's per letter en richting byte-gelijk uitgelezen op merge-base en #847). Uit
+     code-review ronde 3 van #847 (GPT-6.1-Sol, xhigh). Voorstel: de geshapte glyphs koppelen aan de logische brontekst
+     (ToUnicode/ActualText), met een eigen controle op de uitgelezen tekst. — B
+
+935. **VERVOLG: tabelrapporten in de DOM tekenen Arabisch in een systeemletter.** De rapporten die als HTML-tabel op het
+     scherm staan, laden Noto Sans Arabic niet, terwijl de PDF die letter wel gebruikt. Er meet daar niets uit het
+     fontbestand, dus er loopt niets over, maar de letter op het scherm wijkt af van de PDF. Gezien bij de fix na
+     code-review 1 van #847. Voorstel: dezelfde `@font-face` met `unicode-range` als het nieuwe papier gebruiken. — S
+
+936. **VERVOLG: restpunten van de council voor het nieuwe Rapport-tabblad (#817).** Uit council ronde 4 van #847:
+     (a) bij een stapwissel rendert React alle bladen opnieuw, omdat `selected` naar elk blad gaat
+     (`ReportPaperView.tsx` rond 360); bij 5000 taken kosten stap openen en inklappen 150–230 ms in de dev-build;
+     (b) de samenvattingen in de zijbalk zijn op een laptop 9 px; (c) na *Op vandaag zetten* en *Ongedaan maken* valt de
+     focus terug naar het begin van de pagina; (d) `scripts/measure-report-paper.mjs` stopt bij zoom zodra het getal
+     verandert en meet het hertekenen niet mee (voorstel: Event Timing); (e) de scrollschaduw van een open stap valt in
+     Kolommen onder de rijen. — B
+
 965. **VERVOLG: de instellingen van het nieuwe Rapport-tabblad staan per apparaat, niet in het projectbestand.**
      Kolommen, papier, stand, lettertype en de open stap staan in `ops-reportSettings` (`src/utils/reportSettings.ts`).
      Een collega of een tweede apparaat ziet dus andere instellingen, en een rapport hoort niet bij een project.
