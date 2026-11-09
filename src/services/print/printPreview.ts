@@ -1171,6 +1171,12 @@ export interface RenderReportResult {
    */
   assignmentColumnsDropped?: boolean;
   /**
+   * OPTIONEEL — de breedte van één dag op de tijdas (logische px), zoals deze render hem gebruikte: bij
+   * "passen" de uitkomst van de pasberekening, anders `customZoom`. Het Rapport-tabblad (#817) start
+   * "Vaste schaal" hierop, zodat het aantal pagina's bij de wissel niet verspringt.
+   */
+  dayWidth?: number;
+  /**
    * OPTIONEEL — hoogte (logische px vanaf y = 0) van alleen de projectkop, zonder de tijdschaal eronder.
    * Het interactieve papier (`reportPaperRegions`) gebruikt dit om de kop van de kolomkoppen en de
    * tijdschaal te scheiden. Afwezig bij renders zonder kop (lege staat, tabelrapporten).
@@ -1250,7 +1256,7 @@ export function renderReport(
   // Over de taken uit de store, niet over de kopieën in `flatTasks`: alleen een bevroren taak komt uit
   // de cache van `taskDayRange`.
   for (const row of printRows) {
-    if (row.kind !== 'task') continue;
+    if (row.kind !== 'task' || !row.task) continue;
     const days = taskDayRange(row.task);
     if (days.start < minMs) minMs = days.start;
     if (days.finish > maxMs) maxMs = days.finish;
@@ -1389,6 +1395,7 @@ export function renderReport(
     tableColumnBounds: cols.list.map(col => ({ key: col.key, x: col.x, w: col.w })),
     breakOffsets, ...(forcedBreakOffsets && forcedBreakOffsets.length > 0 ? { forcedBreakOffsets } : {}),
     ...(assignmentColumnsDropped ? { assignmentColumnsDropped } : {}),
+    dayWidth: zoom,
   };
 
   // Rijvenster (alleen het papier op het scherm): welke rijen getekend worden. Een rij met een rij marge
