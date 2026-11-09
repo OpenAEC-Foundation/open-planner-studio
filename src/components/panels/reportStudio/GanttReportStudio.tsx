@@ -12,6 +12,8 @@ import { buildGanttReportPdf } from '@/services/print/exportGanttReportPdf';
 import { NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN, REPORT_FONT_SCALES, REPORT_MAX_ZOOM, REPORT_MIN_ZOOM } from '@/services/print/printPreview';
 import { printableWidthLogicalPx } from '@/services/print/tileLayout';
 import { documentFileBase } from '@/utils/documents';
+import { localTodayIso } from '@/utils/dateUtils';
+import { DateTextInput } from '@/components/common/DateTextInput';
 import { documentProjectCode } from '@/utils/documentProjectCode';
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
@@ -21,7 +23,9 @@ import { barColorFieldOptions, effectiveBarColorControl } from '@/components/vie
 import { decodeFieldRef, encodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
 import type { TaskColumnCategory } from '@/types/taskGrid';
-import { saveReportSettings, TABLE_REPORT_TYPES, type ReportSettings, type ReportType } from '@/utils/reportSettings';
+import {
+  REPORT_STUDIO_STEPS, saveReportSettings, TABLE_REPORT_TYPES, type ReportSettings, type ReportStudioStep, type ReportType,
+} from '@/utils/reportSettings';
 import { ReportFontSelect } from '@/components/panels/reports/reportFormPrimitives';
 import { StudioChoiceGroup, StudioGroup, StudioNotice, StudioSegmented, StudioSwitch } from './studioPrimitives';
 import { fieldsAreDefault, useStudioSettings, type StudioSettingKey } from './useStudioSettings';
@@ -35,8 +39,14 @@ import { markReportInput } from './studioPerf';
 import './reportStudio.css';
 
 /** De stappen van de zijbalk, in de volgorde van het papier. */
-export type StudioStepId = 'tasks' | 'columns' | 'bars' | 'page' | 'headerFooter' | 'export';
-const STEP_ORDER: readonly StudioStepId[] = ['tasks', 'columns', 'bars', 'page', 'headerFooter', 'export'];
+export type StudioStepId = ReportStudioStep;
+const STEP_ORDER: readonly StudioStepId[] = REPORT_STUDIO_STEPS;
+/** De ingeklapte rand toont de stappen 1–5; stap 6 (Opslaan) is daar de zwevende knop "PDF exporteren". */
+const RAIL_STEPS: readonly StudioStepId[] = STEP_ORDER.filter(step => step !== 'export');
+/** Vrije ruimte (px) onder het papier voor de zwevende exportknop: "Hele blad" past erboven. */
+const FAB_RESERVE = 64;
+/** Logische px naar millimeter op papier (96 px per inch, 25,4 mm per inch). */
+const MM_PER_PX = 25.4 / 96;
 
 /** Welke velden "Standaard" per stap terugzet. */
 const STEP_KEYS: Record<StudioStepId, readonly StudioSettingKey[]> = {
@@ -83,7 +93,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const { t: tCommon, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
   const api = useStudioSettings();
-  const { settings, patch, hydrated } = api;
+  const { settings, patch, remember, hydrated } = api;
 
   const tasks = useAppStore(s => s.tasks);
   const sequences = useAppStore(s => s.sequences);
@@ -91,6 +101,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const project = useAppStore(s => s.project);
   const viewRows = useAppStore(s => s.viewRows);
   const scheduleStale = useAppStore(s => s.scheduleStale);
+  const setStatusDate = useAppStore(s => s.setStatusDate);
   const barColorSelection = useAppStore(s => s.ui.barColorSelection);
   const setOverlays = useAppStore(s => s.setOverlays);
   const gridColumns = useAppStore(s => s.taskGridSurfaces['gantt-task-grid'].columns);
@@ -157,15 +168,23 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const tableShare = paperInfo && paperInfo.headerHeight > 0 ? paperInfo.tableWidth / printable : null;
 
   // ---- Stappen: open stap, zijbalk, zwevend venster --------------------------------------------------
-  const [openStep, setOpenStep] = useState<StudioStepId | null>('columns');
+  // De open stap staat in de instellingen: bij het eerste bezoek stap 1, daarna de laatst gebruikte.
+  const openStep: StudioStepId | null = !hydrated || settings.studioStep === 'none' ? null : settings.studioStep;
+  const openStepRef = useRef(openStep);
+  openStepRef.current = openStep;
+  const setOpenStep = useCallback((step: StudioStepId | null) => remember({ studioStep: step ?? 'none' }), [remember]);
   const [focusColumn, setFocusColumn] = useState<{ id: string; seq: number } | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const closePopover = useCallback(() => setPopover(null), []);
   const rail = settings.sidebar === 'rail';
   const headRefs = useRef(new Map<StudioStepId, HTMLButtonElement>());
+  const fabRef = useRef<HTMLButtonElement>(null);
 
   const openStepFromPaper = useCallback((pick: PaperPick) => {
     const step = TARGET_STEP[pick.target];
     markReportInput('paper-click');
+    // Wie op het papier klikt, kent de aanwijzing: die hoeft niet meer.
+    remember({ paperHintSeen: true });
     if (pick.column) setFocusColumn({ id: paperKeyToId(pick.column), seq: Date.now() });
     if (rail) {
       setPopover({ step, anchor: pick.anchor, from: 'paper' });
@@ -173,12 +192,18 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
       setOpenStep(step);
       requestAnimationFrame(() => headRefs.current.get(step)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     }
-  }, [rail, paperKeyToId]);
+  }, [rail, paperKeyToId, remember, setOpenStep]);
 
   const toggleStep = useCallback((step: StudioStepId) => {
     markReportInput('step');
-    setOpenStep(prev => (prev === step ? null : step));
-  }, []);
+    setOpenStep(openStepRef.current === step ? null : step);
+  }, [setOpenStep]);
+
+  const paperHint = useMemo(() => (hydrated && !settings.paperHintSeen ? {
+    text: t('studio.paper.hint'),
+    closeLabel: t('studio.paper.hintClose'),
+    onClose: () => remember({ paperHintSeen: true }),
+  } : null), [hydrated, settings.paperHintSeen, t, remember]);
 
   const setSidebar = useCallback((mode: ReportSettings['sidebar']) => {
     setPopover(null);
@@ -221,11 +246,21 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
   const latest = useRef({ options, tasks, sequences, calendar, projectName, settings, fileBase, loadedFont });
   latest.current = { options, tasks, sequences, calendar, projectName, settings, fileBase, loadedFont };
 
+  // De fout bij exporteren staat in stap 6: open in de zijbalk, of (ingeklapt) als venster bij de knop.
+  const showExportStep = useCallback(() => {
+    if (latest.current.settings.sidebar === 'rail') {
+      const rect = fabRef.current?.getBoundingClientRect();
+      setPopover({ step: 'export', anchor: { x: rect ? rect.right : 80, y: rect ? rect.top - 200 : 200 }, from: 'rail' });
+    } else {
+      setOpenStep('export');
+    }
+  }, [setOpenStep]);
+
   const runExport = useCallback(async () => {
     const cpm = useAppStore.getState().cpmResult;
     if (cpm?.error) {
       setExportError({ error: cpm.error, errorInfo: cpm.errorInfo });
-      setOpenStep('export');
+      showExportStep();
       return;
     }
     setExportError(null);
@@ -246,7 +281,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     } finally {
       setExportBusy(false);
     }
-  }, [t]);
+  }, [t, showExportStep]);
 
   const exportPdf = useCallback(() => {
     if (exportBusy) return;
@@ -330,6 +365,11 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     return labelForId(id);
   }, [paperKeyToId, labelForId]);
 
+  // Breedtes in millimeter op papier: de tabel staat op 0,75 pt per logische px, maal de lettergrootte.
+  const mm = (px: number, digits: number) => t('studio.mm', { value: (px * MM_PER_PX).toLocaleString(i18n.language, { maximumFractionDigits: digits }) });
+  const nameWidthText = mm(settings.taskNameColumnWidth * settings.reportFontScale / 100, 0);
+  const dayWidthText = t('studio.page.perDay', { value: mm(settings.customZoom, 1) });
+
   // ---- Stapinhoud: één bron voor de zijbalk en het zwevende venster -----------------------------
   const fieldCtx = useFieldCatalogCtx();
   const barColorFields = barColorFieldOptions(fieldCtx);
@@ -395,18 +435,22 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 dataKey="name-mode"
               />
               {settings.truncateTaskNames ? (
-                <div className="rs-range">
-                  <input
-                    type="range"
-                    min={NAME_COLUMN_WIDTH_MIN}
-                    max={NAME_COLUMN_WIDTH_MAX}
-                    step={5}
-                    value={settings.taskNameColumnWidth}
-                    onChange={e => patch({ taskNameColumnWidth: Number(e.target.value) }, 'name-width')}
-                    aria-label={t('studio.columns.nameWidth')}
-                    data-rs-option="taskNameColumnWidth"
-                  />
-                  <output>{settings.taskNameColumnWidth}</output>
+                <div className="rs-field">
+                  <label className="rs-field-label" htmlFor="rs-name-width">{t('studio.columns.nameWidth')}</label>
+                  <div className="rs-range">
+                    <input
+                      id="rs-name-width"
+                      type="range"
+                      min={NAME_COLUMN_WIDTH_MIN}
+                      max={NAME_COLUMN_WIDTH_MAX}
+                      step={5}
+                      value={settings.taskNameColumnWidth}
+                      onChange={e => patch({ taskNameColumnWidth: Number(e.target.value) }, 'name-width')}
+                      aria-valuetext={nameWidthText}
+                      data-rs-option="taskNameColumnWidth"
+                    />
+                    <output htmlFor="rs-name-width" data-rs-value="taskNameColumnWidth">{nameWidthText}</output>
+                  </div>
                 </div>
               ) : (
                 <p className="rs-hint">{t('taskNameColumnWidthHint')}</p>
@@ -440,7 +484,30 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   dataKey="statusLine"
                 />
               </div>
-              {statusLineWithoutDate && <StudioNotice dataKey="no-status-date">{t('statusLineHint')}</StudioNotice>}
+              {statusLineWithoutDate && (
+                <StudioNotice
+                  dataKey="no-status-date"
+                  actions={(
+                    <>
+                      <button type="button" className="rs-link" onClick={() => { markReportInput('statusDate'); setStatusDate(localTodayIso()); }}
+                        data-rs-status-today>
+                        {t('studio.bars.statusDateToday')}
+                      </button>
+                      <span className="rs-inline-date">
+                        <span className="rs-field-label">{t('studio.bars.statusDateOther')}</span>
+                        <DateTextInput
+                          value=""
+                          onCommit={v => { if (v) { markReportInput('statusDate'); setStatusDate(v); } }}
+                          ariaLabel={t('studio.bars.statusDateOther')}
+                          className="rs-date"
+                        />
+                      </span>
+                    </>
+                  )}
+                >
+                  {t('statusLineHint')}
+                </StudioNotice>
+              )}
             </StudioGroup>
             <StudioGroup label={t('studio.bars.timeline')}>
               <StudioSwitch checked={settings.showWeekends} onChange={v => patch({ showWeekends: v }, 'showWeekends')} label={t('showWeekends')} dataKey="showWeekends" />
@@ -503,13 +570,22 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <StudioSegmented
                 ariaLabel={t('studio.page.fit')}
                 value={settings.autoFit ? 'fit' : 'scale'}
-                onChange={v => patch({ autoFit: v === 'fit' }, 'autoFit')}
+                onChange={v => {
+                  // Vaste schaal begint op de breedte per dag die "passen" nu geeft: het aantal pagina's
+                  // verspringt dan niet bij de wissel. Afgerond naar beneden, dus de tijdlijn past nog.
+                  if (v === 'scale' && paperInfo && paperInfo.dayWidth > 0) {
+                    patch({ autoFit: false, customZoom: Math.min(REPORT_MAX_ZOOM, Math.max(REPORT_MIN_ZOOM, Math.floor(paperInfo.dayWidth))) }, 'autoFit');
+                  } else {
+                    patch({ autoFit: v === 'fit' }, 'autoFit');
+                  }
+                }}
                 options={[
                   { value: 'fit', label: t('studio.page.fitWidth') },
                   { value: 'scale', label: t('studio.page.fixedScale') },
                 ]}
                 dataKey="autoFit"
               />
+              <p className="rs-hint" data-rs-fit-hint>{settings.autoFit ? t('studio.page.fitWidthHint') : t('studio.page.fixedScaleHint')}</p>
               {settings.autoFit ? (
                 <div className="flex items-center justify-between gap-2">
                   <span className="rs-field-label">{t('studio.page.across')}</span>
@@ -529,8 +605,8 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   <div className="rs-range">
                     <input type="range" min={REPORT_MIN_ZOOM} max={REPORT_MAX_ZOOM} value={settings.customZoom}
                       onChange={e => patch({ customZoom: Number(e.target.value) }, 'customZoom')}
-                      aria-label={t('studio.page.dayWidth')} />
-                    <output>{settings.customZoom}</output>
+                      aria-label={t('studio.page.dayWidth')} aria-valuetext={dayWidthText} data-rs-option="customZoom" />
+                    <output data-rs-value="customZoom">{dayWidthText}</output>
                   </div>
                 </div>
               )}
@@ -551,8 +627,24 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                 dataKey="reportFontScale"
               />
             </StudioGroup>
+            {/* Een kleiner of staand blad maakt de tabel naar verhouding breder: meld dat hier, waar je het
+                papier kiest, en niet alleen in de stap Kolommen. */}
+            {tableTooWide && (
+              <StudioNotice
+                dataKey="table-wide-page"
+                actions={(
+                  <button type="button" className="rs-link" onClick={() => { markReportInput('step'); setOpenStep('columns'); }}>
+                    {t('studio.page.toColumns')}
+                  </button>
+                )}
+              >
+                {t('studio.columns.wideWarning', { share: Math.round((tableShare ?? 0) * 100) })}
+              </StudioNotice>
+            )}
             {totalPages >= MANY_PAGES ? (
-              <StudioNotice dataKey="many-pages">{t('studio.page.manyPages', { count: totalPages })}</StudioNotice>
+              <StudioNotice dataKey="many-pages">
+                {t(settings.autoFit ? 'studio.page.manyPages' : 'studio.page.manyPagesScale', { count: totalPages })}
+              </StudioNotice>
             ) : paperInfo ? (
               <StudioNotice tone="info" dataKey="pages">
                 {paperInfo.cols > 1
@@ -568,7 +660,12 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
             <div className="rs-field">
               <label className="rs-field-label" htmlFor="rs-company">{t('studio.headerFooter.company')}</label>
               <input id="rs-company" className="rs-input" value={companyName}
-                onChange={e => { markReportInput('company'); setCompanyName(e.target.value); }}
+                onChange={e => {
+                  markReportInput('company');
+                  // Na Standaard een eigen naam getypt: die wint, ongedaan maken zou hem stil wissen.
+                  if (api.lastReset?.scope === 'headerFooter') api.dismissReset();
+                  setCompanyName(e.target.value);
+                }}
                 placeholder={t('companyPlaceholder')} />
               <span className="rs-hint">{t('studio.headerFooter.companyHint')}</span>
             </div>
@@ -601,7 +698,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               <dd>{totalPages}</dd>
             </dl>
             <p className="rs-hint">{t('studio.export.vectorHint')}</p>
-            <ExportButton busy={exportBusy} onClick={exportPdf} label={t('studio.export.button')} busyLabel={t('studio.export.busy')} />
+            <p className="rs-hint">{t(rail ? 'studio.export.whereRail' : 'studio.export.whereSidebar')}</p>
           </>
         );
     }
@@ -624,8 +721,15 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           className="rs-link"
           disabled={isDefault}
           onClick={() => {
-            api.resetFields(keys, t(`studio.steps.${step}`));
-            if (step === 'headerFooter') setCompanyName(project.company || '');
+            const label = t(`studio.steps.${step}`);
+            if (step === 'headerFooter') {
+              // De bedrijfsnaam hoort bij deze stap: ongedaan maken zet ook hem terug.
+              const before = companyName;
+              api.resetFields(step, keys, label, () => setCompanyName(before));
+              setCompanyName(project.company || '');
+            } else {
+              api.resetFields(step, keys, label);
+            }
           }}
           data-rs-reset={step}
         >
@@ -689,7 +793,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
               </button>
             </div>
             <nav className="rs-rail" aria-label={t('studio.steps.label')}>
-              {STEP_ORDER.map((step, i) => {
+              {RAIL_STEPS.map((step, i) => {
                 return (
                   <button
                     key={step}
@@ -707,7 +811,9 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                       setPopover(prev => (prev?.step === step ? null : { step, anchor: { x: rect.right + 8, y: rect.top }, from: 'rail' }));
                     }}
                   >
+                    <span className="rs-rail-num" aria-hidden="true">{i + 1}</span>
                     <Icon id={STEP_ICONS[step]} size={18} />
+                    <span className="rs-rail-label" aria-hidden="true">{t(`studio.steps.short.${step}`)}</span>
                   </button>
                 );
               })}
@@ -782,21 +888,23 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
         statusItems={statusItems}
         actions={paperActions}
         onInfo={onPaperInfo}
+        bottomReserve={rail ? FAB_RESERVE : 0}
+        hint={paperHint}
       />
 
       {/* Zijbalk ingeklapt: exporteren via de zwevende knop linksonder (besluit eigenaar 7-11-2026). Dezelfde
           actie als de stap Opslaan in de zijbalk. */}
       {rail && (
         <button
+          ref={fabRef}
           type="button"
           className="rs-fab"
           onClick={exportPdf}
           aria-busy={exportBusy}
-          aria-label={t('studio.export.fab')}
-          title={t('studio.export.fab')}
           data-rs-fab-export
         >
-          <Icon id={exportBusy ? 'status.busy' : 'file.export'} size={20} mono className={exportBusy ? 'animate-spin' : undefined} />
+          <Icon id={exportBusy ? 'status.busy' : 'file.export'} size={16} mono className={exportBusy ? 'animate-spin' : undefined} />
+          <span>{exportBusy ? t('studio.export.busy') : t('studio.export.button')}</span>
         </button>
       )}
 
@@ -806,7 +914,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
           title={`${STEP_ORDER.indexOf(popover.step) + 1}. ${t(`studio.steps.${popover.step}`)}`}
           closeLabel={t('studio.close')}
           openInSidebarLabel={t('studio.openInSidebar')}
-          onClose={() => setPopover(null)}
+          onClose={closePopover}
           onOpenInSidebar={() => { const step = popover.step; setPopover(null); setOpenStep(step); patch({ sidebar: 'open' }, 'sidebar'); }}
           dataKey={popover.step}
         >
@@ -854,6 +962,7 @@ const StepHead = memo(function StepHead({ step, index, open, title, summary, war
       className="rs-step-head"
       aria-expanded={open}
       aria-controls={`rs-step-${step}`}
+      title={open ? undefined : summary}
       onClick={() => onToggle(step)}
       onKeyDown={e => onKeyDown(e, step)}
       data-rs-step-head={step}
@@ -867,15 +976,6 @@ const StepHead = memo(function StepHead({ step, index, open, title, summary, war
     </button>
   );
 });
-
-function ExportButton({ busy, onClick, label, busyLabel }: { busy: boolean; onClick: () => void; label: string; busyLabel: string }) {
-  return (
-    <button type="button" className="rs-primary" aria-busy={busy} onClick={onClick} data-rs-export-step>
-      <Icon id={busy ? 'status.busy' : 'file.export'} size={16} mono className={busy ? 'animate-spin' : undefined} />
-      {busy ? busyLabel : label}
-    </button>
-  );
-}
 
 /** Klein venster met een stap, naast de rand of naast het aangeklikte deel van het papier. */
 function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, onOpenInSidebar, children, dataKey }: {
@@ -891,6 +991,10 @@ function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, o
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number }>({ left: anchor.x + 12, top: anchor.y });
   const returnFocus = useRef<Element | null>(null);
+  // De sluitfunctie via een ref: een nieuwe functie bij elke render mag het effect hieronder niet opnieuw
+  // laten lopen. Dat zette de focus na elke toetsaanslag terug (typen "abc" gaf "a").
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useLayoutEffect(() => {
     const node = ref.current;
@@ -905,14 +1009,15 @@ function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, o
     setPos({ left, top });
   }, [anchor.x, anchor.y, dataKey]);
 
+  // Eén keer per geopende stap: focus erin bij openen, terug naar waar hij vandaan kwam bij sluiten.
   useEffect(() => {
     returnFocus.current = document.activeElement;
     const node = ref.current;
     node?.querySelector<HTMLElement>('input, button:not([data-rs-pop-close]), [tabindex="0"]')?.focus();
-    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); } };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (node && !node.contains(target) && !(target as HTMLElement).closest?.('[data-rs-rail-step], .rs-page, .ui-select-menu, [role="listbox"]')) onClose();
+      if (node && !node.contains(target) && !(target as HTMLElement).closest?.('[data-rs-rail-step], [data-rs-fab-export], .rs-page, .ui-select-menu, [role="listbox"]')) onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('mousedown', onDown);
@@ -921,7 +1026,7 @@ function StepPopover({ anchor, title, closeLabel, openInSidebarLabel, onClose, o
       window.removeEventListener('mousedown', onDown);
       if (returnFocus.current instanceof HTMLElement) returnFocus.current.focus({ preventScroll: true });
     };
-  }, [onClose, dataKey]);
+  }, [dataKey]);
 
   return (
     <div ref={ref} className="rs-pop" role="dialog" aria-label={title} style={{ left: pos.left, top: pos.top }} data-rs-popover={dataKey}>

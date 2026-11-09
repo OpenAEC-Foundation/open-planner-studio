@@ -191,6 +191,10 @@ export const REPORT_MAX_COLUMNS = 24;
 /** Stand van de zijbalk van het nieuwe Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
 export type ReportSidebarMode = 'open' | 'rail';
 
+/** De stappen van het nieuwe Rapport-tabblad, in de volgorde van het papier. */
+export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter', 'export'] as const;
+export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
+
 export interface ReportSettings {
   reportType: ReportType;
   showCritical: boolean;
@@ -235,6 +239,13 @@ export interface ReportSettings {
   columns: string[];
   /** Zijbalk van het nieuwe Rapport-tabblad (feature flag `reportRedesign`). */
   sidebar: ReportSidebarMode;
+  /**
+   * De open stap van het nieuwe Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
+   * bezoek stap 1 (Taken), daarna de laatst gebruikte.
+   */
+  studioStep: ReportStudioStep | 'none';
+  /** De aanwijzing "klik op het papier" is gezien (de gebruiker klikte op het papier of sloot hem). */
+  paperHintSeen: boolean;
 }
 
 /**
@@ -272,6 +283,8 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   resourceGantt: { ...DEFAULT_RESOURCE_GANTT_OPTIONS },
   columns: [...REPORT_DEFAULT_COLUMNS],
   sidebar: 'open',
+  studioStep: 'tasks',
+  paperHintSeen: false,
 };
 
 /**
@@ -311,6 +324,7 @@ const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
 const PREVIEW_QUALITIES: readonly ReportPreviewQuality[] = ['100', '200', '300'];
 const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
+const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_STEPS, 'none'];
 /** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
  *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
  *  ene laag iets wat de andere niet kan tonen of tekenen. */
@@ -435,6 +449,8 @@ export async function loadReportSettings(): Promise<ReportSettings> {
     // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
     columns: parseReportColumns(s.columns) ?? defaultReportColumns(parseBoolean(s.showCompletion) ?? d.showCompletion),
     sidebar: parseEnum(SIDEBAR_MODES, s.sidebar) ?? d.sidebar,
+    studioStep: parseEnum(STUDIO_STEPS, s.studioStep) ?? d.studioStep,
+    paperHintSeen: parseBoolean(s.paperHintSeen) ?? d.paperHintSeen,
   };
 }
 

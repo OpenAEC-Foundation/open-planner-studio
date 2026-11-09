@@ -1,7 +1,7 @@
 // Het nieuwe Rapport-tabblad achter de feature flag `reportRedesign` (issue #817). Eén werkroute van een
-// planner: tabblad openen, op het papier klikken om een stap te openen, een kolom toevoegen, de zijbalk
-// inklappen en via de zwevende knop exporteren. De flag is een fixture (de instelling zelf), de rest
-// zijn echte klikken en toetsen.
+// planner: tabblad openen, op het papier klikken om een stap te openen, een kolom toevoegen, Standaard en
+// ongedaan maken, de zijbalk inklappen, in een zwevend venster typen en via de zwevende knop exporteren.
+// De flag is een fixture (de instelling zelf), de rest zijn echte klikken en toetsen.
 import { expect, seedProject, test } from './fixtures/ops';
 
 test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk inklappen', async ({ page, ops: _ops }) => {
@@ -23,10 +23,22 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page0).toBeVisible();
   await expect(page0.locator('text', { hasText: /^Fundering storten$/ }).first()).toBeAttached();
 
+  // Eerste bezoek: stap 1 staat open, met boven het eerste blad de aanwijzing dat het papier klikbaar is.
+  await expect(page.locator('[data-rs-step-body="tasks"]')).toBeVisible();
+  await expect(page.locator('[data-rs-paper-hint]')).toBeVisible();
+
+  // Bewegen over de kop: de naam staat boven het blad en dekt het blad niet af.
+  const sheet = page.locator('[data-preview-page="0"]');
+  const sheetBox = (await sheet.boundingBox())!;
+  await page.mouse.move(sheetBox.x + sheetBox.width * 0.3, sheetBox.y + sheetBox.height * 0.04);
+  const label = page.locator('[data-rs-region-label]');
+  await expect(label).toBeVisible();
+  expect((await label.boundingBox())!.y + (await label.boundingBox())!.height).toBeLessThanOrEqual(sheetBox.y + 1);
+
   // Klik op de kolomkop "Start" op het papier: de stap Kolommen opent en de rij Start krijgt focus.
-  await page.locator('[data-rs-step-head="columns"]').click();
   await expect(page.locator('[data-rs-step-body="columns"]')).toHaveCount(0);
   await page0.locator('text', { hasText: /^Start$/ }).first().click();
+  await expect(page.locator('[data-rs-paper-hint]')).toHaveCount(0);
   await expect(page.locator('[data-rs-step-body="columns"]')).toBeVisible();
   await expect(page.locator('[data-rs-column="task.time.start"]')).toBeFocused();
 
@@ -43,6 +55,9 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-pick]').first()).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('[data-rs-column="task.time.calendarDays"]')).toBeVisible();
+  // Na Enter is de kiezer dicht en staat de focus op "Kolom toevoegen", klaar voor de volgende.
+  await expect(page.locator('[data-rs-picker]')).toHaveCount(0);
+  await expect(page.locator('[data-rs-add-column]')).toBeFocused();
   await expect(page0.locator('text', { hasText: new RegExp(`^${calendarDays}$`) }).first()).toBeAttached();
   // Bewaard per apparaat, in de volgorde van de lijst.
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').columns))
@@ -52,6 +67,16 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await page.keyboard.press('Alt+ArrowUp');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}').columns.at(-1)))
     .toBe('task.time.completion');
+
+  // Standaard op Kolommen, daarna A2 in Pagina, dan ongedaan maken: de kolommen komen terug, A2 blijft.
+  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem('ops-reportSettings') ?? '{}'));
+  await page.locator('[data-rs-reset="columns"]').click();
+  await expect(page.locator('[data-rs-column]')).toHaveCount(6);
+  await page.locator('[data-rs-step-head="page"]').click();
+  await page.locator('[data-rs-segmented="paperSize"] [data-rs-value="A2"]').click();
+  await page.locator('[data-rs-undo-button]').click();
+  await expect.poll(async () => (await saved()).columns.length).toBe(7);
+  expect((await saved()).paperSize).toBe('A2');
 
   // Zijbalk inklappen: de stapknoppen blijven, exporteren gaat via de zwevende knop linksonder.
   await page.locator('[data-rs-sidebar-toggle]').click();
@@ -65,6 +90,15 @@ test('rapport-studio: klik op het papier opent de stap, kolom toevoegen, zijbalk
   await expect(page.locator('[data-rs-popover="columns"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('[data-rs-popover]')).toHaveCount(0);
+
+  // Typen in een zwevend venster: elke toets blijft in het veld (de focus sprong eerder na één letter weg).
+  await page.locator('[data-rs-rail-step="headerFooter"]').click();
+  const company = page.locator('[data-rs-popover="headerFooter"] #rs-company');
+  await company.fill('');
+  await company.pressSequentially('abc');
+  await expect(company).toHaveValue('abc');
+  await expect(company).toBeFocused();
+  await page.keyboard.press('Escape');
 
   const download = page.waitForEvent('download');
   await fab.click();

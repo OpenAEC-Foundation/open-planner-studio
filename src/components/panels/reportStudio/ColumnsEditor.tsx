@@ -30,6 +30,12 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
   const [flashId, setFlashId] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; over: number } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const addRef = useRef<HTMLButtonElement>(null);
+  // Na sluiten van de kiezer: de focus terug op "Kolom toevoegen", zodat je met Enter meteen de volgende kiest.
+  const closePicker = (refocus: boolean) => {
+    setPickerOpen(false);
+    if (refocus) requestAnimationFrame(() => addRef.current?.focus());
+  };
 
   useEffect(() => {
     if (!focusId || !ids.includes(focusId)) return;
@@ -108,7 +114,8 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
   const showDropLine = (i: number) => drag !== null && dropLineAt === i && i !== dragFrom && i !== dragFrom + 1;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="rs-cols-editor flex flex-col gap-2">
+      <div className="rs-cols-wrap">
       <div className="rs-cols" role="listbox" aria-label={t('studio.columns.listLabel')} aria-describedby="rs-cols-hint" data-rs-columns>
         {ids.map((id, i) => {
           const required = id === REPORT_REQUIRED_COLUMN;
@@ -171,7 +178,10 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
         })}
         {showDropLine(ids.length) && <div className="rs-drop-line" aria-hidden="true" />}
       </div>
-      <p className="rs-hint" id="rs-cols-hint">{t('studio.columns.keysHint')}</p>
+      {/* De toetsen alleen bij toetsenbordfocus in de lijst (CSS `:has`), als laag over de ruimte eronder:
+          zo verspringt er niets. Schermlezers lezen hem altijd via aria-describedby. */}
+      <p className="rs-hint rs-cols-hint" id="rs-cols-hint">{t('studio.columns.keysHint')}</p>
+      </div>
 
       {pickerOpen ? (
         <ColumnPicker
@@ -179,11 +189,11 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
           available={available}
           gridSet={gridSet}
           categoryLabel={categoryLabel}
-          onPick={id => { onChange(addReportColumn(ids, id), 'column-add'); setFlashId(id); }}
-          onClose={() => setPickerOpen(false)}
+          onPick={id => { onChange(addReportColumn(ids, id), 'column-add'); setFlashId(id); closePicker(true); }}
+          onClose={() => closePicker(true)}
         />
       ) : (
-        <button type="button" className="rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
+        <button ref={addRef} type="button" className="rs-add" onClick={() => setPickerOpen(true)} disabled={full} data-rs-add-column>
           <Icon id="table.column-add-menu" size={14} />
           {full ? t('studio.columns.full', { count: REPORT_MAX_COLUMNS }) : t('studio.columns.add')}
         </button>
@@ -205,7 +215,7 @@ export function ColumnsEditor({ ids, onChange, available, gridIds, focusId, labe
   );
 }
 
-/** Zoekbare kolomkiezer: typen filtert, ↑/↓ kiest, Enter voegt toe, Esc sluit. */
+/** Zoekbare kolomkiezer: typen filtert, ↑/↓ kiest, Enter voegt toe en sluit hem, Esc sluit. */
 function ColumnPicker({ ids, available, gridSet, categoryLabel, onPick, onClose }: {
   ids: readonly string[];
   available: readonly TaskGridAdapterColumn[];

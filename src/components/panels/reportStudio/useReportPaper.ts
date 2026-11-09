@@ -17,6 +17,8 @@ export interface ReportPaperModel {
   /** Breedte van de taaktabel en hoogte van de kopstrook (logische px), voor de zijbalk. */
   tableWidth: number;
   headerHeight: number;
+  /** Breedte van één dag op de tijdas (logische px), voor de start van "Vaste schaal". */
+  dayWidth: number;
   /** Eén blad als SVG-tekst (berekend bij de eerste vraag, daarna onthouden). */
   pageSvg: (pageIndex: number) => string;
   /** De klikbare delen van één blad (idem). */
@@ -98,6 +100,7 @@ export function useReportPaper(input: ReportPaperInput, visibleHint: { readonly 
         totalPages: layout.rows * layout.cols,
         tableWidth: result.tableWidth,
         headerHeight: result.headerHeight,
+        dayWidth: result.dayWidth ?? 0,
         pageSvg: (pageIndex: number) => {
           let svg = svgCache.get(pageIndex);
           if (svg === undefined) {

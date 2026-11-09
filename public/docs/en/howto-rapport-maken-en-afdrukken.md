@@ -18,6 +18,8 @@ From the file menu, choose *File › Print › Open print preview*. The file men
 
 On the left is the *Report* column with the *Report type* list, a summary and the settings. On the right is the preview.
 
+If *New Report tab* is on under *Settings › Advanced › Experimental*, the Gantt chart looks different. Then read [The new Report tab](docs://howto-rapport-maken-en-afdrukken#the-new-report-tab-experimental) below.
+
 ### 2. Choose the report type
 
 The *Report type* list has eleven reports. Choose the one that fits your question.
@@ -54,7 +56,7 @@ Under *Settings* are the choices for the Gantt chart and the Resource diagram. L
 
 ### 5. Check the preview
 
-For the Gantt chart and the Resource diagram you see the paper with page header, table, timeline and legend. Scroll to look at the pages. *Preview quality* only sets how sharp the preview is on your screen; the PDF does not change with it. If below the pages it says *… and 1 more page — export for the full document* (with more pages *… and 2 more pages — export for the full document*), the preview does not have all pages ready. The PDF contains all of them.
+For the Gantt chart and the Resource diagram you see the paper with page header, table, timeline and legend. Scroll to look at the pages. *Preview quality* only sets how sharp the preview is on your screen; the PDF does not change with it. The new Report tab does not have this choice: there the paper is always sharp. If below the pages it says *… and 1 more page — export for the full document* (with more pages *… and 2 more pages — export for the full document*), the preview does not have all pages ready. The PDF contains all of them.
 
 The other reports are shown on screen as a table. What you see is what ends up in the PDF.
 
@@ -68,6 +70,21 @@ Click **Export PDF** at the bottom of the left column. The button exports the se
 ### 7. Print the PDF
 
 Open the PDF in your PDF reader and print it there. If you print an A3 PDF on an A4 printer, your print dialog has to shrink the pages. So set the paper size first in step 4.
+
+## The new Report tab (experimental)
+
+If *New Report tab* is on under *Settings › Advanced › Experimental*, the Gantt chart opens in a new layout. You choose the other reports with *Other report* in the list at the top; they open the tab as described above.
+
+On the left is a sidebar with six steps, in the order of the paper: *Tasks*, *Columns*, *Bars and timeline*, *Page*, *Header and footer* and *Save (PDF)*. One step is open. A closed step shows in one line what you chose. An orange dot at the number means that the step differs from the default. On your first visit step 1 is open; after that the step you used last opens.
+
+- **Click the paper.** Move over the sheet: the part under the mouse lights up and its name shows above the sheet, for example *Columns · Start*. When you click, the step of that part opens. A click on a column highlights that column in the *Columns* step.
+- **Columns.** Choose *Add column* and type part of the name. Enter adds the column and closes the list. Drag a column by its dots, or use Alt with the up or down arrow. *Like the table* copies the columns of the task table next to the Gantt. The task name is required. With *Truncate* you set the width of the name column in millimetres on paper.
+- **Whole page and Width.** At the top right you choose how the paper fits. *Whole page* (default) shows a whole sheet. *Width* fills the width of the window. With − and + or Ctrl+scroll you zoom; the percentage is relative to the actual size of the paper. The 0 key brings back *Whole page*. After a change of paper or orientation, sheet 1 is at the top again.
+- **Fit to width or Fixed scale.** In the *Page* step, *Fit to width* fits the whole timeline on the sheet width. *Fixed scale* gives every day a fixed width, in millimetres per day. Fixed scale starts at the width per day you just had, so the number of pages does not jump.
+- **Default and Undo.** At the bottom of each step, *Default* resets only that step. Then *Undo* appears. It restores exactly what *Default* changed, in *Header and footer* also the company name. What you chose in another step after that stays.
+- **Status line without status date.** If you choose a status line in *Bars and timeline* while the project has no status date, *Set to today* sets the status date to today. Or you pick a date.
+- **Collapse the sidebar.** With the button next to the list or `Ctrl+\` you collapse the sidebar to a narrow rail with steps 1 to 5. A click on a step or on the paper opens that step as a small window. At the bottom left there is then the *Export PDF* button.
+- **Export.** *Export PDF* is at the bottom of the sidebar. The paper on the screen is the same as the PDF: the same pages, and names and dates are truncated in the same place.
 
 ## Pitfalls and what the app does
 

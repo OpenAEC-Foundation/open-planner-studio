@@ -18,6 +18,8 @@ Vanuit het bestandsmenu kies je *Bestand › Afdruk › Open afdrukvoorbeeld*. H
 
 Links staat de kolom *Rapportage* met de keuzelijst *Rapporttype*, een overzicht en de instellingen. Rechts staat het voorbeeld.
 
+Staat bij *Instellingen › Geavanceerd › Experimenteel* de keuze *Nieuw tabblad Rapport* aan, dan ziet de Gantt-afdruk er anders uit. Lees dan [Het nieuwe tabblad Rapport](docs://howto-rapport-maken-en-afdrukken#het-nieuwe-tabblad-rapport-experimenteel) hieronder.
+
 ### 2. Kies het rapporttype
 
 De keuzelijst *Rapporttype* heeft elf rapporten. Kies het rapport dat bij je vraag past.
@@ -54,7 +56,7 @@ Onder *Instellingen* staan de keuzes voor de Gantt-afdruk en het Resourcediagram
 
 ### 5. Controleer het voorbeeld
 
-Bij de Gantt-afdruk en het Resourcediagram zie je het papier met paginakop, tabel, tijdlijn en legenda. Scrol om de pagina's te bekijken. *Previewkwaliteit* stelt alleen in hoe scherp het voorbeeld op je scherm is; de PDF verandert er niet door. Staat er onder de pagina's *… en nog 1 pagina — exporteer voor het volledige document* (bij meer pagina's *… en nog 2 pagina's — exporteer voor het volledige document*), dan heeft het voorbeeld niet alle pagina's klaarstaan. De PDF bevat ze allemaal.
+Bij de Gantt-afdruk en het Resourcediagram zie je het papier met paginakop, tabel, tijdlijn en legenda. Scrol om de pagina's te bekijken. *Previewkwaliteit* stelt alleen in hoe scherp het voorbeeld op je scherm is; de PDF verandert er niet door. Het nieuwe tabblad Rapport heeft die keuze niet: daar is het papier altijd scherp. Staat er onder de pagina's *… en nog 1 pagina — exporteer voor het volledige document* (bij meer pagina's *… en nog 2 pagina's — exporteer voor het volledige document*), dan heeft het voorbeeld niet alle pagina's klaarstaan. De PDF bevat ze allemaal.
 
 De overige rapporten staan als tabel op het scherm. Wat je ziet is wat in de PDF komt.
 
@@ -68,6 +70,21 @@ Klik onder aan de kolom links op **Exporteer PDF**. De knop exporteert het gekoz
 ### 7. Druk de PDF af
 
 Open de PDF in je PDF-lezer en druk hem daar af. Print je een A3-PDF op een A4-printer, dan moet je printvenster de pagina's verkleinen. Stel het papierformaat daarom liever eerst in bij stap 4.
+
+## Het nieuwe tabblad Rapport (experimenteel)
+
+Staat bij *Instellingen › Geavanceerd › Experimenteel* de keuze *Nieuw tabblad Rapport* aan, dan opent de Gantt-afdruk in een nieuwe opbouw. De andere rapporten kies je met *Ander rapport* in de keuzelijst bovenaan; die openen het tabblad zoals hierboven beschreven.
+
+Links staat een zijbalk met zes stappen, in de volgorde van het papier: *Taken*, *Kolommen*, *Balken en tijdlijn*, *Pagina*, *Kop en voet* en *Opslaan (PDF)*. Er staat één stap open. Een dichte stap toont in één regel wat je koos. Een oranje stip bij het nummer betekent dat de stap afwijkt van de standaard. Bij je eerste bezoek staat stap 1 open; daarna opent de stap die je het laatst gebruikte.
+
+- **Klik op het papier.** Beweeg over het blad: het deel onder de muis licht op en boven het blad staat zijn naam, bijvoorbeeld *Kolommen · Start*. Klik je, dan opent de stap van dat deel. Een klik op een kolom laat die kolom oplichten in de stap *Kolommen*.
+- **Kolommen.** Kies *Kolom toevoegen* en typ een deel van de naam. Enter voegt de kolom toe en sluit de lijst. Versleep een kolom aan de puntjes, of gebruik Alt met pijl omhoog of omlaag. *Zoals de tabel* neemt de kolommen van de takentabel naast de Gantt over. De taaknaam is verplicht. Bij *Afkappen* stel je de breedte van de naamkolom in millimeter op papier in.
+- **Hele blad en Breedte.** Rechtsboven kies je hoe het papier in beeld past. *Hele blad* (standaard) toont een heel blad. *Breedte* vult de breedte van het venster. Met − en + of Ctrl+scrollen zoom je; het percentage geldt ten opzichte van de ware grootte van het papier. De toets 0 zet *Hele blad* terug. Na een wissel van papier of stand staat blad 1 weer bovenaan.
+- **Op de breedte of Vaste schaal.** In de stap *Pagina* past *Op de breedte* de hele tijdlijn op de bladbreedte. *Vaste schaal* geeft elke dag een vaste breedte, in millimeter per dag. Vaste schaal begint op de breedte per dag die je net had, dus het aantal pagina's verspringt niet.
+- **Standaard en Ongedaan maken.** Onderaan elke stap zet *Standaard* alleen die stap terug. Daarna verschijnt *Ongedaan maken*. Dat zet precies terug wat *Standaard* veranderde, bij *Kop en voet* ook de bedrijfsnaam. Wat je daarna in een andere stap koos, blijft staan.
+- **Statuslijn zonder statusdatum.** Kies je in *Balken en tijdlijn* een statuslijn terwijl het project geen statusdatum heeft, dan zet *Op vandaag zetten* de statusdatum op vandaag. Of je kiest er een datum.
+- **Zijbalk inklappen.** Met de knop naast de keuzelijst of `Ctrl+\` klap je de zijbalk in tot een smalle rand met de stappen 1 tot en met 5. Een klik op een stap of op het papier opent die stap als klein venster. Linksonder staat dan de knop *PDF exporteren*.
+- **Exporteren.** *PDF exporteren* staat onderaan de zijbalk. Het papier op het scherm is gelijk aan de PDF: dezelfde pagina's, en namen en datums worden op dezelfde plek afgekapt.
 
 ## Valkuilen en wat de app dan doet
 

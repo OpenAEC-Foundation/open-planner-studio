@@ -84,7 +84,7 @@
     "start": "Start",
     "end": "End",
     "duration": "Duration",
-    "completion": "Compl."
+    "completion": "Progress"
   },
   "reportType": {
     "label": "Report type",
@@ -453,7 +453,15 @@
       "bars": "Bars and timeline",
       "page": "Page",
       "headerFooter": "Header and footer",
-      "export": "Save (PDF)"
+      "export": "Save (PDF)",
+      "short": {
+        "tasks": "Tasks",
+        "columns": "Columns",
+        "bars": "Bars",
+        "page": "Page",
+        "headerFooter": "Header",
+        "export": "PDF"
+      }
     },
     "reset": "Default",
     "resetDone": "{{step}} is back to the default.",
@@ -467,6 +475,7 @@
     "updating": "Updating the paper",
     "pages_one": "{{count}} page",
     "pages_other": "{{count}} pages",
+    "mm": "{{value}} mm",
     "tasks": {
       "title": "Which tasks",
       "all": "All tasks",
@@ -512,11 +521,13 @@
     "bars": {
       "onBars": "On the bars",
       "names": "Task names next to the bars",
-      "completion": "Completion",
+      "completion": "Progress",
       "completionSub": "The finished part, dark in the bar",
       "criticalSub": "Critical tasks in red",
       "lines": "Lines",
       "statusLine": "Status line",
+      "statusDateToday": "Set to today",
+      "statusDateOther": "Or pick a date",
       "timeline": "Timeline",
       "colors": "Bar colours",
       "colorHint": "This choice also applies to the Gantt on screen.",
@@ -524,7 +535,7 @@
         "critical": "Critical path",
         "relations": "Relations",
         "float": "Float",
-        "completion": "Completion",
+        "completion": "Progress",
         "names": "Names",
         "baseline": "Baseline",
         "statusLine": "Status line"
@@ -541,14 +552,20 @@
       "fit": "Fit",
       "fitWidth": "Fit to width",
       "fixedScale": "Fixed scale",
+      "fitWidthHint": "The whole timeline fits the page width. More pages side by side make it wider.",
+      "fixedScaleHint": "Every day gets a fixed width. A long schedule then runs over more pages side by side.",
       "across": "Timeline across",
       "fewer": "Fewer pages",
       "more": "More pages",
       "dayWidth": "Width per day",
+      "perDay": "{{value}} per day",
       "font": "Font",
       "fontScale": "Font size",
       "manyPages_one": "This report becomes {{count}} page. Choose larger paper or fewer pages across.",
       "manyPages_other": "This report becomes {{count}} pages. Choose larger paper or fewer pages across.",
+      "manyPagesScale_one": "This report becomes {{count}} page. Choose larger paper or a smaller width per day.",
+      "manyPagesScale_other": "This report becomes {{count}} pages. Choose larger paper or a smaller width per day.",
+      "toColumns": "Adjust columns",
       "gridPages_one": "{{count}} page ({{rows}} × {{cols}})",
       "gridPages_other": "{{count}} pages ({{rows}} × {{cols}})"
     },
@@ -565,26 +582,32 @@
     "export": {
       "button": "Export PDF",
       "busy": "Creating the PDF…",
-      "fab": "Export PDF",
       "file": "File",
       "sheets": "Pages",
       "stale": "The schedule has changed. On export the app recalculates it first.",
       "summary": "Vector PDF",
       "summaryError": "Export is not possible: the schedule has an error",
-      "vectorHint": "The PDF is sharp at any size. The text stays selectable."
+      "vectorHint": "The PDF is sharp at any size. The text stays selectable.",
+      "whereSidebar": "Export with the Export PDF button at the bottom of the sidebar.",
+      "whereRail": "Export with the Export PDF button at the bottom left."
     },
     "paper": {
       "label_one": "Report preview, {{count}} page",
       "label_other": "Report preview, {{count}} pages",
       "role": "paper",
-      "sheet": "Page {{index}} of {{total}}"
+      "sheet": "Page {{index}} of {{total}}",
+      "hint": "Click a part of the sheet to set it up.",
+      "hintClose": "Close tip"
     },
     "zoom": {
       "label": "Zoom",
       "out": "Zoom out",
       "in": "Zoom in",
-      "fit": "Fit",
-      "fitHint": "Page to the window width (0)"
+      "page": "Whole page",
+      "pageHint": "Show the whole page (0)",
+      "width": "Width",
+      "widthHint": "Fit the page to the window width",
+      "valueHint": "Zoom relative to the actual paper size"
     },
     "region": {
       "header": "Header",

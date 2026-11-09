@@ -218,14 +218,18 @@ const CAL_DAYS = 'task.time.calendarDays';
 {
   eq(DEFAULT_REPORT_SETTINGS.columns, [...REPORT_DEFAULT_COLUMNS], 'standaard: de zes kolommen van vóór #817');
   eq(DEFAULT_REPORT_SETTINGS.sidebar, 'open', 'standaard: zijbalk open');
+  eq(DEFAULT_REPORT_SETTINGS.studioStep, 'tasks', 'standaard: eerste bezoek opent stap 1');
+  eq(DEFAULT_REPORT_SETTINGS.paperHintSeen, false, 'standaard: aanwijzing bij het papier nog niet gezien');
 
   localStorage.setItem('ops-reportSettings', JSON.stringify({ showCompletion: false }));
   eq((await loadReportSettings()).columns, REPORT_DEFAULT_COLUMNS.filter(id => id !== 'task.time.completion'),
     'oude instelling zonder lijst, Voltooiing uit ⇒ standaard zonder Voltooiing');
   localStorage.setItem('ops-reportSettings', JSON.stringify({ showCompletion: true }));
   eq((await loadReportSettings()).columns, [...REPORT_DEFAULT_COLUMNS], 'oude instelling zonder lijst, Voltooiing aan ⇒ standaard');
-  localStorage.setItem('ops-reportSettings', JSON.stringify({ columns: 'kapot', sidebar: 'zijwaarts' }));
+  localStorage.setItem('ops-reportSettings', JSON.stringify({ columns: 'kapot', sidebar: 'zijwaarts', studioStep: 'kelder', paperHintSeen: 'ja' }));
   const junk = await loadReportSettings();
+  eq(junk.studioStep, 'tasks', 'rommel in de open stap ⇒ stap 1');
+  eq(junk.paperHintSeen, false, 'rommel in de aanwijzing ⇒ niet gezien');
   eq(junk.columns, [...REPORT_DEFAULT_COLUMNS], 'rommel in de lijst ⇒ standaard');
   eq(junk.sidebar, 'open', 'rommel in de zijbalkstand ⇒ open');
 
@@ -235,8 +239,10 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.length, REPORT_MAX_COLUMNS, 'parse: hoogstens het maximum');
   ok(parseReportColumns(Array.from({ length: 40 }, (_, i) => `c${i}`))?.includes(REPORT_REQUIRED_COLUMN) === true, 'parse: taaknaam blijft ook bij het maximum');
 
-  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail' });
+  await saveReportSettings({ ...DEFAULT_REPORT_SETTINGS, columns: ['task.name', CAL_DAYS, 'task.wbsCode'], sidebar: 'rail', studioStep: 'page', paperHintSeen: true });
   const saved = await loadReportSettings();
+  eq(saved.studioStep, 'page', 'round-trip: laatst gebruikte stap');
+  eq(saved.paperHintSeen, true, 'round-trip: aanwijzing gezien');
   eq(saved.columns, ['task.name', CAL_DAYS, 'task.wbsCode'], 'round-trip: kolomlijst met volgorde');
   eq(saved.sidebar, 'rail', 'round-trip: zijbalkstand');
 

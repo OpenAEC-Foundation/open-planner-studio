@@ -4,7 +4,7 @@
 
 .rs-root {
   --rs-sidebar-w: 328px;
-  --rs-rail-w: 52px;
+  --rs-rail-w: 64px;
   --rs-soft: color-mix(in srgb, var(--theme-accent) 10%, transparent);
   --rs-soft-strong: color-mix(in srgb, var(--theme-accent) 18%, transparent);
   --rs-line: var(--theme-border);
@@ -91,20 +91,40 @@
 .rs-steps {
   flex: 1;
   min-height: 0;
+  /* Alleen als zelfs de zes koppen niet passen (heel laag venster) scrolt de lijst als geheel. */
   overflow-y: auto;
-  padding: 8px 8px 12px;
+  padding: 8px 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
+/* Alle zes de stapkoppen blijven in beeld: een dichte stap houdt zijn hoogte, de open stap krimpt tot de
+   ruimte die over is en alleen zijn inhoud scrolt. */
 .rs-step {
+  flex: none;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
 }
 .rs-step[data-open='true'] {
+  flex: 0 1 auto;
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
   background: var(--theme-surface-alt);
   border-color: var(--rs-line);
+}
+.rs-step[data-open='true'] > .rs-step-head { flex: none; }
+/* Laag venster (laptop, 720–768 px hoog): de dichte stappen tonen alleen hun titel, zodat de open stap
+   ruimte houdt. De samenvatting staat dan in de tooltip van de stapkop. */
+@media (max-height: 800px) {
+  .rs-step[data-open='false'] .rs-step-summary { display: none; }
+  .rs-step[data-open='false'] .rs-step-head { padding-block: 6px; }
+}
+.rs-step[data-open='true'] > .rs-step-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .rs-step-head {
@@ -113,7 +133,7 @@
   align-items: center;
   column-gap: 10px;
   width: 100%;
-  padding: 9px 10px;
+  padding: 7px 10px;
   border-radius: var(--radius-md);
   text-align: start;
   background: transparent;
@@ -423,6 +443,24 @@
 }
 .rs-grip { color: var(--theme-text-muted); cursor: grab; display: inline-flex; }
 .rs-col-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* De toetsen onder de lijst alleen bij toetsenbordfocus in de lijst (`:focus-visible`); de lijst noemt ze
+   altijd via aria-describedby. Als laag over de ruimte eronder ("Kolom toevoegen"), zonder eigen plek:
+   anders verspringt die knop als de focus de lijst verlaat, midden in een klik. */
+.rs-cols-wrap { position: relative; }
+.rs-cols-hint {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  z-index: 2;
+  display: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-surface);
+  border: 1px solid var(--rs-line);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.rs-cols-wrap:has(.rs-cols :focus-visible) .rs-cols-hint { display: block; }
 .rs-col-name small { color: var(--theme-text-muted); font-size: var(--text-small); margin-inline-start: 6px; }
 .rs-col-actions { display: inline-flex; align-items: center; gap: 0; }
 .rs-col-actions .rs-icon-btn { width: 24px; height: 24px; }
@@ -565,13 +603,35 @@
 .rs-rail-btn {
   position: relative;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  gap: 2px;
+  width: 56px;
+  min-height: 48px;
+  padding: 6px 2px 5px;
   border-radius: var(--radius-md);
   color: var(--theme-text-dim);
   background: transparent;
+}
+/* Stapnummer linksboven, zoals de nummers in de open zijbalk. */
+.rs-rail-num {
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 5px;
+  font-size: var(--text-caption);
+  line-height: 12px;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rs-rail-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  line-height: 12px;
 }
 .rs-rail-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
 .rs-rail-btn[aria-expanded='true'] {
@@ -583,8 +643,8 @@
 .rs-rail-btn[data-changed='true']::after {
   content: '';
   position: absolute;
-  top: 6px;
-  inset-inline-end: 6px;
+  top: 5px;
+  inset-inline-end: 7px;
   width: 6px;
   height: 6px;
   border-radius: var(--radius-full);
@@ -685,18 +745,32 @@
   background: var(--theme-surface);
 }
 .rs-zoom-value {
-  min-width: 52px;
+  min-width: 48px;
   text-align: center;
   font-variant-numeric: tabular-nums;
   font-size: var(--text-body);
   line-height: 16px;
-  color: var(--theme-text);
-  background: transparent;
-  border-radius: var(--radius-sm);
-  padding: 4px 4px;
+  color: var(--theme-text-dim);
+  padding: 4px 2px;
 }
-.rs-zoom-value:hover { background: var(--theme-hover); }
-.rs-zoom-value:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-zoom-sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--rs-line); }
+.rs-fit-btn {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: var(--text-body);
+  line-height: 16px;
+  color: var(--theme-text-dim);
+  background: transparent;
+  white-space: nowrap;
+}
+.rs-fit-btn:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-fit-btn:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
+.rs-fit-btn[aria-pressed='true'] {
+  background: var(--rs-soft);
+  color: var(--theme-text);
+  border-color: color-mix(in srgb, var(--theme-accent) 55%, transparent);
+}
 
 .rs-viewport {
   flex: 1;
@@ -713,8 +787,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  padding: 24px;
+  gap: 32px;
+  padding: 30px 24px 24px;
   width: max-content;
   min-width: 100%;
   box-sizing: border-box;
@@ -744,13 +818,20 @@
 }
 .rs-page-caption {
   position: absolute;
-  top: -18px;
-  inset-inline-start: 0;
+  top: -22px;
+  inset-inline: 0;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-size: var(--text-caption);
   line-height: 14px;
   color: var(--theme-text-muted);
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
+.rs-page-caption > :first-child { flex-shrink: 0; }
 
 .rs-overlay { position: absolute; inset: 0; pointer-events: none; }
 .rs-region {
@@ -760,21 +841,21 @@
   background: color-mix(in srgb, var(--theme-accent) 7%, transparent);
   transition: opacity 80ms linear;
 }
+/* De open stap: alleen een rand. Een vulling zou juist de kleuren veranderen die je aan het instellen bent. */
 .rs-region[data-kind='selected'] {
   box-shadow: inset 0 0 0 2px var(--theme-accent);
-  background: color-mix(in srgb, var(--theme-accent) 11%, transparent);
+  background: transparent;
 }
 .rs-region[data-kind='column'] {
   box-shadow: inset 0 0 0 1.5px var(--theme-accent);
   background: color-mix(in srgb, var(--theme-accent) 14%, transparent);
 }
+/* De naam van het deel onder de muis staat boven het blad (rechts in de titelregel): zo dekt hij niets af. */
 .rs-region-label {
-  position: absolute;
-  transform: translateY(calc(-100% - 4px));
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  min-width: 0;
+  padding: 1px 8px;
   border-radius: var(--radius-full);
   background: var(--theme-accent);
   color: var(--theme-accent-on);
@@ -782,15 +863,33 @@
   line-height: 14px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.rs-region-label[data-inside='true'] { transform: translateY(4px); }
-.rs-region-label kbd {
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 400;
-  opacity: 0.85;
+/* Eerste bezoek: rustige aanwijzing in dezelfde regel boven blad 1. */
+.rs-paper-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--theme-text-dim);
+  white-space: nowrap;
 }
+.rs-paper-hint > span { overflow: hidden; text-overflow: ellipsis; }
+.rs-paper-hint svg { flex-shrink: 0; color: var(--theme-text-muted); }
+.rs-paper-hint-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  color: var(--theme-text-muted);
+  background: transparent;
+  pointer-events: auto;
+}
+.rs-paper-hint-close:hover { background: var(--theme-hover); color: var(--theme-text); }
+.rs-paper-hint-close:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 1px; }
 .rs-region-btn {
   position: absolute;
   /* Alleen voor het toetsenbord: de muis gaat door naar het blad (dat ook de kolom onder de muis kent). */
@@ -871,23 +970,30 @@
 .rs-field { display: flex; flex-direction: column; gap: 4px; }
 .rs-field-label { font-size: var(--text-small); line-height: 14px; color: var(--theme-text-dim); }
 .rs-range { display: flex; align-items: center; gap: 8px; }
+.rs-inline-date { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rs-range input[type='range'] { flex: 1; min-width: 0; accent-color: var(--theme-accent); }
-.rs-range output { min-width: 36px; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
+.rs-range output { min-width: 44px; white-space: nowrap; text-align: end; font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--theme-text-dim); }
 .rs-stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--rs-line); border-radius: var(--radius-md); background: var(--theme-surface); padding: 2px; }
 .rs-stepper output { min-width: 64px; text-align: center; font-size: var(--text-body); line-height: 16px; font-variant-numeric: tabular-nums; }
 
-/* Zijbalk ingeklapt: één ronde knop linksonder in het werkvlak, dezelfde actie als de stap Opslaan
-   (besluit eigenaar 7-11-2026). Hij staat naast de rail, boven het papier. */
+/* Zijbalk ingeklapt: de knop "PDF exporteren" zweeft linksonder in het werkvlak, dezelfde actie als de
+   knop onderaan de open zijbalk (besluit eigenaar 7-11-2026). Het papier houdt onderaan vrije ruimte voor
+   hem (`FAB_RESERVE`), dus "Hele blad" past erboven en het laatste blad scrolt eronderuit. */
 .rs-fab {
   position: absolute;
   inset-inline-start: calc(var(--rs-rail-w) + 16px);
-  bottom: 16px;
+  bottom: 14px;
   z-index: 15;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px 0 14px;
+  font-size: var(--text-large);
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
   border-radius: var(--radius-full);
   background: var(--theme-accent);
   color: var(--theme-accent-on);

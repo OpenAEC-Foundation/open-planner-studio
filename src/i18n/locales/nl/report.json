@@ -84,7 +84,7 @@
     "start": "Start",
     "end": "Einde",
     "duration": "Duur",
-    "completion": "Volt."
+    "completion": "Voortgang"
   },
   "reportType": {
     "label": "Rapporttype",
@@ -453,7 +453,15 @@
       "bars": "Balken en tijdlijn",
       "page": "Pagina",
       "headerFooter": "Kop en voet",
-      "export": "Opslaan (PDF)"
+      "export": "Opslaan (PDF)",
+      "short": {
+        "tasks": "Taken",
+        "columns": "Kolommen",
+        "bars": "Balken",
+        "page": "Pagina",
+        "headerFooter": "Kop/voet",
+        "export": "PDF"
+      }
     },
     "reset": "Standaard",
     "resetDone": "{{step}} staat weer op de standaard.",
@@ -467,6 +475,7 @@
     "updating": "Het papier wordt bijgewerkt",
     "pages_one": "{{count}} pagina",
     "pages_other": "{{count}} pagina's",
+    "mm": "{{value}} mm",
     "tasks": {
       "title": "Welke taken",
       "all": "Alle taken",
@@ -512,11 +521,13 @@
     "bars": {
       "onBars": "Op de balken",
       "names": "Taaknamen bij de balken",
-      "completion": "Voltooiing",
+      "completion": "Voortgang",
       "completionSub": "Het deel dat klaar is, donker in de balk",
       "criticalSub": "Kritieke taken in rood",
       "lines": "Lijnen",
       "statusLine": "Statuslijn",
+      "statusDateToday": "Op vandaag zetten",
+      "statusDateOther": "Of kies een datum",
       "timeline": "Tijdlijn",
       "colors": "Balkkleuren",
       "colorHint": "Deze keuze geldt ook voor de Gantt op het scherm.",
@@ -524,7 +535,7 @@
         "critical": "Kritiek pad",
         "relations": "Relaties",
         "float": "Speling",
-        "completion": "Voltooiing",
+        "completion": "Voortgang",
         "names": "Namen",
         "baseline": "Baseline",
         "statusLine": "Statuslijn"
@@ -541,14 +552,20 @@
       "fit": "Passen",
       "fitWidth": "Op de breedte",
       "fixedScale": "Vaste schaal",
+      "fitWidthHint": "De hele tijdlijn past op de breedte van het blad. Met meer pagina's naast elkaar wordt hij breder.",
+      "fixedScaleHint": "Elke dag krijgt een vaste breedte. Een lange planning loopt dan over meer pagina's naast elkaar.",
       "across": "Tijdlijn over",
       "fewer": "Minder pagina's",
       "more": "Meer pagina's",
       "dayWidth": "Breedte per dag",
+      "perDay": "{{value}} per dag",
       "font": "Lettertype",
       "fontScale": "Lettergrootte",
       "manyPages_one": "Dit rapport wordt {{count}} pagina. Kies groter papier of minder pagina's naast elkaar.",
       "manyPages_other": "Dit rapport wordt {{count}} pagina's. Kies groter papier of minder pagina's naast elkaar.",
+      "manyPagesScale_one": "Dit rapport wordt {{count}} pagina. Kies groter papier of een kleinere breedte per dag.",
+      "manyPagesScale_other": "Dit rapport wordt {{count}} pagina's. Kies groter papier of een kleinere breedte per dag.",
+      "toColumns": "Kolommen aanpassen",
       "gridPages_one": "{{count}} pagina ({{rows}} × {{cols}})",
       "gridPages_other": "{{count}} pagina's ({{rows}} × {{cols}})"
     },
@@ -565,26 +582,32 @@
     "export": {
       "button": "PDF exporteren",
       "busy": "De PDF wordt gemaakt…",
-      "fab": "PDF exporteren",
       "file": "Bestand",
       "sheets": "Pagina's",
       "stale": "De planning is gewijzigd. Bij exporteren rekent de app hem eerst door.",
       "summary": "Vector-PDF",
       "summaryError": "Exporteren lukt niet: de planning heeft een fout",
-      "vectorHint": "De PDF is scherp op elk formaat. De tekst blijft te selecteren."
+      "vectorHint": "De PDF is scherp op elk formaat. De tekst blijft te selecteren.",
+      "whereSidebar": "Exporteer met de knop PDF exporteren onderaan de zijbalk.",
+      "whereRail": "Exporteer met de knop PDF exporteren linksonder."
     },
     "paper": {
       "label_one": "Voorbeeld van het rapport, {{count}} pagina",
       "label_other": "Voorbeeld van het rapport, {{count}} pagina's",
       "role": "papier",
-      "sheet": "Pagina {{index}} van {{total}}"
+      "sheet": "Pagina {{index}} van {{total}}",
+      "hint": "Klik op een deel van het blad om het in te stellen.",
+      "hintClose": "Aanwijzing sluiten"
     },
     "zoom": {
       "label": "Zoom",
       "out": "Uitzoomen",
       "in": "Inzoomen",
-      "fit": "Passend",
-      "fitHint": "Pagina op de breedte van het venster (0)"
+      "page": "Hele blad",
+      "pageHint": "Het hele blad in beeld (0)",
+      "width": "Breedte",
+      "widthHint": "Het blad op de breedte van het venster",
+      "valueHint": "Zoom ten opzichte van de ware grootte van het papier"
     },
     "region": {
       "header": "Kop",

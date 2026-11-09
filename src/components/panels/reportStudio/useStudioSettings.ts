@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_REPORT_SETTINGS, loadReportSettings, saveReportSettings, type ReportSettings,
 } from '@/utils/reportSettings';
@@ -12,12 +12,25 @@ export interface StudioSettingsApi {
   /** De opgeslagen voorkeuren zijn geladen; vóór dat moment tekent het papier niets. */
   hydrated: boolean;
   patch: (patch: Partial<ReportSettings>, input?: string) => void;
-  /** Zet de velden van één stap terug op de standaard; ongedaan te maken met `undoReset`. */
-  resetFields: (keys: readonly StudioSettingKey[], label: string) => void;
-  /** De laatste "Standaard" met zijn naam, zolang hij nog ongedaan te maken is. */
-  lastReset: { label: string } | null;
+  /** Wijzigt alleen de opgeslagen stand, zonder meting en zonder dat een "Standaard" vervalt (open stap). */
+  remember: (patch: Partial<ReportSettings>) => void;
+  /**
+   * Zet de velden van één stap terug op de standaard; ongedaan te maken met `undoReset`. `restoreExtra`
+   * zet bij ongedaan maken wat buiten deze instellingen valt terug (de bedrijfsnaam).
+   */
+  resetFields: (scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => void;
+  /** De laatste "Standaard" met zijn stap en naam, zolang hij nog ongedaan te maken is. */
+  lastReset: { scope: string; label: string } | null;
   undoReset: () => void;
   dismissReset: () => void;
+}
+
+interface PendingReset {
+  scope: string;
+  label: string;
+  /** Alleen de velden die Standaard terugzette, met hun waarde van vóór Standaard. */
+  previous: Partial<ReportSettings>;
+  restoreExtra?: () => void;
 }
 
 /** Staan deze velden op de standaard? Arrays (kolommen) worden per element vergeleken. */
@@ -42,7 +55,7 @@ export function useStudioSettings(): StudioSettingsApi {
   const [settings, setSettings] = useState<ReportSettings>(DEFAULT_REPORT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const hydratedRef = useRef(false);
-  const [lastReset, setLastReset] = useState<{ label: string; previous: ReportSettings } | null>(null);
+  const [lastReset, setLastReset] = useState<PendingReset | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,11 +77,6 @@ export function useStudioSettings(): StudioSettingsApi {
     void saveReportSettings(settings).catch(() => {});
   }, [settings]);
 
-  const patch = useCallback((next: Partial<ReportSettings>, input = 'patch') => {
-    markReportInput(input);
-    setSettings(prev => ({ ...prev, ...next }));
-  }, []);
-
   // De actuele stand voor Standaard en ongedaan maken: buiten een state-updater lezen, zodat er geen
   // tweede setState vanuit een updater nodig is.
   const settingsRef = useRef(settings);
@@ -76,31 +84,53 @@ export function useStudioSettings(): StudioSettingsApi {
   const lastResetRef = useRef(lastReset);
   lastResetRef.current = lastReset;
 
-  const resetFields = useCallback((keys: readonly StudioSettingKey[], label: string) => {
+  const patch = useCallback((next: Partial<ReportSettings>, input = 'patch') => {
+    markReportInput(input);
+    // Een latere wijziging van een veld dat Standaard terugzette, wint: ongedaan maken zou haar anders
+    // stil wissen. Een wijziging in een andere stap laat het ongedaan maken staan.
+    const pending = lastResetRef.current;
+    if (pending && Object.keys(next).some(key => key in pending.previous)) setLastReset(null);
+    setSettings(prev => ({ ...prev, ...next }));
+  }, []);
+
+  const remember = useCallback((next: Partial<ReportSettings>) => {
+    setSettings(prev => (Object.entries(next).every(([key, value]) => prev[key as StudioSettingKey] === value) ? prev : { ...prev, ...next }));
+  }, []);
+
+  const resetFields = useCallback((scope: string, keys: readonly StudioSettingKey[], label: string, restoreExtra?: () => void) => {
     markReportInput('reset');
-    const previous = settingsRef.current;
-    const next = { ...previous };
+    const current = settingsRef.current;
+    const previous: Partial<ReportSettings> = {};
+    const next = { ...current };
     for (const key of keys) {
+      (previous as Record<string, unknown>)[key] = current[key];
       const value = DEFAULT_REPORT_SETTINGS[key];
       (next as Record<string, unknown>)[key] = Array.isArray(value) ? [...value] : value;
     }
-    setLastReset({ label, previous });
+    setLastReset({ scope, label, previous, restoreExtra });
     setSettings(next);
   }, []);
 
+  // Precies de stand van vóór Standaard, alleen voor de velden die Standaard terugzette: een later gekozen
+  // papierformaat in een andere stap blijft staan.
   const undoReset = useCallback(() => {
     const current = lastResetRef.current;
     if (!current) return;
     markReportInput('undo');
-    setSettings(current.previous);
+    setSettings(prev => ({ ...prev, ...current.previous }));
+    current.restoreExtra?.();
     setLastReset(null);
   }, []);
 
   const dismissReset = useCallback(() => setLastReset(null), []);
 
+  const lastResetInfo = useMemo(
+    () => (lastReset ? { scope: lastReset.scope, label: lastReset.label } : null),
+    [lastReset],
+  );
   return {
-    settings, hydrated, patch, resetFields,
-    lastReset: lastReset ? { label: lastReset.label } : null,
+    settings, hydrated, patch, remember, resetFields,
+    lastReset: lastResetInfo,
     undoReset, dismissReset,
   };
 }

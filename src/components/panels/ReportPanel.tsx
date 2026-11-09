@@ -416,8 +416,9 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
   // Velden die alleen het nieuwe Rapport-tabblad (feature flag `reportRedesign`) gebruikt: dit paneel
   // toont ze niet, maar schrijft ze ongewijzigd terug, anders wist een bezoek aan een ander rapporttype
   // de kolomkeuze van de Gantt-afdruk.
-  const studioFieldsRef = useRef<Pick<ReportSettings, 'columns' | 'sidebar'>>({
+  const studioFieldsRef = useRef<Pick<ReportSettings, 'columns' | 'sidebar' | 'studioStep' | 'paperHintSeen'>>({
     columns: DEFAULT_REPORT_SETTINGS.columns, sidebar: DEFAULT_REPORT_SETTINGS.sidebar,
+    studioStep: DEFAULT_REPORT_SETTINGS.studioStep, paperHintSeen: DEFAULT_REPORT_SETTINGS.paperHintSeen,
   });
   // De preview is veel duurder dan het kleine settings-object. Wacht daarom met de
   // eerste rastertaak tot alle opgeslagen opties in één React-batch zijn toegepast.
@@ -464,7 +465,7 @@ export function ReportPanel({ onReportTypeChange }: ReportPanelProps = {}) {
       setPreviewQuality(s.previewQuality);
       setTableOptions(s.tableReports);
       setResourceGanttOptions(s.resourceGantt);
-      studioFieldsRef.current = { columns: s.columns, sidebar: s.sidebar };
+      studioFieldsRef.current = { columns: s.columns, sidebar: s.sidebar, studioStep: s.studioStep, paperHintSeen: s.paperHintSeen };
       hydratedRef.current = true;
       setReportSettingsHydrated(true);
     }, () => {

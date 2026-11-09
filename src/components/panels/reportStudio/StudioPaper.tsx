@@ -10,13 +10,14 @@ export interface PaperInfo {
   cols: number;
   tableWidth: number;
   headerHeight: number;
+  dayWidth: number;
 }
 
 export function samePaperInfo(a: PaperInfo | null, b: PaperInfo | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   return a.totalPages === b.totalPages && a.rows === b.rows && a.cols === b.cols
-    && a.tableWidth === b.tableWidth && a.headerHeight === b.headerHeight;
+    && a.tableWidth === b.tableWidth && a.headerHeight === b.headerHeight && a.dayWidth === b.dayWidth;
 }
 
 interface StudioPaperProps {
@@ -30,6 +31,10 @@ interface StudioPaperProps {
   statusItems: readonly string[];
   actions?: ReactNode;
   onInfo: (info: PaperInfo | null) => void;
+  /** Ruimte onderaan voor de zwevende exportknop (zijbalk ingeklapt). */
+  bottomReserve: number;
+  /** De aanwijzing boven het eerste blad, of `null`. */
+  hint: { text: string; closeLabel: string; onClose: () => void } | null;
 }
 
 /**
@@ -38,7 +43,7 @@ interface StudioPaperProps {
  * tabelbreedte verandert (`onInfo`).
  */
 export const StudioPaper = memo(function StudioPaper({
-  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo,
+  input, loading, selected, onPick, regionLabel, columnLabel, statusItems, actions, onInfo, bottomReserve, hint,
 }: StudioPaperProps) {
   const { t } = useTranslation('report');
   // De bladen in beeld: de volgende opname tekent meteen hun rijen (en de rest pas bij scrollen).
@@ -51,10 +56,11 @@ export const StudioPaper = memo(function StudioPaper({
   const cols = paper?.layout.cols ?? 0;
   const tableWidth = paper?.tableWidth ?? 0;
   const headerHeight = paper?.headerHeight ?? 0;
+  const dayWidth = paper?.dayWidth ?? 0;
   const hasPaper = paper !== null;
   useEffect(() => {
-    onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight } : null);
-  }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight]);
+    onInfo(hasPaper ? { totalPages, rows, cols, tableWidth, headerHeight, dayWidth } : null);
+  }, [onInfo, hasPaper, totalPages, rows, cols, tableWidth, headerHeight, dayWidth]);
 
   const status = useMemo(() => (hasPaper ? (
     <>
@@ -81,6 +87,8 @@ export const StudioPaper = memo(function StudioPaper({
       status={status}
       actions={actions}
       onVisible={onVisible}
+      bottomReserve={bottomReserve}
+      hint={hint}
     />
   );
 });
