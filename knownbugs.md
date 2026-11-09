@@ -434,6 +434,30 @@ en noem het in je rapport of PR-tekst.
      dat pad dus niet. Voorstel: twee bronnen, de controle laten wachten op de tweede (vertraagde lezing), intussen
      *Later* voor de eerste, de controle laten eindigen, en controleren dat de eerste balk wegblijft. Uit de review
      van #811 ronde 3 (GPT-6.1-Sol, xhigh, op `6407277d5`, VERVOLG). — S
+970. **VERVOLG: *Bronbestand kiezen…* is niet getest in de echte desktop-app.**
+     Stap 1.8 opent op de desktop de kiezer van `@tauri-apps/plugin-dialog` (`open`, filter IFC) in
+     `chooseExternalSourceFile` (`src/state/slices/fileSlice.ts`); het pad gaat daarna door `parseExternalSource`.
+     De rechten (`dialog:default`, en de leesrechten die de kiezer geeft) zijn niet veranderd. Getest is alleen de
+     browserroute (`tests/browser/external-source-update.spec.ts`) en de store-regels; een Tauri-build is op aia nu
+     niet toegestaan (zie punt 883). Controle: in de desktop-app een koppeling maken via *Bronbestand kiezen…* met
+     een bestand buiten de recente bestanden, en zien dat de koppeling een pad krijgt en de balk werkt. — S
+971. **VERVOLG: een koppeling met pad is in de browser niet te vernieuwen, en een koppeling zonder pad mist *Bron vernieuwen*.**
+     Een koppeling die op de desktop gemaakt is, heeft een pad; de browser kan dat pad niet lezen en telt haar bij
+     *Alle externe relaties vernieuwen* als niet gelezen. *Bronbestanden kiezen…* raakt alleen koppelingen zonder
+     pad (een koppeling met pad wijst naar een bepaald bestand), dus die koppeling vernieuwt de planner alleen op de
+     desktop. Omgekeerd toont het rechtsklikmenu van de relatiecel *Bron vernieuwen* alleen bij een koppeling met pad
+     (`src/components/task-grid/FullTaskGrid.tsx`), dus een koppeling zonder pad vernieuwt de planner alleen via
+     *Alle externe relaties vernieuwen*. — B
+973. **VERVOLG: onthouden handvatten van bronbestanden worden nooit opgeruimd.**
+     `src/services/fileAccess/externalSourceHandles.ts` bewaart per project-id één handvat in IndexedDB
+     (`ops-external-sources`). Een handvat blijft staan als geen enkele koppeling het project nog gebruikt, en
+     ook als het bestand weg is. Dat kost alleen opslag; lezen gebeurt alleen voor een project met een koppeling.
+     Mogelijke oplossing: opruimen bij het verwijderen van de laatste koppeling, of na een leesfout. — B
+974. **VERVOLG: twee bronbestanden met hetzelfde project-id zijn in de browser niet te onderscheiden.**
+     Een koppeling zonder pad herkent haar bron alleen op project-id, en de app onthoudt één handvat per
+     project-id (het laatst gekozen bestand). Een kopie van een bronproject (zelfde project-id, ander bestand)
+     vervangt dus het handvat van het origineel. Op de desktop houdt het pad ze uit elkaar. Zo besloten in keuze 4
+     (`docs/relaties-tussen-projecten.md`, 5.4); stap 1.9 (site) houdt ze uit elkaar met `siteFileId`. — B
 975. **VERVOLG: *Afhankelijke projecten zoeken…* leest geen submappen.** Stap 1.11 leest alleen de `.ifc`-bestanden
      direct in de gekozen map (`src/services/fileAccess/dependentFolder.ts`, `readDependentFolder`). Staan de
      projecten van andere partijen elk in een eigen submap, dan vindt de app ze niet. Bewust zo gebouwd (opdracht
@@ -461,6 +485,17 @@ en noem het in je rapport of PR-tekst.
      cloud krijgt de andere planner ook geen bericht (keuze 3: alleen met de SuperCloud, deel 3). Voorstel: de
      gevonden bestanden opnieuw lezen vlak vóór de waarschuwing (wijzigingstijd vergelijken), of de map bewaken
      zoals stap 1.6. — S
+990. **VERVOLG: een late IndexedDB-fout kan de verbinding van een nieuwe poging uit de cache halen.** `openDb`
+     (`src/utils/idb.ts`) haalt een geblokkeerde aanvraag A uit de cache, zodat een nieuwe poging B kan starten. Komt
+     daarna alsnog `onerror` van A, dan verwijdert de foutafhandeling blind de cache-entry van B; de volgende aanroep
+     opent dan een derde verbinding (review #858, ronde 2, nagebootst). Geen dataverlies of gewoon optreden
+     aangetoond. Voorstel: alleen verwijderen als de cache nog naar deze aanvraag wijst, zoals `openDbStores` al
+     doet. — B
+991. **VERVOLG: de gedeeltelijke herkeuze van bronbestanden heeft geen test van de gebruikersroute.** De planning-check
+     test alleen `remainingUnreadSources`; het browserscenario kiest de enige bron zonder pad opnieuw. Niet getoetst:
+     twee bronnen zonder pad, alleen A kiezen ⇒ B blijft geteld en *Bronbestanden kiezen…* blijft; daarna B kiezen
+     ⇒ de knop verdwijnt (review #858, ronde 2). Voorstel: het bestaande browserblok in
+     `tests/browser/external-source-update.spec.ts` zo uitbreiden. — B
 995. **VERVOLG: een mislukte controle vóór opslaan valt stil terug op de oude datums.** `settleDependentAnchors`
      (`fileSlice.ts`) vangt elke fout bij schrijven, teruglezen of doorrekenen van de kopie af en vergelijkt dan met
      de huidige taken: de vergelijking die zonder F5 een te krap anker mist (review #857, ronde 1). Met een

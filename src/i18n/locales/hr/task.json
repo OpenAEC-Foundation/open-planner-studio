@@ -682,7 +682,16 @@
     "reviewAccept": "Prihvati",
     "edit": "Uredi međuzavisnost projekata…",
     "refreshSource": "Osvježi izvor",
-    "deleteRelation": "Ukloni ovisnost"
+    "deleteRelation": "Ukloni ovisnost",
+    "chooseSourceFile": "Odaberi izvornu datoteku…",
+    "chooseSourceFiles": "Odaberi izvorne datoteke…",
+    "chooseSourceFailed": "Ova se datoteka ne može pročitati.",
+    "unreadSources_one": "{{count}} izvor nije pročitan.",
+    "unreadSources_few": "{{count}} izvora nisu pročitana.",
+    "unreadSources_other": "{{count}} izvora nije pročitano.",
+    "chosenUnmatched_one": "{{count}} odabrana datoteka ne pripada nijednoj međuzavisnosti projekata u ovom planu.",
+    "chosenUnmatched_few": "{{count}} odabrane datoteke ne pripadaju nijednoj međuzavisnosti projekata u ovom planu.",
+    "chosenUnmatched_other": "{{count}} odabranih datoteka ne pripada nijednoj međuzavisnosti projekata u ovom planu."
   },
   "split": {
     "gapDays_one": "Prekid: {{count}} radni dan",

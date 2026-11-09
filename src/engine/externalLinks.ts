@@ -57,7 +57,57 @@ export interface RefreshResult {
 /** Normaal blijft de persistente project-id primair en is het pad alleen fallback. De bulkverversing
  * gebruikt `file-path` uitsluitend wanneer twee tegelijk gelezen bronnen dezelfde project-id
  * claimen; zo worden kopieën uit elkaar gehouden zonder een verplaatst enkel bronbestand te breken. */
-export type ExternalSourceMatchScope = 'project-or-path' | 'file-path';
+export type ExternalSourceMatchScope = 'project-or-path' | 'file-path' | 'project-without-path';
+
+/**
+ * Waar de app een bron leest (stap 1.8). Een koppeling met een bruikbaar pad (`normalizeExternalSourcePath`)
+ * leest haar bron via dat pad (desktop). Een koppeling zonder pad (gekozen in de browser) herkent haar bron
+ * op project-id; de browser leest die via een onthouden bestandshandvat. Stap 1.9 voegt hier een bron op de
+ * site toe (`siteFileId`). Een koppeling met een relatief pad heeft geen bron die de app kan lezen (`null`).
+ */
+export type ExternalSourceLocator =
+  | { kind: 'path'; filePath: string }
+  | { kind: 'project'; projectId: string };
+
+export function externalSourceLocatorOf(ref: Pick<ExternalLink['sourceRef'], 'projectId' | 'filePath'>): ExternalSourceLocator | null {
+  if (ref.filePath) return normalizeExternalSourcePath(ref.filePath) === null ? null : { kind: 'path', filePath: ref.filePath };
+  const projectId = ref.projectId.trim();
+  return projectId ? { kind: 'project', projectId } : null;
+}
+
+/** Het voorvoegsel van een bronsleutel zonder pad. Een genormaliseerd pad begint met `/` of met een
+ *  stationsletter en dubbele punt (`c:/`); `project:` en later `site:` botsen daar nooit mee. */
+const PROJECT_KEY_PREFIX = 'project:';
+
+/**
+ * De sleutel van een bron in de balk (`ExternalSourceUpdate.key`) en in alles wat daarop sleutelt: het
+ * genormaliseerde pad voor een bron met pad, `project:<id>` voor een bron zonder pad. Zo blijft de sleutel
+ * van een bron met pad gelijk aan die van stap 1.5.
+ */
+export function externalSourceKey(locator: ExternalSourceLocator): string | null {
+  return locator.kind === 'path'
+    ? normalizeExternalSourcePath(locator.filePath)
+    : `${PROJECT_KEY_PREFIX}${locator.projectId}`;
+}
+
+/** De sleutel van een gelezen bron: met pad het pad, zonder pad het project-id. */
+export function externalSourceKeyOfDoc(source: Pick<ExternalSourceDoc, 'projectId' | 'filePath'>): string | null {
+  const locator = externalSourceLocatorOf(source);
+  return locator ? externalSourceKey(locator) : null;
+}
+
+/** De bronnen zonder pad die na *Bronbestanden kiezen…* nog niet gelezen zijn (review #858): de eerder niet
+ *  gelezen project-id's min die van de gekozen bestanden. */
+export function remainingUnreadSources(unreadProjectIds: readonly string[], readProjectIds: readonly string[]): string[] {
+  const read = new Set(readProjectIds);
+  return unreadProjectIds.filter(projectId => !read.has(projectId));
+}
+
+/** Welke koppelingen één gelezen bron mag verversen bij de balk (*Bekijken*, *Accepteren*): met pad alleen
+ *  de koppelingen naar dat pad; zonder pad alleen de koppelingen zonder pad met hetzelfde project-id. */
+export function externalSourceScope(source: Pick<ExternalSourceDoc, 'filePath'>): ExternalSourceMatchScope {
+  return source.filePath ? 'file-path' : 'project-without-path';
+}
 
 /** Is deze kant van de brontaak al gebeurd? Een gestarte kant heeft een werkelijke start (of de taak is
  *  voltooid), een gebeurde finish hoort bij een voltooide taak. Voor een bladtaak is dat precies
@@ -107,6 +157,11 @@ export function linkMatchesSource(
   source: ExternalSourceDoc,
   matchScope: ExternalSourceMatchScope = 'project-or-path',
 ): boolean {
+  // Een bron zonder pad (de browser, stap 1.8): alleen koppelingen zonder pad, op project-id. Een koppeling
+  // met een pad wijst naar een bepaald bestand; een ander bestand met hetzelfde project-id mag haar niet raken.
+  if (matchScope === 'project-without-path') {
+    return !link.sourceRef.filePath && !!link.sourceRef.projectId && link.sourceRef.projectId === source.projectId;
+  }
   if (matchScope === 'project-or-path'
     && link.sourceRef.projectId
     && link.sourceRef.projectId === source.projectId) return true;
@@ -227,6 +282,8 @@ export function refreshExternalAnchors(
  * anders beide koppelingen verversen en de tweede beide opnieuw. Alleen in die aantoonbaar ambigue groep
  * eist de functie daarom het genormaliseerde bronpad. Een gewone verversing blijft project-id-primair,
  * zodat een verplaatst bestand werkt.
+ * Een bron zonder pad (stap 1.8, gekozen in de browser) raakt alleen koppelingen zonder pad met haar
+ * project-id (`project-without-path`).
  *
  * `readPaths` (genormaliseerd, `normalizeExternalSourcePath`): de bronpaden die deze actie gelezen heeft. Een
  * koppeling met een bruikbaar bronpad dat daar niet in staat, houdt haar anker en pad: anders zou de terugval
@@ -267,7 +324,10 @@ export function refreshFromSources(
     const result = refreshExternalAnchors(
       out,
       source,
-      ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
+      // Een bron zonder pad (de browser, stap 1.8) raakt alleen koppelingen zonder pad: een koppeling met een
+      // pad wijst naar een bepaald bestand en houdt haar anker als dat bestand niet gelezen is.
+      !source.filePath ? 'project-without-path'
+        : ambiguousProjectIds.has(source.projectId.trim()) ? 'file-path' : 'project-or-path',
       skip,
     );
     out = result.tasks;

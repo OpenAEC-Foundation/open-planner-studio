@@ -278,13 +278,13 @@ test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigin
   // Een balk (#811) voor de bron en voor de bron buiten de thuismap: na de verversing is alleen die van de
   // gelezen bron weg, zoals bij *Alle externe relaties vernieuwen*.
   const bar = (filePath: string) => ({
-    documentId: S().activeDocumentId, path: normalizeExternalSourcePath(filePath)!, filePath,
+    documentId: S().activeDocumentId, key: normalizeExternalSourcePath(filePath)!, locator: { kind: 'path' as const, filePath },
     fileName: filePath.split('/').pop()!, version: '2027-02-01T09:00:00.000Z', changedLinks: 1,
   });
   S().setUI({ externalSourceUpdates: [bar(SOURCE), bar(OUTSIDE)] });
   const steps = appliedSteps();
   const data = await ok('planner_refresh_external_links');
-  assertEq(S().ui.externalSourceUpdates.map(u => u.filePath), [OUTSIDE], 'balk van de gelezen bron weg, de andere blijft');
+  assertEq(S().ui.externalSourceUpdates.map(u => u.locator.kind === 'path' ? u.locator.filePath : null), [OUTSIDE], 'balk van de gelezen bron weg, de andere blijft');
   S().setUI({ externalSourceUpdates: [] });
   assertEq(reads.filter(p => p === SOURCE).length, 1, 'de bron is één keer gelezen');
   assert(!reads.includes(OUTSIDE), 'de bron buiten de thuismap is niet gelezen');
@@ -480,7 +480,7 @@ test('refresh: een geweigerde verversing (kringverwijzing) laat de balk staan', 
   });
   S().setUI({
     externalSourceUpdates: [{
-      documentId: S().activeDocumentId, path: normalizeExternalSourcePath(SOURCE_A)!, filePath: SOURCE_A,
+      documentId: S().activeDocumentId, key: normalizeExternalSourcePath(SOURCE_A)!, locator: { kind: 'path', filePath: SOURCE_A },
       fileName: 'Installateur-A.ifc', version: '2027-02-01T09:00:00.000Z', changedLinks: 1,
     }],
     externalSourceReview: normalizeExternalSourcePath(SOURCE_A)!,
@@ -491,7 +491,7 @@ test('refresh: een geweigerde verversing (kringverwijzing) laat de balk staan', 
     assertEq(e.code, 'CYCLE', `CYCLE, kreeg ${e.code}: ${e.error}`);
     assertEq(S().tasks.find(t => t.id === p)!.externalLinks!.find(l => l.id === linkP)!.anchorDate, '2027-03-01T16:00', 'anker teruggerold');
     assertEq(appliedSteps(), steps, 'geen undo-stap');
-    assertEq(S().ui.externalSourceUpdates.map(u => u.filePath), [SOURCE_A], 'de balk blijft staan');
+    assertEq(S().ui.externalSourceUpdates.map(u => u.locator.kind === 'path' ? u.locator.filePath : null), [SOURCE_A], 'de balk blijft staan');
     assertEq(S().ui.externalSourceReview, normalizeExternalSourcePath(SOURCE_A), 'de bekijkdialoog blijft open');
   } finally {
     S().setUI({ externalSourceUpdates: [], externalSourceReview: null });

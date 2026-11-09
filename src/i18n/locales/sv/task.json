@@ -673,7 +673,14 @@
     "reviewAccept": "Godkänn",
     "edit": "Redigera externt samband…",
     "refreshSource": "Uppdatera källa",
-    "deleteRelation": "Ta bort samband"
+    "deleteRelation": "Ta bort samband",
+    "chooseSourceFile": "Välj källfil…",
+    "chooseSourceFiles": "Välj källfiler…",
+    "chooseSourceFailed": "Filen kan inte läsas.",
+    "unreadSources_one": "{{count}} källa lästes inte.",
+    "unreadSources_other": "{{count}} källor lästes inte.",
+    "chosenUnmatched_one": "{{count}} vald fil hör inte till något externt samband i planen.",
+    "chosenUnmatched_other": "{{count}} valda filer hör inte till något externt samband i planen."
   },
   "split": {
     "gapDays_one": "{{count}} arbetsdag avbrott",

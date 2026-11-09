@@ -15,9 +15,24 @@
 // 4. Review #811: het venster vergelijkt het voorstel met wat de planner nu ziet (de getoonde datums en het
 //    projecteinde van de statusbalk), ook als het plan verouderd is. Accepteren geeft precies het voorstel.
 // 5. Hetzelfde in de weergave *Datums zoals opgeslagen*: de beginstand zijn de datums uit het bestand.
+// 6. Stap 1.8 (bronbestand kiezen in de browser): een koppeling zonder pad herkent haar bron op project-id.
+//    De sleutel in de balk is `project:<id>` (een bron met pad houdt het genormaliseerde pad). De balk en
+//    *Accepteren* raken alleen koppelingen zonder pad; *Alle externe relaties vernieuwen* leest zo'n bron met
+//    toestemmingsvraag, telt een bron die niet gelezen is, en een niet-gelezen bron houdt haar anker en pad.
+//    `readExternalSourceFile` geeft een bron zonder pad, met `lastModified` als versie.
+// 8. Review #858: Chromium eist bij elke `requestPermission` een recente klik. Twee bronnen met toestemming
+//    `prompt`: beide vragen starten meteen na de klik, niet na het antwoord op de eerste vraag.
+// 9. Review #858: na *Bronbestanden kiezen…* met een deel van de bestanden blijven de andere bronnen open.
+// 10. Review #858: een geblokkeerde IndexedDB laat vernieuwen niet hangen; een later geopende verbinding sluit.
 import { createAppStoreContext } from '@/state/appStore';
 import { externalAnchorChanges, previewExternalRefresh } from '@/engine/externalRefreshPreview';
-import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import {
+  externalSourceKey, externalSourceKeyOfDoc, externalSourceLocatorOf, externalSourceScope, linkMatchesSource,
+  refreshExternalAnchors, type ExternalSourceDoc,
+} from '@/engine/externalLinks';
+import { readExternalSourceFile } from '@/state/externalSource';
+import { remainingUnreadSources } from '@/engine/externalLinks';
+import { idbGetAll } from '@/utils/idb';
 import { captureRecordedDates } from '@/engine/scheduler/recordedDates';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -43,9 +58,12 @@ const sourceTask = (finish: string): Task => ({
   isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],
   time: { ...createDefaultTaskTime('2027-03-01', 5, 'days'), earlyStart: '2027-03-01T07:00', earlyFinish: finish },
 });
-const link = (id: string, filePath: string, anchorDate: string, sourceVersion?: string): ExternalLink => ({
+const link = (id: string, filePath: string | undefined, anchorDate: string, sourceVersion?: string): ExternalLink => ({
   id, direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate, sourceMissing: false,
-  sourceRef: { projectId: 'installateur', projectName: 'Installateur', taskId: 'b1', taskName: 'Installatie', filePath },
+  sourceRef: {
+    projectId: 'installateur', projectName: 'Installateur', taskId: 'b1', taskName: 'Installatie',
+    ...(filePath !== undefined ? { filePath } : {}),
+  },
   ...(sourceVersion ? { sourceVersion } : {}),
 });
 
@@ -138,8 +156,8 @@ const plan = () => {
   finishes.set(PATH, '2027-03-10T16:00');
   const dirtyBefore = S().isDirty;
   await S().checkExternalSources();
-  eq('3d nieuwe versie met wijziging ⇒ een balk', updates(), [{
-    documentId: 'actief', path: PATH, filePath: PATH, fileName: 'Installateur.ifc', version: 'v3',
+  eq('3d nieuwe versie met wijziging ⇒ een balk; de sleutel van een bron met pad is het pad', updates(), [{
+    documentId: 'actief', key: PATH, locator: { kind: 'path', filePath: PATH }, fileName: 'Installateur.ifc', version: 'v3',
     author: 'Anna de Vries', changedLinks: 1,
   }]);
   eq('3e de kopie op een ander pad telt niet mee, het relatieve pad wordt niet gelezen', reads, [PATH, PATH]);
@@ -241,6 +259,222 @@ const proposalAndAccept = (tag: string, S: StoreGet) => {
   eq('5 het venster: één werkdag later', preview.durationAfter - preview.durationBefore, 1);
   eq('5 het venster: A en B verschuiven, Z niet', [...preview.shiftedTaskIds].sort(), [idOf('A'), idOf('B')].sort());
   eq('5 Accepteren verlaat de weergave', S().datesAsRecorded, false);
+}
+
+// (6) Stap 1.8: een bron zonder pad (gekozen in de browser), herkend op project-id.
+{
+  // 6a–6e: de pure regels.
+  eq('6a sleutel met pad = het genormaliseerde pad', externalSourceKey({ kind: 'path', filePath: PATH }), PATH);
+  eq('6b sleutel zonder pad = project:<id>', externalSourceKey({ kind: 'project', projectId: 'installateur' }), 'project:installateur');
+  eq('6c plek: pad, project-id, of niets bij een relatief pad of zonder project-id', [
+    externalSourceLocatorOf({ projectId: 'installateur', filePath: PATH }),
+    externalSourceLocatorOf({ projectId: ' installateur ' }),
+    externalSourceLocatorOf({ projectId: 'installateur', filePath: 'relatief/Installateur.ifc' }),
+    externalSourceLocatorOf({ projectId: '' }),
+  ], [{ kind: 'path', filePath: PATH }, { kind: 'project', projectId: 'installateur' }, null, null]);
+  eq('6d sleutel van een gelezen bron', [externalSourceKeyOfDoc({ projectId: 'installateur', filePath: PATH }),
+    externalSourceKeyOfDoc({ projectId: 'installateur' })], [PATH, 'project:installateur']);
+  const noPathSource: ExternalSourceDoc = { projectId: 'installateur', tasks: [] };
+  eq('6e een bron zonder pad raakt alleen koppelingen zonder pad met hetzelfde project-id', [
+    externalSourceScope(noPathSource),
+    linkMatchesSource(link('p', PATH, 'x'), noPathSource, 'project-without-path'),
+    linkMatchesSource(link('n', undefined, 'x'), noPathSource, 'project-without-path'),
+    linkMatchesSource({ ...link('o', undefined, 'x'), sourceRef: { ...link('o', undefined, 'x').sourceRef, projectId: 'ander' } }, noPathSource, 'project-without-path'),
+  ], ['project-without-path', false, true, false]);
+
+  // De store-route. A wijst zonder pad naar de bron (browser); C met pad naar hetzelfde project (desktop).
+  const { store, S, a } = plan();
+  S().updateTask(a, { externalLinks: [link('x', undefined, '2027-03-05T16:00', 'v1')] });
+  const c = S().addTask({ name: 'C', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
+  S().updateTask(c, { externalLinks: [link('y', PATH, '2027-03-05T16:00', 'v1')] });
+  S().runCPM();
+  let handleVersion: string | undefined = 'v1';
+  let handleFinish = '2027-03-05T16:00';
+  let handleGranted = true;
+  const prompts: boolean[] = [];
+  const pathReads: string[] = [];
+  const handleSource = (): ExternalSourceRead => ({
+    projectId: 'installateur', projectName: 'Installateur', fileName: 'Installateur.ifc',
+    tasks: [sourceTask(handleFinish)], ...(handleVersion ? { version: handleVersion } : {}), readAt: '2026-11-09T10:00:00.000Z',
+  });
+  store.setState({
+    // De desktopbron (pad) is in deze test niet te lezen, zoals in de browser.
+    externalSourceVersion: async () => undefined,
+    parseExternalSource: async (filePath: string) => { pathReads.push(filePath); return null; },
+    externalProjectSourceVersion: async (projectId: string) => (projectId === 'installateur' && handleGranted ? handleVersion : undefined),
+    // Vernieuwen leest alle bronnen zonder pad in één keer, met toestemmingsvraag (§8 toetst de echte route).
+    readExternalProjectSources: async (projectIds: readonly string[]) => {
+      prompts.push(true);
+      return new Map(projectIds.map(id => [id, id === 'installateur' ? handleSource() : null] as const));
+    },
+    parseExternalProjectSource: async (projectId: string, opts: { prompt: boolean }) => {
+      prompts.push(opts.prompt);
+      return projectId === 'installateur' && (handleGranted || opts.prompt) ? handleSource() : null;
+    },
+  });
+  const updates = () => S().ui.externalSourceUpdates.map(u => ({ key: u.key, locator: u.locator, fileName: u.fileName, version: u.version, changedLinks: u.changedLinks }));
+  const anchorOf = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+
+  await S().checkExternalSources();
+  eq('6f dezelfde versie ⇒ niets gelezen, geen balk', [prompts, updates()], [[], []]);
+  handleVersion = 'v2';
+  handleFinish = '2027-03-10T16:00';
+  await S().checkExternalSources();
+  eq('6g nieuwe versie ⇒ gelezen zonder toestemmingsvraag, een balk met sleutel project:installateur', [prompts, updates()], [[false], [{
+    key: 'project:installateur', locator: { kind: 'project', projectId: 'installateur' }, fileName: 'Installateur.ifc',
+    version: 'v2', changedLinks: 1,
+  }]]);
+  eq('6h de koppeling met pad telt niet mee en is niet via het pad gelezen', pathReads, []);
+  S().dismissExternalSourceUpdate('project:installateur');
+  eq('6i Later op de sleutel ⇒ de balk weg', updates(), []);
+  handleVersion = 'v3';
+  await S().checkExternalSources();
+  eq('6j een volgende versie ⇒ weer een balk', updates().map(u => u.version), ['v3']);
+  S().setUI({ externalSourceReview: 'project:installateur' });
+  eq('6k Accepteren met een bron zonder pad verandert het plan', S().acceptExternalSourceUpdate(handleSource()), true);
+  eq('6l alleen de koppeling zonder pad krijgt het nieuwe anker; ze blijft zonder pad', [
+    anchorOf(a).anchorDate, anchorOf(a).sourceVersion, anchorOf(a).sourceRef.filePath, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-10T16:00', 'v3', undefined, '2027-03-05T16:00', PATH]);
+  eq('6m de balk is weg en het venster dicht', [updates(), S().ui.externalSourceReview], [[], null]);
+
+  // Toestemming `prompt` op de achtergrond: geen balk, geen vraag.
+  S().undo();
+  handleGranted = false;
+  prompts.length = 0;
+  handleVersion = 'v4';
+  await S().checkExternalSources();
+  eq('6n zonder toestemming ⇒ het vangnet leest niets en vraagt niets', [prompts, updates()], [[], []]);
+
+  // Alle externe relaties vernieuwen: de klik mag om toestemming vragen.
+  const all = await S().refreshAllExternalAnchors();
+  eq('6o vernieuwen leest de bron zonder pad met toestemmingsvraag', prompts, [true]);
+  eq('6p de uitslag: één bron gelezen, de bron met pad niet', [all.sources, all.unread, all.unreadProjectIds, all.refreshed], [1, 1, [], 1]);
+  eq('6q alleen de koppeling zonder pad ververst; de koppeling met pad houdt anker en pad', [
+    anchorOf(a).anchorDate, anchorOf(c).anchorDate, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-10T16:00', '2027-03-05T16:00', PATH]);
+  S().undo();
+  // Geweigerd: niet gelezen, geteld, en het anker blijft.
+  store.setState({ readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, null] as const)) });
+  const refused = await S().refreshAllExternalAnchors();
+  eq('6r geweigerd ⇒ beide bronnen niet gelezen, de bron zonder pad kan opnieuw gekozen worden', [
+    refused.sources, refused.unread, refused.unreadProjectIds, refused.refreshed,
+  ], [0, 2, ['installateur'], 0]);
+  eq('6s een niet gelezen bron houdt haar anker', anchorOf(a).anchorDate, '2027-03-05T16:00');
+  // Beide bronnen gelezen, met een ander anker (in de app kan dat niet: de desktop leest geen handvat, de browser
+  // geen pad). De bron zonder pad mag de koppeling met pad niet raken: die houdt het anker van haar bestand.
+  // (Dat de bron met pad een koppeling zonder pad met hetzelfde project-id overneemt, is het gedrag van de
+  // desktop voor een handmatige koppeling; zie de gids.)
+  store.setState({
+    parseExternalSource: async (filePath: string) => ({
+      projectId: 'installateur', projectName: 'Installateur', filePath, tasks: [sourceTask('2027-03-08T16:00')], version: 'pad-v2',
+    }),
+    readExternalProjectSources: async (projectIds: readonly string[]) => new Map(projectIds.map(id => [id, handleSource()] as const)),
+  });
+  const both = await S().refreshAllExternalAnchors();
+  eq('6t beide bronnen gelezen', [both.sources, both.unread], [2, 0]);
+  eq('6u de koppeling met pad houdt het anker en de versie van haar bestand', [
+    anchorOf(c).anchorDate, anchorOf(c).sourceVersion, anchorOf(c).sourceRef.filePath,
+  ], ['2027-03-08T16:00', 'pad-v2', PATH]);
+}
+
+// (7) Een bestand dat de planner in de browser koos: geen pad, de versie is `lastModified`.
+{
+  const { S } = plan();
+  S().setProject({ id: 'proj-bron', name: 'Bron' });
+  const text = writeIFC(buildWriteIFCInput(S()));
+  const lastModified = Date.UTC(2026, 10, 9, 8, 30);
+  const read = await readExternalSourceFile({
+    name: 'Bron.ifc', lastModified, text: async () => text, arrayBuffer: async () => new TextEncoder().encode(text).buffer,
+  });
+  eq('7a geen pad, wel de bestandsnaam en het project-id', [read.filePath, read.fileName, read.projectId], [undefined, 'Bron.ifc', 'proj-bron']);
+  eq('7b de versie is de wijzigingstijd van het bestand', read.version, '2026-11-09T08:30:00.000Z');
+  eq('7c een leestijd', typeof read.readAt, 'string');
+  eq('7d de taken zijn gelezen', read.tasks.map(t => t.name).sort(), ['A', 'B', 'Z']);
+}
+
+// (8) Twee bronnen zonder pad, elk met toestemming `prompt`. Model van Chromium: een vraag later dan
+// ACTIVATION_MS na de klik geeft een `SecurityError`; de planner doet ANSWER_MS over elk antwoord.
+{
+  const ACTIVATION_MS = 60;
+  const ANSWER_MS = 150;
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const sourceText = (id: string) => {
+    const { S } = plan();
+    S().setProject({ id, name: id });
+    return writeIFC(buildWriteIFCInput(S()));
+  };
+  const sourceTaskId = (text: string) => readIFC(text).tasks.find(t => t.name === 'B')!.id;
+  let clickAt = 0;
+  const requests: Array<[string, number, string]> = [];
+  const fakeHandle = (id: string, text: string) => ({
+    kind: 'file', name: `${id}.ifc`,
+    queryPermission: async () => 'prompt',
+    requestPermission: async () => {
+      const at = Date.now() - clickAt;
+      if (at > ACTIVATION_MS) {
+        requests.push([id, at, 'SecurityError']);
+        throw new DOMException('Must be handling a user gesture to show a permission request.', 'SecurityError');
+      }
+      requests.push([id, at, 'gevraagd']);
+      await sleep(ANSWER_MS);
+      return 'granted';
+    },
+    getFile: async () => ({
+      name: `${id}.ifc`, lastModified: Date.UTC(2026, 10, 9, 9, 0),
+      text: async () => text, arrayBuffer: async () => new TextEncoder().encode(text).buffer,
+    }),
+  });
+  const textA = sourceText('bron-a');
+  const textB = sourceText('bron-b');
+  const { store, S, a, b } = plan();
+  const old = '2027-01-04T07:00';
+  const ext = (projectId: string, taskId: string): ExternalLink => ({
+    id: `x-${projectId}`, direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: old, sourceMissing: false,
+    sourceRef: { projectId, projectName: projectId, taskId, taskName: 'B' },
+  });
+  S().updateTask(a, { externalLinks: [ext('bron-a', sourceTaskId(textA))] });
+  S().updateTask(b, { externalLinks: [ext('bron-b', sourceTaskId(textB))] });
+  store.setState({
+    externalSourceHandles: async () => new Map([
+      ['bron-a', fakeHandle('bron-a', textA)], ['bron-b', fakeHandle('bron-b', textB)],
+    ] as unknown as Array<[string, FileSystemFileHandle]>),
+  });
+  clickAt = Date.now();
+  const result = await S().refreshAllExternalAnchors();
+  eq('8a beide vragen binnen de activatietijd', requests.map(([id, , state]) => [id, state]),
+    [['bron-a', 'gevraagd'], ['bron-b', 'gevraagd']]);
+  eq('8b beide bronnen gelezen', [result.sources, result.unread, result.unreadProjectIds], [2, 0, []]);
+  const anchorOfTask = (taskId: string) => S().tasks.find(t => t.id === taskId)!.externalLinks![0];
+  eq('8c beide ankers ververst', [anchorOfTask(a).anchorDate !== old, anchorOfTask(b).anchorDate !== old], [true, true]);
+}
+
+// (9) A en B niet gelezen; de planner kiest alleen A opnieuw ⇒ B blijft open.
+{
+  eq('9a alleen A gekozen ⇒ B blijft open', remainingUnreadSources(['bron-a', 'bron-b'], ['bron-a']), ['bron-b']);
+  eq('9b een gekozen bestand dat niet openstond, verandert niets', remainingUnreadSources(['bron-b'], ['bron-c']), ['bron-b']);
+  eq('9c alles gekozen ⇒ niets open', remainingUnreadSources(['bron-a'], ['bron-a']), []);
+}
+
+// (10) Een geblokkeerde openaanvraag: `idbGetAll` geeft meteen een lege lijst; opent de verbinding later toch,
+// dan sluit de app haar.
+{
+  const g = globalThis as unknown as { indexedDB?: unknown };
+  const before = g.indexedDB;
+  const req: { onblocked?: () => void; onsuccess?: () => void; onupgradeneeded?: () => void; onerror?: () => void; result?: unknown } = {};
+  g.indexedDB = { open: () => { setTimeout(() => req.onblocked?.(), 0); return req; } };
+  try {
+    const outcome = await Promise.race([
+      idbGetAll('ops-test-geblokkeerd', 'store'),
+      new Promise(resolve => setTimeout(() => resolve('hangt'), 1000)),
+    ]);
+    eq('10a geblokkeerd ⇒ een lege lijst, geen wachten', outcome, []);
+    let closed = false;
+    req.result = { close: () => { closed = true; } };
+    req.onsuccess?.();
+    eq('10b een later geopende verbinding sluit', closed, true);
+  } finally {
+    g.indexedDB = before;
+  }
 }
 
 if (failures.length) {

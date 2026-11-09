@@ -691,7 +691,18 @@
     "reviewAccept": "Прийняти",
     "edit": "Редагувати зовнішню залежність…",
     "refreshSource": "Оновити ресурс",
-    "deleteRelation": "Видалити залежність"
+    "deleteRelation": "Видалити залежність",
+    "chooseSourceFile": "Вибрати файл-джерело…",
+    "chooseSourceFiles": "Вибрати файли-джерела…",
+    "chooseSourceFailed": "Не вдалося прочитати цей файл.",
+    "unreadSources_one": "Не прочитано {{count}} джерело.",
+    "unreadSources_few": "Не прочитано {{count}} джерела.",
+    "unreadSources_many": "Не прочитано {{count}} джерел.",
+    "unreadSources_other": "Не прочитано {{count}} джерела.",
+    "chosenUnmatched_one": "{{count}} вибраний файл не належить до жодної зовнішньої залежності цього плану.",
+    "chosenUnmatched_few": "{{count}} вибрані файли не належать до жодної зовнішньої залежності цього плану.",
+    "chosenUnmatched_many": "{{count}} вибраних файлів не належать до жодної зовнішньої залежності цього плану.",
+    "chosenUnmatched_other": "{{count}} вибраного файлу не належать до жодної зовнішньої залежності цього плану."
   },
   "split": {
     "gapDays_one": "{{count}} робочий день перерви",

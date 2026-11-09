@@ -664,7 +664,12 @@
     "reviewAccept": "接受",
     "edit": "编辑外部关系…",
     "refreshSource": "刷新源",
-    "deleteRelation": "删除关系"
+    "deleteRelation": "删除关系",
+    "chooseSourceFile": "选择源文件…",
+    "chooseSourceFiles": "选择源文件…",
+    "chooseSourceFailed": "无法读取此文件。",
+    "unreadSources_other": "{{count}} 个源未读取。",
+    "chosenUnmatched_other": "{{count}} 个所选文件不属于此计划中的任何外部链接。"
   },
   "split": {
     "gapDays_other": "中断 {{count}} 个工作日",
