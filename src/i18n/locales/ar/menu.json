@@ -140,6 +140,7 @@
     "histogram": "المدرج التكراري",
     "toggleHistogram": "المدرج التكراري",
     "warningsPanel": "لوحة التحذيرات",
+    "scheduleShiftPanel": "المهام المُزاحة",
     "prevResource": "السابق",
     "nextResource": "التالي",
     "leveling": "موازنة الموارد",
@@ -397,6 +398,9 @@
     "mspdiDesc": "يُفتح في Microsoft Project. هيكل WBS كامل.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "لبرنامج Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "لـ Oracle Primavera P6، كملف .xer.",
+    "experimentalBadge": "تجريبي",
     "profileHint": "يعمل مشروعك حاليًا بملف التعريف {{name}}. ننصح باستخدام ملف التعريف {{target}} لتحقيق أفضل توافق مع تنسيق الملف هذا.",
     "ifcLabel": "IFC",
     "ifcDesc": "معيار BuildingSMART، وفق مخطط IFC الخاص بالمشروع (افتراضي: IFC 4.3 ADD2). ربط رباعي الأبعاد مع نماذج BIM.",
@@ -451,5 +455,18 @@
     "redo": "إعادة",
     "zoomIn": "تكبير",
     "zoomOut": "تصغير"
+  },
+  "native": {
+    "window": "نافذة",
+    "quit": "إنهاء Open Planner Studio",
+    "about": "حول Open Planner Studio",
+    "services": "الخدمات",
+    "hide": "إخفاء Open Planner Studio",
+    "hideOthers": "إخفاء الآخرين",
+    "showAll": "إظهار الكل",
+    "closeWindow": "إغلاق النافذة",
+    "cut": "قص",
+    "fullscreen": "تبديل ملء الشاشة",
+    "bringAllToFront": "إحضار الكل إلى الأمام"
   }
 }

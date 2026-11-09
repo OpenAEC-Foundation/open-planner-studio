@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Okno Upozorenja",
+    "scheduleShiftPanel": "Pomaknuti zadaci",
     "prevResource": "Prethodni",
     "nextResource": "Sljedeći",
     "leveling": "Uravnoteživanje",
@@ -391,6 +392,9 @@
     "mspdiDesc": "Otvara se u programu Microsoft Project. Potpuna WBS-struktura.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Za Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Za Oracle Primavera P6, kao .xer datoteku.",
+    "experimentalBadge": "Eksperimentalno",
     "profileHint": "Vaš projekt trenutno koristi profil {{name}}. Preporučujemo profil {{target}} za najbolju kompatibilnost s ovim formatom datoteke.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, u IFC shemi projekta (zadano IFC 4.3 ADD2). 4D povezivanje s BIM modelima.",
@@ -445,5 +449,18 @@
     "redo": "Ponovi",
     "zoomIn": "Povećaj",
     "zoomOut": "Smanji"
+  },
+  "native": {
+    "window": "Prozor",
+    "quit": "Zatvori Open Planner Studio",
+    "about": "O programu Open Planner Studio",
+    "services": "Usluge",
+    "hide": "Sakrij Open Planner Studio",
+    "hideOthers": "Sakrij ostale",
+    "showAll": "Prikaži sve",
+    "closeWindow": "Zatvori prozor",
+    "cut": "Izreži",
+    "fullscreen": "Cijeli zaslon",
+    "bringAllToFront": "Sve u prvi plan"
   }
 }

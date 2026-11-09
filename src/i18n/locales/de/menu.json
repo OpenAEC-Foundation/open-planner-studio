@@ -140,6 +140,7 @@
     "histogram": "Histogramm",
     "toggleHistogram": "Histogramm",
     "warningsPanel": "Warnungsbereich",
+    "scheduleShiftPanel": "Verschiebungen",
     "prevResource": "Vorherige",
     "nextResource": "Nächste",
     "leveling": "Ressourcenabgleich",
@@ -389,6 +390,9 @@
     "mspdiDesc": "Öffnen in Microsoft Project. Vollständige PSP-Struktur.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Für Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Für Oracle Primavera P6, als .xer-Datei.",
+    "experimentalBadge": "Experimentell",
     "profileHint": "Ihr Projekt verwendet derzeit das Profil {{name}}. Wir empfehlen das Profil {{target}} für die beste Kompatibilität mit diesem Dateiformat.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-Standard, im IFC-Schema des Projekts (Standard: IFC 4.3 ADD2). 4D-Verknüpfung mit BIM-Modellen.",
@@ -443,5 +447,18 @@
     "redo": "Wiederholen",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern"
+  },
+  "native": {
+    "window": "Fenster",
+    "quit": "Open Planner Studio beenden",
+    "about": "Über Open Planner Studio",
+    "services": "Dienste",
+    "hide": "Open Planner Studio ausblenden",
+    "hideOthers": "Andere ausblenden",
+    "showAll": "Alle einblenden",
+    "closeWindow": "Fenster schließen",
+    "cut": "Ausschneiden",
+    "fullscreen": "Vollbild ein-/ausschalten",
+    "bringAllToFront": "Alle nach vorne bringen"
   }
 }

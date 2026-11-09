@@ -140,6 +140,7 @@
     "histogram": "Histogram",
     "toggleHistogram": "Histogram",
     "warningsPanel": "Panel upozornení",
+    "scheduleShiftPanel": "Posunuté úlohy",
     "prevResource": "Predchádzajúci",
     "nextResource": "Nasledujúci",
     "leveling": "Vyvažovanie",
@@ -393,6 +394,9 @@
     "mspdiDesc": "Otvára sa v Microsoft Project. Úplná WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pre Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pre Oracle Primavera P6 ako súbor .xer.",
+    "experimentalBadge": "Experimentálne",
     "profileHint": "Váš projekt momentálne počíta podľa profilu „{{name}}“. Odporúčame použiť profil „{{target}}“ pre najlepšiu kompatibilitu s týmto formátom súboru.",
     "ifcLabel": "IFC",
     "ifcDesc": "Štandard BuildingSMART v schéme IFC projektu (predvolená verzia IFC 4.3 ADD2). 4D prepojenie s modelmi BIM.",
@@ -447,5 +451,18 @@
     "redo": "Zopakovať",
     "zoomIn": "Priblížiť",
     "zoomOut": "Oddialiť"
+  },
+  "native": {
+    "window": "Okno",
+    "quit": "Ukončiť Open Planner Studio",
+    "about": "O aplikácii Open Planner Studio",
+    "services": "Služby",
+    "hide": "Skryť Open Planner Studio",
+    "hideOthers": "Skryť ostatné",
+    "showAll": "Zobraziť všetko",
+    "closeWindow": "Zavrieť okno",
+    "cut": "Vystrihnúť",
+    "fullscreen": "Prepnúť celú obrazovku",
+    "bringAllToFront": "Priniesť všetko do popredia"
   }
 }

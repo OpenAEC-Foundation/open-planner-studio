@@ -140,6 +140,7 @@
     "histogram": "Hisztogram",
     "toggleHistogram": "Hisztogram",
     "warningsPanel": "Figyelmeztetések panel",
+    "scheduleShiftPanel": "Eltolások",
     "prevResource": "Előző",
     "nextResource": "Következő",
     "leveling": "Kiegyenlítés",
@@ -389,6 +390,9 @@
     "mspdiDesc": "Megnyitható a Microsoft Project-ben. Teljes WBS-szerkezet.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Oracle Primavera P6-hoz.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Oracle Primavera P6-hoz, .xer fájlként.",
+    "experimentalBadge": "Kísérleti",
     "profileHint": "A projekt jelenleg a {{name}} profillal számol. Ehhez a fájlformátumhoz a legjobb kompatibilitás érdekében a {{target}} profil használatát javasoljuk.",
     "ifcLabel": "IFC",
     "ifcDesc": "BuildingSMART-szabvány, a projekt IFC-sémájában (alapértelmezés: IFC 4.3 ADD2). 4D-összekapcsolás BIM-modellekkel.",
@@ -443,5 +447,18 @@
     "redo": "Megismétlés",
     "zoomIn": "Nagyítás",
     "zoomOut": "Kicsinyítés"
+  },
+  "native": {
+    "window": "Ablak",
+    "quit": "Kilépés: Open Planner Studio",
+    "about": "Az Open Planner Studio névjegye",
+    "services": "Szolgáltatások",
+    "hide": "Open Planner Studio elrejtése",
+    "hideOthers": "Többi elrejtése",
+    "showAll": "Összes megjelenítése",
+    "closeWindow": "Ablak bezárása",
+    "cut": "Kivágás",
+    "fullscreen": "Teljes képernyő váltása",
+    "bringAllToFront": "Összes előtérbe hozása"
   }
 }

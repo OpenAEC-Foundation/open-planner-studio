@@ -140,6 +140,7 @@
     "histogram": "Histogramă",
     "toggleHistogram": "Histogramă",
     "warningsPanel": "Panoul Avertismente",
+    "scheduleShiftPanel": "Deplasări",
     "prevResource": "Anterior",
     "nextResource": "Următor",
     "leveling": "Redistribuire",
@@ -391,6 +392,9 @@
     "mspdiDesc": "Se deschide în Microsoft Project. Structură WBS completă.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "Pentru Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "Pentru Oracle Primavera P6, ca fișier .xer.",
+    "experimentalBadge": "Experimental",
     "profileHint": "Proiectul dumneavoastră utilizează în prezent profilul {{name}}. Vă recomandăm profilul {{target}} pentru cea mai bună compatibilitate cu acest format de fișier.",
     "ifcLabel": "IFC",
     "ifcDesc": "Standard BuildingSMART, în schema IFC a proiectului (implicit IFC 4.3 ADD2). Legătură 4D cu modele BIM.",
@@ -445,5 +449,18 @@
     "redo": "Refacere",
     "zoomIn": "Mărire",
     "zoomOut": "Micșorare"
+  },
+  "native": {
+    "window": "Fereastră",
+    "quit": "Ieșire din Open Planner Studio",
+    "about": "Despre Open Planner Studio",
+    "services": "Servicii",
+    "hide": "Ascundere Open Planner Studio",
+    "hideOthers": "Ascundere altele",
+    "showAll": "Afișare totală",
+    "closeWindow": "Închidere fereastră",
+    "cut": "Decupare",
+    "fullscreen": "Comutare ecran complet",
+    "bringAllToFront": "Aducere tot în față"
   }
 }

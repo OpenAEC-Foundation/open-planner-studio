@@ -140,6 +140,7 @@
     "histogram": "Хистограма",
     "toggleHistogram": "Хистограма",
     "warningsPanel": "Панел с предупреждения",
+    "scheduleShiftPanel": "Преместени задачи",
     "prevResource": "Предишен",
     "nextResource": "Следващ",
     "leveling": "Нивелиране",
@@ -389,6 +390,9 @@
     "mspdiDesc": "За отваряне в Microsoft Project. Пълна WBS структура.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "За Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "За Oracle Primavera P6, като .xer файл.",
+    "experimentalBadge": "Експериментално",
     "profileHint": "Вашият проект в момента използва профила {{name}}. Препоръчваме профила {{target}} за най-добра съвместимост с този файлов формат.",
     "ifcLabel": "IFC",
     "ifcDesc": "Стандарт на buildingSMART, в IFC схемата на проекта (по подразбиране IFC 4.3 ADD2). 4D свързване с BIM модели.",
@@ -443,5 +447,18 @@
     "redo": "Повтори",
     "zoomIn": "Увеличи",
     "zoomOut": "Намали"
+  },
+  "native": {
+    "window": "Прозорец",
+    "quit": "Излез от Open Planner Studio",
+    "about": "Относно Open Planner Studio",
+    "services": "Услуги",
+    "hide": "Скрий Open Planner Studio",
+    "hideOthers": "Скрий останалите",
+    "showAll": "Покажи всички",
+    "closeWindow": "Затвори прозореца",
+    "cut": "Изрежи",
+    "fullscreen": "Превключи на цял екран",
+    "bringAllToFront": "Всички на преден план"
   }
 }

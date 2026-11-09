@@ -140,6 +140,7 @@
     "histogram": "هیستوگرام",
     "toggleHistogram": "هیستوگرام",
     "warningsPanel": "پنل هشدارها",
+    "scheduleShiftPanel": "جابه‌جایی‌ها",
     "prevResource": "قبلی",
     "nextResource": "بعدی",
     "leveling": "تسطیح",
@@ -389,6 +390,9 @@
     "mspdiDesc": "در Microsoft Project باز می‌شود. ساختار کامل WBS.",
     "p6Label": "Primavera P6 XML",
     "p6Desc": "برای Oracle Primavera P6.",
+    "xerLabel": "Primavera P6 XER",
+    "xerDesc": "برای Oracle Primavera P6، به‌صورت فایل ‎.xer‎.",
+    "experimentalBadge": "آزمایشی",
     "profileHint": "پروژه شما اکنون با نمایه {{name}} محاسبه می‌شود. برای بهترین سازگاری با این قالب فایل، نمایه {{target}} را استفاده کنید.",
     "ifcLabel": "IFC",
     "ifcDesc": "استاندارد BuildingSMART، در شِمای IFC پروژه (پیش‌فرض IFC 4.3 ADD2). پیوند چهاربُعدی با مدل‌های BIM.",
@@ -443,5 +447,18 @@
     "redo": "باز‌گرد",
     "zoomIn": "بزرگ‌نمایی",
     "zoomOut": "کوچک‌نمایی"
+  },
+  "native": {
+    "window": "پنجره",
+    "quit": "خروج از Open Planner Studio",
+    "about": "درباره Open Planner Studio",
+    "services": "سرویس‌ها",
+    "hide": "پنهان کردن Open Planner Studio",
+    "hideOthers": "پنهان کردن بقیه",
+    "showAll": "نمایش همه",
+    "closeWindow": "بستن پنجره",
+    "cut": "برش",
+    "fullscreen": "تغییر حالت تمام‌صفحه",
+    "bringAllToFront": "همه را به جلو بیاورید"
   }
 }
