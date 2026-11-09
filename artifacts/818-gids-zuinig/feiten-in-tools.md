@@ -94,8 +94,9 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 73 | `rels` in `planner_get_project_overview` toont alleen interne relaties; een externe opvolger staat er niet in | `planner_get_project_overview` | niet in tools/list (code: `readTools.ts:329`, `:350`). De gids zegt het bij de gaten ("or an external successor") |
 | 74 | Een hamertaak (hammock/LOE) kan niet via de tools; alleen in de app | `planner_add_tasks`, `planner_update_tasks` | alleen in de foutmelding: de weigering bij `fields.isHammock` ("hammock/LOE is not settable via the bridge …", `src/services/mcp/tools/taskFields.ts:159`). Weg uit de gids in fixronde 8 (voorstel Opus): een lange begeleidingstaak valt onder de uitzondering in §WBS |
 | 75 | De foutmelding van een mislukte berekening: `scheduleError` in de envelop, `schedule.error` in `planner_get_project_info` | elke tool | alleen in het antwoord (`buildEnvelope`, `src/services/mcp/tools/runtime.ts:126`). De gids houdt: eerst oplossen; een wijziging die de fout laat staan, rolt terug (`createMcpTransactions.ts:1166`) |
+| 76 | De deltas van `criticalShifters` nooit optellen (een cascade telt dan dubbel); de leveringsimpact is `projectEndDelta` | `planner_analyze_delay` | tools/list, desc ("NEVER add up the deltas of `criticalShifters` (that double-counts a cascade)"). Weg uit progress-update §5 in fixronde 9 (voorstel Sol); de skill noemt planner_analyze_delay voor de vertraging |
 
 Wat de teksten bewust houden, ook al staat het deels ook in een toolbeschrijving: herberekenen, `planner_batch`
 voor een samenhangende reeks, `duration` altijd met `durationUnit`, de toestemming vóór een wijziging bij
-`datesAsRecorded`, de kalendervalkuil, "nooit optellen" bij vertraging, en de regels over
+`datesAsRecorded`, de kalendervalkuil, en de regels over
 geraden werkelijke datums. Die leiden tot een foute planning als een agent ze mist.
