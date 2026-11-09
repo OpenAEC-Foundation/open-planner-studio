@@ -14,6 +14,7 @@ import { normalizeComparedBaselines, noComparedBaselines, type Baseline, type Co
 import type { ImportResult, RecordedTimesOrigin } from '@/services/importTypes';
 import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes';
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
+import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ColumnConfig, ViewState } from './slices/types';
 import type { AppState } from './appStore';
 import { createDefaultProject } from './defaults';
@@ -98,6 +99,9 @@ export interface DocumentPayload {
   xerSourceArchive: XerSourceArchive | null;
   /** Selector van dit document binnen xerSourceArchive; semantiek is documentgebonden. */
   xerSourceProjectId: string | null;
+  /** De IFC-bron met indeling (#804 §4.8), alleen via de bytes-route achter de flag `ifcForeignContent`. Onveranderlijk
+   *  en buiten undo (`snapshot: 'none'`); niet in de herstelsnapshot en niet in de MCP-backup (geen `IFC_SAVE_KEYS`). */
+  ifcSource: IfcSource | null;
   /** De werkregel-UI is voor dit document ontsloten omdat het al
    *  taaktypedata draagt (`hasTaskTypeData`) of omdat de gebruiker er een regel/werk in zette.
    *  Niet gepersisteerd (bij laden opnieuw afgeleid), niet in undo. */
@@ -297,6 +301,8 @@ export const DOCUMENT_FIELDS = [
   field({ key: 'xerImportMetadata', get: (s) => s.xerImportMetadata, set: (s, v) => { s.xerImportMetadata = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerImportMetadata ?? null }),
   field({ key: 'xerSourceArchive', get: (s) => s.xerSourceArchive, set: (s, v) => { s.xerSourceArchive = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceArchive ?? null }),
   field({ key: 'xerSourceProjectId', get: (s) => s.xerSourceProjectId, set: (s, v) => { s.xerSourceProjectId = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.xerSourceProjectId ?? null }),
+  // #804 fase 1a: de IFC-bron. Zoals `xerSourceArchive`: per document, niet in undo, één gedeeld onveranderlijk object.
+  field({ key: 'ifcSource', get: (s) => s.ifcSource, set: (s, v) => { s.ifcSource = v; }, fresh: () => null, snapshot: 'none', fromPayload: (p) => p.ifcSource ?? null }),
   // Sessie-afgeleide zichtbaarheid, geen projectdata — rol `none`.
   field({ key: 'taskTypesVisible', get: (s) => s.taskTypesVisible, set: (s, v) => { s.taskTypesVisible = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.taskTypesVisible ?? false }),
   field({ key: 'importPristine', get: (s) => s.importPristine, set: (s, v) => { s.importPristine = v; }, fresh: () => false, snapshot: 'none', fromPayload: (p) => p.importPristine ?? false }),
@@ -489,6 +495,7 @@ export function payloadFromImport(parsed: ImportResult, filePath: string | null)
     xerImportMetadata: parsed.xer ?? null,
     xerSourceArchive: parsed.xerSourceArchive ?? null,
     xerSourceProjectId: parsed.xer?.sourceProjectId ?? parsed.xerSourceProjectId ?? null,
+    ifcSource: parsed.ifcSource ?? null,
     // Het geladen bestand ontsluit de werkregel-UI voor zichzelf.
     taskTypesVisible: hasTaskTypeData(parsed.tasks, parsed.assignments, parsed.project),
     // Een VERSE import (xer/p6xml/mspdi/mpp/csv/ifc-uit-ander-pakket) is

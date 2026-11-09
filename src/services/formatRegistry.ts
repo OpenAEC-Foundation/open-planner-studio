@@ -4,13 +4,11 @@
 
 import type { XerWriteInput, XerWriteResult } from '@/services/xerWriteTypes';
 import type { BuiltInProfileId } from '@/types/project';
-import { readIFC, type IfcReadOptions } from '@/services/ifc/ifcReader';
-import {
-  precomputeSha256, XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT, XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT,
-} from '@/services/xerSourceArchive';
+import { readIFCWithXerReconstruction } from '@/services/ifc/ifcReadWithXer';
+import { precomputeSha256 } from '@/services/xerSourceArchive';
 import { readCSV } from '@/services/csv/csvReader';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
-import type { ImportLabels, ImportResult, OpenedImport } from '@/services/importTypes';
+import type { ImportLabels, OpenedImport } from '@/services/importTypes';
 import type { FileFilter, FileRef } from '@/services/fileAccess';
 import { basename, extensionOf } from '@/utils/filePath';
 
@@ -30,7 +28,14 @@ export interface ReadFormat {
    *  (`undefined`) ⇒ `false`, dus alleen de IFC-entry hoeft 'm expliciet op `true` te zetten.
    *  Eén vlag voor `fileSlice.ts` en `fileTools.ts`. */
   canBeSaveTarget?: boolean;
-  read(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport>;
+  read(input: FormatInput, labels?: ImportLabels, opts?: FormatReadOptions): Promise<OpenedImport>;
+}
+
+/** Keuzes van de open-route die het formaat niet zelf kent. */
+export interface FormatReadOptions {
+  /** De flag `ifcForeignContent` staat aan (#804 fase 1a): IFC leest als bytes, via de scanner en de indeling. Zonder
+   *  deze optie is alles zoals vóór #804. De open-routes geven hem mee met `ifcForeignContentEnabled(ui.featureFlags)`. */
+  ifcBytes?: boolean;
 }
 
 /** Het root-element van een XML-document: lokale naam (zonder prefix) en de namespace die voor dat
@@ -116,23 +121,9 @@ async function parseProjectXml(content: string): Promise<OpenedImport> {
   throw new UnknownScheduleXmlError();
 }
 
-/**
- * Lees IFC met behoud van de lazy XER-chunkgrens. Alleen een schema-2-envelope (of een schema-3-
- * crashherstelverwijzing) laadt de parser; gewone IFC en historische schema-1-archieven blijven op
- * het bestaande synchrone hoofdpad. `resolveXerArchiveReference` geeft alleen crashherstel mee.
- */
-export async function readIFCWithXerReconstruction(
-  content: string,
-  labels: ImportLabels = {},
-  options: Pick<IfcReadOptions, 'resolveXerArchiveReference'> = {},
-): Promise<ImportResult> {
-  if (content.includes(XER_SOURCE_ARCHIVE_COMPACT_STORAGE_FORMAT)
-    || content.includes(XER_SOURCE_ARCHIVE_RECOVERY_REFERENCE_FORMAT)) {
-    const { reconstructXerSourceFromBytes } = await import('@/services/xer/xerReader');
-    return readIFC(content, labels, { ...options, reconstructXerArchive: reconstructXerSourceFromBytes });
-  }
-  return readIFC(content, labels, options);
-}
+// `readIFCWithXerReconstruction` woont in `ifc/ifcReadWithXer.ts` (#804 fase 1a); hier opnieuw geëxporteerd voor de
+// bestaande aanroepers.
+export { readIFCWithXerReconstruction } from '@/services/ifc/ifcReadWithXer';
 
 /** Default-formaat bij een onbekende extensie. Een APARTE, benoemde const-entry i.p.v. `READ_FORMATS.find(...)!` —
  *  zo kan de default nooit "zoek 'm op en forceer met `!`" zijn (een niet-gevonden id zou dat stil
@@ -140,7 +131,14 @@ export async function readIFCWithXerReconstruction(
  *  dus herordenen wisselt 'm nooit stilzwijgend. */
 const IFC_FORMAT: ReadFormat = {
   id: 'ifc', extensions: ['ifc'], kind: 'text', filterName: 'IFC Files', canBeSaveTarget: true,
-  read: async (i, labels) => readIFCWithXerReconstruction(i.text ?? '', labels),
+  read: async (i, labels, opts) => {
+    if (!opts?.ifcBytes) return readIFCWithXerReconstruction(i.text ?? '', labels);
+    // Flag `ifcForeignContent` (#804 fase 1a): de bytes-route, lui geladen (scanner en indeling blijven buiten de
+    // hoofdbundel). Een route die nog tekst gaf (voorbeelden, §4.9 punt 1) gaat via `TextEncoder`; dat is byte-gelijk
+    // voor geldige UTF-8.
+    const { readIfcBytes } = await import('@/services/ifc/foreign/ifcBytesRoute');
+    return readIfcBytes(i.bytes ?? new TextEncoder().encode(i.text ?? ''), labels);
+  },
 };
 
 // Volgorde = filtervolgorde in openFile ('All Supported' met ifc,csv,xml,mpp,xer).
@@ -192,8 +190,20 @@ export function openDialogFilters(): FileFilter[] {
   ];
 }
 
-export function binaryExtensions(): string[] {
-  return READ_FORMATS.filter((f) => f.kind === 'binary').flatMap((f) => f.extensions);
+/** Leest de open-route dit formaat als bytes? Binaire formaten altijd; IFC alleen met `opts.ifcBytes` (#804). */
+function readsFormatAsBytes(format: ReadFormat, opts?: FormatReadOptions): boolean {
+  return format.kind === 'binary' || (!!opts?.ifcBytes && format === IFC_FORMAT);
+}
+
+/** De extensies die de bestandslaag als bytes leest (`binaryExtensions` van `OpenFileOptions`). */
+export function binaryExtensions(opts?: FormatReadOptions): string[] {
+  return READ_FORMATS.filter((f) => readsFormatAsBytes(f, opts)).flatMap((f) => f.extensions);
+}
+
+/** Leest de open-route `name` als bytes (Recent, `readFormatInput`)? Zelfde regel als `binaryExtensions`, met de
+ *  IFC-terugval van `readFormatForFile` voor een onbekende extensie. */
+export function readsAsBytes(name: string, opts?: FormatReadOptions): boolean {
+  return readsFormatAsBytes(readFormatForFile(name), opts);
 }
 
 /** Alle geregistreerde leesformaten — puur voor tests: `check-mpp-open-guard.ts` bewijst
@@ -203,8 +213,8 @@ export function allReadFormats(): readonly ReadFormat[] {
   return READ_FORMATS;
 }
 
-export function parseOpenedFile(input: FormatInput, labels?: ImportLabels): Promise<OpenedImport> {
-  return readFormatForFile(input.name).read(input, labels);
+export function parseOpenedFile(input: FormatInput, labels?: ImportLabels, opts?: FormatReadOptions): Promise<OpenedImport> {
+  return readFormatForFile(input.name).read(input, labels, opts);
 }
 
 /** Injecteerbare lees-naad voor `readFormatInput` — bewust een structureel subset-compatibele vorm
@@ -220,9 +230,8 @@ export interface FormatIO {
  *  Eén plek voor de "isBinary ? readFile : readTextFile"-beslissing (fileSlice.parseExternalSource,
  *  devBridge.openFromPath, fileTools.ts's `import_schedule`-handler); de
  *  aanroeper blijft verantwoordelijk voor foutafhandeling rond de I/O zelf. */
-export async function readFormatInput(name: string, io: FormatIO): Promise<FormatInput> {
-  const isBinary = readFormatForFile(name).kind === 'binary';
-  return isBinary ? { name, bytes: await io.readFile(name) } : { name, text: await io.readTextFile(name) };
+export async function readFormatInput(name: string, io: FormatIO, opts?: FormatReadOptions): Promise<FormatInput> {
+  return readsAsBytes(name, opts) ? { name, bytes: await io.readFile(name) } : { name, text: await io.readTextFile(name) };
 }
 
 /** Opslagdoel-beslissing: één plek voor de filePath/fileHandle/siteFileId-afleiding die

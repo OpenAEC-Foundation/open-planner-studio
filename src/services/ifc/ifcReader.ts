@@ -108,6 +108,20 @@ export interface IfcReadOptions {
    * `bytes-missing` ("openen met melding").
    */
   resolveXerArchiveReference?: (sha256: string) => Uint8Array | undefined;
+  // De vier opties hieronder geeft alleen de IFC-bytes-route (#804 fase 1a, `foreign/ifcBytesRoute.ts`, achter de flag
+  // `ifcForeignContent`). Zonder deze opties leest de lezer precies zoals vóór #804.
+  /** Codering per stuk (§4.9 punt 5): de lezer decodeert elke entiteit waarvan het STEP-id hier NIET in staat. De keuze
+   *  voor het hele bestand (`stringsAreStepEncoded`) vervalt dan. */
+  literalStepIds?: ReadonlySet<string>;
+  /** De taken van `selectPlanning` (§4.2 stap 1) als STEP-ids. De lezer leest precies deze taken, in plaats van zelf de
+   *  baselinebomen uit te sluiten. Zo kunnen indeling en lezer niet uiteenlopen (afwijking 6 van fase 0). */
+  planningTaskStepIds?: ReadonlySet<string>;
+  /** De indeling liet het model (V) al buiten de tekst van de lezer, en opslaan van een document met een vreemd deel is
+   *  geweigerd tot fase 1c. Dan slaat de lezer de modelweigering (knownbug 110) over. */
+  skipBuildingModelGuard?: boolean;
+  /** Vult de kaart domein-id → STEP-id (§4.3), gesleuteld zoals `ifcGlobalIds` (`ifcObjectSeed`): `task`, `res`, `seq`,
+   *  `cal` (projectkalender `cal:cal-default`), `proj`, `wp` en `ws`. */
+  stepIdsOut?: Record<string, string>;
 }
 
 interface StepEntity {
@@ -180,13 +194,16 @@ export function readIFC(
   // Knownbug 110: deze lezer/writer bewaart uitsluitend planning. Weiger vóór een ImportResult
   // bestaat, zodat ook MCP, core, auto-save en herstel geen uitgekleed 4D-bestand kunnen koppelen.
   // Kijk naar geparseerde entiteittypen, nooit naar tekst in een naam, pset of commentaar.
-  if (entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
+  if (!options.skipBuildingModelGuard && entities.some(entity => IFC_BUILDING_MODEL_TYPES.has(entity.type))) {
     throw new IfcParseError('building-model', labels.ifcBuildingModelUnsupported ??
       'This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.');
   }
   // Vóór elke lezing van een string: STEP-codering (`\X2\…\X0\`, `\\` e.d.) terug naar tekst. Oude
   // eigen bestanden schreven letterlijk en blijven byte-voor-byte gelezen zoals voorheen.
-  if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
+  if (options.literalStepIds) {
+    const literal = options.literalStepIds;
+    decodeEntityStrings(entities.filter(e => !literal.has(e.id)));
+  } else if (stringsAreStepEncoded(entities)) decodeEntityStrings(entities);
   const entityMap = new Map<string, StepEntity>();
   for (const e of entities) {
     entityMap.set(e.id, e);
@@ -237,7 +254,9 @@ export function readIFC(
   const calendar = extractCalendar(entities, entityMap);
   // Taken die aan een `.BASELINE.`-IfcWorkSchedule hangen zijn baseline-snapshots, geen live
   // taken — sla ze over (robuust tegen externe tools; OPS zelf hangt er geen op).
-  const baselineTaskStepIds = collectBaselineTaskStepIds(entities);
+  const baselineTaskStepIds = options.planningTaskStepIds
+    ? tasksOutsideSelection(entities, options.planningTaskStepIds)
+    : collectBaselineTaskStepIds(entities);
   const { tasks, taskStepIdMap, taskTimeEntities, recordedFields, runningStatusIds } = extractTasks(
     entities, entityMap, baselineTaskStepIds, taskIdentityByStepId, calendar.hoursPerDay,
   );
@@ -247,8 +266,11 @@ export function readIFC(
   // Intern id → GlobalId per object uit dit bestand (zie `collectIfcGlobalIds`); de extractors
   // hieronder vullen hem terwijl ze id's uit GlobalIds afleiden.
   const guidLog: Record<string, string> = {};
+  // Alleen met `stepIdsOut`: dezelfde sleutels als `guidLog`, met het STEP-id (ook zonder GlobalId).
+  const stepLog: Record<string, string> | undefined = options.stepIdsOut ? {} : undefined;
   const sequences = extractSequences(
     entities, entityMap, taskStepIdMap, p6BoundarySequenceGuids, dayMeasureLags, exactMinuteLags, calendar.hoursPerDay, guidLog,
+    stepLog,
   );
   extractNesting(entities, entityMap, tasks, taskStepIdMap);
   // BEWUST GEEN normalisatie van `isMilestone` op taken met kinderen: de app zelf laat een mijlpaal
@@ -260,7 +282,7 @@ export function readIFC(
   extractResourceMeta(entities, entityMap, resources, resourceStepIdMap, resourceGuidMap);
   extractCrewNesting(entities, resources, resourceStepIdMap);
   const { calendars: resourceCalendars, idByGuid: calendarIdByGuid } = extractCalendarLibrary(
-    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog,
+    entities, entityMap, resources, resourceStepIdMap, tasks, taskStepIdMap, guidLog, stepLog,
   );
   // De PROJECTkalender zit niet in `extractCalendarLibrary`'s bibliotheek-lus (die sluit
   // 'm expliciet uit); haar GUID→id hoort wel in dezelfde vertaaltabel. Zelfde "eerste IFCWORKCALENDAR
@@ -381,6 +403,9 @@ export function readIFC(
   }
 
   const ifcGlobalIds = collectIfcGlobalIds(entities, entityMap, taskStepIdMap, project.id, guidLog);
+  if (options.stepIdsOut && stepLog) {
+    Object.assign(options.stepIdsOut, collectIfcStepIds(entities, taskStepIdMap, resourceStepIdMap, project.id, calendar.id, stepLog));
+  }
 
   const timeModel = entities.filter(e => e.type === 'IFCPROPERTYSET' && stripQuotes(e.args[2] || '') === PSET.Project)
     .flatMap(e => parseRefs(e.args[4] || '').map(id => entityMap.get(id)))
@@ -461,6 +486,7 @@ function stableIdFromGuid(
   entity: StepEntity,
   usedIds: Set<string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): string {
   const guid = ifcSlotText(entity.args[0]);
   const base = guid ? `${prefix}-ifc-${guid}` : `${prefix}-ifc-step-${entity.id}`;
@@ -468,7 +494,36 @@ function stableIdFromGuid(
   for (let duplicate = 2; usedIds.has(id); duplicate++) id = `${base}-dup-${duplicate}`;
   usedIds.add(id);
   if (guid) guidLog[ifcObjectSeed(kind, id)] = guid;
+  if (stepLog) stepLog[ifcObjectSeed(kind, id)] = entity.id;
   return id;
+}
+
+/**
+ * De kaart domein-id → STEP-id voor de bytes-route (#804 §4.3, `IfcReadOptions.stepIdsOut`). Dezelfde sleutels en
+ * dezelfde keuzes als `collectIfcGlobalIds`: taken uit `taskStepIdMap`, resources uit `resourceStepIdMap`, relaties en
+ * bibliotheekkalenders uit `stepLog`, de projectkalender, het eerste project, het eerste werkplan en het eerste
+ * werkschema dat geen baseline is.
+ */
+function collectIfcStepIds(
+  entities: StepEntity[],
+  taskStepIdMap: ReadonlyMap<string, string>,
+  resourceStepIdMap: ReadonlyMap<string, string>,
+  projectId: string,
+  projectCalendarId: string,
+  stepLog: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const out: Record<string, string> = { ...stepLog };
+  for (const [stepId, taskId] of taskStepIdMap) out[ifcObjectSeed('task', taskId)] = stepId;
+  for (const [stepId, resourceId] of resourceStepIdMap) out[ifcObjectSeed('res', resourceId)] = stepId;
+  const calendar = entities.find(e => e.type === 'IFCWORKCALENDAR');
+  if (calendar) out[ifcObjectSeed('cal', projectCalendarId)] = calendar.id;
+  const proj = entities.find(e => e.type === 'IFCPROJECT');
+  if (proj) out[ifcObjectSeed('proj', projectId)] = proj.id;
+  const plan = entities.find(e => e.type === 'IFCWORKPLAN');
+  if (plan) out[ifcObjectSeed('wp', projectId)] = plan.id;
+  const schedule = entities.find(e => e.type === 'IFCWORKSCHEDULE' && !isBaselineSchedule(e));
+  if (schedule) out[ifcObjectSeed('ws', projectId)] = schedule.id;
+  return out;
 }
 
 /** Resource-id uit het schrijvende document → ons id. Bestaat een resource met dat id al (een
@@ -1914,6 +1969,7 @@ function extractSequences(
   exactMinuteLags: ReadonlyMap<string, ExactMinutesRecord>,
   hoursPerDay: number,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): Sequence[] {
   const seqEntities = entities.filter(e => e.type === 'IFCRELSEQUENCE');
   const sequences: Sequence[] = [];
@@ -2010,7 +2066,7 @@ function extractSequences(
     }
 
     const seq: Sequence = {
-      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog),
+      id: stableIdFromGuid('seq', 'seq', se, usedIds, guidLog, stepLog),
       predecessorId: predId,
       successorId: succId,
       type: parseSequenceType(se.args[7] || ''),
@@ -3205,6 +3261,7 @@ function extractCalendarLibrary(
   tasks: Task[],
   taskStepIdMap: Map<string, string>,
   guidLog: Record<string, string>,
+  stepLog?: Record<string, string>,
 ): { calendars: WorkCalendar[]; idByGuid: Map<string, string> } {
   const projectCalendarEntity = entities.find(e => e.type === 'IFCWORKCALENDAR');
   // De projectkalender heet altijd 'cal-default' (`extractCalendar`); een bibliotheekkalender kan
@@ -3227,7 +3284,7 @@ function extractCalendarLibrary(
     let cal = calByStepId.get(controlRef);
     if (!cal) {
       cal = buildCalendarFromEntity(controlEntity, entityMap, entities);
-      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog);
+      cal.id = stableIdFromGuid('cal', 'rescal', controlEntity, usedIds, guidLog, stepLog);
       calByStepId.set(controlRef, cal);
       calendars.push(cal);
       idByGuid.set(stripQuotes(controlEntity.args[0] || ''), cal.id);
@@ -3261,7 +3318,7 @@ function extractCalendarLibrary(
     if (projectCalendarEntity && ce.id === projectCalendarEntity.id) continue;
     if (calByStepId.has(ce.id)) continue;
     const cal = buildCalendarFromEntity(ce, entityMap, entities);
-    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog);
+    cal.id = stableIdFromGuid('cal', 'rescal', ce, usedIds, guidLog, stepLog);
     calByStepId.set(ce.id, cal);
     calendars.push(cal);
     idByGuid.set(stripQuotes(ce.args[0] || ''), cal.id);
@@ -3520,6 +3577,14 @@ function remapLevelingResourceIds(
  *    als losse dubbele taken over.
  *  - Een taak die (ook) onder het gewone schema hangt, is een live taak en blijft.
  */
+/** De bytes-route (#804, `IfcReadOptions.planningTaskStepIds`): elke `IfcTask` buiten de keuze van `selectPlanning`.
+ *  Zelfde vorm als `collectBaselineTaskStepIds`, zodat `extractTasks` niet verandert. */
+function tasksOutsideSelection(entities: StepEntity[], selected: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const e of entities) if (e.type === 'IFCTASK' && !selected.has(e.id)) out.add(e.id);
+  return out;
+}
+
 function collectBaselineTaskStepIds(entities: StepEntity[]): Set<string> {
   const baselineSchedIds = new Set<string>();
   const liveSchedIds = new Set<string>();

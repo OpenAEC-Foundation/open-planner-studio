@@ -432,6 +432,9 @@ export const createDocumentSlice: AppSliceFactory<DocumentSlice> = (runtime) => 
       // voor bron, twaalf tabs en varianten; elke IFC-save embedt later wél een eigen container.
       xerSourceArchive: src.xerSourceArchive,
       xerSourceProjectId: src.xerSourceProjectId,
+      // De IFC-bron reist mee, zoals het XER-archief: onveranderlijk en gedeeld. Een kopie van een document met een
+      // vreemd deel heeft dat deel dus ook (opslaan weigert in fase 1a; in 1c schrijft de kopie het mee).
+      ifcSource: src.ifcSource,
       taskTypesVisible: src.taskTypesVisible,
       // Een kopie is per definitie geen ongewijzigde import meer.
       importPristine: false,

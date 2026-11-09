@@ -1,0 +1,343 @@
+{
+ "basis": "2a66df33c",
+ "binaryExtensions": [
+  "mpp",
+  "xer"
+ ],
+ "bestanden": [
+  {
+   "pad": "public/examples/03-kantoorgebouw-zuidas.ifc",
+   "invoerSha256": "84067e080b9bc4153b7205480f7df5af60168937c2b19e2369da3845ddbd05b5",
+   "filePath": "03-kantoorgebouw-zuidas.ifc",
+   "opslaanSha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+   "opslaanLengte": 86375,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/05-brugvervanging-n279.ifc",
+   "invoerSha256": "4c947b70d602b134c2e4851f5de1c3b13d371b1c218faa37c8caacf091b27680",
+   "filePath": "05-brugvervanging-n279.ifc",
+   "opslaanSha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+   "opslaanLengte": 52233,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/08-zorgcentrum-de-linde.ifc",
+   "invoerSha256": "adbddc0b8c5368791a7e0e1158216ca629129814dd161aefdb88d23299fe0eae",
+   "filePath": "08-zorgcentrum-de-linde.ifc",
+   "opslaanSha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+   "opslaanLengte": 70190,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/10-villa-wassenaar.ifc",
+   "invoerSha256": "a850b09c6e31445ce545091e1fcbd6e0c8968ac9e9baebc96d850cfc62543d22",
+   "filePath": "10-villa-wassenaar.ifc",
+   "opslaanSha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+   "opslaanLengte": 59137,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/15-datacentrum-agriport.ifc",
+   "invoerSha256": "a3c0b602fbe3c4d0b72ddf31f8d212e9aa62d20ef580e50f4686362f21cb80ef",
+   "filePath": "15-datacentrum-agriport.ifc",
+   "opslaanSha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+   "opslaanLengte": 56905,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/showcase-appartementencomplex.ifc",
+   "invoerSha256": "640148841af8121592aefa4f77d487516d1611b1f8276975f4e3d649939d26ca",
+   "filePath": "showcase-appartementencomplex.ifc",
+   "opslaanSha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+   "opslaanLengte": 481752,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/showcase-rijwoningen-de-akkers.ifc",
+   "invoerSha256": "535d01317fbb056da6f3d0870a8bd655dc445635b603ae1e4f46e3f6e9368b34",
+   "filePath": "showcase-rijwoningen-de-akkers.ifc",
+   "opslaanSha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+   "opslaanLengte": 169883,
+   "meldingen": []
+  },
+  {
+   "pad": "public/examples/showcase-verbouwing-eengezinswoning.ifc",
+   "invoerSha256": "3e2cd726595dafe9e36f22a3818d1f4c960324f27667e14e827bd249804d9660",
+   "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+   "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+   "opslaanLengte": 32622,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/01-grachtenpand-amsterdam.ifc",
+   "invoerSha256": "b8df7c669c793759d613880531f4fc90a4a2b941c7eec43667abff160af62f7c",
+   "filePath": "01-grachtenpand-amsterdam.ifc",
+   "opslaanSha256": "9cf4a88992f69ac6b7080bb51c07346aee6b216d7c97e4fcb118fae239972097",
+   "opslaanLengte": 62158,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/02-renovatie-basisschool.ifc",
+   "invoerSha256": "bdc7e72f8f16f51a6c137101acc2ba1697966bb5b573360f5472fb5978d6700e",
+   "filePath": "02-renovatie-basisschool.ifc",
+   "opslaanSha256": "a0f42e5b2384ffeb0085180f00a803a7ec2dd7debc6f3229fc96cc52cb948c34",
+   "opslaanLengte": 40443,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/03-kantoorgebouw-zuidas.ifc",
+   "invoerSha256": "84067e080b9bc4153b7205480f7df5af60168937c2b19e2369da3845ddbd05b5",
+   "filePath": "03-kantoorgebouw-zuidas.ifc",
+   "opslaanSha256": "ffca9997404b93a0c84592819dd0eb2b43c51eafe240b25875b2b06ded05f681",
+   "opslaanLengte": 86375,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/04-appartementen-eindhoven.ifc",
+   "invoerSha256": "7420e39b7e8a45c4667f2c558ae864af84fee9333b6a0841d10b3bd25dff304b",
+   "filePath": "04-appartementen-eindhoven.ifc",
+   "opslaanSha256": "0c28eca5d25bd0070c218da639a175c078dbef4c7ba6fbadee00c1eb69095a1b",
+   "opslaanLengte": 53781,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/05-brugvervanging-n279.ifc",
+   "invoerSha256": "4c947b70d602b134c2e4851f5de1c3b13d371b1c218faa37c8caacf091b27680",
+   "filePath": "05-brugvervanging-n279.ifc",
+   "opslaanSha256": "ac867de814f110bf3ff9fa998ac55e9e2cd0c37da1596d63b71fd4d9e7ca7dfc",
+   "opslaanLengte": 52233,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/06-parkeergarage-utrecht.ifc",
+   "invoerSha256": "3f51af0bd42404527ab3f4cc37f9a556413206c20122aa92e323c5f7bc0fa8f3",
+   "filePath": "06-parkeergarage-utrecht.ifc",
+   "opslaanSha256": "6113f8fba34d0a2c879890ad964c6453db98bc1e20abf0c64fdecba42319ce49",
+   "opslaanLengte": 47626,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/07-industriehal-venlo.ifc",
+   "invoerSha256": "05d7b1cd39f1ad09d1812df137a84971cfa4fc5cc2493739f30fdee82d8fd012",
+   "filePath": "07-industriehal-venlo.ifc",
+   "opslaanSha256": "e43f82bf50201178026a829722867b2ff0354e94721b2e43e1f1bbaf5120b4fb",
+   "opslaanLengte": 39656,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/08-zorgcentrum-de-linde.ifc",
+   "invoerSha256": "adbddc0b8c5368791a7e0e1158216ca629129814dd161aefdb88d23299fe0eae",
+   "filePath": "08-zorgcentrum-de-linde.ifc",
+   "opslaanSha256": "bf73243dacc2104141b50c8605e3778ed200c32a412d32303c5d9b4b22323273",
+   "opslaanLengte": 70190,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/09-rioolvervanging-delft.ifc",
+   "invoerSha256": "3a10c85a56fb07db2e5f213950dd64e22d01acf4aedb867f1acbaf02dbb0f5ec",
+   "filePath": "09-rioolvervanging-delft.ifc",
+   "opslaanSha256": "fc3cc493662fab1fe870560067c2615b75dd164a7b60d4f569a8d08be9706aad",
+   "opslaanLengte": 29860,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/10-villa-wassenaar.ifc",
+   "invoerSha256": "a850b09c6e31445ce545091e1fcbd6e0c8968ac9e9baebc96d850cfc62543d22",
+   "filePath": "10-villa-wassenaar.ifc",
+   "opslaanSha256": "55c873489891f4a24822d41f90a0e6bb2dff93555bfb36fbac3e23fa249105a5",
+   "opslaanLengte": 59137,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/11-sporthal-amstelveen.ifc",
+   "invoerSha256": "807858f1197e224ac5109d5c786b6029a0b65c7e55b81bfc18bd416af92f19a6",
+   "filePath": "11-sporthal-amstelveen.ifc",
+   "opslaanSha256": "8fd568697aa0602332e339290973aa516429c1738f8808dc57c8ac50b5268853",
+   "opslaanLengte": 38718,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/12-windturbine-offshore.ifc",
+   "invoerSha256": "cb700b2fdac4dd424ba3f4fd3d62ae8db8977660c824eb3c088ba8cffeb0ffd1",
+   "filePath": "12-windturbine-offshore.ifc",
+   "opslaanSha256": "6cb09ad46294d06456bcb32e4e670e2f0ace3932a6a7d78f9498a07681edd1d2",
+   "opslaanLengte": 44065,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/13-supermarkt-albert-heijn.ifc",
+   "invoerSha256": "a572ba070f4f501f291e4eb927220c1e5abc98ae688d20e14c08fbd4b4951e7e",
+   "filePath": "13-supermarkt-albert-heijn.ifc",
+   "opslaanSha256": "17fdcae5c6747ead8e60981e631f15a75f6f290fd0f44ead02c252da13b54ac9",
+   "opslaanLengte": 28634,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/14-fietstunnel-arnhem.ifc",
+   "invoerSha256": "53d27ad83bc574e84ba4dc218b1cb3484bee2a5bc06162e3bad04fe85606e0af",
+   "filePath": "14-fietstunnel-arnhem.ifc",
+   "opslaanSha256": "d9d41338a76c0b785672fbee9ea47808e024e0c50f00615f2a73b466da989339",
+   "opslaanLengte": 36078,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/15-datacentrum-agriport.ifc",
+   "invoerSha256": "a3c0b602fbe3c4d0b72ddf31f8d212e9aa62d20ef580e50f4686362f21cb80ef",
+   "filePath": "15-datacentrum-agriport.ifc",
+   "opslaanSha256": "d4fdf61532436ad2ef4dd37b68394124d8624418eb6a7d685c410c390d847621",
+   "opslaanLengte": 56905,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/16-dijkversterking-markermeerdijk.ifc",
+   "invoerSha256": "41f0bfbd1650b18a1ffa9098b8fc753a62893430925b9b9a90b0aec5101a9376",
+   "filePath": "16-dijkversterking-markermeerdijk.ifc",
+   "opslaanSha256": "fb7d880cb1f1f27459df6ddb167d5bd20ecdfa9315803ccac6111f5ca4e732cd",
+   "opslaanLengte": 40328,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/17-hotel-scheveningen.ifc",
+   "invoerSha256": "0bc9328b237bded4eb6964d14fade792bd6d0b7a88af00d4e1d1f46e54cb92f1",
+   "filePath": "17-hotel-scheveningen.ifc",
+   "opslaanSha256": "87416a44df7b2994fe4b94d9c84f6d887e31aacd4ab6070be14df4d77fdab852",
+   "opslaanLengte": 51902,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/18-station-uitbreiding-breda.ifc",
+   "invoerSha256": "1e11f8d03223cc478983458d1e805c7f66b4e0aa6e296404732348cbdffe7a59",
+   "filePath": "18-station-uitbreiding-breda.ifc",
+   "opslaanSha256": "64ee61ee51711aa3caa52e8c3682db55ff5802296ea695e37400a77d9a3a2bd0",
+   "opslaanLengte": 47607,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/19-basisschool-ikc.ifc",
+   "invoerSha256": "513d448b789ef97b674f72c8828efabba78d8779fdb8d890fe58976ac8cc0d97",
+   "filePath": "19-basisschool-ikc.ifc",
+   "opslaanSha256": "6b8678bba49622aa85378b12a40ed976333a551327a42020fdb28331a463bb24",
+   "opslaanLengte": 45500,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/20-woonwijk-almere.ifc",
+   "invoerSha256": "98d0aa2e8a081088917be81bbe4ff44476fe1780797a0cb26575b433dbed615b",
+   "filePath": "20-woonwijk-almere.ifc",
+   "opslaanSha256": "df2142ac39f62e3008d7a7403bebd628a30e5baf061280f59aa74e3f0614be87",
+   "opslaanLengte": 87152,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/showcase-appartementencomplex.ifc",
+   "invoerSha256": "640148841af8121592aefa4f77d487516d1611b1f8276975f4e3d649939d26ca",
+   "filePath": "showcase-appartementencomplex.ifc",
+   "opslaanSha256": "a69efe334de22ee7b6bf5cc7944fbaa0d2400dd6578f521089472e92d7b40405",
+   "opslaanLengte": 481752,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/showcase-groot-terrein-onderaannemer.ifc",
+   "invoerSha256": "70ea39258e478a5f4f21ca2df65ace0500a597473e124c73bfa68c3c0138d11c",
+   "filePath": "showcase-groot-terrein-onderaannemer.ifc",
+   "opslaanSha256": "2bf514be3f493b78aaf31ca11080e44736cec896b0919fdca4bb617d61c8609a",
+   "opslaanLengte": 12804,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/showcase-rijwoningen-de-akkers.ifc",
+   "invoerSha256": "535d01317fbb056da6f3d0870a8bd655dc445635b603ae1e4f46e3f6e9368b34",
+   "filePath": "showcase-rijwoningen-de-akkers.ifc",
+   "opslaanSha256": "98c45ac140bf40a548b1dc77761851207c6c1fc96a3354d0180fe9ffb0dbdd75",
+   "opslaanLengte": 169883,
+   "meldingen": []
+  },
+  {
+   "pad": "examples/showcase-verbouwing-eengezinswoning.ifc",
+   "invoerSha256": "3e2cd726595dafe9e36f22a3818d1f4c960324f27667e14e827bd249804d9660",
+   "filePath": "showcase-verbouwing-eengezinswoning.ifc",
+   "opslaanSha256": "62f296b5b02bd6fdd40f9ee0373822a783562da90e3564ab2022c7aa226d03df",
+   "opslaanLengte": 32622,
+   "meldingen": []
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/bonsai-4d.ifc",
+   "invoerSha256": "93e83410fedb2b8ae2d243533b6cbea6e1d5544bc5af0d2302fef0a0773160b3",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/eigen-plus-model.ifc",
+   "invoerSha256": "d5eb2b94c40a64338ac61863b706b079859e3498be19f2a063888ddace31d8fa",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/oud-eigen-0.1-plus-model.ifc",
+   "invoerSha256": "77c66137d5893cd0c7e3d5e20b16a6e84114347790b8475ef8df7b226fd20f95",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/model-ifc4.ifc",
+   "invoerSha256": "70951c53df3913860fda5132a484634926f5fa08401727c1717f15f13496a644",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "pad": "tests/fixtures/ifc-foreign/model-ifc2x3.ifc",
+   "invoerSha256": "352bc173cd523da889b9d5187a169e17347a4f561b50968aaaac3fdc91af96bb",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "pad": "tests/planning/fixtures/ifc-arity-oude-writer-merged.ifc",
+   "invoerSha256": "0df09be82b0da426ca2542b0baf5ef76a26cf3675885c62f5d56b5d4ed01e5ad",
+   "filePath": null,
+   "meldingen": [
+    {
+     "severity": "error",
+     "messageKey": "notifications.openFailed",
+     "detail": "This IFC file contains building model objects. Opening is blocked because saving would discard them. Edit the separate planning file and merge it with the building model afterwards.",
+     "count": 1
+    }
+   ]
+  }
+ ]
+}
