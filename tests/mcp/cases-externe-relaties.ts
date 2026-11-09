@@ -354,13 +354,30 @@ test('refresh: een nieuwe versie van de bron schuift het anker; een verdwenen br
   assertEq(after.missing, 1, 'missing telt de ontbrekende brontaak');
 });
 
+// Stap 1.9: een koppeling naar een project op de site (met site-id) leest de tool niet. Ze telt als `siteLinks`,
+// niet als `manualLinks`, en houdt haar anker, ook al heeft een gelezen bron hetzelfde project-id.
+test('refresh: een koppeling op de site houdt haar anker en telt als siteLinks', async () => {
+  const { id: _id, ...fields } = link('', installSrc.id, '2027-03-01T16:00', undefined, {
+    sourceRef: { projectId: first.projectId, projectName: 'Installateur', taskId: installSrc.id, taskName: 'Installatie', siteFileId: 'site-42' },
+    sourceVersion: '3',
+  });
+  void _id;
+  const siteLink = S().addExternalLink(ids.los, fields);
+  const data = await ok('planner_refresh_external_links');
+  assertEq(data.siteLinks, 1, 'één koppeling op de site');
+  assertEq(data.manualLinks, 1, 'de koppeling zonder pad blijft de enige met de hand ingevoerde');
+  assertEq(anchorOf(ids.los, siteLink), '2027-03-01T16:00', 'koppeling op de site: anker onveranderd');
+  assertEq(linkOf(ids.los, siteLink).sourceVersion, '3', 'koppeling op de site: versie onveranderd');
+  assert(!data.changes.some((c: any) => c.linkId === siteLink), 'geen change voor de koppeling op de site');
+});
+
 test('refresh: zonder externe relaties leest de tool niets en verandert niets', async () => {
   S().newProject();
   S().addTask({ name: 'Alleen', time: createDefaultTaskTime('2027-03-01', 1, 'days') });
   reads.length = 0;
   const steps = appliedSteps();
   const data = await ok('planner_refresh_external_links');
-  assertEq(data, { sources: [], refreshed: 0, missing: 0, manualLinks: 0, changes: [] }, 'leeg resultaat');
+  assertEq(data, { sources: [], refreshed: 0, missing: 0, manualLinks: 0, siteLinks: 0, changes: [] }, 'leeg resultaat');
   assertEq(reads, [], 'niets gelezen');
   assertEq(appliedSteps(), steps, 'geen undo-stap');
 });

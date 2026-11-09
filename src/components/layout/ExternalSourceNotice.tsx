@@ -22,13 +22,18 @@ export function ExternalSourceNotice() {
   return (
     <>
       {own.map(update => {
-        const saved = formatLocalDateTime(new Date(update.version), i18n.language, notation);
-        const params = { file: update.fileName, saved, count: update.changedLinks, author: update.author };
+        // Op de site (stap 1.9) noemt de balk het versienummer; anders de wijzigingstijd van het bestand.
+        const site = update.siteVersionLabel !== undefined;
+        const saved = site ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
+        const params = { file: update.fileName, saved, version: update.siteVersionLabel, count: update.changedLinks, author: update.author };
+        const text = site
+          ? (update.author ? t('externalLinks.newVersionSiteAuthor', params) : t('externalLinks.newVersionSite', params))
+          : (update.author ? t('externalLinks.newVersionAuthor', params) : t('externalLinks.newVersion', params));
         return (
           <NoticeStrip
             key={update.key}
             icon="status.update-available"
-            text={update.author ? t('externalLinks.newVersionAuthor', params) : t('externalLinks.newVersion', params)}
+            text={text}
             actionLabel={t('externalLinks.review')}
             onAction={() => setUI({ externalSourceReview: update.key })}
             secondaryAction={{

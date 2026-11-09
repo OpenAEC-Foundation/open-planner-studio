@@ -28,7 +28,8 @@ export const externalLinkTools: McpToolDef[] = [
       'source files, like "Refresh all external relations" in the app. Reads every source file once, read-only ' +
       '(it is not opened as a document), and updates for each link the anchor date, whether the source task ' +
       'is missing, the source version (the file\'s modification time) and the read time; all in one undoable change. A link without a file path (entered by hand) is refreshed only ' +
-      'when another link reads the same source project; `manualLinks` counts them. FILE SCOPE: only source files inside the home folder (in the headless server: inside its ' +
+      'when another link reads the same source project; `manualLinks` counts them. A link to a project on the site ' +
+      '(it has a site file id) is not read by this tool: it keeps its anchor, and `siteLinks` counts it. FILE SCOPE: only source files inside the home folder (in the headless server: inside its ' +
       'working folder). A link to a source file that was not read (outside that folder, or unreadable) keeps ' +
       'its anchor and path, also when another source file has the same project id. Returns per source file ' +
       'whether it was read (`sources`), the number of links ' +
@@ -52,9 +53,13 @@ export const externalLinkTools: McpToolDef[] = [
       // Elk bronbestand één keer (genormaliseerd pad → pad zoals in de koppeling).
       const paths = new Map<string, string>();
       let manualLinks = 0;
+      // Stap 1.9: een koppeling naar een project op de site leest deze tool niet (geen site in de desktop-app of
+      // de headless server). Ze is niet met de hand ingevoerd; `refreshFromSources` laat haar staan.
+      let siteLinks = 0;
       let unusablePaths = 0;
       for (const task of start.tasks) {
         for (const link of task.externalLinks ?? []) {
+          if (link.sourceRef.siteFileId?.trim()) { siteLinks++; continue; }
           const filePath = link.sourceRef.filePath;
           if (!filePath) { manualLinks++; continue; }
           const normalized = normalizeExternalSourcePath(filePath);
@@ -146,6 +151,7 @@ export const externalLinkTools: McpToolDef[] = [
             // Een relatief pad kan nooit een bron worden; het telt mee als ontbrekend, zoals in de app.
             missing: result.missing + unusablePaths,
             manualLinks,
+            siteLinks,
             changes,
           },
         };

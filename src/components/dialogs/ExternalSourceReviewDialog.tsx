@@ -51,7 +51,8 @@ export function ExternalSourceReviewDialog() {
     if (!update) setUI({ externalSourceReview: null });
   }, [update, setUI]);
 
-  // De bron met pad (desktop) of zonder pad (browser, onthouden handvat; stap 1.8). Het object
+  // De bron met pad (desktop), zonder pad (browser, onthouden handvat; stap 1.8) of op de site (`open(id)`,
+  // stap 1.9). Het object
   // `locator` blijft hetzelfde zolang de balk dezelfde is.
   const locator = update?.locator;
   const documentId = update?.documentId;
@@ -95,7 +96,9 @@ export function ExternalSourceReviewDialog() {
     return task ? taskDate(task, anchor, side, { milestoneOwn: false }) : dd.date(anchor);
   };
   const projectEnd = (value: string) => dd.dateTime(momentLabel(calendarClock(calendar), value, 'end'));
-  const saved = formatLocalDateTime(new Date(update.version), i18n.language, notation);
+  // Op de site (stap 1.9) het versienummer; anders de wijzigingstijd van het bestand.
+  const siteVersion = update.siteVersionLabel;
+  const saved = siteVersion !== undefined ? '' : formatLocalDateTime(new Date(update.version), i18n.language, notation);
 
   const ready = source && preview && preview.changes.length > 0 ? { source, preview } : null;
   const onAccept = () => {
@@ -138,9 +141,13 @@ export function ExternalSourceReviewDialog() {
       />
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
         <div style={{ color: 'var(--theme-text-dim)' }}>
-          {update.author
-            ? t('externalLinks.reviewSavedAuthor', { saved, author: update.author })
-            : t('externalLinks.reviewSaved', { saved })}
+          {siteVersion !== undefined
+            ? (update.author
+              ? t('externalLinks.reviewSavedSiteAuthor', { version: siteVersion, author: update.author })
+              : t('externalLinks.reviewSavedSite', { version: siteVersion }))
+            : update.author
+              ? t('externalLinks.reviewSavedAuthor', { saved, author: update.author })
+              : t('externalLinks.reviewSaved', { saved })}
         </div>
 
         {state.kind === 'reading' && <div>{t('externalLinks.reviewReading')}</div>}
