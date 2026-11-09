@@ -2773,6 +2773,17 @@ function drawTaskTable(
  * omweg nodig om ze zichtbaar te houden, het rapport tekent ze erBOVEN (zie de tekenvolgorde in
  * `renderReport`) — daar bestaat het occlusieprobleem niet.
  */
+/**
+ * De bepalende relaties als verzameling, één keer per lijst: het papier rendert per klik meerdere keren
+ * met dezelfde opties, en bij 5000 relaties kostte het opbouwen elke render een milliseconde.
+ */
+const drivingSets = new WeakMap<readonly string[], ReadonlySet<string>>();
+function drivingSetOf(ids: readonly string[]): ReadonlySet<string> {
+  let set = drivingSets.get(ids);
+  if (!set) { set = new Set(ids); drivingSets.set(ids, set); }
+  return set;
+}
+
 function drawDependencies(
   d2d: Draw2D,
   m: ReportMetrics,
@@ -2791,16 +2802,20 @@ function drawDependencies(
 
   // `null` = er is niet gerekend (of de aanroeper geeft het niet door) ⇒ alles neutraal
   // doorgetrokken. Zelfde semantiek als op het scherm.
-  const drivingSet = options.drivingSequenceIds ? new Set(options.drivingSequenceIds) : null;
+  const drivingSet = options.drivingSequenceIds ? drivingSetOf(options.drivingSequenceIds) : null;
 
   for (const seq of sequences) {
-    const pred = rowIndexOf.has(seq.predecessorId) ? tasksById.get(seq.predecessorId) : undefined;
-    const succ = rowIndexOf.has(seq.successorId) ? tasksById.get(seq.successorId) : undefined;
-    if (!pred || !succ) continue;
-    const predIdx = rowIndexOf.get(seq.predecessorId)!;
-    const succIdx = rowIndexOf.get(seq.successorId)!;
+    // Eerst alleen de rijnummers: met een rijvenster (het papier) valt bij 5000 taken bijna elke relatie
+    // hier al af, en dan telt elke opzoeking (#817).
+    const predIdx = rowIndexOf.get(seq.predecessorId);
+    if (predIdx === undefined) continue;
+    const succIdx = rowIndexOf.get(seq.successorId);
+    if (succIdx === undefined) continue;
     // De hele lijn (knik en goot) blijft tussen de rijen van voorganger en opvolger.
     if (spanDrawn && !spanDrawn(Math.min(predIdx, succIdx), Math.max(predIdx, succIdx))) continue;
+    const pred = tasksById.get(seq.predecessorId);
+    const succ = tasksById.get(seq.successorId);
+    if (!pred || !succ) continue;
     const predY = rowToY(predIdx) + m.rowHeight / 2;
     const succY = rowToY(succIdx) + m.rowHeight / 2;
 

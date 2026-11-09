@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
 import { hitPaperRegion, type PageRegions, type PaperRect, type PaperRegionId } from '@/services/print/reportPaper';
@@ -234,7 +235,10 @@ export function ReportPaperView({
       root.querySelectorAll<HTMLElement>('[data-rs-page]').forEach(node => observer.observe(node));
       return observer;
     };
-    const exact = watch('0px', setInView);
+    // `flushSync`: de bladen in beeld renderen nog in de taak van de waarnemer. Zonder die stap plant
+    // React de render als een losse taak, en kwam er bij een sprong soms een tweede frame met een leeg
+    // blad in het midden tussen.
+    const exact = watch('0px', pages => flushSync(() => setInView(pages)));
     const around = watch('400px 400px', setNear);
     return () => { exact.disconnect(); around.disconnect(); };
   }, [totalPages, cols, showPages]);
@@ -406,6 +410,7 @@ export function ReportPaperView({
                 rowGap: PAGE_ROW_GAP,
               }}
               onMouseLeave={() => setHover(null)}
+              data-rs-paper={paper.id}
             >
               {pageNodes}
             </div>

@@ -343,11 +343,16 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     void runExport();
   }, [scheduleStale, fontPending, runExport, options]);
 
-  // "Nu doorrekenen": dezelfde actie als F5 (en de knop Bereken). Het papier volgt vanzelf.
-  const recalculate = useCallback(() => {
-    markReportInput('recalculate');
+  // "Nu doorrekenen": dezelfde actie als F5 (en de knop Bereken). Het papier volgt vanzelf. Een gekozen
+  // statusdatum rekent via dezelfde weg door: anders verschijnt meteen de balk "niet doorgerekend".
+  const recalculateReport = useCallback((input = 'recalculate') => {
+    markReportInput(input);
     useAppStore.getState().recalculate();
   }, []);
+  const chooseStatusDate = useCallback((date: string) => {
+    setStatusDate(date);
+    recalculateReport('statusDate');
+  }, [setStatusDate, recalculateReport]);
 
   // Boven het papier: de planning is niet doorgerekend (dan wijkt het papier af van de PDF, die eerst
   // doorrekent), of heeft een fout (dan lukt exporteren niet).
@@ -355,7 +360,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
     <PaperBanner
       tone="warn"
       dataKey="stale"
-      action={<button type="button" className="rs-btn" onClick={recalculate} data-rs-recalculate>{t('studio.stale.action')}</button>}
+      action={<button type="button" className="rs-btn" onClick={() => recalculateReport()} data-rs-recalculate>{t('studio.stale.action')}</button>}
     >
       {t('studio.stale.text')}
     </PaperBanner>
@@ -596,7 +601,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                   dataKey="no-status-date"
                   actions={(
                     <>
-                      <button type="button" className="rs-link" onClick={() => { markReportInput('statusDate'); setStatusDate(localTodayIso()); }}
+                      <button type="button" className="rs-link" onClick={() => chooseStatusDate(localTodayIso())}
                         data-rs-status-today>
                         {t('studio.bars.statusDateToday')}
                       </button>
@@ -604,7 +609,7 @@ export function GanttReportStudio({ onReportTypeChange }: { onReportTypeChange: 
                         <span className="rs-field-label">{t('studio.bars.statusDateOther')}</span>
                         <DateTextInput
                           value=""
-                          onCommit={v => { if (v) { markReportInput('statusDate'); setStatusDate(v); } }}
+                          onCommit={v => { if (v) chooseStatusDate(v); }}
                           ariaLabel={t('studio.bars.statusDateOther')}
                           className="rs-date"
                         />

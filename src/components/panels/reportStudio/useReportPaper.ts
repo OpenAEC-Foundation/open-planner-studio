@@ -8,6 +8,7 @@ import { createReportPaperRecorder } from '@/services/print/reportPaperModel';
 import { reportPageSvg, reportPaperRegions, type PageRegions } from '@/services/print/reportPaper';
 import type { ReportTextMetrics } from '@/services/pdf/reportTextMeasure';
 import { timeReportStep } from './studioPerf';
+import { ensurePaperFontRules } from './paperFontRules';
 
 export interface ReportPaperModel {
   /** Volgnummer van deze opname; een nieuwe opname maakt alle bladcaches ongeldig. */
@@ -90,6 +91,8 @@ export function useReportPaper(input: ReportPaperInput, visibleHint: { readonly 
       const { result, layout } = recorder;
       const recordingFor = (pages: readonly number[]) => timeReportStep('ops-report:record-rows', () => recorder.recordingFor(pages));
       const svgCache = new Map<number, string>();
+      // De herhaalde kop en voet: één keer per opname van deze instellingen (`ReportPageSvgOptions.windowCache`).
+      const windowCache = new Map<string, string[]>();
       const regionCache = new Map<number, PageRegions>();
       // De opname zelf en het renderresultaat blijven in deze closure en staan niet als veld op het
       // model. Reden: React vergelijkt in de dev-modus bij elke render de oude en nieuwe props, ook
@@ -105,7 +108,10 @@ export function useReportPaper(input: ReportPaperInput, visibleHint: { readonly 
           let svg = svgCache.get(pageIndex);
           if (svg === undefined) {
             const recording = recordingFor([pageIndex]);
-            svg = timeReportStep('ops-report:svg', () => reportPageSvg(recording, layout, pageIndex, { rtl, pageLabelFont: PAGE_LABEL_FONT }));
+            ensurePaperFontRules(recording.fonts);
+            svg = timeReportStep('ops-report:svg', () => reportPageSvg(recording, layout, pageIndex, {
+              rtl, pageLabelFont: PAGE_LABEL_FONT, embedFontStyle: false, windowCache,
+            }));
             svgCache.set(pageIndex, svg);
           }
           return svg;

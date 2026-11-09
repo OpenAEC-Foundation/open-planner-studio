@@ -431,18 +431,24 @@ export function computeTileLayout(input: TileLayoutInput): TileLayout {
   const forced = (input.forcedBreakOffsetsPx ?? []).filter(inBody).sort((x, y) => x - y);
   const allowed = forced.length > 0 ? [...new Set([...breaks, ...forced])].sort((x, y) => x - y) : breaks;
   let srcY = repeatHeaderPx;
+  // `srcY` loopt alleen op en beide lijsten zijn gesorteerd: twee wijzers in plaats van per tegel
+  // opnieuw vanaf het begin zoeken (bij 5000 rijen en 100 bladen scheelde dat een half miljoen stappen).
+  let fi = 0;
+  let ai = 0;
   while (srcY < bodyEnd || bodyRows.length === 0) {
     const maxEnd = Math.min(bodyEnd, srcY + bodyRowHpx);
     let end = maxEnd;
     // Eerste gedwongen positie ná de tegelstart: past hij op de pagina, dan eindigt de tegel dáár —
     // zonder vulgraaddrempel, want een dunne pagina is hier precies de bedoeling.
-    const nextForced = forced.find(y => y > srcY);
+    while (fi < forced.length && forced[fi] <= srcY) fi++;
+    const nextForced = forced[fi];
     if (nextForced !== undefined && nextForced <= maxEnd) {
       end = nextForced;
     } else if (allowed.length > 0 && maxEnd < bodyEnd) {
+      while (ai < allowed.length && allowed[ai] <= srcY) ai++;
       let best = -1;
-      for (const y of allowed) {
-        if (y <= srcY) continue;
+      for (let i = ai; i < allowed.length; i++) {
+        const y = allowed[i];
         if (y > maxEnd) break;
         best = y;
       }

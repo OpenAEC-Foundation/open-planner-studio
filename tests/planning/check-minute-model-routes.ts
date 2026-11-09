@@ -33,7 +33,7 @@ const expected: Record<string, string[]> = {
   'src/components/dialogs/CalendarDialog.tsx': ['bewerking'],
   'src/components/layout/RecordedDatesNotice.tsx': ['bereken'],
   'src/components/panels/ReportPanel.tsx': ['bereken'],
-  'src/components/panels/reportStudio/GanttReportStudio.tsx': ['bereken'], // PDF exporteren: een verouderde planning eerst doorrekenen, zoals ReportPanel (#817)
+  'src/components/panels/reportStudio/GanttReportStudio.tsx': ['bereken', 'bereken'], // PDF exporteren rekent een verouderde planning eerst door, zoals ReportPanel; "Nu doorrekenen" en een gekozen statusdatum = F5 (#817)
   'src/components/panels/ResourceOccupancyView.tsx': ['bereken'], // openen; slaat opgeslagen datums en pending minutenmigratie over
   'src/components/panels/TaskPropertiesPanel.tsx': ['bereken'],
   'src/components/panels/WarningsPanel.tsx': ['bereken'],

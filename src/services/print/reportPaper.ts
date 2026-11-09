@@ -6,7 +6,7 @@
 
 import type { RenderReportResult } from '@/services/print/printPreview';
 import type { TileLayout } from '@/services/print/tileLayout';
-import { fontClassCss, opsInWindow, opsToSvg, type RecordedReport } from '@/services/pdf/svgDraw2d';
+import { clipOpToWindow, fontClassCss, opsInWindow, opsToSvg, reportFontClass, type RecordedReport, type SvgOp } from '@/services/pdf/svgDraw2d';
 
 /** Eén bronvenster van het rapport en waar het op het blad staat (punten vanaf linksboven). */
 export interface PageWindow {
@@ -58,6 +58,20 @@ export interface ReportPageSvgOptions {
   rtl?: boolean;
   /** CSS-letter van het paginanummer (8 pt Inter, zoals de PDF). */
   pageLabelFont?: string;
+  /**
+   * `false`: geen `<style>` in het blad; de pagina zet de letterregels één keer zelf neer
+   * (`fontClassCss`/`reportFontRule`). Het papier op het scherm doet dat: een `<style>` per blad laat de
+   * browser bij elk nieuw blad het hele document opnieuw opmaken. Standaard `true`: een los blad is
+   * compleet.
+   */
+  embedFontStyle?: boolean;
+  /**
+   * Bewaarde vensterinhoud van eerdere bladen uit dezelfde instellingen, per bronvenster. De herhaalde kop
+   * en voet zijn op elk blad van een tegelkolom hetzelfde venster; zo knipt het papier hun rasterlijnen maar
+   * één keer af in plaats van per blad. Een venster tekent in elke opname van dezelfde render hetzelfde
+   * (rijvenster: kop, raster en voet tekenen altijd; `check-report-svg.ts` sectie 6).
+   */
+  windowCache?: Map<string, string[]>;
 }
 
 /**
@@ -73,23 +87,35 @@ export function reportPageSvg(
 ): string {
   const W = layout.pageWidthPt;
   const H = layout.pageHeightPt;
-  // Een eigen klassevoorvoegsel per blad: meerdere bladen staan in hetzelfde document en hun `<style>`
-  // geldt documentbreed. De letterlijst is per opname gelijk, dus dezelfde regels botsen niet, maar
-  // een vorige opname (andere letterindex) mag een nieuw blad nooit opmaken.
-  const prefix = `rf${pageIndex}_`;
+  // De letterklasse volgt uit de letter zelf (`reportFontClass`): meerdere bladen en opnamen staan in
+  // hetzelfde document, en een `<style>` geldt documentbreed, maar dezelfde klasse is overal dezelfde letter.
+  const classes = rec.fonts.map(reportFontClass);
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${num(W)} ${num(H)}" width="100%" height="100%"`
       + `${options.rtl ? ' direction="rtl"' : ''} data-report-page-svg="${pageIndex}">`,
-    `<style>${fontClassCss(rec.fonts, prefix)}</style>`,
+    ...(options.embedFontStyle === false ? [] : [`<style>${fontClassCss(rec.fonts)}</style>`]),
     `<rect width="${num(W)}" height="${num(H)}" fill="#ffffff"/>`,
   ];
   for (const win of pageWindows(layout, pageIndex)) {
-    const ids = opsInWindow(rec, win.srcX, win.srcY, win.srcX + win.srcW, win.srcY + win.srcH);
     parts.push(
       `<svg x="${num(win.dstX)}" y="${num(win.dstY)}" width="${num(win.srcW * layout.scale)}" height="${num(win.srcH * layout.scale)}"`
         + ` viewBox="${num(win.srcX)} ${num(win.srcY)} ${num(win.srcW)} ${num(win.srcH)}" preserveAspectRatio="none" overflow="hidden">`,
     );
-    parts.push(...opsToSvg(ids.map(id => rec.ops[id]), prefix, options.rtl));
+    // Afgeknipt op het venster: een rasterlijn over de hele hoogte van het rapport kost de browser
+    // anders bij elke schermtegel het rasteren van zijn hele lengte (`clipOpToWindow`).
+    const key = `${win.srcX}|${win.srcY}|${win.srcW}|${win.srcH}`;
+    let body = options.windowCache?.get(key);
+    if (!body) {
+      const ids = opsInWindow(rec, win.srcX, win.srcY, win.srcX + win.srcW, win.srcY + win.srcH);
+      const ops: SvgOp[] = [];
+      for (const id of ids) {
+        const op = clipOpToWindow(rec.ops[id], win.srcX, win.srcY, win.srcX + win.srcW, win.srcY + win.srcH);
+        if (op) ops.push(op);
+      }
+      body = opsToSvg(ops, classes, options.rtl);
+      options.windowCache?.set(key, body);
+    }
+    parts.push(...body);
     parts.push('</svg>');
   }
   const label = pageLabel(layout, pageIndex);
