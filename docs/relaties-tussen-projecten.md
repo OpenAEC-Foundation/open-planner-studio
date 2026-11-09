@@ -1,6 +1,6 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
-Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 7 november 2026. Status:
+Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 9 november 2026. Status:
 ontwerp met besluiten; deel 1 in aanbouw. Ethan besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine
 PR's, in de volgorde van hoofdstuk 9. Wat al gebouwd is, staat in paragraaf 9.1.
 
@@ -469,7 +469,7 @@ Teksten en controle: Trias kiest de teksten die de planner ziet, kort en zakelij
 controle door Ethan in de app vóór de merge is niet meer nodig (opdracht van Ethan via Trias, 7 november 2026: "waarom
 zou je het niet afmaken?"). Een echte productkeuze die dit ontwerp niet dekt, gaat wel naar Ethan.
 
-### 9.1 Stand van de bouw (7 november 2026)
+### 9.1 Stand van de bouw (9 november 2026)
 
 Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1–C6) en worden nu niet gebouwd.
 
@@ -480,12 +480,12 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.3 | Herkomst van het anker | #809 | gemerged in main |
 | 1.4 | Melding na F5 bij een te krappe externe opvolger | #810 | gemerged in main |
 | 1.5 | Balk bij een nieuwe versie van een bron | #811 | gemerged in main |
-| 1.6 | De map van een bron bewaken (desktop) | #812 | open (niet gemerged), na #811 |
+| 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
 | 1.7 | Verversen uit een geopend document | — | nog niet gebouwd |
-| 1.8 | *Bronbestand kiezen…* in de browser | — | nog niet gebouwd |
+| 1.8 | *Bronbestand kiezen…* in de browser | — | in aanbouw |
 | 1.9 | Een bron in dezelfde map op de site | — | nog niet gebouwd |
-| 1.10 | MCP-tools voor externe relaties | #813 | open (niet gemerged), na #811 |
-| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | — | nog niet gebouwd |
+| 1.10 | MCP-tools voor externe relaties | #813 | open (niet gemerged) |
+| 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | — | in aanbouw |
 
 Wat in de bouw anders liep dan hierboven staat:
 
