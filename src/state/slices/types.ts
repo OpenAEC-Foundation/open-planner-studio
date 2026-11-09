@@ -38,6 +38,7 @@ import type { IfcSchemaQuestion } from '@/services/ifc/ifcSchemaQuestion';
 import type { FormatNoticeKind } from '@/services/formatNoticeKinds';
 import type { XerWriteLossCode } from '@/services/xerWriteTypes';
 import type { FeedbackDraft } from '@/services/feedback/feedbackDraft';
+import type { ExternalSourceLocator } from '@/engine/externalLinks';
 import type { DependentLink, TightAnchor } from '@/engine/dependentProjects';
 
 /** Eén detailregel van de XER-exportmelding: een verliessoort van de writer, of `sourceDetails`
@@ -612,10 +613,12 @@ export interface DependentProjectsResult {
 export interface ExternalSourceUpdate {
   /** Het document waar de koppelingen in staan; de balk staat alleen bij dat document. */
   documentId: string;
-  /** Het genormaliseerde pad (`normalizeExternalSourcePath`): de sleutel per bron. */
-  path: string;
-  /** Het pad zoals het in de koppeling staat; daarmee leest de app de bron. */
-  filePath: string;
+  /** De sleutel per bron (`externalSourceKey`): het genormaliseerde pad voor een bron met pad, of
+   *  `project:<id>` voor een bron zonder pad (stap 1.8, browser). Stap 1.9 voegt een bron op de site toe. */
+  key: string;
+  /** Waar de app de bron leest: het pad zoals het in de koppeling staat, of het project-id (onthouden
+   *  handvat in de browser). */
+  locator: ExternalSourceLocator;
   /** De bestandsnaam voor de tekst ("Installateur.ifc"). */
   fileName: string;
   /** De versie van de bron: de wijzigingstijd van het bestand (ISO). */
@@ -744,7 +747,7 @@ export interface UIState {
   showMoveProjectDialog: boolean;           // session — "Project verplaatsen…"-dialoog open
   /** session — bronnen met een nieuwe versie (de balk onder het lint, stap 1.5). */
   externalSourceUpdates: ExternalSourceUpdate[];
-  /** session — het venster *Bekijken* voor deze bron (`ExternalSourceUpdate.path`) staat open. */
+  /** session — het venster *Bekijken* voor deze bron (`ExternalSourceUpdate.key`) staat open. */
   externalSourceReview: string | null;
   /** session — het laatste zoekresultaat *Afhankelijke projecten* per document (stap 1.11). Afgeleide
    *  data, geen projectdata: niet in `DOCUMENT_FIELDS` en niet in het IFC-bestand. */

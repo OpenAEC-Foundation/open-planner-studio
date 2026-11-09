@@ -683,7 +683,16 @@
     "reviewAccept": "Accetta",
     "edit": "Modifica relazione esterna…",
     "refreshSource": "Aggiorna origine",
-    "deleteRelation": "Elimina relazione"
+    "deleteRelation": "Elimina relazione",
+    "chooseSourceFile": "Scegli file di origine…",
+    "chooseSourceFiles": "Scegli file di origine…",
+    "chooseSourceFailed": "Impossibile leggere questo file.",
+    "unreadSources_one": "{{count}} origine non letta.",
+    "unreadSources_many": "{{count}} origini non lette.",
+    "unreadSources_other": "{{count}} origini non lette.",
+    "chosenUnmatched_one": "{{count}} file scelto non appartiene a nessuna relazione esterna di questo piano.",
+    "chosenUnmatched_many": "{{count}} file scelti non appartengono a nessuna relazione esterna di questo piano.",
+    "chosenUnmatched_other": "{{count}} file scelti non appartengono a nessuna relazione esterna di questo piano."
   },
   "split": {
     "gapDays_one": "{{count}} giorno lavorativo di pausa",

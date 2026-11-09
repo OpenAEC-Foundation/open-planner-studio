@@ -691,7 +691,18 @@
     "reviewAccept": "Akceptuj",
     "edit": "Edytuj relację zewnętrzną…",
     "refreshSource": "Odśwież źródło",
-    "deleteRelation": "Usuń relację"
+    "deleteRelation": "Usuń relację",
+    "chooseSourceFile": "Wybierz plik źródłowy…",
+    "chooseSourceFiles": "Wybierz pliki źródłowe…",
+    "chooseSourceFailed": "Nie można odczytać tego pliku.",
+    "unreadSources_one": "Nie odczytano {{count}} źródła.",
+    "unreadSources_few": "Nie odczytano {{count}} źródeł.",
+    "unreadSources_many": "Nie odczytano {{count}} źródeł.",
+    "unreadSources_other": "Nie odczytano {{count}} źródła.",
+    "chosenUnmatched_one": "{{count}} wybrany plik nie należy do żadnego łącza zewnętrznego w tym planie.",
+    "chosenUnmatched_few": "{{count}} wybrane pliki nie należą do żadnego łącza zewnętrznego w tym planie.",
+    "chosenUnmatched_many": "{{count}} wybranych plików nie należy do żadnego łącza zewnętrznego w tym planie.",
+    "chosenUnmatched_other": "{{count}} wybranego pliku nie należy do żadnego łącza zewnętrznego w tym planie."
   },
   "split": {
     "gapDays_one": "{{count}} dzień roboczy przerwy",

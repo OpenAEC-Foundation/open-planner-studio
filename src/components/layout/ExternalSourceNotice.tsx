@@ -26,19 +26,19 @@ export function ExternalSourceNotice() {
         const params = { file: update.fileName, saved, count: update.changedLinks, author: update.author };
         return (
           <NoticeStrip
-            key={update.path}
+            key={update.key}
             icon="status.update-available"
             text={update.author ? t('externalLinks.newVersionAuthor', params) : t('externalLinks.newVersion', params)}
             actionLabel={t('externalLinks.review')}
-            onAction={() => setUI({ externalSourceReview: update.path })}
+            onAction={() => setUI({ externalSourceReview: update.key })}
             secondaryAction={{
               label: t('externalLinks.later'),
-              onAction: () => dismiss(update.path),
-              props: { 'data-ops-external-source-later': update.path },
+              onAction: () => dismiss(update.key),
+              props: { 'data-ops-external-source-later': update.key },
             }}
             role="status"
-            stripProps={{ 'data-ops-external-source-update': update.path }}
-            actionProps={{ 'data-ops-external-source-review': update.path }}
+            stripProps={{ 'data-ops-external-source-update': update.key }}
+            actionProps={{ 'data-ops-external-source-review': update.key }}
           />
         );
       })}

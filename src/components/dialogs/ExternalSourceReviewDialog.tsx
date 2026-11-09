@@ -5,7 +5,7 @@ import { useAppStore } from '@/state/appStore';
 import { useDisplayDate, useTaskDateText } from '@/hooks/displayDate';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { scheduleErrorText } from '@/i18n/scheduleErrors';
-import { refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
+import { externalSourceScope, refreshExternalAnchors, type ExternalSourceDoc } from '@/engine/externalLinks';
 import { previewExternalRefresh, type ExternalRefreshPreview } from '@/engine/externalRefreshPreview';
 import { externalSourceSide } from '@/engine/taskGrid/relationFormat';
 import { EXTERNAL_LINKS_HELP_ARTICLE_ID } from '@/state/helpArticles';
@@ -31,7 +31,7 @@ export function ExternalSourceReviewDialog() {
   const accept = useAppStore(s => s.acceptExternalSourceUpdate);
   const dismiss = useAppStore(s => s.dismissExternalSourceUpdate);
   const update = useAppStore(s => s.ui.externalSourceUpdates.find(
-    u => u.documentId === s.activeDocumentId && u.path === s.ui.externalSourceReview,
+    u => u.documentId === s.activeDocumentId && u.key === s.ui.externalSourceReview,
   ));
   const tasks = useAppStore(s => s.tasks);
   const calendar = useAppStore(s => s.calendar);
@@ -51,30 +51,33 @@ export function ExternalSourceReviewDialog() {
     if (!update) setUI({ externalSourceReview: null });
   }, [update, setUI]);
 
-  const filePath = update?.filePath;
+  // De bron met pad (desktop) of zonder pad (browser, onthouden handvat; stap 1.8). Het object
+  // `locator` blijft hetzelfde zolang de balk dezelfde is.
+  const locator = update?.locator;
   const documentId = update?.documentId;
   const version = update?.version;
   useEffect(() => {
-    if (!filePath || !documentId) return;
+    if (!locator || !documentId) return;
     let cancelled = false;
     setState({ kind: 'reading' });
     void (async () => {
-      const src = await useAppStore.getState().parseExternalSource(filePath, buildImportLabels(tCommon));
+      const src = await useAppStore.getState().readExternalSourceAt(locator, buildImportLabels(tCommon));
       if (cancelled) return;
       if (!src) { setState({ kind: 'failed' }); return; }
       if (useAppStore.getState().activeDocumentId !== documentId) return;
       setState({ kind: 'read', source: src });
     })();
     return () => { cancelled = true; };
-  }, [filePath, documentId, version, tCommon]);
+  }, [locator, documentId, version, tCommon]);
 
   // Het voorstel volgt de stand van het document. Rekent de planner opnieuw (F5) terwijl het venster open
   // staat, dan vergelijkt het met de nieuwe berekening, met de al gelezen bron (review #811 ronde 2).
   const source = state.kind === 'read' ? state.source : null;
   const preview = useMemo(() => {
     if (!source) return null;
-    // Alleen de koppelingen naar dít bestand, net als de balk (`checkExternalSources`).
-    const refreshed = refreshExternalAnchors(tasks, source, 'file-path');
+    // Alleen de koppelingen naar dít bestand, of zonder pad naar dit project, net als de balk
+    // (`checkExternalSources`) en *Accepteren*.
+    const refreshed = refreshExternalAnchors(tasks, source, externalSourceScope(source));
     return previewExternalRefresh({ project, tasks, sequences, calendar, calendars, cpmResult }, refreshed.tasks);
   }, [source, project, tasks, sequences, calendar, calendars, cpmResult]);
 
@@ -190,7 +193,7 @@ export function ExternalSourceReviewDialog() {
       <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
         {ready ? (
           <>
-            <button className="btn btn--sm btn--secondary" onClick={() => dismiss(update.path)} data-ops-external-source-review-later>
+            <button className="btn btn--sm btn--secondary" onClick={() => dismiss(update.key)} data-ops-external-source-review-later>
               {t('externalLinks.later')}
             </button>
             <button className="btn btn--sm btn--primary" onClick={onAccept} data-ops-external-source-review-accept>
@@ -200,7 +203,7 @@ export function ExternalSourceReviewDialog() {
         ) : (
           <button
             className="btn btn--sm btn--secondary"
-            onClick={() => (state.kind === 'read' ? dismiss(update.path) : close())}
+            onClick={() => (state.kind === 'read' ? dismiss(update.key) : close())}
             data-ops-external-source-review-close
           >
             {tCommon('close')}

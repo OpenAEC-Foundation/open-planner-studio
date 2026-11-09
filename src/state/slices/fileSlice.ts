@@ -46,9 +46,14 @@ import { unrecordedExportGate } from '../recordedDatesSelectors';
 import { buildExportIFCInput, buildWriteIFCInput, sameIFCSource } from '../ifcSaveInput';
 import { documentFileBase } from '@/utils/documents';
 import { documentProjectCode } from '@/utils/documentProjectCode';
-import { refreshExternalAnchors, refreshFromSources, type ExternalSourceDoc } from '@/engine/externalLinks';
+import {
+  externalSourceKey, externalSourceKeyOfDoc, externalSourceLocatorOf, externalSourceScope, refreshExternalAnchors,
+  refreshFromSources, type ExternalSourceDoc, type ExternalSourceLocator,
+} from '@/engine/externalLinks';
 import { externalAnchorChanges } from '@/engine/externalRefreshPreview';
-import { readExternalSource, type ExternalSourceRead } from '../externalSource';
+import { readExternalSource, readExternalSourceFile, type ExternalSourceRead } from '../externalSource';
+import { fileFromHandleWeb, pickFilesWeb } from '@/services/fileAccess/webBackend';
+import { loadExternalSourceHandles, rememberExternalSourceHandle } from '@/services/fileAccess/externalSourceHandles';
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
@@ -509,19 +514,60 @@ export interface FileSlice {
    * sessie niet opnieuw.
    */
   checkExternalSources: (labels?: ImportLabels) => Promise<void>;
-  /** *Later*: de balk van deze bron (`ExternalSourceUpdate.path`) gaat weg tot er weer een nieuwe versie is. */
-  dismissExternalSourceUpdate: (path: string) => void;
-  /** Haalt de balk weg voor deze bronnen (genormaliseerde paden) van dit document, zonder ze als *Later* te
-   *  onthouden: na een verversing staan de ankers op de gelezen versie. Voor `planner_refresh_external_links`. */
-  dropExternalSourceUpdates: (documentId: string, paths: ReadonlySet<string>) => void;
-  /** *Accepteren*: ververst de koppelingen naar deze bron (alleen op pad) als één undo-stap, met
-   *  herberekening, en haalt de balk weg. `false` als er niets veranderde. */
+  /** *Later*: de balk van deze bron (`ExternalSourceUpdate.key`) gaat weg tot er weer een nieuwe versie is. */
+  dismissExternalSourceUpdate: (key: string) => void;
+  /** *Accepteren*: ververst de koppelingen naar deze bron als één undo-stap, met herberekening, en haalt de
+   *  balk weg. Een bron met pad raakt alleen de koppelingen naar dat pad; een bron zonder pad (browser) alleen
+   *  de koppelingen zonder pad met hetzelfde project-id (`externalSourceScope`). `false` als er niets
+   *  veranderde. */
+  /** Haalt de balk weg voor deze bronnen (`ExternalSourceUpdate.key`; voor een bron met pad het genormaliseerde
+   *  pad) van dit document, zonder ze als *Later* te onthouden: na een verversing staan de ankers op de gelezen
+   *  versie. Voor `planner_refresh_external_links`. */
+  dropExternalSourceUpdates: (documentId: string, keys: ReadonlySet<string>) => void;
   acceptExternalSourceUpdate: (source: ExternalSourceDoc) => boolean;
+  /**
+   * Stap 1.8: de versie van een bron zonder pad (een koppeling die in de browser gekozen is): de
+   * wijzigingstijd (ISO) van het bestand achter het onthouden handvat van dit project-id. Alleen met
+   * toestemming `granted`; nooit een vraag. `undefined` zonder handvat of toestemming, en op de desktop.
+   */
+  externalProjectSourceVersion: (projectId: string) => Promise<string | undefined>;
+  /**
+   * Stap 1.8: leest de bron zonder pad via het onthouden handvat van dit project-id, alleen-lezen. `prompt`
+   * mag om toestemming vragen en hoort alleen bij een klik van de planner. `null` zonder handvat, bij een
+   * geweigerde toestemming of een leesfout, en op de desktop.
+   */
+  parseExternalProjectSource: (projectId: string, opts: { prompt: boolean }, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
+  /**
+   * Stap 1.8: leest meerdere bronnen zonder pad na een klik (*Alle externe relaties vernieuwen*). Alle
+   * toestemmingsvragen starten tegelijk, meteen na de klik en vóór het lezen: Chromium eist bij elke
+   * `requestPermission` een recente gebruikersactie (ongeveer 5 s). Zou de app wachten op het antwoord op de
+   * eerste vraag, of op het lezen van de eerste bron, dan kan de tweede vraag te laat komen (review #858). Per
+   * project-id de gelezen bron, of `null` (geen handvat, geweigerd, leesfout).
+   */
+  readExternalProjectSources: (projectIds: readonly string[], labels?: ImportLabels) => Promise<Map<string, ExternalSourceRead | null>>;
+  /** De onthouden handvatten per project-id (browser zonder host); leeg op de desktop en met een site-host.
+   *  Een eigen actie, zodat de tests nep-handvatten kunnen geven. */
+  externalSourceHandles: () => Promise<Map<string, FileSystemFileHandle>>;
+  /** De bron achter een plek uit de balk (`ExternalSourceUpdate.locator`). Leest zonder toestemmingsvraag. */
+  readExternalSourceAt: (locator: ExternalSourceLocator, labels?: ImportLabels) => Promise<ExternalSourceRead | null>;
+  /**
+   * Stap 1.8, *Bronbestand kiezen…* in de koppeldialoog. Desktop: de bestandskiezer van Tauri (IFC); het
+   * pad gaat terug en de dialoog leest het zoals een recent bestand. Browser zonder host: de kiezer van de
+   * browser; het bestand is meteen gelezen, zonder pad, met het handvat als de browser dat geeft.
+   */
+  chooseExternalSourceFile: (labels?: ImportLabels) => Promise<ChosenExternalSource>;
+  /**
+   * Stap 1.8, *Bronbestanden kiezen…* na *Alle externe relaties vernieuwen* in de browser: de planner kiest
+   * de bronbestanden die de app niet kon lezen (meerdere tegelijk). Elk gekozen bestand ververst de
+   * koppelingen zonder pad met zijn project-id, samen één undo-stap; het handvat wordt onthouden als de
+   * browser het geeft. `null` = geannuleerd. `unmatched`: gekozen bestanden zonder koppeling in dit plan.
+   */
+  refreshExternalAnchorsFromChosenFiles: (labels?: ImportLabels) => Promise<ChosenFilesRefresh | null>;
   /** Ververs alle externe ankers die naar `filePath` verwijzen uit de actuele bron.
    *  Parset de bron read-only, herberekent de ankers + `sourceMissing`, en herrekent de planning. */
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   /** Projectbrede ververs-actie ("Ververs externe ankers"): ververs elke gerefereerde bron één keer. */
-  refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<{ refreshed: number; missing: number; sources: number }>;
+  refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   /** Open een meegeleverd voorbeeldproject uit een IFC-string als NIEUW document
    *  (geen filePath — opslaan wordt opslaan-als; isDirty=false). Werkt in web én
    *  Tauri; het bestand wordt door de aanroeper via fetch('/examples/…') geladen. */
@@ -554,6 +600,43 @@ export interface FileSlice {
   openAsDocument: (parsed: OpenedImport, source: OpenedFileSource) => AppliedOpenedImport;
 }
 
+/** De uitkomst van *Alle externe relaties vernieuwen*. */
+export interface ExternalRefreshAllResult {
+  refreshed: number;
+  missing: number;
+  /** Hoeveel bronnen gelezen zijn. */
+  sources: number;
+  /** Hoeveel bronnen niet gelezen zijn (geen toegang, geen handvat, bestand weg, geweigerd). Geen bron gaat
+   *  stil verloren: de melding noemt dit aantal (stap 1.8). */
+  unread: number;
+  /** De project-id's van de niet gelezen bronnen zonder pad: die kan de planner in de browser opnieuw kiezen. */
+  unreadProjectIds: string[];
+}
+
+/** De uitkomst van *Bronbestanden kiezen…* (`refreshExternalAnchorsFromChosenFiles`). */
+export interface ChosenFilesRefresh {
+  refreshed: number;
+  missing: number;
+  /** Gekozen bestanden die gelezen zijn en bij een koppeling van dit plan horen. */
+  sources: number;
+  /** Gekozen bestanden die niet te lezen waren, of bij geen koppeling zonder pad van dit plan horen. */
+  unmatched: number;
+  /** De project-id's van de gelezen bronnen; de rest van de eerder niet gelezen bronnen blijft open. */
+  readProjectIds: string[];
+}
+
+/** Wat *Bronbestand kiezen…* opleverde (`chooseExternalSourceFile`). */
+export type ChosenExternalSource =
+  | { kind: 'cancelled' }
+  | { kind: 'failed' }
+  /** Desktop: het gekozen pad; de dialoog leest het via `parseExternalSource`. */
+  | { kind: 'path'; filePath: string }
+  /** Browser: de gelezen bron (zonder pad) en het handvat, als de browser dat gaf. */
+  | { kind: 'file'; source: ExternalSourceRead; handle: FileSystemFileHandle | null };
+
+/** Het filter van de kiezer voor een bronbestand. */
+const SOURCE_FILE_FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
+
 /** Het opslagdoel van een document na een geslaagde opslag (zie `commitSavedDocument`). */
 interface SaveDestination {
   filePath: string;
@@ -568,7 +651,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
   // Per document en bron de versie die de app al las zonder wijziging, of waarop de planner *Later*
   // koos. Sessie-only en per storecontext.
   const settledSourceVersions = new Map<string, string>();
-  const sourceKey = (documentId: string, path: string) => `${documentId}\u0000${path}`;
+  const sourceKey = (documentId: string, key: string) => `${documentId}\u0000${key}`;
   let sourceCheckRunning = false;
   let sourceCheckAgain = false;
 
@@ -594,72 +677,98 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     return applied;
   };
 
-  /** Haalt de balk weg voor deze bronnen van dit document (na verversen of accepteren). */
-  const dropSourceUpdates = (documentId: string, paths: ReadonlySet<string>) => {
+  /** Haalt de balk weg voor deze bronnen (`ExternalSourceUpdate.key`) van dit document (na verversen of
+   *  accepteren). */
+  const dropSourceUpdates = (documentId: string, keys: ReadonlySet<string>) => {
     const ui = get().ui;
-    const next = ui.externalSourceUpdates.filter(u => u.documentId !== documentId || !paths.has(u.path));
+    const next = ui.externalSourceUpdates.filter(u => u.documentId !== documentId || !keys.has(u.key));
     if (next.length === ui.externalSourceUpdates.length) return;
     get().setUI({
       externalSourceUpdates: next,
-      ...(ui.externalSourceReview !== null && paths.has(ui.externalSourceReview) ? { externalSourceReview: null } : {}),
+      ...(ui.externalSourceReview !== null && keys.has(ui.externalSourceReview) ? { externalSourceReview: null } : {}),
     });
+  };
+
+  /** De versie van een bron, zonder toestemmingsvraag. */
+  const sourceVersionAt = (locator: ExternalSourceLocator) => (locator.kind === 'path'
+    ? get().externalSourceVersion(locator.filePath)
+    : get().externalProjectSourceVersion(locator.projectId));
+
+  /** Het onthouden handvat van een bron zonder pad (browser zonder host). */
+  const sourceHandleFor = async (projectId: string): Promise<FileSystemFileHandle | null> =>
+    (await get().externalSourceHandles()).get(projectId) ?? null;
+
+  /** Leest een gekozen of onthouden bestand als bron van dit project; een ander project of een leesfout ⇒ `null`. */
+  const readProjectFile = async (projectId: string, file: File, labels?: ImportLabels): Promise<ExternalSourceRead | null> => {
+    try {
+      const source = await readExternalSourceFile(file, labels);
+      // Een ander project achter het handvat (het bestand is vervangen door een ander plan): niet deze bron.
+      return source.projectId === projectId ? source : null;
+    } catch (err) {
+      console.error('readExternalSourceFile: kon bronbestand niet lezen:', err);
+      return null;
+    }
   };
 
   const fileNameOf = (filePath: string) => filePath.split(/[\\/]/).pop() || filePath;
 
   const checkExternalSourcesOnce = async (labels?: ImportLabels) => {
     const documentId = get().activeDocumentId;
-    // Per bron (genormaliseerd pad): het pad om mee te lezen en de versies in de koppelingen. Een
-    // koppeling zonder pad, of met een relatief pad, kan de app niet lezen (zie `refreshAllExternalAnchors`).
-    const sources = new Map<string, { filePath: string; versions: Set<string | undefined> }>();
+    // Per bron (`externalSourceKey`): waar de app hem leest en de versies in de koppelingen. Een koppeling
+    // met een pad leest via dat pad (desktop); een koppeling zonder pad via het onthouden handvat van haar
+    // project-id (browser, stap 1.8). Een relatief pad kan de app niet lezen (zie `refreshAllExternalAnchors`).
+    const sources = new Map<string, { locator: ExternalSourceLocator; versions: Set<string | undefined> }>();
     for (const task of get().tasks) {
       for (const link of task.externalLinks ?? []) {
-        const filePath = link.sourceRef.filePath;
-        if (!filePath) continue;
-        const path = normalizeExternalSourcePath(filePath);
-        if (path === null) continue;
-        const entry = sources.get(path) ?? { filePath, versions: new Set<string | undefined>() };
+        const locator = externalSourceLocatorOf(link.sourceRef);
+        if (!locator) continue;
+        const key = externalSourceKey(locator);
+        if (key === null) continue;
+        const entry = sources.get(key) ?? { locator, versions: new Set<string | undefined>() };
         entry.versions.add(link.sourceVersion);
-        sources.set(path, entry);
+        sources.set(key, entry);
       }
     }
     const found = new Map<string, ExternalSourceUpdate>();
     // Bronnen zonder balk: dezelfde versie als in de koppelingen, of al gelezen zonder wijziging.
     const settled = new Set<string>();
-    for (const [path, { filePath, versions }] of sources) {
-      const version = await get().externalSourceVersion(filePath);
+    for (const [key, { locator, versions }] of sources) {
+      // Zonder toestemmingsvraag: in de browser alleen een handvat met toestemming `granted` (keuze 6).
+      const version = await sourceVersionAt(locator);
       if (get().activeDocumentId !== documentId) return;
       // Niet te lezen (geen toegang, bestand weg): een bestaande balk blijft staan, er komt geen nieuwe.
       if (!version) continue;
-      if (versions.size === 1 && versions.has(version)) { settled.add(path); continue; }
-      const existing = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.path === path);
+      if (versions.size === 1 && versions.has(version)) { settled.add(key); continue; }
+      const existing = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.key === key);
       // Al een balk voor deze versie: niets te doen. De eindfilter laat de balk staan zolang hij er nog is;
       // koos de planner intussen *Later*, dan komt hij niet terug (review #811 ronde 2).
       if (existing?.version === version) continue;
-      if (settledSourceVersions.get(sourceKey(documentId, path)) === version) { settled.add(path); continue; }
-      const src = await get().parseExternalSource(filePath, labels);
+      if (settledSourceVersions.get(sourceKey(documentId, key)) === version) { settled.add(key); continue; }
+      const src = await get().readExternalSourceAt(locator, labels);
       if (get().activeDocumentId !== documentId) return;
       if (!src) continue;
       const tasks = get().tasks;
-      // Alleen de koppelingen die naar dít bestand wijzen: een kopie met hetzelfde project-id elders
-      // telt niet mee.
-      const result = refreshExternalAnchors(tasks, src, 'file-path');
+      // Alleen de koppelingen naar dít bestand (met pad), of zonder pad naar dit project: een kopie met
+      // hetzelfde project-id elders telt niet mee.
+      const result = refreshExternalAnchors(tasks, src, locator.kind === 'path' ? 'file-path' : 'project-without-path');
       const changedLinks = externalAnchorChanges(tasks, result.tasks).length;
       const readVersion = src.version ?? version;
       if (changedLinks === 0) {
-        settledSourceVersions.set(sourceKey(documentId, path), readVersion);
-        settled.add(path);
+        settledSourceVersions.set(sourceKey(documentId, key), readVersion);
+        settled.add(key);
         continue;
       }
-      found.set(path, {
-        documentId, path, filePath, fileName: fileNameOf(filePath), version: readVersion,
+      found.set(key, {
+        documentId, key, locator,
+        fileName: locator.kind === 'path' ? fileNameOf(locator.filePath) : src.fileName ?? src.projectName,
+        version: readVersion,
         ...(src.author ? { author: src.author } : {}), changedLinks,
       });
     }
     const current = get().ui.externalSourceUpdates;
     const next = [
       ...current.filter(u => u.documentId !== documentId
-        || (sources.has(u.path) && !settled.has(u.path) && !found.has(u.path))),
+        || (sources.has(u.key) && !settled.has(u.key) && !found.has(u.key))),
       ...found.values(),
     ];
     const same = next.length === current.length && next.every(u => current.includes(u));
@@ -1699,8 +1808,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const result = refreshExternalAnchors(get().tasks, src);
       // Snapshot en herberekening: zie `applyRefreshedTasks`.
       if (result.changed) applyRefreshedTasks(targetDocumentId, result.tasks);
-      const path = normalizeExternalSourcePath(filePath);
-      if (path !== null) dropSourceUpdates(targetDocumentId, new Set([path]));
+      const key = normalizeExternalSourcePath(filePath);
+      if (key !== null) dropSourceUpdates(targetDocumentId, new Set([key]));
       return { refreshed: result.refreshed, missing: result.missing };
     },
 
@@ -1720,23 +1829,127 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       }
     },
 
-    dismissExternalSourceUpdate: (path: string) => {
+    dismissExternalSourceUpdate: (key: string) => {
       const documentId = get().activeDocumentId;
-      const update = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.path === path);
+      const update = get().ui.externalSourceUpdates.find(u => u.documentId === documentId && u.key === key);
       if (!update) return;
-      settledSourceVersions.set(sourceKey(documentId, path), update.version);
-      dropSourceUpdates(documentId, new Set([path]));
+      settledSourceVersions.set(sourceKey(documentId, key), update.version);
+      dropSourceUpdates(documentId, new Set([key]));
     },
 
-    dropExternalSourceUpdates: (documentId, paths) => dropSourceUpdates(documentId, paths),
+    dropExternalSourceUpdates: (documentId, keys) => dropSourceUpdates(documentId, keys),
 
     acceptExternalSourceUpdate: (source: ExternalSourceDoc) => {
       const documentId = get().activeDocumentId;
-      const result = refreshExternalAnchors(get().tasks, source, 'file-path');
+      const result = refreshExternalAnchors(get().tasks, source, externalSourceScope(source));
       const applied = result.changed && applyRefreshedTasks(documentId, result.tasks);
-      const path = normalizeExternalSourcePath(source.filePath ?? '');
-      if (path !== null) dropSourceUpdates(documentId, new Set([path]));
+      const key = externalSourceKeyOfDoc(source);
+      if (key !== null) dropSourceUpdates(documentId, new Set([key]));
       return applied;
+    },
+
+    externalProjectSourceVersion: async (projectId: string) => {
+      const handle = await sourceHandleFor(projectId);
+      if (!handle) return undefined;
+      const file = await fileFromHandleWeb(handle, false);
+      if (!file) return undefined;
+      const modified = new Date(file.lastModified);
+      return isNaN(modified.getTime()) ? undefined : modified.toISOString();
+    },
+
+    parseExternalProjectSource: async (projectId: string, opts, labels) => {
+      const handle = await sourceHandleFor(projectId);
+      if (!handle) return null;
+      const file = await fileFromHandleWeb(handle, opts.prompt);
+      return file ? readProjectFile(projectId, file, labels) : null;
+    },
+
+    externalSourceHandles: async () => {
+      if (isTauri() || siteStorageAvailable()) return new Map();
+      return loadExternalSourceHandles();
+    },
+
+    readExternalProjectSources: async (projectIds, labels) => {
+      const handles = await get().externalSourceHandles();
+      // Eerst alle toestemmingen, tegelijk; pas daarna lezen (zie de interface).
+      const files = await Promise.all(projectIds.map((projectId) => {
+        const handle = handles.get(projectId);
+        return handle ? fileFromHandleWeb(handle, true) : Promise.resolve(null);
+      }));
+      const out = new Map<string, ExternalSourceRead | null>();
+      for (const [index, projectId] of projectIds.entries()) {
+        const file = files[index];
+        out.set(projectId, file ? await readProjectFile(projectId, file, labels) : null);
+      }
+      return out;
+    },
+
+    readExternalSourceAt: (locator, labels) => (locator.kind === 'path'
+      ? get().parseExternalSource(locator.filePath, labels)
+      : get().parseExternalProjectSource(locator.projectId, { prompt: false }, labels)),
+
+    chooseExternalSourceFile: async (labels) => {
+      if (isTauri()) {
+        try {
+          const { open } = await import('@tauri-apps/plugin-dialog');
+          const selected = await open({ multiple: false, filters: SOURCE_FILE_FILTERS });
+          return typeof selected === 'string' ? { kind: 'path', filePath: selected } : { kind: 'cancelled' };
+        } catch (err) {
+          console.error('chooseExternalSourceFile:', err);
+          return { kind: 'failed' };
+        }
+      }
+      try {
+        const picked = await pickFilesWeb(SOURCE_FILE_FILTERS, false);
+        if (!picked) return { kind: 'cancelled' };
+        const [{ file, handle }] = picked;
+        return { kind: 'file', source: await readExternalSourceFile(file, labels), handle };
+      } catch (err) {
+        console.error('chooseExternalSourceFile:', err);
+        return { kind: 'failed' };
+      }
+    },
+
+    refreshExternalAnchorsFromChosenFiles: async (labels) => {
+      const targetDocumentId = get().activeDocumentId;
+      let picked;
+      try {
+        picked = await pickFilesWeb(SOURCE_FILE_FILTERS, true);
+      } catch (err) {
+        console.error('refreshExternalAnchorsFromChosenFiles:', err);
+        return null;
+      }
+      if (!picked) return null;
+      // Alleen de project-id's van koppelingen zonder pad: een koppeling met pad wijst naar een bepaald bestand.
+      const projectIds = new Set<string>();
+      for (const task of get().tasks) {
+        for (const link of task.externalLinks ?? []) {
+          const locator = externalSourceLocatorOf(link.sourceRef);
+          if (locator?.kind === 'project') projectIds.add(locator.projectId);
+        }
+      }
+      const sourceDocs: ExternalSourceRead[] = [];
+      let unmatched = 0;
+      for (const { file, handle } of picked) {
+        let source: ExternalSourceRead;
+        try {
+          source = await readExternalSourceFile(file, labels);
+        } catch (err) {
+          console.error('refreshExternalAnchorsFromChosenFiles: kon bestand niet lezen:', file.name, err);
+          unmatched++;
+          continue;
+        }
+        if (!projectIds.has(source.projectId)) { unmatched++; continue; }
+        sourceDocs.push(source);
+        if (handle) await rememberExternalSourceHandle(source.projectId, handle);
+      }
+      const readProjectIds = [...new Set(sourceDocs.map(source => source.projectId))];
+      if (get().activeDocumentId !== targetDocumentId) return { refreshed: 0, missing: 0, sources: 0, unmatched, readProjectIds: [] };
+      // Alle bronnen zijn zonder pad: `refreshFromSources` raakt dan alleen koppelingen zonder pad.
+      const { tasks, refreshed, missing, changed } = refreshFromSources(get().tasks, sourceDocs);
+      if (changed) applyRefreshedTasks(targetDocumentId, tasks);
+      dropSourceUpdates(targetDocumentId, new Set(readProjectIds.map(projectId => externalSourceKey({ kind: 'project', projectId })!)));
+      return { refreshed, missing, sources: sourceDocs.length, unmatched, readProjectIds };
     },
 
     refreshAllExternalAnchors: async (labels) => {
@@ -1754,10 +1967,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // zodat de bestaande toast ("N ververst, M ontbrekend") de gebruiker
       // tenminste laat weten dat er iets niet kon, in plaats van stilzwijgend niets te doen.
       let unusablePathCount = 0;
+      // Bronnen zonder pad (stap 1.8, gekozen in de browser): op project-id, via het onthouden handvat.
+      const projectIds = new Set<string>();
       for (const task of get().tasks) {
         for (const link of task.externalLinks ?? []) {
           const originalPath = link.sourceRef.filePath;
-          if (!originalPath) continue;
+          if (!originalPath) {
+            const locator = externalSourceLocatorOf(link.sourceRef);
+            if (locator?.kind === 'project') projectIds.add(locator.projectId);
+            continue;
+          }
           const normalizedPath = normalizeExternalSourcePath(originalPath);
           if (normalizedPath === null) { unusablePathCount++; continue; }
           if (!paths.has(normalizedPath)) paths.set(normalizedPath, originalPath);
@@ -1781,15 +2000,34 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       // en pad, ook als een gelezen bron hetzelfde project-id heeft (`refreshFromSources`, review #813).
       // Hun balk (#811) gaat weg (`dropSourceUpdates`).
       const readPaths = new Set<string>();
+      let unread = 0;
+      // Eerst de bronnen zonder pad: hun toestemmingsvragen moeten meteen na de klik starten, alle tegelijk
+      // (`readExternalProjectSources`). Geweigerd, geen handvat of een andere browser ⇒ niet gelezen; de planner
+      // kan het bestand opnieuw kiezen.
+      const readKeys = new Set<string>();
+      const unreadProjectIds: string[] = [];
+      const projectSources = projectIds.size > 0
+        ? await get().readExternalProjectSources([...projectIds], labels)
+        : new Map<string, ExternalSourceRead | null>();
+      const projectDocs: ExternalSourceDoc[] = [];
+      for (const projectId of projectIds) {
+        const src = projectSources.get(projectId) ?? null;
+        if (!src) { unread++; unreadProjectIds.push(projectId); continue; }
+        projectDocs.push(src);
+        readKeys.add(externalSourceKey({ kind: 'project', projectId })!);
+      }
       for (const [normalized, p] of paths) {
         const src = await get().parseExternalSource(p, labels);
-        if (!src) continue; // onleesbaar/geen Tauri ⇒ deze bron telt niet mee
+        if (!src) { unread++; continue; } // onleesbaar/geen Tauri ⇒ deze bron telt als niet gelezen
         sourceDocs.push(src);
         readPaths.add(normalized);
       }
+      for (const path of readPaths) readKeys.add(path);
+      // Na de bronnen met pad, zoals voorheen: een bron zonder pad ververst daarna alleen koppelingen zonder pad.
+      sourceDocs.push(...projectDocs);
 
       if (get().activeDocumentId !== targetDocumentId) {
-        return { refreshed: 0, missing: 0, sources: sourceDocs.length };
+        return { refreshed: 0, missing: 0, sources: sourceDocs.length, unread, unreadProjectIds };
       }
 
       // Alle bronnen samen, met de regel voor kopieën met hetzelfde project-id (`refreshFromSources`).
@@ -1801,8 +2039,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       const missing = unusablePathCount + result.missing;
 
       if (anyChanged) applyRefreshedTasks(targetDocumentId, tasks);
-      dropSourceUpdates(targetDocumentId, readPaths);
-      return { refreshed, missing, sources: sourceDocs.length };
+      dropSourceUpdates(targetDocumentId, readKeys);
+      return { refreshed, missing, sources: sourceDocs.length, unread, unreadProjectIds };
     },
 
     openRecentFile: async (id: string, labels) => {

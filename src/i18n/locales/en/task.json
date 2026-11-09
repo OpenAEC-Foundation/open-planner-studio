@@ -674,7 +674,14 @@
     "reviewAccept": "Accept",
     "edit": "Edit external relationship…",
     "refreshSource": "Refresh source",
-    "deleteRelation": "Delete relationship"
+    "deleteRelation": "Delete relationship",
+    "chooseSourceFile": "Choose source file…",
+    "chooseSourceFiles": "Choose source files…",
+    "chooseSourceFailed": "This file cannot be read.",
+    "unreadSources_one": "{{count}} source not read.",
+    "unreadSources_other": "{{count}} sources not read.",
+    "chosenUnmatched_one": "{{count}} chosen file belongs to no external relation in this plan.",
+    "chosenUnmatched_other": "{{count}} chosen files belong to no external relation in this plan."
   },
   "split": {
     "gapDays_one": "{{count}} workday break",
