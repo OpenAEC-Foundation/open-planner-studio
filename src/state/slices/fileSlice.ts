@@ -16,7 +16,9 @@ import { exportProfileNotice } from '@/state/exportProfileAdvice';
 import { exportP6XmlLossNotice } from '@/state/p6XmlExportNotice';
 import { countSplitTasksWithoutContour } from '@/services/contourIo';
 import { openFileDialog, saveFileDialog, saveBytesDialog, saveToRef, readFromRef, readBytesFromRef, saveTargetRef, type FileRef, type OpenedFile, type SaveOutcome } from '@/services/fileAccess';
-import { isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo } from '@/services/fileAccess/siteHost';
+import {
+  isSiteConflict, isSiteNotFound, siteErrorMessage, siteStorageAvailable, type SiteFileInfo, type SiteVersionInfo,
+} from '@/services/fileAccess/siteHost';
 import {
   latestSiteVersion, listSiteFiles, openSiteFile, readSiteSourceFile, saveNewSiteFile, saveSiteFileVersion,
 } from '@/services/fileAccess/siteBackend';
@@ -543,6 +545,9 @@ export interface FileSlice {
    * zonder host of als de site de lijst weigert.
    */
   listExternalSiteSources: () => Promise<SiteFileInfo[] | null>;
+  /** Stap 1.9: de nieuwste versie van een bron op de site (`versions(id)`), met label en auteur voor de balk.
+   *  `undefined` zonder host of als de site weigert. Leest de inhoud niet. */
+  externalSiteSourceVersion: (siteFileId: string) => Promise<SiteVersionInfo | undefined>;
   /**
    * Stap 1.9: leest een bron op de site (`open(id)`, de nieuwste versie), alleen-lezen, door de laadgrens. De
    * bron is geen document en geen opslagdoel. `null` zonder host, of als lezen mislukt (`not-found`, geen
@@ -688,22 +693,9 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     });
   };
 
-  /** De nieuwste versie van een bron op de site (`versions(id)`), met label en auteur voor de balk. `undefined`
-   *  zonder host of als de site weigert. */
-  const siteSourceVersion = async (siteFileId: string) => {
-    if (isTauri() || !siteStorageAvailable()) return undefined;
-    try {
-      const latest = await latestSiteVersion(siteFileId);
-      return latest ?? undefined;
-    } catch (err) {
-      console.warn('checkExternalSources: geen versie van de site:', siteFileId, err);
-      return undefined;
-    }
-  };
-
   /** De versie van een bron, zonder toestemmingsvraag. */
   const sourceVersionAt = async (locator: ExternalSourceLocator) => {
-    if (locator.kind === 'site') return (await siteSourceVersion(locator.siteFileId))?.version;
+    if (locator.kind === 'site') return (await get().externalSiteSourceVersion(locator.siteFileId))?.version;
     return locator.kind === 'path'
       ? get().externalSourceVersion(locator.filePath)
       : get().externalProjectSourceVersion(locator.projectId);
@@ -741,7 +733,7 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     for (const [key, { locator, versions }] of sources) {
       // Zonder toestemmingsvraag: in de browser alleen een handvat met toestemming `granted` (keuze 6). Op de
       // site de nieuwste versie uit `versions(id)`, met label en auteur.
-      const siteVersion = locator.kind === 'site' ? await siteSourceVersion(locator.siteFileId) : undefined;
+      const siteVersion = locator.kind === 'site' ? await get().externalSiteSourceVersion(locator.siteFileId) : undefined;
       const version = locator.kind === 'site' ? siteVersion?.version : await sourceVersionAt(locator);
       if (get().activeDocumentId !== documentId) return;
       // Niet te lezen (geen toegang, bestand weg): een bestaande balk blijft staan, er komt geen nieuwe.
@@ -1863,6 +1855,16 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       } catch (err) {
         console.error('listExternalSiteSources:', err);
         return null;
+      }
+    },
+
+    externalSiteSourceVersion: async (siteFileId) => {
+      if (isTauri() || !siteStorageAvailable()) return undefined;
+      try {
+        return (await latestSiteVersion(siteFileId)) ?? undefined;
+      } catch (err) {
+        console.warn('externalSiteSourceVersion: geen versie van de site:', siteFileId, err);
+        return undefined;
       }
     },
 

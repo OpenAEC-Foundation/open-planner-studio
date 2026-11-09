@@ -365,7 +365,8 @@ test('refresh: een koppeling op de site houdt haar anker en telt als siteLinks',
   const siteLink = S().addExternalLink(ids.los, fields);
   const data = await ok('planner_refresh_external_links');
   assertEq(data.siteLinks, 1, 'één koppeling op de site');
-  assertEq(data.manualLinks, 1, 'de koppeling zonder pad blijft de enige met de hand ingevoerde');
+  // Gevel kreeg in een eerdere verversing het pad van haar bron; de koppeling op de site telt hier niet mee.
+  assertEq(data.manualLinks, 0, 'de koppeling op de site telt niet als met de hand ingevoerd');
   assertEq(anchorOf(ids.los, siteLink), '2027-03-01T16:00', 'koppeling op de site: anker onveranderd');
   assertEq(linkOf(ids.los, siteLink).sourceVersion, '3', 'koppeling op de site: versie onveranderd');
   assert(!data.changes.some((c: any) => c.linkId === siteLink), 'geen change voor de koppeling op de site');
