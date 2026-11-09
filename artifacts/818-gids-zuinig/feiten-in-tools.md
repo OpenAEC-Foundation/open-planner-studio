@@ -71,7 +71,7 @@ niet weg zonder het terug te zetten in de gids of een skill.
 | 50 | Delta's tellen in werkdagen van de huidige projectkalender | `planner_compare_baseline` | tools/list, desc |
 | 51 | Zonder actieve baseline weigeren vergelijken en vertraging analyseren | `planner_compare_baseline`, `planner_analyze_delay` | tools/list, desc ("refused without one"). De skill progress-update houdt de vraag aan de gebruiker |
 | 52 | `projectEndDeltaAvailable: false` = onbekend, niet nul | `planner_analyze_delay` | tools/list, desc |
-| 53 | Waar een skill te installeren is en de download-URL's | `planner_get_planning_guide` | alleen in het antwoord (`install` bij `goed-plannen`, `skill` en `both`, met beide skillnamen; `missing`). De part-beschrijving noemt de installatieparts |
+| 53 | Waar een skill te installeren is en de download-URL's | `planner_get_planning_guide` | alleen in het antwoord (`install` bij `goed-plannen`, `skill` en `both`, met beide skillnamen; `missing`). De part-beschrijving noemt de installatieparts. Sinds ronde 11 geven die parts in `skills[].text` het volle bestand, mét frontmatter |
 | 54 | Undo is gedeeld met de gebruiker; een what-if gaat in een kopie | `planner_undo`, `planner_duplicate_document` | tools/list, desc van beide |
 | 55 | `scheduleStale` op een leesantwoord: de gebruiker bewerkt nog; lees later opnieuw | elke leestool | alleen in het antwoord (`scheduleNote`, `EDIT_IN_PROGRESS_NOTE` in `tools/runtime.ts`) |
 | 56 | `datesAsRecorded`: de datums komen uit het geïmporteerde bestand, niet uit een berekening | elke tool | initialize (de vlag: "say the dates are as recorded") en het antwoord (de betekenis: `scheduleNote`, `DATES_AS_RECORDED_NOTE`). Gids en skill houden de toestemmingsregel |

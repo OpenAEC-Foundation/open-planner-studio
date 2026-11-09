@@ -677,11 +677,18 @@ test('B stdio: initialize, tools/list gelijk aan de registry (namen, beschrijvin
 test('B stdio: gids en beide skills komen uit de bundel (niets ontbreekt)', async () => {
   const data = await ok(stdio, 'planner_get_planning_guide', { part: 'both' });
   assertEq(data.missing, undefined, 'niets ontbreekt');
-  // Het antwoord is het bestand als leestekst (`readingText`, #818): zonder de eerste kop en zonder lege regels.
+  // `both` is een installatiepart: de volle bestanden, mét frontmatter (#818, ronde 11).
   const guideFile = readFileSync(join(PUBLIC, AGENT_GUIDE_PATH), 'utf8');
-  assertEq(data.guide, readingText(guideFile), 'gids = public/agent/planning-guide.md als leestekst');
-  assert(guideFile.includes('\n\n') && !data.guide.includes('\n\n'), 'het bestand houdt zijn lege regels; het antwoord niet');
+  assertEq(data.guide, guideFile, 'gids = public/agent/planning-guide.md');
   assertEq(data.skills.map((s: { name: string }) => s.name), AGENT_SKILLS.map((s) => s.name), 'beide skills');
+  for (const s of data.skills as { name: 'goed-plannen' | 'progress-update'; text: string }[]) {
+    assertEq(s.text, readFileSync(join(PUBLIC, skillAssetPath(s.name)), 'utf8'), `skill ${s.name} = het bestand in public/`);
+  }
+  // Zonder `install` (standaard `guide`) is het antwoord leestekst (`readingText`, #818): zonder de eerste kop en
+  // zonder lege regels.
+  const read = await ok(stdio, 'planner_get_planning_guide', {});
+  assertEq(read.guide, readingText(guideFile), 'gids = public/agent/planning-guide.md als leestekst');
+  assert(guideFile.includes('\n\n') && !read.guide.includes('\n\n'), 'het bestand houdt zijn lege regels; het antwoord niet');
 });
 
 let firstTaskId = '';

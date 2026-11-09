@@ -9,7 +9,7 @@
 3. Milestones, then WBS, durations, relationships, constraints: one planner_batch.
 4. planner_manage_resources, then all assignments in one planner_manage_assignments.
 5. Read: planner_get_project_info, planner_get_critical_path, planner_get_task (float), planner_get_resource_histogram (load).
-6. planner_save_baseline only after user approval, before work; later only for a real scope change, beside the first. No `statusDate` while building.
+6. planner_save_baseline only after user approval, before work; later only for a real scope change, beside the first. Set no `statusDate` while building.
 
 ## Recalculation
 

@@ -9,9 +9,10 @@
 //
 // KORT. Agents betalen per token. Gids en skills zijn regels, geen lesstof: elk principe één keer, in
 // de gids (ook de volgorde); `goed-plannen` verwijst alleen naar de gids, `progress-update` is zelfstandig;
-// parameters staan in `tools/list` (besluit eigenaar, 2026-11-07, #818). Het antwoord laat de frontmatter
-// en de eerste kop weg (`readingText`): die zeggen de toolbeschrijving en `skills[].name` al. De volle
-// bestanden blijven de bron om te installeren (`install`).
+// parameters staan in `tools/list` (besluit eigenaar, 2026-11-07, #818). Bij `guide` en `progress-update` laat
+// het antwoord de frontmatter en de eerste kop weg (`readingText`): die zeggen de toolbeschrijving en
+// `skills[].name` al. Een installatiepart (met `install`) geeft de volle bestanden: de agent schrijft `text` naar
+// het installatiepad, en zonder frontmatter start de skill nooit vanzelf (#818, ronde 11).
 //
 // AGENTGIDS ≠ HELP-ARTIKEL. Tot oktober 2026 leverde deze tool het Help-artikel voor mensen
 // (`public/docs/<taal>/gids-goed-plannen.md`). Een mens drukt op F5 en klikt in het lint; een agent
@@ -92,9 +93,9 @@ export type GuidePart = keyof typeof GUIDE_PARTS;
 export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
 
 /** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818). Het volle
- *  bestand (mét frontmatter, die het antwoord weglaat) komt van de publieke URL. De tekst noemt beide
- *  skillnamen: bij `goed-plannen` komt alleen die skill mee, maar wie installeert, wil ook `progress-update`
- *  (dat part zelf krijgt geen `install`). */
+ *  bestand (mét frontmatter) staat in het antwoord van een installatiepart en op de publieke URL. De tekst
+ *  noemt beide skillnamen: bij `goed-plannen` komt alleen die skill mee, maar wie installeert, wil ook
+ *  `progress-update` (dat part zelf krijgt geen `install`). */
 export const SKILL_INSTALL_HINT =
   `Install ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md (project or ~/); ` +
   `names: ${AGENT_SKILLS.map((s) => s.name).join(', ')}.`;
@@ -103,7 +104,8 @@ export const SKILL_INSTALL_HINT =
  * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met
  * de lege regels erna. Die zeggen niets wat de agent niet al weet (toolbeschrijving, `skills[].name`).
  * Lege regels worden één regeleinde: koppen (`## `) en lijsten (`- `) blijven herkenbaar, en het scheelt
- * tekens in elk antwoord (#818, ronde 9). Het bestand zelf (om te installeren) blijft zoals het is.
+ * tekens in elk antwoord (#818, ronde 9). Alleen voor de parts zonder `install`; een installatiepart geeft het
+ * bestand zoals het is (#818, ronde 11).
  */
 export function readingText(markdown: string): string {
   let text = markdown.replace(/\r\n/g, '\n');
@@ -124,9 +126,11 @@ export interface MissingAsset {
 export interface PlanningGuidePayload {
   /** Alleen gezet wanneer om een andere taal werd gevraagd (de inhoud is altijd Engels). */
   languageNote?: string;
-  /** Markdowntekst van de agentgids, als `readingText` (alleen bij een part met gids). */
+  /** Markdowntekst van de agentgids (alleen bij een part met gids): `readingText`, of bij een installatiepart
+   *  het volle bestand. */
   guide?: string;
-  /** De skills van dit part, met hun tekst als `readingText`. Het oude veld `skill` (een tweede kopie van `goed-plannen`)
+  /** De skills van dit part: bij `progress-update` als `readingText`, bij een installatiepart het volle bestand
+   *  (mét frontmatter, om te installeren). Het oude veld `skill` (een tweede kopie van `goed-plannen`)
    *  is weg: het kostte de agent elke keer duizenden tokens (besluit eigenaar, 2026-11-07). */
   skills?: { name: AgentSkillName; text: string }[];
   /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
@@ -168,15 +172,19 @@ export async function loadPlanningGuide(
   };
   const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'missing'> = {};
   const wanted = GUIDE_PARTS[part];
+  // Een installatiepart geeft de bestanden zoals ze zijn: een agent schrijft `text` naar het pad uit `install`,
+  // en een skill zonder frontmatter (`name`, `description`) start nooit vanzelf (#818, ronde 11). De andere parts
+  // geven leestekst.
+  const shape = wanted.install ? (text: string) => text : readingText;
   if (wanted.guide) {
     const guide = await load(AGENT_GUIDE_PATH);
-    if (guide !== undefined) out.guide = readingText(guide);
+    if (guide !== undefined) out.guide = shape(guide);
   }
   if (wanted.skills.length > 0) {
     const skills: { name: AgentSkillName; text: string }[] = [];
     for (const name of wanted.skills) {
       const text = await load(skillAssetPath(name));
-      if (text !== undefined) skills.push({ name, text: readingText(text) });
+      if (text !== undefined) skills.push({ name, text: shape(text) });
     }
     out.skills = skills;
   }
