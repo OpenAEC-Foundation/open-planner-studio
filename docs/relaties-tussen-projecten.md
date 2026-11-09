@@ -1,8 +1,9 @@
 # Relaties tussen projecten: onderzoek en ontwerp
 
 Datum: 2 november 2026, besluiten bijgewerkt op 3 november 2026, stand van de bouw op 9 november 2026. Status:
-ontwerp met besluiten; deel 1 in aanbouw. Ethan besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine
-PR's, in de volgorde van hoofdstuk 9. Wat al gebouwd is, staat in paragraaf 9.1.
+ontwerp met besluiten; deel 1 is gebouwd, op stap 1.7 na (die wacht op het antwoord van Ethan, 14 november). Ethan
+besliste over alle keuzes in hoofdstuk 10. De bouw gaat in kleine PR's, in de volgorde van hoofdstuk 9. Wat al
+gebouwd is, staat in paragraaf 9.1.
 
 ## 1. Doel en grens
 
@@ -483,7 +484,7 @@ Deel 1 wordt helemaal gebouwd. Deel 2 tot en met 4 wachten op de SuperCloud (C1�
 | 1.6 | De map van een bron bewaken (desktop) | #812 | gemerged in main |
 | 1.7 | Verversen uit een geopend document | #860 | open (niet gemerged), wacht op het antwoord van Ethan over keuze 5 (14 november) |
 | 1.8 | *Bronbestand kiezen…* in de browser | #858 | gemerged in main |
-| 1.9 | Een bron in dezelfde map op de site | #859 | open (niet gemerged), na #858 |
+| 1.9 | Een bron in dezelfde map op de site | #859 | gemerged in main |
 | 1.10 | MCP-tools voor externe relaties | #813 | gemerged in main |
 | 1.11 | *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan | #857 | gemerged in main |
 
@@ -507,6 +508,11 @@ Wat in de bouw anders liep dan hierboven staat:
   (VERVOLG, `knownbugs.md` punt 974). Bij *Alle externe relaties vernieuwen* vraagt de app alle toestemmingen in één
   keer na de klik. Een bron die niet gelezen is, kiest de planner opnieuw met *Bronbestanden kiezen…* in het
   Relatie-menu. De desktoproute is niet getest in de echte app (punt 970).
+- **1.9.** Een koppeling met een site-id leest altijd via de site. Een bron met pad of uit de browser raakt haar
+  niet, ook niet bij hetzelfde project-id. Op de site noemt de balk het versienummer en wie de versie opsloeg. Geeft
+  de site op `versions` en `open` verschillende versies, dan kan de balk een versie noemen die de app niet las
+  (VERVOLG, `knownbugs.md` punt 992). De desktop-app en de MCP-tool lezen geen site (punt 984). De echte werkplek en
+  de SuperCloud-vorm van de host zijn niet getest (punt 982).
 - **1.10.** De MCP-tool `planner_refresh_external_links` zet ook de herkomst (bronversie en leestijd), en haalt de
   balk van 1.5 weg voor de bronnen die hij las, zoals de app. Alleen een koppeling naar een bron die echt gelezen is,
   wordt ververst; dat geldt ook voor *Alle externe relaties vernieuwen* in de app. Een koppeling die de planner tijdens
