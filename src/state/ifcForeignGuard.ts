@@ -3,15 +3,15 @@
 // Opslaan, Opslaan als, de IFC-export, de AutoSave naar het bestand, MCP-opslaan en `devBridge.saveToPath`, met één
 // melding via het meldingenkanaal. Crashherstel naar de herstelopslag gaat wel door, zonder bronbytes.
 import { hasForeignContent, type IfcSource } from '@/services/ifc/foreign/ifcSource';
+import { refusalNotice } from './refusalNotice';
 import type { NotifyInput } from './slices/types';
 
-/** De melding bij een geweigerde opslag. Blijft staan tot het kruisje; een herhaling telt op in dezelfde melding. */
-export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = {
-  severity: 'info',
-  sticky: true,
+/** De melding bij een geweigerde opslag: een weigering (eigenaarsbesluit 2026-10-17: rood, blijft staan tot het
+ *  kruisje). Een herhaling telt op in dezelfde melding. */
+export const IFC_FOREIGN_SAVE_BLOCKED_NOTICE: NotifyInput = refusalNotice({
   messageKey: 'notifications.ifcForeignSaveBlocked',
   dedupeKey: 'ifc-foreign-save-blocked',
-};
+});
 
 /** Weigert de app IFC-uitvoer van dit document (fase 1a)? Alleen met een `ifcSource` met een vreemd deel. */
 export function ifcSaveBlocked(s: { readonly ifcSource: IfcSource | null }): boolean {

@@ -229,8 +229,8 @@ win.showSaveFilePicker = async () => { pickerCalls++; throw new DOMException('ge
   const blockedNotices = () => S().ui.notifications.filter(n => n.messageKey === SAVE_BLOCKED_KEY);
   await S().saveFile();
   eq('opslaan: Opslaan geweigerd met de melding', blockedNotices().length, 1);
-  eq('opslaan: de melding is info, blijft staan en vouwt samen', blockedNotices().map(n => [n.severity, n.sticky, n.dedupeKey]),
-    [['info', true, 'ifc-foreign-save-blocked']]);
+  eq('opslaan: de melding is een weigering (rood) en vouwt samen', blockedNotices().map(n => [n.severity, n.refusal, n.dedupeKey]),
+    [['error', true, 'ifc-foreign-save-blocked']]);
   await S().saveFileAs();
   const ifcExport = await S().exportAs('ifc');
   eq('opslaan: IFC-export telt als geannuleerd', ifcExport, { ok: true, warnings: [], cancelled: true });
