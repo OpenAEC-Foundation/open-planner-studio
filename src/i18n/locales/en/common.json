@@ -148,6 +148,8 @@
     "dragDatesAreActual": "'{{name}}' is complete: its start and finish are the actual dates and do not move. Change them through the progress.",
     "referencesClearedOnPaste_one": "{{count}} reference did not exist in this document and was cleared (a task calendar, custom work category, activity code or custom field from the source document).",
     "referencesClearedOnPaste_other": "{{count}} references did not exist in this document and were cleared (task calendars, custom work categories, activity codes or custom fields from the source document).",
+    "assignmentsSkippedOnPaste_one": "{{count}} assignment was not pasted: the resource is a different kind here (cost or work), or a milestone only takes cost.",
+    "assignmentsSkippedOnPaste_other": "{{count}} assignments were not pasted: the resource is a different kind here (cost or work), or a milestone only takes cost.",
     "milestoneRefusedAssignments": "'{{task}}' has resource assignments and cannot become a milestone. Remove the assignments first.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} task has resource assignments and cannot become a milestone. Remove the assignments first.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} tasks have resource assignments and cannot become milestones. Remove the assignments first.",

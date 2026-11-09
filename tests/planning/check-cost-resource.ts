@@ -461,6 +461,117 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
   eq('J6 inzetkolom: lukt en het bedrag blijft', [units.ok, costOf(S, b, cost)?.costAmount], [true, 800]);
 }
 
+// ── K. Hele taken plakken: een toewijzing die niet past bij het type van de doelresource (review 3) ─────
+// Het klembord draagt de soort (kosten of werk) van de bronresource. Past die niet bij het type van de
+// doelresource, of draagt een geplakte mijlpaal werk, dan valt de toewijzing weg (ook uit `resourceIds`),
+// met één melding. Passende toewijzingen komen gewoon mee. Na IFC opslaan en heropenen klopt alles nog.
+{
+  const skippedNotices = (S: () => ReturnType<Store['getState']>) => S().ui.notifications
+    .filter(n => n.messageKey === 'notifications.assignmentsSkippedOnPaste').map(n => n.params?.count);
+  /** Twee documenten uit hetzelfde IFC: dezelfde resource-ids. `R` wisselt per document van type. */
+  function twoDocuments(sourceType: 'COST' | 'LABOR', targetType: 'COST' | 'LABOR') {
+    const store = createAppStore();
+    const S = () => store.getState();
+    S().setProject({ startDate: '2026-06-01' });
+    S().addTask({ name: 'Vergunning', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addTask({ name: 'Metselwerk', time: createDefaultTaskTime('2026-06-01', 2) });
+    S().addResource({ name: 'Wisselend', type: 'LABOR', description: '', maxUnits: 1 });
+    S().addResource({ name: 'Metselaar', type: 'LABOR', description: '', maxUnits: 1 });
+    const base = serializeRecoverySnapshot(S());
+    S().applyLoadedProject(readIFC(base), { filePath: null, recompute: true });
+    const target = S().activeDocumentId;
+    const R = S().resources.find(r => r.name === 'Wisselend')!.id;
+    if (targetType === 'COST') S().updateResource(R, { type: 'COST' });
+    S().newDocument();
+    S().applyLoadedProject(readIFC(base), { filePath: null, recompute: true });
+    if (sourceType === 'COST') S().updateResource(R, { type: 'COST' });
+    const vergunning = S().tasks.find(t => t.name === 'Vergunning')!.id;
+    const metselwerk = S().tasks.find(t => t.name === 'Metselwerk')!.id;
+    const W = S().resources.find(r => r.name === 'Metselaar')!.id;
+    S().assignResource(metselwerk, W, 1);
+    return { store, S, target, R, W, vergunning, metselwerk };
+  }
+  const pasted = (S: () => ReturnType<Store['getState']>, roots: string[], name: string) =>
+    S().tasks.find(t => roots.includes(t.id) && t.name === name)!;
+  const reopen = (S: () => ReturnType<Store['getState']>) => readIFC(serializeRecoverySnapshot(S()));
+
+  // K1: COST met bedrag op een mijlpaal → doel heeft LABOR.
+  {
+    const { S, target, R, W, vergunning, metselwerk } = twoDocuments('COST', 'LABOR');
+    S().updateTask(vergunning, { isMilestone: true });
+    S().assignResource(vergunning, R, 1, undefined, 1250.55);
+    S().copyTasks([vergunning, metselwerk]);
+    S().switchDocument(target);
+    const roots = S().pasteTasks();
+    const ms = pasted(S, roots, 'Vergunning');
+    const work = pasted(S, roots, 'Metselwerk');
+    eq('K1 kosten → werk: geen toewijzing op de mijlpaal', S().assignments.filter(a => a.taskId === ms.id), []);
+    eq('K1 kosten → werk: resource uit resourceIds', ms.resourceIds, []);
+    eq('K1 passende werktoewijzing komt mee', S().assignments.filter(a => a.taskId === work.id).map(a => a.resourceId), [W]);
+    eq('K1 één melding met aantal 1', skippedNotices(S), [1]);
+    const back = reopen(S);
+    eq('K1 na heropenen: geen toewijzing en geen bedrag op de mijlpaal',
+      back.assignments.filter(a => a.taskId === ms.id).length, 0);
+    eq('K1 na heropenen: de werktoewijzing staat er', back.assignments.filter(a => a.taskId === work.id).map(a => a.resourceId), [W]);
+  }
+  // K2: werk met curve en werk → doel heeft COST.
+  {
+    const { S, target, R, W, vergunning, metselwerk } = twoDocuments('LABOR', 'COST');
+    S().assignResource(vergunning, R, 1);
+    const a = costOf(S, vergunning, R)!;
+    S().updateAssignment(a.id, { curve: 'BELL' });
+    S().setAssignmentWork(a.id, 960);
+    eq('K2 voorwaarde: werk en curve op de bron', [costOf(S, vergunning, R)?.curve, costOf(S, vergunning, R)?.remainingWorkMinutes], ['BELL', 960]);
+    S().copyTasks([vergunning, metselwerk]);
+    S().switchDocument(target);
+    const roots = S().pasteTasks();
+    const t = pasted(S, roots, 'Vergunning');
+    eq('K2 werk → kosten: geen toewijzing', S().assignments.filter(x => x.taskId === t.id), []);
+    eq('K2 werk → kosten: resource uit resourceIds', t.resourceIds, []);
+    eq('K2 passende werktoewijzing komt mee',
+      S().assignments.filter(x => x.taskId === pasted(S, roots, 'Metselwerk').id).map(x => x.resourceId), [W]);
+    eq('K2 één melding met aantal 1', skippedNotices(S), [1]);
+    eq('K2 na heropenen: geen toewijzing', reopen(S).assignments.filter(x => x.taskId === t.id).length, 0);
+  }
+  // K3: binnen één document: kopiëren, toewijzing weg, type wisselen, plakken.
+  {
+    const { S, R, vergunning } = twoDocuments('COST', 'COST');
+    S().assignResource(vergunning, R, 1, undefined, 400);
+    S().copyTasks([vergunning]);
+    S().unassignResource(costOf(S, vergunning, R)!.id);
+    S().updateResource(R, { type: 'LABOR' });
+    const roots = S().pasteTasks();
+    const t = pasted(S, roots, 'Vergunning');
+    eq('K3 zelfde document na typewissel: geen toewijzing', S().assignments.filter(x => x.taskId === t.id), []);
+    eq('K3 zelfde document: melding', skippedNotices(S), [1]);
+  }
+  // K4: kosten → kosten: het bedrag komt mee en er komt geen melding.
+  {
+    const { S, target, R, vergunning } = twoDocuments('COST', 'COST');
+    S().updateTask(vergunning, { isMilestone: true });
+    S().assignResource(vergunning, R, 1, undefined, 1250.55);
+    S().copyTasks([vergunning]);
+    S().switchDocument(target);
+    const roots = S().pasteTasks();
+    const t = pasted(S, roots, 'Vergunning');
+    eq('K4 kosten → kosten: bedrag mee', S().assignments.filter(x => x.taskId === t.id).map(x => x.costAmount), [1250.55]);
+    eq('K4 kosten → kosten: resource in resourceIds', t.resourceIds, [R]);
+    eq('K4 geen melding', skippedNotices(S), []);
+    eq('K4 na heropenen: bedrag staat er', reopen(S).assignments.filter(x => x.taskId === t.id).map(x => x.costAmount), [1250.55]);
+  }
+  // K5: mijlpaalregel: een (oude) werktoewijzing op een mijlpaal plakt niet, ook als het type gelijk is.
+  {
+    const { store, S, R, vergunning } = twoDocuments('LABOR', 'LABOR');
+    S().assignResource(vergunning, R, 1);
+    store.setState(s => { s.tasks.find(t => t.id === vergunning)!.isMilestone = true; });
+    S().copyTasks([vergunning]);
+    const roots = S().pasteTasks();
+    const t = pasted(S, roots, 'Vergunning');
+    eq('K5 werk op een geplakte mijlpaal: overgeslagen', S().assignments.filter(x => x.taskId === t.id), []);
+    eq('K5 mijlpaal: melding', skippedNotices(S), [1]);
+  }
+}
+
 if (diffs.length === 0) {
   console.log(`OK  cost-resource: alle checks groen (${checks})`);
   process.exit(0);

@@ -113,6 +113,7 @@
     "notifications.dragStartIsActual": "e227160b9ba5c3f9",
     "notifications.dragDatesAreActual": "f6c9c15016784996",
     "notifications.referencesClearedOnPaste": "e2756f0cb1df54e6",
+    "notifications.assignmentsSkippedOnPaste": "be1bd2001bb27be6",
     "notifications.milestoneRefusedAssignments": "96fd3982eba3cc82",
     "notifications.milestoneRefusedAssignmentsMany": "2a34c8cd5331472d",
     "notifications.milestoneRefusedSummary": "8bfcb09fbb7dc035",

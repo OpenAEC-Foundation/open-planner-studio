@@ -148,6 +148,8 @@
     "dragDatesAreActual": "'{{name}}' is gereed: begin en einde zijn de werkelijke datums en verschuiven niet. Wijzig die via de voortgang.",
     "referencesClearedOnPaste_one": "{{count}} verwijzing bestond niet in dit document en is leeggemaakt (een taakkalender, eigen werksoort, activity code of gebruikersveld uit het brondocument).",
     "referencesClearedOnPaste_other": "{{count}} verwijzingen bestonden niet in dit document en zijn leeggemaakt (taakkalenders, eigen werksoorten, activity codes of gebruikersvelden uit het brondocument).",
+    "assignmentsSkippedOnPaste_one": "{{count}} toewijzing is niet geplakt: de resource is hier een ander soort (kosten of werk), of een mijlpaal draagt alleen kosten.",
+    "assignmentsSkippedOnPaste_other": "{{count}} toewijzingen zijn niet geplakt: de resource is hier een ander soort (kosten of werk), of een mijlpaal draagt alleen kosten.",
     "milestoneRefusedAssignments": "'{{task}}' heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
     "milestoneRefusedAssignmentsMany_one": "{{count}} taak heeft resource-toewijzingen en kan geen mijlpaal worden. Verwijder eerst de toewijzingen.",
     "milestoneRefusedAssignmentsMany_other": "{{count}} taken hebben resource-toewijzingen en kunnen geen mijlpaal worden. Verwijder eerst de toewijzingen.",

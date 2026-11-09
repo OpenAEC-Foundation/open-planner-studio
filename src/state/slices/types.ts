@@ -270,6 +270,9 @@ export type NotificationMessageKey =
   // Plakken uit een ander document: kalender-/taaktype-/code-/veldverwijzingen die hier niet
   // bestaan zijn leeggemaakt (`insertedBranch.ts`s `normalizeInsertedBranch`). Meervoud, `count`.
   | 'notifications.referencesClearedOnPaste'
+  // Plakken: toewijzingen waarvan de soort (kosten of werk) of de mijlpaalregel niet past, zijn
+  // overgeslagen (`notifyAssignmentsSkipped`, #815). Meervoud, `count`.
+  | 'notifications.assignmentsSkippedOnPaste'
   // Structuurovergangen met toewijzingen (`src/state/structuralTransition.ts`):
   // wordt mijlpaal ⇒ weigeren; wordt fase ⇒ toewijzingen naar de eerste nieuwe subtaak, of weigeren
   // als dat niet schoon kan; een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.
