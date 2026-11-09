@@ -1,7 +1,7 @@
 # Gebouwmodel behouden in IFC en IFCX — ontwerp
 
-Status: ontwerp, versie 16 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixronde 1 van de
-review van PR #839 door Sol en Terra, §12).
+Status: ontwerp, versie 17 (9 november 2026: council-rondes 1–13, Opus en Sol gaven een 9; daarna fixrondes 1 en 2 van
+de review van PR #839 door Sol en Terra, §12).
 Wordt in dezelfde sessie gebouwd.
 Issue #804 (IFCX naast IFC4X3). Raakt #748 (lokale 4D-workflow). Vervangt de weigering van PR #547
 (commit `5b2812f94`, 2026-10-23; de vroegere knownbug 110).
@@ -184,11 +184,30 @@ anders niet (`IfcRelSequence` is D, stap 1):
     `ifcReader.ts:2211-2213`, `ifcWriter.ts:789`; Sol, review #839). De property is P, dus `sourceSlots` en controle 1
     zagen dat niet. Regel: het register noemt elke JSON-property met de sleutels die de lezer leest. Een **onbekende
     JSON-sleutel** bewaart de app als ruw token (JSON-tokenizer van §6.1, na het decoderen van de STEP-tekst;
-    `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). Dat geldt op het hoogste niveau en in elk
-    object in een lijst: de app vindt het object terug aan de sleutel waarop de lezer het item herkent (`id`, `name`),
-    en zonder zo'n sleutel aan de positie, zolang de lijst even lang is. De writer zet de onbekende sleutels terug in
-    hetzelfde object, na de bekende sleutels, in hun oorspronkelijke volgorde. Bestaat het object niet meer (het item is
-    verwijderd, of de lijst zonder sleutel veranderde van lengte), dan vervallen ze met het object (§4.7).
+    `ifcSource.jsonExtras`, per domeinobject, property en object in de JSON). De writer zet ze terug in hetzelfde
+    object, na de bekende sleutels, in hun oorspronkelijke volgorde.
+  - **Identiteit per JSON-structuur** (Sol en Terra, review #839, ronde 2: positie als sleutel koppelde vreemde velden aan
+    het verkeerde item). Het register legt voor elk object en elke lijst in elke JSON-property vast hoe de app het
+    terugvindt; een test faalt als een JSON-property of lijst geen identiteit heeft:
+    - een object in een object: aan zijn sleutelpad;
+    - een item in een lijst met een sleutelveld: aan dat veld. Bijvoorbeeld baselines aan `id` en de taken daarin aan
+      `taskId` (`src/types/baseline.ts`); codetypen, codewaarden en eigen velden aan `id` (`src/types/structure.ts`);
+    - een object onder een sleutel uit de data: aan het domeinobject achter die sleutel. In `Windows` van
+      `OPS_Timephased` is de sleutel `<resource-GlobalId>#<index>`, en de index volgt de lijst van toewijzingen
+      (`ifcWriter.ts:1935`). Bij openen legt de app per sleutel vast welke toewijzing de lezer eraan koppelde; de writer
+      schrijft de onbekende sleutels bij dezelfde toewijzing, onder haar nieuwe sleutel. Zo schuiven ze mee als de
+      planner een toewijzing toevoegt of verwijdert;
+    - een item in een lijst zonder sleutelveld (bijvoorbeeld `Splits` in `OPS_TaskSplits`, `ifcPsets.ts:556-580`): aan de
+      waarden van zijn bekende velden. Een item met dezelfde bekende waarden als in de bron is hetzelfde item; gelijke
+      items paren in volgorde. Zo blijft `vendorReason` bij de eerste onderbreking als de planner een tweede toevoegt.
+  - **Geen veilige koppeling: opslaan stopt.** Vindt de writer voor een object met onbekende sleutels geen object in de
+    uitvoer, terwijl het domeinobject waar de property bij hoort nog bestaat (de planner wijzigde een onderbreking zonder
+    sleutelveld, of verwijderde een item), dan schrijft hij niet stil. Opslaan stopt vóór het schrijven, met een melding
+    die per object noemt welke gegevens van een ander programma verloren zouden gaan, en twee keuzes: *Annuleren*
+    (standaard) en *Opslaan zonder deze gegevens*. Kiest de planner het tweede, dan staan ze op de wijzigingslijst
+    (*vervallen*) en in `detached`. AutoSave naar het bestand en MCP-opslaan stoppen ook: AutoSave geeft één melding en
+    wacht op de planner; MCP krijgt een fout met een vaste code. Verdwijnt het domeinobject zelf (de taak is verwijderd),
+    dan vervallen de onbekende sleutels met het object (§4.7), zonder vraag.
   - Dezelfde regel geldt voor property-templates in een template uit het register.
   - Lezer en indeling gebruiken dezelfde herkenner.
   - Bij opslaan vervalt elk vreemd lid dat de herkenner in de uitvoer als eigen zou lezen (wijzigingslijst, met een
@@ -430,7 +449,7 @@ het document vervalt `detached`; dan kan ook Ctrl+Z het object niet meer terugbr
   (`Uint32Array`), de klasse per stuk, de kaart domein-id → bron-`#id`, de A-verwijzingen, `sourceSlots`,
   `foreignMembers`, `jsonExtras` en `unusedKeys` (§4.2), wat de lezer uit gemengde relaties las (§4.6), `elementLinks`, `detached`, `foreign` (is er een vreemd
   deel), het aantal bewaarde vreemde tokens in constante slots, de grootte en wijzigingstijd van het bestand op het eigen
-  doel (§4.10) en het totaal aantal vreemde objecten voor de melding.
+  doel (§4.10), de id-uitzonderingen (§4.14) en het totaal aantal vreemde objecten voor de melding.
 - **De nieuwe bron komt van de writer.** De klassen, de kaart domein-id → `#id`, `sourceSlots`, `foreignMembers` en
   `elementLinks` van de nieuwe bron komen uit wat de writer schreef, met de domein-ids van de sessie, niet uit een nieuwe
   indeling van de uitvoer. Anders kregen in de app gemaakte objecten, of een `-dup-N`-object met een nieuwe GlobalId, bij
@@ -537,19 +556,37 @@ Daarna, vóór het wegschrijven, scant de app de uitvoer opnieuw met de scanner.
 
 Faalt een controle, dan schrijft de app niets. De melding biedt een uitweg: *Exporteren zonder gebouwmodel*.
 
-**Bestand buiten de app vervangen** (alleen met een vreemd deel). Vóór het overschrijven van het eigen doel leest de app
-het bestand op schijf en vergelijkt zijn sha256 met die in `ifcSource`, altijd, ook als grootte en wijzigingstijd gelijk
-zijn: een synchronisatiemap kan een ander bestand met dezelfde grootte en tijd terugzetten (Terra, review #839). Tussen
-die controle en het schrijven: in Tauri schrijft de app naar een tijdelijk bestand naast het doel, vergelijkt vlak vóór
-het atomair hernoemen grootte en wijzigingstijd opnieuw met de waarden van de controle, en hernoemt alleen als ze gelijk
-zijn. In de browser met een bestands-handle doet de app dezelfde tweede vergelijking vlak vóór het sluiten van de
-schrijfstroom (`createWritable`: de browser zet de inhoud pas bij sluiten neer). Bij de site is `siteFileVersion` de
-controle. Wat overblijft, is een wijziging met dezelfde grootte en tijd in de milliseconden tussen de tweede vergelijking
-en het hernoemen. Het lezen kost tijd bij een groot model; fase 0 meet het (§4.13). Is het bestand vervangen
-(bijvoorbeeld door een nieuwe versie van de architect), dan schrijft de app niet. Bij Opslaan meldt hij
-het en biedt hij *Opslaan als* en *Opnieuw openen* aan. AutoSave naar het bestand geeft één melding en stopt voor dit
-document tot de planner kiest. Anders zou Ctrl+S het oude model terugschrijven. Zonder vreemd deel geldt de huidige
-route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5).
+**Bestand buiten de app vervangen** (alleen met een vreemd deel). Anders zou Ctrl+S een nieuw model van de architect
+overschrijven met het oude. Eerst de controle, dan per opslagroute de garantie (Sol en Terra, review #839, rondes 1 en 2).
+
+- **Controle vóór het schrijven**: de app leest het bestand op het eigen doel en vergelijkt zijn sha256 met die in
+  `ifcSource`, altijd, ook als grootte en wijzigingstijd gelijk zijn (een synchronisatiemap kan een ander bestand met
+  dezelfde grootte en tijd terugzetten). Verschilt de inhoud, dan schrijft de app niet. Bij Opslaan meldt hij het en
+  biedt hij *Opslaan als* en *Opnieuw openen* aan. AutoSave naar het bestand geeft één melding en stopt voor dit
+  document tot de planner kiest.
+- **Tauri: de vorige versie gaat nooit verloren.** De app schrijft de uitvoer naar een eigen tijdelijk bestand naast het
+  doel (zoals nu, `atomicWrite.ts`). Vlak vóór het vervangen leest hij het doel opnieuw en vergelijkt hij de sha256
+  (de inhoud, niet alleen grootte en tijd). Dan vervangt hij in twee hernoemstappen: eerst het doel naar
+  `<naam>.ops-vorige-<id>`, dan het tijdelijke bestand naar het doel. Daarna rekent hij de sha256 van het verplaatste
+  bestand na. Is die gelijk aan de bron, dan verwijdert hij het. Is die anders, dan heeft iets het bestand gewijzigd
+  tussen de laatste controle en het verplaatsen: de app laat die versie staan als `<naam> (conflict <datum tijd>).ifc`
+  naast het doel en meldt het. Zo kan een wijziging tussen controle en schrijven niet stil verloren gaan: ze staat
+  altijd als bestand op schijf. Grens: een bestand dat een ander programma precies tussen de twee hernoemstappen nieuw
+  op het doelpad zet, wordt vervangen; dat venster is twee opeenvolgende systeemaanroepen lang. Crasht de app tussen de
+  twee hernoemstappen, dan staat er even geen bestand op het doelpad; herstel zoekt de bron dan ook als
+  `<naam>.ops-vorige-<id>` naast het doel (op sha256) en meldt waar het bestand staat. Een terugval naar direct
+  schrijven is er met een vreemd deel niet: bij een gelinkt doel (symlink, harde link), buiten de fs-scope, of als een
+  hernoemstap faalt, schrijft de app niet en biedt hij *Opslaan als* aan (Terra: de huidige terugval in
+  `atomicWrite.ts:105-116, 155-160` past niet bij deze garantie). Zonder vreemd deel blijft de huidige route.
+- **Browser met een bestands-handle (File System Access)**: de browser zet de inhoud pas neer bij `close()` van de
+  schrijfstroom. De app leest vlak vóór `close()` het bestand via de handle opnieuw en vergelijkt de sha256. Een wijziging
+  tussen die controle en `close()` gaat verloren; de browser kan geen kopie naast het bestand maken en geen voorwaardelijk
+  opslaan. Dit racevenster blijft. De app noemt het in de uitleg bij Opslaan in de browser (§4.15) en in de handleiding:
+  wie een gedeelde map gebruikt, werkt veilig in de desktop-app.
+- **Site**: `siteFileVersion` is een voorwaardelijke opslag bij de host; die weigert een verouderde versie. Dat is een
+  harde garantie.
+- **Download** (browser zonder handle): overschrijft niets.
+- Kosten: twee keer het doel lezen en hashen per opslag. Fase 0 meet dat voor 50, 150 en 300 MB (§4.13).
 
 3. **Alleen in CI**: IfcOpenShell vergelijkt invoer en uitvoer onafhankelijk: alle niet-P-entiteiten op `#id`, type en
    attributen (ook geometrie zonder GlobalId), en de planning via het domein. Plus `ifcopenshell.validate` (§10).
@@ -602,25 +639,33 @@ route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5)
 
 - Herstel zet nu ook het bestandspad en het site-doel terug (`useRecoveryRestore.ts:90`). Zonder bron zou Ctrl+S het
   modelbestand overschrijven met alleen planning.
-- Het herstelmanifest krijgt per document een verwijzing `ifcSource: { sha256, size, foreign, foreignTokens, pendingSha256? }` (manifest
+- Het herstelmanifest krijgt per document een verwijzing `ifcSource: { sha256, size, foreign, foreignTokens, idExceptions,
+  pendingSha256?, pendingIdExceptions? }` (manifest
   versie 6, `recoveryManifest.ts:4`). De sha256 is die van de huidige bron: het bestand zoals het na het laatste opslaan op
   schijf staat. Opruimen houdt rekening met die verwijzing, zoals nu met `xerArchive` (`recoveryStore.ts:378`).
 - **Opslaan en herstel in twee stappen**: vóór het wegschrijven zet de app `pendingSha256` = de sha256 van de nieuwe
-  uitvoer in het manifest. Na het wegschrijven zet hij `sha256` op die waarde en wist hij `pendingSha256`. Crasht de app
+  uitvoer in het manifest, samen met `pendingIdExceptions` (hieronder). Na het wegschrijven zet hij `sha256` en
+  `idExceptions` op die waarden en wist hij de twee `pending`-velden. Crasht de app
   daartussen, dan accepteert herstel een bestand met `sha256` óf `pendingSha256`. Zo leidt een crash direct na opslaan
   niet tot "bron ontbreekt".
 - Het manifest is **best effort**, zoals nu: is de herstelopslag niet beschikbaar (`RecoveryStorageUnavailableError`,
   #582, bijvoorbeeld in een sandbox-iframe) of geblokkeerd, dan slaat de app toch op, zonder de twee stappen. Een crash
   direct daarna kan dan tot "bron ontbreekt" leiden.
-- **De kaart domein-id → bron-`#id` gaat mee in de herstelsnapshot**, met de sha256 van de bron waar ze bij hoort. Ze is
-  klein (een id per object) en bevat geen bronbytes. Zonder haar kon herstel een object met een `-dup-N`-id niet aan
-  zijn bronstuk koppelen: na opslaan heeft dat object in de bron een nieuwe GlobalId, en een herlezing geeft dan een
-  ander id dan de sessie. Het object gold als nieuw, kreeg weer een nieuwe GlobalId, en vreemde verwijzingen ernaar
-  raakten los (Terra, review #839). Herstel gebruikt de kaart uit de snapshot als de sha256 gelijk is aan die van de
-  gevonden bron (`sha256` of `pendingSha256`, met de kaart die bij die waarde hoort). De rest van `ifcSource` (index,
-  klassen, `sourceSlots`, `foreignMembers`, `jsonExtras`, `unusedKeys`, `elementLinks`) bouwt herstel opnieuw op door de
-  bron te scannen en in te delen, gesleuteld op `#id` via de kaart. Alleen een object dat na het laatste opslaan in de
-  app is gemaakt, staat niet in de kaart; dat is ook echt nieuw.
+- **Uitzonderingen op de id-kaart, per sha256 in het manifest** (Terra ronde 1; Sol en Terra ronde 2: een kaart in de
+  herstelsnapshot liep achter, want na opslaan komt er geen nieuwe snapshot). Herstel bouwt de kaart domein-id →
+  bron-`#id` opnieuw op door de bron te scannen; de lezer leidt het domein-id af uit de GlobalId of `OPS_TaskIdentity`.
+  Voor de meeste objecten geeft dat het id van de sessie. De uitzonderingen zijn de objecten waarvoor de afleiding een
+  ander id geeft dan de sessie had: een `-dup-N`-object dat bij opslaan een nieuwe GlobalId kreeg, en een in de app
+  gemaakt object dat bij heropenen een ander id krijgt (`.claude/rules/tauri-ifc.md`, GlobalIds). De writer kent ze bij
+  het schrijven: hij leidt voor elk geschreven object het id af zoals de lezer dat zal doen, en noteert elk verschil als
+  paar (sessie-id, `#id`). Dat lijstje (`idExceptions`) is klein en staat in het manifest bij de sha256 waar het bij
+  hoort; het nieuwe lijstje gaat als `pendingIdExceptions` mee in de eerste stap, vóór het schrijven. Herstel neemt het
+  lijstje van de sha256 die het vindt (`sha256` of `pendingSha256`). Zo hoort bij bron H1 altijd kaart M1, ook na een
+  crash direct na opslaan zonder verdere bewerking. Zonder dit lijstje gold zo'n object na herstel als nieuw, kreeg het
+  weer een nieuwe GlobalId, en raakten vreemde verwijzingen ernaar los. De rest van `ifcSource` (index, klassen,
+  `sourceSlots`, `foreignMembers`, `jsonExtras`, `unusedKeys`, `elementLinks`) bouwt herstel op door de bron te scannen
+  en in te delen, gesleuteld op `#id`. Is het manifest niet beschikbaar (best effort, hieronder), dan valt herstel terug
+  op de afleiding; dan kunnen alleen de uitzonderingen als nieuw gelden, en meldt de app dat.
 - **Tauri**: geen kopie. Herstel leest het oorspronkelijke pad opnieuw en controleert de sha256.
 - **Browser met een bestands-handle**: ook geen kopie; herstel leest via de handle en controleert de sha256.
 - **Browser zonder handle** (download, site, externe bron): een kopie in IndexedDB, één keer per sha256, asynchroon, vóór
@@ -635,6 +680,9 @@ route, ook als een eigen bestand via een synchronisatiemap is gewijzigd (doel 5)
   vervallen.
 
 ### 4.15 Wat de planner ziet
+
+- In de browser, bij Opslaan van een bestand met een model, in de uitleg (niet als vraag): "Wijzigt een ander programma
+  dit bestand precies tijdens het opslaan, dan kan die wijziging verloren gaan. De desktop-app bewaart dan een kopie."
 
 - Na openen, in de statusbalk: "Dit bestand bevat ook een gebouwmodel en gegevens van andere programma's
   (12.345 objecten). Bij opslaan blijven die ongewijzigd."
@@ -863,7 +911,11 @@ hetzelfde vóór en na opslaan, en na heropenen.
   De eerdere bijdragen zijn **overschaduwd**: ze hebben geen effect, maar hun onbekende velden zijn gegevens van een ander
   (Sol, review #839: de eerste bijdrage met `vendorCost`, de tweede met `vendorRevision`). De writer behandelt een
   overschaduwde bijdrage daarom als een vreemde bijdrage: byte-gelijk op haar plek. De nieuwe waarde schrijft hij op de
-  plek van de laatste bijdrage, met de onbekende velden van die laatste bijdrage, zodat zij blijft winnen. Omdat de eerste
+  plek van de laatste bijdrage, met de onbekende velden van die laatste bijdrage, zodat zij blijft winnen. Heeft een eigen
+  attribuut overschaduwde bijdragen, dan schrijft de writer het altijd, ook als "afwezig blijft afwezig" (§5.2) het
+  anders zou weglaten, met de waarden uit het domein. Anders werd een oudere bijdrage weer actief (Sol, review #839:
+  taak A had eerst volgnummer 2 en later 1; naar de eerste plek verplaatst viel `openaec::ops::task` weg en gold weer 2,
+  dus `B, C, A`). Omdat de eerste
   bijdrage blijft staan, verandert de volgorde van eerste entries niet (werkplan W1, W2 en nog een W1: W1 blijft de
   planning).
 - **Onbekende velden horen bij hun object** (één regel voor bewerken en verwijderen; Sol en Terra, review #839).
@@ -971,7 +1023,7 @@ ontbreekt" (alleen met `foreign`) en de controle op een vervangen bestand gelden
 |---|---|---|---|
 | 0 | **Haalbaarheidsproef** op het corpus (§10): scanner met inkomende verwijzingen, `selectPlanning`, indeling, de 100 %-P-poort, lezen als bytes, meting van tijd en geheugen (50/150/300 MB, Linux-WebKit en Chromium), controle met IfcOpenShell. Beantwoordt de vragen in §11. | 1 PR (tests en scripts) | — |
 | 1 | Bytes-openroutes, scanner, indeling, `ifcSource`, lezer met C-context, writer met behouden ids, controles 1 en 2 met `planningCanon`, `ifcSource` vernieuwen na opslaan. Achter de flag. | 3 PR's | hoog |
-| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand (§4.10), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, de kaart in de herstelsnapshot en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
+| 2 | `sourceSlots` en de vijf nieuwe descriptortabellen, `jsonExtras` en `unusedKeys` (§4.2), de controle op een vervangen bestand (§4.10), A-stukken bij verwijderen, `detached` voor undo, gemengde rels, `elementLinks`, alle routes uit §4.12 (ook headless bytes), herstel met manifest 6, `idExceptions` in het manifest en "bron ontbreekt", meldingen, handleiding. Flag eraf, weigering eruit (laatste PR). | 4–6 PR's | middel-hoog |
 | 3 | IFCX-planning zonder vreemde inhoud: voorstel gedeelde schema's aan Bjorn (§5.3), profiel `openaec::ops::` 1.0.0, schema's, lezer, writer, dialogen, keuze, vraag bij opslaan, round-trip STEP↔IFCX, handleiding over IFCX (nl/en; de andere talen via de vertaalstraat). Achter de flag. | 4–6 PR's | hoog: veel velden, alfa-formaat |
 | 4 | IFCX met vreemde inhoud: tokenizer, eigendom per bijdrage, planning van een ander programma (§5.5), onbekende velden als token, de lege entry bij verwijzingen, `openaec::links`, `ifcSource` voor IFCX (§6.6), handleiding en `docs/ifc-round-trip.md` bijwerken. Flag eraf. | 2–3 PR's | middel |
 
@@ -1017,6 +1069,13 @@ daarom staat alles achter de flags tot het compleet is.
     `OPS_StructureMeta` en een extra sleutel in één codetype en in één baseline-item blijven na opslaan, na een tweede
     opslaan en na een wijziging van een ander codetype staan; het codetype verwijderen laat zijn sleutel vervallen
     (wijzigingslijst), Ctrl+Z na opslaan zet hem terug; een groot geheel getal in zo'n sleutel blijft byte-gelijk;
+  - identiteit in JSON (ronde 2): taken in een baseline met een extra sleutel, in een andere volgorde maar even veel:
+    elke sleutel blijft bij dezelfde `taskId`; `Splits` met `vendorReason` op de eerste onderbreking: een tweede
+    toevoegen, de volgorde van twee gelijke onderbrekingen verwisselen, de tweede verwijderen: `vendorReason` blijft bij
+    de eerste; de eerste wijzigen: opslaan stopt met de vraag, *Annuleren* schrijft niets, *Opslaan zonder deze
+    gegevens* zet hem op de wijzigingslijst; AutoSave en MCP stoppen ook; `Windows` met een extra sleutel bij de tweede
+    toewijzing: de eerste toewijzing verwijderen, opslaan: de sleutel staat bij dezelfde toewijzing onder haar nieuwe
+    nummer; een test faalt als een JSON-property of lijst in het register geen identiteit heeft;
   - ongebruikte sleutels in `OPS_Assignments` (Terra, review #839): één toewijzing met twee sleutels voor dezelfde
     resource; na opslaan staan beide er, de lezer neemt voor de toewijzing dezelfde waarde als vóór opslaan, en de
     tweede waarde is byte-gelijk; een tweede toewijzing van die resource toevoegen schuift de ongebruikte sleutel naar
@@ -1072,12 +1131,17 @@ daarom staat alles achter de flags tot het compleet is.
   - een `LongDescription` op een taak in een verder eigen bestand blijft staan;
   - crash tussen wegschrijven en het bijwerken van het manifest: herstel vindt de bron via `pendingSha256`;
   - herstel met bron op het oude pad, via een handle, met een kopie, en zonder bron ("bron ontbreekt" blokkeert opslaan);
-  - herstel met dubbele GlobalIds (Terra, review #839): bron met twee taken met dezelfde GlobalId en een vreemde pset
-    op de tweede; openen, opslaan, bewerken, crash, herstel, opslaan: de tweede taak houdt haar GlobalId uit het eerste
-    opslaan en de vreemde pset hangt nog aan haar; ook met een crash tussen `pendingSha256` en `sha256`;
+  - herstel met dubbele GlobalIds (Terra, review #839): bron met twee resources met dezelfde GlobalId en een vreemde
+    pset op de tweede; openen, opslaan, crash zonder verdere bewerking, herstel, opslaan: de tweede houdt haar GlobalId
+    uit het eerste opslaan en de vreemde pset hangt nog aan haar. Drie crashmomenten: vóór het vervangen van het bestand
+    (herstel vindt de oude bron met de oude uitzonderingen), na het vervangen maar vóór het bijwerken van het manifest
+    (`pendingSha256` met `pendingIdExceptions`), en na het bijwerken; ook met een bewerking tussen opslaan en crash;
   - bestand buiten de app vervangen (Terra, review #839): een ander bestand met dezelfde grootte en wijzigingstijd op het
-    doel; Opslaan schrijft niet en meldt het; een wijziging tussen de controle en het hernoemen (testhaak in de
-    schrijflaag) laat het doel ongemoeid.
+    doel; Opslaan schrijft niet en meldt het. Tauri: een vervanging met dezelfde grootte en tijd tussen de laatste
+    controle en het verplaatsen (testhaak in de schrijflaag) staat daarna als conflictkopie naast het doel, met de
+    melding; een gelinkt doel en een falende hernoemstap schrijven niets (geen directe terugval); een crash tussen de
+    twee hernoemstappen: herstel vindt de bron als `.ops-vorige`-bestand. Browser: een
+    wijziging vóór de controle bij `close()` stopt het opslaan.
 - **Controles zelf testen**: een writer die bewust een vreemd stuk weglaat, verdubbelt of verschuift, moet door controle 1
   worden tegengehouden; `planningCanon` met dubbele namen en WBS-codes.
 - `check-ifcx-roundtrip.ts`: elk voorbeeldproject IFC → IFCX → IFC zonder verschil volgens `planningCanon` (drie hebben
@@ -1304,6 +1368,19 @@ overschaduwde bijdragen byte-gelijk staan, en onbekende velden horen bij hun obj
 verwijderen). Tests in §10. De voorproef `classify-v9.py` leest nu entiteiten over meer regels, weigert invoer zonder
 DATA-deel of zonder entiteiten (exit 1), en volgt de uitzondering voor een live-schema van eigen herkomst; op de 60
 eerdere proefbestanden geeft hij dezelfde uitkomst als ervoor.
+
+Na fixronde 2 van de review van PR #839 (versie 17; Sol en Terra, 9 november): elke JSON-structuur heeft een vaste
+identiteit in het register (sleutelpad, sleutelveld zoals `id` en `taskId`, de toewijzing achter een `Windows`-sleutel,
+of de bekende waarden bij een lijst zonder sleutelveld); zonder veilige koppeling stopt opslaan met een vraag in plaats
+van stil te verliezen. De kaart voor herstel staat niet meer in de snapshot maar als klein lijstje uitzonderingen per
+sha256 in het manifest (`idExceptions`, `pendingIdExceptions` vóór het schrijven). De controle op een vervangen bestand
+is per opslagroute beschreven: in Tauri controleert de app de inhoud vlak vóór het vervangen opnieuw, verplaatst hij het
+doel eerst opzij en bewaart hij een gewijzigde versie als conflictkopie; directe terugval is er met een vreemd deel niet
+meer; in de browser blijft een racevenster tot `close()`, eerlijk beschreven; de site heeft een harde garantie. In IFCX
+schrijft de writer een eigen attribuut met overschaduwde bijdragen altijd, zodat een oudere bijdrage niet weer actief
+wordt. De voorproef `classify-v9.py` heeft één scanner die STEP-tekst en commentaar kent, en weigert invoer zonder
+STEP-kop, zonder `END-ISO-10303-21;`, met een afgebroken tekst of commentaar, of met een laatste statement zonder `;`
+(exit 1); op de 62 eerdere proefbestanden is de uitkomst gelijk, op één bestand na waar de vorige versie fout las.
 
 ## 13. Bronnen
 
