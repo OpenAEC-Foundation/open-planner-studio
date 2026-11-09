@@ -105,7 +105,7 @@ export interface WriteTargetDeps {
  * De doelcontrole van elke schrijfroute (Opslaan, Opslaan als, export, AutoSave, dev-bridge, MCP-export), vlak vóór het
  * schrijven. Weigert:
  *  1. het bronbestand van een open document met een vreemd deel (fixronde 1: handle, pad of bestandsidentiteit,
- *     site-id; na herstel ook dezelfde lengte en SHA-256 als die bron);
+ *     site-id; na herstel of uit een MCP-backup ook dezelfde lengte en SHA-256 als die bron);
  *  2. met de flag `ifcForeignContent` aan: een bestaand doel dat zelf een gebouwmodel bevat (fixronde 2, besluit Trias,
  *     wrakko 9 november 2026; `targetHoldsBuildingModel`). Een niet-leesbaar doel mag. Met de flag uit blijft dit weg,
  *     zodat de app byte-gelijk aan main blijft.

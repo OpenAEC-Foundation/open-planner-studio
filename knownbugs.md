@@ -1654,6 +1654,23 @@ en noem het in je rapport of PR-tekst.
      `handle.name` geeft dezelfde naam zonder te lezen. Gezien met een nep-handle in
      `tests/planning/check-ifc-foreign-target.ts` (#864, fixronde 2); niet nagegaan in een echte browser. — S
 
+1015. Ctrl+S en Opslaan als naar een site-bestand lezen met de flag `ifcForeignContent` aan elke keer het hele bestand van
+     de host (de doelcontrole van #864; de host geeft geen stroom, `src/services/fileAccess/index.ts:138`). AutoSave naar de
+     site staat uit (besluit #309, `src/services/actualAutosave/fileAutoSave.ts:49-53`), dus er is geen volle download per
+     AutoSave-ronde. Richting: een stroom van de host, of de uitkomst 'geen model' per document en doel onthouden tot de host
+     een andere versie meldt (versie, etag); zet AutoSave naar de site ooit aan, dan is dat onthouden verplicht. Uit #864
+     (fase 1a). — B
+
+1016. **Zonder de flag ziet de modelweigering bij openen een complexe instantie niet.** `readEntity`
+     (`src/services/ifc/ifcReader.ts:1028`) leest alleen `#id=TYPE(…);`; bij `#id=(A(…)B(…));` geeft hij -1 en slaat de
+     regel over. De weigering op `ifcReader.ts:198` ziet dan geen `IfcProduct`. Gezien: `model-ifc4.ifc` met de vijf
+     modelentiteiten in de vorm `#30=(IFCWALL(…));` opent met de flag uit zonder weigering, en opslaan schrijft alleen de
+     planning. Met de flag aan geeft dezelfde invoer `ifcSource.foreign = true`, dus is het document daar beschermd; ook
+     de doelcontrole (`targetModelScan.ts`) ziet zo'n bestand als model. Het risico is klein: in IFC2X3 TC1, IFC4 ADD2 TC1
+     en IFC4X3 ADD2 is elk supertype `ONEOF` (geen `ANDOR`, geen meervoudige overerving), dus een geldig bestand schrijft
+     elke instantie in de interne vorm; IfcOpenShell 0.8.4 en 0.9.0 lezen de externe vorm niet als `IfcWall`. Richting:
+     de deeltypen van een complexe instantie meetellen in de weigering. Gevonden in #864 (fixronde 3). — B
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

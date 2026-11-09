@@ -41,15 +41,21 @@ async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle): Prom
   }
 }
 
-/** Heeft het gekozen bestand de inhoud van de bron? Eerst de lengte (goedkoop), dan de SHA-256. */
-async function sameContent(handle: FileSystemFileHandle, mark: ForeignSourceMark): Promise<boolean> {
-  try {
-    const file = await handle.getFile();
-    if (file.size !== mark.byteLength) return false;
-    return (await precomputeSha256(new Uint8Array(await file.arrayBuffer()))) === mark.sha256;
-  } catch {
-    return false;
-  }
+/**
+ * De inhoud van het gekozen bestand, voor de kenmerken zonder handle (na herstel of uit een backup). Hoogstens één
+ * `getFile()` en één SHA-256 per controle, ook bij veel kenmerken (fixronde 3): eerst de lengte (goedkoop), de SHA-256
+ * pas als een kenmerk dezelfde lengte heeft. Een leesfout telt als een ander bestand.
+ */
+function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) => Promise<boolean> {
+  let file: Promise<File | null> | undefined;
+  let digest: Promise<string | null> | undefined;
+  return async (mark) => {
+    file ??= handle.getFile().catch(() => null);
+    const f = await file;
+    if (!f || f.size !== mark.byteLength) return false;
+    digest ??= f.arrayBuffer().then(b => precomputeSha256(new Uint8Array(b))).catch(() => null);
+    return (await digest) === mark.sha256;
+  };
 }
 
 /** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
@@ -62,7 +68,12 @@ export interface TargetReaders {
 
 /**
  * Bevat het gekozen bestaande doel een gebouwmodel (een IFC met `IfcProduct`/`IfcTypeProduct`)? Leest als stroom en
- * stopt bij de eerste modelentiteit (`targetModelScan.ts`).
+ * stopt bij de eerste modelentiteit (`targetModelScan.ts`). Per uitkomst van de scan (fixronde 3):
+ *  - 'model': niet schrijven;
+ *  - 'not-ifc': het eerste statement is niet `ISO-10303-21;` (een CSV, XML, leeg bestand): schrijven mag;
+ *  - 'no-model': het hele bestand is gelezen en er is geen modelentiteit: schrijven mag.
+ * Een scan zonder uitkomst bestaat niet: de scanner geeft 'no-model' alleen na het einde van het bestand, dus een lange
+ * kop of een groot bestand geeft geen vrijbrief.
  *
  * Niet leesbaar (een download in de browser, geen handle, een pad dat nog niet bestaat, een leesfout): dan `false`, en
  * het schrijven mag door. Besluit Trias (wrakko, 9 november 2026): wat de app niet kan lezen, kan hij niet beoordelen,
@@ -91,6 +102,7 @@ export async function isForeignSourceTarget(
   marks: readonly ForeignSourceMark[],
   deps: ForeignSourceTargetDeps = {},
 ): Promise<boolean> {
+  const sameContent = target.kind === 'handle' ? targetContent(target.handle) : null;
   for (const mark of marks) {
     switch (target.kind) {
       case 'site':
@@ -104,7 +116,7 @@ export async function isForeignSourceTarget(
       case 'handle':
         if (mark.handle) {
           if (await sameEntry(mark.handle, target.handle)) return true;
-        } else if (await sameContent(target.handle, mark)) {
+        } else if (sameContent && await sameContent(mark)) {
           return true;
         }
         break;

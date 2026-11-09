@@ -19,6 +19,15 @@ export interface ForeignSourceTarget {
   readonly siteFileId: string | null;
 }
 
+/**
+ * De pset `OPS_RecoveryForeignSource` zoals de lezer hem teruggeeft. Een herstelsnapshot schrijft alleen de vingerafdruk
+ * (het doel staat in het manifest). Een MCP-backup (`backupService.ts`, fixronde 3) heeft geen manifest en schrijft ook
+ * het doel (`SourcePath`, `SourceSiteFileId`): zo houdt een geopende backup het kenmerk van de bron.
+ */
+export interface ForeignSourceRecord extends ForeignSourceFingerprint {
+  readonly target?: ForeignSourceTarget;
+}
+
 export interface ForeignSourceMark extends ForeignSourceFingerprint, ForeignSourceTarget {
   /** De handle van de bron (browser). Alleen in het geheugen: niet in herstel, manifest of Worker. */
   readonly handle: FileSystemFileHandle | null;
@@ -82,4 +91,18 @@ export function foreignSourceMarkFromRecovery(
     siteFileId: target?.siteFileId ?? null,
     handle: null,
   };
+}
+
+/** De pset-invoer voor een MCP-backup: vingerafdruk en doel, nooit de handle of de bronbytes (fixronde 3). */
+export function foreignSourceBackupRecord(mark: ForeignSourceMark | null | undefined): ForeignSourceRecord | undefined {
+  if (!mark) return undefined;
+  return { sha256: mark.sha256, byteLength: mark.byteLength, target: { filePath: mark.filePath, siteFileId: mark.siteFileId } };
+}
+
+/**
+ * Het kenmerk van een geopend bestand met de pset (een MCP-backup, of een herstelsnapshot die de planner zelf opent):
+ * de vingerafdruk en het doel uit de pset. Zonder pset geen kenmerk.
+ */
+export function foreignSourceMarkFromRecord(record: ForeignSourceRecord | null | undefined): ForeignSourceMark | null {
+  return record ? foreignSourceMarkFromRecovery(record, record.target ?? null) : null;
 }

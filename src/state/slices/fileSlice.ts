@@ -37,7 +37,7 @@ import {
   IFC_FOREIGN_SAVE_BLOCKED_NOTICE, IFC_FOREIGN_TARGET_EXPORT_NOTICE, IFC_FOREIGN_TARGET_SAVE_NOTICE, ifcSaveBlocked,
   refusedWriteTarget,
 } from '../ifcForeignGuard';
-import { foreignSourceMarkFor } from '@/services/ifc/foreign/foreignSourceMark';
+import { foreignSourceMarkFor, foreignSourceMarkFromRecord } from '@/services/ifc/foreign/foreignSourceMark';
 import { loadRecents, addRecent, removeRecent, type RecentEntry } from '@/services/fileAccess/recentFiles';
 import { HOST_EVENTS } from '@/services/extensionEvents';
 import type { AppSliceFactory, ExternalSourceUpdate, NotifyInput, NotificationDetailLine } from './types';
@@ -1306,6 +1306,18 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       payload.foreignSourceMark = ownSource
         ? foreignSourceMarkFor(ownSource, { filePath: payload.filePath, siteFileId: payload.siteFileId, fileHandle: payload.fileHandle })
         : inheritsTarget ? current.foreignSourceMark : null;
+      // Fixronde 3: een MCP-backup van een document met een kenmerk draagt dat kenmerk, met het doel van de bron (pset
+      // `OPS_RecoveryForeignSource`, `backupService.ts`). Wie zo'n backup opent, krijgt het kenmerk terug, en het
+      // opslagdoel valt weg: Ctrl+S wordt Opslaan als. Anders schreef Ctrl+S de backup over zonder kenmerk, en mocht
+      // Opslaan als daarna over de bron. Een eigen bron met een vreemd deel gaat voor; de IFC-editor houdt zijn kenmerk.
+      const recordMark = !editing && !payload.foreignSourceMark ? foreignSourceMarkFromRecord(uniqueParsed.recoveryForeignSource) : null;
+      if (recordMark) {
+        payload.foreignSourceMark = recordMark;
+        payload.filePath = null;
+        payload.fileHandle = null;
+        payload.siteFileId = null;
+        payload.siteFileVersion = null;
+      }
       if (!opts.linkedOpen && !editing) {
         payload.project = { ...payload.project, companyId: undefined, companyName: undefined };
         stripLibraryOrigins(payload);

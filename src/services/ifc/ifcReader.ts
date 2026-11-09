@@ -24,7 +24,7 @@ import { decodeStepText } from './stepText';
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 import { workCalendarSlots, workControlSlots } from './ifcWorkControlSlots';
 import { cleanIfcSchemaName, ifcSchemaUnconfirmedOnRead } from './ifcSchemaQuestion';
-import { parseForeignSourceFingerprint, type ForeignSourceFingerprint } from './foreign/foreignSourceMark';
+import { parseForeignSourceFingerprint, parseForeignSourceTarget, type ForeignSourceRecord } from './foreign/foreignSourceMark';
 import type { ImportLabels, ImportResult, RecordedSourceFormat, XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import {
   DEFAULT_PRIORITY, IFC_TIME_ANCHOR, MEASURE_TO_FIELD, IFC_TO_RESOURCE_TYPE,
@@ -3847,26 +3847,33 @@ function extractImportPristine(entities: StepEntity[], entityMap: Map<string, St
 }
 
 /**
- * `OPS_RecoveryForeignSource` (spiegel van de writer, alleen in een herstel-IFC; #804 fase 1a, fixronde 1): de
- * vingerafdruk van een bron met een vreemd deel. Soepel gelezen: een onvolledige of ongeldige pset telt als afwezig (een
- * oude snapshot zonder kenmerk werkt zoals altijd).
+ * `OPS_RecoveryForeignSource` (spiegel van de writer, alleen in een herstel-IFC of MCP-backup; #804 fase 1a, fixronde 1
+ * en 3): de vingerafdruk van een bron met een vreemd deel, en in een backup het doel. Soepel gelezen: een onvolledige of
+ * ongeldige vingerafdruk telt als afwezig (een oude snapshot zonder kenmerk werkt zoals altijd).
  */
 function extractRecoveryForeignSource(
   entities: StepEntity[],
   entityMap: Map<string, StepEntity>,
-): ForeignSourceFingerprint | undefined {
+): ForeignSourceRecord | undefined {
   for (const e of entities) {
     if (e.type !== 'IFCPROPERTYSET' || stripQuotes(e.args[2] || '') !== PSET.RecoveryForeignSource) continue;
     let sha256: unknown;
     let byteLength: unknown;
+    let filePath: unknown;
+    let siteFileId: unknown;
     for (const propRef of parseRefs(e.args[4] || '')) {
       const prop = entityMap.get(propRef);
       if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
       const name = stripQuotes(prop.args[0] || '');
       if (name === 'Sha256') sha256 = parseTypedValue(prop.args[2] || '');
       else if (name === 'ByteLength') byteLength = parseTypedValue(prop.args[2] || '');
+      else if (name === 'SourcePath') filePath = parseTypedValue(prop.args[2] || '');
+      else if (name === 'SourceSiteFileId') siteFileId = parseTypedValue(prop.args[2] || '');
     }
-    return parseForeignSourceFingerprint(sha256, byteLength) ?? undefined;
+    const fingerprint = parseForeignSourceFingerprint(sha256, byteLength);
+    if (!fingerprint) return undefined;
+    const target = parseForeignSourceTarget({ filePath, siteFileId });
+    return target && (target.filePath || target.siteFileId) ? { ...fingerprint, target } : fingerprint;
   }
   return undefined;
 }

@@ -15,10 +15,17 @@
 //      commentaarregel), een modelbestand dat niet open is, en bij AutoSave (twee documenten, één doel: model intact, A
 //      gewijzigd, precies één melding, geen nieuwe poging). Een bestaand CSV, een eigen IFC en een doel dat de app niet
 //      kan lezen, mogen. Per route (handle, Tauri-pad via plugin-fs `read`, site) en voor de dev-bridge; met de flag uit
-//      geen inhoudscontrole.
+//      geen inhoudscontrole;
+//   6. fixronde 3, BLOKKEERT 1: een lange kop (Sol: 2 MiB + 1 commentaar na `HEADER;`) geeft geen vrijbrief: Opslaan
+//      als, export (IFC, CSV) en AutoSave weigeren, via de handle-route (stroom in stukken van 64 KiB) en het Tauri-pad
+//      (plugin-fs `read` in stukken van 1 MiB); dezelfde lange kop zonder model mag, na het hele bestand;
+//   7. fixronde 3, BLOKKEERT 2: een MCP-backup houdt het kenmerk (vingerafdruk en doel in de pset). De backup openen in
+//      een nieuwe sessie: Ctrl+S wordt Opslaan als, de bron als doel weigert (handle: inhoud; Tauri: pad, ook na een
+//      wijziging van de bron), een ander bestand mag en krijgt de pset nooit; de pset telt als eigen planning (100 % P);
+//   8. fixronde 3: hoogstens één `getFile()` en één SHA-256 van het doel per controle.
 // Exit 0 = alles groen.
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,8 +88,9 @@ FEATURE_FLAGS.find(f => f.id === 'ifcForeignContent')!.writesNewIfcData = false;
 
 /** Een nep-FSA-handle met echte `isSameEntry` (zelfde object), `getFile` en `createWritable`. Functies erin: een
  *  `structuredClone` van iets wat de handle bevat, faalt (zo bewijst de test dat hij niet in Worker of manifest komt). */
-function fakeHandle(name: string, initial: Uint8Array) {
+function fakeHandle(name: string, initial: Uint8Array, opts: { streamChunk?: number } = {}) {
   let data = initial;
+  let streamed = 0;
   const writes: string[] = [];
   let writables = 0;
   let permissionQueries = 0;
@@ -93,7 +101,21 @@ function fakeHandle(name: string, initial: Uint8Array) {
     isSameEntry: async (other: unknown) => other === handle,
     getFile: async () => {
       if (unreadable) throw new DOMException('niet leesbaar', 'NotReadableError');
-      return new File([data as BlobPart], name);
+      const file = new File([data as BlobPart], name);
+      const chunk = opts.streamChunk;
+      if (chunk) {
+        // Node levert een `Blob` als één stuk; een browser levert in stukken. `streamChunk` doet dat na.
+        const bytes = data;
+        Object.defineProperty(file, 'stream', { value: () => {
+          let at = 0;
+          return new ReadableStream<Uint8Array>({ pull(c) {
+            if (at >= bytes.length) { c.close(); return; }
+            streamed++;
+            c.enqueue(bytes.slice(at, at += chunk));
+          } });
+        } });
+      }
+      return file;
     },
     createWritable: async () => {
       writables++;
@@ -111,6 +133,8 @@ function fakeHandle(name: string, initial: Uint8Array) {
     /** Een ander programma vervangt het bestand. */
     replace: (bytes: Uint8Array) => { data = bytes; },
     permissionQueries: () => permissionQueries,
+    /** Het aantal stukken dat een lezer van `getFile().stream()` haalde (alleen met `streamChunk`). */
+    streamedChunks: () => streamed,
     /** `getFile()` faalt tot de eerste write (fixronde 2: een doel dat de app vóór het schrijven niet kan lezen). */
     unreadableUntilWrite: () => { unreadable = true; },
   };
@@ -760,6 +784,286 @@ const OLD_CONTENT = 'OUDE-INHOUD;van;een;ander;programma\n';
     ['geschreven', 'geschreven', ['/werk/eigen.ifc', '/werk/nieuw.ifc']]);
   useAppStore.setState(s => { s.ui.featureFlags = {}; });
   eq('dev-bridge met de flag uit: een modelbestand mag, zoals op main', [await attempt('/werk/model.ifc'), written.length], ['geschreven', 3]);
+}
+
+// ── 6. Fixronde 3, BLOKKEERT 1: een lange kop omzeilt de doelcontrole niet (Sol's bestand) ───────────────────────────
+// `model-ifc4.ifc` met 2 MiB + 1 commentaar na `HEADER;`. Eerst gaf de scanner na de kopgrens `not-ifc`, en de write ging
+// door. Nu: een scan zonder uitkomst is geen vrijbrief; 'geen model' pas als het hele bestand gelezen is.
+const longComment = `/*${'x'.repeat((2 << 20) + 1)}*/`;
+const solBytes = enc.encode(dec(modelIfc4).replace('HEADER;', `HEADER;${longComment}`));
+const ownLongHeader = enc.encode(dec(showcase).replace('HEADER;', `HEADER;${longComment}`));
+eq('lange kop: Sol\'s bestand is 2.101.711 bytes', solBytes.length, 2_101_711);
+// 6a. Handle-route (browser): Opslaan als, export (IFC en CSV) en AutoSave.
+{
+  const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+  const own = fakeHandle('eigen.ifc', showcase);
+  const store = await open('eigen.ifc', showcase, { kind: 'handle', handle: own.handle });
+  const S = () => store.getState();
+  S().addTask({ name: 'Eigen werk' });
+  const CHUNK = 64 << 10;
+  const target = fakeHandle('sol.ifc', solBytes, { streamChunk: CHUNK });
+  pick = target;
+  await S().saveFileAs();
+  ok('lange kop, handle: de lezer las voorbij de kop, in stukken', target.streamedChunks() > (2 << 20) / CHUNK);
+  const ifcExport = await S().exportAs('ifc');
+  const csvExport = await S().exportAs('csv');
+  eq('lange kop, handle: Opslaan als en export (IFC, CSV) geweigerd, het model is er nog',
+    [target.writables(), ifcExport, csvExport, target.text() === dec(solBytes), S().fileHandle === own.handle],
+    [0, { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, true, true]);
+  eq('lange kop, handle: met de meldingen "op te slaan" en "naar te exporteren"',
+    [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) >= 2], [true, true]);
+  // Een lange kop zonder model: de app leest het hele bestand en schrijft dan wel.
+  const plainLong = fakeHandle('lang-eigen.ifc', ownLongHeader, { streamChunk: CHUNK });
+  pick = plainLong;
+  await S().saveFileAs();
+  eq('lange kop zonder model, handle: Opslaan als mag', [plainLong.writes.length, S().fileHandle === plainLong.handle], [1, true]);
+  pick = null;
+  // AutoSave: een ander programma zet Sol's bestand op de plek van het eigen bestand.
+  S().setAutoSaveToFile(true);
+  plainLong.replace(solBytes);
+  S().addTask({ name: 'Werk voor AutoSave' });
+  await createFileAutoSaveController({ getState: S, enabled: () => true }).flush();
+  eq('lange kop, handle: AutoSave schrijft niet, gewijzigd, één melding',
+    [plainLong.writes.length, plainLong.text() === dec(solBytes), S().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [1, true, true, 1]);
+}
+// 6b. Tauri-pad: dezelfde bytes, gelezen via plugin-fs `read` in stukken van 1 MiB.
+{
+  const { createFileAutoSaveController } = await import('@/services/actualAutosave/fileAutoSave');
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-kop-'));
+  const solPath = join(dir, 'sol.ifc');
+  writeFileSync(solPath, solBytes);
+  // De Tauri-route zet `.csv` achter een gekozen pad zonder die extensie (`ensureExtension`): een CSV-export naar
+  // `sol.ifc` wordt een nieuw bestand `sol.ifc.csv`. Daarom ook Sol's bytes onder een naam op `.csv`.
+  const solCsvPath = join(dir, 'sol-model.csv');
+  writeFileSync(solCsvPath, solBytes);
+  const longOwnPath = join(dir, 'lang-eigen.ifc');
+  writeFileSync(longOwnPath, ownLongHeader);
+  const ownPath = join(dir, 'eigen.ifc');
+  writeFileSync(ownPath, showcase);
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc();
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let dialogAnswer: string | null = null;
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const innerInvoke = internals.invoke;
+  internals.invoke = async (command, args, options) => {
+    if (command === 'plugin:dialog|save') return dialogAnswer;
+    return innerInvoke(command, args, options);
+  };
+  try {
+    reseed(0x804);
+    const store = createAppStoreContext().store;
+    store.setState(s => { s.ui.featureFlags = { ifcForeignContent: true }; });
+    await store.getState().openOpenedFile({ name: 'eigen.ifc', content: dec(showcase), ref: { kind: 'path', path: ownPath } });
+    const S = () => store.getState();
+    S().addTask({ name: 'Eigen werk' });
+    dialogAnswer = solPath;
+    const before = ipc.bytesRead();
+    await S().saveFileAs();
+    const readForSol = ipc.bytesRead() - before;
+    const ifcExport = await S().exportAs('ifc');
+    dialogAnswer = solCsvPath;
+    const csvExport = await S().exportAs('csv');
+    eq('lange kop, Tauri: Opslaan als en export (IFC, CSV) geweigerd, het model is er nog',
+      [sha(readFileSync(solPath)), sha(readFileSync(solCsvPath)), ifcExport, csvExport, S().filePath],
+      [sha(solBytes), sha(solBytes), { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, ownPath]);
+    eq('lange kop, Tauri: de lezer las voorbij de kop (meer dan één stuk), hoogstens het hele bestand',
+      [readForSol > (1 << 20), readForSol <= solBytes.length], [true, true]);
+    eq('lange kop, Tauri: met de meldingen "op te slaan" en "naar te exporteren"',
+      [noticeCount(store, TARGET_SAVE) > 0, noticeCount(store, TARGET_EXPORT) >= 2], [true, true]);
+    // Een lange kop zonder model: het hele bestand gelezen, dan mag het.
+    dialogAnswer = longOwnPath;
+    const beforeOwn = ipc.bytesRead();
+    await S().saveFileAs();
+    eq('lange kop zonder model, Tauri: Opslaan als mag, na het hele bestand',
+      [S().filePath, readFileSync(longOwnPath, 'utf8').includes('Eigen werk'), ipc.bytesRead() - beforeOwn >= ownLongHeader.length],
+      [longOwnPath, true, true]);
+    // AutoSave naar het Tauri-pad: een ander programma zet Sol's bestand op die plek.
+    S().setAutoSaveToFile(true);
+    writeFileSync(longOwnPath, solBytes);
+    S().addTask({ name: 'Werk voor AutoSave' });
+    await createFileAutoSaveController({ getState: S, enabled: () => true }).flush();
+    eq('lange kop, Tauri: AutoSave schrijft niet, gewijzigd, één melding',
+      [sha(readFileSync(longOwnPath)), S().isDirty, noticeCount(store, TARGET_AUTOSAVE)], [sha(solBytes), true, 1]);
+    eq('lange kop, Tauri: de lezer sluit elk bestand', ipc.openHandles(), 0);
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 7. Fixronde 3, BLOKKEERT 2: de MCP-backup houdt het kenmerk (Sol's proef) ─────────────────────────────────────
+// Een eigen IFC met een externe pset `ExternInformatie` (geen IfcProduct, wel een vreemd deel) → openen → backup → de
+// backup openen in een nieuwe sessie → Opslaan als naar de bron. Eerst schreef de backup het kenmerk niet, en ging die
+// write door: `ExternInformatie` weg. Nu: het kenmerk komt mee (vingerafdruk en doel), Ctrl+S wordt Opslaan als, en de
+// bron als doel weigert.
+const { createAppBackupService } = await import('@/services/mcp/backupService');
+const { readIFC } = await import('@/services/ifc/ifcReader');
+const externBytes = (() => {
+  const text = dec(showcase);
+  const project = /#(\d+)=IFCPROJECT\(/.exec(text)![1];
+  const at = text.lastIndexOf('ENDSEC;');
+  return enc.encode(text.slice(0, at)
+    + "#990001=IFCPROPERTYSINGLEVALUE('Bron',$,IFCLABEL('ander programma'),$);\n"
+    + "#990002=IFCPROPERTYSET('0Ext0000000000000000aa',$,'ExternInformatie',$,(#990001));\n"
+    + `#990003=IFCRELDEFINESBYPROPERTIES('0Ext0000000000000000ab',$,$,$,(#${project}),#990002);\n` + text.slice(at));
+})();
+const PSET_NAME = 'OPS_RecoveryForeignSource';
+/** Een MCP-backup van het actieve document in `ctx`, met een nep-fs in het geheugen. */
+async function backupOf(ctx: ReturnType<typeof createAppStoreContext>): Promise<string> {
+  const files = new Map<string, string>();
+  const service = createAppBackupService(ctx, {
+    getFs: async () => ({
+      appDataDir: async () => '/data',
+      join: async (...parts: string[]) => parts.join('/'),
+      mkdir: async () => {},
+      writeTextFile: async (p: string, c: string) => { files.set(p, c); },
+      readDir: async () => [],
+      remove: async () => {},
+    }),
+    autoBackupEnabled: async () => true,
+    now: () => Date.parse('2026-11-10T12:00:00Z'),
+  });
+  return files.get(await service.makeManualBackup())!;
+}
+// 7a. Het kenmerk in de pset: heen en terug, met een lastig pad en een site-bestand.
+{
+  const parsed = readIFC(writeIFC({ ...buildWriteIFCInput(createAppStoreContext().store.getState()), recoveryForeignSource: {
+    sha256: sha(externBytes), byteLength: externBytes.length,
+    target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
+  } }));
+  eq('backup-pset: vingerafdruk en doel heen en terug', parsed.recoveryForeignSource, {
+    sha256: sha(externBytes), byteLength: externBytes.length, target: { filePath: "C:\\Users\\Jan's map\\modèl één.ifc", siteFileId: 'S-1' },
+  });
+}
+// 7b. Handle-route (browser).
+{
+  const orig = fakeHandle('extern.ifc', externBytes);
+  const ctxA = createAppStoreContext();
+  await open('extern.ifc', externBytes, { kind: 'handle', handle: orig.handle }, ctxA.store);
+  eq('backup: de bron heeft een vreemd deel en een kenmerk', [ctxA.store.getState().ifcSource?.foreign,
+    ctxA.store.getState().foreignSourceMark?.sha256], [true, sha(externBytes)]);
+  const backup = await backupOf(ctxA);
+  eq('backup: het kenmerk staat erin (vingerafdruk en doel), het vreemde deel niet',
+    [backup.includes(PSET_NAME), backup.includes(`'SourcePath',$,IFCTEXT('extern.ifc')`), backup.includes(sha(externBytes)),
+      backup.includes('ExternInformatie')], [true, true, true, false]);
+  // Een nieuwe sessie: een verse store opent de backup.
+  const backupFile = fakeHandle('backup.ifc', enc.encode(backup));
+  const store = await open('backup.ifc', enc.encode(backup), { kind: 'handle', handle: backupFile.handle });
+  const S = () => store.getState();
+  const mark = S().foreignSourceMark;
+  eq('backup geopend: het kenmerk van de bron, zonder handle; geen opslagdoel',
+    [mark?.sha256, mark?.byteLength, mark?.filePath, mark?.handle, S().filePath, S().fileHandle],
+    [sha(externBytes), externBytes.length, 'extern.ifc', null, null, null]);
+  eq('backup geopend: de pset is eigen planning (100 % P, geen vreemd deel)', S().ifcSource?.foreign, false);
+  // Ctrl+S wordt Opslaan als; de bron als doel weigert.
+  S().addTask({ name: 'Werk in de backup' });
+  pick = orig;
+  const pickerBefore = pickerCalls;
+  await S().saveFile();
+  eq('backup: Ctrl+S opent Opslaan als en weigert de bron', [pickerCalls - pickerBefore, orig.writables(), backupFile.writables(),
+    S().isDirty, noticeCount(store, TARGET_SAVE)], [1, 0, 0, true, 1]);
+  await S().saveFileAs();
+  const ifcExport = await S().exportAs('ifc');
+  const csvExport = await S().exportAs('csv');
+  eq('backup: Opslaan als en export (IFC, CSV) naar de bron geweigerd, de bron is ongewijzigd',
+    [orig.writables(), ifcExport, csvExport, orig.text() === dec(externBytes), noticeCount(store, TARGET_EXPORT) >= 2],
+    [0, { ok: true, warnings: [], cancelled: true }, { ok: true, warnings: [], cancelled: true }, true, true]);
+  // Een ander bestand mag, en krijgt alleen planning: nooit de pset.
+  const other = fakeHandle('ander.ifc', new Uint8Array());
+  pick = other;
+  const exported = await S().exportAs('ifc');
+  await S().saveFileAs();
+  S().addTask({ name: 'Nog meer werk' });
+  await S().saveFile();
+  pick = null;
+  eq('backup: een ander bestand mag (export, Opslaan als, Ctrl+S), zonder de pset',
+    [exported.ok && !('cancelled' in exported && exported.cancelled), other.writes.length,
+      other.writes.some(w => w.includes(PSET_NAME)), S().fileHandle === other.handle, S().isDirty], [true, 3, false, true, false]);
+  eq('backup: het kenmerk blijft na Opslaan als in een ander bestand', S().foreignSourceMark?.sha256, sha(externBytes));
+  // Een gewone opslag van de bron zelf (met een kenmerk) schrijft de pset ook niet.
+  const plainSave = writeIFC(buildWriteIFCInput(ctxA.store.getState()));
+  ok('backup: buildWriteIFCInput schrijft de pset nooit', !plainSave.includes(PSET_NAME));
+}
+// 7c. Tauri-pad: het doel uit de pset (`SourcePath`); de bron mag intussen veranderd zijn.
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ops-804-backup-'));
+  const externPath = join(dir, 'extern.ifc');
+  writeFileSync(externPath, externBytes);
+  const backupPath = join(dir, 'backup.ifc');
+  const otherPath = join(dir, 'ander.ifc');
+  const savedWindow = (globalThis as { window?: unknown }).window;
+  const ipc = installNodeFileIpc();
+  const tauriWin = (globalThis as unknown as { window: Record<string, unknown> }).window;
+  tauriWin.parent = tauriWin;
+  let dialogAnswer: string | null = null;
+  let dialogs = 0;
+  const internals = tauriWin.__TAURI_INTERNALS__ as { invoke: (c: string, a: unknown, o?: unknown) => Promise<unknown> };
+  const innerInvoke = internals.invoke;
+  internals.invoke = async (command, args, options) => {
+    if (command === 'plugin:dialog|save') { dialogs++; return dialogAnswer; }
+    return innerInvoke(command, args, options);
+  };
+  try {
+    const ctxA = createAppStoreContext();
+    await open('extern.ifc', externBytes, { kind: 'path', path: externPath }, ctxA.store);
+    const backup = await backupOf(ctxA);
+    writeFileSync(backupPath, backup);
+    const store = await open('backup.ifc', enc.encode(backup), { kind: 'path', path: backupPath });
+    const S = () => store.getState();
+    eq('Tauri, backup geopend: het kenmerk met het pad van de bron; geen opslagdoel',
+      [S().foreignSourceMark?.filePath, S().filePath], [externPath, null]);
+    // Een ander programma wijzigt de bron: de inhoud klopt niet meer, het pad wel.
+    writeFileSync(externPath, `${dec(externBytes)}/* gewijzigd */\n`);
+    const changed = sha(readFileSync(externPath));
+    S().addTask({ name: 'Werk in de backup' });
+    dialogAnswer = externPath;
+    await S().saveFile();
+    await S().saveFileAs();
+    const ifcExport = await S().exportAs('ifc');
+    eq('Tauri, backup: Ctrl+S opent de dialoog; Opslaan als en export naar de bron geweigerd',
+      [dialogs, sha(readFileSync(externPath)), ifcExport, S().filePath, readFileSync(backupPath, 'utf8') === backup],
+      [3, changed, { ok: true, warnings: [], cancelled: true }, null, true]);
+    dialogAnswer = otherPath;
+    await S().saveFileAs();
+    const otherText = existsSync(otherPath) ? readFileSync(otherPath, 'utf8') : '';
+    eq('Tauri, backup: een ander bestand mag, zonder de pset',
+      [S().filePath, otherText.includes('Werk in de backup'), otherText.includes(PSET_NAME)], [otherPath, true, false]);
+  } finally {
+    ipc.dispose();
+    (globalThis as { window?: unknown }).window = savedWindow;
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// ── 8. Fixronde 3 (Sol, VERVOLG): hoogstens één vingerafdruk van het doel per controle ─────────────────────────────
+{
+  let getFiles = 0;
+  let buffers = 0;
+  const bytes = bonsai;
+  const handle = {
+    kind: 'file' as const, name: 'doel.ifc',
+    isSameEntry: async () => false,
+    getFile: async () => {
+      getFiles++;
+      const file = new File([bytes as BlobPart], 'doel.ifc');
+      const read = file.arrayBuffer.bind(file);
+      Object.defineProperty(file, 'arrayBuffer', { value: () => { buffers++; return read(); } });
+      return file;
+    },
+  } as unknown as FileSystemFileHandle;
+  const markOf = (sha256: string, byteLength: number): ForeignSourceMark =>
+    ({ sha256, byteLength, filePath: null, siteFileId: null, handle: null });
+  const other = sha('een andere bron');
+  const marks = [markOf(other, bytes.length + 1), markOf(other, bytes.length), markOf(sha(bytes.slice(1)), bytes.length), markOf(sha(bytes), bytes.length)];
+  const found = await isForeignSourceTarget({ kind: 'handle', handle }, marks);
+  eq('vier kenmerken, drie met dezelfde lengte: één getFile, één SHA-256, en de bron gevonden', [found, getFiles, buffers], [true, 1, 1]);
+  getFiles = 0;
+  buffers = 0;
+  const none = await isForeignSourceTarget({ kind: 'handle', handle }, [markOf(other, 1), markOf(other, 2)]);
+  eq('geen kenmerk met dezelfde lengte: één getFile, geen SHA-256', [none, getFiles, buffers], [false, 1, 0]);
 }
 
 console.error = realError;
