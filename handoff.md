@@ -70,7 +70,7 @@ voorleggen, met voorbeeld en aanbeveling, pas als de council klaar is.
 | 6 (v6) | 7 | 7 | 8 |
 | 7 (v7) | 7 | 8 | 9 |
 | 8 (v8) | 9 | 9 | 9 |
-| 9 (v10) | … | … | — (Ethan: voorlopig zonder Fable) |
+| 9 (v10) | 7 | … | — (Ethan: voorlopig zonder Fable) |
 
 **Doel gehaald in ronde 8 (7 november 2026).** v9 verwerkt de kleine punten die de leden vóór fase 1 vroegen.
 
@@ -83,6 +83,26 @@ de aggregatie plan→(live, vreemde baseline) volgt §4.6-regel. Vervolg: alleen
 generaliseren naar vier reltypen; script trekt live-taken niet af van baselineboom (`ifcReader.ts:3610`); IFCX tussenversie:
 nieuwe velden in bekend attribuut gaan verloren → tussenversie voegt alleen attributen toe, of onbekende velden als token;
 `formatRegistry.ts` staat in `src/services/`; `exportProjectWithPool`; AutoSave naar bestand vervangt ook `ifcSource`.
+
+### Ronde 9 (v10, alleen IFCX-besluiten) — Opus 7, Sol loopt
+
+Opus 7 (proeven `scratchpad/r9/opus/`: `adapter-proef.mjs`, `compose-proef.mjs`). STEP-deel klopt nog; fase 0–2 kan
+starten. Blokkeert voor fase 3–4: (O1) gedeelde velden hebben één vaste waardevorm (ifcx-explorer leest `start`/
+`endExclusive` als datum zonder tijd, `viewer/src/studios/adapters.ts:403-407`; `status` = rijpheid van gegevens, niet
+voortgang) → vorm per veld vast, uur e.d. naar `openaec::ops::`; lijst voor Bjorn. (O2) eigen kopie van een gedeeld schema
+geeft `SCHEMA_CONFLICT` (`graph.rs:81-84`); ecosysteem importeert schema's (`urn:openaec:reference:schema`) → één bron,
+elke wijziging (ook toevoeging) nieuwe naam. (O3) herkomst weg na eerste opslaan (brontoken alleen zonder `ops::` bij
+openen) + `bsi::ifc::class` van een ander dubbel → brontoken altijd als veld onveranderd; class alleen eigen in entry met
+ander eigen attribuut; nooit class toevoegen. (O4) IFC5-composer: pad met `/` nooit wortel (`cycles.ts:50`), `children`
+naar `/planning/work-0` → `Unknown node` (`compose.ts:167`), `children`-sleutels niet vast → controle 3 per pad op platte
+knopen, sleutels als token. (O5) eigen attribuut zonder domeinobject (tweede werkplan, losse `ops::task`) gaat verloren;
+"zoals selectPlanning" klopt niet (STEP neemt alle taken, `ifcReader.ts:1749`) → eigen = bekende attributen op paden die
+domeinobject worden. (O6, VERMOED hoog) afbeelding vreemde activity op importcontract ontbreekt (`recordedTimesOrigin`,
+`recordedFields`, `timeModel`, `minuteModel.ts:451-454`; naam in `openaec::label`; `predecessor`; id voor niet-UUID pad).
+Vervolg: afwezige velden blijven afwezig; werkschema zonder ops-attribuut; validator alleen eigen attributen;
+`openaec::activity` = oude naam? (Bjorn); `foreign` voor IFCX; rondgang via IFCCAD kost ops-gegevens; adapter
+ifcx-explorer schrijft ook `'OPS'` als applicatie (`adapters.ts:358`). Eruit: "van een ander programma", leeg
+marker-attribuut, "eigen pad"; één tokenstructuur per (pad, attribuut); controle 3 op platte knopen.
 
 ### Ronde 8 — Opus 9, Sol 9, Fable 9 (geen blokkade) — kleine punten verwerkt in v9
 
@@ -346,6 +366,7 @@ poort: alle echte writer-uitvoer 100 % P; uitzonderingen kloppen (`ifc-arity-oud
    Alles verwerkt in spec **v10** (`e6f128ea3`). Wrakko ingelicht (2026-11-09 ~10:50).
    **Council ronde 9 loopt** (alleen Opus + Sol, brief `scratchpad/r9/brief.md`, diff `scratchpad/r9/v9-naar-v10.diff`):
    Sol via delegate_task (codex gpt-6.1-sol xhigh), Opus via native Agent (reviewer, xhigh). Doel weer 9.
+   Opus: 7 (zie Ronde 9). Wacht op Sol; spec niet wijzigen tot Sol klaar is.
 3. Afspraak Trias (wrakko, 2026-11-07 ~21:58): #839 blijft draft tot beide keuzes in de spec staan. Dan: keuzes in de
    spec; `handoff.md` naar `docs/archive/handoffs/`; #839 op ready en de head aan wrakko melden. Trias laat Sol het
    ontwerp reviewen (docs-only) en merget bij ja en groene CI.
