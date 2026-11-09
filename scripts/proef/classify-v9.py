@@ -163,7 +163,10 @@ for i in ents:
             if ty.get(x) == 'IFCPROPERTYSINGLEVALUE' and pname_raw(x) == 'Baselines':
                 bl_keys |= set(re.findall(r'"name":"((?:[^"\\]|\\.)*)","createdAt":"([^"]*)"', ents[x][1]))
 own_base = {b for b in base & agg_sched if (name(b), args[b][6].strip("'")) in bl_keys and not tasks_of({b})}
-D = plans | live | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
+# v20: het eerste live-schema in de volgorde van het bestand is D (besluit wrakko, 9 november 2026); een ander
+# live-schema alleen bij eigen herkomst.
+live_d = ({min(live, key=lambda i: pos[i])} if live else set()) | {i for i in live if len(args[i]) > 1 and app_of(r1(i, 1)) == 'OPS'}
+D = plans | live_d | own_base | (alltasks - excl) | {i for i in ents if ty[i] in RES or ty[i] == 'IFCWORKCALENDAR'}
 D |= {i for i in ents if ty[i] == 'IFCRELSEQUENCE' and r1(i, 4) in D and r1(i, 5) in D}  # v6: IfcRelSequence is D
 proj = {i for i in ents if ty[i] == 'IFCPROJECT'}
 # Bekende namen voor OPS_CustomFields: de property-templates onder het eigen template
@@ -239,6 +242,8 @@ while todo:
 # (constant #-slot); die is dus een startpunt van Ext en wordt C.
 vreemde_herkomst = {i for i in D | R if len(args[i]) > 1 and app_of(r1(i, 1)) != 'OPS'}
 oh_starts = [r1(i, 1) for i in vreemde_herkomst if r1(i, 1) is not None]
+# v20: Creators (argument 7) van werkplan en werkschema is een constant #-slot; zijn doelen zijn startpunten van Ext.
+oh_starts += [x for i in D if ty[i] in ('IFCWORKPLAN', 'IFCWORKSCHEDULE') for x in rl(i, 7)]
 Ext, todo = set(), [i for i in ents if i not in Own] + oh_starts
 seen = set()
 while todo:

@@ -121,7 +121,8 @@ function isBaselineSchedule(index: StepIndex, i: number): boolean {
  *    taak is (`collectBaselineTaskStepIds`);
  *  - alle resources (`IFC_TO_RESOURCE_TYPE`) en alle `IfcWorkCalendar`'s;
  *  - elke `IfcRelSequence` tussen twee taken in D;
- *  - alle live-schema's en de eigen baselinekoppen (§4.2).
+ *  - het eerste live-schema (zoals `readIFC`), andere live-schema's alleen bij eigen herkomst, en de eigen
+ *    baselinekoppen (§4.2, spec v20).
  *
  * Plus de ene uitzondering uit §4.2 (Opus, ronde 8): een live-schema van **eigen herkomst** sluit de baselinebomen
  * altijd uit, ook zonder taken. Anders werd een Bonsai-baselineboom D nadat de planner alle taken wiste, en verdween
@@ -241,7 +242,10 @@ export function selectPlanning(index: StepIndex): PlanningSelection {
   const liveSchedules = schedules.filter(s => live[s]);
 
   if (workPlan >= 0) inD[workPlan] = 1;
-  for (const s of liveSchedules) inD[s] = 1;
+  // Het eerste live-schema in de volgorde van het bestand is D, zoals `readIFC` het kiest (`ifcReader.ts:445`; spec v20,
+  // §4.2 stap 1; besluit wrakko, 9 november 2026). Een ander live-schema is alleen D bij eigen herkomst (de oude writer
+  // schreef er soms meer); een ander live-schema van vreemde herkomst blijft vreemd, met zijn relaties als A (§4.6).
+  for (const s of liveSchedules) if (s === liveSchedules[0] || hasOwnOrigin(index, s)) inD[s] = 1;
   for (const s of ownBaselines) inD[s] = 1;
   for (const r of resources) inD[r] = 1;
   for (const c of calendars) inD[c] = 1;
@@ -417,8 +421,11 @@ export function classify(index: StepIndex, selection: PlanningSelection = select
     }
     // Constante slots met een `#`-token (§4.5): het brontoken blijft staan, dus zijn doel is context.
     // Resources (11 argumenten): Usage 7, BaseCosts 8, BaseQuantity 9. `IfcRelAssignsToProcess`: QuantityInProcess 7.
+    // Werkplan en werkschema: Creators 7 (spec v20; de writer schrijft daar `$`, `ifcWriter.ts:208`).
     if (inD[i] && RESOURCE_TYPES.has(index.type(i)) && index.argCount(i) === 11) {
       for (const arg of [7, 8, 9]) extStarts.push(...index.refsAt(i, arg));
+    } else if (inD[i] && (index.type(i) === 'IFCWORKPLAN' || index.type(i) === 'IFCWORKSCHEDULE')) {
+      extStarts.push(...index.refsAt(i, 7));
     } else if (inR[i] && index.type(i) === 'IFCRELASSIGNSTOPROCESS') {
       extStarts.push(...index.refsAt(i, 7));
     }

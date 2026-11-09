@@ -358,9 +358,10 @@ const OWN_EXCEPTIONS: Record<string, Expected> = {
     reason: 'bevat een model (IfcSite, IfcWall); project en eenheden zijn gedeeld (C)',
     counts: [421, 407, 5, 0, 9, 0, 0],
   },
-  // Gat in het ontwerp (evidence fase 0): writers vóór 87ebd4d46 schreven een IfcProject waar niets naar verwijst
-  // (geen OPS_ProjectSettings, geen IfcRelDeclares/Aggregates). Dan is het project met eenheden en context V, en de
-  // owner history C, ook in Python. Geen vreemde leden en geen vreemde herkomst.
+  // Writers vóór 87ebd4d46 schreven een IfcProject waar niets naar verwijst (geen OPS_ProjectSettings, geen
+  // IfcRelDeclares/Aggregates). Dan is het project met eenheden en context V, en de owner history C, ook in Python.
+  // Geen vreemde leden en geen vreemde herkomst. Spec v20 (§4.2, besluit wrakko 9 november 2026): zo'n bestand gaat als
+  // een model zonder planning; de writer hangt de planning aan dit project, zonder tweede IfcProject.
   'tests/planning/fixtures/oude-tags/main-df9eafc7d-woongebouw-nieuwbouw.ifc': {
     reason: 'oude writer (12 argumenten, kale sleutels): IfcProject niet gekoppeld', counts: [231, 218, 6, 0, 7, 0, 0], types: OLD_PROJECT_GAP,
   },
@@ -368,19 +369,19 @@ const OWN_EXCEPTIONS: Record<string, Expected> = {
     reason: 'oude writer (12 argumenten): IfcProject niet gekoppeld', counts: [185, 172, 6, 0, 7, 0, 0], types: OLD_PROJECT_GAP,
   },
 };
-/** Het corpus van vreemde bestanden: de aantallen van `classify-v9.py` (ontwerp v19). */
+/** Het corpus van vreemde bestanden: de aantallen van `classify-v9.py` (ontwerp v20). */
 const CORPUS: Record<string, number[]> = {
-  'bonsai-4d.ifc': [168, 16, 18, 11, 123, 0, 14],
+  'bonsai-4d.ifc': [168, 13, 15, 13, 127, 0, 11],
   'complexe-instanties.ifc': [80, 0, 0, 0, 80, 0, 0],
-  'crlf-commentaar.ifc': [168, 16, 18, 11, 123, 0, 14],
-  'dubbele-globalids.ifc': [168, 16, 18, 11, 123, 0, 14],
+  'crlf-commentaar.ifc': [168, 13, 15, 13, 127, 0, 11],
+  'dubbele-globalids.ifc': [168, 13, 15, 13, 127, 0, 11],
   'eigen-plus-model.ifc': [400, 310, 13, 0, 77, 0, 0],
-  'latin1.ifc': [168, 16, 18, 11, 123, 0, 14],
+  'latin1.ifc': [168, 13, 15, 13, 127, 0, 11],
   'model-ifc2x3.ifc': [86, 0, 0, 0, 86, 0, 0],
   'model-ifc4.ifc': [78, 0, 0, 0, 78, 0, 0],
   'model-ifc4x3.ifc': [78, 0, 0, 0, 78, 0, 0],
   'oud-eigen-0.1-plus-model.ifc': [536, 446, 13, 0, 77, 0, 0],
-  'twee-werkplannen.ifc': [127, 17, 18, 6, 86, 0, 15],
+  'twee-werkplannen.ifc': [127, 15, 16, 6, 90, 0, 13],
   'council/fix1-leeg-live-bl.ifc': [330, 314, 6, 1, 9, 0, 0],
   'council/fix1-leeg-live.ifc': [322, 314, 6, 1, 1, 0, 0],
   'council/fix2-data-in-kop.ifc': [915, 915, 0, 0, 0, 0, 0],
@@ -397,8 +398,8 @@ const CORPUS: Record<string, number[]> = {
   'council/r5sol-gedeelde-calendar-pset.ifc': [72, 54, 6, 2, 10, 0, 0],
   'council/r5sol-onbekende-property.ifc': [73, 65, 1, 1, 6, 1, 0],
   'council/r5sol-parallelle-relaties.ifc': [44, 16, 5, 5, 18, 0, 11],
-  'council/r6opus-twee-werkplannen.ifc': [46, 16, 5, 6, 19, 0, 11],
-  'council/r6opus-twee-werkplannen.na.ifc': [46, 17, 5, 4, 20, 0, 12],
+  'council/r6opus-twee-werkplannen.ifc': [46, 15, 5, 5, 21, 0, 10],
+  'council/r6opus-twee-werkplannen.na.ifc': [46, 15, 5, 5, 21, 0, 10],
   'council/r6sol-dynamisch-OPS_ActivityCodes.ifc': [69, 68, 0, 0, 1, 1, 0],
   'council/r6sol-dynamisch-OPS_Assignments.ifc': [69, 68, 0, 0, 1, 1, 0],
   'council/r6sol-herkomst-na-eerste-opslag.ifc': [45, 17, 5, 5, 18, 0, 9],
@@ -603,15 +604,20 @@ for (const path of corpusFiles) {
   if (bonsai) {
     const { index: idx, cls } = bonsai;
     eq('corpus bonsai-4d: C is alleen de owner history van IfcOpenShell en wat daaraan hangt', typesOf(idx, cls, 'C'),
-      { IFCAPPLICATION: 1, IFCORGANIZATION: 1, IFCOWNERHISTORY: 14, IFCPERSON: 1, IFCPERSONANDORGANIZATION: 1 });
+      { IFCAPPLICATION: 1, IFCORGANIZATION: 1, IFCOWNERHISTORY: 11, IFCPERSON: 1, IFCPERSONANDORGANIZATION: 1 });
+    // v20: alleen het eerste live-schema is D; de aggregatie werkplan→(schema 1, schema 2) is gemengd en de
+    // IfcRelAssignsToControl van schema 2 heeft een vreemde relating, dus beide A.
     eq('corpus bonsai-4d: A (relaties van een ander naar de planning)', typesOf(idx, cls, 'A'), {
-      IFCRELASSIGNSTOCONTROL: 1, IFCRELASSIGNSTOPROCESS: 2, IFCRELASSIGNSTOPRODUCT: 2, IFCRELDECLARES: 1,
+      IFCRELAGGREGATES: 1, IFCRELASSIGNSTOCONTROL: 2, IFCRELASSIGNSTOPROCESS: 2, IFCRELASSIGNSTOPRODUCT: 2, IFCRELDECLARES: 1,
       IFCRELDEFINESBYOBJECT: 4, IFCRELDEFINESBYPROPERTIES: 1,
     });
     ok('corpus bonsai-4d: elke wand is V', Array.from({ length: idx.count }, (_, i) => i).filter(i => idx.type(i) === 'IFCWALL').every(i => classOf(cls, i) === 'V'));
     const dr = Array.from({ length: idx.count }, (_, i) => i).filter(i => cls.selection.inD[i] || cls.inR[i]);
     eq('corpus bonsai-4d: alle D- en R-stukken hebben vreemde herkomst', cls.foreignOrigin.length, dr.length);
     eq('corpus bonsai-4d: twee live-schema\'s, geen eigen baselinekop', [cls.selection.liveSchedules.length, cls.selection.ownBaselines.length], [2, 0]);
+    const [eerste, tweede] = cls.selection.liveSchedules;
+    eq('corpus bonsai-4d: alleen het eerste live-schema is D, het tweede is V (spec v20)',
+      [cls.selection.inD[eerste], cls.selection.inD[tweede], classOf(cls, tweede)], [1, 0, 'V']);
     // Dezelfde inhoud in een andere tekstvorm: dezelfde klasse per #id.
     for (const variant of ['crlf-commentaar.ifc', 'latin1.ifc', 'dubbele-globalids.ifc']) {
       const v = get(variant);
