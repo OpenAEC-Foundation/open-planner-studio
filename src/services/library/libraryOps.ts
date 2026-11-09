@@ -277,7 +277,11 @@ export function copyResourceToProject(
 
   let travelingCalendar: CalendarCopyResult | undefined;
   let calendarId = source.calendarId;
-  if (source.calendarId && pool.calendars.some((c) => c.id === source.calendarId)) {
+  // Een kostenresource heeft geen kalender (issue #815): ook een oud poolitem met nog een kalender
+  // neemt er geen mee.
+  if (isCostResource(source)) {
+    calendarId = undefined;
+  } else if (source.calendarId && pool.calendars.some((c) => c.id === source.calendarId)) {
     travelingCalendar = copyCalendarToProject(pool, source.calendarId, existingCalendars, genId) ?? undefined;
     calendarId = travelingCalendar?.calendar.id;
   } else {
@@ -294,6 +298,7 @@ export function copyResourceToProject(
     // vallen (het project heeft de ploeg niet noodzakelijk). Zo ontstaat nooit een dode verwijzing.
     parentId: undefined,
   };
+  if (isCostResource(resource)) clearCostResourceFields(resource);
   return { resource, reused: false, travelingCalendar };
 }
 

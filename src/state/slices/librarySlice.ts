@@ -1316,6 +1316,9 @@ export const createLibrarySlice: AppSliceFactory<LibrarySlice> = (runtime) => (s
         if (pIdx < 0) return;
         // Overschrijf de gevolgde velden van het poolitem met de bestandswaarden.
         for (const f of RESOURCE_DIFF_FIELDS_LOCAL) (draftPool.resources[pIdx] as unknown as Record<string, unknown>)[f] = (item as unknown as Record<string, unknown>)[f];
+        // Werd het poolitem zo een kostenresource, dan draagt het geen tarief, kalender, stappen,
+        // eenheid, ploeg of capaciteit meer van zijn vorige type (issue #815).
+        if (isCostResource(draftPool.resources[pIdx])) clearCostResourceFields(draftPool.resources[pIdx]);
         // Bewezen patroon (zie promoteResourceToPool hierboven): werk verder met de PLAIN
         // `bumped`-return-waarde, niet met een current()-herlezing van s.pools[companyId] — die
         // combinatie (plain top-level object met nog-proxied nested arrays) laat Immers current()

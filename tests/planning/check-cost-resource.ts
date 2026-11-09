@@ -37,7 +37,7 @@ import { serializeRecoverySnapshot } from '@/services/recovery/recoverySnapshotI
 import { readIFC } from '@/services/ifc/ifcReader';
 import { capturePayload } from '@/state/documentContract';
 import { materializeLibraryBoundary } from '@/state/documentActivation';
-import { classifyResourceOnOpen, computeResourceHash } from '@/services/library/libraryOps';
+import { classifyResourceOnOpen, computeResourceHash, copyResourceToProject } from '@/services/library/libraryOps';
 import { POOL_COST_RESOURCE_MARKER, readPoolIFC, writePoolIFC } from '@/services/library/libraryIfc';
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { AssignmentSetIntent, TaskAssignmentToken } from '@/types/taskGrid';
@@ -733,6 +733,42 @@ const costOf = (S: () => ReturnType<Store['getState']>, taskId: string, resource
     S().redo();
     eq(`M5 ${label}: na undo en redo staat het bedrag er`, costAmount(), amount ?? 'leeg');
   }
+}
+
+// ── N. Bibliotheek: een afwijking oplossen met "bestand" maakt het poolitem een schone COST (review 5) ──
+// Het poolitem was LABOR met capaciteit, kalender en stappen; de projectkopie is COST. Na de keuze
+// "bestand" draagt het poolitem die werkvelden niet meer, en een nieuwe projectkopie ook niet.
+{
+  const store = createAppStore();
+  const S = () => store.getState();
+  S().setProject({ startDate: '2026-06-01' });
+  const t = S().addTask({ name: 'Vergunning', time: createDefaultTaskTime('2026-06-01', 2) });
+  const cost = S().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
+  const cid = S().addCompany('Bibliotheekgrens');
+  S().bindProjectToCompany(cid);
+  const calId = S().addPoolCalendar(cid, { ...S().calendar, name: 'Bibliotheekkalender' })!;
+  const pr = S().addPoolResource(cid, { name: 'Leges', type: 'LABOR', description: '', maxUnits: 5 })!;
+  S().updatePoolResource(cid, pr, { calendarId: calId, availabilitySteps: [{ from: '2026-06-01', maxUnits: 3 }] });
+  S().assignResource(t, cost, 1, undefined, 1250.55);
+  S().linkRecognizedItems([{ kind: 'resource', projectId: cost, poolId: pr }]);
+  S().resolveDeviation({ kind: 'resource', projectId: cost }, 'file');
+  const pool = S().pools[cid].resources.find(r => r.id === pr)!;
+  eq('N1 poolitem na "bestand": schone kostenresource',
+    [pool.type, pool.maxUnits, pool.calendarId ?? null, pool.availabilitySteps ?? null], ['COST', 1, null, null]);
+  eq('N2 het bedrag in het project blijft', costOf(S, t, cost)?.costAmount, 1250.55);
+  S().newDocument();
+  S().bindProjectToCompany(cid);
+  const copyId = S().addLibraryResourceToProject(cid, pr).resourceId;
+  const copy = S().resources.find(r => r.id === copyId)!;
+  eq('N3 nieuwe projectkopie: schone kostenresource',
+    [copy.type, copy.maxUnits, copy.calendarId ?? null, copy.availabilitySteps ?? null], ['COST', 1, null, null]);
+  // Een oud poolitem dat al COST is maar nog werkvelden draagt: de kopie neemt ze niet mee.
+  const dirty = { ...S().pools[cid], resources: [{ id: 'oud', name: 'Oud', type: 'COST' as const, description: '', maxUnits: 4,
+    calendarId: calId, availabilitySteps: [{ from: '2026-06-01', maxUnits: 2 }], costPerHour: 9 }] };
+  const copied = copyResourceToProject(dirty, 'oud', [], [], (p) => `${p}-x`)!;
+  eq('N4 kopie van een oud COST-poolitem: geen werkvelden en geen meereizende kalender',
+    [copied.resource.maxUnits, copied.resource.calendarId ?? null, copied.resource.availabilitySteps ?? null,
+      copied.resource.costPerHour ?? null, copied.travelingCalendar ?? null], [1, null, null, null, null]);
 }
 
 if (diffs.length === 0) {
