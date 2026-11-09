@@ -694,7 +694,7 @@ en noem het in je rapport of PR-tekst.
    uit de review van PR #834: Start `02-11-2026 07:00`, Einde `14-11-2026 00:00` geeft 12, de getoonde dagen
    geven 13. Het raster geeft altijd een kalender mee, dus een planner ziet dit niet. Voorstel: dezelfde
    terugval als de datumcellen, of de kalender verplicht maken. — B (review Sol, PR #834)
-880. **Een fase-overgang verplaatst een kostentoewijzing nooit naar een mijlpaal-subtaak.** Krijgt een taak met
+960. **Een fase-overgang verplaatst een kostentoewijzing nooit naar een mijlpaal-subtaak.** Krijgt een taak met
      alleen kostentoewijzingen (#815) haar eerste kinderen, dan biedt de vraag *verplaatsen* alleen een subtaak aan
      die geen mijlpaal is (`src/state/structuralTransition.ts:131`, `!child.isMilestone`). Een kostenresource mag
      sinds #815 wel op een mijlpaal. Zijn alle nieuwe subtaken mijlpalen, dan blijft alleen *verwijderen* over.
