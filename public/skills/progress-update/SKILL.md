@@ -20,7 +20,7 @@ User facts only; never guess actual dates. `tools/list` wins.
 ## 2. Ask the user
 
 - Reporting/status date; actual start/finish of started/finished tasks; % and remaining estimate of running tasks; reached milestones + date.
-- Before setting the status date (it pushes unstarted work), ask about unreported due tasks: planner_list_tasks `status: "NOT_STARTED"`, `tot` = reporting date.
+- Before setting the status date (it pushes unstarted work), ask about unreported due tasks: planner_list_tasks `status: "NOT_STARTED"`, `tot` = reporting date; wait for the answer.
 
 ## 3. One planner_batch
 
